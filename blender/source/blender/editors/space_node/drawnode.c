@@ -783,6 +783,19 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 	node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
 }
 
+#ifdef WITH_OCTANE
+static void node_shader_buts_oct_tex_image(uiLayout *layout, bContext *C, PointerRNA *ptr) {
+	PointerRNA imaptr = RNA_pointer_get(ptr, "image");
+	PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
+	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
+
+	/* note: image user properties used directly here, unlike compositor image node,
+	 * which redefines them in the node struct RNA to get proper updates.
+	 */
+	node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
+}
+#endif
+
 static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	PointerRNA imaptr = RNA_pointer_get(ptr, "image");
@@ -984,6 +997,13 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 		case SH_NODE_TEX_IMAGE:
 			ntype->uifunc = node_shader_buts_tex_image;
 			break;
+#ifdef WITH_OCTANE
+		case SH_NODE_OCT_IMAGE_TEX:
+		case SH_NODE_OCT_FLOAT_IMAGE_TEX:
+		case SH_NODE_OCT_ALPHA_IMAGE_TEX:
+			ntype->uifunc = node_shader_buts_oct_tex_image;
+			break;
+#endif
 		case SH_NODE_TEX_ENVIRONMENT:
 			ntype->uifunc = node_shader_buts_tex_environment;
 			break;

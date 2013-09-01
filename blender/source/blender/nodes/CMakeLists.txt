@@ -241,6 +241,47 @@ set(SRC
 	intern/node_exec.h
 	intern/node_common.h
 )
+if(WITH_OCTANE)
+	list(APPEND SRC
+		../../../intern/octane/nodes/materials/node_oct_shader_diffuse_mat.c
+		../../../intern/octane/nodes/materials/node_oct_shader_glossy_mat.c
+		../../../intern/octane/nodes/materials/node_oct_shader_specular_mat.c
+		../../../intern/octane/nodes/materials/node_oct_shader_mix_mat.c
+		../../../intern/octane/nodes/materials/node_oct_shader_portal_mat.c
+
+		../../../intern/octane/nodes/textures/node_oct_texture_float.c
+		../../../intern/octane/nodes/textures/node_oct_texture_rgb_spectrum.c
+		../../../intern/octane/nodes/textures/node_oct_texture_gaussian_spectrum.c
+		../../../intern/octane/nodes/textures/node_oct_texture_checks.c
+		../../../intern/octane/nodes/textures/node_oct_texture_marble.c
+		../../../intern/octane/nodes/textures/node_oct_texture_ridged_fractal.c
+		../../../intern/octane/nodes/textures/node_oct_texture_saw_wave.c
+		../../../intern/octane/nodes/textures/node_oct_texture_sine_wave.c
+		../../../intern/octane/nodes/textures/node_oct_texture_triangle_wave.c
+		../../../intern/octane/nodes/textures/node_oct_texture_turbulence.c
+		../../../intern/octane/nodes/textures/node_oct_texture_clamp.c
+		../../../intern/octane/nodes/textures/node_oct_texture_cosine_mix.c
+		../../../intern/octane/nodes/textures/node_oct_texture_invert.c
+		../../../intern/octane/nodes/textures/node_oct_texture_mix.c
+		../../../intern/octane/nodes/textures/node_oct_texture_multiply.c
+		../../../intern/octane/nodes/textures/node_oct_texture_falloff.c
+		../../../intern/octane/nodes/textures/node_oct_texture_colorcorrect.c
+		../../../intern/octane/nodes/textures/node_oct_texture_image.c
+		../../../intern/octane/nodes/textures/node_oct_texture_float_image.c
+		../../../intern/octane/nodes/textures/node_oct_texture_alpha_image.c
+		../../../intern/octane/nodes/textures/node_oct_texture_dirt.c
+
+		../../../intern/octane/nodes/emissions/node_oct_emission_black_body.c
+		../../../intern/octane/nodes/emissions/node_oct_emission_texture.c
+
+		../../../intern/octane/nodes/transforms/node_oct_transform_scale.c
+		../../../intern/octane/nodes/transforms/node_oct_transform_rotation.c
+		../../../intern/octane/nodes/transforms/node_oct_transform_full.c
+
+		../../../intern/octane/nodes/mediums/node_oct_medium_absorbtion.c
+		../../../intern/octane/nodes/mediums/node_oct_medium_scattering.c
+	)
+endif()
 
 if(WITH_PYTHON)
 	list(APPEND INC
@@ -265,6 +306,10 @@ if(WITH_COMPOSITOR)
 		../compositor
 	)
 	add_definitions(-DWITH_COMPOSITOR)
+endif()
+
+if(WITH_OCTANE)
+	add_definitions(-DWITH_OCTANE)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

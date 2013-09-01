@@ -62,6 +62,7 @@ incs = [
     '#/extern/glew/include',
     '#/intern/audaspace/intern',
     '#/intern/cycles/blender',
+    '#/intern/octane/blender',
     '#/intern/smoke/extern',
     '../../blenfont',
     '../../blenkernel',
@@ -139,6 +140,9 @@ if env['WITH_BF_COLLADA']:
 
 if env['WITH_BF_CYCLES']:
     defs.append('WITH_CYCLES')
+
+if env['WITH_BF_OCTANE']:
+    defs.append('WITH_OCTANE')
 
 if env['OURPLATFORM'] == 'linux':
     cflags='-pthread'

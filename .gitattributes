@@ -1,0 +1,31 @@
+*        text=auto
+
+*.c      text
+*.cpp    text
+*.h      text
+*.hpp    text
+*.py     text
+*.sh     text eol=lf
+
+*.cs     text diff=csharp
+*.java   text diff=java
+*.html   text diff=html
+*.css    text
+*.js     text
+*.sql    text
+
+*.csproj text merge=union
+*.sln    text merge=union eol=crlf
+*.bat    text eol=crlf
+
+*.docx   diff=astextplain
+*.DOCX   diff=astextplain
+
+*.png    binary
+*.jpg    binary
+*.bmp    binary
+*.pdn    binary
+*.zip    binary
+*.7z     binary
+*.lib    binary
+*.blend* binary

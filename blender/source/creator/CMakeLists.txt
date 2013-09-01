@@ -947,6 +947,7 @@ endif()
 		cycles_kernel
 		cycles_util
 		cycles_subd
+		bf_intern_octane
 		bf_intern_raskter
 		bf_intern_opencolorio
 		extern_rangetree

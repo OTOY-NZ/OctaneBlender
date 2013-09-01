@@ -140,6 +140,7 @@ void ntreeShaderGetTexcoMode(bNodeTree *ntree, int r_mode, short *texco, int *mo
 void node_gpu_stack_from_data(struct GPUNodeStack *gs, int type, bNodeStack *ns)
 {
 	memset(gs, 0, sizeof(*gs));
+    if(!ns) return;/* XXX JimStar: bug fix, added "if(ns)", as not all sockets use stack */
 	
 	copy_v4_v4(gs->vec, ns->vec);
 	gs->link = ns->data;
@@ -167,6 +168,7 @@ void node_gpu_stack_from_data(struct GPUNodeStack *gs, int type, bNodeStack *ns)
 
 void node_data_from_gpu_stack(bNodeStack *ns, GPUNodeStack *gs)
 {
+    if(!ns) return;/* XXX JimStar: bug fix, added "if(ns)", as not all sockets use stack */
 	copy_v4_v4(ns->vec, gs->vec);
 	ns->data = gs->link;
 	ns->sockettype = gs->sockettype;

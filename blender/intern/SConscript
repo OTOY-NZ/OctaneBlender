@@ -53,6 +53,9 @@ if env['WITH_BF_FLUID']:
 if env['WITH_BF_CYCLES']:
     SConscript(['cycles/SConscript'])
 
+if env['WITH_BF_OCTANE']:
+    SConscript(['octane/SConscript'])
+
 if env['WITH_BF_BOOLEAN']:
     SConscript(['bsp/SConscript'])
 

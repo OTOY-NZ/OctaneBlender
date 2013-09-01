@@ -266,6 +266,14 @@ typedef struct bNodeType {
 #define NODE_CLASS_SHADER 			40
 #define NODE_CLASS_LAYOUT			100
 
+#ifdef WITH_OCTANE
+#define NODE_CLASS_OCT_SHADER		1000
+#define NODE_CLASS_OCT_TEXTURE		1001
+#define NODE_CLASS_OCT_EMISSION	    1002
+#define NODE_CLASS_OCT_MEDIUM	    1003
+#define NODE_CLASS_OCT_TRANSFORM    1004
+#endif
+
 /* nodetype->compatibility */
 #define NODE_OLD_SHADING	1
 #define NODE_NEW_SHADING	2
@@ -742,6 +750,46 @@ struct ShadeResult;
 #define SH_NODE_WIREFRAME				178
 #define SH_NODE_BSDF_TOON				179
 #define SH_NODE_WAVELENGTH				180
+
+#ifdef WITH_OCTANE
+#define SH_NODE_OCT_DIFFUSE_MAT			800
+#define SH_NODE_OCT_GLOSSY_MAT			801
+#define SH_NODE_OCT_SPECULAR_MAT		802
+#define SH_NODE_OCT_MIX_MAT				803
+#define SH_NODE_OCT_PORTAL_MAT			804
+
+#define SH_NODE_OCT_BBODY_EMI			820
+#define SH_NODE_OCT_TEXTURE_EMI			821
+
+#define SH_NODE_OCT_SCALE_TRN			830
+#define SH_NODE_OCT_ROTATE_TRN			831
+#define SH_NODE_OCT_FULL_TRN			832
+
+#define SH_NODE_OCT_ABSORB_MED			840
+#define SH_NODE_OCT_SCATTER_MED			841
+
+#define SH_NODE_OCT_FLOAT_TEX               850
+#define SH_NODE_OCT_RGB_SPECTRUM_TEX        851
+#define SH_NODE_OCT_GAUSSIAN_SPECTRUM_TEX   852
+#define SH_NODE_OCT_CHECKS_TEX              853
+#define SH_NODE_OCT_MARBLE_TEX              854
+#define SH_NODE_OCT_RIDGED_FRACTAL_TEX      855
+#define SH_NODE_OCT_SAW_WAVE_TEX            856
+#define SH_NODE_OCT_SINE_WAVE_TEX           857
+#define SH_NODE_OCT_TRIANGLE_WAVE_TEX       858
+#define SH_NODE_OCT_TURBULENCE_TEX          859
+#define SH_NODE_OCT_CLAMP_TEX               860
+#define SH_NODE_OCT_COSINE_MIX_TEX          861
+#define SH_NODE_OCT_INVERT_TEX              862
+#define SH_NODE_OCT_MIX_TEX                 863
+#define SH_NODE_OCT_MULTIPLY_TEX            864
+#define SH_NODE_OCT_FALLOFF_TEX             865
+#define SH_NODE_OCT_COLOR_CORRECT_TEX       866
+#define SH_NODE_OCT_IMAGE_TEX               867
+#define SH_NODE_OCT_FLOAT_IMAGE_TEX         868
+#define SH_NODE_OCT_ALPHA_IMAGE_TEX         869
+#define SH_NODE_OCT_DIRT_TEX                870
+#endif /* WITH_OCTANE */
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

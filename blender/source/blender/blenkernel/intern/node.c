@@ -3467,6 +3467,47 @@ static void registerShaderNodes(void)
 	register_node_type_sh_tex_magic();
 	register_node_type_sh_tex_checker();
 	register_node_type_sh_tex_brick();
+
+#ifdef WITH_OCTANE
+    register_node_type_sh_oct_diffuse_mat();
+    register_node_type_sh_oct_glossy_mat();
+    register_node_type_sh_oct_specular_mat();
+    register_node_type_sh_oct_mix_mat();
+    register_node_type_sh_oct_portal_mat();
+
+    register_node_type_tex_oct_float();
+    register_node_type_tex_oct_rgb_spectrum();
+    register_node_type_tex_oct_gaussian_spectrum();
+    register_node_type_tex_oct_checks();
+    register_node_type_tex_oct_marble();
+    register_node_type_tex_oct_ridged_fractal();
+    register_node_type_tex_oct_saw_wave();
+    register_node_type_tex_oct_sine_wave();
+    register_node_type_tex_oct_triangle_wave();
+    register_node_type_tex_oct_turbulence();
+    register_node_type_tex_oct_clamp();
+    register_node_type_tex_oct_cosine_mix();
+    register_node_type_tex_oct_invert();
+    register_node_type_tex_oct_mix();
+    register_node_type_tex_oct_multiply();
+    register_node_type_tex_oct_falloff();
+    register_node_type_tex_oct_colorcorrect();
+    register_node_type_tex_oct_image();
+    register_node_type_tex_oct_float_image();
+    register_node_type_tex_oct_alpha_image();
+    register_node_type_tex_oct_dirt();
+
+    register_node_type_emission_oct_black_body();
+    register_node_type_emission_oct_texture();
+
+    register_node_type_transform_oct_scale();
+    register_node_type_transform_oct_rotation();
+    register_node_type_transform_oct_full();
+
+    register_node_type_medium_oct_absorbtion();
+    register_node_type_medium_oct_scattering();
+#endif /* WITH_OCTANE */
+
 }
 
 static void registerTextureNodes(void)

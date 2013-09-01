@@ -1,0 +1,6 @@
+BlenderSync - Blender scene export to render engine format.
+
+
+c:\CProjects\BlenderSVN\blender\source\blender\makesrna\intern\rna_userdef.c
+c:\CProjects\BlenderSVN\blender\source\blender\python\intern\bpy_interface.c
+c:\CProjects\BlenderSVN\blender\source\blenderplayer\bad_level_call_stubs\stubs.c

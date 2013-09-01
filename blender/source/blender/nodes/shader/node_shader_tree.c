@@ -70,6 +70,7 @@ static int shader_tree_poll(const bContext *C, bNodeTreeType *UNUSED(treetype))
 	return (scene->r.engine[0] == '\0' ||
 	        STREQ(scene->r.engine, "BLENDER_RENDER") ||
 	        STREQ(scene->r.engine, "BLENDER_GAME") ||
+            STREQ(scene->r.engine, "octane") ||
 	        STREQ(scene->r.engine, "CYCLES"));
 }
 
@@ -109,14 +110,36 @@ static void foreach_nodeclass(Scene *scene, void *calldata, bNodeClassCallback f
 	func(calldata, NODE_CLASS_INPUT, N_("Input"));
 	func(calldata, NODE_CLASS_OUTPUT, N_("Output"));
 
+#ifdef WITH_OCTANE
+	if (BKE_scene_use_new_shading_nodes(scene)) {
+        if(!strcmp(scene->r.engine, "octane")) {
+		    func(calldata, NODE_CLASS_OCT_SHADER, N_("Octane Shader"));
+		    func(calldata, NODE_CLASS_OCT_TEXTURE, N_("Octane Texture"));
+		    func(calldata, NODE_CLASS_OCT_EMISSION, N_("Octane Emission"));
+		    func(calldata, NODE_CLASS_OCT_MEDIUM, N_("Octane Medium"));
+		    func(calldata, NODE_CLASS_OCT_TRANSFORM, N_("Octane Transform"));
+        }
+        else {
+		    func(calldata, NODE_CLASS_SHADER, N_("Shader"));
+		    func(calldata, NODE_CLASS_TEXTURE, N_("Texture"));
+        }
+	}
+    if(strcmp(scene->r.engine, "octane")) {
+        func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
+        func(calldata, NODE_CLASS_OP_VECTOR, N_("Vector"));
+        func(calldata, NODE_CLASS_CONVERTOR, N_("Convertor"));
+    }
+#else
 	if (BKE_scene_use_new_shading_nodes(scene)) {
 		func(calldata, NODE_CLASS_SHADER, N_("Shader"));
 		func(calldata, NODE_CLASS_TEXTURE, N_("Texture"));
 	}
-	
-	func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
-	func(calldata, NODE_CLASS_OP_VECTOR, N_("Vector"));
-	func(calldata, NODE_CLASS_CONVERTOR, N_("Convertor"));
+
+    func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
+    func(calldata, NODE_CLASS_OP_VECTOR, N_("Vector"));
+    func(calldata, NODE_CLASS_CONVERTOR, N_("Convertor"));
+#endif
+
 	func(calldata, NODE_CLASS_SCRIPT, N_("Script"));
 	func(calldata, NODE_CLASS_GROUP, N_("Group"));
 	func(calldata, NODE_CLASS_INTERFACE, N_("Interface"));

@@ -68,6 +68,10 @@
 
 #include "CCL_api.h"
 
+#ifdef WITH_OCTANE
+#include "OCT_api.h"
+#endif
+
 #include "BPY_extern.h"
 
 #include "../generic/bpy_internal_import.h"  /* our own imports */
@@ -209,6 +213,14 @@ static PyObject *CCL_initPython(void)
 }
 #endif
 
+#ifdef WITH_OCTANE
+/* defined in octane module */
+static PyObject *OCT_initPython(void)
+{
+	return (PyObject *)OCT_python_module_init();
+}
+#endif
+
 static struct _inittab bpy_internal_modules[] = {
 	{(char *)"mathutils", PyInit_mathutils},
 //	{(char *)"mathutils.geometry", PyInit_mathutils_geometry},
@@ -224,6 +236,9 @@ static struct _inittab bpy_internal_modules[] = {
 #endif
 #ifdef WITH_CYCLES
 	{(char *)"_cycles", CCL_initPython},
+#endif
+#ifdef WITH_OCTANE
+	{(char *)"_octane", OCT_initPython},
 #endif
 	{(char *)"gpu", GPU_initPython},
 	{(char *)"idprop", BPyInit_idprop},

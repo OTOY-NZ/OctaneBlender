@@ -669,6 +669,19 @@ def AppIt(target=None, source=None, env=None):
                 cmd = 'cp -R %s/../intern/cycles/kernel/shaders/*.oso %s/shader' % (builddir, cinstalldir)
                 commands.getoutput(cmd)
 
+        if env['WITH_BF_OCTANE']:
+            croot = '%s/intern/octane' % (bldroot)
+            cinstalldir = '%s/%s.app/Contents/MacOS/%s/scripts/addons/octane' % (installdir,binary,VERSION)
+
+            cmd = 'mkdir %s' % (cinstalldir)
+            commands.getoutput(cmd)
+            cmd = 'mkdir %s/lib' % (cinstalldir)
+            commands.getoutput(cmd)
+            cmd = 'cp -R %s/blender/addon/*.py %s/' % (croot, cinstalldir)
+            commands.getoutput(cmd)
+            cmd = 'cp -R %s/doc/license %s/license' % (croot, cinstalldir)
+            commands.getoutput(cmd)
+
     if env['WITH_OSX_STATICPYTHON']:
         cmd = 'mkdir %s/%s.app/Contents/MacOS/%s/python/'%(installdir,binary, VERSION)
         commands.getoutput(cmd)

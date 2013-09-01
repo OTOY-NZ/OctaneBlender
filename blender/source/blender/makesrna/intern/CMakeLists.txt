@@ -155,6 +155,10 @@ if(WITH_CYCLES)
 	add_definitions(-DWITH_CYCLES)
 endif()
 
+if(WITH_OCTANE)
+	add_definitions(-DWITH_OCTANE)
+endif()
+
 if(WITH_PYTHON)
 	add_definitions(-DWITH_PYTHON)
 endif()
@@ -275,6 +279,7 @@ blender_include_dirs(
 	../../render/extern/include
 	../../../../intern/audaspace/intern
 	../../../../intern/cycles/blender
+	../../../../intern/octane/blender
 	../../../../intern/guardedalloc
 	../../../../intern/memutil
 	../../../../intern/smoke/extern

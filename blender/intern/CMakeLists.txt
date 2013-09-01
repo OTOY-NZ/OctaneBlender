@@ -65,6 +65,10 @@ if(WITH_CYCLES)
 	add_subdirectory(cycles)
 endif()
 
+if(WITH_OCTANE)
+	add_subdirectory(octane)
+endif()
+
 if(WITH_INTERNATIONAL)
 	add_subdirectory(locale)
 endif()

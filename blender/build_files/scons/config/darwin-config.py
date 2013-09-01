@@ -275,6 +275,7 @@ BF_PCRE_LIBPATH = '${BF_PCRE}/lib'
 
 # Cycles
 WITH_BF_CYCLES = True
+WITH_BF_OCTANE = True
 
 #OSL
 

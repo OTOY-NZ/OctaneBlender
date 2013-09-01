@@ -40,6 +40,7 @@ incs = [
     '#/extern/glew/include',
     '#/intern/audaspace/intern',
     '#/intern/cycles/blender',
+    '#/intern/octane/blender',
     '#/intern/smoke/extern',
     '../blenfont',
     '../blenkernel',
@@ -111,6 +112,9 @@ if env['WITH_BF_OCEANSIM']:
 
 if env['WITH_BF_CYCLES']:
     defs.append('WITH_CYCLES')
+
+if env['WITH_BF_OCTANE']:
+    defs.append('WITH_OCTANE')
 
 if env['WITH_BF_SDL']:
     defs.append('WITH_SDL')

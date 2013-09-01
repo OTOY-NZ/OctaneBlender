@@ -1,0 +1,6 @@
+build/
+*.bak/
+.svn/
+Setup/*.exe
+.kdev4/
+*.kdev4

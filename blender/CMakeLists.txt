@@ -268,6 +268,9 @@ set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 CACHE STRING "CUDA archite
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 
+# OctaneRender
+option(WITH_OCTANE					"Enable OctaneRender Engine" ON)
+
 # LLVM
 option(WITH_LLVM					"Use LLVM" OFF)
 option(LLVM_STATIC					"Link with LLVM static libraries" ON)
@@ -429,6 +432,7 @@ if(NOT WITH_BOOST)
 	endmacro()
 
 	set_and_warn(WITH_CYCLES         OFF)
+	set_and_warn(WITH_OCTANE         OFF)
 	set_and_warn(WITH_MOD_BOOLEAN    OFF)
 	set_and_warn(WITH_AUDASPACE      OFF)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
@@ -444,6 +448,11 @@ endif()
 
 # auto enable openimageio for cycles
 if(WITH_CYCLES)
+	set(WITH_OPENIMAGEIO ON)
+endif()
+
+# auto enable openimageio for octane
+if(WITH_OCTANE)
 	set(WITH_OPENIMAGEIO ON)
 endif()
 
@@ -745,7 +754,7 @@ if(UNIX AND NOT APPLE)
 
 		if(NOT OPENIMAGEIO_FOUND)
 			set(WITH_OPENIMAGEIO OFF)
-			message(STATUS "OpenImageIO not found, disabling WITH_CYCLES")
+			message(STATUS "OpenImageIO not found, disabling WITH_CYCLES and WITH_OCTANE")
 		endif()
 	endif()
 
@@ -1811,6 +1820,15 @@ if(WITH_CYCLES)
 	endif()
 endif()
 
+if(WITH_OCTANE)
+	if(NOT WITH_OPENIMAGEIO)
+		message(FATAL_ERROR "OctaneRender reqires WITH_OPENIMAGEIO, the library may not have been found. Configure OIIO or disable WITH_OCTANE")
+	endif()
+	if(NOT WITH_BOOST)
+		message(FATAL_ERROR "OctaneRender reqires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_OCTANE")
+	endif()
+endif()
+
 if(WITH_INTERNATIONAL)
 	if(NOT WITH_BOOST)
 		message(FATAL_ERROR "Internationalization reqires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_INTERNATIONAL")
@@ -2229,6 +2247,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_INTERNATIONAL)
 	info_cfg_option(WITH_INPUT_NDOF)
 	info_cfg_option(WITH_CYCLES)
+	info_cfg_option(WITH_OCTANE)
 	info_cfg_option(WITH_FREESTYLE)
 	info_cfg_option(WITH_OPENCOLORIO)
 

@@ -124,6 +124,47 @@ void register_node_type_sh_tex_noise(void);
 void register_node_type_sh_tex_checker(void);
 void register_node_type_sh_bump(void);
 
+#ifdef WITH_OCTANE
+void register_node_type_sh_oct_diffuse_mat(void);
+void register_node_type_sh_oct_glossy_mat(void);
+void register_node_type_sh_oct_specular_mat(void);
+void register_node_type_sh_oct_mix_mat(void);
+void register_node_type_sh_oct_portal_mat(void);
+
+void register_node_type_emission_oct_null(void);
+void register_node_type_emission_oct_black_body(void);
+void register_node_type_emission_oct_texture(void);
+
+void register_node_type_transform_oct_scale(void);
+void register_node_type_transform_oct_rotation(void);
+void register_node_type_transform_oct_full(void);
+
+void register_node_type_medium_oct_absorbtion(void);
+void register_node_type_medium_oct_scattering(void);
+
+void register_node_type_tex_oct_float(void);
+void register_node_type_tex_oct_rgb_spectrum(void);
+void register_node_type_tex_oct_gaussian_spectrum(void);
+void register_node_type_tex_oct_checks(void);
+void register_node_type_tex_oct_marble(void);
+void register_node_type_tex_oct_ridged_fractal(void);
+void register_node_type_tex_oct_saw_wave(void);
+void register_node_type_tex_oct_sine_wave(void);
+void register_node_type_tex_oct_triangle_wave(void);
+void register_node_type_tex_oct_turbulence(void);
+void register_node_type_tex_oct_clamp(void);
+void register_node_type_tex_oct_cosine_mix(void);
+void register_node_type_tex_oct_invert(void);
+void register_node_type_tex_oct_mix(void);
+void register_node_type_tex_oct_multiply(void);
+void register_node_type_tex_oct_falloff(void);
+void register_node_type_tex_oct_colorcorrect(void);
+void register_node_type_tex_oct_image(void);
+void register_node_type_tex_oct_float_image(void);
+void register_node_type_tex_oct_alpha_image(void);
+void register_node_type_tex_oct_dirt(void);
+#endif /* WITH_OCTANE */
+
 #endif
 
 

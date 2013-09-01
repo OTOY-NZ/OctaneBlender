@@ -161,6 +161,7 @@ def validate_arguments(args, bc):
             'BUILDBOT_BRANCH',
             'WITH_BF_3DMOUSE', 'WITH_BF_STATIC3DMOUSE', 'BF_3DMOUSE', 'BF_3DMOUSE_INC', 'BF_3DMOUSE_LIB', 'BF_3DMOUSE_LIBPATH', 'BF_3DMOUSE_LIB_STATIC',
             'WITH_BF_CYCLES', 'WITH_BF_CYCLES_CUDA_BINARIES', 'BF_CYCLES_CUDA_NVCC', 'BF_CYCLES_CUDA_NVCC', 'WITH_BF_CYCLES_CUDA_THREADED_COMPILE',
+            'WITH_BF_OCTANE',
             'WITH_BF_OIIO', 'WITH_BF_STATICOIIO', 'BF_OIIO', 'BF_OIIO_INC', 'BF_OIIO_LIB', 'BF_OIIO_LIB_STATIC', 'BF_OIIO_LIBPATH',
             'WITH_BF_OCIO', 'WITH_BF_STATICOCIO', 'BF_OCIO', 'BF_OCIO_INC', 'BF_OCIO_LIB', 'BF_OCIO_LIB_STATIC', 'BF_OCIO_LIBPATH',
             'WITH_BF_BOOST', 'WITH_BF_STATICBOOST', 'BF_BOOST', 'BF_BOOST_INC', 'BF_BOOST_LIB', 'BF_BOOST_LIB_INTERNATIONAL', 'BF_BOOST_LIB_STATIC', 'BF_BOOST_LIBPATH',
@@ -570,6 +571,8 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_CYCLES_CUDA_THREADED_COMPILE', 'Build several render kernels at once (using BF_NUMJOBS)', False)),
         ('BF_CYCLES_CUDA_NVCC', 'CUDA nvcc compiler path', ''),
         ('BF_CYCLES_CUDA_BINARIES_ARCH', 'CUDA architectures to compile binaries for', []),
+
+        (BoolVariable('WITH_BF_OCTANE', 'Build with the OctaneRender engine', True)),
 
         (BoolVariable('WITH_BF_OIIO', 'Build with OpenImageIO', False)),
         (BoolVariable('WITH_BF_STATICOIIO', 'Staticly link to OpenImageIO', False)),

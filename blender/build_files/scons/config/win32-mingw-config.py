@@ -151,6 +151,8 @@ WITH_BF_CYCLES_CUDA_BINARIES = False
 BF_CYCLES_CUDA_NVCC = "" # Path to the NVIDIA CUDA compiler
 BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30', 'sm_35']
 
+WITH_BF_OCTANE = True 
+
 WITH_BF_OIIO = True
 BF_OIIO = LIBDIR + '/openimageio'
 BF_OIIO_INC = '${BF_OIIO}/include'

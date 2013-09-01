@@ -1192,6 +1192,15 @@ compile_OIIO() {
       cat << EOF | patch -p1
 --- a/src/libOpenImageIO/CMakeLists.txt
 +++ b/src/libOpenImageIO/CMakeLists.txt
+@@ -207,7 +207,7 @@
+ endif ()
+ target_link_libraries (OpenImageIO
+                            \${VISIBILITY_COMMAND} \${VISIBILITY_MAP_COMMAND}
+-                           \${Boost_LIBRARIES})
++                           \${Boost_LIBRARIES} rt)
+ 
+ # Link against system TBB library if specified
+ if (USE_TBB AND USE_EXTERNAL_TBB)
 @@ -289,12 +289,12 @@
  
  add_executable (imagebuf_test imagebuf_test.cpp)
@@ -1345,7 +1354,8 @@ EOF
     cmake_d="-D CMAKE_BUILD_TYPE=Release"
     cmake_d="$cmake_d -D CMAKE_PREFIX_PATH=$_inst"
     cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$_inst"
-    cmake_d="$cmake_d -D BUILDSTATIC=OFF"
+    cmake_d="$cmake_d -D BUILDSTATIC=ON"
+    cmake_d="$cmake_d -D LINKSTATIC=O"
 
     if [ $_with_built_openexr == true ]; then
       cmake_d="$cmake_d -D ILMBASE_HOME=$INST/openexr"

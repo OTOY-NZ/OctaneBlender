@@ -111,15 +111,31 @@ static void texture_get_from_context(const bContext *C, bNodeTreeType *UNUSED(tr
 	}
 }
 
-static void foreach_nodeclass(Scene *UNUSED(scene), void *calldata, bNodeClassCallback func)
+static void foreach_nodeclass(Scene *scene, void *calldata, bNodeClassCallback func)
 {
 	func(calldata, NODE_CLASS_INPUT, N_("Input"));
 	func(calldata, NODE_CLASS_OUTPUT, N_("Output"));
+#ifdef WITH_OCTANE
+    if(!strcmp(scene->r.engine, "octane")) {
+        func(calldata, NODE_CLASS_OCT_TEXTURE, N_("Octane Texture"));
+        func(calldata, NODE_CLASS_OCT_EMISSION, N_("Octane Emission"));
+        func(calldata, NODE_CLASS_OCT_MEDIUM, N_("Octane Medium"));
+        func(calldata, NODE_CLASS_OCT_TRANSFORM, N_("Octane Transform"));
+    }
+    else {
+        func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
+        func(calldata, NODE_CLASS_PATTERN, N_("Patterns"));
+        func(calldata, NODE_CLASS_TEXTURE, N_("Textures"));
+        func(calldata, NODE_CLASS_CONVERTOR, N_("Convertor"));
+        func(calldata, NODE_CLASS_DISTORT, N_("Distort"));
+    }
+#else
 	func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
 	func(calldata, NODE_CLASS_PATTERN, N_("Patterns"));
 	func(calldata, NODE_CLASS_TEXTURE, N_("Textures"));
 	func(calldata, NODE_CLASS_CONVERTOR, N_("Convertor"));
 	func(calldata, NODE_CLASS_DISTORT, N_("Distort"));
+#endif
 	func(calldata, NODE_CLASS_GROUP, N_("Group"));
 	func(calldata, NODE_CLASS_INTERFACE, N_("Interface"));
 	func(calldata, NODE_CLASS_LAYOUT, N_("Layout"));
@@ -286,7 +302,8 @@ void ntreeTexEndExecTree(bNodeTreeExec *exec)
 		ntreeTexEndExecTree_internal(exec);
 		
 		/* XXX clear nodetree backpointer to exec data, same problem as noted in ntreeBeginExecTree */
-		exec->nodetree->execdata = NULL;
+        /* XXX JimStar: Moved to "end_render_texture()", as "ntreeTexEndExecTree_internal()" frees the memory pointed by "exec". */
+		/* exec->nodetree->execdata = NULL; */
 	}
 }
 

@@ -140,8 +140,12 @@ void init_render_textures(Render *re)
 
 static void end_render_texture(Tex *tex)
 {
-	if (tex && tex->use_nodes && tex->nodetree && tex->nodetree->execdata)
+    if (tex && tex->use_nodes && tex->nodetree && tex->nodetree->execdata) {
 		ntreeTexEndExecTree(tex->nodetree->execdata);
+		/* XXX clear nodetree backpointer to exec data, same problem as noted in ntreeBeginExecTree */
+        /* XXX JimStar: Moved from "ntreeTexEndExecTree()", as "ntreeTexEndExecTree_internal()" there frees the memory pointed by "exec" parameter. */
+		tex->nodetree->execdata = NULL;
+    }
 }
 
 void end_render_textures(Render *re)

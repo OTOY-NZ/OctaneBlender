@@ -114,6 +114,47 @@ DefNode( ShaderNode,     SH_NODE_TEX_CHECKER,        def_sh_tex_checker,     "TE
 DefNode( ShaderNode,     SH_NODE_TEX_BRICK,          def_sh_tex_brick,       "TEX_BRICK",          TexBrick,         "Brick Texture",     ""       )
 DefNode( ShaderNode,     SH_NODE_TEX_COORD,          def_sh_tex_coord,       "TEX_COORD",          TexCoord,         "Texture Coordinate",""       )
 
+
+#ifdef WITH_OCTANE
+DefNode( ShaderNode,     SH_NODE_OCT_DIFFUSE_MAT,    0,                      "OCT_DIFFUSE_MAT",    OctDiffuseMat,    "Octane Diffuse Material",""  )
+DefNode( ShaderNode,     SH_NODE_OCT_GLOSSY_MAT,     0,                      "OCT_GLOSSY_MAT",     OctGlossyMat,     "Octane Glossy Material",""   )
+DefNode( ShaderNode,     SH_NODE_OCT_SPECULAR_MAT,   0,                      "OCT_SPECULAR_MAT",   OctSpecularMat,   "Octane Specular Material","" )
+DefNode( ShaderNode,     SH_NODE_OCT_MIX_MAT,        0,                      "OCT_MIX_MAT",        OctMixMat,        "Octane Mix Material",""      )
+DefNode( ShaderNode,     SH_NODE_OCT_PORTAL_MAT,     0,                      "OCT_PORTAL_MAT",     OctPortalMat,     "Octane Portal Material",""   )
+
+DefNode( ShaderNode,     SH_NODE_OCT_FLOAT_TEX,             0,               "OCT_FLOAT_TEX",         OctFloatTex,         "Octane Float Tex",             ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_RGB_SPECTRUM_TEX,      0,               "OCT_RGBSPECTRUM_TEX",   OctRGBSpectrumTex,   "Octane RGBSpectrum Tex",       ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_GAUSSIAN_SPECTRUM_TEX, 0,               "OCT_GAUSSSPECTRUM_TEX", OctGaussSpectrumTex, "Octane Gaussian Spectrum Tex", ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_CHECKS_TEX,            0,               "OCT_CHECKS_TEX",        OctChecksTex,        "Octane Checks Tex",            ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_MARBLE_TEX,            0,               "OCT_MARBLE_TEX",        OctMarbleTex,        "Octane Marble Tex",            ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_RIDGED_FRACTAL_TEX,    0,               "OCT_RDGFRACTAL_TEX",    OctRidgedFractalTex, "Octane Ridged Fractal Tex",    ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_SAW_WAVE_TEX,          0,               "OCT_SAWWAVE_TEX",       OctSawWaveTex,       "Octane Saw Wave Tex",          ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_SINE_WAVE_TEX,         0,               "OCT_SINEWAVE_TEX",      OctSineWaveTex,      "Octane Sine Wave Tex",         ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_TRIANGLE_WAVE_TEX,     0,               "OCT_TRIWAVE_TEX",       OctTriWaveTex,       "Octane Triangle Wave Tex",     ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_TURBULENCE_TEX,        0,               "OCT_TURBULENCE_TEX",    OctTurbulenceTex,    "Octane Turbulence Tex",        ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_CLAMP_TEX,             0,               "OCT_CLAMP_TEX",         OctClampTex,         "Octane Clamp Tex",             ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_COSINE_MIX_TEX,        0,               "OCT_COSMIX_TEX",        OctCosineMixTex,     "Octane Cosine Mix Tex",        ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_INVERT_TEX,            0,               "OCT_INVERT_TEX",        OctInvertTex,        "Octane Invert Tex",            ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_MIX_TEX,               0,               "OCT_MIX_TEX",           OctMixTex,           "Octane Mix Tex",               ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_MULTIPLY_TEX,          0,               "OCT_MULTIPLY_TEX",      OctMultiplyTex,      "Octane Multiply Tex",          ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_FALLOFF_TEX,           0,               "OCT_FALLOFF_TEX",       OctFalloffTex,       "Octane Falloff Tex",           ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_COLOR_CORRECT_TEX,     0,               "OCT_CCORRECT_TEX",      OctColorCorrectTex,  "Octane Color Correct Tex",     ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_IMAGE_TEX,             def_sh_tex_image,"OCT_IMAGE_TEX",         OctImageTex,         "Octane Image Tex",             ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_FLOAT_IMAGE_TEX,       def_sh_tex_image,"OCT_FIMAGE_TEX",        OctFloatImageTex,    "Octane Float Image Tex",       ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_ALPHA_IMAGE_TEX,       def_sh_tex_image,"OCT_AIMAGE_TEX",        OctAlphaImageTex,    "Octane Alpha Image Tex",       ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_DIRT_TEX,              0,               "OCT_DIRT_TEX",          OctDirtTex,          "Octane Dirt Tex",              ""    )
+
+DefNode( ShaderNode,     SH_NODE_OCT_BBODY_EMI,             0,               "OCT_BBODY_EMI",         OctBlackBodyEmission,"Octane Black Body Emission",   ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_TEXTURE_EMI,           0,               "OCT_TEXT_EMI",          OctTextureEmission,  "Octane Texture Emission",      ""    )
+
+DefNode( ShaderNode,     SH_NODE_OCT_SCALE_TRN,             0,               "OCT_SCALE_TRN",         OctScaleTransform,   "Octane Scale Transform",       ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_ROTATE_TRN,            0,               "OCT_ROTATE_TRN",        OctRotateTransform,  "Octane Rotate Transform",      ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_FULL_TRN,              0,               "OCT_FULL_TRN",          OctFullTransform,    "Octane Full Transform",        ""    )
+
+DefNode( ShaderNode,     SH_NODE_OCT_ABSORB_MED,            0,               "OCT_ABSORB_MED",        OctAbsorbtionMedium, "Octane Absorbtion Medium",     ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_SCATTER_MED,           0,               "OCT_SCATTER_MED",       OctScatteringMedium, "Octane Scatter Medium",        ""    )
+#endif /* WITH_OCTANE */
+
 DefNode( CompositorNode, CMP_NODE_VIEWER,         def_cmp_viewer,         "VIEWER",         Viewer,           "Viewer",            ""              )
 DefNode( CompositorNode, CMP_NODE_RGB,            0,                      "RGB",            RGB,              "RGB",               ""              )
 DefNode( CompositorNode, CMP_NODE_VALUE,          0,                      "VALUE",          Value,            "Value",             ""              )

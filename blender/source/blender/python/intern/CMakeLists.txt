@@ -35,6 +35,7 @@ set(INC
 	../../makesrna
 	../../windowmanager
 	../../../../intern/cycles/blender
+	../../../../intern/octane/blender
 	../../../../intern/guardedalloc
 )
 
@@ -137,6 +138,10 @@ endif()
 
 if(WITH_CYCLES)
 	add_definitions(-DWITH_CYCLES)
+endif()
+
+if(WITH_OCTANE)
+	add_definitions(-DWITH_OCTANE)
 endif()
 
 if(WITH_CYCLES_OSL)

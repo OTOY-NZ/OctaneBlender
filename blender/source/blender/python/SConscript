@@ -36,6 +36,7 @@ incs = [
     '#/extern/glew/include',
     '#/intern/audaspace/intern',
     '#/intern/cycles/blender',
+    '#/intern/octane/blender',
     '../blenfont',
     '../blenkernel',
     '../blenlib',
@@ -95,6 +96,9 @@ if env['BF_BUILDINFO']:
 
 if env['WITH_BF_BULLET']:
     defs.append('WITH_BULLET')
+
+if env['WITH_BF_OCTANE']:
+    defs.append('WITH_OCTANE')
 
 # AVI is always on currently
 
