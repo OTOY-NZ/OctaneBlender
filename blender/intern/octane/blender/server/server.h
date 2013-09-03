@@ -152,7 +152,7 @@ enum PacketType {
     DEL_TRANSFORM,
 
     LOAD_MEDIUM_FIRST,
-    LOAD_ABSORBTION_MEDIUM = LOAD_MEDIUM_FIRST,
+    LOAD_ABSORPTION_MEDIUM = LOAD_MEDIUM_FIRST,
     LOAD_SCATTERING_MEDIUM,
     LOAD_MEDIUM_LAST = LOAD_SCATTERING_MEDIUM,
     DEL_MEDIUM,
@@ -1598,7 +1598,7 @@ public:
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // MEDIUMS
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    inline void load_absorbtion_medium(OctaneAbsorbtionMedium* node) {
+    inline void load_absorption_medium(OctaneAbsorptionMedium* node) {
         if(socket < 0) return;
 
         uint64_t size = sizeof(float) * 2
@@ -1606,13 +1606,13 @@ public:
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
-            RPCSend snd(socket, size, LOAD_ABSORBTION_MEDIUM, node->name.c_str());
+            RPCSend snd(socket, size, LOAD_ABSORPTION_MEDIUM, node->name.c_str());
             snd << node->Absorption_default_val << node->Scale
                 << node->Absorption.c_str();
             snd.write();
         }
-        wait_error(LOAD_ABSORBTION_MEDIUM);
-    } //load_absorbtion_medium()
+        wait_error(LOAD_ABSORPTION_MEDIUM);
+    } //load_absorption_medium()
 
     inline void load_scattering_medium(OctaneScatteringMedium* node) {
         if(socket < 0) return;

@@ -265,11 +265,11 @@ OctaneMediumNode::OctaneMediumNode() : ShaderNode("oTex") {
 void OctaneMediumNode::load_to_server(RenderServer* server) {
 }
 
-OctaneAbsorbtionMedium::OctaneAbsorbtionMedium() {
+OctaneAbsorptionMedium::OctaneAbsorptionMedium() {
 }
 
-void OctaneAbsorbtionMedium::load_to_server(RenderServer* server) {
-    server->load_absorbtion_medium(this);
+void OctaneAbsorptionMedium::load_to_server(RenderServer* server) {
+    server->load_absorption_medium(this);
 }
 
 OctaneScatteringMedium::OctaneScatteringMedium() {

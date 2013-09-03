@@ -1279,9 +1279,9 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // OCTANE MEDIUMS
-    else if(b_node.is_a(&RNA_ShaderNodeOctAbsorbtionMedium)) {
-        BL::ShaderNodeOctAbsorbtionMedium b_med_node(b_node);
-        OctaneAbsorbtionMedium* cur_node = new OctaneAbsorbtionMedium();
+    else if(b_node.is_a(&RNA_ShaderNodeOctAbsorptionMedium)) {
+        BL::ShaderNodeOctAbsorptionMedium b_med_node(b_node);
+        OctaneAbsorptionMedium* cur_node = new OctaneAbsorptionMedium();
         node = cur_node;
         char tmp[32];
         ::sprintf(tmp, "%p", b_med_node.ptr.data);
@@ -1303,7 +1303,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 cur_node->Scale = RNA_float_get(&value_sock.ptr, "default_value");
             }
         }
-    } //case BL::ShaderNode::type_OCT_ABSORB_MED
+    } //case BL::ShaderNode::type_OCT_ABSORP_MED
     else if(b_node.is_a(&RNA_ShaderNodeOctScatteringMedium)) {
         BL::ShaderNodeOctScatteringMedium b_med_node(b_node);
         OctaneScatteringMedium* cur_node = new OctaneScatteringMedium();

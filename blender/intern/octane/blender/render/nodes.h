@@ -397,9 +397,9 @@ public:
     SHADER_NODE_CLASS(OctaneMediumNode)
 };
 
-class OctaneAbsorbtionMedium : public OctaneEmissionNode {
+class OctaneAbsorptionMedium : public OctaneEmissionNode {
 public:
-    SHADER_NODE_CLASS(OctaneAbsorbtionMedium)
+    SHADER_NODE_CLASS(OctaneAbsorptionMedium)
 
     std::string Absorption;
     float       Absorption_default_val;

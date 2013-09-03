@@ -28,7 +28,7 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Absorbtion"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{SOCK_FLOAT,     1,  N_("Absorption"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{SOCK_FLOAT,     1,  N_("Scattering"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{SOCK_FLOAT,     1,  N_("Phase"),       0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f},
 	{SOCK_SHADER,    1,  N_("Emission")},

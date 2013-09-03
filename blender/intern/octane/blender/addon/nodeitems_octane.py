@@ -77,7 +77,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeOctTextureEmission"),
         ]),
     ShaderNewNodeCategory("SH_NEW_OCT_MEDIUM", "Octane Medium", items=[
-        NodeItem("ShaderNodeOctAbsorbtionMedium"),
+        NodeItem("ShaderNodeOctAbsorptionMedium"),
         NodeItem("ShaderNodeOctScatteringMedium"),
         ]),
     ShaderNewNodeCategory("SH_NEW_OCT_TRANSFORM", "Octane Transform", items=[

@@ -139,7 +139,7 @@ void register_node_type_transform_oct_scale(void);
 void register_node_type_transform_oct_rotation(void);
 void register_node_type_transform_oct_full(void);
 
-void register_node_type_medium_oct_absorbtion(void);
+void register_node_type_medium_oct_absorption(void);
 void register_node_type_medium_oct_scattering(void);
 
 void register_node_type_tex_oct_float(void);

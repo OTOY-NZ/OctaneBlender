@@ -28,7 +28,7 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Absorbtion"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{SOCK_FLOAT,     1,  N_("Absorption"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{SOCK_FLOAT,     1,  N_("Scale"),       100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 10000.0f},
 	{-1, 0, ""}
 };
@@ -38,10 +38,10 @@ static bNodeSocketTemplate sh_node_out[] = {
 	{-1, 0, ""}
 };
 
-void register_node_type_medium_oct_absorbtion(void) {
+void register_node_type_medium_oct_absorption(void) {
 	static bNodeType ntype;
 
-	if(ntype.type != SH_NODE_OCT_ABSORB_MED) node_type_base(&ntype, SH_NODE_OCT_ABSORB_MED, "Octane Absorbtion Medium", NODE_CLASS_OCT_MEDIUM, NODE_OPTIONS);
+	if(ntype.type != SH_NODE_OCT_ABSORP_MED) node_type_base(&ntype, SH_NODE_OCT_ABSORP_MED, "Octane Absorption Medium", NODE_CLASS_OCT_MEDIUM, NODE_OPTIONS);
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
 	node_type_size(&ntype, 100, 60, 150);
@@ -49,4 +49,4 @@ void register_node_type_medium_oct_absorbtion(void) {
 	node_type_exec(&ntype, 0, 0, 0);
 	
 	nodeRegisterType(&ntype);
-} /* register_node_type_medium_oct_absorbtion() */
+} /* register_node_type_medium_oct_absorption() */

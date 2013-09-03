@@ -3504,7 +3504,7 @@ static void registerShaderNodes(void)
     register_node_type_transform_oct_rotation();
     register_node_type_transform_oct_full();
 
-    register_node_type_medium_oct_absorbtion();
+    register_node_type_medium_oct_absorption();
     register_node_type_medium_oct_scattering();
 #endif /* WITH_OCTANE */
 

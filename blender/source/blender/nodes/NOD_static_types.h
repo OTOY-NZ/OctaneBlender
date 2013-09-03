@@ -151,7 +151,7 @@ DefNode( ShaderNode,     SH_NODE_OCT_SCALE_TRN,             0,               "OC
 DefNode( ShaderNode,     SH_NODE_OCT_ROTATE_TRN,            0,               "OCT_ROTATE_TRN",        OctRotateTransform,  "Octane Rotate Transform",      ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_FULL_TRN,              0,               "OCT_FULL_TRN",          OctFullTransform,    "Octane Full Transform",        ""    )
 
-DefNode( ShaderNode,     SH_NODE_OCT_ABSORB_MED,            0,               "OCT_ABSORB_MED",        OctAbsorbtionMedium, "Octane Absorbtion Medium",     ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_ABSORP_MED,            0,               "OCT_ABSORP_MED",        OctAbsorptionMedium, "Octane Absorption Medium",     ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_SCATTER_MED,           0,               "OCT_SCATTER_MED",       OctScatteringMedium, "Octane Scatter Medium",        ""    )
 #endif /* WITH_OCTANE */
 

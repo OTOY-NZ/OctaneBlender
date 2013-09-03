@@ -278,7 +278,7 @@ if(WITH_OCTANE)
 		../../../intern/octane/nodes/transforms/node_oct_transform_rotation.c
 		../../../intern/octane/nodes/transforms/node_oct_transform_full.c
 
-		../../../intern/octane/nodes/mediums/node_oct_medium_absorbtion.c
+		../../../intern/octane/nodes/mediums/node_oct_medium_absorption.c
 		../../../intern/octane/nodes/mediums/node_oct_medium_scattering.c
 	)
 endif()

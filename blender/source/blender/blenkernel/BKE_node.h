@@ -765,7 +765,7 @@ struct ShadeResult;
 #define SH_NODE_OCT_ROTATE_TRN			831
 #define SH_NODE_OCT_FULL_TRN			832
 
-#define SH_NODE_OCT_ABSORB_MED			840
+#define SH_NODE_OCT_ABSORP_MED			840
 #define SH_NODE_OCT_SCATTER_MED			841
 
 #define SH_NODE_OCT_FLOAT_TEX               850
