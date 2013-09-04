@@ -263,6 +263,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 		// Free derived mesh
 		b_data.meshes.remove(b_mesh);
 	}
+    else octane_mesh->empty = true;
 	
 	octane_mesh->tag_update(scene);
 	return octane_mesh;

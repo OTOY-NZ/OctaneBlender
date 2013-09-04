@@ -869,7 +869,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-            if(b_input->name() == "Normal") {
+            if(b_input->name() == "Normal Grazing") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Normal = RNA_float_get(&value_sock.ptr, "default_value");
             }

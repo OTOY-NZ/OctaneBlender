@@ -1355,7 +1355,7 @@ EOF
     cmake_d="$cmake_d -D CMAKE_PREFIX_PATH=$_inst"
     cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$_inst"
     cmake_d="$cmake_d -D BUILDSTATIC=ON"
-    cmake_d="$cmake_d -D LINKSTATIC=O"
+    cmake_d="$cmake_d -D LINKSTATIC=ON"
 
     if [ $_with_built_openexr == true ]; then
       cmake_d="$cmake_d -D ILMBASE_HOME=$INST/openexr"

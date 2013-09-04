@@ -29,7 +29,7 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
 	{	SOCK_RGBA,      1,  N_("Diffuse"),		    0.7f, 0.7f, 0.7f, 1.0f, 0.0f, 1.0f},
-	{	SOCK_FLOAT,     1,  N_("Roughness"),	    0.63f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT,     1,  N_("Roughness"),	    0.063f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT,     1,  N_("Specular"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT,     1,  N_("Film Width"),	    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT,     1,  N_("Film Index"),	    1.45f, 0.0f, 0.0f, 0.0f, 1.0f, 8.0f},

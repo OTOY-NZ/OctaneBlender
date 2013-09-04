@@ -377,6 +377,24 @@ class OctaneCamera_PT_post(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "spectral_intencity", text="Spectral intencity")
         sub.prop(oct_cam, "spectral_shift", text="Spectral shift")
 
+class Octane_PT_post_processing(OctaneButtonsPanel, Panel):
+    bl_label = "Post Processing"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        rd = context.scene.render
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(rd, "use_compositing")
+        col.prop(rd, "use_sequencer")
+
+        col = split.column()
+        col.prop(rd, "dither_intensity", text="Dither", slider=True)
+
 
 class Octane_PT_context_material(OctaneButtonsPanel, Panel):
     bl_label = ""
