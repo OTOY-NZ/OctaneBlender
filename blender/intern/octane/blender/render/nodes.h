@@ -160,6 +160,7 @@ public:
     SHADER_NODE_CLASS(OctaneChecksTexture)
 
     std::string Transform;
+    float       Transform_default_val;
 };
 
 class OctaneMarbleTexture : public OctaneTextureNode {

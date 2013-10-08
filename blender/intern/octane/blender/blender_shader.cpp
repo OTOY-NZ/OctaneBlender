@@ -90,6 +90,39 @@ static std::string get_oct_tex_name(BL::ShaderNode& b_node, std::string& tex_nam
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static std::string get_non_oct_mat_name(BL::ShaderNode& b_node, std::string& mat_name) {
+    BL::Node::outputs_iterator b_output;
+    for(b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
+        std::string sName;
+        if(b_output->is_linked() && b_output->name() == "BSDF" && ConnectedNodesMap[b_output->ptr.data] == "__Surface") {
+            return mat_name;
+        }
+    }
+    char name[32];
+    ::sprintf(name, "%p", b_node.ptr.data);
+    return name;
+} //get_oct_mat_name()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static std::string get_non_oct_tex_name(BL::ShaderNode& b_node, std::string& tex_name) {
+    BL::Node::outputs_iterator b_output;
+    for(b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
+        std::string sName;
+        if(b_output->is_linked() && b_output->name() == "Color") {
+            if(b_output->is_linked() && ConnectedNodesMap[b_output->ptr.data] == "__Color")
+                return tex_name;
+        }
+    }
+    char name[32];
+    ::sprintf(name, "%p", b_node.ptr.data);
+    return name;
+} //get_oct_tex_name()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNode b_node) {
 	ShaderNode *node = NULL;
         
@@ -495,7 +528,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
             if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
                     cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                else {
+                    cur_node->Transform = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Transform_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
             }
         }
     } //case BL::ShaderNode::type_OCT_CHECKS_TEX
@@ -1433,6 +1470,90 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         }
     } //case BL::ShaderNode::type_OCT_FULL_TRN
 
+    else if(b_node.is_a(&RNA_ShaderNodeBsdfDiffuse)) {
+		BL::ShaderNodeBsdfDiffuse b_diffuse_node(b_node);
+		OctaneDiffuseMaterial* cur_node = new OctaneDiffuseMaterial();
+        node = cur_node;
+
+        cur_node->name = get_non_oct_mat_name(b_node, sMatName);
+
+        cur_node->transmission_default_val  = 0;
+        cur_node->bump_default_val          = 0;
+        cur_node->opacity_default_val       = 1;
+        cur_node->smooth                    = true;
+        cur_node->emission                  = "";
+        cur_node->medium                    = "";
+        cur_node->matte                     = false;
+        cur_node->normal_default_val        = 0;
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Color") {
+                if(b_input->is_linked())
+                    cur_node->diffuse = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->diffuse = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float ret[4];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", ret);
+                    cur_node->diffuse_default_val.x = ret[0];
+                    cur_node->diffuse_default_val.y = ret[1];
+                    cur_node->diffuse_default_val.z = ret[2];
+                }
+            }
+        }
+	} //else if(b_node.is_a(&RNA_ShaderNodeBsdfDiffuse))
+    else if(b_node.is_a(&RNA_ShaderNodeBsdfGlossy)) {
+        BL::ShaderNodeBsdfGlossy b_diffuse_node(b_node);
+        OctaneGlossyMaterial* cur_node = new OctaneGlossyMaterial();
+        node = cur_node;
+
+        cur_node->name = get_non_oct_mat_name(b_node, sMatName);
+
+        cur_node->specular_default_val  = 1.0f;
+        cur_node->roughness_default_val = 0.063f;
+        cur_node->filmwidth_default_val = 0.0f;
+        cur_node->filmindex             = 1.45f;
+        cur_node->bump_default_val      = 0;
+        cur_node->normal_default_val    = 0;
+        cur_node->opacity_default_val   = 1.0f;
+        cur_node->smooth                = true;
+        cur_node->index                 = 1.3f;
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Color") {
+                if(b_input->is_linked())
+                    cur_node->diffuse = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->diffuse = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float ret[4];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", ret);
+                    cur_node->diffuse_default_val.x = ret[0];
+                    cur_node->diffuse_default_val.y = ret[1];
+                    cur_node->diffuse_default_val.z = ret[2];
+                }
+            }
+        }
+    } //else if(b_node.is_a(&RNA_ShaderNodeBsdfGlossy))
+
+    else if(b_node.is_a(&RNA_ShaderNodeTexChecker)) {
+        BL::ShaderNodeTexChecker b_tex_node(b_node);
+        OctaneChecksTexture* cur_node = new OctaneChecksTexture();
+        node = cur_node;
+        cur_node->name = get_non_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Scale") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->Transform = "";
+            }
+        }
+    } //else if(b_node.is_a(&RNA_ShaderNodeTexChecker))
+
     //default: {
     //    BL::ShaderNode::type_enum cur_type = b_node.type();
     //}
@@ -1600,6 +1721,10 @@ void BlenderSync::sync_world() {
         env->type                   = static_cast<uint32_t>(RNA_enum_get(&oct_scene, "env_type"));
         env->texture                = get_string(oct_scene, "env_texture");
         env->power                  = get_float(oct_scene, "env_power");
+        if (b_engine.is_preview() && env->type == 1) {
+            env->type  = 0;
+            env->power = 1.1f;
+        }
         env->rotation.x             = get_float(oct_scene, "env_rotation_x");
         env->rotation.y             = get_float(oct_scene, "env_rotation_y");
         env->importance_sampling    = get_boolean(oct_scene, "env_importance_sampling");

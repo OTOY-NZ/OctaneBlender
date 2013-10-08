@@ -30,8 +30,6 @@
 #include <string.h>
 #include <vector>
 
-OCT_NAMESPACE_BEGIN
-
 using std::list;
 
 using std::set;
@@ -42,6 +40,8 @@ using std::pair;
 using std::tr1::unordered_map;
 
 using std::vector;
+
+OCT_NAMESPACE_BEGIN
 
 /* Array
  *

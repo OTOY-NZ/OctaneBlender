@@ -1129,6 +1129,38 @@ typedef enum eSpaceClip_GPencil_Source {
 	SC_GPENCIL_SRC_TRACK = 1,
 } eSpaceClip_GPencil_Source;
 
+/* Materials LiveDB =============================================== */
+
+/* LiveDB */
+typedef struct SpaceLDB {
+	SpaceLink   *next, *prev;
+	ListBase    regionbase;     /* storage of regions for inactive spaces */
+	int         spacetype;
+
+    short       storeflag, search_flags;
+
+    ListBase    tree;
+	char        *treestore;
+	
+	char search_string[32];
+	char server_address[256];
+} SpaceLDB;
+
+/* SpaceLDB->storeflag */
+typedef enum eSpaceLiveDB_StoreFlag {
+	/* rebuild tree */
+	LDB_TREESTORE_CLEANUP    = (1 << 0),
+	/* if set, it allows redraws. gets set for some allqueue events */
+	LDB_TREESTORE_REDRAW     = (1 << 1),
+} eSpaceLiveDB_StoreFlag;
+
+/* outliner search flags (SpaceLDB->search_flags) */
+typedef enum eSpaceLiveDB_Search_Flags {
+	LDB_FIND_CASE_SENSITIVE  = (1 << 0),
+	LDB_FIND_COMPLETE        = (1 << 1),
+	LDB_SEARCH_RECURSIVE     = (1 << 2),
+} eSpaceLiveDB_Search_Flags;
+
 /* **************** SPACE DEFINES ********************* */
 
 /* space types, moved from DNA_screen_types.h */
@@ -1155,8 +1187,9 @@ typedef enum eSpace_Type {
 	SPACE_CONSOLE  = 18,
 	SPACE_USERPREF = 19,
 	SPACE_CLIP     = 20,
-	
-	SPACEICONMAX = SPACE_CLIP
+    SPACE_MAT_LIVEDB = 21,
+
+    SPACEICONMAX = SPACE_MAT_LIVEDB
 } eSpace_Type;
 
 #define IMG_SIZE_FALLBACK 256

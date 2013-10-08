@@ -39,9 +39,10 @@ Session::Session(const SessionParams& params_) : params(params_) {
 	server = RenderServer::create(params.server, params.interactive);
 
     if(params.login.length() > 0 && params.pass.length() > 0) {
-        server->activate(params.login, params.pass);
-        params.login    = "";
-        params.pass     = "";
+        if(server->activate(params.login, params.pass)) {
+            params.login    = "";
+            params.pass     = "";
+        }
     }
 
 	if(!params.interactive)
@@ -158,7 +159,10 @@ void Session::run_render() {
                 server->start_render(params.width, params.height); //FIXME: Perhaps the wrong place for it...
                 bStarted = true;
             }
-			if(server->error_message() != "") progress.set_cancel(server->error_message());
+            if(!server->error_message().empty()) {
+                progress.set_cancel("ERROR: " + server->error_message());
+                server->clear_error_message();
+            }
 			if(progress.get_cancel()) break;
 
 			// Buffers mutex is locked entirely while rendering each
@@ -379,20 +383,22 @@ void Session::update_status_time(bool show_pause, bool show_done) {
                     params.image_stat.cur_samples, params.samples, szSamples, params.image_stat.used_vram/1000000, params.image_stat.free_vram/1000000, params.image_stat.total_vram/1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
                     params.image_stat.rgb32_cnt, params.image_stat.rgb32_max, params.image_stat.rgb64_cnt, params.image_stat.rgb64_max, params.image_stat.grey8_cnt, params.image_stat.grey8_max, params.image_stat.grey16_cnt, params.image_stat.grey16_max);
         }
-        else substatus = "Waiting for image...";
+        else
+            substatus = "Waiting for image...";
     	
-        status = pass_name;
-	    if(show_pause)
-		    status += " - Paused";
-	    else if(show_done)
-		    status += " - Done";
-	    else
-		    status += " - Rendering";
+        if(b_session && !b_session->interactive) status = pass_name;
+        else status = "Interactive";
+
+        if(show_pause)
+	        status += " - Paused";
+        else if(show_done)
+	        status += " - Done";
+        else
+	        status += " - Rendering";
     }
     else {
         status      = "Not connected";
-        substatus   = "No Render-server at address ";
-        substatus   += server->address;
+        substatus   = string("No Render-server at address \"") + server->address + "\"";
     }
 	progress.set_status(status, substatus);
 	progress.refresh_cur_info();

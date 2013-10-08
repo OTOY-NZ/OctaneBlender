@@ -479,7 +479,8 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion) {
 				bool hide_tris;
 				if(!object_render_hide(*b_ob, true, true, hide_tris)) {
 					// Object itself
-					Transform tfm = scene->matrix * get_transform(b_ob->matrix_world());
+                    Transform tfm;
+			        tfm = scene->matrix * get_transform(b_ob->matrix_world());
 					sync_object(*b_ob, NULL, PointerRNA_NULL, tfm, ob_layer, motion, hide_tris);
 				}
 			}

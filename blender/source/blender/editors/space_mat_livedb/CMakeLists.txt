@@ -20,18 +20,16 @@
 
 set(INC
 	../include
-	../../blenfont
 	../../blenkernel
 	../../blenlib
-	../../blenloader
-	../../gpu
+	../../blenfont
 	../../imbuf
-	../../bmesh
 	../../makesdna
 	../../makesrna
-	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/opennl/extern
+	../../../../intern/utfconv
 )
 
 set(INC_SYS
@@ -39,44 +37,21 @@ set(INC_SYS
 )
 
 set(SRC
-	render_internal.c
-	render_opengl.c
-	render_ops.c
-	render_preview.c
-	render_shading.c
-	render_update.c
-	render_view.c
+	mat_livedb_draw.c
+	mat_livedb_edit.c
+	mat_livedb_ops.c
+	mat_livedb_select.c
+	mat_livedb_tools.c
+	mat_livedb_tree.c
+	mat_livedb_nodes.c
+	mat_livedb_net.c
+	space_mat_livedb.c
 
-	render_intern.h
+	mat_livedb_intern.h
 )
-
-if(WITH_CODEC_QUICKTIME)
-	list(APPEND INC
-		../../quicktime
-	)
-	list(APPEND INC_SYS
-		${QUICKTIME_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_QUICKTIME)
-endif()
-
-if(WITH_HEADLESS)
-	add_definitions(-DWITH_HEADLESS)
-endif()
-
-if(WITH_FREESTYLE)
-	list(APPEND INC
-		../../freestyle
-	)
-	add_definitions(-DWITH_FREESTYLE)
-endif()
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-if(WITH_OCTANE)
-	add_definitions(-DWITH_OCTANE)
-endif()
-
-blender_add_lib(bf_editor_render "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_space_mat_livedb "${SRC}" "${INC}" "${INC_SYS}")

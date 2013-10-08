@@ -304,7 +304,9 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 	params.interactive = interactive;
 
 	// Samples
-	if(!interactive) params.samples = get_int(oct_scene, "max_samples");
+    if(!interactive) {
+        params.samples = get_int(oct_scene, "max_samples");
+    }
 	else {
 		params.samples = get_int(oct_scene, "max_preview_samples");
 		if(params.samples == 0) params.samples = 16000;

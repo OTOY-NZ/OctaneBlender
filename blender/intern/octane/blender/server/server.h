@@ -76,6 +76,11 @@ static const int SERVER_PORT = 5130;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum PacketType {
     NONE = 0,
+
+    GET_LDB_CAT,
+    GET_LDB_MAT_PREVIEW,
+    GET_LDB_MAT,
+
     ERROR_PACKET,
     DESCRIPTION,
     SET_LIC_DATA,
@@ -158,6 +163,7 @@ enum PacketType {
     DEL_MEDIUM,
 
     LAST_NAMED_PACKET = DEL_MEDIUM,
+
     LAST_PACKET_TYPE = LAST_NAMED_PACKET
 };
 
@@ -574,15 +580,19 @@ public:
     } //~RenderServer()
 
     // Get the last error message
-	const string& error_message() {
+	inline const string& error_message() {
         return error_msg;
     } //error_message()
+
+	inline void clear_error_message() {
+        error_msg.clear();
+    } //clear_error_message()
 
 
 
     // Activate the Octane license on server
-    inline void activate(string& sLogin, string& sPass) {
-        if(socket < 0) return;
+    inline int activate(string& sLogin, string& sPass) {
+        if(socket < 0) return 0;
 
         thread_scoped_lock socket_lock(socket_mutex);
 
@@ -594,7 +604,9 @@ public:
         if(rcv.type != SET_LIC_DATA) {
             rcv >> error_msg;
             fprintf(stderr, "Octane: ERROR activate render-server: %s\n", error_msg.c_str());
+            return 0;
         }
+        else return 1;
     } //activate()
 
     // Reset the server project (SOFT reset).
@@ -1209,12 +1221,12 @@ public:
     inline void load_checks_tex(OctaneChecksTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = node->Transform.length() + 2;
+        uint64_t size = sizeof(float) + node->Transform.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_CHECKS_TEXTURE, node->name.c_str());
-            snd << node->Transform.c_str();
+            snd << node->Transform_default_val << node->Transform.c_str();
             snd.write();
         }
         wait_error(LOAD_CHECKS_TEXTURE);
@@ -1822,6 +1834,7 @@ public:
 	    } //else if(components == 4)
 	    return true;
     } //get_pass_rect()
+
 
 	static RenderServer*        create(RenderServerInfo& info, bool interactive = false);
     static RenderServerInfo&    get_info(void);

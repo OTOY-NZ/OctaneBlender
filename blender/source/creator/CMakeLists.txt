@@ -861,6 +861,7 @@ endif()
 		bf_editor_space_userpref
 		bf_editor_space_view3d
 		bf_editor_space_clip
+		bf_editor_space_mat_livedb
 
 		bf_editor_text
 		bf_editor_transform

@@ -260,6 +260,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 
 	if(b_mesh) {
         if(!hide_tris) create_mesh(scene, b_ob, octane_mesh, b_mesh, &cmesh, octane_mesh->used_shaders);
+        else octane_mesh->empty = true;
 		// Free derived mesh
 		b_data.meshes.remove(b_mesh);
 	}

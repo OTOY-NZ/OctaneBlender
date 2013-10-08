@@ -728,6 +728,14 @@ struct SpaceOops *CTX_wm_space_outliner(const bContext *C)
 	return NULL;
 }
 
+struct SpaceLDB *CTX_wm_space_mat_livedb(const bContext *C)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	if (sa && sa->spacetype == SPACE_MAT_LIVEDB)
+		return sa->spacedata.first;
+	return NULL;
+}
+
 struct SpaceNla *CTX_wm_space_nla(const bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);

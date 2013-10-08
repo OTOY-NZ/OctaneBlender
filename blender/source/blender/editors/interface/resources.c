@@ -154,6 +154,9 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 				case SPACE_CLIP:
 					ts = &btheme->tclip;
 					break;
+				case SPACE_MAT_LIVEDB:
+					ts = &btheme->toops;
+					break;
 				default:
 					ts = &btheme->tv3d;
 					break;

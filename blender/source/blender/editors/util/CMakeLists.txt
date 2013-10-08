@@ -95,4 +95,8 @@ if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
+if(WITH_OCTANE)
+	add_definitions(-DWITH_OCTANE)
+endif()
+
 blender_add_lib(bf_editor_util "${SRC}" "${INC}" "${INC_SYS}")

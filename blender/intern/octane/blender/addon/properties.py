@@ -96,13 +96,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 name="Max. samples",
                 description="Number of samples to render for each pixel",
                 min=1, max=64000,
-                default=16000,
+                default=500,
                 )
         cls.max_preview_samples = IntProperty(
                 name="Max. preview samples",
-                description="Number of samples to render for each pixel",
+                description="Number of samples to render for each pixel for preview",
                 min=1, max=64000,
-                default=16000,
+                default=100,
                 )
         cls.filter_size = FloatProperty(
                 name="Filter size",

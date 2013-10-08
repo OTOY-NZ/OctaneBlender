@@ -445,6 +445,18 @@ class Octane_PT_context_material(OctaneButtonsPanel, Panel):
             split.separator()
 
 
+class OctaneMaterial_PT_preview(OctaneButtonsPanel, Panel):
+    bl_label = "Preview"
+    bl_context = "material"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.material and OctaneButtonsPanel.poll(context)
+
+    def draw(self, context):
+        self.layout.template_preview(context.material)
+
 class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
     bl_label = "Octane properties"
     bl_context = "data"

@@ -235,6 +235,11 @@ int ED_operator_outliner_active_no_editobject(bContext *C)
 	return 0;
 }
 
+int ED_operator_mat_livedb_active(bContext *C)
+{
+	return ed_spacetype_test(C, SPACE_MAT_LIVEDB);
+}
+
 int ED_operator_file_active(bContext *C)
 {
 	return ed_spacetype_test(C, SPACE_FILE);

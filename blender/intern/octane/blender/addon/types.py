@@ -25,7 +25,7 @@ class OctaneRender(bpy.types.RenderEngine):
     bl_idname = 'octane'
     bl_label = "OctaneRender"
     bl_use_shading_nodes = True
-    bl_use_preview = False
+    bl_use_preview = True
     session = 0
 
     def __init__(self):
@@ -44,9 +44,13 @@ class OctaneRender(bpy.types.RenderEngine):
     def update(self, data, scene):
         if self.busy:
             return
+            
         if self.is_preview:
             if not OctaneRender.session:
                 engine.create(OctaneRender, self, data, scene, None, None, None)
+            else:
+                engine.reset(OctaneRender, self, data, scene)
+                self.busy = True
         else:
             if not OctaneRender.session:
                 engine.create(OctaneRender, self, data, scene)
@@ -71,6 +75,7 @@ class OctaneRender(bpy.types.RenderEngine):
     def view_update(self, context):
         if self.busy:
             return
+
         if not OctaneRender.session:
             engine.create(OctaneRender, self, context.blend_data, context.scene, context.region, context.space_data, context.region_data)
         engine.update(OctaneRender, self, context.blend_data, context.scene)

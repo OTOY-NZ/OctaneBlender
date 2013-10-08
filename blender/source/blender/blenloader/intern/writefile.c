@@ -2541,6 +2541,11 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 				else if (sl->spacetype==SPACE_CLIP) {
 					writestruct(wd, DATA, "SpaceClip", 1, sl);
 				}
+				else if (sl->spacetype==SPACE_MAT_LIVEDB) {
+					SpaceLDB *so= (SpaceLDB *)sl;
+					
+					writestruct(wd, DATA, "SpaceLDB", 1, so);
+				}
 
 				sl= sl->next;
 			}

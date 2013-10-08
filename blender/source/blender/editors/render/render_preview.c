@@ -189,6 +189,7 @@ typedef struct IconPreview {
 
 static Main *G_pr_main = NULL;
 static Main *G_pr_main_cycles = NULL;
+static Main *G_pr_main_octane = NULL;
 
 #ifndef WITH_HEADLESS
 static Main *load_main_from_memory(const void *blend, int blend_size)
@@ -215,6 +216,9 @@ void ED_preview_init_dbase(void)
 #ifndef WITH_HEADLESS
 	G_pr_main = load_main_from_memory(datatoc_preview_blend, datatoc_preview_blend_size);
 	G_pr_main_cycles = load_main_from_memory(datatoc_preview_cycles_blend, datatoc_preview_cycles_blend_size);
+#   ifdef WITH_OCTANE
+	G_pr_main_octane = load_main_from_memory(datatoc_preview_octane_blend, datatoc_preview_octane_blend_size);
+#   endif
 #endif
 }
 
@@ -225,6 +229,11 @@ void ED_preview_free_dbase(void)
 
 	if (G_pr_main_cycles)
 		free_main(G_pr_main_cycles);
+
+#ifdef WITH_OCTANE
+	if (G_pr_main_octane)
+		free_main(G_pr_main_octane);
+#endif
 }
 
 static int preview_mat_has_sss(Material *mat, bNodeTree *ntree)
@@ -1051,7 +1060,14 @@ static void icon_preview_startjob_all_sizes(void *customdata, short *stop, short
 			 * texture icons
 			 */
 			if (GS(ip->id->name) != ID_TE)
+#ifndef WITH_OCTANE
 				sp->pr_main = G_pr_main_cycles;
+#else
+                if(strcmp(ip->scene->r.engine, "octane"))
+				    sp->pr_main = G_pr_main_cycles;
+                else
+				    sp->pr_main = G_pr_main_octane;
+#endif
 			else
 				sp->pr_main = G_pr_main;
 		}
@@ -1160,7 +1176,14 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	/* hardcoded preview .blend for cycles/internal, this should be solved
 	 * once with custom preview .blend path for external engines */
 	if (BKE_scene_use_new_shading_nodes(scene))
+#ifndef WITH_OCTANE
 		sp->pr_main = G_pr_main_cycles;
+#else
+        if(strcmp(scene->r.engine, "octane"))
+    		sp->pr_main = G_pr_main_cycles;
+        else
+            sp->pr_main = G_pr_main_octane;
+#endif
 	else
 		sp->pr_main = G_pr_main;
 

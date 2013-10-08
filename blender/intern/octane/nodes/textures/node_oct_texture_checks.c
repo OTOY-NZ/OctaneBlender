@@ -28,7 +28,7 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_SHADER,     1,  N_("Transform")},
+	{SOCK_FLOAT,      1,  N_("Transform"),  1.0f, 0.0f, 0.0f, 0.0f, 0.001f, 1000.0f},
 	{-1, 0, ""}
 };
 

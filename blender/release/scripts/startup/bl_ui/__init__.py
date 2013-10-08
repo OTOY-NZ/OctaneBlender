@@ -75,6 +75,7 @@ _modules = [
     "space_userpref",
     "space_view3d",
     "space_view3d_toolbar",
+    "space_mat_livedb",
 ]
 
 import bpy

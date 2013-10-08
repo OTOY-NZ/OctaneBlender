@@ -6421,6 +6421,12 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				sclip->scopes.track_preview = NULL;
 				sclip->scopes.ok = 0;
 			}
+			else if (sl->spacetype == SPACE_MAT_LIVEDB) {
+				SpaceLDB *slivedb = (SpaceLDB *) sl;
+				
+				slivedb->treestore = NULL;
+				slivedb->tree.first = slivedb->tree.last= NULL;
+			}
 		}
 		
 		sa->actionzones.first = sa->actionzones.last = NULL;

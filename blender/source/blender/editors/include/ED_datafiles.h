@@ -42,6 +42,11 @@ extern char datatoc_preview_blend[];
 extern int datatoc_preview_cycles_blend_size;
 extern char datatoc_preview_cycles_blend[];
 
+#ifdef WITH_OCTANE
+extern int datatoc_preview_octane_blend_size;
+extern char datatoc_preview_octane_blend[];
+#endif
+
 extern int datatoc_blender_icons16_png_size;
 extern char datatoc_blender_icons16_png[];
 

@@ -84,6 +84,7 @@ EnumPropertyItem space_type_items[] = {
 	{SPACE_FILE, "FILE_BROWSER", ICON_FILESEL, "File Browser", ""},
 	{0, "", ICON_NONE, NULL, NULL},
 	{SPACE_CONSOLE, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
+	{SPACE_MAT_LIVEDB, "MAT_LIVEDB", ICON_MATERIAL, "Materials LiveDB", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -236,6 +237,8 @@ static StructRNA *rna_Space_refine(struct PointerRNA *ptr)
 			return &RNA_SpaceUserPreferences;
 		case SPACE_CLIP:
 			return &RNA_SpaceClipEditor;
+		case SPACE_MAT_LIVEDB:
+			return &RNA_SpaceMatLiveDB;
 		default:
 			return &RNA_Space;
 	}
@@ -1493,6 +1496,36 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SO_HIDE_RESTRICTCOLS);
 	RNA_def_property_ui_text(prop, "Show Restriction Columns", "Show column");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+}
+
+static void rna_def_space_mat_livedb(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "SpaceMatLiveDB", "Space");
+	RNA_def_struct_sdna(srna, "SpaceLDB");
+	RNA_def_struct_ui_text(srna, "Space Materials LiveDB", "Materials LiveDB space data");
+	
+	prop = RNA_def_property(srna, "filter_text", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "search_string");
+	RNA_def_property_ui_text(prop, "Display Filter", "Live search filtering string");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_MAT_LIVEDB, NULL);
+	
+	prop = RNA_def_property(srna, "server_address", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "server_address");
+	RNA_def_property_ui_text(prop, "Server address", "LiveDB server address (IP or domain name)");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_MAT_LIVEDB, NULL);
+	
+	prop = RNA_def_property(srna, "use_filter_case_sensitive", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "search_flags", SO_FIND_CASE_SENSITIVE);
+	RNA_def_property_ui_text(prop, "Case Sensitive Matches Only", "Only use case sensitive matches of search string");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_MAT_LIVEDB, NULL);
+	
+	prop = RNA_def_property(srna, "use_filter_complete", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "search_flags", SO_FIND_COMPLETE);
+	RNA_def_property_ui_text(prop, "Complete Matches Only", "Only use complete matches of search string");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_MAT_LIVEDB, NULL);
 }
 
 static void rna_def_background_image(BlenderRNA *brna)
@@ -3772,6 +3805,7 @@ void RNA_def_space(BlenderRNA *brna)
 	rna_def_space_node(brna);
 	rna_def_space_logic(brna);
 	rna_def_space_clip(brna);
+	rna_def_space_mat_livedb(brna);
 }
 
 #endif

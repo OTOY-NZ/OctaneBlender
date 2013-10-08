@@ -44,6 +44,9 @@ if(WITH_BLENDER)
 		# blends
 		data_to_c_simple(../../../../release/datafiles/preview.blend SRC)
 		data_to_c_simple(../../../../release/datafiles/preview_cycles.blend SRC)
+if(WITH_OCTANE)
+		data_to_c_simple(../../../../release/datafiles/preview_octane.blend SRC)
+endif()
 
 		# images
 		data_to_c_simple(../../../../release/datafiles/splash.png SRC)
