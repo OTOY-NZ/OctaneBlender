@@ -75,6 +75,20 @@ class OCTANE_MT_environment_presets(Menu):
     COMPAT_ENGINES = {'octane'}
     draw = Menu.draw_preset
 
+class OCTANE_MT_imager_presets(Menu):
+    bl_label = "Imager presets"
+    preset_subdir = "octane/imager_presets"
+    preset_operator = "script.execute_preset"
+    COMPAT_ENGINES = {'octane'}
+    draw = Menu.draw_preset
+
+class OCTANE_MT_3dimager_presets(Menu):
+    bl_label = "Imager presets"
+    preset_subdir = "octane/3dimager_presets"
+    preset_operator = "script.execute_preset"
+    COMPAT_ENGINES = {'octane'}
+    draw = Menu.draw_preset
+
 
 class OctaneButtonsPanel():
     bl_space_type = "PROPERTIES"
@@ -102,6 +116,11 @@ class VIEW3D_PT_octcam(Panel):
 
         view = context.space_data
         oct_cam = context.scene.oct_view_cam
+
+        row = layout.row(align=True)
+        row.menu("OCTANE_MT_3dimager_presets", text=bpy.types.OCTANE_MT_3dimager_presets.bl_label)
+        row.operator("render.octane_3dimager_preset_add", text="", icon="ZOOMIN")
+        row.operator("render.octane_3dimager_preset_add", text="", icon="ZOOMOUT").remove_active = True
 
         layout.active = bool(view.region_3d.view_perspective != 'CAMERA' or view.region_quadview)
         sub = layout.column(align=True)
@@ -333,6 +352,11 @@ class OctaneCamera_PT_imager(OctaneButtonsPanel, Panel):
 
         cam = context.camera
         oct_cam = cam.octane
+
+        row = layout.row(align=True)
+        row.menu("OCTANE_MT_imager_presets", text=bpy.types.OCTANE_MT_imager_presets.bl_label)
+        row.operator("render.octane_imager_preset_add", text="", icon="ZOOMIN")
+        row.operator("render.octane_imager_preset_add", text="", icon="ZOOMOUT").remove_active = True
 
         sub = layout.row()
         sub.prop(oct_cam, "response_type", text="Response type")

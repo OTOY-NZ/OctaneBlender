@@ -132,7 +132,7 @@ static int UNUSED_FUNCTION(ED_operator_uvmap_mesh) (bContext *C)
 
 static int is_image_texture_node(bNode *node)
 {
-	return ELEM(node->type, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT);
+	return ELEM5(node->type, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT, SH_NODE_OCT_IMAGE_TEX, SH_NODE_OCT_ALPHA_IMAGE_TEX, SH_NODE_OCT_FLOAT_IMAGE_TEX);
 }
 
 int ED_object_get_active_image(Object *ob, int mat_nr, Image **ima, ImageUser **iuser, bNode **node_r)

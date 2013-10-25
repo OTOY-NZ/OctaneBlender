@@ -109,6 +109,21 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
             *_item = (char*)item + item->size;
             break;
         }
+        case MAT_LDB_VALUE_TYPE_FLINK: {
+            ptr = (MatItem*) ((char*)item - item->uint_vector[0]);
+            mat_livedb_add_mat_element(bmain, C, ntree, node_to, 0, &ptr, file_path, 0, 0);
+
+            *_item = (char*)item + item->size;
+            break;
+        }
+        case MAT_LDB_VALUE_TYPE_NLINK: {
+            bNode *linked_node = *((bNode**) ((MatItem*)((char*)item - item->uint_vector[0]))->data);
+
+            connect_node(bmain, ntree, linked_node, node_to, sock_to);
+
+            *_item = (char*)item + item->size;
+            break;
+        }
         case MAT_LDB_VALUE_TYPE_NODE: {
             if(sock_to->type == SOCK_FLOAT && sock_to->default_value && !strcmp(item->data, "ShaderNodeOctFloatTex")) {
                 item = (char*)item + item->size;
@@ -137,6 +152,8 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
 
                 *_item = (char*)item + item->size;
                 ptr = *_item;
+
+                *((bNode**)item->data) = node_fr;
 
                 if(node_fr->type == SH_NODE_OCT_IMAGE_TEX || node_fr->type == SH_NODE_OCT_FLOAT_IMAGE_TEX || node_fr->type == SH_NODE_OCT_ALPHA_IMAGE_TEX) {
                     mat_livedb_add_mat_element(bmain, C, ntree, node_fr, 0, &ptr, file_path, 0, 0);

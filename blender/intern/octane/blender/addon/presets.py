@@ -94,6 +94,64 @@ class AddPresetEnvironment(AddPresetBase, Operator):
 
     preset_subdir = "octane/environment"
 
+class AddPresetImager(AddPresetBase, Operator):
+    '''Add Octane Imager preset'''
+    bl_idname = "render.octane_imager_preset_add"
+    bl_label = "Add imager preset"
+    preset_menu = "OCTANE_MT_imager_presets"
+
+    preset_defines = [
+        "octane = bpy.context.camera.octane"
+    ]
+
+    preset_values = [
+        "octane.response_type",
+        "octane.white_balance",
+
+        "octane.exposure",
+        "octane.fstop",
+        "octane.iso",
+        "octane.gamma",
+        "octane.vignetting",
+        "octane.saturation",
+        "octane.white_saturation",
+        "octane.hot_pix",
+        "octane.min_display_samples",
+        "octane.dithering",
+        "octane.premultiplied_alpha"
+    ]
+
+    preset_subdir = "octane/imager_presets"
+
+class AddPreset3dImager(AddPresetBase, Operator):
+    '''Add Octane Imager preset for 3D-view'''
+    bl_idname = "render.octane_3dimager_preset_add"
+    bl_label = "Add imager preset for 3D-view"
+    preset_menu = "OCTANE_MT_3dimager_presets"
+
+    preset_defines = [
+        "octane = bpy.context.scene.oct_view_cam"
+    ]
+
+    preset_values = [
+        "octane.response_type",
+        "octane.white_balance",
+
+        "octane.exposure",
+        "octane.fstop",
+        "octane.iso",
+        "octane.gamma",
+        "octane.vignetting",
+        "octane.saturation",
+        "octane.white_saturation",
+        "octane.hot_pix",
+        "octane.min_display_samples",
+        "octane.dithering",
+        "octane.premultiplied_alpha"
+    ]
+
+    preset_subdir = "octane/3dimager_presets"
+
 
 def register():
     pass

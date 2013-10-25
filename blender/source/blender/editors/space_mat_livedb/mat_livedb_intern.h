@@ -61,6 +61,8 @@ static unsigned short LIVEDB_PORT = 5131;
 #define MAT_LDB_VALUE_TYPE_STRING    11
 #define MAT_LDB_VALUE_TYPE_COLOR     12
 #define MAT_LDB_VALUE_TYPE_FILE      13
+#define MAT_LDB_VALUE_TYPE_NLINK     14
+#define MAT_LDB_VALUE_TYPE_FLINK     15
 
 struct wmOperatorType;
 struct wmKeyConfig;
@@ -110,9 +112,10 @@ typedef struct MatItem {
     int32_t type;
     uint32_t size;
     union {
-        float float_vector[4];
-        int   int_vector[4];
-        char  data[1];
+        float    float_vector[4];
+        int32_t  int_vector[4];
+        uint32_t uint_vector[4];
+        char     data[1];
     };
 } MatItem;
 
