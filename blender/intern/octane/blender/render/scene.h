@@ -50,7 +50,6 @@ public:
 	~Scene();
 
 	void server_update(RenderServer *server, Progress& progress, bool interactive);
-	bool need_motion();
 	bool need_update();
 	bool need_reset();
 

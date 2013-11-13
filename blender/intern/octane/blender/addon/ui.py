@@ -214,6 +214,25 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "parallelism", text="Parallelism")
 
 
+class OctaneRender_PT_motion_blur(OctaneButtonsPanel, Panel):
+    bl_label = "Motion Blur"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        rd = context.scene.render
+        self.layout.prop(rd, "use_motion_blur", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        rd = context.scene.render
+        layout.active = rd.use_motion_blur
+
+        row = layout.row()
+        row.prop(rd, "motion_blur_shutter")
+        row = layout.row()
+        row.prop(rd, "motion_blur_samples")
+
 
 
 class OctaneRender_PT_layers(OctaneButtonsPanel, Panel):

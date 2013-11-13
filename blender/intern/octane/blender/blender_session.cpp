@@ -71,8 +71,18 @@ void Pass::add(PassType type, vector<Pass>& passes) {
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_)
 								: b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL) {
 
+    BL::RenderSettings r = b_scene.render();
+    motion_blur          = r.use_motion_blur();
+    shuttertime          = r.motion_blur_shutter();
+    mb_samples           = r.motion_blur_samples();
+    mb_cur_sample        = 0;
+    mb_sample_in_work    = 0;
+
     for(int i=0; i < NUM_PASSES; ++i) {
         if(pass_buffers[i]) pass_buffers[i] = 0;
+    }
+    for(int i=0; i < NUM_PASSES; ++i) {
+        if(mb_pass_buffers[i]) mb_pass_buffers[i] = 0;
     }
     // Offline render
 	width   = b_engine.resolution_x();
@@ -89,8 +99,13 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_, BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
 								: b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(b_v3d_), b_rv3d(b_rv3d_) {
+    motion_blur = false;
+
     for(int i=0; i < NUM_PASSES; ++i) {
         if(pass_buffers[i]) pass_buffers[i] = 0;
+    }
+    for(int i=0; i < NUM_PASSES; ++i) {
+        if(mb_pass_buffers[i]) mb_pass_buffers[i] = 0;
     }
 	// 3d view render
 	width   = width_;
@@ -185,6 +200,10 @@ void BlenderSession::free_session() {
         if(pass_buffers[i]) {
             delete[] pass_buffers[i];
             pass_buffers[i] = 0;
+        }
+        if(mb_pass_buffers[i]) {
+            delete[] mb_pass_buffers[i];
+            mb_pass_buffers[i] = 0;
         }
     }
 	delete sync;
@@ -292,19 +311,19 @@ void BlenderSession::write_render_img() {
 // Update the rendered image without passes
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::update_render_img() {
-    if(cur_pass_type != PASS_COMBINED) return;
-
 	if (!b_engine.is_preview())
 	    do_write_update_render_img(true);
-	else
+    else {
+        if(cur_pass_type != PASS_COMBINED) return;
 	    do_write_update_render_img(false);
+    }
 } //update_render_img()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Update render image, with passes if needed
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only) {
-	if(!do_update_only) {
+	if(!do_update_only || motion_blur) {
 		// Copy each pass
 		BL::RenderLayer::passes_iterator b_iter;
 
@@ -312,41 +331,90 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
 			BL::RenderPass b_pass(*b_iter);
 
 			// Find matching pass type
-			PassType pass_type = get_pass_type(b_pass);
+			int components = b_pass.channels();
+            int buf_size = width * height * components;
+
+            PassType pass_type = get_pass_type(b_pass);
             if(pass_type == PASS_NONE) {
-    			int components = b_pass.channels();
-	            float* pixels  = new float[width * height * components];
-                memset(pixels, 0, sizeof(float) * width * height * components);
-			    b_pass.rect(pixels);
-                delete[] pixels;
+                if(!do_update_only) {
+	                float* pixels  = new float[buf_size];
+                    memset(pixels, 0, sizeof(float) * buf_size);
+			        b_pass.rect(pixels);
+                    delete[] pixels;
+                }
                 continue;
             }
 
             register int i = -1;
             for(register int cur_pass_idx = pass_type; cur_pass_idx; cur_pass_idx >>= 1, ++i);
+
     	    float* pixels  = pass_buffers[i];
-			int components = b_pass.channels();
             if(!pixels) {
-	            pixels = new float[width * height * components];
+	            pixels = new float[buf_size];
                 pass_buffers[i] = pixels;
+            }
+            float* mb_pixels = mb_pass_buffers[i];
+            if(motion_blur && !mb_pixels) {
+                mb_pixels = new float[buf_size];
+                mb_pass_buffers[i] = mb_pixels;
             }
 
             // Copy pixels
             if(pass_type == cur_pass_type) {
-                if(session->server->get_pass_rect(pass_type, components, pixels, width, height))
-			        b_pass.rect(pixels);
+                if(motion_blur && mb_cur_sample > 1) {
+                    if(!do_update_only) {
+                        for(unsigned int k = 0; k < buf_size; ++k)
+                            pixels[k] = (pixels[k] * (mb_cur_sample - 1) + mb_pixels[k]) / (float)mb_cur_sample;
+                    }
+                    else {
+                        if(mb_cur_sample > 2 && mb_cur_sample > mb_sample_in_work) {
+                            mb_sample_in_work = mb_cur_sample;
+                            for(unsigned int k = 0; k < buf_size; ++k)
+                                pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
+                        }
+                        session->server->get_pass_rect(pass_type, components, mb_pixels, width, height);
+                    }
+                    b_pass.rect(pixels);
+                }
+                else {
+                    if(session->server->get_pass_rect(pass_type, components, pixels, width, height))
+			            b_pass.rect(pixels);
+                }
             }
-            else {
-			    b_pass.rect(pixels);
-            }
+            else b_pass.rect(pixels);
 		}
 	}
+
+    int buf_size = width * height * 4;
     float* pixels = pass_buffers[0];
     if(!pixels) {
-        pixels = new float[width * height * 4];
+        pixels = new float[buf_size];
         pass_buffers[0] = pixels;
     }
-    if(cur_pass_type != PASS_COMBINED || session->server->get_pass_rect(PASS_COMBINED, 4, pixels, width, height))
+    float* mb_pixels = mb_pass_buffers[0];
+    if(motion_blur && !mb_pixels) {
+        mb_pixels = new float[buf_size];
+        mb_pass_buffers[0] = mb_pixels;
+    }
+
+    if(cur_pass_type != PASS_COMBINED)
+		b_rlay.rect(pixels);
+    else if(motion_blur && mb_cur_sample > 1) {
+        if(!do_update_only) {
+            for(unsigned int k = 0; k < buf_size; ++k)
+                pixels[k] = (pixels[k] * (mb_cur_sample - 1) + mb_pixels[k]) / (float)mb_cur_sample;
+        }
+        else {
+            if(mb_cur_sample > 2 && mb_cur_sample > mb_sample_in_work) {
+                mb_sample_in_work = mb_cur_sample;
+                for(unsigned int k = 0; k < buf_size; ++k)
+                    pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
+            }
+            session->server->get_pass_rect(PASS_COMBINED, 4, mb_pixels, width, height);
+        }
+  		b_rlay.rect(pixels);
+    }
+    else if(session->server->get_pass_rect(PASS_COMBINED, 4, pixels, width, height))
 		b_rlay.rect(pixels);
 
 	// Tag result as updated
@@ -367,6 +435,37 @@ void BlenderSession::update_render_result(BL::RenderResult b_rr, BL::RenderLayer
 	do_write_update_render_result(b_rr, b_rlay, true);
 } //update_render_result()
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Collect needed render-passes
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int BlenderSession::get_render_passes(vector<Pass> &passes) {
+	// Temporary render result to find needed passes
+	BL::RenderResult b_rr = begin_render_result(b_engine, 0, 0, 1, 1, b_rlay_name.c_str());
+	BL::RenderResult::layers_iterator b_single_rlay;
+	b_rr.layers.begin(b_single_rlay);
+
+	// Layer will be missing if it was disabled in the UI
+	if(b_single_rlay == b_rr.layers.end()) {
+		end_render_result(b_engine, b_rr, true);
+		return -1;
+	}
+
+	BL::RenderLayer b_rlay = *b_single_rlay;
+
+	// Add passes
+	// Loop over passes
+	BL::RenderLayer::passes_iterator b_pass_iter;
+	for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
+		BL::RenderPass b_pass(*b_pass_iter);
+		PassType pass_type = get_pass_type(b_pass);
+
+		if(pass_type != PASS_NONE) Pass::add(pass_type, passes);
+	}
+	// Free result without merging
+	end_render_result(b_engine, b_rr, true);
+    return passes.size();
+} //get_render_passes()
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -380,38 +479,19 @@ void BlenderSession::render() {
 	// Render each layer
 	BL::RenderSettings render = b_scene.render();
 	BL::RenderSettings::layers_iterator b_iter;
+
+    if(motion_blur && mb_samples > 1)
+        session->params.samples = session->params.samples / mb_samples;
+    if(session->params.samples < 1) session->params.samples = 1;
 	
 	for(render.layers.begin(b_iter); b_iter != render.layers.end(); ++b_iter) {
 		b_rlay_name = b_iter->name();
 
-		// Temporary render result to find needed passes
-		BL::RenderResult b_rr = begin_render_result(b_engine, 0, 0, 1, 1, b_rlay_name.c_str());
-		BL::RenderResult::layers_iterator b_single_rlay;
-		b_rr.layers.begin(b_single_rlay);
-
-		// Layer will be missing if it was disabled in the UI
-		if(b_single_rlay == b_rr.layers.end()) {
-			end_render_result(b_engine, b_rr, true);
-			continue;
-		}
-
-		BL::RenderLayer b_rlay = *b_single_rlay;
-
 		// Add passes
         vector<Pass> passes;
-		if(session_params.use_passes) {
-			// Loop over passes
-			BL::RenderLayer::passes_iterator b_pass_iter;
-			for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
-				BL::RenderPass b_pass(*b_pass_iter);
-				PassType pass_type = get_pass_type(b_pass);
-
-				if(pass_type != PASS_NONE) Pass::add(pass_type, passes);
-			}
-		}
-		// Free result without merging
-		end_render_result(b_engine, b_rr, true);
-        num_passes   = passes.size() + 1;
+		if(session_params.use_passes) num_passes = get_render_passes(passes) + 1;
+        else num_passes = 1;
+        if(num_passes < 0) continue;
         ready_passes = 0;
 
         for(int i=0; i < NUM_PASSES; ++i) {
@@ -419,12 +499,39 @@ void BlenderSession::render() {
                 delete[] pass_buffers[i];
                 pass_buffers[i] = 0;
             }
+            if(mb_pass_buffers[i]) {
+                delete[] mb_pass_buffers[i];
+                mb_pass_buffers[i] = 0;
+            }
         }
         cur_pass_type = PASS_COMBINED;
+
         // Render
-        session->start("Combined pass", true);
+        if(motion_blur && mb_samples > 1) {
+            mb_sample_in_work = 0;
+            float subframe = 0;
+            int cur_frame = b_scene.frame_current();
+            for(mb_cur_sample = 1; mb_cur_sample <= mb_samples; ++mb_cur_sample) {
+                session->start("Combined pass", true);
+                session->params.image_stat.cur_samples = 0;
+
+                subframe += shuttertime / (mb_samples - 1);
+                if(subframe < 1.0f)
+        		    b_scene.frame_set(cur_frame, subframe);
+
+                sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
+
+                if(session->progress.get_cancel()) break;
+            }
+      		b_scene.frame_set(cur_frame, 0);
+        }
+        else {
+            if(motion_blur) motion_blur = false;
+            mb_cur_sample = 0;
+            session->start("Combined pass", true);
+            session->params.image_stat.cur_samples = 0;
+        }
         ready_passes = 1;
-        session->params.image_stat.cur_samples = 0;
         write_render_img();
 
         vector<Pass>::const_iterator it;
@@ -455,15 +562,40 @@ void BlenderSession::render() {
                     continue;
                     break;
             }
-            sync->sync_kernel(cur_pass_type);
-		    session->update_scene_to_server();
-	        BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-            session->update(buffer_params, session_params.samples);
-	        // Render
-	        session->start(cur_message, true);
-            ++ready_passes;
-            session->params.image_stat.cur_samples = 0;
 
+	        // Render
+            if(motion_blur && mb_samples > 1) {
+                sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
+
+                mb_sample_in_work = 0;
+                float subframe = 0;
+                int cur_frame = b_scene.frame_current();
+                for(mb_cur_sample = 1; mb_cur_sample <= mb_samples; ++mb_cur_sample) {
+                    session->start(cur_message, true);
+                    session->params.image_stat.cur_samples = 0;
+
+                    subframe += shuttertime / (mb_samples - 1);
+                    if(subframe < 1.0f)
+        		        b_scene.frame_set(cur_frame, subframe);
+
+                    sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
+
+                    if(session->progress.get_cancel()) break;
+                }
+      		    b_scene.frame_set(cur_frame, 0);
+            }
+            else {
+                if(motion_blur) motion_blur = false;
+
+                sync->sync_kernel(cur_pass_type);
+		        session->update_scene_to_server();
+	            BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
+                session->update(buffer_params, session_params.samples);
+                mb_cur_sample = 0;
+                session->start(cur_message, true);
+                session->params.image_stat.cur_samples = 0;
+            }
+            ++ready_passes;
             write_render_img();
 
             if(session->progress.get_cancel()) break;
@@ -475,15 +607,21 @@ void BlenderSession::render() {
             delete[] pass_buffers[i];
             pass_buffers[i] = 0;
         }
+        if(mb_pass_buffers[i]) {
+            delete[] mb_pass_buffers[i];
+            mb_pass_buffers[i] = 0;
+        }
     }
+    num_passes   = -1;
+    ready_passes = -1;
 } //render()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "sync" python API function
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::synchronize() {
-    num_passes   = 0;
-    ready_passes = 0;
+    if(num_passes < 0) num_passes   = 0;
+    if(ready_passes < 0) ready_passes = 0;
     SessionParams session_params;
 
     session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
@@ -584,7 +722,18 @@ void BlenderSession::get_status(string& status, string& substatus) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::get_progress(float& progress, double& total_time) {
 	session->progress.get_time(total_time);
-	progress = (((ready_passes * (float)session->params.samples) + (float)session->params.image_stat.cur_samples) / ((float)session->params.samples * num_passes));
+    if(!motion_blur) {
+        if(session->params.samples * num_passes == 0)
+            progress = 0;
+        else
+	        progress = ((ready_passes * (float)session->params.samples + (float)session->params.image_stat.cur_samples) / ((float)session->params.samples * num_passes));
+    }
+    else {
+        if(session->params.samples * mb_samples * num_passes == 0)
+            progress = 0;
+        else
+	        progress = ((ready_passes * (float)session->params.samples * mb_samples + (float)session->params.samples * (mb_sample_in_work - 1) + (float)session->params.image_stat.cur_samples) / ((float)session->params.samples * mb_samples * num_passes));
+    }
 } //get_progress()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -221,7 +221,6 @@ private:
 	void sync_lamps();
 	void sync_materials();
 	void sync_objects(BL::SpaceView3D b_v3d, int motion = 0);
-	void sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override);
 	void sync_view();
 	void sync_world();
 	void sync_render_layers(BL::SpaceView3D b_v3d, const char *layer);

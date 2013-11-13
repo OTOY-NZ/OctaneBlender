@@ -59,7 +59,8 @@ public:
         CHANNEL_MATERIALID,
         CHANNEL_TEXTURESCOORDINATES,
         RESERVED_1,
-        CHANNEL_WIREFRAME
+        CHANNEL_WIREFRAME,
+        CHANNEL_VERTEXNORMAL
     };
 
     KernelType  kernel_type;
@@ -99,8 +100,6 @@ public:
     float       uv_max;
 
     uint32_t    uiGPUs;
-
-    bool motion_blur;
 
 	bool need_update;
 	bool need_update_GPUs;

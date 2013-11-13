@@ -581,21 +581,5 @@ bool lights_map::sync(Object **r_data, BL::Object b_ob, BL::ID parent, const Obj
     return recalc;
 } //lights_map::sync()
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override) {
-	if(!scene->need_motion()) return;
-
-	// Go back and forth one frame
-	int frame = b_scene.frame_current();
-	for(int motion = -1; motion <= 1; motion += 2) {
-		b_scene.frame_set(frame + motion, 0.0f);
-		// Mesh objects
-		sync_objects(b_v3d, motion);
-	}
-	b_scene.frame_set(frame, 0.0f);
-} //sync_motion()
-
 OCT_NAMESPACE_END
 

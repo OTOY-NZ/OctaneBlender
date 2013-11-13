@@ -100,6 +100,9 @@ public:
     int         num_passes;
     int         ready_passes;
     float*      pass_buffers[NUM_PASSES];
+    float*      mb_pass_buffers[NUM_PASSES];
+    bool        motion_blur;
+    int         mb_samples;
 
 	BL::RenderEngine    b_engine;
 	BL::UserPreferences b_userpref;
@@ -117,6 +120,12 @@ public:
 protected:
 	void do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only);
 	void do_write_update_render_img(bool do_update_only);
+
+    inline int get_render_passes(vector<Pass> &passes);
+
+    float shuttertime;
+    int   mb_cur_sample;
+    int   mb_sample_in_work;
 };
 
 OCT_NAMESPACE_END

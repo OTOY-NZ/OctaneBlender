@@ -1,5 +1,6 @@
 build/
 buildvs/
+buildvsREL/
 *.bak/
 .svn/
 Setup/*.exe

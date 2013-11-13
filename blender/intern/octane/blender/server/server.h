@@ -54,6 +54,7 @@
 #include "util_thread.h"
 #include "util_types.h"
 #include "util_lists.h"
+#include "util_progress.h"
 #include <OpenImageIO/ustring.h>
 
 #include "nodes.h"
@@ -663,13 +664,13 @@ public:
     // Start the render process on the server.
     // w - the width of the the rendered image needed 
     // h - the height of the the rendered image needed
-    inline void start_render(int32_t w, int32_t h) {
+    inline void start_render(int32_t w, int32_t h, uint32_t img_type) {
         if(socket < 0) return;
 
         thread_scoped_lock socket_lock(socket_mutex);
 
-        RPCSend snd(socket, sizeof(int32_t) * 2, START);
-        snd << w << h;
+        RPCSend snd(socket, sizeof(int32_t) * 2 + sizeof(uint32_t), START);
+        snd << w << h << img_type;
         snd.write();
 
         RPCReceive rcv(socket);
@@ -1556,16 +1557,16 @@ public:
         if(socket < 0) return;
 
         uint64_t size = sizeof(float) * 8 + sizeof(int32_t)
-            + node->Distribution.length() + 2
-            + node->Efficiency.length() + 2;
+            + node->Efficiency.length() + 2
+            + node->Distribution.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_BLACKBODY_EMISSION, node->name.c_str());
-            snd << node->Distribution_default_val << node->Efficiency_default_val << node->Temperature << node->Power
+            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Temperature << node->Power
                 << node->Orientation.x << node->Orientation.y << node->Orientation.z << node->SamplingRate
                 << node->Normalize
-                << node->Distribution.c_str() << node->Efficiency.c_str();
+                << node->Efficiency.c_str() << node->Distribution.c_str();
             snd.write();
         }
         wait_error(LOAD_BLACKBODY_EMISSION);
@@ -1749,50 +1750,57 @@ public:
         return true;
     } //get_8bit_pixels()
 
-    inline void get_image_buffer(ImageStatistics &image_stat, bool interactive) {
-        if(socket < 0) return;
+    inline bool get_image_buffer(ImageStatistics &image_stat, bool interactive, PassType type, Progress &progress) {
+        if(socket < 0) return false;
 
         thread_scoped_lock socket_lock(socket_mutex);
 
-        {
-            RPCSend snd(socket, sizeof(int32_t)*3, GET_IMAGE);
-            int32_t iType = (interactive ? 0 : 1);
-            snd << iType << cur_w << cur_h;
-            snd.write();
-        }
-
-        RPCReceive rcv(socket);
-        if(rcv.type == GET_IMAGE) {
-            uint64_t ullUsedMem = 0, ullFreeMem = 0, ullTotalMem = 0;
-            uint32_t ui32TriCnt = 0, ui32MeshCnt = 0;
-            uint32_t uiRgb32Cnt = 0, uiRgb32Max = 0, uiRgb64Cnt = 0, uiRgb64Max = 0, uiGrey8Cnt = 0, uiGrey8Max = 0, uiGrey16Cnt = 0, uiGrey16Max = 0;
-            uint32_t uiW, uiH, uiSamples;
-            rcv >> image_stat.used_vram >> image_stat.free_vram >> image_stat.total_vram >> image_stat.spp >> image_stat.tri_cnt >> image_stat.meshes_cnt >> image_stat.rgb32_cnt >> image_stat.rgb32_max
-                >> image_stat.rgb64_cnt >> image_stat.rgb64_max >> image_stat.grey8_cnt >> image_stat.grey8_max >> image_stat.grey16_cnt >> image_stat.grey16_max >> uiSamples >> uiW >> uiH;
-
-            if(uiSamples) image_stat.cur_samples = uiSamples;
-
-            thread_scoped_lock img_buf_lock(img_buf_mutex);
-            if(interactive) {
-                if(!image_buf || static_cast<uint32_t>(cur_w) != uiW || static_cast<uint32_t>(cur_h) != uiH) return;
-
-                size_t  len     = uiW * uiH * 4;
-                uint8_t *ucBuf  = (uint8_t*)rcv.read_buffer(len);
-
-                memcpy(image_buf, ucBuf, len);
+        while(true) {
+            if(progress.get_cancel()) return false;
+            {
+                RPCSend snd(socket, sizeof(int32_t)*2 + sizeof(uint32_t), GET_IMAGE);
+                uint32_t uiType = (interactive ? 0 : 2);
+                snd << uiType << cur_w << cur_h;
+                snd.write();
             }
-            else {
-                if(!float_img_buf || static_cast<uint32_t>(cur_w) != uiW || static_cast<uint32_t>(cur_h) != uiH) return;
 
-                size_t len  = uiW * uiH * 4;
-                float* fBuf = (float*)rcv.read_buffer(len * sizeof(float));
+            RPCReceive rcv(socket);
+            if(rcv.type == GET_IMAGE) {
+                uint64_t ullUsedMem = 0, ullFreeMem = 0, ullTotalMem = 0;
+                uint32_t ui32TriCnt = 0, ui32MeshCnt = 0;
+                uint32_t uiRgb32Cnt = 0, uiRgb32Max = 0, uiRgb64Cnt = 0, uiRgb64Max = 0, uiGrey8Cnt = 0, uiGrey8Max = 0, uiGrey16Cnt = 0, uiGrey16Max = 0;
+                uint32_t uiW, uiH, uiSamples;
+                rcv >> image_stat.used_vram >> image_stat.free_vram >> image_stat.total_vram >> image_stat.spp >> image_stat.tri_cnt >> image_stat.meshes_cnt >> image_stat.rgb32_cnt >> image_stat.rgb32_max
+                    >> image_stat.rgb64_cnt >> image_stat.rgb64_max >> image_stat.grey8_cnt >> image_stat.grey8_max >> image_stat.grey16_cnt >> image_stat.grey16_max >> uiSamples >> uiW >> uiH;
 
-                for(register size_t i=0; i<len; i+=4)
-                    srgb_to_linearrgb_v4(&float_img_buf[i], &fBuf[i]);
+                if(uiSamples) image_stat.cur_samples = uiSamples;
+
+                thread_scoped_lock img_buf_lock(img_buf_mutex);
+                if(interactive) {
+                    if(!image_buf || static_cast<uint32_t>(cur_w) != uiW || static_cast<uint32_t>(cur_h) != uiH) return false;
+
+                    size_t  len     = uiW * uiH * 4;
+                    uint8_t *ucBuf  = (uint8_t*)rcv.read_buffer(len);
+
+                    memcpy(image_buf, ucBuf, len);
+                }
+                else {
+                    if(!float_img_buf || static_cast<uint32_t>(cur_w) != uiW || static_cast<uint32_t>(cur_h) != uiH) return false;
+
+                    size_t len  = uiW * uiH * 4;
+                    float* fBuf = (float*)rcv.read_buffer(len * sizeof(float));
+
+                    if(type == PASS_COMBINED) {
+                        for(register size_t i=0; i<len; i+=4)
+                            srgb_to_linearrgb_v4(&float_img_buf[i], &fBuf[i]);
+                    }
+                    else memcpy(float_img_buf, fBuf, len * sizeof(float));
+                }
+                break;
             }
-            return;
+            else return false;
         }
-        else return;
+        return true;
     } //get_image_buffer()
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1819,8 +1827,8 @@ public:
         float* in = float_img_buf;
 
         if(components == 1) {
-		    for(int i = 0; i < pixel_size; i++, in += 4, pixels++)
-			    *pixels = *in;
+	        for(int i = 0; i < pixel_size; i++, in += 4, pixels++)
+		        *pixels = *in;
 	    } //if(components == 1)
 	    else if(components == 3) {
 		    for(int i = 0; i < pixel_size; i++, in += 4, pixels += 3) {

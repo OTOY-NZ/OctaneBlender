@@ -153,10 +153,12 @@ void Session::run_render() {
 		} //if(!params.interactive), else
 
 		if(!is_done) {
+            time_sleep(0.01);
+
 			// Update scene on the render-server - send all changed objects
 			update_scene_to_server();
             if(!bStarted) {
-                server->start_render(params.width, params.height); //FIXME: Perhaps the wrong place for it...
+                server->start_render(params.width, params.height, params.interactive ? 0 : 2); //FIXME: Perhaps the wrong place for it...
                 bStarted = true;
             }
             if(!server->error_message().empty()) {
@@ -410,10 +412,13 @@ void Session::update_status_time(bool show_pause, bool show_done) {
 void Session::update_render_buffer() {
     if(progress.get_cancel()) return;
 
-    server->get_image_buffer(params.image_stat, params.interactive);
+    if(!server->get_image_buffer(params.image_stat, params.interactive, b_session ? b_session->cur_pass_type : PASS_COMBINED, progress) && b_session) {
+        update_img_sample();
+        server->get_image_buffer(params.image_stat, params.interactive, b_session ? b_session->cur_pass_type : PASS_COMBINED, progress);
+    }
     double current_time = time_dt();
     if((current_time - last_update_time) >= 1.0f) {
-	    update_img_sample();
+        update_img_sample();
 
 	    last_update_time = current_time;
     }
@@ -423,8 +428,6 @@ void Session::update_render_buffer() {
 // Refresh the render-view with new image from render-buffer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void Session::update_img_sample(void) {
-	//thread_scoped_lock img_lock(img_mutex);
-
     //Only for NON-INTERACTIVE session
 	if(b_session) {
     	thread_scoped_lock img_lock(img_mutex);

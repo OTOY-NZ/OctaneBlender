@@ -134,8 +134,6 @@ void Camera::update(Scene *scene) {
 // Update the camera properties and load it to the render-server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void Camera::server_update(RenderServer *server, Scene *scene) {
-	bool need_motion = scene->need_motion();
-
 	update(scene);
     server->load_camera(this);
 } //server_update()

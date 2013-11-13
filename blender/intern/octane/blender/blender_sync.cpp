@@ -20,6 +20,7 @@
 #include "session.h"
 
 #include "blender_sync.h"
+#include "blender_session.h"
 #include "blender_util.h"
 
 OCT_NAMESPACE_BEGIN
@@ -31,7 +32,8 @@ Kernel::ChannelType channel_translator[] = {
     Kernel::CHANNEL_ZDEPTH,
     Kernel::CHANNEL_MATERIALID,
     Kernel::CHANNEL_TEXTURESCOORDINATES,
-    Kernel::CHANNEL_WIREFRAME
+    Kernel::CHANNEL_WIREFRAME,
+    Kernel::CHANNEL_VERTEXNORMAL
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,8 +128,6 @@ void BlenderSync::sync_data(PassType pass_type, BL::SpaceView3D b_v3d, BL::Objec
 	sync_kernel(pass_type);
 	sync_shaders(); //Environment here so far...
 	sync_objects(b_v3d);
-	
-	sync_motion(b_v3d, b_override);
 } //sync_data()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -174,6 +174,10 @@ void BlenderSync::sync_kernel(PassType pass_type) {
             break;
     }
     kernel->max_samples         = get_int(oct_scene, "max_samples");
+    if(scene->session->b_session && scene->session->b_session->motion_blur && scene->session->b_session->mb_samples > 1)
+        kernel->max_samples = kernel->max_samples / scene->session->b_session->mb_samples;
+    if(kernel->max_samples < 1) kernel->max_samples = 1;
+
     kernel->max_preview_samples = get_int(oct_scene, "max_preview_samples");
     kernel->filter_size         = get_float(oct_scene, "filter_size");
     kernel->ray_epsilon         = get_float(oct_scene, "ray_epsilon");
@@ -311,6 +315,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 		params.samples = get_int(oct_scene, "max_preview_samples");
 		if(params.samples == 0) params.samples = 16000;
 	}
+
     params.use_passes           = get_boolean(oct_scene, "use_passes");
     params.meshes_type          = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");

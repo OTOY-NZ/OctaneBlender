@@ -37,10 +37,26 @@ static bNodeSocketTemplate sh_node_out[] = {
 	{-1, 0, ""}
 };
 
+static void node_oct_checks_tex_init(bNodeTree *ntree, bNode *node) {
+	NodeTexImage *tex = MEM_callocN(sizeof(NodeTexImage), "NodeTexImage");
+	default_tex_mapping(&tex->base.tex_mapping);
+	default_color_mapping(&tex->base.color_mapping);
+	tex->color_space = SHD_COLORSPACE_COLOR;
+	tex->iuser.frames= 1;
+	tex->iuser.sfra= 1;
+	tex->iuser.fie_ima= 2;
+	tex->iuser.ok= 1;
+	node->storage = tex;
+} /* node_oct_image_tex_init() */
+
 static int node_shader_gpu_tex_oct_checks(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out) {
     float rgb1[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     float rgb2[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float scale[4] = {5.0f, 0.0f, 0.0f, 0.0f};
+
+    if(!node->storage) {
+        node_oct_checks_tex_init(0, node);
+    }
 	in[0].link = GPU_attribute(CD_ORCO, "");
     in[0].type = GPU_VEC3;
     in[1].type = GPU_NONE;
@@ -56,7 +72,7 @@ void register_node_type_tex_oct_checks(void) {
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
 	node_type_size(&ntype, 100, 60, 150);
-	node_type_init(&ntype, 0);
+	node_type_init(&ntype, node_oct_checks_tex_init);
 	node_type_storage(&ntype, "NodeTexChecker", node_free_standard_storage, node_copy_standard_storage);
 	node_type_exec(&ntype, 0, 0, 0);
 	node_type_gpu(&ntype, node_shader_gpu_tex_oct_checks);

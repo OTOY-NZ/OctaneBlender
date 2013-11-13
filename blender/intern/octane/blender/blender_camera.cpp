@@ -90,9 +90,8 @@ void BlenderSync::sync_camera(BL::Object b_override, int width, int height) {
     Camera* cam = scene->camera;
 
     BL::RenderSettings r = b_scene.render();
-    cam->pixelaspect.x = r.pixel_aspect_x();
-    cam->pixelaspect.y = r.pixel_aspect_y();
-    //cam.shuttertime = r.motion_blur_shutter();
+    cam->pixelaspect.x   = r.pixel_aspect_x();
+    cam->pixelaspect.y   = r.pixel_aspect_y();
 
     BL::Object b_ob = b_scene.camera();
     if(b_override) b_ob = b_override;
@@ -111,7 +110,6 @@ void BlenderSync::sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int 
     Camera* cam = scene->camera;
 
     cam->pixelaspect = make_float2(1.0f, 1.0f);
-    //cam->shuttertime = b_scene.render().motion_blur_shutter();
 
     float2 offset = {0};
     load_camera_from_view(cam, b_scene, b_v3d, b_rv3d, width, height, offset);

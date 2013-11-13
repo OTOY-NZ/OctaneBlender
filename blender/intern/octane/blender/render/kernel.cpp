@@ -61,8 +61,6 @@ Kernel::Kernel() {
 
     uiGPUs              = 0;
 
-    motion_blur = false;
-
 	need_update         = true;
     need_update_GPUs    = false;
 } //Kernel()
