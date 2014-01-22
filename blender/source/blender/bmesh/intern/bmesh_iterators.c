@@ -54,6 +54,32 @@ const char bm_iter_itype_htype_map[BM_ITYPE_MAX] = {
 };
 
 /**
+ * Utility function.
+ */
+int BM_iter_mesh_count(BMesh *bm, const char itype)
+{
+	int count;
+
+	switch (itype) {
+		case BM_VERTS_OF_MESH:
+			count = bm->totvert;
+			break;
+		case BM_EDGES_OF_MESH:
+			count = bm->totedge;
+			break;
+		case BM_FACES_OF_MESH:
+			count = bm->totface;
+			break;
+		default:
+			count = 0;
+			BLI_assert(0);
+			break;
+	}
+
+	return count;
+}
+
+/**
  * \note Use #BM_vert_at_index / #BM_edge_at_index / #BM_face_at_index for mesh arrays.
  */
 void *BM_iter_at_index(BMesh *bm, const char itype, void *data, int index)
@@ -304,35 +330,65 @@ int BM_iter_mesh_count_flag(const char itype, BMesh *bm, const char hflag, const
  * VERT OF MESH CALLBACKS
  */
 
+/* see bug [#36923] for why we need this,
+ * allow adding but not removing, this isnt _totally_ safe since
+ * you could add/remove within the same loop, but catches common cases
+ */
+#ifdef DEBUG
+#  define USE_IMMUTABLE_ASSERT
+#endif
+
 void bmiter__vert_of_mesh_begin(struct BMIter__vert_of_mesh *iter)
 {
+#ifdef USE_IMMUTABLE_ASSERT
+	((BMIter *)iter)->count = iter->bm->totvert;
+#endif
 	BLI_mempool_iternew(iter->bm->vpool, &iter->pooliter);
 }
 
 void *bmiter__vert_of_mesh_step(struct BMIter__vert_of_mesh *iter)
 {
+#ifdef USE_IMMUTABLE_ASSERT
+	BLI_assert(((BMIter *)iter)->count <= iter->bm->totvert);
+#endif
 	return BLI_mempool_iterstep(&iter->pooliter);
 }
 
 void bmiter__edge_of_mesh_begin(struct BMIter__edge_of_mesh *iter)
 {
+#ifdef USE_IMMUTABLE_ASSERT
+	((BMIter *)iter)->count = iter->bm->totedge;
+#endif
 	BLI_mempool_iternew(iter->bm->epool, &iter->pooliter);
 }
 
 void  *bmiter__edge_of_mesh_step(struct BMIter__edge_of_mesh *iter)
 {
+#ifdef USE_IMMUTABLE_ASSERT
+	BLI_assert(((BMIter *)iter)->count <= iter->bm->totedge);
+#endif
 	return BLI_mempool_iterstep(&iter->pooliter);
 }
 
 void  bmiter__face_of_mesh_begin(struct BMIter__face_of_mesh *iter)
 {
+#ifdef USE_IMMUTABLE_ASSERT
+	((BMIter *)iter)->count = iter->bm->totface;
+#endif
 	BLI_mempool_iternew(iter->bm->fpool, &iter->pooliter);
 }
 
 void  *bmiter__face_of_mesh_step(struct BMIter__face_of_mesh *iter)
 {
+#ifdef USE_IMMUTABLE_ASSERT
+	BLI_assert(((BMIter *)iter)->count <= iter->bm->totface);
+#endif
 	return BLI_mempool_iterstep(&iter->pooliter);
 }
+
+#ifdef USE_IMMUTABLE_ASSERT
+#  undef USE_IMMUTABLE_ASSERT
+#endif
 
 /*
  * EDGE OF VERT CALLBACKS

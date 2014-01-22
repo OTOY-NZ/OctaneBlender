@@ -22,6 +22,7 @@ set(SRC_HEADERS
 	kernel.h
 	kernel_accumulate.h
 	kernel_bvh.h
+	kernel_bvh_subsurface.h
 	kernel_bvh_traversal.h
 	kernel_camera.h
 	kernel_compat_cpu.h
@@ -40,6 +41,7 @@ set(SRC_HEADERS
 	kernel_object.h
 	kernel_passes.h
 	kernel_path.h
+	kernel_path_state.h
 	kernel_primitive.h
 	kernel_projection.h
 	kernel_random.h
@@ -65,6 +67,7 @@ set(SRC_CLOSURE_HEADERS
 	closure/bsdf_util.h
 	closure/bsdf_ward.h
 	closure/bsdf_westin.h
+	closure/bsdf_hair.h
 	closure/bssrdf.h
 	closure/emissive.h
 	closure/volume.h
@@ -72,6 +75,7 @@ set(SRC_CLOSURE_HEADERS
 set(SRC_SVM_HEADERS
 	svm/svm.h
 	svm/svm_attribute.h
+	svm/svm_blackbody.h
 	svm/svm_camera.h
 	svm/svm_closure.h
 	svm/svm_convert.h
@@ -99,11 +103,13 @@ set(SRC_SVM_HEADERS
 	svm/svm_normal.h
 	svm/svm_ramp.h
 	svm/svm_sepcomb_rgb.h
+	svm/svm_sepcomb_hsv.h
 	svm/svm_sky.h
 	svm/svm_tex_coord.h
 	svm/svm_texture.h
 	svm/svm_types.h
 	svm/svm_value.h
+	svm/svm_vector_transform.h
 	svm/svm_voronoi.h
 	svm/svm_wave.h
 )

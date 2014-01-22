@@ -877,6 +877,7 @@ static int start_ffmpeg_impl(struct RenderData *rd, int rectx, int recty, Report
 			break;
 		case FFMPEG_MP3:
 			fmt->audio_codec = CODEC_ID_MP3;
+			/* fall-through */
 		case FFMPEG_WAV:
 			fmt->video_codec = CODEC_ID_NONE;
 			break;
@@ -1072,23 +1073,23 @@ int BKE_ffmpeg_start(struct Scene *scene, RenderData *rd, int rectx, int recty, 
 		specs.channels = c->channels;
 
 		switch (av_get_packed_sample_fmt(c->sample_fmt)) {
-		case AV_SAMPLE_FMT_U8:
-			specs.format = AUD_FORMAT_U8;
-			break;
-		case AV_SAMPLE_FMT_S16:
-			specs.format = AUD_FORMAT_S16;
-			break;
-		case AV_SAMPLE_FMT_S32:
-			specs.format = AUD_FORMAT_S32;
-			break;
-		case AV_SAMPLE_FMT_FLT:
-			specs.format = AUD_FORMAT_FLOAT32;
-			break;
-		case AV_SAMPLE_FMT_DBL:
-			specs.format = AUD_FORMAT_FLOAT64;
-			break;
-		default:
-			return -31415;
+			case AV_SAMPLE_FMT_U8:
+				specs.format = AUD_FORMAT_U8;
+				break;
+			case AV_SAMPLE_FMT_S16:
+				specs.format = AUD_FORMAT_S16;
+				break;
+			case AV_SAMPLE_FMT_S32:
+				specs.format = AUD_FORMAT_S32;
+				break;
+			case AV_SAMPLE_FMT_FLT:
+				specs.format = AUD_FORMAT_FLOAT32;
+				break;
+			case AV_SAMPLE_FMT_DBL:
+				specs.format = AUD_FORMAT_FLOAT64;
+				break;
+			default:
+				return -31415;
 		}
 
 		specs.rate = rd->ffcodecdata.audio_mixrate;

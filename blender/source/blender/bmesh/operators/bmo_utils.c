@@ -32,8 +32,8 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_math.h"
-#include "BLI_array.h"
 #include "BLI_heap.h"
+#include "BLI_alloca.h"
 
 #include "BKE_customdata.h"
 
@@ -41,23 +41,31 @@
 
 #include "intern/bmesh_operators_private.h" /* own include */
 
+#define ELE_NEW 1
+
 void bmo_create_vert_exec(BMesh *bm, BMOperator *op)
 {
 	float vec[3];
 
 	BMO_slot_vec_get(op->slots_in, "co", vec);
 
-	BMO_elem_flag_enable(bm, BM_vert_create(bm, vec, NULL, 0), 1);
-	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "vert.out", BM_VERT, 1);
+	BMO_elem_flag_enable(bm, BM_vert_create(bm, vec, NULL, BM_CREATE_NOP), ELE_NEW);
+	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "vert.out", BM_VERT, ELE_NEW);
 }
 
 void bmo_transform_exec(BMesh *UNUSED(bm), BMOperator *op)
 {
 	BMOIter iter;
 	BMVert *v;
-	float mat[4][4];
+	float mat[4][4], mat_space[4][4], imat_space[4][4];
 
 	BMO_slot_mat4_get(op->slots_in, "matrix", mat);
+	BMO_slot_mat4_get(op->slots_in, "space", mat_space);
+
+	if (!is_zero_m4(mat_space)) {
+		invert_m4_m4(imat_space, mat_space);
+		mul_serie_m4(mat, imat_space, mat, mat_space, NULL, NULL, NULL, NULL, NULL);
+	}
 
 	BMO_ITER (v, &iter, op->slots_in, "verts", BM_VERT) {
 		mul_m4_v3(mat, v->co);
@@ -73,7 +81,7 @@ void bmo_translate_exec(BMesh *bm, BMOperator *op)
 	unit_m4(mat);
 	copy_v3_v3(mat[3], vec);
 
-	BMO_op_callf(bm, op->flag, "transform matrix=%m4 verts=%s", mat, op, "verts");
+	BMO_op_callf(bm, op->flag, "transform matrix=%m4 space=%s verts=%s", mat, op, "space", op, "verts");
 }
 
 void bmo_scale_exec(BMesh *bm, BMOperator *op)
@@ -87,25 +95,19 @@ void bmo_scale_exec(BMesh *bm, BMOperator *op)
 	mat[1][1] = vec[1];
 	mat[2][2] = vec[2];
 
-	BMO_op_callf(bm, op->flag, "transform matrix=%m3 verts=%s", mat, op, "verts");
+	BMO_op_callf(bm, op->flag, "transform matrix=%m3 space=%s verts=%s", mat, op, "space", op, "verts");
 }
 
 void bmo_rotate_exec(BMesh *bm, BMOperator *op)
 {
-	float vec[3];
-	
-	BMO_slot_vec_get(op->slots_in, "cent", vec);
-	
-	/* there has to be a proper matrix way to do this, but
-	 * this is how editmesh did it and I'm too tired to think
-	 * through the math right now. */
-	mul_v3_fl(vec, -1.0f);
-	BMO_op_callf(bm, op->flag, "translate verts=%s vec=%v", op, "verts", vec);
+	float center[3];
+	float mat[4][4];
 
-	BMO_op_callf(bm, op->flag, "transform matrix=%s verts=%s", op, "matrix", op, "verts");
+	BMO_slot_vec_get(op->slots_in, "cent", center);
+	BMO_slot_mat4_get(op->slots_in, "matrix", mat);
+	transform_pivot_set_m4(mat, center);
 
-	mul_v3_fl(vec, -1.0f);
-	BMO_op_callf(bm, op->flag, "translate verts=%s vec=%v", op, "verts", vec);
+	BMO_op_callf(bm, op->flag, "transform matrix=%m4 space=%s verts=%s", mat, op, "space", op, "verts");
 }
 
 void bmo_reverse_faces_exec(BMesh *bm, BMOperator *op)
@@ -144,19 +146,23 @@ void bmo_rotate_edges_exec(BMesh *bm, BMOperator *op)
 				    BMO_elem_flag_test(bm, fb, FACE_TAINT) == false)
 				{
 
+					/* don't touch again (faces will be freed so run before rotating the edge) */
+					BMO_elem_flag_enable(bm, fa, FACE_TAINT);
+					BMO_elem_flag_enable(bm, fb, FACE_TAINT);
+
 					if (!(e2 = BM_edge_rotate(bm, e, use_ccw, check_flag))) {
+
+						BMO_elem_flag_disable(bm, fa, FACE_TAINT);
+						BMO_elem_flag_disable(bm, fb, FACE_TAINT);
 #if 0
 						BMO_error_raise(bm, op, BMERR_INVALID_SELECTION, "Could not rotate edge");
 						return;
 #endif
+
 						continue;
 					}
 
 					BMO_elem_flag_enable(bm, e2, EDGE_OUT);
-
-					/* don't touch again */
-					BMO_elem_flag_enable(bm, fa, FACE_TAINT);
-					BMO_elem_flag_enable(bm, fb, FACE_TAINT);
 				}
 			}
 		}

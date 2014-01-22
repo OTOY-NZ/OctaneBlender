@@ -74,6 +74,8 @@ public:
     bool    alpha_channel;
     bool    keep_environment;
     bool    alpha_shadows;
+    bool    bump_normal_mapping;
+    bool    wf_bktrace_hl;
 
     //PATH_TRACE + PMC
     int32_t max_depth;

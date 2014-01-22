@@ -62,6 +62,7 @@ class USERPREF_HT_header(Header):
             layout.operator("wm.keyconfig_export")
         elif userpref.active_section == 'ADDONS':
             layout.operator("wm.addon_install", icon="FILESEL")
+            layout.operator("wm.addon_refresh", icon='FILE_REFRESH')
             layout.menu("USERPREF_MT_addons_dev_guides")
         elif userpref.active_section == 'THEMES':
             layout.operator("ui.reset_default_theme")
@@ -477,7 +478,7 @@ class USERPREF_PT_system(Panel):
                 column.prop(system, "language")
                 row = column.row()
                 row.label(text="Translate:", text_ctxt=i18n_contexts.id_windowmanager)
-                row = column.row(True)
+                row = column.row(align=True)
                 row.prop(system, "use_translate_interface", text="Interface", toggle=True)
                 row.prop(system, "use_translate_tooltips", text="Tooltips", toggle=True)
                 row.prop(system, "use_translate_new_dataname", text="New Data", toggle=True)
@@ -1142,7 +1143,7 @@ class USERPREF_PT_addons(Panel):
         scripts_addons_folder = bpy.utils.user_resource('SCRIPTS', "addons")
 
         # collect the categories that can be filtered on
-        addons = [(mod, addon_utils.module_bl_info(mod)) for mod in addon_utils.modules(addon_utils.addons_fake_modules)]
+        addons = [(mod, addon_utils.module_bl_info(mod)) for mod in addon_utils.modules(refresh=False)]
 
         split = layout.split(percentage=0.2)
         col = split.column()
@@ -1156,7 +1157,7 @@ class USERPREF_PT_addons(Panel):
 
         col = split.column()
 
-        # set in addon_utils.modules(...)
+        # set in addon_utils.modules_refresh()
         if addon_utils.error_duplicates:
             self.draw_error(col,
                             "Multiple addons using the same name found!\n"

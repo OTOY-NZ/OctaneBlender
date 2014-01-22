@@ -31,6 +31,8 @@
 
 #include "RNA_types.h"
 
+#include "BLI_compiler_attrs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -621,7 +623,6 @@ extern StructRNA RNA_ThemeWidgetStateColors;
 extern StructRNA RNA_TimelineMarker;
 extern StructRNA RNA_Timer;
 extern StructRNA RNA_ToolSettings;
-extern StructRNA RNA_TouchSensor;
 extern StructRNA RNA_TrackToConstraint;
 extern StructRNA RNA_TransformConstraint;
 extern StructRNA RNA_TransformSequence;
@@ -1035,15 +1036,15 @@ void RNA_struct_property_unset(PointerRNA *ptr, const char *identifier);
 /* python compatible string representation of this property, (must be freed!) */
 char *RNA_property_as_string(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index, int max_prop_length);
 char *RNA_pointer_as_string(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop_ptr, PointerRNA *ptr_prop);
-char *RNA_pointer_as_string_keywords_ex(struct bContext *C, PointerRNA *ptr, PointerRNA *ptr_default,
-                                        const short skip_optional_value, const short all_args,
+char *RNA_pointer_as_string_keywords_ex(struct bContext *C, PointerRNA *ptr,
+                                        const bool skip_optional_value, const bool all_args,
                                         const int max_prop_length,
                                         PropertyRNA *iterprop);
-char *RNA_pointer_as_string_keywords(struct bContext *C, PointerRNA *ptr, PointerRNA *ptr_default,
-                                     const short skip_optional_value, const short all_args,
+char *RNA_pointer_as_string_keywords(struct bContext *C, PointerRNA *ptr,
+                                     const bool skip_optional_value, const bool all_args,
                                      const int max_prop_length);
-char *RNA_function_as_string_keywords(struct bContext *C, FunctionRNA *func, PointerRNA *ptr_default,
-                                      const short as_function, const short all_args,
+char *RNA_function_as_string_keywords(struct bContext *C, FunctionRNA *func,
+                                      const bool as_function, const bool all_args,
                                       const int max_prop_length);
 
 /* Function */
@@ -1074,10 +1075,11 @@ void RNA_parameter_get(ParameterList *parms, PropertyRNA *parm, void **value);
 void RNA_parameter_get_lookup(ParameterList *parms, const char *identifier, void **value);
 void RNA_parameter_set(ParameterList *parms, PropertyRNA *parm, const void *value);
 void RNA_parameter_set_lookup(ParameterList *parms, const char *identifier, const void *value);
-int RNA_parameter_length_get(ParameterList *parms, PropertyRNA *parm);
-int RNA_parameter_length_get_data(ParameterList *parms, PropertyRNA *parm, void *data);
-void RNA_parameter_length_set(ParameterList *parms, PropertyRNA *parm, int length);
-void RNA_parameter_length_set_data(ParameterList *parms, PropertyRNA *parm, void *data, int length);
+/* Only for PROP_DYNAMIC properties! */
+int RNA_parameter_dynamic_length_get(ParameterList *parms, PropertyRNA *parm);
+int RNA_parameter_dynamic_length_get_data(ParameterList *parms, PropertyRNA *parm, void *data);
+void RNA_parameter_dynamic_length_set(ParameterList *parms, PropertyRNA *parm, int length);
+void RNA_parameter_dynamic_length_set_data(ParameterList *parms, PropertyRNA *parm, void *data, int length);
 
 int RNA_function_call(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
                       FunctionRNA *func, ParameterList *parms);
@@ -1085,17 +1087,9 @@ int RNA_function_call_lookup(struct bContext *C, struct ReportList *reports, Poi
                              const char *identifier, ParameterList *parms);
 
 int RNA_function_call_direct(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
-                             FunctionRNA *func, const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 5, 6)))
-#endif
-;
+                             FunctionRNA *func, const char *format, ...) ATTR_PRINTF_FORMAT(5, 6);
 int RNA_function_call_direct_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
-                                    const char *identifier, const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 5, 6)))
-#endif
-;
+                                    const char *identifier, const char *format, ...) ATTR_PRINTF_FORMAT(5, 6);
 int RNA_function_call_direct_va(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
                                 FunctionRNA *func, const char *format, va_list args);
 int RNA_function_call_direct_va_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
@@ -1121,17 +1115,19 @@ StructRNA *ID_code_to_RNA_type(short idcode);
 #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, __VA_ARGS__)
 #endif
 
-void _RNA_warning(const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 1, 2)))
-#endif
-;
+void _RNA_warning(const char *format, ...) ATTR_PRINTF_FORMAT(1, 2);
 
 /* Equals test (skips pointers and collections)
  * is_strict false assumes uninitialized properties are equal */
 
-bool RNA_property_equals(struct PointerRNA *a, struct PointerRNA *b, struct PropertyRNA *prop, bool is_strict);
-bool RNA_struct_equals(struct PointerRNA *a, struct PointerRNA *b, bool is_strict);
+typedef enum eRNAEqualsMode {
+	RNA_EQ_STRICT,          /* set/unset ignored */
+	RNA_EQ_UNSET_MATCH_ANY, /* unset property matches anything */
+	RNA_EQ_UNSET_MATCH_NONE /* unset property never matches set property */
+} eRNAEqualsMode;
+
+bool RNA_property_equals(struct PointerRNA *a, struct PointerRNA *b, struct PropertyRNA *prop, eRNAEqualsMode mode);
+bool RNA_struct_equals(struct PointerRNA *a, struct PointerRNA *b, eRNAEqualsMode mode);
 
 #ifdef __cplusplus
 }

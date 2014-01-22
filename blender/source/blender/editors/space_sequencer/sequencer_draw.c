@@ -173,6 +173,7 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[
 		
 		default:
 			col[0] = 10; col[1] = 255; col[2] = 40;
+			break;
 	}
 }
 
@@ -925,13 +926,13 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		/* stop all running jobs, except screen one. currently previews frustrate Render
 		 * needed to make so sequencer's rendering doesn't conflict with compositor
 		 */
-		WM_jobs_kill_type(CTX_wm_manager(C), WM_JOB_TYPE_COMPOSITE);
+		WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_COMPOSITE);
 
 		if ((scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
 			/* in case of final rendering used for preview, kill all previews,
 			 * otherwise threading conflict will happen in rendering module
 			 */
-			WM_jobs_kill_type(CTX_wm_manager(C), WM_JOB_TYPE_RENDER_PREVIEW);
+			WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_RENDER_PREVIEW);
 		}
 	}
 
@@ -1085,10 +1086,10 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			type = GL_FLOAT;
 
 			if (ibuf->float_colorspace) {
-				glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->float_colorspace, TRUE);
+				glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->float_colorspace, true);
 			}
 			else {
-				glsl_used = IMB_colormanagement_setup_glsl_draw_ctx(C, TRUE);
+				glsl_used = IMB_colormanagement_setup_glsl_draw_ctx(C, true);
 			}
 		}
 		else if (ibuf->rect) {
@@ -1096,7 +1097,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			format = GL_RGBA;
 			type = GL_UNSIGNED_BYTE;
 
-			glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->rect_colorspace, FALSE);
+			glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->rect_colorspace, false);
 		}
 		else {
 			format = GL_RGBA;

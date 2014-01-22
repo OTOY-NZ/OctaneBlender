@@ -145,6 +145,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 	/* EdgeNet Create */
 	if (tote != 0) {
 		/* call edgenet prepare op so additional face creation cases work */
+
 		BMOperator op_sub;
 		BMO_op_initf(bm, &op_sub, op->flag, "edgenet_prepare edges=%fe", ELE_NEW);
 		BMO_op_exec(bm, &op_sub);
@@ -152,8 +153,8 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 		BMO_op_finish(bm, &op_sub);
 
 		BMO_op_initf(bm, &op_sub, op->flag,
-		             "edgenet_fill edges=%fe use_fill_check=%b mat_nr=%i use_smooth=%b",
-		             ELE_NEW, true, mat_nr, use_smooth);
+		             "edgenet_fill edges=%fe mat_nr=%i use_smooth=%b sides=%i",
+		             ELE_NEW, mat_nr, use_smooth, 10000);
 
 		BMO_op_exec(bm, &op_sub);
 
@@ -181,7 +182,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 		/* if we dissolved anything, then return */
 		if (BMO_slot_buffer_count(op_sub.slots_out, "region.out")) {
 			BMO_slot_copy(&op_sub, slots_out, "region.out",
-			              op,   slots_out,  "faces.out");
+			              op,      slots_out, "faces.out");
 			BMO_op_finish(bm, &op_sub);
 			return;
 		}
@@ -217,7 +218,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 	/* Continue with ad-hoc fill methods since operators fail,
 	 * edge, vcloud... may add more */
 
-	 if (0) { /* nice feature but perhaps it should be a different tool? */
+	if (0) { /* nice feature but perhaps it should be a different tool? */
 
 		/* tricky feature for making a line/edge from selection history...
 		 *
@@ -278,11 +279,11 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 		 * this connectivity could be used rather then treating
 		 * them as a bunch of isolated verts. */
 
-		BMVert **vert_arr = MEM_mallocN(sizeof(BMVert **) * totv, __func__);
+		BMVert **vert_arr = MEM_mallocN(sizeof(BMVert *) * totv, __func__);
 		BMFace *f;
 
 		BMO_iter_as_array(op->slots_in, "geom", BM_VERT, (void **)vert_arr, totv);
-		f = BM_face_create_ngon_vcloud(bm, vert_arr, totv, BM_CREATE_NO_DOUBLE);
+		f = BM_face_create_ngon_vcloud(bm, vert_arr, totv, NULL, BM_CREATE_NO_DOUBLE);
 
 		if (f) {
 			BMO_elem_flag_enable(bm, f, ELE_OUT);

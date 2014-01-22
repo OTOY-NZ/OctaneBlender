@@ -363,6 +363,40 @@ void ED_mask_pixelspace_factor(ScrArea *sa, ARegion *ar, float *scalex, float *s
 	}
 }
 
+void ED_mask_cursor_location_get(ScrArea *sa, float cursor[2])
+{
+	if (sa) {
+		switch (sa->spacetype) {
+			case SPACE_CLIP:
+			{
+				SpaceClip *space_clip = sa->spacedata.first;
+				copy_v2_v2(cursor, space_clip->cursor);
+				break;
+			}
+			case SPACE_SEQ:
+			{
+				zero_v2(cursor);
+				break;
+			}
+			case SPACE_IMAGE:
+			{
+				SpaceImage *space_image = sa->spacedata.first;
+				copy_v2_v2(cursor, space_image->cursor);
+				break;
+			}
+			default:
+				/* possible other spaces from which mask editing is available */
+				BLI_assert(0);
+				zero_v2(cursor);
+				break;
+		}
+	}
+	else {
+		BLI_assert(0);
+		zero_v2(cursor);
+	}
+}
+
 /********************** registration *********************/
 
 void ED_operatortypes_mask(void)
@@ -376,6 +410,8 @@ void ED_operatortypes_mask(void)
 	/* add */
 	WM_operatortype_append(MASK_OT_add_vertex);
 	WM_operatortype_append(MASK_OT_add_feather_vertex);
+	WM_operatortype_append(MASK_OT_primitive_circle_add);
+	WM_operatortype_append(MASK_OT_primitive_square_add);
 
 	/* geometry */
 	WM_operatortype_append(MASK_OT_switch_direction);
@@ -390,6 +426,8 @@ void ED_operatortypes_mask(void)
 	WM_operatortype_append(MASK_OT_select_circle);
 	WM_operatortype_append(MASK_OT_select_linked_pick);
 	WM_operatortype_append(MASK_OT_select_linked);
+	WM_operatortype_append(MASK_OT_select_more);
+	WM_operatortype_append(MASK_OT_select_less);
 
 	/* hide/reveal */
 	WM_operatortype_append(MASK_OT_hide_view_clear);
@@ -415,6 +453,9 @@ void ED_operatortypes_mask(void)
 
 	/* layers */
 	WM_operatortype_append(MASK_OT_layer_move);
+
+	/* duplicate */
+	WM_operatortype_append(MASK_OT_duplicate);
 }
 
 void ED_keymap_mask(wmKeyConfig *keyconf)
@@ -426,6 +467,9 @@ void ED_keymap_mask(wmKeyConfig *keyconf)
 	keymap->poll = ED_maskedit_poll;
 
 	WM_keymap_add_item(keymap, "MASK_OT_new", NKEY, KM_PRESS, KM_ALT, 0);
+
+	/* add menu */
+	WM_keymap_add_menu(keymap, "MASK_MT_add", AKEY, KM_PRESS, KM_SHIFT, 0);
 
 	/* mask mode supports PET now */
 	ED_keymap_proportional_cycle(keyconf, keymap);
@@ -466,6 +510,9 @@ void ED_keymap_mask(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "MASK_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_CTRL | KM_SHIFT | KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "deselect", TRUE);
 
+	WM_keymap_add_item(keymap, "MASK_OT_select_more", PADPLUSKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "MASK_OT_select_less", PADMINUS, KM_PRESS, KM_CTRL, 0);
+
 	/* hide/reveal */
 	WM_keymap_add_item(keymap, "MASK_OT_hide_view_clear", HKEY, KM_PRESS, KM_ALT, 0);
 	kmi = WM_keymap_add_item(keymap, "MASK_OT_hide_view_set", HKEY, KM_PRESS, 0, 0);
@@ -495,6 +542,9 @@ void ED_keymap_mask(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "MASK_OT_shape_key_insert", IKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "MASK_OT_shape_key_clear", IKEY, KM_PRESS, KM_ALT, 0);
 
+	/* duplicate */
+	WM_keymap_add_item(keymap, "MASK_OT_duplicate_move", DKEY, KM_PRESS, KM_SHIFT, 0);
+
 	/* for image editor only */
 	WM_keymap_add_item(keymap, "UV_OT_cursor_set", ACTIONMOUSE, KM_PRESS, 0, 0);
 
@@ -509,7 +559,6 @@ void ED_keymap_mask(wmKeyConfig *keyconf)
 
 void ED_operatormacros_mask(void)
 {
-	/* XXX: just for sample */
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
 
@@ -526,4 +575,11 @@ void ED_operatormacros_mask(void)
 	WM_operatortype_macro_define(ot, "MASK_OT_add_feather_vertex");
 	otmacro = WM_operatortype_macro_define(ot, "MASK_OT_slide_point");
 	RNA_boolean_set(otmacro->ptr, "slide_feather", TRUE);
+
+	ot = WM_operatortype_append_macro("MASK_OT_duplicate_move", "Add Duplicate", "Duplicate mask and move",
+	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
+	WM_operatortype_macro_define(ot, "MASK_OT_duplicate");
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
+	RNA_boolean_set(otmacro->ptr, "mirror", FALSE);
 }

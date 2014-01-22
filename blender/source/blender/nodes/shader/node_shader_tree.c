@@ -118,6 +118,8 @@ static void foreach_nodeclass(Scene *scene, void *calldata, bNodeClassCallback f
 		    func(calldata, NODE_CLASS_OCT_EMISSION, N_("Octane Emission"));
 		    func(calldata, NODE_CLASS_OCT_MEDIUM, N_("Octane Medium"));
 		    func(calldata, NODE_CLASS_OCT_TRANSFORM, N_("Octane Transform"));
+		    func(calldata, NODE_CLASS_OCT_PROJECTION, N_("Octane Projection"));
+		    func(calldata, NODE_CLASS_OCT_VALUE, N_("Octane Value"));
         }
         else {
 		    func(calldata, NODE_CLASS_SHADER, N_("Shader"));
@@ -212,13 +214,16 @@ void register_node_tree_type_sh(void)
 
 void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat)
 {
+	/* localize tree to create links for reroute and mute */
+	bNodeTree *localtree = ntreeLocalize(ntree);
 	bNodeTreeExec *exec;
 
-	exec = ntreeShaderBeginExecTree(ntree);
-
+	exec = ntreeShaderBeginExecTree(localtree);
 	ntreeExecGPUNodes(exec, mat, 1);
-
 	ntreeShaderEndExecTree(exec);
+
+	ntreeFreeTree_ex(localtree, false);
+	MEM_freeN(localtree);
 }
 
 /* **************** call to switch lamploop for material node ************ */

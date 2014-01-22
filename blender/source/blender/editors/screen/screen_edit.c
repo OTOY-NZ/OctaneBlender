@@ -327,10 +327,12 @@ static void screen_delarea(bContext *C, bScreen *sc, ScrArea *sa)
 static short testsplitpoint(ScrArea *sa, char dir, float fac)
 {
 	short x, y;
+	const short area_min_x = AREAMINX;
+	const short area_min_y = ED_area_headersize();
 	
 	// area big enough?
-	if (dir == 'v' && (sa->v4->vec.x - sa->v1->vec.x <= 2 * AREAMINX)) return 0;
-	if (dir == 'h' && (sa->v2->vec.y - sa->v1->vec.y <= 2 * AREAMINY)) return 0;
+	if (dir == 'v' && (sa->v4->vec.x - sa->v1->vec.x <= 2 * area_min_x)) return 0;
+	if (dir == 'h' && (sa->v2->vec.y - sa->v1->vec.y <= 2 * area_min_y)) return 0;
 	
 	// to be sure
 	CLAMP(fac, 0.0f, 1.0f);
@@ -338,10 +340,10 @@ static short testsplitpoint(ScrArea *sa, char dir, float fac)
 	if (dir == 'h') {
 		y = sa->v1->vec.y + fac * (sa->v2->vec.y - sa->v1->vec.y);
 		
-		if (y - sa->v1->vec.y < AREAMINY)
-			y = sa->v1->vec.y + AREAMINY;
-		else if (sa->v2->vec.y - y < AREAMINY)
-			y = sa->v2->vec.y - AREAMINY;
+		if (y - sa->v1->vec.y < area_min_y)
+			y = sa->v1->vec.y + area_min_y;
+		else if (sa->v2->vec.y - y < area_min_y)
+			y = sa->v2->vec.y - area_min_y;
 		else y -= (y % AREAGRID);
 		
 		return y;
@@ -349,10 +351,10 @@ static short testsplitpoint(ScrArea *sa, char dir, float fac)
 	else {
 		x = sa->v1->vec.x + fac * (sa->v4->vec.x - sa->v1->vec.x);
 		
-		if (x - sa->v1->vec.x < AREAMINX)
-			x = sa->v1->vec.x + AREAMINX;
-		else if (sa->v4->vec.x - x < AREAMINX)
-			x = sa->v4->vec.x - AREAMINX;
+		if (x - sa->v1->vec.x < area_min_x)
+			x = sa->v1->vec.x + area_min_x;
+		else if (sa->v4->vec.x - x < area_min_x)
+			x = sa->v4->vec.x - area_min_x;
 		else x -= (x % AREAGRID);
 		
 		return x;
@@ -1007,8 +1009,6 @@ void ED_screen_do_listen(bContext *C, wmNotifier *note)
 			win->screen->do_draw = TRUE;
 			break;
 		case NC_SCREEN:
-			if (note->data == ND_SUBWINACTIVE)
-				uiFreeActiveButtons(C, win->screen);
 			if (note->action == NA_EDITED)
 				win->screen->do_draw = win->screen->do_refresh = TRUE;
 			break;
@@ -1333,7 +1333,11 @@ void ED_screen_set_subwinactive(bContext *C, wmEvent *event)
 			/* notifier invokes freeing the buttons... causing a bit too much redraws */
 			if (oldswin != scr->subwinactive) {
 				region_cursor_set(win, scr->subwinactive, TRUE);
-				WM_event_add_notifier(C, NC_SCREEN | ND_SUBWINACTIVE, scr);
+
+				/* this used to be a notifier, but needs to be done immediate
+				 * because it can undo setting the right button as active due
+				 * to delayed notifier handling */
+				uiFreeActiveButtons(C, win->screen);
 			}
 			else
 				region_cursor_set(win, scr->subwinactive, FALSE);
@@ -1378,10 +1382,7 @@ void ED_screen_set(bContext *C, bScreen *sc)
 	if (id == NULL)
 		return;
 	
-	/* check for valid winid */
-	if (sc->winid != 0 && sc->winid != win->winid)
-		return;
-	
+
 	if (sc->full) {             /* find associated full */
 		bScreen *sc1;
 		for (sc1 = bmain->screen.first; sc1; sc1 = sc1->id.next) {
@@ -1392,6 +1393,10 @@ void ED_screen_set(bContext *C, bScreen *sc)
 			}
 		}
 	}
+
+	/* check for valid winid */
+	if (sc->winid != 0 && sc->winid != win->winid)
+		return;
 	
 	if (oldscreen != sc) {
 		wmTimer *wt = oldscreen->animtimer;

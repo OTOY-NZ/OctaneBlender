@@ -259,7 +259,10 @@ static void smoke_set_domain_from_derivedmesh(SmokeDomainSettings *sds, Object *
 		zero_v3_int(sds->base_res);
 		copy_v3_v3(sds->cell_size, size);
 	}
-	mul_v3_v3(size, ob->size);
+	/* apply object scale */
+	for (i = 0; i < 3; i++) {
+		size[i] = fabs(size[i] * ob->size[i]);
+	}
 	copy_v3_v3(sds->global_size, size);
 	copy_v3_v3(sds->dp0, min);
 
@@ -272,21 +275,21 @@ static void smoke_set_domain_from_derivedmesh(SmokeDomainSettings *sds, Object *
 	/* define grid resolutions from longest domain side */
 	if (size[0] >= MAX2(size[1], size[2])) {
 		scale = res / size[0];
-		sds->scale = size[0] / ob->size[0];
+		sds->scale = size[0] / fabs(ob->size[0]);
 		sds->base_res[0] = res;
 		sds->base_res[1] = (int)(size[1] * scale + 0.5f);
 		sds->base_res[2] = (int)(size[2] * scale + 0.5f);
 	}
 	else if (size[1] >= MAX2(size[0], size[2])) {
 		scale = res / size[1];
-		sds->scale = size[1] / ob->size[1];
+		sds->scale = size[1] / fabs(ob->size[1]);
 		sds->base_res[0] = (int)(size[0] * scale + 0.5f);
 		sds->base_res[1] = res;
 		sds->base_res[2] = (int)(size[2] * scale + 0.5f);
 	}
 	else {
 		scale = res / size[2];
-		sds->scale = size[2] / ob->size[2];
+		sds->scale = size[2] / fabs(ob->size[2]);
 		sds->base_res[0] = (int)(size[0] * scale + 0.5f);
 		sds->base_res[1] = (int)(size[1] * scale + 0.5f);
 		sds->base_res[2] = res;
@@ -719,7 +722,7 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 		DerivedMesh *dm = NULL;
 		MVert *mvert = NULL;
 		MFace *mface = NULL;
-		BVHTreeFromMesh treeData = {0};
+		BVHTreeFromMesh treeData = {NULL};
 		int numverts, i, z;
 
 		float surface_distance = 0.6;
@@ -1139,8 +1142,8 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 
 					/* values */
 					output->influence[index_out] = em1.influence[index_in];
-					if (output->velocity) {
-						output->velocity[index_out] = em1.velocity[index_in];
+					if (output->velocity && em1.velocity) {
+						copy_v3_v3(&output->velocity[index_out * 3], &em1.velocity[index_in * 3]);
 					}
 				}
 
@@ -1157,9 +1160,11 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 					else {
 						output->influence[index_out] = MAX2(em2->influence[index_in], output->influence[index_out]);
 					}
-					if (output->velocity) {
+					if (output->velocity && em2->velocity) {
 						/* last sample replaces the velocity */
-						output->velocity[index_out] = ADD_IF_LOWER(output->velocity[index_out], em2->velocity[index_in]);
+						output->velocity[index_out * 3]		= ADD_IF_LOWER(output->velocity[index_out * 3], em2->velocity[index_in * 3]);
+						output->velocity[index_out * 3 + 1] = ADD_IF_LOWER(output->velocity[index_out * 3 + 1], em2->velocity[index_in * 3 + 1]);
+						output->velocity[index_out * 3 + 2] = ADD_IF_LOWER(output->velocity[index_out * 3 + 2], em2->velocity[index_in * 3 + 2]);
 					}
 				}
 	} // low res loop
@@ -1570,7 +1575,7 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 		MVert *mvert_orig = NULL;
 		MFace *mface = NULL;
 		MTFace *tface = NULL;
-		BVHTreeFromMesh treeData = {0};
+		BVHTreeFromMesh treeData = {NULL};
 		int numOfVerts, i, z;
 		float flow_center[3] = {0};
 
@@ -2105,7 +2110,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 				// float scene_subframe = scene->r.subframe;  // UNUSED
 				int subframe;
 				for (subframe = 0; subframe <= subframes; subframe++) {
-					EmissionMap em_temp = {0};
+					EmissionMap em_temp = {NULL};
 					float sample_size = 1.0f / (float)(subframes+1);
 					float prev_frame_pos = sample_size * (float)(subframe+1);
 					float sdt = dt * sample_size;
@@ -2381,6 +2386,7 @@ static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 	if (effectors)
 	{
 		float *density = smoke_get_density(sds->fluid);
+		float *fuel = smoke_get_fuel(sds->fluid);
 		float *force_x = smoke_get_force_x(sds->fluid);
 		float *force_y = smoke_get_force_y(sds->fluid);
 		float *force_z = smoke_get_force_z(sds->fluid);
@@ -2403,7 +2409,7 @@ static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 					float voxelCenter[3] = {0, 0, 0}, vel[3] = {0, 0, 0}, retvel[3] = {0, 0, 0};
 					unsigned int index = smoke_get_index(x, sds->res[0], y, sds->res[1], z);
 
-					if ((density[index] < FLT_EPSILON) || obstacle[index])
+					if (((fuel ? MAX2(density[index], fuel[index]) : density[index]) < FLT_EPSILON) || obstacle[index])
 						continue;
 
 					vel[0] = velocity_x[index];

@@ -99,6 +99,12 @@ extern "C"
 #include "GHOST_IWindow.h"
 #include "GHOST_Rect.h"
 
+#ifdef WITH_AUDASPACE
+#  include "AUD_C-API.h"
+#  include "AUD_I3DDevice.h"
+#  include "AUD_IDevice.h"
+#endif
+
 static void frameTimerProc(GHOST_ITimerTask* task, GHOST_TUns64 time);
 
 static GHOST_ISystem* fSystem = 0;
@@ -560,7 +566,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 
 		bool fixed_framerate= (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0);
+		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0) && GPU_display_list_support();
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 		bool restrictAnimFPS = gm->flag & GAME_RESTRICT_ANIM_UPDATES;
 
@@ -576,7 +582,12 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_canvas = new GPG_Canvas(window);
 		if (!m_canvas)
 			return false;
-				
+
+		if (gm->vsync == VSYNC_ADAPTIVE)
+			m_canvas->SetSwapInterval(-1);
+		else
+			m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
+
 		m_canvas->Init();
 		if (gm->flag & GAME_SHOW_MOUSE)
 			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
@@ -725,6 +736,15 @@ bool GPG_Application::startEngine(void)
 		if (m_startScene->gm.stereoflag == STEREO_DOME)
 			m_ketsjiengine->InitDome(m_startScene->gm.dome.res, m_startScene->gm.dome.mode, m_startScene->gm.dome.angle, m_startScene->gm.dome.resbuf, m_startScene->gm.dome.tilt, m_startScene->gm.dome.warptext);
 
+		// initialize 3D Audio Settings
+		AUD_I3DDevice* dev = AUD_get3DDevice();
+		if (dev)
+		{
+			dev->setSpeedOfSound(m_startScene->audio.speed_of_sound);
+			dev->setDopplerFactor(m_startScene->audio.doppler_factor);
+			dev->setDistanceModel(AUD_DistanceModel(m_startScene->audio.distance_model));
+		}
+
 #ifdef WITH_PYTHON
 		// Set the GameLogic.globalDict from marshal'd data, so we can
 		// load new blend files and keep data in GameLogic.globalDict
@@ -772,9 +792,6 @@ void GPG_Application::stopEngine()
 	}
 
 	m_pyGlobalDictString_Length = saveGamePythonConfig(&m_pyGlobalDictString);
-	
-	// when exiting the mainloop
-	exitGamePythonScripting();
 #endif
 	
 	m_ketsjiengine->StopEngine();
@@ -788,6 +805,7 @@ void GPG_Application::stopEngine()
 		m_system->removeTimer(m_frameTimer);
 		m_frameTimer = 0;
 	}
+
 	m_engineRunning = false;
 }
 
@@ -864,6 +882,11 @@ void GPG_Application::exitEngine()
 	}
 
 	GPU_extensions_exit();
+
+#ifdef WITH_PYTHON
+	// Call this after we're sure nothing needs Python anymore (e.g., destructors)
+	exitGamePlayerPythonScripting();
+#endif
 
 	m_exitRequested = 0;
 	m_engineInitialized = false;

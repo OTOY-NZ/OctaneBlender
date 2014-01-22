@@ -118,7 +118,7 @@ static int eyedropper_init(bContext *C, wmOperator *op)
 
 static void eyedropper_exit(bContext *C, wmOperator *op)
 {
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 	
 	if (op->customdata)
 		MEM_freeN(op->customdata);
@@ -148,7 +148,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 		if (BLI_rcti_isect_pt(&sa->totrct, mx, my)) {
 			if (sa->spacetype == SPACE_IMAGE) {
 				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
+				if (ar && BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
 					SpaceImage *sima = sa->spacedata.first;
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
@@ -160,7 +160,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 			}
 			else if (sa->spacetype == SPACE_NODE) {
 				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
+				if (ar && BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
 					SpaceNode *snode = sa->spacedata.first;
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
@@ -172,7 +172,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 			}
 			else if (sa->spacetype == SPACE_CLIP) {
 				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
+				if (ar && BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
 					SpaceClip *sc = sa->spacedata.first;
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
@@ -289,7 +289,7 @@ static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 {
 	/* init */
 	if (eyedropper_init(C, op)) {
-		WM_cursor_modal(CTX_wm_window(C), BC_EYEDROPPER_CURSOR);
+		WM_cursor_modal_set(CTX_wm_window(C), BC_EYEDROPPER_CURSOR);
 
 		/* add temp handler */
 		WM_event_add_modal_handler(C, op);
@@ -434,6 +434,28 @@ static void UI_OT_copy_data_path_button(wmOperatorType *ot)
 
 /* Reset to Default Values Button Operator ------------------------ */
 
+static int operator_button_property_finish(bContext *C, PointerRNA *ptr, PropertyRNA *prop)
+{
+	ID *id = ptr->id.data;
+
+	/* perform updates required for this property */
+	RNA_property_update(C, ptr, prop);
+
+	/* as if we pressed the button */
+	uiContextActivePropertyHandle(C);
+
+	/* Since we don't want to undo _all_ edits to settings, eg window
+	 * edits on the screen or on operator settings.
+	 * it might be better to move undo's inline - campbell */
+	if (id && ID_CHECK_UNDO(id)) {
+		/* do nothing, go ahead with undo */
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
 static int reset_default_button_poll(bContext *C)
 {
 	PointerRNA ptr;
@@ -449,7 +471,6 @@ static int reset_default_button_exec(bContext *C, wmOperator *op)
 {
 	PointerRNA ptr;
 	PropertyRNA *prop;
-	int success = 0;
 	int index, all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to reset the nominated setting to its default value */
@@ -457,32 +478,11 @@ static int reset_default_button_exec(bContext *C, wmOperator *op)
 	
 	/* if there is a valid property that is editable... */
 	if (ptr.data && prop && RNA_property_editable(&ptr, prop)) {
-		if (RNA_property_reset(&ptr, prop, (all) ? -1 : index)) {
-			/* perform updates required for this property */
-			RNA_property_update(C, &ptr, prop);
-
-			/* as if we pressed the button */
-			uiContextActivePropertyHandle(C);
-
-			success = 1;
-		}
+		if (RNA_property_reset(&ptr, prop, (all) ? -1 : index))
+			return operator_button_property_finish(C, &ptr, prop);
 	}
 
-	/* Since we don't want to undo _all_ edits to settings, eg window
-	 * edits on the screen or on operator settings.
-	 * it might be better to move undo's inline - campbell */
-	if (success) {
-		ID *id = ptr.id.data;
-		if (id && ID_CHECK_UNDO(id)) {
-			/* do nothing, go ahead with undo */
-		}
-		else {
-			return OPERATOR_CANCELLED;
-		}
-	}
-	/* end hack */
-
-	return (success) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+	return OPERATOR_CANCELLED;
 }
 
 static void UI_OT_reset_default_button(wmOperatorType *ot)
@@ -501,6 +501,43 @@ static void UI_OT_reset_default_button(wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_boolean(ot->srna, "all", 1, "All", "Reset to default values all elements of the array");
+}
+
+/* Unset Property Button Operator ------------------------ */
+
+static int unset_property_button_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr;
+	PropertyRNA *prop;
+	int index;
+
+	/* try to unset the nominated property */
+	uiContextActiveProperty(C, &ptr, &prop, &index);
+
+	/* if there is a valid property that is editable... */
+	if (ptr.data && prop && RNA_property_editable(&ptr, prop)
+	    /*&& RNA_property_is_idprop(prop)*/ && RNA_property_is_set(&ptr, prop))
+	{
+		RNA_property_unset(&ptr, prop);
+		return operator_button_property_finish(C, &ptr, prop);
+	}
+
+	return OPERATOR_CANCELLED;
+}
+
+static void UI_OT_unset_property_button(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Unset property";
+	ot->idname = "UI_OT_unset_property_button";
+	ot->description = "Clear the property and use default or generated value in operators";
+
+	/* callbacks */
+	ot->poll = ED_operator_regionactive;
+	ot->exec = unset_property_button_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
 }
 
 /* Copy To Selected Operator ------------------------ */
@@ -704,12 +741,12 @@ static void UI_OT_reports_to_textblock(wmOperatorType *ot)
 /* EditSource Utility funcs and operator,
  * note, this includes utility functions and button matching checks */
 
-struct uiEditSourceStore {
+typedef struct uiEditSourceStore {
 	uiBut but_orig;
 	GHash *hash;
 } uiEditSourceStore;
 
-struct uiEditSourceButStore {
+typedef struct uiEditSourceButStore {
 	char py_dbg_fn[FILE_MAX];
 	int py_dbg_ln;
 } uiEditSourceButStore;
@@ -917,7 +954,7 @@ static void edittranslation_find_po_file(const char *root, const char *uilng, ch
 	/* First, full lang code. */
 	BLI_snprintf(tstr, sizeof(tstr), "%s.po", uilng);
 	BLI_join_dirfile(path, maxlen, root, uilng);
-	BLI_join_dirfile(path, maxlen, path, tstr);
+	BLI_path_append(path, maxlen, tstr);
 	if (BLI_is_file(path))
 		return;
 
@@ -941,7 +978,7 @@ static void edittranslation_find_po_file(const char *root, const char *uilng, ch
 
 			BLI_join_dirfile(path, maxlen, root, tstr);
 			strcat(tstr, ".po");
-			BLI_join_dirfile(path, maxlen, path, tstr);
+			BLI_path_append(path, maxlen, tstr);
 			if (BLI_is_file(path))
 				return;
 		}
@@ -1081,6 +1118,7 @@ void UI_buttons_operatortypes(void)
 	WM_operatortype_append(UI_OT_reset_default_theme);
 	WM_operatortype_append(UI_OT_copy_data_path_button);
 	WM_operatortype_append(UI_OT_reset_default_button);
+	WM_operatortype_append(UI_OT_unset_property_button);
 	WM_operatortype_append(UI_OT_copy_to_selected_button);
 	WM_operatortype_append(UI_OT_reports_to_textblock);  /* XXX: temp? */
 

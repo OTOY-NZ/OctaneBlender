@@ -94,7 +94,7 @@ class CLIP_HT_header(Header):
                     row.prop(sc, "show_filters", icon='DISCLOSURE_TRI_DOWN',
                              text="Filters")
 
-                    sub = row.column()
+                    sub = row.row(align=True)
                     sub.active = clip.tracking.reconstruction.is_valid
                     sub.prop(sc, "show_graph_frames", icon='SEQUENCE', text="")
 
@@ -211,7 +211,7 @@ class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
         settings = clip.tracking.settings
 
         col = layout.column(align=True)
-        props = col.operator("clip.add_marker_at_click", text="Add Marker")
+        col.operator("clip.add_marker_at_click", text="Add Marker")
         col.operator("clip.detect_features")
         col.operator("clip.delete_track")
 
@@ -227,9 +227,8 @@ class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
             row.menu('CLIP_MT_tracking_settings_presets', text=label)
             row.operator("clip.tracking_settings_preset_add",
                          text="", icon='ZOOMIN')
-            props = row.operator("clip.tracking_settings_preset_add",
-                                 text="", icon='ZOOMOUT')
-            props.remove_active = True
+            row.operator("clip.tracking_settings_preset_add",
+                         text="", icon='ZOOMOUT').remove_active = True
 
             col.separator()
 
@@ -295,20 +294,27 @@ class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):
         col = layout.column()
         col.label(text="Refine:")
         row = col.row(align=True)
-        props = row.operator("clip.refine_markers", text="Backwards")
-        props.backwards = True
-        props = row.operator("clip.refine_markers", text="Forwards")
-        props.backwards = False
+        row.operator("clip.refine_markers", text="Backwards").backwards = True
+        row.operator("clip.refine_markers", text="Forwards").backwards = False
 
-        col = layout.column(align=True)
-        props = col.operator("clip.clear_track_path", text="Clear After")
-        props.action = 'REMAINED'
-
-        props = col.operator("clip.clear_track_path", text="Clear Before")
-        props.action = 'UPTO'
-        col.operator("clip.clear_track_path", text="Clear").action = 'ALL'
+        col = layout.column()
+        col.label(text="Clear:")
+        row = col.row(align=True)
+        row.operator("clip.clear_track_path", text="Before").action = 'UPTO'
+        row.operator("clip.clear_track_path", text="After").action = 'REMAINED'
 
         layout.operator("clip.join_tracks", text="Join")
+
+
+class CLIP_PT_tools_plane_tracking(CLIP_PT_tracking_panel, Panel):
+    bl_space_type = 'CLIP_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_label = "Plane Track"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("clip.create_plane_track")
 
 
 class CLIP_PT_tools_solve(CLIP_PT_tracking_panel, Panel):
@@ -350,7 +356,7 @@ class CLIP_PT_tools_solve(CLIP_PT_tracking_panel, Panel):
         col.active = not settings.use_tripod_solver
         col.prop(settings, "use_fallback_reconstruction",
                  text="Allow Fallback")
-        sub = col.column()
+        sub = col.column(align=True)
         sub.active = settings.use_fallback_reconstruction
         sub.prop(settings, "reconstruction_success_threshold")
 
@@ -395,14 +401,13 @@ class CLIP_PT_tools_orientation(CLIP_PT_reconstruction_panel, Panel):
         settings = sc.clip.tracking.settings
 
         col = layout.column(align=True)
-        row = col.row()
-        props = row.operator("clip.set_plane", text="Floor")
-        props.plane = 'FLOOR'
-        props = row.operator("clip.set_plane", text="Wall")
-        props.plane = 'WALL'
+        row = col.row(align=True)
+        row.operator("clip.set_plane", text="Floor").plane = 'FLOOR'
+        row.operator("clip.set_plane", text="Wall").plane = 'WALL'
+
         col.operator("clip.set_origin")
 
-        row = col.row()
+        row = col.row(align=True)
         row.operator("clip.set_axis", text="Set X Axis").axis = 'X'
         row.operator("clip.set_axis", text="Set Y Axis").axis = 'Y'
 
@@ -412,6 +417,7 @@ class CLIP_PT_tools_orientation(CLIP_PT_reconstruction_panel, Panel):
         row = col.row(align=True)
         row.operator("clip.set_scale")
         row.operator("clip.apply_solution_scale", text="Apply Scale")
+
         col.prop(settings, "distance")
 
 
@@ -483,7 +489,7 @@ class CLIP_PT_tools_grease_pencil(Panel):
         row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
         row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
 
-        row = col.row()
+        row = col.row(align=True)
         row.prop(context.tool_settings, "use_grease_pencil_sessions")
 
 
@@ -543,19 +549,17 @@ class CLIP_PT_track(CLIP_PT_tracking_panel, Panel):
         layout.template_track(sc, "scopes")
 
         row = layout.row(align=True)
-        sub = row.row()
+        sub = row.row(align=True)
         sub.prop(act_track, "use_red_channel", text="R", toggle=True)
         sub.prop(act_track, "use_green_channel", text="G", toggle=True)
         sub.prop(act_track, "use_blue_channel", text="B", toggle=True)
 
         row.separator()
 
-        sub = row.row()
-        sub.prop(act_track, "use_grayscale_preview", text="B/W", toggle=True)
+        row.prop(act_track, "use_grayscale_preview", text="B/W", toggle=True)
 
         row.separator()
-        sub = row.row()
-        sub.prop(act_track, "use_alpha_preview",
+        row.prop(act_track, "use_alpha_preview",
                  text="", toggle=True, icon='IMAGE_ALPHA')
 
         layout.separator()
@@ -565,9 +569,8 @@ class CLIP_PT_track(CLIP_PT_tracking_panel, Panel):
         row.menu('CLIP_MT_track_color_presets', text=label)
         row.menu('CLIP_MT_track_color_specials', text="", icon='DOWNARROW_HLT')
         row.operator("clip.track_color_preset_add", text="", icon='ZOOMIN')
-        props = row.operator("clip.track_color_preset_add",
-                             text="", icon='ZOOMOUT')
-        props.remove_active = True
+        row.operator("clip.track_color_preset_add",
+                     text="", icon='ZOOMOUT').remove_active = True
 
         row = layout.row()
         row.prop(act_track, "use_custom_color")
@@ -577,6 +580,28 @@ class CLIP_PT_track(CLIP_PT_tracking_panel, Panel):
         if act_track.has_bundle:
             label_text = "Average Error: %.4f" % (act_track.average_error)
             layout.label(text=label_text)
+
+
+class CLIP_PT_plane_track(CLIP_PT_tracking_panel, Panel):
+    bl_space_type = 'CLIP_EDITOR'
+    bl_region_type = 'UI'
+    bl_label = "Plane Track"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        sc = context.space_data
+        clip = context.space_data.clip
+        active_track = clip.tracking.plane_tracks.active
+
+        if not active_track:
+            layout.active = False
+            layout.label(text="No active plane track")
+            return
+
+        layout.prop(active_track, "name")
+        layout.prop(active_track, "use_auto_keying")
 
 
 class CLIP_PT_track_settings(CLIP_PT_tracking_panel, Panel):
@@ -634,11 +659,11 @@ class CLIP_PT_tracking_camera(Panel):
         label = bpy.types.CLIP_MT_camera_presets.bl_label
         row.menu('CLIP_MT_camera_presets', text=label)
         row.operator("clip.camera_preset_add", text="", icon='ZOOMIN')
-        props = row.operator("clip.camera_preset_add", text="", icon='ZOOMOUT')
-        props.remove_active = True
+        row.operator("clip.camera_preset_add", text="",
+                     icon='ZOOMOUT').remove_active = True
 
         row = layout.row(align=True)
-        sub = row.split(percentage=0.65)
+        sub = row.split(percentage=0.65, align=True)
         if clip.tracking.camera.units == 'MILLIMETERS':
             sub.prop(clip.tracking.camera, "focal_length")
         else:
@@ -673,21 +698,21 @@ class CLIP_PT_display(CLIP_PT_clip_view_panel, Panel):
         sc = context.space_data
 
         row = layout.row(align=True)
-        sub = row.row()
+        sub = row.row(align=True)
         sub.prop(sc, "show_red_channel", text="R", toggle=True)
         sub.prop(sc, "show_green_channel", text="G", toggle=True)
         sub.prop(sc, "show_blue_channel", text="B", toggle=True)
 
         row.separator()
 
-        sub = row.row()
-        sub.prop(sc, "use_grayscale_preview", text="B/W", toggle=True)
+        row.prop(sc, "use_grayscale_preview", text="B/W", toggle=True)
 
         col = layout.column(align=True)
 
         col.prop(sc, "show_disabled", "Disabled Tracks")
         col.prop(sc, "show_names", text="Names and Status")
-        col.prop(sc, "show_bundles", text="3D Markers")
+        if sc.mode != 'MASK':
+            col.prop(sc, "show_bundles", text="3D Markers")
 
         col.prop(sc, "use_mute_footage", text="Mute Footage")
         col.prop(sc, "lock_selection")
@@ -725,14 +750,14 @@ class CLIP_PT_marker_display(CLIP_PT_clip_view_panel, Panel):
 
         col = layout.column(align=True)
 
-        row = col.row()
+        row = col.row(align=True)
         row.prop(sc, "show_marker_pattern", text="Pattern")
         row.prop(sc, "show_marker_search", text="Search")
 
         col.prop(sc, "show_tiny_markers", text="Thin Markers")
         col.prop(sc, "show_track_path", text="Path")
 
-        row = col.row()
+        row = col.row(align=True)
         row.active = sc.show_track_path
         row.prop(sc, "path_length", text="Length")
 
@@ -1000,15 +1025,14 @@ class CLIP_MT_track(Menu):
         layout.operator("clip.solve_camera")
 
         layout.separator()
-        props = layout.operator("clip.clear_track_path", text="Clear After")
-        props.action = 'REMAINED'
+        layout.operator("clip.clear_track_path",
+                        text="Clear After").action = 'REMAINED'
 
-        props = layout.operator("clip.clear_track_path", text="Clear Before")
-        props.action = 'UPTO'
+        layout.operator("clip.clear_track_path",
+                        text="Clear Before").action = 'UPTO'
 
-        props = layout.operator("clip.clear_track_path",
-                                text="Clear Track Path")
-        props.action = 'ALL'
+        layout.operator("clip.clear_track_path",
+                        text="Clear Track Path").action = 'ALL'
 
         layout.separator()
         layout.operator("clip.join_tracks")
@@ -1021,16 +1045,15 @@ class CLIP_MT_track(Menu):
         layout.operator("clip.paste_tracks")
 
         layout.separator()
-        props = layout.operator("clip.track_markers",
-                                text="Track Frame Backwards")
-        props.backwards = True
+        layout.operator("clip.track_markers",
+                        text="Track Frame Backwards").backwards = True
 
         props = layout.operator("clip.track_markers", text="Track Backwards")
         props.backwards = True
         props.sequence = True
 
-        props = layout.operator("clip.track_markers", text="Track Forwards")
-        props.sequence = True
+        layout.operator("clip.track_markers",
+                        text="Track Forwards").sequence = True
         layout.operator("clip.track_markers", text="Track Frame Forwards")
 
         layout.separator()
@@ -1052,10 +1075,8 @@ class CLIP_MT_reconstruction(Menu):
         layout = self.layout
 
         layout.operator("clip.set_origin")
-        props = layout.operator("clip.set_plane", text="Set Floor")
-        props.plane = 'FLOOR'
-        props = layout.operator("clip.set_plane", text="Set Wall")
-        props.plane = 'WALL'
+        layout.operator("clip.set_plane", text="Set Floor").plane = 'FLOOR'
+        layout.operator("clip.set_plane", text="Set Wall").plane = 'WALL'
 
         layout.operator("clip.set_axis", text="Set X Axis").axis = "X"
         layout.operator("clip.set_axis", text="Set Y Axis").axis = "Y"
@@ -1077,8 +1098,8 @@ class CLIP_MT_track_visibility(Menu):
         layout.operator("clip.hide_tracks_clear", text="Show Hidden")
         layout.operator("clip.hide_tracks", text="Hide Selected")
 
-        props = layout.operator("clip.hide_tracks", text="Hide Unselected")
-        props.unselected = True
+        layout.operator("clip.hide_tracks",
+                        text="Hide Unselected").unselected = True
 
 
 class CLIP_MT_track_transform(Menu):
@@ -1129,12 +1150,11 @@ class CLIP_MT_tracking_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        props = layout.operator("clip.disable_markers",
-                                text="Enable Markers")
-        props.action = 'ENABLE'
+        layout.operator("clip.disable_markers",
+                        text="Enable Markers").action = 'ENABLE'
 
-        props = layout.operator("clip.disable_markers", text="Disable markers")
-        props.action = 'DISABLE'
+        layout.operator("clip.disable_markers",
+                        text="Disable markers").action = 'DISABLE'
 
         layout.separator()
         layout.operator("clip.set_origin")
@@ -1144,11 +1164,10 @@ class CLIP_MT_tracking_specials(Menu):
         layout.operator("clip.hide_tracks_clear", text="Show Tracks")
 
         layout.separator()
-        props = layout.operator("clip.lock_tracks", text="Lock Tracks")
-        props.action = 'LOCK'
+        layout.operator("clip.lock_tracks", text="Lock Tracks").action = 'LOCK'
 
-        props = layout.operator("clip.lock_tracks", text="Unlock Tracks")
-        props.action = 'UNLOCK'
+        layout.operator("clip.lock_tracks",
+                        text="Unlock Tracks").action = 'UNLOCK'
 
 
 class CLIP_MT_select_mode(Menu):

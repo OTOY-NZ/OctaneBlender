@@ -25,6 +25,7 @@
 
 set(INC
 	extern
+	../guardedalloc
 )
 
 set(INC_SYS
@@ -105,10 +106,6 @@ add_definitions(
 	-DELBEEM_MPI=0
 	-DNEWDIRVELMOTEST=0
 )
-
-if(WINDOWS)
-	add_definitions(-DUSE_MSVC6FIXES)
-endif()
 
 if(WITH_OPENMP)
 	add_definitions(-DPARALLEL=1)

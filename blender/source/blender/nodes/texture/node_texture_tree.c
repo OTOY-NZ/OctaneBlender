@@ -121,6 +121,8 @@ static void foreach_nodeclass(Scene *scene, void *calldata, bNodeClassCallback f
         func(calldata, NODE_CLASS_OCT_EMISSION, N_("Octane Emission"));
         func(calldata, NODE_CLASS_OCT_MEDIUM, N_("Octane Medium"));
         func(calldata, NODE_CLASS_OCT_TRANSFORM, N_("Octane Transform"));
+        func(calldata, NODE_CLASS_OCT_PROJECTION, N_("Octane Projection"));
+        func(calldata, NODE_CLASS_OCT_VALUE, N_("Octane Value"));
     }
     else {
         func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
@@ -299,11 +301,13 @@ void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
 void ntreeTexEndExecTree(bNodeTreeExec *exec)
 {
 	if (exec) {
+		/* exec may get freed, so assign ntree */
+		bNodeTree *ntree = exec->nodetree;
 		ntreeTexEndExecTree_internal(exec);
 		
 		/* XXX clear nodetree backpointer to exec data, same problem as noted in ntreeBeginExecTree */
         /* XXX JimStar: Moved to "end_render_texture()", as "ntreeTexEndExecTree_internal()" frees the memory pointed by "exec". */
-		/* exec->nodetree->execdata = NULL; */
+		/* ntree->execdata = NULL; */
 	}
 }
 

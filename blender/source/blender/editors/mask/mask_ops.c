@@ -197,7 +197,7 @@ int ED_mask_feather_find_nearest(const bContext *C, Mask *mask, float normal_co[
 				int j;
 				MaskSplinePoint *cur_point = &spline->points[i];
 
-				for (j = 0; j < cur_point->tot_uw + 1; j++) {
+				for (j = 0; j <= cur_point->tot_uw; j++) {
 					float cur_len, vec[2];
 
 					vec[0] = (*fp)[0] * scalex;
@@ -290,6 +290,26 @@ Mask *ED_mask_new(bContext *C, const char *name)
 	}
 
 	return mask;
+}
+
+/* Get ative layer. Will create mask/layer to be sure there's an active layer.  */
+MaskLayer *ED_mask_layer_ensure(bContext *C)
+{
+	Mask *mask = CTX_data_edit_mask(C);
+	MaskLayer *mask_layer;
+
+	if (mask == NULL) {
+		/* If there's no active mask, create one. */
+		mask = ED_mask_new(C, NULL);
+	}
+
+	mask_layer = BKE_mask_layer_active(mask);
+	if (mask_layer == NULL) {
+		/* If there's no active mask layer, create one. */
+		mask_layer = BKE_mask_layer_new(mask, "");
+	}
+
+	return mask_layer;
 }
 
 static int mask_new_exec(bContext *C, wmOperator *op)
@@ -655,8 +675,7 @@ static int slide_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (ELEM(event->type, LEFTSHIFTKEY, RIGHTSHIFTKEY))
 				data->accurate = (event->val == KM_PRESS);
 
-		/* no break! update CV position */
-
+			/* fall-through */  /* update CV position */
 		case MOUSEMOVE:
 		{
 			ScrArea *sa = CTX_wm_area(C);
@@ -1467,4 +1486,111 @@ void MASK_OT_layer_move(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_enum(ot->srna, "direction", direction_items, 0, "Direction", "Direction to move the active layer");
+}
+
+/******************** duplicate *********************/
+
+static int mask_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	Mask *mask = CTX_data_edit_mask(C);
+	MaskLayer *mask_layer = BKE_mask_layer_active(mask);
+	MaskSpline *spline;
+
+	if (mask_layer == NULL) {
+		return OPERATOR_CANCELLED;
+	}
+
+	for (spline = mask_layer->splines.last;
+	     spline;
+	     spline = spline->prev)
+	{
+		MaskSplinePoint *point = spline->points;
+		int i = 0;
+		while (i < spline->tot_point) {
+			int start = i, end = -1;
+			/* Find next selected segment. */
+			while (MASKPOINT_ISSEL_ANY(point)) {
+				BKE_mask_point_select_set(point, false);
+				end = i;
+				if (i >= spline->tot_point - 1) {
+					break;
+				}
+				i++;
+				point++;
+			}
+			if (end >= start) {
+				MaskSpline *new_spline = BKE_mask_spline_add(mask_layer);
+				MaskSplinePoint *new_point;
+				int b;
+
+				/* BKE_mask_spline_add might allocate the points, need to free them in this case. */
+				if (new_spline->points) {
+					MEM_freeN(new_spline->points);
+				}
+
+				/* Copy options from old spline. */
+				new_spline->flag = spline->flag;
+				new_spline->offset_mode = spline->offset_mode;
+				new_spline->weight_interp = spline->weight_interp;
+				new_spline->parent = spline->parent;
+
+				/* Allocate new points and copy them from old spline. */
+				new_spline->tot_point = end - start + 1;
+				new_spline->points = MEM_mallocN(sizeof(MaskSplinePoint) * new_spline->tot_point,
+				                                 "duplicated mask points");
+
+				memcpy(new_spline->points, spline->points + start,
+				       new_spline->tot_point * sizeof(MaskSplinePoint));
+
+				/* Select points and duplicate their UWs (if needed). */
+				for (b = 0, new_point = new_spline->points;
+				     b < new_spline->tot_point;
+				     b++, new_point++)
+				{
+					if (new_point->uw) {
+						new_point->uw = MEM_dupallocN(new_point->uw);
+					}
+					BKE_mask_point_select_set(new_point, true);
+				}
+
+				/* Clear cyclic flag if we didn't copy the whole spline. */
+				if (new_spline->flag & MASK_SPLINE_CYCLIC) {
+					if (start != 0 || end != spline->tot_point - 1) {
+						new_spline->flag &= ~MASK_SPLINE_CYCLIC;
+					}
+				}
+
+				/* Flush selection to splines. */
+				new_spline->flag |= SELECT;
+				spline->flag &= ~SELECT;
+
+				mask_layer->act_spline = new_spline;
+			}
+			i++;
+			point++;
+		}
+	}
+
+	/* TODO: only update edited splines */
+	BKE_mask_update_display(mask, CFRA);
+
+	WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+
+	return OPERATOR_FINISHED;
+}
+
+void MASK_OT_duplicate(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Duplicate Mask";
+	ot->description = "Duplicate selected control points and segments between them";
+	ot->idname = "MASK_OT_duplicate";
+
+	/* api callbacks */
+	ot->exec = mask_duplicate_exec;
+	ot->poll = ED_maskedit_mask_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

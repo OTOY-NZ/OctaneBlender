@@ -43,7 +43,7 @@ void register_node_type_tex_oct_rgb_spectrum(void) {
 	if(ntype.type != SH_NODE_OCT_RGB_SPECTRUM_TEX) node_type_base(&ntype, SH_NODE_OCT_RGB_SPECTRUM_TEX, "Octane RGBSpectrum Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-	node_type_size(&ntype, 100, 60, 150);
+	node_type_size(&ntype, 160, 160, 200);
 	node_type_init(&ntype, 0);
 	node_type_exec(&ntype, 0, 0, 0);
 	

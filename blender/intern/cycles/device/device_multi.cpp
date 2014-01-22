@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <stdlib.h>
@@ -263,7 +261,6 @@ public:
 			if(sub.device == sub_device) {
 				if(tile.buffer) tile.buffer = sub.ptr_map[tile.buffer];
 				if(tile.rng_state) tile.rng_state = sub.ptr_map[tile.rng_state];
-				if(tile.rgba) tile.rgba = sub.ptr_map[tile.rgba];
 			}
 		}
 	}
@@ -292,7 +289,8 @@ public:
 				tasks.pop_front();
 
 				if(task.buffer) subtask.buffer = sub.ptr_map[task.buffer];
-				if(task.rgba) subtask.rgba = sub.ptr_map[task.rgba];
+				if(task.rgba_byte) subtask.rgba_byte = sub.ptr_map[task.rgba_byte];
+				if(task.rgba_half) subtask.rgba_half = sub.ptr_map[task.rgba_half];
 				if(task.shader_input) subtask.shader_input = sub.ptr_map[task.shader_input];
 				if(task.shader_output) subtask.shader_output = sub.ptr_map[task.shader_output];
 

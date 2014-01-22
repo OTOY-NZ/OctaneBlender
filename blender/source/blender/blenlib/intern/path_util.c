@@ -46,19 +46,11 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
+#include "BLI_fnmatch.h"
 
 #include "../blenkernel/BKE_blender.h"  /* BLENDER_VERSION, bad level include (no function call) */
 
 #include "GHOST_Path-api.h"
-
-#if defined WIN32 && !defined _LIBC  || defined __sun
-#  include "BLI_fnmatch.h" /* use fnmatch included in blenlib */
-#else
-#  ifndef _GNU_SOURCE
-#    define _GNU_SOURCE
-#  endif
-#  include <fnmatch.h>
-#endif
 
 #ifdef WIN32
 #  include "utf_winfunc.h"
@@ -610,9 +602,8 @@ bool BLI_parent_dir(char *path)
 {
 	static char parent_dir[] = {'.', '.', SEP, '\0'}; /* "../" or "..\\" */
 	char tmp[FILE_MAX + 4];
-	BLI_strncpy(tmp, path, sizeof(tmp) - 4);
-	BLI_add_slash(tmp);
-	strcat(tmp, parent_dir);
+
+	BLI_join_dirfile(tmp, sizeof(tmp), path, parent_dir);
 	BLI_cleanup_dir(NULL, tmp); /* does all the work of normalizing the path for us */
 
 	if (!BLI_testextensie(tmp, parent_dir)) {
@@ -696,8 +687,10 @@ bool BLI_path_frame(char *path, int frame, int digits)
 
 	if (stringframe_chars(path, &ch_sta, &ch_end)) { /* warning, ch_end is the last # +1 */
 		char tmp[FILE_MAX];
-		sprintf(tmp, "%.*s%.*d%s", ch_sta, path, ch_end - ch_sta, frame, path + ch_end);
-		strcpy(path, tmp);
+		BLI_snprintf(tmp, sizeof(tmp),
+		             "%.*s%.*d%s",
+		             ch_sta, path, ch_end - ch_sta, frame, path + ch_end);
+		BLI_strncpy(path, tmp, FILE_MAX);
 		return true;
 	}
 	return false;
@@ -1229,6 +1222,7 @@ const char *BLI_get_folder(int folder_id, const char *subfolder)
 
 		default:
 			BLI_assert(0);
+			break;
 	}
 	
 	return path;
@@ -1257,7 +1251,9 @@ const char *BLI_get_user_folder_notest(int folder_id, const char *subfolder)
 			break;
 		default:
 			BLI_assert(0);
+			break;
 	}
+
 	if ('\0' == path[0]) {
 		return NULL;
 	}
@@ -1307,6 +1303,7 @@ const char *BLI_get_folder_version(const int id, const int ver, const bool do_ch
 			path[0] = '\0'; /* in case do_check is false */
 			ok = false;
 			BLI_assert(!"incorrect ID");
+			break;
 	}
 
 	if (!ok && do_check) {
@@ -1327,15 +1324,20 @@ const char *BLI_get_folder_version(const int id, const int ver, const bool do_ch
 #endif
 
 /**
- * Sets the specified environment variable to the specified value.
+ * Sets the specified environment variable to the specified value,
+ * and clears it if val == NULL.
  */
 void BLI_setenv(const char *env, const char *val)
 {
 	/* free windows */
 #if (defined(WIN32) || defined(WIN64)) && defined(FREE_WINDOWS)
-	char *envstr = MEM_mallocN(sizeof(char) * (strlen(env) + strlen(val) + 2), "envstr"); /* one for = another for \0 */
+	char *envstr;
 
-	sprintf(envstr, "%s=%s", env, val);
+	if (val)
+		envstr = BLI_sprintfN("%s=%s", env, val);
+	else
+		envstr = BLI_sprintfN("%s=", env);
+
 	putenv(envstr);
 	MEM_freeN(envstr);
 
@@ -1346,7 +1348,10 @@ void BLI_setenv(const char *env, const char *val)
 
 #else
 	/* linux/osx/bsd */
-	setenv(env, val, 1);
+	if (val)
+		setenv(env, val, 1);
+	else
+		unsetenv(env);
 #endif
 }
 
@@ -1644,6 +1649,16 @@ bool BLI_ensure_extension(char *path, size_t maxlen, const char *ext)
 	return true;
 }
 
+bool BLI_ensure_filename(char *filepath, size_t maxlen, const char *filename)
+{
+	char *c = (char *)BLI_last_slash(filepath);
+	if (!c || ((c - filepath) < maxlen - (strlen(filename) + 1))) {
+		strcpy(c ? &c[1] : filepath, filename);
+		return true;
+	}
+	return false;
+}
+
 /* Converts "/foo/bar.txt" to "/foo/" and "bar.txt"
  * - wont change 'string'
  * - wont create any directories
@@ -1686,22 +1701,43 @@ void BLI_split_file_part(const char *string, char *file, const size_t filelen)
 }
 
 /**
+ * Append a filename to a dir, ensuring slash separates.
+ */
+void BLI_path_append(char *__restrict dst, const size_t maxlen, const char *__restrict file)
+{
+	size_t dirlen = BLI_strnlen(dst, maxlen);
+
+	/* inline BLI_add_slash */
+	if ((dirlen > 0) && (dst[dirlen - 1] != SEP)) {
+		dst[dirlen++] = SEP;
+		dst[dirlen] = '\0';
+	}
+
+	if (dirlen >= maxlen) {
+		return; /* fills the path */
+	}
+
+	BLI_strncpy(dst + dirlen, file, maxlen - dirlen);
+}
+
+/**
  * Simple appending of filename to dir, does not check for valid path!
  * Puts result into *dst, which may be same area as *dir.
  */
-void BLI_join_dirfile(char *dst, const size_t maxlen, const char *dir, const char *file)
+void BLI_join_dirfile(char *__restrict dst, const size_t maxlen, const char *__restrict dir, const char *__restrict file)
 {
 	size_t dirlen = BLI_strnlen(dir, maxlen);
 
-	if (dst != dir) {
-		if (dirlen == maxlen) {
-			memcpy(dst, dir, dirlen);
-			dst[dirlen - 1] = '\0';
-			return; /* dir fills the path */
-		}
-		else {
-			memcpy(dst, dir, dirlen + 1);
-		}
+	/* args can't match */
+	BLI_assert(!ELEM(dst, dir, file));
+
+	if (dirlen == maxlen) {
+		memcpy(dst, dir, dirlen);
+		dst[dirlen - 1] = '\0';
+		return; /* dir fills the path */
+	}
+	else {
+		memcpy(dst, dir, dirlen + 1);
 	}
 
 	if (dirlen + 1 >= maxlen) {
@@ -1716,10 +1752,6 @@ void BLI_join_dirfile(char *dst, const size_t maxlen, const char *dir, const cha
 
 	if (dirlen >= maxlen) {
 		return; /* fills the path */
-	}
-
-	if (file == NULL) {
-		return;
 	}
 
 	BLI_strncpy(dst + dirlen, file, maxlen - dirlen);
@@ -1837,7 +1869,7 @@ int BLI_rebase_path(char *abs, size_t abs_len,
 			/* subdirectories relative to blend_dir */
 			BLI_join_dirfile(dest_path, sizeof(dest_path), dest_dir, rel_dir);
 			/* same subdirectories relative to dest_dir */
-			BLI_join_dirfile(dest_path, sizeof(dest_path), dest_path, base);
+			BLI_path_append(dest_path, sizeof(dest_path), base);
 			/* keeping original item basename */
 		}
 
@@ -2058,7 +2090,7 @@ static void bli_where_am_i(char *fullname, const size_t maxlen, const char *name
 					else {
 						strncpy(filename, path, sizeof(filename));
 					}
-					BLI_join_dirfile(fullname, maxlen, fullname, name);
+					BLI_path_append(fullname, maxlen, name);
 					if (add_win32_extension(filename)) {
 						BLI_strncpy(fullname, filename, maxlen);
 						break;

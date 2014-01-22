@@ -1151,17 +1151,26 @@ void txt_pop_sel(Text *text)
 	text->selc = text->curc;
 }
 
-void txt_order_cursors(Text *text)
+void txt_order_cursors(Text *text, const bool reverse)
 {
 	if (!text) return;
 	if (!text->curl) return;
 	if (!text->sell) return;
 	
-	/* Flip so text->curl is before text->sell */
-	if ((txt_get_span(text->curl, text->sell) < 0) ||
-	    (text->curl == text->sell && text->curc > text->selc))
-	{
-		txt_curs_swap(text);
+	/* Flip so text->curl is before/after text->sell */
+	if (reverse == false) {
+		if ((txt_get_span(text->curl, text->sell) < 0) ||
+		    (text->curl == text->sell && text->curc > text->selc))
+		{
+			txt_curs_swap(text);
+		}
+	}
+	else {
+		if ((txt_get_span(text->curl, text->sell) > 0) ||
+		    (text->curl == text->sell && text->curc < text->selc))
+		{
+			txt_curs_swap(text);
+		}
 	}
 }
 
@@ -1181,7 +1190,7 @@ static void txt_delete_sel(Text *text)
 
 	if (!txt_has_sel(text)) return;
 	
-	txt_order_cursors(text);
+	txt_order_cursors(text, false);
 
 	if (!undoing) {
 		buf = txt_sel_to_buf(text);
@@ -1305,7 +1314,7 @@ int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
 
 	if (!text || !text->curl || !text->sell) return 0;
 	
-	txt_order_cursors(text);
+	txt_order_cursors(text, false);
 
 	tl = startl = text->sell;
 	
@@ -1496,6 +1505,7 @@ static int max_undo_test(Text *text, int x)
 	return 1;
 }
 
+#if 0  /* UNUSED */
 static void dump_buffer(Text *text) 
 {
 	int i = 0;
@@ -1607,6 +1617,7 @@ void txt_print_undo(Text *text)
 					c_len = BLI_str_utf8_from_unicode(uc, c);
 					c[c_len] = '\0';
 					puts(c);
+					break;
 				}
 			}
 		}
@@ -1659,6 +1670,7 @@ void txt_print_undo(Text *text)
 		i++;
 	}
 }
+#endif
 
 static void txt_undo_store_uint16(char *undo_buf, int *undo_pos, unsigned short value) 
 {
@@ -1850,6 +1862,7 @@ static unsigned int txt_undo_read_unicode(const char *undo_buf, int *undo_pos, s
 			/* should never happen */
 			BLI_assert(0);
 			unicode = 0;
+			break;
 	}
 	
 	return unicode;
@@ -1925,6 +1938,7 @@ static unsigned int txt_redo_read_unicode(const char *undo_buf, int *undo_pos, s
 			/* should never happen */
 			BLI_assert(0);
 			unicode = 0;
+			break;
 	}
 	
 	return unicode;
@@ -1933,6 +1947,7 @@ static unsigned int txt_redo_read_unicode(const char *undo_buf, int *undo_pos, s
 void txt_do_undo(Text *text)
 {
 	int op = text->undo_buf[text->undo_pos];
+	int prev_flags;
 	unsigned int linep, i;
 	unsigned int uchar;
 	unsigned int curln, selln;
@@ -2013,10 +2028,7 @@ void txt_do_undo(Text *text)
 			buf[i] = 0;
 
 			/* skip over the length that was stored again */
-			text->undo_pos--;
-			text->undo_pos--;
-			text->undo_pos--; 
-			text->undo_pos--;
+			text->undo_pos -= 4;
 
 			/* Get the cursor positions */
 			txt_undo_read_cursors(text->undo_buf, &text->undo_pos, &curln, &curc, &selln, &selc);
@@ -2050,10 +2062,7 @@ void txt_do_undo(Text *text)
 			MEM_freeN(buf);
 			
 			/* skip over the length that was stored again */
-			text->undo_pos--;
-			text->undo_pos--;
-			text->undo_pos--;
-			text->undo_pos--;
+			text->undo_pos -= 4;
 
 			/* get and restore the cursors */
 			txt_undo_read_cursors(text->undo_buf, &text->undo_pos, &curln, &curc, &selln, &selc);
@@ -2062,8 +2071,14 @@ void txt_do_undo(Text *text)
 			txt_move_to(text, selln, selc, 1);
 			
 			if ((curln == selln) && (curc == selc)) {
+				/* disable tabs to spaces since moving right may involve skipping multiple spaces */
+				prev_flags = text->flags;
+				text->flags &= ~TXT_TABSTOSPACES;
+				
 				for (i = 0; i < linep; i++)
 					txt_move_right(text, 1);
+				
+				text->flags = prev_flags;
 			}
 			
 			txt_delete_selected(text);
@@ -2204,10 +2219,7 @@ void txt_do_redo(Text *text)
 			text->undo_pos += linep;
 
 			/* skip over the length that was stored again */
-			text->undo_pos++;
-			text->undo_pos++;
-			text->undo_pos++; 
-			text->undo_pos++;
+			text->undo_pos += 4;
 			
 			txt_delete_sel(text);
 
@@ -2233,10 +2245,7 @@ void txt_do_redo(Text *text)
 			MEM_freeN(buf);
 
 			/* skip over the length that was stored again */
-			text->undo_pos++;
-			text->undo_pos++;
-			text->undo_pos++; 
-			text->undo_pos++;
+			text->undo_pos += 4;
 
 			break;
 			
@@ -2366,7 +2375,7 @@ static void txt_delete_line(Text *text, TextLine *line)
 
 static void txt_combine_lines(Text *text, TextLine *linea, TextLine *lineb)
 {
-	char *tmp;
+	char *tmp, *s;
 
 	if (!text) return;
 	
@@ -2375,8 +2384,10 @@ static void txt_combine_lines(Text *text, TextLine *linea, TextLine *lineb)
 
 	tmp = MEM_mallocN(linea->len + lineb->len + 1, "textline_string");
 	
-	strcpy(tmp, linea->line);
-	strcat(tmp, lineb->line);
+	s = tmp;
+	s += BLI_strcpy_rlen(s, linea->line);
+	s += BLI_strcpy_rlen(s, lineb->line);
+	(void)s;
 
 	make_new_line(linea, tmp);
 	
@@ -2629,10 +2640,6 @@ void txt_indent(Text *text)
 		return;
 	}
 
-	if (!text) return;
-	if (!text->curl) return;
-	if (!text->sell) return;
-
 	/* insert spaces rather than tabs */
 	if (text->flags & TXT_TABSTOSPACES) {
 		add = tab_to_spaces;
@@ -2692,9 +2699,9 @@ void txt_unindent(Text *text)
 	/* hardcoded: TXT_TABSIZE = 4 spaces: */
 	int spaceslen = TXT_TABSIZE;
 
-	if (!text) return;
-	if (!text->curl) return;
-	if (!text->sell) return;
+	if (ELEM3(NULL, text, text->curl, text->sell)) {
+		return;
+	}
 
 	/* insert spaces rather than tabs */
 	if (text->flags & TXT_TABSTOSPACES) {
@@ -2842,7 +2849,7 @@ void txt_move_lines(struct Text *text, const int direction)
 
 	if (!text || !text->curl || !text->sell) return;
 	
-	txt_order_cursors(text);
+	txt_order_cursors(text, false);
 
 	line_other =  (direction == TXT_MOVE_LINE_DOWN) ? text->sell->next : text->curl->prev;
 	

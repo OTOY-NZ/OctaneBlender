@@ -577,7 +577,7 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 	if (bs->type == RE_BAKE_NORMALS && R.r.bake_normal_space == R_BAKE_SPACE_TANGENT)
 		bake_shade(handle, ob, shi, quad, x, y, u, v, tvn, ttang);
 	else
-		bake_shade(handle, ob, shi, quad, x, y, u, v, 0, 0);
+		bake_shade(handle, ob, shi, quad, x, y, u, v, NULL, NULL);
 }
 
 static int get_next_bake_face(BakeShade *bs)
@@ -647,6 +647,8 @@ static int get_next_bake_face(BakeShade *bs)
 					const float vec_solid[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 					const float nor_alpha[4] = {0.5f, 0.5f, 1.0f, 0.0f};
 					const float nor_solid[4] = {0.5f, 0.5f, 1.0f, 1.0f};
+					const float disp_alpha[4] = {0.5f, 0.5f, 0.5f, 0.0f};
+					const float disp_solid[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 
 					tface = RE_vlakren_get_tface(obr, vlr, obr->bakemtface, NULL, 0);
 
@@ -686,6 +688,8 @@ static int get_next_bake_face(BakeShade *bs)
 						if (R.r.bake_flag & R_BAKE_CLEAR) {
 							if (R.r.bake_mode == RE_BAKE_NORMALS && R.r.bake_normal_space == R_BAKE_SPACE_TANGENT)
 								IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? nor_alpha : nor_solid);
+							else if (R.r.bake_mode == RE_BAKE_DISPLACEMENT)
+								IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? disp_alpha : disp_solid);
 							else
 								IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? vec_alpha : vec_solid);
 						}
@@ -828,8 +832,11 @@ static void shade_tface(BakeShade *bs)
 				}
 			}
 
-			if (bs->use_displacement_buffer)
-				userdata->displacement_buffer = MEM_callocN(sizeof(float) * bs->rectx * bs->recty, "BakeDisp");
+			if (bs->use_displacement_buffer) {
+				if (userdata->displacement_buffer == NULL) {
+					userdata->displacement_buffer = MEM_callocN(sizeof(float) * bs->rectx * bs->recty, "BakeDisp");
+				}
+			}
 
 			bs->ibuf->userdata = userdata;
 
@@ -1081,12 +1088,12 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 
 				userdata = (BakeImBufuserData *)ibuf->userdata;
 				if (userdata) {
-					RE_bake_ibuf_filter(ibuf, userdata->mask_buffer, re->r.bake_filter);
-
 					if (use_displacement_buffer) {
 						RE_bake_ibuf_normalize_displacement(ibuf, userdata->displacement_buffer, userdata->mask_buffer,
 						                                    displacement_min, displacement_max);
 					}
+
+					RE_bake_ibuf_filter(ibuf, userdata->mask_buffer, re->r.bake_filter);
 				}
 
 				ibuf->userflags |= IB_BITMAPDIRTY;

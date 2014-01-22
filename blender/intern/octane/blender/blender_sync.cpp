@@ -185,6 +185,8 @@ void BlenderSync::sync_kernel(PassType pass_type) {
     kernel->alpha_channel       = get_boolean(oct_scene, "alpha_channel");
     kernel->keep_environment    = get_boolean(oct_scene, "keep_environment");
     kernel->alpha_shadows       = get_boolean(oct_scene, "alpha_shadows");
+    kernel->bump_normal_mapping = get_boolean(oct_scene, "bump_normal_mapping");
+    kernel->wf_bktrace_hl       = get_boolean(oct_scene, "wf_bktrace_hl");
 
     kernel->max_depth       = get_int(oct_scene, "max_depth");
     kernel->caustic_blur    = get_float(oct_scene, "caustic_blur");

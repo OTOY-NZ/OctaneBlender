@@ -161,6 +161,7 @@ public:
 
     std::string Transform;
     float       Transform_default_val;
+    std::string Projection;
 };
 
 class OctaneMarbleTexture : public OctaneTextureNode {
@@ -177,6 +178,7 @@ public:
     std::string Variance;
     float       Variance_default_val;
     std::string Transform;
+    std::string Projection;
 };
 
 class OctaneRidgedFractalTexture : public OctaneTextureNode {
@@ -191,6 +193,7 @@ public:
     std::string Lacunarity;
     float       Lacunarity_default_val;
     std::string Transform;
+    std::string Projection;
 };
 
 class OctaneSawWaveTexture : public OctaneTextureNode {
@@ -199,8 +202,8 @@ public:
 
     std::string Offset;
     float       Offset_default_val;
-    bool        Circular;
     std::string Transform;
+    std::string Projection;
 };
 
 class OctaneSineWaveTexture : public OctaneTextureNode {
@@ -209,8 +212,8 @@ public:
 
     std::string Offset;
     float       Offset_default_val;
-    bool        Circular;
     std::string Transform;
+    std::string Projection;
 };
 
 class OctaneTriangleWaveTexture : public OctaneTextureNode {
@@ -219,8 +222,8 @@ public:
 
     std::string Offset;
     float       Offset_default_val;
-    bool        Circular;
     std::string Transform;
+    std::string Projection;
 };
 
 class OctaneTurbulenceTexture : public OctaneTextureNode {
@@ -235,6 +238,7 @@ public:
     std::string Omega;
     float       Omega_default_val;
     std::string Transform;
+    std::string Projection;
 };
 
 class OctaneClampTexture : public OctaneTextureNode {
@@ -314,8 +318,10 @@ public:
     std::string Power;
     float       Power_default_val;
     float       Gamma;
-    float2      Scale;
+    std::string Transform;
     bool        Invert;
+    std::string Projection;
+    int         BorderMode;
 };
 
 class OctaneFloatImageTexture : public OctaneTextureNode {
@@ -326,8 +332,10 @@ public:
     std::string Power;
     float       Power_default_val;
     float       Gamma;
-    float2      Scale;
+    std::string Transform;
     bool        Invert;
+    std::string Projection;
+    int         BorderMode;
 };
 
 class OctaneAlphaImageTexture : public OctaneTextureNode {
@@ -338,8 +346,10 @@ public:
     std::string Power;
     float       Power_default_val;
     float       Gamma;
-    float2      Scale;
+    std::string Transform;
     bool        Invert;
+    std::string Projection;
+    int         BorderMode;
 };
 
 class OctaneDirtTexture : public OctaneTextureNode {
@@ -350,6 +360,19 @@ public:
     float       Details;
     float       Radius;
     bool        InvertNormal;
+};
+
+class OctaneGradientTexture : public OctaneTextureNode {
+public:
+    SHADER_NODE_CLASS(OctaneGradientTexture)
+
+    std::string texture;
+    float3      texture_default_val;
+    bool        Smooth;
+    std::string Start;
+    float3      Start_default_val;
+    std::string End;
+    float3      End_default_val;
 };
 
 
@@ -372,7 +395,6 @@ public:
     float       Distribution_default_val;
     std::string Efficiency;
     float       Efficiency_default_val;
-    float3      Orientation;
     float       SamplingRate;
 };
 
@@ -385,7 +407,6 @@ public:
     float       Power;
     std::string Distribution;
     float       Distribution_default_val;
-    float3      Orientation;
     float       SamplingRate;
 };
 
@@ -451,6 +472,83 @@ public:
     float3 Rotation;
     float3 Scale;
     float3 Translation;
+};
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PROJECTIONS
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class OctaneProjectionNode : public ShaderNode {
+public:
+    SHADER_NODE_CLASS(OctaneProjectionNode)
+};
+
+class OctaneOctXYZProjection : public OctaneProjectionNode {
+public:
+    SHADER_NODE_CLASS(OctaneOctXYZProjection)
+
+    std::string Transform;
+    int         CoordinateSpace;
+};
+
+class OctaneOctBoxProjection : public OctaneProjectionNode {
+public:
+    SHADER_NODE_CLASS(OctaneOctBoxProjection)
+
+    std::string Transform;
+    int         CoordinateSpace;
+};
+
+class OctaneOctCylProjection : public OctaneProjectionNode {
+public:
+    SHADER_NODE_CLASS(OctaneOctCylProjection)
+
+    std::string Transform;
+    int         CoordinateSpace;
+};
+
+class OctaneOctPerspProjection : public OctaneProjectionNode {
+public:
+    SHADER_NODE_CLASS(OctaneOctPerspProjection)
+
+    std::string Transform;
+    int         CoordinateSpace;
+};
+
+class OctaneOctSphericalProjection : public OctaneProjectionNode {
+public:
+    SHADER_NODE_CLASS(OctaneOctSphericalProjection)
+
+    std::string Transform;
+    int         CoordinateSpace;
+};
+
+class OctaneOctUVWProjection : public OctaneProjectionNode {
+public:
+    SHADER_NODE_CLASS(OctaneOctUVWProjection)
+};
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// VALUES
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class OctaneValueNode : public ShaderNode {
+public:
+    SHADER_NODE_CLASS(OctaneValueNode)
+};
+
+class OctaneOctFloatValue : public OctaneValueNode {
+public:
+    SHADER_NODE_CLASS(OctaneOctFloatValue)
+
+    float Value;
+};
+
+class OctaneOctIntValue : public OctaneValueNode {
+public:
+    SHADER_NODE_CLASS(OctaneOctIntValue)
+
+    int32_t Value;
 };
 
 OCT_NAMESPACE_END

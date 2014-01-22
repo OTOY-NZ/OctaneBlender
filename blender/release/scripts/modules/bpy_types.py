@@ -219,8 +219,9 @@ class _GenericBone:
 
     @property
     def length(self):
-        """ The distance from head to tail,
-            when set the head is moved to fit the length.
+        """
+        The distance from head to tail,
+        when set the head is moved to fit the length.
         """
         return self.vector.length
 
@@ -230,8 +231,9 @@ class _GenericBone:
 
     @property
     def vector(self):
-        """ The direction this bone is pointing.
-            Utility function for (tail - head)
+        """
+        The direction this bone is pointing.
+        Utility function for (tail - head)
         """
         return (self.tail - self.head)
 
@@ -303,6 +305,15 @@ class _GenericBone:
 
 class PoseBone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
     __slots__ = ()
+
+    @property
+    def children(self):
+        obj = self.id_data
+        pbones = obj.pose.bones
+        self_bone = self.bone
+
+        return tuple(pbones[bone.name] for bone in obj.data.bones
+                     if bone.parent == self_bone)
 
 
 class Bone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
@@ -547,7 +558,7 @@ class OrderedDictMini(dict):
         self.order.remove(key)
 
 
-class RNAMetaPropGroup(RNAMeta, StructMetaPropGroup):
+class RNAMetaPropGroup(StructMetaPropGroup, RNAMeta):
     pass
 
 

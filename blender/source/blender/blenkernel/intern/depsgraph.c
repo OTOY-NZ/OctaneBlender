@@ -29,6 +29,7 @@
 
  
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
@@ -558,6 +559,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				}
 				else
 					dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Parent");
+				break;
 		}
 		/* exception case: parent is duplivert */
 		if (ob->type == OB_MBALL && (ob->parent->transflag & OB_DUPLIVERTS)) {
@@ -619,8 +621,8 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				node2 = dag_get_node(dag, cam->dof_ob);
 				dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Camera DoF");
 			}
+			break;
 		}
-		break;
 		case OB_MBALL: 
 		{
 			Object *mom = BKE_mball_basis_find(scene, ob);
@@ -629,8 +631,8 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				node2 = dag_get_node(dag, mom);
 				dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Metaball");  /* mom depends on children! */
 			}
+			break;
 		}
-		break;
 		case OB_CURVE:
 		case OB_FONT:
 		{
@@ -650,8 +652,8 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Texture On Curve");
 				}
 			}
+			break;
 		}
-		break;
 	}
 	
 	/* material drivers */
@@ -818,12 +820,26 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 		dag_add_relation(dag, scenenode, node, DAG_RL_SCENE, "Scene Relation");
 }
 
+static void build_dag_group(DagForest *dag, DagNode *scenenode, Scene *scene, Group *group, short mask)
+{
+	GroupObject *go;
+
+	if (group->id.flag & LIB_DOIT)
+		return;
+	
+	group->id.flag |= LIB_DOIT;
+
+	for (go = group->gobject.first; go; go = go->next) {
+		build_dag_object(dag, scenenode, scene, go->ob, mask);
+		if (go->ob->dup_group)
+			build_dag_group(dag, scenenode, scene, go->ob->dup_group, mask);
+	}
+}
+
 DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 {
 	Base *base;
 	Object *ob;
-	Group *group;
-	GroupObject *go;
 	DagNode *node;
 	DagNode *scenenode;
 	DagForest *dag;
@@ -840,6 +856,7 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later [#32017] */
 	tag_main_idcode(bmain, ID_MA, FALSE);
 	tag_main_idcode(bmain, ID_LA, FALSE);
+	tag_main_idcode(bmain, ID_GR, FALSE);
 	
 	/* add base node for scene. scene is always the first node in DAG */
 	scenenode = dag_add_node(dag, sce);
@@ -851,21 +868,11 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 		build_dag_object(dag, scenenode, sce, ob, mask);
 		if (ob->proxy)
 			build_dag_object(dag, scenenode, sce, ob->proxy, mask);
-		
-		/* handled in next loop */
 		if (ob->dup_group) 
-			ob->dup_group->id.flag |= LIB_DOIT;
+			build_dag_group(dag, scenenode, sce, ob->dup_group, mask);
 	}
 	
-	/* add groups used in current scene objects */
-	for (group = bmain->group.first; group; group = group->id.next) {
-		if (group->id.flag & LIB_DOIT) {
-			for (go = group->gobject.first; go; go = go->next) {
-				build_dag_object(dag, scenenode, sce, go->ob, mask);
-			}
-			group->id.flag &= ~LIB_DOIT;
-		}
-	}
+	tag_main_idcode(bmain, ID_GR, FALSE);
 	
 	/* Now all relations were built, but we need to solve 1 exceptional case;
 	 * When objects have multiple "parents" (for example parent + constraint working on same object)
@@ -1926,6 +1933,25 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 		lib_id_recalc_data_tag(bmain, &ob->id);
 
 }
+
+/* recursively update objects in groups, each group is done at most once */
+static void dag_group_update_flags(Main *bmain, Scene *scene, Group *group, const short do_time)
+{
+	GroupObject *go;
+
+	if (group->id.flag & LIB_DOIT)
+		return;
+	
+	group->id.flag |= LIB_DOIT;
+
+	for (go = group->gobject.first; go; go = go->next) {
+		if (do_time)
+			dag_object_time_update_flags(bmain, scene, go->ob);
+		if (go->ob->dup_group)
+			dag_group_update_flags(bmain, scene, go->ob->dup_group, do_time);
+	}
+}
+
 /* flag all objects that need recalc, for changes in time for example */
 /* do_time: make this optional because undo resets objects to their animated locations without this */
 void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const short do_time)
@@ -1935,6 +1961,8 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const s
 	Group *group;
 	GroupObject *go;
 	Scene *sce_iter;
+
+	tag_main_idcode(bmain, ID_GR, FALSE);
 
 	/* set ob flags where animated systems are */
 	for (SETLOOPER(scene, sce_iter, base)) {
@@ -1950,20 +1978,9 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const s
 			dag_object_time_update_flags(bmain, sce_iter, ob);
 		}
 
-		/* handled in next loop */
+		/* recursively tag groups with LIB_DOIT, and update flags for objects */
 		if (ob->dup_group)
-			ob->dup_group->id.flag |= LIB_DOIT;
-	}
-
-	if (do_time) {
-		/* we do groups each once */
-		for (group = bmain->group.first; group; group = group->id.next) {
-			if (group->id.flag & LIB_DOIT) {
-				for (go = group->gobject.first; go; go = go->next) {
-					dag_object_time_update_flags(bmain, scene, go->ob);
-				}
-			}
-		}
+			dag_group_update_flags(bmain, scene, ob->dup_group, do_time);
 	}
 
 	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
@@ -2047,6 +2064,26 @@ static void dag_current_scene_layers(Main *bmain, ListBase *lb)
 	}
 }
 
+static void dag_group_on_visible_update(Group *group)
+{
+	GroupObject *go;
+
+	if (group->id.flag & LIB_DOIT)
+		return;
+	
+	group->id.flag |= LIB_DOIT;
+
+	for (go = group->gobject.first; go; go = go->next) {
+		if (ELEM6(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE))
+			go->ob->recalc |= OB_RECALC_DATA;
+		if (go->ob->proxy_from)
+			go->ob->recalc |= OB_RECALC_OB;
+
+		if (go->ob->dup_group)
+			dag_group_on_visible_update(go->ob->dup_group);
+	}
+}
+
 void DAG_on_visible_update(Main *bmain, const short do_time)
 {
 	ListBase listbase;
@@ -2060,8 +2097,6 @@ void DAG_on_visible_update(Main *bmain, const short do_time)
 		Scene *sce_iter;
 		Base *base;
 		Object *ob;
-		Group *group;
-		GroupObject *go;
 		DagNode *node;
 		unsigned int lay = dsl->layer, oblay;
 	
@@ -2070,6 +2105,7 @@ void DAG_on_visible_update(Main *bmain, const short do_time)
 		 * note armature poses or object matrices are preserved and do not
 		 * require updates, so we skip those */
 		dag_scene_flush_layers(scene, lay);
+		tag_main_idcode(bmain, ID_GR, FALSE);
 
 		for (SETLOOPER(scene, sce_iter, base)) {
 			ob = base->object;
@@ -2079,23 +2115,14 @@ void DAG_on_visible_update(Main *bmain, const short do_time)
 			if ((oblay & lay) & ~scene->lay_updated) {
 				if (ELEM6(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE))
 					ob->recalc |= OB_RECALC_DATA;
+				if (ob->proxy && (ob->proxy_group == NULL))
+					ob->proxy->recalc |= OB_RECALC_DATA;
 				if (ob->dup_group) 
-					ob->dup_group->id.flag |= LIB_DOIT;
+					dag_group_on_visible_update(ob->dup_group);
 			}
 		}
 
-		for (group = bmain->group.first; group; group = group->id.next) {
-			if (group->id.flag & LIB_DOIT) {
-				for (go = group->gobject.first; go; go = go->next) {
-					if (ELEM6(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE))
-						go->ob->recalc |= OB_RECALC_DATA;
-					if (go->ob->proxy_from)
-						go->ob->recalc |= OB_RECALC_OB;
-				}
-				
-				group->id.flag &= ~LIB_DOIT;
-			}
-		}
+		tag_main_idcode(bmain, ID_GR, FALSE);
 
 		/* now tag update flags, to ensure deformers get calculated on redraw */
 		DAG_scene_update_flags(bmain, scene, lay, do_time);
@@ -2273,7 +2300,7 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 		 * so it should happen tracking-related constraints recalculation
 		 * when camera is changing (sergey) */
 		if (sce->camera && &sce->camera->id == id) {
-			MovieClip *clip = BKE_object_movieclip_get(sce, sce->camera, 1);
+			MovieClip *clip = BKE_object_movieclip_get(sce, sce->camera, true);
 
 			if (clip)
 				dag_id_flush_update(bmain, sce, &clip->id);

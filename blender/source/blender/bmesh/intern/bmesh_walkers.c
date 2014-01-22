@@ -87,15 +87,16 @@ void BMW_init(BMWalker *walker, BMesh *bm, int type,
 	walker->mask_edge = mask_edge;
 	walker->mask_face = mask_face;
 
-	walker->visithash = BLI_ghash_ptr_new("bmesh walkers 1");
-	walker->secvisithash = BLI_ghash_ptr_new("bmesh walkers sec 1");
+	walker->visit_set = BLI_gset_ptr_new("bmesh walkers");
+	walker->visit_set_alt = BLI_gset_ptr_new("bmesh walkers sec");
 
 	if (UNLIKELY(type >= BMW_MAXWALKERS || type < 0)) {
 		fprintf(stderr,
-		        "Invalid walker type in BMW_init; type: %d, "
+		        "%s: Invalid walker type in BMW_init; type: %d, "
 		        "searchmask: (v:%d, e:%d, f:%d), flag: %d, layer: %d\n",
-		        type, mask_vert, mask_edge, mask_face, flag, layer);
-		BMESH_ASSERT(0);
+		        __func__, type, mask_vert, mask_edge, mask_face, flag, layer);
+		BLI_assert(0);
+		return;
 	}
 	
 	if (type != BMW_CUSTOM) {
@@ -126,8 +127,8 @@ void BMW_init(BMWalker *walker, BMesh *bm, int type,
 void BMW_end(BMWalker *walker)
 {
 	BLI_mempool_destroy(walker->worklist);
-	BLI_ghash_free(walker->visithash, NULL, NULL);
-	BLI_ghash_free(walker->secvisithash, NULL, NULL);
+	BLI_gset_free(walker->visit_set, NULL);
+	BLI_gset_free(walker->visit_set_alt, NULL);
 }
 
 
@@ -252,8 +253,6 @@ void BMW_reset(BMWalker *walker)
 		BMW_state_remove(walker);
 	}
 	walker->depth = 0;
-	BLI_ghash_free(walker->visithash, NULL, NULL);
-	BLI_ghash_free(walker->secvisithash, NULL, NULL);
-	walker->visithash = BLI_ghash_ptr_new("bmesh walkers 1");
-	walker->secvisithash = BLI_ghash_ptr_new("bmesh walkers sec 1");
+	BLI_gset_clear(walker->visit_set, NULL);
+	BLI_gset_clear(walker->visit_set_alt, NULL);
 }

@@ -38,7 +38,6 @@ public:
 	void tag_update(Scene *scene);
 
     uint32_t type;
-    float2   rotation;
     string   texture;
     uint32_t importance_sampling;
     uint32_t daylight_type;

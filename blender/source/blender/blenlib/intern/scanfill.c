@@ -40,49 +40,17 @@
 #include "BLI_callbacks.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_scanfill.h"
+#include "BLI_memarena.h"
 #include "BLI_utildefines.h"
+#include "BLI_strict_flags.h"
 
-/* callbacks for errors and interrupts and some goo */
-static void (*BLI_localErrorCallBack)(const char *) = NULL;
-
-/**
- * Set a function taking a (char *) as argument to flag errors. If the
- * callback is not set, the error is discarded.
- * \param f The function to use as callback
- * \attention used in creator.c
- */
-void BLI_setErrorCallBack(void (*f)(const char *))
-{
-	BLI_localErrorCallBack = f;
-}
-
-/* just flush the error to /dev/null if the error handler is missing */
-void callLocalErrorCallBack(const char *msg)
-{
-	if (BLI_localErrorCallBack) {
-		BLI_localErrorCallBack(msg);
-	}
-}
-
-#if 0
-/* ignore if the interrupt wasn't set */
-static int callLocalInterruptCallBack(void)
-{
-	if (BLI_localInterruptCallBack) {
-		return BLI_localInterruptCallBack();
-	}
-	else {
-		return 0;
-	}
-}
-#endif
+#include "BLI_scanfill.h"  /* own include */
 
 /* local types */
 typedef struct PolyFill {
-	int edges, verts;
+	unsigned int edges, verts;
 	float min_xy[2], max_xy[2];
-	short f, nr;
+	unsigned short f, nr;
 } PolyFill;
 
 typedef struct ScanFillVertLink {
@@ -132,99 +100,45 @@ static int vergpoly(const void *a1, const void *a2)
 	return 0;
 }
 
-/* ************* MEMORY MANAGEMENT ************* */
-
-/* memory management */
-struct mem_elements {
-	struct mem_elements *next, *prev;
-	char *data;
-};
-
-static void *mem_element_new(ScanFillContext *sf_ctx, int size)
-{
-	BLI_assert(!(size > 10000 || size == 0)); /* this is invalid use! */
-
-	size = (size + 3) & ~3;     /* allocate in units of 4 */
-	
-	if (sf_ctx->melem__cur && (size + sf_ctx->melem__offs < MEM_ELEM_BLOCKSIZE)) {
-		void *adr = (void *) (sf_ctx->melem__cur->data + sf_ctx->melem__offs);
-		sf_ctx->melem__offs += size;
-		return adr;
-	}
-	else {
-		sf_ctx->melem__cur = MEM_callocN(sizeof(struct mem_elements), "newmem");
-		sf_ctx->melem__cur->data = MEM_callocN(MEM_ELEM_BLOCKSIZE, "newmem");
-		BLI_addtail(&sf_ctx->melem__lb, sf_ctx->melem__cur);
-
-		sf_ctx->melem__offs = size;
-		return sf_ctx->melem__cur->data;
-	}
-}
-static void mem_element_reset(ScanFillContext *sf_ctx, int keep_first)
-{
-	struct mem_elements *first;
-
-	if ((first = sf_ctx->melem__lb.first)) { /* can be false if first fill fails */
-		if (keep_first) {
-			BLI_remlink(&sf_ctx->melem__lb, first);
-		}
-
-		sf_ctx->melem__cur = sf_ctx->melem__lb.first;
-		while (sf_ctx->melem__cur) {
-			MEM_freeN(sf_ctx->melem__cur->data);
-			sf_ctx->melem__cur = sf_ctx->melem__cur->next;
-		}
-		BLI_freelistN(&sf_ctx->melem__lb);
-
-		/*reset the block we're keeping*/
-		if (keep_first) {
-			BLI_addtail(&sf_ctx->melem__lb, first);
-			memset(first->data, 0, MEM_ELEM_BLOCKSIZE);
-		}
-		else {
-			first = NULL;
-
-		}
-	}
-
-	sf_ctx->melem__cur = first;
-	sf_ctx->melem__offs = 0;
-}
-
-void BLI_scanfill_end(ScanFillContext *sf_ctx)
-{
-	mem_element_reset(sf_ctx, FALSE);
-	
-	sf_ctx->fillvertbase.first = sf_ctx->fillvertbase.last = NULL;
-	sf_ctx->filledgebase.first = sf_ctx->filledgebase.last = NULL;
-	sf_ctx->fillfacebase.first = sf_ctx->fillfacebase.last = NULL;
-}
-
 /* ****  FILL ROUTINES *************************** */
 
 ScanFillVert *BLI_scanfill_vert_add(ScanFillContext *sf_ctx, const float vec[3])
 {
-	ScanFillVert *eve;
+	ScanFillVert *sf_v;
 	
-	eve = mem_element_new(sf_ctx, sizeof(ScanFillVert));
-	BLI_addtail(&sf_ctx->fillvertbase, eve);
-	
-	copy_v3_v3(eve->co, vec);
+	sf_v = BLI_memarena_alloc(sf_ctx->arena, sizeof(ScanFillVert));
 
-	return eve;
+	BLI_addtail(&sf_ctx->fillvertbase, sf_v);
+
+	sf_v->tmp.p = NULL;
+	copy_v3_v3(sf_v->co, vec);
+
+	/* just zero out the rest */
+	zero_v2(sf_v->xy);
+	sf_v->keyindex = 0;
+	sf_v->poly_nr = 0;
+	sf_v->edge_tot = 0;
+	sf_v->f = 0;
+
+	return sf_v;
 }
 
 ScanFillEdge *BLI_scanfill_edge_add(ScanFillContext *sf_ctx, ScanFillVert *v1, ScanFillVert *v2)
 {
-	ScanFillEdge *newed;
+	ScanFillEdge *sf_ed;
 
-	newed = mem_element_new(sf_ctx, sizeof(ScanFillEdge));
-	BLI_addtail(&sf_ctx->filledgebase, newed);
+	sf_ed = BLI_memarena_alloc(sf_ctx->arena, sizeof(ScanFillEdge));
+	BLI_addtail(&sf_ctx->filledgebase, sf_ed);
 	
-	newed->v1 = v1;
-	newed->v2 = v2;
+	sf_ed->v1 = v1;
+	sf_ed->v2 = v2;
 
-	return newed;
+	/* just zero out the rest */
+	sf_ed->poly_nr = 0;
+	sf_ed->f = 0;
+	sf_ed->tmp.c = 0;
+
+	return sf_ed;
 }
 
 static void addfillface(ScanFillContext *sf_ctx, ScanFillVert *v1, ScanFillVert *v2, ScanFillVert *v3)
@@ -232,7 +146,7 @@ static void addfillface(ScanFillContext *sf_ctx, ScanFillVert *v1, ScanFillVert 
 	/* does not make edges */
 	ScanFillFace *sf_tri;
 
-	sf_tri = mem_element_new(sf_ctx, sizeof(ScanFillFace));
+	sf_tri = BLI_memarena_alloc(sf_ctx->arena, sizeof(ScanFillFace));
 	BLI_addtail(&sf_ctx->fillfacebase, sf_tri);
 	
 	sf_tri->v1 = v1;
@@ -240,7 +154,7 @@ static void addfillface(ScanFillContext *sf_ctx, ScanFillVert *v1, ScanFillVert 
 	sf_tri->v3 = v3;
 }
 
-static int boundisect(PolyFill *pf2, PolyFill *pf1)
+static bool boundisect(PolyFill *pf2, PolyFill *pf1)
 {
 	/* has pf2 been touched (intersected) by pf1 ? with bounding box */
 	/* test first if polys exist */
@@ -287,7 +201,7 @@ static void mergepolysSimp(ScanFillContext *sf_ctx, PolyFill *pf1, PolyFill *pf2
 	pf1->f = (pf1->f | pf2->f);
 }
 
-static short testedgeside(const float v1[2], const float v2[2], const float v3[2])
+static bool testedgeside(const float v1[2], const float v2[2], const float v3[2])
 /* is v3 to the right of v1-v2 ? With exception: v3 == v1 || v3 == v2 */
 {
 	float inp;
@@ -298,14 +212,14 @@ static short testedgeside(const float v1[2], const float v2[2], const float v3[2
 	if (inp < 0.0f) {
 		return 0;
 	}
-	else if (inp == 0) {
+	else if (inp == 0.0f) {
 		if (v1[0] == v3[0] && v1[1] == v3[1]) return 0;
 		if (v2[0] == v3[0] && v2[1] == v3[1]) return 0;
 	}
 	return 1;
 }
 
-static short addedgetoscanvert(ScanFillVertLink *sc, ScanFillEdge *eed)
+static bool addedgetoscanvert(ScanFillVertLink *sc, ScanFillEdge *eed)
 {
 	/* find first edge to the right of eed, and insert eed before that */
 	ScanFillEdge *ed;
@@ -354,7 +268,7 @@ static short addedgetoscanvert(ScanFillVertLink *sc, ScanFillEdge *eed)
 }
 
 
-static ScanFillVertLink *addedgetoscanlist(ScanFillContext *sf_ctx, ScanFillEdge *eed, int len)
+static ScanFillVertLink *addedgetoscanlist(ScanFillContext *sf_ctx, ScanFillEdge *eed, unsigned int len)
 {
 	/* inserts edge at correct location in ScanFillVertLink list */
 	/* returns sc when edge already exists */
@@ -379,13 +293,17 @@ static ScanFillVertLink *addedgetoscanlist(ScanFillContext *sf_ctx, ScanFillEdge
 	sc = (ScanFillVertLink *)bsearch(&scsearch, sf_ctx->_scdata, len,
 	                                 sizeof(ScanFillVertLink), vergscdata);
 
-	if (sc == 0) printf("Error in search edge: %p\n", (void *)eed);
-	else if (addedgetoscanvert(sc, eed) == 0) return sc;
+	if (UNLIKELY(sc == NULL)) {
+		printf("Error in search edge: %p\n", (void *)eed);
+	}
+	else if (addedgetoscanvert(sc, eed) == false) {
+		return sc;
+	}
 
-	return 0;
+	return NULL;
 }
 
-static short boundinsideEV(ScanFillEdge *eed, ScanFillVert *eve)
+static bool boundinsideEV(ScanFillEdge *eed, ScanFillVert *eve)
 /* is eve inside boundbox eed */
 {
 	float minx, maxx, miny, maxy;
@@ -476,7 +394,7 @@ static void testvertexnearedge(ScanFillContext *sf_ctx)
 	}
 }
 
-static void splitlist(ScanFillContext *sf_ctx, ListBase *tempve, ListBase *temped, short nr)
+static void splitlist(ScanFillContext *sf_ctx, ListBase *tempve, ListBase *temped, unsigned short nr)
 {
 	/* everything is in templist, write only poly nr to fillist */
 	ScanFillVert *eve, *nextve;
@@ -505,15 +423,14 @@ static void splitlist(ScanFillContext *sf_ctx, ListBase *tempve, ListBase *tempe
 	}
 }
 
-static int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int flag)
+static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int flag)
 {
 	ScanFillVertLink *sc = NULL, *sc1;
 	ScanFillVert *eve, *v1, *v2, *v3;
 	ScanFillEdge *eed, *nexted, *ed1, *ed2, *ed3;
-	int a, b, verts, maxface, totface;
-	short nr, twoconnected = 0;
-
-	nr = pf->nr;
+	unsigned int a, b, verts, maxface, totface;
+	const unsigned short nr = pf->nr;
+	bool twoconnected = false;
 
 	/* PRINTS */
 #if 0
@@ -629,7 +546,8 @@ static int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int flag)
 
 	/* STEP 2: FILL LOOP */
 
-	if (pf->f == 0) twoconnected = 1;
+	if (pf->f == 0)
+		twoconnected = true;
 
 	/* (temporal) security: never much more faces than vertices */
 	totface = 0;
@@ -669,7 +587,7 @@ static int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int flag)
 				a = verts;
 				break;
 			}
-			if (ed2 == 0) {
+			if (ed2 == NULL) {
 				sc->edge_first = sc->edge_last = NULL;
 				/* printf("just 1 edge to vert\n"); */
 				BLI_addtail(&sf_ctx->filledgebase, ed1);
@@ -826,14 +744,36 @@ static int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int flag)
 void BLI_scanfill_begin(ScanFillContext *sf_ctx)
 {
 	memset(sf_ctx, 0, sizeof(*sf_ctx));
+	sf_ctx->arena = BLI_memarena_new(BLI_SCANFILL_ARENA_SIZE, __func__);
 }
 
-int BLI_scanfill_calc(ScanFillContext *sf_ctx, const int flag)
+void BLI_scanfill_begin_arena(ScanFillContext *sf_ctx, MemArena *arena)
 {
-	return BLI_scanfill_calc_ex(sf_ctx, flag, NULL);
+	memset(sf_ctx, 0, sizeof(*sf_ctx));
+	sf_ctx->arena = arena;
 }
 
-int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float nor_proj[3])
+void BLI_scanfill_end(ScanFillContext *sf_ctx)
+{
+	BLI_memarena_free(sf_ctx->arena);
+	sf_ctx->arena = NULL;
+
+	sf_ctx->fillvertbase.first = sf_ctx->fillvertbase.last = NULL;
+	sf_ctx->filledgebase.first = sf_ctx->filledgebase.last = NULL;
+	sf_ctx->fillfacebase.first = sf_ctx->fillfacebase.last = NULL;
+}
+
+void BLI_scanfill_end_arena(ScanFillContext *sf_ctx, MemArena *arena)
+{
+	BLI_memarena_clear(arena);
+	BLI_assert(sf_ctx->arena == arena);
+
+	sf_ctx->fillvertbase.first = sf_ctx->fillvertbase.last = NULL;
+	sf_ctx->filledgebase.first = sf_ctx->filledgebase.last = NULL;
+	sf_ctx->fillfacebase.first = sf_ctx->fillfacebase.last = NULL;
+}
+
+unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float nor_proj[3])
 {
 	/*
 	 * - fill works with its own lists, so create that first (no faces!)
@@ -845,34 +785,36 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float no
 	 */
 	ListBase tempve, temped;
 	ScanFillVert *eve;
-	ScanFillEdge *eed, *nexted;
+	ScanFillEdge *eed, *eed_next;
 	PolyFill *pflist, *pf;
 	float *min_xy_p, *max_xy_p;
-	short a, c, poly = 0, ok = 0, toggle = 0;
-	int totfaces = 0; /* total faces added */
+	unsigned int totverts = 0, toggle = 0;
+	unsigned int totfaces = 0;  /* total faces added */
+	unsigned short a, c, poly = 0;
+	bool ok;
 	float mat_2d[3][3];
 
 	BLI_assert(!nor_proj || len_squared_v3(nor_proj) > FLT_EPSILON);
 
-	/* reset variables */
 	eve = sf_ctx->fillvertbase.first;
-	a = 0;
 	while (eve) {
-		eve->f = 0;
-		eve->poly_nr = 0;
-		eve->edge_tot = 0;
+		/* these values used to be set,
+		 * however they should always be zero'd so check instead */
+		BLI_assert(eve->f == 0);
+		BLI_assert(eve->poly_nr == 0);
+		BLI_assert(eve->edge_tot == 0);
+		totverts++;
 		eve = eve->next;
-		a += 1;
 	}
 
 	if (flag & BLI_SCANFILL_CALC_QUADTRI_FASTPATH) {
-		if (a == 3) {
+		if (totverts == 3) {
 			eve = sf_ctx->fillvertbase.first;
 
 			addfillface(sf_ctx, eve, eve->next, eve->next->next);
 			return 1;
 		}
-		else if (a == 4) {
+		else if (totverts == 4) {
 			float vec1[3], vec2[3];
 
 			eve = sf_ctx->fillvertbase.first;
@@ -897,23 +839,24 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float no
 	/* including resetting of flags */
 	eed = sf_ctx->filledgebase.first;
 	while (eed) {
-		eed->poly_nr = 0;
+		BLI_assert(eed->poly_nr == 0);
 		eed->v1->f = SF_VERT_AVAILABLE;
 		eed->v2->f = SF_VERT_AVAILABLE;
 
 		eed = eed->next;
 	}
 
+	ok = false;
 	eve = sf_ctx->fillvertbase.first;
 	while (eve) {
 		if (eve->f & SF_VERT_AVAILABLE) {
-			ok = 1;
+			ok = true;
 			break;
 		}
 		eve = eve->next;
 	}
 
-	if (ok == 0) {
+	if (UNLIKELY(ok == false)) {
 		return 0;
 	}
 	else {
@@ -959,35 +902,33 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float no
 			if (eve->poly_nr == 0) {
 				poly++;
 				/* now a sort of select connected */
-				ok = 1;
+				ok = true;
 				eve->poly_nr = poly;
 
 				while (ok) {
 
-					ok = 0;
-					toggle++;
-					if (toggle & 1) eed = sf_ctx->filledgebase.first;
-					else eed = sf_ctx->filledgebase.last;
+					ok = false;
 
+					toggle++;
+					eed = (toggle & 1) ? sf_ctx->filledgebase.first : sf_ctx->filledgebase.last;
 					while (eed) {
 						if (eed->v1->poly_nr == 0 && eed->v2->poly_nr == poly) {
 							eed->v1->poly_nr = poly;
 							eed->poly_nr = poly;
-							ok = 1;
+							ok = true;
 						}
 						else if (eed->v2->poly_nr == 0 && eed->v1->poly_nr == poly) {
 							eed->v2->poly_nr = poly;
 							eed->poly_nr = poly;
-							ok = 1;
+							ok = true;
 						}
 						else if (eed->poly_nr == 0) {
 							if (eed->v1->poly_nr == poly && eed->v2->poly_nr == poly) {
 								eed->poly_nr = poly;
-								ok = 1;
+								ok = true;
 							}
 						}
-						if (toggle & 1) eed = eed->next;
-						else eed = eed->prev;
+						eed = (toggle & 1) ? eed->next : eed->prev;
 					}
 				}
 			}
@@ -1020,38 +961,39 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float no
 	}
 	if (eed) {
 		/* otherwise it's impossible to be sure you can clear vertices */
-		callLocalErrorCallBack("No vertices with 250 edges allowed!");
+#ifdef DEBUG
+		printf("No vertices with 250 edges allowed!\n");
+#endif
 		return 0;
 	}
 	
 	/* does it only for vertices with (->h == 1) */
 	testvertexnearedge(sf_ctx);
 
-	ok = 1;
+	ok = true;
 	while (ok) {
-		ok = 0;
+		ok = false;
+
 		toggle++;
-		if (toggle & 1) eed = sf_ctx->filledgebase.first;
-		else eed = sf_ctx->filledgebase.last;
+		eed = (toggle & 1) ? sf_ctx->filledgebase.first : sf_ctx->filledgebase.last;
 		while (eed) {
-			if (toggle & 1) nexted = eed->next;
-			else nexted = eed->prev;
+			eed_next = (toggle & 1) ? eed->next : eed->prev;
 			if (eed->v1->edge_tot == 1) {
 				eed->v2->edge_tot--;
 				BLI_remlink(&sf_ctx->fillvertbase, eed->v1);
 				BLI_remlink(&sf_ctx->filledgebase, eed);
-				ok = 1;
+				ok = true;
 			}
 			else if (eed->v2->edge_tot == 1) {
 				eed->v1->edge_tot--;
 				BLI_remlink(&sf_ctx->fillvertbase, eed->v2);
 				BLI_remlink(&sf_ctx->filledgebase, eed);
-				ok = 1;
+				ok = true;
 			}
-			eed = nexted;
+			eed = eed_next;
 		}
 	}
-	if (sf_ctx->filledgebase.first == 0) {
+	if (sf_ctx->filledgebase.first == NULL) {
 		/* printf("All edges removed\n"); */
 		return 0;
 	}
@@ -1069,12 +1011,12 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float no
 
 
 	/* STEP 3: MAKE POLYFILL STRUCT */
-	pflist = (PolyFill *)MEM_callocN(poly * sizeof(PolyFill), "edgefill");
+	pflist = (PolyFill *)MEM_callocN((size_t)poly * sizeof(PolyFill), "edgefill");
 	pf = pflist;
 	for (a = 1; a <= poly; a++) {
 		pf->nr = a;
-		pf->min_xy[0] = pf->min_xy[1] =  1.0e20;
-		pf->max_xy[0] = pf->max_xy[1] = -1.0e20;
+		pf->min_xy[0] = pf->min_xy[1] =  1.0e20f;
+		pf->max_xy[0] = pf->max_xy[1] = -1.0e20f;
 		pf++;
 	}
 	eed = sf_ctx->filledgebase.first;
@@ -1104,10 +1046,10 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float no
 	 * WATCH IT: ONLY WORKS WITH SORTED POLYS!!! */
 	
 	if (poly > 1) {
-		short *polycache, *pc;
+		unsigned short *polycache, *pc;
 
 		/* so, sort first */
-		qsort(pflist, poly, sizeof(PolyFill), vergpoly);
+		qsort(pflist, (size_t)poly, sizeof(PolyFill), vergpoly);
 
 #if 0
 		pf = pflist;
@@ -1118,10 +1060,10 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float no
 		}
 #endif
 	
-		polycache = pc = MEM_callocN(sizeof(short) * poly, "polycache");
+		polycache = pc = MEM_callocN(sizeof(short) * (size_t)poly, "polycache");
 		pf = pflist;
 		for (a = 0; a < poly; a++, pf++) {
-			for (c = a + 1; c < poly; c++) {
+			for (c = (unsigned short)(a + 1); c < poly; c++) {
 				
 				/* if 'a' inside 'c': join (bbox too)
 				 * Careful: 'a' can also be inside another poly.
@@ -1176,4 +1118,9 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float no
 	MEM_freeN(pflist);
 
 	return totfaces;
+}
+
+unsigned int BLI_scanfill_calc(ScanFillContext *sf_ctx, const int flag)
+{
+	return BLI_scanfill_calc_ex(sf_ctx, flag, NULL);
 }

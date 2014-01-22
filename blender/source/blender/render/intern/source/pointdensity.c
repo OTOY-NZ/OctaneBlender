@@ -107,6 +107,7 @@ static void pointdensity_cache_psys(Render *re, PointDensity *pd, Object *ob, Pa
 {
 	DerivedMesh* dm;
 	ParticleKey state;
+	ParticleCacheKey *cache;
 	ParticleSimulationData sim= {NULL};
 	ParticleData *pa=NULL;
 	float cfra = BKE_scene_frame_get(re->scene);
@@ -139,7 +140,7 @@ static void pointdensity_cache_psys(Render *re, PointDensity *pd, Object *ob, Pa
 	invert_m4_m4(ob->imat, ob->obmat);
 	
 	total_particles = psys->totpart+psys->totchild;
-	psys->lattice=psys_get_lattice(&sim);
+	psys->lattice_deform_data = psys_create_lattice_deform_data(&sim);
 	
 	pd->point_tree = BLI_bvhtree_new(total_particles, 0.0, 4, 6);
 	alloc_point_data(pd, total_particles, data_used);
@@ -153,52 +154,70 @@ static void pointdensity_cache_psys(Render *re, PointDensity *pd, Object *ob, Pa
 
 	for (i=0, pa=psys->particles; i < total_particles; i++, pa++) {
 
-		state.time = cfra;
-		if (psys_get_particle_state(&sim, i, &state, 0)) {
-			
-			copy_v3_v3(partco, state.co);
-			
-			if (pd->psys_cache_space == TEX_PD_OBJECTSPACE)
-				mul_m4_v3(ob->imat, partco);
-			else if (pd->psys_cache_space == TEX_PD_OBJECTLOC) {
-				sub_v3_v3(partco, ob->loc);
-			}
-			else {
-				/* TEX_PD_WORLDSPACE */
-			}
-			
-			BLI_bvhtree_insert(pd->point_tree, i, partco, 1);
-			
-			if (data_used & POINT_DATA_VEL) {
-				pd->point_data[i*3 + 0] = state.vel[0];
-				pd->point_data[i*3 + 1] = state.vel[1];
-				pd->point_data[i*3 + 2] = state.vel[2];
-			}
+		if (psys->part->type == PART_HAIR) {
+			/* hair particles */
+			if (i < psys->totpart && psys->pathcache)
+				cache = psys->pathcache[i];
+			else if (i >= psys->totpart && psys->childcache)
+				cache = psys->childcache[i - psys->totpart];
+			else
+				continue;
+
+			cache += cache->steps; /* use endpoint */
+
+			copy_v3_v3(state.co, cache->co);
+			zero_v3(state.vel);
+			state.time = 0.0f;
+		}
+		else {
+			/* emitter particles */
+			state.time = cfra;
+
+			if (!psys_get_particle_state(&sim, i, &state, 0))
+				continue;
+
 			if (data_used & POINT_DATA_LIFE) {
-				float pa_time;
-				
 				if (i < psys->totpart) {
-					pa_time = (cfra - pa->time)/pa->lifetime;
+					state.time = (cfra - pa->time)/pa->lifetime;
 				}
 				else {
 					ChildParticle *cpa= (psys->child + i) - psys->totpart;
 					float pa_birthtime, pa_dietime;
 					
-					pa_time = psys_get_child_time(psys, cpa, cfra, &pa_birthtime, &pa_dietime);
+					state.time = psys_get_child_time(psys, cpa, cfra, &pa_birthtime, &pa_dietime);
 				}
-				
-				pd->point_data[offset + i] = pa_time;
-				
 			}
+		}
+
+		copy_v3_v3(partco, state.co);
+		
+		if (pd->psys_cache_space == TEX_PD_OBJECTSPACE)
+			mul_m4_v3(ob->imat, partco);
+		else if (pd->psys_cache_space == TEX_PD_OBJECTLOC) {
+			sub_v3_v3(partco, ob->loc);
+		}
+		else {
+			/* TEX_PD_WORLDSPACE */
+		}
+		
+		BLI_bvhtree_insert(pd->point_tree, i, partco, 1);
+		
+		if (data_used & POINT_DATA_VEL) {
+			pd->point_data[i*3 + 0] = state.vel[0];
+			pd->point_data[i*3 + 1] = state.vel[1];
+			pd->point_data[i*3 + 2] = state.vel[2];
+		}
+		if (data_used & POINT_DATA_LIFE) {
+			pd->point_data[offset + i] = state.time;
 		}
 	}
 	
 	BLI_bvhtree_balance(pd->point_tree);
 	dm->release(dm);
 	
-	if (psys->lattice) {
-		end_latt_deform(psys->lattice);
-		psys->lattice=0;
+	if (psys->lattice_deform_data) {
+		end_latt_deform(psys->lattice_deform_data);
+		psys->lattice_deform_data = NULL;
 	}
 	
 	psys_render_restore(ob, psys);

@@ -27,6 +27,7 @@
 ReadBufferOperation::ReadBufferOperation() : NodeOperation()
 {
 	this->addOutputSocket(COM_DT_COLOR);
+	this->m_single_value = false;
 	this->m_offset = 0;
 	this->m_buffer = NULL;
 }
@@ -47,21 +48,48 @@ void ReadBufferOperation::determineResolution(unsigned int resolution[2], unsign
 		if (this->m_memoryProxy->getExecutor()) {
 			this->m_memoryProxy->getExecutor()->setResolution(resolution);
 		}
+
+		m_single_value = operation->isSingleValue();
 	}
 }
 void ReadBufferOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
 {
-	if (sampler == COM_PS_NEAREST) {
+	if (m_single_value) {
+		/* write buffer has a single value stored at (0,0) */
+		m_buffer->read(output, 0, 0);
+	}
+	else if (sampler == COM_PS_NEAREST) {
 		m_buffer->read(output, x, y);
 	}
 	else {
-		m_buffer->readCubic(output, x, y);
+		m_buffer->readBilinear(output, x, y);
+	}
+}
+
+void ReadBufferOperation::executePixelExtend(float output[4], float x, float y, PixelSampler sampler,
+                                             MemoryBufferExtend extend_x, MemoryBufferExtend extend_y)
+{
+	if (m_single_value) {
+		/* write buffer has a single value stored at (0,0) */
+		m_buffer->read(output, 0, 0);
+	}
+	else if (sampler == COM_PS_NEAREST) {
+		m_buffer->read(output, x, y, extend_x, extend_y);
+	}
+	else {
+		m_buffer->readBilinear(output, x, y, extend_x, extend_y);
 	}
 }
 
 void ReadBufferOperation::executePixel(float output[4], float x, float y, float dx, float dy, PixelSampler sampler)
 {
-	m_buffer->readEWA(output, x, y, dx, dy, sampler);
+	if (m_single_value) {
+		/* write buffer has a single value stored at (0,0) */
+		m_buffer->read(output, 0, 0);
+	}
+	else {
+		m_buffer->readEWA(output, x, y, dx, dy, sampler);
+	}
 }
 
 bool ReadBufferOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)

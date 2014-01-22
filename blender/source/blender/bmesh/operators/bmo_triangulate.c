@@ -34,6 +34,7 @@
 #include "BLI_scanfill.h"
 
 #include "bmesh.h"
+#include "bmesh_tools.h"
 #include "intern/bmesh_operators_private.h"
 
 
@@ -58,6 +59,7 @@ void bmo_triangulate_exec(BMesh *bm, BMOperator *op)
 void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 {
 	const bool use_beauty = BMO_slot_bool_get(op->slots_in, "use_beauty");
+	const bool use_dissolve = BMO_slot_bool_get(op->slots_in, "use_dissolve");
 	BMOIter siter;
 	BMEdge *e;
 	ScanFillContext sf_ctx;
@@ -65,8 +67,11 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 	ScanFillVert *sf_vert, *sf_vert_1, *sf_vert_2;
 	ScanFillFace *sf_tri;
 	SmallHash hash;
+	float normal[3], *normal_pt;
 
 	BLI_smallhash_init(&hash);
+
+	BMO_slot_vec_get(op->slots_in, "normal", normal);
 	
 	BLI_scanfill_begin(&sf_ctx);
 	
@@ -91,7 +96,15 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 		/* sf_edge->tmp.p = e; */ /* UNUSED */
 	}
 	
-	BLI_scanfill_calc(&sf_ctx, BLI_SCANFILL_CALC_HOLES);
+	if (is_zero_v3(normal)) {
+		normal_pt = NULL;
+	}
+	else {
+		normalize_v3(normal);
+		normal_pt = normal;
+	}
+
+	BLI_scanfill_calc_ex(&sf_ctx, BLI_SCANFILL_CALC_HOLES, normal_pt);
 	
 	for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
 		BMFace *f = BM_face_create_quad_tri(bm,
@@ -121,4 +134,27 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 	}
 	
 	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "geom.out", BM_EDGE | BM_FACE, ELE_NEW);
+
+	if (use_dissolve) {
+		BMO_ITER (e, &siter, op->slots_out, "geom.out", BM_EDGE) {
+			if (LIKELY(e->l)) {  /* in rare cases the edges face will have already been removed from the edge */
+				BMFace *f_new;
+				f_new = BM_faces_join_pair(bm, e->l->f,
+				                           e->l->radial_next->f, e,
+				                           false); /* join faces */
+				if (f_new) {
+					BMO_elem_flag_enable(bm, f_new, ELE_NEW);
+					BM_edge_kill(bm, e);
+				}
+				else {
+					BMO_error_clear(bm);
+				}
+			}
+			else {
+				BM_edge_kill(bm, e);
+			}
+		}
+
+		BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "geom.out", BM_EDGE | BM_FACE, ELE_NEW);
+	}
 }

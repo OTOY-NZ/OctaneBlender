@@ -70,6 +70,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_kdtree.h"
 #include "BLI_kdopbvh.h"
+#include "BLI_sort.h"
 #include "BLI_threads.h"
 #include "BLI_linklist.h"
 
@@ -814,7 +815,7 @@ static void distribute_threads_exec(ParticleThread *thread, ParticleData *pa, Ch
 
 			psys_particle_on_dm(ctx->dm,from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,co1,0,0,0,orco1,0);
 			BKE_mesh_orco_verts_transform((Mesh*)ob->data, &orco1, 1, 1);
-			maxw = BLI_kdtree_find_n_nearest(ctx->tree,3,orco1,NULL,ptn);
+			maxw = BLI_kdtree_find_nearest_n(ctx->tree,orco1,NULL,ptn,3);
 
 			for (w=0; w<maxw; w++) {
 				pa->verts[w]=ptn->num;
@@ -939,7 +940,7 @@ static void distribute_threads_exec(ParticleThread *thread, ParticleData *pa, Ch
 
 			psys_particle_on_dm(dm,cfrom,cpa->num,DMCACHE_ISCHILD,cpa->fuv,cpa->foffset,co1,nor1,NULL,NULL,orco1,NULL);
 			BKE_mesh_orco_verts_transform((Mesh*)ob->data, &orco1, 1, 1);
-			maxw = BLI_kdtree_find_n_nearest(ctx->tree,4,orco1,NULL,ptn);
+			maxw = BLI_kdtree_find_nearest_n(ctx->tree,orco1,NULL,ptn,3);
 
 			maxd=ptn[maxw-1].dist;
 			/* mind=ptn[0].dist; */ /* UNUSED */
@@ -1010,12 +1011,11 @@ static void *distribute_threads_exec_cb(void *data)
 	return 0;
 }
 
-/* not thread safe, but qsort doesn't take userdata argument */
-static int *COMPARE_ORIG_INDEX = NULL;
-static int distribute_compare_orig_index(const void *p1, const void *p2)
+static int distribute_compare_orig_index(void *user_data, const void *p1, const void *p2)
 {
-	int index1 = COMPARE_ORIG_INDEX[*(const int *)p1];
-	int index2 = COMPARE_ORIG_INDEX[*(const int *)p2];
+	int *orig_index = (int *) user_data;
+	int index1 = orig_index[*(const int *)p1];
+	int index2 = orig_index[*(const int *)p2];
 
 	if (index1 < index2)
 		return -1;
@@ -1332,20 +1332,19 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 	/* For hair, sort by origindex (allows optimization's in rendering), */
 	/* however with virtual parents the children need to be in random order. */
 	if (part->type == PART_HAIR && !(part->childtype==PART_CHILD_FACES && part->parents!=0.0f)) {
-		COMPARE_ORIG_INDEX = NULL;
+		int *orig_index = NULL;
 
 		if (from == PART_FROM_VERT) {
 			if (dm->numVertData)
-				COMPARE_ORIG_INDEX= dm->getVertDataArray(dm, CD_ORIGINDEX);
+				orig_index = dm->getVertDataArray(dm, CD_ORIGINDEX);
 		}
 		else {
 			if (dm->numTessFaceData)
-				COMPARE_ORIG_INDEX= dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
+				orig_index = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
 		}
 
-		if (COMPARE_ORIG_INDEX) {
-			qsort(particle_element, totpart, sizeof(int), distribute_compare_orig_index);
-			COMPARE_ORIG_INDEX = NULL;
+		if (orig_index) {
+			BLI_qsort_r(particle_element, totpart, sizeof(int), orig_index, distribute_compare_orig_index);
 		}
 	}
 
@@ -1514,9 +1513,9 @@ void psys_threads_free(ParticleThread *threads)
 	if (ctx->vg_roughe)
 		MEM_freeN(ctx->vg_roughe);
 
-	if (ctx->sim.psys->lattice) {
-		end_latt_deform(ctx->sim.psys->lattice);
-		ctx->sim.psys->lattice= NULL;
+	if (ctx->sim.psys->lattice_deform_data) {
+		end_latt_deform(ctx->sim.psys->lattice_deform_data);
+		ctx->sim.psys->lattice_deform_data = NULL;
 	}
 
 	/* distribution */
@@ -2485,7 +2484,7 @@ static EdgeHash *sph_springhash_build(ParticleSystem *psys)
 	ParticleSpring *spring;
 	int i = 0;
 
-	springhash = BLI_edgehash_new();
+	springhash = BLI_edgehash_new_ex(__func__, psys->tot_fluidsprings);
 
 	for (i=0, spring=psys->fluid_springs; i<psys->tot_fluidsprings; i++, spring++)
 		BLI_edgehash_insert(springhash, spring->particle_index[0], spring->particle_index[1], SET_INT_IN_POINTER(i+1));
@@ -3314,9 +3313,14 @@ static float collision_newton_rhapson(ParticleCollision *col, float radius, Part
 
 	pce->inv_nor = -1;
 
-	/* Initial step size should be small, but not too small or floating point
-	 * precision errors will appear. - z0r */
-	dt_init = COLLISION_INIT_STEP * col->inv_total_time;
+	if (col->inv_total_time > 0.0f) {
+		/* Initial step size should be small, but not too small or floating point
+		 * precision errors will appear. - z0r */
+		dt_init = COLLISION_INIT_STEP * col->inv_total_time;
+	}
+	else {
+		dt_init = 0.001f;
+	}
 
 	/* start from the beginning */
 	t0 = 0.f;
@@ -4108,7 +4112,7 @@ static void save_hair(ParticleSimulationData *sim, float UNUSED(cfra))
 
 	invert_m4_m4(ob->imat, ob->obmat);
 	
-	psys->lattice= psys_get_lattice(sim);
+	psys->lattice_deform_data= psys_create_lattice_deform_data(sim);
 
 	if (psys->totpart==0) return;
 	
@@ -4479,7 +4483,7 @@ static void cached_step(ParticleSimulationData *sim, float cfra)
 		if (part->randsize > 0.0f)
 			pa->size *= 1.0f - part->randsize * PSYS_FRAND(p + 1);
 
-		psys->lattice= psys_get_lattice(sim);
+		psys->lattice_deform_data = psys_create_lattice_deform_data(sim);
 
 		dietime = pa->dietime;
 
@@ -4494,9 +4498,9 @@ static void cached_step(ParticleSimulationData *sim, float cfra)
 		else
 			pa->alive = PARS_ALIVE;
 
-		if (psys->lattice) {
-			end_latt_deform(psys->lattice);
-			psys->lattice= NULL;
+		if (psys->lattice_deform_data) {
+			end_latt_deform(psys->lattice_deform_data);
+			psys->lattice_deform_data = NULL;
 		}
 
 		if (PSYS_FRAND(p) > disp)
@@ -4777,9 +4781,9 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 	update_children(sim);
 
 /* cleanup */
-	if (psys->lattice) {
-		end_latt_deform(psys->lattice);
-		psys->lattice= NULL;
+	if (psys->lattice_deform_data) {
+		end_latt_deform(psys->lattice_deform_data);
+		psys->lattice_deform_data = NULL;
 	}
 }
 

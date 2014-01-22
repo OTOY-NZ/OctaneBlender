@@ -50,6 +50,9 @@
 #include "ED_transform.h"
 #include "ED_view3d.h"
 
+#include "bmesh.h"
+#include "bmesh_tools.h"
+
 #include "mesh_intern.h"  /* own include */
 
 /**
@@ -60,23 +63,29 @@
  * point and would result in the same distance.
  */
 #define INSET_DEFAULT 0.00001f
-static float edbm_rip_edgedist(ARegion *ar, float mat[4][4],
-                               const float co1[3], const float co2[3], const float mvalf[2],
-                               const float inset)
+static float edbm_rip_edgedist_squared(ARegion *ar, float mat[4][4],
+                                       const float co1[3], const float co2[3], const float mvalf[2],
+                                       const float inset)
 {
-	float vec1[2], vec2[2];
+	float vec1[2], vec2[2], dist_sq;
 
 	ED_view3d_project_float_v2_m4(ar, co1, vec1, mat);
 	ED_view3d_project_float_v2_m4(ar, co2, vec2, mat);
 
 	if (inset != 0.0f) {
-		const float dist = inset / len_v2v2(vec1, vec2);
-		interp_v2_v2v2(vec1, vec1, vec2, dist);
-		interp_v2_v2v2(vec2, vec2, vec1, dist);
+		const float dist_2d = len_v2v2(vec1, vec2);
+		if (dist_2d > FLT_EPSILON) {
+			const float dist = inset / dist_2d;
+			BLI_assert(finite(dist));
+			interp_v2_v2v2(vec1, vec1, vec2, dist);
+			interp_v2_v2v2(vec2, vec2, vec1, dist);
+		}
 	}
 
-	/* TODO: use dist_squared_to_line_segment_v2() looks like we only ever use for comparison */
-	return dist_to_line_segment_v2(mvalf, vec1, vec2);
+	dist_sq = dist_squared_to_line_segment_v2(mvalf, vec1, vec2);
+	BLI_assert(finite(dist_sq));
+
+	return dist_sq;
 }
 
 #if 0
@@ -488,7 +497,7 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
 			/* face should never exist */
 			BLI_assert(BM_face_exists(f_verts, f_verts[3] ? 4 : 3, &f) == false);
 
-			f = BM_face_create_quad_tri_v(bm, f_verts, f_verts[3] ? 4 : 3, f_example, false);
+			f = BM_face_create_verts(bm, f_verts, f_verts[3] ? 4 : 3, f_example, BM_CREATE_NOP, true);
 
 			l_iter = BM_FACE_FIRST_LOOP(f);
 
@@ -510,24 +519,6 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
 
 /* --- end 'face-fill' code --- */
 
-
-static bool edbm_rip_call_edgesplit(BMEditMesh *em, wmOperator *op)
-{
-	BMOperator bmop;
-
-	if (!EDBM_op_init(em, &bmop, op, "split_edges edges=%he verts=%hv use_verts=%b",
-	                  BM_ELEM_TAG, BM_ELEM_SELECT, true))
-	{
-		return false;
-	}
-	BMO_op_exec(em->bm, &bmop);
-	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		return false;
-	}
-
-	return true;
-}
-
 /**
  * This is the main vert ripping function (rip when one vertex is selected)
  */
@@ -543,11 +534,11 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 	BMIter iter, liter;
 	BMLoop *l;
 	BMEdge *e, *e2;
-	BMVert *v, *ripvert = NULL;
+	BMVert *v;
 	const int totvert_orig = bm->totvert;
 	int i;
 	float projectMat[4][4], fmval[3] = {event->mval[0], event->mval[1]};
-	float dist = FLT_MAX;
+	float dist_sq = FLT_MAX;
 	float d;
 	bool is_wire;
 
@@ -580,15 +571,15 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 	if (v->e) {
 		/* find closest edge to mouse cursor */
 		BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
-			int is_boundary = BM_edge_is_boundary(e);
+			const bool is_boundary = BM_edge_is_boundary(e);
 			/* consider wire as boundary for this purpose,
 			 * otherwise we can't a face away from a wire edge */
 			totboundary_edge += (is_boundary != 0 || BM_edge_is_wire(e));
 			if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
 				if (is_boundary == false && BM_edge_is_manifold(e)) {
-					d = edbm_rip_edgedist(ar, projectMat, e->v1->co, e->v2->co, fmval, INSET_DEFAULT);
-					if (d < dist) {
-						dist = d;
+					d = edbm_rip_edgedist_squared(ar, projectMat, e->v1->co, e->v2->co, fmval, INSET_DEFAULT);
+					if ((e2 == NULL) || (d < dist_sq)) {
+						dist_sq = d;
 						e2 = e;
 					}
 				}
@@ -614,10 +605,9 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 				float l_mid_co[3];
 				l = l_all[i1];
 				edbm_calc_loop_co(l, l_mid_co);
-				d = edbm_rip_edgedist(ar, projectMat, l->v->co, l_mid_co, fmval, INSET_DEFAULT);
-
-				if (d < dist) {
-					dist = d;
+				d = edbm_rip_edgedist_squared(ar, projectMat, l->v->co, l_mid_co, fmval, INSET_DEFAULT);
+				if ((e2 == NULL) || (d < dist_sq)) {
+					dist_sq = d;
 
 					/* find the edge that is not in this loop */
 					e2 = NULL;
@@ -648,11 +638,9 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 
 		BM_vert_select_set(bm, v, false);
 
-		if (bmesh_vert_separate(bm, v, &vout, &vout_len) == false) {
-			BKE_report(op->reports, RPT_ERROR, "Error ripping vertex from faces");
-			return OPERATOR_CANCELLED;
-		}
-		else if (vout_len < 2) {
+		bmesh_vert_separate(bm, v, &vout, &vout_len, true);
+
+		if (vout_len < 2) {
 			MEM_freeN(vout);
 			/* set selection back to avoid active-unselected vertex */
 			BM_vert_select_set(bm, v, true);
@@ -667,7 +655,7 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 				BM_select_history_remove(bm, ese.ele);
 			}
 
-			dist = FLT_MAX;
+			dist_sq = FLT_MAX;
 
 			/* in the loop below we find the best vertex to drag based on its connected geometry,
 			 * either by its face corner, or connected edge (when no faces are attached) */
@@ -678,12 +666,12 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 					BM_ITER_ELEM (l, &iter, vout[i], BM_LOOPS_OF_VERT) {
 						if (!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN)) {
 							float l_mid_co[3];
+
 							edbm_calc_loop_co(l, l_mid_co);
+							d = edbm_rip_edgedist_squared(ar, projectMat, v->co, l_mid_co, fmval, INSET_DEFAULT);
 
-							d = edbm_rip_edgedist(ar, projectMat, v->co, l_mid_co, fmval, INSET_DEFAULT);
-
-							if (d < dist) {
-								dist = d;
+							if (d < dist_sq) {
+								dist_sq = d;
 								vi_best = i;
 							}
 						}
@@ -694,12 +682,12 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 					BM_ITER_ELEM (e, &iter, vout[i], BM_EDGES_OF_VERT) {
 						if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
 							float e_mid_co[3];
+
 							mid_v3_v3v3(e_mid_co, e->v1->co, e->v2->co);
+							d = edbm_rip_edgedist_squared(ar, projectMat, v->co, e_mid_co, fmval, INSET_DEFAULT);
 
-							d = edbm_rip_edgedist(ar, projectMat, v->co, e_mid_co, fmval, INSET_DEFAULT);
-
-							if (d < dist) {
-								dist = d;
+							if (d < dist_sq) {
+								dist_sq = d;
 								vi_best = i;
 							}
 						}
@@ -750,19 +738,36 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 	/* rip two adjacent edges */
 	if (BM_edge_is_boundary(e2) || BM_vert_face_count(v) == 2) {
 		/* Don't run the edge split operator in this case */
+		BMVert *v_rip;
 
-		BM_elem_flag_enable(e2, BM_ELEM_TAG);  /* only for face-fill (we don't call the operator) */
+		l = BM_edge_vert_share_loop(e2->l, v);
+
+		/* only tag for face-fill (we don't call the operator) */
+		if (BM_edge_is_boundary(e2)) {
+			BM_elem_flag_enable(e2, BM_ELEM_TAG);
+		}
+		else {
+			BM_elem_flag_enable(l->e, BM_ELEM_TAG);
+			BM_elem_flag_enable(l->prev->e, BM_ELEM_TAG);
+		}
 
 		/* keep directly before edgesplit */
 		if (do_fill) {
 			fill_uloop_pairs = edbm_tagged_loop_pairs_to_fill(bm);
 		}
 
-		l = e2->l;
-		ripvert = BM_face_vert_separate(bm, l->f, v);
+#if 0
+		v_rip = BM_face_vert_separate(bm, l->f, v);
+#else
+		v_rip = BM_face_loop_separate(bm, l);
+#endif
 
-		BLI_assert(ripvert);
-		if (!ripvert) {
+		BLI_assert(v_rip);
+
+		if (v_rip) {
+			BM_vert_select_set(bm, v_rip, true);
+		}
+		else {
 			if (fill_uloop_pairs) MEM_freeN(fill_uloop_pairs);
 			return OPERATOR_CANCELLED;
 		}
@@ -786,43 +791,31 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 			fill_uloop_pairs = edbm_tagged_loop_pairs_to_fill(bm);
 		}
 
-		if (!edbm_rip_call_edgesplit(em, op)) {
-			if (fill_uloop_pairs) MEM_freeN(fill_uloop_pairs);
-			return OPERATOR_CANCELLED;
-		}
+		BM_mesh_edgesplit(em->bm, true, true, true);
 	}
 
-	dist = FLT_MAX;
+	dist_sq = FLT_MAX;
 
 	{
 		/* --- select which vert --- */
 		BMVert *v_best = NULL;
-		float l_prev_co[3], l_next_co[3], l_corner_co[3];
-		float scale;
+		float l_corner_co[3];
 
-		dist = FLT_MAX;
+		dist_sq = FLT_MAX;
 		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
 				/* disable by default, re-enable winner at end */
 				BM_vert_select_set(bm, v, false);
+				BM_select_history_remove(bm, v);
 
 				BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
-					/* calculate a point in the face, rather then calculate the middle,
-					 * make a vector pointing between the 2 edges attached to this loop */
-					sub_v3_v3v3(l_prev_co, l->prev->v->co, l->v->co);
-					sub_v3_v3v3(l_next_co, l->next->v->co, l->v->co);
 
-					scale = normalize_v3(l_prev_co) + normalize_v3(l_next_co);
-					mul_v3_fl(l_prev_co, scale);
-					mul_v3_fl(l_next_co, scale);
-
-					add_v3_v3v3(l_corner_co, l_prev_co, l_next_co);
-					add_v3_v3(l_corner_co, l->v->co);
-
-					d = edbm_rip_edgedist(ar, projectMat, l->v->co, l_corner_co, fmval, INSET_DEFAULT);
-					if (d < dist) {
+					/* check if v_best is null in the _rare_ case there are numeric issues */
+					edbm_calc_loop_co(l, l_corner_co);
+					d = edbm_rip_edgedist_squared(ar, projectMat, l->v->co, l_corner_co, fmval, INSET_DEFAULT);
+					if ((v_best == NULL) || (d < dist_sq)) {
 						v_best = v;
-						dist = d;
+						dist_sq = d;
 					}
 				}
 			}
@@ -951,10 +944,7 @@ static int edbm_rip_invoke__edge(bContext *C, wmOperator *op, const wmEvent *eve
 		fill_uloop_pairs = edbm_tagged_loop_pairs_to_fill(bm);
 	}
 
-	if (!edbm_rip_call_edgesplit(em, op)) {
-		if (fill_uloop_pairs) MEM_freeN(fill_uloop_pairs);
-		return OPERATOR_CANCELLED;
-	}
+	BM_mesh_edgesplit(em->bm, true, true, true);
 
 	/* note: the output of the bmesh operator is ignored, since we built
 	 * the contiguous loop pairs to split already, its possible that some
@@ -964,6 +954,9 @@ static int edbm_rip_invoke__edge(bContext *C, wmOperator *op, const wmEvent *eve
 	edbm_ripsel_deselect_helper(bm, eloop_pairs,
 	                            ar, projectMat, fmval);
 	MEM_freeN(eloop_pairs);
+
+	/* deselect loose verts */
+	BM_mesh_select_mode_clean_ex(bm, SCE_SELECT_EDGE);
 
 	if (do_fill && fill_uloop_pairs) {
 		edbm_tagged_loop_pairs_do_fill_faces(bm, fill_uloop_pairs);
@@ -975,7 +968,7 @@ static int edbm_rip_invoke__edge(bContext *C, wmOperator *op, const wmEvent *eve
 		return OPERATOR_CANCELLED;
 	}
 
-	EDBM_selectmode_flush(em);
+	BM_select_history_validate(bm);
 
 	return OPERATOR_FINISHED;
 }
@@ -988,7 +981,7 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	BMesh *bm = em->bm;
 	BMIter iter;
 	BMEdge *e;
-	int singlesel = (bm->totvertsel == 1 && bm->totedgesel == 0 && bm->totfacesel == 0);
+	const bool singlesel = (bm->totvertsel == 1 && bm->totedgesel == 0 && bm->totfacesel == 0);
 	int ret;
 
 	/* running in face mode hardly makes sense, so convert to region loop and rip */

@@ -537,17 +537,17 @@ short *give_totcolp_id(ID *id)
 	return NULL;
 }
 
-static void data_delete_material_index_id(ID *id, short index)
+static void material_data_index_remove_id(ID *id, short index)
 {
 	/* ensure we don't try get materials from non-obdata */
 	BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
 
 	switch (GS(id->name)) {
 		case ID_ME:
-			BKE_mesh_delete_material_index((Mesh *)id, index);
+			BKE_mesh_material_index_remove((Mesh *)id, index);
 			break;
 		case ID_CU:
-			BKE_curve_delete_material_index((Curve *)id, index);
+			BKE_curve_material_index_remove((Curve *)id, index);
 			break;
 		case ID_MB:
 			/* meta-elems don't have materials atm */
@@ -555,7 +555,53 @@ static void data_delete_material_index_id(ID *id, short index)
 	}
 }
 
-void material_append_id(ID *id, Material *ma)
+static void material_data_index_clear_id(ID *id)
+{
+	/* ensure we don't try get materials from non-obdata */
+	BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+
+	switch (GS(id->name)) {
+		case ID_ME:
+			BKE_mesh_material_index_clear((Mesh *)id);
+			break;
+		case ID_CU:
+			BKE_curve_material_index_clear((Curve *)id);
+			break;
+		case ID_MB:
+			/* meta-elems don't have materials atm */
+			break;
+	}
+}
+
+void BKE_material_resize_id(struct ID *id, short totcol, bool do_id_user)
+{
+	Material ***matar = give_matarar_id(id);
+	short *totcolp = give_totcolp_id(id);
+
+	if (matar == NULL) {
+		return;
+	}
+
+	if (do_id_user && totcol < (*totcolp)) {
+		short i;
+		for (i = totcol; i < (*totcolp); i++) {
+			id_us_min((ID *)(*matar)[i]);
+		}
+	}
+
+	if (totcol == 0) {
+		if (*totcolp) {
+			MEM_freeN(*matar);
+			*matar = NULL;
+		}
+	}
+	else {
+		*matar = MEM_recallocN(*matar, sizeof(void *) * totcol);
+	}
+	*totcolp = totcol;
+}
+
+void BKE_material_append_id(ID *id, Material *ma)
 {
 	Material ***matar;
 	if ((matar = give_matarar_id(id))) {
@@ -572,7 +618,7 @@ void material_append_id(ID *id, Material *ma)
 	}
 }
 
-Material *material_pop_id(ID *id, int index_i, int remove_material_slot)
+Material *BKE_material_pop_id(ID *id, int index_i, bool update_data)
 {
 	short index = (short)index_i;
 	Material *ret = NULL;
@@ -583,38 +629,46 @@ Material *material_pop_id(ID *id, int index_i, int remove_material_slot)
 			ret = (*matar)[index];
 			id_us_min((ID *)ret);
 
-			if (remove_material_slot) {
-				if (*totcol <= 1) {
-					*totcol = 0;
-					MEM_freeN(*matar);
-					*matar = NULL;
-				}
-				else {
-					Material **mat;
-					if (index + 1 != (*totcol))
-						memmove((*matar) + index, (*matar) + (index + 1), sizeof(void *) * ((*totcol) - (index + 1)));
+			if (*totcol <= 1) {
+				*totcol = 0;
+				MEM_freeN(*matar);
+				*matar = NULL;
+			}
+			else {
+				if (index + 1 != (*totcol))
+					memmove((*matar) + index, (*matar) + (index + 1), sizeof(void *) * ((*totcol) - (index + 1)));
 
-					(*totcol)--;
-					
-					mat = MEM_callocN(sizeof(void *) * (*totcol), "newmatar");
-					memcpy(mat, *matar, sizeof(void *) * (*totcol));
-					MEM_freeN(*matar);
-
-					*matar = mat;
-					test_object_materials(G.main, id);
-				}
-
-				/* decrease mat_nr index */
-				data_delete_material_index_id(id, index);
+				(*totcol)--;
+				*matar = MEM_reallocN(*matar, sizeof(void *) * (*totcol));
+				test_object_materials(G.main, id);
 			}
 
-			/* don't remove material slot, only clear it*/
-			else
-				(*matar)[index] = NULL;
+			if (update_data) {
+				/* decrease mat_nr index */
+				material_data_index_remove_id(id, index);
+			}
 		}
 	}
 	
 	return ret;
+}
+
+void BKE_material_clear_id(struct ID *id, bool update_data)
+{
+	Material ***matar;
+	if ((matar = give_matarar_id(id))) {
+		short *totcol = give_totcolp_id(id);
+		*totcol = 0;
+		if (*matar) {
+			MEM_freeN(*matar);
+			*matar = NULL;
+		}
+
+		if (update_data) {
+			/* decrease mat_nr index */
+			material_data_index_clear_id(id);
+		}
+	}
 }
 
 Material *give_current_material(Object *ob, short act)
@@ -682,10 +736,17 @@ Material *give_node_material(Material *ma)
 	return NULL;
 }
 
-void resize_object_material(Object *ob, const short totcol)
+void BKE_material_resize_object(Object *ob, const short totcol, bool do_id_user)
 {
 	Material **newmatar;
 	char *newmatbits;
+
+	if (do_id_user && totcol < ob->totcol) {
+		short i;
+		for (i = totcol; i < ob->totcol; i++) {
+			id_us_min((ID *)ob->mat[i]);
+		}
+	}
 
 	if (totcol == 0) {
 		if (ob->totcol) {
@@ -707,6 +768,8 @@ void resize_object_material(Object *ob, const short totcol)
 		ob->mat = newmatar;
 		ob->matbits = newmatbits;
 	}
+	/* XXX, why not realloc on shrink? - campbell */
+
 	ob->totcol = totcol;
 	if (ob->totcol && ob->actcol == 0) ob->actcol = 1;
 	if (ob->actcol > ob->totcol) ob->actcol = ob->totcol;
@@ -724,7 +787,7 @@ void test_object_materials(Main *bmain, ID *id)
 
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ob->data == id) {
-			resize_object_material(ob, *totcol);
+			BKE_material_resize_object(ob, *totcol, false);
 		}
 	}
 }
@@ -1148,55 +1211,6 @@ void material_drivers_update(Scene *scene, Material *ma, float ctime)
 
 	ma->id.flag &= ~LIB_DOIT;
 }
-	
-/* ****************** */
-#if 0 /* UNUSED */
-static char colname_array[125][20] = {
-"Black", "DarkRed", "HalfRed", "Red", "Red",
-"DarkGreen", "DarkOlive", "Brown", "Chocolate", "OrangeRed",
-"HalfGreen", "GreenOlive", "DryOlive", "Goldenrod", "DarkOrange",
-"LightGreen", "Chartreuse", "YellowGreen", "Yellow", "Gold",
-"Green", "LawnGreen", "GreenYellow", "LightOlive", "Yellow",
-"DarkBlue", "DarkPurple", "HotPink", "VioletPink", "RedPink",
-"SlateGray", "DarkGray", "PalePurple", "IndianRed", "Tomato",
-"SeaGreen", "PaleGreen", "GreenKhaki", "LightBrown", "LightSalmon",
-"SpringGreen", "PaleGreen", "MediumOlive", "YellowBrown", "LightGold",
-"LightGreen", "LightGreen", "LightGreen", "GreenYellow", "PaleYellow",
-"HalfBlue", "DarkSky", "HalfMagenta", "VioletRed", "DeepPink",
-"SteelBlue", "SkyBlue", "Orchid", "LightHotPink", "HotPink",
-"SeaGreen", "SlateGray", "MediumGray", "Burlywood", "LightPink",
-"SpringGreen", "Aquamarine", "PaleGreen", "Khaki", "PaleOrange",
-"SpringGreen", "SeaGreen", "PaleGreen", "PaleWhite", "YellowWhite",
-"LightBlue", "Purple", "MediumOrchid", "Magenta", "Magenta",
-"RoyalBlue", "SlateBlue", "MediumOrchid", "Orchid", "Magenta",
-"DeepSkyBlue", "LightSteelBlue", "LightSkyBlue", "Violet", "LightPink",
-"Cyan", "DarkTurquoise", "SkyBlue", "Gray", "Snow",
-"Mint", "Mint", "Aquamarine", "MintCream", "Ivory",
-"Blue", "Blue", "DarkMagenta", "DarkOrchid", "Magenta",
-"SkyBlue", "RoyalBlue", "LightSlateBlue", "MediumOrchid", "Magenta",
-"DodgerBlue", "SteelBlue", "MediumPurple", "PalePurple", "Plum",
-"DeepSkyBlue", "PaleBlue", "LightSkyBlue", "PalePurple", "Thistle",
-"Cyan", "ColdBlue", "PaleTurquoise", "GhostWhite", "White"
-};
-
-void automatname(Material *ma)
-{
-	int nr, r, g, b;
-	float ref;
-	
-	if (ma == NULL) return;
-	if (ma->mode & MA_SHLESS) ref = 1.0;
-	else ref = ma->ref;
-
-	r = (int)(4.99f * (ref * ma->r));
-	g = (int)(4.99f * (ref * ma->g));
-	b = (int)(4.99f * (ref * ma->b));
-	nr = r + 5 * g + 25 * b;
-	if (nr > 124) nr = 124;
-	new_id(&G.main->mat, (ID *)ma, colname_array[nr]);
-	
-}
-#endif
 
 int object_remove_material_slot(Object *ob)
 {
@@ -1225,7 +1239,9 @@ int object_remove_material_slot(Object *ob)
 	totcolp = give_totcolp(ob);
 	matarar = give_matarar(ob);
 
-	if (*matarar == NULL) return FALSE;
+	if (ELEM(NULL, matarar, *matarar)) {
+		return false;
+	}
 
 	/* can happen on face selection in editmode */
 	if (ob->actcol > ob->totcol) {
@@ -1274,8 +1290,10 @@ int object_remove_material_slot(Object *ob)
 
 	/* check indices from mesh */
 	if (ELEM4(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT)) {
-		data_delete_material_index_id((ID *)ob->data, actcol - 1);
-		BKE_displist_free(&ob->disp);
+		material_data_index_remove_id((ID *)ob->data, actcol - 1);
+		if (ob->curve_cache) {
+			BKE_displist_free(&ob->curve_cache->disp);
+		}
 	}
 
 	return TRUE;
@@ -1430,8 +1448,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 				r_col[1] = facm * (r_col[1]) + fac * tmpg;
 				r_col[2] = facm * (r_col[2]) + fac * tmpb;
 			}
+			break;
 		}
-		break;
 		case MA_RAMP_SAT:
 		{
 			float rH, rS, rV;
@@ -1441,8 +1459,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 				rgb_to_hsv(col[0], col[1], col[2], &colH, &colS, &colV);
 				hsv_to_rgb(rH, (facm * rS + fac * colS), rV, r_col + 0, r_col + 1, r_col + 2);
 			}
+			break;
 		}
-		break;
 		case MA_RAMP_VAL:
 		{
 			float rH, rS, rV;
@@ -1450,8 +1468,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 			rgb_to_hsv(r_col[0], r_col[1], r_col[2], &rH, &rS, &rV);
 			rgb_to_hsv(col[0], col[1], col[2], &colH, &colS, &colV);
 			hsv_to_rgb(rH, rS, (facm * rV + fac * colV), r_col + 0, r_col + 1, r_col + 2);
+			break;
 		}
-		break;
 		case MA_RAMP_COLOR:
 		{
 			float rH, rS, rV;
@@ -1465,8 +1483,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 				r_col[1] = facm * (r_col[1]) + fac * tmpg;
 				r_col[2] = facm * (r_col[2]) + fac * tmpb;
 			}
+			break;
 		}
-		break;
 		case MA_RAMP_SOFT:
 		{
 			float scr, scg, scb;
@@ -1479,8 +1497,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 			r_col[0] = facm * (r_col[0]) + fac * (((1.0f - r_col[0]) * col[0] * (r_col[0])) + (r_col[0] * scr));
 			r_col[1] = facm * (r_col[1]) + fac * (((1.0f - r_col[1]) * col[1] * (r_col[1])) + (r_col[1] * scg));
 			r_col[2] = facm * (r_col[2]) + fac * (((1.0f - r_col[2]) * col[2] * (r_col[2])) + (r_col[2] * scb));
+			break;
 		}
-		break;
 		case MA_RAMP_LINEAR:
 			if (col[0] > 0.5f)
 				r_col[0] = r_col[0] + fac * (2.0f * (col[0] - 0.5f));
@@ -1750,7 +1768,7 @@ static short mesh_getmaterialnumber(Mesh *me, Material *ma)
 /* append material */
 static short mesh_addmaterial(Mesh *me, Material *ma)
 {
-	material_append_id(&me->id, NULL);
+	BKE_material_append_id(&me->id, NULL);
 	me->mat[me->totcol - 1] = ma;
 
 	id_us_plus(&ma->id);
@@ -1887,8 +1905,14 @@ static void convert_tfacematerial(Main *main, Material *ma)
 			mf->mat_nr = mat_nr;
 		}
 		/* remove material from mesh */
-		for (a = 0; a < me->totcol; )
-			if (me->mat[a] == ma) material_pop_id(&me->id, a, 1); else a++;
+		for (a = 0; a < me->totcol; ) {
+			if (me->mat[a] == ma) {
+				BKE_material_pop_id(&me->id, a, true);
+			}
+			else {
+				a++;
+			}
+		}
 	}
 }
 

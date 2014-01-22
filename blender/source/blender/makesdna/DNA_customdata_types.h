@@ -73,50 +73,52 @@ typedef struct CustomData {
 } CustomData;
 
 /* CustomData.type */
-#define CD_MVERT		0
-#define CD_MSTICKY		1  /* DEPRECATED */
-#define CD_MDEFORMVERT	2
-#define CD_MEDGE		3
-#define CD_MFACE		4
-#define CD_MTFACE		5
-#define CD_MCOL			6
-#define CD_ORIGINDEX	7
-#define CD_NORMAL		8
-//#define CD_POLYINDEX	9
-#define CD_PROP_FLT		10
-#define CD_PROP_INT		11
-#define CD_PROP_STR		12
-#define CD_ORIGSPACE	13 /* for modifier stack face location mapping */
-#define CD_ORCO			14
-#define CD_MTEXPOLY		15
-#define CD_MLOOPUV		16
-#define CD_MLOOPCOL		17
-#define CD_TANGENT		18
-#define CD_MDISPS		19
-#define CD_PREVIEW_MCOL	20 /* for displaying weightpaint colors */
-#define CD_ID_MCOL		21
-#define CD_TEXTURE_MCOL	22
-#define CD_CLOTH_ORCO	23
-#define CD_RECAST		24
+enum {
+	CD_MVERT            = 0,
+	CD_MSTICKY          = 1,  /* DEPRECATED */
+	CD_MDEFORMVERT      = 2,
+	CD_MEDGE            = 3,
+	CD_MFACE            = 4,
+	CD_MTFACE           = 5,
+	CD_MCOL             = 6,
+	CD_ORIGINDEX        = 7,
+	CD_NORMAL           = 8,
+/*	CD_POLYINDEX        = 9, */
+	CD_PROP_FLT         = 10,
+	CD_PROP_INT         = 11,
+	CD_PROP_STR         = 12,
+	CD_ORIGSPACE        = 13,  /* for modifier stack face location mapping */
+	CD_ORCO             = 14,
+	CD_MTEXPOLY         = 15,
+	CD_MLOOPUV          = 16,
+	CD_MLOOPCOL         = 17,
+	CD_TANGENT          = 18,
+	CD_MDISPS           = 19,
+	CD_PREVIEW_MCOL     = 20,  /* for displaying weightpaint colors */
+	CD_ID_MCOL          = 21,
+	CD_TEXTURE_MCOL     = 22,
+	CD_CLOTH_ORCO       = 23,
+	CD_RECAST           = 24,
 
 /* BMESH ONLY START */
-#define CD_MPOLY		25
-#define CD_MLOOP		26
-#define CD_SHAPE_KEYINDEX	27
-#define CD_SHAPEKEY		28
-#define CD_BWEIGHT		29
-#define CD_CREASE		30
-#define CD_ORIGSPACE_MLOOP	31
-#define CD_PREVIEW_MLOOPCOL	32
-#define CD_BM_ELEM_PYPTR	33
+	CD_MPOLY            = 25,
+	CD_MLOOP            = 26,
+	CD_SHAPE_KEYINDEX   = 27,
+	CD_SHAPEKEY         = 28,
+	CD_BWEIGHT          = 29,
+	CD_CREASE           = 30,
+	CD_ORIGSPACE_MLOOP  = 31,
+	CD_PREVIEW_MLOOPCOL = 32,
+	CD_BM_ELEM_PYPTR    = 33,
 /* BMESH ONLY END */
 
-#define CD_PAINT_MASK	34
-#define CD_GRID_PAINT_MASK	35
-#define CD_MVERT_SKIN	36
-#define CD_FREESTYLE_EDGE	37
-#define CD_FREESTYLE_FACE	38
-#define CD_NUMTYPES		39
+	CD_PAINT_MASK       = 34,
+	CD_GRID_PAINT_MASK  = 35,
+	CD_MVERT_SKIN       = 36,
+	CD_FREESTYLE_EDGE   = 37,
+	CD_FREESTYLE_FACE   = 38,
+	CD_NUMTYPES         = 39,
+};
 
 /* Bits for CustomDataMask */
 #define CD_MASK_MVERT		(1 << CD_MVERT)
@@ -162,22 +164,22 @@ typedef struct CustomData {
 #define CD_MASK_FREESTYLE_FACE	(1LL << CD_FREESTYLE_FACE)
 
 /* CustomData.flag */
-
-/* indicates layer should not be copied by CustomData_from_template or
- * CustomData_copy_data */
-#define CD_FLAG_NOCOPY    (1<<0)
-/* indicates layer should not be freed (for layers backed by external data) */
-#define CD_FLAG_NOFREE    (1<<1)
-/* indicates the layer is only temporary, also implies no copy */
-#define CD_FLAG_TEMPORARY ((1<<2)|CD_FLAG_NOCOPY)
-/* indicates the layer is stored in an external file */
-#define CD_FLAG_EXTERNAL  (1<<3)
-/* indicates external data is read into memory */
-#define CD_FLAG_IN_MEMORY (1<<4)
+enum {
+	/* Indicates layer should not be copied by CustomData_from_template or CustomData_copy_data */
+	CD_FLAG_NOCOPY    = (1 << 0),
+	/* Indicates layer should not be freed (for layers backed by external data) */
+	CD_FLAG_NOFREE    = (1 << 1),
+	/* Indicates the layer is only temporary, also implies no copy */
+	CD_FLAG_TEMPORARY = ((1 << 2) | CD_FLAG_NOCOPY),
+	/* Indicates the layer is stored in an external file */
+	CD_FLAG_EXTERNAL  = (1 << 3),
+	/* Indicates external data is read into memory */
+	CD_FLAG_IN_MEMORY = (1 << 4),
+};
 
 /* Limits */
-#define MAX_MTFACE 8
-#define MAX_MCOL   8
+#define MAX_MTFACE  8
+#define MAX_MCOL    8
 
 #ifdef __cplusplus
 }

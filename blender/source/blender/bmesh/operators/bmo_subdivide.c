@@ -593,7 +593,7 @@ static void quad_4edge_subdivide(BMesh *bm, BMFace *UNUSED(face), BMVert **verts
 	}
 
 	for (i = 1; i < numcuts + 2; i++) {
-		for (j = 1; j < numcuts + 1; j++) {
+		for (j = 1; j <= numcuts; j++) {
 			a = i * s + j;
 			b = (i - 1) * s + j;
 			e = connect_smallest_face(bm, lines[a], lines[b], &f_new);
@@ -710,7 +710,7 @@ static void tri_3edge_subdivide(BMesh *bm, BMFace *UNUSED(face), BMVert **verts,
 	 *      s    s
 	 * </pre>
 	 */
-	for (i = 1; i < numcuts + 1; i++) {
+	for (i = 1; i <= numcuts; i++) {
 		for (j = 0; j < i; j++) {
 			e = connect_smallest_face(bm, lines[i][j], lines[i + 1][j + 1], &f_new);
 
@@ -921,7 +921,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 		}
 
 		if (BMO_elem_flag_test(bm, face, FACE_CUSTOMFILL)) {
-			pat = BMO_slot_map_data_get(params.slot_custom_patterns, face);
+			pat = *BMO_slot_map_data_get(params.slot_custom_patterns, face);
 			for (i = 0; i < pat->len; i++) {
 				matched = 1;
 				for (j = 0; j < pat->len; j++) {
@@ -1203,24 +1203,22 @@ void BM_mesh_esubdivide(BMesh *bm, const char edge_hflag,
 	
 	BMO_op_exec(bm, &op);
 	
-	if (seltype == SUBDIV_SELECT_INNER) {
-		BMOIter iter;
-		BMElem *ele;
-
-		for (ele = BMO_iter_new(&iter, op.slots_out, "geom_inner.out", BM_EDGE | BM_VERT); ele; ele = BMO_iter_step(&iter)) {
-			BM_elem_select_set(bm, ele, true);
-		}
-	}
-	else if (seltype == SUBDIV_SELECT_LOOPCUT) {
-		BMOIter iter;
-		BMElem *ele;
-		
-		/* deselect input */
-		BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
-
-		for (ele = BMO_iter_new(&iter, op.slots_out, "geom_inner.out", BM_EDGE); ele; ele = BMO_iter_step(&iter)) {
-			BM_edge_select_set(bm, (BMEdge *)ele, true);
-		}
+	switch (seltype) {
+		case SUBDIV_SELECT_NONE:
+			break;
+		case SUBDIV_SELECT_ORIG:
+			/* set the newly created data to be selected */
+			BMO_slot_buffer_hflag_enable(bm, op.slots_out, "geom_inner.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+			BM_mesh_select_flush(bm);
+			break;
+		case SUBDIV_SELECT_INNER:
+			BMO_slot_buffer_hflag_enable(bm, op.slots_out, "geom_inner.out", BM_EDGE | BM_VERT, BM_ELEM_SELECT, true);
+			break;
+		case SUBDIV_SELECT_LOOPCUT:
+			/* deselect input */
+			BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+			BMO_slot_buffer_hflag_enable(bm, op.slots_out, "geom_inner.out", BM_EDGE, BM_ELEM_SELECT, true);
+			break;
 	}
 
 	BMO_op_finish(bm, &op);

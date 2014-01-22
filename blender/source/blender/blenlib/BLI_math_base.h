@@ -80,6 +80,14 @@
 #define MAXFLOAT  ((float)3.40282347e+38)
 #endif
 
+#if defined(__GNUC__)
+#  define NAN_FLT __builtin_nanf("")
+#else
+/* evil quiet NaN definition */
+static const int NAN_INT = 0x7FC00000;
+#  define NAN_FLT  (*((float *)(&NAN_INT)))
+#endif
+
 /* do not redefine functions from C99 or POSIX.1-2001 */
 #if !(defined(_ISOC99_SOURCE) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L))
 
@@ -214,6 +222,7 @@ MINLINE int power_of_2_max_i(int n);
 MINLINE int power_of_2_min_i(int n);
 
 MINLINE int divide_round_i(int a, int b);
+MINLINE int mod_i(int i, int n);
 
 MINLINE float shell_angle_to_dist(const float angle);
 

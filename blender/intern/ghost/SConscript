@@ -33,12 +33,13 @@ Import ('env')
 window_system = env['OURPLATFORM']
 
 sources = env.Glob('intern/*.cpp')
+sources2 = env.Glob('intern/GHOST_NDOFManager3Dconnexion.c')
 if window_system == 'darwin':
     sources += env.Glob('intern/*.mm')
 
 
 pf = ['GHOST_DisplayManager', 'GHOST_System', 'GHOST_SystemPaths', 'GHOST_Window', 'GHOST_DropTarget', 'GHOST_NDOFManager']
-defs=['_USE_MATH_DEFINES']
+defs=['_USE_MATH_DEFINES', 'GLEW_STATIC']
 
 incs = [
     '.',
@@ -75,7 +76,12 @@ elif window_system in ('linux', 'openbsd3', 'sunos5', 'freebsd7', 'freebsd8', 'f
     ## So until this is supported properly as with CMake,
     ## just dont use the PREFIX.
     # defs += ['PREFIX=\\"/usr/local/\\"']  # XXX, make an option
-    defs += ['WITH_X11_XINPUT']  # XXX, make an option
+    if env['WITH_X11_XINPUT']:
+        defs += ['WITH_X11_XINPUT']
+
+    if env['WITH_X11_XF86VMODE']:
+        #incs += env['X11_xf86vmode_INCLUDE_PATH']
+        defs += ['WITH_X11_XF86VMODE']
 
     # freebsd doesn't seem to support XDND protocol
     if env['WITH_GHOST_XDND'] and window_system not in ('freebsd7', 'freebsd8', 'freebsd9'):
@@ -142,7 +148,6 @@ else:
     except ValueError:
         pass
 
-
 if window_system in ('win32-vc', 'win32-mingw', 'cygwin', 'linuxcross', 'win64-vc', 'win64-mingw'):
     incs = env['BF_WINTAB_INC'] + ' ' + incs
     incs += ' ../utfconv'
@@ -153,6 +158,8 @@ if window_system in ('win32-vc', 'win64-vc'):
 elif env['WITH_GHOST_COCOA']:	 # always use default-Apple-gcc for objC language, for gnu-compilers do not support it fully yet
     env.BlenderLib ('bf_intern_ghost', sources, Split(incs), defines=defs, libtype=['intern','player'], priority = [40,15], cc_compilerchange='/usr/bin/gcc', cxx_compilerchange='/usr/bin/g++' )
     print "GHOST COCOA WILL BE COMPILED WITH APPLE GCC"
+    if env['WITH_BF_3DMOUSE']:
+        env.BlenderLib ('bf_intern_ghostndof3dconnexion', sources2, Split(incs), defines=defs, libtype=['intern','player'], priority = [40,15], cc_compilerchange='/usr/bin/gcc', cxx_compilerchange='/usr/bin/g++' )
 
 else:
     env.BlenderLib ('bf_intern_ghost', sources, Split(incs), defines=defs, libtype=['intern','player'], priority = [40,15] )

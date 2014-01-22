@@ -41,7 +41,30 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "wm_cursors.h"
+
 #include "rna_internal.h"  /* own include */
+
+/* confusingm 2 enums mixed up here */
+EnumPropertyItem window_cursor_items[] = {
+	{CURSOR_STD, "DEFAULT", 0, "Default", ""},
+	{CURSOR_NONE, "NONE", 0, "None", ""},
+	{CURSOR_WAIT, "WAIT", 0, "Wait", ""},
+	{CURSOR_EDIT, "CROSSHAIR", 0, "Crosshair", ""},
+	{CURSOR_X_MOVE, "MOVE_X", 0, "Move-X", ""},
+	{CURSOR_Y_MOVE, "MOVE_Y", 0, "Move-Y", ""},
+
+	/* new */
+	{BC_KNIFECURSOR, "KNIFE", 0, "Knife", ""},
+	{BC_TEXTEDITCURSOR, "TEXT", 0, "Text", ""},
+	{BC_PAINTBRUSHCURSOR, "PAINT_BRUSH", 0, "Paint Brush", ""},
+	{BC_HANDCURSOR, "HAND", 0, "Hand", ""},
+	{BC_EW_SCROLLCURSOR, "SCROLL_X", 0, "Scroll-X", ""},
+	{BC_NS_SCROLLCURSOR, "SCROLL_Y", 0, "Scroll-Y", ""},
+	{BC_NSEW_SCROLLCURSOR, "SCROLL_XY", 0, "Scroll-XY", ""},
+	{BC_EYEDROPPER_CURSOR, "EYEDROPPER", 0, "Eyedropper", ""},
+	{0, NULL, 0, NULL, NULL}
+};
 
 #ifdef RNA_RUNTIME
 
@@ -95,7 +118,7 @@ struct wmStaticProgress {
 } wm_progress_state = {0, 0, false};
 
 
-static void rna_progress_begin(struct wmWindowManager *wm, float min, float max)
+static void rna_progress_begin(struct wmWindowManager *UNUSED(wm), float min, float max)
 {
 	float range = max - min;
 	if (range != 0) {
@@ -120,7 +143,7 @@ static void rna_progress_update(struct wmWindowManager *wm, float value)
 static void rna_progress_end(struct wmWindowManager *wm)
 {
 	if (wm_progress_state.is_valid) {
-		WM_cursor_restore(wm->winactive);
+		WM_cursor_modal_restore(wm->winactive);
 		wm_progress_state.is_valid = false;
 	}
 }
@@ -239,6 +262,18 @@ static wmKeyMap *rna_keymap_find_modal(wmKeyConfig *UNUSED(keyconf), const char 
 		return ot->modalkeymap;
 }
 
+static void rna_KeyMap_remove(wmKeyConfig *keyconfig, ReportList *reports, PointerRNA *keymap_ptr)
+{
+	wmKeyMap *keymap = keymap_ptr->data;
+
+	if (WM_keymap_remove(keyconfig, keymap) == FALSE) {
+		BKE_reportf(reports, RPT_ERROR, "KeyConfig '%s' cannot be removed", keymap->idname);
+		return;
+	}
+
+	RNA_POINTER_INVALIDATE(keymap_ptr);
+}
+
 static void rna_KeyConfig_remove(wmWindowManager *wm, ReportList *reports, PointerRNA *keyconf_ptr)
 {
 	wmKeyConfig *keyconf = keyconf_ptr->data;
@@ -297,6 +332,34 @@ static void rna_generic_op_invoke(FunctionRNA *func, int flag)
 		parm = RNA_def_enum_flag(func, "result", operator_return_items, OPERATOR_CANCELLED, "result", "");
 		RNA_def_function_return(func, parm);
 	}
+}
+
+void RNA_api_window(StructRNA *srna)
+{
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	func = RNA_def_function(srna, "cursor_warp", "WM_cursor_warp");
+	parm = RNA_def_int(func, "x", 0, INT_MIN, INT_MAX, "", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_int(func, "y", 0, INT_MIN, INT_MAX, "", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_function_ui_description(func, "Set the cursor position");
+
+	func = RNA_def_function(srna, "cursor_set", "WM_cursor_set");
+	parm = RNA_def_property(func, "cursor", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(parm, window_cursor_items);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_function_ui_description(func, "Set the cursor");
+
+	func = RNA_def_function(srna, "cursor_modal_set", "WM_cursor_modal_set");
+	parm = RNA_def_property(func, "cursor", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(parm, window_cursor_items);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_function_ui_description(func, "Set the cursor, so the previous cursor can be restored");
+
+	RNA_def_function(srna, "cursor_modal_restore", "WM_cursor_modal_restore");
+	RNA_def_function_ui_description(func, "Restore the previous cursor after calling ``cursor_modal_set``");
 }
 
 void RNA_api_wm(StructRNA *srna)
@@ -619,6 +682,12 @@ void RNA_api_keymaps(StructRNA *srna)
 	RNA_def_boolean(func, "modal", 0, "Modal", "");
 	parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Added key map");
 	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove", "rna_KeyMap_remove"); /* remove_keymap */
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Removed key map");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 
 	func = RNA_def_function(srna, "find", "rna_keymap_find"); /* find_keymap */
 	parm = RNA_def_string(func, "name", "", 0, "Name", "");

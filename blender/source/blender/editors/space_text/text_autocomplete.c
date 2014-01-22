@@ -361,6 +361,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
 			}
 			break;
 		case RETKEY:
+		case PADENTER:
 			if (event->val == KM_PRESS) {
 				if (tools & TOOL_SUGG_LIST) {
 					confirm_suggestion(st->text);
@@ -433,6 +434,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
 			break;
 		case PAGEDOWNKEY:
 			scroll = SUGG_LIST_SIZE - 1;
+			/* fall-through */
 		case WHEELDOWNMOUSE:
 		case DOWNARROWKEY:
 			if (event->val == KM_PRESS) {
@@ -460,6 +462,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
 			break;
 		case PAGEUPKEY:
 			scroll = SUGG_LIST_SIZE - 1;
+			/* fall-through */
 		case WHEELUPMOUSE:
 		case UPARROWKEY:
 			if (event->val == KM_PRESS) {

@@ -35,6 +35,8 @@
 extern "C" {
 #endif
 
+#include "BLI_compiler_attrs.h"
+
 struct ListBase;
 struct direntry;
 
@@ -89,7 +91,10 @@ void BLI_make_existing_file(const char *name);
 void BLI_split_dirfile(const char *string, char *dir, char *file, const size_t dirlen, const size_t filelen);
 void BLI_split_dir_part(const char *string, char *dir, const size_t dirlen);
 void BLI_split_file_part(const char *string, char *file, const size_t filelen);
-void BLI_join_dirfile(char *string, const size_t maxlen, const char *dir, const char *file);
+void BLI_path_append(char *__restrict dst, const size_t maxlen,
+                     const char *__restrict file) ATTR_NONNULL();
+void BLI_join_dirfile(char *__restrict string, const size_t maxlen,
+                      const char *__restrict dir, const char *__restrict file) ATTR_NONNULL();
 const char *BLI_path_basename(const char *path);
 
 typedef enum bli_rebase_state {
@@ -111,6 +116,7 @@ bool BLI_testextensie_array(const char *str, const char **ext_array);
 bool BLI_testextensie_glob(const char *str, const char *ext_fnmatch);
 bool BLI_replace_extension(char *path, size_t maxlen, const char *ext);
 bool BLI_ensure_extension(char *path, size_t maxlen, const char *ext);
+bool BLI_ensure_filename(char *filepath, size_t maxlen, const char *filename);
 void BLI_uniquename(struct ListBase *list, void *vlink, const char *defname, char delim, short name_offs, short len);
 bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
                        void *arg, const char * defname, char delim, char *name, short name_len);
@@ -120,11 +126,7 @@ void BLI_stringenc(char *string, const char *head, const char *tail, unsigned sh
 int BLI_split_name_num(char *left, int *nr, const char *name, const char delim);
 
 /* make sure path separators conform to system one */
-void BLI_clean(char *path)
-#ifdef __GNUC__
-__attribute__((nonnull(1)))
-#endif
-;
+void BLI_clean(char *path) ATTR_NONNULL();
 
 /**
  * dir can be any input, like from buttons, and this function
@@ -170,11 +172,7 @@ bool BLI_path_is_rel(const char *path);
 #  define BLI_path_ncmp strncmp
 #endif
 
-void BLI_char_switch(char *string, char from, char to)
-#ifdef __GNUC__
-__attribute__((nonnull(1)))
-#endif
-;
+void BLI_char_switch(char *string, char from, char to) ATTR_NONNULL();
 
 /* Initialize path to program executable */
 void BLI_init_program_path(const char *argv0);

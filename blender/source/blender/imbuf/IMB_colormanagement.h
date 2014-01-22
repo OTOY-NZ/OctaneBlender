@@ -31,6 +31,12 @@
 #ifndef __IMB_COLORMANAGEMENT_H__
 #define __IMB_COLORMANAGEMENT_H__
 
+/** \file blender/imbuf/IMB_colormanagement.h
+ *  \ingroup imbuf
+ */
+
+#include "BLI_sys_types.h"
+
 #define BCM_CONFIG_FILE "config.ocio"
 
 struct bContext;
@@ -62,19 +68,22 @@ void IMB_colormanagement_check_is_data(struct ImBuf *ibuf, const char *name);
 void IMB_colormanagement_assign_float_colorspace(struct ImBuf *ibuf, const char *name);
 void IMB_colormanagement_assign_rect_colorspace(struct ImBuf *ibuf, const char *name);
 
+const char *IMB_colormanagement_get_float_colorspace(struct ImBuf *ibuf);
+const char *IMB_colormanagement_get_rect_colorspace(struct ImBuf *ibuf);
+
 /* ** Color space transformation functions ** */
 void IMB_colormanagement_transform(float *buffer, int width, int height, int channels,
-                                   const char *from_colorspace, const char *to_colorspace, int predivide);
+                                   const char *from_colorspace, const char *to_colorspace, bool predivide);
 void IMB_colormanagement_transform_threaded(float *buffer, int width, int height, int channels,
-                                            const char *from_colorspace, const char *to_colorspace, int predivide);
+                                            const char *from_colorspace, const char *to_colorspace, bool predivide);
 void IMB_colormanagement_transform_v4(float pixel[4], const char *from_colorspace, const char *to_colorspace);
 
 void IMB_colormanagement_colorspace_to_scene_linear_v3(float pixel[3], struct ColorSpace *colorspace);
-void IMB_colormanagement_colorspace_to_scene_linear_v4(float pixel[4], int predivide, struct ColorSpace *colorspace);
+void IMB_colormanagement_colorspace_to_scene_linear_v4(float pixel[4], bool predivide, struct ColorSpace *colorspace);
 
 void IMB_colormanagement_scene_linear_to_colorspace_v3(float pixel[3], struct ColorSpace *colorspace);
 
-void IMB_colormanagement_colorspace_to_scene_linear(float *buffer, int width, int height, int channels, struct ColorSpace *colorspace, int predivide);
+void IMB_colormanagement_colorspace_to_scene_linear(float *buffer, int width, int height, int channels, struct ColorSpace *colorspace, bool predivide);
 
 void IMB_colormanagement_scene_linear_to_display_v3(float pixel[3], struct ColorManagedDisplay *display);
 void IMB_colormanagement_display_to_scene_linear_v3(float pixel[3], struct ColorManagedDisplay *display);
@@ -88,7 +97,7 @@ void IMB_colormanagement_pixel_to_display_space_v3(float result[3], const float 
 void IMB_colormanagement_imbuf_make_display_space(struct ImBuf *ibuf, const struct ColorManagedViewSettings *view_settings,
                                                   const struct ColorManagedDisplaySettings *display_settings);
 
-struct ImBuf *IMB_colormanagement_imbuf_for_write(struct ImBuf *ibuf, int save_as_render, int allocate_result,
+struct ImBuf *IMB_colormanagement_imbuf_for_write(struct ImBuf *ibuf, bool save_as_render, bool allocate_result,
                                                   const struct ColorManagedViewSettings *view_settings,
                                                   const struct ColorManagedDisplaySettings *display_settings,
                                                   struct ImageFormatData *image_format_data);
@@ -110,7 +119,7 @@ unsigned char *IMB_display_buffer_acquire_ctx(const struct bContext *C, struct I
 
 void IMB_display_buffer_transform_apply(unsigned char *display_buffer, float *linear_buffer, int width, int height,
                                         int channels, const struct ColorManagedViewSettings *view_settings,
-                                        const struct ColorManagedDisplaySettings *display_settings, int predivide);
+                                        const struct ColorManagedDisplaySettings *display_settings, bool predivide);
 
 void IMB_display_buffer_release(void *cache_handle);
 
@@ -125,6 +134,10 @@ const char *IMB_colormanagement_display_get_none_name(void);
 int IMB_colormanagement_view_get_named_index(const char *name);
 const char *IMB_colormanagement_view_get_indexed_name(int index);
 
+/* ** Look funcrions ** */
+int IMB_colormanagement_look_get_named_index(const char *name);
+const char *IMB_colormanagement_look_get_indexed_name(int index);
+
 /* ** Color space functions ** */
 int IMB_colormanagement_colorspace_get_named_index(const char *name);
 const char *IMB_colormanagement_colorspace_get_indexed_name(int index);
@@ -135,6 +148,7 @@ void IMB_colormanagment_colorspace_from_ibuf_ftype(struct ColorManagedColorspace
 /* ** RNA helper functions ** */
 void IMB_colormanagement_display_items_add(struct EnumPropertyItem **items, int *totitem);
 void IMB_colormanagement_view_items_add(struct EnumPropertyItem **items, int *totitem, const char *display_name);
+void IMB_colormanagement_look_items_add(struct EnumPropertyItem **items, int *totitem);
 void IMB_colormanagement_colorspace_items_add(struct EnumPropertyItem **items, int *totitem);
 
 /* ** Tile-based buffer management ** */
@@ -142,7 +156,7 @@ void IMB_partial_display_buffer_update(struct ImBuf *ibuf, const float *linear_b
                                        int stride, int offset_x, int offset_y, const struct ColorManagedViewSettings *view_settings,
                                        const struct ColorManagedDisplaySettings *display_settings,
                                        int xmin, int ymin, int xmax, int ymax,
-                                       int update_orig_byte_buffer);
+                                       bool update_orig_byte_buffer);
 
 void IMB_partial_display_buffer_update_delayed(struct ImBuf *ibuf, int xmin, int ymin, int xmax, int ymax);
 
@@ -154,29 +168,34 @@ void IMB_colormanagement_processor_apply_v4(struct ColormanageProcessor *cm_proc
 void IMB_colormanagement_processor_apply_v4_predivide(struct ColormanageProcessor *cm_processor, float pixel[4]);
 void IMB_colormanagement_processor_apply_v3(struct ColormanageProcessor *cm_processor, float pixel[3]);
 void IMB_colormanagement_processor_apply(struct ColormanageProcessor *cm_processor, float *buffer, int width, int height,
-                                         int channels, int predivide);
+                                         int channels, bool predivide);
 void IMB_colormanagement_processor_free(struct ColormanageProcessor *cm_processor);
 
 /* ** OpenGL drawing routines using GLSL for color space transform ** */
 
+/* Test if GLSL drawing is supported for combination of graphics card and this configuration */
+bool IMB_colormanagement_support_glsl_draw(const struct ColorManagedViewSettings *view_settings,
+                                           bool skip_curves);
 /* Configures GLSL shader for conversion from scene linear to display space */
-int IMB_colormanagement_setup_glsl_draw(const struct ColorManagedViewSettings *view_settings,
-                                        const struct ColorManagedDisplaySettings *display_settings,
-                                        int predivide);
+bool IMB_colormanagement_setup_glsl_draw(const struct ColorManagedViewSettings *view_settings,
+                                         const struct ColorManagedDisplaySettings *display_settings,
+                                         bool predivide,
+                                         bool skip_curves);
 /* Same as above, but display space conversion happens from a specified space */
-int IMB_colormanagement_setup_glsl_draw_from_space(const struct ColorManagedViewSettings *view_settings,
-                                                   const struct ColorManagedDisplaySettings *display_settings,
-                                                   struct ColorSpace *colorspace,
-                                                   int predivide);
+bool IMB_colormanagement_setup_glsl_draw_from_space(const struct ColorManagedViewSettings *view_settings,
+                                                    const struct ColorManagedDisplaySettings *display_settings,
+                                                    struct ColorSpace *colorspace,
+                                                    bool predivide,
+                                                    bool skip_curves);
 /* Same as setup_glsl_draw, but color management settings are guessing from a given context */
-int IMB_colormanagement_setup_glsl_draw_ctx(const struct bContext *C, int predivide);
+bool IMB_colormanagement_setup_glsl_draw_ctx(const struct bContext *C, bool predivide);
 /* Same as setup_glsl_draw_from_space, but color management settings are guessing from a given context */
-int IMB_colormanagement_setup_glsl_draw_from_space_ctx(const struct bContext *C, struct ColorSpace *colorspace, int predivide);
+bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const struct bContext *C, struct ColorSpace *colorspace, bool predivide);
 /* Finish GLSL-based display space conversion */
 void IMB_colormanagement_finish_glsl_draw(void);
 
 /* Configures GLSL shader for conversion from space defined by role to scene linear space */
-int IMB_colormanagement_setup_transform_from_role_glsl(int role, int predivide);
+bool IMB_colormanagement_setup_transform_from_role_glsl(int role, bool predivide);
 /* Finish GLSL-based color space conversion */
 void IMB_colormanagement_finish_glsl_transform(void);
 

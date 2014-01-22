@@ -32,8 +32,8 @@
  *  \ingroup bke
  */
 
-#include "BLI_ghash.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "DNA_listBase.h"
 
@@ -272,6 +272,8 @@ typedef struct bNodeType {
 #define NODE_CLASS_OCT_EMISSION	    1002
 #define NODE_CLASS_OCT_MEDIUM	    1003
 #define NODE_CLASS_OCT_TRANSFORM    1004
+#define NODE_CLASS_OCT_PROJECTION	1005
+#define NODE_CLASS_OCT_VALUE	    1006
 #endif
 
 /* nodetype->compatibility */
@@ -345,7 +347,7 @@ struct GHashIterator *ntreeTypeGetIterator(void);
 #define NODE_TREE_TYPES_END \
 	} \
 	BLI_ghashIterator_free(__node_tree_type_iter__); \
-}
+} (void)0
 
 void ntreeSetTypes(const struct bContext *C, struct bNodeTree *ntree);
 
@@ -750,6 +752,11 @@ struct ShadeResult;
 #define SH_NODE_WIREFRAME				178
 #define SH_NODE_BSDF_TOON				179
 #define SH_NODE_WAVELENGTH				180
+#define SH_NODE_BLACKBODY				181
+#define SH_NODE_VECT_TRANSFORM			182
+#define SH_NODE_SEPHSV					183
+#define SH_NODE_COMBHSV					184
+#define SH_NODE_BSDF_HAIR				185
 
 #ifdef WITH_OCTANE
 #define SH_NODE_OCT_DIFFUSE_MAT			800
@@ -789,6 +796,17 @@ struct ShadeResult;
 #define SH_NODE_OCT_FLOAT_IMAGE_TEX         868
 #define SH_NODE_OCT_ALPHA_IMAGE_TEX         869
 #define SH_NODE_OCT_DIRT_TEX                870
+#define SH_NODE_OCT_GRADIENT_TEX            871
+
+#define SH_NODE_OCT_PROJECTION_XYZ          950
+#define SH_NODE_OCT_PROJECTION_BOX          951
+#define SH_NODE_OCT_PROJECTION_CYL          952
+#define SH_NODE_OCT_PROJECTION_PERSP        953
+#define SH_NODE_OCT_PROJECTION_SPHERICAL    954
+#define SH_NODE_OCT_PROJECTION_UVW          955
+
+#define SH_NODE_OCT_VALUE_FLOAT             970
+#define SH_NODE_OCT_VALUE_INT               971
 #endif /* WITH_OCTANE */
 
 /* custom defines options for Material node */
@@ -822,34 +840,37 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 /* ************** COMPOSITE NODES *************** */
 
 /* output socket defines */
-#define RRES_OUT_IMAGE				0
-#define RRES_OUT_ALPHA				1
-#define RRES_OUT_Z					2
-#define RRES_OUT_NORMAL				3
-#define RRES_OUT_UV					4
-#define RRES_OUT_VEC				5
-#define RRES_OUT_RGBA				6
-#define RRES_OUT_DIFF				7
-#define RRES_OUT_SPEC				8
-#define RRES_OUT_SHADOW				9
-#define RRES_OUT_AO					10
-#define RRES_OUT_REFLECT			11
-#define RRES_OUT_REFRACT			12
-#define RRES_OUT_INDIRECT			13
-#define RRES_OUT_INDEXOB			14
-#define RRES_OUT_INDEXMA			15
-#define RRES_OUT_MIST				16
-#define RRES_OUT_EMIT				17
-#define RRES_OUT_ENV				18
-#define RRES_OUT_DIFF_DIRECT		19
-#define RRES_OUT_DIFF_INDIRECT		20
-#define RRES_OUT_DIFF_COLOR			21
-#define RRES_OUT_GLOSSY_DIRECT		22
-#define RRES_OUT_GLOSSY_INDIRECT	23
-#define RRES_OUT_GLOSSY_COLOR		24
-#define RRES_OUT_TRANSM_DIRECT		25
-#define RRES_OUT_TRANSM_INDIRECT	26
-#define RRES_OUT_TRANSM_COLOR		27
+#define RRES_OUT_IMAGE					0
+#define RRES_OUT_ALPHA					1
+#define RRES_OUT_Z						2
+#define RRES_OUT_NORMAL					3
+#define RRES_OUT_UV						4
+#define RRES_OUT_VEC					5
+#define RRES_OUT_RGBA					6
+#define RRES_OUT_DIFF					7
+#define RRES_OUT_SPEC					8
+#define RRES_OUT_SHADOW					9
+#define RRES_OUT_AO						10
+#define RRES_OUT_REFLECT				11
+#define RRES_OUT_REFRACT				12
+#define RRES_OUT_INDIRECT				13
+#define RRES_OUT_INDEXOB				14
+#define RRES_OUT_INDEXMA				15
+#define RRES_OUT_MIST					16
+#define RRES_OUT_EMIT					17
+#define RRES_OUT_ENV					18
+#define RRES_OUT_DIFF_DIRECT			19
+#define RRES_OUT_DIFF_INDIRECT			20
+#define RRES_OUT_DIFF_COLOR				21
+#define RRES_OUT_GLOSSY_DIRECT			22
+#define RRES_OUT_GLOSSY_INDIRECT		23
+#define RRES_OUT_GLOSSY_COLOR			24
+#define RRES_OUT_TRANSM_DIRECT			25
+#define RRES_OUT_TRANSM_INDIRECT		26
+#define RRES_OUT_TRANSM_COLOR			27
+#define RRES_OUT_SUBSURFACE_DIRECT		28
+#define RRES_OUT_SUBSURFACE_INDIRECT	29
+#define RRES_OUT_SUBSURFACE_COLOR		30
 
 /* note: types are needed to restore callbacks, don't change values */
 #define CMP_NODE_VIEWER		201
@@ -939,6 +960,7 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 #define CMP_NODE_PIXELATE       318
 
 #define CMP_NODE_MAP_RANGE	319
+#define CMP_NODE_PLANETRACKDEFORM	320
 
 /* channel toggles */
 #define CMP_CHAN_RGB		1

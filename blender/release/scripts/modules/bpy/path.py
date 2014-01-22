@@ -35,6 +35,7 @@ __all__ = (
     "extensions_audio",
     "is_subdir",
     "module_names",
+    "reduce_dirs",
     "relpath",
     "resolve_ncase",
     )
@@ -120,7 +121,7 @@ def is_subdir(path, directory):
 def clean_name(name, replace="_"):
     """
     Returns a name with characters replaced that
-       may cause problems under various circumstances,
+    may cause problems under various circumstances,
     such as writing to a file.
     All characters besides A-Z/a-z, 0-9 are replaced with "_"
     or the replace argument if defined.
@@ -162,6 +163,7 @@ def display_name(name):
     """
     # string replacements
     name = name.replace("_colon_", ":")
+    name = name.replace("_plus_", "+")
 
     name = name.replace("_", " ")
 
@@ -304,3 +306,27 @@ def basename(path):
     Use for Windows compatibility.
     """
     return _os.path.basename(path[2:] if path[:2] in {"//", b"//"} else path)
+
+
+def reduce_dirs(dirs):
+    """
+    Given a sequence of directories, remove duplicates and
+    any directories nested in one of the other paths.
+    (Useful for recursive path searching).
+
+    :arg dirs: Sequence of directory paths.
+    :type dirs: sequence
+    :return: A unique list of paths.
+    :rtype: list
+    """
+    dirs = list({_os.path.normpath(_os.path.abspath(d)) for d in dirs})
+    dirs.sort(key=lambda d: len(d))
+    for i in range(len(dirs) -1, -1, -1):
+        for j in range(i):
+            print(i, j)
+            if len(dirs[i]) == len(dirs[j]):
+                break
+            elif is_subdir(dirs[i], dirs[j]):
+                del dirs[i]
+                break
+    return dirs

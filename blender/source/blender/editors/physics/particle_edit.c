@@ -69,6 +69,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "ED_object.h"
 #include "ED_physics.h"
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -2452,7 +2453,7 @@ static int remove_doubles_exec(bContext *C, wmOperator *op)
 			copy_v3_v3(co, point->keys->co);
 			mul_m4_v3(mat, co);
 
-			totn= BLI_kdtree_find_n_nearest(tree, 10, co, NULL, nearest);
+			totn = BLI_kdtree_find_nearest_n(tree, co, NULL, nearest, 10);
 
 			for (n=0; n<totn; n++) {
 				/* this needs a custom threshold still */
@@ -3458,7 +3459,7 @@ static int brush_add(PEData *data, short number)
 				float maxd, totw=0.0, weight[3];
 
 				psys_particle_on_dm(psmd->dm, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co1, 0, 0, 0, 0, 0);
-				maxw= BLI_kdtree_find_n_nearest(tree, 3, co1, NULL, ptn);
+				maxw = BLI_kdtree_find_nearest_n(tree, co1, NULL, ptn, 3);
 
 				maxd= ptn[maxw-1].dist;
 				
@@ -4345,23 +4346,36 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 
 static int particle_edit_toggle_poll(bContext *C)
 {
-	Scene *scene= CTX_data_scene(C);
-	Object *ob= CTX_data_active_object(C);
+	Object *ob = CTX_data_active_object(C);
 
-	if (!scene || !ob || ob->id.lib)
+	if (ob == NULL || ob->type != OB_MESH)
 		return 0;
-	
-	return (ob->particlesystem.first || modifiers_findByType(ob, eModifierType_Cloth) || modifiers_findByType(ob, eModifierType_Softbody));
+	if (!ob->data || ((ID *)ob->data)->lib)
+		return 0;
+	if (CTX_data_edit_object(C))
+		return 0;
+
+	return (ob->particlesystem.first ||
+	        modifiers_findByType(ob, eModifierType_Cloth) ||
+	        modifiers_findByType(ob, eModifierType_Softbody));
 }
 
-static int particle_edit_toggle_exec(bContext *C, wmOperator *UNUSED(op))
+static int particle_edit_toggle_exec(bContext *C, wmOperator *op)
 {
-	Scene *scene= CTX_data_scene(C);
-	Object *ob= CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	const int mode_flag = OB_MODE_PARTICLE_EDIT;
+	const bool is_mode_set = (ob->mode & mode_flag) != 0;
 
-	if (!(ob->mode & OB_MODE_PARTICLE_EDIT)) {
+	if (!is_mode_set) {
+		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	if (!is_mode_set) {
 		PTCacheEdit *edit;
-		ob->mode |= OB_MODE_PARTICLE_EDIT;
+		ob->mode |= mode_flag;
 		edit= PE_create_current(scene, ob);
 	
 		/* mesh may have changed since last entering editmode.
@@ -4373,7 +4387,7 @@ static int particle_edit_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_PARTICLE, NULL);
 	}
 	else {
-		ob->mode &= ~OB_MODE_PARTICLE_EDIT;
+		ob->mode &= ~mode_flag;
 		toggle_particle_cursor(C, 0);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_OBJECT, NULL);
 	}
@@ -4407,7 +4421,7 @@ static int clear_edited_exec(bContext *C, wmOperator *UNUSED(op))
 	ParticleSystem *psys = psys_get_current(ob);
 	
 	if (psys->edit) {
-		if (psys->edit->edited || 1) { // XXX okee("Lose changes done in particle mode?"))
+		if (psys->edit->edited || 1) {
 			PE_free_ptcache_edit(psys->edit);
 
 			psys->edit = NULL;
@@ -4433,6 +4447,11 @@ static int clear_edited_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
+static int clear_edited_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	return WM_operator_confirm_message(C, op, "Lose changes done in particle mode? (no undo)");
+}
+
 void PARTICLE_OT_edited_clear(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -4443,6 +4462,7 @@ void PARTICLE_OT_edited_clear(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = clear_edited_exec;
 	ot->poll = particle_edit_toggle_poll;
+	ot->invoke = clear_edited_invoke;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;

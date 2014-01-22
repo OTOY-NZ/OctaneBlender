@@ -44,7 +44,7 @@
 
 #if defined(__sun__) || defined(__sun) || defined(__NetBSD__)
 #  include <sys/statvfs.h> /* Other modern unix os's should probably use this also */
-#elif !defined(__FreeBSD__) && !defined(linux) && (defined(__sparc) || defined(__sparc__))
+#elif !defined(__FreeBSD__) && !defined(__linux__) && (defined(__sparc) || defined(__sparc__))
 #  include <sys/statfs.h>
 #endif
 
@@ -53,7 +53,7 @@
 #  include <sys/mount.h>
 #endif
 
-#if defined(linux) || defined(__CYGWIN32__) || defined(__hpux) || defined(__GNU__) || defined(__GLIBC__)
+#if defined(__linux__) || defined(__CYGWIN32__) || defined(__hpux) || defined(__GNU__) || defined(__GLIBC__)
 #include <sys/vfs.h>
 #endif
 
@@ -70,7 +70,6 @@
 #ifdef WIN32
 #  include <io.h>
 #  include <direct.h>
-#  include <limits.h>  /* PATH_MAX */
 #  include "BLI_winstuff.h"
 #  include "utfconv.h"
 #else
@@ -194,13 +193,13 @@ double BLI_dir_free_space(const char *dir)
 		strcpy(name, "/");
 	}
 
-#if defined(__FreeBSD__) || defined(linux) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__GNU__) || defined(__GLIBC__)
+#if defined(__FreeBSD__) || defined(__linux__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__GNU__) || defined(__GLIBC__)
 	if (statfs(name, &disk)) return(-1);
 #endif
 
 #if defined(__sun__) || defined(__sun) || defined(__NetBSD__)
 	if (statvfs(name, &disk)) return(-1);
-#elif !defined(__FreeBSD__) && !defined(linux) && (defined(__sparc) || defined(__sparc__))
+#elif !defined(__FreeBSD__) && !defined(__linux__) && (defined(__sparc) || defined(__sparc__))
 	/* WARNING - This may not be supported by geeneric unix os's - Campbell */
 	if (statfs(name, &disk, sizeof(struct statfs), 0)) return(-1);
 #endif
@@ -388,17 +387,14 @@ static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
 		 */
 		st_size = file->s.st_size;
 
-		/* FIXME: Either change decimal prefixes to binary ones
-		 * <http://en.wikipedia.org/wiki/Binary_prefix>, or change
-		 * divisor factors from 1024 to 1000. */
 		if (st_size > 1024 * 1024 * 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.2f GB", ((double)st_size) / (1024 * 1024 * 1024));
+			BLI_snprintf(file->size, sizeof(file->size), "%.2f GiB", ((double)st_size) / (1024 * 1024 * 1024));
 		}
 		else if (st_size > 1024 * 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.1f MB", ((double)st_size) / (1024 * 1024));
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f MiB", ((double)st_size) / (1024 * 1024));
 		}
 		else if (st_size > 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%d KB", (int)(st_size / 1024));
+			BLI_snprintf(file->size, sizeof(file->size), "%d KiB", (int)(st_size / 1024));
 		}
 		else {
 			BLI_snprintf(file->size, sizeof(file->size), "%d B", (int)st_size);

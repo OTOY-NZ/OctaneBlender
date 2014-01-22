@@ -310,7 +310,7 @@ static bool object_hook_index_array(Scene *scene, Object *obedit, int *tot, int 
 			BMEditMesh *em;
 
 			EDBM_mesh_load(obedit);
-			EDBM_mesh_make(scene->toolsettings, scene, obedit);
+			EDBM_mesh_make(scene->toolsettings, obedit);
 
 			em = me->edit_btmesh;
 
@@ -318,12 +318,10 @@ static bool object_hook_index_array(Scene *scene, Object *obedit, int *tot, int 
 			BKE_editmesh_tessface_calc(em);
 
 			/* check selected vertices first */
-			if (return_editmesh_indexar(em, tot, indexar, cent_r)) {
-				return true;
-			}
-			else {
+			if (return_editmesh_indexar(em, tot, indexar, cent_r) == 0) {
 				return return_editmesh_vgroup(obedit, em, name, cent_r);
 			}
+			return true;
 		}
 		case OB_CURVE:
 		case OB_SURF:
@@ -571,7 +569,7 @@ void OBJECT_OT_hook_add_selob(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Hook to Selected Object";
-	ot->description = "Hook selected vertices to the first selected Object";
+	ot->description = "Hook selected vertices to the first selected object";
 	ot->idname = "OBJECT_OT_hook_add_selob";
 	
 	/* api callbacks */
@@ -605,7 +603,7 @@ void OBJECT_OT_hook_add_newob(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Hook to New Object";
-	ot->description = "Hook selected vertices to the first selected Object";
+	ot->description = "Hook selected vertices to a newly created object";
 	ot->idname = "OBJECT_OT_hook_add_newob";
 	
 	/* api callbacks */
@@ -715,11 +713,11 @@ static int object_hook_reset_exec(bContext *C, wmOperator *op)
 			mul_m4_m4m4(mat, hmd->object->obmat, pchan->pose_mat);
 			
 			invert_m4_m4(imat, mat);
-			mul_serie_m4(hmd->parentinv, imat, ob->obmat, NULL, NULL, NULL, NULL, NULL, NULL);
+			mul_m4_m4m4(hmd->parentinv, imat, ob->obmat);
 		}
 		else {
 			invert_m4_m4(hmd->object->imat, hmd->object->obmat);
-			mul_serie_m4(hmd->parentinv, hmd->object->imat, ob->obmat, NULL, NULL, NULL, NULL, NULL, NULL);
+			mul_m4_m4m4(hmd->parentinv, hmd->object->imat, ob->obmat);
 		}
 	}
 	

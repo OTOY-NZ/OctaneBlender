@@ -26,6 +26,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/mesh/mesh_navmesh.c
+ *  \ingroup edmesh
+ */
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -350,7 +354,7 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 		co[1] = bmin[1] + v[1] * ch;
 		co[2] = bmin[2] + v[2] * cs;
 		SWAP(float, co[1], co[2]);
-		BM_vert_create(em->bm, co, NULL, 0);
+		BM_vert_create(em->bm, co, NULL, BM_CREATE_NOP);
 	}
 
 	/* create custom data layer to save polygon idx */
@@ -381,7 +385,7 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 		for (j = nv; j < ndv; j++) {
 			copy_v3_v3(co, &dverts[3 * (vbase + j)]);
 			SWAP(float, co[1], co[2]);
-			BM_vert_create(em->bm, co, NULL, 0);
+			BM_vert_create(em->bm, co, NULL, BM_CREATE_NOP);
 		}
 
 		/* need to rebuild entirely because array size changes */
@@ -461,7 +465,7 @@ static int navmesh_create_exec(bContext *C, wmOperator *op)
 		unsigned int lay = 0;
 
 		int nverts = 0, ntris = 0;
-		int *tris = 0;
+		int *tris = NULL;
 		float *verts = NULL;
 
 		createVertsTrisData(C, obs, &nverts, &verts, &ntris, &tris, &lay);

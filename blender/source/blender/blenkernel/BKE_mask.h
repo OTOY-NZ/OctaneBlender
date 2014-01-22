@@ -28,6 +28,10 @@
 #ifndef __BKE_MASK_H__
 #define __BKE_MASK_H__
 
+/** \file BKE_mask.h
+ *  \ingroup bke
+ */
+
 struct ImageUser;
 struct Image;
 struct ListBase;
@@ -53,9 +57,11 @@ void BKE_mask_layer_active_set(struct Mask *mask, struct MaskLayer *masklay);
 void BKE_mask_layer_remove(struct Mask *mask, struct MaskLayer *masklay);
 
 void BKE_mask_layer_free_shapes(struct MaskLayer *masklay);
+void BKE_mask_layer_free_deform(struct MaskLayer *mask_layer);
 void BKE_mask_layer_free(struct MaskLayer *masklay);
 void BKE_mask_layer_free_list(struct ListBase *masklayers);
 void BKE_mask_spline_free(struct MaskSpline *spline);
+void BKE_mask_spline_free_list(struct ListBase *splines);
 struct MaskSpline *BKE_mask_spline_copy(struct MaskSpline *spline);
 void BKE_mask_point_free(struct MaskSplinePoint *point);
 
@@ -134,6 +140,7 @@ void BKE_mask_layer_calc_handles_deform(struct MaskLayer *masklay);
 void BKE_mask_calc_handles(struct Mask *mask);
 void BKE_mask_update_deform(struct Mask *mask);
 void BKE_mask_spline_ensure_deform(struct MaskSpline *spline);
+void BKE_mask_point_parent_matrix_get(struct MaskSplinePoint *point, float ctime, float parent_matrix[3][3]);
 
 /* animation */
 int  BKE_mask_layer_shape_totvert(struct MaskLayer *masklay);

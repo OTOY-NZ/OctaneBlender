@@ -56,6 +56,7 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 #include "ED_transform.h"
+#include "ED_uvedit.h"  /* just for draw_image_cursor */
 
 #include "IMB_imbuf.h"
 
@@ -348,7 +349,7 @@ static void clip_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 			switch (wmn->data) {
 				case ND_FRAME:
 					clip_scopes_tag_refresh(sa);
-					/* no break! */
+					/* fall-through */
 
 				case ND_FRAME_RANGE:
 					ED_area_tag_redraw(sa);
@@ -368,7 +369,7 @@ static void clip_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 				case NA_EDITED:
 				case NA_EVALUATED:
 					clip_stabilization_tag_refresh(sa);
-					/* no break! */
+					/* fall-through */
 
 				case NA_SELECTED:
 					clip_scopes_tag_refresh(sa);
@@ -442,6 +443,7 @@ static void clip_operatortypes(void)
 	WM_operatortype_append(CLIP_OT_view_ndof);
 	WM_operatortype_append(CLIP_OT_prefetch);
 	WM_operatortype_append(CLIP_OT_set_scene_frames);
+	WM_operatortype_append(CLIP_OT_cursor_set);
 
 	/* ** clip_toolbar.c ** */
 	WM_operatortype_append(CLIP_OT_tools);
@@ -516,6 +518,13 @@ static void clip_operatortypes(void)
 	/* clipboard */
 	WM_operatortype_append(CLIP_OT_copy_tracks);
 	WM_operatortype_append(CLIP_OT_paste_tracks);
+
+	/* Plane tracker */
+	WM_operatortype_append(CLIP_OT_create_plane_track);
+	WM_operatortype_append(CLIP_OT_slide_plane_marker);
+
+	WM_operatortype_append(CLIP_OT_keyframe_insert);
+	WM_operatortype_append(CLIP_OT_keyframe_delete);
 
 	/* ** clip_graph_ops.c  ** */
 
@@ -685,6 +694,12 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 
 	WM_keymap_add_item(keymap, "CLIP_OT_hide_tracks_clear", HKEY, KM_PRESS, KM_ALT, 0);
 
+	/* plane tracks */
+	WM_keymap_add_item(keymap, "CLIP_OT_slide_plane_marker", LEFTMOUSE, KM_PRESS, 0, 0);
+
+	WM_keymap_add_item(keymap, "CLIP_OT_keyframe_insert", IKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "CLIP_OT_keyframe_delete", IKEY, KM_PRESS, KM_ALT, 0);
+
 	/* clean-up */
 	WM_keymap_add_item(keymap, "CLIP_OT_join_tracks", JKEY, KM_PRESS, KM_CTRL, 0);
 
@@ -716,6 +731,26 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_clear_track_path", TKEY, KM_PRESS, KM_ALT | KM_SHIFT, 0);
 	RNA_enum_set(kmi->ptr, "action", TRACK_CLEAR_ALL);
 	RNA_boolean_set(kmi->ptr, "clear_active", FALSE);
+
+	/* Cursor */
+	WM_keymap_add_item(keymap, "CLIP_OT_cursor_set", ACTIONMOUSE, KM_PRESS, 0, 0);
+
+	/* pivot point */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "BOUNDING_BOX_CENTER");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, KM_CTRL, 0); /* 2.4x allowed Comma+Shift too, rather not use both */
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "MEDIAN_POINT");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "CURSOR");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, KM_CTRL, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "INDIVIDUAL_ORIGINS");
 
 	/* ******** Hotkeys avalaible for preview region only ******** */
 
@@ -847,36 +882,36 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 	ARegion *ar_preview = ED_clip_has_preview_region(C, sa);
 	ARegion *ar_properties = ED_clip_has_properties_region(sa);
 	ARegion *ar_channels = ED_clip_has_channels_region(sa);
-	int main_visible = FALSE, preview_visible = FALSE, tools_visible = FALSE;
-	int tool_props_visible = FALSE, properties_visible = FALSE, channels_visible = FALSE;
-	int view_changed = FALSE;
+	bool main_visible = false, preview_visible = false, tools_visible = false;
+	bool tool_props_visible = false, properties_visible = false, channels_visible = false;
+	bool view_changed = false;
 
 	switch (sc->view) {
 		case SC_VIEW_CLIP:
-			main_visible = TRUE;
-			preview_visible = FALSE;
-			tools_visible = TRUE;
-			tool_props_visible = TRUE;
-			properties_visible = TRUE;
-			channels_visible = FALSE;
+			main_visible = true;
+			preview_visible = false;
+			tools_visible = true;
+			tool_props_visible = true;
+			properties_visible = true;
+			channels_visible = false;
 			break;
 		case SC_VIEW_GRAPH:
-			main_visible = FALSE;
-			preview_visible = TRUE;
-			tools_visible = FALSE;
-			tool_props_visible = FALSE;
-			properties_visible = FALSE;
-			channels_visible = FALSE;
+			main_visible = false;
+			preview_visible = true;
+			tools_visible = false;
+			tool_props_visible = false;
+			properties_visible = false;
+			channels_visible = false;
 
 			reinit_preview_region(C, ar_preview);
 			break;
 		case SC_VIEW_DOPESHEET:
-			main_visible = FALSE;
-			preview_visible = TRUE;
-			tools_visible = FALSE;
-			tool_props_visible = FALSE;
-			properties_visible = FALSE;
-			channels_visible = TRUE;
+			main_visible = false;
+			preview_visible = true;
+			tools_visible = false;
+			tool_props_visible = false;
+			properties_visible = false;
+			channels_visible = true;
 
 			reinit_preview_region(C, ar_preview);
 			break;
@@ -886,12 +921,12 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 		if (ar_main && (ar_main->flag & RGN_FLAG_HIDDEN)) {
 			ar_main->flag &= ~RGN_FLAG_HIDDEN;
 			ar_main->v2d.flag &= ~V2D_IS_INITIALISED;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 
 		if (ar_main && ar_main->alignment != RGN_ALIGN_NONE) {
 			ar_main->alignment = RGN_ALIGN_NONE;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 	else {
@@ -899,11 +934,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 			ar_main->flag |= RGN_FLAG_HIDDEN;
 			ar_main->v2d.flag &= ~V2D_IS_INITIALISED;
 			WM_event_remove_handlers((bContext *)C, &ar_main->handlers);
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_main && ar_main->alignment != RGN_ALIGN_NONE) {
 			ar_main->alignment = RGN_ALIGN_NONE;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 
@@ -911,11 +946,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 		if (ar_properties && (ar_properties->flag & RGN_FLAG_HIDDEN)) {
 			ar_properties->flag &= ~RGN_FLAG_HIDDEN;
 			ar_properties->v2d.flag &= ~V2D_IS_INITIALISED;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_properties && ar_properties->alignment != RGN_ALIGN_RIGHT) {
 			ar_properties->alignment = RGN_ALIGN_RIGHT;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 	else {
@@ -923,11 +958,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 			ar_properties->flag |= RGN_FLAG_HIDDEN;
 			ar_properties->v2d.flag &= ~V2D_IS_INITIALISED;
 			WM_event_remove_handlers((bContext *)C, &ar_properties->handlers);
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_properties && ar_properties->alignment != RGN_ALIGN_NONE) {
 			ar_properties->alignment = RGN_ALIGN_NONE;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 
@@ -935,11 +970,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 		if (ar_tools && (ar_tools->flag & RGN_FLAG_HIDDEN)) {
 			ar_tools->flag &= ~RGN_FLAG_HIDDEN;
 			ar_tools->v2d.flag &= ~V2D_IS_INITIALISED;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_tools && ar_tools->alignment != RGN_ALIGN_LEFT) {
 			ar_tools->alignment = RGN_ALIGN_LEFT;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 	else {
@@ -947,11 +982,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 			ar_tools->flag |= RGN_FLAG_HIDDEN;
 			ar_tools->v2d.flag &= ~V2D_IS_INITIALISED;
 			WM_event_remove_handlers((bContext *)C, &ar_tools->handlers);
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_tools && ar_tools->alignment != RGN_ALIGN_NONE) {
 			ar_tools->alignment = RGN_ALIGN_NONE;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 
@@ -959,11 +994,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 		if (ar_tool_props && (ar_tool_props->flag & RGN_FLAG_HIDDEN)) {
 			ar_tool_props->flag &= ~RGN_FLAG_HIDDEN;
 			ar_tool_props->v2d.flag &= ~V2D_IS_INITIALISED;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_tool_props && (ar_tool_props->alignment != (RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV))) {
 			ar_tool_props->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 	else {
@@ -971,11 +1006,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 			ar_tool_props->flag |= RGN_FLAG_HIDDEN;
 			ar_tool_props->v2d.flag &= ~V2D_IS_INITIALISED;
 			WM_event_remove_handlers((bContext *)C, &ar_tool_props->handlers);
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_tool_props && ar_tool_props->alignment != RGN_ALIGN_NONE) {
 			ar_tool_props->alignment = RGN_ALIGN_NONE;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 
@@ -984,11 +1019,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 			ar_preview->flag &= ~RGN_FLAG_HIDDEN;
 			ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
 			ar_preview->v2d.cur = ar_preview->v2d.tot;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_preview && ar_preview->alignment != RGN_ALIGN_NONE) {
 			ar_preview->alignment = RGN_ALIGN_NONE;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 	else {
@@ -996,11 +1031,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 			ar_preview->flag |= RGN_FLAG_HIDDEN;
 			ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
 			WM_event_remove_handlers((bContext *)C, &ar_preview->handlers);
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_preview && ar_preview->alignment != RGN_ALIGN_NONE) {
 			ar_preview->alignment = RGN_ALIGN_NONE;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 
@@ -1008,11 +1043,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 		if (ar_channels && (ar_channels->flag & RGN_FLAG_HIDDEN)) {
 			ar_channels->flag &= ~RGN_FLAG_HIDDEN;
 			ar_channels->v2d.flag &= ~V2D_IS_INITIALISED;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_channels && ar_channels->alignment != RGN_ALIGN_LEFT) {
 			ar_channels->alignment = RGN_ALIGN_LEFT;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 	else {
@@ -1020,11 +1055,11 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 			ar_channels->flag |= RGN_FLAG_HIDDEN;
 			ar_channels->v2d.flag &= ~V2D_IS_INITIALISED;
 			WM_event_remove_handlers((bContext *)C, &ar_channels->handlers);
-			view_changed = TRUE;
+			view_changed = true;
 		}
 		if (ar_channels && ar_channels->alignment != RGN_ALIGN_NONE) {
 			ar_channels->alignment = RGN_ALIGN_NONE;
-			view_changed = TRUE;
+			view_changed = true;
 		}
 	}
 
@@ -1109,6 +1144,9 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	/* draw entirely, view changes should be handled here */
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
+	float aspx, aspy, zoomx, zoomy, x, y;
+	int width, height;
+	bool show_cursor = false;
 
 	/* if tracking is in progress, we should synchronize framenr from clipuser
 	 * so latest tracked frame would be shown */
@@ -1140,29 +1178,43 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 
 	clip_draw_main(C, sc, ar);
 
-	if (sc->mode == SC_MODE_MASKEDIT) {
+	/* TODO(sergey): would be nice to find a way to de-duplicate all this space conversions */
+	UI_view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
+	ED_space_clip_get_size(sc, &width, &height);
+	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
+	ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
+	if (sc->mode == SC_MODE_MASKEDIT) {
 		Mask *mask = CTX_data_edit_mask(C);
 		if (mask) {
 			ScrArea *sa = CTX_wm_area(C);
-			int width, height;
-			float aspx, aspy;
-			ED_mask_get_size(sa, &width, &height);
-			ED_space_clip_get_aspect(sc, &aspx, &aspy);
+			int mask_width, mask_height;
+			ED_mask_get_size(sa, &mask_width, &mask_height);
 			ED_mask_draw_region(mask, ar,
 			                    sc->mask_info.draw_flag, sc->mask_info.draw_type,
-			                    width, height,
+			                    mask_width, mask_height,
 			                    aspx, aspy,
 			                    TRUE, TRUE,
 			                    sc->stabmat, C);
 		}
+	}
 
+	show_cursor |= sc->mode == SC_MODE_MASKEDIT;
+	show_cursor |= sc->around == V3D_CURSOR;
 
+	if (show_cursor) {
+		glPushMatrix();
+		glTranslatef(x, y, 0);
+		glScalef(zoomx, zoomy, 0);
+		glMultMatrixf(sc->stabmat);
+		glScalef(width, height, 0);
+		draw_image_cursor(ar, sc->cursor);
+		glPopMatrix();
 	}
 
 	if (sc->flag & SC_SHOW_GPENCIL) {
 		/* Grease Pencil */
-		clip_draw_grease_pencil((bContext *)C, TRUE);
+		clip_draw_grease_pencil((bContext *)C, true);
 	}
 
 	/* reset view matrix */
@@ -1170,7 +1222,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 
 	if (sc->flag & SC_SHOW_GPENCIL) {
 		/* draw Grease Pencil - screen space only */
-		clip_draw_grease_pencil((bContext *)C, FALSE);
+		clip_draw_grease_pencil((bContext *)C, false);
 	}
 }
 
@@ -1353,8 +1405,8 @@ static void clip_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), 
 					// if (sc->mode == SC_MODE_MASKEDIT)
 				{
 					ED_region_tag_redraw(ar);
+					break;
 				}
-				break;
 			}
 			break;
 	}

@@ -28,16 +28,15 @@
  *  \ingroup bke
  */
 
-#include "BLI_math.h"
-
 #include "MEM_guardedalloc.h"
+
+#include "BLI_math.h"
+#include "BLI_alloca.h"
 
 #include "DNA_object_types.h"
 
-#include "BLI_array.h"
 
 #include "BKE_DerivedMesh.h"
-#include "BKE_bmesh.h"
 #include "BKE_editmesh.h"
 
 /* Static function for alloc */
@@ -53,7 +52,7 @@ static BMFace *bm_face_create_from_mpoly(MPoly *mp, MLoop *ml,
 		edges[j] = etable[ml->e];
 	}
 
-	return BM_face_create(bm, verts, edges, mp->totloop, BM_CREATE_SKIP_CD);
+	return BM_face_create(bm, verts, edges, mp->totloop, NULL, BM_CREATE_SKIP_CD);
 }
 
 /**
@@ -233,8 +232,9 @@ BMEditMesh *DM_to_editbmesh(DerivedMesh *dm, BMEditMesh *existing, const bool do
 BMesh *DM_to_bmesh(DerivedMesh *dm, const bool calc_face_normal)
 {
 	BMesh *bm;
+	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_DM(dm);
 
-	bm = BM_mesh_create(&bm_mesh_allocsize_default);
+	bm = BM_mesh_create(&allocsize);
 
 	DM_to_bmesh_ex(dm, bm, calc_face_normal);
 

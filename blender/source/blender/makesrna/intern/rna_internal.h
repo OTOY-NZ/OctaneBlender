@@ -124,8 +124,9 @@ typedef struct BlenderDefRNA {
 extern BlenderDefRNA DefRNA;
 
 /* Define functions for all types */
-
+#ifndef __RNA_ACCESS_H__
 extern BlenderRNA BLENDER_RNA;
+#endif
 
 void RNA_def_ID(struct BlenderRNA *brna);
 void RNA_def_action(struct BlenderRNA *brna);
@@ -278,6 +279,7 @@ void RNA_api_scene_render(struct StructRNA *srna);
 void RNA_api_sequence_strip(StructRNA *srna);
 void RNA_api_text(struct StructRNA *srna);
 void RNA_api_ui_layout(struct StructRNA *srna);
+void RNA_api_window(struct StructRNA *srna);
 void RNA_api_wm(struct StructRNA *srna);
 void RNA_api_sensor(struct StructRNA *srna);
 void RNA_api_controller(struct StructRNA *srna);
@@ -331,8 +333,10 @@ extern CollectionPropertyRNA rna_PropertyGroupItem_idp_array;
 extern FloatPropertyRNA rna_PropertyGroupItem_double;
 extern FloatPropertyRNA rna_PropertyGroupItem_double_array;
 
+#ifndef __RNA_ACCESS_H__
 extern StructRNA RNA_PropertyGroupItem;
 extern StructRNA RNA_PropertyGroup;
+#endif
 
 struct IDProperty *rna_idproperty_check(struct PropertyRNA **prop, struct PointerRNA *ptr);
 
@@ -402,7 +406,6 @@ PointerRNA rna_pointer_inherit_refine(struct PointerRNA *ptr, struct StructRNA *
 /* Functions */
 
 int rna_parameter_size(struct PropertyRNA *parm);
-int rna_parameter_size_alloc(struct PropertyRNA *parm);
 
 struct Mesh *rna_Main_meshes_new_from_object(
         struct Main *bmain, struct ReportList *reports, struct Scene *sce,
@@ -420,5 +423,11 @@ int rna_IDMaterials_assign_int(struct PointerRNA *ptr, int key, const struct Poi
 /* Internal functions that cycles uses so we need to declare (tsk tsk) */
 void rna_RenderLayer_rect_set(PointerRNA *ptr, const float *values);
 void rna_RenderPass_rect_set(PointerRNA *ptr, const float *values);
+
+#ifdef RNA_RUNTIME
+#  ifdef __GNUC__
+#    pragma GCC diagnostic ignored "-Wredundant-decls"
+#  endif
+#endif
 
 #endif  /* __RNA_INTERNAL_H__ */

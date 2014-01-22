@@ -66,7 +66,8 @@
 
 /* **************** View All Operator ************** */
 
-int space_node_view_flag(bContext *C, SpaceNode *snode, ARegion *ar, const int node_flag)
+int space_node_view_flag(bContext *C, SpaceNode *snode, ARegion *ar,
+                         const int node_flag, const int smooth_viewtx)
 {
 	bNode *node;
 	rctf cur_new;
@@ -125,22 +126,23 @@ int space_node_view_flag(bContext *C, SpaceNode *snode, ARegion *ar, const int n
 			BLI_rctf_scale(&cur_new, 1.1f);
 		}
 
-		UI_view2d_smooth_view(C, ar, &cur_new);
+		UI_view2d_smooth_view(C, ar, &cur_new, smooth_viewtx);
 	}
 
 	return (tot != 0);
 }
 
-static int node_view_all_exec(bContext *C, wmOperator *UNUSED(op))
+static int node_view_all_exec(bContext *C, wmOperator *op)
 {
 	ARegion *ar = CTX_wm_region(C);
 	SpaceNode *snode = CTX_wm_space_node(C);
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
 	/* is this really needed? */
 	snode->xof = 0;
 	snode->yof = 0;
 
-	if (space_node_view_flag(C, snode, ar, 0)) {
+	if (space_node_view_flag(C, snode, ar, 0, smooth_viewtx)) {
 		return OPERATOR_FINISHED;
 	}
 	else {
@@ -163,12 +165,13 @@ void NODE_OT_view_all(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int node_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
+static int node_view_selected_exec(bContext *C, wmOperator *op)
 {
 	ARegion *ar = CTX_wm_region(C);
 	SpaceNode *snode = CTX_wm_space_node(C);
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
-	if (space_node_view_flag(C, snode, ar, NODE_SELECT)) {
+	if (space_node_view_flag(C, snode, ar, NODE_SELECT, smooth_viewtx)) {
 		return OPERATOR_FINISHED;
 	}
 	else {
@@ -295,7 +298,7 @@ void NODE_OT_backimage_move(wmOperatorType *ot)
 	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER;
 }
 
-static int backimage_zoom(bContext *C, wmOperator *op)
+static int backimage_zoom_exec(bContext *C, wmOperator *op)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -317,7 +320,7 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
 	ot->description = "Zoom in/out the background image";
 
 	/* api callbacks */
-	ot->exec = backimage_zoom;
+	ot->exec = backimage_zoom_exec;
 	ot->poll = composite_node_active;
 
 	/* flags */
@@ -325,6 +328,60 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
 
 	/* internal */
 	RNA_def_float(ot->srna, "factor", 1.2f, 0.0f, 10.0f, "Factor", "", 0.0f, 10.0f);
+}
+
+static int backimage_fit_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+	ARegion *ar = CTX_wm_region(C);
+
+	Image *ima;
+	ImBuf *ibuf;
+
+	const float pad = 32.0f;
+
+	void *lock;
+
+	float facx, facy;
+
+	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
+	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
+
+	if (ibuf == NULL) {
+		BKE_image_release_ibuf(ima, ibuf, lock);
+		return OPERATOR_CANCELLED;
+	}
+
+	facx = 1.0f * (ar->sizex - pad) / (ibuf->x * snode->zoom);
+	facy = 1.0f * (ar->sizey - pad) / (ibuf->y * snode->zoom);
+
+	BKE_image_release_ibuf(ima, ibuf, lock);
+
+	snode->zoom *= min_ff(facx, facy);
+
+	snode->xof = 0;
+	snode->yof = 0;
+
+	ED_region_tag_redraw(ar);
+
+	return OPERATOR_FINISHED;
+}
+
+void NODE_OT_backimage_fit(wmOperatorType *ot)
+{
+
+	/* identifiers */
+	ot->name = "Background Image Fit";
+	ot->idname = "NODE_OT_backimage_fit";
+	ot->description = "Fit the background image to the view";
+
+	/* api callbacks */
+	ot->exec = backimage_fit_exec;
+	ot->poll = composite_node_active;
+
+	/* flags */
+	ot->flag = OPTYPE_BLOCKING;
+
 }
 
 /******************** sample backdrop operator ********************/

@@ -695,7 +695,7 @@ class VIEW3D_MT_TransformMenu(bpy.types.Menu):
 
         layout.operator("transform.tosphere", text="To Sphere")
         layout.operator("transform.shear", text="Shear")
-        layout.operator("transform.warp", text="Warp")
+        layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
         if context.edit_object and context.edit_object.type == 'ARMATURE':
             layout.operator("armature.align")
@@ -1165,7 +1165,9 @@ class VIEW3D_MT_EditCurveSpecials(bpy.types.Menu):
         layout.operator("curve.spline_weight_set")
         layout.operator("curve.radius_set")
         layout.operator("curve.smooth")
+        layout.operator("curve.smooth_weight")
         layout.operator("curve.smooth_radius")
+        layout.operator("curve.smooth_tilt")
 
 class VIEW3D_MT_EditArmatureTK(bpy.types.Menu):
     bl_label = "Armature Tools"

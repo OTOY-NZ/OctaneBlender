@@ -131,8 +131,9 @@ MINLINE int power_of_2_max_i(int n)
 	if (is_power_of_2_i(n))
 		return n;
 
-	while (!is_power_of_2_i(n))
+	do {
 		n = n & (n - 1);
+	} while (!is_power_of_2_i(n));
 
 	return n * 2;
 }
@@ -150,6 +151,14 @@ MINLINE int power_of_2_min_i(int n)
 MINLINE int divide_round_i(int a, int b)
 {
 	return (2 * a + b) / (2 * b);
+}
+
+/**
+ * modulo that handles negative numbers, works the same as Python's.
+ */
+MINLINE int mod_i(int i, int n)
+{
+	return (i % n + n) % n;
 }
 
 MINLINE unsigned int highest_order_bit_i(unsigned int n)

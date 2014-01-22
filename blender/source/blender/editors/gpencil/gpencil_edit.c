@@ -106,15 +106,14 @@ bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 				
 				/* TODO: we can include other data-types such as bones later if need be... */
 
-				/* just in case no active object */
-				if (ob) {
+				/* just in case no active/selected object */
+				if (ob && (ob->flag & SELECT)) {
 					/* for now, as long as there's an object, default to using that in 3D-View */
 					if (ptr) RNA_id_pointer_create(&ob->id, ptr);
 					return &ob->gpd;
 				}
+				break;
 			}
-			break;
-			
 			case SPACE_NODE: /* Nodes Editor */
 			{
 				SpaceNode *snode = (SpaceNode *)CTX_wm_space_data(C);
@@ -125,13 +124,10 @@ bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 					if (ptr) RNA_id_pointer_create(&snode->nodetree->id, ptr);
 					return &snode->nodetree->gpd;
 				}
-				else {
-					/* even when there is no node-tree, don't allow this to flow to scene */
-					return NULL;
-				}
+
+				/* even when there is no node-tree, don't allow this to flow to scene */
+				return NULL;
 			}
-			break;
-				
 			case SPACE_SEQ: /* Sequencer */
 			{
 				SpaceSeq *sseq = (SpaceSeq *)CTX_wm_space_data(C);
@@ -141,8 +137,6 @@ bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 				if (ptr) RNA_pointer_create(screen_id, &RNA_SpaceSequenceEditor, sseq, ptr);
 				return &sseq->gpd;
 			}
-			break;
-			
 			case SPACE_IMAGE: /* Image/UV Editor */
 			{
 				SpaceImage *sima = (SpaceImage *)CTX_wm_space_data(C);
@@ -152,8 +146,6 @@ bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 				if (ptr) RNA_pointer_create(screen_id, &RNA_SpaceImageEditor, sima, ptr);
 				return &sima->gpd;
 			}
-			break;
-				
 			case SPACE_CLIP: /* Nodes Editor */
 			{
 				SpaceClip *sc = (SpaceClip *)CTX_wm_space_data(C);
@@ -178,9 +170,8 @@ bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 						return &clip->gpd;
 					}
 				}
+				break;
 			}
-			break;
-				
 			default: /* unsupported space */
 				return NULL;
 		}
@@ -201,7 +192,14 @@ bGPdata *gpencil_data_get_active(const bContext *C)
 /* needed for offscreen rendering */
 bGPdata *gpencil_data_get_active_v3d(Scene *scene)
 {
-	bGPdata *gpd = scene->basact ? scene->basact->object->gpd : NULL;
+	Base *base = scene->basact;
+	bGPdata *gpd = NULL;
+	/* We have to make sure active object is actually visible and selected, else we must use default scene gpd,
+	 * to be consistent with gpencil_data_get_active's behavior.
+	 */
+	if (base && (scene->lay & base->lay) && (base->object->flag & SELECT)) {
+		gpd = base->object->gpd;
+	}
 	return gpd ? gpd : scene->gpd;
 }
 

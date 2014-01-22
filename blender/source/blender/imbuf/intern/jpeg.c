@@ -59,11 +59,7 @@
 #define IS_maxjpg(x)    ((x->ftype & JPG_MSK) == JPG_MAX)
 
 /* the types are from the jpeg lib */
-static void jpeg_error(j_common_ptr cinfo)
-#ifdef __GNUC__
-__attribute__((noreturn));
-#endif
-;
+static void jpeg_error(j_common_ptr cinfo) ATTR_NORETURN;
 static void init_source(j_decompress_ptr cinfo);
 static boolean fill_input_buffer(j_decompress_ptr cinfo);
 static void skip_input_data(j_decompress_ptr cinfo, long num_bytes);
@@ -366,6 +362,7 @@ static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo, int fla
 							rect[0] = r;
 							rect += 4;
 						}
+						break;
 				}
 			}
 
@@ -549,7 +546,8 @@ next_stamp_info:
 				break;
 			/* default was missing... intentional ? */
 			default:
-				; /* do nothing */
+				/* do nothing */
+				break;
 		}
 
 		jpeg_write_scanlines(cinfo, row_pointer, 1);
@@ -594,7 +592,8 @@ static int init_jpeg(FILE *outfile, struct jpeg_compress_struct *cinfo, struct I
 			break;
 		/* default was missing... intentional ? */
 		default:
-			; /* do nothing */
+			/* do nothing */
+			break;
 	}
 	jpeg_set_defaults(cinfo);
 	

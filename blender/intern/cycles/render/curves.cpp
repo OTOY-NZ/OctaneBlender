@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "device.h"
@@ -37,12 +35,14 @@ void curvebounds(float *lower, float *upper, float3 *p, int dim)
 	float *p1 = &p[1].x;
 	float *p2 = &p[2].x;
 	float *p3 = &p[3].x;
+
 	float fc = 0.71f;
 	float curve_coef[4];
 	curve_coef[0] = p1[dim];
 	curve_coef[1] = -fc*p0[dim] + fc*p2[dim];
 	curve_coef[2] = 2.0f * fc * p0[dim] + (fc - 3.0f) * p1[dim] + (3.0f - 2.0f * fc) * p2[dim] - fc * p3[dim];
 	curve_coef[3] = -fc * p0[dim] + (2.0f - fc) * p1[dim] + (fc - 2.0f) * p2[dim] + fc * p3[dim];
+
 	float discroot = curve_coef[2] * curve_coef[2] - 3 * curve_coef[3] * curve_coef[1];
 	float ta = -1.0f;
 	float tb = -1.0f;
@@ -72,7 +72,6 @@ void curvebounds(float *lower, float *upper, float3 *p, int dim)
 	}
 	*upper = max(*upper, max(exa,exb));
 	*lower = min(*lower, min(exa,exb));
-	
 }
 
 /* Hair System Manager */
@@ -80,27 +79,21 @@ void curvebounds(float *lower, float *upper, float3 *p, int dim)
 CurveSystemManager::CurveSystemManager()
 {
 	primitive = CURVE_LINE_SEGMENTS;
+	curve_shape = CURVE_THICK;
 	line_method = CURVE_CORRECTED;
-	interpolation = CURVE_CARDINAL;
 	triangle_method = CURVE_CAMERA_TRIANGLES;
 	resolution = 3;
-	segments = 1;
 	subdivisions = 3;
 
-	normalmix = 1.0f;
 	encasing_ratio = 1.01f;
 	minimum_width = 0.0f;
 	maximum_width = 0.0f;
 
 	use_curves = true;
-	use_smooth = true;
-	use_parents = false;
 	use_encasing = true;
 	use_backfacing = false;
-	use_joined = false;
 	use_tangent_normal = false;
 	use_tangent_normal_geometry = false;
-	use_tangent_normal_correction = false;
 
 	need_update = true;
 	need_mesh_update = false;
@@ -119,7 +112,7 @@ void CurveSystemManager::device_update(Device *device, DeviceScene *dscene, Scen
 
 	progress.set_status("Updating Hair settings", "Copying Hair settings to device");
 
-	KernelCurves *kcurve= &dscene->data.curve_kernel_data;
+	KernelCurves *kcurve= &dscene->data.curve;
 
 	kcurve->curveflags = 0;
 
@@ -138,18 +131,13 @@ void CurveSystemManager::device_update(Device *device, DeviceScene *dscene, Scen
 
 		if(use_tangent_normal)
 			kcurve->curveflags |= CURVE_KN_TANGENTGNORMAL;
-		if(use_tangent_normal_correction)
-			kcurve->curveflags |= CURVE_KN_NORMALCORRECTION;
 		if(use_tangent_normal_geometry)
 			kcurve->curveflags |= CURVE_KN_TRUETANGENTGNORMAL;
-		if(use_joined)
-			kcurve->curveflags |= CURVE_KN_CURVEDATA;
 		if(use_backfacing)
 			kcurve->curveflags |= CURVE_KN_BACKFACING;
 		if(use_encasing)
 			kcurve->curveflags |= CURVE_KN_ENCLOSEFILTER;
 
-		kcurve->normalmix = normalmix;
 		kcurve->encasing_ratio = encasing_ratio;
 		kcurve->minimum_width = minimum_width;
 		kcurve->maximum_width = maximum_width;
@@ -168,39 +156,29 @@ void CurveSystemManager::device_free(Device *device, DeviceScene *dscene)
 
 bool CurveSystemManager::modified(const CurveSystemManager& CurveSystemManager)
 {
-	return !(line_method == CurveSystemManager.line_method &&
-		interpolation == CurveSystemManager.interpolation &&
+	return !(curve_shape == CurveSystemManager.curve_shape &&
+		line_method == CurveSystemManager.line_method &&
 		primitive == CurveSystemManager.primitive &&
 		use_encasing == CurveSystemManager.use_encasing &&
 		use_tangent_normal == CurveSystemManager.use_tangent_normal &&
-		use_tangent_normal_correction == CurveSystemManager.use_tangent_normal_correction &&
 		use_tangent_normal_geometry == CurveSystemManager.use_tangent_normal_geometry &&
 		encasing_ratio == CurveSystemManager.encasing_ratio &&
 		minimum_width == CurveSystemManager.minimum_width &&
 		maximum_width == CurveSystemManager.maximum_width &&
 		use_backfacing == CurveSystemManager.use_backfacing &&
-		normalmix == CurveSystemManager.normalmix &&
-		use_smooth == CurveSystemManager.use_smooth &&
 		triangle_method == CurveSystemManager.triangle_method &&
 		resolution == CurveSystemManager.resolution &&
 		use_curves == CurveSystemManager.use_curves &&
-		use_joined == CurveSystemManager.use_joined &&
-		segments == CurveSystemManager.segments &&
-		use_parents == CurveSystemManager.use_parents &&
 		subdivisions == CurveSystemManager.subdivisions);
 }
 
 bool CurveSystemManager::modified_mesh(const CurveSystemManager& CurveSystemManager)
 {
 	return !(primitive == CurveSystemManager.primitive &&
-		interpolation == CurveSystemManager.interpolation &&
-		use_parents == CurveSystemManager.use_parents &&
-		use_smooth == CurveSystemManager.use_smooth &&
+		curve_shape == CurveSystemManager.curve_shape &&
 		triangle_method == CurveSystemManager.triangle_method &&
 		resolution == CurveSystemManager.resolution &&
-		use_curves == CurveSystemManager.use_curves &&
-		use_joined == CurveSystemManager.use_joined &&
-		segments == CurveSystemManager.segments);
+		use_curves == CurveSystemManager.use_curves);
 }
 
 void CurveSystemManager::tag_update(Scene *scene)

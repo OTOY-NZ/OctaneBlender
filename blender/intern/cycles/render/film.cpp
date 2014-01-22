@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "camera.h"
@@ -98,6 +96,9 @@ void Pass::add(PassType type, vector<Pass>& passes)
 		case PASS_TRANSMISSION_COLOR:
 			pass.components = 4;
 			break;
+		case PASS_SUBSURFACE_COLOR:
+			pass.components = 4;
+			break;
 		case PASS_DIFFUSE_INDIRECT:
 			pass.components = 4;
 			pass.exposure = true;
@@ -113,6 +114,11 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			pass.exposure = true;
 			pass.divide_type = PASS_TRANSMISSION_COLOR;
 			break;
+		case PASS_SUBSURFACE_INDIRECT:
+			pass.components = 4;
+			pass.exposure = true;
+			pass.divide_type = PASS_SUBSURFACE_COLOR;
+			break;
 		case PASS_DIFFUSE_DIRECT:
 			pass.components = 4;
 			pass.exposure = true;
@@ -127,6 +133,11 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			pass.components = 4;
 			pass.exposure = true;
 			pass.divide_type = PASS_TRANSMISSION_COLOR;
+			break;
+		case PASS_SUBSURFACE_DIRECT:
+			pass.components = 4;
+			pass.exposure = true;
+			pass.divide_type = PASS_SUBSURFACE_COLOR;
 			break;
 
 		case PASS_EMISSION:
@@ -327,6 +338,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				kfilm->pass_transmission_color = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
 				break;
+			case PASS_SUBSURFACE_COLOR:
+				kfilm->pass_subsurface_color = kfilm->pass_stride;
+				kfilm->use_light_pass = 1;
+				break;
 			case PASS_DIFFUSE_INDIRECT:
 				kfilm->pass_diffuse_indirect = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
@@ -339,6 +354,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				kfilm->pass_transmission_indirect = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
 				break;
+			case PASS_SUBSURFACE_INDIRECT:
+				kfilm->pass_subsurface_indirect = kfilm->pass_stride;
+				kfilm->use_light_pass = 1;
+				break;
 			case PASS_DIFFUSE_DIRECT:
 				kfilm->pass_diffuse_direct = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
@@ -349,6 +368,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				break;
 			case PASS_TRANSMISSION_DIRECT:
 				kfilm->pass_transmission_direct = kfilm->pass_stride;
+				kfilm->use_light_pass = 1;
+				break;
+			case PASS_SUBSURFACE_DIRECT:
+				kfilm->pass_subsurface_direct = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
 				break;
 
@@ -408,8 +431,12 @@ bool Film::modified(const Film& film)
 
 void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_)
 {
-	if(Pass::contains(passes, PASS_UV) != Pass::contains(passes_, PASS_UV))
+	if(Pass::contains(passes, PASS_UV) != Pass::contains(passes_, PASS_UV)) {
 		scene->mesh_manager->tag_update(scene);
+
+		foreach(Shader *shader, scene->shaders)
+			shader->need_update_attributes = true;
+	}
 	else if(Pass::contains(passes, PASS_MOTION) != Pass::contains(passes_, PASS_MOTION))
 		scene->mesh_manager->tag_update(scene);
 

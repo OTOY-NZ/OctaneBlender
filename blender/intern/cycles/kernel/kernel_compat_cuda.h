@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __KERNEL_COMPAT_CUDA_H__
@@ -26,8 +24,6 @@
 
 #include <cuda.h>
 #include <float.h>
-
-#include "util_types.h"
 
 /* Qualifier wrappers for different names on different devices */
 
@@ -43,6 +39,10 @@
 
 #define kernel_assert(cond)
 
+/* Types */
+
+#include "util_types.h"
+
 /* Textures */
 
 typedef texture<float4, 1> texture_float4;
@@ -57,7 +57,18 @@ typedef texture<uchar4, 2, cudaReadModeNormalizedFloat> texture_image_uchar4;
 
 /* Macros to handle different memory storage on different devices */
 
+/* In order to use full 6GB of memory on Titan cards, use arrays instead
+ * of textures. On earlier cards this seems slower, but on Titan it is
+ * actually slightly faster in tests. */
+#if __CUDA_ARCH__ < 350
+#define __KERNEL_CUDA_TEX_STORAGE__
+#endif
+
+#ifdef __KERNEL_CUDA_TEX_STORAGE__
 #define kernel_tex_fetch(t, index) tex1Dfetch(t, index)
+#else
+#define kernel_tex_fetch(t, index) t[(index)]
+#endif
 #define kernel_tex_image_interp(t, x, y) tex2D(t, x, y)
 
 #define kernel_data __data

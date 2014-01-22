@@ -70,6 +70,79 @@ static void recount_totsels(BMesh *bm)
 }
 
 /**
+ * \brief Select Mode Clean
+ *
+ * Remove isolated selected elements when in a mode doesn't support them.
+ * eg: in edge-mode a selected vertex must be connected to a selected edge.
+ *
+ * \note this could be made apart of #BM_mesh_select_mode_flush_ex
+ */
+void BM_mesh_select_mode_clean_ex(BMesh *bm, const short selectmode)
+{
+	if (selectmode & SCE_SELECT_VERTEX) {
+		/* pass */
+	}
+	else if (selectmode & SCE_SELECT_EDGE) {
+		BMIter iter;
+
+		if (bm->totvertsel) {
+			BMVert *v;
+			BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+				BM_elem_flag_disable(v, BM_ELEM_SELECT);
+			}
+			bm->totvertsel = 0;
+		}
+
+		if (bm->totedgesel) {
+			BMEdge *e;
+			BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+				if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+					BM_vert_select_set(bm, e->v1, true);
+					BM_vert_select_set(bm, e->v2, true);
+				}
+			}
+		}
+	}
+	else if (selectmode & SCE_SELECT_FACE) {
+		BMIter iter;
+
+		if (bm->totvertsel) {
+			BMVert *v;
+			BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+				BM_elem_flag_disable(v, BM_ELEM_SELECT);
+			}
+			bm->totvertsel = 0;
+		}
+
+		if (bm->totedgesel) {
+			BMEdge *e;
+			BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+				BM_elem_flag_disable(e, BM_ELEM_SELECT);
+			}
+			bm->totedgesel = 0;
+		}
+
+		if (bm->totfacesel) {
+			BMFace *f;
+			BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+				if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+					BMLoop *l_iter, *l_first;
+					l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+					do {
+						BM_edge_select_set(bm, l_iter->e, true);
+					} while ((l_iter = l_iter->next) != l_first);
+				}
+			}
+		}
+	}
+}
+
+void BM_mesh_select_mode_clean(BMesh *bm)
+{
+	BM_mesh_select_mode_clean_ex(bm, bm->selectmode);
+}
+
+/**
  * \brief Select Mode Flush
  *
  * Makes sure to flush selections 'upwards'
@@ -329,18 +402,15 @@ void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select)
 		if (BM_elem_flag_test(e, BM_ELEM_SELECT)) bm->totedgesel -= 1;
 		BM_elem_flag_disable(e, BM_ELEM_SELECT);
 
-		if (bm->selectmode == SCE_SELECT_EDGE ||
-		    bm->selectmode == SCE_SELECT_FACE ||
-		    bm->selectmode == (SCE_SELECT_EDGE | SCE_SELECT_FACE))
-		{
-
+		if ((bm->selectmode & SCE_SELECT_VERTEX) == 0) {
 			BMIter iter;
 			BMVert *verts[2] = {e->v1, e->v2};
 			BMEdge *e2;
 			int i;
 
+			/* check if the vert is used by a selected edge */
 			for (i = 0; i < 2; i++) {
-				int deselect = 1;
+				bool deselect = true;
 
 				for (e2 = BM_iter_new(&iter, bm, BM_EDGES_OF_VERT, verts[i]); e2; e2 = BM_iter_step(&iter)) {
 					if (e2 == e) {
@@ -348,7 +418,7 @@ void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select)
 					}
 
 					if (BM_elem_flag_test(e2, BM_ELEM_SELECT)) {
-						deselect = 0;
+						deselect = false;
 						break;
 					}
 				}
@@ -501,19 +571,19 @@ static int bm_mesh_flag_count(BMesh *bm, const char htype, const char hflag,
 	BLI_assert((htype & ~BM_ALL_NOLOOP) == 0);
 
 	if (htype & BM_VERT) {
-		for (ele = BM_iter_new(&iter, bm, BM_VERTS_OF_MESH, NULL); ele; ele = BM_iter_step(&iter)) {
+		BM_ITER_MESH (ele, &iter, bm, BM_VERTS_OF_MESH) {
 			if (respecthide && BM_elem_flag_test(ele, BM_ELEM_HIDDEN)) continue;
 			if (BM_elem_flag_test_bool(ele, hflag) == test_for_enabled) tot++;
 		}
 	}
 	if (htype & BM_EDGE) {
-		for (ele = BM_iter_new(&iter, bm, BM_EDGES_OF_MESH, NULL); ele; ele = BM_iter_step(&iter)) {
+		BM_ITER_MESH (ele, &iter, bm, BM_EDGES_OF_MESH) {
 			if (respecthide && BM_elem_flag_test(ele, BM_ELEM_HIDDEN)) continue;
 			if (BM_elem_flag_test_bool(ele, hflag) == test_for_enabled) tot++;
 		}
 	}
 	if (htype & BM_FACE) {
-		for (ele = BM_iter_new(&iter, bm, BM_FACES_OF_MESH, NULL); ele; ele = BM_iter_step(&iter)) {
+		BM_ITER_MESH (ele, &iter, bm, BM_FACES_OF_MESH) {
 			if (respecthide && BM_elem_flag_test(ele, BM_ELEM_HIDDEN)) continue;
 			if (BM_elem_flag_test_bool(ele, hflag) == test_for_enabled) tot++;
 		}
@@ -746,6 +816,13 @@ void BM_editselection_plane(BMEditSelection *ese, float r_plane[3])
 	}
 }
 
+static BMEditSelection *bm_select_history_create(BMHeader *ele)
+{
+	BMEditSelection *ese = (BMEditSelection *) MEM_callocN(sizeof(BMEditSelection), "BMEdit Selection");
+	ese->htype = ele->htype;
+	ese->ele = (BMElem *)ele;
+	return ese;
+}
 
 /* --- macro wrapped funcs --- */
 bool _bm_select_history_check(BMesh *bm, const BMHeader *ele)
@@ -767,9 +844,7 @@ bool _bm_select_history_remove(BMesh *bm, BMHeader *ele)
 
 void _bm_select_history_store_notest(BMesh *bm, BMHeader *ele)
 {
-	BMEditSelection *ese = (BMEditSelection *) MEM_callocN(sizeof(BMEditSelection), "BMEdit Selection");
-	ese->htype = ele->htype;
-	ese->ele = (BMElem *)ele;
+	BMEditSelection *ese = bm_select_history_create(ele);
 	BLI_addtail(&(bm->selected), ese);
 }
 
@@ -777,6 +852,20 @@ void _bm_select_history_store(BMesh *bm, BMHeader *ele)
 {
 	if (!BM_select_history_check(bm, (BMElem *)ele)) {
 		BM_select_history_store_notest(bm, (BMElem *)ele);
+	}
+}
+
+
+void _bm_select_history_store_after_notest(BMesh *bm, BMEditSelection *ese_ref, BMHeader *ele)
+{
+	BMEditSelection *ese = bm_select_history_create(ele);
+	BLI_insertlinkafter(&(bm->selected), ese_ref, ese);
+}
+
+void _bm_select_history_store_after(BMesh *bm, BMEditSelection *ese_ref, BMHeader *ele)
+{
+	if (!BM_select_history_check(bm, (BMElem *)ele)) {
+		BM_select_history_store_after_notest(bm, ese_ref, (BMElem *)ele);
 	}
 }
 /* --- end macro wrapped funcs --- */
@@ -791,16 +880,13 @@ void BM_select_history_clear(BMesh *bm)
 
 void BM_select_history_validate(BMesh *bm)
 {
-	BMEditSelection *ese, *nextese;
+	BMEditSelection *ese, *ese_next;
 
-	ese = bm->selected.first;
-
-	while (ese) {
-		nextese = ese->next;
+	for (ese = bm->selected.first; ese; ese = ese_next) {
+		ese_next = ese->next;
 		if (!BM_elem_flag_test(ese->ele, BM_ELEM_SELECT)) {
 			BLI_freelinkN(&(bm->selected), ese);
 		}
-		ese = nextese;
 	}
 }
 

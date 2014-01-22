@@ -21,8 +21,8 @@
 bl_info = {
     "name": "DirectX X Format",
     "author": "Chris Foster",
-    "version": (3, 0, 1),
-    "blender": (2, 66, 0),
+    "version": (3, 1, 0),
+    "blender": (2, 69, 0),
     "location": "File > Export > DirectX (.x)",
     "description": "Export mesh vertices, UV's, materials, textures, "\
         "vertex colors, armatures, empties, and actions.",
@@ -53,6 +53,20 @@ class ExportDirectX(bpy.types.Operator):
         description="Export only selected objects",
         default=True)
         
+    CoordinateSystem = EnumProperty(
+        name="Coordinate System",
+        description="Use the selected coordinate system for export",
+        items=(('LEFT_HANDED', "Left-Handed", "Use a Y up, Z forward system or a Z up, -Y forward system"),
+               ('RIGHT_HANDED', "Right-Handed", "Use a Y up, -Z forward system or a Z up, Y forward system")),
+        default='LEFT_HANDED')
+        
+    UpAxis = EnumProperty(
+        name="Up Axis",
+        description="The selected axis points upward",
+        items=(('Y', "Y", "The Y axis points up"),
+               ('Z', "Z", "The Z axis points up")),
+        default='Y')
+        
     ExportMeshes = BoolProperty(
         name="Export Meshes",
         description="Export mesh objects",
@@ -77,7 +91,13 @@ class ExportDirectX(bpy.types.Operator):
         name="    Export Materials",
         description="Export material properties and reference image textures",
         default=True)
-
+    
+    ExportActiveImageMaterials = BoolProperty(
+        name="        Reference Active Images as Textures",
+        description="Reference the active image of each face as a texture, "\
+            "as opposed to the image assigned to the material",
+        default=False)
+    
     ExportVertexColors = BoolProperty(
         name="    Export Vertex Colors",
         description="Export mesh vertex colors, if any",
@@ -168,4 +188,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-

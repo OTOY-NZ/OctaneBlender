@@ -17,17 +17,12 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import imp
-import xmlrpc.client
-import math
-import sys
-import traceback
 
 from os.path import join
 
 import bpy
 
 from .ore_session import OreSession
-from .exceptions import LoginFailedException
 
 def _write_credentials(hash, user):
     with open(join(bpy.utils.user_resource('CONFIG', 'rffi', True), 'rffi_credentials.py'), 'w') as pwfile:
@@ -43,7 +38,7 @@ def _read_credentials():
     pwfile = bpy.utils.user_resource('CONFIG', 'rffi', True)
     try:
         pwmod = imp.find_module('rffi_credentials',[pwfile])
-    except ImportError as e:
+    except ImportError:
         _write_credentials('', '')
         pwmod = imp.find_module('rffi_credentials',[pwfile])
     try:
@@ -51,7 +46,7 @@ def _read_credentials():
         bpy.rffi_user = user_creds.user
         bpy.rffi_hash = user_creds.hash
         bpy.rffi_creds_found = True
-    except ImportError as e:
+    except ImportError:
         # doesn't exist yet, write template
         _write_credentials('', '')
         pwfile = bpy.utils.user_resource('CONFIG', 'rffi', True)
@@ -75,8 +70,8 @@ def _xmlsessions_to_oresessions(sessions, stage=None):
         s = session['title']
         if stage:
             s = s + ' (' + stage + ')'
-        sinfo = OreSession(session['sessionId'], s) 
-        if stage in {'Completed', 'Active'}:
+        sinfo = OreSession(session['sessionId'], s)
+        if stage in {'Rendering', 'Completed', 'Active'}:
             sinfo.frames = session['framesRendered']
         sinfo.startframe = session['startFrame']
         sinfo.endframe = session['endFrame']
@@ -87,15 +82,13 @@ def _xmlsessions_to_oresessions(sessions, stage=None):
 def update_session_list(session_list, ore):
     while(len(session_list) > 0):
         session_list.remove(0)
-    
+
     for s in bpy.ore_active_session_queue:
         session_list.add()
         session = session_list[-1]
         session.name = s.title + ' [' + str(s.percentageComplete()) + '% complete]'
 
 def update_complete_session_list(ore):
-    all_sessions = []
-    
     bpy.ore_active_session_queue = bpy.ore_cancelled_sessions
     update_session_list(ore.rejected_sessions, ore)
     bpy.ore_active_session_queue = bpy.ore_active_sessions
@@ -104,29 +97,29 @@ def update_complete_session_list(ore):
     update_session_list(ore.pending_sessions, ore)
     bpy.ore_active_session_queue = bpy.ore_completed_sessions
     update_session_list(ore.completed_sessions, ore)
-    
+
     bpy.ore_complete_session_queue = []
     bpy.ore_complete_session_queue.extend(bpy.ore_pending_sessions)
     bpy.ore_complete_session_queue.extend(bpy.ore_active_sessions)
     bpy.ore_complete_session_queue.extend(bpy.ore_completed_sessions)
     bpy.ore_complete_session_queue.extend(bpy.ore_cancelled_sessions)
-    
+
     bpy.ore_active_session_queue = bpy.ore_complete_session_queue
     update_session_list(ore.all_sessions, ore)
 
 def check_status(ore):
     bpy.errors = []
-    
+
     if bpy.rffi_creds_found == False and bpy.rffi_hash == '':
         bpy.errors.append('missing_creds')
-    
+
     if '' in {ore.title, ore.longdesc, ore.shortdesc}:
         bpy.errors.append('missing_desc')
         bpy.infoError = True
 
     set_status('username', bpy.rffi_hash=='' and ore.username=='')
     set_status('password', bpy.rffi_hash=='' and ore.password=='')
-    
+
     set_status('title', ore.title=='')
     set_status('longdesc', ore.longdesc=='')
     set_status('shortdesc', ore.shortdesc=='')

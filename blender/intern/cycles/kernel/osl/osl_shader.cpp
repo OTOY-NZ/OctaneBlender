@@ -1,25 +1,27 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "kernel_compat_cpu.h"
+#include "kernel_montecarlo.h"
 #include "kernel_types.h"
 #include "kernel_globals.h"
 #include "kernel_object.h"
+
+#include "closure/bsdf_diffuse.h"
+#include "closure/bssrdf.h"
 
 #include "osl_bssrdf.h"
 #include "osl_closures.h"
@@ -55,10 +57,12 @@ void OSLShader::thread_init(KernelGlobals *kg, KernelGlobals *kernel_globals, OS
 	memset(&tdata->globals, 0, sizeof(OSL::ShaderGlobals));
 	tdata->globals.tracedata = &tdata->tracedata;
 	tdata->globals.flipHandedness = false;
-	tdata->thread_info = ss->create_thread_info();
+	tdata->osl_thread_info = ss->create_thread_info();
 
 	for(int i = 0; i < SHADER_CONTEXT_NUM; i++)
-		tdata->context[i] = ss->get_context(tdata->thread_info);
+		tdata->context[i] = ss->get_context(tdata->osl_thread_info);
+
+	tdata->oiio_thread_info = osl_globals->ts->get_perthread_info();
 
 	kg->osl_ss = (OSLShadingSystem*)ss;
 	kg->osl_tdata = tdata;
@@ -75,7 +79,7 @@ void OSLShader::thread_free(KernelGlobals *kg)
 	for(int i = 0; i < SHADER_CONTEXT_NUM; i++)
 		ss->release_context(tdata->context[i]);
 
-	ss->destroy_thread_info(tdata->thread_info);
+	ss->destroy_thread_info(tdata->osl_thread_info);
 
 	delete tdata;
 
@@ -134,7 +138,7 @@ static void shaderdata_to_shaderglobals(KernelGlobals *kg, ShaderData *sd,
 
 /* Surface */
 
-static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
+static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
                                          const OSL::ClosureColor *closure, float3 weight = make_float3(1.0f, 1.0f, 1.0f))
 {
 	/* OSL gives us a closure tree, we flatten it into arrays per
@@ -146,7 +150,11 @@ static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
 
 		if (prim) {
 			ShaderClosure sc;
+#ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
+			sc.weight = weight*TO_FLOAT3(comp->w);
+#else
 			sc.weight = weight;
+#endif
 
 			switch (prim->category()) {
 				case OSL::ClosurePrimitive::BSDF: {
@@ -154,8 +162,11 @@ static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
 					int scattering = bsdf->scattering();
 
 					/* no caustics option */
-					if (no_glossy && scattering == LABEL_GLOSSY)
-						return;
+					if(scattering == LABEL_GLOSSY && (path_flag & PATH_RAY_DIFFUSE)) {
+						KernelGlobals *kg = sd->osl_globals;
+						if(kernel_data.integrator.no_caustics)
+							return;
+					}
 
 					/* sample weight */
 					float sample_weight = fabsf(average(weight));
@@ -168,6 +179,10 @@ static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
 					sc.data0 = bsdf->sc.data0;
 					sc.data1 = bsdf->sc.data1;
 					sc.prim = bsdf->sc.prim;
+
+#ifdef __HAIR__
+					sc.offset = bsdf->sc.offset;
+#endif
 
 					/* add */
 					if(sc.sample_weight > 1e-5f && sd->num_closure < MAX_CLOSURE) {
@@ -182,6 +197,8 @@ static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
 
 					sc.sample_weight = sample_weight;
 					sc.type = CLOSURE_EMISSION_ID;
+					sc.data0 = 0.0f;
+					sc.data1 = 0.0f;
 					sc.prim = NULL;
 
 					/* flag */
@@ -197,6 +214,8 @@ static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
 
 					sc.sample_weight = sample_weight;
 					sc.type = CLOSURE_AMBIENT_OCCLUSION_ID;
+					sc.data0 = 0.0f;
+					sc.data1 = 0.0f;
 					sc.prim = NULL;
 
 					if(sd->num_closure < MAX_CLOSURE) {
@@ -208,6 +227,8 @@ static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
 				case OSL::ClosurePrimitive::Holdout: {
 					sc.sample_weight = 0.0f;
 					sc.type = CLOSURE_HOLDOUT_ID;
+					sc.data0 = 0.0f;
+					sc.data1 = 0.0f;
 					sc.prim = NULL;
 
 					if(sd->num_closure < MAX_CLOSURE) {
@@ -226,28 +247,35 @@ static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
 						sc.type = bssrdf->sc.type;
 						sc.N = bssrdf->sc.N;
 						sc.data1 = bssrdf->sc.data1;
+						sc.T.x = bssrdf->sc.T.x;
 						sc.prim = NULL;
+
+						/* disable in case of diffuse ancestor, can't see it well then and
+						 * adds considerably noise due to probabilities of continuing path
+						 * getting lower and lower */
+						if(sc.type != CLOSURE_BSSRDF_COMPATIBLE_ID && (path_flag & PATH_RAY_DIFFUSE_ANCESTOR))
+							bssrdf->radius = make_float3(0.0f, 0.0f, 0.0f);
 
 						/* create one closure for each color channel */
 						if(fabsf(weight.x) > 0.0f) {
 							sc.weight = make_float3(weight.x, 0.0f, 0.0f);
 							sc.data0 = bssrdf->radius.x;
+							sd->flag |= bssrdf_setup(&sc, sc.type);
 							sd->closure[sd->num_closure++] = sc;
-							sd->flag |= bssrdf->shaderdata_flag();
 						}
 
 						if(fabsf(weight.y) > 0.0f) {
 							sc.weight = make_float3(0.0f, weight.y, 0.0f);
 							sc.data0 = bssrdf->radius.y;
+							sd->flag |= bssrdf_setup(&sc, sc.type);
 							sd->closure[sd->num_closure++] = sc;
-							sd->flag |= bssrdf->shaderdata_flag();
 						}
 
 						if(fabsf(weight.z) > 0.0f) {
 							sc.weight = make_float3(0.0f, 0.0f, weight.z);
 							sc.data0 = bssrdf->radius.z;
+							sd->flag |= bssrdf_setup(&sc, sc.type);
 							sd->closure[sd->num_closure++] = sc;
-							sd->flag |= bssrdf->shaderdata_flag();
 						}
 					}
 					break;
@@ -262,12 +290,12 @@ static void flatten_surface_closure_tree(ShaderData *sd, bool no_glossy,
 	}
 	else if (closure->type == OSL::ClosureColor::MUL) {
 		OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
-		flatten_surface_closure_tree(sd, no_glossy, mul->closure, TO_FLOAT3(mul->weight) * weight);
+		flatten_surface_closure_tree(sd, path_flag, mul->closure, TO_FLOAT3(mul->weight) * weight);
 	}
 	else if (closure->type == OSL::ClosureColor::ADD) {
 		OSL::ClosureAdd *add = (OSL::ClosureAdd *)closure;
-		flatten_surface_closure_tree(sd, no_glossy, add->closureA, weight);
-		flatten_surface_closure_tree(sd, no_glossy, add->closureB, weight);
+		flatten_surface_closure_tree(sd, path_flag, add->closureA, weight);
+		flatten_surface_closure_tree(sd, path_flag, add->closureB, weight);
 	}
 }
 
@@ -290,10 +318,8 @@ void OSLShader::eval_surface(KernelGlobals *kg, ShaderData *sd, float randb, int
 	sd->num_closure = 0;
 	sd->randb_closure = randb;
 
-	if (globals->Ci) {
-		bool no_glossy = (path_flag & PATH_RAY_DIFFUSE) && kernel_data.integrator.no_caustics;
-		flatten_surface_closure_tree(sd, no_glossy, globals->Ci);
-	}
+	if (globals->Ci)
+		flatten_surface_closure_tree(sd, path_flag, globals->Ci);
 }
 
 /* Background */
@@ -309,7 +335,11 @@ static float3 flatten_background_closure_tree(const OSL::ClosureColor *closure)
 		OSL::ClosurePrimitive *prim = (OSL::ClosurePrimitive *)comp->data();
 
 		if (prim && prim->category() == OSL::ClosurePrimitive::Background)
+#ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
+			return TO_FLOAT3(comp->w);
+#else
 			return make_float3(1.0f, 1.0f, 1.0f);
+#endif
 	}
 	else if (closure->type == OSL::ClosureColor::MUL) {
 		OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
@@ -361,7 +391,11 @@ static void flatten_volume_closure_tree(ShaderData *sd,
 
 		if (prim) {
 			ShaderClosure sc;
+#ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
+			sc.weight = weight*TO_FLOAT3(comp->w);
+#else
 			sc.weight = weight;
+#endif
 
 			switch (prim->category()) {
 				case OSL::ClosurePrimitive::Volume: {
@@ -370,6 +404,8 @@ static void flatten_volume_closure_tree(ShaderData *sd,
 
 					sc.sample_weight = sample_weight;
 					sc.type = CLOSURE_VOLUME_ID;
+					sc.data0 = 0.0f;
+					sc.data1 = 0.0f;
 					sc.prim = NULL;
 
 					/* add */

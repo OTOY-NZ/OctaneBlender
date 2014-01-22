@@ -35,6 +35,8 @@ bl_info = {
 
 if "bpy" in locals():
     import imp
+    if "import_fbx" in locals():
+        imp.reload(import_fbx)
     if "export_fbx" in locals():
         imp.reload(export_fbx)
 
@@ -46,17 +48,99 @@ from bpy.props import (StringProperty,
                        EnumProperty,
                        )
 
-from bpy_extras.io_utils import (ExportHelper,
+from bpy_extras.io_utils import (ImportHelper,
+                                 ExportHelper,
                                  path_reference_mode,
                                  axis_conversion,
                                  )
+
+class ImportFBX(bpy.types.Operator, ImportHelper):
+    """Load a FBX geometry file"""
+    bl_idname = "import_scene.fbx"
+    bl_label = "Import FBX"
+    bl_options = {'UNDO', 'PRESET'}
+
+    directory = StringProperty()
+
+    filename_ext = ".fbx"
+    filter_glob = StringProperty(default="*.fbx", options={'HIDDEN'})
+
+    use_image_search = BoolProperty(
+            name="Image Search",
+            description="Search subdirs for any associated images "
+                        "(Warning, may be slow)",
+            default=True,
+            )
+
+    use_alpha_decals = BoolProperty(
+            name="Alpha Decals",
+            description="Treat materials with alpha as decals "
+                        "(no shadow casting)",
+            default=False,
+            options={'HIDDEN'}
+            )
+    decal_offset = FloatProperty(
+            name="Decal Offset",
+            description="Displace geometry of alpha meshes",
+            min=0.0, max=1.0,
+            default=0.0,
+            options={'HIDDEN'}
+            )
+
+    axis_forward = EnumProperty(
+            name="Forward",
+            items=(('X', "X Forward", ""),
+                   ('Y', "Y Forward", ""),
+                   ('Z', "Z Forward", ""),
+                   ('-X', "-X Forward", ""),
+                   ('-Y', "-Y Forward", ""),
+                   ('-Z', "-Z Forward", ""),
+                   ),
+            default='-Z',
+            )
+    axis_up = EnumProperty(
+            name="Up",
+            items=(('X', "X Up", ""),
+                   ('Y', "Y Up", ""),
+                   ('Z', "Z Up", ""),
+                   ('-X', "-X Up", ""),
+                   ('-Y', "-Y Up", ""),
+                   ('-Z', "-Z Up", ""),
+                   ),
+            default='Y',
+            )
+    global_scale = FloatProperty(
+            name="Scale",
+            min=0.001, max=1000.0,
+            default=1.0,
+            )
+
+    def execute(self, context):
+        from mathutils import Matrix
+
+        keywords = self.as_keywords(ignore=("axis_forward",
+                                            "axis_up",
+                                            "global_scale",
+                                            "filter_glob",
+                                            "directory",
+                                            ))
+
+        global_matrix = (Matrix.Scale(self.global_scale, 4) *
+                         axis_conversion(from_forward=self.axis_forward,
+                                         from_up=self.axis_up,
+                                         ).to_4x4())
+        keywords["global_matrix"] = global_matrix
+        keywords["use_cycles"] = (context.scene.render.engine == 'CYCLES')
+
+        from . import import_fbx
+        return import_fbx.load(self, context, **keywords)
 
 
 class ExportFBX(bpy.types.Operator, ExportHelper):
     """Selection to an ASCII Autodesk FBX"""
     bl_idname = "export_scene.fbx"
     bl_label = "Export FBX"
-    bl_options = {'PRESET'}
+    bl_options = {'UNDO', 'PRESET'}
 
     filename_ext = ".fbx"
     filter_glob = StringProperty(default="*.fbx", options={'HIDDEN'})
@@ -73,7 +157,7 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
             name="Scale",
             description=("Scale all data "
                          "(Some importers do not support scaled armatures!)"),
-            min=0.01, max=1000.0,
+            min=0.001, max=1000.0,
             soft_min=0.01, soft_max=1000.0,
             default=1.0,
             )
@@ -128,8 +212,6 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
 
     use_mesh_edges = BoolProperty(
             name="Include Edges",
-            description=("Edges may not be necessary, can cause import "
-                         "pipeline errors with XNA"),
             default=False,
             )
     use_armature_deform_only = BoolProperty(
@@ -164,21 +246,11 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
             name="Precision",
             description=("Tolerance for comparing double keyframes "
                         "(higher for greater accuracy)"),
-            min=1, max=16,
-            soft_min=1, soft_max=16,
-            default=6.0,
+            min=0.0, max=20.0,  # from 10^2 to 10^-18 frames precision.
+            soft_min=1.0, soft_max=16.0,
+            default=6.0,  # default: 10^-4 frames.
             )
     path_mode = path_reference_mode
-    use_rotate_workaround = BoolProperty(
-            name="XNA Rotate Animation Hack",
-            description="Disable global rotation, for XNA compatibility",
-            default=False,
-            )
-    xna_validate = BoolProperty(
-            name="XNA Strict Options",
-            description="Make sure options are compatible with Microsoft XNA",
-            default=False,
-            )
     batch_mode = EnumProperty(
             name="Batch Mode",
             items=(('OFF', "Off", "Active scene to file"),
@@ -197,69 +269,26 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
             options={'HIDDEN'},
             )
 
-    # Validate that the options are compatible with XNA (JCB)
-    def _validate_xna_options(self):
-        if not self.xna_validate:
-            return False
-        changed = False
-        if not self.use_rotate_workaround:
-            changed = True
-            self.use_rotate_workaround = True
-        if self.global_scale != 1.0:
-            changed = True
-            self.global_scale = 1.0
-        if self.mesh_smooth_type != 'OFF':
-            changed = True
-            self.mesh_smooth_type = 'OFF'
-        if self.use_anim_optimize:
-            changed = True
-            self.use_anim_optimize = False
-        if self.use_mesh_edges:
-            changed = True
-            self.use_mesh_edges = False
-        if self.use_default_take:
-            changed = True
-            self.use_default_take = False
-        if self.object_types & {'CAMERA', 'LAMP', 'EMPTY'}:
-            changed = True
-            self.object_types -= {'CAMERA', 'LAMP', 'EMPTY'}
-        if self.path_mode != 'STRIP':
-            changed = True
-            self.path_mode = 'STRIP'
-        return changed
-
     @property
     def check_extension(self):
         return self.batch_mode == 'OFF'
-
-    def check(self, context):
-        is_def_change = super().check(context)
-        is_xna_change = self._validate_xna_options()
-        return (is_xna_change or is_def_change)
 
     def execute(self, context):
         from mathutils import Matrix
         if not self.filepath:
             raise Exception("filepath not set")
 
-        global_matrix = Matrix()
 
-        global_matrix[0][0] = \
-        global_matrix[1][1] = \
-        global_matrix[2][2] = self.global_scale
-
-        if not self.use_rotate_workaround:
-            global_matrix = (global_matrix *
-                             axis_conversion(to_forward=self.axis_forward,
-                                             to_up=self.axis_up,
-                                             ).to_4x4())
+        global_matrix = (Matrix.Scale(self.global_scale, 4) *
+                         axis_conversion(to_forward=self.axis_forward,
+                                         to_up=self.axis_up,
+                                         ).to_4x4())
 
         keywords = self.as_keywords(ignore=("axis_forward",
                                             "axis_up",
                                             "global_scale",
                                             "check_existing",
                                             "filter_glob",
-                                            "xna_validate",
                                             ))
 
         keywords["global_matrix"] = global_matrix
@@ -268,20 +297,26 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
         return export_fbx.save(self, context, **keywords)
 
 
-def menu_func(self, context):
+def menu_func_import(self, context):
+    self.layout.operator(ImportFBX.bl_idname, text="Autodesk FBX (.fbx)")
+
+
+def menu_func_export(self, context):
     self.layout.operator(ExportFBX.bl_idname, text="Autodesk FBX (.fbx)")
 
 
 def register():
     bpy.utils.register_module(__name__)
 
-    bpy.types.INFO_MT_file_export.append(menu_func)
+    bpy.types.INFO_MT_file_import.append(menu_func_import)
+    bpy.types.INFO_MT_file_export.append(menu_func_export)
 
 
 def unregister():
     bpy.utils.unregister_module(__name__)
 
-    bpy.types.INFO_MT_file_export.remove(menu_func)
+    bpy.types.INFO_MT_file_import.remove(menu_func_import)
+    bpy.types.INFO_MT_file_export.remove(menu_func_export)
 
 if __name__ == "__main__":
     register()

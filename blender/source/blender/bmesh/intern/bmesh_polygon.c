@@ -32,8 +32,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_alloca.h"
 #include "BLI_math.h"
-#include "BLI_array.h"
 #include "BLI_scanfill.h"
 #include "BLI_listbase.h"
 
@@ -95,7 +95,7 @@ static void calc_poly_normal(float normal[3], float verts[][3], int nverts)
  *
  * Same as #calc_poly_normal but operates directly on a bmesh face.
  */
-static void bm_face_calc_poly_normal(BMFace *f, float n[3])
+static void bm_face_calc_poly_normal(const BMFace *f, float n[3])
 {
 	BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
 	BMLoop *l_iter  = l_first;
@@ -125,7 +125,7 @@ static void bm_face_calc_poly_normal(BMFace *f, float n[3])
  * Same as #calc_poly_normal and #bm_face_calc_poly_normal
  * but takes an array of vertex locations.
  */
-static void bm_face_calc_poly_normal_vertex_cos(BMFace *f, float n[3],
+static void bm_face_calc_poly_normal_vertex_cos(BMFace *f, float r_no[3],
                                                 float const (*vertexCos)[3])
 {
 	BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
@@ -133,20 +133,38 @@ static void bm_face_calc_poly_normal_vertex_cos(BMFace *f, float n[3],
 	float const *v_prev = vertexCos[BM_elem_index_get(l_first->prev->v)];
 	float const *v_curr = vertexCos[BM_elem_index_get(l_first->v)];
 
-	zero_v3(n);
+	zero_v3(r_no);
 
 	/* Newell's Method */
 	do {
-		add_newell_cross_v3_v3v3(n, v_prev, v_curr);
+		add_newell_cross_v3_v3v3(r_no, v_prev, v_curr);
 
 		l_iter = l_iter->next;
 		v_prev = v_curr;
 		v_curr = vertexCos[BM_elem_index_get(l_iter->v)];
 	} while (l_iter != l_first);
 
-	if (UNLIKELY(normalize_v3(n) == 0.0f)) {
-		n[2] = 1.0f; /* other axis set to 0.0 */
+	if (UNLIKELY(normalize_v3(r_no) == 0.0f)) {
+		r_no[2] = 1.0f; /* other axis set to 0.0 */
 	}
+}
+
+/**
+ * \brief COMPUTE POLY CENTER (BMFace)
+ */
+static void bm_face_calc_poly_center_mean_vertex_cos(BMFace *f, float r_cent[3],
+                                                     float const (*vertexCos)[3])
+{
+	BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
+	BMLoop *l_iter  = l_first;
+
+	zero_v3(r_cent);
+
+	/* Newell's Method */
+	do {
+		add_v3_v3(r_cent, vertexCos[BM_elem_index_get(l_iter->v)]);
+	} while ((l_iter = l_iter->next) != l_first);
+	mul_v3_fl(r_cent, 1.0f / f->len);
 }
 
 /**
@@ -155,7 +173,7 @@ static void bm_face_calc_poly_normal_vertex_cos(BMFace *f, float n[3],
  * \param r_loops  Store face loop pointers, (f->len)
  * \param r_index  Store triangle triples, indicies into \a r_loops,  ((f->len - 2) * 3)
  */
-int BM_face_calc_tessellation(BMFace *f, BMLoop **r_loops, int (*_r_index)[3])
+int BM_face_calc_tessellation(const BMFace *f, BMLoop **r_loops, int (*_r_index)[3])
 {
 	int *r_index = (int *)_r_index;
 	BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
@@ -370,8 +388,7 @@ void BM_face_calc_center_bounds(BMFace *f, float r_cent[3])
  */
 void BM_face_calc_center_mean(BMFace *f, float r_cent[3])
 {
-	BMLoop *l_iter;
-	BMLoop *l_first;
+	BMLoop *l_iter, *l_first;
 
 	zero_v3(r_cent);
 
@@ -379,9 +396,7 @@ void BM_face_calc_center_mean(BMFace *f, float r_cent[3])
 	do {
 		add_v3_v3(r_cent, l_iter->v->co);
 	} while ((l_iter = l_iter->next) != l_first);
-
-	if (f->len)
-		mul_v3_fl(r_cent, 1.0f / (float) f->len);
+	mul_v3_fl(r_cent, 1.0f / (float) f->len);
 }
 
 /**
@@ -564,7 +579,7 @@ void BM_vert_normal_update_all(BMVert *v)
  * is passed in as well.
  */
 
-void BM_face_calc_normal(BMFace *f, float r_no[3])
+void BM_face_calc_normal(const BMFace *f, float r_no[3])
 {
 	BMLoop *l;
 
@@ -601,9 +616,9 @@ void BM_face_normal_update(BMFace *f)
 	BM_face_calc_normal(f, f->no);
 }
 
-/* exact same as 'bmesh_face_normal_update' but accepts vertex coords */
-void BM_face_normal_update_vcos(BMesh *bm, BMFace *f, float no[3],
-                                float const (*vertexCos)[3])
+/* exact same as 'BM_face_calc_normal' but accepts vertex coords */
+void BM_face_calc_normal_vcos(BMesh *bm, BMFace *f, float r_no[3],
+                              float const (*vertexCos)[3])
 {
 	BMLoop *l;
 
@@ -620,7 +635,7 @@ void BM_face_normal_update_vcos(BMesh *bm, BMFace *f, float no[3],
 			const float *co3 = vertexCos[BM_elem_index_get((l = l->next)->v)];
 			const float *co4 = vertexCos[BM_elem_index_get((l->next)->v)];
 
-			normal_quad_v3(no, co1, co2, co3, co4);
+			normal_quad_v3(r_no, co1, co2, co3, co4);
 			break;
 		}
 		case 3:
@@ -629,20 +644,31 @@ void BM_face_normal_update_vcos(BMesh *bm, BMFace *f, float no[3],
 			const float *co2 = vertexCos[BM_elem_index_get((l = l->next)->v)];
 			const float *co3 = vertexCos[BM_elem_index_get((l->next)->v)];
 
-			normal_tri_v3(no, co1, co2, co3);
+			normal_tri_v3(r_no, co1, co2, co3);
 			break;
 		}
 		case 0:
 		{
-			zero_v3(no);
+			zero_v3(r_no);
 			break;
 		}
 		default:
 		{
-			bm_face_calc_poly_normal_vertex_cos(f, no, vertexCos);
+			bm_face_calc_poly_normal_vertex_cos(f, r_no, vertexCos);
 			break;
 		}
 	}
+}
+
+/* exact same as 'BM_face_calc_normal' but accepts vertex coords */
+void BM_face_calc_center_mean_vcos(BMesh *bm, BMFace *f, float r_cent[3],
+                                   float const (*vertexCos)[3])
+{
+	/* must have valid index data */
+	BLI_assert((bm->elem_index_dirty & BM_VERT) == 0);
+	(void)bm;
+
+	bm_face_calc_poly_center_mean_vertex_cos(f, r_cent, vertexCos);
 }
 
 /**
@@ -803,7 +829,9 @@ static bool bm_face_goodline(float const (*projectverts)[2], BMFace *f, int v1i,
 			continue;
 		}
 
-		if (isect_point_tri_v2(pv1, v1, v2, v3) || isect_point_tri_v2(pv1, v3, v2, v1)) {
+		if (isect_point_tri_v2(pv1, v1, v2, v3) ||
+		    isect_point_tri_v2(pv1, v3, v2, v1))
+		{
 #if 0
 			if (isect_point_tri_v2(pv1, v1, v2, v3))
 				printf("%d in (%d, %d, %d)\n", v3i, i, v1i, v2i);
@@ -837,7 +865,10 @@ static BMLoop *poly_find_ear(BMFace *f, float (*projectverts)[2], const bool use
 	const float cos_threshold = 0.9f;
 	const float bias = 1.0f + 1e-6f;
 
-	BLI_assert(len_squared_v3(f->no) > FLT_EPSILON);
+	/* just triangulate degenerate faces */
+	if (UNLIKELY(is_zero_v3(f->no))) {
+		return BM_FACE_FIRST_LOOP(f);
+	}
 
 	if (f->len == 4) {
 		BMLoop *larr[4];
@@ -849,10 +880,10 @@ static BMLoop *poly_find_ear(BMFace *f, float (*projectverts)[2], const bool use
 			i++;
 		} while ((l_iter = l_iter->next) != l_first);
 
-		/* pick 0/1 based on best lenth */
+		/* pick 0/1 based on best length */
 		/* XXX Can't only rely on such test, also must check we do not get (too much) degenerated triangles!!! */
 		i = (((len_squared_v3v3(larr[0]->v->co, larr[2]->v->co) >
-		     len_squared_v3v3(larr[1]->v->co, larr[3]->v->co) * bias)) != use_beauty);
+		       len_squared_v3v3(larr[1]->v->co, larr[3]->v->co) * bias)) != use_beauty);
 		i4 = (i + 3) % 4;
 		/* Check produced tris aren't too flat/narrow...
 		 * Probably not the best test, but is quite efficient and should at least avoid null-area faces! */
@@ -865,6 +896,7 @@ static BMLoop *poly_find_ear(BMFace *f, float (*projectverts)[2], const bool use
 #endif
 		if (cos1 < cos2)
 			cos1 = cos2;
+
 		if (cos1 > cos_threshold) {
 			if (cos1 > fabsf(cos_v3v3v3(larr[i]->v->co, larr[i4]->v->co, larr[i + 2]->v->co)) &&
 			    cos1 > fabsf(cos_v3v3v3(larr[i]->v->co, larr[i + 1]->v->co, larr[i + 2]->v->co)))
@@ -875,8 +907,10 @@ static BMLoop *poly_find_ear(BMFace *f, float (*projectverts)[2], const bool use
 		/* Last check we do not get overlapping triangles
 		 * (as much as possible, there are some cases with no good solution!) */
 		i4 = (i + 3) % 4;
-		if (!bm_face_goodline((float const (*)[2])projectverts, f, BM_elem_index_get(larr[i4]->v),
-		                      BM_elem_index_get(larr[i]->v), BM_elem_index_get(larr[i + 1]->v)))
+		if (!bm_face_goodline((float const (*)[2])projectverts, f,
+		                      BM_elem_index_get(larr[i4]->v),
+		                      BM_elem_index_get(larr[i]->v),
+		                      BM_elem_index_get(larr[i + 1]->v)))
 		{
 			i = !i;
 		}
@@ -886,13 +920,13 @@ static BMLoop *poly_find_ear(BMFace *f, float (*projectverts)[2], const bool use
 	}
 	else {
 		/* float angle, bestangle = 180.0f; */
-		float cos, bestcos = 1.0f;
-		int i, j, len;
+		const int len = f->len;
+		float cos, cos_best = 1.0f;
+		int i, j;
 
 		/* Compute cos of all corners! */
 		i = 0;
 		l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-		len = l_iter->f->len;
 		do {
 			const BMVert *v1 = l_iter->prev->v;
 			const BMVert *v2 = l_iter->v;
@@ -910,39 +944,41 @@ static BMLoop *poly_find_ear(BMFace *f, float (*projectverts)[2], const bool use
 			const BMVert *v2 = l_iter->v;
 			const BMVert *v3 = l_iter->next->v;
 
-			if (bm_face_goodline((float const (*)[2])projectverts, f,
-			                     BM_elem_index_get(v1), BM_elem_index_get(v2), BM_elem_index_get(v3)))
-			{
-				/* Compute highest cos (i.e. narrowest angle) of this tri. */
-				cos = max_fff(abscoss[i],
-				              fabsf(cos_v3v3v3(v2->co, v3->co, v1->co)),
-				              fabsf(cos_v3v3v3(v3->co, v1->co, v2->co)));
+			/* Compute highest cos (i.e. narrowest angle) of this tri. */
+			cos = max_fff(abscoss[i],
+			              fabsf(cos_v3v3v3(v2->co, v3->co, v1->co)),
+			              fabsf(cos_v3v3v3(v3->co, v1->co, v2->co)));
 
-				/* Compare to prev best (i.e. lowest) cos. */
-				if (cos < bestcos) {
+			/* Compare to prev best (i.e. lowest) cos. */
+			if (cos < cos_best) {
+				if (bm_face_goodline((float const (*)[2])projectverts, f,
+				                     BM_elem_index_get(v1),
+				                     BM_elem_index_get(v2),
+				                     BM_elem_index_get(v3)))
+				{
 					/* We must check this tri would not leave a (too much) degenerated remaining face! */
 					/* For now just assume if the average of cos of all
 					 * "remaining face"'s corners is below a given threshold, it's OK. */
-					float avgcos = fabsf(cos_v3v3v3(v1->co, v3->co, l_iter->next->next->v->co));
+					float cos_mean = fabsf(cos_v3v3v3(v1->co, v3->co, l_iter->next->next->v->co));
 					const int i_limit = (i - 1 + len) % len;
-					avgcos += fabsf(cos_v3v3v3(l_iter->prev->prev->v->co, v1->co, v3->co));
+					cos_mean += fabsf(cos_v3v3v3(l_iter->prev->prev->v->co, v1->co, v3->co));
 					j = (i + 2) % len;
 					do {
-						avgcos += abscoss[j];
+						cos_mean += abscoss[j];
 					} while ((j = (j + 1) % len) != i_limit);
-					avgcos /= len - 1;
+					cos_mean /= len - 1;
 
 					/* We need a best ear in any case... */
-					if (avgcos < cos_threshold || (!bestear && avgcos < 1.0f)) {
+					if (cos_mean < cos_threshold || (!bestear && cos_mean < 1.0f)) {
 						/* OKI, keep this ear (corner...) as a potential best one! */
 						bestear = l_iter;
-						bestcos = cos;
+						cos_best = cos;
 					}
 #if 0
 					else
-						printf("Had a nice tri (higest cos of %f, current bestcos is %f), "
+						printf("Had a nice tri (higest cos of %f, current cos_best is %f), "
 						       "but average cos of all \"remaining face\"'s corners is too high (%f)!\n",
-						       cos, bestcos, avgcos);
+						       cos, cos_best, cos_mean);
 #endif
 				}
 			}
@@ -979,6 +1015,8 @@ void BM_face_triangulate(BMesh *bm, BMFace *f,
 	float (*projectverts)[2] = BLI_array_alloca(projectverts, f_len_orig);
 	float *abscoss = BLI_array_alloca(abscoss, f_len_orig);
 	float mat[3][3];
+
+	BLI_assert(BM_face_is_normal_valid(f));
 
 	axis_dominant_v3_to_m3(mat, f->no);
 
@@ -1035,7 +1073,7 @@ void BM_face_legal_splits(BMFace *f, BMLoop *(*loops)[2], int len)
 {
 	const int len2 = len * 2;
 	BMLoop *l;
-	float v1[2], v2[2], v3[2] /*, v4[3 */, no[3], mid[2], *p1, *p2, *p3, *p4;
+	float v1[2], v2[2], v3[2], mid[2], *p1, *p2, *p3, *p4;
 	float out[2] = {-FLT_MAX, -FLT_MAX};
 	float axis_mat[3][3];
 	float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
@@ -1043,10 +1081,9 @@ void BM_face_legal_splits(BMFace *f, BMLoop *(*loops)[2], int len)
 	float fac1 = 1.0000001f, fac2 = 0.9f; //9999f; //0.999f;
 	int i, j, a = 0, clen;
 
-	/* TODO, the face normal may already be correct */
-	BM_face_calc_normal(f, no);
+	BLI_assert(BM_face_is_normal_valid(f));
 
-	axis_dominant_v3_to_m3(axis_mat, no);
+	axis_dominant_v3_to_m3(axis_mat, f->no);
 
 	for (i = 0, l = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l = l->next) {
 		BM_elem_index_set(l, i); /* set_loop */
@@ -1175,4 +1212,38 @@ void BM_face_as_array_vert_quad(BMFace *f, BMVert *r_verts[4])
 	r_verts[1] = l->v; l = l->next;
 	r_verts[2] = l->v; l = l->next;
 	r_verts[3] = l->v;
+}
+
+
+/**
+ * Small utility functions for fast access
+ *
+ * faster alternative to:
+ *  BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 3);
+ */
+void BM_face_as_array_loop_tri(BMFace *f, BMLoop *r_loops[3])
+{
+	BMLoop *l = BM_FACE_FIRST_LOOP(f);
+
+	BLI_assert(f->len == 3);
+
+	r_loops[0] = l; l = l->next;
+	r_loops[1] = l; l = l->next;
+	r_loops[2] = l;
+}
+
+/**
+ * faster alternative to:
+ *  BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 4);
+ */
+void BM_face_as_array_loop_quad(BMFace *f, BMLoop *r_loops[4])
+{
+	BMLoop *l = BM_FACE_FIRST_LOOP(f);
+
+	BLI_assert(f->len == 4);
+
+	r_loops[0] = l; l = l->next;
+	r_loops[1] = l; l = l->next;
+	r_loops[2] = l; l = l->next;
+	r_loops[3] = l;
 }

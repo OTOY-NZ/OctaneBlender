@@ -49,7 +49,7 @@ void register_node_type_sh_oct_mix_mat(void) {
     if(ntype.type != SH_NODE_OCT_MIX_MAT) node_type_base(&ntype, SH_NODE_OCT_MIX_MAT, "Octane Mix Material", NODE_CLASS_OCT_SHADER, /* NODE_PREVIEW | */ NODE_OPTIONS);
 	node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-	node_type_size(&ntype, 150, 60, 200);
+	node_type_size(&ntype, 160, 160, 200);
 	node_type_init(&ntype, 0);
 	node_type_storage(&ntype, "", NULL, NULL);
 	node_type_gpu(&ntype, node_shader_gpu_oct_mix_mat);

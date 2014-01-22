@@ -333,7 +333,7 @@ int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, 
 	/* sample only on the exact position */
 	*index = view3d_sample_backbuf(vc, mval[0], mval[1]);
 
-	if ((*index) <= 0 || (*index) > (unsigned int)totface) {
+	if ((*index) == 0 || (*index) > (unsigned int)totface) {
 		return 0;
 	}
 
@@ -412,7 +412,7 @@ void BRUSH_OT_curve_preset(wmOperatorType *ot)
 /* face-select ops */
 static int paint_select_linked_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	paintface_select_linked(C, CTX_data_active_object(C), NULL, 2);
+	paintface_select_linked(C, CTX_data_active_object(C), NULL, true);
 	ED_region_tag_redraw(CTX_wm_region(C));
 	return OPERATOR_FINISHED;
 }
@@ -441,7 +441,7 @@ static int paint_select_linked_pick_invoke(bContext *C, wmOperator *op, const wm
 void PAINT_OT_face_select_linked_pick(wmOperatorType *ot)
 {
 	ot->name = "Select Linked Pick";
-	ot->description = "Select linked faces";
+	ot->description = "Select linked faces under the cursor";
 	ot->idname = "PAINT_OT_face_select_linked_pick";
 
 	ot->invoke = paint_select_linked_pick_invoke;

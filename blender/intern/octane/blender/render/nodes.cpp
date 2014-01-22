@@ -227,6 +227,13 @@ void OctaneDirtTexture::load_to_server(RenderServer* server) {
     server->load_dirt_tex(this);
 }
 
+OctaneGradientTexture::OctaneGradientTexture() {
+}
+
+void OctaneGradientTexture::load_to_server(RenderServer* server) {
+    server->load_gradient_tex(this);
+}
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -310,6 +317,86 @@ OctaneFullTransform::OctaneFullTransform() {
 
 void OctaneFullTransform::load_to_server(RenderServer* server) {
     server->load_full_transform(this);
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PROJECTIONS
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+OctaneProjectionNode::OctaneProjectionNode() : ShaderNode("oPrj") {
+}
+
+void OctaneProjectionNode::load_to_server(RenderServer* server) {
+}
+
+OctaneOctXYZProjection::OctaneOctXYZProjection() {
+}
+
+void OctaneOctXYZProjection::load_to_server(RenderServer* server) {
+    server->load_xyz_projection(this);
+}
+
+OctaneOctBoxProjection::OctaneOctBoxProjection() {
+}
+
+void OctaneOctBoxProjection::load_to_server(RenderServer* server) {
+    server->load_box_projection(this);
+}
+
+OctaneOctCylProjection::OctaneOctCylProjection() {
+}
+
+void OctaneOctCylProjection::load_to_server(RenderServer* server) {
+    server->load_cyl_projection(this);
+}
+
+OctaneOctPerspProjection::OctaneOctPerspProjection() {
+}
+
+void OctaneOctPerspProjection::load_to_server(RenderServer* server) {
+    server->load_persp_projection(this);
+}
+
+OctaneOctSphericalProjection::OctaneOctSphericalProjection() {
+}
+
+void OctaneOctSphericalProjection::load_to_server(RenderServer* server) {
+    server->load_spherical_projection(this);
+}
+
+OctaneOctUVWProjection::OctaneOctUVWProjection() {
+}
+
+void OctaneOctUVWProjection::load_to_server(RenderServer* server) {
+    server->load_uvw_projection(this);
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// VALUES
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+OctaneValueNode::OctaneValueNode() : ShaderNode("oVal") {
+}
+
+void OctaneValueNode::load_to_server(RenderServer* server) {
+}
+
+OctaneOctFloatValue::OctaneOctFloatValue() {
+}
+
+void OctaneOctFloatValue::load_to_server(RenderServer* server) {
+    server->load_float_value(this);
+}
+
+OctaneOctIntValue::OctaneOctIntValue() {
+}
+
+void OctaneOctIntValue::load_to_server(RenderServer* server) {
+    server->load_int_value(this);
 }
 
 OCT_NAMESPACE_END

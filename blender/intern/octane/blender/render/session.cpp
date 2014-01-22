@@ -162,7 +162,7 @@ void Session::run_render() {
                 bStarted = true;
             }
             if(!server->error_message().empty()) {
-                progress.set_cancel("ERROR: " + server->error_message());
+                progress.set_cancel("ERROR! Check console for detailed error messages.");
                 server->clear_error_message();
             }
 			if(progress.get_cancel()) break;
@@ -176,8 +176,10 @@ void Session::run_render() {
 			update_status_time();
 
             update_render_buffer();
-			if(server->error_message() != "")
-				progress.set_cancel(server->error_message());
+            if(!server->error_message().empty()) {
+                progress.set_cancel("ERROR! Check console for detailed error messages.");
+                server->clear_error_message();
+            }
 
 			// Update status and timing
 			update_status_time();

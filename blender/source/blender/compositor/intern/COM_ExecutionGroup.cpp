@@ -37,6 +37,7 @@
 #include "COM_ViewerOperation.h"
 #include "COM_ChunkOrder.h"
 #include "COM_ExecutionSystemHelper.h"
+#include "COM_Debug.h"
 
 #include "MEM_guardedalloc.h"
 #include "BLI_math.h"
@@ -248,7 +249,7 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
 	OrderOfChunks chunkorder = COM_ORDER_OF_CHUNKS_DEFAULT;
 
 	if (operation->isViewerOperation()) {
-		ViewerBaseOperation *viewer = (ViewerBaseOperation *)operation;
+		ViewerOperation *viewer = (ViewerOperation *)operation;
 		centerX = viewer->getCenterX();
 		centerY = viewer->getCenterY();
 		chunkorder = viewer->getChunkOrder();
@@ -288,8 +289,8 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
 
 			delete hotspots[0];
 			MEM_freeN(chunkOrders);
+			break;
 		}
-		break;
 		case COM_TO_RULE_OF_THIRDS:
 		{
 			ChunkOrderHotspot *hotspots[9];
@@ -336,12 +337,15 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
 			delete hotspots[7];
 			delete hotspots[8];
 			MEM_freeN(chunkOrders);
+			break;
 		}
-		break;
 		case COM_TO_TOP_DOWN:
 		default:
 			break;
 	}
+
+	DebugInfo::execution_group_started(this);
+	DebugInfo::graphviz(graph);
 
 	bool breaked = false;
 	bool finished = false;
@@ -383,6 +387,8 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
 			breaked = true;
 		}
 	}
+	DebugInfo::execution_group_finished(this);
+	DebugInfo::graphviz(graph);
 
 	MEM_freeN(chunkOrder);
 }
@@ -518,17 +524,19 @@ bool ExecutionGroup::scheduleAreaWhenPossible(ExecutionSystem *graph, rcti *area
 	// find all chunks inside the rect
 	// determine minxchunk, minychunk, maxxchunk, maxychunk where x and y are chunknumbers
 
-	float chunkSizef = this->m_chunkSize;
-
 	int indexx, indexy;
-	int minxchunk = floor((area->xmin - this->m_viewerBorder.xmin) / chunkSizef);
-	int maxxchunk = ceil((area->xmax - 1) / chunkSizef);
-	int minychunk = floor((area->ymin - this->m_viewerBorder.ymin) / chunkSizef);
-	int maxychunk = ceil((area->ymax - 1) / chunkSizef);
-	minxchunk = max(minxchunk, 0);
-	minychunk = max(minychunk, 0);
-	maxxchunk = min(maxxchunk, (int)this->m_numberOfXChunks);
-	maxychunk = min(maxychunk, (int)this->m_numberOfYChunks);
+	int minx = max_ii(area->xmin - m_viewerBorder.xmin, 0);
+	int maxx = min_ii(area->xmax - m_viewerBorder.xmin, m_viewerBorder.xmax - m_viewerBorder.xmin);
+	int miny = max_ii(area->ymin - m_viewerBorder.ymin, 0);
+	int maxy = min_ii(area->ymax - m_viewerBorder.ymin, m_viewerBorder.ymax - m_viewerBorder.ymin);
+	int minxchunk = minx / (int)m_chunkSize;
+	int maxxchunk = (maxx + (int)m_chunkSize - 1) / (int)m_chunkSize;
+	int minychunk = miny / (int)m_chunkSize;
+	int maxychunk = (maxy + (int)m_chunkSize - 1) / (int)m_chunkSize;
+	minxchunk = max_ii(minxchunk, 0);
+	minychunk = max_ii(minychunk, 0);
+	maxxchunk = min_ii(maxxchunk, (int)m_numberOfXChunks);
+	maxychunk = min_ii(maxychunk, (int)m_numberOfYChunks);
 
 	bool result = true;
 	for (indexx = minxchunk; indexx < maxxchunk; indexx++) {

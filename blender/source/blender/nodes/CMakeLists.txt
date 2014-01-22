@@ -92,6 +92,7 @@ set(SRC
 	composite/nodes/node_composite_normal.c
 	composite/nodes/node_composite_normalize.c
 	composite/nodes/node_composite_outputFile.c
+	composite/nodes/node_composite_planetrackdeform.c
 	composite/nodes/node_composite_premulkey.c
 	composite/nodes/node_composite_rgb.c
 	composite/nodes/node_composite_rotate.c
@@ -140,13 +141,16 @@ set(SRC
 	shader/nodes/node_shader_output.c
 	shader/nodes/node_shader_rgb.c
 	shader/nodes/node_shader_sepcombRGB.c
+	shader/nodes/node_shader_sepcombHSV.c
 	shader/nodes/node_shader_squeeze.c
 	shader/nodes/node_shader_texture.c
 	shader/nodes/node_shader_valToRgb.c
 	shader/nodes/node_shader_value.c
 	shader/nodes/node_shader_wireframe.c
 	shader/nodes/node_shader_wavelength.c
+	shader/nodes/node_shader_blackbody.c
 	shader/nodes/node_shader_vectMath.c
+	shader/nodes/node_shader_vectTransform.c
 	shader/nodes/node_shader_add_shader.c
 	shader/nodes/node_shader_ambient_occlusion.c
 	shader/nodes/node_shader_attribute.c
@@ -160,6 +164,7 @@ set(SRC
 	shader/nodes/node_shader_bsdf_translucent.c
 	shader/nodes/node_shader_bsdf_transparent.c
 	shader/nodes/node_shader_bsdf_velvet.c
+	shader/nodes/node_shader_bsdf_hair.c
 	shader/nodes/node_shader_bump.c
 	shader/nodes/node_shader_emission.c
 	shader/nodes/node_shader_fresnel.c
@@ -270,6 +275,7 @@ if(WITH_OCTANE)
 		../../../intern/octane/nodes/textures/node_oct_texture_float_image.c
 		../../../intern/octane/nodes/textures/node_oct_texture_alpha_image.c
 		../../../intern/octane/nodes/textures/node_oct_texture_dirt.c
+		../../../intern/octane/nodes/textures/node_oct_texture_gradient.c
 
 		../../../intern/octane/nodes/emissions/node_oct_emission_black_body.c
 		../../../intern/octane/nodes/emissions/node_oct_emission_texture.c
@@ -280,6 +286,16 @@ if(WITH_OCTANE)
 
 		../../../intern/octane/nodes/mediums/node_oct_medium_absorption.c
 		../../../intern/octane/nodes/mediums/node_oct_medium_scattering.c
+
+		../../../intern/octane/nodes/projections/node_oct_projection_xyz.c
+		../../../intern/octane/nodes/projections/node_oct_projection_box.c
+		../../../intern/octane/nodes/projections/node_oct_projection_cyl.c
+		../../../intern/octane/nodes/projections/node_oct_projection_persp.c
+		../../../intern/octane/nodes/projections/node_oct_projection_spherical.c
+		../../../intern/octane/nodes/projections/node_oct_projection_uvw.c
+
+		../../../intern/octane/nodes/values/node_oct_value_float.c
+		../../../intern/octane/nodes/values/node_oct_value_int.c
 	)
 endif()
 

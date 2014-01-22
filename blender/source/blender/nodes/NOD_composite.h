@@ -42,8 +42,6 @@ extern struct bNodeTreeType *ntreeType_Composite;
 void register_node_tree_type_cmp(void);
 
 void register_node_type_cmp_group(void);
-void register_node_type_cmp_forloop(void);
-void register_node_type_cmp_whileloop(void);
 
 void register_node_type_cmp_rlayers(void);
 void register_node_type_cmp_image(void);
@@ -137,6 +135,7 @@ void register_node_type_cmp_bokehblur(void);
 void register_node_type_cmp_switch(void);
 void register_node_type_cmp_pixelate(void);
 void register_node_type_cmp_trackpos(void);
+void register_node_type_cmp_planetrackdeform(void);
 
 void node_cmp_rlayers_force_hidden_passes(struct bNode *node);
 

@@ -243,6 +243,10 @@ def load_ply_mesh(filepath, ply_name):
 
         elif el.name == b'face':
             findex = el.index(b'vertex_indices')
+        elif el.name == b'tristrips':
+            trindex = el.index(b'vertex_indices')
+        elif el.name == b'edge':
+            eindex1, eindex2 = el.index(b'vertex1'), el.index(b'vertex2')
 
     mesh_faces = []
     mesh_uvs = []
@@ -286,11 +290,22 @@ def load_ply_mesh(filepath, ply_name):
                 for j in range(len_ind - 2):
                     add_face(verts, (ind[0], ind[j + 1], ind[j + 2]), uvindices, colindices)
 
+    if b'tristrips' in obj:
+        for t in obj[b'tristrips']:
+            ind = t[trindex]
+            len_ind = len(ind)
+            for j in range(len_ind - 2):
+                add_face(verts, (ind[j], ind[j + 1], ind[j + 2]), uvindices, colindices)
+
     mesh = bpy.data.meshes.new(name=ply_name)
 
     mesh.vertices.add(len(obj[b'vertex']))
 
     mesh.vertices.foreach_set("co", [a for v in obj[b'vertex'] for a in (v[vindices_x], v[vindices_y], v[vindices_z])])
+
+    if b'edge' in obj:
+        mesh.edges.add(len(obj[b'edge']))
+        mesh.edges.foreach_set("vertices", [a for e in obj[b'edge'] for a in (e[eindex1], e[eindex2])])
 
     if mesh_faces:
         mesh.tessfaces.add(len(mesh_faces))

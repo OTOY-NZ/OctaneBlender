@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __NODES_H__
@@ -44,6 +42,9 @@ public:
 
 	float3 min, max;
 	bool use_minmax;
+
+	enum Type { POINT = 0, TEXTURE = 1, VECTOR = 2, NORMAL = 3 };
+	Type type;
 
 	enum Mapping { NONE = 0, X = 1, Y = 2, Z = 3 };
 	Mapping x_mapping, y_mapping, z_mapping;
@@ -107,6 +108,10 @@ public:
 
 	float3 sun_direction;
 	float turbidity;
+	float ground_albedo;
+	
+	ustring type;
+	static ShaderEnum type_enum;
 };
 
 class OutputNode : public ShaderNode {
@@ -201,7 +206,7 @@ public:
 	BsdfNode(bool scattering = false);
 	SHADER_NODE_BASE_CLASS(BsdfNode);
 
-	void compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3 = NULL);
+	void compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3 = NULL, ShaderInput *param4 = NULL);
 
 	ClosureType closure;
 	bool scattering;
@@ -271,6 +276,9 @@ class SubsurfaceScatteringNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(SubsurfaceScatteringNode)
 	bool has_surface_bssrdf() { return true; }
+	bool has_bssrdf_bump();
+
+	static ShaderEnum falloff_enum;
 };
 
 class EmissionNode : public ShaderNode {
@@ -314,6 +322,15 @@ public:
 class IsotropicVolumeNode : public VolumeNode {
 public:
 	SHADER_NODE_CLASS(IsotropicVolumeNode)
+};
+
+class HairBsdfNode : public BsdfNode {
+public:
+	SHADER_NODE_CLASS(HairBsdfNode)
+
+	ustring component;
+	static ShaderEnum component_enum;
+
 };
 
 class GeometryNode : public ShaderNode {
@@ -407,6 +424,11 @@ public:
 	SHADER_NODE_CLASS(CombineRGBNode)
 };
 
+class CombineHSVNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(CombineHSVNode)
+};
+
 class GammaNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GammaNode)
@@ -420,6 +442,11 @@ public:
 class SeparateRGBNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(SeparateRGBNode)
+};
+
+class SeparateHSVNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(SeparateHSVNode)
 };
 
 class HSVNode : public ShaderNode {
@@ -462,6 +489,13 @@ public:
 	SHADER_NODE_CLASS(WavelengthNode)
 };
 
+class BlackbodyNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(BlackbodyNode)
+	
+	bool has_converter_blackbody() { return true; }
+};
+
 class MathNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(MathNode)
@@ -485,6 +519,18 @@ public:
 
 	ustring type;
 	static ShaderEnum type_enum;
+};
+
+class VectorTransformNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(VectorTransformNode)
+
+	ustring type;
+	ustring convert_from;
+	ustring convert_to;
+	
+	static ShaderEnum type_enum;
+	static ShaderEnum convert_space_enum;
 };
 
 class BumpNode : public ShaderNode {

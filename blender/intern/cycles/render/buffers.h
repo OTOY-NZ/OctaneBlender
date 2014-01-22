@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __BUFFERS_H__
@@ -89,8 +87,8 @@ protected:
 
 /* Display Buffer
  *
- * The buffer used for drawing during render, filled by tonemapping the render
- * buffers and converting to uchar4 storage. */
+ * The buffer used for drawing during render, filled by converting the render
+ * buffers to byte of half float storage */
 
 class DisplayBuffer {
 public:
@@ -102,10 +100,13 @@ public:
 	int draw_width, draw_height;
 	/* draw alpha channel? */
 	bool transparent;
-	/* byte buffer for tonemapped result */
-	device_vector<uchar4> rgba;
+	/* use half float? */
+	bool half_float;
+	/* byte buffer for converted result */
+	device_vector<uchar4> rgba_byte;
+	device_vector<half4> rgba_half;
 
-	DisplayBuffer(Device *device);
+	DisplayBuffer(Device *device, bool linear = false);
 	~DisplayBuffer();
 
 	void reset(Device *device, BufferParams& params);
@@ -114,6 +115,8 @@ public:
 	void draw_set(int width, int height);
 	void draw(Device *device);
 	bool draw_ready();
+
+	device_memory& rgba_data();
 
 protected:
 	void device_free();
@@ -136,7 +139,6 @@ public:
 
 	device_ptr buffer;
 	device_ptr rng_state;
-	device_ptr rgba;
 
 	RenderBuffers *buffers;
 

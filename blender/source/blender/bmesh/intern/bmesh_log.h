@@ -21,16 +21,8 @@
 #ifndef __BMESH_LOG_H__
 #define __BMESH_LOG_H__
 
-/* The BMLog is an interface for storing undo/redo steps as a BMesh is
- * modified. It only stores changes to the BMesh, not full copies.
- *
- * Currently it supports the following types of changes:
- * 
- * - Adding and removing vertices
- * - Adding and removing faces
- * - Moving vertices
- * - Setting vertex paint-mask values
- * - Setting vertex hflags
+/** \file blender/bmesh/intern/bmesh_log.h
+ *  \ingroup bmesh
  */
 
 struct BMFace;
@@ -91,6 +83,9 @@ void BM_log_before_all_removed(BMesh *bm, BMLog *log);
 
 /* Get the logged coordinates of a vertex */
 const float *BM_log_original_vert_co(BMLog *log, BMVert *v);
+
+/* Get the logged normal of a vertex */
+const short *BM_log_original_vert_no(BMLog *log, BMVert *v);
 
 /* Get the logged mask of a vertex */
 float BM_log_original_mask(BMLog *log, BMVert *v);

@@ -418,6 +418,21 @@ MINLINE float mul_project_m4_v3_zfac(float mat[4][4], const float co[3])
 	       (mat[2][3] * co[2]) + mat[3][3];
 }
 
+/**
+ * Has the effect of mul_m3_v3(), on a single axis.
+ */
+MINLINE float dot_m3_v3_row_x(float M[3][3], const float a[3])
+{
+	return M[0][0] * a[0] + M[1][0] * a[1] + M[2][0] * a[2];
+}
+MINLINE float dot_m3_v3_row_y(float M[3][3], const float a[3])
+{
+	return M[0][1] * a[0] + M[1][1] * a[1] + M[2][1] * a[2];
+}
+MINLINE float dot_m3_v3_row_z(float M[3][3], const float a[3])
+{
+	return M[0][2] * a[0] + M[1][2] * a[1] + M[2][2] * a[2];
+}
 
 MINLINE void madd_v2_v2fl(float r[2], const float a[2], float f)
 {
@@ -756,61 +771,76 @@ MINLINE void normal_float_to_short_v3(short out[3], const float in[3])
 /********************************* Comparison ********************************/
 
 
-MINLINE int is_zero_v2(const float v[2])
+MINLINE bool is_zero_v2(const float v[2])
 {
 	return (v[0] == 0 && v[1] == 0);
 }
 
-MINLINE int is_zero_v3(const float v[3])
+MINLINE bool is_zero_v3(const float v[3])
 {
 	return (v[0] == 0 && v[1] == 0 && v[2] == 0);
 }
 
-MINLINE int is_zero_v4(const float v[4])
+MINLINE bool is_zero_v4(const float v[4])
 {
 	return (v[0] == 0 && v[1] == 0 && v[2] == 0 && v[3] == 0);
 }
 
-MINLINE int is_one_v3(const float v[3])
+MINLINE bool is_finite_v2(const float v[2])
+{
+	return (finite(v[0]) && finite(v[1]));
+}
+
+MINLINE bool is_finite_v3(const float v[3])
+{
+	return (finite(v[0]) && finite(v[1]) && finite(v[2]));
+}
+
+MINLINE bool is_finite_v4(const float v[4])
+{
+	return (finite(v[0]) && finite(v[1]) && finite(v[2]) && finite(v[3]));
+}
+
+MINLINE bool is_one_v3(const float v[3])
 {
 	return (v[0] == 1 && v[1] == 1 && v[2] == 1);
 }
 
-MINLINE int equals_v2v2(const float v1[2], const float v2[2])
+MINLINE bool equals_v2v2(const float v1[2], const float v2[2])
 {
 	return ((v1[0] == v2[0]) && (v1[1] == v2[1]));
 }
 
-MINLINE int equals_v3v3(const float v1[3], const float v2[3])
+MINLINE bool equals_v3v3(const float v1[3], const float v2[3])
 {
 	return ((v1[0] == v2[0]) && (v1[1] == v2[1]) && (v1[2] == v2[2]));
 }
 
-MINLINE int equals_v4v4(const float v1[4], const float v2[4])
+MINLINE bool equals_v4v4(const float v1[4], const float v2[4])
 {
 	return ((v1[0] == v2[0]) && (v1[1] == v2[1]) && (v1[2] == v2[2]) && (v1[3] == v2[3]));
 }
 
-MINLINE int compare_v2v2(const float v1[2], const float v2[2], const float limit)
+MINLINE bool compare_v2v2(const float v1[2], const float v2[2], const float limit)
 {
 	if (fabsf(v1[0] - v2[0]) < limit)
 		if (fabsf(v1[1] - v2[1]) < limit)
-			return 1;
+			return true;
 
-	return 0;
+	return false;
 }
 
-MINLINE int compare_v3v3(const float v1[3], const float v2[3], const float limit)
+MINLINE bool compare_v3v3(const float v1[3], const float v2[3], const float limit)
 {
 	if (fabsf(v1[0] - v2[0]) < limit)
 		if (fabsf(v1[1] - v2[1]) < limit)
 			if (fabsf(v1[2] - v2[2]) < limit)
-				return 1;
+				return true;
 
-	return 0;
+	return false;
 }
 
-MINLINE int compare_len_v3v3(const float v1[3], const float v2[3], const float limit)
+MINLINE bool compare_len_v3v3(const float v1[3], const float v2[3], const float limit)
 {
 	float x, y, z;
 
@@ -821,15 +851,15 @@ MINLINE int compare_len_v3v3(const float v1[3], const float v2[3], const float l
 	return ((x * x + y * y + z * z) < (limit * limit));
 }
 
-MINLINE int compare_v4v4(const float v1[4], const float v2[4], const float limit)
+MINLINE bool compare_v4v4(const float v1[4], const float v2[4], const float limit)
 {
 	if (fabsf(v1[0] - v2[0]) < limit)
 		if (fabsf(v1[1] - v2[1]) < limit)
 			if (fabsf(v1[2] - v2[2]) < limit)
 				if (fabsf(v1[3] - v2[3]) < limit)
-					return 1;
+					return true;
 
-	return 0;
+	return false;
 }
 
 MINLINE float line_point_side_v2(const float l1[2], const float l2[2], const float pt[2])

@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <stdlib.h>
@@ -93,7 +91,6 @@ RenderTile::RenderTile()
 
 	buffer = 0;
 	rng_state = 0;
-	rgba = 0;
 
 	buffers = NULL;
 }
@@ -300,12 +297,13 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 /* Display Buffer */
 
-DisplayBuffer::DisplayBuffer(Device *device_)
+DisplayBuffer::DisplayBuffer(Device *device_, bool linear)
 {
 	device = device_;
 	draw_width = 0;
 	draw_height = 0;
 	transparent = true; /* todo: determine from background */
+	half_float = linear;
 }
 
 DisplayBuffer::~DisplayBuffer()
@@ -315,9 +313,13 @@ DisplayBuffer::~DisplayBuffer()
 
 void DisplayBuffer::device_free()
 {
-	if(rgba.device_pointer) {
-		device->pixels_free(rgba);
-		rgba.clear();
+	if(rgba_byte.device_pointer) {
+		device->pixels_free(rgba_byte);
+		rgba_byte.clear();
+	}
+	if(rgba_half.device_pointer) {
+		device->pixels_free(rgba_half);
+		rgba_half.clear();
 	}
 }
 
@@ -332,8 +334,14 @@ void DisplayBuffer::reset(Device *device, BufferParams& params_)
 	device_free();
 
 	/* allocate display pixels */
-	rgba.resize(params.width, params.height);
-	device->pixels_alloc(rgba);
+	if(half_float) {
+		rgba_half.resize(params.width, params.height);
+		device->pixels_alloc(rgba_half);
+	}
+	else {
+		rgba_byte.resize(params.width, params.height);
+		device->pixels_alloc(rgba_byte);
+	}
 }
 
 void DisplayBuffer::draw_set(int width, int height)
@@ -349,6 +357,7 @@ void DisplayBuffer::draw(Device *device)
 	if(draw_width != 0 && draw_height != 0) {
 		glPushMatrix();
 		glTranslatef(params.full_x, params.full_y, 0.0f);
+		device_memory& rgba = rgba_data();
 
 		device->draw_pixels(rgba, 0, draw_width, draw_height, 0, params.width, params.height, transparent);
 
@@ -368,8 +377,12 @@ void DisplayBuffer::write(Device *device, const string& filename)
 
 	if(w == 0 || h == 0)
 		return;
+	
+	if(half_float)
+		return;
 
 	/* read buffer from device */
+	device_memory& rgba = rgba_data();
 	device->pixels_copy_from(rgba, 0, w, h);
 
 	/* write image */
@@ -389,6 +402,14 @@ void DisplayBuffer::write(Device *device, const string& filename)
 	out->close();
 
 	delete out;
+}
+
+device_memory& DisplayBuffer::rgba_data()
+{
+	if(half_float)
+		return rgba_half;
+	else
+		return rgba_byte;
 }
 
 CCL_NAMESPACE_END

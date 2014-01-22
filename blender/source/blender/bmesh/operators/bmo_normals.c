@@ -29,6 +29,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
+#include "BLI_linklist_stack.h"
 
 #include "bmesh.h"
 
@@ -40,13 +41,13 @@
 #define FACE_FLIP	(1 << 1)
 #define FACE_TEMP	(1 << 2)
 
-static bool bmo_recalc_normal_edge_filter_cb(BMEdge *e, void *UNUSED(user_data))
+static bool bmo_recalc_normal_edge_filter_cb(BMElem *ele, void *UNUSED(user_data))
 {
-	return BM_edge_is_manifold(e);
+	return BM_edge_is_manifold((BMEdge *)ele);
 }
 
 /**
- * Given an array of faces, recalcualte their normals.
+ * Given an array of faces, recalculate their normals.
  * this functions assumes all faces in the array are connected by edges.
  *
  * \param bm
@@ -65,8 +66,7 @@ static void bmo_recalc_face_normals_array(BMesh *bm, BMFace **faces, const int f
 	float f_len_best;
 	BMFace *f;
 
-	BMFace **fstack = MEM_mallocN(sizeof(*fstack) * faces_len, __func__);
-	STACK_DECLARE(fstack);
+	BLI_LINKSTACK_DECLARE(fstack, BMFace *);
 
 	zero_v3(cent);
 
@@ -77,6 +77,7 @@ static void bmo_recalc_face_normals_array(BMesh *bm, BMFace **faces, const int f
 		madd_v3_v3fl(cent, f_cent, cent_fac);
 
 		BLI_assert(BMO_elem_flag_test(bm, faces[i], FACE_TEMP) == 0);
+		BLI_assert(BM_face_is_normal_valid(faces[i]));
 	}
 
 	f_len_best = -FLT_MAX;
@@ -102,12 +103,12 @@ static void bmo_recalc_face_normals_array(BMesh *bm, BMFace **faces, const int f
 	 * have the same winding.  this is done recursively, using a manual
 	 * stack (if we use simple function recursion, we'd end up overloading
 	 * the stack on large meshes). */
-	STACK_INIT(fstack);
+	BLI_LINKSTACK_INIT(fstack);
 
-	STACK_PUSH(fstack, faces[f_start_index]);
+	BLI_LINKSTACK_PUSH(fstack, faces[f_start_index]);
 	BMO_elem_flag_enable(bm, faces[f_start_index], FACE_TEMP);
 
-	while ((f = STACK_POP(fstack))) {
+	while ((f = BLI_LINKSTACK_POP(fstack))) {
 		const bool flip_state = BMO_elem_flag_test_bool(bm, f, FACE_FLIP);
 		BMLoop *l_iter, *l_first;
 
@@ -115,17 +116,17 @@ static void bmo_recalc_face_normals_array(BMesh *bm, BMFace **faces, const int f
 		do {
 			BMLoop *l_other = l_iter->radial_next;
 
-			if ((l_other != l_iter) && bmo_recalc_normal_edge_filter_cb(l_iter->e, NULL)) {
+			if ((l_other != l_iter) && bmo_recalc_normal_edge_filter_cb((BMElem *)l_iter->e, NULL)) {
 				if (!BMO_elem_flag_test(bm, l_other->f, FACE_TEMP)) {
 					BMO_elem_flag_enable(bm, l_other->f, FACE_TEMP);
 					BMO_elem_flag_set(bm, l_other->f, FACE_FLIP, (l_other->v == l_iter->v) != flip_state);
-					STACK_PUSH(fstack, l_other->f);
+					BLI_LINKSTACK_PUSH(fstack, l_other->f);
 				}
 			}
 		} while ((l_iter = l_iter->next) != l_first);
 	}
 
-	MEM_freeN(fstack);
+	BLI_LINKSTACK_FREE(fstack);
 
 	/* apply flipping to oflag'd faces */
 	for (i = 0; i < faces_len; i++) {
@@ -146,14 +147,15 @@ static void bmo_recalc_face_normals_array(BMesh *bm, BMFace **faces, const int f
 
 void bmo_recalc_face_normals_exec(BMesh *bm, BMOperator *op)
 {
-	int *groups_array = MEM_mallocN(sizeof(groups_array) * bm->totface, __func__);
+	int *groups_array = MEM_mallocN(sizeof(*groups_array) * bm->totface, __func__);
 	int faces_len;
 	BMFace **faces_arr = BM_iter_as_arrayN(bm, BM_FACES_OF_MESH, NULL, &faces_len, NULL, 0);
-	BMFace **faces_grp = MEM_mallocN(sizeof(faces_grp) * bm->totface, __func__);
+	BMFace **faces_grp = MEM_mallocN(sizeof(*faces_grp) * bm->totface, __func__);
 
 	int (*group_index)[2];
 	const int group_tot = BM_mesh_calc_face_groups(bm, groups_array, &group_index,
-	                                               NULL, bmo_recalc_normal_edge_filter_cb);
+	                                               bmo_recalc_normal_edge_filter_cb, NULL,
+	                                               0, BM_EDGE);
 	int i;
 
 

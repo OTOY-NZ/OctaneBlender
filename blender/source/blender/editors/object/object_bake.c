@@ -107,13 +107,14 @@ typedef struct {
 	int threads;
 } MultiresBakeJob;
 
-static int multiresbake_check(bContext *C, wmOperator *op)
+static bool multiresbake_check(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob;
 	Mesh *me;
 	MultiresModifierData *mmd;
-	int ok = 1, a;
+	bool ok = true;
+	int a;
 
 	CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 	{
@@ -122,7 +123,7 @@ static int multiresbake_check(bContext *C, wmOperator *op)
 		if (ob->type != OB_MESH) {
 			BKE_report(op->reports, RPT_ERROR, "Baking of multires data only works with an active mesh object");
 
-			ok = 0;
+			ok = false;
 			break;
 		}
 
@@ -137,12 +138,12 @@ static int multiresbake_check(bContext *C, wmOperator *op)
 
 			for (md = (ModifierData *)mmd->modifier.next; md && ok; md = md->next) {
 				if (modifier_isEnabled(scene, md, eModifierMode_Realtime)) {
-					ok = 0;
+					ok = false;
 				}
 			}
 		}
 		else {
-			ok = 0;
+			ok = false;
 		}
 
 		if (!ok) {
@@ -153,14 +154,14 @@ static int multiresbake_check(bContext *C, wmOperator *op)
 
 		if (mmd->lvl == 0) {
 			BKE_report(op->reports, RPT_ERROR, "Multires data baking is not supported for preview subdivision level 0");
-
+			ok = false;
 			break;
 		}
 
 		if (!me->mtpoly) {
 			BKE_report(op->reports, RPT_ERROR, "Mesh should be unwrapped before multires data baking");
 
-			ok = 0;
+			ok = false;
 		}
 		else {
 			a = me->totpoly;
@@ -170,7 +171,7 @@ static int multiresbake_check(bContext *C, wmOperator *op)
 				if (!ima) {
 					BKE_report(op->reports, RPT_ERROR, "You should have active texture to use multires baker");
 
-					ok = 0;
+					ok = false;
 				}
 				else {
 					ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
@@ -178,14 +179,14 @@ static int multiresbake_check(bContext *C, wmOperator *op)
 					if (!ibuf) {
 						BKE_report(op->reports, RPT_ERROR, "Baking should happen to image with image buffer");
 
-						ok = 0;
+						ok = false;
 					}
 					else {
 						if (ibuf->rect == NULL && ibuf->rect_float == NULL)
-							ok = 0;
+							ok = false;
 
 						if (ibuf->rect_float && !(ibuf->channels == 0 || ibuf->channels == 4))
-							ok = 0;
+							ok = false;
 
 						if (!ok)
 							BKE_report(op->reports, RPT_ERROR, "Baking to unsupported image type");
@@ -263,40 +264,68 @@ static DerivedMesh *multiresbake_create_hiresdm(Scene *scene, Object *ob, int *l
 }
 
 typedef enum ClearFlag {
-	CLEAR_NORMAL = 1
+	CLEAR_TANGENT_NORMAL = 1,
+	CLEAR_DISPLACEMENT = 2
 } ClearFlag;
 
 
-static void clear_images(MTFace *mtface, int totface, ClearFlag flag)
+static void clear_single_image(Image *image, ClearFlag flag)
 {
-	int a;
 	const float vec_alpha[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	const float vec_solid[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	const float nor_alpha[4] = {0.5f, 0.5f, 1.0f, 0.0f};
 	const float nor_solid[4] = {0.5f, 0.5f, 1.0f, 1.0f};
+	const float disp_alpha[4] = {0.5f, 0.5f, 0.5f, 0.0f};
+	const float disp_solid[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 
-	for (a = 0; a < totface; a++)
-		mtface[a].tpage->id.flag &= ~LIB_DOIT;
+	if ((image->id.flag & LIB_DOIT) == 0) {
+		ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
+
+		if (flag == CLEAR_TANGENT_NORMAL)
+			IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? nor_alpha : nor_solid);
+		else if (flag == CLEAR_DISPLACEMENT)
+			IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? disp_alpha : disp_solid);
+		else
+			IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? vec_alpha : vec_solid);
+
+		image->id.flag |= LIB_DOIT;
+
+		BKE_image_release_ibuf(image, ibuf, NULL);
+	}
+}
+
+static void clear_images(MTFace *mtface, int totface, ClearFlag flag)
+{
+	int a;
 
 	for (a = 0; a < totface; a++) {
-		Image *ima = mtface[a].tpage;
-
-		if ((ima->id.flag & LIB_DOIT) == 0) {
-			ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
-
-			if (flag == CLEAR_NORMAL)
-				IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? nor_alpha : nor_solid);
-			else
-				IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? vec_alpha : vec_solid);
-
-			ima->id.flag |= LIB_DOIT;
-
-			BKE_image_release_ibuf(ima, ibuf, NULL);
-		}
+		mtface[a].tpage->id.flag &= ~LIB_DOIT;
 	}
 
-	for (a = 0; a < totface; a++)
+	for (a = 0; a < totface; a++) {
+		clear_single_image(mtface[a].tpage, flag);
+	}
+
+	for (a = 0; a < totface; a++) {
 		mtface[a].tpage->id.flag &= ~LIB_DOIT;
+	}
+}
+
+static void clear_images_poly(MTexPoly *mtpoly, int totpoly, ClearFlag flag)
+{
+	int a;
+
+	for (a = 0; a < totpoly; a++) {
+		mtpoly[a].tpage->id.flag &= ~LIB_DOIT;
+	}
+
+	for (a = 0; a < totpoly; a++) {
+		clear_single_image(mtpoly[a].tpage, flag);
+	}
+
+	for (a = 0; a < totpoly; a++) {
+		mtpoly[a].tpage->id.flag &= ~LIB_DOIT;
+	}
 }
 
 static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
@@ -312,14 +341,20 @@ static int multiresbake_image_exec_locked(bContext *C, wmOperator *op)
 		CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 		{
 			Mesh *me;
+			ClearFlag clear_flag = 0;
 
 			ob = base->object;
 			me = (Mesh *)ob->data;
 
-			if (scene->r.bake_mode == RE_BAKE_NORMALS && scene->r.bake_normal_space == R_BAKE_SPACE_TANGENT)
-				clear_images(me->mtface, me->totface, CLEAR_NORMAL);
-			else
-				clear_images(me->mtface, me->totface, 0);
+			if (scene->r.bake_mode == RE_BAKE_NORMALS) {
+				clear_flag = CLEAR_TANGENT_NORMAL;
+			}
+			else if (scene->r.bake_mode == RE_BAKE_DISPLACEMENT) {
+				clear_flag = CLEAR_DISPLACEMENT;
+			}
+
+			clear_images(me->mtface, me->totface, clear_flag);
+			clear_images_poly(me->mtpoly, me->totpoly, clear_flag);
 		}
 		CTX_DATA_END;
 	}
@@ -413,11 +448,16 @@ static void multiresbake_startjob(void *bkv, short *stop, short *do_update, floa
 		for (data = bkj->data.first; data; data = data->next) {
 			DerivedMesh *dm = data->lores_dm;
 			MTFace *mtface = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+			ClearFlag clear_flag = 0;
 
-			if (bkj->mode == RE_BAKE_NORMALS)
-				clear_images(mtface, dm->getNumTessFaces(dm), CLEAR_NORMAL);
-			else
-				clear_images(mtface, dm->getNumTessFaces(dm), 0);
+			if (bkj->mode == RE_BAKE_NORMALS) {
+				clear_flag = CLEAR_TANGENT_NORMAL;
+			}
+			else if (bkj->mode == RE_BAKE_DISPLACEMENT) {
+				clear_flag = CLEAR_DISPLACEMENT;
+			}
+
+			clear_images(mtface, dm->getNumTessFaces(dm), clear_flag);
 		}
 	}
 

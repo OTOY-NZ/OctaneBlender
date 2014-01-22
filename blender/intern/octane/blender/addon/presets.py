@@ -51,7 +51,9 @@ class AddPresetKernel(AddPresetBase, Operator):
         "octane.max_rejects",
         "octane.info_channel_type",
         "octane.zdepth_max",
-        "octane.uv_max"
+        "octane.uv_max",
+        "octane.bump_normal_mapping",
+        "octane.wf_bktrace_hl"
     ]
 
     preset_subdir = "octane/kernel"
@@ -71,8 +73,6 @@ class AddPresetEnvironment(AddPresetBase, Operator):
         "octane.env_texture",
 
         "octane.env_power",
-        "octane.env_rotation_x",
-        "octane.env_rotation_y",
         "octane.env_importance_sampling",
         "octane.env_daylight_type",
         "octane.env_sundir_x",

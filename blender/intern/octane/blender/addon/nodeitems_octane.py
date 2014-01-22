@@ -71,6 +71,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeOctFloatImageTex"),
         NodeItem("ShaderNodeOctAlphaImageTex"),
         NodeItem("ShaderNodeOctDirtTex"),
+        NodeItem("ShaderNodeOctGradientTex"),
        ]),
     ShaderNewNodeCategory("SH_NEW_OCT_EMISSION", "Octane Emission", items=[
         NodeItem("ShaderNodeOctBlackBodyEmission"),
@@ -84,6 +85,18 @@ shader_node_categories = [
         NodeItem("ShaderNodeOctScaleTransform"),
         NodeItem("ShaderNodeOctRotateTransform"),
         NodeItem("ShaderNodeOctFullTransform"),
+        ]),
+    ShaderNewNodeCategory("SH_NEW_OCT_PROJECTION", "Octane Projections", items=[
+        NodeItem("ShaderNodeOctXYZProjection"),
+        NodeItem("ShaderNodeOctBoxProjection"),
+        NodeItem("ShaderNodeOctCylProjection"),
+        NodeItem("ShaderNodeOctPerspProjection"),
+        NodeItem("ShaderNodeOctSphericalProjection"),
+        NodeItem("ShaderNodeOctUVWProjection"),
+        ]),
+    ShaderNewNodeCategory("SH_NEW_OCT_VALUE", "Octane Values", items=[
+        NodeItem("ShaderNodeOctFloatValue"),
+        NodeItem("ShaderNodeOctIntValue"),
         ]),
     ]
 
@@ -111,6 +124,11 @@ texture_node_categories = [
         NodeItem("ShaderNodeOctFloatImageTex"),
         NodeItem("ShaderNodeOctAlphaImageTex"),
         NodeItem("ShaderNodeOctDirtTex"),
+        NodeItem("ShaderNodeOctGradientTex"),
+        ]),
+    TextureNodeCategory("TEX_OCT_VALUE", "Octane Values", items=[
+        NodeItem("ShaderNodeOctFloatValue"),
+        NodeItem("ShaderNodeOctIntValue"),
         ]),
     ]
 

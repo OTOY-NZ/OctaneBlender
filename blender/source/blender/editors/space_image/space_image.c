@@ -277,6 +277,10 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Image", SPACE_IMAGE, 0);
 	
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
+
+	kmi = WM_keymap_add_item(keymap, "IMAGE_OT_view_all", FKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "fit_view", TRUE);
+
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_pan", MIDDLEMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_pan", MIDDLEMOUSE, KM_PRESS, KM_SHIFT, 0);
@@ -492,6 +496,7 @@ static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 			break;
 		}
 		case NC_GEOM:
+		{
 			switch (wmn->data) {
 				case ND_DATA:
 				case ND_SELECT:
@@ -500,6 +505,8 @@ static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 					ED_area_tag_redraw(sa);
 					break;
 			}
+			break;
+		}
 		case NC_OBJECT:
 		{
 			Object *ob = (Object *)wmn->reference;
@@ -512,6 +519,7 @@ static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 					}
 					break;
 			}
+			break;
 		}
 	}
 }
@@ -666,7 +674,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	}
 	else if (sima->mode == SI_MODE_MASK) {
 		mask = ED_space_image_get_mask(sima);
-		draw_image_cursor(sima, ar);
+		draw_image_cursor(ar, sima->cursor);
 	}
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
@@ -715,7 +723,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 
 		ED_mask_draw_frames(mask, ar, CFRA, mask->sfra, mask->efra);
 
-		draw_image_cursor(sima, ar);
+		draw_image_cursor(ar, sima->cursor);
 	}
 
 	/* scrollers? */
@@ -872,7 +880,7 @@ static void image_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa),
 					ED_region_tag_redraw(ar);
 					break;
 			}
-			
+			break;
 	}
 }
 

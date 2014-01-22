@@ -322,6 +322,24 @@ void mul_serie_m4(float answ[4][4], float m1[4][4],
 	}
 }
 
+void mul_v2_m3v2(float r[2], float m[3][3], float v[2])
+{
+	float temp[3], warped[3];
+
+	copy_v2_v2(temp, v);
+	temp[2] = 1.0f;
+
+	mul_v3_m3v3(warped, m, temp);
+
+	r[0] = warped[0] / warped[2];
+	r[1] = warped[1] / warped[2];
+}
+
+void mul_m3_v2(float m[3][3], float r[2])
+{
+	mul_v2_m3v2(r, m, r);
+}
+
 void mul_m4_v3(float mat[4][4], float vec[3])
 {
 	float x, y;
@@ -433,6 +451,8 @@ void mul_m4_v4d(float mat[4][4], double r[4])
 
 void mul_v3_m3v3(float r[3], float M[3][3], const float a[3])
 {
+	BLI_assert(r != a);
+
 	r[0] = M[0][0] * a[0] + M[1][0] * a[1] + M[2][0] * a[2];
 	r[1] = M[0][1] * a[0] + M[1][1] * a[1] + M[2][1] * a[2];
 	r[2] = M[0][2] * a[0] + M[1][2] * a[1] + M[2][2] * a[2];
@@ -440,6 +460,8 @@ void mul_v3_m3v3(float r[3], float M[3][3], const float a[3])
 
 void mul_v2_m3v3(float r[2], float M[3][3], const float a[3])
 {
+	BLI_assert(r != a);
+
 	r[0] = M[0][0] * a[0] + M[1][0] * a[1] + M[2][0] * a[2];
 	r[1] = M[0][1] * a[0] + M[1][1] * a[1] + M[2][1] * a[2];
 }
@@ -839,6 +861,7 @@ void orthogonalize_m3(float mat[3][3], int axis)
 			break;
 		default:
 			BLI_assert(0);
+			break;
 	}
 	mul_v3_fl(mat[0], size[0]);
 	mul_v3_fl(mat[1], size[1]);
@@ -922,13 +945,14 @@ void orthogonalize_m4(float mat[4][4], int axis)
 			break;
 		default:
 			BLI_assert(0);
+			break;
 	}
 	mul_v3_fl(mat[0], size[0]);
 	mul_v3_fl(mat[1], size[1]);
 	mul_v3_fl(mat[2], size[2]);
 }
 
-int is_orthogonal_m3(float m[3][3])
+bool is_orthogonal_m3(float m[3][3])
 {
 	int i, j;
 
@@ -942,7 +966,7 @@ int is_orthogonal_m3(float m[3][3])
 	return 1;
 }
 
-int is_orthogonal_m4(float m[4][4])
+bool is_orthogonal_m4(float m[4][4])
 {
 	int i, j;
 
@@ -957,7 +981,7 @@ int is_orthogonal_m4(float m[4][4])
 	return 1;
 }
 
-int is_orthonormal_m3(float m[3][3])
+bool is_orthonormal_m3(float m[3][3])
 {
 	if (is_orthogonal_m3(m)) {
 		int i;
@@ -972,7 +996,7 @@ int is_orthonormal_m3(float m[3][3])
 	return 0;
 }
 
-int is_orthonormal_m4(float m[4][4])
+bool is_orthonormal_m4(float m[4][4])
 {
 	if (is_orthogonal_m4(m)) {
 		int i;
@@ -987,7 +1011,7 @@ int is_orthonormal_m4(float m[4][4])
 	return 0;
 }
 
-int is_uniform_scaled_m3(float m[3][3])
+bool is_uniform_scaled_m3(float m[3][3])
 {
 	const float eps = 1e-7;
 	float t[3][3];
@@ -1372,6 +1396,28 @@ void rotate_m2(float mat[2][2], const float angle)
 	mat[1][0] = -mat[0][1];
 }
 
+/**
+ * Scale or rotate around a pivot point,
+ * a convenience function to avoid having to do inline.
+ *
+ * Since its common to make a scale/rotation matrix that pivots around an arbitrary point.
+ *
+ * Typical use case is to make 3x3 matrix, copy to 4x4, then pass to this function.
+ */
+void transform_pivot_set_m4(float mat[4][4], const float pivot[3])
+{
+	float tmat[4][4];
+
+	unit_m4(tmat);
+
+	copy_v3_v3(tmat[3], pivot);
+	mul_m4_m4m4(mat, tmat, mat);
+
+	/* invert the matrix */
+	negate_v3(tmat[3]);
+	mul_m4_m4m4(mat, mat, tmat);
+}
+
 void blend_m3_m3m3(float out[3][3], float dst[3][3], float src[3][3], const float srcweight)
 {
 	float srot[3][3], drot[3][3];
@@ -1417,18 +1463,32 @@ void blend_m4_m4m4(float out[4][4], float dst[4][4], float src[4][4], const floa
 	loc_quat_size_to_mat4(out, floc, fquat, fsize);
 }
 
-int is_negative_m3(float mat[3][3])
+bool is_negative_m3(float mat[3][3])
 {
 	float vec[3];
 	cross_v3_v3v3(vec, mat[0], mat[1]);
 	return (dot_v3v3(vec, mat[2]) < 0.0f);
 }
 
-int is_negative_m4(float mat[4][4])
+bool is_negative_m4(float mat[4][4])
 {
 	float vec[3];
 	cross_v3_v3v3(vec, mat[0], mat[1]);
 	return (dot_v3v3(vec, mat[2]) < 0.0f);
+}
+
+bool is_zero_m3(float mat[3][3])
+{
+	return (is_zero_v3(mat[0]) &&
+	        is_zero_v3(mat[1]) &&
+	        is_zero_v3(mat[2]));
+}
+bool is_zero_m4(float mat[4][4])
+{
+	return (is_zero_v4(mat[0]) &&
+	        is_zero_v4(mat[1]) &&
+	        is_zero_v4(mat[2]) &&
+	        is_zero_v4(mat[3]));
 }
 
 /* make a 4x4 matrix out of 3 transform components */

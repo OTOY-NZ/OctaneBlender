@@ -534,6 +534,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Transform_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->Projection = "";
+            }
         }
     } //case BL::ShaderNode::type_OCT_CHECKS_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctMarbleTex)) {
@@ -589,6 +594,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
                 else cur_node->Transform = "";
             }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->Projection = "";
+            }
         }
     } //case BL::ShaderNode::type_OCT_MARBLE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctRidgedFractalTex)) {
@@ -635,6 +645,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
                 else cur_node->Transform = "";
             }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->Projection = "";
+            }
         }
     } //case BL::ShaderNode::type_OCT_RDGFRACTAL_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctSawWaveTex)) {
@@ -654,14 +669,15 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
-            else if(b_input->name() == "Circular") {
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Circular = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
-            }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
                     cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
                 else cur_node->Transform = "";
+            }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->Projection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_SAWWAVE_TEX
@@ -682,14 +698,15 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
-            else if(b_input->name() == "Circular") {
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Circular = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
-            }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
                     cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
                 else cur_node->Transform = "";
+            }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->Projection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_SINEWAVE_TEX
@@ -710,15 +727,15 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
-            else if(b_input->name() == "Circular") {
-                //BL::NodeSocketBoolean value_sock(*b_input);
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Circular = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
-            }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
                     cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
                 else cur_node->Transform = "";
+            }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->Projection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_TRIWAVE_TEX
@@ -765,6 +782,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 if(b_input->is_linked())
                     cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
                 else cur_node->Transform = "";
+            }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->Projection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_TURBULENCE_TEX
@@ -906,7 +928,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-            if(b_input->name() == "Normal Grazing") {
+            if(b_input->name() == "Normal") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Normal = RNA_float_get(&value_sock.ptr, "default_value");
             }
@@ -914,7 +936,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Grazing = RNA_float_get(&value_sock.ptr, "default_value");
             }
-            else if(b_input->name() == "Index") {
+            else if(b_input->name() == "Falloff Skew Factor") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Index = RNA_float_get(&value_sock.ptr, "default_value");
             }
@@ -966,7 +988,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         bNode *cur_bnode = (bNode*)(b_node.ptr.data);
         if(!cur_bnode->storage) {
 	        NodeTexImage *tex = (NodeTexImage*) MEM_callocN(sizeof(NodeTexImage), "NodeTexImage");
-	        default_tex_mapping(&tex->base.tex_mapping);
+	        default_tex_mapping(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
 	        default_color_mapping(&tex->base.color_mapping);
 	        tex->color_space = SHD_COLORSPACE_COLOR;
 	        tex->iuser.frames= 1;
@@ -1020,17 +1042,25 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Gamma = RNA_float_get(&value_sock.ptr, "default_value");
             }
-            else if(b_input->name() == "ScaleX") {
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Scale.x = RNA_float_get(&value_sock.ptr, "default_value");
-            }
-            else if(b_input->name() == "ScaleY") {
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Scale.y = RNA_float_get(&value_sock.ptr, "default_value");
+            else if(b_input->name() == "Transform") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Transform = "";
             }
             else if(b_input->name() == "Invert") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Projection = "";
+            }
+            else if(b_input->name() == "Border mode") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->BorderMode = RNA_int_get(&value_sock.ptr, "default_value");
             }
         }
     } //case BL::ShaderNode::type_OCT_IMAGE_TEX
@@ -1040,7 +1070,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         bNode *cur_bnode = (bNode*)(b_node.ptr.data);
         if(!cur_bnode->storage) {
 	        NodeTexImage *tex = (NodeTexImage*) MEM_callocN(sizeof(NodeTexImage), "NodeTexImage");
-	        default_tex_mapping(&tex->base.tex_mapping);
+	        default_tex_mapping(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
 	        default_color_mapping(&tex->base.color_mapping);
 	        tex->color_space = SHD_COLORSPACE_COLOR;
 	        tex->iuser.frames= 1;
@@ -1094,17 +1124,25 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Gamma = RNA_float_get(&value_sock.ptr, "default_value");
             }
-            else if(b_input->name() == "ScaleX") {
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Scale.x = RNA_float_get(&value_sock.ptr, "default_value");
-            }
-            else if(b_input->name() == "ScaleY") {
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Scale.y = RNA_float_get(&value_sock.ptr, "default_value");
+            else if(b_input->name() == "Transform") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Transform = "";
             }
             else if(b_input->name() == "Invert") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Projection = "";
+            }
+            else if(b_input->name() == "Border mode") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->BorderMode = RNA_int_get(&value_sock.ptr, "default_value");
             }
         }
     } //case BL::ShaderNode::type_OCT_FIMAGE_TEX
@@ -1114,7 +1152,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         bNode *cur_bnode = (bNode*)(b_node.ptr.data);
         if(!cur_bnode->storage) {
 	        NodeTexImage *tex = (NodeTexImage*) MEM_callocN(sizeof(NodeTexImage), "NodeTexImage");
-	        default_tex_mapping(&tex->base.tex_mapping);
+	        default_tex_mapping(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
 	        default_color_mapping(&tex->base.color_mapping);
 	        tex->color_space = SHD_COLORSPACE_COLOR;
 	        tex->iuser.frames= 1;
@@ -1168,18 +1206,26 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Gamma = RNA_float_get(&value_sock.ptr, "default_value");
             }
-            else if(b_input->name() == "ScaleX") {
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Scale.x = RNA_float_get(&value_sock.ptr, "default_value");
-            }
-            else if(b_input->name() == "ScaleY") {
-                BL::NodeSocket value_sock(*b_input);
-                cur_node->Scale.y = RNA_float_get(&value_sock.ptr, "default_value");
+            else if(b_input->name() == "Transform") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Transform = "";
             }
             else if(b_input->name() == "Invert") {
                 //BL::NodeSocketBoolean value_sock(*b_input);
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Projection") {
+                if(b_input->is_linked())
+                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Projection = "";
+            }
+            else if(b_input->name() == "Border mode") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->BorderMode = RNA_int_get(&value_sock.ptr, "default_value");
             }
         }
     } //case BL::ShaderNode::type_OCT_AIMAGE_TEX
@@ -1209,6 +1255,59 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
             }
         }
     } //case BL::ShaderNode::type_OCT_DIRT_TEX
+    else if(b_node.is_a(&RNA_ShaderNodeOctGradientTex)) {
+        BL::ShaderNodeOctGradientTex b_tex_node(b_node);
+        OctaneGradientTexture* cur_node = new OctaneGradientTexture();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Texture") {
+                if(b_input->is_linked())
+                    cur_node->texture = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->texture = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float ret[4];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", ret);
+                    cur_node->texture_default_val.x = ret[0];
+                    cur_node->texture_default_val.y = ret[1];
+                    cur_node->texture_default_val.z = ret[2];
+                }
+            }
+            else if(b_input->name() == "Smooth") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->Smooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Start Value") {
+                if(b_input->is_linked())
+                    cur_node->Start = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Start = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float ret[4];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", ret);
+                    cur_node->Start_default_val.x = ret[0];
+                    cur_node->Start_default_val.y = ret[1];
+                    cur_node->Start_default_val.z = ret[2];
+                }
+            }
+            else if(b_input->name() == "End Value") {
+                if(b_input->is_linked())
+                    cur_node->End = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->End = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float ret[4];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", ret);
+                    cur_node->End_default_val.x = ret[0];
+                    cur_node->End_default_val.y = ret[1];
+                    cur_node->End_default_val.z = ret[2];
+                }
+            }
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // OCTANE EMISSIONS
@@ -1253,14 +1352,6 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Efficiency_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
-            else if(b_input->name() == "Orientation") {
-                BL::NodeSocket value_sock(*b_input);
-                float Orientation[3];
-                RNA_float_get_array(&value_sock.ptr, "default_value", Orientation);
-                cur_node->Orientation.x = Orientation[0];
-                cur_node->Orientation.y = Orientation[1];
-                cur_node->Orientation.z = Orientation[2];
-            }
             else if(b_input->name() == "Sampling Rate") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->SamplingRate = RNA_float_get(&value_sock.ptr, "default_value");
@@ -1298,14 +1389,6 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     BL::NodeSocket value_sock(*b_input);
                     cur_node->Distribution_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
-            }
-            else if(b_input->name() == "Orientation") {
-                BL::NodeSocket value_sock(*b_input);
-                float Orientation[3];
-                RNA_float_get_array(&value_sock.ptr, "default_value", Orientation);
-                cur_node->Orientation.x = Orientation[0];
-                cur_node->Orientation.y = Orientation[1];
-                cur_node->Orientation.z = Orientation[2];
             }
             else if(b_input->name() == "Sampling Rate") {
                 BL::NodeSocket value_sock(*b_input);
@@ -1554,6 +1637,146 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         }
     } //else if(b_node.is_a(&RNA_ShaderNodeTexChecker))
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // OCTANE PROJECTIONS
+    else if(b_node.is_a(&RNA_ShaderNodeOctXYZProjection)) {
+        BL::ShaderNodeOctXYZProjection b_tex_node(b_node);
+        OctaneOctXYZProjection* cur_node = new OctaneOctXYZProjection();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Coordinate Space") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->CoordinateSpace = RNA_int_get(&value_sock.ptr, "default_value");
+            }
+            else if(b_input->name() == "XYZ Transformation") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Transform = "";
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctBoxProjection)) {
+        BL::ShaderNodeOctBoxProjection b_tex_node(b_node);
+        OctaneOctBoxProjection* cur_node = new OctaneOctBoxProjection();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Coordinate Space") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->CoordinateSpace = RNA_int_get(&value_sock.ptr, "default_value");
+            }
+            else if(b_input->name() == "Box Transformation") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Transform = "";
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctCylProjection)) {
+        BL::ShaderNodeOctCylProjection b_tex_node(b_node);
+        OctaneOctCylProjection* cur_node = new OctaneOctCylProjection();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Coordinate Space") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->CoordinateSpace = RNA_int_get(&value_sock.ptr, "default_value");
+            }
+            else if(b_input->name() == "Cylinder Transformation") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Transform = "";
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctPerspProjection)) {
+        BL::ShaderNodeOctPerspProjection b_tex_node(b_node);
+        OctaneOctPerspProjection* cur_node = new OctaneOctPerspProjection();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Coordinate Space") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->CoordinateSpace = RNA_int_get(&value_sock.ptr, "default_value");
+            }
+            else if(b_input->name() == "Plane Transformation") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Transform = "";
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctSphericalProjection)) {
+        BL::ShaderNodeOctSphericalProjection b_tex_node(b_node);
+        OctaneOctSphericalProjection* cur_node = new OctaneOctSphericalProjection();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Coordinate Space") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->CoordinateSpace = RNA_int_get(&value_sock.ptr, "default_value");
+            }
+            else if(b_input->name() == "Sphere Transformation") {
+                if(b_input->is_linked())
+                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->Transform = "";
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctUVWProjection)) {
+        BL::ShaderNodeOctUVWProjection b_tex_node(b_node);
+        OctaneOctUVWProjection* cur_node = new OctaneOctUVWProjection();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // OCTANE VALUES
+    else if(b_node.is_a(&RNA_ShaderNodeOctFloatValue)) {
+        BL::ShaderNodeOctFloatValue b_tex_node(b_node);
+        OctaneOctFloatValue* cur_node = new OctaneOctFloatValue();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Value") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->Value = RNA_float_get(&value_sock.ptr, "default_value");
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctIntValue)) {
+        BL::ShaderNodeOctIntValue b_tex_node(b_node);
+        OctaneOctIntValue* cur_node = new OctaneOctIntValue();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Value") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->Value = RNA_int_get(&value_sock.ptr, "default_value");
+            }
+        }
+    }
+
     //default: {
     //    BL::ShaderNode::type_enum cur_type = b_node.type();
     //}
@@ -1725,8 +1948,6 @@ void BlenderSync::sync_world() {
             env->type  = 0;
             env->power = 1.1f;
         }
-        env->rotation.x             = get_float(oct_scene, "env_rotation_x");
-        env->rotation.y             = get_float(oct_scene, "env_rotation_y");
         env->importance_sampling    = get_boolean(oct_scene, "env_importance_sampling");
         env->daylight_type          = static_cast<uint32_t>(RNA_enum_get(&oct_scene, "env_daylight_type"));
         env->sun_vector.x           = get_float(oct_scene, "env_sundir_x");

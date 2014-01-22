@@ -198,8 +198,8 @@ static void select_linked_tfaces_with_seams(Mesh *me, const unsigned int index, 
 	bool do_it = true;
 	bool mark = false;
 
-	BLI_bitmap edge_tag = BLI_BITMAP_NEW(me->totedge, __func__);
-	BLI_bitmap poly_tag = BLI_BITMAP_NEW(me->totpoly, __func__);
+	BLI_bitmap *edge_tag = BLI_BITMAP_NEW(me->totedge, __func__);
+	BLI_bitmap *poly_tag = BLI_BITMAP_NEW(me->totpoly, __func__);
 
 	if (index != (unsigned int)-1) {
 		/* only put face under cursor in array */
@@ -291,49 +291,37 @@ void paintface_deselect_all_visible(Object *ob, int action, bool flush_flags)
 	me = BKE_mesh_from_object(ob);
 	if (me == NULL) return;
 	
-	if (action == SEL_INVERT) {
+	if (action == SEL_TOGGLE) {
+		action = SEL_SELECT;
+
 		mpoly = me->mpoly;
 		a = me->totpoly;
 		while (a--) {
-			if ((mpoly->flag & ME_HIDE) == 0) {
-				mpoly->flag ^= ME_FACE_SEL;
+			if ((mpoly->flag & ME_HIDE) == 0 && mpoly->flag & ME_FACE_SEL) {
+				action = SEL_DESELECT;
+				break;
 			}
 			mpoly++;
 		}
 	}
-	else {
-		if (action == SEL_TOGGLE) {
-			action = SEL_SELECT;
 
-			mpoly = me->mpoly;
-			a = me->totpoly;
-			while (a--) {
-				if ((mpoly->flag & ME_HIDE) == 0 && mpoly->flag & ME_FACE_SEL) {
-					action = SEL_DESELECT;
+	mpoly = me->mpoly;
+	a = me->totpoly;
+	while (a--) {
+		if ((mpoly->flag & ME_HIDE) == 0) {
+			switch (action) {
+				case SEL_SELECT:
+					mpoly->flag |= ME_FACE_SEL;
 					break;
-				}
-				mpoly++;
+				case SEL_DESELECT:
+					mpoly->flag &= ~ME_FACE_SEL;
+					break;
+				case SEL_INVERT:
+					mpoly->flag ^= ME_FACE_SEL;
+					break;
 			}
 		}
-
-		mpoly = me->mpoly;
-		a = me->totpoly;
-		while (a--) {
-			if ((mpoly->flag & ME_HIDE) == 0) {
-				switch (action) {
-					case SEL_SELECT:
-						mpoly->flag |= ME_FACE_SEL;
-						break;
-					case SEL_DESELECT:
-						mpoly->flag &= ~ME_FACE_SEL;
-						break;
-					case SEL_INVERT:
-						mpoly->flag ^= ME_FACE_SEL;
-						break;
-				}
-			}
-			mpoly++;
-		}
+		mpoly++;
 	}
 
 	if (flush_flags) {
@@ -557,49 +545,37 @@ void paintvert_deselect_all_visible(Object *ob, int action, bool flush_flags)
 	me = BKE_mesh_from_object(ob);
 	if (me == NULL) return;
 	
-	if (action == SEL_INVERT) {
+	if (action == SEL_TOGGLE) {
+		action = SEL_SELECT;
+
 		mvert = me->mvert;
 		a = me->totvert;
 		while (a--) {
-			if ((mvert->flag & ME_HIDE) == 0) {
-				mvert->flag ^= SELECT;
+			if ((mvert->flag & ME_HIDE) == 0 && mvert->flag & SELECT) {
+				action = SEL_DESELECT;
+				break;
 			}
 			mvert++;
 		}
 	}
-	else {
-		if (action == SEL_TOGGLE) {
-			action = SEL_SELECT;
 
-			mvert = me->mvert;
-			a = me->totvert;
-			while (a--) {
-				if ((mvert->flag & ME_HIDE) == 0 && mvert->flag & SELECT) {
-					action = SEL_DESELECT;
+	mvert = me->mvert;
+	a = me->totvert;
+	while (a--) {
+		if ((mvert->flag & ME_HIDE) == 0) {
+			switch (action) {
+				case SEL_SELECT:
+					mvert->flag |= SELECT;
 					break;
-				}
-				mvert++;
+				case SEL_DESELECT:
+					mvert->flag &= ~SELECT;
+					break;
+				case SEL_INVERT:
+					mvert->flag ^= SELECT;
+					break;
 			}
 		}
-
-		mvert = me->mvert;
-		a = me->totvert;
-		while (a--) {
-			if ((mvert->flag & ME_HIDE) == 0) {
-				switch (action) {
-					case SEL_SELECT:
-						mvert->flag |= SELECT;
-						break;
-					case SEL_DESELECT:
-						mvert->flag &= ~SELECT;
-						break;
-					case SEL_INVERT:
-						mvert->flag ^= SELECT;
-						break;
-				}
-			}
-			mvert++;
-		}
+		mvert++;
 	}
 
 	/* handle mselect */
@@ -715,6 +691,7 @@ void ED_mesh_mirrtopo_init(Mesh *me, const int ob_mode, MirrTopoStore_t *mesh_to
 	int a, last;
 	int totvert, totedge;
 	int tot_unique = -1, tot_unique_prev = -1;
+	int tot_unique_edges = 0, tot_unique_edges_prev;
 
 	MirrTopoHash_t *topo_hash = NULL;
 	MirrTopoHash_t *topo_hash_prev = NULL;
@@ -744,36 +721,45 @@ void ED_mesh_mirrtopo_init(Mesh *me, const int ob_mode, MirrTopoStore_t *mesh_to
 		totedge = me->edit_btmesh->bm->totedge;
 
 		BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-			topo_hash[BM_elem_index_get(eed->v1)]++;
-			topo_hash[BM_elem_index_get(eed->v2)]++;
+			const int i1 = BM_elem_index_get(eed->v1), i2 = BM_elem_index_get(eed->v2);
+			topo_hash[i1]++;
+			topo_hash[i2]++;
 		}
 	}
 	else {
 		totedge = me->totedge;
 
 		for (a = 0, medge = me->medge; a < me->totedge; a++, medge++) {
-			topo_hash[medge->v1]++;
-			topo_hash[medge->v2]++;
+			const unsigned int i1 = medge->v1, i2 = medge->v2;
+			topo_hash[i1]++;
+			topo_hash[i2]++;
 		}
 	}
 
 	topo_hash_prev = MEM_dupallocN(topo_hash);
 
 	tot_unique_prev = -1;
+	tot_unique_edges_prev = -1;
 	while (1) {
 		/* use the number of edges per vert to give verts unique topology IDs */
 
+		tot_unique_edges = 0;
+
+		/* This can make really big numbers, wrapping around here is fine */
 		if (em) {
 			BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-				topo_hash[BM_elem_index_get(eed->v1)] += topo_hash_prev[BM_elem_index_get(eed->v2)] * topo_pass;
-				topo_hash[BM_elem_index_get(eed->v2)] += topo_hash_prev[BM_elem_index_get(eed->v1)] * topo_pass;
+				const int i1 = BM_elem_index_get(eed->v1), i2 = BM_elem_index_get(eed->v2);
+				topo_hash[i1] += topo_hash_prev[i2] * topo_pass;
+				topo_hash[i2] += topo_hash_prev[i1] * topo_pass;
+				tot_unique_edges += (topo_hash[i1] != topo_hash[i2]);
 			}
 		}
 		else {
 			for (a = 0, medge = me->medge; a < me->totedge; a++, medge++) {
-				/* This can make really big numbers, wrapping around here is fine */
-				topo_hash[medge->v1] += topo_hash_prev[medge->v2] * topo_pass;
-				topo_hash[medge->v2] += topo_hash_prev[medge->v1] * topo_pass;
+				const unsigned int i1 = medge->v1, i2 = medge->v2;
+				topo_hash[i1] += topo_hash_prev[i2] * topo_pass;
+				topo_hash[i2] += topo_hash_prev[i1] * topo_pass;
+				tot_unique_edges += (topo_hash[i1] != topo_hash[i2]);
 			}
 		}
 		memcpy(topo_hash_prev, topo_hash, sizeof(MirrTopoHash_t) * totvert);
@@ -788,13 +774,14 @@ void ED_mesh_mirrtopo_init(Mesh *me, const int ob_mode, MirrTopoStore_t *mesh_to
 			}
 		}
 
-		if (tot_unique <= tot_unique_prev) {
+		if ((tot_unique <= tot_unique_prev) && (tot_unique_edges <= tot_unique_edges_prev)) {
 			/* Finish searching for unique values when 1 loop dosnt give a
 			 * higher number of unique values compared to the previous loop */
 			break;
 		}
 		else {
 			tot_unique_prev = tot_unique;
+			tot_unique_edges_prev = tot_unique_edges;
 		}
 		/* Copy the hash calculated this iter, so we can use them next time */
 		memcpy(topo_hash_prev, topo_hash, sizeof(MirrTopoHash_t) * totvert);

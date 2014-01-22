@@ -29,20 +29,20 @@
 
 struct BMAllocTemplate;
 
-BMFace *BM_face_create_quad_tri_v(BMesh *bm,
-                                  BMVert **verts, int len,
-                                  const BMFace *example, const bool no_double);
-
 BMFace *BM_face_create_quad_tri(BMesh *bm, BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4,
-                                const BMFace *example, const bool no_double);
+                                const BMFace *f_example, const eBMCreateFlag create_flag);
 
-void BM_face_copy_shared(BMesh *bm, BMFace *f);
+void BM_face_copy_shared(BMesh *bm, BMFace *f,
+                         BMElemFilterFunc filter_fn, void *user_data);
 
-BMFace *BM_face_create_ngon(BMesh *bm, BMVert *v1, BMVert *v2, BMEdge **edges, const int len, const int create_flag);
-BMFace *BM_face_create_ngon_verts(BMesh *bm, BMVert **vert_arr, const int len, const int create_flag,
+BMFace *BM_face_create_ngon(BMesh *bm, BMVert *v1, BMVert *v2, BMEdge **edges, const int len,
+                            const BMFace *f_example, const eBMCreateFlag create_flag);
+BMFace *BM_face_create_ngon_verts(BMesh *bm, BMVert **vert_arr, const int len,
+                                  const BMFace *f_example, const eBMCreateFlag create_flag,
                                   const bool calc_winding, const bool create_edges);
 
-BMFace *BM_face_create_ngon_vcloud(BMesh *bm, BMVert **vert_arr, int len, const int create_flag);
+BMFace *BM_face_create_ngon_vcloud(BMesh *bm, BMVert **vert_arr, int len,
+                                   const BMFace *f_example, const eBMCreateFlag create_flag);
 
 void BMO_remove_tagged_faces(BMesh *bm, const short oflag);
 void BMO_remove_tagged_edges(BMesh *bm, const short oflag);
@@ -53,6 +53,7 @@ void BMO_remove_tagged_context(BMesh *bm, const short oflag, const int type);
 void BM_elem_attrs_copy_ex(BMesh *bm_src, BMesh *bm_dst, const void *ele_src_v, void *ele_dst_v,
                            const char hflag_mask);
 void BM_elem_attrs_copy(BMesh *bm_src, BMesh *bm_dst, const void *ele_src_v, void *ele_dst_v);
+void BM_elem_select_copy(BMesh *bm_dst, BMesh *bm_src, void *ele_dst_v, const void *ele_src_v);
 
 void   BM_mesh_copy_init_customdata(BMesh *bm_dst, BMesh *bm_src, const struct BMAllocTemplate *allocsize);
 BMesh *BM_mesh_copy(BMesh *bm_old);

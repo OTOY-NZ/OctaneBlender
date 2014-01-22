@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 /* Optimized CPU kernel entry points. This file is compiled with SSE2
@@ -22,7 +20,10 @@
 
 #ifdef WITH_OPTIMIZED_KERNEL
 
+/* SSE optimization disabled for now on 32 bit, see bug #36316 */
+#if !(defined(__GNUC__) && (defined(i386) || defined(_M_IX86)))
 #define __KERNEL_SSE2__
+#endif
 
 #include "kernel.h"
 #include "kernel_compat_cpu.h"
@@ -39,14 +40,24 @@ CCL_NAMESPACE_BEGIN
 
 void kernel_cpu_sse2_path_trace(KernelGlobals *kg, float *buffer, unsigned int *rng_state, int sample, int x, int y, int offset, int stride)
 {
-	kernel_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
+#ifdef __BRANCHED_PATH__
+	if(kernel_data.integrator.branched)
+		kernel_branched_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
+	else
+#endif
+		kernel_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
 }
 
-/* Tonemapping */
+/* Film */
 
-void kernel_cpu_sse2_tonemap(KernelGlobals *kg, uchar4 *rgba, float *buffer, int sample, int x, int y, int offset, int stride)
+void kernel_cpu_sse2_convert_to_byte(KernelGlobals *kg, uchar4 *rgba, float *buffer, float sample_scale, int x, int y, int offset, int stride)
 {
-	kernel_film_tonemap(kg, rgba, buffer, sample, x, y, offset, stride);
+	kernel_film_convert_to_byte(kg, rgba, buffer, sample_scale, x, y, offset, stride);
+}
+
+void kernel_cpu_sse2_convert_to_half_float(KernelGlobals *kg, uchar4 *rgba, float *buffer, float sample_scale, int x, int y, int offset, int stride)
+{
+	kernel_film_convert_to_half_float(kg, rgba, buffer, sample_scale, x, y, offset, stride);
 }
 
 /* Shader Evaluate */

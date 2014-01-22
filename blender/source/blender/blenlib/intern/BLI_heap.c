@@ -34,14 +34,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_memarena.h"
 #include "BLI_heap.h"
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic error "-Wsign-conversion"
-#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
-#    pragma GCC diagnostic error "-Wsign-compare"
-#    pragma GCC diagnostic error "-Wconversion"
-#  endif
-#endif
+#include "BLI_strict_flags.h"
 
 /***/
 
@@ -163,7 +156,7 @@ HeapNode *BLI_heap_insert(Heap *heap, float value, void *ptr)
 {
 	HeapNode *node;
 
-	if (UNLIKELY((heap->size + 1) > heap->bufsize)) {
+	if (UNLIKELY(heap->size >= heap->bufsize)) {
 		heap->bufsize *= 2;
 		heap->tree = MEM_reallocN(heap->tree, heap->bufsize * sizeof(*heap->tree));
 	}
@@ -184,7 +177,7 @@ HeapNode *BLI_heap_insert(Heap *heap, float value, void *ptr)
 
 	heap->size++;
 
-	heap_up(heap, heap->size - 1);
+	heap_up(heap, node->index);
 
 	return node;
 }
@@ -229,6 +222,8 @@ void *BLI_heap_popmin(Heap *heap)
 void BLI_heap_remove(Heap *heap, HeapNode *node)
 {
 	unsigned int i = node->index;
+
+	BLI_assert(heap->size != 0);
 
 	while (i > 0) {
 		unsigned int p = HEAP_PARENT(i);

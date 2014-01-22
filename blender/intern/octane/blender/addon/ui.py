@@ -171,10 +171,11 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         col = split.column()
 
         sub = col.column(align=True)
-        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
         sub.label("Samples:")
         sub.prop(oct_scene, "max_samples", text="Max. samples")
         sub.prop(oct_scene, "max_preview_samples", text="Prev. samples")
+
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "zdepth_max", text="Z-Depth max.")
@@ -186,10 +187,16 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "caustic_blur", text="Caustic blur")
 
         sub = col.column(align=True)
-        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "alpha_channel", text="Alpha channel")
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
         sub.prop(oct_scene, "keep_environment", text="Keep environment")
         sub.prop(oct_scene, "alpha_shadows", text="Alpha shadows")
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '4')
+        sub.prop(oct_scene, "bump_normal_mapping", text="Bump and normal mapping")
+        sub.prop(oct_scene, "wf_bktrace_hl", text="Wireframe backtrace highlighting")
 
         col = split.column()
 
@@ -201,9 +208,11 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "diffuse_depth", text="Diffuse depth")
 
         sub = col.column(align=True)
-        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "filter_size", text="Filter size")
         sub.prop(oct_scene, "ray_epsilon", text="Ray epsilon")
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
         sub.prop(oct_scene, "rrprob", text="RRprob")
 
         sub = col.column(align=True)
@@ -703,13 +712,6 @@ class OctaneWorld_PT_settings(OctaneButtonsPanel, Panel):
         row.active = (oct_world.env_type == '0')
 #        row.prop(oct_world, "env_texture", text="Texture")
         row.prop_search(oct_world, "env_texture",  bpy.data, "textures")
-
-        row = layout.row(align=True)
-        sub = row.column(align=True)
-        sub.active = (oct_world.env_type == '0')
-        sub.label("Rotation:")
-        sub.prop(oct_world, "env_rotation_x", text="X")
-        sub.prop(oct_world, "env_rotation_y", text="Y")
 
         row = layout.row(align=True)
         row.active = (oct_world.env_type == '0')

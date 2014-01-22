@@ -65,6 +65,7 @@
 #include "BKE_fcurve.h"
 #include "BKE_scene.h"
 #include "BKE_mask.h"
+#include "BKE_library.h"
 
 #include "RNA_access.h"
 
@@ -265,6 +266,7 @@ static void seq_free_clipboard_recursive(Sequence *seq_parent)
 		seq_free_clipboard_recursive(seq);
 	}
 
+	BKE_sequence_clipboard_pointers_free(seq_parent);
 	BKE_sequence_free_ex(NULL, seq_parent, FALSE);
 }
 
@@ -278,6 +280,101 @@ void BKE_sequencer_free_clipboard(void)
 	}
 	seqbase_clipboard.first = seqbase_clipboard.last = NULL;
 }
+
+/* -------------------------------------------------------------------- */
+/* Manage pointers in the clipboard.
+ * note that these pointers should _never_ be access in the sequencer,
+ * they are only for storage while in the clipboard
+ * notice 'newid' is used for temp pointer storage here, validate on access.
+ */
+#define ID_PT (*id_pt)
+static void seqclipboard_ptr_free(ID **id_pt)
+{
+	if (ID_PT) {
+		BLI_assert(ID_PT->newid != NULL);
+		MEM_freeN(ID_PT);
+		ID_PT = NULL;
+	}
+}
+static void seqclipboard_ptr_store(ID **id_pt)
+{
+	if (ID_PT) {
+		ID *id_prev = ID_PT;
+		ID_PT = MEM_dupallocN(ID_PT);
+		ID_PT->newid = id_prev;
+	}
+}
+static void seqclipboard_ptr_restore(Main *bmain, ID **id_pt)
+{
+	if (ID_PT) {
+		const ListBase *lb = which_libbase(bmain, GS(ID_PT->name));
+		void *id_restore;
+
+		BLI_assert(ID_PT->newid != NULL);
+		if (BLI_findindex(lb, (ID_PT)->newid) != -1) {
+			/* the pointer is still valid */
+			id_restore = (ID_PT)->newid;
+		}
+		else {
+			/* the pointer of the same name still exists  */
+			id_restore = BLI_findstring(lb, (ID_PT)->name + 2, offsetof(ID, name) + 2);
+		}
+
+		if (id_restore == NULL) {
+			/* check for a data with the same filename */
+			switch (GS(ID_PT->name)) {
+				case ID_SO:
+				{
+					id_restore = BLI_findstring(lb, ((bSound *)ID_PT)->name, offsetof(bSound, name));
+					if (id_restore == NULL) {
+						id_restore = sound_new_file(bmain, ((bSound *)ID_PT)->name);
+						(ID_PT)->newid = id_restore;  /* reuse next time */
+					}
+					break;
+				}
+				case ID_MC:
+				{
+					id_restore = BLI_findstring(lb, ((MovieClip *)ID_PT)->name, offsetof(MovieClip, name));
+					if (id_restore == NULL) {
+						id_restore = BKE_movieclip_file_add(bmain, ((MovieClip *)ID_PT)->name);
+						(ID_PT)->newid = id_restore;  /* reuse next time */
+					}
+					break;
+				}
+			}
+		}
+
+		ID_PT = id_restore;
+	}
+}
+#undef ID_PT
+
+void BKE_sequence_clipboard_pointers_free(Sequence *seq)
+{
+	seqclipboard_ptr_free((ID **)&seq->scene);
+	seqclipboard_ptr_free((ID **)&seq->scene_camera);
+	seqclipboard_ptr_free((ID **)&seq->clip);
+	seqclipboard_ptr_free((ID **)&seq->mask);
+	seqclipboard_ptr_free((ID **)&seq->sound);
+}
+void BKE_sequence_clipboard_pointers_store(Sequence *seq)
+{
+	seqclipboard_ptr_store((ID **)&seq->scene);
+	seqclipboard_ptr_store((ID **)&seq->scene_camera);
+	seqclipboard_ptr_store((ID **)&seq->clip);
+	seqclipboard_ptr_store((ID **)&seq->mask);
+	seqclipboard_ptr_store((ID **)&seq->sound);
+}
+void BKE_sequence_clipboard_pointers_restore(Sequence *seq, Main *bmain)
+{
+	seqclipboard_ptr_restore(bmain, (ID **)&seq->scene);
+	seqclipboard_ptr_restore(bmain, (ID **)&seq->scene_camera);
+	seqclipboard_ptr_restore(bmain, (ID **)&seq->clip);
+	seqclipboard_ptr_restore(bmain, (ID **)&seq->mask);
+	seqclipboard_ptr_restore(bmain, (ID **)&seq->sound);
+}
+/* end clipboard pointer mess */
+
 
 Editing *BKE_sequencer_editing_ensure(Scene *scene)
 {
@@ -320,33 +417,41 @@ void BKE_sequencer_editing_free(Scene *scene)
 
 static void sequencer_imbuf_assign_spaces(Scene *scene, ImBuf *ibuf)
 {
-	IMB_colormanagement_assign_float_colorspace(ibuf, scene->sequencer_colorspace_settings.name);
+	if (ibuf->rect_float) {
+		IMB_colormanagement_assign_float_colorspace(ibuf, scene->sequencer_colorspace_settings.name);
+	}
 }
 
 void BKE_sequencer_imbuf_to_sequencer_space(Scene *scene, ImBuf *ibuf, int make_float)
 {
 	const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
 	const char *to_colorspace = scene->sequencer_colorspace_settings.name;
+	const char *float_colorspace = IMB_colormanagement_get_float_colorspace(ibuf);
 
 	if (!ibuf->rect_float) {
-		if (make_float && ibuf->rect) {
-			/* when converting byte buffer to float in sequencer we need to make float
-			 * buffer be in sequencer's working space, which is currently only doable
-			 * from linear space.
-			 *
-			 */
+		if (ibuf->rect) {
+			const char *byte_colorspace = IMB_colormanagement_get_rect_colorspace(ibuf);
+			if (make_float || !STREQ(to_colorspace, byte_colorspace)) {
+				/* If byte space is not in sequencer's working space, we deliver float color space,
+				 * this is to to prevent data loss.
+				 */
 
-			/*
-			 * OCIO_TODO: would be nice to support direct single transform from byte to sequencer's
-			 */
+				/* when converting byte buffer to float in sequencer we need to make float
+				 * buffer be in sequencer's working space, which is currently only doable
+				 * from linear space.
+				 */
 
-			IMB_float_from_rect(ibuf);
+				/*
+				 * OCIO_TODO: would be nice to support direct single transform from byte to sequencer's
+				 */
+
+				IMB_float_from_rect(ibuf);
+			}
+			else {
+				return;
+			}
 		}
 		else {
-			/* if there's only byte buffer in image it's already in compositor's working space,
-			 * nothing to do here
-			 */
-
 			return;
 		}
 	}
@@ -355,8 +460,10 @@ void BKE_sequencer_imbuf_to_sequencer_space(Scene *scene, ImBuf *ibuf, int make_
 		if (ibuf->rect)
 			imb_freerectImBuf(ibuf);
 
-		IMB_colormanagement_transform_threaded(ibuf->rect_float, ibuf->x, ibuf->y, ibuf->channels,
-		                                       from_colorspace, to_colorspace, TRUE);
+		if (!STREQ(float_colorspace, to_colorspace)) {
+			IMB_colormanagement_transform_threaded(ibuf->rect_float, ibuf->x, ibuf->y, ibuf->channels,
+			                                       from_colorspace, to_colorspace, true);
+		}
 	}
 }
 
@@ -370,7 +477,7 @@ void BKE_sequencer_imbuf_from_sequencer_space(Scene *scene, ImBuf *ibuf)
 
 	if (to_colorspace && to_colorspace[0] != '\0') {
 		IMB_colormanagement_transform_threaded(ibuf->rect_float, ibuf->x, ibuf->y, ibuf->channels,
-		                                       from_colorspace, to_colorspace, TRUE);
+		                                       from_colorspace, to_colorspace, true);
 	}
 }
 
@@ -525,7 +632,7 @@ static void seq_update_sound_bounds_recursive_rec(Scene *scene, Sequence *metase
 					endofs = seq->start + seq->len - end;
 
 				sound_move_scene_sound(scene, seq->scene_sound, seq->start + startofs,
-				                       seq->start + seq->len - endofs, startofs);
+				                       seq->start + seq->len - endofs, startofs + seq->anim_startofs);
 			}
 		}
 	}
@@ -557,8 +664,9 @@ void BKE_sequence_calc_disp(Scene *scene, Sequence *seq)
 	if (ELEM(seq->type, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SCENE)) {
 		BKE_sequencer_update_sound_bounds(scene, seq);
 	}
-	else if (seq->type == SEQ_TYPE_META)
+	else if (seq->type == SEQ_TYPE_META) {
 		seq_update_sound_bounds_recursive(scene, seq);
+	}
 }
 
 void BKE_sequence_calc(Scene *scene, Sequence *seq)
@@ -768,8 +876,7 @@ void BKE_sequencer_sort(Scene *scene)
 	seqbase.first = seqbase.last = NULL;
 	effbase.first = effbase.last = NULL;
 
-	while ( (seq = ed->seqbasep->first) ) {
-		BLI_remlink(ed->seqbasep, seq);
+	while ((seq = BLI_pophead(ed->seqbasep))) {
 
 		if (seq->type & SEQ_TYPE_EFFECT) {
 			seqt = effbase.first;
@@ -818,33 +925,6 @@ void BKE_sequencer_clear_scene_in_allseqs(Main *bmain, Scene *scene)
 			BKE_sequencer_base_recursive_apply(&scene_iter->ed->seqbase, clear_scene_in_allseqs_cb, scene);
 		}
 	}
-
-	/* also clear clipboard */
-	BKE_sequencer_base_recursive_apply(&seqbase_clipboard, clear_scene_in_allseqs_cb, scene);
-}
-
-static int clear_movieclip_in_clipboard_cb(Sequence *seq, void *arg_pt)
-{
-	if (seq->clip == (MovieClip *)arg_pt)
-		seq->clip = NULL;
-	return 1;
-}
-
-void BKE_sequencer_clear_movieclip_in_clipboard(MovieClip *clip)
-{
-	BKE_sequencer_base_recursive_apply(&seqbase_clipboard, clear_movieclip_in_clipboard_cb, clip);
-}
-
-static int clear_mask_in_clipboard_cb(Sequence *seq, void *arg_pt)
-{
-	if (seq->mask == (Mask *)arg_pt)
-		seq->mask = NULL;
-	return 1;
-}
-
-void BKE_sequencer_clear_mask_in_clipboard(Mask *mask)
-{
-	BKE_sequencer_base_recursive_apply(&seqbase_clipboard, clear_mask_in_clipboard_cb, mask);
 }
 
 typedef struct SeqUniqueInfo {
@@ -2599,10 +2679,14 @@ static ImBuf *do_render_strip_uncached(SeqRenderData context, Sequence *seq, flo
 				                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
 				                         seq_rendersize_to_proxysize(context.preview_render_size));
 
-				/* we don't need both (speed reasons)! */
-				if (ibuf && ibuf->rect_float && ibuf->rect)
-					imb_freerectImBuf(ibuf);
 				if (ibuf) {
+					BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf, FALSE);
+
+					/* we don't need both (speed reasons)! */
+					if (ibuf->rect_float && ibuf->rect) {
+						imb_freerectImBuf(ibuf);
+					}
+
 					seq->strip->stripdata->orig_width = ibuf->x;
 					seq->strip->stripdata->orig_height = ibuf->y;
 				}
@@ -3607,6 +3691,51 @@ bool BKE_sequence_base_shuffle_time(ListBase *seqbasep, Scene *evil_scene)
 	return offset ? false : true;
 }
 
+/* Unlike _update_sound_ funcs, these ones take info from audaspace to update sequence length! */
+#ifdef WITH_AUDASPACE
+static bool sequencer_refresh_sound_length_recursive(Scene *scene, ListBase *seqbase)
+{
+	Sequence *seq;
+	bool changed = false;
+
+	for (seq = seqbase->first; seq; seq = seq->next) {
+		if (seq->type == SEQ_TYPE_META) {
+			if (sequencer_refresh_sound_length_recursive(scene, &seq->seqbase)) {
+				BKE_sequence_calc(scene, seq);
+				changed = true;
+			}
+		}
+		else if (seq->type == SEQ_TYPE_SOUND_RAM) {
+			AUD_SoundInfo info = AUD_getInfo(seq->sound->playback_handle);
+			int old = seq->len;
+			float fac;
+
+			seq->len = (int)ceil((double)info.length * FPS);
+			fac = (float)seq->len / (float)old;
+			old = seq->startofs;
+			seq->startofs *= fac;
+			seq->endofs *= fac;
+			seq->start += (old - seq->startofs);  /* So that visual/"real" start frame does not change! */
+
+			BKE_sequence_calc(scene, seq);
+			changed = true;
+		}
+	}
+	return changed;
+}
+#endif
+
+void BKE_sequencer_refresh_sound_length(Scene *scene)
+{
+#ifdef WITH_AUDASPACE
+	if (scene->ed) {
+		sequencer_refresh_sound_length_recursive(scene, &scene->ed->seqbase);
+	}
+#else
+	(void)scene;
+#endif
+}
+
 void BKE_sequencer_update_sound_bounds_all(Scene *scene)
 {
 	Editing *ed = scene->ed;
@@ -3884,6 +4013,29 @@ Sequence *BKE_sequence_get_by_name(ListBase *seqbase, const char *name, int recu
 	return NULL;
 }
 
+/**
+ * Only use as last resort when the StripElem is available but no the Sequence.
+ * (needed for RNA)
+ */
+Sequence *BKE_sequencer_from_elem(ListBase *seqbase, StripElem *se)
+{
+	Sequence *iseq;
+
+	for (iseq = seqbase->first; iseq; iseq = iseq->next) {
+		Sequence *seq_found;
+		if ((iseq->strip && iseq->strip->stripdata) &&
+		    (ARRAY_HAS_ITEM(se, iseq->strip->stripdata, iseq->len)))
+		{
+			break;
+		}
+		else if ((seq_found = BKE_sequencer_from_elem(&iseq->seqbase, se))) {
+			iseq = seq_found;
+			break;
+		}
+	}
+
+	return iseq;
+}
 
 Sequence *BKE_sequencer_active_get(Scene *scene)
 {
@@ -4245,6 +4397,12 @@ static Sequence *seq_dupli(Scene *scene, Scene *scene_to, Sequence *seq, int dup
 		if (seq->scene_sound)
 			seqn->scene_sound = sound_scene_add_scene_sound_defaults(sce_audio, seqn);
 	}
+	else if (seq->type == SEQ_TYPE_MOVIECLIP) {
+		/* avoid assert */
+	}
+	else if (seq->type == SEQ_TYPE_MASK) {
+		/* avoid assert */
+	}
 	else if (seq->type == SEQ_TYPE_MOVIE) {
 		seqn->strip->stripdata =
 		        MEM_dupallocN(seq->strip->stripdata);
@@ -4256,7 +4414,7 @@ static Sequence *seq_dupli(Scene *scene, Scene *scene_to, Sequence *seq, int dup
 		if (seq->scene_sound)
 			seqn->scene_sound = sound_add_scene_sound_defaults(sce_audio, seqn);
 
-		seqn->sound->id.us++;
+		id_us_plus((ID *)seqn->sound);
 	}
 	else if (seq->type == SEQ_TYPE_IMAGE) {
 		seqn->strip->stripdata =
@@ -4278,7 +4436,8 @@ static Sequence *seq_dupli(Scene *scene, Scene *scene_to, Sequence *seq, int dup
 
 	}
 	else {
-		fprintf(stderr, "Aiiiiekkk! sequence type not handled in duplicate!\nExpect a crash now...\n");
+		/* sequence type not handled in duplicate! Expect a crash now... */
+		BLI_assert(0);
 	}
 
 	if (dupe_flag & SEQ_DUPE_UNIQUE_NAME)

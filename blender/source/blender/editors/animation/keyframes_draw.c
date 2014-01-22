@@ -601,30 +601,27 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 			{
 				if (sel) glColor4f(0.33f, 0.75f, 0.93f, alpha);
 				else glColor4f(0.70f, 0.86f, 0.91f, alpha);
+				break;
 			}
-			break;
-				
 			case BEZT_KEYTYPE_EXTREME: /* redish frames for now */
 			{
 				if (sel) glColor4f(0.95f, 0.5f, 0.5f, alpha);
 				else glColor4f(0.91f, 0.70f, 0.80f, alpha);
+				break;
 			}
-			break;
-				
 			case BEZT_KEYTYPE_JITTER: /* greenish frames for now? */
 			{
 				if (sel) glColor4f(0.38f, 0.75f, 0.26f, alpha);
 				else glColor4f(0.58f, 0.90f, 0.46f, alpha);
+				break;
 			}
-			break;
-				
 			case BEZT_KEYTYPE_KEYFRAME: /* traditional yellowish frames for now */
 			default:
 			{
 				if (sel) UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
 				else glColor4f(0.91f, 0.91f, 0.91f, alpha);
+				break;
 			}
-			break;
 		}
 		
 		glCallList(displist2);
@@ -796,7 +793,7 @@ void draw_action_channel(View2D *v2d, AnimData *adt, bAction *act, float ypos)
 {
 	DLRBT_Tree keys, blocks;
 	
-	short locked = (act && act->id.lib != 0);
+	short locked = (act && act->id.lib != NULL);
 	
 	BLI_dlrbTree_init(&keys);
 	BLI_dlrbTree_init(&blocks);
@@ -890,7 +887,7 @@ void scene_to_keylist(bDopeSheet *ads, Scene *sce, DLRBT_Tree *keys, DLRBT_Tree 
 	bAnimListElem *ale;
 	int filter;
 	
-	bAnimListElem dummychan = {0};
+	bAnimListElem dummychan = {NULL};
 	
 	if (sce == NULL)
 		return;
@@ -923,8 +920,8 @@ void ob_to_keylist(bDopeSheet *ads, Object *ob, DLRBT_Tree *keys, DLRBT_Tree *bl
 	bAnimListElem *ale;
 	int filter;
 	
-	bAnimListElem dummychan = {0};
-	Base dummybase = {0};
+	bAnimListElem dummychan = {NULL};
+	Base dummybase = {NULL};
 	
 	if (ob == NULL)
 		return;

@@ -186,6 +186,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeBsdfToon"),
         NodeItem("ShaderNodeSubsurfaceScattering"),
         NodeItem("ShaderNodeEmission"),
+        NodeItem("ShaderNodeBsdfHair"),
         NodeItem("ShaderNodeBackground"),
         NodeItem("ShaderNodeAmbientOcclusion"),
         NodeItem("ShaderNodeHoldout"),
@@ -218,6 +219,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeNormalMap"),
         NodeItem("ShaderNodeNormal"),
         NodeItem("ShaderNodeVectorCurve"),
+        NodeItem("ShaderNodeVectorTransform"),
         ]),
     ShaderNewNodeCategory("SH_NEW_CONVERTOR", "Converter", items=[
         NodeItem("ShaderNodeMath"),
@@ -226,7 +228,10 @@ shader_node_categories = [
         NodeItem("ShaderNodeVectorMath"),
         NodeItem("ShaderNodeSeparateRGB"),
         NodeItem("ShaderNodeCombineRGB"),
+        NodeItem("ShaderNodeSeparateHSV"),
+        NodeItem("ShaderNodeCombineHSV"),
         NodeItem("ShaderNodeWavelength"),
+        NodeItem("ShaderNodeBlackbody"),
         ]),
     ShaderNewNodeCategory("SH_NEW_SCRIPT", "Script", items=[
         NodeItem("ShaderNodeScript"),
@@ -338,6 +343,7 @@ compositor_node_categories = [
         NodeItem("CompositorNodeMapUV"),
         NodeItem("CompositorNodeTransform"),
         NodeItem("CompositorNodeStabilize"),
+        NodeItem("CompositorNodePlaneTrackDeform"),
         ]),
     CompositorNodeCategory("CMP_GROUP", "Group", items=node_group_items),
     CompositorNodeCategory("CMP_LAYOUT", "Layout", items=[

@@ -110,7 +110,8 @@ static void rna_CurveMapping_white_level_set(PointerRNA *ptr, const float *value
 	curvemapping_set_black_white(cumap, NULL, NULL);
 }
 
-static void rna_CurveMapping_clipminx_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_CurveMapping_clipminx_range(PointerRNA *ptr, float *min, float *max,
+                                            float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	CurveMapping *cumap = (CurveMapping *)ptr->data;
 
@@ -118,7 +119,8 @@ static void rna_CurveMapping_clipminx_range(PointerRNA *ptr, float *min, float *
 	*max = cumap->clipr.xmax;
 }
 
-static void rna_CurveMapping_clipminy_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_CurveMapping_clipminy_range(PointerRNA *ptr, float *min, float *max,
+                                            float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	CurveMapping *cumap = (CurveMapping *)ptr->data;
 
@@ -126,7 +128,8 @@ static void rna_CurveMapping_clipminy_range(PointerRNA *ptr, float *min, float *
 	*max = cumap->clipr.ymax;
 }
 
-static void rna_CurveMapping_clipmaxx_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_CurveMapping_clipmaxx_range(PointerRNA *ptr, float *min, float *max,
+                                            float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	CurveMapping *cumap = (CurveMapping *)ptr->data;
 
@@ -134,7 +137,8 @@ static void rna_CurveMapping_clipmaxx_range(PointerRNA *ptr, float *min, float *
 	*max = 100.0f;
 }
 
-static void rna_CurveMapping_clipmaxy_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_CurveMapping_clipmaxy_range(PointerRNA *ptr, float *min, float *max,
+                                            float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	CurveMapping *cumap = (CurveMapping *)ptr->data;
 
@@ -252,9 +256,8 @@ static char *rna_ColorRampElement_path(PointerRNA *ptr)
 					RNA_pointer_create(id, &RNA_ColorRamp, ma->ramp_spec, &ramp_ptr);
 					COLRAMP_GETPATH;
 				}
+				break;
 			}
-			break;
-				
 			case ID_NT:
 			{
 				bNodeTree *ntree = (bNodeTree *)id;
@@ -266,9 +269,8 @@ static char *rna_ColorRampElement_path(PointerRNA *ptr)
 						COLRAMP_GETPATH;
 					}
 				}
+				break;
 			}
-			break;
-				
 			case ID_LS:
 			{
 				ListBase listbase;
@@ -290,6 +292,7 @@ static char *rna_ColorRampElement_path(PointerRNA *ptr)
 				if (RNA_path_resolve(&ramp_ptr, "color_ramp", &ramp_ptr, &prop)) {
 					COLRAMP_GETPATH;
 				}
+				break;
 			}
 		}
 	}
@@ -312,8 +315,8 @@ static void rna_ColorRamp_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *
 				
 				DAG_id_tag_update(&ma->id, 0);
 				WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, ma);
+				break;
 			}
-			break;
 			case ID_NT:
 			{
 				bNodeTree *ntree = (bNodeTree *)id;
@@ -324,16 +327,16 @@ static void rna_ColorRamp_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *
 						ED_node_tag_update_nodetree(bmain, ntree);
 					}
 				}
+				break;
 			}
-			break;
 			case ID_TE:
 			{
 				Tex *tex = ptr->id.data;
 
 				DAG_id_tag_update(&tex->id, 0);
 				WM_main_add_notifier(NC_TEXTURE, tex);
+				break;
 			}
-			break;
 			case ID_LS:
 			{
 				FreestyleLineStyle *linestyle = ptr->id.data;
@@ -408,8 +411,8 @@ static void rna_ColorManagedDisplaySettings_display_device_set(struct PointerRNA
 	}
 }
 
-static EnumPropertyItem *rna_ColorManagedDisplaySettings_display_device_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                                              PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *rna_ColorManagedDisplaySettings_display_device_itemf(
+        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
 {
 	EnumPropertyItem *items = NULL;
 	int totitem = 0;
@@ -456,8 +459,8 @@ static void rna_ColorManagedViewSettings_view_transform_set(PointerRNA *ptr, int
 	}
 }
 
-static EnumPropertyItem *rna_ColorManagedViewSettings_view_transform_itemf(bContext *C, PointerRNA *ptr,
-                                                                           PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *rna_ColorManagedViewSettings_view_transform_itemf(
+        bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
 {
 	Scene *scene = CTX_data_scene(C);
 	EnumPropertyItem *items = NULL;
@@ -465,6 +468,37 @@ static EnumPropertyItem *rna_ColorManagedViewSettings_view_transform_itemf(bCont
 	int totitem = 0;
 
 	IMB_colormanagement_view_items_add(&items, &totitem, display_settings->display_device);
+	RNA_enum_item_end(&items, &totitem);
+
+	*free = TRUE;
+	return items;
+}
+
+static int rna_ColorManagedViewSettings_look_get(PointerRNA *ptr)
+{
+	ColorManagedViewSettings *view = (ColorManagedViewSettings *) ptr->data;
+
+	return IMB_colormanagement_look_get_named_index(view->look);
+}
+
+static void rna_ColorManagedViewSettings_look_set(PointerRNA *ptr, int value)
+{
+	ColorManagedViewSettings *view = (ColorManagedViewSettings *) ptr->data;
+
+	const char *name = IMB_colormanagement_look_get_indexed_name(value);
+
+	if (name) {
+		BLI_strncpy(view->look, name, sizeof(view->look));
+	}
+}
+
+static EnumPropertyItem *rna_ColorManagedViewSettings_look_itemf(
+        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+{
+	EnumPropertyItem *items = NULL;
+	int totitem = 0;
+
+	IMB_colormanagement_look_items_add(&items, &totitem);
 	RNA_enum_item_end(&items, &totitem);
 
 	*free = TRUE;
@@ -504,8 +538,8 @@ static void rna_ColorManagedColorspaceSettings_colorspace_set(struct PointerRNA 
 	}
 }
 
-static EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                                             PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_itemf(
+        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
 {
 	EnumPropertyItem *items = NULL;
 	int totitem = 0;
@@ -585,16 +619,25 @@ static void rna_ColorManagement_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
 		return;
 
 	if (GS(id->name) == ID_SCE) {
+		DAG_id_tag_update(id, 0);
 		WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
 	}
 }
 
 /* this function only exists because #curvemap_evaluateF uses a 'const' qualifier */
-static float rna_CurveMap_evaluateF(struct CurveMap *cuma, float value)
+static float rna_CurveMap_evaluateF(struct CurveMap *cuma, ReportList *reports, float value)
 {
+	if (!cuma->table) {
+		BKE_reportf(reports, RPT_ERROR, "CurveMap table not initialized, call initialize() on CurveMapping owner of the CurveMap");
+		return 0.0f;
+	}
 	return curvemap_evaluateF(cuma, value);
 }
 
+static void rna_CurveMap_initialize(struct CurveMapping *cumap)
+{
+	curvemapping_initialize(cumap);
+}
 #else
 
 static void rna_def_curvemappoint(BlenderRNA *brna)
@@ -680,6 +723,7 @@ static void rna_def_curvemap(BlenderRNA *brna)
 	rna_def_curvemap_points_api(brna, prop);
 
 	func = RNA_def_function(srna, "evaluate", "rna_CurveMap_evaluateF");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Evaluate curve at given location");
 	parm = RNA_def_float(func, "position", 0.0f, -FLT_MAX, FLT_MAX, "Position", "Position to evaluate curve at", -FLT_MAX, FLT_MAX);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
@@ -748,6 +792,9 @@ static void rna_def_curvemapping(BlenderRNA *brna)
 
 	func = RNA_def_function(srna, "update", "curvemapping_changed_all");
 	RNA_def_function_ui_description(func, "Update curve mapping after making changes");
+
+	func = RNA_def_function(srna, "initialize", "rna_CurveMap_initialize");
+	RNA_def_function_ui_description(func, "Initialize curve");
 }
 
 static void rna_def_color_ramp_element(BlenderRNA *brna)
@@ -947,6 +994,11 @@ static void rna_def_colormanage(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem look_items[] = {
+		{0, "NONE", 0, "None", "Do not modify image in an artistic manner"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem view_transform_items[] = {
 		{0, "NONE", 0, "None", "Do not perform any color transform on display, use old non-color managed technique for display"},
 		{0, NULL, 0, NULL, NULL}
@@ -973,12 +1025,20 @@ static void rna_def_colormanage(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "ColorManagedViewSettings", NULL);
 	RNA_def_struct_ui_text(srna, "ColorManagedViewSettings", "Color management settings used for displaying images on the display");
 
+	prop = RNA_def_property(srna, "look", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, look_items);
+	RNA_def_property_enum_funcs(prop, "rna_ColorManagedViewSettings_look_get",
+	                                  "rna_ColorManagedViewSettings_look_set",
+	                                  "rna_ColorManagedViewSettings_look_itemf");
+	RNA_def_property_ui_text(prop, "Look", "Additional transform applied before view transform for an artistic needs");
+	RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
+
 	prop = RNA_def_property(srna, "view_transform", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, view_transform_items);
 	RNA_def_property_enum_funcs(prop, "rna_ColorManagedViewSettings_view_transform_get",
 	                                  "rna_ColorManagedViewSettings_view_transform_set",
 	                                  "rna_ColorManagedViewSettings_view_transform_itemf");
-	RNA_def_property_ui_text(prop, "View Transform", "View used ");
+	RNA_def_property_ui_text(prop, "View Transform", "View used when converting image to a display space");
 	RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
 
 	prop = RNA_def_property(srna, "exposure", PROP_FLOAT, PROP_FACTOR);

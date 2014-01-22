@@ -122,12 +122,12 @@ static int bpy_bm_elem_hflag_set(BPy_BMElem *self, PyObject *value, void *flag)
 
 	param = PyLong_AsLong(value);
 
-	if (param == true) {
-		BM_elem_flag_enable(self->ele, hflag);
-		return 0;
-	}
-	else if (param == false) {
-		BM_elem_flag_disable(self->ele, hflag);
+	if ((unsigned int)param <= 1) {
+		if (hflag == BM_ELEM_SELECT)
+			BM_elem_select_set(self->bm, self->ele, param);
+		else
+			BM_elem_flag_set(self->ele, hflag, param);
+
 		return 0;
 	}
 	else {
@@ -1047,6 +1047,8 @@ static PyObject *bpy_bmesh_from_mesh(BPy_BMesh *self, PyObject *args, PyObject *
 	int use_shape_key = false;
 	int shape_key_index = 0;
 
+	BPY_BM_CHECK_OBJ(self);
+
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "O|iii:from_mesh", (char **)kwlist,
 	                                 &py_mesh, &use_fnorm, &use_shape_key, &shape_key_index) ||
 	    !(me = PyC_RNA_AsPointer(py_mesh, "Mesh")))
@@ -1871,7 +1873,7 @@ static PyObject *bpy_bmvertseq_new(BPy_BMElemSeq *self, PyObject *args)
 			return NULL;
 		}
 
-		v = BM_vert_create(bm, co, NULL, 0);
+		v = BM_vert_create(bm, co, NULL, BM_CREATE_NOP);
 
 		if (v == NULL) {
 			PyErr_SetString(PyExc_ValueError,
@@ -1940,7 +1942,7 @@ static PyObject *bpy_bmedgeseq_new(BPy_BMElemSeq *self, PyObject *args)
 			goto cleanup;
 		}
 
-		e = BM_edge_create(bm, vert_array[0], vert_array[1], NULL, 0);
+		e = BM_edge_create(bm, vert_array[0], vert_array[1], NULL, BM_CREATE_NOP);
 
 		if (e == NULL) {
 			PyErr_SetString(PyExc_ValueError,
@@ -2020,16 +2022,13 @@ static PyObject *bpy_bmfaceseq_new(BPy_BMElemSeq *self, PyObject *args)
 		/* Go ahead and make the face!
 		 * --------------------------- */
 
-		f_new = BM_face_create_ngon_verts(bm, vert_array, vert_seq_len, 0, false, true);
+		f_new = BM_face_create_verts(bm, vert_array, vert_seq_len,
+		                             py_face_example ? py_face_example->f : NULL, BM_CREATE_NOP, true);
 
 		if (UNLIKELY(f_new == NULL)) {
 			PyErr_SetString(PyExc_ValueError,
 			                "faces.new(verts): couldn't create the new face, internal error");
 			goto cleanup;
-		}
-
-		if (py_face_example) {
-			BM_elem_attrs_copy(py_face_example->bm, bm, py_face_example->f, f_new);
 		}
 
 		ret = BPy_BMFace_CreatePyObject(bm, f_new);
@@ -2921,7 +2920,8 @@ static void bpy_bmvert_dealloc(BPy_BMElem *self)
 	BMesh *bm = self->bm;
 	if (bm) {
 		void **ptr = CustomData_bmesh_get(&bm->vdata, self->ele->head.data, CD_BM_ELEM_PYPTR);
-		*ptr = NULL;
+		if (ptr)
+			*ptr = NULL;
 	}
 	PyObject_DEL(self);
 }
@@ -2931,7 +2931,8 @@ static void bpy_bmedge_dealloc(BPy_BMElem *self)
 	BMesh *bm = self->bm;
 	if (bm) {
 		void **ptr = CustomData_bmesh_get(&bm->edata, self->ele->head.data, CD_BM_ELEM_PYPTR);
-		*ptr = NULL;
+		if (ptr)
+			*ptr = NULL;
 	}
 	PyObject_DEL(self);
 }
@@ -2941,7 +2942,8 @@ static void bpy_bmface_dealloc(BPy_BMElem *self)
 	BMesh *bm = self->bm;
 	if (bm) {
 		void **ptr = CustomData_bmesh_get(&bm->pdata, self->ele->head.data, CD_BM_ELEM_PYPTR);
-		*ptr = NULL;
+		if (ptr)
+			*ptr = NULL;
 	}
 	PyObject_DEL(self);
 }
@@ -2951,7 +2953,8 @@ static void bpy_bmloop_dealloc(BPy_BMElem *self)
 	BMesh *bm = self->bm;
 	if (bm) {
 		void **ptr = CustomData_bmesh_get(&bm->ldata, self->ele->head.data, CD_BM_ELEM_PYPTR);
-		*ptr = NULL;
+		if (ptr)
+			*ptr = NULL;
 	}
 	PyObject_DEL(self);
 }

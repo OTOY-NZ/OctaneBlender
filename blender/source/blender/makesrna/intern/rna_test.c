@@ -34,6 +34,8 @@
 
 #include "rna_internal.h"
 
+#ifdef RNA_RUNTIME
+
 #define ARRAY_SIZE 3
 #define DYNAMIC_ARRAY_SIZE 64
 #define MARRAY_DIM [3][4][5]
@@ -42,8 +44,6 @@
 #define MARRAY_SIZE(type) (sizeof(type MARRAY_DIM) / sizeof(type))
 #define DYNAMIC_MARRAY_DIM [3][4][5]
 #define DYNAMIC_MARRAY_SIZE(type) (sizeof(type DYNAMIC_MARRAY_DIM) / sizeof(type))
-
-#ifdef RNA_RUNTIME
 
 #ifdef UNIT_TEST
 
@@ -185,7 +185,8 @@ void RNA_def_test(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_DYNAMIC);
 	RNA_def_property_dynamic_array_funcs(prop, "rna_Test_bdmarr_get_length", "rna_Test_bdmarr_set_length");
 	RNA_def_property_boolean_funcs(prop, "rna_Test_bdmarr_get", "rna_Test_bdmarr_set");
-
+#else
+	(void)brna;
 #endif
 }
 

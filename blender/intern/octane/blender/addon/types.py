@@ -168,7 +168,7 @@ response_types = (
 gi_modes = (
     ('0', "None", ""),
     ('1', "Ambient", ""),
-    ('2', "Sample ambient", ""),
+    ('2', "Sample environment", ""),
     ('3', "Ambient occlusion", ""),
     ('4', "Diffuse", ""),
     )

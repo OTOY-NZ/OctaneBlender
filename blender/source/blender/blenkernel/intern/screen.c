@@ -47,6 +47,7 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_idprop.h"
 #include "BKE_screen.h"
 
 /* ************ Spacetype/regiontype handling ************** */
@@ -111,7 +112,7 @@ ARegionType *BKE_regiontype_from_id(SpaceType *st, int regionid)
 		if (art->regionid == regionid)
 			return art;
 	
-	printf("Error, region type missing in - name:\"%s\", id:%d\n", st->name, st->spaceid);
+	printf("Error, region type %d missing in - name:\"%s\", id:%d\n", regionid, st->name, st->spaceid);
 	return st->regiontypes.first;
 }
 
@@ -134,6 +135,11 @@ void BKE_spacetype_register(SpaceType *st)
 	}
 	
 	BLI_addtail(&spacetypes, st);
+}
+
+int BKE_spacetype_exists(int spaceid)
+{
+	return BKE_spacetype_from_id(spaceid) != NULL;
 }
 
 /* ***************** Space handling ********************** */
@@ -262,6 +268,8 @@ void BKE_spacedata_draw_locks(int set)
 /* not region itself */
 void BKE_area_region_free(SpaceType *st, ARegion *ar)
 {
+	uiList *uilst;
+
 	if (st) {
 		ARegionType *art = BKE_regiontype_from_id(st, ar->regiontype);
 		
@@ -280,6 +288,23 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 	}
 
 	BLI_freelistN(&ar->panels);
+
+	for (uilst = ar->ui_lists.first; uilst; uilst = uilst->next) {
+		if (uilst->dyn_data) {
+			uiListDyn *dyn_data = uilst->dyn_data;
+			if (dyn_data->items_filter_flags) {
+				MEM_freeN(dyn_data->items_filter_flags);
+			}
+			if (dyn_data->items_filter_neworder) {
+				MEM_freeN(dyn_data->items_filter_neworder);
+			}
+			MEM_freeN(dyn_data);
+		}
+		if (uilst->properties) {
+			IDP_FreeProperty(uilst->properties);
+			MEM_freeN(uilst->properties);
+		}
+	}
 	BLI_freelistN(&ar->ui_lists);
 }
 

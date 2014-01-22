@@ -25,7 +25,7 @@
 
 # XXX allowing blenkernel and RNA includes in blenlib is a hack,
 # but needed in a few places atm (bpath.c for instance)
-set(INC 
+set(INC
 	.
 	# ../blenkernel  # dont add this back!
 	../makesdna
@@ -54,6 +54,7 @@ set(SRC
 	intern/boxpack2d.c
 	intern/buffer.c
 	intern/callbacks.c
+	intern/convexhull2d.c
 	intern/cpu.c
 	intern/dynlib.c
 	intern/edgehash.c
@@ -86,6 +87,8 @@ set(SRC
 	intern/rct.c
 	intern/scanfill.c
 	intern/smallhash.c
+	intern/sort.c
+	intern/sort_utils.c
 	intern/stack.c
 	intern/storage.c
 	intern/string.c
@@ -98,13 +101,16 @@ set(SRC
 	intern/voxel.c
 	intern/winstuff.c
 
+	BLI_alloca.h
 	BLI_args.h
 	BLI_array.h
 	BLI_bitmap.h
 	BLI_blenlib.h
-	BLI_buffer.h
 	BLI_boxpack2d.h
+	BLI_buffer.h
 	BLI_callbacks.h
+	BLI_compiler_attrs.h
+	BLI_convexhull2d.h
 	BLI_cpu.h
 	BLI_dlrbTree.h
 	BLI_dynlib.h
@@ -124,6 +130,7 @@ set(SRC
 	BLI_kdtree.h
 	BLI_lasso.h
 	BLI_linklist.h
+	BLI_linklist_stack.h
 	BLI_listbase.h
 	BLI_math.h
 	BLI_math_base.h
@@ -145,7 +152,10 @@ set(SRC
 	BLI_rect.h
 	BLI_scanfill.h
 	BLI_smallhash.h
+	BLI_sort.h
+	BLI_sort_utils.h
 	BLI_stack.h
+	BLI_strict_flags.h
 	BLI_string.h
 	BLI_string_cursor_utf8.h
 	BLI_string_utf8.h
@@ -158,6 +168,7 @@ set(SRC
 	BLI_voxel.h
 	BLI_winstuff.h
 	PIL_time.h
+	PIL_time_utildefines.h
 )
 
 if(WITH_BINRELOC)
@@ -165,6 +176,10 @@ if(WITH_BINRELOC)
 		${BINRELOC_INCLUDE_DIRS}
 	)
 	add_definitions(-DWITH_BINRELOC)
+endif()
+
+if(WITH_MEM_VALGRIND)
+	add_definitions(-DWITH_MEM_VALGRIND)
 endif()
 
 if(WIN32)

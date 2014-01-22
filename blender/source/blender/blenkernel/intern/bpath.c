@@ -76,7 +76,7 @@
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
-#include "BKE_image.h" /* so we can check the image's type */
+#include "BKE_image.h"
 
 #include "BKE_bpath.h"  /* own include */
 
@@ -297,7 +297,14 @@ static bool findMissingFiles_visit_cb(void *userdata, char *path_dst, const char
 		return false;
 	}
 	else {
+		bool was_relative = BLI_path_is_rel(path_dst);
+
 		BLI_strncpy(path_dst, filename_new, FILE_MAX);
+
+		/* keep path relative if the previous one was relative */
+		if (was_relative)
+			BLI_path_rel(path_dst, data->basedir);
+
 		return true;
 	}
 }
@@ -307,6 +314,7 @@ void BKE_bpath_missing_files_find(Main *bmain, const char *searchpath, ReportLis
 {
 	struct BPathFind_Data data = {NULL};
 
+	data.basedir = bmain->name;
 	data.reports = reports;
 	data.searchdir = searchpath;
 	data.find_all = find_all;
@@ -329,6 +337,9 @@ static bool rewrite_path_fixed(char *path, BPathVisitor visit_cb, const char *ab
 	else {
 		path_src = path;
 	}
+
+	/* so functions can check old value */
+	BLI_strncpy(path_dst, path, FILE_MAX);
 
 	if (visit_cb(userdata, path_dst, path_src)) {
 		BLI_strncpy(path, path_dst, FILE_MAX);
@@ -388,6 +399,13 @@ static bool rewrite_path_alloc(char **path, BPathVisitor visit_cb, const char *a
 	}
 }
 
+/* fix the image user "ok" tag after updating paths, so ImBufs get loaded */
+static void bpath_traverse_image_user_cb(Image *ima, ImageUser *iuser, void *customdata)
+{
+	if (ima == customdata)
+		iuser->ok = 1;
+}
+
 /* Run visitor function 'visit' on all paths contained in 'id'. */
 void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int flag, void *bpath_user_data)
 {
@@ -404,7 +422,12 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 			ima = (Image *)id;
 			if (ima->packedfile == NULL || (flag & BKE_BPATH_TRAVERSE_SKIP_PACKED) == 0) {
 				if (ELEM3(ima->source, IMA_SRC_FILE, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
-					rewrite_path_fixed(ima->name, visit_cb, absbase, bpath_user_data);
+					if (rewrite_path_fixed(ima->name, visit_cb, absbase, bpath_user_data)) {
+						if (!ima->packedfile) {
+							BKE_image_signal(ima, NULL, IMA_SIGNAL_RELOAD);
+							BKE_image_walk_all_users(bmain, ima, bpath_traverse_image_user_cb);
+						}
+					}
 				}
 			}
 			break;

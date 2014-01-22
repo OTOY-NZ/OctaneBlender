@@ -41,6 +41,7 @@ struct Object;
 struct Scene;
 struct Lattice;
 struct Mesh;
+struct WeightsArrayCache;
 
 /* Kernel prototypes */
 #ifdef __cplusplus
@@ -59,6 +60,8 @@ void key_curve_position_weights(float t, float data[4], int type);
 void key_curve_tangent_weights(float t, float data[4], int type);
 void key_curve_normal_weights(float t, float data[4], int type);
 
+float *BKE_key_evaluate_object_ex(struct Scene *scene, struct Object *ob, int *r_totelem,
+                                  float *arr, size_t arr_size);
 float *BKE_key_evaluate_object(struct Scene *scene, struct Object *ob, int *r_totelem);
 
 struct Key      *BKE_key_from_object(struct Object *ob);
@@ -71,8 +74,17 @@ struct KeyBlock *BKE_keyblock_from_key(struct Key *key, int index);
 struct KeyBlock *BKE_keyblock_find_name(struct Key *key, const char name[]);
 void             BKE_keyblock_copy_settings(struct KeyBlock *kb_dst, const struct KeyBlock *kb_src);
 char            *BKE_keyblock_curval_rnapath_get(struct Key *key, struct KeyBlock *kb);
+
 // needed for the GE
-void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb, const int mode);
+typedef struct WeightsArrayCache {
+	int num_defgroup_weights;
+	float **defgroup_weights;
+} WeightsArrayCache;
+
+float **BKE_keyblock_get_per_block_weights(struct Object *ob, struct Key *key, struct WeightsArrayCache *cache);
+void BKE_keyblock_free_per_block_weights(struct Key *key, float **per_keyblock_weights, struct WeightsArrayCache *cache);
+void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
+                               float **per_keyblock_weights, const int mode);
 
 /* conversion functions */
 void    BKE_key_convert_to_mesh(struct KeyBlock *kb, struct Mesh *me);

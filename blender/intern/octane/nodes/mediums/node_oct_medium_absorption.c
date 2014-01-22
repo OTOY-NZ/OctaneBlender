@@ -44,7 +44,7 @@ void register_node_type_medium_oct_absorption(void) {
 	if(ntype.type != SH_NODE_OCT_ABSORP_MED) node_type_base(&ntype, SH_NODE_OCT_ABSORP_MED, "Octane Absorption Medium", NODE_CLASS_OCT_MEDIUM, NODE_OPTIONS);
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-	node_type_size(&ntype, 100, 60, 150);
+	node_type_size(&ntype, 160, 160, 200);
 	node_type_init(&ntype, 0);
 	node_type_exec(&ntype, 0, 0, 0);
 	

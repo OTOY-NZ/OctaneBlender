@@ -33,6 +33,7 @@ static bNodeSocketTemplate sh_node_in[] = {
 	{SOCK_INT,       1,  N_("Octaves"),     3.0f, 0.0f, 0.0f, 0.0f, 1.0f, 16.0f, PROP_UNSIGNED},
 	{SOCK_FLOAT,     1,  N_("Lacunarity"),  0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{SOCK_SHADER,    1,  N_("Transform")},
+	{SOCK_SHADER,    1,  N_("Projection")},
 	{-1, 0, ""}
 };
 
@@ -47,7 +48,7 @@ void register_node_type_tex_oct_ridged_fractal(void) {
 	if(ntype.type != SH_NODE_OCT_RIDGED_FRACTAL_TEX) node_type_base(&ntype, SH_NODE_OCT_RIDGED_FRACTAL_TEX, "Octane Ridged Fractal Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
-	node_type_size(&ntype, 100, 60, 150);
+	node_type_size(&ntype, 160, 160, 200);
 	node_type_init(&ntype, 0);
 	node_type_exec(&ntype, 0, 0, 0);
 	

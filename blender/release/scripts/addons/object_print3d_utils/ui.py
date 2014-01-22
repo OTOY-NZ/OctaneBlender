@@ -25,6 +25,7 @@ from bpy.types import Panel
 from . import report
 
 class Print3DToolBar:
+    bl_category = "3D Printing"
     bl_label = "Print3D"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
@@ -80,19 +81,19 @@ class Print3DToolBar:
         col = layout.column(align=True)
         col.operator("mesh.print3d_check_solid", text="Solid")
         col.operator("mesh.print3d_check_intersect", text="Intersections")
-        rowsub = col.row()
+        rowsub = col.row(align=True)
         rowsub.operator("mesh.print3d_check_degenerate", text="Degenerate")
         rowsub.prop(print_3d, "threshold_zero", text="")
-        rowsub = col.row()
+        rowsub = col.row(align=True)
         rowsub.operator("mesh.print3d_check_distort", text="Distorted")
         rowsub.prop(print_3d, "angle_distort", text="")
-        rowsub = col.row()
+        rowsub = col.row(align=True)
         rowsub.operator("mesh.print3d_check_thick", text="Thickness")
         rowsub.prop(print_3d, "thickness_min", text="")
-        rowsub = col.row()
+        rowsub = col.row(align=True)
         rowsub.operator("mesh.print3d_check_sharp", text="Edge Sharp")
         rowsub.prop(print_3d, "angle_sharp", text="")
-        rowsub = col.row()
+        rowsub = col.row(align=True)
         rowsub.operator("mesh.print3d_check_overhang", text="Overhang")
         rowsub.prop(print_3d, "angle_overhang", text="")
         col = layout.column()
@@ -102,7 +103,7 @@ class Print3DToolBar:
         row.label("Cleanup:")
         col = layout.column(align=True)
         col.operator("mesh.print3d_clean_isolated", text="Isolated")
-        rowsub = col.row()
+        rowsub = col.row(align=True)
         rowsub.operator("mesh.print3d_clean_distorted", text="Distorted")
         rowsub.prop(print_3d, "angle_distort", text="")
         # XXX TODO

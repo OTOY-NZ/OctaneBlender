@@ -41,6 +41,7 @@
 #include "BLI_utildefines.h"
 
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "rna_internal.h"
 
@@ -69,7 +70,8 @@ EnumPropertyItem boidrule_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem boidruleset_type_items[] = {
+#ifndef RNA_RUNTIME
+static EnumPropertyItem boidruleset_type_items[] = {
 	{eBoidRulesetType_Fuzzy, "FUZZY", 0, "Fuzzy",
 	                         "Rules are gone through top to bottom (only the first rule which effect is above "
 	                         "fuzziness threshold is evaluated)"},
@@ -77,6 +79,7 @@ EnumPropertyItem boidruleset_type_items[] = {
 	{eBoidRulesetType_Average, "AVERAGE", 0, "Average", "All rules are averaged"},
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 
 #ifdef RNA_RUNTIME
@@ -161,7 +164,8 @@ static PointerRNA rna_BoidState_active_boid_rule_get(PointerRNA *ptr)
 	}
 	return rna_pointer_inherit_refine(ptr, &RNA_BoidRule, NULL);
 }
-static void rna_BoidState_active_boid_rule_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_BoidState_active_boid_rule_index_range(PointerRNA *ptr, int *min, int *max,
+                                                       int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	BoidState *state = (BoidState *)ptr->data;
 	*min = 0;
@@ -227,7 +231,7 @@ static PointerRNA rna_BoidSettings_active_boid_state_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_BoidState, NULL);
 }
 static void rna_BoidSettings_active_boid_state_index_range(PointerRNA *ptr, int *min, int *max,
-                                                           int *softmin, int *softmax)
+                                                           int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	BoidSettings *boids = (BoidSettings *)ptr->data;
 	*min = 0;

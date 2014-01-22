@@ -82,16 +82,9 @@
 #include "BLI_rect.h"
 #include "BLI_listbase.h"
 #include "BLI_linklist.h"
+#include "BLI_strict_flags.h"
 
 #include "BKE_mask.h"
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic error "-Wsign-conversion"
-#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
-#    pragma GCC diagnostic error "-Wsign-compare"
-#    pragma GCC diagnostic error "-Wconversion"
-#  endif
-#endif
 
 /* this is rather and annoying hack, use define to isolate it.
  * problem is caused by scanfill removing edges on us. */
@@ -496,10 +489,10 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
 
 					/* this should _almost_ never happen but since it can in extreme cases,
 					 * we have to clamp the values or we overrun the buffer and crash */
-					CLAMP(xi_min, 0, layer->buckets_x - 1);
-					CLAMP(xi_max, 0, layer->buckets_x - 1);
-					CLAMP(yi_min, 0, layer->buckets_y - 1);
-					CLAMP(yi_max, 0, layer->buckets_y - 1);
+					if (xi_min >= layer->buckets_x) xi_min = layer->buckets_x - 1;
+					if (xi_max >= layer->buckets_x) xi_max = layer->buckets_x - 1;
+					if (yi_min >= layer->buckets_y) yi_min = layer->buckets_y - 1;
+					if (yi_max >= layer->buckets_y) yi_max = layer->buckets_y - 1;
 
 					for (yi = yi_min; yi <= yi_max; yi++) {
 						unsigned int bucket_index = (layer->buckets_x * yi) + xi_min;
@@ -575,10 +568,13 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle, struct Mask *mas
 	const float zvec[3] = {0.0f, 0.0f, 1.0f};
 	MaskLayer *masklay;
 	unsigned int masklay_index;
+	MemArena *sf_arena;
 
 	mr_handle->layers_tot = (unsigned int)BLI_countlist(&mask->masklayers);
 	mr_handle->layers = MEM_mallocN(sizeof(MaskRasterLayer) * mr_handle->layers_tot, "MaskRasterLayer");
 	BLI_rctf_init_minmax(&mr_handle->bounds);
+
+	sf_arena = BLI_memarena_new(BLI_SCANFILL_ARENA_SIZE, __func__);
 
 	for (masklay = mask->masklayers.first, masklay_index = 0; masklay; masklay = masklay->next, masklay_index++) {
 
@@ -613,7 +609,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle, struct Mask *mas
 		tot_splines = (unsigned int)BLI_countlist(&masklay->splines);
 		open_spline_ranges = MEM_callocN(sizeof(*open_spline_ranges) * tot_splines, __func__);
 
-		BLI_scanfill_begin(&sf_ctx);
+		BLI_scanfill_begin_arena(&sf_ctx, sf_arena);
 
 		for (spline = masklay->splines.first; spline; spline = spline->next) {
 			const unsigned int is_cyclic = (spline->flag & MASK_SPLINE_CYCLIC) != 0;
@@ -1148,8 +1144,10 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle, struct Mask *mas
 		}
 
 		/* add trianges */
-		BLI_scanfill_end(&sf_ctx);
+		BLI_scanfill_end_arena(&sf_ctx, sf_arena);
 	}
+
+	BLI_memarena_free(sf_arena);
 }
 
 

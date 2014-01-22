@@ -46,7 +46,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
-#include "BLI_array.h"
 #include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 
@@ -83,11 +82,20 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 
+/* very slow! enable for testing only! */
+// #define USE_MODIFIER_VALIDATE
+
+#ifdef USE_MODIFIER_VALIDATE
+#  define ASSERT_IS_VALID_DM(dm) (BLI_assert((dm == NULL) || (DM_is_valid(dm) == true)))
+#else
+#  define ASSERT_IS_VALID_DM(dm)
+#endif
+
 static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *ob);
 static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape_uid);
 
-///////////////////////////////////
-///////////////////////////////////
+
+/* -------------------------------------------------------------------- */
 
 static MVert *dm_getVertArray(DerivedMesh *dm)
 {
@@ -430,9 +438,9 @@ void DM_update_tessface_data(DerivedMesh *dm)
 
 	int *polyindex = CustomData_get_layer(fdata, CD_ORIGINDEX);
 
-	int mf_idx,
-	    totface = dm->getNumTessFaces(dm),
-	    ml_idx[4];
+	const int totface = dm->getNumTessFaces(dm);
+	int mf_idx;
+	int ml_idx[4];
 
 	/* Should never occure, but better abort than segfault! */
 	if (!polyindex)
@@ -531,7 +539,9 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 	}
 
 	/* copy texture space */
-	BKE_mesh_texspace_copy_from_object(&tmp, ob);
+	if (ob) {
+		BKE_mesh_texspace_copy_from_object(&tmp, ob);
+	}
 	
 	/* not all DerivedMeshes store their verts/edges/faces in CustomData, so
 	 * we set them here in case they are missing */
@@ -878,6 +888,7 @@ DerivedMesh *mesh_create_derived_for_modifier(Scene *scene, Object *ob,
 			add_shapekey_layers(tdm, me, ob);
 		
 		dm = modwrap_applyModifier(md, ob, tdm, 0);
+		ASSERT_IS_VALID_DM(dm);
 
 		if (tdm != dm) tdm->release(tdm);
 	}
@@ -1439,6 +1450,8 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	/* XXX Same as above... For now, only weights preview in WPaint mode. */
 	const int do_mod_wmcol = do_init_wmcol;
 
+	VirtualModifierData virtualModifierData;
+
 	ModifierApplyFlag app_flags = useRenderParams ? MOD_APPLY_RENDER : 0;
 	ModifierApplyFlag deform_app_flags = app_flags;
 	if (useCache)
@@ -1450,7 +1463,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		has_multires = 0;
 
 	if (!skipVirtualArmature) {
-		firstmd = modifiers_getVirtualModifierList(ob);
+		firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 	}
 	else {
 		/* game engine exception */
@@ -1647,6 +1660,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 			}
 			else {
 				dm = CDDM_from_mesh(me, ob);
+				ASSERT_IS_VALID_DM(dm);
 
 				if (build_shapekey_layers)
 					add_shapekey_layers(dm, me, ob);
@@ -1671,7 +1685,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 					DM_add_edge_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 					DM_add_poly_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 
-#pragma omp parallel sections if (dm->numVertData + dm->numEdgeData + dm->numPolyData >= DM_OMP_LIMIT)
+#pragma omp parallel sections if (dm->numVertData + dm->numEdgeData + dm->numPolyData >= BKE_MESH_OMP_LIMIT)
 					{
 #pragma omp section
 						{ range_vn_i(DM_get_vert_data_layer(dm, CD_ORIGINDEX), dm->numVertData, 0); }
@@ -1704,6 +1718,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 			}
 
 			ndm = modwrap_applyModifier(md, ob, dm, app_flags);
+			ASSERT_IS_VALID_DM(ndm);
 
 			if (ndm) {
 				/* if the modifier returned a new dm, release the old one */
@@ -1730,6 +1745,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 				                  mti->requiredDataMask(ob, md) : 0));
 
 				ndm = modwrap_applyModifier(md, ob, orcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
+				ASSERT_IS_VALID_DM(ndm);
 
 				if (ndm) {
 					/* if the modifier returned a new dm, release the old one */
@@ -1747,6 +1763,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 				DM_set_only_copy(clothorcodm, nextmask | CD_MASK_ORIGINDEX);
 
 				ndm = modwrap_applyModifier(md, ob, clothorcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
+				ASSERT_IS_VALID_DM(ndm);
 
 				if (ndm) {
 					/* if the modifier returned a new dm, release the old one */
@@ -1960,6 +1977,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	int do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
 	int do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
 	const int do_mod_wmcol = do_init_wmcol;
+	VirtualModifierData virtualModifierData;
 
 	modifiers_clearErrors(ob);
 
@@ -1968,7 +1986,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	}
 
 	dm = NULL;
-	md = modifiers_getVirtualModifierList(ob);
+	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	/* copied from mesh_calc_modifiers */
 	if (do_mod_wmcol) {
@@ -2048,6 +2066,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 			}
 			else {
 				dm = CDDM_from_editbmesh(em, FALSE, FALSE);
+				ASSERT_IS_VALID_DM(dm);
 
 				if (deformedVerts) {
 					CDDM_apply_vert_coords(dm, deformedVerts);
@@ -2067,10 +2086,13 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 				mask &= ~CD_MASK_ORCO;
 				DM_set_only_copy(orcodm, mask | CD_MASK_ORIGINDEX);
 
-				if (mti->applyModifierEM)
+				if (mti->applyModifierEM) {
 					ndm = modwrap_applyModifierEM(md, ob, em, orcodm, MOD_APPLY_ORCO);
-				else
+				}
+				else {
 					ndm = modwrap_applyModifier(md, ob, orcodm, MOD_APPLY_ORCO);
+				}
+				ASSERT_IS_VALID_DM(ndm);
 
 				if (ndm) {
 					/* if the modifier returned a new dm, release the old one */
@@ -2096,6 +2118,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 				ndm = modwrap_applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE);
 			else
 				ndm = modwrap_applyModifier(md, ob, dm, MOD_APPLY_USECACHE);
+			ASSERT_IS_VALID_DM(ndm);
 
 			if (ndm) {
 				if (dm && dm != ndm)
@@ -2634,9 +2657,9 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 	
 	/* new computation method */
 	{
-		SGLSLMeshToTangent mesh2tangent = {0};
-		SMikkTSpaceContext sContext = {0};
-		SMikkTSpaceInterface sInterface = {0};
+		SGLSLMeshToTangent mesh2tangent = {NULL};
+		SMikkTSpaceContext sContext = {NULL};
+		SMikkTSpaceInterface sInterface = {NULL};
 
 		mesh2tangent.precomputedFaceNormals = nors;
 		mesh2tangent.mtface = mtface;
@@ -2737,11 +2760,9 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 					int offs = 0;  /* initial triangulation is 0,1,2 and 0, 2, 3 */
 					if (nr_verts == 4) {
 						float pos_len_diag0, pos_len_diag1;
-						float vtmp[3];
-						sub_v3_v3v3(vtmp, verts[2], verts[0]);
-						pos_len_diag0 = dot_v3v3(vtmp, vtmp);
-						sub_v3_v3v3(vtmp, verts[3], verts[1]);
-						pos_len_diag1 = dot_v3v3(vtmp, vtmp);
+
+						pos_len_diag0 = len_squared_v3v3(verts[2], verts[0]);
+						pos_len_diag1 = len_squared_v3v3(verts[3], verts[1]);
 
 						if (pos_len_diag1 < pos_len_diag0) {
 							offs = 1;     // alter split
@@ -2749,10 +2770,8 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 						else if (pos_len_diag0 == pos_len_diag1) { /* do UV check instead */
 							float tex_len_diag0, tex_len_diag1;
 
-							sub_v2_v2v2(vtmp, tex_coords[2], tex_coords[0]);
-							tex_len_diag0 = dot_v2v2(vtmp, vtmp);
-							sub_v2_v2v2(vtmp, tex_coords[3], tex_coords[1]);
-							tex_len_diag1 = dot_v2v2(vtmp, vtmp);
+							tex_len_diag0 = len_squared_v2v2(tex_coords[2], tex_coords[0]);
+							tex_len_diag1 = len_squared_v2v2(tex_coords[3], tex_coords[1]);
 
 							if (tex_len_diag1 < tex_len_diag0) {
 								offs = 1; /* alter split */
@@ -2761,7 +2780,7 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 					}
 					nr_tris_to_pile = nr_verts - 2;
 					if (nr_tris_to_pile == 1 || nr_tris_to_pile == 2) {
-						const int indices[] = {offs + 0, offs + 1, offs + 2, offs + 0, offs + 2, (offs + 3) & 0x3 };
+						const int indices[6] = {offs + 0, offs + 1, offs + 2, offs + 0, offs + 2, (offs + 3) & 0x3 };
 						int t;
 						for (t = 0; t < nr_tris_to_pile; t++) {
 							float f2x_area_uv;
@@ -2781,7 +2800,7 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 								cross_v3_v3v3(norm, v0, v1);
 
 								f2x_surf_area = len_v3(norm);
-								fsurf_ratio = f2x_surf_area / f2x_area_uv;    // tri area divided by texture area
+								fsurf_ratio = f2x_surf_area / f2x_area_uv;  /* tri area divided by texture area */
 
 								nr_accumulated++;
 								dsum += (double)(fsurf_ratio);
@@ -3103,7 +3122,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm)
 		}
 	}
 	else {
-		printf("%s: Error during creation polygon infos\n", __func__);
+		printf("Navmesh: Unable to generate valid Navmesh");
 	}
 
 	/* clean up */
@@ -3259,6 +3278,37 @@ void DM_debug_print_cdlayers(CustomData *data)
 	}
 
 	printf("}\n");
+}
+
+bool DM_is_valid(DerivedMesh *dm)
+{
+	const bool do_verbose = true;
+	const bool do_fixes = false;
+
+	bool is_valid = true;
+	bool is_change = true;
+
+	is_valid &= BKE_mesh_validate_all_customdata(
+	        dm->getVertDataLayout(dm),
+	        dm->getEdgeDataLayout(dm),
+	        dm->getLoopDataLayout(dm),
+	        dm->getPolyDataLayout(dm),
+	        0,  /* setting mask here isn't useful, gives false positives */
+	        do_verbose, do_fixes, &is_change);
+
+	is_valid &= BKE_mesh_validate_arrays(
+	        NULL,
+	        dm->getVertArray(dm), dm->getNumVerts(dm),
+	        dm->getEdgeArray(dm), dm->getNumEdges(dm),
+	        dm->getTessFaceArray(dm), dm->getNumTessFaces(dm),
+	        dm->getLoopArray(dm), dm->getNumLoops(dm),
+	        dm->getPolyArray(dm), dm->getNumPolys(dm),
+	        dm->getVertDataArray(dm, CD_MDEFORMVERT),
+	        do_verbose, do_fixes, &is_change);
+
+	BLI_assert(is_change == false);
+
+	return is_valid;
 }
 
 #endif /* NDEBUG */

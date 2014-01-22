@@ -184,6 +184,7 @@ static void rna_Cache_idname_change(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 		BKE_ptcache_load_external(pid);
 
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		WM_main_add_notifier(NC_OBJECT | ND_POINTCACHE, ob);
 	}
 	else {
 		for (pid = pidlist.first; pid; pid = pid->next) {
@@ -227,7 +228,8 @@ static void rna_Cache_list_begin(CollectionPropertyIterator *iter, PointerRNA *p
 
 	rna_iterator_listbase_begin(iter, &lb, NULL);
 }
-static void rna_Cache_active_point_cache_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_Cache_active_point_cache_index_range(PointerRNA *ptr, int *min, int *max,
+                                                     int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = ptr->id.data;
 	PointCache *cache = ptr->data;
@@ -290,7 +292,8 @@ static void rna_Cache_active_point_cache_index_set(struct PointerRNA *ptr, int v
 	BLI_freelistN(&pidlist);
 }
 
-static void rna_PointCache_frame_step_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_PointCache_frame_step_range(PointerRNA *ptr, int *min, int *max,
+                                            int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = ptr->id.data;
 	PointCache *cache = ptr->data;
@@ -860,7 +863,9 @@ static void rna_def_pointcache(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_library_path", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", PTCACHE_IGNORE_LIBPATH);
-	RNA_def_property_ui_text(prop, "Library Path", "Use this files path when library linked into another file");
+	RNA_def_property_ui_text(prop, "Library Path",
+	                         "Use this file's path for the disk cache when library linked into another file "
+	                         "(for local bakes per scene file, disable this option)");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
 
 	prop = RNA_def_property(srna, "point_caches", PROP_COLLECTION, PROP_NONE);

@@ -62,7 +62,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_math.h"
-#include "BLI_mempool.h"
 #include "BLI_threads.h"
 
 #include "BKE_animsys.h"
@@ -625,7 +624,7 @@ MovieClip *BKE_movieclip_file_add(Main *bmain, const char *name)
 
 	/* exists? */
 	file = BLI_open(str, O_BINARY | O_RDONLY, 0);
-	if (file == -1)
+	if (file < 0)
 		return NULL;
 	close(file);
 
@@ -1395,8 +1394,6 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip, ImBuf *ibuf, stru
 
 void BKE_movieclip_free(MovieClip *clip)
 {
-	BKE_sequencer_clear_movieclip_in_clipboard(clip);
-
 	free_buffers(clip);
 
 	BKE_tracking_free(&clip->tracking);
@@ -1441,21 +1438,19 @@ void BKE_movieclip_unlink(Main *bmain, MovieClip *clip)
 		bConstraint *con;
 
 		for (con = ob->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
-
-			if (cti->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
+			if (con->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
 				bFollowTrackConstraint *data = (bFollowTrackConstraint *) con->data;
 
 				if (data->clip == clip)
 					data->clip = NULL;
 			}
-			else if (cti->type == CONSTRAINT_TYPE_CAMERASOLVER) {
+			else if (con->type == CONSTRAINT_TYPE_CAMERASOLVER) {
 				bCameraSolverConstraint *data = (bCameraSolverConstraint *) con->data;
 
 				if (data->clip == clip)
 					data->clip = NULL;
 			}
-			else if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
+			else if (con->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
 				bObjectSolverConstraint *data = (bObjectSolverConstraint *) con->data;
 
 				if (data->clip == clip)

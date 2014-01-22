@@ -244,6 +244,17 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 precision=5,
                 )
 
+        cls.bump_normal_mapping = BoolProperty(
+                name="Bump and normal mapping",
+                description="",
+                default=False,
+                )
+        cls.wf_bktrace_hl = BoolProperty(
+                name="Wireframe backtrace highlighting",
+                description="",
+                default=False,
+                )
+
         cls.progressive = BoolProperty(
                 name="Progressive",
                 description="Use progressive sampling of lighting",
@@ -389,7 +400,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 description="",
                 min=1.0, soft_min=1.0, max=800.0, soft_max=800.0,
                 default=100.0,
-                step=500,
+                step=100,
                 precision=1,
                 )
         cls.gamma = FloatProperty(
@@ -583,7 +594,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 description="",
                 min=1.0, soft_min=1.0, max=800.0, soft_max=800.0,
                 default=100.0,
-                step=500,
+                step=100,
                 precision=1,
                 )
         cls.gamma = FloatProperty(
@@ -725,22 +736,6 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 description="Octane environment power",
                 min=0.001, soft_min=0.001, max=1000.0, soft_max=1000.0,
                 default=1.0,
-                step=10,
-                precision=3,
-                )
-        cls.env_rotation_x = FloatProperty(
-                name="Rotation X",
-                description="Octane environment X rotation",
-                min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
-                default=0.0,
-                step=10,
-                precision=3,
-                )
-        cls.env_rotation_y = FloatProperty(
-                name="Rotation Y",
-                description="Octane environment Y rotation",
-                min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
-                default=0.0,
                 step=10,
                 precision=3,
                 )

@@ -34,6 +34,8 @@ Kernel::Kernel() {
     alpha_channel       = false;
     keep_environment    = false;
     alpha_shadows       = true;
+    bump_normal_mapping = false;
+    wf_bktrace_hl       = false;
 
     //PATH_TRACE + PMC
     max_depth           = 16;
@@ -96,6 +98,8 @@ bool Kernel::modified(const Kernel& kernel) {
         alpha_channel       == kernel.alpha_channel &&
         keep_environment    == kernel.keep_environment &&
         alpha_shadows       == kernel.alpha_shadows &&
+        bump_normal_mapping == kernel.bump_normal_mapping &&
+        wf_bktrace_hl       == kernel.wf_bktrace_hl &&
 
         max_depth           == kernel.max_depth &&
         caustic_blur        == kernel.caustic_blur &&

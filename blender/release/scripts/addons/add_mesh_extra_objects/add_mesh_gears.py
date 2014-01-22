@@ -604,7 +604,7 @@ class AddGear(bpy.types.Operator):
         min=0.0,
         max=radians(45.0),
         unit='ROTATION',
-        default=20.0)
+        default=radians(20.0))
     base = FloatProperty(name="Base",
         description="Base, extent of gear below radius",
         min=0.0,
@@ -622,13 +622,13 @@ class AddGear(bpy.types.Operator):
         min=radians(-90.0),
         max=radians(90.0),
         unit='ROTATION',
-        default=0.0)
+        default=radians(0.0))
     conangle = FloatProperty(name="Conical angle",
         description="Conical angle of gear",
         min=0.0,
         max=radians(90.0),
         unit='ROTATION',
-        default=0.0)
+        default=radians(0.0))
     crown = FloatProperty(name="Crown",
         description="Inward pointing extend of crown teeth",
         min=0.0,
@@ -675,12 +675,14 @@ class AddGear(bpy.types.Operator):
         base = create_mesh_object(context, verts, [], faces, "Gear")
         obj = base.object
 
-        # Create vertex groups from stored vertices.
-        tipGroup = obj.vertex_groups.new('Tips')
-        tipGroup.add(verts_tip, 1.0, 'ADD')
+        # XXX, supporting adding in editmode is move involved
+        if obj.mode != 'EDIT':
+            # Create vertex groups from stored vertices.
+            tipGroup = obj.vertex_groups.new('Tips')
+            tipGroup.add(verts_tip, 1.0, 'ADD')
 
-        valleyGroup = obj.vertex_groups.new('Valleys')
-        valleyGroup.add(verts_valley, 1.0, 'ADD')
+            valleyGroup = obj.vertex_groups.new('Valleys')
+            valleyGroup.add(verts_valley, 1.0, 'ADD')
 
         return {'FINISHED'}
 
@@ -776,11 +778,13 @@ class AddWormGear(bpy.types.Operator):
         base = create_mesh_object(context, verts, [], faces, "Worm Gear")
         obj = base.object
 
-        # Create vertex groups from stored vertices.
-        tipGroup = obj.vertex_groups.new('Tips')
-        tipGroup.add(verts_tip, 1.0, 'ADD')
+        # XXX, supporting adding in editmode is move involved
+        if obj.mode != 'EDIT':
+            # Create vertex groups from stored vertices.
+            tipGroup = obj.vertex_groups.new('Tips')
+            tipGroup.add(verts_tip, 1.0, 'ADD')
 
-        valleyGroup = obj.vertex_groups.new('Valleys')
-        valleyGroup.add(verts_valley, 1.0, 'ADD')
+            valleyGroup = obj.vertex_groups.new('Valleys')
+            valleyGroup.add(verts_valley, 1.0, 'ADD')
 
         return {'FINISHED'}

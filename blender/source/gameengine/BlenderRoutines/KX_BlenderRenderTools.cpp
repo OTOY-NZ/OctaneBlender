@@ -37,6 +37,7 @@
 #include "RAS_LightObject.h"
 #include "RAS_ICanvas.h"
 #include "RAS_GLExtensionManager.h"
+#include "RAS_MeshObject.h"
 
 #include "KX_GameObject.h"
 #include "KX_PolygonMaterial.h"
@@ -157,6 +158,11 @@ void KX_BlenderRenderTools::SetClientObject(RAS_IRasterizer *rasty, void* obj)
 bool KX_BlenderRenderTools::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
 {
 	double* const oglmatrix = (double* const) data;
+
+	RAS_Polygon* poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
+	if (!poly->IsVisible())
+		return false;
+
 	MT_Point3 resultpoint(result->m_hitPoint);
 	MT_Vector3 resultnormal(result->m_hitNormal);
 	MT_Vector3 left(oglmatrix[0],oglmatrix[1],oglmatrix[2]);
@@ -205,7 +211,7 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 		MT_Vector3 dir = (campos - objpos).safe_normalized();
 		MT_Vector3 up(0,0,1.0);
 
-		KX_GameObject* gameobj = (KX_GameObject*)m_clientobject;
+		KX_GameObject* gameobj = (KX_GameObject *)this->m_clientobject;
 		// get scaling of halo object
 		MT_Vector3  size = gameobj->GetSGNode()->GetWorldScaling();
 		
@@ -235,14 +241,13 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 
 		glTranslated(objpos[0],objpos[1],objpos[2]);
 		glMultMatrixd(maat);
-
 	}
 	else {
 		if (objectdrawmode & RAS_IPolyMaterial::SHADOW)
 		{
 			// shadow must be cast to the ground, physics system needed here!
 			MT_Point3 frompoint(oglmatrix[12],oglmatrix[13],oglmatrix[14]);
-			KX_GameObject *gameobj = (KX_GameObject*)m_clientobject;
+			KX_GameObject *gameobj = (KX_GameObject *)this->m_clientobject;
 			MT_Vector3 direction = MT_Vector3(0,0,-1);
 
 			direction.normalize();
@@ -322,7 +327,7 @@ void KX_BlenderRenderTools::RenderText(
 	RAS_IPolyMaterial* polymat,
 	float v1[3], float v2[3], float v3[3], float v4[3], int glattrib)
 {
-	const STR_String& mytext = ((CValue*)m_clientobject)->GetPropertyText("Text");
+	const STR_String &mytext = ((CValue *)m_clientobject)->GetPropertyText("Text");
 	
 	const unsigned int flag = polymat->GetFlag();
 	struct MTFace* tface = 0;
@@ -402,3 +407,4 @@ void KX_BlenderRenderTools::MotionBlur(RAS_IRasterizer* rasterizer)
 		}
 	}
 }
+

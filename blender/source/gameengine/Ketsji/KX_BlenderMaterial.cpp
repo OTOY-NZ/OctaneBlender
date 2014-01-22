@@ -157,6 +157,11 @@ Material *KX_BlenderMaterial::GetBlenderMaterial() const
 	return mMaterial->material;
 }
 
+Image *KX_BlenderMaterial::GetBlenderImage() const
+{
+	return mMaterial->tface.tpage;
+}
+
 Scene* KX_BlenderMaterial::GetBlenderScene() const
 {
 	return mScene->GetBlenderScene();
@@ -803,9 +808,7 @@ void KX_BlenderMaterial::UpdateIPO(
 void KX_BlenderMaterial::Replace_IScene(SCA_IScene *val)
 {
 	mScene= static_cast<KX_Scene *>(val);
-	if (mBlenderShader)
-		mBlenderShader->SetScene(mScene);
-	
+
 	OnConstruction();
 }
 

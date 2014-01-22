@@ -60,6 +60,8 @@ void BLI_freelistN(struct ListBase *listbase);
 void BLI_addtail(struct ListBase *listbase, void *vlink);
 void BLI_remlink(struct ListBase *listbase, void *vlink);
 bool BLI_remlink_safe(struct ListBase *listbase, void *vlink);
+void *BLI_pophead(ListBase *listbase);
+void *BLI_poptail(ListBase *listbase);
 
 void BLI_addhead(struct ListBase *listbase, void *vlink);
 void BLI_insertlinkbefore(struct ListBase *listbase, void *vnextlink, void *vnewlink);
@@ -72,7 +74,8 @@ void BLI_freelinkN(struct ListBase *listbase, void *vlink);
 void BLI_movelisttolist(struct ListBase *dst, struct ListBase *src);
 void BLI_duplicatelist(struct ListBase *dst, const struct ListBase *src);
 void BLI_reverselist(struct ListBase *lb);
-void BLI_rotatelist(struct ListBase *lb, void *vlink);
+void BLI_rotatelist_first(struct ListBase *lb, void *vlink);
+void BLI_rotatelist_last(struct ListBase *lb, void *vlink);
 
 /* create a generic list node containing link to provided data */
 struct LinkData *BLI_genericNodeN(void *data);

@@ -26,8 +26,6 @@ OCT_NAMESPACE_BEGIN
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Environment::Environment() {
     type                = 0;
-    rotation.x          = 0;
-    rotation.y          = 0;
     texture             = "";
     importance_sampling = 1;
     daylight_type       = 0;
@@ -81,7 +79,6 @@ void Environment::server_update(RenderServer *server, Scene *scene) {
 bool Environment::modified(const Environment& environment) {
 	return !(
         type == environment.type &&
-		rotation == environment.rotation &&
 		texture == environment.texture &&
 		importance_sampling == environment.importance_sampling &&
 		daylight_type == environment.daylight_type &&

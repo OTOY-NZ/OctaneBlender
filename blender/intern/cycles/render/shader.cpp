@@ -1,23 +1,22 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "background.h"
 #include "bssrdf.h"
+#include "blackbody.h"
 #include "device.h"
 #include "graph.h"
 #include "light.h"
@@ -51,8 +50,10 @@ Shader::Shader()
 	has_surface_transparent = false;
 	has_surface_emission = false;
 	has_surface_bssrdf = false;
+	has_converter_blackbody = false;
 	has_volume = false;
 	has_displacement = false;
+	has_bssrdf_bump = false;
 
 	used = false;
 
@@ -127,6 +128,7 @@ ShaderManager::ShaderManager()
 {
 	need_update = true;
 	bssrdf_table_offset = TABLE_OFFSET_INVALID;
+	blackbody_table_offset = TABLE_OFFSET_INVALID;
 }
 
 ShaderManager::~ShaderManager()
@@ -218,6 +220,7 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 	uint *shader_flag = dscene->shader_flag.resize(shader_flag_size);
 	uint i = 0;
 	bool has_surface_bssrdf = false;
+	bool has_converter_blackbody = false;
 
 	foreach(Shader *shader, scene->shaders) {
 		uint flag = 0;
@@ -232,9 +235,19 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 			flag |= SD_HOMOGENEOUS_VOLUME;
 		if(shader->has_surface_bssrdf)
 			has_surface_bssrdf = true;
+		if(shader->has_bssrdf_bump)
+			flag |= SD_HAS_BSSRDF_BUMP;
+		if(shader->has_converter_blackbody)
+			has_converter_blackbody = true;
 
+		/* regular shader */
 		shader_flag[i++] = flag;
 		shader_flag[i++] = shader->pass_id;
+
+		/* shader with bump mapping */
+		if(shader->graph_bump)
+			flag |= SD_HAS_BSSRDF_BUMP;
+
 		shader_flag[i++] = flag;
 		shader_flag[i++] = shader->pass_id;
 	}
@@ -257,6 +270,21 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 		scene->lookup_tables->remove_table(bssrdf_table_offset);
 		bssrdf_table_offset = TABLE_OFFSET_INVALID;
 	}
+
+	/* blackbody lookup table */
+	KernelBlackbody *kblackbody = &dscene->data.blackbody;
+	
+	if(has_converter_blackbody && blackbody_table_offset == TABLE_OFFSET_INVALID) {
+		vector<float> table = blackbody_table();
+		blackbody_table_offset = scene->lookup_tables->add_table(dscene, table);
+		
+		kblackbody->table_offset = (int)blackbody_table_offset;
+	}
+	else if(!has_converter_blackbody && blackbody_table_offset != TABLE_OFFSET_INVALID) {
+		scene->lookup_tables->remove_table(blackbody_table_offset);
+		blackbody_table_offset = TABLE_OFFSET_INVALID;
+	}
+
 }
 
 void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scene *scene)
@@ -264,6 +292,11 @@ void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scen
 	if(bssrdf_table_offset != TABLE_OFFSET_INVALID) {
 		scene->lookup_tables->remove_table(bssrdf_table_offset);
 		bssrdf_table_offset = TABLE_OFFSET_INVALID;
+	}
+
+	if(blackbody_table_offset != TABLE_OFFSET_INVALID) {
+		scene->lookup_tables->remove_table(blackbody_table_offset);
+		blackbody_table_offset = TABLE_OFFSET_INVALID;
 	}
 
 	device->tex_free(dscene->shader_flag);
@@ -314,12 +347,6 @@ void ShaderManager::add_default(Scene *scene)
 	/* default background */
 	{
 		graph = new ShaderGraph();
-
-		closure = graph->add(new BackgroundNode());
-		closure->input("Color")->value = make_float3(0.8f, 0.8f, 0.8f);
-		out = graph->output();
-
-		graph->connect(closure->output("Background"), out->input("Surface"));
 
 		shader = new Shader();
 		shader->name = "default_background";

@@ -98,6 +98,10 @@ static void node_init_output_index(bNodeSocket *sock, int *index, ListBase *inte
 		for (link = internal_links->first; link; link = link->next) {
 			if (link->tosock == sock) {
 				sock->stack_index = link->fromsock->stack_index;
+				/* set the link pointer to indicate that this socket
+				 * should not overwrite the stack value!
+				 */
+				sock->link = link;
 				break;
 			}
 		}
@@ -283,8 +287,8 @@ void ntreeReleaseThreadStack(bNodeThreadStack *nts)
 
 bool ntreeExecThreadNodes(bNodeTreeExec *exec, bNodeThreadStack *nts, void *callerdata, int thread)
 {
-	bNodeStack *nsin[MAX_SOCKET];   /* arbitrary... watch this */
-	bNodeStack *nsout[MAX_SOCKET];  /* arbitrary... watch this */
+	bNodeStack *nsin[MAX_SOCKET] = {NULL};   /* arbitrary... watch this */
+	bNodeStack *nsout[MAX_SOCKET] = {NULL};  /* arbitrary... watch this */
 	bNodeExec *nodeexec;
 	bNode *node;
 	int n;

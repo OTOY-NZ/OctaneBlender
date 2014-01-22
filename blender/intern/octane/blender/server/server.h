@@ -141,7 +141,8 @@ enum PacketType {
     LOAD_FALLOFF_TEXTURE,
     LOAD_COLOR_CORRECT_TEXTURE,
     LOAD_DIRT_TEXTURE,
-    LOAD_TEXTURE_LAST = LOAD_DIRT_TEXTURE,
+    LOAD_GRADIENT_TEXTURE,
+    LOAD_TEXTURE_LAST = LOAD_GRADIENT_TEXTURE,
     DEL_TEXTURE,
 
     LOAD_EMISSION_FIRST,
@@ -163,7 +164,23 @@ enum PacketType {
     LOAD_MEDIUM_LAST = LOAD_SCATTERING_MEDIUM,
     DEL_MEDIUM,
 
-    LAST_NAMED_PACKET = DEL_MEDIUM,
+    LOAD_PROJECTION_FIRST,
+    LOAD_PROJECTION_XYZ = LOAD_PROJECTION_FIRST,
+    LOAD_PROJECTION_BOX,
+    LOAD_PROJECTION_CYL,
+    LOAD_PROJECTION_PERSP,
+    LOAD_PROJECTION_SPHERICAL,
+    LOAD_PROJECTION_UVW,
+    LOAD_PROJECTION_LAST = LOAD_PROJECTION_UVW,
+    DEL_PROJECTION,
+
+    LOAD_VALUE_FIRST,
+    LOAD_VALUE_FLOAT = LOAD_VALUE_FIRST,
+    LOAD_VALUE_INT,
+    LOAD_VALUE_LAST = LOAD_VALUE_INT,
+    DEL_VALUE,
+
+    LAST_NAMED_PACKET = DEL_VALUE,
 
     LAST_PACKET_TYPE = LAST_NAMED_PACKET
 };
@@ -604,7 +621,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != SET_LIC_DATA) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR activate render-server: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR activate render-server.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
             return 0;
         }
         else return 1;
@@ -624,7 +643,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != RESET) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR resetting render server: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR resetting render server.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
         }
     } //reset()
 
@@ -641,7 +662,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != LOAD_GPU) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR setting GPUs on render server: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR setting GPUs on render server.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
         }
     } //load_GPUs()
 
@@ -676,7 +699,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != START) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR starting render: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR starting render.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
         }
     } //start_render()
 
@@ -692,7 +717,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != PAUSE) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR pause render: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR pause render.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
         }
     } //pause_render()
 
@@ -725,7 +752,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != LOAD_PANORAMIC_CAMERA) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR loading camera: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR loading camera.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
         else {
@@ -749,7 +778,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != LOAD_THIN_LENS_CAMERA) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR loading camera: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR loading camera.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
     } //load_camera()
@@ -768,7 +799,8 @@ public:
                 {
                     RPCSend snd(socket, sizeof(float)*4 + sizeof(int32_t)*9, LOAD_KERNEL);
                     int32_t gi_mode = static_cast<int32_t>(kernel->gi_mode);
-                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->ao_dist << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
+                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->ao_dist
+                        << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
                         << kernel->specular_depth << kernel->glossy_depth << gi_mode << kernel->diffuse_depth;
                     snd.write();
                 }
@@ -776,7 +808,8 @@ public:
             case Kernel::PATH_TRACE:
                 {
                     RPCSend snd(socket, sizeof(float)*4 + sizeof(int32_t)*6, LOAD_KERNEL);
-                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->caustic_blur << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
+                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->caustic_blur
+                        << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
                         << kernel->max_depth;
                     snd.write();
                 }
@@ -792,10 +825,10 @@ public:
                 break;
             case Kernel::INFO_CHANNEL:
                 {
-                    RPCSend snd(socket, sizeof(float)*3 + sizeof(int32_t)*4, LOAD_KERNEL);
+                    RPCSend snd(socket, sizeof(float)*3 + sizeof(int32_t)*6, LOAD_KERNEL);
                     int32_t info_channel_type = static_cast<int32_t>(kernel->info_channel_type);
                     snd << kernel_type << info_channel_type << kernel->filter_size << kernel->zdepth_max << kernel->uv_max
-                        << kernel->alpha_channel << (interactive ? kernel->max_preview_samples : kernel->max_samples);
+                        << kernel->alpha_channel << kernel->bump_normal_mapping << kernel->wf_bktrace_hl << (interactive ? kernel->max_preview_samples : kernel->max_samples);
                     snd.write();
                 }
                 break;
@@ -812,7 +845,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != LOAD_KERNEL) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR loading kernel: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR loading kernel.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
         }
     } //load_kernel()
 
@@ -824,8 +859,8 @@ public:
         thread_scoped_lock socket_lock(socket_mutex);
 
         if(env->type == 0) {
-            RPCSend snd(socket, sizeof(uint32_t) * 3 + sizeof(float) * 3 + env->texture.length() + 2, LOAD_SUNSKY);
-            snd << env->type << env->type << env->rotation.x << env->rotation.y << env->power << env->importance_sampling << env->texture.c_str();
+            RPCSend snd(socket, sizeof(uint32_t) * 3 + sizeof(float) + env->texture.length() + 2, LOAD_SUNSKY);
+            snd << env->type << env->type << env->power << env->importance_sampling << env->texture.c_str();
             snd.write();
         }
         else {
@@ -847,7 +882,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != LOAD_SUNSKY) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR loading environment: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR loading environment.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
         }
     } //load_environment()
 
@@ -878,7 +915,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != LOAD_GEO_MAT) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR loading materials of transform: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR loading materials of transform.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
 
@@ -894,7 +933,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != LOAD_GEO_SCATTER) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR loading transform: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR loading transform.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
         }
     } //load_scatter()
     inline void delete_scatter(string& name) {
@@ -908,7 +949,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != DEL_GEO_SCATTER) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR deleting transform: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR deleting transform.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
     } //delete_scatter()
@@ -1003,7 +1046,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != (global ? LOAD_GLOBAL_MESH : LOAD_LOCAL_MESH)) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR loading mesh: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR loading mesh.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
     } //load_mesh()
     inline void delete_mesh(bool global, string& name) {
@@ -1017,7 +1062,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != (global ? DEL_GLOBAL_MESH : DEL_LOCAL_MESH)) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR deleting mesh: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR deleting mesh.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
     } //delete_mesh()
@@ -1028,7 +1075,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != type) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR loading node: %s\n", error_msg.c_str());
+            fprintf(stderr, "Octane: ERROR loading node.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
             return false;
         }
         else return true;
@@ -1163,7 +1212,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != DEL_MATERIAL) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR deleting material: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR deleting material.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
     } //delete_material()
@@ -1222,12 +1273,12 @@ public:
     inline void load_checks_tex(OctaneChecksTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) + node->Transform.length() + 2;
+        uint64_t size = sizeof(float) + node->Transform.length() + 2 + node->Projection.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_CHECKS_TEXTURE, node->name.c_str());
-            snd << node->Transform_default_val << node->Transform.c_str();
+            snd << node->Transform_default_val << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_CHECKS_TEXTURE);
@@ -1241,14 +1292,15 @@ public:
             + node->Offset.length() + 2
             + node->Omega.length() + 2
             + node->Variance.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Projection.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_MARBLE_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Offset_default_val << node->Omega_default_val << node->Variance_default_val
                 << node->Octaves
-                << node->Power.c_str() << node->Offset.c_str() << node->Omega.c_str() << node->Variance.c_str() << node->Transform.c_str();
+                << node->Power.c_str() << node->Offset.c_str() << node->Omega.c_str() << node->Variance.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_MARBLE_TEXTURE);
@@ -1261,14 +1313,15 @@ public:
             + node->Power.length() + 2
             + node->Offset.length() + 2
             + node->Lacunarity.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Projection.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_RIDGED_FRACTAL_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Offset_default_val << node->Lacunarity_default_val
                 << node->Octaves
-                << node->Power.c_str() << node->Offset.c_str() << node->Lacunarity.c_str() << node->Transform.c_str();
+                << node->Power.c_str() << node->Offset.c_str() << node->Lacunarity.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_RIDGED_FRACTAL_TEXTURE);
@@ -1277,16 +1330,16 @@ public:
     inline void load_saw_wave_tex(OctaneSawWaveTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) + sizeof(int32_t)
+        uint64_t size = sizeof(float)
             + node->Offset.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Projection.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_SAW_WAVE_TEXTURE, node->name.c_str());
             snd << node->Offset_default_val
-                << node->Circular
-                << node->Offset.c_str() << node->Transform.c_str();
+                << node->Offset.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_SAW_WAVE_TEXTURE);
@@ -1295,16 +1348,16 @@ public:
     inline void load_sine_wave_tex(OctaneSineWaveTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) + sizeof(int32_t)
+        uint64_t size = sizeof(float)
             + node->Offset.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Projection.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_SINE_WAVE_TEXTURE, node->name.c_str());
             snd << node->Offset_default_val
-                << node->Circular
-                << node->Offset.c_str() << node->Transform.c_str();
+                << node->Offset.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_SINE_WAVE_TEXTURE);
@@ -1313,16 +1366,16 @@ public:
     inline void load_triangle_wave_tex(OctaneTriangleWaveTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) + sizeof(int32_t)
+        uint64_t size = sizeof(float)
             + node->Offset.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Projection.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_TRIANGLE_WAVE_TEXTURE, node->name.c_str());
             snd << node->Offset_default_val
-                << node->Circular
-                << node->Offset.c_str() << node->Transform.c_str();
+                << node->Offset.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_TRIANGLE_WAVE_TEXTURE);
@@ -1335,14 +1388,15 @@ public:
             + node->Power.length() + 2
             + node->Offset.length() + 2
             + node->Omega.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Projection.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_TURBULENCE_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Offset_default_val << node->Omega_default_val
                 << node->Octaves
-                << node->Power.c_str() << node->Offset.c_str() << node->Omega.c_str() << node->Transform.c_str();
+                << node->Power.c_str() << node->Offset.c_str() << node->Omega.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_TURBULENCE_TEXTURE);
@@ -1466,16 +1520,18 @@ public:
     inline void load_image_tex(OctaneImageTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 4 + sizeof(int32_t)
+        uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
             + node->FileName.length() + 2
-            + node->Power.length() + 2;
+            + node->Power.length() + 2
+            + node->Projection.length() + 2
+            + node->Transform.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma << node->Scale.x << node->Scale.y
+            snd << node->Power_default_val << node->Gamma << node->BorderMode
                 << node->Invert
-                << node->FileName.c_str() << node->Power.c_str();
+                << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_IMAGE_TEXTURE);
@@ -1484,16 +1540,18 @@ public:
     inline void load_float_image_tex(OctaneFloatImageTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 4 + sizeof(int32_t)
+        uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
             + node->FileName.length() + 2
-            + node->Power.length() + 2;
+            + node->Power.length() + 2
+            + node->Projection.length() + 2
+            + node->Transform.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma << node->Scale.x << node->Scale.y
+            snd << node->Power_default_val << node->Gamma << node->BorderMode
                 << node->Invert
-                << node->FileName.c_str() << node->Power.c_str();
+                << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_FLOAT_IMAGE_TEXTURE);
@@ -1502,16 +1560,18 @@ public:
     inline void load_alpha_image_tex(OctaneAlphaImageTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 4 + sizeof(int32_t)
+        uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
             + node->FileName.length() + 2
-            + node->Power.length() + 2;
+            + node->Power.length() + 2
+            + node->Projection.length() + 2
+            + node->Transform.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma << node->Scale.x << node->Scale.y
+            snd << node->Power_default_val << node->Gamma << node->BorderMode
                 << node->Invert
-                << node->FileName.c_str() << node->Power.c_str();
+                << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_ALPHA_IMAGE_TEXTURE);
@@ -1532,6 +1592,27 @@ public:
         wait_error(LOAD_DIRT_TEXTURE);
     } //load_dirt_tex()
 
+    inline void load_gradient_tex(OctaneGradientTexture* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(float) * 9 + sizeof(int32_t)
+            + node->texture.length() + 2
+            + node->Start.length() + 2
+            + node->End.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_GRADIENT_TEXTURE, node->name.c_str());
+            snd << node->texture_default_val.x << node->texture_default_val.y << node->texture_default_val.z
+                << node->Start_default_val.x << node->Start_default_val.y << node->Start_default_val.z
+                << node->End_default_val.x << node->End_default_val.y << node->End_default_val.z
+                << node->Smooth
+                << node->texture.c_str() << node->Start.c_str() << node->End.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_GRADIENT_TEXTURE);
+    } //load_gradient_tex()
+
     inline void delete_texture(string& name) {
         if(socket < 0) return;
         thread_scoped_lock socket_lock(socket_mutex);
@@ -1543,7 +1624,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != DEL_TEXTURE) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR deleting texture: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR deleting texture.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
     } //delete_texture()
@@ -1556,7 +1639,7 @@ public:
     inline void load_bbody_emission(OctaneBlackBodyEmission* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 8 + sizeof(int32_t)
+        uint64_t size = sizeof(float) * 5 + sizeof(int32_t)
             + node->Efficiency.length() + 2
             + node->Distribution.length() + 2;
 
@@ -1564,7 +1647,7 @@ public:
         {
             RPCSend snd(socket, size, LOAD_BLACKBODY_EMISSION, node->name.c_str());
             snd << node->Efficiency_default_val << node->Distribution_default_val << node->Temperature << node->Power
-                << node->Orientation.x << node->Orientation.y << node->Orientation.z << node->SamplingRate
+                << node->SamplingRate
                 << node->Normalize
                 << node->Efficiency.c_str() << node->Distribution.c_str();
             snd.write();
@@ -1575,15 +1658,15 @@ public:
     inline void load_texture_emission(OctaneTextureEmission* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 7
+        uint64_t size = sizeof(float) * 4
             + node->Efficiency.length() + 2
             + node->Distribution.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_TEXTURE_EMISSION, node->name.c_str());
-            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Power << node->Orientation.x
-                << node->Orientation.y << node->Orientation.z << node->SamplingRate
+            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Power
+                << node->SamplingRate
                 << node->Efficiency.c_str() << node->Distribution.c_str();
             snd.write();
         }
@@ -1601,7 +1684,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != DEL_EMISSION) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR deleting emission: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR deleting emission.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
     } //delete_emission()
@@ -1657,7 +1742,9 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != DEL_MEDIUM) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR deleting medium: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR deleting medium.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
     } //delete_medium()
@@ -1722,10 +1809,174 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type != DEL_TRANSFORM) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR deleting medium: %s\n", error_msg.c_str());
+                fprintf(stderr, "Octane: ERROR deleting transform.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
             }
         }
     } //delete_transform()
+
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // PROJECTIONS
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    inline void load_xyz_projection(OctaneOctXYZProjection* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_PROJECTION_XYZ, node->name.c_str());
+            snd << node->CoordinateSpace
+                << node->Transform.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_PROJECTION_XYZ);
+    } //load_xyz_projection()
+
+    inline void load_box_projection(OctaneOctBoxProjection* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_PROJECTION_BOX, node->name.c_str());
+            snd << node->CoordinateSpace
+                << node->Transform.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_PROJECTION_BOX);
+    } //load_box_projection()
+
+    inline void load_cyl_projection(OctaneOctCylProjection* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_PROJECTION_CYL, node->name.c_str());
+            snd << node->CoordinateSpace
+                << node->Transform.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_PROJECTION_CYL);
+    } //load_cyl_projection()
+
+    inline void load_persp_projection(OctaneOctPerspProjection* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_PROJECTION_PERSP, node->name.c_str());
+            snd << node->CoordinateSpace
+                << node->Transform.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_PROJECTION_PERSP);
+    } //load_persp_projection()
+
+    inline void load_spherical_projection(OctaneOctSphericalProjection* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_PROJECTION_SPHERICAL, node->name.c_str());
+            snd << node->CoordinateSpace
+                << node->Transform.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_PROJECTION_SPHERICAL);
+    } //load_spherical_projection()
+
+    inline void load_uvw_projection(OctaneOctUVWProjection* node) {
+        if(socket < 0) return;
+
+        uint64_t size = 0;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_PROJECTION_UVW, node->name.c_str());
+            snd.write();
+        }
+        wait_error(LOAD_PROJECTION_UVW);
+    } //load_uvw_projection()
+
+    inline void delete_projection(string& name) {
+        if(socket < 0) return;
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, 0, DEL_PROJECTION, name.c_str());
+            snd.write();
+        }
+        {
+            RPCReceive rcv(socket);
+            if(rcv.type != DEL_PROJECTION) {
+                rcv >> error_msg;
+                fprintf(stderr, "Octane: ERROR deleting projection.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
+            }
+        }
+    } //delete_projection()
+
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // VALUES
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    inline void load_float_value(OctaneOctFloatValue* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(float);
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_VALUE_FLOAT, node->name.c_str());
+            snd << node->Value;
+            snd.write();
+        }
+        wait_error(LOAD_VALUE_FLOAT);
+    } //load_float_value()
+
+    inline void load_int_value(OctaneOctIntValue* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(int32_t);
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_VALUE_INT, node->name.c_str());
+            snd << node->Value;
+            snd.write();
+        }
+        wait_error(LOAD_VALUE_INT);
+    } //load_int_value()
+
+    inline void delete_value(string& name) {
+        if(socket < 0) return;
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, 0, DEL_VALUE, name.c_str());
+            snd.write();
+        }
+        {
+            RPCReceive rcv(socket);
+            if(rcv.type != DEL_VALUE) {
+                rcv >> error_msg;
+                fprintf(stderr, "Octane: ERROR deleting value node.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
+            }
+        }
+    } //delete_value()
 
 
 

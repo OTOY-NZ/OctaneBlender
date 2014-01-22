@@ -535,16 +535,16 @@ static void sdl_cursor_init(void)
 {
 
 #define DEF_CURSOR(name, ind) \
-	assert( \
-	    ( \
-	        sdl_std_cursor_array[(int)ind] = \
-	            sdl_ghost_CreateCursor(sdl_std_cursor_##name, \
-	                                   sdl_std_cursor_mask_##name, \
-	                                   sdl_std_cursor_WIDTH_##name, \
-	                                   sdl_std_cursor_HEIGHT_##name, \
-	                                   (sdl_std_cursor_WIDTH_##name + (sdl_std_cursor_HOT_X_##name)) - 1, \
-	                                   (sdl_std_cursor_HEIGHT_##name + (sdl_std_cursor_HOT_Y_##name)) - 1) \
-	    ) != NULL) \
+	{ \
+		sdl_std_cursor_array[(int)ind] = \
+			sdl_ghost_CreateCursor(sdl_std_cursor_##name, \
+								   sdl_std_cursor_mask_##name, \
+								   sdl_std_cursor_WIDTH_##name, \
+								   sdl_std_cursor_HEIGHT_##name, \
+								   (sdl_std_cursor_WIDTH_##name + (sdl_std_cursor_HOT_X_##name)) - 1, \
+								   (sdl_std_cursor_HEIGHT_##name + (sdl_std_cursor_HOT_Y_##name)) - 1); \
+		assert(sdl_std_cursor_array[(int)ind] != NULL); \
+	} (void)0
 
 
 	DEF_CURSOR(left_ptr, GHOST_kStandardCursorDefault);
@@ -637,4 +637,17 @@ GHOST_WindowSDL::setWindowCursorVisibility(bool visible)
 {
 	SDL_ShowCursor(visible);
 	return GHOST_kSuccess;
+}
+
+GHOST_TSuccess
+GHOST_WindowSDL::setSwapInterval(int interval)
+{
+	SDL_GL_SetSwapInterval(interval);
+	return GHOST_kSuccess;
+}
+
+int
+GHOST_WindowSDL::getSwapInterval()
+{
+	return SDL_GL_GetSwapInterval();
 }

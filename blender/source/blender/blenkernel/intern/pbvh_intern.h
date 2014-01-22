@@ -21,6 +21,10 @@
 #ifndef __PBVH_INTERN_H__
 #define __PBVH_INTERN_H__
 
+/** \file blender/blenkernel/intern/pbvh_intern.h
+ *  \ingroup bli
+ */
+
 /* Axis-aligned bounding box */
 typedef struct {
 	float bmin[3], bmax[3];
@@ -101,8 +105,8 @@ struct PBVHNode {
 
 	/* Dyntopo */
 	GHash *bm_faces;
-	GHash *bm_unique_verts;
-	GHash *bm_other_verts;
+	GSet *bm_unique_verts;
+	GSet *bm_other_verts;
 	float (*bm_orco)[3];
 	int (*bm_ortri)[3];
 	int bm_tot_ortri;
@@ -139,11 +143,11 @@ struct PBVH {
 	void **gridfaces;
 	const DMFlagMat *grid_flag_mats;
 	int totgrid;
-	BLI_bitmap *grid_hidden;
+	BLI_bitmap **grid_hidden;
 
 	/* Only used during BVH build and update,
 	 * don't need to remain valid after */
-	BLI_bitmap vert_bitmap;
+	BLI_bitmap *vert_bitmap;
 
 #ifdef PERFCNTRS
 	int perf_modified;
