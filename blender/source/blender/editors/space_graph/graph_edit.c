@@ -214,7 +214,8 @@ void GRAPH_OT_previewrange_set(wmOperatorType *ot)
 
 /* ****************** View-All Operator ****************** */
 
-static int graphkeys_viewall(bContext *C, const short do_sel_only, const short include_handles)
+static int graphkeys_viewall(bContext *C, const short do_sel_only, const short include_handles,
+                             const int smooth_viewtx)
 {
 	bAnimContext ac;
 	rctf cur_new;
@@ -231,7 +232,7 @@ static int graphkeys_viewall(bContext *C, const short do_sel_only, const short i
 
 	BLI_rctf_scale(&cur_new, 1.1f);
 
-	UI_view2d_smooth_view(C, ac.ar, &cur_new);
+	UI_view2d_smooth_view(C, ac.ar, &cur_new, smooth_viewtx);
 
 	return OPERATOR_FINISHED;
 }
@@ -240,18 +241,20 @@ static int graphkeys_viewall(bContext *C, const short do_sel_only, const short i
 
 static int graphkeys_viewall_exec(bContext *C, wmOperator *op)
 {
-	short include_handles = RNA_boolean_get(op->ptr, "include_handles");
+	const short include_handles = RNA_boolean_get(op->ptr, "include_handles");
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 	
 	/* whole range */
-	return graphkeys_viewall(C, FALSE, include_handles);
+	return graphkeys_viewall(C, false, include_handles, smooth_viewtx);
 }
  
 static int graphkeys_view_selected_exec(bContext *C, wmOperator *op)
 {
-	short include_handles = RNA_boolean_get(op->ptr, "include_handles");
+	const short include_handles = RNA_boolean_get(op->ptr, "include_handles");
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 	
 	/* only selected */
-	return graphkeys_viewall(C, TRUE, include_handles);
+	return graphkeys_viewall(C, true, include_handles, smooth_viewtx);
 }
 
 void GRAPH_OT_view_all(wmOperatorType *ot)
@@ -882,8 +885,12 @@ static void delete_graph_keys(bAnimContext *ac)
 		delete_fcurve_keys(fcu); 
 		
 		/* Only delete curve too if it won't be doing anything anymore */
-		if ((fcu->totvert == 0) && (list_has_suitable_fmodifier(&fcu->modifiers, 0, FMI_TYPE_GENERATE_CURVE) == 0))
+		if ((fcu->totvert == 0) &&
+		    (list_has_suitable_fmodifier(&fcu->modifiers, 0, FMI_TYPE_GENERATE_CURVE) == 0) &&
+		    (fcu->driver == NULL))
+		{
 			ANIM_fcurve_delete_from_animdata(ac, adt, fcu);
+		}
 	}
 	
 	/* free filtered list */
@@ -1676,7 +1683,7 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 		/* FIXME: there are more complicated methods that will be needed to fix more cases than just some */
 		for (f = 0; f < 3; f++) {
 			FCurve *fcu = euf->fcurves[f];
-			BezTriple *bezt, *prev = NULL;
+			BezTriple *bezt, *prev;
 			unsigned int i;
 			
 			/* skip if not enough vets to do a decent analysis of... */
@@ -1684,29 +1691,19 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 				continue;
 			
 			/* prev follows bezt, bezt = "current" point to be fixed */
-			for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, prev = bezt, bezt++) {
-				/* our method depends on determining a "difference" from the previous vert */
-				if (prev == NULL)
-					continue;
+			/* our method depends on determining a "difference" from the previous vert */
+			for (i = 1, prev = fcu->bezt, bezt = fcu->bezt + 1; i < fcu->totvert; i++, prev = bezt++) {
+				const float sign = (prev->vec[1][1] > bezt->vec[1][1]) ? 1.0f : -1.0f;
 				
 				/* > 180 degree flip? */
-				if (fabs(prev->vec[1][1] - bezt->vec[1][1]) >= M_PI) {
+				if ((sign * (prev->vec[1][1] - bezt->vec[1][1])) >= (float)M_PI) {
 					/* 360 degrees to add/subtract frame value until difference is acceptably small that there's no more flip */
-					const float fac = 2.0f * (float)M_PI;
+					const float fac = sign * 2.0f * (float)M_PI;
 					
-					if (prev->vec[1][1] > bezt->vec[1][1]) {
-						while (fabsf(bezt->vec[1][1] - prev->vec[1][1]) >= (float)M_PI) {
-							bezt->vec[0][1] += fac;
-							bezt->vec[1][1] += fac;
-							bezt->vec[2][1] += fac;
-						}
-					}
-					else { /* if (prev->vec[1][1] < bezt->vec[1][1]) */
-						while (fabsf(bezt->vec[1][1] - prev->vec[1][1]) >= (float)M_PI) {
-							bezt->vec[0][1] -= fac;
-							bezt->vec[1][1] -= fac;
-							bezt->vec[2][1] -= fac;
-						}
+					while ((sign * (prev->vec[1][1] - bezt->vec[1][1])) >= (float)M_PI) {
+						bezt->vec[0][1] += fac;
+						bezt->vec[1][1] += fac;
+						bezt->vec[2][1] += fac;
 					}
 				}
 			}

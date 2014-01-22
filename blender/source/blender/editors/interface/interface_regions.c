@@ -196,7 +196,7 @@ static MenuData *decompose_menu_string(const char *str)
 				s++;
 			}
 		}
-		else if (c == '|' || c == '\n' || c == '\0') {
+		else if (c == UI_SEP_CHAR || c == '\n' || c == '\0') {
 			if (nitem) {
 				*s = '\0';
 
@@ -590,7 +590,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			/* never fails */
 			id_path = RNA_path_full_ID_py(id);
 
-			if (ptr->id.data && ptr->data && prop) {
+			if (ptr->data && prop) {
 				data_path = RNA_path_from_ID_to_property(ptr, prop);
 			}
 
@@ -770,6 +770,7 @@ typedef struct uiSearchboxData {
 	int active;     /* index in items array */
 	bool noback;    /* when menu opened with enough space for this */
 	bool preview;   /* draw thumbnail previews, rather than list */
+	bool use_sep;   /* use the UI_SEP_CHAR char for splitting shortcuts (good for operators, bad for data) */
 	int prv_rows, prv_cols;
 } uiSearchboxData;
 
@@ -928,7 +929,7 @@ bool ui_searchbox_apply(uiBut *but, ARegion *ar)
 	
 	if (data->active != -1) {
 		const char *name = data->items.names[data->active];
-		const char *name_sep = strchr(name, '|');
+		const char *name_sep = data->use_sep ? strchr(name, UI_SEP_CHAR) : NULL;
 
 		BLI_strncpy(but->editstr, name, name_sep ? (name_sep - name) : data->items.maxstrlen);
 		
@@ -1034,7 +1035,7 @@ void ui_searchbox_update(bContext *C, ARegion *ar, uiBut *but, const bool reset)
 		
 		for (a = 0; a < data->items.totitem; a++) {
 			const char *name = data->items.names[a];
-			const char *name_sep = strchr(name, '|');
+			const char *name_sep = data->use_sep ? strchr(name, UI_SEP_CHAR) : NULL;
 			if (STREQLEN(but->editstr, name, name_sep ? (name_sep - name) : data->items.maxstrlen)) {
 				data->active = a;
 				break;
@@ -1087,10 +1088,14 @@ static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 				ui_searchbox_butrect(&rect, data, a);
 				
 				/* widget itself */
-				if (data->preview)
-					ui_draw_preview_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a], (a == data->active) ? UI_ACTIVE : 0);
-				else 
-					ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a], (a == data->active) ? UI_ACTIVE : 0);
+				if (data->preview) {
+					ui_draw_preview_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a],
+					                     (a == data->active) ? UI_ACTIVE : 0);
+				}
+				else {
+					ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a],
+					                  (a == data->active) ? UI_ACTIVE : 0, data->use_sep);
+				}
 			}
 			
 			/* indicate more */
@@ -1114,7 +1119,8 @@ static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 				ui_searchbox_butrect(&rect, data, a);
 				
 				/* widget itself */
-				ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a], (a == data->active) ? UI_ACTIVE : 0);
+				ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a],
+				                  (a == data->active) ? UI_ACTIVE : 0, data->use_sep);
 				
 			}
 			/* indicate more */
@@ -1193,6 +1199,11 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 		data->preview = true;
 		data->prv_rows = but->a1;
 		data->prv_cols = but->a2;
+	}
+
+	/* only show key shortcuts when needed (not rna buttons) [#36699] */
+	if (but->rnaprop == NULL) {
+		data->use_sep = true;
 	}
 	
 	/* compute position */
@@ -2268,10 +2279,8 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 	
 	block = uiBeginBlock(C, handle->region, __func__, UI_EMBOSS);
 	
-	if (but->rnaprop) {
-		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-			block->color_profile = FALSE;
-		}
+	if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+		block->color_profile = false;
 	}
 
 	if (but->block) {
@@ -2303,11 +2312,11 @@ static int ui_popup_string_hash(const char *str)
 {
 	/* sometimes button contains hotkey, sometimes not, strip for proper compare */
 	int hash;
-	char *delimit = strchr(str, '|');
+	char *delimit = strchr(str, UI_SEP_CHAR);
 
-	if (delimit) *delimit = 0;
+	if (delimit) *delimit = '\0';
 	hash = BLI_ghashutil_strhash(str);
-	if (delimit) *delimit = '|';
+	if (delimit) *delimit = UI_SEP_CHAR;
 
 	return hash;
 }
@@ -2528,7 +2537,7 @@ uiPopupMenu *uiPupMenuBegin(bContext *C, const char *title, int icon)
 	uiStyle *style = UI_GetStyleDraw();
 	uiPopupMenu *pup = MEM_callocN(sizeof(uiPopupMenu), "popup menu");
 	uiBut *but;
-	
+
 	pup->block = uiBeginBlock(C, NULL, __func__, UI_EMBOSSP);
 	pup->block->flag |= UI_BLOCK_POPUP_MEMORY;
 	pup->block->puphash = ui_popup_menu_hash(title);
@@ -2542,7 +2551,7 @@ uiPopupMenu *uiPupMenuBegin(bContext *C, const char *title, int icon)
 	pup->block->handle = MEM_callocN(sizeof(uiPopupBlockHandle), "uiPopupBlockHandle");
 	
 	/* create title button */
-	if (title && title[0]) {
+	if (title[0]) {
 		char titlestr[256];
 		
 		if (icon) {
@@ -2607,12 +2616,10 @@ static void confirm_cancel_operator(bContext *UNUSED(C), void *opv)
 	WM_operator_free(opv);
 }
 
-static void vconfirm_opname(bContext *C, const char *opname, const char *title, const char *itemfmt, va_list ap)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 4, 0)))
-#endif
-;
-static void vconfirm_opname(bContext *C, const char *opname, const char *title, const char *itemfmt, va_list ap)
+static void vconfirm_opname(bContext *C, const char *opname, const char *title,
+                            const char *itemfmt, va_list ap) ATTR_PRINTF_FORMAT(4, 0);
+static void vconfirm_opname(bContext *C, const char *opname, const char *title,
+                            const char *itemfmt, va_list ap)
 {
 	uiPopupBlockHandle *handle;
 	char *s, buf[512];

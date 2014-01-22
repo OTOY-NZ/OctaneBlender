@@ -75,7 +75,6 @@ void WriteBufferOperation::executeRegion(rcti *rect, unsigned int tileNumber)
 			for (x = x1; x < x2; x++) {
 				this->m_input->read(&(buffer[offset4]), x, y, data);
 				offset4 += COM_NUMBER_OF_CHANNELS;
-
 			}
 			if (isBreaked()) {
 				breaked = true;
@@ -172,6 +171,21 @@ void WriteBufferOperation::executeOpenCLRegion(OpenCLDevice *device, rcti *rect,
 		clKernelsToCleanUp->pop_front();
 	}
 	delete clKernelsToCleanUp;
+}
+
+void WriteBufferOperation::determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2])
+{
+	NodeOperation::determineResolution(resolution, preferredResolution);
+	/* make sure there is at least one pixel stored in case the input is a single value */
+	m_single_value = false;
+	if (resolution[0] == 0) {
+		resolution[0] = 1;
+		m_single_value = true;
+	}
+	if (resolution[1] == 0) {
+		resolution[1] = 1;
+		m_single_value = true;
+	}
 }
 
 void WriteBufferOperation::readResolutionFromInputSocket()

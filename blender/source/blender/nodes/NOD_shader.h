@@ -43,8 +43,6 @@ extern struct bNodeTreeType *ntreeType_Shader;
 void register_node_tree_type_sh(void);
 
 void register_node_type_sh_group(void);
-void register_node_type_sh_forloop(void);
-void register_node_type_sh_whileloop(void);
 
 void register_node_type_sh_output(void);
 void register_node_type_sh_material(void);
@@ -70,6 +68,8 @@ void register_node_type_sh_material_ext(void);
 void register_node_type_sh_invert(void);
 void register_node_type_sh_seprgb(void);
 void register_node_type_sh_combrgb(void);
+void register_node_type_sh_sephsv(void);
+void register_node_type_sh_combhsv(void);
 void register_node_type_sh_hue_sat(void);
 void register_node_type_sh_tex_brick(void);
 
@@ -81,6 +81,7 @@ void register_node_type_sh_object_info(void);
 void register_node_type_sh_fresnel(void);
 void register_node_type_sh_wireframe(void);
 void register_node_type_sh_wavelength(void);
+void register_node_type_sh_blackbody(void);
 void register_node_type_sh_layer_weight(void);
 void register_node_type_sh_tex_coord(void);
 void register_node_type_sh_particle_info(void);
@@ -88,6 +89,7 @@ void register_node_type_sh_hair_info(void);
 void register_node_type_sh_script(void);
 void register_node_type_sh_normal_map(void);
 void register_node_type_sh_tangent(void);
+void register_node_type_sh_vect_transform(void);
 
 void register_node_type_sh_ambient_occlusion(void);
 void register_node_type_sh_background(void);
@@ -104,6 +106,7 @@ void register_node_type_sh_emission(void);
 void register_node_type_sh_holdout(void);
 void register_node_type_sh_volume_transparent(void);
 void register_node_type_sh_volume_isotropic(void);
+void register_node_type_sh_bsdf_hair(void);
 void register_node_type_sh_subsurface_scattering(void);
 void register_node_type_sh_mix_shader(void);
 void register_node_type_sh_add_shader(void);

@@ -1,25 +1,28 @@
 /*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 /* Voronoi Distances */
 
 float voronoi_distance(string distance_metric, vector d, float e)
 {
+#if 0
 	if (distance_metric == "Distance Squared")
+#endif
 		return dot(d, d);
+#if 0
 	if (distance_metric == "Actual Distance")
 		return length(d);
 	if (distance_metric == "Manhattan")
@@ -34,6 +37,7 @@ float voronoi_distance(string distance_metric, vector d, float e)
 		return pow(pow(fabs(d[0]), e) + pow(fabs(d[1]), e) + pow(fabs(d[2]), e), 1.0 / e);
 	
 	return 0.0;
+#endif
 }
 
 /* Voronoi / Worley like */
@@ -196,31 +200,6 @@ float noise_basis_hard(point p, string basis, int hard)
 {
 	float t = noise_basis(p, basis);
 	return (hard) ? fabs(2.0 * t - 1.0) : t;
-}
-
-/* Waves */
-
-float noise_wave(string wave, float a)
-{
-	if (wave == "Sine") {
-		return 0.5 + 0.5 * sin(a);
-	}
-	if (wave == "Saw") {
-		float b = 2 * M_PI;
-		int n = (int)(a / b);
-		a -= n * b;
-		if (a < 0) a += b;
-
-		return a / b;
-	}
-	if (wave == "Tri") {
-		float b = 2 * M_PI;
-		float rmax = 1.0;
-
-		return rmax - 2.0 * fabs(floor((a * (1.0 / b)) + 0.5) - (a * (1.0 / b)));
-	}
-
-	return 0.0;
 }
 
 /* Turbulence */

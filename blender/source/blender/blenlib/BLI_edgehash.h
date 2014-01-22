@@ -29,6 +29,8 @@
  *  \brief A general unordered 2-int pair hash table ADT.
  */
 
+#include "BLI_compiler_attrs.h"
+
 struct EdgeHash;
 struct EdgeHashIterator;
 typedef struct EdgeHash EdgeHash;
@@ -36,60 +38,60 @@ typedef struct EdgeHashIterator EdgeHashIterator;
 
 typedef void (*EdgeHashFreeFP)(void *key);
 
-EdgeHash       *BLI_edgehash_new(void);
+enum {
+	EDGEHASH_FLAG_ALLOW_DUPES = (1 << 0),  /* only checked for in debug mode */
+};
+
+EdgeHash       *BLI_edgehash_new_ex(const char *info,
+                                    const unsigned int nentries_reserve);
+EdgeHash       *BLI_edgehash_new(const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 void            BLI_edgehash_free(EdgeHash *eh, EdgeHashFreeFP valfreefp);
-
-/* Insert edge (v0,v1) into hash with given value, does
- * not check for duplicates.
- */
 void            BLI_edgehash_insert(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val);
-
-/* Return value for given edge (v0,v1), or NULL if
- * if key does not exist in hash. (If need exists
- * to differentiate between key-value being NULL and
- * lack of key then see BLI_edgehash_lookup_p().
- */
-void           *BLI_edgehash_lookup(EdgeHash *eh, unsigned int v0, unsigned int v1);
-
-/* Return pointer to value for given edge (v0,v1),
- * or NULL if key does not exist in hash.
- */
-void          **BLI_edgehash_lookup_p(EdgeHash *eh, unsigned int v0, unsigned int v1);
-
-/* Return boolean true/false if edge (v0,v1) in hash. */
-bool            BLI_edgehash_haskey(EdgeHash *eh, unsigned int v0, unsigned int v1);
-
-/* Return number of keys in hash. */
-int             BLI_edgehash_size(EdgeHash *eh);
-
-/* Remove all edges from hash. */
+bool            BLI_edgehash_reinsert(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val);
+void           *BLI_edgehash_lookup(EdgeHash *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
+void          **BLI_edgehash_lookup_p(EdgeHash *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
+bool            BLI_edgehash_haskey(EdgeHash *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
+int             BLI_edgehash_size(EdgeHash *eh) ATTR_WARN_UNUSED_RESULT;
+void            BLI_edgehash_clear_ex(EdgeHash *eh, EdgeHashFreeFP valfreefp,
+                                      const unsigned int nentries_reserve);
 void            BLI_edgehash_clear(EdgeHash *eh, EdgeHashFreeFP valfreefp);
+void            BLI_edgehash_flag_set(EdgeHash *eh, unsigned int flag);
+void            BLI_edgehash_flag_clear(EdgeHash *eh, unsigned int flag);
 
-/***/
-
-/**
- * Create a new EdgeHashIterator. The hash table must not be mutated
- * while the iterator is in use, and the iterator will step exactly
- * BLI_edgehash_size(gh) times before becoming done.
- */
-EdgeHashIterator   *BLI_edgehashIterator_new(EdgeHash *eh);
-
-/* Free an EdgeHashIterator. */
+EdgeHashIterator   *BLI_edgehashIterator_new(EdgeHash *eh) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 void                BLI_edgehashIterator_free(EdgeHashIterator *ehi);
-
-/* Retrieve the key from an iterator. */
 void                BLI_edgehashIterator_getKey(EdgeHashIterator *ehi, unsigned int *v0_r, unsigned int *v1_r);
-
-/* Retrieve the value from an iterator. */
-void               *BLI_edgehashIterator_getValue(EdgeHashIterator *ehi);
-
-/* Set the value for an iterator. */
+void               *BLI_edgehashIterator_getValue(EdgeHashIterator *ehi) ATTR_WARN_UNUSED_RESULT;
+void              **BLI_edgehashIterator_getValue_p(EdgeHashIterator *ehi) ATTR_WARN_UNUSED_RESULT;
 void                BLI_edgehashIterator_setValue(EdgeHashIterator *ehi, void *val);
-
-/* Steps the iterator to the next index. */
 void                BLI_edgehashIterator_step(EdgeHashIterator *ehi);
+bool                BLI_edgehashIterator_isDone(EdgeHashIterator *ehi) ATTR_WARN_UNUSED_RESULT;
 
-/* Determine if an iterator is done. */
-bool                BLI_edgehashIterator_isDone(EdgeHashIterator *ehi);
+#define BLI_EDGEHASH_SIZE_GUESS_FROM_LOOPS(totloop)  ((totloop) / 2)
+#define BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(totpoly)  ((totpoly) * 2)
 
-#endif
+/* *** EdgeSet *** */
+
+struct EdgeSet;
+struct EdgeSetIterator;
+typedef struct EdgeSet EdgeSet;
+typedef struct EdgeSetIterator EdgeSetIterator;
+
+EdgeSet *BLI_edgeset_new_ex(const char *info,
+                            const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+EdgeSet *BLI_edgeset_new(const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+int      BLI_edgeset_size(EdgeSet *es) ATTR_WARN_UNUSED_RESULT;
+bool     BLI_edgeset_reinsert(EdgeSet *es, unsigned int v0, unsigned int v1);
+void     BLI_edgeset_insert(EdgeSet *es, unsigned int v0, unsigned int v1);
+bool     BLI_edgeset_haskey(EdgeSet *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
+void     BLI_edgeset_free(EdgeSet *es);
+
+/* rely on inline api for now */
+BLI_INLINE EdgeSetIterator *BLI_edgesetIterator_new(EdgeSet *gs) { return (EdgeSetIterator *)BLI_edgehashIterator_new((EdgeHash *)gs); }
+BLI_INLINE void BLI_edgesetIterator_free(EdgeSetIterator *esi) { BLI_edgehashIterator_free((EdgeHashIterator *)esi); }
+BLI_INLINE void BLI_edgesetIterator_getKey(EdgeSetIterator *esi, unsigned int *v0_r, unsigned int *v1_r) { BLI_edgehashIterator_getKey((EdgeHashIterator *)esi, v0_r, v1_r); }
+BLI_INLINE void BLI_edgesetIterator_step(EdgeSetIterator *esi) { BLI_edgehashIterator_step((EdgeHashIterator *)esi); }
+BLI_INLINE bool BLI_edgesetIterator_isDone(EdgeSetIterator *esi) { return BLI_edgehashIterator_isDone((EdgeHashIterator *)esi); }
+
+
+#endif  /* __BLI_EDGEHASH_H__ */

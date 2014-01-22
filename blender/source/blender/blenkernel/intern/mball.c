@@ -56,6 +56,7 @@
 
 /*  #include "BKE_object.h" */
 #include "BKE_animsys.h"
+#include "BKE_curve.h"
 #include "BKE_scene.h"
 #include "BKE_library.h"
 #include "BKE_displist.h"
@@ -199,7 +200,6 @@ void BKE_mball_free(MetaBall *mb)
 		mb->adt = NULL;
 	}
 	if (mb->mat) MEM_freeN(mb->mat);
-	if (mb->bb) MEM_freeN(mb->bb);
 	BLI_freelistN(&mb->elems);
 	if (mb->disp.first) BKE_displist_free(&mb->disp);
 }
@@ -233,7 +233,6 @@ MetaBall *BKE_mball_copy(MetaBall *mb)
 	for (a = 0; a < mbn->totcol; a++) {
 		id_us_plus((ID *)mbn->mat[a]);
 	}
-	mbn->bb = MEM_dupallocN(mb->bb);
 
 	mbn->editelems = NULL;
 	mbn->lastelem = NULL;
@@ -366,7 +365,7 @@ void BKE_mball_texspace_calc(Object *ob)
 	(min)[0] = (min)[1] = (min)[2] = 1.0e30f;
 	(max)[0] = (max)[1] = (max)[2] = -1.0e30f;
 
-	dl = ob->disp.first;
+	dl = ob->curve_cache->disp.first;
 	while (dl) {
 		tot = dl->nr;
 		if (tot) do_it = TRUE;
@@ -2281,7 +2280,7 @@ static void mball_count(PROCESS *process, Scene *scene, Object *basis)
 	}
 }
 
-void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase)
+void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase, bool for_render)
 {
 	MetaBall *mb;
 	DispList *dl;
@@ -2294,7 +2293,7 @@ void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase)
 	mball_count(&process, scene, ob);
 
 	if (process.totelem == 0) return;
-	if ((G.is_rendering == FALSE) && (mb->flag == MB_UPDATE_NEVER)) return;
+	if ((for_render == false) && (mb->flag == MB_UPDATE_NEVER)) return;
 	if ((G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) && mb->flag == MB_UPDATE_FAST) return;
 
 	process.thresh = mb->thresh;
@@ -2332,7 +2331,7 @@ void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase)
 	}
 
 	/* width is size per polygonize cube */
-	if (G.is_rendering) {
+	if (for_render) {
 		width = mb->rendersize;
 	}
 	else {

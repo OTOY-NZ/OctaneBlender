@@ -38,6 +38,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_sort.h"
 
 #include "BKE_navmesh_conversion.h"
 #include "BKE_cdderivedmesh.h"
@@ -340,7 +341,7 @@ int buildNavMeshData(const int nverts, const float *verts,
 		trisMapping[i] = i;
 	context.recastData = recastData;
 	context.trisToFacesMap = trisToFacesMap;
-	recast_qsort(trisMapping, ntris, sizeof(int), &context, compareByData);
+	BLI_qsort_r(trisMapping, ntris, sizeof(int), &context, compareByData);
 
 	/* search first valid triangle - triangle of convex polygon */
 	validTriStart = -1;
@@ -366,7 +367,7 @@ int buildNavMeshData(const int nverts, const float *verts,
 	/* create detailed mesh triangles  - copy only valid triangles
 	 * and reserve memory for adjacency info */
 	dtris = MEM_callocN(sizeof(unsigned short) * 3 * 2 * ndtris, "buildNavMeshData dtris");
-	memset(dtris, 0xffff, sizeof(unsigned short) * 3 * 2 * ndtris);
+	memset(dtris, 0xff, sizeof(unsigned short) * 3 * 2 * ndtris);
 	for (i = 0; i < ndtris; i++) {
 		memcpy(dtris + 3 * 2 * i, tris + 3 * dtrisToTrisMap[i], sizeof(unsigned short) * 3);
 	}

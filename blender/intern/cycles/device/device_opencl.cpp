@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifdef WITH_OPENCL
@@ -316,14 +314,15 @@ public:
 class OpenCLDevice : public Device
 {
 public:
-	TaskPool task_pool;
+	DedicatedTaskPool task_pool;
 	cl_context cxContext;
 	cl_command_queue cqCommandQueue;
 	cl_platform_id cpPlatform;
 	cl_device_id cdDevice;
 	cl_program cpProgram;
 	cl_kernel ckPathTraceKernel;
-	cl_kernel ckFilmConvertKernel;
+	cl_kernel ckFilmConvertByteKernel;
+	cl_kernel ckFilmConvertHalfFloatKernel;
 	cl_kernel ckShaderKernel;
 	cl_int ciErr;
 
@@ -433,7 +432,8 @@ public:
 		cqCommandQueue = NULL;
 		cpProgram = NULL;
 		ckPathTraceKernel = NULL;
-		ckFilmConvertKernel = NULL;
+		ckFilmConvertByteKernel = NULL;
+		ckFilmConvertHalfFloatKernel = NULL;
 		ckShaderKernel = NULL;
 		null_mem = 0;
 		device_initialized = false;
@@ -764,7 +764,11 @@ public:
 		if(opencl_error(ciErr))
 			return false;
 
-		ckFilmConvertKernel = clCreateKernel(cpProgram, "kernel_ocl_tonemap", &ciErr);
+		ckFilmConvertByteKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_byte", &ciErr);
+		if(opencl_error(ciErr))
+			return false;
+
+		ckFilmConvertHalfFloatKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_half_float", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
@@ -790,8 +794,10 @@ public:
 
 		if(ckPathTraceKernel)
 			clReleaseKernel(ckPathTraceKernel);  
-		if(ckFilmConvertKernel)
-			clReleaseKernel(ckFilmConvertKernel);  
+		if(ckFilmConvertByteKernel)
+			clReleaseKernel(ckFilmConvertByteKernel);  
+		if(ckFilmConvertHalfFloatKernel)
+			clReleaseKernel(ckFilmConvertHalfFloatKernel);  
 		if(cpProgram)
 			clReleaseProgram(cpProgram);
 		if(cqCommandQueue)
@@ -886,8 +892,16 @@ public:
 
 	void tex_free(device_memory& mem)
 	{
-		if(mem.data_pointer)
+		if(mem.device_pointer) {
+			foreach(const MemMap::value_type& value, mem_map) {
+				if(value.second == mem.device_pointer) {
+					mem_map.erase(value.first);
+					break;
+				}
+			}
+
 			mem_free(mem);
+		}
 	}
 
 	size_t global_size_round_up(int group_size, int global_size)
@@ -982,23 +996,25 @@ public:
 		return err;
 	}
 
-	void tonemap(DeviceTask& task, device_ptr buffer, device_ptr rgba)
+	void film_convert(DeviceTask& task, device_ptr buffer, device_ptr rgba_byte, device_ptr rgba_half)
 	{
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
-		cl_mem d_rgba = CL_MEM_PTR(rgba);
+		cl_mem d_rgba = (rgba_byte)? CL_MEM_PTR(rgba_byte): CL_MEM_PTR(rgba_half);
 		cl_mem d_buffer = CL_MEM_PTR(buffer);
 		cl_int d_x = task.x;
 		cl_int d_y = task.y;
 		cl_int d_w = task.w;
 		cl_int d_h = task.h;
-		cl_int d_sample = task.sample;
+		cl_float d_sample_scale = 1.0f/(task.sample + 1);
 		cl_int d_offset = task.offset;
 		cl_int d_stride = task.stride;
 
 		/* sample arguments */
 		cl_uint narg = 0;
 		ciErr = 0;
+
+		cl_kernel ckFilmConvertKernel = (rgba_byte)? ckFilmConvertByteKernel: ckFilmConvertHalfFloatKernel;
 
 		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_data), (void*)&d_data);
 		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_rgba), (void*)&d_rgba);
@@ -1008,7 +1024,7 @@ public:
 	ciErr |= set_kernel_arg_mem(ckFilmConvertKernel, &narg, #name);
 #include "kernel_textures.h"
 
-		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_sample), (void*)&d_sample);
+		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_sample_scale), (void*)&d_sample_scale);
 		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_x), (void*)&d_x);
 		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_y), (void*)&d_y);
 		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_w), (void*)&d_w);
@@ -1054,8 +1070,8 @@ public:
 
 	void thread_run(DeviceTask *task)
 	{
-		if(task->type == DeviceTask::TONEMAP) {
-			tonemap(*task, task->buffer, task->rgba);
+		if(task->type == DeviceTask::FILM_CONVERT) {
+			film_convert(*task, task->buffer, task->rgba_byte, task->rgba_half);
 		}
 		else if(task->type == DeviceTask::SHADER) {
 			shader(*task);
@@ -1078,7 +1094,7 @@ public:
 
 					tile.sample = sample + 1;
 
-					//task->update_progress(tile);
+					task->update_progress(tile);
 				}
 
 				task->release_tile(tile);
@@ -1102,7 +1118,7 @@ public:
 
 	void task_wait()
 	{
-		task_pool.wait_work();
+		task_pool.wait();
 	}
 
 	void task_cancel()

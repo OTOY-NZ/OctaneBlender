@@ -242,9 +242,15 @@ class ExportOBJ(bpy.types.Operator, ExportHelper):
             description="Write sharp edges as smooth groups",
             default=False,
             )
+    use_smooth_groups_bitflags = BoolProperty(
+            name="Bitflag Smooth Groups",
+            description="Same as 'Smooth Groups', but generate smooth groups IDs as bitflags "
+                        "(produces at most 32 different smooth groups, usually much less)",
+            default=False,
+            )
     use_normals = BoolProperty(
-            name="Include Normals",
-            description="",
+            name="Write Normals",
+            description="Export one normal per vertex and per face, to represent flat faces and sharp edges",
             default=False,
             )
     use_uvs = BoolProperty(

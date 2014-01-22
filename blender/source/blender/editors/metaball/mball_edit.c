@@ -98,7 +98,7 @@ void load_editMball(Object *UNUSED(obedit))
 }
 
 /* Add metaelem primitive to metaball object (which is in edit mode) */
-MetaElem *add_metaball_primitive(bContext *UNUSED(C), Object *obedit, float mat[4][4], float dia, int type, int UNUSED(newname))
+MetaElem *add_metaball_primitive(bContext *UNUSED(C), Object *obedit, float mat[4][4], float dia, int type)
 {
 	MetaBall *mball = (MetaBall *)obedit->data;
 	MetaElem *ml;
@@ -112,6 +112,8 @@ MetaElem *add_metaball_primitive(bContext *UNUSED(C), Object *obedit, float mat[
 	
 	ml = BKE_mball_element_add(mball, type);
 	ml->rad *= dia;
+	mball->wiresize *= dia;
+	mball->rendersize *= dia;
 	copy_v3_v3(&ml->x, mat[3]);
 
 	ml->flag |= SELECT;
@@ -499,19 +501,13 @@ bool mouse_mball(bContext *C, const int mval[2], bool extend, bool deselect, boo
 /* free all MetaElems from ListBase */
 static void freeMetaElemlist(ListBase *lb)
 {
-	MetaElem *ml, *next;
+	MetaElem *ml;
 
 	if (lb == NULL) return;
 
-	ml = lb->first;
-	while (ml) {
-		next = ml->next;
-		BLI_remlink(lb, ml);
+	while ((ml = BLI_pophead(lb))) {
 		MEM_freeN(ml);
-		ml = next;
 	}
-
-	lb->first = lb->last = NULL;
 }
 
 

@@ -310,7 +310,7 @@ static int mathutils_bmloopcol_set_index(BaseMathObject *bmo, int subtype, int i
 	return mathutils_bmloopcol_set(bmo, subtype);
 }
 
-Mathutils_Callback mathutils_bmloopcol_cb = {
+static Mathutils_Callback mathutils_bmloopcol_cb = {
 	mathutils_bmloopcol_check,
 	mathutils_bmloopcol_get,
 	mathutils_bmloopcol_set,
@@ -499,7 +499,7 @@ static PySequenceMethods bpy_bmdeformvert_as_sequence = {
 	(objobjproc)bpy_bmdeformvert_contains,       /* sq_contains */
 	(binaryfunc) NULL,                           /* sq_inplace_concat */
 	(ssizeargfunc) NULL,                         /* sq_inplace_repeat */
-	};
+};
 
 static PyMappingMethods bpy_bmdeformvert_as_mapping = {
 	(lenfunc)bpy_bmdeformvert_len,

@@ -71,18 +71,6 @@
 
 #include <assert.h>
 
-static int planes_contain_v3(float (*planes)[4], int totplane, const float p[3])
-{
-	int i;
-
-	for (i = 0; i < totplane; i++) {
-		if (dot_v3v3(planes[i], p) + planes[i][3] > 0)
-			return 0;
-	}
-
-	return 1;
-}
-
 /* return true if the element should be hidden/shown */
 static int is_effected(PartialVisArea area,
                        float planes[4][4],
@@ -95,7 +83,7 @@ static int is_effected(PartialVisArea area,
 		return mask > 0.5f;
 	}
 	else {
-		int inside = planes_contain_v3(planes, 4, co);
+		bool inside = isect_point_planes_v3(planes, 4, co);
 		return ((inside && area == PARTIALVIS_INSIDE) ||
 		        (!inside && area == PARTIALVIS_OUTSIDE));
 	}
@@ -154,7 +142,7 @@ static void partialvis_update_grids(Object *ob,
 {
 	CCGElem **grids;
 	CCGKey key;
-	BLI_bitmap *grid_hidden;
+	BLI_bitmap **grid_hidden;
 	int any_visible = 0;
 	int *grid_indices, totgrid, any_changed, i;
 
@@ -171,7 +159,7 @@ static void partialvis_update_grids(Object *ob,
 	for (i = 0; i < totgrid; i++) {
 		int any_hidden = 0;
 		int g = grid_indices[i], x, y;
-		BLI_bitmap gh = grid_hidden[g];
+		BLI_bitmap *gh = grid_hidden[g];
 
 		if (!gh) {
 			switch (action) {
@@ -235,20 +223,20 @@ static void partialvis_update_grids(Object *ob,
 }
 
 static void partialvis_update_bmesh_verts(BMesh *bm,
-										  GHash *verts,
-										  PartialVisAction action,
-										  PartialVisArea area,
-										  float planes[4][4],
-										  int *any_changed,
-										  int *any_visible)
+                                          GSet *verts,
+                                          PartialVisAction action,
+                                          PartialVisArea area,
+                                          float planes[4][4],
+                                          int *any_changed,
+                                          int *any_visible)
 {
-	GHashIterator gh_iter;
+	GSetIterator gs_iter;
 
-	GHASH_ITER (gh_iter, verts) {
-		BMVert *v = BLI_ghashIterator_getKey(&gh_iter);
+	GSET_ITER (gs_iter, verts) {
+		BMVert *v = BLI_gsetIterator_getKey(&gs_iter);
 		float *vmask = CustomData_bmesh_get(&bm->vdata,
-											v->head.data,
-											CD_PAINT_MASK);
+		                                    v->head.data,
+		                                    CD_PAINT_MASK);
 
 		/* hide vertex if in the hide volume */
 		if (is_effected(area, planes, v->co, *vmask)) {
@@ -272,7 +260,7 @@ static void partialvis_update_bmesh(Object *ob,
 									float planes[4][4])
 {
 	BMesh *bm;
-	GHash *unique, *other;
+	GSet *unique, *other;
 	int any_changed = 0, any_visible = 0;
 
 	bm = BKE_pbvh_get_bmesh(pbvh);

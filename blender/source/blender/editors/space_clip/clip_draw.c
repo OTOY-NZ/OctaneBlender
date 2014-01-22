@@ -111,6 +111,62 @@ static void draw_keyframe(int frame, int cfra, int sfra, float framelen, int wid
 	}
 }
 
+static int generic_track_get_markersnr(MovieTrackingTrack *track, MovieTrackingPlaneTrack *plane_track)
+{
+	if (track) {
+		return track->markersnr;
+	}
+	else if (plane_track) {
+		return plane_track->markersnr;
+	}
+
+	return 0;
+}
+
+static int generic_track_get_marker_framenr(MovieTrackingTrack *track, MovieTrackingPlaneTrack *plane_track,
+                                            int marker_index)
+{
+	if (track) {
+		BLI_assert(marker_index < track->markersnr);
+		return track->markers[marker_index].framenr;
+	}
+	else if (plane_track) {
+		BLI_assert(marker_index < plane_track->markersnr);
+		return plane_track->markers[marker_index].framenr;
+	}
+
+	return 0;
+}
+
+static bool generic_track_is_marker_enabled(MovieTrackingTrack *track, MovieTrackingPlaneTrack *plane_track,
+                                            int marker_index)
+{
+	if (track) {
+		BLI_assert(marker_index < track->markersnr);
+		return (track->markers[marker_index].flag & MARKER_DISABLED) == 0;
+	}
+	else if (plane_track) {
+		return true;
+	}
+
+	return false;
+}
+
+static bool generic_track_is_marker_keyframed(MovieTrackingTrack *track, MovieTrackingPlaneTrack *plane_track,
+                                              int marker_index)
+{
+	if (track) {
+		BLI_assert(marker_index < track->markersnr);
+		return (track->markers[marker_index].flag & MARKER_TRACKED) == 0;
+	}
+	else if (plane_track) {
+		BLI_assert(marker_index < plane_track->markersnr);
+		return (plane_track->markers[marker_index].flag & PLANE_MARKER_TRACKED) == 0;
+	}
+
+	return false;
+}
+
 static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Scene *scene)
 {
 	float x;
@@ -119,6 +175,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingObject *act_object = BKE_tracking_object_get_active(tracking);
 	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(&clip->tracking);
+	MovieTrackingPlaneTrack *act_plane_track = BKE_tracking_plane_track_get_active(&clip->tracking);
 	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(tracking);
 
 	glEnable(GL_BLEND);
@@ -143,34 +200,31 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	}
 
 	/* track */
-	if (act_track) {
-		MovieTrackingTrack *track = act_track;
-
+	if (act_track || act_plane_track) {
 		for (i = sfra - clip->start_frame + 1, a = 0; i <= efra - clip->start_frame + 1; i++) {
 			int framenr;
-			MovieTrackingMarker *marker;
+			int markersnr = generic_track_get_markersnr(act_track, act_plane_track);
 
-			while (a < track->markersnr) {
-				if (track->markers[a].framenr >= i)
+			while (a < markersnr) {
+				int marker_framenr = generic_track_get_marker_framenr(act_track, act_plane_track, a);
+
+				if (marker_framenr >= i)
 					break;
 
-				if (a < track->markersnr - 1 && track->markers[a + 1].framenr > i)
+				if (a < markersnr - 1 && generic_track_get_marker_framenr(act_track, act_plane_track, a + 1) > i)
 					break;
 
 				a++;
 			}
 
-			if (a < track->markersnr)
-				marker = &track->markers[a];
-			else
-				marker = &track->markers[track->markersnr - 1];
+			a = min_ii(a, markersnr - 1);
 
-			if ((marker->flag & MARKER_DISABLED) == 0) {
-				framenr = marker->framenr;
+			if (generic_track_is_marker_enabled(act_track, act_plane_track, a)) {
+				framenr = generic_track_get_marker_framenr(act_track, act_plane_track, a);
 
 				if (framenr != i)
 					glColor4ub(128, 128, 0, 96);
-				else if ((marker->flag & MARKER_TRACKED) == 0)
+				else if (generic_track_is_marker_keyframed(act_track, act_plane_track, a))
 					glColor4ub(255, 255, 0, 196);
 				else
 					glColor4ub(255, 255, 0, 96);
@@ -188,11 +242,11 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 		glColor4ub(255, 0, 0, 96);
 
 		for (i = sfra, a = 0; i <= efra; i++) {
-			int ok = FALSE;
+			bool ok = false;
 
 			while (a < n) {
 				if (cameras[a].framenr == i) {
-					ok = TRUE;
+					ok = true;
 					break;
 				}
 				else if (cameras[a].framenr > i) {
@@ -233,11 +287,11 @@ static void draw_movieclip_notes(SpaceClip *sc, ARegion *ar)
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
 	char str[256] = {0};
-	int block = FALSE;
+	bool block = false;
 
 	if (tracking->stats) {
 		BLI_strncpy(str, tracking->stats->message, sizeof(str));
-		block = TRUE;
+		block = true;
 	}
 	else {
 		if (sc->flag & SC_LOCK_SELECTION)
@@ -250,48 +304,52 @@ static void draw_movieclip_notes(SpaceClip *sc, ARegion *ar)
 	}
 }
 
-static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
-                                  int width, int height, float zoomx, float zoomy)
+static void draw_movieclip_muted(ARegion *ar, int width, int height, float zoomx, float zoomy)
 {
 	int x, y;
 
 	/* find window pixel coordinates of origin */
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-	if (sc->flag & SC_MUTE_FOOTAGE) {
-		glColor3f(0.0f, 0.0f, 0.0f);
-		glRectf(x, y, x + zoomx * width, y + zoomy * height);
+	glColor3f(0.0f, 0.0f, 0.0f);
+	glRectf(x, y, x + zoomx * width, y + zoomy * height);
+}
+
+static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
+                                  int width, int height, float zoomx, float zoomy)
+{
+	MovieClip *clip = ED_space_clip_get_clip(sc);
+	int filter = GL_LINEAR;
+	int x, y;
+
+	/* find window pixel coordinates of origin */
+	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
+
+	/* checkerboard for case alpha */
+	if (ibuf->planes == 32) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		fdrawcheckerboard(x, y, x + zoomx * ibuf->x, y + zoomy * ibuf->y);
 	}
-	else {
-		MovieClip *clip = ED_space_clip_get_clip(sc);
-		int filter = GL_LINEAR;
 
-		/* checkerboard for case alpha */
-		if (ibuf->planes == 32) {
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			fdrawcheckerboard(x, y, x + zoomx * ibuf->x, y + zoomy * ibuf->y);
-		}
-
-		/* non-scaled proxy shouldn't use filtering */
-		if ((clip->flag & MCLIP_USE_PROXY) == 0 ||
-		    ELEM(sc->user.render_size, MCLIP_PROXY_RENDER_SIZE_FULL, MCLIP_PROXY_RENDER_SIZE_100))
-		{
-			filter = GL_NEAREST;
-		}
-
-		/* set zoom */
-		glPixelZoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
-
-		glaDrawImBuf_glsl_ctx(C, ibuf, x, y, filter);
-
-		/* reset zoom */
-		glPixelZoom(1.0f, 1.0f);
-
-		if (ibuf->planes == 32)
-			glDisable(GL_BLEND);
+	/* non-scaled proxy shouldn't use filtering */
+	if ((clip->flag & MCLIP_USE_PROXY) == 0 ||
+	    ELEM(sc->user.render_size, MCLIP_PROXY_RENDER_SIZE_FULL, MCLIP_PROXY_RENDER_SIZE_100))
+	{
+		filter = GL_NEAREST;
 	}
+
+	/* set zoom */
+	glPixelZoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
+
+	glaDrawImBuf_glsl_ctx(C, ibuf, x, y, filter);
+
+	/* reset zoom */
+	glPixelZoom(1.0f, 1.0f);
+
+	if (ibuf->planes == 32)
+		glDisable(GL_BLEND);
 }
 
 static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int height, float zoomx, float zoomy)
@@ -443,7 +501,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
                                 float marker_pos[2], int width, int height)
 {
 	int tiny = sc->flag & SC_SHOW_TINY_MARKER;
-	int show_search = FALSE;
+	bool show_search = false;
 	float px[2];
 
 	UI_ThemeColor(TH_MARKER_OUTLINE);
@@ -506,8 +564,8 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		glEnd();
 	}
 
-	show_search = TRACK_VIEW_SELECTED(sc, track) &&
-	              ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0);
+	show_search = (TRACK_VIEW_SELECTED(sc, track) &&
+	               ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0)) != 0;
 	if (sc->flag & SC_SHOW_MARKER_SEARCH && show_search) {
 		glBegin(GL_LINE_LOOP);
 		glVertex2f(marker->search_min[0], marker->search_min[1]);
@@ -546,7 +604,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
                               float marker_pos[2], int width, int height, int act, int sel)
 {
 	int tiny = sc->flag & SC_SHOW_TINY_MARKER;
-	int show_search = 0;
+	bool show_search = false;
 	float col[3], scol[3], px[2];
 
 	track_colors(track, act, col, scol);
@@ -661,8 +719,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 
 	/* search */
-	show_search = TRACK_VIEW_SELECTED(sc, track) &&
-	              ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0);
+	show_search = (TRACK_VIEW_SELECTED(sc, track) &&
+	               ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0)) != 0;
 	if ((track->search_flag & SELECT) == sel && (sc->flag & SC_SHOW_MARKER_SEARCH) && show_search) {
 		if (track->flag & TRACK_LOCKED) {
 			if (act)
@@ -950,24 +1008,154 @@ static void draw_marker_texts(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 }
 
-static void view2d_to_region_float(View2D *v2d, float x, float y, float *regionx, float *regiony)
+static void plane_track_colors(bool is_active, float color[3], float selected_color[3])
 {
-	/* express given coordinates as proportional values */
-	x = -v2d->cur.xmin / BLI_rctf_size_x(&v2d->cur);
-	y = -v2d->cur.ymin / BLI_rctf_size_y(&v2d->cur);
+	UI_GetThemeColor3fv(TH_MARKER, color);
 
-	/* convert proportional distances to screen coordinates */
-	*regionx = v2d->mask.xmin + x * BLI_rcti_size_x(&v2d->mask);
-	*regiony = v2d->mask.ymin + y * BLI_rcti_size_y(&v2d->mask);
+	if (is_active)
+		UI_GetThemeColor3fv(TH_ACT_MARKER, selected_color);
+	else
+		UI_GetThemeColor3fv(TH_SEL_MARKER, selected_color);
 }
 
+static void getArrowEndPoint(const int width, const int height, const float zoom,
+                             const float start_corner[2], const float end_corner[2],
+                             float end_point[2])
+{
+	float direction[2];
+	float max_length;
+
+	sub_v2_v2v2(direction, end_corner, start_corner);
+
+	direction[0] *= width;
+	direction[1] *= height;
+	max_length = len_v2(direction);
+	normalize_v2(direction);
+	mul_v2_fl(direction, min_ff(32.0f / zoom, max_length));
+	direction[0] /= width;
+	direction[1] /= height;
+
+	add_v2_v2v2(end_point, start_corner, direction);
+}
+
+static void draw_plane_marker_ex(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
+                                 MovieTrackingPlaneMarker *plane_marker, bool is_active_track,
+                                 bool draw_outline, int width, int height)
+{
+	bool tiny = (sc->flag & SC_SHOW_TINY_MARKER) != 0;
+	bool is_selected_track = plane_track->flag & SELECT;
+	float px[2];
+
+	if (draw_outline) {
+		UI_ThemeColor(TH_MARKER_OUTLINE);
+	}
+	else {
+		float color[3], selected_color[3];
+		plane_track_colors(is_active_track, color, selected_color);
+		if (is_selected_track) {
+			glColor3fv(selected_color);
+		}
+		else {
+			glColor3fv(color);
+		}
+	}
+
+	px[0] = 1.0f / width / sc->zoom;
+	px[1] = 1.0f / height / sc->zoom;
+
+	if (draw_outline) {
+		if (!tiny) {
+			glLineWidth(3.0f);
+		}
+	}
+	else if (tiny) {
+		glLineStipple(3, 0xaaaa);
+		glEnable(GL_LINE_STIPPLE);
+	}
+
+	/* Draw rectangle itself. */
+	glBegin(GL_LINE_LOOP);
+	glVertex2fv(plane_marker->corners[0]);
+	glVertex2fv(plane_marker->corners[1]);
+	glVertex2fv(plane_marker->corners[2]);
+	glVertex2fv(plane_marker->corners[3]);
+	glEnd();
+
+	/* Draw axis. */
+	if (!draw_outline) {
+		float end_point[2];
+		glPushAttrib(GL_COLOR_BUFFER_BIT | GL_CURRENT_BIT);
+
+		getArrowEndPoint(width, height, sc->zoom, plane_marker->corners[0], plane_marker->corners[1], end_point);
+		glColor3f(1.0, 0.0, 0.0f);
+		glBegin(GL_LINES);
+		glVertex2fv(plane_marker->corners[0]);
+		glVertex2fv(end_point);
+		glEnd();
+
+		getArrowEndPoint(width, height, sc->zoom, plane_marker->corners[0], plane_marker->corners[3], end_point);
+		glColor3f(0.0, 1.0, 0.0f);
+		glBegin(GL_LINES);
+		glVertex2fv(plane_marker->corners[0]);
+		glVertex2fv(end_point);
+		glEnd();
+
+		glPopAttrib();
+	}
+
+	/* Draw sliders. */
+	if (is_selected_track) {
+		int i;
+		for (i = 0; i < 4; i++) {
+			draw_marker_slide_square(plane_marker->corners[i][0], plane_marker->corners[i][1],
+			                         3.0f * px[0], 3.0f * px[1], draw_outline, px);
+		}
+	}
+
+	if (draw_outline) {
+		if (!tiny) {
+			glLineWidth(1.0f);
+		}
+	}
+	else if (tiny) {
+		glDisable(GL_LINE_STIPPLE);
+	}
+}
+
+static void draw_plane_marker_outline(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
+                                      MovieTrackingPlaneMarker *plane_marker, int width, int height)
+{
+	draw_plane_marker_ex(sc, plane_track, plane_marker, false, true, width, height);
+}
+
+static void draw_plane_marker(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
+                              MovieTrackingPlaneMarker *plane_marker, bool is_active_track,
+                              int width, int height)
+{
+	draw_plane_marker_ex(sc, plane_track, plane_marker, is_active_track, false, width, height);
+}
+
+static void draw_plane_track(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
+                             int framenr, bool is_active_track, int width, int height)
+{
+	MovieTrackingPlaneMarker *plane_marker;
+
+	plane_marker = BKE_tracking_plane_marker_get(plane_track, framenr);
+
+	draw_plane_marker_outline(sc, plane_track, plane_marker, width, height);
+	draw_plane_marker(sc, plane_track, plane_marker, is_active_track, width, height);
+}
+
+/* Draw all kind of tracks. */
 static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
                                  int width, int height, float zoomx, float zoomy)
 {
 	float x, y;
 	MovieTracking *tracking = &clip->tracking;
 	ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
+	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(tracking);
 	MovieTrackingTrack *track, *act_track;
+	MovieTrackingPlaneTrack *plane_track, *active_plane_track;
 	MovieTrackingMarker *marker;
 	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	int undistort = sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT;
@@ -980,7 +1168,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	 * to avoid this flickering, calculate base point in the same way as it happens
 	 * in UI_view2d_to_region_no_clip, but do it in floats here */
 
-	view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
+	UI_view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 	glPushMatrix();
 	glTranslatef(x, y, 0);
@@ -1160,6 +1348,15 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		glDisable(GL_POINT_SMOOTH);
 	}
 
+	/* Draw plane tracks */
+	active_plane_track = BKE_tracking_plane_track_get_active(tracking);
+	for (plane_track = plane_tracks_base->first;
+	     plane_track;
+	     plane_track = plane_track->next)
+	{
+		draw_plane_track(sc, plane_track, framenr, plane_track == active_plane_track, width, height);
+	}
+
 	glPopMatrix();
 
 	if (sc->flag & SC_SHOW_NAMES) {
@@ -1214,7 +1411,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	if ((sc->flag & SC_SHOW_GRID) == 0 && (sc->flag & SC_MANUAL_CALIBRATION) == 0)
 		return;
 
-	view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
+	UI_view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 	glPushMatrix();
 	glTranslatef(x, y, 0);
@@ -1409,7 +1606,7 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *ar)
 {
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	Scene *scene = CTX_data_scene(C);
-	ImBuf *ibuf;
+	ImBuf *ibuf = NULL;
 	int width, height;
 	float zoomx, zoomy;
 
@@ -1447,7 +1644,7 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *ar)
 			mul_serie_m4(sc->unistabmat, smat, sc->stabmat, ismat, NULL, NULL, NULL, NULL, NULL);
 		}
 	}
-	else {
+	else if ((sc->flag & SC_MUTE_FOOTAGE) == 0) {
 		ibuf = ED_space_clip_get_buffer(sc);
 
 		zero_v2(sc->loc);
@@ -1459,6 +1656,9 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *ar)
 	if (ibuf) {
 		draw_movieclip_buffer(C, sc, ar, ibuf, width, height, zoomx, zoomy);
 		IMB_freeImBuf(ibuf);
+	}
+	else if (sc->flag & SC_MUTE_FOOTAGE) {
+		draw_movieclip_muted(ar, width, height, zoomx, zoomy);
 	}
 	else {
 		ED_region_grid_draw(ar, zoomx, zoomy);

@@ -29,6 +29,7 @@
  */
 
 #include "DNA_modifier_types.h"     /* needed for all enum typdefs */
+#include "BLI_compiler_attrs.h"
 #include "BKE_customdata.h"
 
 struct ID;
@@ -304,6 +305,9 @@ typedef struct ModifierTypeInfo {
 	                       TexWalkFunc walk, void *userData);
 } ModifierTypeInfo;
 
+/* Initialize modifier's global data (type info and some common global storages). */
+void BKE_modifier_init(void);
+
 ModifierTypeInfo *modifierType_getInfo(ModifierType type);
 
 /* Modifier utility calls, do call through type pointer and return
@@ -322,11 +326,7 @@ bool          modifier_isCorrectableDeformed(struct ModifierData *md);
 bool          modifier_isSameTopology(ModifierData *md);
 bool          modifier_isNonGeometrical(ModifierData *md);
 bool          modifier_isEnabled(struct Scene *scene, struct ModifierData *md, int required_mode);
-void          modifier_setError(struct ModifierData *md, const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 2, 3)))
-#endif
-;
+void          modifier_setError(struct ModifierData *md, const char *format, ...) ATTR_PRINTF_FORMAT(2, 3);
 bool          modifier_isPreview(struct ModifierData *md);
 
 void          modifiers_foreachObjectLink(struct Object *ob,
@@ -354,7 +354,7 @@ struct Object *modifiers_isDeformedByArmature(struct Object *ob);
 struct Object *modifiers_isDeformedByLattice(struct Object *ob);
 struct Object *modifiers_isDeformedByCurve(struct Object *ob);
 bool          modifiers_usesArmature(struct Object *ob, struct bArmature *arm);
-bool          modifiers_isCorrectableDeformed(struct Object *ob);
+bool          modifiers_isCorrectableDeformed(struct Scene *scene, struct Object *ob);
 void          modifier_freeTemporaryData(struct ModifierData *md);
 bool          modifiers_isPreview(struct Object *ob);
 
@@ -377,7 +377,15 @@ struct CDMaskLink *modifiers_calcDataMasks(struct Scene *scene,
 struct ModifierData *modifiers_getLastPreview(struct Scene *scene,
                                               struct ModifierData *md,
                                               int required_mode);
-struct ModifierData  *modifiers_getVirtualModifierList(struct Object *ob);
+
+typedef struct VirtualModifierData {
+	ArmatureModifierData amd;
+	CurveModifierData cmd;
+	LatticeModifierData lmd;
+	ShapeKeyModifierData smd;
+} VirtualModifierData;
+
+struct ModifierData  *modifiers_getVirtualModifierList(struct Object *ob, struct VirtualModifierData *data);
 
 /* ensure modifier correctness when changing ob->data */
 void test_object_modifiers(struct Object *ob);

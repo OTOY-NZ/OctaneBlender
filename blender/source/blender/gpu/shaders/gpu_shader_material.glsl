@@ -1415,6 +1415,16 @@ void mtex_nspace_tangent(vec4 tangent, vec3 normal, vec3 texnormal, out vec3 out
 	outnormal = normalize(outnormal);
 }
 
+void mtex_nspace_world(mat4 viewmat, vec3 texnormal, out vec3 outnormal)
+{
+	outnormal = normalize((viewmat*vec4(texnormal, 0.0)).xyz);
+}
+
+void mtex_nspace_object(mat4 viewmat, mat4 obmat, vec3 texnormal, out vec3 outnormal)
+{
+	outnormal = normalize((viewmat*(obmat*vec4(texnormal, 0.0))).xyz);
+}
+
 void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outnormal)
 {
 	outnormal = (1.0 - norfac)*normal + norfac*newnormal;
@@ -2087,9 +2097,14 @@ void node_bsdf_velvet(vec4 color, float sigma, vec3 N, out vec4 result)
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
-void node_subsurface_scattering(vec4 color, float roughness, vec3 N, out vec4 result)
+void node_subsurface_scattering(vec4 color, float scale, vec3 radius, float sharpen, float texture_blur, vec3 N, out vec4 result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
+}
+
+void node_bsdf_hair(vec4 color, float roughnessu, float roughnessv, out vec4 result)
+{
+	result = color;
 }
 
 /* emission */
@@ -2117,6 +2132,20 @@ void node_fresnel(float ior, vec3 N, vec3 I, out float result)
 {
 	float eta = max(ior, 0.00001);
 	result = fresnel_dielectric(I, N, (gl_FrontFacing)? eta: 1.0/eta);
+}
+
+/* gamma */
+
+void node_gamma(vec4 col, float gamma, out vec4 outcol)
+{
+	outcol = col;
+
+	if(col.r > 0.0)
+		outcol.r = compatible_pow(col.r, gamma);
+	if(col.g > 0.0)
+		outcol.g = compatible_pow(col.g, gamma);
+	if(col.b > 0.0)
+		outcol.b = compatible_pow(col.b, gamma);
 }
 
 /* geometry */

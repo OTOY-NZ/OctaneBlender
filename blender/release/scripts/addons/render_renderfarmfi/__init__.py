@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Renderfarm.fi",
     "author": "Nathan Letwory <nathan@letworyinteractive.com>, Jesse Kaukonen <jesse.kaukonen@gmail.com>",
-    "version": (22,),
+    "version": (23,),
     "blender": (2, 63, 0),
     "location": "Render > Engine > Renderfarm.fi",
     "description": "Send .blend as session to http://www.renderfarm.fi to render",
@@ -31,7 +31,7 @@ bl_info = {
     "category": "Render"}
 
 """
-Copyright 2009-2012 Laurea University of Applied Sciences
+Copyright 2009-2013 Laurea University of Applied Sciences
 Authors: Nathan Letwory, Jesse Kaukonen
 """
 
@@ -59,6 +59,8 @@ bpy.rffi_user = ''
 bpy.rffi_hash = ''
 bpy.passwordCorrect = False
 bpy.loginInserted = False
+bpy.rffi_accepting = False
+bpy.rffi_motd = ''
 
 bpy.errorMessages = {
     'missing_desc': 'You need to enter a title, short and long description',

@@ -68,14 +68,14 @@
 
 /* -------------- */
 
-static void do_nla_region_buttons(bContext *C, void *UNUSED(arg), int event)
+static void do_nla_region_buttons(bContext *C, void *UNUSED(arg), int UNUSED(event))
 {
 	//Scene *scene = CTX_data_scene(C);
-	
+#if 0
 	switch (event) {
 
 	}
-	
+#endif
 	/* default for now */
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
 	WM_event_add_notifier(C, NC_SCENE | ND_TRANSFORM, NULL);
@@ -125,9 +125,8 @@ static int nla_panel_context(const bContext *C, PointerRNA *adt_ptr, PointerRNA 
 				}
 				
 				found = 1;
+				break;
 			}
-			break;
-				
 			case ANIMTYPE_SCENE:    /* Top-Level Widgets doubling up as datablocks */
 			case ANIMTYPE_OBJECT:
 			case ANIMTYPE_DSMAT:    /* Datablock AnimData Expanders */
@@ -167,8 +166,8 @@ static int nla_panel_context(const bContext *C, PointerRNA *adt_ptr, PointerRNA 
 					 */
 					found = -1;
 				}
+				break;
 			}
-			break;
 		}
 		
 		if (found > 0)
@@ -553,7 +552,7 @@ void nla_buttons_register(ARegionType *art)
 	BLI_addtail(&art->paneltypes, pt);
 }
 
-static int nla_properties(bContext *C, wmOperator *UNUSED(op))
+static int nla_properties_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = nla_has_buttons_region(sa);
@@ -570,7 +569,7 @@ void NLA_OT_properties(wmOperatorType *ot)
 	ot->idname = "NLA_OT_properties";
 	ot->description = "Toggle display properties panel";
 	
-	ot->exec = nla_properties;
+	ot->exec = nla_properties_toggle_exec;
 	ot->poll = ED_operator_nla_active;
 
 	/* flags */

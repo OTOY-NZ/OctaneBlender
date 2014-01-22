@@ -21,21 +21,23 @@
 #ifndef __BLI_BUFFER_H__
 #define __BLI_BUFFER_H__
 
-/* Note: this more or less fills same purpose as BLI_array, but makes
+/** \file BLI_buffer.h
+ *  \ingroup bli
+ *
+ * \note this more or less fills same purpose as BLI_array, but makes
  * it much easier to resize the array outside of the function it was
- * declared in since */
-
-/* Usage examples:
+ * declared in since.
  *
- * { 
- *     BLI_buffer_declare_static(int, my_int_array, BLI_BUFFER_NOP, 32);
+ * Usage examples:
+ * \code
+ * BLI_buffer_declare_static(int, my_int_array, BLI_BUFFER_NOP, 32);
  *
- *     BLI_buffer_append(my_int_array, int, 42);
- *     assert(my_int_array.count == 1);
- *     assert(BLI_buffer_at(my_int_array, int, 0) == 42);
+ * BLI_buffer_append(my_int_array, int, 42);
+ * assert(my_int_array.count == 1);
+ * assert(BLI_buffer_at(my_int_array, int, 0) == 42);
  *
- *     BLI_buffer_free(&my_int_array);
- * }
+ * BLI_buffer_free(&my_int_array);
+ * \endcode
  */
 
 typedef struct {
@@ -53,11 +55,11 @@ enum {
 
 #define BLI_buffer_declare_static(type_, name_, flag_, static_count_) \
 	char name_ ## user;  /* warn for free only */ \
-	type_ *name_ ## _static_[static_count_]; \
+	type_ name_ ## _static_[static_count_]; \
 	BLI_Buffer name_ = { \
 	/* clear the static memory if this is a calloc'd array */ \
 	((void)((flag_ & BLI_BUFFER_USE_CALLOC) ? \
-	          memset(name_ ## _static_, 0, sizeof(name_ ## _static_)) : 0\
+	          memset(name_ ## _static_, 0, sizeof(name_ ## _static_)) : NULL \
 	), /* memset-end */ \
 	                    name_ ## _static_), \
 	                    sizeof(type_), \

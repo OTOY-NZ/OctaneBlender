@@ -32,17 +32,26 @@
 #include "BLI_math.h"
 
 #include "bmesh.h"
+#include "bmesh_tools.h"
+
 #include "intern/bmesh_operators_private.h"
 
+
+/* ***_ISGC: mark for garbage-collection */
 
 #define FACE_MARK   1
 #define FACE_ORIG   2
 #define FACE_NEW    4
+
 #define EDGE_MARK   1
 #define EDGE_TAG    2
+#define EDGE_ISGC   8
 
 #define VERT_MARK   1
 #define VERT_TAG    2
+#define VERT_ISGC   8
+
+
 
 static bool UNUSED_FUNCTION(check_hole_in_region) (BMesh *bm, BMFace *f)
 {
@@ -103,10 +112,10 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 {
 	BMOIter oiter;
 	BMFace *f;
-	BLI_array_declare(faces);
-	BLI_array_declare(regions);
 	BMFace ***regions = NULL;
 	BMFace **faces = NULL;
+	BLI_array_declare(regions);
+	BLI_array_declare(faces);
 	BMFace *act_face = bm->act_face;
 	BMWalker regwalker;
 	int i;
@@ -230,14 +239,12 @@ cleanup:
 
 void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 {
-	/* might want to make this an option or mode - campbell */
-
 	/* BMOperator fop; */
 	BMFace *act_face = bm->act_face;
 	BMOIter eiter;
-	BMEdge *e;
-	BMIter viter;
-	BMVert *v;
+	BMIter iter;
+	BMEdge *e, *e_next;
+	BMVert *v, *v_next;
 
 	const bool use_verts = BMO_slot_bool_get(op->slots_in, "use_verts");
 	const bool use_face_split = BMO_slot_bool_get(op->slots_in, "use_face_split");
@@ -245,10 +252,10 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 	if (use_face_split) {
 		BMO_slot_buffer_flag_enable(bm, op->slots_in, "edges", BM_EDGE, EDGE_TAG);
 
-		BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-			BMIter iter;
+		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+			BMIter itersub;
 			int untag_count = 0;
-			BM_ITER_ELEM(e, &iter, v, BM_EDGES_OF_VERT) {
+			BM_ITER_ELEM (e, &itersub, v, BM_EDGES_OF_VERT) {
 				if (!BMO_elem_flag_test(bm, e, EDGE_TAG)) {
 					untag_count++;
 				}
@@ -264,22 +271,34 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 	}
 
 	if (use_verts) {
-		BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
+		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 			BMO_elem_flag_set(bm, v, VERT_MARK, (BM_vert_edge_count(v) != 2));
+		}
+	}
+
+	/* tag all verts/edges connected to faces */
+	BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
+		BMFace *f_pair[2];
+		if (BM_edge_face_pair(e, &f_pair[0], &f_pair[1])) {
+			unsigned int j;
+			for (j = 0; j < 2; j++) {
+				BMLoop *l_first, *l_iter;
+				l_iter = l_first = BM_FACE_FIRST_LOOP(f_pair[j]);
+				do {
+					BMO_elem_flag_enable(bm, l_iter->v, VERT_ISGC);
+					BMO_elem_flag_enable(bm, l_iter->e, EDGE_ISGC);
+				} while ((l_iter = l_iter->next) != l_first);
+			}
 		}
 	}
 
 	BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
 		BMFace *fa, *fb;
-
 		if (BM_edge_face_pair(e, &fa, &fb)) {
 			BMFace *f_new;
 
 			/* join faces */
-
-			/* BMESH_TODO - check on delaying edge removal since we may end up removing more than
-			 * one edge, and later reference a removed edge */
-			f_new = BM_faces_join_pair(bm, fa, fb, e, true);
+			f_new = BM_faces_join_pair(bm, fa, fb, e, false);
 
 			if (f_new) {
 				/* maintain active face */
@@ -290,8 +309,23 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 		}
 	}
 
+	/* Cleanup geometry (#BM_faces_join_pair, but it removes geometry we're looping on)
+	 * so do this in a separate pass instead. */
+	BM_ITER_MESH_MUTABLE (e, e_next, &iter, bm, BM_EDGES_OF_MESH) {
+		if ((e->l == NULL) && BMO_elem_flag_test(bm, e, EDGE_ISGC)) {
+			BM_edge_kill(bm, e);
+		}
+	}
+	BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
+		if ((v->e == NULL) && BMO_elem_flag_test(bm, v, VERT_ISGC)) {
+			BM_vert_kill(bm, v);
+		}
+	}
+	/* done with cleanup */
+
+
 	if (use_verts) {
-		BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
+		BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
 			if (BMO_elem_flag_test(bm, v, VERT_MARK)) {
 				if (BM_vert_edge_count(v) == 2) {
 					BM_vert_collapse_edge(bm, v->e, v, true);
@@ -310,21 +344,21 @@ static bool test_extra_verts(BMesh *bm, BMVert *v)
 
 	/* test faces around verts for verts that would be wrongly killed
 	 * by dissolve faces. */
-	BM_ITER_ELEM(f, &fiter, v, BM_FACES_OF_VERT) {
-		BM_ITER_ELEM(l, &liter, f, BM_LOOPS_OF_FACE) {
+	BM_ITER_ELEM (f, &fiter, v, BM_FACES_OF_VERT) {
+		BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
 			if (!BMO_elem_flag_test(bm, l->v, VERT_MARK)) {
 				/* if an edge around a vert is a boundary edge,
 				 * then dissolve faces won't destroy it.
 				 * also if it forms a boundary with one
 				 * of the face region */
 				bool found = false;
-				BM_ITER_ELEM(e, &eiter, l->v, BM_EDGES_OF_VERT) {
+				BM_ITER_ELEM (e, &eiter, l->v, BM_EDGES_OF_VERT) {
 					BMFace *f_iter;
 					if (BM_edge_is_boundary(e)) {
 						found = true;
 					}
 					else {
-						BM_ITER_ELEM(f_iter, &fiter_sub, e, BM_FACES_OF_EDGE) {
+						BM_ITER_ELEM (f_iter, &fiter_sub, e, BM_FACES_OF_EDGE) {
 							if (!BMO_elem_flag_test(bm, f_iter, FACE_MARK)) {
 								found = true;
 								break;
@@ -347,7 +381,7 @@ static bool test_extra_verts(BMesh *bm, BMVert *v)
 void bmo_dissolve_verts_exec(BMesh *bm, BMOperator *op)
 {
 	BMIter iter, fiter;
-	BMVert *v;
+	BMVert *v, *v_next;
 	BMFace *f;
 
 	const bool use_face_split = BMO_slot_bool_get(op->slots_in, "use_face_split");
@@ -359,7 +393,7 @@ void bmo_dissolve_verts_exec(BMesh *bm, BMOperator *op)
 		bm_face_split(bm, VERT_MARK);
 	}
 
-	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
 		if (BMO_elem_flag_test(bm, v, VERT_MARK)) {
 			/* check if it's a two-valence ver */
 			if (BM_vert_edge_count(v) == 2) {
@@ -407,7 +441,7 @@ void bmo_dissolve_verts_exec(BMesh *bm, BMOperator *op)
 	}
 	
 	/* clean up any remainin */
-	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
 		if (BMO_elem_flag_test(bm, v, VERT_MARK)) {
 			if (!BM_vert_dissolve(bm, v)) {
 				BMO_error_raise(bm, op, BMERR_DISSOLVEVERTS_FAILED, NULL);
@@ -430,5 +464,8 @@ void bmo_dissolve_limit_exec(BMesh *bm, BMOperator *op)
 
 	BM_mesh_decimate_dissolve_ex(bm, angle_limit, do_dissolve_boundaries, delimit,
 	                             (BMVert **)BMO_SLOT_AS_BUFFER(vinput), vinput->len,
-	                             (BMEdge **)BMO_SLOT_AS_BUFFER(einput), einput->len);
+	                             (BMEdge **)BMO_SLOT_AS_BUFFER(einput), einput->len,
+	                             FACE_NEW);
+
+	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "region.out", BM_FACE, FACE_NEW);
 }

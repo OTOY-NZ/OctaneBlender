@@ -46,6 +46,7 @@
 #include "BKE_context.h"
 #include "BKE_paint.h"
 #include "BKE_brush.h"
+#include "BKE_colortools.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -184,7 +185,8 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 
 	if (paint_supports_dynamic_tex_coords(brush, mode)) {
 		if (((brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) ||
-		    (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)) &&
+		     (brush->mtex.brush_map_mode == MTEX_MAP_MODE_AREA) ||
+		     (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)) &&
 		    !(brush->flag & BRUSH_RAKE))
 		{
 			if (brush->flag & BRUSH_RANDOM_ROTATION)
@@ -375,13 +377,13 @@ static float paint_space_stroke_spacing(const Scene *scene, PaintStroke *stroke,
 
 	/* apply spacing pressure */
 	if (stroke->brush->flag & BRUSH_SPACING_PRESSURE)
-		spacing = max_ff(1.0f, spacing * (1.5f - spacing_pressure));
+		spacing = spacing * (1.5f - spacing_pressure);
 
 	/* stroke system is used for 2d paint too, so we need to account for
 	 * the fact that brush can be scaled there. */
 	spacing *= stroke->zoom_2d;
 
-	return (size_clamp * spacing / 50.0f);
+	return max_ff(1.0, size_clamp * spacing / 50.0f);
 }
 
 static float paint_space_stroke_spacing_variable(const Scene *scene, PaintStroke *stroke, float pressure, float dpressure, float length)
@@ -477,6 +479,9 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->redraw = redraw;
 	stroke->done = done;
 	stroke->event_type = event_type; /* for modal, return event */
+
+	/* initialize here to avoid initialization conflict with threaded strokes */
+	curvemapping_initialize(br->curve);
 	
 	BKE_paint_set_overlay_override(br->overlay_flags);
 
@@ -540,8 +545,9 @@ bool paint_supports_dynamic_size(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
+			break;
 	}
 	return true;
 }
@@ -559,10 +565,17 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
+			break;
 	}
 	return true;
+}
+
+bool paint_supports_texture(PaintMode mode)
+{
+	/* ommit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
+	return ELEM4(mode, PAINT_SCULPT, PAINT_VERTEX, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D);
 }
 
 /* return true if the brush size can change during paint (normally used for pressure) */
@@ -575,9 +588,10 @@ bool paint_supports_dynamic_tex_coords(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
-		}
+			break;
+	}
 	return true;
 }
 

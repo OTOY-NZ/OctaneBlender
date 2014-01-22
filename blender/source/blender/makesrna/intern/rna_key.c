@@ -39,6 +39,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "rna_internal.h"
 
@@ -98,7 +99,8 @@ static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
 	data->curval = value;
 }
 
-static void rna_ShapeKey_value_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_ShapeKey_value_range(PointerRNA *ptr, float *min, float *max,
+                                     float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
 
@@ -109,7 +111,8 @@ static void rna_ShapeKey_value_range(PointerRNA *ptr, float *min, float *max, fl
 /* epsilon for how close one end of shapekey range can get to the other */
 #define SHAPEKEY_SLIDER_TOL 0.001f
 
-static void rna_ShapeKey_slider_min_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_ShapeKey_slider_min_range(PointerRNA *ptr, float *min, float *max,
+                                          float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
 
@@ -127,7 +130,8 @@ static void rna_ShapeKey_slider_min_set(PointerRNA *ptr, float value)
 	data->slidermin = value;
 }
 
-static void rna_ShapeKey_slider_max_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_ShapeKey_slider_max_range(PointerRNA *ptr, float *min, float *max,
+                                          float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
 

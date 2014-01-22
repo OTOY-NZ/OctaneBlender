@@ -60,10 +60,6 @@
 #include "BKE_sequencer.h"
 #include "BKE_scene.h"
 
-// evil quiet NaN definition
-static const int NAN_INT = 0x7FC00000;
-#define NAN_FLT *((float *)(&NAN_INT))
-
 #ifdef WITH_AUDASPACE
 // evil global ;-)
 static int sound_cfra;
@@ -431,6 +427,8 @@ void sound_update_fps(struct Scene *scene)
 {
 	if (scene->sound_scene)
 		AUD_setSequencerFPS(scene->sound_scene, FPS);
+
+	BKE_sequencer_refresh_sound_length(scene);
 }
 
 void sound_update_scene_listener(struct Scene *scene)

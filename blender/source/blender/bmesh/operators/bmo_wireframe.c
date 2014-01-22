@@ -159,10 +159,11 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 	const bool use_boundary        = BMO_slot_bool_get(op->slots_in,  "use_boundary");
 	const bool use_even_offset     = BMO_slot_bool_get(op->slots_in,  "use_even_offset");
 	const bool use_relative_offset = BMO_slot_bool_get(op->slots_in,  "use_relative_offset");
-	const bool use_crease          = (BMO_slot_bool_get(op->slots_in,  "use_crease") &&
-	                                  CustomData_has_layer(&bm->edata, CD_CREASE));
+	const bool use_crease          = BMO_slot_bool_get(op->slots_in,  "use_crease");
 	const float depth              = BMO_slot_float_get(op->slots_in, "thickness");
 	const float inset              = depth;
+	int cd_edge_crease_offset      = use_crease ? CustomData_get_offset(&bm->edata, CD_CREASE) : -1;
+	const float crease_weight      = 1.0f;
 
 	const int totvert_orig = bm->totvert;
 
@@ -177,7 +178,7 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 
 	/* will over-alloc, but makes for easy lookups by index to keep aligned  */
 	BMVert **verts_boundary = use_boundary ?
-	                          MEM_mallocN(sizeof(BMVert **) * totvert_orig, __func__) : NULL;
+	                          MEM_mallocN(sizeof(BMVert *) * totvert_orig, __func__) : NULL;
 
 	float  *verts_relfac    = use_relative_offset ?
 	                          MEM_mallocN(sizeof(float) * totvert_orig, __func__) : NULL;
@@ -195,6 +196,11 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 	float fac;
 
 	int i;
+
+	if (use_crease && cd_edge_crease_offset == -1) {
+		BM_data_layer_add(bm, &bm->edata, CD_CREASE);
+		cd_edge_crease_offset = CustomData_get_offset(&bm->edata, CD_CREASE);
+	}
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT);
 
@@ -229,9 +235,9 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 			}
 
 			madd_v3_v3v3fl(tvec, v_src->co, v_src->no, -fac);
-			verts_neg[i] = BM_vert_create(bm, tvec, v_src, 0);
+			verts_neg[i] = BM_vert_create(bm, tvec, v_src, BM_CREATE_NOP);
 			madd_v3_v3v3fl(tvec, v_src->co, v_src->no,  fac);
-			verts_pos[i] = BM_vert_create(bm, tvec, v_src, 0);
+			verts_pos[i] = BM_vert_create(bm, tvec, v_src, BM_CREATE_NOP);
 		}
 		else {
 			/* could skip this */
@@ -250,7 +256,7 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 		BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 	}
 
-	verts_loop = MEM_mallocN(sizeof(BMVert **) * verts_loop_tot, __func__);
+	verts_loop = MEM_mallocN(sizeof(BMVert *) * verts_loop_tot, __func__);
 	verts_loop_tot = 0; /* count up again */
 
 	BMO_ITER (f_src, &oiter, op->slots_in, "faces", BM_FACE) {
@@ -269,7 +275,7 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 			}
 
 			madd_v3_v3v3fl(tvec, l->v->co, tvec, fac);
-			verts_loop[verts_loop_tot] = BM_vert_create(bm, tvec, l->v, 0);
+			verts_loop[verts_loop_tot] = BM_vert_create(bm, tvec, l->v, BM_CREATE_NOP);
 
 
 			if (use_boundary) {
@@ -303,7 +309,7 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 								fac *= verts_relfac[BM_elem_index_get(l_pair[i]->v)];
 							}
 							madd_v3_v3v3fl(tvec, l_pair[i]->v->co, tvec, fac);
-							verts_boundary[BM_elem_index_get(l_pair[i]->v)] = BM_vert_create(bm, tvec, l_pair[i]->v, 0);
+							verts_boundary[BM_elem_index_get(l_pair[i]->v)] = BM_vert_create(bm, tvec, l_pair[i]->v, BM_CREATE_NOP);
 						}
 					}
 				}
@@ -380,16 +386,16 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 					if (use_crease) {
 						BMEdge *e_new;
 						e_new = BM_edge_exists(v_pos1, v_b1);
-						BM_elem_float_data_set(&bm->edata, e_new, CD_CREASE, 1.0f);
+						BM_ELEM_CD_SET_FLOAT(e_new, cd_edge_crease_offset, crease_weight);
 
 						e_new = BM_edge_exists(v_pos2, v_b2);
-						BM_elem_float_data_set(&bm->edata, e_new, CD_CREASE, 1.0f);
+						BM_ELEM_CD_SET_FLOAT(e_new, cd_edge_crease_offset, crease_weight);
 
 						e_new = BM_edge_exists(v_neg1, v_b1);
-						BM_elem_float_data_set(&bm->edata, e_new, CD_CREASE, 1.0f);
+						BM_ELEM_CD_SET_FLOAT(e_new, cd_edge_crease_offset, crease_weight);
 
 						e_new = BM_edge_exists(v_neg2, v_b2);
-						BM_elem_float_data_set(&bm->edata, e_new, CD_CREASE, 1.0f);
+						BM_ELEM_CD_SET_FLOAT(e_new, cd_edge_crease_offset, crease_weight);
 					}
 				}
 			}
@@ -397,16 +403,16 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 			if (use_crease) {
 				BMEdge *e_new;
 				e_new = BM_edge_exists(v_pos1, v_l1);
-				BM_elem_float_data_set(&bm->edata, e_new, CD_CREASE, 1.0f);
+				BM_ELEM_CD_SET_FLOAT(e_new, cd_edge_crease_offset, crease_weight);
 
 				e_new = BM_edge_exists(v_pos2, v_l2);
-				BM_elem_float_data_set(&bm->edata, e_new, CD_CREASE, 1.0f);
+				BM_ELEM_CD_SET_FLOAT(e_new, cd_edge_crease_offset, crease_weight);
 
 				e_new = BM_edge_exists(v_neg1, v_l1);
-				BM_elem_float_data_set(&bm->edata, e_new, CD_CREASE, 1.0f);
+				BM_ELEM_CD_SET_FLOAT(e_new, cd_edge_crease_offset, crease_weight);
 
 				e_new = BM_edge_exists(v_neg2, v_l2);
-				BM_elem_float_data_set(&bm->edata, e_new, CD_CREASE, 1.0f);
+				BM_ELEM_CD_SET_FLOAT(e_new, cd_edge_crease_offset, crease_weight);
 			}
 
 		}

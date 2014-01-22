@@ -409,6 +409,7 @@ typedef struct bNodeTree {
 #define NTREE_TWO_PASS				4	/* two pass */
 #define NTREE_COM_GROUPNODE_BUFFER	8	/* use groupnode buffers */
 #define NTREE_VIEWER_BORDER			16	/* use a border for viewer nodes */
+#define NTREE_IS_LOCALIZED			32	/* tree is localized copy, free when deleting node groups */
 
 /* XXX not nice, but needed as a temporary flags
  * for group updates after library linking.
@@ -720,8 +721,10 @@ typedef struct NodeTexBase {
 
 typedef struct NodeTexSky {
 	NodeTexBase base;
+	int sky_model;
 	float sun_direction[3];
 	float turbidity;
+	float ground_albedo;
 } NodeTexSky;
 
 typedef struct NodeTexImage {
@@ -788,6 +791,12 @@ typedef struct NodeShaderAttribute {
 	char name[64];
 } NodeShaderAttribute;
 
+typedef struct NodeShaderVectTransform {
+	int type;
+	int convert_from, convert_to;
+	int pad;
+} NodeShaderVectTransform;
+
 /* TEX_output */
 typedef struct TexNodeOutput {
 	char name[64];
@@ -821,6 +830,10 @@ typedef struct NodeTranslateData {
 	char pad[6];
 } NodeTranslateData;
 
+typedef struct NodePlaneTrackDeformData {
+	char tracking_object[64];
+	char plane_track_name[64];
+} NodePlaneTrackDeformData;
 
 typedef struct NodeShaderScript {
 	int mode;
@@ -869,9 +882,22 @@ typedef struct NodeShaderNormalMap {
 #define SHD_GLOSSY_SHARP	1
 #define SHD_GLOSSY_GGX		2
 
+/* vector transform */
+#define SHD_VECT_TRANSFORM_TYPE_VECTOR	0
+#define SHD_VECT_TRANSFORM_TYPE_POINT	1
+#define SHD_VECT_TRANSFORM_TYPE_NORMAL	2
+
+#define SHD_VECT_TRANSFORM_SPACE_WORLD	0
+#define SHD_VECT_TRANSFORM_SPACE_OBJECT	1
+#define SHD_VECT_TRANSFORM_SPACE_CAMERA	2
+
 /* toon modes */
 #define SHD_TOON_DIFFUSE	0
 #define SHD_TOON_GLOSSY		1
+
+/* hair components */
+#define SHD_HAIR_REFLECTION		0
+#define SHD_HAIR_TRANSMISSION		1
 
 /* blend texture */
 #define SHD_BLEND_LINEAR			0
@@ -918,9 +944,9 @@ typedef struct NodeShaderNormalMap {
 #define SHD_WAVE_BANDS		0
 #define SHD_WAVE_RINGS		1
 
-#define SHD_WAVE_SINE	0
-#define SHD_WAVE_SAW	1
-#define SHD_WAVE_TRI	2
+/* sky texture */
+#define SHD_SKY_OLD		0
+#define SHD_SKY_NEW		1
 
 /* image/environment texture */
 #define SHD_COLORSPACE_NONE		0
@@ -949,6 +975,11 @@ typedef struct NodeShaderNormalMap {
 #define SHD_NORMAL_MAP_WORLD			2
 #define SHD_NORMAL_MAP_BLENDER_OBJECT	3
 #define SHD_NORMAL_MAP_BLENDER_WORLD	4
+
+/* subsurface */
+#define SHD_SUBSURFACE_COMPATIBLE		0
+#define SHD_SUBSURFACE_CUBIC			1
+#define SHD_SUBSURFACE_GAUSSIAN			2
 
 /* blur node */
 #define CMP_NODE_BLUR_ASPECT_NONE		0

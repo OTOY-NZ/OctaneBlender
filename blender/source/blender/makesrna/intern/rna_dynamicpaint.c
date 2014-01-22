@@ -39,6 +39,7 @@
 #include "DNA_scene_types.h"
 
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "rna_internal.h"
 
@@ -95,12 +96,12 @@ static char *rna_DynamicPaintSurface_path(PointerRNA *ptr)
  *	Surfaces
  */
 
-static void rna_DynamicPaint_redoModifier(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_DynamicPaint_redoModifier(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	DAG_id_tag_update(ptr->id.data, OB_RECALC_DATA);
 }
 
-static void rna_DynamicPaintSurfaces_updateFrames(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_DynamicPaintSurfaces_updateFrames(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	dynamicPaint_cacheUpdateFrames((DynamicPaintSurface *)ptr->data);
 }
@@ -134,7 +135,7 @@ static void rna_DynamicPaintSurface_changePreview(Main *bmain, Scene *scene, Poi
 	rna_DynamicPaint_redoModifier(bmain, scene, ptr);
 }
 
-static void rna_DynamicPaintSurface_uniqueName(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_DynamicPaintSurface_uniqueName(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	dynamicPaintSurface_setUniqueName((DynamicPaintSurface *)ptr->data, ((DynamicPaintSurface *)ptr->data)->name);
 }
@@ -196,7 +197,8 @@ static void rna_Surface_active_point_index_set(struct PointerRNA *ptr, int value
 	return;
 }
 
-static void rna_Surface_active_point_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_Surface_active_point_range(PointerRNA *ptr, int *min, int *max,
+                                           int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	DynamicPaintCanvasSettings *canvas = (DynamicPaintCanvasSettings *)ptr->data;
 
@@ -243,8 +245,8 @@ static int rna_DynamicPaint_is_output_exists(DynamicPaintSurface *surface, Objec
 }
 
 
-static EnumPropertyItem *rna_DynamicPaint_surface_type_itemf(bContext *C, PointerRNA *ptr,
-                                                             PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *rna_DynamicPaint_surface_type_itemf(
+        bContext *UNUSED(C), PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *free)
 {
 	DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 
@@ -709,6 +711,12 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0, 1.0);
 	RNA_def_property_ui_range(prop, 0.01, 1.0, 1, 2);
 	RNA_def_property_ui_text(prop, "Spring", "Spring force that pulls water level back to zero");
+
+	prop = RNA_def_property(srna, "wave_smoothness", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 10.0);
+	RNA_def_property_ui_range(prop, 0.1, 5.0, 1, 2);
+	RNA_def_property_ui_text(prop, "Smoothness", "Limit maximum steepness of wave slope between simulation points "
+	                                             "(use higher values for smoother waves at expense of reduced detail)");
 
 	prop = RNA_def_property(srna, "use_wave_open_border", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_DPAINT_WAVE_OPEN_BORDERS);

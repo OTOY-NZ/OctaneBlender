@@ -99,7 +99,8 @@ const char KX_KetsjiEngine::m_profileLabels[tc_numCategories][15] = {
 	"Rasterizer:",	// tc_rasterizer
 	"Services:",	// tc_services
 	"Overhead:",	// tc_overhead
-	"Outside:"		// tc_outside
+	"Outside:",		// tc_outside
+	"GPU Latency:"	// tc_latency
 };
 
 double KX_KetsjiEngine::m_ticrate = DEFAULT_LOGIC_TIC_RATE;
@@ -128,8 +129,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 #endif
 	m_keyboarddevice(NULL),
 	m_mousedevice(NULL),
-
-	m_propertiesPresent(false),
 
 	m_bInitialized(false),
 	m_activecam(0),
@@ -515,7 +514,7 @@ void KX_KetsjiEngine::EndFrame()
 
 	// Show profiling info
 	m_logger->StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds(), true);
-	if (m_show_framerate || m_show_profile || (m_show_debug_properties && m_propertiesPresent))
+	if (m_show_framerate || m_show_profile || (m_show_debug_properties))
 	{
 		RenderDebugProperties();
 	}
@@ -544,7 +543,10 @@ void KX_KetsjiEngine::EndFrame()
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	m_rasterizer->EndFrame();
 	// swap backbuffer (drawing into this buffer) <-> front/visible buffer
+	m_logger->StartLog(tc_latency, m_kxsystem->GetTimeInSeconds(), true);
 	m_rasterizer->SwapBuffers();
+	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
+
 	m_rendertools->EndFrame(m_rasterizer);
 
 	
@@ -1199,6 +1201,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 			/* render */
 			m_rasterizer->ClearDepthBuffer();
+			m_rasterizer->ClearColorBuffer();
 			scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
@@ -1389,7 +1392,6 @@ void KX_KetsjiEngine::AddScene(KX_Scene* scene)
 { 
 	m_scenes.push_back(scene);
 	PostProcessScene(scene);
-	SceneListsChanged();
 }
 
 
@@ -1533,7 +1535,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	ycoord += title_y_top_margin;
 
 	/* Property display*/
-	if (m_show_debug_properties && m_propertiesPresent) {
+	if (m_show_debug_properties) {
 
 		/* Title for debugging("Debug properties") */
 		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
@@ -1548,18 +1550,22 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		// Add the title indent afterwards
 		ycoord += title_y_bottom_margin;
 
+		/* Calculate amount of properties that can displayed. */
+		unsigned propsAct = 0;
+		unsigned propsMax = (m_canvas->GetHeight() - ycoord) / const_ysize;
+
 		KX_SceneList::iterator sceneit;
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++) {
 			KX_Scene* scene = *sceneit;
 			/* the 'normal' debug props */
 			vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();
 			
-			for (vector<SCA_DebugProp*>::iterator it = debugproplist.begin();
-			     !(it==debugproplist.end());it++)
+			for (unsigned i=0; i < debugproplist.size() && propsAct < propsMax; i++)
 			{
-				CValue *propobj = (*it)->m_obj;
+				CValue *propobj = debugproplist[i]->m_obj;
 				STR_String objname = propobj->GetName();
-				STR_String propname = (*it)->m_name;
+				STR_String propname = debugproplist[i]->m_name;
+				propsAct++;
 				if (propname == "__state__") {
 					// reserve name for object state
 					KX_GameObject* gameobj = static_cast<KX_GameObject*>(propobj);
@@ -1943,24 +1949,6 @@ void KX_KetsjiEngine::ProcessScheduledScenes(void)
 		ReplaceScheduledScenes();
 		RemoveScheduledScenes();
 		AddScheduledScenes();
-
-		// Notify
-		SceneListsChanged();
-	}
-}
-
-
-
-void KX_KetsjiEngine::SceneListsChanged(void)
-{
-	m_propertiesPresent = false;
-	KX_SceneList::iterator sceneit = m_scenes.begin();
-	while ((sceneit != m_scenes.end()) && (!m_propertiesPresent))
-	{
-		KX_Scene* scene = *sceneit;
-		vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();
-		m_propertiesPresent = !debugproplist.empty();
-		sceneit++;
 	}
 }
 

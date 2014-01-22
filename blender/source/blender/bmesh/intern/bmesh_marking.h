@@ -59,6 +59,9 @@ void BM_vert_select_set(BMesh *bm, BMVert *v, const bool select);
 void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select);
 void BM_face_select_set(BMesh *bm, BMFace *f, const bool select);
 
+void BM_mesh_select_mode_clean_ex(BMesh *bm, const short selectmode);
+void BM_mesh_select_mode_clean(BMesh *bm);
+
 void BM_mesh_select_mode_set(BMesh *bm, int selectmode);
 void BM_mesh_select_mode_flush_ex(BMesh *bm, const short selectmode);
 void BM_mesh_select_mode_flush(BMesh *bm);
@@ -84,11 +87,15 @@ void    BM_editselection_plane(BMEditSelection *ese,  float r_plane[3]);
 #define BM_select_history_remove(bm, ele)       _bm_select_history_remove(bm,       &(ele)->head)
 #define BM_select_history_store_notest(bm, ele) _bm_select_history_store_notest(bm, &(ele)->head)
 #define BM_select_history_store(bm, ele)        _bm_select_history_store(bm,        &(ele)->head)
+#define BM_select_history_store_after_notest(bm, ese_ref, ele) _bm_select_history_store_after_notest(bm, ese_ref, &(ele)->head)
+#define BM_select_history_store_after(bm, ese, ese_ref)        _bm_select_history_store_after(bm,        ese_ref, &(ele)->head)
 
 bool _bm_select_history_check(BMesh *bm,  const BMHeader *ele);
 bool _bm_select_history_remove(BMesh *bm,       BMHeader *ele);
 void _bm_select_history_store_notest(BMesh *bm, BMHeader *ele);
 void _bm_select_history_store(BMesh *bm,        BMHeader *ele);
+void _bm_select_history_store_after(BMesh *bm,  BMEditSelection *ese_ref, BMHeader *ele);
+void _bm_select_history_store_after_notest(BMesh *bm,  BMEditSelection *ese_ref, BMHeader *ele);
 
 void BM_select_history_validate(BMesh *bm);
 void BM_select_history_clear(BMesh *em);

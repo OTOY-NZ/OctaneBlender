@@ -26,8 +26,8 @@ CCL_NAMESPACE_BEGIN
  */
 
 /* bottom-most stack entry, indicating the end of traversal */
-
 #define ENTRYPOINT_SENTINEL 0x76543210
+
 /* 64 object BVH + 64 mesh BVH + 64 object node splitting */
 #define BVH_STACK_SIZE 192
 #define BVH_NODE_SIZE 4
@@ -215,21 +215,20 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 	float3 P, float3 idir, uint visibility, int object, int curveAddr, int segment, uint *lcg_state, float difl, float extmax)
 {
 	float epsilon = 0.0f;
-	int depth = kernel_data.curve_kernel_data.subdivisions;
+	float r_st, r_en;
+
+	int depth = kernel_data.curve.subdivisions;
+	int flags = kernel_data.curve.curveflags;
+	int prim = kernel_tex_fetch(__prim_index, curveAddr);
+	
+	float3 curve_coef[4];
 
 	/* curve Intersection check */
 	float3 dir = 1.0f/idir;
-	
-	int flags = kernel_data.curve_kernel_data.curveflags;
 
-	int prim = kernel_tex_fetch(__prim_index, curveAddr);
-
-	float3 curve_coef[4];
-	float r_st,r_en;
-
-	/*obtain curve parameters*/
+	/* obtain curve parameters */
 	{
-		/*ray transform created - this should be created at beginning of intersection loop*/
+		/* ray transform created - this should be created at beginning of intersection loop */
 		Transform htfm;
 		float d = sqrtf(dir.x * dir.x + dir.z * dir.z);
 		htfm = make_transform(
@@ -271,15 +270,15 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 	if((flags & CURVE_KN_RIBBONS) || !(flags & CURVE_KN_BACKFACING))
 		epsilon = 2 * r_curr;
 
-	/*find bounds - this is slow for cubic curves*/
-	float upper,lower;
+	/* find bounds - this is slow for cubic curves */
+	float upper, lower;
 
 	float zextrem[4];
 	curvebounds(&lower, &upper, &zextrem[0], &zextrem[1], &zextrem[2], &zextrem[3], curve_coef[0].z, curve_coef[1].z, curve_coef[2].z, curve_coef[3].z);
 	if(lower - r_curr > isect->t || upper + r_curr < epsilon)
 		return false;
 
-	/*minimum width extension*/
+	/* minimum width extension */
 	float mw_extension = min(difl * fabsf(upper), extmax);
 	float r_ext = mw_extension + r_curr;
 
@@ -293,13 +292,13 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 	if(lower > r_ext || upper < -r_ext)
 		return false;
 
-	/*setup recurrent loop*/
+	/* setup recurrent loop */
 	int level = 1 << depth;
 	int tree = 0;
 	float resol = 1.0f / (float)level;
 	bool hit = false;
 
-	/*begin loop*/
+	/* begin loop */
 	while(!(tree >> (depth))) {
 		float i_st = tree * resol;
 		float i_en = i_st + (level * resol);
@@ -347,7 +346,7 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 		float coverage = 1.0f;
 
 		if (bminz - r_curr > isect->t || bmaxz + r_curr < epsilon || bminx > r_ext|| bmaxx < -r_ext|| bminy > r_ext|| bmaxy < -r_ext) {
-			/* the bounding box does not overlap the square centered at O.*/
+			/* the bounding box does not overlap the square centered at O */
 			tree += level;
 			level = tree & -tree;
 		}
@@ -369,10 +368,10 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 				w = -(p_st.x * tg.x + p_st.y * tg.y) / w;
 				w = clamp((float)w, 0.0f, 1.0f);
 
-				/* compute u on the curve segment.*/
+				/* compute u on the curve segment */
 				u = i_st * (1 - w) + i_en * w;
 				r_curr = r_st + (r_en - r_st) * u;
-				/* compare x-y distances.*/
+				/* compare x-y distances */
 				float3 p_curr = ((curve_coef[3] * u + curve_coef[2]) * u + curve_coef[1]) * u + curve_coef[0];
 
 				float3 dp_st = (3 * curve_coef[3] * i_st + 2 * curve_coef[2]) * i_st + curve_coef[1];
@@ -412,7 +411,7 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 					level = tree & -tree;
 					continue;
 				}
-				/* compare z distances.*/
+				/* compare z distances */
 				if (isect->t < p_curr.z) {
 					tree++;
 					level = tree & -tree;
@@ -422,7 +421,7 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 			}
 			else {
 				float l = len(p_en - p_st);
-				/*minimum width extension*/
+				/* minimum width extension */
 				float or1 = r1;
 				float or2 = r2;
 				if(difl != 0.0f) {
@@ -445,7 +444,7 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 				float tb = 2*(tdif.z - tg.z*(tdifz + gd*(tdifz*gd + or1)));
 				float tc = dot(tdif,tdif) - tdifz * tdifz * (1 + gd*gd) - or1*or1 - 2*or1*tdifz*gd;
 				float td = tb*tb - 4*cyla*tc;
-				if (td < 0.0f){
+				if (td < 0.0f) {
 					tree++;
 					level = tree & -tree;
 					continue;
@@ -477,18 +476,18 @@ __device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 				}
 
 				w = clamp((float)w, 0.0f, 1.0f);
-				/* compute u on the curve segment.*/
+				/* compute u on the curve segment */
 				u = i_st * (1 - w) + i_en * w;
 				r_curr = r1 + (r2 - r1) * w;
 				r_ext = or1 + (or2 - or1) * w;
 				coverage = r_curr/r_ext;
 
 			}
-			/* we found a new intersection.*/
+			/* we found a new intersection */
 
-			/*stochastic fade from minimum width*/
+			/* stochastic fade from minimum width */
 			if(lcg_state && coverage != 1.0f) {
-				if(lcg_step(lcg_state) > coverage)
+				if(lcg_step_float(lcg_state) > coverage)
 					return hit;
 			}
 
@@ -525,7 +524,7 @@ __device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	float3 P, float3 idir, uint visibility, int object, int curveAddr, int segment, uint *lcg_state, float difl, float extmax)
 {
 	/* curve Intersection check */
-	int flags = kernel_data.curve_kernel_data.curveflags;
+	int flags = kernel_data.curve.curveflags;
 
 	int prim = kernel_tex_fetch(__prim_index, curveAddr);
 	float4 v00 = kernel_tex_fetch(__curves, prim);
@@ -542,7 +541,7 @@ __device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	float3 p1 = float4_to_float3(P1);
 	float3 p2 = float4_to_float3(P2);
 
-	/*minimum width extension*/
+	/* minimum width extension */
 	float r1 = or1;
 	float r2 = or2;
 	if(difl != 0.0f) {
@@ -567,7 +566,7 @@ __device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	if(sdisc < 0.0f)
 		return false;
 
-	/* obtain parameters and test midpoint distance for suitable modes*/
+	/* obtain parameters and test midpoint distance for suitable modes */
 	float3 tg = (p2 - p1) / l;
 	float gd = (r2 - r1) / l;
 	float dirz = dot(dir,tg);
@@ -584,7 +583,7 @@ __device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	if((zcentre < 0 || zcentre > l) && !(flags & CURVE_KN_ACCURATE) && !(flags & CURVE_KN_INTERSECTCORRECTION))
 		return false;
 
-	/* test minimum separation*/
+	/* test minimum separation */
 	float3 cprod = cross(tg, dir);
 	float3 cprod2 = cross(tg, dif);
 	float cprodsq = len_squared(cprod);
@@ -599,7 +598,7 @@ __device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	if(distscaled > mr*mr)
 		return false;
 
-	/* calculate true intersection*/
+	/* calculate true intersection */
 	float3 tdif = P - p1 + tcentre * dir;
 	float tdifz = dot(tdif,tg);
 	float tb = 2*(dot(dir,tdif) - dirz*(tdifz + gd*(tdifz*gd + r1)));
@@ -636,11 +635,11 @@ __device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
 			z = zcentre + (dirz * correction);
 		}
 
-		/*stochastic fade from minimum width*/
+		/* stochastic fade from minimum width */
 		float adjradius = or1 + z * (or2 - or1) / l;
 		adjradius = adjradius / (r1 + z * gd);
 		if(lcg_state && adjradius != 1.0f) {
-			if(lcg_step(lcg_state) > adjradius)
+			if(lcg_step_float(lcg_state) > adjradius)
 				return false;
 		}
 		/* --- */
@@ -649,7 +648,7 @@ __device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
 
 			if (flags & CURVE_KN_ENCLOSEFILTER) {
 
-				float enc_ratio = kernel_data.curve_kernel_data.encasing_ratio;
+				float enc_ratio = kernel_data.curve.encasing_ratio;
 				if((dot(P - p1, tg) > -r1 * enc_ratio) && (dot(P - p2, tg) < r2 * enc_ratio)) {
 					float a2 = 1.0f - (dirz*dirz*(1 + gd*gd*enc_ratio*enc_ratio));
 					float c2 = dot(dif,dif) - difz * difz * (1 + gd*gd*enc_ratio*enc_ratio) - r1*r1*enc_ratio*enc_ratio - 2*r1*difz*gd*enc_ratio;
@@ -690,8 +689,8 @@ __device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
  * only want to intersect with primitives in the same object, and if case of
  * multiple hits we pick a single random primitive as the intersection point. */
 
-__device_inline bool bvh_triangle_intersect_subsurface(KernelGlobals *kg, Intersection *isect,
-	float3 P, float3 idir, int object, int triAddr, float tmax, int *num_hits, float subsurface_random)
+__device_inline void bvh_triangle_intersect_subsurface(KernelGlobals *kg, Intersection *isect_array,
+	float3 P, float3 idir, int object, int triAddr, float tmax, uint *num_hits, uint *lcg_state, int max_hits)
 {
 	/* compute and check intersection t-value */
 	float4 v00 = kernel_tex_fetch(__tri_woop, triAddr*TRI_NODE_SIZE+0);
@@ -718,20 +717,30 @@ __device_inline bool bvh_triangle_intersect_subsurface(KernelGlobals *kg, Inters
 			if(v >= 0.0f && u + v <= 1.0f) {
 				(*num_hits)++;
 
-				if(subsurface_random * (*num_hits) <= 1.0f) {
-					/* record intersection */
-					isect->prim = triAddr;
-					isect->object = object;
-					isect->u = u;
-					isect->v = v;
-					isect->t = t;
-					return true;
+				int hit;
+
+				if(*num_hits <= max_hits) {
+					hit = *num_hits - 1;
 				}
+				else {
+					/* reservoir sampling: if we are at the maximum number of
+					 * hits, randomly replace element or skip it */
+					hit = lcg_step_uint(lcg_state) % *num_hits;
+
+					if(hit >= max_hits)
+						return;
+				}
+
+				/* record intersection */
+				Intersection *isect = &isect_array[hit];
+				isect->prim = triAddr;
+				isect->object = object;
+				isect->u = u;
+				isect->v = v;
+				isect->t = t;
 			}
 		}
 	}
-
-	return false;
 }
 #endif
 
@@ -741,7 +750,6 @@ __device_inline bool bvh_triangle_intersect_subsurface(KernelGlobals *kg, Inters
 #define BVH_MOTION				2
 #define BVH_HAIR				4
 #define BVH_HAIR_MINIMUM_WIDTH	8
-#define BVH_SUBSURFACE			16
 
 #define BVH_FUNCTION_NAME bvh_intersect
 #define BVH_FUNCTION_FEATURES 0
@@ -773,39 +781,44 @@ __device_inline bool bvh_triangle_intersect_subsurface(KernelGlobals *kg, Inters
 
 #if defined(__SUBSURFACE__)
 #define BVH_FUNCTION_NAME bvh_intersect_subsurface
-#define BVH_FUNCTION_FEATURES BVH_SUBSURFACE
-#include "kernel_bvh_traversal.h"
+#define BVH_FUNCTION_FEATURES 0
+#include "kernel_bvh_subsurface.h"
 #endif
 
 #if defined(__SUBSURFACE__) && defined(__INSTANCING__)
 #define BVH_FUNCTION_NAME bvh_intersect_subsurface_instancing
-#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_SUBSURFACE
-#include "kernel_bvh_traversal.h"
+#define BVH_FUNCTION_FEATURES BVH_INSTANCING
+#include "kernel_bvh_subsurface.h"
 #endif
 
 #if defined(__SUBSURFACE__) && defined(__HAIR__)
 #define BVH_FUNCTION_NAME bvh_intersect_subsurface_hair
-#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_SUBSURFACE|BVH_HAIR|BVH_HAIR_MINIMUM_WIDTH
-#include "kernel_bvh_traversal.h"
+#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_HAIR
+#include "kernel_bvh_subsurface.h"
 #endif
 
 #if defined(__SUBSURFACE__) && defined(__OBJECT_MOTION__)
 #define BVH_FUNCTION_NAME bvh_intersect_subsurface_motion
-#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_SUBSURFACE|BVH_MOTION
-#include "kernel_bvh_traversal.h"
+#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_MOTION
+#include "kernel_bvh_subsurface.h"
 #endif
 
 #if defined(__SUBSURFACE__) && defined(__HAIR__) && defined(__OBJECT_MOTION__)
 #define BVH_FUNCTION_NAME bvh_intersect_subsurface_hair_motion
-#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_SUBSURFACE|BVH_HAIR|BVH_HAIR_MINIMUM_WIDTH|BVH_MOTION
-#include "kernel_bvh_traversal.h"
+#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_HAIR|BVH_MOTION
+#include "kernel_bvh_subsurface.h"
 #endif
 
-
-#ifdef __HAIR__ 
-__device_inline bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, Intersection *isect, uint *lcg_state, float difl, float extmax)
+/* to work around titan bug when using arrays instead of textures */
+#if !defined(__KERNEL_CUDA__) || defined(__KERNEL_CUDA_TEX_STORAGE__)
+__device_inline
 #else
-__device_inline bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, Intersection *isect)
+__device_noinline
+#endif
+#ifdef __HAIR__ 
+bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, Intersection *isect, uint *lcg_state, float difl, float extmax)
+#else
+bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, Intersection *isect)
 #endif
 {
 #ifdef __OBJECT_MOTION__
@@ -843,39 +856,45 @@ __device_inline bool scene_intersect(KernelGlobals *kg, const Ray *ray, const ui
 #endif /* __KERNEL_CPU__ */
 }
 
+/* to work around titan bug when using arrays instead of textures */
 #ifdef __SUBSURFACE__
-__device_inline int scene_intersect_subsurface(KernelGlobals *kg, const Ray *ray, Intersection *isect, int subsurface_object, float subsurface_random)
+#if !defined(__KERNEL_CUDA__) || defined(__KERNEL_CUDA_TEX_STORAGE__)
+__device_inline
+#else
+__device_noinline
+#endif
+uint scene_intersect_subsurface(KernelGlobals *kg, const Ray *ray, Intersection *isect, int subsurface_object, uint *lcg_state, int max_hits)
 {
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 #ifdef __HAIR__
 		if(kernel_data.bvh.have_curves)
-			return bvh_intersect_subsurface_hair_motion(kg, ray, isect, subsurface_object, subsurface_random);
+			return bvh_intersect_subsurface_hair_motion(kg, ray, isect, subsurface_object, lcg_state, max_hits);
 #endif /* __HAIR__ */
 
-		return bvh_intersect_subsurface_motion(kg, ray, isect, subsurface_object, subsurface_random);
+		return bvh_intersect_subsurface_motion(kg, ray, isect, subsurface_object, lcg_state, max_hits);
 	}
 #endif /* __OBJECT_MOTION__ */
 
 #ifdef __HAIR__ 
 	if(kernel_data.bvh.have_curves)
-		return bvh_intersect_subsurface_hair(kg, ray, isect, subsurface_object, subsurface_random);
+		return bvh_intersect_subsurface_hair(kg, ray, isect, subsurface_object, lcg_state, max_hits);
 #endif /* __HAIR__ */
 
 #ifdef __KERNEL_CPU__
 
 #ifdef __INSTANCING__
 	if(kernel_data.bvh.have_instancing)
-		return bvh_intersect_subsurface_instancing(kg, ray, isect, subsurface_object, subsurface_random);
+		return bvh_intersect_subsurface_instancing(kg, ray, isect, subsurface_object, lcg_state, max_hits);
 #endif /* __INSTANCING__ */
 
-	return bvh_intersect_subsurface(kg, ray, isect, subsurface_object, subsurface_random);
+	return bvh_intersect_subsurface(kg, ray, isect, subsurface_object, lcg_state, max_hits);
 #else /* __KERNEL_CPU__ */
 
 #ifdef __INSTANCING__
-	return bvh_intersect_subsurface_instancing(kg, ray, isect, subsurface_object, subsurface_random);
+	return bvh_intersect_subsurface_instancing(kg, ray, isect, subsurface_object, lcg_state, max_hits);
 #else
-	return bvh_intersect_subsurface(kg, ray, isect, subsurface_object, subsurface_random);
+	return bvh_intersect_subsurface(kg, ray, isect, subsurface_object, lcg_state, max_hits);
 #endif /* __INSTANCING__ */
 
 #endif /* __KERNEL_CPU__ */
@@ -980,6 +999,51 @@ __device_inline float3 bvh_triangle_refine(KernelGlobals *kg, ShaderData *sd, co
 #endif
 }
 
+/* same as above, except that isect->t is assumed to be in object space for instancing */
+__device_inline float3 bvh_triangle_refine_subsurface(KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray)
+{
+	float3 P = ray->P;
+	float3 D = ray->D;
+	float t = isect->t;
+
+#ifdef __INTERSECTION_REFINE__
+	if(isect->object != ~0) {
+#ifdef __OBJECT_MOTION__
+		Transform tfm = sd->ob_itfm;
+#else
+		Transform tfm = object_fetch_transform(kg, isect->object, OBJECT_INVERSE_TRANSFORM);
+#endif
+
+		P = transform_point(&tfm, P);
+		D = transform_direction(&tfm, D);
+		D = normalize(D);
+	}
+
+	P = P + D*t;
+
+	float4 v00 = kernel_tex_fetch(__tri_woop, isect->prim*TRI_NODE_SIZE+0);
+	float Oz = v00.w - P.x*v00.x - P.y*v00.y - P.z*v00.z;
+	float invDz = 1.0f/(D.x*v00.x + D.y*v00.y + D.z*v00.z);
+	float rt = Oz * invDz;
+
+	P = P + D*rt;
+
+	if(isect->object != ~0) {
+#ifdef __OBJECT_MOTION__
+		Transform tfm = sd->ob_tfm;
+#else
+		Transform tfm = object_fetch_transform(kg, isect->object, OBJECT_TRANSFORM);
+#endif
+
+		P = transform_point(&tfm, P);
+	}
+
+	return P;
+#else
+	return P + D*t;
+#endif
+}
+
 #ifdef __HAIR__
 
 __device_inline float3 curvetangent(float t, float3 p0, float3 p1, float3 p2, float3 p3)
@@ -1009,7 +1073,7 @@ __device_inline float3 curvepoint(float t, float3 p0, float3 p1, float3 p2, floa
 
 __device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray, float t)
 {
-	int flag = kernel_data.curve_kernel_data.curveflags;
+	int flag = kernel_data.curve.curveflags;
 	float3 P = ray->P;
 	float3 D = ray->D;
 
@@ -1062,7 +1126,7 @@ __device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, const
 		sd->v = 0.0f;
 #endif
 
-		if(kernel_data.curve_kernel_data.curveflags & CURVE_KN_RIBBONS)
+		if(kernel_data.curve.curveflags & CURVE_KN_RIBBONS)
 			sd->Ng = normalize(-(D - tg * (dot(tg,D))));
 		else {
 			sd->Ng = normalize(P - p_curr);
@@ -1080,12 +1144,8 @@ __device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, const
 #endif
 
 		if (flag & CURVE_KN_TRUETANGENTGNORMAL) {
-			sd->Ng = -(D - tg * (dot(tg,D) * kernel_data.curve_kernel_data.normalmix));
+			sd->Ng = -(D - tg * dot(tg,D));
 			sd->Ng = normalize(sd->Ng);
-			if (flag & CURVE_KN_NORMALCORRECTION) {
-				sd->Ng = sd->Ng - gd * tg;
-				sd->Ng = normalize(sd->Ng);
-			}
 		}
 		else {
 			sd->Ng = (dif - tg * sd->u * l) / (P1.w + sd->u * l * gd);
@@ -1098,12 +1158,8 @@ __device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, const
 		sd->N = sd->Ng;
 
 		if (flag & CURVE_KN_TANGENTGNORMAL && !(flag & CURVE_KN_TRUETANGENTGNORMAL)) {
-			sd->N = -(D - tg * (dot(tg,D) * kernel_data.curve_kernel_data.normalmix));
+			sd->N = -(D - tg * dot(tg,D));
 			sd->N = normalize(sd->N);
-			if (flag & CURVE_KN_NORMALCORRECTION) {
-				sd->N = sd->N - gd * tg;
-				sd->N = normalize(sd->N);
-			}
 		}
 		if (!(flag & CURVE_KN_TANGENTGNORMAL) && flag & CURVE_KN_TRUETANGENTGNORMAL) {
 			sd->N = (dif - tg * sd->u * l) / (P1.w + sd->u * l * gd);

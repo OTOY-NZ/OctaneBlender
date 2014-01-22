@@ -288,18 +288,18 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 			for (i = 0; (i < totface) && (mface) && (mvert); i++, mface++) {
 				/* add first triangle - verts 1,2,3 */
 				{
-					MVert *va = (IN_RANGE(mface->v1, 0, totvert)) ? (mvert + mface->v1) : (mvert);
-					MVert *vb = (IN_RANGE(mface->v2, 0, totvert)) ? (mvert + mface->v2) : (mvert);
-					MVert *vc = (IN_RANGE(mface->v3, 0, totvert)) ? (mvert + mface->v3) : (mvert);
+					MVert *va = (mface->v1 < totvert) ? (mvert + mface->v1) : (mvert);
+					MVert *vb = (mface->v2 < totvert) ? (mvert + mface->v2) : (mvert);
+					MVert *vc = (mface->v3 < totvert) ? (mvert + mface->v3) : (mvert);
 
 					RB_trimesh_add_triangle(mdata, va->co, vb->co, vc->co);
 				}
 
 				/* add second triangle if needed - verts 1,3,4 */
 				if (mface->v4) {
-					MVert *va = (IN_RANGE(mface->v1, 0, totvert)) ? (mvert + mface->v1) : (mvert);
-					MVert *vb = (IN_RANGE(mface->v3, 0, totvert)) ? (mvert + mface->v3) : (mvert);
-					MVert *vc = (IN_RANGE(mface->v4, 0, totvert)) ? (mvert + mface->v4) : (mvert);
+					MVert *va = (mface->v1 < totvert) ? (mvert + mface->v1) : (mvert);
+					MVert *vb = (mface->v3 < totvert) ? (mvert + mface->v3) : (mvert);
+					MVert *vc = (mface->v4 < totvert) ? (mvert + mface->v4) : (mvert);
 
 					RB_trimesh_add_triangle(mdata, va->co, vb->co, vc->co);
 				}
@@ -602,7 +602,7 @@ void BKE_rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, shor
 					RB_constraint_set_damping_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_Z, rbc->spring_damping_z);
 
 					RB_constraint_set_equilibrium_6dof_spring(rbc->physics_constraint);
-				/* fall through */
+					/* fall-through */
 				case RBC_TYPE_6DOF:
 					if (rbc->type == RBC_TYPE_6DOF) /* a litte awkward but avoids duplicate code for limits */
 						rbc->physics_constraint = RB_constraint_new_6dof(loc, rot, rb1, rb2);
@@ -1166,7 +1166,7 @@ static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
 		if (ob) {
 			RigidBodyOb *rbo = ob->rigidbody_object;
 			/* reset kinematic state for transformed objects */
-			if (ob->flag & SELECT && G.moving & G_TRANSFORM_OBJ) {
+			if (rbo && (ob->flag & SELECT) && (G.moving & G_TRANSFORM_OBJ)) {
 				RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 				RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
 				/* deactivate passive objects so they don't interfere with deactivation of active objects */

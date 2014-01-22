@@ -113,7 +113,7 @@
 
 /* can be used in simple macros */
 #define CHECK_TYPE_INLINE(val, type) \
-	((void)(((type *)0) != (val)))
+	((void)(((type)0) != (val)))
 
 #define SWAP(type, a, b)  {    \
 	type sw_ap;                \
@@ -337,12 +337,6 @@
 #  define UNUSED_FUNCTION(x) UNUSED_ ## x
 #endif
 
-#ifdef __GNUC__
-#  define WARN_UNUSED  __attribute__((warn_unused_result))
-#else
-#  define WARN_UNUSED
-#endif
-
 /*little macro so inline keyword works*/
 #if defined(_MSC_VER)
 #  define BLI_INLINE static __forceinline
@@ -388,8 +382,11 @@
 #  define BLI_assert(a) (void)0
 #endif
 
-/* C++ can't use _Static_assert, expects static_assert() but c++0x only */
-#if (!defined(__cplusplus)) && (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 406))  /* gcc4.6+ only */
+/* C++ can't use _Static_assert, expects static_assert() but c++0x only,
+ * Coverity also errors out. */
+#if (!defined(__cplusplus)) && \
+    (!defined(__COVERITY__)) && \
+    (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 406))  /* gcc4.6+ only */
 #  define BLI_STATIC_ASSERT(a, msg) _Static_assert(a, msg);
 #else
    /* TODO msvc, clang */

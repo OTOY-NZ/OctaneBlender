@@ -649,7 +649,8 @@ static void actionzone_apply(bContext *C, wmOperator *op, int type)
 	
 	sad->modifier = RNA_int_get(op->ptr, "modifier");
 	
-	event = *(win->eventstate);  /* XXX huh huh? make api call */
+	wm_event_init_from_window(win, &event);
+
 	if (type == AZONE_AREA)
 		event.type = EVT_ACTIONZONE_AREA;
 	else
@@ -695,28 +696,39 @@ static int actionzone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 static int actionzone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	sActionzoneData *sad = op->customdata;
-	int deltax, deltay;
-	int mindelta = sad->az->type == AZONE_REGION ? 1 : 12;
 	
 	switch (event->type) {
 		case MOUSEMOVE:
+		{
+			bool is_gesture;
+
+			const int delta_x = (event->x - sad->x);
+			const int delta_y = (event->y - sad->y);
+
 			/* calculate gesture direction */
-			deltax = (event->x - sad->x);
-			deltay = (event->y - sad->y);
-			
-			if (deltay > ABS(deltax))
+			if (delta_y > ABS(delta_x))
 				sad->gesture_dir = 'n';
-			else if (deltax > ABS(deltay))
+			else if (delta_x > ABS(delta_y))
 				sad->gesture_dir = 'e';
-			else if (deltay < -ABS(deltax))
+			else if (delta_y < -ABS(delta_x))
 				sad->gesture_dir = 's';
 			else
 				sad->gesture_dir = 'w';
 			
+			if (sad->az->type == AZONE_AREA) {
+				/* once we drag outside the actionzone, register a gesture
+				 * check we're not on an edge so join finds the other area */
+				is_gesture = ((is_in_area_actionzone(sad->sa1, &event->x) != sad->az) &&
+				              (screen_find_active_scredge(CTX_wm_screen(C), event->x, event->y) == NULL));
+			}
+			else {
+				const int delta_min = 1;
+				is_gesture = (ABS(delta_x) > delta_min || ABS(delta_y) > delta_min);
+			}
+
 			/* gesture is large enough? */
-			if (ABS(deltax) > mindelta || ABS(deltay) > mindelta) {
-				
-				/* second area, for join */
+			if (is_gesture) {
+				/* second area, for join when (sa1 != sa2) */
 				sad->sa2 = screen_areahascursor(CTX_wm_screen(C), event->x, event->y);
 				/* apply sends event */
 				actionzone_apply(C, op, sad->az->type);
@@ -725,6 +737,7 @@ static int actionzone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				return OPERATOR_FINISHED;
 			}
 			break;
+		}
 		case ESCKEY:
 			actionzone_exit(op);
 			return OPERATOR_CANCELLED;
@@ -806,7 +819,7 @@ static int area_swap_init(wmOperator *op, const wmEvent *event)
 
 static void area_swap_exit(bContext *C, wmOperator *op)
 {
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 	if (op->customdata)
 		MEM_freeN(op->customdata);
 	op->customdata = NULL;
@@ -825,7 +838,7 @@ static int area_swap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_PASS_THROUGH;
 	
 	/* add modal handler */
-	WM_cursor_modal(CTX_wm_window(C), BC_SWAPAREA_CURSOR);
+	WM_cursor_modal_set(CTX_wm_window(C), BC_SWAPAREA_CURSOR);
 	WM_event_add_modal_handler(C, op);
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -1154,7 +1167,7 @@ static int area_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	/* execute the events */
 	switch (event->type) {
 		case MOUSEMOVE:
-			
+		{
 			x = RNA_int_get(op->ptr, "x");
 			y = RNA_int_get(op->ptr, "y");
 			
@@ -1164,9 +1177,9 @@ static int area_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			
 			area_move_apply(C, op);
 			break;
-			
+		}
 		case EVT_MODAL_MAP:
-			
+		{
 			switch (event->val) {
 				case KM_MODAL_APPLY:
 					area_move_exit(C, op);
@@ -1182,6 +1195,8 @@ static int area_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					md->step = 0;
 					break;
 			}
+			break;
+		}
 	}
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -1393,7 +1408,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
 		op->customdata = NULL;
 	}
 	
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 	
 	/* this makes sure aligned edges will result in aligned grabbing */
@@ -2463,8 +2478,8 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					WM_event_add_notifier(C, NC_WINDOW, NULL);
 				}
 			}
+			break;
 		}
-		break;
 		case LEFTMOUSE:
 			if (event->val == KM_RELEASE) {
 				ED_area_tag_redraw(jd->sa1);
@@ -2562,7 +2577,7 @@ static void SCREEN_OT_area_options(wmOperatorType *ot)
 /* ******************************* */
 
 
-static int spacedata_cleanup(bContext *C, wmOperator *op)
+static int spacedata_cleanup_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	bScreen *screen;
@@ -2594,7 +2609,7 @@ static void SCREEN_OT_spacedata_cleanup(wmOperatorType *ot)
 	ot->idname = "SCREEN_OT_spacedata_cleanup";
 	
 	/* api callbacks */
-	ot->exec = spacedata_cleanup;
+	ot->exec = spacedata_cleanup_exec;
 	ot->poll = WM_operator_winactive;
 	
 }
@@ -3182,7 +3197,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 			sound_seek_scene(bmain, scene);
 		
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
-		ED_update_for_newframe(CTX_data_main(C), scene, 1);
+		ED_update_for_newframe(bmain, scene, 1);
 
 		for (window = wm->windows.first; window; window = window->next) {
 			for (sa = window->screen->areabase.first; sa; sa = sa->next) {
@@ -3367,7 +3382,7 @@ static void SCREEN_OT_animation_cancel(wmOperatorType *ot)
  * poll()	has to be filled in by user for context
  */
 #if 0
-static int border_select_do(bContext *C, wmOperator *op)
+static int border_select_exec(bContext *C, wmOperator *op)
 {
 	int event_type = RNA_int_get(op->ptr, "event_type");
 	
@@ -3388,7 +3403,7 @@ static void SCREEN_OT_border_select(wmOperatorType *ot)
 	ot->idname = "SCREEN_OT_border_select";
 	
 	/* api callbacks */
-	ot->exec = border_select_do;
+	ot->exec = border_select_exec;
 	ot->invoke = WM_border_select_invoke;
 	ot->modal = WM_border_select_modal;
 	ot->cancel = WM_border_select_cancel;
@@ -3925,9 +3940,11 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
 	
 	
 	/* render */
-	WM_keymap_add_item(keymap, "RENDER_OT_render", F12KEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "RENDER_OT_render", F12KEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "use_viewport", TRUE);
 	kmi = WM_keymap_add_item(keymap, "RENDER_OT_render", F12KEY, KM_PRESS, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "animation", TRUE);
+	RNA_boolean_set(kmi->ptr, "use_viewport", TRUE);
 	WM_keymap_add_item(keymap, "RENDER_OT_view_cancel", ESCKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "RENDER_OT_view_show", F11KEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "RENDER_OT_play_rendered_anim", F11KEY, KM_PRESS, KM_CTRL, 0);

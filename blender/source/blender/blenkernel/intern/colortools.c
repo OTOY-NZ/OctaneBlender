@@ -328,8 +328,8 @@ void curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope)
 				cuma->curve[i].x = i / ((float)cuma->totpoint - 1);
 				cuma->curve[i].y = 0.5;
 			}
+			break;
 		}
-		break;
 		case CURVE_PRESET_ROUND:
 			cuma->curve[0].x = 0;
 			cuma->curve[0].y = 1;
@@ -972,9 +972,6 @@ void BKE_histogram_update_sample_line(Histogram *hist, ImBuf *ibuf, const ColorM
 	if (ibuf->rect_float)
 		cm_processor = IMB_colormanagement_display_processor_new(view_settings, display_settings);
 
-	/* persistent draw */
-	hist->flag |= HISTO_FLAG_SAMPLELINE; /* keep drawing the flag after */
-
 	for (i = 0; i < 256; i++) {
 		x = (int)(0.5f + x1 + (float)i * (x2 - x1) / 255.0f);
 		y = (int)(0.5f + y1 + (float)i * (y2 - y1) / 255.0f);
@@ -1260,6 +1257,7 @@ void BKE_color_managed_view_settings_init(ColorManagedViewSettings *settings)
 	 *            for now use NONE to be compatible with all current files
 	 */
 	BLI_strncpy(settings->view_transform, "Default", sizeof(settings->view_transform));
+	BLI_strncpy(settings->look, "None", sizeof(settings->look));
 
 	settings->gamma = 1.0f;
 	settings->exposure = 0.0f;
@@ -1268,6 +1266,7 @@ void BKE_color_managed_view_settings_init(ColorManagedViewSettings *settings)
 void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings,
                                           const ColorManagedViewSettings *settings)
 {
+	BLI_strncpy(new_settings->look, settings->look, sizeof(new_settings->look));
 	BLI_strncpy(new_settings->view_transform, settings->view_transform, sizeof(new_settings->view_transform));
 
 	new_settings->flag = settings->flag;

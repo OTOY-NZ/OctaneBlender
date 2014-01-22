@@ -42,6 +42,7 @@ _modules = [
     "properties_mask_common",
     "properties_material",
     "properties_object",
+    "properties_paint_common",
     "properties_particle",
     "properties_physics_cloth",
     "properties_physics_common",
@@ -105,7 +106,7 @@ def register():
 
         items_unique = set()
 
-        for mod in addon_utils.modules(addon_utils.addons_fake_modules):
+        for mod in addon_utils.modules(refresh=False):
             info = addon_utils.module_bl_info(mod)
             items_unique.add(info["category"])
 
@@ -142,6 +143,60 @@ def unregister():
 # Define a default UIList, when a list does not need any custom drawing...
 # Keep in sync with its #defined name in UI_interface.h
 class UI_UL_list(bpy.types.UIList):
-    pass
+    # These are common filtering or ordering operations (same as the default C ones!).
+    @staticmethod
+    def filter_items_by_name(pattern, bitflag, items, propname="name", flags=None, reverse=False):
+        """
+        Set FILTER_ITEM for items which name matches filter_name one (case-insensitive).
+        pattern is the filtering pattern.
+        propname is the name of the string property to use for filtering.
+        flags must be a list of integers the same length as items, or None!
+        return a list of flags (based on given flags if not None),
+        or an empty list if no flags were given and no filtering has been done.
+        """
+        import fnmatch
+
+        if not pattern or not items:  # Empty pattern or list = no filtering!
+            return flags or []
+
+        if flags is None:
+            flags = [0] * len(items)
+
+        # Implicitly add heading/trailing wildcards.
+        pattern = "*" + pattern + "*"
+
+        for i, item in enumerate(items):
+            name = getattr(item, propname, None)
+            # This is similar to a logical xor
+            if bool(name and fnmatch.fnmatchcase(name, pattern)) is not bool(reverse):
+                flags[i] |= bitflag
+        return flags
+
+    @staticmethod
+    def sort_items_helper(sort_data, key, reverse=False):
+        """
+        Common sorting utility. Returns a neworder list mapping org_idx -> new_idx.
+        sort_data must be an (unordered) list of tuples [(org_idx, ...), (org_idx, ...), ...].
+        key must be the same kind of callable you would use for sorted() builtin function.
+        reverse will reverse the sorting!
+        """
+        sort_data.sort(key=key, reverse=reverse)
+        neworder = [None] * len(sort_data)
+        for newidx, (orgidx, *_) in enumerate(sort_data):
+            neworder[orgidx] = newidx
+        return neworder
+
+    @classmethod
+    def sort_items_by_name(cls, items, propname="name"):
+        """
+        Re-order items using their names (case-insensitive).
+        propname is the name of the string property to use for sorting.
+        return a list mapping org_idx -> new_idx,
+               or an empty list if no sorting has been done.
+        """
+        neworder = [None] * len(items)
+        _sort = [(idx, getattr(it, propname, "")) for idx, it in enumerate(items)]
+        return cls.sort_items_helper(_sort, lambda e: e[1].lower())
+
 
 bpy.utils.register_class(UI_UL_list)

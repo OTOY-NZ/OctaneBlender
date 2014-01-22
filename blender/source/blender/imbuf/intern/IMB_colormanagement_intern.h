@@ -28,10 +28,15 @@
  *
  */
 
-#ifndef IMB_COLORMANAGEMENT_INTERN_H
-#define IMB_COLORMANAGEMENT_INTERN_H
+#ifndef __IMB_COLORMANAGEMENT_INTERN_H__
+#define __IMB_COLORMANAGEMENT_INTERN_H__
+
+/** \file IMB_colormanagement_intern.h
+ *  \ingroup imbuf
+ */
 
 #include "DNA_listBase.h"
+#include "BLI_sys_types.h"
 
 struct OCIO_ConstProcessorRcPtr;
 struct ImBuf;
@@ -48,8 +53,8 @@ typedef struct ColorSpace {
 	struct OCIO_ConstProcessorRcPtr *to_scene_linear;
 	struct OCIO_ConstProcessorRcPtr *from_scene_linear;
 
-	int is_invertible;
-	int is_data;
+	bool is_invertible;
+	bool is_data;
 } ColorSpace;
 
 typedef struct ColorManagedDisplay {
@@ -67,6 +72,14 @@ typedef struct ColorManagedView {
 	int index;
 	char name[MAX_COLORSPACE_NAME];
 } ColorManagedView;
+
+typedef struct ColorManagedLook {
+	struct ColorManagedLook *next, *prev;
+	int index;
+	char name[MAX_COLORSPACE_NAME];
+	char process_space[MAX_COLORSPACE_NAME];
+	bool is_noop;
+} ColorManagedLook;
 
 /* ** Initialization / De-initialization ** */
 
@@ -87,14 +100,18 @@ struct ColorManagedView *colormanage_view_add(const char *name);
 struct ColorManagedView *colormanage_view_get_indexed(int index);
 struct ColorManagedView *colormanage_view_get_named(const char *name);
 
-struct ColorSpace *colormanage_colorspace_add(const char *name, const char *description, int is_invertible, int is_data);
+struct ColorSpace *colormanage_colorspace_add(const char *name, const char *description, bool is_invertible, bool is_data);
 struct ColorSpace *colormanage_colorspace_get_named(const char *name);
 struct ColorSpace *colormanage_colorspace_get_roled(int role);
 struct ColorSpace *colormanage_colorspace_get_indexed(int index);
+
+struct ColorManagedLook *colormanage_look_add(const char *name, const char *process_space, bool is_noop);
+struct ColorManagedLook *colormanage_look_get_named(const char *name);
+struct ColorManagedLook *colormanage_look_get_indexed(int index);
 
 void colorspace_set_default_role(char *colorspace, int size, int role);
 
 void colormanage_imbuf_set_default_spaces(struct ImBuf *ibuf);
 void colormanage_imbuf_make_linear(struct ImBuf *ibuf, const char *from_colorspace);
 
-#endif  /* IMB_COLORMANAGEMENT_INTERN_H */
+#endif  /* __IMB_COLORMANAGEMENT_INTERN_H__ */

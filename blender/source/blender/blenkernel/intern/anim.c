@@ -488,18 +488,16 @@ void free_path(Path *path)
 /* calculate a curve-deform path for a curve 
  *  - only called from displist.c -> do_makeDispListCurveTypes
  */
-void calc_curvepath(Object *ob)
+void calc_curvepath(Object *ob, ListBase *nurbs)
 {
 	BevList *bl;
 	BevPoint *bevp, *bevpn, *bevpfirst, *bevplast;
 	PathPoint *pp;
-	Curve *cu;
 	Nurb *nu;
 	Path *path;
 	float *fp, *dist, *maxdist, xyz[3];
 	float fac, d = 0, fac1, fac2;
 	int a, tot, cycl = 0;
-	ListBase *nurbs;
 	
 	/* in a path vertices are with equal differences: path->len = number of verts */
 	/* NOW WITH BEVELCURVE!!! */
@@ -507,21 +505,19 @@ void calc_curvepath(Object *ob)
 	if (ob == NULL || ob->type != OB_CURVE) {
 		return;
 	}
-	cu = ob->data;
 
-	if (cu->path) free_path(cu->path);
-	cu->path = NULL;
+	if (ob->curve_cache->path) free_path(ob->curve_cache->path);
+	ob->curve_cache->path = NULL;
 	
 	/* weak! can only use first curve */
-	bl = cu->bev.first;
+	bl = ob->curve_cache->bev.first;
 	if (bl == NULL || !bl->nr) {
 		return;
 	}
 
-	nurbs = BKE_curve_nurbs_get(cu);
 	nu = nurbs->first;
 
-	cu->path = path = MEM_callocN(sizeof(Path), "calc_curvepath");
+	ob->curve_cache->path = path = MEM_callocN(sizeof(Path), "calc_curvepath");
 	
 	/* if POLY: last vertice != first vertice */
 	cycl = (bl->poly != -1);
@@ -598,8 +594,7 @@ void calc_curvepath(Object *ob)
 static int interval_test(const int min, const int max, int p1, const int cycl)
 {
 	if (cycl) {
-		if      (p1 < min) p1 = ((p1 - min) % (max - min + 1)) + max + 1;
-		else if (p1 > max) p1 = ((p1 - min) % (max - min + 1)) + min;
+		p1 = mod_i(p1 - min, (max - min + 1)) + min;
 	}
 	else {
 		if      (p1 < min) p1 = min;
@@ -630,15 +625,15 @@ int where_on_path(Object *ob, float ctime, float vec[4], float dir[3], float qua
 
 	if (ob == NULL || ob->type != OB_CURVE) return 0;
 	cu = ob->data;
-	if (cu->path == NULL || cu->path->data == NULL) {
+	if (ob->curve_cache == NULL || ob->curve_cache->path == NULL || ob->curve_cache->path->data == NULL) {
 		printf("no path!\n");
 		return 0;
 	}
-	path = cu->path;
+	path = ob->curve_cache->path;
 	pp = path->data;
 	
 	/* test for cyclic */
-	bl = cu->bev.first;
+	bl = ob->curve_cache->bev.first;
 	if (!bl) return 0;
 	if (!bl->nr) return 0;
 	if (bl->poly > -1) cycl = 1;
@@ -756,14 +751,24 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int persiste
 	DupliObject *dob;
 	Group *group;
 	GroupObject *go;
-	float mat[4][4], tmat[4][4], id;
-	
+	float mat[4][4], ob_obmat_ofs[4][4], id;
+
 	if (ob->dup_group == NULL) return;
 	group = ob->dup_group;
 	
 	/* simple preventing of too deep nested groups */
 	if (level > MAX_DUPLI_RECUR) return;
 	
+	/* don't access 'ob->obmat' from now on. */
+	copy_m4_m4(ob_obmat_ofs, ob->obmat);
+
+	if (!is_zero_v3(group->dupli_ofs)) {
+		float tvec[3];
+		copy_v3_v3(tvec, group->dupli_ofs);
+		mul_mat3_m4_v3(ob_obmat_ofs, tvec);
+		sub_v3_v3(ob_obmat_ofs[3], tvec);
+	}
+
 	/* handles animated groups, and */
 
 	/* we need to check update for objects that are not in scene... */
@@ -781,14 +786,7 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int persiste
 		if (go->ob != ob) {
 			
 			/* group dupli offset, should apply after everything else */
-			if (!is_zero_v3(group->dupli_ofs)) {
-				copy_m4_m4(tmat, go->ob->obmat);
-				sub_v3_v3v3(tmat[3], tmat[3], group->dupli_ofs);
-				mul_m4_m4m4(mat, ob->obmat, tmat);
-			}
-			else {
-				mul_m4_m4m4(mat, ob->obmat, go->ob->obmat);
-			}
+			mul_m4_m4m4(mat, ob_obmat_ofs, go->ob->obmat);
 			
 			dob = new_dupli_object(lb, go->ob, mat, ob->lay, persistent_id, level, id, OB_DUPLIGROUP, flag);
 
@@ -802,7 +800,7 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int persiste
 
 			if (go->ob->transflag & OB_DUPLI) {
 				copy_m4_m4(dob->ob->obmat, dob->mat);
-				object_duplilist_recursive(&group->id, scene, go->ob, lb, ob->obmat, persistent_id, level + 1, id, flag);
+				object_duplilist_recursive(&group->id, scene, go->ob, lb, ob_obmat_ofs, persistent_id, level + 1, id, flag);
 				copy_m4_m4(dob->ob->obmat, dob->omat);
 			}
 		}
@@ -1036,7 +1034,7 @@ static void vertex_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, fl
 					if (ob->type != OB_MBALL) ob->flag |= OB_DONE;  /* doesnt render */
 
 					if (me->edit_btmesh) {
-						dm->foreachMappedVert(dm, vertex_dupli__mapFunc, (void *) &vdd);
+						dm->foreachMappedVert(dm, vertex_dupli__mapFunc, (void *) &vdd, DM_FOREACH_USE_NORMAL);
 					}
 					else {
 						for (a = 0; a < totvert; a++) {
@@ -1332,7 +1330,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 		psys_check_group_weights(part);
 
-		psys->lattice = psys_get_lattice(&sim);
+		psys->lattice_deform_data = psys_create_lattice_deform_data(&sim);
 
 		/* gather list of objects or single object */
 		if (part->ren_as == PART_DRAW_GR) {
@@ -1569,9 +1567,9 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	if (obcopylist)
 		MEM_freeN(obcopylist);
 
-	if (psys->lattice) {
-		end_latt_deform(psys->lattice);
-		psys->lattice = NULL;
+	if (psys->lattice_deform_data) {
+		end_latt_deform(psys->lattice_deform_data);
+		psys->lattice_deform_data = NULL;
 	}
 }
 

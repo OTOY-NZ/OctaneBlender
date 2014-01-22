@@ -50,6 +50,7 @@
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_main.h"
+#include "BKE_idcode.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
 #include "BKE_object.h"
@@ -379,54 +380,45 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	float rsmat[3][3], obmat[3][3], iobmat[3][3], mat[4][4], scale;
-	int change = 1;
+	bool change = true;
 	
 	/* first check if we can execute */
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
 	{
+		if (ELEM6(ob->type, OB_MESH, OB_ARMATURE, OB_LATTICE, OB_MBALL, OB_CURVE, OB_SURF)) {
+			ID *obdata = ob->data;
+			if (ID_REAL_USERS(obdata) > 1) {
+				BKE_reportf(reports, RPT_ERROR,
+				            "Cannot apply to a multi user: Object \"%s\", %s \"%s\", aborting",
+				            ob->id.name + 2, BKE_idcode_to_name(GS(obdata->name)), obdata->name + 2);
+				change = false;
+			}
 
-		if (ob->type == OB_MESH) {
-			if (ID_REAL_USERS(ob->data) > 1) {
-				BKE_report(reports, RPT_ERROR, "Cannot apply to a multi user mesh, doing nothing");
-				change = 0;
+			if (obdata->lib) {
+				BKE_reportf(reports, RPT_ERROR,
+				            "Cannot apply to library data: Object \"%s\", %s \"%s\", aborting",
+				            ob->id.name + 2, BKE_idcode_to_name(GS(obdata->name)), obdata->name + 2);
+				change = false;
 			}
 		}
-		else if (ob->type == OB_ARMATURE) {
-			if (ID_REAL_USERS(ob->data) > 1) {
-				BKE_report(reports, RPT_ERROR, "Cannot apply to a multi user armature, doing nothing");
-				change = 0;
-			}
-		}
-		else if (ob->type == OB_LATTICE) {
-			if (ID_REAL_USERS(ob->data) > 1) {
-				BKE_report(reports, RPT_ERROR, "Cannot apply to a multi user lattice, doing nothing");
-				change = 0;
-			}
-		}
-		else if (ob->type == OB_MBALL) {
-			if (ID_REAL_USERS(ob->data) > 1) {
-				BKE_report(reports, RPT_ERROR, "Cannot apply to a multi user metaball, doing nothing");
-				change = 0;
-			}
-		}
-		else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
+
+		if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
+			ID *obdata = ob->data;
 			Curve *cu;
-
-			if (ID_REAL_USERS(ob->data) > 1) {
-				BKE_report(reports, RPT_ERROR, "Cannot apply to a multi user curve, doing nothing");
-				change = 0;
-			}
 
 			cu = ob->data;
 
 			if (((ob->type == OB_CURVE) && !(cu->flag & CU_3D)) && (apply_rot || apply_loc)) {
-				BKE_report(reports, RPT_ERROR,
-				           "Neither rotation nor location could be applied to a 2D curve, doing nothing");
-				change = 0;
+				BKE_reportf(reports, RPT_ERROR,
+				            "Rotation/Location can't apply to a 2D curve: Object \"%s\", %s \"%s\", aborting",
+				            ob->id.name + 2, BKE_idcode_to_name(GS(obdata->name)), obdata->name + 2);
+				change = false;
 			}
 			if (cu->key) {
-				BKE_report(reports, RPT_ERROR, "Cannot apply to a curve with vertex keys, doing nothing");
-				change = 0;
+				BKE_reportf(reports, RPT_ERROR,
+				            "Can't apply to a curve with shape-keys: Object \"%s\", %s \"%s\", aborting",
+				            ob->id.name + 2, BKE_idcode_to_name(GS(obdata->name)), obdata->name + 2);
+				change = false;
 			}
 		}
 	}
@@ -435,7 +427,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 	if (!change)
 		return OPERATOR_CANCELLED;
 
-	change = 0;
+	change = false;
 
 	/* now execute */
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
@@ -551,7 +543,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 			}
 		}
 		else if (ob->type == OB_CAMERA) {
-			MovieClip *clip = BKE_object_movieclip_get(scene, ob, FALSE);
+			MovieClip *clip = BKE_object_movieclip_get(scene, ob, false);
 
 			/* applying scale on camera actually scales clip's reconstruction.
 			 * of there's clip assigned to camera nothing to do actually.
@@ -561,6 +553,21 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 
 			if (apply_scale)
 				BKE_tracking_reconstruction_scale(&clip->tracking, ob->size);
+		}
+		else if (ob->type == OB_EMPTY) {
+			/* It's possible for empties too, even though they don't 
+			 * really have obdata, since we can simply apply the maximum
+			 * scaling to the empty's drawsize.
+			 *
+			 * Core Assumptions:
+			 * 1) Most scaled empties have uniform scaling 
+			 *    (i.e. for visibility reasons), AND/OR
+			 * 2) Preserving non-uniform scaling is not that important,
+			 *    and is something that many users would be willing to
+			 *    sacrifice for having an easy way to do this.
+			 */
+			 float max_scale = MAX3(ob->size[0], ob->size[1], ob->size[2]);
+			 ob->empty_drawsize *= max_scale;
 		}
 		else {
 			continue;
@@ -585,12 +592,14 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 
 		DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA);
 
-		change = 1;
+		change = true;
 	}
 	CTX_DATA_END;
 
-	if (!change)
+	if (!change) {
+		BKE_report(reports, RPT_WARNING, "Objects have no data to transform");
 		return OPERATOR_CANCELLED;
+	}
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
 	return OPERATOR_FINISHED;
@@ -768,7 +777,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 	}
 
 	if (ctx_ob_act) {
-		BLI_rotatelist(&ctx_data_list, (LinkData *)ctx_ob_act);
+		BLI_rotatelist_first(&ctx_data_list, (LinkData *)ctx_ob_act);
 	}
 
 	for (tob = bmain->object.first; tob; tob = tob->id.next) {

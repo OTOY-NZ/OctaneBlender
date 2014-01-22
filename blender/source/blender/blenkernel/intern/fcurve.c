@@ -667,17 +667,16 @@ short fcurve_are_keyframes_usable(FCurve *fcu)
 					
 					if ((data->flag & FCM_GENERATOR_ADDITIVE) == 0)
 						return 0;
+					break;
 				}
-				break;
 				case FMODIFIER_TYPE_FN_GENERATOR:
 				{
 					FMod_FunctionGenerator *data = (FMod_FunctionGenerator *)fcm->data;
 					
 					if ((data->flag & FCM_GENERATOR_ADDITIVE) == 0)
 						return 0;
+					break;
 				}
-				break;
-					
 				/* always harmful - cannot allow */
 				default:
 					return 0;
@@ -689,21 +688,27 @@ short fcurve_are_keyframes_usable(FCurve *fcu)
 	return 1;
 }
 
+bool BKE_fcurve_is_protected(FCurve *fcu)
+{
+	return ((fcu->flag & FCURVE_PROTECTED) ||
+	        ((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)));
+}
+
 /* Can keyframes be added to F-Curve? 
  * Keyframes can only be added if they are already visible
  */
-short fcurve_is_keyframable(FCurve *fcu)
+bool fcurve_is_keyframable(FCurve *fcu)
 {
 	/* F-Curve's keyframes must be "usable" (i.e. visible + have an effect on final result) */
 	if (fcurve_are_keyframes_usable(fcu) == 0)
-		return 0;
+		return false;
 		
 	/* F-Curve must currently be editable too */
-	if ( (fcu->flag & FCURVE_PROTECTED) || ((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)) )
-		return 0;
+	if (BKE_fcurve_is_protected(fcu))
+		return false;
 	
 	/* F-Curve is keyframable */
-	return 1;
+	return true;
 }
 
 /* ***************************** Keyframe Column Tools ********************************* */
@@ -842,14 +847,7 @@ void calchandles_fcurve(FCurve *fcu)
 	}
 }
 
-/* Use when F-Curve with handles has changed
- * It treats all BezTriples with the following rules:
- *  - PHASE 1: do types have to be altered?
- *      -> Auto handles: become aligned when selection status is NOT(000 || 111)
- *      -> Vector handles: become 'nothing' when (one half selected AND other not)
- *  - PHASE 2: recalculate handles
- */
-void testhandles_fcurve(FCurve *fcu, const short use_handle)
+void testhandles_fcurve(FCurve *fcu, const bool use_handle)
 {
 	BezTriple *bezt;
 	unsigned int a;
@@ -857,45 +855,10 @@ void testhandles_fcurve(FCurve *fcu, const short use_handle)
 	/* only beztriples have handles (bpoints don't though) */
 	if (ELEM(NULL, fcu, fcu->bezt))
 		return;
-	
+
 	/* loop over beztriples */
 	for (a = 0, bezt = fcu->bezt; a < fcu->totvert; a++, bezt++) {
-		short flag = 0;
-		
-		/* flag is initialized as selection status
-		 * of beztriple control-points (labelled 0, 1, 2)
-		 */
-		if (bezt->f2 & SELECT) flag |= (1 << 1);  // == 2
-		if (use_handle == FALSE) {
-			if (flag & 2) {
-				flag |= (1 << 0) | (1 << 2);
-			}
-		}
-		else {
-			if (bezt->f1 & SELECT) flag |= (1 << 0);  // == 1
-			if (bezt->f3 & SELECT) flag |= (1 << 2);  // == 4
-		}
-		
-		/* one or two handles selected only */
-		if (ELEM(flag, 0, 7) == 0) {
-			/* auto handles become aligned */
-			if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM))
-				bezt->h1 = HD_ALIGN;
-			if (ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM))
-				bezt->h2 = HD_ALIGN;
-			
-			/* vector handles become 'free' when only one half selected */
-			if (bezt->h1 == HD_VECT) {
-				/* only left half (1 or 2 or 1+2) */
-				if (flag < 4) 
-					bezt->h1 = 0;
-			}
-			if (bezt->h2 == HD_VECT) {
-				/* only right half (4 or 2+4) */
-				if (flag > 3) 
-					bezt->h2 = 0;
-			}
-		}
+		BKE_nurb_bezt_handle_test(bezt, use_handle);
 	}
 
 	/* recalculate handles */
@@ -1703,9 +1666,8 @@ static float evaluate_driver(ChannelDriver *driver, const float evaltime)
 				else
 					driver->curval = value;
 			}
+			break;
 		}
-		break;
-			
 		case DRIVER_TYPE_MIN: /* smallest value */
 		case DRIVER_TYPE_MAX: /* largest value */
 		{
@@ -1738,9 +1700,8 @@ static float evaluate_driver(ChannelDriver *driver, const float evaltime)
 			
 			/* store value in driver */
 			driver->curval = value;
+			break;
 		}
-		break;
-			
 		case DRIVER_TYPE_PYTHON: /* expression */
 		{
 #ifdef WITH_PYTHON
@@ -1759,15 +1720,15 @@ static float evaluate_driver(ChannelDriver *driver, const float evaltime)
 #else /* WITH_PYTHON*/
 			(void)evaltime;
 #endif /* WITH_PYTHON*/
+			break;
 		}
-		break;
-		
 		default:
 		{
 			/* special 'hack' - just use stored value 
 			 *	This is currently used as the mechanism which allows animated settings to be able
 			 *  to be changed via the UI.
 			 */
+			break;
 		}
 	}
 	

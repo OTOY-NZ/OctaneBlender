@@ -66,8 +66,6 @@ def load_image(imagepath,
     import os
     import bpy
 
-    # TODO: recursive
-
     # -------------------------------------------------------------------------
     # Utility Functions
 
@@ -107,9 +105,29 @@ def load_image(imagepath,
             if relpath is not None:
                 # make relative
                 from bpy.path import relpath as relpath_fn
-                image.filepath_raw = relpath_fn(path, start=relpath)
+                # can't always find the relative path
+                # (between drive letters on windows)
+                try:
+                    filepath_rel = relpath_fn(path, start=relpath)
+                except ValueError:
+                    filepath_rel = None
+
+                if filepath_rel is not None:
+                    image.filepath_raw = filepath_rel
 
         return image
+
+    def _recursive_search(paths, filename_check):
+        for path in paths:
+            for dirpath, dirnames, filenames in os.walk(path):
+
+                # skip '.svn'
+                if dirpath[0] in {".", b'.'}:
+                    continue
+
+                for filename in filenames:
+                    if filename_check(filename):
+                        yield os.path.join(dirpath, filename)
 
     # -------------------------------------------------------------------------
 
@@ -137,6 +155,28 @@ def load_image(imagepath,
         for nfilepath in ncase_variants:
             if os.path.exists(nfilepath):
                 return _image_load(nfilepath)
+
+    if recursive:
+        search_paths = []
+
+        for dirpath_test in (os.path.dirname(imagepath), dirname):
+            if os.path.exists(dirpath_test):
+                search_paths.append(dirpath_test)
+        search_paths[:] = bpy.path.reduce_dirs(search_paths)
+
+        imagepath_base = bpy.path.basename(imagepath)
+        if ncase_cmp:
+            imagepath_base = imagepath_base.lower()
+
+            def image_filter(fn):
+                return (imagepath_base == fn.lower())
+        else:
+            def image_filter(fn):
+                return (imagepath_base == fn)
+
+        nfilepath = next(_recursive_search(search_paths, image_filter), None)
+        if nfilepath is not None:
+            return _image_load(nfilepath)
 
     # None of the paths exist so return placeholder
     if place_holder:

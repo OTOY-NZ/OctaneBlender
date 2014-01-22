@@ -43,7 +43,7 @@ def draw_repeat_tools(context, layout):
 def draw_keyframing_tools(context, layout):
     col = layout.column(align=True)
     col.label(text="Keyframes:")
-    row = col.row()
+    row = col.row(align=True)
     row.operator("anim.keyframe_insert_menu", text="Insert")
     row.operator("anim.keyframe_delete_v3d", text="Remove")
 
@@ -54,15 +54,15 @@ def draw_gpencil_tools(context, layout):
 
     col.label(text="Grease Pencil:")
 
-    row = col.row()
+    row = col.row(align=True)
     row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
     row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
 
-    row = col.row()
+    row = col.row(align=True)
     row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
     row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
 
-    row = col.row()
+    row = col.row(align=True)
     row.prop(context.tool_settings, "use_grease_pencil_sessions")
 
     col.operator("view3d.ruler")
@@ -112,7 +112,6 @@ class VIEW3D_PT_tools_objectmode(View3DPanel, Panel):
         draw_repeat_tools(context, layout)
 
         draw_gpencil_tools(context, layout)
-        col = layout.column(align=True)
 
 
 class VIEW3D_PT_tools_rigidbody(View3DPanel, Panel):
@@ -125,10 +124,10 @@ class VIEW3D_PT_tools_rigidbody(View3DPanel, Panel):
 
         col = layout.column(align=True)
         col.label(text="Add/Remove:")
-        row = col.row()
+        row = col.row(align=True)
         row.operator("rigidbody.objects_add", text="Add Active").type = 'ACTIVE'
         row.operator("rigidbody.objects_add", text="Add Passive").type = 'PASSIVE'
-        row = col.row()
+        row = col.row(align=True)
         row.operator("rigidbody.objects_remove", text="Remove")
 
         col = layout.column(align=True)
@@ -175,8 +174,9 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, Panel):
         col.operator("mesh.subdivide")
         col.operator("mesh.loopcut_slide")
         col.operator("mesh.duplicate_move", text="Duplicate")
-        col.operator("mesh.spin")
-        col.operator("mesh.screw")
+        row = col.row(align=True)
+        row.operator("mesh.spin")
+        row.operator("mesh.screw")
 
         row = col.row(align=True)
         props = row.operator("mesh.knife_tool", text="Knife")
@@ -186,6 +186,7 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, Panel):
         props.use_occlude_geometry = False
         props.only_selected = True
         col.operator("mesh.knife_project")
+        col.operator("mesh.bisect")
 
         col = layout.column(align=True)
         col.label(text="Remove:")
@@ -234,7 +235,7 @@ class VIEW3D_PT_tools_meshedit_options(View3DPanel, Panel):
         col = layout.column(align=True)
         col.prop(mesh, "use_mirror_x")
 
-        row = col.row()
+        row = col.row(align=True)
         row.active = ob.data.use_mirror_x
         row.prop(mesh, "use_mirror_topology")
 
@@ -277,14 +278,13 @@ class VIEW3D_PT_tools_curveedit(View3DPanel, Panel):
         col.operator("curve.switch_direction")
         col.operator("curve.spline_type_set")
         col.operator("curve.radius_set")
-        col.operator("curve.smooth_radius")
 
         col = layout.column(align=True)
         col.label(text="Handles:")
-        row = col.row()
+        row = col.row(align=True)
         row.operator("curve.handle_type_set", text="Auto").type = 'AUTOMATIC'
         row.operator("curve.handle_type_set", text="Vector").type = 'VECTOR'
-        row = col.row()
+        row = col.row(align=True)
         row.operator("curve.handle_type_set", text="Align").type = 'ALIGNED'
         row.operator("curve.handle_type_set", text="Free").type = 'FREE_ALIGN'
 
@@ -463,14 +463,14 @@ class VIEW3D_PT_tools_posemode(View3DPanel, Panel):
 
         col = layout.column(align=True)
         col.label(text="In-Between:")
-        row = col.row()
+        row = col.row(align=True)
         row.operator("pose.push", text="Push")
         row.operator("pose.relax", text="Relax")
         col.operator("pose.breakdown", text="Breakdowner")
 
         col = layout.column(align=True)
         col.label(text="Pose:")
-        row = col.row()
+        row = col.row(align=True)
         row.operator("pose.copy", text="Copy")
         row.operator("pose.paste", text="Paste")
 
@@ -609,8 +609,8 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             # use_original_normal and sculpt_plane
             if capabilities.has_sculpt_plane:
-                row = col.row(align=True)
                 col.separator()
+                row = col.row(align=True)
 
                 if brush.use_original_normal:
                     row.prop(brush, "use_original_normal", toggle=True, text="", icon='LOCKED')
@@ -676,13 +676,13 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col = layout.column(align=True)
             col.label(text="Overlay:")
 
-            row = col.row()
+            row = col.row(align=True)
             if brush.use_cursor_overlay:
                 row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
             else:
                 row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
 
-            sub = row.row()
+            sub = row.row(align=True)
             sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
             sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
@@ -703,8 +703,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             self.prop_unified_strength(row, context, brush, "strength", text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
-            row = col.row(align=True)
-
             col.prop(brush, "blend", text="Blend")
 
             col = layout.column()
@@ -714,13 +712,13 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col = layout.column(align=True)
             col.label(text="Overlay:")
 
-            row = col.row()
+            row = col.row(align=True)
             if brush.use_cursor_overlay:
                 row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
             else:
                 row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
 
-            sub = row.row()
+            sub = row.row(align=True)
             sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
             sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
@@ -739,8 +737,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             row = col.row(align=True)
             self.prop_unified_strength(row, context, brush, "strength", text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
-
-            row = col.row(align=True)
 
             col.prop(brush, "vertex_tool", text="Blend")
 
@@ -772,13 +768,13 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col = layout.column(align=True)
             col.label(text="Overlay:")
 
-            row = col.row()
+            row = col.row(align=True)
             if brush.use_cursor_overlay:
                 row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
             else:
                 row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
 
-            sub = row.row()
+            sub = row.row(align=True)
             sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
             sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
@@ -811,14 +807,14 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
         col.active = brush.brush_capabilities.has_overlay
         col.label(text="Overlay:")
 
-        row = col.row()
+        row = col.row(align=True)
         if tex_slot.map_mode != 'STENCIL':
             if brush.use_primary_overlay:
                 row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
             else:
                 row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
 
-        sub = row.row()
+        sub = row.row(align=True)
         sub.prop(brush, "texture_overlay_alpha", text="Alpha")
         sub.prop(brush, "use_primary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
@@ -849,14 +845,14 @@ class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
         col.active = brush.brush_capabilities.has_overlay
         col.label(text="Overlay:")
 
-        row = col.row()
+        row = col.row(align=True)
         if tex_slot_alpha.map_mode != 'STENCIL':
             if brush.use_secondary_overlay:
                 row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
             else:
                 row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
 
-        sub = row.row()
+        sub = row.row(align=True)
         sub.prop(brush, "mask_overlay_alpha", text="Alpha")
         sub.prop(brush, "use_secondary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
@@ -917,6 +913,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
                     row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
                     row.prop(brush, "jitter_absolute")
                 row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+
             if brush.sculpt_capabilities.has_smooth_stroke:
                 col = layout.column()
                 col.separator()
@@ -948,6 +945,8 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
             sub.active = brush.use_smooth_stroke
             sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
             sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+
+        layout.prop(settings, "input_samples")
 
 
 class VIEW3D_PT_tools_brush_curve(Panel, View3DPaintPanel):
@@ -1032,8 +1031,6 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         layout.prop(sculpt, "use_deform_only")
         layout.prop(sculpt, "show_diffuse_color")
 
-        layout.prop(sculpt, "input_samples")
-
         self.unified_paint_settings(layout, context)
 
 
@@ -1052,7 +1049,7 @@ class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
 
         col = layout.column(align=True)
         col.label(text="Mirror:")
-        row = col.row()
+        row = col.row(align=True)
         row.prop(sculpt, "use_symmetry_x", text="X", toggle=True)
         row.prop(sculpt, "use_symmetry_y", text="Y", toggle=True)
         row.prop(sculpt, "use_symmetry_z", text="Z", toggle=True)
@@ -1140,11 +1137,14 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
         wpaint = tool_settings.weight_paint
 
         col = layout.column()
+        row = col.row()
 
-        col.prop(wpaint, "use_all_faces")
-        col.prop(wpaint, "use_normal")
-        col.prop(wpaint, "use_spray")
-        col.prop(wpaint, "use_group_restrict")
+        row.prop(wpaint, "use_all_faces")
+        row.prop(wpaint, "use_normal")
+        col = layout.column()
+        row = col.row()
+        row.prop(wpaint, "use_spray")
+        row.prop(wpaint, "use_group_restrict")
 
         obj = context.weight_paint_object
         if obj.type == 'MESH':
@@ -1153,8 +1153,6 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
             row = col.row()
             row.active = mesh.use_mirror_x
             row.prop(mesh, "use_mirror_topology")
-
-        col.prop(wpaint, "input_samples")
 
         col.label("Show Zero Weights:")
         sub = col.row()
@@ -1177,12 +1175,11 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
         vpaint = toolsettings.vertex_paint
 
         col = layout.column()
+        row = col.row()
         #col.prop(vpaint, "mode", text="")
-        col.prop(vpaint, "use_all_faces")
-        col.prop(vpaint, "use_normal")
+        row.prop(vpaint, "use_all_faces")
+        row.prop(vpaint, "use_normal")
         col.prop(vpaint, "use_spray")
-
-        col.prop(vpaint, "input_samples")
 
         self.unified_paint_settings(col, context)
 
@@ -1212,8 +1209,6 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         toolsettings = context.tool_settings
         ipaint = toolsettings.image_paint
         settings = toolsettings.image_paint
-
-        layout.prop(ipaint, "input_samples")
 
         col = layout.column()
         col.prop(ipaint, "use_occlude")
@@ -1334,7 +1329,7 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
         if pe.is_hair:
             col.active = pe.is_editable
             col.prop(pe, "use_emitter_deflect", text="Deflect emitter")
-            sub = col.row()
+            sub = col.row(align=True)
             sub.active = pe.use_emitter_deflect
             sub.prop(pe, "emitter_distance", text="Distance")
 
@@ -1358,7 +1353,7 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
             if pe.type == 'PARTICLES':
                 col.prop(pe, "show_particles", text="Particles")
             col.prop(pe, "use_fade_time")
-            sub = col.row()
+            sub = col.row(align=True)
             sub.active = pe.use_fade_time
             sub.prop(pe, "fade_frames", slider=True)
 

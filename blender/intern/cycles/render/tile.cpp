@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "tile.h"
@@ -24,7 +22,7 @@
 CCL_NAMESPACE_BEGIN
 
 TileManager::TileManager(bool progressive_, int num_samples_, int2 tile_size_, int start_resolution_,
-                         bool preserve_tile_device_, bool background_, int tile_order_, int num_devices_)
+                         bool preserve_tile_device_, bool background_, TileOrder tile_order_, int num_devices_)
 {
 	progressive = progressive_;
 	tile_size = tile_size_;
@@ -180,7 +178,7 @@ list<Tile>::iterator TileManager::next_viewport_tile(int device)
 	return state.tiles.end();
 }
 
-list<Tile>::iterator TileManager::next_background_tile(int device, int tile_order)
+list<Tile>::iterator TileManager::next_background_tile(int device, TileOrder tile_order)
 {
 	list<Tile>::iterator iter, best = state.tiles.end();
 
@@ -189,7 +187,7 @@ list<Tile>::iterator TileManager::next_background_tile(int device, int tile_orde
 
 	int64_t cordx = max(1, params.width/resolution);
 	int64_t cordy = max(1, params.height/resolution);
-	int64_t mindist = cordx * cordy;
+	int64_t mindist = INT_MAX;
 	
 	int64_t centx = cordx / 2, centy = cordy / 2;
 
@@ -201,21 +199,21 @@ list<Tile>::iterator TileManager::next_background_tile(int device, int tile_orde
 			int64_t disty = cordy;
 			
 			switch (tile_order) {
-				case TileManager::CENTER:
+				case TILE_CENTER:
 					distx = centx - (cur_tile.x + cur_tile.w);
 					disty = centy - (cur_tile.y + cur_tile.h);
 					distx = (int64_t) sqrt((double)distx * distx + disty * disty);
 					break;
-				case TileManager::RIGHT_TO_LEFT:
+				case TILE_RIGHT_TO_LEFT:
 					distx = cordx - cur_tile.x;
 					break;
-				case TileManager::LEFT_TO_RIGHT:
+				case TILE_LEFT_TO_RIGHT:
 					distx = cordx + cur_tile.x;	
 					break;
-				case TileManager::TOP_TO_BOTTOM:
+				case TILE_TOP_TO_BOTTOM:
 					distx = cordx - cur_tile.y;
 					break;
-				case TileManager::BOTTOM_TO_TOP:
+				case TILE_BOTTOM_TO_TOP:
 					distx = cordx + cur_tile.y;
 					break; 
 				default:

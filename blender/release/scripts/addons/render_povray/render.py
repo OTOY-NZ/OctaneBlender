@@ -165,7 +165,8 @@ def write_pov(filename, scene=None, info_callback=None):
     render = scene.render
     world = scene.world
     global_matrix = mathutils.Matrix.Rotation(-pi / 2.0, 4, 'X')
-
+    comments = scene.pov.comments_enable and not scene.pov.tempfiles_enable
+    linebreaksinlists= scene.pov.list_lf_enable and not scene.pov.tempfiles_enable
     def setTab(tabtype, spaces):
         TabStr = ""
         if tabtype == 'NONE':
@@ -177,9 +178,8 @@ def write_pov(filename, scene=None, info_callback=None):
         return TabStr
 
     tab = setTab(scene.pov.indentation_character, scene.pov.indentation_spaces)
-
-    def tabWrite(str_o):
-        if not scene.pov.tempfiles_enable:
+    if not scene.pov.tempfiles_enable:
+        def tabWrite(str_o):
             global tabLevel
             brackets = str_o.count("{") - str_o.count("}") + str_o.count("[") - str_o.count("]")
             if brackets < 0:
@@ -192,7 +192,8 @@ def write_pov(filename, scene=None, info_callback=None):
             file.write(str_o)
             if brackets > 0:
                 tabLevel = tabLevel + brackets
-        else:
+    else:
+        def tabWrite(str_o):
             file.write(str_o)
 
     def uniqueName(name, nameSeq):
@@ -311,16 +312,10 @@ def write_pov(filename, scene=None, info_callback=None):
             name = name_orig = DEF_MAT_NAME
 
 
-        comments = scene.pov.comments_enable
-        
         if material:
-            if (material.specular_color.r == material.specular_color.g) and (material.specular_color.r == material.specular_color.b):
-                colored_specular_found = False
-            else:
-                colored_specular_found = True
-        
-        
-        
+            # If saturation(.s) is not zero, then color is not grey, and has a tint
+            colored_specular_found = (material.specular_color.s > 0.0)
+
         ##################
         # Several versions of the finish: Level conditions are variations for specular/Mirror
         # texture channel map with alternative finish of 0 specular and no mirror reflection.
@@ -331,20 +326,20 @@ def write_pov(filename, scene=None, info_callback=None):
         def povHasnoSpecularMaps(Level):
             if Level == 1:
                 tabWrite("#declare %s = finish {" % safety(name, Level=1))
-                if not scene.pov.tempfiles_enable and comments:
+                if comments:
                     file.write("  //No specular nor Mirror reflection\n")
                 else:
                     tabWrite("\n")
             elif Level == 2:
                 tabWrite("#declare %s = finish {" % safety(name, Level=2))
-                if not scene.pov.tempfiles_enable and comments:
+                if comments:
                     file.write("  //translation of spec and mir levels for when no map " \
                                "influences them\n")
                 else:
                     tabWrite("\n")
             elif Level == 3:
                 tabWrite("#declare %s = finish {" % safety(name, Level=3))
-                if not scene.pov.tempfiles_enable and comments:
+                if comments:
                     file.write("  //Maximum Spec and Mirror\n")
                 else:
                     tabWrite("\n")
@@ -665,7 +660,7 @@ def write_pov(filename, scene=None, info_callback=None):
 
         # TODO - blenders 'motherball' naming is not supported.
 
-        if not scene.pov.tempfiles_enable and scene.pov.comments_enable and len(metas) >= 1:
+        if comments and len(metas) >= 1:
             file.write("//--Blob objects--\n\n")
 
         for ob in metas:
@@ -739,7 +734,7 @@ def write_pov(filename, scene=None, info_callback=None):
 
                 tabWrite("}\n")  # End of Metaball block
 
-                if not scene.pov.tempfiles_enable and scene.pov.comments_enable and len(metas) >= 1:
+                if comments and len(metas) >= 1:
                     file.write("\n")
 
 #    objectNames = {}
@@ -751,7 +746,7 @@ def write_pov(filename, scene=None, info_callback=None):
 #            # Grab materials attached to object instances ...
 #            if hasattr(ob, 'material_slots'):
 #                for ms in ob.material_slots:
-#                    if ms.material != None and ms.link == 'OBJECT':
+#                    if ms.material is not None and ms.link == 'OBJECT':
 #                        if ms.material in obmatslist:
 #                            return False
 #                        else:
@@ -761,7 +756,7 @@ def write_pov(filename, scene=None, info_callback=None):
 #            # Grab materials attached to object instances ...
 #            if hasattr(ob, 'material_slots'):
 #                for ms in ob.material_slots:
-#                    if ms.material != None and ms.link == 'OBJECT':
+#                    if ms.material is not None and ms.link == 'OBJECT':
 #                        # If there is at least one material slot linked to the object
 #                        # and not the data (mesh), always create a new, "private" data instance.
 #                        return True
@@ -779,7 +774,7 @@ def write_pov(filename, scene=None, info_callback=None):
                 has_local_mats = False
                 key = [dataname]
                 for ms in ob.material_slots:
-                    if ms.material != None:
+                    if ms.material is not None:
                         key.append(ms.material.name)
                         if ms.link == 'OBJECT' and not has_local_mats:
                             has_local_mats = True
@@ -881,7 +876,7 @@ def write_pov(filename, scene=None, info_callback=None):
                                         file.write('%i,\n' % (steps))
                                         
                                     for step in range(0, steps):
-                                        co = pSys.co_hair(ob, mod, pindex, step)
+                                        co = pSys.co_hair(ob, pindex, step)
                                     #for controlPoint in particle.hair_keys:
                                         if pSys.settings.clump_factor != 0:
                                             hDiameter = pSys.settings.clump_factor / 200.0 * random.uniform(0.5, 1)
@@ -931,10 +926,10 @@ def write_pov(filename, scene=None, info_callback=None):
                             file.write('#end\n')
                             file.write('\n')
 
-                            # Dynamically create a union of the hairs (or a subset of the hairs).
-                            # By default use every 25th hair, which is usually ok for test renders.
-
-                            file.write('#ifndef(HairStep) #declare HairStep = %d; #end\n' % ((totalNumberOfHairs/(totalNumberOfHairs * pSys.settings.draw_percentage / 100))))
+                            # Dynamically create a union of the hairstrands (or a subset of them).
+                            # By default use every hairstrand, commented line is for hand tweaking test renders.
+                            file.write('//Increasing HairStep divides the amount of hair for test renders.\n')
+                            file.write('#ifndef(HairStep) #declare HairStep = 1; #end\n')
                             file.write('union{\n')
                             file.write('  #local I = 0;\n')
                             file.write('  #while (I < %i)\n' % totalNumberOfHairs)
@@ -1003,7 +998,7 @@ def write_pov(filename, scene=None, info_callback=None):
             name = string_strip_hyphen(bpy.path.clean_name(name_orig))
             dataname = string_strip_hyphen(bpy.path.clean_name(dataname_orig))
 ##            for slot in ob.material_slots:
-##                if slot.material != None and slot.link == 'OBJECT':
+##                if slot.material is not None and slot.link == 'OBJECT':
 ##                    obmaterial = slot.material
 
 #############################################
@@ -1031,7 +1026,8 @@ def write_pov(filename, scene=None, info_callback=None):
                 uv_layer = None
 
             try:
-                vcol_layer = me.vertex_colors.active.data
+                #vcol_layer = me.vertex_colors.active.data
+                vcol_layer = me.tessface_vertex_colors.active.data
             except AttributeError:
                 vcol_layer = None
 
@@ -1051,7 +1047,7 @@ def write_pov(filename, scene=None, info_callback=None):
 
             tabStr = tab * tabLevel
             for v in me.vertices:
-                if not scene.pov.tempfiles_enable and scene.pov.list_lf_enable:
+                if linebreaksinlists:
                     file.write(",\n")
                     file.write(tabStr + "<%.6f, %.6f, %.6f>" % v.co[:])  # vert count
                 else:
@@ -1079,7 +1075,7 @@ def write_pov(filename, scene=None, info_callback=None):
             idx = 0
             tabStr = tab * tabLevel
             for no, index in uniqueNormals.items():
-                if not scene.pov.tempfiles_enable and scene.pov.list_lf_enable:
+                if linebreaksinlists:
                     file.write(",\n")
                     file.write(tabStr + "<%.6f, %.6f, %.6f>" % no)  # vert count
                 else:
@@ -1113,7 +1109,7 @@ def write_pov(filename, scene=None, info_callback=None):
                 idx = 0
                 tabStr = tab * tabLevel
                 for uv, index in uniqueUVs.items():
-                    if not scene.pov.tempfiles_enable and scene.pov.list_lf_enable:
+                    if linebreaksinlists:
                         file.write(",\n")
                         file.write(tabStr + "<%.6f, %.6f>" % uv)
                     else:
@@ -1131,7 +1127,12 @@ def write_pov(filename, scene=None, info_callback=None):
                 tabWrite("}\n")
 
             if me.vertex_colors:
-
+                #Write down vertex colors as a texture for each vertex
+                tabWrite("texture_list {\n")
+                tabWrite("%d\n" % (((len(me_faces)-quadCount) * 3 )+ quadCount * 4)) # works only with tris and quad mesh for now
+                VcolIdx=0
+                if comments:
+                    file.write("\n  //Vertex colors: one simple pigment texture per vertex\n")
                 for fi, f in enumerate(me_faces):
                     # annoying, index may be invalid
                     material_index = f.material_index
@@ -1139,9 +1140,8 @@ def write_pov(filename, scene=None, info_callback=None):
                         material = me_materials[material_index]
                     except:
                         material = None
-
-                    if material and material.use_vertex_color_paint:
-
+                    if material: #and material.use_vertex_color_paint: #Always use vertex color when there is some for now
+                     
                         col = vcol_layer[fi]
 
                         if len(faces_verts[fi]) == 4:
@@ -1151,8 +1151,13 @@ def write_pov(filename, scene=None, info_callback=None):
 
                         for col in cols:
                             key = col[0], col[1], col[2], material_index  # Material index!
-                            vertCols[key] = [-1]
-
+                            VcolIdx+=1
+                            vertCols[key] = [VcolIdx]
+                            if linebreaksinlists:
+                                tabWrite("texture {pigment{ color rgb <%6f,%6f,%6f> }}\n" % (col[0], col[1], col[2]))
+                            else:
+                                tabWrite("texture {pigment{ color rgb <%6f,%6f,%6f> }}" % (col[0], col[1], col[2]))
+                                tabStr = tab * tabLevel
                     else:
                         if material:
                             # Multiply diffuse with SSS Color
@@ -1167,6 +1172,155 @@ def write_pov(filename, scene=None, info_callback=None):
                                       material_index
                                 vertCols[key] = [-1]
 
+                tabWrite("\n}\n")                
+                # Face indices
+                tabWrite("\nface_indices {\n")
+                tabWrite("%d" % (len(me_faces) + quadCount))  # faces count
+                tabStr = tab * tabLevel
+
+                for fi, f in enumerate(me_faces):
+                    fv = faces_verts[fi]
+                    material_index = f.material_index
+                    if len(fv) == 4:
+                        indices = (0, 1, 2), (0, 2, 3)
+                    else:
+                        indices = ((0, 1, 2),)
+
+                    if vcol_layer:
+                        col = vcol_layer[fi]
+
+                        if len(fv) == 4:
+                            cols = col.color1, col.color2, col.color3, col.color4
+                        else:
+                            cols = col.color1, col.color2, col.color3
+
+                    if not me_materials or me_materials[material_index] is None:  # No materials
+                        for i1, i2, i3 in indices:
+                            if linebreaksinlists:
+                                file.write(",\n")
+                                # vert count
+                                file.write(tabStr + "<%d,%d,%d>" % (fv[i1], fv[i2], fv[i3]))
+                            else:
+                                file.write(", ")
+                                file.write("<%d,%d,%d>" % (fv[i1], fv[i2], fv[i3]))  # vert count
+                    else:
+                        material = me_materials[material_index]
+                        for i1, i2, i3 in indices:
+                            if me.vertex_colors: #and material.use_vertex_color_paint:
+                                # Color per vertex - vertex color
+
+                                col1 = cols[i1]
+                                col2 = cols[i2]
+                                col3 = cols[i3]
+
+                                ci1 = vertCols[col1[0], col1[1], col1[2], material_index][0]
+                                ci2 = vertCols[col2[0], col2[1], col2[2], material_index][0]
+                                ci3 = vertCols[col3[0], col3[1], col3[2], material_index][0]
+                            else:
+                                # Color per material - flat material color
+                                if material.subsurface_scattering.use:
+                                    diffuse_color = [i * j for i, j in zip(material.subsurface_scattering.color[:], material.diffuse_color[:])]
+                                else:
+                                    diffuse_color = material.diffuse_color[:]
+                                ci1 = ci2 = ci3 = vertCols[diffuse_color[0], diffuse_color[1], \
+                                                  diffuse_color[2], f.material_index][0]
+                                # ci are zero based index so we'll subtract 1 from them
+                            if linebreaksinlists:
+                                file.write(",\n")
+                                file.write(tabStr + "<%d,%d,%d>, %d,%d,%d" % \
+                                           (fv[i1], fv[i2], fv[i3], ci1-1, ci2-1, ci3-1))  # vert count 
+                            else:
+                                file.write(", ")
+                                file.write("<%d,%d,%d>, %d,%d,%d" % \
+                                           (fv[i1], fv[i2], fv[i3], ci1-1, ci2-1, ci3-1))  # vert count
+
+                file.write("\n")
+                tabWrite("}\n")
+
+                # normal_indices indices
+                tabWrite("normal_indices {\n")
+                tabWrite("%d" % (len(me_faces) + quadCount))  # faces count
+                tabStr = tab * tabLevel
+                for fi, fv in enumerate(faces_verts):
+
+                    if len(fv) == 4:
+                        indices = (0, 1, 2), (0, 2, 3)
+                    else:
+                        indices = ((0, 1, 2),)
+
+                    for i1, i2, i3 in indices:
+                        if me_faces[fi].use_smooth:
+                            if linebreaksinlists:
+                                file.write(",\n")
+                                file.write(tabStr + "<%d,%d,%d>" %\
+                                (uniqueNormals[verts_normals[fv[i1]]][0],\
+                                 uniqueNormals[verts_normals[fv[i2]]][0],\
+                                 uniqueNormals[verts_normals[fv[i3]]][0]))  # vert count
+                            else:
+                                file.write(", ")
+                                file.write("<%d,%d,%d>" %\
+                                (uniqueNormals[verts_normals[fv[i1]]][0],\
+                                 uniqueNormals[verts_normals[fv[i2]]][0],\
+                                 uniqueNormals[verts_normals[fv[i3]]][0]))  # vert count
+                        else:
+                            idx = uniqueNormals[faces_normals[fi]][0]
+                            if linebreaksinlists:
+                                file.write(",\n")
+                                file.write(tabStr + "<%d,%d,%d>" % (idx, idx, idx))  # vert count
+                            else:
+                                file.write(", ")
+                                file.write("<%d,%d,%d>" % (idx, idx, idx))  # vert count
+
+                file.write("\n")
+                tabWrite("}\n")
+
+                if uv_layer:
+                    tabWrite("uv_indices {\n")
+                    tabWrite("%d" % (len(me_faces) + quadCount))  # faces count
+                    tabStr = tab * tabLevel
+                    for fi, fv in enumerate(faces_verts):
+
+                        if len(fv) == 4:
+                            indices = (0, 1, 2), (0, 2, 3)
+                        else:
+                            indices = ((0, 1, 2),)
+
+                        uv = uv_layer[fi]
+                        if len(faces_verts[fi]) == 4:
+                            uvs = uv.uv[0][:], uv.uv[1][:], uv.uv[2][:], uv.uv[3][:]
+                        else:
+                            uvs = uv.uv[0][:], uv.uv[1][:], uv.uv[2][:]
+
+                        for i1, i2, i3 in indices:
+                            if linebreaksinlists:
+                                file.write(",\n")
+                                file.write(tabStr + "<%d,%d,%d>" % (
+                                         uniqueUVs[uvs[i1]][0],\
+                                         uniqueUVs[uvs[i2]][0],\
+                                         uniqueUVs[uvs[i3]][0]))
+                            else:
+                                file.write(", ")
+                                file.write("<%d,%d,%d>" % (
+                                         uniqueUVs[uvs[i1]][0],\
+                                         uniqueUVs[uvs[i2]][0],\
+                                         uniqueUVs[uvs[i3]][0]))
+
+                    file.write("\n")
+                    tabWrite("}\n")
+
+                if me.materials:
+                    try:
+                        material = me.materials[0]  # dodgy
+                        writeObjectMaterial(material, ob)
+                    except IndexError:
+                        print(me)
+
+                #Importance for radiosity sampling added here:
+                tabWrite("radiosity { \n")
+                tabWrite("importance %3g \n" % importance)
+                tabWrite("}\n")
+
+                tabWrite("}\n")  # End of mesh block
             else:
                 # No vertex colors, so write material colors as vertex colors
                 for i, material in enumerate(me_materials):
@@ -1186,25 +1340,25 @@ def write_pov(filename, scene=None, info_callback=None):
                         LocalMaterialNames = []                        
                         for col, index in vertCols.items():
                             #if me_materials:
-                            material = me_materials[col[3]]
-                            if me_materials == None: #XXX working?
+                            mater = me_materials[col[3]]
+                            if me_materials is None: #XXX working?
                                 material_finish = DEF_MAT_NAME  # not working properly,
                                 trans = 0.0
 
                             else:
-                                material_finish = materialNames[material.name]                        
-                                if material.use_transparency:
-                                    trans = 1.0 - material.alpha
+                                material_finish = materialNames[mater.name]                        
+                                if mater.use_transparency:
+                                    trans = 1.0 - mater.alpha
                                 else:
                                     trans = 0.0                            
-                                if (material.specular_color.r == material.specular_color.g) and (material.specular_color.r == material.specular_color.b):
+                                if (mater.specular_color.r == mater.specular_color.g) and (mater.specular_color.r == mater.specular_color.b):
                                     colored_specular_found = False
                                 else:
                                     colored_specular_found = True
 
-                                if material.use_transparency and material.transparency_method == 'RAYTRACE':
-                                    povFilter = material.raytrace_transparency.filter * (1.0 - material.alpha)
-                                    trans = (1.0 - material.alpha) - povFilter
+                                if mater.use_transparency and mater.transparency_method == 'RAYTRACE':
+                                    povFilter = mater.raytrace_transparency.filter * (1.0 - mater.alpha)
+                                    trans = (1.0 - mater.alpha) - povFilter
                                 else:
                                     povFilter = 0.0
                                     
@@ -1213,9 +1367,17 @@ def write_pov(filename, scene=None, info_callback=None):
                                 texturesSpec = ""
                                 texturesNorm = ""
                                 texturesAlpha = ""
-                                for t in material.texture_slots:
+                                for t in mater.texture_slots:
                                     if t and t.texture.type == 'IMAGE' and t.use and t.texture.image:
                                         image_filename = path_image(t.texture.image)
+                                        # IMAGE SEQUENCE BEGINS
+                                        if image_filename:
+                                            if bpy.data.images[t.texture.image.name].source == 'SEQUENCE':
+                                                korvaa = "." + str(bpy.data.textures[t.texture.name].image_user.frame_offset + 1).zfill(3) + "."
+                                                image_filename = image_filename.replace(".001.", korvaa)
+                                                print(" seq debug ")
+                                                print(image_filename)
+                                        # IMAGE SEQUENCE ENDS
                                         imgGamma = ""
                                         if image_filename:
                                             if t.use_map_color_diffuse:
@@ -1247,20 +1409,24 @@ def write_pov(filename, scene=None, info_callback=None):
                                 file.write("\n")
                                 # THIS AREA NEEDS TO LEAVE THE TEXTURE OPEN UNTIL ALL MAPS ARE WRITTEN DOWN.
                                 # --MR
-                                currentMatName = string_strip_hyphen(materialNames[material.name])
+                                currentMatName = string_strip_hyphen(materialNames[mater.name])
                                 LocalMaterialNames.append(currentMatName)
                                 file.write("\n #declare MAT_%s = \ntexture{\n" % currentMatName)
 
                                 ################################################################################
-                                if material.diffuse_shader == 'MINNAERT':
+                                
+                                if mater.pov.replacement_text != "":
+                                    file.write("%s\n" % mater.pov.replacement_text)
+                                #################################################################################
+                                if mater.diffuse_shader == 'MINNAERT':
                                     tabWrite("\n")
                                     tabWrite("aoi\n")
                                     tabWrite("texture_map {\n")
                                     tabWrite("[%.3g finish {diffuse %.3g}]\n" % \
-                                             (material.darkness / 2.0, 2.0 - material.darkness))
-                                    tabWrite("[%.3g\n" % (1.0 - (material.darkness / 2.0)))
+                                             (mater.darkness / 2.0, 2.0 - mater.darkness))
+                                    tabWrite("[%.3g\n" % (1.0 - (mater.darkness / 2.0)))
 
-                                if material.diffuse_shader == 'FRESNEL':
+                                if mater.diffuse_shader == 'FRESNEL':
                                     # For FRESNEL diffuse in POV, we'll layer slope patterned textures
                                     # with lamp vector as the slope vector and nest one slope per lamp
                                     # into each texture map's entry.
@@ -1272,11 +1438,11 @@ def write_pov(filename, scene=None, info_callback=None):
                                         # Diffuse Fresnel value and factor go up to five,
                                         # other kind of values needed: used the number 5 below to remap
                                         tabWrite("[%.3g finish {diffuse %.3g}]\n" % \
-                                                 ((5.0 - material.diffuse_fresnel) / 5,
-                                                  (material.diffuse_intensity *
-                                                   ((5.0 - material.diffuse_fresnel_factor) / 5))))
-                                        tabWrite("[%.3g\n" % ((material.diffuse_fresnel_factor / 5) *
-                                                              (material.diffuse_fresnel / 5.0)))
+                                                 ((5.0 - mater.diffuse_fresnel) / 5,
+                                                  (mater.diffuse_intensity *
+                                                   ((5.0 - mater.diffuse_fresnel_factor) / 5))))
+                                        tabWrite("[%.3g\n" % ((mater.diffuse_fresnel_factor / 5) *
+                                                              (mater.diffuse_fresnel / 5.0)))
                                         c += 1
 
                                 # if shader is a 'FRESNEL' or 'MINNAERT': slope pigment pattern or aoi
@@ -1414,7 +1580,7 @@ def write_pov(filename, scene=None, info_callback=None):
                                     ##################Second index for mapping specular max value###############
                                         tabWrite("[1 \n")
 
-                                if texturesDif == "" and material.pov.replacement_text == "":
+                                if texturesDif == "" and mater.pov.replacement_text == "":
                                     if texturesAlpha != "":
                                         # POV-Ray "scale" is not a number of repetitions factor, but its inverse,
                                         # a standard scale factor.
@@ -1455,7 +1621,7 @@ def write_pov(filename, scene=None, info_callback=None):
                                         # Level 2 is translated specular
                                         tabWrite("finish {%s}\n" % (safety(material_finish, Level=2)))
 
-                                elif material.pov.replacement_text == "":
+                                elif mater.pov.replacement_text == "":
                                     # POV-Ray "scale" is not a number of repetitions factor, but its inverse,
                                     # a standard scale factor.
                                     # Offset seems needed relatively to scale so probably center of the scale is
@@ -1514,7 +1680,7 @@ def write_pov(filename, scene=None, info_callback=None):
                                     #           "{%s \"%s\" %s}%s} finish {%s}" % \
                                     #           (imageFormat(texturesDif), texturesDif,imgMap(t_dif),
                                     #            mappingDif, safety(material_finish)))
-                                if texturesNorm != "" and material.pov.replacement_text == "":
+                                if texturesNorm != "" and mater.pov.replacement_text == "":
                                     ## scale 1 rotate y*0
                                     # POV-Ray "scale" is not a number of repetitions factor, but its inverse,
                                     # a standard scale factor.
@@ -1529,16 +1695,16 @@ def write_pov(filename, scene=None, info_callback=None):
                                     tabWrite("normal {uv_mapping bump_map {%s \"%s\" %s  bump_size %.4g }%s}\n" % \
                                              (imageFormat(texturesNorm), texturesNorm, imgMap(t_nor),
                                               t_nor.normal_factor * 10.0, mappingNor))
-                                if texturesSpec != "" and material.pov.replacement_text == "":
+                                if texturesSpec != "" and mater.pov.replacement_text == "":
                                     tabWrite("]\n")
 
                                     tabWrite("}\n")
 
                                 #End of slope/ior texture_map
-                                if material.diffuse_shader == 'MINNAERT' and material.pov.replacement_text == "":
+                                if mater.diffuse_shader == 'MINNAERT' and mater.pov.replacement_text == "":
                                     tabWrite("]\n")
                                     tabWrite("}\n")
-                                if material.diffuse_shader == 'FRESNEL' and material.pov.replacement_text == "":
+                                if mater.diffuse_shader == 'FRESNEL' and mater.pov.replacement_text == "":
                                     c = 1
                                     while (c <= lampCount):
                                         tabWrite("]\n")
@@ -1550,15 +1716,15 @@ def write_pov(filename, scene=None, info_callback=None):
                                 # Close first layer of POV "texture" (Blender material)
                                 tabWrite("}\n")
                                 
-                                if (material.specular_color.r == material.specular_color.g) and (material.specular_color.r == material.specular_color.b):
-                                    colored_specular_found = False
-                                else:
+                                if (mater.specular_color.s > 0.0):
                                     colored_specular_found = True
+                                else:
+                                    colored_specular_found = False
                                     
                                 # Write another layered texture using invisible diffuse and metallic trick 
                                 # to emulate colored specular highlights
                                 special_texture_found = False
-                                for t in material.texture_slots:
+                                for t in mater.texture_slots:
                                     if(t and t.texture.type == 'IMAGE' and t.use and t.texture.image and
                                        (t.use_map_specular or t.use_map_raymir)):
                                         # Specular mapped textures would conflict with colored specular
@@ -1566,18 +1732,18 @@ def write_pov(filename, scene=None, info_callback=None):
                                         special_texture_found = True
                                 
                                 if colored_specular_found and not special_texture_found:
-                                    if not scene.pov.tempfiles_enable and scene.pov.comments_enable:
+                                    if comments:
                                         file.write("  //Emulating colored highlights with a metallic layer\n")
                                     else:
                                         tabWrite("\n")
                                 
                                     tabWrite("texture {\n")
                                     tabWrite("pigment {rgbft<%.3g, %.3g, %.3g, 0, 1>}\n" % \
-                                                     (material.specular_color[0], material.specular_color[1], material.specular_color[2]))
+                                                     (mater.specular_color[0], mater.specular_color[1], mater.specular_color[2]))
                                     tabWrite("finish {%s}\n" % (safety(material_finish, Level=2))) # Level 2 is translated spec
 
                                     texturesNorm = ""
-                                    for t in material.texture_slots:
+                                    for t in mater.texture_slots:
                                         if t and t.texture.type == 'IMAGE' and t.use and t.texture.image:
                                             image_filename = path_image(t.texture.image)
                                             imgGamma = ""
@@ -1608,7 +1774,7 @@ def write_pov(filename, scene=None, info_callback=None):
                 tabWrite("texture_list {\n")
                 file.write(tabStr + "%s" % (len(vertCols)))  # vert count
                     
-                if material.pov.replacement_text != "":
+                if mater.pov.replacement_text != "":
                     file.write("\n")
                     file.write(" texture{%s}\n" % material.pov.replacement_text)
 
@@ -1643,7 +1809,7 @@ def write_pov(filename, scene=None, info_callback=None):
 
                     if not me_materials or me_materials[material_index] is None:  # No materials
                         for i1, i2, i3 in indices:
-                            if not scene.pov.tempfiles_enable and scene.pov.list_lf_enable:
+                            if linebreaksinlists:
                                 file.write(",\n")
                                 # vert count
                                 file.write(tabStr + "<%d,%d,%d>" % (fv[i1], fv[i2], fv[i3]))
@@ -1653,7 +1819,7 @@ def write_pov(filename, scene=None, info_callback=None):
                     else:
                         material = me_materials[material_index]
                         for i1, i2, i3 in indices:
-                            if me.vertex_colors and material.use_vertex_color_paint:
+                            if me.vertex_colors: #and material.use_vertex_color_paint:
                                 # Color per vertex - vertex color
 
                                 col1 = cols[i1]
@@ -1672,7 +1838,7 @@ def write_pov(filename, scene=None, info_callback=None):
                                 ci1 = ci2 = ci3 = vertCols[diffuse_color[0], diffuse_color[1], \
                                                   diffuse_color[2], f.material_index][0]
 
-                            if not scene.pov.tempfiles_enable and scene.pov.list_lf_enable:
+                            if linebreaksinlists:
                                 file.write(",\n")
                                 file.write(tabStr + "<%d,%d,%d>, %d,%d,%d" % \
                                            (fv[i1], fv[i2], fv[i3], ci1, ci2, ci3))  # vert count
@@ -1697,7 +1863,7 @@ def write_pov(filename, scene=None, info_callback=None):
 
                     for i1, i2, i3 in indices:
                         if me_faces[fi].use_smooth:
-                            if not scene.pov.tempfiles_enable and scene.pov.list_lf_enable:
+                            if linebreaksinlists:
                                 file.write(",\n")
                                 file.write(tabStr + "<%d,%d,%d>" %\
                                 (uniqueNormals[verts_normals[fv[i1]]][0],\
@@ -1711,7 +1877,7 @@ def write_pov(filename, scene=None, info_callback=None):
                                  uniqueNormals[verts_normals[fv[i3]]][0]))  # vert count
                         else:
                             idx = uniqueNormals[faces_normals[fi]][0]
-                            if not scene.pov.tempfiles_enable and scene.pov.list_lf_enable:
+                            if linebreaksinlists:
                                 file.write(",\n")
                                 file.write(tabStr + "<%d,%d,%d>" % (idx, idx, idx))  # vert count
                             else:
@@ -1739,7 +1905,7 @@ def write_pov(filename, scene=None, info_callback=None):
                             uvs = uv.uv[0][:], uv.uv[1][:], uv.uv[2][:]
 
                         for i1, i2, i3 in indices:
-                            if not scene.pov.tempfiles_enable and scene.pov.list_lf_enable:
+                            if linebreaksinlists:
                                 file.write(",\n")
                                 file.write(tabStr + "<%d,%d,%d>" % (
                                          uniqueUVs[uvs[i1]][0],\
@@ -1971,7 +2137,10 @@ def write_pov(filename, scene=None, info_callback=None):
         tabWrite("}\n")
 
     def exportCustomCode():
-
+        # Write CurrentAnimation Frame for use in Custom POV Code
+        file.write("#declare CURFRAMENUM = %d;\n" % bpy.context.scene.frame_current)
+        #Change path and uncomment to add an animated include file by hand:
+        file.write("//#include \"/home/user/directory/animation_include_file.inc\"\n")
         for txt in bpy.data.texts:
             if txt.pov.custom_code:
                 # Why are the newlines needed?
@@ -1980,38 +2149,38 @@ def write_pov(filename, scene=None, info_callback=None):
                 file.write("\n")
 
     sel = renderable_objects(scene)
-    comments = scene.pov.comments_enable
-    if not scene.pov.tempfiles_enable and comments:
+    if comments:
         file.write("//----------------------------------------------\n" \
                    "//--Exported with POV-Ray exporter for Blender--\n" \
                    "//----------------------------------------------\n\n")
     file.write("#version 3.7;\n")
 
-    if not scene.pov.tempfiles_enable and comments:
-        file.write("\n//--CUSTOM CODE--\n\n")
-    exportCustomCode()
-
-    if not scene.pov.tempfiles_enable and comments:
-        file.write("\n//--Global settings and background--\n\n")
+    if comments:
+        file.write("\n//--Global settings--\n\n")
 
     exportGlobalSettings(scene)
 
-    if not scene.pov.tempfiles_enable and comments:
-        file.write("\n")
+    
+    if comments:
+        file.write("\n//--Custom Code--\n\n")
+    exportCustomCode()
+    
+    if comments:
+        file.write("\n//--Background--\n\n")
 
     exportWorld(scene.world)
 
-    if not scene.pov.tempfiles_enable and comments:
+    if comments:
         file.write("\n//--Cameras--\n\n")
 
     exportCamera()
 
-    if not scene.pov.tempfiles_enable and comments:
+    if comments:
         file.write("\n//--Lamps--\n\n")
 
     exportLamps([l for l in sel if l.type == 'LAMP'])
 
-    if not scene.pov.tempfiles_enable and comments:
+    if comments:
         file.write("\n//--Material Definitions--\n\n")
 
     # Convert all materials to strings we can access directly per vertex.
@@ -2020,12 +2189,12 @@ def write_pov(filename, scene=None, info_callback=None):
     for material in bpy.data.materials:
         if material.users > 0:
             writeMaterial(material)
-    if not scene.pov.tempfiles_enable and comments:
+    if comments:
         file.write("\n")
 
     exportMeta([l for l in sel if l.type == 'META'])
 
-    if not scene.pov.tempfiles_enable and comments:
+    if comments:
         file.write("//--Mesh objects--\n")
 
     exportMeshes(scene, sel)

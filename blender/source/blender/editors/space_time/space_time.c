@@ -201,9 +201,10 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 				col[3] = 0.1;
 				break;
 			default:
-				BLI_assert(0);
 				col[0] = 1.0;   col[1] = 0.0;   col[2] = 1.0;
 				col[3] = 0.1;
+				BLI_assert(0);
+				break;
 		}
 		glColor4fv(col);
 		
@@ -419,6 +420,9 @@ static void time_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 		case NC_SCENE:
 		{
 			switch (wmn->data) {
+				case ND_RENDER_RESULT:
+					ED_area_tag_redraw(sa);
+					break;
 				case ND_OB_ACTIVE:
 				case ND_FRAME:
 					ED_area_tag_refresh(sa);
@@ -435,8 +439,8 @@ static void time_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 							break;
 						}
 					}
+					break;
 				}
-				break;
 			}
 			break;
 		}
@@ -558,6 +562,7 @@ static void time_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), AR
 					ED_region_tag_redraw(ar);
 					break;
 			}
+			break;
 	}
 }
 
@@ -587,6 +592,7 @@ static void time_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), 
 		case NC_SCENE:
 		{
 			switch (wmn->data) {
+				case ND_RENDER_RESULT:
 				case ND_OB_SELECT:
 				case ND_FRAME:
 				case ND_FRAME_RANGE:

@@ -198,8 +198,7 @@ void CTX_store_free_list(ListBase *contexts)
 {
 	bContextStore *ctx;
 
-	while ((ctx = contexts->first)) {
-		BLI_remlink(contexts, ctx);
+	while ((ctx = BLI_pophead(contexts))) {
 		CTX_store_free(ctx);
 	}
 }
@@ -531,12 +530,12 @@ ListBase CTX_data_dir_get(const bContext *C)
 	return CTX_data_dir_get_ex(C, TRUE, FALSE, FALSE);
 }
 
-int CTX_data_equals(const char *member, const char *str)
+bool CTX_data_equals(const char *member, const char *str)
 {
 	return (strcmp(member, str) == 0);
 }
 
-int CTX_data_dir(const char *member)
+bool CTX_data_dir(const char *member)
 {
 	return member[0] == '\0';
 }

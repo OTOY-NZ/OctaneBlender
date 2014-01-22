@@ -189,9 +189,15 @@ typedef struct PanelType {
 
 /* uilist types */
 
-/* draw an item in the uiList */
+/* Draw an item in the uiList */
 typedef void (*uiListDrawItemFunc)(struct uiList *, struct bContext *, struct uiLayout *, struct PointerRNA *,
-                                   struct PointerRNA *, int, struct PointerRNA *, const char *, int);
+                                   struct PointerRNA *, int, struct PointerRNA *, const char *, int, int);
+
+/* Draw the filtering part of an uiList */
+typedef void (*uiListDrawFilterFunc)(struct uiList *, struct bContext *, struct uiLayout *);
+
+/* Filter items of an uiList */
+typedef void (*uiListFilterItemsFunc)(struct uiList *, struct bContext *, struct PointerRNA *, const char *);
 
 typedef struct uiListType {
 	struct uiListType *next, *prev;
@@ -199,6 +205,8 @@ typedef struct uiListType {
 	char idname[BKE_ST_MAXNAME];            /* unique name */
 
 	uiListDrawItemFunc draw_item;
+	uiListDrawFilterFunc draw_filter;
+	uiListFilterItemsFunc filter_items;
 
 	/* RNA integration */
 	ExtensionRNA ext;
@@ -254,6 +262,7 @@ struct SpaceType *BKE_spacetype_from_id(int spaceid);
 struct ARegionType *BKE_regiontype_from_id(struct SpaceType *st, int regionid);
 const struct ListBase *BKE_spacetypes_list(void);
 void BKE_spacetype_register(struct SpaceType *st);
+int BKE_spacetype_exists(int spaceid);
 void BKE_spacetypes_free(void); /* only for quitting blender */
 
 /* spacedata */

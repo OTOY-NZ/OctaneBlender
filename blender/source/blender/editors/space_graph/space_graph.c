@@ -436,6 +436,7 @@ static void graph_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), AReg
 		default:
 			if (wmn->data == ND_KEYS)
 				ED_region_tag_redraw(ar);
+			break;
 				
 	}
 }
@@ -518,15 +519,13 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
 	switch (sipo->mode) {
 		case SIPO_MODE_ANIMATION: /* all animation */
 		{
-			
+			break;
 		}
-		break;
 		
 		case SIPO_MODE_DRIVERS: /* drivers only  */
 		{
-		
+			break;
 		}
-		break;
 	}
 	
 	/* region updates? */
@@ -563,11 +562,12 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
 			/* set color of curve here */
 			switch (fcu->color_mode) {
 				case FCURVE_COLOR_CUSTOM:
+				{
 					/* User has defined a custom color for this curve already (we assume it's not going to cause clashes with text colors),
 					 * which should be left alone... Nothing needs to be done here.
 					 */
 					break;
-					
+				}
 				case FCURVE_COLOR_AUTO_RGB:
 				{
 					/* F-Curve's array index is automatically mapped to RGB values. This works best of 3-value vectors. 
@@ -590,9 +590,8 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
 							col[0] = 0.3f; col[1] = 0.8f; col[2] = 1.0f;
 							break;
 					}
+					break;
 				}
-				break;
-				
 				case FCURVE_COLOR_AUTO_RAINBOW:
 				default:
 				{
@@ -600,8 +599,8 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
 					 * of current item index + total items to determine some RGB color
 					 */
 					getcolor_fcurve_rainbow(i, items, fcu->color);
+					break;
 				}
-				break;
 			}
 		}
 		

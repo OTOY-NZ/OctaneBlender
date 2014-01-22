@@ -408,26 +408,33 @@ void BKE_camera_view_frame_ex(Scene *scene, Camera *camera, float drawsize, cons
 	}
 	else {
 		/* that way it's always visible - clipsta+0.1 */
-		float fac;
-		float half_sensor = 0.5f * ((camera->sensor_fit == CAMERA_SENSOR_FIT_VERT) ? (camera->sensor_y) : (camera->sensor_x));
+		float fac, scale_x, scale_y;
+		float half_sensor = 0.5f * ((camera->sensor_fit == CAMERA_SENSOR_FIT_VERT) ?
+		                            (camera->sensor_y) : (camera->sensor_x));
 
-		*r_drawsize = drawsize / ((scale[0] + scale[1] + scale[2]) / 3.0f);
 
 		if (do_clip) {
 			/* fixed depth, variable size (avoids exceeding clipping range) */
-			depth = -(camera->clipsta + 0.1f);
-			fac = depth / (camera->lens / (-half_sensor) * scale[2]);
+			/* r_drawsize shouldn't be used in this case, set to dummy value */
+			*r_drawsize = 1.0f;
+			depth = -(camera->clipsta + 0.1f) * scale[2];
+			fac = depth / (camera->lens / (-half_sensor));
+			scale_x = 1.0f;
+			scale_y = 1.0f;
 		}
 		else {
 			/* fixed size, variable depth (stays a reasonable size in the 3D view) */
+			*r_drawsize = drawsize / ((scale[0] + scale[1] + scale[2]) / 3.0f);
 			depth = *r_drawsize * camera->lens / (-half_sensor) * scale[2];
 			fac = *r_drawsize;
+			scale_x = scale[0];
+			scale_y = scale[1];
 		}
 
-		facx = fac * r_asp[0] * scale[0];
-		facy = fac * r_asp[1] * scale[1];
-		r_shift[0] = camera->shiftx * fac * 2 * scale[0];
-		r_shift[1] = camera->shifty * fac * 2 * scale[1];
+		facx = fac * r_asp[0] * scale_x;
+		facy = fac * r_asp[1] * scale_y;
+		r_shift[0] = camera->shiftx * fac * 2.0f * scale_x;
+		r_shift[1] = camera->shifty * fac * 2.0f * scale_y;
 	}
 
 	r_vec[0][0] = r_shift[0] + facx; r_vec[0][1] = r_shift[1] + facy; r_vec[0][2] = depth;
@@ -449,21 +456,22 @@ void BKE_camera_view_frame(Scene *scene, Camera *camera, float r_vec[4][3])
 
 
 typedef struct CameraViewFrameData {
+	float plane_tx[4][4];  /* 4 planes (not 4x4 matrix)*/
 	float frame_tx[4][3];
 	float normal_tx[4][3];
-	float dist_vals[4];
+	float dist_vals_sq[4];  /* distance squared (signed) */
 	unsigned int tot;
 } CameraViewFrameData;
 
-static void BKE_camera_to_frame_view_cb(const float co[3], void *user_data)
+static void camera_to_frame_view_cb(const float co[3], void *user_data)
 {
 	CameraViewFrameData *data = (CameraViewFrameData *)user_data;
 	unsigned int i;
 
 	for (i = 0; i < 4; i++) {
-		float nd = dist_to_plane_v3(co, data->frame_tx[i], data->normal_tx[i]);
-		if (nd < data->dist_vals[i]) {
-			data->dist_vals[i] = nd;
+		float nd = dist_squared_to_plane_v3(co, data->plane_tx[i]);
+		if (nd < data->dist_vals_sq[i]) {
+			data->dist_vals_sq[i] = nd;
 		}
 	}
 
@@ -507,19 +515,16 @@ int BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object 
 	}
 
 	for (i = 0; i < 4; i++) {
-		normal_tri_v3(data_cb.normal_tx[i],
-		              zero, data_cb.frame_tx[i], data_cb.frame_tx[(i + 1) % 4]);
+		normal_tri_v3(data_cb.normal_tx[i], zero, data_cb.frame_tx[i], data_cb.frame_tx[(i + 1) % 4]);
+		plane_from_point_normal_v3(data_cb.plane_tx[i], data_cb.frame_tx[i], data_cb.normal_tx[i]);
 	}
 
 	/* initialize callback data */
-	data_cb.dist_vals[0] =
-	data_cb.dist_vals[1] =
-	data_cb.dist_vals[2] =
-	data_cb.dist_vals[3] = FLT_MAX;
+	copy_v4_fl(data_cb.dist_vals_sq, FLT_MAX);
 	data_cb.tot = 0;
 	/* run callback on all visible points */
 	BKE_scene_foreach_display_point(scene, v3d, BA_SELECT,
-	                                BKE_camera_to_frame_view_cb, &data_cb);
+	                                camera_to_frame_view_cb, &data_cb);
 
 	if (data_cb.tot <= 1) {
 		return FALSE;
@@ -530,10 +535,15 @@ int BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object 
 
 		float plane_isect_pt_1[3], plane_isect_pt_2[3];
 
+		/* could make a generic macro */
+#define SQRT_SIGNED(f) copysign(sqrtf(fabsf(f)), f)
+
 		/* apply the dist-from-plane's to the transformed plane points */
 		for (i = 0; i < 4; i++) {
-			mul_v3_v3fl(plane_tx[i], data_cb.normal_tx[i], data_cb.dist_vals[i]);
+			mul_v3_v3fl(plane_tx[i], data_cb.normal_tx[i], SQRT_SIGNED(data_cb.dist_vals_sq[i]));
 		}
+
+#undef SQRT_SIGNED
 
 		isect_plane_plane_v3(plane_isect_1, plane_isect_1_no,
 		                     plane_tx[0], data_cb.normal_tx[0],

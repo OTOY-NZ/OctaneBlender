@@ -72,6 +72,8 @@ struct wmTimer;
 struct MovieClip;
 struct MovieClipScopes;
 struct Mask;
+struct GHash;
+struct BLI_mempool;
 
 
 /* SpaceLink (Base) ==================================== */
@@ -130,8 +132,9 @@ typedef struct SpaceButs {
 	short mainb, mainbo, mainbuser; /* context tabs */
 	short re_align, align;          /* align for panels */
 	short preview;                  /* preview is signal to refresh */
-	short texture_context;          /* texture context selector (material, world, brush)*/
-	char flag, pad;
+	/* texture context selector (material, lamp, particles, world, other)*/
+	short texture_context, texture_context_prev;
+	char flag, pad[7];
 	
 	void *path;                     /* runtime */
 	int pathflag, dataicon;         /* runtime */
@@ -244,13 +247,23 @@ typedef struct SpaceOops {
 	View2D v2d DNA_DEPRECATED;  /* deprecated, copied to region */
 	
 	ListBase tree;
-	struct TreeStore *treestore;
+	
+	/* treestore is an ordered list of TreeStoreElem's from outliner tree;
+	 * Note that treestore may contain duplicate elements if element
+	 * is used multiple times in outliner tree (e. g. linked objects)
+	 * Also note that BLI_mempool can not be read/written in DNA directly,
+	 * therefore readfile.c/writefile.c linearize treestore into TreeStore structure
+	 */
+	struct BLI_mempool *treestore;
 	
 	/* search stuff */
 	char search_string[32];
 	struct TreeStoreElem search_tse;
 
 	short flag, outlinevis, storeflag, search_flags;
+	
+	/* pointers to treestore elements, grouped by (id, type, nr) in hashtable for faster searching */
+	void *treehash;
 } SpaceOops;
 
 
@@ -1079,6 +1092,8 @@ typedef struct SpaceClip {
 	short gpencil_src, pad2;
 
 	int around, pad4;             /* pivot point for transforms */
+
+	float cursor[2];              /* Mask editor 2d cursor */
 
 	MaskSpaceInfo mask_info;
 } SpaceClip;

@@ -26,7 +26,11 @@
 #ifndef __BLI_BITMAP_H__
 #define __BLI_BITMAP_H__
 
-typedef unsigned int *BLI_bitmap;
+/** \file BLI_bitmap.h
+ *  \ingroup bli
+ */
+
+typedef unsigned int BLI_bitmap;
 
 /* warning: the bitmap does not keep track of its own size or check
  * for out-of-bounds access */
@@ -48,23 +52,23 @@ typedef unsigned int *BLI_bitmap;
 /* allocate memory for a bitmap with '_tot' bits; free
  *  with MEM_freeN() */
 #define BLI_BITMAP_NEW(_tot, _alloc_string) \
-	((BLI_bitmap)MEM_callocN(BLI_BITMAP_SIZE(_tot), \
+	((BLI_bitmap *)MEM_callocN(BLI_BITMAP_SIZE(_tot), \
 	                         _alloc_string))
 
 /* get the value of a single bit at '_index' */
 #define BLI_BITMAP_GET(_bitmap, _index) \
 	((_bitmap)[(_index) >> BLI_BITMAP_POWER] & \
-	 (1 << ((_index) & BLI_BITMAP_MASK)))
+	 (1u << ((_index) & BLI_BITMAP_MASK)))
 
 /* set the value of a single bit at '_index' */
 #define BLI_BITMAP_SET(_bitmap, _index) \
 	((_bitmap)[(_index) >> BLI_BITMAP_POWER] |= \
-	 (1 << ((_index) & BLI_BITMAP_MASK)))
+	 (1u << ((_index) & BLI_BITMAP_MASK)))
 
 /* clear the value of a single bit at '_index' */
 #define BLI_BITMAP_CLEAR(_bitmap, _index) \
 	((_bitmap)[(_index) >> BLI_BITMAP_POWER] &= \
-	 ~(1 << ((_index) & BLI_BITMAP_MASK)))
+	 ~(1u << ((_index) & BLI_BITMAP_MASK)))
 
 /* set or clear the value of a single bit at '_index' */
 #define BLI_BITMAP_MODIFY(_bitmap, _index, _set) \

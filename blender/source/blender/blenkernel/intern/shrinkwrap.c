@@ -86,7 +86,7 @@ void space_transform_from_matrixs(SpaceTransform *data, float local[4][4], float
 {
 	float itarget[4][4];
 	invert_m4_m4(itarget, target);
-	mul_serie_m4(data->local2target, itarget, local, NULL, NULL, NULL, NULL, NULL, NULL);
+	mul_m4_m4m4(data->local2target, itarget, local);
 	invert_m4_m4(data->target2local, data->local2target);
 }
 
@@ -198,10 +198,10 @@ static void shrinkwrap_calc_nearest_vertex(ShrinkwrapCalcData *calc)
  *	MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE (front faces hits are ignored)
  *	MOD_SHRINKWRAP_CULL_TARGET_BACKFACE (back faces hits are ignored)
  */
-int normal_projection_project_vertex(char options, const float vert[3], const float dir[3],
-                                     const SpaceTransform *transf,
-                                     BVHTree *tree, BVHTreeRayHit *hit,
-                                     BVHTree_RayCastCallback callback, void *userdata)
+int BKE_shrinkwrap_project_normal(char options, const float vert[3],
+                                  const float dir[3], const SpaceTransform *transf,
+                                  BVHTree *tree, BVHTreeRayHit *hit,
+                                  BVHTree_RayCastCallback callback, void *userdata)
 {
 	/* don't use this because this dist value could be incompatible
 	 * this value used by the callback for comparing prev/new dist values.
@@ -368,14 +368,14 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc)
 			if (use_normal & MOD_SHRINKWRAP_PROJECT_ALLOW_POS_DIR) {
 
 				if (auxData.tree) {
-					normal_projection_project_vertex(0, tmp_co, tmp_no,
-					                                 &local2aux, auxData.tree, &hit,
-					                                 auxData.raycast_callback, &auxData);
+					BKE_shrinkwrap_project_normal(0, tmp_co, tmp_no,
+					                              &local2aux, auxData.tree, &hit,
+					                              auxData.raycast_callback, &auxData);
 				}
 
-				normal_projection_project_vertex(calc->smd->shrinkOpts, tmp_co, tmp_no,
-				                                 &calc->local2target, treeData.tree, &hit,
-				                                 treeData.raycast_callback, &treeData);
+				BKE_shrinkwrap_project_normal(calc->smd->shrinkOpts, tmp_co, tmp_no,
+				                              &calc->local2target, treeData.tree, &hit,
+				                              treeData.raycast_callback, &treeData);
 			}
 
 			/* Project over negative direction of axis */
@@ -384,14 +384,14 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc)
 				negate_v3_v3(inv_no, tmp_no);
 
 				if (auxData.tree) {
-					normal_projection_project_vertex(0, tmp_co, inv_no,
-					                                 &local2aux, auxData.tree, &hit,
-					                                 auxData.raycast_callback, &auxData);
+					BKE_shrinkwrap_project_normal(0, tmp_co, inv_no,
+					                              &local2aux, auxData.tree, &hit,
+					                              auxData.raycast_callback, &auxData);
 				}
 
-				normal_projection_project_vertex(calc->smd->shrinkOpts, tmp_co, inv_no,
-				                                 &calc->local2target, treeData.tree, &hit,
-				                                 treeData.raycast_callback, &treeData);
+				BKE_shrinkwrap_project_normal(calc->smd->shrinkOpts, tmp_co, inv_no,
+				                              &calc->local2target, treeData.tree, &hit,
+				                              treeData.raycast_callback, &treeData);
 			}
 
 			/* don't set the initial dist (which is more efficient),
@@ -428,7 +428,7 @@ static void shrinkwrap_calc_nearest_surface_point(ShrinkwrapCalcData *calc)
 	BVHTreeNearest nearest  = NULL_BVHTreeNearest;
 
 	/* Create a bvh-tree of the given target */
-	TIMEIT_BENCH(bvhtree_from_mesh_faces(&treeData, calc->target, 0.0, 2, 6), bvhtree_faces);
+	bvhtree_from_mesh_faces(&treeData, calc->target, 0.0, 2, 6);
 	if (treeData.tree == NULL) {
 		OUT_OF_MEMORY();
 		return;
@@ -506,7 +506,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd, Object *ob, DerivedM
 	DerivedMesh *ss_mesh    = NULL;
 	ShrinkwrapCalcData calc = NULL_ShrinkwrapCalcData;
 
-	/* remove loop dependencies on derived meshs (TODO should this be done elsewhere?) */
+	/* remove loop dependencies on derived meshes (TODO should this be done elsewhere?) */
 	if (smd->target == ob) smd->target = NULL;
 	if (smd->auxTarget == ob) smd->auxTarget = NULL;
 

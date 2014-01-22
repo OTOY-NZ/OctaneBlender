@@ -469,9 +469,7 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 		WM_event_remove_timer(oglrender->wm, oglrender->win, oglrender->timer);
 	}
 
-	if (oglrender->win) {
-		WM_cursor_restore(oglrender->win);
-	}
+	WM_cursor_modal_restore(oglrender->win);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
 
@@ -519,7 +517,7 @@ static int screen_opengl_render_anim_initialize(bContext *C, wmOperator *op)
 
 	return 1;
 }
-static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
+static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	OGLRender *oglrender = op->customdata;
@@ -551,18 +549,13 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 		BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra, &scene->r.im_format, scene->r.scemode & R_EXTENSION, TRUE);
 
 		if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(name)) {
-			printf("skipping existing frame \"%s\"\n", name);
-
-			/* go to next frame */
-			oglrender->nfra += scene->r.frame_step;
-
-			return 1;
+			BKE_reportf(op->reports, RPT_INFO, "Skipping existing frame \"%s\"", name);
+			ok = true;
+			goto finally;
 		}
 	}
 
-	if (oglrender->win) {
-		WM_cursor_time(oglrender->win, scene->r.cfra);
-	}
+	WM_cursor_time(oglrender->win, scene->r.cfra);
 
 	BKE_scene_update_for_newframe(bmain, scene, screen_opengl_layers(oglrender));
 
@@ -595,7 +588,7 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 		ibuf_save = ibuf;
 
 		if (is_movie || !BKE_imtype_requires_linear_float(scene->r.im_format.imtype)) {
-			ibuf_save = IMB_colormanagement_imbuf_for_write(ibuf, TRUE, TRUE, &scene->view_settings,
+			ibuf_save = IMB_colormanagement_imbuf_for_write(ibuf, true, true, &scene->view_settings,
 			                                                &scene->display_settings, &scene->r.im_format);
 
 			needs_free = TRUE;
@@ -660,6 +653,9 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	/* movie stats prints have no line break */
 	printf("\n");
 
+
+finally:  /* Step the frame and bail early if needed */
+
 	/* go to next frame */
 	oglrender->nfra += scene->r.frame_step;
 
@@ -677,7 +673,7 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent
 {
 	OGLRender *oglrender = op->customdata;
 	int anim = RNA_boolean_get(op->ptr, "animation");
-	int ret;
+	bool ret;
 
 	switch (event->type) {
 		case ESCKEY:
@@ -688,6 +684,7 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent
 			/* render frame? */
 			if (oglrender->timer == event->customdata)
 				break;
+			/* fall-through */
 		default:
 			/* nothing to do */
 			return OPERATOR_RUNNING_MODAL;
@@ -701,11 +698,12 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent
 		screen_opengl_render_end(C, op->customdata);
 		return OPERATOR_FINISHED;
 	}
-	else
+	else {
 		ret = screen_opengl_render_anim_step(C, op);
+	}
 
 	/* stop at the end or on error */
-	if (ret == 0) {
+	if (ret == false) {
 		return OPERATOR_FINISHED;
 	}
 
@@ -753,7 +751,7 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 	else {
-		int ret = 1;
+		bool ret = true;
 
 		if (!screen_opengl_render_anim_initialize(C, op))
 			return OPERATOR_CANCELLED;

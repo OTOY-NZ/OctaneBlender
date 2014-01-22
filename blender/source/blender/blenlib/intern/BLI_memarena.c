@@ -30,17 +30,16 @@
  *  \ingroup bli
  */
 
+#include <string.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_memarena.h"
 #include "BLI_linklist.h"
+#include "BLI_strict_flags.h"
 
-#ifdef __GNUC__
-#  pragma GCC diagnostic error "-Wsign-conversion"
-#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
-#    pragma GCC diagnostic error "-Wsign-compare"
-#    pragma GCC diagnostic error "-Wconversion"
-#  endif
+#ifdef WITH_MEM_VALGRIND
+#  include "valgrind/memcheck.h"
 #endif
 
 struct MemArena {
@@ -60,6 +59,10 @@ MemArena *BLI_memarena_new(const int bufsize, const char *name)
 	ma->bufsize = bufsize;
 	ma->align = 8;
 	ma->name = name;
+
+#ifdef WITH_MEM_VALGRIND
+	VALGRIND_CREATE_MEMPOOL(ma, 0, false);
+#endif
 
 	return ma;
 }
@@ -83,11 +86,26 @@ void BLI_memarena_use_align(struct MemArena *ma, const int align)
 void BLI_memarena_free(MemArena *ma)
 {
 	BLI_linklist_freeN(ma->bufs);
+
+#ifdef WITH_MEM_VALGRIND
+	VALGRIND_DESTROY_MEMPOOL(ma);
+#endif
+
 	MEM_freeN(ma);
 }
 
 /* amt must be power of two */
 #define PADUP(num, amt) (((num) + ((amt) - 1)) & ~((amt) - 1))
+
+/* align alloc'ed memory (needed if align > 8) */
+static void memarena_curbuf_align(MemArena *ma)
+{
+	unsigned char *tmp;
+
+	tmp = (unsigned char *)PADUP( (intptr_t) ma->curbuf, ma->align);
+	ma->cursize -= (int)(tmp - ma->curbuf);
+	ma->curbuf = tmp;
+}
 
 void *BLI_memarena_alloc(MemArena *ma, int size)
 {
@@ -98,8 +116,6 @@ void *BLI_memarena_alloc(MemArena *ma, int size)
 	size = PADUP(size, ma->align);
 
 	if (size > ma->cursize) {
-		unsigned char *tmp;
-
 		if (size > ma->bufsize - (ma->align - 1)) {
 			ma->cursize = PADUP(size + 1, ma->align);
 		}
@@ -112,16 +128,51 @@ void *BLI_memarena_alloc(MemArena *ma, int size)
 			ma->curbuf = MEM_mallocN((size_t)ma->cursize, ma->name);
 
 		BLI_linklist_prepend(&ma->bufs, ma->curbuf);
-
-		/* align alloc'ed memory (needed if align > 8) */
-		tmp = (unsigned char *)PADUP( (intptr_t) ma->curbuf, ma->align);
-		ma->cursize -= (int)(tmp - ma->curbuf);
-		ma->curbuf = tmp;
+		memarena_curbuf_align(ma);
 	}
 
 	ptr = ma->curbuf;
 	ma->curbuf += size;
 	ma->cursize -= size;
 
+#ifdef WITH_MEM_VALGRIND
+	VALGRIND_MEMPOOL_ALLOC(ma, ptr, size);
+#endif
+
 	return ptr;
+}
+
+/**
+ * Clear for reuse, avoids re-allocation when an arena may
+ * otherwise be free'd and recreated.
+ */
+void BLI_memarena_clear(MemArena *ma)
+{
+	if (ma->bufs) {
+		unsigned char *curbuf_prev;
+		int curbuf_used;
+
+		if (ma->bufs->next) {
+			BLI_linklist_freeN(ma->bufs->next);
+			ma->bufs->next = NULL;
+		}
+
+		curbuf_prev = ma->curbuf;
+		ma->curbuf = ma->bufs->link;
+		memarena_curbuf_align(ma);
+
+		/* restore to original size */
+		curbuf_used = (int)(curbuf_prev - ma->curbuf);
+		ma->cursize += curbuf_used;
+
+		if (ma->use_calloc) {
+			memset(ma->curbuf, 0, (size_t)curbuf_used);
+		}
+	}
+
+#ifdef WITH_MEM_VALGRIND
+	VALGRIND_DESTROY_MEMPOOL(ma);
+	VALGRIND_CREATE_MEMPOOL(ma, 0, false);
+#endif
+
 }

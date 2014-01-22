@@ -411,7 +411,7 @@ static Frame **collect_hull_frames(int v, SkinNode *frames,
 	int nbr, i;
 
 	(*tothullframe) = emap[v].count;
-	hull_frames = MEM_callocN(sizeof(Frame * *) * (*tothullframe),
+	hull_frames = MEM_callocN(sizeof(Frame *) * (*tothullframe),
 	                          "hull_from_frames.hull_frames");
 	i = 0;
 	for (nbr = 0; nbr < emap[v].count; nbr++) {
@@ -690,7 +690,7 @@ static void build_emats_stack(BLI_Stack *stack, int *visited_e, EMat *emat,
 	/* Add neighbors to stack */
 	for (i = 0; i < emap[v].count; i++) {
 		/* Add neighbors to stack */
-		memcpy(stack_elem.mat, emat[e].mat, sizeof(float) * 3 * 3);
+		copy_m3_m3(stack_elem.mat, emat[e].mat);
 		stack_elem.e = emap[v].indices[i];
 		stack_elem.parent_v = v;
 		BLI_stack_push(stack, &stack_elem);
@@ -933,7 +933,6 @@ static void add_poly(SkinOutput *so,
                      BMVert *v4)
 {
 	BMVert *verts[4] = {v1, v2, v3, v4};
-	BMEdge *edges[4];
 	BMFace *f;
 	
 	BLI_assert(v1 != v2 && v1 != v3 && v1 != v4);
@@ -941,18 +940,7 @@ static void add_poly(SkinOutput *so,
 	BLI_assert(v3 != v4);
 	BLI_assert(v1 && v2 && v3);
 
-	edges[0] = BM_edge_create(so->bm, v1, v2, NULL, BM_CREATE_NO_DOUBLE);
-	edges[1] = BM_edge_create(so->bm, v2, v3, NULL, BM_CREATE_NO_DOUBLE);
-	if (v4) {
-		edges[2] = BM_edge_create(so->bm, v3, v4, NULL, BM_CREATE_NO_DOUBLE);
-		edges[3] = BM_edge_create(so->bm, v4, v1, NULL, BM_CREATE_NO_DOUBLE);
-	}
-	else {
-		edges[2] = BM_edge_create(so->bm, v3, v1, NULL, BM_CREATE_NO_DOUBLE);
-		edges[3] = NULL;
-	}
-
-	f = BM_face_create(so->bm, verts, edges, v4 ? 4 : 3, BM_CREATE_NO_DOUBLE);
+	f = BM_face_create_verts(so->bm, verts, v4 ? 4 : 3, NULL, BM_CREATE_NO_DOUBLE, true);
 	if (so->smd->flag & MOD_SKIN_SMOOTH_SHADING)
 		BM_elem_flag_enable(f, BM_ELEM_SMOOTH);
 	f->mat_nr = so->mat_nr;
@@ -996,7 +984,7 @@ static void output_frames(BMesh *bm,
 		f = &sn->frames[i];
 		for (j = 0; j < 4; j++) {
 			if (!f->merge[j].frame) {
-				BMVert *v = f->verts[j] = BM_vert_create(bm, f->co[j], NULL, 0);
+				BMVert *v = f->verts[j] = BM_vert_create(bm, f->co[j], NULL, BM_CREATE_NOP);
 
 				if (input_dvert) {
 					MDeformVert *dv;
@@ -1039,7 +1027,7 @@ static int isect_ray_poly(const float ray_start[3],
 			v_first = v;
 		else if (v_prev != v_first) {
 			float dist;
-			int curhit;
+			bool curhit;
 			
 			curhit = isect_ray_tri_v3(ray_start, ray_dir,
 			                          v_first->co, v_prev->co, v->co,
@@ -1310,7 +1298,7 @@ static void skin_hole_detach_partially_attached_frame(BMesh *bm, Frame *frame)
 	/* Detach everything */
 	for (i = 0; i < totattached; i++) {
 		BMVert **av = &frame->verts[attached[i]];
-		(*av) = BM_vert_create(bm, (*av)->co, *av, 0);
+		(*av) = BM_vert_create(bm, (*av)->co, *av, BM_CREATE_NOP);
 	}
 }
 
@@ -1751,7 +1739,7 @@ static void skin_set_orig_indices(DerivedMesh *dm)
 
 	totpoly = dm->getNumPolys(dm);
 	orig = CustomData_add_layer(&dm->polyData, CD_ORIGINDEX,
-	                            CD_CALLOC, 0, totpoly);
+	                            CD_CALLOC, NULL, totpoly);
 	for (i = 0; i < totpoly; i++)
 		orig[i] = ORIGINDEX_NONE;
 }

@@ -42,9 +42,12 @@ struct wmOperatorType;
 /* mask_add.c */
 void MASK_OT_add_vertex(struct wmOperatorType *ot);
 void MASK_OT_add_feather_vertex(struct wmOperatorType *ot);
+void MASK_OT_primitive_circle_add(struct wmOperatorType *ot);
+void MASK_OT_primitive_square_add(struct wmOperatorType *ot);
 
 /* mask_ops.c */
 struct Mask *ED_mask_new(struct bContext *C, const char *name);
+struct MaskLayer *ED_mask_layer_ensure(struct bContext *C);
 
 void MASK_OT_new(struct wmOperatorType *ot);
 void MASK_OT_layer_new(struct wmOperatorType *ot);
@@ -75,6 +78,8 @@ struct MaskSplinePoint *ED_mask_point_find_nearest(
 
 void MASK_OT_layer_move(struct wmOperatorType *ot);
 
+void MASK_OT_duplicate(struct wmOperatorType *ot);
+
 /* mask_relationships.c */
 void MASK_OT_parent_set(struct wmOperatorType *ot);
 void MASK_OT_parent_clear(struct wmOperatorType *ot);
@@ -88,6 +93,8 @@ void MASK_OT_select_lasso(struct wmOperatorType *ot);
 void MASK_OT_select_circle(struct wmOperatorType *ot);
 void MASK_OT_select_linked_pick(struct wmOperatorType *ot);
 void MASK_OT_select_linked(struct wmOperatorType *ot);
+void MASK_OT_select_more(struct wmOperatorType *ot);
+void MASK_OT_select_less(struct wmOperatorType *ot);
 
 int ED_mask_spline_select_check(struct MaskSpline *spline);
 int ED_mask_layer_select_check(struct MaskLayer *masklay);

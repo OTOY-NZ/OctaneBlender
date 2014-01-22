@@ -315,7 +315,8 @@ bool MeshImporter::primitive_has_faces(COLLADAFW::MeshPrimitive *mp) {
 		case COLLADAFW::MeshPrimitive::TRIANGLES:
 		case COLLADAFW::MeshPrimitive::TRIANGLE_FANS:
 		case COLLADAFW::MeshPrimitive::POLYLIST:
-		case COLLADAFW::MeshPrimitive::POLYGONS: {
+		case COLLADAFW::MeshPrimitive::POLYGONS:
+		{
 			has_faces = true;
 			break;
 		}
@@ -347,8 +348,8 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
 			case COLLADAFW::MeshPrimitive::TRIANGLES:
 			case COLLADAFW::MeshPrimitive::TRIANGLE_FANS:
 			case COLLADAFW::MeshPrimitive::POLYLIST:
-			case COLLADAFW::MeshPrimitive::POLYGONS: {
-
+			case COLLADAFW::MeshPrimitive::POLYGONS:
+			{
 				COLLADAFW::Polygons *mpvc = (COLLADAFW::Polygons *)mp;
 				size_t prim_poly_count    = mpvc->getFaceCount();
 
@@ -361,7 +362,8 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
 				total_loop_count += prim_loop_count;
 				break;
 			}
-			default: break;
+			default:
+				break;
 		}
 	}
 
@@ -400,16 +402,19 @@ unsigned int MeshImporter::get_vertex_count(COLLADAFW::Polygons *mp, int index) 
 	int result;
 	switch (type) {
 		case COLLADAFW::MeshPrimitive::TRIANGLES:
-		case COLLADAFW::MeshPrimitive::TRIANGLE_FANS: {
+		case COLLADAFW::MeshPrimitive::TRIANGLE_FANS:
+		{
 			result = 3;
 			break;
 		}
 		case COLLADAFW::MeshPrimitive::POLYLIST:
-		case COLLADAFW::MeshPrimitive::POLYGONS: {
+		case COLLADAFW::MeshPrimitive::POLYGONS:
+		{
 			result = mp->getGroupedVerticesVertexCountArray()[index];
 			break;
 		}
-		default: {
+		default:
+		{
 			result = -1;
 			break;
 		}
@@ -427,12 +432,14 @@ unsigned int MeshImporter::get_loose_edge_count(COLLADAFW::Mesh *mesh) {
 		COLLADAFW::MeshPrimitive *mp = prim_arr[i];
 		int type = mp->getPrimitiveType();
 		switch (type) {
-			case COLLADAFW::MeshPrimitive::LINES: {
+			case COLLADAFW::MeshPrimitive::LINES:
+			{
 				size_t prim_totface = mp->getFaceCount();
 				loose_edge_count += prim_totface;
 				break;
 			}
-			default: break;
+			default:
+				break;
 		}
 	}
 	return loose_edge_count;
@@ -611,13 +618,10 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh, Mesh *me)
 				set_poly_indices(mpoly, mloop, loop_index, position_indices, vcount);
 
 
-				for (unsigned int l = 0; l < index_list_array.getCount(); l++) {
-					int uvset_index = index_list_array[l]->getSetIndex();
-
+				for (unsigned int uvset_index = 0; uvset_index < index_list_array.getCount(); uvset_index++) {
 					// get mtface by face index and uv set index
 					MLoopUV  *mloopuv = (MLoopUV  *)CustomData_get_layer_n(&me->ldata, CD_MLOOPUV, uvset_index);
-
-					set_face_uv(mloopuv+loop_index, uvs, start_index, *index_list_array[l], vcount);
+					set_face_uv(mloopuv+loop_index, uvs, start_index, *index_list_array[uvset_index], vcount);
 				}
 
 				if (mp_has_normals) {
@@ -661,7 +665,12 @@ void MeshImporter::get_vector(float v[3], COLLADAFW::MeshVertexData& arr, int i,
 
 			v[0] = (*values)[i++];
 			v[1] = (*values)[i++];
-			v[2] = (*values)[i];
+			if (stride>=3) {
+				v[2] = (*values)[i];
+			}
+			else {
+				v[2] = 0.0f;
+			}
 
 		}
 		break;
@@ -672,13 +681,19 @@ void MeshImporter::get_vector(float v[3], COLLADAFW::MeshVertexData& arr, int i,
 
 			v[0] = (float)(*values)[i++];
 			v[1] = (float)(*values)[i++];
-			v[2] = (float)(*values)[i];
+			if (stride >= 3) {
+				v[2] = (float)(*values)[i];
+			}
+			else {
+				v[2] = 0.0f;
+			}
 		}
 		break;
 		default:
 			break;
 	}
 }
+
 bool MeshImporter::is_flat_face(unsigned int *nind, COLLADAFW::MeshVertexData& nor, int count)
 {
 	float a[3], b[3];
@@ -853,7 +868,7 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
  *
  * During import all materials have been assigned to Object.
  * Now we iterate over the imported objects and optimize
- * the assignements as follows:
+ * the assignments as follows:
  *
  * for each imported geometry:
  *     if number of users is 1:

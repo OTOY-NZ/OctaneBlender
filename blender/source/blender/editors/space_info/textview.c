@@ -57,6 +57,7 @@ static void console_font_begin(TextViewContext *sc)
 typedef struct ConsoleDrawContext {
 	int cwidth;
 	int lheight;
+	int lofs; /* text vertical offset */
 	int console_width; /* number of characters that fit into the width of the console (fixed width) */
 	int winx;
 	int ymin, ymax;
@@ -122,7 +123,6 @@ static int console_wrap_offsets(const char *str, int len, int width, int *lines,
 static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str_len,
                                const unsigned char fg[3], const unsigned char bg[3], const unsigned char bg_sel[4])
 {
-	int rct_ofs = cdc->lheight / 4;
 	int tot_lines;            /* total number of lines for wrapping */
 	int *offsets;             /* offsets of line beginnings for wrapping */
 	int y_next;
@@ -186,13 +186,13 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		
 		if (bg) {
 			glColor3ubv(bg);
-			glRecti(0, cdc->xy[1] - rct_ofs, cdc->winx, (cdc->xy[1] + (cdc->lheight * tot_lines)) + rct_ofs);
+			glRecti(0, cdc->xy[1], cdc->winx, (cdc->xy[1] + (cdc->lheight * tot_lines)));
 		}
 
 		glColor3ubv(fg);
 
 		/* last part needs no clipping */
-		BLF_position(mono, cdc->xy[0], cdc->xy[1], 0);
+		BLF_position(mono, cdc->xy[0], cdc->lofs + cdc->xy[1], 0);
 		BLF_draw_mono(mono, s, len, cdc->cwidth);
 
 		if (cdc->sel[0] != cdc->sel[1]) {
@@ -208,7 +208,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			len = offsets[i] - offsets[i - 1];
 			s = str + offsets[i - 1];
 
-			BLF_position(mono, cdc->xy[0], cdc->xy[1], 0);
+			BLF_position(mono, cdc->xy[0], cdc->lofs + cdc->xy[1], 0);
 			BLF_draw_mono(mono, s, len, cdc->cwidth);
 			
 			if (cdc->sel[0] != cdc->sel[1]) {
@@ -234,12 +234,12 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 
 		if (bg) {
 			glColor3ubv(bg);
-			glRecti(0, cdc->xy[1] - rct_ofs, cdc->winx, cdc->xy[1] + cdc->lheight - rct_ofs);
+			glRecti(0, cdc->xy[1], cdc->winx, cdc->xy[1] + cdc->lheight);
 		}
 
 		glColor3ubv(fg);
 
-		BLF_position(mono, cdc->xy[0], cdc->xy[1], 0);
+		BLF_position(mono, cdc->xy[0], cdc->lofs + cdc->xy[1], 0);
 		BLF_draw_mono(mono, str, str_len, cdc->cwidth);
 		
 		if (cdc->sel[0] != cdc->sel[1]) {
@@ -291,6 +291,7 @@ int textview_draw(TextViewContext *tvc, const int draw, int mval[2], void **mous
 	cdc.cwidth = (int)BLF_fixed_width(mono);
 	assert(cdc.cwidth > 0);
 	cdc.lheight = tvc->lheight;
+	cdc.lofs = -BLF_descender(mono);
 	/* note, scroll bar must be already subtracted () */
 	cdc.console_width = (tvc->winx - (CONSOLE_DRAW_MARGIN * 2) ) / cdc.cwidth;
 	CLAMP(cdc.console_width, 1, INT_MAX); /* avoid divide by zero on small windows */

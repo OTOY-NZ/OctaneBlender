@@ -489,6 +489,22 @@ bPoseChannel *BKE_pose_channel_verify(bPose *pose, const char *name)
 	return chan;
 }
 
+#ifndef NDEBUG
+bool BKE_pose_channels_is_valid(const bPose *pose)
+{
+	if (pose->chanhash) {
+		bPoseChannel *pchan;
+		for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+			if (BLI_ghash_lookup(pose->chanhash, pchan->name) != pchan) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+#endif
 /* Find the active posechannel for an object (we can't just use pose, as layer info is in armature) */
 bPoseChannel *BKE_pose_channel_active(Object *ob)
 {
@@ -594,11 +610,43 @@ void BKE_pose_ikparam_init(bPose *pose)
 	}
 }
 
+
+/* only for real IK, not for auto-IK */
+static bool pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan, int level)
+{
+	bConstraint *con;
+	Bone *bone;
+	
+	/* No need to check if constraint is active (has influence),
+	 * since all constraints with CONSTRAINT_IK_AUTO are active */
+	for (con = pchan->constraints.first; con; con = con->next) {
+		if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
+			bKinematicConstraint *data = con->data;
+			if ((data->rootbone == 0) || (data->rootbone > level)) {
+				if ((data->flag & CONSTRAINT_IK_AUTO) == 0)
+					return true;
+			}
+		}
+	}
+	for (bone = pchan->bone->childbase.first; bone; bone = bone->next) {
+		pchan = BKE_pose_channel_find_name(ob->pose, bone->name);
+		if (pchan && pose_channel_in_IK_chain(ob, pchan, level + 1))
+			return true;
+	}
+	return false;
+}
+
+bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
+{
+	return pose_channel_in_IK_chain(ob, pchan, 0);
+}
+
+
 void BKE_pose_channels_hash_make(bPose *pose) 
 {
 	if (!pose->chanhash) {
 		bPoseChannel *pchan;
-
+		
 		pose->chanhash = BLI_ghash_str_new("make_pose_chan gh");
 		for (pchan = pose->chanbase.first; pchan; pchan = pchan->next)
 			BLI_ghash_insert(pose->chanhash, pchan->name, pchan);
@@ -613,9 +661,12 @@ void BKE_pose_channels_hash_free(bPose *pose)
 	}
 }
 
-
 void BKE_pose_channel_free(bPoseChannel *pchan)
 {
+	if (pchan->custom) {
+		id_us_min(&pchan->custom->id);
+		pchan->custom = NULL;
+	}
 
 	if (pchan->mpath) {
 		animviz_free_motionpath(pchan->mpath);
@@ -727,6 +778,9 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 
 	/* custom shape */
 	pchan->custom = pchan_from->custom;
+	if (pchan->custom) {
+		id_us_plus(&pchan->custom->id);
+	}
 }
 
 
@@ -930,9 +984,8 @@ void calc_action_range(const bAction *act, float *start, float *end, short incl_
 						if (fmd->flag & FCM_LIMIT_XMAX) {
 							max = max_ff(max, fmd->rect.xmax);
 						}
+						break;
 					}
-					break;
-						
 					case FMODIFIER_TYPE_CYCLES: /* Cycles F-Modifier */
 					{
 						FMod_Cycles *fmd = (FMod_Cycles *)fcm->data;
@@ -941,9 +994,8 @@ void calc_action_range(const bAction *act, float *start, float *end, short incl_
 							min = MINAFRAMEF;
 						if (fmd->after_mode != FCM_EXTRAPOLATE_NONE)
 							max = MAXFRAMEF;
+						break;
 					}
-					break;
-						
 					/* TODO: function modifier may need some special limits */
 						
 					default: /* all other standard modifiers are on the infinite range... */

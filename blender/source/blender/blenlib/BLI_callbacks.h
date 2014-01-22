@@ -18,7 +18,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenlib/BLI_callbacks.h
+/** \file BLI_callbacks.h
  *  \ingroup bli
  */
 
@@ -43,6 +43,8 @@ typedef enum {
 	BLI_CB_EVT_SAVE_POST,
 	BLI_CB_EVT_SCENE_UPDATE_PRE,
 	BLI_CB_EVT_SCENE_UPDATE_POST,
+	BLI_CB_EVT_GAME_PRE,
+	BLI_CB_EVT_GAME_POST,
 	BLI_CB_EVT_TOT
 } eCbEvent;
 
@@ -60,9 +62,5 @@ void BLI_callback_add(bCallbackFuncStore *funcstore, eCbEvent evt);
 
 void BLI_callback_global_init(void);
 void BLI_callback_global_finalize(void);
-
-
-/* This is blenlib internal only, unrelated to above */
-void callLocalErrorCallBack(const char *msg);
 
 #endif /* __BLI_CALLBACKS_H__ */

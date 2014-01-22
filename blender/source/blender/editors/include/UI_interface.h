@@ -32,6 +32,7 @@
 #ifndef __UI_INTERFACE_H__
 #define __UI_INTERFACE_H__
 
+#include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h" /* size_t */
 #include "RNA_types.h"
 #include "DNA_userdef_types.h"
@@ -80,6 +81,10 @@ typedef struct uiPopupBlockHandle uiPopupBlockHandle;
 typedef struct uiLayout uiLayout;
 
 /* Defines */
+
+/* char for splitting strings, aligning shortcuts in menus, users never see */
+#define UI_SEP_CHAR   '|'
+#define UI_SEP_CHAR_S "|"
 
 /* names */
 #define UI_MAX_DRAW_STR 400
@@ -327,26 +332,14 @@ typedef void (*uiMenuHandleFunc)(struct bContext *C, void *arg, int event);
 
 typedef struct uiPopupMenu uiPopupMenu;
 
-struct uiPopupMenu *uiPupMenuBegin(struct bContext *C, const char *title, int icon);
+struct uiPopupMenu *uiPupMenuBegin(struct bContext *C, const char *title, int icon) ATTR_NONNULL();
 void uiPupMenuEnd(struct bContext *C, struct uiPopupMenu *head);
 struct uiLayout *uiPupMenuLayout(uiPopupMenu *head);
 
-void uiPupMenuOkee(struct bContext *C, const char *opname, const char *str, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 3, 4)))
-#endif
-;
+void uiPupMenuOkee(struct bContext *C, const char *opname, const char *str, ...) ATTR_PRINTF_FORMAT(3, 4);
 void uiPupMenuSaveOver(struct bContext *C, struct wmOperator *op, const char *filename);
-void uiPupMenuNotice(struct bContext *C, const char *str, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 2, 3)))
-#endif
-;
-void uiPupMenuError(struct bContext *C, const char *str, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 2, 3)))
-#endif
-;
+void uiPupMenuNotice(struct bContext *C, const char *str, ...) ATTR_PRINTF_FORMAT(2, 3);
+void uiPupMenuError(struct bContext *C, const char *str, ...) ATTR_PRINTF_FORMAT(2, 3);
 void uiPupMenuReports(struct bContext *C, struct ReportList *reports);
 void uiPupMenuInvoke(struct bContext *C, const char *idname); /* popup registered menu */
 
@@ -546,7 +539,7 @@ typedef struct uiStringInfo {
 /* Note: Expects pointers to uiStringInfo structs as parameters.
  *       Will fill them with translated strings, when possible.
  *       Strings in uiStringInfo must be MEM_freeN'ed by caller. */
-void uiButGetStrInfo(struct bContext *C, uiBut *but, ...);
+void uiButGetStrInfo(struct bContext *C, uiBut *but, ...) ATTR_SENTINEL(0);
 
 /* Edit i18n stuff. */
 /* Name of the main py op from i18n addon. */
@@ -837,7 +830,7 @@ void uiTemplateNodeSocket(uiLayout *layout, struct bContext *C, float *color);
 #define UI_UL_DEFAULT_CLASS_NAME "UI_UL_list"
 void uiTemplateList(uiLayout *layout, struct bContext *C, const char *listtype_name, const char *list_id,
                     struct PointerRNA *dataptr, const char *propname, struct PointerRNA *active_dataptr,
-                    const char *active_propname, int rows, int maxrows, int layout_type);
+                    const char *active_propname, int rows, int maxrows, int layout_type, int columns);
 void uiTemplateNodeLink(uiLayout *layout, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input);
 void uiTemplateNodeView(uiLayout *layout, struct bContext *C, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input);
 void uiTemplateTextureUser(uiLayout *layout, struct bContext *C);

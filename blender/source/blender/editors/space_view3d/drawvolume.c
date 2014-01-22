@@ -83,6 +83,7 @@ struct GPUTexture;
 
 #ifdef DEBUG_DRAW_TIME
 #  include "PIL_time.h"
+#  include "PIL_time_utildefines.h"
 #endif
 
 static int intersect_edges(float *points, float a, float b, float c, float d, float edges[12][2][3])
@@ -461,7 +462,9 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 				glTexCoord3d((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
 				             (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
 				             (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
-				glVertex3f(points[i * 3 + 0] / ob->size[0], points[i * 3 + 1] / ob->size[1], points[i * 3 + 2] / ob->size[2]);
+				glVertex3f(points[i * 3 + 0] / fabsf(ob->size[0]),
+				           points[i * 3 + 1] / fabsf(ob->size[1]),
+				           points[i * 3 + 2] / fabsf(ob->size[2]));
 			}
 			glEnd();
 
@@ -474,7 +477,9 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 				glTexCoord3d((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
 				             (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
 				             (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
-				glVertex3f(points[i * 3 + 0] / ob->size[0], points[i * 3 + 1] / ob->size[1], points[i * 3 + 2] / ob->size[2]);
+				glVertex3f(points[i * 3 + 0] / fabsf(ob->size[0]),
+				           points[i * 3 + 1] / fabsf(ob->size[1]),
+				           points[i * 3 + 2] / fabsf(ob->size[2]));
 			}
 			glEnd();
 		}

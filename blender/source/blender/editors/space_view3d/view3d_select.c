@@ -146,12 +146,13 @@ static void edbm_backbuf_check_and_select_verts(BMEditMesh *em, const bool selec
 	BMIter iter;
 	unsigned int index = bm_wireoffs;
 
-	for (eve = BM_iter_new(&iter, em->bm, BM_VERTS_OF_MESH, NULL); eve; eve = BM_iter_step(&iter), index++) {
+	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
 		if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 			if (EDBM_backbuf_check(index)) {
 				BM_vert_select_set(em->bm, eve, select);
 			}
 		}
+		index++;
 	}
 }
 
@@ -161,13 +162,13 @@ static void edbm_backbuf_check_and_select_edges(BMEditMesh *em, const bool selec
 	BMIter iter;
 	int index = bm_solidoffs;
 
-	eed = BM_iter_new(&iter, em->bm, BM_EDGES_OF_MESH, NULL);
-	for (; eed; eed = BM_iter_step(&iter), index++) {
+	BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
 		if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
 			if (EDBM_backbuf_check(index)) {
 				BM_edge_select_set(em->bm, eed, select);
 			}
 		}
+		index++;
 	}
 }
 
@@ -177,13 +178,13 @@ static void edbm_backbuf_check_and_select_faces(BMEditMesh *em, const bool selec
 	BMIter iter;
 	unsigned int index = 1;
 
-	efa = BM_iter_new(&iter, em->bm, BM_FACES_OF_MESH, NULL);
-	for (; efa; efa = BM_iter_step(&iter), index++) {
+	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 		if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 			if (EDBM_backbuf_check(index)) {
 				BM_face_select_set(em->bm, efa, select);
 			}
 		}
+		index++;
 	}
 }
 
@@ -856,6 +857,7 @@ static void view3d_lasso_select(bContext *C, ViewContext *vc,
 				break;
 			default:
 				assert(!"lasso select on incorrect object type");
+				break;
 		}
 
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc->obedit->data);
@@ -1372,13 +1374,15 @@ static void deselect_all_tracks(MovieTracking *tracking)
 }
 
 /* mval is region coords */
-static bool mouse_select(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle, bool obcenter, short enumerate)
+static bool mouse_select(bContext *C, const int mval[2],
+                         bool extend, bool deselect, bool toggle, bool obcenter, bool enumerate, bool object)
 {
 	ViewContext vc;
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	Scene *scene = CTX_data_scene(C);
 	Base *base, *startbase = NULL, *basact = NULL, *oldbasact = NULL;
+	bool is_obedit;
 	float dist = 100.0f;
 	int retval = false;
 	short hits;
@@ -1387,6 +1391,12 @@ static bool mouse_select(bContext *C, const int mval[2], bool extend, bool desel
 	
 	/* setup view context for argument to callbacks */
 	view3d_set_viewcontext(C, &vc);
+
+	is_obedit = (vc.obedit != NULL);
+	if (object) {
+		/* signal for view3d_opengl_select to skip editmode objects */
+		vc.obedit = NULL;
+	}
 	
 	/* always start list from basact in wire mode */
 	startbase =  FIRSTBASE;
@@ -1460,7 +1470,7 @@ static bool mouse_select(bContext *C, const int mval[2], bool extend, bool desel
 							/* index of bundle is 1<<16-based. if there's no "bone" index
 							 * in height word, this buffer value belongs to camera. not to bundle */
 							if (buffer[4 * i + 3] & 0xFFFF0000) {
-								MovieClip *clip = BKE_object_movieclip_get(scene, basact->object, 0);
+								MovieClip *clip = BKE_object_movieclip_get(scene, basact->object, false);
 								MovieTracking *tracking = &clip->tracking;
 								ListBase *tracksbase;
 								MovieTrackingTrack *track;
@@ -1562,7 +1572,7 @@ static bool mouse_select(bContext *C, const int mval[2], bool extend, bool desel
 				ED_base_object_select(basact, BA_SELECT);
 			}
 
-			if (oldbasact != basact) {
+			if ((oldbasact != basact) && (is_obedit == false)) {
 				ED_base_object_activate(C, basact); /* adds notifier */
 			}
 		}
@@ -2110,6 +2120,7 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 				break;
 			default:
 				assert(!"border select on incorrect object type");
+				break;
 		}
 	}
 	else {  /* no editmode, unified for bones and objects */
@@ -2253,7 +2264,7 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
 	else if (paint_vertsel_test(obact))
 		retval = mouse_weight_paint_vertex_select(C, location, extend, deselect, toggle, obact);
 	else
-		retval = mouse_select(C, location, extend, deselect, toggle, center, enumerate);
+		retval = mouse_select(C, location, extend, deselect, toggle, center, enumerate, object);
 
 	/* passthrough allows tweaks
 	 * FINISHED to signal one operator worked
@@ -2403,12 +2414,12 @@ static void paint_facesel_circle_select(ViewContext *vc, const bool select, cons
 {
 	Object *ob = vc->obact;
 	Mesh *me = ob ? ob->data : NULL;
-	/* int bbsel; */ /* UNUSED */
+	bool bbsel;
 
-	if (me) {
-		bm_vertoffs = me->totpoly + 1; /* max index array */
+	bm_vertoffs = me->totpoly + 1; /* max index array */
 
-		/* bbsel = */ /* UNUSED */ EDBM_backbuf_circle_init(vc, mval[0], mval[1], (short)(rad + 1.0f));
+	bbsel = EDBM_backbuf_circle_init(vc, mval[0], mval[1], (short)(rad + 1.0f));
+	if (bbsel) {
 		edbm_backbuf_check_and_select_tfaces(me, select);
 		EDBM_backbuf_free();
 		paintface_flush_flags(ob);
@@ -2428,15 +2439,17 @@ static void paint_vertsel_circle_select(ViewContext *vc, const bool select, cons
 	const int use_zbuf = (vc->v3d->flag & V3D_ZBUF_SELECT);
 	Object *ob = vc->obact;
 	Mesh *me = ob->data;
-	/* int bbsel; */ /* UNUSED */
+	bool bbsel;
 	/* CircleSelectUserData data = {NULL}; */ /* UNUSED */
 
 	if (use_zbuf) {
 		bm_vertoffs = me->totvert + 1; /* max index array */
 
-		/* bbsel = */ /* UNUSED */ EDBM_backbuf_circle_init(vc, mval[0], mval[1], (short)(rad + 1.0f));
-		edbm_backbuf_check_and_select_verts_obmode(me, select);
-		EDBM_backbuf_free();
+		bbsel = EDBM_backbuf_circle_init(vc, mval[0], mval[1], (short)(rad + 1.0f));
+		if (bbsel) {
+			edbm_backbuf_check_and_select_verts_obmode(me, select);
+			EDBM_backbuf_free();
+		}
 	}
 	else {
 		CircleSelectUserData data;
@@ -2551,7 +2564,7 @@ static void do_circle_select_pose__doSelectBone(void *userData, struct bPoseChan
 		/* project tail location to screenspace */
 		if (screen_co_b[0] != IS_CLIPPED) {
 			points_proj_tot++;
-			if (pchan_circle_doSelectJoint(data, pchan, screen_co_a)) {
+			if (pchan_circle_doSelectJoint(data, pchan, screen_co_b)) {
 				is_point_done = true;
 			}
 		}

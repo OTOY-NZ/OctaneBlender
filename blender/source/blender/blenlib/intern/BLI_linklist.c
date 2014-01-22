@@ -34,6 +34,7 @@
 #include "MEM_guardedalloc.h"
 #include "BLI_linklist.h"
 #include "BLI_memarena.h"
+#include "BLI_mempool.h"
 
 int BLI_linklist_length(LinkNode *list)
 {
@@ -88,18 +89,39 @@ void BLI_linklist_reverse(LinkNode **listp)
 	*listp = rhead;
 }
 
-void BLI_linklist_prepend(LinkNode **listp, void *ptr)
+/**
+ * A version of prepend that takes the allocated link.
+ */
+void BLI_linklist_prepend_nlink(LinkNode **listp, void *ptr, LinkNode *nlink)
 {
-	LinkNode *nlink = MEM_mallocN(sizeof(*nlink), "nlink");
 	nlink->link = ptr;
-	
 	nlink->next = *listp;
 	*listp = nlink;
 }
 
-void BLI_linklist_append(LinkNode **listp, void *ptr)
+void BLI_linklist_prepend(LinkNode **listp, void *ptr)
 {
 	LinkNode *nlink = MEM_mallocN(sizeof(*nlink), "nlink");
+	BLI_linklist_prepend_nlink(listp, ptr, nlink);
+}
+
+void BLI_linklist_prepend_arena(LinkNode **listp, void *ptr, MemArena *ma)
+{
+	LinkNode *nlink = BLI_memarena_alloc(ma, sizeof(*nlink));
+	BLI_linklist_prepend_nlink(listp, ptr, nlink);
+}
+
+void BLI_linklist_prepend_pool(LinkNode **listp, void *ptr, BLI_mempool *mempool)
+{
+	LinkNode *nlink = BLI_mempool_alloc(mempool);
+	BLI_linklist_prepend_nlink(listp, ptr, nlink);
+}
+
+/**
+ * A version of append that takes the allocated link.
+ */
+void BLI_linklist_append_nlink(LinkNode **listp, void *ptr, LinkNode *nlink)
+{
 	LinkNode *node = *listp;
 	
 	nlink->link = ptr;
@@ -116,13 +138,46 @@ void BLI_linklist_append(LinkNode **listp, void *ptr)
 	}
 }
 
-void BLI_linklist_prepend_arena(LinkNode **listp, void *ptr, MemArena *ma)
+void BLI_linklist_append(LinkNode **listp, void *ptr)
+{
+	LinkNode *nlink = MEM_mallocN(sizeof(*nlink), "nlink");
+	BLI_linklist_append_nlink(listp, ptr, nlink);
+}
+
+void BLI_linklist_append_arena(LinkNode **listp, void *ptr, MemArena *ma)
 {
 	LinkNode *nlink = BLI_memarena_alloc(ma, sizeof(*nlink));
-	nlink->link = ptr;
-	
-	nlink->next = *listp;
-	*listp = nlink;
+	BLI_linklist_append_nlink(listp, ptr, nlink);
+}
+
+void BLI_linklist_append_pool(LinkNode **listp, void *ptr, BLI_mempool *mempool)
+{
+	LinkNode *nlink = BLI_mempool_alloc(mempool);
+	BLI_linklist_append_nlink(listp, ptr, nlink);
+}
+
+void *BLI_linklist_pop(struct LinkNode **listp)
+{
+	/* intentionally no NULL check */
+	void *link = (*listp)->link;
+	void *next = (*listp)->next;
+
+	MEM_freeN((*listp));
+
+	*listp = next;
+	return link;
+}
+
+void *BLI_linklist_pop_pool(struct LinkNode **listp, struct BLI_mempool *mempool)
+{
+	/* intentionally no NULL check */
+	void *link = (*listp)->link;
+	void *next = (*listp)->next;
+
+	BLI_mempool_free(mempool, (*listp));
+
+	*listp = next;
+	return link;
 }
 
 void BLI_linklist_insert_after(LinkNode **listp, void *ptr)
@@ -151,6 +206,19 @@ void BLI_linklist_free(LinkNode *list, LinkNodeFreeFP freefunc)
 			freefunc(list->link);
 		MEM_freeN(list);
 		
+		list = next;
+	}
+}
+
+void BLI_linklist_free_pool(LinkNode *list, LinkNodeFreeFP freefunc, struct BLI_mempool *mempool)
+{
+	while (list) {
+		LinkNode *next = list->next;
+
+		if (freefunc)
+			freefunc(list->link);
+		BLI_mempool_free(mempool, list);
+
 		list = next;
 	}
 }

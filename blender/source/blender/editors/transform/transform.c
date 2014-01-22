@@ -61,7 +61,6 @@
 #include "BLI_linklist.h"
 
 #include "BKE_nla.h"
-#include "BKE_bmesh.h"
 #include "BKE_editmesh_bvh.h"
 #include "BKE_context.h"
 #include "BKE_constraint.h"
@@ -111,9 +110,7 @@ static bool transdata_check_local_center(TransInfo *t)
 {
 	return ((t->around == V3D_LOCAL) && (
 	            (t->flag & (T_OBJECT | T_POSE)) ||
-	            (t->obedit && t->obedit->type == OB_MESH && (t->settings->selectmode & (SCE_SELECT_EDGE | SCE_SELECT_FACE))) ||
-	            (t->obedit && t->obedit->type == OB_MBALL) ||
-	            (t->obedit && t->obedit->type == OB_ARMATURE) ||
+	            (t->obedit && ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
 	            (t->spacetype == SPACE_IPO))
 	        );
 }
@@ -1327,12 +1324,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 					t->redraw |= TREDRAW_HARD;
 				}
 				break;
-//		case LEFTMOUSE:
-//		case RIGHTMOUSE:
-//			if (WM_modal_tweak_exit(event, t->event_type))
-////			if (t->options & CTX_TWEAK)
-//				t->state = TRANS_CONFIRM;
-//			break;
 			case LEFTALTKEY:
 			case RIGHTALTKEY:
 				if (ELEM(t->spacetype, SPACE_SEQ, SPACE_VIEW3D)) {
@@ -1377,7 +1368,7 @@ int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int c
 	t->state = TRANS_RUNNING;
 
 	/* avoid calculating PET */
-	t->options = CTX_NONE | CTX_NO_PET;
+	t->options = CTX_NO_PET;
 
 	t->mode = TFM_DUMMY;
 
@@ -1432,6 +1423,7 @@ static void drawArrow(ArrowDirection d, short offset, short length, short size)
 			offset = -offset;
 			length = -length;
 			size = -size;
+			/* fall-through */
 		case RIGHT:
 			glBegin(GL_LINES);
 			glVertex2s(offset, 0);
@@ -1442,10 +1434,12 @@ static void drawArrow(ArrowDirection d, short offset, short length, short size)
 			glVertex2s(offset + length - size,  size);
 			glEnd();
 			break;
+
 		case DOWN:
 			offset = -offset;
 			length = -length;
 			size = -size;
+			/* fall-through */
 		case UP:
 			glBegin(GL_LINES);
 			glVertex2s(0, offset);
@@ -1464,6 +1458,7 @@ static void drawArrowHead(ArrowDirection d, short size)
 	switch (d) {
 		case LEFT:
 			size = -size;
+			/* fall-through */
 		case RIGHT:
 			glBegin(GL_LINES);
 			glVertex2s(0, 0);
@@ -1472,8 +1467,10 @@ static void drawArrowHead(ArrowDirection d, short size)
 			glVertex2s(-size,  size);
 			glEnd();
 			break;
+
 		case DOWN:
 			size = -size;
+			/* fall-through */
 		case UP:
 			glBegin(GL_LINES);
 			glVertex2s(0, 0);
@@ -1747,33 +1744,37 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 			break;
 		default:
 			proportional = PROP_EDIT_OFF;
+			break;
 	}
 
 	// If modal, save settings back in scene if not set as operator argument
 	if (t->flag & T_MODAL) {
-
 		/* save settings if not set in operator */
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			if (t->obedit)
-				ts->proportional = proportional;
-			else if (t->options & CTX_MASK)
-				ts->proportional_mask = (proportional != PROP_EDIT_OFF);
-			else
-				ts->proportional_objects = (proportional != PROP_EDIT_OFF);
-		}
 
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional_size")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			ts->proportional_size = t->prop_size;
-		}
+		/* skip saving proportional edit if it was not actually used */
+		if (!(t->options & CTX_NO_PET)) {
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				if (t->obedit)
+					ts->proportional = proportional;
+				else if (t->options & CTX_MASK)
+					ts->proportional_mask = (proportional != PROP_EDIT_OFF);
+				else
+					ts->proportional_objects = (proportional != PROP_EDIT_OFF);
+			}
 
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			ts->prop_mode = t->prop_mode;
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional_size")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				ts->proportional_size = t->prop_size;
+			}
+
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				ts->prop_mode = t->prop_mode;
+			}
 		}
 		
 		/* do we check for parameter? */
@@ -1853,7 +1854,7 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 			options |= CTX_TEXTURE;
 		}
 	}
-	
+
 	t->options = options;
 
 	t->mode = mode;
@@ -1895,6 +1896,7 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 	else if (t->spacetype == SPACE_CLIP) {
 		unit_m3(t->spacemtx);
 		t->draw_handle_view = ED_region_draw_cb_activate(t->ar->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
+		t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C), helpline_poll, drawHelpline, t);
 	}
 	else if (t->spacetype == SPACE_NODE) {
 		unit_m3(t->spacemtx);
@@ -2002,8 +2004,8 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 				initBoneEnvelope(t);
 			else
 				initBoneSize(t);
+			break;
 		}
-		break;
 		case TFM_BONE_ENVELOPE:
 			initBoneEnvelope(t);
 			break;
@@ -2934,6 +2936,7 @@ static void headerResize(TransInfo *t, float vec[3], char *str)
 			case 2:
 				ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("Scale: %s : %s : %s%s %s"), &tvec[0],
 				                    &tvec[NUM_STR_REP_LEN], &tvec[NUM_STR_REP_LEN * 2], t->con.text, t->proptext);
+				break;
 		}
 	}
 	else {
@@ -3006,7 +3009,12 @@ static void ElementResize(TransInfo *t, TransData *td, float mat[3][3])
 		copy_v3_v3(center, td->center);
 	}
 	else if (t->options & CTX_MOVIECLIP) {
-		copy_v3_v3(center, td->center);
+		if (td->flag & TD_INDIVIDUAL_SCALE) {
+			copy_v3_v3(center, td->center);
+		}
+		else {
+			copy_v3_v3(center, t->center);
+		}
 	}
 	else {
 		copy_v3_v3(center, t->center);
@@ -3900,6 +3908,7 @@ static void headerTranslation(TransInfo *t, float vec[3], char *str)
 				ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, "D: %s   D: %s  D: %s (%s)%s %s  %s",
 				                    &tvec[0], &tvec[NUM_STR_REP_LEN], &tvec[NUM_STR_REP_LEN * 2], distvec,
 				                    t->con.text, t->proptext, autoik);
+				break;
 		}
 	}
 	else {
@@ -4795,6 +4804,26 @@ static BMEdge *get_other_edge(BMVert *v, BMEdge *e)
 	return NULL;
 }
 
+/* interpoaltes along a line made up of 2 segments (used for edge slide) */
+static void interp_line_v3_v3v3v3(float p[3], const float v1[3], const float v2[3], const float v3[3], const float t)
+{
+	float t_mid, t_delta;
+
+	/* could be pre-calculated */
+	t_mid = line_point_factor_v3(v2, v1, v3);
+
+	t_delta = t - t_mid;
+	if (fabsf(t_delta) < FLT_EPSILON) {
+		copy_v3_v3(p, v2);
+	}
+	else if (t_delta < 0.0f) {
+		interp_v3_v3v3(p, v1, v2, t / t_mid);
+	}
+	else {
+		interp_v3_v3v3(p, v2, v3, (t - t_mid) / (1.0f - t_mid));
+	}
+}
+
 static void len_v3_ensure(float v[3], const float length)
 {
 	normalize_v3(v);
@@ -4820,7 +4849,7 @@ static bool bm_loop_calc_opposite_co(BMLoop *l_tmp,
 		float tvec[3];
 		if (isect_line_plane_v3(tvec,
 		                        l_iter->v->co, l_iter->next->v->co,
-		                        l_tmp->v->co, plane_no, false))
+		                        l_tmp->v->co, plane_no))
 		{
 			const float fac = line_point_factor_v3(tvec, l_iter->v->co, l_iter->next->v->co);
 			/* allow some overlap to avoid missing the intersection because of float precision */
@@ -5690,6 +5719,7 @@ int handleEventEdgeSlide(struct TransInfo *t, const struct wmEvent *event)
 							break;
 						}
 					}
+					break;
 				}
 				default:
 					break;
@@ -5699,27 +5729,23 @@ int handleEventEdgeSlide(struct TransInfo *t, const struct wmEvent *event)
 	return 0;
 }
 
-void drawEdgeSlide(const struct bContext *C, TransInfo *t)
+static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 {
 	if (t->mode == TFM_EDGE_SLIDE) {
 		EdgeSlideData *sld = (EdgeSlideData *)t->customData;
 		/* Non-Prop mode */
 		if (sld && sld->is_proportional == FALSE) {
 			View3D *v3d = CTX_wm_view3d(C);
-			float marker[3];
-			float v1[3], v2[3];
-			float interp_v;
+			float co_a[3], co_b[3], co_mark[3];
 			TransDataEdgeSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
+			const float fac = (sld->perc + 1.0f) / 2.0f;
 			const float ctrl_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) + 1.5f;
 			const float guide_size = ctrl_size - 0.5f;
 			const float line_size = UI_GetThemeValuef(TH_OUTLINE_WIDTH) + 0.5f;
 			const int alpha_shade = -30;
 
-			add_v3_v3v3(v1, curr_sv->v_co_orig, curr_sv->dir_a);
-			add_v3_v3v3(v2, curr_sv->v_co_orig, curr_sv->dir_b);
-
-			interp_v = (sld->perc + 1.0f) / 2.0f;
-			interp_v3_v3v3(marker, v2, v1, interp_v);
+			add_v3_v3v3(co_a, curr_sv->v_co_orig, curr_sv->dir_a);
+			add_v3_v3v3(co_b, curr_sv->v_co_orig, curr_sv->dir_b);
 
 			if (v3d && v3d->zbuf)
 				glDisable(GL_DEPTH_TEST);
@@ -5760,7 +5786,12 @@ void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			UI_ThemeColorShadeAlpha(TH_SELECT, 255, alpha_shade);
 			glPointSize(guide_size);
 			bglBegin(GL_POINTS);
-			bglVertex3fv(marker);
+#if 0
+			interp_v3_v3v3(co_mark, co_b, co_a, fac);
+			bglVertex3fv(co_mark);
+#endif
+			interp_line_v3_v3v3v3(co_mark, co_b, curr_sv->v_co_orig, co_a, fac);
+			bglVertex3fv(co_mark);
 			bglEnd();
 
 
@@ -5822,10 +5853,10 @@ static int doEdgeSlide(TransInfo *t, float perc)
 				add_v3_v3v3(co_b, sv->v_co_orig, sv->dir_b);
 
 				if (sld->flipped_vtx) {
-					interp_v3_v3v3(sv->v->co, co_b, co_a, fac);
+					interp_line_v3_v3v3v3(sv->v->co, co_b, sv->v_co_orig, co_a, fac);
 				}
 				else {
-					interp_v3_v3v3(sv->v->co, co_a, co_b, fac);
+					interp_line_v3_v3v3v3(sv->v->co, co_a, sv->v_co_orig, co_b, fac);
 				}
 			}
 		}
@@ -5873,14 +5904,8 @@ int EdgeSlide(TransInfo *t, const int UNUSED(mval[2]))
 
 	t->values[0] = final;
 
-	/*do stuff here*/
-	if (t->customData) {
-		doEdgeSlide(t, final);
-	}
-	else {
-		BLI_strncpy(str, IFACE_("Invalid Edge Selection"), MAX_INFO_LEN);
-		t->state = TRANS_CANCEL;
-	}
+	/* do stuff here */
+	doEdgeSlide(t, final);
 
 	recalcData(t);
 
@@ -6222,6 +6247,7 @@ int handleEventVertSlide(struct TransInfo *t, const struct wmEvent *event)
 						calcVertSlideMouseActiveEdges(t, event->mval);
 					}
 					calcVertSlideCustomPoints(t);
+					break;
 				}
 				default:
 					break;
@@ -6386,14 +6412,8 @@ int VertSlide(TransInfo *t, const int UNUSED(mval[2]))
 	ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("Alt or (C)lamp: %s"), is_clamp ? on_str : off_str);
 	/* done with header string */
 
-	/*do stuff here*/
-	if (t->customData) {
-		doVertSlide(t, final);
-	}
-	else {
-		BLI_strncpy(str, IFACE_("Invalid Vert Selection"), MAX_INFO_LEN);
-		t->state = TRANS_CANCEL;
-	}
+	/* do stuff here */
+	doVertSlide(t, final);
 
 	recalcData(t);
 
@@ -7347,7 +7367,7 @@ bool checkUseAxisMatrix(TransInfo *t)
 {
 	/* currenly only checks for editmode */
 	if (t->flag & T_EDIT) {
-		if ((t->around == V3D_LOCAL) && (ELEM3(t->obedit->type, OB_MESH, OB_MBALL, OB_ARMATURE))) {
+		if ((t->around == V3D_LOCAL) && (ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE))) {
 			/* not all editmode supports axis-matrix */
 			return true;
 		}

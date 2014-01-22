@@ -94,7 +94,7 @@ static void rna_Screen_redraw_update(Main *UNUSED(bmain), Scene *UNUSED(scene), 
 }
 
 
-static int rna_Screen_is_animation_playing_get(PointerRNA *ptr)
+static int rna_Screen_is_animation_playing_get(PointerRNA *UNUSED(ptr))
 {
 	return (ED_screen_animation_playing(G.main->wm.first) != NULL);
 }
@@ -213,6 +213,7 @@ static void rna_def_area(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "spacetype");
 	RNA_def_property_enum_items(prop, space_type_items);
+	RNA_def_property_enum_default(prop, SPACE_VIEW3D);
 	RNA_def_property_enum_funcs(prop, NULL, "rna_Area_type_set", "rna_Area_type_itemf");
 	RNA_def_property_ui_text(prop, "Editor Type", "Current editor type for this area");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);

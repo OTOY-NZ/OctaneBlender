@@ -553,7 +553,7 @@ static int ed_markers_opwrap_invoke(bContext *C, wmOperator *op, const wmEvent *
 /* ************************** add markers *************************** */
 
 /* add TimeMarker at curent frame */
-static int ed_marker_add(bContext *C, wmOperator *UNUSED(op))
+static int ed_marker_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ListBase *markers = ED_context_get_markers(C);
 	TimeMarker *marker;
@@ -593,7 +593,7 @@ static void MARKER_OT_add(wmOperatorType *ot)
 	ot->idname = "MARKER_OT_add";
 	
 	/* api callbacks */
-	ot->exec = ed_marker_add;
+	ot->exec = ed_marker_add_exec;
 	ot->invoke = ed_markers_opwrap_invoke;
 	ot->poll = ED_operator_animview_active;
 	
@@ -763,7 +763,6 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 	MarkerMove *mm = op->customdata;
 	View2D *v2d = UI_view2d_fromcontext(C);
 	TimeMarker *marker, *selmarker = NULL;
-	float dx, fac;
 	char str[256];
 		
 	switch (event->type) {
@@ -791,6 +790,9 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 			}
 			break;
 		case MOUSEMOVE:
+		{
+			float dx, fac;
+
 			if (hasNumInput(&mm->num))
 				break;
 			
@@ -863,6 +865,8 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 				
 				ED_area_headerprint(CTX_wm_area(C), str);
 			}
+			break;
+		}
 	}
 
 	if (event->val == KM_PRESS) {
@@ -1376,7 +1380,7 @@ static int ed_marker_rename_invoke_wrapper(bContext *C, wmOperator *op, const wm
 		RNA_string_set(op->ptr, "name", marker->name);
 	
 	/* now see if the operator is usable */
-	return ed_markers_opwrap_invoke_custom(C, op, event, WM_operator_props_popup);
+	return ed_markers_opwrap_invoke_custom(C, op, event, WM_operator_props_popup_confirm);
 }
 
 static void MARKER_OT_rename(wmOperatorType *ot)

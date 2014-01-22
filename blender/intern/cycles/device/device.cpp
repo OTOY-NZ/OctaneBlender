@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <stdlib.h>
@@ -43,7 +41,10 @@ void Device::pixels_alloc(device_memory& mem)
 
 void Device::pixels_copy_from(device_memory& mem, int y, int w, int h)
 {
-	mem_copy_from(mem, y, w, h, sizeof(uint8_t)*4);
+	if(mem.data_type == TYPE_HALF)
+		mem_copy_from(mem, y, w, h, sizeof(half4));
+	else
+		mem_copy_from(mem, y, w, h, sizeof(uchar4));
 }
 
 void Device::pixels_free(device_memory& mem)
@@ -60,19 +61,61 @@ void Device::draw_pixels(device_memory& rgba, int y, int w, int h, int dy, int w
 		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
-	glPixelZoom((float)width/(float)w, (float)height/(float)h);
-	glRasterPos2f(0, dy);
+	glColor3f(1.0f, 1.0f, 1.0f);
 
-	uint8_t *pixels = (uint8_t*)rgba.data_pointer;
+	if(rgba.data_type == TYPE_HALF) {
+		/* for multi devices, this assumes the ineffecient method that we allocate
+		 * all pixels on the device even though we only render to a subset */
+		GLhalf *data_pointer = (GLhalf*)rgba.data_pointer;
+		data_pointer += 4*y*w;
 
-	/* for multi devices, this assumes the ineffecient method that we allocate
-	 * all pixels on the device even though we only render to a subset */
-	pixels += 4*y*w;
+		/* draw half float texture, GLSL shader for display transform assumed to be bound */
+		GLuint texid;
+		glGenTextures(1, &texid);
+		glBindTexture(GL_TEXTURE_2D, texid);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F_ARB, w, h, 0, GL_RGBA, GL_HALF_FLOAT, data_pointer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+		glEnable(GL_TEXTURE_2D);
 
-	glRasterPos2f(0.0f, 0.0f);
-	glPixelZoom(1.0f, 1.0f);
+		glPushMatrix();
+		glTranslatef(0.0f, (float)dy, 0.0f);
+
+		glBegin(GL_QUADS);
+		
+		glTexCoord2f(0.0f, 0.0f);
+		glVertex2f(0.0f, 0.0f);
+		glTexCoord2f(1.0f, 0.0f);
+		glVertex2f((float)width, 0.0f);
+		glTexCoord2f(1.0f, 1.0f);
+		glVertex2f((float)width, (float)height);
+		glTexCoord2f(0.0f, 1.0f);
+		glVertex2f(0.0f, (float)height);
+
+		glEnd();
+
+		glPopMatrix();
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glDisable(GL_TEXTURE_2D);
+		glDeleteTextures(1, &texid);
+	}
+	else {
+		/* fallback for old graphics cards that don't support GLSL, half float,
+		 * and non-power-of-two textures */
+		glPixelZoom((float)width/(float)w, (float)height/(float)h);
+		glRasterPos2f(0, dy);
+
+		uint8_t *pixels = (uint8_t*)rgba.data_pointer;
+
+		pixels += 4*y*w;
+
+		glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+		glRasterPos2f(0.0f, 0.0f);
+		glPixelZoom(1.0f, 1.0f);
+	}
 
 	if(transparent)
 		glDisable(GL_BLEND);

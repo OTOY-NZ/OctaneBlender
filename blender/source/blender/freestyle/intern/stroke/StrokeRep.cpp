@@ -149,7 +149,8 @@ void Strip::createStrip (const vector<StrokeVertex*>& iStrokeVertices)
 			if (dp < 0)
 				userDir = userDir * (-1.0f);
 			stripDir = userDir;
-		} else {
+		}
+		else {
 			++orientationErrors;
 		}
 	}
@@ -207,7 +208,8 @@ void Strip::createStrip (const vector<StrokeVertex*>& iStrokeVertices)
 				if (dp < 0)
 					userDir = userDir * (-1.0f);
 				stripDir = userDir;
-			} else {
+			}
+			else {
 				++orientationErrors;
 			}
 		}
@@ -226,7 +228,8 @@ void Strip::createStrip (const vector<StrokeVertex*>& iStrokeVertices)
 				if (dp < 0)
 					userDir = userDir * (-1.0f);
 				stripDirPrev = userDir;
-			} else {
+			}
+			else {
 				++orientationErrors;
 			}
 		}
@@ -302,7 +305,8 @@ void Strip::createStrip (const vector<StrokeVertex*>& iStrokeVertices)
 			if (dp < 0)
 				userDir = userDir * (-1.0f);
 			stripDirLast = userDir;
-		} else {
+		}
+		else {
 			++orientationErrors;
 		}
 	}
@@ -414,10 +418,10 @@ void Strip::cleanUpSingularities (const vector<StrokeVertex*>& iStrokeVertices)
 					cerr << "Stephane dit \"Toto\"" << endl;
 				//traverse all the vertices of the singularity and average them
 				Vec2r avP(0.0, 0.0);
-				for (j = i - timeSinceSingu1; j < i + 1; j++)
+				for (j = i - timeSinceSingu1; j <= i; j++)
 					avP = Vec2r(avP + _vertices[2 * j]->point2d());
 				avP = Vec2r( 1.0 / float(timeSinceSingu1 + 1) * avP);
-				for (j = i - timeSinceSingu1; j < i + 1; j++)
+				for (j = i - timeSinceSingu1; j <= i; j++)
 					_vertices[2 * j]->setPoint2d(avP);
 				//_vertex[2 * j] = _vertex[2 * i];
 				singu1 = false;
@@ -435,10 +439,10 @@ void Strip::cleanUpSingularities (const vector<StrokeVertex*>& iStrokeVertices)
 					cerr << "Stephane dit \"Toto\"" << endl;
 				//traverse all the vertices of the singularity and average them
 				Vec2r avP(0.0, 0.0);
-				for (j = i - timeSinceSingu2; j < i + 1; j++)
+				for (j = i - timeSinceSingu2; j <= i; j++)
 					avP = Vec2r(avP + _vertices[2 * j + 1]->point2d());
 				avP = Vec2r(1.0 / float(timeSinceSingu2 + 1) * avP);
-				for (j = i - timeSinceSingu2; j < i + 1; j++)
+				for (j = i - timeSinceSingu2; j <= i; j++)
 					_vertices[2 * j + 1]->setPoint2d(avP);
 				//_vertex[2 * j + 1] = _vertex[2 * i + 1];
 				singu2 = false;

@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "background.h"
@@ -149,6 +147,7 @@ static void get_tex_mapping(TextureMapping *mapping, BL::TexMapping b_mapping)
 	mapping->translation = get_float3(b_mapping.translation());
 	mapping->rotation = get_float3(b_mapping.rotation());
 	mapping->scale = get_float3(b_mapping.scale());
+	mapping->type = (TextureMapping::Type)b_mapping.vector_type();
 
 	mapping->x_mapping = (TextureMapping::Mapping)b_mapping.mapping_x();
 	mapping->y_mapping = (TextureMapping::Mapping)b_mapping.mapping_y();
@@ -163,6 +162,7 @@ static void get_tex_mapping(TextureMapping *mapping, BL::ShaderNodeMapping b_map
 	mapping->translation = get_float3(b_mapping.translation());
 	mapping->rotation = get_float3(b_mapping.rotation());
 	mapping->scale = get_float3(b_mapping.scale());
+	mapping->type = (TextureMapping::Type)b_mapping.vector_type();
 
 	mapping->use_minmax = b_mapping.use_min() || b_mapping.use_max();
 
@@ -231,6 +231,12 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 	else if (b_node.is_a(&RNA_ShaderNodeCombineRGB)) {
 		node = new CombineRGBNode();
 	}
+	else if (b_node.is_a(&RNA_ShaderNodeSeparateHSV)) {
+		node = new SeparateHSVNode();
+	}
+	else if (b_node.is_a(&RNA_ShaderNodeCombineHSV)) {
+		node = new CombineHSVNode();
+	}
 	else if (b_node.is_a(&RNA_ShaderNodeHueSaturation)) {
 		node = new HSVNode();
 	}
@@ -249,6 +255,14 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		VectorMathNode *vmath = new VectorMathNode();
 		vmath->type = VectorMathNode::type_enum[b_vector_math_node.operation()];
 		node = vmath;
+	}
+	else if (b_node.is_a(&RNA_ShaderNodeVectorTransform)) {
+		BL::ShaderNodeVectorTransform b_vector_transform_node(b_node);
+		VectorTransformNode *vtransform = new VectorTransformNode();
+		vtransform->type = VectorTransformNode::type_enum[b_vector_transform_node.type()];
+		vtransform->convert_from = VectorTransformNode::convert_space_enum[b_vector_transform_node.convert_from()];
+		vtransform->convert_to = VectorTransformNode::convert_space_enum[b_vector_transform_node.convert_to()];
+		node = vtransform;
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeNormal)) {
 		BL::Node::outputs_iterator out_it;
@@ -303,7 +317,23 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		node = new DiffuseBsdfNode();
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeSubsurfaceScattering)) {
-		node = new SubsurfaceScatteringNode();
+		BL::ShaderNodeSubsurfaceScattering b_subsurface_node(b_node);
+
+		SubsurfaceScatteringNode *subsurface = new SubsurfaceScatteringNode();
+
+		switch(b_subsurface_node.falloff()) {
+		case BL::ShaderNodeSubsurfaceScattering::falloff_COMPATIBLE:
+			subsurface->closure = CLOSURE_BSSRDF_COMPATIBLE_ID;
+			break;
+		case BL::ShaderNodeSubsurfaceScattering::falloff_CUBIC:
+			subsurface->closure = CLOSURE_BSSRDF_CUBIC_ID;
+			break;
+		case BL::ShaderNodeSubsurfaceScattering::falloff_GAUSSIAN:
+			subsurface->closure = CLOSURE_BSSRDF_GAUSSIAN_ID;
+			break;
+		}
+
+		node = subsurface;
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeBsdfGlossy)) {
 		BL::ShaderNodeBsdfGlossy b_glossy_node(b_node);
@@ -367,6 +397,19 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		}
 		node = toon;
 	}
+	else if (b_node.is_a(&RNA_ShaderNodeBsdfHair)) {
+		BL::ShaderNodeBsdfHair b_hair_node(b_node);
+		HairBsdfNode *hair = new HairBsdfNode();
+		switch(b_hair_node.component()) {
+			case BL::ShaderNodeBsdfHair::component_Reflection:
+				hair->component = ustring("Reflection");
+				break;
+			case BL::ShaderNodeBsdfHair::component_Transmission:
+				hair->component = ustring("Transmission");
+				break;
+		}
+		node = hair;
+	}
 	else if (b_node.is_a(&RNA_ShaderNodeBsdfTranslucent)) {
 		node = new TranslucentBsdfNode();
 	}
@@ -399,6 +442,9 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeWavelength)) {
 		node = new WavelengthNode();
+	}
+	else if (b_node.is_a(&RNA_ShaderNodeBlackbody)) {
+		node = new BlackbodyNode();
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeLightPath)) {
 		node = new LightPathNode();
@@ -601,8 +647,10 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 	else if (b_node.is_a(&RNA_ShaderNodeTexSky)) {
 		BL::ShaderNodeTexSky b_sky_node(b_node);
 		SkyTextureNode *sky = new SkyTextureNode();
+		sky->type = SkyTextureNode::type_enum[(int)b_sky_node.sky_type()];
 		sky->sun_direction = get_float3(b_sky_node.sun_direction());
 		sky->turbidity = b_sky_node.turbidity();
+		sky->ground_albedo = b_sky_node.ground_albedo();
 		get_tex_mapping(&sky->tex_mapping, b_sky_node.texture_mapping());
 		node = sky;
 	}

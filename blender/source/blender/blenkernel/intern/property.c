@@ -59,9 +59,8 @@ void BKE_bproperty_free(bProperty *prop)
 void BKE_bproperty_free_list(ListBase *lb)
 {
 	bProperty *prop;
-	
-	while ( (prop = lb->first) ) {
-		BLI_remlink(lb, prop);
+
+	while ((prop = BLI_pophead(lb))) {
 		BKE_bproperty_free(prop);
 	}
 }
@@ -177,9 +176,9 @@ void BKE_bproperty_unique(bProperty *first, bProperty *prop, int force)
 			i = 0;
 
 			do { /* ensure we have enough chars for the new number in the name */
-				BLI_snprintf(num, sizeof(num), "%d", i++);
-				BLI_strncpy(new_name, base_name, sizeof(prop->name) - strlen(num));
-				strcat(new_name, num);
+				const size_t num_len = BLI_snprintf(num, sizeof(num), "%d", i++);
+				BLI_snprintf(new_name, sizeof(prop->name),
+				             "%.*s%s", (int)(sizeof(prop->name) - num_len), base_name, num);
 			} while (bproperty_get(first, prop, new_name));
 
 			BLI_strncpy(prop->name, new_name, sizeof(prop->name));

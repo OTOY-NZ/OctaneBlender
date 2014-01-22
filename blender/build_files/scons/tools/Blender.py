@@ -151,12 +151,6 @@ def setup_staticlibs(lenv):
         libincs += Split(lenv['BF_JACK_LIBPATH'])
     if lenv['WITH_BF_SNDFILE']:
         libincs += Split(lenv['BF_SNDFILE_LIBPATH'])
-    if lenv['WITH_BF_OPENEXR']:
-        libincs += Split(lenv['BF_OPENEXR_LIBPATH'])
-        if lenv['WITH_BF_STATICOPENEXR']:
-            statlibs += Split(lenv['BF_OPENEXR_LIB_STATIC'])
-    if lenv['WITH_BF_ZLIB'] and lenv['WITH_BF_STATICZLIB']:
-        statlibs += Split(lenv['BF_ZLIB_LIB_STATIC'])
     if lenv['WITH_BF_TIFF']:
         libincs += Split(lenv['BF_TIFF_LIBPATH'])
         if lenv['WITH_BF_STATICTIFF']:
@@ -212,6 +206,12 @@ def setup_staticlibs(lenv):
         libincs += Split(lenv['BF_OIIO_LIBPATH'])
         if lenv['WITH_BF_STATICOIIO']:
             statlibs += Split(lenv['BF_OIIO_LIB_STATIC'])
+    if lenv['WITH_BF_OPENEXR']:
+        libincs += Split(lenv['BF_OPENEXR_LIBPATH'])
+        if lenv['WITH_BF_STATICOPENEXR']:
+            statlibs += Split(lenv['BF_OPENEXR_LIB_STATIC'])
+    if lenv['WITH_BF_ZLIB'] and lenv['WITH_BF_STATICZLIB']:
+        statlibs += Split(lenv['BF_ZLIB_LIB_STATIC'])
 
     if lenv['WITH_BF_OCIO']:
         libincs += Split(lenv['BF_OCIO_LIBPATH'])
@@ -683,15 +683,23 @@ def AppIt(target=None, source=None, env=None):
     commands.getoutput(cmd)
     cmd = 'find %s/%s.app -name __MACOSX -exec rm -rf {} \;'%(installdir, binary)
     commands.getoutput(cmd)
-    if env['CC'][:-2].endswith('4.6'): # for correct errorhandling with gcc 4.6.x we need the gcc.dylib to link, thus distribute in app-bundle
+    if env['CC'][:-2].endswith('4.6') or env['CC'][:-2].endswith('4.8'): # for correct errorhandling with gcc 4.6/4.8.x we need the gcc.dylib and gomp.dylib to link, thus distribute in app-bundle
         cmd = 'mkdir %s/%s.app/Contents/MacOS/lib'%(installdir, binary)
         commands.getoutput(cmd)
         instname = env['BF_CXX']
-        cmd = 'ditto --arch %s %s/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary)
+        cmd = 'ditto --arch %s %s/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary) # copy libgcc
         commands.getoutput(cmd)
-        cmd = 'install_name_tool -id @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/libgcc_s.1.dylib'%(installdir, binary)
+        cmd = 'install_name_tool -id @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/libgcc_s.1.dylib'%(installdir, binary) # change id of libgcc
         commands.getoutput(cmd)
-        cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary)
+        cmd = 'ditto --arch %s %s/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary) # copy libgomp
+        commands.getoutput(cmd)
+        cmd = 'install_name_tool -id @executable_path/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/lib/libgomp.1.dylib'%(installdir, binary) # change id of libgomp
+        commands.getoutput(cmd)
+        cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/libgomp.1.dylib'%(instname, installdir, binary) # change ref to libgcc
+        commands.getoutput(cmd)
+        cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libgcc ( blender )
+        commands.getoutput(cmd)
+        cmd = 'install_name_tool -change %s/lib/libgomp.1.dylib  @executable_path/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libgomp ( blender )
         commands.getoutput(cmd)
 
 # extract copy system python, be sure to update other build systems

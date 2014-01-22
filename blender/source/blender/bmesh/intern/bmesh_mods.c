@@ -356,10 +356,9 @@ BMFace *BM_face_split(BMesh *bm, BMFace *f, BMVert *v1, BMVert *v2, BMLoop **r_l
 	
 	if (f_new) {
 		BM_elem_attrs_copy(bm, bm, f, f_new);
-		copy_v3_v3(f_new->no, f->no);
 
 		/* handle multires update */
-		if (has_mdisp && (f_new != f)) {
+		if (has_mdisp) {
 			BMLoop *l_iter;
 			BMLoop *l_first;
 
@@ -373,14 +372,16 @@ BMFace *BM_face_split(BMesh *bm, BMFace *f, BMVert *v1, BMVert *v2, BMLoop **r_l
 				BM_loop_interp_multires(bm, l_iter, f_tmp);
 			} while ((l_iter = l_iter->next) != l_first);
 
-			BM_face_kill(bm, f_tmp);
-
 #if 0
 			/* BM_face_multires_bounds_smooth doesn't flip displacement correct */
 			BM_face_multires_bounds_smooth(bm, f);
 			BM_face_multires_bounds_smooth(bm, f_new);
 #endif
 		}
+	}
+
+	if (has_mdisp) {
+		BM_face_kill(bm, f_tmp);
 	}
 
 	return f_new;
@@ -490,26 +491,22 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, float 
 	BMEdge *e2;
 	BMVert *tv2;
 
-	BMIter iter;
-	BMLoop *l_iter = NULL, *kvloop = NULL, *tvloop = NULL;
-
-	void *src[2];
-	float w[2];
-
 	/* Only intended to be called for 2-valence vertices */
 	BLI_assert(bmesh_disk_count(v_kill) <= 2);
 
 
-	/* first modify the face loop data  */
-	w[0] = 1.0f - fac;
-	w[1] = fac;
+	/* first modify the face loop data */
 
 	if (e_kill->l) {
+		BMLoop *l_iter;
+		const float w[2] = {1.0f - fac, fac};
+
 		l_iter = e_kill->l;
 		do {
 			if (l_iter->v == tv && l_iter->next->v == v_kill) {
-				tvloop = l_iter;
-				kvloop = l_iter->next;
+				void *src[2];
+				BMLoop *tvloop = l_iter;
+				BMLoop *kvloop = l_iter->next;
 
 				src[0] = kvloop->head.data;
 				src[1] = tvloop->head.data;
@@ -525,11 +522,12 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, float 
 	tv2 = BM_edge_other_vert(e2, v_kill);
 
 	if (join_faces) {
+		BMIter fiter;
 		BMFace **faces = NULL;
 		BMFace *f;
-		BLI_array_staticdeclare(faces, 8);
+		BLI_array_staticdeclare(faces, BM_DEFAULT_ITER_STACK_SIZE);
 
-		BM_ITER_ELEM (f, &iter, v_kill, BM_FACES_OF_VERT) {
+		BM_ITER_ELEM (f, &fiter, v_kill, BM_FACES_OF_VERT) {
 			BLI_array_append(faces, f);
 		}
 
@@ -543,6 +541,8 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, float 
 			}
 		}
 
+		BLI_assert(BLI_array_count(faces) < 8);
+
 		BLI_array_free(faces);
 	}
 	else {
@@ -553,8 +553,8 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, float 
 		/* e_new = BM_edge_exists(tv, tv2); */ /* same as return above */
 
 		if (e_new && kill_degenerate_faces) {
-			BLI_array_declare(bad_faces);
 			BMFace **bad_faces = NULL;
+			BLI_array_staticdeclare(bad_faces, BM_DEFAULT_ITER_STACK_SIZE);
 
 			BMIter fiter;
 			BMFace *f;
@@ -1068,12 +1068,12 @@ BMEdge *BM_edge_rotate(BMesh *bm, BMEdge *e, const bool ccw, const short check_f
 
 	/* first create the new edge, this is so we can copy the customdata from the old one
 	 * if splice if disabled, always add in a new edge even if theres one there. */
-	e_new = BM_edge_create(bm, v1, v2, e, (check_flag & BM_EDGEROT_CHECK_SPLICE) != 0);
+	e_new = BM_edge_create(bm, v1, v2, e, (check_flag & BM_EDGEROT_CHECK_SPLICE) ? BM_CREATE_NO_DOUBLE : BM_CREATE_NOP);
 
 	f_hflag_prev_1 = l1->f->head.hflag;
 	f_hflag_prev_2 = l2->f->head.hflag;
 
-	/* don't delete the edge, manually remove the egde after so we can copy its attributes */
+	/* don't delete the edge, manually remove the edge after so we can copy its attributes */
 	f = BM_faces_join_pair(bm, l1->f, l2->f, NULL, true);
 
 	if (f == NULL) {

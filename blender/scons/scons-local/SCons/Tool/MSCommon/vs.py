@@ -210,7 +210,16 @@ SupportedVSList = [
     #             executable_path=r'TBD',
     #             default_dirname='TBD',
     #),
-
+    VisualStudio('12.0',
+                 sdk_version='6.1',
+                 hkeys=[r'Microsoft\VisualStudio\12.0'],
+                 common_tools_var='VS120COMNTOOLS',
+                 executable_path=r'Common7\IDE\VDExpress.exe',
+                 batch_file_path=r'Common7\Tools\vsvars32.bat',
+                 default_dirname='Microsoft Visual Studio 12',
+                 supported_arch=['x86', 'amd64'],
+    ),
+    
     # Visual Studio 11
     # The batch file we look for is in the VC directory,
     # so the devenv.com executable is up in ..\..\Common7\IDE.

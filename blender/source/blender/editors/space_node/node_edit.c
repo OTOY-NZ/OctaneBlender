@@ -510,13 +510,9 @@ void ED_node_composit_default(const bContext *C, struct Scene *sce)
 	
 	out = nodeAddStaticNode(C, sce->nodetree, CMP_NODE_COMPOSITE);
 	out->locx = 300.0f; out->locy = 400.0f;
-	out->id = &sce->id;
-	id_us_plus(out->id);
 	
 	in = nodeAddStaticNode(C, sce->nodetree, CMP_NODE_R_LAYERS);
 	in->locx = 10.0f; in->locy = 400.0f;
-	in->id = &sce->id;
-	id_us_plus(in->id);
 	nodeSetActive(sce->nodetree, in);
 	
 	/* links from color to color */
@@ -858,14 +854,14 @@ static void node_resize_init(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 	nsw->oldminiwidth = node->miniwidth;
 	nsw->directions = dir;
 	
-	WM_cursor_modal(CTX_wm_window(C), node_get_resize_cursor(dir));
+	WM_cursor_modal_set(CTX_wm_window(C), node_get_resize_cursor(dir));
 	/* add modal handler */
 	WM_event_add_modal_handler(C, op);
 }
 
 static void node_resize_exit(bContext *C, wmOperator *op, int UNUSED(cancel))
 {
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 	
 	MEM_freeN(op->customdata);
 	op->customdata = NULL;
@@ -1060,7 +1056,7 @@ void node_set_hidden_sockets(SpaceNode *snode, bNode *node, int set)
 
 /* checks snode->mouse position, and returns found node/socket */
 /* type is SOCK_IN and/or SOCK_OUT */
-int node_find_indicated_socket(SpaceNode *snode, bNode **nodep, bNodeSocket **sockp, int in_out)
+int node_find_indicated_socket(SpaceNode *snode, bNode **nodep, bNodeSocket **sockp, float cursor[2], int in_out)
 {
 	bNode *node;
 	bNodeSocket *sock;
@@ -1072,10 +1068,10 @@ int node_find_indicated_socket(SpaceNode *snode, bNode **nodep, bNodeSocket **so
 	/* check if we click in a socket */
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
 		
-		rect.xmin = snode->cursor[0] - (NODE_SOCKSIZE + 4);
-		rect.ymin = snode->cursor[1] - (NODE_SOCKSIZE + 4);
-		rect.xmax = snode->cursor[0] + (NODE_SOCKSIZE + 4);
-		rect.ymax = snode->cursor[1] + (NODE_SOCKSIZE + 4);
+		rect.xmin = cursor[0] - (NODE_SOCKSIZE + 4);
+		rect.ymin = cursor[1] - (NODE_SOCKSIZE + 4);
+		rect.xmax = cursor[0] + (NODE_SOCKSIZE + 4);
+		rect.ymax = cursor[1] + (NODE_SOCKSIZE + 4);
 		
 		if (!(node->flag & NODE_HIDDEN)) {
 			/* extra padding inside and out - allow dragging on the text areas too */
@@ -1735,7 +1731,7 @@ static int node_output_file_add_socket_exec(bContext *C, wmOperator *op)
 		node = nodeGetActive(snode->edittree);
 	}
 
-	if (!node)
+	if (!node || node->type != CMP_NODE_OUTPUT_FILE)
 		return OPERATOR_CANCELLED;
 
 	RNA_string_get(op->ptr, "file_path", file_path);
@@ -1781,7 +1777,7 @@ static int node_output_file_remove_active_socket_exec(bContext *C, wmOperator *U
 		node = nodeGetActive(snode->edittree);
 	}
 
-	if (!node)
+	if (!node || node->type != CMP_NODE_OUTPUT_FILE)
 		return OPERATOR_CANCELLED;
 	
 	if (!ntreeCompositOutputFileRemoveActiveSocket(ntree, node))
@@ -1823,7 +1819,7 @@ static int node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
 	else if (snode && snode->edittree)
 		node = nodeGetActive(snode->edittree);
 
-	if (!node)
+	if (!node || node->type != CMP_NODE_OUTPUT_FILE)
 		return OPERATOR_CANCELLED;
 
 	nimf = node->storage;
@@ -2091,17 +2087,6 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int node_clipboard_paste_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	ARegion *ar = CTX_wm_region(C);
-	SpaceNode *snode = CTX_wm_space_node(C);
-
-	/* convert mouse coordinates to v2d space */
-	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &snode->cursor[0], &snode->cursor[1]);
-
-	return node_clipboard_paste_exec(C, op);
-}
-
 void NODE_OT_clipboard_paste(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -2111,7 +2096,6 @@ void NODE_OT_clipboard_paste(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = node_clipboard_paste_exec;
-	ot->invoke = node_clipboard_paste_invoke;
 	ot->poll = ED_operator_node_editable;
 
 	/* flags */
@@ -2262,24 +2246,26 @@ static int ntree_socket_move_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	
 	switch (direction) {
-	case 1: {	/* up */
-		bNodeSocket *before = iosock->prev;
-		BLI_remlink(lb, iosock);
-		if (before)
-			BLI_insertlinkbefore(lb, before, iosock);
-		else
-			BLI_addhead(lb, iosock);
-		break;
-	}
-	case 2: {	/* down */
-		bNodeSocket *after = iosock->next;
-		BLI_remlink(lb, iosock);
-		if (after)
-			BLI_insertlinkafter(lb, after, iosock);
-		else
-			BLI_addtail(lb, iosock);
-		break;
-	}
+		case 1:
+		{	/* up */
+			bNodeSocket *before = iosock->prev;
+			BLI_remlink(lb, iosock);
+			if (before)
+				BLI_insertlinkbefore(lb, before, iosock);
+			else
+				BLI_addhead(lb, iosock);
+			break;
+		}
+		case 2:
+		{	/* down */
+			bNodeSocket *after = iosock->next;
+			BLI_remlink(lb, iosock);
+			if (after)
+				BLI_insertlinkafter(lb, after, iosock);
+			else
+				BLI_addtail(lb, iosock);
+			break;
+		}
 	}
 	
 	ntreeUpdateTree(CTX_data_main(C), ntree);

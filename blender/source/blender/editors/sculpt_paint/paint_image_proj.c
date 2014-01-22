@@ -3883,7 +3883,7 @@ static void *do_projectpaint_thread(void *ph_v)
 						float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
 
 						straight_uchar_to_premul_float(newColor_f, projPixel->newColor.ch);
-						IMB_colormanagement_colorspace_to_scene_linear_v4(newColor_f, TRUE, ps->reproject_ibuf->rect_colorspace);
+						IMB_colormanagement_colorspace_to_scene_linear_v4(newColor_f, true, ps->reproject_ibuf->rect_colorspace);
 						mul_v4_v4fl(newColor_f, newColor_f, mask);
 
 						blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f,
@@ -4164,7 +4164,7 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 
 		view3d_operator_needs_opengl(C);
 
-		if (!ED_view3d_autodist(scene, ps->ar, v3d, mval_i, cursor, false))
+		if (!ED_view3d_autodist(scene, ps->ar, v3d, mval_i, cursor, false, NULL))
 			return;
 
 		ED_region_tag_redraw(ps->ar);
@@ -4278,9 +4278,6 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
 		view3d_operator_needs_opengl(C);
 		return ps;
 	}
-
-	/* needed so multiple threads don't try to initialize the brush at once (can leak memory) */
-	curvemapping_initialize(ps->brush->curve);
 
 	paint_brush_init_tex(ps->brush);
 

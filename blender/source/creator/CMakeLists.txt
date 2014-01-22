@@ -234,7 +234,15 @@ set(BLENDER_TEXT_FILES
 	${CMAKE_SOURCE_DIR}/release/text/Python-license.txt
 	${CMAKE_SOURCE_DIR}/release/text/copyright.txt
 	${CMAKE_SOURCE_DIR}/release/text/readme.html
+	${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bfont.ttf.txt
 )
+
+if(WITH_INTERNATIONAL)
+	list(APPEND BLENDER_TEXT_FILES
+		${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-droidsans.ttf.txt
+		${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bmonofont-i18n.ttf.txt
+	)
+endif()
 
 
 # -----------------------------------------------------------------------------
@@ -992,6 +1000,10 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS bf_quicktime)
 	endif()
 
+	if(WITH_INPUT_NDOF)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_ghostndof3dconnexion)
+	endif()
+	
 	if(WITH_MOD_BOOLEAN)
 		list(APPEND BLENDER_SORTED_LIBS extern_carve)
 	endif()

@@ -363,6 +363,7 @@ class Ms3dImporter():
         # create all vertices
         for ms3d_vertex_index, ms3d_vertex in enumerate(ms3d_model.vertices):
             bmv = bm.verts.new(self.geometry_correction(ms3d_vertex.vertex))
+            bmv.index = ms3d_vertex_index
 
             if layer_extra and ms3d_vertex.vertex_ex_object and \
                     (isinstance(ms3d_vertex.vertex_ex_object, Ms3dVertexEx2) \
@@ -526,6 +527,7 @@ class Ms3dImporter():
                         ms3d_model.vertices.append(
                                 ms3d_model.vertices[vert_index])
                         bmv_new = bm.verts.new(bmv.co)
+                        bmv_new.index = -vert_index
                         bmv_new.normal = blender_normal
                         bmv_new[layer_extra] = bmv[layer_extra]
                         vert_index = length_verts
@@ -554,7 +556,22 @@ class Ms3dImporter():
                                     ms3d_triangle_index))
                 continue
 
-            bmf_normal.normalize()
+            # create edges for the face
+            # (not really needed, because bm.faces.new() will create its edges,
+            # if not exist, but good if we have already in case we need full control
+            # of bmesh stuff maybe in the future.
+            bme = bm.edges.get((bmv_list[0], bmv_list[1]))
+            if bme is None:
+                bme = bm.edges.new((bmv_list[0], bmv_list[1]))
+                bme.index = len(bm.edges) - 1
+            bme = bm.edges.get((bmv_list[1], bmv_list[2]))
+            if bme is None:
+                bme = bm.edges.new((bmv_list[1], bmv_list[2]))
+                bme.index = len(bm.edges) - 1
+            bme = bm.edges.get((bmv_list[2], bmv_list[0]))
+            if bme is None:
+                bme = bm.edges.new((bmv_list[2], bmv_list[0]))
+                bme.index = len(bm.edges) - 1
 
             bmf = bm.faces.get(bmv_list)
             if bmf is not None:
@@ -566,6 +583,8 @@ class Ms3dImporter():
                 continue
 
             bmf = bm.faces.new(bmv_list)
+            bmf.index = ms3d_triangle_index
+            bmf_normal.normalize()
             bmf.normal = bmf_normal
 
             # blender uv custom data per "face vertex"

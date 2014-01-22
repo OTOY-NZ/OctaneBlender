@@ -229,12 +229,13 @@ short calc_fcurve_bounds(struct FCurve *fcu, float *xmin, float *xmax, float *ym
 short fcurve_are_keyframes_usable(struct FCurve *fcu);
 
 /* Can keyframes be added to F-Curve? */
-short fcurve_is_keyframable(struct FCurve *fcu);
+bool fcurve_is_keyframable(struct FCurve *fcu);
+bool BKE_fcurve_is_protected(struct FCurve *fcu);
 
 /* -------- Curve Sanity --------  */
 
 void calchandles_fcurve(struct FCurve *fcu);
-void testhandles_fcurve(struct FCurve *fcu, const short use_handle);
+void testhandles_fcurve(struct FCurve *fcu, const bool use_handle);
 void sort_time_fcurve(struct FCurve *fcu);
 short test_time_fcurve(struct FCurve *fcu);
 

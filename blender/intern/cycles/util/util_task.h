@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __UTIL_TASK_H__
@@ -52,7 +50,7 @@ public:
  * pool, we can wait for all tasks to be done, or cancel them before they are
  * done.
  *
- * The run callback that actually executes the task may be create like this:
+ * The run callback that actually executes the task may be created like this:
  * function_bind(&MyClass::task_execute, this, _1, _2) */
 
 class TaskPool
@@ -79,8 +77,8 @@ protected:
 	thread_mutex num_mutex;
 	thread_condition_variable num_cond;
 
-	volatile int num;
-	volatile bool do_cancel;
+	int num;
+	bool do_cancel;
 };
 
 /* Task Scheduler
@@ -94,8 +92,8 @@ public:
 	static void init(int num_threads = 0);
 	static void exit();
 
-	/* number of threads that can work on tasks, main thread counts too */
-	static int num_threads() { return threads.size() + 1; }
+	/* number of threads that can work on task */
+	static int num_threads() { return threads.size(); }
 
 	/* test if any session is using the scheduler */
 	static bool active() { return users != 0; }
@@ -111,7 +109,7 @@ protected:
 	static thread_mutex mutex;
 	static int users;
 	static vector<thread*> threads;
-	static volatile bool do_exit;
+	static bool do_exit;
 
 	static list<Entry> queue;
 	static thread_mutex queue_mutex;
@@ -122,6 +120,51 @@ protected:
 
 	static void push(Entry& entry, bool front);
 	static void clear(TaskPool *pool);
+};
+
+/* Dedicated Task Pool
+ *
+ * Like a TaskPool, but will launch one dedicated thread to execute all tasks.
+ *
+ * The run callback that actually executes the task may be created like this:
+ * function_bind(&MyClass::task_execute, this, _1, _2) */
+
+class DedicatedTaskPool
+{
+public:
+	DedicatedTaskPool();
+	~DedicatedTaskPool();
+
+	void push(Task *task, bool front = false);
+	void push(const TaskRunFunction& run, bool front = false);
+
+	void wait();        /* wait until all tasks are done */
+	void cancel();		/* cancel all tasks, keep worker thread running */
+	void stop();		/* stop worker thread */
+
+	bool cancelled();	/* for worker thread, test if cancelled */
+
+protected:
+	void num_decrease(int done);
+	void num_increase();
+
+	void thread_run();
+	bool thread_wait_pop(Task*& entry);
+
+	void clear();
+
+	thread_mutex num_mutex;
+	thread_condition_variable num_cond;
+
+	list<Task*> queue;
+	thread_mutex queue_mutex;
+	thread_condition_variable queue_cond;
+
+	int num;
+	bool do_cancel;
+	bool do_exit;
+
+	thread *worker_thread;
 };
 
 CCL_NAMESPACE_END

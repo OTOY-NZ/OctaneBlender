@@ -269,7 +269,8 @@ bool id_make_local(ID *id, bool test)
 			if (!test) BKE_action_make_local((bAction *)id);
 			return true;
 		case ID_NT:
-			return false; /* not implemented */
+			if (!test) ntreeMakeLocal((bNodeTree *)id);
+			return true;
 		case ID_BR:
 			if (!test) BKE_brush_make_local((Brush *)id);
 			return true;
@@ -1057,6 +1058,7 @@ void free_main(Main *mainvar)
 				case  32: BKE_libblock_free(lb, id); break;
 				default:
 					BLI_assert(0);
+					break;
 			}
 #endif
 		}
@@ -1263,16 +1265,12 @@ static ID *is_dupid(ListBase *lb, ID *id, const char *name)
 static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 {
 	ID *idtest;
-	int nr = 0, nrtest, a, left_len;
+	int nr = 0, a, left_len;
 #define MAX_IN_USE 64
 	bool in_use[MAX_IN_USE];
 	/* to speed up finding unused numbers within [1 .. MAX_IN_USE - 1] */
 
 	char left[MAX_ID_NAME + 8], leftest[MAX_ID_NAME + 8];
-
-	/* make sure input name is terminated properly */
-	/* if ( strlen(name) > MAX_ID_NAME-3 ) name[MAX_ID_NAME-3] = 0; */
-	/* removed since this is only ever called from one place - campbell */
 
 	while (true) {
 
@@ -1300,6 +1298,7 @@ static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 		}
 
 		for (idtest = lb->first; idtest; idtest = idtest->next) {
+			int nrtest;
 			if ( (id != idtest) &&
 			     (idtest->lib == NULL) &&
 			     (*name == *(idtest->name + 2)) &&
@@ -1314,8 +1313,8 @@ static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 					nr = nrtest + 1;    /* track largest unused */
 			}
 		}
-		/* At this point, nr will be at least 1. */
-		BLI_assert(nr >= 1);
+		/* At this point, 'nr' will typically be at least 1. (but not always) */
+		// BLI_assert(nr >= 1);
 
 		/* decide which value of nr to use */
 		for (a = 0; a < MAX_IN_USE; a++) {
@@ -1412,7 +1411,7 @@ bool new_id(ListBase *lb, ID *id, const char *tname)
 
 	/* This was in 2.43 and previous releases
 	 * however all data in blender should be sorted, not just duplicate names
-	 * sorting should not hurt, but noting just incause it alters the way other
+	 * sorting should not hurt, but noting just incase it alters the way other
 	 * functions work, so sort every time */
 #if 0
 	if (result)

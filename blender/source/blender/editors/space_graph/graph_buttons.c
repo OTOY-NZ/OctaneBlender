@@ -50,6 +50,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_main.h"
+#include "BKE_global.h"
 #include "BKE_screen.h"
 #include "BKE_unit.h"
 
@@ -71,20 +72,6 @@
 /* ******************* graph editor space & buttons ************** */
 
 #define B_REDR 1
-
-/* -------------- */
-
-static void do_graph_region_buttons(bContext *UNUSED(C), void *UNUSED(arg), int event)
-{
-	//Scene *scene = CTX_data_scene(C);
-	
-	switch (event) {
-
-	}
-	
-	/* default for now */
-	//WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
-}
 
 /* -------------- */
 
@@ -162,15 +149,16 @@ static void graph_panel_properties(const bContext *C, Panel *pa)
 	PointerRNA fcu_ptr;
 	uiLayout *layout = pa->layout;
 	uiLayout *col, *row, *sub;
-	uiBlock *block;
+	// uiBlock *block;  // UNUSED
 	char name[256];
 	int icon = 0;
 
 	if (!graph_panel_context(C, &ale, &fcu))
 		return;
 	
-	block = uiLayoutGetBlock(layout);
-	uiBlockSetHandleFunc(block, do_graph_region_buttons, NULL);
+	// UNUSED
+	// block = uiLayoutGetBlock(layout);
+	// uiBlockSetHandleFunc(block, do_graph_region_buttons, NULL);
 	
 	/* F-Curve pointer */
 	RNA_pointer_create(ale->id, &RNA_FCurve, fcu, &fcu_ptr);
@@ -281,7 +269,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *pa)
 		return;
 	
 	block = uiLayoutGetBlock(layout);
-	uiBlockSetHandleFunc(block, do_graph_region_buttons, NULL);
+	/* uiBlockSetHandleFunc(block, do_graph_region_buttons, NULL); */
 	
 	/* only show this info if there are keyframes to edit */
 	if (get_active_fcurve_keyframe_edit(fcu, &bezt, &prevbezt)) {
@@ -383,8 +371,8 @@ static void do_graph_region_driver_buttons(bContext *C, void *UNUSED(arg), int e
 		{
 			/* rebuild depsgraph for the new deps */
 			DAG_relations_tag_update(bmain);
+			break;
 		}
-		break;
 	}
 	
 	/* default for now */
@@ -633,8 +621,12 @@ static void graph_panel_drivers(const bContext *C, Panel *pa)
 		uiItemR(col, &driver_ptr, "expression", 0, IFACE_("Expr"), ICON_NONE);
 		
 		/* errors? */
-		if (driver->flag & DRIVER_FLAG_INVALID)
+		if ((G.f & G_SCRIPT_AUTOEXEC) == 0) {
+			uiItemL(col, IFACE_("ERROR: Python auto-execution disabled"), ICON_ERROR);
+		}
+		else if (driver->flag & DRIVER_FLAG_INVALID) {
 			uiItemL(col, IFACE_("ERROR: Invalid Python expression"), ICON_ERROR);
+		}
 	}
 	else {
 		/* errors? */
@@ -841,7 +833,7 @@ void graph_buttons_register(ARegionType *art)
 	BLI_addtail(&art->paneltypes, pt);
 }
 
-static int graph_properties(bContext *C, wmOperator *UNUSED(op))
+static int graph_properties_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = graph_has_buttons_region(sa);
@@ -858,7 +850,7 @@ void GRAPH_OT_properties(wmOperatorType *ot)
 	ot->idname = "GRAPH_OT_properties";
 	ot->description = "Toggle display properties panel";
 	
-	ot->exec = graph_properties;
+	ot->exec = graph_properties_toggle_exec;
 	ot->poll = ED_operator_graphedit_active;
 
 	/* flags */

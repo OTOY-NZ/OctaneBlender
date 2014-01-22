@@ -76,12 +76,12 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 #include "BLI_callbacks.h"
+#include "BLI_blenlib.h"
+#include "BLI_mempool.h"
 
 #include "DNA_ID.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
-
-#include "BLI_blenlib.h"
 
 #include "BKE_blender.h"
 #include "BKE_brush.h"
@@ -92,6 +92,7 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_modifier.h"
 #include "BKE_packedFile.h"
 #include "BKE_scene.h"
 #include "BKE_node.h"
@@ -116,8 +117,6 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
-
-#include "BLI_scanfill.h" /* for BLI_setErrorCallBack, TODO, move elsewhere */
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -173,11 +172,12 @@ static int print_version(int argc, const char **argv, void *data);
 #endif
 
 /* for the callbacks: */
-
+#ifndef WITH_PYTHON_MODULE
 #define BLEND_VERSION_FMT         "Blender %d.%02d (sub %d)"
 #define BLEND_VERSION_ARG         BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION
 /* pass directly to printf */
 #define BLEND_VERSION_STRING_FMT  BLEND_VERSION_FMT "\n", BLEND_VERSION_ARG
+#endif
 
 /* Initialize callbacks for the modules that need them */
 static void setCallbacks(void); 
@@ -412,10 +412,13 @@ static int debug_mode(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	G.debug |= G_DEBUG;  /* std output printf's */
 	printf(BLEND_VERSION_STRING_FMT);
 	MEM_set_memory_debug();
+#ifdef DEBUG
+	BLI_mempool_set_memory_debug();
+#endif
 
 #ifdef WITH_BUILDINFO
 	printf("Build: %s %s %s %s\n", build_date, build_time, build_platform, build_type);
-#endif // WITH_BUILDINFO
+#endif
 
 	BLI_argsPrint(data);
 	return 0;
@@ -499,7 +502,7 @@ static void blender_crash_handler_backtrace(FILE *fp)
 #undef SIZE
 }
 
-#elif defined(_MSV_VER)
+#elif defined(_MSC_VER)
 
 static void blender_crash_handler_backtrace(FILE *fp)
 {
@@ -1517,6 +1520,7 @@ int main(int argc, const char **argv)
 
 	IMB_init();
 	BKE_images_init();
+	BKE_modifier_init();
 
 	BKE_brush_system_init();
 
@@ -1682,12 +1686,6 @@ void main_python_exit(void)
 }
 #endif
 
-static void error_cb(const char *err)
-{
-	
-	printf("%s\n", err);    /* XXX do this in WM too */
-}
-
 static void mem_error_cb(const char *errorStr)
 {
 	fputs(errorStr, stderr);
@@ -1698,9 +1696,4 @@ static void setCallbacks(void)
 {
 	/* Error output from the alloc routines: */
 	MEM_set_error_callback(mem_error_cb);
-
-
-	/* BLI_blenlib: */
-
-	BLI_setErrorCallBack(error_cb); /* */
 }

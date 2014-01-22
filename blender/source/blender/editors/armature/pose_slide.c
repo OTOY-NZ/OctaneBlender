@@ -238,9 +238,8 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, float *val)
 			while (iters-- > 0) {
 				(*val) = (-((sVal * w2) + (eVal * w1)) + ((*val) * 6.0f) ) / 5.0f;
 			}
+			break;
 		}
-		break;
-
 		case POSESLIDE_RELAX: /* make the current pose more like its surrounding ones */
 		{
 			/* perform a weighted average here, favoring the middle pose
@@ -252,16 +251,15 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, float *val)
 			while (iters-- > 0) {
 				(*val) = ( ((sVal * w2) + (eVal * w1)) + ((*val) * 5.0f) ) / 6.0f;
 			}
+			break;
 		}
-		break;
-
 		case POSESLIDE_BREAKDOWN: /* make the current pose slide around between the endpoints */
 		{
 			/* perform simple linear interpolation - coefficient for start must come from pso->percentage... */
 			/* TODO: make this use some kind of spline interpolation instead? */
 			(*val) = ((sVal * w2) + (eVal * w1));
+			break;
 		}
-		break;
 	}
 }
 
@@ -327,8 +325,8 @@ static void pose_slide_apply_props(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 						float tval = RNA_property_float_get(&ptr, prop);
 						pose_slide_apply_val(pso, fcu, &tval);
 						RNA_property_float_set(&ptr, prop, tval);
+						break;
 					}
-					break;
 					case PROP_BOOLEAN:
 					case PROP_ENUM:
 					case PROP_INT:
@@ -336,8 +334,8 @@ static void pose_slide_apply_props(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 						float tval = (float)RNA_property_int_get(&ptr, prop);
 						pose_slide_apply_val(pso, fcu, &tval);
 						RNA_property_int_set(&ptr, prop, (int)tval);
+						break;
 					}
-					break;
 					default:
 						/* cannot handle */
 						//printf("Cannot Pose Slide non-numerical property\n");
@@ -604,7 +602,7 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, tPoseSlideOp *p
 	pose_slide_refresh(C, pso);
 	
 	/* set cursor to indicate modal */
-	WM_cursor_modal(win, BC_EW_SCROLLCURSOR);
+	WM_cursor_modal_set(win, BC_EW_SCROLLCURSOR);
 	
 	/* header print */
 	pose_slide_draw_status(pso);
@@ -626,7 +624,7 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		{
 			/* return to normal cursor and header status */
 			ED_area_headerprint(pso->sa, NULL);
-			WM_cursor_restore(win);
+			WM_cursor_modal_restore(win);
 			
 			/* insert keyframes as required... */
 			pose_slide_autoKeyframe(C, pso);
@@ -641,7 +639,7 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		{
 			/* return to normal cursor and header status */
 			ED_area_headerprint(pso->sa, NULL);
-			WM_cursor_restore(win);
+			WM_cursor_modal_restore(win);
 			
 			/* reset transforms back to original state */
 			pose_slide_reset(pso);
@@ -672,9 +670,8 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			
 			/* apply... */
 			pose_slide_apply(C, pso);
+			break;
 		}
-		break;
-			
 		default: /* unhandled event (maybe it was some view manip? */
 			/* allow to pass through */
 			return OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH;

@@ -65,6 +65,9 @@ LbmSolverInterface::LbmSolverInterface() :
 	mDumpRawText(false),
 	mDumpRawBinary(false),
 	mDumpRawBinaryZip(true)
+#if PARALLEL==1
+	, mNumOMPThreads(1)
+#endif  // PARALLEL==1
 {
 #if ELBEEM_PLUGIN==1
 	if(gDebugLevel<=1) setSilent(true);
@@ -669,6 +672,12 @@ void LbmSolverInterface::markedClearList() {
 	// FIXME free cids?
 	mMarkedCells.clear();
 }
+
+#if PARALLEL==1
+void LbmSolverInterface::setNumOMPThreads(int num_threads) {
+	mNumOMPThreads = num_threads;
+}
+#endif  // PARALLEL==1
 
 /*******************************************************************************/
 /*! string helper functions */

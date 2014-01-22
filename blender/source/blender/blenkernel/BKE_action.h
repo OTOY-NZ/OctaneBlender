@@ -188,6 +188,10 @@ struct bPoseChannel *BKE_pose_channel_active(struct Object *ob);
  */
 struct bPoseChannel *BKE_pose_channel_verify(struct bPose *pose, const char *name);
 
+#ifndef NDEBUG
+bool BKE_pose_channels_is_valid(const struct bPose *pose);
+#endif
+
 /* Copy the data from the action-pose (src) into the pose */
 void extract_pose_from_pose(struct bPose *pose, const struct bPose *src);
 
@@ -202,6 +206,9 @@ void BKE_pose_ikparam_init(struct bPose *pose);
 
 /* initialize a bItasc structure with default value */
 void BKE_pose_itasc_init(struct bItasc *itasc);
+
+/* Checks if a bone is part of an IK chain or not */
+bool BKE_pose_channel_in_IK_chain(struct Object *ob, struct bPoseChannel *pchan);
 
 /* clears BONE_UNKEYED flags for frame changing */
 // XXX to be deprecated for a more general solution in animsys...

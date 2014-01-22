@@ -56,9 +56,7 @@ using namespace OCIO_NAMESPACE;
 #endif
 
 #define MEM_NEW(type) new(MEM_mallocN(sizeof(type), __func__)) type()
-#define MEM_DELETE(what, type) if(what) { ((type*)(what))->~type(); MEM_freeN(what); } (void)0
-
-static const int LUT3D_EDGE_SIZE = 32;
+#define MEM_DELETE(what, type) if (what) { ((type*)(what))->~type(); MEM_freeN(what); } (void)0
 
 static void OCIO_reportError(const char *err)
 {
@@ -284,6 +282,59 @@ const char *OCIOImpl::configGetDisplayColorSpaceName(OCIO_ConstConfigRcPtr *conf
 	return NULL;
 }
 
+int OCIOImpl::configGetNumLooks(OCIO_ConstConfigRcPtr *config)
+{
+	try {
+		return (*(ConstConfigRcPtr *) config)->getNumLooks();
+	}
+	catch (Exception &exception) {
+		OCIO_reportException(exception);
+	}
+
+	return 0;
+}
+
+const char *OCIOImpl::configGetLookNameByIndex(OCIO_ConstConfigRcPtr *config, int index)
+{
+	try {
+		return (*(ConstConfigRcPtr *) config)->getLookNameByIndex(index);
+	}
+	catch (Exception &exception) {
+		OCIO_reportException(exception);
+	}
+
+	return NULL;
+}
+
+OCIO_ConstLookRcPtr *OCIOImpl::configGetLook(OCIO_ConstConfigRcPtr *config, const char *name)
+{
+	ConstLookRcPtr *look = MEM_NEW(ConstLookRcPtr);
+
+	try {
+		*look = (*(ConstConfigRcPtr *) config)->getLook(name);
+
+		if (*look)
+			return (OCIO_ConstLookRcPtr *) look;
+	}
+	catch (Exception &exception) {
+		OCIO_reportException(exception);
+	}
+
+	MEM_DELETE(look, ConstLookRcPtr);
+
+	return NULL;
+}
+
+const char *OCIOImpl::lookGetProcessSpace(OCIO_ConstLookRcPtr *look)
+{
+	return (*(ConstLookRcPtr *) look)->getProcessSpace();
+}
+
+void OCIOImpl::lookRelease(OCIO_ConstLookRcPtr *look)
+{
+	MEM_DELETE((ConstLookRcPtr *) look, ConstLookRcPtr);
+}
+
 int OCIOImpl::colorSpaceIsInvertible(OCIO_ConstColorSpaceRcPtr *cs_)
 {
 	ConstColorSpaceRcPtr *cs = (ConstColorSpaceRcPtr *) cs_;
@@ -483,6 +534,16 @@ void OCIOImpl::displayTransformSetLinearCC(OCIO_DisplayTransformRcPtr *dt, OCIO_
 	(*(DisplayTransformRcPtr *) dt)->setLinearCC(*(ConstTransformRcPtr *) t);
 }
 
+void OCIOImpl::displayTransformSetLooksOverride(OCIO_DisplayTransformRcPtr *dt, const char *looks)
+{
+	(*(DisplayTransformRcPtr *) dt)->setLooksOverride(looks);
+}
+
+void OCIOImpl::displayTransformSetLooksOverrideEnabled(OCIO_DisplayTransformRcPtr *dt, bool enabled)
+{
+	(*(DisplayTransformRcPtr *) dt)->setLooksOverrideEnabled(enabled);
+}
+
 void OCIOImpl::displayTransformRelease(OCIO_DisplayTransformRcPtr *dt)
 {
 	MEM_DELETE((DisplayTransformRcPtr *) dt, DisplayTransformRcPtr);
@@ -547,7 +608,7 @@ void OCIOImpl::matrixTransformRelease(OCIO_MatrixTransformRcPtr *mt)
 	MEM_DELETE((MatrixTransformRcPtr *) mt, MatrixTransformRcPtr);
 }
 
-void OCIOImpl::matrixTransformScale(float * m44, float * offset4, const float *scale4f)
+void OCIOImpl::matrixTransformScale(float *m44, float *offset4, const float *scale4f)
 {
 	MatrixTransform::Scale(m44, offset4, scale4f);
 }

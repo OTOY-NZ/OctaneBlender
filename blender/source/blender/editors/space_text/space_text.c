@@ -149,7 +149,7 @@ static void text_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 					}
 
 					ED_area_tag_redraw(sa);
-				/* no break -- fall down to tag redraw */
+					/* fall-through */  /* fall down to tag redraw */
 				case NA_ADDED:
 				case NA_REMOVED:
 					ED_area_tag_redraw(sa);
@@ -308,6 +308,8 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 		kmi = WM_keymap_add_item(keymap, "TEXT_OT_paste", MIDDLEMOUSE, KM_PRESS, 0, 0);
 		RNA_boolean_set(kmi->ptr, "selection", TRUE);
 	}
+
+	WM_keymap_add_item(keymap, "TEXT_OT_properties", TKEY, KM_PRESS, KM_CTRL, 0);
 
 	WM_keymap_add_item(keymap, "TEXT_OT_jump", JKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_find", GKEY, KM_PRESS, KM_CTRL, 0);

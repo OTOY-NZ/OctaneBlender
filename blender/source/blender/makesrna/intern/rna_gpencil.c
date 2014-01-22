@@ -118,11 +118,9 @@ static void rna_GPencilLayer_info_set(PointerRNA *ptr, const char *value)
 static void rna_GPencil_stroke_point_add(bGPDstroke *stroke, int count)
 {
 	if (count > 0) {
-		if (stroke->points == NULL)
-			stroke->points = MEM_callocN(sizeof(bGPDspoint) * count, "gp_stroke_points");
-		else
-			stroke->points = MEM_recallocN(stroke->points, sizeof(bGPDspoint) * (stroke->totpoints + count));
-
+		stroke->points = MEM_recallocN_id(stroke->points,
+		                                  sizeof(bGPDspoint) * (stroke->totpoints + count),
+		                                  "gp_stroke_points");
 		stroke->totpoints += count;
 	}
 }
@@ -356,15 +354,15 @@ static void rna_def_gpencil_strokes_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_srna(cprop, "GPencilStrokes");
 	srna = RNA_def_struct(brna, "GPencilStrokes", NULL);
 	RNA_def_struct_sdna(srna, "bGPDframe");
-	RNA_def_struct_ui_text(srna, "Grease Pencil Frames", "Collection of grease pencil frames");
+	RNA_def_struct_ui_text(srna, "Grease Pencil Frames", "Collection of grease pencil stroke");
 
 	func = RNA_def_function(srna, "new", "rna_GPencil_stroke_new");
-	RNA_def_function_ui_description(func, "Add a new grease pencil frame");
+	RNA_def_function_ui_description(func, "Add a new grease pencil stroke");
 	parm = RNA_def_pointer(func, "stroke", "GPencilStroke", "", "The newly created stroke");
 	RNA_def_function_return(func, parm);
 
 	func = RNA_def_function(srna, "remove", "rna_GPencil_stroke_remove");
-	RNA_def_function_ui_description(func, "Remove a grease pencil frame");
+	RNA_def_function_ui_description(func, "Remove a grease pencil stroke");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm = RNA_def_pointer(func, "stroke", "GPencilStroke", "Stroke", "The stroke to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
@@ -392,7 +390,8 @@ static void rna_def_gpencil_frame(BlenderRNA *brna)
 	/* Frame Number */
 	prop = RNA_def_property(srna, "frame_number", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "framenum");
-	RNA_def_property_range(prop, MINFRAME, MAXFRAME); /* XXX note: this cannot occur on the same frame as another sketch */
+	/* XXX note: this cannot occur on the same frame as another sketch */
+	RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
 	RNA_def_property_ui_text(prop, "Frame Number", "The frame on which this sketch appears");
 	
 	/* Flags */
@@ -423,7 +422,8 @@ static void rna_def_gpencil_frames_api(BlenderRNA *brna, PropertyRNA *cprop)
 	func = RNA_def_function(srna, "new", "rna_GPencil_frame_new");
 	RNA_def_function_ui_description(func, "Add a new grease pencil frame");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	parm = RNA_def_int(func, "frame_number", 1, MINFRAME, MAXFRAME, "Frame Number", "The frame on which this sketch appears", MINFRAME, MAXFRAME);
+	parm = RNA_def_int(func, "frame_number", 1, MINAFRAME, MAXFRAME, "Frame Number",
+	                   "The frame on which this sketch appears", MINAFRAME, MAXFRAME);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "frame", "GPencilFrame", "", "The newly created frame");
 	RNA_def_function_return(func, parm);

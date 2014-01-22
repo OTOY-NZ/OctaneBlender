@@ -46,7 +46,6 @@ from io_scene_ms3d.ms3d_spec import (
 from io_scene_ms3d.ms3d_utils import (
         enable_edit_mode,
         get_edge_split_modifier_add_if,
-        set_sence_to_metric,
         )
 
 
@@ -264,7 +263,7 @@ class Ms3dImportOperator(Operator, ImportHelper):
     bl_idname = 'import_scene.ms3d'
     bl_label = ms3d_str['BL_LABEL_IMPORTER']
     bl_description = ms3d_str['BL_DESCRIPTION_IMPORTER']
-    bl_options = {'PRESET', }
+    bl_options = {'UNDO', 'PRESET', }
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
 
@@ -429,7 +428,7 @@ class Ms3dExportOperator(Operator, ExportHelper):
     bl_idname = 'export_scene.ms3d'
     bl_label = ms3d_str['BL_LABEL_EXPORTER']
     bl_description = ms3d_str['BL_DESCRIPTION_EXPORTER']
-    bl_options = {'PRESET', }
+    bl_options = {'UNDO', 'PRESET', }
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
 
@@ -641,7 +640,7 @@ class Ms3dExportOperator(Operator, ExportHelper):
 class Ms3dSetSmoothingGroupOperator(Operator):
     bl_idname = Ms3dUi.OPT_SMOOTHING_GROUP_APPLY
     bl_label = ms3d_str['BL_LABEL_SMOOTHING_GROUP_OPERATOR']
-    bl_options = {'INTERNAL', }
+    bl_options = {'UNDO', 'INTERNAL', }
 
     smoothing_group_index = IntProperty(
             name=ms3d_str['PROP_SMOOTHING_GROUP_INDEX'],
@@ -717,7 +716,7 @@ class Ms3dSetSmoothingGroupOperator(Operator):
 class Ms3dGroupOperator(Operator):
     bl_idname = Ms3dUi.OPT_GROUP_APPLY
     bl_label = ms3d_str['BL_LABEL_GROUP_OPERATOR']
-    bl_options = {'INTERNAL', }
+    bl_options = {'UNDO', 'INTERNAL', }
 
     mode = EnumProperty(
             items=( ('', "", ""),
@@ -808,7 +807,7 @@ class Ms3dGroupOperator(Operator):
 class Ms3dMaterialOperator(Operator):
     bl_idname = Ms3dUi.OPT_MATERIAL_APPLY
     bl_label = ms3d_str['BL_LABEL_MATERIAL_OPERATOR']
-    bl_options = {'INTERNAL', }
+    bl_options = {'UNDO', 'INTERNAL', }
 
     mode = EnumProperty(
             items=( ('', "", ""),
@@ -1292,10 +1291,18 @@ class Ms3dMaterialProperties(PropertyGroup):
 
 ###############################################################################
 # http://www.blender.org/documentation/blender_python_api_2_65_10/bpy.types.UIList.html
+#
+# uiList: ctrl-clic-edit name
+# http://lists.blender.org/pipermail/bf-committers/2013-November/042113.html
+# http://git.blender.org/gitweb/gitweb.cgi/blender.git/commit/f842ce82e6c92b156c0036cbefb4e4d97cd1d498
+# http://git.blender.org/gitweb/gitweb.cgi/blender.git/commit/4c52e737df39e538d3b41a232035a4a1e240505d
 class Ms3dGroupUILise(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT', }:
-            layout.label(text=item.name, icon_value=icon)
+            if item:
+                layout.prop(item, "name", text="", emboss=False, icon_value=icon)
+            else:
+                layout.label(text="", icon_value=icon)
         elif self.layout_type in {'GRID', }:
             layout.alignment = 'CENTER'
             layout.label(text="", icon_value=icon)
@@ -1478,9 +1485,6 @@ class Ms3dGroupPanel(Panel):
         index = custom_data.selected_group_index
         collection = custom_data.groups
         if (index >= 0 and index < len(collection)):
-            row = layout.row()
-            row.prop(collection[index], 'name')
-
             row = layout.row()
             subrow = row.row(align=True)
             subrow.operator(
@@ -1706,36 +1710,7 @@ class Ms3dSmoothingGroupPanel(Panel):
 
 
 ###############################################################################
-class Ms3dSetSceneToMetricOperator(Operator):
-    """ . """
-    bl_idname = 'io_scene_ms3d.set_sence_to_metric'
-    bl_label = ms3d_str['BL_LABEL_SET_SCENE_TO_METRIC']
-    bl_description = ms3d_str['BL_DESC_SET_SCENE_TO_METRIC']
-
-
-    #
-    @classmethod
-    def poll(cls, blender_context):
-        return True
-
-    # entrypoint for option
-    def execute(self, blender_context):
-        return self.set_sence_to_metric(blender_context)
-
-    # entrypoint for option via UI
-    def invoke(self, blender_context, event):
-        return blender_context.window_manager.invoke_props_dialog(self)
-
-
-    ###########################################################################
-    def set_sence_to_metric(self, blender_context):
-        set_sence_to_metric(blender_context)
-        return {"FINISHED"}
-
-
-###############################################################################
 def register():
-    register_class(Ms3dSetSceneToMetricOperator)
     register_class(Ms3dGroupProperties)
     register_class(Ms3dModelProperties)
     register_class(Ms3dArmatureProperties)
@@ -1754,7 +1729,6 @@ def unregister():
     unregister_class(Ms3dArmatureProperties)
     unregister_class(Ms3dModelProperties)
     unregister_class(Ms3dGroupProperties)
-    unregister_class(Ms3dSetSceneToMetricOperator)
 
 def inject_properties():
     Mesh.ms3d = PointerProperty(type=Ms3dModelProperties)

@@ -45,7 +45,7 @@ class TEXT_HT_header(Header):
             row.menu("TEXT_MT_templates")
 
         if text and text.is_modified:
-            sub = row.row()
+            sub = row.row(align=True)
             sub.alert = True
             sub.operator("text.resolve_conflict", text="", icon='HELP')
 
@@ -127,21 +127,21 @@ class TEXT_PT_find(Panel):
 
         # find
         col = layout.column(align=True)
-        row = col.row()
+        row = col.row(align=True)
         row.prop(st, "find_text", text="")
         row.operator("text.find_set_selected", text="", icon='TEXT')
         col.operator("text.find")
 
         # replace
         col = layout.column(align=True)
-        row = col.row()
+        row = col.row(align=True)
         row.prop(st, "replace_text", text="")
         row.operator("text.replace_set_selected", text="", icon='TEXT')
         col.operator("text.replace")
 
         # settings
         layout.prop(st, "use_match_case")
-        row = layout.row()
+        row = layout.row(align=True)
         row.prop(st, "use_find_wrap", text="Wrap")
         row.prop(st, "use_find_all", text="All")
 
@@ -301,7 +301,7 @@ class TEXT_MT_edit(Menu):
         layout.separator()
 
         layout.operator("text.jump")
-        layout.operator("text.properties", text="Find...")
+        layout.operator("text.start_find", text="Find...")
         layout.operator("text.autocomplete")
 
         layout.separator()

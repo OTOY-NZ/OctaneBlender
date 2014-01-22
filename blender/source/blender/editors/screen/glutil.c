@@ -1091,15 +1091,18 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 		if (ibuf->rect_float) {
 			if (ibuf->float_colorspace) {
 				ok = IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings,
-				                                                    ibuf->float_colorspace, TRUE);
+				                                                    ibuf->float_colorspace,
+				                                                    true, false);
 			}
 			else {
-				ok = IMB_colormanagement_setup_glsl_draw(view_settings, display_settings, TRUE);
+				ok = IMB_colormanagement_setup_glsl_draw(view_settings, display_settings,
+				                                         true, false);
 			}
 		}
 		else {
 			ok = IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings,
-			                                                    ibuf->rect_colorspace, FALSE);
+			                                                    ibuf->rect_colorspace,
+			                                                    false, false);
 		}
 
 		if (ok) {
@@ -1156,58 +1159,4 @@ void glaDrawImBuf_glsl_ctx(const bContext *C, ImBuf *ibuf, float x, float y, int
 	IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
 	glaDrawImBuf_glsl(ibuf, x, y, zoomfilter, view_settings, display_settings);
-}
-
-/* Transform buffer from role to scene linear space using GLSL OCIO conversion
- *
- * See IMB_colormanagement_setup_transform_from_role_glsl description for
- * some more details
- *
- * NOTE: this only works for RGBA buffers!
- */
-int glaBufferTransformFromRole_glsl(float *buffer, int width, int height, int role)
-{
-	GPUOffScreen *ofs;
-	char err_out[256];
-	rcti display_rect;
-
-	ofs = GPU_offscreen_create(width, height, err_out);
-
-	if (!ofs)
-		return FALSE;
-
-	GPU_offscreen_bind(ofs);
-
-	if (!IMB_colormanagement_setup_transform_from_role_glsl(role, TRUE)) {
-		GPU_offscreen_unbind(ofs);
-		GPU_offscreen_free(ofs);
-		return FALSE;
-	}
-
-	BLI_rcti_init(&display_rect, 0, width, 0, height);
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-
-	glaDefine2DArea(&display_rect);
-
-	glaDrawPixelsTex(0, 0, width, height, GL_RGBA, GL_FLOAT,
-	                 GL_NEAREST, buffer);
-
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-
-	GPU_offscreen_read_pixels(ofs, GL_FLOAT, buffer);
-
-	IMB_colormanagement_finish_glsl_transform();
-
-	/* unbind */
-	GPU_offscreen_unbind(ofs);
-	GPU_offscreen_free(ofs);
-
-	return TRUE;
 }

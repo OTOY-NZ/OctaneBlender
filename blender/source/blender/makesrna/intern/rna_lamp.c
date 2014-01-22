@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 
+#include "BLI_sys_types.h"
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 
@@ -131,7 +132,7 @@ static StructRNA *rna_Lamp_refine(struct PointerRNA *ptr)
 	}
 }
 
-static void rna_Lamp_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+static void rna_Lamp_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Lamp *la = ptr->id.data;
 

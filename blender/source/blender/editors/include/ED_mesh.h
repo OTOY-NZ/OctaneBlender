@@ -92,7 +92,7 @@ void EDBM_mesh_normals_update(struct BMEditMesh *em);
 void EDBM_mesh_clear(struct BMEditMesh *em);
 
 void EDBM_selectmode_to_scene(struct bContext *C);
-void EDBM_mesh_make(struct ToolSettings *ts, struct Scene *scene, struct Object *ob);
+void EDBM_mesh_make(struct ToolSettings *ts, struct Object *ob);
 void EDBM_mesh_free(struct BMEditMesh *em);
 void EDBM_mesh_load(struct Object *ob);
 struct DerivedMesh *EDBM_mesh_deform_dm_get(struct BMEditMesh *em);
@@ -242,8 +242,18 @@ void                 ED_vgroup_clear(struct Object *ob);
 void                 ED_vgroup_select_by_name(struct Object *ob, const char *name);
 bool                 ED_vgroup_data_create(struct ID *id);
 void                 ED_vgroup_data_clamp_range(struct ID *id, const int total);
-bool                 ED_vgroup_give_array(struct ID *id, struct MDeformVert **dvert_arr, int *dvert_tot);
-bool                 ED_vgroup_copy_array(struct Object *ob, struct Object *ob_from);
+bool                 ED_vgroup_array_get(struct ID *id, struct MDeformVert **dvert_arr, int *dvert_tot);
+bool                 ED_vgroup_array_copy(struct Object *ob, struct Object *ob_from);
+bool                 ED_vgroup_parray_alloc(struct ID *id, struct MDeformVert ***dvert_arr, int *dvert_tot,
+                                            const bool use_vert_sel);
+void                 ED_vgroup_parray_mirror_sync(struct Object *ob,
+                                                  struct MDeformVert **dvert_array, const int dvert_tot,
+                                                  const bool *vgroup_validmap, const int vgroup_tot);
+void                 ED_vgroup_parray_mirror_assign(struct Object *ob,
+                                                    struct MDeformVert **dvert_array, const int dvert_tot);
+void                 ED_vgroup_parray_remove_zero(struct MDeformVert **dvert_array, const int dvert_tot,
+                                                  const bool *vgroup_validmap, const int vgroup_tot,
+                                                  const float epsilon, const bool keep_single);
 void                 ED_vgroup_mirror(struct Object *ob,
                                       const bool mirror_weights, const bool flip_vgroups,
                                       const bool all_vgroups, const bool use_topology,
@@ -316,6 +326,8 @@ struct BMVert *editbmesh_get_x_mirror_vert(struct Object *ob, struct BMEditMesh 
                                            struct BMVert *eve, const float co[3],
                                            int index, const bool use_topology);
 int           *mesh_get_x_mirror_faces(struct Object *ob, struct BMEditMesh *em);
+
+int ED_mesh_mirror_get_vert(struct Object *ob, int index);
 
 bool ED_mesh_pick_vert(struct bContext *C,      struct Object *ob, const int mval[2], unsigned int *index, int size, bool use_zbuf);
 bool ED_mesh_pick_face(struct bContext *C,      struct Object *ob, const int mval[2], unsigned int *index, int size);

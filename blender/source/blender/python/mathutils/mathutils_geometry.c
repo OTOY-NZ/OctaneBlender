@@ -34,6 +34,7 @@
 #  include "MEM_guardedalloc.h"
 #  include "BLI_blenlib.h"
 #  include "BLI_boxpack2d.h"
+#  include "BLI_convexhull2d.h"
 #  include "BKE_displist.h"
 #  include "BKE_curve.h"
 #endif
@@ -568,22 +569,19 @@ PyDoc_STRVAR(M_Geometry_intersect_line_plane_doc,
 "   :type plane_co: :class:`mathutils.Vector`\n"
 "   :arg plane_no: The direction the plane is facing\n"
 "   :type plane_no: :class:`mathutils.Vector`\n"
-"   :arg no_flip: Always return an intersection on the directon defined bt line_a -> line_b\n"
-"   :type no_flip: :boolean\n"
 "   :return: The point of intersection or None when not found\n"
 "   :rtype: :class:`mathutils.Vector` or None\n"
 );
 static PyObject *M_Geometry_intersect_line_plane(PyObject *UNUSED(self), PyObject *args)
 {
 	VectorObject *line_a, *line_b, *plane_co, *plane_no;
-	int no_flip = 0;
 	float isect[3];
+
 	if (!PyArg_ParseTuple(args, "O!O!O!O!|i:intersect_line_plane",
 	                      &vector_Type, &line_a,
 	                      &vector_Type, &line_b,
 	                      &vector_Type, &plane_co,
-	                      &vector_Type, &plane_no,
-	                      &no_flip))
+	                      &vector_Type, &plane_no))
 	{
 		return NULL;
 	}
@@ -603,7 +601,7 @@ static PyObject *M_Geometry_intersect_line_plane(PyObject *UNUSED(self), PyObjec
 		return NULL;
 	}
 
-	if (isect_line_plane_v3(isect, line_a->vec, line_b->vec, plane_co->vec, plane_no->vec, no_flip) == 1) {
+	if (isect_line_plane_v3(isect, line_a->vec, line_b->vec, plane_co->vec, plane_no->vec) == 1) {
 		return Vector_CreatePyObject(isect, 3, Py_NEW, NULL);
 	}
 	else {
@@ -692,7 +690,7 @@ static PyObject *M_Geometry_intersect_line_sphere(PyObject *UNUSED(self), PyObje
 {
 	VectorObject *line_a, *line_b, *sphere_co;
 	float sphere_radius;
-	int clip = TRUE;
+	int clip = true;
 
 	float isect_a[3];
 	float isect_b[3];
@@ -720,24 +718,25 @@ static PyObject *M_Geometry_intersect_line_sphere(PyObject *UNUSED(self), PyObje
 		return NULL;
 	}
 	else {
-		short use_a = TRUE;
-		short use_b = TRUE;
+		bool use_a = true;
+		bool use_b = true;
 		float lambda;
 
 		PyObject *ret = PyTuple_New(2);
 
 		switch (isect_line_sphere_v3(line_a->vec, line_b->vec, sphere_co->vec, sphere_radius, isect_a, isect_b)) {
 			case 1:
-				if (!(!clip || (((lambda = line_point_factor_v3(isect_a, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_a = FALSE;
-				use_b = FALSE;
+				if (!(!clip || (((lambda = line_point_factor_v3(isect_a, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_a = false;
+				use_b = false;
 				break;
 			case 2:
-				if (!(!clip || (((lambda = line_point_factor_v3(isect_a, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_a = FALSE;
-				if (!(!clip || (((lambda = line_point_factor_v3(isect_b, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_b = FALSE;
+				if (!(!clip || (((lambda = line_point_factor_v3(isect_a, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_a = false;
+				if (!(!clip || (((lambda = line_point_factor_v3(isect_b, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_b = false;
 				break;
 			default:
-				use_a = FALSE;
-				use_b = FALSE;
+				use_a = false;
+				use_b = false;
+				break;
 		}
 
 		if (use_a) { PyTuple_SET_ITEM(ret, 0,  Vector_CreatePyObject(isect_a, 3, Py_NEW, NULL)); }
@@ -772,7 +771,7 @@ static PyObject *M_Geometry_intersect_line_sphere_2d(PyObject *UNUSED(self), PyO
 {
 	VectorObject *line_a, *line_b, *sphere_co;
 	float sphere_radius;
-	int clip = TRUE;
+	int clip = true;
 
 	float isect_a[2];
 	float isect_b[2];
@@ -802,7 +801,7 @@ static PyObject *M_Geometry_intersect_line_sphere_2d(PyObject *UNUSED(self), PyO
 		switch (isect_line_sphere_v2(line_a->vec, line_b->vec, sphere_co->vec, sphere_radius, isect_a, isect_b)) {
 			case 1:
 				if (!(!clip || (((lambda = line_point_factor_v2(isect_a, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_a = false;
-				use_b = FALSE;
+				use_b = false;
 				break;
 			case 2:
 				if (!(!clip || (((lambda = line_point_factor_v2(isect_a, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_a = false;
@@ -811,6 +810,7 @@ static PyObject *M_Geometry_intersect_line_sphere_2d(PyObject *UNUSED(self), PyO
 			default:
 				use_a = false;
 				use_b = false;
+				break;
 		}
 
 		if (use_a) { PyTuple_SET_ITEM(ret, 0,  Vector_CreatePyObject(isect_a, 2, Py_NEW, NULL)); }
@@ -978,24 +978,35 @@ PyDoc_STRVAR(M_Geometry_distance_point_to_plane_doc,
 );
 static PyObject *M_Geometry_distance_point_to_plane(PyObject *UNUSED(self), PyObject *args)
 {
-	VectorObject *pt, *plene_co, *plane_no;
+	VectorObject *pt, *plane_co, *plane_no;
+	float plane[4];
 
 	if (!PyArg_ParseTuple(args, "O!O!O!:distance_point_to_plane",
 	                      &vector_Type, &pt,
-	                      &vector_Type, &plene_co,
+	                      &vector_Type, &plane_co,
 	                      &vector_Type, &plane_no))
 	{
 		return NULL;
 	}
 
+	if (pt->size != 3 ||
+	    plane_co->size != 3 ||
+	    plane_no->size != 3)
+	{
+		PyErr_SetString(PyExc_ValueError,
+		                "One of more of the vector arguments wasn't a 3D vector");
+		return NULL;
+	}
+
 	if (BaseMath_ReadCallback(pt) == -1 ||
-	    BaseMath_ReadCallback(plene_co) == -1 ||
+	    BaseMath_ReadCallback(plane_co) == -1 ||
 	    BaseMath_ReadCallback(plane_no) == -1)
 	{
 		return NULL;
 	}
 
-	return PyFloat_FromDouble(dist_to_plane_v3(pt->vec, plene_co->vec, plane_no->vec));
+	plane_from_point_normal_v3(plane, plane_co->vec, plane_no->vec);
+	return PyFloat_FromDouble(dist_to_plane_v3(pt->vec, plane));
 }
 
 PyDoc_STRVAR(M_Geometry_barycentric_transform_doc,
@@ -1052,6 +1063,17 @@ static PyObject *M_Geometry_barycentric_transform(PyObject *UNUSED(self), PyObje
 		return NULL;
 	}
 
+	if (BaseMath_ReadCallback(vec_pt) == -1 ||
+	    BaseMath_ReadCallback(vec_t1_src) == -1 ||
+	    BaseMath_ReadCallback(vec_t2_src) == -1 ||
+	    BaseMath_ReadCallback(vec_t3_src) == -1 ||
+	    BaseMath_ReadCallback(vec_t1_tar) == -1 ||
+	    BaseMath_ReadCallback(vec_t2_tar) == -1 ||
+	    BaseMath_ReadCallback(vec_t3_tar) == -1)
+	{
+		return NULL;
+	}
+
 	barycentric_transform(vec, vec_pt->vec,
 	                      vec_t1_tar->vec, vec_t2_tar->vec, vec_t3_tar->vec,
 	                      vec_t1_src->vec, vec_t2_src->vec, vec_t3_src->vec);
@@ -1097,7 +1119,7 @@ static PyObject *M_Geometry_points_in_planes(PyObject *UNUSED(self), PyObject *a
 
 		/* python */
 		PyObject *py_verts = PyList_New(0);
-		PyObject *py_plene_index = PyList_New(0);
+		PyObject *py_plane_index = PyList_New(0);
 
 		memset(planes_used, 0, sizeof(char) * len);
 
@@ -1133,7 +1155,7 @@ static PyObject *M_Geometry_points_in_planes(PyObject *UNUSED(self), PyObject *a
 										PyList_Append(py_verts, item);
 										Py_DECREF(item);
 
-										planes_used[i] = planes_used[j] = planes_used[k] = TRUE;
+										planes_used[i] = planes_used[j] = planes_used[k] = true;
 									}
 								}
 							}
@@ -1149,7 +1171,7 @@ static PyObject *M_Geometry_points_in_planes(PyObject *UNUSED(self), PyObject *a
 		for (i = 0; i < len; i++) {
 			if (planes_used[i]) {
 				PyObject *item = PyLong_FromLong(i);
-				PyList_Append(py_plene_index, item);
+				PyList_Append(py_plane_index, item);
 				Py_DECREF(item);
 			}
 		}
@@ -1158,7 +1180,7 @@ static PyObject *M_Geometry_points_in_planes(PyObject *UNUSED(self), PyObject *a
 		{
 			PyObject *ret = PyTuple_New(2);
 			PyTuple_SET_ITEM(ret, 0, py_verts);
-			PyTuple_SET_ITEM(ret, 1, py_plene_index);
+			PyTuple_SET_ITEM(ret, 1, py_plane_index);
 			return ret;
 		}
 	}
@@ -1471,7 +1493,7 @@ static PyObject *M_Geometry_box_pack_2d(PyObject *UNUSED(self), PyObject *boxlis
 		}
 
 		/* Non Python function */
-		BLI_box_pack_2D(boxarray, len, &tot_width, &tot_height);
+		BLI_box_pack_2d(boxarray, len, &tot_width, &tot_height);
 
 		boxPack_ToPyObject(boxlist, &boxarray);
 	}
@@ -1479,6 +1501,87 @@ static PyObject *M_Geometry_box_pack_2d(PyObject *UNUSED(self), PyObject *boxlis
 	ret = PyTuple_New(2);
 	PyTuple_SET_ITEM(ret, 0, PyFloat_FromDouble(tot_width));
 	PyTuple_SET_ITEM(ret, 1, PyFloat_FromDouble(tot_width));
+	return ret;
+}
+
+PyDoc_STRVAR(M_Geometry_box_fit_2d_doc,
+".. function:: box_fit_2d(points)\n"
+"\n"
+"   Returns an angle that best fits the points to an axis aligned rectangle\n"
+"\n"
+"   :arg points: list of 2d points.\n"
+"   :type points: list\n"
+"   :return: angle\n"
+"   :rtype: float\n"
+);
+static PyObject *M_Geometry_box_fit_2d(PyObject *UNUSED(self), PyObject *pointlist)
+{
+	float (*points)[2];
+	Py_ssize_t len;
+
+	float angle = 0.0f;
+
+	len = mathutils_array_parse_alloc_v(((float **)&points), 2, pointlist, "box_fit_2d");
+	if (len == -1) {
+		return NULL;
+	}
+
+	if (len) {
+		/* Non Python function */
+		angle = BLI_convexhull_aabb_fit_points_2d((const float (*)[2])points, len);
+
+		PyMem_Free(points);
+	}
+
+
+	return PyFloat_FromDouble(angle);
+}
+
+PyDoc_STRVAR(M_Geometry_convex_hull_2d_doc,
+".. function:: convex_hull_2d(points)\n"
+"\n"
+"   Returns a list of indices into the list given\n"
+"\n"
+"   :arg points: list of 2d points.\n"
+"   :type points: list\n"
+"   :return: a list of indices\n"
+"   :rtype: list of ints\n"
+);
+static PyObject *M_Geometry_convex_hull_2d(PyObject *UNUSED(self), PyObject *pointlist)
+{
+	float (*points)[2];
+	Py_ssize_t len;
+
+	PyObject *ret;
+
+	len = mathutils_array_parse_alloc_v(((float **)&points), 2, pointlist, "convex_hull_2d");
+	if (len == -1) {
+		return NULL;
+	}
+
+	if (len) {
+		int *index_map;
+		Py_ssize_t len_ret, i;
+
+		index_map  = MEM_mallocN(sizeof(*index_map) * len, __func__);
+
+		/* Non Python function */
+		len_ret = BLI_convexhull_2d((const float (*)[2])points, len, index_map);
+
+		ret = PyList_New(len_ret);
+		for (i = 0; i < len_ret; i++) {
+			PyList_SET_ITEM(ret, i, PyLong_FromLong(index_map[i]));
+		}
+
+		MEM_freeN(index_map);
+
+		PyMem_Free(points);
+	}
+	else {
+		ret = PyList_New(0);
+	}
+
+
 	return ret;
 }
 
@@ -1506,6 +1609,8 @@ static PyMethodDef M_Geometry_methods[] = {
 #ifndef MATH_STANDALONE
 	{"interpolate_bezier", (PyCFunction) M_Geometry_interpolate_bezier, METH_VARARGS, M_Geometry_interpolate_bezier_doc},
 	{"tessellate_polygon", (PyCFunction) M_Geometry_tessellate_polygon, METH_O, M_Geometry_tessellate_polygon_doc},
+	{"convex_hull_2d", (PyCFunction) M_Geometry_convex_hull_2d, METH_O, M_Geometry_convex_hull_2d_doc},
+	{"box_fit_2d", (PyCFunction) M_Geometry_box_fit_2d, METH_O, M_Geometry_box_fit_2d_doc},
 	{"box_pack_2d", (PyCFunction) M_Geometry_box_pack_2d, METH_O, M_Geometry_box_pack_2d_doc},
 #endif
 	{NULL, NULL, 0, NULL}

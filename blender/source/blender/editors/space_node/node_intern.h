@@ -84,7 +84,7 @@ void node_draw_nodetree(const struct bContext *C, struct ARegion *ar, struct Spa
                         struct bNodeTree *ntree, bNodeInstanceKey parent_key);
 void drawnodespace(const bContext *C, ARegion *ar);
 
-void node_set_cursor(struct wmWindow *win, struct SpaceNode *snode);
+void node_set_cursor(struct wmWindow *win, struct SpaceNode *snode, float cursor[2]);
 	/* DPI scaled coords */
 void node_to_view(struct bNode *node, float x, float y, float *rx, float *ry);
 void node_from_view(struct bNode *node, float x, float y, float *rx, float *ry);
@@ -122,13 +122,15 @@ void NODE_OT_select_same_type_step(struct wmOperatorType *ot);
 void NODE_OT_find_node(struct wmOperatorType *ot);
 
 /* node_view.c */
-int space_node_view_flag(struct bContext *C, SpaceNode *snode, ARegion *ar, const int node_flag);
+int space_node_view_flag(struct bContext *C, SpaceNode *snode, ARegion *ar,
+                         const int node_flag, const int smooth_viewtx);
 
 void NODE_OT_view_all(struct wmOperatorType *ot);
 void NODE_OT_view_selected(struct wmOperatorType *ot);
 
 void NODE_OT_backimage_move(struct wmOperatorType *ot);
 void NODE_OT_backimage_zoom(struct wmOperatorType *ot);
+void NODE_OT_backimage_fit(struct wmOperatorType *ot);
 void NODE_OT_backimage_sample(struct wmOperatorType *ot);
 
 /* drawnode.c */
@@ -143,6 +145,7 @@ void draw_nodespace_back_pix(const struct bContext *C, struct ARegion *ar, struc
 bNode *node_add_node(const struct bContext *C, const char *idname, int type, float locx, float locy);
 void NODE_OT_add_reroute(struct wmOperatorType *ot);
 void NODE_OT_add_file(struct wmOperatorType *ot);
+void NODE_OT_add_mask(struct wmOperatorType *ot);
 void NODE_OT_new_node_tree(struct wmOperatorType *ot);
 
 
@@ -181,7 +184,7 @@ int composite_node_editable(struct bContext *C);
 int node_has_hidden_sockets(bNode *node);
 void node_set_hidden_sockets(SpaceNode *snode, bNode *node, int set);
 int node_render_changed_exec(bContext *, struct wmOperator *);
-int node_find_indicated_socket(struct SpaceNode *snode, struct bNode **nodep, struct bNodeSocket **sockp, int in_out);
+int node_find_indicated_socket(struct SpaceNode *snode, struct bNode **nodep, struct bNodeSocket **sockp, float cursor[2], int in_out);
 
 void NODE_OT_duplicate(struct wmOperatorType *ot);
 void NODE_OT_delete(struct wmOperatorType *ot);

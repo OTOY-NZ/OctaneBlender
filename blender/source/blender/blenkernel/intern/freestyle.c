@@ -52,7 +52,7 @@ void BKE_freestyle_config_init(FreestyleConfig *config)
 
 	config->modules.first = config->modules.last = NULL;
 	config->flags = 0;
-	config->sphere_radius = 1.0f;
+	config->sphere_radius = 0.1f;
 	config->dkr_epsilon = 0.0f;
 	config->crease_angle = DEG2RADF(134.43f);
 
@@ -107,7 +107,8 @@ void BKE_freestyle_config_copy(FreestyleConfig *new_config, FreestyleConfig *con
 static void copy_lineset(FreestyleLineSet *new_lineset, FreestyleLineSet *lineset)
 {
 	new_lineset->linestyle = lineset->linestyle;
-	new_lineset->linestyle->id.us++;
+	if (new_lineset->linestyle)
+		new_lineset->linestyle->id.us++;
 	new_lineset->flags = lineset->flags;
 	new_lineset->selection = lineset->selection;
 	new_lineset->qi = lineset->qi;

@@ -37,10 +37,13 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_mempool.h"
+#include "BLI_ghash.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_scene.h"
+#include "BKE_treehash.h"
 
 #include "ED_space_api.h"
 #include "ED_screen.h"
@@ -141,6 +144,10 @@ static int outliner_parent_clear_poll(bContext *C, wmDrag *drag, const wmEvent *
 	float fmval[2];
 
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+
+	if (!ELEM4(soops->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_GROUPS)) {
+		return FALSE;
+	}
 
 	if (drag->type == WM_DRAG_ID) {
 		ID *id = (ID *)drag->poin;
@@ -426,10 +433,11 @@ static void outliner_free(SpaceLink *sl)
 	
 	outliner_free_tree(&soutliner->tree);
 	if (soutliner->treestore) {
-		if (soutliner->treestore->data) MEM_freeN(soutliner->treestore->data);
-		MEM_freeN(soutliner->treestore);
+		BLI_mempool_destroy(soutliner->treestore);
 	}
-	
+	if (soutliner->treehash) {
+		BKE_treehash_free(soutliner->treehash);
+	}
 }
 
 /* spacetype; init callback */
@@ -445,6 +453,7 @@ static SpaceLink *outliner_duplicate(SpaceLink *sl)
 
 	soutlinern->tree.first = soutlinern->tree.last = NULL;
 	soutlinern->treestore = NULL;
+	soutlinern->treehash = NULL;
 	
 	return (SpaceLink *)soutlinern;
 }

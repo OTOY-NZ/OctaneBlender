@@ -65,10 +65,10 @@ void bmo_poke_exec(BMesh *bm, BMOperator *op)
 			break;
 		default:
 			BLI_assert(0);
-			break;
+			return;
 	}
 
-	BMO_ITER(f, &oiter, op->slots_in, "faces", BM_FACE) {
+	BMO_ITER (f, &oiter, op->slots_in, "faces", BM_FACE) {
 		BMFace *f_new;
 		float f_center[3];
 		BMVert *v_center = NULL;
@@ -83,7 +83,7 @@ void bmo_poke_exec(BMesh *bm, BMOperator *op)
 		int i;
 
 		bm_face_calc_center_fn(f, f_center);
-		v_center = BM_vert_create(bm, f_center, NULL, 0);
+		v_center = BM_vert_create(bm, f_center, NULL, BM_CREATE_NOP);
 		BMO_elem_flag_enable(bm, v_center, ELE_NEW);
 
 		/* handled by BM_loop_interp_from_face */

@@ -156,8 +156,7 @@ void WM_operator_stack_clear(wmWindowManager *wm)
 {
 	wmOperator *op;
 	
-	while ((op = wm->operators.first)) {
-		BLI_remlink(&wm->operators, op);
+	while ((op = BLI_pophead(&wm->operators))) {
 		WM_operator_free(op);
 	}
 	
@@ -226,7 +225,7 @@ void WM_uilisttype_freelink(uiListType *ult)
 /* called on initialize WM_init() */
 void WM_uilisttype_init(void)
 {
-	uilisttypes_hash = BLI_ghash_str_new("uilisttypes_hash gh");
+	uilisttypes_hash = BLI_ghash_str_new_ex("uilisttypes_hash gh", 16);
 }
 
 void WM_uilisttype_free(void)
@@ -279,7 +278,8 @@ void WM_menutype_freelink(MenuType *mt)
 /* called on initialize WM_init() */
 void WM_menutype_init(void)
 {
-	menutypes_hash = BLI_ghash_str_new("menutypes_hash gh");
+	/* reserve size is set based on blender default setup */
+	menutypes_hash = BLI_ghash_str_new_ex("menutypes_hash gh", 512);
 }
 
 void WM_menutype_free(void)
@@ -413,20 +413,17 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 	if (wm->autosavetimer)
 		wm_autosave_timer_ended(wm);
 
-	while ((win = wm->windows.first)) {
-		BLI_remlink(&wm->windows, win);
+	while ((win = BLI_pophead(&wm->windows))) {
 		win->screen = NULL; /* prevent draw clear to use screen */
 		wm_draw_window_clear(win);
 		wm_window_free(C, wm, win);
 	}
 	
-	while ((op = wm->operators.first)) {
-		BLI_remlink(&wm->operators, op);
+	while ((op = BLI_pophead(&wm->operators))) {
 		WM_operator_free(op);
 	}
 
-	while ((keyconf = wm->keyconfigs.first)) {
-		BLI_remlink(&wm->keyconfigs, keyconf);
+	while ((keyconf = BLI_pophead(&wm->keyconfigs))) {
 		WM_keyconfig_free(keyconf);
 	}
 

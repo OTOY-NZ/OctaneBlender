@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "device.h"
@@ -129,10 +127,14 @@ bool ImageManager::is_float_image(const string& filename, void *builtin_data, bo
 
 				is_linear = !(colorspace == "sRGB" ||
 				              colorspace == "GammaCorrected" ||
-							  strcmp(in->format_name(), "png") == 0);
+				              (colorspace == "" &&
+				                  (strcmp(in->format_name(), "png") == 0 ||
+				                   strcmp(in->format_name(), "tiff") == 0 ||
+				                   strcmp(in->format_name(), "jpeg2000") == 0)));
 			}
-			else
+			else {
 				is_linear = false;
+			}
 
 			in->close();
 		}
@@ -305,7 +307,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 	}
 
 	/* we only handle certain number of components */
-	if(!(components == 1 || components == 3 || components == 4)) {
+	if(!(components >= 1 && components <= 4)) {
 		if(in) {
 			in->close();
 			delete in;
@@ -332,7 +334,15 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 		builtin_image_pixels_cb(img->filename, img->builtin_data, pixels);
 	}
 
-	if(components == 3) {
+	if(components == 2) {
+		for(int i = width*height-1; i >= 0; i--) {
+			pixels[i*4+3] = pixels[i*2+1];
+			pixels[i*4+2] = pixels[i*2+0];
+			pixels[i*4+1] = pixels[i*2+0];
+			pixels[i*4+0] = pixels[i*2+0];
+		}
+	}
+	else if(components == 3) {
 		for(int i = width*height-1; i >= 0; i--) {
 			pixels[i*4+3] = 255;
 			pixels[i*4+2] = pixels[i*3+2];
@@ -388,7 +398,7 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, components);
 	}
 
-	if(!(components == 1 || components == 3 || components == 4)) {
+	if(!(components >= 1 && components <= 4)) {
 		if(in) {
 			in->close();
 			delete in;
@@ -414,7 +424,15 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 		builtin_image_float_pixels_cb(img->filename, img->builtin_data, pixels);
 	}
 
-	if(components == 3) {
+	if(components == 2) {
+		for(int i = width*height-1; i >= 0; i--) {
+			pixels[i*4+3] = pixels[i*2+1];
+			pixels[i*4+2] = pixels[i*2+0];
+			pixels[i*4+1] = pixels[i*2+0];
+			pixels[i*4+0] = pixels[i*2+0];
+		}
+	}
+	else if(components == 3) {
 		for(int i = width*height-1; i >= 0; i--) {
 			pixels[i*4+3] = 1.0f;
 			pixels[i*4+2] = pixels[i*3+2];

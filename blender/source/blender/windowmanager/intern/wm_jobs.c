@@ -255,6 +255,17 @@ char *WM_jobs_name(wmWindowManager *wm, void *owner)
 	return NULL;
 }
 
+void *WM_jobs_customdata(wmWindowManager *wm, void *owner)
+{
+	wmJob *wm_job = wm_job_find(wm, owner, WM_JOB_TYPE_ANY);
+	
+	if (wm_job)
+		return WM_jobs_customdata_get(wm_job);
+	
+	return NULL;
+
+}
+
 int WM_jobs_is_running(wmJob *wm_job)
 {
 	return wm_job->running;
@@ -463,15 +474,16 @@ void WM_jobs_kill_all_except(wmWindowManager *wm, void *owner)
 }
 
 
-void WM_jobs_kill_type(struct wmWindowManager *wm, int job_type)
+void WM_jobs_kill_type(struct wmWindowManager *wm, void *owner, int job_type)
 {
 	wmJob *wm_job, *next_job;
 	
 	for (wm_job = wm->jobs.first; wm_job; wm_job = next_job) {
 		next_job = wm_job->next;
 
-		if (wm_job->job_type == job_type)
-			wm_jobs_kill_job(wm, wm_job);
+		if (!owner || wm_job->owner == owner)
+			if (wm_job->job_type == job_type)
+				wm_jobs_kill_job(wm, wm_job);
 	}
 }
 

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -40,11 +40,11 @@
 #define _bli_array_totalsize_dynamic(arr)  (                                  \
 	((arr) == NULL) ?                                                         \
 	    0 :                                                                   \
-	    MEM_allocN_len(arr) / sizeof(*arr)                                    \
+	    MEM_allocN_len(arr) / sizeof(*(arr))                                  \
 )
 
 #define _bli_array_totalsize_static(arr)  \
-	(sizeof(_##arr##_static) / sizeof(*arr))
+	(sizeof(_##arr##_static) / sizeof(*(arr)))
 
 #define _bli_array_totalsize(arr)  (                                          \
 	(size_t)                                                                  \
@@ -66,8 +66,9 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
 /* -------------------------------------------------------------------- */
 /* public defines */
 
+/* use sizeof(*(arr)) to ensure the array exists and is an array */
 #define BLI_array_declare(arr)                                                \
-	int   _##arr##_count = 0;                                                 \
+	int   _##arr##_count = ((void)(sizeof(*(arr))), 0);                       \
 	void *_##arr##_static = NULL
 
 /* this will use stack space, up to maxstatic array elements, before
@@ -95,7 +96,7 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
 	(LIKELY(_bli_array_totalsize(arr) >= _##arr##_count + num) ?              \
 	 (void)0 /* do nothing */ :                                               \
 	 _bli_array_grow_func((void **)&(arr), _##arr##_static,                   \
-	                       sizeof(*arr), _##arr##_count, num,                 \
+	                       sizeof(*(arr)), _##arr##_count, num,               \
 	                       "BLI_array." #arr),                                \
 	 (void)0)  /* msvc2008 needs this */                                      \
 	),                                                                        \
@@ -148,8 +149,8 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
 
 /* only to prevent unused warnings */
 #define BLI_array_fake_user(arr)                                              \
-	(void)_##arr##_count,                                                     \
-	(void)_##arr##_static
+	((void)_##arr##_count,                                                    \
+	 (void)_##arr##_static)
 
 
 /* -------------------------------------------------------------------- */
@@ -161,7 +162,7 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
  * but use when the max size is known ahead of time */
 #define BLI_array_fixedstack_declare(arr, maxstatic, realsize, allocstr)      \
 	char _##arr##_static[maxstatic * sizeof(*(arr))];                         \
-	const int _##arr##_is_static = ((void *)_##arr##_static) != (             \
+	const bool _##arr##_is_static = ((void *)_##arr##_static) != (            \
 	    arr = ((realsize) <= maxstatic) ?                                     \
 	        (void *)_##arr##_static :                                         \
 	        MEM_mallocN(sizeof(*(arr)) * (realsize), allocstr)                \
@@ -173,30 +174,13 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
 	} (void)0
 
 
-/* alloca */
-#ifdef _MSC_VER
-#  define alloca _alloca
-#endif
+void _bli_array_reverse(void *arr, unsigned int arr_len, size_t arr_stride);
+#define BLI_array_reverse(arr, arr_len) \
+	_bli_array_reverse(arr, arr_len, sizeof(*(arr)))
 
-#if defined(__MINGW32__)
-#  include <malloc.h>  /* mingw needs for alloca() */
-#endif
+void _bli_array_wrap(void *arr, unsigned int arr_len, size_t arr_stride, int dir);
+#define BLI_array_wrap(arr, arr_len, dir) \
+	_bli_array_wrap(arr, arr_len, sizeof(*(arr)), dir)
 
-#if defined(__GNUC__) || defined(__clang__)
-#define BLI_array_alloca(arr, realsize) \
-	(typeof(arr))alloca(sizeof(*arr) * (realsize))
-
-#define BLI_array_alloca_and_count(arr, realsize) \
-	(typeof(arr))alloca(sizeof(*arr) * (realsize));  \
-	const int _##arr##_count = (realsize)
-
-#else
-#define BLI_array_alloca(arr, realsize) \
-	alloca(sizeof(*arr) * (realsize))
-
-#define BLI_array_alloca_and_count(arr, realsize) \
-	alloca(sizeof(*arr) * (realsize));  \
-	const int _##arr##_count = (realsize)
-#endif
 
 #endif  /* __BLI_ARRAY_H__ */

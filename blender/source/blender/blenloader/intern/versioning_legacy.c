@@ -518,11 +518,8 @@ static void do_version_free_effects_245(ListBase *lb)
 {
 	Effect *eff;
 
-	eff = lb->first;
-	while (eff) {
-		BLI_remlink(lb, eff);
+	while ((eff = BLI_pophead(lb))) {
 		do_version_free_effect_245(eff);
-		eff = lb->first;
 	}
 }
 
@@ -2092,7 +2089,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 
 		for (me = main->mesh.first; me; me = me->id.next) {
 			if (!me->medge) {
-				BKE_mesh_make_edges(me, 1);	/* 1 = use mface->edcode */
+				BKE_mesh_calc_edges_legacy(me, true);  /* true = use mface->edcode */
 			}
 			else {
 				BKE_mesh_strip_loose_faces(me);

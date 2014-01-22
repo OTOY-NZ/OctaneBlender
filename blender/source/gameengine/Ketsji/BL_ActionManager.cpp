@@ -25,6 +25,7 @@
  */
 
 #include "BL_ActionManager.h"
+#include "BL_Action.h"
 
 BL_ActionManager::BL_ActionManager(class KX_GameObject *obj)
 {
@@ -41,8 +42,6 @@ BL_ActionManager::~BL_ActionManager()
 float BL_ActionManager::GetActionFrame(short layer)
 {
 	return m_layers[layer]->GetFrame();
-
-	return 0.f;
 }
 
 void BL_ActionManager::SetActionFrame(short layer, float frame)
@@ -53,8 +52,6 @@ void BL_ActionManager::SetActionFrame(short layer, float frame)
 struct bAction *BL_ActionManager::GetCurrentAction(short layer)
 {
 	return m_layers[layer]->GetAction();
-	
-	return 0;
 }
 
 void BL_ActionManager::SetPlayMode(short layer, short mode)
@@ -76,12 +73,13 @@ bool BL_ActionManager::PlayAction(const char* name,
 								short play_mode,
 								float layer_weight,
 								short ipo_flags,
-								float playback_speed)
+								float playback_speed,
+								short blend_mode)
 {
 	// Disable layer blending on the first layer
 	if (layer == 0) layer_weight = -1.f;
 
-	return m_layers[layer]->Play(name, start, end, priority, blendin, play_mode, layer_weight, ipo_flags, playback_speed);
+	return m_layers[layer]->Play(name, start, end, priority, blendin, play_mode, layer_weight, ipo_flags, playback_speed, blend_mode);
 }
 
 void BL_ActionManager::StopAction(short layer)
@@ -92,8 +90,6 @@ void BL_ActionManager::StopAction(short layer)
 bool BL_ActionManager::IsActionDone(short layer)
 {
 	return m_layers[layer]->IsDone();
-
-	return true;
 }
 
 void BL_ActionManager::Update(float curtime)

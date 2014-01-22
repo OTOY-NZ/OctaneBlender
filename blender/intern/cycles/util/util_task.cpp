@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "util_debug.h"
@@ -170,7 +168,7 @@ void TaskPool::num_increase()
 thread_mutex TaskScheduler::mutex;
 int TaskScheduler::users = 0;
 vector<thread*> TaskScheduler::threads;
-volatile bool TaskScheduler::do_exit = false;
+bool TaskScheduler::do_exit = false;
 
 list<TaskScheduler::Entry> TaskScheduler::queue;
 thread_mutex TaskScheduler::queue_mutex;
@@ -186,12 +184,8 @@ void TaskScheduler::init(int num_threads)
 		do_exit = false;
 
 		if(num_threads == 0) {
-			/* automatic number of threads will be main thread + num cores */
+			/* automatic number of threads */
 			num_threads = system_cpu_thread_count();
-		}
-		else {
-			/* main thread will also work, for fixed threads we count it too */
-			num_threads -= 1;
 		}
 
 		/* launch threads that will be waiting for work */
@@ -302,6 +296,152 @@ void TaskScheduler::clear(TaskPool *pool)
 
 	/* notify done */
 	pool->num_decrease(done);
+}
+
+/* Dedicated Task Pool */
+
+DedicatedTaskPool::DedicatedTaskPool()
+{
+	do_cancel = false;
+	do_exit = false;
+	num = 0;
+
+	worker_thread = new thread(function_bind(&DedicatedTaskPool::thread_run, this));
+}
+
+DedicatedTaskPool::~DedicatedTaskPool()
+{
+	stop();
+	worker_thread->join();
+	delete worker_thread;
+}
+
+void DedicatedTaskPool::push(Task *task, bool front)
+{
+	num_increase();
+
+	/* add task to queue */
+	queue_mutex.lock();
+	if(front)
+		queue.push_front(task);
+	else
+		queue.push_back(task);
+
+	queue_cond.notify_one();
+	queue_mutex.unlock();
+}
+
+void DedicatedTaskPool::push(const TaskRunFunction& run, bool front)
+{
+	push(new Task(run), front);
+}
+
+void DedicatedTaskPool::wait()
+{
+	thread_scoped_lock num_lock(num_mutex);
+
+	while(num)
+		num_cond.wait(num_lock);
+}
+
+void DedicatedTaskPool::cancel()
+{
+	do_cancel = true;
+
+	clear();
+	wait();
+
+	do_cancel = false;
+}
+
+void DedicatedTaskPool::stop()
+{
+	clear();
+
+	do_exit = true;
+	queue_cond.notify_all();
+
+	wait();
+
+	assert(num == 0);
+}
+
+bool DedicatedTaskPool::cancelled()
+{
+	return do_cancel;
+}
+
+void DedicatedTaskPool::num_decrease(int done)
+{
+	thread_scoped_lock num_lock(num_mutex);
+	num -= done;
+
+	assert(num >= 0);
+	if(num == 0)
+		num_cond.notify_all();
+}
+
+void DedicatedTaskPool::num_increase()
+{
+	thread_scoped_lock num_lock(num_mutex);
+	num++;
+	num_cond.notify_all();
+}
+
+bool DedicatedTaskPool::thread_wait_pop(Task*& task)
+{
+	thread_scoped_lock queue_lock(queue_mutex);
+
+	while(queue.empty() && !do_exit)
+		queue_cond.wait(queue_lock);
+
+	if(queue.empty()) {
+		assert(do_exit);
+		return false;
+	}
+
+	task = queue.front();
+	queue.pop_front();
+
+	return true;
+}
+
+void DedicatedTaskPool::thread_run()
+{
+	Task *task;
+
+	/* keep popping off tasks */
+	while(thread_wait_pop(task)) {
+		/* run task */
+		task->run();
+
+		/* delete task */
+		delete task;
+
+		/* notify task was done */
+		num_decrease(1);
+	}
+}
+
+void DedicatedTaskPool::clear()
+{
+	thread_scoped_lock queue_lock(queue_mutex);
+
+	/* erase all tasks from the queue */
+	list<Task*>::iterator it = queue.begin();
+	int done = 0;
+
+	while(it != queue.end()) {
+		done++;
+		delete *it;
+
+		it = queue.erase(it);
+	}
+
+	queue_lock.unlock();
+
+	/* notify done */
+	num_decrease(done);
 }
 
 CCL_NAMESPACE_END

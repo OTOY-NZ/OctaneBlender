@@ -648,6 +648,20 @@ GHOST_TSuccess GHOST_WindowWin32::swapBuffers()
 	return ::SwapBuffers(hDC) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
 }
 
+GHOST_TSuccess GHOST_WindowWin32::setSwapInterval(int interval)
+{
+	if (!WGL_EXT_swap_control)
+		return GHOST_kFailure;
+	return wglSwapIntervalEXT(interval) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+}
+
+int GHOST_WindowWin32::getSwapInterval()
+{
+	if (WGL_EXT_swap_control)
+		return wglGetSwapIntervalEXT();
+
+	return 0;
+}
 
 GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
 {
@@ -1121,10 +1135,12 @@ void GHOST_WindowWin32::processWin32TabletEvent(WPARAM wParam, LPARAM lParam)
 							break;
 						case 1:
 						case 4:
+						case 7:
 							m_tabletData->Active = GHOST_kTabletModeStylus; /* stylus */
 							break;
 						case 2:
 						case 5:
+						case 8:
 							m_tabletData->Active = GHOST_kTabletModeEraser; /* eraser */
 							break;
 					}

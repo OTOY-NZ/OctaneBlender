@@ -139,8 +139,7 @@ Paint *BKE_paint_get_active(Scene *sce)
 				case OB_MODE_EDIT:
 					if (ts->use_uv_sculpt)
 						return &ts->uvsculpt->paint;
-					else
-						return &ts->imapaint.paint;
+					return &ts->imapaint.paint;
 			}
 		}
 
@@ -187,8 +186,7 @@ Paint *BKE_paint_get_active_from_context(const bContext *C)
 				case OB_MODE_EDIT:
 					if (ts->use_uv_sculpt)
 						return &ts->uvsculpt->paint;
-					else
-						return &ts->imapaint.paint;
+					return &ts->imapaint.paint;
 				default:
 					return &ts->imapaint.paint;
 			}
@@ -238,8 +236,7 @@ PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
 				case OB_MODE_EDIT:
 					if (ts->use_uv_sculpt)
 						return PAINT_SCULPT_UV;
-					else
-						return PAINT_TEXTURE_2D;
+					return PAINT_TEXTURE_2D;
 				default:
 					return PAINT_TEXTURE_2D;
 			}
@@ -362,8 +359,8 @@ int paint_is_bmesh_face_hidden(BMFace *f)
 float paint_grid_paint_mask(const GridPaintMask *gpm, unsigned level,
                             unsigned x, unsigned y)
 {
-	int factor = ccg_factor(level, gpm->level);
-	int gridsize = ccg_gridsize(gpm->level);
+	int factor = BKE_ccg_factor(level, gpm->level);
+	int gridsize = BKE_ccg_gridsize(gpm->level);
 	
 	return gpm->data[(y * factor) * gridsize + (x * factor)];
 }

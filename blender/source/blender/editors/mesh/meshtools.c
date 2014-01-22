@@ -178,7 +178,6 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 			if (kb->data) MEM_freeN(kb->data);
 			kb->data = MEM_callocN(sizeof(float) * 3 * totvert, "join_shapekey");
 			kb->totelem = totvert;
-			kb->weights = NULL;
 		}
 	}
 	else if (haskey) {
@@ -315,7 +314,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 
 				/* standard data */
 				CustomData_merge(&me->vdata, &vdata, CD_MASK_MESH, CD_DEFAULT, totvert);
-				CustomData_copy_data(&me->vdata, &vdata, 0, vertofs, me->totvert);
+				CustomData_copy_data_named(&me->vdata, &vdata, 0, vertofs, me->totvert);
 				
 				/* vertex groups */
 				dvert = CustomData_get(&vdata, vertofs, CD_MDEFORMVERT);
@@ -416,7 +415,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 			
 			if (me->totedge) {
 				CustomData_merge(&me->edata, &edata, CD_MASK_MESH, CD_DEFAULT, totedge);
-				CustomData_copy_data(&me->edata, &edata, 0, edgeofs, me->totedge);
+				CustomData_copy_data_named(&me->edata, &edata, 0, edgeofs, me->totedge);
 				
 				for (a = 0; a < me->totedge; a++, medge++) {
 					medge->v1 += vertofs;
@@ -438,7 +437,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 				}
 				
 				CustomData_merge(&me->ldata, &ldata, CD_MASK_MESH, CD_DEFAULT, totloop);
-				CustomData_copy_data(&me->ldata, &ldata, 0, loopofs, me->totloop);
+				CustomData_copy_data_named(&me->ldata, &ldata, 0, loopofs, me->totloop);
 				
 				for (a = 0; a < me->totloop; a++, mloop++) {
 					mloop->v += vertofs;
@@ -462,7 +461,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 				}
 
 				CustomData_merge(&me->pdata, &pdata, CD_MASK_MESH, CD_DEFAULT, totpoly);
-				CustomData_copy_data(&me->pdata, &pdata, 0, polyofs, me->totpoly);
+				CustomData_copy_data_named(&me->pdata, &pdata, 0, polyofs, me->totpoly);
 				
 				for (a = 0; a < me->totpoly; a++, mpoly++) {
 					mpoly->loopstart += loopofs;
@@ -570,7 +569,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	ED_object_editmode_exit(C, EM_FREEDATA | EM_WAITCURSOR | EM_DO_UNDO);
 #else
 	/* toggle editmode using lower level functions so this can be called from python */
-	EDBM_mesh_make(scene->toolsettings, scene, ob);
+	EDBM_mesh_make(scene->toolsettings, ob);
 	EDBM_mesh_load(ob);
 	EDBM_mesh_free(me->edit_btmesh);
 	MEM_freeN(me->edit_btmesh);
@@ -1012,6 +1011,31 @@ BMVert *editbmesh_get_x_mirror_vert(Object *ob, struct BMEditMesh *em, BMVert *e
 	}
 }
 
+/**
+ * Wrapper for objectmode/editmode.
+ *
+ * call #EDBM_index_arrays_ensure first for editmesh.
+ */
+int ED_mesh_mirror_get_vert(Object *ob, int index)
+{
+	Mesh *me = ob->data;
+	BMEditMesh *em = me->edit_btmesh;
+	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+	int index_mirr;
+
+	if (em) {
+		BMVert *eve, *eve_mirr;
+		eve = EDBM_vert_at_index(em, index);
+		eve_mirr = editbmesh_get_x_mirror_vert(ob, em, eve, eve->co, index, use_topology);
+		index_mirr = eve_mirr ? BM_elem_index_get(eve_mirr) : -1;
+	}
+	else {
+		 index_mirr = mesh_get_x_mirror_vert(ob, index, use_topology);
+	}
+
+	return index_mirr;
+}
+
 #if 0
 
 static float *editmesh_get_mirror_uv(BMEditMesh *em, int axis, float *uv, float *mirrCent, float *face_cent)
@@ -1136,7 +1160,7 @@ int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em)
 
 	mesh_octree_table(ob, em, NULL, 'e');
 
-	fhash = BLI_ghash_new(mirror_facehash, mirror_facecmp, "mirror_facehash gh");
+	fhash = BLI_ghash_new_ex(mirror_facehash, mirror_facecmp, "mirror_facehash gh", me->totface);
 	for (a = 0, mf = mface; a < me->totface; a++, mf++)
 		BLI_ghash_insert(fhash, mf, mf);
 
@@ -1200,7 +1224,7 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], unsigned int 
 		*index = view3d_sample_backbuf(&vc, mval[0], mval[1]);
 	}
 
-	if ((*index) <= 0 || (*index) > (unsigned int)me->totpoly)
+	if ((*index) == 0 || (*index) > (unsigned int)me->totpoly)
 		return false;
 
 	(*index)--;
@@ -1321,7 +1345,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 			*index = view3d_sample_backbuf(&vc, mval[0], mval[1]);
 		}
 
-		if ((*index) <= 0 || (*index) > (unsigned int)me->totvert)
+		if ((*index) == 0 || (*index) > (unsigned int)me->totvert)
 			return false;
 
 		(*index)--;
@@ -1336,7 +1360,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 		const float mval_f[2] = {(float)mval[0],
 		                         (float)mval[1]};
 
-		VertPickData data = {0};
+		VertPickData data = {NULL};
 
 		ED_view3d_init_mats_rv3d(ob, rv3d);
 
@@ -1351,7 +1375,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 		data.len_best = FLT_MAX;
 		data.v_idx_best = -1;
 
-		dm->foreachMappedVert(dm, ed_mesh_pick_vert__mapFunc, &data);
+		dm->foreachMappedVert(dm, ed_mesh_pick_vert__mapFunc, &data, DM_FOREACH_NOP);
 
 		dm->release(dm);
 

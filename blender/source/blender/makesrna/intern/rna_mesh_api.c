@@ -37,6 +37,7 @@
 #include "BLI_sys_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 
 #include "BKE_mesh.h"
 #include "ED_mesh.h"
@@ -47,7 +48,7 @@
 
 #include "DNA_mesh_types.h"
 
-static const char *rna_Mesh_unit_test_compare(struct Mesh *mesh, bContext *C, struct Mesh *mesh2)
+static const char *rna_Mesh_unit_test_compare(struct Mesh *mesh, struct Mesh *mesh2)
 {
 	const char *ret = BKE_mesh_cmp(mesh, mesh2, FLT_EPSILON * 60);
 	
@@ -57,14 +58,56 @@ static const char *rna_Mesh_unit_test_compare(struct Mesh *mesh, bContext *C, st
 	return ret;
 }
 
-void rna_Mesh_calc_smooth_groups(struct Mesh *mesh, int *r_poly_group_len, int **r_poly_group, int *r_group_total)
+static void rna_Mesh_calc_normals_split(Mesh *mesh, float min_angle)
+{
+	float (*r_loopnors)[3];
+	float (*polynors)[3];
+	bool free_polynors = false;
+
+	if (CustomData_has_layer(&mesh->ldata, CD_NORMAL)) {
+		r_loopnors = CustomData_get_layer(&mesh->ldata, CD_NORMAL);
+		memset(r_loopnors, 0, sizeof(float[3]) * mesh->totloop);
+	}
+	else {
+		r_loopnors = CustomData_add_layer(&mesh->ldata, CD_NORMAL, CD_CALLOC, NULL, mesh->totloop);
+		CustomData_set_layer_flag(&mesh->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
+	}
+
+	if (CustomData_has_layer(&mesh->pdata, CD_NORMAL)) {
+		/* This assume that layer is always up to date, not sure this is the case (esp. in Edit mode?)... */
+		polynors = CustomData_get_layer(&mesh->pdata, CD_NORMAL);
+		free_polynors = false;
+	}
+	else {
+		polynors = MEM_mallocN(sizeof(float[3]) * mesh->totpoly, __func__);
+		BKE_mesh_calc_normals_poly(mesh->mvert, mesh->totvert, mesh->mloop, mesh->mpoly, mesh->totloop, mesh->totpoly,
+		                           polynors, false);
+		free_polynors = true;
+	}
+
+	BKE_mesh_normals_loop_split(mesh->mvert, mesh->totvert, mesh->medge, mesh->totedge,
+	                            mesh->mloop, r_loopnors, mesh->totloop, mesh->mpoly, polynors, mesh->totpoly,
+	                            min_angle);
+
+	if (free_polynors) {
+		MEM_freeN(polynors);
+	}
+}
+
+static void rna_Mesh_free_normals_split(Mesh *mesh)
+{
+	CustomData_free_layers(&mesh->ldata, CD_NORMAL, mesh->totloop);
+}
+
+static void rna_Mesh_calc_smooth_groups(Mesh *mesh, int use_bitflags, int *r_poly_group_len,
+                                        int **r_poly_group, int *r_group_total)
 {
 	*r_poly_group_len = mesh->totpoly;
 	*r_poly_group = BKE_mesh_calc_smoothgroups(
 	                    mesh->medge, mesh->totedge,
 	                    mesh->mpoly, mesh->totpoly,
 	                    mesh->mloop, mesh->totloop,
-	                    r_group_total);
+	                    r_group_total, use_bitflags);
 }
 
 #else
@@ -82,11 +125,22 @@ void RNA_api_mesh(StructRNA *srna)
 	func = RNA_def_function(srna, "calc_normals", "BKE_mesh_calc_normals");
 	RNA_def_function_ui_description(func, "Calculate vertex normals");
 
+	func = RNA_def_function(srna, "calc_normals_split", "rna_Mesh_calc_normals_split");
+	RNA_def_function_ui_description(func, "Calculate split vertex normals, which preserve sharp edges");
+	parm = RNA_def_float(func, "split_angle", M_PI, 0.0f, M_PI, "",
+	                     "Angle between polys' normals above which an edge is always sharp (180° to disable)",
+	                     0.0f, M_PI);
+	RNA_def_property_subtype(parm, (PropertySubType)PROP_UNIT_ROTATION);
+
+	func = RNA_def_function(srna, "free_normals_split", "rna_Mesh_free_normals_split");
+	RNA_def_function_ui_description(func, "Free split vertex normals");
+
 	func = RNA_def_function(srna, "calc_tessface", "ED_mesh_calc_tessface");
 	RNA_def_function_ui_description(func, "Calculate face tessellation (supports editmode too)");
 
 	func = RNA_def_function(srna, "calc_smooth_groups", "rna_Mesh_calc_smooth_groups");
 	RNA_def_function_ui_description(func, "Calculate smooth groups from sharp edges");
+	RNA_def_boolean(func, "use_bitflags", false, "", "Produce bitflags groups instead of simple numeric values");
 	/* return values */
 	parm = RNA_def_int_array(func, "poly_groups", 1, NULL, 0, 0, "", "Smooth Groups", 0, 0);
 	RNA_def_property_flag(parm, PROP_DYNAMIC | PROP_OUTPUT);
@@ -101,7 +155,6 @@ void RNA_api_mesh(StructRNA *srna)
 
 	func = RNA_def_function(srna, "unit_test_compare", "rna_Mesh_unit_test_compare");
 	RNA_def_pointer(func, "mesh", "Mesh", "", "Mesh to compare to");
-	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	/* return value */
 	parm = RNA_def_string(func, "result", "nothing", 64, "Return value", "String description of result of comparison");
 	RNA_def_function_return(func, parm);

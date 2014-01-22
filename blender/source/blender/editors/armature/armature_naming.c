@@ -182,16 +182,22 @@ void ED_armature_bone_rename(bArmature *arm, const char *oldnamep, const char *n
 				if (ob->pose) {
 					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, oldname);
 					if (pchan) {
+						GHash *gh = ob->pose->chanhash;
+
+						/* remove the old hash entry, and replace with the new name */
+						if (gh) {
+							BLI_assert(BLI_ghash_haskey(gh, pchan->name));
+							BLI_ghash_remove(gh, pchan->name, NULL, NULL);
+						}
+
 						BLI_strncpy(pchan->name, newname, MAXBONENAME);
-						
-						if (ob->pose->chanhash) {
-							GHash *gh = ob->pose->chanhash;
-							
-							/* remove the old hash entry, and replace with the new name */
-							BLI_ghash_remove(gh, oldname, NULL, NULL);
+
+						if (gh) {
 							BLI_ghash_insert(gh, pchan->name, pchan);
 						}
 					}
+
+					BLI_assert(BKE_pose_channels_is_valid(ob->pose) == true);
 				}
 				
 				/* Update any object constraints to use the new bone name */
@@ -294,9 +300,13 @@ static int armature_flip_names_exec(bContext *C, wmOperator *UNUSED(op))
 	/* since we renamed stuff... */
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
-	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
-	
+	/* copied from #rna_Bone_update_renamed */
+	/* redraw view */
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+
+	/* update animation channels */
+	WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, ob->data);
+
 	return OPERATOR_FINISHED;
 }
 

@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <string.h>
@@ -58,7 +56,7 @@ Session::Session(const SessionParams& params_)
 	}
 	else {
 		buffers = new RenderBuffers(device);
-		display = new DisplayBuffer(device);
+		display = new DisplayBuffer(device, params.display_buffer_linear);
 	}
 
 	session_thread = NULL;
@@ -68,6 +66,7 @@ Session::Session(const SessionParams& params_)
 	reset_time = 0.0;
 	preview_time = 0.0;
 	paused_time = 0.0;
+	last_update_time = 0.0;
 
 	delayed_reset.do_reset = false;
 	delayed_reset.samples = 0;
@@ -135,7 +134,7 @@ void Session::reset_gpu(BufferParams& buffer_params, int samples)
 {
 	thread_scoped_lock pause_lock(pause_mutex);
 
-	/* block for buffer acces and reset immediately. we can't do this
+	/* block for buffer access and reset immediately. we can't do this
 	 * in the thread, because we need to allocate an OpenGL buffer, and
 	 * that only works in the main thread */
 	thread_scoped_lock display_lock(display_mutex);
@@ -373,7 +372,6 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 
 		rtile.buffer = buffers->buffer.device_pointer;
 		rtile.rng_state = buffers->rng_state.device_pointer;
-		rtile.rgba = display->rgba.device_pointer;
 		rtile.buffers = buffers;
 
 		device->map_tile(tile_device, rtile);
@@ -417,7 +415,6 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 
 	rtile.buffer = tilebuffers->buffer.device_pointer;
 	rtile.rng_state = tilebuffers->rng_state.device_pointer;
-	rtile.rgba = 0;
 	rtile.buffers = tilebuffers;
 
 	/* this will tag tile as IN PROGRESS in blender-side render pipeline,
@@ -786,7 +783,7 @@ void Session::update_status_time(bool show_pause, bool show_done)
 			substatus += string_printf(", Sample %d/%d", sample, num_samples);
 		}
 	}
-	else if(tile_manager.num_samples == 65536)
+	else if(tile_manager.num_samples == USHRT_MAX)
 		substatus = string_printf("Path Tracing Sample %d", sample+1);
 	else
 		substatus = string_printf("Path Tracing Sample %d/%d", sample+1, tile_manager.num_samples);
@@ -832,6 +829,7 @@ void Session::path_trace()
 	task.update_tile_sample = function_bind(&Session::update_tile_sample, this, _1);
 	task.update_progress_sample = function_bind(&Session::update_progress_sample, this);
 	task.need_finish_queue = params.progressive_refine;
+	task.integrator_branched = scene->integrator->method == Integrator::BRANCHED_PATH;
 
 	device->task_add(task);
 }
@@ -839,13 +837,14 @@ void Session::path_trace()
 void Session::tonemap()
 {
 	/* add tonemap task */
-	DeviceTask task(DeviceTask::TONEMAP);
+	DeviceTask task(DeviceTask::FILM_CONVERT);
 
 	task.x = tile_manager.state.buffer.full_x;
 	task.y = tile_manager.state.buffer.full_y;
 	task.w = tile_manager.state.buffer.width;
 	task.h = tile_manager.state.buffer.height;
-	task.rgba = display->rgba.device_pointer;
+	task.rgba_byte = display->rgba_byte.device_pointer;
+	task.rgba_half = display->rgba_half.device_pointer;
 	task.buffer = buffers->buffer.device_pointer;
 	task.sample = tile_manager.state.sample;
 	tile_manager.state.buffer.get_offset_stride(task.offset, task.stride);
