@@ -66,7 +66,8 @@ public:
     float       roughness_default_val;
     std::string filmwidth;
     float       filmwidth_default_val;
-    float       filmindex;
+    std::string filmindex;
+    float       filmindex_default_val;
     std::string bump;
     float       bump_default_val;
     std::string normal;
@@ -74,7 +75,8 @@ public:
     std::string opacity;
     float       opacity_default_val;
     bool        smooth;
-    float       index;
+    std::string index;
+    float       index_default_val;
 };
 
 class OctaneSpecularMaterial : public OctaneMaterialNode {
@@ -85,10 +87,12 @@ public:
     float3      reflection_default_val;
     std::string transmission;
     float       transmission_default_val;
-    float       index;
+    std::string index;
+    float       index_default_val;
     std::string filmwidth;
     float       filmwidth_default_val;
-    float       filmindex;
+    std::string filmindex;
+    float       filmindex_default_val;
     std::string bump;
     float       bump_default_val;
     std::string normal;
@@ -98,7 +102,8 @@ public:
     bool        smooth;
     std::string roughness;
     float       roughness_default_val;
-    float       dispersion_coef_B;
+    std::string dispersion_coef_B;
+    float       dispersion_coef_B_default_val;
     std::string medium;
     bool        fake_shadows;
 };
@@ -172,7 +177,8 @@ public:
     float       Power_default_val;
     std::string Offset;
     float       Offset_default_val;
-    int32_t     Octaves;
+    std::string Octaves;
+    int32_t     Octaves_default_val;
     std::string Omega;
     float       Omega_default_val;
     std::string Variance;
@@ -189,7 +195,8 @@ public:
     float       Power_default_val;
     std::string Offset;
     float       Offset_default_val;
-    int32_t     Octaves;
+    std::string Octaves;
+    int32_t     Octaves_default_val;
     std::string Lacunarity;
     float       Lacunarity_default_val;
     std::string Transform;
@@ -234,7 +241,8 @@ public:
     float       Power_default_val;
     std::string Offset;
     float       Offset_default_val;
-    int32_t     Octaves;
+    std::string Octaves;
+    int32_t     Octaves_default_val;
     std::string Omega;
     float       Omega_default_val;
     std::string Transform;
@@ -292,9 +300,12 @@ class OctaneFalloffTexture : public OctaneTextureNode {
 public:
     SHADER_NODE_CLASS(OctaneFalloffTexture)
 
-    float Normal;
-    float Grazing;
-    float Index;
+    std::string Normal;
+    float       Normal_default_val;
+    std::string Grazing;
+    float       Grazing_default_val;
+    std::string Index;
+    float       Index_default_val;
 };
 
 class OctaneColorCorrectTexture : public OctaneTextureNode {
@@ -305,9 +316,12 @@ public:
     bool        Invert;
     std::string Brightness;
     float       Brightness_default_val;
-    float       BrightnessScale;
-    float       BlackLevel;
-    float       Gamma;
+    std::string BrightnessScale;
+    float       BrightnessScale_default_val;
+    std::string BlackLevel;
+    float       BlackLevel_default_val;
+    std::string Gamma;
+    float       Gamma_default_val;
 };
 
 class OctaneImageTexture : public OctaneTextureNode {
@@ -317,11 +331,13 @@ public:
     std::string FileName;
     std::string Power;
     float       Power_default_val;
-    float       Gamma;
+    std::string Gamma;
+    float       Gamma_default_val;
     std::string Transform;
     bool        Invert;
     std::string Projection;
-    int         BorderMode;
+    std::string BorderMode;
+    int         BorderMode_default_val;
 };
 
 class OctaneFloatImageTexture : public OctaneTextureNode {
@@ -331,11 +347,13 @@ public:
     std::string FileName;
     std::string Power;
     float       Power_default_val;
-    float       Gamma;
+    std::string Gamma;
+    float       Gamma_default_val;
     std::string Transform;
     bool        Invert;
     std::string Projection;
-    int         BorderMode;
+    std::string BorderMode;
+    int         BorderMode_default_val;
 };
 
 class OctaneAlphaImageTexture : public OctaneTextureNode {
@@ -345,20 +363,25 @@ public:
     std::string FileName;
     std::string Power;
     float       Power_default_val;
-    float       Gamma;
+    std::string Gamma;
+    float       Gamma_default_val;
     std::string Transform;
     bool        Invert;
     std::string Projection;
-    int         BorderMode;
+    std::string BorderMode;
+    int         BorderMode_default_val;
 };
 
 class OctaneDirtTexture : public OctaneTextureNode {
 public:
     SHADER_NODE_CLASS(OctaneDirtTexture)
 
-    float       Strength;
-    float       Details;
-    float       Radius;
+    std::string Strength;
+    float       Strength_default_val;
+    std::string Details;
+    float       Details_default_val;
+    std::string Radius;
+    float       Radius_default_val;
     bool        InvertNormal;
 };
 
@@ -388,14 +411,17 @@ class OctaneBlackBodyEmission : public OctaneEmissionNode {
 public:
     SHADER_NODE_CLASS(OctaneBlackBodyEmission)
 
-    float       Temperature;
-    float       Power;
+    std::string Temperature;
+    float       Temperature_default_val;
+    std::string Power;
+    float       Power_default_val;
     bool        Normalize;
     std::string Distribution;
     float       Distribution_default_val;
     std::string Efficiency;
     float       Efficiency_default_val;
-    float       SamplingRate;
+    std::string SamplingRate;
+    float       SamplingRate_default_val;
 };
 
 class OctaneTextureEmission : public OctaneEmissionNode {
@@ -404,10 +430,12 @@ public:
 
     std::string Efficiency;
     float       Efficiency_default_val;
-    float       Power;
+    std::string Power;
+    float       Power_default_val;
     std::string Distribution;
     float       Distribution_default_val;
-    float       SamplingRate;
+    std::string SamplingRate;
+    float       SamplingRate_default_val;
 };
 
 
@@ -425,7 +453,8 @@ public:
 
     std::string Absorption;
     float       Absorption_default_val;
-    float       Scale;
+    std::string Scale;
+    float       Scale_default_val;
 };
 
 class OctaneScatteringMedium : public OctaneEmissionNode {
@@ -439,7 +468,8 @@ public:
     std::string Phase;
     float       Phase_default_val;
     std::string Emission;
-    float       Scale;
+    std::string Scale;
+    float       Scale_default_val;
 };
 
 
@@ -488,7 +518,8 @@ public:
     SHADER_NODE_CLASS(OctaneOctXYZProjection)
 
     std::string Transform;
-    int         CoordinateSpace;
+    std::string CoordinateSpace;
+    int         CoordinateSpace_default_val;
 };
 
 class OctaneOctBoxProjection : public OctaneProjectionNode {
@@ -496,7 +527,8 @@ public:
     SHADER_NODE_CLASS(OctaneOctBoxProjection)
 
     std::string Transform;
-    int         CoordinateSpace;
+    std::string CoordinateSpace;
+    int         CoordinateSpace_default_val;
 };
 
 class OctaneOctCylProjection : public OctaneProjectionNode {
@@ -504,7 +536,8 @@ public:
     SHADER_NODE_CLASS(OctaneOctCylProjection)
 
     std::string Transform;
-    int         CoordinateSpace;
+    std::string CoordinateSpace;
+    int         CoordinateSpace_default_val;
 };
 
 class OctaneOctPerspProjection : public OctaneProjectionNode {
@@ -512,7 +545,8 @@ public:
     SHADER_NODE_CLASS(OctaneOctPerspProjection)
 
     std::string Transform;
-    int         CoordinateSpace;
+    std::string CoordinateSpace;
+    int         CoordinateSpace_default_val;
 };
 
 class OctaneOctSphericalProjection : public OctaneProjectionNode {
@@ -520,7 +554,8 @@ public:
     SHADER_NODE_CLASS(OctaneOctSphericalProjection)
 
     std::string Transform;
-    int         CoordinateSpace;
+    std::string CoordinateSpace;
+    int         CoordinateSpace_default_val;
 };
 
 class OctaneOctUVWProjection : public OctaneProjectionNode {

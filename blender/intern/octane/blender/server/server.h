@@ -1122,7 +1122,9 @@ public:
             + node->filmwidth.length() + 2
             + node->bump.length() + 2
             + node->normal.length() + 2
-            + node->opacity.length() + 2;
+            + node->opacity.length() + 2
+            + node->filmindex.length() + 2
+            + node->index.length() + 2;
 
         const char* mat_name = node->name.c_str();
 
@@ -1131,8 +1133,10 @@ public:
             RPCSend snd(socket, size, LOAD_GLOSSY_MATERIAL, mat_name);
             snd << node->diffuse_default_val.x << node->diffuse_default_val.y << node->diffuse_default_val.z
                 << node->specular_default_val << node->roughness_default_val << node->filmwidth_default_val << node->bump_default_val
-                << node->normal_default_val << node->opacity_default_val
-                << node->filmindex << node->index << node->smooth << node->diffuse.c_str() << node->specular.c_str() << node->roughness.c_str()
+                << node->normal_default_val << node->opacity_default_val << node->filmindex_default_val << node->index_default_val
+                << node->smooth
+                << node->filmindex.c_str() << node->index.c_str()
+                << node->diffuse.c_str() << node->specular.c_str() << node->roughness.c_str()
                 << node->filmwidth.c_str() << node->bump.c_str() << node->normal.c_str() << node->opacity.c_str();
             snd.write();
         }
@@ -1150,7 +1154,10 @@ public:
             + node->normal.length() + 2
             + node->opacity.length() + 2
             + node->roughness.length() + 2
-            + node->medium.length() + 2;
+            + node->medium.length() + 2
+            + node->filmindex.length() + 2
+            + node->index.length() + 2
+            + node->dispersion_coef_B.length() + 2;
 
         const char* mat_name = node->name.c_str();
 
@@ -1159,8 +1166,9 @@ public:
             RPCSend snd(socket, size, LOAD_SPECULAR_MATERIAL, mat_name);
             snd << node->reflection_default_val.x << node->reflection_default_val.y << node->reflection_default_val.z
                 << node->transmission_default_val << node->filmwidth_default_val << node->bump_default_val << node->normal_default_val
-                << node->opacity_default_val << node->roughness_default_val
-                << node->index << node->filmindex << node->dispersion_coef_B << node->smooth << node->fake_shadows
+                << node->opacity_default_val << node->roughness_default_val << node->filmindex_default_val << node->index_default_val << node->dispersion_coef_B_default_val
+                << node->smooth << node->fake_shadows
+                << node->filmindex.c_str() << node->index.c_str() << node->dispersion_coef_B.c_str()
                 << node->reflection.c_str() << node->transmission.c_str() << node->filmwidth.c_str() << node->bump.c_str()
                 << node->normal.c_str() << node->opacity.c_str() << node->roughness.c_str() << node->medium.c_str();
             snd.write();
@@ -1293,13 +1301,14 @@ public:
             + node->Omega.length() + 2
             + node->Variance.length() + 2
             + node->Transform.length() + 2
-            + node->Projection.length() + 2;
+            + node->Projection.length() + 2
+            + node->Octaves.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_MARBLE_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Offset_default_val << node->Omega_default_val << node->Variance_default_val
-                << node->Octaves
+                << node->Octaves_default_val << node->Octaves.c_str()
                 << node->Power.c_str() << node->Offset.c_str() << node->Omega.c_str() << node->Variance.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
@@ -1314,13 +1323,14 @@ public:
             + node->Offset.length() + 2
             + node->Lacunarity.length() + 2
             + node->Transform.length() + 2
-            + node->Projection.length() + 2;
+            + node->Projection.length() + 2
+            + node->Octaves.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_RIDGED_FRACTAL_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Offset_default_val << node->Lacunarity_default_val
-                << node->Octaves
+                << node->Octaves_default_val << node->Octaves.c_str()
                 << node->Power.c_str() << node->Offset.c_str() << node->Lacunarity.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
@@ -1389,13 +1399,14 @@ public:
             + node->Offset.length() + 2
             + node->Omega.length() + 2
             + node->Transform.length() + 2
-            + node->Projection.length() + 2;
+            + node->Projection.length() + 2
+            + node->Octaves.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_TURBULENCE_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Offset_default_val << node->Omega_default_val
-                << node->Octaves
+                << node->Octaves_default_val << node->Octaves.c_str()
                 << node->Power.c_str() << node->Offset.c_str() << node->Omega.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
@@ -1488,12 +1499,16 @@ public:
     inline void load_falloff_tex(OctaneFalloffTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 3;
+        uint64_t size = sizeof(float) * 3
+            + node->Normal.length() + 2
+            + node->Grazing.length() + 2
+            + node->Index.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_FALLOFF_TEXTURE, node->name.c_str());
-            snd << node->Normal << node->Grazing << node->Index;
+            snd << node->Normal_default_val << node->Grazing_default_val << node->Index_default_val
+                << node->Normal.c_str() << node->Grazing.c_str() << node->Index.c_str();
             snd.write();
         }
         wait_error(LOAD_FALLOFF_TEXTURE);
@@ -1504,13 +1519,18 @@ public:
 
         uint64_t size = sizeof(float) * 4 + sizeof(int32_t)
             + node->Texture.length() + 2
-            + node->Brightness.length() + 2;
+            + node->Brightness.length() + 2
+            + node->BrightnessScale.length() + 2
+            + node->BlackLevel.length() + 2
+            + node->Gamma.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_COLOR_CORRECT_TEXTURE, node->name.c_str());
-            snd << node->Brightness_default_val << node->BrightnessScale << node->BlackLevel << node->Gamma
+            snd << node->Brightness_default_val
+                << node->BrightnessScale_default_val << node->BlackLevel_default_val << node->Gamma_default_val
                 << node->Invert
+                << node->BrightnessScale.c_str() << node->BlackLevel.c_str() << node->Gamma.c_str()
                 << node->Texture.c_str() << node->Brightness.c_str();
             snd.write();
         }
@@ -1524,14 +1544,16 @@ public:
             + node->FileName.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Gamma.length() + 2
+            + node->BorderMode.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma << node->BorderMode
-                << node->Invert
-                << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+            snd << node->Power_default_val << node->Gamma_default_val
+                << node->BorderMode_default_val << node->Invert
+                << node->Gamma.c_str() << node->BorderMode.c_str() << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_IMAGE_TEXTURE);
@@ -1544,14 +1566,16 @@ public:
             + node->FileName.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Gamma.length() + 2
+            + node->BorderMode.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma << node->BorderMode
-                << node->Invert
-                << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+            snd << node->Power_default_val << node->Gamma_default_val
+                << node->BorderMode_default_val << node->Invert
+                << node->Gamma.c_str() << node->BorderMode.c_str() << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_FLOAT_IMAGE_TEXTURE);
@@ -1564,14 +1588,16 @@ public:
             + node->FileName.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
-            + node->Transform.length() + 2;
+            + node->Transform.length() + 2
+            + node->Gamma.length() + 2
+            + node->BorderMode.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma << node->BorderMode
-                << node->Invert
-                << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+            snd << node->Power_default_val << node->Gamma_default_val
+                << node->BorderMode_default_val << node->Invert
+                << node->Gamma.c_str() << node->BorderMode.c_str() << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
         wait_error(LOAD_ALPHA_IMAGE_TEXTURE);
@@ -1580,13 +1606,17 @@ public:
     inline void load_dirt_tex(OctaneDirtTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 3 + sizeof(int32_t);
+        uint64_t size = sizeof(float) * 3 + sizeof(int32_t)
+            + node->Strength.length() + 2
+            + node->Details.length() + 2
+            + node->Radius.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_DIRT_TEXTURE, node->name.c_str());
-            snd << node->Strength << node->Details << node->Radius
-                << node->InvertNormal;
+            snd << node->Strength_default_val << node->Details_default_val << node->Radius_default_val
+                << node->InvertNormal
+                << node->Strength.c_str() << node->Details.c_str() << node->Radius.c_str();
             snd.write();
         }
         wait_error(LOAD_DIRT_TEXTURE);
@@ -1641,15 +1671,18 @@ public:
 
         uint64_t size = sizeof(float) * 5 + sizeof(int32_t)
             + node->Efficiency.length() + 2
-            + node->Distribution.length() + 2;
+            + node->Distribution.length() + 2
+            + node->Temperature.length() + 2
+            + node->Power.length() + 2
+            + node->SamplingRate.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_BLACKBODY_EMISSION, node->name.c_str());
-            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Temperature << node->Power
-                << node->SamplingRate
+            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Temperature_default_val << node->Power_default_val
+                << node->SamplingRate_default_val
                 << node->Normalize
-                << node->Efficiency.c_str() << node->Distribution.c_str();
+                 << node->Temperature.c_str() << node->Power.c_str() << node->SamplingRate.c_str() << node->Efficiency.c_str() << node->Distribution.c_str();
             snd.write();
         }
         wait_error(LOAD_BLACKBODY_EMISSION);
@@ -1660,14 +1693,16 @@ public:
 
         uint64_t size = sizeof(float) * 4
             + node->Efficiency.length() + 2
-            + node->Distribution.length() + 2;
+            + node->Distribution.length() + 2
+            + node->Power.length() + 2
+            + node->SamplingRate.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_TEXTURE_EMISSION, node->name.c_str());
-            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Power
-                << node->SamplingRate
-                << node->Efficiency.c_str() << node->Distribution.c_str();
+            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Power_default_val
+                << node->SamplingRate_default_val
+                << node->Power.c_str() << node->SamplingRate.c_str() << node->Efficiency.c_str() << node->Distribution.c_str();
             snd.write();
         }
         wait_error(LOAD_TEXTURE_EMISSION);
@@ -1700,13 +1735,14 @@ public:
         if(socket < 0) return;
 
         uint64_t size = sizeof(float) * 2
-            + node->Absorption.length() + 2;
+            + node->Absorption.length() + 2
+            + node->Scale.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_ABSORPTION_MEDIUM, node->name.c_str());
-            snd << node->Absorption_default_val << node->Scale
-                << node->Absorption.c_str();
+            snd << node->Absorption_default_val << node->Scale_default_val
+                << node->Absorption.c_str() << node->Scale.c_str();
             snd.write();
         }
         wait_error(LOAD_ABSORPTION_MEDIUM);
@@ -1719,13 +1755,14 @@ public:
             + node->Absorption.length() + 2
             + node->Scattering.length() + 2
             + node->Phase.length() + 2
-            + node->Emission.length() + 2;
+            + node->Emission.length() + 2
+            + node->Scale.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_SCATTERING_MEDIUM, node->name.c_str());
-            snd << node->Absorption_default_val << node->Scattering_default_val << node->Phase_default_val << node->Scale
-                << node->Absorption.c_str() << node->Scattering.c_str() << node->Phase.c_str() << node->Emission.c_str();
+            snd << node->Absorption_default_val << node->Scattering_default_val << node->Phase_default_val << node->Scale_default_val
+                << node->Absorption.c_str() << node->Scattering.c_str() << node->Phase.c_str() << node->Emission.c_str() << node->Scale.c_str();
             snd.write();
         }
         wait_error(LOAD_SCATTERING_MEDIUM);
@@ -1824,13 +1861,15 @@ public:
     inline void load_xyz_projection(OctaneOctXYZProjection* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+        uint64_t size = sizeof(int32_t)
+            + node->Transform.length() + 2
+            + node->CoordinateSpace.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_PROJECTION_XYZ, node->name.c_str());
-            snd << node->CoordinateSpace
-                << node->Transform.c_str();
+            snd << node->CoordinateSpace_default_val
+                << node->CoordinateSpace.c_str() << node->Transform.c_str();
             snd.write();
         }
         wait_error(LOAD_PROJECTION_XYZ);
@@ -1839,13 +1878,15 @@ public:
     inline void load_box_projection(OctaneOctBoxProjection* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+        uint64_t size = sizeof(int32_t)
+            + node->Transform.length() + 2
+            + node->CoordinateSpace.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_PROJECTION_BOX, node->name.c_str());
-            snd << node->CoordinateSpace
-                << node->Transform.c_str();
+            snd << node->CoordinateSpace_default_val
+                << node->CoordinateSpace.c_str() << node->Transform.c_str();
             snd.write();
         }
         wait_error(LOAD_PROJECTION_BOX);
@@ -1854,13 +1895,15 @@ public:
     inline void load_cyl_projection(OctaneOctCylProjection* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+        uint64_t size = sizeof(int32_t)
+            + node->Transform.length() + 2
+            + node->CoordinateSpace.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_PROJECTION_CYL, node->name.c_str());
-            snd << node->CoordinateSpace
-                << node->Transform.c_str();
+            snd << node->CoordinateSpace_default_val
+                << node->CoordinateSpace.c_str() << node->Transform.c_str();
             snd.write();
         }
         wait_error(LOAD_PROJECTION_CYL);
@@ -1869,13 +1912,15 @@ public:
     inline void load_persp_projection(OctaneOctPerspProjection* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+        uint64_t size = sizeof(int32_t)
+            + node->Transform.length() + 2
+            + node->CoordinateSpace.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_PROJECTION_PERSP, node->name.c_str());
-            snd << node->CoordinateSpace
-                << node->Transform.c_str();
+            snd << node->CoordinateSpace_default_val
+                << node->CoordinateSpace.c_str() << node->Transform.c_str();
             snd.write();
         }
         wait_error(LOAD_PROJECTION_PERSP);
@@ -1884,13 +1929,15 @@ public:
     inline void load_spherical_projection(OctaneOctSphericalProjection* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(int32_t) + node->Transform.length() + 2;
+        uint64_t size = sizeof(int32_t)
+            + node->Transform.length() + 2
+            + node->CoordinateSpace.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_PROJECTION_SPHERICAL, node->name.c_str());
-            snd << node->CoordinateSpace
-                << node->Transform.c_str();
+            snd << node->CoordinateSpace_default_val
+                << node->CoordinateSpace.c_str() << node->Transform.c_str();
             snd.write();
         }
         wait_error(LOAD_PROJECTION_SPHERICAL);

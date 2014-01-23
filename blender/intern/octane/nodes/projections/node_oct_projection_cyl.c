@@ -41,7 +41,7 @@ static bNodeSocketTemplate sh_node_out[] = {
 void register_node_type_projection_oct_cyl(void) {
 	static bNodeType ntype;
 	
-	if(ntype.type != SH_NODE_OCT_PROJECTION_CYL) node_type_base(&ntype, SH_NODE_OCT_PROJECTION_CYL, "Octane Cylincrical Projection", NODE_CLASS_OCT_PROJECTION, NODE_OPTIONS);
+	if(ntype.type != SH_NODE_OCT_PROJECTION_CYL) node_type_base(&ntype, SH_NODE_OCT_PROJECTION_CYL, "Octane Cylindrical Projection", NODE_CLASS_OCT_PROJECTION, NODE_OPTIONS);
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
 	node_type_size(&ntype, 160, 160, 200);

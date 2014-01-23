@@ -162,7 +162,7 @@ DefNode( ShaderNode,     SH_NODE_OCT_SCATTER_MED,           0,               "OC
 
 DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_XYZ,        0,               "OCT_XYZ_PROJ",          OctXYZProjection,    "Octane XYZ Projection",        ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_BOX,        0,               "OCT_BOX_PROJ",          OctBoxProjection,    "Octane Box Projection",        ""    )
-DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_CYL,        0,               "OCT_CYL_PROJ",          OctCylProjection,    "Octane Cylincrical Projection",""    )
+DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_CYL,        0,               "OCT_CYL_PROJ",          OctCylProjection,    "Octane Cylindrical Projection",""    )
 DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_PERSP,      0,               "OCT_PERSP_PROJ",        OctPerspProjection,  "Octane Perspective Projection",""    )
 DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_SPHERICAL,  0,               "OCT_SPHERICAL_PROJ",    OctSphericalProjection,"Octane Spherical Projection",""    )
 DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_UVW,        0,               "OCT_UVW_PROJ",          OctUVWProjection,    "Octane UVW Projection",        ""    )
