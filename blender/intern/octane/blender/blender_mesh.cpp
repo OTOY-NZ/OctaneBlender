@@ -247,7 +247,10 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 
 	// Recreate the mesh
 
-	// Create derived mesh
+	if(interactive)
+		b_ob.update_from_editmode();
+
+    // Create derived mesh
 	BL::Mesh b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !interactive, true);
 
 	PointerRNA cmesh = RNA_pointer_get(&b_ob_data.ptr, "octane");

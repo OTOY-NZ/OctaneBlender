@@ -102,7 +102,7 @@ shader_node_categories = [
 
 texture_node_categories = [
     # Texture Nodes
-    TextureNodeCategory("TEX_OCT_TEXTURE", "Octane Textures", items = [
+    TextureNodeCategory("TEX_OCT_TEXTURE", "Octane Texture", items = [
         NodeItem("ShaderNodeOctFloatTex"),
         NodeItem("ShaderNodeOctRGBSpectrumTex"),
         NodeItem("ShaderNodeOctGaussSpectrumTex"),
@@ -125,6 +125,11 @@ texture_node_categories = [
         NodeItem("ShaderNodeOctAlphaImageTex"),
         NodeItem("ShaderNodeOctDirtTex"),
         NodeItem("ShaderNodeOctGradientTex"),
+        ]),
+    TextureNodeCategory("TEX_OCT_TRANSFORM", "Octane Transform", items=[
+        NodeItem("ShaderNodeOctScaleTransform"),
+        NodeItem("ShaderNodeOctRotateTransform"),
+        NodeItem("ShaderNodeOctFullTransform"),
         ]),
     TextureNodeCategory("TEX_OCT_VALUE", "Octane Values", items=[
         NodeItem("ShaderNodeOctFloatValue"),
