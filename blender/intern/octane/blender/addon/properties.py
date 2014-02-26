@@ -54,6 +54,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="Hide from final render objects hidden in viewport",
                 default=False,
                 )
+        cls.export_alembic = BoolProperty(
+                name="Export alembic",
+                description="Export alembic file instead of rendering",
+                default=False,
+                )
         cls.meshes_type = EnumProperty(
                 name="Render all meshes as",
                 description="Override all meshes type by this type during rendering",

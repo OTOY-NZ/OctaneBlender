@@ -86,7 +86,9 @@ enum PacketType {
     DESCRIPTION,
     SET_LIC_DATA,
     RESET,
+    CLEAR,
     START,
+    STOP,
     UPDATE,
     PAUSE,
     GET_IMAGE,
@@ -533,6 +535,7 @@ class RenderServer {
     uint8_t*    image_buf;
     float*      float_img_buf;
     int32_t     cur_w, cur_h;
+    uint32_t    m_Export_alembic;
 
 protected:
 	RenderServer() {}
@@ -541,6 +544,7 @@ protected:
 
 public:
     static char         address[256];
+    static char         out_path[256];
     thread_mutex        socket_mutex;
     thread_mutex        img_buf_mutex;
 	RenderServerInfo    info;
@@ -549,9 +553,11 @@ public:
 
     // Create the render-server object, connected to the server
     //  addr - server address
-    RenderServer(const char *addr) : image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), socket(-1) {
+    RenderServer(const char *addr, const char *_out_path, bool export_alembic) : m_Export_alembic(export_alembic), image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), socket(-1) {
         struct  hostent *host;
         struct  sockaddr_in sa;
+
+        strcpy(out_path, _out_path);
 
         strcpy(address, addr);
         host = gethostbyname(addr);
@@ -586,7 +592,7 @@ public:
     } //RenderServer()
 
     ~RenderServer() {
-        reset(0);
+        clear();
         if(socket >= 0)
 #ifndef WIN32
             close(socket);
@@ -636,8 +642,12 @@ public:
 
         thread_scoped_lock socket_lock(socket_mutex);
 
-        RPCSend snd(socket, sizeof(uint32_t), RESET);
-        snd << GPUs;
+        int path_len = m_Export_alembic ? strlen(out_path) : 0;
+
+        RPCSend snd(socket, sizeof(uint32_t) * 2 + path_len + 2, RESET);
+        snd << GPUs << m_Export_alembic;
+        if(m_Export_alembic) snd << out_path;
+
         snd.write();
 
         RPCReceive rcv(socket);
@@ -648,6 +658,24 @@ public:
             else fprintf(stderr, "\n");
         }
     } //reset()
+
+    // Clear the server project.
+    inline void clear() {
+        if(socket < 0) return;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+
+        RPCSend snd(socket, 0, CLEAR);
+        snd.write();
+
+        RPCReceive rcv(socket);
+        if(rcv.type != CLEAR) {
+            rcv >> error_msg;
+            fprintf(stderr, "Octane: ERROR clearing render server.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
+        }
+    } //clear()
 
     // GPUs - the GPUs which should be used by server, as bit map
     inline void load_GPUs(uint32_t GPUs) {
@@ -704,6 +732,25 @@ public:
             else fprintf(stderr, "\n");
         }
     } //start_render()
+
+    // Stop the render process on the server.
+    // Mostly needed to close the alembic animation sequence on the server.
+    inline void stop_render() {
+        if(socket < 0) return;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+
+        RPCSend snd(socket, 0, STOP);
+        snd.write();
+
+        RPCReceive rcv(socket);
+        if(rcv.type != STOP) {
+            rcv >> error_msg;
+            fprintf(stderr, "Octane: ERROR stopping render.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
+        }
+    } //stop_render()
 
     inline void pause_render(int32_t pause) {
         if(socket < 0) return;
@@ -2142,7 +2189,7 @@ public:
     } //get_pass_rect()
 
 
-	static RenderServer*        create(RenderServerInfo& info, bool interactive = false);
+	static RenderServer*        create(RenderServerInfo& info, bool export_alembic, const char *_out_path, bool interactive = false);
     static RenderServerInfo&    get_info(void);
 }; //RenderServer
 

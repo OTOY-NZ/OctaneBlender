@@ -140,7 +140,7 @@ void BlenderSession::create_session(PassType pass_type) {
 	last_progress	= -1.0f;
 
 	// Create session
-	session = new Session(session_params);
+	session = new Session(session_params, b_scene.render().filepath().c_str());
 	session->set_blender_session(this);
 	session->set_pause(BlenderSync::get_session_pause_state(b_scene, interactive));
 
@@ -474,6 +474,14 @@ inline int BlenderSession::get_render_passes(vector<Pass> &passes) {
 void BlenderSession::render() {
 	// Get buffer parameters
 	SessionParams	session_params	= BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
+    if(session_params.export_alembic) {
+	    session->update_scene_to_server();
+        session->server->start_render(session_params.width, session_params.height, 0);
+
+        if(b_scene.frame_current() >= b_scene.frame_end())
+            session->server->stop_render();
+        return;
+    }
 	BufferParams	buffer_params	= BlenderSync::get_display_buffer_params(scene->camera, width, height);
 
 	// Render each layer

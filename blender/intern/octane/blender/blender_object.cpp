@@ -105,9 +105,7 @@ void BlenderSync::sync_light_object(BL::Object b_parent, int persistent_id[OBJEC
 	// in the depsgraph and may not signal changes, so this is a workaround
 	if(object_updated || (light_object->light && light_object->light->need_update) || tfm != light_object->tfm) {
         if(!light_object->name.length()) {
-            char name[32];
-            ::sprintf(name, "%p", light_object);
-		    light_object->name = name;
+		    light_object->name = b_ob.name().c_str();
         }
 		light_object->pass_id   = b_ob.pass_index();
 		light_object->tfm       = tfm;
@@ -309,11 +307,8 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 	// Transform comparison should not be needed, but duplis don't work perfect
 	// in the depsgraph and may not signal changes, so this is a workaround
 	if(object_updated || (object->mesh && object->mesh->need_update) || object->used_shaders != used_shaders || tfm != object->tfm) {
-		//object->name = b_ob.name().c_str();
         if(!object->name.length()) {
-            char name[32];
-            ::sprintf(name, "%p", object);
-		    object->name = name;
+		    object->name = b_ob.name().c_str();
         }
 		object->pass_id = b_ob.pass_index();
 		object->tfm = tfm;

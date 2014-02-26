@@ -24,13 +24,14 @@
 OCT_NAMESPACE_BEGIN
 
 char RenderServer::address[256] = "127.0.0.1";
+char RenderServer::out_path[256] = "";
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Create server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-RenderServer *RenderServer::create(RenderServerInfo& info, bool interactive) {
-	RenderServer *server = new RenderServer(info.net_address);
+RenderServer *RenderServer::create(RenderServerInfo& info, bool export_alembic, const char *_out_path, bool interactive) {
+	RenderServer *server = new RenderServer(info.net_address, _out_path, export_alembic);
 
 	if(server) server->info = info;
 

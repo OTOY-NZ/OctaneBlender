@@ -38,11 +38,12 @@ class BlenderSession;
 class SessionParams {
 public:
 	SessionParams() {
-		interactive = true;
-		output_path = "";
-        use_passes  = false;
-        meshes_type = Mesh::AS_IS;
-		samples		= INT_MAX;
+		interactive     = true;
+		output_path     = "";
+        use_passes      = false;
+        meshes_type     = Mesh::AS_IS;
+		samples		    = INT_MAX;
+        export_alembic  = false;
 	}
 
 	bool modified(const SessionParams& params) {
@@ -69,6 +70,7 @@ public:
 	bool            use_passes;
 	bool            use_viewport_hide;
 	Mesh::MeshType  meshes_type;
+	bool            export_alembic;
 }; //SessionParams
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +79,7 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class Session {
 public:
-	Session(const SessionParams& params);
+	Session(const SessionParams& params, const char *_out_path);
 	~Session();
 
 	void start(const char* pass_name_, bool synchronous);

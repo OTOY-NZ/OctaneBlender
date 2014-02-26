@@ -35,8 +35,8 @@ OCT_NAMESPACE_BEGIN
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Session::Session(const SessionParams& params_) : params(params_) {
-	server = RenderServer::create(params.server, params.interactive);
+Session::Session(const SessionParams& params_, const char *_out_path) : params(params_) {
+	server = RenderServer::create(params.server, params.export_alembic, _out_path, params.interactive);
 
     if(params.login.length() > 0 && params.pass.length() > 0) {
         if(server->activate(params.login, params.pass)) {
@@ -192,7 +192,7 @@ void Session::run_render() {
 // Main Render function
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void Session::run() {
-	progress.set_status("Waiting for render to start");
+    progress.set_status("Waiting for render to start");
 
 	if(!progress.get_cancel()) {
 		progress.reset_cur_samples();
@@ -345,7 +345,7 @@ void Session::update_scene_to_server() {
 	}
 
 	// Update scene
-	if(scene->need_update()) {
+	if(params.export_alembic || scene->need_update()) {
 		progress.set_status("Updating Scene");
 		scene->server_update(server, progress, params.interactive);
 	}

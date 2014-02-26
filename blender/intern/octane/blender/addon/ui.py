@@ -940,6 +940,7 @@ def draw_device(self, context):
         sub = layout.row()
         sub.prop(oct_scene, "use_passes")
         sub.prop(oct_scene, "viewport_hide")
+        sub.prop(oct_scene, "export_alembic")
         layout.prop(oct_scene, "meshes_type", expand=True)
 
 
