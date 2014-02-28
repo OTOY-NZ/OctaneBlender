@@ -931,6 +931,7 @@ def draw_device(self, context):
     if scene.render.engine == 'octane':
         oct_scene = scene.octane
 
+        layout.prop(oct_scene, "anim_mode")
         layout.prop(oct_scene, "devices")
         box = layout.box()
         box.label(text="Server:")

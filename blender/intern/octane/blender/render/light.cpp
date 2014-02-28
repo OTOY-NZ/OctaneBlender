@@ -21,6 +21,7 @@
 #include "server.h"
 #include "object.h"
 #include "scene.h"
+#include "session.h"
 
 #include "util_progress.h"
 
@@ -89,7 +90,8 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 
         if(!light->enable) {
             if(light->need_update) light->need_update = false;
-            if((scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY) || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != oct::Mesh::GLOBAL))
+            if((scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
+                || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != oct::Mesh::GLOBAL))
                 server->delete_mesh(false, light->name);
             continue;
         }
@@ -114,11 +116,15 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 		}
 
         if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type == oct::Mesh::GLOBAL)) {
-            ++ulGlobalCnt;
-            if(light->need_update && !global_update) global_update = true;
+            if(scene->first_frame || scene->anim_mode == AnimationMode::FULL) {
+                ++ulGlobalCnt;
+                if(light->need_update && !global_update) global_update = true;
+            }
             continue;
         }
-        if(!light->need_update) continue;
+        if(!light->need_update
+            || (!scene->first_frame && scene->anim_mode != AnimationMode::FULL && (scene->meshes_type == Mesh::SCATTER || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type == Mesh::SCATTER))))
+            continue;
         ++ulLocalCnt;
 		if(progress.get_cancel()) return;
     }
@@ -164,12 +170,19 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 		    else if(light->type == Light::LIGHT_SPOT) {
                 continue;
 		    }
-            if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type == oct::Mesh::GLOBAL) || !light->need_update) continue;
+            if(!light->need_update
+               || (scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type == Mesh::GLOBAL))
+               || (!scene->first_frame
+                   && (scene->anim_mode == AnimationMode::CAM_ONLY
+                       || (scene->anim_mode == AnimationMode::MOVABLE_PROXIES
+                           && scene->meshes_type != Mesh::RESHAPABLE_PROXY && (scene->meshes_type != Mesh::AS_IS || light->mesh->mesh_type != Mesh::RESHAPABLE_PROXY))))) continue;
 
             if(scene->meshes_type == Mesh::SCATTER || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type == Mesh::SCATTER))
                 progress.set_status("Loading Lamps to render-server", string("Scatter: ") + light->name.c_str());
             else if(scene->meshes_type == Mesh::MOVABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type == Mesh::MOVABLE_PROXY))
                 progress.set_status("Loading Lamps to render-server", string("Movable: ") + light->name.c_str());
+            else if(scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type == Mesh::RESHAPABLE_PROXY))
+                progress.set_status("Loading Lamps to render-server", string("Reshapable: ") + light->mesh->name.c_str());
 
             used_shaders_size[i] = 1;
             shader_names[i].push_back("__"+light->name);
@@ -197,27 +210,29 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
     		if(progress.get_cancel()) return;
             ++i;
 	    }
-        progress.set_status("Loading Lamps to render-server", "Transferring...");
-	    server->load_mesh(false, ulLocalCnt, mesh_names,
-                                    used_shaders_size,
-                                    shader_names,
-                                    points,
-                                    points_size,
-                                    normals,
-                                    normals_size,
-                                    points_indices,
-                                    normals_indices,
-                                    points_indices_size,
-                                    normals_indices_size,
-                                    vert_per_poly,
-                                    vert_per_poly_size,
-                                    poly_mat_index,
-                                    uvs,
-                                    uvs_size,
-                                    uv_indices,
-                                    uv_indices_size,
-                                    use_subdivision,
-                                    subdiv_divider);
+        if(i) {
+            progress.set_status("Loading Lamps to render-server", "Transferring...");
+	        server->load_mesh(false, ulLocalCnt, mesh_names,
+                                        used_shaders_size,
+                                        shader_names,
+                                        points,
+                                        points_size,
+                                        normals,
+                                        normals_size,
+                                        points_indices,
+                                        normals_indices,
+                                        points_indices_size,
+                                        normals_indices_size,
+                                        vert_per_poly,
+                                        vert_per_poly_size,
+                                        poly_mat_index,
+                                        uvs,
+                                        uvs_size,
+                                        uv_indices,
+                                        uv_indices_size,
+                                        use_subdivision,
+                                        subdiv_divider);
+        }
         delete[] mesh_names;
         delete[] used_shaders_size;
         delete[] shader_names;
@@ -261,7 +276,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 	        else if(light->type == Light::LIGHT_SPOT) {
                 continue;
 	        }
-            if((scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY) || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != oct::Mesh::GLOBAL)) continue;
+            if((!scene->first_frame && scene->anim_mode != AnimationMode::FULL)
+               || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
+               || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != Mesh::GLOBAL)) continue;
 
             obj_cnt += light_it->second.size();
         }
@@ -305,7 +322,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 	        else if(light->type == Light::LIGHT_SPOT) {
                 continue;
 	        }
-            if((scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY) || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != oct::Mesh::GLOBAL)) continue;
+            if((!scene->first_frame && scene->anim_mode != AnimationMode::FULL)
+               || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
+               || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != Mesh::GLOBAL)) continue;
 
             for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it) {
     		    Object *light_object = *it;

@@ -536,6 +536,7 @@ class RenderServer {
     float*      float_img_buf;
     int32_t     cur_w, cur_h;
     uint32_t    m_Export_alembic;
+    bool        m_bInteractive;
 
 protected:
 	RenderServer() {}
@@ -552,8 +553,9 @@ public:
     int socket;
 
     // Create the render-server object, connected to the server
-    //  addr - server address
-    RenderServer(const char *addr, const char *_out_path, bool export_alembic) : m_Export_alembic(export_alembic), image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), socket(-1) {
+    // addr - server address
+    RenderServer(const char *addr, const char *_out_path, bool export_alembic, bool interactive) : image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), socket(-1),
+                                                                                                   m_Export_alembic(export_alembic), m_bInteractive(interactive) {
         struct  hostent *host;
         struct  sockaddr_in sa;
 
@@ -592,7 +594,8 @@ public:
     } //RenderServer()
 
     ~RenderServer() {
-        clear();
+        if(m_bInteractive) clear();
+
         if(socket >= 0)
 #ifndef WIN32
             close(socket);
@@ -986,7 +989,7 @@ public:
         }
     } //load_scatter()
     inline void delete_scatter(string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_GEO_SCATTER, name.c_str());
@@ -1099,7 +1102,7 @@ public:
             }
     } //load_mesh()
     inline void delete_mesh(bool global, string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, (global ? DEL_GLOBAL_MESH : DEL_LOCAL_MESH), name.c_str());
@@ -1257,7 +1260,7 @@ public:
     } //load_portal_mat()
 
     inline void delete_material(string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_MATERIAL, name.c_str());
@@ -1691,7 +1694,7 @@ public:
     } //load_gradient_tex()
 
     inline void delete_texture(string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_TEXTURE, name.c_str());
@@ -1756,7 +1759,7 @@ public:
     } //load_texture_emission()
 
     inline void delete_emission(string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_EMISSION, name.c_str());
@@ -1816,7 +1819,7 @@ public:
     } //load_scattering_medium()
 
     inline void delete_medium(string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_MEDIUM, name.c_str());
@@ -1883,7 +1886,7 @@ public:
     } //load_full_transform()
 
     inline void delete_transform(string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_TRANSFORM, name.c_str());
@@ -2004,7 +2007,7 @@ public:
     } //load_uvw_projection()
 
     inline void delete_projection(string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_PROJECTION, name.c_str());
@@ -2055,7 +2058,7 @@ public:
     } //load_int_value()
 
     inline void delete_value(string& name) {
-        if(socket < 0) return;
+        if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_VALUE, name.c_str());

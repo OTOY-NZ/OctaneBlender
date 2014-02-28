@@ -63,7 +63,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 name="Render all meshes as",
                 description="Override all meshes type by this type during rendering",
                 items=types.meshes_render_types,
-                default='3',
+                default='4',
+                )
+        cls.anim_mode = EnumProperty(
+                name="Animation mode",
+                description="",
+                items=types.anim_modes,
+                default='0',
                 )
         cls.devices = BoolVectorProperty(
                 name="GPU",

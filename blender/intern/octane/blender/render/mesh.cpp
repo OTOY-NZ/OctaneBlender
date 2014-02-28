@@ -22,6 +22,7 @@
 #include "light.h"
 #include "object.h"
 #include "scene.h"
+#include "session.h"
 
 #include "util_progress.h"
 #include "util_lists.h"
@@ -111,12 +112,16 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         	if(mesh->need_update) mesh->need_update = false;
             continue;
         }
-        else if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == oct::Mesh::GLOBAL)) {
-            ++ulGlobalCnt;
-            if(mesh->need_update && !global_update) global_update = true;
+        else if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::GLOBAL)) {
+            if(scene->first_frame || scene->anim_mode == AnimationMode::FULL) {
+                ++ulGlobalCnt;
+                if(mesh->need_update && !global_update) global_update = true;
+            }
             continue;
         }
-        if(!mesh->need_update) continue;
+        if(!mesh->need_update
+            || (!scene->first_frame && scene->anim_mode != AnimationMode::FULL && (scene->meshes_type == Mesh::SCATTER || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::SCATTER))))
+            continue;
         ++ulLocalCnt;
 		if(progress.get_cancel()) return;
 	}
@@ -147,12 +152,19 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         vector<Mesh*>::iterator it;
         for(it = scene->meshes.begin(); it != scene->meshes.end(); ++it) {
             Mesh *mesh = *it;
-            if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == oct::Mesh::GLOBAL) || mesh->empty || !mesh->need_update) continue;
+            if(mesh->empty || !mesh->need_update
+               || (scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::GLOBAL))
+               || (!scene->first_frame
+                   && (scene->anim_mode == AnimationMode::CAM_ONLY
+                       || (scene->anim_mode == AnimationMode::MOVABLE_PROXIES
+                           && scene->meshes_type != Mesh::RESHAPABLE_PROXY && (scene->meshes_type != Mesh::AS_IS || mesh->mesh_type != Mesh::RESHAPABLE_PROXY))))) continue;
 
             if(scene->meshes_type == Mesh::SCATTER || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::SCATTER))
                 progress.set_status("Loading Meshes to render-server", string("Scatter: ") + mesh->name.c_str());
             else if(scene->meshes_type == Mesh::MOVABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::MOVABLE_PROXY))
                 progress.set_status("Loading Meshes to render-server", string("Movable: ") + mesh->name.c_str());
+            else if(scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY))
+                progress.set_status("Loading Meshes to render-server", string("Reshapable: ") + mesh->name.c_str());
 
             used_shaders_size[i] = mesh->used_shaders.size();
             for(size_t n=0; n<used_shaders_size[i]; ++n) {
@@ -181,27 +193,29 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
     		if(progress.get_cancel()) return;
             ++i;
 	    }
-        progress.set_status("Loading Meshes to render-server", "Transferring...");
-	    server->load_mesh(false, ulLocalCnt, mesh_names,
-                                    used_shaders_size,
-                                    shader_names,
-                                    points,
-                                    points_size,
-                                    normals,
-                                    normals_size,
-                                    points_indices,
-                                    normals_indices,
-                                    points_indices_size,
-                                    normals_indices_size,
-                                    vert_per_poly,
-                                    vert_per_poly_size,
-                                    poly_mat_index,
-                                    uvs,
-                                    uvs_size,
-                                    uv_indices,
-                                    uv_indices_size,
-                                    use_subdivision,
-                                    subdiv_divider);
+        if(i) {
+            progress.set_status("Loading Meshes to render-server", "Transferring...");
+	        server->load_mesh(false, ulLocalCnt, mesh_names,
+                                        used_shaders_size,
+                                        shader_names,
+                                        points,
+                                        points_size,
+                                        normals,
+                                        normals_size,
+                                        points_indices,
+                                        normals_indices,
+                                        points_indices_size,
+                                        normals_indices_size,
+                                        vert_per_poly,
+                                        vert_per_poly_size,
+                                        poly_mat_index,
+                                        uvs,
+                                        uvs_size,
+                                        uv_indices,
+                                        uv_indices_size,
+                                        use_subdivision,
+                                        subdiv_divider);
+        }
         delete[] mesh_names;
         delete[] used_shaders_size;
         delete[] shader_names;
@@ -228,7 +242,10 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         uint64_t obj_cnt = 0;
         for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
             Mesh* mesh = obj_it->first;
-            if((scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY) || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != oct::Mesh::GLOBAL) || mesh->empty) continue;
+            if(mesh->empty
+               || (!scene->first_frame && scene->anim_mode != AnimationMode::FULL)
+               || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
+               || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != Mesh::GLOBAL)) continue;
             obj_cnt += obj_it->second.size();
         }
         if(obj_cnt > 0) {
@@ -255,7 +272,10 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             obj_cnt = 0;
             for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
                 Mesh* mesh = obj_it->first;
-                if((scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY) || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != oct::Mesh::GLOBAL) || mesh->empty) continue;
+                if(mesh->empty
+                   || (!scene->first_frame && scene->anim_mode != AnimationMode::FULL)
+                   || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
+                   || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != oct::Mesh::GLOBAL)) continue;
 
                 for(vector<Object*>::const_iterator it = obj_it->second.begin(); it != obj_it->second.end(); ++it) {
     		        Object *mesh_object = *it;

@@ -48,6 +48,7 @@ public:
 		GLOBAL,
 		SCATTER,
 		MOVABLE_PROXY,
+		RESHAPABLE_PROXY,
         AS_IS
 	};
 

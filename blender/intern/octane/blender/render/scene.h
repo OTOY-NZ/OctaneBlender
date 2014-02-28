@@ -39,14 +39,14 @@ class Shader;
 class ShaderManager;
 class Progress;
 class Session;
-
+enum  AnimationMode;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Scene class
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class Scene {
 public:
-    Scene(const Session *session_);
+    Scene(const Session *session_, bool first_frame_);
 	~Scene();
 
 	void server_update(RenderServer *server, Progress& progress, bool interactive);
@@ -84,6 +84,8 @@ public:
 	int default_light;
 
 	RenderServer    *server;
+    bool            first_frame;
+    AnimationMode   anim_mode;
     Mesh::MeshType  meshes_type;
     bool            use_viewport_hide;
 

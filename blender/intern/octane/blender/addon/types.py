@@ -165,6 +165,12 @@ response_types = (
     ('400', "Linear", ""),
     )
 
+anim_modes = (
+    ('0', "Full", ""),
+    ('1', "Movable proxies", ""),
+    ('2', "Camera only", ""),
+    )
+
 gi_modes = (
     ('0', "None", ""),
     ('1', "Ambient", ""),
@@ -196,13 +202,15 @@ mesh_types = (
     ('0', "Global", ""),
     ('1', "Scatter", ""),
     ('2', "Movable proxy", ""),
+    ('3', "Reshapable proxy", ""),
     )
 
 meshes_render_types = (
     ('0', "Global", ""),
     ('1', "Scatter", ""),
-    ('2', "Movable proxy", ""),
-    ('3', "As is", ""),
+    ('2', "Movable", ""),
+    ('3', "Reshapable", ""),
+    ('4', "As is", ""),
     )
 
 environment_types = (

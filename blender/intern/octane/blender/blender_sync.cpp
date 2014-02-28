@@ -318,10 +318,13 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 		if(params.samples == 0) params.samples = 16000;
 	}
 
+    params.anim_mode            = static_cast<AnimationMode>(RNA_enum_get(&oct_scene, "anim_mode"));
     params.export_alembic       = interactive ? false : get_boolean(oct_scene, "export_alembic");
 
     params.use_passes           = get_boolean(oct_scene, "use_passes");
-    params.meshes_type          = static_cast<Mesh::MeshType>(params.export_alembic ? 2 : RNA_enum_get(&oct_scene, "meshes_type"));
+    params.meshes_type          = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
+    if(params.export_alembic && params.meshes_type == Mesh::MeshType::GLOBAL)
+        params.meshes_type = Mesh::MeshType::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
 	
 	return params;

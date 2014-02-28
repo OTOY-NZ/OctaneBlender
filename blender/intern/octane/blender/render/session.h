@@ -32,6 +32,12 @@ class Progress;
 class Scene;
 class BlenderSession;
 
+enum AnimationMode {
+    FULL = 0,
+    MOVABLE_PROXIES,
+    CAM_ONLY
+};
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Session Parameters
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,12 +50,13 @@ public:
         meshes_type     = Mesh::AS_IS;
 		samples		    = INT_MAX;
         export_alembic  = false;
+        anim_mode       = AnimationMode::FULL;
 	}
 
 	bool modified(const SessionParams& params) {
 		return !(
-            //server.id == params.server.id
-			interactive == params.interactive
+            anim_mode == params.anim_mode
+			&& interactive == params.interactive
 			&& meshes_type == params.meshes_type
 			&& use_viewport_hide == params.use_viewport_hide
 			&& use_passes == params.use_passes
@@ -65,6 +72,7 @@ public:
 	int		        samples;
     ImageStatistics image_stat;
 
+    AnimationMode   anim_mode;
     int             width;
     int             height;
 	bool            use_passes;
@@ -79,7 +87,7 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class Session {
 public:
-	Session(const SessionParams& params, const char *_out_path);
+    Session(const SessionParams& params, const char *_out_path);
 	~Session();
 
 	void start(const char* pass_name_, bool synchronous);

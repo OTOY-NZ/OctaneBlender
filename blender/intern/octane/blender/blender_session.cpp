@@ -126,7 +126,7 @@ BlenderSession::~BlenderSession() {
     session->set_pause(false);
 	free_session();
 } //~BlenderSession()
-
+#include "DNA_anim_types.h"
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Create the Blender session and all Octane session data structures
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -145,7 +145,7 @@ void BlenderSession::create_session(PassType pass_type) {
 	session->set_pause(BlenderSync::get_session_pause_state(b_scene, interactive));
 
 	// Create scene
-	scene = new Scene(session);//session_params.server, session_params.meshes_type, session_params.use_viewport_hide);
+    scene = new Scene(session, interactive || !b_engine.is_animation() ? true : (b_scene.frame_current() == b_scene.frame_start()));//session_params.server, session_params.meshes_type, session_params.use_viewport_hide);
 	session->scene = scene;
 
     scene->server = session->server;
@@ -161,7 +161,9 @@ void BlenderSession::create_session(PassType pass_type) {
 
 	// Set buffer parameters
 	BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-	session->reset(buffer_params, session_params.samples);
+
+    if(interactive || !b_engine.is_animation() || b_scene.frame_current() == b_scene.frame_start())
+	    session->reset(buffer_params, session_params.samples);
 } //create_session()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -622,6 +624,9 @@ void BlenderSession::render() {
     }
     num_passes   = -1;
     ready_passes = -1;
+
+    if(b_scene.frame_current() >= b_scene.frame_end())
+        session->server->stop_render();
 } //render()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

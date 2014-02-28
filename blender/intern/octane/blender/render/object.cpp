@@ -104,9 +104,12 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
         
         for(map<Mesh*, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it) {
             Mesh* cur_mesh = mesh_it->first;
-            if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_mesh->mesh_type == Mesh::GLOBAL)) {
-                continue;
-            }
+            if((scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_mesh->mesh_type == Mesh::GLOBAL))
+               || (!scene->first_frame
+                   && (scene->anim_mode == AnimationMode::CAM_ONLY
+                       || (scene->anim_mode == AnimationMode::MOVABLE_PROXIES
+                           && scene->meshes_type != Mesh::RESHAPABLE_PROXY && scene->meshes_type != Mesh::MOVABLE_PROXY
+                           && (scene->meshes_type != Mesh::AS_IS || (cur_mesh->mesh_type != Mesh::RESHAPABLE_PROXY && cur_mesh->mesh_type != Mesh::MOVABLE_PROXY)))))) continue;
 
             uint64_t cnt = 0;
             float* matrices = new float[12];
@@ -193,7 +196,12 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
 
         for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
             Light* cur_light = light_it->first;
-            if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_light->mesh->mesh_type == Mesh::GLOBAL)) continue;
+            if((scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_light->mesh->mesh_type == Mesh::GLOBAL))
+               || (!scene->first_frame
+                   && (scene->anim_mode == AnimationMode::CAM_ONLY
+                       || (scene->anim_mode == AnimationMode::MOVABLE_PROXIES
+                           && scene->meshes_type != Mesh::RESHAPABLE_PROXY && scene->meshes_type != Mesh::MOVABLE_PROXY
+                           && (scene->meshes_type != Mesh::AS_IS || (cur_light->mesh->mesh_type != Mesh::RESHAPABLE_PROXY && cur_light->mesh->mesh_type != Mesh::MOVABLE_PROXY)))))) continue;
 
             size_t cnt = 0;//light_it->second.size();
             float* matrices = new float[12];
