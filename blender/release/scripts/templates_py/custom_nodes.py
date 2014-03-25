@@ -40,7 +40,7 @@ class MyCustomSocket(NodeSocket):
 
     # Optional function for drawing the socket input value
     def draw(self, context, layout, node, text):
-        if self.is_linked:
+        if self.is_output or self.is_linked:
             layout.label(text)
         else:
             layout.prop(self, "myEnumProperty", text=text)
@@ -108,6 +108,11 @@ class MyCustomNode(Node, MyCustomTreeNode):
         layout.prop(self, "myFloatProperty")
         # myStringProperty button will only be visible in the sidebar
         layout.prop(self, "myStringProperty")
+
+    # Optional: custom label
+    # Explicit user label overrides this, but here we can define a label dynamically
+    def draw_label(self):
+        return "I am a custom node"
 
 
 ### Node Categories ###

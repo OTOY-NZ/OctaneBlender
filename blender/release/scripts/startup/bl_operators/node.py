@@ -97,9 +97,6 @@ class NodeAddOperator():
                 print(str(e))
                 # Continue despite invalid attribute
 
-        if space.use_hidden_preview:
-            node.show_preview = False
-
         node.select = True
         tree.nodes.active = node
         node.location = space.cursor_location
@@ -222,7 +219,7 @@ class NODE_OT_add_search(NodeAddOperator, Operator):
             self.create_node(context, item.nodetype)
 
             if self.use_transform:
-                bpy.ops.transform.translate('INVOKE_DEFAULT')
+                bpy.ops.transform.translate('INVOKE_DEFAULT', remove_on_cancel=True)
 
             return {'FINISHED'}
         else:

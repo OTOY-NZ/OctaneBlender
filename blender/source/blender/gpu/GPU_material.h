@@ -114,8 +114,8 @@ GPUNodeLink *GPU_texture(int size, float *pixels);
 GPUNodeLink *GPU_dynamic_texture(struct GPUTexture *tex, int dynamictype, void *data);
 GPUNodeLink *GPU_builtin(GPUBuiltin builtin);
 
-int GPU_link(GPUMaterial *mat, const char *name, ...);
-int GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...);
+bool GPU_link(GPUMaterial *mat, const char *name, ...);
+bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...);
 
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_enable_alpha(GPUMaterial *material);
@@ -133,6 +133,7 @@ void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double tim
 void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float obcol[4], float autobumpscale);
 void GPU_material_unbind(GPUMaterial *material);
 int GPU_material_bound(GPUMaterial *material);
+struct Scene *GPU_material_scene(GPUMaterial *material);
 
 void GPU_material_vertex_attributes(GPUMaterial *material,
 	struct GPUVertexAttribs *attrib);
@@ -166,6 +167,7 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_OBJECT_IMAT = 4,
 	GPU_DYNAMIC_OBJECT_COLOR = 5,
 	GPU_DYNAMIC_OBJECT_AUTOBUMPSCALE = 15,
+
 	GPU_DYNAMIC_LAMP_FIRST = 6,
 	GPU_DYNAMIC_LAMP_DYNVEC = 6,
 	GPU_DYNAMIC_LAMP_DYNCO = 7,
@@ -177,11 +179,11 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_SAMPLER_2DBUFFER = 12,
 	GPU_DYNAMIC_SAMPLER_2DIMAGE = 13,
 	GPU_DYNAMIC_SAMPLER_2DSHADOW = 14,
-	GPU_DYNAMIC_LAMP_DISTANCE = 15,
-	GPU_DYNAMIC_LAMP_ATT1 = 16,
-	GPU_DYNAMIC_LAMP_ATT2 = 17,
-	GPU_DYNAMIC_LAMP_SPOTSIZE = 18,
-	GPU_DYNAMIC_LAMP_SPOTBLEND = 19,
+	GPU_DYNAMIC_LAMP_DISTANCE = 16,
+	GPU_DYNAMIC_LAMP_ATT1 = 17,
+	GPU_DYNAMIC_LAMP_ATT2 = 18,
+	GPU_DYNAMIC_LAMP_SPOTSIZE = 19,
+	GPU_DYNAMIC_LAMP_SPOTBLEND = 20,
 } GPUDynamicType;
 
 typedef enum GPUDataType {
@@ -233,7 +235,7 @@ void GPU_free_shader_export(GPUShaderExport *shader);
 GPULamp *GPU_lamp_from_blender(struct Scene *scene, struct Object *ob, struct Object *par);
 void GPU_lamp_free(struct Object *ob);
 
-int GPU_lamp_has_shadow_buffer(GPULamp *lamp);
+bool GPU_lamp_has_shadow_buffer(GPULamp *lamp);
 void GPU_lamp_update_buffer_mats(GPULamp *lamp);
 void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsize, float winmat[4][4]);
 void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp);
@@ -244,6 +246,7 @@ void GPU_lamp_update_colors(GPULamp *lamp, float r, float g, float b, float ener
 void GPU_lamp_update_distance(GPULamp *lamp, float distance, float att1, float att2);
 void GPU_lamp_update_spot(GPULamp *lamp, float spotsize, float spotblend);
 int GPU_lamp_shadow_layer(GPULamp *lamp);
+GPUNodeLink *GPU_lamp_get_data(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **col, GPUNodeLink **lv, GPUNodeLink **dist, GPUNodeLink **shadow);
 
 #ifdef __cplusplus
 }

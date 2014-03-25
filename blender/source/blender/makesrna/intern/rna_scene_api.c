@@ -54,6 +54,10 @@
 
 #include "ED_transform.h"
 
+#ifdef WITH_PYTHON
+#  include "BPY_extern.h"
+#endif
+
 static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 {
 	double cfra = (double)frame + (double)subframe;
@@ -61,7 +65,17 @@ static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 	CLAMP(cfra, MINAFRAME, MAXFRAME);
 	BKE_scene_frame_set(scene, cfra);
 
-	BKE_scene_update_for_newframe(G.main, scene, (1 << 20) - 1);
+#ifdef WITH_PYTHON
+	BPy_BEGIN_ALLOW_THREADS;
+#endif
+
+	/* It's possible that here we're including layers which were never visible before. */
+	BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, scene, (1 << 20) - 1, true);
+
+#ifdef WITH_PYTHON
+	BPy_END_ALLOW_THREADS;
+#endif
+
 	BKE_scene_camera_switch_update(scene);
 
 	/* don't do notifier when we're rendering, avoid some viewport crashes
@@ -78,7 +92,15 @@ static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 
 static void rna_Scene_update_tagged(Scene *scene)
 {
-	BKE_scene_update_tagged(G.main, scene);
+#ifdef WITH_PYTHON
+	BPy_BEGIN_ALLOW_THREADS;
+#endif
+
+	BKE_scene_update_tagged(G.main->eval_ctx, G.main, scene);
+
+#ifdef WITH_PYTHON
+	BPy_END_ALLOW_THREADS;
+#endif
 }
 
 static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, char *name)
@@ -198,7 +220,7 @@ void RNA_api_scene(StructRNA *srna)
 #ifdef WITH_COLLADA
 	/* don't remove this, as COLLADA exporting cannot be done through operators in render() callback. */
 	func = RNA_def_function(srna, "collada_export", "rna_Scene_collada_export");
-	parm = RNA_def_string(func, "filepath", "", FILE_MAX, "File Path", "File path to write Collada file");
+	parm = RNA_def_string(func, "filepath", NULL, FILE_MAX, "File Path", "File path to write Collada file");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_property_subtype(parm, PROP_FILEPATH); /* allow non utf8 */
 	parm = RNA_def_boolean(func, "apply_modifiers", 0, "Apply Modifiers", "Apply modifiers");
@@ -237,7 +259,7 @@ void RNA_api_scene_render(StructRNA *srna)
 	RNA_def_function_ui_description(func, "Return the absolute path to the filename to be written for a given frame");
 	RNA_def_int(func, "frame", INT_MIN, INT_MIN, INT_MAX, "",
 	            "Frame number to use, if unset the current frame will be used", MINAFRAME, MAXFRAME);
-	parm = RNA_def_string_file_path(func, "filepath", "", FILE_MAX, "File Path",
+	parm = RNA_def_string_file_path(func, "filepath", NULL, FILE_MAX, "File Path",
 	                                "The resulting filepath from the scenes render settings");
 	RNA_def_property_flag(parm, PROP_THICK_WRAP); /* needed for string return value */
 	RNA_def_function_output(func, parm);

@@ -54,6 +54,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
@@ -233,28 +234,28 @@ static void sequencer_refresh(const bContext *C, ScrArea *sa)
 	SpaceSeq *sseq = (SpaceSeq *)sa->spacedata.first;
 	ARegion *ar_main = sequencer_find_region(sa, RGN_TYPE_WINDOW);
 	ARegion *ar_preview = sequencer_find_region(sa, RGN_TYPE_PREVIEW);
-	int view_changed = 0;
+	bool view_changed = false;
 
 	switch (sseq->view) {
 		case SEQ_VIEW_SEQUENCE:
 			if (ar_main && (ar_main->flag & RGN_FLAG_HIDDEN)) {
 				ar_main->flag &= ~RGN_FLAG_HIDDEN;
 				ar_main->v2d.flag &= ~V2D_IS_INITIALISED;
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_preview && !(ar_preview->flag & RGN_FLAG_HIDDEN)) {
 				ar_preview->flag |= RGN_FLAG_HIDDEN;
 				ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
 				WM_event_remove_handlers((bContext *)C, &ar_preview->handlers);
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_main && ar_main->alignment != RGN_ALIGN_NONE) {
 				ar_main->alignment = RGN_ALIGN_NONE;
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_preview && ar_preview->alignment != RGN_ALIGN_NONE) {
 				ar_preview->alignment = RGN_ALIGN_NONE;
-				view_changed = 1;
+				view_changed = true;
 			}
 			break;
 		case SEQ_VIEW_PREVIEW:
@@ -262,42 +263,42 @@ static void sequencer_refresh(const bContext *C, ScrArea *sa)
 				ar_main->flag |= RGN_FLAG_HIDDEN;
 				ar_main->v2d.flag &= ~V2D_IS_INITIALISED;
 				WM_event_remove_handlers((bContext *)C, &ar_main->handlers);
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_preview && (ar_preview->flag & RGN_FLAG_HIDDEN)) {
 				ar_preview->flag &= ~RGN_FLAG_HIDDEN;
 				ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
 				ar_preview->v2d.cur = ar_preview->v2d.tot;
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_main && ar_main->alignment != RGN_ALIGN_NONE) {
 				ar_main->alignment = RGN_ALIGN_NONE;
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_preview && ar_preview->alignment != RGN_ALIGN_NONE) {
 				ar_preview->alignment = RGN_ALIGN_NONE;
-				view_changed = 1;
+				view_changed = true;
 			}
 			break;
 		case SEQ_VIEW_SEQUENCE_PREVIEW:
 			if (ar_main && (ar_main->flag & RGN_FLAG_HIDDEN)) {
 				ar_main->flag &= ~RGN_FLAG_HIDDEN;
 				ar_main->v2d.flag &= ~V2D_IS_INITIALISED;
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_preview && (ar_preview->flag & RGN_FLAG_HIDDEN)) {
 				ar_preview->flag &= ~RGN_FLAG_HIDDEN;
 				ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
 				ar_preview->v2d.cur = ar_preview->v2d.tot;
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_main && ar_main->alignment != RGN_ALIGN_NONE) {
 				ar_main->alignment = RGN_ALIGN_NONE;
-				view_changed = 1;
+				view_changed = true;
 			}
 			if (ar_preview && ar_preview->alignment != RGN_ALIGN_TOP) {
 				ar_preview->alignment = RGN_ALIGN_TOP;
-				view_changed = 1;
+				view_changed = true;
 			}
 			break;
 	}
@@ -314,6 +315,8 @@ static SpaceLink *sequencer_duplicate(SpaceLink *sl)
 	
 	/* clear or remove stuff from old */
 // XXX	sseq->gpd = gpencil_data_duplicate(sseq->gpd);
+
+	memset(&sseqn->scopes, 0, sizeof(sseqn->scopes));
 
 	return (SpaceLink *)sseqn;
 }
@@ -534,13 +537,14 @@ static void sequencer_preview_area_draw(const bContext *C, ARegion *ar)
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceSeq *sseq = sa->spacedata.first;
 	Scene *scene = CTX_data_scene(C);
+	wmWindowManager *wm = CTX_wm_manager(C);
 	int show_split = scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW && sseq->mainb == SEQ_DRAW_IMG_IMBUF;
-	
+
 	/* XXX temp fix for wrong setting in sseq->mainb */
 	if (sseq->mainb == SEQ_DRAW_SEQUENCE) sseq->mainb = SEQ_DRAW_IMG_IMBUF;
 
 	if (!show_split || sseq->overlay_type != SEQ_DRAW_OVERLAY_REFERENCE)
-		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, FALSE);
+		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false);
 
 	if (show_split && sseq->overlay_type != SEQ_DRAW_OVERLAY_CURRENT) {
 		int over_cfra;
@@ -551,9 +555,14 @@ static void sequencer_preview_area_draw(const bContext *C, ARegion *ar)
 			over_cfra = scene->r.cfra + scene->ed->over_ofs;
 
 		if (over_cfra != scene->r.cfra || sseq->overlay_type != SEQ_DRAW_OVERLAY_RECT)
-			draw_image_seq(C, scene, ar, sseq, scene->r.cfra, over_cfra - scene->r.cfra, TRUE);
+			draw_image_seq(C, scene, ar, sseq, scene->r.cfra, over_cfra - scene->r.cfra, true);
 	}
 
+	if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_playing(wm)) {
+		rcti rect;
+		ED_region_visible_rect(ar, &rect);
+		ED_scene_draw_fps(scene, &rect);
+	}
 }
 
 static void sequencer_preview_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)

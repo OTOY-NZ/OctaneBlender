@@ -111,12 +111,12 @@ typedef struct ID {
 	struct ID *newid;
 	struct Library *lib;
 	char name[66]; /* MAX_ID_NAME */
-	short pad, us;
 	/**
 	 * LIB_... flags report on status of the datablock this ID belongs
 	 * to.
 	 */
 	short flag;
+	int us;
 	int icon_id, pad2;
 	IDProperty *properties;
 } ID;
@@ -260,6 +260,7 @@ typedef struct PreviewImage {
 /* runtime */
 #define LIB_ID_RECALC		4096
 #define LIB_ID_RECALC_DATA	8192
+#define LIB_ANIM_NO_RECALC 16384
 
 #ifdef __cplusplus
 }

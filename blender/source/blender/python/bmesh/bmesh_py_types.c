@@ -231,7 +231,7 @@ static PyObject *bpy_bmloopseq_get(BPy_BMesh *self, void *UNUSED(closure))
 
 /* vert */
 PyDoc_STRVAR(bpy_bmvert_link_edges_doc,
-"Edges connected to this vertex (read-only).\n\n:type: :class:`BMElemSeq` of :class:`BMVert`"
+"Edges connected to this vertex (read-only).\n\n:type: :class:`BMElemSeq` of :class:`BMEdge`"
 );
 PyDoc_STRVAR(bpy_bmvert_link_faces_doc,
 "Faces connected to this vertex (read-only).\n\n:type: :class:`BMElemSeq` of :class:`BMFace`"
@@ -402,7 +402,7 @@ static PyObject *bpy_bmvert_is_wire_get(BPy_BMVert *self)
 }
 
 PyDoc_STRVAR(bpy_bmvert_is_boundary_doc,
-"True when this vertex connected to any boundary edges (read-only).\n\n:type: boolean"
+"True when this vertex is connected to boundary edges (read-only).\n\n:type: boolean"
 );
 static PyObject *bpy_bmvert_is_boundary_get(BPy_BMVert *self)
 {
@@ -433,7 +433,7 @@ static PyObject *bpy_bmedge_is_contiguous_get(BPy_BMEdge *self)
 }
 
 PyDoc_STRVAR(bpy_bmedge_is_convex_doc,
-"True when this edge joins 2 convex faces, depends on a valid face normal (read-only).\n\n:type: boolean"
+"True when this edge joins two convex faces, depends on a valid face normal (read-only).\n\n:type: boolean"
 );
 static PyObject *bpy_bmedge_is_convex_get(BPy_BMEdge *self)
 {
@@ -486,7 +486,7 @@ static int bpy_bmface_normal_set(BPy_BMFace *self, PyObject *value)
 }
 
 PyDoc_STRVAR(bpy_bmface_material_index_doc,
-"The faces material index.\n\n:type: int"
+"The face's material index.\n\n:type: int"
 );
 static PyObject *bpy_bmface_material_index_get(BPy_BMFace *self)
 {
@@ -524,7 +524,7 @@ static int bpy_bmface_material_index_set(BPy_BMFace *self, PyObject *value)
  * ^^^^ */
 
 PyDoc_STRVAR(bpy_bmloop_vert_doc,
-"The loops vertex (read-only).\n\n:type: :class:`BMVert`"
+"The loop's vertex (read-only).\n\n:type: :class:`BMVert`"
 );
 static PyObject *bpy_bmloop_vert_get(BPy_BMLoop *self)
 {
@@ -534,7 +534,7 @@ static PyObject *bpy_bmloop_vert_get(BPy_BMLoop *self)
 
 
 PyDoc_STRVAR(bpy_bmloop_edge_doc,
-"The loops edge (between this loop and the next), (read-only).\n\n:type: :class:`BMEdge`"
+"The loop's edge (between this loop and the next), (read-only).\n\n:type: :class:`BMEdge`"
 );
 static PyObject *bpy_bmloop_edge_get(BPy_BMLoop *self)
 {
@@ -1385,9 +1385,9 @@ static PyObject *bpy_bmvert_copy_from_face_interp(BPy_BMVert *self, PyObject *ar
 
 
 PyDoc_STRVAR(bpy_bmvert_calc_edge_angle_doc,
-".. method:: calc_edge_angle()\n"
+".. method:: calc_vert_angle()\n"
 "\n"
-"   Return the angle between this verts 2 connected edges.\n"
+"   Return the angle between this vert's two connected edges.\n"
 "\n"
 "   :return: Angle between edges in radians.\n"
 "   :rtype: float\n"
@@ -1716,7 +1716,7 @@ static PyObject *bpy_bmface_calc_center_bounds(BPy_BMFace *self)
 PyDoc_STRVAR(bpy_bmface_normal_update_doc,
 ".. method:: normal_update()\n"
 "\n"
-"   Update faces normal.\n"
+"   Update face's normal.\n"
 );
 static PyObject *bpy_bmface_normal_update(BPy_BMFace *self)
 {
@@ -2070,7 +2070,7 @@ static PyObject *bpy_bmvertseq_remove(BPy_BMElemSeq *self, BPy_BMVert *value)
 PyDoc_STRVAR(bpy_bmedgeseq_remove_doc,
 ".. method:: remove(edge)\n"
 "\n"
-"   Remove a edge.\n"
+"   Remove an edge.\n"
 );
 static PyObject *bpy_bmedgeseq_remove(BPy_BMElemSeq *self, BPy_BMEdge *value)
 {
@@ -2118,7 +2118,7 @@ static PyObject *bpy_bmfaceseq_remove(BPy_BMElemSeq *self, BPy_BMFace *value)
 PyDoc_STRVAR(bpy_bmedgeseq_get__method_doc,
 ".. method:: get(verts, fallback=None)\n"
 "\n"
-"   Return a edge which uses the **verts** passed.\n"
+"   Return an edge which uses the **verts** passed.\n"
 "\n"
 "   :arg verts: Sequence of verts.\n"
 "   :type verts: :class:`BMVert`\n"
@@ -2879,8 +2879,7 @@ static PyObject *bpy_bmiter_next(BPy_BMIter *self)
 {
 	BMHeader *ele = BM_iter_step(&self->iter);
 	if (ele == NULL) {
-		PyErr_SetString(PyExc_StopIteration,
-		                "bpy_bmiter_next stop");
+		PyErr_SetNone(PyExc_StopIteration);
 		return NULL;
 	}
 	else {
@@ -2993,7 +2992,7 @@ PyDoc_STRVAR(bpy_bmface_doc,
 "The BMesh face with 3 or more sides\n"
 );
 PyDoc_STRVAR(bpy_bmloop_doc,
-"This is normally accessed from :class:`BMFace.loops` where each face corner represents a corner of a face.\n"
+"This is normally accessed from :class:`BMFace.loops` where each face loop represents a corner of the face.\n"
 );
 PyDoc_STRVAR(bpy_bmelemseq_doc,
 "General sequence type used for accessing any sequence of \n"
@@ -3722,47 +3721,11 @@ char *BPy_BMElem_StringFromHType(const char htype)
 
 /* -------------------------------------------------------------------- */
 /* keep at bottom */
-/* BAD INCLUDES */
-
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_editmesh.h"
-#include "DNA_scene_types.h"
-#include "DNA_object_types.h"
-#include "DNA_mesh_types.h"
-#include "MEM_guardedalloc.h"
-
-/* there are cases where this warning isnt needed, otherwise it could be made into an error */
-static void bm_dealloc_warn(const char *mesh_name)
-{
-	PySys_WriteStdout("Modified BMesh '%.200s' from a wrapped editmesh is freed without a call "
-	                  "to bmesh.update_edit_mesh(mesh, destructive=True), this is will likely cause a crash\n",
-	                  mesh_name);
-}
 
 /* this function is called on free, it should stay quite fast */
 static void bm_dealloc_editmode_warn(BPy_BMesh *self)
 {
 	if (self->flag & BPY_BMFLAG_IS_WRAPPED) {
-		/* likely editmesh */
-		BMesh *bm = self->bm;
-		Scene *scene;
-		for (scene = G.main->scene.first; scene; scene = scene->id.next) {
-			Base *base = scene->basact;
-			if (base && base->object->type == OB_MESH) {
-				Mesh *me = base->object->data;
-				BMEditMesh *em = me->edit_btmesh;
-				if (em && em->bm == bm) {
-					/* not foolproof, scripter may have added/removed verts */
-					if (((em->vert_index && (MEM_allocN_len(em->vert_index) / sizeof(*em->vert_index)) != bm->totvert)) ||
-					    ((em->edge_index && (MEM_allocN_len(em->edge_index) / sizeof(*em->edge_index)) != bm->totedge)) ||
-					    ((em->face_index && (MEM_allocN_len(em->face_index) / sizeof(*em->face_index)) != bm->totface)))
-					{
-						bm_dealloc_warn(me->id.name + 2);
-						break;
-					}
-				}
-			}
-		}
+		/* currently nop - this works without warnings now */
 	}
 }

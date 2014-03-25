@@ -854,14 +854,14 @@ bool GHOST_SystemWin32::processNDOF(RAWINPUT const& raw)
 	{
 		case 1: // translation
 		{
-			short *axis = (short *)(data + 1);
+			const short *axis = (short *)(data + 1);
 			// massage into blender view coords (same goes for rotation)
-			short t[3] = {axis[0], -axis[2], axis[1]};
+			const short t[3] = {axis[0], -axis[2], axis[1]};
 			m_ndofManager->updateTranslation(t, now);
 
 			if (raw.data.hid.dwSizeHid == 13)
 			{ // this report also includes rotation
-				short r[3] = {-axis[3], axis[5], -axis[4]};
+				const short r[3] = {-axis[3], axis[5], -axis[4]};
 				m_ndofManager->updateRotation(r, now);
 
 				// I've never gotten one of these, has anyone else?
@@ -871,8 +871,8 @@ bool GHOST_SystemWin32::processNDOF(RAWINPUT const& raw)
 		}
 		case 2: // rotation
 		{
-			short *axis = (short *)(data + 1);
-			short r[3] = {-axis[0], axis[2], -axis[1]};
+			const short *axis = (short *)(data + 1);
+			const short r[3] = {-axis[0], axis[2], -axis[1]};
 			m_ndofManager->updateRotation(r, now);
 			break;
 		}
@@ -1386,49 +1386,43 @@ void GHOST_SystemWin32::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 	}
 }
 
+static bool isStartedFromCommandPrompt()
+{
+	HWND hwnd = GetConsoleWindow();
+	
+	if (hwnd) {
+		DWORD pid = (DWORD)-1;
+
+		GetWindowThreadProcessId(hwnd, &pid);
+
+		if (pid == GetCurrentProcessId())
+			return true;
+	}
+
+	return false;
+}
+
 int GHOST_SystemWin32::toggleConsole(int action)
 {
 	switch (action)
 	{
-		case 3: //hide if no console
+		case 3: // startup: hide if not started from command prompt
 		{
-			DWORD sp = GetCurrentProcessId();
-			HANDLE ptree = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-			PROCESSENTRY32 e = {0}; e.dwSize = sizeof(PROCESSENTRY32);
-
-			if (Process32First(ptree, &e)) {
-				do {     //Searches for Blender's PROCESSENTRY32
-					if (e.th32ProcessID == sp) {
-						sp = e.th32ParentProcessID;
-						Process32First(ptree, &e);
-						do {             //Got parent id, searches for its PROCESSENTRY32
-							if (e.th32ProcessID == sp) {
-								if (strcmp("explorer.exe", e.szExeFile) == 0)
-								{             //If explorer, hide cmd
-									ShowWindow(GetConsoleWindow(), SW_HIDE);
-									m_consoleStatus = 0;
-								}
-								break;
-							}
-
-						} while (Process32Next(ptree, &e));
-						break;
-					}
-				} while (Process32Next(ptree, &e));
+			if (isStartedFromCommandPrompt()) {
+				ShowWindow(GetConsoleWindow(), SW_HIDE);
+				m_consoleStatus = 0;
 			}
-
-			CloseHandle(ptree);
 			break;
 		}
-		case 0: //hide
+		case 0: // hide
 			ShowWindow(GetConsoleWindow(), SW_HIDE);
 			m_consoleStatus = 0;
 			break;
-		case 1: //show
+		case 1: // show
 			ShowWindow(GetConsoleWindow(), SW_SHOW);
 			m_consoleStatus = 1;
 			break;
-		case 2: //toggle
+		case 2: // toggle
 			ShowWindow(GetConsoleWindow(), m_consoleStatus ? SW_HIDE : SW_SHOW);
 			m_consoleStatus = !m_consoleStatus;
 			break;

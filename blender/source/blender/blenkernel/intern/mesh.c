@@ -154,7 +154,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 			int vtot = m1->totvert;
 			
 			for (j = 0; j < vtot; j++, v1++, v2++) {
-				if (len_v3v3(v1->co, v2->co) > thresh)
+				if (len_squared_v3v3(v1->co, v2->co) > thresh_sq)
 					return MESHCMP_VERTCOMISMATCH;
 				/* I don't care about normals, let's just do coodinates */
 			}
@@ -251,7 +251,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 				for (k = 0; k < dv1->totweight; k++, dw1++, dw2++) {
 					if (dw1->def_nr != dw2->def_nr)
 						return MESHCMP_DVERT_GROUPMISMATCH;
-					if (ABS(dw1->weight - dw2->weight) > thresh)
+					if (fabsf(dw1->weight - dw2->weight) > thresh)
 						return MESHCMP_DVERT_WEIGHTMISMATCH;
 				}
 			}
@@ -332,6 +332,43 @@ static void mesh_ensure_tessellation_customdata(Mesh *me)
 				printf("%s: warning! Tessellation uvs or vcol data got out of sync, "
 				       "had to reset!\n    CD_MTFACE: %d != CD_MTEXPOLY: %d || CD_MCOL: %d != CD_MLOOPCOL: %d\n",
 				       __func__, tottex_tessface, tottex_original, totcol_tessface, totcol_original);
+			}
+		}
+	}
+}
+
+void BKE_mesh_ensure_skin_customdata(Mesh *me)
+{
+	BMesh *bm = me->edit_btmesh ? me->edit_btmesh->bm : NULL;
+	MVertSkin *vs;
+
+	if (bm) {
+		if (!CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
+			BMVert *v;
+			BMIter iter;
+
+			BM_data_layer_add(bm, &bm->vdata, CD_MVERT_SKIN);
+
+			/* Mark an arbitrary vertex as root */
+			BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+				vs = CustomData_bmesh_get(&bm->vdata, v->head.data,
+				                          CD_MVERT_SKIN);
+				vs->flag |= MVERT_SKIN_ROOT;
+				break;
+			}
+		}
+	}
+	else {
+		if (!CustomData_has_layer(&me->vdata, CD_MVERT_SKIN)) {
+			vs = CustomData_add_layer(&me->vdata,
+			                          CD_MVERT_SKIN,
+			                          CD_DEFAULT,
+			                          NULL,
+			                          me->totvert);
+
+			/* Mark an arbitrary vertex as root */
+			if (vs) {
+				vs->flag |= MVERT_SKIN_ROOT;
 			}
 		}
 	}
@@ -444,12 +481,16 @@ Mesh *BKE_mesh_add(Main *bmain, const char *name)
 {
 	Mesh *me;
 	
-	me = BKE_libblock_alloc(&bmain->mesh, ID_ME, name);
+	me = BKE_libblock_alloc(bmain, ID_ME, name);
 	
 	me->size[0] = me->size[1] = me->size[2] = 1.0;
 	me->smoothresh = 30;
 	me->texflag = ME_AUTOSPACE;
+
+	/* disable because its slow on many GPU's, see [#37518] */
+#if 0
 	me->flag = ME_TWOSIDED;
+#endif
 	me->drawflag = ME_DRAWEDGES | ME_DRAWFACES | ME_DRAWCREASES;
 
 	CustomData_reset(&me->vdata);
@@ -647,8 +688,13 @@ bool BKE_mesh_uv_cdlayer_rename_index(Mesh *me, const int poly_index, const int 
 	cdlu = &ldata->layers[loop_index];
 	cdlf = fdata && do_tessface ? &fdata->layers[face_index] : NULL;
 
-	BLI_strncpy(cdlp->name, new_name, sizeof(cdlp->name));
-	CustomData_set_layer_unique_name(pdata, cdlp - pdata->layers);
+	if (cdlp->name != new_name) {
+		/* Mesh validate passes a name from the CD layer as the new name,
+		 * Avoid memcpy from self to self in this case.
+		 */
+		BLI_strncpy(cdlp->name, new_name, sizeof(cdlp->name));
+		CustomData_set_layer_unique_name(pdata, cdlp - pdata->layers);
+	}
 
 	/* Loop until we do have exactly the same name for all layers! */
 	for (i = 1; (strcmp(cdlp->name, cdlu->name) != 0 || (cdlf && strcmp(cdlp->name, cdlf->name) != 0)); i++) {
@@ -708,25 +754,31 @@ bool BKE_mesh_uv_cdlayer_rename(Mesh *me, const char *old_name, const char *new_
 					return false;
 				}
 				else {
-					lidx = lidx_start + (fidx - fidx_start);
+					lidx = fidx;
 				}
 			}
-			pidx = pidx_start + (lidx - lidx_start);
+			pidx = lidx;
 		}
 		else {
 			if (lidx == -1) {
-				lidx = lidx_start + (pidx - pidx_start);
+				lidx = pidx;
 			}
 			if (fidx == -1 && do_tessface) {
-				fidx = fidx_start + (pidx - pidx_start);
+				fidx = pidx;
 			}
 		}
 #if 0
 		/* For now, we do not consider mismatch in indices (i.e. same name leading to (relative) different indices). */
-		else if ((pidx - pidx_start) != (lidx - lidx_start)) {
-			lidx = lidx_start + (pidx - pidx_start);
+		else if (pidx != lidx) {
+			lidx = pidx;
 		}
 #endif
+
+		/* Go back to absolute indices! */
+		pidx += pidx_start;
+		lidx += lidx_start;
+		if (fidx != -1)
+			fidx += fidx_start;
 
 		return BKE_mesh_uv_cdlayer_rename_index(me, pidx, lidx, fidx, new_name, do_tessface);
 	}
@@ -1145,7 +1197,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 	float *data;
 	int a, b, ofs, vertcount, startvert, totvert = 0, totedge = 0, totloop = 0, totvlak = 0;
 	int p1, p2, p3, p4, *index;
-	const bool conv_polys = ((cu->flag & CU_3D) ||    /* 2d polys are filled with DL_INDEX3 displists */
+	const bool conv_polys = ((CU_DO_2DFILL(cu) == false) ||  /* 2d polys are filled with DL_INDEX3 displists */
 	                         (ob->type == OB_SURF));  /* surf polys are never filled */
 
 	/* count */
@@ -1336,6 +1388,9 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 							if (dl->flag & DL_CYCL_V)
 								orco_sizev++;
 						}
+						else if (dl->flag & DL_CYCL_V) {
+							orco_sizev++;
+						}
 
 						for (i = 0; i < 4; i++, mloopuv++) {
 							/* find uv based on vertex index into grid array */
@@ -1345,6 +1400,8 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 							mloopuv->uv[1] = (v % dl->nr) / (float)orco_sizeu;
 
 							/* cyclic correction */
+							if ((i == 1 || i == 2) && mloopuv->uv[0] == 0.0f)
+								mloopuv->uv[0] = 1.0f;
 							if ((i == 0 || i == 1) && mloopuv->uv[1] == 0.0f)
 								mloopuv->uv[1] = 1.0f;
 						}
@@ -1440,7 +1497,7 @@ void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use
 	cu->totcol = 0;
 
 	if (ob->data) {
-		BKE_libblock_free(&bmain->curve, ob->data);
+		BKE_libblock_free(bmain, ob->data);
 	}
 	ob->data = me;
 	ob->type = OB_MESH;
@@ -1730,7 +1787,7 @@ void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 
 /**
  * Return a newly MEM_malloc'd array of all the mesh vertex locations
- * \note \a numVerts_r may be NULL
+ * \note \a r_numVerts may be NULL
  */
 float (*BKE_mesh_vertexCos_get(Mesh *me, int *r_numVerts))[3]
 {
@@ -1761,11 +1818,11 @@ int poly_find_loop_from_vert(const MPoly *poly, const MLoop *loopstart,
 }
 
 /**
- * Fill \a adj_r with the loop indices in \a poly adjacent to the
+ * Fill \a r_adj with the loop indices in \a poly adjacent to the
  * vertex. Returns the index of the loop matching vertex, or -1 if the
  * vertex is not in \a poly
  */
-int poly_get_adj_loops_from_vert(unsigned adj_r[3], const MPoly *poly,
+int poly_get_adj_loops_from_vert(unsigned r_adj[3], const MPoly *poly,
                                  const MLoop *mloop, unsigned vert)
 {
 	int corner = poly_find_loop_from_vert(poly,
@@ -1776,9 +1833,9 @@ int poly_get_adj_loops_from_vert(unsigned adj_r[3], const MPoly *poly,
 		const MLoop *ml = &mloop[poly->loopstart + corner];
 
 		/* vertex was found */
-		adj_r[0] = ME_POLY_LOOP_PREV(mloop, poly, corner)->v;
-		adj_r[1] = ml->v;
-		adj_r[2] = ME_POLY_LOOP_NEXT(mloop, poly, corner)->v;
+		r_adj[0] = ME_POLY_LOOP_PREV(mloop, poly, corner)->v;
+		r_adj[1] = ml->v;
+		r_adj[2] = ME_POLY_LOOP_NEXT(mloop, poly, corner)->v;
 	}
 
 	return corner;
@@ -1986,7 +2043,7 @@ int BKE_mesh_mselect_find(Mesh *me, int index, int type)
 
 	for (i = 0; i < me->totselect; i++) {
 		if ((me->mselect[i].index == index) &&
-			(me->mselect[i].type == type))
+		    (me->mselect[i].type == type))
 		{
 			return i;
 		}

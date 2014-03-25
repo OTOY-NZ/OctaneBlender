@@ -62,7 +62,7 @@ enum TfmMode {
 	TFM_SKIN_RESIZE,
 	TFM_TOSPHERE,
 	TFM_SHEAR,
-	TFM_WARP,
+	TFM_BEND,
 	TFM_SHRINKFATTEN,
 	TFM_TILT,
 	TFM_TRACKBALL,
@@ -103,7 +103,7 @@ enum TfmMode {
  * returns 1 if successful, 0 otherwise (usually means there's no selection)
  * (if 0 is returns, *vec is unmodified)
  * */
-int calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], int cent2d[2]);
+int calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], float cent2d[2]);
 
 struct TransInfo;
 struct ScrArea;
@@ -121,16 +121,15 @@ struct ReportList;
 void BIF_clearTransformOrientation(struct bContext *C);
 void BIF_removeTransformOrientation(struct bContext *C, struct TransformOrientation *ts);
 void BIF_removeTransformOrientationIndex(struct bContext *C, int index);
-void BIF_createTransformOrientation(struct bContext *C, struct ReportList *reports, char *name, int use_view,
-                                    int use, int overwrite);
+void BIF_createTransformOrientation(struct bContext *C, struct ReportList *reports,
+                                    const char *name, const bool use_view,
+                                    const bool activate, const bool overwrite);
 void BIF_selectTransformOrientation(struct bContext *C, struct TransformOrientation *ts);
 void BIF_selectTransformOrientationValue(struct bContext *C, int orientation);
 
 void ED_getTransformOrientationMatrix(const struct bContext *C, float orientation_mat[3][3], const bool activeOnly);
 
 int BIF_countTransformOrientation(const struct bContext *C);
-
-void BIF_TransformSetUndo(const char *str);
 
 /* to be able to add operator properties to other operators */
 
@@ -145,6 +144,7 @@ void BIF_TransformSetUndo(const char *str);
 #define P_OPTIONS       (1 << 7)
 #define P_CORRECT_UV    (1 << 8)
 #define P_NO_DEFAULTS   (1 << 10)
+#define P_NO_TEXSPACE   (1 << 11)
 
 void Transform_Properties(struct wmOperatorType *ot, int flags);
 

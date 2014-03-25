@@ -34,6 +34,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
+#include "BLI_listbase.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -56,7 +57,7 @@ struct VertProjHandle {
 	bool use_update;
 
 	/* use for update */
-	float *dists;
+	float *dists_sq;
 
 	Object *ob;
 	Scene *scene;
@@ -144,13 +145,13 @@ static void vpaint_proj_dm_map_cosnos_update__map_cb(void *userData, int index, 
 		                                   co, co_ss,
 		                                   V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_NEAR) == V3D_PROJ_RET_OK)
 		{
-			const float dist = len_squared_v2v2(vp_update->mval_fl, co_ss);
-			if (dist > vp_handle->dists[index]) {
+			const float dist_sq = len_squared_v2v2(vp_update->mval_fl, co_ss);
+			if (dist_sq > vp_handle->dists_sq[index]) {
 				/* bail out! */
 				return;
 			}
 
-			vp_handle->dists[index] = dist;
+			vp_handle->dists_sq[index] = dist_sq;
 		}
 	}
 	/* continue with regular functionality */
@@ -175,13 +176,13 @@ static void vpaint_proj_dm_map_cosnos_update(struct VertProjHandle *vp_handle,
 	DerivedMesh *dm;
 
 	/* quick sanity check - we shouldn't have to run this if there are no modifiers */
-	BLI_assert(ob->modifiers.first != NULL);
+	BLI_assert(BLI_listbase_is_empty(&ob->modifiers) == false);
 
 	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH | CD_MASK_ORIGINDEX);
 
 	/* highly unlikely this will become unavailable once painting starts (perhaps with animated modifiers) */
 	if (LIKELY(dm->foreachMappedVert)) {
-		fill_vn_fl(vp_handle->dists, me->totvert, FLT_MAX);
+		fill_vn_fl(vp_handle->dists_sq, me->totvert, FLT_MAX);
 
 		dm->foreachMappedVert(dm, vpaint_proj_dm_map_cosnos_update__map_cb, &vp_update, DM_FOREACH_USE_NORMAL);
 	}
@@ -207,13 +208,13 @@ struct VertProjHandle *ED_vpaint_proj_handle_create(Scene *scene, Object *ob,
 	vpaint_proj_dm_map_cosnos_init(scene, ob, vp_handle);
 
 	if (vp_handle->use_update) {
-		vp_handle->dists = MEM_mallocN(sizeof(float) * me->totvert, __func__);
+		vp_handle->dists_sq = MEM_mallocN(sizeof(float) * me->totvert, __func__);
 
 		vp_handle->ob = ob;
 		vp_handle->scene = scene;
 	}
 	else {
-		vp_handle->dists = NULL;
+		vp_handle->dists_sq = NULL;
 
 		vp_handle->ob = NULL;
 		vp_handle->scene = NULL;
@@ -234,7 +235,7 @@ void  ED_vpaint_proj_handle_update(struct VertProjHandle *vp_handle,
 void  ED_vpaint_proj_handle_free(struct VertProjHandle *vp_handle)
 {
 	if (vp_handle->use_update) {
-		MEM_freeN(vp_handle->dists);
+		MEM_freeN(vp_handle->dists_sq);
 	}
 
 	MEM_freeN(vp_handle->vcosnos);

@@ -1,6 +1,33 @@
+# ./blender.bin --background -noaudio --python source/tests/bl_pyapi_mathutils.py
 import unittest
 from test import support
 from mathutils import Matrix, Vector
+from mathutils import kdtree
+import math
+
+# keep globals immutable
+vector_data = (
+    (1.0, 0.0, 0.0),
+    (0.0, 1.0, 0.0),
+    (0.0, 0.0, 1.0),
+
+    (1.0, 1.0, 1.0),
+
+    (0.33783, 0.715698, -0.611206),
+    (-0.944031, -0.326599, -0.045624),
+    (-0.101074, -0.416443, -0.903503),
+    (0.799286, 0.49411, -0.341949),
+    (-0.854645, 0.518036, 0.033936),
+    (0.42514, -0.437866, -0.792114),
+    (-0.358948, 0.597046, 0.717377),
+    (-0.985413,0.144714, 0.089294),
+    )
+
+# get data at different scales
+vector_data = sum(
+    (tuple(tuple(a * scale for a in v) for v in vector_data)
+    for scale in (s * sign for s in (0.0001, 0.1, 1.0, 10.0, 1000.0, 100000.0)
+                           for sign in (1.0, -1.0))), ()) + ((0.0, 0.0, 0.0),)
 
 
 class MatrixTesting(unittest.TestCase):
@@ -148,9 +175,126 @@ class MatrixTesting(unittest.TestCase):
         self.assertEqual(mat * mat, prod_mat)
 
 
+class VectorTesting(unittest.TestCase):
+
+    def test_orthogonal(self):
+
+        angle_90d = math.pi / 2.0
+        for v in vector_data:
+            v = Vector(v)
+            if v.length_squared != 0.0:
+                self.assertAlmostEqual(v.angle(v.orthogonal()), angle_90d)
+
+
+class KDTreeTesting(unittest.TestCase):
+
+    @staticmethod
+    def kdtree_create_grid_3d(tot):
+        k = kdtree.KDTree(tot * tot * tot)
+        index = 0
+        mul = 1.0 / (tot - 1)
+        for x in range(tot):
+            for y in range(tot):
+                for z in range(tot):
+                    k.insert((x * mul, y * mul, z * mul), index)
+                    index += 1
+        k.balance()
+        return k
+
+    def test_kdtree_single(self):
+        co = (0,) * 3
+        index = 2
+
+        k = kdtree.KDTree(1)
+        k.insert(co, index)
+        k.balance()
+
+        co_found, index_found, dist_found = k.find(co)
+
+        self.assertEqual(tuple(co_found), co)
+        self.assertEqual(index_found, index)
+        self.assertEqual(dist_found, 0.0)
+
+    def test_kdtree_empty(self):
+        co = (0,) * 3
+
+        k = kdtree.KDTree(0)
+        k.balance()
+
+        co_found, index_found, dist_found = k.find(co)
+
+        self.assertIsNone(co_found)
+        self.assertIsNone(index_found)
+        self.assertIsNone(dist_found)
+
+    def test_kdtree_line(self):
+        tot = 10
+
+        k = kdtree.KDTree(tot)
+
+        for i in range(tot):
+            k.insert((i,) * 3, i)
+
+        k.balance()
+
+        co_found, index_found, dist_found = k.find((-1,) * 3)
+        self.assertEqual(tuple(co_found), (0,) * 3)
+
+        co_found, index_found, dist_found = k.find((tot,) * 3)
+        self.assertEqual(tuple(co_found), (tot - 1,) * 3)
+
+    def test_kdtree_grid(self):
+        size = 10
+        k = self.kdtree_create_grid_3d(size)
+
+        # find_range
+        ret = k.find_range((0.5,) * 3, 2.0)
+        self.assertEqual(len(ret), size * size * size)
+
+        ret = k.find_range((1.0,) * 3, 1.0 / size)
+        self.assertEqual(len(ret), 1)
+
+        ret = k.find_range((1.0,) * 3, 2.0 / size)
+        self.assertEqual(len(ret), 8)
+
+        ret = k.find_range((10,) * 3, 0.5)
+        self.assertEqual(len(ret), 0)
+
+        # find_n
+        tot = 0
+        ret = k.find_n((1.0,) * 3, tot)
+        self.assertEqual(len(ret), tot)
+
+        tot = 10
+        ret = k.find_n((1.0,) * 3, tot)
+        self.assertEqual(len(ret), tot)
+        self.assertEqual(ret[0][2], 0.0)
+
+        tot = size * size * size
+        ret = k.find_n((1.0,) * 3, tot)
+        self.assertEqual(len(ret), tot)
+
+    def test_kdtree_invalid_size(self):
+        with self.assertRaises(ValueError):
+            kdtree.KDTree(-1)
+
+    def test_kdtree_invalid_balance(self):
+        co = (0,) * 3
+        index = 2
+
+        k = kdtree.KDTree(2)
+        k.insert(co, index)
+        k.balance()
+        k.insert(co, index)
+        with self.assertRaises(RuntimeError):
+            k.find(co)
+
+
 def test_main():
     try:
         support.run_unittest(MatrixTesting)
+        support.run_unittest(VectorTesting)
+        support.run_unittest(KDTreeTesting)
     except:
         import traceback
         traceback.print_exc()

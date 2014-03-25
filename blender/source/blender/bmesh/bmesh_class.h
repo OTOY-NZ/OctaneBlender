@@ -91,8 +91,14 @@ typedef struct BMVert {
 	BMHeader head;
 	struct BMFlagLayer *oflags; /* keep after header, an array of flags, mostly used by the operator stack */
 
-	float co[3];
-	float no[3];
+	float co[3];  /* vertex coordinates */
+	float no[3];  /* vertex normal */
+
+	/* pointer to (any) edge using this vertex (for disk cycles)
+	 *
+	 * note: some higher level functions set this to different edges that use this vertex,
+	 *       which is a bit of an abuse of internal bmesh data but also works OK for now (use with care!).
+	 */
 	struct BMEdge *e;
 } BMVert;
 
@@ -105,10 +111,14 @@ typedef struct BMEdge {
 	BMHeader head;
 	struct BMFlagLayer *oflags; /* keep after header, an array of flags, mostly used by the operator stack */
 
-	struct BMVert *v1, *v2;
+	struct BMVert *v1, *v2;  /* vertices (unordered) */
+
+	/* the list of loops around the edge (use l->radial_prev/next)
+	 * to access the other loops using the edge */
 	struct BMLoop *l;
 	
-	/* disk cycle pointers */
+	/* disk cycle pointers
+	 * relative data: d1 indicates indicates the next/prev edge around vertex v1 and d2 does the same for v2 */
 	BMDiskLink v1_disk_link, v2_disk_link;
 } BMEdge;
 
@@ -161,9 +171,9 @@ typedef struct BMFace {
 #else
 	BMLoop *l_first;
 #endif
-	int   len;   /* includes all boundary loops */
-	float no[3]; /* yes, we do store this here */
-	short mat_nr;
+	int   len;   /* number of vertices in the face */
+	float no[3];  /* face normal */
+	short mat_nr;  /* material index */
 //	short _pad[3];
 } BMFace;
 
@@ -183,8 +193,27 @@ typedef struct BMesh {
 	 * BM_LOOP isn't handled so far. */
 	char elem_index_dirty;
 
+	/* flag array table as being dirty so we know when its safe to use it,
+	 * or when it needs to be re-created */
+	char elem_table_dirty;
+
+
 	/* element pools */
 	struct BLI_mempool *vpool, *epool, *lpool, *fpool;
+
+	/* mempool lookup tables (optional)
+	 * index tables, to map indices to elements via
+	 * BM_mesh_elem_table_ensure and associated functions.  don't
+	 * touch this or read it directly.\
+	 * Use BM_mesh_elem_table_ensure(), BM_vert/edge/face_at_index() */
+	BMVert **vtable;
+	BMEdge **etable;
+	BMFace **ftable;
+
+	/* size of allocated tables */
+	int vtable_tot;
+	int etable_tot;
+	int ftable_tot;
 
 	/* operator api stuff (must be all NULL or all alloc'd) */
 	struct BLI_mempool *vtoolflagpool, *etoolflagpool, *ftoolflagpool;
@@ -208,7 +237,7 @@ typedef struct BMesh {
 	int shapenr;
 	
 	int walkers, totflags;
-	ListBase selected, error_stack;
+	ListBase selected;
 
 	BMFace *act_face;
 

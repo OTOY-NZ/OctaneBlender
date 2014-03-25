@@ -209,21 +209,24 @@ void ED_gplayer_frames_select_border(bGPDlayer *gpl, float min, float max, short
 /* Frame Editing Tools */
 
 /* Delete selected frames */
-void ED_gplayer_frames_delete(bGPDlayer *gpl)
+bool ED_gplayer_frames_delete(bGPDlayer *gpl)
 {
 	bGPDframe *gpf, *gpfn;
+	bool changed = false;
 	
 	/* error checking */
 	if (gpl == NULL)
-		return;
+		return false;
 		
 	/* check for frames to delete */
 	for (gpf = gpl->frames.first; gpf; gpf = gpfn) {
 		gpfn = gpf->next;
 		
 		if (gpf->flag & GP_FRAME_SELECT)
-			gpencil_layer_delframe(gpl, gpf);
+			changed |= gpencil_layer_delframe(gpl, gpf);
 	}
+
+	return changed;
 }
 
 /* Duplicate selected frames from given gp-layer */
@@ -272,7 +275,7 @@ void free_gpcopybuf()
 {
 	free_gpencil_layers(&gpcopybuf); 
 	
-	gpcopybuf.first = gpcopybuf.last = NULL;
+	BLI_listbase_clear(&gpcopybuf);
 	gpcopy_firstframe = 999999999;
 }
 
@@ -308,7 +311,7 @@ void copy_gpdata()
 		gpls = (bGPDlayer *)ale->data;
 		gpln = MEM_callocN(sizeof(bGPDlayer), "GPCopyPasteLayer");
 		
-		gpln->frames.first = gpln->frames.last = NULL;
+		BLI_listbase_clear(&gpln->frames);
 		BLI_strncpy(gpln->info, gpls->info, sizeof(gpln->info));
 		
 		BLI_addtail(&gpcopybuf, gpln);
@@ -446,7 +449,7 @@ void paste_gpdata(Scene *scene)
 				}
 				
 				/* if no strokes (i.e. new frame) added, free gpf */
-				if (gpf->strokes.first == NULL)
+				if (BLI_listbase_is_empty(&gpf->strokes))
 					gpencil_layer_delframe(gpld, gpf);
 			}
 			
@@ -466,10 +469,12 @@ void paste_gpdata(Scene *scene)
 /* -------------------------------------- */
 /* Snap Tools */
 
-static short snap_gpf_nearest(bGPDframe *gpf, Scene *UNUSED(scene))
+static short snap_gpf_nearest(bGPDframe *UNUSED(gpf), Scene *UNUSED(scene))
 {
+#if 0 /* note: gpf->framenum is already an int! */
 	if (gpf->flag & GP_FRAME_SELECT)
 		gpf->framenum = (int)(floor(gpf->framenum + 0.5));
+#endif
 	return 0;
 }
 

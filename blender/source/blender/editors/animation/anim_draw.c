@@ -33,9 +33,11 @@
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_math.h"
+#include "BLI_timecode.h"
 
 #include "BKE_context.h"
 #include "BKE_blender.h"
@@ -55,125 +57,10 @@
 #include "UI_view2d.h"
 
 /* *************************************************** */
-/* TIME CODE FORMATTING */
-
-/* Generate timecode/frame number string and store in the supplied string 
- *  - buffer: must be at least 13 chars long
- *	- power: special setting for View2D grid drawing, 
- *	  used to specify how detailed we need to be
- *	- timecodes: boolean specifying whether timecodes or
- *	  frame numbers get drawn
- *	- cfra: time in frames or seconds, consistent with the values shown by timecodes
- */
-// TODO: have this in kernel instead under scene?
-void ANIM_timecode_string_from_frame(char *str, Scene *scene, int power, short timecodes, float cfra)
-{
-	if (timecodes) {
-		int hours = 0, minutes = 0, seconds = 0, frames = 0;
-		float raw_seconds = cfra;
-		char neg[2] = {'\0'};
-		
-		/* get cframes */
-		if (cfra < 0) {
-			/* correction for negative cfraues */
-			neg[0] = '-';
-			cfra = -cfra;
-		}
-		if (cfra >= 3600) {
-			/* hours */
-			/* XXX should we only display a single digit for hours since clips are 
-			 *     VERY UNLIKELY to be more than 1-2 hours max? However, that would
-			 *	   go against conventions...
-			 */
-			hours = (int)cfra / 3600;
-			cfra = (float)fmod(cfra, 3600);
-		}
-		if (cfra >= 60) {
-			/* minutes */
-			minutes = (int)cfra / 60;
-			cfra = (float)fmod(cfra, 60);
-		}
-		if (power <= 0) {
-			/* seconds + frames
-			 *	Frames are derived from 'fraction' of second. We need to perform some additional rounding
-			 *	to cope with 'half' frames, etc., which should be fine in most cases
-			 */
-			seconds = (int)cfra;
-			frames = (int)floor( (((double)cfra - (double)seconds) * FPS) + 0.5);
-		}
-		else {
-			/* seconds (with pixel offset rounding) */
-			seconds = (int)floor(cfra + GLA_PIXEL_OFS);
-		}
-		
-		switch (U.timecode_style) {
-			case USER_TIMECODE_MINIMAL: 
-			{
-				/*	- In general, minutes and seconds should be shown, as most clips will be
-				 *	  within this length. Hours will only be included if relevant.
-				 *	- Only show frames when zoomed in enough for them to be relevant 
-				 *	  (using separator of '+' for frames).
-				 *	  When showing frames, use slightly different display to avoid confusion with mm:ss format
-				 */
-				if (power <= 0) {
-					/* include "frames" in display */
-					if (hours) sprintf(str, "%s%02d:%02d:%02d+%02d", neg, hours, minutes, seconds, frames);
-					else if (minutes) sprintf(str, "%s%02d:%02d+%02d", neg, minutes, seconds, frames);
-					else sprintf(str, "%s%d+%02d", neg, seconds, frames);
-				}
-				else {
-					/* don't include 'frames' in display */
-					if (hours) sprintf(str, "%s%02d:%02d:%02d", neg, hours, minutes, seconds);
-					else sprintf(str, "%s%02d:%02d", neg, minutes, seconds);
-				}
-				break;
-			}
-			case USER_TIMECODE_SMPTE_MSF:
-			{
-				/* reduced SMPTE format that always shows minutes, seconds, frames. Hours only shown as needed. */
-				if (hours) sprintf(str, "%s%02d:%02d:%02d:%02d", neg, hours, minutes, seconds, frames);
-				else sprintf(str, "%s%02d:%02d:%02d", neg, minutes, seconds, frames);
-				break;
-			}
-			case USER_TIMECODE_MILLISECONDS:
-			{
-				/* reduced SMPTE. Instead of frames, milliseconds are shown */
-				int ms_dp = (power <= 0) ? (1 - power) : 1; /* precision of decimal part */
-				int s_pad = ms_dp + 3; /* to get 2 digit whole-number part for seconds display (i.e. 3 is for 2 digits + radix, on top of full length) */
-				
-				if (hours) sprintf(str, "%s%02d:%02d:%0*.*f", neg, hours, minutes, s_pad, ms_dp, cfra);
-				else sprintf(str, "%s%02d:%0*.*f", neg, minutes, s_pad,  ms_dp, cfra);
-				break;
-			}
-			case USER_TIMECODE_SECONDS_ONLY:
-			{
-				/* only show the original seconds display */
-				/* round to whole numbers if power is >= 1 (i.e. scale is coarse) */
-				if (power <= 0) sprintf(str, "%.*f", 1 - power, raw_seconds);
-				else sprintf(str, "%d", (int)floor(raw_seconds + GLA_PIXEL_OFS));
-				break;
-			}
-			case USER_TIMECODE_SMPTE_FULL:
-			default:
-			{
-				/* full SMPTE format */
-				sprintf(str, "%s%02d:%02d:%02d:%02d", neg, hours, minutes, seconds, frames);
-				break;
-			}
-		}
-	}
-	else {
-		/* round to whole numbers if power is >= 1 (i.e. scale is coarse) */
-		if (power <= 0) sprintf(str, "%.*f", 1 - power, cfra);
-		else sprintf(str, "%d", (int)floor(cfra + GLA_PIXEL_OFS));
-	}
-} 
-
-/* *************************************************** */
 /* CURRENT FRAME DRAWING */
 
 /* Draw current frame number in a little green box beside the current frame indicator */
-static void draw_cfra_number(Scene *scene, View2D *v2d, float cfra, short time)
+static void draw_cfra_number(Scene *scene, View2D *v2d, const float cfra, const bool time)
 {
 	float xscale, yscale, x, y;
 	char numstr[32] = "    t";  /* t is the character to start replacing from */
@@ -188,10 +75,12 @@ static void draw_cfra_number(Scene *scene, View2D *v2d, float cfra, short time)
 	 *	- power = 0, gives 'standard' behavior for time
 	 *	  but power = 1 is required for frames (to get integer frames)
 	 */
-	if (time)
-		ANIM_timecode_string_from_frame(&numstr[4], scene, 0, time, FRA2TIME(cfra));
-	else
-		ANIM_timecode_string_from_frame(&numstr[4], scene, 1, time, cfra);
+	if (time) {
+		BLI_timecode_string_from_time(&numstr[4], sizeof(numstr) - 4, 0, FRA2TIME(cfra), FPS, U.timecode_style);
+	}
+	else {
+		BLI_timecode_string_from_time_simple(&numstr[4], sizeof(numstr) - 4, 1, cfra);
+	}
 	slen = (short)UI_GetStringWidth(numstr) - 1;
 	
 	/* get starting coordinates for drawing */
@@ -238,7 +127,7 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 	/* Draw current frame number in a little box */
 	if (flag & DRAWCFRA_SHOW_NUMBOX) {
 		UI_view2d_view_orthoSpecial(CTX_wm_region(C), v2d, 1);
-		draw_cfra_number(scene, v2d, vec[0], (flag & DRAWCFRA_UNIT_SECONDS));
+		draw_cfra_number(scene, v2d, vec[0], (flag & DRAWCFRA_UNIT_SECONDS) != 0);
 	}
 }
 
@@ -359,9 +248,68 @@ void ANIM_nla_mapping_apply_fcurve(AnimData *adt, FCurve *fcu, short restore, sh
 /* *************************************************** */
 /* UNITS CONVERSION MAPPING (required for drawing and editing keyframes) */
 
-/* Get unit conversion factor for given ID + F-Curve */
-float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short restore)
+/* Get flags used for normalization in ANIM_unit_mapping_get_factor. */
+short ANIM_get_normalization_flags(bAnimContext *ac)
 {
+	if (ac->sl->spacetype == SPACE_IPO) {
+		SpaceIpo *sipo = (SpaceIpo *) ac->sl;
+		bool use_normalization = (sipo->flag & SIPO_NORMALIZE) != 0;
+		bool freeze_normalization = (sipo->flag & SIPO_NORMALIZE_FREEZE) != 0;
+		return use_normalization
+		    ? (ANIM_UNITCONV_NORMALIZE |  (freeze_normalization ? ANIM_UNITCONV_NORMALIZE_FREEZE : 0))
+		    : 0;
+	}
+
+	return 0;
+}
+
+static float normalzation_factor_get(FCurve *fcu, short flag)
+{
+	float factor = 1.0f;
+
+	if (flag & ANIM_UNITCONV_RESTORE) {
+		return 1.0f / fcu->prev_norm_factor;
+	}
+
+	if (flag & ANIM_UNITCONV_NORMALIZE_FREEZE) {
+		return fcu->prev_norm_factor;
+	}
+
+	if (G.moving & G_TRANSFORM_FCURVES) {
+		return fcu->prev_norm_factor;
+	}
+
+	fcu->prev_norm_factor = 1.0f;
+	if (fcu->bezt) {
+		BezTriple *bezt;
+		int i;
+		float max_coord = -FLT_MAX;
+
+		if (fcu->totvert < 1) {
+			return 1.0f;
+		}
+
+		for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
+			max_coord = max_ff(max_coord, fabsf(bezt->vec[0][1]));
+			max_coord = max_ff(max_coord, fabsf(bezt->vec[1][1]));
+			max_coord = max_ff(max_coord, fabsf(bezt->vec[2][1]));
+		}
+
+		if (max_coord > FLT_EPSILON) {
+			factor = 1.0f / max_coord;
+		}
+	}
+	fcu->prev_norm_factor = factor;
+	return factor;
+}
+
+/* Get unit conversion factor for given ID + F-Curve */
+float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag)
+{
+	if (flag & ANIM_UNITCONV_NORMALIZE) {
+		return normalzation_factor_get(fcu, flag);
+	}
+
 	/* sanity checks */
 	if (id && fcu && fcu->rna_path) {
 		PointerRNA ptr, id_ptr;
@@ -374,7 +322,7 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short rest
 			if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_ROTATION) {
 				/* if the radians flag is not set, default to using degrees which need conversions */
 				if ((scene) && (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) == 0) {
-					if (restore)
+					if (flag & ANIM_UNITCONV_RESTORE)
 						return DEG2RADF(1.0f);  /* degrees to radians */
 					else
 						return RAD2DEGF(1.0f);  /* radians to degrees */
@@ -387,78 +335,6 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short rest
 
 	/* no mapping needs to occur... */
 	return 1.0f;
-}
-
-/* ----------------------- */
-
-/* helper function for ANIM_unit_mapping_apply_fcurve -> mapping callback for unit mapping */
-static short bezt_unit_mapping_apply(KeyframeEditData *ked, BezTriple *bezt)
-{
-	/* mapping factor is stored in f1, flags are stored in i1 */
-	const bool only_keys = (ked->i1 & ANIM_UNITCONV_ONLYKEYS) != 0;
-	const bool sel_vs = (ked->i1 & ANIM_UNITCONV_SELVERTS) != 0;
-	const bool skip_knot = (ked->i1 & ANIM_UNITCONV_SKIPKNOTS) != 0;
-	float fac = ked->f1;
-	
-	/* adjust BezTriple handles only if allowed to */
-	if (only_keys == false) {
-		if ((sel_vs == false) || (bezt->f1 & SELECT))
-			bezt->vec[0][1] *= fac;
-		if ((sel_vs == false) || (bezt->f3 & SELECT))
-			bezt->vec[2][1] *= fac;
-	}
-	
-	if (skip_knot == false) {
-		if ((sel_vs == false) || (bezt->f2 & SELECT))
-			bezt->vec[1][1] *= fac;
-	}
-	
-	return 0;
-}
-
-/* Apply/Unapply units conversions to keyframes */
-void ANIM_unit_mapping_apply_fcurve(Scene *scene, ID *id, FCurve *fcu, short flag)
-{
-	KeyframeEditData ked;
-	KeyframeEditFunc sel_cb;
-	float fac;
-	
-	/* abort if rendering - we may get some race condition issues... */
-	if (G.is_rendering) return;
-	
-	/* calculate mapping factor, and abort if nothing to change */
-	fac = ANIM_unit_mapping_get_factor(scene, id, fcu, (flag & ANIM_UNITCONV_RESTORE));
-	if (fac == 1.0f)
-		return;
-	
-	/* init edit data 
-	 *	- mapping factor is stored in f1
-	 *	- flags are stored in 'i1'
-	 */
-	memset(&ked, 0, sizeof(KeyframeEditData));
-	ked.f1 = (float)fac;
-	ked.i1 = (int)flag;
-	
-	/* only selected? */
-	if (flag & ANIM_UNITCONV_ONLYSEL)
-		sel_cb = ANIM_editkeyframes_ok(BEZT_OK_SELECTED);
-	else
-		sel_cb = NULL;
-	
-	/* apply to F-Curve */
-	ANIM_fcurve_keyframes_loop(&ked, fcu, sel_cb, bezt_unit_mapping_apply, NULL);
-	
-	// FIXME: loop here for samples should be generalised
-	// TODO: only sel?
-	if (fcu->fpt) {
-		FPoint *fpt;
-		unsigned int i;
-		
-		for (i = 0, fpt = fcu->fpt; i < fcu->totvert; i++, fpt++) {
-			/* apply unit mapping */
-			fpt->vec[1] *= fac;
-		}
-	}
 }
 
 /* *************************************************** */

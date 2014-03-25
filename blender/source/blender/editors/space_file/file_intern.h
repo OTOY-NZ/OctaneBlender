@@ -53,7 +53,7 @@ void file_calc_previews(const bContext *C, ARegion *ar);
 void file_draw_list(const bContext *C, ARegion *ar);
 
 void file_draw_check_cb(bContext *C, void *arg1, void *arg2);
-int file_draw_check_exists(SpaceFile *sfile);
+bool file_draw_check_exists(SpaceFile *sfile);
 
 /* file_ops.h */
 struct wmOperatorType;
@@ -65,14 +65,13 @@ void FILE_OT_select_all_toggle(struct wmOperatorType *ot);
 void FILE_OT_select_border(struct wmOperatorType *ot);
 void FILE_OT_select_bookmark(struct wmOperatorType *ot);
 void FILE_OT_bookmark_add(struct wmOperatorType *ot);
-void FILE_OT_delete_bookmark(struct wmOperatorType *ot);
+void FILE_OT_bookmark_delete(struct wmOperatorType *ot);
 void FILE_OT_reset_recent(wmOperatorType *ot);
 void FILE_OT_hidedot(struct wmOperatorType *ot);
 void FILE_OT_execute(struct wmOperatorType *ot);
 void FILE_OT_cancel(struct wmOperatorType *ot);
 void FILE_OT_parent(struct wmOperatorType *ot);
 void FILE_OT_directory_new(struct wmOperatorType *ot);
-void FILE_OT_directory(struct wmOperatorType *ot);
 void FILE_OT_previous(struct wmOperatorType *ot);
 void FILE_OT_next(struct wmOperatorType *ot);
 void FILE_OT_refresh(struct wmOperatorType *ot);
@@ -87,10 +86,11 @@ int file_cancel_exec(bContext *C, struct wmOperator *unused);
 int file_parent_exec(bContext *C, struct wmOperator *unused);
 int file_previous_exec(bContext *C, struct wmOperator *unused);
 int file_next_exec(bContext *C, struct wmOperator *unused);
-int file_filename_exec(bContext *C, struct wmOperator *unused);
-int file_directory_exec(bContext *C, struct wmOperator *unused);
 int file_directory_new_exec(bContext *C, struct wmOperator *unused);
 int file_delete_exec(bContext *C, struct wmOperator *unused);
+
+void file_directory_enter_handle(bContext *C, void *arg_unused, void *arg_but);
+void file_filename_enter_handle(bContext *C, void *arg_unused, void *arg_but);
 
 int file_highlight_set(struct SpaceFile *sfile, struct ARegion *ar, int mx, int my);
 
@@ -105,8 +105,8 @@ float file_string_width(const char *str);
 float file_font_pointsize(void);
 void file_change_dir(bContext *C, int checkdir);
 int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matched_file);
-bool autocomplete_directory(struct bContext *C, char *str, void *arg_v);
-bool autocomplete_file(struct bContext *C, char *str, void *arg_v);
+int autocomplete_directory(struct bContext *C, char *str, void *arg_v);
+int autocomplete_file(struct bContext *C, char *str, void *arg_v);
 
 /* file_panels.c */
 void file_panels_register(struct ARegionType *art);

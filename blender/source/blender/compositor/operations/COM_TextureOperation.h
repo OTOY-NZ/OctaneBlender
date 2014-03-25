@@ -28,10 +28,10 @@
 #include "DNA_texture_types.h"
 #include "BLI_listbase.h"
 extern "C" {
-	#include "RE_pipeline.h"
-	#include "RE_shader_ext.h"
-	#include "RE_render_ext.h"
-	#include "MEM_guardedalloc.h"
+#  include "RE_pipeline.h"
+#  include "RE_shader_ext.h"
+#  include "RE_render_ext.h"
+#  include "MEM_guardedalloc.h"
 }
 
 /**
@@ -62,7 +62,7 @@ protected:
 
 	MemoryBuffer *createMemoryBuffer(rcti *rect2);
 public:
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 
 	void setTexture(Tex *texture) { this->m_texture = texture; }
 	void initExecution();
@@ -79,7 +79,7 @@ public:
 class TextureAlphaOperation : public TextureBaseOperation {
 public:
 	TextureAlphaOperation();
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 
 };
 

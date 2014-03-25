@@ -56,6 +56,7 @@
 #include "pixelshading.h"
 #include "rayintersection.h"
 #include "rayobject.h"
+#include "renderdatabase.h"
 #include "shading.h"
 #include "shadbuf.h"
 #include "texture.h"
@@ -107,7 +108,11 @@ static float vol_get_shadow(ShadeInput *shi, LampRen *lar, const float co[3])
 		is.orig.face = NULL;
 		is.last_hit = lar->last_hit[shi->thread];
 		
+		RE_instance_rotate_ray(shi->obi, &is);
+
 		if (RE_rayobject_raycast(R.raytree, &is)) {
+			RE_instance_rotate_ray_restore(shi->obi, &is);
+
 			visibility = 0.f;
 		}
 		
@@ -137,8 +142,12 @@ static int vol_get_bounds(ShadeInput *shi, const float co[3], const float vec[3]
 		isect->orig.face = NULL;
 		isect->orig.ob = NULL;
 	}
+
+	RE_instance_rotate_ray(shi->obi, isect);
 	
 	if (RE_rayobject_raycast(R.raytree, isect)) {
+		RE_instance_rotate_ray_restore(shi->obi, isect);
+
 		hitco[0] = isect->start[0] + isect->dist * isect->dir[0];
 		hitco[1] = isect->start[1] + isect->dist * isect->dir[1];
 		hitco[2] = isect->start[2] + isect->dist * isect->dir[2];
@@ -199,7 +208,11 @@ static void vol_trace_behind(ShadeInput *shi, VlakRen *vlr, const float co[3], f
 	isect.lay = -1;
 	
 	/* check to see if there's anything behind the volume, otherwise shade the sky */
+	RE_instance_rotate_ray(shi->obi, &isect);
+
 	if (RE_rayobject_raycast(R.raytree, &isect)) {
+		RE_instance_rotate_ray_restore(shi->obi, &isect);
+
 		shade_intersection(shi, col_r, &isect);
 	}
 	else {
@@ -735,6 +748,7 @@ static void volume_trace(struct ShadeInput *shi, struct ShadeResult *shr, int in
 	shr->alpha = col[3];
 	
 	copy_v3_v3(shr->diff, shr->combined);
+	copy_v3_v3(shr->diffshad, shr->diff);
 }
 
 /* Traces a shadow through the object, 
@@ -775,7 +789,7 @@ void shade_volume_shadow(struct ShadeInput *shi, struct ShadeResult *shr, struct
 	/* due to idiosyncracy in ray_trace_shadow_tra() */
 	if (is.hit.ob == shi->obi) {
 		copy_v3_v3(shi->co, hitco);
-		last_is->dist -= is.dist;
+		last_is->dist += is.dist;
 		shi->vlr = (VlakRen *)is.hit.face;
 	}
 

@@ -54,7 +54,7 @@ void *BKE_camera_add(Main *bmain, const char *name)
 {
 	Camera *cam;
 	
-	cam =  BKE_libblock_alloc(&bmain->camera, ID_CA, name);
+	cam =  BKE_libblock_alloc(bmain, ID_CA, name);
 
 	cam->lens = 35.0f;
 	cam->sensor_x = DEFAULT_SENSOR_WIDTH;
@@ -198,6 +198,10 @@ void BKE_camera_params_init(CameraParams *params)
 	params->sensor_fit = CAMERA_SENSOR_FIT_AUTO;
 
 	params->zoom = 1.0f;
+
+	/* fallback for non camera objects */
+	params->clipsta = 0.1f;
+	params->clipsta = 100.0f;
 }
 
 void BKE_camera_params_from_object(CameraParams *params, Object *ob)
@@ -227,7 +231,7 @@ void BKE_camera_params_from_object(CameraParams *params, Object *ob)
 	else if (ob->type == OB_LAMP) {
 		/* lamp object */
 		Lamp *la = ob->data;
-		float fac = cosf((float)M_PI * la->spotsize / 360.0f);
+		float fac = cosf(la->spotsize * 0.5f);
 		float phi = acos(fac);
 
 		params->lens = 16.0f * fac / sinf(phi);
@@ -480,7 +484,7 @@ static void camera_to_frame_view_cb(const float co[3], void *user_data)
 
 /* don't move the camera, just yield the fit location */
 /* only valid for perspective cameras */
-int BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object *camera_ob, float r_co[3])
+bool BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object *camera_ob, float r_co[3])
 {
 	float shift[2];
 	float plane_tx[4][3];
@@ -527,7 +531,7 @@ int BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object 
 	                                camera_to_frame_view_cb, &data_cb);
 
 	if (data_cb.tot <= 1) {
-		return FALSE;
+		return false;
 	}
 	else {
 		float plane_isect_1[3], plane_isect_1_no[3], plane_isect_1_other[3];
@@ -535,22 +539,20 @@ int BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object 
 
 		float plane_isect_pt_1[3], plane_isect_pt_2[3];
 
-		/* could make a generic macro */
-#define SQRT_SIGNED(f) copysign(sqrtf(fabsf(f)), f)
-
 		/* apply the dist-from-plane's to the transformed plane points */
 		for (i = 0; i < 4; i++) {
-			mul_v3_v3fl(plane_tx[i], data_cb.normal_tx[i], SQRT_SIGNED(data_cb.dist_vals_sq[i]));
+			mul_v3_v3fl(plane_tx[i], data_cb.normal_tx[i], sqrtf_signed(data_cb.dist_vals_sq[i]));
 		}
 
-#undef SQRT_SIGNED
-
-		isect_plane_plane_v3(plane_isect_1, plane_isect_1_no,
-		                     plane_tx[0], data_cb.normal_tx[0],
-		                     plane_tx[2], data_cb.normal_tx[2]);
-		isect_plane_plane_v3(plane_isect_2, plane_isect_2_no,
-		                     plane_tx[1], data_cb.normal_tx[1],
-		                     plane_tx[3], data_cb.normal_tx[3]);
+		if ((!isect_plane_plane_v3(plane_isect_1, plane_isect_1_no,
+		                           plane_tx[0], data_cb.normal_tx[0],
+		                           plane_tx[2], data_cb.normal_tx[2])) ||
+		    (!isect_plane_plane_v3(plane_isect_2, plane_isect_2_no,
+		                           plane_tx[1], data_cb.normal_tx[1],
+		                           plane_tx[3], data_cb.normal_tx[3])))
+		{
+			return false;
+		}
 
 		add_v3_v3v3(plane_isect_1_other, plane_isect_1, plane_isect_1_no);
 		add_v3_v3v3(plane_isect_2_other, plane_isect_2, plane_isect_2_no);
@@ -559,7 +561,7 @@ int BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object 
 		                       plane_isect_2, plane_isect_2_other,
 		                       plane_isect_pt_1, plane_isect_pt_2) == 0)
 		{
-			return FALSE;
+			return false;
 		}
 		else {
 			float cam_plane_no[3] = {0.0f, 0.0f, -1.0f};
@@ -587,7 +589,7 @@ int BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object 
 			}
 
 
-			return TRUE;
+			return true;
 		}
 	}
 }

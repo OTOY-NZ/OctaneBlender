@@ -18,10 +18,8 @@ CCL_NAMESPACE_BEGIN
 
 /* Checker */
 
-__device_noinline float svm_checker(float3 p, float scale)
-{	
-	p *= scale;
-
+ccl_device_noinline float svm_checker(float3 p)
+{
 	/* avoid precision issues on unit coordinates */
 	p.x = (p.x + 0.00001f)*0.9999f;
 	p.y = (p.y + 0.00001f)*0.9999f;
@@ -34,7 +32,7 @@ __device_noinline float svm_checker(float3 p, float scale)
 	return ((xi % 2 == yi % 2) == (zi % 2))? 1.0f: 0.0f;
 }
 
-__device void svm_node_tex_checker(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_checker(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {	
 	uint co_offset, color1_offset, color2_offset, scale_offset;
 	uint color_offset, fac_offset;
@@ -47,7 +45,7 @@ __device void svm_node_tex_checker(KernelGlobals *kg, ShaderData *sd, float *sta
 	float3 color2 = stack_load_float3(stack, color2_offset);
 	float scale = stack_load_float_default(stack, scale_offset, node.w);
 	
-	float f = svm_checker(co, scale);
+	float f = svm_checker(co*scale);
 
 	if(stack_valid(color_offset))
 		stack_store_float3(stack, color_offset, (f == 1.0f)? color1: color2);

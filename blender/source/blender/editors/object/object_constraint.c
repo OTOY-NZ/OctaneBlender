@@ -105,10 +105,10 @@ ListBase *get_active_constraints(Object *ob)
 }
 
 /* Find the list that a given constraint belongs to, and/or also get the posechannel this is from (if applicable) */
-ListBase *get_constraint_lb(Object *ob, bConstraint *con, bPoseChannel **pchan_r)
+ListBase *get_constraint_lb(Object *ob, bConstraint *con, bPoseChannel **r_pchan)
 {
-	if (pchan_r)
-		*pchan_r = NULL;
+	if (r_pchan)
+		*r_pchan = NULL;
 	
 	if (ELEM(NULL, ob, con))
 		return NULL;
@@ -128,8 +128,8 @@ ListBase *get_constraint_lb(Object *ob, bConstraint *con, bPoseChannel **pchan_r
 		for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 			if ((BLI_findindex(&pchan->constraints, con) != -1)) {
 				
-				if (pchan_r)
-					*pchan_r = pchan;
+				if (r_pchan)
+					*r_pchan = pchan;
 				
 				return &pchan->constraints;
 			}
@@ -542,7 +542,7 @@ static int edit_constraint_poll_generic(bContext *C, StructRNA *rna_type)
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", rna_type);
 	Object *ob = (ptr.id.data) ? ptr.id.data : ED_object_active_context(C);
 
-	if (!ob || ob->id.lib) return 0;
+	if (!ptr.data || !ob || ob->id.lib) return 0;
 	if (ptr.id.data && ((ID *)ptr.id.data)->lib) return 0;
 
 	return 1;
@@ -555,7 +555,7 @@ static int edit_constraint_poll(bContext *C)
 
 static void edit_constraint_properties(wmOperatorType *ot)
 {
-	RNA_def_string(ot->srna, "constraint", "", MAX_NAME, "Constraint", "Name of the constraint to edit");
+	RNA_def_string(ot->srna, "constraint", NULL, MAX_NAME, "Constraint", "Name of the constraint to edit");
 	RNA_def_enum(ot->srna, "owner", constraint_owner_items, 0, "Owner", "The owner of this constraint");
 }
 
@@ -927,8 +927,8 @@ static int followpath_path_animate_exec(bContext *C, wmOperator *op)
 	if (data->tar) {
 		Curve *cu = (Curve *)data->tar->data;
 		
-		if ( ELEM(NULL, cu->adt, cu->adt->action) ||
-			(list_find_fcurve(&cu->adt->action->curves, "eval_time", 0) == NULL))
+		if (ELEM(NULL, cu->adt, cu->adt->action) ||
+		    (list_find_fcurve(&cu->adt->action->curves, "eval_time", 0) == NULL))
 		{
 			/* create F-Curve for path animation */
 			act = verify_adt_action(&cu->id, 1);
@@ -1171,7 +1171,7 @@ static int constraint_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	Object *ob = ptr.id.data;
 	bConstraint *con = ptr.data;
 	ListBase *lb = get_constraint_lb(ob, con, NULL);
-	const short is_ik = ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
+	const bool is_ik = ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
 
 	/* free the constraint */
 	if (BKE_remove_constraint(lb, con)) {
@@ -1331,7 +1331,7 @@ static int pose_constraints_clear_exec(bContext *C, wmOperator *UNUSED(op))
 
 	/* do updates */
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
+	WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
 	
 	return OPERATOR_FINISHED;
 }
@@ -1365,7 +1365,7 @@ static int object_constraints_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	DAG_relations_tag_update(bmain);
 	
 	/* do updates */
-	WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, NULL);
+	WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -1613,7 +1613,7 @@ static short get_new_constraint_target(bContext *C, int con_type, Object **tar_o
 }
 
 /* used by add constraint operators to add the constraint required */
-static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase *list, int type, short setTarget)
+static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase *list, int type, const bool setTarget)
 {
 	Main *bmain = CTX_data_main(C);
 	bPoseChannel *pchan;
@@ -1716,7 +1716,7 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA | OB_RECALC_OB);
 	}
 	else
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 	
 	/* notifiers for updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_ADDED, ob);
@@ -1907,7 +1907,7 @@ static int pose_ik_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED
 static int pose_ik_add_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
-	int with_targets = RNA_boolean_get(op->ptr, "with_targets");
+	const bool with_targets = RNA_boolean_get(op->ptr, "with_targets");
 	
 	/* add the constraint - all necessary checks should have been done by the invoke() callback already... */
 	return constraint_add_exec(C, op, ob, get_active_constraints(ob), CONSTRAINT_TYPE_KINEMATIC, with_targets);

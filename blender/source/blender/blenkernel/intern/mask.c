@@ -35,6 +35,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_listbase.h"
@@ -60,6 +61,11 @@
 #include "BKE_image.h"
 
 #include "NOD_composite.h"
+
+static struct {
+	ListBase splines;
+	struct GHash *id_hash;
+} mask_clipboard = {{NULL}};
 
 static MaskSplinePoint *mask_spline_point_next(MaskSpline *spline, MaskSplinePoint *points_array, MaskSplinePoint *point)
 {
@@ -106,23 +112,6 @@ BezTriple *BKE_mask_spline_point_next_bezt(MaskSpline *spline, MaskSplinePoint *
 	}
 }
 
-#if 0
-static BezTriple *mask_spline_point_prev_bezt(MaskSpline *spline, MaskSplinePoint *points_array, MaskSplinePoint *point)
-{
-	if (point == points_array) {
-		if (spline->flag & MASK_SPLINE_CYCLIC) {
-			return &(points_array[0].bezt);
-		}
-		else {
-			return NULL;
-		}
-	}
-	else {
-		return &((point - 1))->bezt;
-	}
-}
-#endif
-
 MaskSplinePoint *BKE_mask_spline_point_array(MaskSpline *spline)
 {
 	return spline->points_deform ? spline->points_deform : spline->points;
@@ -161,6 +150,7 @@ MaskLayer *BKE_mask_layer_new(Mask *mask, const char *name)
 
 	masklay->blend = MASK_BLEND_MERGE_ADD;
 	masklay->alpha = 1.0f;
+	masklay->flag = MASK_LAYERFLAG_FILL_DISCRETE | MASK_LAYERFLAG_FILL_OVERLAP;
 
 	return masklay;
 }
@@ -369,8 +359,8 @@ void BKE_mask_spline_direction_switch(MaskLayer *masklay, MaskSpline *spline)
 float BKE_mask_spline_project_co(MaskSpline *spline, MaskSplinePoint *point,
                                  float start_u, const float co[2], const eMaskSign sign)
 {
-	const float proj_eps         = 1e-3;
-	const float proj_eps_squared = proj_eps * proj_eps;
+	const float proj_eps    = 1e-3;
+	const float proj_eps_sq = proj_eps * proj_eps;
 	const int N = 1000;
 	float u = -1.0f, du = 1.0f / N, u1 = start_u, u2 = start_u;
 	float ang = -1.0f;
@@ -392,7 +382,7 @@ float BKE_mask_spline_project_co(MaskSpline *spline, MaskSplinePoint *point,
 			    ((sign == MASK_PROJ_POS) && (dot_v2v2(v1, n1) >= 0.0f)))
 			{
 
-				if (len_squared_v2(v1) > proj_eps_squared) {
+				if (len_squared_v2(v1) > proj_eps_sq) {
 					ang1 = angle_v2v2(v1, n1);
 					if (ang1 > (float)M_PI / 2.0f)
 						ang1 = (float)M_PI - ang1;
@@ -419,7 +409,7 @@ float BKE_mask_spline_project_co(MaskSpline *spline, MaskSplinePoint *point,
 			    ((sign == MASK_PROJ_POS) && (dot_v2v2(v2, n2) >= 0.0f)))
 			{
 
-				if (len_squared_v2(v2) > proj_eps_squared) {
+				if (len_squared_v2(v2) > proj_eps_sq) {
 					ang2 = angle_v2v2(v2, n2);
 					if (ang2 > (float)M_PI / 2.0f)
 						ang2 = (float)M_PI - ang2;
@@ -445,7 +435,7 @@ float BKE_mask_spline_project_co(MaskSpline *spline, MaskSplinePoint *point,
 
 /* point */
 
-int BKE_mask_point_has_handle(MaskSplinePoint *point)
+bool BKE_mask_point_has_handle(MaskSplinePoint *point)
 {
 	BezTriple *bezt = &point->bezt;
 
@@ -462,7 +452,7 @@ void BKE_mask_point_handle(MaskSplinePoint *point, float handle[2])
 	handle[1] = (point->bezt.vec[1][1] - vec[0]);
 }
 
-void BKE_mask_point_set_handle(MaskSplinePoint *point, float loc[2], int keep_direction,
+void BKE_mask_point_set_handle(MaskSplinePoint *point, float loc[2], bool keep_direction,
                                float orig_handle[2], float orig_vec[3][3])
 {
 	BezTriple *bezt = &point->bezt;
@@ -682,7 +672,7 @@ void BKE_mask_point_add_uw(MaskSplinePoint *point, float u, float w)
 	BKE_mask_point_sort_uw(point, &point->uw[point->tot_uw - 1]);
 }
 
-void BKE_mask_point_select_set(MaskSplinePoint *point, const short do_select)
+void BKE_mask_point_select_set(MaskSplinePoint *point, const bool do_select)
 {
 	int i;
 
@@ -703,7 +693,7 @@ void BKE_mask_point_select_set(MaskSplinePoint *point, const short do_select)
 	}
 }
 
-void BKE_mask_point_select_set_handle(MaskSplinePoint *point, const short do_select)
+void BKE_mask_point_select_set_handle(MaskSplinePoint *point, const bool do_select)
 {
 	if (do_select) {
 		MASKPOINT_SEL_HANDLE(point);
@@ -718,7 +708,7 @@ static Mask *mask_alloc(Main *bmain, const char *name)
 {
 	Mask *mask;
 
-	mask = BKE_libblock_alloc(&bmain->mask, ID_MSK, name);
+	mask = BKE_libblock_alloc(bmain, ID_MSK, name);
 
 	mask->id.flag |= LIB_FAKEUSER;
 
@@ -753,8 +743,7 @@ Mask *BKE_mask_copy_nolib(Mask *mask)
 	/*take care here! - we may want to copy anim data  */
 	mask_new->adt = NULL;
 
-	mask_new->masklayers.first = NULL;
-	mask_new->masklayers.last = NULL;
+	BLI_listbase_clear(&mask_new->masklayers);
 
 	BKE_mask_layer_copy_list(&mask_new->masklayers, &mask->masklayers);
 
@@ -773,8 +762,7 @@ Mask *BKE_mask_copy(Mask *mask)
 
 	mask_new = BKE_libblock_copy(&mask->id);
 
-	mask_new->masklayers.first = NULL;
-	mask_new->masklayers.last = NULL;
+	BLI_listbase_clear(&mask_new->masklayers);
 
 	BKE_mask_layer_copy_list(&mask_new->masklayers, &mask->masklayers);
 
@@ -904,26 +892,6 @@ void BKE_mask_layer_free_shapes(MaskLayer *masklay)
 	}
 }
 
-void BKE_mask_layer_free_deform(MaskLayer *mask_layer)
-{
-	MaskSpline *mask_spline;
-
-	for (mask_spline = mask_layer->splines.first;
-	     mask_spline;
-	     mask_spline = mask_spline->next)
-	{
-		if (mask_spline->points_deform) {
-			int i;
-			MaskSplinePoint *points_deform = mask_spline->points_deform;
-			for (i = 0; i < mask_spline->tot_point; i++) {
-				BKE_mask_point_free(&points_deform[i]);
-			}
-			MEM_freeN(points_deform);
-			mask_spline->points_deform = NULL;
-		}
-	}
-}
-
 void BKE_mask_layer_free(MaskLayer *masklay)
 {
 	/* free splines */
@@ -1026,6 +994,7 @@ void BKE_mask_coord_from_frame(float r_co[2], const float co[2], const float fra
 		r_co[1] = ((co[1] - 0.5f) * (frame_size[1] / frame_size[0])) + 0.5f;
 	}
 }
+
 void BKE_mask_coord_from_movieclip(MovieClip *clip, MovieClipUser *user, float r_co[2], const float co[2])
 {
 	float aspx, aspy;
@@ -1039,6 +1008,7 @@ void BKE_mask_coord_from_movieclip(MovieClip *clip, MovieClipUser *user, float r
 
 	BKE_mask_coord_from_frame(r_co, co, frame_size);
 }
+
 void BKE_mask_coord_from_image(Image *image, ImageUser *iuser, float r_co[2], const float co[2])
 {
 	float aspx, aspy;
@@ -1068,6 +1038,7 @@ void BKE_mask_coord_to_frame(float r_co[2], const float co[2], const float frame
 		r_co[1] = ((co[1] - 0.5f) / (frame_size[1] / frame_size[0])) + 0.5f;
 	}
 }
+
 void BKE_mask_coord_to_movieclip(MovieClip *clip, MovieClipUser *user, float r_co[2], const float co[2])
 {
 	float aspx, aspy;
@@ -1081,6 +1052,7 @@ void BKE_mask_coord_to_movieclip(MovieClip *clip, MovieClipUser *user, float r_c
 
 	BKE_mask_coord_to_frame(r_co, co, frame_size);
 }
+
 void BKE_mask_coord_to_image(Image *image, ImageUser *iuser, float r_co[2], const float co[2])
 {
 	float aspx, aspy;
@@ -1205,7 +1177,7 @@ static void mask_calc_point_handle(MaskSplinePoint *point, MaskSplinePoint *poin
 		sub_v3_v3v3(v2, bezt->vec[2], bezt->vec[1]);
 		add_v3_v3v3(vec, v1, v2);
 
-		if (len_v3(vec) > 1e-3) {
+		if (len_squared_v3(vec) > (1e-3f * 1e-3f)) {
 			h[0] = vec[1];
 			h[1] = -vec[0];
 			h[2] = 0.0f;
@@ -1230,7 +1202,7 @@ void BKE_mask_get_handle_point_adjacent(MaskSpline *spline, MaskSplinePoint *poi
 	*r_point_next = mask_spline_point_next(spline, points_array, point);
 }
 
-/* calculates the tanget of a point by its previous and next
+/* calculates the tangent of a point by its previous and next
  * (ignoring handles - as if its a poly line) */
 void BKE_mask_calc_tangent_polyline(MaskSpline *spline, MaskSplinePoint *point, float t[2])
 {
@@ -1325,7 +1297,7 @@ void BKE_mask_calc_handle_adjacent_interp(MaskSpline *spline, MaskSplinePoint *p
  * Useful for giving sane defaults.
  */
 void BKE_mask_calc_handle_point_auto(MaskSpline *spline, MaskSplinePoint *point,
-                                     const short do_recalc_length)
+                                     const bool do_recalc_length)
 {
 	MaskSplinePoint *point_prev, *point_next;
 	const char h_back[2] = {point->bezt.h1, point->bezt.h2};
@@ -1361,62 +1333,6 @@ void BKE_mask_layer_calc_handles(MaskLayer *masklay)
 	}
 }
 
-void BKE_mask_layer_calc_handles_deform(MaskLayer *masklay)
-{
-	MaskSpline *spline;
-	for (spline = masklay->splines.first; spline; spline = spline->next) {
-		int i;
-		for (i = 0; i < spline->tot_point; i++) {
-			BKE_mask_calc_handle_point(spline, &spline->points_deform[i]);
-		}
-	}
-}
-
-void BKE_mask_calc_handles(Mask *mask)
-{
-	MaskLayer *masklay;
-	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
-		BKE_mask_layer_calc_handles(masklay);
-	}
-}
-
-void BKE_mask_update_deform(Mask *mask)
-{
-	MaskLayer *masklay;
-
-	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
-		MaskSpline *spline;
-
-		for (spline = masklay->splines.first; spline; spline = spline->next) {
-			int i;
-
-			for (i = 0; i < spline->tot_point; i++) {
-				const int i_prev = (i - 1) % spline->tot_point;
-				const int i_next = (i + 1) % spline->tot_point;
-
-				BezTriple *bezt_prev = &spline->points[i_prev].bezt;
-				BezTriple *bezt      = &spline->points[i].bezt;
-				BezTriple *bezt_next = &spline->points[i_next].bezt;
-
-				BezTriple *bezt_def_prev = &spline->points_deform[i_prev].bezt;
-				BezTriple *bezt_def      = &spline->points_deform[i].bezt;
-				BezTriple *bezt_def_next = &spline->points_deform[i_next].bezt;
-
-				float w_src[4];
-				int j;
-
-				for (j = 0; j <= 2; j += 2) { /* (0, 2) */
-					// printf("--- %d %d, %d, %d\n", i, j, i_prev, i_next);
-					barycentric_weights_v2(bezt_prev->vec[1], bezt->vec[1], bezt_next->vec[1],
-					                       bezt->vec[j], w_src);
-					interp_v3_v3v3v3(bezt_def->vec[j],
-					                 bezt_def_prev->vec[1], bezt_def->vec[1], bezt_def_next->vec[1], w_src);
-				}
-			}
-		}
-	}
-}
-
 void BKE_mask_spline_ensure_deform(MaskSpline *spline)
 {
 	int allocated_points = (MEM_allocN_len(spline->points_deform) / sizeof(*spline->points_deform));
@@ -1443,7 +1359,7 @@ void BKE_mask_spline_ensure_deform(MaskSpline *spline)
 	}
 }
 
-void BKE_mask_layer_evaluate(MaskLayer *masklay, const float ctime, const int do_newframe)
+void BKE_mask_layer_evaluate(MaskLayer *masklay, const float ctime, const bool do_newframe)
 {
 	/* animation if available */
 	if (do_newframe) {
@@ -1521,7 +1437,7 @@ void BKE_mask_layer_evaluate(MaskLayer *masklay, const float ctime, const int do
 	}
 }
 
-void BKE_mask_evaluate(Mask *mask, const float ctime, const int do_newframe)
+void BKE_mask_evaluate(Mask *mask, const float ctime, const bool do_newframe)
 {
 	MaskLayer *masklay;
 
@@ -1562,10 +1478,10 @@ void BKE_mask_update_display(Mask *mask, float ctime)
 	}
 #endif
 
-	BKE_mask_evaluate(mask, ctime, FALSE);
+	BKE_mask_evaluate(mask, ctime, false);
 }
 
-void BKE_mask_evaluate_all_masks(Main *bmain, float ctime, const int do_newframe)
+void BKE_mask_evaluate_all_masks(Main *bmain, float ctime, const bool do_newframe)
 {
 	Mask *mask;
 
@@ -1772,7 +1688,7 @@ int BKE_mask_layer_shape_find_frame_range(MaskLayer *masklay, const float frame,
 	}
 }
 
-MaskLayerShape *BKE_mask_layer_shape_varify_frame(MaskLayer *masklay, const int frame)
+MaskLayerShape *BKE_mask_layer_shape_verify_frame(MaskLayer *masklay, const int frame)
 {
 	MaskLayerShape *masklay_shape;
 
@@ -1835,8 +1751,8 @@ void BKE_mask_layer_shape_sort(MaskLayer *masklay)
 	BLI_sortlist(&masklay->splines_shapes, mask_layer_shape_sort_cb);
 }
 
-int BKE_mask_layer_shape_spline_from_index(MaskLayer *masklay, int index,
-                                           MaskSpline **r_masklay_shape, int *r_index)
+bool BKE_mask_layer_shape_spline_from_index(MaskLayer *masklay, int index,
+                                            MaskSpline **r_masklay_shape, int *r_index)
 {
 	MaskSpline *spline;
 
@@ -1844,12 +1760,12 @@ int BKE_mask_layer_shape_spline_from_index(MaskLayer *masklay, int index,
 		if (index < spline->tot_point) {
 			*r_masklay_shape = spline;
 			*r_index = index;
-			return TRUE;
+			return true;
 		}
 		index -= spline->tot_point;
 	}
 
-	return FALSE;
+	return false;
 }
 
 int BKE_mask_layer_shape_spline_to_index(MaskLayer *masklay, MaskSpline *spline)
@@ -1891,7 +1807,7 @@ static void interp_weights_uv_v2_apply(const float uv[2], float r_pt[2], const f
 
 /* when a new points added - resize all shapekey array  */
 void BKE_mask_layer_shape_changed_add(MaskLayer *masklay, int index,
-                                      int do_init, int do_init_interpolate)
+                                      bool do_init, bool do_init_interpolate)
 {
 	MaskLayerShape *masklay_shape;
 
@@ -2023,4 +1939,96 @@ void BKE_mask_layer_shape_changed_remove(MaskLayer *masklay, int index, int coun
 int BKE_mask_get_duration(Mask *mask)
 {
 	return max_ii(1, mask->efra - mask->sfra);
+}
+
+/*********************** clipboard *************************/
+
+static void mask_clipboard_free_ex(bool final_free)
+{
+	BKE_mask_spline_free_list(&mask_clipboard.splines);
+	BLI_listbase_clear(&mask_clipboard.splines);
+	if (mask_clipboard.id_hash) {
+		if (final_free) {
+			BLI_ghash_free(mask_clipboard.id_hash, NULL, MEM_freeN);
+		}
+		else {
+			BLI_ghash_clear(mask_clipboard.id_hash, NULL, MEM_freeN);
+		}
+	}
+}
+
+/* Free the clipboard. */
+void BKE_mask_clipboard_free(void)
+{
+	mask_clipboard_free_ex(true);
+}
+
+/* Copy selected visible splines from the given layer to clipboard. */
+void BKE_mask_clipboard_copy_from_layer(MaskLayer *mask_layer)
+{
+	MaskSpline *spline;
+
+	/* Nothing to do if selection if disabled for the given layer. */
+	if (mask_layer->restrictflag & MASK_RESTRICT_SELECT) {
+		return;
+	}
+
+	mask_clipboard_free_ex(false);
+	if (mask_clipboard.id_hash == NULL) {
+		mask_clipboard.id_hash = BLI_ghash_ptr_new("mask clipboard ID hash");
+	}
+
+	for (spline = mask_layer->splines.first; spline; spline = spline->next) {
+		if (spline->flag & SELECT) {
+			MaskSpline *spline_new = BKE_mask_spline_copy(spline);
+			int i;
+			for (i = 0; i < spline_new->tot_point; i++) {
+				MaskSplinePoint *point = &spline_new->points[i];
+				if (point->parent.id) {
+					if (!BLI_ghash_lookup(mask_clipboard.id_hash, point->parent.id)) {
+						int len = strlen(point->parent.id->name);
+						char *name_copy = MEM_mallocN(len + 1, "mask clipboard ID name");
+						strcpy(name_copy, point->parent.id->name);
+						BLI_ghash_insert(mask_clipboard.id_hash,
+						                 point->parent.id,
+						                 name_copy);
+					}
+				}
+			}
+
+			BLI_addtail(&mask_clipboard.splines, spline_new);
+		}
+	}
+}
+
+/* Check clipboard is empty. */
+bool BKE_mask_clipboard_is_empty(void)
+{
+	return BLI_listbase_is_empty(&mask_clipboard.splines);
+}
+
+/* Paste the contents of clipboard to given mask layer */
+void BKE_mask_clipboard_paste_to_layer(Main *bmain, MaskLayer *mask_layer)
+{
+	MaskSpline *spline;
+
+	for (spline = mask_clipboard.splines.first; spline; spline = spline->next) {
+		MaskSpline *spline_new = BKE_mask_spline_copy(spline);
+		int i;
+
+		for (i = 0; i < spline_new->tot_point; i++) {
+			MaskSplinePoint *point = &spline_new->points[i];
+			if (point->parent.id) {
+				char *id_name = BLI_ghash_lookup(mask_clipboard.id_hash, point->parent.id);
+				ListBase *listbase;
+
+				BLI_assert(id_name != NULL);
+
+				listbase = which_libbase(bmain, GS(id_name));
+				point->parent.id = BLI_findstring(listbase, id_name + 2, offsetof(ID, name) + 2);
+			}
+		}
+
+		BLI_addtail(&mask_layer->splines, spline_new);
+	}
 }

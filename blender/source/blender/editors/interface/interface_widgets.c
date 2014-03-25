@@ -33,7 +33,6 @@
 #include <string.h>
 #include <assert.h>
 
-
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
@@ -59,6 +58,9 @@
 
 
 #include "interface_intern.h"
+
+/* icons are 80% of height of button (16 pixels inside 20 height) */
+#define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
 
 /* ************** widget base functions ************** */
 /*
@@ -118,7 +120,7 @@ typedef struct uiWidgetType {
 	void (*state)(struct uiWidgetType *, int state);
 	void (*draw)(uiWidgetColors *, rcti *, int state, int roundboxalign);
 	void (*custom)(uiBut *, uiWidgetColors *, rcti *, int state, int roundboxalign);
-	void (*text)(uiFontStyle *, uiWidgetColors *, uiBut *,  rcti *);
+	void (*text)(uiFontStyle *, uiWidgetColors *, uiBut *, rcti *);
 	
 } uiWidgetType;
 
@@ -176,18 +178,6 @@ static const float check_tria_vert[6][2] = {
 
 static const unsigned int check_tria_face[4][3] = {
 	{3, 2, 4}, {3, 4, 5}, {1, 0, 3}, {0, 2, 3}
-};
-
-GLubyte const checker_stipple_sml[32 * 32 / 8] =
-{
-	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
 };
 
 /* ************************************************* */
@@ -606,7 +596,7 @@ static void widget_check_trias(uiWidgetTrias *tria, const rcti *rect)
 
 
 /* prepares shade colors */
-static void shadecolors4(char coltop[4], char *coldown, const char *color, short shadetop, short shadedown)
+static void shadecolors4(char coltop[4], char coldown[4], const char *color, short shadetop, short shadedown)
 {
 	
 	coltop[0] = CLAMPIS(color[0] + shadetop, 0, 255);
@@ -620,15 +610,15 @@ static void shadecolors4(char coltop[4], char *coldown, const char *color, short
 	coldown[3] = color[3];
 }
 
-static void round_box_shade_col4_r(unsigned char col_r[4], const char col1[4], const char col2[4], const float fac)
+static void round_box_shade_col4_r(unsigned char r_col[4], const char col1[4], const char col2[4], const float fac)
 {
 	const int faci = FTOCHAR(fac);
 	const int facm = 255 - faci;
 
-	col_r[0] = (faci * col1[0] + facm * col2[0]) >> 8;
-	col_r[1] = (faci * col1[1] + facm * col2[1]) >> 8;
-	col_r[2] = (faci * col1[2] + facm * col2[2]) >> 8;
-	col_r[3] = (faci * col1[3] + facm * col2[3]) >> 8;
+	r_col[0] = (faci * col1[0] + facm * col2[0]) >> 8;
+	r_col[1] = (faci * col1[1] + facm * col2[1]) >> 8;
+	r_col[2] = (faci * col1[2] + facm * col2[2]) >> 8;
+	r_col[3] = (faci * col1[3] + facm * col2[3]) >> 8;
 }
 
 static void widget_verts_to_quad_strip(uiWidgetBase *wtb, const int totvert, float quad_strip[WIDGET_SIZE_MAX * 2 + 2][2])
@@ -678,21 +668,18 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				float x_mid = 0.0f; /* used for dumb clamping of values */
 
 				/* dark checkers */
-				glColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
+				glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
 				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-				glDisableClientState(GL_VERTEX_ARRAY);
 
 				/* light checkers */
 				glEnable(GL_POLYGON_STIPPLE);
-				glColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
-				glPolygonStipple(checker_stipple_sml);
+				glColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
+				glPolygonStipple(stipple_checker_8px);
 
-				glEnableClientState(GL_VERTEX_ARRAY);
 				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
 				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-				glDisableClientState(GL_VERTEX_ARRAY);
 
 				glDisable(GL_POLYGON_STIPPLE);
 
@@ -700,7 +687,6 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 				glColor4ubv((unsigned char *)wcol->inner);
-				glEnableClientState(GL_VERTEX_ARRAY);
 
 				for (a = 0; a < wtb->totvert; a++) {
 					x_mid += wtb->inner_v[a][0];
@@ -709,7 +695,6 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
 				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-				glDisableClientState(GL_VERTEX_ARRAY);
 
 				/* 1/2 solid color */
 				glColor4ub(wcol->inner[0], wcol->inner[1], wcol->inner[2], 255);
@@ -719,7 +704,6 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 					inner_v_half[a][1] = wtb->inner_v[a][1];
 				}
 
-				glEnableClientState(GL_VERTEX_ARRAY);
 				glVertexPointer(2, GL_FLOAT, 0, inner_v_half);
 				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
 				glDisableClientState(GL_VERTEX_ARRAY);
@@ -828,6 +812,8 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 /* *********************** text/icon ************************************** */
 
+#define UI_TEXT_CLIP_MARGIN (0.25f * U.widget_unit / but->block->aspect)
+
 #define PREVIEW_PAD 4
 
 static void widget_draw_preview(BIFIconID icon, float UNUSED(alpha), const rcti *rect)
@@ -851,14 +837,15 @@ static void widget_draw_preview(BIFIconID icon, float UNUSED(alpha), const rcti 
 }
 
 
-static int ui_but_draw_menu_icon(uiBut *but)
+static int ui_but_draw_menu_icon(const uiBut *but)
 {
 	return (but->flag & UI_ICON_SUBMENU) && (but->dt == UI_EMBOSSP);
 }
 
 /* icons have been standardized... and this call draws in untransformed coordinates */
 
-static void widget_draw_icon(uiBut *but, BIFIconID icon, float alpha, const rcti *rect)
+static void widget_draw_icon(const uiBut *but, BIFIconID icon, float alpha, const rcti *rect,
+                             const bool show_menu_icon)
 {
 	float xs = 0.0f, ys = 0.0f;
 	float aspect, height;
@@ -882,7 +869,7 @@ static void widget_draw_icon(uiBut *but, BIFIconID icon, float alpha, const rcti
 	}
 	
 	/* extra feature allows more alpha blending */
-	if (ELEM(but->type, LABEL, LISTLABEL) && but->a1 == 1.0f)
+	if ((but->type == LABEL) && but->a1 == 1.0f)
 		alpha *= but->a2;
 	
 	glEnable(GL_BLEND);
@@ -890,7 +877,7 @@ static void widget_draw_icon(uiBut *but, BIFIconID icon, float alpha, const rcti
 	if (icon && icon != ICON_BLANK1) {
 		float ofs = 1.0f / aspect;
 		
-		if (but->flag & UI_ICON_LEFT) {
+		if (but->drawflag & UI_BUT_ICON_LEFT) {
 			if (but->block->flag & UI_BLOCK_LOOP) {
 				if (ELEM(but->type, SEARCH_MENU, SEARCH_MENU_UNLINK))
 					xs = rect->xmin + 4.0f * ofs;
@@ -922,7 +909,7 @@ static void widget_draw_icon(uiBut *but, BIFIconID icon, float alpha, const rcti
 			UI_icon_draw_aspect(xs, ys, icon, aspect, alpha);
 	}
 
-	if (ui_but_draw_menu_icon(but)) {
+	if (show_menu_icon) {
 		xs = rect->xmax - UI_DPI_ICON_SIZE - aspect;
 		ys = (rect->ymin + rect->ymax - height) / 2.0f;
 		
@@ -956,15 +943,9 @@ static void ui_text_clip_give_next_off(uiBut *but)
  */
 static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->flag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
-	int okwidth = BLI_rcti_size_x(rect) - border;
-
-	if (but->flag & UI_HAS_ICON)
-		okwidth -= UI_DPI_ICON_SIZE;
-	if (but->type == SEARCH_MENU_UNLINK && !but->editstr)
-		okwidth -= BLI_rcti_size_y(rect);
-
-	okwidth = max_ii(okwidth, 0);
+	/* We are not supposed to use labels with that clipping, so we can always apply margins. */
+	const int border = (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
+	const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 
 	/* need to set this first */
 	uiStyleFontSet(fstyle);
@@ -973,12 +954,13 @@ static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 		BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 
 	but->ofs = 0;
-	but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr);
+	but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr, sizeof(but->drawstr));
 
-	while (but->strwidth > okwidth) {
-		ui_text_clip_give_next_off(but);
-		but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
-		if (but->strwidth < 10) break;
+	if ((okwidth > 0.0f) && (but->strwidth > okwidth)) {
+		float strwidth;
+		but->ofs = BLF_width_to_rstrlen(fstyle->uifont_id, but->drawstr,
+		                                sizeof(but->drawstr), okwidth, &strwidth);
+		but->strwidth = strwidth;
 	}
 
 	if (fstyle->kerning == 1) {
@@ -986,14 +968,115 @@ static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 	}
 }
 
+/* Helper.
+ * This func assumes things like kerning handling have already been handled!
+ * Return the length of modified (right-clipped + ellipsis) string.
+ */
+static void ui_text_clip_right_ex(uiFontStyle *fstyle, char *str, const size_t max_len, const float okwidth,
+                                  const char *sep, const int sep_len, const float sep_strwidth)
+{
+	float tmp;
+	int l_end;
+
+	BLI_assert(str[0]);
+
+	/* If the trailing ellipsis takes more than 20% of all available width, just cut the string
+	 * (as using the ellipsis would remove even more useful chars, and we cannot show much already!).
+	 */
+	if (sep_strwidth / okwidth > 0.2f) {
+		l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth, &tmp);
+		str[l_end] = '\0';
+	}
+	else {
+		l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, &tmp);
+		memcpy(str + l_end, sep, sep_len + 1);  /* +1 for trailing '\0'. */
+	}
+}
+
+/**
+ * Cut off the middle of the text to fit into the given width.
+ * Note in case this middle clipping would just remove a few chars, it rather clips right, which is more readable.
+ */
+static float ui_text_clip_middle_ex(uiFontStyle *fstyle, char *str, const float okwidth, const float minwidth,
+                                    const size_t max_len)
+{
+	float strwidth;
+
+	BLI_assert(str[0]);
+
+	/* need to set this first */
+	uiStyleFontSet(fstyle);
+
+	if (fstyle->kerning == 1) {  /* for BLF_width */
+		BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+	}
+
+	strwidth = BLF_width(fstyle->uifont_id, str, max_len);
+
+	if ((okwidth > 0.0f) && (strwidth > okwidth)) {
+		/* utf8 ellipsis '...', some compilers complain */
+		const char sep[] = {0xe2, 0x80, 0xa6, 0x0};
+		const int sep_len = sizeof(sep) - 1;
+		size_t l_end;
+
+		const float sep_strwidth = BLF_width(fstyle->uifont_id, sep, sep_len + 1);
+		const float parts_strwidth = ((float)okwidth - sep_strwidth) / 2.0f;
+
+		if (min_ff(parts_strwidth, strwidth - okwidth) < minwidth) {
+			/* If we really have no place, or we would clip a very small piece of string in the middle,
+			 * only show start of string.
+			 */
+			ui_text_clip_right_ex(fstyle, str, max_len, okwidth, sep, sep_len, sep_strwidth);
+		}
+		else {
+			size_t r_offset, r_len;
+
+			l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, parts_strwidth, &strwidth);
+			r_offset = BLF_width_to_rstrlen(fstyle->uifont_id, str, max_len, parts_strwidth, &strwidth);
+			r_len = strlen(str + r_offset) + 1;  /* +1 for the trailing '\0'... */
+
+			if (l_end + sep_len + r_len > max_len) {
+				/* Corner case, the str already takes all available mem, and the ellipsis chars would actually
+				 * add more chars...
+				 * Better to just trim one or two letters to the right in this case...
+				 * Note: with a single-char ellipsis, this should never happen! But better be safe here...
+				 */
+				ui_text_clip_right_ex(fstyle, str, max_len, okwidth, sep, sep_len, sep_strwidth);
+			}
+			else {
+				memmove(str + l_end + sep_len, str + r_offset, r_len);
+				memcpy(str + l_end, sep, sep_len);
+			}
+		}
+		strwidth = BLF_width(fstyle->uifont_id, str, max_len);
+	}
+
+	if (fstyle->kerning == 1) {
+		BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+	}
+
+	return strwidth;
+}
+
+static void ui_text_clip_middle(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
+{
+	/* No margin for labels! */
+	const int border = ELEM(but->type, LABEL, MENU) ? 0 : (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
+	const float okwidth = (float)max_ii(BLI_rcti_size_x(rect) - border, 0);
+	const size_t max_len = sizeof(but->drawstr);
+	const float minwidth = (float)(UI_DPI_ICON_SIZE) / but->block->aspect * 2.0f;
+
+	but->ofs = 0;
+	but->strwidth = ui_text_clip_middle_ex(fstyle, but->drawstr, okwidth, minwidth, max_len);
+}
+
 /**
  * Cut off the text, taking into account the cursor location (text display while editing).
  */
 static void ui_text_clip_cursor(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->flag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
-	int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
-	if (but->flag & UI_HAS_ICON) okwidth -= UI_DPI_ICON_SIZE;
+	const int border = (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
+	const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 
 	BLI_assert(but->editstr && but->pos >= 0);
 
@@ -1007,20 +1090,16 @@ static void ui_text_clip_cursor(uiFontStyle *fstyle, uiBut *but, const rcti *rec
 	if (but->ofs > but->pos)
 		but->ofs = but->pos;
 
-	if (BLF_width(fstyle->uifont_id, but->drawstr) <= okwidth)
+	if (BLF_width(fstyle->uifont_id, but->drawstr, sizeof(but->drawstr)) <= okwidth)
 		but->ofs = 0;
 
-	but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
+	but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, sizeof(but->drawstr) - but->ofs);
 
 	while (but->strwidth > okwidth) {
 		float width;
-		char buf[UI_MAX_DRAW_STR];
 
-		/* copy draw string */
-		BLI_strncpy_utf8(buf, but->drawstr, sizeof(buf));
 		/* string position of cursor */
-		buf[but->pos] = 0;
-		width = BLF_width(fstyle->uifont_id, buf + but->ofs);
+		width = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, but->pos - but->ofs);
 
 		/* if cursor is at 20 pixels of right side button we clip left */
 		if (width > okwidth - 20) {
@@ -1038,7 +1117,7 @@ static void ui_text_clip_cursor(uiFontStyle *fstyle, uiBut *but, const rcti *rec
 			but->drawstr[len - bytes] = 0;
 		}
 
-		but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
+		but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, sizeof(but->drawstr) - but->ofs);
 
 		if (but->strwidth < 10) break;
 	}
@@ -1055,8 +1134,8 @@ static void ui_text_clip_cursor(uiFontStyle *fstyle, uiBut *but, const rcti *rec
  */
 static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->flag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
-	int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
+	const int border = UI_TEXT_CLIP_MARGIN + 1;
+	const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 	char *cpoin = NULL;
 	int drawstr_len = strlen(but->drawstr);
 	char *cpend = but->drawstr + drawstr_len;
@@ -1067,11 +1146,11 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 	if (fstyle->kerning == 1) /* for BLF_width */
 		BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 	
-	but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr);
+	but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr, sizeof(but->drawstr));
 	but->ofs = 0;
 	
 
-	/* First shorten num-buttopns eg,
+	/* First shorten num-buttons eg,
 	 *   Translucency: 0.000
 	 * becomes
 	 *   Trans: 0.000
@@ -1095,7 +1174,7 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 			drawstr_len -= bytes;
 			// BLI_assert(strlen(but->drawstr) == drawstr_len);
 			
-			but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
+			but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, sizeof(but->drawstr) - but->ofs);
 			if (but->strwidth < 10) break;
 		}
 	
@@ -1103,7 +1182,7 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 		/* after the leading text is gone, chop off the : and following space, with ofs */
 		while ((but->strwidth > okwidth) && (but->ofs < 2)) {
 			ui_text_clip_give_next_off(but);
-			but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
+			but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, sizeof(but->drawstr) - but->ofs);
 			if (but->strwidth < 10) break;
 		}
 		
@@ -1112,37 +1191,30 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 
 	/* Now just remove trailing chars */
 	/* once the label's gone, chop off the least significant digits */
-	while (but->strwidth > okwidth) {
-		int bytes = BLI_str_utf8_size(BLI_str_find_prev_char_utf8(but->drawstr, but->drawstr + drawstr_len));
-		if (bytes < 0)
-			bytes = 1;
-
-		drawstr_len -= bytes;
+	if (but->strwidth > okwidth) {
+		float strwidth;
+		drawstr_len = BLF_width_to_strlen(fstyle->uifont_id, but->drawstr + but->ofs,
+		                                  drawstr_len - but->ofs, okwidth, &strwidth) + but->ofs;
+		but->strwidth = strwidth;
 		but->drawstr[drawstr_len] = 0;
-		// BLI_assert(strlen(but->drawstr) == drawstr_len);
-		
-		but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
-		if (but->strwidth < 10) break;
 	}
 	
 	if (fstyle->kerning == 1)
 		BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 }
 
-
 static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
-	//int transopts;  // UNUSED
-	char *cpoin = NULL;
-	
-	/* for underline drawing */
-	float font_xofs, font_yofs;
+	int drawstr_left_len = UI_MAX_DRAW_STR;
+	const char *drawstr = but->drawstr;
+	const char *drawstr_right = NULL;
+	bool use_right_only = false;
 
 	uiStyleFontSet(fstyle);
 	
-	if (but->editstr || (but->flag & UI_TEXT_LEFT))
+	if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT))
 		fstyle->align = UI_STYLE_TEXT_LEFT;
-	else if (but->flag & UI_TEXT_RIGHT)
+	else if (but->drawflag & UI_BUT_TEXT_RIGHT)
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
 	else
 		fstyle->align = UI_STYLE_TEXT_CENTER;
@@ -1150,9 +1222,21 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	if (fstyle->kerning == 1) /* for BLF_width */
 		BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 	
+
+	/* Special case: when we're entering text for multiple buttons,
+	 * don't draw the text for any of the multi-editing buttons */
+	if (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI)) {
+		uiBut *but_edit = ui_get_but_drag_multi_edit(but);
+		if (but_edit) {
+			drawstr = but_edit->editstr;
+			fstyle->align = UI_STYLE_TEXT_LEFT;
+		}
+	}
+
+
 	/* text button selection and cursor */
 	if (but->editstr && but->pos != -1) {
-		short t = 0, pos = 0, ch;
+		short t = 0, pos = 0;
 		short selsta_tmp, selend_tmp, selsta_draw, selwidth_draw;
 
 		if ((but->selend - but->selsta) > 0) {
@@ -1160,26 +1244,16 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			selsta_tmp = but->selsta;
 			selend_tmp = but->selend;
 			
-			if (but->drawstr[0] != 0) {
+			if (drawstr[0] != 0) {
 
 				if (but->selsta >= but->ofs) {
-					ch = but->drawstr[selsta_tmp];
-					but->drawstr[selsta_tmp] = 0;
-					
-					selsta_draw = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
-					
-					but->drawstr[selsta_tmp] = ch;
+					selsta_draw = BLF_width(fstyle->uifont_id, drawstr + but->ofs, selsta_tmp - but->ofs);
 				}
 				else {
 					selsta_draw = 0;
 				}
-				
-				ch = but->drawstr[selend_tmp];
-				but->drawstr[selend_tmp] = 0;
-				
-				selwidth_draw = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
-				
-				but->drawstr[selend_tmp] = ch;
+
+				selwidth_draw = BLF_width(fstyle->uifont_id, drawstr + but->ofs, selend_tmp - but->ofs);
 
 				glColor4ubv((unsigned char *)wcol->item);
 				glRects(rect->xmin + selsta_draw, rect->ymin + 2, rect->xmin + selwidth_draw, rect->ymax - 2);
@@ -1189,13 +1263,8 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			/* text cursor */
 			pos = but->pos;
 			if (pos >= but->ofs) {
-				if (but->drawstr[0] != 0) {
-					ch = but->drawstr[pos];
-					but->drawstr[pos] = 0;
-					
-					t = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs) / but->aspect;
-					
-					but->drawstr[pos] = ch;
+				if (drawstr[0] != 0) {
+					t = BLF_width(fstyle->uifont_id, drawstr + but->ofs, pos - but->ofs);
 				}
 
 				glColor3f(0.20, 0.6, 0.9);
@@ -1215,129 +1284,171 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	/* cut string in 2 parts - only for menu entries */
 	if ((but->block->flag & UI_BLOCK_LOOP)) {
 		if (ELEM3(but->type, NUM, TEX, NUMSLI) == 0) {
-			cpoin = strchr(but->drawstr, UI_SEP_CHAR);
-			if (cpoin) *cpoin = 0;
+			drawstr_right = strchr(drawstr, UI_SEP_CHAR);
+			if (drawstr_right) {
+				drawstr_left_len = (drawstr_right - drawstr);
+				drawstr_right++;
+			}
 		}
 	}
 	
+#ifdef USE_NUMBUTS_LR_ALIGN
+	if (!drawstr_right && ELEM(but->type, NUM, NUMSLI) &&
+	    /* if we're editing or multi-drag (fake editing), then use left alignment */
+	    (but->editstr == NULL) && (drawstr == but->drawstr))
+	{
+		drawstr_right = strchr(drawstr + but->ofs, ':');
+		if (drawstr_right) {
+			drawstr_right++;
+			drawstr_left_len = (drawstr_right - drawstr);
+
+			while (*drawstr_right == ' ') {
+				drawstr_right++;
+			}
+		}
+		else {
+			/* no prefix, even so use only cpoin */
+			drawstr_right = drawstr + but->ofs;
+			use_right_only = true;
+		}
+	}
+#endif
+
 	glColor4ubv((unsigned char *)wcol->text);
 
-	uiStyleFontDrawExt(fstyle, rect, but->drawstr + but->ofs, &font_xofs, &font_yofs);
+	if (!use_right_only) {
+		/* for underline drawing */
+		float font_xofs, font_yofs;
 
-	if (but->menu_key != '\0') {
-		char fixedbuf[128];
-		char *str;
+		uiStyleFontDrawExt(fstyle, rect, drawstr + but->ofs,
+		                   drawstr_left_len - but->ofs, &font_xofs, &font_yofs);
 
-		BLI_strncpy(fixedbuf, but->drawstr + but->ofs, sizeof(fixedbuf));
+		if (but->menu_key != '\0') {
+			char fixedbuf[128];
+			char *str;
 
-		str = strchr(fixedbuf, but->menu_key - 32); /* upper case */
-		if (str == NULL)
-			str = strchr(fixedbuf, but->menu_key);
+			BLI_strncpy(fixedbuf, drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawstr_left_len));
 
-		if (str) {
-			int ul_index = -1;
-			float ul_advance;
+			str = strchr(fixedbuf, but->menu_key - 32); /* upper case */
+			if (str == NULL)
+				str = strchr(fixedbuf, but->menu_key);
 
-			ul_index = (int)(str - fixedbuf);
+			if (str) {
+				int ul_index = -1;
+				float ul_advance;
 
-			if (fstyle->kerning == 1) {
-				BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-			}
+				ul_index = (int)(str - fixedbuf);
 
-			fixedbuf[ul_index] = '\0';
-			ul_advance = BLF_width(fstyle->uifont_id, fixedbuf);
+				if (fstyle->kerning == 1) {
+					BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+				}
 
-			BLF_position(fstyle->uifont_id, rect->xmin + font_xofs + ul_advance, rect->ymin + font_yofs, 0.0f);
-			BLF_draw(fstyle->uifont_id, "_", 2);
+				fixedbuf[ul_index] = '\0';
+				ul_advance = BLF_width(fstyle->uifont_id, fixedbuf, ul_index);
 
-			if (fstyle->kerning == 1) {
-				BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+				BLF_position(fstyle->uifont_id, rect->xmin + font_xofs + ul_advance, rect->ymin + font_yofs, 0.0f);
+				BLF_draw(fstyle->uifont_id, "_", 2);
+
+				if (fstyle->kerning == 1) {
+					BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+				}
 			}
 		}
 	}
 
 	/* part text right aligned */
-	if (cpoin) {
+	if (drawstr_right) {
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
-		rect->xmax -= ui_but_draw_menu_icon(but) ? UI_DPI_ICON_SIZE : 0.25f * U.widget_unit;
-		uiStyleFontDraw(fstyle, rect, cpoin + 1);
-		*cpoin = UI_SEP_CHAR;
+		rect->xmax -= UI_TEXT_CLIP_MARGIN;
+		uiStyleFontDraw(fstyle, rect, drawstr_right);
 	}
 }
 
 /* draws text and icons for buttons */
 static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
+	const bool show_menu_icon = ui_but_draw_menu_icon(but);
 	float alpha = (float)wcol->text[3] / 255.0f;
 	char password_str[UI_MAX_DRAW_STR];
 
-	if (but == NULL)
-		return;
-
-	ui_button_text_password_hide(password_str, but, FALSE);
-
-	/* clip but->drawstr to fit in available space */
-	if (but->editstr && but->pos >= 0) {
-		ui_text_clip_cursor(fstyle, but, rect);
-	}
-	else if (ELEM(but->type, NUM, NUMSLI)) {
-		ui_text_clip_right_label(fstyle, but, rect);
-	}
-	else if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
-		ui_text_clip_left(fstyle, but, rect);
-	}
-	else if ((but->block->flag & UI_BLOCK_LOOP) && (but->type == BUT)) {
-		ui_text_clip_left(fstyle, but, rect);
-	}
-	else {
-		but->ofs = 0;
-	}
+	ui_button_text_password_hide(password_str, but, false);
 
 	/* check for button text label */
 	if (but->type == MENU && (but->flag & UI_BUT_NODE_LINK)) {
-		int tmp = rect->xmin;
-		rect->xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
-		widget_draw_icon(but, ICON_LAYER_USED, alpha, rect);
-		rect->xmin = tmp;
+		rcti temp = *rect;
+		temp.xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
+		widget_draw_icon(but, ICON_LAYER_USED, alpha, &temp, false);
 	}
 
 	/* If there's an icon too (made with uiDefIconTextBut) then draw the icon
 	 * and offset the text label to accommodate it */
 
-	if (but->flag & UI_HAS_ICON) {
-		widget_draw_icon(but, but->icon + but->iconadd, alpha, rect);
-		
-		/* icons default draw 0.8f x height */
-		rect->xmin += (int)(0.8f * BLI_rcti_size_y(rect));
+	if (but->flag & UI_HAS_ICON || show_menu_icon) {
+		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
+		const float icon_size = ICON_SIZE_FROM_BUTRECT(rect);
 
-		if (but->editstr || (but->flag & UI_TEXT_LEFT)) {
-			rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
-		}
-		else if ((but->flag & UI_TEXT_RIGHT)) {
-			rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+		/* menu item - add some more padding so menus don't feel cramped. it must
+		 * be part of the button so that this area is still clickable */
+		if (ui_block_is_menu(but->block))
+			rect->xmin += 0.3f * U.widget_unit;
+
+		widget_draw_icon(but, icon, alpha, rect, show_menu_icon);
+
+		rect->xmin += icon_size;
+		/* without this menu keybindings will overlap the arrow icon [#38083] */
+		if (show_menu_icon) {
+			rect->xmax -= icon_size / 2.0f;
 		}
 	}
-	else if ((but->flag & UI_TEXT_LEFT)) {
+
+	if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
 		rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 	}
-	else if ((but->flag & UI_TEXT_RIGHT)) {
+	else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
 		rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 	}
-	
+
 	/* unlink icon for this button type */
-	if (but->type == SEARCH_MENU_UNLINK && !but->editstr && but->drawstr[0]) {
+	if ((but->type == SEARCH_MENU_UNLINK) && ui_is_but_search_unlink_visible(but)) {
 		rcti temp = *rect;
 
 		temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
-		widget_draw_icon(but, ICON_X, alpha, &temp);
+		widget_draw_icon(but, ICON_X, alpha, &temp, false);
+		rect->xmax -= ICON_SIZE_FROM_BUTRECT(rect);
+	}
+
+	/* clip but->drawstr to fit in available space */
+	if (but->editstr && but->pos >= 0) {
+		ui_text_clip_cursor(fstyle, but, rect);
+	}
+	else if (but->drawstr[0] == '\0') {
+		/* bypass text clipping on icon buttons */
+		but->ofs = 0;
+		but->strwidth = 0;
+	}
+	else if (ELEM(but->type, NUM, NUMSLI)) {
+		ui_text_clip_right_label(fstyle, but, rect);
+	}
+#if 0
+	/* Special hack for non-embossed TEX buttons in uiList (we want them to behave as much as possible as labels). */
+	else if ((but->type == TEX) && (but->flag & UI_BUT_LIST_ITEM) && (but->dt & UI_EMBOSSN)) {
+		but->ofs = 0;
+	}
+#endif
+	else if ((but->block->flag & UI_BLOCK_LOOP) && (but->type == BUT)) {
+		ui_text_clip_left(fstyle, but, rect);
+	}
+	else {
+		ui_text_clip_middle(fstyle, but, rect);
 	}
 
 	/* always draw text for textbutton cursor */
 	widget_draw_text(fstyle, wcol, but, rect);
 
-	ui_button_text_password_hide(password_str, but, TRUE);
+	ui_button_text_password_hide(password_str, but, true);
 }
 
+#undef UI_TEXT_CLIP_MARGIN
 
 
 /* *********************** widget types ************************************* */
@@ -1656,8 +1767,14 @@ static void widget_state(uiWidgetType *wt, int state)
 {
 	uiWidgetStateColors *wcol_state = wt->wcol_state;
 
+	if ((state & UI_BUT_LIST_ITEM) && !(state & UI_TEXTINPUT)) {
+		/* Override default widget's colors. */
+		bTheme *btheme = UI_GetTheme();
+		wt->wcol_theme = &btheme->tui.wcol_list_item;
+	}
+
 	wt->wcol = *(wt->wcol_theme);
-	
+
 	if (state & UI_SELECT) {
 		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
 
@@ -1692,6 +1809,12 @@ static void widget_state(uiWidgetType *wt, int state)
 		char red[4] = {255, 0, 0};
 		widget_state_blend(wt->wcol.inner, red, 0.4f);
 	}
+
+	if (state & UI_BUT_DRAG_MULTI) {
+		/* the button isn't SELECT but we're editing this so draw with sel color */
+		widget_state_blend(wt->wcol.inner, wt->wcol.inner_sel, 1.0f);
+	}
+
 	if (state & UI_BUT_NODE_ACTIVE) {
 		char blue[4] = {86, 128, 194};
 		widget_state_blend(wt->wcol.inner, blue, 0.3f);
@@ -1896,9 +2019,9 @@ void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rec
 	const float centy = BLI_rcti_cent_y_fl(rect);
 	const float radius = (float)min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)) / 2.0f;
 	const float m_delta[2] = {mx - centx, my - centy};
-	const float dist_squared = len_squared_v2(m_delta);
+	const float dist_sq = len_squared_v2(m_delta);
 
-	*val_dist = (dist_squared < (radius * radius)) ? sqrtf(dist_squared) / radius : 1.0f;
+	*val_dist = (dist_sq < (radius * radius)) ? sqrtf(dist_sq) / radius : 1.0f;
 	*val_rad = atan2f(m_delta[0], m_delta[1]) / (2.0f * (float)M_PI) + 0.5f;
 }
 
@@ -1913,7 +2036,7 @@ void ui_hsvcircle_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float 
 	
 	ang = 2.0f * (float)M_PI * hsv[0] + 0.5f * (float)M_PI;
 	
-	if (but->flag & UI_BUT_COLOR_CUBIC)
+	if ((but->flag & UI_BUT_COLOR_CUBIC) && (U.color_picker_type == USER_CP_CIRCLE_HSV))
 		radius_t = (1.0f - powf(1.0f - hsv[1], 3.0f));
 	else
 		radius_t = hsv[1];
@@ -1936,11 +2059,8 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	float xpos, ypos, ang = 0.0f;
 	float rgb[3], hsvo[3], hsv[3], col[3], colcent[3];
 	int a;
-	int color_profile = but->block->color_profile;
-	
-	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-		color_profile = FALSE;
-	
+	bool color_profile = ui_color_picker_use_display_colorspace(but);
+		
 	/* color */
 	ui_get_but_vectorf(but, rgb);
 
@@ -1949,21 +2069,26 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	hsvo[1] = hsv[1] = hsv_ptr[1];
 	hsvo[2] = hsv[2] = hsv_ptr[2];
 
-	rgb_to_hsv_compat_v(rgb, hsvo);
-
 	if (color_profile)
 		ui_block_to_display_space_v3(but->block, rgb);
 
-	rgb_to_hsv_compat_v(rgb, hsv);
-	
+	ui_rgb_to_color_picker_compat_v(rgb, hsv);
+	copy_v3_v3(hsvo, hsv);
+
+	CLAMP(hsv[2], 0.0f, 1.0f); /* for display only */
+
 	/* exception: if 'lock' is set
 	 * lock the value of the color wheel to 1.
 	 * Useful for color correction tools where you're only interested in hue. */
-	if (but->flag & UI_BUT_COLOR_LOCK)
-		hsv[2] = 1.f;
+	if (but->flag & UI_BUT_COLOR_LOCK) {
+		if(U.color_picker_type == USER_CP_CIRCLE_HSV)
+			hsv[2] = 1.f;
+		else
+			hsv[2] = 0.5f;
+	}
 	
-	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
-	
+	ui_color_picker_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
+
 	glShadeModel(GL_SMOOTH);
 
 	glBegin(GL_TRIANGLE_FAN);
@@ -1975,9 +2100,9 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 		float co = cos(ang);
 		
 		ui_hsvcircle_vals_from_pos(hsv, hsv + 1, rect, centx + co * radius, centy + si * radius);
-		CLAMP(hsv[2], 0.0f, 1.0f); /* for display only */
 
-		hsv_to_rgb_v(hsv, col);
+		ui_color_picker_to_rgb_v(hsv, col);
+
 		glColor3fv(col);
 		glVertex2f(centx + co * radius, centy + si * radius);
 	}
@@ -2004,10 +2129,11 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 /* ************ custom buttons, old stuff ************** */
 
-/* draws in resolution of 20x4 colors */
+/* draws in resolution of 48x4 colors */
 void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha)
 {
-	const float color_step = (type == UI_GRAD_H) ? 0.02f : 0.05f;
+	/* allows for 4 steps (red->yellow) */
+	const float color_step = (1.0 / 48.0);
 	int a;
 	float h = hsv[0], s = hsv[1], v = hsv[2];
 	float dx, dy, sx1, sx2, sy;
@@ -2066,6 +2192,8 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	/* old below */
 	
 	for (dx = 0.0f; dx < 0.999f; dx += color_step) { /* 0.999 = prevent float inaccuracy for steps */
+		const float dx_next = dx + color_step;
+
 		/* previous color */
 		copy_v3_v3(col0[0], col1[0]);
 		copy_v3_v3(col0[1], col1[1]);
@@ -2081,22 +2209,22 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 				hsv_to_rgb(h, 1.0, dx,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_HV:
-				hsv_to_rgb(dx, s, 0.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
-				hsv_to_rgb(dx, s, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
-				hsv_to_rgb(dx, s, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
-				hsv_to_rgb(dx, s, 1.0,   &col1[3][0], &col1[3][1], &col1[3][2]);
+				hsv_to_rgb(dx_next, s, 0.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, s, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
+				hsv_to_rgb(dx_next, s, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
+				hsv_to_rgb(dx_next, s, 1.0,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_HS:
-				hsv_to_rgb(dx, 0.0, v,   &col1[0][0], &col1[0][1], &col1[0][2]);
-				hsv_to_rgb(dx, 0.333, v, &col1[1][0], &col1[1][1], &col1[1][2]);
-				hsv_to_rgb(dx, 0.666, v, &col1[2][0], &col1[2][1], &col1[2][2]);
-				hsv_to_rgb(dx, 1.0, v,   &col1[3][0], &col1[3][1], &col1[3][2]);
+				hsv_to_rgb(dx_next, 0.0, v,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, 0.333, v, &col1[1][0], &col1[1][1], &col1[1][2]);
+				hsv_to_rgb(dx_next, 0.666, v, &col1[2][0], &col1[2][1], &col1[2][2]);
+				hsv_to_rgb(dx_next, 1.0, v,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_H:
 			{
 				/* annoying but without this the color shifts - could be solved some other way
 				 * - campbell */
-				hsv_to_rgb(dx + color_step, 1.0, 1.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, 1.0, 1.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
 				copy_v3_v3(col1[1], col1[0]);
 				copy_v3_v3(col1[2], col1[0]);
 				copy_v3_v3(col1[3], col1[0]);
@@ -2117,8 +2245,8 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		}
 		
 		/* rect */
-		sx1 = rect->xmin +  dx               * BLI_rcti_size_x(rect);
-		sx2 = rect->xmin + (dx + color_step) * BLI_rcti_size_x(rect);
+		sx1 = rect->xmin + dx      * BLI_rcti_size_x(rect);
+		sx2 = rect->xmin + dx_next * BLI_rcti_size_x(rect);
 		sy = rect->ymin;
 		dy = (float)BLI_rcti_size_y(rect) / 3.0f;
 		
@@ -2143,10 +2271,22 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	
 }
 
+bool ui_color_picker_use_display_colorspace(uiBut *but)
+{
+	bool color_profile = but->block->color_profile;
+
+	if (but->rnaprop) {
+		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
+			color_profile = false;
+	}
+
+	return color_profile;
+}
+
 void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp)
 {
-	float x, y;
-	
+	float x = 0.0f, y = 0.0f;
+
 	switch ((int)but->a1) {
 		case UI_GRAD_SV:
 			x = hsv[2]; y = hsv[1]; break;
@@ -2160,6 +2300,11 @@ void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *x
 			x = hsv[1]; y = 0.5; break;
 		case UI_GRAD_V:
 			x = hsv[2]; y = 0.5; break;
+		case UI_GRAD_L_ALT:
+			x = 0.5f;
+			/* exception only for value strip - use the range set in but->min/max */
+			y = hsv[2];
+			break;
 		case UI_GRAD_V_ALT:
 			x = 0.5f;
 			/* exception only for value strip - use the range set in but->min/max */
@@ -2179,16 +2324,13 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 	float x = 0.0f, y = 0.0f;
 	float *hsv = ui_block_hsv_get(but->block);
 	float hsv_n[3];
-	int color_profile = but->block->color_profile;
-	
-	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-		color_profile = FALSE;
+	bool use_display_colorspace = ui_color_picker_use_display_colorspace(but);
 	
 	copy_v3_v3(hsv_n, hsv);
 	
 	ui_get_but_vectorf(but, rgb);
 	
-	if (color_profile && (int)but->a1 != UI_GRAD_SV)
+	if (use_display_colorspace)
 		ui_block_to_display_space_v3(but->block, rgb);
 	
 	rgb_to_hsv_compat_v(rgb, hsv_n);
@@ -2212,24 +2354,29 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 	uiWidgetBase wtb;
 	const float rad = 0.5f * BLI_rcti_size_x(rect);
 	float x, y;
-	float rgb[3], hsv[3], v, range;
-	int color_profile = but->block->color_profile;
+	float rgb[3], hsv[3], v;
+	bool color_profile = but->block->color_profile;
 	
 	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-		color_profile = FALSE;
+		color_profile = false;
 
 	ui_get_but_vectorf(but, rgb);
 
 	if (color_profile)
 		ui_block_to_display_space_v3(but->block, rgb);
 
-	rgb_to_hsv_v(rgb, hsv);
+	if (but->a1 == UI_GRAD_L_ALT)
+		rgb_to_hsl_v(rgb, hsv);
+	else
+		rgb_to_hsv_v(rgb, hsv);
 	v = hsv[2];
 	
 	/* map v from property range to [0,1] */
-	range = but->softmax - but->softmin;
-	v = (v - but->softmin) / range;
-	
+	if (but->a1 == UI_GRAD_V_ALT) {
+		float range = but->softmax - but->softmin;
+		v = (v - but->softmin) / range;
+	}
+
 	widget_init(&wtb);
 	
 	/* fully rounded */
@@ -2263,7 +2410,7 @@ static void ui_draw_separator(const rcti *rect,  uiWidgetColors *wcol)
 	col[0] = wcol->text[0];
 	col[1] = wcol->text[1];
 	col[2] = wcol->text[2];
-	col[3] = 7;
+	col[3] = 30;
 	
 	glEnable(GL_BLEND);
 	glColor4ubv(col);
@@ -2276,7 +2423,7 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 {
 	uiWidgetBase wtb;
 	const float rad = 0.5f * BLI_rcti_size_y(rect);
-	float textofs = rad * 0.75f;
+	float textofs = rad * 0.85f;
 
 	if (state & UI_SELECT)
 		SWAP(short, wcol->shadetop, wcol->shadedown);
@@ -2295,9 +2442,11 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 
 	widgetbase_draw(&wtb, wcol);
 	
-	/* text space */
-	rect->xmin += textofs;
-	rect->xmax -= textofs;
+	if (!(state & UI_TEXTINPUT)) {
+		/* text space */
+		rect->xmin += textofs;
+		rect->xmax -= textofs;
+	}
 }
 
 static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
@@ -2305,9 +2454,9 @@ static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int round
 	widget_numbut_draw(wcol, rect, state, roundboxalign, false);
 }
 
-/*
+/**
  * Draw number buttons still with triangles when field is not embossed
-*/
+ */
 static void widget_numbut_embossn(uiBut *UNUSED(but), uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	widget_numbut_draw(wcol, rect, state, roundboxalign, true);
@@ -2322,7 +2471,7 @@ int ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
 	vec[3][0] = rect->xmax;
 	vec[3][1] = rect->ymax;
 	
-	dist = 0.5f * ABS(vec[0][0] - vec[3][0]);
+	dist = 0.5f * fabsf(vec[0][0] - vec[3][0]);
 	
 	vec[1][0] = vec[0][0] + dist;
 	vec[1][1] = vec[0][1];
@@ -2565,6 +2714,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	
 	/* draw left/right parts only when not in text editing */
 	if (!(state & UI_TEXTINPUT)) {
+		int roundboxalign_slider;
 		
 		/* slider part */
 		copy_v3_v3_char(outline, wcol->outline);
@@ -2589,11 +2739,15 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 		rect1.xmax = rect1.xmin + fac + offs;
 		rect1.xmin +=  floor(offs - U.pixelsize);
 		
-		if (rect1.xmax + offs > rect->xmax)
+		if (rect1.xmax + offs > rect->xmax) {
+			roundboxalign_slider = roundboxalign & ~(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
 			offs *= (rect1.xmax + offs - rect->xmax) / offs;
-		else 
+		}
+		else {
+			roundboxalign_slider = 0;
 			offs = 0.0f;
-		round_box_edges(&wtb1, roundboxalign & ~(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT), &rect1, offs);
+		}
+		round_box_edges(&wtb1, roundboxalign_slider, &rect1, offs);
 		
 		widgetbase_draw(&wtb1, wcol);
 		copy_v3_v3_char(wcol->outline, outline);
@@ -2606,10 +2760,13 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	wtb.outline = 1;
 	wtb.inner = 0;
 	widgetbase_draw(&wtb, wcol);
-	
-	/* text space */
-	rect->xmin += toffs;
-	rect->xmax -= toffs;
+
+	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
+	if (!(state & UI_TEXTINPUT)) {
+		rect->xmax -= toffs;
+		rect->xmin += toffs;
+	}
+
 }
 
 /* I think 3 is sufficient border to indicate keyed status */
@@ -2619,7 +2776,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 {
 	uiWidgetBase wtb;
 	float rad, col[4];
-	int color_profile = but->block->color_profile;
+	bool color_profile = but->block->color_profile;
 	
 	col[3] = 1.0f;
 
@@ -2627,7 +2784,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		BLI_assert(but->rnaindex == -1);
 
 		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-			color_profile = FALSE;
+			color_profile = false;
 
 		if (RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4) {
 			col[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
@@ -2761,12 +2918,12 @@ static void widget_menunodebut(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 	rad = 0.2f * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 
-	wcol->inner[0] += 15;
-	wcol->inner[1] += 15;
-	wcol->inner[2] += 15;
-	wcol->outline[0] += 15;
-	wcol->outline[1] += 15;
-	wcol->outline[2] += 15;
+	wcol->inner[0] = min_ii(wcol->inner[0] + 15, 255);
+	wcol->inner[1] = min_ii(wcol->inner[1] + 15, 255);
+	wcol->inner[2] = min_ii(wcol->inner[2] + 15, 255);
+	wcol->outline[0] = min_ii(wcol->outline[0] + 15, 255);
+	wcol->outline[1] = min_ii(wcol->outline[1] + 15, 255);
+	wcol->outline[2] = min_ii(wcol->outline[2] + 15, 255);
 	
 	/* decoration */
 	widgetbase_draw(&wtb, wcol);
@@ -2853,12 +3010,21 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 /* labels use Editor theme colors for text */
 static void widget_state_label(uiWidgetType *wt, int state)
 {
-	/* call this for option button */
-	widget_state(wt, state);
-	if (state & UI_SELECT)
-		UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
-	else
-		UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
+	if (state & UI_BUT_LIST_ITEM) {
+		/* Override default label theme's colors. */
+		bTheme *btheme = UI_GetTheme();
+		wt->wcol_theme = &btheme->tui.wcol_list_item;
+		/* call this for option button */
+		widget_state(wt, state);
+	}
+	else {
+		/* call this for option button */
+		widget_state(wt, state);
+		if (state & UI_SELECT)
+			UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
+		else
+			UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
+	}
 }
 
 static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
@@ -2978,11 +3144,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_REGULAR:
 			break;
 
-		case UI_WTYPE_LISTLABEL:
-			wt.wcol_theme = &btheme->tui.wcol_list_item;
-			wt.draw = NULL;
-			/* Can't use usual label code. */
-			break;
 		case UI_WTYPE_LABEL:
 			wt.draw = NULL;
 			wt.state = widget_state_label;
@@ -3126,15 +3287,15 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
 	int roundbox = UI_CNR_ALL;
 
 	/* alignment */
-	if ((but->flag & UI_BUT_ALIGN) && but->type != PULLDOWN) {
+	if ((but->drawflag & UI_BUT_ALIGN) && but->type != PULLDOWN) {
 		
 		/* ui_block_position has this correction too, keep in sync */
-		if (but->flag & UI_BUT_ALIGN_TOP)
+		if (but->drawflag & UI_BUT_ALIGN_TOP)
 			rect->ymax += U.pixelsize;
-		if (but->flag & UI_BUT_ALIGN_LEFT)
+		if (but->drawflag & UI_BUT_ALIGN_LEFT)
 			rect->xmin -= U.pixelsize;
 		
-		switch (but->flag & UI_BUT_ALIGN) {
+		switch (but->drawflag & UI_BUT_ALIGN) {
 			case UI_BUT_ALIGN_TOP:
 				roundbox = UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT;
 				break;
@@ -3209,7 +3370,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			case LABEL:
 				widget_draw_text_icon(&style->widgetlabel, &tui->wcol_menu_back, but, rect);
 				break;
-			case SEPR:
+			case SEPRLINE:
 				ui_draw_separator(rect, &tui->wcol_menu_item);
 				break;
 			default:
@@ -3232,13 +3393,9 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 					fstyle = &style->widgetlabel;
 				}
 				break;
-				
-			case LISTLABEL:
-				wt = widget_type(UI_WTYPE_LISTLABEL);
-				fstyle = &style->widgetlabel;
-				break;
 
 			case SEPR:
+			case SEPRLINE:
 				break;
 				
 			case BUT:
@@ -3282,7 +3439,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			case OPTIONN:
 				if (!(but->flag & UI_HAS_ICON)) {
 					wt = widget_type(UI_WTYPE_OPTION);
-					but->flag |= UI_TEXT_LEFT;
+					but->drawflag |= UI_BUT_TEXT_LEFT;
 				}
 				else
 					wt = widget_type(UI_WTYPE_TOGGLE);
@@ -3295,20 +3452,26 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				
 			case MENU:
 			case BLOCK:
-				/* new node-link button, not active yet XXX */
-				if (but->flag & UI_BUT_NODE_LINK)
+				if (but->flag & UI_BUT_NODE_LINK) {
+					/* new node-link button, not active yet XXX */
 					wt = widget_type(UI_WTYPE_MENU_NODE_LINK);
-
-				/* no text, with icon */
-				else if (!but->str[0] && but->icon) {
-					if (but->drawflag & UI_BUT_DRAW_ENUM_ARROWS)
-						wt = widget_type(UI_WTYPE_MENU_RADIO);  /* with arrows */
-					else
-						wt = widget_type(UI_WTYPE_MENU_ICON_RADIO);  /* no arrows */
 				}
-				/* with menu arrows */
-				else
-					wt = widget_type(UI_WTYPE_MENU_RADIO);
+				else {
+					/* with menu arrows */
+
+					/* we could use a flag for this, but for now just check size,
+					 * add updown arrows if there is room. */
+					if ((!but->str[0] && but->icon && (BLI_rcti_size_x(rect) < BLI_rcti_size_y(rect) + 2)) ||
+					    /* disable for brushes also */
+					    (but->flag & UI_ICON_PREVIEW))
+					{
+						/* no arrows */
+						wt = widget_type(UI_WTYPE_MENU_ICON_RADIO);
+					}
+					else {
+						wt = widget_type(UI_WTYPE_MENU_RADIO);
+					}
+				}
 				break;
 				
 			case PULLDOWN:
@@ -3340,7 +3503,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case HSVCUBE:
-				if (but->a1 == UI_GRAD_V_ALT) {  /* vertical V slider, uses new widget draw now */
+				if (ELEM(but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {  /* vertical V slider, uses new widget draw now */
 					ui_draw_but_HSV_v(but, rect);
 				}
 				else {  /* other HSV pickers... */
@@ -3411,8 +3574,13 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		roundboxalign = widget_roundbox_set(but, rect);
 
 		state = but->flag;
-		if (but->editstr) state |= UI_TEXTINPUT;
-		
+
+		if ((but->editstr) ||
+		    (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI) && ui_get_but_drag_multi_edit(but)))
+		{
+			state |= UI_TEXTINPUT;
+		}
+
 		if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE))
 			if (but->dt != UI_EMBOSSP)
 				disabled = true;
@@ -3499,7 +3667,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
 	rcti _rect = *rect;
-	char *cpoin;
+	char *cpoin = NULL;
 
 	wt->state(wt, state);
 	wt->draw(&wt->wcol, rect, 0, 0);
@@ -3516,13 +3684,35 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		cpoin = strchr(name, UI_SEP_CHAR);
 		if (cpoin) {
 			*cpoin = 0;
-			rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1) + 10;
+
+			/* need to set this first */
+			uiStyleFontSet(fstyle);
+
+			if (fstyle->kerning == 1) { /* for BLF_width */
+				BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+			}
+
+			rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1, INT_MAX) + UI_DPI_ICON_SIZE;
+
+			if (fstyle->kerning == 1) {
+				BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+			}
 		}
 	}
-	
-	glColor4ubv((unsigned char *)wt->wcol.text);
-	uiStyleFontDraw(fstyle, rect, name);
-	
+
+	{
+		char drawstr[UI_MAX_DRAW_STR];
+		const float okwidth = (float)BLI_rcti_size_x(rect);
+		const size_t max_len = sizeof(drawstr);
+		const float minwidth = (float)(UI_DPI_ICON_SIZE);
+
+		BLI_strncpy(drawstr, name, sizeof(drawstr));
+		ui_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len);
+
+		glColor4ubv((unsigned char *)wt->wcol.text);
+		uiStyleFontDraw(fstyle, rect, drawstr);
+	}
+
 	/* part text right aligned */
 	if (use_sep) {
 		if (cpoin) {
@@ -3540,9 +3730,8 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		float height, aspect;
 		int xs = rect->xmin + 0.2f * UI_UNIT_X;
 		int ys = rect->ymin + 0.1f * BLI_rcti_size_y(rect);
-		
-		/* icons are 80% of height of button (16 pixels inside 20 height) */
-		height = 0.8f * BLI_rcti_size_y(rect);
+
+		height = ICON_SIZE_FROM_BUTRECT(rect);
 		aspect = ICON_DEFAULT_HEIGHT / height;
 		
 		glEnable(GL_BLEND);
@@ -3562,7 +3751,7 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	
 	widget_draw_preview(iconid, 1.0f, rect);
 	
-	BLF_width_and_height(fstyle->uifont_id, name, &font_dims[0], &font_dims[1]);
+	BLF_width_and_height(fstyle->uifont_id, name, BLF_DRAW_STR_DUMMY_MAX, &font_dims[0], &font_dims[1]);
 
 	/* text rect */
 	trect.xmin += 0;
@@ -3585,8 +3774,17 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	glEnable(GL_BLEND);
 	glRecti(bg_rect.xmin, bg_rect.ymin, bg_rect.xmax, bg_rect.ymax);
 	glDisable(GL_BLEND);
-	
-	glColor3ubv((unsigned char *)wt->wcol.text);
 
-	uiStyleFontDraw(fstyle, &trect, name);
+	{
+		char drawstr[UI_MAX_DRAW_STR];
+		const float okwidth = (float)BLI_rcti_size_x(&trect);
+		const size_t max_len = sizeof(drawstr);
+		const float minwidth = (float)(UI_DPI_ICON_SIZE);
+
+		BLI_strncpy(drawstr, name, sizeof(drawstr));
+		ui_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len);
+
+		glColor4ubv((unsigned char *)wt->wcol.text);
+		uiStyleFontDraw(fstyle, &trect, drawstr);
+	}
 }

@@ -26,6 +26,9 @@
 
 /** \file blender/blenfont/intern/blf_translation.c
  *  \ingroup blf
+ *
+ * Manages translation files and provides translation functions.
+ * (which are optional and can be disabled as a preference).
  */
 
 #include <stdlib.h>
@@ -55,7 +58,7 @@ static unsigned char *unifont_mono_ttf = NULL;
 static int unifont_mono_size = 0;
 #endif  /* WITH_INTERNATIONAL */
 
-unsigned char *BLF_get_unifont(int *unifont_size_r)
+unsigned char *BLF_get_unifont(int *r_unifont_size)
 {
 #ifdef WITH_INTERNATIONAL
 	if (unifont_ttf == NULL) {
@@ -72,11 +75,11 @@ unsigned char *BLF_get_unifont(int *unifont_size_r)
 		}
 	}
 
-	*unifont_size_r = unifont_size;
+	*r_unifont_size = unifont_size;
 
 	return unifont_ttf;
 #else
-	(void)unifont_size_r;
+	(void)r_unifont_size;
 	return NULL;
 #endif
 }
@@ -90,7 +93,7 @@ void BLF_free_unifont(void)
 #endif
 }
 
-unsigned char *BLF_get_unifont_mono(int *unifont_size_r)
+unsigned char *BLF_get_unifont_mono(int *r_unifont_size)
 {
 #ifdef WITH_INTERNATIONAL
 	if (unifont_mono_ttf == NULL) {
@@ -107,11 +110,11 @@ unsigned char *BLF_get_unifont_mono(int *unifont_size_r)
 		}
 	}
 
-	*unifont_size_r = unifont_mono_size;
+	*r_unifont_size = unifont_mono_size;
 
 	return unifont_mono_ttf;
 #else
-	(void)unifont_size_r;
+	(void)r_unifont_size;
 	return NULL;
 #endif
 }

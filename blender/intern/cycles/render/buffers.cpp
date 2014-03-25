@@ -99,7 +99,7 @@ RenderTile::RenderTile()
 
 RenderBuffers::RenderBuffers(Device *device_)
 {
-  device = device_;
+	device = device_;
 }
 
 RenderBuffers::~RenderBuffers()
@@ -182,6 +182,12 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
 					float f = *in;
 					pixels[0] = (f == 0.0f)? 1e10f: f*scale_exposure;
+				}
+			}
+			else if(type == PASS_MIST) {
+				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+					float f = *in;
+					pixels[0] = clamp(f*scale_exposure, 0.0f, 1.0f);
 				}
 			}
 			else {

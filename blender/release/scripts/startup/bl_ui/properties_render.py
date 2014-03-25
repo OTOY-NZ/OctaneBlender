@@ -67,9 +67,14 @@ class RENDER_PT_render(RenderButtonsPanel, Panel):
         row = layout.row(align=True)
         row.operator("render.render", text="Render", icon='RENDER_STILL')
         row.operator("render.render", text="Animation", icon='RENDER_ANIMATION').animation = True
-        row.operator("render.play_rendered_anim", text="Play", icon='PLAY')
+        row.operator("sound.mixdown", text="Audio", icon='PLAY_AUDIO')
 
-        layout.prop(rd, "display_mode", text="Display")
+        split = layout.split(percentage=0.33)
+
+        split.label(text="Display:")
+        row = split.row(align=True)
+        row.prop(rd, "display_mode", text="")
+        row.prop(rd, "use_lock_interface", icon_only=True)
 
 
 class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
@@ -395,10 +400,7 @@ class RENDER_PT_output(RenderButtonsPanel, Panel):
 
         layout.template_image_settings(image_settings, color_management=False)
 
-        if file_format == 'QUICKTIME_CARBON':
-            layout.operator("scene.render_data_set_quicktime_codec")
-
-        elif file_format == 'QUICKTIME_QTKIT':
+        if file_format == 'QUICKTIME':
             quicktime = rd.quicktime
 
             split = layout.split()
@@ -501,7 +503,7 @@ class RENDER_PT_bake(RenderButtonsPanel, Panel):
         layout.prop(rd, "bake_type")
 
         multires_bake = False
-        if rd.bake_type in ['NORMALS', 'DISPLACEMENT', 'AO']:
+        if rd.bake_type in ['NORMALS', 'DISPLACEMENT', 'DERIVATIVE', 'AO']:
             layout.prop(rd, "use_bake_multires")
             multires_bake = rd.use_bake_multires
 
@@ -542,10 +544,19 @@ class RENDER_PT_bake(RenderButtonsPanel, Panel):
             if rd.bake_type == 'DISPLACEMENT':
                 col = split.column()
                 col.prop(rd, "use_bake_lores_mesh")
+
             if rd.bake_type == 'AO':
                 col = split.column()
                 col.prop(rd, "bake_bias")
                 col.prop(rd, "bake_samples")
+
+        if rd.bake_type == 'DERIVATIVE':
+            row = layout.row()
+            row.prop(rd, "use_bake_user_scale", text="")
+
+            sub = row.column()
+            sub.active = rd.use_bake_user_scale
+            sub.prop(rd, "bake_user_scale", text="User Scale")
 
 
 if __name__ == "__main__":  # only for live edit.

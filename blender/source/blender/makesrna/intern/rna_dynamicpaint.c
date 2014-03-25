@@ -157,7 +157,7 @@ static void rna_DynamicPaintSurfaces_changeFormat(Main *bmain, Scene *scene, Poi
 	rna_DynamicPaintSurface_reset(bmain, scene, ptr);
 }
 
-static void rna_DynamicPaint_resetDependancy(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_DynamicPaint_reset_dependency(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_DynamicPaintSurface_reset(bmain, scene, ptr);
 	DAG_relations_tag_update(bmain);
@@ -246,7 +246,7 @@ static int rna_DynamicPaint_is_output_exists(DynamicPaintSurface *surface, Objec
 
 
 static EnumPropertyItem *rna_DynamicPaint_surface_type_itemf(
-        bContext *UNUSED(C), PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *free)
+        bContext *UNUSED(C), PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 
@@ -291,7 +291,7 @@ static EnumPropertyItem *rna_DynamicPaint_surface_type_itemf(
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -427,7 +427,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Group");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Brush Group", "Only use brush objects from this group");
-	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_DynamicPaint_resetDependancy");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_DynamicPaint_reset_dependency");
 
 
 	/*
@@ -470,7 +470,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "start_frame");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 1.0, 9999.0);
+	RNA_def_property_range(prop, 1.0, MAXFRAMEF);
 	RNA_def_property_ui_range(prop, 1.0, 9999, 1, -1);
 	RNA_def_property_ui_text(prop, "Start Frame", "Simulation start frame");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_DynamicPaintSurfaces_updateFrames");
@@ -478,7 +478,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "end_frame");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 1.0, 9999.0);
+	RNA_def_property_range(prop, 1.0, MAXFRAMEF);
 	RNA_def_property_ui_range(prop, 1.0, 9999.0, 1, -1);
 	RNA_def_property_ui_text(prop, "End Frame", "Simulation end frame");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_DynamicPaintSurfaces_updateFrames");
@@ -965,7 +965,7 @@ static void rna_def_dynamic_paint_brush_settings(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "ParticleSystem");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Particle Systems", "The particle system to paint with");
-	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_DynamicPaint_resetDependancy");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_DynamicPaint_reset_dependency");
 
 	
 	prop = RNA_def_property(srna, "use_particle_radius", PROP_BOOLEAN, PROP_NONE);

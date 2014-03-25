@@ -41,11 +41,12 @@ class CyclesButtonsPanel():
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "render"
+    COMPAT_ENGINES = {'CYCLES'}
 
     @classmethod
     def poll(cls, context):
         rd = context.scene.render
-        return rd.engine == 'CYCLES'
+        return rd.engine in cls.COMPAT_ENGINES
 
 
 def draw_samples_info(layout, cscene):
@@ -64,6 +65,7 @@ def draw_samples_info(layout, cscene):
         ao = cscene.ao_samples
         ml = cscene.mesh_light_samples
         sss = cscene.subsurface_samples
+        vol = cscene.volume_samples
 
         if cscene.use_square_samples:
             aa = aa * aa
@@ -73,6 +75,7 @@ def draw_samples_info(layout, cscene):
             ao = ao * ao
             ml = ml * ml
             sss = sss * sss
+            vol = vol * vol
 
     # Draw interface
     # Do not draw for progressive, when Square Samples are disabled
@@ -87,8 +90,8 @@ def draw_samples_info(layout, cscene):
             col.label("%s AA, %s Diffuse, %s Glossy, %s Transmission" %
                       (aa, d * aa, g * aa, t * aa))
             col.separator()
-            col.label("%s AO, %s Mesh Light, %s Subsurface" %
-                      (ao * aa, ml * aa, sss * aa))
+            col.label("%s AO, %s Mesh Light, %s Subsurface, %s Volume" %
+                      (ao * aa, ml * aa, sss * aa, vol * aa))
 
 
 class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
@@ -117,7 +120,8 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.label("Settings:")
         sub.prop(cscene, "seed")
-        sub.prop(cscene, "sample_clamp")
+        sub.prop(cscene, "sample_clamp_direct")
+        sub.prop(cscene, "sample_clamp_indirect")
 
         if cscene.progressive == 'PATH':
             col = split.column()
@@ -129,6 +133,9 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.label(text="AA Samples:")
             sub.prop(cscene, "aa_samples", text="Render")
             sub.prop(cscene, "preview_aa_samples", text="Preview")
+            sub.separator()
+            sub.prop(cscene, "sample_all_lights_direct")
+            sub.prop(cscene, "sample_all_lights_indirect")
 
             col = split.column()
             sub = col.column(align=True)
@@ -139,6 +146,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.prop(cscene, "ao_samples", text="AO")
             sub.prop(cscene, "mesh_light_samples", text="Mesh Light")
             sub.prop(cscene, "subsurface_samples", text="Subsurface")
+            sub.prop(cscene, "volume_samples", text="Volume")
 
         if cscene.feature_set == 'EXPERIMENTAL' and (device_type == 'NONE' or cscene.device == 'CPU'):
             layout.row().prop(cscene, "sampling_pattern", text="Pattern")
@@ -150,6 +158,28 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
                 break
 
         draw_samples_info(layout, cscene)
+
+
+class CyclesRender_PT_volume_sampling(CyclesButtonsPanel, Panel):
+    bl_label = "Volume Sampling"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        cscene = scene.cycles
+
+        split = layout.split(align=True)
+
+        sub = split.column(align=True)
+        sub.label("Heterogeneous:")
+        sub.prop(cscene, "volume_step_size")
+        sub.prop(cscene, "volume_max_steps")
+
+        sub = split.column(align=True)
+        sub.label("Homogeneous:")
+        sub.prop(cscene, "volume_homogeneous_sampling", text="")
 
 
 class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
@@ -193,6 +223,7 @@ class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "diffuse_bounces", text="Diffuse")
         sub.prop(cscene, "glossy_bounces", text="Glossy")
         sub.prop(cscene, "transmission_bounces", text="Transmission")
+        sub.prop(cscene, "volume_bounces", text="Volume")
 
 
 class CyclesRender_PT_motion_blur(CyclesButtonsPanel, Panel):
@@ -289,53 +320,6 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         col.prop(cscene, "debug_use_spatial_splits")
 
 
-class CyclesRender_PT_opengl(CyclesButtonsPanel, Panel):
-    bl_label = "OpenGL Render"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        rd = context.scene.render
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(rd, "use_antialiasing")
-        sub = col.row()
-        sub.active = rd.use_antialiasing
-        sub.prop(rd, "antialiasing_samples", expand=True)
-
-        col = split.column()
-        col.label(text="Alpha:")
-        col.prop(rd, "alpha_mode", text="")
-
-
-class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
-    bl_label = "Layer List"
-    bl_context = "render_layer"
-    bl_options = {'HIDE_HEADER'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        rl = rd.layers.active
-
-        row = layout.row()
-        row.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
-
-        col = row.column(align=True)
-        col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
-        col.operator("scene.render_layer_remove", icon='ZOOMOUT', text="")
-
-        row = layout.row()
-        if rl:
-            row.prop(rl, "name")
-        row.prop(rd, "use_single_layer", text="", icon_only=True)
-
-
 class CyclesRender_PT_layer_options(CyclesButtonsPanel, Panel):
     bl_label = "Layer"
     bl_context = "render_layer"
@@ -397,6 +381,8 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.separator()
         col.prop(rl, "use_pass_shadow")
         col.prop(rl, "use_pass_ambient_occlusion")
+        col.separator()
+        col.prop(rl, "pass_alpha_threshold")
 
         col = split.column()
         col.label(text="Diffuse:")
@@ -503,7 +489,7 @@ class Cycles_PT_context_material(CyclesButtonsPanel, Panel):
         if ob:
             row = layout.row()
 
-            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=1)
 
             col = row.column(align=True)
             col.operator("object.material_slot_add", icon='ZOOMIN', text="")
@@ -805,15 +791,16 @@ class CyclesWorld_PT_volume(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        # world = context.world
-        # world and world.node_tree and CyclesButtonsPanel.poll(context)
-        return False
+        world = context.world
+        return world and world.node_tree and CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         layout = self.layout
 
         world = context.world
         panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Volume')
+
+        layout.prop(world.cycles, "homogeneous_volume")
 
 
 class CyclesWorld_PT_ambient_occlusion(CyclesButtonsPanel, Panel):
@@ -951,9 +938,8 @@ class CyclesMaterial_PT_volume(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        # mat = context.material
-        # mat and mat.node_tree and CyclesButtonsPanel.poll(context)
-        return False
+        mat = context.material
+        return mat and mat.node_tree and CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         layout = self.layout
@@ -999,8 +985,9 @@ class CyclesMaterial_PT_settings(CyclesButtonsPanel, Panel):
 
         split = layout.split()
 
-        col = split.column()
+        col = split.column(align=True)
         col.prop(mat, "diffuse_color", text="Viewport Color")
+        col.prop(mat, "alpha")
 
         col = split.column(align=True)
         col.label()
@@ -1197,13 +1184,12 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
         layout.prop(ccscene, "primitive", text="Primitive")
         layout.prop(ccscene, "shape", text="Shape")
 
-        if ccscene.primitive == 'TRIANGLES':
-            if ccscene.shape == 'THICK':
-                layout.prop(ccscene, "resolution", text="Resolution")
-        elif ccscene.primitive == 'LINE_SEGMENTS':
+        if not (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS'):
             layout.prop(ccscene, "cull_backfacing", text="Cull back-faces")
-        elif ccscene.primitive in {'CURVE_SEGMENTS', 'CURVE_RIBBONS'}:
-            layout.prop(ccscene, "cull_backfacing", text="Cull back-faces")
+
+        if ccscene.primitive == 'TRIANGLES' and ccscene.shape == 'THICK':
+            layout.prop(ccscene, "resolution", text="Resolution")
+        elif ccscene.primitive == 'CURVE_SEGMENTS':
             layout.prop(ccscene, "subdivisions", text="Curve subdivisions")
 
         row = layout.row()
@@ -1275,9 +1261,7 @@ def draw_device(self, context):
         layout.prop(cscene, "feature_set")
 
         device_type = context.user_preferences.system.compute_device_type
-        if device_type == 'CUDA':
-            layout.prop(cscene, "device")
-        elif device_type == 'OPENCL':
+        if device_type in {'CUDA', 'OPENCL', 'NETWORK'}:
             layout.prop(cscene, "device")
 
         if engine.with_osl() and (cscene.device == 'CPU' or device_type == 'NONE'):
@@ -1300,89 +1284,92 @@ def draw_pause(self, context):
 
 def get_panels():
     types = bpy.types
-    return (
-        types.RENDER_PT_render,
-        types.RENDER_PT_output,
-        types.RENDER_PT_encoding,
-        types.RENDER_PT_dimensions,
-        types.RENDER_PT_stamp,
-        types.SCENE_PT_scene,
-        types.SCENE_PT_color_management,
-        types.SCENE_PT_custom_props,
-        types.SCENE_PT_audio,
-        types.SCENE_PT_unit,
-        types.SCENE_PT_keying_sets,
-        types.SCENE_PT_keying_set_paths,
-        types.SCENE_PT_physics,
-        types.WORLD_PT_context_world,
-        types.WORLD_PT_custom_props,
-        types.DATA_PT_context_mesh,
-        types.DATA_PT_context_camera,
-        types.DATA_PT_context_lamp,
-        types.DATA_PT_context_speaker,
-        types.DATA_PT_texture_space,
-        types.DATA_PT_curve_texture_space,
-        types.DATA_PT_mball_texture_space,
-        types.DATA_PT_vertex_groups,
-        types.DATA_PT_shape_keys,
-        types.DATA_PT_uv_texture,
-        types.DATA_PT_vertex_colors,
-        types.DATA_PT_camera,
-        types.DATA_PT_camera_display,
-        types.DATA_PT_lens,
-        types.DATA_PT_speaker,
-        types.DATA_PT_distance,
-        types.DATA_PT_cone,
-        types.DATA_PT_customdata,
-        types.DATA_PT_custom_props_mesh,
-        types.DATA_PT_custom_props_camera,
-        types.DATA_PT_custom_props_lamp,
-        types.DATA_PT_custom_props_speaker,
-        types.DATA_PT_custom_props_arm,
-        types.DATA_PT_custom_props_curve,
-        types.DATA_PT_custom_props_lattice,
-        types.DATA_PT_custom_props_metaball,
-        types.TEXTURE_PT_custom_props,
-        types.TEXTURE_PT_clouds,
-        types.TEXTURE_PT_wood,
-        types.TEXTURE_PT_marble,
-        types.TEXTURE_PT_magic,
-        types.TEXTURE_PT_blend,
-        types.TEXTURE_PT_stucci,
-        types.TEXTURE_PT_image,
-        types.TEXTURE_PT_image_sampling,
-        types.TEXTURE_PT_image_mapping,
-        types.TEXTURE_PT_musgrave,
-        types.TEXTURE_PT_voronoi,
-        types.TEXTURE_PT_distortednoise,
-        types.TEXTURE_PT_voxeldata,
-        types.TEXTURE_PT_pointdensity,
-        types.TEXTURE_PT_pointdensity_turbulence,
-        types.TEXTURE_PT_mapping,
-        types.TEXTURE_PT_influence,
-        types.TEXTURE_PT_colors,
-        types.PARTICLE_PT_context_particles,
-        types.PARTICLE_PT_custom_props,
-        types.PARTICLE_PT_emission,
-        types.PARTICLE_PT_hair_dynamics,
-        types.PARTICLE_PT_cache,
-        types.PARTICLE_PT_velocity,
-        types.PARTICLE_PT_rotation,
-        types.PARTICLE_PT_physics,
-        types.SCENE_PT_rigid_body_world,
-        types.SCENE_PT_rigid_body_cache,
-        types.SCENE_PT_rigid_body_field_weights,
-        types.PARTICLE_PT_boidbrain,
-        types.PARTICLE_PT_render,
-        types.PARTICLE_PT_draw,
-        types.PARTICLE_PT_children,
-        types.PARTICLE_PT_field_weights,
-        types.PARTICLE_PT_force_fields,
-        types.PARTICLE_PT_vertexgroups,
-        types.MATERIAL_PT_custom_props,
-        types.BONE_PT_custom_props,
-        types.OBJECT_PT_custom_props,
-        )
+    panels = [
+        "RENDER_PT_render",
+        "RENDER_PT_output",
+        "RENDER_PT_encoding",
+        "RENDER_PT_dimensions",
+        "RENDER_PT_stamp",
+        "RENDERLAYER_PT_layers",
+        "SCENE_PT_scene",
+        "SCENE_PT_color_management",
+        "SCENE_PT_custom_props",
+        "SCENE_PT_audio",
+        "SCENE_PT_unit",
+        "SCENE_PT_keying_sets",
+        "SCENE_PT_keying_set_paths",
+        "SCENE_PT_physics",
+        "WORLD_PT_context_world",
+        "WORLD_PT_custom_props",
+        "DATA_PT_context_mesh",
+        "DATA_PT_context_camera",
+        "DATA_PT_context_lamp",
+        "DATA_PT_context_speaker",
+        "DATA_PT_texture_space",
+        "DATA_PT_curve_texture_space",
+        "DATA_PT_mball_texture_space",
+        "DATA_PT_vertex_groups",
+        "DATA_PT_shape_keys",
+        "DATA_PT_uv_texture",
+        "DATA_PT_vertex_colors",
+        "DATA_PT_camera",
+        "DATA_PT_camera_display",
+        "DATA_PT_lens",
+        "DATA_PT_speaker",
+        "DATA_PT_distance",
+        "DATA_PT_cone",
+        "DATA_PT_customdata",
+        "DATA_PT_custom_props_mesh",
+        "DATA_PT_custom_props_camera",
+        "DATA_PT_custom_props_lamp",
+        "DATA_PT_custom_props_speaker",
+        "DATA_PT_custom_props_arm",
+        "DATA_PT_custom_props_curve",
+        "DATA_PT_custom_props_lattice",
+        "DATA_PT_custom_props_metaball",
+        "TEXTURE_PT_custom_props",
+        "TEXTURE_PT_clouds",
+        "TEXTURE_PT_wood",
+        "TEXTURE_PT_marble",
+        "TEXTURE_PT_magic",
+        "TEXTURE_PT_blend",
+        "TEXTURE_PT_stucci",
+        "TEXTURE_PT_image",
+        "TEXTURE_PT_image_sampling",
+        "TEXTURE_PT_image_mapping",
+        "TEXTURE_PT_musgrave",
+        "TEXTURE_PT_voronoi",
+        "TEXTURE_PT_distortednoise",
+        "TEXTURE_PT_voxeldata",
+        "TEXTURE_PT_pointdensity",
+        "TEXTURE_PT_pointdensity_turbulence",
+        "TEXTURE_PT_mapping",
+        "TEXTURE_PT_influence",
+        "TEXTURE_PT_colors",
+        "PARTICLE_PT_context_particles",
+        "PARTICLE_PT_custom_props",
+        "PARTICLE_PT_emission",
+        "PARTICLE_PT_hair_dynamics",
+        "PARTICLE_PT_cache",
+        "PARTICLE_PT_velocity",
+        "PARTICLE_PT_rotation",
+        "PARTICLE_PT_physics",
+        "SCENE_PT_rigid_body_world",
+        "SCENE_PT_rigid_body_cache",
+        "SCENE_PT_rigid_body_field_weights",
+        "PARTICLE_PT_boidbrain",
+        "PARTICLE_PT_render",
+        "PARTICLE_PT_draw",
+        "PARTICLE_PT_children",
+        "PARTICLE_PT_field_weights",
+        "PARTICLE_PT_force_fields",
+        "PARTICLE_PT_vertexgroups",
+        "MATERIAL_PT_custom_props",
+        "BONE_PT_custom_props",
+        "OBJECT_PT_custom_props",
+        ]
+
+    return [getattr(types, p) for p in panels if hasattr(types, p)]
 
 
 def register():

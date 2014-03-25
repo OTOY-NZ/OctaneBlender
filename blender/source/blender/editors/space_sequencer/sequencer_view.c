@@ -211,17 +211,15 @@ static int sample_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int sample_cancel(bContext *C, wmOperator *op)
+static void sample_cancel(bContext *C, wmOperator *op)
 {
 	sample_exit(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 static int sample_poll(bContext *C)
 {
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
-	return sseq && BKE_sequencer_editing_get(CTX_data_scene(C), FALSE) != NULL;
+	return sseq && BKE_sequencer_editing_get(CTX_data_scene(C), false) != NULL;
 }
 
 void SEQUENCER_OT_sample(wmOperatorType *ot)

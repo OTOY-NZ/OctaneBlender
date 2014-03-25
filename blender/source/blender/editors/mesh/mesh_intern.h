@@ -116,7 +116,8 @@ void MESH_OT_inset(struct wmOperatorType *ot);
 /* *** editmesh_knife.c *** */
 void MESH_OT_knife_tool(struct wmOperatorType *ot);
 void MESH_OT_knife_project(struct wmOperatorType *ot);
-void EDBM_mesh_knife(struct bContext *C, struct LinkNode *polys, bool use_tag);
+void EDBM_mesh_knife(struct bContext *C, struct LinkNode *polys,
+                     bool use_tag, bool cut_through);
 
 struct wmKeyMap *knifetool_modal_keymap(struct wmKeyConfig *keyconf);
 
@@ -183,6 +184,7 @@ void MESH_OT_uvs_reverse(struct wmOperatorType *ot);
 void MESH_OT_colors_rotate(struct wmOperatorType *ot);
 void MESH_OT_colors_reverse(struct wmOperatorType *ot);
 void MESH_OT_delete(struct wmOperatorType *ot);
+void MESH_OT_delete_loose(struct wmOperatorType *ot);
 void MESH_OT_edge_collapse(struct wmOperatorType *ot);
 void MESH_OT_faces_shade_smooth(struct wmOperatorType *ot);
 void MESH_OT_faces_shade_flat(struct wmOperatorType *ot);
@@ -208,6 +210,7 @@ void MESH_OT_dissolve_edges(struct wmOperatorType *ot);
 void MESH_OT_dissolve_faces(struct wmOperatorType *ot);
 void MESH_OT_dissolve_mode(struct wmOperatorType *ot);
 void MESH_OT_dissolve_limited(struct wmOperatorType *ot);
+void MESH_OT_dissolve_degenerate(struct wmOperatorType *ot);
 void MESH_OT_delete_edgeloop(struct wmOperatorType *ot);
 void MESH_OT_edge_face_add(struct wmOperatorType *ot);
 void MESH_OT_duplicate(struct wmOperatorType *ot);

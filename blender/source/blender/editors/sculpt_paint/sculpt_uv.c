@@ -50,6 +50,7 @@
 #include "BKE_main.h"
 #include "BKE_depsgraph.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_customdata.h"
 #include "BKE_editmesh.h"
 
@@ -166,13 +167,16 @@ static int uv_sculpt_brush_poll(bContext *C)
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *toolsettings = scene->toolsettings;
 
-	if (!uv_sculpt_brush(C) || !obedit || obedit->type != OB_MESH)
+	if (!uv_sculpt_brush(C) || !obedit || obedit->type != OB_MESH ||
+	    !sima || ED_space_image_show_render(sima) || (sima->mode == SI_MODE_PAINT))
+	{
 		return 0;
+	}
 
 	em = BKE_editmesh_from_object(obedit);
 	ret = EDBM_mtexpoly_check(em);
 
-	if (ret && sima) {
+	if (ret) {
 		ARegion *ar = CTX_wm_region(C);
 		if ((toolsettings->use_uv_sculpt) && ar->regiontype == RGN_TYPE_WINDOW)
 			return 1;
@@ -190,6 +194,8 @@ void ED_space_image_uv_sculpt_update(wmWindowManager *wm, ToolSettings *settings
 			settings->uv_sculpt_tool = UV_SCULPT_TOOL_GRAB;
 			settings->uv_sculpt_settings = UV_SCULPT_LOCK_BORDERS | UV_SCULPT_ALL_ISLANDS;
 			settings->uv_relax_method = UV_SCULPT_TOOL_RELAX_LAPLACIAN;
+			/* Uv sculpting does not include explicit brush view control yet, always enable */
+			settings->uvsculpt->paint.flags |= PAINT_SHOW_BRUSH;
 		}
 
 		BKE_paint_init(&settings->uvsculpt->paint, PAINT_CURSOR_SCULPT);
@@ -480,7 +486,7 @@ static void uv_sculpt_stroke_exit(bContext *C, wmOperator *op)
 		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), data->timer);
 	}
 	if (data->elementMap) {
-		EDBM_uv_element_map_free(data->elementMap);
+		BM_uv_element_map_free(data->elementMap);
 	}
 	if (data->uv) {
 		MEM_freeN(data->uv);
@@ -499,9 +505,9 @@ static void uv_sculpt_stroke_exit(bContext *C, wmOperator *op)
 	op->customdata = NULL;
 }
 
-static int uv_element_offset_from_face_get(UvElementMap *map, BMFace *efa, BMLoop *l, int island_index, int doIslands)
+static int uv_element_offset_from_face_get(UvElementMap *map, BMFace *efa, BMLoop *l, int island_index, const bool doIslands)
 {
-	UvElement *element = ED_uv_element_get(map, efa, l);
+	UvElement *element = BM_uv_element_get(map, efa, l);
 	if (!element || (doIslands && element->island != island_index)) {
 		return -1;
 	}
@@ -554,7 +560,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 		GHash *edgeHash;
 		GHashIterator *ghi;
 
-		int do_island_optimization = !(ts->uv_sculpt_settings & UV_SCULPT_ALL_ISLANDS);
+		bool do_island_optimization = !(ts->uv_sculpt_settings & UV_SCULPT_ALL_ISLANDS);
 		int island_index = 0;
 		/* Holds, for each UvElement in elementMap, a pointer to its unique uv.*/
 		int *uniqueUv;
@@ -566,18 +572,18 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 		if (do_island_optimization) {
 			/* We will need island information */
 			if (ts->uv_flag & UV_SYNC_SELECTION) {
-				data->elementMap = EDBM_uv_element_map_create(em, 0, 1);
+				data->elementMap = BM_uv_element_map_create(bm, false, true);
 			}
 			else {
-				data->elementMap = EDBM_uv_element_map_create(em, 1, 1);
+				data->elementMap = BM_uv_element_map_create(bm, true, true);
 			}
 		}
 		else {
 			if (ts->uv_flag & UV_SYNC_SELECTION) {
-				data->elementMap = EDBM_uv_element_map_create(em, 0, 0);
+				data->elementMap = BM_uv_element_map_create(bm, false, false);
 			}
 			else {
-				data->elementMap = EDBM_uv_element_map_create(em, 1, 0);
+				data->elementMap = BM_uv_element_map_create(bm, true, false);
 			}
 		}
 
@@ -596,7 +602,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 			Image *ima = CTX_data_edit_image(C);
 			uv_find_nearest_vert(scene, ima, em, co, NULL, &hit);
 
-			element = ED_uv_element_get(data->elementMap, hit.efa, hit.l);
+			element = BM_uv_element_get(data->elementMap, hit.efa, hit.l);
 			island_index = element->island;
 		}
 

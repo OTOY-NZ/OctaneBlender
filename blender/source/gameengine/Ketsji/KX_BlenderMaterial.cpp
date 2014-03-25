@@ -110,6 +110,7 @@ void KX_BlenderMaterial::Initialize(
 	m_flag |= ((mMaterial->ras_mode & USE_LIGHT)!=0)? RAS_MULTILIGHT: 0;
 	m_flag |= (mMaterial->glslmat)? RAS_BLENDERGLSL: 0;
 	m_flag |= ((mMaterial->ras_mode & CAST_SHADOW)!=0)? RAS_CASTSHADOW: 0;
+	m_flag |= ((mMaterial->ras_mode & ONLY_SHADOW)!=0)? RAS_ONLYSHADOW: 0;
 
 	// test the sum of the various modes for equality
 	// so we can ether accept or reject this material
@@ -129,13 +130,13 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 		OnExit();
 }
 
-MTFace* KX_BlenderMaterial::GetMTFace(void) const 
+MTFace* KX_BlenderMaterial::GetMTFace() const
 {
 	// fonts on polys
 	return &mMaterial->tface;
 }
 
-unsigned int* KX_BlenderMaterial::GetMCol(void) const 
+unsigned int* KX_BlenderMaterial::GetMCol() const
 {
 	// fonts on polys
 	return mMaterial->rgb;
@@ -968,7 +969,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, setTexture , "setTexture( index, tex)")
 	return NULL;
 }
 
-static unsigned int GL_array[11] = {
+static const unsigned int GL_array[11] = {
 	GL_ZERO,
 	GL_ONE,
 	GL_SRC_COLOR,

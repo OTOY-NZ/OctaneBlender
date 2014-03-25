@@ -127,7 +127,7 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], TexResul
 	if (ima) {
 		
 		/* hack for icon render */
-		if (ima->ibufs.first==NULL && (R.r.scemode & R_NO_IMAGE_LOAD))
+		if ((R.r.scemode & R_NO_IMAGE_LOAD) && !BKE_image_has_loaded_ibuf(ima))
 			return retval;
 
 		ibuf = BKE_image_pool_acquire_ibuf(ima, &tex->iuser, pool);
@@ -799,7 +799,7 @@ static void area_sample(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata
 /* table of (exp(ar) - exp(a)) / (1 - exp(a)) for r in range [0, 1] and a = -2
  * used instead of actual gaussian, otherwise at high texture magnifications circular artifacts are visible */
 #define EWA_MAXIDX 255
-static float EWA_WTS[EWA_MAXIDX + 1] = {
+static const float EWA_WTS[EWA_MAXIDX + 1] = {
 	1.f, 0.990965f, 0.982f, 0.973105f, 0.96428f, 0.955524f, 0.946836f, 0.938216f, 0.929664f,
 	0.921178f, 0.912759f, 0.904405f, 0.896117f, 0.887893f, 0.879734f, 0.871638f, 0.863605f,
 	0.855636f, 0.847728f, 0.839883f, 0.832098f, 0.824375f, 0.816712f, 0.809108f, 0.801564f,
@@ -1094,7 +1094,9 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 	if (ibuf==NULL && ima==NULL) return retval;
 
 	if (ima) {	/* hack for icon render */
-		if ((ima->ibufs.first == NULL) && (R.r.scemode & R_NO_IMAGE_LOAD)) return retval;
+		if ((R.r.scemode & R_NO_IMAGE_LOAD) && !BKE_image_has_loaded_ibuf(ima)) {
+			return retval;
+		}
 		ibuf = BKE_image_pool_acquire_ibuf(ima, &tex->iuser, pool);
 	}
 
@@ -1315,7 +1317,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 			a = max_ff(a, 1.0f);
 			b = max_ff(b, 1.0f);
 			fProbes = 2.f*(a / b) - 1.f;
-			AFD.iProbes = (int)floorf(fProbes + 0.5f);
+			AFD.iProbes = iroundf(fProbes);
 			AFD.iProbes = MIN2(AFD.iProbes, tex->afmax);
 			if (AFD.iProbes < fProbes)
 				b = 2.f*a / (float)(AFD.iProbes + 1);
@@ -1418,7 +1420,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 			b = max_ff(b, 1.0f);
 			fProbes = 2.f*(a / b) - 1.f;
 			/* no limit to number of Probes here */
-			AFD.iProbes = (int)floorf(fProbes + 0.5f);
+			AFD.iProbes = iroundf(fProbes);
 			if (AFD.iProbes < fProbes) b = 2.f*a / (float)(AFD.iProbes + 1);
 			AFD.majrad = a/ff;
 			AFD.minrad = b/ff;
@@ -1515,7 +1517,7 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const
 	if (ima) {
 
 		/* hack for icon render */
-		if (ima->ibufs.first==NULL && (R.r.scemode & R_NO_IMAGE_LOAD))
+		if ((R.r.scemode & R_NO_IMAGE_LOAD) && !BKE_image_has_loaded_ibuf(ima))
 			return retval;
 		
 		ibuf = BKE_image_pool_acquire_ibuf(ima, &tex->iuser, pool);

@@ -62,7 +62,7 @@ public:
 	/* sampling */
 	bool use_mis;
 	bool use_transparent_shadow;
-	bool homogeneous_volume;
+	bool heterogeneous_volume;
 
 	/* synchronization */
 	bool need_update;
@@ -141,7 +141,6 @@ protected:
 	typedef unordered_map<ustring, uint, ustringHash> AttributeIDMap;
 	AttributeIDMap unique_attribute_id;
 
-	size_t bssrdf_table_offset;
 	size_t blackbody_table_offset;
 };
 

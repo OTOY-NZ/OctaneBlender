@@ -50,6 +50,7 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "ED_lattice.h"
 
 static void rna_LatticePoint_co_get(PointerRNA *ptr, float *values)
 {
@@ -260,7 +261,9 @@ static void rna_def_latticepoint(BlenderRNA *brna)
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_LatticePoint_co_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Location", "");
+	RNA_def_property_ui_text(prop, "Location",
+	                         "Original undeformed location used to calculate the strength of the deform effect "
+	                         "(edit/animate the Deformed Location instead)");
 
 	prop = RNA_def_property(srna, "co_deform", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_float_sdna(prop, NULL, "vec");
@@ -295,6 +298,7 @@ static void rna_def_lattice(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "pntsu");
 	RNA_def_property_int_funcs(prop, NULL, "rna_Lattice_points_u_set", NULL);
 	RNA_def_property_range(prop, 1, 64);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "U", "Point in U direction (can't be changed when there are shape keys)");
 	RNA_def_property_update(prop, 0, "rna_Lattice_update_size");
 	RNA_def_property_editable_func(prop, "rna_Lattice_size_editable");
@@ -303,6 +307,7 @@ static void rna_def_lattice(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "pntsv");
 	RNA_def_property_int_funcs(prop, NULL, "rna_Lattice_points_v_set", NULL);
 	RNA_def_property_range(prop, 1, 64);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "V", "Point in V direction (can't be changed when there are shape keys)");
 	RNA_def_property_update(prop, 0, "rna_Lattice_update_size");
 	RNA_def_property_editable_func(prop, "rna_Lattice_size_editable");
@@ -311,6 +316,7 @@ static void rna_def_lattice(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "pntsw");
 	RNA_def_property_int_funcs(prop, NULL, "rna_Lattice_points_w_set", NULL);
 	RNA_def_property_range(prop, 1, 64);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "W", "Point in W direction (can't be changed when there are shape keys)");
 	RNA_def_property_update(prop, 0, "rna_Lattice_update_size");
 	RNA_def_property_editable_func(prop, "rna_Lattice_size_editable");
@@ -362,6 +368,8 @@ static void rna_def_lattice(BlenderRNA *brna)
 
 	/* pointers */
 	rna_def_animdata_common(srna);
+
+	RNA_api_lattice(srna);
 }
 
 void RNA_def_lattice(BlenderRNA *brna)

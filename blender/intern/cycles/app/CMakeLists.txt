@@ -41,7 +41,7 @@ if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
 endif()
 
 if(WITH_CYCLES_OSL)
-	list(APPEND LIBRARIES cycles_kernel_osl ${OSL_LIBRARIES})
+	list(APPEND LIBRARIES cycles_kernel_osl ${OSL_LIBRARIES} ${LLVM_LIBRARY})
 endif()
 
 include_directories(${INC})
@@ -54,6 +54,7 @@ if(WITH_CYCLES_STANDALONE)
 		cycles_xml.h
 	)
 	add_executable(cycles ${SRC})
+	list(APPEND LIBRARIES ${PLATFORM_LINKLIBS})
 	target_link_libraries(cycles ${LIBRARIES} ${CMAKE_DL_LIBS})
 
 	if(UNIX AND NOT APPLE)
@@ -67,7 +68,7 @@ if(WITH_CYCLES_NETWORK)
 		cycles_server.cpp
 	)
 	add_executable(cycles_server ${SRC})
-	target_link_libraries(cycles_server ${LIBRARIES})
+	target_link_libraries(cycles_server ${LIBRARIES} ${CMAKE_DL_LIBS})
 
 	if(UNIX AND NOT APPLE)
 		set_target_properties(cycles_server PROPERTIES INSTALL_RPATH $ORIGIN/lib)

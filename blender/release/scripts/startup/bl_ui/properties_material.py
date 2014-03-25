@@ -77,7 +77,10 @@ class MATERIAL_UL_matslots(UIList):
         slot = item
         ma = slot.material
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(text=ma.name if ma else "", translate=False, icon_value=icon)
+            if ma:
+                layout.prop(ma, "name", text="", emboss=False, icon_value=icon)
+            else:
+                layout.label(text="", icon_value=icon)
             if ma and not context.scene.render.use_shading_nodes:
                 manode = ma.active_node_material
                 if manode:
@@ -124,7 +127,7 @@ class MATERIAL_PT_context_material(MaterialButtonsPanel, Panel):
         if ob:
             row = layout.row()
 
-            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=1)
 
             col = row.column(align=True)
             col.operator("object.material_slot_add", icon='ZOOMIN', text="")
@@ -409,7 +412,7 @@ class MATERIAL_PT_transp(MaterialButtonsPanel, Panel):
         col.active = (not mat.use_shadeless)
         col.prop(rayt, "fresnel")
         sub = col.column()
-        sub.active = rayt.fresnel > 0
+        sub.active = (rayt.fresnel > 0.0)
         sub.prop(rayt, "fresnel_factor", text="Blend")
 
         if base_mat.transparency_method == 'RAYTRACE':
@@ -466,7 +469,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel, Panel):
         col = split.column()
         col.prop(raym, "fresnel")
         sub = col.column()
-        sub.active = raym.fresnel > 0
+        sub.active = (raym.fresnel > 0.0)
         sub.prop(raym, "fresnel_factor", text="Blend")
 
         split = layout.split()
@@ -477,7 +480,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel, Panel):
         col.prop(raym, "distance", text="Max Dist")
         col.separator()
         sub = col.split(percentage=0.4)
-        sub.active = raym.distance > 0.0
+        sub.active = (raym.distance > 0.0)
         sub.label(text="Fade To:")
         sub.prop(raym, "fade_to", text="")
 
@@ -485,7 +488,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel, Panel):
         col.label(text="Gloss:")
         col.prop(raym, "gloss_factor", text="Amount")
         sub = col.column()
-        sub.active = raym.gloss_factor < 1.0
+        sub.active = (raym.gloss_factor < 1.0)
         sub.prop(raym, "gloss_threshold", text="Threshold")
         sub.prop(raym, "gloss_samples", text="Samples")
         sub.prop(raym, "gloss_anisotropic", text="Anisotropic")

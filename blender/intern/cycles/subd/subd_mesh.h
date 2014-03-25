@@ -35,22 +35,19 @@
 
 CCL_NAMESPACE_BEGIN
 
-class SubdFace;
+#ifndef WITH_OPENSUBDIV
 class SubdVert;
-class SubdEdge;
+class SubdFace;
+#endif
 
 class DiagSplit;
 class Mesh;
 
-/* Subd Mesh, half edge based for dynamic mesh manipulation */
+/* Subd Mesh with simple linear subdivision */
 
 class SubdMesh
 {
 public:
-	vector<SubdVert*> verts;
-	vector<SubdEdge*> edges;
-	vector<SubdFace*> faces;
-
 	SubdMesh();
 	~SubdMesh();
 
@@ -60,28 +57,19 @@ public:
 	SubdFace *add_face(int v0, int v1, int v2, int v3);
 	SubdFace *add_face(int *index, int num);
 
-	bool link_boundary();
-	void tessellate(DiagSplit *split, bool linear,
-		Mesh *mesh, int shader, bool smooth);
+	bool finish();
+	void tessellate(DiagSplit *split);
 
 protected:
-	bool can_add_face(int *index, int num);
-	bool can_add_edge(int i, int j);
-	SubdEdge *add_edge(int i, int j);
-	SubdEdge *find_edge(int i, int j);
-	void link_boundary_edge(SubdEdge *edge);
-	
-	struct Key {
-		Key() {}
-		Key(int v0, int v1) : p0(v0), p1(v1) {}
+#ifdef WITH_OPENSUBDIV
+	void *_hbrmesh;
+	vector<float> positions;
+	int num_verts, num_ptex_faces;
+#else
+	vector<SubdVert*> verts;
+	vector<SubdFace*> faces;
+#endif
 
-		bool operator<(const Key& k) const
-		{ return (p0 < k.p0 || (p0 == k.p0 && p1 < k.p1)); }
-
-		int p0, p1;
-	};
-
-	map<Key, SubdEdge *> edge_map;
 };
 
 CCL_NAMESPACE_END

@@ -80,6 +80,8 @@ typedef enum ModifierType {
 	eModifierType_Triangulate       = 44,
 	eModifierType_UVWarp            = 45,
 	eModifierType_MeshCache         = 46,
+	eModifierType_LaplacianDeform   = 47,
+	eModifierType_Wireframe         = 48,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -165,8 +167,17 @@ typedef struct BuildModifierData {
 	ModifierData modifier;
 
 	float start, length;
-	int randomize, seed;
+	short flag;
+	
+	short randomize;      /* (bool) whether order of vertices is randomized - legacy files (for readfile conversion) */
+	int seed;             /* (int) random seed */
 } BuildModifierData;
+
+/* Build Modifier -> flag */
+enum {
+	MOD_BUILD_FLAG_RANDOMIZE = (1 << 0),  /* order of vertices is randomized */
+	MOD_BUILD_FLAG_REVERSE   = (1 << 1),  /* frame range is reversed, resulting in a deconstruction effect */
+};
 
 /* Mask Modifier */
 typedef struct MaskModifierData {
@@ -293,17 +304,18 @@ typedef struct BevelModifierData {
 
 	float value;          /* the "raw" bevel value (distance/amount to bevel) */
 	int res;              /* the resolution (as originally coded, it is the number of recursive bevels) */
-	int pad;
 	short flags;          /* general option flags */
-	short val_flags;      /* flags used to interpret the bevel value */
+	short val_flags;      /* used to interpret the bevel value */
 	short lim_flags;      /* flags to tell the tool how to limit the bevel */
 	short e_flags;        /* flags to direct how edge weights are applied to verts */
+	float profile;        /* controls profile shape (0->1, .5 is round) */
 	/* if the MOD_BEVEL_ANGLE is set, this will be how "sharp" an edge must be before it gets beveled */
 	float bevel_angle;
 	/* if the MOD_BEVEL_VWEIGHT option is set, this will be the name of the vert group, MAX_VGROUP_NAME */
 	char defgrp_name[64];
 } BevelModifierData;
 
+/* BevelModifierData->flags and BevelModifierData->lim_flags */
 enum {
 	MOD_BEVEL_VERT          = (1 << 1),
 /*	MOD_BEVEL_RADIUS        = (1 << 2), */
@@ -320,6 +332,14 @@ enum {
 /*	MOD_BEVEL_EVEN          = (1 << 11), */
 /*	MOD_BEVEL_DIST          = (1 << 12), */  /* same as above */
 	MOD_BEVEL_OVERLAP_OK    = (1 << 13),
+};
+
+/* BevelModifierData->val_flags (not used as flags any more) */
+enum {
+	MOD_BEVEL_AMT_OFFSET = 0,
+	MOD_BEVEL_AMT_WIDTH = 1,
+	MOD_BEVEL_AMT_DEPTH = 2,
+	MOD_BEVEL_AMT_PERCENT = 3,
 };
 
 typedef struct SmokeModifierData {
@@ -602,7 +622,7 @@ typedef struct MeshDeformModifierData {
 	struct Object *object;          /* mesh object */
 	char defgrp_name[64];           /* optional vertexgroup name, MAX_VGROUP_NAME */
 
-	short gridsize, flag, mode, pad;
+	short gridsize, flag, pad[2];
 
 	/* result of static binding */
 	MDefInfluence *bindinfluences;  /* influences */
@@ -613,7 +633,7 @@ typedef struct MeshDeformModifierData {
 	/* result of dynamic binding */
 	MDefCell *dyngrid;              /* grid with dynamic binding cell points */
 	MDefInfluence *dyninfluences;   /* dynamic binding vertex influences */
-	int *dynverts, *pad2;           /* is this vertex bound or not? */
+	int *dynverts;                  /* is this vertex bound or not? */
 	int dyngridsize;                /* size of the dynamic bind grid */
 	int totinfluence;               /* total number of vertex influences */
 	float dyncellmin[3];            /* offset of the dynamic bind grid */
@@ -645,7 +665,7 @@ typedef struct ParticleSystemModifierData {
 	struct ParticleSystem *psys;
 	struct DerivedMesh *dm;
 	int totdmvert, totdmedge, totdmface;
-	short flag, rt;
+	short flag, pad;
 } ParticleSystemModifierData;
 
 typedef enum {
@@ -669,7 +689,7 @@ typedef struct ParticleInstanceModifierData {
 	ModifierData modifier;
 
 	struct Object *ob;
-	short psys, flag, axis, rt;
+	short psys, flag, axis, pad;
 	float position, random_position;
 } ParticleInstanceModifierData;
 
@@ -718,7 +738,8 @@ typedef struct ShrinkwrapModifierData {
 	char vgroup_name[64];     /* optional vertexgroup name, MAX_VGROUP_NAME */
 	float keepDist;           /* distance offset to keep from mesh/projection point */
 	short shrinkType;         /* shrink type projection */
-	short shrinkOpts;         /* shrink options */
+	char  shrinkOpts;         /* shrink options */
+	char  pad1;
 	float projLimit;          /* limit the projection ray cast */
 	char  projAxis;           /* axis to project over */
 
@@ -818,16 +839,21 @@ enum {
 	MOD_SOLIDIFY_FLIP           = (1 << 5),
 };
 
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison MOD_SOLIDIFY_RIM_MATERIAL
+#endif
+
 typedef struct ScrewModifierData {
 	ModifierData modifier;
 
 	struct Object *ob_axis;
-	int steps;
-	int render_steps;
-	int iter;
+	unsigned int steps;
+	unsigned int render_steps;
+	unsigned int iter;
 	float screw_ofs;
 	float angle;
-	short axis;
+	char axis;
+	char pad;
 	short flag;
 } ScrewModifierData;
 
@@ -837,6 +863,8 @@ enum {
 	MOD_SCREW_OBJECT_OFFSET  = (1 << 2),
 /*	MOD_SCREW_OBJECT_ANGLE   = (1 << 4), */
 	MOD_SCREW_SMOOTH_SHADING = (1 << 5),
+	MOD_SCREW_UV_STRETCH_U   = (1 << 6),
+	MOD_SCREW_UV_STRETCH_V   = (1 << 7),
 };
 
 typedef struct OceanModifierData {
@@ -1177,11 +1205,31 @@ typedef struct TriangulateModifierData {
 	ModifierData modifier;
 
 	int flag;
+	int quad_method;
+	int ngon_method;
 	int pad;
 } TriangulateModifierData;
 
 enum {
-	MOD_TRIANGULATE_BEAUTY = (1 << 0),
+	MOD_TRIANGULATE_BEAUTY = (1 << 0), /* deprecated */
+};
+
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison MOD_TRIANGULATE_BEAUTY
+#endif
+
+/* Triangulate methods - NGons */
+enum {
+	MOD_TRIANGULATE_NGON_BEAUTY = 0,
+	MOD_TRIANGULATE_NGON_EARCLIP,
+};
+
+/* Triangulate methods - Quads */
+enum {
+	MOD_TRIANGULATE_QUAD_BEAUTY = 0,
+	MOD_TRIANGULATE_QUAD_FIXED,
+	MOD_TRIANGULATE_QUAD_ALTERNATE,
+	MOD_TRIANGULATE_QUAD_SHORTEDGE
 };
 
 typedef struct LaplacianSmoothModifierData {
@@ -1276,6 +1324,44 @@ enum {
 	MOD_MESHCACHE_PLAY_CFEA = 0,
 	MOD_MESHCACHE_PLAY_EVAL = 1,
 };
+
+
+typedef struct LaplacianDeformModifierData {
+	ModifierData modifier;
+	char anchor_grp_name[64];  /* MAX_VGROUP_NAME */
+	int total_verts, repeat;
+	float *vertexco;
+	void *cache_system;  /* runtime only */
+	short flag, pad[3];
+
+} LaplacianDeformModifierData;
+
+/* Smooth modifier flags */
+enum {
+	MOD_LAPLACIANDEFORM_BIND = 1,
+};
+
+/* many of these options match 'solidify' */
+typedef struct WireframeModifierData {
+	ModifierData modifier;
+	char defgrp_name[64];  /* MAX_VGROUP_NAME */
+	float offset;
+	float offset_fac;
+	float offset_fac_vg;
+	float crease_weight;
+	short flag, mat_ofs;
+	short pad[2];
+} WireframeModifierData;
+
+enum {
+	MOD_WIREFRAME_INVERT_VGROUP = (1 << 0),
+	MOD_WIREFRAME_REPLACE       = (1 << 1),
+	MOD_WIREFRAME_BOUNDARY      = (1 << 2),
+	MOD_WIREFRAME_OFS_EVEN      = (1 << 3),
+	MOD_WIREFRAME_OFS_RELATIVE  = (1 << 4),
+	MOD_WIREFRAME_CREASE        = (1 << 5),
+};
+
 
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

@@ -173,12 +173,12 @@ bool modifier_isPreview(ModifierData *md)
 	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 	if (!(mti->flags & eModifierTypeFlag_UsesPreview))
-		return FALSE;
+		return false;
 
 	if (md->mode & eModifierMode_Realtime)
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 }
 
 ModifierData *modifiers_findByType(Object *ob, ModifierType type)
@@ -253,6 +253,19 @@ void modifiers_foreachTexLink(Object *ob, TexWalkFunc walk, void *userData)
 	}
 }
 
+/* callback's can use this
+ * to avoid copying every member.
+ */
+void modifier_copyData_generic(const ModifierData *md_src, ModifierData *md_dst)
+{
+	ModifierTypeInfo *mti = modifierType_getInfo(md_src->type);
+	const size_t data_size = sizeof(ModifierData);
+	const char *md_src_data = ((char *)md_src) + data_size;
+	char       *md_dst_data = ((char *)md_dst) + data_size;
+	BLI_assert(data_size <= (size_t)mti->structSize);
+	memcpy(md_dst_data, md_src_data, (size_t)mti->structSize - data_size);
+}
+
 void modifier_copyData(ModifierData *md, ModifierData *target)
 {
 	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
@@ -261,6 +274,18 @@ void modifier_copyData(ModifierData *md, ModifierData *target)
 
 	if (mti->copyData)
 		mti->copyData(md, target);
+}
+
+
+bool modifier_supportsCage(struct Scene *scene, ModifierData *md)
+{
+	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+
+	md->scene = scene;
+
+	return ((!mti->isDisabled || !mti->isDisabled(md, 0)) &&
+	        (mti->flags & eModifierTypeFlag_SupportsEditmode) &&
+	        modifier_supportsMapping(md));
 }
 
 bool modifier_couldBeCage(struct Scene *scene, ModifierData *md)
@@ -312,15 +337,15 @@ void modifier_setError(ModifierData *md, const char *_format, ...)
  * then is NULL) 
  * also used for some mesh tools to give warnings
  */
-int modifiers_getCageIndex(struct Scene *scene, Object *ob, int *lastPossibleCageIndex_r, int virtual_)
+int modifiers_getCageIndex(struct Scene *scene, Object *ob, int *r_lastPossibleCageIndex, bool is_virtual)
 {
 	VirtualModifierData virtualModifierData;
-	ModifierData *md = (virtual_) ? modifiers_getVirtualModifierList(ob, &virtualModifierData) : ob->modifiers.first;
+	ModifierData *md = (is_virtual) ? modifiers_getVirtualModifierList(ob, &virtualModifierData) : ob->modifiers.first;
 	int i, cageIndex = -1;
 
-	if (lastPossibleCageIndex_r) {
+	if (r_lastPossibleCageIndex) {
 		/* ensure the value is initialized */
-		*lastPossibleCageIndex_r = -1;
+		*r_lastPossibleCageIndex = -1;
 	}
 
 	/* Find the last modifier acting on the cage. */
@@ -329,8 +354,6 @@ int modifiers_getCageIndex(struct Scene *scene, Object *ob, int *lastPossibleCag
 
 		md->scene = scene;
 
-		if (!(md->mode & eModifierMode_Realtime)) continue;
-		if (!(md->mode & eModifierMode_Editmode)) continue;
 		if (mti->isDisabled && mti->isDisabled(md, 0)) continue;
 		if (!(mti->flags & eModifierTypeFlag_SupportsEditmode)) continue;
 		if (md->mode & eModifierMode_DisableTemporary) continue;
@@ -338,7 +361,13 @@ int modifiers_getCageIndex(struct Scene *scene, Object *ob, int *lastPossibleCag
 		if (!modifier_supportsMapping(md))
 			break;
 
-		if (lastPossibleCageIndex_r) *lastPossibleCageIndex_r = i;
+		if (r_lastPossibleCageIndex) {
+			*r_lastPossibleCageIndex = i;
+		}
+
+		if (!(md->mode & eModifierMode_Realtime)) continue;
+		if (!(md->mode & eModifierMode_Editmode)) continue;
+
 		if (md->mode & eModifierMode_OnCage)
 			cageIndex = i;
 	}

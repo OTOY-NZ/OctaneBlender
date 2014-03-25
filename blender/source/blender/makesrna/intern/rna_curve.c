@@ -38,6 +38,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "rna_internal.h"
 
@@ -251,6 +252,19 @@ static void rna_Curve_material_index_range(PointerRNA *ptr, int *min, int *max,
 	*max = max_ii(0, cu->totcol - 1);
 }
 
+/* simply offset by don't expose -1 */
+static int rna_ChariInfo_material_index_get(PointerRNA *ptr)
+{
+	CharInfo *info = ptr->data;
+	return info->mat_nr ? info->mat_nr - 1 : 0;
+}
+
+static void rna_ChariInfo_material_index_set(PointerRNA *ptr, int value)
+{
+	CharInfo *info = ptr->data;
+	info->mat_nr = value + 1;
+}
+
 static void rna_Curve_active_textbox_index_range(PointerRNA *ptr, int *min, int *max,
                                                  int *UNUSED(softmin), int *UNUSED(softmax))
 {
@@ -270,7 +284,7 @@ static void rna_Curve_dimension_set(PointerRNA *ptr, int value)
 }
 
 static EnumPropertyItem *rna_Curve_fill_mode_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                   PropertyRNA *UNUSED(prop), int *UNUSED(free))
+                                                   PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	Curve *cu = (Curve *)ptr->id.data;
 
@@ -447,28 +461,30 @@ static void rna_Curve_body_get(PointerRNA *ptr, char *value)
 static int rna_Curve_body_length(PointerRNA *ptr)
 {
 	Curve *cu = (Curve *)ptr->id.data;
-	return cu->editfont ? strlen(cu->str) : cu->len;
+	return cu->len;
 }
 
-/* TODO - check UTF & python play nice */
+/* TODO, how to handle editmode? */
 static void rna_Curve_body_set(PointerRNA *ptr, const char *value)
 {
-	int len = strlen(value);
+	size_t len_bytes;
+	size_t len_chars = BLI_strlen_utf8_ex(value, &len_bytes);
+
 	Curve *cu = (Curve *)ptr->id.data;
 
-	cu->len = cu->pos = len;
+	cu->len_wchar = len_chars;
+	cu->len = len_bytes;
+	cu->pos = len_chars;
 
 	if (cu->str)
 		MEM_freeN(cu->str);
 	if (cu->strinfo)
 		MEM_freeN(cu->strinfo);
 
-	cu->str = MEM_callocN(len + sizeof(wchar_t), "str");
-	/* don't know why this is +4, just duplicating load_editText() */
-	cu->strinfo = MEM_callocN((len + 4) * sizeof(CharInfo), "strinfo");
+	cu->str = MEM_mallocN(len_bytes + sizeof(wchar_t), "str");
+	cu->strinfo = MEM_callocN((len_chars + 4) * sizeof(CharInfo), "strinfo");
 
-	/*BLI_strncpy_wchar_as_utf8(cu->str, value, len + 1);  *//* value is not wchar_t */
-	BLI_strncpy(cu->str, value, len + 1);
+	BLI_strncpy(cu->str, value, len_bytes + 1);
 }
 
 static void rna_Nurb_update_cyclic_u(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -887,12 +903,6 @@ static void rna_def_path(BlenderRNA *UNUSED(brna), StructRNA *srna)
 	                         "Use the mesh bounds to clamp the deformation");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
-	prop = RNA_def_property(srna, "use_time_offset", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", CU_OFFS_PATHDIST);
-	RNA_def_property_ui_text(prop, "Offset Path Distance",
-	                         "Children will use TimeOffs value as path distance offset");
-	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-
 	prop = RNA_def_property(srna, "use_radius", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CU_PATH_RADIUS);
 	RNA_def_property_ui_text(prop, "Radius", "Option for paths and curve-deform: "
@@ -1007,9 +1017,9 @@ static void rna_def_font(BlenderRNA *UNUSED(brna), StructRNA *srna)
 	prop = RNA_def_property(srna, "family", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_maxlength(prop, MAX_ID_NAME - 2);
 	RNA_def_property_ui_text(prop, "Object Font",
-	                         "Use Blender Objects as font characters (give font objects a common name "
-	                         "followed by the character they represent, eg. family_a, family_b, etc, "
-	                         "and turn on Verts Duplication)");
+	                         "Use Objects as font characters (give font objects a common name "
+	                         "followed by the character they represent, eg. 'family_a', 'family_b', etc, "
+	                         "set this setting to 'family_', and turn on Vertex Duplication)");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 	
 	prop = RNA_def_property(srna, "body", PROP_STRING, PROP_NONE);
@@ -1020,7 +1030,7 @@ static void rna_def_font(BlenderRNA *UNUSED(brna), StructRNA *srna)
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
 	prop = RNA_def_property(srna, "body_format", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "strinfo", "len");
+	RNA_def_property_collection_sdna(prop, NULL, "strinfo", "len_wchar");
 	RNA_def_property_struct_type(prop, "TextCharacterFormat");
 	RNA_def_property_ui_text(prop, "Character Info", "Stores the style of each character");
 	
@@ -1140,6 +1150,12 @@ static void rna_def_charinfo(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_small_caps", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CU_CHINFO_SMALLCAPS);
 	RNA_def_property_ui_text(prop, "Small Caps", "");
+	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
+	prop = RNA_def_property(srna, "material_index", PROP_INT, PROP_UNSIGNED);
+	// RNA_def_property_int_sdna(prop, NULL, "mat_nr");
+	RNA_def_property_ui_text(prop, "Material Index", "");
+	RNA_def_property_int_funcs(prop, "rna_ChariInfo_material_index_get", "rna_ChariInfo_material_index_set", "rna_Curve_material_index_range");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 }
 
@@ -1291,8 +1307,7 @@ static void rna_def_curve(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Curve", "Curve datablock storing curves, splines and NURBS");
 	RNA_def_struct_ui_icon(srna, ICON_CURVE_DATA);
 	RNA_def_struct_refine_func(srna, "rna_Curve_refine");
-	
-	rna_def_animdata_common(srna);
+
 
 	prop = RNA_def_property(srna, "shape_keys", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "key");
@@ -1469,6 +1484,7 @@ static void rna_def_curve(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "texspace_size", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_array(prop, 3);
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Texture Space Size", "Texture space size");
 	RNA_def_property_editable_func(prop, "rna_Curve_texspace_editable");
 	RNA_def_property_float_funcs(prop, "rna_Curve_texspace_size_get", "rna_Curve_texspace_size_set", NULL);
@@ -1512,6 +1528,10 @@ static void rna_def_curve(BlenderRNA *brna)
 	RNA_def_property_boolean_funcs(prop, "rna_Curve_is_editmode_get", NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Is Editmode", "True when used in editmode");
+
+	rna_def_animdata_common(srna);
+
+	RNA_api_curve(srna);
 }
 
 static void rna_def_curve_nurb(BlenderRNA *brna)

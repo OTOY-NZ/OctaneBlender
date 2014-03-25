@@ -66,6 +66,9 @@ if env['WITH_BF_BULLET']:
     defs.append('WITH_BULLET')
     incs += ' #/intern/rigidbody'
 
+if env['WITH_BF_OIIO']:
+    defs.append('WITH_OPENIMAGEIO')
+
 if env['WITH_BF_OPENEXR']:
     defs.append('WITH_OPENEXR')
 
@@ -89,7 +92,7 @@ if env['WITH_BF_FRAMESERVER']:
 
 if env['WITH_BF_FFMPEG']:
     defs.append('WITH_FFMPEG')
-    incs += ' ' + env['BF_FFMPEG_INC']
+    incs += ' ' + env['BF_FFMPEG_INC'] + ' #/intern/ffmpeg'
 
 if env['WITH_BF_QUICKTIME']:
     defs.append('WITH_QUICKTIME')
@@ -103,6 +106,7 @@ if env['BF_UNIT_TEST']:
 
 if env['WITH_BF_PYTHON']:
     defs.append('WITH_PYTHON')
+    incs += ' ../python'
 
 if env['WITH_BF_COLLADA']:
     defs.append('WITH_COLLADA')

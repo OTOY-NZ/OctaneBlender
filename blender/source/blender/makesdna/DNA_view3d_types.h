@@ -142,7 +142,7 @@ typedef struct RegionView3D {
 	short lpersp, lview; /* lpersp can never be set to 'RV3D_CAMOB' */
 
 	float gridview;
-	float twangle[3];
+	float tw_idot[3];  /* manipulator runtime: (1 - dot) product with view vector (used to check view alignment) */
 
 
 	/* active rotation from NDOF or elsewhere */
@@ -266,6 +266,9 @@ typedef struct View3D {
 #define RV3D_VIEW_PERSPORTHO	 7
 #define RV3D_VIEW_CAMERA		 8
 
+#define RV3D_VIEW_IS_AXIS(view) \
+	((view >= RV3D_VIEW_FRONT) && (view <= RV3D_VIEW_BOTTOM))
+
 /* View3d->flag2 (short) */
 #define V3D_RENDER_OVERRIDE		4
 #define V3D_SOLID_TEX			8
@@ -280,6 +283,7 @@ typedef struct View3D {
 #define V3D_SOLID_MATCAP		4096	/* user flag */
 #define V3D_SHOW_SOLID_MATCAP	8192	/* runtime flag */
 #define V3D_OCCLUDE_WIRE		16384
+#define V3D_SHADELESS_TEX		32768
 
 
 /* View3D->around */

@@ -154,6 +154,7 @@ typedef struct uiGradientColors {
 	char high_gradient[4];
 	int show_grad;
 	int pad2;
+
 } uiGradientColors;
 
 typedef struct ThemeUI {
@@ -197,6 +198,12 @@ typedef struct ThemeSpace {
 	char header_text[4];
 	char header_text_hi[4];
 
+	/* region tabs */
+	char tab_active[4];
+	char tab_inactive[4];
+	char tab_back[4];
+	char tab_outline[4];
+
 	/* button/tool regions */
 	char button[4];			/* region background */
 	char button_title[4];	/* panel title */
@@ -226,8 +233,10 @@ typedef struct ThemeSpace {
 	char hilite[4];
 	char grid[4]; 
 	
+	char view_overlay[4];
+
 	char wire[4], wire_edit[4], select[4];
-	char lamp[4], speaker[4], empty[4], camera[4], pad[4];
+	char lamp[4], speaker[4], empty[4], camera[4];
 	char active[4], group[4], group_active[4], transform[4];
 	char vertex[4], vertex_select[4], vertex_unreferenced[4];
 	char edge[4], edge_select[4];
@@ -249,6 +258,9 @@ typedef struct ThemeSpace {
 	char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4], handle_sel_auto_clamped[4];
 	
 	char ds_channel[4], ds_subchannel[4]; /* dopesheet */
+	char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4]; /* keytypes */
+	char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4], keytype_jitter_select[4]; /* keytypes */
+	char keyborder[4], keyborder_select[4];
 	
 	char console_output[4], console_input[4], console_info[4], console_error[4];
 	char console_cursor[4], console_select[4], pad1[4];
@@ -257,10 +269,15 @@ typedef struct ThemeSpace {
 	char noodle_curving;
 
 	/* syntax for textwindow and nodes */
-	char syntaxl[4], syntaxs[4];
-	char syntaxb[4], syntaxn[4];
-	char syntaxv[4], syntaxc[4];
-	char syntaxd[4], syntaxr[4];
+	char syntaxl[4], syntaxs[4]; // in nodespace used for backdrop matte 
+	char syntaxb[4], syntaxn[4]; // in nodespace used for color input
+	char syntaxv[4], syntaxc[4]; // in nodespace used for converter group
+	char syntaxd[4], syntaxr[4]; // in nodespace used for distort 
+
+	char nodeclass_output[4], nodeclass_filter[4];
+	char nodeclass_vector[4], nodeclass_texture[4];
+	char nodeclass_shader[4], nodeclass_script[4];
+	char nodeclass_pattern[4], nodeclass_layout[4];
 	
 	char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];		/* for sequence editor */
 	char effect[4], transition[4], meta[4];
@@ -286,8 +303,8 @@ typedef struct ThemeSpace {
 	char preview_stitch_unstitchable[4];
 	char preview_stitch_active[4];
 	
-	char uv_shadow[4];
-	char uv_others[4];
+	char uv_shadow[4]; /* two uses, for uvs with modifier applied on mesh and uvs during painting */
+	char uv_others[4]; /* uvs of other objects */
 
 	char match[4];				/* outliner - filter match */
 	char selected_highlight[4];	/* outliner - selected item */
@@ -304,6 +321,13 @@ typedef struct ThemeSpace {
 	char nla_transition[4], nla_transition_sel[4]; /* NLA "Transition" strips */
 	char nla_meta[4], nla_meta_sel[4];             /* NLA "Meta" strips */
 	char nla_sound[4], nla_sound_sel[4];           /* NLA "Sound" strips */
+
+	/* info */
+	char info_selected[4], info_selected_text[4];
+	char info_error[4], info_error_text[4];
+	char info_warning[4], info_warning_text[4];
+	char info_info[4], info_info_text[4];
+	char info_debug[4], info_debug_text[4];
 } ThemeSpace;
 
 
@@ -331,6 +355,7 @@ typedef struct bTheme {
 	ThemeUI tui;
 	
 	/* Individual Spacetypes */
+	/* note: ensure UI_THEMESPACE_END is updated when adding */
 	ThemeSpace tbuts;
 	ThemeSpace tv3d;
 	ThemeSpace tfile;
@@ -356,6 +381,9 @@ typedef struct bTheme {
 	int active_theme_area, pad;
 } bTheme;
 
+#define UI_THEMESPACE_START(btheme)  (CHECK_TYPE_INLINE(btheme, bTheme *),  &((btheme)->tbuts))
+#define UI_THEMESPACE_END(btheme)    (CHECK_TYPE_INLINE(btheme, bTheme *), (&((btheme)->tclip) + 1))
+
 /* for the moment only the name. may want to store options with this later */
 typedef struct bAddon {
 	struct bAddon *next, *prev;
@@ -373,6 +401,17 @@ typedef struct SolidLight {
 	int flag, pad;
 	float col[4], spec[4], vec[4];
 } SolidLight;
+
+typedef struct WalkNavigation {
+	float mouse_speed;  /* speed factor for look around */
+	float walk_speed;
+	float walk_speed_factor;
+	float view_height;
+	float jump_height;
+	float teleport_time;  /* duration to use for teleporting */
+	short flag;
+	short pad[3];
+} WalkNavigation;
 
 typedef struct UserDef {
 	/* UserDef has separate do-version handling, and can be read from other files */
@@ -474,9 +513,10 @@ typedef struct UserDef {
 	struct ColorBand coba_weight;	/* from texture.h */
 
 	float sculpt_paint_overlay_col[3];
+	float gpencil_new_layer_col[4]; /* default color for newly created Grease Pencil layers */
 
 	short tweak_threshold;
-	short pad3;
+	char navigation_mode, pad;
 
 	char author[80];	/* author name for file formats supporting it */
 
@@ -485,6 +525,8 @@ typedef struct UserDef {
 	
 	float fcu_inactive_alpha;	/* opacity of inactive F-Curves in F-Curve Editor */
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
+
+	struct WalkNavigation walk_navigation;
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */
@@ -550,6 +592,18 @@ typedef enum eViewZoom_Style {
 	USER_ZOOM_SCALE			= 1,
 	USER_ZOOM_DOLLY			= 2
 } eViewZoom_Style;
+
+/* navigation_mode */
+typedef enum eViewNavigation_Method {
+	VIEW_NAVIGATION_WALK = 0,
+	VIEW_NAVIGATION_FLY  = 1,
+} eViewNavigation_Method;
+
+/* flag */
+typedef enum eWalkNavigation_Flag {
+	USER_WALK_GRAVITY			= (1 << 0),
+	USER_WALK_MOUSE_REVERSE		= (1 << 1),
+} eWalkNavigation_Flag;
 
 /* uiflag */
 typedef enum eUserpref_UI_Flag {
@@ -681,10 +735,11 @@ typedef enum eGP_UserdefSettings {
 
 /* color picker types */
 typedef enum eColorPicker_Types {
-	USER_CP_CIRCLE		= 0,
+	USER_CP_CIRCLE_HSV	= 0,
 	USER_CP_SQUARE_SV	= 1,
 	USER_CP_SQUARE_HS	= 2,
 	USER_CP_SQUARE_HV	= 3,
+	USER_CP_CIRCLE_HSL	= 4,
 } eColorPicker_Types;
 
 /* timecode display styles */
@@ -730,27 +785,26 @@ typedef enum eNdof_Flag {
 	NDOF_SHOULD_ZOOM    = (1 << 4),
 	NDOF_SHOULD_ROTATE  = (1 << 5),
 
-	/* orbit navigation modes
-	 * only two options, so it's sort of a hybrid bool/enum
-	 * if ((U.ndof_flag & NDOF_ORBIT_MODE) == NDOF_OM_OBJECT)... */
+	/* orbit navigation modes */
 
-	// NDOF_ORBIT_MODE     = (1 << 6),
-	// #define NDOF_OM_TARGETCAMERA 0
-	// #define NDOF_OM_OBJECT      NDOF_ORBIT_MODE
+	/* exposed as Orbit|Explore in the UI */
+	NDOF_MODE_ORBIT      = (1 << 6),
 
 	/* actually... users probably don't care about what the mode
 	 * is called, just that it feels right */
 	/* zoom is up/down if this flag is set (otherwise forward/backward) */
-	NDOF_ZOOM_UPDOWN        = (1 << 7),
+	NDOF_PAN_YZ_SWAP_AXIS   = (1 << 7),
 	NDOF_ZOOM_INVERT        = (1 << 8),
-	NDOF_ROTATE_INVERT_AXIS = (1 << 9),
-	NDOF_TILT_INVERT_AXIS   = (1 << 10),
-	NDOF_ROLL_INVERT_AXIS   = (1 << 11),
+	NDOF_ROTX_INVERT_AXIS   = (1 << 9),
+	NDOF_ROTY_INVERT_AXIS   = (1 << 10),
+	NDOF_ROTZ_INVERT_AXIS   = (1 << 11),
 	NDOF_PANX_INVERT_AXIS   = (1 << 12),
 	NDOF_PANY_INVERT_AXIS   = (1 << 13),
 	NDOF_PANZ_INVERT_AXIS   = (1 << 14),
 	NDOF_TURNTABLE          = (1 << 15),
 } eNdof_Flag;
+
+#define NDOF_PIXELS_PER_SECOND 600.0f
 
 /* compute_device_type */
 typedef enum eCompute_Device_Type {

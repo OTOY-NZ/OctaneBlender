@@ -38,7 +38,6 @@ extern "C" {
 #include <wchar.h>
 
 struct VFont;
-struct Scene;
 struct Object;
 struct Curve;
 struct objfnt;
@@ -53,20 +52,26 @@ struct CharTrans {
 	char dobreak;
 };
 
-typedef struct SelBox {
+typedef struct EditFontSelBox {
 	float x, y, w, h;
-} SelBox;
+	float rot;
+} EditFontSelBox;
 
-typedef struct EditFont {	
+typedef struct EditFont {
 	wchar_t *copybuf;
-	wchar_t *copybufinfo;
+	struct CharInfo *copybufinfo;
 	
 	wchar_t *textbuf;
 	struct CharInfo *textbufinfo;
-	wchar_t *oldstr;
-	struct CharInfo *oldstrinfo;
 	
+	/* array of rectangles & rotation */
+	EditFontSelBox *selboxes;
 	float textcurs[4][2];
+
+	/* positional vars relative to the textbuf, textbufinfo (not utf8 bytes)
+	 * a copy of these is kept in Curve, but use these in editmode */
+	int len, pos;
+	int selstart, selend;
 	
 } EditFont;
 
@@ -79,9 +84,15 @@ void BKE_vfont_free(struct VFont *sc);
 struct VFont *BKE_vfont_builtin_get(void);
 struct VFont *BKE_vfont_load(struct Main *bmain, const char *name);
 
-struct CharTrans *BKE_vfont_to_curve(struct Main *bmain, struct Scene *scene, struct Object *ob, int mode);
+bool BKE_vfont_to_curve_ex(struct Main *bmain, struct Object *ob, int mode,
+                           struct ListBase *r_nubase,
+                           const wchar_t **r_text, int *r_text_len, bool *r_text_free,
+                           struct CharTrans **r_chartransdata);
+bool BKE_vfont_to_curve_nubase(struct Main *bmain, struct Object *ob, int mode,
+                               struct ListBase *r_nubase);
+bool BKE_vfont_to_curve(struct Main *bmain, struct Object *ob, int mode);
 
-int BKE_vfont_select_get(struct Object *ob, int *start, int *end);
+int BKE_vfont_select_get(struct Object *ob, int *r_start, int *r_end);
 
 #ifdef __cplusplus
 }

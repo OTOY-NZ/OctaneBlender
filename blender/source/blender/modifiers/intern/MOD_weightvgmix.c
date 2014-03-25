@@ -31,6 +31,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
+#include "BLI_listbase.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -134,23 +135,12 @@ static void freeData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	WeightVGMixModifierData *wmd  = (WeightVGMixModifierData *) md;
+#endif
 	WeightVGMixModifierData *twmd = (WeightVGMixModifierData *) target;
 
-	BLI_strncpy(twmd->defgrp_name_a, wmd->defgrp_name_a, sizeof(twmd->defgrp_name_a));
-	BLI_strncpy(twmd->defgrp_name_b, wmd->defgrp_name_b, sizeof(twmd->defgrp_name_b));
-	twmd->default_weight_a       = wmd->default_weight_a;
-	twmd->default_weight_b       = wmd->default_weight_b;
-	twmd->mix_mode               = wmd->mix_mode;
-	twmd->mix_set                = wmd->mix_set;
-
-	twmd->mask_constant          = wmd->mask_constant;
-	BLI_strncpy(twmd->mask_defgrp_name, wmd->mask_defgrp_name, sizeof(twmd->mask_defgrp_name));
-	twmd->mask_texture           = wmd->mask_texture;
-	twmd->mask_tex_use_channel   = wmd->mask_tex_use_channel;
-	twmd->mask_tex_mapping       = wmd->mask_tex_mapping;
-	twmd->mask_tex_map_obj       = wmd->mask_tex_map_obj;
-	BLI_strncpy(twmd->mask_tex_uvlayer_name, wmd->mask_tex_uvlayer_name, sizeof(twmd->mask_tex_uvlayer_name));
+	modifier_copyData_generic(md, target);
 
 	if (twmd->mask_texture) {
 		id_us_plus(&twmd->mask_texture->id);
@@ -255,7 +245,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	/* Check if we can just return the original mesh.
 	 * Must have verts and therefore verts assigned to vgroups to do anything useful!
 	 */
-	if ((numVerts == 0) || (ob->defbase.first == NULL))
+	if ((numVerts == 0) || BLI_listbase_is_empty(&ob->defbase))
 		return dm;
 
 	/* Get vgroup idx from its name. */
@@ -390,7 +380,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	/* Update (add to) vgroup.
 	 * XXX Depending on the MOD_WVG_SET_xxx option chosen, we might have to add vertices to vgroup.
 	 */
-	weightvg_update_vg(dvert, defgrp_index, dw1, numIdx, indices, org_w, TRUE, -FLT_MAX, FALSE, 0.0f);
+	weightvg_update_vg(dvert, defgrp_index, dw1, numIdx, indices, org_w, true, -FLT_MAX, false, 0.0f);
 
 	/* If weight preview enabled... */
 #if 0 /* XXX Currently done in mod stack :/ */

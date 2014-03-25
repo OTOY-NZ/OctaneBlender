@@ -36,6 +36,7 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_editmesh.h"
+#include "BKE_unit.h"
 
 #include "RNA_define.h"
 #include "RNA_access.h"
@@ -68,7 +69,7 @@ typedef struct {
 	NumInput num_input;
 
 	/* modal only */
-	int mcenter[2];
+	float mcenter[2];
 	BMBackup mesh_backup;
 	void *draw_handle_pixel;
 	short twtype;
@@ -96,10 +97,10 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
 		BLI_snprintf(msg, HEADER_LENGTH, str,
 		             flts_str,
 		             flts_str + NUM_STR_REP_LEN,
-		             opdata->modify_depth ? IFACE_("On") : IFACE_("Off"),
-		             RNA_boolean_get(op->ptr, "use_outset") ? IFACE_("On") : IFACE_("Off"),
-		             RNA_boolean_get(op->ptr, "use_boundary") ? IFACE_("On") : IFACE_("Off"),
-		             RNA_boolean_get(op->ptr, "use_individual") ? IFACE_("On") : IFACE_("Off")
+		             WM_bool_as_string(opdata->modify_depth),
+		             WM_bool_as_string(RNA_boolean_get(op->ptr, "use_outset")),
+		             WM_bool_as_string(RNA_boolean_get(op->ptr, "use_boundary")),
+		             WM_bool_as_string(RNA_boolean_get(op->ptr, "use_individual"))
 		            );
 
 		ED_area_headerprint(sa, msg);
@@ -110,6 +111,7 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
 static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
 {
 	InsetData *opdata;
+	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
@@ -129,6 +131,9 @@ static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
 
 	initNumInput(&opdata->num_input);
 	opdata->num_input.idx_max = 1; /* Two elements. */
+	opdata->num_input.unit_sys = scene->unit.system;
+	opdata->num_input.unit_type[0] = B_UNIT_LENGTH;
+	opdata->num_input.unit_type[1] = B_UNIT_LENGTH;
 
 	if (is_modal) {
 		View3D *v3d = CTX_wm_view3d(C);
@@ -166,7 +171,7 @@ static void edbm_inset_exit(bContext *C, wmOperator *op)
 	MEM_freeN(op->customdata);
 }
 
-static int edbm_inset_cancel(bContext *C, wmOperator *op)
+static void edbm_inset_cancel(bContext *C, wmOperator *op)
 {
 	InsetData *opdata;
 
@@ -180,7 +185,6 @@ static int edbm_inset_cancel(bContext *C, wmOperator *op)
 
 	/* need to force redisplay or we may still view the modified result */
 	ED_region_tag_redraw(CTX_wm_region(C));
-	return OPERATOR_CANCELLED;
 }
 
 static bool edbm_inset_calc(wmOperator *op)
@@ -192,6 +196,7 @@ static bool edbm_inset_calc(wmOperator *op)
 	const bool use_boundary        = RNA_boolean_get(op->ptr, "use_boundary");
 	const bool use_even_offset     = RNA_boolean_get(op->ptr, "use_even_offset");
 	const bool use_relative_offset = RNA_boolean_get(op->ptr, "use_relative_offset");
+	const bool use_edge_rail       = RNA_boolean_get(op->ptr, "use_edge_rail");
 	const float thickness          = RNA_float_get(op->ptr,   "thickness");
 	const float depth              = RNA_float_get(op->ptr,   "depth");
 	const bool use_outset          = RNA_boolean_get(op->ptr, "use_outset");
@@ -216,9 +221,9 @@ static bool edbm_inset_calc(wmOperator *op)
 	else {
 		EDBM_op_init(em, &bmop, op,
 		             "inset_region faces=%hf use_boundary=%b use_even_offset=%b use_relative_offset=%b"
-		             " use_interpolate=%b thickness=%f depth=%f use_outset=%b",
+		             " use_interpolate=%b thickness=%f depth=%f use_outset=%b use_edge_rail=%b",
 		             BM_ELEM_SELECT, use_boundary, use_even_offset, use_relative_offset, use_interpolate,
-		             thickness, depth, use_outset);
+		             thickness, depth, use_outset, use_edge_rail);
 	}
 	BMO_op_exec(em->bm, &bmop);
 
@@ -292,10 +297,9 @@ static int edbm_inset_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	InsetData *opdata = op->customdata;
 
-	if (event->val == KM_PRESS) {
-		/* Try to handle numeric inputs... */
-
-		if (handleNumInput(&opdata->num_input, event)) {
+	if (event->val == KM_PRESS && hasNumInput(&opdata->num_input)) {
+		/* Modal numinput active, try to handle numeric inputs first... */
+		if (handleNumInput(C, &opdata->num_input, event)) {
 			float amounts[2] = {RNA_float_get(op->ptr, "thickness"),
 			                    RNA_float_get(op->ptr, "depth")};
 			applyNumInput(&opdata->num_input, amounts);
@@ -313,134 +317,163 @@ static int edbm_inset_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			}
 		}
 	}
+	else {
+		bool handled = false;
+		switch (event->type) {
+			case ESCKEY:
+			case RIGHTMOUSE:
+				edbm_inset_cancel(C, op);
+				return OPERATOR_CANCELLED;
 
-	switch (event->type) {
-		case ESCKEY:
-		case RIGHTMOUSE:
-			edbm_inset_cancel(C, op);
-			return OPERATOR_CANCELLED;
+			case MOUSEMOVE:
+				if (!hasNumInput(&opdata->num_input)) {
+					float mdiff[2];
+					float amount;
 
-		case MOUSEMOVE:
-			if (!hasNumInput(&opdata->num_input)) {
-				float mdiff[2];
-				float amount;
+					mdiff[0] = opdata->mcenter[0] - event->mval[0];
+					mdiff[1] = opdata->mcenter[1] - event->mval[1];
 
-				mdiff[0] = opdata->mcenter[0] - event->mval[0];
-				mdiff[1] = opdata->mcenter[1] - event->mval[1];
+					if (opdata->modify_depth)
+						amount = opdata->old_depth     + ((len_v2(mdiff) - opdata->initial_length) * opdata->pixel_size);
+					else
+						amount = opdata->old_thickness - ((len_v2(mdiff) - opdata->initial_length) * opdata->pixel_size);
 
-				if (opdata->modify_depth)
-					amount = opdata->old_depth     + ((len_v2(mdiff) - opdata->initial_length) * opdata->pixel_size);
-				else
-					amount = opdata->old_thickness - ((len_v2(mdiff) - opdata->initial_length) * opdata->pixel_size);
+					/* Fake shift-transform... */
+					if (opdata->shift)
+						amount = (amount - opdata->shift_amount) * 0.1f + opdata->shift_amount;
 
-				/* Fake shift-transform... */
-				if (opdata->shift)
-					amount = (amount - opdata->shift_amount) * 0.1f + opdata->shift_amount;
+					if (opdata->modify_depth)
+						RNA_float_set(op->ptr, "depth", amount);
+					else {
+						amount = max_ff(amount, 0.0f);
+						RNA_float_set(op->ptr, "thickness", amount);
+					}
 
-				if (opdata->modify_depth)
-					RNA_float_set(op->ptr, "depth", amount);
-				else {
-					amount = max_ff(amount, 0.0f);
-					RNA_float_set(op->ptr, "thickness", amount);
+					if (edbm_inset_calc(op))
+						edbm_inset_update_header(op, C);
+					else {
+						edbm_inset_cancel(C, op);
+						return OPERATOR_CANCELLED;
+					}
+					handled = true;
 				}
+				break;
 
-				if (edbm_inset_calc(op))
-					edbm_inset_update_header(op, C);
-				else {
-					edbm_inset_cancel(C, op);
-					return OPERATOR_CANCELLED;
+			case LEFTMOUSE:
+			case PADENTER:
+			case RETKEY:
+				edbm_inset_calc(op);
+				edbm_inset_exit(C, op);
+				return OPERATOR_FINISHED;
+
+			case LEFTSHIFTKEY:
+			case RIGHTSHIFTKEY:
+				if (event->val == KM_PRESS) {
+					if (opdata->modify_depth)
+						opdata->shift_amount = RNA_float_get(op->ptr, "depth");
+					else
+						opdata->shift_amount = RNA_float_get(op->ptr, "thickness");
+					opdata->shift = true;
+					handled = true;
 				}
+				else {
+					opdata->shift_amount = 0.0f;
+					opdata->shift = false;
+					handled = true;
+				}
+				break;
+
+			case LEFTCTRLKEY:
+			case RIGHTCTRLKEY:
+			{
+				float mlen[2];
+
+				mlen[0] = opdata->mcenter[0] - event->mval[0];
+				mlen[1] = opdata->mcenter[1] - event->mval[1];
+
+				if (event->val == KM_PRESS) {
+					opdata->old_thickness = RNA_float_get(op->ptr, "thickness");
+					if (opdata->shift)
+						opdata->shift_amount = opdata->old_thickness;
+					opdata->modify_depth = true;
+				}
+				else {
+					opdata->old_depth = RNA_float_get(op->ptr, "depth");
+					if (opdata->shift)
+						opdata->shift_amount = opdata->old_depth;
+					opdata->modify_depth = false;
+				}
+				opdata->initial_length = len_v2(mlen);
+
+				edbm_inset_update_header(op, C);
+				handled = true;
+				break;
 			}
-			break;
 
-		case LEFTMOUSE:
-		case PADENTER:
-		case RETKEY:
-			edbm_inset_calc(op);
-			edbm_inset_exit(C, op);
-			return OPERATOR_FINISHED;
-
-		case LEFTSHIFTKEY:
-		case RIGHTSHIFTKEY:
-			if (event->val == KM_PRESS) {
-				if (opdata->modify_depth)
-					opdata->shift_amount = RNA_float_get(op->ptr, "depth");
-				else
-					opdata->shift_amount = RNA_float_get(op->ptr, "thickness");
-				opdata->shift = true;
-			}
-			else {
-				opdata->shift_amount = 0.0f;
-				opdata->shift = false;
-			}
-			break;
-
-		case LEFTCTRLKEY:
-		case RIGHTCTRLKEY:
-		{
-			float mlen[2];
-
-			mlen[0] = opdata->mcenter[0] - event->mval[0];
-			mlen[1] = opdata->mcenter[1] - event->mval[1];
-
-			if (event->val == KM_PRESS) {
-				opdata->old_thickness = RNA_float_get(op->ptr, "thickness");
-				if (opdata->shift)
-					opdata->shift_amount = opdata->old_thickness;
-				opdata->modify_depth = true;
-			}
-			else {
-				opdata->old_depth = RNA_float_get(op->ptr, "depth");
-				if (opdata->shift)
-					opdata->shift_amount = opdata->old_depth;
-				opdata->modify_depth = false;
-			}
-			opdata->initial_length = len_v2(mlen);
-
-			edbm_inset_update_header(op, C);
-			break;
+			case OKEY:
+				if (event->val == KM_PRESS) {
+					const bool use_outset = RNA_boolean_get(op->ptr, "use_outset");
+					RNA_boolean_set(op->ptr, "use_outset", !use_outset);
+					if (edbm_inset_calc(op)) {
+						edbm_inset_update_header(op, C);
+					}
+					else {
+						edbm_inset_cancel(C, op);
+						return OPERATOR_CANCELLED;
+					}
+					handled = true;
+				}
+				break;
+			case BKEY:
+				if (event->val == KM_PRESS) {
+					const bool use_boundary = RNA_boolean_get(op->ptr, "use_boundary");
+					RNA_boolean_set(op->ptr, "use_boundary", !use_boundary);
+					if (edbm_inset_calc(op)) {
+						edbm_inset_update_header(op, C);
+					}
+					else {
+						edbm_inset_cancel(C, op);
+						return OPERATOR_CANCELLED;
+					}
+					handled = true;
+				}
+				break;
+			case IKEY:
+				if (event->val == KM_PRESS) {
+					const bool use_individual = RNA_boolean_get(op->ptr, "use_individual");
+					RNA_boolean_set(op->ptr, "use_individual", !use_individual);
+					if (edbm_inset_calc(op)) {
+						edbm_inset_update_header(op, C);
+					}
+					else {
+						edbm_inset_cancel(C, op);
+						return OPERATOR_CANCELLED;
+					}
+					handled = true;
+				}
+				break;
 		}
 
-		case OKEY:
-			if (event->val == KM_PRESS) {
-				const bool use_outset = RNA_boolean_get(op->ptr, "use_outset");
-				RNA_boolean_set(op->ptr, "use_outset", !use_outset);
-				if (edbm_inset_calc(op)) {
-					edbm_inset_update_header(op, C);
-				}
-				else {
-					edbm_inset_cancel(C, op);
-					return OPERATOR_CANCELLED;
-				}
-			}
-			break;
-		case BKEY:
-			if (event->val == KM_PRESS) {
-				const bool use_boundary = RNA_boolean_get(op->ptr, "use_boundary");
-				RNA_boolean_set(op->ptr, "use_boundary", !use_boundary);
-				if (edbm_inset_calc(op)) {
-					edbm_inset_update_header(op, C);
-				}
-				else {
-					edbm_inset_cancel(C, op);
-					return OPERATOR_CANCELLED;
-				}
-			}
-			break;
-		case IKEY:
-			if (event->val == KM_PRESS) {
-				const bool use_individual = RNA_boolean_get(op->ptr, "use_individual");
-				RNA_boolean_set(op->ptr, "use_individual", !use_individual);
-				if (edbm_inset_calc(op)) {
-					edbm_inset_update_header(op, C);
-				}
-				else {
-					edbm_inset_cancel(C, op);
-					return OPERATOR_CANCELLED;
-				}
-			}
-			break;
+		if (!handled && event->val == KM_PRESS) {
+			/* Modal numinput inactive, try to handle numeric inputs last... */
+			if (handleNumInput(C, &opdata->num_input, event)) {
+				float amounts[2] = {RNA_float_get(op->ptr, "thickness"),
+				                    RNA_float_get(op->ptr, "depth")};
+				applyNumInput(&opdata->num_input, amounts);
+				amounts[0] = max_ff(amounts[0], 0.0f);
+				RNA_float_set(op->ptr, "thickness", amounts[0]);
+				RNA_float_set(op->ptr, "depth", amounts[1]);
 
+				if (edbm_inset_calc(op)) {
+					edbm_inset_update_header(op, C);
+					return OPERATOR_RUNNING_MODAL;
+				}
+				else {
+					edbm_inset_cancel(C, op);
+					return OPERATOR_CANCELLED;
+				}
+			}
+		}
 	}
 
 	return OPERATOR_RUNNING_MODAL;
@@ -470,6 +503,7 @@ void MESH_OT_inset(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "use_boundary",        true, "Boundary",  "Inset face boundaries");
 	RNA_def_boolean(ot->srna, "use_even_offset",     true, "Offset Even",      "Scale the offset to give more even thickness");
 	RNA_def_boolean(ot->srna, "use_relative_offset", false, "Offset Relative", "Scale the offset by surrounding geometry");
+	RNA_def_boolean(ot->srna, "use_edge_rail",     true, "Edge Rail", "Inset the region along existing edges");
 
 	prop = RNA_def_float(ot->srna, "thickness", 0.01f, 0.0f, FLT_MAX, "Thickness", "", 0.0f, 10.0f);
 	/* use 1 rather then 10 for max else dragging the button moves too far */

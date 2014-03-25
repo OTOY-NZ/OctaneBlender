@@ -216,7 +216,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
                               MPoly *mpolys, unsigned int totpoly,
                               MDeformVert *dverts, /* assume totvert length */
                               const bool do_verbose, const bool do_fixes,
-                              bool *r_change)
+                              bool *r_changed)
 {
 #   define REMOVE_EDGE_TAG(_me) { _me->v2 = _me->v1; do_edge_free = true; } (void)0
 #   define IS_REMOVED_EDGE(_me) (_me->v2 == _me->v1)
@@ -450,7 +450,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 #		undef CHECK_FACE_EDGE
 	}
 
-	/* Checking loops and polys is a bit tricky, as they are quite intricated...
+	/* Checking loops and polys is a bit tricky, as they are quite intricate...
 	 *
 	 * Polys must have:
 	 * - a valid loopstart value.
@@ -854,7 +854,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 
 	PRINT_MSG("%s: finished\n\n", __func__);
 
-	*r_change = (verts_fixed || vert_weights_fixed || do_polyloop_free || do_edge_free || do_edge_recalc || msel_fixed);
+	*r_changed = (verts_fixed || vert_weights_fixed || do_polyloop_free || do_edge_free || do_edge_recalc || msel_fixed);
 
 	return is_valid;
 }
@@ -922,7 +922,7 @@ bool BKE_mesh_validate_all_customdata(CustomData *vdata, CustomData *edata,
 {
 	bool is_valid = true;
 	bool is_change_v, is_change_e, is_change_l, is_change_p;
-	int tot_texpoly, tot_uvloop;
+	int tot_texpoly, tot_uvloop, tot_vcolloop;
 	CustomDataMask mask = check_meshmask ? CD_MASK_MESH : 0;
 
 	is_valid &= mesh_validate_customdata(vdata, mask, do_verbose, do_fixes, &is_change_v);
@@ -932,9 +932,22 @@ bool BKE_mesh_validate_all_customdata(CustomData *vdata, CustomData *edata,
 
 	tot_texpoly = CustomData_number_of_layers(pdata, CD_MTEXPOLY);
 	tot_uvloop = CustomData_number_of_layers(ldata, CD_MLOOPUV);
+	tot_vcolloop = CustomData_number_of_layers(ldata, CD_MLOOPCOL);
 	if (tot_texpoly != tot_uvloop) {
 		PRINT_ERR("\tCustomDataLayer mismatch, tot_texpoly(%d), tot_uvloop(%d)\n",
 		          tot_texpoly, tot_uvloop);
+	}
+	if (tot_texpoly > MAX_MTFACE) {
+		PRINT_ERR("\tMore UV layers than %d allowed, %d last ones won't be available for render, shaders, etc.\n",
+		          MAX_MTFACE, tot_texpoly - MAX_MTFACE);
+	}
+	if (tot_uvloop > MAX_MTFACE) {
+		PRINT_ERR("\tMore UV layers than %d allowed, %d last ones won't be available for render, shaders, etc.\n",
+		          MAX_MTFACE, tot_uvloop - MAX_MTFACE);
+	}
+	if (tot_vcolloop > MAX_MCOL) {
+		PRINT_ERR("\tMore VCol layers than %d allowed, %d last ones won't be available for render, shaders, etc.\n",
+		          MAX_MCOL, tot_vcolloop - MAX_MCOL);
 	}
 
 	*r_change = (is_change_v || is_change_e || is_change_l || is_change_p);
@@ -950,7 +963,7 @@ bool BKE_mesh_validate_all_customdata(CustomData *vdata, CustomData *edata,
 int BKE_mesh_validate(Mesh *me, const int do_verbose)
 {
 	bool is_valid = true;
-	bool is_change;
+	bool changed;
 
 	if (do_verbose) {
 		printf("MESH: %s\n", me->id.name + 2);
@@ -960,7 +973,7 @@ int BKE_mesh_validate(Mesh *me, const int do_verbose)
 	        &me->vdata, &me->edata, &me->ldata, &me->pdata,
 	        true,
 	        do_verbose, true,
-	        &is_change);
+	        &changed);
 
 	is_valid &= BKE_mesh_validate_arrays(
 	        me,
@@ -971,9 +984,9 @@ int BKE_mesh_validate(Mesh *me, const int do_verbose)
 	        me->mpoly, me->totpoly,
 	        me->dvert,
 	        do_verbose, true,
-	        &is_change);
+	        &changed);
 
-	if (is_change) {
+	if (changed) {
 		DAG_id_tag_update(&me->id, OB_RECALC_DATA);
 		return true;
 	}
@@ -989,9 +1002,24 @@ void BKE_mesh_cd_validate(Mesh *me)
 {
 	int totlayer_mtex = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
 	int totlayer_uv = CustomData_number_of_layers(&me->ldata, CD_MLOOPUV);
+	int totlayer_mcol = CustomData_number_of_layers(&me->ldata, CD_MLOOPCOL);
 	int mtex_index = CustomData_get_layer_index(&me->pdata, CD_MTEXPOLY);
 	int uv_index = CustomData_get_layer_index(&me->ldata, CD_MLOOPUV);
 	int i;
+
+	/* XXX For now, do not delete those, just warn they are not really usable. */
+	if (UNLIKELY(totlayer_mtex > MAX_MTFACE)) {
+		printf("WARNING! More UV layers than %d allowed, %d last ones won't be available for render, shaders, etc.\n",
+		       MAX_MTFACE, totlayer_mtex - MAX_MTFACE);
+	}
+	if (UNLIKELY(totlayer_uv > MAX_MTFACE)) {
+		printf("WARNING! More UV layers than %d allowed, %d last ones won't be available for render, shaders, etc.\n",
+		       MAX_MTFACE, totlayer_uv - MAX_MTFACE);
+	}
+	if (UNLIKELY(totlayer_mcol > MAX_MCOL)) {
+		printf("WARNING! More VCol layers than %d allowed, %d last ones won't be available for render, shaders, etc.\n",
+		       MAX_MCOL, totlayer_mcol - MAX_MCOL);
+	}
 
 	if (LIKELY(totlayer_mtex == totlayer_uv)) {
 		/* pass */

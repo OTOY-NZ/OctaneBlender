@@ -256,8 +256,8 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
 
 		dpx->element[i].bitsPerSample = header.imageHeader.element[i].bits_per_sample;
 		if (dpx->element[i].bitsPerSample != 1 && dpx->element[i].bitsPerSample != 8 &&
-			dpx->element[i].bitsPerSample != 10 && dpx->element[i].bitsPerSample != 12 &&
-			dpx->element[i].bitsPerSample != 16)
+		    dpx->element[i].bitsPerSample != 10 && dpx->element[i].bitsPerSample != 12 &&
+		    dpx->element[i].bitsPerSample != 16)
 		{
 			if (verbose) printf("DPX: Unsupported bitsPerSample for elements %d: %d\n", i, dpx->element[i].bitsPerSample);
 			logImageClose(dpx);
@@ -300,10 +300,10 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
 			case descriptor_RGB:
 			case descriptor_RGBA:
 			case descriptor_ABGR:
-				if (dpx->element[i].refLowData == DPX_UNDEFINED_U32 || isnan(dpx->element[i].refLowData))
+				if (dpx->element[i].refLowData == DPX_UNDEFINED_U32)
 					dpx->element[i].refLowData = 0;
 
-				if (dpx->element[i].refHighData == DPX_UNDEFINED_U32 || isnan(dpx->element[i].refHighData))
+				if (dpx->element[i].refHighData == DPX_UNDEFINED_U32)
 					dpx->element[i].refHighData = (unsigned int)dpx->element[i].maxValue;
 
 				if (dpx->element[i].refLowQuantity == DPX_UNDEFINED_R32 || isnan(dpx->element[i].refLowQuantity))
@@ -324,10 +324,10 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
 			case descriptor_CbYCr:
 			case descriptor_CbYACrYA:
 			case descriptor_CbYCrA:
-				if (dpx->element[i].refLowData == DPX_UNDEFINED_U32 || isnan(dpx->element[i].refLowData))
+				if (dpx->element[i].refLowData == DPX_UNDEFINED_U32)
 					dpx->element[i].refLowData = 16.0f / 255.0f * dpx->element[i].maxValue;
 
-				if (dpx->element[i].refHighData == DPX_UNDEFINED_U32 || isnan(dpx->element[i].refHighData))
+				if (dpx->element[i].refHighData == DPX_UNDEFINED_U32)
 					dpx->element[i].refHighData = 235.0f / 255.0f * dpx->element[i].maxValue;
 
 				if (dpx->element[i].refLowQuantity == DPX_UNDEFINED_R32 || isnan(dpx->element[i].refLowQuantity))

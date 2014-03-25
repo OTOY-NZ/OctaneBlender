@@ -103,7 +103,8 @@ typedef struct RigidBodyOb {
 	
 	int flag;				/* (eRigidBodyOb_Flag) */
 	int col_groups;			/* Collision groups that determines wich rigid bodies can collide with each other */
-	int pad;
+	short mesh_source;		/* (eRigidBody_MeshSource) mesh source for mesh based collision shapes */
+	short pad;
 	
 	/* Physics Parameters */
 	float mass;				/* how much object 'weighs' (i.e. absolute 'amount of stuff' it holds) */
@@ -148,7 +149,9 @@ typedef enum eRigidBodyOb_Flag {
 	/* rigidbody is not dynamically simulated */
 	RBO_FLAG_DISABLED			= (1 << 5),
 	/* collision margin is not embedded (only used by convex hull shapes for now) */
-	RBO_FLAG_USE_MARGIN			= (1 << 6)
+	RBO_FLAG_USE_MARGIN			= (1 << 6),
+	/* collision shape deforms during simulation (only for passive triangle mesh shapes) */
+	RBO_FLAG_USE_DEFORM			= (1 << 7)
 } eRigidBodyOb_Flag;
 
 /* RigidBody Collision Shape */
@@ -172,6 +175,15 @@ typedef enum eRigidBody_Shape {
 		/* concave mesh approximated using primitives */
 	//RB_SHAPE_COMPOUND,
 } eRigidBody_Shape;
+
+typedef enum eRigidBody_MeshSource {
+	/* base mesh */
+	RBO_MESH_BASE = 0,
+	/* only deformations */
+	RBO_MESH_DEFORM,
+	/* final derived mesh */
+	RBO_MESH_FINAL
+} eRigidBody_MeshSource;
 
 /* ******************************** */
 /* RigidBody Constraint */

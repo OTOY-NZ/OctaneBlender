@@ -408,10 +408,10 @@ class I18nMessages:
         return getattr(collections, 'OrderedDict', dict)()
 
     @classmethod
-    def gen_empty_messages(cls, uid, blender_ver, blender_rev, time, year, default_copyright=True, settings=settings):
+    def gen_empty_messages(cls, uid, blender_ver, blender_hash, time, year, default_copyright=True, settings=settings):
         """Generate an empty I18nMessages object (only header is present!)."""
         fmt = settings.PO_HEADER_MSGSTR
-        msgstr = fmt.format(blender_ver=str(blender_ver), blender_rev=int(blender_rev), time=str(time), uid=str(uid))
+        msgstr = fmt.format(blender_ver=str(blender_ver), blender_hash=blender_hash, time=str(time), uid=str(uid))
         comment = ""
         if default_copyright:
             comment = settings.PO_HEADER_COMMENT_COPYRIGHT.format(year=str(year))
@@ -446,10 +446,10 @@ class I18nMessages:
         """
         ret = []
         default_context = self.settings.DEFAULT_CONTEXT
-        _format = re.compile("%[.0-9]*[tslfd]").findall
+        _format = re.compile(self.settings.CHECK_PRINTF_FORMAT).findall
         done_keys = set()
-        tmp = {}
         rem = set()
+        tmp = {}
         for key, msg in self.msgs.items():
             msgctxt, msgid, msgstr = msg.msgctxt, msg.msgid, msg.msgstr
             real_key = (msgctxt or default_context, msgid)
@@ -462,9 +462,10 @@ class I18nMessages:
                 elif fix:
                     tmp[real_key] = msg
             done_keys.add(key)
-            if '%' in msgid and msgstr and len(_format(msgid)) != len(_format(msgstr)):
+            if '%' in msgid and msgstr and _format(msgid) != _format(msgstr):
                 if not msg.is_fuzzy:
-                    ret.append("Error! msg's format entities are not matched in msgid and msgstr ({})".format(real_key))
+                    ret.append("Error! msg's format entities are not matched in msgid and msgstr ({} / \"{}\")"
+                               "".format(real_key, msgstr))
                 if fix:
                     msg.msgstr = ""
         for k in rem:
@@ -1284,7 +1285,6 @@ class I18n:
                 return path, env[tuple_id]
         return None, None  # No data...
 
-
     def parse(self, kind, src, langs=set()):
         self.parsers[kind](self, src, langs)
 
@@ -1371,6 +1371,7 @@ class I18n:
               ({} currently).
         """.format(self.settings.PARSER_TEMPLATE_ID)
         default_context = self.settings.DEFAULT_CONTEXT
+
         def _gen_py(self, langs, tab="    "):
             _lencomm = len(self.settings.PO_COMMENT_PREFIX)
             _lengen = len(self.settings.PO_COMMENT_PREFIX_GENERATED)
@@ -1450,7 +1451,7 @@ class I18n:
                         ret.append(tab + lngsp + '  "' + comments[-1] + '"))),')
                     else:
                         ret[-1] = ret[-1] + " (" + (('"' + comments[0] + '",') if comments else "") + "))),"
-                    
+
                 ret.append(tab + "),")
             ret += [
                 ")",

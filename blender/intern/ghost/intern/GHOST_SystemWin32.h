@@ -37,16 +37,14 @@
 #error WIN32 only!
 #endif // WIN32
 
+#ifndef __MINGW64__
 #define _WIN32_WINNT 0x501 // require Windows XP or newer
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <ole2.h> // for drag-n-drop
 
 #include "GHOST_System.h"
-
-#if defined(__CYGWIN32__)
-#   define __int64 long long
-#endif
 
 class GHOST_EventButton;
 class GHOST_EventCursor;

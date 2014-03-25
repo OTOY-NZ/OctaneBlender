@@ -82,9 +82,9 @@ bNodeSocket *node_group_find_output_socket(bNode *groupnode, const char *identif
 }
 
 /* groups display their internal tree name as label */
-const char *node_group_label(bNode *node)
+void node_group_label(bNodeTree *UNUSED(ntree), bNode *node, char *label, int maxlen)
 {
-	return (node->id) ? node->id->name + 2 : IFACE_("Missing Datablock");
+	BLI_strncpy(label, (node->id) ? node->id->name + 2 : IFACE_("Missing Datablock"), maxlen);
 }
 
 int node_group_poll_instance(bNode *node, bNodeTree *nodetree)
@@ -392,7 +392,7 @@ static void node_group_input_update(bNodeTree *ntree, bNode *node)
 	ListBase tmplinks;
 	
 	/* find links from the extension socket and store them */
-	tmplinks.first = tmplinks.last = NULL;
+	BLI_listbase_clear(&tmplinks);
 	for (link = ntree->links.first; link; link = link->next) {
 		if (nodeLinkIsHidden(link))
 			continue;
@@ -479,7 +479,7 @@ static void node_group_output_update(bNodeTree *ntree, bNode *node)
 	ListBase tmplinks;
 	
 	/* find links to the extension socket and store them */
-	tmplinks.first = tmplinks.last = NULL;
+	BLI_listbase_clear(&tmplinks);
 	for (link = ntree->links.first; link; link = link->next) {
 		if (nodeLinkIsHidden(link))
 			continue;

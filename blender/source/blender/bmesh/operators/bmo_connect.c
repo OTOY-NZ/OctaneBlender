@@ -26,8 +26,6 @@
  * Connect verts across faces (splits faces).
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_alloca.h"
@@ -50,7 +48,7 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 
 	BMIter liter;
 	BMFace *f_new;
-	BMLoop *l, *l_new;
+	BMLoop *l;
 	BMLoop *l_last;
 	unsigned int i;
 
@@ -65,7 +63,7 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 				continue;
 			}
 
-			if (l_last != l->prev && l_last != l->next) {
+			if (!BM_loop_is_adjacent(l_last, l)) {
 				BMLoop **l_pair = STACK_PUSH_RET(loops_split);
 				l_pair[0] = l_last;
 				l_pair[1] = l;
@@ -98,7 +96,19 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 	}
 
 	for (i = 0; i < STACK_SIZE(verts_pair); i++) {
-		f_new = BM_face_split(bm, f, verts_pair[i][0], verts_pair[i][1], &l_new, NULL, false);
+		BMLoop *l_new;
+		BMLoop *l_a, *l_b;
+
+		if ((l_a = BM_face_vert_share_loop(f, verts_pair[i][0])) &&
+		    (l_b = BM_face_vert_share_loop(f, verts_pair[i][1])))
+		{
+			f_new = BM_face_split(bm, f, l_a, l_b, &l_new, NULL, false);
+		}
+		else {
+			f_new = NULL;
+			l_new = NULL;
+		}
+
 		f = f_new;
 
 		if (!l_new || !f_new) {

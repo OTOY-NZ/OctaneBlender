@@ -32,11 +32,9 @@
 #ifndef __RAS_POLYGON_H__
 #define __RAS_POLYGON_H__
 
-#include "RAS_TexVert.h"
-#include "RAS_MaterialBucket.h"
-
-#include <vector>
-using namespace std;
+class RAS_DisplayArray;
+class RAS_MaterialBucket;
+class RAS_TexVert;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"

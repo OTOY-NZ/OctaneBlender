@@ -37,6 +37,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_lasso.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -121,7 +122,7 @@ short ANIM_fcurve_keyframes_loop(KeyframeEditData *ked, FCurve *fcu, KeyframeEdi
 				}
 				
 				/* Only operate on this BezTriple if it fullfills the criteria of the validation func */
-				if ( (ok = key_ok(ked, bezt)) ) {
+				if ((ok = key_ok(ked, bezt))) {
 					if (ked) ked->curflags = ok;
 					
 					/* Exit with return-code '1' if function returns positive
@@ -445,9 +446,9 @@ static short ok_bezier_frame(KeyframeEditData *ked, BezTriple *bezt)
 	short ok = 0;
 	
 	/* frame is stored in f1 property (this float accuracy check may need to be dropped?) */
-	#define KEY_CHECK_OK(_index) IS_EQF(bezt->vec[_index][0], ked->f1)
+#define KEY_CHECK_OK(_index) IS_EQF(bezt->vec[_index][0], ked->f1)
 	KEYFRAME_OK_CHECKS(KEY_CHECK_OK);
-	#undef KEY_CHECK_OK
+#undef KEY_CHECK_OK
 	
 	/* return ok flags */
 	return ok;
@@ -458,9 +459,9 @@ static short ok_bezier_framerange(KeyframeEditData *ked, BezTriple *bezt)
 	short ok = 0;
 	
 	/* frame range is stored in float properties */
-	#define KEY_CHECK_OK(_index) ((bezt->vec[_index][0] > ked->f1) && (bezt->vec[_index][0] < ked->f2))
+#define KEY_CHECK_OK(_index) ((bezt->vec[_index][0] > ked->f1) && (bezt->vec[_index][0] < ked->f2))
 	KEYFRAME_OK_CHECKS(KEY_CHECK_OK);
-	#undef KEY_CHECK_OK
+#undef KEY_CHECK_OK
 	
 	/* return ok flags */
 	return ok;
@@ -485,9 +486,9 @@ static short ok_bezier_value(KeyframeEditData *ked, BezTriple *bezt)
 	 *	- this float accuracy check may need to be dropped?
 	 *	- should value be stored in f2 instead so that we won't have conflicts when using f1 for frames too?
 	 */
-	#define KEY_CHECK_OK(_index) IS_EQF(bezt->vec[_index][1], ked->f1)
+#define KEY_CHECK_OK(_index) IS_EQF(bezt->vec[_index][1], ked->f1)
 	KEYFRAME_OK_CHECKS(KEY_CHECK_OK);
-	#undef KEY_CHECK_OK
+#undef KEY_CHECK_OK
 	
 	/* return ok flags */
 	return ok;
@@ -498,9 +499,9 @@ static short ok_bezier_valuerange(KeyframeEditData *ked, BezTriple *bezt)
 	short ok = 0;
 	
 	/* value range is stored in float properties */
-	#define KEY_CHECK_OK(_index) ((bezt->vec[_index][1] > ked->f1) && (bezt->vec[_index][1] < ked->f2))
+#define KEY_CHECK_OK(_index) ((bezt->vec[_index][1] > ked->f1) && (bezt->vec[_index][1] < ked->f2))
 	KEYFRAME_OK_CHECKS(KEY_CHECK_OK);
-	#undef KEY_CHECK_OK
+#undef KEY_CHECK_OK
 	
 	/* return ok flags */
 	return ok;
@@ -512,14 +513,53 @@ static short ok_bezier_region(KeyframeEditData *ked, BezTriple *bezt)
 	if (ked->data) {
 		short ok = 0;
 		
-		#define KEY_CHECK_OK(_index) BLI_rctf_isect_pt_v(ked->data, bezt->vec[_index])
+#define KEY_CHECK_OK(_index) BLI_rctf_isect_pt_v(ked->data, bezt->vec[_index])
 		KEYFRAME_OK_CHECKS(KEY_CHECK_OK);
-		#undef KEY_CHECK_OK
+#undef KEY_CHECK_OK
 		
 		/* return ok flags */
 		return ok;
 	}
 	else 
+		return 0;
+}
+
+/**
+ * only called from #ok_bezier_region_lasso
+ */
+static bool bezier_region_lasso_test(
+        const struct KeyframeEdit_LassoData *data_lasso,
+        const float xy[2])
+{
+	if (BLI_rctf_isect_pt_v(data_lasso->rectf_scaled, xy)) {
+		float xy_view[2];
+
+		BLI_rctf_transform_pt_v(data_lasso->rectf_view, data_lasso->rectf_scaled, xy_view, xy);
+
+		if (BLI_lasso_is_point_inside(data_lasso->mcords, data_lasso->mcords_tot, xy_view[0], xy_view[1], INT_MAX)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static short ok_bezier_region_lasso(KeyframeEditData *ked, BezTriple *bezt)
+{
+	/* rect is stored in data property (it's of type rectf, but may not be set) */
+	if (ked->data) {
+		short ok = 0;
+
+#define KEY_CHECK_OK(_index) bezier_region_lasso_test(ked->data, bezt->vec[_index])
+		KEYFRAME_OK_CHECKS(KEY_CHECK_OK);
+#undef KEY_CHECK_OK
+
+		/* check for lasso */
+
+		/* return ok flags */
+		return ok;
+	}
+	else
 		return 0;
 }
 
@@ -540,6 +580,8 @@ KeyframeEditFunc ANIM_editkeyframes_ok(short mode)
 			return ok_bezier_valuerange;
 		case BEZT_OK_REGION: /* only if bezier falls within the specified rect (data -> rectf) */
 			return ok_bezier_region;
+		case BEZT_OK_REGION_LASSO: /* only if the point falls within KeyframeEdit_LassoData defined data */
+			return ok_bezier_region_lasso;
 		default: /* nothing was ok */
 			return NULL;
 	}

@@ -49,7 +49,6 @@
 #include "CTR_HashedPtr.h"
 
 #include "KX_PhysicsEngineEnums.h"
-#include "PHY_Pro.h"
 
 #include "KX_MotionState.h" // bridge between motionstate and scenegraph node
 
@@ -65,7 +64,6 @@ extern "C"{
 #include "CcdPhysicsController.h"
 #include "BulletCollision/BroadphaseCollision/btBroadphaseInterface.h"
 
-#include "KX_BulletPhysicsController.h"
 #include "btBulletDynamicsCommon.h"
 
 #ifdef WIN32
@@ -255,7 +253,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 		{
 			//find parent, compound shape and add to it
 			//take relative transform into account!
-			KX_BulletPhysicsController* parentCtrl = (KX_BulletPhysicsController*)objprop->m_dynamic_parent->GetPhysicsController();
+			CcdPhysicsController* parentCtrl = (CcdPhysicsController*)objprop->m_dynamic_parent->GetPhysicsController();
 			assert(parentCtrl);
 			CcdShapeConstructionInfo* parentShapeInfo = parentCtrl->GetShapeInfo();
 			btRigidBody* rigidbody = parentCtrl->GetRigidBody();
@@ -424,23 +422,29 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	
 	ci.m_contactProcessingThreshold = objprop->m_contactProcessingThreshold;//todo: expose this in advanced settings, just like margin, default to 10000 or so
 	ci.m_bSoft = objprop->m_softbody;
+	ci.m_bDyna = isbulletdyna;
 	ci.m_bSensor = isbulletsensor;
 	ci.m_bCharacter = isbulletchar;
 	ci.m_bGimpact = useGimpact;
 	MT_Vector3 scaling = gameobj->NodeGetWorldScaling();
 	ci.m_scaling.setValue(scaling[0], scaling[1], scaling[2]);
-	KX_BulletPhysicsController* physicscontroller = new KX_BulletPhysicsController(ci,isbulletdyna,isbulletsensor,isbulletchar,objprop->m_hasCompoundChildren);
+	CcdPhysicsController* physicscontroller = new CcdPhysicsController(ci);
 	// shapeInfo is reference counted, decrement now as we don't use it anymore
 	if (shapeInfo)
 		shapeInfo->Release();
 
 	gameobj->SetPhysicsController(physicscontroller,isbulletdyna);
+
+	// record animation for dynamic objects
+	if (isbulletdyna)
+		gameobj->SetRecordAnimation(true);
+
 	// don't add automatically sensor object, they are added when a collision sensor is registered
 	if (!isbulletsensor && objprop->m_in_active_layer)
 	{
-		env->addCcdPhysicsController( physicscontroller);
+		env->AddCcdPhysicsController( physicscontroller);
 	}
-	physicscontroller->setNewClientInfo(gameobj->getClientInfo());
+	physicscontroller->SetNewClientInfo(gameobj->getClientInfo());
 	{
 		btRigidBody* rbody = physicscontroller->GetRigidBody();
 
@@ -459,8 +463,8 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 		}
 	}
 
-	CcdPhysicsController* parentCtrl = objprop->m_dynamic_parent ? (KX_BulletPhysicsController*)objprop->m_dynamic_parent->GetPhysicsController() : 0;
-	physicscontroller->setParentCtrl(parentCtrl);
+	CcdPhysicsController* parentCtrl = objprop->m_dynamic_parent ? (CcdPhysicsController*)objprop->m_dynamic_parent->GetPhysicsController() : 0;
+	physicscontroller->SetParentCtrl(parentCtrl);
 
 	
 	//Now done directly in ci.m_collisionFlags so that it propagates to replica
@@ -493,6 +497,11 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	gameobj->getClientInfo()->m_type = 
 		(isbulletsensor) ? ((isActor) ? KX_ClientObjectInfo::OBACTORSENSOR : KX_ClientObjectInfo::OBSENSOR) :
 		(isActor) ? KX_ClientObjectInfo::ACTOR : KX_ClientObjectInfo::STATIC;
+
+	// should we record animation for this object?
+	if (objprop->m_record_animation)
+		gameobj->SetRecordAnimation(true);
+
 	// store materialname in auxinfo, needed for touchsensors
 	if (meshobj)
 	{
@@ -504,13 +513,11 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	}
 
 
-	gameobj->GetSGNode()->AddSGController(physicscontroller);
 
 	STR_String materialname;
 	if (meshobj)
 		materialname = meshobj->GetMaterialName(0);
 
-	physicscontroller->SetObject(gameobj->GetSGNode());
 
 #if 0
 	///test for soft bodies
@@ -546,7 +553,7 @@ void	KX_ClearBulletSharedShapes()
  */
 bool KX_ReInstanceBulletShapeFromMesh(KX_GameObject *gameobj, KX_GameObject *from_gameobj, RAS_MeshObject* from_meshobj)
 {
-	KX_BulletPhysicsController	*spc= static_cast<KX_BulletPhysicsController*>((gameobj->GetPhysicsController()));
+	CcdPhysicsController	*spc= static_cast<CcdPhysicsController*>(gameobj->GetPhysicsController());
 	CcdShapeConstructionInfo	*shapeInfo;
 
 	/* if this is the child of a compound shape this can happen
@@ -568,7 +575,7 @@ bool KX_ReInstanceBulletShapeFromMesh(KX_GameObject *gameobj, KX_GameObject *fro
 	shapeInfo->UpdateMesh(from_gameobj, from_meshobj);
 
 	/* create the new bullet mesh */
-	CcdConstructionInfo& cci = spc->getConstructionInfo();
+	CcdConstructionInfo& cci = spc->GetConstructionInfo();
 	btCollisionShape* bm= shapeInfo->CreateBulletShape(cci.m_margin, cci.m_bGimpact, !cci.m_bSoft);
 
 	spc->ReplaceControllerShape(bm);

@@ -395,7 +395,7 @@ void uiRoundBox(float minx, float miny, float maxx, float maxy, float rad)
 
 /* ************** SPECIAL BUTTON DRAWING FUNCTIONS ************* */
 
-void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
+void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *rect)
 {
 #ifdef WITH_HEADLESS
 	(void)rect;
@@ -469,7 +469,7 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 }
 
 static void histogram_draw_one(float r, float g, float b, float alpha,
-                               float x, float y, float w, float h, float *data, int res, const short is_line)
+                               float x, float y, float w, float h, float *data, int res, const bool is_line)
 {
 	int i;
 	
@@ -526,14 +526,14 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 
 #define HISTOGRAM_TOT_GRID_LINES 4
 
-void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
+void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *recti)
 {
 	Histogram *hist = (Histogram *)but->poin;
 	int res = hist->x_resolution;
 	rctf rect;
 	int i;
 	float w, h;
-	const short is_line = (hist->flag & HISTO_FLAG_LINE) != 0;
+	const bool is_line = (hist->flag & HISTO_FLAG_LINE) != 0;
 	//float alpha;
 	GLint scissor[4];
 	
@@ -594,7 +594,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 
 #undef HISTOGRAM_TOT_GRID_LINES
 
-void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
+void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *recti)
 {
 	Scopes *scopes = (Scopes *)but->poin;
 	rctf rect;
@@ -825,7 +825,7 @@ static void vectorscope_draw_target(float centerx, float centery, float diam, co
 	glEnd();
 }
 
-void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
+void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *recti)
 {
 	const float skin_rad = DEG2RADF(123.0f); /* angle in radians of the skin tone line */
 	Scopes *scopes = (Scopes *)but->poin;
@@ -912,7 +912,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	glDisable(GL_BLEND);
 }
 
-void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
+void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *rect)
 {
 	ColorBand *coba;
 	CBData *cbd;
@@ -935,11 +935,11 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 
 	/* first background, to show tranparency */
 
-	glColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
+	glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
 	glRectf(x1, y1, x1 + sizex, y1 + sizey);
 	glEnable(GL_POLYGON_STIPPLE);
-	glColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
-	glPolygonStipple(checker_stipple_sml);
+	glColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
+	glPolygonStipple(stipple_checker_8px);
 	glRectf(x1, y1, x1 + sizex, y1 + sizey);
 	glDisable(GL_POLYGON_STIPPLE);
 
@@ -1037,7 +1037,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 
 }
 
-void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
+void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 {
 	static GLuint displist = 0;
 	int a, old[8];
@@ -1130,7 +1130,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	}
 }
 
-static void ui_draw_but_curve_grid(rcti *rect, float zoomx, float zoomy, float offsx, float offsy, float step)
+static void ui_draw_but_curve_grid(const rcti *rect, float zoomx, float zoomy, float offsx, float offsy, float step)
 {
 	float dx, dy, fx, fy;
 	
@@ -1163,7 +1163,7 @@ static void gl_shaded_color(unsigned char *col, int shade)
 	           col[2] - shade > 0 ? col[2] - shade : 0);
 }
 
-void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect)
+void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 {
 	CurveMapping *cumap;
 	CurveMap *cuma;
@@ -1195,10 +1195,10 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	          BLI_rcti_size_y(&scissor_new));
 
 	/* calculate offset and zoom */
-	zoomx = (BLI_rcti_size_x(rect) - 2.0f * but->aspect) / BLI_rctf_size_x(&cumap->curr);
-	zoomy = (BLI_rcti_size_y(rect) - 2.0f * but->aspect) / BLI_rctf_size_y(&cumap->curr);
-	offsx = cumap->curr.xmin - but->aspect / zoomx;
-	offsy = cumap->curr.ymin - but->aspect / zoomy;
+	zoomx = (BLI_rcti_size_x(rect) - 2.0f) / BLI_rctf_size_x(&cumap->curr);
+	zoomy = (BLI_rcti_size_y(rect) - 2.0f) / BLI_rctf_size_y(&cumap->curr);
+	offsx = cumap->curr.xmin - (1.0f / zoomx);
+	offsy = cumap->curr.ymin - (1.0f / zoomy);
 	
 	/* backdrop */
 	if (but->a1 == UI_GRAD_H) {
@@ -1308,7 +1308,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	glBegin(GL_LINE_STRIP);
 	
 	if (cuma->table == NULL)
-		curvemapping_changed(cumap, FALSE);
+		curvemapping_changed(cumap, false);
 	cmp = cuma->table;
 	
 	/* first point */
@@ -1362,7 +1362,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	fdrawbox(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 }
 
-void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
+void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *recti)
 {
 	rctf rect;
 	int ok = 0, width, height;
@@ -1389,7 +1389,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 
 	if (scopes->track_disabled) {
 		glColor4f(0.7f, 0.3f, 0.3f, 0.3f);
-		uiSetRoundBox(15);
+		uiSetRoundBox(UI_CNR_ALL);
 		uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 		ok = 1;
@@ -1405,7 +1405,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 
 		tmpibuf = BKE_tracking_sample_pattern(scopes->frame_width, scopes->frame_height,
 		                                            scopes->track_search, scopes->track,
-		                                            &scopes->undist_marker, TRUE, scopes->use_track_mask,
+		                                            &scopes->undist_marker, true, scopes->use_track_mask,
 		                                            width, height, scopes->track_pos);
 
 		if (tmpibuf) {
@@ -1437,7 +1437,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 
 			if (scopes->use_track_mask) {
 				glColor4f(0.0f, 0.0f, 0.0f, 0.3f);
-				uiSetRoundBox(15);
+				uiSetRoundBox(UI_CNR_ALL);
 				uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 			}
 
@@ -1478,7 +1478,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 
 	if (!ok) {
 		glColor4f(0.f, 0.f, 0.f, 0.3f);
-		uiSetRoundBox(15);
+		uiSetRoundBox(UI_CNR_ALL);
 		uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 	}
 
@@ -1488,7 +1488,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	glDisable(GL_BLEND);
 }
 
-void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
+void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *recti)
 {
 	static const float size = 5.0f;
 	

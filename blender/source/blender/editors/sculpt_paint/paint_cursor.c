@@ -73,11 +73,37 @@ typedef struct TexSnapshot {
 	GLuint overlay_texture;
 	int winx;
 	int winy;
-	bool init;
 	int old_size;
 	float old_zoom;
 	bool old_col;
 } TexSnapshot;
+
+typedef struct CursorSnapshot {
+	GLuint overlay_texture;
+	int size;
+	int zoom;
+} CursorSnapshot;
+
+static TexSnapshot primary_snap = {0};
+static TexSnapshot secondary_snap  = {0};
+static CursorSnapshot cursor_snap  = {0};
+
+/* delete overlay cursor textures to preserve memory and invalidate all overlay flags */
+void paint_cursor_delete_textures(void)
+{
+	if (primary_snap.overlay_texture)
+		glDeleteTextures(1, &primary_snap.overlay_texture);
+	if (secondary_snap.overlay_texture)
+		glDeleteTextures(1, &secondary_snap.overlay_texture);
+	if (cursor_snap.overlay_texture)
+		glDeleteTextures(1, &cursor_snap.overlay_texture);
+
+	memset(&primary_snap, 0, sizeof(TexSnapshot));
+	memset(&secondary_snap, 0, sizeof(TexSnapshot));
+	memset(&cursor_snap, 0, sizeof(CursorSnapshot));
+
+	BKE_paint_invalidate_overlay_all();
+}
 
 static int same_tex_snap(TexSnapshot *snap, MTex *mtex, ViewContext *vc, bool col, float zoom)
 {
@@ -103,9 +129,7 @@ static void make_tex_snap(TexSnapshot *snap, ViewContext *vc, float zoom)
 
 static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool primary)
 {
-	static int init = 0;
-	static TexSnapshot primary_snap = {0};
-	static TexSnapshot secondary_snap  = {0};
+	bool init;
 	TexSnapshot *target;
 
 	MTex *mtex = (primary) ? &br->mtex : &br->mask_mtex;
@@ -120,11 +144,13 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 	                           (overlay_flags & PAINT_INVALID_OVERLAY_TEXTURE_SECONDARY);
 
 	target = (primary) ? &primary_snap : &secondary_snap;
-		
+
 	refresh = 
 	    !target->overlay_texture ||
 	    (invalid != 0) ||
 	    !same_tex_snap(target, mtex, vc, col, zoom);
+
+	init = (target->overlay_texture != 0);
 
 	if (refresh) {
 		struct ImagePool *pool = NULL;
@@ -160,7 +186,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 				target->overlay_texture = 0;
 			}
 
-			init = 0;
+			init = false;
 
 			target->old_size = size;
 		}
@@ -171,7 +197,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 		pool = BKE_image_pool_new();
 
-		#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
 		for (j = 0; j < size; j++) {
 			int i;
 			float y;
@@ -211,12 +237,6 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 						x = len * cosf(angle);
 						y = len * sinf(angle);
 					}
-
-					x *= mtex->size[0];
-					y *= mtex->size[1];
-
-					x += mtex->ofs[0];
-					y += mtex->ofs[1];
 
 					if (col) {
 						float rgba[4];
@@ -267,7 +287,6 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 	if (refresh) {
 		if (!init || (target->old_col != col)) {
 			glTexImage2D(GL_TEXTURE_2D, 0, format, size, size, 0, format, GL_UNSIGNED_BYTE, buffer);
-			init = 1;
 		}
 		else {
 			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, format, GL_UNSIGNED_BYTE, buffer);
@@ -297,10 +316,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 {
-	static GLuint overlay_texture = 0;
-	static int init = 0;
-	static int old_size = -1;
-	static int old_zoom = -1;
+	bool init;
 
 	OverlayControlFlags overlay_flags = BKE_paint_get_overlay_flags();
 	GLubyte *buffer = NULL;
@@ -310,14 +326,16 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 	int refresh;
 
 	refresh =
-	    !overlay_texture ||
+	    !cursor_snap.overlay_texture ||
 	    (overlay_flags & PAINT_INVALID_OVERLAY_CURVE) ||
-	    old_zoom != zoom;
+	    cursor_snap.zoom != zoom;
+
+	init = (cursor_snap.overlay_texture != 0);
 
 	if (refresh) {
 		int s, r;
 
-		old_zoom = zoom;
+		cursor_snap.zoom = zoom;
 
 		s = BKE_brush_size_get(vc->scene, br);
 		r = 1;
@@ -330,24 +348,24 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 		if (size < 256)
 			size = 256;
 
-		if (size < old_size)
-			size = old_size;
+		if (size < cursor_snap.size)
+			size = cursor_snap.size;
 
-		if (old_size != size) {
-			if (overlay_texture) {
-				glDeleteTextures(1, &overlay_texture);
-				overlay_texture = 0;
+		if (cursor_snap.size != size) {
+			if (cursor_snap.overlay_texture) {
+				glDeleteTextures(1, &cursor_snap.overlay_texture);
+				cursor_snap.overlay_texture = 0;
 			}
 
-			init = 0;
+			init = false;
 
-			old_size = size;
+			cursor_snap.size = size;
 		}
 		buffer = MEM_mallocN(sizeof(GLubyte) * size * size, "load_tex");
 
 		curvemapping_initialize(br->curve);
 
-		#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
 		for (j = 0; j < size; j++) {
 			int i;
 			float y;
@@ -383,19 +401,18 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 			}
 		}
 
-		if (!overlay_texture)
-			glGenTextures(1, &overlay_texture);
+		if (!cursor_snap.overlay_texture)
+			glGenTextures(1, &cursor_snap.overlay_texture);
 	}
 	else {
-		size = old_size;
+		size = cursor_snap.size;
 	}
 
-	glBindTexture(GL_TEXTURE_2D, overlay_texture);
+	glBindTexture(GL_TEXTURE_2D, cursor_snap.overlay_texture);
 
 	if (refresh) {
 		if (!init) {
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, size, size, 0, GL_ALPHA, GL_UNSIGNED_BYTE, buffer);
-			init = 1;
 		}
 		else {
 			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_ALPHA, GL_UNSIGNED_BYTE, buffer);
@@ -522,7 +539,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 
 	if (!(mtex->tex) || !((mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) ||
 	    (valid &&
-		ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED))))
+	    ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED))))
 	{
 		return;
 	}
@@ -546,7 +563,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			glTranslatef(-0.5f, -0.5f, 0);
 
 			/* scale based on tablet pressure */
-			if (primary && ups->draw_pressure && BKE_brush_use_size_pressure(vc->scene, brush)) {
+			if (primary && ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush)) {
 				glTranslatef(0.5f, 0.5f, 0);
 				glScalef(1.0f / ups->pressure_value, 1.0f / ups->pressure_value, 1);
 				glTranslatef(-0.5f, -0.5f, 0);
@@ -671,7 +688,7 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		}
 
 		/* scale based on tablet pressure */
-		if (ups->draw_pressure && BKE_brush_use_size_pressure(vc->scene, brush)) {
+		if (ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush)) {
 			do_pop = true;
 			glPushMatrix();
 			glLoadIdentity();
@@ -706,7 +723,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
                                      ViewContext *vc, int x, int y, float zoom, PaintMode mode)
 {
 	/* color means that primary brush texture is colured and secondary is used for alpha/mask control */
-	bool col = ELEM3(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX) ? true: false;
+	bool col = ELEM3(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX) ? true : false;
 	OverlayControlFlags flags = BKE_paint_get_overlay_flags();
 	/* save lots of GL state
 	 * TODO: check on whether all of these are needed? */
@@ -765,7 +782,7 @@ static void paint_cursor_on_hit(UnifiedPaintSettings *ups, Brush *brush, ViewCon
 		                                                    projected_radius);
 
 		/* scale 3D brush radius by pressure */
-		if (ups->draw_pressure && BKE_brush_use_size_pressure(vc->scene, brush))
+		if (ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush))
 			unprojected_radius *= ups->pressure_value;
 
 		/* set cached value in either Brush or UnifiedPaintSettings */
@@ -805,11 +822,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	outline_col = brush->add_col;
 	final_radius = BKE_brush_size_get(scene, brush) * zoomx;
 
-	if (brush->flag & BRUSH_RAKE)
-		/* here, translation contains the mouse coordinates. */
+	/* don't calculate rake angles while a stroke is active because the rake variables are global and
+	 * we may get interference with the stroke itself. For line strokes, such interference is visible */
+	if (!ups->stroke_active && (brush->flag & BRUSH_RAKE))
 		paint_calculate_rake_rotation(ups, translation);
-	else if (!(brush->flag & BRUSH_ANCHORED))
-		ups->brush_rotation = 0.0;
 
 	/* draw overlay */
 	paint_draw_alpha_overlay(ups, brush, &vc, x, y, zoomx, mode);
@@ -860,7 +876,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	glTranslatef(translation[0], translation[1], 0);
 
 	/* draw an inner brush */
-	if (ups->draw_pressure && BKE_brush_use_size_pressure(scene, brush)) {
+	if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
 		/* inner at full alpha */
 		glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius * ups->pressure_value, 40);
 		/* outer at half alpha */

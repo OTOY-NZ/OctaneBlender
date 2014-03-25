@@ -116,6 +116,8 @@ void get_graph_keyframe_extents(bAnimContext *ac, float *xmin, float *xmax, floa
 			
 			/* get range */
 			if (calc_fcurve_bounds(fcu, &txmin, &txmax, &tymin, &tymax, do_sel_only, include_handles)) {
+				short mapping_flag = ANIM_get_normalization_flags(ac);
+
 				/* apply NLA scaling */
 				if (adt) {
 					txmin = BKE_nla_tweakedit_remap(adt, txmin, NLATIME_CONVERT_MAP);
@@ -123,7 +125,7 @@ void get_graph_keyframe_extents(bAnimContext *ac, float *xmin, float *xmax, floa
 				}
 				
 				/* apply unit corrections */
-				unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, 0);
+				unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
 				tymin *= unitFac;
 				tymax *= unitFac;
 				
@@ -187,8 +189,8 @@ static int graphkeys_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
 	/* set the range directly */
 	get_graph_keyframe_extents(&ac, &min, &max, NULL, NULL, FALSE, FALSE);
 	scene->r.flag |= SCER_PRV_RANGE;
-	scene->r.psfra = (int)floor(min + 0.5f);
-	scene->r.pefra = (int)floor(max + 0.5f);
+	scene->r.psfra = iroundf(min);
+	scene->r.pefra = iroundf(max);
 	
 	/* set notifier that things have changed */
 	// XXX err... there's nothing for frame ranges yet, but this should do fine too
@@ -330,12 +332,14 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 		FPoint *fpt;
 		float unitFac;
 		int cfra;
-		
+		SpaceIpo *sipo = (SpaceIpo *) ac->sl;
+		short mapping_flag = ANIM_get_normalization_flags(ac);
+
 		/* disable driver so that it don't muck up the sampling process */
 		fcu->driver = NULL;
 		
 		/* calculate unit-mapping factor */
-		unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, 0);
+		unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
 		
 		/* create samples, but store them in a new curve 
 		 *	- we cannot use fcurve_store_samples() as that will only overwrite the original curve 
@@ -426,7 +430,7 @@ static int graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator *UNUSED(op))
 	sipo = (SpaceIpo *)ac.sl;
 		
 	/* if no ghost curves, don't do anything */
-	if (sipo->ghostCurves.first == NULL)
+	if (BLI_listbase_is_empty(&sipo->ghostCurves))
 		return OPERATOR_CANCELLED;
 	
 	/* free ghost curves */
@@ -578,6 +582,8 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
 	 * keyframes if these will be visible after doing so...
 	 */
 	if (fcurve_is_keyframable(fcu)) {
+		short mapping_flag = ANIM_get_normalization_flags(&ac);
+
 		/* get frame and value from props */
 		frame = RNA_float_get(op->ptr, "frame");
 		val = RNA_float_get(op->ptr, "value");
@@ -587,7 +593,7 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
 		frame = BKE_nla_tweakedit_remap(adt, frame, NLATIME_CONVERT_UNMAP);
 		
 		/* apply inverse unit-mapping to value to get correct value for F-Curves */
-		val *= ANIM_unit_mapping_get_factor(ac.scene, ale->id, fcu, 1);
+		val *= ANIM_unit_mapping_get_factor(ac.scene, ale->id, fcu, mapping_flag | ANIM_UNITCONV_RESTORE);
 		
 		/* insert keyframe on the specified frame + value */
 		insert_vert_fcurve(fcu, frame, val, 0);
@@ -866,11 +872,12 @@ void GRAPH_OT_duplicate(wmOperatorType *ot)
 
 /* ******************** Delete Keyframes Operator ************************* */
 
-static void delete_graph_keys(bAnimContext *ac)
+static bool delete_graph_keys(bAnimContext *ac)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
+	bool changed = false;
 	
 	/* filter data */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
@@ -882,7 +889,7 @@ static void delete_graph_keys(bAnimContext *ac)
 		AnimData *adt = ale->adt;
 		
 		/* delete selected keyframes only */
-		delete_fcurve_keys(fcu); 
+		changed |= delete_fcurve_keys(fcu);
 		
 		/* Only delete curve too if it won't be doing anything anymore */
 		if ((fcu->totvert == 0) &&
@@ -895,6 +902,8 @@ static void delete_graph_keys(bAnimContext *ac)
 	
 	/* free filtered list */
 	BLI_freelistN(&anim_data);
+
+	return changed;
 }
 
 /* ------------------- */
@@ -908,7 +917,8 @@ static int graphkeys_delete_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 		
 	/* delete keyframes */
-	delete_graph_keys(&ac);
+	if (!delete_graph_keys(&ac))
+		return OPERATOR_CANCELLED;
 	
 	/* validate keyframes after editing */
 	ANIM_editkeyframes_refresh(&ac);
@@ -1787,20 +1797,24 @@ static int graphkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
-		
-		/* apply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac.scene, ale->id, ale->key_data, ANIM_UNITCONV_ONLYKEYS);
-		
+		short mapping_flag = ANIM_get_normalization_flags(&ac);
+		KeyframeEditData current_ked;
+		float unit_scale = ANIM_unit_mapping_get_factor(ac.scene, ale->id, ale->key_data, mapping_flag | ANIM_UNITCONV_ONLYKEYS);
+
+		memset(&current_ked, 0, sizeof(current_ked));
+
 		if (adt) {
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1); 
-			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, bezt_calc_average, NULL);
+			ANIM_fcurve_keyframes_loop(&current_ked, ale->key_data, NULL, bezt_calc_average, NULL);
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 1); 
 		}
 		else
-			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, bezt_calc_average, NULL);
-		
-		/* unapply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac.scene, ale->id, ale->key_data, ANIM_UNITCONV_RESTORE | ANIM_UNITCONV_ONLYKEYS);
+			ANIM_fcurve_keyframes_loop(&current_ked, ale->key_data, NULL, bezt_calc_average, NULL);
+
+		ked.f1 += current_ked.f1;
+		ked.i1 += current_ked.i1;
+		ked.f2 += current_ked.f2 / unit_scale;
+		ked.i2 += current_ked.i2;
 	}
 	
 	BLI_freelistN(&anim_data);
@@ -1811,7 +1825,7 @@ static int graphkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 		Scene *scene = ac.scene;
 		
 		/* take the average values, rounding to the nearest int for the current frame */
-		CFRA = (int)floor((ked.f1 / ked.i1) + 0.5f);
+		CFRA = iroundf(ked.f1 / ked.i1);
 		SUBFRA = 0.f;
 		sipo->cursorVal = ked.f2 / (float)ked.i1;
 	}
@@ -1865,6 +1879,7 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 	
 	KeyframeEditData ked;
 	KeyframeEditFunc edit_cb;
+	float cursor_value = 0.0f;
 	
 	/* filter data */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
@@ -1881,16 +1896,17 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 	}
 	else if (mode == GRAPHKEYS_SNAP_VALUE) {
 		SpaceIpo *sipo = (SpaceIpo *)ac->sl;
-		ked.f1 = (sipo) ? sipo->cursorVal : 0.0f;
+		cursor_value = (sipo) ? sipo->cursorVal : 0.0f;
 	}
 	
 	/* snap keyframes */
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-		
-		/* apply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, ale->key_data, 0);
-		
+		short mapping_flag = ANIM_get_normalization_flags(ac);
+		float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, ale->key_data, mapping_flag);
+
+		ked.f1 = cursor_value / unit_scale;
+
 		if (adt) {
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1); 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
@@ -1898,9 +1914,6 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 		}
 		else 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
-			
-		/* apply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, ale->key_data, ANIM_UNITCONV_RESTORE);
 	}
 	
 	BLI_freelistN(&anim_data);
@@ -1977,7 +1990,8 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 	
 	KeyframeEditData ked;
 	KeyframeEditFunc edit_cb;
-	
+	float cursor_value = 0.0f;
+
 	/* get beztriple editing callbacks */
 	edit_cb = ANIM_editkeyframes_mirror(mode);
 	
@@ -2000,7 +2014,7 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 	}
 	else if (mode == GRAPHKEYS_MIRROR_VALUE) {
 		SpaceIpo *sipo = (SpaceIpo *)ac->sl;
-		ked.f1 = (sipo) ? sipo->cursorVal : 0.0f;
+		cursor_value = (sipo) ? sipo->cursorVal : 0.0f;
 	}
 	
 	/* filter data */
@@ -2010,10 +2024,12 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 	/* mirror keyframes */
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-		
+		short mapping_flag = ANIM_get_normalization_flags(ac);
+		float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, ale->key_data, mapping_flag | ANIM_UNITCONV_ONLYKEYS);
+
 		/* apply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, ale->key_data, ANIM_UNITCONV_ONLYKEYS);
-		
+		ked.f1 = cursor_value * unit_scale;
+
 		if (adt) {
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1); 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
@@ -2021,9 +2037,6 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 		}
 		else 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
-			
-		/* unapply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, ale->key_data, ANIM_UNITCONV_ONLYKEYS | ANIM_UNITCONV_RESTORE);
 	}
 	
 	BLI_freelistN(&anim_data);

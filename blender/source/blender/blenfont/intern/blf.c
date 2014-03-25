@@ -26,6 +26,10 @@
 
 /** \file blender/blenfont/intern/blf.c
  *  \ingroup blf
+ *
+ * Main BlenFont (BLF) API, public functions for font handling.
+ *
+ * Wraps OpenGL and FreeType.
  */
 
 #include <stdio.h>
@@ -60,7 +64,7 @@
 #define BLF_MAX_FONT 16
 
 /* Font array. */
-static FontBLF *global_font[BLF_MAX_FONT] = {0};
+static FontBLF *global_font[BLF_MAX_FONT] = {NULL};
 
 /* Default size and dpi, for BLF_draw_default. */
 static int global_font_default = -1;
@@ -592,44 +596,84 @@ int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth)
 	return columns;
 }
 
-void BLF_boundbox(int fontid, const char *str, rctf *box)
+size_t BLF_width_to_strlen(int fontid, const char *str, size_t len, float width, float *r_width)
 {
 	FontBLF *font = blf_get(fontid);
 
 	if (font) {
-		blf_font_boundbox(font, str, box);
+		const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
+		size_t ret;
+		ret = blf_font_width_to_strlen(font, str, len, width / xa, r_width);
+		if (r_width) {
+			*r_width *= xa;
+		}
+		return ret;
+	}
+
+	if (r_width) {
+		*r_width = 0.0f;
+	}
+	return 0;
+}
+
+size_t BLF_width_to_rstrlen(int fontid, const char *str, size_t len, float width, float *r_width)
+{
+	FontBLF *font = blf_get(fontid);
+
+	if (font) {
+		const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
+		size_t ret;
+		ret = blf_font_width_to_rstrlen(font, str, len, width / xa, r_width);
+		if (r_width) {
+			*r_width *= xa;
+		}
+		return ret;
+	}
+
+	if (r_width) {
+		*r_width = 0.0f;
+	}
+	return 0;
+}
+
+void BLF_boundbox(int fontid, const char *str, size_t len, rctf *box)
+{
+	FontBLF *font = blf_get(fontid);
+
+	if (font) {
+		blf_font_boundbox(font, str, len, box);
 	}
 }
 
-void BLF_width_and_height(int fontid, const char *str, float *width, float *height)
+void BLF_width_and_height(int fontid, const char *str, size_t len, float *r_width, float *r_height)
 {
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		blf_font_width_and_height(font, str, width, height);
+		blf_font_width_and_height(font, str, len, r_width, r_height);
 	}
 	else {
-		*width = *height = 0.0f;
+		*r_width = *r_height = 0.0f;
 	}
 }
 
-void BLF_width_and_height_default(const char *str, float *width, float *height)
+void BLF_width_and_height_default(const char *str, size_t len, float *r_width, float *r_height)
 {
 	if (!blf_global_font_init()) {
-		*width = *height = 0.0f;
+		*r_width = *r_height = 0.0f;
 		return;
 	}
 
 	BLF_size(global_font_default, global_font_points, global_font_dpi);
-	BLF_width_and_height(global_font_default, str, width, height);
+	BLF_width_and_height(global_font_default, str, len, r_width, r_height);
 }
 
-float BLF_width(int fontid, const char *str)
+float BLF_width(int fontid, const char *str, size_t len)
 {
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		return blf_font_width(font, str);
+		return blf_font_width(font, str, len);
 	}
 
 	return 0.0f;
@@ -646,21 +690,21 @@ float BLF_fixed_width(int fontid)
 	return 0.0f;
 }
 
-float BLF_width_default(const char *str)
+float BLF_width_default(const char *str, size_t len)
 {
 	if (!blf_global_font_init())
 		return 0.0f;
 
 	BLF_size(global_font_default, global_font_points, global_font_dpi);
-	return BLF_width(global_font_default, str);
+	return BLF_width(global_font_default, str, len);
 }
 
-float BLF_height(int fontid, const char *str)
+float BLF_height(int fontid, const char *str, size_t len)
 {
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		return blf_font_height(font, str);
+		return blf_font_height(font, str, len);
 	}
 
 	return 0.0f;
@@ -710,14 +754,14 @@ float BLF_ascender(int fontid)
 	return 0.0f;
 }
 
-float BLF_height_default(const char *str)
+float BLF_height_default(const char *str, size_t len)
 {
 	if (!blf_global_font_init())
 		return 0.0f;
 
 	BLF_size(global_font_default, global_font_points, global_font_dpi);
 
-	return BLF_height(global_font_default, str);
+	return BLF_height(global_font_default, str, len);
 }
 
 void BLF_rotation(int fontid, float angle)
@@ -810,3 +854,24 @@ void BLF_draw_buffer(int fontid, const char *str)
 		blf_font_buffer(font, str);
 	}
 }
+
+#ifdef DEBUG
+void BLF_state_print(int fontid)
+{
+	FontBLF *font = blf_get(fontid);
+	if (font) {
+		printf("fontid %d %p\n", fontid, (void *)font);
+		printf("  name:    '%s'\n", font->name);
+		printf("  size:     %u\n", font->size);
+		printf("  dpi:      %u\n", font->dpi);
+		printf("  pos:      %.6f %.6f %.6f\n", UNPACK3(font->pos));
+		printf("  aspect:   (%d) %.6f %.6f %.6f\n", (font->flags & BLF_ROTATION) != 0, UNPACK3(font->aspect));
+		printf("  angle:    (%d) %.6f\n", (font->flags & BLF_ASPECT) != 0, font->angle);
+		printf("  flag:     %d\n", font->flags);
+	}
+	else {
+		printf("fontid %d (NULL)\n", fontid);
+	}
+	fflush(stdout);
+}
+#endif

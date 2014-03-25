@@ -53,9 +53,9 @@ public:
 	static void thread_free(KernelGlobals *kg);
 
 	/* eval */
-	static void eval_surface(KernelGlobals *kg, ShaderData *sd, float randb, int path_flag, ShaderContext ctx);
+	static void eval_surface(KernelGlobals *kg, ShaderData *sd, int path_flag, ShaderContext ctx);
 	static float3 eval_background(KernelGlobals *kg, ShaderData *sd, int path_flag, ShaderContext ctx);
-	static void eval_volume(KernelGlobals *kg, ShaderData *sd, float randb, int path_flag, ShaderContext ctx);
+	static void eval_volume(KernelGlobals *kg, ShaderData *sd, int path_flag, ShaderContext ctx);
 	static void eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderContext ctx);
 
 	/* sample & eval */
@@ -65,11 +65,6 @@ public:
 	static float3 bsdf_eval(const ShaderData *sd, const ShaderClosure *sc,
 	                        const float3& omega_in, float& pdf);
 	static void bsdf_blur(ShaderClosure *sc, float roughness);
-
-	static float3 emissive_eval(const ShaderData *sd, const ShaderClosure *sc);
-
-	static float3 volume_eval_phase(const ShaderClosure *sc,
-	                                const float3 omega_in, const float3 omega_out);
 
 	/* attributes */
 	static int find_attribute(KernelGlobals *kg, const ShaderData *sd, uint id, AttributeElement *elem);

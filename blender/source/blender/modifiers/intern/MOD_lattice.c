@@ -56,11 +56,12 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	LatticeModifierData *lmd = (LatticeModifierData *) md;
 	LatticeModifierData *tlmd = (LatticeModifierData *) target;
+#endif
 
-	tlmd->object = lmd->object;
-	BLI_strncpy(tlmd->name, lmd->name, sizeof(tlmd->name));
+	modifier_copyData_generic(md, target);
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -127,7 +128,7 @@ static void deformVertsEM(
 {
 	DerivedMesh *dm = derivedData;
 
-	if (!derivedData) dm = CDDM_from_editbmesh(em, FALSE, FALSE);
+	if (!derivedData) dm = CDDM_from_editbmesh(em, false, false);
 
 	deformVerts(md, ob, dm, vertexCos, numVerts, 0);
 

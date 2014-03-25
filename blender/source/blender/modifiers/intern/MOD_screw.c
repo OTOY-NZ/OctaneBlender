@@ -34,13 +34,14 @@
 
 
 /* Screw modifier: revolves the edges about an axis */
+#include <limits.h>
 
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_math.h"
+#include "BLI_alloca.h"
 #include "BLI_utildefines.h"
-
 
 #include "BKE_cdderivedmesh.h"
 
@@ -48,12 +49,14 @@
 #include "MOD_modifiertypes.h"
 #include "MEM_guardedalloc.h"
 
+#include "BLI_strict_flags.h"
+
 /* used for gathering edge connectivity */
 typedef struct ScrewVertConnect {
 	float dist;  /* distance from the center axis */
 	float co[3]; /* loaction relative to the transformed axis */
 	float no[3]; /* calc normal of the vertex */
-	int v[2]; /* 2  verts on either side of this one */
+	unsigned int v[2]; /* 2  verts on either side of this one */
 	MEdge *e[2]; /* edges on either side, a bit of a waste since each edge ref's 2 edges */
 	char flag;
 } ScrewVertConnect;
@@ -61,18 +64,20 @@ typedef struct ScrewVertConnect {
 typedef struct ScrewVertIter {
 	ScrewVertConnect *v_array;
 	ScrewVertConnect *v_poin;
-	int v;
-	int v_other;
+	unsigned int v, v_other;
 	MEdge *e;
 } ScrewVertIter;
 
+#define SV_UNUSED (UINT_MAX)
+#define SV_INVALID ((UINT_MAX) - 1)
+#define SV_IS_VALID(v) (v < SV_INVALID)
 
-static void screwvert_iter_init(ScrewVertIter *iter, ScrewVertConnect *array, int v_init, int dir)
+static void screwvert_iter_init(ScrewVertIter *iter, ScrewVertConnect *array, unsigned int v_init, unsigned int dir)
 {
 	iter->v_array = array;
 	iter->v = v_init;
 
-	if (v_init >= 0) {
+	if (SV_IS_VALID(v_init)) {
 		iter->v_poin = &array[v_init];
 		iter->v_other = iter->v_poin->v[dir];
 		iter->e = iter->v_poin->e[!dir];
@@ -94,7 +99,7 @@ static void screwvert_iter_step(ScrewVertIter *iter)
 		iter->v_other = iter->v;
 		iter->v = iter->v_poin->v[0];
 	}
-	if (iter->v >= 0) {
+	if (SV_IS_VALID(iter->v)) {
 		iter->v_poin = &iter->v_array[iter->v];
 		iter->e = iter->v_poin->e[(iter->v_poin->e[0] == iter->e)];
 	}
@@ -109,7 +114,7 @@ static void initData(ModifierData *md)
 {
 	ScrewModifierData *ltmd = (ScrewModifierData *) md;
 	ltmd->ob_axis = NULL;
-	ltmd->angle = M_PI * 2.0;
+	ltmd->angle = (float)(M_PI * 2.0);
 	ltmd->axis = 2;
 	ltmd->flag = MOD_SCREW_SMOOTH_SHADING;
 	ltmd->steps = 16;
@@ -119,17 +124,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	ScrewModifierData *sltmd = (ScrewModifierData *) md;
 	ScrewModifierData *tltmd = (ScrewModifierData *) target;
-	
-	tltmd->ob_axis = sltmd->ob_axis;
-	tltmd->angle = sltmd->angle;
-	tltmd->axis = sltmd->axis;
-	tltmd->flag = sltmd->flag;
-	tltmd->steps = sltmd->steps;
-	tltmd->render_steps = sltmd->render_steps;
-	tltmd->screw_ofs = sltmd->screw_ofs;
-	tltmd->iter = sltmd->iter;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
@@ -143,16 +142,43 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	
 	int *origindex;
 	int mpoly_index = 0;
-	int step;
-	int i, j;
+	unsigned int step;
+	unsigned int i, j;
 	unsigned int i1, i2;
-	int step_tot = useRenderParams ? ltmd->render_steps : ltmd->steps;
-	const int do_flip = ltmd->flag & MOD_SCREW_NORMAL_FLIP ? 1 : 0;
-	int maxVerts = 0, maxEdges = 0, maxPolys = 0;
-	const unsigned int totvert = dm->getNumVerts(dm);
-	const unsigned int totedge = dm->getNumEdges(dm);
+	unsigned int step_tot = useRenderParams ? ltmd->render_steps : ltmd->steps;
+	const bool do_flip = ltmd->flag & MOD_SCREW_NORMAL_FLIP ? 1 : 0;
 
-	char axis_char = 'X', close;
+	const int quad_ord[4] = {
+	    do_flip ? 3 : 0,
+	    do_flip ? 2 : 1,
+	    do_flip ? 1 : 2,
+	    do_flip ? 0 : 3,
+	};
+	const int quad_ord_ofs[4] = {
+	    do_flip ? 2 : 0,
+	    do_flip ? 1 : 1,
+	    do_flip ? 0 : 2,
+	    do_flip ? 3 : 3,
+	};
+
+	unsigned int maxVerts = 0, maxEdges = 0, maxPolys = 0;
+	const unsigned int totvert = (unsigned int)dm->getNumVerts(dm);
+	const unsigned int totedge = (unsigned int)dm->getNumEdges(dm);
+	const unsigned int totpoly = (unsigned int)dm->getNumPolys(dm);
+
+	unsigned int *edge_poly_map = NULL;  /* orig edge to orig poly */
+	unsigned int *vert_loop_map = NULL;  /* orig vert to orig loop */
+
+	/* UV Coords */
+	const unsigned int mloopuv_layers_tot = (unsigned int)CustomData_number_of_layers(&dm->loopData, CD_MLOOPUV);
+	MLoopUV **mloopuv_layers = BLI_array_alloca(mloopuv_layers, mloopuv_layers_tot);
+	float uv_u_scale;
+	float uv_v_minmax[2] = {FLT_MAX, -FLT_MAX};
+	float uv_v_range_inv;
+	float uv_axis_plane[4];
+
+	char axis_char = 'X';
+	bool close;
 	float angle = ltmd->angle;
 	float screw_ofs = ltmd->screw_ofs;
 	float axis_vec[3] = {0.0f, 0.0f, 0.0f};
@@ -162,14 +188,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	float mtx_tx_inv[4][4]; /* inverted */
 	float mtx_tmp_a[4][4];
 	
-	int vc_tot_linked = 0;
+	unsigned int vc_tot_linked = 0;
 	short other_axis_1, other_axis_2;
 	float *tmpf1, *tmpf2;
 
-	int edge_offset;
+	unsigned int edge_offset;
 	
-	MPoly *mpoly_new, *mp_new;
-	MLoop *mloop_new, *ml_new;
+	MPoly *mpoly_orig, *mpoly_new, *mp_new;
+	MLoop *mloop_orig, *mloop_new, *ml_new;
 	MEdge *medge_orig, *med_orig, *med_new, *med_new_firstloop, *medge_new;
 	MVert *mvert_new, *mvert_orig, *mv_orig, *mv_new, *mv_new_base;
 
@@ -259,7 +285,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	}
 	else {
 		/* exis char is used by i_rotate*/
-		axis_char += ltmd->axis; /* 'X' + axis */
+		axis_char = (char)(axis_char + ltmd->axis); /* 'X' + axis */
 
 		/* useful to be able to use the axis vec in some cases still */
 		zero_v3(axis_vec);
@@ -267,8 +293,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	}
 
 	/* apply the multiplier */
-	angle *= ltmd->iter;
-	screw_ofs *= ltmd->iter;
+	angle *= (float)ltmd->iter;
+	screw_ofs *= (float)ltmd->iter;
+	uv_u_scale = 1.0f / (float)(step_tot);
 
 	/* multiplying the steps is a bit tricky, this works best */
 	step_tot = ((step_tot + 1) * ltmd->iter) - (ltmd->iter - 1);
@@ -298,8 +325,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		           (totedge * step_tot);  /* -1 because vert edges join */
 		maxPolys =  totedge * (step_tot - 1);
 	}
+
+	if ((ltmd->flag & MOD_SCREW_UV_STRETCH_U) == 0) {
+		uv_u_scale = (uv_u_scale / (float)ltmd->iter) * (angle / ((float)M_PI * 2.0f));
+	}
 	
-	result = CDDM_from_template(dm, maxVerts, maxEdges, 0, maxPolys * 4, maxPolys);
+	result = CDDM_from_template(dm, (int)maxVerts, (int)maxEdges, 0, (int)maxPolys * 4, (int)maxPolys);
 	
 	/* copy verts from mesh */
 	mvert_orig =    dm->getVertArray(dm);
@@ -311,13 +342,38 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	medge_new =     result->getEdgeArray(result);
 
 	if (!CustomData_has_layer(&result->polyData, CD_ORIGINDEX)) {
-		CustomData_add_layer(&result->polyData, CD_ORIGINDEX, CD_CALLOC, NULL, maxPolys);
+		CustomData_add_layer(&result->polyData, CD_ORIGINDEX, CD_CALLOC, NULL, (int)maxPolys);
 	}
 
 	origindex = CustomData_get_layer(&result->polyData, CD_ORIGINDEX);
 
-	DM_copy_vert_data(dm, result, 0, 0, totvert); /* copy first otherwise this overwrites our own vertex normals */
-	
+	DM_copy_vert_data(dm, result, 0, 0, (int)totvert); /* copy first otherwise this overwrites our own vertex normals */
+
+	if (mloopuv_layers_tot) {
+		float zero_co[3] = {0};
+		plane_from_point_normal_v3(uv_axis_plane, zero_co, axis_vec);
+	}
+
+	if (mloopuv_layers_tot) {
+		unsigned int uv_lay;
+		for (uv_lay = 0; uv_lay < mloopuv_layers_tot; uv_lay++) {
+			mloopuv_layers[uv_lay] = CustomData_get_layer_n(&result->loopData, CD_MLOOPUV, (int)uv_lay);
+		}
+
+		if (ltmd->flag & MOD_SCREW_UV_STRETCH_V) {
+			for (i = 0, mv_orig = mvert_orig; i < totvert; i++, mv_orig++) {
+				const float v = dist_squared_to_plane_v3(mv_orig->co, uv_axis_plane);
+				uv_v_minmax[0] = min_ff(v, uv_v_minmax[0]);
+				uv_v_minmax[1] = max_ff(v, uv_v_minmax[1]);
+			}
+			uv_v_minmax[0] = sqrtf_signed(uv_v_minmax[0]);
+			uv_v_minmax[1] = sqrtf_signed(uv_v_minmax[1]);
+		}
+
+		uv_v_range_inv = uv_v_minmax[1] - uv_v_minmax[0];
+		uv_v_range_inv = uv_v_range_inv ? 1.0f / uv_v_range_inv : 0.0f;
+	}
+
 	/* Set the locations of the first set of verts */
 	
 	mv_new = mvert_new;
@@ -333,6 +389,36 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		med_new->flag = med_orig->flag &  ~ME_LOOSEEDGE;
 	}
 	
+	/* build polygon -> edge map */
+	if (totpoly) {
+		MPoly *mp_orig;
+
+		mpoly_orig = dm->getPolyArray(dm);
+		mloop_orig = dm->getLoopArray(dm);
+		edge_poly_map = MEM_mallocN(sizeof(*edge_poly_map) * totedge, __func__);
+		memset(edge_poly_map, 0xff, sizeof(*edge_poly_map) * totedge);
+
+		vert_loop_map = MEM_mallocN(sizeof(*vert_loop_map) * totvert, __func__);
+		memset(vert_loop_map, 0xff, sizeof(*vert_loop_map) * totvert);
+
+		for (i = 0, mp_orig = mpoly_orig; i < totpoly; i++, mp_orig++) {
+			unsigned int loopstart = (unsigned int)mp_orig->loopstart;
+			unsigned int loopend = loopstart + (unsigned int)mp_orig->totloop;
+
+			MLoop *ml_orig = &mloop_orig[loopstart];
+			unsigned int k;
+			for (k = loopstart; k < loopend; k++, ml_orig++) {
+				edge_poly_map[ml_orig->e] = i;
+				vert_loop_map[ml_orig->v] = k;
+
+				/* also order edges based on faces */
+				if (medge_new[ml_orig->e].v1 != ml_orig->v) {
+					SWAP(unsigned int, medge_new[ml_orig->e].v1, medge_new[ml_orig->e].v2);
+				}
+			}
+		}
+	}
+
 	if (ltmd->flag & MOD_SCREW_NORMAL_CALC) {
 		/*
 		 * Normal Calculation (for face flipping)
@@ -385,7 +471,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 					vc->flag = 0;
 					vc->e[0] = vc->e[1] = NULL;
-					vc->v[0] = vc->v[1] = -1;
+					vc->v[0] = vc->v[1] = SV_UNUSED;
 
 					mul_m4_v3(mtx_tx, vc->co);
 					/* length in 2d, don't sqrt because this is only for comparison */
@@ -403,7 +489,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 					vc->flag = 0;
 					vc->e[0] = vc->e[1] = NULL;
-					vc->v[0] = vc->v[1] = -1;
+					vc->v[0] = vc->v[1] = SV_UNUSED;
 
 					/* length in 2d, don't sqrt because this is only for comparison */
 					vc->dist = vc->co[other_axis_1] * vc->co[other_axis_1] +
@@ -417,31 +503,31 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			for (i = 0; i < totedge; i++, med_new++) {
 				vc = &vert_connect[med_new->v1];
 
-				if (vc->v[0] == -1) { /* unused */
+				if (vc->v[0] == SV_UNUSED) { /* unused */
 					vc->v[0] = med_new->v2;
 					vc->e[0] = med_new;
 				}
-				else if (vc->v[1] == -1) {
+				else if (vc->v[1] == SV_UNUSED) {
 					vc->v[1] = med_new->v2;
 					vc->e[1] = med_new;
 				}
 				else {
-					vc->v[0] = vc->v[1] = -2; /* error value  - don't use, 3 edges on vert */
+					vc->v[0] = vc->v[1] = SV_INVALID; /* error value  - don't use, 3 edges on vert */
 				}
 
 				vc = &vert_connect[med_new->v2];
 
 				/* same as above but swap v1/2 */
-				if (vc->v[0] == -1) { /* unused */
+				if (vc->v[0] == SV_UNUSED) { /* unused */
 					vc->v[0] = med_new->v1;
 					vc->e[0] = med_new;
 				}
-				else if (vc->v[1] == -1) {
+				else if (vc->v[1] == SV_UNUSED) {
 					vc->v[1] = med_new->v1;
 					vc->e[1] = med_new;
 				}
 				else {
-					vc->v[0] = vc->v[1] = -2; /* error value  - don't use, 3 edges on vert */
+					vc->v[0] = vc->v[1] = SV_INVALID; /* error value  - don't use, 3 edges on vert */
 				}
 			}
 
@@ -452,12 +538,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				 * so resulting faces are flipped the right way */
 				vc_tot_linked = 0; /* count the number of linked verts for this loop */
 				if (vc->flag == 0) {
-					int v_best = -1, ed_loop_closed = 0; /* vert and vert new */
+					unsigned int v_best = SV_UNUSED, ed_loop_closed = 0; /* vert and vert new */
 					ScrewVertIter lt_iter;
 					float fl = -1.0f;
 
 					/* compiler complains if not initialized, but it should be initialized below */
-					int ed_loop_flip = 0;
+					bool ed_loop_flip = false;
 
 					/*printf("Loop on connected vert: %i\n", i);*/
 
@@ -471,7 +557,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 							/*printf("\t\tVERT: %i\n", lt_iter.v);*/
 							if (lt_iter.v_poin->flag) {
 								/*printf("\t\t\tBreaking Found end\n");*/
-								//endpoints[0] = endpoints[1] = -1;
+								//endpoints[0] = endpoints[1] = SV_UNUSED;
 								ed_loop_closed = 1; /* circle */
 								break;
 							}
@@ -493,7 +579,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 					}
 
 					/* now we have a collection of used edges. flip their edges the right way*/
-					/*if (v_best != -1) - */
+					/*if (v_best != SV_UNUSED) - */
 
 					/*printf("Done Looking - vc_tot_linked: %i\n", vc_tot_linked);*/
 
@@ -507,7 +593,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 
 						/* edge connects on each side! */
-						if ((vc_tmp->v[0] > -1) && (vc_tmp->v[1] > -1)) {
+						if (SV_IS_VALID(vc_tmp->v[0]) && SV_IS_VALID(vc_tmp->v[1])) {
 							/*printf("Verts on each side (%i %i)\n", vc_tmp->v[0], vc_tmp->v[1]);*/
 							/* find out which is higher */
 
@@ -536,7 +622,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 								}
 							}
 						}
-						else if (vc_tmp->v[0] >= 0) { /*vertex only connected on 1 side */
+						else if (SV_IS_VALID(vc_tmp->v[0])) { /*vertex only connected on 1 side */
 							/*printf("Verts on ONE side (%i %i)\n", vc_tmp->v[0], vc_tmp->v[1]);*/
 							if (tmpf1[ltmd->axis] < vc_tmp->co[ltmd->axis]) { /* best is above */
 								ed_loop_flip = 1;
@@ -577,7 +663,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 							/* If this is the vert off the best vert and
 							 * the best vert has 2 edges connected too it
 							 * then swap the flip direction */
-							if (j == 1 && (vc_tmp->v[0] > -1) && (vc_tmp->v[1] > -1))
+							if (j == 1 && SV_IS_VALID(vc_tmp->v[0]) && SV_IS_VALID(vc_tmp->v[1]))
 								ed_loop_flip = !ed_loop_flip;
 
 							while (lt_iter.v_poin && lt_iter.v_poin->flag != 2) {
@@ -622,8 +708,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				 *
 				 * calculate vertex normals that can be propagated on lathing
 				 * use edge connectivity work this out */
-				if (vc->v[0] >= 0) {
-					if (vc->v[1] >= 0) {
+				if (SV_IS_VALID(vc->v[0])) {
+					if (SV_IS_VALID(vc->v[1])) {
 						/* 2 edges connedted */
 						/* make 2 connecting vert locations relative to the middle vert */
 						sub_v3_v3v3(tmp_vec1, mvert_new[vc->v[0]].co, mvert_new[i].co);
@@ -654,12 +740,23 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 						}
 					}
 
-					/* vc_no_tmp2 - is a line 90d from the pivot to the vec
+					/* tmp_vec2 - is a line 90d from the pivot to the vec
 					 * This is used so the resulting normal points directly away from the middle */
 					cross_v3_v3v3(tmp_vec2, axis_vec, vc->co);
 
-					/* edge average vector and right angle to the pivot make the normal */
-					cross_v3_v3v3(vc->no, tmp_vec1, tmp_vec2);
+					if (UNLIKELY(is_zero_v3(tmp_vec2))) {
+						/* we're _on_ the axis, so copy it based on our winding */
+						if (vc->e[0]->v2 == i) {
+							negate_v3_v3(vc->no, axis_vec);
+						}
+						else {
+							copy_v3_v3(vc->no, axis_vec);
+						}
+					}
+					else {
+						/* edge average vector and right angle to the pivot make the normal */
+						cross_v3_v3v3(vc->no, tmp_vec1, tmp_vec2);
+					}
 
 				}
 				else {
@@ -689,12 +786,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	
 	/* Add Faces */
 	for (step = 1; step < step_tot; step++) {
-		const int varray_stride = totvert * step;
+		const unsigned int varray_stride = totvert * step;
 		float step_angle;
 		float nor_tx[3];
 		float mat[4][4];
 		/* Rotation Matrix */
-		step_angle = (angle / (step_tot - (!close))) * step;
+		step_angle = (angle / (float)(step_tot - (!close))) * (float)step;
 
 		if (ltmd->ob_axis) {
 			axis_angle_normalized_to_mat3(mat3, axis_vec, step_angle);
@@ -710,7 +807,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			madd_v3_v3fl(mat[3], axis_vec, screw_ofs * ((float)step / (float)(step_tot - 1)));
 
 		/* copy a slice */
-		DM_copy_vert_data(dm, result, 0, varray_stride, totvert);
+		DM_copy_vert_data(dm, result, 0, (int)varray_stride, (int)totvert);
 		
 		mv_new_base = mvert_new;
 		mv_new = &mvert_new[varray_stride]; /* advance to the next slice */
@@ -757,7 +854,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 	if (close) {
 		/* last loop of edges, previous loop dosnt account for the last set of edges */
-		const int varray_stride = (step_tot - 1) * totvert;
+		const unsigned int varray_stride = (step_tot - 1) * totvert;
 
 		for (i = 0; i < totvert; i++) {
 			med_new->v1 = i;
@@ -775,86 +872,134 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	edge_offset = totedge + (totvert * (step_tot - (close ? 0 : 1)));
 
 	for (i = 0; i < totedge; i++, med_new_firstloop++) {
+		const unsigned int step_last = step_tot - (close ? 1 : 2);
+		const unsigned int mpoly_index_orig = totpoly ? edge_poly_map[i] : UINT_MAX;
+		const bool has_mpoly_orig = (mpoly_index_orig != UINT_MAX);
+		float uv_v_offset_a, uv_v_offset_b;
+
+		const unsigned int mloop_index_orig[2] = {
+		    vert_loop_map ? vert_loop_map[medge_new[i].v1] : UINT_MAX,
+		    vert_loop_map ? vert_loop_map[medge_new[i].v2] : UINT_MAX,
+		};
+		const bool has_mloop_orig = mloop_index_orig[0] != UINT_MAX;
+
+		short mat_nr;
+
 		/* for each edge, make a cylinder of quads */
 		i1 = med_new_firstloop->v1;
 		i2 = med_new_firstloop->v2;
 
-		for (step = 0; step < step_tot - 1; step++) {
-			
-			/* new face */
-			if (do_flip) {
-				ml_new[3].v = i1;
-				ml_new[2].v = i2;
-				ml_new[1].v = i2 + totvert;
-				ml_new[0].v = i1 + totvert;
-
-				ml_new[2].e = step == 0 ? i : (edge_offset + step + (i * (step_tot - 1))) - 1;
-				ml_new[1].e = totedge + i2;
-				ml_new[0].e = edge_offset + step + (i * (step_tot - 1));
-				ml_new[3].e = totedge + i1;
-			}
-			else {
-				ml_new[0].v = i1;
-				ml_new[1].v = i2;
-				ml_new[2].v = i2 + totvert;
-				ml_new[3].v = i1 + totvert;
-
-				ml_new[0].e = step == 0 ? i : (edge_offset + step + (i * (step_tot - 1))) - 1;
-				ml_new[1].e = totedge + i2;
-				ml_new[2].e = edge_offset + step + (i * (step_tot - 1));
-				ml_new[3].e = totedge + i1;
-			}
-
-
-			mp_new->loopstart = mpoly_index * 4;
-			mp_new->totloop = 4;
-			mp_new->flag = mpoly_flag;
-			origindex[mpoly_index] = ORIGINDEX_NONE;
-			mp_new++;
-			ml_new += 4;
-			mpoly_index++;
-			
-			/* new vertical edge */
-			if (step) { /* The first set is already dome */
-				med_new->v1 = i1;
-				med_new->v2 = i2;
-				med_new->flag = med_new_firstloop->flag;
-				med_new->crease = med_new_firstloop->crease;
-				med_new++;
-			}
-			i1 += totvert;
-			i2 += totvert;
+		if (has_mpoly_orig) {
+			mat_nr = mpoly_orig[mpoly_index_orig].mat_nr;
 		}
-		
-		/* close the loop*/
-		if (close) {
-			if (do_flip) {
-				ml_new[3].v = i1;
-				ml_new[2].v = i2;
-				ml_new[1].v = med_new_firstloop->v2;
-				ml_new[0].v = med_new_firstloop->v1;
+		else {
+			mat_nr = 0;
+		}
 
-				ml_new[2].e = (edge_offset + step + (i * (step_tot - 1))) - 1;
-				ml_new[1].e = totedge + i2;
-				ml_new[0].e = i;
-				ml_new[3].e = totedge + i1;
+		if (has_mloop_orig == false && mloopuv_layers_tot) {
+			uv_v_offset_a = dist_to_plane_v3(mvert_new[medge_new[i].v1].co, uv_axis_plane);
+			uv_v_offset_b = dist_to_plane_v3(mvert_new[medge_new[i].v2].co, uv_axis_plane);
+
+			if (ltmd->flag & MOD_SCREW_UV_STRETCH_V) {
+				uv_v_offset_a = (uv_v_offset_a - uv_v_minmax[0]) * uv_v_range_inv;
+				uv_v_offset_b = (uv_v_offset_b - uv_v_minmax[0]) * uv_v_range_inv;
+			}
+		}
+
+		for (step = 0; step <= step_last; step++) {
+
+			/* Polygon */
+			if (has_mpoly_orig) {
+				DM_copy_poly_data(dm, result, (int)mpoly_index_orig, (int)mpoly_index, 1);
+				origindex[mpoly_index] = (int)mpoly_index_orig;
 			}
 			else {
-				ml_new[0].v = i1;
-				ml_new[1].v = i2;
-				ml_new[2].v = med_new_firstloop->v2;
-				ml_new[3].v = med_new_firstloop->v1;
-
-				ml_new[0].e = (edge_offset + step + (i * (step_tot - 1))) - 1;
-				ml_new[1].e = totedge + i2;
-				ml_new[2].e = i;
-				ml_new[3].e = totedge + i1;
+				origindex[mpoly_index] = ORIGINDEX_NONE;
+				mp_new->flag = mpoly_flag;
+				mp_new->mat_nr = mat_nr;
 			}
-
 			mp_new->loopstart = mpoly_index * 4;
 			mp_new->totloop = 4;
-			mp_new->flag = mpoly_flag;
-			origindex[mpoly_index] = ORIGINDEX_NONE;
+
+
+			/* Loop-Custom-Data */
+			if (has_mloop_orig) {
+				int l_index = (int)(ml_new - mloop_new);
+				DM_copy_loop_data(dm, result, (int)mloop_index_orig[0], l_index + 0, 1);
+				DM_copy_loop_data(dm, result, (int)mloop_index_orig[1], l_index + 1, 1);
+				DM_copy_loop_data(dm, result, (int)mloop_index_orig[1], l_index + 2, 1);
+				DM_copy_loop_data(dm, result, (int)mloop_index_orig[0], l_index + 3, 1);
+
+				if (mloopuv_layers_tot) {
+					unsigned int uv_lay;
+					const float uv_u_offset_a = (float)(step)     * uv_u_scale;
+					const float uv_u_offset_b = (float)(step + 1) * uv_u_scale;
+					for (uv_lay = 0; uv_lay < mloopuv_layers_tot; uv_lay++) {
+						MLoopUV *mluv = &mloopuv_layers[uv_lay][l_index];
+
+						mluv[quad_ord[0]].uv[0] += uv_u_offset_a;
+						mluv[quad_ord[1]].uv[0] += uv_u_offset_a;
+						mluv[quad_ord[2]].uv[0] += uv_u_offset_b;
+						mluv[quad_ord[3]].uv[0] += uv_u_offset_b;
+					}
+				}
+			}
+			else {
+				if (mloopuv_layers_tot) {
+					int l_index = (int)(ml_new - mloop_new);
+
+					unsigned int uv_lay;
+					const float uv_u_offset_a = (float)(step)     * uv_u_scale;
+					const float uv_u_offset_b = (float)(step + 1) * uv_u_scale;
+					for (uv_lay = 0; uv_lay < mloopuv_layers_tot; uv_lay++) {
+						MLoopUV *mluv = &mloopuv_layers[uv_lay][l_index];
+
+						copy_v2_fl2(mluv[quad_ord[0]].uv, uv_u_offset_a, uv_v_offset_a);
+						copy_v2_fl2(mluv[quad_ord[1]].uv, uv_u_offset_a, uv_v_offset_b);
+						copy_v2_fl2(mluv[quad_ord[2]].uv, uv_u_offset_b, uv_v_offset_b);
+						copy_v2_fl2(mluv[quad_ord[3]].uv, uv_u_offset_b, uv_v_offset_a);
+					}
+				}
+			}
+
+			/* Loop-Data */
+			if (!(close && step == step_last)) {
+				/* regular segments */
+				ml_new[quad_ord[0]].v = i1;
+				ml_new[quad_ord[1]].v = i2;
+				ml_new[quad_ord[2]].v = i2 + totvert;
+				ml_new[quad_ord[3]].v = i1 + totvert;
+
+				ml_new[quad_ord_ofs[0]].e = step == 0 ? i : (edge_offset + step + (i * (step_tot - 1))) - 1;
+				ml_new[quad_ord_ofs[1]].e = totedge + i2;
+				ml_new[quad_ord_ofs[2]].e = edge_offset + step + (i * (step_tot - 1));
+				ml_new[quad_ord_ofs[3]].e = totedge + i1;
+
+
+				/* new vertical edge */
+				if (step) { /* The first set is already done */
+					med_new->v1 = i1;
+					med_new->v2 = i2;
+					med_new->flag = med_new_firstloop->flag;
+					med_new->crease = med_new_firstloop->crease;
+					med_new++;
+				}
+				i1 += totvert;
+				i2 += totvert;
+			}
+			else {
+				/* last segment */
+				ml_new[quad_ord[0]].v = i1;
+				ml_new[quad_ord[1]].v = i2;
+				ml_new[quad_ord[2]].v = med_new_firstloop->v2;
+				ml_new[quad_ord[3]].v = med_new_firstloop->v1;
+
+				ml_new[quad_ord_ofs[0]].e = (edge_offset + step + (i * (step_tot - 1))) - 1;
+				ml_new[quad_ord_ofs[1]].e = totedge + i2;
+				ml_new[quad_ord_ofs[2]].e = i;
+				ml_new[quad_ord_ofs[3]].e = totedge + i1;
+			}
+
 			mp_new++;
 			ml_new += 4;
 			mpoly_index++;
@@ -871,10 +1016,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	/* validate loop edges */
 #if 0
 	{
-		i = 0;
+		unsigned i = 0;
 		printf("\n");
 		for (; i < maxPolys * 4; i += 4) {
-			int ii;
+			unsigned int ii;
 			ml_new = mloop_new + i;
 			ii = findEd(medge_new, maxEdges, ml_new[0].v, ml_new[1].v);
 			printf("%d %d -- ", ii, ml_new[0].e);
@@ -895,6 +1040,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		}
 	}
 #endif
+
+	if (edge_poly_map) {
+		MEM_freeN(edge_poly_map);
+	}
+
+	if (vert_loop_map) {
+		MEM_freeN(vert_loop_map);
+	}
 
 	if ((ltmd->flag & MOD_SCREW_NORMAL_CALC) == 0) {
 		result->dirty |= DM_DIRTY_NORMALS;

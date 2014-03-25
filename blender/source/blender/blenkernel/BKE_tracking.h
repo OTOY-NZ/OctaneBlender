@@ -74,6 +74,7 @@ void BKE_tracking_clipboard_paste_tracks(struct MovieTracking *tracking, struct 
 /* **** Track **** */
 struct MovieTrackingTrack *BKE_tracking_track_add(struct MovieTracking *tracking, struct ListBase *tracksbase,
                                                   float x, float y, int framenr, int width, int height);
+struct MovieTrackingTrack *BKE_tracking_track_duplicate(struct MovieTrackingTrack *track);
 void BKE_tracking_track_unique_name(struct ListBase *tracksbase, struct MovieTrackingTrack *track);
 void BKE_tracking_track_free(struct MovieTrackingTrack *track);
 
@@ -96,6 +97,8 @@ struct MovieTrackingTrack *BKE_tracking_track_get_active(struct MovieTracking *t
 
 float *BKE_tracking_track_get_mask(int frame_width, int frame_height, struct MovieTrackingTrack *track,
                                    struct MovieTrackingMarker *marker);
+
+float BKE_tracking_track_get_weight_for_marker(struct MovieClip *clip, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker);
 
 /* selection */
 void BKE_tracking_track_select(struct ListBase *tracksbase, struct MovieTrackingTrack *track, int area, bool extend);
@@ -206,7 +209,7 @@ void BKE_tracking_disable_channels(struct ImBuf *ibuf, bool disable_red, bool di
 
 /* **** 2D tracking **** */
 struct MovieTrackingContext *BKE_tracking_context_new(struct MovieClip *clip, struct MovieClipUser *user,
-                                                      short backwards, short sequence);
+                                                      const bool backwards, const bool sequence);
 void BKE_tracking_context_free(struct MovieTrackingContext *context);
 void BKE_tracking_context_sync(struct MovieTrackingContext *context);
 void BKE_tracking_context_sync_user(const struct MovieTrackingContext *context, struct MovieClipUser *user);
@@ -225,7 +228,7 @@ void BKE_tracking_homography_between_two_quads(/*const*/ float reference_corners
 bool BKE_tracking_reconstruction_check(struct MovieTracking *tracking, struct MovieTrackingObject *object,
                                        char *error_msg, int error_size);
 
-struct MovieReconstructContext *BKE_tracking_reconstruction_context_new(struct MovieTracking *tracking,
+struct MovieReconstructContext *BKE_tracking_reconstruction_context_new(struct MovieClip *clip,
                                                                         struct MovieTrackingObject *object,
                                                                         int keyframe1, int keyframe2,
                                                                         int width, int height);
@@ -240,6 +243,10 @@ void BKE_tracking_reconstruction_scale(struct MovieTracking *tracking, float sca
 void BKE_tracking_detect_fast(struct MovieTracking *tracking, struct ListBase *tracksbase, struct ImBuf *imbuf,
                               int framenr, int margin, int min_trackness, int min_distance, struct bGPDlayer *layer,
                               bool place_outside_layer);
+
+void BKE_tracking_detect_harris(struct MovieTracking *tracking, struct ListBase *tracksbase, struct ImBuf *ibuf,
+                                int framenr, int margin, float threshold, int min_distance, struct bGPDlayer *layer,
+                                bool place_outside_layer);
 
 /* **** 2D stabilization **** */
 void BKE_tracking_stabilization_data_get(struct MovieTracking *tracking, int framenr, int width, int height,
@@ -263,6 +270,9 @@ void BKE_tracking_dopesheet_update(struct MovieTracking *tracking);
                                              (TRACK_AREA_SELECTED(track, TRACK_AREA_POINT) || \
                                               (((sc)->flag & SC_SHOW_MARKER_PATTERN) && TRACK_AREA_SELECTED(track, TRACK_AREA_PAT)) || \
                                               (((sc)->flag & SC_SHOW_MARKER_SEARCH) && TRACK_AREA_SELECTED(track, TRACK_AREA_SEARCH))))
+
+#define PLANE_TRACK_VIEW_SELECTED(plane_track) ((((plane_track)->flag & PLANE_TRACK_HIDDEN) == 0) && \
+                                                 ((plane_track)->flag & SELECT))
 
 #define MARKER_VISIBLE(sc, track, marker)       (((marker)->flag & MARKER_DISABLED) == 0 || ((sc)->flag & SC_HIDE_DISABLED) == 0 || (sc->clip->tracking.act_track == track))
 

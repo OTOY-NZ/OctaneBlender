@@ -61,6 +61,7 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -90,7 +91,7 @@ static void uv_select_flush_from_tag_loop(SpaceImage *sima, Scene *scene, Object
 
 /************************* state testing ************************/
 
-int ED_uvedit_test(Object *obedit)
+bool ED_uvedit_test(Object *obedit)
 {
 	BMEditMesh *em;
 	int ret;
@@ -131,26 +132,27 @@ static int UNUSED_FUNCTION(ED_operator_uvmap_mesh) (bContext *C)
 }
 /**************************** object active image *****************************/
 
-static int is_image_texture_node(bNode *node)
+static bool is_image_texture_node(bNode *node)
 {
 	return ELEM(node->type, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT);
 }
 
-int ED_object_get_active_image(Object *ob, int mat_nr, Image **ima, ImageUser **iuser, bNode **node_r)
+bool ED_object_get_active_image(Object *ob, int mat_nr,
+                                Image **r_ima, ImageUser **r_iuser, bNode **r_node)
 {
 	Material *ma = give_current_material(ob, mat_nr);
 	bNode *node = (ma && ma->use_nodes) ? nodeGetActiveTexture(ma->nodetree) : NULL;
 
 	if (node && is_image_texture_node(node)) {
-		if (ima) *ima = (Image *)node->id;
-		if (iuser) *iuser = NULL;
-		if (node_r) *node_r = node;
+		if (r_ima) *r_ima = (Image *)node->id;
+		if (r_iuser) *r_iuser = NULL;
+		if (r_node) *r_node = node;
 		return TRUE;
 	}
 	
-	if (ima) *ima = NULL;
-	if (iuser) *iuser = NULL;
-	if (node_r) *node_r = node;
+	if (r_ima) *r_ima = NULL;
+	if (r_iuser) *r_iuser = NULL;
+	if (r_node) *r_node = node;
 
 	return FALSE;
 }
@@ -640,7 +642,7 @@ bool ED_uvedit_minmax(Scene *scene, Image *ima, Object *obedit, float r_min[2], 
 	BMIter iter, liter;
 	MTexPoly *tf;
 	MLoopUV *luv;
-	bool change = false;
+	bool changed = false;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
@@ -656,12 +658,12 @@ bool ED_uvedit_minmax(Scene *scene, Image *ima, Object *obedit, float r_min[2], 
 			if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 				minmax_v2v2_v2(r_min, r_max, luv->uv);
-				change = true;
+				changed = true;
 			}
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 static bool ED_uvedit_median(Scene *scene, Image *ima, Object *obedit, float co[2])
@@ -699,22 +701,22 @@ static bool ED_uvedit_median(Scene *scene, Image *ima, Object *obedit, float co[
 
 static bool uvedit_center(Scene *scene, Image *ima, Object *obedit, float cent[2], char mode)
 {
-	bool change = false;
+	bool changed = false;
 	
 	if (mode == V3D_CENTER) {  /* bounding box */
 		float min[2], max[2];
 		if (ED_uvedit_minmax(scene, ima, obedit, min, max)) {
 			mid_v2_v2v2(cent, min, max);
-			change = true;
+			changed = true;
 		}
 	}
 	else {
 		if (ED_uvedit_median(scene, ima, obedit, cent)) {
-			change = true;
+			changed = true;
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 /************************** find nearest ****************************/
@@ -865,7 +867,7 @@ void uv_find_nearest_vert(Scene *scene, Image *ima, BMEditMesh *em,
 	}
 }
 
-int ED_uvedit_nearest_uv(Scene *scene, Object *obedit, Image *ima, const float co[2], float r_uv[2])
+bool ED_uvedit_nearest_uv(Scene *scene, Object *obedit, Image *ima, const float co[2], float r_uv[2])
 {
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMFace *efa;
@@ -874,7 +876,7 @@ int ED_uvedit_nearest_uv(Scene *scene, Object *obedit, Image *ima, const float c
 	MTexPoly *tf;
 	MLoopUV *luv;
 	float mindist, dist;
-	int found = FALSE;
+	bool found = false;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
@@ -895,7 +897,7 @@ int ED_uvedit_nearest_uv(Scene *scene, Object *obedit, Image *ima, const float c
 				mindist = dist;
 
 				copy_v2_v2(r_uv, luv->uv);
-				found = TRUE;
+				found = true;
 			}
 		}
 	}
@@ -924,7 +926,7 @@ static void uv_select_edgeloop_vertex_loop_flag(UvMapVert *first)
 static UvMapVert *uv_select_edgeloop_vertex_map_get(UvVertMap *vmap, BMFace *efa, BMLoop *l)
 {
 	UvMapVert *iterv, *first;
-	first = EDBM_uv_vert_map_at_index(vmap,  BM_elem_index_get(l->v));
+	first = BM_uv_vert_map_at_index(vmap,  BM_elem_index_get(l->v));
 
 	for (iterv = first; iterv; iterv = iterv->next) {
 		if (iterv->separate)
@@ -953,7 +955,7 @@ static bool uv_select_edgeloop_edge_tag_faces(BMEditMesh *em, UvMapVert *first1,
 
 			if (iterv1->f == iterv2->f) {
 				/* if face already tagged, don't do this edge */
-				efa = EDBM_face_at_index(em, iterv1->f);
+				efa = BM_face_at_index(em->bm, iterv1->f);
 				if (BM_elem_flag_test(efa, BM_ELEM_TAG))
 					return false;
 
@@ -978,7 +980,7 @@ static bool uv_select_edgeloop_edge_tag_faces(BMEditMesh *em, UvMapVert *first1,
 				break;
 
 			if (iterv1->f == iterv2->f) {
-				efa = EDBM_face_at_index(em, iterv1->f);
+				efa = BM_face_at_index(em->bm, iterv1->f);
 				BM_elem_flag_enable(efa, BM_ELEM_TAG);
 				break;
 			}
@@ -1005,8 +1007,8 @@ static int uv_select_edgeloop(Scene *scene, Image *ima, BMEditMesh *em, NearestH
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
 
 	/* setup */
-	EDBM_index_arrays_ensure(em, BM_FACE);
-	vmap = EDBM_uv_vert_map_create(em, 0, limit);
+	BM_mesh_elem_table_ensure(em->bm, BM_FACE);
+	vmap = BM_uv_vert_map_create(em->bm, 0, limit);
 
 	BM_mesh_elem_index_ensure(em->bm, BM_VERT | BM_FACE);
 
@@ -1085,7 +1087,7 @@ static int uv_select_edgeloop(Scene *scene, Image *ima, BMEditMesh *em, NearestH
 	}
 
 	/* cleanup */
-	EDBM_uv_vert_map_free(vmap);
+	BM_uv_vert_map_free(vmap);
 
 	return (select) ? 1 : -1;
 }
@@ -1108,8 +1110,8 @@ static void uv_select_linked(Scene *scene, Image *ima, BMEditMesh *em, const flo
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
 
-	EDBM_index_arrays_ensure(em, BM_FACE); /* we can use this too */
-	vmap = EDBM_uv_vert_map_create(em, 1, limit);
+	BM_mesh_elem_table_ensure(em->bm, BM_FACE); /* we can use this too */
+	vmap = BM_uv_vert_map_create(em->bm, 1, limit);
 
 	if (vmap == NULL)
 		return;
@@ -1152,12 +1154,12 @@ static void uv_select_linked(Scene *scene, Image *ima, BMEditMesh *em, const flo
 		stacksize--;
 		a = stack[stacksize];
 
-		efa = EDBM_face_at_index(em, a);
+		efa = BM_face_at_index(em->bm, a);
 
 		BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 
 			/* make_uv_vert_map_EM sets verts tmp.l to the indices */
-			vlist = EDBM_uv_vert_map_at_index(vmap, BM_elem_index_get(l->v));
+			vlist = BM_uv_vert_map_at_index(vmap, BM_elem_index_get(l->v));
 			
 			startv = vlist;
 
@@ -1241,7 +1243,7 @@ static void uv_select_linked(Scene *scene, Image *ima, BMEditMesh *em, const flo
 	
 	MEM_freeN(stack);
 	MEM_freeN(flag);
-	EDBM_uv_vert_map_free(vmap);
+	BM_uv_vert_map_free(vmap);
 }
 
 /* WATCH IT: this returns first selected UV,
@@ -2461,7 +2463,7 @@ static int uv_select_split_exec(bContext *C, wmOperator *op)
 	BMIter iter, liter;
 	MTexPoly *tf;
 	MLoopUV *luv;
-	bool change = false;
+	bool changed = false;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&bm->pdata, CD_MTEXPOLY);
@@ -2474,8 +2476,8 @@ static int uv_select_split_exec(bContext *C, wmOperator *op)
 
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-		int is_sel = FALSE;
-		int is_unsel = FALSE;
+		bool is_sel = false;
+		bool is_unsel = false;
 		tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
 
 		if (!uvedit_face_visible_test(scene, ima, efa, tf))
@@ -2504,11 +2506,11 @@ static int uv_select_split_exec(bContext *C, wmOperator *op)
 				luv->flag &= ~MLOOPUV_VERTSEL;
 			}
 
-			change = true;
+			changed = true;
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, NULL);
 		return OPERATOR_FINISHED;
 	}
@@ -2567,7 +2569,7 @@ static void uv_select_flush_from_tag_sticky_loc_internal(Scene *scene, BMEditMes
 
 	uvedit_uv_select_set(em, scene, l, select, false, cd_loop_uv_offset);
 
-	vlist_iter = EDBM_uv_vert_map_at_index(vmap, BM_elem_index_get(l->v));
+	vlist_iter = BM_uv_vert_map_at_index(vmap, BM_elem_index_get(l->v));
 
 	while (vlist_iter) {
 		if (vlist_iter->separate)
@@ -2587,7 +2589,7 @@ static void uv_select_flush_from_tag_sticky_loc_internal(Scene *scene, BMEditMes
 
 		if (efa_index != vlist_iter->f) {
 			BMLoop *l_other;
-			efa_vlist = EDBM_face_at_index(em, vlist_iter->f);
+			efa_vlist = BM_face_at_index(em->bm, vlist_iter->f);
 			/* tf_vlist = BM_ELEM_CD_GET_VOID_P(efa_vlist, cd_poly_tex_offset); */ /* UNUSED */
 
 			l_other = BM_iter_at_index(em->bm, BM_LOOPS_OF_FACE, efa_vlist, vlist_iter->tfindex);
@@ -2657,8 +2659,8 @@ static void uv_select_flush_from_tag_face(SpaceImage *sima, Scene *scene, Object
 		
 		uvedit_pixel_to_float(sima, limit, 0.05);
 		
-		EDBM_index_arrays_ensure(em, BM_FACE);
-		vmap = EDBM_uv_vert_map_create(em, 0, limit);
+		BM_mesh_elem_table_ensure(em->bm, BM_FACE);
+		vmap = BM_uv_vert_map_create(em->bm, 0, limit);
 		if (vmap == NULL) {
 			return;
 		}
@@ -2673,7 +2675,7 @@ static void uv_select_flush_from_tag_face(SpaceImage *sima, Scene *scene, Object
 				}
 			}
 		}
-		EDBM_uv_vert_map_free(vmap);
+		BM_uv_vert_map_free(vmap);
 		
 	}
 	else { /* SI_STICKY_DISABLE or ts->uv_flag & UV_SYNC_SELECTION */
@@ -2748,8 +2750,8 @@ static void uv_select_flush_from_tag_loop(SpaceImage *sima, Scene *scene, Object
 
 		uvedit_pixel_to_float(sima, limit, 0.05);
 
-		EDBM_index_arrays_ensure(em, BM_FACE);
-		vmap = EDBM_uv_vert_map_create(em, 0, limit);
+		BM_mesh_elem_table_ensure(em->bm, BM_FACE);
+		vmap = BM_uv_vert_map_create(em->bm, 0, limit);
 		if (vmap == NULL) {
 			return;
 		}
@@ -2764,7 +2766,7 @@ static void uv_select_flush_from_tag_loop(SpaceImage *sima, Scene *scene, Object
 				}
 			}
 		}
-		EDBM_uv_vert_map_free(vmap);
+		BM_uv_vert_map_free(vmap);
 
 	}
 	else { /* SI_STICKY_DISABLE or ts->uv_flag & UV_SYNC_SELECTION */
@@ -2796,7 +2798,7 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 	MLoopUV *luv;
 	rcti rect;
 	rctf rectf;
-	bool change, pinned, select, extend;
+	bool changed, pinned, select, extend;
 	const bool use_face_center = (ts->uv_flag & UV_SYNC_SELECTION) ?
 	                            (ts->selectmode == SCE_SELECT_FACE) :
 	                            (ts->uv_selectmode == UV_SELECT_FACE);
@@ -2823,7 +2825,7 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 		/* handle face selection mode */
 		float cent[2];
 
-		change = false;
+		changed = false;
 
 		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 			/* assume not touched */
@@ -2834,19 +2836,19 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 				uv_poly_center(efa, cent, cd_loop_uv_offset);
 				if (BLI_rctf_isect_pt_v(&rectf, cent)) {
 					BM_elem_flag_enable(efa, BM_ELEM_TAG);
-					change = true;
+					changed = true;
 				}
 			}
 		}
 
 		/* (de)selects all tagged faces and deals with sticky modes */
-		if (change) {
+		if (changed) {
 			uv_select_flush_from_tag_face(sima, scene, obedit, select);
 		}
 	}
 	else {
 		/* other selection modes */
-		change = true;
+		changed = true;
 		
 		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 			tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
@@ -2855,7 +2857,7 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 
-				if (!pinned || (ts->uv_flag & UV_SYNC_SELECTION) ) {
+				if (!pinned || (ts->uv_flag & UV_SYNC_SELECTION)) {
 
 					/* UV_SYNC_SELECTION - can't do pinned selection */
 					if (BLI_rctf_isect_pt_v(&rectf, luv->uv)) {
@@ -2871,7 +2873,7 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		uv_select_sync_flush(ts, em, select);
 
 		if (ts->uv_flag & UV_SYNC_SELECTION) {
@@ -2947,7 +2949,7 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 	float zoomx, zoomy, offset[2], ellipse[2];
 	int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
 	const bool select = (gesture_mode == GESTURE_MODAL_SELECT);
-	bool change = false;
+	bool changed = false;
 	const bool use_face_center = (ts->uv_flag & UV_SYNC_SELECTION) ?
 	                             (ts->selectmode == SCE_SELECT_FACE) :
 	                             (ts->uv_selectmode == UV_SELECT_FACE);
@@ -2971,7 +2973,7 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 	
 	/* do selection */
 	if (use_face_center) {
-		change = FALSE;
+		changed = false;
 		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 			BM_elem_flag_disable(efa, BM_ELEM_TAG);
 			/* assume not touched */
@@ -2980,13 +2982,13 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 				uv_poly_center(efa, cent, cd_loop_uv_offset);
 				if (uv_inside_circle(cent, offset, ellipse)) {
 					BM_elem_flag_enable(efa, BM_ELEM_TAG);
-					change = TRUE;
+					changed = true;
 				}
 			}
 		}
 
 		/* (de)selects all tagged faces and deals with sticky modes */
-		if (change) {
+		if (changed) {
 			uv_select_flush_from_tag_face(sima, scene, obedit, select);
 		}
 	}
@@ -2994,12 +2996,12 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-				change |= uv_select_inside_ellipse(em, scene, select, offset, ellipse, l, luv, cd_loop_uv_offset);
+				changed |= uv_select_inside_ellipse(em, scene, select, offset, ellipse, l, luv, cd_loop_uv_offset);
 			}
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		uv_select_sync_flush(ts, em, select);
 
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
@@ -3057,7 +3059,7 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 	BMLoop *l;
 	MTexPoly *tf;
 	int screen_uv[2];
-	bool change = false;
+	bool changed = false;
 	rcti rect;
 
 	BLI_lasso_boundbox(&rect, mcords, moves);
@@ -3074,13 +3076,13 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 				    BLI_lasso_is_point_inside(mcords, moves, screen_uv[0], screen_uv[1], V2D_IS_CLIPPED))
 				{
 					BM_elem_flag_enable(efa, BM_ELEM_TAG);
-					change = true;
+					changed = true;
 				}
 			}
 		}
 
 		/* (de)selects all tagged faces and deals with sticky modes */
-		if (change) {
+		if (changed) {
 			uv_select_flush_from_tag_face(sima, scene, obedit, select);
 		}
 	}
@@ -3096,7 +3098,7 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 						    BLI_lasso_is_point_inside(mcords, moves, screen_uv[0], screen_uv[1], V2D_IS_CLIPPED))
 						{
 							uvedit_uv_select_set(em, scene, l, select, false, cd_loop_uv_offset);
-							change = true;
+							changed = true;
 						}
 					}
 				}
@@ -3104,7 +3106,7 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		uv_select_sync_flush(scene->toolsettings, em, select);
 
 		if (ts->uv_flag & UV_SYNC_SELECTION) {
@@ -3112,7 +3114,7 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 static int uv_lasso_select_exec(bContext *C, wmOperator *op)
@@ -3122,14 +3124,14 @@ static int uv_lasso_select_exec(bContext *C, wmOperator *op)
 
 	if (mcords) {
 		bool select;
-		bool change;
+		bool changed;
 
 		select = !RNA_boolean_get(op->ptr, "deselect");
-		change = do_lasso_select_mesh_uv(C, mcords, mcords_tot, select);
+		changed = do_lasso_select_mesh_uv(C, mcords, mcords_tot, select);
 
 		MEM_freeN((void *)mcords);
 
-		return change ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+		return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 	}
 
 	return OPERATOR_PASS_THROUGH;
@@ -3184,19 +3186,19 @@ static int uv_snap_cursor_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Image *ima = CTX_data_edit_image(C);
-	bool change = false;
+	bool changed = false;
 
 	switch (RNA_enum_get(op->ptr, "target")) {
 		case 0:
 			uv_snap_cursor_to_pixels(sima);
-			change = true;
+			changed = true;
 			break;
 		case 1:
-			change = uv_snap_cursor_to_selection(scene, ima, obedit, sima);
+			changed = uv_snap_cursor_to_selection(scene, ima, obedit, sima);
 			break;
 	}
 
-	if (!change)
+	if (!changed)
 		return OPERATOR_CANCELLED;
 	
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, sima);
@@ -3235,7 +3237,7 @@ static bool uv_snap_uvs_to_cursor(Scene *scene, Image *ima, Object *obedit, cons
 	BMIter iter, liter;
 	MTexPoly *tface;
 	MLoopUV *luv;
-	bool change = false;
+	bool changed = false;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
@@ -3249,12 +3251,12 @@ static bool uv_snap_uvs_to_cursor(Scene *scene, Image *ima, Object *obedit, cons
 			if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 				copy_v2_v2 (luv->uv, cursor);
-				change = true;
+				changed = true;
 			}
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 static bool uv_snap_uvs_offset(Scene *scene, Image *ima, Object *obedit, const float offset[2])
@@ -3265,7 +3267,7 @@ static bool uv_snap_uvs_offset(Scene *scene, Image *ima, Object *obedit, const f
 	BMIter iter, liter;
 	MTexPoly *tface;
 	MLoopUV *luv;
-	bool change = false;
+	bool changed = false;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
@@ -3279,15 +3281,15 @@ static bool uv_snap_uvs_offset(Scene *scene, Image *ima, Object *obedit, const f
 			if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 				add_v2_v2(luv->uv, offset);
-				change = true;
+				changed = true;
 			}
 		}
 	}
 
-	return change;
+	return changed;
 }
 
-static int uv_snap_uvs_to_adjacent_unselected(Scene *scene, Image *ima, Object *obedit)
+static bool uv_snap_uvs_to_adjacent_unselected(Scene *scene, Image *ima, Object *obedit)
 {
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
@@ -3296,7 +3298,7 @@ static int uv_snap_uvs_to_adjacent_unselected(Scene *scene, Image *ima, Object *
 	BMIter iter, liter, lsubiter;
 	MTexPoly *tface;
 	MLoopUV *luv;
-	bool change = false;
+	bool changed = false;
 	const int cd_loop_uv_offset  = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&bm->pdata, CD_MTEXPOLY);
 	
@@ -3335,14 +3337,14 @@ static int uv_snap_uvs_to_adjacent_unselected(Scene *scene, Image *ima, Object *
 					if (uv_tot) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 						mul_v2_v2fl(luv->uv, uv, 1.0f / (float)uv_tot);
-						change = true;
+						changed = true;
 					}
 				}
 			}
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 static bool uv_snap_uvs_to_pixels(SpaceImage *sima, Scene *scene, Object *obedit)
@@ -3356,7 +3358,7 @@ static bool uv_snap_uvs_to_pixels(SpaceImage *sima, Scene *scene, Object *obedit
 	MLoopUV *luv;
 	int width = 0, height = 0;
 	float w, h;
-	bool change = false;
+	bool changed = false;
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
@@ -3377,10 +3379,10 @@ static bool uv_snap_uvs_to_pixels(SpaceImage *sima, Scene *scene, Object *obedit
 			}
 		}
 
-		change = true;
+		changed = true;
 	}
 
-	return change;
+	return changed;
 }
 
 static int uv_snap_selection_exec(bContext *C, wmOperator *op)
@@ -3389,14 +3391,14 @@ static int uv_snap_selection_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Image *ima = CTX_data_edit_image(C);
-	bool change = false;
+	bool changed = false;
 
 	switch (RNA_enum_get(op->ptr, "target")) {
 		case 0:
-			change = uv_snap_uvs_to_pixels(sima, scene, obedit);
+			changed = uv_snap_uvs_to_pixels(sima, scene, obedit);
 			break;
 		case 1:
-			change = uv_snap_uvs_to_cursor(scene, ima, obedit, sima->cursor);
+			changed = uv_snap_uvs_to_cursor(scene, ima, obedit, sima->cursor);
 			break;
 		case 2:
 		{
@@ -3404,16 +3406,16 @@ static int uv_snap_selection_exec(bContext *C, wmOperator *op)
 			if (uvedit_center(scene, ima, obedit, center, sima->around)) {
 				float offset[2];
 				sub_v2_v2v2(offset, sima->cursor, center);
-				change = uv_snap_uvs_offset(scene, ima, obedit, offset);
+				changed = uv_snap_uvs_offset(scene, ima, obedit, offset);
 			}
 			break;
 		}
 		case 3:
-			change = uv_snap_uvs_to_adjacent_unselected(scene, ima, obedit);
+			changed = uv_snap_uvs_to_adjacent_unselected(scene, ima, obedit);
 			break;
 	}
 
-	if (!change)
+	if (!changed)
 		return OPERATOR_CANCELLED;
 
 	uvedit_live_unwrap_update(sima, scene, obedit);
@@ -3459,7 +3461,7 @@ static int uv_pin_exec(bContext *C, wmOperator *op)
 	BMIter iter, liter;
 	MTexPoly *tface;
 	MLoopUV *luv;
-	int clear = RNA_boolean_get(op->ptr, "clear");
+	const bool clear = RNA_boolean_get(op->ptr, "clear");
 	
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
@@ -3588,7 +3590,7 @@ static int uv_hide_exec(bContext *C, wmOperator *op)
 	BMIter iter, liter;
 	MLoopUV *luv;
 	MTexPoly *tf;
-	int swap = RNA_boolean_get(op->ptr, "unselected");
+	const bool swap = RNA_boolean_get(op->ptr, "unselected");
 	Image *ima = sima ? sima->image : NULL;
 	const int use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
 
@@ -3801,7 +3803,7 @@ static int uv_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* re-select tagged faces */
-	BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, TRUE, BM_ELEM_TAG);
+	BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
 
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
@@ -3949,8 +3951,8 @@ static int uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em;
 	BMEdge *editedge;
 	float limit[2] = {STD_UV_CONNECT_LIMIT, STD_UV_CONNECT_LIMIT};
-	char mark_seams = RNA_boolean_get(op->ptr, "mark_seams");
-	char mark_sharp = RNA_boolean_get(op->ptr, "mark_sharp");
+	const bool mark_seams = RNA_boolean_get(op->ptr, "mark_seams");
+	const bool mark_sharp = RNA_boolean_get(op->ptr, "mark_sharp");
 
 	BMesh *bm;
 	BMIter iter;
@@ -3963,8 +3965,8 @@ static int uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 	}
 
 	/* This code sets editvert->tmp.l to the index. This will be useful later on. */
-	EDBM_index_arrays_ensure(em, BM_FACE);
-	vmap = EDBM_uv_vert_map_create(em, 0, limit);
+	BM_mesh_elem_table_ensure(bm, BM_FACE);
+	vmap = BM_uv_vert_map_create(bm, 0, limit);
 
 	BM_ITER_MESH (editedge, &iter, bm, BM_EDGES_OF_MESH) {
 		/* flags to determine if we uv is separated from first editface match */
@@ -3992,14 +3994,14 @@ static int uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 				v1coincident = 0;
 
 			separated2 = 0;
-			efa1 = EDBM_face_at_index(em, mv1->f);
+			efa1 = BM_face_at_index(bm, mv1->f);
 			mvinit2 = vmap->vert[BM_elem_index_get(editedge->v2)];
 
 			for (mv2 = mvinit2; mv2; mv2 = mv2->next) {
 				if (mv2->separate)
 					mv2sep = mv2;
 
-				efa2 = EDBM_face_at_index(em, mv2->f);
+				efa2 = BM_face_at_index(bm, mv2->f);
 				if (efa1 == efa2) {
 					/* if v1 is not coincident no point in comparing */
 					if (v1coincident) {
@@ -4042,7 +4044,7 @@ static int uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 
 	me->drawflag |= ME_DRAWSEAMS;
 
-	EDBM_uv_vert_map_free(vmap);
+	BM_uv_vert_map_free(vmap);
 
 	DAG_id_tag_update(&me->id, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, me);

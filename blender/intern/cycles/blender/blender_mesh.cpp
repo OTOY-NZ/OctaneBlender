@@ -249,8 +249,8 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 		bool smooth = f->use_smooth();
 
 		if(n == 4) {
-			if(len_squared(cross(mesh->verts[vi[1]] - mesh->verts[vi[0]], mesh->verts[vi[2]] - mesh->verts[vi[0]])) == 0.0f ||
-				len_squared(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]])) == 0.0f) {
+			if(is_zero(cross(mesh->verts[vi[1]] - mesh->verts[vi[0]], mesh->verts[vi[2]] - mesh->verts[vi[0]])) ||
+				is_zero(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]]))) {
 				mesh->set_triangle(ti++, vi[0], vi[1], vi[3], shader, smooth);
 				mesh->set_triangle(ti++, vi[2], vi[3], vi[1], shader, smooth);
 			}
@@ -348,9 +348,7 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 		}
 	}
 
-	/* create generated coordinates. todo: we should actually get the orco
-	 * coordinates from modifiers, for now we use texspace loc/size which
-	 * is available in the api. */
+	/* create generated coordinates from undeformed coordinates */
 	if(mesh->need_attribute(scene, ATTR_STD_GENERATED)) {
 		Attribute *attr = mesh->attributes.add(ATTR_STD_GENERATED);
 
@@ -363,9 +361,22 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 		for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v)
 			generated[i++] = get_float3(v->undeformed_co())*size - loc;
 	}
+
+	/* for volume objects, create a matrix to transform from object space to
+	 * mesh texture space. this does not work with deformations but that can
+	 * probably only be done well with a volume grid mapping of coordinates */
+	if(mesh->need_attribute(scene, ATTR_STD_GENERATED_TRANSFORM)) {
+		Attribute *attr = mesh->attributes.add(ATTR_STD_GENERATED_TRANSFORM);
+		Transform *tfm = attr->data_transform();
+
+		float3 loc, size;
+		mesh_texture_space(b_mesh, loc, size);
+
+		*tfm = transform_translate(-loc)*transform_scale(size);
+	}
 }
 
-static void create_subd_mesh(Mesh *mesh, BL::Mesh b_mesh, PointerRNA *cmesh, const vector<uint>& used_shaders)
+static void create_subd_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, PointerRNA *cmesh, const vector<uint>& used_shaders)
 {
 	/* create subd mesh */
 	SubdMesh sdmesh;
@@ -386,21 +397,25 @@ static void create_subd_mesh(Mesh *mesh, BL::Mesh b_mesh, PointerRNA *cmesh, con
 
 		if(n == 4)
 			sdmesh.add_face(vi[0], vi[1], vi[2], vi[3]);
-#if 0
 		else
 			sdmesh.add_face(vi[0], vi[1], vi[2]);
-#endif
 	}
 
 	/* finalize subd mesh */
-	sdmesh.link_boundary();
+	sdmesh.finish();
 
-	/* subdivide */
-	DiagSplit dsplit;
-	dsplit.camera = NULL;
-	dsplit.dicing_rate = RNA_float_get(cmesh, "dicing_rate");
+	/* parameters */
+	bool need_ptex = mesh->need_attribute(scene, ATTR_STD_PTEX_FACE_ID) ||
+	                 mesh->need_attribute(scene, ATTR_STD_PTEX_UV);
 
-	sdmesh.tessellate(&dsplit, false, mesh, used_shaders[0], true);
+	SubdParams sdparams(mesh, used_shaders[0], true, need_ptex);
+	sdparams.dicing_rate = RNA_float_get(cmesh, "dicing_rate");
+	//scene->camera->update();
+	//sdparams.camera = scene->camera;
+
+	/* tesselate */
+	DiagSplit dsplit(sdparams);
+	sdmesh.tessellate(&dsplit);
 }
 
 /* Sync */
@@ -482,13 +497,13 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 		if(b_mesh) {
 			if(render_layer.use_surfaces && !hide_tris) {
 				if(cmesh.data && experimental && RNA_boolean_get(&cmesh, "use_subdivision"))
-					create_subd_mesh(mesh, b_mesh, &cmesh, used_shaders);
+					create_subd_mesh(scene, mesh, b_mesh, &cmesh, used_shaders);
 				else
 					create_mesh(scene, mesh, b_mesh, used_shaders);
 			}
 
 			if(render_layer.use_hair)
-				sync_curves(mesh, b_mesh, b_ob, object_updated);
+				sync_curves(mesh, b_mesh, b_ob, 0);
 
 			/* free derived mesh */
 			b_data.meshes.remove(b_mesh);
@@ -539,6 +554,12 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Mesh *mesh, int motion)
 	if(!size || !ccl::BKE_object_is_deform_modified(b_ob, b_scene, preview))
 		return;
 
+	/* ensure we only sync instanced meshes once */
+	if(mesh_motion_synced.find(mesh) != mesh_motion_synced.end())
+		return;
+
+	mesh_motion_synced.insert(mesh);
+
 	/* get derived mesh */
 	BL::Mesh b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !preview, false);
 
@@ -555,6 +576,10 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Mesh *mesh, int motion)
 		/* if number of vertices changed, or if coordinates stayed the same, drop it */
 		if(i != size || memcmp(M, &mesh->verts[0], sizeof(float3)*size) == 0)
 			mesh->attributes.remove(std);
+
+		/* hair motion */
+		if(render_layer.use_hair)
+			sync_curves(mesh, b_mesh, b_ob, motion);
 
 		/* free derived mesh */
 		b_data.meshes.remove(b_mesh);

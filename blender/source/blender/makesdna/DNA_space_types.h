@@ -286,11 +286,11 @@ typedef enum eSpaceOutliner_Mode {
 	SO_GROUPS = 6,
 	SO_LIBRARIES = 7,
 	/* SO_VERSE_SESSION = 8, */  /* deprecated! */
-	/* SO_VERSE_MS = 9, */       /* deprecated!*/
+	/* SO_VERSE_MS = 9, */       /* deprecated! */
 	SO_SEQUENCE = 10,
 	SO_DATABLOCKS = 11,
 	SO_USERDEF = 12,
-	SO_KEYMAP = 13,
+	/* SO_KEYMAP = 13, */        /* deprecated! */
 } eSpaceOutliner_Mode;
 
 /* SpaceOops->storeflag */
@@ -366,6 +366,9 @@ typedef enum eGraphEdit_Flag {
 	SIPO_BEAUTYDRAW_OFF       = (1 << 12),
 	/* draw grouped channels with colors set in group */
 	SIPO_NODRAWGCOLORS        = (1 << 13),
+	/* normalize curves on display */
+	SIPO_NORMALIZE            = (1 << 14),
+	SIPO_NORMALIZE_FREEZE     = (1 << 15),
 } eGraphEdit_Flag;
 
 /* SpaceIpo->mode (Graph Editor Mode) */
@@ -452,10 +455,10 @@ typedef enum eScreen_Redraws_Flag {
 	TIME_ALL_3D_WIN        = (1 << 1),
 	TIME_ALL_ANIM_WIN      = (1 << 2),
 	TIME_ALL_BUTS_WIN      = (1 << 3),
-	TIME_WITH_SEQ_AUDIO    = (1 << 4), /* DEPRECATED */
+	// TIME_WITH_SEQ_AUDIO    = (1 << 4), /* DEPRECATED */
 	TIME_SEQ               = (1 << 5),
 	TIME_ALL_IMAGE_WIN     = (1 << 6),
-	TIME_CONTINUE_PHYSICS  = (1 << 7), /* UNUSED */
+	// TIME_CONTINUE_PHYSICS  = (1 << 7), /* UNUSED */
 	TIME_NODES             = (1 << 8),
 	TIME_CLIPS             = (1 << 9),
 } eScreen_Redraws_Flag;
@@ -546,7 +549,8 @@ typedef struct MaskSpaceInfo
 	/* draw options */
 	char draw_flag;
 	char draw_type;
-	char pad3[6];
+	char overlay_mode;
+	char pad3[5];
 } MaskSpaceInfo;
 
 /* sseq->mainb */
@@ -689,6 +693,7 @@ typedef enum eFileSel_File_Types {
 	BTXFILE             = (1 << 12),
 	COLLADAFILE         = (1 << 13),
 	OPERATORFILE        = (1 << 14), /* from filter_glob operator property */
+	APPLICATIONBUNDLE   = (1 << 15),
 } eFileSel_File_Types;
 
 /* Selection Flags in filesel: struct direntry, unsigned char selflag */
@@ -844,6 +849,8 @@ typedef struct SpaceText {
 	char pad[4];
 
 	void *drawcache; /* cache for faster drawing */
+
+	float scroll_accum[2]; /* runtime, for scroll increments smaller than a line */
 } SpaceText;
 
 
@@ -964,7 +971,7 @@ typedef enum eSpaceNode_Flag {
 	SNODE_SHOW_B         = (1 << 9),
 	SNODE_AUTO_RENDER    = (1 << 5),
 	SNODE_SHOW_HIGHLIGHT = (1 << 6),
-	SNODE_USE_HIDDEN_PREVIEW = (1 << 10),
+//	SNODE_USE_HIDDEN_PREVIEW = (1 << 10), DNA_DEPRECATED December2013 
 	SNODE_NEW_SHADERS = (1 << 11),
 	SNODE_PIN            = (1 << 12),
 } eSpaceNode_Flag;
@@ -1100,34 +1107,35 @@ typedef struct SpaceClip {
 
 /* SpaceClip->flag */
 typedef enum eSpaceClip_Flag {
-	SC_SHOW_MARKER_PATTERN = (1 << 0),
-	SC_SHOW_MARKER_SEARCH  = (1 << 1),
-	SC_LOCK_SELECTION      = (1 << 2),
-	SC_SHOW_TINY_MARKER    = (1 << 3),
-	SC_SHOW_TRACK_PATH     = (1 << 4),
-	SC_SHOW_BUNDLES        = (1 << 5),
-	SC_MUTE_FOOTAGE        = (1 << 6),
-	SC_HIDE_DISABLED       = (1 << 7),
-	SC_SHOW_NAMES          = (1 << 8),
-	SC_SHOW_GRID           = (1 << 9),
-	SC_SHOW_STABLE         = (1 << 10),
-	SC_MANUAL_CALIBRATION  = (1 << 11),
-	SC_SHOW_GPENCIL        = (1 << 12),
-	SC_SHOW_FILTERS        = (1 << 13),
-	SC_SHOW_GRAPH_FRAMES   = (1 << 14),
-	SC_SHOW_GRAPH_TRACKS   = (1 << 15),
-/*	SC_SHOW_PYRAMID_LEVELS = (1 << 16), */	/* UNUSED */
-	SC_LOCK_TIMECURSOR     = (1 << 17),
-	SC_SHOW_SECONDS        = (1 << 18),
-	SC_SHOW_GRAPH_SEL_ONLY = (1 << 19),
-	SC_SHOW_GRAPH_HIDDEN   = (1 << 20),
+	SC_SHOW_MARKER_PATTERN      = (1 << 0),
+	SC_SHOW_MARKER_SEARCH       = (1 << 1),
+	SC_LOCK_SELECTION           = (1 << 2),
+	SC_SHOW_TINY_MARKER         = (1 << 3),
+	SC_SHOW_TRACK_PATH          = (1 << 4),
+	SC_SHOW_BUNDLES             = (1 << 5),
+	SC_MUTE_FOOTAGE             = (1 << 6),
+	SC_HIDE_DISABLED            = (1 << 7),
+	SC_SHOW_NAMES               = (1 << 8),
+	SC_SHOW_GRID                = (1 << 9),
+	SC_SHOW_STABLE              = (1 << 10),
+	SC_MANUAL_CALIBRATION       = (1 << 11),
+	SC_SHOW_GPENCIL             = (1 << 12),
+	SC_SHOW_FILTERS             = (1 << 13),
+	SC_SHOW_GRAPH_FRAMES        = (1 << 14),
+	SC_SHOW_GRAPH_TRACKS_MOTION = (1 << 15),
+/*	SC_SHOW_PYRAMID_LEVELS      = (1 << 16), */	/* UNUSED */
+	SC_LOCK_TIMECURSOR          = (1 << 17),
+	SC_SHOW_SECONDS             = (1 << 18),
+	SC_SHOW_GRAPH_SEL_ONLY      = (1 << 19),
+	SC_SHOW_GRAPH_HIDDEN        = (1 << 20),
+	SC_SHOW_GRAPH_TRACKS_ERROR  = (1 << 21),
 } eSpaceClip_Flag;
 
 /* SpaceClip->mode */
 typedef enum eSpaceClip_Mode {
 	SC_MODE_TRACKING = 0,
-	SC_MODE_RECONSTRUCTION = 1,
-	SC_MODE_DISTORTION = 2,
+	/*SC_MODE_RECONSTRUCTION = 1,*/  /* DEPRECATED */
+	/*SC_MODE_DISTORTION = 2,*/  /* DEPRECATED */
 	SC_MODE_MASKEDIT = 3,
 } eSpaceClip_Mode;
 
@@ -1173,6 +1181,11 @@ typedef enum eSpace_Type {
 	
 	SPACEICONMAX = SPACE_CLIP
 } eSpace_Type;
+
+// TODO: SPACE_SCRIPT
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison SPACE_IMASEL SPACE_SOUND
+#endif
 
 #define IMG_SIZE_FALLBACK 256
 

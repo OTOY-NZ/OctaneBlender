@@ -131,7 +131,7 @@ static int rna_SculptToolCapabilities_has_jitter_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
 	return (!(br->flag & BRUSH_ANCHORED) &&
-	        !(br->flag & BRUSH_RESTORE_MESH) &&
+	        !(br->flag & BRUSH_DRAG_DOT) &&
 	        !ELEM4(br->sculpt_tool,
 	               SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
 	               SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB));
@@ -211,7 +211,7 @@ static int rna_SculptToolCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
 	return (!(br->flag & BRUSH_ANCHORED) &&
-	        !(br->flag & BRUSH_RESTORE_MESH) &&
+	        !(br->flag & BRUSH_DRAG_DOT) &&
 	        !ELEM4(br->sculpt_tool,
 	               SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
 	               SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB));
@@ -246,6 +246,12 @@ static int rna_BrushCapabilities_has_texture_angle_get(PointerRNA *ptr)
 	             MTEX_MAP_MODE_TILED,
 	             MTEX_MAP_MODE_STENCIL,
 	             MTEX_MAP_MODE_RANDOM);
+}
+
+static int rna_SculptToolCapabilities_has_gravity_get(PointerRNA *ptr)
+{
+	Brush *br = (Brush *)ptr->data;
+	return !ELEM(br->sculpt_tool, SCULPT_TOOL_MASK, SCULPT_TOOL_SMOOTH);
 }
 
 static int rna_BrushCapabilities_has_texture_angle_source_get(PointerRNA *ptr)
@@ -382,7 +388,7 @@ static void rna_Brush_set_unprojected_radius(PointerRNA *ptr, float value)
 }
 
 static EnumPropertyItem *rna_Brush_direction_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                   PropertyRNA *UNUSED(prop), int *UNUSED(free))
+                                                   PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	static EnumPropertyItem prop_default_items[] = {
 		{0, NULL, 0, NULL, NULL}
@@ -556,6 +562,7 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
 	SCULPT_TOOL_CAPABILITY(has_smooth_stroke, "Has Smooth Stroke");
 	SCULPT_TOOL_CAPABILITY(has_space_attenuation, "Has Space Attenuation");
 	SCULPT_TOOL_CAPABILITY(has_strength, "Has Strength");
+	SCULPT_TOOL_CAPABILITY(has_gravity, "Has Gravity");
 
 #undef SCULPT_CAPABILITY
 }
@@ -608,7 +615,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	static EnumPropertyItem sculpt_stroke_method_items[] = {
 		{0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
-		{BRUSH_RESTORE_MESH, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
+		{BRUSH_DRAG_DOT, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
 		{BRUSH_SPACE, "SPACE", 0, "Space", "Limit brush application to the distance specified by spacing"},
 		{BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", "Keep the brush anchored to the initial location"},
 		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", "Keep applying paint effect while holding mouse (spray)"},
@@ -719,7 +726,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	/* number values */
-	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_funcs(prop, NULL, "rna_Brush_set_size", NULL);
 	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS * 10);
 	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, -1);
@@ -740,7 +747,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Jitter", "Jitter the position of the brush while painting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop = RNA_def_property(srna, "jitter_absolute", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "jitter_absolute", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "jitter_absolute");
 	RNA_def_property_range(prop, 0, 1000000);
 	RNA_def_property_ui_text(prop, "Jitter", "Jitter the position of the brush in pixels while painting");
@@ -876,6 +883,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_original_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ORIGINAL_NORMAL);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Original Normal",
 	                         "When locked keep using normal of surface where stroke was initiated");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
@@ -928,6 +936,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_relative_jitter", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", BRUSH_ABSOLUTE_JITTER);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Absolute Jitter", "Jittering happens in screen space, not relative to brush size");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
@@ -973,6 +982,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_space_attenuation", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_SPACE_ATTEN);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Use Automatic Strength Adjustment",
 	                         "Automatically adjust strength to give consistent results for different spacings");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
@@ -996,8 +1006,8 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Edge-to-edge", "Drag anchor brush from edge-to-edge");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop = RNA_def_property(srna, "use_restore_mesh", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_RESTORE_MESH);
+	prop = RNA_def_property(srna, "use_drag_dot", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_DRAG_DOT);
 	RNA_def_property_ui_text(prop, "Restore Mesh", "Allow a single dot to be carefully positioned");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 

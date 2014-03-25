@@ -296,7 +296,7 @@ static int add_keyingset_button_exec(bContext *C, wmOperator *op)
 	char *path = NULL;
 	short success = 0;
 	int index = 0, pflag = 0;
-	int all = RNA_boolean_get(op->ptr, "all");
+	const bool all = RNA_boolean_get(op->ptr, "all");
 	
 	/* verify the Keying Set to use:
 	 *	- use the active one for now (more control over this can be added later)
@@ -712,7 +712,7 @@ KeyingSet *ANIM_get_keyingset_for_autokeying(Scene *scene, const char *tranformK
 /* Menu of All Keying Sets ----------------------------- */
 
 /* Dynamically populate an enum of Keying Sets */
-EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Scene *scene = CTX_data_scene(C);
 	KeyingSet *ks;
@@ -772,7 +772,7 @@ EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C, PointerRNA *UNUSED(pt
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -892,7 +892,7 @@ short ANIM_validate_keyingset(bContext *C, ListBase *dsources, KeyingSet *ks)
 				
 			/* if we don't have any paths now, then this still qualifies as invalid context */
 			// FIXME: we need some error conditions (to be retrieved from the iterator why this failed!)
-			if (ks->paths.first == NULL)
+			if (BLI_listbase_is_empty(&ks->paths))
 				return MODIFYKEY_INVALID_CONTEXT;
 		}
 		else {
@@ -927,7 +927,7 @@ int ANIM_apply_keyingset(bContext *C, ListBase *dsources, bAction *act, KeyingSe
 		/* use KeyingSet's flags as base */
 		kflag = ks->keyingflag;
 		
-		/* suppliment with info from the context */
+		/* supplement with info from the context */
 		kflag |= ANIM_get_keyframing_flags(scene, 1);
 	}
 	else if (mode == MODIFYKEY_MODE_DELETE)

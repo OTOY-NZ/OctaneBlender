@@ -304,8 +304,9 @@ char *rna_TextureSlot_path(PointerRNA *ptr)
 			if (prop) {
 				int index = RNA_property_collection_lookup_index(&id_ptr, prop, ptr);
 
-				if (index >= 0)
+				if (index != -1) {
 					return BLI_sprintfN("texture_slots[%d]", index);
+				}
 			}
 		}
 	}
@@ -367,7 +368,7 @@ static int rna_TextureSlot_output_node_get(PointerRNA *ptr)
 
 
 static EnumPropertyItem *rna_TextureSlot_output_node_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                           PropertyRNA *UNUSED(prop), int *free)
+                                                           PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	MTex *mtex = ptr->data;
 	Tex *tex = mtex->tex;
@@ -397,7 +398,7 @@ static EnumPropertyItem *rna_TextureSlot_output_node_itemf(bContext *UNUSED(C), 
 	}
 	
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -537,6 +538,7 @@ static void rna_def_texmapping(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "size");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Scale", "");
 	RNA_def_property_update(prop, 0, "rna_Texture_mapping_update");
 	
@@ -673,6 +675,7 @@ static void rna_def_mtex(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "size");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_range(prop, -100, 100, 10, 2);
 	RNA_def_property_ui_text(prop, "Size", "Set scaling for the texture's X, Y and Z sizes");
 	RNA_def_property_update(prop, 0, "rna_TextureSlot_brush_update");
@@ -2009,6 +2012,11 @@ static void rna_def_texture(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, texture_type_items);
 	RNA_def_property_enum_funcs(prop, NULL, "rna_Texture_type_set", NULL);
 	RNA_def_property_ui_text(prop, "Type", "");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "use_clamp", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", TEX_NO_CLAMP);
+	RNA_def_property_ui_text(prop, "Clamp", "Set negative texture RGB and intensity values to zero, for some uses like displacement this option can be disabled to get the full range");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 	
 	prop = RNA_def_property(srna, "use_color_ramp", PROP_BOOLEAN, PROP_NONE);

@@ -60,7 +60,7 @@ static int mask_shape_key_insert_exec(bContext *C, wmOperator *UNUSED(op))
 	const int frame = CFRA;
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
-	int change = FALSE;
+	bool changed = false;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		MaskLayerShape *masklay_shape;
@@ -69,12 +69,12 @@ static int mask_shape_key_insert_exec(bContext *C, wmOperator *UNUSED(op))
 			continue;
 		}
 
-		masklay_shape = BKE_mask_layer_shape_varify_frame(masklay, frame);
+		masklay_shape = BKE_mask_layer_shape_verify_frame(masklay, frame);
 		BKE_mask_layer_shape_from_mask(masklay, masklay_shape);
-		change = TRUE;
+		changed = true;
 	}
 
-	if (change) {
+	if (changed) {
 		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
 		DAG_id_tag_update(&mask->id, 0);
 
@@ -106,7 +106,7 @@ static int mask_shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	const int frame = CFRA;
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
-	int change = FALSE;
+	bool changed = false;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		MaskLayerShape *masklay_shape;
@@ -119,11 +119,11 @@ static int mask_shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
 
 		if (masklay_shape) {
 			BKE_mask_layer_shape_unlink(masklay, masklay_shape);
-			change = TRUE;
+			changed = true;
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
 		DAG_id_tag_update(&mask->id, OB_RECALC_DATA);
 
@@ -155,7 +155,7 @@ static int mask_shape_key_feather_reset_exec(bContext *C, wmOperator *UNUSED(op)
 	const int frame = CFRA;
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
-	int change = FALSE;
+	bool changed = false;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 
@@ -208,14 +208,14 @@ static int mask_shape_key_feather_reset_exec(bContext *C, wmOperator *UNUSED(op)
 					// printf("%s: skipping\n", __func__);
 				}
 
-				change = TRUE;
+				changed = true;
 			}
 
 			BKE_mask_layer_shape_free(masklay_shape_reset);
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
 		DAG_id_tag_update(&mask->id, 0);
 
@@ -255,7 +255,7 @@ static int mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
 	const int frame = CFRA;
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
-	int change = FALSE;
+	bool changed = false;
 
 	const short do_feather  = RNA_boolean_get(op->ptr, "feather");
 	const short do_location = RNA_boolean_get(op->ptr, "location");
@@ -272,15 +272,17 @@ static int mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
 		}
 
 		if (masklay->splines_shapes.first) {
-			MaskLayerShape *masklay_shape;
+			MaskLayerShape *masklay_shape, *masklay_shape_next;
 			MaskLayerShape *masklay_shape_lastsel = NULL;
 
 			for (masklay_shape = masklay->splines_shapes.first;
 			     masklay_shape;
-			     masklay_shape = masklay_shape->next)
+			     masklay_shape = masklay_shape_next)
 			{
 				MaskLayerShape *masklay_shape_a = NULL;
 				MaskLayerShape *masklay_shape_b = NULL;
+
+				masklay_shape_next = masklay_shape->next;
 
 				/* find contiguous selections */
 				if (masklay_shape->flag & MASK_SHAPE_SELECT) {
@@ -293,6 +295,9 @@ static int mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
 						masklay_shape_a = masklay_shape_lastsel;
 						masklay_shape_b = masklay_shape;
 						masklay_shape_lastsel = NULL;
+
+						/* this will be freed below, step over selection */
+						masklay_shape_next = masklay_shape->next;
 					}
 				}
 
@@ -319,8 +324,8 @@ static int mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
 					     masklay_shape_tmp;
 					     masklay_shape_tmp = masklay_shape_tmp->next)
 					{
-						BKE_mask_layer_evaluate(masklay, masklay_shape_tmp->frame, TRUE);
-						masklay_shape_tmp_rekey = BKE_mask_layer_shape_varify_frame(masklay, masklay_shape_tmp->frame);
+						BKE_mask_layer_evaluate(masklay, masklay_shape_tmp->frame, true);
+						masklay_shape_tmp_rekey = BKE_mask_layer_shape_verify_frame(masklay, masklay_shape_tmp->frame);
 						BKE_mask_layer_shape_from_mask(masklay, masklay_shape_tmp_rekey);
 						masklay_shape_tmp_rekey->flag = masklay_shape_tmp->flag & MASK_SHAPE_SELECT;
 					}
@@ -371,16 +376,16 @@ static int mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
 						BKE_mask_layer_shape_free(masklay_shape_tmp);
 					}
 
-					change = TRUE;
+					changed = true;
 				}
 			}
 
 			/* re-evaluate */
-			BKE_mask_layer_evaluate(masklay, frame, TRUE);
+			BKE_mask_layer_evaluate(masklay, frame, true);
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
 		DAG_id_tag_update(&mask->id, 0);
 
@@ -417,27 +422,27 @@ void ED_mask_layer_shape_auto_key(MaskLayer *masklay, const int frame)
 {
 	MaskLayerShape *masklay_shape;
 
-	masklay_shape = BKE_mask_layer_shape_varify_frame(masklay, frame);
+	masklay_shape = BKE_mask_layer_shape_verify_frame(masklay, frame);
 	BKE_mask_layer_shape_from_mask(masklay, masklay_shape);
 }
 
-int ED_mask_layer_shape_auto_key_all(Mask *mask, const int frame)
+bool ED_mask_layer_shape_auto_key_all(Mask *mask, const int frame)
 {
 	MaskLayer *masklay;
-	int change = FALSE;
+	bool changed = false;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		ED_mask_layer_shape_auto_key(masklay, frame);
-		change = TRUE;
+		changed = true;
 	}
 
-	return change;
+	return changed;
 }
 
-int ED_mask_layer_shape_auto_key_select(Mask *mask, const int frame)
+bool ED_mask_layer_shape_auto_key_select(Mask *mask, const int frame)
 {
 	MaskLayer *masklay;
-	int change = FALSE;
+	bool changed = false;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 
@@ -446,8 +451,8 @@ int ED_mask_layer_shape_auto_key_select(Mask *mask, const int frame)
 		}
 
 		ED_mask_layer_shape_auto_key(masklay, frame);
-		change = TRUE;
+		changed = true;
 	}
 
-	return change;
+	return changed;
 }

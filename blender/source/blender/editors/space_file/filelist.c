@@ -81,9 +81,6 @@
 
 #include "filelist.h"
 
-/* max length of library group name within filesel */
-#define GROUP_MAX 32
-
 struct FileList;
 
 typedef struct FileImage {
@@ -120,7 +117,7 @@ typedef struct FileList {
 	short hide_parent;
 
 	void (*readf)(struct FileList *);
-	int (*filterf)(struct direntry *file, const char *dir, unsigned int filter, short hide_dot);
+	bool (*filterf)(struct direntry *file, const char *dir, unsigned int filter, short hide_dot);
 
 } FileList;
 
@@ -296,35 +293,35 @@ static int compare_extension(const void *a1, const void *a2)
 	return (BLI_strcasecmp(sufix1, sufix2));
 }
 
-static int is_hidden_file(const char *filename, short hide_dot)
+static bool is_hidden_file(const char *filename, short hide_dot)
 {
-	int is_hidden = 0;
+	bool is_hidden = false;
 
 	if (hide_dot) {
 		if (filename[0] == '.' && filename[1] != '.' && filename[1] != 0) {
 			is_hidden = 1; /* ignore .file */
 		}
-		else if (((filename[0] == '.') && (filename[1] == 0) )) {
+		else if (((filename[0] == '.') && (filename[1] == 0))) {
 			is_hidden = 1; /* ignore . */
 		}
 		else {
 			int len = strlen(filename);
-			if ( (len > 0) && (filename[len - 1] == '~') ) {
+			if ((len > 0) && (filename[len - 1] == '~')) {
 				is_hidden = 1;  /* ignore file~ */
 			}
 		}
 	}
 	else {
-		if (((filename[0] == '.') && (filename[1] == 0) )) {
+		if (((filename[0] == '.') && (filename[1] == 0))) {
 			is_hidden = 1; /* ignore . */
 		}
 	}
 	return is_hidden;
 }
 
-static int is_filtered_file(struct direntry *file, const char *UNUSED(dir), unsigned int filter, short hide_dot)
+static bool is_filtered_file(struct direntry *file, const char *UNUSED(dir), unsigned int filter, short hide_dot)
 {
-	int is_filtered = 0;
+	bool is_filtered = false;
 	if (filter) {
 		if (file->flags & filter) {
 			is_filtered = 1;
@@ -341,10 +338,10 @@ static int is_filtered_file(struct direntry *file, const char *UNUSED(dir), unsi
 	return is_filtered && !is_hidden_file(file->relname, hide_dot);
 }
 
-static int is_filtered_lib(struct direntry *file, const char *dir, unsigned int filter, short hide_dot)
+static bool is_filtered_lib(struct direntry *file, const char *dir, unsigned int filter, short hide_dot)
 {
-	int is_filtered = 0;
-	char tdir[FILE_MAX], tgroup[GROUP_MAX];
+	bool is_filtered = false;
+	char tdir[FILE_MAX], tgroup[BLO_GROUP_MAX];
 	if (BLO_is_a_library(dir, tdir, tgroup)) {
 		is_filtered = !is_hidden_file(file->relname, hide_dot);
 	}
@@ -354,7 +351,7 @@ static int is_filtered_lib(struct direntry *file, const char *dir, unsigned int 
 	return is_filtered;
 }
 
-static int is_filtered_main(struct direntry *file, const char *UNUSED(dir), unsigned int UNUSED(filter), short hide_dot)
+static bool is_filtered_main(struct direntry *file, const char *UNUSED(dir), unsigned int UNUSED(filter), short hide_dot)
 {
 	return !is_hidden_file(file->relname, hide_dot);
 }
@@ -370,7 +367,7 @@ void filelist_filter(FileList *filelist)
 	/* How many files are left after filter ? */
 	for (i = 0; i < filelist->numfiles; ++i) {
 		struct direntry *file = &filelist->filelist[i];
-		if (filelist->filterf(file, filelist->dir, filelist->filter, filelist->hide_dot) ) {
+		if (filelist->filterf(file, filelist->dir, filelist->filter, filelist->hide_dot)) {
 			num_filtered++;
 		}
 	}
@@ -384,7 +381,7 @@ void filelist_filter(FileList *filelist)
 
 	for (i = 0, j = 0; i < filelist->numfiles; ++i) {
 		struct direntry *file = &filelist->filelist[i];
-		if (filelist->filterf(file, filelist->dir, filelist->filter, filelist->hide_dot) ) {
+		if (filelist->filterf(file, filelist->dir, filelist->filter, filelist->hide_dot)) {
 			filelist->fidx[j++] = i;
 		}
 	}
@@ -477,6 +474,17 @@ void folderlist_pushdir(ListBase *folderlist, const char *dir)
 
 	/* add it to the end of the list */
 	BLI_addtail(folderlist, folder);
+}
+
+const char *folderlist_peeklastdir(ListBase *folderlist)
+{
+	struct FolderList *folder;
+
+	if (!folderlist->last)
+		return NULL;
+
+	folder = folderlist->last;
+	return folder->foldername;
 }
 
 int folderlist_clear_next(struct SpaceFile *sfile)
@@ -618,7 +626,7 @@ ImBuf *filelist_getimage(struct FileList *filelist, int index)
 
 	BLI_assert(G.background == FALSE);
 
-	if ( (index < 0) || (index >= filelist->numfiltered) ) {
+	if ((index < 0) || (index >= filelist->numfiltered)) {
 		return NULL;
 	}
 	fidx = filelist->fidx[index];
@@ -635,7 +643,7 @@ ImBuf *filelist_geticon(struct FileList *filelist, int index)
 
 	BLI_assert(G.background == FALSE);
 
-	if ( (index < 0) || (index >= filelist->numfiltered) ) {
+	if ((index < 0) || (index >= filelist->numfiltered)) {
 		return NULL;
 	}
 	fidx = filelist->fidx[index];
@@ -658,7 +666,7 @@ ImBuf *filelist_geticon(struct FileList *filelist, int index)
 	if (file->flags & BLENDERFILE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BLENDFILE];
 	}
-	else if ( (file->flags & MOVIEFILE) || (file->flags & MOVIEFILE_ICON) ) {
+	else if ((file->flags & MOVIEFILE) || (file->flags & MOVIEFILE_ICON)) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_MOVIEFILE];
 	}
 	else if (file->flags & SOUNDFILE) {
@@ -687,7 +695,7 @@ struct direntry *filelist_file(struct FileList *filelist, int index)
 {
 	int fidx = 0;
 	
-	if ( (index < 0) || (index >= filelist->numfiltered) ) {
+	if ((index < 0) || (index >= filelist->numfiltered)) {
 		return NULL;
 	}
 	fidx = filelist->fidx[index];
@@ -737,19 +745,17 @@ void filelist_setfilter_types(struct FileList *filelist, const char *filter_glob
 }
 
 /* would recognize .blend as well */
-static int file_is_blend_backup(const char *str)
+static bool file_is_blend_backup(const char *str)
 {
-	short a, b;
-	int retval = 0;
-	
-	a = strlen(str);
-	b = 7;
-	
+	const size_t a = strlen(str);
+	size_t b = 7;
+	bool retval = 0;
+
 	if (a == 0 || b >= a) {
 		/* pass */
 	}
 	else {
-		char *loc;
+		const char *loc;
 		
 		if (a > b + 1)
 			b++;
@@ -764,56 +770,64 @@ static int file_is_blend_backup(const char *str)
 	return (retval);
 }
 
-
-static int file_extension_type(const char *relname)
+static int path_extension_type(const char *path)
 {
-	if (BLO_has_bfile_extension(relname)) {
+	if (BLO_has_bfile_extension(path)) {
 		return BLENDERFILE;
 	}
-	else if (file_is_blend_backup(relname)) {
+	else if (file_is_blend_backup(path)) {
 		return BLENDERFILE_BACKUP;
 	}
-	else if (BLI_testextensie(relname, ".py")) {
+	else if (BLI_testextensie(path, ".app")) {
+		return APPLICATIONBUNDLE;
+	}
+	else if (BLI_testextensie(path, ".py")) {
 		return PYSCRIPTFILE;
 	}
-	else if (BLI_testextensie(relname, ".txt")  ||
-	         BLI_testextensie(relname, ".glsl") ||
-	         BLI_testextensie(relname, ".osl")  ||
-	         BLI_testextensie(relname, ".data"))
-	{
+	else if (BLI_testextensie_n(path, ".txt", ".glsl", ".osl", ".data", NULL)) {
 		return TEXTFILE;
 	}
-	else if (BLI_testextensie(relname, ".ttf") ||
-	         BLI_testextensie(relname, ".ttc") ||
-	         BLI_testextensie(relname, ".pfb") ||
-	         BLI_testextensie(relname, ".otf") ||
-	         BLI_testextensie(relname, ".otc"))
-	{
+	else if (BLI_testextensie_n(path, ".ttf", ".ttc", ".pfb", ".otf", ".otc", NULL)) {
 		return FTFONTFILE;
 	}
-	else if (BLI_testextensie(relname, ".btx")) {
+	else if (BLI_testextensie(path, ".btx")) {
 		return BTXFILE;
 	}
-	else if (BLI_testextensie(relname, ".dae")) {
+	else if (BLI_testextensie(path, ".dae")) {
 		return COLLADAFILE;
 	}
-	else if (BLI_testextensie_array(relname, imb_ext_image) ||
-	         (G.have_quicktime && BLI_testextensie_array(relname, imb_ext_image_qt)))
+	else if (BLI_testextensie_array(path, imb_ext_image) ||
+	         (G.have_quicktime && BLI_testextensie_array(path, imb_ext_image_qt)))
 	{
 		return IMAGEFILE;
 	}
-	else if (BLI_testextensie_array(relname, imb_ext_movie)) {
+	else if (BLI_testextensie(path, ".ogg")) {
+		if (IMB_isanim(path)) {
+			return MOVIEFILE;
+		}
+		else {
+			return SOUNDFILE;
+		}
+	}
+	else if (BLI_testextensie_array(path, imb_ext_movie)) {
 		return MOVIEFILE;
 	}
-	else if (BLI_testextensie_array(relname, imb_ext_audio)) {
+	else if (BLI_testextensie_array(path, imb_ext_audio)) {
 		return SOUNDFILE;
 	}
 	return 0;
 }
 
-int ED_file_extension_icon(const char *relname)
+static int file_extension_type(const char *dir, const char *relname)
 {
-	int type = file_extension_type(relname);
+	char path[FILE_MAX];
+	BLI_join_dirfile(path, sizeof(path), dir, relname);
+	return path_extension_type(path);
+}
+
+int ED_file_extension_icon(const char *path)
+{
+	int type = path_extension_type(path);
 	
 	if (type == BLENDERFILE)
 		return ICON_FILE_BLEND;
@@ -848,12 +862,13 @@ static void filelist_setfiletypes(struct FileList *filelist)
 	
 	for (num = 0; num < filelist->numfiles; num++, file++) {
 		file->type = file->s.st_mode;  /* restore the mess below */
-		
-		/* Don't check extensions for directories */ 
+#ifndef __APPLE__
+		/* Don't check extensions for directories, allow in OSX cause bundles have extensions*/
 		if (file->type & S_IFDIR) {
 			continue;
 		}
-		file->flags = file_extension_type(file->relname);
+#endif
+		file->flags = file_extension_type(filelist->dir, file->relname);
 		
 		if (filelist->filter_glob[0] &&
 		    BLI_testextensie_glob(file->relname, filelist->filter_glob))
@@ -965,7 +980,7 @@ void filelist_select_file(struct FileList *filelist, int index, FileSelType sele
 void filelist_select(struct FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check)
 {
 	/* select all valid files between first and last indicated */
-	if ( (sel->first >= 0) && (sel->first < filelist->numfiltered) && (sel->last >= 0) && (sel->last < filelist->numfiltered) ) {
+	if ((sel->first >= 0) && (sel->first < filelist->numfiltered) && (sel->last >= 0) && (sel->last < filelist->numfiltered)) {
 		int current_file;
 		for (current_file = sel->first; current_file <= sel->last; current_file++) {
 			filelist_select_file(filelist, current_file, select, flag, check);
@@ -973,7 +988,7 @@ void filelist_select(struct FileList *filelist, FileSelection *sel, FileSelType 
 	}
 }
 
-int filelist_is_selected(struct FileList *filelist, int index, FileCheckType check)
+bool filelist_is_selected(struct FileList *filelist, int index, FileCheckType check)
 {
 	struct direntry *file = filelist_file(filelist, index);
 	if (!file) {
@@ -986,7 +1001,7 @@ int filelist_is_selected(struct FileList *filelist, int index, FileCheckType che
 			return S_ISREG(file->type) && (file->selflag & SELECTED_FILE);
 		case CHECK_ALL:
 		default:
-			return (file->selflag & SELECTED_FILE);
+			return (file->selflag & SELECTED_FILE) != 0;
 	}
 }
 
@@ -1011,14 +1026,14 @@ void filelist_sort(struct FileList *filelist, short sort)
 }
 
 
-int filelist_islibrary(struct FileList *filelist, char *dir, char *group)
+bool filelist_islibrary(struct FileList *filelist, char *dir, char *group)
 {
 	return BLO_is_a_library(filelist->dir, dir, group);
 }
 
 static int groupname_to_code(const char *group)
 {
-	char buf[32];
+	char buf[BLO_GROUP_MAX];
 	char *lslash;
 	
 	BLI_strncpy(buf, group, sizeof(buf));
@@ -1026,7 +1041,7 @@ static int groupname_to_code(const char *group)
 	if (lslash)
 		lslash[0] = '\0';
 
-	return BKE_idcode_from_name(buf);
+	return buf[0] ? BKE_idcode_from_name(buf) : 0;
 }
  
 void filelist_from_library(struct FileList *filelist)
@@ -1035,7 +1050,7 @@ void filelist_from_library(struct FileList *filelist)
 	struct ImBuf *ima;
 	int ok, i, nprevs, nnames, idcode;
 	char filename[FILE_MAX];
-	char dir[FILE_MAX], group[GROUP_MAX];
+	char dir[FILE_MAX], group[BLO_GROUP_MAX];
 	
 	/* name test */
 	ok = filelist_islibrary(filelist, dir, group);
@@ -1303,7 +1318,7 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float 
 	tj->stop = stop;
 	tj->do_update = do_update;
 
-	while ( (*stop == 0) && (limg) ) {
+	while ((*stop == 0) && (limg)) {
 		if (limg->flags & IMAGEFILE) {
 			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
 		}
@@ -1364,7 +1379,7 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 	tj->filelist = filelist;
 	for (idx = 0; idx < filelist->numfiles; idx++) {
 		if (!filelist->filelist[idx].image) {
-			if ( (filelist->filelist[idx].flags & (IMAGEFILE | MOVIEFILE | BLENDERFILE | BLENDERFILE_BACKUP)) ) {
+			if ((filelist->filelist[idx].flags & (IMAGEFILE | MOVIEFILE | BLENDERFILE | BLENDERFILE_BACKUP))) {
 				FileImage *limg = MEM_callocN(sizeof(FileImage), "loadimage");
 				BLI_strncpy(limg->path, filelist->filelist[idx].path, FILE_MAX);
 				limg->index = idx;

@@ -18,11 +18,9 @@ CCL_NAMESPACE_BEGIN
 
 /* Wave */
 
-__device_noinline float svm_wave(NodeWaveType type, float3 p, float scale, float detail, float distortion, float dscale)
+ccl_device_noinline float svm_wave(NodeWaveType type, float3 p, float detail, float distortion, float dscale)
 {
 	float n;
-
-	p *= scale;
 
 	if(type == NODE_WAVE_BANDS)
 		n = (p.x + p.y + p.z) * 10.0f;
@@ -35,7 +33,7 @@ __device_noinline float svm_wave(NodeWaveType type, float3 p, float scale, float
 	return 0.5f + 0.5f * sinf(n);
 }
 
-__device void svm_node_tex_wave(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_wave(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint4 node2 = read_node(kg, offset);
 
@@ -51,7 +49,7 @@ __device void svm_node_tex_wave(KernelGlobals *kg, ShaderData *sd, float *stack,
 	float distortion = stack_load_float_default(stack, distortion_offset, node2.z);
 	float dscale = stack_load_float_default(stack, dscale_offset, node2.w);
 
-	float f = svm_wave((NodeWaveType)type, co, scale, detail, distortion, dscale);
+	float f = svm_wave((NodeWaveType)type, co*scale, detail, distortion, dscale);
 
 	if(stack_valid(fac_offset)) stack_store_float(stack, fac_offset, f);
 	if(stack_valid(color_offset)) stack_store_float3(stack, color_offset, make_float3(f, f, f));

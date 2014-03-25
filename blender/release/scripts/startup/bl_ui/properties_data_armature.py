@@ -121,9 +121,9 @@ class DATA_PT_bone_groups(ArmatureButtonsPanel, Panel):
 
         row = layout.row()
 
-        rows = 2
+        rows = 1
         if group:
-            rows = 5
+            rows = 4
         row.template_list("UI_UL_list", "bone_groups", pose, "bone_groups", pose.bone_groups, "active_index", rows=rows)
 
         col = row.column(align=True)
@@ -135,10 +135,6 @@ class DATA_PT_bone_groups(ArmatureButtonsPanel, Panel):
             col.separator()
             col.operator("pose.group_move", icon='TRIA_UP', text="").direction = 'UP'
             col.operator("pose.group_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
-
-            col = layout.column()
-            col.active = (ob.proxy is None)
-            col.prop(group, "name")
 
             split = layout.split()
             split.active = (ob.proxy is None)
@@ -184,7 +180,7 @@ class DATA_PT_pose_library(ArmatureButtonsPanel, Panel):
             # list of poses in pose library
             row = layout.row()
             row.template_list("UI_UL_list", "pose_markers", poselib, "pose_markers",
-                              poselib.pose_markers, "active_index", rows=5)
+                              poselib.pose_markers, "active_index", rows=3)
 
             # column of operators for active pose
             # - goes beside list
@@ -204,10 +200,6 @@ class DATA_PT_pose_library(ArmatureButtonsPanel, Panel):
                 col.operator("poselib.apply_pose", icon='ZOOM_SELECTED', text="").pose_index = poselib.pose_markers.active_index
 
             col.operator("poselib.action_sanitize", icon='HELP', text="")  # XXX: put in menu?
-
-            # properties for active marker
-            if pose_marker_active is not None:
-                layout.prop(pose_marker_active, "name")
 
 
 # TODO: this panel will soon be deprecated too

@@ -25,8 +25,8 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 extern "C" {
-	#include "BKE_movieclip.h"
-	#include "IMB_imbuf.h"
+#  include "BKE_movieclip.h"
+#  include "IMB_imbuf.h"
 }
 #include "BKE_image.h"
 
@@ -86,11 +86,11 @@ void MovieClipBaseOperation::determineResolution(unsigned int resolution[2], uns
 	}
 }
 
-void MovieClipBaseOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void MovieClipBaseOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 	ImBuf *ibuf = this->m_movieClipBuffer;
 
-	if (ibuf == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
+	if (ibuf == NULL) {
 		zero_v4(output);
 	}
 	else if (ibuf->rect == NULL && ibuf->rect_float == NULL) {
@@ -122,9 +122,9 @@ MovieClipAlphaOperation::MovieClipAlphaOperation() : MovieClipBaseOperation()
 	this->addOutputSocket(COM_DT_VALUE);
 }
 
-void MovieClipAlphaOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void MovieClipAlphaOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	MovieClipBaseOperation::executePixel(output, x, y, sampler);
+	MovieClipBaseOperation::executePixelSampled(output, x, y, sampler);
 	output[0] = output[3];
 	output[1] = 0.0f;
 	output[2] = 0.0f;

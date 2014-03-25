@@ -26,8 +26,6 @@
  * Duplicate, Split, Split operators.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math.h"
 #include "BLI_alloca.h"
 
@@ -453,7 +451,7 @@ void bmo_delete_exec(BMesh *bm, BMOperator *op)
 	/* Mark Buffer */
 	BMO_slot_buffer_flag_enable(bm, delop->slots_in, "geom", BM_ALL_NOLOOP, DEL_INPUT);
 
-	BMO_remove_tagged_context(bm, DEL_INPUT, BMO_slot_int_get(op->slots_in, "context"));
+	BMO_mesh_delete_oflag_context(bm, DEL_INPUT, BMO_slot_int_get(op->slots_in, "context"));
 
 #undef DEL_INPUT
 }

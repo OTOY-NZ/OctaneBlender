@@ -145,7 +145,7 @@ static void rna_ParticleEdit_tool_set(PointerRNA *ptr, int value)
 	pset->brushtype = value;
 }
 static EnumPropertyItem *rna_ParticleEdit_tool_itemf(bContext *C, PointerRNA *UNUSED(ptr),
-                                                     PropertyRNA *UNUSED(prop), int *UNUSED(free))
+                                                     PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = (scene->basact) ? scene->basact->object : NULL;
@@ -305,23 +305,66 @@ static void rna_def_paint(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_brush", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SHOW_BRUSH);
 	RNA_def_property_ui_text(prop, "Show Brush", "");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "show_brush_on_surface", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SHOW_BRUSH_ON_SURFACE);
 	RNA_def_property_ui_text(prop, "Show Brush On Surface", "");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "show_low_resolution", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_FAST_NAVIGATE);
 	RNA_def_property_ui_text(prop, "Fast Navigate", "For multires, show low resolution while navigating the view");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "input_samples", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "num_input_samples");
 	RNA_def_property_ui_range(prop, 1, PAINT_MAX_INPUT_SAMPLES, 0, -1);
 	RNA_def_property_ui_text(prop, "Input Samples", "Average multiple input samples together to smooth the brush stroke");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "use_symmetry_x", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMM_X);
+	RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "use_symmetry_y", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMM_Y);
+	RNA_def_property_ui_text(prop, "Symmetry Y", "Mirror brush across the Y axis");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "use_symmetry_z", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMM_Z);
+	RNA_def_property_ui_text(prop, "Symmetry Z", "Mirror brush across the Z axis");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMMETRY_FEATHER);
+	RNA_def_property_ui_text(prop, "Symmetry Feathering",
+	                         "Reduce the strength of the brush where it overlaps symmetrical daubs");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 }
 
 static void rna_def_sculpt(BlenderRNA  *brna)
 {
+	static EnumPropertyItem detail_refine_items[] = {
+		{SCULPT_DYNTOPO_SUBDIVIDE, "SUBDIVIDE", 0,
+		 "Subdivide Edges", "Subdivide long edges to add mesh detail where needed"},
+		{SCULPT_DYNTOPO_COLLAPSE, "COLLAPSE", 0,
+		 "Collapse Edges", "Collapse short edges to remove mesh detail where possible"},
+		{SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE, "SUBDIVIDE_COLLAPSE", 0,
+		 "Subdivide Collapse", "Both subdivide long edges and collapse short edges to refine mesh detail"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem detail_type_items[] = {
+		{0, "RELATIVE", 0,
+		 "Relative Detail", "Mesh detail is relative to the brush size and detail size"},
+		{SCULPT_DYNTOPO_DETAIL_CONSTANT, "CONSTANT", 0,
+		 "Constant Detail", "Mesh detail is constant in object space according to detail size"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	StructRNA *srna;
 	PropertyRNA *prop;
 
@@ -337,39 +380,26 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	RNA_def_property_ui_text(prop, "Radial Symmetry Count X Axis",
 	                         "Number of times to copy strokes across the surface");
 
-	prop = RNA_def_property(srna, "use_symmetry_x", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_X);
-	RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");
-
-	prop = RNA_def_property(srna, "use_symmetry_y", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_Y);
-	RNA_def_property_ui_text(prop, "Symmetry Y", "Mirror brush across the Y axis");
-
-	prop = RNA_def_property(srna, "use_symmetry_z", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_Z);
-	RNA_def_property_ui_text(prop, "Symmetry Z", "Mirror brush across the Z axis");
-
 	prop = RNA_def_property(srna, "lock_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_LOCK_X);
 	RNA_def_property_ui_text(prop, "Lock X", "Disallow changes to the X axis of vertices");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "lock_y", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_LOCK_Y);
 	RNA_def_property_ui_text(prop, "Lock Y", "Disallow changes to the Y axis of vertices");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "lock_z", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_LOCK_Z);
 	RNA_def_property_ui_text(prop, "Lock Z", "Disallow changes to the Z axis of vertices");
-
-	prop = RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMMETRY_FEATHER);
-	RNA_def_property_ui_text(prop, "Symmetry Feathering",
-	                         "Reduce the strength of the brush where it overlaps symmetrical daubs");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "use_threaded", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_USE_OPENMP);
 	RNA_def_property_ui_text(prop, "Use OpenMP",
 	                         "Take advantage of multiple CPU cores to improve sculpting performance");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "use_deform_only", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_ONLY_DEFORM);
@@ -387,6 +417,7 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	prop = RNA_def_property(srna, "detail_size", PROP_INT, PROP_NONE);
 	RNA_def_property_ui_range(prop, 2, 100, 0, -1);
 	RNA_def_property_ui_text(prop, "Detail Size", "Maximum edge length for dynamic topology sculpting (in pixels)");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "use_smooth_shading", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_DYNTOPO_SMOOTH_SHADING);
@@ -395,15 +426,35 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	                         "shading rather than flat shaded");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Sculpt_update");
 
-	prop = RNA_def_property(srna, "use_edge_collapse", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_DYNTOPO_COLLAPSE);
-	RNA_def_property_ui_text(prop, "Collapse Short Edges",
-	                         "In dynamic-topology mode, collapse short edges "
-	                         "in addition to subdividing long ones");
-
 	prop = RNA_def_property(srna, "symmetrize_direction", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, symmetrize_direction_items);
 	RNA_def_property_ui_text(prop, "Direction", "Source and destination for symmetrize operator");
+
+	prop = RNA_def_property(srna, "detail_refine_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flags");
+	RNA_def_property_enum_items(prop, detail_refine_items);
+	RNA_def_property_ui_text(prop, "Detail Refine Method",
+	                         "In dynamic-topology mode, how to add or remove mesh detail");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "detail_type_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flags");
+	RNA_def_property_enum_items(prop, detail_type_items);
+	RNA_def_property_ui_text(prop, "Detail Type Method",
+	                         "In dynamic-topology mode, how mesh detail size is calculated");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "gravity", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "gravity_factor");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Gravity", "Amount of gravity after each dab");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "gravity_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Orientation", "Object whose Z axis defines orientation of gravity");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 }
 
 
@@ -429,22 +480,21 @@ static void rna_def_vertex_paint(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Vertex Paint", "Properties of vertex and weight paint mode");
 
 	/* vertex paint only */
-	prop = RNA_def_property(srna, "use_all_faces", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", VP_AREA);
-	RNA_def_property_ui_text(prop, "All Faces", "Paint on all faces inside brush");
-
 	prop = RNA_def_property(srna, "use_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", VP_NORMALS);
 	RNA_def_property_ui_text(prop, "Normals", "Apply the vertex normal before painting");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	
 	prop = RNA_def_property(srna, "use_spray", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", VP_SPRAY);
 	RNA_def_property_ui_text(prop, "Spray", "Keep applying paint effect while holding mouse");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	/* weight paint only */
 	prop = RNA_def_property(srna, "use_group_restrict", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", VP_ONLYVGROUP);
 	RNA_def_property_ui_text(prop, "Restrict", "Restrict painting to vertices in the group");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 }
 
 static void rna_def_image_paint(BlenderRNA *brna)
@@ -461,31 +511,37 @@ static void rna_def_image_paint(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_occlude", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_XRAY);
 	RNA_def_property_ui_text(prop, "Occlude", "Only paint onto the faces directly under the brush (slower)");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	
 	prop = RNA_def_property(srna, "use_backface_culling", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_BACKFACE);
 	RNA_def_property_ui_text(prop, "Cull", "Ignore faces pointing away from the view (faster)");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	
 	prop = RNA_def_property(srna, "use_normal_falloff", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_FLAT);
 	RNA_def_property_ui_text(prop, "Normal", "Paint most on faces pointing towards the view");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	
 	prop = RNA_def_property(srna, "use_stencil_layer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_LAYER_STENCIL);
 	RNA_def_property_ui_text(prop, "Stencil Layer", "Set the mask layer from the UV map buttons");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	
 	prop = RNA_def_property(srna, "invert_stencil", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_LAYER_STENCIL_INV);
 	RNA_def_property_ui_text(prop, "Invert", "Invert the stencil layer");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	
 	prop = RNA_def_property(srna, "use_clone_layer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_LAYER_CLONE);
 	RNA_def_property_ui_text(prop, "Clone Map",
 	                         "Use another UV map as clone source, otherwise use the 3D cursor as the source");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	
 	/* integers */
 	
-	prop = RNA_def_property(srna, "seam_bleed", PROP_INT, PROP_UNSIGNED);
+	prop = RNA_def_property(srna, "seam_bleed", PROP_INT, PROP_PIXEL);
 	RNA_def_property_ui_range(prop, 0, 8, 0, -1);
 	RNA_def_property_ui_text(prop, "Bleed", "Extend paint beyond the faces UVs to reduce seams (in pixels, slower)");
 
@@ -633,7 +689,7 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 	RNA_def_struct_path_func(srna, "rna_ParticleBrush_path");
 	RNA_def_struct_ui_text(srna, "Particle Brush", "Particle editing brush");
 
-	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_range(prop, 1, SHRT_MAX);
 	RNA_def_property_ui_range(prop, 1, 100, 10, 3);
 	RNA_def_property_ui_text(prop, "Radius", "Radius of the brush in pixels");

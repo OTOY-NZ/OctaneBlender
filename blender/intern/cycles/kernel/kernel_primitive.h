@@ -21,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 
 /* attribute lookup */
 
-__device_inline int find_attribute(KernelGlobals *kg, ShaderData *sd, uint id, AttributeElement *elem)
+ccl_device_inline int find_attribute(KernelGlobals *kg, ShaderData *sd, uint id, AttributeElement *elem)
 {
 	if(sd->object == ~0)
 		return (int)ATTR_STD_NOT_FOUND;
@@ -47,12 +47,15 @@ __device_inline int find_attribute(KernelGlobals *kg, ShaderData *sd, uint id, A
 
 		*elem = (AttributeElement)attr_map.y;
 		
+		if(sd->prim == ~0 && (AttributeElement)attr_map.y != ATTR_ELEMENT_MESH)
+			return ATTR_STD_NOT_FOUND;
+
 		/* return result */
 		return (attr_map.y == ATTR_ELEMENT_NONE) ? (int)ATTR_STD_NOT_FOUND : (int)attr_map.z;
 	}
 }
 
-__device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
+ccl_device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
 {
 #ifdef __HAIR__
 	if(sd->segment == ~0)
@@ -64,7 +67,7 @@ __device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *sd
 #endif
 }
 
-__device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
+ccl_device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
 {
 #ifdef __HAIR__
 	if(sd->segment == ~0)
@@ -76,7 +79,19 @@ __device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData *
 #endif
 }
 
-__device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
+ccl_device Transform primitive_attribute_matrix(KernelGlobals *kg, const ShaderData *sd, int offset)
+{
+	Transform tfm;
+
+	tfm.x = kernel_tex_fetch(__attributes_float3, offset + 0);
+	tfm.y = kernel_tex_fetch(__attributes_float3, offset + 1);
+	tfm.z = kernel_tex_fetch(__attributes_float3, offset + 2);
+	tfm.w = kernel_tex_fetch(__attributes_float3, offset + 3);
+
+	return tfm;
+}
+
+ccl_device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
 {
 	AttributeElement elem_uv;
 	int offset_uv = find_attribute(kg, sd, ATTR_STD_UV, &elem_uv);
@@ -89,7 +104,26 @@ __device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
 	return uv;
 }
 
-__device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
+ccl_device bool primitive_ptex(KernelGlobals *kg, ShaderData *sd, float2 *uv, int *face_id)
+{
+	/* storing ptex data as attributes is not memory efficient but simple for tests */
+	AttributeElement elem_face_id, elem_uv;
+	int offset_face_id = find_attribute(kg, sd, ATTR_STD_PTEX_FACE_ID, &elem_face_id);
+	int offset_uv = find_attribute(kg, sd, ATTR_STD_PTEX_UV, &elem_uv);
+
+	if(offset_face_id == ATTR_STD_NOT_FOUND || offset_uv == ATTR_STD_NOT_FOUND)
+		return false;
+
+	float3 uv3 = primitive_attribute_float3(kg, sd, elem_uv, offset_uv, NULL, NULL);
+	float face_id_f = primitive_attribute_float(kg, sd, elem_face_id, offset_face_id, NULL, NULL);
+
+	*uv = make_float2(uv3.x, uv3.y);
+	*face_id = (int)face_id_f;
+
+	return true;
+}
+
+ccl_device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
 {
 #ifdef __HAIR__
 	if(sd->segment != ~0)
@@ -122,7 +156,7 @@ __device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
 
 /* motion */
 
-__device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
+ccl_device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
 {
 	float3 motion_pre = sd->P, motion_post = sd->P;
 

@@ -27,8 +27,9 @@
 
 /** \file blender/gpu/intern/gpu_codegen.c
  *  \ingroup gpu
+ *
+ * Convert material node-trees to GLSL.
  */
-
 
 #include "GL/glew.h"
 
@@ -65,7 +66,7 @@ static char *glsl_material_library = NULL;
 
 /* structs and defines */
 
-static const char* GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",
+static const char *GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",
 	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4"};
 
 #define LINK_IMAGE_BLENDER	1
@@ -1190,7 +1191,7 @@ GPUNodeLink *GPU_builtin(GPUBuiltin builtin)
 	return link;
 }
 
-int GPU_link(GPUMaterial *mat, const char *name, ...)
+bool GPU_link(GPUMaterial *mat, const char *name, ...)
 {
 	GPUNode *node;
 	GPUFunction *function;
@@ -1226,7 +1227,7 @@ int GPU_link(GPUMaterial *mat, const char *name, ...)
 	return 1;
 }
 
-int GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...)
+bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...)
 {
 	GPUNode *node;
 	GPUFunction *function;

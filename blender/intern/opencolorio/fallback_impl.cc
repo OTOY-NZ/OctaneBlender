@@ -418,7 +418,9 @@ bool FallbackImpl::supportGLSLDraw(void)
 	return false;
 }
 
-bool FallbackImpl::setupGLSLDraw(struct OCIO_GLSLDrawState ** /*state_r*/, OCIO_ConstProcessorRcPtr * /*processor*/, bool /*predivide*/)
+bool FallbackImpl::setupGLSLDraw(struct OCIO_GLSLDrawState ** /*state_r*/, OCIO_ConstProcessorRcPtr * /*processor*/,
+                                 OCIO_CurveMappingSettings * /*curve_mapping_settings*/,
+                                 float /*dither*/,  bool /*predivide*/)
 {
 	return false;
 }
@@ -429,4 +431,14 @@ void FallbackImpl::finishGLSLDraw(OCIO_GLSLDrawState * /*state*/)
 
 void FallbackImpl::freeGLState(struct OCIO_GLSLDrawState * /*state_r*/)
 {
+}
+
+const char *FallbackImpl::getVersionString(void)
+{
+	return "fallback";
+}
+
+int FallbackImpl::getVersionHex(void)
+{
+	return 0;
 }

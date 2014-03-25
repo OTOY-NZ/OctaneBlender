@@ -42,6 +42,7 @@
 #include "BIK_api.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
+#include "BKE_library.h"
 
 #include "BKE_constraint.h"
 #include "CTR_Map.h"
@@ -115,9 +116,13 @@ void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 			// BKE_copy_constraints NULLs listb, no need to make extern for this operation.
 			BKE_copy_constraints(&listb, &pchan->constraints, FALSE);
 			pchan->constraints= listb;
-		} else {
-			pchan->constraints.first = NULL;
-			pchan->constraints.last = NULL;
+		}
+		else {
+			BLI_listbase_clear(&pchan->constraints);
+		}
+
+		if (pchan->custom) {
+			id_us_plus(&pchan->custom->id);
 		}
 
 		// fails to link, props are not used in the BGE yet.

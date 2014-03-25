@@ -44,7 +44,9 @@
 struct BMBVHTree {
 	BVHTree *tree;
 
-	BMEditMesh *em;
+	BMLoop *(*looptris)[3];
+	int looptris_tot;
+
 	BMesh *bm;
 
 	const float (*cos_cage)[3];
@@ -53,33 +55,39 @@ struct BMBVHTree {
 	int flag;
 };
 
-BMBVHTree *BKE_bmbvh_new(BMEditMesh *em, int flag, const float (*cos_cage)[3], const bool cos_cage_free)
+BMBVHTree *BKE_bmbvh_new_from_editmesh(BMEditMesh *em, int flag, const float (*cos_cage)[3], const bool cos_cage_free)
+{
+	return BKE_bmbvh_new(em->bm, em->looptris, em->tottri, flag, cos_cage, cos_cage_free);
+}
+
+BMBVHTree *BKE_bmbvh_new(BMesh *bm, BMLoop *(*looptris)[3], int looptris_tot, int flag, const float (*cos_cage)[3],
+const bool cos_cage_free)
 {
 	/* could become argument */
 	const float epsilon = FLT_EPSILON * 2.0f;
 
-	struct BMLoop *(*looptris)[3] = em->looptris;
 	BMBVHTree *bmtree = MEM_callocN(sizeof(*bmtree), "BMBVHTree");
 	float cos[3][3];
 	int i;
 	int tottri;
 
 	/* BKE_editmesh_tessface_calc() must be called already */
-	BLI_assert(em->tottri != 0 || em->bm->totface == 0);
+	BLI_assert(looptris_tot != 0 || bm->totface == 0);
 
 	if (cos_cage) {
-		BM_mesh_elem_index_ensure(em->bm, BM_VERT);
+		BM_mesh_elem_index_ensure(bm, BM_VERT);
 	}
 
-	bmtree->em = em;
-	bmtree->bm = em->bm;
+	bmtree->looptris = looptris;
+	bmtree->looptris_tot = looptris_tot;
+	bmtree->bm = bm;
 	bmtree->cos_cage = cos_cage;
 	bmtree->cos_cage_free = cos_cage_free;
 	bmtree->flag = flag;
 
 	if (flag & (BMBVH_RESPECT_SELECT)) {
 		tottri = 0;
-		for (i = 0; i < em->tottri; i++) {
+		for (i = 0; i < looptris_tot; i++) {
 			if (BM_elem_flag_test(looptris[i][0]->f, BM_ELEM_SELECT)) {
 				tottri++;
 			}
@@ -87,23 +95,23 @@ BMBVHTree *BKE_bmbvh_new(BMEditMesh *em, int flag, const float (*cos_cage)[3], c
 	}
 	else if (flag & (BMBVH_RESPECT_HIDDEN)) {
 		tottri = 0;
-		for (i = 0; i < em->tottri; i++) {
+		for (i = 0; i < looptris_tot; i++) {
 			if (!BM_elem_flag_test(looptris[i][0]->f, BM_ELEM_HIDDEN)) {
 				tottri++;
 			}
 		}
 	}
 	else {
-		tottri = em->tottri;
+		tottri = looptris_tot;
 	}
 
 	bmtree->tree = BLI_bvhtree_new(tottri, epsilon, 8, 8);
 
-	for (i = 0; i < em->tottri; i++) {
+	for (i = 0; i < looptris_tot; i++) {
 
 		if (flag & BMBVH_RESPECT_SELECT) {
 			/* note, the arrays wont align now! take care */
-			if (!BM_elem_flag_test(em->looptris[i][0]->f, BM_ELEM_SELECT)) {
+			if (!BM_elem_flag_test(looptris[i][0]->f, BM_ELEM_SELECT)) {
 				continue;
 			}
 		}
@@ -209,11 +217,8 @@ static void bmbvh_ray_cast_cb(void *userdata, int index, const BVHTreeRay *ray, 
 
 		copy_v3_v3(hit->no, ltri[0]->f->no);
 
-		copy_v3_v3(hit->co, ray->direction);
-		normalize_v3(hit->co);
-		mul_v3_fl(hit->co, dist);
-		add_v3_v3(hit->co, ray->origin);
-		
+		madd_v3_v3v3fl(hit->co, ray->origin, ray->direction, dist);
+
 		copy_v2_v2(bmcb_data->uv, uv);
 	}
 }
@@ -231,14 +236,14 @@ BMFace *BKE_bmbvh_ray_cast(BMBVHTree *bmtree, const float co[3], const float dir
 	hit.index = -1;
 
 	/* ok to leave 'uv' uninitialized */
-	bmcb_data.looptris = (const BMLoop *(*)[3])bmtree->em->looptris;
+	bmcb_data.looptris = (const BMLoop *(*)[3])bmtree->looptris;
 	bmcb_data.cos_cage = (const float (*)[3])bmtree->cos_cage;
 	
 	BLI_bvhtree_ray_cast(bmtree->tree, co, dir, radius, &hit, bmbvh_ray_cast_cb, &bmcb_data);
 	if (hit.index != -1 && hit.dist != dist) {
 		if (r_hitout) {
 			if (bmtree->flag & BMBVH_RETURN_ORIG) {
-				BMLoop **ltri = bmtree->em->looptris[hit.index];
+				BMLoop **ltri = bmtree->looptris[hit.index];
 				interp_v3_v3v3v3_uv(r_hitout, ltri[0]->v->co, ltri[1]->v->co, ltri[2]->v->co, bmcb_data.uv);
 			}
 			else {
@@ -254,7 +259,7 @@ BMFace *BKE_bmbvh_ray_cast(BMBVHTree *bmtree, const float co[3], const float dir
 			*r_dist = hit.dist;
 		}
 
-		return bmtree->em->looptris[hit.index][0]->f;
+		return bmtree->looptris[hit.index][0]->f;
 	}
 
 	return NULL;
@@ -302,10 +307,7 @@ static void bmbvh_find_face_segment_cb(void *userdata, int index, const BVHTreeR
 
 		copy_v3_v3(hit->no, ltri[0]->f->no);
 
-		copy_v3_v3(hit->co, ray->direction);
-		normalize_v3(hit->co);
-		mul_v3_fl(hit->co, dist);
-		add_v3_v3(hit->co, ray->origin);
+		madd_v3_v3v3fl(hit->co, ray->origin, ray->direction, dist);
 
 		copy_v2_v2(bmcb_data->uv, uv);
 	}
@@ -327,7 +329,7 @@ BMFace *BKE_bmbvh_find_face_segment(BMBVHTree *bmtree, const float co_a[3], cons
 	hit.index = -1;
 
 	/* ok to leave 'uv' uninitialized */
-	bmcb_data.looptris = (const BMLoop *(*)[3])bmtree->em->looptris;
+	bmcb_data.looptris = (const BMLoop *(*)[3])bmtree->looptris;
 	bmcb_data.cos_cage = (const float (*)[3])bmtree->cos_cage;
 	bmcb_data.co_a = co_a;
 	bmcb_data.co_b = co_b;
@@ -337,7 +339,7 @@ BMFace *BKE_bmbvh_find_face_segment(BMBVHTree *bmtree, const float co_a[3], cons
 		/* duplicate of BKE_bmbvh_ray_cast() */
 		if (r_hitout) {
 			if (bmtree->flag & BMBVH_RETURN_ORIG) {
-				BMLoop **ltri = bmtree->em->looptris[hit.index];
+				BMLoop **ltri = bmtree->looptris[hit.index];
 				interp_v3_v3v3v3_uv(r_hitout, ltri[0]->v->co, ltri[1]->v->co, ltri[2]->v->co, bmcb_data.uv);
 			}
 			else {
@@ -354,7 +356,7 @@ BMFace *BKE_bmbvh_find_face_segment(BMBVHTree *bmtree, const float co_a[3], cons
 			*r_fac = hit.dist / dist;
 		}
 
-		return bmtree->em->looptris[hit.index][0]->f;
+		return bmtree->looptris[hit.index][0]->f;
 	}
 
 	return NULL;
@@ -370,7 +372,7 @@ struct VertSearchUserData {
 	const float (*cos_cage)[3];
 
 	/* from the hit */
-	float maxdist;
+	float dist_max_sq;
 	int   index_tri;
 };
 
@@ -378,8 +380,7 @@ static void bmbvh_find_vert_closest_cb(void *userdata, int index, const float co
 {
 	struct VertSearchUserData *bmcb_data = userdata;
 	const BMLoop **ltri = bmcb_data->looptris[index];
-	const float maxdist = bmcb_data->maxdist;
-	float dist;
+	const float dist_max_sq = bmcb_data->dist_max_sq;
 	int i;
 
 	const float *tri_cos[3];
@@ -387,36 +388,36 @@ static void bmbvh_find_vert_closest_cb(void *userdata, int index, const float co
 	bmbvh_tri_from_face(tri_cos, ltri, bmcb_data->cos_cage);
 
 	for (i = 0; i < 3; i++) {
-		dist = len_squared_v3v3(co, tri_cos[i]);
-		if (dist < hit->dist && dist < maxdist) {
+		const float dist_sq = len_squared_v3v3(co, tri_cos[i]);
+		if (dist_sq < hit->dist_sq && dist_sq < dist_max_sq) {
 			copy_v3_v3(hit->co, tri_cos[i]);
 			/* XXX, normal ignores cage */
 			copy_v3_v3(hit->no, ltri[i]->v->no);
-			hit->dist = dist;
+			hit->dist_sq = dist_sq;
 			hit->index = index;
 			bmcb_data->index_tri = i;
 		}
 	}
 }
 
-BMVert *BKE_bmbvh_find_vert_closest(BMBVHTree *bmtree, const float co[3], const float maxdist)
+BMVert *BKE_bmbvh_find_vert_closest(BMBVHTree *bmtree, const float co[3], const float dist_max)
 {
 	BVHTreeNearest hit;
 	struct VertSearchUserData bmcb_data;
-	const float maxdist_sq = maxdist * maxdist;
+	const float dist_max_sq = dist_max * dist_max;
 
 	if (bmtree->cos_cage) BLI_assert(!(bmtree->bm->elem_index_dirty & BM_VERT));
 
-	hit.dist = maxdist_sq;
+	hit.dist_sq = dist_max_sq;
 	hit.index = -1;
 
-	bmcb_data.looptris = (const BMLoop *(*)[3])bmtree->em->looptris;
+	bmcb_data.looptris = (const BMLoop *(*)[3])bmtree->looptris;
 	bmcb_data.cos_cage = (const float (*)[3])bmtree->cos_cage;
-	bmcb_data.maxdist = maxdist_sq;
+	bmcb_data.dist_max_sq = dist_max_sq;
 
 	BLI_bvhtree_find_nearest(bmtree->tree, co, &hit, bmbvh_find_vert_closest_cb, &bmcb_data);
 	if (hit.index != -1) {
-		BMLoop **ltri = bmtree->em->looptris[hit.index];
+		BMLoop **ltri = bmtree->looptris[hit.index];
 		return ltri[bmcb_data.index_tri]->v;
 	}
 

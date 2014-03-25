@@ -96,11 +96,11 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext *c
 						/* Passes in the file can differ from passes stored in sockets (#36755).
 						 * Look up the correct file pass using the socket identifier instead.
 						 */
-						#if 0
+#if 0
 						NodeImageLayer *storage = (NodeImageLayer *)bnodeSocket->storage;*/
 						int passindex = storage->pass_index;*/
 						RenderPass *rpass = (RenderPass *)BLI_findlink(&rl->passes, passindex);
-						#endif
+#endif
 						int passindex;
 						RenderPass *rpass;
 						for (rpass = (RenderPass *)rl->passes.first, passindex = 0; rpass; rpass = rpass->next, ++passindex)
@@ -142,7 +142,17 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext *c
 
 		/* without this, multilayer that fail to load will crash blender [#32490] */
 		if (is_multilayer_ok == false) {
-			convertToOperations_invalid(graph, context);
+			int index;
+			vector<OutputSocket *> &outputsockets = this->getOutputSockets();
+			for (index = 0; index < outputsockets.size(); index++) {
+				const float warning_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+				SetColorOperation *operation = new SetColorOperation();
+				operation->setChannels(warning_color);
+
+				/* link the operation */
+				this->getOutputSocket(index)->relinkConnections(operation->getOutputSocket());
+				graph->addOperation(operation);
+			}
 		}
 	}
 	else {

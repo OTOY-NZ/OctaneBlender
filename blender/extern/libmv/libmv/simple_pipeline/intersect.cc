@@ -54,8 +54,8 @@ class EuclideanIntersectCostFunctor {
     Vec3 projected = R * x + t;
     projected /= projected(2);
 
-    residuals[0] = projected(0) - T(marker_.x);
-    residuals[1] = projected(1) - T(marker_.y);
+    residuals[0] = (projected(0) - T(marker_.x)) * marker_.weight;
+    residuals[1] = (projected(1) - T(marker_.y)) * marker_.weight;
 
     return true;
   }
@@ -100,18 +100,40 @@ bool EuclideanIntersect(const vector<Marker> &markers,
 
   ceres::Problem problem;
 
+  // Add residual blocks to the problem.
+  int num_residuals = 0;
   for (int i = 0; i < markers.size(); ++i) {
     const Marker &marker = markers[i];
-    const EuclideanCamera &camera =
-        *reconstruction->CameraForImage(marker.image);
+    if (marker.weight != 0.0) {
+      const EuclideanCamera &camera =
+          *reconstruction->CameraForImage(marker.image);
 
-    problem.AddResidualBlock(
-        new ceres::AutoDiffCostFunction<
-            EuclideanIntersectCostFunctor,
-            2, /* num_residuals */
-            3>(new EuclideanIntersectCostFunctor(marker, camera)),
-        NULL,
-        &X(0));
+      problem.AddResidualBlock(
+          new ceres::AutoDiffCostFunction<
+              EuclideanIntersectCostFunctor,
+              2, /* num_residuals */
+              3>(new EuclideanIntersectCostFunctor(marker, camera)),
+          NULL,
+          &X(0));
+	  num_residuals++;
+    }
+  }
+
+  // TODO(sergey): Once we'll update Ceres to the next version
+  // we wouldn't need this check anymore -- Ceres will deal with
+  // zero-sized problems nicely.
+  LG << "Number of residuals: " << num_residuals;
+  if (!num_residuals) {
+    LG << "Skipping running minimizer with zero residuals";
+
+	// We still add 3D point for the track regardless it was
+	// optimized or not. If track is a constant zero it'll use
+	// algebraic intersection result as a 3D coordinate.
+
+    Vec3 point = X.head<3>();
+    reconstruction->InsertPoint(markers[0].track, point);
+
+    return true;
   }
 
   // Configure the solve.

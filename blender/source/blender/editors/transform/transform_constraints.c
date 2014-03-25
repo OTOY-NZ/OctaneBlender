@@ -135,7 +135,7 @@ static void postConstraintChecks(TransInfo *t, float vec[3], float pvec[3])
 
 	mul_m3_v3(t->con.imtx, vec);
 
-	snapGrid(t, vec);
+	snapGridIncrement(t, vec);
 
 	if (t->num.flag & T_NULL_ONE) {
 		if (!(t->con.mode & CON_AXIS0))
@@ -569,14 +569,22 @@ void setConstraint(TransInfo *t, float space[3][3], int mode, const char text[])
 	t->con.applyVec = applyAxisConstraintVec;
 	t->con.applySize = applyAxisConstraintSize;
 	t->con.applyRot = applyAxisConstraintRot;
-	t->redraw = 1;
+	t->redraw = TREDRAW_HARD;
 }
 
 /* applies individual td->axismtx constraints */
 void setAxisMatrixConstraint(TransInfo *t, int mode, const char text[])
 {
 	if (t->total == 1) {
-		setConstraint(t, t->data->axismtx, mode, text);
+		float axismtx[3][3];
+		if (t->flag & T_EDIT) {
+			mul_m3_m3m3(axismtx, t->obedit_mat, t->data->axismtx);
+		}
+		else {
+			copy_m3_m3(axismtx, t->data->axismtx);
+		}
+
+		setConstraint(t, axismtx, mode, text);
 	}
 	else {
 		BLI_strncpy(t->con.text + 1, text, sizeof(t->con.text) - 1);
@@ -590,7 +598,7 @@ void setAxisMatrixConstraint(TransInfo *t, int mode, const char text[])
 		t->con.applyVec = applyObjectConstraintVec;
 		t->con.applySize = applyObjectConstraintSize;
 		t->con.applyRot = applyObjectConstraintRot;
-		t->redraw = 1;
+		t->redraw = TREDRAW_HARD;
 	}
 }
 
@@ -792,6 +800,13 @@ static void drawObjectConstraint(TransInfo *t)
 		float co[3];
 		float (*axismtx)[3];
 
+		if (t->flag & T_PROP_EDIT) {
+			/* we're sorted, so skip the rest */
+			if (td->factor == 0.0f) {
+				break;
+			}
+		}
+
 		if (t->flag & T_OBJECT) {
 			copy_v3_v3(co, td->ob->obmat[3]);
 			axismtx = td->axismtx;
@@ -904,13 +919,13 @@ void postSelectConstraint(TransInfo *t)
 	setNearestAxis(t);
 
 	startConstraint(t);
-	t->redraw = 1;
+	t->redraw = TREDRAW_HARD;
 }
 
 static void setNearestAxis2d(TransInfo *t)
 {
 	/* no correction needed... just use whichever one is lower */
-	if (abs(t->mval[0] - t->con.imval[0]) < abs(t->mval[1] - t->con.imval[1]) ) {
+	if (abs(t->mval[0] - t->con.imval[0]) < abs(t->mval[1] - t->con.imval[1])) {
 		t->con.mode |= CON_AXIS1;
 		BLI_strncpy(t->con.text, IFACE_(" along Y axis"), sizeof(t->con.text));
 	}
@@ -923,9 +938,9 @@ static void setNearestAxis2d(TransInfo *t)
 static void setNearestAxis3d(TransInfo *t)
 {
 	float zfac;
-	float mvec[3], axis[3], proj[3];
+	float mvec[3], proj[3];
 	float len[3];
-	int i, icoord[2];
+	int i;
 
 	/* calculate mouse movement */
 	mvec[0] = (float)(t->mval[0] - t->con.imval[0]);
@@ -943,15 +958,16 @@ static void setNearestAxis3d(TransInfo *t)
 	zfac = len_v3(t->persinv[0]) * 2.0f / t->ar->winx * zfac * 30.0f;
 
 	for (i = 0; i < 3; i++) {
+		float axis[3], axis_2d[2];
+
 		copy_v3_v3(axis, t->con.mtx[i]);
 
 		mul_v3_fl(axis, zfac);
 		/* now we can project to get window coordinate */
 		add_v3_v3(axis, t->con.center);
-		projectIntView(t, axis, icoord);
+		projectFloatView(t, axis, axis_2d);
 
-		axis[0] = (float)(icoord[0] - t->center2d[0]);
-		axis[1] = (float)(icoord[1] - t->center2d[1]);
+		sub_v2_v2v2(axis, axis_2d, t->center2d);
 		axis[2] = 0.0f;
 
 		if (normalize_v3(axis) != 0.0f) {

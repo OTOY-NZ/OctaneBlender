@@ -105,7 +105,7 @@ static unsigned int *screenshot(bContext *C, int *dumpsx, int *dumpsy)
 		
 		dumprect = MEM_mallocN(sizeof(int) * (*dumpsx) * (*dumpsy), "dumprect");
 		glReadBuffer(GL_FRONT);
-		screenshot_read_pixels(x, y, *dumpsx, *dumpsy, (unsigned char*)dumprect);
+		screenshot_read_pixels(x, y, *dumpsx, *dumpsy, (unsigned char *)dumprect);
 		glReadBuffer(GL_BACK);
 	}
 
@@ -237,10 +237,9 @@ static bool screenshot_check(bContext *UNUSED(C), wmOperator *op)
 	return WM_operator_filesel_ensure_ext_imtype(op, &scd->im_format);
 }
 
-static int screenshot_cancel(bContext *UNUSED(C), wmOperator *op)
+static void screenshot_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	screenshot_data_free(op);
-	return OPERATOR_CANCELLED;
 }
 
 static bool screenshot_draw_check_prop(PointerRNA *UNUSED(ptr), PropertyRNA *prop)

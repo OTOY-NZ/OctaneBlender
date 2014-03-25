@@ -49,7 +49,6 @@
 #include "CTR_HashedPtr.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
-#include "KX_IPhysicsController.h" /* for suspend/resume */
 #include "DNA_object_types.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
 
@@ -57,9 +56,9 @@
 struct KX_ClientObjectInfo;
 class KX_RayCast;
 class RAS_MeshObject;
-class KX_IPhysicsController;
 class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
+class PHY_IPhysicsController;
 class BL_ActionManager;
 struct Object;
 class KX_ObstacleSimulation;
@@ -88,6 +87,7 @@ protected:
 	STR_String							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
+	std::vector<RAS_MeshObject*>		m_lodmeshes;
 	SG_QList							m_meshSlots;	// head of mesh slots of this 
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
@@ -107,7 +107,7 @@ protected:
 	bool       							m_bCulled; 
 	bool								m_bOccluder;
 
-	KX_IPhysicsController*				m_pPhysicsController1;
+	PHY_IPhysicsController*				m_pPhysicsController;
 	PHY_IGraphicController*				m_pGraphicController;
 	STR_String							m_testPropName;
 	bool								m_xray;
@@ -127,6 +127,7 @@ protected:
 
 	BL_ActionManager* GetActionManager();
 	
+	bool								m_bRecordAnimation;
 public:
 	bool								m_isDeformable;
 
@@ -465,12 +466,12 @@ public:
 	 * \return a pointer to the physics controller owned by this class.
 	 */
 
-	KX_IPhysicsController* GetPhysicsController();
+	PHY_IPhysicsController* GetPhysicsController();
 
-	void	SetPhysicsController(KX_IPhysicsController*	physicscontroller,bool isDynamic) 
+	void	SetPhysicsController(PHY_IPhysicsController*	physicscontroller,bool isDynamic)
 	{ 
 		m_bDyna = isDynamic;
-		m_pPhysicsController1 = physicscontroller;
+		m_pPhysicsController = physicscontroller;
 	}
 
 	virtual class RAS_Deformer* GetDeformer()
@@ -598,6 +599,20 @@ public:
 	bool	IsDynamic() const 
 	{ 
 		return m_bDyna; 
+	}
+
+	/**
+	 * Should we record animation for this object?
+	 */
+
+	void SetRecordAnimation(bool recordAnimation)
+	{
+		m_bRecordAnimation = recordAnimation;
+	}
+
+	bool IsRecordAnimation() const
+	{
+		return m_bRecordAnimation;
 	}
 
 	/**
@@ -758,6 +773,23 @@ public:
 	}
 
 	/**
+	 * Add a level of detail mesh to the object. These should
+	 * be added in order.
+	 */
+		void
+	AddLodMesh(
+		RAS_MeshObject* mesh
+	);
+
+	/**
+	 * Updates the current lod level based on distance from camera.
+	 */
+		void
+	UpdateLod(
+		MT_Vector3 &cam_pos
+	);
+
+	/**
 	 * Pick out a mesh associated with the integer 'num'.
 	 */
 		RAS_MeshObject*
@@ -885,32 +917,6 @@ public:
 	 * Resume making progress
 	 */
 	void Resume(void);
-	
-	void SuspendDynamics(void) {
-		if (m_bSuspendDynamics)
-		{
-			return;
-		}
-	
-		if (m_pPhysicsController1)
-		{
-			m_pPhysicsController1->SuspendDynamics();
-		}
-		m_bSuspendDynamics = true;
-	}
-	
-	void RestoreDynamics(void) {
-		if (!m_bSuspendDynamics)
-		{
-			return;
-		}
-	
-		if (m_pPhysicsController1)
-		{
-			m_pPhysicsController1->RestoreDynamics();
-		}
-		m_bSuspendDynamics = false;
-	}
 
 	void RegisterObstacle(KX_ObstacleSimulation* obstacleSimulation)
 	{
@@ -1008,6 +1014,8 @@ public:
 	static int			pyattr_set_lin_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_worldPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_worldPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_localPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

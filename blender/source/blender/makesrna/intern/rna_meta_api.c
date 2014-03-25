@@ -43,7 +43,10 @@
 #include "rna_internal.h"  /* own include */
 
 #ifdef RNA_RUNTIME
-/* none */
+void rna_Meta_transform(struct MetaBall *mb, float *mat)
+{
+	ED_mball_transform(mb, (float (*)[4])mat);
+}
 #else
 
 void RNA_api_meta(StructRNA *srna)
@@ -51,7 +54,7 @@ void RNA_api_meta(StructRNA *srna)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
-	func = RNA_def_function(srna, "transform", "ED_mball_transform");
+	func = RNA_def_function(srna, "transform", "rna_Meta_transform");
 	RNA_def_function_ui_description(func, "Transform meta elements by a matrix");
 	parm = RNA_def_float_matrix(func, "matrix", 4, 4, NULL, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
 	RNA_def_property_flag(parm, PROP_REQUIRED);

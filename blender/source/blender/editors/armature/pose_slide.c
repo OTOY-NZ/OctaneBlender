@@ -682,11 +682,10 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* common code for cancel() */
-static int pose_slide_cancel(bContext *UNUSED(C), wmOperator *op)
+static void pose_slide_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	/* cleanup and done */
 	pose_slide_exit(op);
-	return OPERATOR_CANCELLED;
 }
 
 /* common code for exec() methods */
@@ -1130,7 +1129,7 @@ static void pose_propagate_fcurve(wmOperator *op, Object *ob, FCurve *fcu,
 			
 			/* stop on matching marker if there is one */
 			for (ce = modeData.sel_markers.first; ce; ce = ce->next) {
-				if (ce->cfra == (int)(floor(bezt->vec[1][0] + 0.5f)))
+				if (ce->cfra == iroundf(bezt->vec[1][0]))
 					break;
 			}
 			

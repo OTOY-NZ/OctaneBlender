@@ -248,22 +248,18 @@ static void initData(ModifierData *md)
 	smd->axis = 0;
 
 	smd->origin   =  NULL;
-	smd->factor   =  0.35f;
+	smd->factor   =  DEG2RADF(45.0f);
 	smd->limit[0] =  0.0f;
 	smd->limit[1] =  1.0f;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	SimpleDeformModifierData *smd  = (SimpleDeformModifierData *)md;
 	SimpleDeformModifierData *tsmd = (SimpleDeformModifierData *)target;
-
-	tsmd->mode  = smd->mode;
-	tsmd->axis  = smd->axis;
-	tsmd->origin = smd->origin;
-	tsmd->factor = smd->factor;
-	copy_v2_v2(tsmd->limit, smd->limit);
-	BLI_strncpy(tsmd->vgroup_name, smd->vgroup_name, sizeof(tsmd->vgroup_name));
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)

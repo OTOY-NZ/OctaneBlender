@@ -40,9 +40,9 @@ WriteBufferOperation::~WriteBufferOperation()
 	}
 }
 
-void WriteBufferOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void WriteBufferOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	this->m_input->read(output, x, y, sampler);
+	this->m_input->readSampled(output, x, y, sampler);
 }
 
 void WriteBufferOperation::initExecution()
@@ -98,7 +98,7 @@ void WriteBufferOperation::executeRegion(rcti *rect, unsigned int tileNumber)
 		for (y = y1; y < y2 && (!breaked); y++) {
 			int offset4 = (y * memoryBuffer->getWidth() + x1) * COM_NUMBER_OF_CHANNELS;
 			for (x = x1; x < x2; x++) {
-				this->m_input->read(&(buffer[offset4]), x, y, COM_PS_NEAREST);
+				this->m_input->readSampled(&(buffer[offset4]), x, y, COM_PS_NEAREST);
 				offset4 += COM_NUMBER_OF_CHANNELS;
 			}
 			if (isBreaked()) {
@@ -157,14 +157,14 @@ void WriteBufferOperation::executeOpenCLRegion(OpenCLDevice *device, rcti *rect,
 	this->getMemoryProxy()->getBuffer()->copyContentFrom(outputBuffer);
 
 	// STEP 4
-	while (clMemToCleanUp->size() > 0) {
+	while (!clMemToCleanUp->empty()) {
 		cl_mem mem = clMemToCleanUp->front();
 		error = clReleaseMemObject(mem);
 		if (error != CL_SUCCESS) { printf("CLERROR[%d]: %s\n", error, clewErrorString(error));  }
 		clMemToCleanUp->pop_front();
 	}
 
-	while (clKernelsToCleanUp->size() > 0) {
+	while (!clKernelsToCleanUp->empty()) {
 		cl_kernel kernel = clKernelsToCleanUp->front();
 		error = clReleaseKernel(kernel);
 		if (error != CL_SUCCESS) { printf("CLERROR[%d]: %s\n", error, clewErrorString(error));  }

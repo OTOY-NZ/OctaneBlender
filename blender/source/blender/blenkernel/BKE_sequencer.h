@@ -31,6 +31,7 @@
  */
 
 struct bContext;
+struct EvaluationContext;
 struct StripColorBalance;
 struct Editing;
 struct ImBuf;
@@ -61,14 +62,14 @@ typedef struct SeqIterator {
 	int valid;
 } SeqIterator;
 
-void BKE_sequence_iterator_begin(struct Editing *ed, SeqIterator *iter, int use_pointer);
+void BKE_sequence_iterator_begin(struct Editing *ed, SeqIterator *iter, bool use_pointer);
 void BKE_sequence_iterator_next(SeqIterator *iter);
 void BKE_sequence_iterator_end(SeqIterator *iter);
 
 #define SEQP_BEGIN(_ed, _seq)                                                 \
 	{                                                                         \
 		SeqIterator iter_macro;                                               \
-		for (BKE_sequence_iterator_begin(_ed, &iter_macro, 1);                \
+		for (BKE_sequence_iterator_begin(_ed, &iter_macro, true);             \
 		     iter_macro.valid;                                                \
 		     BKE_sequence_iterator_next(&iter_macro))                         \
 		{                                                                     \
@@ -77,7 +78,7 @@ void BKE_sequence_iterator_end(SeqIterator *iter);
 #define SEQ_BEGIN(ed, _seq)                                                   \
 	{                                                                         \
 		SeqIterator iter_macro;                                               \
-		for (BKE_sequence_iterator_begin(ed, &iter_macro, 0);                 \
+		for (BKE_sequence_iterator_begin(ed, &iter_macro, false);             \
 		     iter_macro.valid;                                                \
 		     BKE_sequence_iterator_next(&iter_macro))                         \
 		{                                                                     \
@@ -89,6 +90,7 @@ void BKE_sequence_iterator_end(SeqIterator *iter);
 	}
 
 typedef struct SeqRenderData {
+	struct EvaluationContext *eval_ctx;
 	struct Main *bmain;
 	struct Scene *scene;
 	int rectx;
@@ -96,10 +98,12 @@ typedef struct SeqRenderData {
 	int preview_render_size;
 	int motion_blur_samples;
 	float motion_blur_shutter;
+	bool skip_cache;
+	bool is_proxy_render;
 } SeqRenderData;
 
-SeqRenderData BKE_sequencer_new_render_data(struct Main *bmain, struct Scene *scene, int rectx, int recty,
-                                            int preview_render_size);
+SeqRenderData BKE_sequencer_new_render_data(struct EvaluationContext *eval_ctx, struct Main *bmain,
+                                            struct Scene *scene, int rectx, int recty, int preview_render_size);
 
 /* Wipe effect */
 enum {
@@ -112,8 +116,8 @@ enum {
 };
 
 struct SeqEffectHandle {
-	short multithreaded;
-	short supports_mask;
+	bool multithreaded;
+	bool supports_mask;
 
 	/* constructors & destructor */
 	/* init is _only_ called on first creation */
@@ -150,13 +154,13 @@ struct SeqEffectHandle {
 	 * float-rects or byte-rects
 	 * (mixed cases are handled one layer up...) */
 	
-	struct ImBuf * (*execute)(SeqRenderData context, struct Sequence *seq, float cfra, float facf0, float facf1,
+	struct ImBuf * (*execute)(const SeqRenderData *context, struct Sequence *seq, float cfra, float facf0, float facf1,
 	                          struct ImBuf *ibuf1, struct ImBuf *ibuf2, struct ImBuf *ibuf3);
 
-	struct ImBuf * (*init_execution)(SeqRenderData context, struct ImBuf *ibuf1, struct ImBuf *ibuf2,
+	struct ImBuf * (*init_execution)(const SeqRenderData *context, struct ImBuf *ibuf1, struct ImBuf *ibuf2,
 	                                 struct ImBuf *ibuf3);
 
-	void (*execute_slice)(SeqRenderData context, struct Sequence *seq, float cfra, float facf0, float facf1,
+	void (*execute_slice)(const SeqRenderData *context, struct Sequence *seq, float cfra, float facf0, float facf1,
 	                      struct ImBuf *ibuf1, struct ImBuf *ibuf2, struct ImBuf *ibuf3,
 	                      int start_line, int total_lines, struct ImBuf *out);
 };
@@ -169,11 +173,11 @@ struct SeqEffectHandle {
  * sequencer render functions
  * ********************************************************************** */
 
-struct ImBuf *BKE_sequencer_give_ibuf(SeqRenderData context, float cfra, int chanshown);
-struct ImBuf *BKE_sequencer_give_ibuf_threaded(SeqRenderData context, float cfra, int chanshown);
-struct ImBuf *BKE_sequencer_give_ibuf_direct(SeqRenderData context, float cfra, struct Sequence *seq);
-struct ImBuf *BKE_sequencer_give_ibuf_seqbase(SeqRenderData context, float cfra, int chan_shown, struct ListBase *seqbasep);
-void BKE_sequencer_give_ibuf_prefetch_request(SeqRenderData context, float cfra, int chan_shown);
+struct ImBuf *BKE_sequencer_give_ibuf(const SeqRenderData *context, float cfra, int chanshown);
+struct ImBuf *BKE_sequencer_give_ibuf_threaded(const SeqRenderData *context, float cfra, int chanshown);
+struct ImBuf *BKE_sequencer_give_ibuf_direct(const SeqRenderData *context, float cfra, struct Sequence *seq);
+struct ImBuf *BKE_sequencer_give_ibuf_seqbase(const SeqRenderData *context, float cfra, int chan_shown, struct ListBase *seqbasep);
+void BKE_sequencer_give_ibuf_prefetch_request(const SeqRenderData *context, float cfra, int chan_shown);
 
 /* **********************************************************************
  * sequencer.c
@@ -181,7 +185,7 @@ void BKE_sequencer_give_ibuf_prefetch_request(SeqRenderData context, float cfra,
  * sequencer color space functions
  * ********************************************************************** */
 
-void BKE_sequencer_imbuf_to_sequencer_space(struct Scene *scene, struct ImBuf *ibuf, int make_float);
+void BKE_sequencer_imbuf_to_sequencer_space(struct Scene *scene, struct ImBuf *ibuf, bool make_float);
 void BKE_sequencer_imbuf_from_sequencer_space(struct Scene *scene, struct ImBuf *ibuf);
 void BKE_sequencer_pixel_from_sequencer_space_v4(struct Scene *scene, float pixel[4]);
 
@@ -217,18 +221,18 @@ void BKE_sequence_free(struct Scene *scene, struct Sequence *seq);
 const char *BKE_sequence_give_name(struct Sequence *seq);
 void BKE_sequence_calc(struct Scene *scene, struct Sequence *seq);
 void BKE_sequence_calc_disp(struct Scene *scene, struct Sequence *seq);
-void BKE_sequence_reload_new_file(struct Scene *scene, struct Sequence *seq, int lock_range);
+void BKE_sequence_reload_new_file(struct Scene *scene, struct Sequence *seq, const bool lock_range);
 int BKE_sequencer_evaluate_frame(struct Scene *scene, int cfra);
 
 struct StripElem *BKE_sequencer_give_stripelem(struct Sequence *seq, int cfra);
 
 /* intern */
 void BKE_sequencer_update_changed_seq_and_deps(struct Scene *scene, struct Sequence *changed_seq, int len_change, int ibuf_change);
-int BKE_sequencer_input_have_to_preprocess(SeqRenderData context, struct Sequence *seq, float cfra);
+bool BKE_sequencer_input_have_to_preprocess(const SeqRenderData *context, struct Sequence *seq, float cfra);
 
 struct SeqIndexBuildContext *BKE_sequencer_proxy_rebuild_context(struct Main *bmain, struct Scene *scene, struct Sequence *seq);
 void BKE_sequencer_proxy_rebuild(struct SeqIndexBuildContext *context, short *stop, short *do_update, float *progress);
-void BKE_sequencer_proxy_rebuild_finish(struct SeqIndexBuildContext *context, short stop);
+void BKE_sequencer_proxy_rebuild_finish(struct SeqIndexBuildContext *context, bool stop);
 
 /* **********************************************************************
  * seqcache.c
@@ -247,19 +251,19 @@ void BKE_sequencer_cache_destruct(void);
 void BKE_sequencer_cache_cleanup(void);
 
 /* returned ImBuf is properly refed and has to be freed */
-struct ImBuf *BKE_sequencer_cache_get(SeqRenderData context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type);
+struct ImBuf *BKE_sequencer_cache_get(const SeqRenderData *context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type);
 
 /* passed ImBuf is properly refed, so ownership is *not* 
  * transferred to the cache.
  * you can pass the same ImBuf multiple times to the cache without problems.
  */
 
-void BKE_sequencer_cache_put(SeqRenderData context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type, struct ImBuf *nval);
+void BKE_sequencer_cache_put(const SeqRenderData *context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type, struct ImBuf *nval);
 
 void BKE_sequencer_cache_cleanup_sequence(struct Sequence *seq);
 
-struct ImBuf *BKE_sequencer_preprocessed_cache_get(SeqRenderData context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type);
-void BKE_sequencer_preprocessed_cache_put(SeqRenderData context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type, struct ImBuf *ibuf);
+struct ImBuf *BKE_sequencer_preprocessed_cache_get(const SeqRenderData *context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type);
+void BKE_sequencer_preprocessed_cache_put(const SeqRenderData *context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type, struct ImBuf *ibuf);
 void BKE_sequencer_preprocessed_cache_cleanup(void);
 void BKE_sequencer_preprocessed_cache_cleanup_sequence(struct Sequence *seq);
 
@@ -272,7 +276,7 @@ void BKE_sequencer_preprocessed_cache_cleanup_sequence(struct Sequence *seq);
 
 /* intern */
 struct SeqEffectHandle BKE_sequence_get_blend(struct Sequence *seq);
-void BKE_sequence_effect_speed_rebuild_map(struct Scene *scene, struct Sequence *seq, int force);
+void BKE_sequence_effect_speed_rebuild_map(struct Scene *scene, struct Sequence *seq, bool force);
 
 /* extern */
 struct SeqEffectHandle BKE_sequence_get_effect(struct Sequence *seq);
@@ -285,8 +289,8 @@ int BKE_sequence_effect_get_supports_mask(int seq_type);
  */
    
 /* for transform but also could use elsewhere */
-int BKE_sequence_tx_get_final_left(struct Sequence *seq, int metaclip);
-int BKE_sequence_tx_get_final_right(struct Sequence *seq, int metaclip);
+int BKE_sequence_tx_get_final_left(struct Sequence *seq, bool metaclip);
+int BKE_sequence_tx_get_final_right(struct Sequence *seq, bool metaclip);
 void BKE_sequence_tx_set_final_left(struct Sequence *seq, int val);
 void BKE_sequence_tx_set_final_right(struct Sequence *seq, int val);
 void BKE_sequence_tx_handle_xlimits(struct Sequence *seq, int leftflag, int rightflag);
@@ -305,7 +309,7 @@ void BKE_sequencer_dupe_animdata(struct Scene *scene, const char *name_src, cons
 bool BKE_sequence_base_shuffle(struct ListBase *seqbasep, struct Sequence *test, struct Scene *evil_scene);
 bool BKE_sequence_base_shuffle_time(ListBase *seqbasep, struct Scene *evil_scene);
 bool BKE_sequence_base_isolated_sel_check(struct ListBase *seqbase);
-void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, int for_render);
+void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, bool for_render);
 struct Sequence *BKE_sequence_dupli_recursive(struct Scene *scene, struct Scene *scene_to, struct Sequence *seq, int dupe_flag);
 int BKE_sequence_swap(struct Sequence *seq_a, struct Sequence *seq_b, const char **error_str);
 
@@ -406,18 +410,18 @@ typedef struct SequenceModifierTypeInfo {
 struct SequenceModifierTypeInfo *BKE_sequence_modifier_type_info_get(int type);
 
 struct SequenceModifierData *BKE_sequence_modifier_new(struct Sequence *seq, const char *name, int type);
-int BKE_sequence_modifier_remove(struct Sequence *seq, struct SequenceModifierData *smd);
+bool BKE_sequence_modifier_remove(struct Sequence *seq, struct SequenceModifierData *smd);
 void BKE_sequence_modifier_clear(struct Sequence *seq);
 void BKE_sequence_modifier_free(struct SequenceModifierData *smd);
 void BKE_sequence_modifier_unique_name(struct Sequence *seq, struct SequenceModifierData *smd);
 struct SequenceModifierData *BKE_sequence_modifier_find_by_name(struct Sequence *seq, const char *name);
-struct ImBuf *BKE_sequence_modifier_apply_stack(SeqRenderData context, struct Sequence *seq, struct ImBuf *ibuf, int cfra);
+struct ImBuf *BKE_sequence_modifier_apply_stack(const SeqRenderData *context, struct Sequence *seq, struct ImBuf *ibuf, int cfra);
 void BKE_sequence_modifier_list_copy(struct Sequence *seqn, struct Sequence *seq);
 
 int BKE_sequence_supports_modifiers(struct Sequence *seq);
 
 /* internal filters */
-struct ImBuf *BKE_sequencer_render_mask_input(SeqRenderData context, int mask_input_type, struct Sequence *mask_sequence, struct Mask *mask_id, int cfra, int make_float);
-void BKE_sequencer_color_balance_apply(struct StripColorBalance *cb, struct ImBuf *ibuf, float mul, short make_float, struct ImBuf *mask_input);
+struct ImBuf *BKE_sequencer_render_mask_input(const SeqRenderData *context, int mask_input_type, struct Sequence *mask_sequence, struct Mask *mask_id, int cfra, bool make_float);
+void BKE_sequencer_color_balance_apply(struct StripColorBalance *cb, struct ImBuf *ibuf, float mul, bool make_float, struct ImBuf *mask_input);
 
 #endif  /* __BKE_SEQUENCER_H__ */

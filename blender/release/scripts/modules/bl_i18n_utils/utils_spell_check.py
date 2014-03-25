@@ -39,6 +39,7 @@ class SpellChecker():
         "decrement",
         "derivate",
         "doesn",  # doesn't
+        "equi",  # equi-angular, etc.
         "fader",
         "globbing",
         "hasn",  # hasn't
@@ -51,6 +52,7 @@ class SpellChecker():
         "latin",
         "merchantability",
         "mplayer",
+        "teleport", "teleporting",
         "vertices",
 
         # Merged words
@@ -62,6 +64,7 @@ class SpellChecker():
         "autoexec",
         "autoexecution",
         "autoname",
+        "autopack",
         "autosave",
         "autoscale",
         "autosmooth",
@@ -180,7 +183,7 @@ class SpellChecker():
         "unprojected",
         "unreacted",
         "unregister",
-        "unselected",
+        "unselected", "unselectable",
         "unsubdivided", "unsubdivide",
         "unshadowed",
         "unspill",
@@ -277,6 +280,7 @@ class SpellChecker():
         "xy", "xz", "yx", "yz", "zx", "zy",
 
         # General computer/science terms
+        "bitangent",
         "boid", "boids",
         "equisolid",
         "euler", "eulers",
@@ -318,6 +322,7 @@ class SpellChecker():
         "bezier", "beziers",
         "bicubic",
         "bilinear",
+        "binormal",
         "blackpoint", "whitepoint",
         "blinn",
         "bokeh",
@@ -354,10 +359,12 @@ class SpellChecker():
         "raycasting",
         "raytrace", "raytracing", "raytraced",
         "renderfarm",
+        "scanfill",
         "shader", "shaders",
         "specular", "specularity",
         "spillmap",
         "sobel",
+        "texel",
         "tonemap",
         "toon",
         "timecode",
@@ -408,6 +415,7 @@ class SpellChecker():
         "poselib",
         "pushpull",
         "pyconstraint", "pyconstraints",
+        "qe",  # keys...
         "shapekey", "shapekeys",
         "shrinkfatten",
         "shrinkwrap",
@@ -423,6 +431,7 @@ class SpellChecker():
         "vcol", "vcols",
         "vgroup", "vgroups",
         "vinterlace",
+        "wasd", "wasdqe",  # keys...
         "wetmap", "wetmaps",
         "wpaint",
         "uvwarp",
@@ -436,6 +445,7 @@ class SpellChecker():
         "hosek",
         "kutta",
         "lennard",
+        "mikktspace",
         "minkowski",
         "minnaert",
         "musgrave",
@@ -484,7 +494,7 @@ class SpellChecker():
         "hdc",
         "hdr",
         "hh", "mm", "ss", "ff",  # hh:mm:ss:ff timecode
-        "hsv", "hsva",
+        "hsv", "hsva", "hsl",
         "id",
         "ior",
         "itu",

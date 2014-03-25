@@ -47,12 +47,14 @@ set(SRC
 	object_group.c
 	object_hook.c
 	object_lattice.c
+	object_lod.c
 	object_modifier.c
 	object_ops.c
 	object_relations.c
 	object_select.c
 	object_shapekey.c
 	object_transform.c
+	object_warp.c
 	object_vgroup.c
 
 	object_intern.h

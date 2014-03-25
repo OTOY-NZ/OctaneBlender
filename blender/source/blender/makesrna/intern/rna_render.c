@@ -66,14 +66,15 @@ static void engine_tag_update(RenderEngine *engine)
 
 static int engine_support_display_space_shader(RenderEngine *UNUSED(engine), Scene *scene)
 {
-	return IMB_colormanagement_support_glsl_draw(&scene->view_settings, true);
+	return IMB_colormanagement_support_glsl_draw(&scene->view_settings);
 }
 
 static void engine_bind_display_space_shader(RenderEngine *UNUSED(engine), Scene *scene)
 {
 	IMB_colormanagement_setup_glsl_draw(&scene->view_settings,
 	                                    &scene->display_settings,
-	                                    false, true);
+	                                    scene->r.dither_intensity,
+	                                    false);
 }
 
 static void engine_unbind_display_space_shader(RenderEngine *UNUSED(engine))
@@ -379,7 +380,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_REQUIRED);
 	prop = RNA_def_int(func, "h", 0, 0, INT_MAX, "Height", "", 0, INT_MAX);
 	RNA_def_property_flag(prop, PROP_REQUIRED);
-	RNA_def_string(func, "layer", "", 0, "Layer", "Single layer to get render result for");  /* NULL ok here */
+	RNA_def_string(func, "layer", NULL, 0, "Layer", "Single layer to get render result for");  /* NULL ok here */
 	prop = RNA_def_pointer(func, "result", "RenderResult", "Result", "");
 	RNA_def_function_return(func, prop);
 
@@ -392,18 +393,19 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "All pixels in the render result have been set and are final");
 	prop = RNA_def_pointer(func, "result", "RenderResult", "Result", "");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
-	RNA_def_boolean(func, "cancel", 0, "Cancel", "Don't merge back results");
+	RNA_def_boolean(func, "cancel", 0, "Cancel", "Don't mark tile as done, don't merge results unless forced");
+	RNA_def_boolean(func, "do_merge_results", 0, "Merge Results", "Merge results even if cancel=true");
 
 	func = RNA_def_function(srna, "test_break", "RE_engine_test_break");
-	RNA_def_function_ui_description(func, "Test if the render operation should been cancelled, this is a fast call that should be used regularly for responsiveness");
+	RNA_def_function_ui_description(func, "Test if the render operation should been canceled, this is a fast call that should be used regularly for responsiveness");
 	prop = RNA_def_boolean(func, "do_break", 0, "Break", "");
 	RNA_def_function_return(func, prop);
 
 	func = RNA_def_function(srna, "update_stats", "RE_engine_update_stats");
 	RNA_def_function_ui_description(func, "Update and signal to redraw render status text");
-	prop = RNA_def_string(func, "stats", "", 0, "Stats", "");
+	prop = RNA_def_string(func, "stats", NULL, 0, "Stats", "");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
-	prop = RNA_def_string(func, "info", "", 0, "Info", "");
+	prop = RNA_def_string(func, "info", NULL, 0, "Info", "");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
 
 	func = RNA_def_function(srna, "update_progress", "RE_engine_update_progress");
@@ -421,7 +423,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "Report info, warning or error messages");
 	prop = RNA_def_enum_flag(func, "type", wm_report_items, 0, "Type", "");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
-	prop = RNA_def_string(func, "message", "", 0, "Report Message", "");
+	prop = RNA_def_string(func, "message", NULL, 0, "Report Message", "");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
 
 	func = RNA_def_function(srna, "bind_display_space_shader", "engine_bind_display_space_shader");
@@ -456,11 +458,11 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "tile_y", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "tile_y");
 
-	prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "resolution_x");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
-	prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "resolution_y");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
@@ -477,7 +479,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->name");
@@ -518,18 +520,18 @@ static void rna_def_render_result(BlenderRNA *brna)
 	func = RNA_def_function(srna, "load_from_file", "RE_result_load_from_file");
 	RNA_def_function_ui_description(func, "Copies the pixels of this render result from an image file");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	parm = RNA_def_string_file_name(func, "filename", "", FILE_MAX, "File Name",
+	parm = RNA_def_string_file_name(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "Filename to load into this render tile, must be no smaller than "
 	                                "the render result");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 	RNA_define_verify_sdna(0);
 
-	parm = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_NONE);
+	parm = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(parm, NULL, "rectx");
 	RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 
-	parm = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_NONE);
+	parm = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(parm, NULL, "recty");
 	RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 
@@ -554,7 +556,7 @@ static void rna_def_render_layer(BlenderRNA *brna)
 	func = RNA_def_function(srna, "load_from_file", "RE_layer_load_from_file");
 	RNA_def_function_ui_description(func, "Copies the pixels of this renderlayer from an image file");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	prop = RNA_def_string(func, "filename", "", 0, "Filename",
+	prop = RNA_def_string(func, "filename", NULL, 0, "Filename",
 	                      "Filename to load into this render tile, must be no smaller than the renderlayer");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
 	RNA_def_int(func, "x", 0, 0, INT_MAX, "Offset X",

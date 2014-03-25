@@ -25,7 +25,7 @@
 #include "COM_OpenCLDevice.h"
 
 extern "C" {
-	#include "RE_pipeline.h"
+#  include "RE_pipeline.h"
 }
 
 VariableSizeBokehBlurOperation::VariableSizeBokehBlurOperation() : NodeOperation()
@@ -338,7 +338,7 @@ voi *InverseSearchRadiusOperation::initializeTileData(rcti *rect)
 	return data;
 }
 
-void InverseSearchRadiusOperation::executePixel(float output[4], int x, int y, void *data)
+void InverseSearchRadiusOperation::executePixelChunk(float output[4], int x, int y, void *data)
 {
 	MemoryBuffer *buffer = (MemoryBuffer *)data;
 	buffer->readNoCheck(color, x, y);

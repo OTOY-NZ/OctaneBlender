@@ -82,7 +82,7 @@ static void rna_generate_static_parameter_prototypes(FILE *f, StructRNA *srna, F
 		fprintf(f, param); \
 	} (void)0
 
-static int replace_if_different(char *tmpfile, const char *dep_files[])
+static int replace_if_different(const char *tmpfile, const char *dep_files[])
 {
 	/* return 0;  *//* use for testing had edited rna */
 
@@ -1555,7 +1555,7 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 			}
 			else if (prop->arraydimension && prop->totarraylength) {
 				fprintf(f, "void %sget(PointerRNA *ptr, int values[%u]);\n", func, prop->totarraylength);
-				fprintf(f, "void %sset(PointerRNA *ptr, const int values[%d]);\n", func, prop->totarraylength);
+				fprintf(f, "void %sset(PointerRNA *ptr, const int values[%u]);\n", func, prop->totarraylength);
 			}
 			else {
 				fprintf(f, "void %sget(PointerRNA *ptr, int values[]);\n", func);
@@ -1571,7 +1571,7 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 			}
 			else if (prop->arraydimension && prop->totarraylength) {
 				fprintf(f, "void %sget(PointerRNA *ptr, float values[%u]);\n", func, prop->totarraylength);
-				fprintf(f, "void %sset(PointerRNA *ptr, const float values[%d]);\n", func, prop->totarraylength);
+				fprintf(f, "void %sset(PointerRNA *ptr, const float values[%u]);\n", func, prop->totarraylength);
 			}
 			else {
 				fprintf(f, "void %sget(PointerRNA *ptr, float values[]);\n", func);
@@ -1833,7 +1833,7 @@ static void rna_def_struct_function_prototype_cpp(FILE *f, StructRNA *UNUSED(srn
 		if (flag & PROP_DYNAMIC)
 			ptrstr = pout ? "**" : "*";
 		else if (type == PROP_POINTER)
-			ptrstr = pout ? "*": "";
+			ptrstr = pout ? "*" : "";
 		else if (dp->prop->arraydimension)
 			ptrstr = "*";
 		else if (type == PROP_STRING && (flag & PROP_THICK_WRAP))
@@ -2443,6 +2443,7 @@ static const char *rna_property_subtypename(PropertySubType type)
 		case PROP_FILEPATH: return "PROP_FILEPATH";
 		case PROP_FILENAME: return "PROP_FILENAME";
 		case PROP_DIRPATH: return "PROP_DIRPATH";
+		case PROP_PIXEL: return "PROP_PIXEL";
 		case PROP_BYTESTRING: return "PROP_BYTESTRING";
 		case PROP_UNSIGNED: return "PROP_UNSIGNED";
 		case PROP_PERCENTAGE: return "PROP_PERCENTAGE";
@@ -3243,7 +3244,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_constraint.c", NULL, RNA_def_constraint},
 	{"rna_context.c", NULL, RNA_def_context},
 	{"rna_controller.c", "rna_controller_api.c", RNA_def_controller},
-	{"rna_curve.c", NULL, RNA_def_curve},
+	{"rna_curve.c", "rna_curve_api.c", RNA_def_curve},
 	{"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
 	{"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
 	{"rna_fluidsim.c", NULL, RNA_def_fluidsim},
@@ -3252,7 +3253,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_image.c", "rna_image_api.c", RNA_def_image},
 	{"rna_key.c", NULL, RNA_def_key},
 	{"rna_lamp.c", NULL, RNA_def_lamp},
-	{"rna_lattice.c", NULL, RNA_def_lattice},
+	{"rna_lattice.c", "rna_lattice_api.c", RNA_def_lattice},
 	{"rna_linestyle.c", NULL, RNA_def_linestyle},
 	{"rna_main.c", "rna_main_api.c", RNA_def_main},
 	{"rna_material.c", "rna_material_api.c", RNA_def_material},
@@ -3275,7 +3276,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_sensor.c", "rna_sensor_api.c", RNA_def_sensor},
 	{"rna_sequencer.c", "rna_sequencer_api.c", RNA_def_sequencer},
 	{"rna_smoke.c", NULL, RNA_def_smoke},
-	{"rna_space.c", NULL, RNA_def_space},
+	{"rna_space.c", "rna_space_api.c", RNA_def_space},
 	{"rna_speaker.c", NULL, RNA_def_speaker},
 	{"rna_test.c", NULL, RNA_def_test},
 	{"rna_text.c", "rna_text_api.c", RNA_def_text},
@@ -3446,7 +3447,7 @@ static const char *cpp_classes = ""
 "	inline void sname::identifier(int value) { sname##_##identifier##_set(&ptr, value); }\n"
 "\n"
 "#define BOOLEAN_ARRAY_PROPERTY(sname, size, identifier) \\\n"
-"	inline Array<int,size> sname::identifier(void) \\\n"
+"	inline Array<int, size> sname::identifier(void) \\\n"
 "		{ Array<int, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; } \\\n"
 "	inline void sname::identifier(int values[size]) \\\n"
 "		{ sname##_##identifier##_set(&ptr, values); } \\\n"
@@ -3466,7 +3467,7 @@ static const char *cpp_classes = ""
 "	inline void sname::identifier(int value) { sname##_##identifier##_set(&ptr, value); }\n"
 "\n"
 "#define INT_ARRAY_PROPERTY(sname, size, identifier) \\\n"
-"	inline Array<int,size> sname::identifier(void) \\\n"
+"	inline Array<int, size> sname::identifier(void) \\\n"
 "		{ Array<int, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; } \\\n"
 "	inline void sname::identifier(int values[size]) \\\n"
 "		{ sname##_##identifier##_set(&ptr, values); } \\\n"
@@ -3486,7 +3487,7 @@ static const char *cpp_classes = ""
 "	inline void sname::identifier(float value) { sname##_##identifier##_set(&ptr, value); }\n"
 "\n"
 "#define FLOAT_ARRAY_PROPERTY(sname, size, identifier) \\\n"
-"	inline Array<float,size> sname::identifier(void) \\\n"
+"	inline Array<float, size> sname::identifier(void) \\\n"
 "		{ Array<float, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; } \\\n"
 "	inline void sname::identifier(float values[size]) \\\n"
 "		{ sname##_##identifier##_set(&ptr, values); } \\\n"
@@ -3695,7 +3696,7 @@ static const char *cpp_classes = ""
 "         typename Tcollection_funcs>\n"
 "class Collection : public Tcollection_funcs {\n"
 "public:\n"
-"	Collection(const PointerRNA &p) : Tcollection_funcs(p), ptr(p)  {}\n"
+"	Collection(const PointerRNA &p) : Tcollection_funcs(p), ptr(p) {}\n"
 "\n"
 "	void begin(CollectionIterator<T, Tbegin, Tnext, Tend>& iter)\n"
 "	{ iter.begin(ptr); }\n"

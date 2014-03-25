@@ -71,13 +71,6 @@ typedef struct BMEditMesh {
 	unsigned char (*derivedFaceColor)[4];
 	int derivedFaceColorLen;
 
-	/* index tables, to map indices to elements via
-	 * EDBM_index_arrays_init and associated functions.  don't
-	 * touch this or read it directly.*/
-	struct BMVert **vert_index;
-	struct BMEdge **edge_index;
-	struct BMFace **face_index;
-
 	/*selection mode*/
 	short selectmode;
 	short mat_nr;
@@ -94,6 +87,7 @@ void        BKE_editmesh_tessface_calc(BMEditMesh *em);
 BMEditMesh *BKE_editmesh_create(BMesh *bm, const bool do_tessellate);
 BMEditMesh *BKE_editmesh_copy(BMEditMesh *em);
 BMEditMesh *BKE_editmesh_from_object(struct Object *ob);
+void        BKE_editmesh_free_derivedmesh(BMEditMesh *em);
 void        BKE_editmesh_free(BMEditMesh *em);
 void        BKE_editmesh_update_linked_customdata(BMEditMesh *em);
 

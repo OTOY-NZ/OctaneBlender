@@ -66,6 +66,7 @@ public:
 	SHADER_NODE_NO_CLONE_CLASS(ImageTextureNode)
 	~ImageTextureNode();
 	ShaderNode *clone() const;
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 
 	ImageManager *image_manager;
 	int slot;
@@ -75,6 +76,7 @@ public:
 	void *builtin_data;
 	ustring color_space;
 	ustring projection;
+	InterpolationType interpolation;
 	float projection_blend;
 	bool animated;
 
@@ -87,6 +89,7 @@ public:
 	SHADER_NODE_NO_CLONE_CLASS(EnvironmentTextureNode)
 	~EnvironmentTextureNode();
 	ShaderNode *clone() const;
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 
 	ImageManager *image_manager;
 	int slot;
@@ -215,7 +218,7 @@ public:
 class WardBsdfNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(WardBsdfNode)
-	void attributes(AttributeRequestSet *attributes);
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 };
 
 class DiffuseBsdfNode : public BsdfNode {
@@ -314,14 +317,14 @@ public:
 	ClosureType closure;
 };
 
-class TransparentVolumeNode : public VolumeNode {
+class AbsorptionVolumeNode : public VolumeNode {
 public:
-	SHADER_NODE_CLASS(TransparentVolumeNode)
+	SHADER_NODE_CLASS(AbsorptionVolumeNode)
 };
 
-class IsotropicVolumeNode : public VolumeNode {
+class ScatterVolumeNode : public VolumeNode {
 public:
-	SHADER_NODE_CLASS(IsotropicVolumeNode)
+	SHADER_NODE_CLASS(ScatterVolumeNode)
 };
 
 class HairBsdfNode : public BsdfNode {
@@ -336,13 +339,13 @@ public:
 class GeometryNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GeometryNode)
-	void attributes(AttributeRequestSet *attributes);
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 };
 
 class TextureCoordinateNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(TextureCoordinateNode)
-	void attributes(AttributeRequestSet *attributes);
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 	
 	bool from_dupli;
 };
@@ -365,14 +368,14 @@ public:
 class ParticleInfoNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(ParticleInfoNode)
-	void attributes(AttributeRequestSet *attributes);
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 };
 
 class HairInfoNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(HairInfoNode)
 
-	void attributes(AttributeRequestSet *attributes);
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 };
 
 class ValueNode : public ShaderNode {
@@ -457,7 +460,7 @@ public:
 class AttributeNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(AttributeNode)
-	void attributes(AttributeRequestSet *attributes);
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 
 	ustring attribute;
 };
@@ -578,7 +581,7 @@ public:
 class NormalMapNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(NormalMapNode)
-	void attributes(AttributeRequestSet *attributes);
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 
 	ustring space;
 	static ShaderEnum space_enum;
@@ -589,7 +592,7 @@ public:
 class TangentNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(TangentNode)
-	void attributes(AttributeRequestSet *attributes);
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
 
 	ustring direction_type;
 	static ShaderEnum direction_type_enum;

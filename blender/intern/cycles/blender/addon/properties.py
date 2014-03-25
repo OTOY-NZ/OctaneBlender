@@ -25,9 +25,15 @@ from bpy.props import (BoolProperty,
 
 # enums
 
+import _cycles
+
 enum_devices = (
     ('CPU', "CPU", "Use CPU for rendering"),
-    ('GPU', "GPU Compute", "Use GPU compute device for rendering, configured in user preferences"))
+    ('GPU', "GPU Compute", "Use GPU compute device for rendering, configured in user preferences"),
+    )
+
+if _cycles.with_network:
+    enum_devices += (('NETWORK', "Networked Device", "Use networked device for rendering"),)
 
 enum_feature_set = (
     ('SUPPORTED', "Supported", "Only use finished and supported features"),
@@ -102,6 +108,11 @@ enum_integrator = (
     ('PATH', "Path Tracing", "Pure path tracing integrator"),
     )
 
+enum_volume_homogeneous_sampling = (
+    ('DISTANCE', "Distance", "Use Distance Sampling"),
+    ('EQUI_ANGULAR', "Equi-angular", "Use Equi-angular Sampling"),
+    )
+
 
 class CyclesRenderSettings(bpy.types.PropertyGroup):
     @classmethod
@@ -133,6 +144,13 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Method to sample lights and materials",
                 items=enum_integrator,
                 default='PATH',
+                )
+
+        cls.volume_homogeneous_sampling = EnumProperty(
+                name="Homogeneous Sampling",
+                description="Sampling method to use for homogeneous volumes",
+                items=enum_volume_homogeneous_sampling,
+                default='DISTANCE',
                 )
 
         cls.use_square_samples = BoolProperty(
@@ -214,6 +232,13 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default=1,
                 )
 
+        cls.volume_samples = IntProperty(
+                name="Volume Samples",
+                description="Number of volume scattering samples to render for each AA sample",
+                min=1, max=10000,
+                default=1,
+                )
+
         cls.sampling_pattern = EnumProperty(
                 name="Sampling Pattern",
                 description="Random sampling pattern used by the integrator",
@@ -226,6 +251,18 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="How to use per render layer sample settings",
                 items=enum_use_layer_samples,
                 default='USE',
+                )
+
+        cls.sample_all_lights_direct = BoolProperty(
+                name="Sample All Direct Lights",
+                description="Sample all lights (for direct samples), rather than randomly picking one",
+                default=True,
+                )
+
+        cls.sample_all_lights_indirect = BoolProperty(
+                name="Sample All Indirect Lights",
+                description="Sample all lights (for indirect samples), rather than randomly picking one",
+                default=True,
                 )
 
         cls.no_caustics = BoolProperty(
@@ -253,26 +290,32 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 name="Max Bounces",
                 description="Total maximum number of bounces",
                 min=0, max=1024,
-                default=8,
+                default=12,
                 )
 
         cls.diffuse_bounces = IntProperty(
                 name="Diffuse Bounces",
                 description="Maximum number of diffuse reflection bounces, bounded by total maximum",
                 min=0, max=1024,
-                default=128,
+                default=4,
                 )
         cls.glossy_bounces = IntProperty(
                 name="Glossy Bounces",
                 description="Maximum number of glossy reflection bounces, bounded by total maximum",
                 min=0, max=1024,
-                default=128,
+                default=4,
                 )
         cls.transmission_bounces = IntProperty(
                 name="Transmission Bounces",
                 description="Maximum number of transmission bounces, bounded by total maximum",
                 min=0, max=1024,
-                default=128,
+                default=12,
+                )
+        cls.volume_bounces = IntProperty(
+                name="Volume Bounces",
+                description="Maximum number of volumetric scattering events",
+                min=0, max=1024,
+                default=1,
                 )
 
         cls.transparent_min_bounces = IntProperty(
@@ -294,6 +337,22 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 name="Transparent Shadows",
                 description="Use transparency of surfaces for rendering shadows",
                 default=True,
+                )
+
+        cls.volume_step_size = FloatProperty(
+                name="Step Size",
+                description="Distance between volume shader samples when rendering the volume "
+                            "(lower values give more accurate and detailed results, but also increased render time)",
+                default=0.1,
+                min=0.0000001, max=100000.0
+                )
+
+        cls.volume_max_steps = IntProperty(
+                name="Max Steps",
+                description="Maximum number of steps through the volume before giving up, "
+                            "to avoid extremely long render times with big objects or small step sizes",
+                default=1024,
+                min=2, max=65536
                 )
 
         cls.film_exposure = FloatProperty(
@@ -328,9 +387,18 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default=0,
                 )
 
-        cls.sample_clamp = FloatProperty(
-                name="Clamp",
-                description="If non-zero, the maximum value for a sample, "
+        cls.sample_clamp_direct = FloatProperty(
+                name="Clamp Direct",
+                description="If non-zero, the maximum value for a direct sample, "
+                            "higher values will be scaled down to avoid too "
+                            "much noise and slow convergence at the cost of accuracy",
+                min=0.0, max=1e8,
+                default=0.0,
+                )
+
+        cls.sample_clamp_indirect = FloatProperty(
+                name="Clamp Indirect",
+                description="If non-zero, the maximum value for an indirect sample, "
                             "higher values will be scaled down to avoid too "
                             "much noise and slow convergence at the cost of accuracy",
                 min=0.0, max=1e8,
@@ -503,8 +571,8 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
                 )
         cls.homogeneous_volume = BoolProperty(
                 name="Homogeneous Volume",
-                description="When using volume rendering, assume volume has the same density everywhere, "
-                            "for faster rendering",
+                description="When using volume rendering, assume volume has the same density everywhere "
+                            "(not using any textures), for faster rendering",
                 default=False,
                 )
 
@@ -571,6 +639,12 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                 min=1, max=10000,
                 default=4,
                 )
+        cls.homogeneous_volume = BoolProperty(
+                name="Homogeneous Volume",
+                description="When using volume rendering, assume volume has the same density everywhere"
+                            "(not using any textures), for faster rendering",
+                default=False,
+                )
 
     @classmethod
     def unregister(cls):
@@ -621,6 +695,7 @@ class CyclesVisibilitySettings(bpy.types.PropertyGroup):
     @classmethod
     def unregister(cls):
         del bpy.types.Object.cycles_visibility
+        del bpy.types.World.cycles_visibility
 
 
 class CyclesMeshSettings(bpy.types.PropertyGroup):

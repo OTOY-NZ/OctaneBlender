@@ -62,6 +62,7 @@
 
 #include "BKE_armature.h"
 #include "BKE_context.h"
+#include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
@@ -89,12 +90,18 @@
 #include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_screen.h"
+#include "ED_sculpt.h"
 #include "ED_mball.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
 
 #include "view3d_intern.h"  /* own include */
+
+float ED_view3d_select_dist_px(void)
+{
+	return 75.0f * U.pixelsize;
+}
 
 /* TODO: should return whether there is valid context to continue */
 void view3d_set_viewcontext(bContext *C, ViewContext *vc)
@@ -160,7 +167,7 @@ static void edbm_backbuf_check_and_select_edges(BMEditMesh *em, const bool selec
 {
 	BMEdge *eed;
 	BMIter iter;
-	int index = bm_solidoffs;
+	unsigned int index = bm_solidoffs;
 
 	BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
 		if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
@@ -235,7 +242,7 @@ typedef struct LassoSelectUserData {
 	/* runtime */
 	int pass;
 	bool is_done;
-	bool is_change;
+	bool is_changed;
 } LassoSelectUserData;
 
 static void view3d_userdata_lassoselect_init(LassoSelectUserData *r_data,
@@ -255,7 +262,7 @@ static void view3d_userdata_lassoselect_init(LassoSelectUserData *r_data,
 	/* runtime */
 	r_data->pass = 0;
 	r_data->is_done = false;
-	r_data->is_change = false;
+	r_data->is_changed = false;
 }
 
 static int view3d_selectable_data(bContext *C)
@@ -272,11 +279,8 @@ static int view3d_selectable_data(bContext *C)
 			}
 		}
 		else {
-			if (ob->mode & OB_MODE_SCULPT) {
-				return 0;
-			}
 			if ((ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) &&
-			    !paint_facesel_test(ob) && !paint_vertsel_test(ob))
+			    !BKE_paint_select_elem_test(ob))
 			{
 				return 0;
 			}
@@ -288,12 +292,12 @@ static int view3d_selectable_data(bContext *C)
 
 
 /* helper also for borderselect */
-static int edge_fully_inside_rect(const rctf *rect, const float v1[2], const float v2[2])
+static bool edge_fully_inside_rect(const rctf *rect, const float v1[2], const float v2[2])
 {
 	return BLI_rctf_isect_pt_v(rect, v1) && BLI_rctf_isect_pt_v(rect, v2);
 }
 
-static int edge_inside_rect(const rctf *rect, const float v1[2], const float v2[2])
+static bool edge_inside_rect(const rctf *rect, const float v1[2], const float v2[2])
 {
 	int d1, d2, d3, d4;
 	
@@ -359,9 +363,9 @@ static void do_lasso_select_pose__doSelectBone(void *userData, struct bPoseChann
 		{
 			if (data->select) pchan->bone->flag |=  BONE_SELECTED;
 			else              pchan->bone->flag &= ~BONE_SELECTED;
-			data->is_change = true;
+			data->is_changed = true;
 		}
-		data->is_change |= is_point_done;
+		data->is_changed |= is_point_done;
 	}
 }
 static void do_lasso_select_pose(ViewContext *vc, Object *ob, const int mcords[][2], short moves, const bool select)
@@ -385,7 +389,7 @@ static void do_lasso_select_pose(ViewContext *vc, Object *ob, const int mcords[]
 
 	pose_foreachScreenBone(&vc_tmp, do_lasso_select_pose__doSelectBone, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
 
-	if (data.is_change) {
+	if (data.is_changed) {
 		bArmature *arm = ob->data;
 		if (arm->flag & ARM_HAS_VIZ_DEPS) {
 			/* mask modifier ('armature' mode), etc. */
@@ -539,7 +543,6 @@ static void do_lasso_select_curve__doSelect(void *userData, Nurb *UNUSED(nu), BP
 	if (BLI_lasso_is_point_inside(data->mcords, data->moves, screen_co[0], screen_co[1], IS_CLIPPED)) {
 		if (bp) {
 			bp->f1 = data->select ? (bp->f1 | SELECT) : (bp->f1 & ~SELECT);
-			if (bp == cu->lastsel && !(bp->f1 & SELECT)) cu->lastsel = NULL;
 		}
 		else {
 			if (cu->drawflag & CU_HIDE_HANDLES) {
@@ -557,8 +560,6 @@ static void do_lasso_select_curve__doSelect(void *userData, Nurb *UNUSED(nu), BP
 					bezt->f3 = data->select ? (bezt->f3 | SELECT) : (bezt->f3 & ~SELECT);
 				}
 			}
-
-			if (bezt == cu->lastsel && !(bezt->f2 & SELECT)) cu->lastsel = NULL;
 		}
 	}
 }
@@ -572,11 +573,14 @@ static void do_lasso_select_curve(ViewContext *vc, const int mcords[][2], short 
 
 	view3d_userdata_lassoselect_init(&data, vc, &rect, mcords, moves, select);
 
-	if (extend == false && select)
-		CU_deselect_all(vc->obedit);
+	if (extend == false && select) {
+		Curve *curve = (Curve *) vc->obedit->data;
+		ED_curve_deselect_all(curve->editnurb);
+	}
 
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 	nurbs_foreachScreenVert(vc, do_lasso_select_curve__doSelect, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
+	BKE_curve_nurb_vert_active_validate(vc->obedit->data);
 }
 
 static void do_lasso_select_lattice__doSelect(void *userData, BPoint *bp, const float screen_co[2])
@@ -649,10 +653,10 @@ static void do_lasso_select_armature__doSelectBone(void *userData, struct EditBo
 		{
 			if (data->select) ebone->flag |=  (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 			else              ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-			data->is_change = true;
+			data->is_changed = true;
 		}
 
-		data->is_change |= is_point_done;
+		data->is_changed |= is_point_done;
 	}
 }
 
@@ -672,7 +676,7 @@ static void do_lasso_select_armature(ViewContext *vc, const int mcords[][2], sho
 
 	armature_foreachScreenBone(vc, do_lasso_select_armature__doSelectBone, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
 
-	if (data.is_change) {
+	if (data.is_changed) {
 		bArmature *arm = vc->obedit->data;
 		ED_armature_sync_selection(arm->edbo);
 		ED_armature_validate_active(arm);
@@ -689,7 +693,7 @@ static void do_lasso_select_mball__doSelectElem(void *userData, struct MetaElem 
 	{
 		if (data->select) ml->flag |=  SELECT;
 		else              ml->flag &= ~SELECT;
-		data->is_change = true;
+		data->is_changed = true;
 	}
 }
 static void do_lasso_select_meta(ViewContext *vc, const int mcords[][2], short moves, bool extend, bool select)
@@ -725,7 +729,7 @@ static void do_lasso_select_paintvert(ViewContext *vc, const int mcords[][2], sh
 {
 	const int use_zbuf = (vc->v3d->flag & V3D_ZBUF_SELECT);
 	Object *ob = vc->obact;
-	Mesh *me = ob ? ob->data : NULL;
+	Mesh *me = ob->data;
 	rcti rect;
 
 	if (me == NULL || me->totvert == 0)
@@ -764,7 +768,7 @@ static void do_lasso_select_paintvert(ViewContext *vc, const int mcords[][2], sh
 static void do_lasso_select_paintface(ViewContext *vc, const int mcords[][2], short moves, bool extend, bool select)
 {
 	Object *ob = vc->obact;
-	Mesh *me = ob ? ob->data : NULL;
+	Mesh *me = ob->data;
 	rcti rect;
 
 	if (me == NULL || me->totpoly == 0)
@@ -823,9 +827,9 @@ static void view3d_lasso_select(bContext *C, ViewContext *vc,
 	Object *ob = CTX_data_active_object(C);
 
 	if (vc->obedit == NULL) { /* Object Mode */
-		if (paint_facesel_test(ob))
+		if (BKE_paint_select_face_test(ob))
 			do_lasso_select_paintface(vc, mcords, moves, extend, select);
-		else if (paint_vertsel_test(ob))
+		else if (BKE_paint_select_vert_test(ob))
 			do_lasso_select_paintvert(vc, mcords, moves, extend, select);
 		else if (ob && (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT))) {
 			/* pass */
@@ -976,7 +980,7 @@ typedef struct SelMenuItemF {
 static SelMenuItemF object_mouse_select_menu_data[SEL_MENU_SIZE];
 
 /* special (crappy) operator only for menu select */
-static EnumPropertyItem *object_select_menu_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *object_select_menu_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *item = NULL, item_tmp = {0};
 	int totitem = 0;
@@ -996,7 +1000,7 @@ static EnumPropertyItem *object_select_menu_enum_itemf(bContext *C, PointerRNA *
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -1005,7 +1009,7 @@ static int object_select_menu_exec(bContext *C, wmOperator *op)
 {
 	const int name_index = RNA_enum_get(op->ptr, "name");
 	const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-	bool change = false;
+	bool changed = false;
 	const char *name = object_mouse_select_menu_data[name_index].idname;
 
 	if (!toggle) {
@@ -1013,7 +1017,7 @@ static int object_select_menu_exec(bContext *C, wmOperator *op)
 		{
 			if (base->flag & SELECT) {
 				ED_base_object_select(base, BA_DESELECT);
-				change = true;
+				changed = true;
 			}
 		}
 		CTX_DATA_END;
@@ -1025,7 +1029,7 @@ static int object_select_menu_exec(bContext *C, wmOperator *op)
 		if (STREQ(name, base->object->id.name + 2)) {
 			ED_base_object_activate(C, base);
 			ED_base_object_select(base, BA_SELECT);
-			change = true;
+			changed = true;
 		}
 	}
 	CTX_DATA_END;
@@ -1034,7 +1038,7 @@ static int object_select_menu_exec(bContext *C, wmOperator *op)
 	memset(object_mouse_select_menu_data, 0, sizeof(object_mouse_select_menu_data));
 
 	/* undo? */
-	if (change) {
+	if (changed) {
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, CTX_data_scene(C));
 		return OPERATOR_FINISHED;
 	}
@@ -1383,7 +1387,7 @@ static bool mouse_select(bContext *C, const int mval[2],
 	Scene *scene = CTX_data_scene(C);
 	Base *base, *startbase = NULL, *basact = NULL, *oldbasact = NULL;
 	bool is_obedit;
-	float dist = 100.0f;
+	float dist = ED_view3d_select_dist_px() * 1.3333f;
 	int retval = false;
 	short hits;
 	const float mval_fl[2] = {(float)mval[0], (float)mval[1]};
@@ -1456,7 +1460,7 @@ static bool mouse_select(bContext *C, const int mval[2],
 				if (basact->object->type == OB_CAMERA) {
 					if (BASACT == basact) {
 						int i, hitresult;
-						int changed = 0;
+						bool changed = false;
 
 						for (i = 0; i < hits; i++) {
 							hitresult = buffer[3 + (i * 4)];
@@ -1478,7 +1482,7 @@ static bool mouse_select(bContext *C, const int mval[2],
 								track = BKE_tracking_track_get_indexed(&clip->tracking, hitresult >> 16, &tracksbase);
 
 								if (TRACK_SELECTED(track) && extend) {
-									changed = 0;
+									changed = false;
 									BKE_tracking_track_deselect(track, TRACK_AREA_ALL);
 								}
 								else {
@@ -1489,7 +1493,7 @@ static bool mouse_select(bContext *C, const int mval[2],
 									BKE_tracking_track_select(tracksbase, track, TRACK_AREA_ALL, extend);
 
 									if (oldsel != (TRACK_SELECTED(track) ? 1 : 0))
-										changed = 1;
+										changed = true;
 								}
 
 								basact->flag |= SELECT;
@@ -1595,7 +1599,7 @@ typedef struct BoxSelectUserData {
 	/* runtime */
 	int pass;
 	bool is_done;
-	bool is_change;
+	bool is_changed;
 } BoxSelectUserData;
 
 static void view3d_userdata_boxselect_init(BoxSelectUserData *r_data,
@@ -1612,7 +1616,7 @@ static void view3d_userdata_boxselect_init(BoxSelectUserData *r_data,
 	/* runtime */
 	r_data->pass = 0;
 	r_data->is_done = false;
-	r_data->is_change = false;
+	r_data->is_changed = false;
 }
 
 bool edge_inside_circle(const float cent[2], float radius, const float screen_co_a[2], const float screen_co_b[2])
@@ -1712,7 +1716,6 @@ static void do_nurbs_box_select__doSelect(void *userData, Nurb *UNUSED(nu), BPoi
 	if (BLI_rctf_isect_pt_v(data->rect_fl, screen_co)) {
 		if (bp) {
 			bp->f1 = data->select ? (bp->f1 | SELECT) : (bp->f1 & ~SELECT);
-			if (bp == cu->lastsel && !(bp->f1 & SELECT)) cu->lastsel = NULL;
 		}
 		else {
 			if (cu->drawflag & CU_HIDE_HANDLES) {
@@ -1730,8 +1733,6 @@ static void do_nurbs_box_select__doSelect(void *userData, Nurb *UNUSED(nu), BPoi
 					bezt->f3 = data->select ? (bezt->f3 | SELECT) : (bezt->f3 & ~SELECT);
 				}
 			}
-
-			if (bezt == cu->lastsel && !(bezt->f2 & SELECT)) cu->lastsel = NULL;
 		}
 	}
 }
@@ -1741,11 +1742,14 @@ static int do_nurbs_box_select(ViewContext *vc, rcti *rect, bool select, bool ex
 	
 	view3d_userdata_boxselect_init(&data, vc, rect, select);
 
-	if (extend == false && select)
-		CU_deselect_all(vc->obedit);
+	if (extend == false && select) {
+		Curve *curve = (Curve *) vc->obedit->data;
+		ED_curve_deselect_all(curve->editnurb);
+	}
 
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 	nurbs_foreachScreenVert(vc, do_nurbs_box_select__doSelect, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
+	BKE_curve_nurb_vert_active_validate(vc->obedit->data);
 
 	return OPERATOR_FINISHED;
 }
@@ -2125,12 +2129,12 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 	}
 	else {  /* no editmode, unified for bones and objects */
 		if (vc.obact && vc.obact->mode & OB_MODE_SCULPT) {
-			/* pass */
+			ret = do_sculpt_mask_box_select(&vc, &rect, select, extend);
 		}
-		else if (vc.obact && paint_facesel_test(vc.obact)) {
+		else if (vc.obact && BKE_paint_select_face_test(vc.obact)) {
 			ret = do_paintface_box_select(&vc, &rect, select, extend);
 		}
-		else if (vc.obact && paint_vertsel_test(vc.obact)) {
+		else if (vc.obact && BKE_paint_select_vert_test(vc.obact)) {
 			ret = do_paintvert_box_select(&vc, &rect, select, extend);
 		}
 		else if (vc.obact && vc.obact->mode & OB_MODE_PARTICLE_EDIT) {
@@ -2224,7 +2228,14 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
 	bool toggle = RNA_boolean_get(op->ptr, "toggle");
 	bool center = RNA_boolean_get(op->ptr, "center");
 	bool enumerate = RNA_boolean_get(op->ptr, "enumerate");
-	bool object = RNA_boolean_get(op->ptr, "object");
+	/* only force object select for editmode to support vertex parenting,
+	 * or paint-select to allow pose bone select with vert/face select */
+	bool object = (RNA_boolean_get(op->ptr, "object") &&
+	               (obedit ||
+	                BKE_paint_select_elem_test(obact) ||
+	                /* so its possible to select bones in weightpaint mode (LMB select) */
+	                (obact && (obact->mode & OB_MODE_WEIGHT_PAINT) && BKE_object_pose_armature_get(obact))));
+
 	bool retval = false;
 	int location[2];
 
@@ -2253,15 +2264,15 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
 			retval = mouse_nurb(C, location, extend, deselect, toggle);
 		else if (obedit->type == OB_MBALL)
 			retval = mouse_mball(C, location, extend, deselect, toggle);
+		else if (obedit->type == OB_FONT)
+			retval = mouse_font(C, location, extend, deselect, toggle);
 			
 	}
-	else if (obact && obact->mode & OB_MODE_SCULPT)
-		return OPERATOR_CANCELLED;
 	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT)
 		return PE_mouse_particles(C, location, extend, deselect, toggle);
-	else if (obact && paint_facesel_test(obact))
+	else if (obact && BKE_paint_select_face_test(obact))
 		retval = paintface_mouse_select(C, obact, location, extend, deselect, toggle);
-	else if (paint_vertsel_test(obact))
+	else if (BKE_paint_select_vert_test(obact))
 		retval = mouse_weight_paint_vertex_select(C, location, extend, deselect, toggle, obact);
 	else
 		retval = mouse_select(C, location, extend, deselect, toggle, center, enumerate, object);
@@ -2322,7 +2333,7 @@ typedef struct CircleSelectUserData {
 	float radius_squared;
 
 	/* runtime */
-	bool is_change;
+	bool is_changed;
 } CircleSelectUserData;
 
 static void view3d_userdata_circleselect_init(CircleSelectUserData *r_data,
@@ -2338,7 +2349,7 @@ static void view3d_userdata_circleselect_init(CircleSelectUserData *r_data,
 	r_data->radius_squared = rad * rad;
 
 	/* runtime */
-	r_data->is_change = false;
+	r_data->is_changed = false;
 }
 
 static void mesh_circle_doSelectVert(void *userData, BMVert *eve, const float screen_co[2], int UNUSED(index))
@@ -2413,7 +2424,7 @@ static void mesh_circle_select(ViewContext *vc, const bool select, const int mva
 static void paint_facesel_circle_select(ViewContext *vc, const bool select, const int mval[2], float rad)
 {
 	Object *ob = vc->obact;
-	Mesh *me = ob ? ob->data : NULL;
+	Mesh *me = ob->data;
 	bool bbsel;
 
 	bm_vertoffs = me->totpoly + 1; /* max index array */
@@ -2476,8 +2487,6 @@ static void nurbscurve_circle_doSelect(void *userData, Nurb *UNUSED(nu), BPoint 
 	if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
 		if (bp) {
 			bp->f1 = data->select ? (bp->f1 | SELECT) : (bp->f1 & ~SELECT);
-
-			if (bp == cu->lastsel && !(bp->f1 & SELECT)) cu->lastsel = NULL;
 		}
 		else {
 			if (cu->drawflag & CU_HIDE_HANDLES) {
@@ -2495,8 +2504,6 @@ static void nurbscurve_circle_doSelect(void *userData, Nurb *UNUSED(nu), BPoint 
 					bezt->f3 = data->select ? (bezt->f3 | SELECT) : (bezt->f3 & ~SELECT);
 				}
 			}
-
-			if (bezt == cu->lastsel && !(bezt->f2 & SELECT)) cu->lastsel = NULL;
 		}
 	}
 }
@@ -2508,6 +2515,7 @@ static void nurbscurve_circle_select(ViewContext *vc, const bool select, const i
 
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 	nurbs_foreachScreenVert(vc, nurbscurve_circle_doSelect, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
+	BKE_curve_nurb_vert_active_validate(vc->obedit->data);
 }
 
 
@@ -2581,10 +2589,10 @@ static void do_circle_select_pose__doSelectBone(void *userData, struct bPoseChan
 		{
 			if (data->select) pchan->bone->flag |= BONE_SELECTED;
 			else              pchan->bone->flag &= ~BONE_SELECTED;
-			data->is_change = true;
+			data->is_changed = true;
 		}
 
-		data->is_change |= is_point_done;
+		data->is_changed |= is_point_done;
 	}
 }
 static void pose_circle_select(ViewContext *vc, const bool select, const int mval[2], float rad)
@@ -2597,7 +2605,7 @@ static void pose_circle_select(ViewContext *vc, const bool select, const int mva
 	
 	pose_foreachScreenBone(vc, do_circle_select_pose__doSelectBone, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
 
-	if (data.is_change) {
+	if (data.is_changed) {
 		bArmature *arm = vc->obact->data;
 
 		WM_main_add_notifier(NC_OBJECT | ND_BONE_SELECT, vc->obact);
@@ -2667,10 +2675,10 @@ static void do_circle_select_armature__doSelectBone(void *userData, struct EditB
 		{
 			if (data->select) ebone->flag |=  (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 			else              ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-			data->is_change = true;
+			data->is_changed = true;
 		}
 
-		data->is_change |= is_point_done;
+		data->is_changed |= is_point_done;
 	}
 }
 static void armature_circle_select(ViewContext *vc, const bool select, const int mval[2], float rad)
@@ -2684,7 +2692,7 @@ static void armature_circle_select(ViewContext *vc, const bool select, const int
 
 	armature_foreachScreenBone(vc, do_circle_select_armature__doSelectBone, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
 
-	if (data.is_change) {
+	if (data.is_changed) {
 		ED_armature_sync_selection(arm->edbo);
 		ED_armature_validate_active(arm);
 		WM_main_add_notifier(NC_OBJECT | ND_BONE_SELECT, vc->obedit);
@@ -2698,7 +2706,7 @@ static void do_circle_select_mball__doSelectElem(void *userData, struct MetaElem
 	if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
 		if (data->select) ml->flag |=  SELECT;
 		else              ml->flag &= ~SELECT;
-		data->is_change = true;
+		data->is_changed = true;
 	}
 }
 static void mball_circle_select(ViewContext *vc, const bool select, const int mval[2], float rad)
@@ -2743,7 +2751,7 @@ static bool object_circle_select(ViewContext *vc, const bool select, const int m
 	Scene *scene = vc->scene;
 	const float radius_squared = rad * rad;
 	const float mval_fl[2] = {mval[0], mval[1]};
-	bool is_change = false;
+	bool changed = false;
 	const int select_flag = select ? SELECT : 0;
 
 
@@ -2756,13 +2764,13 @@ static bool object_circle_select(ViewContext *vc, const bool select, const int m
 			{
 				if (len_squared_v2v2(mval_fl, screen_co) <= radius_squared) {
 					ED_base_object_select(base, select ? BA_SELECT : BA_DESELECT);
-					is_change = true;
+					changed = true;
 				}
 			}
 		}
 	}
 
-	return is_change;
+	return changed;
 }
 
 /* not a real operator, only for circle test */
@@ -2776,7 +2784,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 	const int mval[2] = {RNA_int_get(op->ptr, "x"),
 	                     RNA_int_get(op->ptr, "y")};
 
-	if (CTX_data_edit_object(C) || paint_facesel_test(obact) || paint_vertsel_test(obact) ||
+	if (CTX_data_edit_object(C) || BKE_paint_select_elem_test(obact) ||
 	    (obact && (obact->mode & (OB_MODE_PARTICLE_EDIT | OB_MODE_POSE))) )
 	{
 		ViewContext vc;
@@ -2789,11 +2797,11 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 			obedit_circle_select(&vc, select, mval, (float)radius);
 			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
 		}
-		else if (paint_facesel_test(obact)) {
+		else if (BKE_paint_select_face_test(obact)) {
 			paint_facesel_circle_select(&vc, select, mval, (float)radius);
 			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
 		}
-		else if (paint_vertsel_test(obact)) {
+		else if (BKE_paint_select_vert_test(obact)) {
 			paint_vertsel_circle_select(&vc, select, mval, (float)radius);
 			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
 		}

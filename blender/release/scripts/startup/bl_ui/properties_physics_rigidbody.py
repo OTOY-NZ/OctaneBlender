@@ -70,6 +70,12 @@ class PHYSICS_PT_rigid_body_collisions(PHYSICS_PT_rigidbody_panel, Panel):
 
         layout.prop(rbo, "collision_shape", text="Shape")
 
+        if rbo.collision_shape in {'MESH', 'CONVEX_HULL'}:
+            layout.prop(rbo, "mesh_source", text="Source")
+
+        if rbo.collision_shape == 'MESH' and rbo.mesh_source == 'DEFORM':
+            layout.prop(rbo, "use_deform", text="Deforming")
+
         split = layout.split()
 
         col = split.column()

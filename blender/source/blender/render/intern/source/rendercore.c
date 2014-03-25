@@ -41,7 +41,6 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_jitter.h"
 #include "BLI_rand.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -926,7 +925,7 @@ static void freeps(ListBase *lb)
 			MEM_freeN(psm->ps);
 		MEM_freeN(psm);
 	}
-	lb->first= lb->last= NULL;
+	BLI_listbase_clear(lb);
 }
 
 static void addps(ListBase *lb, intptr_t *rd, int obi, int facenr, int z, int maskz, unsigned short mask)
@@ -1875,10 +1874,11 @@ static void renderhalo_post(RenderResult *rr, float *rectf, HaloRen *har)	/* pos
 
 static void renderflare(RenderResult *rr, float *rectf, HaloRen *har)
 {
-	extern float hashvectf[];
+	extern const float hashvectf[];
 	HaloRen fla;
 	Material *ma;
-	float *rc, rad, alfa, visifac, vec[3];
+	const float *rc;
+	float rad, alfa, visifac, vec[3];
 	int b, type;
 	
 	fla= *har;
@@ -1985,7 +1985,7 @@ void add_halo_flare(Render *re)
 		if (do_draw) {
 			/* weak... the display callback wants an active renderlayer pointer... */
 			rr->renlay= rl;
-			re->display_draw(re->ddh, rr, NULL);
+			re->display_update(re->duh, rr, NULL);
 		}
 
 		R.r.mode= mode;

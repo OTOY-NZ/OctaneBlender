@@ -296,7 +296,16 @@ static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
 	}
 	else if (ob->parent && (ob->parent->transflag & (OB_DUPLIVERTS | OB_DUPLIFACES))) {
 		/* Dupli Verts/Faces */
-		int tot = count_duplilist(ob->parent);
+		int tot;
+
+		/* metaball dupli-instances are tessellated once */
+		if (ob->type == OB_MBALL) {
+			tot = 1;
+		}
+		else {
+			tot = count_duplilist(ob->parent);
+		}
+
 		stats->totobj += tot;
 		stats_object(ob, base->flag & SELECT, tot, stats);
 	}
@@ -319,7 +328,7 @@ static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
 	}
 }
 
-static int stats_is_object_dynamic_topology_sculpt(Object *ob)
+static bool stats_is_object_dynamic_topology_sculpt(Object *ob)
 {
 	return (ob && (ob->mode & OB_MODE_SCULPT) &&
 	        ob->sculpt && ob->sculpt->bm);

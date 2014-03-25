@@ -113,6 +113,9 @@ PyDoc_STRVAR(bpy_bmlayeraccess_collection__uv_doc,
 PyDoc_STRVAR(bpy_bmlayeraccess_collection__color_doc,
 "Accessor for vertex color layer.\n\ntype: :class:`BMLayerCollection`"
 );
+PyDoc_STRVAR(bpy_bmlayeraccess_collection__skin_doc,
+"Accessor for skin layer.\n\ntype: :class:`BMLayerCollection`"
+);
 #ifdef WITH_FREESTYLE
 PyDoc_STRVAR(bpy_bmlayeraccess_collection__freestyle_edge_doc,
 "Accessor for Freestyle edge layer.\n\ntype: :class:`BMLayerCollection`"
@@ -156,7 +159,7 @@ static PyObject *bpy_bmlayercollection_active_get(BPy_BMLayerItem *self, void *U
 
 
 PyDoc_STRVAR(bpy_bmlayercollection_is_singleton_doc,
-"This meshes vert sequence (read-only).\n\n:type: :class:`BMVertSeq`"
+"True if there can exists only one layer of this type (read-only).\n\n:type: boolean"
 );
 static PyObject *bpy_bmlayercollection_is_singleton_get(BPy_BMLayerItem *self, void *UNUSED(flag))
 {
@@ -192,6 +195,7 @@ static PyGetSetDef bpy_bmlayeraccess_vert_getseters[] = {
 
 	{(char *)"shape",        (getter)bpy_bmlayeraccess_collection_get, (setter)NULL, (char *)bpy_bmlayeraccess_collection__shape_doc, (void *)CD_SHAPEKEY},
 	{(char *)"bevel_weight", (getter)bpy_bmlayeraccess_collection_get, (setter)NULL, (char *)bpy_bmlayeraccess_collection__bevel_weight_doc, (void *)CD_BWEIGHT},
+	{(char *)"skin",         (getter)bpy_bmlayeraccess_collection_get, (setter)NULL, (char *)bpy_bmlayeraccess_collection__skin_doc, (void *)CD_MVERT_SKIN},
 
 	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
@@ -435,27 +439,25 @@ static PyObject *bpy_bmlayercollection_keys(BPy_BMLayerCollection *self)
 	PyObject *item;
 	int index;
 	CustomData *data;
+	int tot, i;
 
 	BPY_BM_CHECK_OBJ(self);
 
 	data = bpy_bm_customdata_get(self->bm, self->htype);
 	index = CustomData_get_layer_index(data, self->type); /* absolute, but no need to make relative */
+	tot = (index != -1) ? CustomData_number_of_layers(data, self->type) : 0;
 
-	ret = PyList_New(0);
+	ret = PyList_New(tot);
 
-	if (index != -1) {
-		int tot = CustomData_number_of_layers(data, self->type);
-		for ( ; tot-- > 0; index++) {
-			item = PyUnicode_FromString(data->layers[index].name);
-			PyList_Append(ret, item);
-			Py_DECREF(item);
-		}
+	for (i = 0; tot-- > 0; index++) {
+		item = PyUnicode_FromString(data->layers[index].name);
+		PyList_SET_ITEM(ret, i++, item);
 	}
 
 	return ret;
 }
 
-PyDoc_STRVAR(bpy_bmlayercollection_values_doc,
+PyDoc_STRVAR(bpy_bmlayercollection_items_doc,
 ".. method:: items()\n"
 "\n"
 "   Return the identifiers of collection members\n"
@@ -464,35 +466,33 @@ PyDoc_STRVAR(bpy_bmlayercollection_values_doc,
 "   :return: (key, value) pairs for each member of this collection.\n"
 "   :rtype: list of tuples\n"
 );
-static PyObject *bpy_bmlayercollection_values(BPy_BMLayerCollection *self)
+static PyObject *bpy_bmlayercollection_items(BPy_BMLayerCollection *self)
 {
 	PyObject *ret;
 	PyObject *item;
 	int index;
 	CustomData *data;
+	int tot, i;
 
 	BPY_BM_CHECK_OBJ(self);
 
 	data = bpy_bm_customdata_get(self->bm, self->htype);
 	index = CustomData_get_layer_index(data, self->type);
+	tot = (index != -1) ? CustomData_number_of_layers(data, self->type) : 0;
 
-	ret = PyList_New(0);
+	ret = PyList_New(tot);
 
-	if (index != -1) {
-		int tot = CustomData_number_of_layers(data, self->type);
-		for ( ; tot-- > 0; index++) {
-			item = PyTuple_New(2);
-			PyTuple_SET_ITEM(item, 0, PyUnicode_FromString(data->layers[index].name));
-			PyTuple_SET_ITEM(item, 1, BPy_BMLayerItem_CreatePyObject(self->bm, self->htype, self->type, index));
-			PyList_Append(ret, item);
-			Py_DECREF(item);
-		}
+	for (i = 0; tot-- > 0; index++) {
+		item = PyTuple_New(2);
+		PyTuple_SET_ITEM(item, 0, PyUnicode_FromString(data->layers[index].name));
+		PyTuple_SET_ITEM(item, 1, BPy_BMLayerItem_CreatePyObject(self->bm, self->htype, self->type, index));
+		PyList_SET_ITEM(ret, i++, item);
 	}
 
 	return ret;
 }
 
-PyDoc_STRVAR(bpy_bmlayercollection_items_doc,
+PyDoc_STRVAR(bpy_bmlayercollection_values_doc,
 ".. method:: values()\n"
 "\n"
 "   Return the values of collection\n"
@@ -501,27 +501,25 @@ PyDoc_STRVAR(bpy_bmlayercollection_items_doc,
 "   :return: the members of this collection.\n"
 "   :rtype: list\n"
 );
-static PyObject *bpy_bmlayercollection_items(BPy_BMLayerCollection *self)
+static PyObject *bpy_bmlayercollection_values(BPy_BMLayerCollection *self)
 {
 	PyObject *ret;
 	PyObject *item;
 	int index;
 	CustomData *data;
+	int tot, i;
 
 	BPY_BM_CHECK_OBJ(self);
 
 	data = bpy_bm_customdata_get(self->bm, self->htype);
 	index = CustomData_get_layer_index(data, self->type);
+	tot = (index != -1) ? CustomData_number_of_layers(data, self->type) : 0;
 
-	ret = PyList_New(0);
+	ret = PyList_New(tot);
 
-	if (index != -1) {
-		int tot = CustomData_number_of_layers(data, self->type);
-		for ( ; tot-- > 0; index++) {
-			item = BPy_BMLayerItem_CreatePyObject(self->bm, self->htype, self->type, index);
-			PyList_Append(ret, item);
-			Py_DECREF(item);
-		}
+	for (i = 0; tot-- > 0; index++) {
+		item = BPy_BMLayerItem_CreatePyObject(self->bm, self->htype, self->type, index);
+		PyList_SET_ITEM(ret, i++, item);
 	}
 
 	return ret;
@@ -1030,6 +1028,11 @@ PyObject *BPy_BMLayerItem_GetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer)
 			ret = PyFloat_FromDouble(*(float *)value);
 			break;
 		}
+		case CD_MVERT_SKIN:
+		{
+			ret = BPy_BMVertSkin_CreatePyObject(value);
+			break;
+		}
 		default:
 		{
 			ret = Py_NotImplemented; /* TODO */
@@ -1145,6 +1148,11 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
 			else {
 				*(float *)value = CLAMPIS(tmp_val, 0.0f, 1.0f);
 			}
+			break;
+		}
+		case CD_MVERT_SKIN:
+		{
+			ret = BPy_BMVertSkin_AssignPyObject(value, py_value);
 			break;
 		}
 		default:

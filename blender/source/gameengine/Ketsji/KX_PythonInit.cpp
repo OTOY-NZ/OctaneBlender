@@ -130,6 +130,7 @@ extern "C" {
 #include "PHY_IPhysicsEnvironment.h"
 #include "BKE_main.h"
 #include "BKE_global.h"
+#include "BKE_library.h"
 #include "BLI_blenlib.h"
 #include "GPU_material.h"
 #include "MEM_guardedalloc.h"
@@ -141,8 +142,6 @@ extern "C" {
 extern "C" {
 	#include "BKE_idcode.h"
 }
-
-#include "NG_NetworkScene.h" //Needed for sendMessage()
 
 // 'local' copy of canvas ptr, for window height/width python scripts
 
@@ -480,7 +479,7 @@ static PyObject *gPySetPhysicsTicRate(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "f:setPhysicsTicRate", &ticrate))
 		return NULL;
 	
-	PHY_GetActiveEnvironment()->setFixedTimeStep(true,ticrate);
+	PHY_GetActiveEnvironment()->SetFixedTimeStep(true,ticrate);
 	Py_RETURN_NONE;
 }
 #if 0 // unused
@@ -498,7 +497,7 @@ static PyObject *gPySetPhysicsDebug(PyObject *, PyObject *args)
 
 static PyObject *gPyGetPhysicsTicRate(PyObject *)
 {
-	return PyFloat_FromDouble(PHY_GetActiveEnvironment()->getFixedTimeStep());
+	return PyFloat_FromDouble(PHY_GetActiveEnvironment()->GetFixedTimeStep());
 }
 
 static PyObject *gPyGetAverageFrameRate(PyObject *)
@@ -530,7 +529,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 
 	if ((dp  = opendir(cpath)) == NULL) {
 		/* todo, show the errno, this shouldnt happen anyway if the blendfile is readable */
-		fprintf(stderr, "Could not read directoty (%s) failed, code %d (%s)\n", cpath, errno, strerror(errno));
+		fprintf(stderr, "Could not read directory (%s) failed, code %d (%s)\n", cpath, errno, strerror(errno));
 		return list;
 	}
 	
@@ -754,7 +753,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 		return NULL;
 	}
 	
-	Main *maggie= (Main *)MEM_callocN( sizeof(Main), "BgeMain");
+	Main *maggie=BKE_main_new();
 	kx_scene->GetSceneConverter()->GetMainDynamic().push_back(maggie);
 	strncpy(maggie->name, path, sizeof(maggie->name)-1);
 	
@@ -1226,7 +1225,6 @@ static PyObject *gPyGetGLSLMaterialSetting(PyObject *,
 	return PyLong_FromLong(enabled);
 }
 
-#define KX_TEXFACE_MATERIAL				0
 #define KX_BLENDER_MULTITEX_MATERIAL	1
 #define KX_BLENDER_GLSL_MATERIAL		2
 
@@ -1244,8 +1242,6 @@ static PyObject *gPySetMaterialType(PyObject *,
 		gs->matmode= GAME_MAT_GLSL;
 	else if (type == KX_BLENDER_MULTITEX_MATERIAL)
 		gs->matmode= GAME_MAT_MULTITEX;
-	else if (type == KX_TEXFACE_MATERIAL)
-		gs->matmode= GAME_MAT_TEXFACE;
 	else {
 		PyErr_SetString(PyExc_ValueError, "Rasterizer.setMaterialType(int): material type is not known");
 		return NULL;
@@ -1261,10 +1257,8 @@ static PyObject *gPyGetMaterialType(PyObject *)
 
 	if (gs->matmode == GAME_MAT_GLSL)
 		flag = KX_BLENDER_GLSL_MATERIAL;
-	else if (gs->matmode == GAME_MAT_MULTITEX)
-		flag = KX_BLENDER_MULTITEX_MATERIAL;
 	else
-		flag = KX_TEXFACE_MATERIAL;
+		flag = KX_BLENDER_MULTITEX_MATERIAL;
 	
 	return PyLong_FromLong(flag);
 }
@@ -2209,7 +2203,6 @@ PyObject *initRasterizer(RAS_IRasterizer* rasty,RAS_ICanvas* canvas)
 	Py_DECREF(ErrorObject);
 
 	/* needed for get/setMaterialType */
-	KX_MACRO_addTypesToDict(d, KX_TEXFACE_MATERIAL, KX_TEXFACE_MATERIAL);
 	KX_MACRO_addTypesToDict(d, KX_BLENDER_MULTITEX_MATERIAL, KX_BLENDER_MULTITEX_MATERIAL);
 	KX_MACRO_addTypesToDict(d, KX_BLENDER_GLSL_MATERIAL, KX_BLENDER_GLSL_MATERIAL);
 

@@ -172,7 +172,7 @@ DO_INLINE void mul_fvectorT_fvectorS(float to[3][3], float vectorA[3], float vec
 	mul_fvector_S(to[2], to[2], aS);
 }
 
-
+#if 0
 /* printf vector[3] on console: for debug output */
 static void print_fvector(float m3[3])
 {
@@ -190,6 +190,8 @@ DO_INLINE void print_lfvector(float (*fLongVector)[3], unsigned int verts)
 		print_fvector(fLongVector[i]);
 	}
 }
+#endif
+
 /* create long vector */
 DO_INLINE lfVector *create_lfvector(unsigned int verts)
 {
@@ -744,7 +746,7 @@ int implicit_init(Object *UNUSED(ob), ClothModifierData *clmd)
 		printf("implicit_init\n");
 
 	// init memory guard
-	// MEMORY_BASE.first = MEMORY_BASE.last = NULL;
+	// BLI_listbase_clear(&MEMORY_BASE);
 
 	cloth = (Cloth *)clmd->clothObject;
 	verts = cloth->verts;
@@ -774,11 +776,10 @@ int implicit_init(Object *UNUSED(ob), ClothModifierData *clmd)
 	id->z = create_lfvector(cloth->numverts);
 	
 	id->S[0].vcount = 0;
+	update_matrixS(verts, cloth->numverts, id->S);
 
 	for (i = 0; i < cloth->numverts; i++) {
 		id->A[i].r = id->A[i].c = id->dFdV[i].r = id->dFdV[i].c = id->dFdX[i].r = id->dFdX[i].c = id->P[i].c = id->P[i].r = id->Pinv[i].c = id->Pinv[i].r = id->bigI[i].c = id->bigI[i].r = id->M[i].r = id->M[i].c = i;
-
-		update_matrixS(verts, cloth->numverts, id->S);
 		
 		initdiag_fmatrixS(id->M[i].m, verts[i].mass);
 	}
@@ -1259,18 +1260,28 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 	}
 	
 	// calculate force of structural + shear springs
-	if ((s->type & CLOTH_SPRING_TYPE_STRUCTURAL) || (s->type & CLOTH_SPRING_TYPE_SHEAR)) {
+	if ((s->type & CLOTH_SPRING_TYPE_STRUCTURAL) || (s->type & CLOTH_SPRING_TYPE_SHEAR) || (s->type & CLOTH_SPRING_TYPE_SEWING) ) {
 		if (length > L || no_compress) {
 			s->flags |= CLOTH_SPRING_FLAG_NEEDED;
 			
 			k = clmd->sim_parms->structural;
 
-			scaling = k + s->stiffness * ABS(clmd->sim_parms->max_struct-k);
+			scaling = k + s->stiffness * fabsf(clmd->sim_parms->max_struct - k);
 
 			k = scaling / (clmd->sim_parms->avg_spring_len + FLT_EPSILON);
 
 			// TODO: verify, half verified (couldn't see error)
-			mul_fvector_S(stretch_force, dir, k*(length-L));
+			if (s->type & CLOTH_SPRING_TYPE_SEWING) {
+				// sewing springs usually have a large distance at first so clamp the force so we don't get tunnelling through colission objects
+				float force = k*(length-L);
+				if (force > clmd->sim_parms->max_sewing) {
+					force = clmd->sim_parms->max_sewing;
+				}
+				mul_fvector_S(stretch_force, dir, force);
+			}
+			else {
+				mul_fvector_S(stretch_force, dir, k * (length - L));
+			}
 
 			VECADD(s->f, s->f, stretch_force);
 
@@ -1305,7 +1316,7 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 		
 		k = clmd->sim_parms->goalspring;
 		
-		scaling = k + s->stiffness * ABS(clmd->sim_parms->max_struct-k);
+		scaling = k + s->stiffness * fabsf(clmd->sim_parms->max_struct - k);
 			
 		k = verts [s->ij].goal * scaling / (clmd->sim_parms->avg_spring_len + FLT_EPSILON);
 		
@@ -1324,7 +1335,7 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 			
 			k = clmd->sim_parms->bending;
 			
-			scaling = k + s->stiffness * ABS(clmd->sim_parms->max_bend-k);
+			scaling = k + s->stiffness * fabsf(clmd->sim_parms->max_bend - k);
 			cb = k = scaling / (20.0f * (clmd->sim_parms->avg_spring_len + FLT_EPSILON));
 
 			mul_fvector_S(bending_force, dir, fbstar(length, L, k, cb));

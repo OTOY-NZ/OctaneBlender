@@ -79,17 +79,22 @@ void BLF_draw(int fontid, const char *str, size_t len);
 void BLF_draw_ascii(int fontid, const char *str, size_t len);
 int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth);
 
+/* Get the string byte offset that fits within a given width */
+size_t BLF_width_to_strlen(int fontid, const char *str, size_t len, float width, float *r_width);
+/* Same as BLF_width_to_strlen but search from the string end */
+size_t BLF_width_to_rstrlen(int fontid, const char *str, size_t len, float width, float *r_width);
+
 /* This function return the bounding box of the string
  * and are not multiplied by the aspect.
  */
-void BLF_boundbox(int fontid, const char *str, struct rctf *box);
+void BLF_boundbox(int fontid, const char *str, size_t len, struct rctf *box);
 
 /* The next both function return the width and height
  * of the string, using the current font and both value 
  * are multiplied by the aspect of the font.
  */
-float BLF_width(int fontid, const char *str);
-float BLF_height(int fontid, const char *str);
+float BLF_width(int fontid, const char *str, size_t len);
+float BLF_height(int fontid, const char *str, size_t len);
 
 /* Return dimensions of the font without any sample text. */
 float BLF_height_max(int fontid);
@@ -100,7 +105,7 @@ float BLF_ascender(int fontid);
 /* The following function return the width and height of the string, but
  * just in one call, so avoid extra freetype2 stuff.
  */
-void BLF_width_and_height(int fontid, const char *str, float *width, float *height);
+void BLF_width_and_height(int fontid, const char *str, size_t len, float *r_width, float *r_height);
 
 /* For fixed width fonts only, returns the width of a
  * character.
@@ -111,9 +116,9 @@ float BLF_fixed_width(int fontid);
  * of the string, using the default font and both value
  * are multiplied by the aspect of the font.
  */
-void  BLF_width_and_height_default(const char *str, float *width, float *height);
-float BLF_width_default(const char *str);
-float BLF_height_default(const char *str);
+void  BLF_width_and_height_default(const char *str, size_t len, float *r_width, float *r_height);
+float BLF_width_default(const char *str, size_t len);
+float BLF_height_default(const char *str, size_t len);
 
 /* Set rotation for default font. */
 void BLF_rotation_default(float angle);
@@ -176,6 +181,10 @@ char **BLF_dir_get(int *ndir);
 
 /* Free the data return by BLF_dir_get. */
 void BLF_dir_free(char **dirs, int count);
+
+#ifdef DEBUG
+void BLF_state_print(int fontid);
+#endif
 
 /* font->flags. */
 #define BLF_ROTATION         (1 << 0)

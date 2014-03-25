@@ -142,11 +142,11 @@ static void bm_loop_pair_from_verts(BMVert *v_a, BMVert *v_b,
 static void bm_loop_pair_test_copy(BMLoop *l_pair_a[2], BMLoop *l_pair_b[2])
 {
 	/* if the first one is set, we know the second is too */
-	if (l_pair_a[0] && l_pair_b[0] == NULL)  {
+	if (l_pair_a[0] && l_pair_b[0] == NULL) {
 		l_pair_b[0] = l_pair_a[1];
 		l_pair_b[1] = l_pair_a[0];
 	}
-	else if (l_pair_b[0] && l_pair_a[0] == NULL)  {
+	else if (l_pair_b[0] && l_pair_a[0] == NULL) {
 		l_pair_a[0] = l_pair_b[1];
 		l_pair_a[1] = l_pair_b[0];
 	}
@@ -594,7 +594,7 @@ void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
 	const bool use_interp_simple = BMO_slot_bool_get(op->slots_in, "use_interp_simple");
 
 	int count;
-	bool change = false;
+	bool changed = false;
 	BMO_slot_buffer_flag_enable(bm, op->slots_in, "edges", BM_EDGE, EDGE_MARK);
 
 	count = BM_mesh_edgeloops_find(bm, &eloops, bm_edge_test_cb, (void *)bm);
@@ -633,7 +633,12 @@ void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
 		goto cleanup;
 	}
 
-	BM_mesh_edgeloops_find_path(bm, &eloops_rail, bm_edge_test_rail_cb, (void *)bm, v_a_first, v_b_last);
+	/* We may find a first path, but not a second one! See geometry attached to bug [#37388]. */
+	if (BM_mesh_edgeloops_find_path(bm, &eloops_rail, bm_edge_test_rail_cb, bm, v_a_first, v_b_last) == false) {
+		BMO_error_raise(bm, op, BMERR_INVALID_SELECTION,
+		                "Loops are not connected by wire/boundary edges");
+		goto cleanup;
+	}
 
 	/* Check flipping by comparing path length */
 	estore_rail_a = eloops_rail.first;
@@ -656,7 +661,7 @@ void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
 		BM_edgeloop_free(estore_rail_a);
 		estore_rail_a = estore_rail_b;
 
-		/* reverse so these so both are sorted the same way */
+		/* reverse so both are sorted the same way */
 		BM_edgeloop_flip(bm, estore_b);
 		SWAP(BMVert *, v_b_first, v_b_last);
 
@@ -685,14 +690,14 @@ void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
 	bm_grid_fill(bm, estore_a, estore_b, estore_rail_a, estore_rail_b,
 	             mat_nr, use_smooth, use_interp_simple);
 
-	change = true;
+	changed = true;
 
 
 cleanup:
 	BM_mesh_edgeloops_free(&eloops);
 	BM_mesh_edgeloops_free(&eloops_rail);
 
-	if (change) {
+	if (changed) {
 		BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, FACE_OUT);
 	}
 }

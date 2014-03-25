@@ -186,7 +186,7 @@ static void node_shader_exec_material(void *data, int UNUSED(thread), bNode *nod
 		if (node->type == SH_NODE_MATERIAL_EXT) {
 			/* Shadow, Reflect, Refract, Radiosity, Speed seem to cause problems inside
 			 * a node tree :( */
-			copy_v3_v3(out[MAT_OUT_DIFFUSE]->vec, shrnode.diff);
+			copy_v3_v3(out[MAT_OUT_DIFFUSE]->vec, shrnode.diffshad);
 			copy_v3_v3(out[MAT_OUT_SPEC]->vec, shrnode.spec);
 			copy_v3_v3(out[MAT_OUT_AO]->vec, shrnode.ao);
 		}
@@ -299,6 +299,7 @@ static int gpu_shader_material(GPUMaterial *mat, bNode *node, bNodeExecData *UNU
 		if (node->type == SH_NODE_MATERIAL_EXT) {
 			out[MAT_OUT_DIFFUSE].link = shr.diff;
 			out[MAT_OUT_SPEC].link = shr.spec;
+			GPU_link(mat, "set_rgb_one", &out[MAT_OUT_AO].link);
 		}
 
 		return 1;

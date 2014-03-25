@@ -97,16 +97,6 @@ void EDBM_mesh_free(struct BMEditMesh *em);
 void EDBM_mesh_load(struct Object *ob);
 struct DerivedMesh *EDBM_mesh_deform_dm_get(struct BMEditMesh *em);
 
-void           EDBM_index_arrays_ensure(struct BMEditMesh *em, const char htype);
-void           EDBM_index_arrays_init(struct BMEditMesh *em, const char htype);
-void           EDBM_index_arrays_free(struct BMEditMesh *em);
-#ifndef NDEBUG
-bool           EDBM_index_arrays_check(struct BMEditMesh *em);
-#endif
-struct BMVert *EDBM_vert_at_index(struct BMEditMesh *em, int index);
-struct BMEdge *EDBM_edge_at_index(struct BMEditMesh *em, int index);
-struct BMFace *EDBM_face_at_index(struct BMEditMesh *em, int index);
-
 /* flushes based on the current select mode.  if in vertex select mode,
  * verts select/deselect edges and faces, if in edge select mode,
  * edges select/deselect faces and vertices, and in face select mode faces select/deselect
@@ -129,16 +119,16 @@ void EDBM_mesh_reveal(struct BMEditMesh *em);
 
 void EDBM_update_generic(struct BMEditMesh *em, const bool do_tessface, const bool is_destructive);
 
-struct UvElementMap *EDBM_uv_element_map_create(struct BMEditMesh *em, const bool selected, const bool do_islands);
-void                 EDBM_uv_element_map_free(struct UvElementMap *vmap);
-struct UvElement *ED_uv_element_get(struct UvElementMap *map, struct BMFace *efa, struct BMLoop *l);
+struct UvElementMap *BM_uv_element_map_create(struct BMesh *em, const bool selected, const bool do_islands);
+void                 BM_uv_element_map_free(struct UvElementMap *vmap);
+struct UvElement    *BM_uv_element_get(struct UvElementMap *map, struct BMFace *efa, struct BMLoop *l);
 
 bool             EDBM_mtexpoly_check(struct BMEditMesh *em);
 struct MTexPoly *EDBM_mtexpoly_active_get(struct BMEditMesh *em, struct BMFace **r_act_efa, const bool sloppy, const bool selected);
 
-void              EDBM_uv_vert_map_free(struct UvVertMap *vmap);
-struct UvMapVert *EDBM_uv_vert_map_at_index(struct UvVertMap *vmap, unsigned int v);
-struct UvVertMap *EDBM_uv_vert_map_create(struct BMEditMesh *em, bool use_select, const float limit[2]);
+void              BM_uv_vert_map_free(struct UvVertMap *vmap);
+struct UvMapVert *BM_uv_vert_map_at_index(struct UvVertMap *vmap, unsigned int v);
+struct UvVertMap *BM_uv_vert_map_create(struct BMesh *bm, bool use_select, const float limit[2]);
 
 void EDBM_flag_enable_all(struct BMEditMesh *em, const char hflag);
 void EDBM_flag_disable_all(struct BMEditMesh *em, const char hflag);
@@ -152,7 +142,7 @@ void EDBM_select_mirrored(struct BMEditMesh *em, bool extend,
 void EDBM_automerge(struct Scene *scene, struct Object *ob, bool update, const char hflag);
 
 bool EDBM_backbuf_border_init(struct ViewContext *vc, short xmin, short ymin, short xmax, short ymax);
-int  EDBM_backbuf_check(unsigned int index);
+bool EDBM_backbuf_check(unsigned int index);
 void EDBM_backbuf_free(void);
 
 bool EDBM_backbuf_border_mask_init(struct ViewContext *vc, const int mcords[][2], short tot,
@@ -183,11 +173,6 @@ void EDBM_select_toggle_all(struct BMEditMesh *em);
 void EDBM_select_swap(struct BMEditMesh *em); /* exported for UV */
 bool EDBM_select_interior_faces(struct BMEditMesh *em);
 void em_setup_viewcontext(struct bContext *C, struct ViewContext *vc);  /* rename? */
-
-/* editmesh_statvis.c */
-void EDBM_statvis_calc(struct BMEditMesh *em, struct MeshStatVis *statvis,
-                       unsigned char (*r_face_colors)[4]);
-
 
 extern unsigned int bm_vertoffs, bm_solidoffs, bm_wireoffs;
 
@@ -279,7 +264,7 @@ void ED_mesh_faces_remove(struct Mesh *mesh, struct ReportList *reports, int cou
 void ED_mesh_edges_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 void ED_mesh_vertices_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 
-void ED_mesh_transform(struct Mesh *me, float *mat);
+void ED_mesh_transform(struct Mesh *me, float mat[4][4]);
 void ED_mesh_calc_tessface(struct Mesh *mesh);
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface);
 
@@ -315,8 +300,9 @@ void EDBM_redo_state_free(struct BMBackup *, struct BMEditMesh *em, int recalcte
 int         join_mesh_exec(struct bContext *C, struct wmOperator *op);
 int         join_mesh_shapes_exec(struct bContext *C, struct wmOperator *op);
 
-intptr_t    mesh_octree_table(struct Object *ob, struct BMEditMesh *em, const float co[3], char mode);
-int         mesh_mirrtopo_table(struct Object *ob, char mode);
+/* mirror lookup api */
+int         ED_mesh_mirror_spatial_table(struct Object *ob, struct BMEditMesh *em, const float co[3], char mode);
+int         ED_mesh_mirror_topo_table(struct Object *ob, char mode);
 
 /* retrieves mirrored cache vert, or NULL if there isn't one.
  * note: calling this without ensuring the mirror cache state

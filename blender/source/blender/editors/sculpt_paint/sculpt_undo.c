@@ -266,7 +266,8 @@ static int sculpt_undo_restore_mask(bContext *C, DerivedMesh *dm, SculptUndoNode
 	return 1;
 }
 
-static void sculpt_undo_bmesh_restore_generic(SculptUndoNode *unode,
+static void sculpt_undo_bmesh_restore_generic(bContext *C,
+                                              SculptUndoNode *unode,
                                               Object *ob,
                                               SculptSession *ss)
 {
@@ -279,9 +280,28 @@ static void sculpt_undo_bmesh_restore_generic(SculptUndoNode *unode,
 		unode->applied = TRUE;
 	}
 
-	/* A bit lame, but for now just recreate the PBVH. The alternative
-	 * is to store changes to the PBVH in the undo stack. */
-	sculpt_pbvh_clear(ob);
+	if (unode->type == SCULPT_UNDO_MASK) {
+		int i, totnode;
+		PBVHNode **nodes;
+
+#ifdef _OPENMP
+		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+#else
+		(void)C;
+#endif
+
+		BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
+
+#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+		for (i = 0; i < totnode; i++) {
+			BKE_pbvh_node_mark_redraw(nodes[i]);
+		}
+	}
+	else {
+		/* A bit lame, but for now just recreate the PBVH. The alternative
+		 * is to store changes to the PBVH in the undo stack. */
+		sculpt_pbvh_clear(ob);
+	}
 }
 
 /* Create empty sculpt BMesh and enable logging */
@@ -362,7 +382,7 @@ static int sculpt_undo_bmesh_restore(bContext *C,
 
 		default:
 			if (ss->bm_log) {
-				sculpt_undo_bmesh_restore_generic(unode, ob, ss);
+				sculpt_undo_bmesh_restore_generic(C, unode, ob, ss);
 				return TRUE;
 			}
 			break;
@@ -467,8 +487,12 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 			tag_update |= 1;
 		}
 
-		if (tag_update)
+		if (tag_update) {
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		}
+		else {
+			sculpt_update_object_bounding_box(ob);
+		}
 
 		/* for non-PBVH drawing, need to recreate VBOs */
 		GPU_drawobject_free(ob->derivedFinal);
@@ -819,7 +843,7 @@ SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node,
 
 void sculpt_undo_push_begin(const char *name)
 {
-	undo_paint_push_begin(UNDO_PAINT_MESH, name,
+	ED_undo_paint_push_begin(UNDO_PAINT_MESH, name,
 	                      sculpt_undo_restore, sculpt_undo_free);
 }
 
@@ -839,5 +863,5 @@ void sculpt_undo_push_end(void)
 			BKE_pbvh_node_layer_disp_free(unode->node);
 	}
 
-	undo_paint_push_end(UNDO_PAINT_MESH);
+	ED_undo_paint_push_end(UNDO_PAINT_MESH);
 }

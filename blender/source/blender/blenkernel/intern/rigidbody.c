@@ -225,25 +225,46 @@ void BKE_rigidbody_relink_constraint(RigidBodyCon *rbc)
 /* ************************************** */
 /* Setup Utilities - Validate Sim Instances */
 
+/* get the appropriate DerivedMesh based on rigid body mesh source */
+static DerivedMesh *rigidbody_get_mesh(Object *ob)
+{
+	if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
+		return ob->derivedDeform;
+	}
+	else if (ob->rigidbody_object->mesh_source == RBO_MESH_FINAL) {
+		return ob->derivedFinal;
+	}
+	else {
+		return CDDM_from_mesh(ob->data);
+	}
+}
+
 /* create collision shape of mesh - convex hull */
 static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob, float margin, bool *can_embed)
 {
 	rbCollisionShape *shape = NULL;
-	Mesh *me = NULL;
+	DerivedMesh *dm = NULL;
+	MVert *mvert = NULL;
+	int totvert = 0;
 
 	if (ob->type == OB_MESH && ob->data) {
-		me = ob->data;
+		dm = rigidbody_get_mesh(ob);
+		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
+		totvert = (dm) ? dm->getNumVerts(dm) : 0;
 	}
 	else {
 		printf("ERROR: cannot make Convex Hull collision shape for non-Mesh object\n");
 	}
 
-	if (me && me->totvert) {
-		shape = RB_shape_new_convex_hull((float *)me->mvert, sizeof(MVert), me->totvert, margin, can_embed);
+	if (totvert) {
+		shape = RB_shape_new_convex_hull((float *)mvert, sizeof(MVert), totvert, margin, can_embed);
 	}
 	else {
 		printf("ERROR: no vertices to define Convex Hull collision shape with\n");
 	}
+
+	if (dm && ob->rigidbody_object->mesh_source == RBO_MESH_BASE)
+		dm->release(dm);
 
 	return shape;
 }
@@ -256,14 +277,20 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 	rbCollisionShape *shape = NULL;
 
 	if (ob->type == OB_MESH) {
-		DerivedMesh *dm = CDDM_from_mesh(ob->data, ob);
-
+		DerivedMesh *dm = NULL;
 		MVert *mvert;
 		MFace *mface;
 		int totvert;
 		int totface;
+		int tottris = 0;
+		int triangle_index = 0;
+
+		dm = rigidbody_get_mesh(ob);
 
 		/* ensure mesh validity, then grab data */
+		if (dm == NULL)
+			return NULL;
+
 		DM_ensure_tessface(dm);
 
 		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
@@ -278,32 +305,32 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 		else {
 			rbMeshData *mdata;
 			int i;
+			
+			/* count triangles */
+			for (i = 0; i < totface; i++) {
+				(mface[i].v4) ? (tottris += 2) : (tottris += 1);
+			}
 
 			/* init mesh data for collision shape */
-			mdata = RB_trimesh_data_new();
+			mdata = RB_trimesh_data_new(tottris, totvert);
+			
+			RB_trimesh_add_vertices(mdata, (float *)mvert, totvert, sizeof(MVert));
 
 			/* loop over all faces, adding them as triangles to the collision shape
 			 * (so for some faces, more than triangle will get added)
 			 */
 			for (i = 0; (i < totface) && (mface) && (mvert); i++, mface++) {
 				/* add first triangle - verts 1,2,3 */
-				{
-					MVert *va = (mface->v1 < totvert) ? (mvert + mface->v1) : (mvert);
-					MVert *vb = (mface->v2 < totvert) ? (mvert + mface->v2) : (mvert);
-					MVert *vc = (mface->v3 < totvert) ? (mvert + mface->v3) : (mvert);
-
-					RB_trimesh_add_triangle(mdata, va->co, vb->co, vc->co);
-				}
+				RB_trimesh_add_triangle_indices(mdata, triangle_index, mface->v1, mface->v2, mface->v3);
+				triangle_index++;
 
 				/* add second triangle if needed - verts 1,3,4 */
 				if (mface->v4) {
-					MVert *va = (mface->v1 < totvert) ? (mvert + mface->v1) : (mvert);
-					MVert *vb = (mface->v3 < totvert) ? (mvert + mface->v3) : (mvert);
-					MVert *vc = (mface->v4 < totvert) ? (mvert + mface->v4) : (mvert);
-
-					RB_trimesh_add_triangle(mdata, va->co, vb->co, vc->co);
+					RB_trimesh_add_triangle_indices(mdata, triangle_index, mface->v1, mface->v3, mface->v4);
+					triangle_index++;
 				}
 			}
+			RB_trimesh_finish(mdata);
 
 			/* construct collision shape
 			 *
@@ -323,7 +350,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 		}
 
 		/* cleanup temp data */
-		if (dm) {
+		if (dm && ob->rigidbody_object->mesh_source == RBO_MESH_BASE) {
 			dm->release(dm);
 		}
 	}
@@ -337,7 +364,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 /* Create new physics sim collision shape for object and store it,
  * or remove the existing one first and replace...
  */
-void BKE_rigidbody_validate_sim_shape(Object *ob, short rebuild)
+static void rigidbody_validate_sim_shape(Object *ob, bool rebuild)
 {
 	RigidBodyOb *rbo = ob->rigidbody_object;
 	rbCollisionShape *new_shape = NULL;
@@ -425,9 +452,10 @@ void BKE_rigidbody_validate_sim_shape(Object *ob, short rebuild)
 		rbo->physics_shape = new_shape;
 		RB_shape_set_margin(rbo->physics_shape, RBO_GET_MARGIN(rbo));
 	}
-	else { /* otherwise fall back to box shape */
+	/* use box shape if we can't fall back to old shape */
+	else if (rbo->physics_shape == NULL) {
 		rbo->shape = RB_SHAPE_BOX;
-		BKE_rigidbody_validate_sim_shape(ob, true);
+		rigidbody_validate_sim_shape(ob, true);
 	}
 }
 
@@ -436,7 +464,7 @@ void BKE_rigidbody_validate_sim_shape(Object *ob, short rebuild)
 /* Create physics sim representation of object given RigidBody settings
  * < rebuild: even if an instance already exists, replace it
  */
-void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short rebuild)
+static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool rebuild)
 {
 	RigidBodyOb *rbo = (ob) ? ob->rigidbody_object : NULL;
 	float loc[3];
@@ -451,11 +479,10 @@ void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short re
 	/* make sure collision shape exists */
 	/* FIXME we shouldn't always have to rebuild collision shapes when rebuilding objects, but it's needed for constraints to update correctly */
 	if (rbo->physics_shape == NULL || rebuild)
-		BKE_rigidbody_validate_sim_shape(ob, true);
+		rigidbody_validate_sim_shape(ob, true);
 
-	if (rbo->physics_object) {
-		if (rebuild == false)
-			RB_dworld_remove_body(rbw->physics_world, rbo->physics_object);
+	if (rbo->physics_object && rebuild == false) {
+		RB_dworld_remove_body(rbw->physics_world, rbo->physics_object);
 	}
 	if (!rbo->physics_object || rebuild) {
 		/* remove rigid body if it already exists before creating a new one */
@@ -500,7 +527,7 @@ void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short re
 /* Create physics sim representation of constraint given rigid body constraint settings
  * < rebuild: even if an instance already exists, replace it
  */
-void BKE_rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, short rebuild)
+static void rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, bool rebuild)
 {
 	RigidBodyCon *rbc = (ob) ? ob->rigidbody_constraint : NULL;
 	float loc[3];
@@ -527,9 +554,8 @@ void BKE_rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, shor
 		return;
 	}
 
-	if (rbc->physics_constraint) {
-		if (rebuild == false)
-			RB_dworld_remove_constraint(rbw->physics_world, rbc->physics_constraint);
+	if (rbc->physics_constraint && rebuild == false) {
+		RB_dworld_remove_constraint(rbw->physics_world, rbc->physics_constraint);
 	}
 	if (rbc->physics_constraint == NULL || rebuild) {
 		rbRigidBody *rb1 = rbc->ob1->rigidbody_object->physics_object;
@@ -672,7 +698,7 @@ void BKE_rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, shor
 
 /* Create physics sim world given RigidBody world settings */
 // NOTE: this does NOT update object references that the scene uses, in case those aren't ready yet!
-void BKE_rigidbody_validate_sim_world(Scene *scene, RigidBodyWorld *rbw, short rebuild)
+void BKE_rigidbody_validate_sim_world(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
 	/* sanity checks */
 	if (rbw == NULL)
@@ -797,6 +823,8 @@ RigidBodyOb *BKE_rigidbody_create_object(Scene *scene, Object *ob, short type)
 		rbo->shape = RB_SHAPE_CONVEXH;
 	else
 		rbo->shape = RB_SHAPE_TRIMESH;
+
+	rbo->mesh_source = RBO_MESH_DEFORM;
 
 	/* set initial transform */
 	mat4_to_loc_quat(rbo->pos, rbo->orn, ob->obmat);
@@ -1000,6 +1028,17 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 	if (rbo->physics_object == NULL)
 		return;
 
+	if (rbo->shape == RB_SHAPE_TRIMESH && rbo->flag & RBO_FLAG_USE_DEFORM) {
+		DerivedMesh *dm = ob->derivedDeform;
+		if (dm) {
+			MVert *mvert = dm->getVertArray(dm);
+			int totvert = dm->getNumVerts(dm);
+			BoundBox *bb = BKE_object_boundbox_get(ob);
+
+			RB_shape_trimesh_update(rbo->physics_shape, (float *)mvert, totvert, sizeof(MVert), bb->vec[0], bb->vec[6]);
+		}
+	}
+
 	mat4_decompose(loc, rot, scale, ob->obmat);
 
 	/* update scale for all objects */
@@ -1027,7 +1066,7 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 		ListBase *effectors;
 
 		/* get effectors present in the group specified by effector_weights */
-		effectors = pdInitEffectors(scene, ob, NULL, effector_weights);
+		effectors = pdInitEffectors(scene, ob, NULL, effector_weights, true);
 		if (effectors) {
 			float eff_force[3] = {0.0f, 0.0f, 0.0f};
 			float eff_loc[3], eff_vel[3];
@@ -1066,7 +1105,7 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 /* Updates and validates world, bodies and shapes.
  * < rebuild: rebuild entire simulation
  */
-static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, int rebuild)
+static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
 	GroupObject *go;
 
@@ -1091,7 +1130,7 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, int r
 				 *	- assume object to be active? That is the default for newly added settings...
 				 */
 				ob->rigidbody_object = BKE_rigidbody_create_object(scene, ob, RBO_TYPE_ACTIVE);
-				BKE_rigidbody_validate_sim_object(rbw, ob, true);
+				rigidbody_validate_sim_object(rbw, ob, true);
 
 				rbo = ob->rigidbody_object;
 			}
@@ -1100,15 +1139,15 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, int r
 				/* refresh object... */
 				if (rebuild) {
 					/* World has been rebuilt so rebuild object */
-					BKE_rigidbody_validate_sim_object(rbw, ob, true);
+					rigidbody_validate_sim_object(rbw, ob, true);
 				}
 				else if (rbo->flag & RBO_FLAG_NEEDS_VALIDATE) {
-					BKE_rigidbody_validate_sim_object(rbw, ob, false);
+					rigidbody_validate_sim_object(rbw, ob, false);
 				}
 				/* refresh shape... */
 				if (rbo->flag & RBO_FLAG_NEEDS_RESHAPE) {
 					/* mesh/shape data changed, so force shape refresh */
-					BKE_rigidbody_validate_sim_shape(ob, true);
+					rigidbody_validate_sim_shape(ob, true);
 					/* now tell RB sim about it */
 					// XXX: we assume that this can only get applied for active/passive shapes that will be included as rigidbodies
 					RB_body_set_collision_shape(rbo->physics_object, rbo->physics_shape);
@@ -1137,7 +1176,7 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, int r
 				 * constraint settings (perhaps it was added manually), add!
 				 */
 				ob->rigidbody_constraint = BKE_rigidbody_create_constraint(scene, ob, RBC_TYPE_FIXED);
-				BKE_rigidbody_validate_sim_constraint(rbw, ob, true);
+				rigidbody_validate_sim_constraint(rbw, ob, true);
 
 				rbc = ob->rigidbody_constraint;
 			}
@@ -1145,10 +1184,10 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, int r
 				/* perform simulation data updates as tagged */
 				if (rebuild) {
 					/* World has been rebuilt so rebuild constraint */
-					BKE_rigidbody_validate_sim_constraint(rbw, ob, true);
+					rigidbody_validate_sim_constraint(rbw, ob, true);
 				}
 				else if (rbc->flag & RBC_FLAG_NEEDS_VALIDATE) {
-					BKE_rigidbody_validate_sim_constraint(rbw, ob, false);
+					rigidbody_validate_sim_constraint(rbw, ob, false);
 				}
 				rbc->flag &= ~RBC_FLAG_NEEDS_VALIDATE;
 			}
@@ -1211,7 +1250,7 @@ void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
 	}
 }
 
-/* Used when cancelling transforms - return rigidbody and object to initial states */
+/* Used when canceling transforms - return rigidbody and object to initial states */
 void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle)
 {
 	RigidBodyOb *rbo = ob->rigidbody_object;
@@ -1268,7 +1307,7 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 		cache->flag |= PTCACHE_OUTDATED;
 	}
 
-	if (ctime <= startframe + 1 && rbw->ltime == startframe) {
+	if (ctime == startframe + 1 && rbw->ltime == startframe) {
 		if (cache->flag & PTCACHE_OUTDATED) {
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			rigidbody_update_simulation(scene, rbw, true);
@@ -1355,10 +1394,7 @@ void BKE_rigidbody_free_constraint(Object *ob) {}
 struct RigidBodyOb *BKE_rigidbody_copy_object(Object *ob) { return NULL; }
 struct RigidBodyCon *BKE_rigidbody_copy_constraint(Object *ob) { return NULL; }
 void BKE_rigidbody_relink_constraint(RigidBodyCon *rbc) {}
-void BKE_rigidbody_validate_sim_shape(Object *ob, short rebuild) {}
-void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short rebuild) {}
-void BKE_rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, short rebuild) {}
-void BKE_rigidbody_validate_sim_world(Scene *scene, RigidBodyWorld *rbw, short rebuild) {}
+void BKE_rigidbody_validate_sim_world(Scene *scene, RigidBodyWorld *rbw, bool rebuild) {}
 struct RigidBodyWorld *BKE_rigidbody_create_world(Scene *scene) { return NULL; }
 struct RigidBodyWorld *BKE_rigidbody_world_copy(RigidBodyWorld *rbw) { return NULL; }
 void BKE_rigidbody_world_groups_relink(struct RigidBodyWorld *rbw) {}

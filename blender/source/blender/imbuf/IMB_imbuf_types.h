@@ -150,6 +150,7 @@ typedef struct ImBuf {
 #define IB_MIPMAP_INVALID		(1 << 2)	/* image mipmaps are invalid, need recreate */
 #define IB_RECT_INVALID			(1 << 3)	/* float buffer changed, needs recreation of byte rect */
 #define IB_DISPLAY_BUFFER_INVALID	(1 << 4)	/* either float or byte buffer changed, need to re-calculate display buffers */
+#define IB_PERSISTENT				(1 << 5)	/* image buffer is persistent in the memory and should never be removed from the cache */
 
 /**
  * \name Imbuf Component flags
@@ -179,6 +180,10 @@ typedef struct ImBuf {
  * Note that the lower 11 bits is used for storing custom flags
  */
 #define IB_CUSTOM_FLAGS_MASK 0x7ff
+
+#ifdef WITH_OPENIMAGEIO
+#define PSD				(1 << 31)
+#endif
 
 #define PNG				(1 << 30)
 #define TGA				(1 << 28)
@@ -272,6 +277,9 @@ extern const char *imb_ext_image[];
 extern const char *imb_ext_image_qt[];
 extern const char *imb_ext_movie[];
 extern const char *imb_ext_audio[];
+
+/* image formats that can only be loaded via filepath */
+extern const char *imb_ext_image_filepath_only[];
 
 enum {
 	IMB_COLORMANAGE_IS_DATA = (1 << 0)

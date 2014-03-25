@@ -68,6 +68,9 @@
 #include "BKE_node.h"
 #include "BKE_animsys.h"
 #include "BKE_colortools.h"
+#include "BKE_scene.h"
+
+#include "RE_shader_ext.h"
 
 /* ****************** Mapping ******************* */
 
@@ -250,7 +253,7 @@ ColorBand *add_colorband(bool rangetype)
 
 /* ------------------------------------------------------------------------- */
 
-int do_colorband(const ColorBand *coba, float in, float out[4])
+bool do_colorband(const ColorBand *coba, float in, float out[4])
 {
 	const CBData *cbd1, *cbd2, *cbd0, *cbd3;
 	float fac, mfac, t[4];
@@ -579,7 +582,7 @@ Tex *add_texture(Main *bmain, const char *name)
 {
 	Tex *tex;
 
-	tex = BKE_libblock_alloc(&bmain->tex, ID_TE, name);
+	tex = BKE_libblock_alloc(bmain, ID_TE, name);
 	
 	default_tex(tex);
 	
@@ -1118,7 +1121,7 @@ void set_current_material_texture(Material *ma, Tex *newtex)
 	}
 }
 
-int has_current_material_texture(Material *ma)
+bool has_current_material_texture(Material *ma)
 {
 	bNode *node;
 
@@ -1419,9 +1422,7 @@ void BKE_free_oceantex(struct OceanTex *ot)
 /* ------------------------------------------------------------------------- */
 bool BKE_texture_dependsOnTime(const struct Tex *texture)
 {
-	if (texture->ima &&
-	    ELEM(texture->ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE))
-	{
+	if (texture->ima && BKE_image_is_animated(texture->ima)) {
 		return 1;
 	}
 	else if (texture->adt) {
@@ -1436,3 +1437,27 @@ bool BKE_texture_dependsOnTime(const struct Tex *texture)
 }
 
 /* ------------------------------------------------------------------------- */
+
+void BKE_texture_get_value(Scene *scene, Tex *texture, float *tex_co, TexResult *texres, bool use_color_management)
+{
+	int result_type;
+	bool do_color_manage = false;
+
+	if (scene && use_color_management) {
+		do_color_manage = BKE_scene_check_color_management_enabled(scene);
+	}
+
+	/* no node textures for now */
+	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, do_color_manage);
+
+	/* if the texture gave an RGB value, we assume it didn't give a valid
+	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.
+	 * if the texture didn't give an RGB value, copy the intensity across
+	 */
+	if (result_type & TEX_RGB) {
+		texres->tin = (1.0f / 3.0f) * (texres->tr + texres->tg + texres->tb);
+	}
+	else {
+		copy_v3_fl(&texres->tr, texres->tin);
+	}
+}

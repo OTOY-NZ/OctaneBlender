@@ -116,17 +116,23 @@ static void tracking_segment_start_cb(void *userdata, MovieTrackingTrack *track,
 	glBegin(GL_LINE_STRIP);
 }
 
-static void tracking_segment_end_cb(void *UNUSED(userdata))
+static void tracking_segment_end_cb(void *UNUSED(userdata), int UNUSED(coord))
 {
 	glEnd();
 
 	glLineWidth(1.0f);
 }
 
+typedef struct TrackMotionCurveUserData {
+	MovieTrackingTrack *act_track;
+	bool sel;
+	float xscale, yscale, hsize;
+} TrackMotionCurveUserData;
+
 static void tracking_segment_knot_cb(void *userdata, MovieTrackingTrack *track,
                                      MovieTrackingMarker *marker, int coord, int scene_framenr, float val)
 {
-	struct { MovieTrackingTrack *act_track; bool sel; float xscale, yscale, hsize; } *data = userdata;
+	TrackMotionCurveUserData *data = (TrackMotionCurveUserData *) userdata;
 	int sel = 0, sel_flag;
 
 	if (track != data->act_track)
@@ -145,13 +151,13 @@ static void tracking_segment_knot_cb(void *userdata, MovieTrackingTrack *track,
 	}
 }
 
-static void draw_tracks_curves(View2D *v2d, SpaceClip *sc)
+static void draw_tracks_motion_curves(View2D *v2d, SpaceClip *sc)
 {
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(tracking);
 	int width, height;
-	struct { MovieTrackingTrack *act_track; bool sel; float xscale, yscale, hsize; } userdata;
+	TrackMotionCurveUserData userdata;
 
 	BKE_movieclip_get_size(clip, &sc->user, &width, &height);
 
@@ -163,20 +169,131 @@ static void draw_tracks_curves(View2D *v2d, SpaceClip *sc)
 	userdata.sel = false;
 	userdata.act_track = act_track;
 	UI_view2d_getscale(v2d, &userdata.xscale, &userdata.yscale);
-	clip_graph_tracking_values_iterate(sc, sc->flag & SC_SHOW_GRAPH_SEL_ONLY, sc->flag & SC_SHOW_GRAPH_HIDDEN,
+	clip_graph_tracking_values_iterate(sc,
+	                                   (sc->flag & SC_SHOW_GRAPH_SEL_ONLY) != 0,
+	                                   (sc->flag & SC_SHOW_GRAPH_HIDDEN) != 0,
 	                                   &userdata, tracking_segment_knot_cb, NULL, NULL);
 
 	/* draw graph lines */
 	glEnable(GL_BLEND);
-	clip_graph_tracking_values_iterate(sc, sc->flag & SC_SHOW_GRAPH_SEL_ONLY, sc->flag & SC_SHOW_GRAPH_HIDDEN,
+	clip_graph_tracking_values_iterate(sc,
+	                                   (sc->flag & SC_SHOW_GRAPH_SEL_ONLY) != 0,
+	                                   (sc->flag & SC_SHOW_GRAPH_HIDDEN) != 0,
 	                                   act_track, tracking_segment_point_cb, tracking_segment_start_cb,
 	                                   tracking_segment_end_cb);
 	glDisable(GL_BLEND);
 
 	/* selected knot handles on top of curves */
-	userdata.sel = TRUE;
-	clip_graph_tracking_values_iterate(sc, sc->flag & SC_SHOW_GRAPH_SEL_ONLY, sc->flag & SC_SHOW_GRAPH_HIDDEN,
+	userdata.sel = true;
+	clip_graph_tracking_values_iterate(sc,
+	                                   (sc->flag & SC_SHOW_GRAPH_SEL_ONLY) != 0,
+	                                   (sc->flag & SC_SHOW_GRAPH_HIDDEN) != 0,
 	                                   &userdata, tracking_segment_knot_cb, NULL, NULL);
+}
+
+typedef struct TrackErrorCurveUserData {
+	MovieClip *clip;
+	MovieTracking *tracking;
+	MovieTrackingObject *tracking_object;
+	MovieTrackingTrack *active_track;
+	bool matrix_initialized;
+	int matrix_frame;
+	float projection_matrix[4][4];
+	int width, height;
+	float aspy;
+} TrackErrorCurveUserData;
+
+static void tracking_error_segment_point_cb(void *userdata,
+                                            MovieTrackingTrack *track, MovieTrackingMarker *marker,
+                                            int coord, int scene_framenr, float UNUSED(value))
+{
+	if (coord == 1) {
+		TrackErrorCurveUserData *data = (TrackErrorCurveUserData *) userdata;
+		float reprojected_position[4], bundle_position[4], marker_position[2], delta[2];
+		float reprojection_error;
+		float weight = BKE_tracking_track_get_weight_for_marker(data->clip, track, marker);
+
+		if (!data->matrix_initialized || data->matrix_frame != scene_framenr) {
+			BKE_tracking_get_projection_matrix(data->tracking, data->tracking_object,
+			                                   scene_framenr, data->width, data->height,
+			                                   data->projection_matrix);
+		}
+
+		copy_v3_v3(bundle_position, track->bundle_pos);
+		bundle_position[3] = 1;
+
+		mul_v4_m4v4(reprojected_position, data->projection_matrix, bundle_position);
+		reprojected_position[0] = (reprojected_position[0] /
+		                          (reprojected_position[3] * 2.0f) + 0.5f) * data->width;
+		reprojected_position[1] = (reprojected_position[1] /
+		                          (reprojected_position[3] * 2.0f) + 0.5f) * data->height * data->aspy;
+
+		BKE_tracking_distort_v2(data->tracking, reprojected_position, reprojected_position);
+
+		marker_position[0] = (marker->pos[0] + track->offset[0]) * data->width;
+		marker_position[1] = (marker->pos[1] + track->offset[1]) * data->height * data->aspy;
+
+		sub_v2_v2v2(delta, reprojected_position, marker_position);
+		reprojection_error = len_v2(delta) * weight;
+
+		glVertex2f(scene_framenr, reprojection_error);
+	}
+}
+
+static void tracking_error_segment_start_cb(void *userdata, MovieTrackingTrack *track, int coord)
+{
+	if (coord == 1) {
+		TrackErrorCurveUserData *data = (TrackErrorCurveUserData *) userdata;
+		float col[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+
+		if (track == data->active_track) {
+			col[3] = 1.0f;
+			glLineWidth(2.0f);
+		}
+		else {
+			col[3] = 0.5f;
+			glLineWidth(1.0f);
+		}
+
+		glColor4fv(col);
+
+		glBegin(GL_LINE_STRIP);
+	}
+}
+
+static void tracking_error_segment_end_cb(void *UNUSED(userdata), int coord)
+{
+	if (coord == 1) {
+		glEnd();
+		glLineWidth(1.0f);
+	}
+}
+
+static void draw_tracks_error_curves(SpaceClip *sc)
+{
+	MovieClip *clip = ED_space_clip_get_clip(sc);
+	MovieTracking *tracking = &clip->tracking;
+	TrackErrorCurveUserData data;
+
+	data.clip = clip;
+	data.tracking = tracking;
+	data.tracking_object = BKE_tracking_object_get_active(tracking);
+	data.active_track = BKE_tracking_track_get_active(tracking);
+	data.matrix_initialized = false;
+	BKE_movieclip_get_size(clip, &sc->user, &data.width, &data.height);
+	data.aspy = 1.0f / tracking->camera.pixel_aspect;
+
+	if (!data.width || !data.height) {
+		return;
+	}
+
+	clip_graph_tracking_values_iterate(sc,
+	                                   (sc->flag & SC_SHOW_GRAPH_SEL_ONLY) != 0,
+	                                   (sc->flag & SC_SHOW_GRAPH_HIDDEN) != 0,
+	                                   &data,
+	                                   tracking_error_segment_point_cb,
+	                                   tracking_error_segment_start_cb,
+	                                   tracking_error_segment_end_cb);
 }
 
 static void draw_frame_curves(SpaceClip *sc)
@@ -225,8 +342,11 @@ void clip_draw_graph(SpaceClip *sc, ARegion *ar, Scene *scene)
 	UI_view2d_grid_free(grid);
 
 	if (clip) {
-		if (sc->flag & SC_SHOW_GRAPH_TRACKS)
-			draw_tracks_curves(v2d, sc);
+		if (sc->flag & SC_SHOW_GRAPH_TRACKS_MOTION)
+			draw_tracks_motion_curves(v2d, sc);
+
+		if (sc->flag & SC_SHOW_GRAPH_TRACKS_ERROR)
+			draw_tracks_error_curves(sc);
 
 		if (sc->flag & SC_SHOW_GRAPH_FRAMES)
 			draw_frame_curves(sc);

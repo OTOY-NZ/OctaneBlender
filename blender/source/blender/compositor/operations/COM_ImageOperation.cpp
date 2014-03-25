@@ -28,12 +28,12 @@
 #include "BLI_math.h"
 
 extern "C" {
-	#include "RE_pipeline.h"
-	#include "RE_shader_ext.h"
-	#include "RE_render_ext.h"
-	#include "IMB_imbuf.h"
-	#include "IMB_imbuf_types.h"
-	#include "IMB_colormanagement.h"
+#  include "RE_pipeline.h"
+#  include "RE_shader_ext.h"
+#  include "RE_render_ext.h"
+#  include "IMB_imbuf.h"
+#  include "IMB_imbuf_types.h"
+#  include "IMB_colormanagement.h"
 }
 
 BaseImageOperation::BaseImageOperation() : NodeOperation()
@@ -146,9 +146,9 @@ static void sampleImageAtLocation(ImBuf *ibuf, float x, float y, PixelSampler sa
 	}
 }
 
-void ImageOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void ImageOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	if ((this->m_imageFloatBuffer == NULL && this->m_imageByteBuffer == NULL) || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
+	if (this->m_imageFloatBuffer == NULL && this->m_imageByteBuffer == NULL) {
 		zero_v4(output);
 	}
 	else {
@@ -156,11 +156,11 @@ void ImageOperation::executePixel(float output[4], float x, float y, PixelSample
 	}
 }
 
-void ImageAlphaOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void ImageAlphaOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 	float tempcolor[4];
 
-	if ((this->m_imageFloatBuffer == NULL && this->m_imageByteBuffer == NULL) || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
+	if (this->m_imageFloatBuffer == NULL && this->m_imageByteBuffer == NULL) {
 		output[0] = 0.0f;
 	}
 	else {
@@ -170,13 +170,17 @@ void ImageAlphaOperation::executePixel(float output[4], float x, float y, PixelS
 	}
 }
 
-void ImageDepthOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void ImageDepthOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	if (this->m_depthBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
+	if (this->m_depthBuffer == NULL) {
 		output[0] = 0.0f;
 	}
 	else {
-		int offset = y * this->m_width + x;
-		output[0] = this->m_depthBuffer[offset];
+		if (x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight())
+			output[0] = 0.0f;
+		else {
+			int offset = y * this->m_width + x;
+			output[0] = this->m_depthBuffer[offset];
+		}
 	}
 }

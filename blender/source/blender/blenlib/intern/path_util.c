@@ -89,18 +89,18 @@ static char btempdir[FILE_MAX];     /* temporary directory */
  */
 int BLI_stringdec(const char *string, char *head, char *tail, unsigned short *numlen)
 {
-	unsigned short nums = 0, nume = 0;
-	short i;
+	unsigned int nums = 0, nume = 0;
+	int i;
 	bool found_digit = false;
 	const char * const lslash = BLI_last_slash(string);
-	const unsigned short string_len = strlen(string);
-	const unsigned short lslash_len = lslash != NULL ? (int)(lslash - string) : 0;
-	unsigned short name_end = string_len;
+	const unsigned int string_len = strlen(string);
+	const unsigned int lslash_len = lslash != NULL ? (int)(lslash - string) : 0;
+	unsigned int name_end = string_len;
 
 	while (name_end > lslash_len && string[--name_end] != '.') {} /* name ends at dot if present */
 	if (name_end == lslash_len && string[name_end] != '.') name_end = string_len;
 
-	for (i = name_end - 1; i >= lslash_len; i--) {
+	for (i = name_end - 1; i >= (int)lslash_len; i--) {
 		if (isdigit(string[i])) {
 			if (found_digit) {
 				nums = i;
@@ -229,7 +229,7 @@ void BLI_newname(char *name, int add)
  * \return true if there if the name was changed
  */
 bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
-                       void *arg, const char *defname, char delim, char *name, short name_len)
+                       void *arg, const char *defname, char delim, char *name, int name_len)
 {
 	if (name[0] == '\0') {
 		BLI_strncpy(name, defname, name_len);
@@ -268,7 +268,7 @@ bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
 
 /* little helper macro for BLI_uniquename */
 #ifndef GIVE_STRADDR
-	#define GIVE_STRADDR(data, offset) ( ((char *)data) + offset)
+#  define GIVE_STRADDR(data, offset) ( ((char *)data) + offset)
 #endif
 
 /* Generic function to set a unique name. It is only designed to be used in situations
@@ -281,13 +281,13 @@ bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
  *  defname: the name that should be used by default if none is specified already
  *  delim: the character which acts as a delimiter between parts of the name
  */
-static bool uniquename_find_dupe(ListBase *list, void *vlink, const char *name, short name_offs)
+static bool uniquename_find_dupe(ListBase *list, void *vlink, const char *name, int name_offs)
 {
 	Link *link;
 
 	for (link = list->first; link; link = link->next) {
 		if (link != vlink) {
-			if (!strcmp(GIVE_STRADDR(link, name_offs), name)) {
+			if (STREQ(GIVE_STRADDR(link, name_offs), name)) {
 				return true;
 			}
 		}
@@ -298,7 +298,7 @@ static bool uniquename_find_dupe(ListBase *list, void *vlink, const char *name, 
 
 static bool uniquename_unique_check(void *arg, const char *name)
 {
-	struct {ListBase *lb; void *vlink; short name_offs; } *data = arg;
+	struct {ListBase *lb; void *vlink; int name_offs; } *data = arg;
 	return uniquename_find_dupe(data->lb, data->vlink, name, data->name_offs);
 }
 
@@ -313,9 +313,9 @@ static bool uniquename_unique_check(void *arg, const char *name)
  * \param name_offs  Offset of name within block structure
  * \param name_len  Maximum length of name area
  */
-void BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim, short name_offs, short name_len)
+void BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim, int name_offs, int name_len)
 {
-	struct {ListBase *lb; void *vlink; short name_offs; } data;
+	struct {ListBase *lb; void *vlink; int name_offs; } data;
 	data.lb = list;
 	data.vlink = vlink;
 	data.name_offs = name_offs;
@@ -576,31 +576,12 @@ void BLI_path_rel(char *file, const char *relfile)
 }
 
 /**
- * Cleans path and makes sure it ends with a slash.
- * \return  true if \a path has more than one other path separator in it.
- */
-bool BLI_has_parent(char *path)
-{
-	int len;
-	int slashes = 0;
-	BLI_clean(path);
-	len = BLI_add_slash(path) - 1;
-
-	while (len >= 0) {
-		if ((path[len] == '\\') || (path[len] == '/'))
-			slashes++;
-		len--;
-	}
-	return slashes > 1;
-}
-
-/**
  * Replaces path with the path of its parent directory, returning true if
  * it was able to find a parent directory within the pathname.
  */
 bool BLI_parent_dir(char *path)
 {
-	static char parent_dir[] = {'.', '.', SEP, '\0'}; /* "../" or "..\\" */
+	const char parent_dir[] = {'.', '.', SEP, '\0'}; /* "../" or "..\\" */
 	char tmp[FILE_MAX + 4];
 
 	BLI_join_dirfile(tmp, sizeof(tmp), path, parent_dir);
@@ -622,7 +603,7 @@ bool BLI_parent_dir(char *path)
  */
 static bool stringframe_chars(const char *path, int *char_start, int *char_end)
 {
-	int ch_sta, ch_end, i;
+	unsigned int ch_sta, ch_end, i;
 	/* Insert current frame: file### -> file001 */
 	ch_sta = ch_end = 0;
 	for (i = 0; path[i] != '\0'; i++) {
@@ -717,6 +698,15 @@ bool BLI_path_frame_range(char *path, int sta, int end, int digits)
 		return true;
 	}
 	return false;
+}
+
+/**
+ * Check if we have '#' chars, usable for #BLI_path_frame, #BLI_path_frame_range
+ */
+bool BLI_path_frame_check_chars(const char *path)
+{
+	int ch_sta, ch_end;  /* dummy args */
+	return stringframe_chars(path, &ch_sta, &ch_end);
 }
 
 /**
@@ -1534,20 +1524,53 @@ void BLI_make_file_string(const char *relabase, char *string, const char *dir, c
 	BLI_clean(string);
 }
 
+static bool testextensie_ex(const char *str, const size_t str_len,
+                            const char *ext, const size_t ext_len)
+{
+	BLI_assert(strlen(str) == str_len);
+	BLI_assert(strlen(ext) == ext_len);
+
+	return  (((str_len == 0 || ext_len == 0 || ext_len >= str_len) == 0) &&
+	         (BLI_strcasecmp(ext, str + str_len - ext_len) == 0));
+}
+
 /* does str end with ext. */
 bool BLI_testextensie(const char *str, const char *ext)
 {
-	const size_t a = strlen(str);
-	const size_t b = strlen(ext);
-	return !(a == 0 || b == 0 || b >= a) && (BLI_strcasecmp(ext, str + a - b) == 0);
+	return testextensie_ex(str, strlen(str), ext, strlen(ext));
+}
+
+bool BLI_testextensie_n(const char *str, ...)
+{
+	const size_t str_len = strlen(str);
+
+	va_list args;
+	const char *ext;
+	bool ret = false;
+
+	va_start(args, str);
+
+	while ((ext = (const char *) va_arg(args, void *))) {
+		if (testextensie_ex(str, str_len, ext, strlen(ext))) {
+			ret = true;
+			goto finally;
+		}
+	}
+
+finally:
+	va_end(args);
+
+	return ret;
 }
 
 /* does str end with any of the suffixes in *ext_array. */
 bool BLI_testextensie_array(const char *str, const char **ext_array)
 {
+	const size_t str_len = strlen(str);
 	int i = 0;
+
 	while (ext_array[i]) {
-		if (BLI_testextensie(str, ext_array[i])) {
+		if (testextensie_ex(str, str_len, ext_array[i], strlen(ext_array[i]))) {
 			return true;
 		}
 

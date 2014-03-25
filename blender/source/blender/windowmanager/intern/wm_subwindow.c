@@ -30,8 +30,9 @@
 
 /** \file blender/windowmanager/intern/wm_subwindow.c
  *  \ingroup wm
+ *
+ * Internal subwindows used for OpenGL state, used for regions and screens.
  */
-
 
 #include <string.h>
 
@@ -209,6 +210,9 @@ void wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct)
 	wmSubWindow *swin = swin_from_swinid(win, swinid);
 	
 	if (swin) {
+		const int winsize_x = WM_window_pixels_x(win);
+		const int winsize_y = WM_window_pixels_y(win);
+
 		int width, height;
 		
 		swin->winrct = *winrct;
@@ -226,10 +230,10 @@ void wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct)
 		 * fixed it). - zr  (2001!)
 		 */
 		
-		if (swin->winrct.xmax > WM_window_pixels_x(win))
-			swin->winrct.xmax = WM_window_pixels_x(win);
-		if (swin->winrct.ymax > WM_window_pixels_y(win))
-			swin->winrct.ymax = WM_window_pixels_y(win);
+		if (swin->winrct.xmax > winsize_x)
+			swin->winrct.xmax = winsize_x;
+		if (swin->winrct.ymax > winsize_y)
+			swin->winrct.ymax = winsize_y;
 		
 		/* extra service */
 		wmSubWindowSet(win, swinid);

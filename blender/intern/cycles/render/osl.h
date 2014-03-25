@@ -142,14 +142,16 @@ public:
 	ImageManager *image_manager;
 
 private:
+#ifdef WITH_OSL
 	string id(ShaderNode *node);
-	void compile_type(Shader *shader, ShaderGraph *graph, ShaderType type);
+	OSL::ShadingAttribStateRef compile_type(Shader *shader, ShaderGraph *graph, ShaderType type);
 	bool node_skip_input(ShaderNode *node, ShaderInput *input);
 	string compatible_name(ShaderNode *node, ShaderInput *input);
 	string compatible_name(ShaderNode *node, ShaderOutput *output);
 
 	void find_dependencies(set<ShaderNode*>& dependencies, ShaderInput *input);
 	void generate_nodes(const set<ShaderNode*>& nodes);
+#endif
 
 	void *shadingsys;
 	void *manager;

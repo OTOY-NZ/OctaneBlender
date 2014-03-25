@@ -47,7 +47,7 @@ struct MTex;
 
 /**
  * World defines general modeling data such as a background fill,
- * gravity, color model, stars, etc. It mixes game-data, rendering
+ * gravity, color model etc. It mixes game-data, rendering
  * data and modeling data. */
 typedef struct World {
 	ID id;
@@ -96,8 +96,8 @@ typedef struct World {
 	float misi, miststa, mistdist, misthi;
 	
 	float starr  DNA_DEPRECATED, starg  DNA_DEPRECATED, starb  DNA_DEPRECATED, stark  DNA_DEPRECATED; /* Deprecated */
-	float starsize, starmindist;
-	float stardist, starcolnoise;
+	float starsize DNA_DEPRECATED, starmindist DNA_DEPRECATED;
+	float stardist DNA_DEPRECATED, starcolnoise DNA_DEPRECATED;
 	
 	/* unused now: DOF */
 	short dofsta, dofend, dofmin, dofmax;
@@ -142,7 +142,7 @@ typedef struct World {
 
 /* mode */
 #define WO_MIST	               1
-#define WO_STARS               2
+//#define WO_STARS               2 /* deprecated */
 /*#define WO_DOF                 4*/
 #define WO_ACTIVITY_CULLING	   8
 #define WO_ENV_LIGHT   		  16
@@ -151,10 +151,16 @@ typedef struct World {
 #define WO_INDIRECT_LIGHT	  128
 
 /* aomix */
-#define WO_AOADD	0
-#define WO_AOSUB	1 /* deprecated */
-#define WO_AOADDSUB	2 /* deprecated */
-#define WO_AOMUL	3
+enum {
+	WO_AOADD    = 0,
+	WO_AOSUB    = 1,  /* deprecated */
+	WO_AOADDSUB = 2,  /* deprecated */
+	WO_AOMUL    = 3,
+};
+
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison WO_AOSUB WO_AOADDSUB
+#endif
 
 /* ao_samp_method - methods for sampling the AO hemi */
 #define WO_AOSAMP_CONSTANT			0

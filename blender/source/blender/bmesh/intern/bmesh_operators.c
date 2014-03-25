@@ -238,6 +238,9 @@ void BMO_op_finish(BMesh *bm, BMOperator *op)
 
 #ifdef DEBUG
 	BM_ELEM_INDEX_VALIDATE(bm, "post bmo", bmo_opdefines[op->type]->opname);
+
+	/* avoid accidental re-use */
+	memset(op, 0xff, sizeof(*op));
 #else
 	(void)bm;
 #endif
@@ -1311,13 +1314,10 @@ static void bmo_flag_layer_free(BMesh *bm)
 
 static void bmo_flag_layer_clear(BMesh *bm)
 {
-	BMElemF *ele;
 	/* set the index values since we are looping over all data anyway,
 	 * may save time later on */
-	int i;
 	const BMFlagLayer zero_flag = {0};
 
-	BMIter iter;
 	const int totflags_offset = bm->totflags - 1;
 
 #pragma omp parallel sections if (bm->totvert + bm->totedge + bm->totface >= BM_OMP_LIMIT)
@@ -1325,6 +1325,9 @@ static void bmo_flag_layer_clear(BMesh *bm)
 		/* now go through and memcpy all the flag */
 #pragma omp section
 		{
+			BMIter iter;
+			BMElemF *ele;
+			int i;
 			BM_ITER_MESH_INDEX (ele, &iter, bm, BM_VERTS_OF_MESH, i) {
 				ele->oflags[totflags_offset] = zero_flag;
 				BM_elem_index_set(ele, i); /* set_inline */
@@ -1332,6 +1335,9 @@ static void bmo_flag_layer_clear(BMesh *bm)
 		}
 #pragma omp section
 		{
+			BMIter iter;
+			BMElemF *ele;
+			int i;
 			BM_ITER_MESH_INDEX (ele, &iter, bm, BM_EDGES_OF_MESH, i) {
 				ele->oflags[totflags_offset] = zero_flag;
 				BM_elem_index_set(ele, i); /* set_inline */
@@ -1339,6 +1345,9 @@ static void bmo_flag_layer_clear(BMesh *bm)
 		}
 #pragma omp section
 		{
+			BMIter iter;
+			BMElemF *ele;
+			int i;
 			BM_ITER_MESH_INDEX (ele, &iter, bm, BM_FACES_OF_MESH, i) {
 				ele->oflags[totflags_offset] = zero_flag;
 				BM_elem_index_set(ele, i); /* set_inline */
@@ -1463,7 +1472,7 @@ int BMO_iter_map_value_int(BMOIter *iter)
 bool BMO_iter_map_value_bool(BMOIter *iter)
 {
 	BLI_assert(iter->slot->slot_subtype.map == BMO_OP_SLOT_SUBTYPE_MAP_BOOL);
-	return **((int **)iter->val);
+	return **((bool **)iter->val);
 }
 
 /* error system */
@@ -1495,7 +1504,7 @@ void BMO_error_raise(BMesh *bm, BMOperator *owner, int errcode, const char *msg)
 
 bool BMO_error_occurred(BMesh *bm)
 {
-	return bm->errorstack.first != NULL;
+	return (BLI_listbase_is_empty(&bm->errorstack) == false);
 }
 
 /* returns error code or 0 if no error */
@@ -1639,9 +1648,9 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 //	BMOpDefine *def;
 	char *opname, *ofmt, *fmt;
 	char slot_name[64] = {0};
-	int i /*, n = strlen(fmt) */, stop /*, slot_code = -1 */, type, state;
+	int i, type;
+	bool noslot, state;
 	char htype;
-	int noslot = 0;
 
 
 	/* basic useful info to help find where bmop formatting strings fail */
@@ -1662,7 +1671,7 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 	i = strcspn(fmt, " ");
 
 	opname = fmt;
-	if (!opname[i]) noslot = 1;
+	noslot = (opname[i] == '\0');
 	opname[i] = '\0';
 
 	fmt += i + (noslot ? 0 : 1);
@@ -1679,7 +1688,7 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 //	def = bmo_opdefines[i];
 	
 	i = 0;
-	state = 1; /* 0: not inside slot_code name, 1: inside slot_code name */
+	state = true;  /* false: not inside slot_code name, true: inside slot_code name */
 
 	while (*fmt) {
 		if (state) {
@@ -1705,7 +1714,7 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 			
 			BLI_strncpy(slot_name, fmt, sizeof(slot_name));
 			
-			state = 0;
+			state = false;
 			fmt += i;
 		}
 		else {
@@ -1726,13 +1735,13 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 					else GOTO_ERROR("matrix size was not 3 or 4");
 
 					BMO_slot_mat_set(op, op->slots_in, slot_name, va_arg(vlist, void *), size);
-					state = 1;
+					state = true;
 					break;
 				}
 				case 'v':
 				{
 					BMO_slot_vec_set(op->slots_in, slot_name, va_arg(vlist, float *));
-					state = 1;
+					state = true;
 					break;
 				}
 				case 'e':  /* single vert/edge/face */
@@ -1742,7 +1751,7 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 
 					BMO_slot_buffer_from_single(op, slot, ele);
 
-					state = 1;
+					state = true;
 					break;
 				}
 				case 's':
@@ -1761,20 +1770,20 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 						BMO_slot_copy(op_other, slots_out, slot_name_other,
 						              op,       slots_in, slot_name);
 					}
-					state = 1;
+					state = true;
 					break;
 				}
 				case 'i':
 					BMO_slot_int_set(op->slots_in, slot_name, va_arg(vlist, int));
-					state = 1;
+					state = true;
 					break;
 				case 'b':
 					BMO_slot_bool_set(op->slots_in, slot_name, va_arg(vlist, int));
-					state = 1;
+					state = true;
 					break;
 				case 'p':
 					BMO_slot_ptr_set(op->slots_in, slot_name, va_arg(vlist, void *));
-					state = 1;
+					state = true;
 					break;
 				case 'f':
 				case 'F':
@@ -1787,15 +1796,16 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 						BMO_slot_float_set(op->slots_in, slot_name, va_arg(vlist, double));
 					}
 					else {
+						bool stop = false;
+
 						htype = 0;
-						stop = 0;
 						while (1) {
 							switch (NEXT_CHAR(fmt)) {
 								case 'f': htype |= BM_FACE; break;
 								case 'e': htype |= BM_EDGE; break;
 								case 'v': htype |= BM_VERT; break;
 								default:
-									stop = 1;
+									stop = true;
 									break;
 							}
 							if (stop) {
@@ -1822,7 +1832,7 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
 						}
 					}
 
-					state = 1;
+					state = true;
 					break;
 				default:
 					fprintf(stderr,

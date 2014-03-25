@@ -113,7 +113,7 @@ static int vgroup_add_unique_bone_cb(Object *ob, Bone *bone, void *UNUSED(ptr))
 {
 	/* This group creates a vertex group to ob that has the
 	 * same name as bone (provided the bone is skinnable). 
-	 * If such a vertex group aleady exist the routine exits.
+	 * If such a vertex group already exist the routine exits.
 	 */
 	if (!(bone->flag & BONE_NO_DEFORM)) {
 		if (!defgroup_find_name(ob, bone->name)) {
@@ -346,11 +346,10 @@ static void add_verts_to_dgroups(ReportList *reports, Scene *scene, Object *ob, 
 		
 		/* find flipped group */
 		if (dgroup && mirror) {
-			char name[MAXBONENAME];
+			char name_flip[MAXBONENAME];
 
-			// 0 = don't strip off number extensions
-			flip_side_name(name, dgroup->name, FALSE);
-			dgroupflip[j] = defgroup_find_name(ob, name);
+			BKE_deform_flip_side_name(name_flip, dgroup->name, false);
+			dgroupflip[j] = defgroup_find_name(ob, name_flip);
 		}
 	}
 
@@ -387,9 +386,13 @@ static void add_verts_to_dgroups(ReportList *reports, Scene *scene, Object *ob, 
 	/* compute the weights based on gathered vertices and bones */
 	if (heat) {
 		const char *error = NULL;
+
+#ifdef WITH_OPENNL
 		heat_bone_weighting(ob, mesh, verts, numbones, dgrouplist, dgroupflip,
 		                    root, tip, selected, &error);
-		
+#else
+		error = "Built without OpenNL";
+#endif
 		if (error) {
 			BKE_report(reports, RPT_WARNING, error);
 		}
@@ -400,7 +403,7 @@ static void add_verts_to_dgroups(ReportList *reports, Scene *scene, Object *ob, 
 	}
 
 	/* only generated in some cases but can call anyway */
-	mesh_octree_table(ob, NULL, NULL, 'e');
+	ED_mesh_mirror_spatial_table(ob, NULL, NULL, 'e');
 
 	/* free the memory allocated */
 	MEM_freeN(bonelist);

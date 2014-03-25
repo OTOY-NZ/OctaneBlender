@@ -44,6 +44,7 @@
 
 struct bGPdata;
 struct ImBuf;
+struct Image;
 struct MovieReconstructedCamera;
 struct MovieTrackingCamera;
 struct MovieTrackingBundle;
@@ -142,6 +143,17 @@ typedef struct MovieTrackingTrack {
 	float minimum_correlation;          /* minimal correlation which is still treated as successful tracking */
 
 	struct bGPdata *gpd;        /* grease-pencil data */
+
+	/* Weight of this track.
+	 *
+	 * Weight defines how much the track affects on the final reconstruction,
+	 * usually gets animated in a way so when track has just appeared it's
+	 * weight is zero and then it gets faded up.
+	 *
+	 * Used to prevent jumps of the camera when tracks are appearing or
+	 * disappearing.
+	 */
+	float weight, pad;
 } MovieTrackingTrack;
 
 typedef struct MovieTrackingPlaneMarker {
@@ -178,8 +190,11 @@ typedef struct MovieTrackingPlaneTrack {
 
 	int flag;    /* flags (selection, ...) */
 
+	struct Image *image;                 /* Image displaying during editing */
+	float image_opacity;                 /* Opacity of the image */
+
 	/* Runtime data */
-	int last_marker, pad2;               /* Most recently used marker */
+	int last_marker;                     /* Most recently used marker */
 } MovieTrackingPlaneTrack;
 
 typedef struct MovieTrackingSettings {
@@ -195,6 +210,7 @@ typedef struct MovieTrackingSettings {
 	short default_margin;               /* margin from frame boundaries */
 	short default_pattern_match;        /* re-adjust every N frames */
 	short default_flag;                 /* default flags like color channels used by default */
+	float default_weight;               /* default weight of the track */
 
 	short motion_flag;      /* flags describes motion type */
 
@@ -207,7 +223,6 @@ typedef struct MovieTrackingSettings {
 		                             * were moved to per-tracking object settings
 		                             */
 
-	float reconstruction_success_threshold;
 	int reconstruction_flag;
 
 	/* which camera intrinsics to refine. uses on the REFINE_* flags */
@@ -388,7 +403,8 @@ enum {
 
 /* MovieTrackingSettings->flag */
 enum {
-	TRACKING_SETTINGS_SHOW_DEFAULT_EXPANDED = (1 << 0)
+	TRACKING_SETTINGS_SHOW_DEFAULT_EXPANDED = (1 << 0),
+	TRACKING_SETTINGS_SHOW_EXTRA_EXPANDED = (1 << 1)
 };
 
 /* MovieTrackingSettings->motion_flag */
@@ -409,7 +425,7 @@ enum {
 
 /* MovieTrackingSettings->reconstruction_flag */
 enum {
-	TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0),
+	/* TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0), */  /* DEPRECATED */
 	TRACKING_USE_KEYFRAME_SELECTION      = (1 << 1)
 };
 

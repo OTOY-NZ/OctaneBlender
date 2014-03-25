@@ -25,7 +25,7 @@ CCL_NAMESPACE_BEGIN
 
 #define BSSRDF_MULTI_EVAL
 
-__device ShaderClosure *subsurface_scatter_pick_closure(KernelGlobals *kg, ShaderData *sd, float *probability)
+ccl_device ShaderClosure *subsurface_scatter_pick_closure(KernelGlobals *kg, ShaderData *sd, float *probability)
 {
 	/* sum sample weights of bssrdf and bsdf */
 	float bsdf_sum = 0.0f;
@@ -80,7 +80,7 @@ __device ShaderClosure *subsurface_scatter_pick_closure(KernelGlobals *kg, Shade
 	return NULL;
 }
 
-__device float3 subsurface_scatter_eval(ShaderData *sd, ShaderClosure *sc, float disk_r, float r, bool all)
+ccl_device float3 subsurface_scatter_eval(ShaderData *sd, ShaderClosure *sc, float disk_r, float r, bool all)
 {
 #ifdef BSSRDF_MULTI_EVAL
 	/* this is the veach one-sample model with balance heuristic, some pdf
@@ -133,7 +133,7 @@ __device float3 subsurface_scatter_eval(ShaderData *sd, ShaderClosure *sc, float
 }
 
 /* replace closures with a single diffuse bsdf closure after scatter step */
-__device void subsurface_scatter_setup_diffuse_bsdf(ShaderData *sd, float3 weight, bool hit, float3 N)
+ccl_device void subsurface_scatter_setup_diffuse_bsdf(ShaderData *sd, float3 weight, bool hit, float3 N)
 {
 	sd->flag &= ~SD_CLOSURE_FLAGS;
 	sd->randb_closure = 0.0f;
@@ -158,7 +158,7 @@ __device void subsurface_scatter_setup_diffuse_bsdf(ShaderData *sd, float3 weigh
 }
 
 /* optionally do blurring of color and/or bump mapping, at the cost of a shader evaluation */
-__device float3 subsurface_color_pow(float3 color, float exponent)
+ccl_device float3 subsurface_color_pow(float3 color, float exponent)
 {
 	color = max(color, make_float3(0.0f, 0.0f, 0.0f));
 
@@ -179,7 +179,7 @@ __device float3 subsurface_color_pow(float3 color, float exponent)
 	return color;
 }
 
-__device void subsurface_color_bump_blur(KernelGlobals *kg, ShaderData *out_sd, ShaderData *in_sd, int state_flag, float3 *eval, float3 *N)
+ccl_device void subsurface_color_bump_blur(KernelGlobals *kg, ShaderData *out_sd, ShaderData *in_sd, int state_flag, float3 *eval, float3 *N)
 {
 	/* average color and texture blur at outgoing point */
 	float texture_blur;
@@ -207,7 +207,7 @@ __device void subsurface_color_bump_blur(KernelGlobals *kg, ShaderData *out_sd, 
 }
 
 /* subsurface scattering step, from a point on the surface to other nearby points on the same object */
-__device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, ShaderData bssrdf_sd[BSSRDF_MAX_HITS],
+ccl_device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, ShaderData bssrdf_sd[BSSRDF_MAX_HITS],
 	int state_flag, ShaderClosure *sc, uint *lcg_state, float disk_u, float disk_v, bool all)
 {
 	/* pick random axis in local frame and point on disk */
@@ -250,8 +250,8 @@ __device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, Sh
 	}
 
 	/* sample point on disk */
-    float phi = M_2PI_F * disk_u;
-    float disk_r = disk_v;
+	float phi = M_2PI_F * disk_u;
+	float disk_r = disk_v;
 	float disk_height;
 
 	bssrdf_sample(sc, disk_r, &disk_r, &disk_height);
@@ -313,7 +313,7 @@ __device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, Sh
 }
 
 /* subsurface scattering step, from a point on the surface to another nearby point on the same object */
-__device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd,
+ccl_device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd,
 	int state_flag, ShaderClosure *sc, uint *lcg_state, float disk_u, float disk_v, bool all)
 {
 	float3 eval = make_float3(0.0f, 0.0f, 0.0f);
@@ -401,165 +401,6 @@ __device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd,
 
 	/* setup diffuse bsdf */
 	subsurface_scatter_setup_diffuse_bsdf(sd, eval, (num_hits > 0), N);
-}
-
-
-/* OLD BSSRDF */
-
-__device float old_bssrdf_sample_distance(KernelGlobals *kg, float radius, float refl, float u)
-{
-	int table_offset = kernel_data.bssrdf.table_offset;
-	float r = lookup_table_read_2D(kg, u, refl, table_offset, BSSRDF_RADIUS_TABLE_SIZE, BSSRDF_REFL_TABLE_SIZE);
-
-	return r*radius;
-}
-
-#ifdef BSSRDF_MULTI_EVAL
-__device float old_bssrdf_pdf(KernelGlobals *kg, float radius, float refl, float r)
-{
-	if(r >= radius)
-		return 0.0f;
-
-	/* todo: when we use the real BSSRDF this will need to be divided by the maximum
-	 * radius instead of the average radius */
-	float t = r/radius;
-
-	int table_offset = kernel_data.bssrdf.table_offset + BSSRDF_PDF_TABLE_OFFSET;
-	float pdf = lookup_table_read_2D(kg, t, refl, table_offset, BSSRDF_RADIUS_TABLE_SIZE, BSSRDF_REFL_TABLE_SIZE);
-
-	pdf /= radius;
-
-	return pdf;
-}
-#endif
-
-#ifdef BSSRDF_MULTI_EVAL
-__device float3 old_subsurface_scatter_multi_eval(KernelGlobals *kg, ShaderData *sd, bool hit, float refl, float *r, int num_r, bool all)
-{
-	/* compute pdf */
-	float3 eval_sum = make_float3(0.0f, 0.0f, 0.0f);
-	float pdf_sum = 0.0f;
-	float sample_weight_sum = 0.0f;
-	int num_bssrdf = 0;
-
-	for(int i = 0; i < sd->num_closure; i++) {
-		ShaderClosure *sc = &sd->closure[i];
-		
-		if(CLOSURE_IS_BSSRDF(sc->type)) {
-			float sample_weight = (all)? 1.0f: sc->sample_weight;
-
-			/* compute pdf */
-			float pdf = 1.0f;
-			for(int i = 0; i < num_r; i++)
-				pdf *= old_bssrdf_pdf(kg, sc->data0, refl, r[i]);
-
-			eval_sum += sc->weight*pdf;
-			pdf_sum += sample_weight*pdf;
-
-			sample_weight_sum += sample_weight;
-			num_bssrdf++;
-		}
-	}
-
-	float inv_pdf_sum;
-	
-	if(pdf_sum > 0.0f) {
-		/* in case of branched path integrate we sample all bssrdf's once,
-		 * for path trace we pick one, so adjust pdf for that */
-		if(all)
-			inv_pdf_sum = 1.0f/pdf_sum;
-		else
-			inv_pdf_sum = sample_weight_sum/pdf_sum;
-	}
-	else
-		inv_pdf_sum = 0.0f;
-
-	float3 weight = eval_sum * inv_pdf_sum;
-
-	return weight;
-}
-#endif
-
-/* subsurface scattering step, from a point on the surface to another nearby point on the same object */
-__device void old_subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd, int state_flag, ShaderClosure *sc, uint *lcg_state, bool all)
-{
-	float radius = sc->data0;
-	float refl = max(average(sc->weight)*3.0f, 0.0f);
-	float r = 0.0f;
-	bool hit = false;
-	float3 weight = make_float3(1.0f, 1.0f, 1.0f);
-#ifdef BSSRDF_MULTI_EVAL
-	float r_attempts[BSSRDF_MAX_ATTEMPTS];
-#endif
-	int num_attempts;
-
-	/* attempt to find a hit a given number of times before giving up */
-	for(num_attempts = 0; num_attempts < kernel_data.bssrdf.num_attempts; num_attempts++) {
-		/* random numbers for sampling */
-		float u1 = lcg_step_float(lcg_state);
-		float u2 = lcg_step_float(lcg_state);
-		float u3 = lcg_step_float(lcg_state);
-		float u4 = lcg_step_float(lcg_state);
-		float u5 = lcg_step_float(lcg_state);
-
-		r = old_bssrdf_sample_distance(kg, radius, refl, u5);
-#ifdef BSSRDF_MULTI_EVAL
-		r_attempts[num_attempts] = r;
-#endif
-
-		float3 p1 = sd->P + sample_uniform_sphere(u1, u2)*r;
-		float3 p2 = sd->P + sample_uniform_sphere(u3, u4)*r;
-
-		/* create ray */
-		Ray ray;
-		ray.P = p1;
-		ray.D = normalize_len(p2 - p1, &ray.t);
-		ray.dP = sd->dP;
-		ray.dD = differential3_zero();
-		ray.time = sd->time;
-
-		/* intersect with the same object. if multiple intersections are
-		 * found it will randomly pick one of them */
-		Intersection isect;
-		if(scene_intersect_subsurface(kg, &ray, &isect, sd->object, lcg_state, 1) == 0)
-			continue;
-
-		/* setup new shading point */
-		shader_setup_from_subsurface(kg, sd, &isect, &ray);
-
-		hit = true;
-		num_attempts++;
-		break;
-	}
-
-	/* evaluate subsurface scattering closures */
-#ifdef BSSRDF_MULTI_EVAL
-	weight *= old_subsurface_scatter_multi_eval(kg, sd, hit, refl, r_attempts, num_attempts, all);
-#else
-	weight *= sc->weight;
-#endif
-
-	if(!hit)
-		weight = make_float3(0.0f, 0.0f, 0.0f);
-
-	/* optionally blur colors and bump mapping */
-	float3 N = sd->N;
-	subsurface_color_bump_blur(kg, sd, sd, state_flag, &weight, &N);
-
-	/* replace closures with a single diffuse BSDF */
-	subsurface_scatter_setup_diffuse_bsdf(sd, weight, hit, N);
-}
-
-__device bool old_subsurface_scatter_use(ShaderData *sd)
-{
-	for(int i = 0; i < sd->num_closure; i++) {
-		ShaderClosure *sc = &sd->closure[i];
-		
-		if(sc->type == CLOSURE_BSSRDF_COMPATIBLE_ID)
-			return true;
-	}
-
-	return false;
 }
 
 CCL_NAMESPACE_END

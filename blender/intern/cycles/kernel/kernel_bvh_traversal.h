@@ -30,7 +30,7 @@
 
 #define FEATURE(f) (((BVH_FUNCTION_FEATURES) & (f)) != 0)
 
-__device bool BVH_FUNCTION_NAME
+ccl_device bool BVH_FUNCTION_NAME
 (KernelGlobals *kg, const Ray *ray, Intersection *isect, const uint visibility
 #if FEATURE(BVH_HAIR_MINIMUM_WIDTH)
 , uint *lcg_state, float difl, float extmax
@@ -69,26 +69,21 @@ __device bool BVH_FUNCTION_NAME
 	isect->u = 0.0f;
 	isect->v = 0.0f;
 
-#if defined(__KERNEL_SSE2__) && !FEATURE(BVH_HAIR_MINIMUM_WIDTH)
+#if defined(__KERNEL_SSE2__)
 	const shuffle_swap_t shuf_identity = shuffle_swap_identity();
 	const shuffle_swap_t shuf_swap = shuffle_swap_swap();
 	
-	const __m128i pn = _mm_set_epi32(0x80000000, 0x80000000, 0x00000000, 0x00000000);
+	const __m128 pn = _mm_castsi128_ps(_mm_set_epi32(0x80000000, 0x80000000, 0, 0));
 	__m128 Psplat[3], idirsplat[3];
+	shuffle_swap_t shufflexyz[3];
 
 	Psplat[0] = _mm_set_ps1(P.x);
 	Psplat[1] = _mm_set_ps1(P.y);
 	Psplat[2] = _mm_set_ps1(P.z);
 
-	idirsplat[0] = _mm_xor_ps(_mm_set_ps1(idir.x), _mm_castsi128_ps(pn));
-	idirsplat[1] = _mm_xor_ps(_mm_set_ps1(idir.y), _mm_castsi128_ps(pn));
-	idirsplat[2] = _mm_xor_ps(_mm_set_ps1(idir.z), _mm_castsi128_ps(pn));
-
 	__m128 tsplat = _mm_set_ps(-isect->t, -isect->t, 0.0f, 0.0f);
 
-	shuffle_swap_t shufflex = (idir.x >= 0)? shuf_identity: shuf_swap;
-	shuffle_swap_t shuffley = (idir.y >= 0)? shuf_identity: shuf_swap;
-	shuffle_swap_t shufflez = (idir.z >= 0)? shuf_identity: shuf_swap;
+	gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
 
 	/* traversal loop */
@@ -101,7 +96,7 @@ __device bool BVH_FUNCTION_NAME
 				bool traverseChild0, traverseChild1;
 				int nodeAddrChild1;
 
-#if !defined(__KERNEL_SSE2__) || FEATURE(BVH_HAIR_MINIMUM_WIDTH)
+#if !defined(__KERNEL_SSE2__)
 				/* Intersect two child bounding boxes, non-SSE version */
 				float t = isect->t;
 
@@ -159,16 +154,38 @@ __device bool BVH_FUNCTION_NAME
 				/* Intersect two child bounding boxes, SSE3 version adapted from Embree */
 
 				/* fetch node data */
-				__m128 *bvh_nodes = (__m128*)kg->__bvh_nodes.data + nodeAddr*BVH_NODE_SIZE;
-				float4 cnodes = ((float4*)bvh_nodes)[3];
+				const __m128 *bvh_nodes = (__m128*)kg->__bvh_nodes.data + nodeAddr*BVH_NODE_SIZE;
+				const float4 cnodes = ((float4*)bvh_nodes)[3];
 
 				/* intersect ray against child nodes */
-				const __m128 tminmaxx = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[0], shufflex), Psplat[0]), idirsplat[0]);
-				const __m128 tminmaxy = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[1], shuffley), Psplat[1]), idirsplat[1]);
-				const __m128 tminmaxz = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[2], shufflez), Psplat[2]), idirsplat[2]);
+				const __m128 tminmaxx = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[0], shufflexyz[0]), Psplat[0]), idirsplat[0]);
+				const __m128 tminmaxy = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[1], shufflexyz[1]), Psplat[1]), idirsplat[1]);
+				const __m128 tminmaxz = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[2], shufflexyz[2]), Psplat[2]), idirsplat[2]);
 
-				const __m128 tminmax = _mm_xor_ps(_mm_max_ps(_mm_max_ps(tminmaxx, tminmaxy), _mm_max_ps(tminmaxz, tsplat)), _mm_castsi128_ps(pn));
-				const __m128 lrhit = _mm_cmple_ps(tminmax, shuffle_swap(tminmax, shuf_swap));
+				/* calculate { c0min, c1min, -c0max, -c1max} */
+				__m128 minmax = _mm_max_ps(_mm_max_ps(tminmaxx, tminmaxy), _mm_max_ps(tminmaxz, tsplat));
+				const __m128 tminmax = _mm_xor_ps(minmax, pn);
+
+#if FEATURE(BVH_HAIR_MINIMUM_WIDTH)
+				if(difl != 0.0f) {
+					float4 *tminmaxview = (float4*)&tminmax;
+					float &c0min = tminmaxview->x, &c1min = tminmaxview->y;
+					float &c0max = tminmaxview->z, &c1max = tminmaxview->w;
+
+					float hdiff = 1.0f + difl;
+					float ldiff = 1.0f - difl;
+					if(__float_as_int(cnodes.z) & PATH_RAY_CURVE) {
+						c0min = max(ldiff * c0min, c0min - extmax);
+						c0max = min(hdiff * c0max, c0max + extmax);
+					}
+					if(__float_as_int(cnodes.w) & PATH_RAY_CURVE) {
+						c1min = max(ldiff * c1min, c1min - extmax);
+						c1max = min(hdiff * c1max, c1max + extmax);
+					}
+				}
+#endif
+
+				const __m128 lrhit = _mm_cmple_ps(tminmax, shuffle<2, 3, 0, 1>(tminmax));
 
 				/* decide which nodes to traverse next */
 #ifdef __VISIBILITY_FLAG__
@@ -186,7 +203,7 @@ __device bool BVH_FUNCTION_NAME
 
 				if(traverseChild0 && traverseChild1) {
 					/* both children were intersected, push the farther one */
-#if !defined(__KERNEL_SSE2__) || FEATURE(BVH_HAIR_MINIMUM_WIDTH)
+#if !defined(__KERNEL_SSE2__)
 					bool closestChild1 = (c1min < c0min);
 #else
 					union { __m128 m128; float v[4]; } uminmax;
@@ -255,7 +272,7 @@ __device bool BVH_FUNCTION_NAME
 							hit = bvh_triangle_intersect(kg, isect, P, idir, visibility, object, primAddr);
 
 						/* shadow ray early termination */
-#if defined(__KERNEL_SSE2__) && !FEATURE(BVH_HAIR_MINIMUM_WIDTH)
+#if defined(__KERNEL_SSE2__)
 						if(hit) {
 							if(visibility == PATH_RAY_SHADOW_OPAQUE)
 								return true;
@@ -281,20 +298,14 @@ __device bool BVH_FUNCTION_NAME
 					bvh_instance_push(kg, object, ray, &P, &idir, &isect->t, tmax);
 #endif
 
-#if defined(__KERNEL_SSE2__) && !FEATURE(BVH_HAIR_MINIMUM_WIDTH)
+#if defined(__KERNEL_SSE2__)
 					Psplat[0] = _mm_set_ps1(P.x);
 					Psplat[1] = _mm_set_ps1(P.y);
 					Psplat[2] = _mm_set_ps1(P.z);
 
-					idirsplat[0] = _mm_xor_ps(_mm_set_ps1(idir.x), _mm_castsi128_ps(pn));
-					idirsplat[1] = _mm_xor_ps(_mm_set_ps1(idir.y), _mm_castsi128_ps(pn));
-					idirsplat[2] = _mm_xor_ps(_mm_set_ps1(idir.z), _mm_castsi128_ps(pn));
-
 					tsplat = _mm_set_ps(-isect->t, -isect->t, 0.0f, 0.0f);
 
-					shufflex = (idir.x >= 0)? shuf_identity: shuf_swap;
-					shuffley = (idir.y >= 0)? shuf_identity: shuf_swap;
-					shufflez = (idir.z >= 0)? shuf_identity: shuf_swap;
+					gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
 
 					++stackPtr;
@@ -317,20 +328,14 @@ __device bool BVH_FUNCTION_NAME
 			bvh_instance_pop(kg, object, ray, &P, &idir, &isect->t, tmax);
 #endif
 
-#if defined(__KERNEL_SSE2__) && !FEATURE(BVH_HAIR_MINIMUM_WIDTH)
+#if defined(__KERNEL_SSE2__)
 			Psplat[0] = _mm_set_ps1(P.x);
 			Psplat[1] = _mm_set_ps1(P.y);
 			Psplat[2] = _mm_set_ps1(P.z);
 
-			idirsplat[0] = _mm_xor_ps(_mm_set_ps1(idir.x), _mm_castsi128_ps(pn));
-			idirsplat[1] = _mm_xor_ps(_mm_set_ps1(idir.y), _mm_castsi128_ps(pn));
-			idirsplat[2] = _mm_xor_ps(_mm_set_ps1(idir.z), _mm_castsi128_ps(pn));
-
 			tsplat = _mm_set_ps(-isect->t, -isect->t, 0.0f, 0.0f);
 
-			shufflex = (idir.x >= 0)? shuf_identity: shuf_swap;
-			shuffley = (idir.y >= 0)? shuf_identity: shuf_swap;
-			shufflez = (idir.z >= 0)? shuf_identity: shuf_swap;
+			gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
 
 			object = ~0;

@@ -98,7 +98,7 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, Panel):
             row = layout.row()
 
             row.template_list("UI_UL_list", "particle_systems", ob, "particle_systems",
-                              ob.particle_systems, "active_index", rows=2)
+                              ob.particle_systems, "active_index", rows=1)
 
             col = row.column(align=True)
             col.operator("object.particle_system_add", icon='ZOOMIN', text="")
@@ -106,6 +106,8 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, Panel):
 
         if psys is None:
             part = particle_get_settings(context)
+
+            layout.operator("object.particle_system_add", icon='ZOOMIN', text="New")
 
             if part is None:
                 return
@@ -122,32 +124,24 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, Panel):
             split = layout.split(percentage=0.32)
 
             col = split.column()
-            col.label(text="Name:")
             col.label(text="Settings:")
 
             col = split.column()
-            col.prop(psys, "name", text="")
             col.template_ID(psys, "settings", new="particle.new")
         else:
             part = psys.settings
 
             split = layout.split(percentage=0.32)
             col = split.column()
-            col.label(text="Name:")
             if part.is_fluid is False:
                 col.label(text="Settings:")
                 col.label(text="Type:")
 
             col = split.column()
-            col.prop(psys, "name", text="")
             if part.is_fluid is False:
                 row = col.row()
                 row.enabled = particle_panel_enabled(context, psys)
                 row.template_ID(psys, "settings", new="particle.new")
-
-            #row = layout.row()
-            #row.label(text="Viewport")
-            #row.label(text="Render")
 
             if part.is_fluid:
                 layout.label(text=iface_("%d fluid particles for this frame") % part.count, translate=False)
@@ -211,12 +205,12 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, Panel):
         row.active = part.distribution != 'GRID'
         row.prop(part, "count")
 
-        if part.type == 'HAIR' and not part.use_advanced_hair:
+        if part.type == 'HAIR':
             row.prop(part, "hair_length")
-
-            row = layout.row()
-            row.prop(part, "use_modifier_stack")
-            return
+            if not part.use_advanced_hair:
+                row = layout.row()
+                row.prop(part, "use_modifier_stack")
+                return
 
         if part.type != 'HAIR':
             split = layout.split()
@@ -438,9 +432,10 @@ class PARTICLE_PT_rotation(ParticleButtonsPanel, Panel):
             layout.label(text="Angular Velocity:")
 
             split = layout.split()
+
             col = split.column(align=True)
             col.prop(part, "angular_velocity_mode", text="")
-            sub = col.column()
+            sub = col.column(align=True)
             sub.active = part.angular_velocity_mode != 'NONE'
             sub.prop(part, "angular_velocity_factor", text="")
 
@@ -642,7 +637,7 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, Panel):
                 layout.label(text="Fluid interaction:")
 
             row = layout.row()
-            row.template_list("UI_UL_list", "particle_targets", psys, "targets", psys, "active_particle_target_index")
+            row.template_list("UI_UL_list", "particle_targets", psys, "targets", psys, "active_particle_target_index", rows=4)
 
             col = row.column()
             sub = col.row()
@@ -730,7 +725,7 @@ class PARTICLE_PT_boidbrain(ParticleButtonsPanel, Panel):
             row.label(text="")
 
         row = layout.row()
-        row.template_list("UI_UL_list", "particle_boids_rules", state, "rules", state, "active_boid_rule_index")
+        row.template_list("UI_UL_list", "particle_boids_rules", state, "rules", state, "active_boid_rule_index", rows=4)
 
         col = row.column()
         sub = col.row()
@@ -804,9 +799,11 @@ class PARTICLE_PT_render(ParticleButtonsPanel, Panel):
         psys = context.particle_system
         part = particle_get_settings(context)
 
-        row = layout.row()
-        row.prop(part, "material")
         if psys:
+            row = layout.row()
+            if part.render_type in {'OBJECT', 'GROUP'}:
+                row.enabled = False
+            row.prop(part, "material_slot", text="")
             row.prop(psys, "parent")
 
         split = layout.split()
@@ -1214,28 +1211,34 @@ class PARTICLE_PT_vertexgroups(ParticleButtonsPanel, Panel):
         ob = context.object
         psys = context.particle_system
 
-        split = layout.split(percentage=0.85)
+        col = layout.column()
+        row = col.row(align=True)
+        row.prop_search(psys, "vertex_group_density", ob, "vertex_groups", text="Density")
+        row.prop(psys, "invert_vertex_group_density", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
-        col = split.column()
-        col.label(text="Vertex Group:")
-        col.prop_search(psys, "vertex_group_density", ob, "vertex_groups", text="Density")
-        col.prop_search(psys, "vertex_group_length", ob, "vertex_groups", text="Length")
-        col.prop_search(psys, "vertex_group_clump", ob, "vertex_groups", text="Clump")
-        col.prop_search(psys, "vertex_group_kink", ob, "vertex_groups", text="Kink")
-        col.prop_search(psys, "vertex_group_roughness_1", ob, "vertex_groups", text="Roughness 1")
-        col.prop_search(psys, "vertex_group_roughness_2", ob, "vertex_groups", text="Roughness 2")
-        col.prop_search(psys, "vertex_group_roughness_end", ob, "vertex_groups", text="Roughness End")
+        row = col.row(align=True)
+        row.prop_search(psys, "vertex_group_length", ob, "vertex_groups", text="Length")
+        row.prop(psys, "invert_vertex_group_length", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
-        col = split.column()
-        col.label(text="Negate:")
-        col.alignment = 'RIGHT'
-        col.prop(psys, "invert_vertex_group_density", text="")
-        col.prop(psys, "invert_vertex_group_length", text="")
-        col.prop(psys, "invert_vertex_group_clump", text="")
-        col.prop(psys, "invert_vertex_group_kink", text="")
-        col.prop(psys, "invert_vertex_group_roughness_1", text="")
-        col.prop(psys, "invert_vertex_group_roughness_2", text="")
-        col.prop(psys, "invert_vertex_group_roughness_end", text="")
+        row = col.row(align=True)
+        row.prop_search(psys, "vertex_group_clump", ob, "vertex_groups", text="Clump")
+        row.prop(psys, "invert_vertex_group_clump", text="", toggle=True, icon='ARROW_LEFTRIGHT')
+
+        row = col.row(align=True)
+        row.prop_search(psys, "vertex_group_kink", ob, "vertex_groups", text="Kink")
+        row.prop(psys, "invert_vertex_group_kink", text="", toggle=True, icon='ARROW_LEFTRIGHT')
+
+        row = col.row(align=True)
+        row.prop_search(psys, "vertex_group_roughness_1", ob, "vertex_groups", text="Roughness 1")
+        row.prop(psys, "invert_vertex_group_roughness_1", text="", toggle=True, icon='ARROW_LEFTRIGHT')
+
+        row = col.row(align=True)
+        row.prop_search(psys, "vertex_group_roughness_2", ob, "vertex_groups", text="Roughness 2")
+        row.prop(psys, "invert_vertex_group_roughness_2", text="", toggle=True, icon='ARROW_LEFTRIGHT')
+
+        row = col.row(align=True)
+        row.prop_search(psys, "vertex_group_roughness_end", ob, "vertex_groups", text="Roughness End")
+        row.prop(psys, "invert_vertex_group_roughness_end", text="", toggle=True, icon='ARROW_LEFTRIGHT')
 
         # Commented out vertex groups don't work and are still waiting for better implementation
         # row = layout.row()

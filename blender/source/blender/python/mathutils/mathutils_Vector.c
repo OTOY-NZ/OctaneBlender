@@ -800,6 +800,36 @@ static PyObject *Vector_to_track_quat(VectorObject *self, PyObject *args)
 	return Quaternion_CreatePyObject(quat, Py_NEW, NULL);
 }
 
+PyDoc_STRVAR(Vector_orthogonal_doc,
+".. method:: orthogonal()\n"
+"\n"
+"   Return a perpendicular vector.\n"
+"\n"
+"   :return: a new vector 90 degrees from this vector.\n"
+"   :rtype: :class:`Vector`\n"
+"\n"
+"   .. note:: the axis is undefined, only use when any orthogonal vector is acceptable.\n"
+);
+static PyObject *Vector_orthogonal(VectorObject *self)
+{
+	float vec[3];
+
+	if (self->size != 3) {
+		PyErr_SetString(PyExc_TypeError,
+		                "Vector.orthogonal(): "
+		                "Vector must be 3D");
+		return NULL;
+	}
+
+	if (BaseMath_ReadCallback(self) == -1)
+		return NULL;
+
+	ortho_v3_v3(vec, self->vec);
+
+	return Vector_CreatePyObject(vec, self->size, Py_NEW, Py_TYPE(self));
+}
+
+
 /*
  * Vector.reflect(mirror): return a reflected vector on the mirror normal
  *  vec - ((2 * DotVecs(vec, mirror)) * mirror)
@@ -855,30 +885,36 @@ PyDoc_STRVAR(Vector_cross_doc,
 "   :arg other: The other vector to perform the cross product with.\n"
 "   :type other: :class:`Vector`\n"
 "   :return: The cross product.\n"
-"   :rtype: :class:`Vector`\n"
+"   :rtype: :class:`Vector` or float when 2D vectors are used\n"
 "\n"
-"   .. note:: both vectors must be 3D\n"
+"   .. note:: both vectors must be 2D or 3D\n"
 );
 static PyObject *Vector_cross(VectorObject *self, PyObject *value)
 {
-	VectorObject *ret;
-	float tvec[MAX_DIMENSIONS];
+	PyObject *ret;
+	float tvec[3];
 
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	if (mathutils_array_parse(tvec, self->size, self->size, value, "Vector.cross(other), invalid 'other' arg") == -1)
-		return NULL;
-
-	if (self->size != 3) {
+	if (self->size > 3) {
 		PyErr_SetString(PyExc_ValueError,
-		                "Vector must be 3D");
+		                "Vector must be 2D or 3D");
 		return NULL;
 	}
 
-	ret = (VectorObject *)Vector_CreatePyObject(NULL, 3, Py_NEW, Py_TYPE(self));
-	cross_v3_v3v3(ret->vec, self->vec, tvec);
-	return (PyObject *)ret;
+	if (mathutils_array_parse(tvec, self->size, self->size, value, "Vector.cross(other), invalid 'other' arg") == -1)
+		return NULL;
+
+	if (self->size == 3) {
+		ret = Vector_CreatePyObject(NULL, 3, Py_NEW, Py_TYPE(self));
+		cross_v3_v3v3(((VectorObject *)ret)->vec, self->vec, tvec);
+	}
+	else {
+		/* size == 2 */
+		ret = PyFloat_FromDouble(cross_v2v2(self->vec, tvec));
+	}
+	return ret;
 }
 
 PyDoc_STRVAR(Vector_dot_doc,
@@ -1121,7 +1157,7 @@ PyDoc_STRVAR(Vector_lerp_doc,
 "   :type other: :class:`Vector`\n"
 "   :arg factor: The interpolation value in [0.0, 1.0].\n"
 "   :type factor: float\n"
-"   :return: The interpolated rotation.\n"
+"   :return: The interpolated vector.\n"
 "   :rtype: :class:`Vector`\n"
 );
 static PyObject *Vector_lerp(VectorObject *self, PyObject *args)
@@ -1261,7 +1297,7 @@ static int Vector_len(VectorObject *self)
 	return self->size;
 }
 /* sequence accessor (get): vector[index] */
-static PyObject *vector_item_internal(VectorObject *self, int i, const int is_attr)
+static PyObject *vector_item_internal(VectorObject *self, int i, const bool is_attr)
 {
 	if (i < 0) i = self->size - i;
 
@@ -1289,13 +1325,13 @@ static PyObject *Vector_item(VectorObject *self, int i)
 	return vector_item_internal(self, i, false);
 }
 /* sequence accessor (set): vector[index] = value */
-static int vector_ass_item_internal(VectorObject *self, int i, PyObject *value, const int is_attr)
+static int vector_ass_item_internal(VectorObject *self, int i, PyObject *value, const bool is_attr)
 {
 	float scalar;
 	if ((scalar = PyFloat_AsDouble(value)) == -1.0f && PyErr_Occurred()) { /* parsed item not a number */
 		PyErr_SetString(PyExc_TypeError,
 		                "vector[index] = x: "
-		                "index argument not a number");
+		                "assigned value not a number");
 		return -1;
 	}
 
@@ -1853,7 +1889,7 @@ static PyObject *Vector_neg(VectorObject *self)
 }
 
 /*------------------------vec_magnitude_nosqrt (internal) - for comparing only */
-static double vec_magnitude_nosqrt(float *data, int size)
+static double vec_magnitude_nosqrt(const float *data, int size)
 {
 	/* return (double)sqrt(dot);*/
 	/* warning, line above removed because we are not using the length,
@@ -2762,6 +2798,7 @@ static struct PyMethodDef Vector_methods[] = {
 	{"resize_4d", (PyCFunction) Vector_resize_4d, METH_NOARGS, Vector_resize_4d_doc},
 	{"to_tuple", (PyCFunction) Vector_to_tuple, METH_VARARGS, Vector_to_tuple_doc},
 	{"to_track_quat", (PyCFunction) Vector_to_track_quat, METH_VARARGS, Vector_to_track_quat_doc},
+	{"orthogonal", (PyCFunction) Vector_orthogonal, METH_NOARGS, Vector_orthogonal_doc},
 
 	/* operation between 2 or more types  */
 	{"reflect", (PyCFunction) Vector_reflect, METH_O, Vector_reflect_doc},
@@ -2940,10 +2977,10 @@ PyObject *Vector_CreatePyObject_cb(PyObject *cb_user, int size, unsigned char cb
 	return (PyObject *)self;
 }
 
-PyObject *Vector_CreatePyObject_alloc(float *vec, const int size, PyTypeObject *base_type)
+PyObject *Vector_CreatePyObject_alloc(const float *vec, const int size, PyTypeObject *base_type)
 {
 	VectorObject *vect_ob;
-	vect_ob = (VectorObject *)Vector_CreatePyObject(vec, size, Py_WRAP, base_type);
+	vect_ob = (VectorObject *)Vector_CreatePyObject((float *)vec, size, Py_WRAP, base_type);
 	vect_ob->wrapped = Py_NEW;
 
 	return (PyObject *)vect_ob;

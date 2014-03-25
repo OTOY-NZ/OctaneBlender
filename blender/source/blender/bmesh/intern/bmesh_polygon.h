@@ -29,7 +29,9 @@
 
 #include "BLI_compiler_attrs.h"
 
-int   BM_face_calc_tessellation(const BMFace *f, BMLoop **r_loops, int (*r_index)[3]) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+void  BM_bmesh_calc_tessellation(BMesh *bm, BMLoop *(*looptris)[3], int *r_looptris_tot);
+
+void  BM_face_calc_tessellation(const BMFace *f, BMLoop **r_loops, unsigned int (*r_index)[3]);
 void  BM_face_calc_normal(const BMFace *f, float r_no[3]) ATTR_NONNULL();
 void  BM_face_calc_normal_vcos(BMesh *bm, BMFace *f, float r_no[3],
                                float const (*vertexCos)[3]) ATTR_NONNULL();
@@ -52,8 +54,12 @@ void  BM_vert_normal_update_all(BMVert *v) ATTR_NONNULL();
 void  BM_face_normal_flip(BMesh *bm, BMFace *f) ATTR_NONNULL();
 bool  BM_face_point_inside_test(BMFace *f, const float co[3]) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
-void  BM_face_triangulate(BMesh *bm, BMFace *f, BMFace **newfaces,
-                          const bool use_beauty, const bool use_tag) ATTR_NONNULL(1, 2);
+void  BM_face_triangulate(BMesh *bm, BMFace *f,
+                          BMFace **r_faces_new,
+                          int     *r_faces_new_tot,
+                          struct MemArena *sf_arena,
+                          const int quad_method, const int ngon_method,
+                          const bool use_tag) ATTR_NONNULL(1, 2);
 
 void  BM_face_legal_splits(BMFace *f, BMLoop *(*loops)[2], int len) ATTR_NONNULL();
 

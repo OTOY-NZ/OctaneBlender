@@ -206,18 +206,21 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness, short debug)
 {
 	bGPDspoint *pt;
-	float oldpressure = 0.0f;
+	float curpressure = points[0].pressure;
 	int i;
 	
 	/* draw stroke curve */
+	glLineWidth(curpressure * thickness);
 	glBegin(GL_LINE_STRIP);
 	for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 		/* if there was a significant pressure change, stop the curve, change the thickness of the stroke,
 		 * and continue drawing again (since line-width cannot change in middle of GL_LINE_STRIP)
+		 * Note: we want more visible levels of pressures when thickness is bigger.
 		 */
-		if (fabsf(pt->pressure - oldpressure) > 0.2f) {
+		if (fabsf(pt->pressure - curpressure) > 0.2f / (float)thickness) {
 			glEnd();
-			glLineWidth(pt->pressure * thickness);
+			curpressure = pt->pressure;
+			glLineWidth(curpressure * thickness);
 			glBegin(GL_LINE_STRIP);
 			
 			/* need to roll-back one point to ensure that there are no gaps in the stroke */
@@ -225,8 +228,6 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 			
 			/* now the point we want... */
 			glVertex3fv(&pt->x);
-			
-			oldpressure = pt->pressure;
 		}
 		else {
 			glVertex3fv(&pt->x);
@@ -783,10 +784,10 @@ void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, bool only3d)
 		rctf rectf;
 		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &rectf, TRUE); /* no shift */
 
-		offsx = floorf(rectf.xmin + 0.5f);
-		offsy = floorf(rectf.ymin + 0.5f);
-		winx  = floorf((rectf.xmax - rectf.xmin) + 0.5f);
-		winy  = floorf((rectf.ymax - rectf.ymin) + 0.5f);
+		offsx = iroundf(rectf.xmin);
+		offsy = iroundf(rectf.ymin);
+		winx  = iroundf(rectf.xmax - rectf.xmin);
+		winy  = iroundf(rectf.ymax - rectf.ymin);
 	}
 	else {
 		offsx = 0;

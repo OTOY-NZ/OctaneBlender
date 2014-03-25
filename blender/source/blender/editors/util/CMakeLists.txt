@@ -35,6 +35,7 @@ set(INC_SYS
 )
 
 set(SRC
+	ed_transverts.c
 	ed_util.c
 	editmode_undo.c
 	numinput.c
@@ -79,6 +80,7 @@ set(SRC
 	../include/ED_space_api.h
 	../include/ED_text.h
 	../include/ED_transform.h
+	../include/ED_transverts.h
 	../include/ED_types.h
 	../include/ED_util.h
 	../include/ED_uvedit.h
@@ -94,6 +96,13 @@ add_definitions(-DGLEW_STATIC)
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_PYTHON)
+	add_definitions(-DWITH_PYTHON)
+	list(APPEND INC
+		../../python
+	)
 endif()
 
 blender_add_lib(bf_editor_util "${SRC}" "${INC}" "${INC_SYS}")

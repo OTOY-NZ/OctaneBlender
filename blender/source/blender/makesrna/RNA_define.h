@@ -158,7 +158,7 @@ void RNA_def_property_string_default(PropertyRNA *prop, const char *value);
 
 void RNA_def_property_ui_text(PropertyRNA *prop, const char *name, const char *description);
 void RNA_def_property_ui_range(PropertyRNA *prop, double min, double max, double step, int precision);
-void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, int consecutive);
+void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, bool consecutive);
 
 void RNA_def_property_update(PropertyRNA *prop, int noteflag, const char *updatefunc);
 void RNA_def_property_editable_func(PropertyRNA *prop, const char *editable);
@@ -224,6 +224,10 @@ const char *RNA_property_typename(PropertyType type);
 #define IS_DNATYPE_INT_COMPAT(_str) (strcmp(_str, "int") == 0 || strcmp(_str, "short") == 0 || strcmp(_str, "char") == 0)
 
 void RNA_identifier_sanitize(char *identifier, int property);
+
+extern const int rna_matrix_dimsize_3x3[];
+extern const int rna_matrix_dimsize_4x4[];
+extern const int rna_matrix_dimsize_4x2[];
 
 /* max size for dynamic defined type descriptors,
  * this value is arbitrary */

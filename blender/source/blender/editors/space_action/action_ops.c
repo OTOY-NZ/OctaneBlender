@@ -97,12 +97,9 @@ void ED_operatormacros_action(void)
 	ot = WM_operatortype_append_macro("ACTION_OT_duplicate_move", "Duplicate",
 	                                  "Make a copy of all selected keyframes and move them",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
-	if (ot) {
-		WM_operatortype_macro_define(ot, "ACTION_OT_duplicate");
-		otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_transform");
-		RNA_enum_set(otmacro->ptr, "mode", TFM_TIME_DUPLICATE);
-	}
-	
+	WM_operatortype_macro_define(ot, "ACTION_OT_duplicate");
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_transform");
+	RNA_enum_set(otmacro->ptr, "mode", TFM_TIME_DUPLICATE);
 }
 
 /* ************************** registration - keymaps **********************************/
@@ -112,21 +109,38 @@ static void action_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	wmKeyMapItem *kmi;
 	
 	/* action_select.c - selection tools */
-	/* click-select */
+	/* click-select: keyframe (replace) */
 	kmi = WM_keymap_add_item(keymap, "ACTION_OT_clickselect", SELECTMOUSE, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "extend", FALSE);
 	RNA_boolean_set(kmi->ptr, "column", FALSE);
+	RNA_boolean_set(kmi->ptr, "channel", FALSE);
+	/* click-select: all on same frame (replace) */
 	kmi = WM_keymap_add_item(keymap, "ACTION_OT_clickselect", SELECTMOUSE, KM_PRESS, KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", FALSE);
 	RNA_boolean_set(kmi->ptr, "column", TRUE);
+	RNA_boolean_set(kmi->ptr, "channel", FALSE);
+	/* click-select: keyframe (add) */
 	kmi = WM_keymap_add_item(keymap, "ACTION_OT_clickselect", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", TRUE);
 	RNA_boolean_set(kmi->ptr, "column", FALSE);
+	RNA_boolean_set(kmi->ptr, "channel", FALSE);
+	/* click-select: all on same frame (add) */
 	kmi = WM_keymap_add_item(keymap, "ACTION_OT_clickselect", SELECTMOUSE, KM_PRESS, KM_ALT | KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", TRUE);
 	RNA_boolean_set(kmi->ptr, "column", TRUE);
+	RNA_boolean_set(kmi->ptr, "channel", FALSE);
+	/* click-select: all on same channel (replace) */
+	kmi = WM_keymap_add_item(keymap, "ACTION_OT_clickselect", SELECTMOUSE, KM_PRESS, KM_CTRL | KM_ALT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", FALSE);
+	RNA_boolean_set(kmi->ptr, "column", FALSE);
+	RNA_boolean_set(kmi->ptr, "channel", TRUE);
+	/* click-select: all on same channel (add) */
+	kmi = WM_keymap_add_item(keymap, "ACTION_OT_clickselect", SELECTMOUSE, KM_PRESS, KM_CTRL | KM_ALT | KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", TRUE);
+	RNA_boolean_set(kmi->ptr, "column", FALSE);
+	RNA_boolean_set(kmi->ptr, "channel", TRUE);
 		
-	/* select left/right */
+	/* click-select: left/right */
 	kmi = WM_keymap_add_item(keymap, "ACTION_OT_select_leftright", SELECTMOUSE, KM_PRESS, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "extend", FALSE);
 	RNA_enum_set(kmi->ptr, "mode", ACTKEYS_LRSEL_TEST);
@@ -163,7 +177,7 @@ static void action_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	WM_keymap_add_item(keymap, "ACTION_OT_select_more", PADPLUSKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "ACTION_OT_select_less", PADMINUS, KM_PRESS, KM_CTRL, 0);
 	
-	/* select linekd */
+	/* select linked */
 	WM_keymap_add_item(keymap, "ACTION_OT_select_linked", LKEY, KM_PRESS, 0, 0);
 	
 	
@@ -202,6 +216,7 @@ static void action_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	/* auto-set range */
 	WM_keymap_add_item(keymap, "ACTION_OT_previewrange_set", PKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
 	WM_keymap_add_item(keymap, "ACTION_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "ACTION_OT_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "ACTION_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
 	
 	/* animation module */

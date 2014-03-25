@@ -3,12 +3,19 @@ import subprocess
 CL_OUT = subprocess.Popen(["cl.exe"],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 CL_STDOUT, CL_STDERR = CL_OUT.communicate()
 
-if "17.00." in CL_STDERR:
+if "18.00." in CL_STDERR:
+    VC_VERSION = '12.0'
+    LCGDIR = '#../lib/windows_vc12'
+elif "17.00." in CL_STDERR:
     VC_VERSION = '11.0'
     LCGDIR = '#../lib/windows_vc11'
-else:
+elif "15.00." in  CL_STDERR:
     VC_VERSION = '9.0'
     LCGDIR = '#../lib/windows'
+else:
+    import sys
+    print("Visual C version not supported {}\n".format(CL_STDERR))
+    sys.exit(1)
 
 LIBDIR = '${LCGDIR}'
 
@@ -76,7 +83,10 @@ WITH_BF_OPENEXR = True
 WITH_BF_STATICOPENEXR = False
 BF_OPENEXR = LIBDIR + '/openexr'
 BF_OPENEXR_INC = '${BF_OPENEXR}/include ${BF_OPENEXR}/include/OpenEXR '
-BF_OPENEXR_LIB = ' Iex Half IlmImf Imath IlmThread '
+if VC_VERSION == '12.0':
+    BF_OPENEXR_LIB = ' Iex-2_1 Half IlmImf-2_1 Imath-2_1 IlmThread-2_1 '
+else:
+    BF_OPENEXR_LIB = ' Iex Half IlmImf Imath IlmThread '
 BF_OPENEXR_LIBPATH = '${BF_OPENEXR}/lib'
 BF_OPENEXR_LIB_STATIC = '${BF_OPENEXR}/lib/libHalf.a ${BF_OPENEXR}/lib/libIlmImf.a ${BF_OPENEXR}/lib/libIex.a ${BF_OPENEXR}/lib/libImath.a ${BF_OPENEXR}/lib/libIlmThread.a'
 
@@ -132,12 +142,6 @@ BF_FREETYPE = LIBDIR + '/freetype'
 BF_FREETYPE_INC = '${BF_FREETYPE}/include ${BF_FREETYPE}/include/freetype2'
 BF_FREETYPE_LIB = 'freetype2ST'
 BF_FREETYPE_LIBPATH = '${BF_FREETYPE}/lib'
-
-WITH_BF_QUICKTIME = False
-BF_QUICKTIME = LIBDIR + '/QTDevWin'
-BF_QUICKTIME_INC = '${BF_QUICKTIME}/CIncludes'
-BF_QUICKTIME_LIB = 'qtmlClient'
-BF_QUICKTIME_LIBPATH = '${BF_QUICKTIME}/Libraries'
 
 WITH_BF_OPENJPEG = True 
 BF_OPENJPEG = '#extern/libopenjpeg'
@@ -203,7 +207,10 @@ WITH_BF_STATICOCIO = True
 WITH_BF_BOOST = True
 BF_BOOST = '${LIBDIR}/boost'
 BF_BOOST_INC = '${BF_BOOST}/include'
-if VC_VERSION == '11.0':
+if VC_VERSION == '12.0':
+    BF_BOOST_LIB = 'libboost_date_time-vc120-mt-s-1_55 libboost_filesystem-vc120-mt-s-1_55 libboost_regex-vc120-mt-s-1_55 libboost_system-vc120-mt-s-1_55 libboost_thread-vc120-mt-s-1_55 libboost_wave-vc120-mt-s-1_55'
+    BF_BOOST_LIB_INTERNATIONAL = ' libboost_locale-vc120-mt-s-1_55'
+elif VC_VERSION == '11.0':
     BF_BOOST_LIB = 'libboost_date_time-vc110-mt-s-1_53 libboost_filesystem-vc110-mt-s-1_53 libboost_regex-vc110-mt-s-1_53 libboost_system-vc110-mt-s-1_53 libboost_thread-vc110-mt-s-1_53 libboost_wave-vc110-mt-s-1_53'
     BF_BOOST_LIB_INTERNATIONAL = ' libboost_locale-vc110-mt-s-1_53'
 else:
@@ -239,7 +246,7 @@ BF_OPENGL_LIB_STATIC = [ '${BF_OPENGL}/lib/libGL.a', '${BF_OPENGL}/lib/libGLU.a'
 CC = 'cl.exe'
 CXX = 'cl.exe'
 
-CCFLAGS = ['/nologo', '/J', '/W1', '/Gd', '/wd4018', '/wd4244', '/wd4305', '/wd4800', '/wd4065', '/wd4267', '/we4013']
+CCFLAGS = ['/nologo', '/J', '/W3', '/Gd', '/w34062', '/wd4018', '/wd4065', '/wd4127', '/wd4181', '/wd4200', '/wd4244', '/wd4267', '/wd4305', '/wd4800', '/we4013', '/we4431']
 CXXFLAGS = ['/EHsc']
 BGE_CXXFLAGS = ['/O2', '/Ob2', '/EHsc', '/GR', '/fp:fast', '/arch:SSE']
 
@@ -265,7 +272,11 @@ PLATFORM_LINKFLAGS = ['/SUBSYSTEM:CONSOLE','/MACHINE:IX86','/STACK:2097152','/IN
 
 BF_BSC=False
 
-if VC_VERSION == '11.0':
+if VC_VERSION == '12.0':
+    BF_CYCLES_CUDA_ENV="C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd"
+    BF_BUILDDIR = '..\\build\\win32-vc12'
+    BF_INSTALLDIR='..\\install\\win32-vc12'
+elif VC_VERSION == '11.0':
     BF_BUILDDIR = '..\\build\\win32-vc11'
     BF_INSTALLDIR='..\\install\\win32-vc11'
 else:

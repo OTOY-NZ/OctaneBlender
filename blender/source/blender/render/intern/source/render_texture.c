@@ -65,7 +65,6 @@
 #include "BKE_scene.h"
 
 #include "BKE_library.h"
-#include "BKE_image.h"
 #include "BKE_texture.h"
 #include "BKE_key.h"
 #include "BKE_ipo.h"
@@ -98,7 +97,7 @@ extern struct Render R;
 static void init_render_texture(Render *re, Tex *tex)
 {
 	/* imap test */
-	if (tex->ima && ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+	if (tex->ima && BKE_image_is_animated(tex->ima)) {
 		BKE_image_user_frame_calc(&tex->iuser, re ? re->r.cfra : 0, re ? re->flag & R_SEC_FIELD:0);
 	}
 	
@@ -1724,7 +1723,7 @@ static int compatible_bump_compute(CompatibleBump *compat_bump, ShadeInput *shi,
 	const float bf = -0.04f*Tnor*mtex->norfac;
 	int rgbnor;
 	/* disable internal bump eval */
-	float* nvec = texres->nor;
+	float *nvec = texres->nor;
 	texres->nor = NULL;
 	/* du & dv estimates, constant value defaults */
 	du = dv = 0.01f;
@@ -2322,7 +2321,7 @@ void do_material_tex(ShadeInput *shi, Render *re)
 
 			/* texture output */
 
-			if ( (rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
+			if ((rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
 				texres.tin = rgb_to_grayscale(&texres.tr);
 				rgbnor -= TEX_RGB;
 			}
@@ -2756,11 +2755,11 @@ void do_volume_tex(ShadeInput *shi, const float *xyz, int mapto_flag, float col_
 				else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			}
 			
-			rgbnor = multitex(tex, texvec, NULL, NULL, 0, &texres, 0, mtex->which_output, re->pool);	/* NULL = dxt/dyt, 0 = shi->osatex - not supported */
+			rgbnor = multitex(tex, texvec, NULL, NULL, 0, &texres, shi->thread, mtex->which_output, re->pool);	/* NULL = dxt/dyt, 0 = shi->osatex - not supported */
 			
 			/* texture output */
 
-			if ( (rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
+			if ((rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
 				texres.tin = rgb_to_grayscale(&texres.tr);
 				rgbnor -= TEX_RGB;
 			}
@@ -3558,12 +3557,15 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 
 	/* strip material copy from unsupported flags */
 	for (tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
-		if (mat->septex & (1<<tex_nr)) continue;
 	
 		if (mat->mtex[tex_nr]) {
 			MTex *mtex = mat->mtex[tex_nr];
 
-			if (!mtex->tex) continue;
+			/* just in case make all non-used mtexes empty*/
+			Tex *cur_tex = mtex->tex;
+			mtex->tex = NULL;
+
+			if (mat->septex & (1<<tex_nr) || !cur_tex) continue;
 
 			/* only keep compatible texflags */
 			mtex->texflag = mtex->texflag & (MTEX_RGBTOINT | MTEX_STENCIL | MTEX_NEGATIVE | MTEX_ALPHAMIX);
@@ -3598,7 +3600,7 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 			}
 
 			/* copy texture */
-			tex= mtex->tex = localize_texture(mtex->tex);
+			tex= mtex->tex = localize_texture(cur_tex);
 
 			/* update texture anims */
 			BKE_animsys_evaluate_animdata(scene, &tex->id, tex->adt, BKE_scene_frame_get(scene), ADT_RECALC_ANIM);
@@ -3619,7 +3621,7 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 			}
 
 			/* update image sequences and movies */
-			if (tex->ima && ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+			if (tex->ima && BKE_image_is_animated(tex->ima)) {
 				BKE_image_user_check_frame_calc(&tex->iuser, (int)scene->r.cfra, 0);
 			}
 		}
@@ -3646,7 +3648,8 @@ void RE_free_sample_material(Material *mat)
 		}
 	}
 
-	BKE_material_free(mat);
+	/* don't update user counts as we are freeing a duplicate */
+	BKE_material_free_ex(mat, false);
 	MEM_freeN(mat);
 }
 

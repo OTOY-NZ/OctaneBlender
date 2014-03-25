@@ -848,11 +848,13 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "scale_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "scale_x");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Scale X", "Scaling factor that is applied along the X axis");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
 	prop = RNA_def_property(srna, "scale_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "scale_y");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Scale Y", "Scaling factor that is applied along the Y axis");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
@@ -916,7 +918,7 @@ static void rna_def_linestyle(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "FreestyleLineStyle", "ID");
 	RNA_def_struct_ui_text(srna, "Freestyle Line Style", "Freestyle line style, reusable by multiple line sets");
-	RNA_def_struct_ui_icon(srna, ICON_BRUSH_DATA); /* FIXME: use a proper icon */
+	RNA_def_struct_ui_icon(srna, ICON_LINE_DATA);
 
 	prop = RNA_def_property(srna, "panel", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "panel");

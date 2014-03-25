@@ -35,7 +35,6 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 
@@ -273,7 +272,7 @@ void node_socket_init_default_value(bNodeSocket *sock)
 void node_socket_copy_default_value(bNodeSocket *to, bNodeSocket *from)
 {
 	/* sanity check */
-	if (!STREQ(to->idname, from->idname))
+	if (to->type != from->type)
 		return;
 	
 	/* make sure both exist */
@@ -334,6 +333,10 @@ static void standard_node_socket_interface_init_socket(bNodeTree *UNUSED(ntree),
 	/* initialize the type value */
 	sock->type = sock->typeinfo->type;
 	
+	/* XXX socket interface 'type' value is not used really,
+	 * but has to match or the copy function will bail out
+	 */
+	stemp->type = stemp->typeinfo->type;
 	/* copy default_value settings */
 	node_socket_copy_default_value(sock, stemp);
 }
@@ -342,7 +345,7 @@ static void standard_node_socket_interface_init_socket(bNodeTree *UNUSED(ntree),
 static void standard_node_socket_interface_verify_socket(bNodeTree *UNUSED(ntree), bNodeSocket *stemp, bNode *UNUSED(node), bNodeSocket *sock, const char *UNUSED(data_path))
 {
 	/* sanity check */
-	if (!STREQ(sock->idname, stemp->idname))
+	if (sock->type != stemp->typeinfo->type)
 		return;
 	
 	/* make sure both exist */
@@ -381,6 +384,7 @@ static void standard_node_socket_interface_verify_socket(bNodeTree *UNUSED(ntree
 static void standard_node_socket_interface_from_socket(bNodeTree *UNUSED(ntree), bNodeSocket *stemp, bNode *UNUSED(node), bNodeSocket *sock)
 {
 	/* initialize settings */
+	stemp->type = stemp->typeinfo->type;
 	node_socket_copy_default_value(stemp, sock);
 }
 

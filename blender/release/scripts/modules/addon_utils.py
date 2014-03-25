@@ -35,6 +35,7 @@ error_duplicates = False
 error_encoding = False
 addons_fake_modules = {}
 
+
 def paths():
     # RELEASE SCRIPTS: official scripts distributed in Blender releases
     addon_paths = _bpy.utils.script_paths("addons")
@@ -128,7 +129,7 @@ def modules_refresh(module_cache=addons_fake_modules):
                 mod.__file__ = mod_path
                 mod.__time__ = os.path.getmtime(mod_path)
             except:
-                print("AST error in module %s" % mod_name)
+                print("AST error parsing bl_info for %s" % mod_name)
                 import traceback
                 traceback.print_exc()
                 raise
@@ -408,7 +409,6 @@ def module_bl_info(mod, info_basis={"name": "",
                                     "location": "",
                                     "description": "",
                                     "wiki_url": "",
-                                    "tracker_url": "",
                                     "support": 'COMMUNITY',
                                     "category": "",
                                     "warning": "",

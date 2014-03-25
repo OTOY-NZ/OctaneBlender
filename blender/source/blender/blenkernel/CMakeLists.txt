@@ -41,7 +41,6 @@ set(INC
 	../../../intern/iksolver/extern
 	../../../intern/memutil
 	../../../intern/mikktspace
-	../../../intern/opennl/extern
 	../../../intern/raskter
 	../../../intern/smoke/extern
 	../../../extern/libmv
@@ -116,6 +115,7 @@ set(SRC
 	intern/mball.c
 	intern/mesh.c
 	intern/mesh_evaluate.c
+	intern/mesh_mapping.c
 	intern/mesh_validate.c
 	intern/modifier.c
 	intern/modifiers_bmesh.c
@@ -125,6 +125,7 @@ set(SRC
 	intern/node.c
 	intern/object.c
 	intern/object_deform.c
+	intern/object_dupli.c
 	intern/ocean.c
 	intern/packedFile.c
 	intern/paint.c
@@ -154,6 +155,12 @@ set(SRC
 	intern/text.c
 	intern/texture.c
 	intern/tracking.c
+	intern/tracking_detect.c
+	intern/tracking_plane_tracker.c
+	intern/tracking_region_tracker.c
+	intern/tracking_solver.c
+	intern/tracking_stabilize.c
+	intern/tracking_util.c
 	intern/treehash.c
 	intern/unit.c
 	intern/world.c
@@ -213,6 +220,7 @@ set(SRC
 	BKE_material.h
 	BKE_mball.h
 	BKE_mesh.h
+	BKE_mesh_mapping.h
 	BKE_modifier.h
 	BKE_movieclip.h
 	BKE_multires.h
@@ -255,6 +263,7 @@ set(SRC
 
 	depsgraph_private.h
 	nla_private.h
+	tracking_private.h
 	intern/CCGSubSurf.h
 	intern/pbvh_intern.h
 )
@@ -373,12 +382,6 @@ endif()
 
 if(WITH_MOD_OCEANSIM)
 	add_definitions(-DWITH_OCEANSIM)
-endif()
-
-if(WITH_MOD_BOOLEAN)
-	list(APPEND INC
-		../../../intern/bsp/extern
-	)
 endif()
 
 if(WITH_JACK)

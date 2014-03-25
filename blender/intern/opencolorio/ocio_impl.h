@@ -106,9 +106,13 @@ public:
 	virtual void matrixTransformScale(float * m44, float * offset4, const float * scale4) = 0;
 
 	virtual bool supportGLSLDraw(void) = 0;
-	virtual bool setupGLSLDraw(struct OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRcPtr *processor, bool predivide) = 0;
+	virtual bool setupGLSLDraw(struct OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRcPtr *processor,
+	                           OCIO_CurveMappingSettings *curve_mapping_settings, float dither, bool predivide) = 0;
 	virtual void finishGLSLDraw(struct OCIO_GLSLDrawState *state) = 0;
 	virtual void freeGLState(struct OCIO_GLSLDrawState *state_r) = 0;
+
+	virtual const char *getVersionString(void) = 0;
+	virtual int getVersionHex(void) = 0;
 };
 
 class FallbackImpl : public IOCIOImpl {
@@ -189,9 +193,13 @@ public:
 	void matrixTransformScale(float *m44, float *offset4, const float *scale4);
 
 	bool supportGLSLDraw(void);
-	bool setupGLSLDraw(struct OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRcPtr *processor, bool predivide);
+	bool setupGLSLDraw(struct OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRcPtr *processor,
+	                   OCIO_CurveMappingSettings *curve_mapping_settings, float dither, bool predivide);
 	void finishGLSLDraw(struct OCIO_GLSLDrawState *state);
 	void freeGLState(struct OCIO_GLSLDrawState *state_r);
+
+	const char *getVersionString(void);
+	int getVersionHex(void);
 };
 
 #ifdef WITH_OCIO
@@ -273,9 +281,13 @@ public:
 	void matrixTransformScale(float * m44, float * offset4, const float * scale4);
 
 	bool supportGLSLDraw(void);
-	bool setupGLSLDraw(struct OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRcPtr *processor, bool predivide);
+	bool setupGLSLDraw(struct OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRcPtr *processor,
+	                   OCIO_CurveMappingSettings *curve_mapping_settings, float dither, bool predivide);
 	void finishGLSLDraw(struct OCIO_GLSLDrawState *state);
 	void freeGLState(struct OCIO_GLSLDrawState *state_r);
+
+	const char *getVersionString(void);
+	int getVersionHex(void);
 };
 #endif
 

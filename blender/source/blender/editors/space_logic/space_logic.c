@@ -75,7 +75,7 @@ ARegion *logic_has_buttons_region(ScrArea *sa)
 	
 	BLI_insertlinkafter(&sa->regionbase, ar, arnew);
 	arnew->regiontype = RGN_TYPE_UI;
-	arnew->alignment = RGN_ALIGN_LEFT;
+	arnew->alignment = RGN_ALIGN_RIGHT;
 	
 	arnew->flag = RGN_FLAG_HIDDEN;
 	
@@ -112,7 +112,7 @@ static SpaceLink *logic_new(const bContext *C)
 	
 	BLI_addtail(&slogic->regionbase, ar);
 	ar->regiontype= RGN_TYPE_UI;
-	ar->alignment= RGN_ALIGN_LEFT;
+	ar->alignment= RGN_ALIGN_RIGHT;
 	
 	/* main area */
 	ar= MEM_callocN(sizeof(ARegion), "main area for logic");
@@ -184,7 +184,7 @@ static void logic_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_menu(keymap, "LOGIC_MT_logicbricks_add", AKEY, KM_PRESS, KM_SHIFT, 0);
 	
 	WM_keymap_add_item(keymap, "LOGIC_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
-
+	WM_keymap_add_item(keymap, "LOGIC_OT_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
 }
 
 static void logic_refresh(const bContext *UNUSED(C), ScrArea *UNUSED(sa))

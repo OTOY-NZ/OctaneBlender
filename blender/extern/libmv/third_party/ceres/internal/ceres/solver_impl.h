@@ -93,7 +93,7 @@ class SolverImpl {
   static Program* CreateReducedProgram(Solver::Options* options,
                                        ProblemImpl* problem_impl,
                                        double* fixed_cost,
-                                       string* error);
+                                       string* message);
 
   // Create the appropriate linear solver, taking into account any
   // config changes decided by CreateTransformedProgram(). The
@@ -101,7 +101,7 @@ class SolverImpl {
   // selected; consider the case that the remaining elimininated
   // blocks is zero after removing fixed blocks.
   static LinearSolver* CreateLinearSolver(Solver::Options* options,
-                                          string* error);
+                                          string* message);
 
   // Reorder the residuals for program, if necessary, so that the
   // residuals involving e block (i.e., the first num_eliminate_block
@@ -110,29 +110,38 @@ class SolverImpl {
   static bool LexicographicallyOrderResidualBlocks(
       const int num_eliminate_blocks,
       Program* program,
-      string* error);
+      string* message);
 
   // Create the appropriate evaluator for the transformed program.
   static Evaluator* CreateEvaluator(
       const Solver::Options& options,
       const ProblemImpl::ParameterMap& parameter_map,
       Program* program,
-      string* error);
+      string* message);
 
   // Remove the fixed or unused parameter blocks and residuals
-  // depending only on fixed parameters from the problem. Also updates
-  // num_eliminate_blocks, since removed parameters changes the point
-  // at which the eliminated blocks is valid.  If fixed_cost is not
-  // NULL, the residual blocks that are removed are evaluated and the
-  // sum of their cost is returned in fixed_cost.
-  static bool RemoveFixedBlocksFromProgram(Program* program,
-                                           ParameterBlockOrdering* ordering,
-                                           double* fixed_cost,
-                                           string* error);
+  // depending only on fixed parameters from the program.
+  //
+  // If either linear_solver_ordering or inner_iteration_ordering are
+  // not NULL, the constant parameter blocks are removed from them
+  // too.
+  //
+  // If fixed_cost is not NULL, the residual blocks that are removed
+  // are evaluated and the sum of their cost is returned in
+  // fixed_cost.
+  //
+  // If a failure is encountered, the function returns false with a
+  // description of the failure in message.
+  static bool RemoveFixedBlocksFromProgram(
+      Program* program,
+      ParameterBlockOrdering* linear_solver_ordering,
+      ParameterBlockOrdering* inner_iteration_ordering,
+      double* fixed_cost,
+      string* message);
 
   static bool IsOrderingValid(const Solver::Options& options,
                               const ProblemImpl* problem_impl,
-                              string* error);
+                              string* message);
 
   static bool IsParameterBlockSetIndependent(
       const set<double*>& parameter_block_ptrs,
@@ -167,7 +176,7 @@ class SolverImpl {
       const ProblemImpl::ParameterMap& parameter_map,
       const ParameterBlockOrdering* parameter_block_ordering,
       Program* program,
-      string* error);
+      string* message);
 
   // Sparse cholesky factorization routines when doing the sparse
   // cholesky factorization of the Jacobian matrix, reorders its
@@ -183,7 +192,7 @@ class SolverImpl {
       const SparseLinearAlgebraLibraryType sparse_linear_algebra_library_type,
       const ParameterBlockOrdering* parameter_block_ordering,
       Program* program,
-      string* error);
+      string* message);
 
   // Schur type solvers require that all parameter blocks eliminated
   // by the Schur eliminator occur before others and the residuals be
@@ -207,7 +216,7 @@ class SolverImpl {
       const ProblemImpl::ParameterMap& parameter_map,
       ParameterBlockOrdering* parameter_block_ordering,
       Program* program,
-      string* error);
+      string* message);
 
   // array contains a list of (possibly repeating) non-negative
   // integers. Let us assume that we have constructed another array

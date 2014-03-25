@@ -75,7 +75,7 @@ PyDoc_STRVAR(ChainingIterator_doc,
 
 static int check_begin(PyObject *obj, void *v)
 {
-	if (obj != 0 && obj != Py_None && !BPy_ViewEdge_Check(obj))
+	if (obj != NULL && obj != Py_None && !BPy_ViewEdge_Check(obj))
 		return 0;
 	*((PyObject **)v) = obj;
 	return 1;
@@ -175,6 +175,10 @@ PyDoc_STRVAR(ChainingIterator_object_doc,
 
 static PyObject *ChainingIterator_object_get(BPy_ChainingIterator *self, void *UNUSED(closure))
 {
+	if (self->c_it->isEnd()) {
+		PyErr_SetString(PyExc_RuntimeError, "iteration has stopped");
+		return NULL;
+	}
 	ViewEdge *ve = self->c_it->operator*();
 	if (ve)
 		return BPy_ViewEdge_from_ViewEdge(*ve);

@@ -33,14 +33,6 @@
 # TODO: directory copy functions are far too complicated, see:
 #       http://wiki.blender.org/index.php/User:Ideasman42/SConsNotSimpleInstallingFiles
 
-import platform as pltfrm
-
-# Need a better way to do this. Automagical maybe is not the best thing, maybe it is.
-if pltfrm.architecture()[0] == '64bit':
-    bitness = 64
-else:
-    bitness = 32
-
 import sys
 import os
 import os.path
@@ -112,15 +104,9 @@ btools.print_targets(B.targets, B.bc)
 # handling cmd line arguments & config file
 
 # bitness stuff
-tempbitness = int(B.arguments.get('BF_BITNESS', bitness)) # default to bitness found as per starting python
-if tempbitness in (32, 64): # only set if 32 or 64 has been given
-    bitness = int(tempbitness)
-
-if bitness:
-    B.bitness = bitness
-else:
+tempbitness = int(B.arguments.get('BF_BITNESS', B.bitness)) # default to bitness found as per starting python
+if tempbitness in B.allowed_bitnesses.values() :
     B.bitness = tempbitness
-
 
 # first check cmdline for toolset and we create env to work on
 quickie = B.arguments.get('BF_QUICK', None)
@@ -149,7 +135,7 @@ if toolset:
         if env:
             btools.SetupSpawn(env)
 else:
-    if bitness==64 and platform=='win32':
+    if B.bitness==64 and platform=='win32':
         env = BlenderEnvironment(ENV = os.environ, MSVS_ARCH='amd64', TARGET_ARCH='x86_64', MSVC_VERSION=vcver)
     else:
         env = BlenderEnvironment(ENV = os.environ, TARGET_ARCH='x86', MSVC_VERSION=vcver)
@@ -167,9 +153,9 @@ if cxx:
 
 if sys.platform=='win32':
     if env['CC'] in ['cl', 'cl.exe']:
-        platform = 'win64-vc' if bitness == 64 else 'win32-vc'
+        platform = 'win64-vc' if B.bitness == 64 else 'win32-vc'
     elif env['CC'] in ['gcc']:
-        platform = 'win64-mingw' if bitness == 64 else 'win32-mingw'
+        platform = 'win64-mingw' if B.bitness == 64 else 'win32-mingw'
 
 if 'mingw' in platform:
     print "Setting custom spawn function"
@@ -219,7 +205,7 @@ opts = btools.read_opts(env, optfiles, B.arguments)
 opts.Update(env)
 
 if sys.platform=='win32':
-    if bitness==64:
+    if B.bitness==64:
         env.Append(CPPFLAGS=['-DWIN64']) # -DWIN32 needed too, as it's used all over to target Windows generally
 
 if not env['BF_FANCY']:
@@ -246,6 +232,7 @@ if 'blenderlite' in B.targets:
     target_env_defs['WITH_BF_CYCLES'] = False
     target_env_defs['WITH_BF_OPENAL'] = False
     target_env_defs['WITH_BF_OPENEXR'] = False
+    target_env_defs['WITH_BF_PSD'] = False
     target_env_defs['WITH_BF_OPENMP'] = False
     target_env_defs['WITH_BF_ICONV'] = False
     target_env_defs['WITH_BF_INTERNATIONAL'] = False
@@ -284,52 +271,181 @@ if 'cudakernels' in B.targets:
     env['WITH_BF_CYCLES_CUDA_BINARIES'] = True
     env['WITH_BF_PYTHON'] = False
 
-# Extended OSX_SDK and 3D_CONNEXION_CLIENT_LIBRARY and JAckOSX detection for OSX
+# Configure paths for automated configuration test programs
+env['CONFIGUREDIR'] = os.path.abspath(os.path.normpath(os.path.join(env['BF_BUILDDIR'], "sconf_temp")))
+env['CONFIGURELOG'] = os.path.abspath(os.path.normpath(os.path.join(env['BF_BUILDDIR'], "config.log")))
+
+#############################################################################
+###################    Automatic configuration for OSX     ##################
+#############################################################################
+
 if env['OURPLATFORM']=='darwin':
-    print B.bc.OKGREEN + "Detected Xcode version: -- " + B.bc.ENDC + env['XCODE_CUR_VER'] + " --"
-    print "Available " + env['MACOSX_SDK_CHECK']
-    if not 'Mac OS X 10.6' in env['MACOSX_SDK_CHECK']:
-        print  B.bc.OKGREEN + "Auto-setting available MacOSX SDK -> " + B.bc.ENDC + "MacOSX10.7.sdk"
-    elif not 'Mac OS X 10.5' in env['MACOSX_SDK_CHECK']:
-        print  B.bc.OKGREEN + "Auto-setting available MacOSX SDK -> " + B.bc.ENDC + "MacOSX10.6.sdk"
-    else:
-        print B.bc.OKGREEN + "Found recommended sdk :" + B.bc.ENDC + " using MacOSX10.5.sdk"
+
+    import commands
+    import subprocess
+
+    command = ["%s"%env['CC'], "--version"]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=False)
+    line = process.communicate()[0]
+    ver = re.search(r'[0-9]+(\.[0-9]+[svn]+)+', line) or re.search(r'[0-9]+(\.[0-9]+)+', line) # read the "based on LLVM x.xsvn" version here, not the Apple version
+    if ver:
+        env['CCVERSION'] = ver.group(0).strip('svn')
+    frontend = re.search(r'gcc', line) or re.search(r'clang', line) or re.search(r'llvm-gcc', line)  or re.search(r'icc', line)
+    if frontend:
+        env['C_COMPILER_ID'] = frontend.group(0)
 		
-    if env['CXX'].startswith('clang') and env['XCODE_CUR_VER'] >= '5':
+    vendor = re.search(r'Apple', line)
+    if vendor:
+        C_VENDOR = vendor.group(0)
+    else:
+        C_VENDOR = 'Open Source'
+
+    print B.bc.OKGREEN + "Using Compiler: " + B.bc.ENDC  +  env['C_COMPILER_ID'] + '-' + env['CCVERSION'] + ' ( ' + C_VENDOR + ' )'
+
+    cmd = 'sw_vers -productVersion'
+    MAC_CUR_VER=cmd_res=commands.getoutput(cmd)
+    cmd = 'xcodebuild -version'
+    cmd_xcode=commands.getoutput(cmd)
+    env['XCODE_CUR_VER']=cmd_xcode[6:][:3] # truncate output to major.minor version
+    cmd = 'xcodebuild -showsdks'
+    cmd_sdk=commands.getoutput(cmd)
+    MACOSX_SDK_CHECK=cmd_sdk
+    cmd = 'xcode-select --print-path'
+    XCODE_SELECT_PATH=commands.getoutput(cmd)
+    if XCODE_SELECT_PATH.endswith("/Contents/Developer"):
+        XCODE_BUNDLE=XCODE_SELECT_PATH[:-19]
+    else:
+        XCODE_BUNDLE=XCODE_SELECT_PATH
+
+    print B.bc.OKGREEN + "Detected Xcode version: -- " + B.bc.ENDC + env['XCODE_CUR_VER'] + " --"
+    print B.bc.OKGREEN + "Available SDK's: \n" + B.bc.ENDC + MACOSX_SDK_CHECK.replace('\t', '')
+
+    if env['MACOSX_SDK'] == '': # no set sdk, choosing best one found
+        if 'OS X 10.9' in MACOSX_SDK_CHECK:
+            env['MACOSX_DEPLOYMENT_TARGET'] = '10.6'
+            env['MACOSX_SDK']='/Developer/SDKs/MacOSX10.9.sdk'
+        elif 'OS X 10.8' in MACOSX_SDK_CHECK:
+            env['MACOSX_DEPLOYMENT_TARGET'] = '10.6'
+            env['MACOSX_SDK']='/Developer/SDKs/MacOSX10.8.sdk'
+        elif 'OS X 10.7' in MACOSX_SDK_CHECK:
+            env['MACOSX_DEPLOYMENT_TARGET'] = '10.6'
+            env['MACOSX_SDK']='/Developer/SDKs/MacOSX10.7.sdk'
+        elif 'OS X 10.6' in MACOSX_SDK_CHECK:
+            env['MACOSX_DEPLOYMENT_TARGET'] = '10.6'
+            env['MACOSX_SDK']='/Developer/SDKs/MacOSX10.6.sdk'
+        elif 'OS X 10.5' in MACOSX_SDK_CHECK:
+            env['MACOSX_DEPLOYMENT_TARGET'] = '10.5'
+            env['MACOSX_SDK']='/Developer/SDKs/MacOSX10.5.sdk'
+    else:
+        env['MACOSX_SDK']='/Developer/SDKs/MacOSX' + env['MACOSX_SDK'] + '.sdk'
+
+    if env['XCODE_CUR_VER'] >= '4.3':  ## since version 4.3, XCode and developer dir are bundled ##
+         env['MACOSX_SDK'] = XCODE_BUNDLE + '/Contents/Developer/Platforms/MacOSX.platform' +  env['MACOSX_SDK']
+
+    print B.bc.OKGREEN + "Using OSX SDK :" + B.bc.ENDC + env['MACOSX_SDK']
+		
+    if not env['WITH_OSX_STATICPYTHON'] == 1:
+        # python 3.3 uses Python-framework additionally installed in /Library/Frameworks
+        env['BF_PYTHON'] = '/Library/Frameworks/Python.framework/Versions/'
+        env['BF_PYTHON_INC'] = env['BF_PYTHON'] + env['BF_PYTHON_VERSION'] + '/include/python' + env['BF_PYTHON_VERSION'] + 'm'
+        env['BF_PYTHON_BINARY'] = env['BF_PYTHON'] + env['BF_PYTHON_VERSION'] + '/bin/python' + env['BF_PYTHON_VERSION']
+        env['BF_PYTHON_LIB'] = ''
+        env['BF_PYTHON_LIBPATH'] = env['BF_PYTHON'] + env['BF_PYTHON_VERSION'] + '/lib/python' + env['BF_PYTHON_VERSION'] + '/config-' + env['BF_PYTHON_VERSION'] +'m'
+        env['PLATFORM_LINKFLAGS'] = env['PLATFORM_LINKFLAGS']+['-framework','Python'] # link to python framework
+
+    #Ray trace optimization
+    if env['WITH_BF_RAYOPTIMIZATION'] == 1:
+        if env['MACOSX_ARCHITECTURE'] == 'x86_64' or env['MACOSX_ARCHITECTURE'] == 'i386':
+            env['WITH_BF_RAYOPTIMIZATION'] = 1
+        else:
+            env['WITH_BF_RAYOPTIMIZATION'] = 0
+        if env['MACOSX_ARCHITECTURE'] == 'i386':
+            env['BF_RAYOPTIMIZATION_SSE_FLAGS'] = env['BF_RAYOPTIMIZATION_SSE_FLAGS']+['-msse']
+        elif env['MACOSX_ARCHITECTURE'] == 'x86_64':
+            env['BF_RAYOPTIMIZATION_SSE_FLAGS'] = env['BF_RAYOPTIMIZATION_SSE_FLAGS']+['-msse','-msse2']
+
+    if env['MACOSX_ARCHITECTURE'] == 'x86_64' or env['MACOSX_ARCHITECTURE'] == 'ppc64':
+        ARCH_FLAGS = ['-m64']
+    else:
+        ARCH_FLAGS = ['-m32']
+
+    env.Append(CPPFLAGS=ARCH_FLAGS)
+
+    SDK_FLAGS=['-isysroot',  env['MACOSX_SDK'],'-mmacosx-version-min='+ env['MACOSX_DEPLOYMENT_TARGET'],'-arch',env['MACOSX_ARCHITECTURE']] # always used
+    env['PLATFORM_LINKFLAGS'] = ['-mmacosx-version-min='+ env['MACOSX_DEPLOYMENT_TARGET'],'-isysroot', env['MACOSX_SDK'],'-arch',env['MACOSX_ARCHITECTURE']]+ARCH_FLAGS+env['PLATFORM_LINKFLAGS']
+    env['CCFLAGS']=SDK_FLAGS+env['CCFLAGS']
+    env['CXXFLAGS']=SDK_FLAGS+env['CXXFLAGS']
+
+    #Intel Macs are CoreDuo and Up
+    if env['MACOSX_ARCHITECTURE'] == 'i386' or env['MACOSX_ARCHITECTURE'] == 'x86_64':
+        env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-msse','-msse2','-msse3']
+        if env['C_COMPILER_ID'] != 'clang' or (env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.3'):
+            env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-ftree-vectorize'] # clang xcode 4 does not accept flag
+    else:
+        env['CCFLAGS'] =  env['CCFLAGS']+['-fno-strict-aliasing']
+
+    # Intel 64bit Macs are Core2Duo and up
+    if env['MACOSX_ARCHITECTURE'] == 'x86_64':
+        env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-mssse3']
+
+    if env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.3':
         env['CCFLAGS'].append('-ftemplate-depth=1024') # only valid for clang bundled with xcode 5
 
-    # for now, Mac builders must download and install the 3DxWare 10 Beta 4 driver framework from 3Dconnexion
-    # necessary header file lives here when installed:
-    # /Library/Frameworks/3DconnexionClient.framework/Versions/Current/Headers/ConnexionClientAPI.h
+    # 3DconnexionClient.framework, optionally install
     if env['WITH_BF_3DMOUSE'] == 1:
         if not os.path.exists('/Library/Frameworks/3DconnexionClient.framework'):
-            print "3D_CONNEXION_CLIENT_LIBRARY not found, disabling WITH_BF_3DMOUSE" # avoid build errors !
             env['WITH_BF_3DMOUSE'] = 0
+            print B.bc.OKGREEN + "3DconnexionClient install not found, disabling WITH_BF_3DMOUSE" # avoid build errors !
         else:
             env.Append(LINKFLAGS=['-F/Library/Frameworks','-Xlinker','-weak_framework','-Xlinker','3DconnexionClient'])
             env['BF_3DMOUSE_INC'] = '/Library/Frameworks/3DconnexionClient.framework/Headers'
+            print B.bc.OKGREEN + "Using 3Dconnexion"
 
-    # for now, Mac builders must download and install the JackOSX framework
-    # necessary header file lives here when installed:
-    # /Library/Frameworks/Jackmp.framework/Versions/A/Headers/jack.h
+    # Jackmp.framework, optionally install
     if env['WITH_BF_JACK'] == 1:
         if not os.path.exists('/Library/Frameworks/Jackmp.framework'):
-            print "JackOSX install not found, disabling WITH_BF_JACK" # avoid build errors !
             env['WITH_BF_JACK'] = 0
+            print B.bc.OKGREEN + "JackOSX install not found, disabling WITH_BF_JACK" # avoid build errors !
         else:
             env.Append(LINKFLAGS=['-F/Library/Frameworks','-Xlinker','-weak_framework','-Xlinker','Jackmp'])
+            print B.bc.OKGREEN + "Using Jack"
+
+    if env['WITH_BF_QUICKTIME'] == 1:
+        env['PLATFORM_LINKFLAGS'] = env['PLATFORM_LINKFLAGS']+['-framework','QTKit']
+
+    #Defaults openMP to true if compiler handles it ( only gcc 4.6.1 and newer )
+    # if your compiler does not have accurate suffix you may have to enable it by hand !
+    if env['WITH_BF_OPENMP'] == 1:
+        if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.6.1' or env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4' and C_VENDOR != 'Apple':
+            env['WITH_BF_OPENMP'] = 1  # multithreading for fluids, cloth, sculpt and smoke
+            print B.bc.OKGREEN + "Using OpenMP"
+            if env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4':
+                OSX_OMP_LIBPATH = Dir(env.subst(env['LCGDIR'])).abspath
+                env.Append(BF_PROGRAM_LINKFLAGS=['-L'+OSX_OMP_LIBPATH+'/openmp/lib','-liomp5'])
+                env['CCFLAGS'].append('-I'+OSX_OMP_LIBPATH+'/openmp/include') # include for omp.h
+        else:
+            env['WITH_BF_OPENMP'] = 0
+            print B.bc.OKGREEN + "Disabled OpenMP, not supported by compiler"
 
     if env['WITH_BF_CYCLES_OSL'] == 1:
         OSX_OSL_LIBPATH = Dir(env.subst(env['BF_OSL_LIBPATH'])).abspath
         # we need 2 variants of passing the oslexec with the force_load option, string and list type atm
-        if env['CC'][:-2].endswith('4.8'):
-		    env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-loslexec','-loslquery'])
+        if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.8' or env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4':
+            env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-loslexec','-loslquery'])
         else:
             env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-force_load '+ OSX_OSL_LIBPATH +'/liboslexec.a','-loslquery'])
         env.Append(BF_PROGRAM_LINKFLAGS=['-Xlinker','-force_load','-Xlinker',OSX_OSL_LIBPATH +'/liboslexec.a'])
 
-    # Trying to get rid of eventually clashes, we export some explicite as local symbols
+    # Trying to get rid of eventually clashes, we export some symbols explicite as local
     env.Append(LINKFLAGS=['-Xlinker','-unexported_symbols_list','-Xlinker','./source/creator/osx_locals.map'])
+    
+    #for < 10.7.sdk, SystemStubs needs to be linked
+    if  env['MACOSX_SDK'].endswith("10.6.sdk") or  env['MACOSX_SDK'].endswith("10.5.sdk"):
+        env['LLIBS'].append('SystemStubs')
+
+#############################################################################
+###################  End Automatic configuration for OSX   ##################
+#############################################################################
 
 if env['WITH_BF_OPENMP'] == 1:
         if env['OURPLATFORM'] in ('win32-vc', 'win64-vc'):
@@ -340,12 +456,6 @@ if env['WITH_BF_OPENMP'] == 1:
                 env['CCFLAGS'].append('-openmp')
             else:
                 env.Append(CCFLAGS=['-fopenmp'])
-
-if env['WITH_GHOST_COCOA'] == True:
-    env.Append(CPPFLAGS=['-DGHOST_COCOA'])
-
-if env['USE_QTKIT'] == True:
-    env.Append(CPPFLAGS=['-DUSE_QTKIT'])
 
 #check for additional debug libnames
 
@@ -373,6 +483,9 @@ if 'blenderplayer' in B.targets:
 if 'blendernogame' in B.targets:
     env['WITH_BF_GAMEENGINE'] = False
 
+if not env['WITH_BF_GAMEENGINE']:
+    env['WITH_BF_PLAYER'] = False
+
 # build without elbeem (fluidsim)?
 if env['WITH_BF_FLUID'] == 1:
     env['CPPFLAGS'].append('-DWITH_MOD_FLUID')
@@ -391,6 +504,7 @@ else:
 # TODO, make optional (as with CMake)
 env['CPPFLAGS'].append('-DWITH_AUDASPACE')
 env['CPPFLAGS'].append('-DWITH_AVI')
+env['CPPFLAGS'].append('-DWITH_OPENNL')
 env['CPPFLAGS'].append('-DWITH_BOOL_COMPAT')
 if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
     env['CPPFLAGS'].append('-D_ALLOW_KEYWORD_MACROS')
@@ -532,6 +646,27 @@ def data_to_c_simple(FILE_FROM):
 	data_to_c(FILE_FROM, FILE_TO, VAR_NAME)
 
 
+def data_to_c_simple_icon(PATH_FROM):
+
+    # first handle import
+    import sys
+    path = "source/blender/datatoc"
+    if path not in sys.path:
+        sys.path.append(path)
+
+    # convert the pixmaps to a png
+    import datatoc_icon
+
+    filename_only = os.path.basename(PATH_FROM)
+    FILE_TO_PNG = os.path.join(env['DATA_SOURCES'], filename_only + ".png")
+    FILE_TO = FILE_TO_PNG + ".c"
+    argv = [PATH_FROM, FILE_TO_PNG]
+    datatoc_icon.main_ex(argv)
+
+    # then the png to a c file
+    data_to_c_simple(FILE_TO_PNG)
+
+
 if B.targets != ['cudakernels']:
     data_to_c("source/blender/compositor/operations/COM_OpenCLKernels.cl",
               B.root_build_dir + "data_headers/COM_OpenCLKernels.cl.h",
@@ -551,6 +686,7 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vertex.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vsm_store_frag.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vsm_store_vert.glsl")
+    data_to_c_simple("intern/opencolorio/gpu_shader_display_transform.glsl")
 
     # --- blender ---
     data_to_c_simple("release/datafiles/bfont.pfb")
@@ -558,8 +694,13 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("release/datafiles/bmonofont.ttf")
 
     data_to_c_simple("release/datafiles/splash.png")
-    data_to_c_simple("release/datafiles/blender_icons16.png")
-    data_to_c_simple("release/datafiles/blender_icons32.png")
+    data_to_c_simple("release/datafiles/splash_2x.png")
+
+    # data_to_c_simple("release/datafiles/blender_icons16.png")
+    # data_to_c_simple("release/datafiles/blender_icons32.png")
+    data_to_c_simple_icon("release/datafiles/blender_icons16")
+    data_to_c_simple_icon("release/datafiles/blender_icons32")
+
     data_to_c_simple("release/datafiles/prvicons.png")
 
     data_to_c_simple("release/datafiles/brushicons/add.png")
@@ -687,6 +828,8 @@ if  env['OURPLATFORM']=='darwin':
                 dn.remove('.svn')
             if '_svn' in dn:
                 dn.remove('_svn')
+            if '.git' in df:
+                df.remove('.git')
             dir=env['BF_INSTALLDIR']+dp[len(bundledir):]
             source=[dp+os.sep+f for f in df]
             blenderinstall.append(env.Install(dir=dir,source=source))
@@ -716,10 +859,8 @@ if env['OURPLATFORM']!='darwin':
         scriptpaths=['release/scripts']
         for scriptpath in scriptpaths:
             for dp, dn, df in os.walk(scriptpath):
-                if '.svn' in dn:
-                    dn.remove('.svn')
-                if '_svn' in dn:
-                    dn.remove('_svn')
+                if '.git' in df:
+                    df.remove('.git')
                 if '__pycache__' in dn:  # py3.2 cache dir
                     dn.remove('__pycache__')
 
@@ -743,8 +884,6 @@ if env['OURPLATFORM']!='darwin':
             # cycles python code
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles')
             source=os.listdir('intern/cycles/blender/addon')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source=['intern/cycles/blender/addon/'+s for s in source]
             scriptinstall.append(env.Install(dir=dir,source=source))
@@ -752,8 +891,6 @@ if env['OURPLATFORM']!='darwin':
             # cycles kernel code
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel')
             source=os.listdir('intern/cycles/kernel')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source.remove('kernel.cpp')
             source.remove('CMakeLists.txt')
@@ -763,6 +900,7 @@ if env['OURPLATFORM']!='darwin':
             source.remove('osl')
             source=['intern/cycles/kernel/'+s for s in source]
             source.append('intern/cycles/util/util_color.h')
+            source.append('intern/cycles/util/util_half.h')
             source.append('intern/cycles/util/util_math.h')
             source.append('intern/cycles/util/util_transform.h')
             source.append('intern/cycles/util/util_types.h')
@@ -770,16 +908,12 @@ if env['OURPLATFORM']!='darwin':
             # svm
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel', 'svm')
             source=os.listdir('intern/cycles/kernel/svm')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source=['intern/cycles/kernel/svm/'+s for s in source]
             scriptinstall.append(env.Install(dir=dir,source=source))
             # closure
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel', 'closure')
             source=os.listdir('intern/cycles/kernel/closure')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source=['intern/cycles/kernel/closure/'+s for s in source]
             scriptinstall.append(env.Install(dir=dir,source=source))
@@ -787,8 +921,6 @@ if env['OURPLATFORM']!='darwin':
             # licenses
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'license')
             source=os.listdir('intern/cycles/doc/license')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source.remove('CMakeLists.txt')
             source=['intern/cycles/doc/license/'+s for s in source]
@@ -823,11 +955,6 @@ if env['OURPLATFORM']!='darwin':
         colormanagement = os.path.join('release', 'datafiles', 'colormanagement')
 
         for dp, dn, df in os.walk(colormanagement):
-            if '.svn' in dn:
-                dn.remove('.svn')
-            if '_svn' in dn:
-                dn.remove('_svn')
-
             dir = os.path.join(env['BF_INSTALLDIR'], VERSION, 'datafiles')
             dir += os.sep + os.path.basename(colormanagement) + dp[len(colormanagement):]
 
@@ -845,15 +972,16 @@ if env['OURPLATFORM']!='darwin':
         def check_path(path, member):
             return (member in path.split(os.sep))
 
+        po_dir = os.path.join("release", "datafiles", "locale", "po")
+
+        # font files
         for intpath in internationalpaths:
             for dp, dn, df in os.walk(intpath):
-                if '.svn' in dn:
-                    dn.remove('.svn')
-                if '_svn' in dn:
-                    dn.remove('_svn')
+                if '.git' in df:
+                    df.remove('.git')
 
                 # we only care about release/datafiles/fonts, release/datafiles/locales
-                if check_path(dp, "fonts") or check_path(dp, "locale"):
+                if check_path(dp, "fonts"):
                     pass
                 else:
                     continue
@@ -867,16 +995,31 @@ if env['OURPLATFORM']!='darwin':
                     env.Execute(Mkdir(dir))
                 scriptinstall.append(env.Install(dir=dir,source=source))
 
+        # .mo files
+        for f in os.listdir(po_dir):
+            if not f.endswith(".po"):
+                continue
+
+            locale_name = os.path.splitext(f)[0]
+
+            mo_file = os.path.join(B.root_build_dir, "locale", locale_name + ".mo")
+
+            dir = os.path.join(env['BF_INSTALLDIR'], VERSION)
+            dir = os.path.join(dir, "datafiles", "locale", locale_name, "LC_MESSAGES")
+            scriptinstall.append(env.InstallAs(os.path.join(dir, "blender.mo"), mo_file))
+
+        # languages file
+        dir = os.path.join(env['BF_INSTALLDIR'], VERSION)
+        dir = os.path.join(dir, "datafiles", "locale")
+        languages_file = os.path.join("release", "datafiles", "locale", "languages")
+        scriptinstall.append(env.InstallAs(os.path.join(dir, "languages"), languages_file))
+
 #-- icons
 if env['OURPLATFORM']=='linux':
     iconlist = []
     icontargetlist = []
 
     for tp, tn, tf in os.walk('release/freedesktop/icons'):
-        if '.svn' in tn:
-            tn.remove('.svn')
-        if '_svn' in tn:
-            tn.remove('_svn')
         for f in tf:
             iconlist.append(os.path.join(tp, f))
             icontargetlist.append( os.path.join(*([env['BF_INSTALLDIR']] + tp.split(os.sep)[2:] + [f])) )
@@ -902,10 +1045,6 @@ if env['OURPLATFORM']=='linuxcross':
 textlist = []
 texttargetlist = []
 for tp, tn, tf in os.walk('release/text'):
-    if '.svn' in tn:
-        tn.remove('.svn')
-    if '_svn' in tn:
-        tn.remove('_svn')
     for f in tf:
         textlist.append(tp+os.sep+f)
 
@@ -969,7 +1108,7 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
     # Since the thumb handler is loaded by Explorer, architecture is
     # strict: the x86 build fails on x64 Windows. We need to ship
     # both builds in x86 packages.
-    if bitness == 32:
+    if B.bitness == 32:
         dllsources.append('${LCGDIR}/thumbhandler/lib/BlendThumb.dll')
     dllsources.append('${LCGDIR}/thumbhandler/lib/BlendThumb64.dll')
 

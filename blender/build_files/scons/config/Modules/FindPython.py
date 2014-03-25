@@ -1,4 +1,5 @@
 import os
+import platform
 
 def FindPython():
     all_abi_flags = ['m', 'mu', '']
@@ -7,7 +8,7 @@ def FindPython():
     abi_flags = "m"  # Most common for linux distros
     version = "3.3"
 
-    _arch = "x86_64-linux-gnu"
+    _arch = platform.uname()[4] + "-linux-gnu"
 
     # Determine ABI flags used on this system
     include = os.path.join(python, "include")
@@ -37,8 +38,6 @@ def FindPython():
     _libpath_arch = os.path.join(python, "lib", _arch)  # No lib64 stuff with recent deb-like distro afaik...
     _libs = ["libpython" + version + abi_flags + ext for ext in (".so", ".a")]
     for l in _libs:
-        print os.path.join(libpath, l), os.path.exists(os.path.join(libpath, l))
-        print os.path.join(_libpath_arch, l), os.path.exists(os.path.join(_libpath_arch, l))
         if not os.path.exists(os.path.join(libpath, l)) and os.path.exists(os.path.join(_libpath_arch, l)):
             libpath_arch = os.path.join(libpath, _arch)
             break

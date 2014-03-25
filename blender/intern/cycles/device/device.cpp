@@ -23,6 +23,7 @@
 #include "util_cuda.h"
 #include "util_debug.h"
 #include "util_foreach.h"
+#include "util_half.h"
 #include "util_math.h"
 #include "util_opencl.h"
 #include "util_opengl.h"
@@ -127,7 +128,7 @@ Device *Device::create(DeviceInfo& info, Stats &stats, bool background)
 
 	switch(info.type) {
 		case DEVICE_CPU:
-			device = device_cpu_create(info, stats);
+			device = device_cpu_create(info, stats, background);
 			break;
 #ifdef WITH_CUDA
 		case DEVICE_CUDA:
@@ -158,9 +159,6 @@ Device *Device::create(DeviceInfo& info, Stats &stats, bool background)
 		default:
 			return NULL;
 	}
-
-	if(device)
-		device->info = info;
 
 	return device;
 }

@@ -131,7 +131,11 @@ if(WITH_BUILDINFO)
 		# # define in header now, else these get out of date on rebuilds.
 		# -DBUILD_DATE="${BUILD_DATE}"
 		# -DBUILD_TIME="${BUILD_TIME}"
-		# -DBUILD_REV="${BUILD_REV}"
+		# -DBUILD_COMMIT_TIMESTAMP="${BUILD_COMMIT_TIMESTAMP}"
+		# -DBUILD_COMMIT_TIME="${BUILD_COMMIT_TIME}"
+		# -DBUILD_COMMIT_DATE="${BUILD_COMMIT_DATE}"
+		# -DBUILD_HASH="${BUILD_HASH}"
+		# -DBUILD_BRANCH="${BUILD_BRANCH}"
 		-DWITH_BUILDINFO_HEADER # alternative to lines above
 		-DBUILD_PLATFORM="${CMAKE_SYSTEM_NAME}"
 		-DBUILD_TYPE="${CMAKE_BUILD_TYPE}"
@@ -302,7 +306,7 @@ if(WITH_PYTHON)
 	install(
 		DIRECTORY ${CMAKE_SOURCE_DIR}/release/scripts
 		DESTINATION ${TARGETDIR_VER}
-		PATTERN ".svn" EXCLUDE
+		PATTERN ".git" EXCLUDE
 		PATTERN "__pycache__" EXCLUDE
 		PATTERN "${ADDON_EXCLUDE_CONDITIONAL}" EXCLUDE
 		PATTERN "${FREESTYLE_EXCLUDE_CONDITIONAL}" EXCLUDE
@@ -316,11 +320,48 @@ endif()
 if(WITH_INTERNATIONAL)
 	install(
 		DIRECTORY
-			${CMAKE_SOURCE_DIR}/release/datafiles/locale
 			${CMAKE_SOURCE_DIR}/release/datafiles/fonts
 		DESTINATION ${TARGETDIR_VER}/datafiles
-		PATTERN ".svn" EXCLUDE
 	)
+
+	set(_locale_dir "${CMAKE_SOURCE_DIR}/release/datafiles/locale")
+	set(_locale_target_dir ${TARGETDIR_VER}/datafiles/locale)
+
+	file(GLOB _po_files "${_locale_dir}/po/*.po")
+	foreach(_po_file ${_po_files})
+		msgfmt_simple(${_po_file} _all_mo_files)
+	endforeach()
+
+	# Create a custom target which will compile all po to mo
+	add_custom_target(
+		locales
+		DEPENDS ${_all_mo_files})
+
+	add_dependencies(blender locales)
+
+	# Generate INSTALL rules
+	install(
+		FILES ${_locale_dir}/languages
+		DESTINATION ${_locale_target_dir}
+	)
+
+	foreach(_mo_file ${_all_mo_files})
+		get_filename_component(_locale_name ${_mo_file} NAME_WE)
+		install(
+			FILES ${_mo_file}
+			DESTINATION ${_locale_target_dir}/${_locale_name}/LC_MESSAGES
+			RENAME blender.mo
+		)
+		unset(_locale_name)
+	endforeach()
+
+	unset(_all_mo_files)
+	unset(_po_files)
+	unset(_po_file)
+	unset(_mo_file)
+	unset(_locale_target_dir)
+
+	unset(_locale_dir)
 endif()
 
 # color management
@@ -328,7 +369,6 @@ if(WITH_OPENCOLORIO)
 	install(
 		DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/colormanagement
 		DESTINATION ${TARGETDIR_VER}/datafiles
-		PATTERN ".svn" EXCLUDE
 	)
 endif()
 
@@ -405,7 +445,6 @@ if(UNIX AND NOT APPLE)
 				${CMAKE_SOURCE_DIR}/release/freedesktop/icons/48x48
 				${CMAKE_SOURCE_DIR}/release/freedesktop/icons/256x256
 			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/icons/hicolor
-			PATTERN ".svn" EXCLUDE
 			PATTERN "*.svg" EXCLUDE
 		)
 		install(
@@ -483,7 +522,19 @@ if(UNIX AND NOT APPLE)
 					PATTERN "*.a" EXCLUDE                   # ./core/lib/libnpymath.a - for linking, we dont need.
 				)
 			endif()
-			
+
+			# Copy requests, we need to generalize site-packages
+			if(WITH_PYTHON_INSTALL_REQUESTS)
+				install(
+					DIRECTORY ${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/requests
+					DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}/python${PYTHON_VERSION}/site-packages
+					PATTERN ".svn" EXCLUDE
+					PATTERN "__pycache__" EXCLUDE           # * any cache *
+					PATTERN "*.pyc" EXCLUDE                 # * any cache *
+					PATTERN "*.pyo" EXCLUDE                 # * any cache *
+					PATTERN "cacert.pem" EXCLUDE            # for now we don't deal with security
+				)
+			endif()
 			unset(_target_LIB)
 			
 		endif()
@@ -536,6 +587,27 @@ elseif(WIN32)
 				endif()
 				"
 			)
+
+			if(WITH_PYTHON_INSTALL_NUMPY)
+				install(
+					CODE
+					"
+					execute_process(COMMAND \"${CMAKE_COMMAND}\" -E chdir \"${TARGETDIR_VER}/python/lib/site-packages\"
+						\"${CMAKE_COMMAND}\" -E tar xzfv \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}_numpy_1.8.tar.gz\")
+					"
+				)
+			endif()
+
+			# release/site-packages
+			install(
+				CODE
+				"
+				execute_process(COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
+					${LIBDIR}/release/site-packages
+					\"${TARGETDIR_VER}/python/lib/site-packages\")
+				"
+			)
+
 
 			# doesnt work, todo
 			# install(CODE "execute_process(COMMAND find ${TARGETDIR}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
@@ -695,6 +767,7 @@ elseif(APPLE)
 		install(
 			DIRECTORY ${from}
 			DESTINATION ${to}
+			PATTERN ".git" EXCLUDE
 			PATTERN ".svn" EXCLUDE
 			PATTERN "*.pyc" EXCLUDE
 			PATTERN "*.pyo" EXCLUDE
@@ -733,6 +806,13 @@ elseif(APPLE)
 		\${TARGETDIR}/blender.app/Contents/
 	)
 
+	if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+		install(
+			FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
+			DESTINATION ${TARGETDIR}/blender.app/Contents/MacOS
+		)
+	endif()
+
 	# python
 	if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 		# the python zip is first extract as part of the build process,
@@ -758,6 +838,11 @@ elseif(APPLE)
 		install_dir(
 			${CMAKE_CURRENT_BINARY_DIR}/python
 			\${TARGETDIR_VER}
+		)
+		# copy site-packages files
+		install_dir(
+			${LIBDIR}/release/site-packages
+			${CMAKE_CURRENT_BINARY_DIR}/python/lib/python${PYTHON_VERSION}/site-packages
 		)
 
 	endif()
@@ -803,7 +888,7 @@ elseif(APPLE)
 		endif()
 
 	endif()
-		
+
 endif()
 
 # -----------------------------------------------------------------------------
@@ -865,12 +950,12 @@ endif()
 		bf_editor_space_outliner
 		bf_editor_space_script
 		bf_editor_space_sequencer
+		bf_editor_space_text
 		bf_editor_space_time
 		bf_editor_space_userpref
 		bf_editor_space_view3d
 		bf_editor_space_clip
 
-		bf_editor_text
 		bf_editor_transform
 		bf_editor_util
 		bf_editor_uvedit
@@ -892,7 +977,6 @@ endif()
 		bf_editor_io
 
 		bf_render
-		bf_intern_opennl
 		bf_python
 		bf_python_ext
 		bf_python_mathutils
@@ -912,9 +996,9 @@ endif()
 		bf_avi
 		bf_imbuf_cineon
 		bf_imbuf_openexr
+		bf_imbuf_openimageio
 		bf_imbuf_dds
 		bf_collada
-		bf_intern_bsp
 		bf_intern_elbeem
 		bf_intern_memutil
 		bf_intern_guardedalloc
@@ -1018,6 +1102,10 @@ endif()
 
 	if(WITH_INTERNATIONAL)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_locale)
+	endif()
+
+	if(WITH_OPENNL)
+		list_insert_after(BLENDER_SORTED_LIBS "bf_render" "bf_intern_opennl")
 	endif()
 
 	if(WITH_BULLET)

@@ -225,7 +225,10 @@ typedef enum eAnimFilter_Flags {
 	ANIMFILTER_NODUPLIS       = (1 << 11),
 	
 	/* for checking if we should keep some collapsed channel around (internal use only!) */
-	ANIMFILTER_TMP_PEEK       = (1 << 30)
+	ANIMFILTER_TMP_PEEK       = (1 << 30),
+
+	/* ignore ONLYSEL flag from filterflag, (internal use only!) */
+	ANIMFILTER_TMP_IGNORE_ONLYSEL = (1 << 31)
 } eAnimFilter_Flags;
 
 /* ---------- Flag Checking Macros ------------ */
@@ -344,13 +347,13 @@ size_t ANIM_animdata_filter(bAnimContext *ac, ListBase *anim_data, int filter_mo
 /* Obtain current anim-data context from Blender Context info.
  * Returns whether the operation was successful. 
  */
-short ANIM_animdata_get_context(const struct bContext *C, bAnimContext *ac);
+bool ANIM_animdata_get_context(const struct bContext *C, bAnimContext *ac);
 
 /* Obtain current anim-data context (from Animation Editor) given 
  * that Blender Context info has already been set. 
  * Returns whether the operation was successful.
  */
-short ANIM_animdata_context_getdata(bAnimContext *ac);
+bool ANIM_animdata_context_getdata(bAnimContext *ac);
 
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */
@@ -396,15 +399,15 @@ typedef struct bAnimChannelType {
 	/* get name (for channel lists) */
 	void (*name)(bAnimListElem *ale, char *name);
 	/* get RNA property+pointer for editing the name */
-	short (*name_prop)(bAnimListElem *ale, struct PointerRNA *ptr, struct PropertyRNA **prop);
+	bool (*name_prop)(bAnimListElem *ale, struct PointerRNA *ptr, struct PropertyRNA **prop);
 	/* get icon (for channel lists) */
 	int (*icon)(bAnimListElem *ale);
 	
 	/* settings */
 	/* check if the given setting is valid in the current context */
-	short (*has_setting)(bAnimContext *ac, bAnimListElem *ale, int setting);
+	bool (*has_setting)(bAnimContext *ac, bAnimListElem *ale, int setting);
 	/* get the flag used for this setting */
-	int (*setting_flag)(bAnimContext *ac, int setting, short *neg);
+	int (*setting_flag)(bAnimContext *ac, int setting, bool *neg);
 	/* get the pointer to int/short where data is stored,
 	 * with type being  sizeof(ptr_data) which should be fine for runtime use...
 	 *	- assume that setting has been checked to be valid for current context
@@ -467,9 +470,6 @@ void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, struct AnimData *adt, st
 /* ************************************************ */
 /* DRAWING API */
 /* anim_draw.c */
-
-/* Get string representing the given frame number as an appropriately represented frame or timecode */
-void ANIM_timecode_string_from_frame(char *str, struct Scene *scene, int power, short timecodes, float cfra);
 
 /* ---------- Current Frame Drawing ---------------- */
 
@@ -559,13 +559,19 @@ typedef enum eAnimUnitConv_Flags {
 	/* only touch selected vertices */
 	ANIM_UNITCONV_SELVERTS  = (1 << 3),
 	ANIM_UNITCONV_SKIPKNOTS  = (1 << 4),
+	/* Scale FCurve i a way it fits to -1..1 space */
+	ANIM_UNITCONV_NORMALIZE  = (1 << 5),
+	/* Only whennormalization is used: use scale factor from previous run,
+	 * prevents curves from jumping all over the place when tweaking them.
+	 */
+	ANIM_UNITCONV_NORMALIZE_FREEZE  = (1 << 6),
 } eAnimUnitConv_Flags;
 
-/* Get unit conversion factor for given ID + F-Curve */
-float ANIM_unit_mapping_get_factor(struct Scene *scene, struct ID *id, struct FCurve *fcu, short restore);
+/* Normalization flags from Space Graph passing to ANIM_unit_mapping_get_factor */
+short ANIM_get_normalization_flags(bAnimContext *ac);
 
-/* Apply/Unapply units conversions to keyframes */
-void ANIM_unit_mapping_apply_fcurve(struct Scene *scene, struct ID *id, struct FCurve *fcu, short flag);
+/* Get unit conversion factor for given ID + F-Curve */
+float ANIM_unit_mapping_get_factor(struct Scene *scene, struct ID *id, struct FCurve *fcu, short flag);
 
 /* ------------- Utility macros ----------------------- */
 

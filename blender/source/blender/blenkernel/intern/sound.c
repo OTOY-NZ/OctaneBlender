@@ -84,14 +84,14 @@ bSound *sound_new_file(struct Main *bmain, const char *filename)
 	while (len > 0 && filename[len - 1] != '/' && filename[len - 1] != '\\')
 		len--;
 
-	sound = BKE_libblock_alloc(&bmain->sound, ID_SO, filename + len);
+	sound = BKE_libblock_alloc(bmain, ID_SO, filename + len);
 	BLI_strncpy(sound->name, filename, FILE_MAX);
 // XXX unused currently	sound->type = SOUND_TYPE_FILE;
 
 	sound_load(bmain, sound);
 
 	if (!sound->playback_handle) {
-		BKE_libblock_free(&bmain->sound, sound);
+		BKE_libblock_free(bmain, sound);
 		sound = NULL;
 	}
 
@@ -233,7 +233,7 @@ bSound *sound_new_buffer(struct Main *bmain, bSound *source)
 	strcpy(name, "buf_");
 	strcpy(name + 4, source->id.name);
 
-	sound = BKE_libblock_alloc(&bmain->sound, ID_SO, name);
+	sound = BKE_libblock_alloc(bmain, ID_SO, name);
 
 	sound->child_sound = source;
 	sound->type = SOUND_TYPE_BUFFER;
@@ -242,7 +242,7 @@ bSound *sound_new_buffer(struct Main *bmain, bSound *source)
 
 	if (!sound->playback_handle)
 	{
-		BKE_libblock_free(&bmain->sound, sound);
+		BKE_libblock_free(bmain, sound);
 		sound = NULL;
 	}
 
@@ -257,7 +257,7 @@ bSound *sound_new_limiter(struct Main *bmain, bSound *source, float start, float
 	strcpy(name, "lim_");
 	strcpy(name + 4, source->id.name);
 
-	sound = BKE_libblock_alloc(&bmain->sound, ID_SO, name);
+	sound = BKE_libblock_alloc(bmain, ID_SO, name);
 
 	sound->child_sound = source;
 	sound->start = start;
@@ -268,7 +268,7 @@ bSound *sound_new_limiter(struct Main *bmain, bSound *source, float start, float
 
 	if (!sound->playback_handle)
 	{
-		BKE_libblock_free(&bmain->sound, sound);
+		BKE_libblock_free(bmain, sound);
 		sound = NULL;
 	}
 
@@ -281,7 +281,7 @@ void sound_delete(struct Main *bmain, bSound *sound)
 	if (sound) {
 		BKE_sound_free(sound);
 
-		BKE_libblock_free(&bmain->sound, sound);
+		BKE_libblock_free(bmain, sound);
 	}
 }
 
@@ -681,7 +681,7 @@ void sound_read_waveform(bSound *sound)
 	}
 }
 
-void sound_update_scene(struct Scene *scene)
+void sound_update_scene(Main *bmain, struct Scene *scene)
 {
 	Object *ob;
 	Base *base;
@@ -693,6 +693,11 @@ void sound_update_scene(struct Scene *scene)
 	void *new_set = AUD_createSet();
 	void *handle;
 	float quat[4];
+
+	/* cheap test to skip looping over all objects (no speakers is a common case) */
+	if (BLI_listbase_is_empty(&bmain->speaker)) {
+		goto skip_speakers;
+	}
 
 	for (SETLOOPER(scene, sce_it, base)) {
 		ob = base->object;
@@ -742,6 +747,9 @@ void sound_update_scene(struct Scene *scene)
 			}
 		}
 	}
+
+
+skip_speakers:
 
 	while ((handle = AUD_getSet(scene->speaker_handles))) {
 		AUD_removeSequence(scene->sound_scene, handle);
@@ -808,7 +816,7 @@ void sound_read_waveform(struct bSound *sound) { (void)sound; }
 void sound_init_main(struct Main *bmain) { (void)bmain; }
 void sound_set_cfra(int cfra) { (void)cfra; }
 void sound_update_sequencer(struct Main *main, struct bSound *sound) { (void)main; (void)sound; }
-void sound_update_scene(struct Scene *scene) { (void)scene; }
+void sound_update_scene(struct Main *UNUSED(bmain), struct Scene *UNUSED(scene)) { }
 void sound_update_scene_sound(void *handle, struct bSound *sound) { (void)handle; (void)sound; }
 void sound_update_scene_listener(struct Scene *scene) { (void)scene; }
 void sound_update_fps(struct Scene *scene) { (void)scene; }

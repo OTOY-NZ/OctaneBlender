@@ -33,6 +33,7 @@
 #include "DNA_scene_types.h" /* for MAXFRAME */
 
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 
 #include "BLF_translation.h"
 
@@ -431,7 +432,7 @@ static void rna_StateActuator_state_set(PointerRNA *ptr, const int *values)
 }
 
 /* Always keep in alphabetical order */
-EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *free)
+EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *item = NULL;
 	Object *ob = NULL;
@@ -470,7 +471,7 @@ EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, Property
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_VISIBILITY);
 	
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 	
 	return item;
 }
@@ -1051,15 +1052,15 @@ static void rna_def_sound_actuator(BlenderRNA *brna)
 	                         "between this value and the normal gain in the inner cone)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop = RNA_def_property(srna, "cone_outer_angle_3d", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "cone_outer_angle_3d", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "sound3D.cone_outer_angle");
-	RNA_def_property_ui_range(prop, 0.0, 360.0, 1, 2);
+	RNA_def_property_ui_range(prop, 0.0, DEG2RADF(360.0f), 1, 2);
 	RNA_def_property_ui_text(prop, "Cone Outer Angle", "The angle of the outer cone");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop = RNA_def_property(srna, "cone_inner_angle_3d", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "cone_inner_angle_3d", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "sound3D.cone_inner_angle");
-	RNA_def_property_ui_range(prop, 0.0, 360.0, 1, 2);
+	RNA_def_property_ui_range(prop, 0.0, DEG2RADF(360.0f), 1, 2);
 	RNA_def_property_ui_text(prop, "Cone Inner Angle", "The angle of the inner cone");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 	
@@ -1259,21 +1260,19 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Reference Direction", "Reference Direction");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	/*XXX TODO - use radians internally then change to PROP_ANGLE */
-	prop = RNA_def_property(srna, "angle_min", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "angle_min", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "minloc[0]");
-	RNA_def_property_range(prop, 0.0, 180.0);
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
 	RNA_def_property_ui_text(prop, "Min Angle",
-	                         "Minimum angle (in degree) to maintain with target direction "
+	                         "Minimum angle to maintain with target direction "
 	                         "(no correction is done if angle with target direction is between min and max)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	/*XXX TODO - use radians internally then change to PROP_ANGLE */
-	prop = RNA_def_property(srna, "angle_max", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "angle_max", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "maxloc[0]");
-	RNA_def_property_range(prop, 0.0, 180.0);
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
 	RNA_def_property_ui_text(prop, "Max Angle",
-	                         "Maximum angle (in degree) allowed with target direction "
+	                         "Maximum angle allowed with target direction "
 	                         "(no correction is done if angle with target direction is between min and max)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
@@ -1480,10 +1479,10 @@ static void rna_def_scene_actuator(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_type_items);
 	RNA_def_property_ui_text(prop, "Mode", "");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
-	
-	/*XXX filter only camera objects */
+
 	prop = RNA_def_property(srna, "camera", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Camera_object_poll");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Camera Object", "Set this Camera (leave empty to refer to self object)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);

@@ -221,7 +221,7 @@ class ExecutePreset(Operator):
 
 
 class AddPresetRender(AddPresetBase, Operator):
-    """Add a Render Preset"""
+    """Add or remove a Render Preset"""
     bl_idname = "render.preset_add"
     bl_label = "Add Render Preset"
     preset_menu = "RENDER_MT_presets"
@@ -247,7 +247,7 @@ class AddPresetRender(AddPresetBase, Operator):
 
 
 class AddPresetCamera(AddPresetBase, Operator):
-    """Add a Camera Preset"""
+    """Add or remove a Camera Preset"""
     bl_idname = "camera.preset_add"
     bl_label = "Add Camera Preset"
     preset_menu = "CAMERA_MT_presets"
@@ -256,17 +256,29 @@ class AddPresetCamera(AddPresetBase, Operator):
         "cam = bpy.context.object.data"
     ]
 
-    preset_values = [
-        "cam.sensor_width",
-        "cam.sensor_height",
-        "cam.sensor_fit"
-    ]
-
     preset_subdir = "camera"
+
+    use_focal_length = BoolProperty(
+            name="Include Focal Length",
+            description="Include focal length into the preset",
+            options={'SKIP_SAVE'},
+            )
+
+    @property
+    def preset_values(self):
+        preset_values = [
+            "cam.sensor_width",
+            "cam.sensor_height",
+            "cam.sensor_fit"
+        ]
+        if self.use_focal_length:
+            preset_values.append("cam.lens")
+            preset_values.append("cam.lens_unit")
+        return preset_values
 
 
 class AddPresetSSS(AddPresetBase, Operator):
-    """Add a Subsurface Scattering Preset"""
+    """Add or remove a Subsurface Scattering Preset"""
     bl_idname = "material.sss_preset_add"
     bl_label = "Add SSS Preset"
     preset_menu = "MATERIAL_MT_sss_presets"
@@ -294,7 +306,7 @@ class AddPresetSSS(AddPresetBase, Operator):
 
 
 class AddPresetCloth(AddPresetBase, Operator):
-    """Add a Cloth Preset"""
+    """Add or remove a Cloth Preset"""
     bl_idname = "cloth.preset_add"
     bl_label = "Add Cloth Preset"
     preset_menu = "CLOTH_MT_presets"
@@ -316,7 +328,7 @@ class AddPresetCloth(AddPresetBase, Operator):
 
 
 class AddPresetFluid(AddPresetBase, Operator):
-    """Add a Fluid Preset"""
+    """Add or remove a Fluid Preset"""
     bl_idname = "fluid.preset_add"
     bl_label = "Add Fluid Preset"
     preset_menu = "FLUID_MT_presets"
@@ -334,7 +346,7 @@ class AddPresetFluid(AddPresetBase, Operator):
 
 
 class AddPresetSunSky(AddPresetBase, Operator):
-    """Add a Sky & Atmosphere Preset"""
+    """Add or remove a Sky & Atmosphere Preset"""
     bl_idname = "lamp.sunsky_preset_add"
     bl_label = "Add Sunsky Preset"
     preset_menu = "LAMP_MT_sunsky_presets"
@@ -363,7 +375,7 @@ class AddPresetSunSky(AddPresetBase, Operator):
 
 
 class AddPresetInteraction(AddPresetBase, Operator):
-    """Add an Application Interaction Preset"""
+    """Add or remove an Application Interaction Preset"""
     bl_idname = "wm.interaction_preset_add"
     bl_label = "Add Interaction Preset"
     preset_menu = "USERPREF_MT_interaction_presets"
@@ -389,7 +401,7 @@ class AddPresetInteraction(AddPresetBase, Operator):
 
 
 class AddPresetTrackingCamera(AddPresetBase, Operator):
-    """Add a Tracking Camera Intrinsics  Preset"""
+    """Add or remove a Tracking Camera Intrinsics Preset"""
     bl_idname = "clip.camera_preset_add"
     bl_label = "Add Camera Preset"
     preset_menu = "CLIP_MT_camera_presets"
@@ -398,21 +410,32 @@ class AddPresetTrackingCamera(AddPresetBase, Operator):
         "camera = bpy.context.edit_movieclip.tracking.camera"
     ]
 
-    preset_values = [
-        "camera.sensor_width",
-        "camera.units",
-        "camera.focal_length",
-        "camera.pixel_aspect",
-        "camera.k1",
-        "camera.k2",
-        "camera.k3"
-    ]
-
     preset_subdir = "tracking_camera"
+
+    use_focal_length = BoolProperty(
+            name="Include Focal Length",
+            description="Include focal length into the preset",
+            options={'SKIP_SAVE'},
+            default=True
+            )
+
+    @property
+    def preset_values(self):
+        preset_values = [
+            "camera.sensor_width",
+            "camera.pixel_aspect",
+            "camera.k1",
+            "camera.k2",
+            "camera.k3"
+        ]
+        if self.use_focal_length:
+            preset_values.append("camera.units")
+            preset_values.append("camera.focal_length")
+        return preset_values
 
 
 class AddPresetTrackingTrackColor(AddPresetBase, Operator):
-    """Add a Clip Track Color Preset"""
+    """Add or remove a Clip Track Color Preset"""
     bl_idname = "clip.track_color_preset_add"
     bl_label = "Add Track Color Preset"
     preset_menu = "CLIP_MT_track_color_presets"
@@ -430,7 +453,7 @@ class AddPresetTrackingTrackColor(AddPresetBase, Operator):
 
 
 class AddPresetTrackingSettings(AddPresetBase, Operator):
-    """Add a motion tracking settings preset"""
+    """Add or remove a motion tracking settings preset"""
     bl_idname = "clip.tracking_settings_preset_add"
     bl_label = "Add Tracking Settings Preset"
     preset_menu = "CLIP_MT_tracking_settings_presets"
@@ -453,13 +476,14 @@ class AddPresetTrackingSettings(AddPresetBase, Operator):
         "settings.use_default_red_channel",
         "settings.use_default_green_channel",
         "settings.use_default_blue_channel"
+        "settings.default_weight"
     ]
 
     preset_subdir = "tracking_settings"
 
 
 class AddPresetNodeColor(AddPresetBase, Operator):
-    """Add a Node Color Preset"""
+    """Add or remove a Node Color Preset"""
     bl_idname = "node.node_color_preset_add"
     bl_label = "Add Node Color Preset"
     preset_menu = "NODE_MT_node_color_presets"
@@ -477,7 +501,7 @@ class AddPresetNodeColor(AddPresetBase, Operator):
 
 
 class AddPresetInterfaceTheme(AddPresetBase, Operator):
-    """Add a theme preset"""
+    """Add or remove a theme preset"""
     bl_idname = "wm.interface_theme_preset_add"
     bl_label = "Add Theme Preset"
     preset_menu = "USERPREF_MT_interface_theme_presets"
@@ -485,7 +509,7 @@ class AddPresetInterfaceTheme(AddPresetBase, Operator):
 
 
 class AddPresetKeyconfig(AddPresetBase, Operator):
-    """Add a Key-config Preset"""
+    """Add or remove a Key-config Preset"""
     bl_idname = "wm.keyconfig_preset_add"
     bl_label = "Add Keyconfig Preset"
     preset_menu = "USERPREF_MT_keyconfigs"
@@ -508,7 +532,7 @@ class AddPresetKeyconfig(AddPresetBase, Operator):
 
 
 class AddPresetOperator(AddPresetBase, Operator):
-    """Add an Operator Preset"""
+    """Add or remove an Operator Preset"""
     bl_idname = "wm.operator_preset_add"
     bl_label = "Operator Preset"
     preset_menu = "WM_MT_operator_presets"

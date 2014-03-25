@@ -335,7 +335,7 @@ static bool view3d_ruler_to_gpencil(bContext *C, RulerInfo *ruler_info)
 	bGPDstroke *gps;
 	RulerItem *ruler_item;
 	const char *ruler_name = RULER_ID;
-	bool change = false;
+	bool changed = false;
 
 	if (scene->gpd == NULL) {
 		scene->gpd = gpencil_data_addnew("GPencil");
@@ -377,16 +377,16 @@ static bool view3d_ruler_to_gpencil(bContext *C, RulerInfo *ruler_info)
 		}
 		gps->flag = GP_STROKE_3DSPACE;
 		BLI_addtail(&gpf->strokes, gps);
-		change = true;
+		changed = true;
 	}
 
-	return change;
+	return changed;
 }
 
 static bool view3d_ruler_from_gpencil(bContext *C, RulerInfo *ruler_info)
 {
 	Scene *scene = CTX_data_scene(C);
-	bool change = false;
+	bool changed = false;
 
 	if (scene->gpd) {
 		bGPDlayer *gpl;
@@ -407,7 +407,7 @@ static bool view3d_ruler_from_gpencil(bContext *C, RulerInfo *ruler_info)
 							pt++;
 						}
 						ruler_item->flag |= RULERITEM_USE_ANGLE;
-						change = true;
+						changed = true;
 					}
 					else if (gps->totpoints == 2) {
 						RulerItem *ruler_item = ruler_item_add(ruler_info);
@@ -415,14 +415,14 @@ static bool view3d_ruler_from_gpencil(bContext *C, RulerInfo *ruler_info)
 							copy_v3_v3(ruler_item->co[j], &pt->x);
 							pt++;
 						}
-						change = true;
+						changed = true;
 					}
 				}
 			}
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 /* -------------------------------------------------------------------- */
@@ -541,7 +541,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 				ruler_item_as_string(ruler_item, unit, numstr, sizeof(numstr), prec);
 
-				BLF_width_and_height(blf_mono_font, numstr, &numstr_size[0], &numstr_size[1]);
+				BLF_width_and_height(blf_mono_font, numstr, sizeof(numstr), &numstr_size[0], &numstr_size[1]);
 
 				pos[0] = co_ss[1][0] + (cap_size * 2.0f);
 				pos[1] = co_ss[1][1] - (numstr_size[1] / 2.0f);
@@ -627,7 +627,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 				ruler_item_as_string(ruler_item, unit, numstr, sizeof(numstr), prec);
 
-				BLF_width_and_height(blf_mono_font, numstr, &numstr_size[0], &numstr_size[1]);
+				BLF_width_and_height(blf_mono_font, numstr, sizeof(numstr), &numstr_size[0], &numstr_size[1]);
 
 				mid_v2_v2v2(pos, co_ss[0], co_ss[2]);
 
@@ -809,15 +809,13 @@ static int view3d_ruler_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int view3d_ruler_cancel(bContext *C, wmOperator *op)
+static void view3d_ruler_cancel(bContext *C, wmOperator *op)
 {
 	RulerInfo *ruler_info = op->customdata;
 
 	view3d_ruler_end(C, ruler_info);
 	view3d_ruler_free(ruler_info);
 	op->customdata = NULL;
-
-	return OPERATOR_CANCELLED;
 }
 
 static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -859,7 +857,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 					if (event->ctrl ||
 					    /* weak - but user friendly */
-					    (ruler_info->items.first == NULL))
+					    BLI_listbase_is_empty(&ruler_info->items))
 					{
 						View3D *v3d = CTX_wm_view3d(C);
 						const bool use_depth = (v3d->drawtype >= OB_SOLID);

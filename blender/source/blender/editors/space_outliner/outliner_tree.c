@@ -1342,7 +1342,7 @@ static void outliner_sort(SpaceOops *soops, ListBase *lb)
 					qsort(tear + skip, totelem - skip, sizeof(tTreeSort), treesort_alpha_ob);
 			}
 			
-			lb->first = lb->last = NULL;
+			BLI_listbase_clear(lb);
 			tp = tear;
 			while (totelem--) {
 				BLI_addtail(lb, tp->te);
@@ -1443,7 +1443,7 @@ static int outliner_filter_tree(SpaceOops *soops, ListBase *lb)
 	}
 	
 	/* if there are still items in the list, that means that there were still some matches */
-	return (lb->first != NULL);
+	return (BLI_listbase_is_empty(lb) == false);
 }
 
 static void outliner_add_library_contents(Main *mainvar, SpaceOops *soops, TreeElement *te, Library *lib)
@@ -1630,7 +1630,7 @@ void outliner_build_tree(Main *mainvar, Scene *scene, SpaceOops *soops)
 	}
 	else if (soops->outlinevis == SO_SEQUENCE) {
 		Sequence *seq;
-		Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
+		Editing *ed = BKE_sequencer_editing_get(scene, false);
 		int op;
 
 		if (ed == NULL)
@@ -1674,14 +1674,6 @@ void outliner_build_tree(Main *mainvar, Scene *scene, SpaceOops *soops)
 		if (show_opened) {
 			tselem = TREESTORE(ten);
 			tselem->flag &= ~TSE_CLOSED;
-		}
-	}
-	else if (soops->outlinevis == SO_KEYMAP) {
-		wmWindowManager *wm = mainvar->wm.first;
-		wmKeyMap *km;
-		
-		for (km = wm->defaultconf->keymaps.first; km; km = km->next) {
-			/* ten = */ outliner_add_element(soops, &soops->tree, (void *)km, NULL, TSE_KEYMAP, 0);
 		}
 	}
 	else {

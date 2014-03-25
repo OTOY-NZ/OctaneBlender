@@ -828,7 +828,7 @@ static void bm_face_slice(BMesh *bm, BMLoop *l, const int cuts)
 
 	for (i = 0; i < cuts; i++) {
 		/* no chance of double */
-		BM_face_split(bm, l_new->f, l_new->prev->v, l_new->next->next->v, &l_new, NULL, false);
+		BM_face_split(bm, l_new->f, l_new->prev, l_new->next->next, &l_new, NULL, false);
 		if (l_new->f->len < l_new->radial_next->f->len) {
 			l_new = l_new->radial_next;
 		}
@@ -1070,7 +1070,7 @@ void bmo_subdivide_edgering_exec(BMesh *bm, BMOperator *op)
 	BMOIter siter;
 	BMEdge *e;
 	int count;
-	bool change = false;
+	bool changed = false;
 
 	const int cuts = BMO_slot_int_get(op->slots_in, "cuts");
 	const int interp_mode = BMO_slot_int_get(op->slots_in, "interp_mode");
@@ -1166,7 +1166,7 @@ void bmo_subdivide_edgering_exec(BMesh *bm, BMOperator *op)
 			bm_edgering_pair_ringsubd(bm, lpair, el_store_a, el_store_b,
 			                          interp_mode, cuts, smooth, falloff_cache);
 			bm_edgering_pair_store_free(lpair, interp_mode);
-			change = true;
+			changed = true;
 		}
 		else {
 			BMO_error_raise(bm, op, BMERR_INVALID_SELECTION,
@@ -1217,7 +1217,7 @@ void bmo_subdivide_edgering_exec(BMesh *bm, BMOperator *op)
 				bm_edgering_pair_ringsubd(bm, lpair, el_store_a, el_store_b,
 				                          interp_mode, cuts, smooth, falloff_cache);
 				bm_edgering_pair_store_free(lpair, interp_mode);
-				change = true;
+				changed = true;
 			}
 
 			BLI_assert(bm_verts_tag_count(bm) == 0);
@@ -1229,7 +1229,7 @@ cleanup:
 	BM_mesh_edgeloops_free(&eloops_rim);
 
 	/* flag output */
-	if (change) {
+	if (changed) {
 		BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, FACE_OUT);
 	}
 }

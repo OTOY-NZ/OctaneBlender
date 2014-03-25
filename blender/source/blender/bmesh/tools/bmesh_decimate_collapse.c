@@ -250,6 +250,9 @@ static void bm_decim_build_edge_cost_single(BMEdge *e,
 	}
 	// print("COST %.12f\n");
 
+	/* note, 'cost' shouldn't be negative but happens sometimes with small values.
+	 * this can cause faces that make up a flat surface to over-collapse, see [#37121] */
+	cost = fabsf(cost);
 	eheap_table[BM_elem_index_get(e)] = BLI_heap_insert(eheap, cost, e);
 }
 
@@ -355,7 +358,7 @@ static bool bm_decim_triangulate_begin(BMesh *bm)
 				 * - if there is a quad that has a free standing edge joining it along
 				 * where we want to split the face, there isnt a good way we can handle this.
 				 * currently that edge will get removed when joining the tris back into a quad. */
-				f_new = BM_face_split(bm, f, l_a->v, l_b->v, &l_new, NULL, false);
+				f_new = BM_face_split(bm, f, l_a, l_b, &l_new, NULL, false);
 
 				if (f_new) {
 					/* the value of this doesn't matter, only that the 2 loops match and have unique values */
@@ -390,10 +393,10 @@ static void bm_decim_triangulate_end(BMesh *bm)
 {
 	/* decimation finished, now re-join */
 	BMIter iter;
-	BMEdge *e;
+	BMEdge *e, *e_next;
 
 	/* boundary edges */
-	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+	BM_ITER_MESH_MUTABLE (e, e_next, &iter, bm, BM_EDGES_OF_MESH) {
 		BMLoop *l_a, *l_b;
 		if (BM_edge_loop_pair(e, &l_a, &l_b)) {
 			const int l_a_index = BM_elem_index_get(l_a);
@@ -575,7 +578,7 @@ static void bm_edge_tag_disable(BMEdge *e)
 	}
 }
 
-static int bm_edge_tag_test(BMEdge *e)
+static bool bm_edge_tag_test(BMEdge *e)
 {
 	/* is the edge or one of its faces tagged? */
 	return (BM_elem_flag_test(e->v1, BM_ELEM_TAG) ||

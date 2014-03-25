@@ -73,7 +73,6 @@ void	ED_region_visible_rect(struct ARegion *ar, struct rcti *rect);
 /* spaces */
 void    ED_spacetypes_keymap(struct wmKeyConfig *keyconf);
 int     ED_area_header_switchbutton(const struct bContext *C, struct uiBlock *block, int yco);
-int     ED_area_header_standardbuttons(const struct bContext *C, struct uiBlock *block, int yco);
 
 
 /* areas */
@@ -145,6 +144,7 @@ int     ED_operator_node_active(struct bContext *C);
 int     ED_operator_node_editable(struct bContext *C);
 int     ED_operator_graphedit_active(struct bContext *C);
 int     ED_operator_sequencer_active(struct bContext *C);
+int     ED_operator_sequencer_active_editable(struct bContext *C);
 int     ED_operator_image_active(struct bContext *C);
 int     ED_operator_nla_active(struct bContext *C);
 int     ED_operator_logic_active(struct bContext *C);

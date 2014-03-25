@@ -41,6 +41,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_timecode.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -174,7 +175,7 @@ static void view2d_masks(View2D *v2d, int check_scrollers)
  */
 void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 {
-	short tot_changed = 0, do_init;
+	bool tot_changed = false, do_init;
 	uiStyle *style = UI_GetStyle();
 
 	do_init = (v2d->flag & V2D_IS_INITIALISED) == 0;
@@ -404,23 +405,26 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, int resize, int mask_
 	 * NOTE: in general, it is not expected that the lock-zoom will be used in conjunction with this
 	 */
 	else if (v2d->keepzoom & V2D_LIMITZOOM) {
-		float zoom, fac;
 		
 		/* check if excessive zoom on x-axis */
 		if ((v2d->keepzoom & V2D_LOCKZOOM_X) == 0) {
-			zoom = winx / width;
-			if ((zoom < v2d->minzoom) || (zoom > v2d->maxzoom)) {
-				fac = (zoom < v2d->minzoom) ? (zoom / v2d->minzoom) : (zoom / v2d->maxzoom);
-				width *= fac;
+			const float zoom = winx / width;
+			if (zoom < v2d->minzoom) {
+				width = winx / v2d->minzoom;
+			}
+			else if (zoom > v2d->maxzoom) {
+				width = winx / v2d->maxzoom;
 			}
 		}
 		
 		/* check if excessive zoom on y-axis */
 		if ((v2d->keepzoom & V2D_LOCKZOOM_Y) == 0) {
-			zoom = winy / height;
-			if ((zoom < v2d->minzoom) || (zoom > v2d->maxzoom)) {
-				fac = (zoom < v2d->minzoom) ? (zoom / v2d->minzoom) : (zoom / v2d->maxzoom);
-				height *= fac;
+			const float zoom = winy / height;
+			if (zoom < v2d->minzoom) {
+				height = winy / v2d->minzoom;
+			}
+			else if (zoom > v2d->maxzoom) {
+				height = winy / v2d->maxzoom;
 			}
 		}
 	}
@@ -432,14 +436,14 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, int resize, int mask_
 	
 	/* check if we should restore aspect ratio (if view size changed) */
 	if (v2d->keepzoom & V2D_KEEPASPECT) {
-		short do_x = FALSE, do_y = FALSE, do_cur /* , do_win */ /* UNUSED */;
+		bool do_x = false, do_y = false, do_cur /* , do_win */ /* UNUSED */;
 		float /* curRatio, */ /* UNUSED */ winRatio;
 		
 		/* when a window edge changes, the aspect ratio can't be used to
 		 * find which is the best new 'cur' rect. thats why it stores 'old' 
 		 */
-		if (winx != v2d->oldwinx) do_x = TRUE;
-		if (winy != v2d->oldwiny) do_y = TRUE;
+		if (winx != v2d->oldwinx) do_x = true;
+		if (winy != v2d->oldwiny) do_y = true;
 		
 		/* curRatio = height / width; */ /* UNUSED */
 		winRatio = winy / winx;
@@ -448,14 +452,14 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, int resize, int mask_
 		if (do_x == do_y) {
 			if (do_x && do_y) {
 				/* here is 1,1 case, so all others must be 0,0 */
-				if (ABS(winx - v2d->oldwinx) > ABS(winy - v2d->oldwiny)) do_y = FALSE;
-				else do_x = FALSE;
+				if (fabsf(winx - v2d->oldwinx) > fabsf(winy - v2d->oldwiny)) do_y = false;
+				else do_x = false;
 			}
 			else if (winRatio > 1.0f) {
-				do_x = FALSE;
+				do_x = false;
 			}
 			else {
-				do_x = TRUE;
+				do_x = true;
 			}
 		}
 		do_cur = do_x;
@@ -820,17 +824,17 @@ void UI_view2d_curRect_reset(View2D *v2d)
 	/* handle width - posx and negx flags are mutually exclusive, so watch out */
 	if ((v2d->align & V2D_ALIGN_NO_POS_X) && !(v2d->align & V2D_ALIGN_NO_NEG_X)) {
 		/* width is in negative-x half */
-		v2d->cur.xmin = (float)-width;
+		v2d->cur.xmin = -width;
 		v2d->cur.xmax = 0.0f;
 	}
 	else if ((v2d->align & V2D_ALIGN_NO_NEG_X) && !(v2d->align & V2D_ALIGN_NO_POS_X)) {
 		/* width is in positive-x half */
 		v2d->cur.xmin = 0.0f;
-		v2d->cur.xmax = (float)width;
+		v2d->cur.xmax = width;
 	}
 	else {
 		/* width is centered around (x == 0) */
-		const float dx = (float)width / 2.0f;
+		const float dx = width / 2.0f;
 		
 		v2d->cur.xmin = -dx;
 		v2d->cur.xmax = dx;
@@ -839,17 +843,17 @@ void UI_view2d_curRect_reset(View2D *v2d)
 	/* handle height - posx and negx flags are mutually exclusive, so watch out */
 	if ((v2d->align & V2D_ALIGN_NO_POS_Y) && !(v2d->align & V2D_ALIGN_NO_NEG_Y)) {
 		/* height is in negative-y half */
-		v2d->cur.ymin = (float)-height;
+		v2d->cur.ymin = -height;
 		v2d->cur.ymax = 0.0f;
 	}
 	else if ((v2d->align & V2D_ALIGN_NO_NEG_Y) && !(v2d->align & V2D_ALIGN_NO_POS_Y)) {
 		/* height is in positive-y half */
 		v2d->cur.ymin = 0.0f;
-		v2d->cur.ymax = (float)height;
+		v2d->cur.ymax = height;
 	}
 	else {
 		/* height is centered around (y == 0) */
-		const float dy = (float)height / 2.0f;
+		const float dy = height / 2.0f;
 		
 		v2d->cur.ymin = -dy;
 		v2d->cur.ymax = dy;
@@ -937,11 +941,11 @@ void UI_view2d_totRect_set(View2D *v2d, int width, int height)
 	
 }
 
-int UI_view2d_tab_set(View2D *v2d, int tab)
+bool UI_view2d_tab_set(View2D *v2d, int tab)
 {
 	float default_offset[2] = {0.0f, 0.0f};
 	float *offset, *new_offset;
-	int changed = 0;
+	bool changed = false;
 
 	/* if tab changed, change offset */
 	if (tab != v2d->tab_cur && v2d->tab_offset) {
@@ -958,7 +962,7 @@ int UI_view2d_tab_set(View2D *v2d, int tab)
 
 		/* validation should happen in subsequent totRect_set */
 
-		changed = 1;
+		changed = true;
 	}
 
 	/* resize array if needed */
@@ -980,6 +984,15 @@ int UI_view2d_tab_set(View2D *v2d, int tab)
 	v2d->tab_offset[2 * tab + 1] = v2d->cur.ymax;
 
 	return changed;
+}
+
+void UI_view2d_zoom_cache_reset(void)
+{
+	/* While scaling we can accumulate fonts at many sizes (~20 or so).
+	 * Not an issue with embedded font, but can use over 500Mb with i18n ones! See [#38244]. */
+
+	/* note: only some views draw text, we could check for this case to avoid clearning cache */
+	BLF_cache_clear();
 }
 
 /* *********************************************************************** */
@@ -1016,8 +1029,9 @@ static void view2d_map_cur_using_mask(View2D *v2d, rctf *curmasked)
 void UI_view2d_view_ortho(View2D *v2d)
 {
 	rctf curmasked;
-	int sizex = BLI_rcti_size_x(&v2d->mask);
-	int sizey = BLI_rcti_size_y(&v2d->mask);
+	const int sizex = BLI_rcti_size_x(&v2d->mask);
+	const int sizey = BLI_rcti_size_y(&v2d->mask);
+	const float eps = 0.001f;
 	float xofs = 0.0f, yofs = 0.0f;
 	
 	/* pixel offsets (-GLA_PIXEL_OFS) are needed to get 1:1 correspondence with pixels for smooth UI drawing,
@@ -1026,9 +1040,9 @@ void UI_view2d_view_ortho(View2D *v2d)
 	/* XXX brecht: instead of zero at least use a tiny offset, otherwise
 	 * pixel rounding is effectively random due to float inaccuracy */
 	if (sizex > 0)
-		xofs = 0.001f * BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
+		xofs = eps * BLI_rctf_size_x(&v2d->cur) / sizex;
 	if (sizey > 0)
-		yofs = 0.001f * BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
+		yofs = eps * BLI_rctf_size_y(&v2d->cur) / sizey;
 	
 	/* apply mask-based adjustments to cur rect (due to scrollers), to eliminate scaling artifacts */
 	view2d_map_cur_using_mask(v2d, &curmasked);
@@ -1037,12 +1051,12 @@ void UI_view2d_view_ortho(View2D *v2d)
 	
 	/* XXX ton: this flag set by outliner, for icons */
 	if (v2d->flag & V2D_PIXELOFS_X) {
-		curmasked.xmin = floorf(curmasked.xmin) - (0.001f + xofs);
-		curmasked.xmax = floorf(curmasked.xmax) - (0.001f + xofs);
+		curmasked.xmin = floorf(curmasked.xmin) - (eps + xofs);
+		curmasked.xmax = floorf(curmasked.xmax) - (eps + xofs);
 	}
 	if (v2d->flag & V2D_PIXELOFS_Y) {
-		curmasked.ymin = floorf(curmasked.ymin) - (0.001f + yofs);
-		curmasked.ymax = floorf(curmasked.ymax) - (0.001f + yofs);
+		curmasked.ymin = floorf(curmasked.ymin) - (eps + yofs);
+		curmasked.ymax = floorf(curmasked.ymax) - (eps + yofs);
 	}
 	
 	/* set matrix on all appropriate axes */
@@ -1600,7 +1614,13 @@ static void scroll_printstr(Scene *scene, float x, float y, float val, int power
 	}
 	
 	/* get string to print */
-	ANIM_timecode_string_from_frame(timecode_str, scene, power, (unit == V2D_UNIT_SECONDS), val);
+	if (unit == V2D_UNIT_SECONDS) {
+		/* not neces*/
+		BLI_timecode_string_from_time(timecode_str, sizeof(timecode_str), power, val, FPS, U.timecode_style);
+	}
+	else {
+		BLI_timecode_string_from_time_simple(timecode_str, sizeof(timecode_str), power, val);
+	}
 	
 	/* get length of string, and adjust printing location to fit it into the horizontal scrollbar */
 	len = strlen(timecode_str);
@@ -1656,8 +1676,8 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		 *		and only the time-grids with their zoomability can do so)
 		 */
 		if ((v2d->keepzoom & V2D_LOCKZOOM_X) == 0 &&
-			(v2d->scroll & V2D_SCROLL_SCALE_HORIZONTAL) &&
-			(BLI_rcti_size_x(&slider) > V2D_SCROLLER_HANDLE_SIZE))
+		    (v2d->scroll & V2D_SCROLL_SCALE_HORIZONTAL) &&
+		    (BLI_rcti_size_x(&slider) > V2D_SCROLLER_HANDLE_SIZE))
 		{
 			state |= UI_SCROLL_ARROWS;
 		}
@@ -1724,17 +1744,6 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 							scroll_printstr(scene, fac, h, fac2, grid->powerx, V2D_UNIT_SECONDS, 'h');
 							break;
 							
-						case V2D_UNIT_SECONDSSEQ:   /* seconds with special calculations (only used for sequencer only) */
-						{
-							float time;
-							
-							fac2 = val / (float)FPS;
-							time = (float)floor(fac2);
-							fac2 = fac2 - time;
-							
-							scroll_printstr(scene, fac, h, time + (float)FPS * fac2 / 100.0f, grid->powerx, V2D_UNIT_SECONDSSEQ, 'h');
-							break;
-						}
 						case V2D_UNIT_DEGREES:      /* Graph Editor for rotation Drivers */
 							/* HACK: although we're drawing horizontal, we make this draw as 'vertical', just to get degree signs */
 							scroll_printstr(scene, fac, h, val, grid->powerx, V2D_UNIT_DEGREES, 'v');
@@ -1768,8 +1777,8 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		 *		and only the time-grids with their zoomability can do so)
 		 */
 		if ((v2d->keepzoom & V2D_LOCKZOOM_Y) == 0 &&
-			(v2d->scroll & V2D_SCROLL_SCALE_VERTICAL) &&
-			(BLI_rcti_size_y(&slider) > V2D_SCROLLER_HANDLE_SIZE))
+		    (v2d->scroll & V2D_SCROLL_SCALE_VERTICAL) &&
+		    (BLI_rcti_size_y(&slider) > V2D_SCROLLER_HANDLE_SIZE))
 		{
 			state |= UI_SCROLL_ARROWS;
 		}
@@ -2105,6 +2114,35 @@ void UI_view2d_setcenter(struct View2D *v2d, float x, float y)
 	UI_view2d_curRect_validate(v2d);
 }
 
+/**
+ * Simple pan function
+ *  (0.0, 0.0) bottom left
+ *  (0.5, 0.5) center
+ *  (1.0, 1.0) top right.
+ */
+void UI_view2d_offset(struct View2D *v2d, float xfac, float yfac)
+{
+	if (xfac != -1.0f) {
+		const float xsize = BLI_rctf_size_x(&v2d->cur);
+		const float xmin = v2d->tot.xmin;
+		const float xmax = v2d->tot.xmax - xsize;
+
+		v2d->cur.xmin = (xmin * (1.0f - xfac)) + (xmax * xfac);
+		v2d->cur.xmax = v2d->cur.xmin + xsize;
+	}
+
+	if (yfac != -1.0f) {
+		const float ysize = BLI_rctf_size_y(&v2d->cur);
+		const float ymin = v2d->tot.ymin;
+		const float ymax = v2d->tot.ymax - ysize;
+
+		v2d->cur.ymin = (ymin * (1.0f - yfac)) + (ymax * yfac);
+		v2d->cur.ymax = v2d->cur.ymin + ysize;
+	}
+
+	UI_view2d_curRect_validate(v2d);
+}
+
 /* Check if mouse is within scrollers
  *	- Returns appropriate code for match
  *		'h' = in horizontal scroller
@@ -2172,7 +2210,7 @@ void UI_view2d_text_cache_add(View2D *v2d, float x, float y, const char *str, co
 }
 
 /* no clip (yet) */
-void UI_view2d_text_cache_rectf(View2D *v2d, rctf *rect, const char *str, const char col[4])
+void UI_view2d_text_cache_rectf(View2D *v2d, const rctf *rect, const char *str, const char col[4])
 {
 	int len = strlen(str) + 1;
 	View2DString *v2s = MEM_callocN(sizeof(View2DString) + len, "View2DString");
@@ -2196,7 +2234,7 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 	int col_pack_prev = 0;
 
 	/* investigate using BLF_ascender() */
-	const float default_height = strings.first ? BLF_height_default("28") : 0.0f;
+	const float default_height = strings.first ? BLF_height_default("28", 3) : 0.0f;
 	
 	// glMatrixMode(GL_PROJECTION);
 	// glPushMatrix();

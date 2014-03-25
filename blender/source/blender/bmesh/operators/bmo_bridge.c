@@ -26,8 +26,6 @@
  * Connect verts across faces (splits faces) and bridge tool.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
@@ -486,7 +484,7 @@ void bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 	const bool  use_cyclic   = BMO_slot_bool_get(op->slots_in,  "use_cyclic") && (use_merge == false);
 	const int   twist_offset = BMO_slot_int_get(op->slots_in,   "twist_offset");
 	int count;
-	bool change = false;
+	bool changed = false;
 
 	BMO_slot_buffer_flag_enable(bm, op->slots_in, "edges", BM_EDGE, EDGE_MARK);
 
@@ -548,13 +546,13 @@ void bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 		if (use_pairs) {
 			el_store = el_store->next;
 		}
-		change = true;
+		changed = true;
 	}
 
 cleanup:
 	BM_mesh_edgeloops_free(&eloops);
 
-	if (change) {
+	if (changed) {
 		if (use_merge == false) {
 			BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, FACE_OUT);
 			BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "edges.out", BM_EDGE, EDGE_OUT);

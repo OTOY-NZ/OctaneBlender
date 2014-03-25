@@ -279,7 +279,7 @@ class _GenericBone:
                 child = children_basename[0]
                 chain.append(child)
             else:
-                if len(children_basename):
+                if children_basename:
                     print("multiple basenames found, "
                           "this is probably not what you want!",
                           self.name, children_basename)
@@ -752,6 +752,15 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
         self.path_menu(bpy.utils.preset_paths(self.preset_subdir),
                        self.preset_operator,
                        filter_ext=lambda ext: ext.lower() in {".py", ".xml"})
+
+    @classmethod
+    def draw_collapsible(cls, context, layout):
+        # helper function for (optionally) collapsed header menus
+        # only usable within headers
+        if context.area.show_menus:
+            cls.draw_menus(layout, context)
+        else:
+            layout.menu(cls.__name__, icon='COLLAPSEMENU')
 
 
 class Region(StructRNA):

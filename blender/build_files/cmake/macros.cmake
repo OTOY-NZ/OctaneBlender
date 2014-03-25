@@ -48,6 +48,24 @@ macro(list_insert_before
 	unset(_index)
 endmacro()
 
+function (list_assert_duplicates
+	list_id
+	)
+	
+	# message(STATUS "list data: ${list_id}")
+
+	list(LENGTH list_id _len_before)
+	list(REMOVE_DUPLICATES list_id)
+	list(LENGTH list_id _len_after)
+	# message(STATUS "list size ${_len_before} -> ${_len_after}")
+	if(NOT _len_before EQUAL _len_after)
+		message(FATAL_ERROR "duplicate found in list which should not contain duplicates: ${list_id}")
+	endif()
+	unset(_len_before)
+	unset(_len_after)
+endfunction()
+
+
 # foo_bar.spam --> foo_barMySuffix.spam
 macro(file_suffix
 	file_name_new file_name file_suffix
@@ -176,6 +194,11 @@ macro(blender_add_lib_nolist
 	# works fine without having the includes
 	# listed is helpful for IDE's (QtCreator/MSVC)
 	blender_source_group("${sources}")
+
+	list_assert_duplicates("${sources}")
+	list_assert_duplicates("${includes}")
+	# Not for system includes because they can resolve to the same path
+	# list_assert_duplicates("${includes_sys}")
 
 endmacro()
 
@@ -507,7 +530,7 @@ macro(remove_strict_flags)
 		add_cc_flag("${CC_REMOVE_STRICT_FLAGS}")
 	endif()
 
-	if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	if(CMAKE_C_COMPILER_ID MATCHES "Clang")
 		remove_cc_flag("-Wunused-parameter")
 		remove_cc_flag("-Wunused-variable")
 		remove_cc_flag("-Werror=[^ ]+")
@@ -532,7 +555,7 @@ macro(remove_strict_flags_file
 	foreach(_SOURCE ${ARGV})
 
 		if(CMAKE_COMPILER_IS_GNUCC OR
-		  (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+		  (CMAKE_C_COMPILER_ID MATCHES "Clang"))
 
 			set_source_files_properties(${_SOURCE}
 				PROPERTIES
@@ -585,7 +608,8 @@ endmacro()
 
 macro(get_blender_version)
 	# So cmake depends on BKE_blender.h, beware of inf-loops!
-	CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/source/blender/blenkernel/BKE_blender.h ${CMAKE_BINARY_DIR}/source/blender/blenkernel/BKE_blender.h.done)
+	CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/source/blender/blenkernel/BKE_blender.h
+	               ${CMAKE_BINARY_DIR}/source/blender/blenkernel/BKE_blender.h.done)
 
 	file(STRINGS ${CMAKE_SOURCE_DIR}/source/blender/blenkernel/BKE_blender.h _contents REGEX "^#define[ \t]+BLENDER_.*$")
 
@@ -807,6 +831,52 @@ macro(data_to_c_simple
 	unset(_file_to_path)
 endmacro()
 
+# macro for converting pixmap directory to a png and then a c file
+macro(data_to_c_simple_icons
+      path_from
+      list_to_add
+      )
+
+	# Conversion steps
+	#  path_from  ->  _file_from  ->  _file_to
+	#  foo/*.dat  ->  foo.png     ->  foo.png.c
+
+	get_filename_component(_path_from_abs ${path_from} ABSOLUTE)
+	# remove ../'s
+	get_filename_component(_file_from ${CMAKE_CURRENT_BINARY_DIR}/${path_from}.png   REALPATH)
+	get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${path_from}.png.c REALPATH)
+
+	list(APPEND ${list_to_add} ${_file_to})
+
+	get_filename_component(_file_to_path ${_file_to} PATH)
+
+	# ideally we wouldn't glob, but storing all names for all pixmaps is a bit heavy
+	file(GLOB _icon_files "${path_from}/*.dat")
+
+	add_custom_command(
+		OUTPUT  ${_file_from} ${_file_to}
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
+		#COMMAND python3 ${CMAKE_SOURCE_DIR}/source/blender/datatoc/datatoc_icon.py ${_path_from_abs} ${_file_from}
+		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc_icon ${_path_from_abs} ${_file_from}
+		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc ${_file_from} ${_file_to}
+		DEPENDS
+			${_icon_files}
+			datatoc_icon
+			datatoc
+			# could be an arg but for now we only create icons depending on UI_icons.h
+			${CMAKE_SOURCE_DIR}/source/blender/editors/include/UI_icons.h
+		)
+
+	set_source_files_properties(${_file_from} ${_file_to} PROPERTIES GENERATED TRUE)
+
+	unset(_path_from_abs)
+	unset(_file_from)
+	unset(_file_to)
+	unset(_file_to_path)
+	unset(_icon_files)
+
+endmacro()
+
 # XXX Not used for now...
 macro(svg_to_png
       file_from
@@ -845,4 +915,32 @@ macro(svg_to_png
 	unset(_file_from)
 	unset(_file_to)
 
+endmacro()
+
+macro(msgfmt_simple
+      file_from
+      list_to_add)
+
+	# remove ../'s
+	get_filename_component(_file_from_we ${file_from} NAME_WE)
+
+	get_filename_component(_file_from ${file_from} REALPATH)
+	get_filename_component(_file_to ${CMAKE_CURRENT_BINARY_DIR}/${_file_from_we}.mo REALPATH)
+
+	list(APPEND ${list_to_add} ${_file_to})
+
+	get_filename_component(_file_to_path ${_file_to} PATH)
+
+	add_custom_command(
+		OUTPUT  ${_file_to}
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
+		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/msgfmt ${_file_from} ${_file_to}
+		DEPENDS msgfmt)
+
+	set_source_files_properties(${_file_to} PROPERTIES GENERATED TRUE)
+
+	unset(_file_from_we)
+	unset(_file_from)
+	unset(_file_to)
+	unset(_file_to_path)
 endmacro()

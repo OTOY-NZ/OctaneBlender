@@ -40,6 +40,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_mesh_types.h"  /* init_userdef_factory */
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -89,6 +90,9 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 	static char setting = 0;
 	const char *cp = error;
 	
+	/* ensure we're not getting a color after running BKE_userdef_free */
+	BLI_assert(BLI_findindex(&U.themes, theme_active) != -1);
+
 	if (btheme) {
 	
 		/* first check for ui buttons theme */
@@ -246,6 +250,15 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 				case TH_BUTBACK_TEXT_HI:
 					cp = ts->button_text_hi; break;
 
+				case TH_TAB_ACTIVE:
+					cp = ts->tab_active; break;
+				case TH_TAB_INACTIVE:
+					cp = ts->tab_inactive; break;
+				case TH_TAB_BACK:
+					cp = ts->tab_back; break;
+				case TH_TAB_OUTLINE:
+					cp = ts->tab_outline; break;
+
 				case TH_SHADE1:
 					cp = ts->shade1; break;
 				case TH_SHADE2:
@@ -255,6 +268,8 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 				
 				case TH_GRID:
 					cp = ts->grid; break;
+				case TH_VIEW_OVERLAY:
+					cp = ts->view_overlay; break;
 				case TH_WIRE:
 					cp = ts->wire; break;
 				case TH_WIRE_EDIT:
@@ -331,6 +346,26 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->strip; break;
 				case TH_STRIP_SELECT:
 					cp = ts->strip_select; break;
+				case TH_KEYTYPE_KEYFRAME:
+					cp = ts->keytype_keyframe; break;
+				case TH_KEYTYPE_KEYFRAME_SELECT:
+					cp = ts->keytype_keyframe_select; break;
+				case TH_KEYTYPE_EXTREME:
+					cp = ts->keytype_extreme; break;
+				case TH_KEYTYPE_EXTREME_SELECT:
+					cp = ts->keytype_extreme_select; break;
+				case TH_KEYTYPE_BREAKDOWN:
+					cp = ts->keytype_breakdown; break;
+				case TH_KEYTYPE_BREAKDOWN_SELECT:
+					cp = ts->keytype_breakdown_select; break;
+				case TH_KEYTYPE_JITTER:
+					cp = ts->keytype_jitter; break;
+				case TH_KEYTYPE_JITTER_SELECT:
+					cp = ts->keytype_jitter_select; break;
+				case TH_KEYBORDER:
+					cp = ts->keyborder; break;
+				case TH_KEYBORDER_SELECT:
+					cp = ts->keyborder_select; break;
 				case TH_CFRAME:
 					cp = ts->cframe; break;
 				case TH_NURB_ULINE:
@@ -343,7 +378,7 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->nurb_sel_vline; break;
 				case TH_ACTIVE_SPLINE:
 					cp = ts->act_spline; break;
-				case TH_LASTSEL_POINT:
+				case TH_ACTIVE_VERT:
 					cp = ts->lastsel_point; break;
 				case TH_HANDLE_FREE:
 					cp = ts->handle_free; break;
@@ -389,10 +424,26 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 
 				case TH_NODE:
 					cp = ts->syntaxl; break;
-				case TH_NODE_IN_OUT:
+				case TH_NODE_INPUT:
 					cp = ts->syntaxn; break;
-				case TH_NODE_OPERATOR:
+				case TH_NODE_OUTPUT:
+					cp = ts->nodeclass_output; break;
+				case TH_NODE_COLOR:
 					cp = ts->syntaxb; break;
+				case TH_NODE_FILTER:
+					cp = ts->nodeclass_filter; break;
+				case TH_NODE_VECTOR:
+					cp = ts->nodeclass_vector; break;
+				case TH_NODE_TEXTURE:
+					cp = ts->nodeclass_texture; break;
+				case TH_NODE_PATTERN:
+					cp = ts->nodeclass_pattern; break;
+				case TH_NODE_SCRIPT:
+					cp = ts->nodeclass_script; break;
+				case TH_NODE_LAYOUT:
+					cp = ts->nodeclass_layout; break;
+				case TH_NODE_SHADER:
+					cp = ts->nodeclass_shader; break;
 				case TH_NODE_CONVERTOR:
 					cp = ts->syntaxv; break;
 				case TH_NODE_GROUP:
@@ -564,6 +615,37 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = btheme->tui.yaxis; break;
 				case TH_AXIS_Z:
 					cp = btheme->tui.zaxis; break;
+
+				case TH_INFO_SELECTED:
+					cp = ts->info_selected;
+					break;
+				case TH_INFO_SELECTED_TEXT:
+					cp = ts->info_selected_text;
+					break;
+				case TH_INFO_ERROR:
+					cp = ts->info_error;
+					break;
+				case TH_INFO_ERROR_TEXT:
+					cp = ts->info_error_text;
+					break;
+				case TH_INFO_WARNING:
+					cp = ts->info_warning;
+					break;
+				case TH_INFO_WARNING_TEXT:
+					cp = ts->info_warning_text;
+					break;
+				case TH_INFO_INFO:
+					cp = ts->info_info;
+					break;
+				case TH_INFO_INFO_TEXT:
+					cp = ts->info_info_text;
+					break;
+				case TH_INFO_DEBUG:
+					cp = ts->info_debug;
+					break;
+				case TH_INFO_DEBUG_TEXT:
+					cp = ts->info_debug_text;
+					break;
 			}
 		}
 	}
@@ -646,45 +728,39 @@ static void ui_theme_init_boneColorSets(bTheme *btheme)
 /* use this call to init new variables in themespace, if they're same for all */
 static void ui_theme_init_new_do(ThemeSpace *ts)
 {
-	rgba_char_args_test_set(ts->header_text,        0, 0, 0, 255);
-	rgba_char_args_test_set(ts->header_title,   0, 0, 0, 255);
-	rgba_char_args_test_set(ts->header_text_hi, 255, 255, 255, 255);
+	rgba_char_args_set(ts->header_text,    0, 0, 0, 255);
+	rgba_char_args_set(ts->header_title,   0, 0, 0, 255);
+	rgba_char_args_set(ts->header_text_hi, 255, 255, 255, 255);
 
-//	rgba_char_args_test_set(ts->panel_text,     0, 0, 0, 255);
-//	rgba_char_args_test_set(ts->panel_title,        0, 0, 0, 255);
-//	rgba_char_args_test_set(ts->panel_text_hi,  255, 255, 255, 255);
+#if 0
+	rgba_char_args_set(ts->panel_text,     0, 0, 0, 255);
+	rgba_char_args_set(ts->panel_title,        0, 0, 0, 255);
+	rgba_char_args_set(ts->panel_text_hi,  255, 255, 255, 255);
+#endif
 
-	rgba_char_args_test_set(ts->button,         145, 145, 145, 245);
-	rgba_char_args_test_set(ts->button_title,   0, 0, 0, 255);
-	rgba_char_args_test_set(ts->button_text,        0, 0, 0, 255);
-	rgba_char_args_test_set(ts->button_text_hi, 255, 255, 255, 255);
+	rgba_char_args_set(ts->button,         145, 145, 145, 245);
+	rgba_char_args_set(ts->button_title,   0, 0, 0, 255);
+	rgba_char_args_set(ts->button_text,        0, 0, 0, 255);
+	rgba_char_args_set(ts->button_text_hi, 255, 255, 255, 255);
 
-	rgba_char_args_test_set(ts->list,           165, 165, 165, 255);
-	rgba_char_args_test_set(ts->list_title,     0, 0, 0, 255);
-	rgba_char_args_test_set(ts->list_text,      0, 0, 0, 255);
-	rgba_char_args_test_set(ts->list_text_hi,   255, 255, 255, 255);
+	rgba_char_args_set(ts->list,           165, 165, 165, 255);
+	rgba_char_args_set(ts->list_title,     0, 0, 0, 255);
+	rgba_char_args_set(ts->list_text,      0, 0, 0, 255);
+	rgba_char_args_set(ts->list_text_hi,   255, 255, 255, 255);
+
+	rgba_char_args_set(ts->tab_active,     114, 114, 114, 255);
+	rgba_char_args_set(ts->tab_inactive,   83, 83, 83, 255);
+	rgba_char_args_set(ts->tab_back,       64, 64, 64, 255);
+	rgba_char_args_set(ts->tab_outline,    60, 60, 60, 255);
 }
 
 static void ui_theme_init_new(bTheme *btheme)
 {
-	ui_theme_init_new_do(&btheme->tbuts);
-	ui_theme_init_new_do(&btheme->tv3d);
-	ui_theme_init_new_do(&btheme->tfile);
-	ui_theme_init_new_do(&btheme->tipo);
-	ui_theme_init_new_do(&btheme->tinfo);
-	ui_theme_init_new_do(&btheme->tact);
-	ui_theme_init_new_do(&btheme->tnla);
-	ui_theme_init_new_do(&btheme->tseq);
-	ui_theme_init_new_do(&btheme->tima);
-	ui_theme_init_new_do(&btheme->text);
-	ui_theme_init_new_do(&btheme->toops);
-	ui_theme_init_new_do(&btheme->ttime);
-	ui_theme_init_new_do(&btheme->tnode);
-	ui_theme_init_new_do(&btheme->tlogic);
-	ui_theme_init_new_do(&btheme->tuserpref);
-	ui_theme_init_new_do(&btheme->tconsole);
-	ui_theme_init_new_do(&btheme->tclip);
-	
+	ThemeSpace *ts;
+
+	for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+		ui_theme_init_new_do(ts);
+	}
 }
 
 
@@ -711,8 +787,8 @@ void ui_theme_init_default(void)
 	ui_widget_color_init(&btheme->tui);
 	
 	btheme->tui.iconfile[0] = 0;
-	btheme->tui.panel.show_back = FALSE;
-	btheme->tui.panel.show_header = FALSE;
+	btheme->tui.panel.show_back = false;
+	btheme->tui.panel.show_header = false;
 	rgba_char_args_set(btheme->tui.panel.header, 0, 0, 0, 25);
 	
 	rgba_char_args_set(btheme->tui.xaxis, 220,   0,   0, 255);
@@ -729,8 +805,8 @@ void ui_theme_init_default(void)
 	ui_theme_init_new(btheme);
 	
 	/* space view3d */
-	btheme->tv3d.panelcolors.show_back = FALSE;
-	btheme->tv3d.panelcolors.show_header = FALSE;
+	btheme->tv3d.panelcolors.show_back = false;
+	btheme->tv3d.panelcolors.show_header = false;
 	rgba_char_args_set_fl(btheme->tv3d.panelcolors.back, 0.45, 0.45, 0.45, 0.5);
 	rgba_char_args_set_fl(btheme->tv3d.panelcolors.header, 0, 0, 0, 0.01);
 	rgba_char_args_set_fl(btheme->tv3d.back,       0.225, 0.225, 0.225, 1.0);
@@ -745,6 +821,7 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tv3d.shade2,  0x7f, 0x70, 0x70, 100);
 
 	rgba_char_args_set_fl(btheme->tv3d.grid,     0.251, 0.251, 0.251, 1.0);
+	rgba_char_args_set(btheme->tv3d.view_overlay, 0, 0, 0, 255);
 	rgba_char_args_set(btheme->tv3d.wire,       0x0, 0x0, 0x0, 255);
 	rgba_char_args_set(btheme->tv3d.wire_edit,  0x0, 0x0, 0x0, 255);
 	rgba_char_args_set(btheme->tv3d.lamp,       0, 0, 0, 40);
@@ -819,7 +896,7 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tv3d.skin_root, 180, 77, 77, 255);
 	rgba_char_args_set(btheme->tv3d.gradients.gradient, 0, 0, 0, 0);
 	rgba_char_args_set(btheme->tv3d.gradients.high_gradient, 58, 58, 58, 255);
-	btheme->tv3d.gradients.show_grad = FALSE;
+	btheme->tv3d.gradients.show_grad = false;
 
 	/* space buttons */
 	/* to have something initialized */
@@ -839,13 +916,13 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tipo.vertex,     0, 0, 0, 255);
 	rgba_char_args_set(btheme->tipo.vertex_select, 255, 133, 0, 255);
 	rgba_char_args_set(btheme->tipo.hilite, 0x60, 0xc0, 0x40, 255);
-	btheme->tipo.vertex_size = 3;
+	btheme->tipo.vertex_size = 6;
 
 	rgba_char_args_set(btheme->tipo.handle_vertex,      0, 0, 0, 255);
 	rgba_char_args_set(btheme->tipo.handle_vertex_select, 255, 133, 0, 255);
 	rgba_char_args_set(btheme->tipo.handle_auto_clamped, 0x99, 0x40, 0x30, 255);
 	rgba_char_args_set(btheme->tipo.handle_sel_auto_clamped, 0xf0, 0xaf, 0x90, 255);
-	btheme->tipo.handle_vertex_size = 4;
+	btheme->tipo.handle_vertex_size = 5;
 	
 	rgba_char_args_set(btheme->tipo.ds_channel,      82, 96, 110, 255);
 	rgba_char_args_set(btheme->tipo.ds_subchannel,  124, 137, 150, 255);
@@ -858,6 +935,18 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tact.strip_select,   255, 140, 0, 255);
 	
 	rgba_char_args_set(btheme->tact.anim_active,    204, 112, 26, 102);
+	
+	rgba_char_args_set(btheme->tact.keytype_keyframe,           232, 232, 232, 255);
+	rgba_char_args_set(btheme->tact.keytype_keyframe_select,    255, 190,  50, 255);
+	rgba_char_args_set(btheme->tact.keytype_extreme,            232, 179, 204, 255);
+	rgba_char_args_set(btheme->tact.keytype_extreme_select,     242, 128, 128, 255);
+	rgba_char_args_set(btheme->tact.keytype_breakdown,          179, 219, 232, 255);
+	rgba_char_args_set(btheme->tact.keytype_breakdown_select,    84, 191, 237, 255);
+	rgba_char_args_set(btheme->tact.keytype_jitter,             148, 229, 117, 255);
+	rgba_char_args_set(btheme->tact.keytype_jitter_select,       97, 192,  66, 255);
+	
+	rgba_char_args_set(btheme->tact.keyborder,	             0,   0,   0, 255);
+	rgba_char_args_set(btheme->tact.keyborder_select,        0,   0,   0, 255);
 	
 	/* space nla */
 	btheme->tnla = btheme->tact;
@@ -874,6 +963,9 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tnla.nla_meta_sel,       105, 33, 150, 255);
 	rgba_char_args_set(btheme->tnla.nla_sound,          43, 61, 61, 255);
 	rgba_char_args_set(btheme->tnla.nla_sound_sel,      31, 122, 122, 255);
+	
+	rgba_char_args_set(btheme->tnla.keyborder,	             0,   0,   0, 255);
+	rgba_char_args_set(btheme->tnla.keyborder_select,        0,   0,   0, 255);
 	
 	/* space file */
 	/* to have something initialized */
@@ -913,6 +1005,8 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tima.back,   53, 53, 53, 255);
 	rgba_char_args_set(btheme->tima.vertex, 0, 0, 0, 255);
 	rgba_char_args_set(btheme->tima.vertex_select, 255, 133, 0, 255);
+	rgba_char_args_set(btheme->tima.wire_edit, 192, 192, 192, 255);
+	rgba_char_args_set(btheme->tima.edge_select, 255, 133, 0, 255);
 	btheme->tima.vertex_size = 3;
 	btheme->tima.facedot_size = 3;
 	rgba_char_args_set(btheme->tima.face,   255, 255, 255, 10);
@@ -956,6 +1050,16 @@ void ui_theme_init_default(void)
 	/* space info */
 	btheme->tinfo = btheme->tv3d;
 	rgba_char_args_set_fl(btheme->tinfo.back,   0.45, 0.45, 0.45, 1.0);
+	rgba_char_args_set(btheme->tinfo.info_selected, 96, 128, 255, 255);
+	rgba_char_args_set(btheme->tinfo.info_selected_text, 255, 255, 255, 255);
+	rgba_char_args_set(btheme->tinfo.info_error, 220, 0, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_error_text, 0, 0, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_warning, 220, 128, 96, 255);
+	rgba_char_args_set(btheme->tinfo.info_warning_text, 0, 0, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_info, 0, 170, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_info_text, 0, 0, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_debug, 196, 196, 196, 255);
+	rgba_char_args_set(btheme->tinfo.info_debug_text, 0, 0, 0, 255);
 
 	/* space user preferences */
 	btheme->tuserpref = btheme->tv3d;
@@ -981,10 +1085,18 @@ void ui_theme_init_default(void)
 	btheme->tnode = btheme->tv3d;
 	rgba_char_args_set(btheme->tnode.edge_select, 255, 255, 255, 255);	/* wire selected */
 	rgba_char_args_set(btheme->tnode.syntaxl, 155, 155, 155, 160);  /* TH_NODE, backdrop */
-	rgba_char_args_set(btheme->tnode.syntaxn, 100, 100, 100, 255);  /* in/output */
+	rgba_char_args_set(btheme->tnode.syntaxn, 100, 100, 100, 255);  /* in */
+	rgba_char_args_set(btheme->tnode.nodeclass_output, 100, 100, 100, 255);  /* output */
 	rgba_char_args_set(btheme->tnode.syntaxb, 108, 105, 111, 255);  /* operator */
 	rgba_char_args_set(btheme->tnode.syntaxv, 104, 106, 117, 255);  /* generator */
 	rgba_char_args_set(btheme->tnode.syntaxc, 105, 117, 110, 255);  /* group */
+	rgba_char_args_set(btheme->tnode.nodeclass_texture, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_shader, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_filter, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_script, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_pattern, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_vector, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_layout, 108, 105, 111, 255);  /* operator */
 	rgba_char_args_set(btheme->tnode.movie, 155, 155, 155, 160);  /* frame */
 	rgba_char_args_set(btheme->tnode.syntaxs, 151, 116, 116, 255);  /* matte nodes */
 	rgba_char_args_set(btheme->tnode.syntaxd, 116, 151, 151, 255);  /* distort nodes */
@@ -1401,11 +1513,12 @@ void init_userdef_do_versions(void)
 	/* transform widget settings */
 	if (U.tw_hotspot == 0) {
 		U.tw_hotspot = 14;
-		U.tw_size = 20;          /* percentage of window size */
+		U.tw_size = 25;          /* percentage of window size */
 		U.tw_handlesize = 16;    /* percentage of widget radius */
 	}
 	if (U.pad_rot_angle == 0)
 		U.pad_rot_angle = 15;
+	
 	/* graph editor - unselected F-Curve visibility */
 	if (U.fcu_inactive_alpha == 0) {
 		U.fcu_inactive_alpha = 0.25f;
@@ -1938,7 +2051,7 @@ void init_userdef_do_versions(void)
 			rgba_char_args_set_fl(btheme->toops.selected_highlight, 0.51, 0.53, 0.55, 0.3);
 		}
 		
-		U.use_16bit_textures = TRUE;
+		U.use_16bit_textures = true;
 	}
 
 	if (bmain->versionfile < 262 || (bmain->versionfile == 262 && bmain->subversionfile < 2)) {
@@ -2139,28 +2252,15 @@ void init_userdef_do_versions(void)
 		bTheme *btheme;
 		
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			ThemeSpace *ts;
 			
 			/* new color, panel backdrop. Not used anywhere yet, until you enable it */
 			copy_v3_v3_char(btheme->tui.panel.back, btheme->tbuts.button);
 			btheme->tui.panel.back[3] = 128;
 			
-			btheme->tbuts.panelcolors = btheme->tui.panel;
-			btheme->tv3d.panelcolors = btheme->tui.panel;
-			btheme->tfile.panelcolors = btheme->tui.panel;
-			btheme->tipo.panelcolors = btheme->tui.panel;
-			btheme->tinfo.panelcolors = btheme->tui.panel;
-			btheme->tact.panelcolors = btheme->tui.panel;
-			btheme->tnla.panelcolors = btheme->tui.panel;
-			btheme->tseq.panelcolors = btheme->tui.panel;
-			btheme->tima.panelcolors = btheme->tui.panel;
-			btheme->text.panelcolors = btheme->tui.panel;
-			btheme->toops.panelcolors = btheme->tui.panel;
-			btheme->ttime.panelcolors = btheme->tui.panel;
-			btheme->tnode.panelcolors = btheme->tui.panel;
-			btheme->tlogic.panelcolors = btheme->tui.panel;
-			btheme->tuserpref.panelcolors = btheme->tui.panel;
-			btheme->tconsole.panelcolors = btheme->tui.panel;
-			btheme->tclip.panelcolors = btheme->tui.panel;
+			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+				ts->panelcolors = btheme->tui.panel;
+			}
 		}
 	}
 
@@ -2217,7 +2317,7 @@ void init_userdef_do_versions(void)
 
 	/* NOTE!! from now on use U.versionfile and U.subversionfile */
 
-	if (U.versionfile < 269 || (U.versionfile == 268 && U.subversionfile < 3)) {
+	if (U.versionfile < 268 || (U.versionfile == 268 && U.subversionfile < 3)) {
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_test_set(btheme->tima.uv_others, 96, 96, 96, 255);
@@ -2225,6 +2325,104 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 5)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set(btheme->tima.wire_edit, 192, 192, 192, 255);
+			rgba_char_args_set(btheme->tima.edge_select, 255, 133, 0, 255);
+		}
+	}
+
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 6)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			char r, g, b;
+			r = btheme->tnode.syntaxn[0];
+			g = btheme->tnode.syntaxn[1];
+			b = btheme->tnode.syntaxn[2];
+			rgba_char_args_test_set(btheme->tnode.nodeclass_output, r, g, b, 255);
+			r = btheme->tnode.syntaxb[0];
+			g = btheme->tnode.syntaxb[1];
+			b = btheme->tnode.syntaxb[2];
+			rgba_char_args_test_set(btheme->tnode.nodeclass_filter, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_vector, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_texture, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_shader, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_script, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_pattern, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_layout, r, g, b, 255);
+		}
+	}
+
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 8)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_test_set(btheme->tinfo.info_selected, 96, 128, 255, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_selected_text, 255, 255, 255, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_error, 220, 0, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_error_text, 0, 0, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_warning, 220, 128, 96, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_warning_text, 0, 0, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_info, 0, 170, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_info_text, 0, 0, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_debug, 196, 196, 196, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_debug_text, 0, 0, 0, 255);
+		}
+	}
+	
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 9)) {
+		bTheme *btheme;
+		
+		U.tw_size = U.tw_size * 5.0f;
+		
+		/* Action Editor (and NLA Editor) - Keyframe Colors */
+		/* Graph Editor - larger vertex size defaults */
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			/* Action Editor ................. */
+			/* key types */
+			rgba_char_args_set(btheme->tact.keytype_keyframe,           232, 232, 232, 255);
+			rgba_char_args_set(btheme->tact.keytype_keyframe_select,    255, 190,  50, 255);
+			rgba_char_args_set(btheme->tact.keytype_extreme,            232, 179, 204, 255);
+			rgba_char_args_set(btheme->tact.keytype_extreme_select,     242, 128, 128, 255);
+			rgba_char_args_set(btheme->tact.keytype_breakdown,          179, 219, 232, 255);
+			rgba_char_args_set(btheme->tact.keytype_breakdown_select,    84, 191, 237, 255);
+			rgba_char_args_set(btheme->tact.keytype_jitter,             148, 229, 117, 255);
+			rgba_char_args_set(btheme->tact.keytype_jitter_select,       97, 192,  66, 255);
+			
+			/* key border */
+			rgba_char_args_set(btheme->tact.keyborder,	             0,   0,   0, 255);
+			rgba_char_args_set(btheme->tact.keyborder_select,        0,   0,   0, 255);
+			
+			/* NLA ............................ */
+			/* key border */
+			rgba_char_args_set(btheme->tnla.keyborder,	             0,   0,   0, 255);
+			rgba_char_args_set(btheme->tnla.keyborder_select,        0,   0,   0, 255);
+			
+			/* Graph Editor ................... */
+			btheme->tipo.vertex_size = 6;
+			btheme->tipo.handle_vertex_size = 5;
+		}
+		
+		/* grease pencil - new layer color */
+		if (U.gpencil_new_layer_col[3] < 0.1f) {
+			/* defaults to black, but must at least be visible! */
+			U.gpencil_new_layer_col[3] = 0.9f;
+		}
+	}
+
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 10)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			ThemeSpace *ts;
+
+			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+				rgba_char_args_set(ts->tab_active, 114, 114, 114, 255);
+				rgba_char_args_set(ts->tab_inactive, 83, 83, 83, 255);
+				rgba_char_args_set(ts->tab_back, 64, 64, 64, 255);
+				rgba_char_args_set(ts->tab_outline, 60, 60, 60, 255);
+			}
+		}
+	}
 	
 	if (U.pixelsize == 0.0f)
 		U.pixelsize = 1.0f;
@@ -2237,4 +2435,27 @@ void init_userdef_do_versions(void)
 	/* this timer uses U */
 // XXX	reset_autosave();
 
+}
+
+/**
+ * Override values in in-memory startup.blend, avoids resaving for small changes.
+ */
+void init_userdef_factory(void)
+{
+	/* defaults from T37518 */
+
+	U.uiflag |= USER_AUTOPERSP;
+	U.uiflag |= USER_ZBUF_CURSOR;
+	U.uiflag |= USER_QUIT_PROMPT;
+	U.uiflag |= USER_CONTINUOUS_MOUSE;
+
+	U.versions = 1;
+	U.savetime = 2;
+
+	{
+		Mesh *me;
+		for (me = G.main->mesh.first; me; me = me->id.next) {
+			me->flag &= ~ME_TWOSIDED;
+		}
+	}
 }

@@ -25,14 +25,15 @@
  *  \ingroup pygen
  */
 
-
 #include <Python.h>
 
-#include "idprop_py_api.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+
+#include "idprop_py_api.h"
+
 
 #include "BKE_idprop.h"
 
@@ -329,21 +330,37 @@ static int idp_sequence_type(PyObject *seq_fast)
 	return type;
 }
 
-/* note: group can be a pointer array or a group.
- * assume we already checked key is a string. */
-const char *BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty *group, PyObject *ob)
+/**
+ * \note group can be a pointer array or a group.
+ * assume we already checked key is a string.
+ *
+ * \return success.
+ */
+bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty *group, PyObject *ob)
 {
 	IDProperty *prop = NULL;
 	IDPropertyTemplate val = {0};
 
-	const char *name = "";
+	const char *name;
 
 	if (name_obj) {
 		Py_ssize_t name_size;
 		name = _PyUnicode_AsStringAndSize(name_obj, &name_size);
-		if (name_size > MAX_IDPROP_NAME) {
-			return "the length of IDProperty names is limited to 63 characters";
+
+		if (name == NULL) {
+			PyErr_Format(PyExc_KeyError,
+			             "invalid id-property key, expected a string, not a %.200s",
+			             Py_TYPE(name_obj)->tp_name);
+			return false;
 		}
+
+		if (name_size > MAX_IDPROP_NAME) {
+			PyErr_SetString(PyExc_KeyError, "the length of IDProperty names is limited to 63 characters");
+			return false;
+		}
+	}
+	else {
+		name = "";
 	}
 
 	if (PyFloat_Check(ob)) {
@@ -351,7 +368,10 @@ const char *BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty 
 		prop = IDP_New(IDP_DOUBLE, &val, name);
 	}
 	else if (PyLong_Check(ob)) {
-		val.i = (int)PyLong_AsLong(ob);
+		val.i = _PyLong_AsInt(ob);
+		if (val.i == -1 && PyErr_Occurred()) {
+			return false;
+		}
 		prop = IDP_New(IDP_INT, &val, name);
 	}
 	else if (PyUnicode_Check(ob)) {
@@ -381,14 +401,13 @@ const char *BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty 
 		int i;
 
 		if (ob_seq_fast == NULL) {
-			PyErr_Print();
-			PyErr_Clear();
-			return "error converting the sequence";
+			return false;
 		}
 
 		if ((val.array.type = idp_sequence_type(ob_seq_fast)) == -1) {
 			Py_DECREF(ob_seq_fast);
-			return "only floats, ints and dicts are allowed in ID property arrays";
+			PyErr_SetString(PyExc_TypeError, "only floats, ints and dicts are allowed in ID property arrays");
+			return false;
 		}
 
 		/* validate sequence and derive type.
@@ -399,35 +418,52 @@ const char *BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty 
 
 		switch (val.array.type) {
 			case IDP_DOUBLE:
-				prop = IDP_New(IDP_ARRAY, &val, name);
-				for (i = 0; i < val.array.len; i++) {
-					item = PySequence_Fast_GET_ITEM(ob_seq_fast, i);
-					((double *)IDP_Array(prop))[i] = (float)PyFloat_AsDouble(item);
-				}
-				break;
-			case IDP_INT:
-				prop = IDP_New(IDP_ARRAY, &val, name);
-				for (i = 0; i < val.array.len; i++) {
-					item = PySequence_Fast_GET_ITEM(ob_seq_fast, i);
-					((int *)IDP_Array(prop))[i] = (int)PyLong_AsLong(item);
-				}
-				break;
-			case IDP_IDPARRAY:
-				prop = IDP_NewIDPArray(name);
-				for (i = 0; i < val.array.len; i++) {
-					const char *error;
-					item = PySequence_Fast_GET_ITEM(ob_seq_fast, i);
-					error = BPy_IDProperty_Map_ValidateAndCreate(NULL, prop, item);
+			{
+				double *prop_data;
 
-					if (error) {
+				prop = IDP_New(IDP_ARRAY, &val, name);
+				prop_data = IDP_Array(prop);
+				for (i = 0; i < val.array.len; i++) {
+					item = PySequence_Fast_GET_ITEM(ob_seq_fast, i);
+					if (((prop_data[i] = PyFloat_AsDouble(item)) == -1.0) && PyErr_Occurred()) {
 						Py_DECREF(ob_seq_fast);
-						return error;
+						return false;
 					}
 				}
 				break;
+			}
+			case IDP_INT:
+			{
+				int *prop_data;
+				prop = IDP_New(IDP_ARRAY, &val, name);
+				prop_data = IDP_Array(prop);
+				for (i = 0; i < val.array.len; i++) {
+					item = PySequence_Fast_GET_ITEM(ob_seq_fast, i);
+					if (((prop_data[i] = _PyLong_AsInt(item)) == -1) && PyErr_Occurred()) {
+						Py_DECREF(ob_seq_fast);
+						return false;
+					}
+				}
+				break;
+			}
+			case IDP_IDPARRAY:
+			{
+				prop = IDP_NewIDPArray(name);
+				for (i = 0; i < val.array.len; i++) {
+					item = PySequence_Fast_GET_ITEM(ob_seq_fast, i);
+
+					if (BPy_IDProperty_Map_ValidateAndCreate(NULL, prop, item) == false) {
+						Py_DECREF(ob_seq_fast);
+						return false;
+					}
+				}
+				break;
+			}
 			default:
+				/* should never happen */
 				Py_DECREF(ob_seq_fast);
-				return "internal error with idp array.type";
+				PyErr_SetString(PyExc_RuntimeError, "internal error with idp array.type");
+				return false;
 		}
 
 		Py_DECREF(ob_seq_fast);
@@ -446,23 +482,15 @@ const char *BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty 
 		for (i = 0; i < len; i++) {
 			key = PySequence_GetItem(keys, i);
 			pval = PySequence_GetItem(vals, i);
-			if (!PyUnicode_Check(key)) {
+			if (BPy_IDProperty_Map_ValidateAndCreate(key, prop, pval) == false) {
 				IDP_FreeProperty(prop);
 				MEM_freeN(prop);
 				Py_XDECREF(keys);
 				Py_XDECREF(vals);
 				Py_XDECREF(key);
 				Py_XDECREF(pval);
-				return "invalid element in subgroup dict template!";
-			}
-			if (BPy_IDProperty_Map_ValidateAndCreate(key, prop, pval)) {
-				IDP_FreeProperty(prop);
-				MEM_freeN(prop);
-				Py_XDECREF(keys);
-				Py_XDECREF(vals);
-				Py_XDECREF(key);
-				Py_XDECREF(pval);
-				return "invalid element in subgroup dict template!";
+				/* error is already set */
+				return false;
 			}
 			Py_XDECREF(key);
 			Py_XDECREF(pval);
@@ -471,7 +499,10 @@ const char *BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty 
 		Py_XDECREF(vals);
 	}
 	else {
-		return "invalid property value";
+		PyErr_Format(PyExc_TypeError,
+		             "invalid id-property type %.200s not supported",
+		             Py_TYPE(ob)->tp_name);
+		return false;
 	}
 
 	if (group->type == IDP_IDPARRAY) {
@@ -483,7 +514,7 @@ const char *BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty 
 		IDP_ReplaceInGroup(group, prop);
 	}
 
-	return NULL;
+	return true;
 }
 
 int BPy_Wrap_SetMapItem(IDProperty *prop, PyObject *key, PyObject *val)
@@ -494,11 +525,19 @@ int BPy_Wrap_SetMapItem(IDProperty *prop, PyObject *key, PyObject *val)
 	}
 
 	if (val == NULL) { /* del idprop[key] */
-		IDProperty *pkey = IDP_GetPropertyFromGroup(prop, _PyUnicode_AsString(key));
+		IDProperty *pkey;
+		const char *name = _PyUnicode_AsString(key);
+
+		if (name == NULL) {
+			PyErr_Format(PyExc_KeyError,
+			             "expected a string, not %.200s",
+			             Py_TYPE(key)->tp_name);
+			return -1;
+		}
+
+		pkey = IDP_GetPropertyFromGroup(prop, name);
 		if (pkey) {
-			IDP_RemFromGroup(prop, pkey);
-			IDP_FreeProperty(pkey);
-			MEM_freeN(pkey);
+			IDP_FreeFromGroup(prop, pkey);
 			return 0;
 		}
 		else {
@@ -507,16 +546,10 @@ int BPy_Wrap_SetMapItem(IDProperty *prop, PyObject *key, PyObject *val)
 		}
 	}
 	else {
-		const char *err;
+		bool ok;
 
-		if (!PyUnicode_Check(key)) {
-			PyErr_SetString(PyExc_TypeError, "only strings are allowed as subgroup keys");
-			return -1;
-		}
-
-		err = BPy_IDProperty_Map_ValidateAndCreate(key, prop, val);
-		if (err) {
-			PyErr_SetString(PyExc_KeyError, err);
+		ok = BPy_IDProperty_Map_ValidateAndCreate(key, prop, val);
+		if (ok == false) {
 			return -1;
 		}
 
@@ -670,7 +703,7 @@ static PyObject *BPy_IDGroup_Pop(BPy_IDProperty *self, PyObject *value)
 			return NULL;
 		}
 
-		IDP_RemFromGroup(self->prop, idprop);
+		IDP_RemoveFromGroup(self->prop, idprop);
 		return pyform;
 	}
 
@@ -969,22 +1002,22 @@ PyTypeObject BPy_IDGroup_Type = {
 
 /********Array Wrapper********/
 
-static PyTypeObject *idp_array_py_type(BPy_IDArray *self, short *is_double)
+static PyTypeObject *idp_array_py_type(BPy_IDArray *self, bool *r_is_double)
 {
 	switch (self->prop->subtype) {
 		case IDP_FLOAT:
-			*is_double = 0;
+			*r_is_double = false;
 			return &PyFloat_Type;
 		case IDP_DOUBLE:
-			*is_double = 1;
+			*r_is_double = true;
 			return &PyFloat_Type;
 		case IDP_INT:
-			*is_double = 0;
+			*r_is_double = false;
 			return &PyLong_Type;
+		default:
+			*r_is_double = false;
+			return NULL;
 	}
-
-	*is_double = 0;
-	return NULL;
 }
 
 static PyObject *BPy_IDArray_repr(BPy_IDArray *self)
@@ -1054,10 +1087,6 @@ static PyObject *BPy_IDArray_GetItem(BPy_IDArray *self, int index)
 
 static int BPy_IDArray_SetItem(BPy_IDArray *self, int index, PyObject *value)
 {
-	int i;
-	float f;
-	double d;
-
 	if (index < 0 || index >= self->prop->len) {
 		PyErr_SetString(PyExc_RuntimeError, "index out of range!");
 		return -1;
@@ -1065,30 +1094,33 @@ static int BPy_IDArray_SetItem(BPy_IDArray *self, int index, PyObject *value)
 
 	switch (self->prop->subtype) {
 		case IDP_FLOAT:
-			f = (float)PyFloat_AsDouble(value);
+		{
+			const float f = (float)PyFloat_AsDouble(value);
 			if (f == -1 && PyErr_Occurred()) {
-				PyErr_SetString(PyExc_TypeError, "expected a float");
 				return -1;
 			}
 			((float *)IDP_Array(self->prop))[index] = f;
 			break;
+		}
 		case IDP_DOUBLE:
-			d = PyFloat_AsDouble(value);
+		{
+			const double d = PyFloat_AsDouble(value);
 			if (d == -1 && PyErr_Occurred()) {
-				PyErr_SetString(PyExc_TypeError, "expected a float");
 				return -1;
 			}
 			((double *)IDP_Array(self->prop))[index] = d;
 			break;
+		}
 		case IDP_INT:
-			i = PyLong_AsLong(value);
+		{
+			const int i = _PyLong_AsInt(value);
 			if (i == -1 && PyErr_Occurred()) {
-				PyErr_SetString(PyExc_TypeError, "expected an int type");
 				return -1;
 			}
 
 			((int *)IDP_Array(self->prop))[index] = i;
 			break;
+		}
 	}
 	return 0;
 }
@@ -1156,7 +1188,7 @@ static PyObject *BPy_IDArray_slice(BPy_IDArray *self, int begin, int end)
 static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject *seq)
 {
 	IDProperty *prop = self->prop;
-	short is_double = 0;
+	bool is_double;
 	const PyTypeObject *py_type = idp_array_py_type(self, &is_double);
 	const size_t elem_size = is_double ? sizeof(double) : sizeof(float);
 	size_t alloc_len;
@@ -1365,7 +1397,7 @@ static PyObject *BPy_Group_Iter_Next(BPy_IDGroup_Iter *self)
 		}
 	}
 	else {
-		PyErr_SetString(PyExc_StopIteration, "iterator at end");
+		PyErr_SetNone(PyExc_StopIteration);
 		return NULL;
 	}
 }

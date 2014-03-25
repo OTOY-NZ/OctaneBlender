@@ -57,11 +57,11 @@
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	MaskModifierData *mmd = (MaskModifierData *) md;
 	MaskModifierData *tmmd = (MaskModifierData *) target;
-	
-	BLI_strncpy(tmmd->vgroup, mmd->vgroup, sizeof(tmmd->vgroup));
-	tmmd->flag = mmd->flag;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(md))
@@ -96,14 +96,15 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-                                  DerivedMesh *derivedData,
+                                  DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	MaskModifierData *mmd = (MaskModifierData *)md;
-	DerivedMesh *dm = derivedData, *result = NULL;
+	const bool found_test = (mmd->flag & MOD_MASK_INV) == 0;
+	DerivedMesh *result = NULL;
 	GHash *vertHash = NULL, *edgeHash, *polyHash;
 	GHashIterator *hashIter;
-	MDeformVert *dvert = NULL, *dv;
+	MDeformVert *dvert, *dv;
 	int numPolys = 0, numLoops = 0, numEdges = 0, numVerts = 0;
 	int maxVerts, maxEdges, maxPolys;
 	int i;
@@ -118,6 +119,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 
 	int *loop_mapping;
+
+	dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+	if (dvert == NULL) {
+		return found_test ? CDDM_from_template(dm, 0, 0, 0, 0, 0) : dm;
+	}
 
 	/* Overview of Method:
 	 *	1. Get the vertices that are in the vertexgroup of interest 
@@ -134,9 +140,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	 *	- must have verts and therefore verts assigned to vgroups to do anything useful
 	 */
 	if (!(ELEM(mmd->mode, MOD_MASK_MODE_ARM, MOD_MASK_MODE_VGROUP)) ||
-	    (maxVerts == 0) || (ob->defbase.first == NULL) )
+	    (maxVerts == 0) || BLI_listbase_is_empty(&ob->defbase))
 	{
-		return derivedData;
+		return dm;
 	}
 	
 	/* if mode is to use selected armature bones, aggregate the bone groups */
@@ -144,13 +150,13 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		Object *oba = mmd->ob_arm;
 		bPoseChannel *pchan;
 		bDeformGroup *def;
-		char *bone_select_array;
+		bool *bone_select_array;
 		int bone_select_tot = 0;
 		const int defbase_tot = BLI_countlist(&ob->defbase);
 		
 		/* check that there is armature object with bones to use, otherwise return original mesh */
 		if (ELEM3(NULL, oba, oba->pose, ob->defbase.first))
-			return derivedData;
+			return dm;
 		
 		/* determine whether each vertexgroup is associated with a selected bone or not 
 		 * - each cell is a boolean saying whether bone corresponding to the ith group is selected
@@ -161,23 +167,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		for (i = 0, def = ob->defbase.first; def; def = def->next, i++) {
 			pchan = BKE_pose_channel_find_name(oba->pose, def->name);
 			if (pchan && pchan->bone && (pchan->bone->flag & BONE_SELECTED)) {
-				bone_select_array[i] = TRUE;
+				bone_select_array[i] = true;
 				bone_select_tot++;
 			}
 			else {
-				bone_select_array[i] = FALSE;
+				bone_select_array[i] = false;
 			}
 		}
-		
-		/* if no dverts (i.e. no data for vertex groups exists), we've got an
-		 * inconsistent situation, so free hashes and return oirginal mesh
-		 */
-		dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
-		if (dvert == NULL) {
-			MEM_freeN(bone_select_array);
-			return derivedData;
-		}
-		
+
 		/* verthash gives mapping from original vertex indices to the new indices (including selected matches only)
 		 * key = oldindex, value = newindex
 		 */
@@ -189,7 +186,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		 */
 		for (i = 0, dv = dvert; i < maxVerts; i++, dv++) {
 			MDeformWeight *dw = dv->dw;
-			short found = 0;
+			bool found = false;
 			int j;
 			
 			/* check the groups that vertex is assigned to, and see if it was any use */
@@ -197,21 +194,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				if (dw->def_nr < defbase_tot) {
 					if (bone_select_array[dw->def_nr]) {
 						if (dw->weight != 0.0f) {
-							found = TRUE;
+							found = true;
 							break;
 						}
 					}
 				}
 			}
 			
-			/* check if include vert in vertHash */
-			if (mmd->flag & MOD_MASK_INV) {
-				/* if this vert is in the vgroup, don't include it in vertHash */
-				if (found) continue;
-			}
-			else {
-				/* if this vert isn't in the vgroup, don't include it in vertHash */
-				if (!found) continue;
+			if (found_test != found) {
+				continue;
 			}
 			
 			/* add to ghash for verts (numVerts acts as counter for mapping) */
@@ -224,13 +215,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	}
 	else {  /* --- Using Nominated VertexGroup only --- */
 		int defgrp_index = defgroup_name_index(ob, mmd->vgroup);
-		
-		/* get dverts */
-		if (defgrp_index != -1)
-			dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
-			
+
 		/* if no vgroup (i.e. dverts) found, return the initial mesh */
-		if ((defgrp_index == -1) || (dvert == NULL))
+		if (defgrp_index == -1)
 			return dm;
 			
 		/* hashes for quickly providing a mapping from old to new - use key=oldindex, value=newindex */
@@ -238,18 +225,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		
 		/* add vertices which exist in vertexgroup into ghash for filtering */
 		for (i = 0, dv = dvert; i < maxVerts; i++, dv++) {
-			const int weight_set = defvert_find_weight(dv, defgrp_index) != 0.0f;
-			
-			/* check if include vert in vertHash */
-			if (mmd->flag & MOD_MASK_INV) {
-				/* if this vert is in the vgroup, don't include it in vertHash */
-				if (weight_set) continue;
+			const bool found = defvert_find_weight(dv, defgrp_index) != 0.0f;
+			if (found_test != found) {
+				continue;
 			}
-			else {
-				/* if this vert isn't in the vgroup, don't include it in vertHash */
-				if (!weight_set) continue;
-			}
-			
+
 			/* add to ghash for verts (numVerts acts as counter for mapping) */
 			BLI_ghash_insert(vertHash, SET_INT_IN_POINTER(i), SET_INT_IN_POINTER(numVerts));
 			numVerts++;
@@ -283,12 +263,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	for (i = 0; i < maxPolys; i++) {
 		MPoly *mp = &mpoly[i];
 		MLoop *ml = mloop + mp->loopstart;
-		int ok = TRUE;
+		bool ok = true;
 		int j;
 		
 		for (j = 0; j < mp->totloop; j++, ml++) {
 			if (!BLI_ghash_haskey(vertHash, SET_INT_IN_POINTER(ml->v))) {
-				ok = FALSE;
+				ok = false;
 				break;
 			}
 		}
@@ -317,7 +297,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	/* vertices */
 	for (hashIter = BLI_ghashIterator_new(vertHash);
 	     BLI_ghashIterator_done(hashIter) == false;
-	     BLI_ghashIterator_step(hashIter) )
+	     BLI_ghashIterator_step(hashIter))
 	{
 		MVert source;
 		MVert *dest;
@@ -356,7 +336,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	/* faces */
 	for (hashIter = BLI_ghashIterator_new(polyHash);
 	     BLI_ghashIterator_done(hashIter) == false;
-	     BLI_ghashIterator_step(hashIter) )
+	     BLI_ghashIterator_step(hashIter))
 	{
 		int oldIndex = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(hashIter));
 		int newIndex = GET_INT_FROM_POINTER(BLI_ghashIterator_getValue(hashIter));

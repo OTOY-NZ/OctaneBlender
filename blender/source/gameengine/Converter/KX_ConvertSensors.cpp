@@ -80,12 +80,10 @@
 #include "KX_Scene.h"
 #include "IntValue.h"
 #include "KX_BlenderKeyboardDevice.h"
-#include "KX_BlenderGL.h"
 #include "RAS_ICanvas.h"
 #include "PHY_IPhysicsEnvironment.h"
 
 #include "KX_KetsjiEngine.h"
-#include "KX_BlenderSceneConverter.h"
 #include "BL_BlenderDataConversion.h"
 
 void BL_ConvertSensors(struct Object* blenderobject,
@@ -432,7 +430,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					// or the blenderradarsensor->angle?
 					// nzc: the angle is the opening angle. We need to init with 
 					// the axis-hull angle,so /2.0.
-					MT_Scalar factor = tan(MT_radians((blenderradarsensor->angle) / 2.0f));
+					MT_Scalar factor = tan(blenderradarsensor->angle * 0.5f);
 					//MT_Scalar coneradius = coneheight * (factor / 2);
 					MT_Scalar coneradius = coneheight * factor;
 					

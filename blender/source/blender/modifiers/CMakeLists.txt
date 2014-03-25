@@ -36,7 +36,6 @@ set(INC
 	../render/extern/include
 	../../../intern/elbeem/extern
 	../../../intern/guardedalloc
-	../../../intern/opennl/extern
 )
 
 set(INC_SYS
@@ -62,6 +61,7 @@ set(SRC
 	intern/MOD_fluidsim.c
 	intern/MOD_fluidsim_util.c
 	intern/MOD_hook.c
+	intern/MOD_laplaciandeform.c
 	intern/MOD_laplaciansmooth.c
 	intern/MOD_lattice.c
 	intern/MOD_mask.c
@@ -98,6 +98,7 @@ set(SRC
 	intern/MOD_weightvgedit.c
 	intern/MOD_weightvgmix.c
 	intern/MOD_weightvgproximity.c
+	intern/MOD_wireframe.c
 
 	MOD_modifiertypes.h
 	intern/MOD_boolean_util.h
@@ -113,7 +114,7 @@ if(WITH_MOD_BOOLEAN)
 		intern/MOD_boolean_util.c
 	)
 	list(APPEND INC
-		../../../intern/bsp/extern
+		../../../extern/carve
 	)
 endif()
 
@@ -132,17 +133,15 @@ if(WITH_MOD_OCEANSIM)
 	add_definitions(-DWITH_OCEANSIM)
 endif()
 
-if(WITH_GAMEENGINE)
-	# for MOD_navmesh.c
-	add_definitions(-DWITH_GAMEENGINE)
-	list(APPEND INC
-		../gpu
-		../../../extern/recastnavigation
-	)
-endif()
-
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_OPENNL)
+	add_definitions(-DWITH_OPENNL)
+	list(APPEND INC_SYS
+		../../../intern/opennl/extern
+	)
 endif()
 
 blender_add_lib(bf_modifiers "${SRC}" "${INC}" "${INC_SYS}")

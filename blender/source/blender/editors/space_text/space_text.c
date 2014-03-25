@@ -239,7 +239,11 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 #ifdef __APPLE__
 	WM_keymap_add_item(keymap, "TEXT_OT_start_find", FKEY, KM_PRESS, KM_OSKEY, 0);
 #endif
-	
+	WM_keymap_add_item(keymap, "TEXT_OT_jump", JKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "TEXT_OT_find", GKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "TEXT_OT_replace", HKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "TEXT_OT_properties", TKEY, KM_PRESS, KM_CTRL, 0);
+
 	keymap = WM_keymap_find(keyconf, "Text", SPACE_TEXT, 0);
 	
 #ifdef __APPLE__
@@ -265,7 +269,6 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "TEXT_OT_copy", CKEY, KM_PRESS, KM_OSKEY, 0); 
 	WM_keymap_add_item(keymap, "TEXT_OT_paste", VKEY, KM_PRESS, KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_find_set_selected", EKEY, KM_PRESS, KM_OSKEY, 0);
-	WM_keymap_add_item(keymap, "TEXT_OT_find", GKEY, KM_PRESS, KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_select_all", AKEY, KM_PRESS, KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_select_line", AKEY, KM_PRESS, KM_SHIFT | KM_OSKEY, 0);
 #endif
@@ -308,18 +311,6 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 		kmi = WM_keymap_add_item(keymap, "TEXT_OT_paste", MIDDLEMOUSE, KM_PRESS, 0, 0);
 		RNA_boolean_set(kmi->ptr, "selection", TRUE);
 	}
-
-	WM_keymap_add_item(keymap, "TEXT_OT_properties", TKEY, KM_PRESS, KM_CTRL, 0);
-
-	WM_keymap_add_item(keymap, "TEXT_OT_jump", JKEY, KM_PRESS, KM_CTRL, 0);
-	WM_keymap_add_item(keymap, "TEXT_OT_find", GKEY, KM_PRESS, KM_CTRL, 0);
-	
-	WM_keymap_add_item(keymap, "TEXT_OT_replace", HKEY, KM_PRESS, KM_CTRL, 0);
-
-	kmi = WM_keymap_add_item(keymap, "TEXT_OT_to_3d_object", MKEY, KM_PRESS, KM_ALT, 0);
-	RNA_boolean_set(kmi->ptr, "split_lines", FALSE);
-	kmi = WM_keymap_add_item(keymap, "TEXT_OT_to_3d_object", MKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_boolean_set(kmi->ptr, "split_lines", TRUE);
 
 	WM_keymap_add_item(keymap, "TEXT_OT_select_all", AKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_select_line", AKEY, KM_PRESS, KM_SHIFT | KM_CTRL, 0);
@@ -453,9 +444,16 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	/* scrollers? */
 }
 
-static void text_cursor(wmWindow *win, ScrArea *UNUSED(sa), ARegion *UNUSED(ar))
+static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 {
-	WM_cursor_set(win, BC_TEXTEDITCURSOR);
+	SpaceText *st = sa->spacedata.first;
+	int wmcursor = BC_TEXTEDITCURSOR;
+
+	if (st->text && BLI_rcti_isect_pt(&st->txtbar, win->eventstate->x - ar->winrct.xmin, st->txtbar.ymin)) {
+		wmcursor = CURSOR_STD;
+	}
+
+	WM_cursor_set(win, wmcursor);
 }
 
 
@@ -476,13 +474,26 @@ static void text_drop_copy(wmDrag *drag, wmDropBox *drop)
 	RNA_string_set(drop->ptr, "filepath", drag->path);
 }
 
+static int text_drop_paste_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+{
+	if (drag->type == WM_DRAG_ID)
+		return true;
+
+	return false;
+}
+
+static void text_drop_paste(wmDrag *drag, wmDropBox *drop)
+{
+	RNA_string_set(drop->ptr, "text", ((ID *)drag->poin)->name + 2);
+}
+
 /* this region dropbox definition */
 static void text_dropboxes(void)
 {
 	ListBase *lb = WM_dropboxmap_find("Text", SPACE_TEXT, RGN_TYPE_WINDOW);
 	
 	WM_dropbox_add(lb, "TEXT_OT_open", text_drop_poll, text_drop_copy);
-
+	WM_dropbox_add(lb, "TEXT_OT_insert", text_drop_paste_poll, text_drop_paste);
 }
 
 /* ************* end drop *********** */
@@ -525,7 +536,7 @@ static void text_properties_area_draw(const bContext *C, ARegion *ar)
 	
 	/* this flag trick is make sure buttons have been added already */
 	if (st->flags & ST_FIND_ACTIVATE) {
-		if (UI_textbutton_activate_event(C, ar, st, "find_text")) {
+		if (UI_textbutton_activate_rna(C, ar, st, "find_text")) {
 			/* if the panel was already open we need to do another redraw */
 			ScrArea *sa = CTX_wm_area(C);
 			WM_event_add_notifier(C, NC_SPACE | ND_SPACE_TEXT, sa);
@@ -561,6 +572,7 @@ void ED_spacetype_text(void)
 	art->init = text_main_area_init;
 	art->draw = text_main_area_draw;
 	art->cursor = text_cursor;
+	art->event_cursor = TRUE;
 
 	BLI_addhead(&st->regiontypes, art);
 	

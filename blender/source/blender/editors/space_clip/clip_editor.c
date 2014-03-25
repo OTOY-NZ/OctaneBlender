@@ -504,7 +504,7 @@ void ED_clip_mouse_pos(SpaceClip *sc, ARegion *ar, const int mval[2], float co[2
 bool ED_space_clip_check_show_trackedit(SpaceClip *sc)
 {
 	if (sc) {
-		return ELEM3(sc->mode, SC_MODE_TRACKING, SC_MODE_RECONSTRUCTION, SC_MODE_DISTORTION);
+		return sc->mode == SC_MODE_TRACKING;
 	}
 
 	return false;
@@ -603,7 +603,10 @@ typedef struct PrefetchQueue {
 	int initial_frame, current_frame, start_frame, end_frame;
 	short render_size, render_flag;
 
-	short direction;
+	/* If true prefecthing goes forward in time,
+	 * othwewise it goes backwards in time (starting from current frame).
+	 */
+	bool forward;
 
 	SpinLock spin;
 
@@ -639,7 +642,7 @@ static unsigned char *prefetch_read_file_to_memory(MovieClip *clip, int current_
 
 	BKE_movieclip_filename_for_frame(clip, &user, name);
 
-	file = open(name, O_BINARY | O_RDONLY, 0);
+	file = BLI_open(name, O_BINARY | O_RDONLY, 0);
 	if (file < 0) {
 		return NULL;
 	}
@@ -707,17 +710,17 @@ static unsigned char *prefetch_thread_next_frame(PrefetchQueue *queue, MovieClip
 	{
 		int current_frame;
 
-		if (queue->direction > 0) {
+		if (queue->forward) {
 			current_frame = prefetch_find_uncached_frame(clip, queue->current_frame + 1, queue->end_frame,
 			                                             queue->render_size, queue->render_flag, 1);
 			/* switch direction if read frames from current up to scene end frames */
 			if (current_frame > queue->end_frame) {
 				queue->current_frame = queue->initial_frame;
-				queue->direction = -1;
+				queue->forward = false;
 			}
 		}
 
-		if (queue->direction < 0) {
+		if (!queue->forward) {
 			current_frame = prefetch_find_uncached_frame(clip, queue->current_frame - 1, queue->start_frame,
 			                                             queue->render_size, queue->render_flag, -1);
 		}
@@ -732,7 +735,7 @@ static unsigned char *prefetch_thread_next_frame(PrefetchQueue *queue, MovieClip
 
 			queue->current_frame = current_frame;
 
-			if (queue->direction > 0) {
+			if (queue->forward) {
 				frames_processed = queue->current_frame - queue->initial_frame;
 			}
 			else {
@@ -752,6 +755,7 @@ static unsigned char *prefetch_thread_next_frame(PrefetchQueue *queue, MovieClip
 static void *do_prefetch_thread(void *data_v)
 {
 	PrefetchThread *data = (PrefetchThread *) data_v;
+	MovieClip *clip = data->clip;
 	unsigned char *mem;
 	size_t size;
 	int current_frame;
@@ -761,12 +765,18 @@ static void *do_prefetch_thread(void *data_v)
 		MovieClipUser user = {0};
 		int flag = IB_rect | IB_alphamode_detect;
 		int result;
+		char *colorspace_name = NULL;
 
 		user.framenr = current_frame;
 		user.render_size = data->queue->render_size;
 		user.render_flag = data->queue->render_flag;
 
-		ibuf = IMB_ibImageFromMemory(mem, size, flag, NULL, "prefetch frame");
+		/* Proxies are stored in the display space. */
+		if (data->queue->render_flag & MCLIP_USE_PROXY) {
+			colorspace_name = clip->colorspace_settings.name;
+		}
+
+		ibuf = IMB_ibImageFromMemory(mem, size, flag, colorspace_name, "prefetch frame");
 
 		result = BKE_movieclip_put_frame_if_possible(data->clip, &user, ibuf);
 
@@ -807,7 +817,7 @@ static void start_prefetch_threads(MovieClip *clip, int start_frame, int current
 	queue.end_frame = end_frame;
 	queue.render_size = render_size;
 	queue.render_flag = render_flag;
-	queue.direction = 1;
+	queue.forward = 1;
 
 	queue.stop = stop;
 	queue.do_update = do_update;
@@ -964,6 +974,10 @@ static bool prefetch_check_early_out(const bContext *C)
 	int first_uncached_frame, end_frame;
 	int clip_len;
 
+	if (clip == NULL) {
+		return true;
+	}
+
 	clip_len = BKE_movieclip_get_duration(clip);
 
 	/* check whether all the frames from prefetch range are cached */
@@ -1012,7 +1026,7 @@ void clip_start_prefetch_job(const bContext *C)
 	WM_jobs_timer(wm_job, 0.2, NC_MOVIECLIP | ND_DISPLAY, 0);
 	WM_jobs_callbacks(wm_job, prefetch_startjob, NULL, NULL, NULL);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 
 	/* and finally start the job */
 	WM_jobs_start(CTX_wm_manager(C), wm_job);

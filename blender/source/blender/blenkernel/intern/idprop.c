@@ -81,7 +81,7 @@ IDProperty *IDP_NewIDPArray(const char *name)
 	return prop;
 }
 
-IDProperty *IDP_CopyIDPArray(IDProperty *array)
+IDProperty *IDP_CopyIDPArray(const IDProperty *array)
 {
 	/* don't use MEM_dupallocN because this may be part of an array */
 	IDProperty *narray, *tmp;
@@ -273,7 +273,7 @@ void IDP_FreeArray(IDProperty *prop)
 }
 
 
-static IDProperty *idp_generic_copy(IDProperty *prop)
+static IDProperty *idp_generic_copy(const IDProperty *prop)
 {
 	IDProperty *newp = MEM_callocN(sizeof(IDProperty), "IDProperty array dup");
 
@@ -286,7 +286,7 @@ static IDProperty *idp_generic_copy(IDProperty *prop)
 	return newp;
 }
 
-static IDProperty *IDP_CopyArray(IDProperty *prop)
+static IDProperty *IDP_CopyArray(const IDProperty *prop)
 {
 	IDProperty *newp = idp_generic_copy(prop);
 
@@ -334,12 +334,11 @@ IDProperty *IDP_NewString(const char *st, const char *name, int maxlen)
 		prop->len = 1;  /* NULL string, has len of 1 to account for null byte. */
 	}
 	else {
-		int stlen = strlen(st);
+		/* include null terminator '\0' */
+		int stlen = strlen(st) + 1;
 
 		if (maxlen > 0 && maxlen < stlen)
 			stlen = maxlen;
-
-		stlen++; /* null terminator '\0' */
 
 		prop->data.pointer = MEM_mallocN(stlen, "id property string 2");
 		prop->len = prop->totallen = stlen;
@@ -352,7 +351,7 @@ IDProperty *IDP_NewString(const char *st, const char *name, int maxlen)
 	return prop;
 }
 
-static IDProperty *IDP_CopyString(IDProperty *prop)
+static IDProperty *IDP_CopyString(const IDProperty *prop)
 {
 	IDProperty *newp;
 
@@ -453,7 +452,7 @@ void IDP_UnlinkID(IDProperty *prop)
 /**
  * Checks if a property with the same name as prop exists, and if so replaces it.
  */
-static IDProperty *IDP_CopyGroup(IDProperty *prop)
+static IDProperty *IDP_CopyGroup(const IDProperty *prop)
 {
 	IDProperty *newp, *link;
 	
@@ -470,7 +469,7 @@ static IDProperty *IDP_CopyGroup(IDProperty *prop)
 
 /* use for syncing proxies.
  * When values name and types match, copy the values, else ignore */
-void IDP_SyncGroupValues(IDProperty *dest, IDProperty *src)
+void IDP_SyncGroupValues(IDProperty *dest, const IDProperty *src)
 {
 	IDProperty *other, *prop;
 
@@ -506,10 +505,38 @@ void IDP_SyncGroupValues(IDProperty *dest, IDProperty *src)
 	}
 }
 
+void IDP_SyncGroupTypes(IDProperty *dst, const IDProperty *src, const bool do_arraylen)
+{
+	IDProperty *prop_dst, *prop_dst_next;
+	const IDProperty *prop_src;
+
+	for (prop_dst = dst->data.group.first; prop_dst; prop_dst = prop_dst_next) {
+		prop_dst_next = prop_dst->next;
+		if ((prop_src = IDP_GetPropertyFromGroup((IDProperty *)src, prop_dst->name))) {
+			/* check of we should replace? */
+			if ((prop_dst->type != prop_src->type || prop_dst->subtype != prop_src->subtype) ||
+			    (do_arraylen && ELEM(prop_dst->type, IDP_ARRAY, IDP_IDPARRAY) && (prop_src->len != prop_dst->len)))
+			{
+				IDP_FreeFromGroup(dst, prop_dst);
+				prop_dst = IDP_CopyProperty(prop_src);
+
+				dst->len++;
+				BLI_insertlinkbefore(&dst->data.group, prop_dst_next, prop_dst);
+			}
+			else if (prop_dst->type == IDP_GROUP) {
+				IDP_SyncGroupTypes(prop_dst, prop_src, do_arraylen);
+			}
+		}
+		else {
+			IDP_FreeFromGroup(dst, prop_dst);
+		}
+	}
+}
+
 /**
  * Replaces all properties with the same name in a destination group from a source group.
  */
-void IDP_ReplaceGroupInGroup(IDProperty *dest, IDProperty *src)
+void IDP_ReplaceGroupInGroup(IDProperty *dest, const IDProperty *src)
 {
 	IDProperty *loop, *prop;
 
@@ -565,7 +592,7 @@ void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
 /**
  * If a property is missing in \a dest, add it.
  */
-void IDP_MergeGroup(IDProperty *dest, IDProperty *src, const int do_overwrite)
+void IDP_MergeGroup(IDProperty *dest, const IDProperty *src, const bool do_overwrite)
 {
 	IDProperty *prop;
 
@@ -604,7 +631,7 @@ void IDP_MergeGroup(IDProperty *dest, IDProperty *src, const int do_overwrite)
  * struct.  In the future this will just be IDP_FreeProperty and the code will
  * be reorganized to work properly.
  */
-int IDP_AddToGroup(IDProperty *group, IDProperty *prop)
+bool IDP_AddToGroup(IDProperty *group, IDProperty *prop)
 {
 	BLI_assert(group->type == IDP_GROUP);
 
@@ -621,7 +648,7 @@ int IDP_AddToGroup(IDProperty *group, IDProperty *prop)
  * This is the same as IDP_AddToGroup, only you pass an item
  * in the group list to be inserted after.
  */
-int IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
+bool IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
 {
 	BLI_assert(group->type == IDP_GROUP);
 
@@ -641,12 +668,22 @@ int IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
  * IDP_FreeProperty(prop); //free all subdata
  * MEM_freeN(prop); //free property struct itself
  */
-void IDP_RemFromGroup(IDProperty *group, IDProperty *prop)
+void IDP_RemoveFromGroup(IDProperty *group, IDProperty *prop)
 {
 	BLI_assert(group->type == IDP_GROUP);
 
 	group->len--;
 	BLI_remlink(&group->data.group, prop);
+}
+
+/**
+ * Removes the property from the group and frees it.
+ */
+void IDP_FreeFromGroup(IDProperty *group, IDProperty *prop)
+{
+	IDP_RemoveFromGroup(group, prop);
+	IDP_FreeProperty(prop);
+	MEM_freeN(prop);
 }
 
 IDProperty *IDP_GetPropertyFromGroup(IDProperty *prop, const char *name)
@@ -734,7 +771,7 @@ static void IDP_FreeGroup(IDProperty *prop)
 
 /** \name IDProperty Main API
  * \{ */
-IDProperty *IDP_CopyProperty(IDProperty *prop)
+IDProperty *IDP_CopyProperty(const IDProperty *prop)
 {
 	switch (prop->type) {
 		case IDP_GROUP: return IDP_CopyGroup(prop);
@@ -750,7 +787,7 @@ IDProperty *IDP_CopyProperty(IDProperty *prop)
  * to create the Group property and attach it to id if it doesn't exist; otherwise
  * the function will return NULL if there's no Group property attached to the ID.
  */
-IDProperty *IDP_GetProperties(ID *id, int create_if_needed)
+IDProperty *IDP_GetProperties(ID *id, const bool create_if_needed)
 {
 	if (id->properties) {
 		return id->properties;
@@ -770,7 +807,7 @@ IDProperty *IDP_GetProperties(ID *id, int create_if_needed)
 
 /**
  * \param is_strict When FALSE treat missing items as a match */
-int IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const int is_strict)
+bool IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const bool is_strict)
 {
 	if (prop1 == NULL && prop2 == NULL)
 		return 1;
@@ -832,7 +869,7 @@ int IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const int is_s
 	return 1;
 }
 
-int IDP_EqualsProperties(IDProperty *prop1, IDProperty *prop2)
+bool IDP_EqualsProperties(IDProperty *prop1, IDProperty *prop2)
 {
 	return IDP_EqualsProperties_ex(prop1, prop2, TRUE);
 }

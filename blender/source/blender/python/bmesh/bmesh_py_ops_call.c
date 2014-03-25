@@ -503,7 +503,7 @@ static int bpy_slot_from_py(BMesh *bm, BMOperator *bmop, BMOpSlot *slot, PyObjec
 				{
 					/* can't convert from these */
 					PyErr_Format(PyExc_NotImplementedError,
-					             "This arguments mapping subtype %d is not supported", slot->slot_subtype);
+					             "This arguments mapping subtype %d is not supported", slot->slot_subtype.map);
 					return -1;
 				}
 			}
@@ -639,7 +639,7 @@ static PyObject *bpy_slot_to_py(BMesh *bm, BMOpSlot *slot)
 							void     *ele_val = BLI_ghashIterator_getValue(&hash_iter);
 
 							PyObject *py_key =  BPy_BMElem_CreatePyObject(bm,  ele_key);
-							PyObject *py_val =  PyBool_FromLong(*(int *)&ele_val);
+							PyObject *py_val =  PyBool_FromLong(*(bool *)&ele_val);
 
 							PyDict_SetItem(item, py_key, py_val);
 							Py_DECREF(py_key);
@@ -690,8 +690,7 @@ PyObject *BPy_BMO_call(BPy_BMeshOpFunc *self, PyObject *args, PyObject *kw)
 
 	if ((PyTuple_GET_SIZE(args) == 1) &&
 	    (py_bm = (BPy_BMesh *)PyTuple_GET_ITEM(args, 0)) &&
-	    (BPy_BMesh_Check(py_bm))
-		)
+	    (BPy_BMesh_Check(py_bm)))
 	{
 		BPY_BM_CHECK_OBJ(py_bm);
 		bm = py_bm->bm;

@@ -67,7 +67,20 @@ def write_sysinfo(op):
     # build info
     output.write("\nBlender:\n")
     output.write(lilies)
-    output.write("version %s, revision %r. %r\n" % (bpy.app.version_string, bpy.app.build_revision, bpy.app.build_type))
+    if bpy.app.build_branch and bpy.app.build_branch != "Unknown":
+        output.write("version %s, branch %r, commit date %r %r, hash %r, %r\n" %
+            (bpy.app.version_string,
+             bpy.app.build_branch,
+             bpy.app.build_commit_date,
+             bpy.app.build_commit_time,
+             bpy.app.build_hash,
+             bpy.app.build_type))
+    else:
+        output.write("version %s, revision %r. %r\n" %
+            (bpy.app.version_string,
+             bpy.app.build_change,
+             bpy.app.build_type))
+
     output.write("build date: %r, %r\n" % (bpy.app.build_date, bpy.app.build_time))
     output.write("platform: %r\n" % (bpy.app.build_platform))
     output.write("binary path: %r\n" % (bpy.app.binary_path))
@@ -105,6 +118,36 @@ def write_sysinfo(op):
     else:
         output.write("Blender was built without FFmpeg support\n")
 
+    output.write("\nOther Libraries:\n")
+    output.write(lilies)
+    ocio = bpy.app.ocio
+    output.write("OpenColorIO: ")
+    if ocio.supported:
+        if ocio.version_string == "fallback":
+            output.write("Blender was built with OpenColorIO, " +
+                         "but it currently uses fallback color management.\n")
+        else:
+            output.write("%s\n" % (ocio.version_string))
+    else:
+        output.write("Blender was built without OpenColorIO support\n")
+
+    oiio = bpy.app.oiio
+    output.write("OpenImageIO: ")
+    if ocio.supported:
+        output.write("%s\n" % (oiio.version_string))
+    else:
+        output.write("Blender was built without OpenImageIO support\n")
+
+    output.write("OpenShadingLanguage: ")
+    if bpy.app.build_options.cycles:
+        if bpy.app.build_options.cycles_osl:
+            from _cycles import osl_version_string
+            output.write("%s\n" % (osl_version_string))
+        else:
+            output.write("Blender was built without OpenShadingLanguage support in Cycles\n")
+    else:
+        output.write("Blender was built without Cycles support\n")
+
     if bpy.app.background:
         output.write("\nOpenGL: missing, background mode\n")
     else:
@@ -119,5 +162,7 @@ def write_sysinfo(op):
         glext = textWrap(glext, 70)
         for l in glext:
             output.write("\t\t%r\n" % (l))
+
+    output.current_line_index = 0
 
     op.report({'INFO'}, "System information generated in 'system-info.txt'")

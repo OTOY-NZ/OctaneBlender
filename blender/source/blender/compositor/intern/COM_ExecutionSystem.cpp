@@ -46,9 +46,10 @@ extern "C" {
 #include "MEM_guardedalloc.h"
 #endif
 
-ExecutionSystem::ExecutionSystem(RenderData *rd, bNodeTree *editingtree, bool rendering, bool fastcalculation,
+ExecutionSystem::ExecutionSystem(RenderData *rd, Scene *scene, bNodeTree *editingtree, bool rendering, bool fastcalculation,
                                  const ColorManagedViewSettings *viewSettings, const ColorManagedDisplaySettings *displaySettings)
 {
+	this->m_context.setScene(scene);
 	this->m_context.setbNodeTree(editingtree);
 	this->m_context.setPreviewHash(editingtree->previews);
 	this->m_context.setFastCalculation(fastcalculation);
@@ -240,14 +241,34 @@ void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
 	 */
 	OutputSocket *outputsocket = operation->getOutputSocket();
 	if (outputsocket->isConnected()) {
-		WriteBufferOperation *writeOperation;
-		writeOperation = new WriteBufferOperation();
-		writeOperation->setbNodeTree(this->getContext().getbNodeTree());
-		this->addOperation(writeOperation);
-		ExecutionSystemHelper::addLink(this->getConnections(), outputsocket, writeOperation->getInputSocket(0));
-		writeOperation->readResolutionFromInputSocket();
-		for (index = 0; index < outputsocket->getNumberOfConnections() - 1; index++) {
+		WriteBufferOperation *writeOperation = NULL;
+		/* try to find existing write buffer operation first */
+		for (index = 0; index < outputsocket->getNumberOfConnections(); index++) {
 			SocketConnection *connection = outputsocket->getConnection(index);
+			NodeBase *otherEnd = connection->getToNode();
+			if (otherEnd->isOperation()) {
+				NodeOperation *otherEndOp = (NodeOperation *)otherEnd;
+				if (otherEndOp->isWriteBufferOperation()) {
+					writeOperation = (WriteBufferOperation *)otherEndOp;
+					break;
+				}
+			}
+		}
+		/* if no write buffer operation exists yet, create a new one */
+		if (!writeOperation) {
+			writeOperation = new WriteBufferOperation();
+			writeOperation->setbNodeTree(this->getContext().getbNodeTree());
+			this->addOperation(writeOperation);
+			ExecutionSystemHelper::addLink(this->getConnections(), outputsocket, writeOperation->getInputSocket(0));
+		}
+		writeOperation->readResolutionFromInputSocket();
+		
+		for (index = 0; index < outputsocket->getNumberOfConnections(); index++) {
+			SocketConnection *connection = outputsocket->getConnection(index);
+			/* skip existing connections to write buffer operation */
+			if (connection->getToNode() == writeOperation)
+				continue;
+			
 			ReadBufferOperation *readoperation = new ReadBufferOperation();
 			readoperation->setMemoryProxy(writeOperation->getMemoryProxy());
 			connection->setFromSocket(readoperation->getOutputSocket());

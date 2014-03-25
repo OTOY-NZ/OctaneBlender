@@ -83,7 +83,7 @@ static RigGraph *GLOBAL_RIGG = NULL;
 
 /*******************************************************************************************************/
 
-void *exec_retargetArctoArc(void *param);
+void exec_retargetArctoArc(TaskPool *pool, void *taskdata, int threadid);
 
 static void RIG_calculateEdgeAngles(RigEdge *edge_first, RigEdge *edge_second);
 float rollBoneByQuat(EditBone *bone, float old_up_axis[3], float qrot[4]);
@@ -235,9 +235,8 @@ void RIG_freeRigGraph(BGraph *rg)
 	BNode *node;
 	BArc *arc;
 	
-#ifdef USE_THREADS
-	BLI_destroy_worker(rigg->worker);
-#endif
+	BLI_task_pool_free(rigg->task_pool);
+	BLI_task_scheduler_free(rigg->task_scheduler);
 	
 	if (rigg->link_mesh) {
 		REEB_freeGraph(rigg->link_mesh);
@@ -284,12 +283,14 @@ static RigGraph *newRigGraph(void)
 	rg->free_node = NULL;
 	
 #ifdef USE_THREADS
-	//totthread = BKE_scene_num_threads(G.scene);
-	totthread = BLI_system_thread_count();
-	
-	rg->worker = BLI_create_worker(exec_retargetArctoArc, totthread, 20); /* fix number of threads */
+	totthread = TASK_SCHEDULER_AUTO_THREADS;
+#else
+	totthread = TASK_SCHEDULER_SINGLE_THREAD;
 #endif
-	
+
+	rg->task_scheduler = BLI_task_scheduler_create(totthread);
+	rg->task_pool = BLI_task_pool_create(rg->task_scheduler, NULL);
+
 	return rg;
 }
 
@@ -696,7 +697,7 @@ static int RIG_parentControl(RigControl *ctrl, EditBone *link)
 static void RIG_reconnectControlBones(RigGraph *rg)
 {
 	RigControl *ctrl;
-	int change = 1;
+	bool changed = true;
 	
 	/* first pass, link to deform bones */
 	for (ctrl = rg->controls.first; ctrl; ctrl = ctrl->next) {
@@ -811,8 +812,8 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 	
 	
 	/* second pass, make chains in control bones */
-	while (change) {
-		change = 0;
+	while (changed) {
+		changed = false;
 		
 		for (ctrl = rg->controls.first; ctrl; ctrl = ctrl->next) {
 			/* if control is not linked yet */
@@ -864,7 +865,7 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 					/* check if parent is already linked */
 					if (ctrl_parent && ctrl_parent->link) {
 						RIG_parentControl(ctrl, ctrl_parent->bone);
-						change = 1;
+						changed = true;
 					}
 					else {
 						/* check childs */
@@ -872,7 +873,7 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 							/* if a child is linked, link to that one */
 							if (ctrl_child->link && ctrl_child->bone->parent == ctrl->bone) {
 								RIG_parentControl(ctrl, ctrl_child->bone);
-								change = 1;
+								changed = true;
 								break;
 							}
 						}
@@ -943,7 +944,7 @@ static void RIG_joinArcs(RigGraph *rg, RigNode *node, RigArc *joined_arc1, RigAr
 	
 	joined_arc1->tail = joined_arc2->tail;
 	
-	joined_arc2->edges.first = joined_arc2->edges.last = NULL;
+	BLI_listbase_clear(&joined_arc2->edges);
 	
 	BLI_removeArc((BGraph *)rg, (BArc *)joined_arc2);
 	
@@ -2133,7 +2134,6 @@ static void retargetArctoArcLength(bContext *C, RigGraph *rigg, RigArc *iarc, Ri
 
 static void retargetArctoArc(bContext *C, RigGraph *rigg, RigArc *iarc, RigNode *inode_start)
 {
-#ifdef USE_THREADS
 	RetargetParam *p = MEM_callocN(sizeof(RetargetParam), "RetargetParam");
 	
 	p->rigg = rigg;
@@ -2141,22 +2141,12 @@ static void retargetArctoArc(bContext *C, RigGraph *rigg, RigArc *iarc, RigNode 
 	p->inode_start = inode_start;
 	p->context = C;
 	
-	BLI_insert_work(rigg->worker, p);
-#else
-	RetargetParam p;
-
-	p.rigg = rigg;
-	p.iarc = iarc;
-	p.inode_start = inode_start;
-	p.context = C;
-	
-	exec_retargetArctoArc(&p);
-#endif
+	BLI_task_pool_push(rigg->task_pool, exec_retargetArctoArc, p, true, TASK_PRIORITY_HIGH);
 }
 
-void *exec_retargetArctoArc(void *param)
+void exec_retargetArctoArc(TaskPool *UNUSED(pool), void *taskdata, int UNUSED(threadid))
 {
-	RetargetParam *p = (RetargetParam *)param;
+	RetargetParam *p = (RetargetParam *)taskdata;
 	RigGraph *rigg = p->rigg;
 	RigArc *iarc = p->iarc;
 	bContext *C = p->context;
@@ -2183,12 +2173,6 @@ void *exec_retargetArctoArc(void *param)
 			retargetArctoArcLength(C, rigg, iarc, inode_start);
 		}
 	}
-
-#ifdef USE_THREADS
-	MEM_freeN(p);
-#endif
-	
-	return NULL;
 }
 
 static void matchMultiResolutionNode(RigGraph *rigg, RigNode *inode, ReebNode *top_node)
@@ -2414,9 +2398,7 @@ static void retargetSubgraph(bContext *C, RigGraph *rigg, RigArc *start_arc, Rig
 
 static void finishRetarget(RigGraph *rigg)
 {
-#ifdef USE_THREADS
-	BLI_end_worker(rigg->worker);
-#endif
+	BLI_task_pool_work_and_wait(rigg->task_pool);
 }
 
 static void adjustGraphs(bContext *C, RigGraph *rigg)
@@ -2434,7 +2416,7 @@ static void adjustGraphs(bContext *C, RigGraph *rigg)
 
 	/* Turn the list into an armature */
 	arm->edbo = rigg->editbones;
-	ED_armature_from_edit(rigg->ob);
+	ED_armature_from_edit(arm);
 	
 	ED_undo_push(C, "Retarget Skeleton");
 }
@@ -2461,7 +2443,7 @@ static void retargetGraphs(bContext *C, RigGraph *rigg)
 
 	/* Turn the list into an armature */
 	arm->edbo = rigg->editbones;
-	ED_armature_from_edit(rigg->ob);
+	ED_armature_from_edit(arm);
 }
 
 const char *RIG_nameBone(RigGraph *rg, int arc_index, int bone_index)
@@ -2611,7 +2593,7 @@ void BIF_retargetArc(bContext *C, ReebArc *earc, RigGraph *template_rigg)
 		template_rigg = armatureSelectedToGraph(C, ob, ob->data);
 	}
 	
-	if (template_rigg->arcs.first == NULL) {
+	if (BLI_listbase_is_empty(&template_rigg->arcs)) {
 //		XXX
 //		error("No Template and no deforming bones selected");
 		return;

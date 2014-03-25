@@ -45,7 +45,6 @@
 #include "BKE_main.h"
 #include "BKE_sequencer.h"
 #include "BKE_movieclip.h"
-#include "BKE_sequencer.h"
 #include "BKE_mask.h"
 #include "BKE_report.h"
 
@@ -66,7 +65,7 @@
 static int strip_modifier_active_poll(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
-	Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
+	Editing *ed = BKE_sequencer_editing_get(scene, false);
 
 	if (ed) {
 		Sequence *seq = BKE_sequencer_active_get(scene);

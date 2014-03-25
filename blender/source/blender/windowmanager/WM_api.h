@@ -65,6 +65,7 @@ struct wmDrag;
 struct ImBuf;
 struct ImageFormatData;
 struct ARegion;
+struct wmNDOFMotionData;
 
 typedef struct wmJob wmJob;
 
@@ -75,7 +76,7 @@ void		WM_init_state_normal_set(void);
 void		WM_init_native_pixels(bool do_it);
 
 void		WM_init				(struct bContext *C, int argc, const char **argv);
-void		WM_exit_ext			(struct bContext *C, const short do_python);
+void		WM_exit_ext			(struct bContext *C, const bool do_python);
 
 void		WM_exit				(struct bContext *C) ATTR_NORETURN;
 
@@ -87,10 +88,11 @@ void		WM_init_splash		(struct bContext *C);
 
 void		WM_check			(struct bContext *C);
 
-struct wmWindow	*WM_window_open	(struct bContext *C, struct rcti *rect);
+struct wmWindow	*WM_window_open	(struct bContext *C, const struct rcti *rect);
 
 int			WM_window_pixels_x		(struct wmWindow *win);
 int			WM_window_pixels_y		(struct wmWindow *win);
+bool		WM_window_is_fullscreen	(struct wmWindow *win);
 
 /* defines for 'type' WM_window_open_temp */
 #define WM_WINDOW_RENDER		0
@@ -106,7 +108,7 @@ bool		WM_is_draw_triple(struct wmWindow *win);
 
 			/* files */
 void		WM_file_autoexec_init(const char *filepath);
-void		WM_file_read(struct bContext *C, const char *filepath, struct ReportList *reports);
+bool		WM_file_read(struct bContext *C, const char *filepath, struct ReportList *reports);
 void		WM_autosave_init(struct wmWindowManager *wm);
 void		WM_recover_last_session(struct bContext *C, struct ReportList *reports);
 
@@ -137,7 +139,7 @@ int			WM_userdef_event_map(int kmitype);
 
 struct wmEventHandler *WM_event_add_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
 						/* boundbox, optional subwindow boundbox for offset */
-struct wmEventHandler *WM_event_add_keymap_handler_bb(ListBase *handlers, wmKeyMap *keymap, rcti *bb, rcti *swinbb);
+struct wmEventHandler *WM_event_add_keymap_handler_bb(ListBase *handlers, wmKeyMap *keymap, const rcti *bb, const rcti *swinbb);
 						/* priority not implemented, it adds in begin */
 struct wmEventHandler *WM_event_add_keymap_handler_priority(ListBase *handlers, wmKeyMap *keymap, int priority);
 
@@ -164,7 +166,7 @@ struct wmEventHandler *WM_event_add_dropbox_handler(ListBase *handlers, ListBase
 
 			/* mouse */
 void		WM_event_add_mousemove(struct bContext *C);
-int			WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
+bool        WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
 
 			/* notifiers */
 void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
@@ -182,7 +184,7 @@ void		wm_event_init_from_window(struct wmWindow *win, struct wmEvent *event);
 			/* at maximum, every timestep seconds it triggers event_type events */
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep);
 void		WM_event_remove_timer(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer);
-void		WM_event_timer_sleep(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer, int dosleep);
+void        WM_event_timer_sleep(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer, bool do_sleep);
 
 		/* operator api, default callbacks */
 			/* invoke callback, uses enum property named "type" */
@@ -205,7 +207,11 @@ int 		WM_operator_props_dialog_popup(struct bContext *C, struct wmOperator *op, 
 int			WM_operator_redo_popup	(struct bContext *C, struct wmOperator *op);
 int			WM_operator_ui_popup	(struct bContext *C, struct wmOperator *op, int width, int height);
 
-int			WM_operator_confirm_message(struct bContext *C, struct wmOperator *op, const char *message);
+int         WM_operator_confirm_message_ex(struct bContext *C, struct wmOperator *op,
+                                           const char *title, const int icon,
+                                           const char *message);
+int         WM_operator_confirm_message(struct bContext *C, struct wmOperator *op,
+                                        const char *message);
 
 		/* operator api */
 void		WM_operator_free		(struct wmOperator *op);
@@ -218,7 +224,8 @@ struct GHashIterator  *WM_operatortype_iter(void);
 void		WM_operatortype_append(void (*opfunc)(struct wmOperatorType *));
 void		WM_operatortype_append_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
 void		WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
-int			WM_operatortype_remove(const char *idname);
+void        WM_operatortype_remove_ptr(struct wmOperatorType *ot);
+bool        WM_operatortype_remove(const char *idname);
 
 struct wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag);
 struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *ot, const char *idname);
@@ -226,19 +233,21 @@ struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *
 
 int			WM_operator_poll		(struct bContext *C, struct wmOperatorType *ot);
 int			WM_operator_poll_context(struct bContext *C, struct wmOperatorType *ot, short context);
+int         WM_operator_call_ex(struct bContext *C, struct wmOperator *op, const bool store);
 int			WM_operator_call		(struct bContext *C, struct wmOperator *op);
 int			WM_operator_call_notest(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat		(struct bContext *C, struct wmOperator *op);
-int			WM_operator_repeat_check(const struct bContext *C, struct wmOperator *op);
+bool        WM_operator_repeat_check(const struct bContext *C, struct wmOperator *op);
 int			WM_operator_name_call	(struct bContext *C, const char *opstring, short context, struct PointerRNA *properties);
-int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, short context, struct PointerRNA *properties, struct ReportList *reports, short is_undo);
+int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, short context, struct PointerRNA *properties, struct ReportList *reports, const bool is_undo);
 
 void		WM_operator_properties_alloc(struct PointerRNA **ptr, struct IDProperty **properties, const char *opstring); /* used for keymap and macro items */
 void		WM_operator_properties_sanitize(struct PointerRNA *ptr, const bool no_context); /* make props context sensitive or not */
-int         WM_operator_properties_default(struct PointerRNA *ptr, const bool do_update);
+bool        WM_operator_properties_default(struct PointerRNA *ptr, const bool do_update);
 void        WM_operator_properties_reset(struct wmOperator *op);
 void		WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring);
 void		WM_operator_properties_create_ptr(struct PointerRNA *ptr, struct wmOperatorType *ot);
+void        WM_operator_properties_clear(struct PointerRNA *ptr);
 void		WM_operator_properties_free(struct PointerRNA *ptr);
 void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, short type, short action, short flag, short display);
 void        WM_operator_properties_border(struct wmOperatorType *ot);
@@ -248,6 +257,7 @@ void        WM_operator_properties_mouse_select(struct wmOperatorType *ot);
 void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
 void		WM_operator_properties_select_all(struct wmOperatorType *ot);
 void		WM_operator_properties_select_action(struct wmOperatorType *ot, int default_action);
+void		WM_operator_properties_select_action_simple(struct wmOperatorType *ot, int default_action);
 
 bool        WM_operator_check_ui_enabled(const struct bContext *C, const char *idname);
 wmOperator *WM_operator_last_redo(const struct bContext *C);
@@ -272,7 +282,12 @@ bool        WM_operator_last_properties_store(struct wmOperator *op);
 
 
 		/* operator as a python command (resultuing string must be freed) */
-char		*WM_operator_pystring(struct bContext *C, struct wmOperatorType *ot, struct PointerRNA *opptr, int all_args);
+char		*WM_operator_pystring_ex(struct bContext *C, struct wmOperator *op,
+                                     const bool all_args, const bool macro_args,
+                                     struct wmOperatorType *ot, struct PointerRNA *opptr);
+char		*WM_operator_pystring(struct bContext *C, struct wmOperator *op,
+                                  const bool all_args, const bool macro_args);
+bool         WM_operator_pystring_abbreviate(char *str, int str_len_max);
 char		*WM_prop_pystring_assign(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int index);
 void		WM_operator_bl_idname(char *to, const char *from);
 void		WM_operator_py_idname(char *to, const char *from);
@@ -280,34 +295,34 @@ void		WM_operator_py_idname(char *to, const char *from);
 /* *************** uilist types ******************** */
 void                WM_uilisttype_init(void);
 struct uiListType  *WM_uilisttype_find(const char *idname, bool quiet);
-int                 WM_uilisttype_add(struct uiListType *ult);
+bool                WM_uilisttype_add(struct uiListType *ult);
 void                WM_uilisttype_freelink(struct uiListType *ult);
 void                WM_uilisttype_free(void);
 
 /* *************** menu types ******************** */
 void                WM_menutype_init(void);
 struct MenuType    *WM_menutype_find(const char *idname, bool quiet);
-int                 WM_menutype_add(struct MenuType *mt);
+bool                WM_menutype_add(struct MenuType *mt);
 void                WM_menutype_freelink(struct MenuType *mt);
 void                WM_menutype_free(void);
 
 			/* default operator callbacks for border/circle/lasso */
 int			WM_border_select_invoke	(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 int			WM_border_select_modal	(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
-int			WM_border_select_cancel(struct bContext *C, struct wmOperator *op);
+void		WM_border_select_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_circle_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 int			WM_gesture_circle_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
-int			WM_gesture_circle_cancel(struct bContext *C, struct wmOperator *op);
+void		WM_gesture_circle_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_lines_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 int			WM_gesture_lines_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
-int			WM_gesture_lines_cancel(struct bContext *C, struct wmOperator *op);
+void		WM_gesture_lines_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_lasso_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 int			WM_gesture_lasso_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
-int			WM_gesture_lasso_cancel(struct bContext *C, struct wmOperator *op);
+void		WM_gesture_lasso_cancel(struct bContext *C, struct wmOperator *op);
 const int (*WM_gesture_lasso_path_to_array(struct bContext *C, struct wmOperator *op, int *mcords_tot))[2];
 int			WM_gesture_straightline_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 int			WM_gesture_straightline_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
-int			WM_gesture_straightline_cancel(struct bContext *C, struct wmOperator *op);
+void		WM_gesture_straightline_cancel(struct bContext *C, struct wmOperator *op);
 
 			/* Gesture manager API */
 struct wmGesture *WM_gesture_new(struct bContext *C, const struct wmEvent *event, int type);
@@ -374,12 +389,13 @@ enum {
 
 struct wmJob *WM_jobs_get(struct wmWindowManager *wm, struct wmWindow *win, void *owner, const char *name, int flag, int job_type);
 
-int			WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type);
+bool        WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type);
 float		WM_jobs_progress(struct wmWindowManager *wm, void *owner);
 char       *WM_jobs_name(struct wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata(struct wmWindowManager *wm, void *owner);
+void       *WM_jobs_customdata_from_type(struct wmWindowManager *wm, int job_type);
 
-int         WM_jobs_is_running(struct wmJob *);
+bool        WM_jobs_is_running(struct wmJob *);
 void       *WM_jobs_customdata_get(struct wmJob *);
 void        WM_jobs_customdata_set(struct wmJob *, void *customdata, void (*free)(void *));
 void        WM_jobs_timer(struct wmJob *, double timestep, unsigned int note, unsigned int endnote);
@@ -396,14 +412,15 @@ void		WM_jobs_kill_all(struct wmWindowManager *wm);
 void		WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner);
 void		WM_jobs_kill_type(struct wmWindowManager *wm, void *owner, int job_type);
 
-int			WM_jobs_has_running(struct wmWindowManager *wm);
+bool        WM_jobs_has_running(struct wmWindowManager *wm);
 
 void		WM_job_main_thread_lock_acquire(struct wmJob *job);
 void		WM_job_main_thread_lock_release(struct wmJob *job);
 
 			/* clipboard */
-char       *WM_clipboard_text_get(int selection);
-void        WM_clipboard_text_set(char *buf, int selection);
+char       *WM_clipboard_text_get(bool selection, int *r_len);
+char       *WM_clipboard_text_get_firstline(bool selection, int *r_len);
+void        WM_clipboard_text_set(const char *buf, bool selection);
 
 			/* progress */
 void		WM_progress_set(struct wmWindow *win, float progress);
@@ -415,7 +432,16 @@ void		WM_redraw_windows(struct bContext *C);
 void        WM_main_playanim(int argc, const char **argv);
 
 /* debugging only, convenience function to write on crash */
-int write_crash_blend(void);
+bool write_crash_blend(void);
+
+			/* Lock the interface for any communication */
+void        WM_set_locked_interface(struct wmWindowManager *wm, bool lock);
+
+void        WM_event_ndof_pan_get(const struct wmNDOFMotionData *ndof, float r_pan[3], const bool use_zoom);
+void        WM_event_ndof_rotate_get(const struct wmNDOFMotionData *ndof, float r_rot[3]);
+
+float       WM_event_ndof_to_axis_angle(const struct wmNDOFMotionData *ndof, float axis[3]);
+void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4]);
 
 #ifdef __cplusplus
 }

@@ -18,10 +18,10 @@ CCL_NAMESPACE_BEGIN
 
 /* Voronoi */
 
-__device_noinline float4 svm_voronoi(NodeVoronoiColoring coloring, float scale, float3 p)
+ccl_device_noinline float4 svm_voronoi(NodeVoronoiColoring coloring, float3 p)
 {
 	/* compute distance and point coordinate of 4 nearest neighbours */
-	float4 dpa0 = voronoi_Fn(p*scale, 1.0f, 0, -1);
+	float4 dpa0 = voronoi_Fn(p, 1.0f, 0, -1);
 
 	/* output */
 	float fac;
@@ -39,7 +39,7 @@ __device_noinline float4 svm_voronoi(NodeVoronoiColoring coloring, float scale, 
 	return make_float4(color.x, color.y, color.z, fac);
 }
 
-__device void svm_node_tex_voronoi(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_voronoi(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint coloring = node.y;
 	uint scale_offset, co_offset, fac_offset, color_offset;
@@ -49,7 +49,7 @@ __device void svm_node_tex_voronoi(KernelGlobals *kg, ShaderData *sd, float *sta
 	float3 co = stack_load_float3(stack, co_offset);
 	float scale = stack_load_float_default(stack, scale_offset, node.w);
 
-	float4 result = svm_voronoi((NodeVoronoiColoring)coloring, scale, co);
+	float4 result = svm_voronoi((NodeVoronoiColoring)coloring, co*scale);
 	float3 color = make_float3(result.x, result.y, result.z);
 	float f = result.w;
 
