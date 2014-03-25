@@ -41,11 +41,14 @@ public:
 	CUdevice cuDevice;
 	CUcontext cuContext;
 	CUmodule cuModule;
+	CUstream cuStream;
+	CUevent tileDone;
 	map<device_ptr, bool> tex_interp_map;
 	int cuDevId;
 	int cuDevArchitecture;
 	bool first_error;
 	bool use_texture_storage;
+	unsigned int target_update_frequency;
 
 	struct PixelMem {
 		GLuint cuPBO;
@@ -171,11 +174,14 @@ public:
 		cuda_assert(cuCtxSetCurrent(NULL));
 	}
 
-	CUDADevice(DeviceInfo& info, Stats &stats, bool background_) : Device(stats)
+    CUDADevice(DeviceInfo& info, Stats &stats, bool background_)
+	: Device(info, stats, background_)
 	{
 		first_error = true;
 		background = background_;
 		use_texture_storage = true;
+		/* we try an update / sync every 1000 ms */
+		target_update_frequency = 1000;
 
 		cuDevId = info.num;
 		cuDevice = 0;
@@ -206,6 +212,9 @@ public:
 		if(cuda_error_(result, "cuCtxCreate"))
 			return;
 
+		cuda_assert(cuStreamCreate(&cuStream, 0))
+		cuda_assert(cuEventCreate(&tileDone, 0x1))
+
 		int major, minor;
 		cuDeviceComputeCapability(&major, &minor, cuDevId);
 		cuDevArchitecture = major*100 + minor*10;
@@ -222,19 +231,19 @@ public:
 	{
 		task_pool.stop();
 
+		cuda_assert(cuEventDestroy(tileDone))
+		cuda_assert(cuStreamDestroy(cuStream))
 		cuda_assert(cuCtxDestroy(cuContext))
 	}
 
 	bool support_device(bool experimental)
 	{
-		if(!experimental) {
-			int major, minor;
-			cuDeviceComputeCapability(&major, &minor, cuDevId);
+		int major, minor;
+		cuDeviceComputeCapability(&major, &minor, cuDevId);
 
-			if(major < 2) {
-				cuda_error_message(string_printf("CUDA device supported only with compute capability 2.0 or up, found %d.%d.", major, minor));
-				return false;
-			}
+		if(major < 2) {
+			cuda_error_message(string_printf("CUDA device supported only with compute capability 2.0 or up, found %d.%d.", major, minor));
+			return false;
 		}
 
 		return true;
@@ -286,8 +295,12 @@ public:
 			cuda_error_message("CUDA nvcc compiler version could not be parsed.");
 			return "";
 		}
+		if(cuda_version < 50) {
+			printf("Unsupported CUDA version %d.%d detected, you need CUDA 5.0.\n", cuda_version/10, cuda_version%10);
+			return "";
+		}
 
-		if(cuda_version != 50)
+		else if(cuda_version > 50)
 			printf("CUDA version %d.%d detected, build may succeed but only CUDA 5.0 is officially supported.\n", cuda_version/10, cuda_version%10);
 
 		/* compile */
@@ -296,36 +309,14 @@ public:
 		const int machine = system_cpu_bits();
 		string arch_flags;
 
-		/* build flags depending on CUDA version and arch */
-		if(cuda_version < 50) {
-			/* CUDA 4.x */
-			if(major == 1) {
-				/* sm_1x */
-				arch_flags = "--maxrregcount=24 --opencc-options -OPT:Olimit=0";
-			}
-			else if(major == 2) {
-				/* sm_2x */
-				arch_flags = "--maxrregcount=24";
-			}
-			else {
-				/* sm_3x */
-				arch_flags = "--maxrregcount=32";
-			}
+		/* CUDA 5.x build flags for different archs */
+		if(major == 2) {
+			/* sm_2x */
+			arch_flags = "--maxrregcount=32 --use_fast_math";
 		}
-		else {
-			/* CUDA 5.x */
-			if(major == 1) {
-				/* sm_1x */
-				arch_flags = "--maxrregcount=24 --opencc-options -OPT:Olimit=0 --use_fast_math";
-			}
-			else if(major == 2) {
-				/* sm_2x */
-				arch_flags = "--maxrregcount=32 --use_fast_math";
-			}
-			else {
-				/* sm_3x */
-				arch_flags = "--maxrregcount=32 --use_fast_math";
-			}
+		else if(major == 3) {
+			/* sm_3x */
+			arch_flags = "--maxrregcount=32 --use_fast_math";
 		}
 
 		double starttime = time_dt();
@@ -374,7 +365,14 @@ public:
 		/* open module */
 		cuda_push_context();
 
-		CUresult result = cuModuleLoad(&cuModule, cubin.c_str());
+		string cubin_data;
+		CUresult result;
+
+		if (path_read_text(cubin, cubin_data))
+			result = cuModuleLoadData(&cuModule, cubin_data.c_str());
+		else
+			result = CUDA_ERROR_FILE_NOT_FOUND;
+
 		if(cuda_error_(result, "cuModuleLoad"))
 			cuda_error_message(string_printf("Failed loading CUDA kernel %s.", cubin.c_str()));
 
@@ -453,13 +451,13 @@ public:
 		cuda_pop_context();
 	}
 
-	void tex_alloc(const char *name, device_memory& mem, bool interpolation, bool periodic)
+	void tex_alloc(const char *name, device_memory& mem, InterpolationType interpolation, bool periodic)
 	{
 		/* determine format */
 		CUarray_format_enum format;
 		size_t dsize = datatype_size(mem.data_type);
 		size_t size = mem.memory_size();
-		bool use_texture = interpolation || use_texture_storage;
+		bool use_texture = (interpolation != INTERPOLATION_NONE) || use_texture_storage;
 
 		if(use_texture) {
 
@@ -481,7 +479,7 @@ public:
 				return;
 			}
 
-			if(interpolation) {
+			if(interpolation != INTERPOLATION_NONE) {
 				CUarray handle = NULL;
 				CUDA_ARRAY_DESCRIPTOR desc;
 
@@ -515,7 +513,15 @@ public:
 
 				cuda_assert(cuTexRefSetArray(texref, handle, CU_TRSA_OVERRIDE_FORMAT))
 
-				cuda_assert(cuTexRefSetFilterMode(texref, CU_TR_FILTER_MODE_LINEAR))
+				if(interpolation == INTERPOLATION_CLOSEST) {
+					cuda_assert(cuTexRefSetFilterMode(texref, CU_TR_FILTER_MODE_POINT))
+				}
+				else if (interpolation == INTERPOLATION_LINEAR){
+					cuda_assert(cuTexRefSetFilterMode(texref, CU_TR_FILTER_MODE_LINEAR))
+				}
+				else {/* CUBIC and SMART are unsupported for CUDA */
+					cuda_assert(cuTexRefSetFilterMode(texref, CU_TR_FILTER_MODE_LINEAR))
+				}
 				cuda_assert(cuTexRefSetFlags(texref, CU_TRSF_NORMALIZED_COORDINATES))
 
 				mem.device_pointer = (device_ptr)handle;
@@ -572,7 +578,7 @@ public:
 			cuda_pop_context();
 		}
 
-		tex_interp_map[mem.device_pointer] = interpolation;
+		tex_interp_map[mem.device_pointer] = (interpolation != INTERPOLATION_NONE);
 	}
 
 	void tex_free(device_memory& mem)
@@ -657,9 +663,7 @@ public:
 
 		cuda_assert(cuFuncSetCacheConfig(cuPathTrace, CU_FUNC_CACHE_PREFER_L1))
 		cuda_assert(cuFuncSetBlockShape(cuPathTrace, xthreads, ythreads, 1))
-		cuda_assert(cuLaunchGrid(cuPathTrace, xblocks, yblocks))
-
-		cuda_assert(cuCtxSynchronize())
+		cuda_assert(cuLaunchGridAsync(cuPathTrace, xblocks, yblocks, cuStream))
 
 		cuda_pop_context();
 	}
@@ -976,10 +980,15 @@ public:
 			
 			bool branched = task->integrator_branched;
 			
+
 			/* keep rendering tiles until done */
 			while(task->acquire_tile(this, tile)) {
 				int start_sample = tile.start_sample;
 				int end_sample = tile.start_sample + tile.num_samples;
+
+				boost::posix_time::ptime start_time(boost::posix_time::microsec_clock::local_time());
+				boost::posix_time::ptime last_time = start_time;
+				int sync_sample = 10;
 
 				for(int sample = start_sample; sample < end_sample; sample++) {
 					if (task->get_cancel()) {
@@ -990,8 +999,28 @@ public:
 					path_trace(tile, sample, branched);
 
 					tile.sample = sample + 1;
-
 					task->update_progress(tile);
+
+					if(sample == sync_sample){
+						cuda_push_context();
+						cuda_assert(cuEventRecord(tileDone, cuStream ))
+						cuda_assert(cuEventSynchronize(tileDone))
+
+						/* Do some time keeping to find out if we need to sync less */
+						boost::posix_time::ptime current_time(boost::posix_time::microsec_clock::local_time());
+						boost::posix_time::time_duration sample_duration = current_time - last_time;
+
+						long msec = sample_duration.total_milliseconds();
+						float scaling_factor = (float)target_update_frequency / (float)msec;
+
+						/* sync at earliest next sample and probably later */
+						sync_sample = (sample + 1) + sync_sample * ceil(scaling_factor);
+
+						sync_sample = min(end_sample - 1, sync_sample); // make sure we sync the last sample always
+
+						last_time = current_time;
+						cuda_pop_context();
+					}
 				}
 
 				task->release_tile(tile);

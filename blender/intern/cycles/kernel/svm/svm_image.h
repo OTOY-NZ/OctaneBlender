@@ -21,14 +21,14 @@ CCL_NAMESPACE_BEGIN
 /* For OpenCL all images are packed in a single array, and we do manual lookup
  * and interpolation. */
 
-__device_inline float4 svm_image_texture_read(KernelGlobals *kg, int offset)
+ccl_device_inline float4 svm_image_texture_read(KernelGlobals *kg, int offset)
 {
 	uchar4 r = kernel_tex_fetch(__tex_image_packed, offset);
 	float f = 1.0f/255.0f;
 	return make_float4(r.x*f, r.y*f, r.z*f, r.w*f);
 }
 
-__device_inline int svm_image_texture_wrap_periodic(int x, int width)
+ccl_device_inline int svm_image_texture_wrap_periodic(int x, int width)
 {
 	x %= width;
 	if(x < 0)
@@ -36,19 +36,19 @@ __device_inline int svm_image_texture_wrap_periodic(int x, int width)
 	return x;
 }
 
-__device_inline int svm_image_texture_wrap_clamp(int x, int width)
+ccl_device_inline int svm_image_texture_wrap_clamp(int x, int width)
 {
 	return clamp(x, 0, width-1);
 }
 
-__device_inline float svm_image_texture_frac(float x, int *ix)
+ccl_device_inline float svm_image_texture_frac(float x, int *ix)
 {
 	int i = float_to_int(x) - ((x < 0.0f)? 1: 0);
 	*ix = i;
 	return x - (float)i;
 }
 
-__device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
+ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
 {
 	/* first slots are used by float textures, which are not supported here */
 	if(id < TEX_NUM_FLOAT_IMAGES)
@@ -60,31 +60,51 @@ __device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, u
 	uint width = info.x;
 	uint height = info.y;
 	uint offset = info.z;
-	uint periodic = info.w;
+	uint periodic = (info.w & 0x1);
+	uint interpolation = info.w >> 1;
 
+	float4 r;
 	int ix, iy, nix, niy;
-	float tx = svm_image_texture_frac(x*width, &ix);
-	float ty = svm_image_texture_frac(y*height, &iy);
+	if (interpolation == INTERPOLATION_CLOSEST){
+		svm_image_texture_frac(x*width, &ix);
+		svm_image_texture_frac(y*height, &iy);
 
-	if(periodic) {
-		ix = svm_image_texture_wrap_periodic(ix, width);
-		iy = svm_image_texture_wrap_periodic(iy, height);
+		if(periodic) {
+			ix = svm_image_texture_wrap_periodic(ix, width);
+			iy = svm_image_texture_wrap_periodic(iy, height);
+		}
+		else {
+			ix = svm_image_texture_wrap_clamp(ix, width);
+			iy = svm_image_texture_wrap_clamp(iy, height);
 
-		nix = svm_image_texture_wrap_periodic(ix+1, width);
-		niy = svm_image_texture_wrap_periodic(iy+1, height);
+		}
+		r = svm_image_texture_read(kg, offset + ix + iy*width);
 	}
-	else {
-		ix = svm_image_texture_wrap_clamp(ix, width);
-		iy = svm_image_texture_wrap_clamp(iy, height);
+	else { /* We default to linear interpolation if it is not closest */
+		float tx = svm_image_texture_frac(x*width, &ix);
+		float ty = svm_image_texture_frac(y*height, &iy);
 
-		nix = svm_image_texture_wrap_clamp(ix+1, width);
-		niy = svm_image_texture_wrap_clamp(iy+1, height);
+		if(periodic) {
+			ix = svm_image_texture_wrap_periodic(ix, width);
+			iy = svm_image_texture_wrap_periodic(iy, height);
+
+			nix = svm_image_texture_wrap_periodic(ix+1, width);
+			niy = svm_image_texture_wrap_periodic(iy+1, height);
+		}
+		else {
+			ix = svm_image_texture_wrap_clamp(ix, width);
+			iy = svm_image_texture_wrap_clamp(iy, height);
+
+			nix = svm_image_texture_wrap_clamp(ix+1, width);
+			niy = svm_image_texture_wrap_clamp(iy+1, height);
+		}
+
+
+		r = (1.0f - ty)*(1.0f - tx)*svm_image_texture_read(kg, offset + ix + iy*width);
+		r += (1.0f - ty)*tx*svm_image_texture_read(kg, offset + nix + iy*width);
+		r += ty*(1.0f - tx)*svm_image_texture_read(kg, offset + ix + niy*width);
+		r += ty*tx*svm_image_texture_read(kg, offset + nix + niy*width);
 	}
-
-	float4 r = (1.0f - ty)*(1.0f - tx)*svm_image_texture_read(kg, offset + ix + iy*width);
-	r += (1.0f - ty)*tx*svm_image_texture_read(kg, offset + nix + iy*width);
-	r += ty*(1.0f - tx)*svm_image_texture_read(kg, offset + ix + niy*width);
-	r += ty*tx*svm_image_texture_read(kg, offset + nix + niy*width);
 
 	if(use_alpha && r.w != 1.0f && r.w != 0.0f) {
 		float invw = 1.0f/r.w;
@@ -110,13 +130,19 @@ __device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, u
 
 #else
 
-__device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
+ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
 {
-	float4 r;
-
 #ifdef __KERNEL_CPU__
+#ifdef __KERNEL_SSE2__
+	__m128 r_m128;
+	float4 &r = (float4 &)r_m128;
 	r = kernel_tex_image_interp(id, x, y);
 #else
+	float4 r = kernel_tex_image_interp(id, x, y);
+#endif
+#else
+	float4 r;
+
 	/* not particularly proud of this massive switch, what are the
 	 * alternatives?
 	 * - use a single big 1D texture, and do our own lookup/filtering
@@ -233,6 +259,21 @@ __device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, u
 	}
 #endif
 
+#ifdef __KERNEL_SSE2__
+	float alpha = r.w;
+
+	if(use_alpha && alpha != 1.0f && alpha != 0.0f) {
+		r_m128 = _mm_div_ps(r_m128, _mm_set1_ps(alpha));
+		if(id >= TEX_NUM_FLOAT_IMAGES)
+			r_m128 = _mm_min_ps(r_m128, _mm_set1_ps(1.0f));
+		r.w = alpha;
+	}
+
+	if(srgb) {
+		r_m128 = color_srgb_to_scene_linear(r_m128);
+		r.w = alpha;
+	}
+#else
 	if(use_alpha && r.w != 1.0f && r.w != 0.0f) {
 		float invw = 1.0f/r.w;
 		r.x *= invw;
@@ -251,13 +292,14 @@ __device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, u
 		r.y = color_srgb_to_scene_linear(r.y);
 		r.z = color_srgb_to_scene_linear(r.z);
 	}
+#endif
 
 	return r;
 }
 
 #endif
 
-__device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
 	uint co_offset, out_offset, alpha_offset, srgb;
@@ -274,7 +316,7 @@ __device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack
 		stack_store_float(stack, alpha_offset, f.w);
 }
 
-__device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	/* get object space normal */
 	float3 N = sd->N;
@@ -363,7 +405,7 @@ __device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *s
 }
 
 
-__device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
 	uint co_offset, out_offset, alpha_offset, srgb;

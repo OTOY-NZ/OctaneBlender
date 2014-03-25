@@ -152,7 +152,7 @@ void free_nladata(ListBase *tracks)
 	}
 	
 	/* clear the list's pointers to be safe */
-	tracks->first = tracks->last = NULL;
+	BLI_listbase_clear(tracks);
 }
 
 /* Copying ------------------------------------------- */
@@ -180,7 +180,7 @@ NlaStrip *copy_nlastrip(NlaStrip *strip)
 	copy_fmodifiers(&strip_d->modifiers, &strip->modifiers);
 	
 	/* make a copy of all the child-strips, one at a time */
-	strip_d->strips.first = strip_d->strips.last = NULL;
+	BLI_listbase_clear(&strip_d->strips);
 	
 	for (cs = strip->strips.first; cs; cs = cs->next) {
 		cs_d = copy_nlastrip(cs);
@@ -206,7 +206,7 @@ NlaTrack *copy_nlatrack(NlaTrack *nlt)
 	nlt_d->next = nlt_d->prev = NULL;
 	
 	/* make a copy of all the strips, one at a time */
-	nlt_d->strips.first = nlt_d->strips.last = NULL;
+	BLI_listbase_clear(&nlt_d->strips);
 	
 	for (strip = nlt->strips.first; strip; strip = strip->next) {
 		strip_d = copy_nlastrip(strip);
@@ -227,7 +227,7 @@ void copy_nladata(ListBase *dst, ListBase *src)
 		return;
 		
 	/* clear out the destination list first for precautions... */
-	dst->first = dst->last = NULL;
+	BLI_listbase_clear(dst);
 		
 	/* copy each NLA-track, one at a time */
 	for (nlt = src->first; nlt; nlt = nlt->next) {
@@ -548,7 +548,7 @@ float BKE_nla_tweakedit_remap(AnimData *adt, float cframe, short mode)
 /* (these functions are used for NLA-Tracks and also for nested/meta-strips) */
 
 /* Check if there is any space in the given list to add the given strip */
-short BKE_nlastrips_has_space(ListBase *strips, float start, float end)
+bool BKE_nlastrips_has_space(ListBase *strips, float start, float end)
 {
 	NlaStrip *strip;
 	
@@ -967,7 +967,7 @@ void BKE_nlatrack_set_active(ListBase *tracks, NlaTrack *nlt_a)
 }
 
 /* Check if there is any space in the given track to add a strip of the given length */
-short BKE_nlatrack_has_space(NlaTrack *nlt, float start, float end)
+bool BKE_nlatrack_has_space(NlaTrack *nlt, float start, float end)
 {
 	/* sanity checks 
 	 *  - track must exist
@@ -1189,7 +1189,7 @@ void BKE_nlastrip_recalculate_bounds(NlaStrip *strip)
 
 /* Is the given NLA-strip the first one to occur for the given AnimData block */
 // TODO: make this an api method if necesary, but need to add prefix first
-static short nlastrip_is_first(AnimData *adt, NlaStrip *strip)
+static bool nlastrip_is_first(AnimData *adt, NlaStrip *strip)
 {
 	NlaTrack *nlt;
 	NlaStrip *ns;

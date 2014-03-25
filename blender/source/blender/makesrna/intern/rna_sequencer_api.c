@@ -33,7 +33,6 @@
 
 #include "BLI_utildefines.h"
 
-#include "RNA_define.h"
 #include "RNA_access.h"
 #include "RNA_define.h"
 
@@ -326,7 +325,7 @@ static void rna_Sequences_remove(ID *id, Editing *ed, ReportList *reports, Point
 	Sequence *seq = seq_ptr->data;
 	Scene *scene = (Scene *)id;
 
-	if (BLI_remlink_safe(&ed->seqbase, seq) == FALSE) {
+	if (BLI_remlink_safe(&ed->seqbase, seq) == false) {
 		BKE_reportf(reports, RPT_ERROR, "Sequence '%s' not in scene '%s'", seq->name + 2, scene->id.name + 2);
 		return;
 	}

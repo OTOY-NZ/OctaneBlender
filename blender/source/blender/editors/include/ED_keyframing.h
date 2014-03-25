@@ -81,6 +81,15 @@ struct FCurve *verify_fcurve(struct bAction *act, const char group[], struct Poi
 /* -------- */
 
 /* Lesser Keyframing API call:
+ *  Update integer/discrete flags of the FCurve (used when creating/inserting keyframes,
+ *  but also through RNA when editing an ID prop, see T37103).
+ */
+void update_autoflags_fcurve(struct FCurve *fcu, struct bContext *C, struct ReportList *reports,
+                             struct PointerRNA *ptr);
+
+/* -------- */
+
+/* Lesser Keyframing API call:
  *  Use this when validation of necessary animation data isn't necessary as it already
  *  exists, and there is a beztriple that can be directly copied into the array.
  */
@@ -212,7 +221,7 @@ int ANIM_scene_get_keyingset_index(struct Scene *scene, struct KeyingSet *ks);
 struct KeyingSet *ANIM_get_keyingset_for_autokeying(struct Scene *scene, const char *tranformKSName);
 
 /* Dynamically populate an enum of Keying Sets */
-struct EnumPropertyItem *ANIM_keying_sets_enum_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
+struct EnumPropertyItem *ANIM_keying_sets_enum_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 
 /* Check if KeyingSet can be used in the current context */
 short ANIM_keyingset_context_ok_poll(struct bContext *C, struct KeyingSet *ks);
@@ -288,7 +297,7 @@ int autokeyframe_cfra_can_key(struct Scene *scene, struct ID *id);
 /* Lesser Keyframe Checking API call:
  *	- Used for the buttons to check for keyframes...
  */
-short fcurve_frame_has_keyframe(struct FCurve *fcu, float frame, short filter);
+bool fcurve_frame_has_keyframe(struct FCurve *fcu, float frame, short filter);
 
 /* Main Keyframe Checking API call:
  * Checks whether a keyframe exists for the given ID-block one the given frame.

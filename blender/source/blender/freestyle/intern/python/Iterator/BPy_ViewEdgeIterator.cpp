@@ -65,7 +65,7 @@ PyDoc_STRVAR(ViewEdgeIterator_doc,
 
 static int check_begin(PyObject *obj, void *v)
 {
-	if (obj != 0 && obj != Py_None && !BPy_ViewEdge_Check(obj))
+	if (obj != NULL && obj != Py_None && !BPy_ViewEdge_Check(obj))
 		return 0;
 	*((PyObject **)v) = obj;
 	return 1;
@@ -122,6 +122,10 @@ PyDoc_STRVAR(ViewEdgeIterator_object_doc,
 
 static PyObject *ViewEdgeIterator_object_get(BPy_ViewEdgeIterator *self, void *UNUSED(closure))
 {
+	if (!self->ve_it->isEnd()) {
+		PyErr_SetString(PyExc_RuntimeError, "iteration has stopped");
+		return NULL;
+	}
 	ViewEdge *ve = self->ve_it->operator*();
 	if (ve)
 		return BPy_ViewEdge_from_ViewEdge(*ve);
@@ -138,7 +142,8 @@ static PyObject *ViewEdgeIterator_current_edge_get(BPy_ViewEdgeIterator *self, v
 	ViewEdge *ve = self->ve_it->getCurrentEdge();
 	if (ve)
 		return BPy_ViewEdge_from_ViewEdge(*ve);
-	Py_RETURN_NONE;}
+	Py_RETURN_NONE;
+}
 
 static int ViewEdgeIterator_current_edge_set(BPy_ViewEdgeIterator *self, PyObject *value, void *UNUSED(closure))
 {

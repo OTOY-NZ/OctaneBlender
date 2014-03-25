@@ -82,10 +82,12 @@ set(SRC
 	intern/md5.c
 	intern/noise.c
 	intern/path_util.c
+	intern/polyfill2d.c
 	intern/quadric.c
 	intern/rand.c
 	intern/rct.c
 	intern/scanfill.c
+	intern/scanfill_utils.c
 	intern/smallhash.c
 	intern/sort.c
 	intern/sort_utils.c
@@ -94,12 +96,15 @@ set(SRC
 	intern/string.c
 	intern/string_cursor_utf8.c
 	intern/string_utf8.c
+	intern/task.c
 	intern/threads.c
 	intern/time.c
+	intern/timecode.c
 	intern/uvproject.c
 	intern/voronoi.c
 	intern/voxel.c
 	intern/winstuff.c
+	intern/winstuff_dir.c
 
 	BLI_alloca.h
 	BLI_args.h
@@ -147,6 +152,7 @@ set(SRC
 	BLI_mempool.h
 	BLI_noise.h
 	BLI_path_util.h
+	BLI_polyfill2d.h
 	BLI_quadric.h
 	BLI_rand.h
 	BLI_rect.h
@@ -160,7 +166,9 @@ set(SRC
 	BLI_string_cursor_utf8.h
 	BLI_string_utf8.h
 	BLI_sys_types.h
+	BLI_task.h
 	BLI_threads.h
+	BLI_timecode.h
 	BLI_utildefines.h
 	BLI_uvproject.h
 	BLI_vfontdata.h

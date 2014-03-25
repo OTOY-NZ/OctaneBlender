@@ -37,7 +37,7 @@ typedef unsigned long uintptr_t;
 #if defined(_WIN32) && !defined(__MINGW32__)
 /* The __intXX are built-in types of the visual complier! So we don't
    need to include anything else here.
-   This typedefs should be in sync with types from BLI_sys_types.h */
+   This typedefs should be in sync with types from MEM_sys_types.h */
 
 typedef signed __int8  int8_t;
 typedef signed __int16 int16_t;
@@ -52,4 +52,9 @@ typedef unsigned __int64 uint64_t;
 #  else
 #    include <stdint.h>
 #  endif
+#endif
+
+#if defined(_MSC_VER)
+#  include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
 #endif

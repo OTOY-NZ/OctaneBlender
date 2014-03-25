@@ -69,17 +69,17 @@ static void clear_envmap(struct EnvMap *env, bContext *C)
 		}
 }
 
-static void texture_evaluate(struct Tex *tex, float value[3], float color_r[4])
+static void texture_evaluate(struct Tex *tex, float value[3], float r_color[4])
 {
 	TexResult texres = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, NULL};
 
 	/* TODO(sergey): always use color management now.  */
 	multitex_ext(tex, value, NULL, NULL, 1, &texres, NULL, true);
 
-	color_r[0] = texres.tr;
-	color_r[1] = texres.tg;
-	color_r[2] = texres.tb;
-	color_r[3] = texres.tin;
+	r_color[0] = texres.tr;
+	r_color[1] = texres.tg;
+	r_color[2] = texres.tb;
+	r_color[3] = texres.tin;
 }
 
 #else
@@ -118,7 +118,7 @@ void RNA_api_environment_map(StructRNA *srna)
 	RNA_def_function_ui_description(func, "Save the environment map to disc using the scene render settings");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
 
-	parm = RNA_def_string_file_name(func, "filepath", "", FILE_MAX, "File path", "Location of the output file");
+	parm = RNA_def_string_file_name(func, "filepath", NULL, FILE_MAX, "File path", "Location of the output file");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 	RNA_def_pointer(func, "scene", "Scene", "", "Overrides the scene from which image parameters are taken");

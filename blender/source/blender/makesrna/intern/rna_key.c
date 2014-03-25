@@ -171,7 +171,7 @@ int rna_object_shapekey_index_set(ID *id, PointerRNA value, int current)
 
 	if (key) {
 		int a = BLI_findindex(&key->block, value.data);
-		if (a >= 0) return a;
+		if (a != -1) return a;
 	}
 	
 	return current;
@@ -405,7 +405,7 @@ static KeyBlock *rna_ShapeKeyData_find_keyblock(Key *key, float *point)
 			}
 			
 			/* determine where end of array is
-			 *	- elemsize is in bytes, so use char* cast to get array in terms of bytes
+			 *	- elemsize is in bytes, so use (char *) cast to get array in terms of bytes
 			 */
 			end = (float *)((char *)start + (key->elemsize * kb->totelem));
 			
@@ -422,7 +422,7 @@ static KeyBlock *rna_ShapeKeyData_find_keyblock(Key *key, float *point)
 
 static int rna_ShapeKeyPoint_get_index(Key *key, KeyBlock *kb, float *point)
 {
-	/* if we frame the data array and point pointers as char*, then the difference between
+	/* if we frame the data array and point pointers as (char *), then the difference between
 	 * them will be in bytes. Thus, dividing through by key->elemsize (number of bytes per point)
 	 * gives us the offset of point from start of array.
 	 */
@@ -430,6 +430,19 @@ static int rna_ShapeKeyPoint_get_index(Key *key, KeyBlock *kb, float *point)
 	char *pt = (char *)point;
 	
 	return (int)(pt - start) / key->elemsize;
+}
+
+static int rna_ShapeKeyBezierPoint_get_index(KeyBlock *kb, float *point)
+{
+	float *start = (float *)kb->data;
+	
+	/* Unlike with rna_ShapeKeyPoint_get_index(), we cannot use key->elemsize here
+	 * since the default value for curves (16) is actually designed for BPoints
+	 * (i.e. NURBS Surfaces). The magic number "12" here was found by empirical
+	 * testing on a 64-bit system, and is similar to what's used for meshes and 
+	 * lattices. For more details, see T38013
+	 */
+	return (int)(point - start) / 12;
 }
 
 static char *rna_ShapeKeyPoint_path(PointerRNA *ptr)
@@ -444,7 +457,12 @@ static char *rna_ShapeKeyPoint_path(PointerRNA *ptr)
 	
 	if (kb) {
 		char name_esc_kb[sizeof(kb->name) * 2];
-		int index = rna_ShapeKeyPoint_get_index(key, kb, point);
+		int index;
+		
+		if (ptr->type == &RNA_ShapeKeyBezierPoint)
+			index = rna_ShapeKeyBezierPoint_get_index(kb, point);
+		else
+			index = rna_ShapeKeyPoint_get_index(key, kb, point);
 
 		BLI_strescape(name_esc_kb, kb->name, sizeof(name_esc_kb));
 		

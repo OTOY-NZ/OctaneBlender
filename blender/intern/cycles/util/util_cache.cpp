@@ -79,7 +79,7 @@ void Cache::insert(CacheData& key, CacheData& value)
 {
 	string filename = data_filename(key);
 	path_create_directories(filename);
-	FILE *f = fopen(filename.c_str(), "wb");
+	FILE *f = path_fopen(filename, "wb");
 
 	if(!f) {
 		fprintf(stderr, "Failed to open file %s for writing.\n", filename.c_str());
@@ -100,7 +100,7 @@ void Cache::insert(CacheData& key, CacheData& value)
 bool Cache::lookup(CacheData& key, CacheData& value)
 {
 	string filename = data_filename(key);
-	FILE *f = fopen(filename.c_str(), "rb");
+	FILE *f = path_fopen(filename, "rb");
 
 	if(!f)
 		return false;
@@ -113,23 +113,7 @@ bool Cache::lookup(CacheData& key, CacheData& value)
 
 void Cache::clear_except(const string& name, const set<string>& except)
 {
-	string dir = path_user_get("cache");
-
-	if(boost::filesystem::exists(dir)) {
-		boost::filesystem::directory_iterator it(dir), it_end;
-
-		for(; it != it_end; it++) {
-#if (BOOST_FILESYSTEM_VERSION == 2)
-			string filename = it->path().filename();
-#else
-			string filename = it->path().filename().string();
-#endif
-
-			if(boost::starts_with(filename, name))
-				if(except.find(filename) == except.end())
-					boost::filesystem::remove(it->path());
-		}
-	}
+	path_cache_clear_except(name, except);
 }
 
 CCL_NAMESPACE_END

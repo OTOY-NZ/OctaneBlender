@@ -59,11 +59,9 @@ static const unsigned int _ehash_hashsizes[] = {
 #endif
 
 /* ensure v0 is smaller */
-#define EDGE_ORD(v0, v1) \
-	if (v0 > v1) {       \
-		v0 ^= v1;        \
-		v1 ^= v0;        \
-		v0 ^= v1;        \
+#define EDGE_ORD(v0, v1)            \
+	if (v0 > v1) {                  \
+		SWAP(unsigned int, v0, v1); \
 	} (void)0
 
 /***/
@@ -137,7 +135,7 @@ BLI_INLINE void edgehash_resize_buckets(EdgeHash *eh, const unsigned int nbucket
 }
 
 /**
- * Increase initial bucket size to match a reserved ammount.
+ * Increase initial bucket size to match a reserved amount.
  */
 BLI_INLINE void edgehash_buckets_reserve(EdgeHash *eh, const unsigned int nentries_reserve)
 {
@@ -467,11 +465,11 @@ void BLI_edgehashIterator_free(EdgeHashIterator *ehi)
 /**
  * Retrieve the key from an iterator.
  */
-void BLI_edgehashIterator_getKey(EdgeHashIterator *ehi, unsigned int *v0_r, unsigned int *v1_r)
+void BLI_edgehashIterator_getKey(EdgeHashIterator *ehi, unsigned int *r_v0, unsigned int *r_v1)
 {
 	if (ehi->curEntry) {
-		*v0_r = ehi->curEntry->v0;
-		*v1_r = ehi->curEntry->v1;
+		*r_v0 = ehi->curEntry->v0;
+		*r_v1 = ehi->curEntry->v1;
 	}
 }
 

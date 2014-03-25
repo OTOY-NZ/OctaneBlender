@@ -91,12 +91,9 @@ static void pbvh_bmesh_node_finalize(PBVH *bvh, int node_index)
 
 	n->orig_vb = n->vb;
 
-	/* Build GPU buffers */
-	if (!G.background) {
-		int smooth = bvh->flags & PBVH_DYNTOPO_SMOOTH_SHADING;
-		n->draw_buffers = GPU_build_bmesh_buffers(smooth);
-		n->flag |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals;
-	}
+	/* Build GPU buffers for new node and update vertex normals */
+	BKE_pbvh_node_mark_rebuild_draw(n);
+	n->flag |= PBVH_UpdateNormals;
 }
 
 /* Recursively split the node if it exceeds the leaf_limit */
@@ -207,7 +204,7 @@ static void pbvh_bmesh_node_split(PBVH *bvh, GHash *prim_bbc, int node_index)
 	n->layer_disp = NULL;
 	
 	if (n->draw_buffers) {
-		GPU_free_buffers(n->draw_buffers);
+		GPU_free_pbvh_buffers(n->draw_buffers);
 		n->draw_buffers = NULL;
 	}
 	n->flag &= ~PBVH_Leaf;
@@ -497,7 +494,7 @@ typedef struct {
 	int cd_vert_mask_offset;
 } EdgeQueueContext;
 
-static int edge_queue_tri_in_sphere(const EdgeQueue *q, BMFace *f)
+static bool edge_queue_tri_in_sphere(const EdgeQueue *q, BMFace *f)
 {
 	BMVert *v_tri[3];
 	float c[3];
@@ -608,7 +605,7 @@ static void long_edge_queue_create(EdgeQueueContext *eq_ctx,
 
 		/* Check leaf nodes marked for topology update */
 		if ((node->flag & PBVH_Leaf) &&
-			(node->flag & PBVH_UpdateTopology))
+		    (node->flag & PBVH_UpdateTopology))
 		{
 			GHashIterator gh_iter;
 
@@ -647,7 +644,7 @@ static void short_edge_queue_create(EdgeQueueContext *eq_ctx,
 
 		/* Check leaf nodes marked for topology update */
 		if ((node->flag & PBVH_Leaf) &&
-			(node->flag & PBVH_UpdateTopology))
+		    (node->flag & PBVH_UpdateTopology))
 		{
 			GHashIterator gh_iter;
 
@@ -692,7 +689,7 @@ static void pbvh_bmesh_split_edge(EdgeQueueContext *eq_ctx, PBVH *bvh,
 	if (cd_vert_mask_offset != -1) {
 		float mask_v1 = BM_ELEM_CD_GET_FLOAT(e->v1, cd_vert_mask_offset);
 		float mask_v2 = BM_ELEM_CD_GET_FLOAT(e->v2, cd_vert_mask_offset);
-		float mask_v_new = 0.5f*(mask_v1 + mask_v2);
+		float mask_v_new = 0.5f * (mask_v1 + mask_v2);
 
 		BM_ELEM_CD_SET_FLOAT(v_new, cd_vert_mask_offset, mask_v_new);
 	}
@@ -750,7 +747,7 @@ static void pbvh_bmesh_split_edge(EdgeQueueContext *eq_ctx, PBVH *bvh,
 
 		/* Ensure new vertex is in the node */
 		if (!BLI_gset_haskey(bvh->nodes[ni].bm_unique_verts, v_new) &&
-			!BLI_gset_haskey(bvh->nodes[ni].bm_other_verts, v_new))
+		    !BLI_gset_haskey(bvh->nodes[ni].bm_other_verts, v_new))
 		{
 			BLI_gset_insert(bvh->nodes[ni].bm_other_verts, v_new);
 		}
@@ -791,7 +788,7 @@ static int pbvh_bmesh_subdivide_long_edges(EdgeQueueContext *eq_ctx, PBVH *bvh,
 		 * and the node has been split, thus leaving wire edges and
 		 * associated vertices. */
 		if (!BLI_ghash_haskey(bvh->bm_vert_to_node, e->v1) ||
-			!BLI_ghash_haskey(bvh->bm_vert_to_node, e->v2))
+		    !BLI_ghash_haskey(bvh->bm_vert_to_node, e->v2))
 		{
 			continue;
 		}
@@ -977,7 +974,7 @@ static int pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
 		 * and the node has been split, thus leaving wire edges and
 		 * associated vertices. */
 		if (!BLI_ghash_haskey(bvh->bm_vert_to_node, e->v1) ||
-			!BLI_ghash_haskey(bvh->bm_vert_to_node, e->v2))
+		    !BLI_ghash_haskey(bvh->bm_vert_to_node, e->v2))
 		{
 			continue;
 		}
@@ -1148,7 +1145,7 @@ int BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
 		PBVHNode *node = &bvh->nodes[n];
 
 		if (node->flag & PBVH_Leaf &&
-			node->flag & PBVH_UpdateTopology)
+		    node->flag & PBVH_UpdateTopology)
 		{
 			node->flag &= ~PBVH_UpdateTopology;
 		}
@@ -1496,7 +1493,7 @@ void pbvh_bmesh_verify(PBVH *bvh)
 		}
 		BLI_assert(found);
 
-		#if 1
+#if 1
 		/* total freak stuff, check if node exists somewhere else */
 		/* Slow */
 		for (i = 0; i < bvh->totnode; i++) {
@@ -1505,10 +1502,10 @@ void pbvh_bmesh_verify(PBVH *bvh)
 				BLI_assert(!BLI_gset_haskey(n->bm_unique_verts, v));
 		}
 
-		#endif
+#endif
 	}
 
-	#if 0
+#if 0
 	/* check that every vert belongs somewhere */
 	/* Slow */
 	BM_ITER_MESH (vi, &iter, bvh->bm, BM_VERTS_OF_MESH) {
@@ -1524,7 +1521,7 @@ void pbvh_bmesh_verify(PBVH *bvh)
 
 	/* if totvert differs from number of verts inside the hash. hash-totvert is checked above  */
 	BLI_assert(vert_count == bvh->bm->totvert);
-	#endif
+#endif
 
 	/* Check that node elements are recorded in the top level */
 	for (i = 0; i < bvh->totnode; i++) {
@@ -1532,11 +1529,11 @@ void pbvh_bmesh_verify(PBVH *bvh)
 		if (n->flag & PBVH_Leaf) {
 			/* Check for duplicate entries */
 			/* Slow */
-			#if 0
+#if 0
 			bli_ghash_duplicate_key_check(n->bm_faces);
 			bli_gset_duplicate_key_check(n->bm_unique_verts);
 			bli_gset_duplicate_key_check(n->bm_other_verts);
-			#endif
+#endif
 
 			GHASH_ITER (gh_iter, n->bm_faces) {
 				BMFace *f = BLI_ghashIterator_getKey(&gh_iter);

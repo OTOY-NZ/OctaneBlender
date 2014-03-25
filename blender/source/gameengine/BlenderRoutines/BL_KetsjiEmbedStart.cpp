@@ -42,11 +42,9 @@
 
 #include "GL/glew.h"
 
-#include "KX_BlenderGL.h"
 #include "KX_BlenderCanvas.h"
 #include "KX_BlenderKeyboardDevice.h"
 #include "KX_BlenderMouseDevice.h"
-#include "KX_BlenderRenderTools.h"
 #include "KX_BlenderSystem.h"
 #include "BL_Material.h"
 
@@ -153,8 +151,9 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 	while (wmEvent *event= (wmEvent *)win->queue.first) {
 		short val = 0;
 		//unsigned short event = 0; //XXX extern_qread(&val);
+		unsigned int unicode = event->utf8_buf[0] ? BLI_str_utf8_as_unicode(event->utf8_buf) : event->ascii;
 
-		if (keyboarddevice->ConvertBlenderEvent(event->type,event->val))
+		if (keyboarddevice->ConvertBlenderEvent(event->type, event->val, unicode))
 			exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
 
 		/* Coordinate conversion... where
@@ -163,13 +162,13 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 		if (event->type == MOUSEMOVE) {
 			/* Note, not nice! XXX 2.5 event hack */
 			val = event->x - ar->winrct.xmin;
-			mousedevice->ConvertBlenderEvent(MOUSEX, val);
+			mousedevice->ConvertBlenderEvent(MOUSEX, val, 0);
 
 			val = ar->winy - (event->y - ar->winrct.ymin) - 1;
-			mousedevice->ConvertBlenderEvent(MOUSEY, val);
+			mousedevice->ConvertBlenderEvent(MOUSEY, val, 0);
 		}
 		else {
-			mousedevice->ConvertBlenderEvent(event->type,event->val);
+			mousedevice->ConvertBlenderEvent(event->type, event->val, 0);
 		}
 
 		BLI_remlink(&win->queue, event);
@@ -276,7 +275,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		if (animation_record) usefixed= false; /* override since you don't want to run full-speed for sim recording */
 
-		// create the canvas, rasterizer and rendertools
+		// create the canvas and rasterizer
 		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
 		
 		// default mouse state set on render panel
@@ -292,7 +291,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		else
 			canvas->SetSwapInterval((startscene->gm.vsync == VSYNC_ON) ? 1 : 0);
 
-		RAS_IRenderTools* rendertools = new KX_BlenderRenderTools();
 		RAS_IRasterizer* rasterizer = NULL;
 		//Don't use displaylists with VBOs
 		//If auto starts using VBOs, make sure to check for that here
@@ -324,7 +322,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		ketsjiengine->SetMouseDevice(mousedevice);
 		ketsjiengine->SetNetworkDevice(networkdevice);
 		ketsjiengine->SetCanvas(canvas);
-		ketsjiengine->SetRenderTools(rendertools);
 		ketsjiengine->SetRasterizer(rasterizer);
 		ketsjiengine->SetUseFixedTime(usefixed);
 		ketsjiengine->SetTimingDisplay(frameRate, profile, properties);
@@ -474,7 +471,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			else if (gs.matmode == GAME_MAT_GLSL)
 				usemat = false;
 
-			if (usemat && (gs.matmode != GAME_MAT_TEXFACE))
+			if (usemat)
 				sceneconverter->SetMaterials(true);
 			if (useglslmat && (gs.matmode == GAME_MAT_GLSL))
 				sceneconverter->SetGLSLMaterials(true);
@@ -518,7 +515,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				// convert and add scene
 				sceneconverter->ConvertScene(
 					startscene,
-					rendertools,
+				    rasterizer,
 					canvas);
 				ketsjiengine->AddScene(startscene);
 				
@@ -663,11 +660,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		{
 			delete rasterizer;
 			rasterizer = NULL;
-		}
-		if (rendertools)
-		{
-			delete rendertools;
-			rendertools = NULL;
 		}
 		if (canvas)
 		{

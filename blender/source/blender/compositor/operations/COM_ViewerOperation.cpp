@@ -32,10 +32,10 @@
 #include "BLI_math_vector.h"
 
 extern "C" {
-	#include "MEM_guardedalloc.h"
-	#include "IMB_imbuf.h"
-	#include "IMB_imbuf_types.h"
-	#include "IMB_colormanagement.h"
+#  include "MEM_guardedalloc.h"
+#  include "IMB_imbuf.h"
+#  include "IMB_imbuf_types.h"
+#  include "IMB_colormanagement.h"
 }
 
 
@@ -101,18 +101,18 @@ void ViewerOperation::executeRegion(rcti *rect, unsigned int tileNumber)
 
 	for (y = y1; y < y2 && (!breaked); y++) {
 		for (x = x1; x < x2; x++) {
-			this->m_imageInput->read(&(buffer[offset4]), x, y, COM_PS_NEAREST);
+			this->m_imageInput->readSampled(&(buffer[offset4]), x, y, COM_PS_NEAREST);
 			if (this->m_ignoreAlpha) {
 				buffer[offset4 + 3] = 1.0f;
 			}
 			else {
 				if (this->m_alphaInput != NULL) {
-					this->m_alphaInput->read(alpha, x, y, COM_PS_NEAREST);
+					this->m_alphaInput->readSampled(alpha, x, y, COM_PS_NEAREST);
 					buffer[offset4 + 3] = alpha[0];
 				}
 			}
 			if (m_depthInput) {
-				this->m_depthInput->read(depth, x, y, COM_PS_NEAREST);
+				this->m_depthInput->readSampled(depth, x, y, COM_PS_NEAREST);
 				depthbuffer[offset] = depth[0];
 			}
 
@@ -143,12 +143,12 @@ void ViewerOperation::initImage()
 		IMB_freezbuffloatImBuf(ibuf);
 		ibuf->x = getWidth();
 		ibuf->y = getHeight();
-		imb_addrectfloatImBuf(ibuf);
+		/* zero size can happen if no image buffers exist to define a sensible resolution */
+		if (ibuf->x > 0 && ibuf->y > 0)
+			imb_addrectfloatImBuf(ibuf);
 		ima->ok = IMA_OK_LOADED;
 
 		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-
-		BLI_unlock_thread(LOCK_DRAW_IMAGE);
 	}
 
 	if (m_doDepthBuffer) {

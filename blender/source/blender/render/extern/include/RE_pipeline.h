@@ -68,7 +68,7 @@ typedef struct Render Render;
 typedef struct RenderPass {
 	struct RenderPass *next, *prev;
 	int passtype, channels;
-	char name[16];		/* amount defined in openexr_multi.h */
+	char name[64];		/* amount defined in openexr_multi.h */
 	char chan_id[8];	/* amount defined in openexr_multi.h */
 	float *rect;
 	int rectx, recty;
@@ -91,6 +91,8 @@ typedef struct RenderLayer {
 	float *rectf;		/* 4 float, standard rgba buffer (read not above!) */
 	float *acolrect;	/* 4 float, optional transparent buffer, needs storage for display updates */
 	float *scolrect;	/* 4 float, optional strand buffer, needs storage for display updates */
+	int *display_buffer;	/* 4 char, optional color managed display buffer which is used when
+	                         * Save Buffer is enabled to display combined pass of the screen. */
 	int rectx, recty;
 
 	/* optional saved endresult on disk */
@@ -215,9 +217,6 @@ void RE_DataBase_ApplyWindow(struct Render *re);
 /* rotate scene again, for incremental render */
 void RE_DataBase_IncrementalView(struct Render *re, float viewmat[4][4], int restore);
 
-/* override the scene setting for amount threads, commandline */
-void RE_set_max_threads(int threads);
-
 /* set the render threads based on the commandline and autothreads setting */
 void RE_init_threadcount(Render *re);
 
@@ -247,14 +246,10 @@ int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct
 /* do a full sample buffer compo */
 void RE_MergeFullSample(struct Render *re, struct Main *bmain, struct Scene *sce, struct bNodeTree *ntree);
 
-/* ancient stars function... go away! */
-void RE_make_stars(struct Render *re, struct Scene *scenev3d, void (*initfunc)(void),
-                   void (*vertexfunc)(float *),  void (*termfunc)(void));
-
 /* display and event callbacks */
 void RE_display_init_cb	(struct Render *re, void *handle, void (*f)(void *handle, RenderResult *rr));
 void RE_display_clear_cb(struct Render *re, void *handle, void (*f)(void *handle, RenderResult *rr));
-void RE_display_draw_cb	(struct Render *re, void *handle, void (*f)(void *handle, RenderResult *rr, volatile struct rcti *rect));
+void RE_display_update_cb(struct Render *re, void *handle, void (*f)(void *handle, RenderResult *rr, volatile struct rcti *rect));
 void RE_stats_draw_cb	(struct Render *re, void *handle, void (*f)(void *handle, RenderStats *rs));
 void RE_progress_cb	(struct Render *re, void *handle, void (*f)(void *handle, float));
 void RE_draw_lock_cb		(struct Render *re, void *handle, void (*f)(void *handle, int));
@@ -281,6 +276,8 @@ int RE_seq_render_active(struct Scene *scene, struct RenderData *rd);
 #define RE_BAKE_MIRROR_INTENSITY	10
 #define RE_BAKE_ALPHA				11
 #define RE_BAKE_EMIT				12
+#define RE_BAKE_DERIVATIVE			13
+#define RE_BAKE_VERTEX_COLORS		14
 
 void RE_Database_Baking(struct Render *re, struct Main *bmain, struct Scene *scene, unsigned int lay, const int type, struct Object *actob);
 
@@ -288,7 +285,10 @@ void RE_DataBase_GetView(struct Render *re, float mat[4][4]);
 void RE_GetCameraWindow(struct Render *re, struct Object *camera, int frame, float mat[4][4]);
 struct Scene *RE_GetScene(struct Render *re);
 
-int RE_is_rendering_allowed(struct Scene *scene, struct Object *camera_override, struct ReportList *reports);
+bool RE_force_single_renderlayer(struct Scene *scene);
+bool RE_is_rendering_allowed(struct Scene *scene, struct Object *camera_override, struct ReportList *reports);
+
+bool RE_allow_render_generic_object(struct Object *ob);
 
 #endif /* __RE_PIPELINE_H__ */
 

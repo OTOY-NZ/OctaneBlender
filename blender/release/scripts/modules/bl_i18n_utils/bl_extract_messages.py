@@ -342,6 +342,10 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
         elif cls.__doc__:  # XXX Some classes (like KeyingSetInfo subclasses) have void description... :(
             process_msg(msgs, default_context, cls.__doc__, msgsrc, reports, check_ctxt_rna_tip, settings)
 
+        # Panels' "tabs" system.
+        if hasattr(bl_rna, 'bl_category') and  bl_rna.bl_category:
+            process_msg(msgs, default_context, bl_rna.bl_category, msgsrc, reports, check_ctxt_rna, settings)
+
         if hasattr(bl_rna, 'bl_label') and  bl_rna.bl_label:
             process_msg(msgs, msgctxt, bl_rna.bl_label, msgsrc, reports, check_ctxt_rna, settings)
 
@@ -791,10 +795,10 @@ def dump_src_messages(msgs, reports, settings):
 ##### Main functions! #####
 def dump_messages(do_messages, do_checks, settings):
     bl_ver = "Blender " + bpy.app.version_string
-    bl_rev = bpy.app.build_revision
+    bl_hash = bpy.app.build_hash
     bl_date = datetime.datetime.strptime(bpy.app.build_date.decode() + "T" + bpy.app.build_time.decode(),
                                          "%Y-%m-%dT%H:%M:%S")
-    pot = utils.I18nMessages.gen_empty_messages(settings.PARSER_TEMPLATE_ID, bl_ver, bl_rev, bl_date, bl_date.year,
+    pot = utils.I18nMessages.gen_empty_messages(settings.PARSER_TEMPLATE_ID, bl_ver, bl_hash, bl_date, bl_date.year,
                                                 settings=settings)
     msgs = pot.msgs
 

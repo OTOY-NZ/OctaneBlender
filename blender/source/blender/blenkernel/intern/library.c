@@ -82,6 +82,7 @@
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
+#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
@@ -392,9 +393,9 @@ bool id_copy(ID *id, ID **newid, bool test)
 bool id_unlink(ID *id, int test)
 {
 	Main *mainlib = G.main;
-	ListBase *lb;
+	short type = GS(id->name);
 
-	switch (GS(id->name)) {
+	switch (type) {
 		case ID_TXT:
 			if (test) return true;
 			BKE_text_unlink(mainlib, (Text *)id);
@@ -412,8 +413,7 @@ bool id_unlink(ID *id, int test)
 	if (id->us == 0) {
 		if (test) return true;
 
-		lb = which_libbase(mainlib, GS(id->name));
-		BKE_libblock_free(lb, id);
+		BKE_libblock_free(mainlib, id);
 
 		return true;
 	}
@@ -521,35 +521,39 @@ ListBase *which_libbase(Main *mainlib, short type)
 }
 
 /* Flag all ids in listbase */
-void flag_listbase_ids(ListBase *lb, short flag, short value)
+void BKE_main_id_flag_listbase(ListBase *lb, const short flag, const bool value)
 {
 	ID *id;
 	if (value) {
 		for (id = lb->first; id; id = id->next) id->flag |= flag;
 	}
 	else {
-		flag = ~flag;
-		for (id = lb->first; id; id = id->next) id->flag &= flag;
+		const short nflag = ~flag;
+		for (id = lb->first; id; id = id->next) id->flag &= nflag;
 	}
 }
 
 /* Flag all ids in listbase */
-void flag_all_listbases_ids(short flag, short value)
+void BKE_main_id_flag_all(Main *bmain, const short flag, const bool value)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
-	a = set_listbasepointers(G.main, lbarray);
-	while (a--) flag_listbase_ids(lbarray[a], flag, value);
+	a = set_listbasepointers(bmain, lbarray);
+	while (a--) {
+		BKE_main_id_flag_listbase(lbarray[a], flag, value);
+	}
 }
 
-void recalc_all_library_objects(Main *main)
+void BKE_main_lib_objects_recalc_all(Main *bmain)
 {
 	Object *ob;
 
 	/* flag for full recalc */
-	for (ob = main->object.first; ob; ob = ob->id.next)
+	for (ob = bmain->object.first; ob; ob = ob->id.next)
 		if (ob->id.lib)
 			ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+
+	DAG_id_type_tag(bmain, ID_OB);
 }
 
 /**
@@ -738,9 +742,10 @@ static ID *alloc_libblock_notest(short type)
  * The user count is set to 1, all other content (apart from name and links) being
  * initialized to zero.
  */
-void *BKE_libblock_alloc(ListBase *lb, short type, const char *name)
+void *BKE_libblock_alloc(Main *bmain, short type, const char *name)
 {
 	ID *id = NULL;
+	ListBase *lb = which_libbase(bmain, type);
 	
 	id = alloc_libblock_notest(type);
 	if (id) {
@@ -751,6 +756,7 @@ void *BKE_libblock_alloc(ListBase *lb, short type, const char *name)
 		new_id(lb, id, name);
 		/* alphabetic insertion: is in new_id */
 	}
+	DAG_id_type_tag(bmain, type);
 	return id;
 }
 
@@ -780,11 +786,9 @@ void BKE_libblock_copy_data(ID *id, const ID *id_from, const bool do_action)
 void *BKE_libblock_copy_ex(Main *bmain, ID *id)
 {
 	ID *idn;
-	ListBase *lb;
 	size_t idn_len;
 
-	lb = which_libbase(bmain, GS(id->name));
-	idn = BKE_libblock_alloc(lb, GS(id->name), id->name + 2);
+	idn = BKE_libblock_alloc(bmain, GS(id->name), id->name + 2);
 
 	assert(idn != NULL);
 
@@ -867,16 +871,19 @@ void BKE_libblock_free_data(ID *id)
 }
 
 /* used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c */
-void BKE_libblock_free(ListBase *lb, void *idv)
+void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 {
-	Main *bmain = G.main;  /* should eventually be an arg */
 	ID *id = idv;
+	short type = GS(id->name);
+	ListBase *lb = which_libbase(bmain, type);
+
+	DAG_id_type_tag(bmain, type);
 
 #ifdef WITH_PYTHON
 	BPY_id_release(id);
 #endif
 
-	switch (GS(id->name) ) {    /* GetShort from util.h */
+	switch (type) {    /* GetShort from util.h */
 		case ID_SCE:
 			BKE_scene_free((Scene *)id);
 			break;
@@ -884,7 +891,7 @@ void BKE_libblock_free(ListBase *lb, void *idv)
 			BKE_library_free((Library *)id);
 			break;
 		case ID_OB:
-			BKE_object_free((Object *)id);
+			BKE_object_free_ex((Object *)id, do_id_user);
 			break;
 		case ID_ME:
 			BKE_mesh_free((Mesh *)id, 1);
@@ -950,7 +957,7 @@ void BKE_libblock_free(ListBase *lb, void *idv)
 			BKE_action_free((bAction *)id);
 			break;
 		case ID_NT:
-			ntreeFreeTree((bNodeTree *)id);
+			ntreeFreeTree_ex((bNodeTree *)id, do_id_user);
 			break;
 		case ID_BR:
 			BKE_brush_free((Brush *)id);
@@ -987,7 +994,12 @@ void BKE_libblock_free(ListBase *lb, void *idv)
 	MEM_freeN(id);
 }
 
-void BKE_libblock_free_us(ListBase *lb, void *idv)      /* test users */
+void BKE_libblock_free(Main *bmain, void *idv)
+{
+	BKE_libblock_free_ex(bmain, idv, true);
+}
+
+void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 {
 	ID *id = idv;
 	
@@ -1000,12 +1012,18 @@ void BKE_libblock_free_us(ListBase *lb, void *idv)      /* test users */
 	if (id->us == 0) {
 		if (GS(id->name) == ID_OB) BKE_object_unlink((Object *)id);
 		
-		BKE_libblock_free(lb, id);
+		BKE_libblock_free(bmain, id);
 	}
 }
 
+Main *BKE_main_new(void)
+{
+	Main *bmain = MEM_callocN(sizeof(Main), "new main");
+	bmain->eval_ctx = MEM_callocN(sizeof(EvaluationContext), "EvaluationContext");
+	return bmain;
+}
 
-void free_main(Main *mainvar)
+void BKE_main_free(Main *mainvar)
 {
 	/* also call when reading a file, erase all, etc */
 	ListBase *lbarray[MAX_LIBARRAY];
@@ -1018,44 +1036,44 @@ void free_main(Main *mainvar)
 		
 		while ( (id = lb->first) ) {
 #if 1
-			BKE_libblock_free(lb, id);
+			BKE_libblock_free_ex(mainvar, id, false);
 #else
 			/* errors freeing ID's can be hard to track down,
 			 * enable this so valgrind will give the line number in its error log */
 			switch (a) {
-				case   0: BKE_libblock_free(lb, id); break;
-				case   1: BKE_libblock_free(lb, id); break;
-				case   2: BKE_libblock_free(lb, id); break;
-				case   3: BKE_libblock_free(lb, id); break;
-				case   4: BKE_libblock_free(lb, id); break;
-				case   5: BKE_libblock_free(lb, id); break;
-				case   6: BKE_libblock_free(lb, id); break;
-				case   7: BKE_libblock_free(lb, id); break;
-				case   8: BKE_libblock_free(lb, id); break;
-				case   9: BKE_libblock_free(lb, id); break;
-				case  10: BKE_libblock_free(lb, id); break;
-				case  11: BKE_libblock_free(lb, id); break;
-				case  12: BKE_libblock_free(lb, id); break;
-				case  13: BKE_libblock_free(lb, id); break;
-				case  14: BKE_libblock_free(lb, id); break;
-				case  15: BKE_libblock_free(lb, id); break;
-				case  16: BKE_libblock_free(lb, id); break;
-				case  17: BKE_libblock_free(lb, id); break;
-				case  18: BKE_libblock_free(lb, id); break;
-				case  19: BKE_libblock_free(lb, id); break;
-				case  20: BKE_libblock_free(lb, id); break;
-				case  21: BKE_libblock_free(lb, id); break;
-				case  22: BKE_libblock_free(lb, id); break;
-				case  23: BKE_libblock_free(lb, id); break;
-				case  24: BKE_libblock_free(lb, id); break;
-				case  25: BKE_libblock_free(lb, id); break;
-				case  26: BKE_libblock_free(lb, id); break;
-				case  27: BKE_libblock_free(lb, id); break;
-				case  28: BKE_libblock_free(lb, id); break;
-				case  29: BKE_libblock_free(lb, id); break;
-				case  30: BKE_libblock_free(lb, id); break;
-				case  31: BKE_libblock_free(lb, id); break;
-				case  32: BKE_libblock_free(lb, id); break;
+				case   0: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   1: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   2: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   3: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   4: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   5: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   6: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   7: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   8: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   9: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  10: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  11: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  12: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  13: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  14: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  15: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  16: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  17: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  18: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  19: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  20: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  21: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  22: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  23: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  24: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  25: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  26: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  27: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  28: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  29: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  30: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  31: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  32: BKE_libblock_free_ex(mainvar, id, false); break;
 				default:
 					BLI_assert(0);
 					break;
@@ -1064,6 +1082,7 @@ void free_main(Main *mainvar)
 		}
 	}
 
+	MEM_freeN(mainvar->eval_ctx);
 	MEM_freeN(mainvar);
 }
 
@@ -1076,135 +1095,6 @@ ID *BKE_libblock_find_name(const short type, const char *name)      /* type: "OB
 	BLI_assert(lb != NULL);
 	return BLI_findstring(lb, name, offsetof(ID, name) + 2);
 }
-
-#if 0 /* UNUSED */
-#define MAX_IDPUP  60  /* was 24 */
-
-static void get_flags_for_id(ID *id, char *buf) 
-{
-	int isfake = id->flag & LIB_FAKEUSER;
-	int isnode = 0;
-	/* Writeout the flags for the entry, note there
-	 * is a small hack that writes 5 spaces instead
-	 * of 4 if no flags are displayed... this makes
-	 * things usually line up ok - better would be
-	 * to have that explicit, oh well - zr
-	 */
-
-	if (GS(id->name) == ID_MA)
-		isnode = ((Material *)id)->use_nodes;
-	if (GS(id->name) == ID_TE)
-		isnode = ((Tex *)id)->use_nodes;
-	
-	if (id->us < 0)
-		strcpy(buf, "-1W ");
-	else if (!id->lib && !isfake && id->us && !isnode)
-		strcpy(buf, "     ");
-	else if (isnode)
-		sprintf(buf, "%c%cN%c ", id->lib ? 'L' : ' ', isfake ? 'F' : ' ', (id->us == 0) ? 'O' : ' ');
-	else
-		sprintf(buf, "%c%c%c ", id->lib ? 'L' : ' ', isfake ? 'F' : ' ', (id->us == 0) ? 'O' : ' ');
-}
-
-#define IDPUP_NO_VIEWER 1
-
-static void IDnames_to_dyn_pupstring(DynStr *pupds, ListBase *lb, ID *link, short *nr, int hideflag)
-{
-	int i, nids = BLI_countlist(lb);
-		
-	if (nr) *nr = -1;
-	
-	if (nr && nids > MAX_IDPUP) {
-		BLI_dynstr_append(pupds, "DataBrowse %x-2");
-		*nr = -2;
-	}
-	else {
-		ID *id;
-		
-		for (i = 0, id = lb->first; id; id = id->next, i++) {
-			char numstr[32];
-			
-			if (nr && id == link) *nr = i + 1;
-
-			if (U.uiflag & USER_HIDE_DOT && id->name[2] == '.')
-				continue;
-			if (hideflag & IDPUP_NO_VIEWER)
-				if (GS(id->name) == ID_IM)
-					if ( ((Image *)id)->source == IMA_SRC_VIEWER)
-						continue;
-			
-			get_flags_for_id(id, numstr);
-				
-			BLI_dynstr_append(pupds, numstr);
-			BLI_dynstr_append(pupds, id->name + 2);
-			BLI_snprintf(numstr, sizeof(numstr), "%%x%d", i + 1);
-			BLI_dynstr_append(pupds, numstr);
-			
-			/* icon */
-			switch (GS(id->name)) {
-				case ID_MA: /* fall through */
-				case ID_TE: /* fall through */
-				case ID_IM: /* fall through */
-				case ID_WO: /* fall through */
-				case ID_LA: /* fall through */
-					BLI_snprintf(numstr, sizeof(numstr), "%%i%d", BKE_icon_getid(id));
-					BLI_dynstr_append(pupds, numstr);
-					break;
-				default:
-					break;
-			}
-			
-			if (id->next)
-				BLI_dynstr_append(pupds, "|");
-		}
-	}
-}
-
-/* used by headerbuttons.c buttons.c editobject.c editseq.c */
-/* if (nr == NULL) no MAX_IDPUP, this for non-header browsing */
-void IDnames_to_pupstring(const char **str, const char *title, const char *extraops, ListBase *lb, ID *link, short *nr)
-{
-	DynStr *pupds = BLI_dynstr_new();
-
-	if (title) {
-		BLI_dynstr_append(pupds, title);
-		BLI_dynstr_append(pupds, "%t|");
-	}
-	
-	if (extraops) {
-		BLI_dynstr_append(pupds, extraops);
-		if (BLI_dynstr_get_len(pupds))
-			BLI_dynstr_append(pupds, "|");
-	}
-
-	IDnames_to_dyn_pupstring(pupds, lb, link, nr, 0);
-	
-	*str = BLI_dynstr_get_cstring(pupds);
-	BLI_dynstr_free(pupds);
-}
-
-/* skips viewer images */
-void IMAnames_to_pupstring(const char **str, const char *title, const char *extraops, ListBase *lb, ID *link, short *nr)
-{
-	DynStr *pupds = BLI_dynstr_new();
-	
-	if (title) {
-		BLI_dynstr_append(pupds, title);
-		BLI_dynstr_append(pupds, "%t|");
-	}
-	
-	if (extraops) {
-		BLI_dynstr_append(pupds, extraops);
-		if (BLI_dynstr_get_len(pupds))
-			BLI_dynstr_append(pupds, "|");
-	}
-	
-	IDnames_to_dyn_pupstring(pupds, lb, link, nr, IDPUP_NO_VIEWER);
-	
-	*str = BLI_dynstr_get_cstring(pupds);
-	BLI_dynstr_free(pupds);
-}
-#endif
 
 void id_sort_by_name(ListBase *lb, ID *id)
 {
@@ -1423,8 +1313,10 @@ bool new_id(ListBase *lb, ID *id, const char *tname)
 	return result;
 }
 
-/* Pull an ID out of a library (make it local). Only call this for IDs that
- * don't have other library users. */
+/**
+ * Pull an ID out of a library (make it local). Only call this for IDs that
+ * don't have other library users.
+ */
 void id_clear_lib_data(Main *bmain, ID *id)
 {
 	bNodeTree *ntree = NULL;
@@ -1450,13 +1342,13 @@ void id_clear_lib_data(Main *bmain, ID *id)
 }
 
 /* next to indirect usage in read/writefile also in editobject.c scene.c */
-void clear_id_newpoins(void)
+void BKE_main_id_clear_newpoins(Main *bmain)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
 	ID *id;
 	int a;
 
-	a = set_listbasepointers(G.main, lbarray);
+	a = set_listbasepointers(bmain, lbarray);
 	while (a--) {
 		id = lbarray[a]->first;
 		while (id) {
@@ -1513,7 +1405,7 @@ static void lib_indirect_test_id(ID *id, Library *lib)
 #undef LIBTAG
 }
 
-void tag_main_lb(ListBase *lb, const short tag)
+void BKE_main_id_tag_listbase(ListBase *lb, const bool tag)
 {
 	ID *id;
 	if (tag) {
@@ -1528,21 +1420,21 @@ void tag_main_lb(ListBase *lb, const short tag)
 	}
 }
 
-void tag_main_idcode(struct Main *mainvar, const short type, const short tag)
+void BKE_main_id_tag_idcode(struct Main *mainvar, const short type, const bool tag)
 {
 	ListBase *lb = which_libbase(mainvar, type);
 
-	tag_main_lb(lb, tag);
+	BKE_main_id_tag_listbase(lb, tag);
 }
 
-void tag_main(struct Main *mainvar, const short tag)
+void BKE_main_id_tag_all(struct Main *mainvar, const bool tag)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
 
 	a = set_listbasepointers(mainvar, lbarray);
 	while (a--) {
-		tag_main_lb(lbarray[a], tag);
+		BKE_main_id_tag_listbase(lbarray[a], tag);
 	}
 }
 

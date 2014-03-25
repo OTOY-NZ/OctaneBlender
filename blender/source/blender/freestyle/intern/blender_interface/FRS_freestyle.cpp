@@ -66,7 +66,7 @@ extern "C" {
 #define DEFAULT_DKR_EPSILON   0.0f
 
 // Freestyle configuration
-static short freestyle_is_initialized = 0;
+static bool freestyle_is_initialized = false;
 static Config::Path *pathconfig = NULL;
 static Controller *controller = NULL;
 static AppView *view = NULL;
@@ -637,7 +637,7 @@ Render *FRS_do_stroke_rendering(Render *re, SceneRenderLayer *srl, int render)
 		next_text = (Text *) text->id.next;
 
 		BKE_text_unlink(&bmain, text);
-		BKE_libblock_free(&bmain.text, text);
+		BKE_libblock_free(&bmain, text);
 	}
 
 	return freestyle_render;

@@ -30,9 +30,9 @@
 #include "BLI_math_color.h"
 
 extern "C" {
-	#include "BKE_movieclip.h"
-	#include "BKE_node.h"
-	#include "BKE_tracking.h"
+#  include "BKE_movieclip.h"
+#  include "BKE_node.h"
+#  include "BKE_tracking.h"
 }
 
 TrackPositionOperation::TrackPositionOperation() : NodeOperation()
@@ -102,7 +102,7 @@ void TrackPositionOperation::initExecution()
 	}
 }
 
-void TrackPositionOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void TrackPositionOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 	output[0] = this->m_markerPos[this->m_axis] - this->m_relativePos[this->m_axis];
 

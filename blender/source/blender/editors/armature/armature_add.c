@@ -176,7 +176,7 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 			newbone->flag |= BONE_CONNECTED;
 		}
 		
-		curs = give_cursor(scene, v3d);
+		curs = ED_view3d_cursor3d_get(scene, v3d);
 		copy_v3_v3(newbone->tail, curs);
 		sub_v3_v3v3(newbone->tail, newbone->tail, obedit->obmat[3]);
 		
@@ -216,7 +216,7 @@ static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEv
 	ar = CTX_wm_region(C);
 	v3d = CTX_wm_view3d(C);
 	
-	fp = give_cursor(scene, v3d);
+	fp = ED_view3d_cursor3d_get(scene, v3d);
 	
 	copy_v3_v3(oldcurs, fp);
 
@@ -527,7 +527,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 	bArmature *arm;
 	EditBone *newbone, *ebone, *flipbone, *first = NULL;
 	int a, totbone = 0, do_extrude;
-	int forked = RNA_boolean_get(op->ptr, "forked");
+	bool forked = RNA_boolean_get(op->ptr, "forked");
 
 	obedit = CTX_data_edit_object(C);
 	arm = obedit->data;
@@ -624,7 +624,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					BLI_strncpy(newbone->name, ebone->name, sizeof(newbone->name));
 					
 					if (flipbone && forked) {   // only set if mirror edit
-						if (strlen(newbone->name) < 30) {
+						if (strlen(newbone->name) < (MAXBONENAME - 2)) {
 							if (a == 0) strcat(newbone->name, "_L");
 							else strcat(newbone->name, "_R");
 						}
@@ -691,7 +691,7 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 	
 	RNA_string_get(op->ptr, "name", name);
 	
-	copy_v3_v3(curs, give_cursor(CTX_data_scene(C), CTX_wm_view3d(C)));
+	copy_v3_v3(curs, ED_view3d_cursor3d_get(CTX_data_scene(C), CTX_wm_view3d(C)));
 
 	/* Get inverse point for head and orientation for tail */
 	invert_m4_m4(obedit->imat, obedit->obmat);
@@ -789,11 +789,13 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
 			copy_v3_v3(newbone->tail, ebone->tail);
 			copy_v3_v3(ebone->tail, newbone->head);
 			
-			newbone->rad_head = 0.5f * (ebone->rad_head + ebone->rad_tail);
+			newbone->rad_head = ((ebone->rad_head * cutratio) + (ebone->rad_tail * cutratioI));
 			ebone->rad_tail = newbone->rad_head;
 			
 			newbone->flag |= BONE_CONNECTED;
-			
+
+			newbone->prop = NULL;
+
 			unique_editbone_name(arm->edbo, newbone->name, NULL);
 			
 			/* correct parent bones */

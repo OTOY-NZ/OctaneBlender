@@ -96,7 +96,7 @@ static int dopesheet_select_channel_exec(bContext *C, wmOperator *op)
 	MovieTrackingDopesheetChannel *channel;
 	ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
 	float location[2];
-	int extend = RNA_boolean_get(op->ptr, "extend");
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	int current_channel_index = 0, channel_index;
 
 	RNA_float_get_array(op->ptr, "location", location);
@@ -113,7 +113,7 @@ static int dopesheet_select_channel_exec(bContext *C, wmOperator *op)
 
 			if (track->flag & TRACK_DOPE_SEL) {
 				tracking->act_track = track;
-				BKE_tracking_track_select(tracksbase, track, TRACK_AREA_ALL, TRUE);
+				BKE_tracking_track_select(tracksbase, track, TRACK_AREA_ALL, true);
 			}
 		}
 		else if (!extend)

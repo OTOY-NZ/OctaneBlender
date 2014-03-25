@@ -513,17 +513,17 @@ int BLI_natstrcmp(const char *s1, const char *s2)
 		c1 = tolower(s1[d1]);
 		c2 = tolower(s2[d2]);
 		
-		if (isdigit(c1) && isdigit(c2) ) {
+		if (isdigit(c1) && isdigit(c2)) {
 			int numcompare = left_number_strcmp(s1 + d1, s2 + d2, &tiebreaker);
 			
 			if (numcompare != 0)
 				return numcompare;
 
 			d1++;
-			while (isdigit(s1[d1]) )
+			while (isdigit(s1[d1]))
 				d1++;
 			d2++;
-			while (isdigit(s2[d2]) )
+			while (isdigit(s2[d2]))
 				d2++;
 			
 			c1 = tolower(s1[d1]);
@@ -547,7 +547,13 @@ int BLI_natstrcmp(const char *s1, const char *s2)
 		d1++;
 		d2++;
 	}
-	return tiebreaker;
+
+	if (tiebreaker)
+		return tiebreaker;
+	
+	/* we might still have a different string because of lower/upper case, in
+	 * that case fall back to regular string comparison */
+	return strcmp(s1, s2);
 }
 
 void BLI_timestr(double _time, char *str, size_t maxlen)
@@ -582,7 +588,7 @@ void BLI_ascii_strtolower(char *str, const size_t len)
 {
 	size_t i;
 
-	for (i = 0; i < len; i++)
+	for (i = 0; (i < len) && str[i]; i++)
 		if (str[i] >= 'A' && str[i] <= 'Z')
 			str[i] += 'a' - 'A';
 }
@@ -591,7 +597,7 @@ void BLI_ascii_strtoupper(char *str, const size_t len)
 {
 	size_t i;
 
-	for (i = 0; i < len; i++)
+	for (i = 0; (i < len) && str[i]; i++)
 		if (str[i] >= 'a' && str[i] <= 'z')
 			str[i] -= 'a' - 'A';
 }

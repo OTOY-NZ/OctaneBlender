@@ -281,15 +281,3 @@ class ClearUselessActions(Operator):
         self.report({'INFO'}, "Removed %d empty and/or fake-user only Actions"
                               % removed)
         return {'FINISHED'}
-
-
-class UpdateAnimData(Operator):
-    """Update data paths from 2.56 and previous versions, """ \
-    """modifying data paths of drivers and fcurves"""
-    bl_idname = "anim.update_data_paths"
-    bl_label = "Update Animation Data"
-
-    def execute(self, context):
-        import animsys_refactor
-        animsys_refactor.update_data_paths(animsys_refactor.data_2_56_to_2_59)
-        return {'FINISHED'}

@@ -35,6 +35,17 @@
 
 CCL_NAMESPACE_BEGIN
 
+void python_thread_state_save(void **python_thread_state)
+{
+	*python_thread_state = (void*)PyEval_SaveThread();
+}
+
+void python_thread_state_restore(void **python_thread_state)
+{
+	PyEval_RestoreThread((PyThreadState*)*python_thread_state);
+	*python_thread_state = NULL;
+}
+
 static PyObject *init_func(PyObject *self, PyObject *args)
 {
 	const char *path, *user_path;
@@ -87,8 +98,6 @@ static PyObject *create_func(PyObject *self, PyObject *args)
 	/* create session */
 	BlenderSession *session;
 
-	Py_BEGIN_ALLOW_THREADS
-
 	if(rv3d) {
 		/* interactive viewport session */
 		int width = region.width();
@@ -109,7 +118,11 @@ static PyObject *create_func(PyObject *self, PyObject *args)
 		session = new BlenderSession(engine, userpref, data, scene);
 	}
 
-	Py_END_ALLOW_THREADS
+	python_thread_state_save(&session->python_thread_state);
+
+	session->create();
+
+	python_thread_state_restore(&session->python_thread_state);
 
 	return PyLong_FromVoidPtr(session);
 }
@@ -123,12 +136,13 @@ static PyObject *free_func(PyObject *self, PyObject *value)
 
 static PyObject *render_func(PyObject *self, PyObject *value)
 {
-	Py_BEGIN_ALLOW_THREADS
-
 	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
+
+	python_thread_state_save(&session->python_thread_state);
+
 	session->render();
 
-	Py_END_ALLOW_THREADS
+	python_thread_state_restore(&session->python_thread_state);
 
 	Py_RETURN_NONE;
 }
@@ -170,23 +184,24 @@ static PyObject *reset_func(PyObject *self, PyObject *args)
 	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
 	BL::Scene b_scene(sceneptr);
 
-	Py_BEGIN_ALLOW_THREADS
+	python_thread_state_save(&session->python_thread_state);
 
 	session->reset_session(b_data, b_scene);
 
-	Py_END_ALLOW_THREADS
+	python_thread_state_restore(&session->python_thread_state);
 
 	Py_RETURN_NONE;
 }
 
 static PyObject *sync_func(PyObject *self, PyObject *value)
 {
-	Py_BEGIN_ALLOW_THREADS
-
 	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
+
+	python_thread_state_save(&session->python_thread_state);
+
 	session->synchronize();
 
-	Py_END_ALLOW_THREADS
+	python_thread_state_restore(&session->python_thread_state);
 
 	Py_RETURN_NONE;
 }
@@ -475,19 +490,55 @@ void *CCL_python_module_init()
 	PyObject *mod = PyModule_Create(&ccl::module);
 
 #ifdef WITH_OSL
+	/* TODO(sergey): This gives us library we've been linking against.
+	 *               In theory with dynamic OSL library it might not be
+	 *               accurate, but there's nothing in OSL API which we
+	 *               might use to get version in runtime.
+	 */
+	int curversion = OSL_LIBRARY_VERSION_CODE;
 	PyModule_AddObject(mod, "with_osl", Py_True);
 	Py_INCREF(Py_True);
+	PyModule_AddObject(mod, "osl_version",
+	                   Py_BuildValue("(iii)",
+	                                  curversion / 10000, (curversion / 100) % 100, curversion % 100));
+	PyModule_AddObject(mod, "osl_version_string",
+	                   PyUnicode_FromFormat("%2d, %2d, %2d",
+	                                        curversion / 10000, (curversion / 100) % 100, curversion % 100));
 #else
 	PyModule_AddObject(mod, "with_osl", Py_False);
 	Py_INCREF(Py_False);
+	PyModule_AddStringConstant(mod, "osl_version", "unknown");
+	PyModule_AddStringConstant(mod, "osl_version_string", "unknown");
 #endif
+
+#ifdef WITH_NETWORK
+	PyModule_AddObject(mod, "with_network", Py_True);
+	Py_INCREF(Py_True);
+#else /* WITH_NETWORK */
+	PyModule_AddObject(mod, "with_network", Py_False);
+	Py_INCREF(Py_False);
+#endif /* WITH_NETWORK */
 
 	return (void*)mod;
 }
 
-CCLDeviceInfo *CCL_compute_device_list(int opencl)
+CCLDeviceInfo *CCL_compute_device_list(int device_type)
 {
-	ccl::DeviceType type = (opencl)? ccl::DEVICE_OPENCL: ccl::DEVICE_CUDA;
+	ccl::DeviceType type;
+	switch(device_type) {
+		case 0:
+			type = ccl::DEVICE_CUDA;
+			break;
+		case 1:
+			type = ccl::DEVICE_OPENCL;
+			break;
+		case 2:
+			type = ccl::DEVICE_NETWORK;
+			break;
+		default:
+			type = ccl::DEVICE_NONE;
+			break;
+	}
 	return ccl::compute_device_list(type);
 }
 

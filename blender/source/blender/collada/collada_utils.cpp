@@ -160,7 +160,7 @@ Mesh *bc_get_mesh_copy(Scene *scene, Object *ob, BC_export_mesh_type export_mesh
 		}
 	}
 	else {
-		dm = mesh_create_derived((Mesh *)ob->data, ob, NULL);
+		dm = mesh_create_derived((Mesh *)ob->data, NULL);
 	}
 
 	tmpmesh = BKE_mesh_add(G.main, "ColladaMesh"); // name is not important here
@@ -354,12 +354,14 @@ void bc_match_scale(std::vector<Object *> *objects_done,
 
 void bc_triangulate_mesh(Mesh *me)
 {
-	bool use_beauty = false;
-	bool tag_only   = false;
+	bool use_beauty  = false;
+	bool tag_only    = false;
+	int  quad_method = MOD_TRIANGULATE_QUAD_SHORTEDGE; /* XXX: The triangulation method selection could be offered in the UI */
 	 
 	BMesh *bm = BM_mesh_create(&bm_mesh_allocsize_default);
 	BM_mesh_bm_from_me(bm, me, true, false, 0);
-	BM_mesh_triangulate(bm, use_beauty, tag_only, NULL, NULL);
+	BM_mesh_triangulate(bm, quad_method, use_beauty, tag_only, NULL, NULL);
+
 	BM_mesh_bm_to_me(bm, me, FALSE);
 	BM_mesh_free(bm);
 }

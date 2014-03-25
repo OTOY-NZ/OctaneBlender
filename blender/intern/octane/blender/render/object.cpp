@@ -106,8 +106,8 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
             Mesh* cur_mesh = mesh_it->first;
             if((scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_mesh->mesh_type == Mesh::GLOBAL))
                || (!scene->first_frame
-                   && (scene->anim_mode == AnimationMode::CAM_ONLY
-                       || (scene->anim_mode == AnimationMode::MOVABLE_PROXIES
+                   && (scene->anim_mode == CAM_ONLY
+                       || (scene->anim_mode == MOVABLE_PROXIES
                            && scene->meshes_type != Mesh::RESHAPABLE_PROXY && scene->meshes_type != Mesh::MOVABLE_PROXY
                            && (scene->meshes_type != Mesh::AS_IS || (cur_mesh->mesh_type != Mesh::RESHAPABLE_PROXY && cur_mesh->mesh_type != Mesh::MOVABLE_PROXY)))))) continue;
 
@@ -198,8 +198,8 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
             Light* cur_light = light_it->first;
             if((scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_light->mesh->mesh_type == Mesh::GLOBAL))
                || (!scene->first_frame
-                   && (scene->anim_mode == AnimationMode::CAM_ONLY
-                       || (scene->anim_mode == AnimationMode::MOVABLE_PROXIES
+                   && (scene->anim_mode == CAM_ONLY
+                       || (scene->anim_mode == MOVABLE_PROXIES
                            && scene->meshes_type != Mesh::RESHAPABLE_PROXY && scene->meshes_type != Mesh::MOVABLE_PROXY
                            && (scene->meshes_type != Mesh::AS_IS || (cur_light->mesh->mesh_type != Mesh::RESHAPABLE_PROXY && cur_light->mesh->mesh_type != Mesh::MOVABLE_PROXY)))))) continue;
 

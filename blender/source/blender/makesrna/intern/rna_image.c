@@ -79,14 +79,7 @@ static void rna_Image_animated_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 
 static int rna_Image_dirty_get(PointerRNA *ptr)
 {
-	Image *ima = (Image *)ptr->data;
-	ImBuf *ibuf;
-
-	for (ibuf = ima->ibufs.first; ibuf; ibuf = ibuf->next)
-		if (ibuf->userflags & IB_BITMAPDIRTY)
-			return 1;
-	
-	return 0;
+	return BKE_image_is_dirty((Image *)ptr->data);
 }
 
 static void rna_Image_source_set(PointerRNA *ptr, int value)
@@ -158,6 +151,7 @@ static char *rna_ImageUser_path(PointerRNA *ptr)
 		/* ImageUser *iuser = ptr->data; */
 		
 		switch (GS(((ID *)ptr->id.data)->name)) {
+			case ID_OB:
 			case ID_TE:
 			{
 				return BLI_strdup("image_user");
@@ -173,7 +167,7 @@ static char *rna_ImageUser_path(PointerRNA *ptr)
 }
 
 static EnumPropertyItem *rna_Image_source_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                PropertyRNA *UNUSED(prop), int *free)
+                                                PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Image *ima = (Image *)ptr->data;
 	EnumPropertyItem *item = NULL;
@@ -190,7 +184,7 @@ static EnumPropertyItem *rna_Image_source_itemf(bContext *UNUSED(C), PointerRNA 
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -210,31 +204,16 @@ static void rna_Image_file_format_set(PointerRNA *ptr, int value)
 {
 	Image *image = (Image *)ptr->data;
 	if (BKE_imtype_is_movie(value) == 0) { /* should be able to throw an error here */
-		ImBuf *ibuf;
 		int ftype = BKE_imtype_to_ftype(value);
-
-#if 0
-		ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
-		if (ibuf)
-			ibuf->ftype = ftype;
-#endif
-
-		/* to be safe change all buffer file types */
-		/* TODO: this is never threadsafe */
-		for (ibuf = image->ibufs.first; ibuf; ibuf = ibuf->next) {
-			ibuf->ftype = ftype;
-		}
+		BKE_image_file_format_set(image, ftype);
 	}
 }
 
 static int rna_Image_has_data_get(PointerRNA *ptr)
 {
-	Image *im = (Image *)ptr->data;
+	Image *image = (Image *)ptr->data;
 
-	if (im->ibufs.first)
-		return 1;
-
-	return 0;
+	return BKE_image_has_loaded_ibuf(image);
 }
 
 static void rna_Image_size_get(PointerRNA *ptr, int *values)
@@ -590,6 +569,7 @@ static void rna_def_image(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "generated_width", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "gen_x");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 1, 65536);
 	RNA_def_property_ui_text(prop, "Generated Width", "Generated image width");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_generated_update");
@@ -597,6 +577,7 @@ static void rna_def_image(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "generated_height", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "gen_y");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 1, 65536);
 	RNA_def_property_ui_text(prop, "Generated Height", "Generated image height");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_generated_update");
@@ -618,7 +599,8 @@ static void rna_def_image(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "display_aspect", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "aspx");
 	RNA_def_property_array(prop, 2);
-	RNA_def_property_range(prop, 0.1f, 5000.0f);
+	RNA_def_property_range(prop, 0.1f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.1f, 5000.f, 1, 2);
 	RNA_def_property_ui_text(prop, "Display Aspect", "Display Aspect for this image, does not affect rendering");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
 
@@ -700,6 +682,7 @@ static void rna_def_image(BlenderRNA *brna)
 
 	prop = RNA_def_int_vector(srna, "size", 2, NULL, 0, 0, "Size",
 	                          "Width and height in pixels, zero when image data cant be loaded", 0, 0);
+	RNA_def_property_subtype(prop, PROP_PIXEL);
 	RNA_def_property_int_funcs(prop, "rna_Image_size_get", NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 

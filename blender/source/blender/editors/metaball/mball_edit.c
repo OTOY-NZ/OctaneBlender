@@ -91,7 +91,7 @@ void make_editMball(Object *obedit)
 }
 
 /* This function is called, when MetaBall Object switched from
- * edit mode to object mode. List od MetaElements is copied
+ * edit mode to object mode. List of MetaElements is copied
  * from object->data->edit_elems to object->data->elems. */
 void load_editMball(Object *UNUSED(obedit))
 {
@@ -131,7 +131,7 @@ static int mball_select_all_exec(bContext *C, wmOperator *op)
 	MetaElem *ml;
 	int action = RNA_enum_get(op->ptr, "action");
 
-	if (mb->editelems->first == NULL)
+	if (BLI_listbase_is_empty(mb->editelems))
 		return OPERATOR_CANCELLED;
 
 	if (action == SEL_TOGGLE) {
@@ -178,6 +178,193 @@ void MBALL_OT_select_all(wmOperatorType *ot)
 	WM_operator_properties_select_all(ot);
 }
 
+
+/* -------------------------------------------------------------------- */
+/* Select Similar */
+
+enum {
+	SIMMBALL_TYPE = 1,
+	SIMMBALL_RADIUS,
+	SIMMBALL_STIFFNESS,
+	SIMMBALL_ROTATION
+};
+
+static EnumPropertyItem prop_similar_types[] = {
+	{SIMMBALL_TYPE, "TYPE", 0, "Type", ""},
+	{SIMMBALL_RADIUS, "RADIUS", 0, "Radius", ""},
+    {SIMMBALL_STIFFNESS, "STIFFNESS", 0, "Stiffness", ""},
+	{SIMMBALL_ROTATION, "ROTATION", 0, "Rotation", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
+static bool mball_select_similar_type(MetaBall *mb)
+{
+	MetaElem *ml;
+	bool changed = false;
+
+	for (ml = mb->editelems->first; ml; ml = ml->next) {
+		if (ml->flag & SELECT) {
+			MetaElem *ml_iter;
+
+			for (ml_iter = mb->editelems->first; ml_iter; ml_iter = ml_iter->next) {
+				if ((ml_iter->flag & SELECT) == 0) {
+					if (ml->type == ml_iter->type) {
+						ml_iter->flag |= SELECT;
+						changed = true;
+					}
+				}
+			}
+		}
+	}
+
+	return changed;
+}
+
+static bool mball_select_similar_radius(MetaBall *mb, const float thresh)
+{
+	MetaElem *ml;
+	bool changed = false;
+
+	for (ml = mb->editelems->first; ml; ml = ml->next) {
+		if (ml->flag & SELECT) {
+			MetaElem *ml_iter;
+
+			for (ml_iter = mb->editelems->first; ml_iter; ml_iter = ml_iter->next) {
+				if ((ml_iter->flag & SELECT) == 0) {
+					if (fabsf(ml_iter->rad - ml->rad) <= (thresh * ml->rad)) {
+						ml_iter->flag |= SELECT;
+						changed = true;
+					}
+				}
+			}
+		}
+	}
+
+	return changed;
+}
+
+static bool mball_select_similar_stiffness(MetaBall *mb, const float thresh)
+{
+	MetaElem *ml;
+	bool changed = false;
+
+	for (ml = mb->editelems->first; ml; ml = ml->next) {
+		if (ml->flag & SELECT) {
+			MetaElem *ml_iter;
+
+			for (ml_iter = mb->editelems->first; ml_iter; ml_iter = ml_iter->next) {
+				if ((ml_iter->flag & SELECT) == 0) {
+					if (fabsf(ml_iter->s - ml->s) <= thresh) {
+						ml_iter->flag |= SELECT;
+						changed = true;
+					}
+				}
+			}
+		}
+	}
+
+	return changed;
+}
+
+static bool mball_select_similar_rotation(MetaBall *mb, const float thresh)
+{
+	const float thresh_rad = thresh * (float)M_PI_2;
+	MetaElem *ml;
+	bool changed = false;
+
+	for (ml = mb->editelems->first; ml; ml = ml->next) {
+		if (ml->flag & SELECT) {
+			MetaElem *ml_iter;
+
+			float ml_mat[3][3];
+
+			unit_m3(ml_mat);
+			mul_qt_v3(ml->quat, ml_mat[0]);
+			mul_qt_v3(ml->quat, ml_mat[1]);
+			mul_qt_v3(ml->quat, ml_mat[2]);
+			normalize_m3(ml_mat);
+
+			for (ml_iter = mb->editelems->first; ml_iter; ml_iter = ml_iter->next) {
+				if ((ml_iter->flag & SELECT) == 0) {
+					float ml_iter_mat[3][3];
+
+					unit_m3(ml_iter_mat);
+					mul_qt_v3(ml_iter->quat, ml_iter_mat[0]);
+					mul_qt_v3(ml_iter->quat, ml_iter_mat[1]);
+					mul_qt_v3(ml_iter->quat, ml_iter_mat[2]);
+					normalize_m3(ml_iter_mat);
+
+					if ((angle_normalized_v3v3(ml_mat[0], ml_iter_mat[0]) +
+					     angle_normalized_v3v3(ml_mat[1], ml_iter_mat[1]) +
+					     angle_normalized_v3v3(ml_mat[2], ml_iter_mat[2])) < thresh_rad)
+					{
+						ml_iter->flag |= SELECT;
+						changed = true;
+					}
+				}
+			}
+		}
+	}
+
+	return changed;
+}
+
+static int mball_select_similar_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	MetaBall *mb = (MetaBall *)obedit->data;
+
+	int type = RNA_enum_get(op->ptr, "type");
+	float thresh = RNA_float_get(op->ptr, "threshold");
+	bool changed = false;
+
+	switch (type) {
+		case SIMMBALL_TYPE:
+			changed = mball_select_similar_type(mb);
+			break;
+		case SIMMBALL_RADIUS:
+			changed = mball_select_similar_radius(mb, thresh);
+			break;
+		case SIMMBALL_STIFFNESS:
+			changed = mball_select_similar_stiffness(mb, thresh);
+			break;
+		case SIMMBALL_ROTATION:
+			changed = mball_select_similar_rotation(mb, thresh);
+			break;
+		default:
+			BLI_assert(0);
+			break;
+	}
+
+	if (changed) {
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void MBALL_OT_select_similar(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Similar";
+	ot->idname = "MBALL_OT_select_similar";
+
+	/* callback functions */
+	ot->invoke = WM_menu_invoke;
+	ot->exec = mball_select_similar_exec;
+	ot->poll = ED_operator_editmball;
+	ot->description = "Select similar metaballs by property types";
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	ot->prop = RNA_def_enum(ot->srna, "type", prop_similar_types, 0, "Type", "");
+
+	RNA_def_float(ot->srna, "threshold", 0.1, 0.0, 1.0, "Threshold", "", 0.01, 1.0);
+}
+
+
 /***************************** Select random operator *****************************/
 
 /* Random metaball selection */
@@ -186,20 +373,16 @@ static int select_random_metaelems_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	MetaBall *mb = (MetaBall *)obedit->data;
 	MetaElem *ml;
-	float percent = RNA_float_get(op->ptr, "percent");
+	const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
+	float percent = RNA_float_get(op->ptr, "percent") / 100.0f;
 	
-	if (percent == 0.0f)
-		return OPERATOR_CANCELLED;
-	
-	ml = mb->editelems->first;
-	
-	/* Stupid version of random selection. Should be improved. */
-	while (ml) {
-		if (BLI_frand() < percent)
-			ml->flag |= SELECT;
-		else
-			ml->flag &= ~SELECT;
-		ml = ml->next;
+	for (ml = mb->editelems->first; ml; ml = ml->next) {
+		if (BLI_frand() < percent) {
+			if (select)
+				ml->flag |= SELECT;
+			else
+				ml->flag &= ~SELECT;
+		}
 	}
 	
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
@@ -211,21 +394,20 @@ static int select_random_metaelems_exec(bContext *C, wmOperator *op)
 void MBALL_OT_select_random_metaelems(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Random...";
+	ot->name = "Select Random";
 	ot->description = "Randomly select metaelements";
 	ot->idname = "MBALL_OT_select_random_metaelems";
 	
 	/* callback functions */
 	ot->exec = select_random_metaelems_exec;
-	ot->invoke = WM_operator_props_popup;
 	ot->poll = ED_operator_editmball;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_float_percentage(ot->srna, "percent", 0.5f, 0.0f, 1.0f, "Percent",
-	                         "Percentage of metaelements to select randomly", 0.0001f, 1.0f);
+	RNA_def_float_percentage(ot->srna, "percent", 50.f, 0.0f, 100.0f, "Percent", "Percentage of elements to select randomly", 0.f, 100.0f);
+	WM_operator_properties_select_action_simple(ot, SEL_SELECT);
 }
 
 /***************************** Duplicate operator *****************************/
@@ -255,19 +437,6 @@ static int duplicate_metaelems_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-static int duplicate_metaelems_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-{
-	int retv = duplicate_metaelems_exec(C, op);
-	
-	if (retv == OPERATOR_FINISHED) {
-		RNA_enum_set(op->ptr, "mode", TFM_TRANSLATION);
-		WM_operator_name_call(C, "TRANSFORM_OT_transform", WM_OP_INVOKE_REGION_WIN, op->ptr);
-	}
-	
-	return retv;
-}
-
-
 void MBALL_OT_duplicate_metaelems(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -277,14 +446,10 @@ void MBALL_OT_duplicate_metaelems(wmOperatorType *ot)
 
 	/* callback functions */
 	ot->exec = duplicate_metaelems_exec;
-	ot->invoke = duplicate_metaelems_invoke;
 	ot->poll = ED_operator_editmball;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
-	/* to give to transform */
-	RNA_def_enum(ot->srna, "mode", transform_mode_types, TFM_TRANSLATION, "Mode", "");
 }
 
 /***************************** Delete operator *****************************/
@@ -537,7 +702,6 @@ static void *editMball_to_undoMball(void *lbe, void *UNUSED(obe))
 
 	/* allocate memory for undo ListBase */
 	lb = MEM_callocN(sizeof(ListBase), "listbase undo");
-	lb->first = lb->last = NULL;
 	
 	/* copy contents of current ListBase to the undo ListBase */
 	ml = editelems->first;
@@ -581,18 +745,17 @@ void undo_push_mball(bContext *C, const char *name)
 	undo_editmode_push(C, name, get_data, free_undoMball, undoMball_to_editMball, editMball_to_undoMball, NULL);
 }
 
-/* matrix is 4x4 */
-void ED_mball_transform(MetaBall *mb, float *mat)
+void ED_mball_transform(MetaBall *mb, float mat[4][4])
 {
 	MetaElem *me;
 	float quat[4];
-	const float scale = mat4_to_scale((float (*)[4])mat);
+	const float scale = mat4_to_scale(mat);
 	const float scale_sqrt = sqrtf(scale);
 
-	mat4_to_quat(quat, (float (*)[4])mat);
+	mat4_to_quat(quat, mat);
 
 	for (me = mb->elems.first; me; me = me->next) {
-		mul_m4_v3((float (*)[4])mat, &me->x);
+		mul_m4_v3(mat, &me->x);
 		mul_qt_qtqt(me->quat, quat, me->quat);
 		me->rad *= scale;
 		/* hrmf, probably elems shouldn't be
@@ -604,4 +767,5 @@ void ED_mball_transform(MetaBall *mb, float *mat)
 			mul_v3_fl(&me->expx, scale_sqrt);
 		}
 	}
+	DAG_id_tag_update(&mb->id, 0);
 }

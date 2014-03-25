@@ -86,7 +86,7 @@ static string opencl_kernel_build_options(const string& platform, const string *
 		build_options += "-D__KERNEL_OPENCL_NVIDIA__ -cl-nv-maxrregcount=32 -cl-nv-verbose ";
 
 	else if(platform == "Apple")
-		build_options += "-D__KERNEL_OPENCL_APPLE__ -Wno-missing-prototypes ";
+		build_options += "-D__KERNEL_OPENCL_APPLE__ ";
 
 	else if(platform == "AMD Accelerated Parallel Processing")
 		build_options += "-D__KERNEL_OPENCL_AMD__ ";
@@ -423,9 +423,8 @@ public:
 	}
 
 	OpenCLDevice(DeviceInfo& info, Stats &stats, bool background_)
-	  : Device(stats)
+	: Device(info, stats, background_)
 	{
-		background = background_;
 		cpPlatform = NULL;
 		cdDevice = NULL;
 		cxContext = NULL;
@@ -882,7 +881,7 @@ public:
 		mem_copy_to(*i->second);
 	}
 
-	void tex_alloc(const char *name, device_memory& mem, bool interpolation, bool periodic)
+	void tex_alloc(const char *name, device_memory& mem, InterpolationType interpolation, bool periodic)
 	{
 		mem_alloc(mem, MEM_READ_ONLY);
 		mem_copy_to(mem);
@@ -932,7 +931,7 @@ public:
 		size_t global_size[2] = {global_size_round_up(local_size[0], w), global_size_round_up(local_size[1], h)};
 
 		/* run kernel */
-		ciErr = clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_size, local_size, 0, NULL, NULL);
+		ciErr = clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_size, NULL, 0, NULL, NULL);
 		opencl_assert(ciErr);
 		opencl_assert(clFlush(cqCommandQueue));
 	}

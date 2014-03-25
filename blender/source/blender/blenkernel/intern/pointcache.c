@@ -1408,9 +1408,8 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 
 	if (scene && (duplis-- > 0) && (ob->transflag & OB_DUPLI)) {
 		ListBase *lb_dupli_ob;
-
 		/* don't update the dupli groups, we only want their pid's */
-		if ((lb_dupli_ob = object_duplilist_ex(scene, ob, FALSE, FALSE))) {
+		if ((lb_dupli_ob = object_duplilist_ex(G.main->eval_ctx, scene, ob, FALSE))) {
 			DupliObject *dob;
 			for (dob= lb_dupli_ob->first; dob; dob= dob->next) {
 				if (dob->ob != ob) { /* avoids recursive loops with dupliframes: bug 22988 */
@@ -1769,7 +1768,7 @@ static void ptcache_file_pointers_init(PTCacheFile *pf)
 /* Check to see if point number "index" is in pm, uses binary search for index data. */
 int BKE_ptcache_mem_index_find(PTCacheMem *pm, unsigned int index)
 {
-	if (pm->data[BPHYS_DATA_INDEX]) {
+	if (pm->totpoint > 0 && pm->data[BPHYS_DATA_INDEX]) {
 		unsigned int *data = pm->data[BPHYS_DATA_INDEX];
 		unsigned int mid, low = 0, high = pm->totpoint - 1;
 
@@ -3046,12 +3045,9 @@ static PointCache *ptcache_copy(PointCache *cache, int copy_data)
 
 	ncache= MEM_dupallocN(cache);
 
-	ncache->mem_cache.first = NULL;
-	ncache->mem_cache.last = NULL;
+	BLI_listbase_clear(&ncache->mem_cache);
 
 	if (copy_data == FALSE) {
-		ncache->mem_cache.first = NULL;
-		ncache->mem_cache.last = NULL;
 		ncache->cached_frames = NULL;
 
 		/* flag is a mix of user settings and simulator/baking state */
@@ -3090,7 +3086,7 @@ PointCache *BKE_ptcache_copy_list(ListBase *ptcaches_new, ListBase *ptcaches_old
 {
 	PointCache *cache = ptcaches_old->first;
 
-	ptcaches_new->first = ptcaches_new->last = NULL;
+	BLI_listbase_clear(ptcaches_new);
 
 	for (; cache; cache=cache->next)
 		BLI_addtail(ptcaches_new, ptcache_copy(cache, copy_data));
@@ -3159,7 +3155,7 @@ static void *ptcache_bake_thread(void *ptr)
 	efra = data->endframe;
 
 	for (; (*data->cfra_ptr <= data->endframe) && !data->break_operation; *data->cfra_ptr+=data->step) {
-		BKE_scene_update_for_newframe(data->main, data->scene, data->scene->lay);
+		BKE_scene_update_for_newframe(G.main->eval_ctx, data->main, data->scene, data->scene->lay);
 		if (G.background) {
 			printf("bake: frame %d :: %d\n", (int)*data->cfra_ptr, data->endframe);
 		}
@@ -3390,8 +3386,9 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	scene->r.framelen = frameleno;
 	CFRA = cfrao;
 	
-	if (bake) /* already on cfra unless baking */
-		BKE_scene_update_for_newframe(bmain, scene, scene->lay);
+	if (bake) { /* already on cfra unless baking */
+		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
+	}
 
 	if (thread_data.break_operation)
 		WM_cursor_wait(0);
@@ -3483,6 +3480,13 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 	BKE_ptcache_id_time(pid, NULL, 0.0f, NULL, NULL, NULL);
 
 	BKE_ptcache_update_info(pid);
+
+	if ((cache->flag & PTCACHE_DISK_CACHE) == 0) {
+		if (cache->index) {
+			BKE_object_delete_ptcache(pid->ob, cache->index);
+			cache->index = -1;
+		}
+	}
 }
 
 void BKE_ptcache_disk_cache_rename(PTCacheID *pid, const char *name_src, const char *name_dst)

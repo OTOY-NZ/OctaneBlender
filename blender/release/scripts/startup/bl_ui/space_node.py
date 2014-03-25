@@ -36,11 +36,7 @@ class NODE_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            row.menu("NODE_MT_view")
-            row.menu("NODE_MT_select")
-            row.menu("NODE_MT_add")
-            row.menu("NODE_MT_node")
+        NODE_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.prop(snode, "tree_type", text="", expand=True)
 
@@ -104,8 +100,8 @@ class NODE_HT_header(Header):
         # Snap
         row = layout.row(align=True)
         row.prop(toolsettings, "use_snap", text="")
-        row.prop(toolsettings, "snap_node_element", text="", icon_only=True)
-        if toolsettings.snap_node_element != 'INCREMENT':
+        row.prop(toolsettings, "snap_node_element", icon_only=True)
+        if toolsettings.snap_node_element != 'GRID':
             row.prop(toolsettings, "snap_target", text="")
 
         row = layout.row(align=True)
@@ -113,6 +109,21 @@ class NODE_HT_header(Header):
         row.operator("node.clipboard_paste", text="", icon='PASTEDOWN')
 
         layout.template_running_jobs()
+
+
+class NODE_MT_editor_menus(Menu):
+    bl_idname = "NODE_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        layout.menu("NODE_MT_view")
+        layout.menu("NODE_MT_select")
+        layout.menu("NODE_MT_add")
+        layout.menu("NODE_MT_node")
 
 
 class NODE_MT_add(bpy.types.Menu):
@@ -169,6 +180,7 @@ class NODE_MT_select(Menu):
         layout = self.layout
 
         layout.operator("node.select_border")
+        layout.operator("node.select_circle")
 
         layout.separator()
         layout.operator("node.select_all").action = 'TOGGLE'
@@ -233,7 +245,6 @@ class NODE_MT_node(Menu):
 
         layout.separator()
 
-        layout.operator("node.show_cyclic_dependencies")
         layout.operator("node.read_renderlayers")
         layout.operator("node.read_fullsamplelayers")
 
@@ -364,7 +375,7 @@ class NODE_PT_backdrop(Panel):
         col.prop(snode, "backdrop_x", text="X")
         col.prop(snode, "backdrop_y", text="Y")
         col.operator("node.backimage_move", text="Move")
-        
+
         layout.operator("node.backimage_fit", text="Fit")
 
 
@@ -395,7 +406,6 @@ class NODE_PT_quality(bpy.types.Panel):
         col.prop(tree, "use_two_pass")
         col.prop(tree, "use_viewer_border")
         col.prop(snode, "show_highlight")
-        col.prop(snode, "use_hidden_preview")
 
 
 class NODE_UL_interface_sockets(bpy.types.UIList):
@@ -407,13 +417,13 @@ class NODE_UL_interface_sockets(bpy.types.UIList):
             row = layout.row(align=True)
 
             # inputs get icon on the left
-            if socket.in_out == 'IN':
+            if not socket.is_output:
                 row.template_node_socket(color)
 
-            row.label(text=socket.name, icon_value=icon)
+            row.prop(socket, "name", text="", emboss=False, icon_value=icon)
 
             # outputs get icon on the right
-            if socket.in_out == 'OUT':
+            if socket.is_output:
                 row.template_node_socket(color)
 
         elif self.layout_type in {'GRID'}:

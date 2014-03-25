@@ -40,10 +40,9 @@
 #include <windows.h>
 #endif // WIN32
 
-#include "RAS_Polygon.h"
+#include "RAS_IPolygonMaterial.h"
 #include "RAS_TexVert.h"
 #include "RAS_IRasterizer.h"
-#include "RAS_IRenderTools.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"	// __NLA
 
@@ -581,25 +580,26 @@ list<RAS_MeshSlot>::iterator RAS_MaterialBucket::msEnd()
 	return m_meshSlots.end();
 }
 
-bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer* rasty,
-	RAS_IRenderTools *rendertools)
+bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
 	bool uselights;
 	
 	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !m_material->CastsShadows())
 		return false;
 
+	if (rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW && m_material->OnlyShadow())
+		return false;
+
 	if (!rasty->SetMaterial(*m_material))
 		return false;
 	
 	uselights= m_material->UsesLighting(rasty);
-	rendertools->ProcessLighting(rasty, uselights, cameratrans);
+	rasty->ProcessLighting(uselights, cameratrans);
 	
 	return true;
 }
 
-void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer* rasty,
-	RAS_IRenderTools* rendertools, RAS_MeshSlot &ms)
+void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer* rasty, RAS_MeshSlot &ms)
 {
 	m_material->ActivateMeshSlot(ms, rasty);
 
@@ -613,10 +613,10 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
 		ms.m_mesh->SortPolygons(ms, cameratrans*MT_Transform(ms.m_OpenGLMatrix));
 
-	rendertools->PushMatrix();
+	rasty->PushMatrix();
 	if (!ms.m_pDeformer || !ms.m_pDeformer->SkipVertexTransform())
 	{
-		rendertools->applyTransform(rasty,ms.m_OpenGLMatrix,m_material->GetDrawingMode());
+		rasty->applyTransform(ms.m_OpenGLMatrix,m_material->GetDrawingMode());
 	}
 
 	if (rasty->QueryLists())
@@ -641,7 +641,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 
 	// for text drawing using faces
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT)
-		rasty->IndexPrimitives_3DText(ms, m_material, rendertools);
+		rasty->IndexPrimitives_3DText(ms, m_material);
 	// for multitexturing
 	else if ((m_material->GetFlag() & (RAS_MULTITEX|RAS_BLENDERGLSL)))
 		rasty->IndexPrimitivesMulti(ms);
@@ -649,7 +649,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	else
 		rasty->IndexPrimitives(ms);
 
-	rendertools->PopMatrix();
+	rasty->PopMatrix();
 }
 
 void RAS_MaterialBucket::Optimize(MT_Scalar distance)

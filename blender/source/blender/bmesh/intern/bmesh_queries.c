@@ -41,15 +41,6 @@
 #include "intern/bmesh_private.h"
 
 /**
- * Returns whether or not a given vertex is
- * is part of a given edge.
- */
-bool BM_vert_in_edge(const BMEdge *e, const BMVert *v)
-{
-	return bmesh_vert_in_edge(e, v);
-}
-
-/**
  * \brief Other Loop in Face Sharing an Edge
  *
  * Finds the other loop that shares \a v with \a e loop in \a f.
@@ -188,6 +179,37 @@ BMLoop *BM_loop_other_vert_loop(BMLoop *l, BMVert *v)
 
 
 #endif
+}
+
+/**
+ * Given 2 verts, find the smallest face they share and give back both loops.
+ */
+BMFace *BM_vert_pair_share_face(BMVert *v_a, BMVert *v_b,
+                                BMLoop **r_l_a, BMLoop **r_l_b)
+{
+	BMLoop *l_cur_a = NULL, *l_cur_b = NULL;
+	BMFace *f_cur = NULL;
+
+	if (v_a->e && v_b->e) {
+		BMIter iter;
+		BMLoop *l_a, *l_b;
+
+		BM_ITER_ELEM (l_a, &iter, v_a, BM_LOOPS_OF_VERT) {
+			if ((f_cur == NULL) || (l_a->f->len < f_cur->len)) {
+				l_b = BM_face_vert_share_loop(l_a->f, v_b);
+				if (l_b) {
+					f_cur = l_a->f;
+					l_cur_a = l_a;
+					l_cur_b = l_b;
+				}
+			}
+		}
+	}
+
+	if (r_l_a) *r_l_a = l_cur_a;
+	if (r_l_b) *r_l_b = l_cur_b;
+
+	return f_cur;
 }
 
 /**
@@ -351,32 +373,6 @@ bool BM_edge_in_face(BMEdge *e, BMFace *f)
 	}
 
 	return false;
-}
-
-/**
- * Returns whether or not a given edge is is part of a given loop.
- */
-bool BM_edge_in_loop(BMEdge *e, BMLoop *l)
-{
-	return (l->e == e || l->prev->e == e);
-}
-
-/**
- * Returns whether or not two vertices are in
- * a given edge
- */
-bool BM_verts_in_edge(BMVert *v1, BMVert *v2, BMEdge *e)
-{
-	return bmesh_verts_in_edge(v1, v2, e);
-}
-
-/**
- * Given a edge and one of its vertices, returns
- * the other vertex.
- */
-BMVert *BM_edge_other_vert(BMEdge *e, BMVert *v)
-{
-	return bmesh_edge_other_vert_get(e, v);
 }
 
 /**
@@ -665,15 +661,6 @@ bool BM_vert_is_wire(const BMVert *v)
 }
 
 /**
- * Tests whether or not the edge is part of a wire.
- * (ie: has no faces attached to it)
- */
-bool BM_edge_is_wire(const BMEdge *e)
-{
-	return (e->l == NULL);
-}
-
-/**
  * A vertex is non-manifold if it meets the following conditions:
  * 1: Loose - (has no edges/faces incident upon it).
  * 2: Joins two distinct regions - (two pyramids joined at the tip).
@@ -740,44 +727,6 @@ bool BM_vert_is_manifold(const BMVert *v)
 }
 
 /**
- * Tests whether or not this edge is manifold.
- * A manifold edge has exactly 2 faces attached to it.
- */
-
-#if 1 /* fast path for checking manifold */
-bool BM_edge_is_manifold(const BMEdge *e)
-{
-	const BMLoop *l = e->l;
-	return (l && (l->radial_next != l) &&             /* not 0 or 1 face users */
-	             (l->radial_next->radial_next == l)); /* 2 face users */
-}
-#else
-int BM_edge_is_manifold(BMEdge *e)
-{
-	int count = BM_edge_face_count(e);
-	if (count == 2) {
-		return true;
-	}
-	else {
-		return false;
-	}
-}
-#endif
-
-/**
- * Tests that the edge is manifold and
- * that both its faces point the same way.
- */
-bool BM_edge_is_contiguous(const BMEdge *e)
-{
-	const BMLoop *l = e->l;
-	const BMLoop *l_other;
-	return (l && ((l_other = l->radial_next) != l) &&  /* not 0 or 1 face users */
-	             (l_other->radial_next == l) &&        /* 2 face users */
-	             (l_other->v != l->v));
-}
-
-/**
  * Check if the edge is convex or concave
  * (depends on face winding)
  */
@@ -797,30 +746,6 @@ bool BM_edge_is_convex(const BMEdge *e)
 	}
 	return true;
 }
-
-/**
- * Tests whether or not an edge is on the boundary
- * of a shell (has one face associated with it)
- */
-
-#if 1 /* fast path for checking boundary */
-bool BM_edge_is_boundary(const BMEdge *e)
-{
-	const BMLoop *l = e->l;
-	return (l && (l->radial_next == l));
-}
-#else
-int BM_edge_is_boundary(BMEdge *e)
-{
-	int count = BM_edge_face_count(e);
-	if (count == 1) {
-		return true;
-	}
-	else {
-		return false;
-	}
-}
-#endif
 
 bool BM_vert_is_boundary(const BMVert *v)
 {
@@ -1202,7 +1127,7 @@ void BM_loop_calc_face_tangent(BMLoop *l, float r_tangent[3])
  *
  * \return angle in radians
  */
-float BM_edge_calc_face_angle(const BMEdge *e)
+float BM_edge_calc_face_angle_ex(const BMEdge *e, const float fallback)
 {
 	if (BM_edge_is_manifold(e)) {
 		const BMLoop *l1 = e->l;
@@ -1210,8 +1135,12 @@ float BM_edge_calc_face_angle(const BMEdge *e)
 		return angle_normalized_v3v3(l1->f->no, l2->f->no);
 	}
 	else {
-		return DEG2RADF(90.0f);
+		return fallback;
 	}
+}
+float BM_edge_calc_face_angle(const BMEdge *e)
+{
+	return BM_edge_calc_face_angle_ex(e, DEG2RADF(90.0f));
 }
 
 /**
@@ -1222,7 +1151,7 @@ float BM_edge_calc_face_angle(const BMEdge *e)
  *
  * \return angle in radians
  */
-float BM_edge_calc_face_angle_signed(const BMEdge *e)
+float BM_edge_calc_face_angle_signed_ex(const BMEdge *e, const float fallback)
 {
 	if (BM_edge_is_manifold(e)) {
 		BMLoop *l1 = e->l;
@@ -1231,8 +1160,12 @@ float BM_edge_calc_face_angle_signed(const BMEdge *e)
 		return BM_edge_is_convex(e) ? angle : -angle;
 	}
 	else {
-		return DEG2RADF(90.0f);
+		return fallback;
 	}
+}
+float BM_edge_calc_face_angle_signed(const BMEdge *e)
+{
+	return BM_edge_calc_face_angle_signed_ex(e, DEG2RADF(90.0f));
 }
 
 /**
@@ -1390,10 +1323,10 @@ BMLoop *BM_face_find_shortest_loop(BMFace *f)
 	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
 
 	do {
-		const float len = len_squared_v3v3(l_iter->v->co, l_iter->next->v->co);
-		if (len <= shortest_len) {
+		const float len_sq = len_squared_v3v3(l_iter->v->co, l_iter->next->v->co);
+		if (len_sq <= shortest_len) {
 			shortest_loop = l_iter;
-			shortest_len = len;
+			shortest_len = len_sq;
 		}
 	} while ((l_iter = l_iter->next) != l_first);
 
@@ -1406,7 +1339,7 @@ BMLoop *BM_face_find_shortest_loop(BMFace *f)
 BMLoop *BM_face_find_longest_loop(BMFace *f)
 {
 	BMLoop *longest_loop = NULL;
-	float longest_len = 0.0f;
+	float len_max_sq = 0.0f;
 
 	BMLoop *l_iter;
 	BMLoop *l_first;
@@ -1414,10 +1347,10 @@ BMLoop *BM_face_find_longest_loop(BMFace *f)
 	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
 
 	do {
-		const float len = len_squared_v3v3(l_iter->v->co, l_iter->next->v->co);
-		if (len >= longest_len) {
+		const float len_sq = len_squared_v3v3(l_iter->v->co, l_iter->next->v->co);
+		if (len_sq >= len_max_sq) {
 			longest_loop = l_iter;
-			longest_len = len;
+			len_max_sq = len_sq;
 		}
 	} while ((l_iter = l_iter->next) != l_first);
 
@@ -1425,26 +1358,56 @@ BMLoop *BM_face_find_longest_loop(BMFace *f)
 }
 
 /**
- * Returns the edge existing between v1 and v2, or NULL if there isn't one.
+ * Returns the edge existing between \a v_a and \a v_b, or NULL if there isn't one.
  *
  * \note multiple edges may exist between any two vertices, and therefore
  * this function only returns the first one found.
  */
-BMEdge *BM_edge_exists(BMVert *v1, BMVert *v2)
+#if 0
+BMEdge *BM_edge_exists(BMVert *v_a, BMVert *v_b)
 {
 	BMIter iter;
 	BMEdge *e;
 
-	BLI_assert(v1 != v2);
-	BLI_assert(v1->head.htype == BM_VERT && v2->head.htype == BM_VERT);
 
-	BM_ITER_ELEM (e, &iter, v1, BM_EDGES_OF_VERT) {
-		if (e->v1 == v2 || e->v2 == v2)
+	BLI_assert(v_a != v_b);
+	BLI_assert(v_a->head.htype == BM_VERT && v_b->head.htype == BM_VERT);
+
+	BM_ITER_ELEM (e, &iter, v_a, BM_EDGES_OF_VERT) {
+		if (e->v1 == v_b || e->v2 == v_b)
 			return e;
 	}
 
 	return NULL;
 }
+#else
+BMEdge *BM_edge_exists(BMVert *v_a, BMVert *v_b)
+{
+	/* speedup by looping over both edges verts
+	 * where one vert may connect to many edges but not the other. */
+
+	BMEdge *e_a, *e_b;
+
+	BLI_assert(v_a != v_b);
+	BLI_assert(v_a->head.htype == BM_VERT && v_b->head.htype == BM_VERT);
+
+	if ((e_a = v_a->e) && (e_b = v_b->e)) {
+		BMEdge *e_a_iter = e_a, *e_b_iter = e_b;
+
+		do {
+			if (BM_vert_in_edge(e_a_iter, v_b)) {
+				return e_a_iter;
+			}
+			if (BM_vert_in_edge(e_b_iter, v_a)) {
+				return e_b_iter;
+			}
+		} while (((e_a_iter = bmesh_disk_edge_next(e_a_iter, v_a)) != e_a) &&
+		         ((e_b_iter = bmesh_disk_edge_next(e_b_iter, v_b)) != e_b));
+	}
+
+	return NULL;
+}
+#endif
 
 /**
  * Returns an edge sharing the same vertices as this one.
@@ -1478,8 +1441,8 @@ BMEdge *BM_edge_find_double(BMEdge *e)
 bool BM_face_exists(BMVert **varr, int len, BMFace **r_existface)
 {
 	BMVert *v_search = varr[0];  /* we can search any of the verts in the array */
-	BMIter viter;
-	BMFace *f;
+	BMIter liter;
+	BMLoop *l_search;
 
 
 #if 0
@@ -1507,8 +1470,8 @@ bool BM_face_exists(BMVert **varr, int len, BMFace **r_existface)
 	int i;
 
 
-	BM_ITER_ELEM (f, &viter, v_search, BM_FACES_OF_VERT) {
-		if (f->len == len) {
+	BM_ITER_ELEM (l_search, &liter, v_search, BM_LOOPS_OF_VERT) {
+		if (l_search->f->len == len) {
 			if (is_init == false) {
 				is_init = true;
 				for (i = 0; i < len; i++) {
@@ -1521,21 +1484,21 @@ bool BM_face_exists(BMVert **varr, int len, BMFace **r_existface)
 
 			{
 				BMLoop *l_iter;
-				BMLoop *l_first;
 
-				l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+				/* skip ourselves */
+				l_iter  = l_search->next;
 
 				do {
 					if (!BM_ELEM_API_FLAG_TEST(l_iter->v, _FLAG_OVERLAP)) {
 						is_found = false;
 						break;
 					}
-				} while ((l_iter = l_iter->next) != l_first);
+				} while ((l_iter = l_iter->next) != l_search);
 			}
 
 			if (is_found) {
 				if (r_existface) {
-					*r_existface = f;
+					*r_existface = l_search->f;
 				}
 				break;
 			}
@@ -1836,6 +1799,60 @@ bool BM_face_exists_overlap_subset(BMVert **varr, const int len)
 	return is_overlap;
 }
 
+bool BM_vert_is_all_edge_flag_test(const BMVert *v, const char hflag, const bool respect_hide)
+{
+	if (v->e) {
+		BMEdge *e_other;
+		BMIter eiter;
+
+		BM_ITER_ELEM (e_other, &eiter, (BMVert *)v, BM_EDGES_OF_VERT) {
+			if (!respect_hide || !BM_elem_flag_test(e_other, BM_ELEM_HIDDEN)) {
+				if (!BM_elem_flag_test(e_other, hflag)) {
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+bool BM_vert_is_all_face_flag_test(const BMVert *v, const char hflag, const bool respect_hide)
+{
+	if (v->e) {
+		BMEdge *f_other;
+		BMIter fiter;
+
+		BM_ITER_ELEM (f_other, &fiter, (BMVert *)v, BM_FACES_OF_VERT) {
+			if (!respect_hide || !BM_elem_flag_test(f_other, BM_ELEM_HIDDEN)) {
+				if (!BM_elem_flag_test(f_other, hflag)) {
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+
+bool BM_edge_is_all_face_flag_test(const BMEdge *e, const char hflag, const bool respect_hide)
+{
+	if (e->l) {
+		BMLoop *l_iter, *l_first;
+
+		l_iter = l_first = e->l;
+		do {
+			if (!respect_hide || !BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
+				if (!BM_elem_flag_test(l_iter->f, hflag)) {
+					return false;
+				}
+			}
+		} while ((l_iter = l_iter->radial_next) != l_first);
+	}
+
+	return true;
+}
 
 /* convenience functions for checking flags */
 bool BM_edge_is_any_vert_flag_test(const BMEdge *e, const char hflag)
@@ -1886,13 +1903,12 @@ bool BM_face_is_normal_valid(const BMFace *f)
 
 static void bm_mesh_calc_volume_face(const BMFace *f, float *r_vol)
 {
-	int tottri = f->len - 2;
-	BMLoop **loops     = BLI_array_alloca(loops, f->len);
-	int    (*index)[3] = BLI_array_alloca(index, tottri);
+	const int tottri = f->len - 2;
+	BMLoop **loops = BLI_array_alloca(loops, f->len);
+	unsigned int (*index)[3] = BLI_array_alloca(index, tottri);
 	int j;
 
-	tottri = BM_face_calc_tessellation(f, loops, index);
-	BLI_assert(tottri <= f->len - 2);
+	BM_face_calc_tessellation(f, loops, index);
 
 	for (j = 0; j < tottri; j++) {
 		const float *p1 = loops[index[j][0]]->v->co;

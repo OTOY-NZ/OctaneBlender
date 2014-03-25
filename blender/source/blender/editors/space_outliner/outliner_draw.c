@@ -480,8 +480,8 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					Object *ob;
 					char newname[sizeof(bone->name)];
 					
-					// always make current object active
-					tree_element_active(C, scene, soops, te, 1); // was set_active_object()
+					/* always make current object active */
+					tree_element_active(C, scene, soops, te, OL_SETSEL_NORMAL);
 					ob = OBACT;
 					
 					/* restore bone name */
@@ -497,8 +497,8 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					Object *ob;
 					char newname[sizeof(pchan->name)];
 					
-					// always make current object active
-					tree_element_active(C, scene, soops, te, 1); // was set_active_object()
+					/* always make current pose-bone active */
+					tree_element_active(C, scene, soops, te, OL_SETSEL_NORMAL);
 					ob = OBACT;
 					
 					/* restore bone name */
@@ -534,35 +534,44 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 	Object *ob = NULL;
 	Group  *gr = NULL;
 
+	PropertyRNA *object_prop_hide, *object_prop_hide_select, *object_prop_hide_render;
+
+	/* get RNA properties (once) */
+	object_prop_hide = RNA_struct_type_find_property(&RNA_Object, "hide");
+	object_prop_hide_select = RNA_struct_type_find_property(&RNA_Object, "hide_select");
+	object_prop_hide_render = RNA_struct_type_find_property(&RNA_Object, "hide_render");
+	BLI_assert(object_prop_hide && object_prop_hide_select  && object_prop_hide_render);
+
+
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
 		if (te->ys + 2 * UI_UNIT_Y >= ar->v2d.cur.ymin && te->ys <= ar->v2d.cur.ymax) {
 			/* objects have toggle-able restriction flags */
 			if (tselem->type == 0 && te->idcode == ID_OB) {
 				PointerRNA ptr;
-				
+
 				ob = (Object *)tselem->id;
 				RNA_pointer_create((ID *)ob, &RNA_Object, ob, &ptr);
-				
+
 				uiBlockSetEmboss(block, UI_EMBOSSN);
-				bt = uiDefIconButR(block, ICONTOG, 0, ICON_RESTRICT_VIEW_OFF,
-				                   (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX), te->ys, UI_UNIT_X, UI_UNIT_Y,
-				                   &ptr, "hide", -1, 0, 0, -1, -1,
-				                   TIP_("Restrict viewport visibility (Ctrl - Recursive)"));
+				bt = uiDefIconButR_prop(block, ICONTOG, 0, ICON_RESTRICT_VIEW_OFF,
+				                        (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX), te->ys, UI_UNIT_X, UI_UNIT_Y,
+				                        &ptr, object_prop_hide, -1, 0, 0, -1, -1,
+				                        TIP_("Restrict viewport visibility (Ctrl - Recursive)"));
 				uiButSetFunc(bt, restrictbutton_view_cb, scene, ob);
 				uiButSetFlag(bt, UI_BUT_DRAG_LOCK);
 				
-				bt = uiDefIconButR(block, ICONTOG, 0, ICON_RESTRICT_SELECT_OFF,
-				                   (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX), te->ys, UI_UNIT_X, UI_UNIT_Y,
-				                   &ptr, "hide_select", -1, 0, 0, -1, -1,
-				                   TIP_("Restrict viewport selection (Ctrl - Recursive)"));
+				bt = uiDefIconButR_prop(block, ICONTOG, 0, ICON_RESTRICT_SELECT_OFF,
+				                        (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX), te->ys, UI_UNIT_X, UI_UNIT_Y,
+				                        &ptr, object_prop_hide_select, -1, 0, 0, -1, -1,
+				                        TIP_("Restrict viewport selection (Ctrl - Recursive)"));
 				uiButSetFunc(bt, restrictbutton_sel_cb, scene, ob);
 				uiButSetFlag(bt, UI_BUT_DRAG_LOCK);
 				
-				bt = uiDefIconButR(block, ICONTOG, 0, ICON_RESTRICT_RENDER_OFF,
-				                   (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), te->ys, UI_UNIT_X, UI_UNIT_Y,
-				                   &ptr, "hide_render", -1, 0, 0, -1, -1,
-				                   TIP_("Restrict rendering (Ctrl - Recursive)"));
+				bt = uiDefIconButR_prop(block, ICONTOG, 0, ICON_RESTRICT_RENDER_OFF,
+				                        (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), te->ys, UI_UNIT_X, UI_UNIT_Y,
+				                        &ptr, object_prop_hide_render, -1, 0, 0, -1, -1,
+				                        TIP_("Restrict rendering (Ctrl - Recursive)"));
 				uiButSetFunc(bt, restrictbutton_rend_cb, scene, ob);
 				uiButSetFlag(bt, UI_BUT_DRAG_LOCK);
 				
@@ -765,286 +774,6 @@ static void outliner_draw_rnabuts(uiBlock *block, Scene *scene, ARegion *ar, Spa
 	uiBlockSetEmboss(block, UI_EMBOSS);
 }
 
-static void operator_call_cb(struct bContext *UNUSED(C), void *arg_kmi, void *arg2)
-{
-	wmOperatorType *ot = arg2;
-	wmKeyMapItem *kmi = arg_kmi;
-	
-	if (ot)
-		BLI_strncpy(kmi->idname, ot->idname, OP_MAX_TYPENAME);
-}
-
-static void operator_search_cb(const struct bContext *UNUSED(C), void *UNUSED(arg_kmi),
-                               const char *str, uiSearchItems *items)
-{
-	GHashIterator *iter = WM_operatortype_iter();
-
-	for (; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
-		wmOperatorType *ot = BLI_ghashIterator_getValue(iter);
-		
-		if (BLI_strcasestr(ot->idname, str)) {
-			char name[OP_MAX_TYPENAME];
-			
-			/* display name for menu */
-			WM_operator_py_idname(name, ot->idname);
-			
-			if (false == uiSearchItemAdd(items, name, ot, 0))
-				break;
-		}
-	}
-	BLI_ghashIterator_free(iter);
-}
-
-/* operator Search browse menu, open */
-static uiBlock *operator_search_menu(bContext *C, ARegion *ar, void *arg_kmi)
-{
-	static char search[OP_MAX_TYPENAME];
-	wmEvent event;
-	wmWindow *win = CTX_wm_window(C);
-	wmKeyMapItem *kmi = arg_kmi;
-	wmOperatorType *ot = WM_operatortype_find(kmi->idname, 0);
-	uiBlock *block;
-	uiBut *but;
-	
-	/* clear initial search string, then all items show */
-	search[0] = 0;
-	
-	block = uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
-	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_SEARCH_MENU);
-	
-	/* fake button, it holds space for search items */
-	uiDefBut(block, LABEL, 0, "", 10, 15, uiSearchBoxWidth(), uiSearchBoxHeight(), NULL, 0, 0, 0, 0, NULL);
-	
-	but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 0, 150, UI_UNIT_Y, 0, 0, "");
-	uiButSetSearchFunc(but, operator_search_cb, arg_kmi, operator_call_cb, ot);
-	
-	uiBoundsBlock(block, 6);
-	uiBlockSetDirection(block, UI_DOWN);
-	uiEndBlock(C, block);
-	
-	wm_event_init_from_window(win, &event);
-	event.type = EVT_BUT_OPEN;
-	event.val = KM_PRESS;
-	event.customdata = but;
-	event.customdatafree = FALSE;
-	wm_event_add(win, &event);
-	
-	return block;
-}
-
-#define OL_KM_KEYBOARD      0
-#define OL_KM_MOUSE         1
-#define OL_KM_TWEAK         2
-#define OL_KM_SPECIALS      3
-
-static short keymap_menu_type(short type)
-{
-	if (ISKEYBOARD(type)) return OL_KM_KEYBOARD;
-	if (ISTWEAK(type)) return OL_KM_TWEAK;
-	if (ISMOUSE(type)) return OL_KM_MOUSE;
-//	return OL_KM_SPECIALS;
-	return 0;
-}
-
-static const char *keymap_type_menu(void)
-{
-	static const char string[] =
-	    "Event Type%t"
-	    "|Keyboard%x" STRINGIFY(OL_KM_KEYBOARD)
-	    "|Mouse%x" STRINGIFY(OL_KM_MOUSE)
-	    "|Tweak%x" STRINGIFY(OL_KM_TWEAK)
-//	"|Specials%x" STRINGIFY(OL_KM_SPECIALS)
-	;
-
-	return string;
-}
-
-static const char *keymap_mouse_menu(void)
-{
-	static const char string[] =
-	    "Mouse Event%t"
-	    "|Left Mouse%x" STRINGIFY(LEFTMOUSE)
-	    "|Middle Mouse%x" STRINGIFY(MIDDLEMOUSE)
-	    "|Right Mouse%x" STRINGIFY(RIGHTMOUSE)
-	    "|Middle Mouse%x" STRINGIFY(MIDDLEMOUSE)
-	    "|Right Mouse%x" STRINGIFY(RIGHTMOUSE)
-	    "|Button4 Mouse%x" STRINGIFY(BUTTON4MOUSE)
-	    "|Button5 Mouse%x" STRINGIFY(BUTTON5MOUSE)
-	    "|Action Mouse%x" STRINGIFY(ACTIONMOUSE)
-	    "|Select Mouse%x" STRINGIFY(SELECTMOUSE)
-	    "|Mouse Move%x" STRINGIFY(MOUSEMOVE)
-	    "|Wheel Up%x" STRINGIFY(WHEELUPMOUSE)
-	    "|Wheel Down%x" STRINGIFY(WHEELDOWNMOUSE)
-	    "|Wheel In%x" STRINGIFY(WHEELINMOUSE)
-	    "|Wheel Out%x" STRINGIFY(WHEELOUTMOUSE)
-	    "|Mouse/Trackpad Pan%x" STRINGIFY(MOUSEPAN)
-	    "|Mouse/Trackpad Zoom%x" STRINGIFY(MOUSEZOOM)
-	    "|Mouse/Trackpad Rotate%x" STRINGIFY(MOUSEROTATE)
-	;
-
-	return string;
-}
-
-static const char *keymap_tweak_menu(void)
-{
-	static const char string[] =
-	    "Tweak Event%t"
-	    "|Left Mouse%x" STRINGIFY(EVT_TWEAK_L)
-	    "|Middle Mouse%x" STRINGIFY(EVT_TWEAK_M)
-	    "|Right Mouse%x" STRINGIFY(EVT_TWEAK_R)
-	    "|Action Mouse%x" STRINGIFY(EVT_TWEAK_A)
-	    "|Select Mouse%x" STRINGIFY(EVT_TWEAK_S)
-	;
-
-	return string;
-}
-
-static const char *keymap_tweak_dir_menu(void)
-{
-	static const char string[] =
-	    "Tweak Direction%t"
-	    "|Any%x" STRINGIFY(KM_ANY)
-	    "|North%x" STRINGIFY(EVT_GESTURE_N)
-	    "|North-East%x" STRINGIFY(EVT_GESTURE_NE)
-	    "|East%x" STRINGIFY(EVT_GESTURE_E)
-	    "|Sout-East%x" STRINGIFY(EVT_GESTURE_SE)
-	    "|South%x" STRINGIFY(EVT_GESTURE_S)
-	    "|South-West%x" STRINGIFY(EVT_GESTURE_SW)
-	    "|West%x" STRINGIFY(EVT_GESTURE_W)
-	    "|North-West%x" STRINGIFY(EVT_GESTURE_NW)
-	;
-
-	return string;
-}
-
-
-static void keymap_type_cb(bContext *C, void *kmi_v, void *UNUSED(arg_v))
-{
-	wmKeyMapItem *kmi = kmi_v;
-	short maptype = keymap_menu_type(kmi->type);
-	
-	if (maptype != kmi->maptype) {
-		switch (kmi->maptype) {
-			case OL_KM_KEYBOARD:
-				kmi->type = AKEY;
-				kmi->val = KM_PRESS;
-				break;
-			case OL_KM_MOUSE:
-				kmi->type = LEFTMOUSE;
-				kmi->val = KM_PRESS;
-				break;
-			case OL_KM_TWEAK:
-				kmi->type = EVT_TWEAK_L;
-				kmi->val = KM_ANY;
-				break;
-			case OL_KM_SPECIALS:
-				kmi->type = AKEY;
-				kmi->val = KM_PRESS;
-				break;
-		}
-		ED_region_tag_redraw(CTX_wm_region(C));
-	}
-}
-
-static void outliner_draw_keymapbuts(uiBlock *block, ARegion *ar, SpaceOops *soops, ListBase *lb)
-{
-	TreeElement *te;
-	TreeStoreElem *tselem;
-	
-	uiBlockSetEmboss(block, UI_EMBOSST);
-	
-	for (te = lb->first; te; te = te->next) {
-		tselem = TREESTORE(te);
-		if (te->ys + 2 * UI_UNIT_Y >= ar->v2d.cur.ymin && te->ys <= ar->v2d.cur.ymax) {
-			uiBut *but;
-			const char *str;
-			int xstart = 240;
-			int butw1 = UI_UNIT_X; /* operator */
-			int butw2 = 90; /* event type, menus */
-			int butw3 = 43; /* modifiers */
-
-			if (tselem->type == TSE_KEYMAP_ITEM) {
-				wmKeyMapItem *kmi = te->directdata;
-				
-				/* modal map? */
-				if (kmi->propvalue) {
-					/* pass */
-				}
-				else {
-					uiDefBlockBut(block, operator_search_menu, kmi, "", xstart, te->ys + 1, butw1, UI_UNIT_Y - 1,
-					              TIP_("Assign new Operator"));
-				}
-				xstart += butw1 + 10;
-				
-				/* map type button */
-				kmi->maptype = keymap_menu_type(kmi->type);
-				
-				str = keymap_type_menu();
-				but = uiDefButS(block, MENU, 0, str,    xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->maptype,
-				                0, 0, 0, 0, TIP_("Event type"));
-				uiButSetFunc(but, keymap_type_cb, kmi, NULL);
-				xstart += butw2 + 5;
-				
-				/* edit actual event */
-				switch (kmi->maptype) {
-					case OL_KM_KEYBOARD:
-						uiDefKeyevtButS(block, 0, "", xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->type,
-						                TIP_("Key code"));
-						xstart += butw2 + 5;
-						break;
-					case OL_KM_MOUSE:
-						str = keymap_mouse_menu();
-						uiDefButS(block, MENU, 0, str, xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->type,
-						          0, 0, 0, 0, TIP_("Mouse button"));
-						xstart += butw2 + 5;
-						break;
-					case OL_KM_TWEAK:
-						str = keymap_tweak_menu();
-						uiDefButS(block, MENU, 0, str, xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->type,
-						          0, 0, 0, 0, TIP_("Tweak gesture"));
-						xstart += butw2 + 5;
-						str = keymap_tweak_dir_menu();
-						uiDefButS(block, MENU, 0, str, xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->val,
-						          0, 0, 0, 0, TIP_("Tweak gesture direction"));
-						xstart += butw2 + 5;
-						break;
-				}
-				
-				/* modifiers */
-				uiDefButS(block, OPTION, 0, IFACE_("Shift"), xstart, te->ys + 1, butw3 + 5, UI_UNIT_Y - 1,
-				          &kmi->shift, 0, 0, 0, 0, TIP_("Modifier"));
-				xstart += butw3 + 5;
-				uiDefButS(block, OPTION, 0, IFACE_("Ctrl"), xstart, te->ys + 1, butw3, UI_UNIT_Y - 1, &kmi->ctrl,
-				          0, 0, 0, 0, TIP_("Modifier"));
-				xstart += butw3;
-				uiDefButS(block, OPTION, 0, IFACE_("Alt"), xstart, te->ys + 1, butw3, UI_UNIT_Y - 1, &kmi->alt,
-				          0, 0, 0, 0, TIP_("Modifier"));
-				xstart += butw3;
-				uiDefButS(block, OPTION, 0, IFACE_("OS"), xstart, te->ys + 1, butw3, UI_UNIT_Y - 1, &kmi->oskey,
-				          0, 0, 0, 0, TIP_("Modifier"));
-				xstart += butw3 + 5;
-				uiDefKeyevtButS(block, 0, "", xstart, te->ys + 1, butw3, UI_UNIT_Y - 1, &kmi->keymodifier,
-				                TIP_("Key Modifier code"));
-				xstart += butw3 + 5;
-				
-				/* rna property */
-				if (kmi->ptr && kmi->ptr->data) {
-					uiDefBut(block, LABEL, 0, IFACE_("(RNA property)"), xstart, te->ys + 1, butw2, UI_UNIT_Y - 1,
-					         NULL, 0, 0, 0, 0, "");
-					xstart += butw2;
-				}
-
-				(void)xstart;
-			}
-		}
-		
-		if (TSELEM_OPEN(tselem, soops)) outliner_draw_keymapbuts(block, ar, soops, &te->subtree);
-	}
-
-	uiBlockSetEmboss(block, UI_EMBOSS);
-}
-
-
 static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, TreeElement *te)
 {
 	uiBut *bt;
@@ -1245,6 +974,10 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 						UI_icon_draw(x, y, ICON_MOD_TRIANGULATE); break;
 					case eModifierType_MeshCache:
 						UI_icon_draw(x, y, ICON_MOD_MESHDEFORM); break;  /* XXX, needs own icon */
+					case eModifierType_Wireframe:
+						UI_icon_draw(x, y, ICON_MOD_WIREFRAME); break;
+					case eModifierType_LaplacianDeform:
+						UI_icon_draw(x, y, ICON_MOD_MESHDEFORM); break;  /* XXX, needs own icon */
 					/* Default */
 					case eModifierType_None:
 					case eModifierType_ShapeKey:
@@ -1389,7 +1122,7 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 			case ID_LI:
 				tselem_draw_icon_uibut(&arg, ICON_LIBRARY_DATA_DIRECT); break;
 			case ID_LS:
-				tselem_draw_icon_uibut(&arg, ICON_BRUSH_DATA); break; /* FIXME proper icon */
+				tselem_draw_icon_uibut(&arg, ICON_LINE_DATA); break;
 		}
 	}
 }
@@ -1399,7 +1132,7 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Spa
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
-	int active;
+	eOLDrawState active;
 
 	for (te = lb->first; te; te = te->next) {
 		
@@ -1415,20 +1148,20 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Spa
 			/* active blocks get white circle */
 			if (tselem->type == 0) {
 				if (te->idcode == ID_OB) {
-					active = (OBACT == (Object *)tselem->id);
+					active = (OBACT == (Object *)tselem->id) ? OL_DRAWSEL_NORMAL : OL_DRAWSEL_NONE;
 				}
 				else if (scene->obedit && scene->obedit->data == tselem->id) {
-					active = 1;  // XXX use context?
+					active = OL_DRAWSEL_NORMAL;
 				}
 				else {
-					active = tree_element_active(C, scene, soops, te, 0);
+					active = tree_element_active(C, scene, soops, te, OL_SETSEL_NONE);
 				}
 			}
 			else {
-				active = tree_element_type_active(NULL, scene, soops, te, tselem, 0, false);
+				active = tree_element_type_active(NULL, scene, soops, te, tselem, OL_SETSEL_NONE, false);
 			}
 
-			if (active) {
+			if (active != OL_DRAWSEL_NONE) {
 				float ufac = UI_UNIT_X / 20.0f;
 
 				uiSetRoundBox(UI_CNR_ALL);
@@ -1478,7 +1211,8 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 	TreeElement *ten;
 	TreeStoreElem *tselem;
 	float ufac = UI_UNIT_X / 20.0f;
-	int offsx = 0, active = 0; // active=1 active obj, else active data
+	int offsx = 0;
+	eOLDrawState active = OL_DRAWSEL_NONE;
 	
 	tselem = TREESTORE(te);
 
@@ -1516,7 +1250,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 			if (te->idcode == ID_SCE) {
 				if (tselem->id == (ID *)scene) {
 					glColor4ub(255, 255, 255, alpha);
-					active = 2;
+					active = OL_DRAWSEL_ACTIVE;
 				}
 			}
 			else if (te->idcode == ID_GR) {
@@ -1527,7 +1261,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					col[3] = alpha;
 					glColor4ubv((GLubyte *)col);
 					
-					active = 2;
+					active = OL_DRAWSEL_ACTIVE;
 				}
 			}
 			else if (te->idcode == ID_OB) {
@@ -1538,14 +1272,14 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					
 					/* outliner active ob: always white text, circle color now similar to view3d */
 					
-					active = 2; /* means it draws a color circle */
+					active = OL_DRAWSEL_ACTIVE;
 					if (ob == OBACT) {
 						if (ob->flag & SELECT) {
 							UI_GetThemeColorType4ubv(TH_ACTIVE, SPACE_VIEW3D, col);
 							col[3] = alpha;
 						}
 						
-						active = 1; /* means it draws white text */
+						active = OL_DRAWSEL_NORMAL;
 					}
 					else if (ob->flag & SELECT) {
 						UI_GetThemeColorType4ubv(TH_SELECT, SPACE_VIEW3D, col);
@@ -1558,22 +1292,24 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 			}
 			else if (scene->obedit && scene->obedit->data == tselem->id) {
 				glColor4ub(255, 255, 255, alpha);
-				active = 2;
+				active = OL_DRAWSEL_ACTIVE;
 			}
 			else {
-				if (tree_element_active(C, scene, soops, te, 0)) {
+				if (tree_element_active(C, scene, soops, te, OL_SETSEL_NONE)) {
 					glColor4ub(220, 220, 255, alpha);
-					active = 2;
+					active = OL_DRAWSEL_ACTIVE;
 				}
 			}
 		}
 		else {
-			if (tree_element_type_active(NULL, scene, soops, te, tselem, 0, false) ) active = 2;
+			if (tree_element_type_active(NULL, scene, soops, te, tselem, OL_SETSEL_NONE, false) != OL_DRAWSEL_NONE) {
+				active = OL_DRAWSEL_ACTIVE;
+			}
 			glColor4ub(220, 220, 255, alpha);
 		}
 		
 		/* active circle */
-		if (active) {
+		if (active != OL_DRAWSEL_NONE) {
 			uiSetRoundBox(UI_CNR_ALL);
 			uiRoundBox((float)startx + UI_UNIT_X,
 			           (float)*starty + 1.0f * ufac,
@@ -1624,7 +1360,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 		glDisable(GL_BLEND);
 		
 		/* name */
-		if (active == 1) UI_ThemeColor(TH_TEXT_HI);
+		if (active == OL_DRAWSEL_NORMAL) UI_ThemeColor(TH_TEXT_HI);
 		else if (ELEM(tselem->type, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM)) UI_ThemeColorBlend(TH_BACK, TH_TEXT, 0.75f);
 		else UI_ThemeColor(TH_TEXT);
 		
@@ -1686,7 +1422,7 @@ static void outliner_draw_hierarchy(SpaceOops *soops, ListBase *lb, int startx, 
 	TreeStoreElem *tselem;
 	int y1, y2;
 	
-	if (lb->first == NULL) return;
+	if (BLI_listbase_is_empty(lb)) return;
 	
 	y1 = y2 = *starty; /* for vertical lines between objects */
 	for (te = lb->first; te; te = te->next) {
@@ -1864,7 +1600,7 @@ void draw_outliner(const bContext *C)
 	/* get extents of data */
 	outliner_height(soops, &soops->tree, &sizey);
 
-	if (ELEM3(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF, SO_KEYMAP)) {
+	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
 		/* RNA has two columns:
 		 *  - column 1 is (max_width + OL_RNA_COL_SPACEX) or
 		 *				 (OL_RNA_COL_X), whichever is wider...
@@ -1878,11 +1614,7 @@ void draw_outliner(const bContext *C)
 		sizex_rna = max_ii(OL_RNA_COLX, sizex_rna + OL_RNA_COL_SPACEX);
 		
 		/* get width of data (for setting 'tot' rect, this is column 1 + column 2 + a bit extra) */
-		if (soops->outlinevis == SO_KEYMAP)
-			// XXX this is only really a quick hack to make this wide enough...
-			sizex = sizex_rna + OL_RNA_COL_SIZEX * 3 + 50;
-		else
-			sizex = sizex_rna + OL_RNA_COL_SIZEX + 50;
+		sizex = sizex_rna + OL_RNA_COL_SIZEX + 50;
 	}
 	else {
 		/* width must take into account restriction columns (if visible) so that entries will still be visible */
@@ -1908,7 +1640,7 @@ void draw_outliner(const bContext *C)
 	/* set matrix for 2d-view controls */
 	UI_view2d_view_ortho(v2d);
 
-	/* draw outliner stuff (background, hierachy lines and names) */
+	/* draw outliner stuff (background, hierarchy lines and names) */
 	outliner_back(ar);
 	block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
 	outliner_draw_tree((bContext *)C, block, scene, ar, soops, &te_edit);
@@ -1917,9 +1649,6 @@ void draw_outliner(const bContext *C)
 		/* draw rna buttons */
 		outliner_draw_rnacols(ar, sizex_rna);
 		outliner_draw_rnabuts(block, scene, ar, soops, sizex_rna, &soops->tree);
-	}
-	else if (soops->outlinevis == SO_KEYMAP) {
-		outliner_draw_keymapbuts(block, ar, soops, &soops->tree);
 	}
 	else if (!(soops->flag & SO_HIDE_RESTRICTCOLS)) {
 		/* draw restriction columns */

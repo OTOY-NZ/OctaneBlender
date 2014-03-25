@@ -26,6 +26,7 @@ extern "C" {
 #include "BLI_threads.h"
 }
 #include "BKE_main.h"
+#include "BKE_scene.h"
 #include "BKE_global.h"
 
 #include "COM_compositor.h"
@@ -35,14 +36,14 @@ extern "C" {
 #include "COM_MovieDistortionOperation.h"
 
 static ThreadMutex s_compositorMutex;
-static char is_compositorMutex_init = FALSE;
+static bool is_compositorMutex_init = FALSE;
 
 static void intern_freeCompositorCaches()
 {
 	deintializeDistortionCache();
 }
 
-void COM_execute(RenderData *rd, bNodeTree *editingtree, int rendering,
+void COM_execute(RenderData *rd, Scene *scene, bNodeTree *editingtree, int rendering,
                  const ColorManagedViewSettings *viewSettings,
                  const ColorManagedDisplaySettings *displaySettings)
 {
@@ -72,7 +73,7 @@ void COM_execute(RenderData *rd, bNodeTree *editingtree, int rendering,
 
 	/* initialize workscheduler, will check if already done. TODO deinitialize somewhere */
 	bool use_opencl = (editingtree->flag & NTREE_COM_OPENCL) != 0;
-	WorkScheduler::initialize(use_opencl);
+	WorkScheduler::initialize(use_opencl, BKE_render_num_threads(rd));
 
 	/* set progress bar to 0% and status to init compositing */
 	editingtree->progress(editingtree->prh, 0.0);
@@ -80,7 +81,7 @@ void COM_execute(RenderData *rd, bNodeTree *editingtree, int rendering,
 	bool twopass = (editingtree->flag & NTREE_TWO_PASS) > 0 && !rendering;
 	/* initialize execution system */
 	if (twopass) {
-		ExecutionSystem *system = new ExecutionSystem(rd, editingtree, rendering, twopass, viewSettings, displaySettings);
+		ExecutionSystem *system = new ExecutionSystem(rd, scene, editingtree, rendering, twopass, viewSettings, displaySettings);
 		system->execute();
 		delete system;
 		
@@ -92,7 +93,7 @@ void COM_execute(RenderData *rd, bNodeTree *editingtree, int rendering,
 		}
 	}
 
-	ExecutionSystem *system = new ExecutionSystem(rd, editingtree, rendering, false,
+	ExecutionSystem *system = new ExecutionSystem(rd, scene, editingtree, rendering, false,
 	                                              viewSettings, displaySettings);
 	system->execute();
 	delete system;

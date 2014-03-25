@@ -235,6 +235,28 @@ MINLINE void swap_v4_v4(float a[4], float b[4])
 	SWAP(float, a[3], b[3]);
 }
 
+/* float args -> vec */
+MINLINE void copy_v2_fl2(float v[2], float x, float y)
+{
+	v[0] = x;
+	v[1] = y;
+}
+
+MINLINE void copy_v3_fl3(float v[3], float x, float y, float z)
+{
+	v[0] = x;
+	v[1] = y;
+	v[2] = z;
+}
+
+MINLINE void copy_v4_fl4(float v[4], float x, float y, float z, float w)
+{
+	v[0] = x;
+	v[1] = y;
+	v[2] = z;
+	v[3] = w;
+}
+
 /********************************* Arithmetic ********************************/
 
 MINLINE void add_v2_fl(float r[2], float f)
@@ -434,6 +456,22 @@ MINLINE float dot_m3_v3_row_z(float M[3][3], const float a[3])
 	return M[0][2] * a[0] + M[1][2] * a[1] + M[2][2] * a[2];
 }
 
+/**
+ * Almost like mul_m4_v3(), misses adding translation.
+ */
+MINLINE float dot_m4_v3_row_x(float M[4][4], const float a[3])
+{
+	return M[0][0] * a[0] + M[1][0] * a[1] + M[2][0] * a[2];
+}
+MINLINE float dot_m4_v3_row_y(float M[4][4], const float a[3])
+{
+	return M[0][1] * a[0] + M[1][1] * a[1] + M[2][1] * a[2];
+}
+MINLINE float dot_m4_v3_row_z(float M[4][4], const float a[3])
+{
+	return M[0][2] * a[0] + M[1][2] * a[1] + M[2][2] * a[2];
+}
+
 MINLINE void madd_v2_v2fl(float r[2], const float a[2], float f)
 {
 	r[0] += a[0] * f;
@@ -542,9 +580,9 @@ MINLINE void negate_v4_v4(float r[4], const float a[4])
 /* could add more... */
 MINLINE void negate_v3_short(short r[3])
 {
-	r[0] = -r[0];
-	r[1] = -r[1];
-	r[2] = -r[2];
+	r[0] = (short)-r[0];
+	r[1] = (short)-r[1];
+	r[2] = (short)-r[2];
 }
 
 MINLINE float dot_v2v2(const float a[2], const float b[2])
@@ -555,6 +593,11 @@ MINLINE float dot_v2v2(const float a[2], const float b[2])
 MINLINE float dot_v3v3(const float a[3], const float b[3])
 {
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+MINLINE float dot_v4v4(const float a[4], const float b[4])
+{
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
 }
 
 MINLINE float cross_v2v2(const float a[2], const float b[2])
@@ -611,7 +654,7 @@ MINLINE float len_manhattan_v2(const float v[2])
 
 MINLINE int len_manhattan_v2_int(const int v[2])
 {
-	return ABS(v[0]) + ABS(v[1]);
+	return abs(v[0]) + abs(v[1]);
 }
 
 MINLINE float len_manhattan_v3(const float v[3])

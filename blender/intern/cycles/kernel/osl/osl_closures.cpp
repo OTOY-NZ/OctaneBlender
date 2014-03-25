@@ -55,6 +55,7 @@
 #include "closure/bsdf_westin.h"
 #include "closure/bsdf_toon.h"
 #include "closure/bsdf_hair.h"
+#include "closure/volume.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -169,27 +170,25 @@ BSDF_CLOSURE_CLASS_BEGIN(HairTransmission, hair_transmission, hair_transmission,
 #endif
 BSDF_CLOSURE_CLASS_END(HairTransmission, hair_transmission)
 
+VOLUME_CLOSURE_CLASS_BEGIN(VolumeHenyeyGreenstein, henyey_greenstein, LABEL_VOLUME_SCATTER)
+	CLOSURE_FLOAT_PARAM(VolumeHenyeyGreensteinClosure, sc.data0),
+VOLUME_CLOSURE_CLASS_END(VolumeHenyeyGreenstein, henyey_greenstein)
+
+VOLUME_CLOSURE_CLASS_BEGIN(VolumeAbsorption, absorption, LABEL_SINGULAR)
+VOLUME_CLOSURE_CLASS_END(VolumeAbsorption, absorption)
+
 /* Registration */
-
-static void generic_closure_setup(OSL::RendererServices *, int id, void *data)
-{
-	assert(data);
-	OSL::ClosurePrimitive *prim = (OSL::ClosurePrimitive *)data;
-	prim->setup();
-}
-
-static bool generic_closure_compare(int id, const void *dataA, const void *dataB)
-{
-	assert(dataA && dataB);
-
-	OSL::ClosurePrimitive *primA = (OSL::ClosurePrimitive *)dataA;
-	OSL::ClosurePrimitive *primB = (OSL::ClosurePrimitive *)dataB;
-	return primA->mergeable(primB);
-}
 
 static void register_closure(OSL::ShadingSystem *ss, const char *name, int id, OSL::ClosureParam *params, OSL::PrepareClosureFunc prepare)
 {
-	ss->register_closure(name, id, params, prepare, generic_closure_setup, generic_closure_compare);
+	/* optimization: it's possible to not use a prepare function at all and
+	 * only initialize the actual class when accessing the closure component
+	 * data, but then we need to map the id to the class somehow */
+#ifdef CLOSURE_PREPARE
+	ss->register_closure(name, id, params, prepare, NULL, NULL);
+#else
+	ss->register_closure(name, id, params, prepare, NULL);
+#endif
 }
 
 void OSLShader::register_closures(OSLShadingSystem *ss_)
@@ -257,6 +256,11 @@ void OSLShader::register_closures(OSLShadingSystem *ss_)
 		bsdf_hair_reflection_params(), bsdf_hair_reflection_prepare);
 	register_closure(ss, "hair_transmission", id++,
 		bsdf_hair_transmission_params(), bsdf_hair_transmission_prepare);
+
+	register_closure(ss, "henyey_greenstein", id++,
+		volume_henyey_greenstein_params(), volume_henyey_greenstein_prepare);
+	register_closure(ss, "absorption", id++,
+		volume_absorption_params(), volume_absorption_prepare);
 }
 
 CCL_NAMESPACE_END

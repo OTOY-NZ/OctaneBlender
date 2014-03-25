@@ -29,7 +29,7 @@
 #include "BLI_math.h"
 
 extern "C" {
-	#include "BKE_mask.h"
+#  include "BKE_mask.h"
 }
 
 MaskOperation::MaskOperation() : NodeOperation()
@@ -75,7 +75,7 @@ void MaskOperation::initExecution()
 				     masklay;
 				     masklay = masklay->next)
 				{
-					masklay_shape = BKE_mask_layer_shape_varify_frame(masklay, this->m_frame_number);
+					masklay_shape = BKE_mask_layer_shape_verify_frame(masklay, this->m_frame_number);
 					BKE_mask_layer_shape_from_mask(masklay, masklay_shape);
 				}
 			}
@@ -84,7 +84,7 @@ void MaskOperation::initExecution()
 				this->m_rasterMaskHandles[i] = BKE_maskrasterize_handle_new();
 
 				/* re-eval frame info */
-				BKE_mask_evaluate(mask_temp, frame_iter, TRUE);
+				BKE_mask_evaluate(mask_temp, frame_iter, true);
 
 				BKE_maskrasterize_handle_init(this->m_rasterMaskHandles[i], mask_temp,
 				                              this->m_maskWidth, this->m_maskHeight,
@@ -127,7 +127,7 @@ void MaskOperation::determineResolution(unsigned int resolution[2], unsigned int
 	}
 }
 
-void MaskOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void MaskOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 	const float xy[2] = {x * this->m_maskWidthInv,
 	                     y * this->m_maskHeightInv};

@@ -90,7 +90,7 @@ MeshManager::~MeshManager() {
 } //~MeshManager()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update all (already compiled) scene meshes on render-server (finally sends one LOAD_MESH packet for global mesh and one for each "Movable proxy" mesh)
+// Update all (already compiled) scene meshes on render-server (finally sends one LOAD_MESH packet for global mesh and one for each scattered mesh)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progress& progress) {
 	if(!need_update) return;
@@ -113,14 +113,17 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             continue;
         }
         else if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::GLOBAL)) {
-            if(scene->first_frame || scene->anim_mode == AnimationMode::FULL) {
+            if(scene->first_frame || scene->anim_mode == FULL) {
                 ++ulGlobalCnt;
                 if(mesh->need_update && !global_update) global_update = true;
             }
             continue;
         }
         if(!mesh->need_update
-            || (!scene->first_frame && scene->anim_mode != AnimationMode::FULL && (scene->meshes_type == Mesh::SCATTER || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::SCATTER))))
+           || (!scene->first_frame
+               && (scene->anim_mode == CAM_ONLY
+                   || (scene->anim_mode == MOVABLE_PROXIES
+                       && scene->meshes_type != Mesh::RESHAPABLE_PROXY && (scene->meshes_type != Mesh::AS_IS || mesh->mesh_type != Mesh::RESHAPABLE_PROXY)))))
             continue;
         ++ulLocalCnt;
 		if(progress.get_cancel()) return;
@@ -155,8 +158,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             if(mesh->empty || !mesh->need_update
                || (scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::GLOBAL))
                || (!scene->first_frame
-                   && (scene->anim_mode == AnimationMode::CAM_ONLY
-                       || (scene->anim_mode == AnimationMode::MOVABLE_PROXIES
+                   && (scene->anim_mode == CAM_ONLY
+                       || (scene->anim_mode == MOVABLE_PROXIES
                            && scene->meshes_type != Mesh::RESHAPABLE_PROXY && (scene->meshes_type != Mesh::AS_IS || mesh->mesh_type != Mesh::RESHAPABLE_PROXY))))) continue;
 
             if(scene->meshes_type == Mesh::SCATTER || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::SCATTER))
@@ -243,7 +246,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
             Mesh* mesh = obj_it->first;
             if(mesh->empty
-               || (!scene->first_frame && scene->anim_mode != AnimationMode::FULL)
+               || (!scene->first_frame && scene->anim_mode != FULL)
                || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
                || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != Mesh::GLOBAL)) continue;
             obj_cnt += obj_it->second.size();
@@ -273,7 +276,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
                 Mesh* mesh = obj_it->first;
                 if(mesh->empty
-                   || (!scene->first_frame && scene->anim_mode != AnimationMode::FULL)
+                   || (!scene->first_frame && scene->anim_mode != FULL)
                    || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
                    || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != oct::Mesh::GLOBAL)) continue;
 

@@ -178,6 +178,7 @@ enum {
 
 /* SpaceClip->mask_draw_flag */
 #define MASK_DRAWFLAG_SMOOTH    1
+#define MASK_DRAWFLAG_OVERLAY   2
 
 /* copy of eSpaceImage_UVDT */
 /* SpaceClip->mask_draw_type */
@@ -186,6 +187,12 @@ enum {
 	MASK_DT_DASH    = 1,
 	MASK_DT_BLACK   = 2,
 	MASK_DT_WHITE   = 3
+};
+
+/* MaskSpaceInfo->overlay_mode */
+enum {
+	MASK_OVERLAY_ALPHACHANNEL = 0,
+	MASK_OVERLAY_COMBINED     = 1
 };
 
 /* masklay->blend */
@@ -209,7 +216,11 @@ enum {
 /* masklay->flag */
 enum {
 	MASK_LAYERFLAG_LOCKED = (1 << 4),
-	MASK_LAYERFLAG_SELECT = (1 << 5)
+	MASK_LAYERFLAG_SELECT = (1 << 5),
+
+	/* no holes */
+	MASK_LAYERFLAG_FILL_DISCRETE = (1 << 6),
+	MASK_LAYERFLAG_FILL_OVERLAP  = (1 << 7),
 };
 
 /* masklay_shape->flag */

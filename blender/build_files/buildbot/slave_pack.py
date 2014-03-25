@@ -40,7 +40,7 @@ if len(sys.argv) >= 3:
 
 # scons does own packaging
 if builder.find('scons') != -1:
-    os.chdir('../blender')
+    os.chdir('../blender.git')
     scons_options = ['BF_QUICK=slnt', 'BUILDBOT_BRANCH=' + branch, 'buildslave', 'BF_FANCY=False']
 
     buildbot_dir = os.path.dirname(os.path.realpath(__file__))
@@ -101,6 +101,9 @@ if builder.find('scons') != -1:
                 scons_options.append('BF_TOOLSET=mingw')
             if builder.endswith('vc2012'):
                 scons_options.append('MSVS_VERSION=11.0')
+            if builder.endswith('vc2013'):
+                scons_options.append('MSVS_VERSION=12.0')
+                scons_options.append('MSVC_VERSION=12.0')
 
         elif builder.find('mac') != -1:
             if builder.find('x86_64') != -1:

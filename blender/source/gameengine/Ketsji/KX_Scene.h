@@ -309,8 +309,7 @@ public:
 	RAS_BucketManager* GetBucketManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
-	                   RAS_IRasterizer* rasty,
-	                   RAS_IRenderTools* rendertools);
+	                   RAS_IRasterizer* rasty);
 
 	/**
 	 * Update all transforms according to the scenegraph.
@@ -545,6 +544,9 @@ public:
 
 	// Resume a suspended scene.
 	void Resume();
+
+	// Update the mesh for objects based on level of detail settings
+	void UpdateObjectLods(void);
 	
 	// Update the activity box settings for objects in this scene, if needed.
 	void UpdateObjectActivity(void);

@@ -86,9 +86,24 @@ struct rbRigidBody {
 	int col_groups;
 };
 
+struct rbVert {
+	float x, y, z;
+};
+struct rbTri {
+	int v0, v1, v2;
+};
+
+struct rbMeshData {
+	btTriangleIndexVertexArray *index_array;
+	rbVert *vertices;
+	rbTri *triangles;
+	int num_vertices;
+	int num_triangles;
+};
+
 struct rbCollisionShape {
 	btCollisionShape *cshape;
-	btTriangleMesh *mesh;
+	rbMeshData *mesh;
 };
 
 struct rbFilterCallback : public btOverlapFilterCallback
@@ -250,7 +265,10 @@ void RB_dworld_remove_body(rbDynamicsWorld *world, rbRigidBody *object)
 
 /* Collision detection */
 
-void RB_world_convex_sweep_test(rbDynamicsWorld *world, rbRigidBody *object, const float loc_start[3], const float loc_end[3], float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit)
+void RB_world_convex_sweep_test(
+        rbDynamicsWorld *world, rbRigidBody *object,
+        const float loc_start[3], const float loc_end[3],
+        float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit)
 {
 	btRigidBody *body = object->body;
 	btCollisionShape *collisionShape = body->getCollisionShape();
@@ -270,14 +288,14 @@ void RB_world_convex_sweep_test(rbDynamicsWorld *world, rbRigidBody *object, con
 		rayToTrans.setRotation(obRot);
 		rayToTrans.setOrigin(btVector3(loc_end[0], loc_end[1], loc_end[2]));
 		
-		world->dynamicsWorld->convexSweepTest((btConvexShape*) collisionShape, rayFromTrans, rayToTrans, result, 0);
+		world->dynamicsWorld->convexSweepTest((btConvexShape *)collisionShape, rayFromTrans, rayToTrans, result, 0);
 		
 		if (result.hasHit()) {
 			*r_hit = 1;
 			
-			v_location[0] = result.m_convexFromWorld[0]+(result.m_convexToWorld[0]-result.m_convexFromWorld[0])*result.m_closestHitFraction;
-			v_location[1] = result.m_convexFromWorld[1]+(result.m_convexToWorld[1]-result.m_convexFromWorld[1])*result.m_closestHitFraction;
-			v_location[2] = result.m_convexFromWorld[2]+(result.m_convexToWorld[2]-result.m_convexFromWorld[2])*result.m_closestHitFraction;
+			v_location[0] = result.m_convexFromWorld[0] + (result.m_convexToWorld[0] - result.m_convexFromWorld[0]) * result.m_closestHitFraction;
+			v_location[1] = result.m_convexFromWorld[1] + (result.m_convexToWorld[1] - result.m_convexFromWorld[1]) * result.m_closestHitFraction;
+			v_location[2] = result.m_convexFromWorld[2] + (result.m_convexToWorld[2] - result.m_convexFromWorld[2]) * result.m_closestHitFraction;
 			
 			v_hitpoint[0] = result.m_hitPointWorld[0];
 			v_hitpoint[1] = result.m_hitPointWorld[1];
@@ -292,7 +310,7 @@ void RB_world_convex_sweep_test(rbDynamicsWorld *world, rbRigidBody *object, con
 			*r_hit = 0;
 		}
 	}
-	else{
+	else {
 		/* we need to return a value if user passes non convex body, to report */
 		*r_hit = -2;
 	}
@@ -692,57 +710,94 @@ rbCollisionShape *RB_shape_new_convex_hull(float *verts, int stride, int count, 
 
 /* Setup (Triangle Mesh) ---------- */
 
-/* Need to call rbTriMeshNewData() followed by rbTriMeshAddTriangle() several times 
- * to set up the mesh buffer BEFORE calling rbShapeNewTriMesh(). Otherwise,
- * we get nasty crashes...
- */
+/* Need to call RB_trimesh_finish() after creating triangle mesh and adding vertices and triangles */
 
-rbMeshData *RB_trimesh_data_new()
+rbMeshData *RB_trimesh_data_new(int num_tris, int num_verts)
 {
-	// XXX: welding threshold?
-	return (rbMeshData *) new btTriangleMesh(true, false);
+	rbMeshData *mesh = new rbMeshData;
+	mesh->vertices = new rbVert[num_verts];
+	mesh->triangles = new rbTri[num_tris];
+	mesh->num_vertices = num_verts;
+	mesh->num_triangles = num_tris;
+	
+	return mesh;
+}
+
+static void RB_trimesh_data_delete(rbMeshData *mesh)
+{
+	delete mesh->index_array;
+	delete[] mesh->vertices;
+	delete[] mesh->triangles;
+	delete mesh;
 }
  
-void RB_trimesh_add_triangle(rbMeshData *mesh, const float v1[3], const float v2[3], const float v3[3])
+void RB_trimesh_add_vertices(rbMeshData *mesh, float *vertices, int num_verts, int vert_stride)
 {
-	btTriangleMesh *meshData = reinterpret_cast<btTriangleMesh*>(mesh);
-	
-	/* cast vertices to usable forms for Bt-API */
-	btVector3 vtx1((btScalar)v1[0], (btScalar)v1[1], (btScalar)v1[2]);
-	btVector3 vtx2((btScalar)v2[0], (btScalar)v2[1], (btScalar)v2[2]);
-	btVector3 vtx3((btScalar)v3[0], (btScalar)v3[1], (btScalar)v3[2]);
-	
-	/* add to the mesh 
-	 *	- remove duplicated verts is enabled
-	 */
-	meshData->addTriangle(vtx1, vtx2, vtx3, false);
+	for (int i = 0; i < num_verts; i++) {
+		float *vert = (float*)(((char*)vertices + i * vert_stride));
+		mesh->vertices[i].x = vert[0];
+		mesh->vertices[i].y = vert[1];
+		mesh->vertices[i].z = vert[2];
+	}
+}
+void RB_trimesh_add_triangle_indices(rbMeshData *mesh, int num, int index0, int index1, int index2)
+{
+	mesh->triangles[num].v0 = index0;
+	mesh->triangles[num].v1 = index1;
+	mesh->triangles[num].v2 = index2;
+}
+
+void RB_trimesh_finish(rbMeshData *mesh)
+{
+	mesh->index_array = new btTriangleIndexVertexArray(mesh->num_triangles, (int*)mesh->triangles, sizeof(rbTri),
+	                                                   mesh->num_vertices, (float*)mesh->vertices, sizeof(rbVert));
 }
  
 rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh)
 {
 	rbCollisionShape *shape = new rbCollisionShape;
-	btTriangleMesh *tmesh = reinterpret_cast<btTriangleMesh*>(mesh);
 	
 	/* triangle-mesh we create is a BVH wrapper for triangle mesh data (for faster lookups) */
 	// RB_TODO perhaps we need to allow saving out this for performance when rebuilding?
-	btBvhTriangleMeshShape *unscaledShape = new btBvhTriangleMeshShape(tmesh, true, true);
+	btBvhTriangleMeshShape *unscaledShape = new btBvhTriangleMeshShape(mesh->index_array, true, true);
 	
 	shape->cshape = new btScaledBvhTriangleMeshShape(unscaledShape, btVector3(1.0f, 1.0f, 1.0f));
-	shape->mesh = tmesh;
+	shape->mesh = mesh;
 	return shape;
+}
+
+void RB_shape_trimesh_update(rbCollisionShape *shape, float *vertices, int num_verts, int vert_stride, float min[3], float max[3])
+{
+	if (shape->mesh == NULL || num_verts != shape->mesh->num_vertices)
+		return;
+	
+	for (int i = 0; i < num_verts; i++) {
+		float *vert = (float*)(((char*)vertices + i * vert_stride));
+		shape->mesh->vertices[i].x = vert[0];
+		shape->mesh->vertices[i].y = vert[1];
+		shape->mesh->vertices[i].z = vert[2];
+	}
+	
+	if (shape->cshape->getShapeType() == SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE) {
+		btScaledBvhTriangleMeshShape *scaled_shape = (btScaledBvhTriangleMeshShape *)shape->cshape;
+		btBvhTriangleMeshShape *mesh_shape = scaled_shape->getChildShape();
+		mesh_shape->refitTree(btVector3(min[0], min[1], min[2]), btVector3(max[0], max[1], max[2]));
+	}
+	else if (shape->cshape->getShapeType() == GIMPACT_SHAPE_PROXYTYPE) {
+		btGImpactMeshShape *mesh_shape = (btGImpactMeshShape*)shape->cshape;
+		mesh_shape->updateBound();
+	}
 }
 
 rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh)
 {
 	rbCollisionShape *shape = new rbCollisionShape;
-	/* interpret mesh buffer as btTriangleIndexVertexArray (i.e. an impl of btStridingMeshInterface) */
-	btTriangleMesh *tmesh = reinterpret_cast<btTriangleMesh*>(mesh);
 	
-	btGImpactMeshShape *gimpactShape = new btGImpactMeshShape(tmesh);
+	btGImpactMeshShape *gimpactShape = new btGImpactMeshShape(mesh->index_array);
 	gimpactShape->updateBound(); // TODO: add this to the update collision margin call?
 	
 	shape->cshape = gimpactShape;
-	shape->mesh = tmesh;
+	shape->mesh = mesh;
 	return shape;
 }
 
@@ -756,7 +811,7 @@ void RB_shape_delete(rbCollisionShape *shape)
 			delete child_shape;
 	}
 	if (shape->mesh)
-		delete shape->mesh;
+		RB_trimesh_data_delete(shape->mesh);
 	delete shape->cshape;
 	delete shape;
 }
@@ -826,11 +881,7 @@ rbConstraint *RB_constraint_new_fixed(float pivot[3], float orn[4], rbRigidBody 
 	
 	make_constraint_transforms(transform1, transform2, body1, body2, pivot, orn);
 	
-	btGeneric6DofConstraint *con = new btGeneric6DofConstraint(*body1, *body2, transform1, transform2, true);
-	
-	/* lock all axes */
-	for (int i = 0; i < 6; i++)
-		con->setLimit(i, 0, 0);
+	btFixedConstraint *con = new btFixedConstraint(*body1, *body2, transform1, transform2);
 	
 	return (rbConstraint *)con;
 }
@@ -924,7 +975,7 @@ rbConstraint *RB_constraint_new_motor(float pivot[3], float orn[4], rbRigidBody 
 	/* unlock motor axes */
 	con->getTranslationalLimitMotor()->m_upperLimit.setValue(-1.0f, -1.0f, -1.0f);
 	
-	return (rbConstraint*)con;
+	return (rbConstraint *)con;
 }
 
 /* Cleanup ----------------------------- */

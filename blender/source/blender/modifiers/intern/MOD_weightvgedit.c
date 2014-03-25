@@ -32,6 +32,7 @@
 #include "BLI_ghash.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
+#include "BLI_listbase.h"
 #include "BLI_rand.h"
 
 #include "DNA_color_types.h"      /* CurveMapping. */
@@ -89,24 +90,9 @@ static void copyData(ModifierData *md, ModifierData *target)
 	WeightVGEditModifierData *wmd  = (WeightVGEditModifierData *) md;
 	WeightVGEditModifierData *twmd = (WeightVGEditModifierData *) target;
 
-	BLI_strncpy(twmd->defgrp_name, wmd->defgrp_name, sizeof(twmd->defgrp_name));
+	modifier_copyData_generic(md, target);
 
-	twmd->edit_flags             = wmd->edit_flags;
-	twmd->falloff_type           = wmd->falloff_type;
-	twmd->default_weight         = wmd->default_weight;
-
-	twmd->cmap_curve             = curvemapping_copy(wmd->cmap_curve);
-
-	twmd->add_threshold          = wmd->add_threshold;
-	twmd->rem_threshold          = wmd->rem_threshold;
-
-	twmd->mask_constant          = wmd->mask_constant;
-	BLI_strncpy(twmd->mask_defgrp_name, wmd->mask_defgrp_name, sizeof(twmd->mask_defgrp_name));
-	twmd->mask_texture           = wmd->mask_texture;
-	twmd->mask_tex_use_channel   = wmd->mask_tex_use_channel;
-	twmd->mask_tex_mapping       = wmd->mask_tex_mapping;
-	twmd->mask_tex_map_obj       = wmd->mask_tex_map_obj;
-	BLI_strncpy(twmd->mask_tex_uvlayer_name, wmd->mask_tex_uvlayer_name, sizeof(twmd->mask_tex_uvlayer_name));
+	twmd->cmap_curve = curvemapping_copy(wmd->cmap_curve);
 
 	if (twmd->mask_texture) {
 		id_us_plus(&twmd->mask_texture->id);
@@ -199,11 +185,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	int defgrp_index;
 	int i;
 	/* Flags. */
-	int do_add  = (wmd->edit_flags & MOD_WVG_EDIT_ADD2VG) != 0;
-	int do_rem  = (wmd->edit_flags & MOD_WVG_EDIT_REMFVG) != 0;
+	const bool do_add  = (wmd->edit_flags & MOD_WVG_EDIT_ADD2VG) != 0;
+	const bool do_rem  = (wmd->edit_flags & MOD_WVG_EDIT_REMFVG) != 0;
 	/* Only do weight-preview in Object, Sculpt and Pose modes! */
 #if 0
-	int do_prev = (wmd->modifier.mode & eModifierMode_DoWeightPreview);
+	const bool do_prev = (wmd->modifier.mode & eModifierMode_DoWeightPreview);
 #endif
 
 	/* Get number of verts. */
@@ -212,7 +198,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	/* Check if we can just return the original mesh.
 	 * Must have verts and therefore verts assigned to vgroups to do anything useful!
 	 */
-	if ((numVerts == 0) || (ob->defbase.first == NULL))
+	if ((numVerts == 0) || BLI_listbase_is_empty(&ob->defbase))
 		return dm;
 
 	/* Get vgroup idx from its name. */

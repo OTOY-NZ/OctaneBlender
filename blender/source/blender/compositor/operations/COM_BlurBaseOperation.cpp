@@ -25,7 +25,7 @@
 #include "MEM_guardedalloc.h"
 
 extern "C" {
-	#include "RE_pipeline.h"
+#  include "RE_pipeline.h"
 }
 
 BlurBaseOperation::BlurBaseOperation(DataType data_type) : NodeOperation()
@@ -68,20 +68,21 @@ void BlurBaseOperation::initExecution()
 
 }
 
-float *BlurBaseOperation::make_gausstab(int rad)
+float *BlurBaseOperation::make_gausstab(float rad, int size)
 {
 	float *gausstab, sum, val;
 	int i, n;
 
-	n = 2 * rad + 1;
+	n = 2 * size + 1;
 
 	gausstab = (float *)MEM_mallocN(sizeof(float) * n, __func__);
 
 	sum = 0.0f;
-	for (i = -rad; i <= rad; i++) {
-		val = RE_filter_value(this->m_data->filtertype, (float)i / (float)rad);
+	float fac = (rad > 0.0f ? 1.0f / rad : 0.0f);
+	for (i = -size; i <= size; i++) {
+		val = RE_filter_value(this->m_data->filtertype, (float)i * fac);
 		sum += val;
-		gausstab[i + rad] = val;
+		gausstab[i + size] = val;
 	}
 
 	sum = 1.0f / sum;
@@ -93,17 +94,18 @@ float *BlurBaseOperation::make_gausstab(int rad)
 
 /* normalized distance from the current (inverted so 1.0 is close and 0.0 is far)
  * 'ease' is applied after, looks nicer */
-float *BlurBaseOperation::make_dist_fac_inverse(int rad, int falloff)
+float *BlurBaseOperation::make_dist_fac_inverse(float rad, int size, int falloff)
 {
 	float *dist_fac_invert, val;
 	int i, n;
 
-	n = 2 * rad + 1;
+	n = 2 * size + 1;
 
 	dist_fac_invert = (float *)MEM_mallocN(sizeof(float) * n, __func__);
 
-	for (i = -rad; i <= rad; i++) {
-		val = 1.0f - fabsf(((float)i / (float)rad));
+	float fac = (rad > 0.0f ? 1.0f / rad : 0.0f);
+	for (i = -size; i <= size; i++) {
+		val = 1.0f - fabsf((float)i * fac);
 
 		/* keep in sync with proportional_falloff_curve_only_items */
 		switch (falloff) {
@@ -132,7 +134,7 @@ float *BlurBaseOperation::make_dist_fac_inverse(int rad, int falloff)
 				/* nothing */
 				break;
 		}
-		dist_fac_invert[i + rad] = val;
+		dist_fac_invert[i + size] = val;
 	}
 
 	return dist_fac_invert;
@@ -152,7 +154,7 @@ void BlurBaseOperation::updateSize()
 {
 	if (!this->m_sizeavailable) {
 		float result[4];
-		this->getInputSocketReader(1)->read(result, 0, 0, COM_PS_NEAREST);
+		this->getInputSocketReader(1)->readSampled(result, 0, 0, COM_PS_NEAREST);
 		this->m_size = result[0];
 		this->m_sizeavailable = true;
 	}

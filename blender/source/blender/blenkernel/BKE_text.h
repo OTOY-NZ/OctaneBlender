@@ -55,29 +55,31 @@ struct Text    *BKE_text_copy		(struct Text *ta);
 void			BKE_text_unlink		(struct Main *bmain, struct Text *text);
 void			BKE_text_clear      (struct Text *text);
 void			BKE_text_write      (struct Text *text, const char *str);
+int             BKE_text_file_modified_check(struct Text *text);
+void            BKE_text_file_modified_ignore(struct Text *text);
 
 char   *txt_to_buf			(struct Text *text);
 void	txt_clean_text		(struct Text *text);
 void	txt_order_cursors	(struct Text *text, const bool reverse);
 int		txt_find_string		(struct Text *text, const char *findstr, int wrap, int match_case);
-int		txt_has_sel			(struct Text *text);
+bool	txt_has_sel			(struct Text *text);
 int		txt_get_span		(struct TextLine *from, struct TextLine *to);
 int		txt_utf8_offset_to_index(const char *str, int offset);
 int		txt_utf8_index_to_offset(const char *str, int index);
 int		txt_utf8_offset_to_column(const char *str, int offset);
 int		txt_utf8_column_to_offset(const char *str, int column);
-void	txt_move_up			(struct Text *text, short sel);
-void	txt_move_down		(struct Text *text, short sel);
-void	txt_move_left		(struct Text *text, short sel);
-void	txt_move_right		(struct Text *text, short sel);
-void	txt_jump_left		(struct Text *text, bool sel, bool use_init_step);
-void	txt_jump_right		(struct Text *text, bool sel, bool use_init_step);
-void	txt_move_bof		(struct Text *text, short sel);
-void	txt_move_eof		(struct Text *text, short sel);
-void	txt_move_bol		(struct Text *text, short sel);
-void	txt_move_eol		(struct Text *text, short sel);
-void	txt_move_toline		(struct Text *text, unsigned int line, short sel);
-void	txt_move_to			(struct Text *text, unsigned int line, unsigned int ch, short sel);
+void	txt_move_up			(struct Text *text, const bool sel);
+void	txt_move_down		(struct Text *text, const bool sel);
+void	txt_move_left		(struct Text *text, const bool sel);
+void	txt_move_right		(struct Text *text, const bool sel);
+void	txt_jump_left		(struct Text *text, const bool sel, const bool use_init_step);
+void	txt_jump_right		(struct Text *text, const bool sel, const bool use_init_step);
+void	txt_move_bof		(struct Text *text, const bool sel);
+void	txt_move_eof		(struct Text *text, const bool sel);
+void	txt_move_bol		(struct Text *text, const bool sel);
+void	txt_move_eol		(struct Text *text, const bool sel);
+void	txt_move_toline		(struct Text *text, unsigned int line, const bool sel);
+void	txt_move_to			(struct Text *text, unsigned int line, unsigned int ch, const bool sel);
 void	txt_pop_sel			(struct Text *text);
 void	txt_delete_char		(struct Text *text);
 void	txt_delete_word		(struct Text *text);
@@ -110,13 +112,13 @@ void	txt_print_undo		(struct Text *text);
 #endif
 
 /* utility functions, could be moved somewhere more generic but are python/text related  */
-int text_check_bracket(const char ch);
-int text_check_delim(const char ch);
-int text_check_digit(const char ch);
-int text_check_identifier(const char ch);
-int text_check_identifier_nodigit(const char ch);
-int text_check_whitespace(const char ch);
-int text_find_identifier_start(const char *str, int i);
+int  text_check_bracket(const char ch);
+bool text_check_delim(const char ch);
+bool text_check_digit(const char ch);
+bool text_check_identifier(const char ch);
+bool text_check_identifier_nodigit(const char ch);
+bool text_check_whitespace(const char ch);
+int  text_find_identifier_start(const char *str, int i);
 
 /* defined in bpy_interface.c */
 extern int text_check_identifier_unicode(const unsigned int ch);

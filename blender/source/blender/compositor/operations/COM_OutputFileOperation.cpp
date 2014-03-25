@@ -34,10 +34,10 @@
 #include "DNA_color_types.h"
 
 extern "C" {
-	#include "MEM_guardedalloc.h"
-	#include "IMB_imbuf.h"
-	#include "IMB_colormanagement.h"
-	#include "IMB_imbuf_types.h"
+#  include "MEM_guardedalloc.h"
+#  include "IMB_imbuf.h"
+#  include "IMB_colormanagement.h"
+#  include "IMB_imbuf_types.h"
 }
 
 static int get_datatype_size(DataType datatype)
@@ -79,7 +79,7 @@ static void write_buffer_rect(rcti *rect, const bNodeTree *tree,
 
 	for (y = y1; y < y2 && (!breaked); y++) {
 		for (x = x1; x < x2 && (!breaked); x++) {
-			reader->read(color, x, y, COM_PS_NEAREST);
+			reader->readSampled(color, x, y, COM_PS_NEAREST);
 			
 			for (i = 0; i < size; ++i)
 				buffer[offset + i] = color[i];

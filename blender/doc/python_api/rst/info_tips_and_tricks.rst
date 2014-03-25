@@ -115,7 +115,7 @@ While this is not best practice - for testing you can extend the search path, th
    import os
    import bpy
 
-   blend_dir = os.path.basename(bpy.data.filepath)
+   blend_dir = os.path.dirname(bpy.data.filepath)
    if blend_dir not in sys.path:
       sys.path.append(blend_dir)
 
@@ -214,7 +214,7 @@ The next example is an equivalent single line version of the script above which 
 
 .. code-block:: python
 
-   __import__('code').interact(local={k: v for ns in (globals(), locals()) for k, v in ns.items()})
+   __import__('code').interact(local=dict(globals(), **locals()))
 
 
 ``code.interact`` can be added at any line in the script and will pause the script an launch an interactive interpreter in the terminal, when you're done you can quit the interpreter and the script will continue execution.

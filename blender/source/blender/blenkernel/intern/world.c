@@ -45,12 +45,11 @@
 #include "BKE_global.h"
 #include "BKE_icons.h"
 #include "BKE_library.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_world.h"
 
-void BKE_world_free_ex(World *wrld, int do_id_user)
+void BKE_world_free_ex(World *wrld, bool do_id_user)
 {
 	MTex *mtex;
 	int a;
@@ -83,7 +82,7 @@ World *add_world(Main *bmain, const char *name)
 {
 	World *wrld;
 
-	wrld = BKE_libblock_alloc(&bmain->world, ID_WO, name);
+	wrld = BKE_libblock_alloc(bmain, ID_WO, name);
 	
 	wrld->horr = 0.05f;
 	wrld->horg = 0.05f;
@@ -92,8 +91,6 @@ World *add_world(Main *bmain, const char *name)
 	wrld->zeng = 0.01f;
 	wrld->zenb = 0.01f;
 	wrld->skytype = 0;
-	wrld->stardist = 15.0f;
-	wrld->starsize = 2.0f;
 
 	wrld->exp = 0.0f;
 	wrld->exposure = wrld->range = 1.0f;

@@ -232,7 +232,7 @@ static void rna_MaskLayer_active_spline_set(PointerRNA *ptr, PointerRNA value)
 	MaskSpline *spline = (MaskSpline *)value.data;
 	int index = BLI_findindex(&masklay->splines, spline);
 
-	if (index >= 0)
+	if (index != -1)
 		masklay->act_spline = spline;
 	else
 		masklay->act_spline = NULL;
@@ -446,7 +446,7 @@ static void rna_MaskSpline_points_add(ID *id, MaskSpline *spline, int count)
 		BKE_mask_parent_init(&new_point->parent);
 
 		/* Not efficient, but there's no other way for now */
-		BKE_mask_layer_shape_changed_add(layer, spline_shape_index + point_index, TRUE, TRUE);
+		BKE_mask_layer_shape_changed_add(layer, spline_shape_index + point_index, true, true);
 	}
 
 	WM_main_add_notifier(NC_MASK | ND_DATA, mask);
@@ -884,6 +884,16 @@ static void rna_def_mask_layer(BlenderRNA *brna)
 	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
 	RNA_def_property_update(prop, NC_MASK | NA_EDITED, NULL);
 
+	/* filling options */
+	prop = RNA_def_property(srna, "use_fill_holes", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", MASK_LAYERFLAG_FILL_DISCRETE);
+	RNA_def_property_ui_text(prop, "Calculate Holes", "Calculate holes when filling overlapping curves");
+	RNA_def_property_update(prop, NC_MASK | NA_EDITED, NULL);
+
+	prop = RNA_def_property(srna, "use_fill_overlap", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MASK_LAYERFLAG_FILL_OVERLAP);
+	RNA_def_property_ui_text(prop, "Calculate Overlap", "Calculate self intersections and overlap before filling");
+	RNA_def_property_update(prop, NC_MASK | NA_EDITED, NULL);
 }
 
 static void rna_def_masklayers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -901,7 +911,7 @@ static void rna_def_masklayers(BlenderRNA *brna, PropertyRNA *cprop)
 
 	func = RNA_def_function(srna, "new", "rna_Mask_layers_new");
 	RNA_def_function_ui_description(func, "Add layer to this mask");
-	RNA_def_string(func, "name", "", 0, "Name", "Name of new layer");
+	RNA_def_string(func, "name", NULL, 0, "Name", "Name of new layer");
 	parm = RNA_def_pointer(func, "layer", "MaskLayer", "", "New mask layer");
 	RNA_def_function_return(func, parm);
 

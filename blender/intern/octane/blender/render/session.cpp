@@ -39,9 +39,11 @@ Session::Session(const SessionParams& params_, const char *_out_path) : params(p
 	server = RenderServer::create(params.server, params.export_alembic, _out_path, params.interactive);
 
     if(params.login.length() > 0 && params.pass.length() > 0) {
-        if(server->activate(params.login, params.pass)) {
-            params.login    = "";
-            params.pass     = "";
+        if(server->activate(params.stand_login, params.stand_pass, params.login, params.pass)) {
+            params.stand_login  = "";
+            params.stand_pass   = "";
+            params.login        = "";
+            params.pass         = "";
         }
     }
 

@@ -162,6 +162,20 @@ PyObject *PyC_FromArray(const void *array, int length, const PyTypeObject *type,
 	return tuple;
 }
 
+/**
+ * Caller needs to ensure tuple is uninitialized.
+ * Handy for filling a typle with None for eg.
+ */
+void PyC_Tuple_Fill(PyObject *tuple, PyObject *value)
+{
+	unsigned int tot = PyTuple_GET_SIZE(tuple);
+	unsigned int i;
+
+	for (i = 0; i < tot; i++) {
+		PyTuple_SET_ITEM(tuple, i, value);
+		Py_INCREF(value);
+	}
+}
 
 /* for debugging */
 void PyC_ObSpit(const char *name, PyObject *var)
@@ -887,3 +901,19 @@ PyObject *PyC_FlagSet_FromBitfield(PyC_FlagSet *items, int flag)
 
 	return ret;
 }
+
+/* compat only */
+#if PY_VERSION_HEX <  0x03030200
+int
+_PyLong_AsInt(PyObject *obj)
+{
+	int overflow;
+	long result = PyLong_AsLongAndOverflow(obj, &overflow);
+	if (overflow || result > INT_MAX || result < INT_MIN) {
+		PyErr_SetString(PyExc_OverflowError,
+		                "Python int too large to convert to C int");
+		return -1;
+	}
+	return (int)result;
+}
+#endif

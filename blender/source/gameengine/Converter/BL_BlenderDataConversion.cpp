@@ -34,16 +34,27 @@
 #  pragma warning (disable:4786)
 #endif
 
+/* Since threaded object update we've disabled in-place
+ * curve evaluation (in cases when applying curve modifier
+ * with target curve non-evaluated yet).
+ *
+ * This requires game engine to take care of DAG and object
+ * evaluation (currently it's designed to export only objects
+ * it able to render).
+ *
+ * This workaround will make sure that curve_cache for curves
+ * is up-to-date.
+ */
+#define THREADED_DAG_WORKAROUND
+
 #include <math.h>
 #include <vector>
 #include <algorithm>
 
 #include "BL_BlenderDataConversion.h"
-#include "KX_BlenderGL.h"
 #include "KX_BlenderScalarInterpolator.h"
 
 #include "RAS_IPolygonMaterial.h"
-#include "KX_PolygonMaterial.h"
 
 // Expressions
 #include "ListValue.h"
@@ -80,7 +91,6 @@
 #include "RAS_Polygon.h"
 #include "RAS_TexVert.h"
 #include "RAS_BucketManager.h"
-#include "RAS_IRenderTools.h"
 #include "BL_Material.h"
 #include "KX_BlenderMaterial.h"
 #include "BL_Texture.h"
@@ -96,6 +106,7 @@
 #include "KX_SoftBodyDeformer.h"
 //#include "BL_ArmatureController.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BlenderWorldInfo.h"
 
 #include "KX_KetsjiEngine.h"
@@ -145,6 +156,7 @@ extern "C" {
 #include "BKE_material.h" /* give_current_material */
 #include "BKE_image.h"
 #include "IMB_imbuf_types.h"
+#include "BKE_displist.h"
 
 extern Material defmaterial;	/* material.c */
 }
@@ -599,6 +611,10 @@ static bool ConvertMaterial(
 
 		// cast shadows?
 		material->ras_mode |= ( mat->mode & MA_SHADBUF )?CAST_SHADOW:0;
+
+		// only shadows?
+		material->ras_mode |= ( mat->mode & MA_ONLYCAST )?ONLY_SHADOW:0;
+
 		MTex *mttmp = 0;
 		int valid_index = 0;
 		
@@ -893,167 +909,33 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(scene, ma);
 	BL_Material* bl_mat = converter->FindCachedBlenderMaterial(scene, ma);
 	KX_BlenderMaterial* kx_blmat = NULL;
-	KX_PolygonMaterial* kx_polymat = NULL;
-		
-	if (converter->GetMaterials()) {
-		/* do Blender Multitexture and Blender GLSL materials */
 
-		/* first is the BL_Material */
-		if (!bl_mat)
-		{
-			bl_mat = new BL_Material();
+	/* first is the BL_Material */
+	if (!bl_mat)
+	{
+		bl_mat = new BL_Material();
 
-			ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
-				converter->GetGLSLMaterials());
+		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
+			converter->GetGLSLMaterials());
 
-			if (ma && (ma->mode & MA_FACETEXTURE) == 0)
-				converter->CacheBlenderMaterial(scene, ma, bl_mat);
-		}
-
-		const bool use_vcol = GetMaterialUseVColor(ma, bl_mat->glslmat);
-		GetRGB(use_vcol, mface, mcol, ma, rgb);
-
-		GetUVs(bl_mat, layers, mface, tface, uvs);
-				
-		/* then the KX_BlenderMaterial */
-		if (polymat == NULL)
-		{
-			kx_blmat = new KX_BlenderMaterial();
-
-			kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
-			polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
-			if (ma && (ma->mode & MA_FACETEXTURE) == 0)
-				converter->CachePolyMaterial(scene, ma, polymat);
-		}
+		if (ma && (ma->mode & MA_FACETEXTURE) == 0)
+			converter->CacheBlenderMaterial(scene, ma, bl_mat);
 	}
-	else {
-		/* do Texture Face materials */
-		Image* bima = (tface)? (Image*)tface->tpage: NULL;
-		STR_String imastr =  (tface)? (bima? (bima)->id.name : "" ) : "";
-		
-		char alpha_blend=0;
-		short tile=0;
-		int	tilexrep=4,tileyrep = 4;
 
-		/* set material properties - old TexFace */
-		if (ma) {
-			alpha_blend = ma->game.alpha_blend;
-			/* Commented out for now. If we ever get rid of
-			 * "Texture Face/Singletexture" we can then think about it */
+	const bool use_vcol = GetMaterialUseVColor(ma, bl_mat->glslmat);
+	GetRGB(use_vcol, mface, mcol, ma, rgb);
 
-			/* Texture Face mode ignores texture but requires "Face Textures to be True "*/
-	#if 0
-			if ((ma->mode &MA_FACETEXTURE)==0 && (ma->game.flag &GEMAT_TEXT)==0) {
-				bima = NULL;
-				imastr = "";
-				alpha_blend = GEMAT_SOLID;	 
-			}
-			else {
-				alpha_blend = ma->game.alpha_blend;
-			}
-	#endif
-		}
-		/* check for tface tex to fallback on */
-		else {
-			if (bima) {
-				/* see if depth of the image is 32 */
-				if (BKE_image_has_alpha(bima))
-					alpha_blend = GEMAT_ALPHA;
-				else
-					alpha_blend = GEMAT_SOLID;
-			}
-			else {
-				alpha_blend = GEMAT_SOLID;
-			}
-		}
+	GetUVs(bl_mat, layers, mface, tface, uvs);
 
-		if (bima) {
-			tilexrep = bima->xrep;
-			tileyrep = bima->yrep;
-		}
+	/* then the KX_BlenderMaterial */
+	if (polymat == NULL)
+	{
+		kx_blmat = new KX_BlenderMaterial();
 
-		/* set UV properties */
-		if (tface) {
-			uvs[0][0].setValue(tface->uv[0]);
-			uvs[1][0].setValue(tface->uv[1]);
-			uvs[2][0].setValue(tface->uv[2]);
-	
-			if (mface->v4)
-				uvs[3][0].setValue(tface->uv[3]);
-
-			tile = tface->tile;
-		} 
-		else {
-			/* no texfaces */
-			tile = 0;
-		}
-
-		/* get vertex colors */
-		if (mcol) {
-			/* we have vertex colors */
-			rgb[0] = KX_Mcol2uint_new(mcol[0]);
-			rgb[1] = KX_Mcol2uint_new(mcol[1]);
-			rgb[2] = KX_Mcol2uint_new(mcol[2]);
-					
-			if (mface->v4)
-				rgb[3] = KX_Mcol2uint_new(mcol[3]);
-		}
-		else {
-			/* no vertex colors, take from material, otherwise white */
-			unsigned int color = 0xFFFFFFFFL;
-
-			if (ma)
-			{
-				union
-				{
-					unsigned char cp[4];
-					unsigned int integer;
-				} col_converter;
-						
-				col_converter.cp[3] = (unsigned char) (ma->r*255.0);
-				col_converter.cp[2] = (unsigned char) (ma->g*255.0);
-				col_converter.cp[1] = (unsigned char) (ma->b*255.0);
-				col_converter.cp[0] = (unsigned char) (ma->alpha*255.0);
-						
-				color = col_converter.integer;
-			}
-
-			rgb[0] = KX_rgbaint2uint_new(color);
-			rgb[1] = KX_rgbaint2uint_new(color);
-			rgb[2] = KX_rgbaint2uint_new(color);	
-					
-			if (mface->v4)
-				rgb[3] = KX_rgbaint2uint_new(color);
-		}
-
-		// only zsort alpha + add
-		const bool alpha = ELEM3(alpha_blend, GEMAT_ALPHA, GEMAT_ADD, GEMAT_ALPHA_SORT);
-		const bool zsort = (alpha_blend == GEMAT_ALPHA_SORT);
-		const bool light = (ma)?(ma->mode & MA_SHLESS)==0:default_light_mode;
-
-		// don't need zort anymore, deal as if it it's alpha blend
-		if (alpha_blend == GEMAT_ALPHA_SORT) alpha_blend = GEMAT_ALPHA;
-
-		if (polymat == NULL)
-		{
-			kx_polymat = new KX_PolygonMaterial();
-			kx_polymat->Initialize(imastr, ma, (int)mface->mat_nr,
-				tile, tilexrep, tileyrep, 
-				alpha_blend, alpha, zsort, light, lightlayer, tface, (unsigned int*)mcol);
-			polymat = static_cast<RAS_IPolyMaterial*>(kx_polymat);
-	
-			if (ma) {
-				polymat->m_specular = MT_Vector3(ma->specr, ma->specg, ma->specb)*ma->spec;
-				polymat->m_shininess = (float)ma->har/4.0f; // 0 < ma->har <= 512
-				polymat->m_diffuse = MT_Vector3(ma->r, ma->g, ma->b)*(ma->emit + ma->ref);
-			}
-			else {
-				polymat->m_specular.setValue(0.0f,0.0f,0.0f);
-				polymat->m_shininess = 35.0;
-			}
-
+		kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
+		polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
+		if (ma && (ma->mode & MA_FACETEXTURE) == 0)
 			converter->CachePolyMaterial(scene, ma, polymat);
-		}
 	}
 	
 	// see if a bucket was reused or a new one was created
@@ -1063,8 +945,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	if (bucketCreated) {
 		// this is needed to free up memory afterwards
 		converter->RegisterPolyMaterial(polymat);
-		if (converter->GetMaterials())
-			converter->RegisterBlenderMaterial(bl_mat);
+		converter->RegisterBlenderMaterial(bl_mat);
 	}
 
 	return bucket;
@@ -1076,10 +957,18 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
-	if ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)
-		return meshobj;
+	// Without checking names, we get some reuse we don't want that can cause
+	// problems with material LoDs.
+	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)) {
+		const char *bge_name = meshobj->GetName().ReadPtr();
+		const char *blender_name = ((ID *)blenderobj->data)->name + 2;
+		if (STREQ(bge_name, blender_name)) {
+			return meshobj;
+		}
+	}
+
 	// Get DerivedMesh data
-	DerivedMesh *dm = CDDM_from_mesh(mesh, blenderobj);
+	DerivedMesh *dm = CDDM_from_mesh(mesh);
 	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
@@ -1367,7 +1256,7 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 	BoundBox *bb;
 	float min[3], max[3];
 	float mloc[3], msize[3];
-	float radius=0.0f, vert_radius, *co;
+	float radius_sq=0.0f, vert_radius_sq, *co;
 	int a;
 	
 	if (me->bb==0) {
@@ -1389,9 +1278,9 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 		
 		/* radius */
 
-		vert_radius = len_squared_v3(co);
-		if (vert_radius > radius)
-			radius = vert_radius;
+		vert_radius_sq = len_squared_v3(co);
+		if (vert_radius_sq > radius_sq)
+			radius_sq = vert_radius_sq;
 	}
 		
 	if (me->totvert) {
@@ -1417,7 +1306,7 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 	bb->vec[0][2] = bb->vec[3][2] = bb->vec[4][2] = bb->vec[7][2] = loc[2]-size[2];
 	bb->vec[1][2] = bb->vec[2][2] = bb->vec[5][2] = bb->vec[6][2] = loc[2]+size[2];
 
-	return sqrt(radius);
+	return sqrtf_signed(radius_sq);
 }
 
 
@@ -1557,12 +1446,12 @@ static void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
 				PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
 				CcdGraphicController* ctrl = new CcdGraphicController(env, motionstate);
 				gameobj->SetGraphicController(ctrl);
-				ctrl->setNewClientInfo(gameobj->getClientInfo());
-				ctrl->setLocalAabb(localAabbMin, localAabbMax);
+				ctrl->SetNewClientInfo(gameobj->getClientInfo());
+				ctrl->SetLocalAabb(localAabbMin, localAabbMax);
 				if (isActive) {
 					// add first, this will create the proxy handle, only if the object is visible
 					if (gameobj->GetVisible())
-						env->addCcdGraphicController(ctrl);
+						env->AddCcdGraphicController(ctrl);
 					// update the mesh if there is a deformer, this will also update the bounding box for modifiers
 					RAS_Deformer* deformer = gameobj->GetDeformer();
 					if (deformer)
@@ -1651,6 +1540,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	objprop.m_softbody = (blenderobject->gameflag & OB_SOFT_BODY) != 0;
 	objprop.m_angular_rigidbody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
 	objprop.m_character = (blenderobject->gameflag & OB_CHARACTER) != 0;
+	objprop.m_record_animation = (blenderobject->gameflag & OB_RECORD_ANIMATION) != 0;
 	
 	///contact processing threshold is only for rigid bodies and static geometry, not 'dynamic'
 	if (objprop.m_angular_rigidbody || !objprop.m_dyna )
@@ -1874,7 +1764,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 
 
 
-static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRenderTools *rendertools, KX_BlenderSceneConverter *converter)
+static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRasterizer *rasterizer, KX_BlenderSceneConverter *converter)
 {
 	RAS_LightObject lightobj;
 	KX_LightObject *gamelight;
@@ -1913,7 +1803,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 		lightobj.m_type = RAS_LightObject::LIGHT_NORMAL;
 	}
 
-	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools,
+	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rasterizer,
 		lightobj, glslmat);
 	
 	return gamelight;
@@ -1934,7 +1824,7 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_Blen
 static KX_GameObject *gameobject_from_blenderobject(
 								Object *ob, 
 								KX_Scene *kxscene, 
-								RAS_IRenderTools *rendertools, 
+								RAS_IRasterizer *rendertools,
 								KX_BlenderSceneConverter *converter,
 								bool libloading) 
 {
@@ -1989,6 +1879,24 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 		// set transformation
 		gameobj->AddMesh(meshobj);
+
+		// gather levels of detail
+		if (BLI_countlist(&ob->lodlevels) > 1) {
+			LodLevel *lod = ((LodLevel*)ob->lodlevels.first)->next;
+			Mesh* lodmesh = mesh;
+			Object* lodmatob = ob;
+			gameobj->AddLodMesh(meshobj);
+			for (; lod; lod = lod->next) {
+				if (!lod->source || lod->source->type != OB_MESH) continue;
+				if (lod->flags & OB_LOD_USE_MESH) {
+					lodmesh = static_cast<Mesh*>(lod->source->data);
+				}
+				if (lod->flags & OB_LOD_USE_MAT) {
+					lodmatob = lod->source;
+				}
+				gameobj->AddLodMesh(BL_ConvertMesh(lodmesh, lodmatob, kxscene, converter, libloading));
+			}
+		}
 	
 		// for all objects: check whether they want to
 		// respond to updates
@@ -2095,6 +2003,15 @@ static KX_GameObject *gameobject_from_blenderobject(
 		break;
 	}
 
+#ifdef THREADED_DAG_WORKAROUND
+	case OB_CURVE:
+	{
+		if (ob->curve_cache == NULL) {
+			BKE_displist_make_curveTypes(blenderscene, ob, FALSE);
+		}
+	}
+#endif
+
 	}
 	if (gameobj) 
 	{
@@ -2165,22 +2082,8 @@ static void UNUSED_FUNCTION(RBJconstraints)(Object *ob)//not used
 }
 
 #include "PHY_IPhysicsEnvironment.h"
-#include "KX_IPhysicsController.h"
 #include "PHY_DynamicTypes.h"
 
-#if 0  /* UNUSED */
-static KX_IPhysicsController* getPhId(CListValue* sumolist,STR_String busc) {//not used
-
-	for (int j=0;j<sumolist->GetCount();j++)
-	{
-		KX_GameObject* gameobje = (KX_GameObject*) sumolist->GetValue(j);
-		if (gameobje->GetName()==busc)
-			return gameobje->GetPhysicsController();
-	}
-
-	return 0;
-}
-#endif
 
 static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
 {
@@ -2359,7 +2262,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  KX_Scene* kxscene,
 							  KX_KetsjiEngine* ketsjiEngine,
 							  e_PhysicsEngine	physics_engine,
-							  RAS_IRenderTools* rendertools,
+							  RAS_IRasterizer* rendertools,
 							  RAS_ICanvas* canvas,
 							  KX_BlenderSceneConverter* converter,
 							  bool alwaysUseExpandFraming,
@@ -2723,7 +2626,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			kxscene->SetDbvtOcclusionRes(blenderscene->gm.occlusionRes);
 	}
 	if (blenderscene->world)
-		kxscene->GetPhysicsEnvironment()->setNumTimeSubSteps(blenderscene->gm.physubstep);
+		kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
 
 	// now that the scenegraph is complete, let's instantiate the deformers.
 	// We need that to create reusable derived mesh and physic shapes
@@ -2814,12 +2717,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						{
 							KX_GameObject *gotar=getGameOb(dat->tar->id.name+2,sumolist);
 							if (gotar && ((gotar->GetLayer()&activeLayerBitInfo)!=0) && gotar->GetPhysicsController())
-								physctr2 = (PHY_IPhysicsController*) gotar->GetPhysicsController()->GetUserData();
+								physctr2 = gotar->GetPhysicsController();
 						}
 
 						if (gameobj->GetPhysicsController())
 						{
-							PHY_IPhysicsController* physctrl = (PHY_IPhysicsController*) gameobj->GetPhysicsController()->GetUserData();
+							PHY_IPhysicsController* physctrl = gameobj->GetPhysicsController();
 							//we need to pass a full constraint frame, not just axis
 
 							//localConstraintFrameBasis
@@ -2828,7 +2731,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							MT_Vector3 axis1 = localCFrame.getColumn(1);
 							MT_Vector3 axis2 = localCFrame.getColumn(2);
 								
-							int constraintId = kxscene->GetPhysicsEnvironment()->createConstraint(physctrl,physctr2,(PHY_ConstraintType)dat->type,(float)dat->pivX,
+							int constraintId = kxscene->GetPhysicsEnvironment()->CreateConstraint(physctrl,physctr2,(PHY_ConstraintType)dat->type,(float)dat->pivX,
 								(float)dat->pivY,(float)dat->pivZ,
 								(float)axis0.x(),(float)axis0.y(),(float)axis0.z(),
 								(float)axis1.x(),(float)axis1.y(),(float)axis1.z(),
@@ -2844,11 +2747,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 									{
 										if (dat->flag & dofbit)
 										{
-											kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,dat->minLimit[dof],dat->maxLimit[dof]);
+											kxscene->GetPhysicsEnvironment()->SetConstraintParam(constraintId,dof,dat->minLimit[dof],dat->maxLimit[dof]);
 										} else
 										{
 											//minLimit > maxLimit means free(disabled limit) for this degree of freedom
-											kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,1,-1);
+											kxscene->GetPhysicsEnvironment()->SetConstraintParam(constraintId,dof,1,-1);
 										}
 										dofbit<<=1;
 									}
@@ -2862,12 +2765,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 									{
 										if (dat->flag & dofbit)
 										{
-											kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,dat->minLimit[dof],dat->maxLimit[dof]);
+											kxscene->GetPhysicsEnvironment()->SetConstraintParam(constraintId,dof,dat->minLimit[dof],dat->maxLimit[dof]);
 										}
 										else
 										{
 											//maxLimit < 0 means free(disabled limit) for this degree of freedom
-											kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,1,-1);
+											kxscene->GetPhysicsEnvironment()->SetConstraintParam(constraintId,dof,1,-1);
 										}
 										dofbit<<=1;
 									}
@@ -2879,12 +2782,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 									
 									if (dat->flag & dofbit)
 									{
-										kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,
+										kxscene->GetPhysicsEnvironment()->SetConstraintParam(constraintId,dof,
 												dat->minLimit[dof],dat->maxLimit[dof]);
 									} else
 									{
 										//minLimit > maxLimit means free(disabled limit) for this degree of freedom
-										kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,1,-1);
+										kxscene->GetPhysicsEnvironment()->SetConstraintParam(constraintId,dof,1,-1);
 									}
 								}
 							}

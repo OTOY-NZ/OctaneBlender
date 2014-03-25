@@ -64,25 +64,25 @@ kmi.properties.value = 'TEXT_EDITOR'
 kmi = km.keymap_items.new('wm.context_set_enum', 'F12', 'PRESS', shift=True)
 kmi.properties.data_path = 'area.type'
 kmi.properties.value = 'DOPESHEET_EDITOR'
-kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_PLUS', 'PRESS')
-kmi.properties.decrease = False
-kmi.properties.fast = False
-kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_MINUS', 'PRESS')
-kmi.properties.decrease = True
-kmi.properties.fast = False
-kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_PLUS', 'PRESS', shift=True)
-kmi.properties.decrease = False
-kmi.properties.fast = True
-kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_MINUS', 'PRESS', shift=True)
-kmi.properties.decrease = True
-kmi.properties.fast = True
+kmi = km.keymap_items.new('wm.context_scale_float', 'NDOF_BUTTON_PLUS', 'PRESS')
+kmi.properties.data_path = 'user_preferences.inputs.ndof_sensitivity'
+kmi.properties.value = 1.1
+kmi = km.keymap_items.new('wm.context_scale_float', 'NDOF_BUTTON_MINUS', 'PRESS')
+kmi.properties.data_path = 'user_preferences.inputs.ndof_sensitivity'
+kmi.properties.value = 1.0 / 1.1
+kmi = km.keymap_items.new('wm.context_scale_float', 'NDOF_BUTTON_PLUS', 'PRESS', shift=True)
+kmi.properties.data_path = 'user_preferences.inputs.ndof_sensitivity'
+kmi.properties.value = 1.5
+kmi = km.keymap_items.new('wm.context_scale_float', 'NDOF_BUTTON_MINUS', 'PRESS', shift=True)
+kmi.properties.data_path = 'user_preferences.inputs.ndof_sensitivity'
+kmi.properties.value = 1.0 / 1.5
 kmi = km.keymap_items.new('info.reports_display_update', 'TIMER_REPORT', 'ANY', any=True)
 
 # Map Screen
 km = kc.keymaps.new('Screen', space_type='EMPTY', region_type='WINDOW', modal=False)
 
 kmi = km.keymap_items.new('screen.animation_step', 'TIMER0', 'ANY', any=True)
-kmi = km.keymap_items.new('screen.region_blend', 'TIMER_REGION', 'ANY', any=True)
+kmi = km.keymap_items.new('screen.region_blend', 'TIMERREGION', 'ANY', any=True)
 kmi = km.keymap_items.new('screen.screen_set', 'RIGHT_ARROW', 'PRESS', ctrl=True)
 kmi.properties.delta = 1
 kmi = km.keymap_items.new('screen.screen_set', 'LEFT_ARROW', 'PRESS', ctrl=True)
@@ -255,7 +255,8 @@ kmi.properties.direction = 'CHILD'
 kmi.properties.extend = True
 kmi = km.keymap_items.new('pose.select_linked', 'L', 'PRESS', alt=True)
 kmi = km.keymap_items.new('pose.select_grouped', 'G', 'PRESS', shift=True)
-kmi = km.keymap_items.new('pose.select_flip_active', 'F', 'PRESS', shift=True)
+kmi = km.keymap_items.new('pose.select_mirror', 'F', 'PRESS', shift=True)
+kmi.properties.only_active = True
 kmi = km.keymap_items.new('pose.constraint_add_with_targets', 'C', 'PRESS', shift=True, ctrl=True)
 kmi = km.keymap_items.new('pose.constraints_clear', 'C', 'PRESS', ctrl=True, alt=True)
 kmi = km.keymap_items.new('pose.ik_add', 'I', 'PRESS', shift=True)
@@ -686,7 +687,7 @@ kmi = km.keymap_items.new('transform.translate', 'W', 'PRESS', shift=True)
 kmi = km.keymap_items.new('transform.translate', 'EVT_TWEAK_S', 'ANY')
 kmi = km.keymap_items.new('transform.rotate', 'E', 'PRESS', shift=True)
 kmi = km.keymap_items.new('transform.resize', 'R', 'PRESS', shift=True)
-kmi = km.keymap_items.new('transform.warp', 'Q', 'PRESS', shift=True)
+kmi = km.keymap_items.new('transform.bend', 'Q', 'PRESS', shift=True)
 kmi = km.keymap_items.new('transform.tosphere', 'S', 'PRESS', shift=True, alt=True)
 kmi = km.keymap_items.new('transform.shear', 'S', 'PRESS', shift=True, ctrl=True, alt=True)
 kmi = km.keymap_items.new('transform.select_orientation', 'SPACE', 'PRESS', alt=True)
@@ -1062,7 +1063,6 @@ kmi = km.keymap_items.new('node.hide_toggle', 'H', 'PRESS')
 kmi = km.keymap_items.new('node.mute_toggle', 'M', 'PRESS')
 kmi = km.keymap_items.new('node.preview_toggle', 'H', 'PRESS', shift=True)
 kmi = km.keymap_items.new('node.hide_socket_toggle', 'H', 'PRESS', ctrl=True)
-kmi = km.keymap_items.new('node.show_cyclic_dependencies', 'C', 'PRESS')
 kmi = km.keymap_items.new('node.view_all', 'HOME', 'PRESS')
 kmi = km.keymap_items.new('node.view_selected', 'NUMPAD_PERIOD', 'PRESS')
 kmi = km.keymap_items.new('node.select_border', 'B', 'PRESS')
@@ -2111,7 +2111,7 @@ kmi = km.keymap_items.new('mesh.edgering_select', 'SELECTMOUSE', 'PRESS', shift=
 kmi.properties.extend = False
 kmi.properties.deselect = False
 kmi.properties.toggle = True
-kmi = km.keymap_items.new('mesh.select_shortest_path', 'SELECTMOUSE', 'PRESS', ctrl=True)
+kmi = km.keymap_items.new('mesh.shortest_path_pick', 'SELECTMOUSE', 'PRESS', ctrl=True)
 kmi = km.keymap_items.new('mesh.select_all', 'LEFTMOUSE', 'CLICK')
 kmi.properties.action = 'DESELECT'
 kmi = km.keymap_items.new('mesh.select_all', 'I', 'PRESS', ctrl=True)
@@ -2145,9 +2145,11 @@ kmi = km.keymap_items.new('mesh.spin', 'R', 'PRESS', alt=True)
 kmi = km.keymap_items.new('mesh.fill', 'F', 'PRESS', alt=True)
 kmi = km.keymap_items.new('mesh.beautify_fill', 'F', 'PRESS', shift=True, alt=True)
 kmi = km.keymap_items.new('mesh.quads_convert_to_tris', 'T', 'PRESS', ctrl=True)
-kmi.properties.use_beauty = True
+kmi.properties.quad_method = 'BEAUTY'
+kmi.properties.ngon_method = 'BEAUTY'
 kmi = km.keymap_items.new('mesh.quads_convert_to_tris', 'T', 'PRESS', shift=True, ctrl=True)
-kmi.properties.use_beauty = False
+kmi.properties.quad_method = 'FIXED'
+kmi.properties.ngon_method = 'CLIP'
 kmi = km.keymap_items.new('mesh.tris_convert_to_quads', 'J', 'PRESS', alt=True)
 kmi = km.keymap_items.new('mesh.rip_move', 'V', 'PRESS')
 kmi = km.keymap_items.new('mesh.rip_move_fill', 'V', 'PRESS', alt=True)

@@ -46,6 +46,8 @@ set(SRC
 	intern/runtime.c
 	intern/undofile.c
 	intern/versioning_250.c
+	intern/versioning_260.c
+	intern/versioning_270.c
 	intern/versioning_defaults.c
 	intern/versioning_legacy.c
 	intern/writefile.c
@@ -64,6 +66,10 @@ endif()
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_CODEC_FFMPEG)
+	add_definitions(-DWITH_FFMPEG)
 endif()
 
 blender_add_lib(bf_blenloader "${SRC}" "${INC}" "${INC_SYS}")

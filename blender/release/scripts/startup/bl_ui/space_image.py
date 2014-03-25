@@ -19,24 +19,42 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
-from bl_ui.properties_paint_common import UnifiedPaintPanel, brush_texture_settings, brush_mask_texture_settings
+from bl_ui.properties_paint_common import (
+        UnifiedPaintPanel,
+        brush_texture_settings,
+        brush_mask_texture_settings,
+        )
+from bl_ui.properties_grease_pencil_common import GreasePencilPanel
 from bpy.app.translations import pgettext_iface as iface_
 
 
 class ImagePaintPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
+    bl_region_type = 'TOOLS'
+    bl_category = "Tools"
 
 
 class BrushButtonsPanel:
     bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
+    bl_region_type = 'TOOLS'
+    bl_category = "Tools"
 
     @classmethod
     def poll(cls, context):
         sima = context.space_data
         toolsettings = context.tool_settings.image_paint
         return sima.show_paint and toolsettings.brush
+
+
+class UVToolsPanel:
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_category = "Tools"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return sima.show_uvedit and not context.tool_settings.use_uv_sculpt
 
 
 class IMAGE_MT_view(Menu):
@@ -53,7 +71,7 @@ class IMAGE_MT_view(Menu):
         show_render = sima.show_render
 
         layout.operator("image.properties", icon='MENU_PANEL')
-        layout.operator("image.scopes", icon='MENU_PANEL')
+        layout.operator("image.toolshelf", icon='MENU_PANEL')
 
         layout.separator()
 
@@ -369,27 +387,9 @@ class IMAGE_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        # menus
-        if context.area.show_menus:
-            sub = row.row(align=True)
-            sub.menu("IMAGE_MT_view")
+        MASK_MT_editor_menus.draw_collapsible(context, layout)
 
-            if show_uvedit:
-                sub.menu("IMAGE_MT_select")
-            if show_maskedit:
-                sub.menu("MASK_MT_select")
-
-            if ima and ima.is_dirty:
-                sub.menu("IMAGE_MT_image", text="Image*")
-            else:
-                sub.menu("IMAGE_MT_image", text="Image")
-
-            if show_uvedit:
-                sub.menu("IMAGE_MT_uvs")
-            if show_maskedit:
-                sub.menu("MASK_MT_mask")
-
-        layout.template_ID(sima, "image", new="image.new")
+        layout.template_ID(sima, "image", new="image.new", open="image.open")
         if not show_render:
             layout.prop(sima, "use_image_pin", text="")
 
@@ -400,7 +400,7 @@ class IMAGE_HT_header(Header):
             row.template_ID(sima, "mask", new="mask.new")
 
         if show_uvedit or show_maskedit:
-            layout.prop(sima, "pivot_point", text="", icon_only=True)
+            layout.prop(sima, "pivot_point", icon_only=True)
 
         # uv editing
         if show_uvedit:
@@ -412,16 +412,16 @@ class IMAGE_HT_header(Header):
                 layout.template_edit_mode_selection()
             else:
                 layout.prop(toolsettings, "uv_select_mode", text="", expand=True)
-                layout.prop(uvedit, "sticky_select_mode", text="", icon_only=True)
+                layout.prop(uvedit, "sticky_select_mode", icon_only=True)
 
             row = layout.row(align=True)
-            row.prop(toolsettings, "proportional_edit", text="", icon_only=True)
+            row.prop(toolsettings, "proportional_edit", icon_only=True)
             if toolsettings.proportional_edit != 'DISABLED':
-                row.prop(toolsettings, "proportional_edit_falloff", text="", icon_only=True)
+                row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
 
             row = layout.row(align=True)
             row.prop(toolsettings, "use_snap", text="")
-            row.prop(toolsettings, "snap_uv_element", text="", icon_only=True)
+            row.prop(toolsettings, "snap_uv_element", icon_only=True)
             if toolsettings.snap_uv_element != 'INCREMENT':
                 row.prop(toolsettings, "snap_target", text="")
 
@@ -443,7 +443,78 @@ class IMAGE_HT_header(Header):
                 row.operator("image.play_composite", icon='PLAY')
 
         if show_uvedit or show_maskedit or mode == 'PAINT':
-            layout.prop(sima, "use_realtime_update", text="", icon_only=True, icon='LOCKED')
+            layout.prop(sima, "use_realtime_update", icon_only=True, icon='LOCKED')
+
+
+class MASK_MT_editor_menus(Menu):
+    bl_idname = "MASK_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        sima = context.space_data
+        ima = sima.image
+
+        show_render = sima.show_render
+        show_uvedit = sima.show_uvedit
+        show_maskedit = sima.show_maskedit
+
+        layout.menu("IMAGE_MT_view")
+
+        if show_uvedit:
+            layout.menu("IMAGE_MT_select")
+        if show_maskedit:
+            layout.menu("MASK_MT_select")
+
+        if ima and ima.is_dirty:
+            layout.menu("IMAGE_MT_image", text="Image*")
+        else:
+            layout.menu("IMAGE_MT_image", text="Image")
+
+        if show_uvedit:
+            layout.menu("IMAGE_MT_uvs")
+        if show_maskedit:
+            layout.menu("MASK_MT_mask")
+
+
+# -----------------------------------------------------------------------------
+# Mask (similar code in space_clip.py, keep in sync)
+# note! - panel placement does _not_ fit well with image panels... need to fix
+
+from bl_ui.properties_mask_common import (MASK_PT_mask,
+                                          MASK_PT_layers,
+                                          MASK_PT_spline,
+                                          MASK_PT_point,
+                                          MASK_PT_display,
+                                          MASK_PT_tools)
+
+
+class IMAGE_PT_mask(MASK_PT_mask, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+
+
+class IMAGE_PT_mask_layers(MASK_PT_layers, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+
+
+class IMAGE_PT_mask_display(MASK_PT_display, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+
+
+class IMAGE_PT_active_mask_spline(MASK_PT_spline, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+
+
+class IMAGE_PT_active_mask_point(MASK_PT_point, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
 
 
 class IMAGE_PT_image_properties(Panel):
@@ -474,7 +545,7 @@ class IMAGE_PT_game_properties(Panel):
     def poll(cls, context):
         sima = context.space_data
         # display even when not in game mode because these settings effect the 3d view
-        return (sima and sima.image)  # and (rd.engine == 'BLENDER_GAME')
+        return (sima and sima.image and not sima.show_maskedit)  # and (rd.engine == 'BLENDER_GAME')
 
     def draw(self, context):
         layout = self.layout
@@ -504,112 +575,6 @@ class IMAGE_PT_game_properties(Panel):
         col.prop(ima, "use_clamp_y", text="Y")
         col.separator()
         col.prop(ima, "mapping", expand=True)
-
-
-class IMAGE_PT_view_histogram(Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-    bl_label = "Histogram"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-        return (sima and sima.image)
-
-    def draw(self, context):
-        layout = self.layout
-
-        sima = context.space_data
-        hist = sima.scopes.histogram
-
-        layout.template_histogram(sima.scopes, "histogram")
-        row = layout.row(align=True)
-        row.prop(hist, "mode", icon_only=True, expand=True)
-        row.prop(hist, "show_line", text="")
-
-
-class IMAGE_PT_view_waveform(Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-    bl_label = "Waveform"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-        return (sima and sima.image)
-
-    def draw(self, context):
-        layout = self.layout
-
-        sima = context.space_data
-
-        layout.template_waveform(sima, "scopes")
-        row = layout.split(percentage=0.75)
-        row.prop(sima.scopes, "waveform_alpha")
-        row.prop(sima.scopes, "waveform_mode", text="", icon_only=True)
-
-
-class IMAGE_PT_view_vectorscope(Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-    bl_label = "Vectorscope"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-        return (sima and sima.image)
-
-    def draw(self, context):
-        layout = self.layout
-
-        sima = context.space_data
-        layout.template_vectorscope(sima, "scopes")
-        layout.prop(sima.scopes, "vectorscope_alpha")
-
-
-class IMAGE_PT_sample_line(Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-    bl_label = "Sample Line"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-        return (sima and sima.image)
-
-    def draw(self, context):
-        layout = self.layout
-
-        sima = context.space_data
-        hist = sima.sample_histogram
-
-        layout.operator("image.sample_line")
-        layout.template_histogram(sima, "sample_histogram")
-        row = layout.row(align=True)
-        row.prop(hist, "mode", expand=True)
-        row.prop(hist, "show_line", text="")
-
-
-class IMAGE_PT_scope_sample(Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-    bl_label = "Scope Samples"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-        return sima
-
-    def draw(self, context):
-        layout = self.layout
-
-        sima = context.space_data
-
-        row = layout.row()
-        row.prop(sima.scopes, "use_full_resolution")
-        sub = row.row()
-        sub.active = not sima.scopes.use_full_resolution
-        sub.prop(sima.scopes, "accuracy")
 
 
 class IMAGE_PT_view_properties(Panel):
@@ -672,9 +637,27 @@ class IMAGE_PT_view_properties(Panel):
             sub.row().prop(uvedit, "draw_stretch_type", expand=True)
 
 
+class IMAGE_PT_tools_transform_uvs(Panel, UVToolsPanel):
+    bl_label = "Transform"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return sima.show_uvedit and not context.tool_settings.use_uv_sculpt
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        col.operator("transform.translate")
+        col.operator("transform.rotate")
+        col.operator("transform.resize", text="Scale")
+        col.separator()
+
+        col.operator("transform.shear")
+
+
 class IMAGE_PT_paint(Panel, ImagePaintPanel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
     bl_label = "Paint"
 
     @classmethod
@@ -714,6 +697,59 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col.prop(brush, "clone_alpha", text="Alpha")
 
 
+class IMAGE_PT_tools_brush_overlay(BrushButtonsPanel, Panel):
+    bl_label = "Overlay"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        toolsettings = context.tool_settings.image_paint
+        brush = toolsettings.brush
+        tex_slot = brush.texture_slot
+        tex_slot_mask = brush.mask_texture_slot
+
+        col = layout.column()
+
+        col.label(text="Curve:")
+
+        row = col.row(align=True)
+        if brush.use_cursor_overlay:
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+        else:
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+
+        sub = row.row(align=True)
+        sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
+        sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+
+        col.active = brush.brush_capabilities.has_overlay
+        col.label(text="Texture:")
+        row = col.row(align=True)
+        if tex_slot.map_mode != 'STENCIL':
+            if brush.use_primary_overlay:
+                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+            else:
+                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+
+        sub = row.row(align=True)
+        sub.prop(brush, "texture_overlay_alpha", text="Alpha")
+        sub.prop(brush, "use_primary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+
+        col.label(text="Mask Texture:")
+
+        row = col.row(align=True)
+        if tex_slot_mask.map_mode != 'STENCIL':
+            if brush.use_secondary_overlay:
+                row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+            else:
+                row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+
+        sub = row.row(align=True)
+        sub.prop(brush, "mask_overlay_alpha", text="Alpha")
+        sub.prop(brush, "use_secondary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+
+
 class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
     bl_label = "Texture"
     bl_options = {'DEFAULT_CLOSED'}
@@ -729,22 +765,6 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
 
         brush_texture_settings(col, brush, 0)
-
-        # use_texture_overlay and texture_overlay_alpha
-        col = layout.column(align=True)
-        col.active = brush.brush_capabilities.has_overlay
-        col.label(text="Overlay:")
-
-        row = col.row(align=True)
-        if tex_slot.map_mode != 'STENCIL':
-            if brush.use_primary_overlay:
-                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
-        sub = row.row(align=True)
-        sub.prop(brush, "texture_overlay_alpha", text="Alpha")
-        sub.prop(brush, "use_primary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
@@ -762,21 +782,6 @@ class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
         col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
 
         brush_mask_texture_settings(col, brush)
-
-        col = layout.column(align=True)
-        col.active = brush.brush_capabilities.has_overlay
-        col.label(text="Overlay:")
-
-        row = col.row(align=True)
-        if tex_slot_alpha.map_mode != 'STENCIL':
-            if brush.use_secondary_overlay:
-                row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
-        sub = row.row(align=True)
-        sub.prop(brush, "mask_overlay_alpha", text="Alpha")
-        sub.prop(brush, "use_secondary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 class IMAGE_PT_tools_brush_tool(BrushButtonsPanel, Panel):
@@ -808,9 +813,6 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
         brush = toolsettings.brush
 
         col = layout.column()
-        col.prop(toolsettings, "input_samples")
-
-        col = layout.column()
 
         col.label(text="Stroke Method:")
 
@@ -834,6 +836,17 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
         col = layout.column()
         col.separator()
 
+        row = col.row(align=True)
+        row.prop(brush, "use_relative_jitter", icon_only=True)
+        if brush.use_relative_jitter:
+            row.prop(brush, "jitter", slider=True)
+        else:
+            row.prop(brush, "jitter_absolute")
+        row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+
+        col = layout.column()
+        col.separator()
+
         col.prop(brush, "use_smooth_stroke")
 
         sub = col.column()
@@ -843,14 +856,9 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
 
         col.separator()
 
-        row = col.row(align=True)
-        if brush.use_relative_jitter:
-            row.prop(brush, "use_relative_jitter", text="", icon='LOCKED')
-            row.prop(brush, "jitter", slider=True)
-        else:
-            row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
-            row.prop(brush, "jitter_absolute")
-        row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+        col.prop(toolsettings, "input_samples")
+
+        col.separator()
 
         col.prop(brush, "use_wrap")
 
@@ -890,25 +898,26 @@ class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
             layout.label(text="Brush Unset")
             return
 
-        col = layout.column()
-        col.prop(toolsettings, "show_brush")
-
-        col = col.column()
-        col.prop(brush, "cursor_color_add", text="")
-        col.active = toolsettings.show_brush
-
-        layout.separator()
-
         col = layout.column(align=True)
+
+        col.prop(toolsettings, "show_brush")
+        sub = col.column()
+        sub.active = toolsettings.show_brush
+        sub.prop(brush, "cursor_color_add", text="")
+
+        col.separator()
+
         col.prop(brush, "use_custom_icon")
-        if brush.use_custom_icon:
-            col.prop(brush, "icon_filepath", text="")
+        sub = col.column()
+        sub.active = brush.use_custom_icon
+        sub.prop(brush, "icon_filepath", text="")
 
 
 class IMAGE_UV_sculpt_curve(Panel):
     bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
+    bl_region_type = 'TOOLS'
     bl_label = "UV Sculpt Curve"
+    bl_category = "Tools"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -937,7 +946,8 @@ class IMAGE_UV_sculpt_curve(Panel):
 
 class IMAGE_UV_sculpt(Panel, ImagePaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
+    bl_region_type = 'TOOLS'
+    bl_category = "Tools"
     bl_label = "UV Sculpt"
 
     @classmethod
@@ -973,48 +983,130 @@ class IMAGE_UV_sculpt(Panel, ImagePaintPanel):
             col.prop(toolsettings, "uv_relax_method")
 
 
-# -----------------------------------------------------------------------------
-# Mask (similar code in space_clip.py, keep in sync)
-# note! - panel placement does _not_ fit well with image panels... need to fix
-
-from bl_ui.properties_mask_common import (MASK_PT_mask,
-                                          MASK_PT_layers,
-                                          MASK_PT_spline,
-                                          MASK_PT_point,
-                                          MASK_PT_display,
-                                          MASK_PT_tools)
-
-
-class IMAGE_PT_mask(MASK_PT_mask, Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-
-
-class IMAGE_PT_mask_layers(MASK_PT_layers, Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-
-
-class IMAGE_PT_mask_display(MASK_PT_display, Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-
-
-class IMAGE_PT_active_mask_spline(MASK_PT_spline, Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-
-
-class IMAGE_PT_active_mask_point(MASK_PT_point, Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'PREVIEW'
-
-
 class IMAGE_PT_tools_mask(MASK_PT_tools, Panel):
     bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'  # is 'TOOLS' in the clip editor
+    bl_region_type = 'TOOLS'
+    bl_category = 'Mask'
 
 # --- end mask ---
+
+
+class IMAGE_PT_view_histogram(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_label = "Histogram"
+    bl_category = "Scopes"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return (sima and sima.image)
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        hist = sima.scopes.histogram
+
+        layout.template_histogram(sima.scopes, "histogram")
+        row = layout.row(align=True)
+        row.prop(hist, "mode", expand=True)
+        row.prop(hist, "show_line", text="")
+
+
+class IMAGE_PT_view_waveform(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_label = "Waveform"
+    bl_category = "Scopes"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return (sima and sima.image)
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+
+        layout.template_waveform(sima, "scopes")
+        row = layout.split(percentage=0.75)
+        row.prop(sima.scopes, "waveform_alpha")
+        row.prop(sima.scopes, "waveform_mode", icon_only=True)
+
+
+class IMAGE_PT_view_vectorscope(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_label = "Vectorscope"
+    bl_category = "Scopes"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return (sima and sima.image)
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        layout.template_vectorscope(sima, "scopes")
+        layout.prop(sima.scopes, "vectorscope_alpha")
+
+
+class IMAGE_PT_sample_line(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_label = "Sample Line"
+    bl_category = "Scopes"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return (sima and sima.image)
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        hist = sima.sample_histogram
+
+        layout.operator("image.sample_line")
+        layout.template_histogram(sima, "sample_histogram")
+        row = layout.row(align=True)
+        row.prop(hist, "mode", expand=True)
+        row.prop(hist, "show_line", text="")
+
+
+class IMAGE_PT_scope_sample(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_label = "Scope Samples"
+    bl_category = "Scopes"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return sima
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+
+        row = layout.row()
+        row.prop(sima.scopes, "use_full_resolution")
+        sub = row.row()
+        sub.active = not sima.scopes.use_full_resolution
+        sub.prop(sima.scopes, "accuracy")
+
+
+class IMAGE_PT_tools_grease_pencil(GreasePencilPanel, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_category = "Grease Pencil"
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

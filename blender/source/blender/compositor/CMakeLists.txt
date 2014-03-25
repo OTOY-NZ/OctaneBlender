@@ -30,7 +30,6 @@ set(INC
 	operations
 	../blenkernel
 	../blenlib
-	../blenlib
 	../imbuf
 	../makesdna
 	../makesrna
@@ -186,6 +185,8 @@ set(SRC
 	nodes/COM_GlareNode.cpp
 	nodes/COM_GlareNode.h
 
+	nodes/COM_CornerPinNode.cpp
+	nodes/COM_CornerPinNode.h
 	nodes/COM_PlaneTrackDeformNode.cpp
 	nodes/COM_PlaneTrackDeformNode.h
 
@@ -230,8 +231,6 @@ set(SRC
 	nodes/COM_SetAlphaNode.h
 	nodes/COM_ConvertAlphaNode.cpp
 	nodes/COM_ConvertAlphaNode.h
-	nodes/COM_AlphaOverNode.cpp
-	nodes/COM_AlphaOverNode.h
 	nodes/COM_HueSaturationValueNode.cpp
 	nodes/COM_HueSaturationValueNode.h
 	nodes/COM_HueSaturationValueCorrectNode.cpp
@@ -491,12 +490,12 @@ set(SRC
 	operations/COM_ProjectorLensDistortionOperation.h
 	operations/COM_ScreenLensDistortionOperation.cpp
 	operations/COM_ScreenLensDistortionOperation.h
-	operations/COM_PlaneTrackCommonOperation.cpp
-	operations/COM_PlaneTrackCommonOperation.h
-	operations/COM_PlaneTrackMaskOperation.cpp
-	operations/COM_PlaneTrackMaskOperation.h
-	operations/COM_PlaneTrackWarpImageOperation.cpp
-	operations/COM_PlaneTrackWarpImageOperation.h
+	operations/COM_PlaneDistortCommonOperation.cpp
+	operations/COM_PlaneDistortCommonOperation.h
+	operations/COM_PlaneTrackOperation.cpp
+	operations/COM_PlaneTrackOperation.h
+	operations/COM_PlaneCornerPinOperation.cpp
+	operations/COM_PlaneCornerPinOperation.h
 
 	#Filter operations
 	operations/COM_ConvolutionFilterOperation.h

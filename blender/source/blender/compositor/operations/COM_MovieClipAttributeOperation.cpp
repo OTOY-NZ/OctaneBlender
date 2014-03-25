@@ -22,8 +22,8 @@
 
 #include "COM_MovieClipAttributeOperation.h"
 extern "C" {
-	#include "BKE_tracking.h"
-	#include "BKE_movieclip.h"
+#  include "BKE_tracking.h"
+#  include "BKE_movieclip.h"
 }
 MovieClipAttributeOperation::MovieClipAttributeOperation() : NodeOperation()
 {
@@ -33,7 +33,7 @@ MovieClipAttributeOperation::MovieClipAttributeOperation() : NodeOperation()
 	this->m_attribute = MCA_X;
 }
 
-void MovieClipAttributeOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void MovieClipAttributeOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 	if (!this->m_valueSet) {
 		float loc[2], scale, angle;

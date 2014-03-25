@@ -58,8 +58,8 @@ struct DMCoNo;
 enum PaintMode;
 
 /* paint_stroke.c */
-typedef int (*StrokeGetLocation)(struct bContext *C, float location[3], const float mouse[2]);
-typedef int (*StrokeTestStart)(struct bContext *C, struct wmOperator *op, const float mouse[2]);
+typedef bool (*StrokeGetLocation)(struct bContext *C, float location[3], const float mouse[2]);
+typedef bool (*StrokeTestStart)(struct bContext *C, struct wmOperator *op, const float mouse[2]);
 typedef void (*StrokeUpdateStep)(struct bContext *C, struct PaintStroke *stroke, struct PointerRNA *itemptr);
 typedef void (*StrokeRedraw)(const struct bContext *C, struct PaintStroke *stroke, bool final);
 typedef void (*StrokeDone)(const struct bContext *C, struct PaintStroke *stroke);
@@ -80,13 +80,14 @@ bool paint_supports_jitter(enum PaintMode mode);
 struct wmKeyMap *paint_stroke_modal_keymap(struct wmKeyConfig *keyconf);
 int paint_stroke_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 int paint_stroke_exec(struct bContext *C, struct wmOperator *op);
-int paint_stroke_cancel(struct bContext *C, struct wmOperator *op);
+void paint_stroke_cancel(struct bContext *C, struct wmOperator *op);
 struct ViewContext *paint_stroke_view_context(struct PaintStroke *stroke);
 void *paint_stroke_mode_data(struct PaintStroke *stroke);
 void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);
 int paint_poll(struct bContext *C);
 void paint_cursor_start(struct bContext *C, int (*poll)(struct bContext *C));
 void paint_cursor_start_explicit(struct Paint *p, struct wmWindowManager *wm, int (*poll)(struct bContext *C));
+void paint_cursor_delete_textures(void);
 
 /* paint_vertex.c */
 int weight_paint_poll(struct bContext *C);
@@ -145,13 +146,9 @@ int image_texture_paint_poll(struct bContext *C);
 void *image_undo_find_tile(struct Image *ima, struct ImBuf *ibuf, int x_tile, int y_tile, unsigned short **mask);
 void *image_undo_push_tile(struct Image *ima, struct ImBuf *ibuf, struct ImBuf **tmpibuf, int x_tile, int y_tile);
 void image_undo_remove_masks(void);
-void image_undo_restore(struct bContext *C, struct ListBase *lb);
-void image_undo_free(struct ListBase *lb);
 void imapaint_image_update(struct SpaceImage *sima, struct Image *image, struct ImBuf *ibuf, short texpaint);
 struct ImagePaintPartialRedraw *get_imapaintpartial(void);
 void set_imapaintpartial(struct ImagePaintPartialRedraw *ippr);
-void imapaint_clear_partial_redraw(void);
-void imapaint_dirty_region(struct Image *ima, struct ImBuf *ibuf, int x, int y, int w, int h);
 void imapaint_region_tiles(struct ImBuf *ibuf, int x, int y, int w, int h, int *tx, int *ty, int *tw, int *th);
 int get_imapaint_zoom(struct bContext *C, float *zoomx, float *zoomy);
 void *paint_2d_new_stroke(struct bContext *, struct wmOperator *);
@@ -222,6 +219,7 @@ int vert_paint_poll(struct bContext *C);
 int mask_paint_poll(struct bContext *C);
 
 int facemask_paint_poll(struct bContext *C);
+void flip_v3_v3(float out[3], const float in[3], const char symm);
 
 /* stroke operator */
 typedef enum BrushStrokeMode {
@@ -231,13 +229,8 @@ typedef enum BrushStrokeMode {
 } BrushStrokeMode;
 
 /* paint_undo.c */
-typedef void (*UndoRestoreCb)(struct bContext *C, struct ListBase *lb);
-typedef void (*UndoFreeCb)(struct ListBase *lb);
-
-void undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore, UndoFreeCb free);
 struct ListBase *undo_paint_push_get_list(int type);
 void undo_paint_push_count_alloc(int type, int size);
-void undo_paint_push_end(int type);
 
 /* paint_hide.c */
 
@@ -263,5 +256,6 @@ typedef enum {
 } PaintMaskFloodMode;
 
 void PAINT_OT_mask_flood_fill(struct wmOperatorType *ot);
+void PAINT_OT_mask_lasso_gesture(struct wmOperatorType *ot);
 
 #endif /* __PAINT_INTERN_H__ */

@@ -60,8 +60,11 @@ namespace {
 //
 // This functor uses a radial distortion model.
 struct OpenCVReprojectionError {
-  OpenCVReprojectionError(const double observed_x, const double observed_y)
-      : observed_x(observed_x), observed_y(observed_y) {}
+  OpenCVReprojectionError(const double observed_x,
+                          const double observed_y,
+                          const double weight)
+      : observed_x_(observed_x), observed_y_(observed_y),
+        weight_(weight) {}
 
   template <typename T>
   bool operator()(const T* const intrinsics,
@@ -112,13 +115,14 @@ struct OpenCVReprojectionError {
                                           &predicted_y);
 
     // The error is the difference between the predicted and observed position.
-    residuals[0] = predicted_x - T(observed_x);
-    residuals[1] = predicted_y - T(observed_y);
+    residuals[0] = (predicted_x - T(observed_x_)) * weight_;
+    residuals[1] = (predicted_y - T(observed_y_)) * weight_;
     return true;
   }
 
-  const double observed_x;
-  const double observed_y;
+  const double observed_x_;
+  const double observed_y_;
+  const double weight_;
 };
 
 // Print a message to the log which camera intrinsics are gonna to be optimixed.
@@ -258,10 +262,24 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
     int num_cameras = all_cameras_R_t->size();
     int num_points = 0;
 
+    vector<EuclideanPoint*> minimized_points;
     for (int i = 0; i <= max_track; i++) {
-      const EuclideanPoint *point = reconstruction->PointForTrack(i);
+      EuclideanPoint *point = reconstruction->PointForTrack(i);
       if (point) {
-        num_points++;
+        // We need to know whether the track is constant zero weight,
+        // and it so it wouldn't have parameter block in the problem.
+        //
+        // Getting all markers for track is not so bac currently since
+        // this code is only used by keyframe selection when there are
+        // not so much tracks and only 2 frames anyway.
+        vector<Marker> markera_of_track = tracks.MarkersForTrack(i);
+        for (int j = 0; j < markera_of_track.size(); j++) {
+          if (markera_of_track.at(j).weight != 0.0) {
+            minimized_points.push_back(point);
+            num_points++;
+            break;
+          }
+        }
       }
     }
 
@@ -271,35 +289,28 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
     evaluation->num_cameras = num_cameras;
     evaluation->num_points = num_points;
 
-    if (evaluation->evaluate_jacobian) {
-      // Evaluate jacobian matrix.
+    if (evaluation->evaluate_jacobian) {      // Evaluate jacobian matrix.
       ceres::CRSMatrix evaluated_jacobian;
       ceres::Problem::EvaluateOptions eval_options;
 
       // Cameras goes first in the ordering.
       int max_image = tracks.MaxImage();
-      bool is_first_camera = true;
       for (int i = 0; i <= max_image; i++) {
         const EuclideanCamera *camera = reconstruction->CameraForImage(i);
         if (camera) {
           double *current_camera_R_t = &(*all_cameras_R_t)[i](0);
 
           // All cameras are variable now.
-          if (is_first_camera) {
-            problem->SetParameterBlockVariable(current_camera_R_t);
-            is_first_camera = false;
-          }
+          problem->SetParameterBlockVariable(current_camera_R_t);
 
           eval_options.parameter_blocks.push_back(current_camera_R_t);
         }
       }
 
       // Points goes at the end of ordering,
-      for (int i = 0; i <= max_track; i++) {
-        EuclideanPoint *point = reconstruction->PointForTrack(i);
-        if (point) {
-          eval_options.parameter_blocks.push_back(&point->X(0));
-        }
+      for (int i = 0; i < minimized_points.size(); i++) {
+        EuclideanPoint *point = minimized_points.at(i);
+        eval_options.parameter_blocks.push_back(&point->X(0));
       }
 
       problem->Evaluate(eval_options,
@@ -308,6 +319,78 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
 
       CRSMatrixToEigenMatrix(evaluated_jacobian, &evaluation->jacobian);
     }
+}
+
+// This is an utility function to only bundle 3D position of
+// given markers list.
+//
+// Main purpose of this function is to adjust positions of tracks
+// which does have constant zero weight and so far only were using
+// algebraic intersection to obtain their 3D positions.
+//
+// At this point we only need to bundle points positions, cameras
+// are to be totally still here.
+void EuclideanBundlePointsOnly(const vector<Marker> &markers,
+                               vector<Vec6> &all_cameras_R_t,
+                               double ceres_intrinsics[8],
+                               EuclideanReconstruction *reconstruction) {
+  ceres::Problem::Options problem_options;
+  ceres::Problem problem(problem_options);
+  int num_residuals = 0;
+  for (int i = 0; i < markers.size(); ++i) {
+    const Marker &marker = markers[i];
+    EuclideanCamera *camera = reconstruction->CameraForImage(marker.image);
+    EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
+    if (camera == NULL || point == NULL) {
+      continue;
+    }
+
+    // Rotation of camera denoted in angle axis followed with
+    // camera translaiton.
+    double *current_camera_R_t = &all_cameras_R_t[camera->image](0);
+
+    problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
+        OpenCVReprojectionError, 2, 8, 6, 3>(
+            new OpenCVReprojectionError(
+                marker.x,
+                marker.y,
+                1.0)),
+        NULL,
+        ceres_intrinsics,
+        current_camera_R_t,
+        &point->X(0));
+
+    problem.SetParameterBlockConstant(current_camera_R_t);
+    num_residuals++;
+  }
+
+  LG << "Number of residuals: " << num_residuals;
+  if (!num_residuals) {
+    LG << "Skipping running minimizer with zero residuals";
+    return;
+  }
+
+  problem.SetParameterBlockConstant(ceres_intrinsics);
+
+  // Configure the solver.
+  ceres::Solver::Options options;
+  options.use_nonmonotonic_steps = true;
+  options.preconditioner_type = ceres::SCHUR_JACOBI;
+  options.linear_solver_type = ceres::ITERATIVE_SCHUR;
+  options.use_inner_iterations = true;
+  options.max_num_iterations = 100;
+
+#ifdef _OPENMP
+  options.num_threads = omp_get_max_threads();
+  options.num_linear_solver_threads = omp_get_max_threads();
+#endif
+
+  // Solve!
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+
+  LG << "Final report:\n" << summary.FullReport();
+
 }
 
 }  // namespace
@@ -332,8 +415,8 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   LG << "Original intrinsics: " << *intrinsics;
   vector<Marker> markers = tracks.AllMarkers();
 
-  ceres::Problem::Options problem_options;
-  ceres::Problem problem(problem_options);
+  // N-th element denotes whether track N is a constant zero-weigthed track.
+  vector<bool> zero_weight_tracks_flags(tracks.MaxTrack(), true);
 
   // Residual blocks with 10 parameters are unwieldly with Ceres, so pack the
   // intrinsics into a single block and rely on local parameterizations to
@@ -364,6 +447,8 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   }
 
   // Add residual blocks to the problem.
+  ceres::Problem::Options problem_options;
+  ceres::Problem problem(problem_options);
   int num_residuals = 0;
   bool have_locked_camera = false;
   for (int i = 0; i < markers.size(); ++i) {
@@ -378,25 +463,33 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
     // camera translaiton.
     double *current_camera_R_t = &all_cameras_R_t[camera->image](0);
 
-    problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
-        OpenCVReprojectionError, 2, 8, 6, 3>(
-            new OpenCVReprojectionError(
-                marker.x,
-                marker.y)),
-        NULL,
-        ceres_intrinsics,
-        current_camera_R_t,
-        &point->X(0));
+    // Skip residual block for markers which does have absolutely
+    // no affect on the final solution.
+    // This way ceres is not gonna to go crazy.
+    if (marker.weight != 0.0) {
+      problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
+          OpenCVReprojectionError, 2, 8, 6, 3>(
+              new OpenCVReprojectionError(
+                  marker.x,
+                  marker.y,
+                  marker.weight)),
+          NULL,
+          ceres_intrinsics,
+          current_camera_R_t,
+          &point->X(0));
 
-    // We lock the first camera to better deal with scene orientation ambiguity.
-    if (!have_locked_camera) {
-      problem.SetParameterBlockConstant(current_camera_R_t);
-      have_locked_camera = true;
-    }
+      // We lock the first camera to better deal with scene orientation ambiguity.
+      if (!have_locked_camera) {
+        problem.SetParameterBlockConstant(current_camera_R_t);
+        have_locked_camera = true;
+      }
 
-    if (bundle_constraints & BUNDLE_NO_TRANSLATION) {
-      problem.SetParameterization(current_camera_R_t,
-                                  constant_translation_parameterization);
+      if (bundle_constraints & BUNDLE_NO_TRANSLATION) {
+        problem.SetParameterization(current_camera_R_t,
+                                    constant_translation_parameterization);
+      }
+
+      zero_weight_tracks_flags[marker.track] = false;
     }
 
     num_residuals++;
@@ -474,6 +567,28 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   if (evaluation) {
     EuclideanBundlerPerformEvaluation(tracks, reconstruction, &all_cameras_R_t,
                                       &problem, evaluation);
+  }
+
+  // Separate step to adjust positions of tracks which are
+  // constant zero-weighted.
+  vector<Marker> zero_weight_markers;
+  for (int track = 0; track < tracks.MaxTrack(); ++track) {
+    if (zero_weight_tracks_flags[track]) {
+      vector<Marker> current_markers = tracks.MarkersForTrack(track);
+      zero_weight_markers.reserve(zero_weight_markers.size() +
+                                  current_markers.size());
+      for (int i = 0; i < current_markers.size(); ++i) {
+        zero_weight_markers.push_back(current_markers[i]);
+      }
+    }
+  }
+
+  if (zero_weight_markers.size()) {
+    LG << "Refining position of constant zero-weighted tracks";
+    EuclideanBundlePointsOnly(zero_weight_markers,
+                              all_cameras_R_t,
+                              ceres_intrinsics,
+                              reconstruction);
   }
 }
 

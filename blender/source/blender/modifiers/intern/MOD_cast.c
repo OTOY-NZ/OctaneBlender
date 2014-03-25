@@ -66,16 +66,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	CastModifierData *cmd = (CastModifierData *) md;
 	CastModifierData *tcmd = (CastModifierData *) target;
-
-	tcmd->fac = cmd->fac;
-	tcmd->radius = cmd->radius;
-	tcmd->size = cmd->size;
-	tcmd->flag = cmd->flag;
-	tcmd->type = cmd->type;
-	tcmd->object = cmd->object;
-	BLI_strncpy(tcmd->defgrp_name, cmd->defgrp_name, sizeof(tcmd->defgrp_name));
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
@@ -135,7 +130,7 @@ static void sphere_do(
 	Object *ctrl_ob = NULL;
 
 	int i, defgrp_index;
-	int has_radius = 0;
+	bool has_radius = false;
 	short flag, type;
 	float len = 0.0f;
 	float fac = cmd->fac;
@@ -255,7 +250,7 @@ static void cuboid_do(
 	Object *ctrl_ob = NULL;
 
 	int i, defgrp_index;
-	int has_radius = 0;
+	bool has_radius = false;
 	short flag;
 	float fac = cmd->fac;
 	float facm = 1.0f - fac;

@@ -29,11 +29,13 @@
 #include <ctype.h>
 #include <string.h>
 #include <assert.h>
-#include "BKE_unit.h"
 
+#include "BLI_sys_types.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
+
+#include "BKE_unit.h"  /* own include */
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -69,6 +71,7 @@
 #define UN_SC_HG	0.1f
 #define UN_SC_DAG	0.01f
 #define UN_SC_G		0.001f
+#define UN_SC_MG	0.000001f
 
 #define UN_SC_ITON	907.18474f /* imperial ton */
 #define UN_SC_CWT	45.359237f
@@ -95,11 +98,6 @@ typedef struct bUnitDef {
 #define B_UNIT_DEF_SUPPRESS 1 /* Use for units that are not used enough to be translated into for common use */
 #define B_UNIT_DEF_TENTH 2 /* Display a unit even if its value is 0.1, eg 0.1mm instead of 100um */
 
-/* workaround encoding issue with "µm", bug [#36090] */
-#define B_UNIT_CHAR_MICRO "\xb5"
-#define UM B_UNIT_CHAR_MICRO"m"
-#define US B_UNIT_CHAR_MICRO"s"
-
 /* define a single unit */
 typedef struct bUnitCollection {
 	struct bUnitDef *units;
@@ -121,7 +119,7 @@ static struct bUnitDef buMetricLenDef[] = {
 	{"decimeter", "decimeters",     "dm",  NULL, "10 Centimeters", UN_SC_DM, 0.0, B_UNIT_DEF_SUPPRESS},
 	{"centimeter", "centimeters",   "cm",  NULL, "Centimeters", UN_SC_CM, 0.0,    B_UNIT_DEF_NONE},
 	{"millimeter", "millimeters",   "mm",  NULL, "Millimeters", UN_SC_MM, 0.0,    B_UNIT_DEF_NONE | B_UNIT_DEF_TENTH},
-	{"micrometer", "micrometers",   UM,    "um", "Micrometers", UN_SC_UM, 0.0,    B_UNIT_DEF_NONE},     // micron too?
+	{"micrometer", "micrometers",   "µm",  "um", "Micrometers", UN_SC_UM,  0.0, B_UNIT_DEF_NONE},
 
 	/* These get displayed because of float precision problems in the transform header,
 	 * could work around, but for now probably people wont use these */
@@ -154,7 +152,7 @@ static struct bUnitDef buMetricAreaDef[] = {
 	{"square decimeter",  "square decimetees",  "dm²", "dm2",   "Square Decimeters", UN_SC_DM * UN_SC_DM, 0.0,    B_UNIT_DEF_SUPPRESS},
 	{"square centimeter", "square centimeters", "cm²", "cm2",   "Square Centimeters", UN_SC_CM * UN_SC_CM, 0.0,   B_UNIT_DEF_NONE},
 	{"square millimeter", "square millimeters", "mm²", "mm2",   "Square Millimeters", UN_SC_MM * UN_SC_MM, 0.0,   B_UNIT_DEF_NONE | B_UNIT_DEF_TENTH},
-	{"square micrometer", "square micrometers", UM"²", "um2",   "Square Micrometers", UN_SC_UM * UN_SC_UM, 0.0,   B_UNIT_DEF_NONE},
+	{"square micrometer", "square micrometers", "µm²",  "um2",   "Square Micrometers", UN_SC_UM * UN_SC_UM,   0.0, B_UNIT_DEF_NONE},
 	{NULL, NULL, NULL,  NULL, NULL, 0.0, 0.0}
 };
 static struct bUnitCollection buMetricAreaCollection = {buMetricAreaDef, 3, 0, sizeof(buMetricAreaDef) / sizeof(bUnitDef)};
@@ -180,7 +178,7 @@ static struct bUnitDef buMetricVolDef[] = {
 	{"cubic decimeter",  "cubic decimeters",  "dm³",  "dm3",  "Cubic Decimeters", UN_SC_DM * UN_SC_DM * UN_SC_DM, 0.0,    B_UNIT_DEF_SUPPRESS},
 	{"cubic centimeter", "cubic centimeters", "cm³",  "cm3",  "Cubic Centimeters", UN_SC_CM * UN_SC_CM * UN_SC_CM, 0.0,   B_UNIT_DEF_NONE},
 	{"cubic millimeter", "cubic millimeters", "mm³",  "mm3",  "Cubic Millimeters", UN_SC_MM * UN_SC_MM * UN_SC_MM, 0.0,   B_UNIT_DEF_NONE | B_UNIT_DEF_TENTH},
-	{"cubic micrometer", "cubic micrometers", UM"³",  "um3",  "Cubic Micrometers", UN_SC_UM * UN_SC_UM * UN_SC_UM, 0.0,   B_UNIT_DEF_NONE},
+	{"cubic micrometer", "cubic micrometers", "µm³",  "um3",  "Cubic Micrometers", UN_SC_UM * UN_SC_UM * UN_SC_UM,    0.0, B_UNIT_DEF_NONE},
 	{NULL, NULL, NULL,  NULL, NULL, 0.0, 0.0}
 };
 static struct bUnitCollection buMetricVolCollection = {buMetricVolDef, 3, 0, sizeof(buMetricVolDef) / sizeof(bUnitDef)};
@@ -205,6 +203,7 @@ static struct bUnitDef buMetricMassDef[] = {
 	{"hectogram", "hectograms", "hg",  NULL, "Hectograms", UN_SC_HG, 0.0,        B_UNIT_DEF_SUPPRESS},
 	{"dekagram", "dekagrams",   "dag", NULL, "10 Grams", UN_SC_DAG, 0.0,         B_UNIT_DEF_SUPPRESS},
 	{"gram", "grams",           "g",   NULL, "Grams", UN_SC_G, 0.0,              B_UNIT_DEF_NONE},
+	{"milligram", "milligrams", "mg",  NULL, "Milligrams", UN_SC_MG, 0.0,        B_UNIT_DEF_NONE},
 	{NULL, NULL, NULL,  NULL, NULL, 0.0, 0.0}
 };
 static struct bUnitCollection buMetricMassCollection = {buMetricMassDef, 2, 0, sizeof(buMetricMassDef) / sizeof(bUnitDef)};
@@ -258,16 +257,19 @@ static struct bUnitDef buNaturalTimeDef[] = {
 	{"minute", "minutes",           "min", "m", "Minutes",      60.0, 0.0,      B_UNIT_DEF_NONE},
 	{"second", "seconds",           "sec", "s", "Seconds",      1.0, 0.0,       B_UNIT_DEF_NONE}, /* base unit */
 	{"millisecond", "milliseconds", "ms", NULL, "Milliseconds", 0.001, 0.0,     B_UNIT_DEF_NONE},
-	{"microsecond", "microseconds", US,   "us", "Microseconds", 0.000001, 0.0,  B_UNIT_DEF_NONE},
+	{"microsecond", "microseconds", "µs",  "us", "Microseconds", 0.000001, 0.0, B_UNIT_DEF_NONE},
 	{NULL, NULL, NULL, NULL, NULL, 0.0, 0.0}
 };
 static struct bUnitCollection buNaturalTimeCollection = {buNaturalTimeDef, 3, 0, sizeof(buNaturalTimeDef) / sizeof(bUnitDef)};
 
 
 static struct bUnitDef buNaturalRotDef[] = {
-	{"degree", "degrees",			"°", NULL, "Degrees",		M_PI / 180.0, 0.0,	B_UNIT_DEF_NONE},
-//	{"radian", "radians",			"r", NULL, "Radians",		1.0, 0.0,			B_UNIT_DEF_NONE},
-//	{"turn", "turns",				"t", NULL, "Turns",			1.0/(M_PI*2.0), 0.0,B_UNIT_DEF_NONE},
+	{"degree",    "degrees",     "°",  "d",   "Degrees",     M_PI / 180.0,             0.0,  B_UNIT_DEF_NONE},
+	/* arcminutes/arcseconds are used in Astronomy/Navigation areas... */
+	{"arcminute", "arcminutes",  "'",  NULL,  "Arcminutes",  (M_PI / 180.0) / 60.0,    0.0,  B_UNIT_DEF_SUPPRESS},
+	{"arcsecond", "arcseconds",  "\"", NULL,  "Arcseconds",  (M_PI / 180.0) / 3600.0,  0.0,  B_UNIT_DEF_SUPPRESS},
+	{"radian",    "radians",     "r",  NULL,  "Radians",     1.0,                      0.0,  B_UNIT_DEF_NONE},
+//	{"turn",      "turns",       "t",  NULL,  "Turns",       1.0 / (M_PI * 2.0),       0.0,  B_UNIT_DEF_NONE},
 	{NULL, NULL, NULL, NULL, NULL, 0.0, 0.0}
 };
 static struct bUnitCollection buNaturalRotCollection = {buNaturalRotDef, 0, 0, sizeof(buNaturalRotDef) / sizeof(bUnitDef)};
@@ -278,7 +280,7 @@ static struct bUnitDef buCameraLenDef[] = {
 	{"decimeter", "decimeters",     "dm",  NULL, "10 Centimeters", UN_SC_HM, 0.0, B_UNIT_DEF_SUPPRESS},
 	{"centimeter", "centimeters",   "cm",  NULL, "Centimeters", UN_SC_DAM, 0.0,    B_UNIT_DEF_SUPPRESS},
 	{"millimeter", "millimeters",   "mm",  NULL, "Millimeters", UN_SC_M, 0.0,    B_UNIT_DEF_NONE},
-	{"micrometer", "micrometers",   UM,    "um", "Micrometers", UN_SC_MM, 0.0,    B_UNIT_DEF_SUPPRESS},     // micron too?
+	{"micrometer", "micrometers", "µm", "um", "Micrometers",    UN_SC_MM,  0.0, B_UNIT_DEF_SUPPRESS},
 	{NULL, NULL, NULL,	NULL, NULL, 0.0, 0.0}
 };
 static struct bUnitCollection buCameraLenCollection = {buCameraLenDef, 3, 0, sizeof(buCameraLenDef) / sizeof(bUnitDef)};
@@ -345,12 +347,12 @@ static void unit_dual_convert(double value, bUnitCollection *usys, bUnitDef **un
 	*unit_b = unit_best_fit(*value_b, usys, *unit_a, 1);
 }
 
-static int unit_as_string(char *str, int len_max, double value, int prec, bUnitCollection *usys,
-                          /* non exposed options */
-                          bUnitDef *unit, char pad)
+static size_t unit_as_string(char *str, int len_max, double value, int prec, bUnitCollection *usys,
+                             /* non exposed options */
+                             bUnitDef *unit, char pad)
 {
 	double value_conv;
-	int len, i;
+	size_t len, i;
 
 	if (unit) {
 		/* use unit without finding the best one */
@@ -397,7 +399,7 @@ static int unit_as_string(char *str, int len_max, double value, int prec, bUnitC
 		while (unit->name_short[j] && (i < len_max)) {
 			str[i++] = unit->name_short[j++];
 		}
-
+#if 0
 		if (pad) {
 			/* this loop only runs if so many zeros were removed that
 			 * the unit name only used padded chars,
@@ -407,6 +409,7 @@ static int unit_as_string(char *str, int len_max, double value, int prec, bUnitC
 				str[i++] = pad;
 			}
 		}
+#endif
 	}
 
 	/* terminate no matter whats done with padding above */
@@ -417,8 +420,10 @@ static int unit_as_string(char *str, int len_max, double value, int prec, bUnitC
 	return i;
 }
 
-/* Used for drawing number buttons, try keep fast */
-void bUnit_AsString(char *str, int len_max, double value, int prec, int system, int type, int split, int pad)
+/* Used for drawing number buttons, try keep fast.
+ * Return the length of the generated string.
+ */
+size_t bUnit_AsString(char *str, int len_max, double value, int prec, int system, int type, bool split, bool pad)
 {
 	bUnitCollection *usys = unit_get_system(system, type);
 
@@ -434,20 +439,21 @@ void bUnit_AsString(char *str, int len_max, double value, int prec, int system, 
 
 		/* check the 2 is a smaller unit */
 		if (unit_b > unit_a) {
-			int i = unit_as_string(str, len_max, value_a, prec, usys, unit_a, '\0');
+			size_t i;
+			i = unit_as_string(str, len_max, value_a, prec, usys, unit_a, '\0');
 
 			/* is there enough space for at least 1 char of the next unit? */
 			if (i + 2 < len_max) {
 				str[i++] = ' ';
 
 				/* use low precision since this is a smaller unit */
-				unit_as_string(str + i, len_max - i, value_b, prec ? 1 : 0, usys, unit_b, '\0');
+				i += unit_as_string(str + i, len_max - i, value_b, prec ? 1 : 0, usys, unit_b, '\0');
 			}
-			return;
+			return i;
 		}
 	}
 
-	unit_as_string(str, len_max, value, prec, usys, NULL, pad ? ' ' : '\0');
+	return unit_as_string(str, len_max, value, prec, usys, NULL, pad ? ' ' : '\0');
 }
 
 BLI_INLINE int isalpha_or_utf8(const int ch)
@@ -492,7 +498,7 @@ static const char *unit_find_str(const char *str, const char *substr)
  */
 
 /* not too strict, (- = * /) are most common  */
-static int ch_is_op(char op)
+static bool ch_is_op(char op)
 {
 	switch (op) {
 		case '+':
@@ -604,25 +610,19 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 
 	bUnitDef *unit;
 	char str_tmp[TEMP_STR_SIZE];
-	int change = 0;
+	int changed = 0;
 
 	if (usys == NULL || usys->units[0].name == NULL) {
 		return 0;
 	}
 
-	{ /* make lowercase */
-		int i;
-		char *ch = str;
-
-		for (i = 0; (i >= len_max || *ch == '\0'); i++, ch++)
-			if ((*ch >= 'A') && (*ch <= 'Z'))
-				*ch += ('a' - 'A');
-	}
+	/* make lowercase */
+	BLI_ascii_strtolower(str, len_max);
 
 	for (unit = usys->units; unit->name; unit++) {
 		/* in case there are multiple instances */
 		while (unit_replace(str, len_max, str_tmp, scale_pref, unit))
-			change = 1;
+			changed = true;
 	}
 	unit = NULL;
 
@@ -639,7 +639,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 						int ofs = 0;
 						/* in case there are multiple instances */
 						while ((ofs = unit_replace(str + ofs, len_max - ofs, str_tmp, scale_pref, unit)))
-							change = 1;
+							changed = true;
 					}
 				}
 			}
@@ -647,7 +647,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 	}
 	unit = NULL;
 
-	if (change == 0) {
+	if (changed == 0) {
 		/* no units given so infer a unit from the previous string or default */
 		if (str_prev) {
 			/* see which units the original value had */
@@ -705,7 +705,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 /* 45µm --> 45um */

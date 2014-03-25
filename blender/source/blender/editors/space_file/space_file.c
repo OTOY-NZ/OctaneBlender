@@ -387,7 +387,7 @@ static void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_refresh);
 	WM_operatortype_append(FILE_OT_bookmark_toggle);
 	WM_operatortype_append(FILE_OT_bookmark_add);
-	WM_operatortype_append(FILE_OT_delete_bookmark);
+	WM_operatortype_append(FILE_OT_bookmark_delete);
 	WM_operatortype_append(FILE_OT_reset_recent);
 	WM_operatortype_append(FILE_OT_hidedot);
 	WM_operatortype_append(FILE_OT_filenum);
@@ -395,7 +395,6 @@ static void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_delete);
 	WM_operatortype_append(FILE_OT_rename);
 	WM_operatortype_append(FILE_OT_smoothscroll);
-	WM_operatortype_append(FILE_OT_directory);
 }
 
 /* NOTE: do not add .blend file reading on this level */
@@ -404,7 +403,7 @@ static void file_keymap(struct wmKeyConfig *keyconf)
 	wmKeyMapItem *kmi;
 	/* keys for all areas */
 	wmKeyMap *keymap = WM_keymap_find(keyconf, "File Browser", SPACE_FILE, 0);
-	WM_keymap_add_item(keymap, "FILE_OT_bookmark_toggle", NKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "FILE_OT_bookmark_toggle", TKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_parent", PKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_bookmark_add", BKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_hidedot", HKEY, KM_PRESS, 0, 0);
@@ -638,16 +637,8 @@ void ED_spacetype_file(void)
 
 void ED_file_init(void)
 {
-	const char * const cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
-	
-	fsmenu_read_system(fsmenu_get(), TRUE);
+	ED_file_read_bookmarks();
 
-	if (cfgdir) {
-		char name[FILE_MAX];
-		BLI_make_file_string("/", name, cfgdir, BLENDER_BOOKMARK_FILE);
-		fsmenu_read_bookmarks(fsmenu_get(), name);
-	}
-	
 	if (G.background == FALSE) {
 		filelist_init_icons();
 	}
@@ -657,9 +648,25 @@ void ED_file_init(void)
 
 void ED_file_exit(void)
 {
-	fsmenu_free(fsmenu_get());
+	fsmenu_free();
 
 	if (G.background == FALSE) {
 		filelist_free_icons();
 	}
 }
+
+void ED_file_read_bookmarks(void)
+{
+	const char * const cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
+	
+	fsmenu_free();
+
+	fsmenu_read_system(fsmenu_get(), TRUE);
+
+	if (cfgdir) {
+		char name[FILE_MAX];
+		BLI_make_file_string("/", name, cfgdir, BLENDER_BOOKMARK_FILE);
+		fsmenu_read_bookmarks(fsmenu_get(), name);
+	}
+}
+

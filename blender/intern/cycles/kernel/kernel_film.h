@@ -16,7 +16,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-__device float4 film_map(KernelGlobals *kg, float4 irradiance, float scale)
+ccl_device float4 film_map(KernelGlobals *kg, float4 irradiance, float scale)
 {
 	float exposure = kernel_data.film.exposure;
 	float4 result = irradiance*scale;
@@ -32,7 +32,7 @@ __device float4 film_map(KernelGlobals *kg, float4 irradiance, float scale)
 	return result;
 }
 
-__device uchar4 film_float_to_byte(float4 color)
+ccl_device uchar4 film_float_to_byte(float4 color)
 {
 	uchar4 result;
 
@@ -45,8 +45,8 @@ __device uchar4 film_float_to_byte(float4 color)
 	return result;
 }
 
-__device void kernel_film_convert_to_byte(KernelGlobals *kg,
-	__global uchar4 *rgba, __global float *buffer,
+ccl_device void kernel_film_convert_to_byte(KernelGlobals *kg,
+	ccl_global uchar4 *rgba, ccl_global float *buffer,
 	float sample_scale, int x, int y, int offset, int stride)
 {
 	/* buffer offset */
@@ -56,25 +56,34 @@ __device void kernel_film_convert_to_byte(KernelGlobals *kg,
 	buffer += index*kernel_data.film.pass_stride;
 
 	/* map colors */
-	float4 irradiance = *((__global float4*)buffer);
+	float4 irradiance = *((ccl_global float4*)buffer);
 	float4 float_result = film_map(kg, irradiance, sample_scale);
 	uchar4 byte_result = film_float_to_byte(float_result);
 
 	*rgba = byte_result;
 }
 
-__device void kernel_film_convert_to_half_float(KernelGlobals *kg,
-	__global uchar4 *rgba, __global float *buffer,
+ccl_device void kernel_film_convert_to_half_float(KernelGlobals *kg,
+	ccl_global uchar4 *rgba, ccl_global float *buffer,
 	float sample_scale, int x, int y, int offset, int stride)
 {
 	/* buffer offset */
 	int index = offset + x + y*stride;
 
-	__global float4 *in = (__global float4*)(buffer + index*kernel_data.film.pass_stride);
-	__global half *out = (__global half*)rgba + index*4;
-	float scale = kernel_data.film.exposure*sample_scale;
+	ccl_global float4 *in = (ccl_global float4*)(buffer + index*kernel_data.film.pass_stride);
+	ccl_global half *out = (ccl_global half*)rgba + index*4;
 
-	float4_store_half(out, in, scale);
+	float exposure = kernel_data.film.exposure;
+
+	float4 rgba_in = *in;
+
+	if(exposure != 1.0f) {
+		rgba_in.x *= exposure;
+		rgba_in.y *= exposure;
+		rgba_in.z *= exposure;
+	}
+
+	float4_store_half(out, rgba_in, sample_scale);
 }
 
 CCL_NAMESPACE_END

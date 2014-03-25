@@ -51,7 +51,9 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
+#include "BKE_multires.h"
 #include "BKE_packedFile.h"
+#include "BKE_paint.h"
 
 #include "ED_armature.h"
 #include "ED_image.h"
@@ -128,17 +130,43 @@ void ED_editors_exit(bContext *C)
 					}
 				}
 				else if (ob->type == OB_ARMATURE) {
-					ED_armature_edit_free(ob);
+					ED_armature_edit_free(ob->data);
 				}
 			}
 		}
 	}
 
 	/* global in meshtools... */
-	mesh_octree_table(NULL, NULL, NULL, 'e');
-	mesh_mirrtopo_table(NULL, 'e');
+	ED_mesh_mirror_spatial_table(NULL, NULL, NULL, 'e');
+	ED_mesh_mirror_topo_table(NULL, 'e');
 }
 
+/* flush any temp data from object editing to DNA before writing files,
+ * rendering, copying, etc. */
+void ED_editors_flush_edits(const bContext *C, bool for_render)
+{
+	Object *obact = CTX_data_active_object(C);
+	Object *obedit = CTX_data_edit_object(C);
+
+	/* get editmode results */
+	if (obedit)
+		ED_object_editmode_load(obedit);
+
+	if (obact && (obact->mode & OB_MODE_SCULPT)) {
+		/* flush multires changes (for sculpt) */
+		multires_force_update(obact);
+
+		if (for_render) {
+			/* flush changes from dynamic topology sculpt */
+			sculptsession_bm_to_me_for_render(obact);
+		}
+		else {
+			/* Set reorder=false so that saving the file doesn't reorder
+			 * the BMesh's elements */
+			sculptsession_bm_to_me(obact, FALSE);
+		}
+	}
+}
 
 /* ***** XXX: functions are using old blender names, cleanup later ***** */
 
@@ -173,8 +201,8 @@ void unpack_menu(bContext *C, const char *opname, const char *id_name, const cha
 	pup = uiPupMenuBegin(C, IFACE_("Unpack File"), ICON_NONE);
 	layout = uiPupMenuLayout(pup);
 
-	strcpy(line, IFACE_("Remove Pack"));
-	props_ptr = uiItemFullO_ptr(layout, ot, line, ICON_NONE, NULL, WM_OP_EXEC_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+	props_ptr = uiItemFullO_ptr(layout, ot, IFACE_("Remove Pack"), ICON_NONE,
+	                            NULL, WM_OP_EXEC_DEFAULT, UI_ITEM_O_RETURN_PROPS);
 	RNA_enum_set(&props_ptr, "method", PF_REMOVE);
 	RNA_string_set(&props_ptr, "id", id_name);
 
@@ -258,15 +286,15 @@ void unpack_menu(bContext *C, const char *opname, const char *id_name, const cha
 void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info)
 {
 	wmWindow *win = CTX_wm_window(C);
-	const int *mval_src = (int *)arg_info;
+	const float *mval_src = (float *)arg_info;
 	const int mval_dst[2] = {win->eventstate->x - ar->winrct.xmin,
 	                         win->eventstate->y - ar->winrct.ymin};
 
-	UI_ThemeColor(TH_WIRE);
+	UI_ThemeColor(TH_VIEW_OVERLAY);
 	setlinestyle(3);
 	glBegin(GL_LINE_STRIP);
 	glVertex2iv(mval_dst);
-	glVertex2iv(mval_src);
+	glVertex2fv(mval_src);
 	glEnd();
 	setlinestyle(0);
 }

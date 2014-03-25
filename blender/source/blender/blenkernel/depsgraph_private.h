@@ -92,6 +92,21 @@ typedef struct DagNode {
 	struct DagAdjList *child;
 	struct DagAdjList *parent;
 	struct DagNode *next;
+
+	/* Threaded evaluation routines */
+	uint32_t num_pending_parents;  /* number of parents which are not updated yet
+	                                * this node has got.
+	                                * Used by threaded update for faster detect whether node could be
+	                                * updated aready.
+	                                */
+	bool scheduled;
+
+	/* Runtime flags mainly used to determine which extra data is to be evaluated
+	 * during object_handle_update(). Such an extra data is what depends on the
+	 * DAG topology, meaning this flags indicates the data evaluation of which
+	 * depends on the node dependencies.
+	 */
+	short eval_flags;
 } DagNode;
 
 typedef struct DagNodeQueueElem {
@@ -107,15 +122,14 @@ typedef struct DagNodeQueue {
 	struct DagNodeQueue *freenodes;
 } DagNodeQueue;
 
-// forest as we may have more than one DAG unnconected
+/* forest as we may have more than one DAG unconnected */
 typedef struct DagForest {
 	ListBase DagNode;
 	struct GHash *nodeHash;
 	int numNodes;
-	int is_acyclic;
+	bool is_acyclic;
 	int time;  /* for flushing/tagging, compare with node->lasttime */
 } DagForest;
-
 
 // queue operations
 DagNodeQueue *queue_create(int slots);

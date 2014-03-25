@@ -1767,7 +1767,23 @@ void			btSoftBody::predictMotion(btScalar dt)
 	{
 		Node&	n=m_nodes[i];
 		n.m_q	=	n.m_x;
-		n.m_v	+=	n.m_f*n.m_im*m_sst.sdt;
+		btVector3 deltaV = n.m_f*n.m_im*m_sst.sdt;
+		{
+			btScalar maxDisplacement = m_worldInfo->m_maxDisplacement;
+			btScalar clampDeltaV = maxDisplacement/m_sst.sdt;
+			for (int c=0;c<3;c++)
+			{
+				if (deltaV[c]>clampDeltaV)
+				{
+					deltaV[c] = clampDeltaV;
+				}
+				if (deltaV[c]<-clampDeltaV)
+				{
+					deltaV[c]=-clampDeltaV;
+				}
+			}
+		}
+		n.m_v	+=	deltaV;
 		n.m_x	+=	n.m_v*m_sst.sdt;
 		n.m_f	=	btVector3(0,0,0);
 	}
@@ -3011,7 +3027,8 @@ void btSoftBody::PSolve_RContacts(btSoftBody* psb, btScalar kst, btScalar ti)
 	{
 		const RContact&		c = psb->m_rcontacts[i];
 		const sCti&			cti = c.m_cti;	
-		if (cti.m_colObj->hasContactResponse()) {
+		if (cti.m_colObj->hasContactResponse()) 
+		{
 			btRigidBody* tmpRigid = (btRigidBody*)btRigidBody::upcast(cti.m_colObj);
 			const btVector3		va = tmpRigid ? tmpRigid->getVelocityInLocalPoint(c.m_c1)*dt : btVector3(0,0,0);
 			const btVector3		vb = c.m_node->m_x-c.m_node->m_q;	

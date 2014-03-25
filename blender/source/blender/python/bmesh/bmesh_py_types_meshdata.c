@@ -57,7 +57,7 @@ typedef struct BPy_BMTexPoly {
 } BPy_BMTexPoly;
 
 extern PyObject *pyrna_id_CreatePyObject(ID *id);
-extern int       pyrna_id_FromPyObject(PyObject *obj, ID **id);
+extern bool      pyrna_id_FromPyObject(PyObject *obj, ID **id);
 
 PyDoc_STRVAR(bpy_bmtexpoly_image_doc,
 "Image or None.\n\n:type: :class:`bpy.types.Image`"
@@ -248,6 +248,115 @@ PyObject *BPy_BMLoopUV_CreatePyObject(struct MLoopUV *mloopuv)
 
 /* --- End Mesh Loop UV --- */
 
+/* Mesh Vert Skin
+ * ************ */
+
+#define BPy_BMVertSkin_Check(v)  (Py_TYPE(v) == &BPy_BMVertSkin_Type)
+
+typedef struct BPy_BMVertSkin {
+	PyObject_VAR_HEAD
+	MVertSkin *data;
+} BPy_BMVertSkin;
+
+PyDoc_STRVAR(bpy_bmvertskin_radius_doc,
+"Vert skin radii (as a 2D Vector).\n\n:type: :class:`mathutils.Vector`"
+);
+static PyObject *bpy_bmvertskin_radius_get(BPy_BMVertSkin *self, void *UNUSED(closure))
+{
+	return Vector_CreatePyObject(self->data->radius, 2, Py_WRAP, NULL);
+}
+
+static int bpy_bmvertskin_radius_set(BPy_BMVertSkin *self, PyObject *value, void *UNUSED(closure))
+{
+	float tvec[2];
+	if (mathutils_array_parse(tvec, 2, 2, value, "BMVertSkin.radius") != -1) {
+		copy_v2_v2(self->data->radius, tvec);
+		return 0;
+	}
+	else {
+		return -1;
+	}
+}
+
+PyDoc_STRVAR(bpy_bmvertskin_flag__use_root_doc,
+"Use as root vertex.\n\n:type: boolean"
+);
+PyDoc_STRVAR(bpy_bmvertskin_flag__use_loose_doc,
+"Use loose vertex.\n\n:type: boolean"
+);
+
+static PyObject *bpy_bmvertskin_flag_get(BPy_BMVertSkin *self, void *flag_p)
+{
+	const int flag = GET_INT_FROM_POINTER(flag_p);
+	return PyBool_FromLong(self->data->flag & flag);
+}
+
+static int bpy_bmvertskin_flag_set(BPy_BMVertSkin *self, PyObject *value, void *flag_p)
+{
+	const int flag = GET_INT_FROM_POINTER(flag_p);
+
+	switch (PyLong_AsLong(value)) {
+		case true:
+			self->data->flag |= flag;
+			return 0;
+		case false:
+			self->data->flag &= ~flag;
+			return 0;
+		default:
+			PyErr_SetString(PyExc_TypeError,
+			                "expected a boolean type 0/1");
+			return -1;
+	}
+}
+
+/* XXX Todo: Make root settable, currently the code to disable all other verts as roots sits within the modifier */
+static PyGetSetDef bpy_bmvertskin_getseters[] = {
+	/* attributes match rna_mesh_gen  */
+	{(char *)"radius",    (getter)bpy_bmvertskin_radius_get, (setter)bpy_bmvertskin_radius_set, (char *)bpy_bmvertskin_radius_doc, NULL},
+	{(char *)"use_root",  (getter)bpy_bmvertskin_flag_get,   (setter)NULL,					   (char *)bpy_bmvertskin_flag__use_root_doc,  (void *)MVERT_SKIN_ROOT},
+	{(char *)"use_loose", (getter)bpy_bmvertskin_flag_get,   (setter)bpy_bmvertskin_flag_set,   (char *)bpy_bmvertskin_flag__use_loose_doc, (void *)MVERT_SKIN_LOOSE},
+
+	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
+};
+
+static PyTypeObject BPy_BMVertSkin_Type = {{{0}}}; /* bm.loops.layers.uv.active */
+
+static void bm_init_types_bmvertskin(void)
+{
+	BPy_BMVertSkin_Type.tp_basicsize = sizeof(BPy_BMVertSkin);
+
+	BPy_BMVertSkin_Type.tp_name = "BMVertSkin";
+
+	BPy_BMVertSkin_Type.tp_doc = NULL; // todo
+
+	BPy_BMVertSkin_Type.tp_getset = bpy_bmvertskin_getseters;
+
+	BPy_BMVertSkin_Type.tp_flags = Py_TPFLAGS_DEFAULT;
+
+	PyType_Ready(&BPy_BMVertSkin_Type);
+}
+
+int BPy_BMVertSkin_AssignPyObject(struct MVertSkin *mvertskin, PyObject *value)
+{
+	if (UNLIKELY(!BPy_BMVertSkin_Check(value))) {
+		PyErr_Format(PyExc_TypeError, "expected BMVertSkin, not a %.200s", Py_TYPE(value)->tp_name);
+		return -1;
+	}
+	else {
+		*((MVertSkin *)mvertskin) = *(((BPy_BMVertSkin *)value)->data);
+		return 0;
+	}
+}
+
+PyObject *BPy_BMVertSkin_CreatePyObject(struct MVertSkin *mvertskin)
+{
+	BPy_BMVertSkin *self = PyObject_New(BPy_BMVertSkin, &BPy_BMVertSkin_Type);
+	self->data = mvertskin;
+	return (PyObject *)self;
+}
+
+/* --- End Mesh Vert Skin --- */
+
 /* Mesh Loop Color
  * *************** */
 
@@ -258,9 +367,9 @@ PyObject *BPy_BMLoopUV_CreatePyObject(struct MLoopUV *mloopuv)
 #define MLOOPCOL_FROM_CAPSULE(color_capsule)  \
 	((MLoopCol *)PyCapsule_GetPointer(color_capsule, NULL))
 
-static void mloopcol_to_float(const MLoopCol *mloopcol, float col_r[3])
+static void mloopcol_to_float(const MLoopCol *mloopcol, float r_col[3])
 {
-	rgb_uchar_to_float(col_r, (unsigned char *)&mloopcol->r);
+	rgb_uchar_to_float(r_col, (unsigned char *)&mloopcol->r);
 }
 
 static void mloopcol_from_float(MLoopCol *mloopcol, const float col[3])
@@ -441,7 +550,7 @@ static int bpy_bmdeformvert_ass_subscript(BPy_BMDeformVert *self, PyObject *key,
 				if (f == -1 && PyErr_Occurred()) { // parsed key not a number
 					PyErr_SetString(PyExc_TypeError,
 					                "BMDeformVert[key] = x: "
-					                "argument not a number");
+					                "assigned value not a number");
 					return -1;
 				}
 
@@ -534,13 +643,13 @@ static PyObject *bpy_bmdeformvert_keys(BPy_BMDeformVert *self)
 }
 
 PyDoc_STRVAR(bpy_bmdeformvert_values_doc,
-".. method:: items()\n"
+".. method:: values()\n"
 "\n"
-"   Return (group, weight) pairs for this vertex\n"
-"   (matching pythons dict.items() functionality).\n"
+"   Return the weights of the deform vertex\n"
+"   (matching pythons dict.values() functionality).\n"
 "\n"
-"   :return: (key, value) pairs for each deform weight of this vertex.\n"
-"   :rtype: list of tuples\n"
+"   :return: The weights that influence this vertex\n"
+"   :rtype: list of floats\n"
 );
 static PyObject *bpy_bmdeformvert_values(BPy_BMDeformVert *self)
 {
@@ -557,13 +666,13 @@ static PyObject *bpy_bmdeformvert_values(BPy_BMDeformVert *self)
 }
 
 PyDoc_STRVAR(bpy_bmdeformvert_items_doc,
-".. method:: values()\n"
+".. method:: items()\n"
 "\n"
-"   Return the weights of the deform vertex\n"
-"   (matching pythons dict.values() functionality).\n"
+"   Return (group, weight) pairs for this vertex\n"
+"   (matching pythons dict.items() functionality).\n"
 "\n"
-"   :return: The weights that influence this vertex\n"
-"   :rtype: list of floats\n"
+"   :return: (key, value) pairs for each deform weight of this vertex.\n"
+"   :rtype: list of tuples\n"
 );
 static PyObject *bpy_bmdeformvert_items(BPy_BMDeformVert *self)
 {
@@ -692,5 +801,6 @@ void BPy_BM_init_types_meshdata(void)
 	bm_init_types_bmloopuv();
 	bm_init_types_bmloopcol();
 	bm_init_types_bmdvert();
+	bm_init_types_bmvertskin();
 }
 

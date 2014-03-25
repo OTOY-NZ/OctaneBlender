@@ -41,6 +41,7 @@ int				PyC_AsArray(void *array, PyObject *value, const Py_ssize_t length,
                             const PyTypeObject *type, const bool is_double, const char *error_prefix);
 PyObject *      PyC_FromArray(const void *array, int length, const PyTypeObject *type,
                               const bool is_double, const char *error_prefix);
+void            PyC_Tuple_Fill(PyObject *tuple, PyObject *value);
 
 /* follow http://www.python.org/dev/peps/pep-0383/ */
 PyObject *      PyC_UnicodeFromByte(const char *str);
@@ -71,5 +72,9 @@ int       PyC_FlagSet_ValueFromID_int(PyC_FlagSet *item, const char *identifier,
 int       PyC_FlagSet_ValueFromID(PyC_FlagSet *item, const char *identifier, int *value, const char *error_prefix);
 int       PyC_FlagSet_ToBitfield(PyC_FlagSet *items, PyObject *value, int *r_value, const char *error_prefix);
 PyObject *PyC_FlagSet_FromBitfield(PyC_FlagSet *items, int flag);
+
+#if PY_VERSION_HEX <  0x03030200
+int _PyLong_AsInt(PyObject *obj);
+#endif
 
 #endif  /* __PY_CAPI_UTILS_H__ */

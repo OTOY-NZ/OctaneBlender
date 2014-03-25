@@ -60,6 +60,7 @@
 #include "IMB_imbuf.h"
 
 #include "BKE_blender.h"
+#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 
@@ -895,17 +896,20 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 					}
 					break;
 				case 's':
-					sfra = MIN2(MAXFRAME, MAX2(1, atoi(argv[2]) ));
+					sfra = atoi(argv[2]);
+					CLAMP(sfra, 1, MAXFRAME);
 					argc--;
 					argv++;
 					break;
 				case 'e':
-					efra = MIN2(MAXFRAME, MAX2(1, atoi(argv[2]) ));
+					efra = atoi(argv[2]);
+					CLAMP(efra, 1, MAXFRAME);
 					argc--;
 					argv++;
 					break;
 				case 'j':
-					ps.fstep = MIN2(MAXFRAME, MAX2(1, atoi(argv[2])));
+					ps.fstep = atoi(argv[2]);
+					CLAMP(ps.fstep, 1, MAXFRAME);
 					swaptime *= ps.fstep;
 					argc--;
 					argv++;
@@ -955,9 +959,9 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	}
 
 #if 0 //XXX25
-	#if !defined(WIN32) && !defined(__APPLE__)
+#if !defined(WIN32) && !defined(__APPLE__)
 	if (fork()) exit(0);
-	#endif
+#endif
 #endif //XXX25
 
 	{
@@ -1198,6 +1202,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	
 	IMB_exit();
 	BKE_images_exit();
+	DAG_exit();
 
 	totblock = MEM_get_memory_blocks_in_use();
 	if (totblock != 0) {

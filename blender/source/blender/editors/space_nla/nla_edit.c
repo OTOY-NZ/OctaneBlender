@@ -121,7 +121,7 @@ static int nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 	
 	/* if no blocks, popup error? */
-	if (anim_data.first == NULL) {
+	if (BLI_listbase_is_empty(&anim_data)) {
 		BKE_report(op->reports, RPT_ERROR, "No AnimData blocks to enter tweak mode for");
 		return OPERATOR_CANCELLED;
 	}
@@ -185,7 +185,7 @@ bool nlaedit_disable_tweakmode(bAnimContext *ac)
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* if no blocks, popup error? */
-	if (anim_data.first == NULL) {
+	if (BLI_listbase_is_empty(&anim_data)) {
 		BKE_report(ac->reports, RPT_ERROR, "No AnimData blocks in tweak mode to exit from");
 		return false;
 	}
@@ -1304,7 +1304,7 @@ static int nlaedit_swap_exec(bContext *C, wmOperator *op)
 		/* special case: if there is only 1 island (i.e. temp meta BUT NOT unselected/normal/normal-meta strips) left after this, 
 		 * and this island has two strips inside it, then we should be able to just swap these still...
 		 */
-		if ((nlt->strips.first == nlt->strips.last) && (nlt->strips.first != NULL)) {
+		if (BLI_listbase_is_empty(&nlt->strips) == false) {
 			NlaStrip *mstrip = (NlaStrip *)nlt->strips.first;
 			
 			if ((mstrip->flag & NLASTRIP_FLAG_TEMP_META) && (BLI_countlist(&mstrip->strips) == 2)) {
@@ -1587,7 +1587,7 @@ static int nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
-	short active_only = RNA_boolean_get(op->ptr, "active");
+	const bool active_only = RNA_boolean_get(op->ptr, "active");
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -2004,7 +2004,7 @@ static int nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 	
 	FModifier *fcm;
 	int type = RNA_enum_get(op->ptr, "type");
-	short onlyActive = RNA_boolean_get(op->ptr, "only_active");
+	const bool active_only = RNA_boolean_get(op->ptr, "only_active");
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -2021,7 +2021,7 @@ static int nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 		
 		for (strip = nlt->strips.first; strip; strip = strip->next) {
 			/* can F-Modifier be added to the current strip? */
-			if (onlyActive) {
+			if (active_only) {
 				/* if not active, cannot add since we're only adding to active strip */
 				if ((strip->flag & NLASTRIP_FLAG_ACTIVE) == 0)
 					continue;

@@ -40,11 +40,6 @@
 #endif /* __alpha__ */
 #endif /* __linux__ */
 
-#ifdef __APPLE__
-// Can't use Carbon right now because of double defined type ID (In Carbon.h and DNA_ID.h, sigh)
-//#include <Carbon/Carbon.h>
-//#include <CFBundle.h>
-#endif // __APPLE__
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h"
 #include "KX_PythonMain.h"
@@ -57,6 +52,8 @@ extern "C"
 {
 #endif  // __cplusplus
 #include "MEM_guardedalloc.h"
+#include "MEM_CacheLimiterC-Api.h"
+
 #include "BLI_threads.h"
 #include "BLI_mempool.h"
 #include "BLI_blenlib.h"
@@ -80,6 +77,7 @@ extern "C"
 #include "BKE_sound.h"
 
 #include "IMB_imbuf.h"
+#include "IMB_moviecache.h"
 	
 	int GHOST_HACK_getFirstFile(char buf[]);
 	
@@ -88,6 +86,8 @@ extern "C"
 #include "BLF_translation.h"
 extern int datatoc_bfont_ttf_size;
 extern char datatoc_bfont_ttf[];
+extern int datatoc_bmonofont_ttf_size;
+extern char datatoc_bmonofont_ttf[];
 
 #ifdef __cplusplus
 }
@@ -424,27 +424,6 @@ int main(int argc, char** argv)
 #endif /* __linux__ */
 	BLI_init_program_path(argv[0]);
 	BLI_init_temporary_dir(NULL);
-#ifdef __APPLE__
-	// Can't use Carbon right now because of double defined type ID (In Carbon.h and DNA_ID.h, sigh)
-	/*
-	IBNibRef 		nibRef;
-	WindowRef 		window;
-	OSStatus		err;
-
-	  // Create a Nib reference passing the name of the nib file (without the .nib extension)
-	  // CreateNibReference only searches into the application bundle.
-	  err = ::CreateNibReference(CFSTR("main"), &nibRef);
-	  if (err) return -1;
-	  
-		// Once the nib reference is created, set the menu bar. "MainMenu" is the name of the menu bar
-		// object. This name is set in InterfaceBuilder when the nib is created.
-		err = ::SetMenuBarFromNib(nibRef, CFSTR("MenuBar"));
-		if (err) return -1;
-		
-		  // We don't need the nib reference anymore.
-		  ::DisposeNibReference(nibRef);
-	*/
-#endif // __APPLE__
 	
 	// We don't use threads directly in the BGE, but we need to call this so things like
 	// freeing up GPU_Textures works correctly.
@@ -458,12 +437,14 @@ int main(int argc, char** argv)
 
 	U.gameflags |= USER_DISABLE_VBO;
 	// We load our own G.main, so free the one that initglobals() gives us
-	free_main(G.main);
+	BKE_main_free(G.main);
 	G.main = NULL;
 
+	MEM_CacheLimiter_set_disabled(true);
 	IMB_init();
 	BKE_images_init();
 	BKE_modifier_init();
+	DAG_init();
 
 #ifdef WITH_FFMPEG
 	IMB_ffmpeg_init();
@@ -475,6 +456,8 @@ int main(int argc, char** argv)
 	BLF_lang_set("");
 
 	BLF_load_mem("default", (unsigned char*)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
+	if (blf_mono_font == -1)
+		blf_mono_font = BLF_load_mem_unique("monospace", (unsigned char*)datatoc_bmonofont_ttf, datatoc_bmonofont_ttf_size);
 
 	// Parse command line options
 #if defined(DEBUG)
@@ -678,6 +661,9 @@ int main(int argc, char** argv)
 					else if (!strcmp(argv[i], "syncdoubling"))
 						stereomode = RAS_IRasterizer::RAS_STEREO_ABOVEBELOW;
 
+					else if (!strcmp(argv[i], "3dtvtopbottom"))
+						stereomode = RAS_IRasterizer::RAS_STEREO_3DTVTOPBOTTOM;
+
 					else if (!strcmp(argv[i], "anaglyph"))
 						stereomode = RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
 
@@ -771,11 +757,6 @@ int main(int argc, char** argv)
 	if (scr_saver_mode != SCREEN_SAVER_MODE_CONFIGURATION)
 #endif
 	{
-#ifdef __APPLE__
-		//SYS_WriteCommandLineInt(syshandle, "show_framerate", 1);
-		//SYS_WriteCommandLineInt(syshandle, "nomipmap", 1);
-		//fullScreen = false;		// Can't use full screen
-#endif
 
 		if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 			GPU_set_mipmap(0);
@@ -1090,6 +1071,8 @@ int main(int argc, char** argv)
 
 	IMB_exit();
 	BKE_images_exit();
+	DAG_exit();
+	IMB_moviecache_destruct();
 
 	SYS_DeleteSystem(syshandle);
 

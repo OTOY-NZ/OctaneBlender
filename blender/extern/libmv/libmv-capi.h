@@ -73,7 +73,7 @@ void libmv_samplePlanarPatch(const float *image, int width, int height,
 /* Tracks */
 struct libmv_Tracks *libmv_tracksNew(void);
 void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks);
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y);
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y, double weight);
 
 /* Reconstruction */
 #define LIBMV_REFINE_FOCAL_LENGTH          (1 << 0)
@@ -94,9 +94,6 @@ typedef struct libmv_ReconstructionOptions {
 	int keyframe1, keyframe2;
 
 	int refine_intrinsics;
-
-	double success_threshold;
-	int use_fallback_reconstruction;
 } libmv_ReconstructionOptions;
 
 typedef void (*reconstruct_progress_update_cb) (void *customdata, double progress, const char *message);
@@ -121,10 +118,29 @@ double libmv_reprojectionError(const struct libmv_Reconstruction *libmv_reconstr
 struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_Reconstruction);
 
 /* Feature detector */
-struct libmv_Features *libmv_detectFeaturesFAST(const unsigned char *data, int width, int height, int stride,
-                                                int margin, int min_trackness, int min_distance);
-struct libmv_Features *libmv_detectFeaturesMORAVEC(const unsigned char *data, int width, int height, int stride,
-                                                   int margin, int count, int min_distance);
+enum {
+	LIBMV_DETECTOR_FAST,
+	LIBMV_DETECTOR_MORAVEC,
+	LIBMV_DETECTOR_HARRIS,
+};
+
+typedef struct libmv_DetectOptions {
+  int detector;
+  int margin;
+  int min_distance;
+  int fast_min_trackness;
+  int moravec_max_count;
+  unsigned char *moravec_pattern;
+  double harris_threshold;
+} libmv_DetectOptions;
+
+struct libmv_Features *libmv_detectFeaturesByte(const unsigned char *image_buffer,
+                                                int width, int height, int channels,
+                                                libmv_DetectOptions *options);
+struct libmv_Features *libmv_detectFeaturesFloat(const float *image_buffer,
+                                                 int width, int height, int channels,
+                                                 libmv_DetectOptions *options);
+
 void libmv_featuresDestroy(struct libmv_Features *libmv_features);
 int libmv_countFeatures(const struct libmv_Features *libmv_features);
 void libmv_getFeature(const struct libmv_Features *libmv_features, int number, double *x, double *y, double *score,

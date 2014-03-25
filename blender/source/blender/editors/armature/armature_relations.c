@@ -66,13 +66,63 @@
 /* *************************************** Join *************************************** */
 /* NOTE: no operator define here as this is exported to the Object-level operator */
 
+static void joined_armature_fix_links_constraints(
+        Object *tarArm, Object *srcArm, bPoseChannel *pchan, EditBone *curbone,
+        ListBase *lb)
+{
+	bConstraint *con;
+
+	for (con = lb->first; con; con = con->next) {
+		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		ListBase targets = {NULL, NULL};
+		bConstraintTarget *ct;
+
+		/* constraint targets */
+		if (cti && cti->get_constraint_targets) {
+			cti->get_constraint_targets(con, &targets);
+
+			for (ct = targets.first; ct; ct = ct->next) {
+				if (ct->tar == srcArm) {
+					if (ct->subtarget[0] == '\0') {
+						ct->tar = tarArm;
+					}
+					else if (STREQ(ct->subtarget, pchan->name)) {
+						ct->tar = tarArm;
+						BLI_strncpy(ct->subtarget, curbone->name, sizeof(ct->subtarget));
+					}
+				}
+			}
+
+			if (cti->flush_constraint_targets)
+				cti->flush_constraint_targets(con, &targets, 0);
+		}
+
+		/* action constraint? (pose constraints only) */
+		if (con->type == CONSTRAINT_TYPE_ACTION) {
+			bActionConstraint *data = con->data; // XXX old animation system
+			bAction *act;
+			bActionChannel *achan;
+
+			if (data->act) {
+				act = data->act;
+
+				for (achan = act->chanbase.first; achan; achan = achan->next) {
+					if (STREQ(achan->name, pchan->name)) {
+						BLI_strncpy(achan->name, curbone->name, sizeof(achan->name));
+					}
+				}
+			}
+		}
+
+	}
+}
+
 /* Helper function for armature joining - link fixing */
 static void joined_armature_fix_links(Object *tarArm, Object *srcArm, bPoseChannel *pchan, EditBone *curbone)
 {
 	Object *ob;
 	bPose *pose;
 	bPoseChannel *pchant;
-	bConstraint *con;
 	
 	/* let's go through all objects in database */
 	for (ob = G.main->object.first; ob; ob = ob->id.next) {
@@ -80,78 +130,13 @@ static void joined_armature_fix_links(Object *tarArm, Object *srcArm, bPoseChann
 		if (ob->type == OB_ARMATURE) {
 			pose = ob->pose;
 			for (pchant = pose->chanbase.first; pchant; pchant = pchant->next) {
-				for (con = pchant->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
-					ListBase targets = {NULL, NULL};
-					bConstraintTarget *ct;
-					
-					/* constraint targets */
-					if (cti && cti->get_constraint_targets) {
-						cti->get_constraint_targets(con, &targets);
-						
-						for (ct = targets.first; ct; ct = ct->next) {
-							if (ct->tar == srcArm) {
-								if (ct->subtarget[0] == '\0') {
-									ct->tar = tarArm;
-								}
-								else if (strcmp(ct->subtarget, pchan->name) == 0) {
-									ct->tar = tarArm;
-									BLI_strncpy(ct->subtarget, curbone->name, sizeof(ct->subtarget));
-								}
-							}
-						}
-						
-						if (cti->flush_constraint_targets)
-							cti->flush_constraint_targets(con, &targets, 0);
-					}
-					
-					/* action constraint? */
-					if (con->type == CONSTRAINT_TYPE_ACTION) {
-						bActionConstraint *data = con->data; // XXX old animation system
-						bAction *act;
-						bActionChannel *achan;
-						
-						if (data->act) {
-							act = data->act;
-							
-							for (achan = act->chanbase.first; achan; achan = achan->next) {
-								if (strcmp(achan->name, pchan->name) == 0)
-									BLI_strncpy(achan->name, curbone->name, sizeof(achan->name));
-							}
-						}
-					}
-					
-				}
+				joined_armature_fix_links_constraints(tarArm, srcArm, pchan, curbone, &pchant->constraints);
 			}
 		}
 			
 		/* fix object-level constraints */
 		if (ob != srcArm) {
-			for (con = ob->constraints.first; con; con = con->next) {
-				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
-				ListBase targets = {NULL, NULL};
-				bConstraintTarget *ct;
-				
-				/* constraint targets */
-				if (cti && cti->get_constraint_targets) {
-					cti->get_constraint_targets(con, &targets);
-					
-					for (ct = targets.first; ct; ct = ct->next) {
-						if (ct->tar == srcArm) {
-							if (ct->subtarget[0] == '\0') {
-								ct->tar = tarArm;
-							}
-							else if (strcmp(ct->subtarget, pchan->name) == 0) {
-								ct->tar = tarArm;
-								BLI_strncpy(ct->subtarget, curbone->name, sizeof(ct->subtarget));
-							}
-						}
-					}
-					
-					if (cti->flush_constraint_targets)
-						cti->flush_constraint_targets(con, &targets, 0);
-				}
-			}
+			joined_armature_fix_links_constraints(tarArm, srcArm, pchan, curbone, &ob->constraints);
 		}
 		
 		/* See if an object is parented to this armature */
@@ -159,8 +144,9 @@ static void joined_armature_fix_links(Object *tarArm, Object *srcArm, bPoseChann
 			/* Is object parented to a bone of this src armature? */
 			if (ob->partype == PARBONE) {
 				/* bone name in object */
-				if (!strcmp(ob->parsubstr, pchan->name))
+				if (STREQ(ob->parsubstr, pchan->name)) {
 					BLI_strncpy(ob->parsubstr, curbone->name, sizeof(ob->parsubstr));
+				}
 			}
 			
 			/* make tar armature be new parent */
@@ -204,7 +190,7 @@ int join_armature_exec(bContext *C, wmOperator *op)
 	}
 
 	/* Get editbones of active armature to add editbones to */
-	ED_armature_to_edit(ob);
+	ED_armature_to_edit(arm);
 	
 	/* get pose of active object and move it out of posemode */
 	pose = ob->pose;
@@ -216,7 +202,7 @@ int join_armature_exec(bContext *C, wmOperator *op)
 			bArmature *curarm = base->object->data;
 			
 			/* Make a list of editbones in current armature */
-			ED_armature_to_edit(base->object);
+			ED_armature_to_edit(base->object->data);
 			
 			/* Get Pose of current armature */
 			opose = base->object->pose;
@@ -230,7 +216,7 @@ int join_armature_exec(bContext *C, wmOperator *op)
 			/* Copy bones and posechannels from the object to the edit armature */
 			for (pchan = opose->chanbase.first; pchan; pchan = pchann) {
 				pchann = pchan->next;
-				curbone = editbone_name_exists(curarm->edbo, pchan->name);
+				curbone = ED_armature_bone_find_name(curarm->edbo, pchan->name);
 				
 				/* Get new name */
 				unique_editbone_name(arm->edbo, curbone->name, NULL);
@@ -286,8 +272,8 @@ int join_armature_exec(bContext *C, wmOperator *op)
 	
 	DAG_relations_tag_update(bmain);  /* because we removed object(s) */
 
-	ED_armature_from_edit(ob);
-	ED_armature_edit_free(ob);
+	ED_armature_from_edit(arm);
+	ED_armature_edit_free(arm);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
 	
@@ -409,12 +395,12 @@ static void separate_armature_bones(Object *ob, short sel)
 	EditBone *curbone;
 	
 	/* make local set of editbones to manipulate here */
-	ED_armature_to_edit(ob);
+	ED_armature_to_edit(arm);
 	
 	/* go through pose-channels, checking if a bone should be removed */
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchann) {
 		pchann = pchan->next;
-		curbone = editbone_name_exists(arm->edbo, pchan->name);
+		curbone = ED_armature_bone_find_name(arm->edbo, pchan->name);
 		
 		/* check if bone needs to be removed */
 		if ( (sel && (curbone->flag & BONE_SELECTED)) ||
@@ -449,12 +435,12 @@ static void separate_armature_bones(Object *ob, short sel)
 	}
 	
 	/* exit editmode (recalculates pchans too) */
-	ED_armature_from_edit(ob);
-	ED_armature_edit_free(ob);
+	ED_armature_from_edit(ob->data);
+	ED_armature_edit_free(ob->data);
 }
 
 /* separate selected bones into their armature */
-static int separate_armature_exec(bContext *C, wmOperator *UNUSED(op))
+static int separate_armature_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
@@ -492,8 +478,8 @@ static int separate_armature_exec(bContext *C, wmOperator *UNUSED(op))
 	oldob->mode &= ~OB_MODE_POSE;
 	//oldbase->flag &= ~OB_POSEMODE;
 	
-	ED_armature_from_edit(obedit);
-	ED_armature_edit_free(obedit);
+	ED_armature_from_edit(obedit->data);
+	ED_armature_edit_free(obedit->data);
 	
 	/* 2) duplicate base */
 	newbase = ED_object_add_duplicate(bmain, scene, oldbase, USER_DUP_ARM); /* only duplicate linked armature */
@@ -518,8 +504,10 @@ static int separate_armature_exec(bContext *C, wmOperator *UNUSED(op))
 	/* 5) restore original conditions */
 	obedit = oldob;
 	
-	ED_armature_to_edit(obedit);
+	ED_armature_to_edit(obedit->data);
 	
+	BKE_report(op->reports, RPT_INFO, "Separated bones");
+
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, obedit);
 	
@@ -537,7 +525,6 @@ void ARMATURE_OT_separate(wmOperatorType *ot)
 	ot->description = "Isolate selected bones into a separate armature";
 	
 	/* callbacks */
-	ot->invoke = WM_operator_confirm;
 	ot->exec = separate_armature_exec;
 	ot->poll = ED_operator_editarmature;
 	

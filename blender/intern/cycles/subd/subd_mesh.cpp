@@ -28,18 +28,292 @@
 
 #include <stdio.h>
 
-#include "subd_build.h"
-#include "subd_edge.h"
-#include "subd_face.h"
 #include "subd_mesh.h"
 #include "subd_patch.h"
 #include "subd_split.h"
-#include "subd_vert.h"
 
 #include "util_debug.h"
 #include "util_foreach.h"
 
+#ifdef WITH_OPENSUBDIV
+
+#include <osd/vertex.h>
+#include <osd/mesh.h>
+#include <osd/cpuComputeController.h>
+#include <osd/cpuVertexBuffer.h>
+#include <osd/cpuEvalLimitController.h>
+#include <osd/evalLimitContext.h>
+
 CCL_NAMESPACE_BEGIN
+
+/* typedefs */
+typedef OpenSubdiv::OsdVertex OsdVertex;
+typedef OpenSubdiv::FarMesh<OsdVertex> OsdFarMesh;
+typedef OpenSubdiv::FarMeshFactory<OsdVertex> OsdFarMeshFactory;
+typedef OpenSubdiv::HbrCatmarkSubdivision<OsdVertex> OsdHbrCatmarkSubdivision;
+typedef OpenSubdiv::HbrFace<OsdVertex> OsdHbrFace;
+typedef OpenSubdiv::HbrHalfedge<OsdVertex> OsdHbrHalfEdge;
+typedef OpenSubdiv::HbrMesh<OsdVertex> OsdHbrMesh;
+typedef OpenSubdiv::HbrVertex<OsdVertex> OsdHbrVertex;
+typedef OpenSubdiv::OsdCpuComputeContext OsdCpuComputeContext;
+typedef OpenSubdiv::OsdCpuComputeController OsdCpuComputeController;
+typedef OpenSubdiv::OsdCpuEvalLimitContext OsdCpuEvalLimitContext;
+typedef OpenSubdiv::OsdCpuEvalLimitController OsdCpuEvalLimitController;
+typedef OpenSubdiv::OsdCpuVertexBuffer OsdCpuVertexBuffer;
+typedef OpenSubdiv::OsdEvalCoords OsdEvalCoords;
+typedef OpenSubdiv::OsdVertexBufferDescriptor OsdVertexBufferDescriptor;
+
+/* OpenSubdiv Patch */
+
+class OpenSubdPatch : public Patch {
+public:
+	int face_id;
+
+	OpenSubdPatch(OsdFarMesh *farmesh, OsdCpuVertexBuffer *vbuf_base)
+	{
+		face_id = 0;
+
+		/* create buffers for evaluation */
+		vbuf_P = OsdCpuVertexBuffer::Create(3, 1);
+		vbuf_dPdu = OsdCpuVertexBuffer::Create(3, 1);
+		vbuf_dPdv = OsdCpuVertexBuffer::Create(3, 1);
+
+		P = vbuf_P->BindCpuBuffer();
+		dPdu = vbuf_dPdu->BindCpuBuffer();
+		dPdv = vbuf_dPdv->BindCpuBuffer();
+
+		/* setup evaluation context */
+		OsdVertexBufferDescriptor in_desc(0, 3, 3), out_desc(0, 3, 3); /* offset, length, stride */
+
+		evalctx = OsdCpuEvalLimitContext::Create(farmesh, false);
+		evalctx->GetVertexData().Bind(in_desc, vbuf_base, out_desc, vbuf_P, vbuf_dPdu, vbuf_dPdv);
+	}
+
+	~OpenSubdPatch()
+	{
+		evalctx->GetVertexData().Unbind();
+
+		delete evalctx;
+		delete vbuf_P;
+		delete vbuf_dPdu;
+		delete vbuf_dPdv;
+	}
+
+	void eval(float3 *P_, float3 *dPdu_, float3 *dPdv_, float u, float v)
+	{
+		OsdEvalCoords coords;
+		coords.u = u;
+		coords.v = v;
+		coords.face = face_id;
+
+		evalctrl.EvalLimitSample<OsdCpuVertexBuffer,OsdCpuVertexBuffer>(coords, evalctx, 0);
+
+		*P_ = make_float3(P[0], P[1], P[2]);
+		if (dPdu_) *dPdu_ = make_float3(dPdv[0], dPdv[1], dPdv[2]);
+		if (dPdv_) *dPdv_ = make_float3(dPdu[0], dPdu[1], dPdu[2]);
+
+		/* optimize: skip evaluating derivatives when not needed */
+		/* todo: swapped derivatives, different winding convention? */
+	}
+
+	BoundBox bound()
+	{
+		/* not implemented */
+		BoundBox bbox = BoundBox::empty;
+		return bbox;
+	}
+
+	int ptex_face_id()
+	{
+		return face_id;
+	}
+
+protected:
+	OsdCpuEvalLimitController evalctrl;
+	OsdCpuEvalLimitContext *evalctx;
+	OsdCpuVertexBuffer *vbuf_P;
+	OsdCpuVertexBuffer *vbuf_dPdu;
+	OsdCpuVertexBuffer *vbuf_dPdv;
+	float *P;
+	float *dPdu;
+	float *dPdv;
+};
+
+/* OpenSubdiv Mesh */
+
+OpenSubdMesh::OpenSubdMesh()
+{
+	/* create osd mesh */
+	static OsdHbrCatmarkSubdivision	catmark;
+	OsdHbrMesh *hbrmesh = new OsdHbrMesh(&catmark);
+
+	/* initialize class */
+	num_verts = 0;
+	num_ptex_faces = 0;
+	_hbrmesh = (void*)hbrmesh;
+}
+
+OpenSubdMesh::~OpenSubdMesh()
+{
+	OsdHbrMesh *hbrmesh = (OsdHbrMesh*)_hbrmesh;
+
+	if(hbrmesh)
+		delete hbrmesh;
+}
+
+void OpenSubdMesh::add_vert(const float3& co)
+{
+	OsdHbrMesh *hbrmesh = (OsdHbrMesh*)_hbrmesh;
+
+	OsdVertex v;
+	positions.push_back(co.x);
+	positions.push_back(co.y);
+	positions.push_back(co.z);
+	hbrmesh->NewVertex(num_verts++, v);
+}
+
+void OpenSubdMesh::add_face(int v0, int v1, int v2)
+{
+	int index[3] = {v0, v1, v2};
+	return add_face(index, 3);
+}
+
+void OpenSubdMesh::add_face(int v0, int v1, int v2, int v3)
+{
+	int index[4] = {v0, v1, v2, v3};
+	add_face(index, 4);
+}
+
+void OpenSubdMesh::add_face(int *index, int num)
+{
+	OsdHbrMesh *hbrmesh = (OsdHbrMesh*)_hbrmesh;
+
+#ifndef NDEBUG
+	/* sanity checks */
+	for(int j = 0; j < num; j++) {
+		OsdHbrVertex *origin = hbrmesh->GetVertex(index[j]);
+		OsdHbrVertex *destination = hbrmesh->GetVertex(index[(j+1)%num]);
+		OsdHbrHalfEdge *opposite = destination->GetEdge(origin);
+
+		if(origin==NULL || destination==NULL)
+			assert("An edge was specified that connected a nonexistent vertex\n");
+
+		if(origin == destination)
+			assert("An edge was specified that connected a vertex to itself\n");
+
+		if(opposite && opposite->GetOpposite())
+			assert("A non-manifold edge incident to more than 2 faces was found\n");
+
+		if(origin->GetEdge(destination))
+			assert("An edge connecting two vertices was specified more than once."
+				 "It's likely that an incident face was flipped\n");
+	}
+#endif
+
+	OsdHbrFace *face = hbrmesh->NewFace(num, index, 0);
+
+	/* this is required for limit eval patch table? */
+	face->SetPtexIndex(num_ptex_faces);
+
+	if(num == 4)
+		num_ptex_faces++;
+	else
+		num_ptex_faces += num;
+}
+
+bool OpenSubdMesh::finish()
+{
+	OsdHbrMesh *hbrmesh = (OsdHbrMesh*)_hbrmesh;
+
+	/* finish hbr mesh construction */
+	hbrmesh->SetInterpolateBoundaryMethod(OsdHbrMesh::k_InterpolateBoundaryEdgeOnly);
+	hbrmesh->Finish();
+
+	return true;
+}
+
+void OpenSubdMesh::tessellate(DiagSplit *split)
+{
+	if (num_ptex_faces == 0)
+		return;
+
+	const int level = 3;
+	const bool requirefvar = false;
+
+	/* convert HRB to FAR mesh */
+	OsdHbrMesh *hbrmesh = (OsdHbrMesh*)_hbrmesh;
+
+	OsdFarMeshFactory meshFactory(hbrmesh, level, true);
+	OsdFarMesh *farmesh = meshFactory.Create(requirefvar);
+	int num_hbr_verts = hbrmesh->GetNumVertices();
+
+	delete hbrmesh;
+	hbrmesh = NULL;
+	_hbrmesh = NULL;
+
+	/* refine HBR mesh with vertex coordinates */
+	OsdCpuComputeController *compute_controller = new OsdCpuComputeController();
+	OsdCpuComputeContext *compute_context = OsdCpuComputeContext::Create(farmesh);
+
+	OsdCpuVertexBuffer *vbuf_base = OsdCpuVertexBuffer::Create(3, num_hbr_verts);
+	vbuf_base->UpdateData(&positions[0], 0, num_verts);
+
+	compute_controller->Refine(compute_context, farmesh->GetKernelBatches(), vbuf_base);
+	compute_controller->Synchronize();
+
+	/* split & dice patches */
+	OpenSubdPatch patch(farmesh, vbuf_base);
+
+	for(int f = 0; f < num_ptex_faces; f++) {
+		patch.face_id = f;
+		split->split_quad(&patch);
+	}
+
+	/* clean up */
+	delete farmesh;
+	delete compute_controller;
+	delete compute_context;
+	delete vbuf_base;
+}
+
+CCL_NAMESPACE_END
+
+#else /* WITH_OPENSUBDIV */
+
+CCL_NAMESPACE_BEGIN
+
+/* Subd Vertex */
+
+class SubdVert
+{
+public:
+	int id;
+	float3 co;
+	
+	SubdVert(int id_)
+	{
+		id = id_;
+		co = make_float3(0.0f, 0.0f, 0.0f);
+	}
+};
+
+/* Subd Face */
+
+class SubdFace
+{
+public:
+	int id;
+	int numverts;
+	int verts[4];
+
+	SubdFace(int id_)
+	{
+		id = id_;
+		numverts = 0;
+	}
+};
+
+/* Subd Mesh */
 
 SubdMesh::SubdMesh()
 {
@@ -47,18 +321,12 @@ SubdMesh::SubdMesh()
 
 SubdMesh::~SubdMesh()
 {
-	pair<Key, SubdEdge*> em;
-
 	foreach(SubdVert *vertex, verts)
 		delete vertex;
-	foreach(em, edge_map)
-		delete em.second;
 	foreach(SubdFace *face, faces)
 		delete face;
 
 	verts.clear();
-	edges.clear();
-	edge_map.clear();
 	faces.clear();
 }
 
@@ -85,225 +353,66 @@ SubdFace *SubdMesh::add_face(int v0, int v1, int v2, int v3)
 
 SubdFace *SubdMesh::add_face(int *index, int num)
 {
-	/* test non-manifold cases */
-	if(!can_add_face(index, num)) {
-		/* we could try to add face in opposite winding instead .. */
-		fprintf(stderr, "Warning: non manifold mesh, invalid face '%lu'.\n", (unsigned long)faces.size());
+	/* skip ngons */
+	if(num < 3 || num > 4)
 		return NULL;
-	}
-	
+
 	SubdFace *f = new SubdFace(faces.size());
-	
-	SubdEdge *first_edge = NULL;
-	SubdEdge *last = NULL;
-	SubdEdge *current = NULL;
 
-	/* add edges */
-	for(int i = 0; i < num-1; i++) {
-		current = add_edge(index[i], index[i+1]);
-		assert(current != NULL);
-		
-		current->face = f;
-		
-		if(last != NULL) {
-			last->next = current;
-			current->prev = last;
-		}
-		else
-			first_edge = current;
-		
-		last = current;
-	}
+	for(int i = 0; i < num; i++)
+		f->verts[i] = index[i];
 
-	current = add_edge(index[num-1], index[0]);
-	assert(current != NULL);
-	
-	current->face = f;
-
-	last->next = current;
-	current->prev = last;
-
-	current->next = first_edge;
-	first_edge->prev = current;
-
-	f->edge = first_edge;
+	f->numverts = num;
 	faces.push_back(f);
 
 	return f;
 }
 
-bool SubdMesh::can_add_face(int *index, int num)
+bool SubdMesh::finish()
 {
-	/* manifold check */
-	for(int i = 0; i < num-1; i++)
-		if(!can_add_edge(index[i], index[i+1]))
-			return false;
-
-	return can_add_edge(index[num-1], index[0]);
-}
-
-bool SubdMesh::can_add_edge(int i, int j)
-{
-	/* check for degenerate edge */
-	if(i == j)
-		return false;
-
-	/* make sure edge has not been added yet. */
-	return find_edge(i, j) == NULL;
-}
-
-SubdEdge *SubdMesh::add_edge(int i, int j)
-{
-	SubdEdge *edge;
-
-	/* find pair */
-	SubdEdge *pair = find_edge(j, i);
-
-	if(pair != NULL) {
-		/* create edge with same id */
-		edge = new SubdEdge(pair->id + 1);
-		
-		/* link edge pairs */
-		edge->pair = pair;
-		pair->pair = edge;
-		
-		/* not sure this is necessary? */
-		pair->vert->edge = pair;
-	}
-	else {
-		/* create edge */
-		edge = new SubdEdge(2*edges.size());
-		
-		/* add only unpaired edges */
-		edges.push_back(edge);
-	}
-	
-	/* assign vertex and put into map */
-	edge->vert = verts[i];
-	edge_map[Key(i, j)] = edge;
-	
-	/* face and next are set by add_face */
-	
-	return edge;
-}
-
-SubdEdge *SubdMesh::find_edge(int i, int j)
-{
-	map<Key, SubdEdge*>::const_iterator it = edge_map.find(Key(i, j));
-
-	return (it == edge_map.end())? NULL: it->second;
-}
-
-bool SubdMesh::link_boundary()
-{
-	/* link boundary edges once the mesh has been created */
-	int num = 0;
-	
-	/* create boundary edges */
-	int num_edges = edges.size();
-
-	for(int e = 0; e < num_edges; e++) {
-		SubdEdge *edge = edges[e];
-
-		if(edge->pair == NULL) {
-			SubdEdge *pair = new SubdEdge(edge->id + 1);
-
-			int i = edge->from()->id;
-			int j = edge->to()->id;
-
-			assert(edge_map.find(Key(j, i)) == edge_map.end());
-
-			pair->vert = verts[j];
-			edge_map[Key(j, i)] = pair;
-			
-			edge->pair = pair;
-			pair->pair = edge;
-			
-			num++;
-		}
-	}
-
-	/* link boundary edges */
-	for(int e = 0; e < num_edges; e++) {
-		SubdEdge *edge = edges[e];
-
-		if(edge->pair->face == NULL)
-			link_boundary_edge(edge->pair);
-	}
-	
-	/* detect boundary intersections */
-	int boundaryIntersections = 0;
-	int num_verts = verts.size();
-
-	for(int v = 0; v < num_verts; v++) {
-		SubdVert *vertex = verts[v];
-
-		int boundarySubdEdges = 0;
-		for(SubdVert::EdgeIterator it(vertex->edges()); !it.isDone(); it.advance())
-			if(it.current()->is_boundary())
-				boundarySubdEdges++;
-
-		if(boundarySubdEdges > 2) {
-			assert((boundarySubdEdges & 1) == 0);
-			boundaryIntersections++;
-		}
-	}
-
-	if(boundaryIntersections != 0) {
-		fprintf(stderr, "Invalid mesh, boundary intersections found!\n");
-		return false;
-	}
-
 	return true;
 }
 
-void SubdMesh::link_boundary_edge(SubdEdge *edge)
+void SubdMesh::tessellate(DiagSplit *split)
 {
-	/* link this boundary edge. */
-
-	/* make sure next pointer has not been set. */
-	assert(edge->face == NULL);
-	assert(edge->next == NULL);
-		
-	SubdEdge *next = edge;
-
-	while(next->pair->face != NULL) {
-		/* get pair prev */
-		SubdEdge *e = next->pair->next;
-
-		while(e->next != next->pair)
-			e = e->next;
-
-		next = e;
-	}
-
-	edge->next = next->pair;
-	next->pair->prev = edge;
-	
-	/* adjust vertex edge, so that it's the boundary edge. (required for is_boundary()) */
-	if(edge->vert->edge != edge)
-		edge->vert->edge = edge;
-}
-
-void SubdMesh::tessellate(DiagSplit *split, bool linear, Mesh *mesh, int shader, bool smooth)
-{
-	SubdBuilder *builder = SubdBuilder::create(linear);
 	int num_faces = faces.size();
 		        
 	for(int f = 0; f < num_faces; f++) {
 		SubdFace *face = faces[f];
-		Patch *patch = builder->run(face);
+		Patch *patch;
+		float3 *hull;
+
+		if(face->numverts == 3) {
+			LinearTrianglePatch *lpatch = new LinearTrianglePatch();
+			hull = lpatch->hull;
+			patch = lpatch;
+		}
+		else if(face->numverts == 4) {
+			LinearQuadPatch *lpatch = new LinearQuadPatch();
+			hull = lpatch->hull;
+			patch = lpatch;
+		}
+		else {
+			assert(0); /* n-gons should have been split already */
+			continue;
+		}
+
+		for(int i = 0; i < face->numverts; i++)
+			hull[i] = verts[face->verts[i]]->co;
+
+		if(face->numverts == 4)
+			swap(hull[2], hull[3]);
 
 		if(patch->is_triangle())
-			split->split_triangle(mesh, patch, shader, smooth);
+			split->split_triangle(patch);
 		else
-			split->split_quad(mesh, patch, shader, smooth);
+			split->split_quad(patch);
 
 		delete patch;
 	}
-
-	delete builder;
 }
 
 CCL_NAMESPACE_END
+
+#endif /* WITH_OPENSUBDIV */
 

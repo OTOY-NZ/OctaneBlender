@@ -29,6 +29,8 @@
 #include "MEM_CacheLimiter.h"
 #include "MEM_CacheLimiterC-Api.h"
 
+static bool is_disabled = false;
+
 static size_t & get_max()
 {
 	static size_t m = 32 * 1024 * 1024;
@@ -43,6 +45,16 @@ void MEM_CacheLimiter_set_maximum(size_t m)
 size_t MEM_CacheLimiter_get_maximum()
 {
 	return get_max();
+}
+
+void MEM_CacheLimiter_set_disabled(bool disabled)
+{
+	is_disabled = disabled;
+}
+
+bool MEM_CacheLimiter_is_disabled(void)
+{
+	return is_disabled;
 }
 
 class MEM_CacheLimiterHandleCClass;
@@ -201,6 +213,12 @@ void MEM_CacheLimiter_ItemPriority_Func_set(MEM_CacheLimiterC *This,
                                             MEM_CacheLimiter_ItemPriority_Func item_priority_func)
 {
 	cast(This)->get_cache()->set_item_priority_func(item_priority_func);
+}
+
+void MEM_CacheLimiter_ItemDestroyable_Func_set(MEM_CacheLimiterC *This,
+                                               MEM_CacheLimiter_ItemDestroyable_Func item_destroyable_func)
+{
+	cast(This)->get_cache()->set_item_destroyable_func(item_destroyable_func);
 }
 
 size_t MEM_CacheLimiter_get_memory_in_use(MEM_CacheLimiterC *This)

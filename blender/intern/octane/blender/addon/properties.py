@@ -83,14 +83,26 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 default="127.0.0.1",
                 maxlen=255,
                 )
+        cls.stand_login = StringProperty(
+                name="Stand",
+                description="Octane standalone login",
+                default="",
+                maxlen=128,
+                )
+        cls.stand_pass = StringProperty(
+                name="",
+                description="Octane standalone password",
+                default="",
+                maxlen=128,
+                )
         cls.server_login = StringProperty(
-                name="Login",
+                name="Plugin",
                 description="Octane render-server login",
                 default="",
                 maxlen=128,
                 )
         cls.server_pass = StringProperty(
-                name="Password",
+                name="",
                 description="Octane render-server password",
                 default="",
                 maxlen=128,

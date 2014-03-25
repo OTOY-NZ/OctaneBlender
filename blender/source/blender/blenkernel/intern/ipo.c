@@ -712,17 +712,6 @@ static const char *world_adrcodes_to_paths(int adrcode, int *array_index)
 			return "mist.start";
 		case WO_MISTHI:
 			return "mist.height";
-
-		case WO_STAR_R:
-		case WO_STAR_G:
-		case WO_STAR_B:
-			printf("WARNING: WO_STAR_R/G/B deprecated\n");
-			return NULL;
-		
-		case WO_STARDIST:
-			return "stars.min_distance";
-		case WO_STARSIZE:
-			return "stars.size";
 		
 		default: /* for now, we assume that the others were MTex channels */
 			return mtex_adrcodes_to_paths(adrcode, array_index);
@@ -1466,7 +1455,7 @@ static void action_to_animato(ID *id, bAction *act, ListBase *groups, ListBase *
 	bConstraintChannel *conchan, *conchann;
 	
 	/* only continue if there are Action Channels (indicating unconverted data) */
-	if (act->chanbase.first == NULL)
+	if (BLI_listbase_is_empty(&act->chanbase))
 		return;
 		
 	/* get rid of all Action Groups */

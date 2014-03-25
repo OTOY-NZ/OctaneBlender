@@ -101,10 +101,10 @@ int nlaop_poll_tweakmode_on(bContext *C)
 }
 
 /* is tweakmode enabled - for use in NLA operator code */
-short nlaedit_is_tweakmode_on(bAnimContext *ac)
+bool nlaedit_is_tweakmode_on(bAnimContext *ac)
 {
 	if (ac && ac->scene)
-		return (ac->scene->flag & SCE_NLA_EDIT_ON);
+		return (ac->scene->flag & SCE_NLA_EDIT_ON) != 0;
 	return 0;
 }
 
@@ -238,6 +238,7 @@ static void nla_keymap_main(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	/* auto-set range */
 	//WM_keymap_add_item(keymap, "NLA_OT_previewrange_set", PKEY, KM_PRESS, KM_CTRL|KM_ALT, 0);
 	WM_keymap_add_item(keymap, "NLA_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "NLA_OT_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "NLA_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
 	
 	/* editing ------------------------------------------------ */

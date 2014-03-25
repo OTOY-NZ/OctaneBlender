@@ -46,9 +46,11 @@ set(SRC
 	drawvolume.c
 	space_view3d.c
 	view3d_buttons.c
+	view3d_camera_control.c
 	view3d_draw.c
 	view3d_edit.c
 	view3d_fly.c
+	view3d_walk.c
 	view3d_header.c
 	view3d_iterators.c
 	view3d_ops.c
@@ -61,6 +63,11 @@ set(SRC
 
 	view3d_intern.h
 )
+
+if(WITH_PYTHON)
+	blender_include_dirs(../../python)
+	add_definitions(-DWITH_PYTHON)
+endif()
 
 if(WITH_GAMEENGINE)
 	list(APPEND INC

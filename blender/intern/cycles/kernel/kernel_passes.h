@@ -16,28 +16,30 @@
 
 CCL_NAMESPACE_BEGIN
 
-__device_inline void kernel_write_pass_float(__global float *buffer, int sample, float value)
+ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sample, float value)
 {
-	__global float *buf = buffer;
+	ccl_global float *buf = buffer;
 	*buf = (sample == 0)? value: *buf + value;
 }
 
-__device_inline void kernel_write_pass_float3(__global float *buffer, int sample, float3 value)
+ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sample, float3 value)
 {
-	__global float3 *buf = (__global float3*)buffer;
+	ccl_global float3 *buf = (ccl_global float3*)buffer;
 	*buf = (sample == 0)? value: *buf + value;
 }
 
-__device_inline void kernel_write_pass_float4(__global float *buffer, int sample, float4 value)
+ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sample, float4 value)
 {
-	__global float4 *buf = (__global float4*)buffer;
+	ccl_global float4 *buf = (ccl_global float4*)buffer;
 	*buf = (sample == 0)? value: *buf + value;
 }
 
-__device_inline void kernel_write_data_passes(KernelGlobals *kg, __global float *buffer, PathRadiance *L,
-	ShaderData *sd, int sample, int path_flag, float3 throughput)
+ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L,
+	ShaderData *sd, int sample, PathState *state, float3 throughput)
 {
 #ifdef __PASSES__
+	int path_flag = state->flag;
+
 	if(!(path_flag & PATH_RAY_CAMERA))
 		return;
 
@@ -46,35 +48,41 @@ __device_inline void kernel_write_data_passes(KernelGlobals *kg, __global float 
 	if(!(flag & PASS_ALL))
 		return;
 	
-	/* todo: add alpha threshold */
-	if(!(path_flag & PATH_RAY_TRANSPARENT)) {
-		if(sample == 0) {
-			if(flag & PASS_DEPTH) {
-				float depth = camera_distance(kg, sd->P);
-				kernel_write_pass_float(buffer + kernel_data.film.pass_depth, sample, depth);
-			}
-			if(flag & PASS_OBJECT_ID) {
-				float id = object_pass_id(kg, sd->object);
-				kernel_write_pass_float(buffer + kernel_data.film.pass_object_id, sample, id);
-			}
-			if(flag & PASS_MATERIAL_ID) {
-				float id = shader_pass_id(kg, sd);
-				kernel_write_pass_float(buffer + kernel_data.film.pass_material_id, sample, id);
-			}
-		}
+	if(!(path_flag & PATH_RAY_SINGLE_PASS_DONE)) {
+		if(!(sd->flag & SD_TRANSPARENT) ||
+		   kernel_data.film.pass_alpha_threshold == 0.0f ||
+		   average(shader_bsdf_alpha(kg, sd)) >= kernel_data.film.pass_alpha_threshold) {
 
-		if(flag & PASS_NORMAL) {
-			float3 normal = sd->N;
-			kernel_write_pass_float3(buffer + kernel_data.film.pass_normal, sample, normal);
-		}
-		if(flag & PASS_UV) {
-			float3 uv = primitive_uv(kg, sd);
-			kernel_write_pass_float3(buffer + kernel_data.film.pass_uv, sample, uv);
-		}
-		if(flag & PASS_MOTION) {
-			float4 speed = primitive_motion_vector(kg, sd);
-			kernel_write_pass_float4(buffer + kernel_data.film.pass_motion, sample, speed);
-			kernel_write_pass_float(buffer + kernel_data.film.pass_motion_weight, sample, 1.0f);
+			if(sample == 0) {
+				if(flag & PASS_DEPTH) {
+					float depth = camera_distance(kg, sd->P);
+					kernel_write_pass_float(buffer + kernel_data.film.pass_depth, sample, depth);
+				}
+				if(flag & PASS_OBJECT_ID) {
+					float id = object_pass_id(kg, sd->object);
+					kernel_write_pass_float(buffer + kernel_data.film.pass_object_id, sample, id);
+				}
+				if(flag & PASS_MATERIAL_ID) {
+					float id = shader_pass_id(kg, sd);
+					kernel_write_pass_float(buffer + kernel_data.film.pass_material_id, sample, id);
+				}
+			}
+
+			if(flag & PASS_NORMAL) {
+				float3 normal = sd->N;
+				kernel_write_pass_float3(buffer + kernel_data.film.pass_normal, sample, normal);
+			}
+			if(flag & PASS_UV) {
+				float3 uv = primitive_uv(kg, sd);
+				kernel_write_pass_float3(buffer + kernel_data.film.pass_uv, sample, uv);
+			}
+			if(flag & PASS_MOTION) {
+				float4 speed = primitive_motion_vector(kg, sd);
+				kernel_write_pass_float4(buffer + kernel_data.film.pass_motion, sample, speed);
+				kernel_write_pass_float(buffer + kernel_data.film.pass_motion_weight, sample, 1.0f);
+			}
+
+			state->flag |= PATH_RAY_SINGLE_PASS_DONE;
 		}
 	}
 
@@ -114,7 +122,7 @@ __device_inline void kernel_write_data_passes(KernelGlobals *kg, __global float 
 #endif
 }
 
-__device_inline void kernel_write_light_passes(KernelGlobals *kg, __global float *buffer, PathRadiance *L, int sample)
+ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L, int sample)
 {
 #ifdef __PASSES__
 	int flag = kernel_data.film.pass_flag;

@@ -97,11 +97,12 @@ enum {
 	GlowA = 3
 };
 
-static ImBuf *prepare_effect_imbufs(SeqRenderData context, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
+static ImBuf *prepare_effect_imbufs(const SeqRenderData *context, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
 {
 	ImBuf *out;
-	int x = context.rectx;
-	int y = context.recty;
+	Scene *scene = context->scene;
+	int x = context->rectx;
+	int y = context->recty;
 
 	if (!ibuf1 && !ibuf2 && !ibuf3) {
 		/* hmmm, global float option ? */
@@ -120,13 +121,13 @@ static ImBuf *prepare_effect_imbufs(SeqRenderData context, ImBuf *ibuf1, ImBuf *
 	}
 	
 	if (ibuf1 && !ibuf1->rect_float && out->rect_float) {
-		BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf1, TRUE);
+		BKE_sequencer_imbuf_to_sequencer_space(scene, ibuf1, true);
 	}
 	if (ibuf2 && !ibuf2->rect_float && out->rect_float) {
-		BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf2, TRUE);
+		BKE_sequencer_imbuf_to_sequencer_space(scene, ibuf2, true);
 	}
 	if (ibuf3 && !ibuf3->rect_float && out->rect_float) {
-		BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf3, TRUE);
+		BKE_sequencer_imbuf_to_sequencer_space(scene, ibuf3, true);
 	}
 	
 	if (ibuf1 && !ibuf1->rect && !out->rect_float) {
@@ -140,7 +141,7 @@ static ImBuf *prepare_effect_imbufs(SeqRenderData context, ImBuf *ibuf1, ImBuf *
 	}
 
 	if (out->rect_float)
-		IMB_colormanagement_assign_float_colorspace(out, context.scene->sequencer_colorspace_settings.name);
+		IMB_colormanagement_assign_float_colorspace(out, scene->sequencer_colorspace_settings.name);
 
 	return out;
 }
@@ -284,23 +285,23 @@ static void do_alphaover_effect_float(float facf0, float facf1, int x, int y,  f
 	}
 }
 
-static void do_alphaover_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0,
+static void do_alphaover_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0,
                                 float facf1, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *UNUSED(ibuf3),
                                 int start_line, int total_lines, ImBuf *out)
 {
 	if (out->rect_float) {
 		float *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_float_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_float_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_alphaover_effect_float(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_alphaover_effect_float(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 	else {
 		unsigned char *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_byte_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_byte_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_alphaover_effect_byte(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_alphaover_effect_byte(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 }
 
@@ -446,23 +447,23 @@ static void do_alphaunder_effect_float(float facf0, float facf1, int x, int y,  
 	}
 }
 
-static void do_alphaunder_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra),
+static void do_alphaunder_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra),
                                  float facf0, float facf1, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *UNUSED(ibuf3),
                                  int start_line, int total_lines, ImBuf *out)
 {
 	if (out->rect_float) {
 		float *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_float_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_float_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_alphaunder_effect_float(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_alphaunder_effect_float(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 	else {
 		unsigned char *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_byte_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_byte_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_alphaunder_effect_byte(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_alphaunder_effect_byte(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 }
 
@@ -556,23 +557,23 @@ static void do_cross_effect_float(float facf0, float facf1, int x, int y, float 
 	}
 }
 
-static void do_cross_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra),
+static void do_cross_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra),
                             float facf0, float facf1, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *UNUSED(ibuf3),
                             int start_line, int total_lines, ImBuf *out)
 {
 	if (out->rect_float) {
 		float *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_float_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_float_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_cross_effect_float(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_cross_effect_float(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 	else {
 		unsigned char *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_byte_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_byte_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_cross_effect_byte(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_cross_effect_byte(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 }
 
@@ -581,7 +582,7 @@ static void do_cross_effect(SeqRenderData context, Sequence *UNUSED(seq), float 
 /* copied code from initrender.c */
 static unsigned short gamtab[65536];
 static unsigned short igamtab1[256];
-static int gamma_tabs_init = FALSE;
+static bool gamma_tabs_init = false;
 
 #define RE_GAMMA_TABLE_SIZE 400
 
@@ -634,33 +635,35 @@ static void makeGammaTables(float gamma)
 static float gammaCorrect(float c)
 {
 	int i;
-	float res = 0.0;
+	float res;
 	
-	i = floor(c * inv_color_step);
+	i = floorf(c * inv_color_step);
 	/* Clip to range [0, 1]: outside, just do the complete calculation.
 	 * We may have some performance problems here. Stretching up the LUT
 	 * may help solve that, by exchanging LUT size for the interpolation.
 	 * Negative colors are explicitly handled.
 	 */
-	if (i < 0) res = -pow(abs(c), valid_gamma);
-	else if (i >= RE_GAMMA_TABLE_SIZE) res = pow(c, valid_gamma);
-	else res = gamma_range_table[i] + ( (c - color_domain_table[i]) * gamfactor_table[i]);
+	if      (UNLIKELY(i < 0))          res = -powf(-c, valid_gamma);
+	else if (i >= RE_GAMMA_TABLE_SIZE) res =  powf(c,  valid_gamma);
+	else                               res =  gamma_range_table[i] +
+	                                          ((c - color_domain_table[i]) * gamfactor_table[i]);
 	
 	return res;
 }
 
 /* ------------------------------------------------------------------------- */
 
-static float invGammaCorrect(float col)
+static float invGammaCorrect(float c)
 {
 	int i;
 	float res = 0.0;
 
-	i = floor(col * inv_color_step);
+	i = floorf(c * inv_color_step);
 	/* Negative colors are explicitly handled */
-	if (i < 0) res = -pow(abs(col), valid_inv_gamma);
-	else if (i >= RE_GAMMA_TABLE_SIZE) res = pow(col, valid_inv_gamma);
-	else res = inv_gamma_range_table[i] +  ( (col - color_domain_table[i]) * inv_gamfactor_table[i]);
+	if      (UNLIKELY(i < 0))          res = -powf(-c, valid_inv_gamma);
+	else if (i >= RE_GAMMA_TABLE_SIZE) res =  powf(c,  valid_inv_gamma);
+	else                               res = inv_gamma_range_table[i] +
+	                                         ((c - color_domain_table[i]) * inv_gamfactor_table[i]);
  
 	return res;
 }
@@ -693,10 +696,10 @@ static void gamtabs(float gamma)
 
 static void build_gammatabs(void)
 {
-	if (gamma_tabs_init == FALSE) {
+	if (gamma_tabs_init == false) {
 		gamtabs(2.0f);
 		makeGammaTables(2.0f);
-		gamma_tabs_init = TRUE;
+		gamma_tabs_init = true;
 	}
 }
 
@@ -798,7 +801,7 @@ static void do_gammacross_effect_float(float facf0, float UNUSED(facf1), int x, 
 	}
 }
 
-static struct ImBuf *gammacross_init_execution(SeqRenderData context, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
+static struct ImBuf *gammacross_init_execution(const SeqRenderData *context, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
 {
 	ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
 	build_gammatabs();
@@ -806,23 +809,23 @@ static struct ImBuf *gammacross_init_execution(SeqRenderData context, ImBuf *ibu
 	return out;
 }
 
-static void do_gammacross_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra),
+static void do_gammacross_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra),
                                  float facf0, float facf1, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *UNUSED(ibuf3),
                                  int start_line, int total_lines, ImBuf *out)
 {
 	if (out->rect_float) {
 		float *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_float_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_float_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_gammacross_effect_float(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_gammacross_effect_float(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 	else {
 		unsigned char *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_byte_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_byte_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_gammacross_effect_byte(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_gammacross_effect_byte(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 }
 
@@ -913,22 +916,22 @@ static void do_add_effect_float(float facf0, float facf1, int x, int y, float *r
 	}
 }
 
-static void do_add_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0, float facf1,
+static void do_add_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0, float facf1,
                           ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *UNUSED(ibuf3), int start_line, int total_lines, ImBuf *out)
 {
 	if (out->rect_float) {
 		float *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_float_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_float_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_add_effect_float(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_add_effect_float(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 	else {
 		unsigned char *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_byte_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_byte_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_add_effect_byte(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_add_effect_byte(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 }
 
@@ -1018,22 +1021,22 @@ static void do_sub_effect_float(float UNUSED(facf0), float facf1, int x, int y, 
 	}
 }
 
-static void do_sub_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0, float facf1,
+static void do_sub_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0, float facf1,
                           ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *UNUSED(ibuf3), int start_line, int total_lines, ImBuf *out)
 {
 	if (out->rect_float) {
 		float *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_float_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_float_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_sub_effect_float(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_sub_effect_float(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 	else {
 		unsigned char *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_byte_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_byte_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_sub_effect_byte(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_sub_effect_byte(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 }
 
@@ -1215,22 +1218,22 @@ static void do_mul_effect_float(float facf0, float facf1, int x, int y, float *r
 	}
 }
 
-static void do_mul_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0, float facf1,
+static void do_mul_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0, float facf1,
                           ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *UNUSED(ibuf3), int start_line, int total_lines, ImBuf *out)
 {
 	if (out->rect_float) {
 		float *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_float_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_float_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_mul_effect_float(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_mul_effect_float(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 	else {
 		unsigned char *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_byte_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_byte_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
-		do_mul_effect_byte(facf0, facf1, context.rectx, total_lines, rect1, rect2, rect_out);
+		do_mul_effect_byte(facf0, facf1, context->rectx, total_lines, rect1, rect2, rect_out);
 	}
 }
 
@@ -1246,8 +1249,8 @@ typedef struct WipeZone {
 
 static void precalc_wipe_zone(WipeZone *wipezone, WipeVars *wipe, int xo, int yo)
 {
-	wipezone->flip = (wipe->angle < 0);
-	wipezone->angle = tanf(DEG2RADF(fabsf(wipe->angle)));
+	wipezone->flip = (wipe->angle < 0.0f);
+	wipezone->angle = tanf(fabsf(wipe->angle));
 	wipezone->xo = xo;
 	wipezone->yo = yo;
 	wipezone->width = (int)(wipe->edgeWidth * ((xo + yo) / 2.0f));
@@ -1349,8 +1352,8 @@ static float check_zone(WipeZone *wipezone, int x, int y, Sequence *seq, float f
 				b3 = yo - posy * 0.5f;
 				b2 = y;
 
-				hyp = abs(y - posy * 0.5f);
-				hyp2 = abs(y - (yo - posy * 0.5f));
+				hyp = fabsf(y - posy * 0.5f);
+				hyp2 = fabsf(y - (yo - posy * 0.5f));
 			}
 			else {
 				b1 = posy * 0.5f - (-angle) * posx * 0.5f;
@@ -1500,8 +1503,8 @@ static float check_zone(WipeZone *wipezone, int x, int y, Sequence *seq, float f
 			pointdist = sqrt(temp1 * temp1 + temp1 * temp1);
 
 			temp2 = sqrt((halfx - x) * (halfx - x) + (halfy - y) * (halfy - y));
-			if (temp2 > pointdist) output = in_band(hwidth, fabs(temp2 - pointdist), 0, 1);
-			else output = in_band(hwidth, fabs(temp2 - pointdist), 1, 1);
+			if (temp2 > pointdist) output = in_band(hwidth, fabsf(temp2 - pointdist), 0, 1);
+			else output = in_band(hwidth, fabsf(temp2 - pointdist), 1, 1);
 
 			if (!wipe->forward) output = 1 - output;
 			
@@ -1663,17 +1666,17 @@ static void do_wipe_effect_float(Sequence *seq, float facf0, float UNUSED(facf1)
 	}
 }
 
-static ImBuf *do_wipe_effect(SeqRenderData context, Sequence *seq, float UNUSED(cfra), float facf0, float facf1,
+static ImBuf *do_wipe_effect(const SeqRenderData *context, Sequence *seq, float UNUSED(cfra), float facf0, float facf1,
                              ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
 {
 	ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
 
 	if (out->rect_float) {
-		do_wipe_effect_float(seq, facf0, facf1, context.rectx, context.recty, ibuf1->rect_float,
+		do_wipe_effect_float(seq, facf0, facf1, context->rectx, context->recty, ibuf1->rect_float,
 		                     ibuf2->rect_float, out->rect_float);
 	}
 	else {
-		do_wipe_effect_byte(seq, facf0, facf1, context.rectx, context.recty, (unsigned char *) ibuf1->rect,
+		do_wipe_effect_byte(seq, facf0, facf1, context->rectx, context->recty, (unsigned char *) ibuf1->rect,
 		                    (unsigned char *) ibuf2->rect, (unsigned char *) out->rect);
 	}
 
@@ -1803,12 +1806,12 @@ static void do_transform(Scene *scene, Sequence *seq, float UNUSED(facf0), int x
 }
 
 
-static ImBuf *do_transform_effect(SeqRenderData context, Sequence *seq, float UNUSED(cfra), float facf0,
+static ImBuf *do_transform_effect(const SeqRenderData *context, Sequence *seq, float UNUSED(cfra), float facf0,
                                   float UNUSED(facf1), ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
 {
 	ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
 
-	do_transform(context.scene, seq, facf0, context.rectx, context.recty, ibuf1, out);
+	do_transform(context->scene, seq, facf0, context->rectx, context->recty, ibuf1, out);
 
 	return out;
 }
@@ -2091,19 +2094,19 @@ static void do_glow_effect_float(Sequence *seq, int render_size, float facf0, fl
 		RVAddBitmaps_float(inbuf, outbuf, outbuf, x, y);
 }
 
-static ImBuf *do_glow_effect(SeqRenderData context, Sequence *seq, float UNUSED(cfra), float facf0, float facf1,
+static ImBuf *do_glow_effect(const SeqRenderData *context, Sequence *seq, float UNUSED(cfra), float facf0, float facf1,
                              ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
 {
 	ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
 
-	int render_size = 100 * context.rectx / context.scene->r.xsch;
+	int render_size = 100 * context->rectx / context->scene->r.xsch;
 
 	if (out->rect_float) {
-		do_glow_effect_float(seq, render_size, facf0, facf1, context.rectx, context.recty,
+		do_glow_effect_float(seq, render_size, facf0, facf1, context->rectx, context->recty,
 		                     ibuf1->rect_float, ibuf2->rect_float, out->rect_float);
 	}
 	else {
-		do_glow_effect_byte(seq, render_size, facf0, facf1, context.rectx, context.recty,
+		do_glow_effect_byte(seq, render_size, facf0, facf1, context->rectx, context->recty,
 		                    (unsigned char *) ibuf1->rect, (unsigned char *) ibuf2->rect, (unsigned char *) out->rect);
 	}
 
@@ -2148,7 +2151,7 @@ static int early_out_color(Sequence *UNUSED(seq), float UNUSED(facf0), float UNU
 	return EARLY_NO_INPUT;
 }
 
-static ImBuf *do_solid_color(SeqRenderData context, Sequence *seq, float UNUSED(cfra), float facf0, float facf1,
+static ImBuf *do_solid_color(const SeqRenderData *context, Sequence *seq, float UNUSED(cfra), float facf0, float facf1,
                              ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
 {
 	ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
@@ -2157,8 +2160,8 @@ static ImBuf *do_solid_color(SeqRenderData context, Sequence *seq, float UNUSED(
 
 	unsigned char *rect;
 	float *rect_float;
-	int x; /*= context.rectx;*/ /*UNUSED*/
-	int y; /*= context.recty;*/ /*UNUSED*/
+	int x; /*= context->rectx;*/ /*UNUSED*/
+	int y; /*= context->recty;*/ /*UNUSED*/
 
 	if (out->rect) {
 		unsigned char col0[3];
@@ -2241,7 +2244,7 @@ static int early_out_multicam(Sequence *UNUSED(seq), float UNUSED(facf0), float 
 	return EARLY_NO_INPUT;
 }
 
-static ImBuf *do_multicam(SeqRenderData context, Sequence *seq, float cfra, float UNUSED(facf0), float UNUSED(facf1),
+static ImBuf *do_multicam(const SeqRenderData *context, Sequence *seq, float cfra, float UNUSED(facf0), float UNUSED(facf1),
                           ImBuf *UNUSED(ibuf1), ImBuf *UNUSED(ibuf2), ImBuf *UNUSED(ibuf3))
 {
 	ImBuf *i;
@@ -2253,7 +2256,7 @@ static ImBuf *do_multicam(SeqRenderData context, Sequence *seq, float cfra, floa
 		return NULL;
 	}
 
-	ed = context.scene->ed;
+	ed = context->scene->ed;
 	if (!ed) {
 		return NULL;
 	}
@@ -2291,13 +2294,13 @@ static int early_out_adjustment(Sequence *UNUSED(seq), float UNUSED(facf0), floa
 	return EARLY_NO_INPUT;
 }
 
-static ImBuf *do_adjustment_impl(SeqRenderData context, Sequence *seq, float cfra)
+static ImBuf *do_adjustment_impl(const SeqRenderData *context, Sequence *seq, float cfra)
 {
 	Editing *ed;
 	ListBase *seqbasep;
 	ImBuf *i = NULL;
 
-	ed = context.scene->ed;
+	ed = context->scene->ed;
 
 	seqbasep = BKE_sequence_seqbase(&ed->seqbase, seq);
 
@@ -2323,14 +2326,14 @@ static ImBuf *do_adjustment_impl(SeqRenderData context, Sequence *seq, float cfr
 	return i;
 }
 
-static ImBuf *do_adjustment(SeqRenderData context, Sequence *seq, float cfra, float UNUSED(facf0), float UNUSED(facf1),
+static ImBuf *do_adjustment(const SeqRenderData *context, Sequence *seq, float cfra, float UNUSED(facf0), float UNUSED(facf1),
                             ImBuf *UNUSED(ibuf1), ImBuf *UNUSED(ibuf2), ImBuf *UNUSED(ibuf3))
 {
 	ImBuf *i = NULL;
 	ImBuf *out;
 	Editing *ed;
 
-	ed = context.scene->ed;
+	ed = context->scene->ed;
 
 	if (!ed) {
 		return NULL;
@@ -2427,7 +2430,7 @@ static void store_icu_yrange_speed(Sequence *seq, short UNUSED(adrcode), float *
 	}
 }
 
-void BKE_sequence_effect_speed_rebuild_map(Scene *scene, Sequence *seq, int force)
+void BKE_sequence_effect_speed_rebuild_map(Scene *scene, Sequence *seq, bool force)
 {
 	int cfra;
 	float fallback_fac = 1.0f;
@@ -2438,7 +2441,7 @@ void BKE_sequence_effect_speed_rebuild_map(Scene *scene, Sequence *seq, int forc
 	/* if not already done, load / initialize data */
 	BKE_sequence_get_effect(seq);
 
-	if ((force == FALSE) &&
+	if ((force == false) &&
 	    (seq->len == v->length) &&
 	    (v->frameMap != NULL))
 	{
@@ -2536,17 +2539,17 @@ void BKE_sequence_effect_speed_rebuild_map(Scene *scene, Sequence *seq, int forc
 	}
 }
 
-static ImBuf *do_speed_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra),
+static ImBuf *do_speed_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra),
                               float facf0, float facf1, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
 {
 	ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
 
 	if (out->rect_float) {
-		do_cross_effect_float(facf0, facf1, context.rectx, context.recty,
+		do_cross_effect_float(facf0, facf1, context->rectx, context->recty,
 		                      ibuf1->rect_float, ibuf2->rect_float, out->rect_float);
 	}
 	else {
-		do_cross_effect_byte(facf0, facf1, context.rectx, context.recty,
+		do_cross_effect_byte(facf0, facf1, context->rectx, context->recty,
 		                     (unsigned char *) ibuf1->rect, (unsigned char *) ibuf2->rect, (unsigned char *) out->rect);
 	}
 	return out;
@@ -2554,16 +2557,16 @@ static ImBuf *do_speed_effect(SeqRenderData context, Sequence *UNUSED(seq), floa
 
 /*********************** overdrop *************************/
 
-static void do_overdrop_effect(SeqRenderData context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0, float facf1,
+static void do_overdrop_effect(const SeqRenderData *context, Sequence *UNUSED(seq), float UNUSED(cfra), float facf0, float facf1,
                                ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *UNUSED(ibuf3), int start_line, int total_lines, ImBuf *out)
 {
-	int x = context.rectx;
+	int x = context->rectx;
 	int y = total_lines;
 
 	if (out->rect_float) {
 		float *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_float_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_float_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
 		do_drop_effect_float(facf0, facf1, x, y, rect1, rect2, rect_out);
 		do_alphaover_effect_float(facf0, facf1, x, y, rect1, rect2, rect_out);
@@ -2571,7 +2574,7 @@ static void do_overdrop_effect(SeqRenderData context, Sequence *UNUSED(seq), flo
 	else {
 		unsigned char *rect1 = NULL, *rect2 = NULL, *rect_out = NULL;
 
-		slice_get_byte_buffers(&context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
+		slice_get_byte_buffers(context, ibuf1, ibuf2, NULL, out, start_line, &rect1, &rect2, NULL, &rect_out);
 
 		do_drop_effect_byte(facf0, facf1, x, y, rect1, rect2, rect_out);
 		do_alphaover_effect_byte(facf0, facf1, x, y, rect1, rect2, rect_out);
@@ -2642,7 +2645,7 @@ static void get_default_fac_fade(Sequence *seq, float cfra, float *facf0, float 
 	*facf1 /= seq->len;
 }
 
-static struct ImBuf *init_execution(SeqRenderData context, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
+static struct ImBuf *init_execution(const SeqRenderData *context, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3)
 {
 	ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
 
@@ -2654,8 +2657,8 @@ static struct SeqEffectHandle get_sequence_effect_impl(int seq_type)
 	struct SeqEffectHandle rval;
 	int sequence_type = seq_type;
 
-	rval.multithreaded = FALSE;
-	rval.supports_mask = FALSE;
+	rval.multithreaded = false;
+	rval.supports_mask = false;
 	rval.init = init_noop;
 	rval.num_inputs = num_inputs_default;
 	rval.load = load_noop;
@@ -2670,13 +2673,13 @@ static struct SeqEffectHandle get_sequence_effect_impl(int seq_type)
 
 	switch (sequence_type) {
 		case SEQ_TYPE_CROSS:
-			rval.multithreaded = TRUE;
+			rval.multithreaded = true;
 			rval.execute_slice = do_cross_effect;
 			rval.early_out = early_out_fade;
 			rval.get_default_fac = get_default_fac_fade;
 			break;
 		case SEQ_TYPE_GAMCROSS:
-			rval.multithreaded = TRUE;
+			rval.multithreaded = true;
 			rval.init = init_gammacross;
 			rval.load = load_gammacross;
 			rval.free = free_gammacross;
@@ -2686,31 +2689,31 @@ static struct SeqEffectHandle get_sequence_effect_impl(int seq_type)
 			rval.execute_slice = do_gammacross_effect;
 			break;
 		case SEQ_TYPE_ADD:
-			rval.multithreaded = TRUE;
+			rval.multithreaded = true;
 			rval.execute_slice = do_add_effect;
 			rval.early_out = early_out_mul_input2;
 			break;
 		case SEQ_TYPE_SUB:
-			rval.multithreaded = TRUE;
+			rval.multithreaded = true;
 			rval.execute_slice = do_sub_effect;
 			rval.early_out = early_out_mul_input2;
 			break;
 		case SEQ_TYPE_MUL:
-			rval.multithreaded = TRUE;
+			rval.multithreaded = true;
 			rval.execute_slice = do_mul_effect;
 			rval.early_out = early_out_mul_input2;
 			break;
 		case SEQ_TYPE_ALPHAOVER:
-			rval.multithreaded = TRUE;
+			rval.multithreaded = true;
 			rval.init = init_alpha_over_or_under;
 			rval.execute_slice = do_alphaover_effect;
 			break;
 		case SEQ_TYPE_OVERDROP:
-			rval.multithreaded = TRUE;
+			rval.multithreaded = true;
 			rval.execute_slice = do_overdrop_effect;
 			break;
 		case SEQ_TYPE_ALPHAUNDER:
-			rval.multithreaded = TRUE;
+			rval.multithreaded = true;
 			rval.init = init_alpha_over_or_under;
 			rval.execute_slice = do_alphaunder_effect;
 			break;
@@ -2761,7 +2764,7 @@ static struct SeqEffectHandle get_sequence_effect_impl(int seq_type)
 			rval.execute = do_multicam;
 			break;
 		case SEQ_TYPE_ADJUSTMENT:
-			rval.supports_mask = TRUE;
+			rval.supports_mask = true;
 			rval.num_inputs = num_inputs_adjustment;
 			rval.early_out = early_out_adjustment;
 			rval.execute = do_adjustment;
@@ -2773,7 +2776,7 @@ static struct SeqEffectHandle get_sequence_effect_impl(int seq_type)
 
 struct SeqEffectHandle BKE_sequence_get_effect(Sequence *seq)
 {
-	struct SeqEffectHandle rval = {FALSE, FALSE, NULL};
+	struct SeqEffectHandle rval = {false, false, NULL};
 
 	if (seq->type & SEQ_TYPE_EFFECT) {
 		rval = get_sequence_effect_impl(seq->type);
@@ -2788,7 +2791,7 @@ struct SeqEffectHandle BKE_sequence_get_effect(Sequence *seq)
 
 struct SeqEffectHandle BKE_sequence_get_blend(Sequence *seq)
 {
-	struct SeqEffectHandle rval = {FALSE, FALSE, NULL};
+	struct SeqEffectHandle rval = {false, false, NULL};
 
 	if (seq->blend_mode != 0) {
 		rval = get_sequence_effect_impl(seq->blend_mode);

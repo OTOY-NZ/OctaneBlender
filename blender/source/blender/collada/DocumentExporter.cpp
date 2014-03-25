@@ -101,7 +101,9 @@ extern "C"
 
 #include "ED_keyframing.h"
 #ifdef WITH_BUILDINFO
-extern char build_rev[];
+extern char build_commit_date[];
+extern char build_commit_time[];
+extern char build_hash[];
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -226,9 +228,12 @@ void DocumentExporter::exportCurrentScene(Scene *sce)
 	}
 	char version_buf[128];
 #ifdef WITH_BUILDINFO
-	sprintf(version_buf, "Blender %d.%02d.%d r%s", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION, build_rev);
+	BLI_snprintf(version_buf, sizeof(version_buf), "Blender %d.%02d.%d commit date:%s, commit time:%s, hash:%s",
+	             BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION,
+	             build_commit_date, build_commit_time, build_hash);
 #else
-	sprintf(version_buf, "Blender %d.%02d.%d", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION);
+	BLI_snprintf(version_buf, sizeof(version_buf), "Blender %d.%02d.%d",
+	             BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION);
 #endif
 	asset.getContributor().mAuthoringTool = version_buf;
 	asset.add();

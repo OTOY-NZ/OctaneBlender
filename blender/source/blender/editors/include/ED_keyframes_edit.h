@@ -56,7 +56,8 @@ typedef enum eEditKeyframes_Validate {
 	BEZT_OK_SELECTED,
 	BEZT_OK_VALUE,
 	BEZT_OK_VALUERANGE,
-	BEZT_OK_REGION
+	BEZT_OK_REGION,
+	BEZT_OK_REGION_LASSO,
 } eEditKeyframes_Validate;
 
 /* ------------ */
@@ -97,6 +98,15 @@ typedef enum eEditKeyframes_Mirror {
 	MIRROR_KEYS_MARKER,
 	MIRROR_KEYS_VALUE
 } eEditKeyframes_Mirror;
+
+/* use with BEZT_OK_REGION_LASSO */
+struct KeyframeEdit_LassoData {
+	const rctf *rectf_scaled;
+	const rctf *rectf_view;
+	const int (*mcords)[2];
+	int mcords_tot;
+};
+
 
 /* ************************************************ */
 /* Non-Destuctive Editing API (keyframes_edit.c) */
@@ -236,8 +246,8 @@ void bezt_remap_times(KeyframeEditData *ked, struct BezTriple *bezt);
 /* ************************************************ */
 /* Destructive Editing API (keyframes_general.c) */
 
-void delete_fcurve_key(struct FCurve *fcu, int index, short do_recalc);
-void delete_fcurve_keys(struct FCurve *fcu);
+void delete_fcurve_key(struct FCurve *fcu, int index, bool do_recalc);
+bool delete_fcurve_keys(struct FCurve *fcu);
 void clear_fcurve_keys(struct FCurve *fcu);
 void duplicate_fcurve_keys(struct FCurve *fcu);
 

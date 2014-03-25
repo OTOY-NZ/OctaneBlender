@@ -116,12 +116,12 @@ static void file_panel_category(const bContext *C, Panel *pa, FSMenuCategory cat
 		but = uiDefIconTextButS(block, LISTROW, 0, icon, dir, 0, 0, UI_UNIT_X * 10, UI_UNIT_Y, nr, 0, i, 0, 0, entry);
 		uiButSetFunc(but, file_panel_cb, entry, NULL);
 		uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
-		uiButSetFlag(but, UI_ICON_LEFT | UI_TEXT_LEFT);
+		uiButSetDrawFlag(but, UI_BUT_ICON_LEFT | UI_BUT_TEXT_LEFT);
 
 		/* create delete button */
 		if (allow_delete && fsmenu_can_save(fsmenu, category, i)) {
 			uiBlockSetEmboss(block, UI_EMBOSSN);
-			uiItemIntO(layout, "", ICON_X, "FILE_OT_delete_bookmark", "index", i);
+			uiItemIntO(layout, "", ICON_X, "FILE_OT_bookmark_delete", "index", i);
 			uiBlockSetEmboss(block, UI_EMBOSS);
 		}
 	}
@@ -135,11 +135,17 @@ static void file_panel_system(const bContext *C, Panel *pa)
 		file_panel_category(C, pa, FS_CATEGORY_SYSTEM, &sfile->systemnr, ICON_DISK_DRIVE, 0);
 }
 
+static int file_panel_system_bookmarks_poll(const bContext *C, PanelType *UNUSED(pt))
+{
+	SpaceFile *sfile = CTX_wm_space_file(C);
+	return (sfile && !(U.uiflag & USER_HIDE_SYSTEM_BOOKMARKS));
+}
+
 static void file_panel_system_bookmarks(const bContext *C, Panel *pa)
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
 
-	if (sfile && !(U.uiflag & USER_HIDE_SYSTEM_BOOKMARKS) ) {
+	if (sfile && !(U.uiflag & USER_HIDE_SYSTEM_BOOKMARKS)) {
 		file_panel_category(C, pa, FS_CATEGORY_SYSTEM_BOOKMARKS, &sfile->systemnr, ICON_BOOKMARKS, 0);
 	}
 
@@ -159,13 +165,19 @@ static void file_panel_bookmarks(const bContext *C, Panel *pa)
 	}
 }
 
+static int file_panel_recent_poll(const bContext *C, PanelType *UNUSED(pt))
+{
+	SpaceFile *sfile = CTX_wm_space_file(C);
+	return (sfile && !(U.uiflag & USER_HIDE_RECENT));
+}
+
 static void file_panel_recent(const bContext *C, Panel *pa)
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	uiLayout *row;
 
 	if (sfile) {
-		if (!(U.uiflag & USER_HIDE_RECENT) ) {
+		if (!(U.uiflag & USER_HIDE_RECENT)) {
 			row = uiLayoutRow(pa->layout, FALSE);
 			uiItemO(row, IFACE_("Reset"), ICON_X, "file.reset_recent");
 			uiItemL(row, NULL, ICON_NONE);
@@ -228,6 +240,7 @@ void file_panels_register(ARegionType *art)
 	strcpy(pt->label, N_("System Bookmarks"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = file_panel_system_bookmarks;
+	pt->poll = file_panel_system_bookmarks_poll;
 	BLI_addtail(&art->paneltypes, pt);
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype file bookmarks");
@@ -242,6 +255,7 @@ void file_panels_register(ARegionType *art)
 	strcpy(pt->label, N_("Recent"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = file_panel_recent;
+	pt->poll = file_panel_recent_poll;
 	BLI_addtail(&art->paneltypes, pt);
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype file operator properties");

@@ -49,14 +49,11 @@ enum ResectionMethod {
  * \param R         Solution for the camera rotation matrix
  * \param t         Solution for the camera translation vector
  * \param method    The resection method to use.
- * \param success_threshold  Threshold of an error which is still considered a success
- *                           (currently used by EPnP algorithm only)
  */
 bool EuclideanResection(const Mat2X &x_camera,
                         const Mat3X &X_world,
                         Mat3 *R, Vec3 *t,
-                        ResectionMethod method = RESECTION_EPNP,
-                        double success_threshold = 1e-3);
+                        ResectionMethod method = RESECTION_EPNP);
 
 /**
  * Computes the extrinsic parameters, R and t for a calibrated camera
@@ -117,7 +114,6 @@ void EuclideanResectionAnsarDaniilidis(const Mat2X &x_camera,
  * \param X_world 3D points in the world coordinate system
  * \param R       Solution for the camera rotation matrix
  * \param t       Solution for the camera translation vector
- * \param success_threshold  Threshold of an error which is still considered a success
  *
  * This is the algorithm described in:
  * "{EP$n$P: An Accurate $O(n)$ Solution to the P$n$P Problem", by V. Lepetit
@@ -126,8 +122,24 @@ void EuclideanResectionAnsarDaniilidis(const Mat2X &x_camera,
  */
 bool EuclideanResectionEPnP(const Mat2X &x_camera,
                             const Mat3X &X_world,
-                            Mat3 *R, Vec3 *t,
-                            double success_threshold = 1e-3);
+                            Mat3 *R, Vec3 *t);
+
+/**
+ * Computes the extrinsic parameters, R and t for a calibrated camera from 4 or
+ * more 3D points and their images.
+ *
+ * \param x_camera Image points in normalized camera coordinates,
+ *                 e.g. x_camera = inv(K) * x_image
+ * \param X_world 3D points in the world coordinate system
+ * \param R       Solution for the camera rotation matrix
+ * \param t       Solution for the camera translation vector
+ *
+ * Straight from the paper:
+ * http://www.diegm.uniud.it/fusiello/papers/3dimpvt12-b.pdf
+ */
+bool EuclideanResectionPPnP(const Mat2X &x_camera,
+                            const Mat3X &X_world,
+                            Mat3 *R, Vec3 *t);
 
 }  // namespace euclidean_resection
 }  // namespace libmv

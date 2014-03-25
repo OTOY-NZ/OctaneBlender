@@ -35,6 +35,7 @@
 #include "BLI_sys_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math_base.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
@@ -118,13 +119,21 @@ static int change_frame_exec(bContext *C, wmOperator *op)
 static int frame_from_event(bContext *C, const wmEvent *event)
 {
 	ARegion *region = CTX_wm_region(C);
+	Scene *scene = CTX_data_scene(C);
 	float viewx;
+	int frame;
 
 	/* convert from region coordinates to View2D 'tot' space */
 	UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, NULL);
 	
 	/* round result to nearest int (frames are ints!) */
-	return (int)floor(viewx + 0.5f);
+	frame = iroundf(viewx);
+
+	if (scene->r.flag & SCER_LOCK_FRAME_SELECTION) {
+		CLAMP(frame, PSFRA, PEFRA);
+	}
+
+	return frame;
 }
 
 /* Modal Operator init */
@@ -215,8 +224,8 @@ static int previewrange_define_exec(bContext *C, wmOperator *op)
 	if (efra < sfra) efra = sfra;
 	
 	scene->r.flag |= SCER_PRV_RANGE;
-	scene->r.psfra = (int)floor(sfra + 0.5f);
-	scene->r.pefra = (int)floor(efra + 0.5f);
+	scene->r.psfra = iroundf(sfra);
+	scene->r.pefra = iroundf(efra);
 	
 	/* send notifiers */
 	WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
@@ -267,6 +276,9 @@ static int previewrange_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	scene->r.pefra = 0;
 	
 	ED_area_tag_redraw(curarea);
+	
+	/* send notifiers */
+	WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 	
 	return OPERATOR_FINISHED;
 } 

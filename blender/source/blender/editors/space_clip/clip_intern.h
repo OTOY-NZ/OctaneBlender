@@ -73,6 +73,7 @@ void CLIP_OT_dopesheet_view_all(struct wmOperatorType *ot);
 void clip_draw_main(const struct bContext *C, struct SpaceClip *sc, struct ARegion *ar);
 void clip_draw_grease_pencil(struct bContext *C, int onlyv2d);
 void clip_draw_curfra_label(const int framenr, const float x, const float y);
+void clip_draw_cache_and_notes(const bContext *C, SpaceClip *sc, ARegion *ar);
 
 /* clip_editor.c */
 void clip_start_prefetch_job(const struct bContext *C);
@@ -124,14 +125,14 @@ void ED_clip_tool_props_register(struct ARegionType *art);
 void clip_graph_tracking_values_iterate_track(struct SpaceClip *sc, struct MovieTrackingTrack *track, void *userdata,
                                               void (*func)(void *userdata, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker, int coord, int scene_framenr, float val),
                                               void (*segment_start)(void *userdata, struct MovieTrackingTrack *track, int coord),
-                                              void (*segment_end)(void *userdata));
+                                              void (*segment_end)(void *userdata, int coord));
 
-void clip_graph_tracking_values_iterate(struct SpaceClip *sc, int selected_only, int include_hidden, void *userdata,
+void clip_graph_tracking_values_iterate(struct SpaceClip *sc, bool selected_only, bool include_hidden, void *userdata,
                                         void (*func)(void *userdata, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker, int coord, int scene_framenr, float val),
                                         void (*segment_start)(void *userdata, struct MovieTrackingTrack *track, int coord),
-                                        void (*segment_end)(void *userdata));
+                                        void (*segment_end)(void *userdata, int coord));
 
-void clip_graph_tracking_iterate(struct SpaceClip *sc, int selected_only, int include_hidden, void *userdata,
+void clip_graph_tracking_iterate(struct SpaceClip *sc, bool selected_only, bool include_hidden, void *userdata,
                                  void (*func)(void *userdata, struct MovieTrackingMarker *marker));
 
 void clip_delete_track(struct bContext *C, struct MovieClip *clip, struct MovieTrackingTrack *track);

@@ -171,9 +171,11 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	Panel *pa, *newpa, *patab;
 	
 	newar->prev = newar->next = NULL;
-	newar->handlers.first = newar->handlers.last = NULL;
-	newar->uiblocks.first = newar->uiblocks.last = NULL;
-	newar->ui_lists.first = newar->ui_lists.last = NULL;
+	BLI_listbase_clear(&newar->handlers);
+	BLI_listbase_clear(&newar->uiblocks);
+	BLI_listbase_clear(&newar->panels_category);
+	BLI_listbase_clear(&newar->panels_category_active);
+	BLI_listbase_clear(&newar->ui_lists);
 	newar->swinid = 0;
 	
 	/* use optional regiondata callback */
@@ -189,7 +191,7 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	if (ar->v2d.tab_offset)
 		newar->v2d.tab_offset = MEM_dupallocN(ar->v2d.tab_offset);
 	
-	newar->panels.first = newar->panels.last = NULL;
+	BLI_listbase_clear(&newar->panels);
 	BLI_duplicatelist(&newar->panels, &ar->panels);
 	
 	/* copy panel pointers */
@@ -216,7 +218,7 @@ static void region_copylist(SpaceType *st, ListBase *lb1, ListBase *lb2)
 	ARegion *ar;
 	
 	/* to be sure */
-	lb1->first = lb1->last = NULL;
+	BLI_listbase_clear(lb1);
 	
 	for (ar = lb2->first; ar; ar = ar->next) {
 		ARegion *arnew = BKE_area_region_copy(st, ar);
@@ -230,7 +232,7 @@ void BKE_spacedata_copylist(ListBase *lb1, ListBase *lb2)
 {
 	SpaceLink *sl;
 	
-	lb1->first = lb1->last = NULL;    /* to be sure */
+	BLI_listbase_clear(lb1);  /* to be sure */
 	
 	for (sl = lb2->first; sl; sl = sl->next) {
 		SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
@@ -306,6 +308,8 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 		}
 	}
 	BLI_freelistN(&ar->ui_lists);
+	BLI_freelistN(&ar->panels_category);
+	BLI_freelistN(&ar->panels_category_active);
 }
 
 /* not area itself */
@@ -417,7 +421,7 @@ ScrArea *BKE_screen_find_big_area(bScreen *sc, const int spacetype, const short 
 	return big;
 }
 
-void BKE_screen_view3d_sync(struct View3D *v3d, struct Scene *scene)
+void BKE_screen_view3d_sync(View3D *v3d, struct Scene *scene)
 {
 	int bit;
 
@@ -478,6 +482,37 @@ void BKE_screen_view3d_main_sync(ListBase *screen_lb, Scene *scene)
 			for (sl = sa->spacedata.first; sl; sl = sl->next)
 				if (sl->spacetype == SPACE_VIEW3D)
 					BKE_screen_view3d_sync((View3D *)sl, scene);
+	}
+}
+
+void BKE_screen_view3d_twmode_remove(View3D *v3d, const int i)
+{
+	const int selected_index = (v3d->twmode - V3D_MANIP_CUSTOM);
+	if (selected_index == i) {
+		v3d->twmode = V3D_MANIP_GLOBAL; /* fallback to global	*/
+	}
+	else if (selected_index > i) {
+		v3d->twmode--;
+	}
+}
+
+void BKE_screen_view3d_main_twmode_remove(ListBase *screen_lb, Scene *scene, const int i)
+{
+	bScreen *sc;
+
+	for (sc = screen_lb->first; sc; sc = sc->id.next) {
+		if (sc->scene == scene) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+						View3D *v3d = (View3D *)sl;
+						BKE_screen_view3d_twmode_remove(v3d, i);
+					}
+				}
+			}
+		}
 	}
 }
 

@@ -23,92 +23,62 @@
 
 #endif
 
-/* Qualifiers for kernel code shared by CPU and GPU */
-
-#ifndef __KERNEL_GPU__
-
-#define __device static inline
-#define __device_noinline static
-#define __global
-#define __local
-#define __shared
-#define __constant
-
-#if defined(_WIN32) && !defined(FREE_WINDOWS)
-#define __device_inline static __forceinline
-#define __align(...) __declspec(align(__VA_ARGS__))
-#define __may_alias
-#else
-#define __device_inline static inline __attribute__((always_inline))
-#ifndef FREE_WINDOWS64
-#define __forceinline inline __attribute__((always_inline))
-#endif
-#define __align(...) __attribute__((aligned(__VA_ARGS__)))
-#define __may_alias __attribute__((__may_alias__))
-#endif
-
-#endif
-
 /* Bitness */
 
 #if defined(__ppc64__) || defined(__PPC64__) || defined(__x86_64__) || defined(__ia64__) || defined(_M_X64)
 #define __KERNEL_64_BIT__
 #endif
 
-/* SIMD Types */
+/* Qualifiers for kernel code shared by CPU and GPU */
 
 #ifndef __KERNEL_GPU__
 
-/* not enabled, globally applying it gives slowdown, only for testing. */
-#if 0
-#define __KERNEL_SSE__
-#ifndef __KERNEL_SSE2__
-#define __KERNEL_SSE2__
-#endif
-#ifndef __KERNEL_SSE3__
-#define __KERNEL_SSE3__
-#endif
-#ifndef __KERNEL_SSSE3__
-#define __KERNEL_SSSE3__
-#endif
-#ifndef __KERNEL_SSE4__
-#define __KERNEL_SSE4__
-#endif
-#endif
+#define ccl_device static inline
+#define ccl_device_noinline static
+#define ccl_global
+#define ccl_constant
+#define __KERNEL_WITH_SSE_ALIGN__
 
-/* SSE2 is always available on x86_64 CPUs, so auto enable */
-#if defined(__x86_64__) && !defined(__KERNEL_SSE2__)
-#define __KERNEL_SSE2__
-#endif
+#if defined(_WIN32) && !defined(FREE_WINDOWS)
 
-/* SSE intrinsics headers */
-#ifndef FREE_WINDOWS64
-
-#ifdef __KERNEL_SSE2__
-#include <xmmintrin.h> /* SSE 1 */
-#include <emmintrin.h> /* SSE 2 */
+#define ccl_device_inline static __forceinline
+#define ccl_align(...) __declspec(align(__VA_ARGS__))
+#ifdef __KERNEL_64_BIT__
+#define ccl_try_align(...) __declspec(align(__VA_ARGS__))
+#else
+#undef __KERNEL_WITH_SSE_ALIGN__
+#define ccl_try_align(...) /* not support for function arguments (error C2719) */
 #endif
-
-#ifdef __KERNEL_SSE3__
-#include <pmmintrin.h> /* SSE 3 */
-#endif
-
-#ifdef __KERNEL_SSSE3__
-#include <tmmintrin.h> /* SSSE 3 */
-#endif
+#define ccl_may_alias
+#define ccl_always_inline __forceinline
 
 #else
 
-/* MinGW64 has conflicting declarations for these SSE headers in <windows.h>.
- * Since we can't avoid including <windows.h>, better only include that */
-#include <windows.h>
+#define ccl_device_inline static inline __attribute__((always_inline))
+#define ccl_align(...) __attribute__((aligned(__VA_ARGS__)))
+#ifndef FREE_WINDOWS64
+#define __forceinline inline __attribute__((always_inline))
+#endif
+#define ccl_try_align(...) __attribute__((aligned(__VA_ARGS__)))
+#define ccl_may_alias __attribute__((__may_alias__))
+#define ccl_always_inline __attribute__((always_inline))
 
 #endif
+
+#endif
+
+/* Standard Integer Types */
+
+#ifndef __KERNEL_GPU__
 
 /* int8_t, uint16_t, and friends */
 #ifndef _WIN32
 #include <stdint.h>
 #endif
+
+/* SIMD Types */
+
+#include "util_optimization.h"
 
 #endif
 
@@ -190,7 +160,7 @@ struct int2 {
 };
 
 #ifdef __KERNEL_SSE__
-struct __align(16) int3 {
+struct ccl_try_align(16) int3 {
 	union {
 		__m128i m128;
 		struct { int x, y, z, w; };
@@ -201,7 +171,7 @@ struct __align(16) int3 {
 	__forceinline operator const __m128i&(void) const { return m128; }
 	__forceinline operator __m128i&(void) { return m128; }
 #else
-struct int3 {
+struct ccl_try_align(16) int3 {
 	int x, y, z, w;
 #endif
 
@@ -210,7 +180,7 @@ struct int3 {
 };
 
 #ifdef __KERNEL_SSE__
-struct __align(16) int4 {
+struct ccl_try_align(16) int4 {
 	union {
 		__m128i m128;
 		struct { int x, y, z, w; };
@@ -221,7 +191,7 @@ struct __align(16) int4 {
 	__forceinline operator const __m128i&(void) const { return m128; }
 	__forceinline operator __m128i&(void) { return m128; }
 #else
-struct int4 {
+struct ccl_try_align(16) int4 {
 	int x, y, z, w;
 #endif
 
@@ -258,7 +228,7 @@ struct float2 {
 };
 
 #ifdef __KERNEL_SSE__
-struct __align(16) float3 {
+struct ccl_try_align(16) float3 {
 	union {
 		__m128 m128;
 		struct { float x, y, z, w; };
@@ -269,7 +239,7 @@ struct __align(16) float3 {
 	__forceinline operator const __m128&(void) const { return m128; }
 	__forceinline operator __m128&(void) { return m128; }
 #else
-struct float3 {
+struct ccl_try_align(16) float3 {
 	float x, y, z, w;
 #endif
 
@@ -278,7 +248,7 @@ struct float3 {
 };
 
 #ifdef __KERNEL_SSE__
-struct __align(16) float4 {
+struct ccl_try_align(16) float4 {
 	union {
 		__m128 m128;
 		struct { float x, y, z, w; };
@@ -289,7 +259,7 @@ struct __align(16) float4 {
 	__forceinline operator const __m128&(void) const { return m128; }
 	__forceinline operator __m128&(void) { return m128; }
 #else
-struct float4 {
+struct ccl_try_align(16) float4 {
 	float x, y, z, w;
 #endif
 
@@ -305,31 +275,31 @@ struct float4 {
  * 
  * OpenCL does not support C++ class, so we use these instead. */
 
-__device_inline uchar2 make_uchar2(uchar x, uchar y)
+ccl_device_inline uchar2 make_uchar2(uchar x, uchar y)
 {
 	uchar2 a = {x, y};
 	return a;
 }
 
-__device_inline uchar3 make_uchar3(uchar x, uchar y, uchar z)
+ccl_device_inline uchar3 make_uchar3(uchar x, uchar y, uchar z)
 {
 	uchar3 a = {x, y, z};
 	return a;
 }
 
-__device_inline uchar4 make_uchar4(uchar x, uchar y, uchar z, uchar w)
+ccl_device_inline uchar4 make_uchar4(uchar x, uchar y, uchar z, uchar w)
 {
 	uchar4 a = {x, y, z, w};
 	return a;
 }
 
-__device_inline int2 make_int2(int x, int y)
+ccl_device_inline int2 make_int2(int x, int y)
 {
 	int2 a = {x, y};
 	return a;
 }
 
-__device_inline int3 make_int3(int x, int y, int z)
+ccl_device_inline int3 make_int3(int x, int y, int z)
 {
 #ifdef __KERNEL_SSE__
 	int3 a;
@@ -341,7 +311,7 @@ __device_inline int3 make_int3(int x, int y, int z)
 	return a;
 }
 
-__device_inline int4 make_int4(int x, int y, int z, int w)
+ccl_device_inline int4 make_int4(int x, int y, int z, int w)
 {
 #ifdef __KERNEL_SSE__
 	int4 a;
@@ -353,31 +323,31 @@ __device_inline int4 make_int4(int x, int y, int z, int w)
 	return a;
 }
 
-__device_inline uint2 make_uint2(uint x, uint y)
+ccl_device_inline uint2 make_uint2(uint x, uint y)
 {
 	uint2 a = {x, y};
 	return a;
 }
 
-__device_inline uint3 make_uint3(uint x, uint y, uint z)
+ccl_device_inline uint3 make_uint3(uint x, uint y, uint z)
 {
 	uint3 a = {x, y, z};
 	return a;
 }
 
-__device_inline uint4 make_uint4(uint x, uint y, uint z, uint w)
+ccl_device_inline uint4 make_uint4(uint x, uint y, uint z, uint w)
 {
 	uint4 a = {x, y, z, w};
 	return a;
 }
 
-__device_inline float2 make_float2(float x, float y)
+ccl_device_inline float2 make_float2(float x, float y)
 {
 	float2 a = {x, y};
 	return a;
 }
 
-__device_inline float3 make_float3(float x, float y, float z)
+ccl_device_inline float3 make_float3(float x, float y, float z)
 {
 #ifdef __KERNEL_SSE__
 	float3 a;
@@ -389,7 +359,7 @@ __device_inline float3 make_float3(float x, float y, float z)
 	return a;
 }
 
-__device_inline float4 make_float4(float x, float y, float z, float w)
+ccl_device_inline float4 make_float4(float x, float y, float z, float w)
 {
 #ifdef __KERNEL_SSE__
 	float4 a;
@@ -401,12 +371,12 @@ __device_inline float4 make_float4(float x, float y, float z, float w)
 	return a;
 }
 
-__device_inline int align_up(int offset, int alignment)
+ccl_device_inline int align_up(int offset, int alignment)
 {
 	return (offset + alignment - 1) & ~(alignment - 1);
 }
 
-__device_inline int3 make_int3(int i)
+ccl_device_inline int3 make_int3(int i)
 {
 #ifdef __KERNEL_SSE__
 	int3 a;
@@ -418,7 +388,7 @@ __device_inline int3 make_int3(int i)
 	return a;
 }
 
-__device_inline int4 make_int4(int i)
+ccl_device_inline int4 make_int4(int i)
 {
 #ifdef __KERNEL_SSE__
 	int4 a;
@@ -430,7 +400,7 @@ __device_inline int4 make_int4(int i)
 	return a;
 }
 
-__device_inline float3 make_float3(float f)
+ccl_device_inline float3 make_float3(float f)
 {
 #ifdef __KERNEL_SSE__
 	float3 a;
@@ -442,7 +412,7 @@ __device_inline float3 make_float3(float f)
 	return a;
 }
 
-__device_inline float4 make_float4(float f)
+ccl_device_inline float4 make_float4(float f)
 {
 #ifdef __KERNEL_SSE__
 	float4 a;
@@ -454,7 +424,7 @@ __device_inline float4 make_float4(float f)
 	return a;
 }
 
-__device_inline float4 make_float4(const int4& i)
+ccl_device_inline float4 make_float4(const int4& i)
 {
 #ifdef __KERNEL_SSE__
 	float4 a;
@@ -466,7 +436,7 @@ __device_inline float4 make_float4(const int4& i)
 	return a;
 }
 
-__device_inline int4 make_int4(const float3& f)
+ccl_device_inline int4 make_int4(const float3& f)
 {
 #ifdef __KERNEL_SSE__
 	int4 a;
@@ -480,127 +450,15 @@ __device_inline int4 make_int4(const float3& f)
 
 #endif
 
-#ifdef __KERNEL_SSE2__
-
-/* SSE shuffle utility functions */
-
-#ifdef __KERNEL_SSSE3__
-
-/* faster version for SSSE3 */
-typedef __m128i shuffle_swap_t;
-
-__device_inline const shuffle_swap_t shuffle_swap_identity(void)
-{
-	return _mm_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-}
-
-__device_inline const shuffle_swap_t shuffle_swap_swap(void)
-{
-	return _mm_set_epi8(7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8);
-}
-
-__device_inline const __m128 shuffle_swap(const __m128& a, const shuffle_swap_t& shuf)
-{
-	return _mm_castsi128_ps(_mm_shuffle_epi8(_mm_castps_si128(a), shuf));
-}
-
-#else
-
-/* somewhat slower version for SSE2 */
-typedef int shuffle_swap_t;
-
-__device_inline const shuffle_swap_t shuffle_swap_identity(void)
-{
-	return 0;
-}
-
-__device_inline const shuffle_swap_t shuffle_swap_swap(void)
-{
-	return 1;
-}
-
-__device_inline const __m128 shuffle_swap(const __m128& a, shuffle_swap_t shuf)
-{
-	/* shuffle value must be a constant, so we need to branch */
-	if(shuf)
-		return _mm_shuffle_ps(a, a, _MM_SHUFFLE(1, 0, 3, 2));
-	else
-		return _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 2, 1, 0));
-}
-
-#endif
-
-template<size_t i0, size_t i1, size_t i2, size_t i3> __device_inline const __m128 shuffle(const __m128& a, const __m128& b)
-{
-	return _mm_shuffle_ps(a, b, _MM_SHUFFLE(i3, i2, i1, i0));
-}
-
-template<size_t i0, size_t i1, size_t i2, size_t i3> __device_inline const __m128 shuffle(const __m128& b)
-{
-	return _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(b), _MM_SHUFFLE(i3, i2, i1, i0)));
-}
-#endif
-
-/* Half Floats */
-
-#ifdef __KERNEL_OPENCL__
-
-#define float4_store_half(h, f, scale) vstore_half4(*(f) * (scale), 0, h);
-
-#else
-
-typedef unsigned short half;
-struct half4 { half x, y, z, w; };
-
-#ifdef __KERNEL_CUDA__
-
-__device_inline void float4_store_half(half *h, const float4 *f, float scale)
-{
-	h[0] = __float2half_rn(f->x * scale);
-	h[1] = __float2half_rn(f->y * scale);
-	h[2] = __float2half_rn(f->z * scale);
-	h[3] = __float2half_rn(f->w * scale);
-}
-
-#else
-
-__device_inline void float4_store_half(half *h, const float4 *f, float scale)
-{
-#ifndef __KERNEL_SSE2__
-	for(int i = 0; i < 4; i++) {
-		/* optimized float to half for pixels:
-		 * assumes no negative, no nan, no inf, and sets denormal to 0 */
-		union { uint i; float f; } in;
-		in.f = ((*f)[i] > 0.0f)? (*f)[i] * scale: 0.0f;
-		int x = in.i;
-
-		int absolute = x & 0x7FFFFFFF;
-		int Z = absolute + 0xC8000000;
-		int result = (absolute < 0x38800000)? 0: Z;
-
-		h[i] = ((result >> 13) & 0x7FFF);
-	}
-#else
-	/* same as above with SSE */
-	const __m128 mm_scale = _mm_set_ps1(scale);
-	const __m128i mm_38800000 = _mm_set1_epi32(0x38800000);
-	const __m128i mm_7FFF = _mm_set1_epi32(0x7FFF);
-	const __m128i mm_7FFFFFFF = _mm_set1_epi32(0x7FFFFFFF);
-	const __m128i mm_C8000000 = _mm_set1_epi32(0xC8000000);
-
-	__m128i x = _mm_castps_si128(_mm_max_ps(_mm_mul_ps(*(__m128*)f, mm_scale), _mm_set_ps1(0.0f)));
-	__m128i absolute = _mm_and_si128(x, mm_7FFFFFFF);
-	__m128i Z = _mm_add_epi32(absolute, mm_C8000000);
-	__m128i result = _mm_andnot_si128(_mm_cmplt_epi32(absolute, mm_38800000), Z); 
-	__m128i rh = _mm_and_si128(_mm_srai_epi32(result, 13), mm_7FFF);
-
-	_mm_storel_pi((__m64*)h, _mm_castsi128_ps(_mm_packs_epi32(rh, rh)));
-#endif
-}
-
-#endif
-
-#endif
+/* Interpolation types for textures
+ * cuda also use texture space to store other objects */
+enum InterpolationType {
+	INTERPOLATION_NONE = -1,
+	INTERPOLATION_LINEAR = 0,
+	INTERPOLATION_CLOSEST = 1,
+	INTERPOLATION_CUBIC = 2,
+	INTERPOLATION_SMART = 3,
+};
 
 CCL_NAMESPACE_END
 

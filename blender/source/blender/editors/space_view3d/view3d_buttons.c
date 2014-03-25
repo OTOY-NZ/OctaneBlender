@@ -402,12 +402,12 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 				uiDefButF(block, NUM, B_OBJECTPANELMEDIAN,
 				          totedgedata == 1 ? IFACE_("Crease:") : IFACE_("Mean Crease:"),
 				          0, yi -= buth + but_margin, 200, buth,
-				          &(tfp->ve_median[M_CREASE]), 0.0, 1.0, 1, 3, TIP_("Weight used by SubSurf modifier"));
+				          &(tfp->ve_median[M_CREASE]), 0.0, 1.0, 1, 2, TIP_("Weight used by SubSurf modifier"));
 				/* customdata layer added on demand */
 				uiDefButF(block, NUM, B_OBJECTPANELMEDIAN,
 				          totedgedata == 1 ? IFACE_("Bevel Weight:") : IFACE_("Mean Bevel Weight:"),
 				          0, yi -= buth + but_margin, 200, buth,
-				          &(tfp->ve_median[M_WEIGHT]), 0.0, 1.0, 1, 3, TIP_("Weight used by Bevel modifier"));
+				          &(tfp->ve_median[M_WEIGHT]), 0.0, 1.0, 1, 2, TIP_("Weight used by Bevel modifier"));
 			}
 			if (totskinradius) {
 				uiDefButF(block, NUM, B_OBJECTPANELMEDIAN,
@@ -422,11 +422,11 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 		}
 		/* Curve... */
 		else if (totcurvedata == 1) {
-			uiDefButR(block, NUM, 0, IFACE_("Weight"), 0, yi -= buth + but_margin, 200, buth,
+			uiDefButR(block, NUM, 0, IFACE_("Weight:"), 0, yi -= buth + but_margin, 200, buth,
 			          &data_ptr, "weight_softbody", 0, 0.0, 1.0, 1, 3, NULL);
-			uiDefButR(block, NUM, 0, IFACE_("Radius"), 0, yi -= buth + but_margin, 200, buth,
+			uiDefButR(block, NUM, 0, IFACE_("Radius:"), 0, yi -= buth + but_margin, 200, buth,
 			          &data_ptr, "radius", 0, 0.0, 100.0, 1, 3, NULL);
-			uiDefButR(block, NUM, 0, IFACE_("Tilt"), 0, yi -= buth + but_margin, 200, buth,
+			uiDefButR(block, NUM, 0, IFACE_("Tilt:"), 0, yi -= buth + but_margin, 200, buth,
 			          &data_ptr, "tilt", 0, -tilt_limit, tilt_limit, 1, 3, NULL);
 		}
 		else if (totcurvedata > 1) {
@@ -444,7 +444,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 		}
 		/* Lattice... */
 		else if (totlattdata == 1) {
-			uiDefButR(block, NUM, 0, IFACE_("Weight"), 0, yi -= buth + but_margin, 200, buth,
+			uiDefButR(block, NUM, 0, IFACE_("Weight:"), 0, yi -= buth + but_margin, 200, buth,
 			          &data_ptr, "weight_softbody", 0, 0.0, 1.0, 1, 3, NULL);
 		}
 		else if (totlattdata > 1) {
@@ -477,12 +477,20 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 			BMesh *bm = em->bm;
 			BMIter iter;
 
-			if (len_v3(&median[LOC_X]) > 0.000001f) {
+			if (tot == 1 || len_v3(&median[LOC_X]) != 0.0f) {
 				BMVert *eve;
 
 				BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
 					if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-						add_v3_v3(eve->co, &median[LOC_X]);
+						if (tot == 1) {
+							/* In case we only have one element selected, copy directly the value instead of applying
+							 * the diff. Avoids some glitches when going e.g. from 3 to 0.0001 (see [#37327]).
+							 */
+							copy_v3_v3(eve->co, &ve_median[LOC_X]);
+						}
+						else {
+							add_v3_v3(eve->co, &median[LOC_X]);
+						}
 					}
 				}
 
@@ -623,10 +631,12 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 			nu = nurbs->first;
 			while (nu) {
 				if (nu->type == CU_BEZIER) {
-					bezt = nu->bezt;
-					a = nu->pntsu;
-					while (a--) {
+					for (a = nu->pntsu, bezt = nu->bezt; a--; bezt++) {
 						if (bezt->f2 & SELECT) {
+							/* Here we always have to use the diff... :/
+							 * Cannot avoid some glitches when going e.g. from 3 to 0.0001 (see [#37327]),
+							 * unless we use doubles.
+							 */
 							add_v3_v3(bezt->vec[0], &median[LOC_X]);
 							add_v3_v3(bezt->vec[1], &median[LOC_X]);
 							add_v3_v3(bezt->vec[2], &median[LOC_X]);
@@ -647,22 +657,39 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 						}
 						else {
 							if (bezt->f1 & SELECT) {
-								add_v3_v3(bezt->vec[0], &median[LOC_X]);
+								if (tot == 1) {
+									copy_v3_v3(bezt->vec[0], &ve_median[LOC_X]);
+								}
+								else {
+									add_v3_v3(bezt->vec[0], &median[LOC_X]);
+								}
 							}
 							if (bezt->f3 & SELECT) {
-								add_v3_v3(bezt->vec[2], &median[LOC_X]);
+								if (tot == 1) {
+									copy_v3_v3(bezt->vec[2], &ve_median[LOC_X]);
+								}
+								else {
+									add_v3_v3(bezt->vec[2], &median[LOC_X]);
+								}
 							}
 						}
-						bezt++;
 					}
 				}
 				else {
-					bp = nu->bp;
-					a = nu->pntsu * nu->pntsv;
-					while (a--) {
+					for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a--; bp++) {
 						if (bp->f1 & SELECT) {
-							add_v3_v3(bp->vec, &median[LOC_X]);
-							bp->vec[3] += median[C_BWEIGHT];
+							if (tot == 1) {
+								copy_v3_v3(bp->vec, &ve_median[LOC_X]);
+								bp->vec[3] = ve_median[C_BWEIGHT];
+								bp->radius = ve_median[C_RADIUS];
+								bp->alfa = ve_median[C_TILT];
+							}
+							else {
+								add_v3_v3(bp->vec, &median[LOC_X]);
+								bp->vec[3] += median[C_BWEIGHT];
+								bp->radius += median[C_RADIUS];
+								bp->alfa += median[C_TILT];
+							}
 
 							if (median[C_WEIGHT] != 0.0f) {
 								if (ELEM(scale_w, 0.0f, 1.0f)) {
@@ -674,11 +701,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 									CLAMP(bp->weight, 0.0f, 1.0f);
 								}
 							}
-
-							bp->radius += median[C_RADIUS];
-							bp->alfa += median[C_TILT];
 						}
-						bp++;
 					}
 				}
 				BKE_nurb_test2D(nu);
@@ -697,7 +720,12 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 			bp = lt->editlatt->latt->def;
 			while (a--) {
 				if (bp->f1 & SELECT) {
-					add_v3_v3(bp->vec, &median[LOC_X]);
+					if (tot == 1) {
+						copy_v3_v3(bp->vec, &ve_median[LOC_X]);
+					}
+					else {
+						add_v3_v3(bp->vec, &median[LOC_X]);
+					}
 
 					if (median[L_WEIGHT] != 0.0f) {
 						if (ELEM(scale_w, 0.0f, 1.0f)) {
@@ -831,7 +859,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 					                    xco, yco, (x = UI_UNIT_X * 5), UI_UNIT_Y, "");
 					but_ptr = uiButGetOperatorPtrRNA(but);
 					RNA_int_set(but_ptr, "weight_group", i);
-					uiButSetFlag(but, UI_TEXT_RIGHT);
+					uiButSetDrawFlag(but, UI_BUT_TEXT_RIGHT);
 					if (ob->actdef != i + 1) {
 						uiButSetFlag(but, UI_BUT_INACTIVE);
 					}
@@ -845,7 +873,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 					but = uiDefButF(block, NUM, B_VGRP_PNL_EDIT_SINGLE + i, "",
 					                xco, yco, (x = UI_UNIT_X * 4), UI_UNIT_Y,
 					                &dw->weight, 0.0, 1.0, 1, 3, "");
-					uiButSetFlag(but, UI_TEXT_LEFT);
+					uiButSetDrawFlag(but, UI_BUT_TEXT_LEFT);
 					if (locked) {
 						lock_count++;
 					}
@@ -856,7 +884,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 					ot = ot_weight_paste;
 					WM_operator_properties_create_ptr(&op_ptr, ot);
 					RNA_int_set(&op_ptr, "weight_group", i);
-					icon = (locked) ? ICON_BLANK1:ICON_PASTEDOWN;
+					icon = (locked) ? ICON_BLANK1 : ICON_PASTEDOWN;
 					uiItemFullO_ptr(row, ot, "", icon, op_ptr.data, WM_OP_INVOKE_DEFAULT, 0);
 
 					/* The weight entry delete function */
@@ -864,7 +892,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 					ot = ot_weight_delete;
 					WM_operator_properties_create_ptr(&op_ptr, ot);
 					RNA_int_set(&op_ptr, "weight_group", i);
-					icon = (locked) ? ICON_LOCKED:ICON_X;
+					icon = (locked) ? ICON_LOCKED : ICON_X;
 					uiItemFullO_ptr(row, ot, "", icon, op_ptr.data, WM_OP_INVOKE_DEFAULT, 0);
 
 					yco -= UI_UNIT_Y;

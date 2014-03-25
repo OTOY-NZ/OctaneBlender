@@ -34,9 +34,11 @@
 
 #include "bmesh.h"
 
-#include "ONL_opennl.h"
-
 #include "intern/bmesh_operators_private.h" /* own include */
+
+#ifdef WITH_OPENNL
+
+#include "ONL_opennl.h"
 
 // #define SMOOTH_LAPLACIAN_AREA_FACTOR 4.0f  /* UNUSED */
 // #define SMOOTH_LAPLACIAN_EDGE_FACTOR 2.0f  /* UNUSED */
@@ -65,7 +67,7 @@ struct BLaplacianSystem {
 typedef struct BLaplacianSystem LaplacianSystem;
 
 static float cotan_weight(float *v1, float *v2, float *v3);
-static int vert_is_boundary(BMVert *v);
+static bool vert_is_boundary(BMVert *v);
 static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numFaces, int a_numVerts);
 static void init_laplacian_matrix(LaplacianSystem *sys);
 static void delete_laplacian_system(LaplacianSystem *sys);
@@ -360,7 +362,7 @@ static void fill_laplacian_matrix(LaplacianSystem *sys)
 		}
 	}
 	BM_ITER_MESH (e, &eiter, sys->bm, BM_EDGES_OF_MESH) {
-		if (!BM_elem_flag_test(e, BM_ELEM_SELECT) && BM_edge_is_boundary(e) ) {
+		if (!BM_elem_flag_test(e, BM_ELEM_SELECT) && BM_edge_is_boundary(e)) {
 			v1 = e->v1->co;
 			v2 =  e->v2->co;
 			idv1 = BM_elem_index_get(e->v1);
@@ -390,7 +392,7 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 	return dot_v3v3(a, b) / clen;
 }
 
-static int vert_is_boundary(BMVert *v)
+static bool vert_is_boundary(BMVert *v)
 {
 	BMEdge *ed;
 	BMFace *f;
@@ -572,3 +574,13 @@ void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 
 	delete_laplacian_system(sys);
 }
+
+#else  /* WITH_OPENNL */
+
+#ifdef __GNUC__
+#  pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
+
+void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op) {}
+
+#endif  /* WITH_OPENNL */

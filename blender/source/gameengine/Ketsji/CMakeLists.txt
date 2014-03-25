@@ -71,7 +71,6 @@ set(SRC
 	BL_Texture.cpp
 	KX_ArmatureSensor.cpp
 	KX_BlenderMaterial.cpp
-	KX_BulletPhysicsController.cpp
 	KX_Camera.cpp
 	KX_CameraActuator.cpp
 	KX_CameraIpoSGController.cpp
@@ -86,7 +85,6 @@ set(SRC
 	KX_GameObject.cpp
 	KX_IpoConvert.cpp
 	KX_IPO_SGController.cpp
-	KX_IPhysicsController.cpp
 	KX_IpoActuator.cpp
 	KX_KetsjiEngine.cpp
 	KX_Light.cpp
@@ -103,7 +101,6 @@ set(SRC
 	KX_OrientationInterpolator.cpp
 	KX_ParentActuator.cpp
 	KX_PolyProxy.cpp
-	KX_PolygonMaterial.cpp
 	KX_PositionInterpolator.cpp
 	KX_PyConstraintBinding.cpp
 	KX_PyMath.cpp
@@ -147,7 +144,6 @@ set(SRC
 	BL_Texture.h
 	KX_ArmatureSensor.h
 	KX_BlenderMaterial.h
-	KX_BulletPhysicsController.h
 	KX_Camera.h
 	KX_CameraActuator.h
 	KX_CameraIpoSGController.h
@@ -165,7 +161,6 @@ set(SRC
 	KX_IpoConvert.h
 	KX_IPOTransform.h
 	KX_IPO_SGController.h
-	KX_IPhysicsController.h
 	KX_IScalarInterpolator.h
 	KX_ISceneConverter.h
 	KX_ISystem.h
@@ -186,7 +181,6 @@ set(SRC
 	KX_ParentActuator.h
 	KX_PhysicsEngineEnums.h
 	KX_PolyProxy.h
-	KX_PolygonMaterial.h
 	KX_PositionInterpolator.h
 	KX_PyConstraintBinding.h
 	KX_PyMath.h

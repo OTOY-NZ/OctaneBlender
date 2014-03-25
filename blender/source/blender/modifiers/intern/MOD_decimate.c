@@ -70,15 +70,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	DecimateModifierData *dmd = (DecimateModifierData *) md;
 	DecimateModifierData *tdmd = (DecimateModifierData *) target;
-
-	tdmd->percent = dmd->percent;
-	tdmd->iter = dmd->iter;
-	tdmd->angle = dmd->angle;
-	BLI_strncpy(tdmd->defgrp_name, dmd->defgrp_name, sizeof(tdmd->defgrp_name));
-	tdmd->flag = dmd->flag;
-	tdmd->mode = dmd->mode;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -195,10 +191,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 	/* update for display only */
 	dmd->face_count = bm->totface;
-	result = CDDM_from_bmesh(bm, FALSE);
-	BLI_assert(bm->vtoolflagpool == NULL);  /* make sure we never alloc'd this */
-	BLI_assert(bm->etoolflagpool == NULL);
-	BLI_assert(bm->ftoolflagpool == NULL);
+	result = CDDM_from_bmesh(bm, false);
+	BLI_assert(bm->vtoolflagpool == NULL &&
+	           bm->etoolflagpool == NULL &&
+	           bm->ftoolflagpool == NULL);  /* make sure we never alloc'd these */
+	BLI_assert(bm->vtable == NULL &&
+	           bm->etable == NULL &&
+	           bm->ftable == NULL);
+
 	BM_mesh_free(bm);
 
 #ifdef USE_TIMEIT

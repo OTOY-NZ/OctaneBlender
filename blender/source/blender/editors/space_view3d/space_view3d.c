@@ -46,6 +46,7 @@
 #include "BKE_icons.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
+#include "BKE_scene.h"
 #include "BKE_screen.h"
 
 #include "ED_render.h"
@@ -62,10 +63,15 @@
 #include "WM_types.h"
 
 #include "RE_engine.h"
+#include "RE_pipeline.h"
 
 #include "RNA_access.h"
 
 #include "UI_resources.h"
+
+#ifdef WITH_PYTHON
+#  include "BPY_extern.h"
+#endif
 
 #include "view3d_intern.h"  /* own include */
 
@@ -172,7 +178,7 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_ar)
 
 		if (ar) {
 			RegionView3D *rv3d = ar->regiondata;
-			if (rv3d && rv3d->viewlock == 0) {
+			if (rv3d && (rv3d->viewlock & RV3D_LOCKED) == 0) {
 				*r_v3d = v3d;
 				*r_ar = ar;
 				return true;
@@ -184,7 +190,7 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_ar)
 					/* find the first unlocked rv3d */
 					if (ar->regiondata && ar->regiontype == RGN_TYPE_WINDOW) {
 						rv3d = ar->regiondata;
-						if (rv3d->viewlock == 0) {
+						if ((rv3d->viewlock & RV3D_LOCKED) == 0) {
 							ar_unlock = ar;
 							if (rv3d->persp == RV3D_PERSP || rv3d->persp == RV3D_CAMOB) {
 								ar_unlock_user = ar;
@@ -259,6 +265,28 @@ void ED_view3d_check_mats_rv3d(struct RegionView3D *rv3d)
 }
 #endif
 
+static void view3d_stop_render_preview(wmWindowManager *wm, ARegion *ar)
+{
+	RegionView3D *rv3d = ar->regiondata;
+
+	if (rv3d->render_engine) {
+#ifdef WITH_PYTHON
+		BPy_BEGIN_ALLOW_THREADS;
+#endif
+
+		WM_jobs_kill_type(wm, ar, WM_JOB_TYPE_RENDER_PREVIEW);
+
+#ifdef WITH_PYTHON
+		BPy_END_ALLOW_THREADS;
+#endif
+
+		if (rv3d->render_engine->re)
+			RE_Database_Free(rv3d->render_engine->re);
+		RE_engine_free(rv3d->render_engine);
+		rv3d->render_engine = NULL;
+	}
+}
+
 void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *sa)
 {
 	wmWindowManager *wm = bmain->wm.first;
@@ -267,13 +295,8 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *sa)
 		ARegion *ar;
 
 		for (ar = sa->regionbase.first; ar; ar = ar->next) {
-			RegionView3D *rv3d = ar->regiondata;
-
-			if (rv3d && rv3d->render_engine) {
-				WM_jobs_kill_type(wm, ar, WM_JOB_TYPE_RENDER_PREVIEW);
-				RE_engine_free(rv3d->render_engine);
-				rv3d->render_engine = NULL;
-			}
+			if (ar->regiondata)
+				view3d_stop_render_preview(wm, ar);
 		}
 	}
 }
@@ -473,10 +496,6 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	keymap = WM_keymap_find(wm->defaultconf, "Lattice", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
-	/* armature sketching needs to take over mouse */
-	keymap = WM_keymap_find(wm->defaultconf, "Armature Sketch", 0, 0);
-	WM_event_add_keymap_handler(&ar->handlers, keymap);
-
 	keymap = WM_keymap_find(wm->defaultconf, "Particle", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
@@ -504,14 +523,11 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	
 }
 
-static void view3d_main_area_exit(wmWindowManager *UNUSED(wm), ARegion *ar)
+static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
-	if (rv3d->render_engine) {
-		RE_engine_free(rv3d->render_engine);
-		rv3d->render_engine = NULL;
-	}
+	view3d_stop_render_preview(wm, ar);
 
 	if (rv3d->gpuoffscreen) {
 		GPU_offscreen_free(rv3d->gpuoffscreen);
@@ -767,6 +783,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_OB_VISIBLE:
 				case ND_LAYER:
 				case ND_RENDER_OPTIONS:
+				case ND_MARKERS:
 				case ND_MODE:
 					ED_region_tag_redraw(ar);
 					break;
@@ -788,6 +805,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_CONSTRAINT:
 				case ND_KEYS:
 				case ND_PARTICLE:
+				case ND_LOD:
 					ED_region_tag_redraw(ar);
 					break;
 			}
@@ -824,7 +842,9 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_SHADING:
 				case ND_NODES:
 					if ((v3d->drawtype == OB_MATERIAL) ||
-					    (v3d->drawtype == OB_TEXTURE && scene->gm.matmode == GAME_MAT_GLSL))
+					    (v3d->drawtype == OB_TEXTURE &&
+					         (scene->gm.matmode == GAME_MAT_GLSL ||
+					          BKE_scene_use_new_shading_nodes(scene))))
 					{
 						ED_region_tag_redraw(ar);
 					}
@@ -840,14 +860,6 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_WORLD_DRAW:
 					/* handled by space_view3d_listener() for v3d access */
 					break;
-				case ND_WORLD_STARS:
-				{
-					RegionView3D *rv3d = ar->regiondata;
-					if (rv3d->persp == RV3D_CAMOB) {
-						ED_region_tag_redraw(ar);
-					}
-					break;
-				}
 			}
 			break;
 		case NC_LAMP:

@@ -49,7 +49,6 @@
 #include "BLI_path_util.h"
 #include "BLI_math.h"
 #include "BLI_mempool.h"
-#include "BLI_utildefines.h"
 #include "BLI_alloca.h"
 
 #include "BLF_translation.h"
@@ -507,16 +506,15 @@ static void layerCopy_mdisps(const void *source, void *dest, int count)
 		if (s[i].disps) {
 			d[i].disps = MEM_dupallocN(s[i].disps);
 			d[i].hidden = MEM_dupallocN(s[i].hidden);
-			d[i].totdisp = s[i].totdisp;
-			d[i].level = s[i].level;
 		}
 		else {
 			d[i].disps = NULL;
 			d[i].hidden = NULL;
-			d[i].totdisp = 0;
-			d[i].level = 0;
 		}
-		
+
+		/* still copy even if not in memory, displacement can be external */
+		d[i].totdisp = s[i].totdisp;
+		d[i].level = s[i].level;
 	}
 }
 
@@ -1103,7 +1101,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* note, when we expose the UV Map / TexFace split to the user, change this back to face Texture */
 	{sizeof(MTexPoly), "MTexPoly", 1, N_("UVMap") /* "Face Texture" */, NULL, NULL, NULL, NULL, NULL},
 	/* 16: CD_MLOOPUV */
-	{sizeof(MLoopUV), "MLoopUV", 1, N_("UV coord"), NULL, NULL, layerInterp_mloopuv, NULL, NULL,
+	{sizeof(MLoopUV), "MLoopUV", 1, N_("UVMap"), NULL, NULL, layerInterp_mloopuv, NULL, NULL,
 	 layerEqual_mloopuv, layerMultiply_mloopuv, layerInitMinMax_mloopuv, 
 	 layerAdd_mloopuv, layerDoMinMax_mloopuv, layerCopyValue_mloopuv},
 	/* 17: CD_MLOOPCOL */
@@ -1169,7 +1167,9 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 37: CD_FREESTYLE_EDGE */
 	{sizeof(FreestyleEdge), "FreestyleEdge", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 38: CD_FREESTYLE_FACE */
-	{sizeof(FreestyleFace), "FreestyleFace", 1, NULL, NULL, NULL, NULL, NULL, NULL}
+	{sizeof(FreestyleFace), "FreestyleFace", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 39: CD_MLOOPTANGENT */
+	{sizeof(float[4]), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */
@@ -1185,7 +1185,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/* 25-29 */ "CDMPoly", "CDMLoop", "CDShapeKeyIndex", "CDShapeKey", "CDBevelWeight",
 	/* 30-34 */ "CDSubSurfCrease", "CDOrigSpaceLoop", "CDPreviewLoopCol", "CDBMElemPyPtr", "CDPaintMask",
 	/* 35-36 */ "CDGridPaintMask", "CDMVertSkin",
-	/* 37-38 */ "CDFreestyleEdge", "CDFreestyleFace"
+	/* 37-38 */ "CDFreestyleEdge", "CDFreestyleFace", "CDMLoopTangent",
 };
 
 
@@ -1281,7 +1281,7 @@ void CustomData_update_typemap(CustomData *data)
 
 /* currently only used in BLI_assert */
 #ifndef NDEBUG
-static int customdata_typemap_is_valid(const CustomData *data)
+static bool customdata_typemap_is_valid(const CustomData *data)
 {
 	CustomData data_copy = *data;
 	CustomData_update_typemap(&data_copy);
@@ -1296,7 +1296,7 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 	CustomDataLayer *layer, *newlayer;
 	void *data;
 	int i, type, number = 0, lasttype = -1, lastactive = 0, lastrender = 0, lastclone = 0, lastmask = 0, lastflag = 0;
-	bool change = false;
+	bool changed = false;
 
 	for (i = 0; i < source->totlayer; ++i) {
 		layer = &source->layers[i];
@@ -1346,12 +1346,12 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 			newlayer->active_clone = lastclone;
 			newlayer->active_mask = lastmask;
 			newlayer->flag |= lastflag & (CD_FLAG_EXTERNAL | CD_FLAG_IN_MEMORY);
-			change = true;
+			changed = true;
 		}
 	}
 
 	CustomData_update_typemap(dest);
-	return change;
+	return changed;
 }
 
 void CustomData_copy(const struct CustomData *source, struct CustomData *dest,
@@ -1473,7 +1473,7 @@ int CustomData_get_active_layer_index(const CustomData *data, int type)
 {
 	const int layer_index = data->typemap[type];
 	BLI_assert(customdata_typemap_is_valid(data));
-	return (layer_index != -1) ? layer_index + data->layers[layer_index].active: -1;
+	return (layer_index != -1) ? layer_index + data->layers[layer_index].active : -1;
 }
 
 int CustomData_get_render_layer_index(const CustomData *data, int type)
@@ -1649,6 +1649,8 @@ static CustomDataLayer *customData_add_layer__internal(CustomData *data, int typ
 	           (alloctype == CD_DUPLICATE) ||
 	           (alloctype == CD_REFERENCE));
 
+	BLI_assert(size >= 0);
+
 	if (!typeInfo->defaultname && CustomData_has_layer(data, type))
 		return &data->layers[CustomData_get_layer_index(data, type)];
 
@@ -1752,6 +1754,7 @@ void *CustomData_add_layer_named(CustomData *data, int type, int alloctype,
 
 bool CustomData_free_layer(CustomData *data, int type, int totelem, int index)
 {
+	const int n = index - CustomData_get_layer_index(data, type);
 	int i;
 	
 	if (index < 0) return 0;
@@ -1768,7 +1771,7 @@ bool CustomData_free_layer(CustomData *data, int type, int totelem, int index)
 
 	if (i != -1) {
 		/* don't decrement zero index */
-		const int index_nonzero = index ? index : 1;
+		const int index_nonzero = n ? n : 1;
 		CustomDataLayer *layer;
 
 		for (layer = &data->layers[i]; i < data->totlayer && layer->type == type; i++, layer++) {
@@ -1791,7 +1794,7 @@ bool CustomData_free_layer_active(CustomData *data, int type, int totelem)
 {
 	int index = 0;
 	index = CustomData_get_active_layer_index(data, type);
-	if (index < 0) return 0;
+	if (index == -1) return 0;
 	return CustomData_free_layer(data, type, totelem, index);
 }
 
@@ -1836,7 +1839,7 @@ void *CustomData_duplicate_referenced_layer(struct CustomData *data, const int t
 
 	/* get the layer index of the first layer of type */
 	layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	layer = &data->layers[layer_index];
 
@@ -1869,7 +1872,7 @@ void *CustomData_duplicate_referenced_layer_named(struct CustomData *data,
 
 	/* get the layer index of the desired layer */
 	layer_index = CustomData_get_named_layer_index(data, type, name);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	layer = &data->layers[layer_index];
 
@@ -1901,7 +1904,7 @@ bool CustomData_is_referenced_layer(struct CustomData *data, int type)
 
 	/* get the layer index of the first layer of type */
 	layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return 0;
+	if (layer_index == -1) return 0;
 
 	layer = &data->layers[layer_index];
 
@@ -1912,6 +1915,7 @@ void CustomData_free_temporary(CustomData *data, int totelem)
 {
 	CustomDataLayer *layer;
 	int i, j;
+	bool changed = false;
 
 	for (i = 0, j = 0; i < data->totlayer; ++i) {
 		layer = &data->layers[i];
@@ -1919,18 +1923,24 @@ void CustomData_free_temporary(CustomData *data, int totelem)
 		if (i != j)
 			data->layers[j] = data->layers[i];
 
-		if ((layer->flag & CD_FLAG_TEMPORARY) == CD_FLAG_TEMPORARY)
+		if ((layer->flag & CD_FLAG_TEMPORARY) == CD_FLAG_TEMPORARY) {
 			customData_free_layer__internal(layer, totelem);
+			changed = true;
+		}
 		else
 			j++;
 	}
 
 	data->totlayer = j;
 
-	if (data->totlayer <= data->maxlayer - CUSTOMDATA_GROW)
+	if (data->totlayer <= data->maxlayer - CUSTOMDATA_GROW) {
 		customData_resize(data, -CUSTOMDATA_GROW);
+		changed = true;
+	}
 
-	customData_update_offsets(data);
+	if (changed) {
+		customData_update_offsets(data);
+	}
 }
 
 void CustomData_set_only_copy(const struct CustomData *data,
@@ -1998,7 +2008,7 @@ void CustomData_copy_data_named(const CustomData *source, CustomData *dest,
 		dest_i = CustomData_get_named_layer_index(dest, source->layers[src_i].type, source->layers[src_i].name);
 
 		/* if we found a matching layer, copy the data */
-		if (dest_i > -1) {
+		if (dest_i != -1) {
 			CustomData_copy_data_layer(source, dest, src_i, dest_i, source_index, dest_index, count);
 		}
 	}
@@ -2139,7 +2149,7 @@ void *CustomData_get(const CustomData *data, int index, int type)
 
 	/* get the layer index of the active layer of type */
 	layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	/* get the offset of the desired element */
 	offset = layerType_getInfo(type)->size * index;
@@ -2156,7 +2166,7 @@ void *CustomData_get_n(const CustomData *data, int type, int index, int n)
 
 	/* get the layer index of the first layer of type */
 	layer_index = data->typemap[type];
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	offset = layerType_getInfo(type)->size * index;
 	return (char *)data->layers[layer_index + n].data + offset;
@@ -2166,7 +2176,7 @@ void *CustomData_get_layer(const CustomData *data, int type)
 {
 	/* get the layer index of the active layer of type */
 	int layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	return data->layers[layer_index].data;
 }
@@ -2175,7 +2185,7 @@ void *CustomData_get_layer_n(const CustomData *data, int type, int n)
 {
 	/* get the layer index of the active layer of type */
 	int layer_index = CustomData_get_layer_index_n(data, type, n);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	return data->layers[layer_index].data;
 }
@@ -2184,7 +2194,7 @@ void *CustomData_get_layer_named(const struct CustomData *data, int type,
                                  const char *name)
 {
 	int layer_index = CustomData_get_named_layer_index(data, type, name);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	return data->layers[layer_index].data;
 }
@@ -2193,7 +2203,7 @@ int CustomData_get_offset(const CustomData *data, int type)
 {
 	/* get the layer index of the active layer of type */
 	int layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return -1;
+	if (layer_index == -1) return -1;
 
 	return data->layers[layer_index].offset;
 }
@@ -2202,7 +2212,7 @@ int CustomData_get_n_offset(const CustomData *data, int type, int n)
 {
 	/* get the layer index of the active layer of type */
 	int layer_index = CustomData_get_layer_index_n(data, type, n);
-	if (layer_index < 0) return -1;
+	if (layer_index == -1) return -1;
 
 	return data->layers[layer_index].offset;
 }
@@ -2212,7 +2222,7 @@ bool CustomData_set_layer_name(const CustomData *data, int type, int n, const ch
 	/* get the layer index of the first layer of type */
 	int layer_index = CustomData_get_layer_index_n(data, type, n);
 
-	if (layer_index < 0) return false;
+	if (layer_index == -1) return false;
 	if (!name) return false;
 	
 	BLI_strncpy(data->layers[layer_index].name, name, sizeof(data->layers[layer_index].name));
@@ -2225,7 +2235,7 @@ void *CustomData_set_layer(const CustomData *data, int type, void *ptr)
 	/* get the layer index of the first layer of type */
 	int layer_index = CustomData_get_active_layer_index(data, type);
 
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	data->layers[layer_index].data = ptr;
 
@@ -2236,7 +2246,7 @@ void *CustomData_set_layer_n(const struct CustomData *data, int type, int n, voi
 {
 	/* get the layer index of the first layer of type */
 	int layer_index = CustomData_get_layer_index_n(data, type, n);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	data->layers[layer_index].data = ptr;
 
@@ -2605,7 +2615,7 @@ void *CustomData_bmesh_get(const CustomData *data, void *block, int type)
 	
 	/* get the layer index of the first layer of type */
 	layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	return (char *)block + data->layers[layer_index].offset;
 }
@@ -2616,7 +2626,7 @@ void *CustomData_bmesh_get_n(const CustomData *data, void *block, int type, int 
 	
 	/* get the layer index of the first layer of type */
 	layer_index = CustomData_get_layer_index(data, type);
-	if (layer_index < 0) return NULL;
+	if (layer_index == -1) return NULL;
 
 	return (char *)block + data->layers[layer_index + n].offset;
 }
@@ -3061,7 +3071,7 @@ void CustomData_validate_layer_name(const CustomData *data, int type, const char
 	if (name[0])
 		index = CustomData_get_named_layer_index(data, type, name);
 
-	if (index < 0) {
+	if (index == -1) {
 		/* either no layer was specified, or the layer we want has been
 		 * deleted, so assign the active layer to name
 		 */
@@ -3310,7 +3320,7 @@ void CustomData_external_add(CustomData *data, ID *UNUSED(id), int type, int UNU
 	int layer_index;
 
 	layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return;
+	if (layer_index == -1) return;
 
 	layer = &data->layers[layer_index];
 
@@ -3334,7 +3344,7 @@ void CustomData_external_remove(CustomData *data, ID *id, int type, int totelem)
 	int layer_index; // i, remove_file;
 
 	layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return;
+	if (layer_index == -1) return;
 
 	layer = &data->layers[layer_index];
 
@@ -3368,7 +3378,7 @@ bool CustomData_external_test(CustomData *data, int type)
 	int layer_index;
 
 	layer_index = CustomData_get_active_layer_index(data, type);
-	if (layer_index < 0) return false;
+	if (layer_index == -1) return false;
 
 	layer = &data->layers[layer_index];
 	return (layer->flag & CD_FLAG_EXTERNAL) != 0;

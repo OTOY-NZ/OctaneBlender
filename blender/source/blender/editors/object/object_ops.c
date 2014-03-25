@@ -191,6 +191,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_group_levels);
 	WM_operatortype_append(OBJECT_OT_vertex_group_blend);
 	WM_operatortype_append(OBJECT_OT_vertex_group_clean);
+	WM_operatortype_append(OBJECT_OT_vertex_group_quantize);
 	WM_operatortype_append(OBJECT_OT_vertex_group_limit_total);
 	WM_operatortype_append(OBJECT_OT_vertex_group_mirror);
 	WM_operatortype_append(OBJECT_OT_vertex_group_set_active);
@@ -201,6 +202,8 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_weight_set_active);
 	WM_operatortype_append(OBJECT_OT_vertex_weight_normalize_active_vertex);
 	WM_operatortype_append(OBJECT_OT_vertex_weight_copy);
+
+	WM_operatortype_append(OBJECT_OT_vertex_warp);
 
 	WM_operatortype_append(OBJECT_OT_game_property_new);
 	WM_operatortype_append(OBJECT_OT_game_property_remove);
@@ -221,6 +224,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(LATTICE_OT_select_less);
 	WM_operatortype_append(LATTICE_OT_select_ungrouped);
 	WM_operatortype_append(LATTICE_OT_select_random);
+	WM_operatortype_append(LATTICE_OT_select_mirror);
 	WM_operatortype_append(LATTICE_OT_make_regular);
 	WM_operatortype_append(LATTICE_OT_flip);
 
@@ -238,6 +242,10 @@ void ED_operatortypes_object(void)
 
 	WM_operatortype_append(OBJECT_OT_bake_image);
 	WM_operatortype_append(OBJECT_OT_drop_named_material);
+	WM_operatortype_append(OBJECT_OT_laplaciandeform_bind);
+
+	WM_operatortype_append(OBJECT_OT_lod_add);
+	WM_operatortype_append(OBJECT_OT_lod_remove);
 }
 
 void ED_operatormacros_object(void)
@@ -406,12 +414,6 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	WM_keymap_verify_item(keymap, "GROUP_OT_objects_add_active", GKEY, KM_PRESS, KM_SHIFT | KM_CTRL, 0);
 	WM_keymap_verify_item(keymap, "GROUP_OT_objects_remove_active", GKEY, KM_PRESS, KM_SHIFT | KM_ALT, 0);
 	
-	kmi = WM_keymap_add_item(keymap, "RIGIDBODY_OT_objects_add", RKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_enum_set(kmi->ptr, "type", 0); /* active */
-	kmi = WM_keymap_add_item(keymap, "RIGIDBODY_OT_objects_add", RKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
-	RNA_enum_set(kmi->ptr, "type", 1); /* passive */
-	WM_keymap_add_item(keymap, "RIGIDBODY_OT_objects_remove", RKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
-
 	WM_keymap_add_menu(keymap, "VIEW3D_MT_object_specials", WKEY, KM_PRESS, 0, 0);
 
 	for (i = 0; i <= 5; i++) {

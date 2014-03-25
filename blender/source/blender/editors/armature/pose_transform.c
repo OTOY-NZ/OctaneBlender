@@ -112,13 +112,13 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 		           "transforms stored are relative to the old rest pose");
 
 	/* Get editbones of active armature to alter */
-	ED_armature_to_edit(ob);
+	ED_armature_to_edit(arm);
 	
 	/* get pose of active object and move it out of posemode */
 	pose = ob->pose;
 	
 	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
-		curbone = editbone_name_exists(arm->edbo, pchan->name);
+		curbone = ED_armature_bone_find_name(arm->edbo, pchan->name);
 		
 		/* simply copy the head/tail values from pchan over to curbone */
 		copy_v3_v3(curbone->head, pchan->pose_head);
@@ -160,8 +160,8 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* convert editbones back to bones, and then free the edit-data */
-	ED_armature_from_edit(ob);
-	ED_armature_edit_free(ob);
+	ED_armature_from_edit(arm);
+	ED_armature_edit_free(arm);
 	
 	/* flush positions of posebones */
 	BKE_pose_where_is(scene, ob);
@@ -213,7 +213,11 @@ static int pose_visual_transform_apply_exec(bContext *C, wmOperator *UNUSED(op))
 		 * new raw-transform components, don't recalc the poses yet, otherwise IK result will 
 		 * change, thus changing the result we may be trying to record.
 		 */
-		copy_m4_m4(delta_mat, pchan->chan_mat);
+		/* XXX For some reason, we can't use pchan->chan_mat here, gives odd rotation/offset (see T38251).
+		 *     Using pchan->pose_mat and bringing it back in bone space seems to work as expected!
+		 */
+		BKE_armature_mat_pose_to_bone(pchan, pchan->pose_mat, delta_mat);
+		
 		BKE_pchan_apply_mat4(pchan, delta_mat, TRUE);
 	}
 	CTX_DATA_END;
@@ -294,7 +298,7 @@ static void set_pose_keys(Object *ob)
  *
  * > returns: whether the bone that we pasted to if we succeeded
  */
-static bPoseChannel *pose_bone_do_paste(Object *ob, bPoseChannel *chan, short selOnly, short flip)
+static bPoseChannel *pose_bone_do_paste(Object *ob, bPoseChannel *chan, const bool selOnly, const bool flip)
 {
 	bPoseChannel *pchan;
 	char name[MAXBONENAME];
@@ -302,7 +306,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob, bPoseChannel *chan, short se
 	
 	/* get the name - if flipping, we must flip this first */
 	if (flip)
-		flip_side_name(name, chan->name, 0);        /* 0 = don't strip off number extensions */
+		BKE_deform_flip_side_name(name, chan->name, false);
 	else
 		BLI_strncpy(name, chan->name, sizeof(name));
 	
@@ -455,8 +459,8 @@ static int pose_paste_exec(bContext *C, wmOperator *op)
 	Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
 	Scene *scene = CTX_data_scene(C);
 	bPoseChannel *chan;
-	int flip = RNA_boolean_get(op->ptr, "flipped");
-	int selOnly = RNA_boolean_get(op->ptr, "selected_mask");
+	const bool flip = RNA_boolean_get(op->ptr, "flipped");
+	bool selOnly = RNA_boolean_get(op->ptr, "selected_mask");
 
 	/* get KeyingSet to use */
 	KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);

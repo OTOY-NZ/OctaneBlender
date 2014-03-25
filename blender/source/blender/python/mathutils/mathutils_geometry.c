@@ -27,6 +27,7 @@
 
 #include <Python.h>
 
+#include "mathutils.h"
 #include "mathutils_geometry.h"
 
 /* Used for PolyFill */
@@ -297,7 +298,7 @@ static PyObject *M_Geometry_intersect_sphere_sphere_2d(PyObject *UNUSED(self), P
 	if (/* out of range */
 	    (dist > rad_a + rad_b) ||
 	    /* fully-contained in the other */
-	    (dist < abs(rad_a - rad_b)) ||
+	    (dist < fabsf(rad_a - rad_b)) ||
 	    /* co-incident */
 	    (dist < FLT_EPSILON))
 	{
@@ -576,12 +577,14 @@ static PyObject *M_Geometry_intersect_line_plane(PyObject *UNUSED(self), PyObjec
 {
 	VectorObject *line_a, *line_b, *plane_co, *plane_no;
 	float isect[3];
+	int no_flip = false;
 
 	if (!PyArg_ParseTuple(args, "O!O!O!O!|i:intersect_line_plane",
 	                      &vector_Type, &line_a,
 	                      &vector_Type, &line_b,
 	                      &vector_Type, &plane_co,
-	                      &vector_Type, &plane_no))
+	                      &vector_Type, &plane_no,
+	                      &no_flip))
 	{
 		return NULL;
 	}
@@ -601,6 +604,7 @@ static PyObject *M_Geometry_intersect_line_plane(PyObject *UNUSED(self), PyObjec
 		return NULL;
 	}
 
+	/* TODO: implements no_flip */
 	if (isect_line_plane_v3(isect, line_a->vec, line_b->vec, plane_co->vec, plane_no->vec) == 1) {
 		return Vector_CreatePyObject(isect, 3, Py_NEW, NULL);
 	}
@@ -623,17 +627,17 @@ PyDoc_STRVAR(M_Geometry_intersect_plane_plane_doc,
 "   :arg plane_b_no: Normal of the second plane\n"
 "   :type plane_b_no: :class:`mathutils.Vector`\n"
 "   :return: The line of the intersection represented as a point and a vector\n"
-"   :rtype: tuple pair of :class:`mathutils.Vector`\n"
+"   :rtype: tuple pair of :class:`mathutils.Vector` or None if the intersection can't be calculated\n"
 );
 static PyObject *M_Geometry_intersect_plane_plane(PyObject *UNUSED(self), PyObject *args)
 {
-	PyObject *ret;
+	PyObject *ret, *ret_co, *ret_no;
 	VectorObject *plane_a_co, *plane_a_no, *plane_b_co, *plane_b_no;
 
 	float isect_co[3];
 	float isect_no[3];
 
-	if (!PyArg_ParseTuple(args, "O!O!O!O!|i:intersect_plane_plane",
+	if (!PyArg_ParseTuple(args, "O!O!O!O!:intersect_plane_plane",
 	                      &vector_Type, &plane_a_co,
 	                      &vector_Type, &plane_a_no,
 	                      &vector_Type, &plane_b_co,
@@ -657,15 +661,26 @@ static PyObject *M_Geometry_intersect_plane_plane(PyObject *UNUSED(self), PyObje
 		return NULL;
 	}
 
-	isect_plane_plane_v3(isect_co, isect_no,
-	                     plane_a_co->vec, plane_a_no->vec,
-	                     plane_b_co->vec, plane_b_no->vec);
+	if (isect_plane_plane_v3(isect_co, isect_no,
+	                         plane_a_co->vec, plane_a_no->vec,
+	                         plane_b_co->vec, plane_b_no->vec))
+	{
+		normalize_v3(isect_no);
 
-	normalize_v3(isect_no);
+		ret_co = Vector_CreatePyObject(isect_co, 3, Py_NEW, NULL);
+		ret_no = Vector_CreatePyObject(isect_no, 3, Py_NEW, NULL);
+	}
+	else {
+		ret_co = Py_None;
+		ret_no = Py_None;
+
+		Py_INCREF(ret_co);
+		Py_INCREF(ret_no);
+	}
 
 	ret = PyTuple_New(2);
-	PyTuple_SET_ITEM(ret, 0, Vector_CreatePyObject(isect_co, 3, Py_NEW, NULL));
-	PyTuple_SET_ITEM(ret, 1, Vector_CreatePyObject(isect_no, 3, Py_NEW, NULL));
+	PyTuple_SET_ITEM(ret, 0, ret_co);
+	PyTuple_SET_ITEM(ret, 1, ret_no);
 	return ret;
 }
 
@@ -970,9 +985,9 @@ PyDoc_STRVAR(M_Geometry_distance_point_to_plane_doc,
 "\n"
 "   :arg pt: Point\n"
 "   :type pt: :class:`mathutils.Vector`\n"
-"   :arg plane_co: First point of the quad\n"
+"   :arg plane_co: A point on the plane\n"
 "   :type plane_co: :class:`mathutils.Vector`\n"
-"   :arg plane_no: Second point of the quad\n"
+"   :arg plane_no: The direction the plane is facing\n"
 "   :type plane_no: :class:`mathutils.Vector`\n"
 "   :rtype: float\n"
 );
@@ -1088,7 +1103,7 @@ PyDoc_STRVAR(M_Geometry_points_in_planes_doc,
 "\n"
 "   :arg planes: List of planes (4D vectors).\n"
 "   :type planes: list of :class:`mathutils.Vector`\n"
-"   :return: two lists, once containing the vertices inside the planes, another containing the plane indicies used\n"
+"   :return: two lists, once containing the vertices inside the planes, another containing the plane indices used\n"
 "   :rtype: pair of lists\n"
 );
 /* note: this function could be optimized by some spatial structure */
@@ -1563,7 +1578,7 @@ static PyObject *M_Geometry_convex_hull_2d(PyObject *UNUSED(self), PyObject *poi
 		int *index_map;
 		Py_ssize_t len_ret, i;
 
-		index_map  = MEM_mallocN(sizeof(*index_map) * len, __func__);
+		index_map  = MEM_mallocN(sizeof(*index_map) * len * 2, __func__);
 
 		/* Non Python function */
 		len_ret = BLI_convexhull_2d((const float (*)[2])points, len, index_map);

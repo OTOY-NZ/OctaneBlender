@@ -27,6 +27,23 @@
 
 #include <algorithm>
 
+// Support for latest Clang/LLVM on FreeBSD which does have different libcxx.
+//
+// TODO(sergey): Move it some some more generic header with platform-specific
+//               declarations.
+
+// Indicates whether __is_heap is available
+#undef HAVE_IS_HEAP
+
+#ifdef __GNUC__
+// NeyBSD doesn't have __is_heap
+#  ifndef __NetBSD__
+#    define HAVE_IS_HEAP
+#    ifdef _LIBCPP_VERSION
+#      define __is_heap is_heap
+#    endif  // _LIBCPP_VERSION
+#  endif  // !__NetBSD__
+#endif  // __GNUC__
 
 namespace {
   // private code related to hole patching.
@@ -122,7 +139,7 @@ namespace {
     std::vector<vertex_info *> queue;
 
     void checkheap() {
-#ifdef __GNUC__
+#if defined(HAVE_IS_HEAP)
       CARVE_ASSERT(std::__is_heap(queue.begin(), queue.end(), vertex_info_ordering()));
 #endif
     }
@@ -718,10 +735,10 @@ bool carve::triangulate::detail::doTriangulate(vertex_info *begin, std::vector<c
 
 
 
-bool testCandidateAttachment(const std::vector<std::vector<carve::geom2d::P2> > &poly,
-                             std::vector<std::pair<size_t, size_t> > &current_f_loop,
-                             size_t curr,
-                             carve::geom2d::P2 hole_min) {
+static bool testCandidateAttachment(const std::vector<std::vector<carve::geom2d::P2> > &poly,
+                                    std::vector<std::pair<size_t, size_t> > &current_f_loop,
+                                    size_t curr,
+                                    carve::geom2d::P2 hole_min) {
   const size_t SZ = current_f_loop.size();
 
   if (!carve::geom2d::internalToAngle(pvert(poly, current_f_loop[(curr+1) % SZ]),

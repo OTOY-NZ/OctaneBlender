@@ -66,20 +66,9 @@ static void copyData(ModifierData *md, ModifierData *target)
 	WarpModifierData *wmd = (WarpModifierData *) md;
 	WarpModifierData *twmd = (WarpModifierData *) target;
 
-	twmd->object_from = wmd->object_from;
-	twmd->object_to = wmd->object_to;
+	modifier_copyData_generic(md, target);
 
-	twmd->strength = wmd->strength;
-	twmd->falloff_radius = wmd->falloff_radius;
-	twmd->falloff_type = wmd->falloff_type;
-	BLI_strncpy(twmd->defgrp_name, wmd->defgrp_name, sizeof(twmd->defgrp_name));
 	twmd->curfalloff = curvemapping_copy(wmd->curfalloff);
-
-	/* map info */
-	twmd->texture = wmd->texture;
-	twmd->map_object = wmd->map_object;
-	BLI_strncpy(twmd->uvlayer_name, wmd->uvlayer_name, sizeof(twmd->uvlayer_name));
-	twmd->texmapping = wmd->texmapping;
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -282,7 +271,7 @@ static void warpModifier_do(WarpModifierData *wmd, Object *ob,
 			if (tex_co) {
 				TexResult texres;
 				texres.nor = NULL;
-				get_texture_value(wmd->modifier.scene, wmd->texture, tex_co[i], &texres, false);
+				BKE_texture_get_value(wmd->modifier.scene, wmd->texture, tex_co[i], &texres, false);
 				fac *= texres.tin;
 			}
 
@@ -345,7 +334,7 @@ static void deformVertsEM(ModifierData *md, Object *ob, struct BMEditMesh *em,
 
 	if (use_dm) {
 		if (!derivedData)
-			dm = CDDM_from_editbmesh(em, FALSE, FALSE);
+			dm = CDDM_from_editbmesh(em, false, false);
 	}
 
 	deformVerts(md, ob, dm, vertexCos, numVerts, 0);

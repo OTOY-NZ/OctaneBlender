@@ -56,9 +56,6 @@ if env['WITH_BF_CYCLES']:
 if env['WITH_BF_OCTANE']:
     SConscript(['octane/SConscript'])
 
-if env['WITH_BF_BOOLEAN']:
-    SConscript(['bsp/SConscript'])
-
 if env['WITH_BF_INTERNATIONAL']:
     SConscript(['locale/SConscript'])
 

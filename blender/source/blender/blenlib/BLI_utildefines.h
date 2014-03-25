@@ -48,13 +48,37 @@
 #endif
 
 /* min/max */
+#if defined(__GNUC__) || defined(__clang__)
+
+#define MIN2(x, y)  ({  \
+	typeof(x) x_ = (x); \
+	typeof(y) y_ = (y); \
+	((x_) < (y_) ? (x_) : (y_)); })
+
+#define MAX2(x, y)  ({  \
+	typeof(x) x_ = (x); \
+	typeof(y) y_ = (y); \
+	((x_) > (y_) ? (x_) : (y_)); })
+
+#else
 #define MIN2(x, y)          ((x) < (y) ? (x) : (y))
+#define MAX2(x, y)          ((x) > (y) ? (x) : (y))
+#endif
+
 #define MIN3(x, y, z)       (MIN2(MIN2((x), (y)), (z)))
 #define MIN4(x, y, z, a)    (MIN2(MIN2((x), (y)), MIN2((z), (a))))
 
-#define MAX2(x, y)          ((x) > (y) ? (x) : (y))
 #define MAX3(x, y, z)       (MAX2(MAX2((x), (y)), (z)))
 #define MAX4(x, y, z, a)    (MAX2(MAX2((x), (y)), MAX2((z), (a))))
+
+/* min/max that return a value of our choice */
+#define MAX3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
+	((cmp_a > cmp_b) ? ((cmp_a > cmp_c) ? ret_a : ret_c) : \
+	                   ((cmp_b > cmp_c) ? ret_b : ret_c))
+
+#define MIN3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
+	((cmp_a < cmp_b) ? ((cmp_a < cmp_c) ? ret_a : ret_c) : \
+	                   ((cmp_b < cmp_c) ? ret_b : ret_c))
 
 #define INIT_MINMAX(min, max) {                                               \
 		(min)[0] = (min)[1] = (min)[2] =  1.0e30f;                            \
@@ -171,9 +195,7 @@
 } (void)0
 
 
-#define ABS(a)          ( (a) < 0 ? (-(a)) : (a) )
-
-#define FTOCHAR(val) ((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : (char)((255.0f * (val)) + 0.5f))
+#define FTOCHAR(val) (char)(((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : ((255.0f * (val)) + 0.5f)))
 #define FTOUSHORT(val) ((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (unsigned short)(val * 65535.0f + 0.5f))
 #define USHORTTOUCHAR(val) ((unsigned char)(((val) >= 65535 - 128) ? 255 : ((val) + 128) >> 8))
 #define F3TOCHAR3(v2, v1) {                                                   \
@@ -233,15 +255,35 @@
 } (void)0
 
 /* some misc stuff.... */
+
+/* avoid multiple access for supported compilers */
+#if defined(__GNUC__) || defined(__clang__)
+
+#define ABS(a)  ({ \
+	typeof(a) a_ = (a); \
+	((a_) < 0 ? (-(a_)) : (a_)); })
+
+#else
+
+#define ABS(a)  ((a) < 0 ? (-(a)) : (a))
+
+#endif
+
+#define CLAMPIS(a, b, c)  ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
+
 #define CLAMP(a, b, c)  {           \
-	if ((a) < (b)) (a) = (b);       \
+	if      ((a) < (b)) (a) = (b);  \
 	else if ((a) > (c)) (a) = (c);  \
 } (void)0
 
-#define CLAMPIS(a, b, c) ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
 
-#define IS_EQ(a, b) ((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? 0 : 1)
-#define IS_EQF(a, b) ((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? 0 : 1)
+#define IS_EQ(a, b)  ( \
+	CHECK_TYPE_INLINE(a, double), CHECK_TYPE_INLINE(b, double), \
+	((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? false : true))
+
+#define IS_EQF(a, b)  ( \
+	CHECK_TYPE_INLINE(a, float), CHECK_TYPE_INLINE(b, float), \
+	((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? false : true))
 
 #define IS_EQT(a, b, c) ((a > b) ? (((a - b) <= c) ? 1 : 0) : ((((b - a) <= c) ? 1 : 0)))
 #define IN_RANGE(a, b, c) ((b < c) ? ((b < a && a < c) ? 1 : 0) : ((c < a && a < b) ? 1 : 0))
@@ -286,6 +328,12 @@
 #define ARRAY_HAS_ITEM(arr_item, arr_start, tot) \
 	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(tot))
 
+#define ARRAY_DELETE(arr, index, tot_delete, tot)  { \
+		BLI_assert(index + tot_delete <= tot);  \
+		memmove(&(arr)[(index)], \
+		        &(arr)[(index) + (tot_delete)], \
+		         (((tot) - (index)) - (tot_delete)) * sizeof(*(arr))); \
+	} (void)0
 
 /* Warning-free macros for storing ints in pointers. Use these _only_
  * for storing an int in a pointer, not a pointer in an int (64bit)! */

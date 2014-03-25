@@ -219,32 +219,45 @@ static bool xml_read_enum(ustring *str, ShaderEnum& enm, pugi::xml_node node, co
 	return false;
 }
 
+static ShaderSocketType xml_read_socket_type(pugi::xml_node node, const char *name)
+{
+	pugi::xml_attribute attr = node.attribute(name);
+
+	if(attr) {
+		string value = attr.value();
+		if (string_iequals(value, "float"))
+			return SHADER_SOCKET_FLOAT;
+		else if (string_iequals(value, "int"))
+			return SHADER_SOCKET_INT;
+		else if (string_iequals(value, "color"))
+			return SHADER_SOCKET_COLOR;
+		else if (string_iequals(value, "vector"))
+			return SHADER_SOCKET_VECTOR;
+		else if (string_iequals(value, "point"))
+			return SHADER_SOCKET_POINT;
+		else if (string_iequals(value, "normal"))
+			return SHADER_SOCKET_NORMAL;
+		else if (string_iequals(value, "closure color"))
+			return SHADER_SOCKET_CLOSURE;
+		else if (string_iequals(value, "string"))
+			return SHADER_SOCKET_STRING;
+		else
+			fprintf(stderr, "Unknown shader socket type \"%s\" for attribute \"%s\".\n", value.c_str(), name);
+	}
+	
+	return SHADER_SOCKET_UNDEFINED;
+}
+
 /* Film */
 
 static void xml_read_film(const XMLReadState& state, pugi::xml_node node)
 {
-	Camera *cam = state.scene->camera;
+	Film *film = state.scene->film;
+	
+	xml_read_float(&film->exposure, node, "exposure");
 
-	xml_read_int(&cam->width, node, "width");
-	xml_read_int(&cam->height, node, "height");
-
-	float aspect = (float)cam->width/(float)cam->height;
-
-	if(cam->width >= cam->height) {
-		cam->viewplane.left = -aspect;
-		cam->viewplane.right = aspect;
-		cam->viewplane.bottom = -1.0f;
-		cam->viewplane.top = 1.0f;
-	}
-	else {
-		cam->viewplane.left = -1.0f;
-		cam->viewplane.right = 1.0f;
-		cam->viewplane.bottom = -1.0f/aspect;
-		cam->viewplane.top = 1.0f/aspect;
-	}
-
-	cam->need_update = true;
-	cam->update();
+	/* ToDo: Filter Type */
+	xml_read_float(&film->filter_width, node, "filter_width");
 }
 
 /* Integrator */
@@ -252,37 +265,49 @@ static void xml_read_film(const XMLReadState& state, pugi::xml_node node)
 static void xml_read_integrator(const XMLReadState& state, pugi::xml_node node)
 {
 	Integrator *integrator = state.scene->integrator;
-	bool branched = false;
 	
+	/* Branched Path */
+	bool branched = false;
 	xml_read_bool(&branched, node, "branched");
 
-	if(branched)
+	if(branched) {
 		integrator->method = Integrator::BRANCHED_PATH;
-	
-	if(integrator->method == Integrator::BRANCHED_PATH) {
+
 		xml_read_int(&integrator->diffuse_samples, node, "diffuse_samples");
 		xml_read_int(&integrator->glossy_samples, node, "glossy_samples");
 		xml_read_int(&integrator->transmission_samples, node, "transmission_samples");
 		xml_read_int(&integrator->ao_samples, node, "ao_samples");
 		xml_read_int(&integrator->mesh_light_samples, node, "mesh_light_samples");
+		xml_read_int(&integrator->subsurface_samples, node, "subsurface_samples");
+		xml_read_int(&integrator->volume_samples, node, "volume_samples");
 	}
-
+	
+	/* Bounces */
 	xml_read_int(&integrator->min_bounce, node, "min_bounce");
 	xml_read_int(&integrator->max_bounce, node, "max_bounce");
 	
 	xml_read_int(&integrator->max_diffuse_bounce, node, "max_diffuse_bounce");
 	xml_read_int(&integrator->max_glossy_bounce, node, "max_glossy_bounce");
 	xml_read_int(&integrator->max_transmission_bounce, node, "max_transmission_bounce");
+	xml_read_int(&integrator->max_volume_bounce, node, "max_volume_bounce");
 	
+	/* Transparency */
 	xml_read_int(&integrator->transparent_min_bounce, node, "transparent_min_bounce");
 	xml_read_int(&integrator->transparent_max_bounce, node, "transparent_max_bounce");
-	
 	xml_read_bool(&integrator->transparent_shadows, node, "transparent_shadows");
+	
+	/* Volume */
+	xml_read_int(&integrator->volume_homogeneous_sampling, node, "volume_homogeneous_sampling");
+	xml_read_float(&integrator->volume_step_size, node, "volume_step_size");
+	xml_read_int(&integrator->volume_max_steps, node, "volume_max_steps");
+	
+	/* Various Settings */
 	xml_read_bool(&integrator->no_caustics, node, "no_caustics");
-	xml_read_float(&integrator->filter_glossy, node, "blur_glossy");
+	xml_read_float(&integrator->filter_glossy, node, "filter_glossy");
 	
 	xml_read_int(&integrator->seed, node, "seed");
-	xml_read_float(&integrator->sample_clamp, node, "sample_clamp");
+	xml_read_float(&integrator->sample_clamp_direct, node, "sample_clamp_direct");
+	xml_read_float(&integrator->sample_clamp_indirect, node, "sample_clamp_indirect");
 }
 
 /* Camera */
@@ -290,6 +315,9 @@ static void xml_read_integrator(const XMLReadState& state, pugi::xml_node node)
 static void xml_read_camera(const XMLReadState& state, pugi::xml_node node)
 {
 	Camera *cam = state.scene->camera;
+
+	xml_read_int(&cam->width, node, "width");
+	xml_read_int(&cam->height, node, "height");
 
 	if(xml_read_float(&cam->fov, node, "fov"))
 		cam->fov *= M_PI/180.0f;
@@ -319,7 +347,6 @@ static void xml_read_camera(const XMLReadState& state, pugi::xml_node node)
 
 	xml_read_float(&cam->sensorwidth, node, "sensorwidth");
 	xml_read_float(&cam->sensorheight, node, "sensorheight");
-
 
 	cam->matrix = state.tfm;
 
@@ -356,6 +383,10 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 
 			xml_read_string(&img->filename, node, "src");
 			img->filename = path_join(state.base, img->filename);
+			
+			xml_read_enum(&img->color_space, ImageTextureNode::color_space_enum, node, "color_space");
+			xml_read_enum(&img->projection, ImageTextureNode::projection_enum, node, "projection");
+			xml_read_float(&img->projection_blend, node, "projection_blend");
 
 			snode = img;
 		}
@@ -364,14 +395,60 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 
 			xml_read_string(&env->filename, node, "src");
 			env->filename = path_join(state.base, env->filename);
+			
+			xml_read_enum(&env->color_space, EnvironmentTextureNode::color_space_enum, node, "color_space");
+			xml_read_enum(&env->projection, EnvironmentTextureNode::projection_enum, node, "projection");
 
 			snode = env;
 		}
+		else if(string_iequals(node.name(), "osl_shader")) {
+			OSLScriptNode *osl = new OSLScriptNode();
+
+			/* Source */
+			xml_read_string(&osl->filepath, node, "src");
+			osl->filepath = path_join(state.base, osl->filepath);
+
+			/* Generate inputs/outputs from node sockets
+			 *
+			 * Note: ShaderInput/ShaderOutput store shallow string copies only!
+			 * Socket names must be stored in the extra lists instead. */
+			/* read input values */
+			for(pugi::xml_node param = node.first_child(); param; param = param.next_sibling()) {
+				if (string_iequals(param.name(), "input")) {
+					string name;
+					if (!xml_read_string(&name, param, "name"))
+						continue;
+					
+					ShaderSocketType type = xml_read_socket_type(param, "type");
+					if (type == SHADER_SOCKET_UNDEFINED)
+						continue;
+					
+					osl->input_names.push_back(ustring(name));
+					osl->add_input(osl->input_names.back().c_str(), type);
+				}
+				else if (string_iequals(param.name(), "output")) {
+					string name;
+					if (!xml_read_string(&name, param, "name"))
+						continue;
+					
+					ShaderSocketType type = xml_read_socket_type(param, "type");
+					if (type == SHADER_SOCKET_UNDEFINED)
+						continue;
+					
+					osl->output_names.push_back(ustring(name));
+					osl->add_output(osl->output_names.back().c_str(), type);
+				}
+			}
+			
+			snode = osl;
+		}
 		else if(string_iequals(node.name(), "sky_texture")) {
 			SkyTextureNode *sky = new SkyTextureNode();
-
+			
+			xml_read_enum(&sky->type, SkyTextureNode::type_enum, node, "type");
 			xml_read_float3(&sky->sun_direction, node, "sun_direction");
 			xml_read_float(&sky->turbidity, node, "turbidity");
+			xml_read_float(&sky->ground_albedo, node, "ground_albedo");
 			
 			snode = sky;
 		}
@@ -382,7 +459,14 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			snode = new CheckerTextureNode();
 		}
 		else if(string_iequals(node.name(), "brick_texture")) {
-			snode = new BrickTextureNode();
+			BrickTextureNode *brick = new BrickTextureNode();
+
+			xml_read_float(&brick->offset, node, "offset");
+			xml_read_int(&brick->offset_frequency, node, "offset_frequency");
+			xml_read_float(&brick->squash, node, "squash");
+			xml_read_int(&brick->squash_frequency, node, "squash_frequency");
+
+			snode = brick;
 		}
 		else if(string_iequals(node.name(), "gradient_texture")) {
 			GradientTextureNode *blend = new GradientTextureNode();
@@ -414,7 +498,9 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			snode = wave;
 		}
 		else if(string_iequals(node.name(), "normal")) {
-			snode = new NormalNode();
+			NormalNode *normal = new NormalNode();
+			xml_read_float3(&normal->direction, node, "direction");
+			snode = normal;
 		}
 		else if(string_iequals(node.name(), "mapping")) {
 			snode = new MappingNode();
@@ -434,6 +520,11 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "velvet_bsdf")) {
 			snode = new VelvetBsdfNode();
 		}
+		else if(string_iequals(node.name(), "toon_bsdf")) {
+			ToonBsdfNode *toon = new ToonBsdfNode();
+			xml_read_enum(&toon->component, ToonBsdfNode::component_enum, node, "component");
+			snode = toon;
+		}
 		else if(string_iequals(node.name(), "glossy_bsdf")) {
 			GlossyBsdfNode *glossy = new GlossyBsdfNode();
 			xml_read_enum(&glossy->distribution, GlossyBsdfNode::distribution_enum, node, "distribution");
@@ -444,19 +535,37 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			xml_read_enum(&diel->distribution, GlassBsdfNode::distribution_enum, node, "distribution");
 			snode = diel;
 		}
+		else if(string_iequals(node.name(), "refraction_bsdf")) {
+			RefractionBsdfNode *diel = new RefractionBsdfNode();
+			xml_read_enum(&diel->distribution, RefractionBsdfNode::distribution_enum, node, "distribution");
+			snode = diel;
+		}
+		else if(string_iequals(node.name(), "hair_bsdf")) {
+			HairBsdfNode *hair = new HairBsdfNode();
+			xml_read_enum(&hair->component, HairBsdfNode::component_enum, node, "component");
+			snode = hair;
+		}
 		else if(string_iequals(node.name(), "emission")) {
 			EmissionNode *emission = new EmissionNode();
 			xml_read_bool(&emission->total_power, node, "total_power");
 			snode = emission;
 		}
+		else if(string_iequals(node.name(), "ambient_occlusion")) {
+			snode = new AmbientOcclusionNode();
+		}
 		else if(string_iequals(node.name(), "background")) {
 			snode = new BackgroundNode();
 		}
-		else if(string_iequals(node.name(), "transparent_volume")) {
-			snode = new TransparentVolumeNode();
+		else if(string_iequals(node.name(), "absorption_volume")) {
+			snode = new AbsorptionVolumeNode();
 		}
-		else if(string_iequals(node.name(), "isotropic_volume")) {
-			snode = new IsotropicVolumeNode();
+		else if(string_iequals(node.name(), "scatter_volume")) {
+			snode = new ScatterVolumeNode();
+		}
+		else if(string_iequals(node.name(), "subsurface_scattering")) {
+			SubsurfaceScatteringNode *sss = new SubsurfaceScatteringNode();
+			//xml_read_enum(&sss->falloff, SubsurfaceScatteringNode::falloff_enum, node, "falloff");
+			snode = sss;
 		}
 		else if(string_iequals(node.name(), "geometry")) {
 			snode = new GeometryNode();
@@ -464,8 +573,20 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "texture_coordinate")) {
 			snode = new TextureCoordinateNode();
 		}
-		else if(string_iequals(node.name(), "lightPath")) {
+		else if(string_iequals(node.name(), "light_path")) {
 			snode = new LightPathNode();
+		}
+		else if(string_iequals(node.name(), "light_falloff")) {
+			snode = new LightFalloffNode();
+		}
+		else if(string_iequals(node.name(), "object_info")) {
+			snode = new ObjectInfoNode();
+		}
+		else if(string_iequals(node.name(), "particle_info")) {
+			snode = new ParticleInfoNode();
+		}
+		else if(string_iequals(node.name(), "hair_info")) {
+			snode = new HairInfoNode();
 		}
 		else if(string_iequals(node.name(), "value")) {
 			ValueNode *value = new ValueNode();
@@ -504,8 +625,20 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "separate_rgb")) {
 			snode = new SeparateRGBNode();
 		}
+		else if(string_iequals(node.name(), "combine_hsv")) {
+			snode = new CombineHSVNode();
+		}
+		else if(string_iequals(node.name(), "separate_hsv")) {
+			snode = new SeparateHSVNode();
+		}
 		else if(string_iequals(node.name(), "hsv")) {
 			snode = new HSVNode();
+		}
+		else if(string_iequals(node.name(), "wavelength")) {
+			snode = new WavelengthNode();
+		}
+		else if(string_iequals(node.name(), "blackbody")) {
+			snode = new BlackbodyNode();
 		}
 		else if(string_iequals(node.name(), "attribute")) {
 			AttributeNode *attr = new AttributeNode();
@@ -518,6 +651,27 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "fresnel")) {
 			snode = new FresnelNode();
 		}
+		else if(string_iequals(node.name(), "layer_weight")) {
+			snode = new LayerWeightNode();
+		}
+		else if(string_iequals(node.name(), "wireframe")) {
+			WireframeNode *wire = new WireframeNode;
+			xml_read_bool(&wire->use_pixel_size, node, "use_pixel_size");
+			snode = wire;
+		}
+		else if(string_iequals(node.name(), "normal_map")) {
+			NormalMapNode *nmap = new NormalMapNode;
+			xml_read_ustring(&nmap->attribute, node, "attribute");
+			xml_read_enum(&nmap->space, NormalMapNode::space_enum, node, "space");
+			snode = nmap;
+		}
+		else if(string_iequals(node.name(), "tangent")) {
+			TangentNode *tangent = new TangentNode;
+			xml_read_ustring(&tangent->attribute, node, "attribute");
+			xml_read_enum(&tangent->direction_type, TangentNode::direction_type_enum, node, "direction_type");
+			xml_read_enum(&tangent->axis, TangentNode::axis_enum, node, "axis");
+			snode = tangent;
+		}
 		else if(string_iequals(node.name(), "math")) {
 			MathNode *math = new MathNode();
 			xml_read_enum(&math->type, MathNode::type_enum, node, "type");
@@ -528,6 +682,13 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			VectorMathNode *vmath = new VectorMathNode();
 			xml_read_enum(&vmath->type, VectorMathNode::type_enum, node, "type");
 			snode = vmath;
+		}
+		else if(string_iequals(node.name(), "vector_transform")) {
+			VectorTransformNode *vtransform = new VectorTransformNode();
+			xml_read_enum(&vtransform->type, VectorTransformNode::type_enum, node, "type");
+			xml_read_enum(&vtransform->convert_from, VectorTransformNode::convert_space_enum, node, "convert_from");
+			xml_read_enum(&vtransform->convert_to, VectorTransformNode::convert_space_enum, node, "convert_to");
+			snode = vtransform;
 		}
 		else if(string_iequals(node.name(), "connect")) {
 			/* connect nodes */
@@ -618,7 +779,12 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 static void xml_read_shader(const XMLReadState& state, pugi::xml_node node)
 {
 	Shader *shader = new Shader();
+
 	xml_read_string(&shader->name, node, "name");
+	xml_read_bool(&shader->use_mis, node, "use_mis");
+	xml_read_bool(&shader->use_transparent_shadow, node, "use_transparent_shadow");
+	xml_read_bool(&shader->heterogeneous_volume, node, "heterogeneous_volume");
+
 	xml_read_shader_graph(state, shader, node);
 	state.scene->shaders.push_back(shader);
 }
@@ -628,6 +794,8 @@ static void xml_read_shader(const XMLReadState& state, pugi::xml_node node)
 static void xml_read_background(const XMLReadState& state, pugi::xml_node node)
 {
 	Shader *shader = state.scene->shaders[state.scene->default_background];
+	
+	xml_read_bool(&shader->heterogeneous_volume, node, "heterogeneous_volume");
 
 	xml_read_shader_graph(state, shader, node);
 }
@@ -703,15 +871,14 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 		}
 
 		/* finalize subd mesh */
-		sdmesh.link_boundary();
+		sdmesh.finish();
 
-		/* subdivide */
-		DiagSplit dsplit;
-		//dsplit.camera = state.scene->camera;
-		//dsplit.dicing_rate = 5.0f;
-		dsplit.dicing_rate = state.dicing_rate;
-		xml_read_float(&dsplit.dicing_rate, node, "dicing_rate");
-		sdmesh.tessellate(&dsplit, false, mesh, shader, smooth);
+		/* parameters */
+		SubdParams sdparams(mesh, shader, smooth);
+		xml_read_float(&sdparams.dicing_rate, node, "dicing_rate");
+
+		DiagSplit dsplit(sdparams);
+		sdmesh.tessellate(&dsplit);
 	}
 	else {
 		/* create vertices */
@@ -789,12 +956,11 @@ static void xml_read_patch(const XMLReadState& state, pugi::xml_node node)
 		mesh->used_shaders.push_back(state.shader);
 
 		/* split */
-		DiagSplit dsplit;
-		//dsplit.camera = state.scene->camera;
-		//dsplit.dicing_rate = 5.0f;
-		dsplit.dicing_rate = state.dicing_rate;
-		xml_read_float(&dsplit.dicing_rate, node, "dicing_rate");
-		dsplit.split_quad(mesh, patch, state.shader, state.smooth);
+		SubdParams sdparams(mesh, state.shader, state.smooth);
+		xml_read_float(&sdparams.dicing_rate, node, "dicing_rate");
+
+		DiagSplit dsplit(sdparams);
+		dsplit.split_quad(patch);
 
 		delete patch;
 
@@ -809,6 +975,26 @@ static void xml_read_light(const XMLReadState& state, pugi::xml_node node)
 {
 	Light *light = new Light();
 	light->shader = state.shader;
+
+	/* Light Type
+	 * 0: Point, 1: Sun, 3: Area, 5: Spot */
+	int type = 0;
+	xml_read_int(&type, node, "type");
+	light->type = (LightType)type;
+
+	/* Spot Light */
+	xml_read_float(&light->spot_angle, node, "spot_angle");
+	xml_read_float(&light->spot_smooth, node, "spot_smooth");
+
+	/* Area Light */
+	xml_read_float(&light->sizeu, node, "sizeu");
+	xml_read_float(&light->sizev, node, "sizev");
+	xml_read_float3(&light->axisu, node, "axisu");
+	xml_read_float3(&light->axisv, node, "axisv");
+	
+	/* Generic */
+	xml_read_float(&light->size, node, "size");
+	xml_read_float3(&light->dir, node, "dir");
 	xml_read_float3(&light->co, node, "P");
 	light->co = transform_point(&state.tfm, light->co);
 
@@ -957,8 +1143,10 @@ static void xml_read_include(const XMLReadState& state, const string& src)
 
 		xml_read_scene(substate, doc);
 	}
-	else
+	else {
 		fprintf(stderr, "%s read error: %s\n", src.c_str(), parse_result.description());
+		exit(EXIT_FAILURE);
+	}
 }
 
 /* File */

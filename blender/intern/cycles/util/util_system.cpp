@@ -101,9 +101,7 @@ string system_cpu_brand_string()
 		replace_string(brand, "(TM)", "");
 		replace_string(brand, "(R)", "");
 
-		size_t i;
-		if((i = brand.find("  ")) != string::npos)
-			brand = brand.substr(0, i);
+		brand = string_strip(brand);
 
 		return brand;
 	}
@@ -163,8 +161,24 @@ static CPUCapabilities& system_cpu_capabilities()
 			caps.sse41 = (result[2] & ((int)1 << 19)) != 0;
 			caps.sse42 = (result[2] & ((int)1 << 20)) != 0;
 
-			caps.avx = (result[2] & ((int)1 << 28)) != 0;
 			caps.fma3 = (result[2] & ((int)1 << 12)) != 0;
+			caps.avx = false;
+			bool os_uses_xsave_xrestore = (result[2] & ((int)1 << 27)) != 0;
+			bool cpu_avx_support = (result[2] & ((int)1 << 28)) != 0;
+
+			if( os_uses_xsave_xrestore && cpu_avx_support) {
+				// Check if the OS will save the YMM registers
+				uint32_t xcr_feature_mask;
+				#if defined(__GNUC__)
+					int edx; // not used
+					__asm__ (".byte 0x0f, 0x01, 0xd0" : "=a" (xcr_feature_mask) , "=d" (edx) : "c" (0) ); /* actual opcode for xgetbv */
+				#elif defined(_MSC_VER) && defined(_XCR_XFEATURE_ENABLED_MASK)
+					xcr_feature_mask = (uint32_t)_xgetbv(_XCR_XFEATURE_ENABLED_MASK);  /* min VS2010 SP1 compiler is required */
+				#else
+					xcr_feature_mask = 0;
+				#endif
+				caps.avx = (xcr_feature_mask & 0x6) == 0x6;
+			}
 		}
 
 #if 0
@@ -195,6 +209,17 @@ bool system_cpu_support_sse3()
 	return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3;
 }
 
+bool system_cpu_support_sse41()
+{
+	CPUCapabilities& caps = system_cpu_capabilities();
+	return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3 && caps.sse41;
+}
+
+bool system_cpu_support_avx()
+{
+	CPUCapabilities& caps = system_cpu_capabilities();
+	return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3 && caps.sse41 && caps.avx;
+}
 #else
 
 bool system_cpu_support_sse2()
@@ -203,6 +228,16 @@ bool system_cpu_support_sse2()
 }
 
 bool system_cpu_support_sse3()
+{
+	return false;
+}
+
+bool system_cpu_support_sse41()
+{
+	return false;
+}
+
+bool system_cpu_support_avx()
 {
 	return false;
 }

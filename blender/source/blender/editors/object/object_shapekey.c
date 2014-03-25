@@ -75,7 +75,7 @@
 
 /*********************** add shape key ***********************/
 
-static void ED_object_shape_key_add(bContext *C, Scene *scene, Object *ob, int from_mix)
+static void ED_object_shape_key_add(bContext *C, Scene *scene, Object *ob, const bool from_mix)
 {
 	KeyBlock *kb;
 	if ((kb = BKE_object_insert_shape_key(scene, ob, NULL, from_mix))) {
@@ -103,7 +103,7 @@ static bool ED_object_shape_key_remove_all(Main *bmain, Object *ob)
 		case ID_LT: ((Lattice *)key->from)->key = NULL; break;
 	}
 
-	BKE_libblock_free_us(&(bmain->key), key);
+	BKE_libblock_free_us(bmain, key);
 
 	return true;
 }
@@ -161,7 +161,7 @@ static bool ED_object_shape_key_remove(Main *bmain, Object *ob)
 			case ID_LT: ((Lattice *)key->from)->key = NULL; break;
 		}
 
-		BKE_libblock_free_us(&(bmain->key), key);
+		BKE_libblock_free_us(bmain, key);
 	}
 
 	return true;
@@ -193,7 +193,7 @@ static bool object_shape_key_mirror(bContext *C, Object *ob,
 			float *fp1, *fp2;
 			float tvec[3];
 
-			mesh_octree_table(ob, NULL, NULL, 's');
+			ED_mesh_mirror_spatial_table(ob, NULL, NULL, 's');
 
 			for (i1 = 0, mv = me->mvert; i1 < me->totvert; i1++, mv++) {
 				i2 = mesh_get_x_mirror_vert(ob, i1, use_topology);
@@ -224,7 +224,7 @@ static bool object_shape_key_mirror(bContext *C, Object *ob,
 				}
 			}
 
-			mesh_octree_table(ob, NULL, NULL, 'e');
+			ED_mesh_mirror_spatial_table(ob, NULL, NULL, 'e');
 		}
 		else if (ob->type == OB_LATTICE) {
 			Lattice *lt = ob->data;
@@ -290,6 +290,17 @@ static int shape_key_mode_poll(bContext *C)
 	return (ob && !ob->id.lib && data && !data->lib && ob->mode != OB_MODE_EDIT);
 }
 
+static int shape_key_mode_exists_poll(bContext *C)
+{
+	Object *ob = ED_object_context(C);
+	ID *data = (ob) ? ob->data : NULL;
+
+	/* same as shape_key_mode_poll */
+	return (ob && !ob->id.lib && data && !data->lib && ob->mode != OB_MODE_EDIT) &&
+	       /* check a keyblock exists */
+	       (BKE_keyblock_from_object(ob) != NULL);
+}
+
 static int shape_key_poll(bContext *C)
 {
 	Object *ob = ED_object_context(C);
@@ -301,7 +312,7 @@ static int shape_key_add_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_context(C);
-	int from_mix = RNA_boolean_get(op->ptr, "from_mix");
+	const bool from_mix = RNA_boolean_get(op->ptr, "from_mix");
 
 	ED_object_shape_key_add(C, scene, ob, from_mix);
 
@@ -330,16 +341,16 @@ static int shape_key_remove_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Object *ob = ED_object_context(C);
-	bool change = false;
+	bool changed = false;
 
 	if (RNA_boolean_get(op->ptr, "all")) {
-		change = ED_object_shape_key_remove_all(bmain, ob);
+		changed = ED_object_shape_key_remove_all(bmain, ob);
 	}
 	else {
-		change = ED_object_shape_key_remove(bmain, ob);
+		changed = ED_object_shape_key_remove(bmain, ob);
 	}
 
-	if (change) {
+	if (changed) {
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -359,6 +370,7 @@ void OBJECT_OT_shape_key_remove(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->poll = shape_key_mode_poll;
+	ot->poll = shape_key_mode_exists_poll;
 	ot->exec = shape_key_remove_exec;
 
 	/* flags */

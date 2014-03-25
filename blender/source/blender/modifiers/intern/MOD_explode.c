@@ -72,13 +72,14 @@ static void freeData(ModifierData *md)
 }
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	ExplodeModifierData *emd = (ExplodeModifierData *) md;
+#endif
 	ExplodeModifierData *temd = (ExplodeModifierData *) target;
 
+	modifier_copyData_generic(md, target);
+
 	temd->facepa = NULL;
-	temd->flag = emd->flag;
-	temd->protect = emd->protect;
-	temd->vgroup = emd->vgroup;
 }
 static bool dependsOnTime(ModifierData *UNUSED(md))
 {
@@ -149,7 +150,7 @@ static void createFacepa(ExplodeModifierData *emd,
 	tree = BLI_kdtree_new(totpart);
 	for (p = 0, pa = psys->particles; p < totpart; p++, pa++) {
 		psys_particle_on_emitter(psmd, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, NULL, NULL, NULL, NULL, NULL);
-		BLI_kdtree_insert(tree, p, co, NULL);
+		BLI_kdtree_insert(tree, p, co);
 	}
 	BLI_kdtree_balance(tree);
 
@@ -164,7 +165,7 @@ static void createFacepa(ExplodeModifierData *emd,
 		else
 			mul_v3_fl(center, 1.0f / 3.0f);
 
-		p = BLI_kdtree_find_nearest(tree, center, NULL, NULL);
+		p = BLI_kdtree_find_nearest(tree, center, NULL);
 
 		v1 = vertpa[fa->v1];
 		v2 = vertpa[fa->v2];

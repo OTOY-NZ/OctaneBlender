@@ -21,6 +21,8 @@
 
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -28,6 +30,8 @@
 #include <boost/thread.hpp>
 
 #include <iostream>
+#include <sstream>
+#include <deque>
 
 #include "buffers.h"
 
@@ -51,6 +55,14 @@ static const int DISCOVER_PORT = 5121;
 static const string DISCOVER_REQUEST_MSG = "REQUEST_RENDER_SERVER_IP";
 static const string DISCOVER_REPLY_MSG = "REPLY_RENDER_SERVER_IP";
 
+#if 0
+typedef boost::archive::text_oarchive o_archive;
+typedef boost::archive::text_iarchive i_archive;
+#else
+typedef boost::archive::binary_oarchive o_archive;
+typedef boost::archive::binary_iarchive i_archive;
+#endif
+
 /* Serialization of device memory */
 
 class network_device_memory : public device_memory
@@ -62,20 +74,45 @@ public:
 	vector<char> local_data;
 };
 
+/* Common netowrk error function / object for both DeviceNetwork and DeviceServer*/
+class NetworkError {
+public:
+	NetworkError() {
+		error = "";
+		error_count = 0;
+	}
+
+	~NetworkError() {}
+
+	void network_error(const string& message) {
+		error = message;
+		error_count += 1;
+	}
+
+	bool have_error() {
+		return true ? error_count > 0 : false;
+	}
+
+private:
+	string error;
+	int error_count;
+};
+
+
 /* Remote procedure call Send */
 
 class RPCSend {
 public:
-	RPCSend(tcp::socket& socket_, const string& name_ = "")
+	RPCSend(tcp::socket& socket_, NetworkError* e, const string& name_ = "")
 	: name(name_), socket(socket_), archive(archive_stream), sent(false)
 	{
 		archive & name_;
+		error_func = e;
+		fprintf(stderr, "rpc send %s\n", name.c_str());
 	}
 
 	~RPCSend()
 	{
-		if(!sent)
-			fprintf(stderr, "Error: RPC %s not sent\n", name.c_str());
 	}
 
 	void add(const device_memory& mem)
@@ -92,19 +129,19 @@ public:
 	void add(const DeviceTask& task)
 	{
 		int type = (int)task.type;
-
 		archive & type & task.x & task.y & task.w & task.h;
 		archive & task.rgba_byte & task.rgba_half & task.buffer & task.sample & task.num_samples;
 		archive & task.offset & task.stride;
 		archive & task.shader_input & task.shader_output & task.shader_eval_type;
 		archive & task.shader_x & task.shader_w;
+		archive & task.need_finish_queue;
 	}
 
 	void add(const RenderTile& tile)
 	{
 		archive & tile.x & tile.y & tile.w & tile.h;
 		archive & tile.start_sample & tile.num_samples & tile.sample;
-		archive & tile.offset & tile.stride;
+		archive & tile.resolution & tile.offset & tile.stride;
 		archive & tile.buffer & tile.rng_state;
 	}
 
@@ -125,7 +162,7 @@ public:
 			boost::asio::transfer_all(), error);
 
 		if(error.value())
-			cout << "Network send error: " << error.message() << "\n";
+			error_func->network_error(error.message());
 
 		/* then send actual data */
 		boost::asio::write(socket,
@@ -133,7 +170,7 @@ public:
 			boost::asio::transfer_all(), error);
 		
 		if(error.value())
-			cout << "Network send error: " << error.message() << "\n";
+			error_func->network_error(error.message());
 
 		sent = true;
 	}
@@ -147,27 +184,34 @@ public:
 			boost::asio::transfer_all(), error);
 		
 		if(error.value())
-			cout << "Network send error: " << error.message() << "\n";
+			error_func->network_error(error.message());
 	}
 
 protected:
 	string name;
 	tcp::socket& socket;
 	ostringstream archive_stream;
-	boost::archive::text_oarchive archive;
+	o_archive archive;
 	bool sent;
+	NetworkError *error_func;
 };
 
 /* Remote procedure call Receive */
 
 class RPCReceive {
 public:
-	RPCReceive(tcp::socket& socket_)
+	RPCReceive(tcp::socket& socket_, NetworkError* e )
 	: socket(socket_), archive_stream(NULL), archive(NULL)
 	{
+		error_func = e;
 		/* read head with fixed size */
 		vector<char> header(8);
-		size_t len = boost::asio::read(socket, boost::asio::buffer(header));
+		boost::system::error_code error;
+		size_t len = boost::asio::read(socket, boost::asio::buffer(header), error);
+
+		if(error.value()){
+			error_func->network_error(error.message());
+		}
 
 		/* verify if we got something */
 		if(len == header.size()) {
@@ -178,28 +222,34 @@ public:
 			size_t data_size;
 
 			if((header_stream >> hex >> data_size)) {
+
 				vector<char> data(data_size);
-				size_t len = boost::asio::read(socket, boost::asio::buffer(data));
+				size_t len = boost::asio::read(socket, boost::asio::buffer(data), error);
+
+				if(error.value())
+					error_func->network_error(error.message());
+
 
 				if(len == data_size) {
 					archive_str = (data.size())? string(&data[0], data.size()): string("");
-#if 0
-					istringstream archive_stream(archive_str);
-					boost::archive::text_iarchive archive(archive_stream);
-#endif
+
 					archive_stream = new istringstream(archive_str);
-					archive = new boost::archive::text_iarchive(*archive_stream);
+					archive = new i_archive(*archive_stream);
 
 					*archive & name;
+					fprintf(stderr, "rpc receive %s\n", name.c_str());
 				}
-				else
-					cout << "Network receive error: data size doens't match header\n";
+				else {
+					error_func->network_error("Network receive error: data size doesn't match header");
+				}
 			}
-			else
-				cout << "Network receive error: can't decode data size from header\n";
+			else {
+				error_func->network_error("Network receive error: can't decode data size from header");
+			}
 		}
-		else
-			cout << "Network receive error: invalid header size\n";
+		else {
+			error_func->network_error("Network receive error: invalid header size");
+		}
 	}
 
 	~RPCReceive()
@@ -223,7 +273,12 @@ public:
 
 	void read_buffer(void *buffer, size_t size)
 	{
-		size_t len = boost::asio::read(socket, boost::asio::buffer(buffer, size));
+		boost::system::error_code error;
+		size_t len = boost::asio::read(socket, boost::asio::buffer(buffer, size), error);
+
+		if(error.value()){
+			error_func->network_error(error.message());
+		}
 
 		if(len != size)
 			cout << "Network receive error: buffer size doesn't match expected size\n";
@@ -235,9 +290,10 @@ public:
 
 		*archive & type & task.x & task.y & task.w & task.h;
 		*archive & task.rgba_byte & task.rgba_half & task.buffer & task.sample & task.num_samples;
-		*archive & task.resolution & task.offset & task.stride;
+		*archive & task.offset & task.stride;
 		*archive & task.shader_input & task.shader_output & task.shader_eval_type;
 		*archive & task.shader_x & task.shader_w;
+		*archive & task.need_finish_queue;
 
 		task.type = (DeviceTask::Type)type;
 	}
@@ -247,7 +303,7 @@ public:
 		*archive & tile.x & tile.y & tile.w & tile.h;
 		*archive & tile.start_sample & tile.num_samples & tile.sample;
 		*archive & tile.resolution & tile.offset & tile.stride;
-		*archive & tile.buffer & tile.rng_state & tile.rgba_byte & tile.rgba_half;
+		*archive & tile.buffer & tile.rng_state;
 
 		tile.buffers = NULL;
 	}
@@ -258,7 +314,8 @@ protected:
 	tcp::socket& socket;
 	string archive_str;
 	istringstream *archive_stream;
-	boost::archive::text_iarchive *archive;
+	i_archive *archive;
+	NetworkError *error_func;
 };
 
 /* Server auto discovery */
@@ -303,12 +360,12 @@ public:
 		delete work;
 	}
 
-	list<string> get_server_list()
+	vector<string> get_server_list()
 	{
-		list<string> result;
+		vector<string> result;
 
 		mutex.lock();
-		result = servers;
+		result = vector<string>(servers.begin(), servers.end());
 		mutex.unlock();
 
 		return result;
@@ -333,11 +390,8 @@ private:
 					mutex.lock();
 
 					/* add address if it's not already in the list */
-					bool found = false;
-
-					foreach(string& server, servers)
-						if(server == address)
-							found = true;
+					bool found = std::find(servers.begin(), servers.end(),
+							address) != servers.end();
 
 					if(!found)
 						servers.push_back(address);
@@ -393,10 +447,21 @@ private:
 	/* buffer and endpoint for receiving messages */
 	char receive_buffer[256];
 	boost::asio::ip::udp::endpoint receive_endpoint;
+	
+	// os, version, devices, status, host name, group name, ip as far as fields go
+	struct ServerInfo {
+		string cycles_version;
+		string os;
+		int device_count;
+		string status;
+		string host_name;
+		string group_name;
+		string host_addr;
+	};
 
 	/* collection of server addresses in list */
 	bool collect_servers;
-	list<string> servers;
+	vector<string> servers;
 };
 
 CCL_NAMESPACE_END

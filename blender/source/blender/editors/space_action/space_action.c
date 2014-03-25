@@ -44,8 +44,6 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
-#include "ED_screen.h"
-
 #include "BIF_gl.h"
 
 #include "WM_api.h"
@@ -450,8 +448,11 @@ static void action_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 	}
 }
 
-static void action_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void action_header_area_listener(bScreen *UNUSED(sc), ScrArea *sa, ARegion *ar, wmNotifier *wmn)
 {
+
+	SpaceAction *saction = (SpaceAction *)sa->spacedata.first;
+
 	/* context changes */
 	switch (wmn->category) {
 		case NC_SCENE:
@@ -465,7 +466,16 @@ static void action_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa)
 			if (wmn->action == NA_RENAME)
 				ED_region_tag_redraw(ar);
 			break;
+		case NC_ANIMATION:
+			switch (wmn->data) {
+				case ND_KEYFRAME:
+					saction->flag |= SACTION_TEMP_NEEDCHANSYNC;
+					ED_region_tag_redraw(ar);
+					break;
+			}
+			break;
 	}
+
 }
 
 static void action_refresh(const bContext *C, ScrArea *sa)
@@ -541,7 +551,7 @@ void ED_spacetype_action(void)
 	art = MEM_callocN(sizeof(ARegionType), "spacetype action region");
 	art->regionid = RGN_TYPE_CHANNELS;
 	art->prefsizex = 200;
-	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
 	
 	art->init = action_channel_area_init;
 	art->draw = action_channel_area_draw;

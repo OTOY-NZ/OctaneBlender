@@ -147,14 +147,14 @@ void *CustomData_add_layer_named(struct CustomData *data, int type, int alloctyp
                                  void *layer, int totelem, const char *name);
 
 /* frees the active or first data layer with the give type.
- * returns 1 on succes, 0 if no layer with the given type is found
+ * returns 1 on success, 0 if no layer with the given type is found
  *
  * in editmode, use EDBM_data_layer_free instead of this function
  */
 bool CustomData_free_layer(struct CustomData *data, int type, int totelem, int index);
 
 /* frees the layer index with the give type.
- * returns 1 on succes, 0 if no layer with the given type is found
+ * returns 1 on success, 0 if no layer with the given type is found
  *
  * in editmode, use EDBM_data_layer_free instead of this function
  */
@@ -216,8 +216,6 @@ void CustomData_free_elem(struct CustomData *data, int index, int count);
  *     should be source->subElems * source->subElems in size)
  * count gives the number of source elements to interpolate from
  * dest_index gives the dest element to write the interpolated value to
- *
- * returns 1 on success, 0 on failure
  */
 void CustomData_interp(const struct CustomData *source, struct CustomData *dest,
                        int *src_indices, float *weights, float *sub_weights,

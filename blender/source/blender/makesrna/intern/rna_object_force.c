@@ -517,21 +517,27 @@ static void rna_FieldSettings_shape_update(Main *bmain, Scene *scene, PointerRNA
 {
 	if (!particle_id_check(ptr)) {
 		Object *ob = (Object *)ptr->id.data;
-		PartDeflect *pd = ob->pd;
-		ModifierData *md = modifiers_findByType(ob, eModifierType_Surface);
+		ED_object_check_force_modifiers(bmain, scene, ob);
+		WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
+		WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+	}
+}
 
-		/* add/remove modifier as needed */
-		if (!md) {
-			if (pd && (pd->shape == PFIELD_SHAPE_SURFACE) && ELEM(pd->forcefield, PFIELD_GUIDE, PFIELD_TEXTURE) == 0)
-				if (ELEM4(ob->type, OB_MESH, OB_SURF, OB_FONT, OB_CURVE))
-					ED_object_modifier_add(NULL, bmain, scene, ob, NULL, eModifierType_Surface);
+static void rna_FieldSettings_type_set(PointerRNA *ptr, int value)
+{
+	PartDeflect *part_deflect = (PartDeflect *) ptr->data;
+
+	part_deflect->forcefield = value;
+
+	if (!particle_id_check(ptr)) {
+		Object *ob = (Object *)ptr->id.data;
+		ob->pd->forcefield = value;
+		if (ELEM(value, PFIELD_WIND, PFIELD_VORTEX)) {
+			ob->empty_drawtype = OB_SINGLE_ARROW;
 		}
 		else {
-			if (!pd || pd->shape != PFIELD_SHAPE_SURFACE)
-				ED_object_modifier_remove(NULL, bmain, ob, md);
+			ob->empty_drawtype = OB_PLAINAXES;
 		}
-
-		WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 	}
 }
 
@@ -712,7 +718,7 @@ static void rna_softbody_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Point
 
 
 static EnumPropertyItem *rna_Effector_shape_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                  PropertyRNA *UNUSED(prop), int *UNUSED(free))
+                                                  PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	Object *ob = NULL;
 
@@ -1171,6 +1177,7 @@ static void rna_def_field(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "forcefield");
 	RNA_def_property_enum_items(prop, field_type_items);
+	RNA_def_property_enum_funcs(prop, NULL, "rna_FieldSettings_type_set", NULL);
 	RNA_def_property_ui_text(prop, "Type", "Type of field");
 	RNA_def_property_update(prop, 0, "rna_FieldSettings_dependency_update");
 
@@ -1540,8 +1547,6 @@ static void rna_def_softbody(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	const int matrix_dimsize[] = {3, 3};
-
 	
 	static EnumPropertyItem collision_type_items[] = {
 		{SBC_MODE_MANUAL, "MANUAL", 0, "Manual", "Manual adjust"},
@@ -1784,12 +1789,12 @@ static void rna_def_softbody(BlenderRNA *brna)
 	/* matrix */
 	prop = RNA_def_property(srna, "rotation_estimate", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "lrot");
-	RNA_def_property_multi_array(prop, 2, matrix_dimsize);
+	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_3x3);
 	RNA_def_property_ui_text(prop, "Rot Matrix", "Estimated rotation matrix");
 
 	prop = RNA_def_property(srna, "scale_estimate", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "lscale");
-	RNA_def_property_multi_array(prop, 2, matrix_dimsize);
+	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_3x3);
 	RNA_def_property_ui_text(prop, "Scale Matrix", "Estimated scale matrix");
 	/***********************************************************************************/
 

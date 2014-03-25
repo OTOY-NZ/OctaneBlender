@@ -90,10 +90,10 @@ static void default_linestyle_settings(FreestyleLineStyle *linestyle)
 	linestyle->max_length = 10000.0f;
 	linestyle->split_length = 100;
 
-	linestyle->color_modifiers.first = linestyle->color_modifiers.last = NULL;
-	linestyle->alpha_modifiers.first = linestyle->alpha_modifiers.last = NULL;
-	linestyle->thickness_modifiers.first = linestyle->thickness_modifiers.last = NULL;
-	linestyle->geometry_modifiers.first = linestyle->geometry_modifiers.last = NULL;
+	BLI_listbase_clear(&linestyle->color_modifiers);
+	BLI_listbase_clear(&linestyle->alpha_modifiers);
+	BLI_listbase_clear(&linestyle->thickness_modifiers);
+	BLI_listbase_clear(&linestyle->geometry_modifiers);
 
 	BKE_add_linestyle_geometry_modifier(linestyle, LS_MODIFIER_SAMPLING);
 
@@ -107,7 +107,7 @@ FreestyleLineStyle *BKE_new_linestyle(const char *name, struct Main *main)
 	if (!main)
 		main = G.main;
 
-	linestyle = (FreestyleLineStyle *)BKE_libblock_alloc(&main->linestyle, ID_LS, name);
+	linestyle = (FreestyleLineStyle *)BKE_libblock_alloc(main, ID_LS, name);
 
 	default_linestyle_settings(linestyle);
 
@@ -1005,7 +1005,8 @@ void BKE_list_modifier_color_ramps(FreestyleLineStyle *linestyle, ListBase *list
 	ColorBand *color_ramp;
 	LinkData *link;
 
-	listbase->first = listbase->last = NULL;
+	BLI_listbase_clear(listbase);
+
 	for (m = (LineStyleModifier *)linestyle->color_modifiers.first; m; m = m->next) {
 		switch (m->type) {
 			case LS_MODIFIER_ALONG_STROKE:

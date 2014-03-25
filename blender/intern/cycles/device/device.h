@@ -71,7 +71,7 @@ public:
 
 class Device {
 protected:
-	Device(Stats &stats_) : stats(stats_) {}
+	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), info(info_), stats(stats_) {}
 
 	bool background;
 	string error_msg;
@@ -100,7 +100,7 @@ public:
 
 	/* texture memory */
 	virtual void tex_alloc(const char *name, device_memory& mem,
-		bool interpolation = false, bool periodic = false) {};
+		InterpolationType interpolation = INTERPOLATION_NONE, bool periodic = false) {};
 	virtual void tex_free(device_memory& mem) {};
 
 	/* pixel memory */

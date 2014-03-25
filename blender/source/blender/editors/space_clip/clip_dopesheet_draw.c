@@ -39,7 +39,6 @@
 #include "BLI_math.h"
 #include "BLI_string.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_rect.h"
 
 #include "BKE_context.h"
@@ -160,8 +159,9 @@ static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip)
 			int start_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, coverage_segment->start_frame);
 			int end_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, coverage_segment->end_frame);
 
-			if (coverage_segment->coverage == TRACKING_COVERAGE_BAD)
+			if (coverage_segment->coverage == TRACKING_COVERAGE_BAD) {
 				glColor4f(1.0f, 0.0f, 0.0f, 0.07f);
+			}
 			else
 				glColor4f(1.0f, 1.0f, 0.0f, 0.07f);
 
@@ -293,6 +293,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 	int fontid = style->widget.uifont_id;
 	int height;
 	float y;
+	PropertyRNA *chan_prop_lock;
 
 	if (!clip)
 		return;
@@ -341,7 +342,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 			else
 				UI_ThemeColor(TH_TEXT);
 
-			font_height = BLF_height(fontid, channel->name);
+			font_height = BLF_height(fontid, channel->name, sizeof(channel->name));
 			BLF_position(fontid, v2d->cur.xmin + CHANNEL_PAD,
 			             y - font_height / 2.0f, 0.0f);
 			BLF_draw(fontid, channel->name, strlen(channel->name));
@@ -354,6 +355,10 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 	/* second pass: widgets */
 	block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
 	y = (float) CHANNEL_FIRST;
+
+	/* get RNA properties (once) */
+	chan_prop_lock = RNA_struct_type_find_property(&RNA_MovieTrackingTrack, "lock");
+	BLI_assert(chan_prop_lock);
 
 	glEnable(GL_BLEND);
 	for (channel = dopesheet->channels.first; channel; channel = channel->next) {
@@ -371,9 +376,9 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 			RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track, &ptr);
 
 			uiBlockSetEmboss(block, UI_EMBOSSN);
-			uiDefIconButR(block, ICONTOG, 1, icon,
-			              v2d->cur.xmax - UI_UNIT_X - CHANNEL_PAD, y - UI_UNIT_Y / 2.0f,
-			              UI_UNIT_X, UI_UNIT_Y, &ptr, "lock", 0, 0, 0, 0, 0, NULL);
+			uiDefIconButR_prop(block, ICONTOG, 1, icon,
+			                   v2d->cur.xmax - UI_UNIT_X - CHANNEL_PAD, y - UI_UNIT_Y / 2.0f,
+			                   UI_UNIT_X, UI_UNIT_Y, &ptr, chan_prop_lock, 0, 0, 0, 0, 0, NULL);
 			uiBlockSetEmboss(block, UI_EMBOSS);
 		}
 

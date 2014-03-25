@@ -380,7 +380,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	float rsmat[3][3], obmat[3][3], iobmat[3][3], mat[4][4], scale;
-	bool change = true;
+	bool changed = true;
 	
 	/* first check if we can execute */
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
@@ -391,14 +391,14 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 				BKE_reportf(reports, RPT_ERROR,
 				            "Cannot apply to a multi user: Object \"%s\", %s \"%s\", aborting",
 				            ob->id.name + 2, BKE_idcode_to_name(GS(obdata->name)), obdata->name + 2);
-				change = false;
+				changed = false;
 			}
 
 			if (obdata->lib) {
 				BKE_reportf(reports, RPT_ERROR,
 				            "Cannot apply to library data: Object \"%s\", %s \"%s\", aborting",
 				            ob->id.name + 2, BKE_idcode_to_name(GS(obdata->name)), obdata->name + 2);
-				change = false;
+				changed = false;
 			}
 		}
 
@@ -412,22 +412,22 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 				BKE_reportf(reports, RPT_ERROR,
 				            "Rotation/Location can't apply to a 2D curve: Object \"%s\", %s \"%s\", aborting",
 				            ob->id.name + 2, BKE_idcode_to_name(GS(obdata->name)), obdata->name + 2);
-				change = false;
+				changed = false;
 			}
 			if (cu->key) {
 				BKE_reportf(reports, RPT_ERROR,
 				            "Can't apply to a curve with shape-keys: Object \"%s\", %s \"%s\", aborting",
 				            ob->id.name + 2, BKE_idcode_to_name(GS(obdata->name)), obdata->name + 2);
-				change = false;
+				changed = false;
 			}
 		}
 	}
 	CTX_DATA_END;
 	
-	if (!change)
+	if (!changed)
 		return OPERATOR_CANCELLED;
 
-	change = false;
+	changed = false;
 
 	/* now execute */
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
@@ -512,7 +512,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 		}
 		else if (ob->type == OB_MBALL) {
 			MetaBall *mb = ob->data;
-			ED_mball_transform(mb, (float *)mat);
+			ED_mball_transform(mb, mat);
 		}
 		else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 			Curve *cu = ob->data;
@@ -592,11 +592,11 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 
 		DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA);
 
-		change = true;
+		changed = true;
 	}
 	CTX_DATA_END;
 
-	if (!change) {
+	if (!changed) {
 		BKE_report(reports, RPT_WARNING, "Objects have no data to transform");
 		return OPERATOR_CANCELLED;
 	}
@@ -608,7 +608,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 static int visual_transform_apply_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
-	int change = 0;
+	bool changed = false;
 	
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
 	{
@@ -619,11 +619,11 @@ static int visual_transform_apply_exec(bContext *C, wmOperator *UNUSED(op))
 		/* update for any children that may get moved */
 		DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 	
-		change = 1;
+		changed = true;
 	}
 	CTX_DATA_END;
 
-	if (!change)
+	if (!changed)
 		return OPERATOR_CANCELLED;
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
@@ -655,7 +655,8 @@ static int object_transform_apply_exec(bContext *C, wmOperator *op)
 		return apply_objects_internal(C, op->reports, loc, rot, sca);
 	}
 	else {
-		return OPERATOR_CANCELLED;
+		/* allow for redo */
+		return OPERATOR_FINISHED;
 	}
 }
 
@@ -712,7 +713,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 	else {
 		/* get the view settings if 'around' isn't set and the view is available */
 		View3D *v3d = CTX_wm_view3d(C);
-		copy_v3_v3(cursor, give_cursor(scene, v3d));
+		copy_v3_v3(cursor, ED_view3d_cursor3d_get(scene, v3d));
 		if (v3d && !RNA_struct_property_is_set(op->ptr, "center"))
 			around = v3d->around;
 	}
@@ -794,7 +795,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 		Object *ob = ctx_ob->ptr.data;
 
 		if ((ob->flag & OB_DONE) == 0) {
-			int do_inverse_offset = FALSE;
+			bool do_inverse_offset = false;
 			ob->flag |= OB_DONE;
 
 			if (centermode == ORIGIN_TO_CURSOR) {

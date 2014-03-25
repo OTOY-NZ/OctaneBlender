@@ -55,9 +55,7 @@
 #endif
 
 #ifdef __APPLE__
-/* XXX BIG WARNING: carbon.h can not be included in blender code, it conflicts with struct ID */
-#  define ID ID_
-#  include <CoreServices/CoreServices.h>
+#include <Carbon/Carbon.h>
 #endif /* __APPLE__ */
 
 #ifdef __linux__
@@ -350,7 +348,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 #else
 #ifdef __APPLE__
 	{
-#if (MAC_OS_X_VERSION_MIN_REQUIRED <= 1040)
+#if (MAC_OS_X_VERSION_MIN_REQUIRED <= 1050)
 		OSErr err = noErr;
 		int i;
 		const char *home;
@@ -399,71 +397,38 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
 			}
 		}
-#else
-		/* 10.5 provides ability to retrieve Finder favorite places */
-		UInt32 seed;
-		OSErr err = noErr;
-		CFArrayRef pathesArray;
-		LSSharedFileListRef list;
-		LSSharedFileListItemRef itemRef;
-		CFIndex i, pathesCount;
+#else /* OSX 10.6+ */
+		/* Get mounted volumes better method OSX 10.6 and higher, see: */
+		/*https://developer.apple.com/library/mac/#documentation/CoreFOundation/Reference/CFURLRef/Reference/reference.html*/
+		/* we get all volumes sorted including network and do not relay on user-defined finder visibility, less confusing */
+		
 		CFURLRef cfURL = NULL;
-		CFStringRef pathString = NULL;
+		CFURLEnumeratorResult result = kCFURLEnumeratorSuccess;
+		CFURLEnumeratorRef volEnum = CFURLEnumeratorCreateForMountedVolumes(NULL, kCFURLEnumeratorSkipInvisibles, NULL);
 		
-		/* First get local mounted volumes */
-		list = LSSharedFileListCreate(NULL, kLSSharedFileListFavoriteVolumes, NULL);
-		pathesArray = LSSharedFileListCopySnapshot(list, &seed);
-		pathesCount = CFArrayGetCount(pathesArray);
-		
-		for (i = 0; i < pathesCount; i++) {
-			itemRef = (LSSharedFileListItemRef)CFArrayGetValueAtIndex(pathesArray, i);
-			
-			err = LSSharedFileListItemResolve(itemRef, 
-			                                  kLSSharedFileListNoUserInteraction |
-			                                  kLSSharedFileListDoNotMountVolumes,
-			                                  &cfURL, NULL);
-			if (err != noErr)
+		while (result != kCFURLEnumeratorEnd) {
+			unsigned char defPath[FILE_MAX];
+
+			result = CFURLEnumeratorGetNextURL(volEnum, &cfURL, NULL);
+			if (result != kCFURLEnumeratorSuccess)
 				continue;
 			
-			pathString = CFURLCopyFileSystemPath(cfURL, kCFURLPOSIXPathStyle);
-			
-			if (!CFStringGetCString(pathString, line, sizeof(line), kCFStringEncodingASCII))
-				continue;
-			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, line, FS_INSERT_SORTED);
-			
-			CFRelease(pathString);
-			CFRelease(cfURL);
+			CFURLGetFileSystemRepresentation(cfURL, false, (UInt8 *)defPath, FILE_MAX);
+			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, (char *)defPath, FS_INSERT_SORTED);
 		}
 		
-		CFRelease(pathesArray);
-		CFRelease(list);
-		
-		/* Then get network volumes */
-		err = noErr;
-		for (i = 1; err != nsvErr; i++) {
-			FSRef dir;
-			FSVolumeRefNum volRefNum;
-			struct GetVolParmsInfoBuffer volParmsBuffer;
-			unsigned char path[FILE_MAX];
-			
-			err = FSGetVolumeInfo(kFSInvalidVolumeRefNum, i, &volRefNum, kFSVolInfoNone, NULL, NULL, &dir);
-			if (err != noErr)
-				continue;
-			
-			err = FSGetVolumeParms(volRefNum, &volParmsBuffer, sizeof(volParmsBuffer));
-			if ((err != noErr) || (volParmsBuffer.vMServerAdr == 0)) /* Exclude local devices */
-				continue;
-			
-			
-			FSRefMakePath(&dir, path, FILE_MAX);
-			if (strcmp((char *)path, "/home") && strcmp((char *)path, "/net")) {
-				/* /net and /home are meaningless on OSX, home folders are stored in /Users */
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, (char *)path, FS_INSERT_SORTED);
-			}
-		}
+		CFRelease(volEnum);
 		
 		/* Finally get user favorite places */
 		if (read_bookmarks) {
+			UInt32 seed;
+			OSErr err = noErr;
+			CFArrayRef pathesArray;
+			LSSharedFileListRef list;
+			LSSharedFileListItemRef itemRef;
+			CFIndex i, pathesCount;
+			CFURLRef cfURL = NULL;
+			CFStringRef pathString = NULL;
 			list = LSSharedFileListCreate(NULL, kLSSharedFileListFavoriteItems, NULL);
 			pathesArray = LSSharedFileListCopySnapshot(list, &seed);
 			pathesCount = CFArrayGetCount(pathesArray);
@@ -491,7 +456,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 			CFRelease(pathesArray);
 			CFRelease(list);
 		}
-#endif /* OSX 10.5+ */
+#endif /* OSX 10.6+ */
 	}
 #else
 	/* unix */
@@ -580,11 +545,16 @@ void fsmenu_refresh_system_category(struct FSMenu *fsmenu)
 	fsmenu_read_system(fsmenu, TRUE);
 }
 
-void fsmenu_free(struct FSMenu *fsmenu)
+void fsmenu_free(void)
 {
-	fsmenu_free_category(fsmenu, FS_CATEGORY_SYSTEM);
-	fsmenu_free_category(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS);
-	fsmenu_free_category(fsmenu, FS_CATEGORY_BOOKMARKS);
-	fsmenu_free_category(fsmenu, FS_CATEGORY_RECENT);
-	MEM_freeN(fsmenu);
+	if (g_fsmenu) {
+		fsmenu_free_category(g_fsmenu, FS_CATEGORY_SYSTEM);
+		fsmenu_free_category(g_fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS);
+		fsmenu_free_category(g_fsmenu, FS_CATEGORY_BOOKMARKS);
+		fsmenu_free_category(g_fsmenu, FS_CATEGORY_RECENT);
+		MEM_freeN(g_fsmenu);
+	}
+
+	g_fsmenu = NULL;
 }
+

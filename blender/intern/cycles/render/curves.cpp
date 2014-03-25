@@ -85,14 +85,12 @@ CurveSystemManager::CurveSystemManager()
 	resolution = 3;
 	subdivisions = 3;
 
-	encasing_ratio = 1.01f;
 	minimum_width = 0.0f;
 	maximum_width = 0.0f;
 
 	use_curves = true;
 	use_encasing = true;
 	use_backfacing = false;
-	use_tangent_normal = false;
 	use_tangent_normal_geometry = false;
 
 	need_update = true;
@@ -124,13 +122,9 @@ void CurveSystemManager::device_update(Device *device, DeviceScene *dscene, Scen
 
 		if(line_method == CURVE_ACCURATE)
 			kcurve->curveflags |= CURVE_KN_ACCURATE;
-		if(line_method == CURVE_CORRECTED)
+		else if(line_method == CURVE_CORRECTED)
 			kcurve->curveflags |= CURVE_KN_INTERSECTCORRECTION;
-		if(line_method == CURVE_POSTCORRECTED)
-			kcurve->curveflags |= CURVE_KN_POSTINTERSECTCORRECTION;
 
-		if(use_tangent_normal)
-			kcurve->curveflags |= CURVE_KN_TANGENTGNORMAL;
 		if(use_tangent_normal_geometry)
 			kcurve->curveflags |= CURVE_KN_TRUETANGENTGNORMAL;
 		if(use_backfacing)
@@ -138,7 +132,6 @@ void CurveSystemManager::device_update(Device *device, DeviceScene *dscene, Scen
 		if(use_encasing)
 			kcurve->curveflags |= CURVE_KN_ENCLOSEFILTER;
 
-		kcurve->encasing_ratio = encasing_ratio;
 		kcurve->minimum_width = minimum_width;
 		kcurve->maximum_width = maximum_width;
 		kcurve->subdivisions = subdivisions;
@@ -160,9 +153,7 @@ bool CurveSystemManager::modified(const CurveSystemManager& CurveSystemManager)
 		line_method == CurveSystemManager.line_method &&
 		primitive == CurveSystemManager.primitive &&
 		use_encasing == CurveSystemManager.use_encasing &&
-		use_tangent_normal == CurveSystemManager.use_tangent_normal &&
 		use_tangent_normal_geometry == CurveSystemManager.use_tangent_normal_geometry &&
-		encasing_ratio == CurveSystemManager.encasing_ratio &&
 		minimum_width == CurveSystemManager.minimum_width &&
 		maximum_width == CurveSystemManager.maximum_width &&
 		use_backfacing == CurveSystemManager.use_backfacing &&

@@ -35,7 +35,6 @@
 #include "STR_HashedString.h"
 
 #include "MT_Vector3.h"
-#include "STR_HashedString.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -62,7 +61,8 @@ enum MaterialProps
 	RAS_NORMAL		=256,
 	RAS_DEFMULTI	=512,
 	RAS_BLENDERGLSL =1024,
-	RAS_CASTSHADOW	=2048
+	RAS_CASTSHADOW	=2048,
+	RAS_ONLYSHADOW	=4096,
 };
 
 /**
@@ -167,12 +167,15 @@ public:
 
 	virtual Material*   GetBlenderMaterial() const;
 	virtual Image*      GetBlenderImage() const;
+	virtual MTFace*		GetMTFace() const;
+	virtual unsigned int* GetMCol() const;
 	virtual Scene*		GetBlenderScene() const;
 	virtual void		ReleaseMaterial();
 	virtual void		GetMaterialRGBAColor(unsigned char *rgba) const;
 	virtual bool		UsesLighting(RAS_IRasterizer *rasty) const;
 	virtual bool		UsesObjectColor() const;
 	virtual bool		CastsShadows() const;
+	virtual bool		OnlyShadow() const;
 
 	virtual void		Replace_IScene(SCA_IScene *val) {} /* overridden by KX_BlenderMaterial */
 

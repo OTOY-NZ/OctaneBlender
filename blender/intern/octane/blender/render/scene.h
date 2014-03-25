@@ -23,6 +23,7 @@
 #include "util_lists.h"
 #include "util_transform.h"
 #include "mesh.h"
+#include "session.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -39,7 +40,7 @@ class Shader;
 class ShaderManager;
 class Progress;
 class Session;
-enum  AnimationMode;
+//enum  AnimationMode;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Scene class

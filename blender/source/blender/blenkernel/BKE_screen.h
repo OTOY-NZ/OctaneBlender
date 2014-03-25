@@ -171,6 +171,7 @@ typedef struct PanelType {
 	char label[BKE_ST_MAXNAME];               /* for panel header */
 	char translation_context[BKE_ST_MAXNAME];
 	char context[BKE_ST_MAXNAME];             /* for buttons window */
+	char category[BKE_ST_MAXNAME];            /* for category tabs */
 	int space_type;
 	int region_type;
 
@@ -241,7 +242,7 @@ typedef struct MenuType {
 	char idname[BKE_ST_MAXNAME];        /* unique name */
 	char label[BKE_ST_MAXNAME];         /* for button text */
 	char translation_context[BKE_ST_MAXNAME];
-	char *description;
+	const char *description;
 
 	/* verify if the menu should draw or not */
 	int (*poll)(const struct bContext *, struct MenuType *);
@@ -282,6 +283,8 @@ struct ScrArea *BKE_screen_find_big_area(struct bScreen *sc, const int spacetype
 void BKE_screen_view3d_sync(struct View3D *v3d, struct Scene *scene);
 void BKE_screen_view3d_scene_sync(struct bScreen *sc);
 void BKE_screen_view3d_main_sync(ListBase *screen_lb, struct Scene *scene);
+void BKE_screen_view3d_twmode_remove(struct View3D *v3d, const int i);
+void BKE_screen_view3d_main_twmode_remove(ListBase *screen_lb, struct Scene *scene, const int i);
 
 /* zoom factor conversion */
 float BKE_screen_view3d_zoom_to_fac(float camzoom);

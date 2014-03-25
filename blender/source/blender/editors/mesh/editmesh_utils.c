@@ -39,14 +39,18 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
 #include "BKE_depsgraph.h"
 #include "BKE_key.h"
+#include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
 
 #include "BKE_object.h"  /* XXX. only for EDBM_mesh_ensure_valid_dm_hack() which will be removed */
+#include "BKE_scene.h"  /* XXX, only for eval_ctx used in EDBM_mesh_ensure_valid_dm_hack */
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -109,8 +113,11 @@ void EDBM_mesh_ensure_valid_dm_hack(Scene *scene, BMEditMesh *em)
 	if ((((ID *)em->ob->data)->flag & LIB_ID_RECALC) ||
 	    (em->ob->recalc & OB_RECALC_DATA))
 	{
-		em->ob->recalc |= OB_RECALC_DATA;  /* since we may not have done selection flushing */
-		BKE_object_handle_update(scene, em->ob);
+		/* since we may not have done selection flushing */
+		if ((em->ob->recalc & OB_RECALC_DATA) == 0) {
+			DAG_id_tag_update(&em->ob->id, OB_RECALC_DATA);
+		}
+		BKE_object_handle_update(G.main->eval_ctx, scene, em->ob);
 	}
 }
 
@@ -125,16 +132,7 @@ void EDBM_mesh_clear(BMEditMesh *em)
 	BM_mesh_clear(em->bm);
 	
 	/* free derived meshes */
-	if (em->derivedCage) {
-		em->derivedCage->needsFree = 1;
-		em->derivedCage->release(em->derivedCage);
-	}
-	if (em->derivedFinal && em->derivedFinal != em->derivedCage) {
-		em->derivedFinal->needsFree = 1;
-		em->derivedFinal->release(em->derivedFinal);
-	}
-	
-	em->derivedCage = em->derivedFinal = NULL;
+	BKE_editmesh_free_derivedmesh(em);
 	
 	/* free tessellation data */
 	em->tottri = 0;
@@ -404,138 +402,10 @@ void EDBM_mesh_free(BMEditMesh *em)
 	/* These tables aren't used yet, so it's not strictly necessary
 	 * to 'end' them (with 'e' param) but if someone tries to start
 	 * using them, having these in place will save a lot of pain */
-	mesh_octree_table(NULL, NULL, NULL, 'e');
-	mesh_mirrtopo_table(NULL, 'e');
+	ED_mesh_mirror_spatial_table(NULL, NULL, NULL, 'e');
+	ED_mesh_mirror_topo_table(NULL, 'e');
 
 	BKE_editmesh_free(em);
-}
-
-
-void EDBM_index_arrays_ensure(BMEditMesh *em, const char htype)
-{
-	/* assume if the array is non-null then its valid and no need to recalc */
-	const char htype_needed = ((em->vert_index ? 0 : BM_VERT) |
-	                           (em->edge_index ? 0 : BM_EDGE) |
-	                           (em->face_index ? 0 : BM_FACE)) & htype;
-
-	BLI_assert((htype & ~BM_ALL_NOLOOP) == 0);
-
-	/* in debug mode double check we didn't need to recalculate */
-	BLI_assert(EDBM_index_arrays_check(em) == true);
-
-	if (htype_needed & BM_VERT) {
-		em->vert_index = MEM_mallocN(sizeof(void **) * em->bm->totvert, "em->vert_index");
-	}
-	if (htype_needed & BM_EDGE) {
-		em->edge_index = MEM_mallocN(sizeof(void **) * em->bm->totedge, "em->edge_index");
-	}
-	if (htype_needed & BM_FACE) {
-		em->face_index = MEM_mallocN(sizeof(void **) * em->bm->totface, "em->face_index");
-	}
-
-#pragma omp parallel sections if (em->bm->totvert + em->bm->totedge + em->bm->totface >= BM_OMP_LIMIT)
-	{
-#pragma omp section
-		{
-			if (htype_needed & BM_VERT) {
-				BM_iter_as_array(em->bm, BM_VERTS_OF_MESH, NULL, (void **)em->vert_index, em->bm->totvert);
-			}
-		}
-#pragma omp section
-		{
-			if (htype_needed & BM_EDGE) {
-				BM_iter_as_array(em->bm, BM_EDGES_OF_MESH, NULL, (void **)em->edge_index, em->bm->totedge);
-			}
-		}
-#pragma omp section
-		{
-			if (htype_needed & BM_FACE) {
-				BM_iter_as_array(em->bm, BM_FACES_OF_MESH, NULL, (void **)em->face_index, em->bm->totface);
-			}
-		}
-	}
-}
-
-/* use EDBM_index_arrays_ensure where possible to avoid full rebuild */
-void EDBM_index_arrays_init(BMEditMesh *em, const char htype)
-{
-	BLI_assert((htype & ~BM_ALL_NOLOOP) == 0);
-
-	/* force recalc */
-	EDBM_index_arrays_free(em);
-	EDBM_index_arrays_ensure(em, htype);
-}
-
-void EDBM_index_arrays_free(BMEditMesh *em)
-{
-	if (em->vert_index) {
-		MEM_freeN(em->vert_index);
-		em->vert_index = NULL;
-	}
-
-	if (em->edge_index) {
-		MEM_freeN(em->edge_index);
-		em->edge_index = NULL;
-	}
-
-	if (em->face_index) {
-		MEM_freeN(em->face_index);
-		em->face_index = NULL;
-	}
-}
-
-/* debug check only - no need to optimize */
-#ifndef NDEBUG
-bool EDBM_index_arrays_check(BMEditMesh *em)
-{
-	BMIter iter;
-	BMElem *ele;
-	int i;
-
-	if (em->vert_index) {
-		BM_ITER_MESH_INDEX (ele, &iter, em->bm, BM_VERTS_OF_MESH, i) {
-			if (ele != (BMElem *)em->vert_index[i]) {
-				return false;
-			}
-		}
-	}
-
-	if (em->edge_index) {
-		BM_ITER_MESH_INDEX (ele, &iter, em->bm, BM_EDGES_OF_MESH, i) {
-			if (ele != (BMElem *)em->edge_index[i]) {
-				return false;
-			}
-		}
-	}
-
-	if (em->face_index) {
-		BM_ITER_MESH_INDEX (ele, &iter, em->bm, BM_FACES_OF_MESH, i) {
-			if (ele != (BMElem *)em->face_index[i]) {
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-#endif
-
-BMVert *EDBM_vert_at_index(BMEditMesh *em, int index)
-{
-	BLI_assert((index >= 0) && (index < em->bm->totvert));
-	return em->vert_index[index];
-}
-
-BMEdge *EDBM_edge_at_index(BMEditMesh *em, int index)
-{
-	BLI_assert((index >= 0) && (index < em->bm->totedge));
-	return em->edge_index[index];
-}
-
-BMFace *EDBM_face_at_index(BMEditMesh *em, int index)
-{
-	BLI_assert((index >= 0) && (index < em->bm->totface));
-	return em->face_index[index];
 }
 
 void EDBM_selectmode_flush_ex(BMEditMesh *em, const short selectmode)
@@ -710,7 +580,7 @@ void undo_push_mesh(bContext *C, const char *name)
 /**
  * Return a new UVVertMap from the editmesh
  */
-UvVertMap *EDBM_uv_vert_map_create(BMEditMesh *em, bool use_select, const float limit[2])
+UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, const float limit[2])
 {
 	BMVert *ev;
 	BMFace *efa;
@@ -723,15 +593,15 @@ UvVertMap *EDBM_uv_vert_map_create(BMEditMesh *em, bool use_select, const float 
 	MLoopUV *luv;
 	unsigned int a;
 	int totverts, i, totuv;
-	const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
+	const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 
-	BM_mesh_elem_index_ensure(em->bm, BM_VERT | BM_FACE);
+	BM_mesh_elem_index_ensure(bm, BM_VERT | BM_FACE);
 	
-	totverts = em->bm->totvert;
+	totverts = bm->totvert;
 	totuv = 0;
 
 	/* generate UvMapVert array */
-	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		if ((use_select == false) || BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 			totuv += efa->len;
 		}
@@ -754,7 +624,7 @@ UvVertMap *EDBM_uv_vert_map_create(BMEditMesh *em, bool use_select, const float 
 	}
 	
 	a = 0;
-	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		if ((use_select == false) || BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 			i = 0;
 			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
@@ -775,7 +645,7 @@ UvVertMap *EDBM_uv_vert_map_create(BMEditMesh *em, bool use_select, const float 
 	
 	/* sort individual uvs for each vert */
 	a = 0;
-	BM_ITER_MESH (ev, &iter, em->bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH (ev, &iter, bm, BM_VERTS_OF_MESH) {
 		UvMapVert *newvlist = NULL, *vlist = vmap->vert[a];
 		UvMapVert *iterv, *v, *lastv, *next;
 		float *uv, *uv2, uvdiff[2];
@@ -786,10 +656,10 @@ UvVertMap *EDBM_uv_vert_map_create(BMEditMesh *em, bool use_select, const float 
 			v->next = newvlist;
 			newvlist = v;
 
-			efa = EDBM_face_at_index(em, v->f);
-			/* tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY); */ /* UNUSED */
+			efa = BM_face_at_index(bm, v->f);
+			/* tf = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_MTEXPOLY); */ /* UNUSED */
 			
-			l = BM_iter_at_index(em->bm, BM_LOOPS_OF_FACE, efa, v->tfindex);
+			l = BM_iter_at_index(bm, BM_LOOPS_OF_FACE, efa, v->tfindex);
 			luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 			uv = luv->uv;
 			
@@ -798,10 +668,10 @@ UvVertMap *EDBM_uv_vert_map_create(BMEditMesh *em, bool use_select, const float 
 
 			while (iterv) {
 				next = iterv->next;
-				efa = EDBM_face_at_index(em, iterv->f);
-				/* tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY); */ /* UNUSED */
+				efa = BM_face_at_index(bm, iterv->f);
+				/* tf = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_MTEXPOLY); */ /* UNUSED */
 				
-				l = BM_iter_at_index(em->bm, BM_LOOPS_OF_FACE, efa, iterv->tfindex);
+				l = BM_iter_at_index(bm, BM_LOOPS_OF_FACE, efa, iterv->tfindex);
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 				uv2 = luv->uv;
 				
@@ -831,7 +701,7 @@ UvVertMap *EDBM_uv_vert_map_create(BMEditMesh *em, bool use_select, const float 
 }
 
 
-UvMapVert *EDBM_uv_vert_map_at_index(UvVertMap *vmap, unsigned int v)
+UvMapVert *BM_uv_vert_map_at_index(UvVertMap *vmap, unsigned int v)
 {
 	return vmap->vert[v];
 }
@@ -840,7 +710,7 @@ UvMapVert *EDBM_uv_vert_map_at_index(UvVertMap *vmap, unsigned int v)
 
 
 /* A specialized vert map used by stitch operator */
-UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, const bool do_islands)
+UvElementMap *BM_uv_element_map_create(BMesh *bm, const bool selected, const bool do_islands)
 {
 	BMVert *ev;
 	BMFace *efa;
@@ -860,20 +730,20 @@ UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, co
 	BMFace **stack;
 	int stacksize = 0;
 
-	const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
+	const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 
-	BM_mesh_elem_index_ensure(em->bm, BM_VERT | BM_FACE);
+	BM_mesh_elem_index_ensure(bm, BM_VERT | BM_FACE);
 
-	totverts = em->bm->totvert;
+	totverts = bm->totvert;
 	totuv = 0;
 
-	island_number = MEM_mallocN(sizeof(*stack) * em->bm->totface, "uv_island_number_face");
+	island_number = MEM_mallocN(sizeof(*stack) * bm->totface, "uv_island_number_face");
 	if (!island_number) {
 		return NULL;
 	}
 
 	/* generate UvElement array */
-	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		if (!selected || BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 			totuv += efa->len;
 		}
@@ -893,13 +763,13 @@ UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, co
 	buf = element_map->buf = (UvElement *)MEM_callocN(sizeof(*element_map->buf) * totuv, "UvElement");
 
 	if (!element_map->vert || !element_map->buf) {
-		EDBM_uv_element_map_free(element_map);
+		BM_uv_element_map_free(element_map);
 		MEM_freeN(island_number);
 		return NULL;
 	}
 
 	j = 0;
-	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		island_number[j++] = INVALID_ISLAND;
 		if (!selected || BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 			BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
@@ -918,7 +788,7 @@ UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, co
 
 	/* sort individual uvs for each vert */
 	i = 0;
-	BM_ITER_MESH (ev, &iter, em->bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH (ev, &iter, bm, BM_VERTS_OF_MESH) {
 		UvElement *newvlist = NULL, *vlist = element_map->vert[i];
 		UvElement *iterv, *v, *lastv, *next;
 		float *uv, *uv2, uvdiff[2];
@@ -968,7 +838,7 @@ UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, co
 	if (do_islands) {
 		/* map holds the map from current vmap->buf to the new, sorted map */
 		map = MEM_mallocN(sizeof(*map) * totuv, "uvelement_remap");
-		stack = MEM_mallocN(sizeof(*stack) * em->bm->totface, "uv_island_face_stack");
+		stack = MEM_mallocN(sizeof(*stack) * bm->totface, "uv_island_face_stack");
 		islandbuf = MEM_callocN(sizeof(*islandbuf) * totuv, "uvelement_island_buffer");
 
 		/* at this point, every UvElement in vert points to a UvElement sharing the same vertex. Now we should sort uv's in islands. */
@@ -1019,7 +889,7 @@ UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, co
 		}
 
 		/* remap */
-		for (i = 0; i < em->bm->totvert; i++) {
+		for (i = 0; i < bm->totvert; i++) {
 			/* important since we may do selection only. Some of these may be NULL */
 			if (element_map->vert[i])
 				element_map->vert[i] = &islandbuf[map[element_map->vert[i] - element_map->buf]];
@@ -1030,7 +900,7 @@ UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, co
 			MEM_freeN(islandbuf);
 			MEM_freeN(stack);
 			MEM_freeN(map);
-			EDBM_uv_element_map_free(element_map);
+			BM_uv_element_map_free(element_map);
 			MEM_freeN(island_number);
 		}
 
@@ -1060,7 +930,7 @@ UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, co
 	return element_map;
 }
 
-void EDBM_uv_vert_map_free(UvVertMap *vmap)
+void BM_uv_vert_map_free(UvVertMap *vmap)
 {
 	if (vmap) {
 		if (vmap->vert) MEM_freeN(vmap->vert);
@@ -1069,7 +939,7 @@ void EDBM_uv_vert_map_free(UvVertMap *vmap)
 	}
 }
 
-void EDBM_uv_element_map_free(UvElementMap *element_map)
+void BM_uv_element_map_free(UvElementMap *element_map)
 {
 	if (element_map) {
 		if (element_map->vert) MEM_freeN(element_map->vert);
@@ -1079,7 +949,7 @@ void EDBM_uv_element_map_free(UvElementMap *element_map)
 	}
 }
 
-UvElement *ED_uv_element_get(UvElementMap *map, BMFace *efa, BMLoop *l)
+UvElement *BM_uv_element_get(UvElementMap *map, BMFace *efa, BMLoop *l)
 {
 	UvElement *element;
 
@@ -1182,7 +1052,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em, const int axis, const bool
 	struct BMBVHTree *tree = NULL;
 	MirrTopoStore_t mesh_topo_store = {NULL, -1, -1, -1};
 
-	EDBM_index_arrays_ensure(em, BM_VERT);
+	BM_mesh_elem_table_ensure(bm, BM_VERT);
 
 	if (r_index == NULL) {
 		const char *layer_id = BM_CD_LAYER_ID;
@@ -1204,7 +1074,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em, const int axis, const bool
 		ED_mesh_mirrtopo_init(me, -1, &mesh_topo_store, true);
 	}
 	else {
-		tree = BKE_bmbvh_new(em, 0, NULL, false);
+		tree = BKE_bmbvh_new_from_editmesh(em, 0, NULL, false);
 	}
 
 #define VERT_INTPTR(_v, _i) r_index ? &r_index[_i] : BM_ELEM_CD_GET_VOID_P(_v, cd_vmirr_offset);
@@ -1270,13 +1140,13 @@ BMVert *EDBM_verts_mirror_get(BMEditMesh *em, BMVert *v)
 	BLI_assert(em->mirror_cdlayer != -1); /* invalid use */
 
 	if (mirr && *mirr >= 0 && *mirr < em->bm->totvert) {
-		if (!em->vert_index) {
+		if (!em->bm->vtable) {
 			printf("err: should only be called between "
 			       "EDBM_verts_mirror_cache_begin and EDBM_verts_mirror_cache_end");
 			return NULL;
 		}
 
-		return em->vert_index[*mirr];
+		return em->bm->vtable[*mirr];
 	}
 
 	return NULL;
@@ -1335,7 +1205,7 @@ void EDBM_verts_mirror_apply(BMEditMesh *em, const int sel_from, const int sel_t
 	BMIter iter;
 	BMVert *v;
 
-	BLI_assert(em->vert_index != NULL);
+	BLI_assert((em->bm->vtable != NULL) && ((em->bm->elem_table_dirty & BM_VERT) == 0));
 
 	BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
 		if (BM_elem_flag_test(v, BM_ELEM_SELECT) == sel_from) {
@@ -1447,12 +1317,16 @@ void EDBM_update_generic(BMEditMesh *em, const bool do_tessface, const bool is_d
 	}
 
 	if (is_destructive) {
-		EDBM_index_arrays_free(em);
+		/* TODO. we may be able to remove this now! - Campbell */
+		// BM_mesh_elem_table_free(em->bm, BM_ALL_NOLOOP);
 	}
 	else {
 		/* in debug mode double check we didn't need to recalculate */
-		BLI_assert(EDBM_index_arrays_check(em) == true);
+		BLI_assert(BM_mesh_elem_table_check(em->bm) == true);
 	}
+
+	/* don't keep stale derivedMesh data around, see: [#38872] */
+	BKE_editmesh_free_derivedmesh(em);
 }
 
 /* poll call for mesh operators requiring a view3d context */

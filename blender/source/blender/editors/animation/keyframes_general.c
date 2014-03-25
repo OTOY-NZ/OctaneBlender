@@ -73,7 +73,7 @@
  * Not recommended to be used many times successively. For that
  * there is delete_fcurve_keys(). 
  */
-void delete_fcurve_key(FCurve *fcu, int index, short do_recalc)
+void delete_fcurve_key(FCurve *fcu, int index, bool do_recalc)
 {
 	/* sanity check */
 	if (fcu == NULL) 
@@ -104,12 +104,13 @@ void delete_fcurve_key(FCurve *fcu, int index, short do_recalc)
 }
 
 /* Delete selected keyframes in given F-Curve */
-void delete_fcurve_keys(FCurve *fcu)
+bool delete_fcurve_keys(FCurve *fcu)
 {
 	int i;
+	bool changed = false;
 	
 	if (fcu->bezt == NULL) /* ignore baked curves */
-		return;
+		return false;
 
 	/* Delete selected BezTriples */
 	for (i = 0; i < fcu->totvert; i++) {
@@ -117,12 +118,15 @@ void delete_fcurve_keys(FCurve *fcu)
 			memmove(&fcu->bezt[i], &fcu->bezt[i + 1], sizeof(BezTriple) * (fcu->totvert - i - 1));
 			fcu->totvert--;
 			i--;
+			changed = true;
 		}
 	}
 	
 	/* Free the array of BezTriples if there are not keyframes */
 	if (fcu->totvert == 0)
 		clear_fcurve_keys(fcu);
+
+	return changed;
 }
 
 
@@ -501,7 +505,7 @@ void free_anim_copybuf(void)
 	}
 	
 	/* restore initial state */
-	animcopybuf.first = animcopybuf.last = NULL;
+	BLI_listbase_clear(&animcopybuf);
 	animcopy_firstframe = 999999999.0f;
 	animcopy_lastframe = -999999999.0f;
 }
@@ -770,19 +774,19 @@ short paste_animedit_keys(bAnimContext *ac, ListBase *anim_data,
 	
 	const Scene *scene = (ac->scene);
 	
-	const short from_single = (animcopybuf.first == animcopybuf.last);
-	const short to_simple = (anim_data->first == anim_data->last);
+	const bool from_single = BLI_listbase_is_single(&animcopybuf);
+	const bool to_simple = BLI_listbase_is_single(anim_data);
 	
 	float offset = 0.0f;
 	int pass;
 
 	/* check if buffer is empty */
-	if (animcopybuf.first == NULL) {
+	if (BLI_listbase_is_empty(&animcopybuf)) {
 		BKE_report(ac->reports, RPT_ERROR, "No animation data in buffer to paste");
 		return -1;
 	}
 
-	if (anim_data->first == NULL) {
+	if (BLI_listbase_is_empty(anim_data)) {
 		BKE_report(ac->reports, RPT_ERROR, "No selected F-Curves to paste into");
 		return -1;
 	}

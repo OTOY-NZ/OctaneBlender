@@ -168,6 +168,8 @@ static void dupli_render_particle_set(Scene *scene, Object *ob, int level, int e
 static void rna_Object_create_duplilist(Object *ob, ReportList *reports, Scene *sce, int settings)
 {
 	int for_render = settings == eModifierMode_Render;
+	EvaluationContext eval_ctx = {0};
+	eval_ctx.for_render = for_render;
 
 	if (!(ob->transflag & OB_DUPLI)) {
 		BKE_report(reports, RPT_ERROR, "Object does not have duplis");
@@ -181,10 +183,10 @@ static void rna_Object_create_duplilist(Object *ob, ReportList *reports, Scene *
 		free_object_duplilist(ob->duplilist);
 		ob->duplilist = NULL;
 	}
-	if (G.is_rendering)
+	if (for_render)
 		dupli_render_particle_set(sce, ob, 0, 1);
-	ob->duplilist = object_duplilist(sce, ob, for_render);
-	if (G.is_rendering)
+	ob->duplilist = object_duplilist(&eval_ctx, sce, ob);
+	if (for_render)
 		dupli_render_particle_set(sce, ob, 0, 0);
 	/* ob->duplilist should now be freed with Object.free_duplilist */
 }
@@ -307,6 +309,7 @@ static void rna_Object_ray_cast(Object *ob, ReportList *reports, float ray_start
 				copy_v3_v3(r_location, hit.co);
 				copy_v3_v3(r_normal, hit.no);
 				*index = dm_tessface_to_poly_index(ob->derivedFinal, hit.index);
+				free_bvhtree_from_mesh(&treeData);
 				return;
 			}
 		}
@@ -315,6 +318,7 @@ static void rna_Object_ray_cast(Object *ob, ReportList *reports, float ray_start
 	zero_v3(r_location);
 	zero_v3(r_normal);
 	*index = -1;
+	free_bvhtree_from_mesh(&treeData);
 }
 
 static void rna_Object_closest_point_on_mesh(Object *ob, ReportList *reports, float point_co[3], float max_dist,
@@ -340,12 +344,13 @@ static void rna_Object_closest_point_on_mesh(Object *ob, ReportList *reports, fl
 		BVHTreeNearest nearest;
 
 		nearest.index = -1;
-		nearest.dist = max_dist * max_dist;
+		nearest.dist_sq = max_dist * max_dist;
 
 		if (BLI_bvhtree_find_nearest(treeData.tree, point_co, &nearest, treeData.nearest_callback, &treeData) != -1) {
 			copy_v3_v3(n_location, nearest.co);
 			copy_v3_v3(n_normal, nearest.no);
 			*index = dm_tessface_to_poly_index(ob->derivedFinal, nearest.index);
+			free_bvhtree_from_mesh(&treeData);
 			return;
 		}
 	}
@@ -353,6 +358,7 @@ static void rna_Object_closest_point_on_mesh(Object *ob, ReportList *reports, fl
 	zero_v3(n_location);
 	zero_v3(n_normal);
 	*index = -1;
+	free_bvhtree_from_mesh(&treeData);
 }
 
 /* ObjectBase */
@@ -384,7 +390,7 @@ void rna_Object_dm_info(struct Object *ob, int type, char *result)
 	switch (type) {
 		case 0:
 			if (ob->type == OB_MESH) {
-				dm = CDDM_from_mesh(ob->data, ob);
+				dm = CDDM_from_mesh(ob->data);
 				ret = DM_debug_info(dm);
 				dm_release = TRUE;
 			}
@@ -429,8 +435,6 @@ void RNA_api_object(StructRNA *srna)
 		{eModifierMode_Render, "RENDER", 0, "Render", "Apply modifier render settings"},
 		{0, NULL, 0, NULL, NULL}
 	};
-
-	static int rna_matrix_dimsize_4x4[] = {4, 4};
 
 #ifndef NDEBUG
 	static EnumPropertyItem mesh_dm_info_items[] = {
@@ -588,7 +592,7 @@ void RNA_api_object(StructRNA *srna)
 	parm = RNA_def_enum(func, "type", mesh_dm_info_items, 0, "", "Modifier settings to apply");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* weak!, no way to return dynamic string type */
-	parm = RNA_def_string(func, "result", "", 16384, "result", "");
+	parm = RNA_def_string(func, "result", NULL, 16384, "result", "");
 	RNA_def_property_flag(parm, PROP_THICK_WRAP); /* needed for string return value */
 	RNA_def_function_output(func, parm);
 #endif /* NDEBUG */

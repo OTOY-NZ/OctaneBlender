@@ -101,8 +101,8 @@ static int ramp_blend_type(const char *type)
 	if (!strcmp(type, "SATURATION"))    return MA_RAMP_SAT;
 	if (!strcmp(type, "VALUE"))         return MA_RAMP_VAL;
 	if (!strcmp(type, "COLOR"))         return MA_RAMP_COLOR;
-	if (!strcmp(type, "SOFT LIGHT"))    return MA_RAMP_SOFT;
-	if (!strcmp(type, "LINEAR LIGHT"))  return MA_RAMP_LINEAR;
+	if (!strcmp(type, "SOFT_LIGHT"))    return MA_RAMP_SOFT;
+	if (!strcmp(type, "LINEAR_LIGHT"))  return MA_RAMP_LINEAR;
 	return -1;
 }
 
@@ -129,7 +129,6 @@ static PyObject *Freestyle_blendRamp(PyObject *self, PyObject *args)
 	PyObject *obj1, *obj2;
 	char *s;
 	int type;
-	Vec3f *v1 = NULL, *v2 = NULL;
 	float a[3], fac, b[3];
 
 	if (!PyArg_ParseTuple(args, "sOfO", &s, &obj1, &fac, &obj2))
@@ -137,32 +136,20 @@ static PyObject *Freestyle_blendRamp(PyObject *self, PyObject *args)
 	type = ramp_blend_type(s);
 	if (type < 0) {
 		PyErr_SetString(PyExc_TypeError, "argument 1 is an unknown ramp blend type");
-		goto error;
+		return NULL;
 	}
-	v1 = Vec3f_ptr_from_PyObject(obj1);
-	if (!v1) {
+	if (!float_array_from_PyObject(obj1, a, 3)) {
 		PyErr_SetString(PyExc_TypeError,
 		                "argument 2 must be a 3D vector (either a tuple/list of 3 elements or Vector)");
-		goto error;
+		return NULL;
 	}
-	v2 = Vec3f_ptr_from_PyObject(obj2);
-	if (!v2) {
+	if (!float_array_from_PyObject(obj2, b, 3)) {
 		PyErr_SetString(PyExc_TypeError,
 		                "argument 4 must be a 3D vector (either a tuple/list of 3 elements or Vector)");
-		goto error;
+		return NULL;
 	}
-	a[0] = v1->x(); b[0] = v2->x();
-	a[1] = v1->y(); b[1] = v2->y();
-	a[2] = v1->z(); b[2] = v2->z();
 	ramp_blend(type, a, fac, b);
-	delete v1;
-	delete v2;
 	return Vector_CreatePyObject(a, 3, Py_NEW, NULL);
-
-error:
-	if (v1) delete v1;
-	if (v2) delete v2;
-	return NULL;
 }
 
 #include "BKE_texture.h" /* do_colorband() */
@@ -482,7 +469,7 @@ static PyMethodDef module_functions[] = {
 
 static PyModuleDef module_definition = {
     PyModuleDef_HEAD_INIT,
-    "freestyle",
+    "_freestyle",
     module_docstring,
     -1,
     module_functions

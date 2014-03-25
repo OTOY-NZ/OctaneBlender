@@ -206,7 +206,7 @@ static void draw_fcurve_handle_control(float x, float y, float xscale, float ysc
 }
 
 /* helper func - draw handle vertices only for an F-Curve (if it is not protected) */
-static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2d, short sel, short sel_handle_only)
+static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2d, short sel, short sel_handle_only, float units_scale)
 {
 	BezTriple *bezt = fcu->bezt;
 	BezTriple *prevbezt = NULL;
@@ -216,6 +216,9 @@ static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2
 	/* get view settings */
 	hsize = UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE) * U.pixelsize;
 	UI_view2d_getscale(v2d, &xscale, &yscale);
+
+	/* Compensate OGL scale sued for unit mapping, so circle will be circle, not ellipse */
+	yscale *= units_scale;
 	
 	/* set handle color */
 	if (sel) UI_ThemeColor(TH_HANDLE_VERTEX_SELECT);
@@ -234,7 +237,7 @@ static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2
 		 * Also, need to take into account whether the keyframe was selected
 		 * if a Graph Editor option to only show handles of selected keys is on.
 		 */
-		if (!sel_handle_only || BEZSELECTED(bezt) ) {
+		if (!sel_handle_only || BEZSELECTED(bezt)) {
 			if ((!prevbezt && (bezt->ipo == BEZT_IPO_BEZ)) || (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ))) {
 				if ((bezt->f1 & SELECT) == sel) /* && v2d->cur.xmin < bezt->vec[0][0] < v2d->cur.xmax)*/
 					draw_fcurve_handle_control(bezt->vec[0][0], bezt->vec[0][1], xscale, yscale, hsize);
@@ -271,7 +274,7 @@ static void set_fcurve_vertex_color(FCurve *fcu, short sel)
 }
 
 
-static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short do_handles, short sel_handle_only)
+static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short do_handles, short sel_handle_only, float units_scale)
 {
 	View2D *v2d = &ar->v2d;
 	
@@ -287,10 +290,10 @@ static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short
 	/* draw the two handles first (if they're shown, the curve doesn't have just a single keyframe, and the curve is being edited) */
 	if (do_handles) {
 		set_fcurve_vertex_color(fcu, 0);
-		draw_fcurve_vertices_handles(fcu, sipo, v2d, 0, sel_handle_only);
+		draw_fcurve_vertices_handles(fcu, sipo, v2d, 0, sel_handle_only, units_scale);
 		
 		set_fcurve_vertex_color(fcu, 1);
-		draw_fcurve_vertices_handles(fcu, sipo, v2d, 1, sel_handle_only);
+		draw_fcurve_vertices_handles(fcu, sipo, v2d, 1, sel_handle_only, units_scale);
 	}
 		
 	/* draw keyframes over the handles */
@@ -305,7 +308,7 @@ static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short
 
 /* Handles ---------------- */
 
-static int draw_fcurve_handles_check(SpaceIpo *sipo, FCurve *fcu)
+static bool draw_fcurve_handles_check(SpaceIpo *sipo, FCurve *fcu)
 {
 	/* don't draw handle lines if handles are not to be shown */
 	if (    (sipo->flag & SIPO_NOHANDLES) || /* handles shouldn't be shown anywhere */
@@ -487,6 +490,7 @@ static void draw_fcurve_curve(bAnimContext *ac, ID *id, FCurve *fcu, View2D *v2d
 	float stime, etime;
 	float unitFac;
 	float dx, dy;
+	short mapping_flag = ANIM_get_normalization_flags(ac);
 
 	/* when opening a blend file on a different sized screen or while dragging the toolbar this can happen
 	 * best just bail out in this case */
@@ -500,7 +504,7 @@ static void draw_fcurve_curve(bAnimContext *ac, ID *id, FCurve *fcu, View2D *v2d
 	fcu->driver = NULL;
 	
 	/* compute unit correction factor */
-	unitFac = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, 0);
+	unitFac = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, mapping_flag);
 	
 	/* Note about sampling frequency:
 	 *  Ideally, this is chosen such that we have 1-2 pixels = 1 segment
@@ -547,11 +551,15 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 	FPoint *fpt = prevfpt + 1;
 	float fac, v[2];
 	int b = fcu->totvert - 1;
-	
-	glBegin(GL_LINE_STRIP);
-	
+	float unit_scale;
+	short mapping_flag = ANIM_get_normalization_flags(ac);
+
 	/* apply unit mapping */
-	ANIM_unit_mapping_apply_fcurve(ac->scene, id, fcu, 0);
+	glPushMatrix();
+	unit_scale = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, mapping_flag);
+	glScalef(1.0f, unit_scale, 1.0f);
+
+	glBegin(GL_LINE_STRIP);
 	
 	/* extrapolate to left? - left-side of view comes before first keyframe? */
 	if (prevfpt->vec[0] > v2d->cur.xmin) {
@@ -611,10 +619,8 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 		glVertex2fv(v);
 	}
 	
-	/* unapply unit mapping */
-	ANIM_unit_mapping_apply_fcurve(ac->scene, id, fcu, ANIM_UNITCONV_RESTORE);
-	
 	glEnd();
+	glPopMatrix();
 }
 
 /* helper func - draw one repeat of an F-Curve */
@@ -627,11 +633,15 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	float fac = 0.0f;
 	int b = fcu->totvert - 1;
 	int resol;
-	
-	glBegin(GL_LINE_STRIP);
-	
+	float unit_scale;
+	short mapping_flag = ANIM_get_normalization_flags(ac);
+
 	/* apply unit mapping */
-	ANIM_unit_mapping_apply_fcurve(ac->scene, id, fcu, 0);
+	glPushMatrix();
+	unit_scale = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, mapping_flag);
+	glScalef(1.0f, unit_scale, 1.0f);
+
+	glBegin(GL_LINE_STRIP);
 	
 	/* extrapolate to left? */
 	if (prevbezt->vec[1][0] > v2d->cur.xmin) {
@@ -766,10 +776,8 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 		glVertex2fv(v1);
 	}
 	
-	/* unapply unit mapping */
-	ANIM_unit_mapping_apply_fcurve(ac->scene, id, fcu, ANIM_UNITCONV_RESTORE);
-	
 	glEnd();
+	glPopMatrix();
 } 
 
 /* Debugging -------------------------------- */
@@ -783,7 +791,8 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 {
 	ChannelDriver *driver = fcu->driver;
 	View2D *v2d = &ac->ar->v2d;
-	float unitfac = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, false);
+	short mapping_flag = ANIM_get_normalization_flags(ac);
+	float unitfac = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, mapping_flag);
 	
 	/* for now, only show when debugging driver... */
 	//if ((driver->flag & DRIVER_FLAG_SHOWDEBUG) == 0)
@@ -792,7 +801,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 	/* No curve to modify/visualise the result? 
 	 * => We still want to show the 1-1 default... 
 	 */
-	if ((fcu->totvert == 0) && (fcu->modifiers.first == NULL)) {
+	if ((fcu->totvert == 0) && BLI_listbase_is_empty(&fcu->modifiers)) {
 		float t;
 		
 		/* draw with thin dotted lines in style of what curve would have been */
@@ -1014,9 +1023,12 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 				}
 			}
 			else if (((fcu->bezt) || (fcu->fpt)) && (fcu->totvert)) {
-				/* apply unit mapping */
-				ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, fcu, 0);
-				
+				short mapping_flag = ANIM_get_normalization_flags(ac);
+				float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
+
+				glPushMatrix();
+				glScalef(1.0f, unit_scale, 1.0f);
+
 				if (fcu->bezt) {
 					int do_handles = draw_fcurve_handles_check(sipo, fcu);
 					
@@ -1027,15 +1039,14 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 						glDisable(GL_BLEND);
 					}
 					
-					draw_fcurve_vertices(sipo, ar, fcu, do_handles, (sipo->flag & SIPO_SELVHANDLESONLY));
+					draw_fcurve_vertices(sipo, ar, fcu, do_handles, (sipo->flag & SIPO_SELVHANDLESONLY), unit_scale);
 				}
 				else {
 					/* samples: only draw two indicators at either end as indicators */
 					draw_fcurve_samples(sipo, ar, fcu);
 				}
-				
-				/* unapply unit mapping */
-				ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, fcu, ANIM_UNITCONV_RESTORE);
+
+				glPopMatrix();
 			}
 		}
 		

@@ -144,7 +144,7 @@ static uiFont *uifont_to_blfont(int id)
 
 
 void uiStyleFontDrawExt(uiFontStyle *fs, const rcti *rect, const char *str,
-                        float *r_xofs, float *r_yofs)
+                        size_t len, float *r_xofs, float *r_yofs)
 {
 	float height;
 	int xofs = 0, yofs;
@@ -155,14 +155,14 @@ void uiStyleFontDrawExt(uiFontStyle *fs, const rcti *rect, const char *str,
 	yofs = ceil(0.5f * (BLI_rcti_size_y(rect) - height));
 
 	if (fs->align == UI_STYLE_TEXT_CENTER) {
-		xofs = floor(0.5f * (BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str)));
+		xofs = floor(0.5f * (BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, len)));
 		/* don't center text if it chops off the start of the text, 2 gives some margin */
 		if (xofs < 2) {
 			xofs = 2;
 		}
 	}
 	else if (fs->align == UI_STYLE_TEXT_RIGHT) {
-		xofs = BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str) - 0.1f * U.widget_unit;
+		xofs = BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, len) - 0.1f * U.widget_unit;
 	}
 	
 	/* clip is very strict, so we give it some space */
@@ -179,7 +179,7 @@ void uiStyleFontDrawExt(uiFontStyle *fs, const rcti *rect, const char *str,
 	if (fs->kerning == 1)
 		BLF_enable(fs->uifont_id, BLF_KERNING_DEFAULT);
 
-	BLF_draw(fs->uifont_id, str, BLF_DRAW_STR_DUMMY_MAX);
+	BLF_draw(fs->uifont_id, str, len);
 	BLF_disable(fs->uifont_id, BLF_CLIPPING);
 	if (fs->shadow)
 		BLF_disable(fs->uifont_id, BLF_SHADOW);
@@ -190,15 +190,15 @@ void uiStyleFontDrawExt(uiFontStyle *fs, const rcti *rect, const char *str,
 	*r_yofs = yofs;
 }
 
-void uiStyleFontDraw(uiFontStyle *fs, rcti *rect, const char *str)
+void uiStyleFontDraw(uiFontStyle *fs, const rcti *rect, const char *str)
 {
 	float xofs, yofs;
 	uiStyleFontDrawExt(fs, rect, str,
-	                   &xofs, &yofs);
+	                   BLF_DRAW_STR_DUMMY_MAX, &xofs, &yofs);
 }
 
 /* drawn same as above, but at 90 degree angle */
-void uiStyleFontDrawRotated(uiFontStyle *fs, rcti *rect, const char *str)
+void uiStyleFontDrawRotated(uiFontStyle *fs, const rcti *rect, const char *str)
 {
 	float height;
 	int xofs, yofs;
@@ -215,7 +215,7 @@ void uiStyleFontDrawRotated(uiFontStyle *fs, rcti *rect, const char *str)
 
 	/* rotate counter-clockwise for now (assumes left-to-right language)*/
 	xofs += height;
-	yofs = BLF_width(fs->uifont_id, str) + 5;
+	yofs = BLF_width(fs->uifont_id, str, BLF_DRAW_STR_DUMMY_MAX) + 5;
 	angle = (float)M_PI / 2.0f;
 
 	/* translate rect to vertical */
@@ -298,7 +298,7 @@ int UI_GetStringWidth(const char *str)
 		BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 	
 	uiStyleFontSet(fstyle);
-	width = BLF_width(fstyle->uifont_id, str);
+	width = BLF_width(fstyle->uifont_id, str, BLF_DRAW_STR_DUMMY_MAX);
 	
 	if (fstyle->kerning == 1)
 		BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);

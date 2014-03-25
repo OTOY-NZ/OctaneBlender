@@ -71,9 +71,9 @@ extern "C" {
 bItasc DefIKParam;
 
 // in case of animation mode, feedback and timestep is fixed
-#define ANIM_TIMESTEP   1.0
+// #define ANIM_TIMESTEP   1.0
 #define ANIM_FEEDBACK   0.8
-#define ANIM_QMAX       0.52
+// #define ANIM_QMAX       0.52
 
 
 // Structure pointed by bPose.ikdata
@@ -258,14 +258,14 @@ static int initialize_chain(Object *ob, bPoseChannel *pchan_tip, bConstraint *co
 		if (segcount == rootbone) {
 			// reached this end of the chain but if the chain is overlapping with a
 			// previous one, we must go back up to the root of the other chain
-			if ((curchan->flag & POSE_CHAIN) && curchan->iktree.first == NULL) {
+			if ((curchan->flag & POSE_CHAIN) && BLI_listbase_is_empty(&curchan->iktree)) {
 				rootbone++;
 				continue;
 			}
 			break;
 		}
 
-		if (curchan->iktree.first != NULL)
+		if (BLI_listbase_is_empty(&curchan->iktree) == false)
 			// Oh oh, there is already a chain starting from this channel and our chain is longer...
 			// Should handle this by moving the previous chain up to the beginning of our chain
 			// For now we just stop here
@@ -273,7 +273,7 @@ static int initialize_chain(Object *ob, bPoseChannel *pchan_tip, bConstraint *co
 	}
 	if (!segcount) return 0;
 	// we reached a limit and still not the end of a previous chain, quit
-	if ((pchan_root->flag & POSE_CHAIN) && pchan_root->iktree.first == NULL) return 0;
+	if ((pchan_root->flag & POSE_CHAIN) && BLI_listbase_is_empty(&pchan_root->iktree)) return 0;
 
 	// now that we know how many segment we have, set the flag
 	for (rootbone = segcount, segcount = 0, curchan = pchan_tip; segcount < rootbone; segcount++, curchan = curchan->parent) {
@@ -381,7 +381,7 @@ static bool constraint_valid(bConstraint *con)
 
 	if (data->flag & CONSTRAINT_IK_AUTO)
 		return true;
-	if (con->flag & CONSTRAINT_DISABLE)
+	if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF))
 		return false;
 	if (is_cartesian_constraint(con)) {
 		/* cartesian space constraint */

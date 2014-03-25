@@ -40,7 +40,6 @@ struct Scene;
 struct Base;
 class KX_Camera;
 class RAS_IRasterizer;
-class RAS_IRenderTools;
 class MT_Transform;
 
 class KX_LightObject : public KX_GameObject
@@ -48,13 +47,13 @@ class KX_LightObject : public KX_GameObject
 	Py_Header
 protected:
 	RAS_LightObject		m_lightobj;
-	class RAS_IRenderTools*	m_rendertools;	//needed for registering and replication of lightobj
+	class RAS_IRasterizer*	m_rasterizer;	//needed for registering and replication of lightobj
 	bool				m_glsl;
 	Scene*				m_blenderscene;
 	Base*				m_base;
 
 public:
-	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,class RAS_IRenderTools* rendertools,const struct RAS_LightObject&	lightobj, bool glsl);
+	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,RAS_IRasterizer* rasterizer,const RAS_LightObject&	lightobj, bool glsl);
 	virtual ~KX_LightObject();
 	virtual CValue*		GetReplica();
 	RAS_LightObject*	GetLightData() { return &m_lightobj;}
@@ -66,8 +65,8 @@ public:
 	struct GPULamp *GetGPULamp();
 	bool HasShadowBuffer();
 	int GetShadowLayer();
-	void BindShadowBuffer(class RAS_IRasterizer *ras, class RAS_ICanvas *canvas, class KX_Camera *cam, class MT_Transform& camtrans);
-	void UnbindShadowBuffer(class RAS_IRasterizer *ras);
+	void BindShadowBuffer(RAS_IRasterizer *ras, class RAS_ICanvas *canvas, class KX_Camera *cam, class MT_Transform& camtrans);
+	void UnbindShadowBuffer(RAS_IRasterizer *ras);
 	struct Image *GetTextureImage(short texslot);
 	void Update();
 	
@@ -79,6 +78,8 @@ public:
 	/* attributes */
 	static PyObject*	pyattr_get_color(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_color(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_spotsize(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_spotsize(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_typeconst(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);

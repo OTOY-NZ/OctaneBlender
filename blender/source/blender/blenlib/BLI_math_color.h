@@ -55,6 +55,8 @@ extern "C" {
 
 void hsv_to_rgb(float h, float s, float v, float *r, float *g, float *b);
 void hsv_to_rgb_v(const float hsv[3], float r_rgb[3]);
+void hsl_to_rgb(float h, float c, float l, float *r, float *g, float *b);
+void hsl_to_rgb_v(const float hcl[3], float r_rgb[3]);
 void hex_to_rgb(char *hexcol, float *r, float *g, float *b);
 void yuv_to_rgb(float y, float u, float v, float *lr, float *lg, float *lb);
 void ycc_to_rgb(float y, float cb, float cr, float *lr, float *lg, float *lb, int colorspace);
@@ -69,6 +71,8 @@ void rgb_to_hsv(float r, float g, float b, float *lh, float *ls, float *lv);
 void rgb_to_hsv_v(const float rgb[3], float r_hsv[3]);
 void rgb_to_hsl(float r, float g, float b, float *lh, float *ls, float *ll);
 void rgb_to_hsl_v(const float rgb[3], float r_hsl[3]);
+void rgb_to_hsl_compat(float r, float g, float b, float *lh, float *ls, float *ll);
+void rgb_to_hsl_compat_v(const float rgb[3], float r_hsl[3]);
 void rgb_to_hsv_compat(float r, float g, float b, float *lh, float *ls, float *lv);
 void rgb_to_hsv_compat_v(const float rgb[3], float r_hsv[3]);
 void rgb_to_lab(float r, float g, float b, float *ll, float *la, float *lb);
@@ -76,7 +80,12 @@ void rgb_to_xyz(float r, float g, float b, float *x, float *y, float *z);
 unsigned int rgb_to_cpack(float r, float g, float b);
 unsigned int hsv_to_cpack(float h, float s, float v);
 
-/* rgb_to_grayscale & rgb_to_luma functions moved to math_color_inline.c */
+MINLINE float rgb_to_bw(const float rgb[3]);
+MINLINE float rgb_to_grayscale(const float rgb[3]);
+MINLINE unsigned char rgb_to_grayscale_byte(const unsigned char rgb[3]);
+MINLINE float rgb_to_luma(const float rgb[3]);
+MINLINE unsigned char rgb_to_luma_byte(const unsigned char rgb[3]);
+MINLINE float rgb_to_luma_y(const float rgb[3]);
 
 /**************** Profile Transformations *****************/
 
@@ -94,6 +103,11 @@ MINLINE void linearrgb_to_srgb_v4(float srgb[4], const float linear[4]);
 
 MINLINE void srgb_to_linearrgb_predivide_v4(float linear[4], const float srgb[4]);
 MINLINE void linearrgb_to_srgb_predivide_v4(float srgb[4], const float linear[4]);
+
+MINLINE unsigned short to_srgb_table_lookup(const float f);
+MINLINE void linearrgb_to_srgb_ushort4(unsigned short srgb[4], const float linear[4]);
+MINLINE void srgb_to_linearrgb_uchar4(float linear[4], const unsigned char srgb[4]);
+MINLINE void srgb_to_linearrgb_uchar4_predivide(float linear[4], const unsigned char srgb[4]);
 
 MINLINE void linearrgb_to_srgb_uchar3(unsigned char srgb[3], const float linear[3]);
 MINLINE void linearrgb_to_srgb_uchar4(unsigned char srgb[4], const float linear[4]);
@@ -113,18 +127,26 @@ MINLINE void premul_float_to_straight_uchar(unsigned char *result, const float c
 
 int constrain_rgb(float *r, float *g, float *b);
 void minmax_rgb(short c[3]);
+void hsv_clamp_v(float hsv[3], float v_max);
 
 void rgb_float_set_hue_float_offset(float *rgb, float hue_offset);
 void rgb_byte_set_hue_float_offset(unsigned char *rgb, float hue_offset);
 
-void rgb_uchar_to_float(float col_r[3], const unsigned char col_ub[3]);
-void rgba_uchar_to_float(float col_r[4], const unsigned char col_ub[4]);
-void rgb_float_to_uchar(unsigned char col_r[3], const float col_f[3]);
-void rgba_float_to_uchar(unsigned char col_r[4], const float col_f[4]);
+void rgb_uchar_to_float(float r_col[3], const unsigned char col_ub[3]);
+void rgba_uchar_to_float(float r_col[4], const unsigned char col_ub[4]);
+void rgb_float_to_uchar(unsigned char r_col[3], const float col_f[3]);
+void rgba_float_to_uchar(unsigned char r_col[4], const float col_f[4]);
 
 void xyz_to_lab(float x, float y, float z, float *l, float *a, float *b);
 
 MINLINE int compare_rgb_uchar(const unsigned char a[3], const unsigned char b[3], const int limit);
+
+#define rgba_char_args_set_fl(col, r, g, b, a) \
+	rgba_char_args_set(col, (r) * 255, (g) * 255, (b) * 255, (a) * 255)
+
+MINLINE void rgba_char_args_set(char col[4], const char r, const char g, const char b, const char a);
+MINLINE void rgba_char_args_test_set(char col[4], const char r, const char g, const char b, const char a);
+MINLINE void cpack_cpy_3ub(unsigned char r_col[3], const unsigned int pack);
 
 /********* lift/gamma/gain / ASC-CDL conversion ***********/
 

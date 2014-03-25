@@ -378,7 +378,7 @@ static PyObject *Matrix_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	/* will overwrite error */
 	PyErr_SetString(PyExc_TypeError,
 	                "Matrix(): "
-	                "expects no args or 2-4 numeric sequences");
+	                "expects no args or a single arg containing 2-4 numeric sequences");
 	return NULL;
 }
 
@@ -1368,7 +1368,7 @@ static PyObject *Matrix_rotate(MatrixObject *self, PyObject *value)
 PyDoc_STRVAR(Matrix_decompose_doc,
 ".. method:: decompose()\n"
 "\n"
-"   Return the location, rotaion and scale components of this matrix.\n"
+"   Return the location, rotation and scale components of this matrix.\n"
 "\n"
 "   :return: loc, rot, scale triple.\n"
 "   :rtype: (:class:`Vector`, :class:`Quaternion`, :class:`Vector`)"
@@ -1413,7 +1413,7 @@ PyDoc_STRVAR(Matrix_lerp_doc,
 "   :type other: :class:`Matrix`\n"
 "   :arg factor: The interpolation value in [0.0, 1.0].\n"
 "   :type factor: float\n"
-"   :return: The interpolated rotation.\n"
+"   :return: The interpolated matrix.\n"
 "   :rtype: :class:`Matrix`\n"
 );
 static PyObject *Matrix_lerp(MatrixObject *self, PyObject *args)

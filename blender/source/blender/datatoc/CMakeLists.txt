@@ -20,10 +20,43 @@
 
 
 # -----------------------------------------------------------------------------
-# Build makesdna executable
+# Build datatoc executable
 set(SRC
 	datatoc.c
 )
 
 # SRC_DNA_INC is defined in the parent dir
 add_executable(datatoc ${SRC})
+
+
+# -----------------------------------------------------------------------------
+# Build datatoc_icon executable
+
+if(NOT WITH_HEADLESS)
+
+	set(SRC
+		datatoc_icon.c
+	)
+
+	if(WIN32)
+		include_directories(
+			../blenlib
+			../../../intern/utfconv
+		)
+
+		# for winstuff_dir.c
+		add_definitions(-DUSE_STANDALONE)
+
+		list(APPEND SRC
+			../blenlib/intern/winstuff_dir.c
+			../../../intern/utfconv/utfconv.c
+		)
+	endif()
+
+	include_directories(${PNG_INCLUDE_DIR})
+	link_directories(${PNG_LIBPATH} ${ZLIB_LIBPATH})
+
+	add_executable(datatoc_icon ${SRC})
+
+	target_link_libraries(datatoc_icon ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
+endif()

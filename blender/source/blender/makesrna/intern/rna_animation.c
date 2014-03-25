@@ -380,7 +380,7 @@ static int rna_KeyingSet_active_ksPath_editable(PointerRNA *ptr)
 	KeyingSet *ks = (KeyingSet *)ptr->data;
 	
 	/* only editable if there are some paths to change to */
-	return (ks->paths.first != NULL);
+	return (BLI_listbase_is_empty(&ks->paths) == false);
 }
 
 static PointerRNA rna_KeyingSet_active_ksPath_get(PointerRNA *ptr)
@@ -595,7 +595,7 @@ static void rna_def_keyingset_info(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name", KEYINGSET_IDNAME_DOC);
 	
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
@@ -738,7 +738,7 @@ static void rna_def_keyingset_paths(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* rna-path */
 	/* XXX hopefully this is long enough */
-	parm = RNA_def_string(func, "data_path", "", 256, "Data-Path", "RNA-Path to destination property");
+	parm = RNA_def_string(func, "data_path", NULL, 256, "Data-Path", "RNA-Path to destination property");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* index (defaults to -1 for entire array) */
 	RNA_def_int(func, "index", -1, -1, INT_MAX, "Index",
@@ -747,7 +747,7 @@ static void rna_def_keyingset_paths(BlenderRNA *brna, PropertyRNA *cprop)
 	/* grouping */
 	RNA_def_enum(func, "group_method", keyingset_path_grouping_items, KSP_GROUP_KSNAME,
 	             "Grouping Method", "Method used to define which Group-name to use");
-	RNA_def_string(func, "group_name", "", 64, "Group Name",
+	RNA_def_string(func, "group_name", NULL, 64, "Group Name",
 	               "Name of Action Group to assign destination to (only if grouping mode is to use this name)");
 
 
@@ -792,7 +792,7 @@ static void rna_def_keyingset(BlenderRNA *brna)
 	/* Id/Label */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name", KEYINGSET_IDNAME_DOC);
 /*	RNA_def_property_update(prop, NC_SCENE | ND_KEYINGSET | NA_RENAME, NULL); */ /* NOTE: disabled, as ID name shouldn't be editable */
 	

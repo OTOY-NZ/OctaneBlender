@@ -57,6 +57,7 @@
 /*  #include "BKE_object.h" */
 #include "BKE_animsys.h"
 #include "BKE_curve.h"
+#include "BKE_depsgraph.h"
 #include "BKE_scene.h"
 #include "BKE_library.h"
 #include "BKE_displist.h"
@@ -208,7 +209,7 @@ MetaBall *BKE_mball_add(Main *bmain, const char *name)
 {
 	MetaBall *mb;
 	
-	mb = BKE_libblock_alloc(&bmain->mball, ID_MB, name);
+	mb = BKE_libblock_alloc(bmain, ID_MB, name);
 	
 	mb->size[0] = mb->size[1] = mb->size[2] = 1.0;
 	mb->texflag = MB_AUTOSPACE;
@@ -485,14 +486,15 @@ void BKE_mball_properties_copy(Scene *scene, Object *active_object)
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
 	SceneBaseIter iter;
+	EvaluationContext *eval_ctx = G.main->eval_ctx;
 
 	BLI_split_name_num(basisname, &basisnr, active_object->id.name + 2, '.');
 
 	/* XXX recursion check, see scene.c, just too simple code this BKE_scene_base_iter_next() */
-	if (F_ERROR == BKE_scene_base_iter_next(&iter, &sce_iter, 0, NULL, NULL))
+	if (F_ERROR == BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 0, NULL, NULL))
 		return;
 	
-	while (BKE_scene_base_iter_next(&iter, &sce_iter, 1, &base, &ob)) {
+	while (BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 1, &base, &ob)) {
 		if (ob->type == OB_MBALL) {
 			if (ob != active_object) {
 				BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
@@ -530,14 +532,15 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
 	SceneBaseIter iter;
+	EvaluationContext *eval_ctx = G.main->eval_ctx;
 
 	BLI_split_name_num(basisname, &basisnr, basis->id.name + 2, '.');
 
 	/* XXX recursion check, see scene.c, just too simple code this BKE_scene_base_iter_next() */
-	if (F_ERROR == BKE_scene_base_iter_next(&iter, &sce_iter, 0, NULL, NULL))
+	if (F_ERROR == BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 0, NULL, NULL))
 		return NULL;
 
-	while (BKE_scene_base_iter_next(&iter, &sce_iter, 1, &base, &ob)) {
+	while (BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 1, &base, &ob)) {
 		if (ob->type == OB_MBALL) {
 			if (ob != bob) {
 				BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
@@ -1497,7 +1500,7 @@ static void find_first_points(PROCESS *process, MetaBall *mb, int a)
 		float in_v /*, out_v*/;
 		float workp[3];
 		float dvec[3];
-		float tmp_v, workp_v, max_len, nx, ny, nz, max_dim;
+		float tmp_v, workp_v, max_len_sq, nx, ny, nz, max_dim;
 
 		calc_mballco(ml, in);
 		in_v = process->function(process, in[0], in[1], in[2]);
@@ -1550,21 +1553,21 @@ static void find_first_points(PROCESS *process, MetaBall *mb, int a)
 					/* find "first points" on Implicit Surface of MetaElemnt ml */
 					copy_v3_v3(workp, in);
 					workp_v = in_v;
-					max_len = len_v3v3(out, in);
+					max_len_sq = len_squared_v3v3(out, in);
 
-					nx = abs((out[0] - in[0]) / process->size);
-					ny = abs((out[1] - in[1]) / process->size);
-					nz = abs((out[2] - in[2]) / process->size);
+					nx = fabsf((out[0] - in[0]) / process->size);
+					ny = fabsf((out[1] - in[1]) / process->size);
+					nz = fabsf((out[2] - in[2]) / process->size);
 					
 					max_dim = max_fff(nx, ny, nz);
 					if (max_dim != 0.0f) {
-						float len = 0.0f;
+						float len_sq = 0.0f;
 
 						dvec[0] = (out[0] - in[0]) / max_dim;
 						dvec[1] = (out[1] - in[1]) / max_dim;
 						dvec[2] = (out[2] - in[2]) / max_dim;
 
-						while (len <= max_len) {
+						while (len_sq <= max_len_sq) {
 							add_v3_v3(workp, dvec);
 
 							/* compute value of implicite function */
@@ -1586,7 +1589,7 @@ static void find_first_points(PROCESS *process, MetaBall *mb, int a)
 									add_cube(process, c_i, c_j, c_k, 2);
 								}
 							}
-							len = len_v3v3(workp, in);
+							len_sq = len_squared_v3v3(workp, in);
 							workp_v = tmp_v;
 
 						}
@@ -1637,23 +1640,7 @@ static void polygonize(PROCESS *process, MetaBall *mb)
 	}
 }
 
-/* could move to math api */
-BLI_INLINE void copy_v3_fl3(float v[3], float x, float y, float z)
-{
-	v[0] = x;
-	v[1] = y;
-	v[2] = z;
-}
-
-/* TODO(sergey): Perhaps it could be general utility function in mathutils. */
-static bool has_zero_axis_m4(float matrix[4][4])
-{
-	return len_squared_v3(matrix[0]) < FLT_EPSILON ||
-	       len_squared_v3(matrix[1]) < FLT_EPSILON ||
-	       len_squared_v3(matrix[2]) < FLT_EPSILON;
-}
-
-static float init_meta(PROCESS *process, Scene *scene, Object *ob)    /* return totsize */
+static float init_meta(EvaluationContext *eval_ctx, PROCESS *process, Scene *scene, Object *ob)    /* return totsize */
 {
 	Scene *sce_iter = scene;
 	Base *base;
@@ -1673,8 +1660,8 @@ static float init_meta(PROCESS *process, Scene *scene, Object *ob)    /* return 
 	BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
 	
 	/* make main array */
-	BKE_scene_base_iter_next(&iter, &sce_iter, 0, NULL, NULL);
-	while (BKE_scene_base_iter_next(&iter, &sce_iter, 1, &base, &bob)) {
+	BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 0, NULL, NULL);
+	while (BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 1, &base, &bob)) {
 
 		if (bob->type == OB_MBALL) {
 			zero_size = 0;
@@ -1914,8 +1901,7 @@ static void subdivide_metaball_octal_node(octal_node *node, float size_x, float 
 		for (i = 0; i < 8; i++)
 			node->nodes[a]->nodes[i] = NULL;
 		node->nodes[a]->parent = node;
-		node->nodes[a]->elems.first = NULL;
-		node->nodes[a]->elems.last = NULL;
+		BLI_listbase_clear(&node->nodes[a]->elems);
 		node->nodes[a]->count = 0;
 		node->nodes[a]->neg = 0;
 		node->nodes[a]->pos = 0;
@@ -2184,8 +2170,7 @@ static void init_metaball_octal_tree(PROCESS *process, int depth)
 	process->metaball_tree->neg = node->neg = 0;
 	process->metaball_tree->pos = node->pos = 0;
 	
-	node->elems.first = NULL;
-	node->elems.last = NULL;
+	BLI_listbase_clear(&node->elems);
 	node->count = 0;
 
 	for (a = 0; a < 8; a++)
@@ -2227,7 +2212,7 @@ static void init_metaball_octal_tree(PROCESS *process, int depth)
 	subdivide_metaball_octal_node(node, size[0], size[1], size[2], process->metaball_tree->depth);
 }
 
-static void mball_count(PROCESS *process, Scene *scene, Object *basis)
+static void mball_count(EvaluationContext *eval_ctx, PROCESS *process, Scene *scene, Object *basis)
 {
 	Scene *sce_iter = scene;
 	Base *base;
@@ -2241,10 +2226,10 @@ static void mball_count(PROCESS *process, Scene *scene, Object *basis)
 	process->totelem = 0;
 
 	/* XXX recursion check, see scene.c, just too simple code this BKE_scene_base_iter_next() */
-	if (F_ERROR == BKE_scene_base_iter_next(&iter, &sce_iter, 0, NULL, NULL))
+	if (F_ERROR == BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 0, NULL, NULL))
 		return;
 
-	while (BKE_scene_base_iter_next(&iter, &sce_iter, 1, &base, &ob)) {
+	while (BKE_scene_base_iter_next(eval_ctx, &iter, &sce_iter, 1, &base, &ob)) {
 		if (ob->type == OB_MBALL) {
 			if (ob == bob) {
 				MetaBall *mb = ob->data;
@@ -2280,7 +2265,7 @@ static void mball_count(PROCESS *process, Scene *scene, Object *basis)
 	}
 }
 
-void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase, bool for_render)
+void BKE_mball_polygonize(EvaluationContext *eval_ctx, Scene *scene, Object *ob, ListBase *dispbase)
 {
 	MetaBall *mb;
 	DispList *dl;
@@ -2290,10 +2275,10 @@ void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase, bool for
 
 	mb = ob->data;
 
-	mball_count(&process, scene, ob);
+	mball_count(eval_ctx, &process, scene, ob);
 
 	if (process.totelem == 0) return;
-	if ((for_render == false) && (mb->flag == MB_UPDATE_NEVER)) return;
+	if ((eval_ctx->for_render == false) && (mb->flag == MB_UPDATE_NEVER)) return;
 	if ((G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) && mb->flag == MB_UPDATE_FAST) return;
 
 	process.thresh = mb->thresh;
@@ -2302,7 +2287,7 @@ void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase, bool for
 	process.mainb = MEM_mallocN(sizeof(void *) * process.totelem, "mainb");
 	
 	/* initialize all mainb (MetaElems) */
-	totsize = init_meta(&process, scene, ob);
+	totsize = init_meta(eval_ctx, &process, scene, ob);
 
 	/* if scene includes more than one MetaElem, then octal tree optimization is used */
 	if ((process.totelem >    1) && (process.totelem <=   64)) init_metaball_octal_tree(&process, 1);
@@ -2331,7 +2316,7 @@ void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase, bool for
 	}
 
 	/* width is size per polygonize cube */
-	if (for_render) {
+	if (eval_ctx->for_render) {
 		width = mb->rendersize;
 	}
 	else {
@@ -2391,7 +2376,7 @@ bool BKE_mball_minmax_ex(MetaBall *mb, float min[3], float max[3],
 {
 	const float scale = obmat ? mat4_to_scale(obmat) : 1.0f;
 	MetaElem *ml;
-	bool change = false;
+	bool changed = false;
 	float centroid[3], vec[3];
 
 	INIT_MINMAX(min, max);
@@ -2414,11 +2399,11 @@ bool BKE_mball_minmax_ex(MetaBall *mb, float min[3], float max[3],
 				add_v3_fl(vec, scale_mb * i);
 				minmax_v3v3_v3(min, max, vec);
 			}
-			change = true;
+			changed = true;
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 
@@ -2433,7 +2418,7 @@ bool BKE_mball_minmax(MetaBall *mb, float min[3], float max[3])
 		minmax_v3v3_v3(min, max, &ml->x);
 	}
 
-	return (mb->elems.first != NULL);
+	return (BLI_listbase_is_empty(&mb->elems) == false);
 }
 
 bool BKE_mball_center_median(MetaBall *mb, float r_cent[3])

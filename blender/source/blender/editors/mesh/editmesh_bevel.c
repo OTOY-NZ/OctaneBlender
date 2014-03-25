@@ -36,6 +36,7 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_editmesh.h"
+#include "BKE_unit.h"
 
 #include "RNA_define.h"
 #include "RNA_access.h"
@@ -64,7 +65,7 @@ typedef struct {
 	float shift_factor; /* The current factor when shift is pressed. Negative when shift not active. */
 
 	/* modal only */
-	int mcenter[2];
+	float mcenter[2];
 	BMBackup mesh_backup;
 	void *draw_handle_pixel;
 	short twtype;
@@ -74,18 +75,23 @@ typedef struct {
 
 static void edbm_bevel_update_header(wmOperator *op, bContext *C)
 {
-	const char *str = IFACE_("Confirm: Enter/LClick, Cancel: (Esc/RMB), Offset: %s, Segments: %d");
+	const char *str = IFACE_("Confirm: (Enter/LMB), Cancel: (Esc/RMB), Offset: %s, Segments: %d");
 
 	char msg[HEADER_LENGTH];
 	ScrArea *sa = CTX_wm_area(C);
 
 	if (sa) {
+		BevelData *opdata = op->customdata;
 		char offset_str[NUM_STR_REP_LEN];
-		BLI_snprintf(offset_str, NUM_STR_REP_LEN, "%f", RNA_float_get(op->ptr, "offset"));
-		BLI_snprintf(msg, HEADER_LENGTH, str,
-		             offset_str,
-		             RNA_int_get(op->ptr, "segments")
-		            );
+
+		if (hasNumInput(&opdata->num_input)) {
+			outputNumInput(&opdata->num_input, offset_str);
+		}
+		else {
+			BLI_snprintf(offset_str, NUM_STR_REP_LEN, "%f", RNA_float_get(op->ptr, "offset"));
+		}
+
+		BLI_snprintf(msg, HEADER_LENGTH, str, offset_str, RNA_int_get(op->ptr, "segments"));
 
 		ED_area_headerprint(sa, msg);
 	}
@@ -94,6 +100,7 @@ static void edbm_bevel_update_header(wmOperator *op, bContext *C)
 static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 {
 	Object *obedit = CTX_data_edit_object(C);
+	Scene *scene = CTX_data_scene(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BevelData *opdata;
 
@@ -108,7 +115,10 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 	opdata->shift_factor = -1.0f;
 
 	initNumInput(&opdata->num_input);
-	opdata->num_input.flag = NUM_NO_NEGATIVE;
+	opdata->num_input.idx_max = 0;
+	opdata->num_input.val_flag[0] |= NUM_NO_NEGATIVE;
+	opdata->num_input.unit_sys = scene->unit.system;
+	opdata->num_input.unit_type[0] = B_UNIT_NONE;  /* Not sure this is a factor or a unit? */
 
 	/* avoid the cost of allocating a bm copy */
 	if (is_modal) {
@@ -131,7 +141,9 @@ static bool edbm_bevel_calc(wmOperator *op)
 	BMEditMesh *em = opdata->em;
 	BMOperator bmop;
 	const float offset = RNA_float_get(op->ptr, "offset");
+	const int offset_type = RNA_enum_get(op->ptr, "offset_type");
 	const int segments = RNA_int_get(op->ptr, "segments");
+	const float profile = RNA_float_get(op->ptr, "profile");
 	const bool vertex_only = RNA_boolean_get(op->ptr, "vertex_only");
 
 	/* revert to original mesh */
@@ -140,8 +152,8 @@ static bool edbm_bevel_calc(wmOperator *op)
 	}
 
 	EDBM_op_init(em, &bmop, op,
-	             "bevel geom=%hev offset=%f segments=%i vertex_only=%b",
-	             BM_ELEM_SELECT, offset, segments, vertex_only);
+	             "bevel geom=%hev offset=%f segments=%i vertex_only=%b offset_type=%i profile=%f",
+	             BM_ELEM_SELECT, offset, segments, vertex_only, offset_type, profile);
 
 	BMO_op_exec(em->bm, &bmop);
 
@@ -185,7 +197,7 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
 	op->customdata = NULL;
 }
 
-static int edbm_bevel_cancel(bContext *C, wmOperator *op)
+static void edbm_bevel_cancel(bContext *C, wmOperator *op)
 {
 	BevelData *opdata = op->customdata;
 	if (opdata->is_modal) {
@@ -197,7 +209,6 @@ static int edbm_bevel_cancel(bContext *C, wmOperator *op)
 
 	/* need to force redisplay or we may still view the modified result */
 	ED_region_tag_redraw(CTX_wm_region(C));
-	return OPERATOR_CANCELLED;
 }
 
 /* bevel! yay!!*/
@@ -257,12 +268,14 @@ static int edbm_bevel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 static float edbm_bevel_mval_factor(wmOperator *op, const wmEvent *event)
 {
 	BevelData *opdata = op->customdata;
-	int use_dist = true;
+	bool use_dist = true;
+	bool is_percent = false;
 	float mdiff[2];
 	float factor;
 
 	mdiff[0] = opdata->mcenter[0] - event->mval[0];
 	mdiff[1] = opdata->mcenter[1] - event->mval[1];
+	is_percent = (RNA_enum_get(op->ptr, "offset_type") == BEVEL_AMT_PERCENT);
 
 	if (use_dist) {
 		factor = ((len_v2(mdiff) - MVAL_PIXEL_MARGIN) - opdata->initial_length) * opdata->pixel_size;
@@ -287,7 +300,13 @@ static float edbm_bevel_mval_factor(wmOperator *op, const wmEvent *event)
 		if (factor < 0.0f) factor = 0.0f;
 	}
 	else {
-		CLAMP(factor, 0.0f, 1.0f);
+		if (is_percent) {
+			factor *= 100.0f;
+			CLAMP(factor, 0.0f, 100.0f);
+		}
+		else {
+			CLAMP(factor, 0.0f, 1.0f);
+		}
 	}
 
 	return factor;
@@ -298,10 +317,9 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	BevelData *opdata = op->customdata;
 	int segments = RNA_int_get(op->ptr, "segments");
 
-	if (event->val == KM_PRESS) {
-		/* Try to handle numeric inputs... */
-
-		if (handleNumInput(&opdata->num_input, event)) {
+	if (event->val == KM_PRESS && hasNumInput(&opdata->num_input)) {
+		/* Modal numinput active, try to handle numeric inputs first... */
+		if (handleNumInput(C, &opdata->num_input, event)) {
 			float value = RNA_float_get(op->ptr, "offset");
 			applyNumInput(&opdata->num_input, &value);
 			RNA_float_set(op->ptr, "offset", value);
@@ -310,51 +328,73 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			return OPERATOR_RUNNING_MODAL;
 		}
 	}
+	else {
+		bool handled = false;
+		switch (event->type) {
+			case ESCKEY:
+			case RIGHTMOUSE:
+				edbm_bevel_cancel(C, op);
+				return OPERATOR_CANCELLED;
 
-	switch (event->type) {
-		case ESCKEY:
-		case RIGHTMOUSE:
-			edbm_bevel_cancel(C, op);
-			return OPERATOR_CANCELLED;
+			case MOUSEMOVE:
+				if (!hasNumInput(&opdata->num_input)) {
+					const float factor = edbm_bevel_mval_factor(op, event);
+					RNA_float_set(op->ptr, "offset", factor);
 
-		case MOUSEMOVE:
-			if (!hasNumInput(&opdata->num_input)) {
-				const float factor = edbm_bevel_mval_factor(op, event);
-				RNA_float_set(op->ptr, "offset", factor);
+					edbm_bevel_calc(op);
+					edbm_bevel_update_header(op, C);
+					handled = true;
+				}
+				break;
 
+			case LEFTMOUSE:
+			case PADENTER:
+			case RETKEY:
+				edbm_bevel_calc(op);
+				edbm_bevel_exit(C, op);
+				return OPERATOR_FINISHED;
+
+			/* Note this will prevent padplus and padminus to ever activate modal numinput.
+			 * This is not really an issue though, as we only expect positive values here...
+			 * Else we could force them to only modify segments number when shift is pressed, or so.
+			 */
+
+			case WHEELUPMOUSE:  /* change number of segments */
+			case PADPLUSKEY:
+				if (event->val == KM_RELEASE)
+					break;
+
+				segments++;
+				RNA_int_set(op->ptr, "segments", segments);
 				edbm_bevel_calc(op);
 				edbm_bevel_update_header(op, C);
+				handled = true;
+				break;
+
+			case WHEELDOWNMOUSE:  /* change number of segments */
+			case PADMINUS:
+				if (event->val == KM_RELEASE)
+					break;
+
+				segments = max_ii(segments - 1, 1);
+				RNA_int_set(op->ptr, "segments", segments);
+				edbm_bevel_calc(op);
+				edbm_bevel_update_header(op, C);
+				handled = true;
+				break;
+		}
+
+		if (!handled && event->val == KM_PRESS) {
+			/* Modal numinput inactive, try to handle numeric inputs last... */
+			if (handleNumInput(C, &opdata->num_input, event)) {
+				float value = RNA_float_get(op->ptr, "offset");
+				applyNumInput(&opdata->num_input, &value);
+				RNA_float_set(op->ptr, "offset", value);
+				edbm_bevel_calc(op);
+				edbm_bevel_update_header(op, C);
+				return OPERATOR_RUNNING_MODAL;
 			}
-			break;
-
-		case LEFTMOUSE:
-		case PADENTER:
-		case RETKEY:
-			edbm_bevel_calc(op);
-			edbm_bevel_exit(C, op);
-			return OPERATOR_FINISHED;
-
-		case WHEELUPMOUSE:  /* change number of segments */
-		case PADPLUSKEY:
-			if (event->val == KM_RELEASE)
-				break;
-
-			segments++;
-			RNA_int_set(op->ptr, "segments", segments);
-			edbm_bevel_calc(op);
-			edbm_bevel_update_header(op, C);
-			break;
-
-		case WHEELDOWNMOUSE:  /* change number of segments */
-		case PADMINUS:
-			if (event->val == KM_RELEASE)
-				break;
-
-			segments = max_ii(segments - 1, 1);
-			RNA_int_set(op->ptr, "segments", segments);
-			edbm_bevel_calc(op);
-			edbm_bevel_update_header(op, C);
-			break;
+		}
 	}
 
 	return OPERATOR_RUNNING_MODAL;
@@ -362,6 +402,14 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 void MESH_OT_bevel(wmOperatorType *ot)
 {
+	static EnumPropertyItem offset_type_items[] = {
+		{BEVEL_AMT_OFFSET, "OFFSET", 0, "Offset", "Amount is offset of new edges from original"},
+		{BEVEL_AMT_WIDTH, "WIDTH", 0, "Width", "Amount is width of new face"},
+		{BEVEL_AMT_DEPTH, "DEPTH", 0, "Depth", "Amount is perpendicular distance from original edge to bevel face"},
+		{BEVEL_AMT_PERCENT, "PERCENT", 0, "Percent", "Amount is percent of adjacent edge length"},
+		{0, NULL, 0, NULL, NULL},
+	};
+
 	/* identifiers */
 	ot->name = "Bevel";
 	ot->description = "Edge Bevel";
@@ -377,7 +425,9 @@ void MESH_OT_bevel(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_GRAB_POINTER | OPTYPE_BLOCKING;
 
-	RNA_def_float(ot->srna, "offset", 0.0f, -FLT_MAX, FLT_MAX, "Offset", "", 0.0f, 1.0f);
+	RNA_def_enum(ot->srna, "offset_type", offset_type_items, 0, "Amount Type", "What distance Amount measures");
+	RNA_def_float(ot->srna, "offset", 0.0f, -FLT_MAX, FLT_MAX, "Amount", "", 0.0f, 1.0f);
 	RNA_def_int(ot->srna, "segments", 1, 1, 50, "Segments", "Segments for curved edge", 1, 8);
+	RNA_def_float(ot->srna, "profile", 0.5f, 0.15f, 1.0f, "Profile", "Controls profile shape (0.5 = round)", 0.15f, 1.0f);
 	RNA_def_boolean(ot->srna, "vertex_only", false, "Vertex only", "Bevel only vertices");
 }

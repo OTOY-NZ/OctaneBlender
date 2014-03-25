@@ -61,6 +61,11 @@ MINLINE double sqrt3d(double d)
 	else                         return  exp(log( d) / 3.0);
 }
 
+MINLINE float sqrtf_signed(float f)
+{
+	return (f >= 0.0f) ? sqrtf(f) : -sqrtf(-f);
+}
+
 MINLINE float saacos(float fac)
 {
 	if      (UNLIKELY(fac <= -1.0f)) return (float)M_PI;
@@ -146,6 +151,11 @@ MINLINE int power_of_2_min_i(int n)
 	return n;
 }
 
+MINLINE int iroundf(float a)
+{
+	return (int)floorf(a + 0.5f);
+}
+
 /* integer division that rounds 0.5 up, particularly useful for color blending
  * with integers, to avoid gradual darkening when rounding down */
 MINLINE int divide_round_i(int a, int b)
@@ -177,7 +187,7 @@ MINLINE unsigned short highest_order_bit_s(unsigned short n)
 	n |= (n >>  2);
 	n |= (n >>  4);
 	n |= (n >>  8);
-	return n - (n >> 1);
+	return (unsigned short)(n - (n >> 1));
 }
 
 MINLINE float min_ff(float a, float b)

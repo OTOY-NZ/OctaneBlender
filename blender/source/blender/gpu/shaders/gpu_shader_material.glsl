@@ -6,6 +6,9 @@ float exp_blender(float f)
 
 float compatible_pow(float x, float y)
 {
+	if(y == 0.0) /* x^0 -> 1, including 0^0 */
+		return 1.0;
+
 	/* glsl pow doesn't accept negative x */
 	if(x < 0.0) {
 		if(mod(-y, 2.0) == 0.0)
@@ -140,7 +143,7 @@ void uv_attribute(vec2 attuv, out vec3 uv)
 void geom(vec3 co, vec3 nor, mat4 viewinvmat, vec3 attorco, vec2 attuv, vec4 attvcol, out vec3 global, out vec3 local, out vec3 view, out vec3 orco, out vec3 uv, out vec3 normal, out vec4 vcol, out float vcol_alpha, out float frontback)
 {
 	local = co;
-	view = normalize(local);
+	view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(local): vec3(0.0, 0.0, -1.0);
 	global = (viewinvmat*vec4(local, 1.0)).xyz;
 	orco = attorco;
 	uv_attribute(attuv, uv);
@@ -164,6 +167,15 @@ void camera(vec3 co, out vec3 outview, out float outdepth, out float outdist)
 	outdepth = abs(co.z);
 	outdist = length(co);
 	outview = normalize(co);
+}
+
+void lamp(vec4 col, vec3 lv, float dist, vec3 shadow, float visifac, out vec4 outcol, out vec3 outlv, out float outdist, out vec4 outshadow, out float outvisifac)
+{
+	outcol = col;
+	outlv = lv;
+	outdist = dist;
+	outshadow = vec4(shadow, 1.0);
+	outvisifac = visifac;
 }
 
 void math_add(float val1, float val2, out float outval)
@@ -393,9 +405,19 @@ void set_rgb_zero(out vec3 outval)
 	outval = vec3(0.0);
 }
 
+void set_rgb_one(out vec3 outval)
+{
+	outval = vec3(1.0);
+}
+
 void set_rgba_zero(out vec4 outval)
 {
 	outval = vec4(0.0);
+}
+
+void set_rgba_one(out vec4 outval)
+{
+	outval = vec4(1.0);
 }
 
 void brightness_contrast(vec4 col, float brightness, float contrast, out vec4 outcol)
@@ -723,6 +745,21 @@ void separate_rgb(vec4 col, out float r, out float g, out float b)
 void combine_rgb(float r, float g, float b, out vec4 col)
 {
 	col = vec4(r, g, b, 1.0);
+}
+
+void separate_hsv(vec4 col, out float h, out float s, out float v)
+{
+	vec4 hsv;
+
+	rgb_to_hsv(col, hsv);
+	h = hsv[0];
+	s = hsv[1];
+	v = hsv[2];
+}
+
+void combine_hsv(float h, float s, float v, out vec4 col)
+{
+	hsv_to_rgb(vec4(h, s, v, 1.0), col);
 }
 
 void output_node(vec4 rgb, float alpha, out vec4 outrgb)
@@ -1948,6 +1985,30 @@ void test_shadowbuf_vsm(vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float
 	}
 }
 
+void shadows_only(vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, float shadowbias, vec3 shadowcolor, float inp, out vec3 result)
+{
+	result = vec3(1.0);
+
+	if(inp > 0.0) {
+		float shadfac;
+
+		test_shadowbuf(rco, shadowmap, shadowpersmat, shadowbias, inp, shadfac);
+		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
+	}
+}
+
+void shadows_only_vsm(vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float shadowbias, float bleedbias, vec3 shadowcolor, float inp, out vec3 result)
+{
+	result = vec3(1.0);
+
+	if(inp > 0.0) {
+		float shadfac;
+
+		test_shadowbuf_vsm(rco, shadowmap, shadowpersmat, shadowbias, bleedbias, inp, shadfac);
+		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
+	}
+}
+
 void shade_light_texture(vec3 rco, sampler2D cookie, mat4 shadowpersmat, out vec4 result)
 {
 
@@ -2131,7 +2192,25 @@ void node_add_shader(vec4 shader1, vec4 shader2, out vec4 shader)
 void node_fresnel(float ior, vec3 N, vec3 I, out float result)
 {
 	float eta = max(ior, 0.00001);
-	result = fresnel_dielectric(I, N, (gl_FrontFacing)? eta: 1.0/eta);
+	result = fresnel_dielectric(normalize(I), N, (gl_FrontFacing)? eta: 1.0/eta);
+}
+
+/* layer_weight */
+
+void node_layer_weight(float blend, vec3 N, vec3 I, out float fresnel, out float facing)
+{
+	/* fresnel */
+	float eta = max(1.0 - blend, 0.00001);
+	fresnel = fresnel_dielectric(normalize(I), N, (gl_FrontFacing)? 1.0/eta : eta );
+
+	/* facing */
+	facing = abs(dot(normalize(I), N));
+	if(blend != 0.5) {
+		blend = clamp(blend, 0.0, 0.99999);
+		blend = (blend < 0.5)? 2.0*blend: 0.5/(1.0 - blend);
+		facing = pow(facing, blend);
+	}
+	facing = 1.0 - facing;
 }
 
 /* gamma */
@@ -2282,7 +2361,8 @@ void node_light_path(
 	out float is_singular_ray,
 	out float is_reflection_ray,
 	out float is_transmission_ray,
-	out float ray_length)
+	out float ray_length,
+	out float ray_depth)
 {
 	is_camera_ray = 1.0;
 	is_shadow_ray = 0.0;
@@ -2292,6 +2372,7 @@ void node_light_path(
 	is_reflection_ray = 0.0;
 	is_transmission_ray = 0.0;
 	ray_length = 1.0;
+	ray_depth = 1.0;
 }
 
 void node_light_falloff(float strength, float tsmooth, out float quadratic, out float linear, out float constant)

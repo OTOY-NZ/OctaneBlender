@@ -34,19 +34,22 @@
 
 #include "RNA_define.h"
 
+#include "DNA_customdata_types.h"
+
 #include "BLI_sys_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
-
-#include "BKE_mesh.h"
-#include "ED_mesh.h"
 
 #include "rna_internal.h"  /* own include */
 
 #ifdef RNA_RUNTIME
 
 #include "DNA_mesh_types.h"
+
+#include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
+#include "ED_mesh.h"
 
 static const char *rna_Mesh_unit_test_compare(struct Mesh *mesh, struct Mesh *mesh2)
 {
@@ -99,6 +102,32 @@ static void rna_Mesh_free_normals_split(Mesh *mesh)
 	CustomData_free_layers(&mesh->ldata, CD_NORMAL, mesh->totloop);
 }
 
+static void rna_Mesh_calc_tangents(Mesh *mesh, ReportList *reports, const char *uvmap)
+{
+	float (*r_looptangents)[4];
+
+	if (CustomData_has_layer(&mesh->ldata, CD_MLOOPTANGENT)) {
+		r_looptangents = CustomData_get_layer(&mesh->ldata, CD_MLOOPTANGENT);
+		memset(r_looptangents, 0, sizeof(float[4]) * mesh->totloop);
+	}
+	else {
+		r_looptangents = CustomData_add_layer(&mesh->ldata, CD_MLOOPTANGENT, CD_CALLOC, NULL, mesh->totloop);
+		CustomData_set_layer_flag(&mesh->ldata, CD_MLOOPTANGENT, CD_FLAG_TEMPORARY);
+	}
+
+	/* Compute loop normals if needed. */
+	if (!CustomData_has_layer(&mesh->ldata, CD_NORMAL)) {
+		rna_Mesh_calc_normals_split(mesh, (float)M_PI);
+	}
+
+	BKE_mesh_loop_tangents(mesh, uvmap, r_looptangents, reports);
+}
+
+static void rna_Mesh_free_tangents(Mesh *mesh)
+{
+	CustomData_free_layers(&mesh->ldata, CD_MLOOPTANGENT, mesh->totloop);
+}
+
 static void rna_Mesh_calc_smooth_groups(Mesh *mesh, int use_bitflags, int *r_poly_group_len,
                                         int **r_poly_group, int *r_group_total)
 {
@@ -110,6 +139,11 @@ static void rna_Mesh_calc_smooth_groups(Mesh *mesh, int use_bitflags, int *r_pol
 	                    r_group_total, use_bitflags);
 }
 
+static void rna_Mesh_transform(Mesh *mesh, float *mat)
+{
+	ED_mesh_transform(mesh, (float (*)[4])mat);
+}
+
 #else
 
 void RNA_api_mesh(StructRNA *srna)
@@ -117,7 +151,7 @@ void RNA_api_mesh(StructRNA *srna)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
-	func = RNA_def_function(srna, "transform", "ED_mesh_transform");
+	func = RNA_def_function(srna, "transform", "rna_Mesh_transform");
 	RNA_def_function_ui_description(func, "Transform mesh vertices by a matrix");
 	parm = RNA_def_float_matrix(func, "matrix", 4, 4, NULL, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
@@ -134,6 +168,18 @@ void RNA_api_mesh(StructRNA *srna)
 
 	func = RNA_def_function(srna, "free_normals_split", "rna_Mesh_free_normals_split");
 	RNA_def_function_ui_description(func, "Free split vertex normals");
+
+	func = RNA_def_function(srna, "calc_tangents", "rna_Mesh_calc_tangents");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func,
+	                                "Compute tangents and bitangent signs, to be used together with the split normals "
+	                                "to get a complete tangent space for normal mapping "
+	                                "(split normals are also computed if not yet present)");
+	parm = RNA_def_string(func, "uvmap", NULL, MAX_CUSTOMDATA_LAYER_NAME, "",
+	                      "Name of the UV map to use for tangent space computation");
+
+	func = RNA_def_function(srna, "free_tangents", "rna_Mesh_free_tangents");
+	RNA_def_function_ui_description(func, "Free tangents");
 
 	func = RNA_def_function(srna, "calc_tessface", "ED_mesh_calc_tessface");
 	RNA_def_function_ui_description(func, "Calculate face tessellation (supports editmode too)");

@@ -35,6 +35,7 @@ set(INC
 	../../makesrna
 	../../windowmanager
 	../../../../intern/cycles/blender
+	../../../../intern/opencolorio
 	../../../../intern/octane/blender
 	../../../../intern/guardedalloc
 )
@@ -50,6 +51,8 @@ set(SRC
 	bpy_app_ffmpeg.c
 	bpy_app_build_options.c
 	bpy_app_handlers.c
+	bpy_app_ocio.c
+	bpy_app_oiio.c
 	bpy_app_translations.c
 	bpy_driver.c
 	bpy_interface.c
@@ -74,6 +77,8 @@ set(SRC
 	bpy_app_ffmpeg.h
 	bpy_app_build_options.h
 	bpy_app_handlers.h
+	bpy_app_ocio.h
+	bpy_app_oiio.h
 	bpy_app_translations.h
 	bpy_driver.h
 	bpy_intern_string.h
@@ -179,6 +184,10 @@ if(WITH_IMAGE_OPENEXR)
 	add_definitions(-DWITH_OPENEXR)
 endif()
 
+if(WITH_OPENIMAGEIO)
+	add_definitions(-DWITH_OPENIMAGEIO)
+endif()
+
 if(WITH_IMAGE_OPENJPEG)
 	add_definitions(-DWITH_OPENJPEG)
 endif()
@@ -241,6 +250,13 @@ endif()
 
 if(WITH_OPENCOLORIO)
 	add_definitions(-DWITH_OCIO)
+endif()
+
+if(WITH_OPENIMAGEIO)
+	add_definitions(-DWITH_OPENIMAGEIO)
+	list(APPEND INC
+		../../imbuf/intern/oiio
+	)
 endif()
 
 if(WITH_PLAYER)

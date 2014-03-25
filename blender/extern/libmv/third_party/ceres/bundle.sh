@@ -43,8 +43,11 @@ done
 
 rm -rf $tmp
 
-sources=`find ./include ./internal -type f -iname '*.cc' -or -iname '*.cpp' -or -iname '*.c' | sed -r 's/^\.\//\t/' | grep -v -E 'schur_eliminator_[0-9]_[0-9]_[0-9d].cc' | sort -d`
-generated_sources=`find ./include ./internal -type f -iname '*.cc' -or -iname '*.cpp' -or -iname '*.c' | sed -r 's/^\.\//#\t\t/' | grep -E 'schur_eliminator_[0-9]_[0-9]_[0-9d].cc' | sort -d`
+sources=`find ./include ./internal -type f -iname '*.cc' -or -iname '*.cpp' -or -iname '*.c' | sed -r 's/^\.\//\t/' | \
+  grep -v -E 'schur_eliminator_[0-9]_[0-9d]_[0-9d].cc' | \
+  grep -v -E 'partitioned_matrix_view_[0-9]_[0-9d]_[0-9d].cc' | sort -d`
+generated_sources=`find ./include ./internal -type f -iname '*.cc' -or -iname '*.cpp' -or -iname '*.c' | sed -r 's/^\.\//#\t\t/' | \
+  grep -E 'schur_eliminator_[0-9]_[0-9d]_[0-9d].cc|partitioned_matrix_view_[0-9]_[0-9d]_[0-9d].cc' | sort -d`
 headers=`find ./include ./internal -type f -iname '*.h' | sed -r 's/^\.\//\t/' | sort -d`
 
 src_dir=`find ./internal -type f -iname '*.cc' -exec dirname {} \; -or -iname '*.cpp' -exec dirname {} \; -or -iname '*.c' -exec dirname {} \; | sed -r 's/^\.\//\t/' | sort -d | uniq`
@@ -171,25 +174,59 @@ if(WITH_OPENMP)
 	)
 endif()
 
-if(MSVC10)
-	add_definitions(
-		-D"CERES_HASH_NAMESPACE_START=namespace std {"
-		-D"CERES_HASH_NAMESPACE_END=}"
-	)
-else()
-	add_definitions(
-		-D"CERES_HASH_NAMESPACE_START=namespace std { namespace tr1 {"
-		-D"CERES_HASH_NAMESPACE_END=}}"
-	)
-endif()
+include(CheckIncludeFileCXX)
+CHECK_INCLUDE_FILE_CXX(unordered_map HAVE_STD_UNORDERED_MAP_HEADER)
+if(HAVE_STD_UNORDERED_MAP_HEADER)
+	# Even so we've found unordered_map header file it doesn't
+	# mean unordered_map and unordered_set will be declared in
+	# std namespace.
+	#
+	# Namely, MSVC 2008 have unordered_map header which declares
+	# unordered_map class in std::tr1 namespace. In order to support
+	# this, we do extra check to see which exactly namespace is
+	# to be used.
 
-if(APPLE)
-	if(CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "10.5")
-		add_definitions(
-			-DCERES_NO_TR1
-		)
+	include(CheckCXXSourceCompiles)
+	CHECK_CXX_SOURCE_COMPILES("#include <unordered_map>
+	                          int main() {
+	                            std::unordered_map<int, int> map;
+	                            return 0;
+	                          }"
+	                          HAVE_UNURDERED_MAP_IN_STD_NAMESPACE)
+	if(HAVE_UNURDERED_MAP_IN_STD_NAMESPACE)
+		add_definitions(-DCERES_STD_UNORDERED_MAP)
+		message(STATUS "Found unordered_map/set in std namespace.")
+	else()
+		CHECK_CXX_SOURCE_COMPILES("#include <unordered_map>
+		                          int main() {
+		                            std::tr1::unordered_map<int, int> map;
+		                            return 0;
+		                          }"
+		                          HAVE_UNURDERED_MAP_IN_TR1_NAMESPACE)
+		if(HAVE_UNURDERED_MAP_IN_TR1_NAMESPACE)
+			add_definitions(-DCERES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
+			message(STATUS "Found unordered_map/set in std::tr1 namespace.")
+		else()
+			message(STATUS "Found <unordered_map> but cannot find either std::unordered_map "
+			        "or std::tr1::unordered_map.")
+			message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
+			add_definitions(-DCERES_NO_UNORDERED_MAP)
+		endif()
+	endif()
+else()
+	CHECK_INCLUDE_FILE_CXX("tr1/unordered_map" UNORDERED_MAP_IN_TR1_NAMESPACE)
+	if(UNORDERED_MAP_IN_TR1_NAMESPACE)
+		add_definitions(-DCERES_TR1_UNORDERED_MAP)
+		message(STATUS "Found unordered_map/set in std::tr1 namespace.")
+	else()
+		message(STATUS "Unable to find <unordered_map> or <tr1/unordered_map>. ")
+		message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
+		add_definitions(-DCERES_NO_UNORDERED_MAP)
 	endif()
 endif()
+
+unset(HAVE_UNURDERED_MAP_IN_TR1_NAMESPACE)
+unset(HAVE_STD_UNORDERED_MAP_HEADER)
 
 blender_add_lib(extern_ceres "\${SRC}" "\${INC}" "\${INC_SYS}")
 EOF
@@ -211,11 +248,10 @@ defs = []
 
 $src
 src += env.Glob('internal/ceres/generated/schur_eliminator_d_d_d.cc')
+src += env.Glob('internal/ceres/generated/partitioned_matrix_view_d_d_d.cc')
 #src += env.Glob('internal/ceres/generated/*.cc')
 
 defs.append('CERES_HAVE_PTHREAD')
-defs.append('CERES_HASH_NAMESPACE_START=namespace std { namespace tr1 {')
-defs.append('CERES_HASH_NAMESPACE_END=}}')
 defs.append('CERES_NO_SUITESPARSE')
 defs.append('CERES_NO_CXSPARSE')
 defs.append('CERES_NO_LAPACK')
@@ -225,8 +261,36 @@ defs.append('CERES_HAVE_RWLOCK')
 if env['WITH_BF_OPENMP']:
     defs.append('CERES_USE_OPENMP')
 
-if 'Mac OS X 10.5' in env['MACOSX_SDK_CHECK']:
-    defs.append('CERES_NO_TR1')
+conf = Configure(env)
+if conf.CheckCXXHeader("unordered_map"):
+    # Even so we've found unordered_map header file it doesn't
+    # mean unordered_map and unordered_set will be declared in
+    # std namespace.
+    #
+    # Namely, MSVC 2008 have unordered_map header which declares
+    # unordered_map class in std::tr1 namespace. In order to support
+    # this, we do extra check to see which exactly namespace is
+    # to be used.
+
+    if conf.CheckType('std::unordered_map<int, int>', language = 'CXX', includes="#include <unordered_map>"):
+        defs.append('CERES_STD_UNORDERED_MAP')
+        print("-- Found unordered_map/set in std namespace.")
+    elif conf.CheckType('std::tr1::unordered_map<int, int>', language = 'CXX', includes="#include <unordered_map>"):
+        defs.append('CERES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE')
+        print("-- Found unordered_map/set in std::tr1 namespace.")
+    else:
+        print("-- Found <unordered_map> but can not find neither std::unordered_map nor std::tr1::unordered_map.")
+        print("-- Replacing unordered_map/set with map/set (warning: slower!)")
+        defs.append('CERES_NO_UNORDERED_MAP')
+elif conf.CheckCXXHeader("tr1/unordered_map"):
+    defs.append('CERES_TR1_UNORDERED_MAP')
+    print("-- Found unordered_map/set in std::tr1 namespace.")
+else:
+    print("-- Unable to find <unordered_map> or <tr1/unordered_map>. ")
+    print("-- Replacing unordered_map/set with map/set (warning: slower!)")
+    defs.append('CERES_NO_UNORDERED_MAP')
+
+env = conf.Finish()
 
 incs = '. ../../ ../../../Eigen3 ./include ./internal ../gflags'
 

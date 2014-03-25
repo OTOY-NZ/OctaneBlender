@@ -26,6 +26,10 @@
 
 /** \file blender/windowmanager/intern/wm_event_system.c
  *  \ingroup wm
+ *
+ * Handle events and notifiers from GHOST input (mouse, keyboard, tablet, ndof).
+ *
+ * Also some operator reports utility functions.
  */
 
 
@@ -142,7 +146,7 @@ void wm_event_init_from_window(wmWindow *win, wmEvent *event)
 
 /* ********************* notifiers, listeners *************** */
 
-static int wm_test_duplicate_notifier(wmWindowManager *wm, unsigned int type, void *reference)
+static bool wm_test_duplicate_notifier(wmWindowManager *wm, unsigned int type, void *reference)
 {
 	wmNotifier *note;
 
@@ -245,7 +249,7 @@ void wm_event_do_notifiers(bContext *C)
 	
 	/* cache & catch WM level notifiers, such as frame change, scene/screen set */
 	for (win = wm->windows.first; win; win = win->next) {
-		int do_anim = FALSE;
+		bool do_anim = false;
 		
 		CTX_wm_window_set(C, win);
 		
@@ -370,7 +374,7 @@ void wm_event_do_notifiers(bContext *C)
 			/* XXX, hack so operators can enforce datamasks [#26482], gl render */
 			win->screen->scene->customdata_mask |= win->screen->scene->customdata_mask_modal;
 
-			BKE_scene_update_tagged(bmain, win->screen->scene);
+			BKE_scene_update_tagged(bmain->eval_ctx, bmain, win->screen->scene);
 		}
 	}
 
@@ -390,8 +394,8 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	ScrArea *area = CTX_wm_area(C);
 	ARegion *region = CTX_wm_region(C);
 	ARegion *menu = CTX_wm_menu(C);
-	static int do_wheel_ui = TRUE;
-	int is_wheel = ELEM3(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE, MOUSEPAN);
+	static bool do_wheel_ui = true;
+	const bool is_wheel = ELEM3(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE, MOUSEPAN);
 	int retval;
 	
 	/* UI code doesn't handle return values - it just always returns break. 
@@ -401,11 +405,11 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	
 	/* UI is quite aggressive with swallowing events, like scrollwheel */
 	/* I realize this is not extremely nice code... when UI gets keymaps it can be maybe smarter */
-	if (do_wheel_ui == FALSE) {
+	if (do_wheel_ui == false) {
 		if (is_wheel)
 			return WM_HANDLER_CONTINUE;
 		else if (wm_event_always_pass(event) == 0)
-			do_wheel_ui = TRUE;
+			do_wheel_ui = true;
 	}
 	
 	/* we set context to where ui handler came from */
@@ -433,7 +437,7 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	
 	/* event not handled in UI, if wheel then we temporarily disable it */
 	if (is_wheel)
-		do_wheel_ui = FALSE;
+		do_wheel_ui = false;
 	
 	return WM_HANDLER_CONTINUE;
 }
@@ -491,8 +495,8 @@ int WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context)
 static void wm_operator_print(bContext *C, wmOperator *op)
 {
 	/* context is needed for enum function */
-	char *buf = WM_operator_pystring(C, op->type, op->ptr, false);
-	printf("%s\n", buf);
+	char *buf = WM_operator_pystring(C, op, false, true);
+	puts(buf);
 	MEM_freeN(buf);
 }
 
@@ -534,6 +538,21 @@ void WM_event_print(const wmEvent *event)
 		       event->x, event->y, event->ascii,
 		       BLI_str_utf8_size(event->utf8_buf), event->utf8_buf,
 		       event->keymap_idname, (void *)event);
+
+		if (ISNDOF(event->type)) {
+			const wmNDOFMotionData *ndof = event->customdata;
+			if (event->type == NDOF_MOTION) {
+				printf("   ndof: rot: (%.4f %.4f %.4f),\n"
+				       "          tx: (%.4f %.4f %.4f),\n"
+				       "          dt: %.4f, progress: %d\n",
+				       UNPACK3(ndof->rvec),
+				       UNPACK3(ndof->tvec),
+				       ndof->dt, ndof->progress);
+			}
+			else {
+				/* ndof buttons printed already */
+			}
+		}
 	}
 	else {
 		printf("wmEvent - NULL\n");
@@ -626,7 +645,7 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int cal
 		if (op->type->flag & OPTYPE_REGISTER) {
 			if (G.background == 0) { /* ends up printing these in the terminal, gets annoying */
 				/* Report the python string representation of the operator */
-				char *buf = WM_operator_pystring(C, op->type, op->ptr, false);
+				char *buf = WM_operator_pystring(C, op, false, true);
 				BKE_report(CTX_wm_reports(C), RPT_OPERATOR, buf);
 				MEM_freeN(buf);
 			}
@@ -640,12 +659,12 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int cal
 /* this function is mainly to check that the rules for freeing
  * an operator are kept in sync.
  */
-static int wm_operator_register_check(wmWindowManager *wm, wmOperatorType *ot)
+static bool wm_operator_register_check(wmWindowManager *wm, wmOperatorType *ot)
 {
 	return wm && (wm->op_undo_depth == 0) && (ot->flag & OPTYPE_REGISTER);
 }
 
-static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
+static void wm_operator_finished(bContext *C, wmOperator *op, const bool repeat)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 
@@ -660,7 +679,7 @@ static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
 	
 	if (repeat == 0) {
 		if (G.debug & G_DEBUG_WM) {
-			char *buf = WM_operator_pystring(C, op->type, op->ptr, false);
+			char *buf = WM_operator_pystring(C, op, false, true);
 			BKE_report(CTX_wm_reports(C), RPT_OPERATOR, buf);
 			MEM_freeN(buf);
 		}
@@ -679,7 +698,7 @@ static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
 }
 
 /* if repeat is true, it doesn't register again, nor does it free */
-static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
+static int wm_operator_exec(bContext *C, wmOperator *op, const bool repeat, const bool store)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	int retval = OPERATOR_CANCELLED;
@@ -710,7 +729,7 @@ static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
 		wm_operator_reports(C, op, retval, FALSE);
 	
 	if (retval & OPERATOR_FINISHED) {
-		if (repeat) {
+		if (store) {
 			if (wm->op_undo_depth == 0) { /* not called by py script */
 				WM_operator_last_properties_store(op);
 			}
@@ -739,12 +758,21 @@ static int wm_operator_exec_notest(bContext *C, wmOperator *op)
 	return retval;
 }
 
-/* for running operators with frozen context (modal handlers, menus)
+/**
+ * for running operators with frozen context (modal handlers, menus)
+ *
+ * \param store, Store settings for re-use.
  *
  * warning: do not use this within an operator to call its self! [#29537] */
+int WM_operator_call_ex(bContext *C, wmOperator *op,
+                        const bool store)
+{
+	return wm_operator_exec(C, op, false, store);
+}
+
 int WM_operator_call(bContext *C, wmOperator *op)
 {
-	return wm_operator_exec(C, op, 0);
+	return WM_operator_call_ex(C, op, false);
 }
 
 /* this is intended to be used when an invoke operator wants to call exec on its self
@@ -758,13 +786,13 @@ int WM_operator_call_notest(bContext *C, wmOperator *op)
 /* do this operator again, put here so it can share above code */
 int WM_operator_repeat(bContext *C, wmOperator *op)
 {
-	return wm_operator_exec(C, op, 1);
+	return wm_operator_exec(C, op, true, true);
 }
 /* TRUE if WM_operator_repeat can run
  * simple check for now but may become more involved.
  * To be sure the operator can run call WM_operator_poll(C, op->type) also, since this call
  * checks if WM_operator_repeat() can run at all, not that it WILL run at any time. */
-int WM_operator_repeat_check(const bContext *UNUSED(C), wmOperator *op)
+bool WM_operator_repeat_check(const bContext *UNUSED(C), wmOperator *op)
 {
 	if (op->type->exec != NULL) {
 		return true;
@@ -890,9 +918,11 @@ static void wm_region_mouse_co(bContext *C, wmEvent *event)
 #if 1 /* may want to disable operator remembering previous state for testing */
 bool WM_operator_last_properties_init(wmOperator *op)
 {
-	bool change = false;
+	bool changed = false;
 
 	if (op->type->last_properties) {
+		IDPropertyTemplate val = {0};
+		IDProperty *replaceprops = IDP_New(IDP_GROUP, &val, "wmOperatorProperties");
 		PropertyRNA *iterprop;
 
 		if (G.debug & G_DEBUG_WM) {
@@ -915,16 +945,22 @@ bool WM_operator_last_properties_init(wmOperator *op)
 						 * but for now RNA doesn't access nested operators */
 						idp_dst->flag |= IDP_FLAG_GHOST;
 
-						IDP_ReplaceInGroup(op->properties, idp_dst);
-						change = true;
+						/* add to temporary group instead of immediate replace,
+						 * because we are iterating over this group */
+						IDP_AddToGroup(replaceprops, idp_dst);
+						changed = true;
 					}
 				}
 			}
 		}
 		RNA_PROP_END;
+
+		IDP_MergeGroup(op->properties, replaceprops, true);
+		IDP_FreeProperty(replaceprops);
+		MEM_freeN(replaceprops);
 	}
 
-	return change;
+	return changed;
 }
 
 bool WM_operator_last_properties_store(wmOperator *op)
@@ -973,7 +1009,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 	if (WM_operator_poll(C, ot)) {
 		wmWindowManager *wm = CTX_wm_manager(C);
 		wmOperator *op = wm_operator_create(wm, ot, properties, reports); /* if reports == NULL, they'll be initialized */
-		const short is_nested_call = (wm->op_undo_depth != 0);
+		const bool is_nested_call = (wm->op_undo_depth != 0);
 		
 		op->flag |= OP_IS_INVOKE;
 
@@ -1242,7 +1278,7 @@ int WM_operator_name_call(bContext *C, const char *opstring, short context, Poin
  * - reports can be passed to this function (so python can report them as exceptions)
  */
 int WM_operator_call_py(bContext *C, wmOperatorType *ot, short context,
-                        PointerRNA *properties, ReportList *reports, short is_undo)
+                        PointerRNA *properties, ReportList *reports, const bool is_undo)
 {
 	int retval = OPERATOR_CANCELLED;
 
@@ -1434,7 +1470,7 @@ static int wm_eventmatch(wmEvent *winevent, wmKeyMapItem *kmi)
 
 
 /* operator exists */
-static void wm_event_modalkeymap(const bContext *C, wmOperator *op, wmEvent *event)
+static void wm_event_modalkeymap(const bContext *C, wmOperator *op, wmEvent *event, bool *dbl_click_disabled)
 {
 	/* support for modal keymap in macros */
 	if (op->opm)
@@ -1461,15 +1497,31 @@ static void wm_event_modalkeymap(const bContext *C, wmOperator *op, wmEvent *eve
 		 * handling typically swallows all events (OPERATOR_RUNNING_MODAL).
 		 * This bypass just disables support for double clicks in hardcoded modal handlers */
 		if (event->val == KM_DBL_CLICK) {
-			event->prevval = event->val;
 			event->val = KM_PRESS;
+			*dbl_click_disabled = true;
 		}
 	}
 }
 
+/* Check whether operator is allowed to run in case interface is locked,
+ * If interface is unlocked, will always return truth.
+ */
+static bool wm_operator_check_locked_interface(bContext *C, wmOperatorType *ot)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+
+	if (wm->is_interface_locked) {
+		if ((ot->flag & OPTYPE_LOCK_BYPASS) == 0) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /* bad hacking event system... better restore event type for checking of KM_CLICK for example */
 /* XXX modal maps could use different method (ton) */
-static void wm_event_modalmap_end(wmEvent *event)
+static void wm_event_modalmap_end(wmEvent *event, bool dbl_click_disabled)
 {
 	if (event->type == EVT_MODAL_MAP) {
 		event->type = event->prevtype;
@@ -1477,7 +1529,7 @@ static void wm_event_modalmap_end(wmEvent *event)
 		event->val = event->prevval;
 		event->prevval = 0;
 	}
-	else if (event->prevval == KM_DBL_CLICK)
+	else if (dbl_click_disabled)
 		event->val = KM_DBL_CLICK;
 
 }
@@ -1493,15 +1545,21 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 		wmOperator *op = handler->op;
 		wmOperatorType *ot = op->type;
 
-		if (ot->modal) {
+		if (!wm_operator_check_locked_interface(C, ot)) {
+			/* Interface is locked and pperator is not allowed to run,
+			 * nothing to do in this case.
+			 */
+		}
+		else if (ot->modal) {
 			/* we set context to where modal handler came from */
 			wmWindowManager *wm = CTX_wm_manager(C);
 			ScrArea *area = CTX_wm_area(C);
 			ARegion *region = CTX_wm_region(C);
-			
+			bool dbl_click_disabled = false;
+
 			wm_handler_op_context(C, handler);
 			wm_region_mouse_co(C, event);
-			wm_event_modalkeymap(C, op, event);
+			wm_event_modalkeymap(C, op, event, &dbl_click_disabled);
 			
 			if (ot->flag & OPTYPE_UNDO)
 				wm->op_undo_depth++;
@@ -1515,7 +1573,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			 * the event, operator etc have all been freed. - campbell */
 			if (CTX_wm_manager(C) == wm) {
 
-				wm_event_modalmap_end(event);
+				wm_event_modalmap_end(event, dbl_click_disabled);
 
 				if (ot->flag & OPTYPE_UNDO)
 					wm->op_undo_depth--;
@@ -1565,7 +1623,9 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 		wmOperatorType *ot = WM_operatortype_find(event->keymap_idname, 0);
 
 		if (ot) {
-			retval = wm_operator_invoke(C, ot, event, properties, NULL, FALSE);
+			if (wm_operator_check_locked_interface(C, ot)) {
+				retval = wm_operator_invoke(C, ot, event, properties, NULL, FALSE);
+			}
 		}
 	}
 	/* Finished and pass through flag as handled */
@@ -1584,19 +1644,14 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 	return WM_HANDLER_BREAK;
 }
 
-/* fileselect handlers are only in the window queue, so it's save to switch screens or area types */
-static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHandler *handler, wmEvent *event)
+/* fileselect handlers are only in the window queue, so it's safe to switch screens or area types */
+static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHandler *handler, int val)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile;
 	int action = WM_HANDLER_CONTINUE;
-	
-	if (event->type != EVT_FILESELECT)
-		return action;
-	if (handler->op != (wmOperator *)event->customdata)
-		return action;
-	
-	switch (event->val) {
+
+	switch (val) {
 		case EVT_FILESELECT_OPEN: 
 		case EVT_FILESELECT_FULL_OPEN: 
 		{
@@ -1612,7 +1667,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 				sa = handler->op_area;
 			}
 					
-			if (event->val == EVT_FILESELECT_OPEN) {
+			if (val == EVT_FILESELECT_OPEN) {
 				ED_area_newspace(C, sa, SPACE_FILE);     /* 'sa' is modified in-place */
 			}
 			else {
@@ -1643,7 +1698,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 			/* remlink now, for load file case before removing*/
 			BLI_remlink(handlers, handler);
 				
-			if (event->val != EVT_FILESELECT_EXTERNAL_CANCEL) {
+			if (val != EVT_FILESELECT_EXTERNAL_CANCEL) {
 				if (screen != handler->filescreen) {
 					ED_screen_full_prevspace(C, CTX_wm_area(C));
 				}
@@ -1656,7 +1711,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 
 			/* needed for uiPupMenuReports */
 
-			if (event->val == EVT_FILESELECT_EXEC) {
+			if (val == EVT_FILESELECT_EXEC) {
 				int retval;
 
 				if (handler->op->type->flag & OPTYPE_UNDO)
@@ -1733,7 +1788,19 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 	return action;
 }
 
-static int handler_boundbox_test(wmEventHandler *handler, wmEvent *event)
+static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHandler *handler, wmEvent *event)
+{
+	int action = WM_HANDLER_CONTINUE;
+	
+	if (event->type != EVT_FILESELECT)
+		return action;
+	if (handler->op != (wmOperator *)event->customdata)
+		return action;
+	
+	return wm_handler_fileselect_do(C, handlers, handler, event->val);
+}
+
+static bool handler_boundbox_test(wmEventHandler *handler, wmEvent *event)
 {
 	if (handler->bbwin) {
 		if (handler->bblocal) {
@@ -1771,7 +1838,11 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 	        /* comment this out to flood the console! (if you really want to test) */
 	        !ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)
 	        ;
+#    define PRINT if (do_debug_handler) printf
+#else
+#  define PRINT(format, ...)
 #endif
+
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmEventHandler *handler, *nexthandler;
 	int action = WM_HANDLER_CONTINUE;
@@ -1807,28 +1878,16 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				wmKeyMap *keymap = WM_keymap_active(wm, handler->keymap);
 				wmKeyMapItem *kmi;
 
-#ifndef NDEBUG
-				if (do_debug_handler) {
-					printf("%s:   checking '%s' ...", __func__, keymap->idname);
-				}
-#endif
+				PRINT("%s:   checking '%s' ...", __func__, keymap->idname);
 
 				if (!keymap->poll || keymap->poll(C)) {
 
-#ifndef NDEBUG
-					if (do_debug_handler) {
-						printf("pass\n");
-					}
-#endif
+					PRINT("pass\n");
 
 					for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
 						if (wm_eventmatch(event, kmi)) {
 
-#ifndef NDEBUG
-							if (do_debug_handler) {
-								printf("%s:     item matched '%s'\n", __func__, kmi->idname);
-							}
-#endif
+							PRINT("%s:     item matched '%s'\n", __func__, kmi->idname);
 
 							/* weak, but allows interactive callback to not use rawkey */
 							event->keymap_idname = kmi->idname;
@@ -1847,32 +1906,28 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 									if (G.debug & (G_DEBUG_EVENTS | G_DEBUG_HANDLERS))
 										printf("%s:       handled - and pass on! '%s'\n", __func__, kmi->idname);
 								
-#ifndef NDEBUG
-								if (do_debug_handler) {
-									printf("%s:       un-handled '%s'...", __func__, kmi->idname);
-								}
-#endif
+									PRINT("%s:       un-handled '%s'...", __func__, kmi->idname);
 							}
 						}
 					}
 				}
 				else {
-#ifndef NDEBUG
-					if (do_debug_handler) {
-						printf("fail\n");
-					}
-#endif
+					PRINT("fail\n");
 				}
 			}
 			else if (handler->ui_handle) {
-				action |= wm_handler_ui_call(C, handler, event, always_pass);
+				if (!wm->is_interface_locked) {
+					action |= wm_handler_ui_call(C, handler, event, always_pass);
+				}
 			}
 			else if (handler->type == WM_HANDLER_FILESELECT) {
-				/* screen context changes here */
-				action |= wm_handler_fileselect_call(C, handlers, handler, event);
+				if (!wm->is_interface_locked) {
+					/* screen context changes here */
+					action |= wm_handler_fileselect_call(C, handlers, handler, event);
+				}
 			}
 			else if (handler->dropboxes) {
-				if (event->type == EVT_DROP) {
+				if (!wm->is_interface_locked && event->type == EVT_DROP) {
 					wmDropBox *drop = handler->dropboxes->first;
 					for (; drop; drop = drop->next) {
 						/* other drop custom types allowed */
@@ -1937,6 +1992,8 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 
 	if (action == (WM_HANDLER_BREAK | WM_HANDLER_MODAL))
 		wm_cursor_arrow_move(CTX_wm_window(C), event);
+
+#undef PRINT
 
 	return action;
 }
@@ -2079,7 +2136,9 @@ static void wm_paintcursor_test(bContext *C, wmEvent *event)
 
 static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *event)
 {
-	if (wm->drags.first == NULL) return;
+	if (BLI_listbase_is_empty(&wm->drags)) {
+		return;
+	}
 	
 	if (event->type == MOUSEMOVE)
 		win->screen->do_draw_drag = TRUE;
@@ -2136,7 +2195,7 @@ void wm_event_do_handlers(bContext *C)
 				int is_playing_sound = sound_scene_playing(win->screen->scene);
 				
 				if (is_playing_sound != -1) {
-					int is_playing_screen;
+					bool is_playing_screen;
 					CTX_wm_window_set(C, win);
 					CTX_wm_screen_set(C, win->screen);
 					CTX_data_scene_set(C, scene);
@@ -2357,10 +2416,25 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
 		handlernext = handler->next;
 		
 		if (handler->type == WM_HANDLER_FILESELECT) {
-			if (handler->op)
-				WM_operator_free(handler->op);
-			BLI_remlink(&win->modalhandlers, handler);
-			wm_event_free_handler(handler);
+			bScreen *screen = CTX_wm_screen(C);
+			ScrArea *sa;
+
+			/* find the area with the file selector for this handler */
+			for (sa = screen->areabase.first; sa; sa = sa->next) {
+				if (sa->spacetype == SPACE_FILE) {
+					SpaceFile *sfile = sa->spacedata.first;
+
+					if (sfile->op == handler->op) {
+						CTX_wm_area_set(C, sa);
+						wm_handler_fileselect_do(C, &win->modalhandlers, handler, EVT_FILESELECT_CANCEL);
+						break;
+					}
+				}
+			}
+
+			/* if not found we stop the handler without changing the screen */
+			if (!sa)
+				wm_handler_fileselect_do(C, &win->modalhandlers, handler, EVT_FILESELECT_EXTERNAL_CANCEL);
 		}
 	}
 	
@@ -2449,7 +2523,7 @@ wmEventHandler *WM_event_add_keymap_handler_priority(ListBase *handlers, wmKeyMa
 	return handler;
 }
 
-wmEventHandler *WM_event_add_keymap_handler_bb(ListBase *handlers, wmKeyMap *keymap, rcti *bblocal, rcti *bbwin)
+wmEventHandler *WM_event_add_keymap_handler_bb(ListBase *handlers, wmKeyMap *keymap, const rcti *bblocal, const rcti *bbwin)
 {
 	wmEventHandler *handler = WM_event_add_keymap_handler(handlers, keymap);
 	
@@ -2584,7 +2658,7 @@ void WM_event_add_mousemove(bContext *C)
 
 
 /* for modal callbacks, check configuration for how to interpret exit with tweaks  */
-int WM_modal_tweak_exit(const wmEvent *event, int tweak_event)
+bool WM_modal_tweak_exit(const wmEvent *event, int tweak_event)
 {
 	/* if the release-confirm userpref setting is enabled, 
 	 * tweak events can be canceled when mouse is released
@@ -2803,33 +2877,17 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
 {
 	wmNDOFMotionData *data = MEM_mallocN(sizeof(wmNDOFMotionData), "customdata NDOF");
 
-	const float s = U.ndof_sensitivity;
+	const float ts = U.ndof_sensitivity;
 	const float rs = U.ndof_orbit_sensitivity;
 
-	data->tx = s * ghost->tx;
+	mul_v3_v3fl(data->tvec, &ghost->tx, ts);
+	mul_v3_v3fl(data->rvec, &ghost->rx, rs);
 
-	data->rx = rs * ghost->rx;
-	data->ry = rs * ghost->ry;
-	data->rz = rs * ghost->rz;
-
-	if (U.ndof_flag & NDOF_ZOOM_UPDOWN) {
-		/* rotate so Y is where Z was */
-		data->ty = s * ghost->tz;
-		data->tz = s * ghost->ty;
-		/* maintain handed-ness? or just do what feels right? */
-
-		/* should this affect rotation also?
-		 * initial guess is 'yes', but get user feedback immediately!
-		 */
-#if 0
-		/* after turning this on, my guess becomes 'no' */
-		data->ry = s * ghost->rz;
-		data->rz = s * ghost->ry;
-#endif
-	}
-	else {
-		data->ty = s * ghost->ty;
-		data->tz = s * ghost->tz;
+	if (U.ndof_flag & NDOF_PAN_YZ_SWAP_AXIS) {
+		float t;
+		t =  data->tvec[1];
+		data->tvec[1] = -data->tvec[2];
+		data->tvec[2] = t;
 	}
 
 	data->dt = ghost->dt;
@@ -2905,6 +2963,28 @@ static bool wm_event_is_double_click(wmEvent *event, wmEvent *event_state)
 	return false;
 }
 
+static void wm_event_add_mousemove(wmWindow *win, const wmEvent *event)
+{
+	wmEvent *event_last = win->queue.last;
+
+	/* some painting operators want accurate mouse events, they can
+	 * handle in between mouse move moves, others can happily ignore
+	 * them for better performance */
+	if (event_last && event_last->type == MOUSEMOVE)
+		event_last->type = INBETWEEN_MOUSEMOVE;
+
+	wm_event_add(win, event);
+
+	{
+		wmEvent *event_new = win->queue.last;
+		if (event_last == NULL) {
+			event_last = win->eventstate;
+		}
+
+		copy_v2_v2_int(&event_new->prevx, &event_last->x);
+	}
+}
+
 /* windows store own event queues, no bContext here */
 /* time is in 1000s of seconds, from ghost */
 void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int UNUSED(time), void *customdata)
@@ -2920,35 +3000,24 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		case GHOST_kEventCursorMove:
 		{
 			GHOST_TEventCursorData *cd = customdata;
-			wmEvent *lastevent = win->queue.last;
-			
-			evt->x = cd->x;
-			evt->y = cd->y;
-			
-			event.x = evt->x;
-			event.y = evt->y;
 
+			copy_v2_v2_int(&event.x, &cd->x);
 			event.type = MOUSEMOVE;
-
-			/* some painting operators want accurate mouse events, they can
-			 * handle in between mouse move moves, others can happily ignore
-			 * them for better performance */
-			if (lastevent && lastevent->type == MOUSEMOVE)
-				lastevent->type = INBETWEEN_MOUSEMOVE;
-
-			wm_event_add(win, &event);
+			wm_event_add_mousemove(win, &event);
+			copy_v2_v2_int(&evt->x, &event.x);
 			
 			/* also add to other window if event is there, this makes overdraws disappear nicely */
 			/* it remaps mousecoord to other window in event */
 			owin = wm_event_cursor_other_windows(wm, win, &event);
 			if (owin) {
-				wmEvent oevent = *(owin->eventstate);
-				
-				oevent.x = owin->eventstate->x = event.x;
-				oevent.y = owin->eventstate->y = event.y;
+				wmEvent oevent, *oevt = owin->eventstate;
+
+				oevent = *oevt;
+
+				copy_v2_v2_int(&oevent.x, &event.x);
 				oevent.type = MOUSEMOVE;
-				
-				wm_event_add(owin, &oevent);
+				wm_event_add_mousemove(owin, &oevent);
+				copy_v2_v2_int(&oevt->x, &oevent.x);
 			}
 				
 			break;
@@ -2999,6 +3068,10 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 				event.type = BUTTON4MOUSE;
 			else if (bd->button == GHOST_kButtonMaskButton5)
 				event.type = BUTTON5MOUSE;
+			else if (bd->button == GHOST_kButtonMaskButton6)
+				event.type = BUTTON6MOUSE;
+			else if (bd->button == GHOST_kButtonMaskButton7)
+				event.type = BUTTON7MOUSE;
 			else
 				event.type = MIDDLEMOUSE;
 			
@@ -3024,7 +3097,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			
 			/* double click test */
 			if (wm_event_is_double_click(&event, evt)) {
-				if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS) )
+				if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS))
 					printf("%s Send double click\n", __func__);
 				event.val = KM_DBL_CLICK;
 			}
@@ -3131,7 +3204,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			/* double click test */
 			/* if previous event was same type, and previous was release, and now it presses... */
 			if (wm_event_is_double_click(&event, evt)) {
-				if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS) )
+				if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS))
 					printf("%s Send double click\n", __func__);
 				evt->val = event.val = KM_DBL_CLICK;
 			}
@@ -3200,7 +3273,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			attach_ndof_data(&event, customdata);
 			wm_event_add(win, &event);
 
-			if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS) )
+			if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS))
 				printf("%s sending NDOF_MOTION, prev = %d %d\n", __func__, event.x, event.y);
 
 			break;
@@ -3247,3 +3320,70 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 	WM_event_print(&event);
 #endif
 }
+
+void WM_set_locked_interface(wmWindowManager *wm, bool lock)
+{
+	/* This will prevent events from being handled while interface is locked
+	 *
+	 * Use a "local" flag for now, because currently no other areas could
+	 * benefit of locked interface anyway (aka using G.is_interface_locked
+	 * wouldn't be useful anywhere outside of window manager, so let's not
+	 * pollute global context with such an information for now).
+	 */
+	wm->is_interface_locked = lock ? 1 : 0;
+
+	/* This will prevent drawing regions which uses non-threadsafe data.
+	 * Currently it'll be just a 3D viewport.
+	 *
+	 * TODO(sergey): Make it different locked states, so different jobs
+	 *               could lock different areas of blender and allow
+	 *               interation with others?
+	 */
+	BKE_spacedata_draw_locks(lock);
+}
+
+
+/* -------------------------------------------------------------------- */
+/* NDOF */
+
+/** \name NDOF Utility Functions
+ * \{ */
+
+
+void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], const bool use_zoom)
+{
+	int z_flag = use_zoom ? NDOF_ZOOM_INVERT : NDOF_PANZ_INVERT_AXIS;
+	r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -1.0f : 1.0f);
+	r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -1.0f : 1.0f);
+	r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & z_flag)                ? -1.0f : 1.0f);
+}
+
+void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3])
+{
+	r_rot[0] = ndof->rvec[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -1.0f : 1.0f);
+	r_rot[1] = ndof->rvec[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -1.0f : 1.0f);
+	r_rot[2] = ndof->rvec[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -1.0f : 1.0f);
+}
+
+float WM_event_ndof_to_axis_angle(const struct wmNDOFMotionData *ndof, float axis[3])
+{
+	float angle;
+	angle = normalize_v3_v3(axis, ndof->rvec);
+
+	axis[0] = axis[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -1.0f : 1.0f);
+	axis[1] = axis[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -1.0f : 1.0f);
+	axis[2] = axis[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -1.0f : 1.0f);
+
+	return ndof->dt * angle;
+}
+
+void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
+{
+	float axis[3];
+	float angle;
+
+	angle = WM_event_ndof_to_axis_angle(ndof, axis);
+	axis_angle_to_quat(q, axis, angle);
+}
+
+/** \} */

@@ -105,6 +105,11 @@ if(WITH_IMAGE_TIFF)
 	add_definitions(-DWITH_TIFF)
 endif()
 
+
+if(WITH_OPENIMAGEIO)
+	add_definitions(-DWITH_OPENIMAGEIO)
+endif()
+
 if(WITH_IMAGE_OPENJPEG)
 	list(APPEND INC_SYS
 		${OPENJPEG_INCLUDE_DIRS}

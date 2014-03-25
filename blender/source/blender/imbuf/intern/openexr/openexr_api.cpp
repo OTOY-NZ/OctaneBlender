@@ -36,6 +36,7 @@
 #include <string>
 #include <set>
 #include <errno.h>
+#include <algorithm>
 
 #include <openexr_api.h>
 
@@ -814,7 +815,7 @@ void IMB_exr_multilayer_convert(void *handle, void *base,
 	ExrLayer *lay;
 	ExrPass *pass;
 
-	if (data->layers.first == NULL) {
+	if (BLI_listbase_is_empty(&data->layers)) {
 		printf("cannot convert multilayer, no layers in handle\n");
 		return;
 	}
@@ -890,7 +891,14 @@ static int imb_exr_split_channel_name(ExrChannel *echan, char *layname, char *pa
 	if (name[1] == 0) {
 		echan->chan_id = name[0];
 		layname[0] = '\0';
-		strcpy(passname, "Combined");
+
+		if (ELEM4(name[0], 'R', 'G', 'B', 'A'))
+			strcpy(passname, "Combined");
+		else if (name[0] == 'Z')
+			strcpy(passname, "Depth");
+		else
+			strcpy(passname, name);
+
 		return 1;
 	}
 
@@ -1122,7 +1130,7 @@ static int exr_has_alpha(InputFile *file)
 	return !(file->header().channels().findChannel("A") == NULL);
 }
 
-static int exr_is_multilayer(InputFile *file)
+static bool exr_is_multilayer(InputFile *file)
 {
 	const StringAttribute *comments = file->header().findTypedAttribute<StringAttribute>("BlenderMultiChannel");
 	const ChannelList &channels = file->header().channels();
@@ -1166,7 +1174,7 @@ struct ImBuf *imb_load_openexr(unsigned char *mem, size_t size, int flags, char 
 	try
 	{
 		Mem_IStream *membuf = new Mem_IStream(mem, size);
-		int is_multi;
+		bool is_multi;
 		file = new InputFile(*membuf);
 
 		Box2i dw = file->header().dataWindow();

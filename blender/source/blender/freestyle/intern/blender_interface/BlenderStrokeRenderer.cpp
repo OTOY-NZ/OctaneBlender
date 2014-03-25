@@ -42,6 +42,7 @@ extern "C" {
 #include "DNA_screen_types.h"
 
 #include "BKE_customdata.h"
+#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_library.h" /* free_libblock */
 #include "BKE_main.h" /* struct Main */
@@ -169,12 +170,12 @@ BlenderStrokeRenderer::~BlenderStrokeRenderer()
 #endif
 		switch (ob->type) {
 		case OB_MESH:
-			BKE_libblock_free(&freestyle_bmain->object, ob);
-			BKE_libblock_free(&freestyle_bmain->mesh, data);
+			BKE_libblock_free(freestyle_bmain, ob);
+			BKE_libblock_free(freestyle_bmain, data);
 			break;
 		case OB_CAMERA:
-			BKE_libblock_free(&freestyle_bmain->object, ob);
-			BKE_libblock_free(&freestyle_bmain->camera, data);
+			BKE_libblock_free(freestyle_bmain, ob);
+			BKE_libblock_free(freestyle_bmain, data);
 			freestyle_scene->camera = NULL;
 			break;
 		default:
@@ -184,7 +185,7 @@ BlenderStrokeRenderer::~BlenderStrokeRenderer()
 	BLI_freelistN(&freestyle_scene->base);
 
 	// release material
-	BKE_libblock_free(&freestyle_bmain->mat, material);
+	BKE_libblock_free(freestyle_bmain, material);
 }
 
 float BlenderStrokeRenderer::get_stroke_vertex_z(void) const
@@ -471,7 +472,8 @@ Object *BlenderStrokeRenderer::NewMesh() const
 #else
 	(void)base;
 #endif
-	ob->recalc = OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+
+	DAG_id_tag_update_ex(freestyle_bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
 	return ob;
 }

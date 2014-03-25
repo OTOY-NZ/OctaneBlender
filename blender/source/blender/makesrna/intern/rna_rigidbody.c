@@ -76,6 +76,14 @@ EnumPropertyItem rigidbody_constraint_type_items[] = {
 	{RBC_TYPE_MOTOR, "MOTOR", ICON_NONE, "Motor", "Drive rigid body around or along an axis"},
 	{0, NULL, 0, NULL, NULL}};
 
+#ifndef RNA_RUNTIME
+/* mesh source for collision shape creation */
+static EnumPropertyItem rigidbody_mesh_source_items[] = {
+	{RBO_MESH_BASE, "BASE", 0, "Base", "Base mesh"},
+	{RBO_MESH_DEFORM, "DEFORM", 0, "Deform", "Deformations (shape keys, deform modifiers)"},
+	{RBO_MESH_FINAL, "FINAL", 0, "Final", "All modifiers"},
+	{0, NULL, 0, NULL, NULL}};
+#endif
 
 #ifdef RNA_RUNTIME
 
@@ -769,6 +777,13 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 	
+	prop = RNA_def_property(srna, "mesh_source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "mesh_source");
+	RNA_def_property_enum_items(prop, rigidbody_mesh_source_items);
+	RNA_def_property_ui_text(prop, "Mesh Source", "Source of the mesh used to create collision shape");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
+	
 	/* booleans */
 	prop = RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", RBO_FLAG_DISABLED);
@@ -788,6 +803,11 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", RBO_FLAG_KINEMATIC);
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_RigidBodyOb_kinematic_state_set");
 	RNA_def_property_ui_text(prop, "Kinematic", "Allow rigid body to be controlled by the animation system");
+	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
+	
+	prop = RNA_def_property(srna, "use_deform", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", RBO_FLAG_USE_DEFORM);
+	RNA_def_property_ui_text(prop, "Deforming", "Rigid body deforms during simulation");
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 	
 	/* Physics Parameters */

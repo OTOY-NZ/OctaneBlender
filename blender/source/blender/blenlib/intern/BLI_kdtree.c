@@ -35,7 +35,7 @@
 
 typedef struct KDTreeNode {
 	struct KDTreeNode *left, *right;
-	float co[3], nor[3];
+	float co[3];
 	int index;
 	unsigned int d;  /* range is only (0-2) */
 } KDTreeNode;
@@ -44,6 +44,10 @@ struct KDTree {
 	KDTreeNode *nodes;
 	unsigned int totnode;
 	KDTreeNode *root;
+#ifdef DEBUG
+	bool is_balanced;  /* ensure we call balance first */
+	unsigned int maxsize;   /* max size of the tree */
+#endif
 };
 
 #define KD_STACK_INIT 100      /* initial size for array (on the stack) */
@@ -62,6 +66,11 @@ KDTree *BLI_kdtree_new(unsigned int maxsize)
 	tree->totnode = 0;
 	tree->root = NULL;
 
+#ifdef DEBUG
+	tree->is_balanced = false;
+	tree->maxsize = maxsize;
+#endif
+
 	return tree;
 }
 
@@ -76,22 +85,25 @@ void BLI_kdtree_free(KDTree *tree)
 /**
  * Construction: first insert points, then call balance. Normal is optional.
  */
-void BLI_kdtree_insert(KDTree *tree, int index, const float co[3], const float nor[3])
+void BLI_kdtree_insert(KDTree *tree, int index, const float co[3])
 {
 	KDTreeNode *node = &tree->nodes[tree->totnode++];
+
+#ifdef DEBUG
+	BLI_assert(tree->totnode <= tree->maxsize);
+#endif
 
 	/* note, array isn't calloc'd,
 	 * need to initialize all struct members */
 
 	node->left = node->right = NULL;
 	copy_v3_v3(node->co, co);
-	if (nor)
-		copy_v3_v3(node->nor, nor);
-	else
-		zero_v3(node->nor);
-
 	node->index = index;
 	node->d = 0;
+
+#ifdef DEBUG
+	tree->is_balanced = false;
+#endif
 }
 
 static KDTreeNode *kdtree_balance(KDTreeNode *nodes, unsigned int totnode, unsigned int axis)
@@ -144,9 +156,13 @@ static KDTreeNode *kdtree_balance(KDTreeNode *nodes, unsigned int totnode, unsig
 void BLI_kdtree_balance(KDTree *tree)
 {
 	tree->root = kdtree_balance(tree->nodes, tree->totnode, 0);
+
+#ifdef DEBUG
+	tree->is_balanced = true;
+#endif
 }
 
-static float squared_distance(const float v2[3], const float v1[3], const float UNUSED(n1[3]), const float n2[3])
+static float squared_distance(const float v2[3], const float v1[3], const float n2[3])
 {
 	float d[3], dist;
 
@@ -155,8 +171,6 @@ static float squared_distance(const float v2[3], const float v1[3], const float 
 	d[2] = v2[2] - v1[2];
 
 	dist = dot_v3v3(d, d);
-
-	//if (n1 && n2 && (dot_v3v3(n1, n2) < 0.0f))
 
 	/* can someone explain why this is done?*/
 	if (n2 && (dot_v3v3(d, n2) < 0.0f)) {
@@ -180,13 +194,18 @@ static KDTreeNode **realloc_nodes(KDTreeNode **stack, unsigned int *totstack, co
 /**
  * Find nearest returns index, and -1 if no node is found.
  */
-int BLI_kdtree_find_nearest(KDTree *tree, const float co[3], const float nor[3],
-                            KDTreeNearest *r_nearest)
+int BLI_kdtree_find_nearest(
+        KDTree *tree, const float co[3],
+        KDTreeNearest *r_nearest)
 {
 	KDTreeNode *root, *node, *min_node;
 	KDTreeNode **stack, *defaultstack[KD_STACK_INIT];
 	float min_dist, cur_dist;
 	unsigned int totstack, cur = 0;
+
+#ifdef DEBUG
+	BLI_assert(tree->is_balanced == true);
+#endif
 
 	if (!tree->root)
 		return -1;
@@ -196,7 +215,7 @@ int BLI_kdtree_find_nearest(KDTree *tree, const float co[3], const float nor[3],
 
 	root = tree->root;
 	min_node = root;
-	min_dist = squared_distance(root->co, co, root->nor, nor);
+	min_dist = len_squared_v3v3(root->co, co);
 
 	if (co[root->d] < root->co[root->d]) {
 		if (root->right)
@@ -220,7 +239,7 @@ int BLI_kdtree_find_nearest(KDTree *tree, const float co[3], const float nor[3],
 			cur_dist = -cur_dist * cur_dist;
 
 			if (-cur_dist < min_dist) {
-				cur_dist = squared_distance(node->co, co, node->nor, nor);
+				cur_dist = len_squared_v3v3(node->co, co);
 				if (cur_dist < min_dist) {
 					min_dist = cur_dist;
 					min_node = node;
@@ -235,7 +254,7 @@ int BLI_kdtree_find_nearest(KDTree *tree, const float co[3], const float nor[3],
 			cur_dist = cur_dist * cur_dist;
 
 			if (cur_dist < min_dist) {
-				cur_dist = squared_distance(node->co, co, node->nor, nor);
+				cur_dist = len_squared_v3v3(node->co, co);
 				if (cur_dist < min_dist) {
 					min_dist = cur_dist;
 					min_node = node;
@@ -288,15 +307,20 @@ static void add_nearest(KDTreeNearest *ptn, unsigned int *found, unsigned int n,
  *
  * \param r_nearest  An array of nearest, sized at least \a n.
  */
-int BLI_kdtree_find_nearest_n(KDTree *tree, const float co[3], const float nor[3],
-                              KDTreeNearest r_nearest[],
-                              unsigned int n)
+int BLI_kdtree_find_nearest_n__normal(
+        KDTree *tree, const float co[3], const float nor[3],
+        KDTreeNearest r_nearest[],
+        unsigned int n)
 {
 	KDTreeNode *root, *node = NULL;
 	KDTreeNode **stack, *defaultstack[KD_STACK_INIT];
 	float cur_dist;
 	unsigned int totstack, cur = 0;
 	unsigned int i, found = 0;
+
+#ifdef DEBUG
+	BLI_assert(tree->is_balanced == true);
+#endif
 
 	if (!tree->root || n == 0)
 		return 0;
@@ -306,7 +330,7 @@ int BLI_kdtree_find_nearest_n(KDTree *tree, const float co[3], const float nor[3
 
 	root = tree->root;
 
-	cur_dist = squared_distance(root->co, co, root->nor, nor);
+	cur_dist = squared_distance(root->co, co, nor);
 	add_nearest(r_nearest, &found, n, root->index, cur_dist, root->co);
 	
 	if (co[root->d] < root->co[root->d]) {
@@ -331,7 +355,7 @@ int BLI_kdtree_find_nearest_n(KDTree *tree, const float co[3], const float nor[3
 			cur_dist = -cur_dist * cur_dist;
 
 			if (found < n || -cur_dist < r_nearest[found - 1].dist) {
-				cur_dist = squared_distance(node->co, co, node->nor, nor);
+				cur_dist = squared_distance(node->co, co, nor);
 
 				if (found < n || cur_dist < r_nearest[found - 1].dist)
 					add_nearest(r_nearest, &found, n, node->index, cur_dist, node->co);
@@ -346,7 +370,7 @@ int BLI_kdtree_find_nearest_n(KDTree *tree, const float co[3], const float nor[3
 			cur_dist = cur_dist * cur_dist;
 
 			if (found < n || cur_dist < r_nearest[found - 1].dist) {
-				cur_dist = squared_distance(node->co, co, node->nor, nor);
+				cur_dist = squared_distance(node->co, co, nor);
 				if (found < n || cur_dist < r_nearest[found - 1].dist)
 					add_nearest(r_nearest, &found, n, node->index, cur_dist, node->co);
 
@@ -407,8 +431,9 @@ static void add_in_range(KDTreeNearest **ptn, unsigned int found, unsigned int *
  * Normal is optional, but if given will limit results to points in normal direction from co.
  * Remember to free nearest after use!
  */
-int BLI_kdtree_range_search(KDTree *tree, const float co[3], const float nor[3],
-                            KDTreeNearest **r_nearest, float range)
+int BLI_kdtree_range_search__normal(
+        KDTree *tree, const float co[3], const float nor[3],
+        KDTreeNearest **r_nearest, float range)
 {
 	KDTreeNode *root, *node = NULL;
 	KDTreeNode **stack, *defaultstack[KD_STACK_INIT];
@@ -416,7 +441,11 @@ int BLI_kdtree_range_search(KDTree *tree, const float co[3], const float nor[3],
 	float range2 = range * range, dist2;
 	unsigned int totstack, cur = 0, found = 0, totfoundstack = 0;
 
-	if (!tree || !tree->root)
+#ifdef DEBUG
+	BLI_assert(tree->is_balanced == true);
+#endif
+
+	if (!tree->root)
 		return 0;
 
 	stack = defaultstack;
@@ -433,7 +462,7 @@ int BLI_kdtree_range_search(KDTree *tree, const float co[3], const float nor[3],
 			stack[cur++] = root->right;
 	}
 	else {
-		dist2 = squared_distance(root->co, co, root->nor, nor);
+		dist2 = squared_distance(root->co, co, nor);
 		if (dist2 <= range2)
 			add_in_range(&foundstack, found++, &totfoundstack, root->index, dist2, root->co);
 
@@ -455,7 +484,7 @@ int BLI_kdtree_range_search(KDTree *tree, const float co[3], const float nor[3],
 				stack[cur++] = node->right;
 		}
 		else {
-			dist2 = squared_distance(node->co, co, node->nor, nor);
+			dist2 = squared_distance(node->co, co, nor);
 			if (dist2 <= range2)
 				add_in_range(&foundstack, found++, &totfoundstack, node->index, dist2, node->co);
 

@@ -29,12 +29,14 @@
 CCL_NAMESPACE_BEGIN
 
 class AttributeRequestSet;
+class Shader;
 class ShaderInput;
 class ShaderOutput;
 class ShaderNode;
 class ShaderGraph;
 class SVMCompiler;
 class OSLCompiler;
+class OutputNode;
 
 /* Socket Type
  *
@@ -75,7 +77,8 @@ enum ShaderNodeSpecialType {
 	SHADER_SPECIAL_TYPE_PROXY,
 	SHADER_SPECIAL_TYPE_MIX_CLOSURE,
 	SHADER_SPECIAL_TYPE_AUTOCONVERT,
-	SHADER_SPECIAL_TYPE_GEOMETRY
+	SHADER_SPECIAL_TYPE_GEOMETRY,
+	SHADER_SPECIAL_TYPE_SCRIPT
 };
 
 /* Enum
@@ -181,7 +184,7 @@ public:
 	ShaderOutput *add_output(const char *name, ShaderSocketType type);
 
 	virtual ShaderNode *clone() const = 0;
-	virtual void attributes(AttributeRequestSet *attributes);
+	virtual void attributes(Shader *shader, AttributeRequestSet *attributes);
 	virtual void compile(SVMCompiler& compiler) = 0;
 	virtual void compile(OSLCompiler& compiler) = 0;
 
@@ -237,7 +240,7 @@ public:
 	ShaderGraph *copy();
 
 	ShaderNode *add(ShaderNode *node);
-	ShaderNode *output();
+	OutputNode *output();
 
 	void connect(ShaderOutput *from, ShaderInput *to);
 	void disconnect(ShaderInput *to);

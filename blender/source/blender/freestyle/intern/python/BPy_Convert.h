@@ -130,13 +130,13 @@ PyObject * BPy_Chain_from_Chain(Chain& c);
 PyObject * BPy_ViewShape_from_ViewShape(ViewShape& vs);
 
 PyObject * BPy_AdjacencyIterator_from_AdjacencyIterator(AdjacencyIterator& a_it);
-PyObject * BPy_Interface0DIterator_from_Interface0DIterator(Interface0DIterator& if0D_it, int reversed);
+PyObject * BPy_Interface0DIterator_from_Interface0DIterator(Interface0DIterator& if0D_it, bool reversed);
 PyObject * BPy_CurvePointIterator_from_CurvePointIterator(CurveInternal::CurvePointIterator& cp_it);
 PyObject * BPy_StrokeVertexIterator_from_StrokeVertexIterator(StrokeInternal::StrokeVertexIterator& sv_it,
-                                                              int reversed);
+                                                              bool reversed);
 PyObject * BPy_SVertexIterator_from_SVertexIterator(ViewEdgeInternal::SVertexIterator& sv_it);
 PyObject * BPy_orientedViewEdgeIterator_from_orientedViewEdgeIterator(ViewVertexInternal::orientedViewEdgeIterator& ove_it,
-                                                                      int reversed);
+                                                                      bool reversed);
 PyObject * BPy_ViewEdgeIterator_from_ViewEdgeIterator(ViewEdgeInternal::ViewEdgeIterator& ve_it);
 PyObject * BPy_ChainingIterator_from_ChainingIterator(ChainingIterator& c_it);
 PyObject * BPy_ChainPredicateIterator_from_ChainPredicateIterator(ChainPredicateIterator& cp_it);
@@ -150,22 +150,22 @@ bool bool_from_PyBool(PyObject *b);
 IntegrationType IntegrationType_from_BPy_IntegrationType(PyObject *obj);
 Stroke::MediumType MediumType_from_BPy_MediumType(PyObject *obj);
 Nature::EdgeNature EdgeNature_from_BPy_Nature(PyObject *obj);
-Vec2f * Vec2f_ptr_from_PyObject(PyObject *obj);
-Vec3f * Vec3f_ptr_from_PyObject(PyObject *obj);
-Vec3r * Vec3r_ptr_from_PyObject(PyObject *obj);
-Vec2f * Vec2f_ptr_from_Vector(PyObject *obj);
-Vec3f * Vec3f_ptr_from_Vector(PyObject *obj);
-Vec3r * Vec3r_ptr_from_Vector(PyObject *obj);
-Vec3f * Vec3f_ptr_from_Color(PyObject *obj);
-Vec3r * Vec3r_ptr_from_Color(PyObject *obj);
-Vec2f * Vec2f_ptr_from_PyList(PyObject *obj);
-Vec3f * Vec3f_ptr_from_PyList(PyObject *obj);
-Vec3r * Vec3r_ptr_from_PyList(PyObject *obj);
-Vec2f * Vec2f_ptr_from_PyTuple(PyObject *obj);
-Vec3f * Vec3f_ptr_from_PyTuple(PyObject *obj);
-Vec3r * Vec3r_ptr_from_PyTuple(PyObject *obj);
+bool Vec2f_ptr_from_PyObject(PyObject *obj, Vec2f &vec);
+bool Vec3f_ptr_from_PyObject(PyObject *obj, Vec3f &vec);
+bool Vec3r_ptr_from_PyObject(PyObject *obj, Vec3r &vec);
+bool Vec2f_ptr_from_Vector(PyObject *obj, Vec2f &vec);
+bool Vec3f_ptr_from_Vector(PyObject *obj, Vec3f &vec);
+bool Vec3r_ptr_from_Vector(PyObject *obj, Vec3r &vec);
+bool Vec3f_ptr_from_Color(PyObject *obj, Vec3f &vec);
+bool Vec3r_ptr_from_Color(PyObject *obj, Vec3r &vec);
+bool Vec2f_ptr_from_PyList(PyObject *obj, Vec2f &vec);
+bool Vec3f_ptr_from_PyList(PyObject *obj, Vec3f &vec);
+bool Vec3r_ptr_from_PyList(PyObject *obj, Vec3r &vec);
+bool Vec2f_ptr_from_PyTuple(PyObject *obj, Vec2f &vec);
+bool Vec3f_ptr_from_PyTuple(PyObject *obj, Vec3f &vec);
+bool Vec3r_ptr_from_PyTuple(PyObject *obj, Vec3r &vec);
 
-int float_array_from_PyObject(PyObject *obj, float *v, int n);
+bool float_array_from_PyObject(PyObject *obj, float *v, int n);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////

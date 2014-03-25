@@ -74,14 +74,15 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
     row.prop(km, "show_expanded_children", text="", emboss=False)
     row.label(text=km.name, text_ctxt=i18n_contexts.id_windowmanager)
 
-    subrow = row.row()
-    subrow.alignment = 'RIGHT'
+    if km.is_user_modified or km.is_modal:
+        subrow = row.row()
+        subrow.alignment = 'RIGHT'
 
-    if km.is_user_modified:
-        subrow.operator("wm.keymap_restore", text="Restore")
-    if km.is_modal:
-        subrow.label(text="", icon='LINKED')
-    del subrow
+        if km.is_user_modified:
+            subrow.operator("wm.keymap_restore", text="Restore")
+        if km.is_modal:
+            subrow.label(text="", icon='LINKED')
+        del subrow
 
     if km.show_expanded_children:
         if children:
@@ -209,6 +210,7 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
 
 _EVENT_TYPES = set()
 _EVENT_TYPE_MAP = {}
+_EVENT_TYPE_MAP_EXTRA = {}
 
 
 def draw_filtered(display_keymaps, filter_type, filter_text, layout):
@@ -225,7 +227,7 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
                                     for key, item in enum.items()})
 
             del enum
-            _EVENT_TYPE_MAP.update({
+            _EVENT_TYPE_MAP_EXTRA.update({
                 "`": 'ACCENT_GRAVE',
                 "*": 'NUMPAD_ASTERIX',
                 "/": 'NUMPAD_SLASH',
@@ -233,7 +235,7 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
                 "LMB": 'LEFTMOUSE',
                 "MMB": 'MIDDLEMOUSE',
                 })
-            _EVENT_TYPE_MAP.update({
+            _EVENT_TYPE_MAP_EXTRA.update({
                 "%d" % i: "NUMPAD_%d" % i for i in range(9)
                 })
         # done with once off init
@@ -251,52 +253,75 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
             "any": "any",
             }
         # KeyMapItem like dict, use for comparing against
-        # attr: state
+        # attr: {states, ...}
         kmi_test_dict = {}
+        # Special handling of 'type' using a list if sets,
+        # keymap items must match against all.
+        kmi_test_type = []
 
         # initialize? - so if a if a kmi has a MOD assigned it wont show up.
         #~ for kv in key_mod.values():
-        #~    kmi_test_dict[kv] = False
+        #~    kmi_test_dict[kv] = {False}
 
         # altname: attr
         for kk, kv in key_mod.items():
             if kk in filter_text_split:
                 filter_text_split.remove(kk)
-                kmi_test_dict[kv] = True
+                kmi_test_dict[kv] = {True}
+
         # whats left should be the event type
-        if len(filter_text_split) > 1:
-            return False
-        elif filter_text_split:
-            kmi_type = filter_text_split[0].upper()
+        def kmi_type_set_from_string(kmi_type):
+            kmi_type = kmi_type.upper()
+            kmi_type_set = set()
 
-            if kmi_type not in _EVENT_TYPES:
+            if kmi_type in _EVENT_TYPES:
+                kmi_type_set.add(kmi_type)
+
+            if not kmi_type_set or len(kmi_type) > 1:
                 # replacement table
-                kmi_type_test = _EVENT_TYPE_MAP.get(kmi_type)
-                if kmi_type_test is None:
-                    # print("Unknown Type:", kmi_type)
+                for event_type_map in (_EVENT_TYPE_MAP, _EVENT_TYPE_MAP_EXTRA):
+                    kmi_type_test = event_type_map.get(kmi_type)
+                    if kmi_type_test is not None:
+                        kmi_type_set.add(kmi_type_test)
+                    else:
+                        # print("Unknown Type:", kmi_type)
 
-                    # Partial match
-                    for k, v in _EVENT_TYPE_MAP.items():
-                        if kmi_type in k:
-                            kmi_type_test = v
-                            break
-                        if kmi_type in v:
-                            kmi_type_test = v
-                            break
+                        # Partial match
+                        for k, v in event_type_map.items():
+                            if (kmi_type in k) or (kmi_type in v):
+                                kmi_type_set.add(v)
+            return kmi_type_set
 
-                    if kmi_type_test is None:
-                        return False
+        kmi_type_set_combine = None
+        for i, kmi_type in enumerate(filter_text_split):
+            kmi_type_set = kmi_type_set_from_string(kmi_type)
 
-                kmi_type = kmi_type_test
-                del kmi_type_test
+            if not kmi_type_set:
+                return False
 
-            kmi_test_dict["type"] = kmi_type
+            kmi_test_type.append(kmi_type_set)
+        # tiny optimization, sort sets so the smallest is first
+        # improve chances of failing early
+        kmi_test_type.sort(key=lambda kmi_type_set: len(kmi_type_set))
 
         # main filter func, runs many times
         def filter_func(kmi):
             for kk, ki in kmi_test_dict.items():
-                if getattr(kmi, kk) != ki:
+                val = getattr(kmi, kk)
+                if val not in ki:
                     return False
+
+            # special handling of 'type'
+            for ki in kmi_test_type:
+                val = kmi.type
+                if val == 'NONE' or val not in ki:
+                    # exception for 'type'
+                    # also inspect 'key_modifier' as a fallback
+                    val = kmi.key_modifier
+                    if not (val == 'NONE' or val not in ki):
+                        continue
+                    return False
+
             return True
 
     for km, kc in display_keymaps:

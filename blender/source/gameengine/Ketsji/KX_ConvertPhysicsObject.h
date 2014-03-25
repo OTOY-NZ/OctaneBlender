@@ -71,6 +71,7 @@ struct KX_ObjectProperties
 	bool	m_ghost;
 	class KX_GameObject*	m_dynamic_parent;
 	bool	m_isactor;
+	bool	m_record_animation;
 	bool	m_sensor;
 	bool	m_character;
 	bool	m_concave;
@@ -136,14 +137,6 @@ struct KX_ObjectProperties
 		KX_CBounds	c;
 	} m_boundobject;
 };
-
-void	KX_ConvertDynamoObject(KX_GameObject* gameobj,
-	RAS_MeshObject* meshobj,
-	KX_Scene* kxscene,
-	struct	PHY_ShapeProps* shapeprops,
-	struct	PHY_MaterialProps*	smmaterial,
-	struct	KX_ObjectProperties*	objprop);
-
 
 #ifdef WITH_BULLET
 

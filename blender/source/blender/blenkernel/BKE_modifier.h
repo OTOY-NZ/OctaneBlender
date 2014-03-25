@@ -318,9 +318,11 @@ void          modifier_free(struct ModifierData *md);
 
 void          modifier_unique_name(struct ListBase *modifiers, struct ModifierData *md);
 
+void          modifier_copyData_generic(const struct ModifierData *md, struct ModifierData *target);
 void          modifier_copyData(struct ModifierData *md, struct ModifierData *target);
 bool          modifier_dependsOnTime(struct ModifierData *md);
 bool          modifier_supportsMapping(struct ModifierData *md);
+bool          modifier_supportsCage(struct Scene *scene, struct ModifierData *md);
 bool          modifier_couldBeCage(struct Scene *scene, struct ModifierData *md);
 bool          modifier_isCorrectableDeformed(struct ModifierData *md);
 bool          modifier_isSameTopology(ModifierData *md);
@@ -343,7 +345,7 @@ struct ModifierData  *modifiers_findByType(struct Object *ob, ModifierType type)
 struct ModifierData  *modifiers_findByName(struct Object *ob, const char *name);
 void          modifiers_clearErrors(struct Object *ob);
 int           modifiers_getCageIndex(struct Scene *scene, struct Object *ob,
-                                     int *lastPossibleCageIndex_r, int virtual_);
+                                     int *r_lastPossibleCageIndex, bool is_virtual);
 
 bool          modifiers_isModifierEnabled(struct Object *ob, int modifierType);
 bool          modifiers_isSoftbodyEnabled(struct Object *ob);

@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Light Path Node */
 
-__device void svm_node_light_path(ShaderData *sd, float *stack, uint type, uint out_offset, int path_flag)
+ccl_device void svm_node_light_path(ShaderData *sd, float *stack, uint type, uint out_offset, int path_flag)
 {
 	float info = 0.0f;
 
@@ -30,6 +30,7 @@ __device void svm_node_light_path(ShaderData *sd, float *stack, uint type, uint 
 		case NODE_LP_singular: info = (path_flag & PATH_RAY_SINGULAR)? 1.0f: 0.0f; break;
 		case NODE_LP_reflection: info = (path_flag & PATH_RAY_REFLECT)? 1.0f: 0.0f; break;
 		case NODE_LP_transmission: info = (path_flag & PATH_RAY_TRANSMIT)? 1.0f: 0.0f; break;
+		case NODE_LP_volume_scatter: info = (path_flag & PATH_RAY_VOLUME_SCATTER)? 1.0f: 0.0f; break;
 		case NODE_LP_backfacing: info = (sd->flag & SD_BACKFACING)? 1.0f: 0.0f; break;
 		case NODE_LP_ray_length: info = sd->ray_length; break;
 		case NODE_LP_ray_depth: info = (float)sd->ray_depth; break;
@@ -40,7 +41,7 @@ __device void svm_node_light_path(ShaderData *sd, float *stack, uint type, uint 
 
 /* Light Falloff Node */
 
-__device void svm_node_light_falloff(ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_light_falloff(ShaderData *sd, float *stack, uint4 node)
 {
 	uint strength_offset, out_offset, smooth_offset;
 

@@ -71,6 +71,7 @@ void render_result_free(RenderResult *res)
 		/* acolrect and scolrect are optionally allocated in shade_tile, only free here since it can be used for drawing */
 		if (rl->acolrect) MEM_freeN(rl->acolrect);
 		if (rl->scolrect) MEM_freeN(rl->scolrect);
+		if (rl->display_buffer) MEM_freeN(rl->display_buffer);
 		
 		while (rl->passes.first) {
 			RenderPass *rpass = rl->passes.first;
@@ -501,6 +502,8 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 		rl->recty = recty;
 		
 		if (rr->do_exr_tile) {
+			rl->display_buffer = MEM_mapallocN(rectx * recty * sizeof(unsigned int), "Combined display space rgba");
+
 			rl->exrhandle = IMB_exr_get_handle();
 
 			IMB_exr_add_channel(rl->exrhandle, rl->name, "Combined.R", 0, 0, NULL);
@@ -573,7 +576,7 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_SUBSURFACE_COLOR);
 	}
 	/* sss, previewrender and envmap don't do layers, so we make a default one */
-	if (rr->layers.first == NULL && !(layername && layername[0])) {
+	if (BLI_listbase_is_empty(&rr->layers) && !(layername && layername[0])) {
 		rl = MEM_callocN(sizeof(RenderLayer), "new render layer");
 		BLI_addtail(&rr->layers, rl);
 		
@@ -865,7 +868,7 @@ void render_result_single_layer_end(Render *re)
 		BLI_remlink(&re->result->layers, rl);
 		
 		/* reconstruct render result layers */
-		for (nr = 0, srl = re->scene->r.layers.first; srl; srl = srl->next, nr++) {
+		for (nr = 0, srl = re->r.layers.first; srl; srl = srl->next, nr++) {
 			if (nr == re->r.actlay) {
 				BLI_addtail(&re->result->layers, rl);
 			}
@@ -1124,7 +1127,13 @@ ImBuf *render_result_rect_to_ibuf(RenderResult *rr, RenderData *rd)
 	 */
 	if (ibuf->rect) {
 		if (BKE_imtype_valid_depths(rd->im_format.imtype) & (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32)) {
-			IMB_float_from_rect(ibuf);
+			if (rd->im_format.depth == R_IMF_CHAN_DEPTH_8) {
+				/* Higher depth bits are supported but not needed for current file output. */
+				ibuf->rect_float = NULL;
+			}
+			else {
+				IMB_float_from_rect(ibuf);
+			}
 		}
 		else {
 			/* ensure no float buffer remained from previous frame */

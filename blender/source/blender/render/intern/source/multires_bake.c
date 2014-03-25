@@ -95,6 +95,7 @@ typedef struct {
 	char *texels;
 	const MResolvePixelData *data;
 	MFlushPixel flush_pixel;
+	short *do_update;
 } MBakeRast;
 
 typedef struct {
@@ -124,7 +125,7 @@ typedef struct {
 	const int *orig_index_mp_to_orig;
 } MAOBakeData;
 
-static void multiresbake_get_normal(const MResolvePixelData *data, float norm[], const int face_num, const int vert_index)
+static void multiresbake_get_normal(const MResolvePixelData *data, float norm[],const int face_num, const int vert_index)
 {
 	unsigned int indices[] = {data->mface[face_num].v1, data->mface[face_num].v2,
 	                          data->mface[face_num].v3, data->mface[face_num].v4};
@@ -162,7 +163,8 @@ static void multiresbake_get_normal(const MResolvePixelData *data, float norm[],
 	}
 }
 
-static void init_bake_rast(MBakeRast *bake_rast, const ImBuf *ibuf, const MResolvePixelData *data, MFlushPixel flush_pixel)
+static void init_bake_rast(MBakeRast *bake_rast, const ImBuf *ibuf, const MResolvePixelData *data,
+                           MFlushPixel flush_pixel, short *do_update)
 {
 	BakeImBufuserData *userdata = (BakeImBufuserData *) ibuf->userdata;
 
@@ -173,6 +175,7 @@ static void init_bake_rast(MBakeRast *bake_rast, const ImBuf *ibuf, const MResol
 	bake_rast->h = ibuf->y;
 	bake_rast->data = data;
 	bake_rast->flush_pixel = flush_pixel;
+	bake_rast->do_update = do_update;
 }
 
 static void flush_pixel(const MResolvePixelData *data, const int x, const int y)
@@ -240,6 +243,9 @@ static void set_rast_triangle(const MBakeRast *bake_rast, const int x, const int
 		if ((bake_rast->texels[y * w + x]) == 0) {
 			bake_rast->texels[y * w + x] = FILTER_MASK_USED;
 			flush_pixel(bake_rast->data, x, y);
+			if (bake_rast->do_update) {
+				*bake_rast->do_update = true;
+			}
 		}
 	}
 }
@@ -529,7 +535,7 @@ static void do_multires_bake(MultiresBakeRender *bkr, Image *ima, int require_ta
 			handle->height_min = FLT_MAX;
 			handle->height_max = -FLT_MAX;
 
-			init_bake_rast(&handle->bake_rast, ibuf, &handle->data, flush_pixel);
+			init_bake_rast(&handle->bake_rast, ibuf, &handle->data, flush_pixel, bkr->do_update);
 
 			if (tot_thread > 1)
 				BLI_insert_thread(&threads, handle);
@@ -1191,7 +1197,7 @@ static void count_images(MultiresBakeRender *bkr)
 	DerivedMesh *dm = bkr->lores_dm;
 	MTFace *mtface = CustomData_get_layer(&dm->faceData, CD_MTFACE);
 
-	bkr->image.first = bkr->image.last = NULL;
+	BLI_listbase_clear(&bkr->image);
 	bkr->tot_image = 0;
 
 	totface = dm->getNumTessFaces(dm);
@@ -1231,6 +1237,7 @@ static void bake_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 					do_multires_bake(bkr, ima, TRUE, apply_tangmat_callback, init_normal_data, free_normal_data, result);
 					break;
 				case RE_BAKE_DISPLACEMENT:
+				case RE_BAKE_DERIVATIVE:
 					do_multires_bake(bkr, ima, FALSE, apply_heights_callback, init_heights_data, free_heights_data, result);
 					break;
 				case RE_BAKE_AO:
@@ -1248,7 +1255,7 @@ static void bake_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 static void finish_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 {
 	LinkData *link;
-	int use_displacement_buffer = bkr->mode == RE_BAKE_DISPLACEMENT;
+	bool use_displacement_buffer = ELEM(bkr->mode, RE_BAKE_DISPLACEMENT, RE_BAKE_DERIVATIVE);
 
 	for (link = bkr->image.first; link; link = link->next) {
 		Image *ima = (Image *)link->data;
@@ -1259,8 +1266,14 @@ static void finish_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 			continue;
 
 		if (use_displacement_buffer) {
-			RE_bake_ibuf_normalize_displacement(ibuf, userdata->displacement_buffer, userdata->mask_buffer,
-			                                    result->height_min, result->height_max);
+			if (bkr->mode == RE_BAKE_DERIVATIVE) {
+				RE_bake_make_derivative(ibuf, userdata->displacement_buffer, userdata->mask_buffer,
+				                        result->height_min, result->height_max, bkr->user_scale);
+			}
+			else {
+				RE_bake_ibuf_normalize_displacement(ibuf, userdata->displacement_buffer, userdata->mask_buffer,
+				                                    result->height_min, result->height_max);
+			}
 		}
 
 		RE_bake_ibuf_filter(ibuf, userdata->mask_buffer, bkr->bake_filter);

@@ -48,7 +48,7 @@ class USERPREF_HT_header(Header):
     def draw(self, context):
         layout = self.layout
 
-        layout.template_header(menus=False)
+        layout.template_header()
 
         userpref = context.user_preferences
 
@@ -61,7 +61,7 @@ class USERPREF_HT_header(Header):
             layout.operator("wm.keyconfig_import")
             layout.operator("wm.keyconfig_export")
         elif userpref.active_section == 'ADDONS':
-            layout.operator("wm.addon_install", icon="FILESEL")
+            layout.operator("wm.addon_install", icon='FILESEL')
             layout.operator("wm.addon_refresh", icon='FILE_REFRESH')
             layout.menu("USERPREF_MT_addons_dev_guides")
         elif userpref.active_section == 'THEMES':
@@ -210,10 +210,14 @@ class USERPREF_PT_interface(Panel):
 
         col.label(text="Menus:")
         col.prop(view, "use_mouse_over_open")
-        col.label(text="Menu Open Delay:")
-        col.prop(view, "open_toplevel_delay", text="Top Level")
-        col.prop(view, "open_sublevel_delay", text="Sub Level")
+        sub = col.column()
+        sub.active = view.use_mouse_over_open
 
+        sub.prop(view, "open_toplevel_delay", text="Top Level")
+        sub.prop(view, "open_sublevel_delay", text="Sub Level")
+
+        col.separator()
+        col.separator()
         col.separator()
 
         col.prop(view, "show_splash")
@@ -268,11 +272,15 @@ class USERPREF_PT_edit(Panel):
 
         col = row.column()
         col.label(text="Grease Pencil:")
+        col.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
+        col.separator()
         col.prop(edit, "grease_pencil_manhattan_distance", text="Manhattan Distance")
         col.prop(edit, "grease_pencil_euclidean_distance", text="Euclidean Distance")
-        col.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
+        col.separator()
         col.prop(edit, "use_grease_pencil_smooth_stroke", text="Smooth Stroke")
         col.prop(edit, "use_grease_pencil_simplify_stroke", text="Simplify Stroke")
+        col.separator()
+        col.prop(edit, "grease_pencil_default_color", text="Default Color")
         col.separator()
         col.separator()
         col.separator()
@@ -372,7 +380,6 @@ class USERPREF_PT_system(Panel):
         col.prop(system, "scrollback", text="Console Scrollback")
 
         col.separator()
-        col.separator()
 
         col.label(text="Sound:")
         col.row().prop(system, "audio_device", expand=True)
@@ -385,13 +392,11 @@ class USERPREF_PT_system(Panel):
         sub.prop(system, "audio_sample_format", text="Sample Format")
 
         col.separator()
-        col.separator()
 
         col.label(text="Screencast:")
         col.prop(system, "screencast_fps")
         col.prop(system, "screencast_wait_time")
 
-        col.separator()
         col.separator()
 
         if hasattr(system, "compute_device_type"):
@@ -411,9 +416,15 @@ class USERPREF_PT_system(Panel):
         col.prop(system, "use_mipmaps")
         col.prop(system, "use_gpu_mipmap")
         col.prop(system, "use_16bit_textures")
+
+        col.separator()
+
         col.label(text="Anisotropic Filtering")
         col.prop(system, "anisotropic_filter", text="")
         col.prop(system, "use_vertex_buffer_objects")
+
+        col.separator()
+
         col.label(text="Window Draw Method:")
         col.prop(system, "window_draw_method", text="")
         col.prop(system, "multi_sample", text="")
@@ -421,8 +432,14 @@ class USERPREF_PT_system(Panel):
             col.label(text="Might fail for Mesh editing selection!")
             col.separator()
         col.prop(system, "use_region_overlap")
+
+        col.separator()
+
         col.label(text="Text Draw Options:")
         col.prop(system, "use_text_antialiasing")
+
+        col.separator()
+
         col.label(text="Textures:")
         col.prop(system, "gl_texture_limit", text="Limit Size")
         col.prop(system, "texture_time_out", text="Time Out")
@@ -433,7 +450,6 @@ class USERPREF_PT_system(Panel):
         col.label(text="Images Draw Method:")
         col.prop(system, "image_draw_method", text="")
 
-        col.separator()
         col.separator()
 
         col.label(text="Sequencer / Clip Editor:")
@@ -897,11 +913,13 @@ class USERPREF_PT_file(Panel):
         col.prop(paths, "show_thumbnails")
 
         col.separator()
-        col.separator()
 
         col.prop(paths, "save_version")
         col.prop(paths, "recent_files")
         col.prop(paths, "use_save_preview_images")
+
+        col.separator()
+
         col.label(text="Auto Save:")
         col.prop(paths, "use_keep_session")
         col.prop(paths, "use_auto_save_temporary_files")
@@ -914,8 +932,13 @@ class USERPREF_PT_file(Panel):
         col.label(text="Text Editor:")
         col.prop(system, "use_tabs_as_spaces")
 
-        col.label(text="Author:")
-        col.prop(system, "author", text="")
+        colsplit = col.split(percentage=0.95)
+        col1 = colsplit.split(percentage=0.3)
+
+        sub = col1.column()
+        sub.label(text="Author:")
+        sub = col1.column()
+        sub.prop(system, "author", text="")
 
 
 class USERPREF_MT_ndof_settings(Menu):
@@ -927,33 +950,39 @@ class USERPREF_MT_ndof_settings(Menu):
 
         input_prefs = context.user_preferences.inputs
 
-        layout.separator()
+        is_view3d = context.space_data.type == 'VIEW_3D'
+
         layout.prop(input_prefs, "ndof_sensitivity")
         layout.prop(input_prefs, "ndof_orbit_sensitivity")
 
-        if context.space_data.type == 'VIEW_3D':
+        if is_view3d:
             layout.separator()
             layout.prop(input_prefs, "ndof_show_guide")
 
             layout.separator()
-            layout.label(text="Orbit options")
+            layout.label(text="Orbit style")
+            layout.row().prop(input_prefs, "ndof_view_navigate_method", text="")
             layout.row().prop(input_prefs, "ndof_view_rotate_method", text="")
-            layout.prop(input_prefs, "ndof_roll_invert_axis")
-            layout.prop(input_prefs, "ndof_tilt_invert_axis")
-            layout.prop(input_prefs, "ndof_rotate_invert_axis")
-
             layout.separator()
-            layout.label(text="Pan options")
-            layout.prop(input_prefs, "ndof_panx_invert_axis")
-            layout.prop(input_prefs, "ndof_pany_invert_axis")
-            layout.prop(input_prefs, "ndof_panz_invert_axis")
+            layout.label(text="Orbit options")
+            layout.prop(input_prefs, "ndof_rotx_invert_axis")
+            layout.prop(input_prefs, "ndof_roty_invert_axis")
+            layout.prop(input_prefs, "ndof_rotz_invert_axis")
 
-            layout.label(text="Zoom options")
-            layout.prop(input_prefs, "ndof_zoom_invert")
-            layout.prop(input_prefs, "ndof_zoom_updown")
+        # view2d use pan/zoom
+        layout.separator()
+        layout.label(text="Pan options")
+        layout.prop(input_prefs, "ndof_panx_invert_axis")
+        layout.prop(input_prefs, "ndof_pany_invert_axis")
+        layout.prop(input_prefs, "ndof_panz_invert_axis")
+        layout.prop(input_prefs, "ndof_pan_yz_swap_axis")
 
+        layout.label(text="Zoom options")
+        layout.prop(input_prefs, "ndof_zoom_invert")
+
+        if is_view3d:
             layout.separator()
-            layout.label(text="Fly options")
+            layout.label(text="Fly/Walk options")
             layout.prop(input_prefs, "ndof_fly_helicopter", icon='NDOF_FLY')
             layout.prop(input_prefs, "ndof_lock_horizon", icon='NDOF_DOM')
 
@@ -1023,31 +1052,54 @@ class USERPREF_PT_input(Panel):
         sub.label(text="Orbit Style:")
         sub.row().prop(inputs, "view_rotate_method", expand=True)
 
+        sub.separator()
+
         sub.label(text="Zoom Style:")
         sub.row().prop(inputs, "view_zoom_method", text="")
         if inputs.view_zoom_method in {'DOLLY', 'CONTINUE'}:
             sub.row().prop(inputs, "view_zoom_axis", expand=True)
-            sub.prop(inputs, "invert_mouse_zoom")
+            sub.prop(inputs, "invert_mouse_zoom", text="Invert Mouse Zoom Direction")
 
         #sub.prop(inputs, "use_mouse_mmb_paste")
 
         #col.separator()
 
         sub = col.column()
-        sub.label(text="Mouse Wheel:")
         sub.prop(inputs, "invert_zoom_wheel", text="Invert Wheel Zoom Direction")
         #sub.prop(view, "wheel_scroll_lines", text="Scroll Lines")
 
         if sys.platform == "darwin":
             sub = col.column()
-            sub.label(text="Trackpad:")
-            sub.prop(inputs, "use_trackpad_natural")
+            sub.prop(inputs, "use_trackpad_natural", text="Natural Trackpad Direction")
+
+        col.separator()
+        sub = col.column()
+        sub.label(text="View Navigation:")
+        sub.row().prop(inputs, "navigation_mode", expand=True)
+        if inputs.navigation_mode == 'WALK':
+            walk = inputs.walk_navigation
+
+            sub.prop(walk, "use_mouse_reverse")
+            sub.prop(walk, "mouse_speed")
+            sub.prop(walk, "teleport_time")
+
+            sub = col.column(align=True)
+            sub.prop(walk, "walk_speed")
+            sub.prop(walk, "walk_speed_factor")
+
+            sub.separator()
+            sub.prop(walk, "use_gravity")
+            sub = col.column(align=True)
+            sub.active = walk.use_gravity
+            sub.prop(walk, "view_height")
+            sub.prop(walk, "jump_height")
 
         col.separator()
         sub = col.column()
         sub.label(text="NDOF Device:")
         sub.prop(inputs, "ndof_sensitivity", text="NDOF Sensitivity")
         sub.prop(inputs, "ndof_orbit_sensitivity", text="NDOF Orbit Sensitivity")
+        sub.row().prop(inputs, "ndof_view_navigate_method", expand=True)
         sub.row().prop(inputs, "ndof_view_rotate_method", expand=True)
 
         row.separator()
@@ -1251,15 +1303,15 @@ class USERPREF_PT_addons(Panel):
                         split.label(text='  ' + info["warning"], icon='ERROR')
 
                     user_addon = USERPREF_PT_addons.is_user_addon(mod, user_addon_paths)
-                    tot_row = bool(info["wiki_url"]) + bool(info["tracker_url"]) + bool(user_addon)
+                    tot_row = bool(info["wiki_url"]) + bool(user_addon)
 
                     if tot_row:
                         split = colsub.row().split(percentage=0.15)
                         split.label(text="Internet:")
                         if info["wiki_url"]:
                             split.operator("wm.url_open", text="Documentation", icon='HELP').url = info["wiki_url"]
-                        if info["tracker_url"]:
-                            split.operator("wm.url_open", text="Report a Bug", icon='URL').url = info["tracker_url"]
+                        tracker_url = "http://developer.blender.org/maniphest/task/create/?project=3&type=Bug"
+                        split.operator("wm.url_open", text="Report a Bug", icon='URL').url = tracker_url
                         if user_addon:
                             split.operator("wm.addon_remove", text="Remove", icon='CANCEL').module = mod.__name__
 

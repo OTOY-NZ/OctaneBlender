@@ -30,7 +30,7 @@
 
 #include <cstring> // for memset
 #include <float.h>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || _MSC_VER >= 1700
 #include <stdint.h> // For SET_UINT_IN_POINTER, i.e. uintptr_t.
 #endif
 #include <vector>
@@ -261,7 +261,7 @@ public:
 	/*! inserts a convex polygon occluder
 	 *  This method is quite coarse insofar as it adds all cells intersecting the polygon bounding box
 	 *    convex_poly
-	 *      The list of 3D points constituing a convex polygon
+	 *      The list of 3D points constituting a convex polygon
 	 */
 	void insertOccluder(Polygon3r *convex_poly);
 

@@ -279,7 +279,17 @@ static void InputAngle(TransInfo *UNUSED(t), MouseInput *mi, const int mval[2], 
 	output[0] = *angle;
 }
 
-void initMouseInput(TransInfo *UNUSED(t), MouseInput *mi, const int center[2], const int mval[2])
+static void InputAngleSpring(TransInfo *t, MouseInput *mi, const int mval[2], float output[3])
+{
+	float toutput[3];
+
+	InputAngle(t, mi, mval, output);
+	InputSpring(t, mi, mval, toutput);
+
+	output[1] = toutput[0];
+}
+
+void initMouseInput(TransInfo *UNUSED(t), MouseInput *mi, const float center[2], const int mval[2])
 {
 	mi->factor = 0;
 	mi->precision = 0;
@@ -326,6 +336,12 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
 		case INPUT_ANGLE:
 			mi->data = MEM_callocN(sizeof(double), "angle accumulator");
 			mi->apply = InputAngle;
+			t->helpline = HLP_ANGLE;
+			break;
+		case INPUT_ANGLE_SPRING:
+			calcSpringFactor(mi);
+			mi->data = MEM_callocN(sizeof(double), "angle accumulator");
+			mi->apply = InputAngleSpring;
 			t->helpline = HLP_ANGLE;
 			break;
 		case INPUT_TRACKBALL:
@@ -391,9 +407,9 @@ void applyMouseInput(TransInfo *t, MouseInput *mi, const int mval[2], float outp
 	}
 }
 
-int handleMouseInput(TransInfo *t, MouseInput *mi, const wmEvent *event)
+eRedrawFlag handleMouseInput(TransInfo *t, MouseInput *mi, const wmEvent *event)
 {
-	int redraw = TREDRAW_NOTHING;
+	eRedrawFlag redraw = TREDRAW_NOTHING;
 
 	switch (event->type) {
 		case LEFTSHIFTKEY:

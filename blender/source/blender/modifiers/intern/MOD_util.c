@@ -61,36 +61,17 @@
 
 #include "RE_shader_ext.h"
 
+#ifdef OPENNL_THREADING_HACK
+#include "BLI_threads.h"
+#endif
+
 void modifier_init_texture(Scene *scene, Tex *tex)
 {
 	if (!tex)
 		return;
 
-	if (tex->ima && ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE))
+	if (tex->ima && BKE_image_is_animated(tex->ima)) {
 		BKE_image_user_frame_calc(&tex->iuser, scene->r.cfra, 0);
-}
-
-void get_texture_value(Scene *scene, Tex *texture, float *tex_co, TexResult *texres, bool use_color_management)
-{
-	int result_type;
-	bool do_color_manage = false;
-
-	if (use_color_management) {
-		do_color_manage = BKE_scene_check_color_management_enabled(scene);
-	}
-
-	/* no node textures for now */
-	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, do_color_manage);
-
-	/* if the texture gave an RGB value, we assume it didn't give a valid
-	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.
-	 * if the texture didn't give an RGB value, copy the intensity across
-	 */
-	if (result_type & TEX_RGB) {
-		texres->tin = (1.0f / 3.0f) * (texres->tr + texres->tg + texres->tb);
-	}
-	else {
-		copy_v3_fl(&texres->tr, texres->tin);
 	}
 }
 
@@ -206,8 +187,8 @@ DerivedMesh *get_dm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
 		/* pass */
 	}
 	else if (ob->type == OB_MESH) {
-		if (em) dm = CDDM_from_editbmesh(em, FALSE, FALSE);
-		else dm = CDDM_from_mesh((struct Mesh *)(ob->data), ob);
+		if (em) dm = CDDM_from_editbmesh(em, false, false);
+		else dm = CDDM_from_mesh((struct Mesh *)(ob->data));
 
 		if (vertexCos) {
 			CDDM_apply_vert_coords(dm, vertexCos);
@@ -231,6 +212,20 @@ DerivedMesh *get_dm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
 	return dm;
 }
 
+/* Get derived mesh for other object, which is used as an operand for the modifier,
+ * i.e. second operand for boolean modifier.
+ */
+DerivedMesh *get_dm_for_modifier(Object *ob, ModifierApplyFlag flag)
+{
+	if (flag & MOD_APPLY_RENDER) {
+		/* TODO(sergey): Use proper derived render in the future. */
+		return ob->derivedFinal;
+	}
+	else {
+		return ob->derivedFinal;
+	}
+}
+
 void modifier_get_vgroup(Object *ob, DerivedMesh *dm, const char *name, MDeformVert **dvert, int *defgrp_index)
 {
 	*defgrp_index = defgroup_name_index(ob, name);
@@ -243,6 +238,24 @@ void modifier_get_vgroup(Object *ob, DerivedMesh *dm, const char *name, MDeformV
 			*dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
 	}
 }
+
+
+#ifdef OPENNL_THREADING_HACK
+
+static ThreadMutex opennl_context_mutex = BLI_MUTEX_INITIALIZER;
+
+void modifier_opennl_lock(void)
+{
+	BLI_mutex_lock(&opennl_context_mutex);
+}
+
+void modifier_opennl_unlock(void)
+{
+	BLI_mutex_unlock(&opennl_context_mutex);
+}
+
+#endif
+
 
 /* only called by BKE_modifier.h/modifier.c */
 void modifier_type_init(ModifierTypeInfo *types[])
@@ -295,5 +308,7 @@ void modifier_type_init(ModifierTypeInfo *types[])
 	INIT_TYPE(Triangulate);
 	INIT_TYPE(UVWarp);
 	INIT_TYPE(MeshCache);
+	INIT_TYPE(LaplacianDeform);
+	INIT_TYPE(Wireframe);
 #undef INIT_TYPE
 }

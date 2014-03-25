@@ -141,7 +141,7 @@ static int fcc_get_stream(int fcc)
 	return 10 * (fccs[0] - '0') + (fccs[1] - '0');
 }
 
-static int fcc_is_data(int fcc)
+static bool fcc_is_data(int fcc)
 {
 	char fccs[4];
 
@@ -206,7 +206,7 @@ void AVI_set_debug(int mode)
 	AVI_DEBUG = mode;
 }
 
-int AVI_is_avi(char *name)
+bool AVI_is_avi(char *name)
 {
 	FILE *fp;
 	int ret;
@@ -230,7 +230,7 @@ int AVI_is_avi(char *name)
 }
 #endif
 
-int AVI_is_avi(const char *name)
+bool AVI_is_avi(const char *name)
 {
 	int temp, fcca, j;
 	AviMovie movie = {NULL};
@@ -1091,8 +1091,9 @@ AviError AVI_close_compress(AviMovie *movie)
 	}
 
 	MEM_freeN(movie->header);
-	MEM_freeN(movie->entries);
 
+	if (movie->entries != NULL)
+		MEM_freeN(movie->entries);
 	if (movie->streams != NULL)
 		MEM_freeN(movie->streams);
 	if (movie->offset_table != NULL)

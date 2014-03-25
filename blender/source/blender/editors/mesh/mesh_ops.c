@@ -29,6 +29,7 @@
  */
 
 #include "DNA_scene_types.h"
+#include "DNA_modifier_types.h"
 
 #include "BLI_math.h"
 
@@ -111,6 +112,7 @@ void ED_operatortypes_mesh(void)
 	WM_operatortype_append(MESH_OT_dissolve_faces);
 	WM_operatortype_append(MESH_OT_dissolve_mode);
 	WM_operatortype_append(MESH_OT_dissolve_limited);
+	WM_operatortype_append(MESH_OT_dissolve_degenerate);
 	WM_operatortype_append(MESH_OT_delete_edgeloop);
 	WM_operatortype_append(MESH_OT_faces_shade_smooth);
 	WM_operatortype_append(MESH_OT_faces_shade_flat);
@@ -120,6 +122,7 @@ void ED_operatortypes_mesh(void)
 #endif
 
 	WM_operatortype_append(MESH_OT_delete);
+	WM_operatortype_append(MESH_OT_delete_loose);
 	WM_operatortype_append(MESH_OT_edge_collapse);
 
 	WM_operatortype_append(MESH_OT_separate);
@@ -244,6 +247,13 @@ void ED_operatormacros_mesh(void)
 	RNA_enum_set(otmacro->ptr, "proportional", 0);
 	RNA_boolean_set(otmacro->ptr, "mirror", false);
 
+	ot = WM_operatortype_append_macro("MESH_OT_extrude_region_shrink_fatten", "Extrude Region and Shrink/Fatten",
+	                                  "Extrude region and move result", OPTYPE_UNDO | OPTYPE_REGISTER);
+	otmacro = WM_operatortype_macro_define(ot, "MESH_OT_extrude_region");
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_shrink_fatten");
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
+	RNA_boolean_set(otmacro->ptr, "mirror", false);
+
 	ot = WM_operatortype_append_macro("MESH_OT_extrude_faces_move", "Extrude Individual Faces and Move",
 	                                  "Extrude faces and move result", OPTYPE_UNDO | OPTYPE_REGISTER);
 	otmacro = WM_operatortype_macro_define(ot, "MESH_OT_extrude_faces_indiv");
@@ -352,9 +362,11 @@ void ED_keymap_mesh(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "MESH_OT_beautify_fill", FKEY, KM_PRESS, KM_SHIFT | KM_ALT, 0);
 
 	kmi = WM_keymap_add_item(keymap, "MESH_OT_quads_convert_to_tris", TKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_boolean_set(kmi->ptr, "use_beauty", true);
+	RNA_enum_set(kmi->ptr, "quad_method", MOD_TRIANGULATE_QUAD_BEAUTY);
+	RNA_enum_set(kmi->ptr, "ngon_method", MOD_TRIANGULATE_NGON_BEAUTY);
 	kmi = WM_keymap_add_item(keymap, "MESH_OT_quads_convert_to_tris", TKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "use_beauty", false);
+	RNA_enum_set(kmi->ptr, "quad_method", MOD_TRIANGULATE_QUAD_FIXED);
+	RNA_enum_set(kmi->ptr, "ngon_method", MOD_TRIANGULATE_NGON_EARCLIP);
 
 	WM_keymap_add_item(keymap, "MESH_OT_tris_convert_to_quads", JKEY, KM_PRESS, KM_ALT, 0);
 

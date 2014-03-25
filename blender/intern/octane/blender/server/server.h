@@ -111,6 +111,7 @@ enum PacketType {
     DEL_GEO_MAT,
     LOAD_GEO_SCATTER,
     DEL_GEO_SCATTER,
+    LOAD_IMAGE_FILE,
 
     LOAD_MATERIAL_FIRST,
     LOAD_DIFFUSE_MATERIAL = LOAD_MATERIAL_FIRST,
@@ -618,13 +619,13 @@ public:
 
 
     // Activate the Octane license on server
-    inline int activate(string& sLogin, string& sPass) {
+    inline int activate(string& sStandLogin, string& sStandPass, string& sLogin, string& sPass) {
         if(socket < 0) return 0;
 
         thread_scoped_lock socket_lock(socket_mutex);
 
-        RPCSend snd(socket, sLogin.length()+2 + sPass.length()+2, SET_LIC_DATA);
-        snd << sLogin << sPass;
+        RPCSend snd(socket, sStandLogin.length()+2 + sStandPass.length()+2 + sLogin.length()+2 + sPass.length()+2, SET_LIC_DATA);
+        snd << sStandLogin << sStandPass << sLogin << sPass;
         snd.write();
 
         RPCReceive rcv(socket);
@@ -738,12 +739,13 @@ public:
 
     // Stop the render process on the server.
     // Mostly needed to close the alembic animation sequence on the server.
-    inline void stop_render() {
+    inline void stop_render(float fps) {
         if(socket < 0) return;
 
         thread_scoped_lock socket_lock(socket_mutex);
 
-        RPCSend snd(socket, 0, STOP);
+        RPCSend snd(socket, m_Export_alembic ? sizeof(float) : 0, STOP);
+        if(m_Export_alembic) snd << fps;
         snd.write();
 
         RPCReceive rcv(socket);
@@ -752,6 +754,20 @@ public:
             fprintf(stderr, "Octane: ERROR stopping render.");
             if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
             else fprintf(stderr, "\n");
+        }
+        else if(m_Export_alembic && strlen(out_path)) {
+            uint32_t len;
+            rcv >> len;
+            if(len) {
+                char *pBuf = (char*)rcv.read_buffer(len);
+                if(pBuf) {
+                    FILE *hFile = fopen(out_path, "wb");
+                    if(hFile) {
+                        fwrite(pBuf, len, 1, hFile);
+                        fclose(hFile);
+                    }
+                }
+            }
         }
     } //stop_render()
 
@@ -1587,11 +1603,67 @@ public:
         wait_error(LOAD_COLOR_CORRECT_TEXTURE);
     } //load_colorcorrect_tex()
 
+    inline string get_file_name(string &full_path) {
+        size_t sl1 = full_path.rfind('/');
+        size_t sl2 = full_path.rfind('\\');
+        string file_name;
+        if(sl1 == string::npos && sl2 == string::npos) {
+            file_name = full_path;
+        }
+        else {
+            if(sl1 == string::npos)
+                sl1 = sl2;
+            else if(sl2 != string::npos)
+                sl1 = sl1 > sl2 ? sl1 : sl2;
+            file_name = full_path.substr(sl1 + 1);
+        }
+        return file_name;
+    }
+
+    inline bool send_file(string &file_path, string &file_name) {
+        FILE *hFile = fopen(file_path.c_str(), "rb");
+        if(hFile) {
+            fseek(hFile, 0, SEEK_END);
+            uint32_t ulFileSize = ftell(hFile);
+            rewind(hFile);
+
+            char* pCurPtr = new char[ulFileSize];
+
+            if(!fread(pCurPtr, ulFileSize, 1, hFile)) {
+                fclose(hFile);
+                delete[] pCurPtr;
+                return false;
+            }
+            fclose(hFile);
+
+            RPCSend snd(socket, sizeof(uint32_t) + ulFileSize, LOAD_IMAGE_FILE, file_name.c_str());
+            snd << ulFileSize;
+            snd.write_buffer(pCurPtr, ulFileSize);
+            snd.write();
+            delete[] pCurPtr;
+
+            {
+                RPCReceive rcv(socket);
+                if(rcv.type != LOAD_IMAGE_FILE) {
+                    rcv >> error_msg;
+                    fprintf(stderr, "Octane: ERROR loading image file.");
+                    if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                    else fprintf(stderr, "\n");
+                    return false;
+                }
+            }
+            return true;
+        }
+        else return false;
+    }
+
     inline void load_image_tex(OctaneImageTexture* node) {
         if(socket < 0) return;
 
+        string file_name = get_file_name(node->FileName);
+
         uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
-            + node->FileName.length() + 2
+            + file_name.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
             + node->Transform.length() + 2
@@ -1599,21 +1671,51 @@ public:
             + node->BorderMode.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
+
         {
             RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Gamma_default_val
                 << node->BorderMode_default_val << node->Invert
-                << node->Gamma.c_str() << node->BorderMode.c_str() << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
-        wait_error(LOAD_IMAGE_TEXTURE);
+
+        bool file_is_needed;
+        {
+            RPCReceive rcv(socket);
+            if(rcv.type != LOAD_IMAGE_TEXTURE)
+                file_is_needed = true;
+            else
+                file_is_needed = false;
+        }
+
+        if(file_is_needed && send_file(node->FileName, file_name)) {
+            {
+                RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
+                snd << node->Power_default_val << node->Gamma_default_val
+                    << node->BorderMode_default_val << node->Invert
+                    << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                snd.write();
+            }
+            {
+                RPCReceive rcv(socket);
+                if(rcv.type != LOAD_IMAGE_TEXTURE) {
+                    rcv >> error_msg;
+                    fprintf(stderr, "Octane: ERROR loading image texture.");
+                    if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                    else fprintf(stderr, "\n");
+                }
+            }
+        }
     } //load_image_tex()
 
     inline void load_float_image_tex(OctaneFloatImageTexture* node) {
         if(socket < 0) return;
 
+        string file_name = get_file_name(node->FileName);
+
         uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
-            + node->FileName.length() + 2
+            + file_name.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
             + node->Transform.length() + 2
@@ -1621,21 +1723,51 @@ public:
             + node->BorderMode.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
+
         {
             RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Gamma_default_val
                 << node->BorderMode_default_val << node->Invert
-                << node->Gamma.c_str() << node->BorderMode.c_str() << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
-        wait_error(LOAD_FLOAT_IMAGE_TEXTURE);
+
+        bool file_is_needed;
+        {
+            RPCReceive rcv(socket);
+            if(rcv.type != LOAD_FLOAT_IMAGE_TEXTURE)
+                file_is_needed = true;
+            else
+                file_is_needed = false;
+        }
+
+        if(file_is_needed && send_file(node->FileName, file_name)) {
+            {
+                RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
+                snd << node->Power_default_val << node->Gamma_default_val
+                    << node->BorderMode_default_val << node->Invert
+                    << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                snd.write();
+            }
+            {
+                RPCReceive rcv(socket);
+                if(rcv.type != LOAD_FLOAT_IMAGE_TEXTURE) {
+                    rcv >> error_msg;
+                    fprintf(stderr, "Octane: ERROR loading float image texture.");
+                    if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                    else fprintf(stderr, "\n");
+                }
+            }
+        }
     } //load_float_image_tex()
 
     inline void load_alpha_image_tex(OctaneAlphaImageTexture* node) {
         if(socket < 0) return;
 
+        string file_name = get_file_name(node->FileName);
+
         uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
-            + node->FileName.length() + 2
+            + file_name.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
             + node->Transform.length() + 2
@@ -1643,14 +1775,42 @@ public:
             + node->BorderMode.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
+
         {
             RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
             snd << node->Power_default_val << node->Gamma_default_val
                 << node->BorderMode_default_val << node->Invert
-                << node->Gamma.c_str() << node->BorderMode.c_str() << node->FileName.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
         }
-        wait_error(LOAD_ALPHA_IMAGE_TEXTURE);
+
+        bool file_is_needed;
+        {
+            RPCReceive rcv(socket);
+            if(rcv.type != LOAD_ALPHA_IMAGE_TEXTURE)
+                file_is_needed = true;
+            else
+                file_is_needed = false;
+        }
+
+        if(file_is_needed && send_file(node->FileName, file_name)) {
+            {
+                RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
+                snd << node->Power_default_val << node->Gamma_default_val
+                    << node->BorderMode_default_val << node->Invert
+                    << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                snd.write();
+            }
+            {
+                RPCReceive rcv(socket);
+                if(rcv.type != LOAD_ALPHA_IMAGE_TEXTURE) {
+                    rcv >> error_msg;
+                    fprintf(stderr, "Octane: ERROR loading alpha image texture.");
+                    if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                    else fprintf(stderr, "\n");
+                }
+            }
+        }
     } //load_alpha_image_tex()
 
     inline void load_dirt_tex(OctaneDirtTexture* node) {

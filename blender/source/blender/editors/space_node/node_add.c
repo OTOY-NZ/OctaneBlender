@@ -90,9 +90,6 @@ bNode *node_add_node(const bContext *C, const char *idname, int type, float locx
 	ntreeUpdateTree(bmain, snode->edittree);
 	ED_node_set_active(bmain, snode->edittree, node);
 	
-	if (snode->flag & SNODE_USE_HIDDEN_PREVIEW)
-		node->flag &= ~NODE_PREVIEW;
-	
 	snode_update(snode, node);
 	
 	if (snode->nodetree->type == NTREE_TEXTURE) {
@@ -103,7 +100,7 @@ bNode *node_add_node(const bContext *C, const char *idname, int type, float locx
 }
 
 /* ********************** Add reroute operator ***************** */
-static int add_reroute_intersect_check(bNodeLink *link, float mcoords[][2], int tot, float result[2])
+static bool add_reroute_intersect_check(bNodeLink *link, float mcoords[][2], int tot, float result[2])
 {
 	float coord_array[NODE_LINK_RESOL + 1][2];
 	int i, b;
@@ -195,8 +192,8 @@ static bNodeSocketLink *add_reroute_do_socket_section(bContext *C, bNodeSocketLi
 		/* average cut point from shared links */
 		mul_v2_fl(insert_point, 1.0f / num_links);
 		
-		reroute_node->locx = insert_point[0];
-		reroute_node->locy = insert_point[1];
+		reroute_node->locx = insert_point[0] / UI_DPI_FAC;
+		reroute_node->locy = insert_point[1] / UI_DPI_FAC;
 	}
 	
 	return socklink;
@@ -235,8 +232,9 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
 		node_deselect_all(snode);
 		
 		/* Find cut links and sort them by sockets */
-		output_links.first = output_links.last = NULL;
-		input_links.first = input_links.last = NULL;
+		BLI_listbase_clear(&output_links);
+		BLI_listbase_clear(&input_links);
+
 		for (link = ntree->links.first; link; link = link->next) {
 			if (nodeLinkIsHidden(link))
 				continue;
@@ -521,9 +519,9 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static EnumPropertyItem *new_node_tree_type_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *new_node_tree_type_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_node_tree_type_itemf(NULL, NULL, free);
+	return rna_node_tree_type_itemf(NULL, NULL, r_free);
 }
 
 void NODE_OT_new_node_tree(wmOperatorType *ot)

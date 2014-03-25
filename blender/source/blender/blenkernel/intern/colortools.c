@@ -637,6 +637,11 @@ void curvemapping_premultiply(CurveMapping *cumap, int restore)
 				MEM_freeN(cumap->cm[a].table);
 				cumap->cm[a].table = cumap->cm[a].premultable;
 				cumap->cm[a].premultable = NULL;
+
+				copy_v2_v2(cumap->cm[a].ext_in, cumap->cm[a].premul_ext_in);
+				copy_v2_v2(cumap->cm[a].ext_out, cumap->cm[a].premul_ext_out);
+				zero_v2(cumap->cm[a].premul_ext_in);
+				zero_v2(cumap->cm[a].premul_ext_out);
 			}
 			
 			cumap->flag &= ~CUMA_PREMULLED;
@@ -662,6 +667,11 @@ void curvemapping_premultiply(CurveMapping *cumap, int restore)
 				for (b = 0; b <= CM_TABLE; b++) {
 					cumap->cm[a].table[b].y = curvemap_evaluateF(cumap->cm + 3, cumap->cm[a].table[b].y);
 				}
+
+				copy_v2_v2(cumap->cm[a].premul_ext_in, cumap->cm[a].ext_in);
+				copy_v2_v2(cumap->cm[a].premul_ext_out, cumap->cm[a].ext_out);
+				mul_v2_v2(cumap->cm[a].ext_in, cumap->cm[3].ext_in);
+				mul_v2_v2(cumap->cm[a].ext_out, cumap->cm[3].ext_out);
 			}
 			
 			cumap->flag |= CUMA_PREMULLED;
@@ -681,7 +691,7 @@ static int sort_curvepoints(const void *a1, const void *a2)
 /* ************************ more CurveMapping calls *************** */
 
 /* note; only does current curvemap! */
-void curvemapping_changed(CurveMapping *cumap, int rem_doubles)
+void curvemapping_changed(CurveMapping *cumap, const bool rem_doubles)
 {
 	CurveMap *cuma = cumap->cm + cumap->cur;
 	CurveMapPoint *cmp = cuma->curve;
@@ -1020,7 +1030,7 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, const ColorManagedViewSettings *
 	int savedlines, saveline;
 	float rgba[4], ycc[3], luma;
 	int ycc_mode = -1;
-	const short is_float = (ibuf->rect_float != NULL);
+	const bool is_float = (ibuf->rect_float != NULL);
 	void *cache_handle = NULL;
 	struct ColormanageProcessor *cm_processor = NULL;
 

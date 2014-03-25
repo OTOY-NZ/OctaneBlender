@@ -126,7 +126,7 @@ BlenderSession::~BlenderSession() {
     session->set_pause(false);
 	free_session();
 } //~BlenderSession()
-#include "DNA_anim_types.h"
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Create the Blender session and all Octane session data structures
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -140,19 +140,20 @@ void BlenderSession::create_session(PassType pass_type) {
 	last_progress	= -1.0f;
 
 	// Create session
-	session = new Session(session_params, b_scene.render().filepath().c_str());
+	string cur_path = blender_absolute_path(b_data, b_scene, b_scene.render().filepath().c_str());
+    cur_path += "/alembic_export.abc";
+	session = new Session(session_params, cur_path.c_str());
 	session->set_blender_session(this);
 	session->set_pause(BlenderSync::get_session_pause_state(b_scene, interactive));
 
 	// Create scene
-    scene = new Scene(session, interactive || !b_engine.is_animation() ? true : (b_scene.frame_current() == b_scene.frame_start()));//session_params.server, session_params.meshes_type, session_params.use_viewport_hide);
+    scene = new Scene(session, interactive || !b_engine.is_animation() ? true : (b_scene.frame_current() == b_scene.frame_start()));
 	session->scene = scene;
 
     scene->server = session->server;
 
 	// Create sync
 	sync = new BlenderSync(b_engine, b_data, b_scene, scene, interactive, session->progress);
-	//sync->sync_data(pass_type, b_v3d, b_engine.camera_override());
 
 	if(b_rv3d)
 		sync->sync_view(b_v3d, b_rv3d, width, height);
@@ -267,8 +268,8 @@ static BL::RenderResult begin_render_result(BL::RenderEngine b_engine, int x, in
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void end_render_result(BL::RenderEngine b_engine, BL::RenderResult b_rr, bool cancel = false) {
-	b_engine.end_result(b_rr, (int)cancel);
+static void end_render_result(BL::RenderEngine b_engine, BL::RenderResult b_rr, bool cancel, bool do_merge_results) {
+	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
 } //end_render_result()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -293,12 +294,12 @@ void BlenderSession::do_write_update_render_img(bool do_update_only) {
     if(do_update_only) {
 		// Update only needed
 		update_render_result(b_rr, b_rlay);
-		end_render_result(b_engine, b_rr, true);
+		end_render_result(b_engine, b_rr, true, true);
 	}
 	else {
 		// Write result
 		write_render_result(b_rr, b_rlay);
-		end_render_result(b_engine, b_rr);
+		end_render_result(b_engine, b_rr, false, true);
 	}
 } //do_write_update_render_img()
 
@@ -448,7 +449,7 @@ inline int BlenderSession::get_render_passes(vector<Pass> &passes) {
 
 	// Layer will be missing if it was disabled in the UI
 	if(b_single_rlay == b_rr.layers.end()) {
-		end_render_result(b_engine, b_rr, true);
+		end_render_result(b_engine, b_rr, true, false);
 		return -1;
 	}
 
@@ -464,7 +465,7 @@ inline int BlenderSession::get_render_passes(vector<Pass> &passes) {
 		if(pass_type != PASS_NONE) Pass::add(pass_type, passes);
 	}
 	// Free result without merging
-	end_render_result(b_engine, b_rr, true);
+	end_render_result(b_engine, b_rr, true, false);
     return passes.size();
 } //get_render_passes()
 
@@ -481,7 +482,7 @@ void BlenderSession::render() {
         session->server->start_render(session_params.width, session_params.height, 0);
 
         if(b_scene.frame_current() >= b_scene.frame_end())
-            session->server->stop_render();
+            session->server->stop_render(session_params.fps);
         return;
     }
 	BufferParams	buffer_params	= BlenderSync::get_display_buffer_params(scene->camera, width, height);
@@ -626,7 +627,7 @@ void BlenderSession::render() {
     ready_passes = -1;
 
     if(b_scene.frame_current() >= b_scene.frame_end())
-        session->server->stop_render();
+        session->server->stop_render(session_params.fps);
 } //render()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

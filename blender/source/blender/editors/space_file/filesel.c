@@ -111,11 +111,11 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 	/* set the parameters from the operator, if it exists */
 	if (op) {
 		PropertyRNA *prop;
-		const short is_files = (RNA_struct_find_property(op->ptr, "files") != NULL);
-		const short is_filepath = (RNA_struct_find_property(op->ptr, "filepath") != NULL);
-		const short is_filename = (RNA_struct_find_property(op->ptr, "filename") != NULL);
-		const short is_directory = (RNA_struct_find_property(op->ptr, "directory") != NULL);
-		const short is_relative_path = (RNA_struct_find_property(op->ptr, "relative_path") != NULL);
+		const bool is_files = (RNA_struct_find_property(op->ptr, "files") != NULL);
+		const bool is_filepath = (RNA_struct_find_property(op->ptr, "filepath") != NULL);
+		const bool is_filename = (RNA_struct_find_property(op->ptr, "filename") != NULL);
+		const bool is_directory = (RNA_struct_find_property(op->ptr, "directory") != NULL);
+		const bool is_relative_path = (RNA_struct_find_property(op->ptr, "relative_path") != NULL);
 
 		BLI_strncpy_utf8(params->title, RNA_struct_ui_name(op->type->srna), sizeof(params->title));
 
@@ -296,9 +296,9 @@ int ED_fileselect_layout_numfiles(FileLayout *layout, ARegion *ar)
 	}
 }
 
-static int is_inside(int x, int y, int cols, int rows)
+static bool is_inside(int x, int y, int cols, int rows)
 {
-	return ( (x >= 0) && (x < cols) && (y >= 0) && (y < rows) );
+	return ((x >= 0) && (x < cols) && (y >= 0) && (y < rows));
 }
 
 FileSelection ED_fileselect_layout_offset_rect(FileLayout *layout, const rcti *rect)
@@ -435,7 +435,7 @@ float file_string_width(const char *str)
 {
 	uiStyle *style = UI_GetStyle();
 	uiStyleFontSet(&style->widget);
-	return BLF_width(style->widget.uifont_id, str);
+	return BLF_width(style->widget.uifont_id, str, BLF_DRAW_STR_DUMMY_MAX);
 }
 
 float file_font_pointsize(void)
@@ -627,17 +627,17 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 			if (!match) {
 				BLI_strncpy(matched_file, file->relname, FILE_MAX);
 			}
-			match = 1;
+			match++;
 		}
 	}
 
 	return match;
 }
 
-bool autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
+int autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
-	bool change = false;
+	int match = AUTOCOMPLETE_NO_MATCH;
 
 	/* search if str matches the beginning of name */
 	if (str[0] && sfile->files) {
@@ -672,9 +672,9 @@ bool autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
 			}
 			closedir(dir);
 
-			change = autocomplete_end(autocpl, str);
-			if (change) {
-				if (BLI_exists(str)) {
+			match = autocomplete_end(autocpl, str);
+			if (match) {
+				if (match == AUTOCOMPLETE_FULL_MATCH) {
 					BLI_add_slash(str);
 				}
 				else {
@@ -684,13 +684,13 @@ bool autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
 		}
 	}
 
-	return change;
+	return match;
 }
 
-bool autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
+int autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
-	bool change = false;
+	int match = AUTOCOMPLETE_NO_MATCH;
 
 	/* search if str matches the beginning of name */
 	if (str[0] && sfile->files) {
@@ -700,13 +700,14 @@ bool autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
 
 		for (i = 0; i < nentries; ++i) {
 			struct direntry *file = filelist_file(sfile->files, i);
-			if (file && S_ISREG(file->type)) {
+			if (file && (S_ISREG(file->type) || S_ISDIR(file->type))) {
 				autocomplete_do_name(autocpl, file->relname);
 			}
 		}
-		change = autocomplete_end(autocpl, str);
+		match = autocomplete_end(autocpl, str);
 	}
-	return change;
+
+	return match;
 }
 
 void ED_fileselect_clear(struct wmWindowManager *wm, struct SpaceFile *sfile)

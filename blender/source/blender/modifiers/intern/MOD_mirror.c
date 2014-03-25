@@ -59,12 +59,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	MirrorModifierData *mmd = (MirrorModifierData *) md;
 	MirrorModifierData *tmmd = (MirrorModifierData *) target;
-
-	tmmd->flag = mmd->flag;
-	tmmd->tolerance = mmd->tolerance;
-	tmmd->mirror_ob = mmd->mirror_ob;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static void foreachObjectLink(ModifierData *md, Object *ob,
@@ -187,6 +186,10 @@ static DerivedMesh *doMirrorOnAxis(MirrorModifierData *mmd,
 			if (UNLIKELY(len_squared_v3v3(mv_prev->co, mv->co) < tolerance_sq)) {
 				*vtmap_a = maxVerts + i;
 				tot_vtargetmap++;
+
+				/* average location */
+				mid_v3_v3v3(mv->co, mv_prev->co, mv->co);
+				copy_v3_v3(mv_prev->co, mv->co);
 			}
 			else {
 				*vtmap_a = -1;

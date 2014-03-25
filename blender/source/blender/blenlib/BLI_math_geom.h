@@ -37,10 +37,6 @@ extern "C" {
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_inline.h"
 
-#if BLI_MATH_DO_INLINE
-#include "intern/math_geom_inline.c"
-#endif
-
 #ifdef BLI_MATH_GCC_WARN_PRAGMA
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wredundant-decls"
@@ -54,13 +50,16 @@ void cent_quad_v3(float r[3], const float a[3], const float b[3], const float c[
 float normal_tri_v3(float r[3], const float a[3], const float b[3], const float c[3]);
 float normal_quad_v3(float r[3], const float a[3], const float b[3], const float c[3], const float d[3]);
 
-float area_tri_v2(const float a[2], const float b[2], const float c[2]);
-float area_tri_signed_v2(const float v1[2], const float v2[2], const float v3[2]);
+MINLINE float area_tri_v2(const float a[2], const float b[2], const float c[2]);
+MINLINE float area_tri_signed_v2(const float v1[2], const float v2[2], const float v3[2]);
 float area_tri_v3(const float a[3], const float b[3], const float c[3]);
 float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3], const float normal[3]);
 float area_quad_v3(const float a[3], const float b[3], const float c[3], const float d[3]);
 float area_poly_v3(int nr, float verts[][3], const float normal[3]);
 float area_poly_v2(int nr, float verts[][2]);
+
+MINLINE float cross_tri_v2(const float v1[2], const float v2[2], const float v3[2]);
+float cross_poly_v2(int nr, float verts[][2]);
 
 /********************************* Planes **********************************/
 
@@ -77,20 +76,22 @@ int is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], c
 
 /********************************* Distance **********************************/
 
-float dist_to_line_v2(const float p[2], const float l1[2], const float l2[2]);
+float dist_squared_to_line_v2(const float p[2], const float l1[2], const float l2[2]);
+float         dist_to_line_v2(const float p[2], const float l1[2], const float l2[2]);
 float dist_squared_to_line_segment_v2(const float p[2], const float l1[2], const float l2[2]);
 float         dist_to_line_segment_v2(const float p[2], const float l1[2], const float l2[2]);
-void closest_to_line_segment_v2(float closest[2], const float p[2], const float l1[2], const float l2[2]);
+void closest_to_line_segment_v2(float r_close[2], const float p[2], const float l1[2], const float l2[2]);
 
 float dist_squared_to_plane_v3(const float p[3], const float plane[4]);
 float dist_to_plane_v3(const float p[3], const float plane[4]);
 float dist_squared_to_line_segment_v3(const float p[3], const float l1[3], const float l2[3]);
 float         dist_to_line_segment_v3(const float p[3], const float l1[3], const float l2[3]);
-float dist_to_line_v3(const float p[3], const float l1[3], const float l2[3]);
+float dist_squared_to_line_v3(const float p[3], const float l1[3], const float l2[3]);
+float         dist_to_line_v3(const float p[3], const float l1[3], const float l2[3]);
 float closest_to_line_v3(float r[3], const float p[3], const float l1[3], const float l2[3]);
 float closest_to_line_v2(float r[2], const float p[2], const float l1[2], const float l2[2]);
-void closest_to_line_segment_v3(float r[3], const float p[3], const float l1[3], const float l2[3]);
-void closest_to_plane_v3(float close_r[3], const float plane[4], const float pt[3]);
+void closest_to_line_segment_v3(float r_close[3], const float p[3], const float l1[3], const float l2[3]);
+void closest_to_plane_v3(float r_close[3], const float plane[4], const float pt[3]);
 
 /* Set 'r' to the point in triangle (t1, t2, t3) closest to point 'p' */
 void closest_on_tri_to_point_v3(float r[3], const float p[3], const float t1[3], const float t2[3], const float t3[3]);
@@ -135,11 +136,11 @@ bool isect_ray_plane_v3(const float p1[3], const float d[3],
 
 bool isect_point_planes_v3(float (*planes)[4], int totplane, const float p[3]);
 bool isect_line_plane_v3(float out[3], const float l1[3], const float l2[3],
-                         const float plane_co[3], const float plane_no[3]);
+                         const float plane_co[3], const float plane_no[3]) ATTR_WARN_UNUSED_RESULT;
 
-void isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
+bool isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
                           const float plane_a_co[3], const float plane_a_no[3],
-                          const float plane_b_co[3], const float plane_b_no[3]);
+                          const float plane_b_co[3], const float plane_b_no[3]) ATTR_WARN_UNUSED_RESULT;
 
 /* line/ray triangle */
 bool isect_line_tri_v3(const float p1[3], const float p2[3],
@@ -219,6 +220,8 @@ int barycentric_inside_triangle_v2(const float w[3]);
 
 void resolve_tri_uv(float r_uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2]);
 void resolve_quad_uv(float uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2]);
+void resolve_quad_uv_deriv(float r_uv[2], float r_deriv[2][2],
+                           const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2]);
 
 /* use to find the point of a UV on a face */
 void interp_bilinear_quad_v3(float data[4][3], float u, float v, float res[3]);
@@ -279,6 +282,7 @@ MINLINE void zero_sh(float r[9]);
 MINLINE void copy_sh_sh(float r[9], const float a[9]);
 MINLINE void mul_sh_fl(float r[9], const float f);
 MINLINE void add_sh_shsh(float r[9], const float a[9], const float b[9]);
+MINLINE float dot_shsh(const float a[9], const float b[9]);
 
 MINLINE float eval_shv3(float r[9], const float v[3]);
 MINLINE float diffuse_shv3(float r[9], const float v[3]);
@@ -296,13 +300,21 @@ float form_factor_hemi_poly(float p[3], float n[3],
                             float v1[3], float v2[3], float v3[3], float v4[3]);
 
 bool  axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3]);
-void  axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3]);
-float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3]) ATTR_WARN_UNUSED_RESULT;
+
+MINLINE void  axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3]);
+MINLINE float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3]) ATTR_WARN_UNUSED_RESULT;
+MINLINE int axis_dominant_v3_single(const float vec[3]);
 
 MINLINE int max_axis_v3(const float vec[3]);
 MINLINE int min_axis_v3(const float vec[3]);
 
 MINLINE int poly_to_tri_count(const int poly_count, const int corner_count);
+
+/**************************** Inline Definitions ******************************/
+
+#if BLI_MATH_DO_INLINE
+#include "intern/math_geom_inline.c"
+#endif
 
 #ifdef BLI_MATH_GCC_WARN_PRAGMA
 #  pragma GCC diagnostic pop

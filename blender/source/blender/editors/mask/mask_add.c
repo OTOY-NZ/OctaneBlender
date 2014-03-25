@@ -94,8 +94,8 @@ static int find_nearest_diff_point(const bContext *C, Mask *mask, const float no
 				float *diff_points;
 				unsigned int tot_diff_point;
 
-				diff_points = BKE_mask_point_segment_diff_with_resolution(spline, cur_point, width, height,
-				                                                          &tot_diff_point);
+				diff_points = BKE_mask_point_segment_diff(spline, cur_point, width, height,
+				                                          &tot_diff_point);
 
 				if (diff_points) {
 					int j, tot_point;
@@ -103,9 +103,9 @@ static int find_nearest_diff_point(const bContext *C, Mask *mask, const float no
 					float *feather_points = NULL, *points;
 
 					if (feather) {
-						feather_points = BKE_mask_point_segment_feather_diff_with_resolution(spline, cur_point,
-						                                                                     width, height,
-						                                                                     &tot_feather_point);
+						feather_points = BKE_mask_point_segment_feather_diff(spline, cur_point,
+						                                                     width, height,
+						                                                     &tot_feather_point);
 
 						points = feather_points;
 						tot_point = tot_feather_point;
@@ -385,7 +385,7 @@ static int add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2]
 		setup_vertex_point(mask, spline, new_point, co, tangent, u, NULL, TRUE, 1.0f);
 
 		/* TODO - we could pass the spline! */
-		BKE_mask_layer_shape_changed_add(masklay, BKE_mask_layer_shape_spline_to_index(masklay, spline) + point_index + 1, TRUE, TRUE);
+		BKE_mask_layer_shape_changed_add(masklay, BKE_mask_layer_shape_spline_to_index(masklay, spline) + point_index + 1, true, true);
 
 		masklay->act_spline = spline;
 		masklay->act_point = new_point;
@@ -408,9 +408,9 @@ static int add_vertex_extrude(const bContext *C, Mask *mask, MaskLayer *masklay,
 	int point_index;
 	float tangent_point[2];
 	float tangent_co[2];
-	int do_cyclic_correct = FALSE;
-	int do_recalc_src = FALSE;  /* when extruding from endpoints only */
-	int do_prev;                /* use prev point rather then next?? */
+	bool do_cyclic_correct = false;
+	bool do_recalc_src = false;  /* when extruding from endpoints only */
+	bool do_prev;                /* use prev point rather then next?? */
 
 	if (!masklay) {
 		return FALSE;
@@ -486,7 +486,7 @@ static int add_vertex_extrude(const bContext *C, Mask *mask, MaskLayer *masklay,
 
 	if (masklay->splines_shapes.first) {
 		point_index = (((int)(new_point - spline->points) + 0) % spline->tot_point);
-		BKE_mask_layer_shape_changed_add(masklay, BKE_mask_layer_shape_spline_to_index(masklay, spline) + point_index, TRUE, TRUE);
+		BKE_mask_layer_shape_changed_add(masklay, BKE_mask_layer_shape_spline_to_index(masklay, spline) + point_index, true, true);
 	}
 
 	if (do_recalc_src) {
@@ -548,7 +548,7 @@ static int add_vertex_new(const bContext *C, Mask *mask, MaskLayer *masklay, con
 
 	{
 		int point_index = (((int)(new_point - spline->points) + 0) % spline->tot_point);
-		BKE_mask_layer_shape_changed_add(masklay, BKE_mask_layer_shape_spline_to_index(masklay, spline) + point_index, TRUE, TRUE);
+		BKE_mask_layer_shape_changed_add(masklay, BKE_mask_layer_shape_spline_to_index(masklay, spline) + point_index, true, true);
 	}
 
 	WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
@@ -584,8 +584,8 @@ static int add_vertex_exec(bContext *C, wmOperator *op)
 		MaskSpline *spline = masklay->act_spline;
 		MaskSplinePoint *point = masklay->act_point;
 
-		int is_sta = (point == spline->points);
-		int is_end = (point == &spline->points[spline->tot_point - 1]);
+		const bool is_sta = (point == spline->points);
+		const bool is_end = (point == &spline->points[spline->tot_point - 1]);
 
 		/* then check are we overlapping the mouse */
 		if ((is_sta || is_end) && equals_v2v2(co, point->bezt.vec[1])) {

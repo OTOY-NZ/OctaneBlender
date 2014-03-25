@@ -37,6 +37,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_lasso.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
@@ -217,7 +218,9 @@ void GRAPH_OT_select_all_toggle(wmOperatorType *ot)
  * this, and allow handles to be considered independently too.
  * Also, for convenience, handles should get same status as keyframe (if it was within bounds).
  */
-static void borderselect_graphkeys(bAnimContext *ac, rcti rect, short mode, short selectmode, short incl_handles)
+static void borderselect_graphkeys(
+        bAnimContext *ac, const rctf *rectf_view, short mode, short selectmode, bool incl_handles,
+        struct KeyframeEdit_LassoData *data_lasso)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
@@ -227,11 +230,11 @@ static void borderselect_graphkeys(bAnimContext *ac, rcti rect, short mode, shor
 	KeyframeEditData ked;
 	KeyframeEditFunc ok_cb, select_cb;
 	View2D *v2d = &ac->ar->v2d;
-	rctf rectf;
+	rctf rectf, scaled_rectf;
 	
 	/* convert mouse coordinates to frame ranges and channel coordinates corrected for view pan/zoom */
-	UI_view2d_region_to_view(v2d, rect.xmin, rect.ymin, &rectf.xmin, &rectf.ymin);
-	UI_view2d_region_to_view(v2d, rect.xmax, rect.ymax, &rectf.xmax, &rectf.ymax);
+	UI_view2d_region_to_view(v2d, rectf_view->xmin, rectf_view->ymin, &rectf.xmin, &rectf.ymin);
+	UI_view2d_region_to_view(v2d, rectf_view->xmax, rectf_view->ymax, &rectf.xmax, &rectf.ymax);
 	
 	/* filter data */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_NODUPLIS);
@@ -243,7 +246,13 @@ static void borderselect_graphkeys(bAnimContext *ac, rcti rect, short mode, shor
 	
 	/* init editing data */
 	memset(&ked, 0, sizeof(KeyframeEditData));
-	ked.data = &rectf;
+	if (data_lasso) {
+		data_lasso->rectf_scaled = &scaled_rectf;
+		ked.data = data_lasso;
+	}
+	else {
+		ked.data = &scaled_rectf;
+	}
 	
 	/* treat handles separately? */
 	if (incl_handles) {
@@ -252,21 +261,26 @@ static void borderselect_graphkeys(bAnimContext *ac, rcti rect, short mode, shor
 	}
 	else
 		mapping_flag = ANIM_UNITCONV_ONLYKEYS;
-	
+
+	mapping_flag |= ANIM_get_normalization_flags(ac);
+
 	/* loop over data, doing border select */
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(ac, ale);
 		FCurve *fcu = (FCurve *)ale->key_data;
-		
-		/* apply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, ale->key_data, mapping_flag);
-		
+		float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
+
 		/* apply NLA mapping to all the keyframes, since it's easier than trying to
 		 * guess when a callback might use something different
 		 */
 		if (adt)
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, incl_handles == 0);
-		
+
+		scaled_rectf.xmin = rectf.xmin;
+		scaled_rectf.xmax = rectf.xmax;
+		scaled_rectf.ymin = rectf.ymin / unit_scale;
+		scaled_rectf.ymax = rectf.ymax / unit_scale;
+
 		/* set horizontal range (if applicable) 
 		 * NOTE: these values are only used for x-range and y-range but not region 
 		 *      (which uses ked.data, i.e. rectf)
@@ -296,9 +310,6 @@ static void borderselect_graphkeys(bAnimContext *ac, rcti rect, short mode, shor
 		/* un-apply NLA mapping from all the keyframes */
 		if (adt)
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, incl_handles == 0);
-			
-		/* unapply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, ale->key_data, ANIM_UNITCONV_RESTORE | mapping_flag);
 	}
 	
 	/* cleanup */
@@ -311,9 +322,10 @@ static int graphkeys_borderselect_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
 	rcti rect;
+	rctf rect_fl;
 	short mode = 0, selectmode = 0;
-	short incl_handles;
-	int extend;
+	bool incl_handles;
+	bool extend;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -352,9 +364,11 @@ static int graphkeys_borderselect_exec(bContext *C, wmOperator *op)
 	}
 	else 
 		mode = BEZT_OK_REGION;
-	
+
+	BLI_rctf_rcti_copy(&rect_fl, &rect);
+
 	/* apply borderselect action */
-	borderselect_graphkeys(&ac, rect, mode, selectmode, incl_handles);
+	borderselect_graphkeys(&ac, &rect_fl, mode, selectmode, incl_handles, NULL);
 	
 	/* send notifier that keyframe selection has changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, NULL);
@@ -385,6 +399,92 @@ void GRAPH_OT_select_border(wmOperatorType *ot)
 	
 	ot->prop = RNA_def_boolean(ot->srna, "axis_range", 0, "Axis Range", "");
 	RNA_def_boolean(ot->srna, "include_handles", 0, "Include Handles", "Are handles tested individually against the selection criteria");
+}
+
+static int graphkeys_lassoselect_exec(bContext *C, wmOperator *op)
+{
+	bAnimContext ac;
+	rcti rect;
+	rctf rect_fl;
+	short selectmode;
+	bool incl_handles;
+	bool extend;
+
+	struct KeyframeEdit_LassoData data_lasso;
+
+	/* get editor data */
+	if (ANIM_animdata_get_context(C, &ac) == 0)
+		return OPERATOR_CANCELLED;
+
+	data_lasso.rectf_view = &rect_fl;
+	data_lasso.mcords = WM_gesture_lasso_path_to_array(C, op, &data_lasso.mcords_tot);
+	if (data_lasso.mcords == NULL)
+		return OPERATOR_CANCELLED;
+
+	/* clear all selection if not extending selection */
+	extend = RNA_boolean_get(op->ptr, "extend");
+	if (!extend)
+		deselect_graph_keys(&ac, 1, SELECT_SUBTRACT, TRUE);
+
+	if (!RNA_boolean_get(op->ptr, "deselect"))
+		selectmode = SELECT_ADD;
+	else
+		selectmode = SELECT_SUBTRACT;
+
+	if (ac.spacetype == SPACE_IPO) {
+		SpaceIpo *sipo = (SpaceIpo *)ac.sl;
+		if (selectmode == SELECT_ADD) {
+			incl_handles = ((sipo->flag & SIPO_SELVHANDLESONLY) ||
+			                (sipo->flag & SIPO_NOHANDLES)) == 0;
+		}
+		else {
+			incl_handles = (sipo->flag & SIPO_NOHANDLES) == 0;
+		}
+	}
+	else {
+		incl_handles = false;
+	}
+
+
+	/* get settings from operator */
+	BLI_lasso_boundbox(&rect, data_lasso.mcords, data_lasso.mcords_tot);
+
+	BLI_rctf_rcti_copy(&rect_fl, &rect);
+
+	/* apply borderselect action */
+	borderselect_graphkeys(&ac, &rect_fl, BEZT_OK_REGION_LASSO, selectmode, incl_handles, &data_lasso);
+
+	MEM_freeN((void *)data_lasso.mcords);
+
+
+	/* send notifier that keyframe selection has changed */
+	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+
+void GRAPH_OT_select_lasso(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Lasso Select";
+	ot->description = "Select keyframe points using lasso selection";
+	ot->idname = "GRAPH_OT_select_lasso";
+
+	/* api callbacks */
+	ot->invoke = WM_gesture_lasso_invoke;
+	ot->modal = WM_gesture_lasso_modal;
+	ot->exec = graphkeys_lassoselect_exec;
+	ot->poll = graphop_visible_keyframes_poll;
+	ot->cancel = WM_gesture_lasso_cancel;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+	RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Deselect rather than select items");
+	RNA_def_boolean(ot->srna, "extend", true, "Extend", "Extend selection instead of deselecting everything first");
 }
 
 /* ******************** Column Select Operator **************************** */
@@ -927,7 +1027,7 @@ typedef enum eGraphVertIndex {
 
 /* check if its ok to select a handle */
 // XXX also need to check for int-values only?
-static int fcurve_handle_sel_check(SpaceIpo *sipo, BezTriple *bezt)
+static bool fcurve_handle_sel_check(SpaceIpo *sipo, BezTriple *bezt)
 {
 	if (sipo->flag & SIPO_NOHANDLES) return 0;
 	if ((sipo->flag & SIPO_SELVHANDLESONLY) && BEZSELECTED(bezt) == 0) return 0;
@@ -936,7 +1036,7 @@ static int fcurve_handle_sel_check(SpaceIpo *sipo, BezTriple *bezt)
 
 /* check if the given vertex is within bounds or not */
 // TODO: should we return if we hit something?
-static void nearest_fcurve_vert_store(ListBase *matches, View2D *v2d, FCurve *fcu, BezTriple *bezt, FPoint *fpt, short hpoint, const int mval[2])
+static void nearest_fcurve_vert_store(ListBase *matches, View2D *v2d, FCurve *fcu, BezTriple *bezt, FPoint *fpt, short hpoint, const int mval[2], float unit_scale)
 {
 	/* Keyframes or Samples? */
 	if (bezt) {
@@ -947,7 +1047,7 @@ static void nearest_fcurve_vert_store(ListBase *matches, View2D *v2d, FCurve *fc
 		 *  needed to access the relevant vertex coordinates in the 3x3
 		 *  'vec' matrix
 		 */
-		UI_view2d_view_to_region(v2d, bezt->vec[hpoint + 1][0], bezt->vec[hpoint + 1][1], &screen_co[0], &screen_co[1]);
+		UI_view2d_view_to_region(v2d, bezt->vec[hpoint + 1][0], bezt->vec[hpoint + 1][1] * unit_scale, &screen_co[0], &screen_co[1]);
 		
 		/* check if distance from mouse cursor to vert in screen space is within tolerance */
 		// XXX: inlined distance calculation, since we cannot do this on ints using the math lib...
@@ -996,6 +1096,7 @@ static void get_nearest_fcurve_verts_list(bAnimContext *ac, const int mval[2], L
 	
 	SpaceIpo *sipo = (SpaceIpo *)ac->sl;
 	View2D *v2d = &ac->ar->v2d;
+	short mapping_flag = 0;
 	
 	/* get curves to search through 
 	 *	- if the option to only show keyframes that belong to selected F-Curves is enabled,
@@ -1004,37 +1105,36 @@ static void get_nearest_fcurve_verts_list(bAnimContext *ac, const int mval[2], L
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_NODUPLIS);
 	if (sipo->flag & SIPO_SELCUVERTSONLY)   // FIXME: this should really be check for by the filtering code...
 		filter |= ANIMFILTER_SEL;
+	mapping_flag |= ANIM_get_normalization_flags(ac);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		FCurve *fcu = (FCurve *)ale->key_data;
 		AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-		
-		/* apply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, ale->key_data, 0);
-		
+		float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
+
 		/* apply NLA mapping to all the keyframes */
 		if (adt)
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 0);
-		
+
 		if (fcu->bezt) {
 			BezTriple *bezt1 = fcu->bezt, *prevbezt = NULL;
 			int i;
 			
 			for (i = 0; i < fcu->totvert; i++, prevbezt = bezt1, bezt1++) {
 				/* keyframe */
-				nearest_fcurve_vert_store(matches, v2d, fcu, bezt1, NULL, NEAREST_HANDLE_KEY, mval);
+				nearest_fcurve_vert_store(matches, v2d, fcu, bezt1, NULL, NEAREST_HANDLE_KEY, mval, unit_scale);
 				
 				/* handles - only do them if they're visible */
 				if (fcurve_handle_sel_check(sipo, bezt1) && (fcu->totvert > 1)) {
 					/* first handle only visible if previous segment had handles */
 					if ((!prevbezt && (bezt1->ipo == BEZT_IPO_BEZ)) || (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ))) {
-						nearest_fcurve_vert_store(matches, v2d, fcu, bezt1, NULL, NEAREST_HANDLE_LEFT, mval);
+						nearest_fcurve_vert_store(matches, v2d, fcu, bezt1, NULL, NEAREST_HANDLE_LEFT, mval, unit_scale);
 					}
 					
 					/* second handle only visible if this segment is bezier */
 					if (bezt1->ipo == BEZT_IPO_BEZ) {
-						nearest_fcurve_vert_store(matches, v2d, fcu, bezt1, NULL, NEAREST_HANDLE_RIGHT, mval);
+						nearest_fcurve_vert_store(matches, v2d, fcu, bezt1, NULL, NEAREST_HANDLE_RIGHT, mval, unit_scale);
 					}
 				}
 			}
@@ -1047,9 +1147,6 @@ static void get_nearest_fcurve_verts_list(bAnimContext *ac, const int mval[2], L
 		/* un-apply NLA mapping from all the keyframes */
 		if (adt)
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 0);
-		
-		/* unapply unit corrections */
-		ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, ale->key_data, ANIM_UNITCONV_RESTORE);
 	}
 	
 	/* free channels */
@@ -1063,11 +1160,11 @@ static tNearestVertInfo *get_best_nearest_fcurve_vert(ListBase *matches)
 	short found = 0;
 	
 	/* abort if list is empty */
-	if (matches->first == NULL) 
+	if (BLI_listbase_is_empty(matches))
 		return NULL;
 		
 	/* if list only has 1 item, remove it from the list and return */
-	if (matches->first == matches->last) {
+	if (BLI_listbase_is_single(matches)) {
 		/* need to remove from the list, otherwise it gets freed and then we can't return it */
 		return BLI_pophead(matches);
 	}
@@ -1365,7 +1462,8 @@ void GRAPH_OT_clickselect(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 	
 	/* properties */
-	prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend Select", ""); // SHIFTKEY
+	prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend Select",
+	                       "Toggle keyframe selection instead of leaving newly selected keyframes only"); // SHIFTKEY
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 	
 	prop = RNA_def_boolean(ot->srna, "column", 0, "Column Select", 

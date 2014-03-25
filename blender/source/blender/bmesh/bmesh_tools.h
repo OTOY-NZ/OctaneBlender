@@ -34,6 +34,7 @@
 extern "C" {
 #endif
 
+#include "tools/bmesh_beautify.h"
 #include "tools/bmesh_bevel.h"
 #include "tools/bmesh_bisect_plane.h"
 #include "tools/bmesh_decimate.h"

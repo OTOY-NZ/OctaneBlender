@@ -32,10 +32,13 @@
 #ifdef __SUBSURFACE__
 #include "../closure/bssrdf.h"
 #endif
+#ifdef __VOLUME__
+#include "../closure/volume.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
-__device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
+ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;
 
@@ -124,6 +127,11 @@ __device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderCl
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 #endif
+#ifdef __VOLUME__
+		case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
+			label = volume_henyey_greenstein_sample(sc, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+			break;
+#endif
 		default:
 			label = LABEL_NONE;
 			break;
@@ -132,7 +140,7 @@ __device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderCl
 	return label;
 }
 
-__device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, const float3 omega_in, float *pdf)
 {
 	float3 eval;
 
@@ -204,6 +212,11 @@ __device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderC
 				eval = bsdf_hair_transmission_eval_reflect(sc, sd->I, omega_in, pdf);
 				break;
 #endif
+#ifdef __VOLUME__
+			case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
+				eval = volume_henyey_greenstein_eval_phase(sc, sd->I, omega_in, pdf);
+				break;
+#endif
 			default:
 				eval = make_float3(0.0f, 0.0f, 0.0f);
 				break;
@@ -266,6 +279,11 @@ __device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderC
 				eval = bsdf_hair_transmission_eval_transmit(sc, sd->I, omega_in, pdf);
 				break;
 #endif
+#ifdef __VOLUME__
+			case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
+				eval = volume_henyey_greenstein_eval_phase(sc, sd->I, omega_in, pdf);
+				break;
+#endif
 			default:
 				eval = make_float3(0.0f, 0.0f, 0.0f);
 				break;
@@ -275,7 +293,7 @@ __device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderC
 	return eval;
 }
 
-__device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
+ccl_device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
 {
 #ifdef __OSL__
 	if(kg->osl && sc->prim) {
@@ -344,6 +362,7 @@ __device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
 			bsdf_hair_reflection_blur(sc, roughness);
 			break;
 #endif
+		/* todo: do we want to blur volume closures? */
 		default:
 			break;
 	}

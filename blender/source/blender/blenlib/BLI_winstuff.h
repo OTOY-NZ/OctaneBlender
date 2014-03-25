@@ -37,9 +37,7 @@
 #  error "This include is for Windows only!"
 #endif
 
-#ifndef FREE_WINDOWS
-#  pragma warning(once: 4761 4305 4244 4018)
-#else
+#ifdef FREE_WINDOWS
 #  ifdef WINVER
 #    undef WINVER
 #  endif
@@ -94,7 +92,7 @@ extern "C" {
 /* defines for using ISO C++ conformant names */
 #define snprintf _snprintf
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || (defined(FREE_WINDOWS) && !defined(FREE_WINDOWS64))
 #  define	R_OK	4
 #  define	W_OK	2
 // not accepted by access() on windows
@@ -127,6 +125,10 @@ typedef long ssize_t;
 #  endif
 #endif
 
+
+#ifdef FREE_WINDOWS
+#include <dirent.h>
+#else
 struct dirent {
 	int d_ino;
 	int d_off;
@@ -146,10 +148,12 @@ typedef struct _DIR {
 	struct dirent direntry;
 } DIR;
 
-void RegisterBlendExtension(void);
 DIR *opendir(const char *path);
 struct dirent *readdir(DIR *dp);
 int closedir(DIR *dp);
+#endif
+
+void RegisterBlendExtension(void);
 void get_default_root(char *root);
 int check_file_chars(char *filename);
 const char *dirname(char *path);

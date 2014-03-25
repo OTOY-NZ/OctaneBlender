@@ -26,9 +26,9 @@
 #include "DNA_scene_types.h"
 
 extern "C" {
-	#include "RE_pipeline.h"
-	#include "RE_shader_ext.h"
-	#include "RE_render_ext.h"
+#  include "RE_pipeline.h"
+#  include "RE_shader_ext.h"
+#  include "RE_render_ext.h"
 }
 
 /* ******** Render Layers Base Prog ******** */
@@ -60,7 +60,7 @@ void RenderLayersBaseProg::initExecution()
 			if (rl && rl->rectf) {
 				this->m_inputBuffer = RE_RenderLayerGetPass(rl, this->m_renderpass);
 
-				if (this->m_inputBuffer == NULL || this->m_renderpass == SCE_PASS_COMBINED) {
+				if (this->m_inputBuffer == NULL && this->m_renderpass == SCE_PASS_COMBINED) {
 					this->m_inputBuffer = rl->rectf;
 				}
 			}
@@ -75,13 +75,15 @@ void RenderLayersBaseProg::initExecution()
 void RenderLayersBaseProg::doInterpolation(float output[4], float x, float y, PixelSampler sampler)
 {
 	unsigned int offset;
-	int ix, iy;
 	int width = this->getWidth(), height = this->getHeight();
 
 	switch (sampler) {
-		case COM_PS_NEAREST:
-			ix = x;
-			iy = y;
+		case COM_PS_NEAREST: {
+			int ix = x;
+			int iy = y;
+			if (ix < 0 || iy < 0 || ix >= width || iy >= height)
+				break;
+
 			offset = (iy * width + ix) * this->m_elementsize;
 
 			if (this->m_elementsize == 1)
@@ -90,8 +92,8 @@ void RenderLayersBaseProg::doInterpolation(float output[4], float x, float y, Pi
 				copy_v3_v3(output, &this->m_inputBuffer[offset]);
 			else
 				copy_v4_v4(output, &this->m_inputBuffer[offset]);
-
 			break;
+		}
 
 		case COM_PS_BILINEAR:
 			BLI_bilinear_interpolation_fl(this->m_inputBuffer, output, width, height, this->m_elementsize, x, y);
@@ -112,7 +114,7 @@ void RenderLayersBaseProg::doInterpolation(float output[4], float x, float y, Pi
 	}
 }
 
-void RenderLayersBaseProg::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void RenderLayersBaseProg::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 #if 0
 	const RenderData *rd = this->m_rd;
@@ -137,7 +139,7 @@ void RenderLayersBaseProg::executePixel(float output[4], float x, float y, Pixel
 	int iy = y;
 #endif
 
-	if (this->m_inputBuffer == NULL || ix < 0 || iy < 0 || ix >= (int)this->getWidth() || iy >= (int)this->getHeight() ) {
+	if (this->m_inputBuffer == NULL) {
 		zero_v4(output);
 	}
 	else {
@@ -192,7 +194,7 @@ RenderLayersAlphaProg::RenderLayersAlphaProg() : RenderLayersBaseProg(SCE_PASS_C
 	this->addOutputSocket(COM_DT_VALUE);
 }
 
-void RenderLayersAlphaProg::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void RenderLayersAlphaProg::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 	int ix = x;
 	int iy = y;
@@ -234,7 +236,7 @@ RenderLayersDepthProg::RenderLayersDepthProg() : RenderLayersBaseProg(SCE_PASS_Z
 	this->addOutputSocket(COM_DT_VALUE);
 }
 
-void RenderLayersDepthProg::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void RenderLayersDepthProg::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 	int ix = x;
 	int iy = y;

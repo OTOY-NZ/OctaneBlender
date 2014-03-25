@@ -105,7 +105,7 @@ static int poselib_get_free_index(bAction *act)
 {
 	TimeMarker *marker;
 	int low = 0, high = 0;
-	short changed = 0;
+	bool changed = false;
 	
 	/* sanity checks */
 	if (ELEM(NULL, act, act->markers.first)) return 1;
@@ -115,7 +115,7 @@ static int poselib_get_free_index(bAction *act)
 	 * Prevents problems with deleting then trying to add new poses [#27412]
 	 */
 	do {
-		changed = 0;
+		changed = false;
 		
 		for (marker = act->markers.first; marker; marker = marker->next) {
 			/* only increase low if value is 1 greater than low, to find "gaps" where
@@ -123,13 +123,13 @@ static int poselib_get_free_index(bAction *act)
 			 */
 			if (marker->frame == (low + 1)) {
 				low++;
-				changed = 1;
+				changed = true;
 			}
 			
 			/* value replaces high if it is the highest value encountered yet */
 			if (marker->frame > high) {
 				high = marker->frame;
-				changed = 1;
+				changed = true;
 			}
 		}
 	} while (changed != 0);
@@ -499,7 +499,7 @@ void POSELIB_OT_pose_add(wmOperatorType *ot)
 /* ----- */
 
 /* can be called with C == NULL */
-static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Object *ob = get_poselib_object(C);
 	bAction *act = (ob) ? ob->poselib : NULL;
@@ -524,7 +524,7 @@ static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUS
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -567,7 +567,7 @@ static int poselib_remove_exec(bContext *C, wmOperator *op)
 		if (fcu->bezt) {
 			for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
 				/* check if remove */
-				if (IS_EQ(bezt->vec[1][0], marker->frame)) {
+				if (IS_EQF(bezt->vec[1][0], (float)marker->frame)) {
 					delete_fcurve_key(fcu, i, 1);
 					break;
 				}
@@ -920,7 +920,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, tPoseLib_PreviewData 
 		pchan = BKE_pose_channel_find_name(pose, agrp->name);
 		
 		if (pchan) {
-			if ( (pld->selcount == 0) || ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED)) ) {
+			if ((pld->selcount == 0) || ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED))) {
 				if (autokey) {
 					/* add datasource override for the PoseChannel, to be used later */
 					ANIM_relative_keyingset_add_source(&dsources, &pld->ob->id, &RNA_PoseBone, pchan); 
@@ -1069,7 +1069,7 @@ static void poselib_preview_get_next(tPoseLib_PreviewData *pld, int step)
 		}
 		
 		/* check if any matches */
-		if (pld->searchp.first == NULL) {
+		if (BLI_listbase_is_empty(&pld->searchp)) {
 			pld->marker = NULL;
 			return;
 		}
@@ -1532,10 +1532,9 @@ static int poselib_preview_exit(bContext *C, wmOperator *op)
 }
 
 /* Cancel previewing operation (called when exiting Blender) */
-static int poselib_preview_cancel(bContext *C, wmOperator *op)
+static void poselib_preview_cancel(bContext *C, wmOperator *op)
 {
 	poselib_preview_exit(C, op);
-	return OPERATOR_CANCELLED;
 }
 
 /* main modal status check */

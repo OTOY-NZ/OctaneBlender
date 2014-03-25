@@ -41,6 +41,8 @@ static bool bm_vert_dissolve_fan_test(BMVert *v)
 	BMIter iter;
 	BMEdge *e;
 
+	BMVert *varr[4];
+
 	unsigned int tot_edge = 0;
 	unsigned int tot_edge_boundary = 0;
 	unsigned int tot_edge_manifold = 0;
@@ -56,17 +58,25 @@ static bool bm_vert_dissolve_fan_test(BMVert *v)
 		else if (BM_edge_is_wire(e)) {
 			tot_edge_wire++;
 		}
+
+		/* bail out early */
+		if (tot_edge == 4) {
+			return false;
+		}
+
+		/* used to check overlapping faces */
+		varr[tot_edge] = BM_edge_other_vert(e, v);
+
 		tot_edge++;
 	}
 
-	if ((tot_edge == 4) && (tot_edge_boundary == 0) && (tot_edge_manifold == 4)) {
-		return true;
-	}
-	else if ((tot_edge == 3) && (tot_edge_boundary == 0) && (tot_edge_manifold == 3)) {
-		return true;
-	}
-	else if ((tot_edge == 3) && (tot_edge_boundary == 2) && (tot_edge_manifold == 1)) {
-		return true;
+	if (((tot_edge == 4) && (tot_edge_boundary == 0) && (tot_edge_manifold == 4)) ||
+	    ((tot_edge == 3) && (tot_edge_boundary == 0) && (tot_edge_manifold == 3)) ||
+	    ((tot_edge == 3) && (tot_edge_boundary == 2) && (tot_edge_manifold == 1)))
+	{
+		if (!BM_face_exists(varr, tot_edge, NULL)) {
+			return true;
+		}
 	}
 	else if ((tot_edge == 2) && (tot_edge_wire == 2)) {
 		return true;
@@ -144,7 +154,7 @@ static bool bm_vert_dissolve_fan(BMesh *bm, BMVert *v)
 			if (l->f->len > 3) {
 				BMLoop *l_new;
 				BLI_assert(l->prev->v != l->next->v);
-				BM_face_split(bm, l->f, l->prev->v, l->next->v, &l_new, NULL, true);
+				BM_face_split(bm, l->f, l->prev, l->next, &l_new, NULL, true);
 				BM_elem_flag_merge_into(l_new->e, l->e, l->prev->e);
 			}
 		}

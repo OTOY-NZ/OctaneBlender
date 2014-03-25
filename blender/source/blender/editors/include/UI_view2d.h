@@ -78,7 +78,6 @@ enum eView2D_Units {
 	V2D_UNIT_VALUES,
 	V2D_UNIT_DEGREES,
 	V2D_UNIT_TIME,
-	V2D_UNIT_SECONDSSEQ
 };
 
 /* clamping of grid values to whole numbers */
@@ -155,7 +154,9 @@ void UI_view2d_totRect_set(struct View2D *v2d, int width, int height);
 void UI_view2d_totRect_set_resize(struct View2D *v2d, int width, int height, int resize);
 
 /* per tab offsets, returns 1 if tab changed */
-int UI_view2d_tab_set(struct View2D *v2d, int tab);
+bool UI_view2d_tab_set(struct View2D *v2d, int tab);
+
+void UI_view2d_zoom_cache_reset(void);
 
 /* view matrix operations */
 void UI_view2d_view_ortho(struct View2D *v2d);
@@ -204,16 +205,18 @@ void UI_view2d_getscale_inverse(struct View2D *v2d, float *x, float *y);
 void UI_view2d_getcenter(struct View2D *v2d, float *x, float *y);
 void UI_view2d_setcenter(struct View2D *v2d, float x, float y);
 
+void UI_view2d_offset(struct View2D *v2d, float xfac, float yfac);
+
 short UI_view2d_mouse_in_scrollers(const struct bContext *C, struct View2D *v2d, int x, int y);
 
 /* cached text drawing in v2d, to allow pixel-aligned draw as post process */
 void UI_view2d_text_cache_add(struct View2D *v2d, float x, float y, const char *str, const char col[4]);
-void UI_view2d_text_cache_rectf(struct View2D *v2d, struct rctf *rect, const char *str, const char col[4]);
+void UI_view2d_text_cache_rectf(struct View2D *v2d, const struct rctf *rect, const char *str, const char col[4]);
 void UI_view2d_text_cache_draw(struct ARegion *ar);
 
 /* operators */
-void UI_view2d_operatortypes(void);
-void UI_view2d_keymap(struct wmKeyConfig *keyconf);
+void ED_operatortypes_view2d(void);
+void ED_keymap_view2d(struct wmKeyConfig *keyconf);
 
 void UI_view2d_smooth_view(struct bContext *C, struct ARegion *ar,
                            const struct rctf *cur, const int smooth_viewtx);

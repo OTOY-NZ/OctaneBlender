@@ -72,6 +72,11 @@
 /* XXX interface.h */
 extern void ui_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int select);
 
+float ED_node_grid_size(void)
+{
+	return U.widget_unit;
+}
+
 void ED_node_tree_update(const bContext *C)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
@@ -134,21 +139,6 @@ void ED_node_tag_update_id(ID *id)
 	}
 }
 
-static int has_nodetree(bNodeTree *ntree, bNodeTree *lookup)
-{
-	bNode *node;
-	
-	if (ntree == lookup)
-		return 1;
-	
-	for (node = ntree->nodes.first; node; node = node->next)
-		if (node->type == NODE_GROUP && node->id)
-			if (has_nodetree((bNodeTree *)node->id, lookup))
-				return 1;
-	
-	return 0;
-}
-
 void ED_node_tag_update_nodetree(Main *bmain, bNodeTree *ntree)
 {
 	if (!ntree)
@@ -157,7 +147,7 @@ void ED_node_tag_update_nodetree(Main *bmain, bNodeTree *ntree)
 	/* look through all datablocks, to support groups */
 	FOREACH_NODETREE(bmain, tntree, id) {
 		/* check if nodetree uses the group */
-		if (has_nodetree(tntree, ntree))
+		if (ntreeHasTree(tntree, ntree))
 			ED_node_tag_update_id(id);
 	} FOREACH_NODETREE_END
 	
@@ -342,7 +332,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 		RNA_pointer_create(&ntree->id, &RNA_NodeSocket, nsock, &sockptr);
 		
 		layout = uiBlockLayout(node->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-		                       locx + NODE_DYS, dy, NODE_WIDTH(node) - NODE_DY, NODE_DY, UI_GetStyle());
+		                       locx + NODE_DYS, dy, NODE_WIDTH(node) - NODE_DY, NODE_DY, 0, UI_GetStyle());
 		/* context pointers for current node and socket */
 		uiLayoutSetContextPointer(layout, "node", &nodeptr);
 		uiLayoutSetContextPointer(layout, "socket", &sockptr);
@@ -351,7 +341,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 		row = uiLayoutRow(layout, 1);
 		uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
 		
-		node->typeinfo->drawoutputfunc((bContext *)C, row, &sockptr, &nodeptr);
+		nsock->typeinfo->draw((bContext *)C, row, &sockptr, &nodeptr, IFACE_(nsock->name));
 		
 		uiBlockEndAlign(node->block);
 		uiBlockLayoutResolve(node->block, NULL, &buty);
@@ -402,7 +392,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 	}
 
 	/* buttons rect? */
-	if (node->typeinfo->uifunc && (node->flag & NODE_OPTIONS)) {
+	if (node->typeinfo->draw_buttons && (node->flag & NODE_OPTIONS)) {
 		dy -= NODE_DYS / 2;
 
 		/* set this for uifunc() that don't use layout engine yet */
@@ -413,10 +403,10 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 		
 			
 		layout = uiBlockLayout(node->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-		                       locx + NODE_DYS, dy, node->butr.xmax, 0, UI_GetStyle());
+		                       locx + NODE_DYS, dy, node->butr.xmax, 0, 0, UI_GetStyle());
 		uiLayoutSetContextPointer(layout, "node", &nodeptr);
 		
-		node->typeinfo->uifunc(layout, (bContext *)C, &nodeptr);
+		node->typeinfo->draw_buttons(layout, (bContext *)C, &nodeptr);
 		
 		uiBlockEndAlign(node->block);
 		uiBlockLayoutResolve(node->block, NULL, &buty);
@@ -432,12 +422,14 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 		RNA_pointer_create(&ntree->id, &RNA_NodeSocket, nsock, &sockptr);
 		
 		layout = uiBlockLayout(node->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-		                       locx + NODE_DYS, dy, NODE_WIDTH(node) - NODE_DY, NODE_DY, UI_GetStyle());
+		                       locx + NODE_DYS, dy, NODE_WIDTH(node) - NODE_DY, NODE_DY, 0, UI_GetStyle());
 		/* context pointers for current node and socket */
 		uiLayoutSetContextPointer(layout, "node", &nodeptr);
 		uiLayoutSetContextPointer(layout, "socket", &sockptr);
 		
-		node->typeinfo->drawinputfunc((bContext *)C, layout, &sockptr, &nodeptr);
+		row = uiLayoutRow(layout, 1);
+		
+		nsock->typeinfo->draw((bContext *)C, row, &sockptr, &nodeptr, IFACE_(nsock->name));
 		
 		uiBlockEndAlign(node->block);
 		uiBlockLayoutResolve(node->block, NULL, &buty);
@@ -555,16 +547,21 @@ int node_tweak_area_default(bNode *node, int x, int y)
 int node_get_colorid(bNode *node)
 {
 	switch (node->typeinfo->nclass) {
-		case NODE_CLASS_INPUT:      return TH_NODE_IN_OUT;
-		case NODE_CLASS_OUTPUT:     return (node->flag & NODE_DO_OUTPUT) ? TH_NODE_IN_OUT : TH_NODE;
+		case NODE_CLASS_INPUT:      return TH_NODE_INPUT;
+		case NODE_CLASS_OUTPUT:     return (node->flag & NODE_DO_OUTPUT) ? TH_NODE_OUTPUT : TH_NODE;
 		case NODE_CLASS_CONVERTOR:  return TH_NODE_CONVERTOR;
-		case NODE_CLASS_OP_COLOR:
-		case NODE_CLASS_OP_VECTOR:
-		case NODE_CLASS_OP_FILTER:  return TH_NODE_OPERATOR;
+		case NODE_CLASS_OP_COLOR:   return TH_NODE_COLOR;
+		case NODE_CLASS_OP_VECTOR:  return TH_NODE_VECTOR;
+		case NODE_CLASS_OP_FILTER:  return TH_NODE_FILTER;
 		case NODE_CLASS_GROUP:      return TH_NODE_GROUP;
 		case NODE_CLASS_INTERFACE:  return TH_NODE_INTERFACE;
 		case NODE_CLASS_MATTE:      return TH_NODE_MATTE;
 		case NODE_CLASS_DISTORT:    return TH_NODE_DISTORT;
+		case NODE_CLASS_TEXTURE:    return TH_NODE_TEXTURE;
+		case NODE_CLASS_SHADER:     return TH_NODE_SHADER;
+		case NODE_CLASS_SCRIPT:     return TH_NODE_SCRIPT;
+		case NODE_CLASS_PATTERN:    return TH_NODE_PATTERN;
+		case NODE_CLASS_LAYOUT:     return TH_NODE_LAYOUT;
 		default:                    return TH_NODE;
 	}
 }
@@ -861,7 +858,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		UI_ThemeColor(TH_TEXT);
 #endif
 	
-	BLI_strncpy(showname, nodeLabel(node), sizeof(showname));
+	nodeLabel(ntree, node, showname, sizeof(showname));
 	
 	//if (node->flag & NODE_MUTED)
 	//	BLI_snprintf(showname, sizeof(showname), "[%s]", showname); /* XXX - don't print into self! */
@@ -1028,8 +1025,8 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		UI_ThemeColor(TH_TEXT);
 	
 	if (node->miniwidth > 0.0f) {
-		BLI_strncpy(showname, nodeLabel(node), sizeof(showname));
-		
+		nodeLabel(ntree, node, showname, sizeof(showname));
+
 		//if (node->flag & NODE_MUTED)
 		//	BLI_snprintf(showname, sizeof(showname), "[%s]", showname); /* XXX - don't print into self! */
 
@@ -1115,8 +1112,8 @@ void node_draw_default(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTr
 
 static void node_update(const bContext *C, bNodeTree *ntree, bNode *node)
 {
-	if (node->typeinfo->drawupdatefunc)
-		node->typeinfo->drawupdatefunc(C, ntree, node);
+	if (node->typeinfo->draw_nodetype_prepare)
+		node->typeinfo->draw_nodetype_prepare(C, ntree, node);
 }
 
 void node_update_nodetree(const bContext *C, bNodeTree *ntree)
@@ -1131,8 +1128,8 @@ void node_update_nodetree(const bContext *C, bNodeTree *ntree)
 
 static void node_draw(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTree *ntree, bNode *node, bNodeInstanceKey key)
 {
-	if (node->typeinfo->drawfunc)
-		node->typeinfo->drawfunc(C, ar, snode, ntree, node, key);
+	if (node->typeinfo->draw_nodetype)
+		node->typeinfo->draw_nodetype(C, ar, snode, ntree, node, key);
 }
 
 #define USE_DRAW_TOT_UPDATE
@@ -1241,7 +1238,7 @@ static void draw_group_overlay(const bContext *C, ARegion *ar)
 	/* shade node groups to separate them visually */
 	UI_ThemeColorShadeAlpha(TH_NODE_GROUP, 0, -70);
 	glEnable(GL_BLEND);
-	uiSetRoundBox(0);
+	uiSetRoundBox(UI_CNR_NONE);
 	uiDrawBox(GL_POLYGON, rect.xmin, rect.ymin, rect.xmax, rect.ymax, 0);
 	glDisable(GL_BLEND);
 	
@@ -1323,7 +1320,7 @@ void drawnodespace(const bContext *C, ARegion *ar)
 			snode_setup_v2d(snode, ar, center);
 			
 			/* grid, uses theme color based on node path depth */
-			UI_view2d_multi_grid_draw(v2d, (depth > 0 ? TH_NODE_GROUP : TH_BACK), U.widget_unit, 5, 2);
+			UI_view2d_multi_grid_draw(v2d, (depth > 0 ? TH_NODE_GROUP : TH_BACK), ED_node_grid_size(), NODE_GRID_STEPS, 2);
 			
 			/* backdrop */
 			draw_nodespace_back_pix(C, ar, snode, path->parent_key);
@@ -1348,7 +1345,7 @@ void drawnodespace(const bContext *C, ARegion *ar)
 	}
 	else {
 		/* default grid */
-		UI_view2d_multi_grid_draw(v2d, TH_BACK, U.widget_unit, 5, 2);
+		UI_view2d_multi_grid_draw(v2d, TH_BACK, ED_node_grid_size(), NODE_GRID_STEPS, 2);
 		
 		/* backdrop */
 		draw_nodespace_back_pix(C, ar, snode, NODE_INSTANCE_KEY_NONE);

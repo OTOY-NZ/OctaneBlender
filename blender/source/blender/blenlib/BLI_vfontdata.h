@@ -40,22 +40,20 @@ struct PackedFile;
 struct VFont;
 
 typedef struct VFontData {
-	ListBase characters;
+	struct GHash *characters;
 	char name[128];
+	float scale;
 } VFontData;
 
 typedef struct VChar {
-	struct VChar    *next, *prev;
 	ListBase nurbsbase;
-	intptr_t index;
-	float resol;
+	unsigned int index;
 	float width;
-	float           *points;
 } VChar;
 
 VFontData *BLI_vfontdata_from_freetypefont(struct PackedFile *pf);
 
-int BLI_vfontchar_from_freetypefont(struct VFont *vfont, unsigned long character);
+VChar *BLI_vfontchar_from_freetypefont(struct VFont *vfont, unsigned long character);
 
 #endif
 

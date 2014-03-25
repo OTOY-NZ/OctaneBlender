@@ -68,13 +68,10 @@ void printfGlyph(bmGlyph *glyph)
 	printf(" advan: %3d reser: %3d\n", glyph->advance, glyph->reserved);
 }
 
-#define MAX2(x, y)          ((x) > (y) ? (x) : (y))
-#define MAX3(x, y, z)       (MAX2(MAX2((x), (y)), (z)))
-
 void calcAlpha(ImBuf *ibuf)
 {
 	int i;
-	char * rect;
+	char *rect;
 	
 	if (ibuf) {
 		rect = (char *) ibuf->rect;
@@ -88,7 +85,7 @@ void calcAlpha(ImBuf *ibuf)
 void readBitmapFontVersion0(ImBuf *ibuf, unsigned char *rect, int step)
 {
 	int glyphcount, bytes, i, index, linelength, ysize;
-	unsigned char * buffer;
+	unsigned char *buffer;
 	bmFont * bmfont;
 	
 	linelength = ibuf->x * step;
@@ -174,7 +171,7 @@ void readBitmapFontVersion0(ImBuf *ibuf, unsigned char *rect, int step)
 
 void detectBitmapFont(ImBuf *ibuf)
 {
-	unsigned char * rect;
+	unsigned char *rect;
 	unsigned short version;
 	int i;
 	
@@ -204,7 +201,7 @@ void detectBitmapFont(ImBuf *ibuf)
 							printf("detectBitmapFont :Unsupported version %d\n", (int)version);
 						}
 
-						/* on succes ibuf->userdata points to the bitmapfont */
+						/* on success ibuf->userdata points to the bitmapfont */
 						if (ibuf->userdata) {
 							break;
 						}

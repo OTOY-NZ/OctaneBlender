@@ -120,7 +120,7 @@ void ED_spacetypes_init(void)
 	ED_operatortypes_mask();
 	ED_operatortypes_io();
 	
-	UI_view2d_operatortypes();
+	ED_operatortypes_view2d();
 	UI_buttons_operatortypes();
 	
 	/* register operators */
@@ -134,6 +134,7 @@ void ED_spacetypes_init(void)
 	 * maybe we'll need to have them go after python operators too? */
 	ED_operatormacros_armature();
 	ED_operatormacros_mesh();
+	ED_operatormacros_metaball();
 	ED_operatormacros_node();
 	ED_operatormacros_object();
 	ED_operatormacros_file();
@@ -177,9 +178,9 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
 	ED_keymap_metaball(keyconf);
 	ED_keymap_paint(keyconf);
 	ED_keymap_mask(keyconf);
-	ED_marker_keymap(keyconf);
+	ED_keymap_marker(keyconf);
 
-	UI_view2d_keymap(keyconf);
+	ED_keymap_view2d(keyconf);
 
 	spacetypes = BKE_spacetypes_list();
 	for (stype = spacetypes->first; stype; stype = stype->next) {

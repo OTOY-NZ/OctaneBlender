@@ -53,7 +53,6 @@
 #include <stdio.h>
 
 #include "MEM_guardedalloc.h"
-#include "DNA_sdna_types.h"
 
 #include "../blenlib/BLI_sys_types.h" // for intptr_t support
 
@@ -148,6 +147,7 @@ static int nr_structs = 0;
 static char **names, *namedata;      /* at address names[a] is string a */
 static char **types, *typedata;      /* at address types[a] is string a */
 static short *typelens_native;       /* at typelens[a] is the length of type 'a' on this systems bitness (32 or 64) */
+static short *typelens_32;           /* contains sizes as they are calculated on 32 bit systems */
 static short *typelens_64;           /* contains sizes as they are calculated on 64 bit systems */
 static short **structs, *structdata; /* at sp = structs[a] is the first address of a struct definition
                                       * sp[0] is type number
@@ -201,7 +201,7 @@ static int convert_include(char *filename);
 /**
  * Determine how many bytes are needed for an array.
  */ 
-static int arraysize(char *astr, int len);
+static int arraysize(const char *str);
 
 /**
  * Determine how many bytes are needed for each struct.
@@ -246,6 +246,7 @@ static int add_type(const char *str, int len)
 		if (strcmp(str, types[nr]) == 0) {
 			if (len) {
 				typelens_native[nr] = len;
+				typelens_32[nr] = len;
 				typelens_64[nr] = len;
 			}
 			return nr;
@@ -262,6 +263,7 @@ static int add_type(const char *str, int len)
 	strcpy(cp, str);
 	types[nr_types] = cp;
 	typelens_native[nr_types] = len;
+	typelens_32[nr_types] = len;
 	typelens_64[nr_types] = len;
 	
 	if (nr_types >= maxnr) {
@@ -518,7 +520,7 @@ static int preprocess_include(char *maindata, int len)
 	return newlen;
 }
 
-static void *read_file_data(char *filename, int *len_r)
+static void *read_file_data(char *filename, int *r_len)
 {
 #ifdef WIN32
 	FILE *fp = fopen(filename, "rb");
@@ -528,23 +530,23 @@ static void *read_file_data(char *filename, int *len_r)
 	void *data;
 
 	if (!fp) {
-		*len_r = -1;
+		*r_len = -1;
 		return NULL;
 	}
 
 	fseek(fp, 0L, SEEK_END);
-	*len_r = ftell(fp);
+	*r_len = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
 
-	data = MEM_mallocN(*len_r, "read_file_data");
+	data = MEM_mallocN(*r_len, "read_file_data");
 	if (!data) {
-		*len_r = -1;
+		*r_len = -1;
 		fclose(fp);
 		return NULL;
 	}
 
-	if (fread(data, *len_r, 1, fp) != 1) {
-		*len_r = -1;
+	if (fread(data, *r_len, 1, fp) != 1) {
+		*r_len = -1;
 		MEM_freeN(data);
 		fclose(fp);
 		return NULL;
@@ -699,19 +701,16 @@ static int convert_include(char *filename)
 	return 0;
 }
 
-static int arraysize(char *astr, int len)
+static int arraysize(const char *str)
 {
 	int a, mul = 1;
-	char str[100], *cp = NULL;
-
-	memcpy(str, astr, len + 1);
+	const char *cp = NULL;
 	
-	for (a = 0; a < len; a++) {
+	for (a = 0; str[a]; a++) {
 		if (str[a] == '[') {
 			cp = &(str[a + 1]);
 		}
 		else if (str[a] == ']' && cp) {
-			str[a] = 0;
 			/* if 'cp' is a preprocessor definition, it will evaluate to 0,
 			 * the caller needs to check for this case and throw an error */
 			mul *= atoi(cp);
@@ -723,9 +722,9 @@ static int arraysize(char *astr, int len)
 
 static int calculate_structlens(int firststruct)
 {
-	int a, b, len_native, len_64, unknown = nr_structs, lastunknown, structtype, type, mul, namelen;
+	int a, b, len_native, len_32, len_64, unknown = nr_structs, lastunknown, structtype, type, mul, namelen;
 	short *sp, *structpoin;
-	char *cp;
+	const char *cp;
 	int has_pointer, dna_error = 0;
 		
 	while (unknown) {
@@ -742,6 +741,7 @@ static int calculate_structlens(int firststruct)
 				
 				sp = structpoin + 2;
 				len_native = 0;
+				len_32 = 0;
 				len_64 = 0;
 				has_pointer = 0;
 				
@@ -756,7 +756,7 @@ static int calculate_structlens(int firststruct)
 						has_pointer = 1;
 						/* has the name an extra length? (array) */
 						mul = 1;
-						if (cp[namelen - 1] == ']') mul = arraysize(cp, namelen);
+						if (cp[namelen - 1] == ']') mul = arraysize(cp);
 
 						if (mul == 0) {
 							printf("Zero array size found or could not parse %s: '%.*s'\n", types[structtype], namelen + 1, cp);
@@ -783,6 +783,7 @@ static int calculate_structlens(int firststruct)
 						}
 
 						len_native += sizeof(void *) * mul;
+						len_32 += 4 * mul;
 						len_64 += 8 * mul;
 
 					}
@@ -794,7 +795,7 @@ static int calculate_structlens(int firststruct)
 					else if (typelens_native[type]) {
 						/* has the name an extra length? (array) */
 						mul = 1;
-						if (cp[namelen - 1] == ']') mul = arraysize(cp, namelen);
+						if (cp[namelen - 1] == ']') mul = arraysize(cp);
 
 						if (mul == 0) {
 							printf("Zero array size found or could not parse %s: '%.*s'\n", types[structtype], namelen + 1, cp);
@@ -824,11 +825,13 @@ static int calculate_structlens(int firststruct)
 						}
 
 						len_native += mul * typelens_native[type];
+						len_32 += mul * typelens_32[type];
 						len_64 += mul * typelens_64[type];
 						
 					}
 					else {
 						len_native = 0;
+						len_32 = 0;
 						len_64 = 0;
 						break;
 					}
@@ -839,10 +842,11 @@ static int calculate_structlens(int firststruct)
 				}
 				else {
 					typelens_native[structtype] = len_native;
+					typelens_32[structtype] = len_32;
 					typelens_64[structtype] = len_64;
 					/* two ways to detect if a struct contains a pointer:
-					 * has_pointer is set or len_64 != len_native */
-					if (has_pointer || len_64 != len_native) {
+					 * has_pointer is set or len_native  doesn't match any of 32/64bit lengths*/
+					if (has_pointer || len_64 != len_native || len_32 != len_native) {
 						if (len_64 % 8) {
 							printf("Sizeerror 8 in struct: %s (add %d bytes)\n", types[structtype], len_64 % 8);
 							dna_error = 1;
@@ -964,6 +968,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file)
 	names = MEM_callocN(sizeof(char *) * maxnr, "names");
 	types = MEM_callocN(sizeof(char *) * maxnr, "types");
 	typelens_native = MEM_callocN(sizeof(short) * maxnr, "typelens_native");
+	typelens_32 = MEM_callocN(sizeof(short) * maxnr, "typelens_32");
 	typelens_64 = MEM_callocN(sizeof(short) * maxnr, "typelens_64");
 	structs = MEM_callocN(sizeof(short *) * maxnr, "structs");
 
@@ -975,7 +980,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file)
 	add_type("short", 2);    /* SDNA_TYPE_SHORT */
 	add_type("ushort", 2);   /* SDNA_TYPE_USHORT */
 	add_type("int", 4);      /* SDNA_TYPE_INT */
-	add_type("long", 4);     /* SDNA_TYPE_LONG */		/* should it be 8 on 64 bits? */
+	add_type("long", 4);     /* SDNA_TYPE_LONG */  /* maybe 4 or 8 bytes depending on platform, disallowed for now */
 	add_type("ulong", 4);    /* SDNA_TYPE_ULONG */
 	add_type("float", 4);    /* SDNA_TYPE_FLOAT */
 	add_type("double", 8);   /* SDNA_TYPE_DOUBLE */
@@ -1130,6 +1135,7 @@ static int make_structDNA(const char *baseDirectory, FILE *file)
 	MEM_freeN(names);
 	MEM_freeN(types);
 	MEM_freeN(typelens_native);
+	MEM_freeN(typelens_32);
 	MEM_freeN(typelens_64);
 	MEM_freeN(structs);
 
@@ -1208,6 +1214,14 @@ int main(int argc, char **argv)
 #endif
 
 #endif /* if 0 */
+
+/* even though DNA supports, 'long' shouldn't be used since it can be either 32 or 64bit,
+ * use int or int64_t instead.
+ * Only valid use would be as a runtime variable if an API expected a long,
+ * but so far we dont have this happening. */
+#ifdef __GNUC__
+#  pragma GCC poison long
+#endif
 
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"

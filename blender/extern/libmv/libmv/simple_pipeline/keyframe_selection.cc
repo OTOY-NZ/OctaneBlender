@@ -131,9 +131,26 @@ Mat pseudoInverse(const Mat &matrix) {
 
   return V * D * V.inverse();
 }
+
+void filterZeroWeightMarkersFromTracks(const Tracks &tracks,
+                                       Tracks *filtered_tracks) {
+  vector<Marker> all_markers = tracks.AllMarkers();
+
+  for (int i = 0; i < all_markers.size(); ++i) {
+    Marker &marker = all_markers[i];
+    if (marker.weight != 0.0) {
+      filtered_tracks->Insert(marker.image,
+                              marker.track,
+                              marker.x,
+                              marker.y,
+                              marker.weight);
+    }
+  }
+}
+
 }  // namespace
 
-void SelectKeyframesBasedOnGRICAndVariance(const Tracks &tracks,
+void SelectKeyframesBasedOnGRICAndVariance(const Tracks &_tracks,
                                            CameraIntrinsics &intrinsics,
                                            vector<int> &keyframes) {
   // Mirza Tahir Ahmed, Matthew N. Dailey
@@ -141,7 +158,10 @@ void SelectKeyframesBasedOnGRICAndVariance(const Tracks &tracks,
   //
   // http://www.cs.ait.ac.th/~mdailey/papers/Tahir-KeyFrame.pdf
 
-  int max_image = tracks.MaxImage();
+  Tracks filtered_tracks;
+  filterZeroWeightMarkersFromTracks(_tracks, &filtered_tracks);
+
+  int max_image = filtered_tracks.MaxImage();
   int next_keyframe = 1;
   int number_keyframes = 0;
 
@@ -173,11 +193,13 @@ void SelectKeyframesBasedOnGRICAndVariance(const Tracks &tracks,
          candidate_image++) {
       // Conjunction of all markers from both keyframes
       vector<Marker> all_markers =
-        tracks.MarkersInBothImages(current_keyframe, candidate_image);
+        filtered_tracks.MarkersInBothImages(current_keyframe,
+                                            candidate_image);
 
       // Match keypoints between frames current_keyframe and candidate_image
       vector<Marker> tracked_markers =
-        tracks.MarkersForTracksInBothImages(current_keyframe, candidate_image);
+        filtered_tracks.MarkersForTracksInBothImages(current_keyframe,
+                                                     candidate_image);
 
       // Correspondences in normalized space
       Mat x1, x2;
@@ -207,19 +229,19 @@ void SelectKeyframesBasedOnGRICAndVariance(const Tracks &tracks,
       Mat3 H, F;
 
       // Estimate homography using default options.
-      HomographyEstimationOptions homography_estimation_options;
-      Homography2DFromCorrespondencesEuc(x1,
-                                         x2,
-                                         homography_estimation_options,
-                                         &H);
+      EstimateHomographyOptions estimate_homography_options;
+      EstimateHomography2DFromCorrespondences(x1,
+                                              x2,
+                                              estimate_homography_options,
+                                              &H);
 
       // Convert homography to original pixel space.
       H = N_inverse * H * N;
 
-      FundamentalEstimationOptions fundamental_estimation_options;
-      FundamentalFromCorrespondencesEuc(x1,
+      EstimateFundamentalOptions estimate_fundamental_options;
+      EstimateFundamentalFromCorrespondences(x1,
                                         x2,
-                                        fundamental_estimation_options,
+                                        estimate_fundamental_options,
                                         &F);
 
       // Convert fundamental to original pixel space.

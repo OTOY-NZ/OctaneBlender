@@ -28,8 +28,8 @@
 #include "MEM_guardedalloc.h"
 
 extern "C" {
-	#include "BKE_tracking.h"
-	#include "PIL_time.h"
+#  include "BKE_tracking.h"
+#  include "PIL_time.h"
 }
 
 #define COM_DISTORTIONCACHE_MAXSIZE 10
@@ -156,7 +156,7 @@ protected:
 
 public:
 	MovieDistortionOperation(bool distortion);
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 
 	void initExecution();
 	void deinitExecution();

@@ -296,6 +296,7 @@ extern StructRNA RNA_KinematicConstraint;
 extern StructRNA RNA_Lamp;
 extern StructRNA RNA_LampSkySettings;
 extern StructRNA RNA_LampTextureSlot;
+extern StructRNA RNA_LaplacianDeformModifier;
 extern StructRNA RNA_LaplacianSmoothModifier;
 extern StructRNA RNA_Lattice;
 extern StructRNA RNA_LatticeModifier;
@@ -492,6 +493,7 @@ extern StructRNA RNA_ShaderNodeExtendedMaterial;
 extern StructRNA RNA_ShaderNodeGeometry;
 extern StructRNA RNA_ShaderNodeHueSaturation;
 extern StructRNA RNA_ShaderNodeInvert;
+extern StructRNA RNA_ShaderNodeLampData;
 extern StructRNA RNA_ShaderNodeMapping;
 extern StructRNA RNA_ShaderNodeMaterial;
 extern StructRNA RNA_ShaderNodeMath;
@@ -640,6 +642,7 @@ extern StructRNA RNA_UserPreferencesFilePaths;
 extern StructRNA RNA_UserPreferencesInput;
 extern StructRNA RNA_UserPreferencesSystem;
 extern StructRNA RNA_UserPreferencesView;
+extern StructRNA RNA_UserPreferencesWalkNavigation;
 extern StructRNA RNA_UserSolidLight;
 extern StructRNA RNA_VectorFont;
 extern StructRNA RNA_VertexGroup;
@@ -656,12 +659,12 @@ extern StructRNA RNA_VertexWeightProximityModifier;
 extern StructRNA RNA_Window;
 extern StructRNA RNA_WindowManager;
 extern StructRNA RNA_WipeSequence;
+extern StructRNA RNA_WireframeModifier;
 extern StructRNA RNA_WoodTexture;
 extern StructRNA RNA_World;
 extern StructRNA RNA_WorldAmbientOcclusion;
 extern StructRNA RNA_WorldLighting;
 extern StructRNA RNA_WorldMistSettings;
-extern StructRNA RNA_WorldStarsSettings;
 extern StructRNA RNA_WorldTextureSlot;
 extern StructRNA RNA_XnorController;
 extern StructRNA RNA_XorController;
@@ -781,12 +784,17 @@ bool RNA_enum_identifier(EnumPropertyItem *item, const int value, const char **i
 int  RNA_enum_bitflag_identifiers(EnumPropertyItem *item, const int value, const char **identifier);
 bool RNA_enum_name(EnumPropertyItem *item, const int value, const char **r_name);
 bool RNA_enum_description(EnumPropertyItem *item, const int value, const char **description);
+int  RNA_enum_from_value(EnumPropertyItem *item, const int value);
+int  RNA_enum_from_identifier(EnumPropertyItem *item, const char *identifier);
 
-void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free);
-void RNA_property_enum_items_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free);
+void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                             EnumPropertyItem **item, int *r_totitem, bool *r_free);
+void RNA_property_enum_items_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free);
 bool RNA_property_enum_value(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *r_value);
 bool RNA_property_enum_identifier(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
 bool RNA_property_enum_name(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **name);
+bool RNA_property_enum_name_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **name);
 int RNA_property_enum_bitflag_identifiers(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
 
 StructRNA *RNA_property_pointer_type(PointerRNA *ptr, PropertyRNA *prop);
@@ -907,14 +915,14 @@ bool RNA_path_resolve(PointerRNA *ptr, const char *path,
                      PointerRNA *r_ptr, PropertyRNA **r_prop);
 
 bool RNA_path_resolve_full(PointerRNA *ptr, const char *path,
-                          PointerRNA *r_ptr, PropertyRNA **r_prop, int *index);
-						  
+                           PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index);
+
 /* path_resolve_property() variants ensure that pointer + property both exist */
 bool RNA_path_resolve_property(PointerRNA *ptr, const char *path,
-                     PointerRNA *r_ptr, PropertyRNA **r_prop);
+                               PointerRNA *r_ptr, PropertyRNA **r_prop);
 
 bool RNA_path_resolve_property_full(PointerRNA *ptr, const char *path,
-                          PointerRNA *r_ptr, PropertyRNA **r_prop, int *index);
+                                    PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index);
 
 char *RNA_path_from_ID_to_struct(PointerRNA *ptr);
 char *RNA_path_from_ID_to_property(PointerRNA *ptr, PropertyRNA *prop);
@@ -1035,13 +1043,14 @@ void RNA_struct_property_unset(PointerRNA *ptr, const char *identifier);
 
 /* python compatible string representation of this property, (must be freed!) */
 char *RNA_property_as_string(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index, int max_prop_length);
+char *RNA_pointer_as_string_id(struct bContext *C, PointerRNA *ptr);
 char *RNA_pointer_as_string(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop_ptr, PointerRNA *ptr_prop);
 char *RNA_pointer_as_string_keywords_ex(struct bContext *C, PointerRNA *ptr,
-                                        const bool skip_optional_value, const bool all_args,
+                                        const bool skip_optional_value, const bool all_args, const bool nested_args,
                                         const int max_prop_length,
                                         PropertyRNA *iterprop);
 char *RNA_pointer_as_string_keywords(struct bContext *C, PointerRNA *ptr,
-                                     const bool skip_optional_value, const bool all_args,
+                                     const bool skip_optional_value, const bool all_args, const bool nested_args,
                                      const int max_prop_length);
 char *RNA_function_as_string_keywords(struct bContext *C, FunctionRNA *func,
                                       const bool as_function, const bool all_args,

@@ -71,7 +71,7 @@ void defgroup_copy_list(ListBase *outbase, ListBase *inbase)
 {
 	bDeformGroup *defgroup, *defgroupn;
 
-	outbase->first = outbase->last = NULL;
+	BLI_listbase_clear(outbase);
 
 	for (defgroup = inbase->first; defgroup; defgroup = defgroup->next) {
 		defgroupn = defgroup_duplicate(defgroup);
@@ -217,24 +217,35 @@ void defvert_remap(MDeformVert *dvert, int *map, const int map_len)
 void defvert_normalize_subset(MDeformVert *dvert,
                               const bool *vgroup_subset, const int vgroup_tot)
 {
-	MDeformWeight *dw;
-	unsigned int i;
-	float tot_weight = 0.0f;
-
-	for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
+	if (dvert->totweight == 0) {
+		/* nothing */
+	}
+	else if (dvert->totweight == 1) {
+		MDeformWeight *dw = dvert->dw;
 		if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
-			tot_weight += dw->weight;
+			dw->weight = 1.0f;
 		}
 	}
+	else {
+		MDeformWeight *dw;
+		unsigned int i;
+		float tot_weight = 0.0f;
 
-	if (tot_weight > 0.0f) {
-		float scalar = 1.0f / tot_weight;
 		for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
 			if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
-				dw->weight *= scalar;
-				
-				/* in case of division errors with very low weights */
-				CLAMP(dw->weight, 0.0f, 1.0f);
+				tot_weight += dw->weight;
+			}
+		}
+
+		if (tot_weight > 0.0f) {
+			float scalar = 1.0f / tot_weight;
+			for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
+				if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
+					dw->weight *= scalar;
+
+					/* in case of division errors with very low weights */
+					CLAMP(dw->weight, 0.0f, 1.0f);
+				}
 			}
 		}
 	}
@@ -242,7 +253,7 @@ void defvert_normalize_subset(MDeformVert *dvert,
 
 void defvert_normalize(MDeformVert *dvert)
 {
-	if (dvert->totweight <= 0) {
+	if (dvert->totweight == 0) {
 		/* nothing */
 	}
 	else if (dvert->totweight == 1) {
@@ -269,14 +280,20 @@ void defvert_normalize(MDeformVert *dvert)
 	}
 }
 
-void defvert_normalize_lock_single(MDeformVert *dvert, const int def_nr_lock)
+/* Same as defvert_normalize() if the locked vgroup is not a member of the subset */
+void defvert_normalize_lock_single(MDeformVert *dvert,
+                                   const bool *vgroup_subset, const int vgroup_tot,
+                                   const int def_nr_lock)
 {
-	if (dvert->totweight <= 0) {
+	if (dvert->totweight == 0) {
 		/* nothing */
 	}
 	else if (dvert->totweight == 1) {
-		if (def_nr_lock != 0) {
-			dvert->dw[0].weight = 1.0f;
+		MDeformWeight *dw = dvert->dw;
+		if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
+			if (def_nr_lock != 0) {
+				dw->weight = 1.0f;
+			}
 		}
 	}
 	else {
@@ -287,13 +304,15 @@ void defvert_normalize_lock_single(MDeformVert *dvert, const int def_nr_lock)
 		float lock_iweight = 1.0f;
 
 		for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-			if (dw->def_nr != def_nr_lock) {
-				tot_weight += dw->weight;
-			}
-			else {
-				dw_lock = dw;
-				lock_iweight = (1.0f - dw_lock->weight);
-				CLAMP(lock_iweight, 0.0f, 1.0f);
+			if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
+				if (dw->def_nr != def_nr_lock) {
+					tot_weight += dw->weight;
+				}
+				else {
+					dw_lock = dw;
+					lock_iweight = (1.0f - dw_lock->weight);
+					CLAMP(lock_iweight, 0.0f, 1.0f);
+				}
 			}
 		}
 
@@ -302,25 +321,34 @@ void defvert_normalize_lock_single(MDeformVert *dvert, const int def_nr_lock)
 
 			float scalar = (1.0f / tot_weight) * lock_iweight;
 			for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-				if (dw != dw_lock) {
-					dw->weight *= scalar;
+				if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
+					if (dw != dw_lock) {
+						dw->weight *= scalar;
 
-					/* in case of division errors with very low weights */
-					CLAMP(dw->weight, 0.0f, 1.0f);
+						/* in case of division errors with very low weights */
+						CLAMP(dw->weight, 0.0f, 1.0f);
+					}
 				}
 			}
 		}
 	}
 }
 
-void defvert_normalize_lock_map(MDeformVert *dvert, const bool *lock_flags, const int defbase_tot)
+/* Same as defvert_normalize() if no locked vgroup is a member of the subset */
+void defvert_normalize_lock_map(
+        MDeformVert *dvert,
+        const bool *vgroup_subset, const int vgroup_tot,
+        const bool *lock_flags, const int defbase_tot)
 {
-	if (dvert->totweight <= 0) {
+	if (dvert->totweight == 0) {
 		/* nothing */
 	}
 	else if (dvert->totweight == 1) {
-		if (LIKELY(defbase_tot >= 1) && lock_flags[0]) {
-			dvert->dw[0].weight = 1.0f;
+		MDeformWeight *dw = dvert->dw;
+		if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
+			if (LIKELY(defbase_tot >= 1) && lock_flags[0]) {
+				dw->weight = 1.0f;
+			}
 		}
 	}
 	else {
@@ -330,12 +358,14 @@ void defvert_normalize_lock_map(MDeformVert *dvert, const bool *lock_flags, cons
 		float lock_iweight = 0.0f;
 
 		for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-			if ((dw->def_nr < defbase_tot) && (lock_flags[dw->def_nr] == FALSE)) {
-				tot_weight += dw->weight;
-			}
-			else {
-				/* invert after */
-				lock_iweight += dw->weight;
+			if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
+				if ((dw->def_nr < defbase_tot) && (lock_flags[dw->def_nr] == FALSE)) {
+					tot_weight += dw->weight;
+				}
+				else {
+					/* invert after */
+					lock_iweight += dw->weight;
+				}
 			}
 		}
 
@@ -346,11 +376,13 @@ void defvert_normalize_lock_map(MDeformVert *dvert, const bool *lock_flags, cons
 
 			float scalar = (1.0f / tot_weight) * lock_iweight;
 			for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-				if ((dw->def_nr < defbase_tot) && (lock_flags[dw->def_nr] == FALSE)) {
-					dw->weight *= scalar;
+				if ((dw->def_nr < vgroup_tot) && vgroup_subset[dw->def_nr]) {
+					if ((dw->def_nr < defbase_tot) && (lock_flags[dw->def_nr] == FALSE)) {
+						dw->weight *= scalar;
 
-					/* in case of division errors with very low weights */
-					CLAMP(dw->weight, 0.0f, 1.0f);
+						/* in case of division errors with very low weights */
+						CLAMP(dw->weight, 0.0f, 1.0f);
+					}
 				}
 			}
 		}
@@ -416,7 +448,7 @@ int *defgroup_flip_map(Object *ob, int *flip_map_len, const bool use_default)
 	}
 	else {
 		bDeformGroup *dg;
-		char name[sizeof(dg->name)];
+		char name_flip[sizeof(dg->name)];
 		int i, flip_num, *map = MEM_mallocN(defbase_tot * sizeof(int), __func__);
 
 		for (i = 0; i < defbase_tot; i++) {
@@ -430,9 +462,10 @@ int *defgroup_flip_map(Object *ob, int *flip_map_len, const bool use_default)
 				if (use_default)
 					map[i] = i;
 
-				flip_side_name(name, dg->name, FALSE);
-				if (strcmp(name, dg->name)) {
-					flip_num = defgroup_name_index(ob, name);
+				BKE_deform_flip_side_name(name_flip, dg->name, false);
+
+				if (!STREQ(name_flip, dg->name)) {
+					flip_num = defgroup_name_index(ob, name_flip);
 					if (flip_num >= 0) {
 						map[i] = flip_num;
 						map[flip_num] = i; /* save an extra lookup */
@@ -454,7 +487,7 @@ int *defgroup_flip_map_single(Object *ob, int *flip_map_len, const bool use_defa
 	}
 	else {
 		bDeformGroup *dg;
-		char name[sizeof(dg->name)];
+		char name_flip[sizeof(dg->name)];
 		int i, flip_num, *map = MEM_mallocN(defbase_tot * sizeof(int), __func__);
 
 		for (i = 0; i < defbase_tot; i++) {
@@ -463,9 +496,9 @@ int *defgroup_flip_map_single(Object *ob, int *flip_map_len, const bool use_defa
 
 		dg = BLI_findlink(&ob->defbase, defgroup);
 
-		flip_side_name(name, dg->name, FALSE);
-		if (strcmp(name, dg->name)) {
-			flip_num = defgroup_name_index(ob, name);
+		BKE_deform_flip_side_name(name_flip, dg->name, false);
+		if (!STREQ(name_flip, dg->name)) {
+			flip_num = defgroup_name_index(ob, name_flip);
 
 			if (flip_num != -1) {
 				map[defgroup] = flip_num;
@@ -483,11 +516,12 @@ int defgroup_flip_index(Object *ob, int index, const bool use_default)
 	int flip_index = -1;
 
 	if (dg) {
-		char name[sizeof(dg->name)];
-		flip_side_name(name, dg->name, 0);
+		char name_flip[sizeof(dg->name)];
+		BKE_deform_flip_side_name(name_flip, dg->name, false);
 
-		if (strcmp(name, dg->name))
-			flip_index = defgroup_name_index(ob, name);
+		if (!STREQ(name_flip, dg->name)) {
+			flip_index = defgroup_name_index(ob, name_flip);
+		}
 	}
 
 	return (flip_index == -1 && use_default) ? index : flip_index;
@@ -523,7 +557,7 @@ void defgroup_unique_name(bDeformGroup *dg, Object *ob)
 	BLI_uniquename_cb(defgroup_unique_check, &data, DATA_("Group"), '.', dg->name, sizeof(dg->name));
 }
 
-static int is_char_sep(const char c)
+static bool is_char_sep(const char c)
 {
 	return ELEM4(c, '.', ' ', '-', '_');
 }
@@ -571,7 +605,8 @@ void BKE_deform_split_prefix(const char string[MAX_VGROUP_NAME], char pre[MAX_VG
 /* finds the best possible flipped name. For renaming; check for unique names afterwards */
 /* if strip_number: removes number extensions
  * note: don't use sizeof() for 'name' or 'from_name' */
-void flip_side_name(char name[MAX_VGROUP_NAME], const char from_name[MAX_VGROUP_NAME], int strip_number)
+void BKE_deform_flip_side_name(char name[MAX_VGROUP_NAME], const char from_name[MAX_VGROUP_NAME],
+                               const bool strip_number)
 {
 	int     len;
 	char    prefix[MAX_VGROUP_NAME]  = "";   /* The part before the facing */
@@ -593,7 +628,7 @@ void flip_side_name(char name[MAX_VGROUP_NAME], const char from_name[MAX_VGROUP_
 	if (isdigit(name[len - 1])) {
 		index = strrchr(name, '.'); // last occurrence
 		if (index && isdigit(index[1])) { // doesnt handle case bone.1abc2 correct..., whatever!
-			if (strip_number == 0) {
+			if (strip_number == false) {
 				BLI_strncpy(number, index, sizeof(number));
 			}
 			*index = 0;

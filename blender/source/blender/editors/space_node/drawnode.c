@@ -49,12 +49,9 @@
 #include "BLF_api.h"
 #include "BLF_translation.h"
 
-#include "NOD_texture.h"
-
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "BLF_translation.h"
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
@@ -84,18 +81,6 @@ static void node_socket_button_label(bContext *UNUSED(C), uiLayout *layout, Poin
                                      const char *text)
 {
 	uiItemL(layout, text, 0);
-}
-
-static void node_draw_input_default(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr)
-{
-	bNodeSocket *sock = (bNodeSocket *)ptr->data;
-	sock->typeinfo->draw(C, layout, ptr, node_ptr, IFACE_(sock->name));
-}
-
-static void node_draw_output_default(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr)
-{
-	bNodeSocket *sock = ptr->data;
-	node_socket_button_label(C, layout, ptr, node_ptr, IFACE_(sock->name));
 }
 
 
@@ -165,7 +150,7 @@ static void node_buts_rgb(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr
 	
 	col = uiLayoutColumn(layout, FALSE);
 	uiTemplateColorPicker(col, &sockptr, "default_value", 1, 0, 0, 0);
-	uiItemR(col, &sockptr, "default_value", 0, "", ICON_NONE);
+	uiItemR(col, &sockptr, "default_value", UI_ITEM_R_SLIDER, "", ICON_NONE);
 }
 
 static void node_buts_mix_rgb(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -339,7 +324,7 @@ static int node_resize_area_default(bNode *node, int x, int y)
 /* ****************** BUTTON CALLBACKS FOR COMMON NODES ***************** */
 
 
-static void node_uifunc_group(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_draw_buttons_group(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	uiTemplateIDBrowse(layout, C, ptr, "node_tree", NULL, NULL, NULL);
 }
@@ -348,7 +333,7 @@ static void node_uifunc_group(uiLayout *layout, bContext *C, PointerRNA *ptr)
  * Not ideal to do this in every draw call, but doing as transform callback doesn't work,
  * since the child node totr rects are not updated properly at that point.
  */
-static void node_update_frame(const bContext *UNUSED(C), bNodeTree *ntree, bNode *node)
+static void node_draw_frame_prepare(const bContext *UNUSED(C), bNodeTree *ntree, bNode *node)
 {
 	const float margin = 1.5f * U.widget_unit;
 	NodeFrame *data = (NodeFrame *)node->storage;
@@ -396,27 +381,29 @@ static void node_update_frame(const bContext *UNUSED(C), bNodeTree *ntree, bNode
 	node->totr = rect;
 }
 
-static void node_draw_frame_label(bNode *node, const float aspect)
+static void node_draw_frame_label(bNodeTree *ntree, bNode *node, const float aspect)
 {
 	/* XXX font id is crap design */
 	const int fontid = UI_GetStyle()->widgetlabel.uifont_id;
 	NodeFrame *data = (NodeFrame *)node->storage;
 	rctf *rct = &node->totr;
 	int color_id = node_get_colorid(node);
-	const char *label = nodeLabel(node);
+	char label[MAX_NAME];
 	/* XXX a bit hacky, should use separate align values for x and y */
 	float width, ascender;
 	float x, y;
 	const int font_size = data->label_size / aspect;
+
+	nodeLabel(ntree, node, label, sizeof(label));
 
 	BLF_enable(fontid, BLF_ASPECT);
 	BLF_aspect(fontid, aspect, aspect, 1.0f);
 	BLF_size(fontid, MIN2(24, font_size), U.dpi); /* clamp otherwise it can suck up a LOT of memory */
 	
 	/* title color */
-	UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.8f, 10);
+	UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.4f, 10);
 
-	width = BLF_width(fontid, label);
+	width = BLF_width(fontid, label, sizeof(label));
 	ascender = BLF_ascender(fontid);
 	
 	/* 'x' doesn't need aspect correction */
@@ -430,7 +417,7 @@ static void node_draw_frame_label(bNode *node, const float aspect)
 }
 
 static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode,
-                            bNodeTree *UNUSED(ntree), bNode *node, bNodeInstanceKey UNUSED(key))
+                            bNodeTree *ntree, bNode *node, bNodeInstanceKey UNUSED(key))
 {
 	rctf *rct = &node->totr;
 	int color_id = node_get_colorid(node);
@@ -479,7 +466,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode,
 	}
 	
 	/* label */
-	node_draw_frame_label(node, snode->aspect);
+	node_draw_frame_label(ntree, node, snode->aspect);
 	
 	UI_ThemeClearColor(color_id);
 		
@@ -511,7 +498,7 @@ static int node_resize_area_frame(bNode *node, int x, int y)
 	return dir;
 }
 
-static void node_buts_frame_details(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_buts_frame_ex(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "label_size", 0, IFACE_("Label Size"), ICON_NONE);
 	uiItemR(layout, ptr, "shrink", 0, IFACE_("Shrink"), ICON_NONE);
@@ -520,7 +507,7 @@ static void node_buts_frame_details(uiLayout *layout, bContext *UNUSED(C), Point
 
 #define NODE_REROUTE_SIZE   8.0f
 
-static void node_update_reroute(const bContext *UNUSED(C), bNodeTree *UNUSED(ntree), bNode *node)
+static void node_draw_reroute_prepare(const bContext *UNUSED(C), bNodeTree *UNUSED(ntree), bNode *node)
 {
 	bNodeSocket *nsock;
 	float locx, locy;
@@ -571,7 +558,7 @@ static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(
 	 */
 #if 0
 	/* body */
-	uiSetRoundBox(15);
+	uiSetRoundBox(UI_CNR_ALL);
 	UI_ThemeColor4(TH_NODE);
 	glEnable(GL_BLEND);
 	uiRoundBox(rct->xmin, rct->ymin, rct->xmax, rct->ymax, size);
@@ -632,17 +619,17 @@ static void node_common_set_butfunc(bNodeType *ntype)
 {
 	switch (ntype->type) {
 		case NODE_GROUP:
-			ntype->uifunc = node_uifunc_group;
+			ntype->draw_buttons = node_draw_buttons_group;
 			break;
 		case NODE_FRAME:
-			ntype->drawfunc = node_draw_frame;
-			ntype->drawupdatefunc = node_update_frame;
-			ntype->uifuncbut = node_buts_frame_details;
+			ntype->draw_nodetype = node_draw_frame;
+			ntype->draw_nodetype_prepare = node_draw_frame_prepare;
+			ntype->draw_buttons_ex = node_buts_frame_ex;
 			ntype->resize_area_func = node_resize_area_frame;
 			break;
 		case NODE_REROUTE:
-			ntype->drawfunc = node_draw_reroute;
-			ntype->drawupdatefunc = node_update_reroute;
+			ntype->draw_nodetype = node_draw_reroute;
+			ntype->draw_nodetype_prepare = node_draw_reroute_prepare;
 			ntype->tweak_area_func = node_tweak_area_reroute;
 			break;
 	}
@@ -669,6 +656,8 @@ static void node_buts_image_user(uiLayout *layout, bContext *C, PointerRNA *ptr,
 		/* don't use iuser->framenr directly because it may not be updated if auto-refresh is off */
 		Scene *scene = CTX_data_scene(C);
 		ImageUser *iuser = iuserptr->data;
+		/* Image *ima = imaptr->data; */  /* UNUSED */
+
 		char numstr[32];
 		const int framenr = BKE_image_user_frame_get(iuser, CFRA, 0, NULL);
 		BLI_snprintf(numstr, sizeof(numstr), IFACE_("Frame: %d"), framenr);
@@ -681,7 +670,7 @@ static void node_buts_image_user(uiLayout *layout, bContext *C, PointerRNA *ptr,
 		uiItemR(col, ptr, "frame_start", 0, NULL, ICON_NONE);
 		uiItemR(col, ptr, "frame_offset", 0, NULL, ICON_NONE);
 		uiItemR(col, ptr, "use_cyclic", 0, NULL, ICON_NONE);
-		uiItemR(col, ptr, "use_auto_refresh", UI_ITEM_R_ICON_ONLY, NULL, ICON_NONE);
+		uiItemR(col, ptr, "use_auto_refresh", 0, NULL, ICON_NONE);
 	}
 
 	col = uiLayoutColumn(layout, FALSE);
@@ -707,29 +696,37 @@ static void node_shader_buts_material(uiLayout *layout, bContext *C, PointerRNA 
 
 static void node_shader_buts_mapping(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	uiLayout *row;
-	
+	uiLayout *row, *col, *sub;
+
 	uiItemR(layout, ptr, "vector_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 
-	uiItemL(layout, IFACE_("Location:"), ICON_NONE);
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "translation", 0, "", ICON_NONE);
-	
-	uiItemL(layout, IFACE_("Rotation:"), ICON_NONE);
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "rotation", 0, "", ICON_NONE);
-	
-	uiItemL(layout, IFACE_("Scale:"), ICON_NONE);
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "scale", 0, "", ICON_NONE);
-	
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "use_min", 0, IFACE_("Min"), ICON_NONE);
-	uiItemR(row, ptr, "min", 0, "", ICON_NONE);
-	
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "use_max", 0, IFACE_("Max"), ICON_NONE);
-	uiItemR(row, ptr, "max", 0, "", ICON_NONE);
+	row = uiLayoutRow(layout, FALSE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemL(col, IFACE_("Location:"), ICON_NONE);
+	uiItemR(col, ptr, "translation", 0, "", ICON_NONE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemL(col, IFACE_("Rotation:"), ICON_NONE);
+	uiItemR(col, ptr, "rotation", 0, "", ICON_NONE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemL(col, IFACE_("Scale:"), ICON_NONE);
+	uiItemR(col, ptr, "scale", 0, "", ICON_NONE);
+
+	row = uiLayoutRow(layout, FALSE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemR(col, ptr, "use_min", 0, IFACE_("Min"), ICON_NONE);
+	sub = uiLayoutColumn(col, TRUE);
+	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_min"));
+	uiItemR(sub, ptr, "min", 0, "", ICON_NONE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemR(col, ptr, "use_max", 0, IFACE_("Max"), ICON_NONE);
+	sub = uiLayoutColumn(col, TRUE);
+	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_max"));
+	uiItemR(sub, ptr, "max", 0, "", ICON_NONE);
 }
 
 static void node_shader_buts_vect_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -763,6 +760,11 @@ static void node_shader_buts_geometry(uiLayout *layout, bContext *C, PointerRNA 
 	}
 }
 
+static void node_shader_buts_lamp(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "lamp_object", 0, IFACE_("Lamp Object"), ICON_NONE);
+}
+
 static void node_shader_buts_attribute(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "attribute_name", 0, IFACE_("Name"), ICON_NONE);
@@ -778,9 +780,11 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 	PointerRNA imaptr = RNA_pointer_get(ptr, "image");
 	PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
 
+	uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 	uiItemR(layout, ptr, "color_space", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "projection", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "interpolation", 0, "", ICON_NONE);
 
 	if (RNA_enum_get(ptr, "projection") == SHD_PROJ_BOX) {
 		uiItemR(layout, ptr, "projection_blend", 0, "Blend", ICON_NONE);
@@ -805,8 +809,7 @@ static void node_shader_buts_oct_tex_image(uiLayout *layout, bContext *C, Pointe
 }
 #endif
 
-
-static void node_shader_buts_tex_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_shader_buts_tex_image_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
 	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0);
@@ -817,6 +820,7 @@ static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, Poin
 	PointerRNA imaptr = RNA_pointer_get(ptr, "image");
 	PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
 
+	uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 	uiItemR(layout, ptr, "color_space", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "projection", 0, "", ICON_NONE);
@@ -849,7 +853,7 @@ static void node_shader_buts_tex_brick(uiLayout *layout, bContext *UNUSED(C), Po
 	uiLayout *col;
 	
 	col = uiLayoutColumn(layout, TRUE);
-	uiItemR(col, ptr, "offset", 0, IFACE_("Offset"), ICON_NONE);
+	uiItemR(col, ptr, "offset", UI_ITEM_R_SLIDER, IFACE_("Offset"), ICON_NONE);
 	uiItemR(col, ptr, "offset_frequency", 0, IFACE_("Frequency"), ICON_NONE);
 	
 	col = uiLayoutColumn(layout, TRUE);
@@ -940,6 +944,19 @@ static void node_shader_buts_subsurface(uiLayout *layout, bContext *C, PointerRN
 	uiItemR(layout, ptr, "falloff", 0, "", ICON_NONE);
 }
 
+
+static void node_shader_buts_volume(uiLayout *layout, bContext *C, PointerRNA *UNUSED(ptr))
+{
+	/* SSS does not work on GPU yet */
+	PointerRNA scene = CTX_data_pointer_get(C, "scene");
+	if (scene.data) {
+		PointerRNA cscene = RNA_pointer_get(&scene, "cycles");
+
+		if (cscene.data && RNA_enum_get(&cscene, "device") == 1)
+			uiItemL(layout, IFACE_("Volumes not supported on GPU"), ICON_ERROR);
+	}
+}
+
 static void node_shader_buts_toon(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "component", 0, "", ICON_NONE);
@@ -967,7 +984,7 @@ static void node_shader_buts_script(uiLayout *layout, bContext *UNUSED(C), Point
 	uiItemO(row, "", ICON_FILE_REFRESH, "node.shader_script_update");
 }
 
-static void node_shader_buts_script_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_shader_buts_script_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	uiItemS(layout);
 
@@ -985,117 +1002,126 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 	switch (ntype->type) {
 		case SH_NODE_MATERIAL:
 		case SH_NODE_MATERIAL_EXT:
-			ntype->uifunc = node_shader_buts_material;
+			ntype->draw_buttons = node_shader_buts_material;
 			break;
 		case SH_NODE_TEXTURE:
-			ntype->uifunc = node_buts_texture;
+			ntype->draw_buttons = node_buts_texture;
 			break;
 		case SH_NODE_NORMAL:
-			ntype->uifunc = node_buts_normal;
+			ntype->draw_buttons = node_buts_normal;
 			break;
 		case SH_NODE_CURVE_VEC:
-			ntype->uifunc = node_buts_curvevec;
+			ntype->draw_buttons = node_buts_curvevec;
 			break;
 		case SH_NODE_CURVE_RGB:
-			ntype->uifunc = node_buts_curvecol;
+			ntype->draw_buttons = node_buts_curvecol;
 			break;
 		case SH_NODE_MAPPING:
-			ntype->uifunc = node_shader_buts_mapping;
+			ntype->draw_buttons = node_shader_buts_mapping;
 			break;
 		case SH_NODE_VALUE:
-			ntype->uifunc = node_buts_value;
+			ntype->draw_buttons = node_buts_value;
 			break;
 		case SH_NODE_RGB:
-			ntype->uifunc = node_buts_rgb;
+			ntype->draw_buttons = node_buts_rgb;
 			break;
 		case SH_NODE_MIX_RGB:
-			ntype->uifunc = node_buts_mix_rgb;
+			ntype->draw_buttons = node_buts_mix_rgb;
 			break;
 		case SH_NODE_VALTORGB:
-			ntype->uifunc = node_buts_colorramp;
+			ntype->draw_buttons = node_buts_colorramp;
 			break;
 		case SH_NODE_MATH: 
-			ntype->uifunc = node_buts_math;
+			ntype->draw_buttons = node_buts_math;
 			break; 
 		case SH_NODE_VECT_MATH: 
-			ntype->uifunc = node_shader_buts_vect_math;
+			ntype->draw_buttons = node_shader_buts_vect_math;
 			break; 
 		case SH_NODE_VECT_TRANSFORM: 
-			ntype->uifunc = node_shader_buts_vect_transform;
+			ntype->draw_buttons = node_shader_buts_vect_transform;
 			break; 
 		case SH_NODE_GEOMETRY:
-			ntype->uifunc = node_shader_buts_geometry;
+			ntype->draw_buttons = node_shader_buts_geometry;
+			break;
+		case SH_NODE_LAMP:
+			ntype->draw_buttons = node_shader_buts_lamp;
 			break;
 		case SH_NODE_ATTRIBUTE:
-			ntype->uifunc = node_shader_buts_attribute;
+			ntype->draw_buttons = node_shader_buts_attribute;
 			break;
 		case SH_NODE_WIREFRAME:
-			ntype->uifunc = node_shader_buts_wireframe;
+			ntype->draw_buttons = node_shader_buts_wireframe;
 			break;
 		case SH_NODE_TEX_SKY:
-			ntype->uifunc = node_shader_buts_tex_sky;
+			ntype->draw_buttons = node_shader_buts_tex_sky;
 			break;
 		case SH_NODE_TEX_IMAGE:
-			ntype->uifunc = node_shader_buts_tex_image;
-			ntype->uifuncbut = node_shader_buts_tex_image_details;
+			ntype->draw_buttons = node_shader_buts_tex_image;
+			ntype->draw_buttons_ex = node_shader_buts_tex_image_ex;
 			break;
 #ifdef WITH_OCTANE
 		case SH_NODE_OCT_IMAGE_TEX:
 		case SH_NODE_OCT_FLOAT_IMAGE_TEX:
 		case SH_NODE_OCT_ALPHA_IMAGE_TEX:
-			ntype->uifunc = node_shader_buts_oct_tex_image;
+			ntype->draw_buttons = node_shader_buts_oct_tex_image;
 			break;
 #endif
 		case SH_NODE_TEX_ENVIRONMENT:
-			ntype->uifunc = node_shader_buts_tex_environment;
+			ntype->draw_buttons = node_shader_buts_tex_environment;
 			break;
 		case SH_NODE_TEX_GRADIENT:
-			ntype->uifunc = node_shader_buts_tex_gradient;
+			ntype->draw_buttons = node_shader_buts_tex_gradient;
 			break;
 		case SH_NODE_TEX_MAGIC:
-			ntype->uifunc = node_shader_buts_tex_magic;
+			ntype->draw_buttons = node_shader_buts_tex_magic;
 			break;
 		case SH_NODE_TEX_BRICK:
-			ntype->uifunc = node_shader_buts_tex_brick;
+			ntype->draw_buttons = node_shader_buts_tex_brick;
 			break;
 		case SH_NODE_TEX_WAVE:
-			ntype->uifunc = node_shader_buts_tex_wave;
+			ntype->draw_buttons = node_shader_buts_tex_wave;
 			break;
 		case SH_NODE_TEX_MUSGRAVE:
-			ntype->uifunc = node_shader_buts_tex_musgrave;
+			ntype->draw_buttons = node_shader_buts_tex_musgrave;
 			break;
 		case SH_NODE_TEX_VORONOI:
-			ntype->uifunc = node_shader_buts_tex_voronoi;
+			ntype->draw_buttons = node_shader_buts_tex_voronoi;
 			break;
 		case SH_NODE_TEX_COORD:
-			ntype->uifunc = node_shader_buts_tex_coord;
+			ntype->draw_buttons = node_shader_buts_tex_coord;
 			break;
 		case SH_NODE_BUMP:
-			ntype->uifunc = node_shader_buts_bump;
+			ntype->draw_buttons = node_shader_buts_bump;
 			break;
 		case SH_NODE_NORMAL_MAP:
-			ntype->uifunc = node_shader_buts_normal_map;
+			ntype->draw_buttons = node_shader_buts_normal_map;
 			break;
 		case SH_NODE_TANGENT:
-			ntype->uifunc = node_shader_buts_tangent;
+			ntype->draw_buttons = node_shader_buts_tangent;
 			break;
 		case SH_NODE_BSDF_GLOSSY:
 		case SH_NODE_BSDF_GLASS:
 		case SH_NODE_BSDF_REFRACTION:
-			ntype->uifunc = node_shader_buts_glossy;
+			ntype->draw_buttons = node_shader_buts_glossy;
 			break;
 		case SH_NODE_SUBSURFACE_SCATTERING:
-			ntype->uifunc = node_shader_buts_subsurface;
+			ntype->draw_buttons = node_shader_buts_subsurface;
+			break;
+		case SH_NODE_VOLUME_SCATTER:
+			ntype->draw_buttons = node_shader_buts_volume;
+			break;
+		case SH_NODE_VOLUME_ABSORPTION:
+			ntype->draw_buttons = node_shader_buts_volume;
 			break;
 		case SH_NODE_BSDF_TOON:
-			ntype->uifunc = node_shader_buts_toon;
+			ntype->draw_buttons = node_shader_buts_toon;
 			break;
 		case SH_NODE_BSDF_HAIR:
-			ntype->uifunc = node_shader_buts_hair;
+			ntype->draw_buttons = node_shader_buts_hair;
 			break;
 		case SH_NODE_SCRIPT:
-			ntype->uifunc = node_shader_buts_script;
-			ntype->uifuncbut = node_shader_buts_script_details;
+			ntype->draw_buttons = node_shader_buts_script;
+			ntype->draw_buttons_ex = node_shader_buts_script_ex;
 			break;
 	}
 }
@@ -1107,22 +1133,23 @@ static void node_composit_buts_image(uiLayout *layout, bContext *C, PointerRNA *
 	bNode *node = ptr->data;
 	PointerRNA imaptr, iuserptr;
 	
+	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
+	uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
-	
 	if (!node->id) return;
 	
 	imaptr = RNA_pointer_get(ptr, "image");
-	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
-	
+
 	node_buts_image_user(layout, C, ptr, &imaptr, &iuserptr);
 }
 
-static void node_composit_buts_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_image_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	bNode *node = ptr->data;
 	PointerRNA iuserptr;
 
 	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
+	uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
 	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0);
 }
 
@@ -1233,7 +1260,7 @@ static void node_composit_buts_bilateralblur(uiLayout *layout, bContext *UNUSED(
 	uiItemR(col, ptr, "sigma_space", 0, NULL, ICON_NONE);
 }
 
-static void node_composit_buts_defocus(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_composit_buts_defocus(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	uiLayout *sub, *col;
 	
@@ -1253,7 +1280,9 @@ static void node_composit_buts_defocus(uiLayout *layout, bContext *UNUSED(C), Po
 
 	col = uiLayoutColumn(layout, FALSE);
 	uiItemR(col, ptr, "use_preview", 0, NULL, ICON_NONE);
-	
+
+	uiTemplateID(layout, C, ptr, "scene", NULL, NULL, NULL);
+
 	col = uiLayoutColumn(layout, FALSE);
 	uiItemR(col, ptr, "use_zbuffer", 0, NULL, ICON_NONE);
 	sub = uiLayoutColumn(col, FALSE);
@@ -1477,7 +1506,7 @@ static void node_composit_buts_despeckle(uiLayout *layout, bContext *UNUSED(C), 
 
 	col = uiLayoutColumn(layout, FALSE);
 	uiItemR(col, ptr, "threshold", 0, NULL, ICON_NONE);
-	uiItemR(col, ptr, "threshold_neighbour", 0, NULL, ICON_NONE);
+	uiItemR(col, ptr, "threshold_neighbor", 0, NULL, ICON_NONE);
 }
 
 static void node_composit_buts_diff_matte(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -1599,46 +1628,6 @@ static void node_composit_buts_id_mask(uiLayout *layout, bContext *UNUSED(C), Po
 	uiItemR(layout, ptr, "use_antialiasing", 0, NULL, ICON_NONE);
 }
 
-/* draw function for file output node sockets, displays only sub-path and format, no value button */
-static void node_draw_input_file_output(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr)
-{
-	bNodeTree *ntree = ptr->id.data;
-	bNodeSocket *sock = ptr->data;
-	uiLayout *row;
-	PointerRNA inputptr, imfptr;
-	int imtype;
-	
-	row = uiLayoutRow(layout, FALSE);
-	
-	imfptr = RNA_pointer_get(node_ptr, "format");
-	imtype = RNA_enum_get(&imfptr, "file_format");
-	if (imtype == R_IMF_IMTYPE_MULTILAYER) {
-		NodeImageMultiFileSocket *input = sock->storage;
-		RNA_pointer_create(&ntree->id, &RNA_NodeOutputFileSlotLayer, input, &inputptr);
-		
-		uiItemL(row, input->layer, ICON_NONE);
-	}
-	else {
-		NodeImageMultiFileSocket *input = sock->storage;
-		PropertyRNA *imtype_prop;
-		const char *imtype_name;
-		uiBlock *block;
-		RNA_pointer_create(&ntree->id, &RNA_NodeOutputFileSlotFile, input, &inputptr);
-		
-		uiItemL(row, input->path, ICON_NONE);
-		
-		if (!RNA_boolean_get(&inputptr, "use_node_format"))
-			imfptr = RNA_pointer_get(&inputptr, "format");
-		
-		imtype_prop = RNA_struct_find_property(&imfptr, "file_format");
-		RNA_property_enum_name((bContext *)C, &imfptr, imtype_prop,
-		                       RNA_property_enum_get(&imfptr, imtype_prop), &imtype_name);
-		block = uiLayoutGetBlock(row);
-		uiBlockSetEmboss(block, UI_EMBOSSP);
-		uiItemL(row, imtype_name, ICON_NONE);
-		uiBlockSetEmboss(block, UI_EMBOSSN);
-	}
-}
 static void node_composit_buts_file_output(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	PointerRNA imfptr = RNA_pointer_get(ptr, "format");
@@ -1650,7 +1639,7 @@ static void node_composit_buts_file_output(uiLayout *layout, bContext *UNUSED(C)
 		uiItemL(layout, IFACE_("Base Path:"), ICON_NONE);
 	uiItemR(layout, ptr, "base_path", 0, "", ICON_NONE);
 }
-static void node_composit_buts_file_output_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	PointerRNA imfptr = RNA_pointer_get(ptr, "format");
 	PointerRNA active_input_ptr, op_ptr;
@@ -1706,7 +1695,7 @@ static void node_composit_buts_file_output_details(uiLayout *layout, bContext *C
 		else {
 			col = uiLayoutColumn(layout, TRUE);
 			
-			uiItemL(col, IFACE_("File Path:"), ICON_NONE);
+			uiItemL(col, IFACE_("File Subpath:"), ICON_NONE);
 			row = uiLayoutRow(col, FALSE);
 			uiItemR(row, &active_input_ptr, "path", 0, "", ICON_NONE);
 			uiItemFullO(row, "NODE_OT_output_file_remove_active_socket", "",
@@ -1808,7 +1797,7 @@ static void node_composit_buts_colorbalance(uiLayout *layout, bContext *UNUSED(C
 	}
 
 }
-static void node_composit_buts_colorbalance_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_composit_buts_colorbalance_ex(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "correction_method", 0, NULL, ICON_NONE);
 
@@ -1862,7 +1851,7 @@ static void node_composit_buts_movieclip(uiLayout *layout, bContext *C, PointerR
 	uiTemplateID(layout, C, ptr, "clip", NULL, "CLIP_OT_open", NULL);
 }
 
-static void node_composit_buts_movieclip_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_movieclip_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	bNode *node = ptr->data;
 	PointerRNA clipptr;
@@ -1966,7 +1955,7 @@ static void node_composit_buts_colorcorrection(uiLayout *layout, bContext *UNUSE
 	uiItemR(row, ptr, "midtones_end", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
 
-static void node_composit_buts_colorcorrection_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_composit_buts_colorcorrection_ex(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
 	
@@ -2073,7 +2062,7 @@ static void node_composit_backdrop_boxmask(SpaceNode *snode, ImBuf *backdrop, bN
 	const float backdropWidth = backdrop->x;
 	const float backdropHeight = backdrop->y;
 	const float aspect = backdropWidth / backdropHeight;
-	const float rad = DEG2RADF(-boxmask->rotation);
+	const float rad = -boxmask->rotation;
 	const float cosine = cosf(rad);
 	const float sine = sinf(rad);
 	const float halveBoxWidth = backdropWidth * (boxmask->width / 2.0f);
@@ -2111,7 +2100,7 @@ static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop
 	const float backdropWidth = backdrop->x;
 	const float backdropHeight = backdrop->y;
 	const float aspect = backdropWidth / backdropHeight;
-	const float rad = DEG2RADF(-ellipsemask->rotation);
+	const float rad = -ellipsemask->rotation;
 	const float cosine = cosf(rad);
 	const float sine = sinf(rad);
 	const float halveBoxWidth = backdropWidth * (ellipsemask->width / 2.0f);
@@ -2168,7 +2157,7 @@ static void node_composit_buts_viewer(uiLayout *layout, bContext *UNUSED(C), Poi
 	uiItemR(layout, ptr, "use_alpha", 0, NULL, ICON_NONE);
 }
 
-static void node_composit_buts_viewer_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_composit_buts_viewer_ex(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *col;
 	
@@ -2311,227 +2300,233 @@ static void node_composit_buts_planetrackdeform(uiLayout *layout, bContext *C, P
 	}
 }
 
+static void node_composit_buts_cornerpin(uiLayout *UNUSED(layout), bContext *UNUSED(C), PointerRNA *UNUSED(ptr))
+{
+}
+
 /* only once called */
 static void node_composit_set_butfunc(bNodeType *ntype)
 {
 	switch (ntype->type) {
 		case CMP_NODE_IMAGE:
-			ntype->uifunc = node_composit_buts_image;
-			ntype->uifuncbut = node_composit_buts_image_details;
+			ntype->draw_buttons = node_composit_buts_image;
+			ntype->draw_buttons_ex = node_composit_buts_image_ex;
 			break;
 		case CMP_NODE_R_LAYERS:
-			ntype->uifunc = node_composit_buts_renderlayers;
+			ntype->draw_buttons = node_composit_buts_renderlayers;
 			break;
 		case CMP_NODE_NORMAL:
-			ntype->uifunc = node_buts_normal;
+			ntype->draw_buttons = node_buts_normal;
 			break;
 		case CMP_NODE_CURVE_VEC:
-			ntype->uifunc = node_buts_curvevec;
+			ntype->draw_buttons = node_buts_curvevec;
 			break;
 		case CMP_NODE_CURVE_RGB:
-			ntype->uifunc = node_buts_curvecol;
+			ntype->draw_buttons = node_buts_curvecol;
 			break;
 		case CMP_NODE_VALUE:
-			ntype->uifunc = node_buts_value;
+			ntype->draw_buttons = node_buts_value;
 			break;
 		case CMP_NODE_RGB:
-			ntype->uifunc = node_buts_rgb;
+			ntype->draw_buttons = node_buts_rgb;
 			break;
 		case CMP_NODE_FLIP:
-			ntype->uifunc = node_composit_buts_flip;
+			ntype->draw_buttons = node_composit_buts_flip;
 			break;
 		case CMP_NODE_SPLITVIEWER:
-			ntype->uifunc = node_composit_buts_splitviewer;
+			ntype->draw_buttons = node_composit_buts_splitviewer;
 			break;
 		case CMP_NODE_MIX_RGB:
-			ntype->uifunc = node_buts_mix_rgb;
+			ntype->draw_buttons = node_buts_mix_rgb;
 			break;
 		case CMP_NODE_VALTORGB:
-			ntype->uifunc = node_buts_colorramp;
+			ntype->draw_buttons = node_buts_colorramp;
 			break;
 		case CMP_NODE_CROP:
-			ntype->uifunc = node_composit_buts_crop;
+			ntype->draw_buttons = node_composit_buts_crop;
 			break;
 		case CMP_NODE_BLUR:
-			ntype->uifunc = node_composit_buts_blur;
+			ntype->draw_buttons = node_composit_buts_blur;
 			break;
 		case CMP_NODE_DBLUR:
-			ntype->uifunc = node_composit_buts_dblur;
+			ntype->draw_buttons = node_composit_buts_dblur;
 			break;
 		case CMP_NODE_BILATERALBLUR:
-			ntype->uifunc = node_composit_buts_bilateralblur;
+			ntype->draw_buttons = node_composit_buts_bilateralblur;
 			break;
 		case CMP_NODE_DEFOCUS:
-			ntype->uifunc = node_composit_buts_defocus;
+			ntype->draw_buttons = node_composit_buts_defocus;
 			break;
 		case CMP_NODE_GLARE:
-			ntype->uifunc = node_composit_buts_glare;
+			ntype->draw_buttons = node_composit_buts_glare;
 			break;
 		case CMP_NODE_TONEMAP:
-			ntype->uifunc = node_composit_buts_tonemap;
+			ntype->draw_buttons = node_composit_buts_tonemap;
 			break;
 		case CMP_NODE_LENSDIST:
-			ntype->uifunc = node_composit_buts_lensdist;
+			ntype->draw_buttons = node_composit_buts_lensdist;
 			break;
 		case CMP_NODE_VECBLUR:
-			ntype->uifunc = node_composit_buts_vecblur;
+			ntype->draw_buttons = node_composit_buts_vecblur;
 			break;
 		case CMP_NODE_FILTER:
-			ntype->uifunc = node_composit_buts_filter;
+			ntype->draw_buttons = node_composit_buts_filter;
 			break;
 		case CMP_NODE_MAP_VALUE:
-			ntype->uifunc = node_composit_buts_map_value;
+			ntype->draw_buttons = node_composit_buts_map_value;
 			break;
 		case CMP_NODE_MAP_RANGE:
-			ntype->uifunc = node_composit_buts_map_range;
+			ntype->draw_buttons = node_composit_buts_map_range;
 			break;
 		case CMP_NODE_TIME:
-			ntype->uifunc = node_buts_time;
+			ntype->draw_buttons = node_buts_time;
 			break;
 		case CMP_NODE_ALPHAOVER:
-			ntype->uifunc = node_composit_buts_alphaover;
+			ntype->draw_buttons = node_composit_buts_alphaover;
 			break;
 		case CMP_NODE_HUE_SAT:
-			ntype->uifunc = node_composit_buts_hue_sat;
+			ntype->draw_buttons = node_composit_buts_hue_sat;
 			break;
 		case CMP_NODE_TEXTURE:
-			ntype->uifunc = node_buts_texture;
+			ntype->draw_buttons = node_buts_texture;
 			break;
 		case CMP_NODE_DILATEERODE:
-			ntype->uifunc = node_composit_buts_dilateerode;
+			ntype->draw_buttons = node_composit_buts_dilateerode;
 			break;
 		case CMP_NODE_INPAINT:
-			ntype->uifunc = node_composit_buts_inpaint;
+			ntype->draw_buttons = node_composit_buts_inpaint;
 			break;
 		case CMP_NODE_DESPECKLE:
-			ntype->uifunc = node_composit_buts_despeckle;
+			ntype->draw_buttons = node_composit_buts_despeckle;
 			break;
 		case CMP_NODE_OUTPUT_FILE:
-			ntype->uifunc = node_composit_buts_file_output;
-			ntype->uifuncbut = node_composit_buts_file_output_details;
-			ntype->drawinputfunc = node_draw_input_file_output;
+			ntype->draw_buttons = node_composit_buts_file_output;
+			ntype->draw_buttons_ex = node_composit_buts_file_output_ex;
 			break;
 		case CMP_NODE_DIFF_MATTE:
-			ntype->uifunc = node_composit_buts_diff_matte;
+			ntype->draw_buttons = node_composit_buts_diff_matte;
 			break;
 		case CMP_NODE_DIST_MATTE:
-			ntype->uifunc = node_composit_buts_distance_matte;
+			ntype->draw_buttons = node_composit_buts_distance_matte;
 			break;
 		case CMP_NODE_COLOR_SPILL:
-			ntype->uifunc = node_composit_buts_color_spill;
+			ntype->draw_buttons = node_composit_buts_color_spill;
 			break;
 		case CMP_NODE_CHROMA_MATTE:
-			ntype->uifunc = node_composit_buts_chroma_matte;
+			ntype->draw_buttons = node_composit_buts_chroma_matte;
 			break;
 		case CMP_NODE_COLOR_MATTE:
-			ntype->uifunc = node_composit_buts_color_matte;
+			ntype->draw_buttons = node_composit_buts_color_matte;
 			break;
 		case CMP_NODE_SCALE:
-			ntype->uifunc = node_composit_buts_scale;
+			ntype->draw_buttons = node_composit_buts_scale;
 			break;
 		case CMP_NODE_ROTATE:
-			ntype->uifunc = node_composit_buts_rotate;
+			ntype->draw_buttons = node_composit_buts_rotate;
 			break;
 		case CMP_NODE_CHANNEL_MATTE:
-			ntype->uifunc = node_composit_buts_channel_matte;
+			ntype->draw_buttons = node_composit_buts_channel_matte;
 			break;
 		case CMP_NODE_LUMA_MATTE:
-			ntype->uifunc = node_composit_buts_luma_matte;
+			ntype->draw_buttons = node_composit_buts_luma_matte;
 			break;
 		case CMP_NODE_MAP_UV:
-			ntype->uifunc = node_composit_buts_map_uv;
+			ntype->draw_buttons = node_composit_buts_map_uv;
 			break;
 		case CMP_NODE_ID_MASK:
-			ntype->uifunc = node_composit_buts_id_mask;
+			ntype->draw_buttons = node_composit_buts_id_mask;
 			break;
 		case CMP_NODE_DOUBLEEDGEMASK:
-			ntype->uifunc = node_composit_buts_double_edge_mask;
+			ntype->draw_buttons = node_composit_buts_double_edge_mask;
 			break;
 		case CMP_NODE_MATH:
-			ntype->uifunc = node_buts_math;
+			ntype->draw_buttons = node_buts_math;
 			break;
 		case CMP_NODE_INVERT:
-			ntype->uifunc = node_composit_buts_invert;
+			ntype->draw_buttons = node_composit_buts_invert;
 			break;
 		case CMP_NODE_PREMULKEY:
-			ntype->uifunc = node_composit_buts_premulkey;
+			ntype->draw_buttons = node_composit_buts_premulkey;
 			break;
 		case CMP_NODE_VIEW_LEVELS:
-			ntype->uifunc = node_composit_buts_view_levels;
+			ntype->draw_buttons = node_composit_buts_view_levels;
 			break;
 		case CMP_NODE_COLORBALANCE:
-			ntype->uifunc = node_composit_buts_colorbalance;
-			ntype->uifuncbut = node_composit_buts_colorbalance_but;
+			ntype->draw_buttons = node_composit_buts_colorbalance;
+			ntype->draw_buttons_ex = node_composit_buts_colorbalance_ex;
 			break;
 		case CMP_NODE_HUECORRECT:
-			ntype->uifunc = node_composit_buts_huecorrect;
+			ntype->draw_buttons = node_composit_buts_huecorrect;
 			break;
 		case CMP_NODE_ZCOMBINE:
-			ntype->uifunc = node_composit_buts_zcombine;
+			ntype->draw_buttons = node_composit_buts_zcombine;
 			break;
 		case CMP_NODE_COMBYCCA:
 		case CMP_NODE_SEPYCCA:
-			ntype->uifunc = node_composit_buts_ycc;
+			ntype->draw_buttons = node_composit_buts_ycc;
 			break;
 		case CMP_NODE_MOVIECLIP:
-			ntype->uifunc = node_composit_buts_movieclip;
-			ntype->uifuncbut = node_composit_buts_movieclip_details;
+			ntype->draw_buttons = node_composit_buts_movieclip;
+			ntype->draw_buttons_ex = node_composit_buts_movieclip_ex;
 			break;
 		case CMP_NODE_STABILIZE2D:
-			ntype->uifunc = node_composit_buts_stabilize2d;
+			ntype->draw_buttons = node_composit_buts_stabilize2d;
 			break;
 		case CMP_NODE_TRANSFORM:
-			ntype->uifunc = node_composit_buts_transform;
+			ntype->draw_buttons = node_composit_buts_transform;
 			break;
 		case CMP_NODE_TRANSLATE:
-			ntype->uifunc = node_composit_buts_translate;
+			ntype->draw_buttons = node_composit_buts_translate;
 			break;
 		case CMP_NODE_MOVIEDISTORTION:
-			ntype->uifunc = node_composit_buts_moviedistortion;
+			ntype->draw_buttons = node_composit_buts_moviedistortion;
 			break;
 		case CMP_NODE_COLORCORRECTION:
-			ntype->uifunc = node_composit_buts_colorcorrection;
-			ntype->uifuncbut = node_composit_buts_colorcorrection_but;
+			ntype->draw_buttons = node_composit_buts_colorcorrection;
+			ntype->draw_buttons_ex = node_composit_buts_colorcorrection_ex;
 			break;
 		case CMP_NODE_SWITCH:
-			ntype->uifunc = node_composit_buts_switch;
+			ntype->draw_buttons = node_composit_buts_switch;
 			break;
 		case CMP_NODE_MASK_BOX:
-			ntype->uifunc = node_composit_buts_boxmask;
-			ntype->uibackdropfunc = node_composit_backdrop_boxmask;
+			ntype->draw_buttons = node_composit_buts_boxmask;
+			ntype->draw_backdrop = node_composit_backdrop_boxmask;
 			break;
 		case CMP_NODE_MASK_ELLIPSE:
-			ntype->uifunc = node_composit_buts_ellipsemask;
-			ntype->uibackdropfunc = node_composit_backdrop_ellipsemask;
+			ntype->draw_buttons = node_composit_buts_ellipsemask;
+			ntype->draw_backdrop = node_composit_backdrop_ellipsemask;
 			break;
 		case CMP_NODE_BOKEHIMAGE:
-			ntype->uifunc = node_composit_buts_bokehimage;
+			ntype->draw_buttons = node_composit_buts_bokehimage;
 			break;
 		case CMP_NODE_BOKEHBLUR:
-			ntype->uifunc = node_composit_buts_bokehblur;
+			ntype->draw_buttons = node_composit_buts_bokehblur;
 			break;
 		case CMP_NODE_VIEWER:
-			ntype->uifunc = node_composit_buts_viewer;
-			ntype->uifuncbut = node_composit_buts_viewer_but;
-			ntype->uibackdropfunc = node_composit_backdrop_viewer;
+			ntype->draw_buttons = node_composit_buts_viewer;
+			ntype->draw_buttons_ex = node_composit_buts_viewer_ex;
+			ntype->draw_backdrop = node_composit_backdrop_viewer;
 			break;
 		case CMP_NODE_COMPOSITE:
-			ntype->uifunc = node_composit_buts_composite;
+			ntype->draw_buttons = node_composit_buts_composite;
 			break;
 		case CMP_NODE_MASK:
-			ntype->uifunc = node_composit_buts_mask;
+			ntype->draw_buttons = node_composit_buts_mask;
 			break;
 		case CMP_NODE_KEYINGSCREEN:
-			ntype->uifunc = node_composit_buts_keyingscreen;
+			ntype->draw_buttons = node_composit_buts_keyingscreen;
 			break;
 		case CMP_NODE_KEYING:
-			ntype->uifunc = node_composit_buts_keying;
+			ntype->draw_buttons = node_composit_buts_keying;
 			break;
 		case CMP_NODE_TRACKPOS:
-			ntype->uifunc = node_composit_buts_trackpos;
+			ntype->draw_buttons = node_composit_buts_trackpos;
 			break;
 		case CMP_NODE_PLANETRACKDEFORM:
-			ntype->uifunc = node_composit_buts_planetrackdeform;
+			ntype->draw_buttons = node_composit_buts_planetrackdeform;
+			break;
+		case CMP_NODE_CORNERPIN:
+			ntype->draw_buttons = node_composit_buts_cornerpin;
 			break;
 	}
 }
@@ -2543,7 +2538,7 @@ static void node_texture_buts_bricks(uiLayout *layout, bContext *UNUSED(C), Poin
 	uiLayout *col;
 	
 	col = uiLayoutColumn(layout, TRUE);
-	uiItemR(col, ptr, "offset", 0, IFACE_("Offset"), ICON_NONE);
+	uiItemR(col, ptr, "offset", UI_ITEM_R_SLIDER, IFACE_("Offset"), ICON_NONE);
 	uiItemR(col, ptr, "offset_frequency", 0, IFACE_("Frequency"), ICON_NONE);
 	
 	col = uiLayoutColumn(layout, TRUE);
@@ -2636,7 +2631,7 @@ static void node_texture_buts_image(uiLayout *layout, bContext *C, PointerRNA *p
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 }
 
-static void node_texture_buts_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_texture_buts_image_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	bNode *node = ptr->data;
 	PointerRNA iuserptr;
@@ -2654,46 +2649,46 @@ static void node_texture_buts_output(uiLayout *layout, bContext *UNUSED(C), Poin
 static void node_texture_set_butfunc(bNodeType *ntype)
 {
 	if (ntype->type >= TEX_NODE_PROC && ntype->type < TEX_NODE_PROC_MAX) {
-		ntype->uifunc = node_texture_buts_proc;
+		ntype->draw_buttons = node_texture_buts_proc;
 	}
 	else {
 		switch (ntype->type) {
 
 			case TEX_NODE_MATH:
-				ntype->uifunc = node_buts_math;
+				ntype->draw_buttons = node_buts_math;
 				break;
 
 			case TEX_NODE_MIX_RGB:
-				ntype->uifunc = node_buts_mix_rgb;
+				ntype->draw_buttons = node_buts_mix_rgb;
 				break;
 
 			case TEX_NODE_VALTORGB:
-				ntype->uifunc = node_buts_colorramp;
+				ntype->draw_buttons = node_buts_colorramp;
 				break;
 
 			case TEX_NODE_CURVE_RGB:
-				ntype->uifunc = node_buts_curvecol;
+				ntype->draw_buttons = node_buts_curvecol;
 				break;
 
 			case TEX_NODE_CURVE_TIME:
-				ntype->uifunc = node_buts_time;
+				ntype->draw_buttons = node_buts_time;
 				break;
 
 			case TEX_NODE_TEXTURE:
-				ntype->uifunc = node_buts_texture;
+				ntype->draw_buttons = node_buts_texture;
 				break;
 
 			case TEX_NODE_BRICKS:
-				ntype->uifunc = node_texture_buts_bricks;
+				ntype->draw_buttons = node_texture_buts_bricks;
 				break;
 
 			case TEX_NODE_IMAGE:
-				ntype->uifunc = node_texture_buts_image;
-				ntype->uifuncbut = node_texture_buts_image_details;
+				ntype->draw_buttons = node_texture_buts_image;
+				ntype->draw_buttons_ex = node_texture_buts_image_ex;
 				break;
 
 			case TEX_NODE_OUTPUT:
-				ntype->uifunc = node_texture_buts_output;
+				ntype->draw_buttons = node_texture_buts_output;
 				break;
 		}
 	}
@@ -2767,14 +2762,12 @@ void ED_node_init_butfuncs(void)
 	extern bNodeSocketType NodeSocketTypeUndefined;
 	
 	/* default ui functions */
-	NodeTypeUndefined.drawfunc = node_draw_default;
-	NodeTypeUndefined.drawupdatefunc = node_update_default;
+	NodeTypeUndefined.draw_nodetype = node_draw_default;
+	NodeTypeUndefined.draw_nodetype_prepare = node_update_default;
 	NodeTypeUndefined.select_area_func = node_select_area_default;
 	NodeTypeUndefined.tweak_area_func = node_tweak_area_default;
-	NodeTypeUndefined.uifunc = NULL;
-	NodeTypeUndefined.uifuncbut = NULL;
-	NodeTypeUndefined.drawinputfunc = node_draw_input_default;
-	NodeTypeUndefined.drawoutputfunc = node_draw_output_default;
+	NodeTypeUndefined.draw_buttons = NULL;
+	NodeTypeUndefined.draw_buttons_ex = NULL;
 	NodeTypeUndefined.resize_area_func = node_resize_area_default;
 	
 	NodeSocketTypeUndefined.draw = node_socket_undefined_draw;
@@ -2785,14 +2778,12 @@ void ED_node_init_butfuncs(void)
 	/* node type ui functions */
 	NODE_TYPES_BEGIN(ntype)
 		/* default ui functions */
-		ntype->drawfunc = node_draw_default;
-		ntype->drawupdatefunc = node_update_default;
+		ntype->draw_nodetype = node_draw_default;
+		ntype->draw_nodetype_prepare = node_update_default;
 		ntype->select_area_func = node_select_area_default;
 		ntype->tweak_area_func = node_tweak_area_default;
-		ntype->uifunc = NULL;
-		ntype->uifuncbut = NULL;
-		ntype->drawinputfunc = node_draw_input_default;
-		ntype->drawoutputfunc = node_draw_output_default;
+		ntype->draw_buttons = NULL;
+		ntype->draw_buttons_ex = NULL;
 		ntype->resize_area_func = node_resize_area_default;
 		
 		node_common_set_butfunc(ntype);
@@ -2814,10 +2805,8 @@ void ED_node_init_butfuncs(void)
 void ED_init_custom_node_type(bNodeType *ntype)
 {
 	/* default ui functions */
-	ntype->drawfunc = node_draw_default;
-	ntype->drawupdatefunc = node_update_default;
-	ntype->drawinputfunc = node_draw_input_default;
-	ntype->drawoutputfunc = node_draw_output_default;
+	ntype->draw_nodetype = node_draw_default;
+	ntype->draw_nodetype_prepare = node_update_default;
 	ntype->resize_area_func = node_resize_area_default;
 	ntype->select_area_func = node_select_area_default;
 	ntype->tweak_area_func = node_tweak_area_default;
@@ -2855,13 +2844,61 @@ static void std_node_socket_interface_draw_color(bContext *UNUSED(C), PointerRNA
 	copy_v4_v4(r_color, std_node_socket_colors[type]);
 }
 
+/* draw function for file output node sockets, displays only sub-path and format, no value button */
+static void node_file_output_socket_draw(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr)
+{
+	bNodeTree *ntree = ptr->id.data;
+	bNodeSocket *sock = ptr->data;
+	uiLayout *row;
+	PointerRNA inputptr, imfptr;
+	int imtype;
+	
+	row = uiLayoutRow(layout, FALSE);
+	
+	imfptr = RNA_pointer_get(node_ptr, "format");
+	imtype = RNA_enum_get(&imfptr, "file_format");
+	if (imtype == R_IMF_IMTYPE_MULTILAYER) {
+		NodeImageMultiFileSocket *input = sock->storage;
+		RNA_pointer_create(&ntree->id, &RNA_NodeOutputFileSlotLayer, input, &inputptr);
+		
+		uiItemL(row, input->layer, ICON_NONE);
+	}
+	else {
+		NodeImageMultiFileSocket *input = sock->storage;
+		PropertyRNA *imtype_prop;
+		const char *imtype_name;
+		uiBlock *block;
+		RNA_pointer_create(&ntree->id, &RNA_NodeOutputFileSlotFile, input, &inputptr);
+		
+		uiItemL(row, input->path, ICON_NONE);
+		
+		if (!RNA_boolean_get(&inputptr, "use_node_format"))
+			imfptr = RNA_pointer_get(&inputptr, "format");
+		
+		imtype_prop = RNA_struct_find_property(&imfptr, "file_format");
+		RNA_property_enum_name((bContext *)C, &imfptr, imtype_prop,
+		                       RNA_property_enum_get(&imfptr, imtype_prop), &imtype_name);
+		block = uiLayoutGetBlock(row);
+		uiBlockSetEmboss(block, UI_EMBOSSP);
+		uiItemL(row, imtype_name, ICON_NONE);
+		uiBlockSetEmboss(block, UI_EMBOSSN);
+	}
+}
+
 static void std_node_socket_draw(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, const char *text)
 {
+	bNode *node = node_ptr->data;
 	bNodeSocket *sock = ptr->data;
 	int type = sock->typeinfo->type;
 	/*int subtype = sock->typeinfo->subtype;*/
 	
-	if ((sock->flag & SOCK_IN_USE) || (sock->flag & SOCK_HIDE_VALUE)) {
+	/* XXX not nice, eventually give this node its own socket type ... */
+	if (node->type == CMP_NODE_OUTPUT_FILE) {
+		node_file_output_socket_draw(C, layout, ptr, node_ptr);
+		return;
+	}
+	
+	if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_IN_USE) || (sock->flag & SOCK_HIDE_VALUE)) {
 		node_socket_button_label(C, layout, ptr, node_ptr, text);
 		return;
 	}
@@ -3074,8 +3111,8 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			rctf *viewer_border = &snode->nodetree->viewer_border;
 			while (node) {
 				if (node->flag & NODE_SELECT) {
-					if (node->typeinfo->uibackdropfunc) {
-						node->typeinfo->uibackdropfunc(snode, ibuf, node, x, y);
+					if (node->typeinfo->draw_backdrop) {
+						node->typeinfo->draw_backdrop(snode, ibuf, node, x, y);
 					}
 				}
 				node = node->next;
@@ -3146,7 +3183,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 		toreroute = 0;
 	}
 
-	dist = UI_GetThemeValue(TH_NODE_CURVING) * 0.10f * ABS(vec[0][0] - vec[3][0]);
+	dist = UI_GetThemeValue(TH_NODE_CURVING) * 0.10f * fabsf(vec[0][0] - vec[3][0]);
 	deltax = vec[3][0] - vec[0][0];
 	deltay = vec[3][1] - vec[0][1];
 	/* check direction later, for top sockets */
@@ -3201,7 +3238,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 #define LINK_ARROW  12  /* position of arrow on the link, LINK_RESOL/2 */
 #define ARROW_SIZE 7
 void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
-                           int th_col1, int do_shaded, int th_col2, int do_triple, int th_col3)
+                           int th_col1, bool do_shaded, int th_col2, bool do_triple, int th_col3)
 {
 	float coord_array[LINK_RESOL + 1][2];
 	
@@ -3387,8 +3424,9 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 /* note; this is used for fake links in groups too */
 void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 {
-	int do_shaded = FALSE, th_col1 = TH_HEADER, th_col2 = TH_HEADER;
-	int do_triple = FALSE, th_col3 = TH_WIRE;
+	bool do_shaded = false;
+	bool do_triple = false;
+	int th_col1 = TH_HEADER, th_col2 = TH_HEADER, th_col3 = TH_WIRE;
 	
 	if (link->fromsock == NULL && link->tosock == NULL)
 		return;

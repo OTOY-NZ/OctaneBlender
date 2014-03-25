@@ -55,6 +55,8 @@
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 
+#include "MOD_util.h"
+
 #include "bmesh.h"
 
 #include "depsgraph_private.h"
@@ -62,6 +64,12 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Due to cyclic dependencies it's possible that curve used for
+ * deformation here is not evaluated at the time of evaluating
+ * this modifier.
+ */
+#define CYCLIC_DEPENDENCY_WORKAROUND
 
 static void initData(ModifierData *md)
 {
@@ -84,21 +92,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	ArrayModifierData *amd = (ArrayModifierData *) md;
 	ArrayModifierData *tamd = (ArrayModifierData *) target;
-
-	tamd->start_cap = amd->start_cap;
-	tamd->end_cap = amd->end_cap;
-	tamd->curve_ob = amd->curve_ob;
-	tamd->offset_ob = amd->offset_ob;
-	tamd->count = amd->count;
-	copy_v3_v3(tamd->offset, amd->offset);
-	copy_v3_v3(tamd->scale, amd->scale);
-	tamd->length = amd->length;
-	tamd->merge_dist = amd->merge_dist;
-	tamd->fit_type = amd->fit_type;
-	tamd->offset_type = amd->offset_type;
-	tamd->flags = amd->flags;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static void foreachObjectLink(
@@ -133,6 +131,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 	if (amd->curve_ob) {
 		DagNode *curNode = dag_get_node(forest, amd->curve_ob);
+		curNode->eval_flags |= DAG_EVAL_NEED_CURVE_PATH;
 
 		dag_add_relation(forest, curNode, obNode,
 		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Array Modifier");
@@ -222,7 +221,7 @@ static void bm_merge_dm_transform(BMesh *bm, DerivedMesh *dm, float mat[4][4],
                                   BMOpSlot dupe_op_slot_args[BMO_OP_MAX_SLOTS], const char *dupe_slot_name,
                                   BMOperator *weld_op)
 {
-	const int is_input = (dupe_op->slots_in == dupe_op_slot_args);
+	const bool is_input = (dupe_op->slots_in == dupe_op_slot_args);
 	BMVert *v, *v2, *v3;
 	BMIter iter;
 
@@ -330,7 +329,7 @@ static void merge_first_last(BMesh *bm,
 
 static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
                                           Scene *scene, Object *ob, DerivedMesh *dm,
-                                          int UNUSED(initFlags))
+                                          ModifierApplyFlag flag)
 {
 	DerivedMesh *result;
 	BMesh *bm = DM_to_bmesh(dm, false);
@@ -350,9 +349,9 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 
 	/* need to avoid infinite recursion here */
 	if (amd->start_cap && amd->start_cap != ob && amd->start_cap->type == OB_MESH)
-		start_cap = mesh_get_derived_final(scene, amd->start_cap, CD_MASK_MESH);
+		start_cap = get_dm_for_modifier(amd->start_cap, flag);
 	if (amd->end_cap && amd->end_cap != ob && amd->end_cap->type == OB_MESH)
-		end_cap = mesh_get_derived_final(scene, amd->end_cap, CD_MASK_MESH);
+		end_cap = get_dm_for_modifier(amd->end_cap, flag);
 
 	unit_m4(offset);
 
@@ -384,18 +383,16 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 	if (amd->fit_type == MOD_ARR_FITCURVE && amd->curve_ob) {
 		Curve *cu = amd->curve_ob->data;
 		if (cu) {
-			float tmp_mat[3][3];
-			float scale;
-			
-			BKE_object_to_mat3(amd->curve_ob, tmp_mat);
-			scale = mat3_to_scale(tmp_mat);
-				
-			if (!amd->curve_ob->curve_cache || !amd->curve_ob->curve_cache->path) {
-				cu->flag |= CU_PATH; // needed for path & bevlist
-				BKE_displist_make_curveTypes(scene, amd->curve_ob, 0);
+#ifdef CYCLIC_DEPENDENCY_WORKAROUND
+			if (amd->curve_ob->curve_cache == NULL) {
+				BKE_displist_make_curveTypes(scene, amd->curve_ob, false);
 			}
-			if (amd->curve_ob->curve_cache->path)
+#endif
+
+			if (amd->curve_ob->curve_cache && amd->curve_ob->curve_cache->path) {
+				float scale = mat4_to_scale(amd->curve_ob->obmat);
 				length = scale * amd->curve_ob->curve_cache->path->totdist;
+			}
 		}
 	}
 
@@ -483,7 +480,7 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 				                                  amd, &index_len);
 			}
 
-			#define _E(s, i) ((BMVert **)(s)->data.buf)[i]
+#define _E(s, i) ((BMVert **)(s)->data.buf)[i]
 
 			/* ensure this is set */
 			BLI_assert(index_len != -1);
@@ -504,7 +501,7 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 				BMO_slot_map_elem_insert(&weld_op, slot_targetmap, v, v2);
 			}
 
-			#undef _E
+#undef _E
 		}
 
 		/* already copied earlier, but after executation more slot
@@ -531,7 +528,7 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 
 	/* start capping */
 	if (start_cap || end_cap) {
-		BM_mesh_elem_hflag_enable_all(bm, BM_VERT, BM_ELEM_TAG, FALSE);
+		BM_mesh_elem_hflag_enable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
 		if (start_cap) {
 			float startoffset[4][4];
@@ -564,7 +561,7 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 	/* Bump the stack level back down to match the adjustment up above */
 	BMO_pop(bm);
 
-	result = CDDM_from_bmesh(bm, FALSE);
+	result = CDDM_from_bmesh(bm, false);
 
 	if ((dm->dirty & DM_DIRTY_NORMALS) ||
 	    ((amd->offset_type & MOD_ARR_OFF_OBJ) && (amd->offset_ob)))
@@ -585,12 +582,12 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
                                   DerivedMesh *dm,
-                                  ModifierApplyFlag UNUSED(flag))
+                                  ModifierApplyFlag flag)
 {
 	DerivedMesh *result;
 	ArrayModifierData *amd = (ArrayModifierData *) md;
 
-	result = arrayModifier_doArray(amd, md->scene, ob, dm, 0);
+	result = arrayModifier_doArray(amd, md->scene, ob, dm, flag);
 
 	return result;
 }

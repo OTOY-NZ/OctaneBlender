@@ -30,8 +30,8 @@ CCL_NAMESPACE_BEGIN
 #define TEX_NUM_IMAGES			95
 #define TEX_IMAGE_BYTE_START	TEX_NUM_FLOAT_IMAGES
 
-#define TEX_EXTENDED_NUM_FLOAT_IMAGES	5
-#define TEX_EXTENDED_NUM_IMAGES			512
+#define TEX_EXTENDED_NUM_FLOAT_IMAGES	1024
+#define TEX_EXTENDED_NUM_IMAGES			1024
 #define TEX_EXTENDED_IMAGE_BYTE_START	TEX_EXTENDED_NUM_FLOAT_IMAGES
 
 /* color to use when textures are not found */
@@ -49,8 +49,8 @@ public:
 	ImageManager();
 	~ImageManager();
 
-	int add_image(const string& filename, void *builtin_data, bool animated, bool& is_float, bool& is_linear);
-	void remove_image(const string& filename, void *builtin_data);
+	int add_image(const string& filename, void *builtin_data, bool animated, bool& is_float, bool& is_linear, InterpolationType interpolation);
+	void remove_image(const string& filename, void *builtin_data, InterpolationType interpolation);
 	bool is_float_image(const string& filename, void *builtin_data, bool& is_linear);
 
 	void device_update(Device *device, DeviceScene *dscene, Progress& progress);
@@ -79,6 +79,8 @@ private:
 
 		bool need_load;
 		bool animated;
+		InterpolationType interpolation;
+
 		int users;
 	};
 

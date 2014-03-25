@@ -132,16 +132,16 @@ static ScrArea *find_area_image_empty(bContext *C)
 /********************** open image editor for render *************************/
 
 /* new window uses x,y to set position */
-void render_view_open(bContext *C, int mx, int my)
+ScrArea *render_view_open(bContext *C, int mx, int my)
 {
 	wmWindow *win = CTX_wm_window(C);
 	Scene *scene = CTX_data_scene(C);
 	ScrArea *sa = NULL;
 	SpaceImage *sima;
-	int area_was_image = 0;
+	bool area_was_image = false;
 
 	if (scene->r.displaymode == R_OUTPUT_NONE)
-		return;
+		return NULL;
 	
 	if (scene->r.displaymode == R_OUTPUT_WINDOW) {
 		rcti rect;
@@ -226,6 +226,8 @@ void render_view_open(bContext *C, int mx, int my)
 			 * full screen to the original tiled setup */
 		}
 	}
+
+	return sa;
 }
 
 /*************************** cancel render viewer **********************/

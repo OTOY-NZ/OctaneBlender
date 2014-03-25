@@ -52,6 +52,7 @@
 
 #include "BLI_sys_types.h" // for intptr_t support
 
+struct EvaluationContext;
 struct Object;
 struct MemArena;
 struct VertTableNode;
@@ -131,7 +132,7 @@ struct Render
 	short flag, osa, ok, result_ok;
 	
 	/* due to performance issues, getting initialized from color management settings once on Render initialization */
-	short scene_color_manage;
+	bool scene_color_manage;
 	
 	/* result of rendering */
 	RenderResult *result;
@@ -236,7 +237,6 @@ struct Render
 	struct Object *excludeob;
 	ListBase render_volumes_inside;
 	ListBase volumes;
-	ListBase volume_precache_parts;
 
 #ifdef WITH_FREESTYLE
 	struct Main freestyle_bmain;
@@ -253,8 +253,8 @@ struct Render
 	void *dih;
 	void (*display_clear)(void *handle, RenderResult *rr);
 	void *dch;
-	void (*display_draw)(void *handle, RenderResult *rr, volatile rcti *rect);
-	void *ddh;
+	void (*display_update)(void *handle, RenderResult *rr, volatile rcti *rect);
+	void *duh;
 	
 	void (*stats_draw)(void *handle, RenderStats *ri);
 	void *sdh;
@@ -271,6 +271,7 @@ struct Render
 	struct ReportList *reports;
 
 	struct ImagePool *pool;
+	struct EvaluationContext *eval_ctx;
 };
 
 /* ------------------------------------------------------------------------- */
@@ -621,6 +622,7 @@ typedef struct LampRen {
 #define R_BAKE_TRACE	32
 #define R_BAKING		64
 #define R_ANIMATION		128
+#define R_NEED_VCOL		256
 
 /* vlakren->flag (vlak = face in dutch) char!!! */
 #define R_SMOOTH		1

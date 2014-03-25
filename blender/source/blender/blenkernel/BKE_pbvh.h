@@ -53,7 +53,7 @@ typedef struct {
 /* Callbacks */
 
 /* returns 1 if the search should continue from this node, 0 otherwise */
-typedef int (*BKE_pbvh_SearchCallback)(PBVHNode *node, void *data);
+typedef bool (*BKE_pbvh_SearchCallback)(PBVHNode *node, void *data);
 
 typedef void (*BKE_pbvh_HitCallback)(PBVHNode *node, void *data);
 typedef void (*BKE_pbvh_HitOccludedCallback)(PBVHNode *node, void *data, float *tmin);
@@ -71,6 +71,7 @@ void BKE_pbvh_build_bmesh(PBVH *bvh, struct BMesh *bm, int smooth_shading,
                           struct BMLog *log);
 
 void BKE_pbvh_free(PBVH *bvh);
+void BKE_pbvh_free_layer_disp(PBVH *bvh);
 
 /* Hierarchical Search in the BVH, two methods:
  * - for each hit calling a callback
@@ -96,6 +97,11 @@ void BKE_pbvh_raycast(PBVH *bvh, BKE_pbvh_HitOccludedCallback cb, void *data,
 int BKE_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3], int use_origco,
                           const float ray_start[3], const float ray_normal[3],
                           float *dist);
+
+/* for orthographic cameras, project the far away ray segment points to the root node so
+ * we can have better precision. */
+void BKE_pbvh_raycast_project_ray_root(PBVH *bvh, bool original, float ray_start[3],
+                                       float ray_end[3], float ray_normal[3]);
 
 /* Drawing */
 
@@ -151,8 +157,9 @@ typedef enum {
 
 void BKE_pbvh_node_mark_update(PBVHNode *node);
 void BKE_pbvh_node_mark_rebuild_draw(PBVHNode *node);
-void BKE_pbvh_node_fully_hidden_set(PBVHNode *node, int fully_hidden);
+void BKE_pbvh_node_mark_redraw(PBVHNode *node);
 void BKE_pbvh_node_mark_topology_update(PBVHNode *node);
+void BKE_pbvh_node_fully_hidden_set(PBVHNode *node, int fully_hidden);
 
 void BKE_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
                              int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
@@ -168,9 +175,9 @@ void BKE_pbvh_node_get_original_BB(PBVHNode *node, float bb_min[3], float bb_max
 float BKE_pbvh_node_get_tmin(PBVHNode *node);
 
 /* test if AABB is at least partially inside the planes' volume */
-int BKE_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data);
+bool BKE_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data);
 /* test if AABB is at least partially outside the planes' volume */
-int BKE_pbvh_node_planes_exclude_AABB(PBVHNode *node, void *data);
+bool BKE_pbvh_node_planes_exclude_AABB(PBVHNode *node, void *data);
 
 struct GSet *BKE_pbvh_bmesh_node_unique_verts(PBVHNode *node);
 struct GSet *BKE_pbvh_bmesh_node_other_verts(PBVHNode *node);
@@ -197,7 +204,7 @@ void BKE_pbvh_node_layer_disp_free(PBVHNode *node);
 /* vertex deformer */
 float (*BKE_pbvh_get_vertCos(struct PBVH *pbvh))[3];
 void BKE_pbvh_apply_vertCos(struct PBVH *pbvh, float (*vertCos)[3]);
-int BKE_pbvh_isDeformed(struct PBVH *pbvh);
+bool BKE_pbvh_isDeformed(struct PBVH *pbvh);
 
 /* Vertex Iterator */
 
@@ -249,10 +256,6 @@ typedef struct PBVHVertexIter {
 	float *fno;
 	float *mask;
 } PBVHVertexIter;
-
-#ifdef _MSC_VER
-#pragma warning (disable:4127) // conditional expression is constant
-#endif
 
 void pbvh_vertex_iter_init(PBVH *bvh, PBVHNode *node,
                            PBVHVertexIter *vi, int mode);
@@ -324,6 +327,6 @@ void BKE_pbvh_gather_proxies(PBVH *pbvh, PBVHNode ***nodes,  int *totnode);
 //void BKE_pbvh_node_BB_reset(PBVHNode *node);
 //void BKE_pbvh_node_BB_expand(PBVHNode *node, float co[3]);
 
-void pbvh_show_diffuse_color_set(PBVH *bvh, int show_diffuse_color);
+void pbvh_show_diffuse_color_set(PBVH *bvh, bool show_diffuse_color);
 
 #endif /* __BKE_PBVH_H__ */

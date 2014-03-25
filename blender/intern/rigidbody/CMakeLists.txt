@@ -23,11 +23,10 @@
 
 set(INC
 	.
-	../../extern/bullet2/src
 )
 
 set(INC_SYS
-
+	${BULLET_INCLUDE_DIRS}
 )
 
 set(SRC

@@ -39,11 +39,15 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
+#include "BLI_path_util.h"
+#include "BLI_listbase.h"
+#include "BLI_ghash.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_math.h"
-#include "BLI_blenlib.h"
 #include "BLI_threads.h"
 #include "BLI_vfontdata.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_packedFile_types.h"
 #include "DNA_curve_types.h"
@@ -60,22 +64,27 @@
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 
-static ThreadMutex vfont_mutex = BLI_MUTEX_INITIALIZER;
+static ThreadRWMutex vfont_rwlock = BLI_RWLOCK_INITIALIZER;
 
 /* The vfont code */
 void BKE_vfont_free_data(struct VFont *vfont)
 {
 	if (vfont->data) {
-		while (vfont->data->characters.first) {
-			VChar *che = vfont->data->characters.first;
+		if (vfont->data->characters) {
+			GHashIterator gh_iter;
+			GHASH_ITER (gh_iter, vfont->data->characters) {
+				VChar *che = BLI_ghashIterator_getValue(&gh_iter);
 
-			while (che->nurbsbase.first) {
-				Nurb *nu = che->nurbsbase.first;
-				if (nu->bezt) MEM_freeN(nu->bezt);
-				BLI_freelinkN(&che->nurbsbase, nu);
+				while (che->nurbsbase.first) {
+					Nurb *nu = che->nurbsbase.first;
+					if (nu->bezt) MEM_freeN(nu->bezt);
+					BLI_freelinkN(&che->nurbsbase, nu);
+				}
+
+				MEM_freeN(che);
 			}
 
-			BLI_freelinkN(&vfont->data->characters, che);
+			BLI_ghash_free(vfont->data->characters, NULL, NULL);
 		}
 
 		MEM_freeN(vfont->data);
@@ -140,7 +149,7 @@ static VFontData *vfont_get_data(Main *bmain, VFont *vfont)
 	if (!vfont->data) {
 		PackedFile *pf;
 
-		BLI_mutex_lock(&vfont_mutex);
+		BLI_rw_mutex_lock(&vfont_rwlock, THREAD_LOCK_WRITE);
 
 		if (vfont->data) {
 			/* Check data again, since it might have been already
@@ -148,7 +157,7 @@ static VFontData *vfont_get_data(Main *bmain, VFont *vfont)
 			 * not accurate or threading, just prevents unneeded
 			 * lock if all the data is here for sure).
 			 */
-			BLI_mutex_unlock(&vfont_mutex);
+			BLI_rw_mutex_unlock(&vfont_rwlock);
 			return vfont->data;
 		}
 
@@ -175,7 +184,7 @@ static VFontData *vfont_get_data(Main *bmain, VFont *vfont)
 				printf("Font file doesn't exist: %s\n", vfont->name);
 
 				/* DON'T DO THIS
-				 * missing file shouldn't modifty path! - campbell */
+				 * missing file shouldn't modify path! - campbell */
 #if 0
 				strcpy(vfont->name, FO_BUILTIN_NAME);
 #endif
@@ -190,7 +199,7 @@ static VFontData *vfont_get_data(Main *bmain, VFont *vfont)
 			}
 		}
 
-		BLI_mutex_unlock(&vfont_mutex);
+		BLI_rw_mutex_unlock(&vfont_rwlock);
 	}
 
 	return vfont->data;
@@ -202,7 +211,7 @@ VFont *BKE_vfont_load(Main *bmain, const char *name)
 	VFont *vfont = NULL;
 	PackedFile *pf;
 	PackedFile *temp_pf = NULL;
-	int is_builtin;
+	bool is_builtin;
 	
 	if (STREQ(name, FO_BUILTIN_NAME)) {
 		BLI_strncpy(filename, name, sizeof(filename));
@@ -223,7 +232,7 @@ VFont *BKE_vfont_load(Main *bmain, const char *name)
 
 		vfd = BLI_vfontdata_from_freetypefont(pf);
 		if (vfd) {
-			vfont = BKE_libblock_alloc(&bmain->vfont, ID_VF, filename);
+			vfont = BKE_libblock_alloc(bmain, ID_VF, filename);
 			vfont->data = vfd;
 
 			/* if there's a font name, use it for the ID name */
@@ -279,25 +288,18 @@ VFont *BKE_vfont_builtin_get(void)
 	return BKE_vfont_load(G.main, FO_BUILTIN_NAME);
 }
 
-static VChar *find_vfont_char(VFontData *vfd, intptr_t character)
+static VChar *find_vfont_char(VFontData *vfd, unsigned int character)
 {
-	VChar *che = NULL;
-
-	/* TODO: use ghash */
-	for (che = vfd->characters.first; che; che = che->next) {
-		if (che->index == character)
-			break;
-	}
-	return che; /* NULL if not found */
+	return BLI_ghash_lookup(vfd->characters, SET_UINT_IN_POINTER(character));
 }
-		
-static void build_underline(Curve *cu, float x1, float y1, float x2, float y2, int charidx, short mat_nr)
+
+static void build_underline(Curve *cu, ListBase *nubase, const rctf *rect,
+                            float yofs, float rot, int charidx, short mat_nr)
 {
 	Nurb *nu2;
 	BPoint *bp;
 	
 	nu2 = (Nurb *) MEM_callocN(sizeof(Nurb), "underline_nurb");
-	if (nu2 == NULL) return;
 	nu2->resolu = cu->resolu;
 	nu2->bezt = NULL;
 	nu2->knotsu = nu2->knotsv = NULL;
@@ -311,34 +313,47 @@ static void build_underline(Curve *cu, float x1, float y1, float x2, float y2, i
 	nu2->flagu = CU_NURB_CYCLIC;
 
 	bp = (BPoint *)MEM_callocN(4 * sizeof(BPoint), "underline_bp");
-	if (bp == NULL) {
-		MEM_freeN(nu2);
-		return;
-	}
+
+	copy_v4_fl4(bp[0].vec, rect->xmin, (rect->ymin + yofs), 0.0f, 1.0f);
+	copy_v4_fl4(bp[1].vec, rect->xmax, (rect->ymin + yofs), 0.0f, 1.0f);
+	copy_v4_fl4(bp[2].vec, rect->xmax, (rect->ymax + yofs), 0.0f, 1.0f);
+	copy_v4_fl4(bp[3].vec, rect->xmin, (rect->ymax + yofs), 0.0f, 1.0f);
+
 	nu2->bp = bp;
+	BLI_addtail(nubase, nu2);
 
-	nu2->bp[0].vec[0] = x1;
-	nu2->bp[0].vec[1] = y1;
-	nu2->bp[0].vec[2] = 0;
-	nu2->bp[0].vec[3] = 1.0f;
-	nu2->bp[1].vec[0] = x2;
-	nu2->bp[1].vec[1] = y1;
-	nu2->bp[1].vec[2] = 0;
-	nu2->bp[1].vec[3] = 1.0f;
-	nu2->bp[2].vec[0] = x2;
-	nu2->bp[2].vec[1] = y2;
-	nu2->bp[2].vec[2] = 0;
-	nu2->bp[2].vec[3] = 1.0f;
-	nu2->bp[3].vec[0] = x1;
-	nu2->bp[3].vec[1] = y2;
-	nu2->bp[3].vec[2] = 0;
-	nu2->bp[3].vec[3] = 1.0f;
-	
-	BLI_addtail(&(cu->nurb), nu2);
+	if (rot != 0.0f) {
+		float si, co;
+		int i;
 
+		si = sinf(rot);
+		co = cosf(rot);
+
+		for (i = nu2->pntsu; i > 0; i--) {
+			float *fp;
+			float x, y;
+
+			fp = bp->vec;
+
+			x = fp[0] - rect->xmin;
+			y = fp[1] - rect->ymin;
+
+			fp[0] = (+co * x + si * y) + rect->xmin;
+			fp[1] = (-si * x + co * y) + rect->ymin;
+
+			bp++;
+		}
+
+		bp = nu2->bp;
+	}
+
+	mul_v2_fl(bp[0].vec, cu->fsize);
+	mul_v2_fl(bp[1].vec, cu->fsize);
+	mul_v2_fl(bp[2].vec, cu->fsize);
+	mul_v2_fl(bp[3].vec, cu->fsize);
 }
 
-static void buildchar(Main *bmain, Curve *cu, unsigned long character, CharInfo *info,
+static void buildchar(Main *bmain, Curve *cu, ListBase *nubase, unsigned int character, CharInfo *info,
                       float ofsx, float ofsy, float rot, int charidx)
 {
 	BezTriple *bezt1, *bezt2;
@@ -460,28 +475,33 @@ static void buildchar(Main *bmain, Curve *cu, unsigned long character, CharInfo 
 				bezt2++;
 			}
 			
-			BLI_addtail(&(cu->nurb), nu2);
+			BLI_addtail(nubase, nu2);
 		}
 		
 		nu1 = nu1->next;
 	}
 }
 
-int BKE_vfont_select_get(Object *ob, int *start, int *end)
+int BKE_vfont_select_get(Object *ob, int *r_start, int *r_end)
 {
 	Curve *cu = ob->data;
+	EditFont *ef = cu->editfont;
 	
-	if (cu->editfont == NULL || ob->type != OB_FONT) return 0;
+	if ((ob->type != OB_FONT) || (ef == NULL)) return 0;
 
-	if (cu->selstart == 0) return 0;
-	if (cu->selstart <= cu->selend) {
-		*start = cu->selstart - 1;
-		*end = cu->selend - 1;
+	BLI_assert(ef->selstart >= 0 && ef->selstart <= ef->len + 1);
+	BLI_assert(ef->selend   >= 0 && ef->selend   <= ef->len + 1);
+	BLI_assert(ef->pos      >= 0 && ef->pos      <= ef->len);
+
+	if (ef->selstart == 0) return 0;
+	if (ef->selstart <= ef->selend) {
+		*r_start = ef->selstart - 1;
+		*r_end = ef->selend - 1;
 		return 1;
 	}
 	else {
-		*start = cu->selend;
-		*end = cu->selstart - 2;
+		*r_start = ef->selend;
+		*r_end = ef->selstart - 2;
 		return -1;
 	}
 }
@@ -500,11 +520,15 @@ static float char_width(Curve *cu, VChar *che, CharInfo *info)
 	}
 }
 
-struct CharTrans *BKE_vfont_to_curve(Main *bmain, Scene *scene, Object *ob, int mode)
+bool BKE_vfont_to_curve_ex(Main *bmain, Object *ob, int mode, ListBase *r_nubase,
+                           const wchar_t **r_text, int *r_text_len, bool *r_text_free,
+                           struct CharTrans **r_chartransdata)
 {
+	Curve *cu = ob->data;
+	EditFont *ef = cu->editfont;
+	EditFontSelBox *selboxes = NULL;
 	VFont *vfont, *oldvfont;
 	VFontData *vfd = NULL;
-	Curve *cu;
 	CharInfo *info = NULL, *custrinfo;
 	TextBox *tb;
 	VChar *che;
@@ -514,56 +538,69 @@ struct CharTrans *BKE_vfont_to_curve(Main *bmain, Scene *scene, Object *ob, int 
 	int i, slen, j;
 	int curbox;
 	int selstart, selend;
-	int utf8len;
 	short cnr = 0, lnr = 0, wsnr = 0;
-	wchar_t *mem, *tmp, ascii;
+	const wchar_t *mem;
+	wchar_t ascii;
+	bool ok = false;
 
 	/* remark: do calculations including the trailing '\0' of a string
 	 * because the cursor can be at that location */
 
-	if (ob->type != OB_FONT) return NULL;
+	BLI_assert(ob->type == OB_FONT);
 
 	/* Set font data */
-	cu = (Curve *) ob->data;
 	vfont = cu->vfont;
 
-	if (cu->str == NULL) return NULL;
-	if (vfont == NULL) return NULL;
-
-	/* Create unicode string */
-	utf8len = BLI_strlen_utf8(cu->str);
-	mem = MEM_mallocN(((utf8len + 1) * sizeof(wchar_t)), "convertedmem");
-
-	BLI_strncpy_wchar_from_utf8(mem, cu->str, utf8len + 1);
-
-	/* Count the wchar_t string length */
-	slen = wcslen(mem);
-
-	if (cu->ulheight == 0.0f)
-		cu->ulheight = 0.05f;
-	
-	if (cu->strinfo == NULL) /* old file */
-		cu->strinfo = MEM_callocN((slen + 4) * sizeof(CharInfo), "strinfo compat");
-	
-	custrinfo = cu->strinfo;
-	if (cu->editfont)
-		custrinfo = cu->editfont->textbufinfo;
-	
-	if (cu->tb == NULL)
-		cu->tb = MEM_callocN(MAXTEXTBOX * sizeof(TextBox), "TextBox compat");
+	if (cu->str == NULL) return ok;
+	if (vfont == NULL) return ok;
 
 	vfd = vfont_get_data(bmain, vfont);
 
 	/* The VFont Data can not be found */
-	if (!vfd) {
-		if (mem)
-			MEM_freeN(mem);
-		return NULL;
+	if (!vfd) return ok;
+
+	if (cu->ulheight == 0.0f)
+		cu->ulheight = 0.05f;
+	
+	if (ef) {
+		slen = ef->len;
+		mem = ef->textbuf;
+		custrinfo = ef->textbufinfo;
+	}
+	else {
+		wchar_t *mem_tmp;
+		slen = cu->len_wchar;
+
+		/* Create unicode string */
+		mem_tmp = MEM_mallocN(((slen + 1) * sizeof(wchar_t)), "convertedmem");
+
+		BLI_strncpy_wchar_from_utf8(mem_tmp, cu->str, slen + 1);
+
+		if (cu->strinfo == NULL) {  /* old file */
+			cu->strinfo = MEM_callocN((slen + 4) * sizeof(CharInfo), "strinfo compat");
+		}
+		custrinfo = cu->strinfo;
+
+		mem = mem_tmp;
+	}
+
+	if (cu->tb == NULL)
+		cu->tb = MEM_callocN(MAXTEXTBOX * sizeof(TextBox), "TextBox compat");
+
+	if (ef) {
+		if (ef->selboxes)
+			MEM_freeN(ef->selboxes);
+
+		if (BKE_vfont_select_get(ob, &selstart, &selend))
+			ef->selboxes = MEM_callocN((selend - selstart + 1) * sizeof(EditFontSelBox), "font selboxes");
+		else
+			ef->selboxes = NULL;
+
+		selboxes = ef->selboxes;
 	}
 
 	/* calc offset and rotation of each char */
-	ct = chartransdata =
-	         (struct CharTrans *)MEM_callocN((slen + 1) * sizeof(struct CharTrans), "buildtext");
+	ct = chartransdata = MEM_callocN((slen + 1) * sizeof(struct CharTrans), "buildtext");
 
 	/* We assume the worst case: 1 character per line (is freed at end anyway) */
 
@@ -583,51 +620,23 @@ struct CharTrans *BKE_vfont_to_curve(Main *bmain, Scene *scene, Object *ob, int 
 
 	for (i = 0; i < slen; i++) custrinfo[i].flag &= ~(CU_CHINFO_WRAP | CU_CHINFO_SMALLCAPS_CHECK);
 
-	if (cu->selboxes) MEM_freeN(cu->selboxes);
-	cu->selboxes = NULL;
-	if (BKE_vfont_select_get(ob, &selstart, &selend))
-		cu->selboxes = MEM_callocN((selend - selstart + 1) * sizeof(SelBox), "font selboxes");
-
 	tb = &(cu->tb[0]);
 	curbox = 0;
 	for (i = 0; i <= slen; i++) {
 makebreak:
 		/* Characters in the list */
-		info = &(custrinfo[i]);
+		info = &custrinfo[i];
 		ascii = mem[i];
 		if (info->flag & CU_CHINFO_SMALLCAPS) {
 			ascii = towupper(ascii);
 			if (mem[i] != ascii) {
-				mem[i] = ascii;
 				info->flag |= CU_CHINFO_SMALLCAPS_CHECK;
 			}
 		}
 
 		vfont = which_vfont(cu, info);
-		
+
 		if (vfont == NULL) break;
-
-		che = find_vfont_char(vfd, ascii);
-
-		/*
-		 * The character wasn't in the current curve base so load it
-		 * But if the font is built-in then do not try loading since
-		 * whole font is in the memory already
-		 */
-		if (che == NULL && BKE_vfont_is_builtin(vfont) == FALSE) {
-			BLI_vfontchar_from_freetypefont(vfont, ascii);
-		}
-
-		/* Try getting the character again from the list */
-		che = find_vfont_char(vfd, ascii);
-
-		/* No VFont found */
-		if (vfont == NULL) {
-			if (mem)
-				MEM_freeN(mem);
-			MEM_freeN(chartransdata);
-			return NULL;
-		}
 
 		if (vfont != oldvfont) {
 			vfd = vfont_get_data(bmain, vfont);
@@ -636,10 +645,37 @@ makebreak:
 
 		/* VFont Data for VFont couldn't be found */
 		if (!vfd) {
-			if (mem)
-				MEM_freeN(mem);
 			MEM_freeN(chartransdata);
-			return NULL;
+			chartransdata = NULL;
+			goto finally;
+		}
+
+		if (!ELEM(ascii, '\n', '\0')) {
+			BLI_rw_mutex_lock(&vfont_rwlock, THREAD_LOCK_READ);
+			che = find_vfont_char(vfd, ascii);
+			BLI_rw_mutex_unlock(&vfont_rwlock);
+
+			/*
+			 * The character wasn't in the current curve base so load it
+			 * But if the font is built-in then do not try loading since
+			 * whole font is in the memory already
+			 */
+			if (che == NULL && BKE_vfont_is_builtin(vfont) == false) {
+				BLI_rw_mutex_lock(&vfont_rwlock, THREAD_LOCK_WRITE);
+				/* Check it once again, char might have been already load
+				 * between previous BLI_rw_mutex_unlock() and this BLI_rw_mutex_lock().
+				 *
+				 * Such a check should not be a bottleneck since it wouldn't
+				 * happen often once all the chars are load.
+				 */
+				if ((che = find_vfont_char(vfd, ascii)) == NULL) {
+					che = BLI_vfontchar_from_freetypefont(vfont, ascii);
+				}
+				BLI_rw_mutex_unlock(&vfont_rwlock);
+			}
+		}
+		else {
+			che = NULL;
 		}
 
 		twidth = char_width(cu, che, info);
@@ -725,7 +761,7 @@ makebreak:
 			xof = cu->xof + tabfac;
 		}
 		else {
-			SelBox *sb = NULL;
+			EditFontSelBox *sb = NULL;
 			float wsfac;
 
 			ct->xof = xof;
@@ -733,8 +769,8 @@ makebreak:
 			ct->linenr = lnr;
 			ct->charnr = cnr++;
 
-			if (cu->selboxes && (i >= selstart) && (i <= selend)) {
-				sb = &(cu->selboxes[i - selstart]);
+			if (selboxes && (i >= selstart) && (i <= selend)) {
+				sb = &selboxes[i - selstart];
 				sb->y = yof * cu->fsize - linedist * cu->fsize * 0.1f;
 				sb->h = linedist * cu->fsize;
 				sb->w = xof * cu->fsize;
@@ -761,10 +797,9 @@ makebreak:
 	}
 	
 	cu->lines = 1;
-	ct = chartransdata;
-	tmp = mem;
-	for (i = 0; i <= slen; i++, tmp++, ct++) {
-		ascii = *tmp;
+	for (i = 0; i <= slen; i++) {
+		ascii = mem[i];
+		ct = &chartransdata[i];
 		if (ascii == '\n' || ascii == '\r' || ct->dobreak) cu->lines++;
 	}
 
@@ -830,14 +865,7 @@ makebreak:
 	/* TEXT ON CURVE */
 	/* Note: Only OB_CURVE objects could have a path  */
 	if (cu->textoncurve && cu->textoncurve->type == OB_CURVE) {
-		Curve *cucu = cu->textoncurve->data;
-		int oldflag = cucu->flag;
-		
-		cucu->flag |= (CU_PATH + CU_FOLLOW);
-		
-		if (cu->textoncurve->curve_cache == NULL || cu->textoncurve->curve_cache->path == NULL) {
-			BKE_displist_make_curveTypes(scene, cu->textoncurve, 0);
-		}
+		BLI_assert(cu->textoncurve->curve_cache != NULL);
 		if (cu->textoncurve->curve_cache->path) {
 			float distfac, imat[4][4], imat3[3][3], cmat[3][3];
 			float minx, maxx, miny, maxy;
@@ -894,7 +922,11 @@ makebreak:
 				float si, co;
 				
 				/* rotate around center character */
+				info = &custrinfo[i];
 				ascii = mem[i];
+				if (info->flag & CU_CHINFO_SMALLCAPS_CHECK) {
+					ascii = towupper(ascii);
+				}
 
 				che = find_vfont_char(vfd, ascii);
 	
@@ -921,27 +953,30 @@ makebreak:
 				
 				ct->xof = vec[0] + si * yof;
 				ct->yof = vec[1] + co * yof;
+
+				if (selboxes && (i >= selstart) && (i <= selend)) {
+					EditFontSelBox *sb;
+					sb = &selboxes[i - selstart];
+					sb->rot = -ct->rot;
+				}
 				
 			}
-			cucu->flag = oldflag;
 		}
 	}
 
-	if (cu->selboxes) {
+	if (selboxes) {
 		ct = chartransdata;
 		for (i = 0; i <= selend; i++, ct++) {
 			if (i >= selstart) {
-				cu->selboxes[i - selstart].x = ct->xof * cu->fsize;
-				cu->selboxes[i - selstart].y = ct->yof * cu->fsize;
+				selboxes[i - selstart].x = ct->xof * cu->fsize;
+				selboxes[i - selstart].y = ct->yof * cu->fsize;
 			}
 		}
 	}
 
 	if (mode == FO_CURSUP || mode == FO_CURSDOWN || mode == FO_PAGEUP || mode == FO_PAGEDOWN) {
-		/* 2: curs up
-		 * 3: curs down */
-		ct = chartransdata + cu->pos;
-		
+		ct = &chartransdata[ef->pos];
+
 		if ((mode == FO_CURSUP || mode == FO_PAGEUP) && ct->linenr == 0) {
 			/* pass */
 		}
@@ -957,7 +992,7 @@ makebreak:
 			}
 			cnr = ct->charnr;
 			/* seek for char with lnr en cnr */
-			cu->pos = 0;
+			ef->pos = 0;
 			ct = chartransdata;
 			for (i = 0; i < slen; i++) {
 				if (ct->linenr == lnr) {
@@ -968,21 +1003,21 @@ makebreak:
 				else if (ct->linenr > lnr) {
 					break;
 				}
-				cu->pos++;
+				ef->pos++;
 				ct++;
 			}
 		}
 	}
 	
 	/* cursor first */
-	if (cu->editfont) {
+	if (ef) {
 		float si, co;
 		
-		ct = chartransdata + cu->pos;
+		ct = &chartransdata[ef->pos];
 		si = sinf(ct->rot);
 		co = cosf(ct->rot);
 
-		f = cu->editfont->textcurs[0];
+		f = ef->textcurs[0];
 		
 		f[0] = cu->fsize * (-0.1f * co + ct->xof);
 		f[1] = cu->fsize * ( 0.1f * si + ct->yof);
@@ -1005,84 +1040,103 @@ makebreak:
 
 	if (mode == FO_SELCHANGE) {
 		MEM_freeN(chartransdata);
-		MEM_freeN(mem);
-		return NULL;
+		chartransdata = NULL;
+		goto finally;
 	}
 
 	if (mode == FO_EDIT) {
 		/* make nurbdata */
-		BKE_nurbList_free(&cu->nurb);
+		BKE_nurbList_free(r_nubase);
 		
 		ct = chartransdata;
-		if (cu->sepchar == 0) {
-			for (i = 0; i < slen; i++) {
-				unsigned long cha = (uintptr_t) mem[i];
-				info = &(custrinfo[i]);
-				if (info->mat_nr > (ob->totcol)) {
-					/* printf("Error: Illegal material index (%d) in text object, setting to 0\n", info->mat_nr); */
-					info->mat_nr = 0;
-				}
-				/* We do not want to see any character for \n or \r */
-				if (cha != '\n' && cha != '\r')
-					buildchar(bmain, cu, cha, info, ct->xof, ct->yof, ct->rot, i);
-				
-				if ((info->flag & CU_CHINFO_UNDERLINE) && (cu->textoncurve == NULL) && (cha != '\n') && (cha != '\r')) {
-					float ulwidth, uloverlap = 0.0f;
-					
-					if ((i < (slen - 1)) && (mem[i + 1] != '\n') && (mem[i + 1] != '\r') &&
-					    ((mem[i + 1] != ' ') || (custrinfo[i + 1].flag & CU_CHINFO_UNDERLINE)) &&
-					    ((custrinfo[i + 1].flag & CU_CHINFO_WRAP) == 0))
-					{
-						uloverlap = xtrax + 0.1f;
-					}
-					/* Find the character, the characters has to be in the memory already
-					 * since character checking has been done earlier already. */
-					che = find_vfont_char(vfd, cha);
+		for (i = 0; i < slen; i++) {
+			unsigned int cha = (unsigned int) mem[i];
+			info = &(custrinfo[i]);
 
-					twidth = char_width(cu, che, info);
-					ulwidth = cu->fsize * ((twidth * (1.0f + (info->kern / 40.0f))) + uloverlap);
-					build_underline(cu, ct->xof * cu->fsize, ct->yof * cu->fsize + (cu->ulpos - 0.05f) * cu->fsize,
-					                ct->xof * cu->fsize + ulwidth,
-					                ct->yof * cu->fsize + (cu->ulpos - 0.05f) * cu->fsize - cu->ulheight * cu->fsize,
-					                i, info->mat_nr);
-				}
-				ct++;
+			if (info->flag & CU_CHINFO_SMALLCAPS_CHECK) {
+				cha = towupper(cha);
 			}
+
+			if (info->mat_nr > (ob->totcol)) {
+				/* printf("Error: Illegal material index (%d) in text object, setting to 0\n", info->mat_nr); */
+				info->mat_nr = 0;
+			}
+			/* We do not want to see any character for \n or \r */
+			if (cha != '\n' && cha != '\r')
+				buildchar(bmain, cu, r_nubase, cha, info, ct->xof, ct->yof, ct->rot, i);
+
+			if ((info->flag & CU_CHINFO_UNDERLINE) && (cha != '\n') && (cha != '\r')) {
+				float ulwidth, uloverlap = 0.0f;
+				rctf rect;
+
+				if ((i < (slen - 1)) && (mem[i + 1] != '\n') && (mem[i + 1] != '\r') &&
+				    ((mem[i + 1] != ' ') || (custrinfo[i + 1].flag & CU_CHINFO_UNDERLINE)) &&
+				    ((custrinfo[i + 1].flag & CU_CHINFO_WRAP) == 0))
+				{
+					uloverlap = xtrax + 0.1f;
+				}
+				/* Find the character, the characters has to be in the memory already
+				 * since character checking has been done earlier already. */
+				che = find_vfont_char(vfd, cha);
+
+				twidth = char_width(cu, che, info);
+				ulwidth = (twidth * (1.0f + (info->kern / 40.0f))) + uloverlap;
+
+				rect.xmin = ct->xof;
+				rect.xmax = rect.xmin + ulwidth;
+
+				rect.ymin = ct->yof;
+				rect.ymax = rect.ymin - cu->ulheight;
+
+				build_underline(cu, r_nubase,
+				                &rect, cu->ulpos - 0.05f,
+				                ct->rot, i, info->mat_nr);
+			}
+			ct++;
+		}
+	}
+
+	ok = true;
+
+finally:
+
+	{
+		if (r_text) {
+			*r_text = mem;
+			*r_text_len = slen;
+			*r_text_free = (ef == NULL);
 		}
 		else {
-			int outta = 0;
-			for (i = 0; (i < slen) && (outta == 0); i++) {
-				ascii = mem[i];
-				info = &(custrinfo[i]);
-				if (cu->sepchar == (i + 1)) {
-					float vecyo[3];
-
-					vecyo[0] = ct->xof;
-					vecyo[1] = ct->yof;
-					vecyo[2] = 0.0f;
-
-					mem[0] = ascii;
-					mem[1] = 0;
-					custrinfo[0] = *info;
-					cu->pos = 1;
-					cu->len = 1;
-					mul_v3_m4v3(ob->loc, ob->obmat, vecyo);
-					outta = 1;
-					cu->sepchar = 0;
-				}
-				ct++;
+			if (ef == NULL) {
+				MEM_freeN((void *)mem);
 			}
 		}
 	}
 
-	if (mode == FO_DUPLI) {
-		MEM_freeN(mem);
-		return chartransdata;
+	if (chartransdata) {
+		if (ok && r_chartransdata) {
+			*r_chartransdata = chartransdata;
+		}
+		else {
+			MEM_freeN(chartransdata);
+		}
 	}
 
-	if (mem)
-		MEM_freeN(mem);
+	return ok;
+}
 
-	MEM_freeN(chartransdata);
-	return NULL;
+
+bool BKE_vfont_to_curve_nubase(Main *bmain, Object *ob, int mode, ListBase *r_nubase)
+{
+	BLI_assert(ob->type == OB_FONT);
+
+	return BKE_vfont_to_curve_ex(bmain, ob, mode, r_nubase,
+	                             NULL, NULL, NULL, NULL);
+}
+
+bool BKE_vfont_to_curve(Main *bmain, Object *ob, int mode)
+{
+	Curve *cu = ob->data;
+
+	return BKE_vfont_to_curve_ex(bmain, ob, mode, &cu->nurb, NULL, NULL, NULL, NULL);
 }

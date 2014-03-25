@@ -50,7 +50,8 @@ public:
         meshes_type     = Mesh::AS_IS;
 		samples		    = INT_MAX;
         export_alembic  = false;
-        anim_mode       = AnimationMode::FULL;
+        anim_mode       = FULL;
+        fps             = 24.0f;
 	}
 
 	bool modified(const SessionParams& params) {
@@ -66,6 +67,8 @@ public:
 	RenderServerInfo    server;
     string              login;
     string              pass;
+    string              stand_login;
+    string              stand_pass;
 	bool		        interactive;
 	string		        output_path;
 
@@ -79,6 +82,7 @@ public:
 	bool            use_viewport_hide;
 	Mesh::MeshType  meshes_type;
 	bool            export_alembic;
+    float           fps;
 }; //SessionParams
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

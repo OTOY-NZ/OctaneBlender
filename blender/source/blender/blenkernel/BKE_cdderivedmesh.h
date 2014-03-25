@@ -46,19 +46,16 @@ struct Object;
 struct DerivedMesh *CDDM_new(int numVerts, int numEdges, int numFaces,
                              int numLoops, int numPolys);
 
-/*tests if a given DerivedMesh is a CDDM*/
-int CDDM_Check(struct DerivedMesh *dm);
-
 /* creates a CDDerivedMesh from the given Mesh, this will reference the
  * original data in Mesh, but it is safe to apply vertex coordinates or
  * calculate normals as those functions will automatically create new
  * data to not overwrite the original */
-struct DerivedMesh *CDDM_from_mesh(struct Mesh *mesh, struct Object *ob);
+struct DerivedMesh *CDDM_from_mesh(struct Mesh *mesh);
 
-struct DerivedMesh *CDDM_from_bmesh(struct BMesh *bm, int use_mdisps);
+struct DerivedMesh *CDDM_from_bmesh(struct BMesh *bm, const bool use_mdisps);
 
 /* creates a CDDerivedMesh from the given BMEditMesh */
-DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em, int use_mdisps, int use_tessface);
+DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em, const bool use_mdisps, const bool use_tessface);
 
 /* merge verts  */
 DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int tot_vtargetmap);
@@ -98,7 +95,7 @@ void CDDM_apply_vert_normals(struct DerivedMesh *cddm, short (*vertNormals)[3]);
 
 /* recalculates vertex and face normals for a CDDerivedMesh
  */
-void CDDM_calc_normals_mapping_ex(struct DerivedMesh *dm, const short only_face_normals);
+void CDDM_calc_normals_mapping_ex(struct DerivedMesh *dm, const bool only_face_normals);
 void CDDM_calc_normals_mapping(struct DerivedMesh *dm);
 void CDDM_calc_normals(struct DerivedMesh *dm);
 void CDDM_calc_normals_tessface(struct DerivedMesh *dm);
@@ -115,13 +112,14 @@ void CDDM_calc_edges(struct DerivedMesh *dm);
 
 /* reconstitute face triangulation */
 void CDDM_recalc_tessellation(struct DerivedMesh *dm);
-void CDDM_recalc_tessellation_ex(struct DerivedMesh *dm, const int do_face_nor_cpy);
+void CDDM_recalc_tessellation_ex(struct DerivedMesh *dm, const bool do_face_nor_cpy);
 
 /* lowers the number of vertices/edges/faces in a CDDerivedMesh
  * the layer data stays the same size
  */
 void CDDM_lower_num_verts(struct DerivedMesh *dm, int numVerts);
 void CDDM_lower_num_edges(struct DerivedMesh *dm, int numEdges);
+void CDDM_lower_num_loops(struct DerivedMesh *dm, int numLoops);
 void CDDM_lower_num_polys(struct DerivedMesh *dm, int numPolys);
 void CDDM_lower_num_tessfaces(DerivedMesh *dm, int numTessFaces);
 

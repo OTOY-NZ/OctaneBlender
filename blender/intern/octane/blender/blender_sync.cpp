@@ -295,15 +295,19 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     string server_addr = get_string(oct_scene, "server_address");
     if(server_addr.length() > 0)
         ::strcpy(params.server.net_address, server_addr.c_str());
-    string login = get_string(oct_scene, "server_login");
-    if(login.length() > 0) {
-        string pass = get_string(oct_scene, "server_pass");
-        if(pass.length() > 0) {
-            params.login = login;
-            params.pass  = pass;
-            RNA_string_set(&oct_scene, "server_login", "");
-            RNA_string_set(&oct_scene, "server_pass", "");
-        }
+    string login        = get_string(oct_scene, "server_login");
+    string pass         = get_string(oct_scene, "server_pass");
+    string stand_login  = get_string(oct_scene, "stand_login");
+    string stand_pass   = get_string(oct_scene, "stand_pass");
+    if(stand_login.length() > 0 && stand_pass.length() > 0 && login.length() > 0 && pass.length() > 0) {
+        params.stand_login  = stand_login;
+        params.stand_pass   = stand_pass;
+        params.login        = login;
+        params.pass         = pass;
+        RNA_string_set(&oct_scene, "stand_login", "");
+        RNA_string_set(&oct_scene, "stand_pass", "");
+        RNA_string_set(&oct_scene, "server_login", "");
+        RNA_string_set(&oct_scene, "server_pass", "");
     }
 
 	// Interactive
@@ -323,10 +327,12 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 
     params.use_passes           = get_boolean(oct_scene, "use_passes");
     params.meshes_type          = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
-    if(params.export_alembic && params.meshes_type == Mesh::MeshType::GLOBAL)
-        params.meshes_type = Mesh::MeshType::RESHAPABLE_PROXY;
+    if(params.export_alembic && params.meshes_type == Mesh::GLOBAL)
+        params.meshes_type = Mesh::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
 	
+    params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
+
 	return params;
 } //get_session_params()
 

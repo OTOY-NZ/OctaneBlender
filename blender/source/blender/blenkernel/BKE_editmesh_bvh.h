@@ -33,15 +33,19 @@
 #define __BKE_EDITMESH_BVH_H__
 
 struct BMEditMesh;
+struct BMesh;
 struct BMFace;
 struct BMVert;
+struct BMLoop;
 struct BMBVHTree;
 struct BVHTree;
 struct Scene;
 
 typedef struct BMBVHTree BMBVHTree;
 
-BMBVHTree      *BKE_bmbvh_new(struct BMEditMesh *em, int flag, const float (*cos_cage)[3], const bool cos_cage_free);
+BMBVHTree      *BKE_bmbvh_new_from_editmesh(struct BMEditMesh *em, int flag, const float (*cos_cage)[3], const bool cos_cage_free);
+BMBVHTree      *BKE_bmbvh_new(struct BMesh *bm, struct BMLoop *(*looptris)[3], int looptris_tot, int flag,
+                              const float (*cos_cage)[3], const bool cos_cage_free);
 void            BKE_bmbvh_free(BMBVHTree *tree);
 struct BVHTree *BKE_bmbvh_tree_get(BMBVHTree *tree);
 struct BMFace  *BKE_bmbvh_ray_cast(BMBVHTree *tree, const float co[3], const float dir[3], const float radius,
@@ -49,8 +53,8 @@ struct BMFace  *BKE_bmbvh_ray_cast(BMBVHTree *tree, const float co[3], const flo
 /* find a face intersecting a segment (but not apart of the segment) */
 struct BMFace  *BKE_bmbvh_find_face_segment(BMBVHTree *tree, const float co_a[3], const float co_b[3],
                                             float *r_fac, float r_hitout[3], float r_cagehit[3]);
-/* find a vert closest to co in a sphere of radius maxdist */
-struct BMVert  *BKE_bmbvh_find_vert_closest(BMBVHTree *tree, const float co[3], const float maxdist);
+/* find a vert closest to co in a sphere of radius dist_max */
+struct BMVert  *BKE_bmbvh_find_vert_closest(BMBVHTree *tree, const float co[3], const float dist_max);
 
 /* BKE_bmbvh_new flag parameter */
 enum {
