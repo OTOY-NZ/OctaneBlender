@@ -152,7 +152,7 @@ static void select_editbmesh_hook(Object *ob, HookModifierData *hmd)
 	
 	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
 		if (nr == hmd->indexar[index]) {
-			BM_vert_select_set(em->bm, eve, TRUE);
+			BM_vert_select_set(em->bm, eve, true);
 			if (index < hmd->totindex - 1) index++;
 		}
 
@@ -474,7 +474,7 @@ static int add_hook_object(Main *bmain, Scene *scene, Object *obedit, Object *ob
 
 	if (!ok) {
 		BKE_report(reports, RPT_ERROR, "Requires selected vertices or active vertex group");
-		return FALSE;
+		return false;
 	}
 
 	if (mode == OBJECT_ADDHOOK_NEWOB && !ob) {
@@ -533,7 +533,7 @@ static int add_hook_object(Main *bmain, Scene *scene, Object *obedit, Object *ob
 	
 	DAG_relations_tag_update(bmain);
 
-	return TRUE;
+	return true;
 }
 
 static int object_add_hook_selob_exec(bContext *C, wmOperator *op)
@@ -542,7 +542,7 @@ static int object_add_hook_selob_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Object *obsel = NULL;
-	const int use_bone = RNA_boolean_get(op->ptr, "use_bone");
+	const bool use_bone = RNA_boolean_get(op->ptr, "use_bone");
 	const int mode = use_bone ? OBJECT_ADDHOOK_SELOB_BONE : OBJECT_ADDHOOK_SELOB;
 	
 	CTX_DATA_BEGIN (C, Object *, ob, selected_objects)
@@ -587,7 +587,7 @@ void OBJECT_OT_hook_add_selob(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_boolean(ot->srna, "use_bone", FALSE, "Active Bone",
+	RNA_def_boolean(ot->srna, "use_bone", false, "Active Bone",
 	                "Assign the hook to the hook objects active bone");
 }
 

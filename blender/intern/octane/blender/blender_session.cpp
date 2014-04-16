@@ -626,7 +626,7 @@ void BlenderSession::render() {
     num_passes   = -1;
     ready_passes = -1;
 
-    if(b_scene.frame_current() >= b_scene.frame_end())
+    if(!b_engine.is_animation() || b_scene.frame_current() >= b_scene.frame_end())
         session->server->stop_render(session_params.fps);
 } //render()
 

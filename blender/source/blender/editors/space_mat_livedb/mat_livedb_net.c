@@ -288,8 +288,6 @@ unsigned char* mat_livedb_get_mat_preview(const char *address, int32_t id, unsig
             return 0;
         }
         else {
-            unsigned char   *rect;
-
             *width   = ((uint32_t*)buf)[0];
             *height  = ((uint32_t*)buf)[1];
 

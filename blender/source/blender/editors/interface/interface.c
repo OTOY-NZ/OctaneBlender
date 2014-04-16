@@ -1264,7 +1264,7 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
  */
 int ui_is_but_push_ex(uiBut *but, double *value)
 {
-	int is_push = false;
+	int is_push = 0;
 
 	if (but->bit) {
 		const bool state = ELEM3(but->type, TOGN, ICONTOGN, OPTIONN) ? false : true;
@@ -1862,7 +1862,7 @@ void ui_convert_to_unit_alt_name(uiBut *but, char *str, size_t maxlen)
 static void ui_get_but_string_unit(uiBut *but, char *str, int len_max, double value, bool pad, int float_precision)
 {
 	UnitSettings *unit = but->block->unit;
-	int do_split = (unit->flag & USER_UNIT_OPT_SPLIT) != 0;
+	const bool do_split = (unit->flag & USER_UNIT_OPT_SPLIT) != 0;
 	int unit_type = uiButGetUnitType(but);
 	int precision;
 
@@ -2430,8 +2430,8 @@ uiBlock *uiBeginBlock(const bContext *C, ARegion *region, const char *name, shor
 
 	/* window matrix and aspect */
 	if (region && region->swinid) {
-		wm_subwindow_getmatrix(window, region->swinid, block->winmat);
-		wm_subwindow_getsize(window, region->swinid, &getsizex, &getsizey);
+		wm_subwindow_matrix_get(window, region->swinid, block->winmat);
+		wm_subwindow_size_get(window, region->swinid, &getsizex, &getsizey);
 
 		block->aspect = 2.0f / fabsf(getsizex * block->winmat[0][0]);
 	}
@@ -2439,8 +2439,8 @@ uiBlock *uiBeginBlock(const bContext *C, ARegion *region, const char *name, shor
 		/* no subwindow created yet, for menus for example, so we
 		 * use the main window instead, since buttons are created
 		 * there anyway */
-		wm_subwindow_getmatrix(window, window->screen->mainwin, block->winmat);
-		wm_subwindow_getsize(window, window->screen->mainwin, &getsizex, &getsizey);
+		wm_subwindow_matrix_get(window, window->screen->mainwin, block->winmat);
+		wm_subwindow_size_get(window, window->screen->mainwin, &getsizex, &getsizey);
 
 		block->aspect = 2.0f / fabsf(getsizex * block->winmat[0][0]);
 		block->auto_open = true;
@@ -2994,7 +2994,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	}
 
 	/* keep track of UI_interface.h */
-	if      (ELEM10(but->type, BLOCK, BUT, LABEL, PULLDOWN, ROUNDBOX, LISTBOX, BUTM, SCROLL, SEPR, SEPRLINE)) {}
+	if      (ELEM11(but->type, BLOCK, BUT, LABEL, PULLDOWN, ROUNDBOX, LISTBOX, BUTM, SCROLL, SEPR, SEPRLINE, GRIP)) {}
 	else if (but->type >= SEARCH_MENU) {}
 	else but->flag |= UI_BUT_UNDO;
 

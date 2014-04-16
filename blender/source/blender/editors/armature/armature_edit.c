@@ -200,7 +200,7 @@ void ED_armature_origin_set(Scene *scene, Object *ob, float cursor[3], int cente
 /* adjust bone roll to align Z axis with vector
  * vec is in local space and is normalized
  */
-float ED_rollBoneToVector(EditBone *bone, const float align_axis[3], const short axis_only)
+float ED_rollBoneToVector(EditBone *bone, const float align_axis[3], const bool axis_only)
 {
 	float mat[3][3], nor[3];
 
@@ -268,8 +268,8 @@ static int armature_calc_roll_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_edit_object(C);
 	const short type = RNA_enum_get(op->ptr, "type");
-	const short axis_only = RNA_boolean_get(op->ptr, "axis_only");
-	const short axis_flip = RNA_boolean_get(op->ptr, "axis_flip");
+	const bool axis_only = RNA_boolean_get(op->ptr, "axis_only");
+	const bool axis_flip = RNA_boolean_get(op->ptr, "axis_flip");
 
 	float imat[3][3];
 
@@ -1221,7 +1221,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
 			}
 			else {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					

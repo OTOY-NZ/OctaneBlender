@@ -184,12 +184,17 @@ struct DerivedMesh {
 	DerivedMeshType type;
 	float auto_bump_scale;
 	DMDirtyFlag dirty;
+	int totmat; /* total materials. Will be valid only before object drawing. */
+	struct Material **mat; /* material array. Will be valid only before object drawing */
 
 	/* use for converting to BMesh which doesn't store bevel weight and edge crease by default */
 	char cd_flag;
 
 	/** Calculate vert and face normals */
 	void (*calcNormals)(DerivedMesh *dm);
+
+	/** Calculate loop (split) normals */
+	void (*calcLoopNormals)(DerivedMesh *dm, const float split_angle);
 
 	/** Recalculates mesh tessellation */
 	void (*recalcTessellation)(DerivedMesh *dm);
@@ -578,6 +583,7 @@ void DM_ensure_tessface(DerivedMesh *dm);
 
 void DM_update_tessface_data(DerivedMesh *dm);
 
+void DM_update_materials(DerivedMesh *dm, struct Object *ob);
 /** interpolates vertex data from the vertices indexed by src_indices in the
  * source mesh using the given weights and stores the result in the vertex
  * indexed by dest_index in the dest mesh

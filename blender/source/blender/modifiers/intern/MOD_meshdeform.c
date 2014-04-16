@@ -130,7 +130,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
-static float meshdeform_dynamic_bind(MeshDeformModifierData *mmd, float (*dco)[3], float *vec)
+static float meshdeform_dynamic_bind(MeshDeformModifierData *mmd, float (*dco)[3], float vec[3])
 {
 	MDefCell *cell;
 	MDefInfluence *inf;
@@ -262,7 +262,7 @@ static void meshdeformModifier_do(
 		return;
 	}
 
-	cagecos = MEM_callocN(sizeof(*cagecos) * totcagevert, "meshdeformModifier vertCos");
+	cagecos = MEM_mallocN(sizeof(*cagecos) * totcagevert, "meshdeformModifier vertCos");
 
 	/* setup deformation data */
 	cagedm->getVertCos(cagedm, cagecos);

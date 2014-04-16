@@ -884,7 +884,7 @@ static short pose_grab_with_ik_add(bPoseChannel *pchan)
 		}
 	}
 
-	con = BKE_add_pose_constraint(NULL, pchan, "TempConstraint", CONSTRAINT_TYPE_KINEMATIC);
+	con = BKE_constraint_add_for_pose(NULL, pchan, "TempConstraint", CONSTRAINT_TYPE_KINEMATIC);
 	pchan->constflag |= (PCHAN_HAS_IK | PCHAN_HAS_TARGET);    /* for draw, but also for detecting while pose solving */
 	data = con->data;
 	if (targetless) {
@@ -2384,15 +2384,25 @@ void flushTransNodes(TransInfo *t)
 	/* flush to 2d vector from internally used 3d vector */
 	for (a = 0, td = t->data, td2d = t->data2d; a < t->total; a++, td++, td2d++) {
 		bNode *node = td->extra;
+		float locx, locy;
 
 		/* weirdo - but the node system is a mix of free 2d elements and dpi sensitive UI */
 #ifdef USE_NODE_CENTER
-		node->locx = (td2d->loc[0] - (BLI_rctf_size_x(&node->totr)) * +0.5f) / dpi_fac;
-		node->locy = (td2d->loc[1] - (BLI_rctf_size_y(&node->totr)) * -0.5f) / dpi_fac;
+		locx = (td2d->loc[0] - (BLI_rctf_size_x(&node->totr)) * +0.5f) / dpi_fac;
+		locy = (td2d->loc[1] - (BLI_rctf_size_y(&node->totr)) * -0.5f) / dpi_fac;
 #else
-		node->locx = td2d->loc[0] / dpi_fac;
-		node->locy = td2d->loc[1] / dpi_fac;
+		locx = td2d->loc[0] / dpi_fac;
+		locy = td2d->loc[1] / dpi_fac;
 #endif
+		
+		/* account for parents (nested nodes) */
+		if (node->parent) {
+			nodeFromView(node->parent, locx, locy, &node->locx, &node->locy);
+		}
+		else {
+			node->locx = locx;
+			node->locy = locy;
+		}
 	}
 	
 	/* handle intersection with noodles */
@@ -3178,11 +3188,11 @@ static void posttrans_action_clean(bAnimContext *ac, bAction *act)
 		
 		if (adt) {
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1);
-			posttrans_fcurve_clean(ale->key_data, FALSE); /* only use handles in graph editor */
+			posttrans_fcurve_clean(ale->key_data, false); /* only use handles in graph editor */
 			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 1);
 		}
 		else
-			posttrans_fcurve_clean(ale->key_data, FALSE);  /* only use handles in graph editor */
+			posttrans_fcurve_clean(ale->key_data, false);  /* only use handles in graph editor */
 	}
 
 	/* free temp data */
@@ -3852,13 +3862,13 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 					
 				}
 				/* special hack (must be done after initTransDataCurveHandles(), as that stores handle settings to restore...):
-				 *	- Check if we've got entire BezTriple selected and we're rotating that point,
+				 *	- Check if we've got entire BezTriple selected and we're scaling/rotating that point,
 				 *	  then check if we're using auto-handles.
 				 *	- If so, change them auto-handles to aligned handles so that handles get affected too
 				 */
-				if ((t->mode == TFM_ROTATION) &&
-				    ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) &&
-				    ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM))
+				if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) &&
+				    ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM) &&
+				    ELEM(t->mode, TFM_ROTATION, TFM_RESIZE))
 				{
 					if (hdata && (sel1) && (sel3)) {
 						bezt->h1 = HD_ALIGN;
@@ -4160,7 +4170,7 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 		int right = BKE_sequence_tx_get_final_right(seq, true);
 
 		if (seq->depth == 0 && ((seq->flag & SELECT) == 0 || (seq->flag & SEQ_LOCK))) {
-			*recursive = FALSE;
+			*recursive = false;
 			*count = 0;
 			*flag = 0;
 		}
@@ -4168,16 +4178,16 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 
 			/* for meta's we only ever need to extend their children, no matter what depth
 			 * just check the meta's are in the bounds */
-			if      (t->frame_side == 'R' && right <= cfra) *recursive = FALSE;
-			else if (t->frame_side == 'L' && left  >= cfra) *recursive = FALSE;
-			else *recursive = TRUE;
+			if      (t->frame_side == 'R' && right <= cfra) *recursive = false;
+			else if (t->frame_side == 'L' && left  >= cfra) *recursive = false;
+			else *recursive = true;
 
 			*count = 1;
 			*flag = (seq->flag | SELECT) & ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
 		}
 		else {
 
-			*recursive = FALSE;  /* not a meta, so no thinking here */
+			*recursive = false;  /* not a meta, so no thinking here */
 			*count = 1;          /* unless its set to 0, extend will never set 2 handles at once */
 			*flag = (seq->flag | SELECT) & ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
 
@@ -4205,7 +4215,7 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 
 			/* Non nested strips (resect selection and handles) */
 			if ((seq->flag & SELECT) == 0 || (seq->flag & SEQ_LOCK)) {
-				*recursive = FALSE;
+				*recursive = false;
 				*count = 0;
 				*flag = 0;
 			}
@@ -4223,10 +4233,10 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 
 				if ((seq->type == SEQ_TYPE_META) && ((seq->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) == 0)) {
 					/* if any handles are selected, don't recurse */
-					*recursive = TRUE;
+					*recursive = true;
 				}
 				else {
-					*recursive = FALSE;
+					*recursive = false;
 				}
 			}
 		}
@@ -4245,12 +4255,12 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 				 * BKE_sequence_calc() will update its settings when run on the toplevel meta */
 				*flag = 0;
 				*count = 0;
-				*recursive = TRUE;
+				*recursive = true;
 			}
 			else {
 				*flag = (seq->flag | SELECT) & ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
 				*count = 1; /* ignore the selection for nested */
-				*recursive = FALSE;
+				*recursive = false;
 			}
 #endif
 		}
@@ -4722,7 +4732,7 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob,
 			}
 			/* update object's loc/rot to get current rigid body transform */
 			mat4_to_loc_rot_size(ob->loc, rot, scale, ob->obmat);
-			BKE_object_mat3_to_rot(ob, rot, FALSE);
+			BKE_object_mat3_to_rot(ob, rot, false);
 		}
 	}
 
@@ -5043,29 +5053,29 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 			
 			/* filter the conditions when this happens (assume that curarea->spacetype==SPACE_VIE3D) */
 			if (tmode == TFM_TRANSLATION) {
-				do_loc = TRUE;
+				do_loc = true;
 			}
 			else if (tmode == TFM_ROTATION) {
 				if (v3d->around == V3D_ACTIVE) {
 					if (ob != OBACT)
-						do_loc = TRUE;
+						do_loc = true;
 				}
 				else if (v3d->around == V3D_CURSOR)
-					do_loc = TRUE;
+					do_loc = true;
 				
 				if ((v3d->flag & V3D_ALIGN) == 0)
-					do_rot = TRUE;
+					do_rot = true;
 			}
 			else if (tmode == TFM_RESIZE) {
 				if (v3d->around == V3D_ACTIVE) {
 					if (ob != OBACT)
-						do_loc = TRUE;
+						do_loc = true;
 				}
 				else if (v3d->around == V3D_CURSOR)
-					do_loc = TRUE;
+					do_loc = true;
 				
 				if ((v3d->flag & V3D_ALIGN) == 0)
-					do_scale = TRUE;
+					do_scale = true;
 			}
 			
 			/* insert keyframes for the affected sets of channels using the builtin KeyingSets found */
@@ -5176,28 +5186,28 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 				}
 				/* only insert keyframe if needed? */
 				else if (IS_AUTOKEY_FLAG(scene, INSERTNEEDED)) {
-					short do_loc = FALSE, do_rot = FALSE, do_scale = FALSE;
+					bool do_loc = false, do_rot = false, do_scale = false;
 					
 					/* filter the conditions when this happens (assume that curarea->spacetype==SPACE_VIE3D) */
 					if (tmode == TFM_TRANSLATION) {
 						if (targetless_ik)
-							do_rot = TRUE;
+							do_rot = true;
 						else
-							do_loc = TRUE;
+							do_loc = true;
 					}
 					else if (tmode == TFM_ROTATION) {
 						if (ELEM(v3d->around, V3D_CURSOR, V3D_ACTIVE))
-							do_loc = TRUE;
+							do_loc = true;
 							
 						if ((v3d->flag & V3D_ALIGN) == 0)
-							do_rot = TRUE;
+							do_rot = true;
 					}
 					else if (tmode == TFM_RESIZE) {
 						if (ELEM(v3d->around, V3D_CURSOR, V3D_ACTIVE))
-							do_loc = TRUE;
+							do_loc = true;
 							
 						if ((v3d->flag & V3D_ALIGN) == 0)
-							do_scale = TRUE;
+							do_scale = true;
 					}
 					
 					if (do_loc) {
@@ -5326,7 +5336,7 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
 
 static void special_aftertrans_update__node(bContext *UNUSED(C), TransInfo *t)
 {
-	int canceled = (t->state == TRANS_CANCEL);
+	const bool canceled = (t->state == TRANS_CANCEL);
 	
 	if (canceled && t->remove_on_cancel) {
 		/* remove selected nodes on cancel */
@@ -5386,8 +5396,8 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 {
 	Object *ob;
 //	short redrawipo=0, resetslowpar=1;
-	int canceled = (t->state == TRANS_CANCEL);
-	short duplicate = (t->mode == TFM_TIME_DUPLICATE);
+	const bool canceled = (t->state == TRANS_CANCEL);
+	const bool duplicate = (t->mode == TFM_TIME_DUPLICATE);
 	
 	/* early out when nothing happened */
 	if (t->total == 0 || t->mode == TFM_DUMMY)
@@ -5403,7 +5413,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 					/* handle multires re-projection, done
 					 * on transform completion since it's
 					 * really slow -joeedh */
-					projectEdgeSlideData(t, TRUE);
+					projectEdgeSlideData(t, true);
 
 					/* free temporary faces to avoid automerging and deleting
 					 * during cleanup - psy-fi */
@@ -5419,7 +5429,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 					EdgeSlideData *sld = t->customData;
 
 					sld->perc = 0.0;
-					projectEdgeSlideData(t, FALSE);
+					projectEdgeSlideData(t, false);
 				}
 			}
 		}
@@ -5505,11 +5515,11 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 				{
 					if (adt) {
 						ANIM_nla_mapping_apply_fcurve(adt, fcu, 0, 1);
-						posttrans_fcurve_clean(fcu, FALSE); /* only use handles in graph editor */
+						posttrans_fcurve_clean(fcu, false); /* only use handles in graph editor */
 						ANIM_nla_mapping_apply_fcurve(adt, fcu, 1, 1);
 					}
 					else
-						posttrans_fcurve_clean(fcu, FALSE);  /* only use handles in graph editor */
+						posttrans_fcurve_clean(fcu, false);  /* only use handles in graph editor */
 				}
 			}
 			
@@ -5907,14 +5917,25 @@ static void createTransObject(bContext *C, TransInfo *t)
 /* transcribe given node into TransData2D for Transforming */
 static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node, const float dpi_fac)
 {
+	float locx, locy;
+	
+	/* account for parents (nested nodes) */
+	if (node->parent) {
+		nodeToView(node->parent, node->locx, node->locy, &locx, &locy);
+	}
+	else {
+		locx = node->locx;
+		locy = node->locy;
+	}
+	
 	/* use top-left corner as the transform origin for nodes */
 	/* weirdo - but the node system is a mix of free 2d elements and dpi sensitive UI */
 #ifdef USE_NODE_CENTER
-	td2d->loc[0] = (node->locx * dpi_fac) + (BLI_rctf_size_x(&node->totr) * +0.5f);
-	td2d->loc[1] = (node->locy * dpi_fac) + (BLI_rctf_size_y(&node->totr) * -0.5f);
+	td2d->loc[0] = (locx * dpi_fac) + (BLI_rctf_size_x(&node->totr) * +0.5f);
+	td2d->loc[1] = (locy * dpi_fac) + (BLI_rctf_size_y(&node->totr) * -0.5f);
 #else
-	td2d->loc[0] = node->locx * dpi_fac;
-	td2d->loc[1] = node->locy * dpi_fac;
+	td2d->loc[0] = locx * dpi_fac;
+	td2d->loc[1] = locy * dpi_fac;
 #endif
 	td2d->loc[2] = 0.0f;
 	td2d->loc2d = td2d->loc; /* current location */
@@ -5946,10 +5967,10 @@ static bool is_node_parent_select(bNode *node)
 {
 	while ((node = node->parent)) {
 		if (node->flag & NODE_TRANSFORM) {
-			return TRUE;
+			return true;
 		}
 	}
-	return FALSE;
+	return false;
 }
 
 static void createTransNodeData(bContext *UNUSED(C), TransInfo *t)
@@ -5971,7 +5992,7 @@ static void createTransNodeData(bContext *UNUSED(C), TransInfo *t)
 
 	/* set transform flags on nodes */
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
-		if (node->flag & NODE_SELECT && is_node_parent_select(node) == FALSE) {
+		if (node->flag & NODE_SELECT && is_node_parent_select(node) == false) {
 			node->flag |= NODE_TRANSFORM;
 			t->total++;
 		}
@@ -6563,7 +6584,66 @@ typedef struct TransDataMasking {
 	MaskSplinePoint *point;
 	float parent_matrix[3][3];
 	float parent_inverse_matrix[3][3];
+	char orig_handle_type;
+
+	eMaskWhichHandle which_handle;
 } TransDataMasking;
+
+static void MaskHandleToTransData(MaskSplinePoint *point, eMaskWhichHandle which_handle,
+                                  TransData *td, TransData2D *td2d, TransDataMasking *tdm,
+                                  const float asp[2],
+                                  /*const*/ float parent_matrix[3][3],
+                                  /*const*/ float parent_inverse_matrix[3][3])
+{
+	BezTriple *bezt = &point->bezt;
+	const bool is_sel_any = MASKPOINT_ISSEL_ANY(point);
+
+	tdm->point = point;
+	copy_m3_m3(tdm->vec, bezt->vec);
+
+	tdm->is_handle = true;
+	copy_m3_m3(tdm->parent_matrix, parent_matrix);
+	copy_m3_m3(tdm->parent_inverse_matrix, parent_inverse_matrix);
+
+	BKE_mask_point_handle(point, which_handle, tdm->handle);
+	tdm->which_handle = which_handle;
+
+	copy_v2_v2(tdm->orig_handle, tdm->handle);
+
+	mul_v2_m3v2(td2d->loc, parent_matrix, tdm->handle);
+	td2d->loc[0] *= asp[0];
+	td2d->loc[1] *= asp[1];
+	td2d->loc[2] = 0.0f;
+
+	td2d->loc2d = tdm->handle;
+
+	td->flag = 0;
+	td->loc = td2d->loc;
+	mul_v2_m3v2(td->center, parent_matrix, bezt->vec[1]);
+	copy_v3_v3(td->iloc, td->loc);
+
+	memset(td->axismtx, 0, sizeof(td->axismtx));
+	td->axismtx[2][2] = 1.0f;
+
+	td->ext = NULL;
+	td->val = NULL;
+
+	if (is_sel_any) {
+		td->flag |= TD_SELECTED;
+	}
+
+	td->dist = 0.0;
+
+	unit_m3(td->mtx);
+	unit_m3(td->smtx);
+
+	if (which_handle == MASK_WHICH_HANDLE_LEFT) {
+		tdm->orig_handle_type = bezt->h1;
+	}
+	else if (which_handle == MASK_WHICH_HANDLE_RIGHT) {
+		tdm->orig_handle_type = bezt->h2;
+	}
+}
 
 static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
                                  TransData *td, TransData2D *td2d, TransDataMasking *tdm,
@@ -6574,14 +6654,15 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 	const bool is_sel_any = MASKPOINT_ISSEL_ANY(point);
 	float parent_matrix[3][3], parent_inverse_matrix[3][3];
 
-	tdm->point = point;
-	copy_m3_m3(tdm->vec, bezt->vec);
-
 	BKE_mask_point_parent_matrix_get(point, CFRA, parent_matrix);
 	invert_m3_m3(parent_inverse_matrix, parent_matrix);
 
 	if (propmode || is_sel_point) {
 		int i;
+
+		tdm->point = point;
+		copy_m3_m3(tdm->vec, bezt->vec);
+
 		for (i = 0; i < 3; i++) {
 			copy_m3_m3(tdm->parent_matrix, parent_matrix);
 			copy_m3_m3(tdm->parent_inverse_matrix, parent_inverse_matrix);
@@ -6624,49 +6705,64 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 			unit_m3(td->mtx);
 			unit_m3(td->smtx);
 
+			if (i == 0) {
+				tdm->orig_handle_type = bezt->h1;
+			}
+			else if (i == 2) {
+				tdm->orig_handle_type = bezt->h2;
+			}
+
 			td++;
 			td2d++;
 			tdm++;
 		}
 	}
 	else {
-		tdm->is_handle = TRUE;
-		copy_m3_m3(tdm->parent_matrix, parent_matrix);
-		copy_m3_m3(tdm->parent_inverse_matrix, parent_inverse_matrix);
+		if (BKE_mask_point_handles_mode_get(point) == MASK_HANDLE_MODE_STICK) {
+			MaskHandleToTransData(point, MASK_WHICH_HANDLE_STICK,
+			                      td, td2d, tdm, asp, parent_matrix,
+			                      parent_inverse_matrix);
 
-		BKE_mask_point_handle(point, tdm->handle);
-
-		copy_v2_v2(tdm->orig_handle, tdm->handle);
-
-		mul_v2_m3v2(td2d->loc, parent_matrix, tdm->handle);
-		td2d->loc[0] *= asp[0];
-		td2d->loc[1] *= asp[1];
-		td2d->loc[2] = 0.0f;
-
-		td2d->loc2d = tdm->handle;
-
-		td->flag = 0;
-		td->loc = td2d->loc;
-		mul_v2_m3v2(td->center, parent_matrix, bezt->vec[1]);
-		copy_v3_v3(td->iloc, td->loc);
-
-		memset(td->axismtx, 0, sizeof(td->axismtx));
-		td->axismtx[2][2] = 1.0f;
-
-		td->ext = NULL;
-		td->val = NULL;
-
-		if (is_sel_any) {
-			td->flag |= TD_SELECTED;
+			td++;
+			td2d++;
+			tdm++;
 		}
+		else {
+			if (bezt->f1 & SELECT) {
+				MaskHandleToTransData(point, MASK_WHICH_HANDLE_LEFT,
+				                      td, td2d, tdm, asp, parent_matrix,
+				                      parent_inverse_matrix);
 
-		td->dist = 0.0;
+				if (bezt->h1 == HD_VECT) {
+					bezt->h1 = HD_FREE;
+				}
+				else if (bezt->h1 == HD_AUTO) {
+					bezt->h1 = HD_ALIGN_DOUBLESIDE;
+					bezt->h2 = HD_ALIGN_DOUBLESIDE;
+				}
 
-		unit_m3(td->mtx);
-		unit_m3(td->smtx);
+				td++;
+				td2d++;
+				tdm++;
+			}
+			if (bezt->f3 & SELECT) {
+				MaskHandleToTransData(point, MASK_WHICH_HANDLE_RIGHT,
+				                      td, td2d, tdm, asp, parent_matrix,
+				                      parent_inverse_matrix);
 
-		td++;
-		td2d++;
+				if (bezt->h2 == HD_VECT) {
+					bezt->h2 = HD_FREE;
+				}
+				else if (bezt->h2 == HD_AUTO) {
+					bezt->h1 = HD_ALIGN_DOUBLESIDE;
+					bezt->h2 = HD_ALIGN_DOUBLESIDE;
+				}
+
+				td++;
+				td2d++;
+				tdm++;
+			}
+		}
 	}
 }
 
@@ -6710,10 +6806,23 @@ static void createTransMaskingData(bContext *C, TransInfo *t)
 				MaskSplinePoint *point = &spline->points[i];
 
 				if (MASKPOINT_ISSEL_ANY(point)) {
-					if (MASKPOINT_ISSEL_KNOT(point))
+					if (MASKPOINT_ISSEL_KNOT(point)) {
 						countsel += 3;
-					else
-						countsel += 1;
+					}
+					else {
+						if (BKE_mask_point_handles_mode_get(point) == MASK_HANDLE_MODE_STICK) {
+							countsel += 1;
+						}
+						else {
+							BezTriple *bezt = &point->bezt;
+							if (bezt->f1 & SELECT) {
+								countsel++;
+							}
+							if (bezt->f3 & SELECT) {
+								countsel++;
+							}
+						}
+					}
 				}
 
 				if (propmode)
@@ -6761,9 +6870,24 @@ static void createTransMaskingData(bContext *C, TransInfo *t)
 						tdm += 3;
 					}
 					else {
-						td++;
-						td2d++;
-						tdm++;
+						if (BKE_mask_point_handles_mode_get(point) == MASK_HANDLE_MODE_STICK) {
+							td++;
+							td2d++;
+							tdm++;
+						}
+						else {
+							BezTriple *bezt = &point->bezt;
+							if (bezt->f1 & SELECT) {
+								td++;
+								td2d++;
+								tdm++;
+							}
+							if (bezt->f3 & SELECT) {
+								td++;
+								td2d++;
+								tdm++;
+							}
+						}
 					}
 				}
 			}
@@ -6789,9 +6913,19 @@ void flushTransMasking(TransInfo *t)
 		mul_m3_v2(tdm->parent_inverse_matrix, td->loc2d);
 
 		if (tdm->is_handle) {
-			BKE_mask_point_set_handle(tdm->point, td->loc2d,
+			BKE_mask_point_set_handle(tdm->point, tdm->which_handle,
+			                          td->loc2d,
 			                          (t->flag & T_ALT_TRANSFORM) != 0,
 			                          tdm->orig_handle, tdm->vec);
+		}
+
+		if (t->state == TRANS_CANCEL) {
+			if (tdm->which_handle == MASK_WHICH_HANDLE_LEFT) {
+				tdm->point->bezt.h1 = tdm->orig_handle_type;
+			}
+			else if (tdm->which_handle == MASK_WHICH_HANDLE_RIGHT) {
+				tdm->point->bezt.h2 = tdm->orig_handle_type;
+			}
 		}
 	}
 }
@@ -6824,7 +6958,7 @@ void createTransData(bContext *C, TransInfo *t)
 
 			if (t->data && (t->flag & T_PROP_EDIT)) {
 				sort_trans_data(t); // makes selected become first in array
-				set_prop_dist(t, TRUE);
+				set_prop_dist(t, true);
 				sort_trans_data_dist(t);
 			}
 		}
@@ -6880,7 +7014,7 @@ void createTransData(bContext *C, TransInfo *t)
 
 			if (t->data && (t->flag & T_PROP_EDIT)) {
 				sort_trans_data(t); // makes selected become first in array
-				set_prop_dist(t, TRUE);
+				set_prop_dist(t, true);
 				sort_trans_data_dist(t);
 			}
 		}

@@ -82,9 +82,10 @@
 #include "BLI_rect.h"
 #include "BLI_listbase.h"
 #include "BLI_linklist.h"
-#include "BLI_strict_flags.h"
 
 #include "BKE_mask.h"
+
+#include "BLI_strict_flags.h"
 
 /* this is rather and annoying hack, use define to isolate it.
  * problem is caused by scanfill removing edges on us. */
@@ -317,7 +318,7 @@ static void maskrasterize_spline_differentiate_point_outset(float (*diff_feather
 
 /* this function is not exact, sometimes it returns false positives,
  * the main point of it is to clear out _almost_ all bucket/face non-intersections,
- * returning TRUE in corner cases is ok but missing an intersection is NOT.
+ * returning true in corner cases is ok but missing an intersection is NOT.
  *
  * method used
  * - check if the center of the buckets bounding box is intersecting the face

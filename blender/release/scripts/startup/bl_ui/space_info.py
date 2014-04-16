@@ -124,7 +124,6 @@ class INFO_MT_file(Menu):
 
         layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.save_homefile", icon='SAVE_PREFS')
-        layout.operator_context = 'EXEC_AREA'
         layout.operator("wm.read_factory_settings", icon='LOAD_FACTORY')
 
         layout.separator()
@@ -246,7 +245,7 @@ class INFO_MT_opengl_render(Menu):
 
     def draw(self, context):
         layout = self.layout
-        
+
         rd = context.scene.render
 
         layout.prop(rd, "use_antialiasing")

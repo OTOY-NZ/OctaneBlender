@@ -716,7 +716,7 @@ static EnumPropertyItem style_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-static int set_style(bContext *C, const int style, const int clear)
+static int set_style(bContext *C, const int style, const bool clear)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	Curve *cu = obedit->data;
@@ -742,7 +742,7 @@ static int set_style(bContext *C, const int style, const int clear)
 static int set_style_exec(bContext *C, wmOperator *op)
 {
 	const int style = RNA_enum_get(op->ptr, "style");
-	const int clear = RNA_boolean_get(op->ptr, "clear");
+	const bool clear = RNA_boolean_get(op->ptr, "clear");
 
 	return set_style(C, style, clear);
 }
@@ -973,7 +973,7 @@ static EnumPropertyItem move_type_items[] = {
 	{NEXT_PAGE, "NEXT_PAGE", 0, "Next Page", ""},
 	{0, NULL, 0, NULL, NULL}};
 
-static int move_cursor(bContext *C, int type, int select)
+static int move_cursor(bContext *C, int type, const bool select)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	Curve *cu = obedit->data;
@@ -1083,7 +1083,7 @@ static int move_exec(bContext *C, wmOperator *op)
 {
 	int type = RNA_enum_get(op->ptr, "type");
 
-	return move_cursor(C, type, 0);
+	return move_cursor(C, type, false);
 }
 
 void FONT_OT_move(wmOperatorType *ot)
@@ -1110,7 +1110,7 @@ static int move_select_exec(bContext *C, wmOperator *op)
 {
 	int type = RNA_enum_get(op->ptr, "type");
 
-	return move_cursor(C, type, 1);
+	return move_cursor(C, type, true);
 }
 
 void FONT_OT_move_select(wmOperatorType *ot)

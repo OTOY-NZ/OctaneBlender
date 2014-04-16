@@ -69,6 +69,7 @@ struct wmKeyConfig;
 struct bContext;
 struct bNodeTree;
 struct Main;
+#pragma pack(push)
 
 #pragma pack (4)
 typedef struct MaterialItem {
@@ -219,5 +220,7 @@ int get_material(struct Main *bmain, struct bContext *C, Scene *scene, struct bN
 struct LiveDbItem*  mat_livedb_get_tree(const char *address, uint32_t *buf_size);
 unsigned char*      mat_livedb_get_mat_preview(const char *address, int32_t id, unsigned int *width, unsigned int *height, const char *_file_path);
 struct MatItem*     mat_livedb_get_material(const char *address, int32_t mat_id, uint32_t *buf_size);
+
+#pragma pack(pop)
 
 #endif /* __MAT_LIVEDB_INTERN_H__ */

@@ -79,7 +79,7 @@ void DM_to_bmesh_ex(DerivedMesh *dm, BMesh *bm, const bool calc_face_normal)
 	int cd_edge_bweight_offset;
 	int cd_edge_crease_offset;
 
-	if (is_init == FALSE) {
+	if (is_init == false) {
 		/* check if we have an origflag */
 		has_orig_hflag |= CustomData_has_layer(&bm->vdata, CD_ORIGINDEX) ? BM_VERT : 0;
 		has_orig_hflag |= CustomData_has_layer(&bm->edata, CD_ORIGINDEX) ? BM_EDGE : 0;
@@ -104,8 +104,8 @@ void DM_to_bmesh_ex(DerivedMesh *dm, BMesh *bm, const bool calc_face_normal)
 	totedge = dm->getNumEdges(dm);
 	/* totface = dm->getNumPolys(dm); */ /* UNUSED */
 
-	vtable = MEM_callocN(sizeof(void **) * totvert, __func__);
-	etable = MEM_callocN(sizeof(void **) * totedge, __func__);
+	vtable = MEM_mallocN(sizeof(*vtable) * totvert, __func__);
+	etable = MEM_mallocN(sizeof(*etable) * totedge, __func__);
 
 	/*do verts*/
 	mv = mvert = is_cddm ? dm->getVertArray(dm) : dm->dupVertArray(dm);

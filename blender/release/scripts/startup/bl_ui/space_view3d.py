@@ -197,6 +197,7 @@ class VIEW3D_MT_transform_base(Menu):
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
         layout.operator("object.vertex_warp", text="Warp")
+        layout.operator("object.vertex_random", text="Randomize")
 
 
 # Generic transform menu - geometry types
@@ -902,7 +903,6 @@ class INFO_MT_curve_add(Menu):
         VIEW3D_PT_tools_add_object.draw_add_curve(layout)
 
 
-
 class INFO_MT_surface_add(Menu):
     bl_idname = "INFO_MT_surface_add"
     bl_label = "Surface"
@@ -1354,18 +1354,23 @@ class VIEW3D_MT_make_single_user(Menu):
 
         props = layout.operator("object.make_single_user", text="Object")
         props.object = True
+        props.obdata = props.material = props.texture = props.animation = False
 
         props = layout.operator("object.make_single_user", text="Object & Data")
         props.object = props.obdata = True
+        props.material = props.texture = props.animation = False
 
         props = layout.operator("object.make_single_user", text="Object & Data & Materials+Tex")
         props.object = props.obdata = props.material = props.texture = True
+        props.animation = False
 
         props = layout.operator("object.make_single_user", text="Materials+Tex")
         props.material = props.texture = True
+        props.object = props.obdata = props.animation = False
 
         props = layout.operator("object.make_single_user", text="Object Animation")
         props.animation = True
+        props.object = props.obdata = props.material = props.texture = False
 
 
 class VIEW3D_MT_make_links(Menu):
@@ -2755,6 +2760,15 @@ class VIEW3D_PT_view3d_name(Panel):
                 row.label(text="", icon='BONE_DATA')
                 row.prop(bone, "name", text="")
 
+        elif ob.type == 'MESH':
+            me = ob.data
+            row = layout.row()
+            row.prop(me, "use_auto_smooth")
+            row = row.row()
+            if not me.use_auto_smooth:
+                row.active = False
+            row.prop(me, "auto_smooth_angle", text="")
+
 
 class VIEW3D_PT_view3d_display(Panel):
     bl_space_type = 'VIEW_3D'
@@ -2931,14 +2945,14 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
 
         col.separator()
         col.label(text="Normals:")
-        row = col.row()
+        row = col.row(align=True)
+
+        row.prop(mesh, "show_normal_vertex", text="", icon='VERTEXSEL')
+        row.prop(mesh, "show_normal_loop", text="", icon='VERTEXSEL')
+        row.prop(mesh, "show_normal_face", text="", icon='FACESEL')
 
         sub = row.row(align=True)
-        sub.prop(mesh, "show_normal_vertex", text="", icon='VERTEXSEL')
-        sub.prop(mesh, "show_normal_face", text="", icon='FACESEL')
-
-        sub = row.row(align=True)
-        sub.active = mesh.show_normal_vertex or mesh.show_normal_face
+        sub.active = mesh.show_normal_vertex or mesh.show_normal_face or mesh.show_normal_loop
         sub.prop(context.scene.tool_settings, "normal_size", text="Size")
 
         col.separator()

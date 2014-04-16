@@ -329,6 +329,7 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, Panel):
         row.operator("transform.vert_slide", text="Vertex")
         col.operator("mesh.noise")
         col.operator("mesh.vertices_smooth")
+        col.operator("object.vertex_random")
 
         col = layout.column(align=True)
         col.label(text="Add:")
@@ -500,6 +501,7 @@ class VIEW3D_PT_tools_curveedit(View3DPanel, Panel):
         col.operator("curve.extrude_move", text="Extrude")
         col.operator("curve.subdivide")
         col.operator("curve.smooth")
+        col.operator("object.vertex_random")
 
         draw_repeat_tools(context, layout)
 
@@ -552,6 +554,10 @@ class VIEW3D_PT_tools_surfaceedit(View3DPanel, Panel):
         col.label(text="Modeling:")
         col.operator("curve.extrude", text="Extrude")
         col.operator("curve.subdivide")
+
+        col = layout.column(align=True)
+        col.label(text="Deform:")
+        col.operator("object.vertex_random")
 
         draw_repeat_tools(context, layout)
 
@@ -621,6 +627,10 @@ class VIEW3D_PT_tools_armatureedit(View3DPanel, Panel):
         col.operator("armature.extrude_move")
         col.operator("armature.subdivide", text="Subdivide")
 
+        col = layout.column(align=True)
+        col.label(text="Deform:")
+        col.operator("object.vertex_random")
+
         draw_repeat_tools(context, layout)
 
 
@@ -649,6 +659,10 @@ class VIEW3D_PT_tools_mballedit(View3DPanel, Panel):
         col.operator("transform.translate")
         col.operator("transform.rotate")
         col.operator("transform.resize", text="Scale")
+
+        col = layout.column(align=True)
+        col.label(text="Deform:")
+        col.operator("object.vertex_random")
 
         draw_repeat_tools(context, layout)
 
@@ -685,6 +699,10 @@ class VIEW3D_PT_tools_latticeedit(View3DPanel, Panel):
 
         col = layout.column(align=True)
         col.operator("lattice.make_regular")
+
+        col = layout.column(align=True)
+        col.label(text="Deform:")
+        col.operator("object.vertex_random")
 
         draw_repeat_tools(context, layout)
 
@@ -1119,10 +1137,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
 
         col.label(text="Stroke Method:")
 
-        if context.sculpt_object:
-            col.prop(brush, "sculpt_stroke_method", text="")
-        else:
-            col.prop(brush, "stroke_method", text="")
+        col.prop(brush, "stroke_method", text="")
 
         if brush.use_anchor:
             col.separator()
@@ -1213,9 +1228,9 @@ class VIEW3D_PT_tools_brush_curve(Panel, View3DPaintPanel):
         row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
 
-class VIEW3D_PT_sculpt_topology(Panel, View3DPaintPanel):
+class VIEW3D_PT_sculpt_dyntopo(Panel, View3DPaintPanel):
     bl_category = "Tools"
-    bl_label = "Topology"
+    bl_label = "Dyntopo"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1231,20 +1246,27 @@ class VIEW3D_PT_sculpt_topology(Panel, View3DPaintPanel):
         brush = settings.brush
 
         if context.sculpt_object.use_dynamic_topology_sculpting:
-            layout.operator("sculpt.dynamic_topology_toggle", icon='X', text="Disable Dynamic")
+            layout.operator("sculpt.dynamic_topology_toggle", icon='X', text="Disable Dyntopo")
         else:
-            layout.operator("sculpt.dynamic_topology_toggle", icon='SCULPT_DYNTOPO', text="Enable Dynamic")
+            layout.operator("sculpt.dynamic_topology_toggle", icon='SCULPT_DYNTOPO', text="Enable Dyntopo")
 
         col = layout.column()
         col.active = context.sculpt_object.use_dynamic_topology_sculpting
         sub = col.column(align=True)
         sub.active = brush and brush.sculpt_tool not in ('MASK')
-        sub.prop(sculpt, "detail_size")
+        if (sculpt.detail_type_method == 'CONSTANT'):
+            row = sub.row(align=True)
+            row.operator("sculpt.sample_detail_size", text="", icon='EYEDROPPER')
+            row.prop(sculpt, "constant_detail")
+        else:
+            sub.prop(sculpt, "detail_size")
         sub.prop(sculpt, "detail_refine_method", text="")
         sub.prop(sculpt, "detail_type_method", text="")
         col.separator()
         col.prop(sculpt, "use_smooth_shading")
         col.operator("sculpt.optimize")
+        if (sculpt.detail_type_method == 'CONSTANT'):
+            col.operator("sculpt.detail_flood_fill")
         col.separator()
         col.prop(sculpt, "symmetrize_direction")
         col.operator("sculpt.symmetrize")
@@ -1261,6 +1283,7 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
 
     def draw(self, context):
         layout = self.layout
+        scene = context.scene
 
         toolsettings = context.tool_settings
         sculpt = toolsettings.sculpt
@@ -1271,6 +1294,15 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         col.label(text="Gravity:")
         col.prop(sculpt, "gravity", slider=True, text="Factor")
         col.prop(sculpt, "gravity_object")
+        col.separator()
+
+        col = layout.column(align=True)
+        col.label(text="Threads:")
+        col.row(align=True).prop(scene, "omp_threads_mode", expand=True)
+        sub = col.column(align=True)
+        sub.enabled = (scene.omp_threads_mode != 'AUTO')
+        sub.prop(scene, "omp_threads")
+        col.separator()
 
         layout.prop(sculpt, "use_threaded", text="Threaded Sculpt")
         layout.prop(sculpt, "show_low_resolution")

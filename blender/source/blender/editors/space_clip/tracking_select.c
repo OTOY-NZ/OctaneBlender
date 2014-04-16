@@ -382,7 +382,7 @@ static int select_poll(bContext *C)
 		return sc->clip && sc->view == SC_VIEW_CLIP;
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int select_exec(bContext *C, wmOperator *op)
@@ -553,12 +553,12 @@ void CLIP_OT_select_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_border(ot, TRUE);
+	WM_operator_properties_gesture_border(ot, true);
 }
 
 /********************** lasso select operator *********************/
 
-static int do_lasso_select_marker(bContext *C, const int mcords[][2], const short moves, short select)
+static int do_lasso_select_marker(bContext *C, const int mcords[][2], const short moves, bool select)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -650,7 +650,7 @@ static int clip_lasso_select_exec(bContext *C, wmOperator *op)
 	const int (*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
 
 	if (mcords) {
-		short select;
+		bool select;
 
 		select = !RNA_boolean_get(op->ptr, "deselect");
 		do_lasso_select_marker(C, mcords, mcords_tot, select);

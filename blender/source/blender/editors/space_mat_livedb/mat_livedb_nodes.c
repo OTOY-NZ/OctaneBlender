@@ -97,23 +97,17 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
     char             tex_file_name[1024];
 
     bNodeSocket             *sock;
-    bNodeSocketValueFloat   *sock_float;
-    bNodeSocketValueInt     *sock_int;
-    bNodeSocketValueBoolean *sock_bool;
-    bNodeSocketValueVector  *sock_vector;
-    bNodeSocketValueRGBA    *sock_rgba;
-    bNodeSocketValueString  *sock_string;
 
     switch (item->type) {
         case MAT_LDB_VALUE_TYPE_EMPTY: {
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         }
         case MAT_LDB_VALUE_TYPE_FLINK: {
             ptr = (MatItem*) ((char*)item - item->uint_vector[0]);
             mat_livedb_add_mat_element(bmain, C, ntree, node_to, 0, &ptr, file_path, 0, 0);
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         }
         case MAT_LDB_VALUE_TYPE_NLINK: {
@@ -121,26 +115,26 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
 
             connect_node(bmain, ntree, linked_node, node_to, sock_to);
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         }
         case MAT_LDB_VALUE_TYPE_NODE: {
             if(sock_to->type == SOCK_FLOAT && sock_to->default_value && !strcmp(item->data, "ShaderNodeOctFloatTex")) {
-                item = (char*)item + item->size;
+                item = (MatItem*)((char*)item + item->size);
 
                 ((bNodeSocketValueFloat*)sock_to->default_value)->value = item->float_vector[0];
 
-                *_item = (char*)item + item->size;
+                *_item = (MatItem*)((char*)item + item->size);
             }
             else if(sock_to->type == SOCK_RGBA && sock_to->default_value && !strcmp(item->data, "ShaderNodeOctRGBSpectrumTex")) {
-                item = (char*)item + item->size;
+                item = (MatItem*)((char*)item + item->size);
 
                 ((bNodeSocketValueRGBA*)sock_to->default_value)->value[0] = item->float_vector[0];
                 ((bNodeSocketValueRGBA*)sock_to->default_value)->value[1] = item->float_vector[1];
                 ((bNodeSocketValueRGBA*)sock_to->default_value)->value[2] = item->float_vector[2];
                 ((bNodeSocketValueRGBA*)sock_to->default_value)->value[3] = item->float_vector[3];
 
-                *_item = (char*)item + item->size;
+                *_item = (MatItem*)((char*)item + item->size);
             }
             else {
                 float   cur_y_pos;
@@ -150,7 +144,7 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
 
                 connect_node(bmain, ntree, node_fr, node_to, sock_to);
 
-                *_item = (char*)item + item->size;
+                *_item = (MatItem*)((char*)item + item->size);
                 ptr = *_item;
 
                 *((bNode**)item->data) = node_fr;
@@ -181,7 +175,7 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
             if(sock_to->default_value)
                 ((bNodeSocketValueInt*)sock_to->default_value)->value = item->int_vector[0];
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_INT2:
             if(sock_to->default_value) {
@@ -189,7 +183,7 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
                 ((bNodeSocketValueVector*)sock_to->default_value)->value[1] = item->int_vector[1];
             }
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_INT3:
             if(sock_to->default_value) {
@@ -198,7 +192,7 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
                 ((bNodeSocketValueVector*)sock_to->default_value)->value[2] = item->int_vector[2];
             }
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_INT4:
             if(sock_to->default_value) {
@@ -208,13 +202,13 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
                 ((bNodeSocketValueRGBA*)sock_to->default_value)->value[3] = item->int_vector[3];
             }
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_FLOAT:
             if(sock_to->default_value)
                 ((bNodeSocketValueFloat*)sock_to->default_value)->value = item->float_vector[0];
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_FLOAT2:
             if(sock_to->default_value) {
@@ -222,7 +216,7 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
                 ((bNodeSocketValueVector*)sock_to->default_value)->value[1] = item->float_vector[1];
             }
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_FLOAT3:
             if(sock_to->default_value) {
@@ -231,7 +225,7 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
                 ((bNodeSocketValueVector*)sock_to->default_value)->value[2] = item->float_vector[2];
             }
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_FLOAT4:
             if(sock_to->default_value) {
@@ -241,19 +235,19 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
                 ((bNodeSocketValueRGBA*)sock_to->default_value)->value[3] = item->float_vector[3];
             }
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_BOOL:
             if(sock_to->default_value)
                 ((bNodeSocketValueBoolean*)sock_to->default_value)->value = item->int_vector[0];
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_STRING:
             if(sock_to->default_value)
                 strcpy(((bNodeSocketValueString*)sock_to->default_value)->value, item->data);
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_COLOR:
             if(sock_to->default_value) {
@@ -263,7 +257,7 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
                 ((bNodeSocketValueRGBA*)sock_to->default_value)->value[3] = item->float_vector[3];
             }
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         case MAT_LDB_VALUE_TYPE_FILE: {
             char* file_name;
@@ -286,9 +280,9 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
             else fclose(file);
 
             if(!ima)
-                node_to->id = BKE_image_load_exists(tex_file_name);
+                node_to->id = (struct ID*)BKE_image_load_exists(tex_file_name);
 
-            *_item = (char*)item + item->size;
+            *_item = (MatItem*)((char*)item + item->size);
             break;
         }
         default:
@@ -363,7 +357,7 @@ static void get_material_startjob(void *customdata, short *stop, short *do_updat
 
         /* create file path */
         if(!strlen(G.main->name)) {
-            char *cur_path = BLI_get_folder_create(BLENDER_USER_DATAFILES, 0);
+            char *cur_path = (char*)BLI_get_folder_create(BLENDER_USER_DATAFILES, 0);
             strcpy(file_path, cur_path);
             strcat(file_path, "/livedb/");
         }
@@ -383,7 +377,7 @@ static void get_material_startjob(void *customdata, short *stop, short *do_updat
         MEM_freeN(items);
     }
 
-    *do_update  = TRUE;
+    *do_update  = 1;
     *stop       = 0;
     *progress   = 1.0f;
 

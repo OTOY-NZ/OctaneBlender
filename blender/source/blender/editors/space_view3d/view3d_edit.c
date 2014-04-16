@@ -492,9 +492,9 @@ static void calctrackballvec(const rcti *rect, int mx, int my, float vec[3])
 	y = BLI_rcti_cent_y(rect) - my;
 	y /= (float)(BLI_rcti_size_y(rect) / 2);
 
-	d = sqrt(x * x + y * y);
+	d = sqrtf(x * x + y * y);
 	if (d < radius * (float)M_SQRT1_2) { /* Inside sphere */
-		z = sqrt(radius * radius - d * d);
+		z = sqrtf(radius * radius - d * d);
 	}
 	else { /* On hyperbola */
 		t = radius / (float)M_SQRT2;
@@ -1962,7 +1962,7 @@ static void view_zoom_mouseloc(ARegion *ar, float dfac, int mx, int my)
 }
 
 
-static void viewzoom_apply(ViewOpsData *vod, const int x, const int y, const short viewzoom, const short zoom_invert)
+static void viewzoom_apply(ViewOpsData *vod, const int xy[2], const short viewzoom, const short zoom_invert)
 {
 	float zfac = 1.0;
 	bool use_cam_zoom;
@@ -1971,7 +1971,7 @@ static void viewzoom_apply(ViewOpsData *vod, const int x, const int y, const sho
 
 	if (use_cam_zoom) {
 		float delta;
-		delta = (x - vod->origx + y - vod->origy) / 10.0f;
+		delta = (xy[0] - vod->origx + xy[1] - vod->origy) / 10.0f;
 		vod->rv3d->camzoom = vod->camzoom_prev + (zoom_invert ? -delta : delta);
 
 		CLAMP(vod->rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
@@ -1983,10 +1983,10 @@ static void viewzoom_apply(ViewOpsData *vod, const int x, const int y, const sho
 		float fac;
 
 		if (U.uiflag & USER_ZOOM_HORIZ) {
-			fac = (float)(vod->origx - x);
+			fac = (float)(vod->origx - xy[0]);
 		}
 		else {
-			fac = (float)(vod->origy - y);
+			fac = (float)(vod->origy - xy[1]);
 		}
 
 		if (zoom_invert) {
@@ -1998,26 +1998,25 @@ static void viewzoom_apply(ViewOpsData *vod, const int x, const int y, const sho
 		vod->timer_lastdraw = time;
 	}
 	else if (viewzoom == USER_ZOOM_SCALE) {
-		int ctr[2], len1, len2;
 		/* method which zooms based on how far you move the mouse */
 
-		ctr[0] = BLI_rcti_cent_x(&vod->ar->winrct);
-		ctr[1] = BLI_rcti_cent_y(&vod->ar->winrct);
-
-		len1 = (int)sqrt((ctr[0] - x) * (ctr[0] - x) + (ctr[1] - y) * (ctr[1] - y)) + 5;
-		len2 = (int)sqrt((ctr[0] - vod->origx) * (ctr[0] - vod->origx) + (ctr[1] - vod->origy) * (ctr[1] - vod->origy)) + 5;
-
-		zfac = vod->dist_prev * ((float)len2 / len1) / vod->rv3d->dist;
+		const int ctr[2] = {
+		    BLI_rcti_cent_x(&vod->ar->winrct),
+		    BLI_rcti_cent_y(&vod->ar->winrct),
+		};
+		const float len_new = 5 + len_v2v2_int(ctr, xy);
+		const float len_old = 5 + len_v2v2_int(ctr, &vod->origx);
+		zfac = vod->dist_prev * ((len_old + 5) / (len_new + 5)) / vod->rv3d->dist;
 	}
 	else {  /* USER_ZOOM_DOLLY */
 		float len1, len2;
 		
 		if (U.uiflag & USER_ZOOM_HORIZ) {
-			len1 = (vod->ar->winrct.xmax - x) + 5;
+			len1 = (vod->ar->winrct.xmax - xy[0]) + 5;
 			len2 = (vod->ar->winrct.xmax - vod->origx) + 5;
 		}
 		else {
-			len1 = (vod->ar->winrct.ymax - y) + 5;
+			len1 = (vod->ar->winrct.ymax - xy[1]) + 5;
 			len2 = (vod->ar->winrct.ymax - vod->origy) + 5;
 		}
 		if (zoom_invert) {
@@ -2089,7 +2088,7 @@ static int viewzoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	if (event_code == VIEW_APPLY) {
-		viewzoom_apply(vod, event->x, event->y, U.viewzoom, (U.uiflag & USER_ZOOM_INVERT) != 0);
+		viewzoom_apply(vod, &event->x, U.viewzoom, (U.uiflag & USER_ZOOM_INVERT) != 0);
 	}
 	else if (event_code == VIEW_CONFIRM) {
 		ED_view3d_depth_tag_update(vod->rv3d);
@@ -2224,12 +2223,12 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 			if (U.uiflag & USER_ZOOM_HORIZ) {
 				vod->origx = vod->oldx = event->x;
-				viewzoom_apply(vod, event->prevx, event->prevy, USER_ZOOM_DOLLY, (U.uiflag & USER_ZOOM_INVERT) != 0);
+				viewzoom_apply(vod, &event->prevx, USER_ZOOM_DOLLY, (U.uiflag & USER_ZOOM_INVERT) != 0);
 			}
 			else {
 				/* Set y move = x move as MOUSEZOOM uses only x axis to pass magnification value */
 				vod->origy = vod->oldy = vod->origy + event->x - event->prevx;
-				viewzoom_apply(vod, event->prevx, event->prevy, USER_ZOOM_DOLLY, (U.uiflag & USER_ZOOM_INVERT) != 0);
+				viewzoom_apply(vod, &event->prevx, USER_ZOOM_DOLLY, (U.uiflag & USER_ZOOM_INVERT) != 0);
 			}
 			ED_view3d_depth_tag_update(vod->rv3d);
 			
@@ -3577,9 +3576,8 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 				if (!rv3d->smooth_timer) {
 					/* store settings of current view before allowing overwriting with camera view
 					 * only if we're not currently in a view transition */
-					copy_qt_qt(rv3d->lviewquat, rv3d->viewquat);
-					rv3d->lview = rv3d->view;
-					rv3d->lpersp = rv3d->persp;
+
+					ED_view3d_lastview_store(rv3d);
 				}
 
 #if 0
@@ -4718,6 +4716,18 @@ void ED_view3d_to_object(Object *ob, const float ofs[3], const float quat[4], co
 	float mat[4][4];
 	ED_view3d_to_m4(mat, ofs, quat, dist);
 	BKE_object_apply_mat4(ob, mat, true, true);
+}
+
+/**
+ * Use to store the last view, before entering camera view.
+ */
+void ED_view3d_lastview_store(RegionView3D *rv3d)
+{
+	copy_qt_qt(rv3d->lviewquat, rv3d->viewquat);
+	rv3d->lview = rv3d->view;
+	if (rv3d->persp != RV3D_CAMOB) {
+		rv3d->lpersp = rv3d->persp;
+	}
 }
 
 BGpic *ED_view3D_background_image_new(View3D *v3d)

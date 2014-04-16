@@ -1944,7 +1944,7 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 	glEnableClientState(GL_VERTEX_ARRAY);
 
 	for (step = 1; step <= (int)radout; step++) {
-		float expfac = sqrt(step / radout);
+		float expfac = sqrtf(step / radout);
 		
 		round_box_shadow_edges(wtb.outer_v, &rect1, radin, UI_CNR_ALL, (float)step);
 		
@@ -2081,7 +2081,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	 * lock the value of the color wheel to 1.
 	 * Useful for color correction tools where you're only interested in hue. */
 	if (but->flag & UI_BUT_COLOR_LOCK) {
-		if(U.color_picker_type == USER_CP_CIRCLE_HSV)
+		if (U.color_picker_type == USER_CP_CIRCLE_HSV)
 			hsv[2] = 1.f;
 		else
 			hsv[2] = 0.5f;
@@ -3550,6 +3550,10 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 
 			case SCROLL:
 				wt = widget_type(UI_WTYPE_SCROLL);
+				break;
+
+			case GRIP:
+				wt = widget_type(UI_WTYPE_ICON);
 				break;
 
 			case TRACKPREVIEW:

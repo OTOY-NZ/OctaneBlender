@@ -1981,11 +1981,9 @@ ImBuf *BKE_tracking_sample_pattern(int frame_width, int frame_height, ImBuf *sea
 	if (num_samples_x <= 0 || num_samples_y <= 0)
 		return NULL;
 
-	pattern_ibuf = IMB_allocImBuf(num_samples_x, num_samples_y, 32, IB_rectfloat);
-
-	if (!search_ibuf->rect_float) {
-		IMB_float_from_rect(search_ibuf);
-	}
+	pattern_ibuf = IMB_allocImBuf(num_samples_x, num_samples_y,
+	                              32,
+	                              search_ibuf->rect_float ? IB_rectfloat : IB_rect);
 
 	tracking_get_marker_coords_for_tracking(frame_width, frame_height, marker, src_pixel_x, src_pixel_y);
 
@@ -2015,10 +2013,26 @@ ImBuf *BKE_tracking_sample_pattern(int frame_width, int frame_height, ImBuf *sea
 		mask = BKE_tracking_track_get_mask(frame_width, frame_height, track, marker);
 	}
 
-	libmv_samplePlanarPatch(search_ibuf->rect_float, search_ibuf->x, search_ibuf->y, 4,
-	                        src_pixel_x, src_pixel_y, num_samples_x,
-	                        num_samples_y, mask, pattern_ibuf->rect_float,
-	                        &warped_position_x, &warped_position_y);
+	if (search_ibuf->rect_float) {
+		libmv_samplePlanarPatch(search_ibuf->rect_float,
+		                        search_ibuf->x, search_ibuf->y, 4,
+		                        src_pixel_x, src_pixel_y,
+		                        num_samples_x, num_samples_y,
+		                        mask,
+		                        pattern_ibuf->rect_float,
+		                        &warped_position_x,
+		                        &warped_position_y);
+	}
+	else {
+		libmv_samplePlanarPatchByte((unsigned char *) search_ibuf->rect,
+		                            search_ibuf->x, search_ibuf->y, 4,
+		                            src_pixel_x, src_pixel_y,
+		                            num_samples_x, num_samples_y,
+		                            mask,
+		                            (unsigned char *) pattern_ibuf->rect,
+		                            &warped_position_x,
+		                            &warped_position_y);
+	}
 
 	if (pos) {
 		pos[0] = warped_position_x;
@@ -2340,8 +2354,8 @@ static void tracking_dopesheet_channels_calc(MovieTracking *tracking)
 		BKE_tracking_object_get_reconstruction(tracking, object);
 	ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
 
-	short sel_only = dopesheet->flag & TRACKING_DOPE_SELECTED_ONLY;
-	short show_hidden = dopesheet->flag & TRACKING_DOPE_SHOW_HIDDEN;
+	bool sel_only = (dopesheet->flag & TRACKING_DOPE_SELECTED_ONLY) != 0;
+	bool show_hidden = (dopesheet->flag & TRACKING_DOPE_SHOW_HIDDEN) != 0;
 
 	for (track = tracksbase->first; track; track = track->next) {
 		MovieTrackingDopesheetChannel *channel;
@@ -2500,7 +2514,7 @@ void BKE_tracking_dopesheet_tag_update(MovieTracking *tracking)
 {
 	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
 
-	dopesheet->ok = FALSE;
+	dopesheet->ok = false;
 }
 
 /* Do dopesheet update, if update is not needed nothing will happen. */
@@ -2523,5 +2537,5 @@ void BKE_tracking_dopesheet_update(MovieTracking *tracking)
 	/* frame coverage */
 	tracking_dopesheet_calc_coverage(tracking);
 
-	dopesheet->ok = TRUE;
+	dopesheet->ok = true;
 }

@@ -75,7 +75,7 @@ static void mat_livedb_compress_tree(bContext *C)
     LiveDbItem  *new_item;
     LiveDbItem  *cur_item, *cur_category;
 
-    for(cur_item = slivedb->treestore; (((char*)cur_item + cur_item->size) - slivedb->treestore) <= store_len; cur_item = (LiveDbItem*)((char*)cur_item + cur_item->size)) {
+    for(cur_item = (LiveDbItem*)slivedb->treestore; (((char*)cur_item + cur_item->size) - slivedb->treestore) <= store_len; cur_item = (LiveDbItem*)((char*)cur_item + cur_item->size)) {
         if(TE_GET_TYPE(cur_item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY)
             new_len += cur_item->size;
         else {
@@ -88,7 +88,7 @@ static void mat_livedb_compress_tree(bContext *C)
     new_items = MEM_mallocN(new_len, "ldb tree");
     new_item  = new_items;
 
-    for(cur_item = slivedb->treestore; (((char*)cur_item + cur_item->size) - slivedb->treestore) <= store_len; cur_item = (LiveDbItem*)((char*)cur_item + cur_item->size)) {
+    for(cur_item = (LiveDbItem*)slivedb->treestore; (((char*)cur_item + cur_item->size) - slivedb->treestore) <= store_len; cur_item = (LiveDbItem*)((char*)cur_item + cur_item->size)) {
         if(TE_GET_TYPE(cur_item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY) {
             memcpy(new_item, cur_item, cur_item->size);
             cur_category = new_item;
@@ -104,7 +104,7 @@ static void mat_livedb_compress_tree(bContext *C)
         }
     }
     MEM_freeN(slivedb->treestore);
-    slivedb->treestore = new_items;
+    slivedb->treestore = (char*)new_items;
 } /* mat_livedb_compress_tree() */
 #ifndef WIN32
 #   pragma unsuppress(all_checks)

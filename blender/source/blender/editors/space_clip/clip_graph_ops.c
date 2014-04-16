@@ -69,7 +69,7 @@ static int ED_space_clip_graph_poll(bContext *C)
 		return sc->view == SC_VIEW_GRAPH;
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int clip_graph_knots_poll(bContext *C)
@@ -79,7 +79,7 @@ static int clip_graph_knots_poll(bContext *C)
 
 		return (sc->flag & SC_SHOW_GRAPH_TRACKS_MOTION) != 0;
 	}
-	return FALSE;
+	return false;
 }
 
 typedef struct {
@@ -166,7 +166,7 @@ static void find_nearest_tracking_knot_cb(void *userdata, MovieTrackingTrack *tr
 
 }
 
-static void mouse_select_init_data(MouseSelectUserData *userdata, float *co)
+static void mouse_select_init_data(MouseSelectUserData *userdata, const float co[2])
 {
 	memset(userdata, 0, sizeof(MouseSelectUserData));
 	userdata->min_dist = FLT_MAX;
@@ -410,7 +410,7 @@ void CLIP_OT_graph_select_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_border(ot, TRUE);
+	WM_operator_properties_gesture_border(ot, true);
 }
 
 /********************** select all operator *********************/

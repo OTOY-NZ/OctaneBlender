@@ -236,15 +236,23 @@ public:
 		cuda_assert(cuCtxDestroy(cuContext))
 	}
 
-	bool support_device(bool experimental)
+	bool support_device(bool experimental, bool branched)
 	{
 		int major, minor;
 		cuDeviceComputeCapability(&major, &minor, cuDevId);
-
+		
+		/* We only support sm_20 and above */
 		if(major < 2) {
 			cuda_error_message(string_printf("CUDA device supported only with compute capability 2.0 or up, found %d.%d.", major, minor));
 			return false;
 		}
+		
+		/* Currently no Branched Path on sm_30 */
+		if(branched) {
+			cuda_error_message(string_printf("CUDA device: Branched Path is currently disabled, due to compile errors."));
+			return false;
+		}
+		
 
 		return true;
 	}
@@ -312,7 +320,7 @@ public:
 		/* CUDA 5.x build flags for different archs */
 		if(major == 2) {
 			/* sm_2x */
-			arch_flags = "--maxrregcount=32 --use_fast_math";
+			arch_flags = "--maxrregcount=40 --use_fast_math";
 		}
 		else if(major == 3) {
 			/* sm_3x */
@@ -352,8 +360,8 @@ public:
 		if(cuContext == 0)
 			return false;
 		
-		/* check if GPU is supported with current feature set */
-		if(!support_device(experimental))
+		/* check if GPU is supported */
+		if(!support_device(experimental, false))
 			return false;
 
 		/* get kernel */
@@ -453,6 +461,8 @@ public:
 
 	void tex_alloc(const char *name, device_memory& mem, InterpolationType interpolation, bool periodic)
 	{
+		/* todo: support 3D textures, only CPU for now */
+
 		/* determine format */
 		CUarray_format_enum format;
 		size_t dsize = datatype_size(mem.data_type);
@@ -613,7 +623,7 @@ public:
 		CUdeviceptr d_rng_state = cuda_device_ptr(rtile.rng_state);
 
 		/* get kernel function */
-		if(branched)
+		if(branched && support_device(true, branched))
 			cuda_assert(cuModuleGetFunction(&cuPathTrace, cuModule, "kernel_cuda_branched_path_trace"))
 		else
 			cuda_assert(cuModuleGetFunction(&cuPathTrace, cuModule, "kernel_cuda_path_trace"))
@@ -908,7 +918,8 @@ public:
 		}
 	}
 
-	void draw_pixels(device_memory& mem, int y, int w, int h, int dy, int width, int height, bool transparent)
+	void draw_pixels(device_memory& mem, int y, int w, int h, int dy, int width, int height, bool transparent,
+		const DeviceDrawParams &draw_params)
 	{
 		if(!background) {
 			PixelMem pmem = pixel_mem_map[mem.device_pointer];
@@ -941,6 +952,10 @@ public:
 
 			glColor3f(1.0f, 1.0f, 1.0f);
 
+			if(draw_params.bind_display_space_shader_cb) {
+				draw_params.bind_display_space_shader_cb();
+			}
+
 			glPushMatrix();
 			glTranslatef(0.0f, (float)dy, 0.0f);
 				
@@ -959,6 +974,10 @@ public:
 
 			glPopMatrix();
 
+			if(draw_params.unbind_display_space_shader_cb) {
+				draw_params.unbind_display_space_shader_cb();
+			}
+
 			if(transparent)
 				glDisable(GL_BLEND);
 			
@@ -970,7 +989,7 @@ public:
 			return;
 		}
 
-		Device::draw_pixels(mem, y, w, h, dy, width, height, transparent);
+		Device::draw_pixels(mem, y, w, h, dy, width, height, transparent, draw_params);
 	}
 
 	void thread_run(DeviceTask *task)

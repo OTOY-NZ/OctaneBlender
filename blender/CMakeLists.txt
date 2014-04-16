@@ -155,18 +155,7 @@ mark_as_advanced(WITH_HEADLESS)
 option(WITH_AUDASPACE    "Build with blenders audio library (only disable if you know what you're doing!)" ON)
 mark_as_advanced(WITH_AUDASPACE)
 
-option(WITH_BOOL_COMPAT "Continue defining \"TRUE\" and \"FALSE\" until these can be replaced with \"true\" and \"false\" from stdbool.h" ON)
-mark_as_advanced(WITH_BOOL_COMPAT)
-
-# (unix defaults to OpenMP On)
-if((UNIX AND NOT APPLE) OR (MINGW))
-	set(PLATFORM_DEFAULT ON)
-else()
-	set(PLATFORM_DEFAULT OFF)
-endif()
-option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ${PLATFORM_DEFAULT})
-unset(PLATFORM_DEFAULT)
-
+option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ON)
 
 if(UNIX AND NOT APPLE)
 	option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)"	ON)
@@ -517,9 +506,6 @@ TEST_SSE_SUPPORT(COMPILER_SSE_FLAG COMPILER_SSE2_FLAG)
 TEST_STDBOOL_SUPPORT()
 if(HAVE_STDBOOL_H)
 	add_definitions(-DHAVE_STDBOOL_H)
-endif()
-if(WITH_BOOL_COMPAT)
-	add_definitions(-DWITH_BOOL_COMPAT)
 endif()
 
 #-----------------------------------------------------------------------------
@@ -1171,8 +1157,8 @@ elseif(WIN32)
 					set(FFMPEG_LIBRARY_VERSION 54)
 					set(FFMPEG_LIBRARY_VERSION_AVU 52)
 				else()
-					set(FFMPEG_LIBRARY_VERSION 53)
-					set(FFMPEG_LIBRARY_VERSION_AVU 51)
+					set(FFMPEG_LIBRARY_VERSION 55)
+					set(FFMPEG_LIBRARY_VERSION_AVU 52)
 				endif()
 				set(FFMPEG_LIBRARIES
 					${LIBDIR}/ffmpeg/lib/avcodec-${FFMPEG_LIBRARY_VERSION}.lib
@@ -1377,8 +1363,6 @@ elseif(WIN32)
 			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -lpthread")
 			
 			add_definitions(-DFREE_WINDOWS64 -DMS_WIN64)
-			# Turn off OpenMP since it causes crashes on render for subsurfed/multiresolution meshes
-			set(WITH_OPENMP OFF)
 		endif()
 
 		add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE)
@@ -1445,7 +1429,7 @@ elseif(WIN32)
 			if(WITH_MINGW64)
 				set(FFMPEG_LIBRARIES avcodec.dll avformat.dll avdevice.dll avutil.dll swscale.dll swresample.dll)
 			else()
-				set(FFMPEG_LIBRARIES avcodec-53 avformat-53 avdevice-53 avutil-51 swscale-2)
+				set(FFMPEG_LIBRARIES avcodec-55 avformat-55 avdevice-55 avutil-52 swscale-2)
 			endif()
 			set(FFMPEG_LIBPATH ${FFMPEG}/lib)
 		endif()
@@ -1828,13 +1812,16 @@ elseif(APPLE)
 		set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_system-mt boost_thread-mt boost_wave-mt)
 		if(WITH_INTERNATIONAL)
 			list(APPEND BOOST_LIBRARIES boost_locale-mt)
-			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -liconv") # boost_locale needs it !
 		endif()
 		if(WITH_CYCLES_NETWORK)
 			list(APPEND BOOST_LIBRARIES boost_serialization-mt)
 		endif()
 		set(BOOST_LIBPATH ${BOOST}/lib)
 		set(BOOST_DEFINITIONS)
+	endif()
+	
+	if(WITH_INTERNATIONAL OR WITH_CODEC_FFMPEG)
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -liconv") # boost_locale and ffmpeg needs it !
 	endif()
 
 	if(WITH_OPENIMAGEIO)
@@ -2305,9 +2292,12 @@ if(WITH_PYTHON)
 		# pass, we have this in lib/python/site-packages
 	elseif(WITH_PYTHON_INSTALL_REQUESTS)
 		if(NOT EXISTS ${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/requests)
-			message(WARNING "'requests' path could not be found in:\n"
-			                "'${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/requests'\n"
-			                "WITH_PYTHON_INSTALL_REQUESTS option will be ignored when installing python")
+			# gets annoying otherwise...
+			if(FIRST_RUN)
+				message(WARNING "'requests' path could not be found in:\n"
+				                "'${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/requests'\n"
+				                "WITH_PYTHON_INSTALL_REQUESTS option will be ignored when installing python")
+			endif()
 			set(WITH_PYTHON_INSTALL_REQUESTS OFF)
 		endif()
 	endif()

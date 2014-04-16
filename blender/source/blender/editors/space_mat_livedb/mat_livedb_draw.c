@@ -116,11 +116,9 @@ static void get_material_cb(bContext *C, void *poin, void *poin2)
     Scene       *scene  = CTX_data_scene(C);
     Main        *bmain  = CTX_data_main(C);
     bool        not_set = true;
-    Base        *base;
     Object      *cur_object;
     Object      *ob;
     Material    *ma;
-    int         a;
 
     cur_object = scene->basact ? scene->basact->object : 0;
     if(cur_object->actcol > 0) {
@@ -187,7 +185,7 @@ static void mat_livedb_namebutton_cb(bContext *C, void *itemp, char *oldname)
             LiveDbItem *new_items = MEM_mallocN(store_len + size_diff, "ldb tree");
             LiveDbItem *new_item  = new_items;
 
-            for(cur_item = slivedb->treestore; (((char*)cur_item + cur_item->size) - slivedb->treestore) <= store_len; cur_item = (LiveDbItem*)((char*)cur_item + cur_item->size)) {
+            for(cur_item = (LiveDbItem*)slivedb->treestore; (((char*)cur_item + cur_item->size) - slivedb->treestore) <= store_len; cur_item = (LiveDbItem*)((char*)cur_item + cur_item->size)) {
                 if(TE_GET_TYPE(cur_item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY) {
                     memcpy(new_item, cur_item, cur_item->size);
                 }
@@ -213,7 +211,7 @@ static void mat_livedb_namebutton_cb(bContext *C, void *itemp, char *oldname)
             }
             new_name[0] = 0;
             MEM_freeN(slivedb->treestore);
-            slivedb->treestore = new_items;
+            slivedb->treestore = (char*)new_items;
 
             mat_livedb_build_tree(mainvar, slivedb, 0);
         }
@@ -231,7 +229,7 @@ static void mat_livedb_namebutton_cb(bContext *C, void *itemp, char *oldname)
 static void mat_livedb_draw_mat_preview(uiBlock *block, Scene *scene, ARegion *ar, SpaceLDB *slivedb, ListBase *lb)
 {
     LiveDbTreeElement   *te;
-    char                *file_path = BLI_get_folder_create(BLENDER_USER_DATAFILES, 0);
+    char                *file_path = (char*)BLI_get_folder_create(BLENDER_USER_DATAFILES, 0);
 
     strcat(file_path, "/livedb/");
     strcat(file_path, slivedb->server_address);
@@ -272,7 +270,7 @@ static void mat_livedb_draw_mat_preview(uiBlock *block, Scene *scene, ARegion *a
 static void mat_draw_rename_buttons(const bContext *C, uiBlock *block, ARegion *ar, SpaceLDB *slivedb, ListBase *lb)
 {
     LiveDbTreeElement *te;
-    int spx, dx, len, CUR_UNIT_Y;
+    int spx, dx, CUR_UNIT_Y;
 
     for (te = lb->first; te; te = te->next) {
         if(TE_GET_TYPE(te->item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY)
@@ -323,7 +321,7 @@ static void mat_livedb_elem_draw_icon(float x, float y, LiveDbTreeElement *te)
 /* /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// */
 static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *offsx, int ys)
 {
-    int active, cat_cnt = 0, mat_cnt = 0, string_width;
+    int cat_cnt = 0, mat_cnt = 0, string_width;
     LiveDbTreeElement   *te;
     char                cnt_str[16];
     float               ufac = UI_UNIT_X / 20.0f;
@@ -586,7 +584,6 @@ static void mat_livedb_draw_tree(bContext *C, uiBlock *block, ARegion *ar, Space
 {
     LiveDbTreeElement   *te;
     int                 starty, startx;
-    float               col[3];
     int                 i = 0;
 
     glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA); /* only once */

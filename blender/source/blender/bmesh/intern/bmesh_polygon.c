@@ -248,7 +248,7 @@ float BM_face_calc_area(BMFace *f)
 	else {
 		float normal[3];
 		calc_poly_normal(normal, verts, f->len);
-		area = area_poly_v3(f->len, verts, normal);
+		area = area_poly_v3((const float (*)[3])verts, f->len, normal);
 	}
 
 	return area;
@@ -311,7 +311,7 @@ void BM_face_calc_plane(BMFace *f, float r_plane[3])
 		sub_v3_v3v3(vec_b, verts[1]->co, verts[2]->co);
 		add_v3_v3v3(vec, vec_a, vec_b);
 		/* use the biggest edge length */
-		if (dot_v3v3(r_plane, r_plane) < dot_v3v3(vec, vec)) {
+		if (len_squared_v3(r_plane) < len_squared_v3(vec)) {
 			copy_v3_v3(r_plane, vec);
 		}
 	}
@@ -723,7 +723,7 @@ bool BM_face_point_inside_test(BMFace *f, const float co[3])
 	int crosses = 0;
 	float onepluseps = 1.0f + (float)FLT_EPSILON * 150.0f;
 	
-	if (dot_v3v3(f->no, f->no) <= FLT_EPSILON * 10)
+	if (is_zero_v3(f->no))
 		BM_face_normal_update(f);
 	
 	/* find best projection of face XY, XZ or YZ: barycentric weights of
@@ -1061,7 +1061,14 @@ void BM_face_legal_splits(BMFace *f, BMLoop *(*loops)[2], int len)
 	for (i = 0, l = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l = l->next) {
 		BM_elem_index_set(l, i); /* set_loop */
 		mul_v2_m3v3(projverts[i], axis_mat, l->v->co);
+	}
 
+	/* first test for completely convex face */
+	if (is_poly_convex_v2((const float (*)[2])projverts, f->len)) {
+		return;
+	}
+
+	for (i = 0, l = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l = l->next) {
 		out[0] = max_ff(out[0], projverts[i][0]);
 		out[1] = max_ff(out[1], projverts[i][1]);
 	}

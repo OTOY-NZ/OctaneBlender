@@ -122,7 +122,7 @@ class VIEW3D_PT_octcam(Panel):
         row.operator("render.octane_3dimager_preset_add", text="", icon="ZOOMIN")
         row.operator("render.octane_3dimager_preset_add", text="", icon="ZOOMOUT").remove_active = True
 
-        layout.active = bool(view.region_3d.view_perspective != 'CAMERA' or view.region_quadview)
+        layout.active = bool(view.region_3d.view_perspective != 'CAMERA' or view.region_quadviews)
         sub = layout.column(align=True)
         sub.prop(oct_cam, "response_type", text="Response type")
 

@@ -120,14 +120,14 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 
 /* ** Nurbs ** */
 
-int BKE_nurbList_index_get_co(struct ListBase *editnurb, const int index, float r_co[3]);
+bool BKE_nurbList_index_get_co(struct ListBase *editnurb, const int index, float r_co[3]);
 
 int BKE_nurbList_verts_count(struct ListBase *nurb);
 int BKE_nurbList_verts_count_without_handles(struct ListBase *nurb);
 
 void BKE_nurbList_free(struct ListBase *lb);
 void BKE_nurbList_duplicate(struct ListBase *lb1,  struct ListBase *lb2);
-void BKE_nurbList_handles_set(struct ListBase *editnurb, short code);
+void BKE_nurbList_handles_set(struct ListBase *editnurb, const char code);
 void BKE_nurbList_handles_recalculate(struct ListBase *editnurb, const bool calc_length, const char flag);
 
 void BKE_nurbList_handles_autocalc(ListBase *editnurb, int flag);
@@ -149,6 +149,7 @@ void BKE_nurb_knot_calc_v(struct Nurb *nu);
 /* nurb checks if they can be drawn, also clamp order func */
 bool BKE_nurb_check_valid_u(struct Nurb *nu);
 bool BKE_nurb_check_valid_v(struct Nurb *nu);
+bool BKE_nurb_check_valid_uv(struct Nurb *nu);
 
 bool BKE_nurb_order_clamp_u(struct Nurb *nu);
 bool BKE_nurb_order_clamp_v(struct Nurb *nu);

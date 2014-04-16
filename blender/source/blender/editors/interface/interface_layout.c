@@ -1132,7 +1132,7 @@ static void ui_item_rna_size(uiLayout *layout, const char *name, int icon, Point
 		if (ELEM(subtype, PROP_LAYER, PROP_LAYER_MEMBER))
 			h += 2 * UI_UNIT_Y;
 		else if (subtype == PROP_MATRIX)
-			h += ceil(sqrt(len)) * UI_UNIT_Y;
+			h += ceilf(sqrtf(len)) * UI_UNIT_Y;
 		else
 			h += len * UI_UNIT_Y;
 	}
@@ -2528,15 +2528,6 @@ uiLayout *uiLayoutListBox(uiLayout *layout, uiList *ui_list, PointerRNA *ptr, Pr
 	but->rnapoin = *actptr;
 	but->rnaprop = actprop;
 
-	/* Resizing data. */
-	/* Note: we can't use usual "num button" value handling, as it only tries rnapoin when it is non-NULL... :/
-	 *       So just setting but->poin, not but->pointype.
-	 */
-	but->poin = (void *)&ui_list->list_grip;
-	but->hardmin = but->softmin = 0.0f;
-	but->hardmax = but->softmax = 1000.0f; /* Should be more than enough! */
-	but->a1 = 0.0f;
-
 	/* only for the undo string */
 	if (but->flag & UI_BUT_UNDO) {
 		but->tip = RNA_property_description(actprop);
@@ -3030,7 +3021,7 @@ void uiLayoutContextCopy(uiLayout *layout, bContextStore *context)
 static void ui_intro_button(DynStr *ds, uiButtonItem *bitem)
 {
 	uiBut *but = bitem->but;
-	BLI_dynstr_appendf(ds, "'type':%d, ", but->type); /* see ~ UI_interface.h:200 */
+	BLI_dynstr_appendf(ds, "'type':%d, ", (int)but->type);
 	BLI_dynstr_appendf(ds, "'draw_string':'''%s''', ", but->drawstr);
 	BLI_dynstr_appendf(ds, "'tip':'''%s''', ", but->tip ? but->tip : "");  /* not exactly needed, rna has this */
 

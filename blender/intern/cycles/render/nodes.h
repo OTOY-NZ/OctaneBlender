@@ -209,6 +209,7 @@ public:
 	BsdfNode(bool scattering = false);
 	SHADER_NODE_BASE_CLASS(BsdfNode);
 
+	bool has_spatial_varying() { return true; }
 	void compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3 = NULL, ShaderInput *param4 = NULL);
 
 	ClosureType closure;
@@ -280,6 +281,7 @@ public:
 	SHADER_NODE_CLASS(SubsurfaceScatteringNode)
 	bool has_surface_bssrdf() { return true; }
 	bool has_bssrdf_bump();
+	bool has_spatial_varying() { return true; }
 
 	static ShaderEnum falloff_enum;
 };
@@ -289,6 +291,7 @@ public:
 	SHADER_NODE_CLASS(EmissionNode)
 
 	bool has_surface_emission() { return true; }
+	bool has_spatial_varying() { return true; }
 
 	bool total_power;
 };
@@ -306,6 +309,8 @@ public:
 class AmbientOcclusionNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(AmbientOcclusionNode)
+
+	bool has_spatial_varying() { return true; }
 };
 
 class VolumeNode : public ShaderNode {
@@ -340,13 +345,25 @@ class GeometryNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GeometryNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_spatial_varying() { return true; }
 };
 
 class TextureCoordinateNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(TextureCoordinateNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_spatial_varying() { return true; }
 	
+	bool from_dupli;
+};
+
+class UVMapNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(UVMapNode)
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_spatial_varying() { return true; }
+
+	ustring attribute;
 	bool from_dupli;
 };
 
@@ -358,6 +375,7 @@ public:
 class LightFalloffNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(LightFalloffNode)
+	bool has_spatial_varying() { return true; }
 };
 
 class ObjectInfoNode : public ShaderNode {
@@ -376,6 +394,7 @@ public:
 	SHADER_NODE_CLASS(HairInfoNode)
 
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_spatial_varying() { return true; }
 };
 
 class ValueNode : public ShaderNode {
@@ -461,6 +480,7 @@ class AttributeNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(AttributeNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_spatial_varying() { return true; }
 
 	ustring attribute;
 };
@@ -468,21 +488,25 @@ public:
 class CameraNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(CameraNode)
+	bool has_spatial_varying() { return true; }
 };
 
 class FresnelNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(FresnelNode)
+	bool has_spatial_varying() { return true; }
 };
 
 class LayerWeightNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(LayerWeightNode)
+	bool has_spatial_varying() { return true; }
 };
 
 class WireframeNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(WireframeNode)
+	bool has_spatial_varying() { return true; }
 	
 	bool use_pixel_size;
 };
@@ -539,6 +563,8 @@ public:
 class BumpNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(BumpNode)
+	bool has_spatial_varying() { return true; }
+
 	bool invert;
 };
 
@@ -569,6 +595,10 @@ public:
 class OSLScriptNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(OSLScriptNode)
+
+	/* ideally we could beter detect this, but we can't query this now */
+	bool has_spatial_varying() { return true; }
+
 	string filepath;
 	string bytecode_hash;
 	
@@ -582,6 +612,7 @@ class NormalMapNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(NormalMapNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_spatial_varying() { return true; }
 
 	ustring space;
 	static ShaderEnum space_enum;
@@ -593,6 +624,7 @@ class TangentNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(TangentNode)
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_spatial_varying() { return true; }
 
 	ustring direction_type;
 	static ShaderEnum direction_type_enum;

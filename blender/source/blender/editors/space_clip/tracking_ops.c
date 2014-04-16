@@ -392,7 +392,7 @@ typedef struct {
 	float *min, *max, *pos, *offset, (*corners)[2];
 	float spos[2];
 
-	short lock, accurate;
+	bool lock, accurate;
 
 	/* data to restore on cancel */
 	float old_search_min[2], old_search_max[2], old_pos[2], old_offset[2];
@@ -460,7 +460,7 @@ static SlideMarkerData *create_slide_marker_data(SpaceClip *sc, MovieTrackingTra
 	data->height = height;
 
 	if (action == SLIDE_ACTION_SIZE)
-		data->lock = 1;
+		data->lock = true;
 
 	/* backup marker's settings */
 	memcpy(data->old_corners, marker->pattern_corners, sizeof(data->old_corners));
@@ -1280,7 +1280,7 @@ static void track_markers_startjob(void *tmv, short *stop, short *do_update, flo
 		else if (!BKE_tracking_context_step(tmj->context))
 			break;
 
-		*do_update = TRUE;
+		*do_update = true;
 		*progress = (float)(framenr - tmj->sfra) / (tmj->efra - tmj->sfra);
 
 		if (tmj->backwards)
@@ -1307,10 +1307,13 @@ static void track_markers_updatejob(void *tmv)
 static void track_markers_endjob(void *tmv)
 {
 	TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
+	wmWindowManager *wm = tmj->main->wm.first;
 
 	tmj->clip->tracking_context = NULL;
 	tmj->scene->r.cfra = BKE_movieclip_remap_clip_to_scene_frame(tmj->clip, tmj->lastfra);
-	ED_update_for_newframe(tmj->main, tmj->scene, 0);
+	if (wm != NULL) {
+		ED_update_for_newframe(tmj->main, tmj->scene, 0);
+	}
 
 	BKE_tracking_context_sync(tmj->context);
 	BKE_tracking_context_finish(tmj->context);
@@ -2011,7 +2014,7 @@ static int set_orientation_poll(bContext *C)
 			MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
 
 			if (tracking_object->flag & TRACKING_OBJECT_CAMERA) {
-				return TRUE;
+				return true;
 			}
 			else {
 				return OBACT != NULL;
@@ -2019,7 +2022,7 @@ static int set_orientation_poll(bContext *C)
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int count_selected_bundles(bContext *C)
@@ -2047,7 +2050,7 @@ static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat
 	bool found = false;
 
 	for (con = ob->constraints.first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 
 		if (!cti)
 			continue;
@@ -2078,7 +2081,7 @@ static Object *object_solver_camera(Scene *scene, Object *ob)
 	bConstraint *con;
 
 	for (con = ob->constraints.first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 
 		if (!cti)
 			continue;
@@ -2650,7 +2653,7 @@ static int set_solution_scale_poll(bContext *C)
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int set_solution_scale_exec(bContext *C, wmOperator *op)
@@ -2706,7 +2709,7 @@ static int apply_solution_scale_poll(bContext *C)
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int apply_solution_scale_exec(bContext *C, wmOperator *op)
@@ -3306,7 +3309,7 @@ static int stabilize_2d_poll(bContext *C)
 		return tracking_object->flag & TRACKING_OBJECT_CAMERA;
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int stabilize_2d_add_exec(bContext *C, wmOperator *UNUSED(op))
@@ -3498,9 +3501,10 @@ void CLIP_OT_stabilize_2d_set_rotation(wmOperatorType *ot)
 
 /********************** clean tracks operator *********************/
 
-static int is_track_clean(MovieTrackingTrack *track, int frames, int del)
+static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
 {
-	int ok = 1, a, prev = -1, count = 0;
+	bool ok = true;
+	int a, prev = -1, count = 0;
 	MovieTrackingMarker *markers = track->markers, *new_markers = NULL;
 	int start_disabled = 0;
 	int markersnr = track->markersnr;

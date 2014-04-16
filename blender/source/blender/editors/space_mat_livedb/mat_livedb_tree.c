@@ -184,7 +184,7 @@ static void mat_livedb_add_element(SpaceLDB *slivedb, ListBase *lb, LiveDbItem *
 
     if (!item || TE_GET_TYPE(item->type) == MAT_LDB_TREE_ITEM_TYPE_NONE) {
         strcpy(te->name, IFACE_("(empty)"));
-        *_item = (char*)item + item->size;
+        *_item = (LiveDbItem*)((char*)item + item->size);
         return;
     }
     else if (TE_GET_TYPE(item->type) == MAT_LDB_TREE_ITEM_TYPE_MATERIAL) {
@@ -205,7 +205,7 @@ static void mat_livedb_add_element(SpaceLDB *slivedb, ListBase *lb, LiveDbItem *
         }
         else te->copyright[0] = 0;
 
-        *_item = (char*)item + item->size;
+        *_item = (LiveDbItem*)((char*)item + item->size);
     }
     else if (TE_GET_TYPE(item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY) {
         uint32_t a, cnt;
@@ -213,7 +213,7 @@ static void mat_livedb_add_element(SpaceLDB *slivedb, ListBase *lb, LiveDbItem *
         int cur_size = strlen(item->cat_item.name) + 1;
         strncpy(te->name, item->cat_item.name, (cur_size < 256 ? cur_size : 256));
 
-        *_item = (char*)item + item->size;
+        *_item = (LiveDbItem*)((char*)item + item->size);
         ptr = *_item;
 
         cnt = item->cat_item.cat_cnt;
@@ -261,15 +261,15 @@ void mat_livedb_build_tree(Main *mainvar, SpaceLDB *slivedb, int reload)
         slivedb->treestore = 0;
     }
     if (!slivedb->treestore)
-        slivedb->treestore = mat_livedb_get_tree(slivedb->server_address, &buf_size);
+        slivedb->treestore = (char*)mat_livedb_get_tree(slivedb->server_address, &buf_size);
 
     if(slivedb->treestore) {
-        cur_item = slivedb->treestore;
+        cur_item = (LiveDbItem*)slivedb->treestore;
         cat_cnt  = cur_item->cat_item.cat_cnt;
         mat_cnt  = cur_item->cat_item.mat_cnt;
 
         /* Skip root */
-        cur_item = (char*)cur_item + cur_item->size;
+        cur_item = (LiveDbItem*)((char*)cur_item + cur_item->size);
 
         for (i = 0; i < cat_cnt; ++i)
             mat_livedb_add_element(slivedb, &slivedb->tree, &cur_item, 0);

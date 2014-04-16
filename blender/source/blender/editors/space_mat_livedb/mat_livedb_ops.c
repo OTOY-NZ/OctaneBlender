@@ -66,15 +66,15 @@ void mat_livedb_keymap(struct wmKeyConfig *keyconf)
     wmKeyMap        *keymap = WM_keymap_find(keyconf, "MatLiveDB", SPACE_MAT_LIVEDB, 0);
 
     kmi = WM_keymap_add_item(keymap, "MAT_LIVEDB_OT_item_activate", LEFTMOUSE, KM_CLICK, 0, 0);
-    RNA_boolean_set(kmi->ptr, "extend", FALSE);
+    RNA_boolean_set(kmi->ptr, "extend", 0);
 
     kmi = WM_keymap_add_item(keymap, "MAT_LIVEDB_OT_item_activate", LEFTMOUSE, KM_CLICK, KM_SHIFT, 0);
-    RNA_boolean_set(kmi->ptr, "extend", TRUE);
+    RNA_boolean_set(kmi->ptr, "extend", 1);
 
     kmi = WM_keymap_add_item(keymap, "MAT_LIVEDB_OT_item_openclose", RETKEY, KM_PRESS, 0, 0);
-    RNA_boolean_set(kmi->ptr, "all", FALSE);
+    RNA_boolean_set(kmi->ptr, "all", 0);
     kmi = WM_keymap_add_item(keymap, "MAT_LIVEDB_OT_item_openclose", RETKEY, KM_PRESS, KM_SHIFT, 0);
-    RNA_boolean_set(kmi->ptr, "all", TRUE);
+    RNA_boolean_set(kmi->ptr, "all", 1);
 
     WM_keymap_add_item(keymap, "MAT_LIVEDB_OT_item_rename", LEFTMOUSE, KM_DBL_CLICK, 0, 0);
     WM_keymap_add_item(keymap, "MAT_LIVEDB_OT_item_rename", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);

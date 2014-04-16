@@ -887,7 +887,7 @@ static int edbm_vert_connect_exec(bContext *C, wmOperator *op)
 		}
 	}
 	else {
-		if (!EDBM_op_init(em, &bmop, op, "connect_verts verts=%hv", BM_ELEM_SELECT)) {
+		if (!EDBM_op_init(em, &bmop, op, "connect_verts verts=%hv check_degenerate=%b", BM_ELEM_SELECT, true)) {
 			return OPERATOR_CANCELLED;
 		}
 	}
@@ -1285,7 +1285,7 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 	Mesh *me = obedit->data;
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	ModifierData *md;
-	int mirrx = false, mirry = false, mirrz = false;
+	bool mirrx = false, mirry = false, mirrz = false;
 	int i, repeat;
 	float clip_dist = 0.0f;
 	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
@@ -1370,7 +1370,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	Mesh *me = obedit->data;
 	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
-	int usex = true, usey = true, usez = true, preserve_volume = true;
+	bool usex = true, usey = true, usez = true, preserve_volume = true;
 	int i, repeat;
 	float lambda_factor;
 	float lambda_border;
@@ -3883,7 +3883,7 @@ static void sort_bmelem_flag(Scene *scene, Object *ob,
 	/* Just to mark protected elements. */
 	char *pblock[3] = {NULL, NULL, NULL}, *pb;
 	BMElemSort *sblock[3] = {NULL, NULL, NULL}, *sb;
-	int *map[3] = {NULL, NULL, NULL}, *mp;
+	unsigned int *map[3] = {NULL, NULL, NULL}, *mp;
 	int totelem[3] = {0, 0, 0};
 	int affected[3] = {0, 0, 0};
 	int i, j;
@@ -4055,7 +4055,7 @@ static void sort_bmelem_flag(Scene *scene, Object *ob,
 	}
 
 	else if (action == SRT_SELECTED) {
-		int *tbuf[3] = {NULL, NULL, NULL}, *tb;
+		unsigned int *tbuf[3] = {NULL, NULL, NULL}, *tb;
 
 		if (totelem[0]) {
 			tb = tbuf[0] = MEM_callocN(sizeof(int) * totelem[0], "sort_bmelem vert tbuf");

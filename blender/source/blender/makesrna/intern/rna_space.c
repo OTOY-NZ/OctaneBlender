@@ -399,7 +399,7 @@ static void rna_SpaceView3D_layer_set(PointerRNA *ptr, const int *values)
 
 static void rna_SpaceView3D_layer_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
-	DAG_on_visible_update(bmain, FALSE);
+	DAG_on_visible_update(bmain, false);
 }
 
 static void rna_SpaceView3D_viewport_shade_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -511,10 +511,10 @@ static void rna_RegionView3D_quadview_update(Main *UNUSED(main), Scene *UNUSED(s
 
 	rna_area_region_from_regiondata(ptr, &sa, &ar);
 	if (sa && ar && ar->alignment == RGN_ALIGN_QSPLIT)
-		ED_view3d_quadview_update(sa, ar, FALSE);
+		ED_view3d_quadview_update(sa, ar, false);
 }
 
-/* same as above but call clip==TRUE */
+/* same as above but call clip==true */
 static void rna_RegionView3D_quadview_clip_update(Main *UNUSED(main), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	ScrArea *sa;
@@ -522,7 +522,7 @@ static void rna_RegionView3D_quadview_clip_update(Main *UNUSED(main), Scene *UNU
 
 	rna_area_region_from_regiondata(ptr, &sa, &ar);
 	if (sa && ar && ar->alignment == RGN_ALIGN_QSPLIT)
-		ED_view3d_quadview_update(sa, ar, TRUE);
+		ED_view3d_quadview_update(sa, ar, true);
 }
 
 static void rna_RegionView3D_view_location_get(PointerRNA *ptr, float *values)
@@ -1198,7 +1198,7 @@ static int rna_SpaceNodeEditor_tree_type_poll(void *Cv, bNodeTreeType *type)
 	if (type->poll)
 		return type->poll(C, type);
 	else
-		return TRUE;
+		return true;
 }
 static EnumPropertyItem *rna_SpaceNodeEditor_tree_type_itemf(bContext *C, PointerRNA *UNUSED(ptr),
                                                              PropertyRNA *UNUSED(prop), bool *r_free)
@@ -1230,7 +1230,7 @@ void rna_SpaceNodeEditor_path_start(SpaceNode *snode, bContext *C, PointerRNA *n
 	ED_node_tree_update(C);
 }
 
-void rna_SpaceNodeEditor_path_push(SpaceNode *snode, bContext *C, PointerRNA *node_tree, PointerRNA *node)
+void rna_SpaceNodeEditor_path_append(SpaceNode *snode, bContext *C, PointerRNA *node_tree, PointerRNA *node)
 {
 	ED_node_tree_push(snode, node_tree->data, node->data);
 	ED_node_tree_update(C);
@@ -3350,7 +3350,7 @@ static void rna_def_space_node_path_api(BlenderRNA *brna, PropertyRNA *cprop)
 	parm = RNA_def_pointer(func, "node_tree", "NodeTree", "Node Tree", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_RNAPTR);
 
-	func = RNA_def_function(srna, "push", "rna_SpaceNodeEditor_path_push");
+	func = RNA_def_function(srna, "append", "rna_SpaceNodeEditor_path_append");
 	RNA_def_function_ui_description(func, "Append a node group tree to the path");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	parm = RNA_def_pointer(func, "node_tree", "NodeTree", "Node Tree", "Node tree to append to the node editor path");

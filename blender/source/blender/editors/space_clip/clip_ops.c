@@ -110,10 +110,21 @@ static void sclip_zoom_set(const bContext *C, float zoom, float location[2])
 	}
 
 	if ((U.uiflag & USER_ZOOM_TO_MOUSEPOS) && location) {
+		float dx, dy;
+
 		ED_space_clip_get_size(sc, &width, &height);
 
-		sc->xof += ((location[0] - 0.5f) * width - sc->xof) * (sc->zoom - oldzoom) / sc->zoom;
-		sc->yof += ((location[1] - 0.5f) * height - sc->yof) * (sc->zoom - oldzoom) / sc->zoom;
+		dx = ((location[0] - 0.5f) * width - sc->xof) * (sc->zoom - oldzoom) / sc->zoom;
+		dy = ((location[1] - 0.5f) * height - sc->yof) * (sc->zoom - oldzoom) / sc->zoom;
+
+		if (sc->flag & SC_LOCK_SELECTION) {
+			sc->xlockof += dx;
+			sc->ylockof += dy;
+		}
+		else {
+			sc->xof += dx;
+			sc->yof += dy;
+		}
 	}
 }
 
@@ -609,7 +620,7 @@ static int view_zoom_in_exec(bContext *C, wmOperator *op)
 
 	RNA_float_get_array(op->ptr, "location", location);
 
-	sclip_zoom_set_factor(C, 1.25f, location);
+	sclip_zoom_set_factor(C, powf(2.0f, 1.0f / 3.0f), location);
 
 	ED_region_tag_redraw(CTX_wm_region(C));
 
@@ -652,7 +663,7 @@ static int view_zoom_out_exec(bContext *C, wmOperator *op)
 
 	RNA_float_get_array(op->ptr, "location", location);
 
-	sclip_zoom_set_factor(C, 0.8f, location);
+	sclip_zoom_set_factor(C, powf(0.5f, 1.0f / 3.0f), location);
 
 	ED_region_tag_redraw(CTX_wm_region(C));
 
@@ -1019,7 +1030,7 @@ static void do_movie_proxy(void *pjv, int *UNUSED(build_sizes), int UNUSED(build
 		if (*stop || G.is_break)
 			break;
 
-		*do_update = TRUE;
+		*do_update = true;
 		*progress = ((float) cfra - sfra) / (efra - sfra);
 	}
 
@@ -1512,5 +1523,5 @@ void ED_operatormacros_clip(void)
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "CLIP_OT_add_marker");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-	RNA_boolean_set(otmacro->ptr, "release_confirm", TRUE);
+	RNA_boolean_set(otmacro->ptr, "release_confirm", true);
 }

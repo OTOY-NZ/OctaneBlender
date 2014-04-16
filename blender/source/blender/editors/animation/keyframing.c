@@ -843,7 +843,7 @@ static float visualkey_get_value(PointerRNA *ptr, PropertyRNA *prop, int array_i
  *	the keyframe insertion. These include the 'visual' keyframing modes, quick refresh,
  *	and extra keyframe filtering.
  */
-short insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *prop, FCurve *fcu, float cfra, short flag)
+bool insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *prop, FCurve *fcu, float cfra, short flag)
 {
 	float curval = 0.0f;
 	
@@ -1367,7 +1367,7 @@ static int insert_key_menu_invoke(bContext *C, wmOperator *op, const wmEvent *UN
 	else {
 		/* just call the exec() on the active keyingset */
 		RNA_enum_set(op->ptr, "type", 0);
-		RNA_boolean_set(op->ptr, "confirm_success", TRUE);
+		RNA_boolean_set(op->ptr, "confirm_success", true);
 		
 		return op->type->exec(C, op);
 	}
@@ -1511,7 +1511,7 @@ static int clear_anim_v3d_exec(bContext *C, wmOperator *UNUSED(op))
 			FCurve *fcu, *fcn;
 			
 			for (fcu = act->curves.first; fcu; fcu = fcn) {
-				short can_delete = FALSE;
+				bool can_delete = false;
 				
 				fcn = fcu->next;
 				
@@ -1529,13 +1529,13 @@ static int clear_anim_v3d_exec(bContext *C, wmOperator *UNUSED(op))
 						/* delete if bone is selected*/
 						if ((pchan) && (pchan->bone)) {
 							if (pchan->bone->flag & BONE_SELECTED)
-								can_delete = TRUE;
+								can_delete = true;
 						}
 					}
 				}
 				else {
 					/* object mode - all of Object's F-Curves are affected */
-					can_delete = TRUE;
+					can_delete = true;
 				}
 				
 				/* delete F-Curve completely */
@@ -1930,7 +1930,7 @@ bool fcurve_frame_has_keyframe(FCurve *fcu, float frame, short filter)
 /* Checks whether an Action has a keyframe for a given frame 
  * Since we're only concerned whether a keyframe exists, we can simply loop until a match is found...
  */
-static short action_frame_has_keyframe(bAction *act, float frame, short filter)
+static bool action_frame_has_keyframe(bAction *act, float frame, short filter)
 {
 	FCurve *fcu;
 	
@@ -1958,7 +1958,7 @@ static short action_frame_has_keyframe(bAction *act, float frame, short filter)
 }
 
 /* Checks whether an Object has a keyframe for a given frame */
-static short object_frame_has_keyframe(Object *ob, float frame, short filter)
+static bool object_frame_has_keyframe(Object *ob, float frame, short filter)
 {
 	/* error checking */
 	if (ob == NULL)
@@ -2016,7 +2016,7 @@ static short object_frame_has_keyframe(Object *ob, float frame, short filter)
 /* --------------- API ------------------- */
 
 /* Checks whether a keyframe exists for the given ID-block one the given frame */
-short id_frame_has_keyframe(ID *id, float frame, short filter)
+bool id_frame_has_keyframe(ID *id, float frame, short filter)
 {
 	/* sanity checks */
 	if (id == NULL)
@@ -2049,7 +2049,7 @@ short id_frame_has_keyframe(ID *id, float frame, short filter)
 
 /* ************************************************** */
 
-int ED_autokeyframe_object(bContext *C, Scene *scene, Object *ob, KeyingSet *ks)
+bool ED_autokeyframe_object(bContext *C, Scene *scene, Object *ob, KeyingSet *ks)
 {
 	/* auto keyframing */
 	if (autokeyframe_cfra_can_key(scene, &ob->id)) {
@@ -2064,14 +2064,14 @@ int ED_autokeyframe_object(bContext *C, Scene *scene, Object *ob, KeyingSet *ks)
 		ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)CFRA);
 		BLI_freelistN(&dsources);
 
-		return TRUE;
+		return true;
 	}
 	else {
-		return FALSE;
+		return false;
 	}
 }
 
-int ED_autokeyframe_pchan(bContext *C, Scene *scene, Object *ob, bPoseChannel *pchan, KeyingSet *ks)
+bool ED_autokeyframe_pchan(bContext *C, Scene *scene, Object *ob, bPoseChannel *pchan, KeyingSet *ks)
 {
 	if (autokeyframe_cfra_can_key(scene, &ob->id)) {
 		ListBase dsources = {NULL, NULL};
@@ -2090,7 +2090,7 @@ int ED_autokeyframe_pchan(bContext *C, Scene *scene, Object *ob, bPoseChannel *p
 			pchan->bone->flag &= ~BONE_UNKEYED;
 		}
 
-		return TRUE;
+		return true;
 	}
 	else {
 		/* add unkeyed tags */
@@ -2098,6 +2098,6 @@ int ED_autokeyframe_pchan(bContext *C, Scene *scene, Object *ob, bPoseChannel *p
 			pchan->bone->flag |= BONE_UNKEYED;
 		}
 
-		return FALSE;
+		return false;
 	}
 }

@@ -41,7 +41,6 @@ ccl_device bool BVH_FUNCTION_NAME
 	 * - test if pushing distance on the stack helps (for non shadow rays)
 	 * - separate version for shadow rays
 	 * - likely and unlikely for if() statements
-	 * - SSE for hair
 	 * - test restrict attribute for pointers
 	 */
 	
@@ -56,16 +55,17 @@ ccl_device bool BVH_FUNCTION_NAME
 	/* ray parameters in registers */
 	const float tmax = ray->t;
 	float3 P = ray->P;
-	float3 idir = bvh_inverse_direction(ray->D);
-	int object = ~0;
+	float3 dir = bvh_clamp_direction(ray->D);
+	float3 idir = bvh_inverse_direction(dir);
+	int object = OBJECT_NONE;
 
 #if FEATURE(BVH_MOTION)
 	Transform ob_tfm;
 #endif
 
 	isect->t = tmax;
-	isect->object = ~0;
-	isect->prim = ~0;
+	isect->object = OBJECT_NONE;
+	isect->prim = PRIM_NONE;
 	isect->u = 0.0f;
 	isect->v = 0.0f;
 
@@ -250,26 +250,40 @@ ccl_device bool BVH_FUNCTION_NAME
 					/* primitive intersection */
 					while(primAddr < primAddr2) {
 						bool hit;
+						uint type = kernel_tex_fetch(__prim_type, primAddr);
 
-						/* intersect ray against primitive */
+						switch(type & PRIMITIVE_ALL) {
+							case PRIMITIVE_TRIANGLE: {
+								hit = triangle_intersect(kg, isect, P, dir, visibility, object, primAddr);
+								break;
+							}
+							case PRIMITIVE_MOTION_TRIANGLE: {
+								hit = motion_triangle_intersect(kg, isect, P, dir, ray->time, visibility, object, primAddr);
+								break;
+							}
 #if FEATURE(BVH_HAIR)
-						uint segment = kernel_tex_fetch(__prim_segment, primAddr);
-						if(segment != ~0) {
-
-							if(kernel_data.curve.curveflags & CURVE_KN_INTERPOLATE) 
+							case PRIMITIVE_CURVE:
+							case PRIMITIVE_MOTION_CURVE: {
 #if FEATURE(BVH_HAIR_MINIMUM_WIDTH)
-								hit = bvh_cardinal_curve_intersect(kg, isect, P, idir, visibility, object, primAddr, segment, lcg_state, difl, extmax);
-							else
-								hit = bvh_curve_intersect(kg, isect, P, idir, visibility, object, primAddr, segment, lcg_state, difl, extmax);
+								if(kernel_data.curve.curveflags & CURVE_KN_INTERPOLATE) 
+									hit = bvh_cardinal_curve_intersect(kg, isect, P, dir, visibility, object, primAddr, ray->time, type, lcg_state, difl, extmax);
+								else
+									hit = bvh_curve_intersect(kg, isect, P, dir, visibility, object, primAddr, ray->time, type, lcg_state, difl, extmax);
 #else
-								hit = bvh_cardinal_curve_intersect(kg, isect, P, idir, visibility, object, primAddr, segment);
-							else
-								hit = bvh_curve_intersect(kg, isect, P, idir, visibility, object, primAddr, segment);
+								if(kernel_data.curve.curveflags & CURVE_KN_INTERPOLATE) 
+									hit = bvh_cardinal_curve_intersect(kg, isect, P, dir, visibility, object, primAddr, ray->time, type);
+								else
+									hit = bvh_curve_intersect(kg, isect, P, dir, visibility, object, primAddr, ray->time, type);
 #endif
+
+								break;
+							}
+#endif
+							default: {
+								hit = false;
+								break;
+							}
 						}
-						else
-#endif
-							hit = bvh_triangle_intersect(kg, isect, P, idir, visibility, object, primAddr);
 
 						/* shadow ray early termination */
 #if defined(__KERNEL_SSE2__)
@@ -293,9 +307,9 @@ ccl_device bool BVH_FUNCTION_NAME
 					object = kernel_tex_fetch(__prim_object, -primAddr-1);
 
 #if FEATURE(BVH_MOTION)
-					bvh_instance_motion_push(kg, object, ray, &P, &idir, &isect->t, &ob_tfm, tmax);
+					bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &isect->t, &ob_tfm, tmax);
 #else
-					bvh_instance_push(kg, object, ray, &P, &idir, &isect->t, tmax);
+					bvh_instance_push(kg, object, ray, &P, &dir, &idir, &isect->t, tmax);
 #endif
 
 #if defined(__KERNEL_SSE2__)
@@ -319,13 +333,13 @@ ccl_device bool BVH_FUNCTION_NAME
 
 #if FEATURE(BVH_INSTANCING)
 		if(stackPtr >= 0) {
-			kernel_assert(object != ~0);
+			kernel_assert(object != OBJECT_NONE);
 
 			/* instance pop */
 #if FEATURE(BVH_MOTION)
-			bvh_instance_motion_pop(kg, object, ray, &P, &idir, &isect->t, &ob_tfm, tmax);
+			bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &isect->t, &ob_tfm, tmax);
 #else
-			bvh_instance_pop(kg, object, ray, &P, &idir, &isect->t, tmax);
+			bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &isect->t, tmax);
 #endif
 
 #if defined(__KERNEL_SSE2__)
@@ -338,14 +352,14 @@ ccl_device bool BVH_FUNCTION_NAME
 			gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
 
-			object = ~0;
+			object = OBJECT_NONE;
 			nodeAddr = traversalStack[stackPtr];
 			--stackPtr;
 		}
 #endif
 	} while(nodeAddr != ENTRYPOINT_SENTINEL);
 
-	return (isect->prim != ~0);
+	return (isect->prim != PRIM_NONE);
 }
 
 #undef FEATURE

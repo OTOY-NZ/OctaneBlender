@@ -231,6 +231,9 @@ MINLINE int is_power_of_2_i(int n);
 MINLINE int power_of_2_max_i(int n);
 MINLINE int power_of_2_min_i(int n);
 
+MINLINE unsigned int power_of_2_max_u(unsigned int x);
+MINLINE unsigned int power_of_2_min_u(unsigned int x);
+
 MINLINE int iroundf(float a);
 MINLINE int divide_round_i(int a, int b);
 MINLINE int mod_i(int i, int n);
@@ -271,8 +274,8 @@ double double_round(double x, int ndigits);
 
 #  define BLI_ASSERT_UNIT_QUAT(q)  {                                          \
 	const float _test_unit = dot_qtqt(q, q);                                  \
-	BLI_assert((fabsf(_test_unit - 1.0f) < BLI_ASSERT_UNIT_EPSILON) ||        \
-	           (fabsf(_test_unit)        < BLI_ASSERT_UNIT_EPSILON));         \
+	BLI_assert((fabsf(_test_unit - 1.0f) < BLI_ASSERT_UNIT_EPSILON * 10) ||   \
+	           (fabsf(_test_unit)        < BLI_ASSERT_UNIT_EPSILON * 10));    \
 } (void)0
 
 #  define BLI_ASSERT_ZERO_M3(m)  {                                            \
