@@ -545,6 +545,10 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         row1.prop(cdata, "use_subdivision", text=" ")
         row1.prop(cdata, "subdiv_divider", text="Divider")
 
+        layout.prop(cdata, "vis_general")
+        layout.prop(cdata, "vis_cam")
+        layout.prop(cdata, "vis_shadow")
+
 
 class OctaneObject_PT_octane_properties(OctaneButtonsPanel, Panel):
     bl_label = "Octane properties"

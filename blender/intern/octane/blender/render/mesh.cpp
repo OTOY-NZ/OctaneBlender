@@ -39,6 +39,10 @@ Mesh::Mesh() {
 	need_update     = true;
     use_subdivision = false;
     subdiv_divider  = 1.0f;
+
+    vis_general     = 1.0f;
+	vis_cam         = true;
+	vis_shadow      = true;
 } //Mesh()
 
 Mesh::~Mesh() {
@@ -150,6 +154,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         size_t          *uv_indices_size        = new size_t[ulLocalCnt];
         bool            *use_subdivision        = new bool[ulLocalCnt];
         float           *subdiv_divider         = new float[ulLocalCnt];
+        float           *general_vis            = new float[ulLocalCnt];
+        bool            *cam_vis                = new bool[ulLocalCnt];
+        bool            *shadow_vis             = new bool[ulLocalCnt];
 
         uint64_t i = 0;
         vector<Mesh*>::iterator it;
@@ -191,6 +198,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             uv_indices_size[i]      = mesh->uv_indices.size();
             use_subdivision[i]      = mesh->use_subdivision;
             subdiv_divider[i]       = mesh->subdiv_divider;
+            general_vis[i]          = mesh->vis_general;
+            cam_vis[i]              = mesh->vis_cam;
+            shadow_vis[i]           = mesh->vis_shadow;
 
         	if(mesh->need_update) mesh->need_update = false;
     		if(progress.get_cancel()) return;
@@ -217,7 +227,10 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         uv_indices,
                                         uv_indices_size,
                                         use_subdivision,
-                                        subdiv_divider);
+                                        subdiv_divider,
+                                        general_vis,
+                                        cam_vis,
+                                        shadow_vis);
         }
         delete[] mesh_names;
         delete[] used_shaders_size;
@@ -239,6 +252,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] uv_indices_size;
         delete[] use_subdivision;
         delete[] subdiv_divider;
+        delete[] general_vis;
+        delete[] cam_vis;
+        delete[] shadow_vis;
     }
     if(global_update) {
         progress.set_status("Loading global Mesh to render-server", "");
@@ -271,6 +287,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             size_t          *uv_indices_size        = new size_t[obj_cnt];
             bool            *use_subdivision        = new bool[obj_cnt];
             float           *subdiv_divider         = new float[obj_cnt];
+            float           *general_vis            = new float[obj_cnt];
+            bool            *cam_vis                = new bool[obj_cnt];
+            bool            *shadow_vis             = new bool[obj_cnt];
 
             obj_cnt = 0;
             for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
@@ -313,6 +332,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     uv_indices_size[obj_cnt]      = mesh->uv_indices.size();
                     use_subdivision[obj_cnt]      = mesh->use_subdivision;
                     subdiv_divider[obj_cnt]       = mesh->subdiv_divider;
+                    general_vis[obj_cnt]          = mesh->vis_general;
+                    cam_vis[obj_cnt]              = mesh->vis_cam;
+                    shadow_vis[obj_cnt]           = mesh->vis_shadow;
 
         	        if(mesh->need_update) mesh->need_update = false;
     		        if(progress.get_cancel()) return;
@@ -340,7 +362,10 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         uv_indices,
                                         uv_indices_size,
                                         use_subdivision,
-                                        subdiv_divider);
+                                        subdiv_divider,
+                                        general_vis,
+                                        cam_vis,
+                                        shadow_vis);
             delete[] used_shaders_size;
             delete[] shader_names;
             delete[] points;
@@ -360,6 +385,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             delete[] uv_indices_size;
             delete[] use_subdivision;
             delete[] subdiv_divider;
+            delete[] general_vis;
+            delete[] cam_vis;
+            delete[] shadow_vis;
         }
     }
     std::string cur_name("__global");

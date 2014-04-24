@@ -495,6 +495,7 @@ void BlenderSession::render() {
         session->params.samples = session->params.samples / mb_samples;
     if(session->params.samples < 1) session->params.samples = 1;
 	
+    bool stop_render = false;
 	for(render.layers.begin(b_iter); b_iter != render.layers.end(); ++b_iter) {
 		b_rlay_name = b_iter->name();
 
@@ -532,7 +533,10 @@ void BlenderSession::render() {
 
                 sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
 
-                if(session->progress.get_cancel()) break;
+                if(session->progress.get_cancel()) {
+                    stop_render = true;
+                    break;
+                }
             }
       		b_scene.frame_set(cur_frame, 0);
         }
@@ -591,7 +595,10 @@ void BlenderSession::render() {
 
                     sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
 
-                    if(session->progress.get_cancel()) break;
+                    if(session->progress.get_cancel()) {
+                        stop_render = true;
+                        break;
+                    }
                 }
       		    b_scene.frame_set(cur_frame, 0);
             }
@@ -609,9 +616,15 @@ void BlenderSession::render() {
             ++ready_passes;
             write_render_img();
 
-            if(session->progress.get_cancel()) break;
+            if(session->progress.get_cancel()) {
+                stop_render = true;
+                break;
+            }
         }
-        if(session->progress.get_cancel()) break;
+        if(session->progress.get_cancel()) {
+            stop_render = true;
+            break;
+        }
 	} //for(r.layers.begin(b_iter); b_iter != r.layers.end(); ++b_iter)
     for(int i=0; i < NUM_PASSES; ++i) {
         if(pass_buffers[i]) {
@@ -626,7 +639,7 @@ void BlenderSession::render() {
     num_passes   = -1;
     ready_passes = -1;
 
-    if(!b_engine.is_animation() || b_scene.frame_current() >= b_scene.frame_end())
+    if(stop_render || !b_engine.is_animation() || b_scene.frame_current() >= b_scene.frame_end())
         session->server->stop_render(session_params.fps);
 } //render()
 

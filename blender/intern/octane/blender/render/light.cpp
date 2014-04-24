@@ -150,6 +150,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         size_t          *uv_indices_size        = new size_t[ulLocalCnt];
         bool            *use_subdivision        = new bool[ulLocalCnt];
         float           *subdiv_divider         = new float[ulLocalCnt];
+        float           *general_vis            = new float[ulLocalCnt];
+        bool            *cam_vis                = new bool[ulLocalCnt];
+        bool            *shadow_vis             = new bool[ulLocalCnt];
 
         uint64_t i = 0;
     	for(size_t n = 0; n < scene->lights.size(); n++) {
@@ -205,6 +208,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             uv_indices_size[i]      = light->mesh->uv_indices.size();
             use_subdivision[i]      = light->mesh->use_subdivision;
             subdiv_divider[i]       = light->mesh->subdiv_divider;
+            general_vis[i]          = 1.f;
+            cam_vis[i]              = true;
+            shadow_vis[i]           = true;
 
        	    if(light->need_update) light->need_update = false;
     		if(progress.get_cancel()) return;
@@ -231,7 +237,10 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         uv_indices,
                                         uv_indices_size,
                                         use_subdivision,
-                                        subdiv_divider);
+                                        subdiv_divider,
+                                        general_vis,
+                                        cam_vis,
+                                        shadow_vis);
         }
         delete[] mesh_names;
         delete[] used_shaders_size;
@@ -253,6 +262,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] uv_indices_size;
         delete[] use_subdivision;
         delete[] subdiv_divider;
+        delete[] general_vis;
+        delete[] cam_vis;
+        delete[] shadow_vis;
     }
     if(global_update) {
         progress.set_status("Loading global Lights to render-server", "");
@@ -302,6 +314,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         size_t          *uv_indices_size        = new size_t[obj_cnt];
         bool            *use_subdivision        = new bool[obj_cnt];
         float           *subdiv_divider         = new float[obj_cnt];
+        float           *general_vis            = new float[obj_cnt];
+        bool            *cam_vis                = new bool[obj_cnt];
+        bool            *shadow_vis             = new bool[obj_cnt];
 
         obj_cnt = 0;
         for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
@@ -358,6 +373,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 uv_indices_size[obj_cnt]      = light->mesh->uv_indices.size();
                 use_subdivision[obj_cnt]      = light->mesh->use_subdivision;
                 subdiv_divider[obj_cnt]       = light->mesh->subdiv_divider;
+                general_vis[obj_cnt]          = 1.f;
+                cam_vis[obj_cnt]              = true;
+                shadow_vis[obj_cnt]           = true;
 
           	    if(light->need_update) light->need_update = false;
     		    if(progress.get_cancel()) return;
@@ -386,7 +404,10 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         uv_indices,
                                         uv_indices_size,
                                         use_subdivision,
-                                        subdiv_divider);
+                                        subdiv_divider,
+                                        general_vis,
+                                        cam_vis,
+                                        shadow_vis);
             for(size_t n = 0; n < obj_cnt; n++) {
                 delete[] points[n];
                 delete[] normals[n];
@@ -411,6 +432,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] uv_indices_size;
         delete[] use_subdivision;
         delete[] subdiv_divider;
+        delete[] general_vis;
+        delete[] cam_vis;
+        delete[] shadow_vis;
     }
 } //server_update()
 

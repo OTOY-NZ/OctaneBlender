@@ -19,6 +19,10 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
+#define OCTANE_SERVER_MAJOR_VERSION 4
+#define OCTANE_SERVER_MINOR_VERSION 6
+#define OCTANE_SERVER_VERSION (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
+
 #undef htonl
 #undef ntohl
 
@@ -49,6 +53,8 @@
 #include "environment.h"
 
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "util_string.h"
 #include "util_thread.h"
@@ -618,6 +624,44 @@ public:
 
 
 
+    // Get server compatibility
+    inline bool check_server_version() {
+        if(socket < 0) return false;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+
+        RPCSend snd(socket, 0, DESCRIPTION);
+        snd.write();
+
+        RPCReceive rcv(socket);
+        if(rcv.type != DESCRIPTION) {
+            rcv >> error_msg;
+            fprintf(stderr, "Octane: ERROR getting render-server version.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
+            return false;
+        }
+        else {
+            uint32_t maj_num, min_num;
+            rcv >> maj_num >> min_num;
+
+            if(maj_num != OCTANE_SERVER_MAJOR_VERSION || min_num != OCTANE_SERVER_MINOR_VERSION) {
+                fprintf(stderr, "Octane: ERROR: Wrong version of render-server (%d.%d), %d.%d is needed\n",
+                        maj_num, min_num, OCTANE_SERVER_MAJOR_VERSION, OCTANE_SERVER_MINOR_VERSION);
+
+                if(socket >= 0)
+#ifndef WIN32
+                    close(socket);
+#else
+                    closesocket(socket);
+#endif
+                socket = -1;
+                return false;
+            }
+            else return true;
+        }
+    } //check_server_version()
+
     // Activate the Octane license on server
     inline int activate(string& sStandLogin, string& sStandPass, string& sLogin, string& sPass) {
         if(socket < 0) return 0;
@@ -1044,14 +1088,17 @@ public:
                                     int             **uv_indices,
                                     uint64_t        *uv_indices_size,
                                     bool            *subdivide,
-                                    float           *subdiv_divider) {
+                                    float           *subdiv_divider,
+                                    float           *general_vis,
+                                    bool            *cam_vis,
+                                    bool            *shadow_vis) {
             if(socket < 0) return;
 
             thread_scoped_lock socket_lock(socket_mutex);
 
             {
                 uint64_t size = sizeof(uint64_t) //Meshes count;
-                    + sizeof(int32_t) * mesh_cnt + sizeof(float) * mesh_cnt //Subdivision addributes
+                    + sizeof(int32_t) * 3 * mesh_cnt + sizeof(float) * 2 * mesh_cnt //Subdivision addributes
                     + sizeof(uint64_t) * 8 * mesh_cnt;
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     size +=
@@ -1089,7 +1136,7 @@ public:
                     snd.write_float3_buffer(points[i], points_size[i]);
                     if(normals_size[i]) snd.write_float3_buffer(normals[i], normals_size[i]);
                     if(uvs_size[i]) snd.write_float3_buffer(uvs[i], uvs_size[i]);
-                    snd << subdiv_divider[i];
+                    snd << subdiv_divider[i] << general_vis[i];
                 }
 
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
@@ -1098,7 +1145,7 @@ public:
                     snd.write_buffer(poly_mat_index[i], vert_per_poly_size[i] * sizeof(int32_t));
                     if(normals_indices_size[i]) snd.write_buffer(normals_indices[i], normals_indices_size[i] * sizeof(int32_t));
                     if(uv_indices_size[i]) snd.write_buffer(uv_indices[i], uv_indices_size[i] * sizeof(int32_t));
-                    snd << subdivide[i];
+                    snd << subdivide[i] << cam_vis[i] << shadow_vis[i];
                 }
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     if(!global) snd << names[i];
@@ -1620,6 +1667,15 @@ public:
         return file_name;
     }
 
+    inline uint64_t get_file_time(string &full_path) {
+        if(!full_path.length()) return 0;
+
+        struct stat attrib;
+        stat(full_path.c_str(), &attrib);
+
+        return static_cast<uint64_t>(attrib.st_mtime);
+    }
+
     inline bool send_file(string &file_path, string &file_name) {
         FILE *hFile = fopen(file_path.c_str(), "rb");
         if(hFile) {
@@ -1660,9 +1716,10 @@ public:
     inline void load_image_tex(OctaneImageTexture* node) {
         if(socket < 0) return;
 
-        string file_name = get_file_name(node->FileName);
+        uint64_t mod_time = get_file_time(node->FileName);
+        string file_name  = get_file_name(node->FileName);
 
-        uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
+        uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
             + file_name.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
@@ -1674,7 +1731,7 @@ public:
 
         {
             RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma_default_val
+            snd << mod_time << node->Power_default_val << node->Gamma_default_val
                 << node->BorderMode_default_val << node->Invert
                 << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
@@ -1692,7 +1749,7 @@ public:
         if(file_is_needed && send_file(node->FileName, file_name)) {
             {
                 RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
-                snd << node->Power_default_val << node->Gamma_default_val
+                snd << mod_time << node->Power_default_val << node->Gamma_default_val
                     << node->BorderMode_default_val << node->Invert
                     << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();
@@ -1712,9 +1769,10 @@ public:
     inline void load_float_image_tex(OctaneFloatImageTexture* node) {
         if(socket < 0) return;
 
-        string file_name = get_file_name(node->FileName);
+        uint64_t mod_time = get_file_time(node->FileName);
+        string file_name  = get_file_name(node->FileName);
 
-        uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
+        uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
             + file_name.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
@@ -1726,7 +1784,7 @@ public:
 
         {
             RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma_default_val
+            snd << mod_time << node->Power_default_val << node->Gamma_default_val
                 << node->BorderMode_default_val << node->Invert
                 << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
@@ -1744,7 +1802,7 @@ public:
         if(file_is_needed && send_file(node->FileName, file_name)) {
             {
                 RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
-                snd << node->Power_default_val << node->Gamma_default_val
+                snd << mod_time << node->Power_default_val << node->Gamma_default_val
                     << node->BorderMode_default_val << node->Invert
                     << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();
@@ -1764,9 +1822,10 @@ public:
     inline void load_alpha_image_tex(OctaneAlphaImageTexture* node) {
         if(socket < 0) return;
 
-        string file_name = get_file_name(node->FileName);
+        uint64_t mod_time = get_file_time(node->FileName);
+        string file_name  = get_file_name(node->FileName);
 
-        uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 2
+        uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
             + file_name.length() + 2
             + node->Power.length() + 2
             + node->Projection.length() + 2
@@ -1778,7 +1837,7 @@ public:
 
         {
             RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
-            snd << node->Power_default_val << node->Gamma_default_val
+            snd << mod_time << node->Power_default_val << node->Gamma_default_val
                 << node->BorderMode_default_val << node->Invert
                 << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
             snd.write();
@@ -1796,7 +1855,7 @@ public:
         if(file_is_needed && send_file(node->FileName, file_name)) {
             {
                 RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
-                snd << node->Power_default_val << node->Gamma_default_val
+                snd << mod_time << node->Power_default_val << node->Gamma_default_val
                     << node->BorderMode_default_val << node->Invert
                     << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();

@@ -33,7 +33,10 @@ char RenderServer::out_path[256] = "";
 RenderServer *RenderServer::create(RenderServerInfo& info, bool export_alembic, const char *_out_path, bool interactive) {
 	RenderServer *server = new RenderServer(info.net_address, _out_path, export_alembic, interactive);
 
-	if(server) server->info = info;
+    if(server) {
+        server->info = info;
+        server->check_server_version();
+    }
 
 	return server;
 } //create()

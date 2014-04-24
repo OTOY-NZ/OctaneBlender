@@ -57,6 +57,9 @@ public:
     bool        use_subdivision;
     float       subdiv_divider;
     bool        empty;
+    float       vis_general;
+    bool        vis_cam;
+    bool        vis_shadow;
 
 	vector<float3>	points;
 	vector<float3>	normals;

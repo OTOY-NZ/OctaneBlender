@@ -946,6 +946,22 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 min=1.000, max=1000.0, soft_max=10.0,
                 default=1.0,
                 )
+        cls.vis_general = FloatProperty(
+                name="General visibility",
+                description="",
+                min=0.0, max=1.0, soft_max=1.0,
+                default=1.0,
+                )
+        cls.vis_cam = BoolProperty(
+                name="Camera visibility",
+                description="",
+                default=True,
+                )
+        cls.vis_shadow = BoolProperty(
+                name="Shadow visibility",
+                description="",
+                default=True,
+                )
 
     @classmethod
     def unregister(cls):
