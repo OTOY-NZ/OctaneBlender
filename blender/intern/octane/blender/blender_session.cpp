@@ -479,10 +479,12 @@ void BlenderSession::render() {
 	SessionParams	session_params	= BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
     if(session_params.export_alembic) {
 	    session->update_scene_to_server();
-        session->server->start_render(session_params.width, session_params.height, 0);
+        session->server->start_render(width, height, 0);
 
-        if(b_scene.frame_current() >= b_scene.frame_end())
+        if(b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
+    		session->progress.set_status("Transferring alembic file...");
             session->server->stop_render(session_params.fps);
+        }
         return;
     }
 	BufferParams	buffer_params	= BlenderSync::get_display_buffer_params(scene->camera, width, height);

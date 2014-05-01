@@ -20,8 +20,10 @@
 #define __SERVER_H__
 
 #define OCTANE_SERVER_MAJOR_VERSION 4
-#define OCTANE_SERVER_MINOR_VERSION 7
+#define OCTANE_SERVER_MINOR_VERSION 8
 #define OCTANE_SERVER_VERSION (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
+
+#define FILE_BUFFER_SIZE 128000000
 
 #undef htonl
 #undef ntohl
@@ -107,6 +109,7 @@ enum PacketType {
     //LOAD_IMAGER,
     //LOAD_POSTPROCESSOR,
     LOAD_SUNSKY,
+    LOAD_FILE,
 
     FIRST_NAMED_PACKET,
     LOAD_GLOBAL_MESH = FIRST_NAMED_PACKET,
@@ -213,7 +216,7 @@ typedef struct RPCSend {
             name_len = 0;
             name_buf_len = 0;
         }
-        buf_pointer = buffer = new uint8_t[static_cast<unsigned int>(buf_size)];
+        buf_pointer = buffer = new uint8_t[buf_size];
 
         *reinterpret_cast<uint64_t*>(buf_pointer) = static_cast<uint64_t>(type_);
         buf_pointer += sizeof(uint64_t);
@@ -253,6 +256,14 @@ typedef struct RPCSend {
         if(buffer && (buf_pointer+sizeof(double) <= buffer+buf_size)) {
             *reinterpret_cast<double*>(buf_pointer) = val;
             buf_pointer += sizeof(double);
+        }
+        return *this;
+    }
+
+    inline RPCSend& operator<<(int64_t& val) {
+        if(buffer && (buf_pointer+sizeof(int64_t) <= buffer+buf_size)) {
+            *reinterpret_cast<int64_t*>(buf_pointer) = val;
+            buf_pointer += sizeof(int64_t);
         }
         return *this;
     }
@@ -342,16 +353,54 @@ typedef struct RPCSend {
         if(!buffer) return false;
 
         if(::send(socket, (const char*)buffer, static_cast<unsigned int>(buf_size), 0) < 0) {
-            cout << "Octane: Network send error\n";
             return false;
         }
-        else {
-            delete[] buffer;
-            buffer      = 0;
-            buf_size    = 0;
-            buf_pointer = 0;
-        }
+        delete[] buffer;
+        buffer      = 0;
+        buf_size    = 0;
+        buf_pointer = 0;
+
         return true;
+    }
+
+    inline bool write_file(string &path) {
+        if(!buffer || !buf_size || !path.length()) return false;
+        bool ret = false;
+
+        FILE *hFile = fopen(path.c_str(), "rb");
+        if(!hFile) goto exit3;
+        _fseeki64(hFile, 0, SEEK_END);
+        int64_t file_size = _ftelli64(hFile);
+        rewind(hFile);
+
+        reinterpret_cast<uint64_t*>(buffer)[1] = file_size;
+        if(::send(socket, (const char*)buffer, sizeof(uint64_t) * 2, 0) < 0)
+            goto exit2;
+
+        uint8_t *buf = new uint8_t[file_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : file_size];
+        while(buf && file_size) {
+            unsigned int size_to_read = (file_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : file_size);
+
+            if(!fread(buf, size_to_read, 1, hFile))
+                goto exit1;
+
+            if(::send(socket, (const char*)buf, size_to_read, 0) < 0)
+                goto exit1;
+
+            file_size -= size_to_read;
+        }
+        ret = true;
+exit1:
+        if(buf) delete[] buf;
+exit2:
+        fclose(hFile);
+exit3:
+        delete[] buffer;
+        buf_pointer = buffer = 0;
+        type = NONE;
+        buf_size = 0;
+
+        return ret;
     }
 
 private:
@@ -382,14 +431,25 @@ typedef struct RPCReceive {
         }
 
         if(buf_size > 0) {
-            buf_pointer = buffer = new uint8_t[static_cast<unsigned int>(buf_size)];
-
-            if(::recv(socket_, (char*)buffer, static_cast<unsigned int>(buf_size), MSG_WAITALL) != buf_size) {
-                delete[] buffer;
-                buf_pointer = buffer = 0;
-                type = NONE;
-                buf_size = 0;
-                return;
+            if(type == LOAD_FILE) {
+                buf_pointer = buffer = new uint8_t[buf_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : buf_size];
+                if(!buffer) {
+                    delete[] buffer;
+                    buf_pointer = buffer = 0;
+                    type = NONE;
+                    buf_size = 0;
+                    return;
+                }
+            }
+            else {
+                buf_pointer = buffer = new uint8_t[buf_size];
+                if(::recv(socket_, (char*)buffer, static_cast<unsigned int>(buf_size), MSG_WAITALL) != buf_size) {
+                    delete[] buffer;
+                    buf_pointer = buffer = 0;
+                    type = NONE;
+                    buf_size = 0;
+                    return;
+                }
             }
         }
         if(buffer && type >= FIRST_NAMED_PACKET && type <= LAST_NAMED_PACKET) {
@@ -402,6 +462,36 @@ typedef struct RPCReceive {
 
     ~RPCReceive() {
         if(buffer) delete[] buffer;
+    }
+
+    inline bool read_file(std::string &path) {
+        if(!buffer || !buf_size || !path.length()) return false;
+
+        if(path[path.length() - 1] == '/' || path[path.length() - 1] == '\\')
+            path.operator+=(name);
+
+        FILE *hFile = fopen(path.c_str(), "wb");
+        if(!hFile) return false;
+
+        uint64_t cur_size = buf_size;
+        while(cur_size) {
+            unsigned int size_to_read = (cur_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : cur_size);
+            if(::recv(socket, (char*)buffer, size_to_read, MSG_WAITALL) != size_to_read) {
+                fclose(hFile);
+                delete[] buffer;
+                buf_pointer = buffer = 0;
+                type = NONE;
+                buf_size = 0;
+                return false;
+            }
+            fwrite(buffer, size_to_read, 1, hFile);
+            cur_size -= size_to_read;
+        }
+        delete[] buffer;
+        buf_pointer = buffer = 0;
+        type = NONE;
+        buf_size = 0;
+        fclose(hFile);
     }
 
     inline RPCReceive& operator>>(float& val) {
@@ -426,6 +516,15 @@ typedef struct RPCReceive {
         if(buffer && (buf_pointer+sizeof(uint32_t) <= buffer+buf_size)) {
             val = (*reinterpret_cast<uint32_t*>(buf_pointer) != 0);
             buf_pointer += sizeof(uint32_t);
+        }
+        else val = 0;
+        return *this;
+    }
+
+    inline RPCReceive& operator>>(int64_t& val) {
+        if(buffer && (buf_pointer+sizeof(int64_t) <= buffer+buf_size)) {
+            val = *reinterpret_cast<int64_t*>(buf_pointer);
+            buf_pointer += sizeof(int64_t);
         }
         else val = 0;
         return *this;
@@ -800,17 +899,15 @@ public:
             else fprintf(stderr, "\n");
         }
         else if(m_Export_alembic && strlen(out_path)) {
-            uint32_t len;
-            rcv >> len;
-            if(len) {
-                char *pBuf = (char*)rcv.read_buffer(len);
-                if(pBuf) {
-                    FILE *hFile = fopen(out_path, "wb");
-                    if(hFile) {
-                        fwrite(pBuf, len, 1, hFile);
-                        fclose(hFile);
-                    }
-                }
+            RPCReceive rcv(socket);
+            if(rcv.type != LOAD_FILE) {
+                rcv >> error_msg;
+                fprintf(stderr, "Octane: ERROR downloading alembic file from server.");
+                if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                else fprintf(stderr, "\n");
+            }
+            if(!rcv.read_file(std::string(out_path))) {
+                fprintf(stderr, "Octane: ERROR downloading alembic file from server.");
             }
         }
     } //stop_render()
