@@ -100,7 +100,10 @@ void BlenderSync::sync_camera(BL::Object b_override, int width, int height) {
         cam->matrix = scene->matrix * get_transform(b_ob.matrix_world());
         float2 offset = {0};
         load_camera_from_object(cam, b_ob, width, height, 1.0f, offset);
+        cam->is_hidden = (scene->use_viewport_hide ? b_ob.hide() : b_ob.hide_render());
     }
+    else
+        cam->is_hidden = true;
 } //sync_camera()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,6 +116,7 @@ void BlenderSync::sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int 
 
     float2 offset = {0};
     load_camera_from_view(cam, b_scene, b_v3d, b_rv3d, width, height, offset);
+    cam->is_hidden = false;
 } //sync_view()
 
 

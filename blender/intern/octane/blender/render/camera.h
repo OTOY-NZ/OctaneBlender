@@ -108,6 +108,7 @@ public:
     CameraType  type;
     Transform   matrix;
     int         width, height;
+    bool        is_hidden;
 
     float sensorwidth;
     float sensorheight;

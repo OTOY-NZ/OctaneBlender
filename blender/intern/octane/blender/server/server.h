@@ -20,7 +20,7 @@
 #define __SERVER_H__
 
 #define OCTANE_SERVER_MAJOR_VERSION 4
-#define OCTANE_SERVER_MINOR_VERSION 8
+#define OCTANE_SERVER_MINOR_VERSION 9
 #define OCTANE_SERVER_VERSION (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
 #define FILE_BUFFER_SIZE 128000000
@@ -72,6 +72,7 @@
 #pragma pop_macro("ntohl")
 
 #include "BLI_math_color.h"
+#include "BLI_fileops.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -366,18 +367,25 @@ typedef struct RPCSend {
     inline bool write_file(string &path) {
         if(!buffer || !buf_size || !path.length()) return false;
         bool ret = false;
+        uint8_t *buf = 0;
+        int64_t file_size = 0;
 
-        FILE *hFile = fopen(path.c_str(), "rb");
+        FILE *hFile = BLI_fopen(path.c_str(), "rb");
         if(!hFile) goto exit3;
-        _fseeki64(hFile, 0, SEEK_END);
-        int64_t file_size = _ftelli64(hFile);
+#ifndef WIN32
+    	    fseek(hFile, 0, SEEK_END);
+    	    file_size = ftell(hFile);
+#else
+    	    _fseeki64(hFile, 0, SEEK_END);
+    	    file_size = _ftelli64(hFile);
+#endif
         rewind(hFile);
 
         reinterpret_cast<uint64_t*>(buffer)[1] = file_size;
         if(::send(socket, (const char*)buffer, sizeof(uint64_t) * 2, 0) < 0)
             goto exit2;
 
-        uint8_t *buf = new uint8_t[file_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : file_size];
+        buf = new uint8_t[file_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : file_size];
         while(buf && file_size) {
             unsigned int size_to_read = (file_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : file_size);
 
@@ -464,19 +472,24 @@ typedef struct RPCReceive {
         if(buffer) delete[] buffer;
     }
 
-    inline bool read_file(std::string &path) {
+    inline bool read_file(std::string &path, int *err) {
+        *err = 0;
         if(!buffer || !buf_size || !path.length()) return false;
 
         if(path[path.length() - 1] == '/' || path[path.length() - 1] == '\\')
             path.operator+=(name);
 
-        FILE *hFile = fopen(path.c_str(), "wb");
-        if(!hFile) return false;
+        FILE *hFile = BLI_fopen(path.c_str(), "wb");
+        if(!hFile) {
+            *err = errno;
+            return false;
+        }
 
         uint64_t cur_size = buf_size;
         while(cur_size) {
             unsigned int size_to_read = (cur_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : cur_size);
             if(::recv(socket, (char*)buffer, size_to_read, MSG_WAITALL) != size_to_read) {
+                *err = errno;
                 fclose(hFile);
                 delete[] buffer;
                 buf_pointer = buffer = 0;
@@ -492,6 +505,8 @@ typedef struct RPCReceive {
         type = NONE;
         buf_size = 0;
         fclose(hFile);
+
+        return true;
     }
 
     inline RPCReceive& operator>>(float& val) {
@@ -899,15 +914,21 @@ public:
             else fprintf(stderr, "\n");
         }
         else if(m_Export_alembic && strlen(out_path)) {
+            int err;
             RPCReceive rcv(socket);
+            std::string s_out_path(out_path);
+            
             if(rcv.type != LOAD_FILE) {
                 rcv >> error_msg;
                 fprintf(stderr, "Octane: ERROR downloading alembic file from server.");
                 if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
                 else fprintf(stderr, "\n");
             }
-            if(!rcv.read_file(std::string(out_path))) {
+            else if(!rcv.read_file(s_out_path, &err)) {
+                char *err_str;
                 fprintf(stderr, "Octane: ERROR downloading alembic file from server.");
+                if(err && (err_str = strerror(err)) && err_str[0]) fprintf(stderr, " Description: %s\n", err_str);
+                else fprintf(stderr, "\n");
             }
         }
     } //stop_render()
@@ -933,7 +954,7 @@ public:
     // Load camera to render server.
     // cam - camera data structure
     inline void load_camera(Camera* cam) {
-        if(socket < 0) return;
+        if(socket < 0 || cam->is_hidden) return;
 
         thread_scoped_lock socket_lock(socket_mutex);
 
@@ -1774,7 +1795,7 @@ public:
     }
 
     inline bool send_file(string &file_path, string &file_name) {
-        FILE *hFile = fopen(file_path.c_str(), "rb");
+        FILE *hFile = BLI_fopen(file_path.c_str(), "rb");
         if(hFile) {
             fseek(hFile, 0, SEEK_END);
             uint32_t ulFileSize = ftell(hFile);
