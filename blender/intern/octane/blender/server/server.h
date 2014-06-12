@@ -20,7 +20,7 @@
 #define __SERVER_H__
 
 #define OCTANE_SERVER_MAJOR_VERSION 4
-#define OCTANE_SERVER_MINOR_VERSION 9
+#define OCTANE_SERVER_MINOR_VERSION 10
 #define OCTANE_SERVER_VERSION (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
 #define FILE_BUFFER_SIZE 128000000
@@ -2503,7 +2503,6 @@ public:
             cur_w = w;
             cur_h = h;
             memset(float_img_buf, 0, len * sizeof(float));
-            for(int i=0; i<len; ++i) float_img_buf[i] = 0.0f;
             memset(pixels, 0, w * h * components * sizeof(float));
             return false;
         }

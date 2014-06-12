@@ -142,7 +142,6 @@ protected:
 	double start_time;
 	double reset_time;
 	double paused_time;
-    double last_update_time;
 
     const char* pass_name;
 }; //Session

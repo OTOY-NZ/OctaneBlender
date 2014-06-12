@@ -112,7 +112,7 @@ void Session::start(const char* pass_name_, bool synchronous) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void Session::run_render() {
 	reset_time          = start_time = time_dt();
-	last_update_time    = paused_time = 0.0;
+	paused_time         = 0.0;
     bool bStarted       = false;
 
     if(params.interactive) progress.set_start_time(start_time);
@@ -186,7 +186,13 @@ void Session::run_render() {
 			// Update status and timing
 			update_status_time();
 			progress.set_update();
-		} //if(!is_ready)
+		} //if(!is_done)
+        else {
+			thread_scoped_lock buffers_lock(render_buffer_mutex);
+			// Update status and timing
+			update_status_time();
+            update_render_buffer();
+        }
 	} //while(!progress.get_cancel())
 } //run_render()
 
@@ -417,15 +423,10 @@ void Session::update_render_buffer() {
     if(progress.get_cancel()) return;
 
     if(!server->get_image_buffer(params.image_stat, params.interactive, b_session ? b_session->cur_pass_type : PASS_COMBINED, progress) && b_session) {
-        update_img_sample();
+        if(!params.interactive) update_img_sample();
         server->get_image_buffer(params.image_stat, params.interactive, b_session ? b_session->cur_pass_type : PASS_COMBINED, progress);
     }
-    double current_time = time_dt();
-    if((current_time - last_update_time) >= 1.0f) {
-        update_img_sample();
-
-	    last_update_time = current_time;
-    }
+    if(!params.interactive) update_img_sample();
 } //update_render_buffer()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

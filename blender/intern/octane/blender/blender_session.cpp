@@ -534,6 +534,7 @@ void BlenderSession::render() {
         		    b_scene.frame_set(cur_frame, subframe);
 
                 sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
+        		sync->sync_camera(b_engine.camera_override(), width, height);
 
                 if(session->progress.get_cancel()) {
                     stop_render = true;
@@ -583,6 +584,7 @@ void BlenderSession::render() {
 	        // Render
             if(motion_blur && mb_samples > 1) {
                 sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
+        		sync->sync_camera(b_engine.camera_override(), width, height);
 
                 mb_sample_in_work = 0;
                 float subframe = 0;
@@ -596,6 +598,7 @@ void BlenderSession::render() {
         		        b_scene.frame_set(cur_frame, subframe);
 
                     sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
+            		sync->sync_camera(b_engine.camera_override(), width, height);
 
                     if(session->progress.get_cancel()) {
                         stop_render = true;
