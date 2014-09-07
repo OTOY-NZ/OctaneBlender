@@ -28,7 +28,7 @@ getopt \
 --long source:,install:,tmp:,threads:,help,no-sudo,with-all,with-opencollada,ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,\
 force-all,force-python,force-numpy,force-boost,force-ocio,force-oiio,force-llvm,force-osl,force-opencollada,\
 force-ffmpeg,skip-python,skip-numpy,skip-boost,skip-ocio,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,\
-skip-opencollada,required-numpy,libyaml-cpp-ver: \
+skip-opencollada,required-numpy: \
 -- "$@" \
 )
 
@@ -89,16 +89,16 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     --with-opencollada
         Build and install the OpenCOLLADA libraries.
 
-    --ver_ocio=<ver>
+    --ver-ocio=<ver>
         Force version of OCIO library.
 
-    --ver_oiio=<ver>
+    --ver-oiio=<ver>
         Force version of OIIO library.
 
-    --ver_llvm=<ver>
+    --ver-llvm=<ver>
         Force version of LLVM library.
 
-    --ver_osl=<ver>
+    --ver-osl=<ver>
         Force version of OSL library.
 
     Note about the --ver-foo options:
@@ -143,7 +143,6 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
           (i.e. if there is no available and satisfactory package)!
         * If the “force-rebuilt” library is a dependency of others, it will force the rebuild
           of those libraries too (e.g. --force-boost will also rebuild oiio and osl...).
-        * Do not forget --with-osl if you built it and still want it!
 
     --skip-python
         Unconditionally skip Python installation/building.
@@ -177,91 +176,64 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
 
     --required-numpy
         Use this in case your distro features a valid python package, but no matching Numpy one.
-        It will force compilation of both python 3.3 and numpy 1.7.
-
-    --libyaml-cpp-ver=<ver>
-        Ubuntu hack: you may have to force installation of a non-defaut version of libyaml-cpp
-        (e.g. ocio in trusty uses 0.3, while default version is 0.5... *sigh*)\""
+        It will force compilation of both python and numpy\""
 
 ##### Main Vars #####
 
 SUDO="sudo"
 
-PYTHON_VERSION="3.3.3"
-PYTHON_VERSION_MIN="3.3"
-PYTHON_SOURCE="http://python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tar.bz2"
+PYTHON_VERSION="3.4.0"
+PYTHON_VERSION_MIN="3.4"
 PYTHON_FORCE_REBUILD=false
 PYTHON_SKIP=false
 
-NUMPY_VERSION="1.7.0"
-NUMPY_VERSION_MIN="1.7"
-NUMPY_SOURCE="http://sourceforge.net/projects/numpy/files/NumPy/$NUMPY_VERSION/numpy-$NUMPY_VERSION.tar.gz"
+NUMPY_VERSION="1.8.1"
+NUMPY_VERSION_MIN="1.8"
 NUMPY_FORCE_REBUILD=false
 NUMPY_SKIP=false
 NUMPY_REQUIRED=false
 
 BOOST_VERSION="1.51.0"
-_boost_version_nodots=`echo "$BOOST_VERSION" | sed -r 's/\./_/g'`
-BOOST_SOURCE="http://sourceforge.net/projects/boost/files/boost/$BOOST_VERSION/boost_$_boost_version_nodots.tar.bz2/download"
 BOOST_VERSION_MIN="1.49"
 BOOST_FORCE_REBUILD=false
 BOOST_SKIP=false
 
-OCIO_VERSION="1.0.7"
-OCIO_SOURCE="https://github.com/imageworks/OpenColorIO/tarball/v$OCIO_VERSION"
+OCIO_VERSION="1.0.9"
 OCIO_VERSION_MIN="1.0"
 OCIO_FORCE_REBUILD=false
 OCIO_SKIP=false
-LIBYAML_CPP_VER_DEFINED=false
-LIBYAML_CPP_VER="0.0"
 
 OPENEXR_VERSION="2.1.0"
 OPENEXR_VERSION_MIN="2.0.1"
-#OPENEXR_SOURCE="http://download.savannah.nongnu.org/releases/openexr/openexr-$OPENEXR_VERSION.tar.gz"
-OPENEXR_SOURCE="https://github.com/mont29/openexr.git"
-OPENEXR_REPO_UID="2787aa1cf652d244ed45ae124eb1553f6cff11ee"
 ILMBASE_VERSION="2.1.0"
-ILMBASE_SOURCE="http://download.savannah.nongnu.org/releases/openexr/ilmbase-$ILMBASE_VERSION.tar.gz"
 OPENEXR_FORCE_REBUILD=false
 OPENEXR_SKIP=false
 _with_built_openexr=false
 
-OIIO_VERSION="1.3.9"
-OIIO_VERSION_MIN="1.3.9"
-#OIIO_SOURCE="https://github.com/OpenImageIO/oiio/archive/Release-$OIIO_VERSION.tar.gz"
-OIIO_SOURCE="https://github.com/mont29/oiio.git"
-OIIO_REPO_UID="99113d12619c90cf44721195a759674ea61f02b1"
+OIIO_VERSION="1.4.11"
+OIIO_VERSION_MIN="1.4.0"
 OIIO_FORCE_REBUILD=false
 OIIO_SKIP=false
 
-LLVM_VERSION="3.3"
-LLVM_VERSION_MIN="3.3"
+LLVM_VERSION="3.4"
+LLVM_VERSION_MIN="3.4"
 LLVM_VERSION_FOUND=""
-LLVM_SOURCE="http://llvm.org/releases/$LLVM_VERSION/llvm-$LLVM_VERSION.src.tar.gz"
-LLVM_CLANG_SOURCE="http://llvm.org/releases/$LLVM_VERSION/clang-$LLVM_VERSION.src.tar.gz"
 LLVM_FORCE_REBUILD=false
 LLVM_SKIP=false
 
 # OSL needs to be compiled for now!
-OSL_VERSION="1.4.0"
+OSL_VERSION="1.5.0"
 OSL_VERSION_MIN=$OSL_VERSION
-#OSL_SOURCE="https://github.com/imageworks/OpenShadingLanguage/archive/Release-$OSL_VERSION.tar.gz"
-#OSL_SOURCE="https://github.com/mont29/OpenShadingLanguage.git"
-OSL_SOURCE="https://github.com/imageworks/OpenShadingLanguage.git"
-OSL_REPO_UID="175989f2610a7d54e8edfb5ace0143e28e11ac70"
 OSL_FORCE_REBUILD=false
 OSL_SKIP=false
 
 # Version??
 OPENCOLLADA_VERSION="1.3"
-OPENCOLLADA_SOURCE="https://github.com/KhronosGroup/OpenCOLLADA.git"
-OPENCOLLADA_REPO_UID="18da7f4109a8eafaa290a33f5550501cc4c8bae8"
 OPENCOLLADA_FORCE_REBUILD=false
 OPENCOLLADA_SKIP=false
 
-FFMPEG_VERSION="1.0"
-FFMPEG_SOURCE="http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2"
-FFMPEG_VERSION_MIN="0.7.6"
+FFMPEG_VERSION="2.1.5"
+FFMPEG_VERSION_MIN="2.1.5"
 FFMPEG_FORCE_REBUILD=false
 FFMPEG_SKIP=false
 _ffmpeg_list_sep=";"
@@ -376,6 +348,7 @@ while true; do
     --ver-ocio)
       OCIO_VERSION="$2"
       OCIO_VERSION_MIN=$OCIO_VERSION
+      echo $OCIO_VERSION
       shift; shift; continue
     ;;
     --ver-oiio)
@@ -474,9 +447,6 @@ while true; do
     --required-numpy)
       NUMPY_REQUIRED=true; shift; continue
     ;;
-    --libyaml-cpp-ver)
-      LIBYAML_CPP_VER_DEFINED=true; LIBYAML_CPP_VER="$2"; shift; shift; continue
-    ;;
     --)
       # no more arguments to parse
       break
@@ -496,7 +466,58 @@ if $WITH_ALL; then
   WITH_OPENCOLLADA=true
 fi
 
+
+# This has to be done here, because user might force some versions...
+PYTHON_SOURCE=( "http://python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tgz" )
+NUMPY_SOURCE=( "http://sourceforge.net/projects/numpy/files/NumPy/$NUMPY_VERSION/numpy-$NUMPY_VERSION.tar.gz" )
+_boost_version_nodots=`echo "$BOOST_VERSION" | sed -r 's/\./_/g'`
+BOOST_SOURCE=( "http://sourceforge.net/projects/boost/files/boost/$BOOST_VERSION/boost_$_boost_version_nodots.tar.bz2/download" )
+
+OCIO_SOURCE=( "https://github.com/imageworks/OpenColorIO/tarball/v$OCIO_VERSION" )
+
+#OPENEXR_SOURCE=( "http://download.savannah.nongnu.org/releases/openexr/openexr-$OPENEXR_VERSION.tar.gz" )
+OPENEXR_SOURCE=( "https://github.com/mont29/openexr.git" )
+OPENEXR_REPO_UID="2787aa1cf652d244ed45ae124eb1553f6cff11ee"
+ILMBASE_SOURCE=( "http://download.savannah.nongnu.org/releases/openexr/ilmbase-$ILMBASE_VERSION.tar.gz" )
+
+#OIIO_SOURCE=( "https://github.com/OpenImageIO/oiio/archive/Release-$OIIO_VERSION.tar.gz" )
+OIIO_SOURCE=( "https://github.com/OpenImageIO/oiio.git" )
+OIIO_REPO_UID="c9e67275a0b248ead96152f6d2221cc0c0f278a4"
+
+LLVM_SOURCE=( "http://llvm.org/releases/$LLVM_VERSION/llvm-$LLVM_VERSION.src.tar.gz" )
+LLVM_CLANG_SOURCE=( "http://llvm.org/releases/$LLVM_VERSION/clang-$LLVM_VERSION.src.tar.gz" "http://llvm.org/releases/$LLVM_VERSION/cfe-$LLVM_VERSION.src.tar.gz" )
+#OSL_SOURCE=( "https://github.com/imageworks/OpenShadingLanguage/archive/Release-$OSL_VERSION.tar.gz" )
+#OSL_SOURCE=( "https://github.com/imageworks/OpenShadingLanguage.git" )
+OSL_SOURCE=( "https://github.com/mont29/OpenShadingLanguage.git" )
+OSL_REPO_UID="85179714e1bc69cd25ecb6bb711c1a156685d395"
+
+OPENCOLLADA_SOURCE=( "https://github.com/KhronosGroup/OpenCOLLADA.git" )
+OPENCOLLADA_REPO_UID="18da7f4109a8eafaa290a33f5550501cc4c8bae8"
+FFMPEG_SOURCE=( "http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2" )
+
+
 ##### Generic Helpers #####
+
+# Check return code of wget for success...
+download() {
+  declare -a sources=("${!1}")
+  sources_count=${#sources[@]}
+  error=1
+
+  for (( i=0; $i < $sources_count; i++ ))
+  do
+    wget -c ${sources[$i]} -O $2
+    if [ $? -eq 0 ]; then
+      error=0
+      break
+    fi
+  done
+
+  if [ $error -eq 1 ]; then
+    ERROR "wget could not find $1, or could not write it to $2, exiting"
+    exit 1
+  fi
+}
 
 # Return 0 if $1 = $2 (i.e. 1.01.0 = 1.1, but 1.1.1 != 1.1), else 1.
 # $1 and $2 should be version numbers made of numbers only.
@@ -648,7 +669,7 @@ _init_python() {
   _src=$SRC/Python-$PYTHON_VERSION
   _git=false
   _inst=$INST/python-$PYTHON_VERSION
-  _inst_shortcut=$INST/python-3.3
+  _inst_shortcut=$INST/python-$PYTHON_VERSION_MIN
 }
 
 clean_Python() {
@@ -675,10 +696,10 @@ compile_Python() {
 
     if [ ! -d $_src ]; then
       mkdir -p $SRC
-      wget -c $PYTHON_SOURCE -O $_src.tar.bz2
+      download PYTHON_SOURCE[@] $_src.tgz
 
       INFO "Unpacking Python-$PYTHON_VERSION"
-      tar -C $SRC -xf $_src.tar.bz2
+      tar -C $SRC -xf $_src.tgz
     fi
 
     cd $_src
@@ -713,7 +734,7 @@ _init_numpy() {
   _git=false
   _inst=$INST/numpy-$NUMPY_VERSION
   _python=$INST/python-$PYTHON_VERSION
-  _site=lib/python3.3/site-packages
+  _site=lib/python$PYTHON_VERSION_MIN/site-packages
   _inst_shortcut=$_python/$_site/numpy
 }
 
@@ -740,7 +761,7 @@ compile_Numpy() {
 
     if [ ! -d $_src ]; then
       mkdir -p $SRC
-      wget -c $NUMPY_SOURCE -O $_src.tar.gz
+      download NUMPY_SOURCE[@] $_src.tar.gz
 
       INFO "Unpacking Numpy-$NUMPY_VERSION"
       tar -C $SRC -xf $_src.tar.gz
@@ -806,7 +827,7 @@ compile_Boost() {
     if [ ! -d $_src ]; then
       INFO "Downloading Boost-$BOOST_VERSION"
       mkdir -p $SRC
-      wget -c $BOOST_SOURCE -O $_src.tar.bz2
+      download BOOST_SOURCE[@] $_src.tar.bz2
       tar -C $SRC --transform "s,(.*/?)boost_1_[^/]+(.*),\1boost-$BOOST_VERSION\2,x" -xf $_src.tar.bz2
     fi
 
@@ -870,7 +891,7 @@ compile_OCIO() {
     if [ ! -d $_src ]; then
       INFO "Downloading OpenColorIO-$OCIO_VERSION"
       mkdir -p $SRC
-      wget -c $OCIO_SOURCE -O $_src.tar.gz
+      download OCIO_SOURCE[@] $_src.tar.gz
 
       INFO "Unpacking OpenColorIO-$OCIO_VERSION"
       tar -C $SRC --transform "s,(.*/?)imageworks-OpenColorIO[^/]*(.*),\1OpenColorIO-$OCIO_VERSION\2,x" \
@@ -944,12 +965,11 @@ clean_ILMBASE() {
 
 compile_ILMBASE() {
   # To be changed each time we make edits that would modify the compiled result!
-  ilmbase_magic=8
+  ilmbase_magic=9
   _init_ilmbase
 
   # Clean install if needed!
   magic_compile_check ilmbase-$ILMBASE_VERSION $ilmbase_magic
-
   if [ $? -eq 1 -o $OPENEXR_FORCE_REBUILD == true ]; then
     clean_ILMBASE
     rm -rf $_openexr_inst
@@ -966,7 +986,7 @@ compile_ILMBASE() {
     if [ ! -d $_src ]; then
       INFO "Downloading ILMBase-$ILMBASE_VERSION"
       mkdir -p $SRC
-      wget -c $ILMBASE_SOURCE -O $_src.tar.gz
+      download ILMBASE_SOURCE[@] $_src.tar.gz
 
       INFO "Unpacking ILMBase-$ILMBASE_VERSION"
       tar -C $SRC --transform "s,(.*/?)ilmbase-[^/]*(.*),\1ILMBase-$ILMBASE_VERSION\2,x" \
@@ -1031,7 +1051,7 @@ clean_OPENEXR() {
 
 compile_OPENEXR() {
   # To be changed each time we make edits that would modify the compiled result!
-  openexr_magic=12
+  openexr_magic=13
 
   # Clean install if needed!
   magic_compile_check openexr-$OPENEXR_VERSION $openexr_magic
@@ -1058,13 +1078,13 @@ compile_OPENEXR() {
       INFO "Downloading OpenEXR-$OPENEXR_VERSION"
       mkdir -p $SRC
 
-#      wget -c $OPENEXR_SOURCE -O $_src.tar.gz
+#      download OPENEXR_SOURCE[@] $_src.tar.gz
 
 #      INFO "Unpacking OpenEXR-$OPENEXR_VERSION"
 #      tar -C $SRC --transform "s,(.*/?)openexr[^/]*(.*),\1OpenEXR-$OPENEXR_VERSION\2,x" \
 #          -xf $_src.tar.gz
 
-      git clone $OPENEXR_SOURCE $_src
+      git clone ${OPENEXR_SOURCE[0]} $_src
 
     fi
 
@@ -1160,13 +1180,13 @@ compile_OIIO() {
 
     if [ ! -d $_src ]; then
       mkdir -p $SRC
-#      wget -c $OIIO_SOURCE -O "$_src.tar.gz"
+      #download OIIO_SOURCE[@] "$_src.tar.gz"
+#
+      #INFO "Unpacking OpenImageIO-$OIIO_VERSION"
+      #tar -C $SRC --transform "s,(.*/?)oiio-Release-[^/]*(.*),\1OpenImageIO-$OIIO_VERSION\2,x" \
+          #-xf $_src.tar.gz
 
-#      INFO "Unpacking OpenImageIO-$OIIO_VERSION"
-#      tar -C $SRC --transform "s,(.*/?)oiio-Release-[^/]*(.*),\1OpenImageIO-$OIIO_VERSION\2,x" \
-#          -xf $_src.tar.gz
-
-      git clone $OIIO_SOURCE $_src
+      git clone ${OIIO_SOURCE[0]} $_src
 
     fi
 
@@ -1193,11 +1213,12 @@ compile_OIIO() {
     cmake_d="$cmake_d -D BUILDSTATIC=OFF"
     cmake_d="$cmake_d -D LINKSTATIC=OFF"
 
+    cmake_d="$cmake_d -D ILMBASE_VERSION=$ILMBASE_VERSION"
+    cmake_d="$cmake_d -D OPENEXR_VERSION=$OPENEXR_VERSION"
+
     if [ $_with_built_openexr == true ]; then
       cmake_d="$cmake_d -D ILMBASE_HOME=$INST/openexr"
-      cmake_d="$cmake_d -D ILMBASE_VERSION=$ILMBASE_VERSION"
       cmake_d="$cmake_d -D OPENEXR_HOME=$INST/openexr"
-      cmake_d="$cmake_d -D OPENEXR_VERSION=$OPENEXR_VERSION"
     fi
 
     # Optional tests and cmd tools
@@ -1282,15 +1303,16 @@ compile_LLVM() {
 
     if [ ! -d $_src -o true ]; then
       mkdir -p $SRC
-      wget -c $LLVM_SOURCE -O "$_src.tar.gz"
-      wget -c $LLVM_CLANG_SOURCE -O "$_src_clang.tar.gz"
+      download LLVM_SOURCE[@] "$_src.tar.gz"
+      download LLVM_CLANG_SOURCE[@] "$_src_clang.tar.gz"
 
       INFO "Unpacking LLVM-$LLVM_VERSION"
       tar -C $SRC --transform "s,([^/]*/?)llvm-[^/]*(.*),\1LLVM-$LLVM_VERSION\2,x" \
           -xf $_src.tar.gz
       INFO "Unpacking CLANG-$LLVM_VERSION to $_src/tools/clang"
+      # Stupid clang guys renamed 'clang' to 'cfe' for now handle both cases... :(
       tar -C $_src/tools \
-          --transform "s,([^/]*/?)clang-[^/]*(.*),\1clang\2,x" \
+          --transform "s,([^/]*/?)(clang|cfe)-[^/]*(.*),\1clang\3,x" \
           -xf $_src_clang.tar.gz
 
       cd $_src
@@ -1327,6 +1349,7 @@ EOF
     cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$_inst"
     cmake_d="$cmake_d -D LLVM_ENABLE_FFI=ON"
     cmake_d="$cmake_d -D LLVM_TARGETS_TO_BUILD=X86"
+    cmake_d="$cmake_d -D -DLLVM_ENABLE_TERMINFO=OFF"
 
     if [ -d $_FFI_INCLUDE_DIR ]; then
       cmake_d="$cmake_d -D FFI_INCLUDE_DIR=$_FFI_INCLUDE_DIR"
@@ -1389,13 +1412,13 @@ compile_OSL() {
     if [ ! -d $_src ]; then
       mkdir -p $SRC
 
-#      wget -c $OSL_SOURCE -O "$_src.tar.gz"
+      #download OSL_SOURCE[@] "$_src.tar.gz"
 
-#      INFO "Unpacking OpenShadingLanguage-$OSL_VERSION"
-#      tar -C $SRC --transform "s,(.*/?)OpenShadingLanguage-[^/]*(.*),\1OpenShadingLanguage-$OSL_VERSION\2,x" \
-#          -xf $_src.tar.gz
+      #INFO "Unpacking OpenShadingLanguage-$OSL_VERSION"
+      #tar -C $SRC --transform "s,(.*/?)OpenShadingLanguage-[^/]*(.*),\1OpenShadingLanguage-$OSL_VERSION\2,x" \
+          #-xf $_src.tar.gz
 
-      git clone $OSL_SOURCE $_src
+      git clone ${OSL_SOURCE[0]} $_src
 
     fi
 
@@ -1407,7 +1430,7 @@ compile_OSL() {
     git pull -X theirs origin master
 
     # Stick to same rev as windows' libs...
-    git checkout HEAD #$OSL_REPO_UID
+    git checkout $OSL_REPO_UID
     git reset --hard
 
     # Always refresh the whole build!
@@ -1423,9 +1446,11 @@ compile_OSL() {
     cmake_d="$cmake_d -D STOP_ON_WARNING=OFF"
     cmake_d="$cmake_d -D BUILDSTATIC=OFF"
 
+    cmake_d="$cmake_d -D ILMBASE_VERSION=$ILMBASE_VERSION"
+
     if [ $_with_built_openexr == true ]; then
+      INFO "ILMBASE_HOME=$INST/openexr"
       cmake_d="$cmake_d -D ILMBASE_HOME=$INST/openexr"
-      cmake_d="$cmake_d -D ILMBASE_VERSION=$ILMBASE_VERSION"
     fi
 
     if [ -d $INST/boost ]; then
@@ -1579,7 +1604,7 @@ compile_FFmpeg() {
     if [ ! -d $_src ]; then
       INFO "Downloading ffmpeg-$FFMPEG_VERSION"
       mkdir -p $SRC
-      wget -c $FFMPEG_SOURCE -O "$_src.tar.bz2"
+      download FFMPEG_SOURCE[@] "$_src.tar.bz2"
 
       INFO "Unpacking ffmpeg-$FFMPEG_VERSION"
       tar -C $SRC -xf $_src.tar.bz2
@@ -1626,8 +1651,9 @@ compile_FFmpeg() {
         --disable-bzlib --disable-libgsm --disable-libspeex \
         --enable-pthreads --enable-zlib --enable-stripping --enable-runtime-cpudetect \
         --disable-vaapi --disable-libfaac --disable-nonfree --enable-gpl \
-        --disable-postproc --disable-x11grab --disable-librtmp --disable-libopencore-amrnb \
+        --disable-postproc --disable-librtmp --disable-libopencore-amrnb \
         --disable-libopencore-amrwb --disable-libdc1394 --disable-version3 --disable-outdev=sdl \
+        --disable-outdev=xv \
         --disable-outdev=alsa --disable-indev=sdl --disable-indev=alsa --disable-indev=jack \
         --disable-indev=lavfi $extra
 
@@ -1668,7 +1694,7 @@ check_package_DEB() {
 }
 
 check_package_installed_DEB() {
-  r=`dpkg -s $1 | grep -c '$1'`
+  r=`dpkg-query -W -f='${Status}' $1 | grep -c "install ok"`
 
   if [ $r -ge 1 ]; then
     return 0
@@ -1714,11 +1740,6 @@ install_packages_DEB() {
 install_DEB() {
   PRINT ""
   INFO "Installing dependencies for DEB-based distribution"
-  PRINT ""
-  WARNING "Beware of recent Ubuntu/Debian!!!"
-  PRINT "Ubuntu 14.4 and Debian Jessie come with a default libyaml-cpp in 0.5 version, while their ocio package still"
-  PRINT "uses the 0.3 version. You have to use '--libyaml-cpp-ver=0.3' option (else Blender will builds with 0.5,"
-  PRINT "and break when using packaged ocio)..."
   PRINT ""
   PRINT "`eval _echo "$COMMON_INFO"`"
   PRINT ""
@@ -1833,7 +1854,7 @@ install_DEB() {
     # Only install jack if jack2 is not already installed!
     JACK="libjack-dev"
     JACK2="libjack-jackd2-dev"
-    check_package_installed_DEB JACK2
+    check_package_installed_DEB $JACK2
     if [ $? -eq 0 ]; then
       _packages="$_packages $JACK2"
     else
@@ -1899,9 +1920,9 @@ install_DEB() {
       if $NUMPY_SKIP; then
         WARNING "Skipping NumPy installation, as requested..."
       else
-        check_package_DEB python$PYTHON_VERSION_MIN-numpy
+        check_package_DEB python3-numpy
         if [ $? -eq 0 ]; then
-          install_packages_DEB python$PYTHON_VERSION_MIN-numpy
+          install_packages_DEB python3-numpy
         elif $NUMPY_REQUIRED; then
           WARNING "Valid python package but no valid numpy package!" \
                  "    Building both Python and Numpy from sources!"
@@ -1956,13 +1977,14 @@ install_DEB() {
   if $OCIO_SKIP; then
     WARNING "Skipping OpenColorIO installation, as requested..."
   else
-    check_package_version_ge_DEB libopencolorio-dev $OCIO_VERSION_MIN
-    if [ $? -eq 0 ]; then
-      install_packages_DEB libopencolorio-dev
-      clean_OCIO
-    else
+    # XXX Always force build of own OCIO, until linux distro guys update their package to default libyaml-cpp ver (0.5)!
+    #check_package_version_ge_DEB libopencolorio-dev $OCIO_VERSION_MIN
+    #if [ $? -eq 0 ]; then
+      #install_packages_DEB libopencolorio-dev
+      #clean_OCIO
+    #else
       compile_OCIO
-    fi
+    #fi
   fi
 
   PRINT ""
@@ -2390,13 +2412,14 @@ install_RPM() {
   if $OCIO_SKIP; then
     WARNING "Skipping OpenColorIO installation, as requested..."
   else
-    check_package_version_ge_RPM OpenColorIO-devel $OCIO_VERSION_MIN
-    if [ $? -eq 0 ]; then
-      install_packages_RPM OpenColorIO-devel
-      clean_OCIO
-    else
+    # XXX Always force build of own OCIO, until linux distro guys update their package to default libyaml-cpp ver (0.5)!
+    #check_package_version_ge_RPM OpenColorIO-devel $OCIO_VERSION_MIN
+    #if [ $? -eq 0 ]; then
+      #install_packages_RPM OpenColorIO-devel
+      #clean_OCIO
+    #else
       compile_OCIO
-    fi
+    #fi
   fi
 
   PRINT ""
@@ -2699,14 +2722,15 @@ install_ARCH() {
   if $OCIO_SKIP; then
     WARNING "Skipping OpenColorIO installation, as requested..."
   else
-    check_package_version_ge_ARCH opencolorio $OCIO_VERSION_MIN
-    if [ $? -eq 0 ]; then
-      install_packages_ARCH opencolorio yaml-cpp tinyxml
-      clean_OCIO
-    else
+    # XXX Always force build of own OCIO, until linux distro guys update their package to default libyaml-cpp ver (0.5)!
+    #check_package_version_ge_ARCH opencolorio $OCIO_VERSION_MIN
+    #if [ $? -eq 0 ]; then
+      #install_packages_ARCH opencolorio yaml-cpp tinyxml
+      #clean_OCIO
+    #else
       install_packages_ARCH yaml-cpp tinyxml
       compile_OCIO
-    fi
+    #fi
   fi
 
   PRINT ""
@@ -2930,21 +2954,29 @@ print_info() {
     _buildargs="$_buildargs $_1"
   fi
 
-  _1="-D WITH_CYCLES_OSL=ON"
-  _2="-D WITH_LLVM=ON"
-  _3="-D LLVM_VERSION=$LLVM_VERSION_FOUND"
-  PRINT "  $_1"
-  PRINT "  $_2"
-  PRINT "  $_3"
-  _buildargs="$_buildargs $_1 $_2 $_3"
-  if [ -d $INST/osl ]; then
-    _1="-D CYCLES_OSL=$INST/osl"
+  if [ "$OSL_SKIP" = false ]; then
+    _1="-D WITH_CYCLES_OSL=ON"
+    _2="-D WITH_LLVM=ON"
+    _3="-D LLVM_VERSION=$LLVM_VERSION_FOUND"
     PRINT "  $_1"
-    _buildargs="$_buildargs $_1"
-  fi
-  if [ -d $INST/llvm ]; then
-    _1="-D LLVM_DIRECTORY=$INST/llvm"
-    _2="-D LLVM_STATIC=ON"
+    PRINT "  $_2"
+    PRINT "  $_3"
+    _buildargs="$_buildargs $_1 $_2 $_3"
+    if [ -d $INST/osl ]; then
+      _1="-D CYCLES_OSL=$INST/osl"
+      PRINT "  $_1"
+      _buildargs="$_buildargs $_1"
+    fi
+    if [ -d $INST/llvm ]; then
+      _1="-D LLVM_DIRECTORY=$INST/llvm"
+      _2="-D LLVM_STATIC=ON"
+      PRINT "  $_1"
+      PRINT "  $_2"
+      _buildargs="$_buildargs $_1 $_2"
+    fi
+  else
+    _1="-D WITH_CYCLES_OSL=OFF"
+    _2="-D WITH_LLVM=OFF"
     PRINT "  $_1"
     PRINT "  $_2"
     _buildargs="$_buildargs $_1 $_2"
@@ -2956,15 +2988,17 @@ print_info() {
     _buildargs="$_buildargs $_1"
   fi
 
-  _1="-D WITH_CODEC_FFMPEG=ON"
-  _2="-D FFMPEG_LIBRARIES='avformat;avcodec;avutil;avdevice;swscale;rt;`print_info_ffmpeglink`'"
-  PRINT "  $_1"
-  PRINT "  $_2"
-  _buildargs="$_buildargs $_1 $_2"
-  if [ -d $INST/ffmpeg ]; then
-    _1="-D FFMPEG=$INST/ffmpeg"
+  if [ "$FFMPEG_SKIP" = false ]; then
+    _1="-D WITH_CODEC_FFMPEG=ON"
+    _2="-D FFMPEG_LIBRARIES='avformat;avcodec;avutil;avdevice;swscale;rt;`print_info_ffmpeglink`'"
     PRINT "  $_1"
-    _buildargs="$_buildargs $_1"
+    PRINT "  $_2"
+    _buildargs="$_buildargs $_1 $_2"
+    if [ -d $INST/ffmpeg ]; then
+      _1="-D FFMPEG=$INST/ffmpeg"
+      PRINT "  $_1"
+      _buildargs="$_buildargs $_1"
+    fi
   fi
 
   PRINT ""
@@ -2979,9 +3013,11 @@ print_info() {
     PRINT "BF_PYTHON_ABI_FLAGS = 'm'"
   fi
 
-  PRINT "WITH_BF_OCIO = True"
-  if [ -d $INST/ocio ]; then
-    PRINT "BF_OCIO = '$INST/ocio'"
+  if [ "$OCIO_SKIP" = false ]; then
+    PRINT "WITH_BF_OCIO = True"
+    if [ -d $INST/ocio ]; then
+      PRINT "BF_OCIO = '$INST/ocio'"
+    fi
   fi
 
   if [ -d $INST/openexr ]; then
@@ -2999,9 +3035,11 @@ print_info() {
     PRINT "WITH_BF_STATICOPENEXR = True"
   fi
 
-  PRINT "WITH_BF_OIIO = True"
-  if [ -d $INST/oiio ]; then
-    PRINT "BF_OIIO = '$INST/oiio'"
+  if [ "$OIIO_SKIP" = false ]; then
+    PRINT "WITH_BF_OIIO = True"
+    if [ -d $INST/oiio ]; then
+      PRINT "BF_OIIO = '$INST/oiio'"
+    fi
   fi
 
   PRINT "WITH_BF_CYCLES = True"
@@ -3010,9 +3048,11 @@ print_info() {
     PRINT "BF_OSL = '$INST/osl'"
   fi
 
-  PRINT "WITH_BF_BOOST = True"
-  if [ -d $INST/boost ]; then
-    PRINT "BF_BOOST = '$INST/boost'"
+  if [ "$BOOST_SKIP" = false ]; then
+    PRINT "WITH_BF_BOOST = True"
+    if [ -d $INST/boost ]; then
+      PRINT "BF_BOOST = '$INST/boost'"
+    fi
   fi
 
   if $WITH_OPENCOLLADA; then
@@ -3022,13 +3062,15 @@ print_info() {
     fi
   fi
 
-  _ffmpeg_list_sep=" "
-  if [ -d $INST/ffmpeg ]; then
-    PRINT "BF_FFMPEG = '$INST/ffmpeg'"
+  if [ "$FFMPEG_SKIP" = false ]; then
+    _ffmpeg_list_sep=" "
+    if [ -d $INST/ffmpeg ]; then
+      PRINT "BF_FFMPEG = '$INST/ffmpeg'"
+    fi
+    PRINT "BF_FFMPEG_LIB = 'avformat avcodec swscale avutil avdevice `print_info_ffmpeglink`'"
   fi
-  PRINT "BF_FFMPEG_LIB = 'avformat avcodec swscale avutil avdevice `print_info_ffmpeglink`'"
 
-  if ! $WITH_ALL; then
+  if [ "$WITH_ALL" = false ]; then
     PRINT "WITH_BF_3DMOUSE = False"
   # No libspacenav in official arch repos...
   elif [ "$DISTRO" = "ARCH" ]; then

@@ -398,7 +398,7 @@ static float rna_MeshPolygon_area_get(PointerRNA *ptr)
 	Mesh *me = (Mesh *)ptr->id.data;
 	MPoly *mp = (MPoly *)ptr->data;
 
-	return BKE_mesh_calc_poly_area(mp, me->mloop + mp->loopstart, me->mvert, NULL);
+	return BKE_mesh_calc_poly_area(mp, me->mloop + mp->loopstart, me->mvert);
 }
 
 static void rna_MeshTessFace_normal_get(PointerRNA *ptr, float *values)
@@ -1860,7 +1860,7 @@ static void rna_def_medge(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ME_LOOSEEDGE);
 	RNA_def_property_ui_text(prop, "Loose", "Loose edge");
 
-	prop = RNA_def_property(srna, "freestyle_mark", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "use_freestyle_mark", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_MEdge_freestyle_edge_mark_get", "rna_MEdge_freestyle_edge_mark_set");
 	RNA_def_property_ui_text(prop, "Freestyle Edge Mark", "Edge mark for Freestyle line rendering");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
@@ -2064,7 +2064,7 @@ static void rna_def_mpolygon(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Smooth", "");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
-	prop = RNA_def_property(srna, "freestyle_mark", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "use_freestyle_mark", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_MPoly_freestyle_face_mark_get", "rna_MPoly_freestyle_face_mark_set");
 	RNA_def_property_ui_text(prop, "Freestyle Face Mark", "Face mark for Freestyle line rendering");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
@@ -3121,11 +3121,13 @@ static void rna_def_mesh(BlenderRNA *brna)
 	                               "rna_Mesh_uv_texture_stencil_set", NULL, NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Mask UV Map", "UV map to mask the painted area");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "uv_texture_stencil_index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_funcs(prop, "rna_Mesh_uv_texture_stencil_index_get",
 	                           "rna_Mesh_uv_texture_stencil_index_set", "rna_Mesh_uv_texture_index_range");
 	RNA_def_property_ui_text(prop, "Mask UV Map Index", "Mask UV map index");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	/* Tessellated face colors - used by renderers */
 

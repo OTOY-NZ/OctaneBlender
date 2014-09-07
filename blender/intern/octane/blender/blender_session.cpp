@@ -50,10 +50,10 @@ void Pass::add(PassType type, vector<Pass>& passes) {
 		    pass.components = 1;
 		    break;
 	    case PASS_GEO_NORMALS:
-		    pass.components = 4;
+		    pass.components = 3;
 		    break;
 	    case PASS_TEX_COORD:
-		    pass.components = 4;
+		    pass.components = 3;
 		    break;
 	    case PASS_MATERIAL_ID:
 		    pass.components = 1;

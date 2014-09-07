@@ -30,8 +30,7 @@ class VIEW3D_HT_header(Header):
         layout = self.layout
 
         view = context.space_data
-        mode_string = context.mode
-        edit_object = context.edit_object
+        # mode_string = context.mode
         obj = context.active_object
         toolsettings = context.tool_settings
 
@@ -127,7 +126,7 @@ class VIEW3D_MT_editor_menus(Menu):
                 layout.menu("VIEW3D_MT_select_paint_mask")
             elif mesh.use_paint_mask_vertex and mode_string == 'PAINT_WEIGHT':
                 layout.menu("VIEW3D_MT_select_paint_mask_vertex")
-        elif mode_string not in {'EDIT_TEXT', 'SCULPT'}:
+        elif mode_string != 'SCULPT':
             layout.menu("VIEW3D_MT_select_%s" % mode_string.lower())
 
         if mode_string == 'OBJECT':
@@ -478,7 +477,7 @@ class VIEW3D_MT_view_align(Menu):
 
 
 class VIEW3D_MT_view_align_selected(Menu):
-    bl_label = "Align View to Selected"
+    bl_label = "Align View to Active"
 
     def draw(self, context):
         layout = self.layout
@@ -663,8 +662,8 @@ class VIEW3D_MT_select_edit_mesh(Menu):
 
         layout.operator("mesh.select_linked", text="Linked")
         layout.operator("mesh.shortest_path_select", text="Shortest Path")
-        layout.operator("mesh.loop_multi_select", text="Edge Loop").ring = False
-        layout.operator("mesh.loop_multi_select", text="Edge Ring").ring = True
+        layout.operator("mesh.loop_multi_select", text="Edge Loops").ring = False
+        layout.operator("mesh.loop_multi_select", text="Edge Rings").ring = True
 
         layout.separator()
 
@@ -1455,7 +1454,7 @@ class VIEW3D_MT_brush(Menu):
             layout.separator()
 
             if sculpt_tool != 'GRAB':
-                layout.prop_menu_enum(brush, "stroke_method")
+                layout.prop_menu_enum(brush, "sculpt_stroke_method")
 
                 if sculpt_tool in {'DRAW', 'PINCH', 'INFLATE', 'LAYER', 'CLAY'}:
                     layout.prop_menu_enum(brush, "direction")
@@ -1787,7 +1786,7 @@ class VIEW3D_MT_pose(Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("pose.armature_layers", text="Change Armature Layers...")
+        layout.operator("armature.armature_layers", text="Change Armature Layers...")
         layout.operator("pose.bone_layers", text="Change Bone Layers...")
 
         layout.separator()
@@ -2161,10 +2160,18 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.merge")
         layout.operator("mesh.rip_move")
         layout.operator("mesh.rip_move_fill")
+        layout.operator("mesh.rip_edge_move")
         layout.operator("mesh.split")
         layout.operator_menu_enum("mesh.separate", "type")
         layout.operator("mesh.vert_connect", text="Connect")
         layout.operator("transform.vert_slide", text="Slide")
+
+        layout.separator()
+
+        op = layout.operator("mesh.mark_sharp", text="Shade Smooth")
+        op.use_verts = True
+        op.clear = True
+        layout.operator("mesh.mark_sharp", text="Shade Sharp").use_verts = True
 
         layout.separator()
 
@@ -2211,12 +2218,12 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.separator()
 
-        layout.operator("mesh.mark_sharp").clear = False
+        layout.operator("mesh.mark_sharp")
         layout.operator("mesh.mark_sharp", text="Clear Sharp").clear = True
 
         layout.separator()
 
-        if with_freestyle and not scene.render.use_shading_nodes:
+        if with_freestyle:
             layout.operator("mesh.mark_freestyle_edge").clear = False
             layout.operator("mesh.mark_freestyle_edge", text="Clear Freestyle Edge").clear = True
             layout.separator()
@@ -2233,8 +2240,8 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
         layout.separator()
 
         layout.operator("transform.edge_slide")
-        layout.operator("mesh.loop_multi_select", text="Edge Loop").ring = False
-        layout.operator("mesh.loop_multi_select", text="Edge Ring").ring = True
+        layout.operator("mesh.loop_multi_select", text="Edge Loops").ring = False
+        layout.operator("mesh.loop_multi_select", text="Edge Rings").ring = True
         layout.operator("mesh.loop_to_region")
         layout.operator("mesh.region_to_loop")
 
@@ -2259,11 +2266,12 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.inset")
         layout.operator("mesh.bevel").vertex_only = False
         layout.operator("mesh.solidify")
+        layout.operator("mesh.intersect")
         layout.operator("mesh.wireframe")
 
         layout.separator()
 
-        if with_freestyle and not scene.render.use_shading_nodes:
+        if with_freestyle:
             layout.operator("mesh.mark_freestyle_face").clear = False
             layout.operator("mesh.mark_freestyle_face", text="Clear Freestyle Face").clear = True
             layout.separator()
@@ -2271,6 +2279,7 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.poke")
         layout.operator("mesh.quads_convert_to_tris")
         layout.operator("mesh.tris_convert_to_quads")
+        layout.operator("mesh.face_split_by_edges")
 
         layout.separator()
 
@@ -2340,7 +2349,7 @@ class VIEW3D_MT_edit_mesh_delete(Menu):
         layout.separator()
 
         layout.operator("mesh.edge_collapse")
-        layout.operator("mesh.delete_edgeloop", text="Edge Loop")
+        layout.operator("mesh.delete_edgeloop", text="Edge Loops")
 
 
 class VIEW3D_MT_edit_mesh_showhide(ShowHideMenu, Menu):
@@ -2475,32 +2484,32 @@ class VIEW3D_MT_edit_text_chars(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("font.text_insert", text="Copyright|Alt C").text = "\u00A9"
-        layout.operator("font.text_insert", text="Registered Trademark|Alt R").text = "\u00AE"
+        layout.operator("font.text_insert", text="Copyright").text = "\u00A9"
+        layout.operator("font.text_insert", text="Registered Trademark").text = "\u00AE"
 
         layout.separator()
 
-        layout.operator("font.text_insert", text="Degree Sign|Alt G").text = "\u00B0"
-        layout.operator("font.text_insert", text="Multiplication Sign|Alt x").text = "\u00D7"
-        layout.operator("font.text_insert", text="Circle|Alt .").text = "\u008A"
-        layout.operator("font.text_insert", text="Superscript 1|Alt 1").text = "\u00B9"
-        layout.operator("font.text_insert", text="Superscript 2|Alt 2").text = "\u00B2"
-        layout.operator("font.text_insert", text="Superscript 3|Alt 3").text = "\u00B3"
-        layout.operator("font.text_insert", text="Double >>|Alt >").text = "\u00BB"
-        layout.operator("font.text_insert", text="Double <<|Alt <").text = "\u00AB"
-        layout.operator("font.text_insert", text="Promillage|Alt %").text = "\u2030"
+        layout.operator("font.text_insert", text="Degree Sign").text = "\u00B0"
+        layout.operator("font.text_insert", text="Multiplication Sign").text = "\u00D7"
+        layout.operator("font.text_insert", text="Circle").text = "\u008A"
+        layout.operator("font.text_insert", text="Superscript 1").text = "\u00B9"
+        layout.operator("font.text_insert", text="Superscript 2").text = "\u00B2"
+        layout.operator("font.text_insert", text="Superscript 3").text = "\u00B3"
+        layout.operator("font.text_insert", text="Double >>").text = "\u00BB"
+        layout.operator("font.text_insert", text="Double <<").text = "\u00AB"
+        layout.operator("font.text_insert", text="Promillage").text = "\u2030"
 
         layout.separator()
 
-        layout.operator("font.text_insert", text="Dutch Florin|Alt F").text = "\u00A4"
-        layout.operator("font.text_insert", text="British Pound|Alt L").text = "\u00A3"
-        layout.operator("font.text_insert", text="Japanese Yen|Alt Y").text = "\u00A5"
+        layout.operator("font.text_insert", text="Dutch Florin").text = "\u00A4"
+        layout.operator("font.text_insert", text="British Pound").text = "\u00A3"
+        layout.operator("font.text_insert", text="Japanese Yen").text = "\u00A5"
 
         layout.separator()
 
-        layout.operator("font.text_insert", text="German S|Alt S").text = "\u00DF"
-        layout.operator("font.text_insert", text="Spanish Question Mark|Alt ?").text = "\u00BF"
-        layout.operator("font.text_insert", text="Spanish Exclamation Mark|Alt !").text = "\u00A1"
+        layout.operator("font.text_insert", text="German S").text = "\u00DF"
+        layout.operator("font.text_insert", text="Spanish Question Mark").text = "\u00BF"
+        layout.operator("font.text_insert", text="Spanish Exclamation Mark").text = "\u00A1"
 
 
 class VIEW3D_MT_edit_meta(Menu):
@@ -2760,15 +2769,6 @@ class VIEW3D_PT_view3d_name(Panel):
                 row.label(text="", icon='BONE_DATA')
                 row.prop(bone, "name", text="")
 
-        elif ob.type == 'MESH':
-            me = ob.data
-            row = layout.row()
-            row.prop(me, "use_auto_smooth")
-            row = row.row()
-            if not me.use_auto_smooth:
-                row.active = False
-            row.prop(me, "auto_smooth_angle", text="")
-
 
 class VIEW3D_PT_view3d_display(Panel):
     bl_space_type = 'VIEW_3D'
@@ -2786,8 +2786,6 @@ class VIEW3D_PT_view3d_display(Panel):
 
         view = context.space_data
         scene = context.scene
-        gs = scene.game_settings
-        obj = context.object
 
         col = layout.column()
         col.prop(view, "show_only_render")
@@ -2937,7 +2935,7 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
             col.prop(mesh, "show_edge_seams", text="Seams")
         col.prop(mesh, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural)
         col.prop(mesh, "show_edge_bevel_weight", text="Bevel")
-        if with_freestyle and not scene.render.use_shading_nodes:
+        if with_freestyle:
             col.prop(mesh, "show_freestyle_edge_marks", text="Edge Marks")
             col.prop(mesh, "show_freestyle_face_marks", text="Face Marks")
 
@@ -3228,10 +3226,12 @@ class VIEW3D_PT_context_properties(Panel):
 
     @classmethod
     def poll(cls, context):
+        import rna_prop_ui
         member = cls._active_context_member(context)
+
         if member:
-            context_member = getattr(context, member)
-            return context_member and context_member.keys()
+            context_member, member = rna_prop_ui.rna_idprop_context_value(context, member, object)
+            return context_member and rna_prop_ui.rna_idprop_has_properties(context_member)
 
         return False
 

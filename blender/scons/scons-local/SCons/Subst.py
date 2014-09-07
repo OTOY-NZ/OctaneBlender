@@ -5,7 +5,7 @@ SCons string substitution.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -26,7 +26,7 @@ SCons string substitution.
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Subst.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Subst.py  2014/03/02 14:18:15 garyo"
 
 import collections
 import re
@@ -77,6 +77,14 @@ class Literal(object):
 
     def is_literal(self):
         return 1
+
+    def __eq__(self, other):
+        if not isinstance(other, Literal):
+            return False
+        return self.lstr == other.lstr
+
+    def __neq__(self, other):
+        return not self.__eq__(other)
 
 class SpecialAttrWrapper(object):
     """This is a wrapper for what we call a 'Node special attribute.'
@@ -172,7 +180,7 @@ class NLWrapper(object):
     In practice, this might be a wash performance-wise, but it's a little
     cleaner conceptually...
     """
-    
+
     def __init__(self, list, func):
         self.list = list
         self.func = func
@@ -190,7 +198,7 @@ class NLWrapper(object):
         self._create_nodelist = self._return_nodelist
         return self.nodelist
     _create_nodelist = _gen_nodelist
-    
+
 
 class Targets_or_Sources(collections.UserList):
     """A class that implements $TARGETS or $SOURCES expansions by in turn
@@ -451,7 +459,7 @@ def scons_subst(strSubst, env, mode=SUBST_RAW, target=None, source=None, gvars={
                             raise_exception(NameError(key), lvars['TARGETS'], s)
                         else:
                             return ''
-    
+
                     # Before re-expanding the result, handle
                     # recursive expansion by copying the local
                     # variable dictionary and overwriting a null

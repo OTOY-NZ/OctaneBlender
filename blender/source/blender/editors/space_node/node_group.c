@@ -34,12 +34,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_anim_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_rect.h"
 #include "BLI_math.h"
 
 #include "BLF_translation.h"
@@ -203,7 +200,7 @@ static int node_group_ungroup(bNodeTree *ntree, bNode *gnode)
 	 * - ngroup (i.e. the source NodeTree) is left unscathed
 	 * - temp copy. don't change ID usercount
 	 */
-	wgroup = ntreeCopyTree_ex(ngroup, false);
+	wgroup = ntreeCopyTree_ex(ngroup, G.main, false);
 	
 	/* Add the nodes into the ntree */
 	for (node = wgroup->nodes.first; node; node = nextnode) {

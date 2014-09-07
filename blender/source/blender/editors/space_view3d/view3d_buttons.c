@@ -56,8 +56,6 @@
 #include "BKE_curve.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
-#include "BKE_main.h"
-#include "BKE_mesh.h"
 #include "BKE_screen.h"
 #include "BKE_editmesh.h"
 #include "BKE_deform.h"
@@ -73,8 +71,6 @@
 #include "ED_object.h"
 #include "ED_mesh.h"
 #include "ED_screen.h"
-#include "ED_transform.h"
-#include "ED_curve.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -453,7 +449,6 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 			          &(tfp->ve_median[L_WEIGHT]), 0.0, 1.0, 1, 3, TIP_("Weight used for SoftBody Goal"));
 		}
 
-		uiBlockEndAlign(block);
 		uiBlockEndAlign(block);
 
 	}
@@ -1186,8 +1181,8 @@ void view3d_buttons_register(ARegionType *art)
 	strcpy(pt->idname, "VIEW3D_PT_gpencil");
 	strcpy(pt->label, N_("Grease Pencil"));  /* XXX C panels are not available through RNA (bpy.types)! */
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
-	pt->draw_header = gpencil_panel_standard_header;
-	pt->draw = gpencil_panel_standard;
+	pt->draw_header = ED_gpencil_panel_standard_header;
+	pt->draw = ED_gpencil_panel_standard;
 	BLI_addtail(&art->paneltypes, pt);
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d panel vgroup");

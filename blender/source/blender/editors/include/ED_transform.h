@@ -98,12 +98,13 @@ enum TfmMode {
 #define CTX_NDOF            (1 << 5)
 #define CTX_MOVIECLIP       (1 << 6)
 #define CTX_MASK            (1 << 7)
+#define CTX_PAINT_CURVE     (1 << 8)
 
 /* Standalone call to get the transformation center corresponding to the current situation
  * returns 1 if successful, 0 otherwise (usually means there's no selection)
  * (if 0 is returns, *vec is unmodified)
  * */
-int calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], float cent2d[2]);
+bool calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], float cent2d[2]);
 
 struct TransInfo;
 struct ScrArea;

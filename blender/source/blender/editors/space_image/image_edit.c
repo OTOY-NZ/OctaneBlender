@@ -28,17 +28,16 @@
  *  \ingroup spimage
  */
 
+#include "DNA_brush_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
 #include "BLI_rect.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
-#include "BKE_main.h"
 #include "BKE_editmesh.h"
 #include "BKE_library.h"
 
@@ -257,7 +256,7 @@ void ED_image_mouse_pos(SpaceImage *sima, ARegion *ar, const int mval[2], float 
 	ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
 	ED_space_image_get_size(sima, &width, &height);
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 
 	co[0] = ((mval[0] - sx) / zoomx) / width;
 	co[1] = ((mval[1] - sy) / zoomy) / height;
@@ -271,7 +270,7 @@ void ED_image_point_pos(SpaceImage *sima, ARegion *ar, float x, float y, float *
 	ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
 	ED_space_image_get_size(sima, &width, &height);
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 
 	*xr = ((x - sx) / zoomx) / width;
 	*yr = ((y - sy) / zoomy) / height;
@@ -283,7 +282,7 @@ void ED_image_point_pos__reverse(SpaceImage *sima, ARegion *ar, const float co[2
 	int width, height;
 	int sx, sy;
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 	ED_space_image_get_size(sima, &width, &height);
 	ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
 
@@ -299,44 +298,51 @@ bool ED_space_image_show_render(SpaceImage *sima)
 bool ED_space_image_show_paint(SpaceImage *sima)
 {
 	if (ED_space_image_show_render(sima))
-		return 0;
+		return false;
 
 	return (sima->mode == SI_MODE_PAINT);
+}
+
+bool ED_space_image_show_texpaint(SpaceImage *sima, Object *ob)
+{
+	return (ob && ob->type == OB_MESH &&
+	        ob->mode == OB_MODE_TEXTURE_PAINT &&
+	        !(sima->flag & SI_NO_DRAW_TEXPAINT));
 }
 
 bool ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 {
 	if (sima && (ED_space_image_show_render(sima) || ED_space_image_show_paint(sima)))
-		return 0;
+		return false;
 
 	if (obedit && obedit->type == OB_MESH) {
 		struct BMEditMesh *em = BKE_editmesh_from_object(obedit);
-		int ret;
+		bool ret;
 
 		ret = EDBM_mtexpoly_check(em);
 
 		return ret;
 	}
 
-	return 0;
+	return false;
 }
 
 bool ED_space_image_show_uvshadow(SpaceImage *sima, Object *obedit)
 {
 	if (ED_space_image_show_render(sima))
-		return 0;
+		return false;
 
 	if (ED_space_image_show_paint(sima))
 		if (obedit && obedit->type == OB_MESH) {
 			struct BMEditMesh *em = BKE_editmesh_from_object(obedit);
-			int ret;
+			bool ret;
 
 			ret = EDBM_mtexpoly_check(em);
 
-			return ret;
+			return ret && !(sima->flag & SI_NO_DRAW_TEXPAINT);
 		}
 
-	return 0;
+	return false;
 }
 
 /* matches clip function */
@@ -362,6 +368,21 @@ int ED_space_image_maskedit_poll(bContext *C)
 
 	return false;
 }
+
+bool ED_space_image_paint_curve(const bContext *C)
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+
+	if (sima && sima->mode == SI_MODE_PAINT) {
+		Brush *br = CTX_data_tool_settings(C)->imapaint.paint.brush;
+
+		if (br && (br->flag & BRUSH_CURVE))
+			return true;
+	}
+
+	return false;
+}
+
 
 int ED_space_image_maskedit_mask_poll(bContext *C)
 {

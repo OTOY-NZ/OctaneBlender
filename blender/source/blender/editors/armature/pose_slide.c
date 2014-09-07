@@ -134,7 +134,7 @@ static int pose_slide_init(bContext *C, wmOperator *op, short mode)
 	pso->nextFrame = RNA_int_get(op->ptr, "next_frame");
 	
 	/* check the settings from the context */
-	if (ELEM4(NULL, pso->ob, pso->arm, pso->ob->adt, pso->ob->adt->action))
+	if (ELEM(NULL, pso->ob, pso->arm, pso->ob->adt, pso->ob->adt->action))
 		return 0;
 	else
 		act = pso->ob->adt->action;
@@ -300,7 +300,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 	 */
 	for (ld = pfl->fcurves.first; ld; ld = ld->next) {
 		FCurve *fcu = (FCurve *)ld->data;
-		char *bPtr, *pPtr;
+		const char *bPtr, *pPtr;
 		
 		if (fcu->rna_path == NULL)
 			continue;

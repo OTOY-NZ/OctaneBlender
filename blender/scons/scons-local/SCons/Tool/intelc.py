@@ -10,7 +10,7 @@ selection method.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -32,7 +32,7 @@ selection method.
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import division
 
-__revision__ = "src/engine/SCons/Tool/intelc.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Tool/intelc.py  2014/03/02 14:18:15 garyo"
 
 import math, sys, os.path, glob, string, re
 
@@ -317,7 +317,7 @@ def get_intel_compiler_top(version, abi):
                 for d in glob.glob('/opt/intel/composerxe-*'):
                     # Typical dir here is /opt/intel/composerxe-2011.4.184
                     m = re.search(r'([0-9][0-9.]*)$', d)
-                    if m and m.group(1) == verison and \
+                    if m and m.group(1) == version and \
                         (os.path.exists(os.path.join(d, "bin", "ia32", "icc")) or
                         os.path.exists(os.path.join(d, "bin", "intel64", "icc"))):
                             top = d

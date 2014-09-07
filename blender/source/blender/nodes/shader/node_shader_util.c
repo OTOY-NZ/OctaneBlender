@@ -54,7 +54,7 @@ void sh_node_type_base(struct bNodeType *ntype, int type, const char *name, shor
 
 void nodestack_get_vec(float *in, short type_in, bNodeStack *ns)
 {
-	float *from = ns->vec;
+	const float *from = ns->vec;
 		
 	if (type_in == SOCK_FLOAT) {
 		if (ns->sockettype == SOCK_FLOAT)
@@ -197,24 +197,48 @@ static void data_from_gpu_stack_list(ListBase *sockets, bNodeStack **ns, GPUNode
 bNode *nodeGetActiveTexture(bNodeTree *ntree)
 {
 	/* this is the node we texture paint and draw in textured draw */
-	bNode *node, *tnode, *inactivenode = NULL;
+	bNode *node, *tnode, *inactivenode = NULL, *activetexnode = NULL, *activegroup = NULL;
+	bool hasgroup = false;
 
 	if (!ntree)
 		return NULL;
 
 	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->flag & NODE_ACTIVE_TEXTURE)
-			return node;
+		if (node->flag & NODE_ACTIVE_TEXTURE) {
+			activetexnode = node;
+			/* if active we can return immediately */
+			if (node->flag & NODE_ACTIVE)
+				return node;
+		}
 		else if (!inactivenode && node->typeinfo->nclass == NODE_CLASS_TEXTURE)
 			inactivenode = node;
+		else if (node->type == NODE_GROUP) {
+			if (node->flag & NODE_ACTIVE)
+				activegroup = node;
+			else
+				hasgroup = true;
+		}
 	}
+
+	/* first, check active group for textures */
+	if (activegroup) {
+		tnode = nodeGetActiveTexture((bNodeTree *)activegroup->id);
+		/* active node takes priority, so ignore any other possible nodes here */
+		if (tnode)
+			return tnode;
+	}
+
+	if (activetexnode)
+		return activetexnode;
 	
-	/* node active texture node in this tree, look inside groups */
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == NODE_GROUP) {
-			tnode = nodeGetActiveTexture((bNodeTree *)node->id);
-			if (tnode && ((tnode->flag & NODE_ACTIVE_TEXTURE) || !inactivenode))
-				return tnode;
+	if (hasgroup) {
+		/* node active texture node in this tree, look inside groups */
+		for (node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == NODE_GROUP) {
+				tnode = nodeGetActiveTexture((bNodeTree *)node->id);
+				if (tnode && ((tnode->flag & NODE_ACTIVE_TEXTURE) || !inactivenode))
+					return tnode;
+			}
 		}
 	}
 	

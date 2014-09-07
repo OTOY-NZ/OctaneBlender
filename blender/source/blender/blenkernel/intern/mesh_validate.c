@@ -164,16 +164,20 @@ static int search_poly_cmp(const void *v1, const void *v2)
 {
 	const SortPoly *sp1 = v1, *sp2 = v2;
 	const int max_idx = sp1->numverts > sp2->numverts ? sp2->numverts : sp1->numverts;
-	int idx = 0;
+	int idx;
 
 	/* Reject all invalid polys at end of list! */
 	if (sp1->invalid || sp2->invalid)
-		return sp1->invalid && sp2->invalid ? 0 : sp1->invalid ? 1 : -1;
-	/* Else, sort on first non-egal verts (remember verts of valid polys are sorted). */
-	while (idx < max_idx && sp1->verts[idx] == sp2->verts[idx])
-		idx++;
-	return sp1->verts[idx] > sp2->verts[idx] ? 1 : sp1->verts[idx] < sp2->verts[idx] ? -1 :
-	       sp1->numverts > sp2->numverts ? 1 : sp1->numverts < sp2->numverts ? -1 : 0;
+		return sp1->invalid ? (sp2->invalid ? 0 : 1) : -1;
+	/* Else, sort on first non-equal verts (remember verts of valid polys are sorted). */
+	for (idx = 0; idx < max_idx; idx++) {
+		const int v1 = sp1->verts[idx];
+		const int v2 = sp2->verts[idx];
+		if (v1 != v2) {
+			return (v1 > v2) ? 1 : -1;
+		}
+	}
+	return sp1->numverts > sp2->numverts ? 1 : sp1->numverts < sp2->numverts ? -1 : 0;
 }
 
 static int search_polyloop_cmp(const void *v1, const void *v2)
@@ -255,7 +259,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 		do_edge_recalc = do_fixes;
 	}
 
-	for (i = 1; i < totvert; i++, mv++) {
+	for (i = 0; i < totvert; i++, mv++) {
 		bool fix_normal = true;
 
 		for (j = 0; j < 3; j++) {
@@ -498,8 +502,9 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 						PRINT_ERR("\tLoop %u has invalid vert reference (%u)\n", sp->loopstart + j, ml->v);
 						sp->invalid = true;
 					}
-
-					mverts[ml->v].flag |= ME_VERT_TMP_TAG;
+					else {
+						mverts[ml->v].flag |= ME_VERT_TMP_TAG;
+					}
 					*v = ml->v;
 				}
 
@@ -565,7 +570,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 
 				/* Now check that that poly does not use a same vertex more than once! */
 				if (!sp->invalid) {
-					int *prev_v = v = sp->verts;
+					const int *prev_v = v = sp->verts;
 					j = sp->numverts;
 
 					qsort(sp->verts, j, sizeof(int), int_cmp);
@@ -598,7 +603,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 
 		for (i = 1; i < totpoly; i++, sp++) {
 			int p1_nv = sp->numverts, p2_nv = prev_sp->numverts;
-			int *p1_v = sp->verts, *p2_v = prev_sp->verts;
+			const int *p1_v = sp->verts, *p2_v = prev_sp->verts;
 			short p1_sub = true, p2_sub = true;
 			if (sp->invalid)
 				break;
@@ -909,8 +914,6 @@ static bool mesh_validate_customdata(CustomData *data, CustomDataMask mask,
 	return is_valid;
 }
 
-#undef PRINT
-
 /**
  * \returns is_valid.
  */
@@ -1052,8 +1055,36 @@ void BKE_mesh_cd_validate(Mesh *me)
 		}
 	}
 }
-/** \} */
 
+/**
+ * Check all material indices of polygons are valid, invalid ones are set to 0.
+ * \returns is_valid.
+ */
+int BKE_mesh_validate_material_indices(Mesh *me)
+{
+	MPoly *mp;
+	const int max_idx = max_ii(0, me->totcol - 1);
+	const int totpoly = me->totpoly;
+	int i;
+	bool is_valid = true;
+
+	for (mp = me->mpoly, i = 0; i < totpoly; i++, mp++) {
+		if (mp->mat_nr > max_idx) {
+			mp->mat_nr = 0;
+			is_valid = false;
+		}
+	}
+
+	if (!is_valid) {
+		DAG_id_tag_update(&me->id, OB_RECALC_DATA);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+/** \} */
 
 
 /* -------------------------------------------------------------------- */

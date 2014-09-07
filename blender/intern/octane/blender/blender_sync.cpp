@@ -188,22 +188,23 @@ void BlenderSync::sync_kernel(PassType pass_type) {
     kernel->bump_normal_mapping = get_boolean(oct_scene, "bump_normal_mapping");
     kernel->wf_bktrace_hl       = get_boolean(oct_scene, "wf_bktrace_hl");
 
-    kernel->max_depth       = get_int(oct_scene, "max_depth");
-    kernel->caustic_blur    = get_float(oct_scene, "caustic_blur");
+    kernel->max_depth           = get_int(oct_scene, "max_depth");
+    kernel->caustic_blur        = get_float(oct_scene, "caustic_blur");
 
-    kernel->specular_depth  = get_int(oct_scene, "specular_depth");
-    kernel->glossy_depth    = get_int(oct_scene, "glossy_depth");
-    kernel->ao_dist         = get_float(oct_scene, "ao_dist");
-    kernel->gi_mode         = static_cast<Kernel::GIType>(RNA_enum_get(&oct_scene, "gi_mode"));
-    kernel->diffuse_depth   = get_int(oct_scene, "diffuse_depth");
+    kernel->specular_depth      = get_int(oct_scene, "specular_depth");
+    kernel->glossy_depth        = get_int(oct_scene, "glossy_depth");
+    kernel->ao_dist             = get_float(oct_scene, "ao_dist");
+    kernel->gi_mode             = static_cast<Kernel::GIType>(RNA_enum_get(&oct_scene, "gi_mode"));
+    kernel->diffuse_depth       = get_int(oct_scene, "diffuse_depth");
 
-    kernel->exploration     = get_float(oct_scene, "exploration");
+    kernel->exploration         = get_float(oct_scene, "exploration");
     kernel->direct_light_importance = get_float(oct_scene, "direct_light_importance");
-    kernel->max_rejects     = get_int(oct_scene, "max_rejects");
-    kernel->parallelism     = get_int(oct_scene, "parallelism");
+    kernel->max_rejects         = get_int(oct_scene, "max_rejects");
+    kernel->parallelism         = get_int(oct_scene, "parallelism");
 
-    kernel->zdepth_max      = get_float(oct_scene, "zdepth_max");
-    kernel->uv_max          = get_float(oct_scene, "uv_max");
+    kernel->zdepth_max          = get_float(oct_scene, "zdepth_max");
+    kernel->uv_max              = get_float(oct_scene, "uv_max");
+    kernel->distributed_tracing = get_boolean(oct_scene, "distributed_tracing");
 
 	if(kernel->modified(prevkernel)) kernel->tag_update();
 

@@ -48,8 +48,6 @@
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_library.h"
-#include "BKE_main.h"
-
 
 
 /* ************************************************** */
@@ -508,7 +506,7 @@ void gpencil_layer_setactive(bGPdata *gpd, bGPDlayer *active)
 	bGPDlayer *gpl;
 	
 	/* error checking */
-	if (ELEM3(NULL, gpd, gpd->layers.first, active))
+	if (ELEM(NULL, gpd, gpd->layers.first, active))
 		return;
 		
 	/* loop over layers deactivating all */

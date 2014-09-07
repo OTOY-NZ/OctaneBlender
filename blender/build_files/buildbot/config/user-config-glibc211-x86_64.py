@@ -4,9 +4,9 @@ BF_NUMJOBS = 4
 WITHOUT_BF_OVERWRITE_INSTALL = True
 
 # Python configuration
-BF_PYTHON_VERSION = '3.3'
+BF_PYTHON_VERSION = '3.4'
 BF_PYTHON_ABI_FLAGS = 'm'
-BF_PYTHON = '/opt/lib/python-3.3'
+BF_PYTHON = '/opt/lib/python-3.4'
 WITH_BF_PYTHON_INSTALL_NUMPY = True
 WITH_BF_PYTHON_INSTALL_REQUESTS = True
 
@@ -22,7 +22,7 @@ BF_OPENCOLLADA_LIB_STATIC = '${BF_OPENCOLLADA}/lib/libOpenCOLLADAStreamWriter.a 
     '${BF_OPENCOLLADA}/lib/libOpenCOLLADAFramework.a ' + \
     '${BF_OPENCOLLADA}/lib/libOpenCOLLADABaseUtils.a ' + \
     '${BF_OPENCOLLADA}/lib/libGeneratedSaxParser.a '  + \
-    '${BF_OPENCOLLADA}/lib/libUTF.a ${BF_OPENCOLLADA}/lib/libMathMLSolver.a ' + \
+    '${BF_OPENCOLLADA}/lib/libMathMLSolver.a ' + \
     '${BF_OPENCOLLADA}/lib/libbuffer.a ${BF_OPENCOLLADA}/lib/libftoa.a ' + \
     '/usr/lib/libxml2.a /usr/lib/libexpat.a /usr/lib/libpcre.a'
 BF_OPENCOLLADA_LIBPATH = '${BF_OPENCOLLADA}/lib /home/sources/staticlibs/lib64'
@@ -134,8 +134,8 @@ BF_OSL_COMPILER = '${BF_OSL}/bin/oslc'
 
 WITH_BF_LLVM = True
 WITH_BF_STATICLLVM = False
-BF_LLVM = '/opt/lib/llvm-3.1'
-BF_LLVM_LIB = 'LLVMBitReader LLVMJIT LLVMipo LLVMVectorize LLVMBitWriter LLVMX86CodeGen LLVMX86Desc LLVMX86Info LLVMX86AsmPrinter ' + \
+BF_LLVM = '/opt/lib/llvm-3.4.2'
+BF_LLVM_LIB = 'LLVMBitReader LLVMJIT LLVMipo LLVMVectorize LLVMBitWriter LLVMX86CodeGen LLVMX86Desc LLVMObject LLVMX86Info LLVMX86AsmPrinter ' + \
     'LLVMX86Utils LLVMSelectionDAG LLVMCodeGen LLVMScalarOpts LLVMInstCombine LLVMTransformUtils LLVMipa LLVMAnalysis LLVMExecutionEngine ' + \
     'LLVMTarget LLVMMC LLVMCore LLVMSupport'
 BF_LLVM_LIBPATH = '${BF_LLVM}/lib'

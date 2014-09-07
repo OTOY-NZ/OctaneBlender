@@ -8,65 +8,37 @@ import time
 ##--------------------------OVERRIDES-----------------------------
 
 ## PARA ESCENAS NUEVAS
-
-class OverridesOp (bpy.types.Operator):
-    bl_idname = "render.overrides_set_list"
-    bl_label = "Overrides set list"
-    bl_options = {"REGISTER", "UNDO"}
-    def execute(self,context):
-        for scene in bpy.data.scenes[:]:
-            try:
-                scene['OVERRIDE']
-            except:
-                scene['OVERRIDE']="[]"
-        return {'FINISHED'}
+bpy.types.Scene.overrides = bpy.props.StringProperty(default="[]")
 
 ## ------------------------------------ APPLY AND RESTORE OVERRIDES --------------------------------------
 
 def DefOscApplyOverrides(self):
-    LISTMAT = []
-    PROPTOLIST = list(eval(bpy.context.scene['OVERRIDE']))
-    FILEPATH=bpy.data.filepath
-    ACTIVEFOLDER = os.path.split(FILEPATH)[0]
-    ENTFILEPATH= "%s_OVERRIDE.xml" %  (os.path.join(ACTIVEFOLDER, bpy.context.scene.name))    
-    
-    ## GUARDO MATERIALES DE OBJETOS EN GRUPOS        
-    LISTMAT = { OBJ : [SLOT.material for SLOT in OBJ.material_slots] for OBJ in bpy.data.objects if OBJ.type in {'MESH', 'META', 'CURVE'} }        
-    for OVERRIDE in PROPTOLIST:
-        for OBJECT in bpy.data.groups[OVERRIDE[0]].objects:
-            if OBJECT.type in {'MESH', 'META', 'CURVE'}: 
-                LENSLOTS = len(OBJECT.material_slots[:])
-                OBJECT.data.materials.clear()
-                for MATSLOT in range(LENSLOTS):
-                    OBJECT.data.materials.append(bpy.data.materials[OVERRIDE[1]])  
-                
-                #if len(OBJECT.material_slots) > 0:                   
-                #    for SLOT in OBJECT.material_slots[:]:
-                #        SLOT.material = bpy.data.materials[OVERRIDE[1]]                    
-                #else:
-                #    print ("* %s have not Material Slots" % (OBJECT.name))          
-    with open(ENTFILEPATH, mode="w") as file:    
-        file.write(str(LISTMAT))
-    
-    
-def DefOscRestoreOverrides(self):    
-    FILEPATH = bpy.data.filepath
-    ACTIVEFOLDER = os.path.split(FILEPATH)[0]
-    ENTFILEPATH = "%s_OVERRIDE.xml" %  (os.path.join(ACTIVEFOLDER, bpy.context.scene.name))
-        
-    with open(ENTFILEPATH, mode="r") as file:
-        RXML = file.readlines(0)
-    LISTMAT = dict(eval(RXML[0]))
-    # RESTAURO MATERIALES  DE OVERRIDES    
-    for OBJ in LISTMAT:    
-        OBJ.data.materials.clear()        
-        if OBJ.type in {'MESH', 'META', 'CURVE'}:
-            for SLOTIND, SLOT in enumerate(LISTMAT[OBJ]):
-                #OBJ.material_slots[SLOTIND].material = SLOT 
-                OBJ.data.materials.append(SLOT) 
+    types = {'MESH','META','CURVE'}
+    for ob in bpy.data.objects:
+        if ob.type in types:
+            if not len(ob.material_slots):
+                ob.data.materials.append(None)
+    slotlist = { ob : [sl.material for sl in ob.material_slots] for ob in bpy.data.objects if ob.type in types if len (ob.material_slots)} 
+    with open("%s_override.txt" % (os.path.join(os.path.dirname(bpy.data.filepath),bpy.context.scene.name)), mode="w") as file:
+        file.write(str(slotlist))
+    scene = bpy.context.scene    
+    proptolist = list(eval(scene.overrides))   
+    for group, material in proptolist:
+        for object in bpy.data.groups[group].objects:
+            if object.type in types:
+                if len(object.data.materials):
+                    object.data.materials.clear()
+                    object.data.materials.append(bpy.data.materials[material])                 
  
-
-    
+def DefOscRestoreOverrides(self):
+    types = {'MESH','META','CURVE'}
+    with open("%s_override.txt" % (os.path.join(os.path.dirname(bpy.data.filepath),bpy.context.scene.name)), mode="r") as file:
+        slotlist = eval(file.read())
+        for ob,slots in slotlist.items():
+            ob.data.materials.clear()
+            for slot in slots:
+                ob.data.materials.append(slot)   
+ 
 ## HAND OPERATOR    
 class OscApplyOverrides(bpy.types.Operator):
     bl_idname = "render.apply_overrides"
@@ -137,7 +109,7 @@ class OscCheckOverrides (bpy.types.Operator):
 
             print("   %s Scene is checking" % (SCENE.name))
 
-            for OVERRIDE in list(eval(SCENE['OVERRIDE'])):
+            for OVERRIDE in list(eval(SCENE.overrides)):
                 # REVISO OVERRIDES EN GRUPOS
                 if OVERRIDE[0] in GROUPLIST:
                     pass
@@ -266,7 +238,7 @@ class OscTransferOverrides (bpy.types.Operator):
         # CREO LISTA
         OSCOV = [[OVERRIDE.grooverride,OVERRIDE.matoverride]for OVERRIDE in bpy.context.scene.ovlist[:] if OVERRIDE.matoverride != "" if OVERRIDE.grooverride != ""]
 
-        bpy.context.scene["OVERRIDE"] = str(OSCOV)
+        bpy.context.scene.overrides = str(OSCOV)
         return {'FINISHED'}   
     
 class OscAddOverridesSlot (bpy.types.Operator):    

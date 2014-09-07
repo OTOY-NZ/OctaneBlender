@@ -35,10 +35,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_mempool.h"
-#include "BLI_ghash.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -145,7 +143,7 @@ static int outliner_parent_clear_poll(bContext *C, wmDrag *drag, const wmEvent *
 
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
-	if (!ELEM4(soops->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_GROUPS)) {
+	if (!ELEM(soops->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_GROUPS)) {
 		return false;
 	}
 
@@ -158,7 +156,7 @@ static int outliner_parent_clear_poll(bContext *C, wmDrag *drag, const wmEvent *
 
 					switch (te->idcode) {
 						case ID_SCE:
-							return (ELEM3(tselem->type, TSE_R_LAYER_BASE, TSE_R_LAYER, TSE_R_PASS));
+							return (ELEM(tselem->type, TSE_R_LAYER_BASE, TSE_R_LAYER, TSE_R_PASS));
 						case ID_OB:
 							return (ELEM(tselem->type, TSE_MODIFIER_BASE, TSE_CONSTRAINT_BASE));
 						/* Other codes to ignore? */
@@ -347,6 +345,7 @@ static void outliner_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa)
 		case NC_GEOM:
 			switch (wmn->data) {
 				case ND_VERTEX_GROUP:
+				case ND_DATA:
 					ED_region_tag_redraw(ar);
 					break;
 			}

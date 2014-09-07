@@ -127,6 +127,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "width")
         col.prop(md, "segments")
         col.prop(md, "profile")
+        col.prop(md, "material")
 
         col = split.column()
         col.prop(md, "use_only_vertices")
@@ -283,29 +284,28 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
     def DISPLACE(self, layout, ob, md):
         has_texture = (md.texture is not None)
 
-        split = layout.split()
-
-        col = split.column()
+        col = layout.column(align=True)
         col.label(text="Texture:")
         col.template_ID(md, "texture", new="texture.new")
+
+        split = layout.split()
+
+        col = split.column(align=True)
+        col.label(text="Direction:")
+        col.prop(md, "direction", text="")
         col.label(text="Vertex Group:")
         col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
-        col = split.column()
-        col.label(text="Direction:")
-        col.prop(md, "direction", text="")
-        colsub = col.column()
-        colsub.active = has_texture
-        colsub.label(text="Texture Coordinates:")
-        colsub.prop(md, "texture_coords", text="")
+        col = split.column(align=True)
+        col.active = has_texture
+        col.label(text="Texture Coordinates:")
+        col.prop(md, "texture_coords", text="")
         if md.texture_coords == 'OBJECT':
-            row = layout.row()
-            row.active = has_texture
-            row.prop(md, "texture_coords_object", text="Object")
+            col.label(text="Object:")
+            col.prop(md, "texture_coords_object", text="")
         elif md.texture_coords == 'UV' and ob.type == 'MESH':
-            row = layout.row()
-            row.active = has_texture
-            row.prop_search(md, "uv_layer", ob.data, "uv_textures")
+            col.label(text="UV Map:")
+            col.prop_search(md, "uv_layer", ob.data, "uv_textures", text="")
 
         layout.separator()
 
@@ -818,6 +818,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "use_even_offset")
         col.prop(md, "use_quality_normals")
         col.prop(md, "use_rim")
+        col_rim = col.column()
+        col_rim.active = md.use_rim
+        col_rim.prop(md, "use_rim_only")
 
         col.separator()
 

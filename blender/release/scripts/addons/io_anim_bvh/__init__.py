@@ -27,7 +27,6 @@ bl_info = {
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Import-Export/MotionCapture_BVH",
-    "tracker_url": "",
     "support": 'OFFICIAL',
     "category": "Import-Export"}
 
@@ -192,8 +191,8 @@ class ExportBVH(bpy.types.Operator, ExportHelper):
             default='NATIVE',
             )
     root_transform_only = BoolProperty(
-            name="Root Transform Only",
-            description="Only write out transform channels for the root bone",
+            name="Root Translation Only",
+            description="Only write out translation channels for the root bone",
             default=False,
             )
 

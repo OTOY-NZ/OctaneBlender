@@ -44,16 +44,16 @@ template<typename T> struct texture  {
 	}
 
 #if 0
-	ccl_always_inline __m128 fetch_m128(int index)
+	ccl_always_inline ssef fetch_ssef(int index)
 	{
 		kernel_assert(index >= 0 && index < width);
-		return ((__m128*)data)[index];
+		return ((ssef*)data)[index];
 	}
 
-	ccl_always_inline __m128i fetch_m128i(int index)
+	ccl_always_inline ssei fetch_ssei(int index)
 	{
 		kernel_assert(index >= 0 && index < width);
-		return ((__m128i*)data)[index];
+		return ((ssei*)data)[index];
 	}
 #endif
 
@@ -95,14 +95,14 @@ template<typename T> struct texture_image  {
 
 	ccl_always_inline float4 interp(float x, float y, bool periodic = true)
 	{
-		if(!data)
+		if(UNLIKELY(!data))
 			return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
 		int ix, iy, nix, niy;
 
 		if(interpolation == INTERPOLATION_CLOSEST) {
-			frac(x*width, &ix);
-			frac(y*height, &iy);
+			frac(x*(float)width, &ix);
+			frac(y*(float)height, &iy);
 			if(periodic) {
 				ix = wrap_periodic(ix, width);
 				iy = wrap_periodic(iy, height);
@@ -115,8 +115,8 @@ template<typename T> struct texture_image  {
 			return read(data[ix + iy*width]);
 		}
 		else {
-			float tx = frac(x*width - 0.5f, &ix);
-			float ty = frac(y*height - 0.5f, &iy);
+			float tx = frac(x*(float)width - 0.5f, &ix);
+			float ty = frac(y*(float)height - 0.5f, &iy);
 
 			if(periodic) {
 				ix = wrap_periodic(ix, width);
@@ -144,15 +144,15 @@ template<typename T> struct texture_image  {
 
 	ccl_always_inline float4 interp_3d(float x, float y, float z, bool periodic = false)
 	{
-		if(!data)
+		if(UNLIKELY(!data))
 			return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
 		int ix, iy, iz, nix, niy, niz;
 
 		if(interpolation == INTERPOLATION_CLOSEST) {
-			frac(x*width, &ix);
-			frac(y*height, &iy);
-			frac(z*depth, &iz);
+			frac(x*(float)width, &ix);
+			frac(y*(float)height, &iy);
+			frac(z*(float)depth, &iz);
 
 			if(periodic) {
 				ix = wrap_periodic(ix, width);
@@ -168,9 +168,9 @@ template<typename T> struct texture_image  {
 			return read(data[ix + iy*width + iz*width*height]);
 		}
 		else {
-			float tx = frac(x*width - 0.5f, &ix);
-			float ty = frac(y*height - 0.5f, &iy);
-			float tz = frac(z*depth - 0.5f, &iz);
+			float tx = frac(x*(float)width - 0.5f, &ix);
+			float ty = frac(y*(float)height - 0.5f, &iy);
+			float tz = frac(z*(float)depth - 0.5f, &iz);
 
 			if(periodic) {
 				ix = wrap_periodic(ix, width);
@@ -207,6 +207,13 @@ template<typename T> struct texture_image  {
 		}
 	}
 
+	ccl_always_inline void dimensions_set(int width_, int height_, int depth_)
+	{
+		width = width_;
+		height = height_;
+		depth = depth_;
+	}
+
 	T *data;
 	int interpolation;
 	int width, height, depth;
@@ -225,8 +232,8 @@ typedef texture_image<uchar4> texture_image_uchar4;
 /* Macros to handle different memory storage on different devices */
 
 #define kernel_tex_fetch(tex, index) (kg->tex.fetch(index))
-#define kernel_tex_fetch_m128(tex, index) (kg->tex.fetch_m128(index))
-#define kernel_tex_fetch_m128i(tex, index) (kg->tex.fetch_m128i(index))
+#define kernel_tex_fetch_ssef(tex, index) (kg->tex.fetch_ssef(index))
+#define kernel_tex_fetch_ssei(tex, index) (kg->tex.fetch_ssei(index))
 #define kernel_tex_lookup(tex, t, offset, size) (kg->tex.lookup(t, offset, size))
 #define kernel_tex_image_interp(tex, x, y) ((tex < MAX_FLOAT_IMAGES) ? kg->texture_float_images[tex].interp(x, y) : kg->texture_byte_images[tex - MAX_FLOAT_IMAGES].interp(x, y))
 #define kernel_tex_image_interp_3d(tex, x, y, z) ((tex < MAX_FLOAT_IMAGES) ? kg->texture_float_images[tex].interp_3d(x, y, z) : kg->texture_byte_images[tex - MAX_FLOAT_IMAGES].interp_3d(x, y, z))

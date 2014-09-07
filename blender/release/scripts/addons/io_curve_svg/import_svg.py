@@ -1749,7 +1749,16 @@ class SVGGeometrySVG(SVGGeometryContainer):
 
         rect = SVGRectFromNode(self._node, self._context)
 
-        self._pushMatrix(self.getNodeMatrix())
+        matrix = self.getNodeMatrix()
+
+        # Better Inkscape compatibility: match document origin with
+        # 3D space origin.
+        if self._node.getAttribute('inkscape:version'):
+            raw_height = self._node.getAttribute('height')
+            document_height = SVGParseCoord(raw_height, 1.0)
+            matrix = matrix * Matrix.Translation([0.0, -document_height , 0.0])
+
+        self._pushMatrix(matrix)
         self._pushRect(rect)
 
         super()._doCreateGeom(False)

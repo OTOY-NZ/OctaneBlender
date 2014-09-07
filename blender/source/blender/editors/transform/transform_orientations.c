@@ -33,7 +33,6 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -47,7 +46,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
 #include "BKE_curve.h"
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
@@ -58,7 +56,6 @@
 #include "BLF_translation.h"
 
 #include "ED_armature.h"
-#include "ED_mesh.h"
 
 #include "RNA_define.h"
 
@@ -759,7 +756,7 @@ int getTransformOrientation(const bContext *C, float normal[3], float plane[3], 
 							if (flag) {
 								float tvec[3];
 								if ((v3d->around == V3D_LOCAL) ||
-								    ELEM3(flag, SEL_F2, SEL_F1 | SEL_F3, SEL_F1 | SEL_F2 | SEL_F3))
+								    ELEM(flag, SEL_F2, SEL_F1 | SEL_F3, SEL_F1 | SEL_F2 | SEL_F3))
 								{
 									BKE_nurb_bezt_calc_normal(nu, bezt, tvec);
 									add_v3_v3(normal, tvec);
@@ -798,18 +795,31 @@ int getTransformOrientation(const bContext *C, float normal[3], float plane[3], 
 		}
 		else if (obedit->type == OB_MBALL) {
 			MetaBall *mb = obedit->data;
+			MetaElem *ml;
+			bool ok = false;
+			float tmat[3][3];
 			
-			if (mb->lastelem) {
-				float qmat[3][3];
+			if (activeOnly && (ml = mb->lastelem)) {
+				quat_to_mat3(tmat, ml->quat);
+				add_v3_v3(normal, tmat[2]);
+				add_v3_v3(plane, tmat[1]);
+				ok = true;
+			}
+			else {
+				for (ml = mb->editelems->first; ml; ml = ml->next) {
+					if (ml->flag & SELECT) {
+						quat_to_mat3(tmat, ml->quat);
+						add_v3_v3(normal, tmat[2]);
+						add_v3_v3(plane, tmat[1]);
+						ok = true;
+					}
+				}
+			}
 
-				/* Rotation of MetaElem is stored in quat */
-				quat_to_mat3(qmat, mb->lastelem->quat);
-
-				copy_v3_v3(normal, qmat[2]);
-
-				copy_v3_v3(plane, qmat[1]);
-				
-				result = ORIENTATION_FACE;
+			if (ok) {
+				if (!is_zero_v3(plane)) {
+					result = ORIENTATION_FACE;
+				}
 			}
 		}
 		else if (obedit->type == OB_ARMATURE) {

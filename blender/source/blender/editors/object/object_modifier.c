@@ -69,6 +69,7 @@
 #include "BKE_report.h"
 #include "BKE_object.h"
 #include "BKE_ocean.h"
+#include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_softbody.h"
 #include "BKE_editmesh.h"
@@ -80,7 +81,6 @@
 #include "ED_armature.h"
 #include "ED_object.h"
 #include "ED_screen.h"
-#include "ED_sculpt.h"
 #include "ED_mesh.h"
 
 #include "WM_api.h"
@@ -98,7 +98,7 @@ ModifierData *ED_object_modifier_add(ReportList *reports, Main *bmain, Scene *sc
 	ModifierTypeInfo *mti = modifierType_getInfo(type);
 	
 	/* only geometry objects should be able to get modifiers [#25291] */
-	if (!ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_LATTICE)) {
+	if (!ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_LATTICE)) {
 		BKE_reportf(reports, RPT_WARNING, "Modifiers cannot be added to object '%s'", ob->id.name + 2);
 		return NULL;
 	}
@@ -161,7 +161,7 @@ ModifierData *ED_object_modifier_add(ReportList *reports, Main *bmain, Scene *sc
 
 			if (ob->mode & OB_MODE_SCULPT) {
 				/* ensure that grid paint mask layer is created */
-				ED_sculpt_mask_layers_ensure(ob, (MultiresModifierData *)new_md);
+				BKE_sculpt_mask_layers_ensure(ob, (MultiresModifierData *)new_md);
 			}
 		}
 		else if (type == eModifierType_Skin) {
@@ -1187,7 +1187,7 @@ static int multires_subdivide_exec(bContext *C, wmOperator *op)
 
 	if (ob->mode & OB_MODE_SCULPT) {
 		/* ensure that grid paint mask layer is created */
-		ED_sculpt_mask_layers_ensure(ob, mmd);
+		BKE_sculpt_mask_layers_ensure(ob, mmd);
 	}
 	
 	return OPERATOR_FINISHED;
@@ -1454,7 +1454,7 @@ static int skin_edit_poll(bContext *C)
 	        edit_modifier_poll_generic(C, &RNA_SkinModifier, (1 << OB_MESH)));
 }
 
-static void skin_root_clear(BMesh *bm, BMVert *bm_vert, GHash *visited)
+static void skin_root_clear(BMesh *bm, BMVert *bm_vert, GSet *visited)
 {
 	BMEdge *bm_edge;
 	BMIter bm_iter;
@@ -1462,14 +1462,14 @@ static void skin_root_clear(BMesh *bm, BMVert *bm_vert, GHash *visited)
 	BM_ITER_ELEM (bm_edge, &bm_iter, bm_vert, BM_EDGES_OF_VERT) {
 		BMVert *v2 = BM_edge_other_vert(bm_edge, bm_vert);
 
-		if (!BLI_ghash_lookup(visited, v2)) {
+		if (!BLI_gset_haskey(visited, v2)) {
 			MVertSkin *vs = CustomData_bmesh_get(&bm->vdata,
 			                                     v2->head.data,
 			                                     CD_MVERT_SKIN);
 
 			/* clear vertex root flag and add to visited set */
 			vs->flag &= ~MVERT_SKIN_ROOT;
-			BLI_ghash_insert(visited, v2, v2);
+			BLI_gset_insert(visited, v2);
 
 			skin_root_clear(bm, v2, visited);
 		}
@@ -1483,14 +1483,14 @@ static int skin_root_mark_exec(bContext *C, wmOperator *UNUSED(op))
 	BMesh *bm = em->bm;
 	BMVert *bm_vert;
 	BMIter bm_iter;
-	GHash *visited;
+	GSet *visited;
 
-	visited = BLI_ghash_ptr_new("skin_root_mark_exec visited");
+	visited = BLI_gset_ptr_new(__func__);
 
 	BKE_mesh_ensure_skin_customdata(ob->data);
 
 	BM_ITER_MESH (bm_vert, &bm_iter, bm, BM_VERTS_OF_MESH) {
-		if (!BLI_ghash_lookup(visited, bm_vert) &&
+		if (!BLI_gset_haskey(visited, bm_vert) &&
 		    BM_elem_flag_test(bm_vert, BM_ELEM_SELECT))
 		{
 			MVertSkin *vs = CustomData_bmesh_get(&bm->vdata,
@@ -1499,14 +1499,14 @@ static int skin_root_mark_exec(bContext *C, wmOperator *UNUSED(op))
 
 			/* mark vertex as root and add to visited set */
 			vs->flag |= MVERT_SKIN_ROOT;
-			BLI_ghash_insert(visited, bm_vert, bm_vert);
+			BLI_gset_insert(visited, bm_vert);
 
 			/* clear root flag from all connected vertices (recursively) */
 			skin_root_clear(bm, bm_vert, visited);
 		}
 	}
 
-	BLI_ghash_free(visited, NULL, NULL);
+	BLI_gset_free(visited, NULL);
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
@@ -1650,9 +1650,9 @@ static void skin_armature_bone_create(Object *skin_ob,
 		int v;
 
 		/* ignore edge if already visited */
-		if (BLI_BITMAP_GET(edges_visited, endx))
+		if (BLI_BITMAP_TEST(edges_visited, endx))
 			continue;
-		BLI_BITMAP_SET(edges_visited, endx);
+		BLI_BITMAP_ENABLE(edges_visited, endx);
 
 		v = (e->v1 == parent_v ? e->v2 : e->v1);
 
@@ -1876,7 +1876,7 @@ static int meshdeform_bind_exec(bContext *C, wmOperator *op)
 		else if (ob->type == OB_MBALL) {
 			BKE_displist_make_mball(CTX_data_main(C)->eval_ctx, scene, ob);
 		}
-		else if (ELEM3(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
+		else if (ELEM(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
 			BKE_displist_make_curveTypes(scene, ob, 0);
 		}
 

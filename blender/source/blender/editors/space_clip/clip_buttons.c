@@ -42,7 +42,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "BLF_translation.h"
@@ -53,7 +52,6 @@
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "ED_clip.h"
 #include "ED_gpencil.h"
 
 #include "UI_interface.h"
@@ -86,8 +84,8 @@ void ED_clip_buttons_register(ARegionType *art)
 	strcpy(pt->idname, "CLIP_PT_gpencil");
 	strcpy(pt->label, N_("Grease Pencil"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
-	pt->draw_header = gpencil_panel_standard_header;
-	pt->draw = gpencil_panel_standard;
+	pt->draw_header = ED_gpencil_panel_standard_header;
+	pt->draw = ED_gpencil_panel_standard;
 	pt->flag |= PNL_DEFAULT_CLOSED;
 	pt->poll = clip_grease_pencil_panel_poll;
 	BLI_addtail(&art->paneltypes, pt);

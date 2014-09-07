@@ -112,7 +112,8 @@ typedef struct bNodeSocket {
 	short stack_index;			/* local stack index */
 	/* XXX deprecated, kept for forward compatibility */
 	short stack_type  DNA_DEPRECATED;
-	int resizemode;				/* compositor resize mode of the socket */
+	int pad;
+	
 	void *cache;				/* cached data from execution */
 	
 	/* internal data to retrieve relations and groups
@@ -851,6 +852,12 @@ typedef struct NodeShaderUVMap {
 	char uv_map[64];
 } NodeShaderUVMap;
 
+typedef struct NodeSunBeams {
+	float source[2];
+
+	float ray_length;
+} NodeSunBeams;
+
 /* script node mode */
 #define NODE_SCRIPT_INTERNAL		0
 #define NODE_SCRIPT_EXTERNAL		1
@@ -873,9 +880,10 @@ typedef struct NodeShaderUVMap {
 #define CMP_NODE_CHANNEL_MATTE_CS_YCC	4
 
 /* glossy distributions */
-#define SHD_GLOSSY_BECKMANN	0
-#define SHD_GLOSSY_SHARP	1
-#define SHD_GLOSSY_GGX		2
+#define SHD_GLOSSY_BECKMANN				0
+#define SHD_GLOSSY_SHARP				1
+#define SHD_GLOSSY_GGX					2
+#define SHD_GLOSSY_ASHIKHMIN_SHIRLEY	3
 
 /* vector transform */
 #define SHD_VECT_TRANSFORM_TYPE_VECTOR	0

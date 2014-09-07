@@ -32,7 +32,6 @@
 #include <string.h>
 
 #include "DNA_color_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_movieclip_types.h"
 
@@ -456,7 +455,7 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 }
 
 static void histogram_draw_one(float r, float g, float b, float alpha,
-                               float x, float y, float w, float h, float *data, int res, const bool is_line)
+                               float x, float y, float w, float h, const float *data, int res, const bool is_line)
 {
 	int i;
 	
@@ -588,7 +587,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	int i, c;
 	float w, w3, h, alpha, yofs;
 	GLint scissor[4];
-	float colors[3][3] = MAT3_UNITY;
+	float colors[3][3];
 	float colorsycc[3][3] = {{1, 0, 1}, {1, 1, 0}, {0, 1, 1}};
 	float colors_alpha[3][3], colorsycc_alpha[3][3]; /* colors  pre multiplied by alpha for speed up */
 	float min, max;
@@ -610,6 +609,8 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	/* log scale for alpha */
 	alpha = scopes->wavefrm_alpha * scopes->wavefrm_alpha;
 	
+	unit_m3(colors);
+
 	for (c = 0; c < 3; c++) {
 		for (i = 0; i < 3; i++) {
 			colors_alpha[c][i] = colors[c][i] * alpha;
@@ -694,11 +695,11 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 		}
 
 		/* RGB / YCC (3 channels) */
-		else if (ELEM4(scopes->wavefrm_mode,
-		               SCOPES_WAVEFRM_RGB,
-		               SCOPES_WAVEFRM_YCC_601,
-		               SCOPES_WAVEFRM_YCC_709,
-		               SCOPES_WAVEFRM_YCC_JPEG))
+		else if (ELEM(scopes->wavefrm_mode,
+		              SCOPES_WAVEFRM_RGB,
+		              SCOPES_WAVEFRM_YCC_601,
+		              SCOPES_WAVEFRM_YCC_709,
+		              SCOPES_WAVEFRM_YCC_JPEG))
 		{
 			int rgb = (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB);
 			
@@ -749,12 +750,12 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 static float polar_to_x(float center, float diam, float ampli, float angle)
 {
-	return center + diam *ampli * cosf(angle);
+	return center + diam * ampli * cosf(angle);
 }
 
 static float polar_to_y(float center, float diam, float ampli, float angle)
 {
-	return center + diam *ampli * sinf(angle);
+	return center + diam * ampli * sinf(angle);
 }
 
 static void vectorscope_draw_target(float centerx, float centery, float diam, const float colf[3])
@@ -1027,13 +1028,13 @@ static void ui_draw_colorband_handle(
 	if (active)
 		glColor3ub(196, 196, 196);
 	else
-		glColor3ub(128, 128, 128);
+		glColor3ub(96, 96, 96);
 	ui_draw_colorband_handle_tri(x, y1 + height, half_width, half_width, true);
 
 	if (active)
 		glColor3ub(255, 255, 255);
 	else
-		glColor3ub(196, 196, 196);
+		glColor3ub(128, 128, 128);
 	ui_draw_colorband_handle_tri_hlight(x, y1 + height - 1, (half_width - 1), (half_width - 1));
 
 	glColor3ub(0, 0, 0);
@@ -1325,9 +1326,9 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 		float col[3] = {0.0f, 0.0f, 0.0f}; /* dummy arg */
 
 		grid.xmin = rect->xmin + zoomx * (-offsx);
-		grid.xmax = rect->xmax + zoomx * (-offsx);
+		grid.xmax = grid.xmin + zoomx;
 		grid.ymin = rect->ymin + zoomy * (-offsy);
-		grid.ymax = rect->ymax + zoomy * (-offsy);
+		grid.ymax = grid.ymin + zoomy;
 
 		ui_draw_gradient(&grid, col, UI_GRAD_H, 1.0f);
 
@@ -1612,14 +1613,14 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	static const float size = 5.0f;
 	
 	/* 16 values of sin function */
-	static float si[16] = {
+	const float si[16] = {
 	    0.00000000f, 0.39435585f, 0.72479278f, 0.93775213f,
 	    0.99871650f, 0.89780453f, 0.65137248f, 0.29936312f,
 	    -0.10116832f, -0.48530196f, -0.79077573f, -0.96807711f,
 	    -0.98846832f, -0.84864425f, -0.57126821f, -0.20129852f
 	};
 	/* 16 values of cos function */
-	static float co[16] = {
+	const float co[16] = {
 	    1.00000000f, 0.91895781f, 0.68896691f, 0.34730525f,
 	    -0.05064916f, -0.44039415f, -0.75875812f, -0.95413925f,
 	    -0.99486932f, -0.87434661f, -0.61210598f, -0.25065253f,

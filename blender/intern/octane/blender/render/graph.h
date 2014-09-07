@@ -90,7 +90,8 @@ public:
 	ShaderInput *input(const char *name);
 	ShaderOutput *output(const char *name);
 
-    virtual void load_to_server(RenderServer* server) = 0;
+    virtual void load_to_server(RenderServer* server)       = 0;
+    virtual void delete_from_server(RenderServer* server)   = 0;
 
 	vector<ShaderInput*>  inputs;
 	vector<ShaderOutput*> outputs;
@@ -105,15 +106,19 @@ public:
 // Node definition utility macros
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #define SHADER_NODE_CLASS(type) \
+public: \
 	type(); \
-    virtual void load_to_server(RenderServer* server); \
+    virtual void load_to_server(RenderServer* server);
 
 #define SHADER_NODE_NO_CLONE_CLASS(type) \
 	type(); \
-    virtual void load_to_server(RenderServer* server); \
+    virtual void load_to_server(RenderServer* server);
 
 #define SHADER_NODE_BASE_CLASS(type) \
-    virtual void load_to_server(RenderServer* server); \
+protected: \
+	type(); \
+public: \
+    virtual void delete_from_server(RenderServer* server);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Graph

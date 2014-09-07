@@ -115,12 +115,15 @@ ListBase *ED_animcontext_get_markers(const bAnimContext *ac)
 
 /* --------------------------------- */
 
-/* Apply some transformation to markers after the fact 
- * < markers: list of markers to affect - this may or may not be the scene markers list, so don't assume anything
- * < scene: current scene (for getting current frame)
- * < mode: (TfmMode) transform mode that this transform is for
- * < value: from the transform code, this is t->vec[0] (which is delta transform for grab/extend, and scale factor for scale)
- * < side: (B/L/R) for 'extend' functionality, which side of current frame to use
+/**
+ * Apply some transformation to markers after the fact
+ *
+ * \param markers List of markers to affect - this may or may not be the scene markers list, so don't assume anything
+ * \param scene Current scene (for getting current frame)
+ * \param mode (TfmMode) transform mode that this transform is for
+ * \param value From the transform code, this is ``t->vec[0]``
+ * (which is delta transform for grab/extend, and scale factor for scale)
+ * \param side (B/L/R) for 'extend' functionality, which side of current frame to use
  */
 int ED_markers_post_apply_transform(ListBase *markers, Scene *scene, int mode, float value, char side)
 {
@@ -201,7 +204,7 @@ void ED_markers_get_minmax(ListBase *markers, short sel, float *first, float *la
 	
 	/* sanity check */
 	//printf("markers = %p -  %p, %p\n", markers, markers->first, markers->last);
-	if (ELEM3(NULL, markers, markers->first, markers->last)) {
+	if (ELEM(NULL, markers, markers->first, markers->last)) {
 		*first = 0.0f;
 		*last = 0.0f;
 		return;
@@ -322,7 +325,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	
 	/* no time correction for framelen! space is drawn with old values */
 	ypixels = BLI_rcti_size_y(&v2d->mask);
-	UI_view2d_getscale(v2d, &xscale, &yscale);
+	UI_view2d_scale_get(v2d, &xscale, &yscale);
 	
 	glScalef(1.0f / xscale, 1.0f, 1.0f);
 	
@@ -472,13 +475,14 @@ static int ed_markers_poll_markers_exist(bContext *C)
  
 /* ------------------------ */ 
 
-/* Second-tier invoke() callback that performs context validation before running the  
+/**
+ * Second-tier invoke() callback that performs context validation before running the
  * "custom"/third-tier invoke() callback supplied as the last arg (which would normally
  * be the operator's invoke() callback elsewhere)
  *
- * < invoke_func: (fn(bContext *, wmOperator *, wmEvent *)=int) "standard" invoke function
- *			that operator would otherwise have used. If NULL, the operator's standard
- *			exec() callback will be called instead in the appropriate places.
+ * \param invoke_func "standard" invoke function that operator would otherwise have used.
+ * If NULL, the operator's standard exec()
+ * callback will be called instead in the appropriate places.
  */
 static int ed_markers_opwrap_invoke_custom(bContext *C, wmOperator *op, const wmEvent *event,
                                            int (*invoke_func)(bContext *, wmOperator *, const wmEvent *))
@@ -842,7 +846,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 			applyNumInput(&mm->num, &value);
 
 			if (hasNumInput(&mm->num)) {
-				outputNumInput(&mm->num, str_tx);
+				outputNumInput(&mm->num, str_tx, scene->unit.scale_length);
 			}
 			else {
 				BLI_snprintf(str_tx, sizeof(str_tx), "%d", (int)value);
@@ -1008,14 +1012,14 @@ static void select_timeline_marker_frame(ListBase *markers, int frame, bool exte
 		}
 	}
 
-	LISTBASE_CIRCULAR_FORWARD_BEGIN (markers, marker, marker_first) {
+	BLI_LISTBASE_CIRCULAR_FORWARD_BEGIN (markers, marker, marker_first) {
 		/* this way a not-extend select will allways give 1 selected marker */
 		if (marker->frame == frame) {
 			marker->flag ^= SELECT;
 			break;
 		}
 	}
-	LISTBASE_CIRCULAR_FORWARD_END (markers, marker, marker_first);
+	BLI_LISTBASE_CIRCULAR_FORWARD_END (markers, marker, marker_first);
 }
 
 static int ed_marker_select(bContext *C, const wmEvent *event, bool extend, bool camera)
@@ -1024,22 +1028,18 @@ static int ed_marker_select(bContext *C, const wmEvent *event, bool extend, bool
 	ARegion *ar = CTX_wm_region(C);
 	View2D *v2d = UI_view2d_fromcontext(C);
 	float viewx;
-	int x, y, cfra;
+	int x, cfra;
 	
 	if (markers == NULL)
 		return OPERATOR_PASS_THROUGH;
 
 	x = event->x - ar->winrct.xmin;
-	y = event->y - ar->winrct.ymin;
 	
-	UI_view2d_region_to_view(v2d, x, y, &viewx, NULL);
+	viewx = UI_view2d_region_to_view_x(v2d, x);
 	
 	cfra = ED_markers_find_nearest_marker_time(markers, viewx);
 	
-	if (extend)
-		select_timeline_marker_frame(markers, cfra, 1);
-	else
-		select_timeline_marker_frame(markers, cfra, 0);
+	select_timeline_marker_frame(markers, cfra, extend);
 	
 #ifdef DURIAN_CAMERA_SWITCH
 
@@ -1150,22 +1150,19 @@ static int ed_marker_border_select_exec(bContext *C, wmOperator *op)
 	View2D *v2d = UI_view2d_fromcontext(C);
 	ListBase *markers = ED_context_get_markers(C);
 	TimeMarker *marker;
-	float xminf, xmaxf, yminf, ymaxf;
 	int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
 	bool extend = RNA_boolean_get(op->ptr, "extend");
-	rcti rect;
+	rctf rect;
 	
-	WM_operator_properties_border_to_rcti(op, &rect);
-
-	UI_view2d_region_to_view(v2d, rect.xmin, rect.ymin, &xminf, &yminf);
-	UI_view2d_region_to_view(v2d, rect.xmax, rect.ymax, &xmaxf, &ymaxf);
+	WM_operator_properties_border_to_rctf(op, &rect);
+	UI_view2d_region_to_view_rctf(v2d, &rect, &rect);
 	
 	if (markers == NULL)
 		return 0;
 	
 	/* XXX marker context */
 	for (marker = markers->first; marker; marker = marker->next) {
-		if ((marker->frame > xminf) && (marker->frame <= xmaxf)) {
+		if (BLI_rctf_isect_x(&rect, marker->frame)) {
 			switch (gesture_mode) {
 				case GESTURE_MODAL_SELECT:
 					marker->flag |= SELECT;
@@ -1425,6 +1422,7 @@ static void MARKER_OT_make_links_scene(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "scene", DummyRNA_NULL_items, 0, "Scene", "");
 	RNA_def_enum_funcs(prop, RNA_scene_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 
 }

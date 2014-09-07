@@ -17,23 +17,25 @@
 # ##### END GPL LICENSE BLOCK #####
 
 bl_info = {
-    'name': "Node Wrangler (aka Nodes Efficiency Tools)",
-    'author': "Bartek Skorupa, Greg Zaal",
-    'version': (3, 00),
-    'blender': (2, 69, 0),
-    'location': "Node Editor Properties Panel  or  Ctrl-SPACE",
-    'description': "Various tools to enhance and speed up node-based workflow",
-    'warning': "",
-    'wiki_url': "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Nodes/Nodes_Efficiency_Tools",
-    'tracker_url': "http://projects.blender.org/tracker/index.php?func=detail&aid=33543&group_id=153&atid=469",
-    'category': "Node",
+    "name": "Node Wrangler (aka Nodes Efficiency Tools)",
+    "author": "Bartek Skorupa, Greg Zaal",
+    "version": (3, 6),
+    "blender": (2, 70, 0),
+    "location": "Node Editor Properties Panel or Ctrl-Space",
+    "description": "Various tools to enhance and speed up node-based workflow",
+    "warning": "",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
+                "Scripts/Nodes/Nodes_Efficiency_Tools",
+    "category": "Node",
 }
 
 import bpy, blf, bgl
 from bpy.types import Operator, Panel, Menu
-from bpy.props import FloatProperty, EnumProperty, BoolProperty, StringProperty, FloatVectorProperty
+from bpy.props import FloatProperty, EnumProperty, BoolProperty, IntProperty, StringProperty, FloatVectorProperty, CollectionProperty
+from bpy_extras.io_utils import ImportHelper
 from mathutils import Vector
-from math import cos, sin, pi, sqrt
+from math import cos, sin, pi, hypot
+from os import listdir
 
 #################
 # rl_outputs:
@@ -93,6 +95,7 @@ shaders_input_nodes_props = (
     ('ShaderNodeHairInfo', 'HAIR_INFO', 'Hair Info'),
     ('ShaderNodeParticleInfo', 'PARTICLE_INFO', 'Particle Info'),
     ('ShaderNodeCameraData', 'CAMERA', 'Camera Data'),
+    ('ShaderNodeUVMap', 'UVMAP', 'UV Map'),
 )
 # (rna_type.identifier, type, rna_type.name)
 # Keeping mixed case to avoid having to translate entries when adding new nodes in operators.
@@ -117,9 +120,12 @@ shaders_shader_nodes_props = (
     ('ShaderNodeBsdfToon', 'BSDF_TOON', 'Toon BSDF'),
     ('ShaderNodeSubsurfaceScattering', 'SUBSURFACE_SCATTERING', 'Subsurface Scattering'),
     ('ShaderNodeEmission', 'EMISSION', 'Emission'),
+    ('ShaderNodeBsdfHair', 'BSDF_HAIR', 'Hair BSDF'),
     ('ShaderNodeBackground', 'BACKGROUND', 'Background'),
     ('ShaderNodeAmbientOcclusion', 'AMBIENT_OCCLUSION', 'Ambient Occlusion'),
     ('ShaderNodeHoldout', 'HOLDOUT', 'Holdout'),
+    ('ShaderNodeVolumeAbsorption', 'VOLUME_ABSORPTION', 'Volume Absorption'),
+    ('ShaderNodeVolumeScatter', 'VOLUME_SCATTER', 'Volume Scatter'),
 )
 # (rna_type.identifier, type, rna_type.name)
 # Keeping mixed case to avoid having to translate entries when adding new nodes in operators.
@@ -292,6 +298,7 @@ compo_distort_nodes_props = (
     ('CompositorNodeTransform', 'TRANSFORM', 'Transform'),
     ('CompositorNodeStabilize', 'STABILIZE2D', 'Stabilize 2D'),
     ('CompositorNodePlaneTrackDeform', 'PLANETRACKDEFORM', 'Plane Track Deform'),
+    ('CompositorNodeCornerPin', 'CORNERPIN', 'Corner Pin'),
 )
 # (rna_type.identifier, type, rna_type.name)
 # Keeping mixed case to avoid having to translate entries when adding new nodes in operators.
@@ -452,7 +459,15 @@ def hack_force_update(context, nodes):
         node = nodes.new('ShaderNodeMath')
         node.inputs[0].default_value = 0.0
         nodes.remove(node)
+    elif context.space_data.tree_type == "CompositorNodeTree":
+        node = nodes.new('CompositorNodeMath')
+        node.inputs[0].default_value = 0.0
+        nodes.remove(node)
     return False
+
+
+def dpifac():
+    return bpy.context.user_preferences.system.dpi/72
 
 
 def is_end_node(node):
@@ -476,6 +491,14 @@ def node_mid_pt(node, axis):
 
 def autolink(node1, node2, links):
     link_made = False
+
+    for outp in node1.outputs:
+        for inp in node2.inputs:
+            if not inp.is_linked and inp.name == outp.name:
+                link_made = True
+                links.new(outp, inp)
+                return True
+
     for outp in node1.outputs:
         for inp in node2.inputs:
             if not inp.is_linked and inp.type == outp.type:
@@ -517,22 +540,65 @@ def node_at_pos(nodes, context, event):
 
     store_mouse_cursor(context, event)
     x, y = context.space_data.cursor_location
+    x = x
+    y = y
 
-    # nearest node
-    nodes_near_mouse = sorted(nodes, key=lambda k: sqrt((x - node_mid_pt(k, 'x')) ** 2 + (y - node_mid_pt(k, 'y')) ** 2))
+    # Make a list of each corner (and middle of border) for each node.
+    # Will be sorted to find nearest point and thus nearest node
+    node_points_with_dist = []
+    for node in nodes:
+        skipnode = False
+        if node.type != 'FRAME':  # no point trying to link to a frame node
+            locx = node.location.x
+            locy = node.location.y
+            dimx = node.dimensions.x/dpifac()
+            dimy = node.dimensions.y/dpifac()
+            if node.parent:
+                locx += node.parent.location.x
+                locy += node.parent.location.y
+                if node.parent.parent:
+                    locx += node.parent.parent.location.x
+                    locy += node.parent.parent.location.y
+                    if node.parent.parent.parent:
+                        locx += node.parent.parent.parent.location.x
+                        locy += node.parent.parent.parent.location.y
+                        if node.parent.parent.parent.parent:
+                            # Support three levels or parenting
+                            # There's got to be a better way to do this...
+                            skipnode = True
+            if not skipnode:
+                node_points_with_dist.append([node, hypot(x - locx, y - locy)])  # Top Left
+                node_points_with_dist.append([node, hypot(x - (locx + dimx), y - locy)])  # Top Right
+                node_points_with_dist.append([node, hypot(x - locx, y - (locy - dimy))])  # Bottom Left
+                node_points_with_dist.append([node, hypot(x - (locx + dimx), y - (locy - dimy))])  # Bottom Right
+
+                node_points_with_dist.append([node, hypot(x - (locx + (dimx / 2)), y - locy)])  # Mid Top
+                node_points_with_dist.append([node, hypot(x - (locx + (dimx / 2)), y - (locy - dimy))])  # Mid Bottom
+                node_points_with_dist.append([node, hypot(x - locx, y - (locy - (dimy / 2)))])  # Mid Left
+                node_points_with_dist.append([node, hypot(x - (locx + dimx), y - (locy - (dimy / 2)))])  # Mid Right
+
+    nearest_node = sorted(node_points_with_dist, key=lambda k: k[1])[0][0]
 
     for node in nodes:
-        if (node.location.x <= x <= node.location.x + node.dimensions.x) and \
-           (node.location.y - node.dimensions.y <= y <= node.location.y):
-            nodes_under_mouse.append(node)
+        if node.type != 'FRAME' and skipnode == False:
+            locx = node.location.x
+            locy = node.location.y
+            dimx = node.dimensions.x/dpifac()
+            dimy = node.dimensions.y/dpifac()
+            if node.parent:
+                locx += node.parent.location.x
+                locy += node.parent.location.y
+            if (locx <= x <= locx + dimx) and \
+               (locy - dimy <= y <= locy):
+                nodes_under_mouse.append(node)
 
     if len(nodes_under_mouse) == 1:
-        if nodes_under_mouse[0] != nodes_near_mouse[0]:
+        if nodes_under_mouse[0] != nearest_node:
             target_node = nodes_under_mouse[0]  # use the node under the mouse if there is one and only one
         else:
-            target_node = nodes_near_mouse[0]  # else use the nearest node
+            target_node = nearest_node  # else use the nearest node
     else:
-        target_node = nodes_near_mouse[0]
+        target_node = nearest_node
     return target_node
 
 
@@ -550,16 +616,19 @@ def store_mouse_cursor(context, event):
 
 def draw_line(x1, y1, x2, y2, size, colour=[1.0, 1.0, 1.0, 0.7]):
     bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(colour[0], colour[1], colour[2], colour[3])
     bgl.glLineWidth(size)
+    bgl.glShadeModel(bgl.GL_SMOOTH)
 
     bgl.glBegin(bgl.GL_LINE_STRIP)
     try:
+        bgl.glColor4f(colour[0]+(1.0-colour[0])/4, colour[1]+(1.0-colour[1])/4, colour[2]+(1.0-colour[2])/4, colour[3]+(1.0-colour[3])/4)
         bgl.glVertex2f(x1, y1)
+        bgl.glColor4f(colour[0], colour[1], colour[2], colour[3])
         bgl.glVertex2f(x2, y2)
     except:
         pass
     bgl.glEnd()
+    bgl.glShadeModel(bgl.GL_FLAT)
 
 
 def draw_circle(mx, my, radius, colour=[1.0, 1.0, 1.0, 0.7]):
@@ -574,41 +643,195 @@ def draw_circle(mx, my, radius, colour=[1.0, 1.0, 1.0, 0.7]):
     bgl.glEnd()
 
 
-def draw_callback_mixnodes(self, context, mode="MIX"):
+def draw_rounded_node_border(node, radius=8, colour=[1.0, 1.0, 1.0, 0.7]):
+    bgl.glEnable(bgl.GL_BLEND)
+    settings = bpy.context.user_preferences.addons[__name__].preferences
+    if settings.bgl_antialiasing:
+        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+
+    area_width = bpy.context.area.width - (16*dpifac()) - 1
+    bottom_bar = (16*dpifac()) + 1
+    sides = 16
+    radius = radius*dpifac()
+    bgl.glColor4f(colour[0], colour[1], colour[2], colour[3])
+
+    nlocx = (node.location.x+1)*dpifac()
+    nlocy = (node.location.y+1)*dpifac()
+    ndimx = node.dimensions.x
+    ndimy = node.dimensions.y
+    # This is a stupid way to do this... TODO use while loop
+    if node.parent:
+        nlocx += node.parent.location.x
+        nlocy += node.parent.location.y
+        if node.parent.parent:
+            nlocx += node.parent.parent.location.x
+            nlocy += node.parent.parent.location.y
+            if node.parent.parent.parent:
+                nlocx += node.parent.parent.parent.location.x
+                nlocy += node.parent.parent.parent.location.y
+
+    if node.hide:
+        nlocx += -1
+        nlocy += 5
+    if node.type == 'REROUTE':
+        #nlocx += 1
+        nlocy -= 1
+        ndimx = 0
+        ndimy = 0
+        radius += 6
+
+    # Top left corner
+    bgl.glBegin(bgl.GL_TRIANGLE_FAN)
+    mx, my = bpy.context.region.view2d.view_to_region(nlocx, nlocy, clip=False)
+    bgl.glVertex2f(mx,my)
+    for i in range(sides+1):
+        if (4<=i<=8):
+            if my > bottom_bar and mx < area_width:
+                cosine = radius * cos(i * 2 * pi / sides) + mx
+                sine = radius * sin(i * 2 * pi / sides) + my
+                bgl.glVertex2f(cosine, sine)
+    bgl.glEnd()
+
+    # Top right corner
+    bgl.glBegin(bgl.GL_TRIANGLE_FAN)
+    mx, my = bpy.context.region.view2d.view_to_region(nlocx + ndimx, nlocy, clip=False)
+    bgl.glVertex2f(mx,my)
+    for i in range(sides+1):
+        if (0<=i<=4):
+            if my > bottom_bar and mx < area_width:
+                cosine = radius * cos(i * 2 * pi / sides) + mx
+                sine = radius * sin(i * 2 * pi / sides) + my
+                bgl.glVertex2f(cosine, sine)
+    bgl.glEnd()
+
+    # Bottom left corner
+    bgl.glBegin(bgl.GL_TRIANGLE_FAN)
+    mx, my = bpy.context.region.view2d.view_to_region(nlocx, nlocy - ndimy, clip=False)
+    bgl.glVertex2f(mx,my)
+    for i in range(sides+1):
+        if (8<=i<=12):
+            if my > bottom_bar and mx < area_width:
+                cosine = radius * cos(i * 2 * pi / sides) + mx
+                sine = radius * sin(i * 2 * pi / sides) + my
+                bgl.glVertex2f(cosine, sine)
+    bgl.glEnd()
+
+    # Bottom right corner
+    bgl.glBegin(bgl.GL_TRIANGLE_FAN)
+    mx, my = bpy.context.region.view2d.view_to_region(nlocx + ndimx, nlocy - ndimy, clip=False)
+    bgl.glVertex2f(mx,my)
+    for i in range(sides+1):
+        if (12<=i<=16):
+            if my > bottom_bar and mx < area_width:
+                cosine = radius * cos(i * 2 * pi / sides) + mx
+                sine = radius * sin(i * 2 * pi / sides) + my
+                bgl.glVertex2f(cosine, sine)
+    bgl.glEnd()
+
+
+    # Left edge
+    bgl.glBegin(bgl.GL_QUADS)
+    m1x, m1y = bpy.context.region.view2d.view_to_region(nlocx, nlocy, clip=False)
+    m2x, m2y = bpy.context.region.view2d.view_to_region(nlocx, nlocy - ndimy, clip=False)
+    m1y = max(m1y, bottom_bar)
+    m2y = max(m2y, bottom_bar)
+    if m1x < area_width and m2x < area_width:
+        bgl.glVertex2f(m2x-radius,m2y)  # draw order is important, start with bottom left and go anti-clockwise
+        bgl.glVertex2f(m2x,m2y)
+        bgl.glVertex2f(m1x,m1y)
+        bgl.glVertex2f(m1x-radius,m1y)
+    bgl.glEnd()
+
+    # Top edge
+    bgl.glBegin(bgl.GL_QUADS)
+    m1x, m1y = bpy.context.region.view2d.view_to_region(nlocx, nlocy, clip=False)
+    m2x, m2y = bpy.context.region.view2d.view_to_region(nlocx + ndimx, nlocy, clip=False)
+    m1x = min(m1x, area_width)
+    m2x = min(m2x, area_width)
+    if m1y > bottom_bar and m2y > bottom_bar:
+        bgl.glVertex2f(m1x,m2y)  # draw order is important, start with bottom left and go anti-clockwise
+        bgl.glVertex2f(m2x,m2y)
+        bgl.glVertex2f(m2x,m1y+radius)
+        bgl.glVertex2f(m1x,m1y+radius)
+    bgl.glEnd()
+
+    # Right edge
+    bgl.glBegin(bgl.GL_QUADS)
+    m1x, m1y = bpy.context.region.view2d.view_to_region(nlocx + ndimx, nlocy, clip=False)
+    m2x, m2y = bpy.context.region.view2d.view_to_region(nlocx + ndimx, nlocy - ndimy, clip=False)
+    m1y = max(m1y, bottom_bar)
+    m2y = max(m2y, bottom_bar)
+    if m1x < area_width and m2x < area_width:
+        bgl.glVertex2f(m2x,m2y)  # draw order is important, start with bottom left and go anti-clockwise
+        bgl.glVertex2f(m2x+radius,m2y)
+        bgl.glVertex2f(m1x+radius,m1y)
+        bgl.glVertex2f(m1x,m1y)
+    bgl.glEnd()
+
+    # Bottom edge
+    bgl.glBegin(bgl.GL_QUADS)
+    m1x, m1y = bpy.context.region.view2d.view_to_region(nlocx, nlocy-ndimy, clip=False)
+    m2x, m2y = bpy.context.region.view2d.view_to_region(nlocx + ndimx, nlocy-ndimy, clip=False)
+    m1x = min(m1x, area_width)
+    m2x = min(m2x, area_width)
+    if m1y > bottom_bar and m2y > bottom_bar:
+        bgl.glVertex2f(m1x,m2y)  # draw order is important, start with bottom left and go anti-clockwise
+        bgl.glVertex2f(m2x,m2y)
+        bgl.glVertex2f(m2x,m1y-radius)
+        bgl.glVertex2f(m1x,m1y-radius)
+    bgl.glEnd()
+
+
+    # Restore defaults
+    bgl.glDisable(bgl.GL_BLEND)
+    if settings.bgl_antialiasing:
+        bgl.glDisable(bgl.GL_LINE_SMOOTH)
+
+
+def draw_callback_mixnodes(self, context, mode):
     if self.mouse_path:
+        nodes = context.space_data.node_tree.nodes
         settings = context.user_preferences.addons[__name__].preferences
         if settings.bgl_antialiasing:
             bgl.glEnable(bgl.GL_LINE_SMOOTH)
 
-        colors = []
-        if mode == 'MIX':
-            colors = draw_color_sets['red_white']
-        elif mode == 'RGBA':
-            colors = draw_color_sets['yellow']
-        elif mode == 'VECTOR':
-            colors = draw_color_sets['purple']
-        elif mode == 'VALUE':
-            colors = draw_color_sets['grey']
-        elif mode == 'SHADER':
-            colors = draw_color_sets['green']
-        else:
-            colors = draw_color_sets['black']
+        if mode == "LINK":
+            col_outer = [1.0, 0.2, 0.2, 0.4]
+            col_inner = [0.0, 0.0, 0.0, 0.5]
+            col_circle_inner = [0.3, 0.05, 0.05, 1.0]
+        if mode == "LINKMENU":
+            col_outer = [0.4, 0.6, 1.0, 0.4]
+            col_inner = [0.0, 0.0, 0.0, 0.5]
+            col_circle_inner = [0.08, 0.15, .3, 1.0]
+        elif mode == "MIX":
+            col_outer = [0.2, 1.0, 0.2, 0.4]
+            col_inner = [0.0, 0.0, 0.0, 0.5]
+            col_circle_inner = [0.05, 0.3, 0.05, 1.0]
 
         m1x = self.mouse_path[0][0]
         m1y = self.mouse_path[0][1]
         m2x = self.mouse_path[-1][0]
         m2y = self.mouse_path[-1][1]
 
-        # circle outline
-        draw_circle(m1x, m1y, 6, colors[0])
-        draw_circle(m2x, m2y, 6, colors[0])
+        n1 = nodes[context.scene.NWLazySource]
+        n2 = nodes[context.scene.NWLazyTarget]
 
-        draw_line(m1x, m1y, m2x, m2y, 4, colors[0])  # line outline
-        draw_line(m1x, m1y, m2x, m2y, 2, colors[1])  # line inner
+        if n1 != n2:
+            draw_rounded_node_border(n1, radius=6, colour=col_outer)  # outline
+            draw_rounded_node_border(n1, radius=5, colour=col_inner)  # inner
+            draw_rounded_node_border(n2, radius=6, colour=col_outer)  # outline
+            draw_rounded_node_border(n2, radius=5, colour=col_inner)  # inner
+
+        draw_line(m1x, m1y, m2x, m2y, 4, col_outer)  # line outline
+        draw_line(m1x, m1y, m2x, m2y, 2, col_inner)  # line inner
+
+        # circle outline
+        draw_circle(m1x, m1y, 6, col_outer)
+        draw_circle(m2x, m2y, 6, col_outer)
 
         # circle inner
-        draw_circle(m1x, m1y, 5, colors[2])
-        draw_circle(m2x, m2y, 5, colors[2])
+        draw_circle(m1x, m1y, 5, col_circle_inner)
+        draw_circle(m2x, m2y, 5, col_circle_inner)
 
         # restore opengl defaults
         bgl.glLineWidth(1)
@@ -744,6 +967,9 @@ class NWLazyMix(Operator, NWBase):
             if context.scene.NWBusyDrawing != 'STOP':
                 node1 = nodes[context.scene.NWBusyDrawing]
 
+        context.scene.NWLazySource = node1.name
+        context.scene.NWLazyTarget = node_at_pos(nodes, context, event).name
+
         if event.type == 'MOUSEMOVE':
             self.mouse_path.append((event.mouse_region_x, event.mouse_region_y))
 
@@ -800,6 +1026,7 @@ class NWLazyConnect(Operator, NWBase):
     bl_idname = "node.nw_lazy_connect"
     bl_label = "Lazy Connect"
     bl_options = {'REGISTER', 'UNDO'}
+    with_menu = BoolProperty()
 
     def modal(self, context, event):
         context.area.tag_redraw()
@@ -816,6 +1043,9 @@ class NWLazyConnect(Operator, NWBase):
         else:
             if context.scene.NWBusyDrawing != 'STOP':
                 node1 = nodes[context.scene.NWBusyDrawing]
+
+        context.scene.NWLazySource = node1.name
+        context.scene.NWLazyTarget = node_at_pos(nodes, context, event).name
 
         if event.type == 'MOUSEMOVE':
             self.mouse_path.append((event.mouse_region_x, event.mouse_region_y))
@@ -846,7 +1076,14 @@ class NWLazyConnect(Operator, NWBase):
                     node1.select = True
                     node2.select = True
 
-                    link_success = autolink(node1, node2, links)
+                    #link_success = autolink(node1, node2, links)
+                    if self.with_menu:
+                        if len(node1.outputs) > 1 and node2.inputs:
+                            bpy.ops.wm.call_menu("INVOKE_DEFAULT", name=NWConnectionListOutputs.bl_idname)
+                        elif len(node1.outputs) == 1:
+                            bpy.ops.node.nw_call_inputs_menu(from_socket=0)
+                    else:
+                        link_success = autolink(node1, node2, links)
 
                     for node in original_sel:
                         node.select = True
@@ -870,13 +1107,12 @@ class NWLazyConnect(Operator, NWBase):
             node = node_at_pos(nodes, context, event)
             if node:
                 context.scene.NWBusyDrawing = node.name
-                if node.outputs:
-                    context.scene.NWDrawColType = node.outputs[0].type
-            else:
-                context.scene.NWDrawColType = 'x'
 
             # the arguments we pass the the callback
-            args = (self, context, context.scene.NWDrawColType)
+            mode = "LINK"
+            if self.with_menu:
+                mode = "LINKMENU"
+            args = (self, context, mode)
             # Add the region OpenGL drawing callback
             # draw in view space with 'POST_VIEW' and 'PRE_VIEW'
             self._handle = bpy.types.SpaceNodeEditor.draw_handler_add(draw_callback_mixnodes, args, 'WINDOW', 'POST_PIXEL')
@@ -956,17 +1192,17 @@ class NWDeleteUnused(Operator, NWBase):
         return context.window_manager.invoke_confirm(self, event)
 
 
-class NWSwapOutputs(Operator, NWBase):
-    """Swap the output connections of the two selected nodes"""
-    bl_idname = 'node.nw_swap_outputs'
-    bl_label = 'Swap Outputs'
+class NWSwapLinks(Operator, NWBase):
+    """Swap the output connections of the two selected nodes, or two similar inputs of a single node"""
+    bl_idname = 'node.nw_swap_links'
+    bl_label = 'Swap Links'
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
     def poll(cls, context):
         snode = context.space_data
         if context.selected_nodes:
-            return len(context.selected_nodes) == 2
+            return len(context.selected_nodes) <= 2
         else:
             return False
 
@@ -974,36 +1210,96 @@ class NWSwapOutputs(Operator, NWBase):
         nodes, links = get_nodes_links(context)
         selected_nodes = context.selected_nodes
         n1 = selected_nodes[0]
-        n2 = selected_nodes[1]
-        n1_outputs = []
-        n2_outputs = []
 
-        out_index = 0
-        for output in n1.outputs:
-            if output.links:
-                for link in output.links:
-                    n1_outputs.append([out_index, link.to_socket])
-                    links.remove(link)
-            out_index += 1
+        # Swap outputs
+        if len(selected_nodes) == 2:
+            n2 = selected_nodes[1]
+            if n1.outputs and n2.outputs:
+                n1_outputs = []
+                n2_outputs = []
 
-        out_index = 0
-        for output in n2.outputs:
-            if output.links:
-                for link in output.links:
-                    n2_outputs.append([out_index, link.to_socket])
-                    links.remove(link)
-            out_index += 1
+                out_index = 0
+                for output in n1.outputs:
+                    if output.links:
+                        for link in output.links:
+                            n1_outputs.append([out_index, link.to_socket])
+                            links.remove(link)
+                    out_index += 1
 
-        for connection in n1_outputs:
-            try:
-                links.new(n2.outputs[connection[0]], connection[1])
-            except:
-                self.report({'WARNING'}, "Some connections have been lost due to differing numbers of output sockets")
-        for connection in n2_outputs:
-            try:
-                links.new(n1.outputs[connection[0]], connection[1])
-            except:
-                self.report({'WARNING'}, "Some connections have been lost due to differing numbers of output sockets")
+                out_index = 0
+                for output in n2.outputs:
+                    if output.links:
+                        for link in output.links:
+                            n2_outputs.append([out_index, link.to_socket])
+                            links.remove(link)
+                    out_index += 1
+
+                for connection in n1_outputs:
+                    try:
+                        links.new(n2.outputs[connection[0]], connection[1])
+                    except:
+                        self.report({'WARNING'}, "Some connections have been lost due to differing numbers of output sockets")
+                for connection in n2_outputs:
+                    try:
+                        links.new(n1.outputs[connection[0]], connection[1])
+                    except:
+                        self.report({'WARNING'}, "Some connections have been lost due to differing numbers of output sockets")
+            else:
+                if n1.outputs or n2.outputs:
+                    self.report({'WARNING'}, "One of the nodes has no outputs!")
+                else:
+                    self.report({'WARNING'}, "Neither of the nodes have outputs!")
+
+        # Swap Inputs
+        elif len(selected_nodes) == 1:
+            if n1.inputs:
+                types = []
+                i=0
+                for i1 in n1.inputs:
+                    if i1.is_linked:
+                        similar_types = 0
+                        for i2 in n1.inputs:
+                            if i1.type == i2.type and i2.is_linked:
+                                similar_types += 1
+                        types.append ([i1, similar_types, i])
+                    i += 1
+                types.sort(key=lambda k: k[1], reverse=True)
+
+                if types:
+                    t = types[0]
+                    if t[1] == 2:
+                        for i2 in n1.inputs:
+                            if t[0].type == i2.type == t[0].type and t[0] != i2 and i2.is_linked:
+                                pair = [t[0], i2]
+                        i1f = pair[0].links[0].from_socket
+                        i1t = pair[0].links[0].to_socket
+                        i2f = pair[1].links[0].from_socket
+                        i2t = pair[1].links[0].to_socket
+                        links.new(i1f, i2t)
+                        links.new(i2f, i1t)
+                    if t[1] == 1:
+                        if len(types) == 1:
+                            fs = t[0].links[0].from_socket
+                            i = t[2]
+                            links.remove(t[0].links[0])
+                            if i+1 == len(n1.inputs):
+                                i = -1
+                            i += 1
+                            while n1.inputs[i].is_linked:
+                                i += 1
+                            links.new(fs, n1.inputs[i])
+                        elif len(types) == 2:
+                            i1f = types[0][0].links[0].from_socket
+                            i1t = types[0][0].links[0].to_socket
+                            i2f = types[1][0].links[0].from_socket
+                            i2t = types[1][0].links[0].to_socket
+                            links.new(i1f, i2t)
+                            links.new(i2f, i1t)
+
+                else:
+                    self.report({'WARNING'}, "This node has no input connections to swap!")
+            else:
+                self.report({'WARNING'}, "This node has no inputs to swap!")
 
         hack_force_update(context, nodes)
         return {'FINISHED'}
@@ -1080,7 +1376,12 @@ class NWEmissionViewer(Operator, NWBase):
                 if (active.name != "Emission Viewer") and (active.type not in output_types) and not in_group:
                     if active.select:
                         if active.type not in shader_types:
-                            valid = True
+                            for outp in active.outputs:
+                                if outp.type == 'SHADER':  # Group nodes that have shader outputs
+                                    valid = False
+                                    break
+                                else:
+                                    valid = True
             if valid:
                 # get material_output node
                 materialout_exists = False
@@ -1474,6 +1775,7 @@ class NWMergeNodes(Operator, NWBase):
             ('SHADER', 'Shader', 'Merge using ADD or MIX Shader'),
             ('MIX', 'Mix Node', 'Merge using Mix Nodes'),
             ('MATH', 'Math Node', 'Merge using Math Nodes'),
+            ('ZCOMBINE', 'Z-Combine Node', 'Merge using Z-Combine Nodes')
         ),
     )
 
@@ -1498,9 +1800,15 @@ class NWMergeNodes(Operator, NWBase):
         nodes, links = get_nodes_links(context)
         mode = self.mode
         merge_type = self.merge_type
+        # Prevent trying to add Z-Combine in not 'COMPOSITING' node tree.
+        # 'ZCOMBINE' works only if mode == 'MIX'
+        # Setting mode to None prevents trying to add 'ZCOMBINE' node.
+        if merge_type == 'ZCOMBINE' and tree_type != 'COMPOSITING':
+            mode = None
         selected_mix = []  # entry = [index, loc]
         selected_shader = []  # entry = [index, loc]
         selected_math = []  # entry = [index, loc]
+        selected_z = []  # entry = [index, loc]
 
         for i, node in enumerate(nodes):
             if node.select and node.outputs:
@@ -1521,15 +1829,16 @@ class NWMergeNodes(Operator, NWBase):
                             output_type = 'RGBA'
                             valid_mode = True
                         if output_type == type and valid_mode:
-                            dst.append([i, node.location.x, node.location.y])
+                            dst.append([i, node.location.x, node.location.y, node.dimensions.x, node.hide])
                 else:
                     for (type, types_list, dst) in (
                             ('SHADER', ('MIX', 'ADD'), selected_shader),
                             ('MIX', [t[0] for t in blend_types], selected_mix),
                             ('MATH', [t[0] for t in operations], selected_math),
+                            ('ZCOMBINE', ('MIX', ), selected_z),
                     ):
                         if merge_type == type and mode in types_list:
-                            dst.append([i, node.location.x, node.location.y])
+                            dst.append([i, node.location.x, node.location.y, node.dimensions.x, node.hide])
         # When nodes with output kinds 'RGBA' and 'VALUE' are selected at the same time
         # use only 'Mix' nodes for merging.
         # For that we add selected_math list to selected_mix list and clear selected_math.
@@ -1537,16 +1846,21 @@ class NWMergeNodes(Operator, NWBase):
             selected_mix += selected_math
             selected_math = []
 
-        for nodes_list in [selected_mix, selected_shader, selected_math]:
+        for nodes_list in [selected_mix, selected_shader, selected_math, selected_z]:
             if nodes_list:
                 count_before = len(nodes)
                 # sort list by loc_x - reversed
                 nodes_list.sort(key=lambda k: k[1], reverse=True)
                 # get maximum loc_x
-                loc_x = nodes_list[0][1] + 250.0
+                loc_x = nodes_list[0][1] + nodes_list[0][3] + 70
                 nodes_list.sort(key=lambda k: k[2], reverse=True)
                 if merge_position == 'CENTER':
                     loc_y = ((nodes_list[len(nodes_list) - 1][2]) + (nodes_list[len(nodes_list) - 2][2])) / 2  # average yloc of last two nodes (lowest two)
+                    if nodes_list[len(nodes_list) - 1][-1] == True:  # if last node is hidden, mix should be shifted up a bit
+                        if do_hide:
+                            loc_y += 40
+                        else:
+                            loc_y += 80
                 else:
                     loc_y = nodes_list[len(nodes_list) - 1][2]
                 offset_y = 100
@@ -1598,6 +1912,15 @@ class NWMergeNodes(Operator, NWBase):
                             first = 0
                             second = 1
                             add.width_hidden = 100.0
+                    elif nodes_list == selected_z:
+                        add = nodes.new('CompositorNodeZcombine')
+                        add.show_preview = False
+                        add.hide = do_hide
+                        if do_hide:
+                            loc_y = loc_y - 50
+                        first = 0
+                        second = 2
+                        add.width_hidden = 100.0
                     add.location = loc_x, loc_y
                     loc_y += offset_y
                     add.select = True
@@ -1611,22 +1934,44 @@ class NWMergeNodes(Operator, NWBase):
                 for fs_link in first_selected.outputs[0].links:
                     # Prevent cyclic dependencies when nodes to be marged are linked to one another.
                     # Create list of invalid indexes.
-                    invalid_i = [n[0] for n in (selected_mix + selected_math + selected_shader)]
+                    invalid_i = [n[0] for n in (selected_mix + selected_math + selected_shader + selected_z)]
                     # Link only if "to_node" index not in invalid indexes list.
                     if fs_link.to_node not in [nodes[i] for i in invalid_i]:
                         links.new(last_add.outputs[0], fs_link.to_socket)
                 # add link from "first" selected and "first" add node
-                links.new(first_selected.outputs[0], nodes[count_after - 1].inputs[first])
+                node_to = nodes[count_after - 1]
+                links.new(first_selected.outputs[0], node_to.inputs[first])
+                if node_to.type == 'ZCOMBINE':
+                    for fs_out in first_selected.outputs:
+                        if fs_out != first_selected.outputs[0] and fs_out.name in ('Z', 'Depth'):
+                            links.new(fs_out, node_to.inputs[1])
+                            break
                 # add links between added ADD nodes and between selected and ADD nodes
                 for i in range(count_adds):
                     if i < count_adds - 1:
-                        links.new(nodes[index - 1].inputs[first], nodes[index].outputs[0])
+                        node_from = nodes[index]
+                        node_to = nodes[index - 1]
+                        node_to_input_i = first
+                        node_to_z_i = 1  # if z combine - link z to first z input
+                        links.new(node_from.outputs[0], node_to.inputs[node_to_input_i])
+                        if node_to.type == 'ZCOMBINE':
+                            for from_out in node_from.outputs:
+                                if from_out != node_from.outputs[0] and from_out.name in ('Z', 'Depth'):
+                                    links.new(from_out, node_to.inputs[node_to_z_i])
                     if len(nodes_list) > 1:
-                        links.new(nodes[index].inputs[second], nodes[nodes_list[i + 1][0]].outputs[0])
+                        node_from = nodes[nodes_list[i + 1][0]]
+                        node_to = nodes[index]
+                        node_to_input_i = second
+                        node_to_z_i = 3  # if z combine - link z to second z input
+                        links.new(node_from.outputs[0], node_to.inputs[node_to_input_i])
+                        if node_to.type == 'ZCOMBINE':
+                            for from_out in node_from.outputs:
+                                if from_out != node_from.outputs[0] and from_out.name in ('Z', 'Depth'):
+                                    links.new(from_out, node_to.inputs[node_to_z_i])
                     index -= 1
                 # set "last" of added nodes as active
                 nodes.active = last_add
-                for i, x, y in nodes_list:
+                for i, x, y, dx, h in nodes_list:
                     nodes[i].select = False
 
         return {'FINISHED'}
@@ -2228,7 +2573,6 @@ class NWAlignNodes(Operator, NWBase):
                         parent = parent.parent
                     loc_x += offset_x + w
             else:  # if self.option == 'AXIS_Y'
-                #loc_x = (max_y_loc_x + max_y_w / 2.0 + min_y_loc_x + min_y_w / 2.0) / 2.0
                 loc_x = (max_x + max_x_w / 2.0 + min_x + min_x_w / 2.0) / 2.0
                 loc_y = min_y
                 offset_y = (max_y - min_y + total_h - min_y_h) / (count - 1)
@@ -2344,12 +2688,216 @@ class NWLinkToOutputNode(Operator, NWBase):
 
             out_input_index = 0
             if tree_type == 'ShaderNodeTree':
-                if active.outputs[output_index].type != 'SHADER':  # connect to displacement if not a shader
+                if active.outputs[output_index].name == 'Volume':
+                    out_input_index = 1
+                elif active.outputs[output_index].type != 'SHADER':  # connect to displacement if not a shader
                     out_input_index = 2
             links.new(active.outputs[output_index], output_node.inputs[out_input_index])
 
         hack_force_update(context, nodes)  # viewport render does not update
 
+        return {'FINISHED'}
+
+
+class NWMakeLink(Operator, NWBase):
+    """Make a link from one socket to another"""
+    bl_idname = 'node.nw_make_link'
+    bl_label = 'Make Link'
+    bl_options = {'REGISTER', 'UNDO'}
+    from_socket = IntProperty()
+    to_socket = IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        return (snode.type == 'NODE_EDITOR' and snode.node_tree is not None)
+
+    def execute(self, context):
+        nodes, links = get_nodes_links(context)
+
+        n1 = nodes[context.scene.NWLazySource]
+        n2 = nodes[context.scene.NWLazyTarget]
+
+        links.new(n1.outputs[self.from_socket], n2.inputs[self.to_socket])
+
+        hack_force_update(context, nodes)
+
+        return {'FINISHED'}
+
+
+class NWCallInputsMenu(Operator, NWBase):
+    """Link from this output"""
+    bl_idname = 'node.nw_call_inputs_menu'
+    bl_label = 'Make Link'
+    bl_options = {'REGISTER', 'UNDO'}
+    from_socket = IntProperty()
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        return (snode.type == 'NODE_EDITOR' and snode.node_tree is not None)
+
+    def execute(self, context):
+        nodes, links = get_nodes_links(context)
+
+        context.scene.NWSourceSocket = self.from_socket
+
+        n1 = nodes[context.scene.NWLazySource]
+        n2 = nodes[context.scene.NWLazyTarget]
+        if len(n2.inputs) > 1:
+            bpy.ops.wm.call_menu("INVOKE_DEFAULT", name=NWConnectionListInputs.bl_idname)
+        elif len(n2.inputs) == 1:
+            links.new(n1.outputs[self.from_socket], n2.inputs[0])
+        return {'FINISHED'}
+
+
+class NWAddSequence(Operator, ImportHelper):
+    """Add an Image Sequence"""
+    bl_idname = 'node.nw_add_sequence'
+    bl_label = 'Import Image Sequence'
+    bl_options = {'REGISTER', 'UNDO'}
+    directory = StringProperty(subtype="DIR_PATH")
+    filename = StringProperty(subtype="FILE_NAME")
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        return (snode.type == 'NODE_EDITOR' and snode.node_tree is not None)
+
+    def execute(self, context):
+        nodes, links = get_nodes_links(context)
+        directory = self.directory
+        filename = self.filename
+
+
+        if context.space_data.node_tree.type == 'SHADER':
+            node_type = "ShaderNodeTexImage"
+        elif context.space_data.node_tree.type == 'COMPOSITING':
+            node_type = "CompositorNodeImage"
+        else:
+            self.report({'ERROR'}, "Unsupported Node Tree type!")
+            return {'CANCELLED'}
+
+        # if last digit isn't a number, it's not a sequence
+        without_ext = '.'.join(filename.split('.')[:-1])
+        if without_ext[-1].isdigit():
+            without_ext = without_ext[:-1] + '1'
+        else:
+            self.report({'ERROR'}, filename+" does not seem to be part of a sequence")
+            return {'CANCELLED'}
+
+        reverse = without_ext[::-1] # reverse string
+        newreverse = ""
+        non_numbers = ""
+        count_numbers = 0
+        stop = False
+        for char in reverse:
+            if char.isdigit() and stop==False:
+                count_numbers += 1
+                newreverse += '0'  # replace numbers of image sequence with zeros
+            else:
+                stop = True
+                newreverse += char
+                non_numbers = char + non_numbers
+
+        newreverse = '1' + newreverse[1:]
+        without_ext = newreverse[::-1] # reverse string
+
+        # print (without_ext+'.'+filename.split('.')[-1])
+        # print (non_numbers)
+        extension = filename.split('.')[-1]
+
+        num_frames = len(list(f for f in listdir(directory) if f.startswith(non_numbers)))
+
+        for x in range(count_numbers):
+            non_numbers += '#'
+
+        nodes_list = [node for node in nodes]
+        if nodes_list:
+            nodes_list.sort(key=lambda k: k.location.x)
+            xloc = nodes_list[0].location.x - 220  # place new nodes at far left
+            yloc = 0
+            for node in nodes:
+                node.select = False
+                yloc += node_mid_pt(node, 'y')
+            yloc = yloc/len(nodes)
+        else:
+            xloc = 0
+            yloc = 0
+
+        node = nodes.new(node_type)
+        node.location.x = xloc
+        node.location.y = yloc + 110
+        node.label = non_numbers+'.'+extension
+
+        img = bpy.data.images.load(directory+(without_ext+'.'+extension))
+        img.source = 'SEQUENCE'
+        node.image = img
+        if context.space_data.node_tree.type == 'SHADER':
+            node.image_user.frame_duration = num_frames
+        else:
+            node.frame_duration = num_frames
+
+        return {'FINISHED'}
+
+
+class NWAddMultipleImages(Operator, ImportHelper):
+    """Add multiple images at once"""
+    bl_idname = 'node.nw_add_multiple_images'
+    bl_label = 'Open Selected Images'
+    bl_options = {'REGISTER', 'UNDO'}
+    directory = StringProperty(subtype="DIR_PATH")
+    files = CollectionProperty(type=bpy.types.OperatorFileListElement, options={'HIDDEN', 'SKIP_SAVE'})
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        return (snode.type == 'NODE_EDITOR' and snode.node_tree is not None)
+
+    def execute(self, context):
+        nodes, links = get_nodes_links(context)
+        nodes_list = [node for node in nodes]
+        if nodes_list:
+            nodes_list.sort(key=lambda k: k.location.x)
+            xloc = nodes_list[0].location.x - 220  # place new nodes at far left
+            yloc = 0
+            for node in nodes:
+                node.select = False
+                yloc += node_mid_pt(node, 'y')
+            yloc = yloc/len(nodes)
+        else:
+            xloc = 0
+            yloc = 0
+
+        if context.space_data.node_tree.type == 'SHADER':
+            node_type = "ShaderNodeTexImage"
+        elif context.space_data.node_tree.type == 'COMPOSITING':
+            node_type = "CompositorNodeImage"
+        else:
+            self.report({'ERROR'}, "Unsupported Node Tree type!")
+            return {'CANCELLED'}
+
+        new_nodes = []
+        for f in self.files:
+            fname = f.name
+
+            node = nodes.new(node_type)
+            new_nodes.append(node)
+            node.label = fname
+            node.hide = True
+            node.width_hidden = 100
+            node.location.x = xloc
+            node.location.y = yloc
+            yloc -= 40
+
+            img = bpy.data.images.load(self.directory+fname)
+            node.image = img
+
+        # shift new nodes up to center of tree
+        list_size = new_nodes[0].location.y - new_nodes[-1].location.y
+        for node in new_nodes:
+            node.select = True
+            node.location.y += (list_size/2)
         return {'FINISHED'}
 
 
@@ -2375,7 +2923,7 @@ def drawlayout(context, layout, mode='non-panel'):
 
     col = layout.column(align=True)
     col.operator(NWDetachOutputs.bl_idname, icon='UNLINKED')
-    col.operator(NWSwapOutputs.bl_idname)
+    col.operator(NWSwapLinks.bl_idname)
     col.menu(NWAddReroutesMenu.bl_idname, text="Add Reroutes", icon='LAYER_USED')
     col.separator()
 
@@ -2451,6 +2999,9 @@ class NWMergeNodesMenu(Menu, NWBase):
             layout.menu(NWMergeShadersMenu.bl_idname, text="Use Shaders")
         layout.menu(NWMergeMixMenu.bl_idname, text="Use Mix Nodes")
         layout.menu(NWMergeMathMenu.bl_idname, text="Use Math Nodes")
+        props = layout.operator(NWMergeNodes.bl_idname, text="Use Z-Combine Nodes")
+        props.mode = 'MIX'
+        props.merge_type = 'ZCOMBINE'
 
 
 class NWMergeShadersMenu(Menu, NWBase):
@@ -2475,6 +3026,49 @@ class NWMergeMixMenu(Menu, NWBase):
             props = layout.operator(NWMergeNodes.bl_idname, text=name)
             props.mode = type
             props.merge_type = 'MIX'
+
+
+class NWConnectionListOutputs(Menu, NWBase):
+    bl_idname = "NODE_MT_nw_connection_list_out"
+    bl_label = "From:"
+
+    def draw(self, context):
+        layout = self.layout
+        nodes, links = get_nodes_links(context)
+
+        n1 = nodes[context.scene.NWLazySource]
+
+        if n1.type == "R_LAYERS":
+            index=0
+            for o in n1.outputs:
+                if o.enabled:  # Check which passes the render layer has enabled
+                    layout.operator(NWCallInputsMenu.bl_idname, text=o.name, icon="RADIOBUT_OFF").from_socket=index
+                index+=1
+        else:
+            index=0
+            for o in n1.outputs:
+                layout.operator(NWCallInputsMenu.bl_idname, text=o.name, icon="RADIOBUT_OFF").from_socket=index
+                index+=1
+
+
+class NWConnectionListInputs(Menu, NWBase):
+    bl_idname = "NODE_MT_nw_connection_list_in"
+    bl_label = "To:"
+
+    def draw(self, context):
+        layout = self.layout
+        nodes, links = get_nodes_links(context)
+
+        n2 = nodes[context.scene.NWLazyTarget]
+
+        #print (self.from_socket)
+
+        index = 0
+        for i in n2.inputs:
+            op = layout.operator(NWMakeLink.bl_idname, text=i.name, icon="FORWARD")
+            op.from_socket = context.scene.NWSourceSocket
+            op.to_socket = index
+            index+=1
 
 
 class NWMergeMathMenu(Menu, NWBase):
@@ -2623,45 +3217,6 @@ class NWNodeAlignMenu(Menu, NWBase):
         layout = self.layout
         layout.operator(NWAlignNodes.bl_idname, text="Horizontally").option = 'AXIS_X'
         layout.operator(NWAlignNodes.bl_idname, text="Vertically").option = 'AXIS_Y'
-
-
-# TODO, add to toolbar panel
-class NWUVMenu(bpy.types.Menu):
-    bl_idname = "NODE_MT_nw_node_uvs_menu"
-    bl_label = "UV Maps"
-
-    @classmethod
-    def poll(cls, context):
-        if context.area.spaces[0].node_tree:
-            if context.area.spaces[0].node_tree.type == 'SHADER':
-                return True
-            else:
-                return False
-        else:
-            return False
-
-    def draw(self, context):
-        l = self.layout
-        nodes, links = get_nodes_links(context)
-        mat = context.object.active_material
-
-        objs = []
-        for obj in bpy.data.objects:
-            for slot in obj.material_slots:
-                if slot.material == mat:
-                    objs.append(obj)
-        uvs = []
-        for obj in objs:
-            if obj.data.uv_layers:
-                for uv in obj.data.uv_layers:
-                    uvs.append(uv.name)
-        uvs = list(set(uvs))  # get a unique list
-
-        if uvs:
-            for uv in uvs:
-                l.operator(NWAddAttrNode.bl_idname, text=uv).attr_name = uv
-        else:
-            l.label("No UV layers on objects with this material")
 
 
 class NWVertColMenu(bpy.types.Menu):
@@ -2932,10 +3487,16 @@ def select_parent_children_buttons(self, context):
 
 def attr_nodes_menu_func(self, context):
     col = self.layout.column(align=True)
-    col.menu("NODE_MT_nw_node_uvs_menu")
     col.menu("NODE_MT_nw_node_vertex_color_menu")
     col.separator()
 
+
+def multipleimages_menu_func(self, context):
+    col = self.layout.column(align=True)
+    col.operator(NWAddMultipleImages.bl_idname, text="Multiple Images")
+    col.operator(NWAddSequence.bl_idname, text="Image Sequence")
+    col.separator()
+    
 
 def bgreset_menu_func(self, context):
     self.layout.operator(NWResetBG.bl_idname)
@@ -2975,6 +3536,8 @@ kmi_defs = (
         (('mode', 'LESS_THAN'), ('merge_type', 'MATH'),), "Merge Nodes (Less than)"),
     (NWMergeNodes.bl_idname, 'PERIOD', True, False, False,
         (('mode', 'GREATER_THAN'), ('merge_type', 'MATH'),), "Merge Nodes (Greater than)"),
+    (NWMergeNodes.bl_idname, 'NUMPAD_PERIOD', True, False, False,
+        (('mode', 'MIX'), ('merge_type', 'ZCOMBINE'),), "Merge Nodes (Z-Combine)"),
     # NWMergeNodes with Ctrl Alt (MIX)
     (NWMergeNodes.bl_idname, 'NUMPAD_0', True, False, True,
         (('mode', 'MIX'), ('merge_type', 'MIX'),), "Merge Nodes (Color, Mix)"),
@@ -3101,7 +3664,7 @@ kmi_defs = (
     # Frame Seleted
     (NWFrameSelected.bl_idname, 'P', False, True, False, None, "Frame selected nodes"),
     # Swap Outputs
-    (NWSwapOutputs.bl_idname, 'S', False, False, True, None, "Swap Outputs"),
+    (NWSwapLinks.bl_idname, 'S', False, False, True, None, "Swap Outputs"),
     # Emission Viewer
     (NWEmissionViewer.bl_idname, 'LEFTMOUSE', True, True, False, None, "Connect to Cycles Viewer node"),
     # Reload Images
@@ -3110,6 +3673,8 @@ kmi_defs = (
     (NWLazyMix.bl_idname, 'RIGHTMOUSE', False, False, True, None, "Lazy Mix"),
     # Lazy Connect
     (NWLazyConnect.bl_idname, 'RIGHTMOUSE', True, False, False, None, "Lazy Connect"),
+    # Lazy Connect with Menu
+    (NWLazyConnect.bl_idname, 'RIGHTMOUSE', True, True, False, (('with_menu', True),), "Lazy Connect with Socket Menu"),
     # MENUS
     ('wm.call_menu', 'SPACE', True, False, False, (('name', NodeWranglerMenu.bl_idname),), "Node Wranger menu"),
     ('wm.call_menu', 'SLASH', False, False, False, (('name', NWAddReroutesMenu.bl_idname),), "Add Reroutes menu"),
@@ -3127,10 +3692,18 @@ def register():
         name="Busy Drawing!",
         default="",
         description="An internal property used to store only the first mouse position")
-    bpy.types.Scene.NWDrawColType = StringProperty(
-        name="Color Type!",
+    bpy.types.Scene.NWLazySource = StringProperty(
+        name="Lazy Source!",
         default="x",
-        description="An internal property used to store the line color")
+        description="An internal property used to store the first node in a Lazy Connect operation")
+    bpy.types.Scene.NWLazyTarget = StringProperty(
+        name="Lazy Target!",
+        default="x",
+        description="An internal property used to store the last node in a Lazy Connect operation")
+    bpy.types.Scene.NWSourceSocket = IntProperty(
+        name="Source Socket!",
+        default=0,
+        description="An internal property used to store the source socket in a Lazy Connect operation")
 
     bpy.utils.register_module(__name__)
 
@@ -3148,12 +3721,18 @@ def register():
     bpy.types.NODE_MT_category_SH_NEW_INPUT.prepend(attr_nodes_menu_func)
     bpy.types.NODE_PT_category_SH_NEW_INPUT.prepend(attr_nodes_menu_func)
     bpy.types.NODE_PT_backdrop.append(bgreset_menu_func)
+    bpy.types.NODE_MT_category_SH_NEW_TEXTURE.prepend(multipleimages_menu_func)
+    bpy.types.NODE_PT_category_SH_NEW_TEXTURE.prepend(multipleimages_menu_func)
+    bpy.types.NODE_MT_category_CMP_INPUT.prepend(multipleimages_menu_func)
+    bpy.types.NODE_PT_category_CMP_INPUT.prepend(multipleimages_menu_func)
 
 
 def unregister():
     # props
     del bpy.types.Scene.NWBusyDrawing
-    del bpy.types.Scene.NWDrawColType
+    del bpy.types.Scene.NWLazySource
+    del bpy.types.Scene.NWLazyTarget
+    del bpy.types.Scene.NWSourceSocket
 
     bpy.utils.unregister_module(__name__)
 
@@ -3167,6 +3746,11 @@ def unregister():
     bpy.types.NODE_MT_category_SH_NEW_INPUT.remove(attr_nodes_menu_func)
     bpy.types.NODE_PT_category_SH_NEW_INPUT.remove(attr_nodes_menu_func)
     bpy.types.NODE_PT_backdrop.remove(bgreset_menu_func)
+    bpy.types.NODE_MT_category_SH_NEW_TEXTURE.remove(multipleimages_menu_func)
+    bpy.types.NODE_PT_category_SH_NEW_TEXTURE.remove(multipleimages_menu_func)
+    bpy.types.NODE_MT_category_CMP_INPUT.remove(multipleimages_menu_func)
+    bpy.types.NODE_PT_category_CMP_INPUT.remove(multipleimages_menu_func)
 
 if __name__ == "__main__":
     register()
+

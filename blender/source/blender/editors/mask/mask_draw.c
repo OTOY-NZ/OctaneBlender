@@ -133,9 +133,12 @@ static void mask_point_undistort_pos(SpaceClip *sc, float r_co[2], const float c
 }
 
 static void draw_circle(const float x, const float y,
-                        const float size, const float xscale, const float yscale)
+                        const float size, const bool fill,
+                        const float xscale, const float yscale)
 {
-	static GLuint displist = 0;
+	static GLuint wire_displist = 0;
+	static GLuint fill_displist = 0;
+	GLuint displist = fill ? fill_displist : wire_displist;
 
 	/* Initialize round circle shape. */
 	if (displist == 0) {
@@ -145,11 +148,18 @@ static void draw_circle(const float x, const float y,
 		glNewList(displist, GL_COMPILE);
 
 		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
+		gluQuadricDrawStyle(qobj, fill ? GLU_FILL : GLU_SILHOUETTE);
 		gluDisk(qobj, 0,  0.7, 8, 1);
 		gluDeleteQuadric(qobj);
 
 		glEndList();
+
+		if (fill) {
+			fill_displist = displist;
+		}
+		else {
+			wire_displist = displist;
+		}
 	}
 
 	glPushMatrix();
@@ -213,13 +223,13 @@ static void draw_single_handle(const MaskLayer *mask_layer, const MaskSplinePoin
 		if (point == mask_layer->act_point)
 			glColor3f(1.0f, 1.0f, 1.0f);
 		else
-			glColor3f(1.0f, 1.0f, 0.0f);
+			UI_ThemeColor(TH_HANDLE_VERTEX_SELECT);
 	}
 	else {
-		glColor3f(0.5f, 0.5f, 0.0f);
+		UI_ThemeColor(TH_HANDLE_VERTEX);
 	}
 
-	draw_circle(handle_pos[0], handle_pos[1], handle_size, xscale, yscale);
+	draw_circle(handle_pos[0], handle_pos[1], handle_size, false, xscale, yscale);
 }
 
 /* return non-zero if spline is selected */
@@ -237,6 +247,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 
 	int i, handle_size, tot_feather_point;
 	float (*feather_points)[2], (*fp)[2];
+	float min[2], max[2];
 
 	if (!spline->tot_point)
 		return;
@@ -280,10 +291,10 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 				if (point == masklay->act_point)
 					glColor3f(1.0f, 1.0f, 1.0f);
 				else
-					glColor3f(1.0f, 1.0f, 0.0f);
+					UI_ThemeColor(TH_HANDLE_VERTEX_SELECT);
 			}
 			else {
-				glColor3f(0.5f, 0.5f, 0.0f);
+				UI_ThemeColor(TH_HANDLE_VERTEX);
 			}
 
 			glBegin(GL_POINTS);
@@ -302,6 +313,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 	}
 
 	/* control points */
+	INIT_MINMAX2(min, max);
 	for (i = 0; i < spline->tot_point; i++) {
 
 		/* watch it! this is intentionally not the deform array, only check for sel */
@@ -346,14 +358,33 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 			if (point == masklay->act_point)
 				glColor3f(1.0f, 1.0f, 1.0f);
 			else
-				glColor3f(1.0f, 1.0f, 0.0f);
+				UI_ThemeColor(TH_HANDLE_VERTEX_SELECT);
 		}
 		else
-			glColor3f(0.5f, 0.5f, 0.0f);
+			UI_ThemeColor(TH_HANDLE_VERTEX);
 
 		glBegin(GL_POINTS);
 		glVertex2fv(vert);
 		glEnd();
+
+		minmax_v2v2_v2(min, max, vert);
+	}
+
+	if (is_spline_sel) {
+		float x = (min[0] + max[0]) / 2.0f;
+		float y = (min[1] + max[1]) / 2.0f;
+		/* TODO(sergey): Remove hardcoded colors. */
+		if (masklay->act_spline == spline) {
+			glColor3ub(255, 255, 255);
+		}
+		else {
+			glColor3ub(255, 255, 0);
+		}
+
+		draw_circle(x, y, 6.0f, true, xscale, yscale);
+
+		glColor3ub(0, 0, 0);
+		draw_circle(x, y, 6.0f, false, xscale, yscale);
 	}
 
 	glPointSize(1.0f);
@@ -531,7 +562,7 @@ static void draw_spline_curve(const bContext *C, MaskLayer *masklay, MaskSpline 
 
 	if (!is_fill) {
 
-		float *fp         = &diff_points[0][0];
+		const float *fp   = &diff_points[0][0];
 		float *fp_feather = &feather_points[0][0];
 		float tvec[2];
 		int i;
@@ -622,7 +653,7 @@ void ED_mask_draw(const bContext *C,
 
 	ED_mask_get_size(sa, &width, &height);
 	ED_mask_get_aspect(sa, ar, &aspx, &aspy);
-	UI_view2d_getscale(&ar->v2d, &xscale, &yscale);
+	UI_view2d_scale_get(&ar->v2d, &xscale, &yscale);
 
 	draw_masklays(C, mask, draw_flag, draw_type, width, height, xscale * aspx, yscale * aspy);
 }
@@ -643,15 +674,21 @@ static void mask_rasterize_func(TaskPool *pool, void *taskdata, int UNUSED(threa
 	ThreadedMaskRasterizeState *state = (ThreadedMaskRasterizeState *) BLI_task_pool_userdata(pool);
 	ThreadedMaskRasterizeData *data = (ThreadedMaskRasterizeData *) taskdata;
 	int scanline;
+	const float x_inv = 1.0f / (float)state->width;
+	const float y_inv = 1.0f / (float)state->height;
+	const float x_px_ofs = x_inv * 0.5f;
+	const float y_px_ofs = y_inv * 0.5f;
 
 	for (scanline = 0; scanline < data->num_scanlines; scanline++) {
+		float xy[2];
 		int x, y = data->start_scanline + scanline;
+
+		xy[1] = ((float)y * y_inv) + y_px_ofs;
+
 		for (x = 0; x < state->width; x++) {
 			int index = y * state->width + x;
-			float xy[2];
 
-			xy[0] = (float) x / state->width;
-			xy[1] = (float) y / state->height;
+			xy[0] = ((float)x * x_inv) + x_px_ofs;
 
 			state->buffer[index] = BKE_maskrasterize_handle_sample(state->handle, xy);
 		}
@@ -732,11 +769,11 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 	float xofs, yofs;
 
 	/* find window pixel coordinates of origin */
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 
 	/* w = BLI_rctf_size_x(&v2d->tot); */
-	/* h = BLI_rctf_size_y(&v2d->tot);/*/
+	/* h = BLI_rctf_size_y(&v2d->tot); */
 
 
 	zoomx = (float)(BLI_rcti_size_x(&ar->winrct) + 1) / BLI_rctf_size_x(&ar->v2d.cur);
@@ -797,12 +834,13 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 
 	/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
 	glPushMatrix();
-	glTranslatef(x + xofs, y + yofs, 0);
-	glScalef(maxdim * zoomx, maxdim * zoomy, 0);
 
 	if (stabmat) {
 		glMultMatrixf(stabmat);
 	}
+
+	glTranslatef(x + xofs, y + yofs, 0);
+	glScalef(maxdim * zoomx, maxdim * zoomy, 0);
 
 	if (do_draw_cb) {
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);

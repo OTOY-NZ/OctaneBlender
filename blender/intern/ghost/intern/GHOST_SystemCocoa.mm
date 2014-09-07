@@ -736,10 +736,10 @@ bool GHOST_SystemCocoa::processEvents(bool waitForEvent)
 				handleKeyEvent(event);
 			}
 			else {
-				// For some reason NSApp is swallowing the key up events when command
+				// For some reason NSApp is swallowing the key up events when modifier
 				// key is pressed, even if there seems to be no apparent reason to do
 				// so, as a workaround we always handle these up events.
-				if ([event type] == NSKeyUp && ([event modifierFlags] & NSCommandKeyMask))
+				if ([event type] == NSKeyUp && (([event modifierFlags] & NSCommandKeyMask) || ([event modifierFlags] & NSAlternateKeyMask)))
 					handleKeyEvent(event);
 
 				[NSApp sendEvent:event];
@@ -1087,7 +1087,7 @@ GHOST_TUns8 GHOST_SystemCocoa::handleQuitRequest()
 	//Check open windows if some changes are not saved
 	if (m_windowManager->getAnyModifiedState())
 	{
-		int shouldQuit = NSRunAlertPanel(@"Exit Blender", @"Some changes have not been saved.\nDo you really want to quit ?",
+		int shouldQuit = NSRunAlertPanel(@"Exit Blender", @"Some changes have not been saved.\nDo you really want to quit?",
 		                                 @"Cancel", @"Quit Anyway", nil);
 		if (shouldQuit == NSAlertAlternateReturn)
 		{

@@ -48,7 +48,6 @@
 #include "BKE_lattice.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 
@@ -218,7 +217,7 @@ static MFace *get_dface(DerivedMesh *dm, DerivedMesh *split, int cur, int i, MFa
 	} (void)0
 
 #define GET_ES(v1, v2) edgecut_get(eh, v1, v2)
-#define INT_UV(uvf, c0, c1) interp_v2_v2v2(uvf, mf->uv[c0], mf->uv[c1], 0.5f)
+#define INT_UV(uvf, c0, c1) mid_v2_v2v2(uvf, mf->uv[c0], mf->uv[c1])
 
 static void remap_faces_3_6_9_12(DerivedMesh *dm, DerivedMesh *split, MFace *mf, int *facepa, int *vertpa, int i, EdgeHash *eh, int cur, int v1, int v2, int v3, int v4)
 {
@@ -801,7 +800,7 @@ static DerivedMesh *explodeMesh(ExplodeModifierData *emd,
 	float rot[4];
 	float cfra;
 	/* float timestep; */
-	int *facepa = emd->facepa;
+	const int *facepa = emd->facepa;
 	int totdup = 0, totvert = 0, totface = 0, totpart = 0, delface = 0;
 	int i, v, u;
 	unsigned int ed_v1, ed_v2, mindex = 0;

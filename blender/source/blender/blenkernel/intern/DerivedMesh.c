@@ -37,21 +37,18 @@
 
 #include "DNA_cloth_types.h"
 #include "DNA_key_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_armature_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h" // N_T
+#include "DNA_scene_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 
-#include "BKE_pbvh.h"
 #include "BKE_cdderivedmesh.h"
-#include "BKE_displist.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
 #include "BKE_material.h"
@@ -63,8 +60,6 @@
 #include "BKE_paint.h"
 #include "BKE_texture.h"
 #include "BKE_multires.h"
-#include "BKE_armature.h"
-#include "BKE_particle.h"
 #include "BKE_bvhutils.h"
 #include "BKE_deform.h"
 #include "BKE_global.h" /* For debug flag, DM_update_tessface_data() func. */
@@ -402,6 +397,7 @@ void DM_ensure_normals(DerivedMesh *dm)
 static void DM_calc_loop_normals(DerivedMesh *dm, float split_angle)
 {
 	dm->calcLoopNormals(dm, split_angle);
+	dm->dirty |= DM_DIRTY_TESS_CDLAYERS;
 }
 
 /* note: until all modifiers can take MPoly's as input,
@@ -506,11 +502,36 @@ void DM_update_materials(DerivedMesh *dm, Object *ob)
 
 	dm->mat = MEM_callocN(totmat * sizeof(*dm->mat), "DerivedMesh.mat");
 
-	for (i = 1; i < totmat; i++) {
-		dm->mat[i] = give_current_material(ob, i);
+	/* we leave last material as empty - rationale here is being able to index
+	 * the materials by using the mf->mat_nr directly and leaving the last
+	 * material as NULL in case no materials exist on mesh, so indexing will not fail */
+	for (i = 0; i < totmat - 1; i++) {
+		dm->mat[i] = give_current_material(ob, i + 1);
 	}
 }
 
+MTFace *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
+{
+	MTFace *tf_base;
+
+	BLI_assert(mat_nr < dm->totmat);
+
+	if (dm->mat[mat_nr] && dm->mat[mat_nr]->texpaintslot &&
+	    dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname)
+	{
+		tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
+		                                     dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
+		/* This can fail if we have changed the name in the UV layer list and have assigned the old name in the material
+		 * texture slot.*/
+		if (!tf_base)
+			tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+	}
+	else {
+		tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+	}
+
+	return tf_base;
+}
 
 void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 {
@@ -620,7 +641,8 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 		MEM_freeN(me->mselect);
 	}
 
-	*me = tmp;
+	/* skip the listbase */
+	MEMCPY_STRUCT_OFS(me, &tmp, id.prev);
 }
 
 void DM_to_meshkey(DerivedMesh *dm, Mesh *me, KeyBlock *kb)
@@ -1112,7 +1134,7 @@ static void weightpaint_color(unsigned char r_col[4], DMWeightColorInfo *dm_wcin
 
 static void calc_weightpaint_vert_color(
         unsigned char r_col[4],
-        MDeformVert *dv, 
+        const MDeformVert *dv,
         DMWeightColorInfo *dm_wcinfo,
         const int defbase_tot, const int defbase_act,
         const bool *defbase_sel, const int defbase_sel_tot,
@@ -1127,7 +1149,7 @@ static void calc_weightpaint_vert_color(
 		bool was_a_nonzero = false;
 		unsigned int i;
 
-		MDeformWeight *dw = dv->dw;
+		const MDeformWeight *dw = dv->dw;
 		for (i = dv->totweight; i != 0; i--, dw++) {
 			/* in multipaint, get the average if auto normalize is inactive
 			 * get the sum if it is active */
@@ -1218,14 +1240,15 @@ static void calc_weightpaint_vert_array(Object *ob, DerivedMesh *dm, int const d
 		}
 	}
 	else {
-		int col_i;
+		unsigned char col[4];
 		if (draw_flag & (CALC_WP_GROUP_USER_ACTIVE | CALC_WP_GROUP_USER_ALL)) {
-			col_i = 0;
+			copy_v3_v3_char((char *)col, dm_wcinfo->alert_color);
+			col[3] = 255;
 		}
 		else {
-			weightpaint_color((unsigned char *)&col_i, dm_wcinfo, 0.0f);
+			weightpaint_color(col, dm_wcinfo, 0.0f);
 		}
-		fill_vn_i((int *)r_wtcol_v, numVerts, col_i);
+		fill_vn_i((int *)r_wtcol_v, numVerts, *((int *)col));
 	}
 }
 
@@ -1598,13 +1621,14 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 			continue;
 		}
 		if (sculpt_mode &&
-		    (!has_multires || multires_applied || ob->sculpt->bm))
+		    (!has_multires || multires_applied || sculpt_dyntopo))
 		{
 			bool unsupported = false;
 
 			if (md->type == eModifierType_Multires && ((MultiresModifierData *)md)->sculptlvl == 0) {
 				/* If multires is on level 0 skip it silently without warning message. */
-				continue;
+				if (!sculpt_dyntopo)
+					continue;
 			}
 
 			if (sculpt_dyntopo && !useRenderParams)
@@ -1616,8 +1640,14 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 			unsupported |= multires_applied;
 
 			if (unsupported) {
-				modifier_setError(md, "Not supported in sculpt mode");
+				if (sculpt_dyntopo)
+					modifier_setError(md, "Not supported in dyntopo");
+				else
+					modifier_setError(md, "Not supported in sculpt mode");
 				continue;
+			}
+			else {
+				modifier_setError(md, "Hide, Mask and optimized display disabled");
 			}
 		}
 		if (needMapping && !modifier_supportsMapping(md)) continue;
@@ -1877,58 +1907,10 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	if (do_loop_normals) {
 		/* Compute loop normals (note: will compute poly and vert normals as well, if needed!) */
 		DM_calc_loop_normals(finaldm, loop_normals_split_angle);
-
-		if (finaldm->getNumTessFaces(finaldm) == 0) {
-			finaldm->recalcTessellation(finaldm);
-		}
-		/* Even if tessellation is not needed, we have for sure modified loop normals layer! */
-		else {
-			/* A tessellation already exists, it should always have a CD_ORIGINDEX. */
-			BLI_assert(CustomData_has_layer(&finaldm->faceData, CD_ORIGINDEX));
-			DM_update_tessface_data(finaldm);
-		}
 	}
-	else {
-		/* calculating normals can re-calculate tessfaces in some cases */
-#if 0
-		int num_tessface = finaldm->getNumTessFaces(finaldm);
-#endif
-		/* --------------------------------------------------------------------- */
-		/* First calculate the polygon and vertex normals, re-tessellation
-		 * copies these into the tessface's normal layer */
 
-
-		/* comment because this causes a bug when deform is applied after a
-		 * bug when applied after a subsurf modifier (SubSurf -> Cast) for eg,
-		 * it also looks like this isn't even needed since code above recalc's
-		 * normals - campbell */
-#if 0
-		finaldm->calcNormals(finaldm);
-#endif
-
-		/* Re-tessellation is necessary to push render data (uvs, textures, colors)
-		 * from loops and polys onto the tessfaces. This may be currently be
-		 * redundant in cases where the render mode doesn't use these inputs, but
-		 * ideally eventually tessellation would happen on-demand, and this is one
-		 * of the primary places it would be needed. */
-#if 0
-		if (num_tessface == 0 && finaldm->getNumTessFaces(finaldm) == 0)
-#else
-		if (finaldm->getNumTessFaces(finaldm) == 0) /* || !CustomData_has_layer(&finaldm->faceData, CD_ORIGINDEX)) */
-#endif
-		{
-			finaldm->recalcTessellation(finaldm);
-		}
-		/* Even if tessellation is not needed, some modifiers might have modified CD layers
-		 * (like mloopcol or mloopuv), hence we have to update those. */
-		else if (finaldm->dirty & DM_DIRTY_TESS_CDLAYERS) {
-			/* A tessellation already exists, it should always have a CD_ORIGINDEX. */
-			BLI_assert(CustomData_has_layer(&finaldm->faceData, CD_ORIGINDEX));
-			DM_update_tessface_data(finaldm);
-		}
-		/* Need to watch this, it can cause issues, see bug [#29338]             */
-		/* take care with this block, we really need testing frameworks          */
-		/* --------------------------------------------------------------------- */
+	{
+		DM_ensure_tessface(finaldm);
 
 		/* without this, drawing ngon tri's faces will show ugly tessellated face
 		 * normals and will also have to calculate normals on the fly, try avoid
@@ -1937,8 +1919,11 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		 * which deals with drawing differently.
 		 *
 		 * Only calc vertex normals if they are flagged as dirty.
+		 * If using loop normals, poly nors have already been computed.
 		 */
-		dm_ensure_display_normals(finaldm);
+		if (!do_loop_normals) {
+			dm_ensure_display_normals(finaldm);
+		}
 	}
 
 #ifdef WITH_GAMEENGINE
@@ -2037,9 +2022,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 		previewmd = modifiers_getLastPreview(scene, md, required_mode);
 		/* even if the modifier doesn't need the data, to make a preview it may */
 		if (previewmd) {
-			if (do_mod_wmcol) {
-				previewmask = CD_MASK_MDEFORMVERT;
-			}
+			previewmask = CD_MASK_MDEFORMVERT;
 		}
 	}
 
@@ -2304,7 +2287,8 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask,
 	if ((ob->mode & OB_MODE_SCULPT) && ob->sculpt) {
 		/* create PBVH immediately (would be created on the fly too,
 		 * but this avoids waiting on first stroke) */
-		ob->sculpt->pbvh = ob->derivedFinal->getPBVH(ob, ob->derivedFinal);
+
+		BKE_sculpt_update_mesh_elements(scene, scene->toolsettings->sculpt, ob, false, false);
 	}
 
 	BLI_assert(!(ob->derivedFinal->dirty & DM_DIRTY_NORMALS));
@@ -2513,6 +2497,28 @@ DerivedMesh *editbmesh_get_derived_base(Object *obedit, BMEditMesh *em)
 {
 	return getEditDerivedBMesh(em, obedit, NULL);
 }
+
+/***/
+
+/* get derived mesh from an object, using editbmesh if available. */
+DerivedMesh *object_get_derived_final(Object *ob, const bool for_render)
+{
+	Mesh *me = ob->data;
+	BMEditMesh *em = me->edit_btmesh;
+
+	if (for_render) {
+		/* TODO(sergey): use proper derived render here in the future. */
+		return ob->derivedFinal;
+	}
+
+	if (em) {
+		DerivedMesh *dm = em->derivedFinal;
+		return dm;
+	}
+
+	return ob->derivedFinal;
+}
+
 
 /* UNUSED */
 #if 0
@@ -2838,9 +2844,9 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 						int t;
 						for (t = 0; t < nr_tris_to_pile; t++) {
 							float f2x_area_uv;
-							float *p0 = verts[indices[t * 3 + 0]];
-							float *p1 = verts[indices[t * 3 + 1]];
-							float *p2 = verts[indices[t * 3 + 2]];
+							const float *p0 = verts[indices[t * 3 + 0]];
+							const float *p1 = verts[indices[t * 3 + 1]];
+							const float *p2 = verts[indices[t * 3 + 2]];
 
 							float edge_t0[2], edge_t1[2];
 							sub_v2_v2v2(edge_t0, tex_coords[indices[t * 3 + 1]], tex_coords[indices[t * 3 + 0]]);
@@ -3131,7 +3137,7 @@ static void navmesh_drawColored(DerivedMesh *dm)
 static void navmesh_DM_drawFacesTex(DerivedMesh *dm,
                                     DMSetDrawOptionsTex setDrawOptions,
                                     DMCompareDrawOptions compareDrawOptions,
-                                    void *userData)
+                                    void *userData, DMDrawFlag UNUSED(flag))
 {
 	(void) setDrawOptions;
 	(void) compareDrawOptions;
@@ -3142,7 +3148,7 @@ static void navmesh_DM_drawFacesTex(DerivedMesh *dm,
 
 static void navmesh_DM_drawFacesSolid(DerivedMesh *dm,
                                       float (*partial_redraw_planes)[4],
-                                      int UNUSED(fast), DMSetMaterial setMaterial)
+                                      bool UNUSED(fast), DMSetMaterial setMaterial)
 {
 	(void) partial_redraw_planes;
 	(void) setMaterial;
@@ -3395,3 +3401,84 @@ bool DM_is_valid(DerivedMesh *dm)
 }
 
 #endif /* NDEBUG */
+
+/* -------------------------------------------------------------------- */
+
+MVert *DM_get_vert_array(DerivedMesh *dm, bool *allocated)
+{
+	CustomData *vert_data = dm->getVertDataLayout(dm);
+	MVert *mvert = CustomData_get_layer(vert_data, CD_MVERT);
+	*allocated = false;
+
+	if (mvert == NULL) {
+		mvert = MEM_mallocN(sizeof(MVert) * dm->getNumVerts(dm), "dmvh vert data array");
+		dm->copyVertArray(dm, mvert);
+		*allocated = true;
+	}
+
+	return mvert;
+}
+
+MEdge *DM_get_edge_array(DerivedMesh *dm, bool *allocated)
+{
+	CustomData *edge_data = dm->getEdgeDataLayout(dm);
+	MEdge *medge = CustomData_get_layer(edge_data, CD_MEDGE);
+	*allocated = false;
+
+	if (medge == NULL) {
+		medge = MEM_mallocN(sizeof(MEdge) * dm->getNumEdges(dm), "dm medge data array");
+		dm->copyEdgeArray(dm, medge);
+		*allocated = true;
+	}
+
+	return medge;
+}
+
+MLoop *DM_get_loop_array(DerivedMesh *dm, bool *allocated)
+{
+	CustomData *loop_data = dm->getEdgeDataLayout(dm);
+	MLoop *mloop = CustomData_get_layer(loop_data, CD_MLOOP);
+	*allocated = false;
+
+	if (mloop == NULL) {
+		mloop = MEM_mallocN(sizeof(MLoop) * dm->getNumLoops(dm), "dm loop data array");
+		dm->copyLoopArray(dm, mloop);
+		*allocated = true;
+	}
+
+	return mloop;
+}
+
+MPoly *DM_get_poly_array(DerivedMesh *dm, bool *allocated)
+{
+	CustomData *poly_data = dm->getPolyDataLayout(dm);
+	MPoly *mpoly = CustomData_get_layer(poly_data, CD_MPOLY);
+	*allocated = false;
+
+	if (mpoly == NULL) {
+		mpoly = MEM_mallocN(sizeof(MPoly) * dm->getNumPolys(dm), "dm poly data array");
+		dm->copyPolyArray(dm, mpoly);
+		*allocated = true;
+	}
+
+	return mpoly;
+}
+
+MFace *DM_get_tessface_array(DerivedMesh *dm, bool *allocated)
+{
+	CustomData *tessface_data = dm->getTessFaceDataLayout(dm);
+	MFace *mface = CustomData_get_layer(tessface_data, CD_MFACE);
+	*allocated = false;
+
+	if (mface == NULL) {
+		int numTessFaces = dm->getNumTessFaces(dm);
+
+		if (numTessFaces > 0) {
+			mface = MEM_mallocN(sizeof(MFace) * numTessFaces, "bvh mface data array");
+			dm->copyTessFaceArray(dm, mface);
+			*allocated = true;
+		}
+	}
+
+	return mface;
+}

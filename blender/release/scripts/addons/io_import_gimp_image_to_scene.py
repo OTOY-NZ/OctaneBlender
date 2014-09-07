@@ -26,9 +26,8 @@ bl_info = {
     "warning": "XCF import requires xcftools installed",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Import-Export/GIMPImageToScene",
-    "tracker_url": "http://projects.blender.org/tracker/index.php?"
-                   "func=detail&aid=25136",
-    "category": "Import-Export"}
+    "category": "Import-Export",
+}
 
 """
 This script imports GIMP layered image files into 3D Scenes (.xcf, .xjt)

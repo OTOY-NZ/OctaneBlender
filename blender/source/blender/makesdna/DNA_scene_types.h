@@ -210,37 +210,39 @@ typedef struct SceneRenderLayer {
 #define SCE_LAY_NEG_ZMASK	0x80000
 
 /* srl->passflag */
-#define SCE_PASS_COMBINED				(1<<0)
-#define SCE_PASS_Z						(1<<1)
-#define SCE_PASS_RGBA					(1<<2)
-#define SCE_PASS_DIFFUSE				(1<<3)
-#define SCE_PASS_SPEC					(1<<4)
-#define SCE_PASS_SHADOW					(1<<5)
-#define SCE_PASS_AO						(1<<6)
-#define SCE_PASS_REFLECT				(1<<7)
-#define SCE_PASS_NORMAL					(1<<8)
-#define SCE_PASS_VECTOR					(1<<9)
-#define SCE_PASS_REFRACT				(1<<10)
-#define SCE_PASS_INDEXOB				(1<<11)
-#define SCE_PASS_UV						(1<<12)
-#define SCE_PASS_INDIRECT				(1<<13)
-#define SCE_PASS_MIST					(1<<14)
-#define SCE_PASS_RAYHITS				(1<<15)
-#define SCE_PASS_EMIT					(1<<16)
-#define SCE_PASS_ENVIRONMENT			(1<<17)
-#define SCE_PASS_INDEXMA				(1<<18)
-#define SCE_PASS_DIFFUSE_DIRECT			(1<<19)
-#define SCE_PASS_DIFFUSE_INDIRECT		(1<<20)
-#define SCE_PASS_DIFFUSE_COLOR			(1<<21)
-#define SCE_PASS_GLOSSY_DIRECT			(1<<22)
-#define SCE_PASS_GLOSSY_INDIRECT		(1<<23)
-#define SCE_PASS_GLOSSY_COLOR			(1<<24)
-#define SCE_PASS_TRANSM_DIRECT			(1<<25)
-#define SCE_PASS_TRANSM_INDIRECT		(1<<26)
-#define SCE_PASS_TRANSM_COLOR			(1<<27)
-#define SCE_PASS_SUBSURFACE_DIRECT		(1<<28)
-#define SCE_PASS_SUBSURFACE_INDIRECT	(1<<29)
-#define SCE_PASS_SUBSURFACE_COLOR		(1<<30)
+typedef enum ScenePassType {
+	SCE_PASS_COMBINED                 = (1 << 0),
+	SCE_PASS_Z                        = (1 << 1),
+	SCE_PASS_RGBA                     = (1 << 2),
+	SCE_PASS_DIFFUSE                  = (1 << 3),
+	SCE_PASS_SPEC                     = (1 << 4),
+	SCE_PASS_SHADOW                   = (1 << 5),
+	SCE_PASS_AO                       = (1 << 6),
+	SCE_PASS_REFLECT                  = (1 << 7),
+	SCE_PASS_NORMAL                   = (1 << 8),
+	SCE_PASS_VECTOR                   = (1 << 9),
+	SCE_PASS_REFRACT                  = (1 << 10),
+	SCE_PASS_INDEXOB                  = (1 << 11),
+	SCE_PASS_UV                       = (1 << 12),
+	SCE_PASS_INDIRECT                 = (1 << 13),
+	SCE_PASS_MIST                     = (1 << 14),
+	SCE_PASS_RAYHITS                  = (1 << 15),
+	SCE_PASS_EMIT                     = (1 << 16),
+	SCE_PASS_ENVIRONMENT              = (1 << 17),
+	SCE_PASS_INDEXMA                  = (1 << 18),
+	SCE_PASS_DIFFUSE_DIRECT           = (1 << 19),
+	SCE_PASS_DIFFUSE_INDIRECT         = (1 << 20),
+	SCE_PASS_DIFFUSE_COLOR            = (1 << 21),
+	SCE_PASS_GLOSSY_DIRECT            = (1 << 22),
+	SCE_PASS_GLOSSY_INDIRECT          = (1 << 23),
+	SCE_PASS_GLOSSY_COLOR             = (1 << 24),
+	SCE_PASS_TRANSM_DIRECT            = (1 << 25),
+	SCE_PASS_TRANSM_INDIRECT          = (1 << 26),
+	SCE_PASS_TRANSM_COLOR             = (1 << 27),
+	SCE_PASS_SUBSURFACE_DIRECT        = (1 << 28),
+	SCE_PASS_SUBSURFACE_INDIRECT      = (1 << 29),
+	SCE_PASS_SUBSURFACE_COLOR         = (1 << 30),
+} ScenePassType;
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 
@@ -357,6 +359,42 @@ typedef struct ImageFormatData {
 
 /* ImageFormatData.cineon_flag */
 #define R_IMF_CINEON_FLAG_LOG (1<<0)  /* was R_CINEON_LOG */
+
+typedef struct BakeData {
+	struct ImageFormatData im_format;
+
+	char filepath[1024]; /* FILE_MAX */
+
+	short width, height;
+	short margin, flag;
+
+	float cage_extrusion;
+	float pad2;
+
+	char normal_swizzle[3];
+	char normal_space;
+
+	char save_mode;
+	char pad[3];
+
+	char cage[64];  /* MAX_NAME */
+} BakeData;
+
+/* (char) normal_swizzle */
+typedef enum BakeNormalSwizzle {
+	R_BAKE_POSX = 0,
+	R_BAKE_POSY = 1,
+	R_BAKE_POSZ = 2,
+	R_BAKE_NEGX = 3,
+	R_BAKE_NEGY = 4,
+	R_BAKE_NEGZ = 5,
+} BakeNormalSwizzle;
+
+/* (char) save_mode */
+typedef enum BakeSaveMode {
+	R_BAKE_SAVE_INTERNAL = 0,
+	R_BAKE_SAVE_EXTERNAL = 1,
+} BakeSaveMode;
 
 /* *************************************************************** */
 /* Render Data */
@@ -563,6 +601,12 @@ typedef struct RenderData {
 
 	/* render engine */
 	char engine[32];
+
+	/* Cycles baking */
+	struct BakeData bake;
+
+	int preview_start_resolution;
+	int pad;
 } RenderData;
 
 /* *************************************************************** */
@@ -767,7 +811,8 @@ typedef struct TimeMarker {
 /* Paint Tool Base */
 typedef struct Paint {
 	struct Brush *brush;
-	
+	struct Palette *palette;
+
 	/* WM Paint cursor */
 	void *paint_cursor;
 	unsigned char paint_cursor_col[4];
@@ -799,6 +844,9 @@ typedef struct ImagePaintSettings {
 	int pad1;
 
 	void *paintcursor;			/* wm handle */
+	struct Image *stencil;      /* workaround until we support true layer masks */
+	float stencil_col[3];
+	float pad2;
 } ImagePaintSettings;
 
 /* ------------------------------------------- */
@@ -922,6 +970,11 @@ typedef struct UnifiedPaintSettings {
 	/* unified brush weight, [0, 1] */
 	float weight;
 
+	/* unified brush color */
+	float rgb[3];
+	/* unified brush secondary color */
+	float secondary_rgb[3];
+
 	/* user preferences for sculpt and paint */
 	int flag;
 
@@ -929,7 +982,6 @@ typedef struct UnifiedPaintSettings {
 
 	/* record movement of mouse so that rake can start at an intuitive angle */
 	float last_rake[2];
-	int pad;
 
 	float brush_rotation;
 
@@ -937,7 +989,14 @@ typedef struct UnifiedPaintSettings {
 	 *  all data below are used to communicate with cursor drawing and tex sampling  *
 	 *********************************************************************************/
 	int draw_anchored;
-	int   anchored_size;
+	int anchored_size;
+
+	char draw_inverted;
+	char pad3[7];
+
+	float overlap_factor; /* normalization factor due to accumulated value of curve along spacing.
+	                       * Calculated when brush spacing changes to dampen strength of stroke
+	                       * if space attenuation is used*/
 	float anchored_initial_mouse[2];
 
 	/* check is there an ongoing stroke right now */
@@ -957,15 +1016,16 @@ typedef struct UnifiedPaintSettings {
 	struct ColorSpace *colorspace;
 
 	/* radius of brush, premultiplied with pressure.
-	 * In case of anchored brushes contains that radius */
+	 * In case of anchored brushes contains the anchored radius */
 	float pixel_radius;
-	int pad2;
+	int pad4;
 } UnifiedPaintSettings;
 
 typedef enum {
 	UNIFIED_PAINT_SIZE  = (1 << 0),
 	UNIFIED_PAINT_ALPHA = (1 << 1),
 	UNIFIED_PAINT_WEIGHT = (1 << 5),
+	UNIFIED_PAINT_COLOR = (1 << 6),
 
 	/* only used if unified size is enabled, mirrors the brush flags
 	 * BRUSH_LOCK_SIZE and BRUSH_SIZE_PRESSURE */
@@ -1174,12 +1234,8 @@ typedef struct Scene {
 	short flag;								/* various settings */
 	
 	char use_nodes;
-
-	/* Openmp Global Settings */
-	char  omp_threads_mode;
-	short omp_threads;
-	char pad[6];
-
+	char pad[1];
+	
 	struct bNodeTree *nodetree;
 	
 	struct Editing *ed;								/* sequence editor data is allocated here */
@@ -1245,6 +1301,8 @@ typedef struct Scene {
 	/* use preview range */
 #define SCER_PRV_RANGE	(1<<0)
 #define SCER_LOCK_FRAME_SELECTION	(1<<1)
+	/* timeline/keyframe jumping - only selected items (on by default) */
+#define SCE_KEYS_NO_SELONLY	(1<<2)
 
 /* mode (int now) */
 #define R_OSA			0x0001
@@ -1338,6 +1396,7 @@ typedef struct Scene {
 /* #define R_RECURS_PROTECTION	0x20000 */
 #define R_TEXNODE_PREVIEW	0x40000
 #define R_VIEWPORT_PREVIEW	0x80000
+#define R_EXR_CACHE_FILE	0x100000
 
 /* r->stamp */
 #define R_STAMP_TIME 	0x0001
@@ -1403,6 +1462,9 @@ enum {
 #define R_BAKE_LORES_MESH	32
 #define R_BAKE_VCOL			64
 #define R_BAKE_USERSCALE	128
+#define R_BAKE_CAGE			256
+#define R_BAKE_SPLIT_MAT	512
+#define R_BAKE_AUTO_NAME	1024
 
 /* bake_normal_space */
 #define R_BAKE_SPACE_CAMERA	 0
@@ -1574,8 +1636,8 @@ typedef enum eVGroupSelect {
 #define SCE_FRAME_DROP			(1<<3)
 
 
-	/* return flag BKE_scene_base_iter_next function */
-#define F_ERROR			-1
+	/* return flag BKE_scene_base_iter_next functions */
+/* #define F_ERROR			-1 */  /* UNUSED */
 #define F_START			0
 #define F_SCENE			1
 #define F_DUPLI			3
@@ -1601,7 +1663,7 @@ enum {
 typedef enum {
 	PAINT_SHOW_BRUSH = (1 << 0),
 	PAINT_FAST_NAVIGATE = (1 << 1),
-	PAINT_SHOW_BRUSH_ON_SURFACE = (1 << 2),
+	PAINT_SHOW_BRUSH_ON_SURFACE = (1 << 2)
 } PaintFlags;
 
 /* Paint.symmetry_flags
@@ -1780,10 +1842,6 @@ typedef enum SculptFlags {
 /* UnitSettings->flag */
 #define	USER_UNIT_OPT_SPLIT		1
 #define USER_UNIT_ROT_RADIANS	2
-
-/* OpenMP settings */
-#define SCE_OMP_AUTO 0
-#define SCE_OMP_FIXED 1
 
 #ifdef __cplusplus
 }

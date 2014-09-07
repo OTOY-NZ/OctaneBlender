@@ -28,8 +28,8 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT, 1, N_("Value"), 0.0f, 0.0f, 0.0f, 0.0f, -FLT_MAX, FLT_MAX},
-	{-1, 0, ""}
+    {SOCK_VECTOR, 1, N_("Value"), 0.0f, 0.0f, 0.0f, 0.0f, -FLT_MAX, FLT_MAX, PROP_NONE},
+    {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {

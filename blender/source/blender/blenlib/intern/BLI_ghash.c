@@ -384,12 +384,22 @@ void *BLI_ghash_lookup(GHash *gh, const void *key)
 }
 
 /**
+ * A version of #BLI_ghash_lookup which accepts a fallback argument.
+ */
+void *BLI_ghash_lookup_default(GHash *gh, const void *key, void *val_default)
+{
+	Entry *e = ghash_lookup_entry(gh, key);
+	IS_GHASH_ASSERT(gh);
+	return e ? e->val : val_default;
+}
+
+/**
  * Lookup a pointer to the value of \a key in \a gh.
  *
  * \param key  The key to lookup.
  * \returns the pointer to value for \a key or NULL.
  *
- * \note This has 2 main benifits over #BLI_ghash_lookup.
+ * \note This has 2 main benefits over #BLI_ghash_lookup.
  * - A NULL return always means that \a key isn't in \a gh.
  * - The value can be modified in-place without further function calls (faster).
  */
@@ -559,11 +569,31 @@ void BLI_ghashIterator_init(GHashIterator *ghi, GHash *gh)
 	ghi->gh = gh;
 	ghi->curEntry = NULL;
 	ghi->curBucket = UINT_MAX;  /* wraps to zero */
-	while (!ghi->curEntry) {
-		ghi->curBucket++;
-		if (ghi->curBucket == ghi->gh->nbuckets)
-			break;
-		ghi->curEntry = ghi->gh->buckets[ghi->curBucket];
+	if (gh->nentries) {
+		do {
+			ghi->curBucket++;
+			if (UNLIKELY(ghi->curBucket == ghi->gh->nbuckets))
+				break;
+			ghi->curEntry = ghi->gh->buckets[ghi->curBucket];
+		} while (!ghi->curEntry);
+	}
+}
+
+/**
+ * Steps the iterator to the next index.
+ *
+ * \param ghi The iterator.
+ */
+void BLI_ghashIterator_step(GHashIterator *ghi)
+{
+	if (ghi->curEntry) {
+		ghi->curEntry = ghi->curEntry->next;
+		while (!ghi->curEntry) {
+			ghi->curBucket++;
+			if (ghi->curBucket == ghi->gh->nbuckets)
+				break;
+			ghi->curEntry = ghi->gh->buckets[ghi->curBucket];
+		}
 	}
 }
 
@@ -628,24 +658,6 @@ bool BLI_ghashIterator_done(GHashIterator *ghi)
 }
 #endif
 
-/**
- * Steps the iterator to the next index.
- *
- * \param ghi The iterator.
- */
-void BLI_ghashIterator_step(GHashIterator *ghi)
-{
-	if (ghi->curEntry) {
-		ghi->curEntry = ghi->curEntry->next;
-		while (!ghi->curEntry) {
-			ghi->curBucket++;
-			if (ghi->curBucket == ghi->gh->nbuckets)
-				break;
-			ghi->curEntry = ghi->gh->buckets[ghi->curBucket];
-		}
-	}
-}
-
 /** \} */
 
 
@@ -692,6 +704,11 @@ unsigned int BLI_ghashutil_uinthash_v4(const unsigned int key[4])
 	return hash;
 }
 
+int BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b)
+{
+	return memcmp(a, b, sizeof(unsigned int[4]));
+}
+
 unsigned int BLI_ghashutil_uinthash(unsigned int key)
 {
 	key += ~(key << 16);
@@ -730,7 +747,7 @@ int BLI_ghashutil_intcmp(const void *a, const void *b)
  * This function implements the widely used "djb" hash apparently posted
  * by Daniel Bernstein to comp.lang.c some time ago.  The 32 bit
  * unsigned hash value starts at 5381 and for each byte 'c' in the
- * string, is updated: <literal>hash = hash * 33 + c</literal>.  This
+ * string, is updated: ``hash = hash * 33 + c``.  This
  * function uses the signed value of each byte.
  *
  * note: this is the same hash method that glib 2.34.0 uses.
@@ -889,6 +906,25 @@ void BLI_gset_insert(GSet *gs, void *key)
 }
 
 /**
+ * A version of BLI_gset_insert which checks first if the key is in the set.
+ * \returns true if a new key has been added.
+ *
+ * \note GHash has no equivalent to this because typically the value would be different.
+ */
+bool BLI_gset_add(GSet *gs, void *key)
+{
+	const unsigned int hash = ghash_keyhash((GHash *)gs, key);
+	Entry *e = ghash_lookup_entry_ex((GHash *)gs, key, hash);
+	if (e) {
+		return false;
+	}
+	else {
+		ghash_insert_ex_keyonly((GHash *)gs, key, hash);
+		return true;
+	}
+}
+
+/**
  * Adds the key to the set (duplicates are managed).
  * Matching #BLI_ghash_reinsert
  *
@@ -936,6 +972,17 @@ void BLI_gset_free(GSet *gs, GSetKeyFreeFP keyfreefp)
 {
 	BLI_ghash_free((GHash *)gs, keyfreefp, NULL);
 }
+
+void BLI_gset_flag_set(GSet *gs, unsigned int flag)
+{
+	((GHash *)gs)->flag |= flag;
+}
+
+void BLI_gset_flag_clear(GSet *gs, unsigned int flag)
+{
+	((GHash *)gs)->flag &= ~flag;
+}
+
 /** \} */
 
 
@@ -964,4 +1011,42 @@ GSet *BLI_gset_pair_new(const char *info)
 	return BLI_gset_pair_new_ex(info, 0);
 }
 
+/** \} */
+
+
+/** \name Debugging & Introspection
+ * \{ */
+#ifdef DEBUG
+
+/**
+ * Measure how well the hash function performs
+ * (1.0 is approx as good as random distribution).
+ *
+ * Smaller is better!
+ */
+double BLI_ghash_calc_quality(GHash *gh)
+{
+	uint64_t sum = 0;
+	unsigned int i;
+
+	if (gh->nentries == 0)
+		return -1.0;
+
+	for (i = 0; i < gh->nbuckets; i++) {
+		uint64_t count = 0;
+		Entry *e;
+		for (e = gh->buckets[i]; e; e = e->next) {
+			count += 1;
+		}
+		sum += count * (count + 1);
+	}
+	return ((double)sum * (double)gh->nbuckets /
+	        ((double)gh->nentries * (gh->nentries + 2 * gh->nbuckets - 1)));
+}
+double BLI_gset_calc_quality(GSet *gs)
+{
+	return BLI_ghash_calc_quality((GHash *)gs);
+}
+
+#endif
 /** \} */

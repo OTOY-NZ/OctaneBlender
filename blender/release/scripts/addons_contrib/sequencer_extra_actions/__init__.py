@@ -19,17 +19,17 @@
 bl_info = {
     "name": "Extra Sequencer Actions",
     "author": "Turi Scandurra, Carlos Padial",
-    "version": (3, 7),
-    "blender": (2, 66, 0),
-    "api": 54697,
+    "version": (3, 8),
+    "blender": (2, 69, 0),
     "category": "Sequencer",
     "location": "Sequencer",
     "description": "Collection of extra operators to manipulate VSE strips",
-    "wiki_url": "http://wiki.blender.org/index.php/"
-    "Extensions:2.6/Py/Scripts/Sequencer/Extra_Sequencer_Actions",
-    "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail"
-                   "&aid=30474",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
+        "Scripts/Sequencer/Extra_Sequencer_Actions",
+    "tracker_url": "https://developer.blender.org/T32532",
+    # old tracker_url: https://developer.blender.org/T30474
     "support": "COMMUNITY"}
+
 
 if "bpy" in locals():
     import imp

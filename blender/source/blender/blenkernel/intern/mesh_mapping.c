@@ -29,7 +29,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "BLI_utildefines.h"
@@ -426,7 +425,7 @@ int *BKE_mesh_calc_smoothgroups(const MEdge *medge, const int totedge,
 			for (ml = &mloop[mp->loopstart], j = mp->totloop; j--; ml++) {
 				/* loop over poly users */
 				const MeshElemMap *map_ele = &edge_poly_map[ml->e];
-				int *p = map_ele->indices;
+				const int *p = map_ele->indices;
 				int i = map_ele->count;
 				if (!(medge[ml->e].flag & ME_SHARP)) {
 					for (; i--; p++) {
@@ -443,7 +442,7 @@ int *BKE_mesh_calc_smoothgroups(const MEdge *medge, const int totedge,
 					/* Find contiguous smooth groups already assigned, these are the values we can't reuse! */
 					for (; i--; p++) {
 						int bit = poly_groups[*p];
-						if (!ELEM3(bit, 0, poly_group_id, poly_group_id_overflowed) &&
+						if (!ELEM(bit, 0, poly_group_id, poly_group_id_overflowed) &&
 						    !(bit_poly_group_mask & bit))
 						{
 							bit_poly_group_mask |= bit;

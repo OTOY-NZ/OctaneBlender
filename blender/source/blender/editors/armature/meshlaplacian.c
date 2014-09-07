@@ -635,8 +635,8 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
 	MVert *mvert = me->mvert;
-	bool use_vert_sel = false;
-	bool use_face_sel = false;
+	bool use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
+	bool use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
 	*err_str = NULL;
 
@@ -652,9 +652,8 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 		return;
 
 	/* count triangles and create mask */
-	if (ob->mode == OB_MODE_WEIGHT_PAINT &&
-	    ((use_face_sel = ((me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0)) ||
-	     (use_vert_sel = ((me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0))))
+	if (ob->mode & OB_MODE_WEIGHT_PAINT &&
+	    (use_face_sel || use_vert_sel))
 	{
 		mask = MEM_callocN(sizeof(int) * me->totvert, "heat_bone_weighting mask");
 
@@ -1209,7 +1208,7 @@ static void harmonic_ray_callback(void *userdata, int index, const BVHTreeRay *r
 	}
 }
 
-static MDefBoundIsect *meshdeform_ray_tree_intersect(MeshDeformBind *mdb, float *co1, float *co2)
+static MDefBoundIsect *meshdeform_ray_tree_intersect(MeshDeformBind *mdb, const float co1[3], const float co2[3])
 {
 	MDefBoundIsect *isect;
 	BVHTreeRayHit hit;
@@ -1218,14 +1217,23 @@ static MDefBoundIsect *meshdeform_ray_tree_intersect(MeshDeformBind *mdb, float 
 	void *data[3] = {mdb->cagedm->getTessFaceArray(mdb->cagedm), mdb, &isect_mdef};
 	MFace *mface1 = data[0], *mface;
 	float vert[4][3], len, end[3];
-	static float epsilon[3] = {0, 0, 0}; //1e-4, 1e-4, 1e-4};
+	// static float epsilon[3] = {1e-4, 1e-4, 1e-4};
+
+	/* happens binding when a cage has no faces */
+	if (UNLIKELY(mdb->bvhtree == NULL))
+		return NULL;
 
 	/* setup isec */
 	memset(&isect_mdef, 0, sizeof(isect_mdef));
 	isect_mdef.lambda = 1e10f;
 
+#if 0
 	add_v3_v3v3(isect_mdef.start, co1, epsilon);
 	add_v3_v3v3(end, co2, epsilon);
+#else
+	copy_v3_v3(isect_mdef.start, co1);
+	copy_v3_v3(end, co2);
+#endif
 	sub_v3_v3v3(isect_mdef.vec, end, isect_mdef.start);
 
 	hit.index = -1;

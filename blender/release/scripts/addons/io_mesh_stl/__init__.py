@@ -28,10 +28,10 @@ bl_info = {
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Import-Export/STL",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"
-                   "func=detail&aid=22837",
     "support": 'OFFICIAL',
-    "category": "Import-Export"}
+    "category": "Import-Export",
+}
+
 
 # @todo write the wiki page
 
@@ -44,7 +44,6 @@ Import-Export STL files (binary or ascii)
 Issues:
 
 Import:
-    - Does not handle the normal of the triangles
     - Does not handle endien
 """
 
@@ -167,6 +166,13 @@ class ExportSTL(Operator, ExportHelper):
         from . import blender_utils
         import itertools
         from mathutils import Matrix
+        keywords = self.as_keywords(ignore=("axis_forward",
+                                            "axis_up",
+                                            "global_scale",
+                                            "check_existing",
+                                            "filter_glob",
+                                            "use_mesh_modifiers",
+                                            ))
 
         global_matrix = axis_conversion(to_forward=self.axis_forward,
                                         to_up=self.axis_up,
@@ -176,7 +182,7 @@ class ExportSTL(Operator, ExportHelper):
             blender_utils.faces_from_mesh(ob, global_matrix, self.use_mesh_modifiers)
             for ob in context.selected_objects)
 
-        stl_utils.write_stl(self.filepath, faces, self.ascii)
+        stl_utils.write_stl(faces=faces, **keywords)
 
         return {'FINISHED'}
 

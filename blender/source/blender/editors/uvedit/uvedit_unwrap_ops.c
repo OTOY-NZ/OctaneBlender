@@ -46,10 +46,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_alloca.h"
 #include "BLI_math.h"
-#include "BLI_edgehash.h"
 #include "BLI_uvproject.h"
 #include "BLI_string.h"
-#include "BLI_scanfill.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_subsurf.h"
@@ -58,7 +56,6 @@
 #include "BKE_depsgraph.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
@@ -204,7 +201,7 @@ void uvedit_get_aspect(Scene *scene, Object *ob, BMEditMesh *em, float *aspx, fl
 
 	if (efa) {
 		if (BKE_scene_use_new_shading_nodes(scene)) {
-			ED_object_get_active_image(ob, efa->mat_nr + 1, &ima, NULL, NULL);
+			ED_object_get_active_image(ob, efa->mat_nr + 1, &ima, NULL, NULL, NULL);
 		}
 		else {
 			MTexPoly *tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
@@ -361,7 +358,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 	/* Used to hold subsurfed Mesh */
 	DerivedMesh *derivedMesh, *initialDerived;
 	/* holds original indices for subsurfed mesh */
-	int *origVertIndices, *origEdgeIndices, *origFaceIndices, *origPolyIndices;
+	const int *origVertIndices, *origEdgeIndices, *origFaceIndices, *origPolyIndices;
 	/* Holds vertices of subsurfed mesh */
 	MVert *subsurfedVerts;
 	MEdge *subsurfedEdges;
@@ -941,7 +938,7 @@ static void uv_map_rotation_matrix(float result[4][4], RegionView3D *rv3d, Objec
 	rotup[0][0] =  1.0f / radius;
 
 	/* calculate transforms*/
-	mul_serie_m4(result, rotup, rotside, viewmatrix, rotobj, NULL, NULL, NULL, NULL);
+	mul_m4_series(result, rotup, rotside, viewmatrix, rotobj);
 }
 
 static void uv_map_transform(bContext *C, wmOperator *op, float center[3], float rotmat[4][4])

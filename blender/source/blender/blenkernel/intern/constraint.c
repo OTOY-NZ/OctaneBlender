@@ -46,18 +46,15 @@
 #include "BLF_translation.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_action_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "DNA_lattice_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_text_types.h"
 #include "DNA_tracking_types.h"
 #include "DNA_movieclip_types.h"
 
@@ -65,7 +62,6 @@
 #include "BKE_action.h"
 #include "BKE_anim.h" /* for the curve calculation part */
 #include "BKE_armature.h"
-#include "BKE_blender.h"
 #include "BKE_bvhutils.h"
 #include "BKE_camera.h"
 #include "BKE_constraint.h"
@@ -75,11 +71,9 @@
 #include "BKE_DerivedMesh.h"    /* for geometry targets */
 #include "BKE_cdderivedmesh.h" /* for geometry targets */
 #include "BKE_object.h"
-#include "BKE_ipo.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_idprop.h"
-#include "BKE_mesh.h"
 #include "BKE_shrinkwrap.h"
 #include "BKE_editmesh.h"
 #include "BKE_tracking.h"
@@ -460,7 +454,7 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
 	Lattice *lt = (Lattice *)ob->data;
 	
 	DispList *dl = ob->curve_cache ? BKE_displist_find(&ob->curve_cache->disp, DL_VERTS) : NULL;
-	float *co = dl ? dl->verts : NULL;
+	const float *co = dl ? dl->verts : NULL;
 	BPoint *bp = lt->def;
 	
 	MDeformVert *dv = lt->dvert;
@@ -1164,7 +1158,6 @@ static void followpath_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 	if (VALID_CONS_TARGET(ct) && (ct->tar->type == OB_CURVE)) {
 		Curve *cu = ct->tar->data;
 		float vec[4], dir[3], radius;
-		float totmat[4][4] = MAT4_UNITY;
 		float curvetime;
 
 		unit_m4(ct->matrix);
@@ -1212,6 +1205,9 @@ static void followpath_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 			}
 			
 			if (where_on_path(ct->tar, curvetime, vec, dir, (data->followflag & FOLLOWPATH_FOLLOW) ? quat : NULL, &radius, NULL) ) {  /* quat_pt is quat or NULL*/
+				float totmat[4][4];
+				unit_m4(totmat);
+
 				if (data->followflag & FOLLOWPATH_FOLLOW) {
 #if 0
 					float x1, q[4];
@@ -3045,11 +3041,12 @@ static void clampto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
 	if (VALID_CONS_TARGET(ct) && (ct->tar->type == OB_CURVE)) {
 		float obmat[4][4], ownLoc[3];
 		float curveMin[3], curveMax[3];
-		float targetMatrix[4][4] = MAT4_UNITY;
+		float targetMatrix[4][4];
 		
 		copy_m4_m4(obmat, cob->matrix);
 		copy_v3_v3(ownLoc, obmat[3]);
 		
+		unit_m4(targetMatrix);
 		INIT_MINMAX(curveMin, curveMax);
 		/* XXX - don't think this is good calling this here - campbell */
 		BKE_object_minmax(ct->tar, curveMin, curveMax, true);
@@ -3206,6 +3203,7 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 	
 	/* only evaluate if there is a target */
 	if (VALID_CONS_TARGET(ct)) {
+		float *from_min, *from_max, *to_min, *to_max;
 		float loc[3], eul[3], size[3];
 		float dvec[3], sval[3];
 		int i;
@@ -3223,13 +3221,19 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 					 */
 					negate_v3(dvec);
 				}
+				from_min = data->from_min_scale;
+				from_max = data->from_max_scale;
 				break;
 			case TRANS_ROTATION:
 				mat4_to_eulO(dvec, cob->rotOrder, ct->matrix);
+				from_min = data->from_min_rot;
+				from_max = data->from_max_rot;
 				break;
 			case TRANS_LOCATION:
 			default:
 				copy_v3_v3(dvec, ct->matrix[3]);
+				from_min = data->from_min;
+				from_max = data->from_max;
 				break;
 		}
 		
@@ -3241,8 +3245,8 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		/* determine where in range current transforms lie */
 		if (data->expo) {
 			for (i = 0; i < 3; i++) {
-				if (data->from_max[i] - data->from_min[i])
-					sval[i] = (dvec[i] - data->from_min[i]) / (data->from_max[i] - data->from_min[i]);
+				if (from_max[i] - from_min[i])
+					sval[i] = (dvec[i] - from_min[i]) / (from_max[i] - from_min[i]);
 				else
 					sval[i] = 0.0f;
 			}
@@ -3250,9 +3254,9 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		else {
 			/* clamp transforms out of range */
 			for (i = 0; i < 3; i++) {
-				CLAMP(dvec[i], data->from_min[i], data->from_max[i]);
-				if (data->from_max[i] - data->from_min[i])
-					sval[i] = (dvec[i] - data->from_min[i]) / (data->from_max[i] - data->from_min[i]);
+				CLAMP(dvec[i], from_min[i], from_max[i]);
+				if (from_max[i] - from_min[i])
+					sval[i] = (dvec[i] - from_min[i]) / (from_max[i] - from_min[i]);
 				else
 					sval[i] = 0.0f;
 			}
@@ -3262,22 +3266,30 @@ static void transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		/* apply transforms */
 		switch (data->to) {
 			case TRANS_SCALE:
+				to_min = data->to_min_scale;
+				to_max = data->to_max_scale;
 				for (i = 0; i < 3; i++) {
 					/* multiply with original scale (so that it can still be scaled) */
-					size[i] *= data->to_min[i] + (sval[(int)data->map[i]] * (data->to_max[i] - data->to_min[i]));
+					/* size[i] *= to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i])); */
+					/* Stay absolute, else it breaks existing rigs... sigh. */
+					size[i] = to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i]));
 				}
 				break;
 			case TRANS_ROTATION:
+				to_min = data->to_min_rot;
+				to_max = data->to_max_rot;
 				for (i = 0; i < 3; i++) {
 					/* add to original rotation (so that it can still be rotated) */
-					eul[i] += data->to_min[i] + (sval[(int)data->map[i]] * (data->to_max[i] - data->to_min[i]));
+					eul[i] += to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i]));
 				}
 				break;
 			case TRANS_LOCATION:
 			default:
+				to_min = data->to_min;
+				to_max = data->to_max;
 				for (i = 0; i < 3; i++) {
 					/* add to original location (so that it can still be moved) */
-					loc[i] += (data->to_min[i] + (sval[(int)data->map[i]] * (data->to_max[i] - data->to_min[i])));
+					loc[i] += (to_min[i] + (sval[(int)data->map[i]] * (to_max[i] - to_min[i])));
 				}
 				break;
 		}
@@ -3363,7 +3375,7 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 		unit_m4(ct->matrix);
 		
 		if (target != NULL) {
-			space_transform_from_matrixs(&transform, cob->matrix, ct->tar->obmat);
+			BLI_space_transform_from_matrices(&transform, cob->matrix, ct->tar->obmat);
 			
 			switch (scon->shrinkType) {
 				case MOD_SHRINKWRAP_NEAREST_SURFACE:
@@ -3385,7 +3397,7 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 						break;
 					}
 					
-					space_transform_apply(&transform, co);
+					BLI_space_transform_apply(&transform, co);
 					
 					BLI_bvhtree_find_nearest(treeData.tree, co, &nearest, treeData.nearest_callback, &treeData);
 					
@@ -3393,7 +3405,7 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 					if (dist != 0.0f) {
 						interp_v3_v3v3(co, co, nearest.co, (dist - scon->dist) / dist);   /* linear interpolation */
 					}
-					space_transform_invert(&transform, co);
+					BLI_space_transform_invert(&transform, co);
 					break;
 				}
 				case MOD_SHRINKWRAP_PROJECT:
@@ -3897,7 +3909,7 @@ static void followtrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
 				BKE_tracking_camera_get_reconstructed_interpolate(tracking, tracking_object, framenr, imat);
 				invert_m4(imat);
 
-				mul_serie_m4(cob->matrix, obmat, mat, imat, NULL, NULL, NULL, NULL, NULL);
+				mul_m4_series(cob->matrix, obmat, mat, imat);
 				translate_m4(cob->matrix, track->bundle_pos[0], track->bundle_pos[1], track->bundle_pos[2]);
 			}
 			else {
@@ -3931,18 +3943,30 @@ static void followtrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
 
 		if (len > FLT_EPSILON) {
 			CameraParams params;
+			int width, height;
 			float pos[2], rmat[4][4];
+
+			BKE_movieclip_get_size(clip, NULL, &width, &height);
 
 			marker = BKE_tracking_marker_get(track, framenr);
 
 			add_v2_v2v2(pos, marker->pos, track->offset);
 
+			if (data->flag & FOLLOWTRACK_USE_UNDISTORTION) {
+				/* Undistortion need to happen in pixel space. */
+				pos[0] *= width;
+				pos[1] *= height;
+
+				BKE_tracking_undistort_v2(tracking, pos, pos);
+
+				/* Normalize pixel coordinates back. */
+				pos[0] /= width;
+				pos[1] /= height;
+			}
+
 			/* aspect correction */
 			if (data->frame_method != FOLLOWTRACK_FRAME_STRETCH) {
-				int width, height;
 				float w_src, h_src, w_dst, h_dst, asp_src, asp_dst;
-
-				BKE_movieclip_get_size(clip, NULL, &width, &height);
 
 				/* apply clip display aspect */
 				w_src = width * clip->aspx;
@@ -4175,7 +4199,7 @@ static void objectsolver_evaluate(bConstraint *con, bConstraintOb *cob, ListBase
 
 			invert_m4_m4(imat, mat);
 
-			mul_serie_m4(cob->matrix, cammat, imat, camimat, parmat, obmat, NULL, NULL, NULL);
+			mul_m4_series(cob->matrix, cammat, imat, camimat, parmat, obmat);
 		}
 	}
 }

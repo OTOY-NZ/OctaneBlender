@@ -4,7 +4,7 @@ Autoconf-like configuration support.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -26,7 +26,7 @@ Autoconf-like configuration support.
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-__revision__ = "src/engine/SCons/SConf.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/SConf.py  2014/03/02 14:18:15 garyo"
 
 import SCons.compat
 
@@ -483,6 +483,9 @@ class SConfBase(object):
         # so we really control how it gets written.
         for n in nodes:
             n.store_info = n.do_not_store_info
+            if not hasattr(n, 'attributes'):
+                n.attributes = SCons.Node.Node.Attrs()
+            n.attributes.keep_targetinfo = 1
 
         ret = 1
 
@@ -776,19 +779,16 @@ class CheckContext(object):
         self.did_show_result = 0
 
     def Result(self, res):
-        """Inform about the result of the test. res may be an integer or a
-        string. In case of an integer, the written text will be 'yes' or 'no'.
+        """Inform about the result of the test. If res is not a string, displays
+        'yes' or 'no' depending on whether res is evaluated as true or false.
         The result is only displayed when self.did_show_result is not set.
         """
-        if isinstance(res, (int, bool)):
-            if res:
-                text = "yes"
-            else:
-                text = "no"
-        elif isinstance(res, str):
+        if isinstance(res, str):
             text = res
+        elif res:
+            text = "yes"
         else:
-            raise TypeError("Expected string, int or bool, got " + str(type(res)))
+            text = "no"
 
         if self.did_show_result == 0:
             # Didn't show result yet, do it now.

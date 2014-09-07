@@ -19,17 +19,16 @@
 # <pep8-80 compliant>
 
 bl_info = {
-    'name': 'Corrective shape keys',
-    'author': 'Ivo Grigull (loolarge), Tal Trachtman',
-    'version': (1, 0),
+    "name": "Corrective shape keys",
+    "author": "Ivo Grigull (loolarge), Tal Trachtman",
+    "version": (1, 0),
     "blender": (2, 57, 0),
-    'location': 'Object Data > Shape Keys (Search: corrective) ',
-    'description': 'Creates a corrective shape key for the current pose',
+    "location": "Object Data > Shape Keys (Search: corrective) ",
+    "description": "Creates a corrective shape key for the current pose",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Animation/Corrective_Shape_Key",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"
-                   "func=detail&aid=22129",
-    'category': 'Animation'}
+    "category": "Animation",
+}
 
 """
 This script transfer the shape from an object (base mesh without

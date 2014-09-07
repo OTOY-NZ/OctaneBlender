@@ -77,14 +77,12 @@
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_edgehash.h"
 
 #include "BKE_armature.h"
 #include "BKE_colortools.h"
 #include "BKE_constraint.h"
 #include "BKE_deform.h"
 #include "BKE_fcurve.h"
-#include "BKE_global.h" // for G
 #include "BKE_image.h"
 #include "BKE_lattice.h"
 #include "BKE_main.h" // for Main
@@ -475,7 +473,7 @@ static void do_version_ntree_242_2(bNodeTree *ntree)
 
 	if (ntree->type == NTREE_COMPOSIT) {
 		for (node = ntree->nodes.first; node; node = node->next) {
-			if (ELEM3(node->type, CMP_NODE_IMAGE, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER)) {
+			if (ELEM(node->type, CMP_NODE_IMAGE, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER)) {
 				/* only image had storage */
 				if (node->storage) {
 					NodeImageAnim *nia = node->storage;
@@ -2234,7 +2232,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 			}
 
 			if (sce->r.mode & R_PANORAMA) {
-				/* all these checks to ensure saved files with svn version keep working... */
+				/* all these checks to ensure saved files between released versions keep working... */
 				if (sce->r.xsch < sce->r.ysch) {
 					Object *obc = blo_do_versions_newlibadr(fd, lib, sce->camera);
 					if (obc && obc->type == OB_CAMERA) {
@@ -3572,8 +3570,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 		Object *ob;
 		World *wrld;
 		for (ob = main->object.first; ob; ob = ob->id.next) {
-			/* pad3 is used for m_contactProcessingThreshold */
-			ob->m_contactProcessingThreshold = 1.0f;
 			if (ob->parent) {
 				/* check if top parent has compound shape set and if yes, set this object
 				 * to compound shaper as well (was the behavior before, now it's optional) */

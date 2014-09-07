@@ -38,7 +38,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_math.h"
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -56,6 +55,9 @@
 
 #include "interface_intern.h"
 
+#ifdef WIN32
+#  include "BLI_math_base.h" /* M_PI */
+#endif
 
 /* style + theme + layout-engine = UI */
 
@@ -328,7 +330,7 @@ void UI_DrawString(float x, float y, const char *str)
 /* reading without uifont will create one */
 void uiStyleInit(void)
 {
-	uiFont *font = U.uifonts.first;
+	uiFont *font;
 	uiStyle *style = U.uistyles.first;
 	int monofont_size = datatoc_bmonofont_ttf_size;
 	unsigned char *monofont_ttf = (unsigned char *)datatoc_bmonofont_ttf;
@@ -338,11 +340,23 @@ void uiStyleInit(void)
 		U.dpi = 72;
 	CLAMP(U.dpi, 48, 144);
 	
+	for (font = U.uifonts.first; font; font = font->next) {
+		BLF_unload_id(font->blf_id);
+	}
+
+	font = U.uifonts.first;
+
 	/* default builtin */
 	if (font == NULL) {
 		font = MEM_callocN(sizeof(uiFont), "ui font");
 		BLI_addtail(&U.uifonts, font);
-		
+	}
+
+	if (U.font_path_ui[0]) {
+		BLI_strncpy(font->filename, U.font_path_ui, sizeof(font->filename));
+		font->uifont_id = UIFONT_CUSTOM1;
+	}
+	else {
 		BLI_strncpy(font->filename, "default", sizeof(font->filename));
 		font->uifont_id = UIFONT_DEFAULT;
 	}
@@ -379,8 +393,12 @@ void uiStyleInit(void)
 		}
 		else {
 			font->blf_id = BLF_load(font->filename);
-			if (font->blf_id == -1)
+			if (font->blf_id == -1) {
 				font->blf_id = BLF_load_mem("default", (unsigned char *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
+			}
+			else {
+				BLF_default_set(font->blf_id);
+			}
 		}
 
 		if (font->blf_id == -1) {
@@ -430,7 +448,7 @@ void uiStyleInit(void)
 	if (blf_mono_font_render == -1)
 		blf_mono_font_render = BLF_load_mem_unique("monospace", monofont_ttf, monofont_size);
 
-	BLF_size(blf_mono_font_render, 12 * U.pixelsize, 72 );
+	BLF_size(blf_mono_font_render, 12 * U.pixelsize, 72);
 }
 
 void uiStyleFontSet(uiFontStyle *fs)

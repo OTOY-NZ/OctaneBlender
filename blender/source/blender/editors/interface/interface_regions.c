@@ -41,12 +41,12 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
-#include "BLI_dynstr.h"
 #include "BLI_ghash.h"
+
+#include "PIL_time.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
-#include "BKE_idcode.h"
 #include "BKE_report.h"
 #include "BKE_global.h"
 
@@ -148,24 +148,39 @@ static void ui_remove_temporary_region(bContext *C, bScreen *sc, ARegion *ar)
 
 /************************* Creating Tooltips **********************/
 
-typedef enum {
-	UI_TIP_LC_MAIN,
-	UI_TIP_LC_NORMAL,
-	UI_TIP_LC_PYTHON,
-	UI_TIP_LC_ALERT,
-	UI_TIP_LC_SUBMENU
-} uiTooltipLineColor;
-#define UI_TIP_LC_MAX 5
+#define UI_TIP_PAD_FAC      1.3f
+#define UI_TIP_PADDING      (int)(UI_TIP_PAD_FAC * UI_UNIT_Y)
 
 #define MAX_TOOLTIP_LINES 8
 typedef struct uiTooltipData {
 	rcti bbox;
 	uiFontStyle fstyle;
 	char lines[MAX_TOOLTIP_LINES][512];
-	uiTooltipLineColor color_id[MAX_TOOLTIP_LINES];
+	char header[512], active_info[512];
+	struct {
+		enum {
+			UI_TIP_STYLE_NORMAL = 0,
+			UI_TIP_STYLE_HEADER,
+			UI_TIP_STYLE_MONO,
+		} style : 3;
+		enum {
+			UI_TIP_LC_MAIN = 0,     /* primary text */
+			UI_TIP_LC_VALUE,        /* the value of buttons (also shortcuts) */
+			UI_TIP_LC_ACTIVE,       /* titles of active enum values */
+			UI_TIP_LC_NORMAL,       /* regular text */
+			UI_TIP_LC_PYTHON,       /* Python snippet */
+			UI_TIP_LC_ALERT,        /* description of why operator can't run */
+		} color_id : 4;
+		int is_pad : 1;
+	} format[MAX_TOOLTIP_LINES];
 	int totline;
-	int toth, spaceh, lineh;
+	int toth, lineh;
 } uiTooltipData;
+
+#define UI_TIP_LC_MAX 6
+
+BLI_STATIC_ASSERT(UI_TIP_LC_MAX == UI_TIP_LC_ALERT + 1, "invalid lc-max");
+BLI_STATIC_ASSERT(sizeof(((uiTooltipData *)NULL)->format[0]) <= sizeof(int), "oversize");
 
 static void rgb_tint(float col[3],
                      float h, float h_strength,
@@ -185,16 +200,18 @@ static void rgb_tint(float col[3],
 
 static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 {
+	const float pad_px = UI_TIP_PADDING;
 	uiTooltipData *data = ar->regiondata;
 	uiWidgetColors *theme = ui_tooltip_get_theme();
 	rcti bbox = data->bbox;
 	float tip_colors[UI_TIP_LC_MAX][3];
 
 	float *main_color    = tip_colors[UI_TIP_LC_MAIN]; /* the color from the theme */
+	float *value_color   = tip_colors[UI_TIP_LC_VALUE];
+	float *active_color  = tip_colors[UI_TIP_LC_ACTIVE];
 	float *normal_color  = tip_colors[UI_TIP_LC_NORMAL];
 	float *python_color  = tip_colors[UI_TIP_LC_PYTHON];
 	float *alert_color   = tip_colors[UI_TIP_LC_ALERT];
-	float *submenu_color = tip_colors[UI_TIP_LC_SUBMENU];
 
 	float background_color[3];
 	float tone_bg;
@@ -213,32 +230,79 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 
 	/* calculate normal_color */
 	rgb_uchar_to_float(main_color, (const unsigned char *)theme->text);
+	copy_v3_v3(active_color, main_color);
 	copy_v3_v3(normal_color, main_color);
 	copy_v3_v3(python_color, main_color);
 	copy_v3_v3(alert_color, main_color);
-	copy_v3_v3(submenu_color, main_color);
+	copy_v3_v3(value_color, main_color);
 
 	/* find the brightness difference between background and text colors */
 	
 	tone_bg = rgb_to_grayscale(background_color);
 	/* tone_fg = rgb_to_grayscale(main_color); */
 
-	rgb_tint(normal_color, 0.0f, 0.0f, tone_bg, 0.3f);   /* a shade darker (to bg) */
-	rgb_tint(python_color, 0.666f, 0.25f, tone_bg, 0.3f); /* blue */
-	rgb_tint(alert_color, 0.0f, 0.8f, tone_bg, 0.1f);    /* bright red */
-	rgb_tint(submenu_color, 0.0f, 0.0f, tone_bg, 0.3f);  /* a shade darker (to bg) */
+	/* mix the colors */
+	rgb_tint(value_color,  0.0f, 0.0f, tone_bg, 0.2f);  /* light grey */
+	rgb_tint(active_color, 0.6f, 0.2f, tone_bg, 0.2f);  /* light blue */
+	rgb_tint(normal_color, 0.0f, 0.0f, tone_bg, 0.4f);  /* grey       */
+	rgb_tint(python_color, 0.0f, 0.0f, tone_bg, 0.5f);  /* dark grey  */
+	rgb_tint(alert_color,  0.0f, 0.8f, tone_bg, 0.1f);  /* red        */
 
 	/* draw text */
-	uiStyleFontSet(&data->fstyle);
 
-	bbox.ymax = bbox.ymax - 0.5f * (BLI_rcti_size_y(&bbox) - data->toth);
+	bbox.xmin += 0.5f * pad_px;  /* add padding to the text */
+	bbox.ymax -= 0.5f * (BLI_rcti_size_y(&bbox) - data->toth);
 	bbox.ymin = bbox.ymax - data->lineh;
 
 	for (i = 0; i < data->totline; i++) {
-		glColor3fv(tip_colors[data->color_id[i]]);
-		uiStyleFontDraw(&data->fstyle, &bbox, data->lines[i]);
-		bbox.ymin -= data->lineh + data->spaceh;
-		bbox.ymax -= data->lineh + data->spaceh;
+		if (data->format[i].style == UI_TIP_STYLE_HEADER) {
+			/* draw header and active data (is done here to be able to change color) */
+			uiFontStyle fstyle_header = data->fstyle;
+			float xofs;
+
+			/* override text-style */
+			fstyle_header.shadow = 1;
+			fstyle_header.shadowcolor = rgb_to_luma(tip_colors[UI_TIP_LC_MAIN]);
+			fstyle_header.shadx = fstyle_header.shady = 0;
+			fstyle_header.shadowalpha = 1.0f;
+
+			uiStyleFontSet(&fstyle_header);
+			glColor3fv(tip_colors[UI_TIP_LC_MAIN]);
+			uiStyleFontDraw(&fstyle_header, &bbox, data->header);
+
+			xofs = BLF_width(fstyle_header.uifont_id, data->header, sizeof(data->header));
+			bbox.xmin += xofs;
+
+			glColor3fv(tip_colors[UI_TIP_LC_ACTIVE]);
+			uiStyleFontDraw(&data->fstyle, &bbox, data->active_info);
+
+			bbox.xmin -= xofs;
+		}
+		else if (data->format[i].style == UI_TIP_STYLE_MONO) {
+			uiFontStyle fstyle_mono = data->fstyle;
+			fstyle_mono.uifont_id = blf_mono_font;
+
+			uiStyleFontSet(&fstyle_mono);
+			/* XXX, needed because we dont have mono in 'U.uifonts' */
+			BLF_size(fstyle_mono.uifont_id, fstyle_mono.points * U.pixelsize, U.dpi);
+			glColor3fv(tip_colors[data->format[i].color_id]);
+			uiStyleFontDraw(&fstyle_mono, &bbox, data->lines[i]);
+		}
+		else {
+			BLI_assert(data->format[i].style == UI_TIP_STYLE_NORMAL);
+			/* draw remaining data */
+			uiStyleFontSet(&data->fstyle);
+			glColor3fv(tip_colors[data->format[i].color_id]);
+			uiStyleFontDraw(&data->fstyle, &bbox, data->lines[i]);
+		}
+		if ((i + 1 != data->totline) && data->format[i + 1].is_pad) {
+			bbox.ymax -= data->lineh * UI_TIP_PAD_FAC;
+			bbox.ymin -= data->lineh * UI_TIP_PAD_FAC;
+		}
+		else {
+			bbox.ymax -= data->lineh;
+			bbox.ymin -= data->lineh;
+		}
 	}
 
 	if (multisample_enabled)
@@ -256,6 +320,7 @@ static void ui_tooltip_region_free_cb(ARegion *ar)
 
 ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 {
+	const float pad_px = UI_TIP_PADDING;
 	wmWindow *win = CTX_wm_window(C);
 	uiStyle *style = UI_GetStyle();
 	static ARegionType type;
@@ -266,7 +331,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	/* aspect values that shrink text are likely unreadable */
 	const float aspect = min_ff(1.0f, but->block->aspect);
 	float fonth, fontw;
-	int winx /*, winy */, ofsx, ofsy, w, h, a;
+	int winx, ofsx, ofsy, w = 0, h, i;
 	rctf rect_fl;
 	rcti rect_i;
 
@@ -286,52 +351,58 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 	uiButGetStrInfo(C, but, &but_tip, &enum_label, &enum_tip, &op_keymap, &prop_keymap, &rna_struct, &rna_prop, NULL);
 
-	/* special case, enum rna buttons only have enum item description,
-	 * use general enum description too before the specific one */
-
 	/* Tip */
 	if (but_tip.strinfo) {
-		/* Expanded Bit-flag enums have a specific way to select multiple... */
-		if ((but->type & ROW) && but->rnaprop && RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG) {
-			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]),
-			             "%s %s", but_tip.strinfo, IFACE_("(Shift-click to select multiple)"));
+		BLI_strncpy(data->header, but_tip.strinfo, sizeof(data->lines[0]));
+		if (enum_label.strinfo) {
+			BLI_snprintf(data->header, sizeof(data->header), "%s:  ", but_tip.strinfo);
+			BLI_strncpy(data->active_info, enum_label.strinfo, sizeof(data->lines[0]));
 		}
-		else {
-			BLI_strncpy(data->lines[data->totline], but_tip.strinfo, sizeof(data->lines[0]));
-		}
-		data->color_id[data->totline] = UI_TIP_LC_MAIN;
+		data->format[data->totline].style = UI_TIP_STYLE_HEADER;
 		data->totline++;
+
+		/* special case enum rna buttons */
+		if ((but->type & ROW) && but->rnaprop && RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG) {
+			BLI_strncpy(data->lines[data->totline], IFACE_("(Shift-click to select multiple)"), sizeof(data->lines[0]));
+
+			data->format[data->totline].color_id = UI_TIP_LC_NORMAL;
+			data->totline++;
+		}
+
 	}
 	/* Enum item label & tip */
-	if (enum_label.strinfo && enum_tip.strinfo) {
-		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]),
-		             "%s: %s", enum_label.strinfo, enum_tip.strinfo);
-		data->color_id[data->totline] = UI_TIP_LC_SUBMENU;
+	if (enum_tip.strinfo) {
+		BLI_strncpy(data->lines[data->totline], enum_tip.strinfo, sizeof(data->lines[0]));
+		data->format[data->totline].is_pad = true;
+		data->format[data->totline].color_id = UI_TIP_LC_VALUE;
 		data->totline++;
 	}
 
 	/* Op shortcut */
 	if (op_keymap.strinfo) {
 		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Shortcut: %s"), op_keymap.strinfo);
-		data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+		data->format[data->totline].is_pad = true;
+		data->format[data->totline].color_id = UI_TIP_LC_VALUE;
 		data->totline++;
 	}
 	
 	/* Property context-toggle shortcut */
 	if (prop_keymap.strinfo) {
 		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Shortcut: %s"), prop_keymap.strinfo);
-		data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+		data->format[data->totline].is_pad = true;
+		data->format[data->totline].color_id = UI_TIP_LC_VALUE;
 		data->totline++;
 	}
 
-	if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
+	if (ELEM(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		/* better not show the value of a password */
 		if ((but->rnaprop && (RNA_property_subtype(but->rnaprop) == PROP_PASSWORD)) == 0) {
 			/* full string */
 			ui_get_but_string(but, buf, sizeof(buf));
 			if (buf[0]) {
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Value: %s"), buf);
-				data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+				data->format[data->totline].is_pad = true;
+				data->format[data->totline].color_id = UI_TIP_LC_VALUE;
 				data->totline++;
 			}
 		}
@@ -346,7 +417,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 				                  RNA_property_float_get_index(&but->rnapoin, but->rnaprop, but->rnaindex) :
 				                  RNA_property_float_get(&but->rnapoin, but->rnaprop);
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Radians: %f"), value);
-				data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+				data->format[data->totline].color_id = UI_TIP_LC_NORMAL;
 				data->totline++;
 			}
 		}
@@ -355,7 +426,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			if (ui_but_anim_expression_get(but, buf, sizeof(buf))) {
 				/* expression */
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Expression: %s"), buf);
-				data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+				data->format[data->totline].color_id = UI_TIP_LC_NORMAL;
 				data->totline++;
 			}
 		}
@@ -364,7 +435,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			ID *id = but->rnapoin.id.data;
 			if (id->lib) {
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Library: %s"), id->lib->name);
-				data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+				data->format[data->totline].color_id = UI_TIP_LC_NORMAL;
 				data->totline++;
 			}
 		}
@@ -385,7 +456,9 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		/* operator info */
 		if ((U.flag & USER_TOOLTIPS_PYTHON) == 0) {
 			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Python: %s"), str);
-			data->color_id[data->totline] = UI_TIP_LC_PYTHON;
+			data->format[data->totline].style = UI_TIP_STYLE_MONO;
+			data->format[data->totline].is_pad = true;
+			data->format[data->totline].color_id = UI_TIP_LC_PYTHON;
 			data->totline++;
 		}
 
@@ -399,7 +472,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			poll_msg = CTX_wm_operator_poll_msg_get(C);
 			if (poll_msg) {
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Disabled: %s"), poll_msg);
-				data->color_id[data->totline] = UI_TIP_LC_ALERT; /* alert */
+				data->format[data->totline].color_id = UI_TIP_LC_ALERT;
 				data->totline++;
 			}
 		}
@@ -416,7 +489,9 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]),
 			             TIP_("Python: %s"), rna_struct.strinfo);
 		}
-		data->color_id[data->totline] = UI_TIP_LC_PYTHON;
+		data->format[data->totline].style = UI_TIP_STYLE_MONO;
+		data->format[data->totline].is_pad = true;
+		data->format[data->totline].color_id = UI_TIP_LC_PYTHON;
 		data->totline++;
 
 		if (but->rnapoin.id.data) {
@@ -449,7 +524,8 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			}
 			MEM_freeN(id_path);
 
-			data->color_id[data->totline] = UI_TIP_LC_PYTHON;
+			data->format[data->totline].style = UI_TIP_STYLE_MONO;
+			data->format[data->totline].color_id = UI_TIP_LC_PYTHON;
 			data->totline++;
 		}
 	}
@@ -488,22 +564,40 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	
 	/* set font, get bb */
 	data->fstyle = style->widget; /* copy struct */
-	data->fstyle.align = UI_STYLE_TEXT_CENTER;
 	ui_fontscale(&data->fstyle.points, aspect);
 
 	uiStyleFontSet(&data->fstyle);
 
 	/* these defines tweaked depending on font */
-#define TIP_MARGIN_Y (2.0f / aspect)
 #define TIP_BORDER_X (16.0f / aspect)
 #define TIP_BORDER_Y (6.0f / aspect)
 
 	h = BLF_height_max(data->fstyle.uifont_id);
 
-	for (a = 0, fontw = 0, fonth = 0; a < data->totline; a++) {
-		w = BLF_width(data->fstyle.uifont_id, data->lines[a], sizeof(data->lines[a]));
+	for (i = 0, fontw = 0, fonth = 0; i < data->totline; i++) {
+		if (data->format[i].style == UI_TIP_STYLE_HEADER) {
+			w = BLF_width(data->fstyle.uifont_id, data->header, sizeof(data->header));
+			if (enum_label.strinfo)
+				w += BLF_width(data->fstyle.uifont_id, data->active_info, sizeof(data->active_info));
+		}
+		else if (data->format[i].style == UI_TIP_STYLE_MONO) {
+			BLF_size(blf_mono_font, data->fstyle.points * U.pixelsize, U.dpi);
+
+			w = BLF_width(blf_mono_font, data->lines[i], sizeof(data->lines[i]));
+		}
+		else {
+			BLI_assert(data->format[i].style == UI_TIP_STYLE_NORMAL);
+			w = BLF_width(data->fstyle.uifont_id, data->lines[i], sizeof(data->lines[i]));
+		}
+
 		fontw = max_ff(fontw, (float)w);
-		fonth += (a == 0) ? h : h + TIP_MARGIN_Y;
+
+		if ((i + 1 != data->totline) && data->format[i + 1].is_pad) {
+			fonth += h * UI_TIP_PAD_FAC;
+		}
+		else {
+			fonth += h;
+		}
 	}
 
 	//fontw *= aspect;
@@ -512,29 +606,37 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 	data->toth = fonth;
 	data->lineh = h;
-	data->spaceh = TIP_MARGIN_Y;
 
 	/* compute position */
 	ofsx = 0; //(but->block->panel) ? but->block->panel->ofsx : 0;
 	ofsy = 0; //(but->block->panel) ? but->block->panel->ofsy : 0;
 
 	rect_fl.xmin = BLI_rctf_cent_x(&but->rect) + ofsx - TIP_BORDER_X;
-	rect_fl.xmax = rect_fl.xmin + fontw + (TIP_BORDER_X * 2);
+	rect_fl.xmax = rect_fl.xmin + fontw + pad_px;
 	rect_fl.ymax = but->rect.ymin + ofsy - TIP_BORDER_Y;
 	rect_fl.ymin = rect_fl.ymax - fonth  - TIP_BORDER_Y;
-
-#undef TIP_MARGIN_Y
-#undef TIP_BORDER_X
-#undef TIP_BORDER_Y
 	
 	/* since the text has beens caled already, the size of tooltips is defined now */
 	/* here we try to figure out the right location */
 	if (butregion) {
+		float mx, my;
 		float ofsx_fl = rect_fl.xmin, ofsy_fl = rect_fl.ymax;
 		ui_block_to_window_fl(butregion, but->block, &ofsx_fl, &ofsy_fl);
-		BLI_rctf_translate(&rect_fl, ofsx_fl - rect_fl.xmin, ofsy_fl - rect_fl.ymax);
+
+#if 1
+		/* use X mouse location */
+		mx = (win->eventstate->x + (TIP_BORDER_X * 2)) - BLI_rctf_cent_x(&but->rect);
+#else
+		mx = ofsx_fl - rect_fl.xmin;
+#endif
+		my = ofsy_fl - rect_fl.ymax;
+
+		BLI_rctf_translate(&rect_fl, mx, my);
 	}
 	BLI_rcti_rctf_copy(&rect_i, &rect_fl);
+
+#undef TIP_BORDER_X
+#undef TIP_BORDER_Y
 
 	/* clip with window boundaries */
 	winx = WM_window_pixels_x(win);
@@ -557,20 +659,25 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		rect_i.ymin = 30;
 	}
 
+	/* add padding */
+	BLI_rcti_resize(&rect_i,
+	                BLI_rcti_size_x(&rect_i) + pad_px,
+	                BLI_rcti_size_y(&rect_i) + pad_px);
+
 	/* widget rect, in region coords */
 	{
 		int width = UI_ThemeMenuShadowWidth();
 		
 		data->bbox.xmin = width;
-		data->bbox.xmax = BLI_rcti_size_x(&rect_i) + width;
+		data->bbox.xmax = BLI_rcti_size_x(&rect_i) - width;
 		data->bbox.ymin = width;
-		data->bbox.ymax = BLI_rcti_size_y(&rect_i) + width;
+		data->bbox.ymax = BLI_rcti_size_y(&rect_i);
 		
 		/* region bigger for shadow */
 		ar->winrct.xmin = rect_i.xmin - width;
 		ar->winrct.xmax = rect_i.xmax + width;
 		ar->winrct.ymin = rect_i.ymin - width;
-		ar->winrct.ymax = rect_i.ymax + MENU_TOP;
+		ar->winrct.ymax = rect_i.ymax + width;
 	}
 
 	/* adds subwindow */
@@ -769,7 +876,7 @@ bool ui_searchbox_apply(uiBut *but, ARegion *ar)
 	
 	if (data->active != -1) {
 		const char *name = data->items.names[data->active];
-		const char *name_sep = data->use_sep ? strchr(name, UI_SEP_CHAR) : NULL;
+		const char *name_sep = data->use_sep ? strrchr(name, UI_SEP_CHAR) : NULL;
 
 		BLI_strncpy(but->editstr, name, name_sep ? (name_sep - name) : data->items.maxstrlen);
 		
@@ -875,7 +982,7 @@ void ui_searchbox_update(bContext *C, ARegion *ar, uiBut *but, const bool reset)
 		
 		for (a = 0; a < data->items.totitem; a++) {
 			const char *name = data->items.names[a];
-			const char *name_sep = data->use_sep ? strchr(name, UI_SEP_CHAR) : NULL;
+			const char *name_sep = data->use_sep ? strrchr(name, UI_SEP_CHAR) : NULL;
 			if (STREQLEN(but->editstr, name, name_sep ? (name_sep - name) : data->items.maxstrlen)) {
 				data->active = a;
 				break;
@@ -1092,8 +1199,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 		BLI_rcti_rctf_copy(&rect_i, &rect_fl);
 		
 		if (butregion->v2d.cur.xmin != butregion->v2d.cur.xmax) {
-			UI_view2d_to_region_no_clip(&butregion->v2d, rect_fl.xmin, rect_fl.ymin, &rect_i.xmin, &rect_i.ymin);
-			UI_view2d_to_region_no_clip(&butregion->v2d, rect_fl.xmax, rect_fl.ymax, &rect_i.xmax, &rect_i.ymax);
+			UI_view2d_view_to_region_rcti(&butregion->v2d, &rect_fl, &rect_i);
 		}
 
 		BLI_rcti_translate(&rect_i, butregion->winrct.xmin, butregion->winrct.ymin);
@@ -1118,7 +1224,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 			int newy1 = but->rect.ymax + ofsy;
 
 			if (butregion->v2d.cur.xmin != butregion->v2d.cur.xmax)
-				UI_view2d_to_region_no_clip(&butregion->v2d, 0, newy1, NULL, &newy1);
+				newy1 = UI_view2d_view_to_region_y(&butregion->v2d, newy1);
 
 			newy1 += butregion->winrct.ymin;
 
@@ -1223,10 +1329,7 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 	short dir1 = 0, dir2 = 0;
 	
 	/* transform to window coordinates, using the source button region/block */
-	butrct = but->rect;
-
-	ui_block_to_window_fl(butregion, but->block, &butrct.xmin, &butrct.ymin);
-	ui_block_to_window_fl(butregion, but->block, &butrct.xmax, &butrct.ymax);
+	ui_block_to_window_rctf(butregion, but->block, &butrct, &but->rect);
 
 	/* widget_roundbox_set has this correction too, keep in sync */
 	if (but->type != PULLDOWN) {
@@ -1253,8 +1356,7 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 	}
 		
 	/* aspect = (float)(BLI_rcti_size_x(&block->rect) + 4);*/ /*UNUSED*/
-	ui_block_to_window_fl(butregion, but->block, &block->rect.xmin, &block->rect.ymin);
-	ui_block_to_window_fl(butregion, but->block, &block->rect.xmax, &block->rect.ymax);
+	ui_block_to_window_rctf(butregion, but->block, &block->rect, &block->rect);
 
 	//block->rect.xmin -= 2.0; block->rect.ymin -= 2.0;
 	//block->rect.xmax += 2.0; block->rect.ymax += 2.0;
@@ -1376,8 +1478,7 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 	/* apply offset, buttons in window coords */
 	
 	for (bt = block->buttons.first; bt; bt = bt->next) {
-		ui_block_to_window_fl(butregion, but->block, &bt->rect.xmin, &bt->rect.ymin);
-		ui_block_to_window_fl(butregion, but->block, &bt->rect.xmax, &bt->rect.ymax);
+		ui_block_to_window_rctf(butregion, but->block, &bt->rect, &bt->rect);
 
 		BLI_rctf_translate(&bt->rect, xof, yof);
 
@@ -1428,6 +1529,15 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 static void ui_block_region_draw(const bContext *C, ARegion *ar)
 {
 	uiBlock *block;
+
+	if (ar->do_draw & RGN_DRAW_REFRESH_UI) {
+		uiBlock *block_next;
+		ar->do_draw &= ~RGN_DRAW_REFRESH_UI;
+		for (block = ar->uiblocks.first; block; block = block_next) {
+			block_next = block->next;
+			ui_popup_block_refresh((bContext *)C, block->handle, NULL, NULL);
+		}
+	}
 
 	for (block = ar->uiblocks.first; block; block = block->next)
 		uiDrawBlock(C, block);
@@ -1510,42 +1620,50 @@ void ui_popup_block_scrolltest(uiBlock *block)
 	}
 }
 
-uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut *but,
-                                          uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
-                                          void *arg)
+static void ui_popup_block_remove(bContext *C, uiPopupBlockHandle *handle)
 {
+	ui_remove_temporary_region(C, CTX_wm_screen(C), handle->region);
+
+	if (handle->scrolltimer)
+		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), handle->scrolltimer);
+}
+
+/**
+ * Called for creatign new popups and refreshing existing ones.
+ */
+uiBlock *ui_popup_block_refresh(
+        bContext *C, uiPopupBlockHandle *handle,
+        ARegion *butregion, uiBut *but)
+{
+	const int width = UI_ThemeMenuShadowWidth();
 	wmWindow *window = CTX_wm_window(C);
-	static ARegionType type;
-	ARegion *ar;
+	ARegion *ar = handle->region;
+
+	uiBlockCreateFunc create_func = handle->popup_create_vars.create_func;
+	uiBlockHandleCreateFunc handle_create_func = handle->popup_create_vars.handle_create_func;
+	void *arg = handle->popup_create_vars.arg;
+
+	uiBlock *block_old = ar->uiblocks.first;
 	uiBlock *block;
-	uiPopupBlockHandle *handle;
-	uiSafetyRct *saferct;
-	int width = UI_ThemeMenuShadowWidth();
 
-	/* create handle */
-	handle = MEM_callocN(sizeof(uiPopupBlockHandle), "uiPopupBlockHandle");
-
-	/* store context for operator */
-	handle->ctx_area = CTX_wm_area(C);
-	handle->ctx_region = CTX_wm_region(C);
-	
-	/* create area region */
-	ar = ui_add_temporary_region(CTX_wm_screen(C));
-	handle->region = ar;
-
-	memset(&type, 0, sizeof(ARegionType));
-	type.draw = ui_block_region_draw;
-	type.regionid = RGN_TYPE_TEMPORARY;
-	ar->type = &type;
-
-	UI_add_region_handlers(&ar->handlers);
+#ifdef DEBUG
+	wmEvent *event_back = window->eventstate;
+#endif
 
 	/* create ui block */
 	if (create_func)
-		block = create_func(C, handle->region, arg);
+		block = create_func(C, ar, arg);
 	else
 		block = handle_create_func(C, handle, arg);
 	
+	/* callbacks _must_ leave this for us, otherwise we can't call uiBlockUpdateFromOld */
+	BLI_assert(!block->endblock);
+
+	/* ensure we don't use mouse coords here! */
+#ifdef DEBUG
+	window->eventstate = NULL;
+#endif
+
 	if (block->handle) {
 		memcpy(block->handle, handle, sizeof(uiPopupBlockHandle));
 		MEM_freeN(handle);
@@ -1568,8 +1686,11 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 
 	block->flag |= UI_BLOCK_LOOP;
 
+	/* defer this until blocks are translated (below) */
+	block->oldblock = NULL;
+
 	if (!block->endblock)
-		uiEndBlock(C, block);
+		uiEndBlock_ex(C, block, handle->popup_create_vars.event_xy);
 
 	/* if this is being created from a button */
 	if (but) {
@@ -1578,31 +1699,89 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 		handle->direction = block->direction;
 	}
 	else {
+		uiSafetyRct *saferct;
 		/* keep a list of these, needed for pulldown menus */
 		saferct = MEM_callocN(sizeof(uiSafetyRct), "uiSafetyRct");
 		saferct->safety = block->safety;
 		BLI_addhead(&block->saferct, saferct);
 	}
 
-	/* clip block with window boundary */
-	ui_popup_block_clip(window, block);
-	
-	/* the block and buttons were positioned in window space as in 2.4x, now
-	 * these menu blocks are regions so we bring it back to region space.
-	 * additionally we add some padding for the menu shadow or rounded menus */
-	ar->winrct.xmin = block->rect.xmin - width;
-	ar->winrct.xmax = block->rect.xmax + width;
-	ar->winrct.ymin = block->rect.ymin - width;
-	ar->winrct.ymax = block->rect.ymax + MENU_TOP;
-	
-	ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
+	if (block->flag & UI_BLOCK_RADIAL) {
+		uiBut *but;
+		int win_width = UI_SCREEN_MARGIN;
+		int winx, winy;
 
-	/* adds subwindow */
-	ED_region_init(C, ar);
+		int x_offset = 0, y_offset = 0;
+
+		winx = WM_window_pixels_x(window);
+		winy = WM_window_pixels_y(window);
+
+		copy_v2_v2(block->pie_data.pie_center_init, block->pie_data.pie_center_spawned);
+
+		/* only try translation if area is large enough */
+		if (BLI_rctf_size_x(&block->rect) < winx - (2.0f * win_width)) {
+			if (block->rect.xmin < win_width )   x_offset += win_width - block->rect.xmin;
+			if (block->rect.xmax > winx - win_width) x_offset += winx - win_width - block->rect.xmax;
+		}
+
+		if (BLI_rctf_size_y(&block->rect) < winy - (2.0f * win_width)) {
+			if (block->rect.ymin < win_width )   y_offset += win_width - block->rect.ymin;
+			if (block->rect.ymax > winy - win_width) y_offset += winy - win_width - block->rect.ymax;
+		}
+		/* if we are offsetting set up initial data for timeout functionality */
+
+		if ((x_offset != 0) || (y_offset != 0)) {
+			block->pie_data.pie_center_spawned[0] += x_offset;
+			block->pie_data.pie_center_spawned[1] += y_offset;
+
+			ui_block_translate(block, x_offset, y_offset);
+
+			if (U.pie_initial_timeout > 0)
+				block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
+		}
+
+		ar->winrct.xmin = 0;
+		ar->winrct.xmax = winx;
+		ar->winrct.ymin = 0;
+		ar->winrct.ymax = winy;
+
+		ui_block_calculate_pie_segment(block, block->pie_data.pie_center_init);
+
+		/* lastly set the buttons at the center of the pie menu, ready for animation */
+		if (U.pie_animation_timeout > 0) {
+			for (but = block->buttons.first; but; but = but->next) {
+				if (but->pie_dir != UI_RADIAL_NONE) {
+					BLI_rctf_recenter(&but->rect, UNPACK2(block->pie_data.pie_center_spawned));
+				}
+			}
+		}
+	}
+	else {
+		/* clip block with window boundary */
+		ui_popup_block_clip(window, block);
+		/* the block and buttons were positioned in window space as in 2.4x, now
+		 * these menu blocks are regions so we bring it back to region space.
+		 * additionally we add some padding for the menu shadow or rounded menus */
+		ar->winrct.xmin = block->rect.xmin - width;
+		ar->winrct.xmax = block->rect.xmax + width;
+		ar->winrct.ymin = block->rect.ymin - width;
+		ar->winrct.ymax = block->rect.ymax + MENU_TOP;
+
+		ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
+	}
+
+	if (block_old) {
+		block->oldblock = block_old;
+		uiBlockUpdateFromOld(C, block);
+		uiFreeInactiveBlocks(C, &ar->uiblocks);
+	}
 
 	/* checks which buttons are visible, sets flags to prevent draw (do after region init) */
 	ui_popup_block_scrolltest(block);
 	
+	/* adds subwindow */
+	ED_region_init(C, ar);
+
 	/* get winmat now that we actually have the subwindow */
 	wmSubWindowSet(window, ar->swinid);
 	
@@ -1611,15 +1790,59 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 	/* notify change and redraw */
 	ED_region_tag_redraw(ar);
 
+	ED_region_update_rect(C, ar);
+
+#ifdef DEBUG
+	window->eventstate = event_back;
+#endif
+
+	return block;
+}
+
+uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut *but,
+                                          uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
+                                          void *arg)
+{
+	wmWindow *window = CTX_wm_window(C);
+	static ARegionType type;
+	ARegion *ar;
+	uiBlock *block;
+	uiPopupBlockHandle *handle;
+
+	/* create handle */
+	handle = MEM_callocN(sizeof(uiPopupBlockHandle), "uiPopupBlockHandle");
+
+	/* store context for operator */
+	handle->ctx_area = CTX_wm_area(C);
+	handle->ctx_region = CTX_wm_region(C);
+
+	/* store vars to refresh popup (RGN_DRAW_REFRESH_UI) */
+	handle->popup_create_vars.create_func = create_func;
+	handle->popup_create_vars.handle_create_func = handle_create_func;
+	handle->popup_create_vars.arg = arg;
+	handle->popup_create_vars.butregion = but ? butregion : NULL;
+	copy_v2_v2_int(handle->popup_create_vars.event_xy, &window->eventstate->x);
+
+	/* create area region */
+	ar = ui_add_temporary_region(CTX_wm_screen(C));
+	handle->region = ar;
+
+	memset(&type, 0, sizeof(ARegionType));
+	type.draw = ui_block_region_draw;
+	type.regionid = RGN_TYPE_TEMPORARY;
+	ar->type = &type;
+
+	UI_add_region_handlers(&ar->handlers);
+
+	block = ui_popup_block_refresh(C, handle, butregion, but);
+	handle = block->handle;
+
 	return handle;
 }
 
 void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
 {
-	ui_remove_temporary_region(C, CTX_wm_screen(C), handle->region);
-	
-	if (handle->scrolltimer)
-		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), handle->scrolltimer);
+	ui_popup_block_remove(C, handle);
 	
 	MEM_freeN(handle);
 }
@@ -1644,7 +1867,7 @@ static void ui_warp_pointer(int x, int y)
 void ui_set_but_hsv(uiBut *but)
 {
 	float col[3];
-	float *hsv = ui_block_hsv_get(but->block);
+	const float *hsv = ui_block_hsv_get(but->block);
 	
 	ui_color_picker_to_rgb_v(hsv, col);
 
@@ -1702,7 +1925,7 @@ static void ui_update_block_buts_rgb(uiBlock *block, const float rgb[3], bool is
 			if (rgb_gamma[2] > 1.0f) rgb_gamma[2] = modf(rgb_gamma[2], &intpart);
 
 			rgb_float_to_uchar(rgb_gamma_uchar, rgb_gamma);
-			BLI_snprintf(col, sizeof(col), "%02X%02X%02X", UNPACK3OP((unsigned int), rgb_gamma_uchar));
+			BLI_snprintf(col, sizeof(col), "%02X%02X%02X", UNPACK3_EX((unsigned int), rgb_gamma_uchar, ));
 			
 			strcpy(bt->poin, col);
 		}
@@ -1756,7 +1979,7 @@ static void do_color_wheel_rna_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(a
 	uiBut *but = (uiBut *)bt1;
 	uiPopupBlockHandle *popup = but->block->handle;
 	float rgb[3];
-	float *hsv = ui_block_hsv_get(but->block);
+	const float *hsv = ui_block_hsv_get(but->block);
 	bool use_display_colorspace = ui_color_picker_use_display_colorspace(but);
 
 	ui_color_picker_to_rgb_v(hsv, rgb);
@@ -1990,7 +2213,7 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	}
 
 	rgb_float_to_uchar(rgb_gamma_uchar, rgb_gamma);
-	BLI_snprintf(hexcol, sizeof(hexcol), "%02X%02X%02X", UNPACK3OP((unsigned int), rgb_gamma_uchar));
+	BLI_snprintf(hexcol, sizeof(hexcol), "%02X%02X%02X", UNPACK3_EX((unsigned int), rgb_gamma_uchar, ));
 
 	yco = -3.0f * UI_UNIT_Y;
 	bt = uiDefBut(block, TEX, 0, IFACE_("Hex: "), 0, yco, butwidth, UI_UNIT_Y, hexcol, 0, 8, 0, 0, TIP_("Hex triplet for color (#RRGGBB)"));
@@ -2089,7 +2312,7 @@ static unsigned int ui_popup_string_hash(const char *str)
 {
 	/* sometimes button contains hotkey, sometimes not, strip for proper compare */
 	int hash;
-	char *delimit = strchr(str, UI_SEP_CHAR);
+	const char *delimit = strrchr(str, UI_SEP_CHAR);
 
 	if (delimit) {
 		hash = BLI_ghashutil_strhash_n(str, delimit - str);
@@ -2146,6 +2369,29 @@ void ui_popup_menu_memory_set(uiBlock *block, uiBut *but)
 	ui_popup_menu_memory__internal(block, but);
 }
 
+/**
+ * Translate any popup regions (so we can drag them).
+ */
+void ui_popup_translate(bContext *C, ARegion *ar, const int mdiff[2])
+{
+	uiBlock *block;
+
+	BLI_rcti_translate(&ar->winrct, UNPACK2(mdiff));
+
+	ED_region_update_rect(C, ar);
+
+	ED_region_tag_redraw(ar);
+
+	/* update blocks */
+	for (block = ar->uiblocks.first; block; block = block->next) {
+		uiSafetyRct *saferct;
+		for (saferct = block->saferct.first; saferct; saferct = saferct->next) {
+			BLI_rctf_translate(&saferct->parent, UNPACK2(mdiff));
+			BLI_rctf_translate(&saferct->safety, UNPACK2(mdiff));
+		}
+	}
+}
+
 /******************** Popup Menu with callback or string **********************/
 
 struct uiPopupMenu {
@@ -2158,6 +2404,12 @@ struct uiPopupMenu {
 
 	uiMenuCreateFunc menu_func;
 	void *menu_arg;
+};
+
+struct uiPieMenu {
+	uiBlock *block_radial; /* radial block of the pie menu (more could be added later) */
+	uiLayout *layout;
+	int mx, my;
 };
 
 static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, void *arg_pup)
@@ -2215,6 +2467,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
 	
 	if (pup->popup) {
+		uiBut *but_activate = NULL;
 		uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_NUMSELECT);
 		uiBlockSetDirection(block, direction);
 
@@ -2228,6 +2481,10 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 			 * block to be under the mouse */
 			offset[0] = -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect));
 			offset[1] = -(bt->rect.ymin + 0.5f * UI_UNIT_Y);
+
+			if (ui_but_is_editable(bt)) {
+				but_activate = bt;
+			}
 		}
 		else {
 			/* position mouse at 0.8*width of the button and below the tile
@@ -2237,6 +2494,20 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 				offset[0] = min_ii(offset[0], -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect)));
 
 			offset[1] = 2.1 * UI_UNIT_Y;
+
+			for (bt = block->buttons.first; bt; bt = bt->next) {
+				if (ui_but_is_editable(bt)) {
+					but_activate = bt;
+					break;
+				}
+			}
+		}
+
+		/* in rare cases this is needed since moving the popup
+		 * to be within the window bounds may move it away from the mouse,
+		 * This ensures we set an item to be active. */
+		if (but_activate) {
+			ui_button_activate_over(C, handle->region, but_activate);
 		}
 
 		block->minbounds = minwidth;
@@ -2262,8 +2533,6 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 	/* if menu slides out of other menu, override direction */
 	if (pup->slideout)
 		uiBlockSetDirection(block, UI_RIGHT);
-
-	uiEndBlock(C, block);
 
 	return pup->block;
 }
@@ -2316,7 +2585,7 @@ uiPopupBlockHandle *ui_popup_menu_create(bContext *C, ARegion *butregion, uiBut 
 	if (!but) {
 		handle->popup = true;
 
-		UI_add_popup_handlers(C, &window->modalhandlers, handle);
+		UI_add_popup_handlers(C, &window->modalhandlers, handle, false);
 		WM_event_add_mousemove(C);
 	}
 	
@@ -2378,7 +2647,7 @@ void uiPupMenuEnd(bContext *C, uiPopupMenu *pup)
 	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_POPUP, pup);
 	menu->popup = true;
 	
-	UI_add_popup_handlers(C, &window->modalhandlers, menu);
+	UI_add_popup_handlers(C, &window->modalhandlers, menu, false);
 	WM_event_add_mousemove(C);
 	
 	MEM_freeN(pup);
@@ -2388,6 +2657,178 @@ uiLayout *uiPupMenuLayout(uiPopupMenu *pup)
 {
 	return pup->layout;
 }
+
+/*************************** Pie Menus ***************************************/
+
+static uiBlock *ui_block_func_PIE(bContext *UNUSED(C), uiPopupBlockHandle *handle, void *arg_pie)
+{
+	uiBlock *block;
+	uiPieMenu *pie = arg_pie;
+	int minwidth, width, height;
+
+	minwidth = 50;
+	block = pie->block_radial;
+
+	/* in some cases we create the block before the region,
+	 * so we set it delayed here if necessary */
+	if (BLI_findindex(&handle->region->uiblocks, block) == -1)
+		uiBlockSetRegion(block, handle->region);
+
+	uiBlockLayoutResolve(block, &width, &height);
+
+	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_NUMSELECT);
+
+	block->minbounds = minwidth;
+	block->bounds = 1;
+	block->mx = 0;
+	block->my = 0;
+	block->bounds_type = UI_BLOCK_BOUNDS_PIE_CENTER;
+
+	block->pie_data.pie_center_spawned[0] = pie->mx;
+	block->pie_data.pie_center_spawned[1] = pie->my;
+
+	return pie->block_radial;
+}
+
+static float uiPieTitleWidth(const char *name, int icon)
+{
+	return (UI_GetStringWidth(name) +
+	         (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f))));
+}
+
+uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event)
+{
+	uiStyle *style = UI_GetStyleDraw();
+	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
+
+	pie->block_radial = uiBeginBlock(C, NULL, __func__, UI_EMBOSS);
+	/* may be useful later to allow spawning pies
+	 * from old positions */
+	/* pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY; */
+	pie->block_radial->puphash = ui_popup_menu_hash(title);
+	pie->block_radial->flag |= UI_BLOCK_RADIAL;
+	pie->block_radial->pie_data.event = event->type;
+
+	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
+	pie->mx = event->x;
+	pie->my = event->y;
+
+	/* create title button */
+	if (title[0]) {
+		uiBut *but;
+		char titlestr[256];
+		int w;
+		if (icon) {
+			BLI_snprintf(titlestr, sizeof(titlestr), " %s", title);
+			w = uiPieTitleWidth(titlestr, icon);
+			but = uiDefIconTextBut(pie->block_radial, LABEL, 0, icon, titlestr, 0, 0, w, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+		}
+		else {
+			w = uiPieTitleWidth(title, 0);
+			but = uiDefBut(pie->block_radial, LABEL, 0, title, 0, 0, w, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+		}
+		/* do not align left */
+		but->drawflag &= ~UI_BUT_TEXT_LEFT;
+	}
+
+	return pie;
+}
+
+void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
+{
+	wmWindow *window = CTX_wm_window(C);
+	uiPopupBlockHandle *menu;
+
+	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_PIE, pie);
+	menu->popup = true;
+	menu->towardstime = PIL_check_seconds_timer();
+
+	UI_add_popup_handlers(C, &window->modalhandlers, menu, true);
+	WM_event_add_mousemove(C);
+
+	MEM_freeN(pie);
+}
+
+uiLayout *uiPieMenuLayout(uiPieMenu *pie)
+{
+	return pie->layout;
+}
+
+void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *event)
+{
+	uiPieMenu *pie;
+	uiLayout *layout;
+	Menu menu;
+	MenuType *mt = WM_menutype_find(idname, true);
+
+	if (mt == NULL) {
+		printf("%s: named menu \"%s\" not found\n", __func__, idname);
+		return;
+	}
+
+	if (mt->poll && mt->poll(C, mt) == 0)
+		return;
+
+	pie = uiPieMenuBegin(C, IFACE_(mt->label), ICON_NONE, event);
+	layout = uiPieMenuLayout(pie);
+
+	menu.layout = layout;
+	menu.type = mt;
+
+	if (G.debug & G_DEBUG_WM) {
+		printf("%s: opening menu \"%s\"\n", __func__, idname);
+	}
+
+	mt->draw(C, &menu);
+
+	uiPieMenuEnd(C, pie);
+}
+
+void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
+                             const char *propname, const wmEvent *event)
+{
+	uiPieMenu *pie;
+	uiLayout *layout;
+
+	pie = uiPieMenuBegin(C, IFACE_(title), ICON_NONE, event);
+	layout = uiPieMenuLayout(pie);
+
+	layout = uiLayoutRadial(layout);
+	uiItemsEnumO(layout, opname, propname);
+
+	uiPieMenuEnd(C, pie);
+}
+
+void uiPieEnumInvoke(struct bContext *C, const char *title, const char *path,
+                     const wmEvent *event)
+{
+	PointerRNA ctx_ptr;
+	PointerRNA r_ptr;
+	PropertyRNA *r_prop;
+	uiPieMenu *pie;
+	uiLayout *layout;
+
+	RNA_pointer_create(NULL, &RNA_Context, C, &ctx_ptr);
+
+	if (!RNA_path_resolve(&ctx_ptr, path, &r_ptr, &r_prop)) {
+		return;
+	}
+
+	/* invalid property, only accept enums */
+	if (RNA_property_type(r_prop) != PROP_ENUM) {
+		BLI_assert(0);
+		return;
+	}
+
+	pie = uiPieMenuBegin(C, IFACE_(title), ICON_NONE, event);
+	layout = uiPieMenuLayout(pie);
+
+	layout = uiLayoutRadial(layout);
+	uiItemFullR(layout, &r_ptr, r_prop, RNA_NO_INDEX, 0, UI_ITEM_R_EXPAND, NULL, 0);
+
+	uiPieMenuEnd(C, pie);
+}
+
 
 /*************************** Standard Popup Menus ****************************/
 
@@ -2485,13 +2926,13 @@ void uiPupBlockO(bContext *C, uiBlockCreateFunc func, void *arg, const char *opn
 	handle->optype = (opname) ? WM_operatortype_find(opname, 0) : NULL;
 	handle->opcontext = opcontext;
 	
-	UI_add_popup_handlers(C, &window->modalhandlers, handle);
+	UI_add_popup_handlers(C, &window->modalhandlers, handle, false);
 	WM_event_add_mousemove(C);
 }
 
 void uiPupBlock(bContext *C, uiBlockCreateFunc func, void *arg)
 {
-	uiPupBlockO(C, func, arg, NULL, 0);
+	uiPupBlockO(C, func, arg, NULL, WM_OP_INVOKE_DEFAULT);
 }
 
 void uiPupBlockEx(bContext *C, uiBlockCreateFunc func, uiBlockHandleFunc popup_func, uiBlockCancelFunc cancel_func, void *arg)
@@ -2508,7 +2949,7 @@ void uiPupBlockEx(bContext *C, uiBlockCreateFunc func, uiBlockHandleFunc popup_f
 	handle->cancel_func = cancel_func;
 	// handle->opcontext = opcontext;
 	
-	UI_add_popup_handlers(C, &window->modalhandlers, handle);
+	UI_add_popup_handlers(C, &window->modalhandlers, handle, false);
 	WM_event_add_mousemove(C);
 }
 

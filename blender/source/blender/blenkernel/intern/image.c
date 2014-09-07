@@ -40,11 +40,6 @@
 
 #include <time.h>
 
-#ifdef _WIN32
-#  define open _open
-#  define close _close
-#endif
-
 #include "MEM_guardedalloc.h"
 
 #include "IMB_colormanagement.h"
@@ -261,7 +256,11 @@ static void image_free_cahced_frames(Image *image)
 	}
 }
 
-static void image_free_buffers(Image *ima)
+/**
+ * Simply free the image data from memory,
+ * on display the image can load again (except for render buffers).
+ */
+void BKE_image_free_buffers(Image *ima)
 {
 	image_free_cahced_frames(ima);
 
@@ -283,7 +282,7 @@ void BKE_image_free(Image *ima)
 {
 	int a;
 
-	image_free_buffers(ima);
+	BKE_image_free_buffers(ima);
 	if (ima->packedfile) {
 		freePackedFile(ima->packedfile);
 		ima->packedfile = NULL;
@@ -635,7 +634,7 @@ Image *BKE_image_load(Main *bmain, const char *filepath)
 
 	/* exists? */
 	file = BLI_open(str, O_BINARY | O_RDONLY, 0);
-	if (file < 0)
+	if (file == -1)
 		return NULL;
 	close(file);
 
@@ -840,8 +839,7 @@ void BKE_image_memorypack(Image *ima)
 
 void BKE_image_tag_time(Image *ima)
 {
-	if (ima)
-		ima->lastused = (int)PIL_check_seconds_timer();
+	ima->lastused = (int)PIL_check_seconds_timer();
 }
 
 #if 0
@@ -858,43 +856,6 @@ static void tag_all_images_time()
 	}
 }
 #endif
-
-void free_old_images(void)
-{
-	Image *ima;
-	static int lasttime = 0;
-	int ctime = (int)PIL_check_seconds_timer();
-
-	/*
-	 * Run garbage collector once for every collecting period of time
-	 * if textimeout is 0, that's the option to NOT run the collector
-	 */
-	if (U.textimeout == 0 || ctime % U.texcollectrate || ctime == lasttime)
-		return;
-
-	/* of course not! */
-	if (G.is_rendering)
-		return;
-
-	lasttime = ctime;
-
-	ima = G.main->image.first;
-	while (ima) {
-		if ((ima->flag & IMA_NOCOLLECT) == 0 && ctime - ima->lastused > U.textimeout) {
-			/* If it's in GL memory, deallocate and set time tag to current time
-			 * This gives textures a "second chance" to be used before dying. */
-			if (ima->bindcode || ima->repbind) {
-				GPU_free_image(ima);
-				ima->lastused = ctime;
-			}
-			/* Otherwise, just kill the buffers */
-			else {
-				image_free_buffers(ima);
-			}
-		}
-		ima = ima->id.next;
-	}
-}
 
 static uintptr_t image_mem_size(Image *image)
 {
@@ -1296,7 +1257,7 @@ static bool do_add_image_extension(char *string, const char imtype, const ImageF
 			extension = extension_test;
 	}
 #endif
-	else if (ELEM5(imtype, R_IMF_IMTYPE_PNG, R_IMF_IMTYPE_FFMPEG, R_IMF_IMTYPE_H264, R_IMF_IMTYPE_THEORA, R_IMF_IMTYPE_XVID)) {
+	else if (ELEM(imtype, R_IMF_IMTYPE_PNG, R_IMF_IMTYPE_FFMPEG, R_IMF_IMTYPE_H264, R_IMF_IMTYPE_THEORA, R_IMF_IMTYPE_XVID)) {
 		if (!BLI_testextensie(string, extension_test = ".png"))
 			extension = extension_test;
 	}
@@ -1580,7 +1541,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 	}
 
 	if (scene->r.stamp & R_STAMP_MARKER) {
-		char *name = BKE_scene_find_last_marker_name(scene, CFRA);
+		const char *name = BKE_scene_find_last_marker_name(scene, CFRA);
 
 		if (name) BLI_strncpy(text, name, sizeof(text));
 		else BLI_strncpy(text, "<none>", sizeof(text));
@@ -1902,7 +1863,7 @@ bool BKE_imbuf_alpha_test(ImBuf *ibuf)
 {
 	int tot;
 	if (ibuf->rect_float) {
-		float *buf = ibuf->rect_float;
+		const float *buf = ibuf->rect_float;
 		for (tot = ibuf->x * ibuf->y; tot--; buf += 4) {
 			if (buf[3] < 1.0f) {
 				return true;
@@ -1939,7 +1900,7 @@ int BKE_imbuf_write(ImBuf *ibuf, const char *name, ImageFormatData *imf)
 		ibuf->ftype = RADHDR;
 	}
 #endif
-	else if (ELEM5(imtype, R_IMF_IMTYPE_PNG, R_IMF_IMTYPE_FFMPEG, R_IMF_IMTYPE_H264, R_IMF_IMTYPE_THEORA, R_IMF_IMTYPE_XVID)) {
+	else if (ELEM(imtype, R_IMF_IMTYPE_PNG, R_IMF_IMTYPE_FFMPEG, R_IMF_IMTYPE_H264, R_IMF_IMTYPE_THEORA, R_IMF_IMTYPE_XVID)) {
 		ibuf->ftype = PNG;
 
 		if (imtype == R_IMF_IMTYPE_PNG) {
@@ -2062,7 +2023,7 @@ int BKE_imbuf_write(ImBuf *ibuf, const char *name, ImageFormatData *imf)
 	return(ok);
 }
 
-/* same as BKE_imbuf_write() but crappy workaround not to perminantly modify
+/* same as BKE_imbuf_write() but crappy workaround not to permanently modify
  * _some_, values in the imbuf */
 int BKE_imbuf_write_as(ImBuf *ibuf, const char *name, ImageFormatData *imf,
                        const bool save_copy)
@@ -2256,7 +2217,7 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 
 	switch (signal) {
 		case IMA_SIGNAL_FREE:
-			image_free_buffers(ima);
+			BKE_image_free_buffers(ima);
 			if (iuser)
 				iuser->ok = 1;
 			break;
@@ -2288,7 +2249,7 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 #if 0
 			/* force reload on first use, but not for multilayer, that makes nodes and buttons in ui drawing fail */
 			if (ima->type != IMA_TYPE_MULTILAYER)
-				image_free_buffers(ima);
+				BKE_image_free_buffers(ima);
 #else
 			/* image buffers for non-sequence multilayer will share buffers with RenderResult,
 			 * however sequence multilayer will own buffers. Such logic makes switching from
@@ -2297,7 +2258,7 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 			 * are nicely detecting anyway, but freeing buffers always here makes multilayer
 			 * sequences behave stable
 			 */
-			image_free_buffers(ima);
+			BKE_image_free_buffers(ima);
 #endif
 
 			ima->ok = 1;
@@ -2316,14 +2277,14 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 				if (pf) {
 					freePackedFile(ima->packedfile);
 					ima->packedfile = pf;
-					image_free_buffers(ima);
+					BKE_image_free_buffers(ima);
 				}
 				else {
 					printf("ERROR: Image not available. Keeping packed image\n");
 				}
 			}
 			else
-				image_free_buffers(ima);
+				BKE_image_free_buffers(ima);
 
 			if (iuser)
 				iuser->ok = 1;
@@ -2341,7 +2302,7 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 			}
 			break;
 		case IMA_SIGNAL_COLORMANAGE:
-			image_free_buffers(ima);
+			BKE_image_free_buffers(ima);
 
 			ima->ok = 1;
 
@@ -2479,7 +2440,7 @@ static void image_initialize_after_load(Image *ima, ImBuf *ibuf)
 		else de_interlace_ng(ibuf);
 	}
 	/* timer */
-	ima->lastused = clock() / CLOCKS_PER_SEC;
+	BKE_image_tag_time(ima);
 
 	ima->ok = IMA_OK_LOADED;
 
@@ -2661,7 +2622,7 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 	int assign = 0, flag;
 
 	/* always ensure clean ima */
-	image_free_buffers(ima);
+	BKE_image_free_buffers(ima);
 
 	/* is there a PackedFile with this image ? */
 	if (ima->packedfile) {

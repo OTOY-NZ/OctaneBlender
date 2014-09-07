@@ -41,7 +41,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_math_color_blend.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -121,7 +120,7 @@ static int panel_aligned(ScrArea *sa, ARegion *ar)
 		return BUT_VERTICAL;
 	else if (sa->spacetype == SPACE_IMAGE && ar->regiontype == RGN_TYPE_PREVIEW)
 		return BUT_VERTICAL;
-	else if (ELEM3(ar->regiontype, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS))
+	else if (ELEM(ar->regiontype, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS))
 		return BUT_VERTICAL;
 	
 	return 0;
@@ -210,8 +209,8 @@ Panel *uiPanelFindByType(ARegion *ar, PanelType *pt)
 	const char *tabname = pt->idname;
 
 	for (pa = ar->panels.first; pa; pa = pa->next) {
-		if (STREQLEN(pa->panelname, idname, UI_MAX_NAME_STR)) {
-			if (STREQLEN(pa->tabname, tabname, UI_MAX_NAME_STR)) {
+		if (STREQLEN(pa->panelname, idname, sizeof(pa->panelname))) {
+			if (STREQLEN(pa->tabname, tabname, sizeof(pa->panelname))) {
 				return pa;
 			}
 		}
@@ -227,9 +226,9 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 {
 	Panel *patab, *palast, *panext;
 	const char *drawname = CTX_IFACE_(pt->translation_context, pt->label);
-	char *idname = pt->idname;
-	char *tabname = pt->idname;
-	char *hookname = NULL;
+	const char *idname = pt->idname;
+	const char *tabname = pt->idname;
+	const char *hookname = NULL;
 	const bool newpanel = (pa == NULL);
 	int align = panel_aligned(sa, ar);
 
@@ -240,8 +239,8 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 		/* new panel */
 		pa = MEM_callocN(sizeof(Panel), "new panel");
 		pa->type = pt;
-		BLI_strncpy(pa->panelname, idname, UI_MAX_NAME_STR);
-		BLI_strncpy(pa->tabname, tabname, UI_MAX_NAME_STR);
+		BLI_strncpy(pa->panelname, idname, sizeof(pa->panelname));
+		BLI_strncpy(pa->tabname, tabname, sizeof(pa->tabname));
 
 		if (pt->flag & PNL_DEFAULT_CLOSED) {
 			if (align == BUT_VERTICAL)
@@ -262,8 +261,8 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 		if (hookname) {
 			for (patab = ar->panels.first; patab; patab = patab->next) {
 				if ((patab->runtime_flag & PNL_ACTIVE) && patab->paneltab == NULL) {
-					if (strncmp(hookname, patab->panelname, UI_MAX_NAME_STR) == 0) {
-						if (strncmp(tabname, patab->tabname, UI_MAX_NAME_STR) == 0) {
+					if (STREQLEN(hookname, patab->panelname, sizeof(patab->panelname))) {
+						if (STREQLEN(tabname, patab->tabname, sizeof(patab->tabname))) {
 							pa->paneltab = patab;
 							ui_panel_copy_offset(pa, patab);
 							break;
@@ -463,31 +462,41 @@ static void ui_draw_panel_scalewidget(const rcti *rect)
 	fdrawline(xmin + dx, ymin + 1, xmax, ymax - dy + 1);
 	glDisable(GL_BLEND);
 }
-
 static void ui_draw_panel_dragwidget(const rctf *rect)
 {
-	float xmin, xmax, dx;
-	float ymin, ymax, dy;
-	
-	xmin = rect->xmin;
-	xmax = rect->xmax;
-	ymin = rect->ymin;
-	ymax = rect->ymax;
-	
-	dx = (xmax - xmin) / 3.0f;
-	dy = (ymax - ymin) / 3.0f;
-	
-	glEnable(GL_BLEND);
-	glColor4ub(255, 255, 255, 50);
-	fdrawline(xmin, ymax, xmax, ymin);
-	fdrawline(xmin + dx, ymax, xmax, ymin + dy);
-	fdrawline(xmin + 2 * dx, ymax, xmax, ymin + 2 * dy);
-	
-	glColor4ub(0, 0, 0, 50);
-	fdrawline(xmin, ymax + 1, xmax, ymin + 1);
-	fdrawline(xmin + dx, ymax + 1, xmax, ymin + dy + 1);
-	fdrawline(xmin + 2 * dx, ymax + 1, xmax, ymin + 2 * dy + 1);
-	glDisable(GL_BLEND);
+	unsigned char col_back[3], col_high[3], col_dark[3];
+	const int col_tint = 84;
+
+	const int px = (int)U.pixelsize;
+	const int px_zoom = max_ii(iroundf(BLI_rctf_size_y(rect) / 22.0f), 1);
+
+	const int box_margin = max_ii(iroundf((float)(px_zoom * 2.0f)), px);
+	const int box_size = max_ii(iroundf((BLI_rctf_size_y(rect) / 8.0f) - px), px);
+
+	const int x_min = rect->xmin;
+	const int y_min = rect->ymin;
+	const int y_ofs = max_ii(iroundf(BLI_rctf_size_y(rect) / 3.0f), px);
+	const int x_ofs = y_ofs;
+	int i_x, i_y;
+
+
+	UI_GetThemeColor3ubv(UI_GetThemeValue(TH_PANEL_SHOW_HEADER) ? TH_PANEL_HEADER : TH_PANEL_BACK, col_back);
+	UI_GetColorPtrShade3ubv(col_back, col_high,  col_tint);
+	UI_GetColorPtrShade3ubv(col_back, col_dark, -col_tint);
+
+
+	/* draw multiple boxes */
+	for (i_x = 0; i_x < 4; i_x++) {
+		for (i_y = 0; i_y < 2; i_y++) {
+			const int x_co = (x_min + x_ofs) + (i_x * (box_size + box_margin));
+			const int y_co = (y_min + y_ofs) + (i_y * (box_size + box_margin));
+
+			glColor3ubv(col_dark);
+			glRectf(x_co - box_size, y_co - px_zoom, x_co, (y_co + box_size) - px_zoom);
+			glColor3ubv(col_high);
+			glRectf(x_co - box_size, y_co, x_co, y_co + box_size);
+		}
+	}
 }
 
 
@@ -1132,7 +1141,7 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 		button = 1;
 	else if (event == AKEY)
 		button = 1;
-	else if (ELEM3(event, 0, RETKEY, LEFTMOUSE) && shift) {
+	else if (ELEM(event, 0, RETKEY, LEFTMOUSE) && shift) {
 		block->panel->flag ^= PNL_PIN;
 		button = 2;
 	}
@@ -1717,7 +1726,7 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 		
 		/* XXX hardcoded key warning */
 		if ((inside || inside_header) && event->val == KM_PRESS) {
-			if (event->type == AKEY && !ELEM4(KM_MOD_FIRST, event->ctrl, event->oskey, event->shift, event->alt)) {
+			if (event->type == AKEY && !ELEM(KM_MOD_FIRST, event->ctrl, event->oskey, event->shift, event->alt)) {
 				
 				if (pa->flag & PNL_CLOSEDY) {
 					if ((block->rect.ymax <= my) && (block->rect.ymax + PNL_HEADER >= my))
@@ -1903,7 +1912,7 @@ static void panel_activate_state(const bContext *C, Panel *pa, uiHandlePanelStat
 			data = MEM_callocN(sizeof(uiHandlePanelData), "uiHandlePanelData");
 			pa->activedata = data;
 
-			WM_event_add_ui_handler(C, &win->modalhandlers, ui_handler_panel, ui_handler_remove_panel, pa);
+			WM_event_add_ui_handler(C, &win->modalhandlers, ui_handler_panel, ui_handler_remove_panel, pa, false);
 		}
 
 		if (ELEM(state, PANEL_STATE_ANIMATION, PANEL_STATE_DRAG))

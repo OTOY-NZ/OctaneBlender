@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-__revision__ = "src/engine/SCons/CacheDir.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/CacheDir.py  2014/03/02 14:18:15 garyo"
 
 __doc__ = """
 CacheDir support
@@ -37,6 +37,7 @@ cache_enabled = True
 cache_debug = False
 cache_force = False
 cache_show = False
+cache_readonly = False
 
 def CacheRetrieveFunc(target, source, env):
     t = target[0]
@@ -70,6 +71,8 @@ CacheRetrieve = SCons.Action.Action(CacheRetrieveFunc, CacheRetrieveString)
 CacheRetrieveSilent = SCons.Action.Action(CacheRetrieveFunc, None)
 
 def CachePushFunc(target, source, env):
+    if cache_readonly: return
+
     t = target[0]
     if t.nocache:
         return
@@ -150,6 +153,9 @@ class CacheDir(object):
     def is_enabled(self):
         return (cache_enabled and not self.path is None)
 
+    def is_readonly(self):
+        return cache_readonly
+
     def cachepath(self, node):
         """
         """
@@ -201,7 +207,7 @@ class CacheDir(object):
         return False
 
     def push(self, node):
-        if not self.is_enabled():
+        if self.is_readonly() or not self.is_enabled():
             return
         return CachePush(node, [], node.get_build_env())
 

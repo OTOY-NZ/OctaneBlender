@@ -45,7 +45,6 @@
 
 #include <assert.h>
 #include <cstdlib> // for malloc and free
-#include <math.h>
 #include <set>
 #include <stack>
 
@@ -54,7 +53,7 @@
 
 #include "../geometry/normal_cycle.h"
 
-#include "../system/FreestyleConfig.h"
+#include "BLI_math.h"
 
 namespace Freestyle {
 
@@ -540,7 +539,7 @@ inline static real angle(WOEdge *h)
 {
 	const Vec3r& n1 = h->GetbFace()->GetNormal();
 	const Vec3r& n2 = h->GetaFace()->GetNormal();
-	const Vec3r v = h->getVec3r();
+	const Vec3r v = h->GetVec();
 	real sine = (n1 ^ n2) * v / v.norm();
 	if (sine >= 1.0) {
 		return M_PI / 2.0;

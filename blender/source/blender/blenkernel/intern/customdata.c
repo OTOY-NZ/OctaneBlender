@@ -49,7 +49,6 @@
 #include "BLI_path_util.h"
 #include "BLI_math.h"
 #include "BLI_mempool.h"
-#include "BLI_alloca.h"
 
 #include "BLF_translation.h"
 
@@ -1059,6 +1058,19 @@ static void layerInterp_mvert_skin(void **sources, const float *weights,
 	vs->flag &= ~MVERT_SKIN_ROOT;
 }
 
+static void layerSwap_flnor(void *data, const int *corner_indices)
+{
+	short (*flnors)[4][3] = data;
+	short nors[4][3];
+	int i = 4;
+
+	while (i--) {
+		copy_v3_v3_short(nors[i], (*flnors)[corner_indices[i]]);
+	}
+
+	memcpy(flnors, nors, sizeof(nors));
+}
+
 static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 0: CD_MVERT */
 	{sizeof(MVert), "MVert", 1, NULL, NULL, NULL, NULL, NULL, NULL},
@@ -1171,7 +1183,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 39: CD_MLOOPTANGENT */
 	{sizeof(float[4]), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 40: CD_TESSLOOPNORMAL */
-	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */
@@ -1974,7 +1986,7 @@ static void CustomData_copy_data_layer(const CustomData *source, CustomData *des
 	int src_offset;
 	int dest_offset;
 
-	char *src_data = source->layers[src_i].data;
+	const char *src_data = source->layers[src_i].data;
 	char *dest_data = dest->layers[dest_i].data;
 
 	typeInfo = layerType_getInfo(source->layers[src_i].type);
@@ -2599,7 +2611,7 @@ void CustomData_bmesh_copy_data(const CustomData *source, CustomData *dest,
 		if (dest->layers[dest_i].type == source->layers[src_i].type &&
 		    strcmp(dest->layers[dest_i].name, source->layers[src_i].name) == 0)
 		{
-			char *src_data = (char *)src_block + source->layers[src_i].offset;
+			const char *src_data = (char *)src_block + source->layers[src_i].offset;
 			char *dest_data = (char *)*dest_block + dest->layers[dest_i].offset;
 
 			typeInfo = layerType_getInfo(source->layers[src_i].type);
@@ -2918,7 +2930,7 @@ void CustomData_to_bmesh_block(const CustomData *source, CustomData *dest,
 		/* if we found a matching layer, copy the data */
 		if (dest->layers[dest_i].type == source->layers[src_i].type) {
 			int offset = dest->layers[dest_i].offset;
-			char *src_data = source->layers[src_i].data;
+			const char *src_data = source->layers[src_i].data;
 			char *dest_data = (char *)*dest_block + offset;
 
 			typeInfo = layerType_getInfo(dest->layers[dest_i].type);
@@ -2968,7 +2980,7 @@ void CustomData_from_bmesh_block(const CustomData *source, CustomData *dest,
 		/* if we found a matching layer, copy the data */
 		if (dest->layers[dest_i].type == source->layers[src_i].type) {
 			int offset = source->layers[src_i].offset;
-			char *src_data = (char *)src_block + offset;
+			const char *src_data = (char *)src_block + offset;
 			char *dest_data = dest->layers[dest_i].data;
 
 			typeInfo = layerType_getInfo(dest->layers[dest_i].type);

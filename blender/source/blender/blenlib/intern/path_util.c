@@ -31,13 +31,10 @@
  *  \ingroup bli
  */
 
-
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-
-#include "MEM_guardedalloc.h"
 
 #include "DNA_listBase.h"
 
@@ -51,6 +48,8 @@
 #include "../blenkernel/BKE_blender.h"  /* BLENDER_VERSION, bad level include (no function call) */
 
 #include "GHOST_Path-api.h"
+
+#include "MEM_guardedalloc.h"
 
 #ifdef WIN32
 #  include "utf_winfunc.h"
@@ -67,6 +66,7 @@
 #  ifdef WITH_BINRELOC
 #    include "binreloc.h"
 #  endif
+#  include <unistd.h>  /* mkdtemp on OSX (and probably all *BSD?), not worth making specific check for this OS. */
 #endif /* WIN32 */
 
 /* local */
@@ -74,7 +74,8 @@
 
 static char bprogname[FILE_MAX];    /* full path to program executable */
 static char bprogdir[FILE_MAX];     /* full path to directory in which executable is located */
-static char btempdir[FILE_MAX];     /* temporary directory */
+static char btempdir_base[FILE_MAX];          /* persistent temporary directory */
+static char btempdir_session[FILE_MAX] = "";  /* volatile temporary directory */
 
 /* implementation */
 
@@ -329,7 +330,7 @@ void BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim
 	BLI_uniquename_cb(uniquename_unique_check, &data, defname, delim, GIVE_STRADDR(vlink, name_offs), name_len);
 }
 
-
+static int BLI_path_unc_prefix_len(const char *path); /* defined below in same file */
 
 /* ******************** string encoding ***************** */
 
@@ -366,14 +367,6 @@ void BLI_cleanup_path(const char *relabase, char *path)
 	 */
 	
 #ifdef WIN32
-	
-	/* Note, this should really be moved to the file selector,
-	 * since this function is used in many areas */
-	if (strcmp(path, ".") == 0) {  /* happens for example in FILE_MAIN */
-		get_default_root(path);
-		return;
-	}
-
 	while ( (start = strstr(path, "\\..\\")) ) {
 		eind = start + strlen("\\..\\") - 1;
 		a = start - path - 1;
@@ -394,17 +387,13 @@ void BLI_cleanup_path(const char *relabase, char *path)
 		memmove(start, eind, strlen(eind) + 1);
 	}
 
-	while ( (start = strstr(path, "\\\\")) ) {
+	/* remove two consecutive backslashes, but skip the UNC prefix,
+	 * which needs to be preserved */
+	while ( (start = strstr(path + BLI_path_unc_prefix_len(path), "\\\\")) ) {
 		eind = start + strlen("\\\\") - 1;
 		memmove(start, eind, strlen(eind) + 1);
 	}
 #else
-	if (path[0] == '.') {  /* happens, for example in FILE_MAIN */
-		path[0] = '/';
-		path[1] = 0;
-		return;
-	}
-
 	while ( (start = strstr(path, "/../")) ) {
 		a = start - path - 1;
 		if (a > 0) {
@@ -463,6 +452,108 @@ bool BLI_path_is_rel(const char *path)
 	return path[0] == '/' && path[1] == '/';
 }
 
+/* return true if the path is a UNC share */
+bool BLI_path_is_unc(const char *name)
+{
+	return name[0] == '\\' && name[1] == '\\';
+}
+
+/**
+ * Returns the length of the identifying prefix
+ * of a UNC path which can start with '\\' (short version)
+ * or '\\?\' (long version)
+ * If the path is not a UNC path, return 0
+ */
+static int BLI_path_unc_prefix_len(const char *path)
+{
+	if (BLI_path_is_unc(path)) {
+		if ((path[2] == '?') && (path[3] == '\\') ) {
+			/* we assume long UNC path like \\?\server\share\folder etc... */
+			return 4;
+		}
+		else {
+			return 2;
+		}
+	}
+
+	return 0;
+}
+
+#if defined(WIN32)
+
+/* return true if the path is absolute ie starts with a drive specifier (eg A:\) or is a UNC path */
+static bool BLI_path_is_abs(const char *name)
+{
+	return (name[1] == ':' && (name[2] == '\\' || name[2] == '/') ) || BLI_path_is_unc(name);
+}
+
+static wchar_t *next_slash(wchar_t *path)
+{
+	wchar_t *slash = path;
+	while (*slash && *slash != L'\\') slash++;
+	return slash;
+}
+
+/* adds a slash if the unc path points sto a share */
+static void BLI_path_add_slash_to_share(wchar_t *uncpath)
+{
+	wchar_t *slash_after_server = next_slash(uncpath + 2);
+	if (*slash_after_server) {
+		wchar_t *slash_after_share = next_slash(slash_after_server + 1);
+		if (!(*slash_after_share)) {
+			slash_after_share[0] = L'\\';
+			slash_after_share[1] = L'\0';
+		}
+	}
+}
+
+static void BLI_path_unc_to_short(wchar_t *unc)
+{
+	wchar_t tmp[PATH_MAX];
+
+	int len = wcslen(unc);
+	int copy_start = 0;
+	/* convert:
+	 *    \\?\UNC\server\share\folder\... to \\server\share\folder\...
+	 *    \\?\C:\ to C:\ and \\?\C:\folder\... to C:\folder\...
+	 */
+	if ((len > 3) &&
+	    (unc[0] ==  L'\\') &&
+	    (unc[1] ==  L'\\') &&
+	    (unc[2] ==  L'?') &&
+	    ((unc[3] ==  L'\\') || (unc[3] ==  L'/')))
+	{
+		if ((len > 5) && (unc[5] ==  L':')) {
+			wcsncpy(tmp, unc + 4, len - 4);
+			tmp[len - 4] = L'\0';
+			wcscpy(unc, tmp);
+		}
+		else if ((len > 7) && (wcsncmp(&unc[4], L"UNC", 3) == 0) &&
+		         ((unc[7] ==  L'\\') || (unc[7] ==  L'/')))
+		{
+			tmp[0] = L'\\';
+			tmp[1] = L'\\';
+			wcsncpy(tmp + 2, unc + 8, len - 8);
+			tmp[len - 6] = L'\0';
+			wcscpy(unc, tmp);
+		}
+	}
+}
+
+void BLI_cleanup_unc(char *path, int maxlen)
+{
+	wchar_t *tmp_16 = alloc_utf16_from_8(path, 1);
+	BLI_cleanup_unc_16(tmp_16);
+	conv_utf_16_to_8(tmp_16, path, maxlen);
+}
+
+void BLI_cleanup_unc_16(wchar_t *path_16)
+{
+	BLI_path_unc_to_short(path_16);
+	BLI_path_add_slash_to_share(path_16);
+}
+#endif
+
 /**
  * Replaces *file with a relative version (prefixed by "//") such that BLI_path_abs, given
  * the same *relfile, will convert it back to its original value.
@@ -484,7 +575,7 @@ void BLI_path_rel(char *file, const char *relfile)
 	}
 
 #ifdef WIN32
-	if (BLI_strnlen(relfile, 3) > 2 && relfile[1] != ':') {
+	if (BLI_strnlen(relfile, 3) > 2 && !BLI_path_is_abs(relfile)) {
 		char *ptemp;
 		/* fix missing volume name in relative base,
 		 * can happen with old recent-files.txt files */
@@ -500,15 +591,35 @@ void BLI_path_rel(char *file, const char *relfile)
 	}
 
 	if (BLI_strnlen(file, 3) > 2) {
-		if (temp[1] == ':' && file[1] == ':' && temp[0] != file[0])
+		bool is_unc = BLI_path_is_unc(file);
+
+		/* Ensure paths are both UNC paths or are both drives */
+		if (BLI_path_is_unc(temp) != is_unc) {
 			return;
+		}
+
+		/* Ensure both UNC paths are on the same share */
+		if (is_unc) {
+			int off;
+			int slash = 0;
+			for (off = 0; temp[off] && slash < 4; off++) {
+				if (temp[off] != file[off])
+					return;
+
+				if (temp[off] == '\\')
+					slash++;
+			}
+		}
+		else if (temp[1] == ':' && file[1] == ':' && temp[0] != file[0]) {
+			return;
+		}
 	}
 #else
 	BLI_strncpy(temp, relfile, FILE_MAX);
 #endif
 
-	BLI_char_switch(temp, '\\', '/');
-	BLI_char_switch(file, '\\', '/');
+	BLI_char_switch(temp + BLI_path_unc_prefix_len(temp), '\\', '/');
+	BLI_char_switch(file + BLI_path_unc_prefix_len(file), '\\', '/');
 	
 	/* remove /./ which confuse the following slash counting... */
 	BLI_cleanup_path(NULL, file);
@@ -520,8 +631,8 @@ void BLI_path_rel(char *file, const char *relfile)
 	if (lslash) {
 		/* find the prefix of the filename that is equal for both filenames.
 		 * This is replaced by the two slashes at the beginning */
-		char *p = temp;
-		char *q = file;
+		const char *p = temp;
+		const char *q = file;
 		char *r = res;
 
 #ifdef WIN32
@@ -573,6 +684,48 @@ void BLI_path_rel(char *file, const char *relfile)
 #endif
 		strcpy(file, res);
 	}
+}
+
+/**
+ * Appends a suffix to the string, fitting it before the extension
+ *
+ * string = Foo.png, suffix = 123, separator = _
+ * Foo.png -> Foo_123.png
+ *
+ * \param string  original (and final) string
+ * \param maxlen  Maximum length of string
+ * \param suffix  String to append to the original string
+ * \param sep Optional separator character
+ * \return  true if succeeded
+ */
+bool BLI_path_suffix(char *string, size_t maxlen, const char *suffix, const char *sep)
+{
+	const size_t string_len = strlen(string);
+	const size_t suffix_len = strlen(suffix);
+	const size_t sep_len = strlen(sep);
+	ssize_t a;
+	char extension[FILE_MAX];
+	bool has_extension = false;
+
+	if (string_len + sep_len + suffix_len >= maxlen)
+		return false;
+
+	for (a = string_len - 1; a >= 0; a--) {
+		if (string[a] == '.') {
+			has_extension = true;
+			break;
+		}
+		else if (ELEM(string[a], '/', '\\')) {
+			break;
+		}
+	}
+
+	if (!has_extension)
+		a = string_len;
+
+	BLI_strncpy(extension, string + a, sizeof(extension));
+	sprintf(string + a, "%s%s%s", sep, suffix, extension);
+	return true;
 }
 
 /**
@@ -727,7 +880,7 @@ bool BLI_path_abs(char *path, const char *basepath)
 	 * blend file as a lib main - we are basically checking for the case that a 
 	 * UNIX root '/' is passed.
 	 */
-	if (!wasrelative && (vol[1] != ':' && (vol[0] == '\0' || vol[0] == '/' || vol[0] == '\\'))) {
+	if (!wasrelative && !BLI_path_is_abs(path)) {
 		char *p = path;
 		get_default_root(tmp);
 		// get rid of the slashes at the beginning of the path
@@ -757,24 +910,28 @@ bool BLI_path_abs(char *path, const char *basepath)
 	
 #endif
 
-	BLI_strncpy(base, basepath, sizeof(base));
-
-	/* file component is ignored, so don't bother with the trailing slash */
-	BLI_cleanup_path(NULL, base);
-	
 	/* push slashes into unix mode - strings entering this part are
 	 * potentially messed up: having both back- and forward slashes.
 	 * Here we push into one conform direction, and at the end we
 	 * push them into the system specific dir. This ensures uniformity
 	 * of paths and solving some problems (and prevent potential future
-	 * ones) -jesterKing. */
-	BLI_char_switch(tmp, '\\', '/');
-	BLI_char_switch(base, '\\', '/');
+	 * ones) -jesterKing.
+	 * For UNC paths the first characters containing the UNC prefix
+	 * shouldn't be switched as we need to distinguish them from
+	 * paths relative to the .blend file -elubie */
+	BLI_char_switch(tmp + BLI_path_unc_prefix_len(tmp), '\\', '/');
 
 	/* Paths starting with // will get the blend file as their base,
 	 * this isn't standard in any os but is used in blender all over the place */
 	if (wasrelative) {
-		const char * const lslash = BLI_last_slash(base);
+		const char *lslash;
+		BLI_strncpy(base, basepath, sizeof(base));
+
+		/* file component is ignored, so don't bother with the trailing slash */
+		BLI_cleanup_path(NULL, base);
+		lslash = BLI_last_slash(base);
+		BLI_char_switch(base + BLI_path_unc_prefix_len(base), '\\', '/');
+
 		if (lslash) {
 			const int baselen = (int) (lslash - base) + 1;  /* length up to and including last "/" */
 			/* use path for temp storage here, we copy back over it right away */
@@ -823,7 +980,7 @@ bool BLI_path_cwd(char *path)
 	const int filelen = strlen(path);
 	
 #ifdef WIN32
-	if (filelen >= 3 && path[1] == ':' && (path[2] == '\\' || path[2] == '/'))
+	if ((filelen >= 3 && BLI_path_is_abs(path)) || BLI_path_is_unc(path))
 		wasrelative = false;
 #else
 	if (filelen >= 2 && path[0] == '/')
@@ -1018,7 +1175,13 @@ static bool get_path_local(char *targetpath, const char *folder_name, const char
 	}
 
 	/* try EXECUTABLE_DIR/2.5x/folder_name - new default directory for local blender installed files */
+#ifdef __APPLE__
+	static char osx_resourses[FILE_MAX]; /* due new codesign situation in OSX > 10.9.5 we must move the blender_version dir with contents to Resources */
+	sprintf(osx_resourses, "%s../Resources", bprogdir);
+	return test_path(targetpath, osx_resourses, blender_version_decimal(ver), relfolder);
+#else
 	return test_path(targetpath, bprogdir, blender_version_decimal(ver), relfolder);
+#endif
 }
 
 /**
@@ -1258,7 +1421,7 @@ const char *BLI_get_folder_create(int folder_id, const char *subfolder)
 	const char *path;
 
 	/* only for user folders */
-	if (!ELEM4(folder_id, BLENDER_USER_DATAFILES, BLENDER_USER_CONFIG, BLENDER_USER_SCRIPTS, BLENDER_USER_AUTOSAVE))
+	if (!ELEM(folder_id, BLENDER_USER_DATAFILES, BLENDER_USER_CONFIG, BLENDER_USER_SCRIPTS, BLENDER_USER_AUTOSAVE))
 		return NULL;
 	
 	path = BLI_get_folder(folder_id, subfolder);
@@ -1356,21 +1519,6 @@ void BLI_setenv_if_new(const char *env, const char *val)
 {
 	if (getenv(env) == NULL)
 		BLI_setenv(env, val);
-}
-
-
-/**
- * Changes to the path separators to the native ones for this OS.
- */
-void BLI_clean(char *path)
-{
-#ifdef WIN32
-	if (path && BLI_strnlen(path, 3) > 2) {
-		BLI_char_switch(path + 2, '/', '\\');
-	}
-#else
-	BLI_char_switch(path, '\\', '/');
-#endif
 }
 
 /**
@@ -1486,9 +1634,12 @@ void BLI_make_file_string(const char *relabase, char *string, const char *dir, c
 			BLI_strncpy(string, dir, 3);
 			dir += 2;
 		}
+		else if (BLI_strnlen(dir, 3) >= 2 && BLI_path_is_unc(dir)) {
+			string[0] = 0;
+		}
 		else { /* no drive specified */
 			   /* first option: get the drive from the relabase if it has one */
-			if (relabase && strlen(relabase) >= 2 && relabase[1] == ':') {
+			if (relabase && BLI_strnlen(relabase, 3) >= 2 && relabase[1] == ':') {
 				BLI_strncpy(string, relabase, 3);
 				string[2] = '\\';
 				string[3] = '\0';
@@ -1521,7 +1672,7 @@ void BLI_make_file_string(const char *relabase, char *string, const char *dir, c
 	strcat(string, file);
 	
 	/* Push all slashes to the system preferred direction */
-	BLI_clean(string);
+	BLI_path_native_slash(string);
 }
 
 static bool testextensie_ex(const char *str, const size_t str_len,
@@ -1590,7 +1741,7 @@ bool BLI_testextensie_glob(const char *str, const char *ext_fnmatch)
 	char pattern[16];
 
 	while (ext_step[0]) {
-		char *ext_next;
+		const char *ext_next;
 		int len_ext;
 
 		if ((ext_next = strchr(ext_step, ';'))) {
@@ -1623,7 +1774,7 @@ bool BLI_replace_extension(char *path, size_t maxlen, const char *ext)
 	ssize_t a;
 
 	for (a = path_len - 1; a >= 0; a--) {
-		if (ELEM3(path[a], '.', '/', '\\')) {
+		if (ELEM(path[a], '.', '/', '\\')) {
 			break;
 		}
 	}
@@ -1792,6 +1943,8 @@ const char *BLI_path_basename(const char *path)
 	return filename ? filename + 1 : path;
 }
 
+/* UNUSED */
+#if 0
 /**
  * Produce image export path.
  * 
@@ -1918,14 +2071,16 @@ int BLI_rebase_path(char *abs, size_t abs_len,
 
 	return BLI_REBASE_OK;
 }
+#endif
+
 
 /**
  * Returns pointer to the leftmost path separator in string. Not actually used anywhere.
  */
 const char *BLI_first_slash(const char *string)
 {
-	char * const ffslash = strchr(string, '/');
-	char * const fbslash = strchr(string, '\\');
+	const char * const ffslash = strchr(string, '/');
+	const char * const fbslash = strchr(string, '\\');
 	
 	if (!ffslash) return fbslash;
 	else if (!fbslash) return ffslash;
@@ -1979,6 +2134,20 @@ void BLI_del_slash(char *string)
 			break;
 		}
 	}
+}
+
+/**
+ * Changes to the path separators to the native ones for this OS.
+ */
+void BLI_path_native_slash(char *path)
+{
+#ifdef WIN32
+	if (path && BLI_strnlen(path, 3) > 2) {
+		BLI_char_switch(path + 2, '/', '\\');
+	}
+#else
+	BLI_char_switch(path + BLI_path_unc_prefix_len(path), '\\', '/');
+#endif
 }
 
 /**
@@ -2157,14 +2326,21 @@ const char *BLI_program_dir(void)
  * 
  * Also make sure the temp dir has a trailing slash
  *
- * \param fullname The full path to the temp directory
+ * \param fullname The full path to the temporary temp directory
+ * \param basename The full path to the persistent temp directory (may be NULL)
  * \param maxlen The size of the fullname buffer
  * \param userdir Directory specified in user preferences 
  */
-static void BLI_where_is_temp(char *fullname, const size_t maxlen, char *userdir)
+static void BLI_where_is_temp(char *fullname, char *basename, const size_t maxlen, char *userdir)
 {
+	/* Clear existing temp dir, if needed. */
+	BLI_temp_dir_session_purge();
+
 	fullname[0] = '\0';
-	
+	if (basename) {
+		basename[0] = '\0';
+	}
+
 	if (userdir && BLI_is_dir(userdir)) {
 		BLI_strncpy(fullname, userdir, maxlen);
 	}
@@ -2206,23 +2382,59 @@ static void BLI_where_is_temp(char *fullname, const size_t maxlen, char *userdir
 		}
 #endif
 	}
+
+	/* Now that we have a valid temp dir, add system-generated unique sub-dir. */
+	if (basename) {
+		/* 'XXXXXX' is kind of tag to be replaced by mktemp-familly by an uuid. */
+		char *tmp_name = BLI_strdupcat(fullname, "blender_XXXXXX");
+		const size_t ln = strlen(tmp_name) + 1;
+		if (ln <= maxlen) {
+#ifdef WIN32
+			if (_mktemp_s(tmp_name, ln) == 0) {
+				BLI_dir_create_recursive(tmp_name);
+			}
+#else
+			mkdtemp(tmp_name);
+#endif
+		}
+		if (BLI_is_dir(tmp_name)) {
+			BLI_strncpy(basename, fullname, maxlen);
+			BLI_strncpy(fullname, tmp_name, maxlen);
+			BLI_add_slash(fullname);
+		}
+		else {
+			printf("Warning! Could not generate a temp file name for '%s', falling back to '%s'\n", tmp_name, fullname);
+		}
+
+		MEM_freeN(tmp_name);
+	}
 }
 
 /**
- * Sets btempdir to userdir if specified and is a valid directory, otherwise
+ * Sets btempdir_base to userdir if specified and is a valid directory, otherwise
  * chooses a suitable OS-specific temporary directory.
+ * Sets btempdir_session to a mkdtemp-generated sub-dir of btempdir_base.
  */
-void BLI_init_temporary_dir(char *userdir)
+void BLI_temp_dir_init(char *userdir)
 {
-	BLI_where_is_temp(btempdir, FILE_MAX, userdir);
+	BLI_where_is_temp(btempdir_session, btempdir_base, FILE_MAX, userdir);
+;
 }
 
 /**
  * Path to temporary directory (with trailing slash)
  */
-const char *BLI_temporary_dir(void)
+const char *BLI_temp_dir_session(void)
 {
-	return btempdir;
+	return btempdir_session[0] ? btempdir_session : BLI_temp_dir_base();
+}
+
+/**
+ * Path to persistent temporary directory (with trailing slash)
+ */
+const char *BLI_temp_dir_base(void)
+{
+	return btempdir_base;
 }
 
 /**
@@ -2230,7 +2442,17 @@ const char *BLI_temporary_dir(void)
  */
 void BLI_system_temporary_dir(char *dir)
 {
-	BLI_where_is_temp(dir, FILE_MAX, NULL);
+	BLI_where_is_temp(dir, NULL, FILE_MAX, NULL);
+}
+
+/**
+ * Delete content of this instance's temp dir.
+ */
+void BLI_temp_dir_session_purge(void)
+{
+	if (btempdir_session[0] && BLI_is_dir(btempdir_session)) {
+		BLI_delete(btempdir_session, true, true);
+	}
 }
 
 #ifdef WITH_ICONV

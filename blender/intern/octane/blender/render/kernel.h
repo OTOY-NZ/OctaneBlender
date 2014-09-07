@@ -100,6 +100,7 @@ public:
     ChannelType info_channel_type;
     float       zdepth_max;
     float       uv_max;
+    bool        distributed_tracing;
 
     uint32_t    uiGPUs;
 

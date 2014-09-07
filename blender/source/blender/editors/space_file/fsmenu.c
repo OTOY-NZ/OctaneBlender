@@ -37,12 +37,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_space_types.h" /* FILE_MAX */
-
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
-#include "BLI_linklist.h"
-#include "BLI_dynstr.h"
 
 #ifdef WIN32
 #  include <windows.h> /* need to include windows.h so _WIN32_IE is defined  */
@@ -445,7 +441,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 				
 				pathString = CFURLCopyFileSystemPath(cfURL, kCFURLPOSIXPathStyle);
 				
-				if (!CFStringGetCString(pathString, line, sizeof(line), kCFStringEncodingASCII))
+				if (pathString == NULL || !CFStringGetCString(pathString, line, sizeof(line), kCFStringEncodingASCII))
 					continue;
 				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
 				

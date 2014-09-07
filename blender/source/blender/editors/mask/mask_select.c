@@ -40,13 +40,11 @@
 #include "BKE_mask.h"
 
 #include "DNA_mask_types.h"
-#include "DNA_object_types.h"  /* SELECT */
 
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "ED_screen.h"
-#include "ED_clip.h"
 #include "ED_mask.h"  /* own include */
 
 #include "RNA_access.h"
@@ -685,7 +683,7 @@ void MASK_OT_select_circle(wmOperatorType *ot)
 	/* properties */
 	RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "radius", 0, INT_MIN, INT_MAX, "Radius", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "radius", 1, 1, INT_MAX, "Radius", "", 1, INT_MAX);
 	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Gesture Mode", "", INT_MIN, INT_MAX);
 }
 

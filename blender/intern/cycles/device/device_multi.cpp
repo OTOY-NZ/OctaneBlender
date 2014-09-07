@@ -278,6 +278,22 @@ public:
 		return -1;
 	}
 
+	int get_split_task_count(DeviceTask& task)
+	{
+		int total_tasks = 0;
+		list<DeviceTask> tasks;
+		task.split(tasks, devices.size());
+		foreach(SubDevice& sub, devices) {
+			if(!tasks.empty()) {
+				DeviceTask subtask = tasks.front();
+				tasks.pop_front();
+
+				total_tasks += sub.device->get_split_task_count(subtask);
+			}
+		}
+		return total_tasks;
+	}
+
 	void task_add(DeviceTask& task)
 	{
 		list<DeviceTask> tasks;
@@ -328,6 +344,7 @@ static bool device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool 
 
 	info.advanced_shading = with_advanced_shading;
 	info.pack_images = false;
+	info.extended_images = true;
 
 	foreach(DeviceInfo& subinfo, devices) {
 		if(subinfo.type == type) {
@@ -351,6 +368,7 @@ static bool device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool 
 			if(subinfo.display_device)
 				info.display_device = true;
 			info.pack_images = info.pack_images || subinfo.pack_images;
+			info.extended_images = info.extended_images && subinfo.extended_images;
 			num_added++;
 		}
 	}

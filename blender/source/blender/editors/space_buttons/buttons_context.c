@@ -44,8 +44,8 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
-#include "DNA_speaker_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "BKE_context.h"
 #include "BKE_action.h"
@@ -55,6 +55,7 @@
 #include "BKE_particle.h"
 #include "BKE_screen.h"
 #include "BKE_texture.h"
+#include "BKE_linestyle.h"
 
 #include "RNA_access.h"
 
@@ -140,6 +141,30 @@ static int buttons_context_path_world(ButsContextPath *path)
 	return 0;
 }
 
+static int buttons_context_path_linestyle(ButsContextPath *path)
+{
+	Scene *scene;
+	FreestyleLineStyle *linestyle;
+	PointerRNA *ptr = &path->ptr[path->len - 1];
+
+	/* if we already have a (pinned) linestyle, we're done */
+	if (RNA_struct_is_a(ptr->type, &RNA_FreestyleLineStyle)) {
+		return 1;
+	}
+	/* if we have a scene, use the lineset's linestyle */
+	else if (buttons_context_path_scene(path)) {
+		scene = path->ptr[path->len - 1].data;
+		linestyle = BKE_linestyle_active_from_scene(scene);
+		if (linestyle) {
+			RNA_id_pointer_create(&linestyle->id, &path->ptr[path->len]);
+			path->len++;
+			return 1;
+		}
+	}
+
+	/* no path to a linestyle possible */
+	return 0;
+}
 
 static int buttons_context_path_object(ButsContextPath *path)
 {
@@ -175,7 +200,7 @@ static int buttons_context_path_data(ButsContextPath *path, int type)
 
 	/* if we already have a data, we're done */
 	if (RNA_struct_is_a(ptr->type, &RNA_Mesh) && (type == -1 || type == OB_MESH)) return 1;
-	else if (RNA_struct_is_a(ptr->type, &RNA_Curve) && (type == -1 || ELEM3(type, OB_CURVE, OB_SURF, OB_FONT))) return 1;
+	else if (RNA_struct_is_a(ptr->type, &RNA_Curve) && (type == -1 || ELEM(type, OB_CURVE, OB_SURF, OB_FONT))) return 1;
 	else if (RNA_struct_is_a(ptr->type, &RNA_Armature) && (type == -1 || type == OB_ARMATURE)) return 1;
 	else if (RNA_struct_is_a(ptr->type, &RNA_MetaBall) && (type == -1 || type == OB_MBALL)) return 1;
 	else if (RNA_struct_is_a(ptr->type, &RNA_Lattice) && (type == -1 || type == OB_LATTICE)) return 1;
@@ -205,14 +230,14 @@ static int buttons_context_path_modifier(ButsContextPath *path)
 	if (buttons_context_path_object(path)) {
 		ob = path->ptr[path->len - 1].data;
 
-		if (ob && ELEM5(ob->type, OB_MESH, OB_CURVE, OB_FONT, OB_SURF, OB_LATTICE))
+		if (ob && ELEM(ob->type, OB_MESH, OB_CURVE, OB_FONT, OB_SURF, OB_LATTICE))
 			return 1;
 	}
 
 	return 0;
 }
 
-static int buttons_context_path_material(ButsContextPath *path, int for_texture)
+static int buttons_context_path_material(ButsContextPath *path, bool for_texture, bool new_shading)
 {
 	Object *ob;
 	PointerRNA *ptr = &path->ptr[path->len - 1];
@@ -233,11 +258,14 @@ static int buttons_context_path_material(ButsContextPath *path, int for_texture)
 
 			if (for_texture && give_current_material_texture_node(ma))
 				return 1;
-			
-			ma = give_node_material(ma);
-			if (ma) {
-				RNA_id_pointer_create(&ma->id, &path->ptr[path->len]);
-				path->len++;
+
+			if (!new_shading) {
+				/* Only try to get mat from node in case of old shading system (see T40331). */
+				ma = give_node_material(ma);
+				if (ma) {
+					RNA_id_pointer_create(&ma->id, &path->ptr[path->len]);
+					path->len++;
+				}
 			}
 			return 1;
 		}
@@ -387,7 +415,7 @@ static int buttons_context_path_texture(ButsContextPath *path, ButsContextTextur
 			if (GS(id->name) == ID_BR)
 				buttons_context_path_brush(path);
 			else if (GS(id->name) == ID_MA)
-				buttons_context_path_material(path, 0);
+				buttons_context_path_material(path, false, true);
 			else if (GS(id->name) == ID_WO)
 				buttons_context_path_world(path);
 			else if (GS(id->name) == ID_LA)
@@ -396,6 +424,8 @@ static int buttons_context_path_texture(ButsContextPath *path, ButsContextTextur
 				buttons_context_path_particle(path);
 			else if (GS(id->name) == ID_OB)
 				buttons_context_path_object(path);
+			else if (GS(id->name) == ID_LS)
+				buttons_context_path_linestyle(path);
 		}
 
 		if (ct->texture) {
@@ -411,6 +441,7 @@ static int buttons_context_path_texture(ButsContextPath *path, ButsContextTextur
 		Lamp *la;
 		World *wo;
 		ParticleSystem *psys;
+		FreestyleLineStyle *ls;
 		Tex *tex;
 		PointerRNA *ptr = &path->ptr[path->len - 1];
 
@@ -453,7 +484,7 @@ static int buttons_context_path_texture(ButsContextPath *path, ButsContextTextur
 			}
 		}
 		/* try material */
-		else if ((path->tex_ctx == SB_TEXC_MATERIAL) && buttons_context_path_material(path, 1)) {
+		else if ((path->tex_ctx == SB_TEXC_MATERIAL) && buttons_context_path_material(path, true, false)) {
 			ma = path->ptr[path->len - 1].data;
 
 			if (ma) {
@@ -476,12 +507,50 @@ static int buttons_context_path_texture(ButsContextPath *path, ButsContextTextur
 				return 1;
 			}
 		}
+		/* try linestyle */
+		else if ((path->tex_ctx == SB_TEXC_LINESTYLE) && buttons_context_path_linestyle(path)) {
+			ls = path->ptr[path->len - 1].data;
+
+			if (ls) {
+				tex = give_current_linestyle_texture(ls);
+
+				RNA_id_pointer_create(&tex->id, &path->ptr[path->len]);
+				path->len++;
+				return 1;
+			}
+		}
 	}
 
 	/* no path to a texture possible */
 	return 0;
 }
 
+#ifdef WITH_FREESTYLE
+static bool buttons_context_linestyle_pinnable(const bContext *C)
+{
+	Scene *scene = CTX_data_scene(C);
+	SceneRenderLayer *actsrl;
+	FreestyleConfig *config;
+	SpaceButs *sbuts;
+
+	/* if Freestyle is disabled in the scene */
+	if ((scene->r.mode & R_EDGE_FRS) == 0) {
+		return false;
+	}
+	/* if Freestyle is not in the Parameter Editor mode */
+	actsrl = BLI_findlink(&scene->r.layers, scene->r.actlay);
+	config = &actsrl->freestyleConfig;
+	if (config->mode != FREESTYLE_CONTROL_EDITOR_MODE) {
+		return false;
+	}
+	/* if the scene has already been pinned */
+	sbuts = CTX_wm_space_buts(C);
+	if (sbuts->pinid && sbuts->pinid == &scene->id) {
+		return false;
+	}
+	return true;
+}
+#endif
 
 static int buttons_context_path(const bContext *C, ButsContextPath *path, int mainb, int flag)
 {
@@ -513,7 +582,17 @@ static int buttons_context_path(const bContext *C, ButsContextPath *path, int ma
 	switch (mainb) {
 		case BCONTEXT_SCENE:
 		case BCONTEXT_RENDER:
+			found = buttons_context_path_scene(path);
+			break;
 		case BCONTEXT_RENDER_LAYER:
+#ifdef WITH_FREESTYLE
+			if (buttons_context_linestyle_pinnable(C)) {
+				found = buttons_context_path_linestyle(path);
+				if (found) {
+					break;
+				}
+			}
+#endif
 			found = buttons_context_path_scene(path);
 			break;
 		case BCONTEXT_WORLD:
@@ -534,7 +613,7 @@ static int buttons_context_path(const bContext *C, ButsContextPath *path, int ma
 			found = buttons_context_path_particle(path);
 			break;
 		case BCONTEXT_MATERIAL:
-			found = buttons_context_path_material(path, 0);
+			found = buttons_context_path_material(path, false, (sbuts->texuser != NULL));
 			break;
 		case BCONTEXT_TEXTURE:
 			found = buttons_context_path_texture(path, sbuts->texuser);
@@ -559,7 +638,7 @@ static int buttons_shading_context(const bContext *C, int mainb)
 {
 	Object *ob = CTX_data_active_object(C);
 
-	if (ELEM3(mainb, BCONTEXT_MATERIAL, BCONTEXT_WORLD, BCONTEXT_TEXTURE))
+	if (ELEM(mainb, BCONTEXT_MATERIAL, BCONTEXT_WORLD, BCONTEXT_TEXTURE))
 		return 1;
 	if (mainb == BCONTEXT_DATA && ob && ELEM(ob->type, OB_LAMP, OB_CAMERA))
 		return 1;
@@ -663,7 +742,8 @@ const char *buttons_context_dir[] = {
 	"meta_ball", "lamp", "speaker", "camera", "material", "material_slot",
 	"texture", "texture_user", "texture_user_property", "bone", "edit_bone",
 	"pose_bone", "particle_system", "particle_system_editable", "particle_settings",
-	"cloth", "soft_body", "fluid", "smoke", "collision", "brush", "dynamic_paint", NULL
+	"cloth", "soft_body", "fluid", "smoke", "collision", "brush", "dynamic_paint",
+	"line_style", NULL
 };
 
 int buttons_context(const bContext *C, const char *member, bContextDataResult *result)
@@ -861,6 +941,12 @@ int buttons_context(const bContext *C, const char *member, bContextDataResult *r
 			if (wo)
 				CTX_data_pointer_set(result, &wo->id, &RNA_WorldTextureSlot, wo->mtex[(int)wo->texact]);
 		}
+		else if ((ptr = get_pointer_type(path, &RNA_FreestyleLineStyle))) {
+			FreestyleLineStyle *ls = ptr->data;
+
+			if (ls)
+				CTX_data_pointer_set(result, &ls->id, &RNA_LineStyleTextureSlot, ls->mtex[(int)ls->texact]);
+		}
 
 		return 1;
 	}
@@ -973,6 +1059,10 @@ int buttons_context(const bContext *C, const char *member, bContextDataResult *r
 			return 1;
 		}
 	}
+	else if (CTX_data_equals(member, "line_style")) {
+		set_pointer_type(path, result, &RNA_FreestyleLineStyle);
+		return 1;
+	}
 	else {
 		return 0; /* not found */
 	}
@@ -1030,7 +1120,7 @@ void buttons_context_draw(const bContext *C, uiLayout *layout)
 			name = RNA_struct_name_get_alloc(ptr, namebuf, sizeof(namebuf), NULL);
 
 			if (name) {
-				if (!ELEM3(sbuts->mainb, BCONTEXT_RENDER, BCONTEXT_SCENE, BCONTEXT_RENDER_LAYER) && ptr->type == &RNA_Scene)
+				if (!ELEM(sbuts->mainb, BCONTEXT_RENDER, BCONTEXT_SCENE, BCONTEXT_RENDER_LAYER) && ptr->type == &RNA_Scene)
 					uiItemLDrag(row, ptr, "", icon);  /* save some space */
 				else
 					uiItemLDrag(row, ptr, name, icon);

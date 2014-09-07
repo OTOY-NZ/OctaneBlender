@@ -36,11 +36,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curve_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
-#include "DNA_mesh_types.h"  /* init_userdef_factory */
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -50,7 +49,6 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_texture.h"
-
 
 #include "BIF_gl.h"
 
@@ -92,6 +90,7 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 	
 	/* ensure we're not getting a color after running BKE_userdef_free */
 	BLI_assert(BLI_findindex(&U.themes, theme_active) != -1);
+	BLI_assert(colorid != TH_UNDEFINED);
 
 	if (btheme) {
 	
@@ -539,6 +538,13 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->preview_stitch_active;
 					break;
 
+				case TH_PAINT_CURVE_HANDLE:
+					cp = ts->paint_curve_handle;
+					break;
+				case TH_PAINT_CURVE_PIVOT:
+					cp = ts->paint_curve_pivot;
+					break;
+
 				case TH_UV_OTHERS:
 					cp = ts->uv_others;
 					break;
@@ -776,6 +782,8 @@ static void ui_theme_space_init_handles_color(ThemeSpace *theme_space)
 	rgba_char_args_set(theme_space->handle_sel_auto, 0xf0, 0xff, 0x40, 255);
 	rgba_char_args_set(theme_space->handle_sel_vect, 0x40, 0xc0, 0x30, 255);
 	rgba_char_args_set(theme_space->handle_sel_align, 0xf0, 0x90, 0xa0, 255);
+	rgba_char_args_set(theme_space->handle_vertex, 0x00, 0x00, 0x00, 0xff);
+	rgba_char_args_set(theme_space->handle_vertex_select, 0xff, 0xff, 0, 0xff);
 	rgba_char_args_set(theme_space->act_spline, 0xdb, 0x25, 0x12, 255);
 }
 
@@ -873,6 +881,8 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tv3d.title, 0, 0, 0, 255);
 	rgba_char_args_set(btheme->tv3d.freestyle_edge_mark, 0x7f, 0xff, 0x7f, 255);
 	rgba_char_args_set(btheme->tv3d.freestyle_face_mark, 0x7f, 0xff, 0x7f, 51);
+	rgba_char_args_set_fl(btheme->tv3d.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+	rgba_char_args_set_fl(btheme->tv3d.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
 
 	btheme->tv3d.facedot_size = 4;
 
@@ -953,7 +963,7 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tact.keytype_jitter,             148, 229, 117, 255);
 	rgba_char_args_set(btheme->tact.keytype_jitter_select,       97, 192,  66, 255);
 	
-	rgba_char_args_set(btheme->tact.keyborder,	             0,   0,   0, 255);
+	rgba_char_args_set(btheme->tact.keyborder,               0,   0,   0, 255);
 	rgba_char_args_set(btheme->tact.keyborder_select,        0,   0,   0, 255);
 	
 	/* space nla */
@@ -972,7 +982,7 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tnla.nla_sound,          43, 61, 61, 255);
 	rgba_char_args_set(btheme->tnla.nla_sound_sel,      31, 122, 122, 255);
 	
-	rgba_char_args_set(btheme->tnla.keyborder,	             0,   0,   0, 255);
+	rgba_char_args_set(btheme->tnla.keyborder,               0,   0,   0, 255);
 	rgba_char_args_set(btheme->tnla.keyborder_select,        0,   0,   0, 255);
 	
 	/* space file */
@@ -1094,7 +1104,7 @@ void ui_theme_init_default(void)
 	
 	/* space node, re-uses syntax and console color storage */
 	btheme->tnode = btheme->tv3d;
-	rgba_char_args_set(btheme->tnode.edge_select, 255, 255, 255, 255);	/* wire selected */
+	rgba_char_args_set(btheme->tnode.edge_select, 255, 255, 255, 255);  /* wire selected */
 	rgba_char_args_set(btheme->tnode.syntaxl, 155, 155, 155, 160);  /* TH_NODE, backdrop */
 	rgba_char_args_set(btheme->tnode.syntaxn, 100, 100, 100, 255);  /* in */
 	rgba_char_args_set(btheme->tnode.nodeclass_output, 100, 100, 100, 255);  /* output */
@@ -1131,8 +1141,6 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tclip.path_after, 0x00, 0x00, 0xff, 255);
 	rgba_char_args_set(btheme->tclip.grid, 0x5e, 0x5e, 0x5e, 255);
 	rgba_char_args_set(btheme->tclip.cframe, 0x60, 0xc0, 0x40, 255);
-	rgba_char_args_set(btheme->tclip.handle_vertex, 0x00, 0x00, 0x00, 0xff);
-	rgba_char_args_set(btheme->tclip.handle_vertex_select, 0xff, 0xff, 0, 0xff);
 	rgba_char_args_set(btheme->tclip.list, 0x66, 0x66, 0x66, 0xff);
 	rgba_char_args_set(btheme->tclip.strip, 0x0c, 0x0a, 0x0a, 0x80);
 	rgba_char_args_set(btheme->tclip.strip_select, 0xff, 0x8c, 0x00, 0xff);
@@ -1227,21 +1235,25 @@ void UI_ThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
 	glColor4ub(r, g, b, a);
 }
 
-/* blend between to theme colors, and set it */
-void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
+void UI_GetThemeColorBlend3ubv(int colorid1, int colorid2, float fac, unsigned char col[3])
 {
-	int r, g, b;
 	const unsigned char *cp1, *cp2;
-	
+
 	cp1 = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid1);
 	cp2 = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid2);
 
 	CLAMP(fac, 0.0f, 1.0f);
-	r = floorf((1.0f - fac) * cp1[0] + fac * cp2[0]);
-	g = floorf((1.0f - fac) * cp1[1] + fac * cp2[1]);
-	b = floorf((1.0f - fac) * cp1[2] + fac * cp2[2]);
-	
-	glColor3ub(r, g, b);
+	col[0] = floorf((1.0f - fac) * cp1[0] + fac * cp2[0]);
+	col[1] = floorf((1.0f - fac) * cp1[1] + fac * cp2[1]);
+	col[2] = floorf((1.0f - fac) * cp1[2] + fac * cp2[2]);
+}
+
+/* blend between to theme colors, and set it */
+void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
+{
+	unsigned char col[3];
+	UI_GetThemeColorBlend3ubv(colorid1, colorid2, fac, col);
+	glColor3ubv(col);
 }
 
 /* blend between to theme colors, shade it, and set it */
@@ -1738,7 +1750,7 @@ void init_userdef_do_versions(void)
 		
 		/* adjust themes */
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
-			char *col;
+			const char *col;
 			
 			/* IPO Editor: Handles/Vertices */
 			col = btheme->tipo.vertex;
@@ -2384,12 +2396,12 @@ void init_userdef_do_versions(void)
 			rgba_char_args_set(btheme->tact.keytype_jitter_select,       97, 192,  66, 255);
 			
 			/* key border */
-			rgba_char_args_set(btheme->tact.keyborder,	             0,   0,   0, 255);
+			rgba_char_args_set(btheme->tact.keyborder,               0,   0,   0, 255);
 			rgba_char_args_set(btheme->tact.keyborder_select,        0,   0,   0, 255);
 			
 			/* NLA ............................ */
 			/* key border */
-			rgba_char_args_set(btheme->tnla.keyborder,	             0,   0,   0, 255);
+			rgba_char_args_set(btheme->tnla.keyborder,               0,   0,   0, 255);
 			rgba_char_args_set(btheme->tnla.keyborder_select,        0,   0,   0, 255);
 			
 			/* Graph Editor ................... */
@@ -2418,6 +2430,23 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (U.versionfile < 271) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set(btheme->tui.wcol_tooltip.text, 255, 255, 255, 255);
+		}
+	}
+
+	if (U.versionfile < 272 || (U.versionfile == 272 && U.subversionfile < 2)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set_fl(btheme->tv3d.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tv3d.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tima.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tima.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
+		}
+	}
+
 	{
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
@@ -2425,6 +2454,31 @@ void init_userdef_do_versions(void)
 			ui_theme_space_init_handles_color(&btheme->tima);
 			btheme->tima.handle_vertex_size = 5;
 			btheme->tclip.handle_vertex_size = 5;
+		}
+	}
+
+	if (U.versionfile < 271 || (U.versionfile == 271 && U.subversionfile < 5)) {
+		bTheme *btheme;
+
+		struct uiWidgetColors wcol_pie_menu = {
+			{10, 10, 10, 200},
+			{25, 25, 25, 230},
+			{140, 140, 140, 255},
+			{45, 45, 45, 230},
+
+			{160, 160, 160, 255},
+			{255, 255, 255, 255},
+
+			1,
+			10, -10
+		};
+
+		U.pie_menu_radius = 100;
+		U.pie_menu_threshold = 12;
+		U.pie_animation_timeout = 6;
+
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			btheme->tui.wcol_pie_menu = wcol_pie_menu;
 		}
 	}
 
@@ -2439,27 +2493,4 @@ void init_userdef_do_versions(void)
 	/* this timer uses U */
 // XXX	reset_autosave();
 
-}
-
-/**
- * Override values in in-memory startup.blend, avoids resaving for small changes.
- */
-void init_userdef_factory(void)
-{
-	/* defaults from T37518 */
-
-	U.uiflag |= USER_AUTOPERSP;
-	U.uiflag |= USER_ZBUF_CURSOR;
-	U.uiflag |= USER_QUIT_PROMPT;
-	U.uiflag |= USER_CONTINUOUS_MOUSE;
-
-	U.versions = 1;
-	U.savetime = 2;
-
-	{
-		Mesh *me;
-		for (me = G.main->mesh.first; me; me = me->id.next) {
-			me->flag &= ~ME_TWOSIDED;
-		}
-	}
 }

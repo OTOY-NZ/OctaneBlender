@@ -26,11 +26,10 @@ bl_info = {
     "blender": (2, 65, 4),
     "location": "View3D > Toolbar > Motion Trail tab",
     "warning": "",
-    "description": "Display and edit motion trails in the 3d-view",
-    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/"
-                "Py/Scripts/Animation/Motion_Trail",
-    "tracker_url": "http://projects.blender.org/tracker/index.php?"
-                    "func=detail&aid=26374",
+    "description": "Display and edit motion trails in the 3D View",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
+        "Scripts/Animation/Motion_Trail",
+    "tracker_url": "https://developer.blender.org/T26374",
     "category": "Animation"}
 
 
@@ -1575,6 +1574,7 @@ class MotionTrailOperator(bpy.types.Operator):
 
 
 class MotionTrailPanel(bpy.types.Panel):
+    bl_category = "Animation"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_label = "Motion Trail"

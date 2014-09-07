@@ -28,9 +28,8 @@ bl_info = {
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Import-Export/Nuke",
-    "tracker_url": "http://projects.blender.org/tracker/?"
-                   "func=detail&atid=467&aid=28368&group_id=153",
-    "category": "Import-Export"}
+    "category": "Import-Export",
+}
 
 
 # To support reload properly, try to access a package var,

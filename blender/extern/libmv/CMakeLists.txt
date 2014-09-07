@@ -30,6 +30,9 @@ set(INC
 	.
 )
 
+set(INC_SYS
+)
+
 set(SRC
 	libmv-capi.h
 	libmv-capi_intern.h
@@ -43,21 +46,36 @@ if(WITH_LIBMV)
 		-DLIBMV_NO_FAST_DETECTOR=
 	)
 
+	TEST_SHARED_PTR_SUPPORT()
+	if(SHARED_PTR_FOUND)
+		if(SHARED_PTR_TR1_MEMORY_HEADER)
+			add_definitions(-DCERES_TR1_MEMORY_HEADER)
+		endif()
+		if(SHARED_PTR_TR1_NAMESPACE)
+			add_definitions(-DCERES_TR1_SHARED_PTR)
+		endif()
+	else()
+		message(FATAL_ERROR "Unable to find shared_ptr.")
+	endif()
+
 	list(APPEND INC
 		third_party/gflags
 		third_party/glog/src
 		third_party/ceres/include
+		third_party/ceres/config
 		../../intern/guardedalloc
 	)
 
 	set(INC_SYS
 		../Eigen3
-		${PNG_INCLUDE_DIR}
+		${PNG_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
 	)
 
 	list(APPEND SRC
 		libmv-capi.cc
+		libmv-util.cc
+		libmv/base/aligned_malloc.cc
 		libmv/image/array_nd.cc
 		libmv/image/convolve.cc
 		libmv/multiview/conditioning.cc
@@ -65,6 +83,7 @@ if(WITH_LIBMV)
 		libmv/multiview/fundamental.cc
 		libmv/multiview/homography.cc
 		libmv/multiview/panography.cc
+		libmv/multiview/panography_kernel.cc
 		libmv/multiview/projection.cc
 		libmv/multiview/triangulation.cc
 		libmv/numeric/numeric.cc
@@ -72,6 +91,7 @@ if(WITH_LIBMV)
 		libmv/simple_pipeline/bundle.cc
 		libmv/simple_pipeline/camera_intrinsics.cc
 		libmv/simple_pipeline/detect.cc
+		libmv/simple_pipeline/distortion_models.cc
 		libmv/simple_pipeline/initialize_reconstruction.cc
 		libmv/simple_pipeline/intersect.cc
 		libmv/simple_pipeline/keyframe_selection.cc
@@ -89,10 +109,8 @@ if(WITH_LIBMV)
 		libmv/tracking/track_region.cc
 		libmv/tracking/trklt_region_tracker.cc
 
-		third_party/gflags/gflags.cc
-		third_party/gflags/gflags_completions.cc
-		third_party/gflags/gflags_reporting.cc
-
+		libmv-util.h
+		libmv/base/aligned_malloc.h
 		libmv/base/id_generator.h
 		libmv/base/scoped_ptr.h
 		libmv/base/vector.h
@@ -101,6 +119,7 @@ if(WITH_LIBMV)
 		libmv/image/convolve.h
 		libmv/image/correlation.h
 		libmv/image/image_converter.h
+		libmv/image/image_drawing.h
 		libmv/image/image.h
 		libmv/image/sample.h
 		libmv/image/tuple.h
@@ -108,13 +127,16 @@ if(WITH_LIBMV)
 		libmv/multiview/conditioning.h
 		libmv/multiview/euclidean_resection.h
 		libmv/multiview/fundamental.h
+		libmv/multiview/homography_error.h
 		libmv/multiview/homography.h
 		libmv/multiview/homography_parameterization.h
 		libmv/multiview/nviewtriangulation.h
 		libmv/multiview/panography.h
+		libmv/multiview/panography_kernel.h
 		libmv/multiview/projection.h
 		libmv/multiview/resection.h
 		libmv/multiview/triangulation.h
+		libmv/multiview/two_view_kernel.h
 		libmv/numeric/dogleg.h
 		libmv/numeric/function_derivative.h
 		libmv/numeric/levenberg_marquardt.h
@@ -123,7 +145,9 @@ if(WITH_LIBMV)
 		libmv/simple_pipeline/bundle.h
 		libmv/simple_pipeline/callbacks.h
 		libmv/simple_pipeline/camera_intrinsics.h
+		libmv/simple_pipeline/camera_intrinsics_impl.h
 		libmv/simple_pipeline/detect.h
+		libmv/simple_pipeline/distortion_models.h
 		libmv/simple_pipeline/initialize_reconstruction.h
 		libmv/simple_pipeline/intersect.h
 		libmv/simple_pipeline/keyframe_selection.h
@@ -142,18 +166,86 @@ if(WITH_LIBMV)
 		libmv/tracking/track_region.h
 		libmv/tracking/trklt_region_tracker.h
 
+		third_party/msinttypes/inttypes.h
+		third_party/msinttypes/stdint.h
+	)
+
+	if(WIN32)
+		list(APPEND INC
+			third_party/glog/src/windows
+		)
+
+		if(NOT MINGW)
+			list(APPEND INC
+				third_party/msinttypes
+			)
+		endif()
+	endif()
+
+	if(WITH_GTESTS)
+		blender_add_lib(libmv_test_dataset "./libmv/multiview/test_data_sets.cc" "" "")
+
+		BLENDER_SRC_GTEST("libmv_scoped_ptr" "./libmv/base/scoped_ptr_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_vector" "./libmv/base/vector_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_array_nd" "./libmv/image/array_nd_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_convolve" "./libmv/image/convolve_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_image" "./libmv/image/image_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_sample" "./libmv/image/sample_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_tuple" "./libmv/image/tuple_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_euclidean_resection" "./libmv/multiview/euclidean_resection_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_fundamental" "./libmv/multiview/fundamental_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_homography" "./libmv/multiview/homography_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_nviewtriangulation" "./libmv/multiview/nviewtriangulation_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_panography" "./libmv/multiview/panography_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_projection" "./libmv/multiview/projection_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_resection" "./libmv/multiview/resection_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_triangulation" "./libmv/multiview/triangulation_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_dogleg" "./libmv/numeric/dogleg_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_function_derivative" "./libmv/numeric/function_derivative_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_levenberg_marquardt" "./libmv/numeric/levenberg_marquardt_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_numeric" "./libmv/numeric/numeric_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_poly" "./libmv/numeric/poly_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_camera_intrinsics" "./libmv/simple_pipeline/camera_intrinsics_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_detect" "./libmv/simple_pipeline/detect_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_intersect" "./libmv/simple_pipeline/intersect_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_keyframe_selection" "./libmv/simple_pipeline/keyframe_selection_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_modal_solver" "./libmv/simple_pipeline/modal_solver_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_resect" "./libmv/simple_pipeline/resect_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_brute_region_tracker" "./libmv/tracking/brute_region_tracker_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_klt_region_tracker" "./libmv/tracking/klt_region_tracker_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+		BLENDER_SRC_GTEST("libmv_pyramid_region_tracker" "./libmv/tracking/pyramid_region_tracker_test.cc" "libmv_test_dataset;extern_libmv;extern_ceres")
+	endif()
+else()
+	list(APPEND SRC
+		libmv-capi_stub.cc
+	)
+endif()
+
+blender_add_lib(extern_libmv "${SRC}" "${INC}" "${INC_SYS}")
+
+if(WITH_LIBMV)
+	add_subdirectory(third_party)
+endif()
+
+# make GLog a separate target, so it can be used for gtest as well.
+if(WITH_LIBMV OR WITH_GTESTS)
+	# We compile GLog together with GFlag so we don't worry about
+	# adding extra lib to linker.
+	set(GLOG_SRC
+		third_party/gflags/gflags.cc
+		third_party/gflags/gflags_completions.cc
+		third_party/gflags/gflags_reporting.cc
+
 		third_party/gflags/config.h
 		third_party/gflags/gflags/gflags_completions.h
 		third_party/gflags/gflags/gflags_declare.h
 		third_party/gflags/gflags/gflags.h
 		third_party/gflags/mutex.h
 		third_party/gflags/util.h
-		third_party/msinttypes/inttypes.h
-		third_party/msinttypes/stdint.h
 	)
 
 	if(WIN32)
-		list(APPEND SRC
+		list(APPEND GLOG_SRC
 			third_party/glog/src/logging.cc
 			third_party/glog/src/raw_logging.cc
 			third_party/glog/src/utilities.cc
@@ -178,18 +270,8 @@ if(WITH_LIBMV)
 			third_party/glog/src/windows/port.h
 			third_party/glog/src/windows/config.h
 		)
-
-		list(APPEND INC
-			third_party/glog/src/windows
-		)
-
-		if(NOT MINGW)
-			list(APPEND INC
-				third_party/msinttypes
-			)
-		endif()
 	else()
-		list(APPEND SRC
+		list(APPEND GLOG_SRC
 			third_party/glog/src/demangle.cc
 			third_party/glog/src/logging.cc
 			third_party/glog/src/raw_logging.cc
@@ -221,14 +303,14 @@ if(WITH_LIBMV)
 			third_party/glog/src/utilities.h
 		)
 	endif()
-else()
-	list(APPEND SRC
-		libmv-capi_stub.cc
+
+	set(GLOG_INC
+		third_party/gflags
+		third_party/glog/src
 	)
-endif()
 
-blender_add_lib(extern_libmv "${SRC}" "${INC}" "${INC_SYS}")
+	set(GLOG_INC_SYS
+	)
 
-if(WITH_LIBMV)
-	add_subdirectory(third_party)
+	blender_add_lib(extern_glog "${GLOG_SRC}" "${GLOG_INC}" "${GLOG_INC_SYS}")
 endif()

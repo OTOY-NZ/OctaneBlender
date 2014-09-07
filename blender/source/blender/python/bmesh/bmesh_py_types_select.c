@@ -43,9 +43,7 @@
 #include "bmesh_py_types.h"
 #include "bmesh_py_types_select.h"
 
-#include "BKE_editmesh.h"
 
-#include "DNA_mesh_types.h"
 
 #include "../generic/py_capi_utils.h"
 
@@ -114,7 +112,7 @@ static PyObject *bpy_bmeditselseq_add(BPy_BMEditSelSeq *self, BPy_BMElem *value)
 		return NULL;
 	}
 
-	BPY_BM_CHECK_SOURCE_OBJ(value, self->bm, "select_history.add()");
+	BPY_BM_CHECK_SOURCE_OBJ(self->bm, "select_history.add()", value);
 
 	BM_select_history_store(self->bm, value->ele);
 
@@ -139,7 +137,7 @@ static PyObject *bpy_bmeditselseq_remove(BPy_BMEditSelSeq *self, BPy_BMElem *val
 		return NULL;
 	}
 
-	BPY_BM_CHECK_SOURCE_OBJ(value, self->bm, "select_history.remove()");
+	BPY_BM_CHECK_SOURCE_OBJ(self->bm, "select_history.remove()", value);
 
 	if (BM_select_history_remove(self->bm, value->ele) == false) {
 		PyErr_SetString(PyExc_ValueError,

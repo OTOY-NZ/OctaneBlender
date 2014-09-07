@@ -24,8 +24,9 @@ bl_info = {
     "location": "Sequencer menus/UI",
     "description": "Various Sequencer tools.",
     "warning": "",
-    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Sequencer/Tools",
-    "tracker_url": "projects.blender.org/tracker/index.php?func=detail&aid=31549",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
+        "Scripts/Sequencer/Tools",
+    "tracker_url": "https://developer.blender.org/T31549",
     "support": 'TESTING',
     "category": "Sequencer",
 }
@@ -60,6 +61,8 @@ def update_keymap(activate):
     # Add.
     if activate:
         kconf = bpy.context.window_manager.keyconfigs.addon
+        if not kconf:
+            return  # happens in background mode...
         for km_info, km_items in KEYMAPS:
             km_name, km_regtype, km_sptype, km_ismodal = km_info
             kmap = [k for k in kconf.keymaps

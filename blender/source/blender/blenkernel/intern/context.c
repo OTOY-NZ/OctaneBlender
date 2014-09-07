@@ -36,6 +36,7 @@
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_object_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -232,18 +233,31 @@ struct bContextDataResult {
 	short type; /* 0: normal, 1: seq */
 };
 
-static void *ctx_wm_python_context_get(const bContext *C, const char *member, void *fall_through)
+static void *ctx_wm_python_context_get(
+        const bContext *C,
+        const char *member, const StructRNA *member_type,
+        void *fall_through)
 {
 #ifdef WITH_PYTHON
 	if (UNLIKELY(C && CTX_py_dict_get(C))) {
 		bContextDataResult result;
 		memset(&result, 0, sizeof(bContextDataResult));
 		BPY_context_member_get((bContext *)C, member, &result);
-		if (result.ptr.data)
-			return result.ptr.data;
+
+		if (result.ptr.data) {
+			if (RNA_struct_is_a(result.ptr.type, member_type)) {
+				return result.ptr.data;
+			}
+			else {
+				printf("PyContext '%s' is a '%s', expected a '%s'\n",
+				       member,
+				       RNA_struct_identifier(result.ptr.type),
+				       RNA_struct_identifier(member_type));
+			}
+		}
 	}
 #else
-	(void)C, (void)member;
+	(void)C, (void)member, (void)member_type;
 #endif
 
 	/* don't allow UI context access from non-main threads */
@@ -275,7 +289,7 @@ static int ctx_data_get(bContext *C, const char *member, bContextDataResult *res
 		return done;
 
 	/* we check recursion to ensure that we do not get infinite
-	 * loops requesting data from ourselfs in a context callback */
+	 * loops requesting data from ourselves in a context callback */
 
 	/* Ok, this looks evil...
 	 * if (ret) done = -(-ret | -done);
@@ -608,17 +622,17 @@ wmWindowManager *CTX_wm_manager(const bContext *C)
 
 wmWindow *CTX_wm_window(const bContext *C)
 {
-	return ctx_wm_python_context_get(C, "window", C->wm.window);
+	return ctx_wm_python_context_get(C, "window", &RNA_Window, C->wm.window);
 }
 
 bScreen *CTX_wm_screen(const bContext *C)
 {
-	return ctx_wm_python_context_get(C, "screen", C->wm.screen);
+	return ctx_wm_python_context_get(C, "screen", &RNA_Screen, C->wm.screen);
 }
 
 ScrArea *CTX_wm_area(const bContext *C)
 {
-	return ctx_wm_python_context_get(C, "area", C->wm.area);
+	return ctx_wm_python_context_get(C, "area", &RNA_Area, C->wm.area);
 }
 
 SpaceLink *CTX_wm_space_data(const bContext *C)
@@ -629,7 +643,7 @@ SpaceLink *CTX_wm_space_data(const bContext *C)
 
 ARegion *CTX_wm_region(const bContext *C)
 {
-	return ctx_wm_python_context_get(C, "region", C->wm.region);
+	return ctx_wm_python_context_get(C, "region", &RNA_Region, C->wm.region);
 }
 
 void *CTX_wm_region_data(const bContext *C)
@@ -1084,4 +1098,3 @@ int CTX_data_visible_pose_bones(const bContext *C, ListBase *list)
 {
 	return ctx_data_collection_get(C, "visible_pose_bones", list);
 }
-

@@ -20,26 +20,37 @@
 
 # Script copyright (C) Blender Foundation
 
-# FBX 7.1.0 -> 7.3.0 loader for Blender
+# FBX 7.1.0 -> 7.4.0 loader for Blender
 
 # Not totally pep8 compliant.
 #   pep8 import_fbx.py --ignore=E501,E123,E702,E125
 
+if "bpy" in locals():
+    import importlib
+    if "parse_fbx" in locals():
+        importlib.reload(parse_fbx)
+    if "fbx_utils" in locals():
+        importlib.reload(fbx_utils)
 
 import bpy
+
+# -----
+# Utils
+from . import parse_fbx, fbx_utils
+
+from .parse_fbx import data_types, FBXElem
+from .fbx_utils import (
+    units_convertor_iter,
+    array_to_matrix4,
+    similar_values,
+    similar_values_iter,
+)
 
 # global singleton, assign on execution
 fbx_elem_nil = None
 
-# -----
-# Utils
-from .parse_fbx import data_types, FBXElem
-
-
-def tuple_deg_to_rad(eul):
-    return (eul[0] / 57.295779513,
-            eul[1] / 57.295779513,
-            eul[2] / 57.295779513)
+# Units convertors...
+convert_deg_to_rad_iter = units_convertor_iter("degree", "radian")
 
 
 def elem_find_first(elem, id_search, default=None):
@@ -89,6 +100,13 @@ def elem_split_name_class(elem):
     return elem_name, elem_class
 
 
+def elem_name_ensure_class(elem, clss=...):
+    elem_name, elem_class = elem_split_name_class(elem)
+    if clss is not ...:
+        assert(elem_class == clss)
+    return elem_name.decode('utf-8')
+
+
 def elem_split_name_class_nodeattr(elem):
     assert(elem.props_type[-2] == data_types.STRING)
     elem_name, elem_class = elem.props[-2].split(b'\x00\x01')
@@ -103,8 +121,8 @@ def elem_uuid(elem):
     return elem.props[0]
 
 
-def elem_prop_first(elem):
-    return elem.props[0] if (elem is not None) and elem.props else None
+def elem_prop_first(elem, default=None):
+    return elem.props[0] if (elem is not None) and elem.props else default
 
 
 # ----
@@ -118,10 +136,6 @@ def elem_props_find_first(elem, elem_prop_id):
         for e in elem:
             result = elem_props_find_first(e, elem_prop_id)
             if result is not None:
-                '''
-                if e is elem[1]:
-                    print("Using templ!!!", elem_prop_id)
-                '''
                 return result
         assert(len(elem) > 0)
         return None
@@ -145,7 +159,6 @@ def elem_props_get_color_rgb(elem, elem_prop_id, default=None):
         else:
             assert(elem_prop.props[1] == b'ColorRGB')
             assert(elem_prop.props[2] == b'Color')
-            #print(elem_prop.props_type[4:7])
         assert(elem_prop.props_type[4:7] == bytes((data_types.FLOAT64,)) * 3)
         return elem_prop.props[4:7]
     return default
@@ -173,6 +186,24 @@ def elem_props_get_number(elem, elem_prop_id, default=None):
 
         # we could allow other number types
         assert(elem_prop.props_type[4] == data_types.FLOAT64)
+
+        return elem_prop.props[4]
+    return default
+
+
+def elem_props_get_integer(elem, elem_prop_id, default=None):
+    elem_prop = elem_props_find_first(elem, elem_prop_id)
+    if elem_prop is not None:
+        assert(elem_prop.props[0] == elem_prop_id)
+        if elem_prop.props[1] == b'int':
+            assert(elem_prop.props[1] == b'int')
+            assert(elem_prop.props[2] == b'Integer')
+        elif elem_prop.props[1] == b'ULongLong':
+            assert(elem_prop.props[1] == b'ULongLong')
+            assert(elem_prop.props[2] == b'')
+
+        # we could allow other number types
+        assert(elem_prop.props_type[4] in {data_types.INT32, data_types.INT64})
 
         return elem_prop.props[4]
     return default
@@ -209,6 +240,21 @@ def elem_props_get_enum(elem, elem_prop_id, default=None):
     return default
 
 
+def elem_props_get_visibility(elem, elem_prop_id, default=None):
+    elem_prop = elem_props_find_first(elem, elem_prop_id)
+    if elem_prop is not None:
+        assert(elem_prop.props[0] == elem_prop_id)
+        assert(elem_prop.props[1] == b'Visibility')
+        assert(elem_prop.props[2] == b'')
+        assert(elem_prop.props[3] in {b'A', b'A+', b'AU'})
+
+        # we could allow other number types
+        assert(elem_prop.props_type[4] == data_types.FLOAT64)
+
+        return elem_prop.props[4]
+    return default
+
+
 # ----------------------------------------------------------------------------
 # Blender
 
@@ -233,6 +279,7 @@ def blen_read_object(fbx_tmpl, fbx_obj, object_data):
     # Misc Attributes
 
     obj.color[0:3] = elem_props_get_color_rgb(fbx_props, b'Color', (0.8, 0.8, 0.8))
+    obj.hide = not bool(elem_props_get_visibility(fbx_props, b'Visibility', 1.0))
 
     # ----
     # Transformation
@@ -282,9 +329,9 @@ def blen_read_object(fbx_tmpl, fbx_obj, object_data):
         rot_alt_mat = Matrix()
 
     # rotation
-    lcl_rot = Euler(tuple_deg_to_rad(rot), rot_ord).to_matrix().to_4x4() * rot_alt_mat
-    pre_rot = Euler(tuple_deg_to_rad(pre_rot), rot_ord).to_matrix().to_4x4()
-    pst_rot = Euler(tuple_deg_to_rad(pst_rot), rot_ord).to_matrix().to_4x4()
+    lcl_rot = Euler(convert_deg_to_rad_iter(rot), rot_ord).to_matrix().to_4x4() * rot_alt_mat
+    pre_rot = Euler(convert_deg_to_rad_iter(pre_rot), rot_ord).to_matrix().to_4x4()
+    pst_rot = Euler(convert_deg_to_rad_iter(pst_rot), rot_ord).to_matrix().to_4x4()
 
     rot_ofs = Matrix.Translation(rot_ofs)
     rot_piv = Matrix.Translation(rot_piv)
@@ -324,11 +371,11 @@ def blen_read_geom_layerinfo(fbx_layer):
 
 
 def blen_read_geom_array_mapped_vert(
-    mesh, blen_data, blend_attr,
-    fbx_layer_data, fbx_layer_index,
-    fbx_layer_mapping, fbx_layer_ref,
-    stride, item_size, descr,
-    ):
+        mesh, blen_data, blend_attr,
+        fbx_layer_data, fbx_layer_index,
+        fbx_layer_mapping, fbx_layer_ref,
+        stride, item_size, descr,
+        ):
     # TODO, generic mapping apply function
     if fbx_layer_mapping == b'ByVertice':
         if fbx_layer_ref == b'Direct':
@@ -347,13 +394,12 @@ def blen_read_geom_array_mapped_vert(
 
 
 def blen_read_geom_array_mapped_edge(
-    mesh, blen_data, blend_attr,
-    fbx_layer_data, fbx_layer_index,
-    fbx_layer_mapping, fbx_layer_ref,
-    stride, item_size, descr,
-    xform=None,
-    ):
-
+        mesh, blen_data, blend_attr,
+        fbx_layer_data, fbx_layer_index,
+        fbx_layer_mapping, fbx_layer_ref,
+        stride, item_size, descr,
+        xform=None,
+        ):
     if fbx_layer_mapping == b'ByEdge':
         if fbx_layer_ref == b'Direct':
             if stride == 1:
@@ -384,13 +430,12 @@ def blen_read_geom_array_mapped_edge(
 
 
 def blen_read_geom_array_mapped_polygon(
-    mesh, blen_data, blend_attr,
-    fbx_layer_data, fbx_layer_index,
-    fbx_layer_mapping, fbx_layer_ref,
-    stride, item_size, descr,
-    xform=None,
-    ):
-
+        mesh, blen_data, blend_attr,
+        fbx_layer_data, fbx_layer_index,
+        fbx_layer_mapping, fbx_layer_ref,
+        stride, item_size, descr,
+        xform=None,
+        ):
     if fbx_layer_mapping == b'ByPolygon':
         if fbx_layer_ref == b'IndexToDirect':
             if stride == 1:
@@ -421,12 +466,11 @@ def blen_read_geom_array_mapped_polygon(
 
 
 def blen_read_geom_array_mapped_polyloop(
-    mesh, blen_data, blend_attr,
-    fbx_layer_data, fbx_layer_index,
-    fbx_layer_mapping, fbx_layer_ref,
-    stride, item_size, descr,
-    ):
-
+        mesh, blen_data, blend_attr,
+        fbx_layer_data, fbx_layer_index,
+        fbx_layer_mapping, fbx_layer_ref,
+        stride, item_size, descr,
+        ):
     if fbx_layer_mapping == b'ByPolygonVertex':
         if fbx_layer_ref == b'IndexToDirect':
             assert(fbx_layer_index is not None)
@@ -540,6 +584,7 @@ def blen_read_geom_layer_color(fbx_obj, mesh):
                 4, 3, layer_id,
                 )
 
+
 def blen_read_geom_layer_smooth(fbx_obj, mesh):
     fbx_layer = elem_find_first(fbx_obj, b'LayerElementSmoothing')
 
@@ -613,9 +658,7 @@ def blen_read_geom_layer_normal(fbx_obj, mesh):
 
 def blen_read_geom(fbx_tmpl, fbx_obj):
     # TODO, use 'fbx_tmpl'
-    elem_name, elem_class = elem_split_name_class(fbx_obj)
-    assert(elem_class == b'Geometry')
-    elem_name_utf8 = elem_name.decode('utf-8')
+    elem_name_utf8 = elem_name_ensure_class(fbx_obj, b'Geometry')
 
     fbx_verts = elem_prop_first(elem_find_first(fbx_obj, b'Vertices'))
     fbx_polys = elem_prop_first(elem_find_first(fbx_obj, b'PolygonVertexIndex'))
@@ -700,14 +743,45 @@ def blen_read_geom(fbx_tmpl, fbx_obj):
     return mesh
 
 
+def blen_read_shape(fbx_tmpl, fbx_sdata, fbx_bcdata, meshes, scene, global_matrix):
+    from mathutils import Vector
+
+    elem_name_utf8 = elem_name_ensure_class(fbx_sdata, b'Geometry')
+    indices = elem_prop_first(elem_find_first(fbx_sdata, b'Indexes'), default=())
+    dvcos = tuple(co for co in zip(*[iter(elem_prop_first(elem_find_first(fbx_sdata, b'Vertices'), default=()))] * 3))
+    # We completely ignore normals here!
+    weight = elem_prop_first(elem_find_first(fbx_bcdata, b'DeformPercent'), default=100.0) / 100.0
+    vgweights = tuple(vgw / 100.0 for vgw in elem_prop_first(elem_find_first(fbx_bcdata, b'FullWeights'), default=()))
+
+    assert(len(vgweights) == len(indices) == len(dvcos))
+    create_vg = bool(set(vgweights) - {1.0})
+
+    for me, objects in meshes:
+        vcos = tuple((idx, me.vertices[idx].co + Vector(dvco)) for idx, dvco in zip(indices, dvcos))
+        objects = list({blen_o for fbx_o, blen_o in objects})
+        assert(objects)
+
+        if me.shape_keys is None:
+            objects[0].shape_key_add(name="Basis", from_mix=False)
+        objects[0].shape_key_add(name=elem_name_utf8, from_mix=False)
+        me.shape_keys.use_relative = True  # Should already be set as such.
+
+        kb = me.shape_keys.key_blocks[elem_name_utf8]
+        for idx, co in vcos:
+            kb.data[idx].co[:] = co
+        kb.value = weight
+
+        # Add vgroup if necessary.
+        if create_vg:
+            add_vgroup_to_objects(indices, vgweights, elem_name_utf8, objects)
+            kb.vertex_group = elem_name_utf8
+
+
 # --------
 # Material
 
-def blen_read_material(fbx_tmpl, fbx_obj,
-                       cycles_material_wrap_map, use_cycles):
-    elem_name, elem_class = elem_split_name_class(fbx_obj)
-    assert(elem_class == b'Material')
-    elem_name_utf8 = elem_name.decode('utf-8')
+def blen_read_material(fbx_tmpl, fbx_obj, cycles_material_wrap_map, use_cycles):
+    elem_name_utf8 = elem_name_ensure_class(fbx_obj, b'Material')
 
     ma = bpy.data.materials.new(name=elem_name_utf8)
 
@@ -763,9 +837,7 @@ def blen_read_texture(fbx_tmpl, fbx_obj, basedir, image_cache,
     import os
     from bpy_extras import image_utils
 
-    elem_name, elem_class = elem_split_name_class(fbx_obj)
-    assert(elem_class == b'Texture')
-    elem_name_utf8 = elem_name.decode('utf-8')
+    elem_name_utf8 = elem_name_ensure_class(fbx_obj, b'Texture')
 
     filepath = elem_find_first_string(fbx_obj, b'FileName')
     if os.sep == '/':
@@ -795,9 +867,7 @@ def blen_read_camera(fbx_tmpl, fbx_obj, global_scale):
     # meters to inches
     M2I = 0.0393700787
 
-    elem_name, elem_class = elem_split_name_class_nodeattr(fbx_obj)
-    assert(elem_class == b'Camera')
-    elem_name_utf8 = elem_name.decode('utf-8')
+    elem_name_utf8 = elem_name_ensure_class(fbx_obj, b'NodeAttribute')
 
     fbx_props = (elem_find_first(fbx_obj, b'Properties70'),
                  elem_find_first(fbx_tmpl, b'Properties70', fbx_elem_nil))
@@ -822,9 +892,7 @@ def blen_read_camera(fbx_tmpl, fbx_obj, global_scale):
 
 def blen_read_light(fbx_tmpl, fbx_obj, global_scale):
     import math
-    elem_name, elem_class = elem_split_name_class_nodeattr(fbx_obj)
-    assert(elem_class == b'Light')
-    elem_name_utf8 = elem_name.decode('utf-8')
+    elem_name_utf8 = elem_name_ensure_class(fbx_obj, b'NodeAttribute')
 
     fbx_props = (elem_find_first(fbx_obj, b'Properties70'),
                  elem_find_first(fbx_tmpl, b'Properties70', fbx_elem_nil))
@@ -841,7 +909,17 @@ def blen_read_light(fbx_tmpl, fbx_obj, global_scale):
     lamp = bpy.data.lamps.new(name=elem_name_utf8, type=light_type)
 
     if light_type == 'SPOT':
-        lamp.spot_size = math.radians(elem_props_get_number(fbx_props, b'Cone angle', 45.0))
+        spot_size = elem_props_get_number(fbx_props, b'OuterAngle', None)
+        if spot_size is None:
+            # Deprecated.
+            spot_size = elem_props_get_number(fbx_props, b'Cone angle', 45.0)
+        lamp.spot_size = math.radians(spot_size)
+
+        spot_blend = elem_props_get_number(fbx_props, b'InnerAngle', None)
+        if spot_blend is None:
+            # Deprecated.
+            spot_blend = elem_props_get_number(fbx_props, b'HotSpot', 45.0)
+        lamp.spot_blend = 1.0 - (spot_blend / spot_size)
 
     # TODO, cycles
     lamp.color = elem_props_get_color_rgb(fbx_props, b'Color', (1.0, 1.0, 1.0))
@@ -865,7 +943,10 @@ def is_ascii(filepath, size):
 
 
 def load(operator, context, filepath="",
-         global_matrix=None,
+         use_manual_orientation=False,
+         axis_forward='-Z',
+         axis_up='Y',
+         global_scale=1.0,
          use_cycles=True,
          use_image_search=False,
          use_alpha_decals=False,
@@ -874,10 +955,14 @@ def load(operator, context, filepath="",
     global fbx_elem_nil
     fbx_elem_nil = FBXElem('', (), (), ())
 
-    global_scale = (sum(global_matrix.to_scale()) / 3.0) if global_matrix else 1.0
+    import os, time
+    from bpy_extras.io_utils import axis_conversion
+    from mathutils import Matrix
 
-    import os
     from . import parse_fbx
+    from .fbx_utils import RIGHT_HAND_AXES, FBX_FRAMERATES
+
+    start_time = time.process_time()
 
     # detect ascii files
     if is_ascii(filepath, 24):
@@ -921,6 +1006,42 @@ def load(operator, context, filepath="",
 
     scene = context.scene
 
+
+    #### Get some info from GlobalSettings.
+
+    fbx_settings = elem_find_first(elem_root, b'GlobalSettings')
+    fbx_settings_props = elem_find_first(fbx_settings, b'Properties70')
+    if fbx_settings is None or fbx_settings_props is None:
+        operator.report({'ERROR'}, "No 'GlobalSettings' found in file %r" % filepath)
+        return {'CANCELLED'}
+
+    # Compute global matrix and scale.
+    if not use_manual_orientation:
+        axis_forward = (elem_props_get_integer(fbx_settings_props, b'FrontAxis', 1),
+                        elem_props_get_integer(fbx_settings_props, b'FrontAxisSign', 1))
+        axis_up = (elem_props_get_integer(fbx_settings_props, b'UpAxis', 2),
+                   elem_props_get_integer(fbx_settings_props, b'UpAxisSign', 1))
+        axis_coord = (elem_props_get_integer(fbx_settings_props, b'CoordAxis', 0),
+                      elem_props_get_integer(fbx_settings_props, b'CoordAxisSign', 1))
+        axis_key = (axis_up, axis_forward, axis_coord)
+        axis_up, axis_forward = {v: k for k, v in RIGHT_HAND_AXES.items()}.get(axis_key, ('Z', 'Y'))
+        # FBX base unit seems to be the centimeter, while raw Blender Unit is equivalent to the meter...
+        global_scale = elem_props_get_number(fbx_settings_props, b'UnitScaleFactor', 100.0) / 100.0
+    global_matrix = (Matrix.Scale(global_scale, 4) *
+                     axis_conversion(from_forward=axis_forward, from_up=axis_up).to_4x4())
+
+    # Compute framerate settings.
+    custom_fps = elem_props_get_number(fbx_settings_props, b'CustomFrameRate', 25.0)
+    time_mode = elem_props_get_enum(fbx_settings_props, b'TimeMode')
+    real_fps = {eid: val for val, eid in FBX_FRAMERATES[1:]}.get(time_mode, custom_fps)
+    if real_fps < 0.0:
+        real_fps = 25.0
+    scene.render.fps = round(real_fps)
+    scene.render.fps_base = scene.render.fps / real_fps
+
+
+    #### And now, the "real" data.
+
     fbx_defs = elem_find_first(elem_root, b'Definitions')  # can be None
     fbx_nodes = elem_find_first(elem_root, b'Objects')
     fbx_connections = elem_find_first(elem_root, b'Connections')
@@ -954,7 +1075,12 @@ def load(operator, context, filepath="",
     _(); del _
 
     def fbx_template_get(key):
-        return fbx_templates.get(key, fbx_elem_nil)
+        ret = fbx_templates.get(key, fbx_elem_nil)
+        if ret is None:
+            # Newest FBX (7.4 and above) use no more 'K' in their type names...
+            key = (key[0], key[1][1:])
+            return fbx_templates.get(key, fbx_elem_nil)
+        return ret
 
     # ----
     # Build FBX node-table
@@ -968,14 +1094,14 @@ def load(operator, context, filepath="",
 
     # ----
     # Load in the data
-    # http://download.autodesk.com/us/fbx/20112/FBX_SDK_HELP/index.html?url=WS73099cc142f487551fea285e1221e4f9ff8-7fda.htm,topicNumber=d0e6388
+    # http://download.autodesk.com/us/fbx/20112/FBX_SDK_HELP/index.html?url=
+    #        WS73099cc142f487551fea285e1221e4f9ff8-7fda.htm,topicNumber=d0e6388
 
     fbx_connection_map = {}
     fbx_connection_map_reverse = {}
 
     def _():
         for fbx_link in fbx_connections.elems:
-            # print(fbx_link)
             c_type = fbx_link.props[0]
             if fbx_link.props_type[1:3] == b'LL':
                 c_src, c_dst = fbx_link.props[1:3]
@@ -1095,12 +1221,12 @@ def load(operator, context, filepath="",
                     if isinstance(fbx_lnk_item, (bpy.types.Material, bpy.types.Image)):
                         continue
                     # Need to check why this happens, Bird_Leg.fbx
+                    # This is basic object parenting, also used by "bones".
                     if isinstance(fbx_lnk_item, (bpy.types.Object)):
                         continue
                     ok = True
                     break
             if ok:
-                # print(fbx_lnk_type)
                 # create when linking since we need object data
                 obj = blen_read_object(fbx_tmpl, fbx_obj, fbx_lnk_item)
                 assert(fbx_item[1] is None)
@@ -1199,7 +1325,7 @@ def load(operator, context, filepath="",
 
         if not use_cycles:
             # Simple function to make a new mtex and set defaults
-            def material_mtex_new(material, image):
+            def material_mtex_new(material, image, tex_map):
                 tex = texture_cache.get(image)
                 if tex is None:
                     tex = bpy.data.textures.new(name=image.name, type='IMAGE')
@@ -1210,6 +1336,10 @@ def load(operator, context, filepath="",
                 mtex.texture = tex
                 mtex.texture_coords = 'UV'
                 mtex.use_map_color_diffuse = False
+
+                # No rotation here...
+                mtex.offset[:] = tex_map[0]
+                mtex.scale[:] = tex_map[2]
                 return mtex
 
         for fbx_uuid, fbx_item in fbx_table_nodes.items():
@@ -1231,10 +1361,9 @@ def load(operator, context, filepath="",
                         # tx/rot/scale
                         tex_map = texture_mapping_get(fbx_lnk)
                         if (tex_map[0] == (0.0, 0.0, 0.0) and
-                            tex_map[1] == (0.0, 0.0, 0.0) and
-                            tex_map[2] == (1.0, 1.0, 1.0) and
-                            tex_map[3] == (False, False)):
-
+                                tex_map[1] == (0.0, 0.0, 0.0) and
+                                tex_map[2] == (1.0, 1.0, 1.0) and
+                                tex_map[3] == (False, False)):
                             use_mapping = False
                         else:
                             use_mapping = True
@@ -1289,7 +1418,10 @@ def load(operator, context, filepath="",
                     if fbx_lnk_type.props[0] == b'OP':
                         lnk_type = fbx_lnk_type.props[3]
 
-                        mtex = material_mtex_new(material, image)
+                        # tx/rot/scale (rot is ignored here!).
+                        tex_map = texture_mapping_get(fbx_lnk)
+
+                        mtex = material_mtex_new(material, image, tex_map)
 
                         if lnk_type == b'DiffuseColor':
                             mtex.use_map_color_diffuse = True
@@ -1388,5 +1520,5 @@ def load(operator, context, filepath="",
                                 material.use_raytrace = False
     _(); del _
 
-    # print(list(sorted(locals().keys())))
+    print('Import finished in %.4f sec.' % (time.process_time() - start_time))
     return {'FINISHED'}

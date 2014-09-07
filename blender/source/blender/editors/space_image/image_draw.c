@@ -74,9 +74,6 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
-
 #include "RE_pipeline.h"
 #include "RE_engine.h"
 
@@ -107,7 +104,7 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar, float zoomx,
 			rcti *tile;
 
 			/* find window pixel coordinates of origin */
-			UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
+			UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 			glPushMatrix();
 			glTranslatef(x, y, 0.0f);
@@ -122,39 +119,7 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar, float zoomx,
 			UI_ThemeColor(TH_FACE_SELECT);
 
 			for (i = 0, tile = tiles; i < total_tiles; i++, tile++) {
-				float delta_x = 4.0f * UI_DPI_FAC / zoomx;
-				float delta_y = 4.0f * UI_DPI_FAC / zoomy;
-
-				delta_x = min_ff(delta_x, tile->xmax - tile->xmin);
-				delta_y = min_ff(delta_y, tile->ymax - tile->ymin);
-
-				/* left bottom corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmin, tile->ymin + delta_y);
-				glVertex2f(tile->xmin, tile->ymin);
-				glVertex2f(tile->xmin + delta_x, tile->ymin);
-				glEnd();
-
-				/* left top corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmin, tile->ymax - delta_y);
-				glVertex2f(tile->xmin, tile->ymax);
-				glVertex2f(tile->xmin + delta_x, tile->ymax);
-				glEnd();
-
-				/* right bottom corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmax - delta_x, tile->ymin);
-				glVertex2f(tile->xmax, tile->ymin);
-				glVertex2f(tile->xmax, tile->ymin + delta_y);
-				glEnd();
-
-				/* right top corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmax - delta_x, tile->ymax);
-				glVertex2f(tile->xmax, tile->ymax);
-				glVertex2f(tile->xmax, tile->ymax - delta_y);
-				glEnd();
+				glaDrawBorderCorners(tile, zoomx, zoomy);
 			}
 
 			MEM_freeN(tiles);
@@ -509,7 +474,7 @@ static void draw_image_buffer(const bContext *C, SpaceImage *sima, ARegion *ar, 
 	glaDefine2DArea(&ar->winrct);
 	
 	/* find window pixel coordinates of origin */
-	UI_view2d_to_region_no_clip(&ar->v2d, fx, fy, &x, &y);
+	UI_view2d_view_to_region(&ar->v2d, fx, fy, &x, &y);
 
 	/* this part is generic image display */
 	if (sima->flag & SI_SHOW_ALPHA) {
@@ -600,7 +565,7 @@ static void draw_image_buffer_tiled(SpaceImage *sima, ARegion *ar, Scene *scene,
 	/* draw repeated */
 	for (sy = 0; sy + dy <= ibuf->y; sy += dy) {
 		for (sx = 0; sx + dx <= ibuf->x; sx += dx) {
-			UI_view2d_to_region_no_clip(&ar->v2d, fx + (float)sx / (float)ibuf->x, fy + (float)sy / (float)ibuf->y, &x, &y);
+			UI_view2d_view_to_region(&ar->v2d, fx + (float)sx / (float)ibuf->x, fy + (float)sy / (float)ibuf->y, &x, &y);
 
 			glaDrawPixelsSafe(x, y, dx, dy, dx, GL_RGBA, GL_UNSIGNED_BYTE, rect);
 		}
@@ -647,14 +612,14 @@ void draw_image_grease_pencil(bContext *C, bool onlyv2d)
 	/* draw in View2D space? */
 	if (onlyv2d) {
 		/* draw grease-pencil ('image' strokes) */
-		draw_gpencil_2dimage(C);
+		ED_gpencil_draw_2dimage(C);
 	}
 	else {
 		/* assume that UI_view2d_restore(C) has been called... */
 		//SpaceImage *sima = (SpaceImage *)CTX_wm_space_data(C);
 		
 		/* draw grease-pencil ('screen' strokes) */
-		draw_gpencil_view2d(C, 0);
+		ED_gpencil_draw_view2d(C, 0);
 	}
 }
 
@@ -779,7 +744,7 @@ static void draw_image_paint_helpers(const bContext *C, ARegion *ar, Scene *scen
 		clonerect = get_alpha_clone_image(C, scene, &w, &h);
 
 		if (clonerect) {
-			UI_view2d_to_region_no_clip(&ar->v2d, brush->clone.offset[0], brush->clone.offset[1], &x, &y);
+			UI_view2d_view_to_region(&ar->v2d, brush->clone.offset[0], brush->clone.offset[1], &x, &y);
 
 			glPixelZoom(zoomx, zoomy);
 
@@ -888,6 +853,17 @@ void draw_image_main(const bContext *C, ARegion *ar)
 		draw_render_info(sima->iuser.scene, ima, ar, zoomx, zoomy);
 }
 
+static bool show_image_cache(Image *image, Mask *mask)
+{
+	if (image == NULL && mask == NULL) {
+		return false;
+	}
+	if (mask == NULL) {
+		return ELEM(image->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE);
+	}
+	return true;
+}
+
 void draw_image_cache(const bContext *C, ARegion *ar)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
@@ -900,7 +876,7 @@ void draw_image_cache(const bContext *C, ARegion *ar)
 		mask = ED_space_image_get_mask(sima);
 	}
 
-	if (image == NULL && mask == NULL) {
+	if (!show_image_cache(image, mask)) {
 		return;
 	}
 

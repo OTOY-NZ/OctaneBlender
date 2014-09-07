@@ -50,7 +50,6 @@
 #include "DNA_sequence_types.h"
 
 #include "BKE_curve.h"
-#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
@@ -1134,7 +1133,7 @@ void BKE_mask_coord_to_movieclip(MovieClip *clip, MovieClipUser *user, float r_c
 	BKE_movieclip_get_size_fl(clip, user, frame_size);
 	BKE_movieclip_get_aspect(clip, &aspx, &aspy);
 
-	frame_size[1] /= (aspy / aspx);
+	frame_size[1] *= (aspy / aspx);
 
 	BKE_mask_coord_to_frame(r_co, co, frame_size);
 }
@@ -1148,7 +1147,7 @@ void BKE_mask_coord_to_image(Image *image, ImageUser *iuser, float r_co[2], cons
 	BKE_image_get_size_fl(image, iuser, frame_size);
 	BKE_image_get_aspect(image, &aspx, &aspy);
 
-	frame_size[1] /= (aspy / aspx);
+	frame_size[1] *= (aspy / aspx);
 
 	BKE_mask_coord_to_frame(r_co, co, frame_size);
 }
@@ -1213,7 +1212,7 @@ void BKE_mask_point_parent_matrix_get(MaskSplinePoint *point, float ctime, float
 						}
 
 						invert_m3_m3(mask_to_clip_matrix, mask_from_clip_matrix);
-						mul_serie_m3(parent_matrix, mask_to_clip_matrix, H, mask_from_clip_matrix, NULL, NULL, NULL, NULL, NULL);
+						mul_m3_series(parent_matrix, mask_from_clip_matrix, H, mask_to_clip_matrix);
 					}
 				}
 			}
@@ -1687,8 +1686,8 @@ void BKE_mask_layer_shape_to_mask_interp(MaskLayer *masklay,
 {
 	int tot = BKE_mask_layer_shape_totvert(masklay);
 	if (masklay_shape_a->tot_vert == tot && masklay_shape_b->tot_vert == tot) {
-		float *fp_a = masklay_shape_a->data;
-		float *fp_b = masklay_shape_b->data;
+		const float *fp_a = masklay_shape_a->data;
+		const float *fp_b = masklay_shape_b->data;
 		const float ifac = 1.0f - fac;
 
 		MaskSpline *spline;
@@ -2105,7 +2104,7 @@ void BKE_mask_clipboard_paste_to_layer(Main *bmain, MaskLayer *mask_layer)
 		for (i = 0; i < spline_new->tot_point; i++) {
 			MaskSplinePoint *point = &spline_new->points[i];
 			if (point->parent.id) {
-				char *id_name = BLI_ghash_lookup(mask_clipboard.id_hash, point->parent.id);
+				const char *id_name = BLI_ghash_lookup(mask_clipboard.id_hash, point->parent.id);
 				ListBase *listbase;
 
 				BLI_assert(id_name != NULL);

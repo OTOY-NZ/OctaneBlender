@@ -9,7 +9,7 @@ selection method.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -31,7 +31,7 @@ selection method.
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-__revision__ = "src/engine/SCons/Tool/zip.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Tool/zip.py  2014/03/02 14:18:15 garyo"
 
 import os.path
 
@@ -57,9 +57,9 @@ if internal_zip:
                     for fname in filenames:
                         path = os.path.join(dirpath, fname)
                         if os.path.isfile(path):
-                            zf.write(path)
+                            zf.write(path, os.path.relpath(path, str(env.get('ZIPROOT', ''))))
             else:
-                zf.write(str(s))
+                zf.write(str(s), os.path.relpath(str(s), str(env.get('ZIPROOT', ''))))
         zf.close()
 else:
     zipcompression = 0
@@ -88,6 +88,7 @@ def generate(env):
     env['ZIPCOM']     = zipAction
     env['ZIPCOMPRESSION'] =  zipcompression
     env['ZIPSUFFIX']  = '.zip'
+    env['ZIPROOT']    = SCons.Util.CLVar('')
 
 def exists(env):
     return internal_zip or env.Detect('zip')

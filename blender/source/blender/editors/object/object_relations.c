@@ -44,9 +44,7 @@
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_speaker_types.h"
 #include "DNA_world_types.h"
 #include "DNA_object_types.h"
 #include "DNA_vfont_types.h"
@@ -424,6 +422,7 @@ void OBJECT_OT_proxy_make(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "object", DummyRNA_DEFAULT_items, 0, "Proxy Object", "Name of lib-linked/grouped object to make a proxy for"); /* XXX, relies on hard coded ID at the moment */
 	RNA_def_enum_funcs(prop, proxy_group_object_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -445,7 +444,7 @@ EnumPropertyItem prop_clear_parent_types[] = {
 /* Helper for ED_object_parent_clear() - Remove deform-modifiers associated with parent */
 static void object_remove_parent_deform_modifiers(Object *ob, const Object *par)
 {
-	if (ELEM3(par->type, OB_ARMATURE, OB_LATTICE, OB_CURVE)) {
+	if (ELEM(par->type, OB_ARMATURE, OB_LATTICE, OB_CURVE)) {
 		ModifierData *md, *mdn;
 		
 		/* assume that we only need to remove the first instance of matching deform modifier here */
@@ -594,7 +593,7 @@ int ED_object_parent_set(ReportList *reports, Main *bmain, Scene *scene, Object 
                          int partype, bool xmirror, bool keep_transform, const int vert_par[3])
 {
 	bPoseChannel *pchan = NULL;
-	int pararm = ELEM4(partype, PAR_ARMATURE, PAR_ARMATURE_NAME, PAR_ARMATURE_ENVELOPE, PAR_ARMATURE_AUTO);
+	int pararm = ELEM(partype, PAR_ARMATURE, PAR_ARMATURE_NAME, PAR_ARMATURE_ENVELOPE, PAR_ARMATURE_AUTO);
 	
 	DAG_id_tag_update(&par->id, OB_RECALC_OB);
 	
@@ -679,7 +678,7 @@ int ED_object_parent_set(ReportList *reports, Main *bmain, Scene *scene, Object 
 				 *   assuming that the parent is selected too...
 				 */
 				// XXX currently this should only happen for meshes, curves, surfaces, and lattices - this stuff isn't available for metas yet
-				if (ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_LATTICE)) {
+				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_LATTICE)) {
 					ModifierData *md;
 					
 					switch (partype) {
@@ -819,7 +818,7 @@ static int parent_set_exec(bContext *C, wmOperator *op)
 	int tree_tot;
 	struct KDTree *tree = NULL;
 	int vert_par[3] = {0, 0, 0};
-	int *vert_par_p = is_vert_par ? vert_par : NULL;
+	const int *vert_par_p = is_vert_par ? vert_par : NULL;
 
 
 	if (is_vert_par) {
@@ -1129,7 +1128,7 @@ static int object_track_clear_exec(bContext *C, wmOperator *op)
 		/* also remove all tracking constraints */
 		for (con = ob->constraints.last; con; con = pcon) {
 			pcon = con->prev;
-			if (ELEM3(con->type, CONSTRAINT_TYPE_TRACKTO, CONSTRAINT_TYPE_LOCKTRACK, CONSTRAINT_TYPE_DAMPTRACK))
+			if (ELEM(con->type, CONSTRAINT_TYPE_TRACKTO, CONSTRAINT_TYPE_LOCKTRACK, CONSTRAINT_TYPE_DAMPTRACK))
 				BKE_constraint_remove(&ob->constraints, con);
 		}
 		
@@ -1193,7 +1192,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 				DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 				
 				/* Lamp, Camera and Speaker track differently by default */
-				if (ELEM3(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
+				if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
 					data->trackflag = TRACK_nZ;
 				}
 			}
@@ -1214,7 +1213,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 				DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 				
 				/* Lamp, Camera and Speaker track differently by default */
-				if (ELEM3(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
+				if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
 					data->reserved1 = TRACK_nZ;
 					data->reserved2 = UP_Y;
 				}
@@ -1236,7 +1235,7 @@ static int track_set_exec(bContext *C, wmOperator *op)
 				DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 				
 				/* Lamp, Camera and Speaker track differently by default */
-				if (ELEM3(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
+				if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
 					data->trackflag = TRACK_nZ;
 					data->lockflag = LOCK_Y;
 				}
@@ -1636,6 +1635,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 
 	DAG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, CTX_wm_view3d(C));
+	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(C));
 	WM_event_add_notifier(C, NC_OBJECT, NULL);
 
 	return OPERATOR_FINISHED;
@@ -1662,6 +1662,7 @@ void OBJECT_OT_make_links_scene(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "scene", DummyRNA_NULL_items, 0, "Scene", "");
 	RNA_def_enum_funcs(prop, RNA_scene_local_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -1679,7 +1680,7 @@ void OBJECT_OT_make_links_data(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name = "Link Data";
-	ot->description = "Make links from the active object to other selected objects";
+	ot->description = "Apply active object links to other selected objects";
 	ot->idname = "OBJECT_OT_make_links_data";
 
 	/* api callbacks */
@@ -1719,6 +1720,17 @@ static void single_object_users(Main *bmain, Scene *scene, View3D *v3d, int flag
 				/* base gets copy of object */
 				obn = BKE_object_copy(ob);
 				base->object = obn;
+
+				if (copy_groups) {
+					if (ob->flag & OB_FROMGROUP) {
+						obn->flag |= OB_FROMGROUP;
+					}
+				}
+				else {
+					/* copy already clears */
+				}
+				base->flag = obn->flag;
+
 				ob->id.us--;
 			}
 		}
@@ -2106,7 +2118,7 @@ static void tag_localizable_objects(bContext *C, int mode)
 		/* If data is also gonna to become local, mark data we're interested in
 		 * as gonna-to-be-local.
 		 */
-		if (mode == MAKE_LOCAL_SELECT_OBDATA) {
+		if (mode == MAKE_LOCAL_SELECT_OBDATA && object->data) {
 			ID *data_id = (ID *) object->data;
 			data_id->flag |= LIB_DOIT;
 		}
@@ -2275,24 +2287,32 @@ static int make_single_user_exec(bContext *C, wmOperator *op)
 	View3D *v3d = CTX_wm_view3d(C); /* ok if this is NULL */
 	int flag = RNA_enum_get(op->ptr, "type"); /* 0==ALL, SELECTED==selected objecs */
 	bool copy_groups = false;
+	bool update_deps = false;
 
 	BKE_main_id_clear_newpoins(bmain);
 
-	if (RNA_boolean_get(op->ptr, "object"))
+	if (RNA_boolean_get(op->ptr, "object")) {
 		single_object_users(bmain, scene, v3d, flag, copy_groups);
 
-	if (RNA_boolean_get(op->ptr, "obdata"))
-		single_obdata_users(bmain, scene, flag);
+		/* needed since object relationships may have changed */
+		update_deps = true;
+	}
 
-	if (RNA_boolean_get(op->ptr, "material"))
+	if (RNA_boolean_get(op->ptr, "obdata")) {
+		single_obdata_users(bmain, scene, flag);
+	}
+
+	if (RNA_boolean_get(op->ptr, "material")) {
 		single_mat_users(scene, flag, RNA_boolean_get(op->ptr, "texture"));
+	}
 
 #if 0 /* can't do this separate from materials */
 	if (RNA_boolean_get(op->ptr, "texture"))
 		single_mat_users(scene, flag, true);
 #endif
-	if (RNA_boolean_get(op->ptr, "animation"))
+	if (RNA_boolean_get(op->ptr, "animation")) {
 		single_object_action_users(scene, flag);
+	}
 
 	/* TODO(sergey): This should not be needed, however some tool still could rely
 	 *               on the fact, that id->newid is kept NULL by default.
@@ -2302,6 +2322,11 @@ static int make_single_user_exec(bContext *C, wmOperator *op)
 	BKE_main_id_clear_newpoins(bmain);
 
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
+
+	if (update_deps) {
+		DAG_relations_tag_update(bmain);
+	}
+
 	return OPERATOR_FINISHED;
 }
 
@@ -2373,4 +2398,56 @@ void OBJECT_OT_drop_named_material(wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_string(ot->srna, "name", "Material", MAX_ID_NAME - 2, "Name", "Material name to assign");
+}
+
+static int object_unlink_data_exec(bContext *C, wmOperator *op)
+{
+	ID *id;
+	PropertyPointerRNA pprop;
+
+	uiIDContextProperty(C, &pprop.ptr, &pprop.prop);
+
+	if (pprop.prop == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "Incorrect context for running object data unlink");
+		return OPERATOR_CANCELLED;
+	}
+
+	id = pprop.ptr.id.data;
+
+	if (GS(id->name) == ID_OB) {
+		Object *ob = (Object *)id;
+		if (ob->data) {
+			ID *id_data = ob->data;
+
+			if (GS(id_data->name) == ID_IM) {
+				id_us_min(id_data);
+				ob->data = NULL;
+			}
+			else {
+				BKE_report(op->reports, RPT_ERROR, "Can't unlink this object data");
+				return OPERATOR_CANCELLED;
+			}
+		}
+	}
+
+	RNA_property_update(C, &pprop.ptr, pprop.prop);
+
+	return OPERATOR_FINISHED;
+}
+
+/**
+ * \note Only for empty-image objects, this operator is needed
+ */
+void OBJECT_OT_unlink_data(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Unlink";
+	ot->idname = "OBJECT_OT_unlink_data";
+	ot->description = "";
+
+	/* api callbacks */
+	ot->exec = object_unlink_data_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_INTERNAL;
 }

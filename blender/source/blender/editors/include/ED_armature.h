@@ -90,7 +90,7 @@ typedef struct EditBone {
 #define BONESEL_BONE    (1 << 30)
 #define BONESEL_ANY     (BONESEL_TIP | BONESEL_ROOT | BONESEL_BONE)
 
-#define BONESEL_NOSEL   (1 << 31) /* Indicates a negative number */
+#define BONESEL_NOSEL   (1u << 31u)
 
 /* useful macros */
 #define EBONE_VISIBLE(arm, ebone) ( \
@@ -143,6 +143,9 @@ EditBone *ED_armature_bone_find_shared_parent(EditBone *ebone_child[], const uns
 void ED_armature_ebone_to_mat3(EditBone *ebone, float mat[3][3]);
 void ED_armature_ebone_to_mat4(EditBone *ebone, float mat[4][4]);
 
+void ED_armature_ebone_from_mat3(EditBone *ebone, float mat[3][3]);
+void ED_armature_ebone_from_mat4(EditBone *ebone, float mat[4][4]);
+
 void transform_armature_mirror_update(struct Object *obedit);
 void ED_armature_origin_set(struct Scene *scene, struct Object *ob, float cursor[3], int centermode, int around);
 
@@ -171,7 +174,7 @@ void ED_armature_ebone_selectflag_disable(EditBone *ebone, int flag);
 /* poseobject.c */
 void ED_armature_exit_posemode(struct bContext *C, struct Base *base);
 void ED_armature_enter_posemode(struct bContext *C, struct Base *base);
-void ED_pose_deselectall(struct Object *ob, int test);
+void ED_pose_de_selectall(struct Object *ob, int select_mode, const bool ignore_visibility);
 void ED_pose_bone_select(struct Object *ob, struct bPoseChannel *pchan, bool select);
 void ED_pose_recalculate_paths(struct Scene *scene, struct Object *ob);
 struct Object *ED_pose_object_from_context(struct bContext *C);

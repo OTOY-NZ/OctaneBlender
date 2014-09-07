@@ -248,6 +248,7 @@ def save_single(operator, scene, filepath="",
         path_mode='AUTO',
         use_mesh_edges=True,
         use_default_take=True,
+        **kwargs
     ):
 
     import bpy_extras.io_utils
@@ -1504,7 +1505,6 @@ def save_single(operator, scene, filepath="",
             raise Exception("invalid mesh_smooth_type: %r" % mesh_smooth_type)
 
         # Write VertexColor Layers
-        # note, no programs seem to use this info :/
         collayers = []
         if len(me.vertex_colors):
             collayers = me.vertex_colors

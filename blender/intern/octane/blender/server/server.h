@@ -19,11 +19,15 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#define OCTANE_SERVER_MAJOR_VERSION 4
-#define OCTANE_SERVER_MINOR_VERSION 10
-#define OCTANE_SERVER_VERSION (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
+#ifndef OCTANE_SERVER_MAJOR_VERSION
+#   define OCTANE_SERVER_MAJOR_VERSION 5
+#endif
+#ifndef OCTANE_SERVER_MINOR_VERSION
+#   define OCTANE_SERVER_MINOR_VERSION 0
+#endif
+#define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
-#define FILE_BUFFER_SIZE 128000000
+#define SEND_CHUNK_SIZE     67108864
 
 #undef htonl
 #undef ntohl
@@ -168,7 +172,9 @@ enum PacketType {
     LOAD_SCALE_TRANSFORM = LOAD_TRANSFORM_FIRST,
     LOAD_ROTATION_TRANSFORM,
     LOAD_FULL_TRANSFORM,
-    LOAD_TRANSFORM_LAST = LOAD_FULL_TRANSFORM,
+    LOAD_2D_TRANSFORM,
+    LOAD_3D_TRANSFORM,
+    LOAD_TRANSFORM_LAST = LOAD_3D_TRANSFORM,
     DEL_TRANSFORM,
 
     LOAD_MEDIUM_FIRST,
@@ -305,7 +311,7 @@ typedef struct RPCSend {
         if(buffer) {
             size_t len = strlen(val);
             if(buf_pointer+len+2 > buffer+buf_size) return *this;
-            if(len > 254) len = 254;
+            if(len > 4096) len = 4096;
             *reinterpret_cast<uint8_t*>(buf_pointer) = static_cast<uint8_t>(len);
             buf_pointer += sizeof(uint8_t);
 #ifndef WIN32
@@ -353,9 +359,21 @@ typedef struct RPCSend {
     bool write() {
         if(!buffer) return false;
 
-        if(::send(socket, (const char*)buffer, static_cast<unsigned int>(buf_size), 0) < 0) {
+        unsigned int header_size = sizeof(uint64_t) * 2;
+        if(::send(socket, (const char*)buffer, header_size, 0) < 0)
             return false;
+
+        uint64_t data_buf_size          = buf_size - header_size;
+        unsigned int chunks_cnt         = static_cast<unsigned int>(data_buf_size / SEND_CHUNK_SIZE);
+        unsigned int last_chunk_size    = data_buf_size % SEND_CHUNK_SIZE;
+        for(unsigned int i=0; i < chunks_cnt; ++i) {
+            if(::send(socket, (const char*)buffer + header_size + i * SEND_CHUNK_SIZE, SEND_CHUNK_SIZE, 0) < 0) {
+                return false;
+            }
         }
+        if(last_chunk_size && ::send(socket, (const char*)buffer + header_size + chunks_cnt * SEND_CHUNK_SIZE, last_chunk_size, 0) < 0)
+            return false;
+
         delete[] buffer;
         buffer      = 0;
         buf_size    = 0;
@@ -385,9 +403,9 @@ typedef struct RPCSend {
         if(::send(socket, (const char*)buffer, sizeof(uint64_t) * 2, 0) < 0)
             goto exit2;
 
-        buf = new uint8_t[file_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : file_size];
+        buf = new uint8_t[file_size > SEND_CHUNK_SIZE ? SEND_CHUNK_SIZE : file_size];
         while(buf && file_size) {
-            unsigned int size_to_read = (file_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : file_size);
+            unsigned int size_to_read = (file_size > SEND_CHUNK_SIZE ? SEND_CHUNK_SIZE : file_size);
 
             if(!fread(buf, size_to_read, 1, hFile))
                 goto exit1;
@@ -427,8 +445,7 @@ private:
 typedef struct RPCReceive {
     RPCReceive(int socket_) : socket(socket_), buffer(0), buf_pointer(0) {
         uint64_t uiTmp[2];
-
-        if(::recv(socket_, (char*)uiTmp, sizeof(uint64_t)*2, MSG_WAITALL) != sizeof(uint64_t)*2) {
+        if(::recv(socket_, (char*)uiTmp, sizeof(uint64_t)* 2, MSG_WAITALL) != sizeof(uint64_t)* 2) {
             type = NONE;
             buf_size = 0;
             return;
@@ -439,8 +456,11 @@ typedef struct RPCReceive {
         }
 
         if(buf_size > 0) {
+            unsigned int chunks_cnt = static_cast<unsigned int>(buf_size / SEND_CHUNK_SIZE);
+            int last_chunk_size = static_cast<int>(buf_size % SEND_CHUNK_SIZE);
+
             if(type == LOAD_FILE) {
-                buf_pointer = buffer = new uint8_t[buf_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : buf_size];
+                buf_pointer = buffer = new uint8_t[buf_size > SEND_CHUNK_SIZE ? SEND_CHUNK_SIZE : buf_size];
                 if(!buffer) {
                     delete[] buffer;
                     buf_pointer = buffer = 0;
@@ -451,7 +471,16 @@ typedef struct RPCReceive {
             }
             else {
                 buf_pointer = buffer = new uint8_t[buf_size];
-                if(::recv(socket_, (char*)buffer, static_cast<unsigned int>(buf_size), MSG_WAITALL) != buf_size) {
+                for(unsigned int i = 0; i < chunks_cnt; ++i) {
+                    if(::recv(socket_, (char*)buffer + i * SEND_CHUNK_SIZE, SEND_CHUNK_SIZE, MSG_WAITALL) != SEND_CHUNK_SIZE) {
+                        delete[] buffer;
+                        buf_pointer = buffer = 0;
+                        type = NONE;
+                        buf_size = 0;
+                        return;
+                    }
+                }
+                if(last_chunk_size && ::recv(socket_, (char*)buffer + chunks_cnt * SEND_CHUNK_SIZE, last_chunk_size, MSG_WAITALL) != last_chunk_size) {
                     delete[] buffer;
                     buf_pointer = buffer = 0;
                     type = NONE;
@@ -462,9 +491,11 @@ typedef struct RPCReceive {
         }
         if(buffer && type >= FIRST_NAMED_PACKET && type <= LAST_NAMED_PACKET) {
             uint8_t len = *reinterpret_cast<uint8_t*>(buf_pointer);
+            //buf_pointer += sizeof(uint8_t);
 
-            name = reinterpret_cast<char*>(buf_pointer+1);
+            name = reinterpret_cast<char*>(buf_pointer + 1);
             buf_pointer += len;
+            //buf_size -= len;
         }
     }
 
@@ -487,7 +518,7 @@ typedef struct RPCReceive {
 
         uint64_t cur_size = buf_size;
         while(cur_size) {
-            unsigned int size_to_read = (cur_size > FILE_BUFFER_SIZE ? FILE_BUFFER_SIZE : cur_size);
+            int size_to_read = (cur_size > SEND_CHUNK_SIZE ? SEND_CHUNK_SIZE : static_cast<int>(cur_size));
             if(::recv(socket, (char*)buffer, size_to_read, MSG_WAITALL) != size_to_read) {
                 *err = errno;
                 fclose(hFile);
@@ -1053,10 +1084,10 @@ public:
                 break;
             case Kernel::INFO_CHANNEL:
                 {
-                    RPCSend snd(socket, sizeof(float)*3 + sizeof(int32_t)*6, LOAD_KERNEL);
+                    RPCSend snd(socket, sizeof(float)*4 + sizeof(int32_t)*7, LOAD_KERNEL);
                     int32_t info_channel_type = static_cast<int32_t>(kernel->info_channel_type);
-                    snd << kernel_type << info_channel_type << kernel->filter_size << kernel->zdepth_max << kernel->uv_max
-                        << kernel->alpha_channel << kernel->bump_normal_mapping << kernel->wf_bktrace_hl << (interactive ? kernel->max_preview_samples : kernel->max_samples);
+                    snd << kernel_type << info_channel_type << kernel->filter_size << kernel->zdepth_max << kernel->uv_max << kernel->ray_epsilon
+                        << kernel->alpha_channel << kernel->bump_normal_mapping << kernel->wf_bktrace_hl << kernel->distributed_tracing << (interactive ? kernel->max_preview_samples : kernel->max_samples);
                     snd.write();
                 }
                 break;
@@ -1993,17 +2024,18 @@ public:
     inline void load_dirt_tex(OctaneDirtTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 3 + sizeof(int32_t)
+        uint64_t size = sizeof(float) * 4 + sizeof(int32_t)
             + node->Strength.length() + 2
             + node->Details.length() + 2
-            + node->Radius.length() + 2;
+            + node->Radius.length() + 2
+            + node->Tolerance.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_DIRT_TEXTURE, node->name.c_str());
-            snd << node->Strength_default_val << node->Details_default_val << node->Radius_default_val
+            snd << node->Strength_default_val << node->Details_default_val << node->Radius_default_val << node->Tolerance_default_val
                 << node->InvertNormal
-                << node->Strength.c_str() << node->Details.c_str() << node->Radius.c_str();
+                << node->Strength.c_str() << node->Details.c_str() << node->Radius.c_str() << node->Tolerance.c_str();
             snd.write();
         }
         wait_error(LOAD_DIRT_TEXTURE);
@@ -2181,12 +2213,14 @@ public:
     inline void load_rotation_transform(OctaneRotationTransform* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 3;
+        uint64_t size = sizeof(float) * 3 + sizeof(int32_t)
+            + node->Rotation.length() + 2
+            + node->RotationOrder.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_ROTATION_TRANSFORM, node->name.c_str());
-            snd << node->Rotation.x << node->Rotation.y << node->Rotation.z;
+            snd << node->Rotation_default_val.x << node->Rotation_default_val.y << node->Rotation_default_val.z << node->RotationOrder_default_val << node->Rotation << node->RotationOrder;
             snd.write();
         }
         wait_error(LOAD_ROTATION_TRANSFORM);
@@ -2195,12 +2229,13 @@ public:
     inline void load_scale_transform(OctaneScaleTransform* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 3;
+        uint64_t size = sizeof(float) * 3
+            + node->Scale.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_SCALE_TRANSFORM, node->name.c_str());
-            snd << node->Scale.x << node->Scale.y << node->Scale.z;
+            snd << node->Scale_default_val.x << node->Scale_default_val.y << node->Scale_default_val.z << node->Scale;
             snd.write();
         }
         wait_error(LOAD_SCALE_TRANSFORM);
@@ -2209,18 +2244,61 @@ public:
     inline void load_full_transform(OctaneFullTransform* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 9;
+        uint64_t size = sizeof(float) * 9 + sizeof(int32_t);
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_FULL_TRANSFORM, node->name.c_str());
             snd << node->Rotation.x << node->Rotation.y << node->Rotation.z
                 << node->Scale.x << node->Scale.y << node->Scale.z
-                << node->Translation.x << node->Translation.y << node->Translation.z;
+                << node->Translation.x << node->Translation.y << node->Translation.z
+                << node->RotationOrder_default_val;
             snd.write();
         }
         wait_error(LOAD_FULL_TRANSFORM);
     } //load_full_transform()
+
+    inline void load_3d_transform(Octane3DTransform* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(float) * 9 + sizeof(int32_t)
+            + node->Rotation.length() + 2
+            + node->Scale.length() + 2
+            + node->Translation.length() + 2
+            + node->RotationOrder.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_3D_TRANSFORM, node->name.c_str());
+            snd << node->Rotation_default_val.x << node->Rotation_default_val.y << node->Rotation_default_val.z
+                << node->Scale_default_val.x << node->Scale_default_val.y << node->Scale_default_val.z
+                << node->Translation_default_val.x << node->Translation_default_val.y << node->Translation_default_val.z
+                << node->RotationOrder_default_val
+                << node->Rotation << node->Scale << node->Translation << node->RotationOrder;
+            snd.write();
+        }
+        wait_error(LOAD_3D_TRANSFORM);
+    } //load_3d_transform()
+
+    inline void load_2d_transform(Octane2DTransform* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(float) * 6
+            + node->Rotation.length() + 2
+            + node->Scale.length() + 2
+            + node->Translation.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_2D_TRANSFORM, node->name.c_str());
+            snd << node->Rotation_default_val.x << node->Rotation_default_val.y
+                << node->Scale_default_val.x << node->Scale_default_val.y
+                << node->Translation_default_val.x << node->Translation_default_val.y
+                << node->Rotation << node->Scale << node->Translation;
+            snd.write();
+        }
+        wait_error(LOAD_2D_TRANSFORM);
+    } //load_2d_transform()
 
     inline void delete_transform(string& name) {
         if(socket < 0 || !m_bInteractive) return;
@@ -2369,12 +2447,12 @@ public:
     inline void load_float_value(OctaneOctFloatValue* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float);
+        uint64_t size = sizeof(float) * 3;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_VALUE_FLOAT, node->name.c_str());
-            snd << node->Value;
+            snd << node->Value.x << node->Value.y << node->Value.z;
             snd.write();
         }
         wait_error(LOAD_VALUE_FLOAT);
@@ -2511,8 +2589,20 @@ public:
         float* in = float_img_buf;
 
         if(components == 1) {
-	        for(int i = 0; i < pixel_size; i++, in += 4, pixels++)
-		        *pixels = *in;
+            switch(type) {
+            case PASS_DEPTH:
+	            for(int i = 0; i < pixel_size; i++, in += 4, pixels++)
+		            *pixels = *in;
+                break;
+            case PASS_MATERIAL_ID:
+                for(int i = 0; i < pixel_size; i++, in += 4, pixels++)
+                    *pixels = ((uint32_t)(in[0] * 255) << 16) | ((uint32_t)(in[1] * 255) << 8) | ((uint32_t)(in[2] * 255));
+                break;
+            default:
+                for(int i = 0; i < pixel_size; i++, in += 4, pixels++)
+                    *pixels = *in;
+                break;
+            }
 	    } //if(components == 1)
 	    else if(components == 3) {
 		    for(int i = 0; i < pixel_size; i++, in += 4, pixels += 3) {

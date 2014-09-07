@@ -33,7 +33,6 @@
 #include "DNA_node_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.h"
@@ -48,7 +47,7 @@
 /* supported socket types in old nodes */
 int node_exec_socket_use_stack(bNodeSocket *sock)
 {
-	return ELEM4(sock->type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_SHADER);
+	return ELEM(sock->type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_SHADER);
 }
 
 /* for a given socket, find the actual stack entry */
@@ -160,6 +159,8 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context, bNodeTree *ntree, bNo
 	int index;
 	bNode **nodelist;
 	int totnodes, n;
+	/* XXX texnodes have threading issues with muting, have to disable it there ... */
+	bool use_muting = (ntree->type != NTREE_TEXTURE);
 	
 	/* ensure all sock->link pointers and node levels are correct */
 	ntreeUpdateTree(G.main, ntree);
@@ -183,7 +184,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context, bNodeTree *ntree, bNo
 		for (sock = node->inputs.first; sock; sock = sock->next)
 			node_init_input_index(sock, &index);
 		
-		if (node->flag & NODE_MUTED || node->type == NODE_REROUTE) {
+		if (use_muting && (node->flag & NODE_MUTED || node->type == NODE_REROUTE)) {
 			for (sock = node->outputs.first; sock; sock = sock->next)
 				node_init_output_index(sock, &index, &node->internal_links);
 		}

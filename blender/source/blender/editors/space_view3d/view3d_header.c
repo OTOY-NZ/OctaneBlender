@@ -32,11 +32,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "DNA_brush_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
-#include "DNA_mesh_types.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -46,9 +44,7 @@
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_effect.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_paint.h"
 #include "BKE_screen.h"
@@ -64,8 +60,6 @@
 #include "ED_mesh.h"
 #include "ED_util.h"
 #include "ED_screen.h"
-#include "ED_transform.h"
-#include "ED_types.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -278,10 +272,10 @@ void uiTemplateEditModeSelection(uiLayout *layout, struct bContext *C)
 		block = uiLayoutGetBlock(row);
 		uiDefIconButBitS(block, TOG, SCE_SELECT_VERTEX, B_SEL_VERT, ICON_VERTEXSEL,
 		                 0, 0, UI_UNIT_X, UI_UNIT_Y, &em->selectmode, 1.0, 0.0, 0, 0,
-		                 TIP_("Vertex select - Shift-Click for multiple modes"));
+		                 TIP_("Vertex select - Shift-Click for multiple modes, Ctrl-Click contracts selection"));
 		uiDefIconButBitS(block, TOG, SCE_SELECT_EDGE, B_SEL_EDGE, ICON_EDGESEL,
 		                 0, 0, UI_UNIT_X, UI_UNIT_Y, &em->selectmode, 1.0, 0.0, 0, 0,
-		                 TIP_("Edge select - Shift-Click for multiple modes, Ctrl-Click expands selection"));
+		                 TIP_("Edge select - Shift-Click for multiple modes, Ctrl-Click expands/contracts selection"));
 		uiDefIconButBitS(block, TOG, SCE_SELECT_FACE, B_SEL_FACE, ICON_FACESEL,
 		                 0, 0, UI_UNIT_X, UI_UNIT_Y, &em->selectmode, 1.0, 0.0, 0, 0,
 		                 TIP_("Face select - Shift-Click for multiple modes, Ctrl-Click expands selection"));
@@ -316,7 +310,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	/* mode */
 	if (ob) {
 		modeselect = ob->mode;
-		is_paint = ELEM4(ob->mode, OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT);
+		is_paint = ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT);
 	}
 	else {
 		modeselect = OB_MODE_OBJECT;
@@ -344,8 +338,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	uiItemR(layout, &v3dptr, "viewport_shade", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
 	if (obedit == NULL && is_paint) {
-
-		if (ob->mode & OB_MODE_WEIGHT_PAINT) {
+		if (ob->mode & OB_MODE_ALL_PAINT) {
 			/* Only for Weight Paint. makes no sense in other paint modes. */
 			row = uiLayoutRow(layout, true);
 			uiItemR(row, &v3dptr, "pivot_point", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);

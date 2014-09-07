@@ -160,10 +160,10 @@ struct PBVH {
 
 	/* Dynamic topology */
 	BMesh *bm;
-	GHash *bm_face_to_node;
-	GHash *bm_vert_to_node;
 	float bm_max_edge_len;
 	float bm_min_edge_len;
+	int cd_vert_node_offset;
+	int cd_face_node_offset;
 
 	struct BMLog *bm_log;
 };

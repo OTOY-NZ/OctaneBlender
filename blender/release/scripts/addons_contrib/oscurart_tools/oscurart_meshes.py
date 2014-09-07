@@ -6,42 +6,40 @@ import stat
 import bmesh
 import time
 import random
+import bgl
+import blf
+from bpy_extras.view3d_utils import location_3d_to_region_2d
 
 C = bpy.context
 D = bpy.data
 
 ##-----------------------------RECONST---------------------------
-def defReconst(self, OFFSET):
+def defReconst(self, OFFSET): 
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    bpy.context.tool_settings.mesh_select_mode = (True, False, False)
-    OBJETO = bpy.context.active_object
-    OBDATA = bmesh.from_edit_mesh(OBJETO.data)
-    OBDATA.select_flush(False)
-    for vertice in OBDATA.verts[:]:
+    bpy.context.tool_settings.mesh_select_mode = (True, True, True)
+    ob = bpy.context.active_object
+    bm = bmesh.from_edit_mesh(ob.data)
+    bm.select_flush(False)
+    for vertice in bm.verts[:]:
         if abs(vertice.co[0]) < OFFSET:
-            vertice.co[0] = 0
-    bpy.ops.mesh.select_all(action="DESELECT")
-    for vertices in OBDATA.verts[:]:
-      if vertices.co[0] < 0:
-        vertices.select = 1
-    bpy.ops.mesh.delete()
-    bpy.ops.object.modifier_add(type='MIRROR')
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.mesh.uv_texture_add()
-    LENUVLISTSIM = len(bpy.data.objects[OBJETO.name].data.uv_textures)
-    LENUVLISTSIM = LENUVLISTSIM - 1
-    OBJETO.data.uv_textures[LENUVLISTSIM:][0].name = "SYMMETRICAL"
+            vertice.co[0] = 0            
+    for vertice in bm.verts[:]:
+      if vertice.co[0] < 0:
+        bm.verts.remove(vertice)
+        bmesh.update_edit_mesh(ob.data) 
+    mod = ob.modifiers.new("Mirror","MIRROR")
+    uv = ob.data.uv_textures.new(name="SYMMETRICAL")
+    for v in bm.faces: v.select = 1
+    bmesh.update_edit_mesh(ob.data)
+    ob.data.uv_textures.active = ob.data.uv_textures['SYMMETRICAL']
     bpy.ops.uv.unwrap(method='ANGLE_BASED', fill_holes=True, correct_aspect=False, use_subsurf_data=0)
     bpy.ops.object.mode_set(mode="OBJECT", toggle= False)
     bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Mirror")
     bpy.ops.object.mode_set(mode="EDIT", toggle= False)
-    OBDATA = bmesh.from_edit_mesh(OBJETO.data)
-    OBDATA.select_flush(0)
-    bpy.ops.mesh.uv_texture_add()
-    LENUVLISTASIM = len(OBJETO.data.uv_textures)
-    LENUVLISTASIM = LENUVLISTASIM  - 1
-    OBJETO.data.uv_textures[LENUVLISTASIM:][0].name = "ASYMMETRICAL"
-    OBJETO.data.uv_textures.active = OBJETO.data.uv_textures["ASYMMETRICAL"]
+    bm = bmesh.from_edit_mesh(ob.data)
+    bm.select_flush(0)
+    uv = ob.data.uv_textures.new(name="ASYMMETRICAL")
+    ob.data.uv_textures.active = ob.data.uv_textures['ASYMMETRICAL']
     bpy.ops.uv.unwrap(method='ANGLE_BASED', fill_holes=True, correct_aspect=False, use_subsurf_data=0)
 
 class reConst (bpy.types.Operator):
@@ -99,46 +97,18 @@ class resymVertexGroups (bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
     def execute(self,context):
 
-        OBACTIVO = bpy.context.active_object
-        VGACTIVO = OBACTIVO.vertex_groups.active.index
-        
-        bpy.ops.object.mode_set(mode='EDIT')
-        BM = bmesh.from_edit_mesh(bpy.context.object.data)  
-        bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.ops.object.vertex_group_select()
-        SELVER=[VERT.index for VERT in BM.verts[:] if VERT.select]   
-        
-        SYSBAR = os.sep     
-         
-        FILEPATH=bpy.data.filepath
-        ACTIVEFOLDER=FILEPATH.rpartition(SYSBAR)[0]
-        ENTFILEPATH= "%s%s%s_%s_SYM_TEMPLATE.xml" %  (ACTIVEFOLDER, SYSBAR, bpy.context.scene.name, bpy.context.object.name)
-        XML=open(ENTFILEPATH ,mode="r")        
-        SYMAP = eval(XML.readlines()[0])      
-        INL = [VERT for VERT in SYMAP if SYMAP[VERT] in SELVER if VERT!= SYMAP[VERT]] 
-        bpy.ops.mesh.select_all(action='DESELECT')
-        for VERT in INL:
-            BM.verts[VERT].select = True
-        bpy.ops.object.vertex_group_assign(new=False)    
-        bpy.ops.object.mode_set(mode='WEIGHT_PAINT')        
-        for VERT in INL:
-            for i, GRA in enumerate(OBACTIVO.data.vertices[SYMAP[VERT]].groups[:]):
-                if GRA.group == VGACTIVO:
-                    print (i)
-                    EM = i                    
+        with open("%s_%s_SYM_TEMPLATE.xml" % (os.path.join(os.path.dirname(bpy.data.filepath),bpy.context.scene.name),bpy.context.object.name)) as file:
+            ob = bpy.context.object
+            actgr = ob.vertex_groups.active
+            actind = ob.vertex_groups.active_index
+            ls = eval(file.read())
+            wdict = {left: actgr.weight(right)  for left, right in ls.items() for group in ob.data.vertices[right].groups  if group.group == actind}
+            actgr.remove([vert.index for vert in ob.data.vertices if vert.co[0] <= 0])       
+            for ind, weight in wdict.items():
+                actgr.add([ind],weight,'REPLACE')
+            bpy.context.object.data.update()                
 
-            for a, GRA in enumerate(OBACTIVO.data.vertices[VERT].groups[:]):     
-                if GRA.group == VGACTIVO:
-                    print (a)
-                    REC = a
-
-                    
-            OBACTIVO.data.vertices[VERT].groups[REC].weight = OBACTIVO.data.vertices[SYMAP[VERT]].groups[EM].weight  
-        XML.close()
-        SYMAP.clear()  
-      
-
-        print("===============(JOB DONE)=============")
+ 
         return {'FINISHED'}
 
 
@@ -150,10 +120,17 @@ class OscExportVG (bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
     def execute(self,context):
         
-        with open(os.path.join(os.path.split(bpy.data.filepath)[0],"%s_vg" % (bpy.context.object.name)), "w") as FILE:
-            WEIGHTLIST = [[group.group, vert.index, group.weight] for vert in bpy.context.object.data.vertices[:] for group in vert.groups[:]]
-            WEIGHTLIST.append([group.name for group in bpy.context.object.vertex_groups])
-            FILE.write(str(WEIGHTLIST))
+        ob = bpy.context.object
+        with open(os.path.join(os.path.dirname(bpy.data.filepath),ob.name+".txt"), mode="w") as file:
+            grs = {group.name for group in ob.vertex_groups}
+            vg = {vert.index : list(map(  lambda x: (ob.vertex_groups[x.group].name, x.weight)  , vert.groups  )) for vert in ob.data.vertices if len(vert.groups) > 0}
+            neworder = {}
+            for indice, data in vg.items():
+                for group, weight in data:
+                    neworder.setdefault(group,[]).append((indice,weight))
+            file.write(str(grs))
+            file.write(str("\n"))
+            file.write(str(neworder))
 
         return {'FINISHED'}
 
@@ -163,13 +140,15 @@ class OscImportVG (bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
     def execute(self,context):
         
-        with open(os.path.join(os.path.split(bpy.data.filepath)[0],"%s_vg" % (bpy.context.object.name)), "r") as FILE:
-            WEIGHTLIST = eval(FILE.read())
-            for group in WEIGHTLIST[-1]:
-                bpy.context.object.vertex_groups.new(name=group)
-            for ind ,(gr, index, weight) in enumerate(WEIGHTLIST[:-1]):
-                print(ind, gr, index, weight)
-                bpy.context.object.vertex_groups[gr].add(index=(index,index),weight=weight, type="REPLACE")
+        ob = bpy.context.object    
+        with open(os.path.join(os.path.dirname(bpy.data.filepath),ob.name+".txt"), mode="r") as file:   
+            grs = eval(file.readlines(1)[0] )
+            neworder = eval(file.readlines(2)[0] )
+            for gr in grs:
+                bpy.context.object.vertex_groups.new(name=gr)
+            for group, data in neworder.items():
+                for indice, weight in data:
+                    ob.vertex_groups[group].add([indice],weight,"REPLACE")
         
         return {'FINISHED'}
 
@@ -178,88 +157,77 @@ class OscImportVG (bpy.types.Operator):
 ## ------------------------------------ RESYM MESH--------------------------------------
 
 
-def reSymSave (self):
+def reSymSave (self,quality):
     
-    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.object.mode_set(mode='OBJECT')
     
-    BM = bmesh.from_edit_mesh(bpy.context.object.data)   
-     
-    L = {VERT.index : [VERT.co[0],VERT.co[1],VERT.co[2]] for VERT in BM.verts[:] if VERT.co[0] < 0.0001}
-    R = {VERT.index : [-VERT.co[0],VERT.co[1],VERT.co[2]]  for VERT in BM.verts[:] if VERT.co[0] > -0.0001}
-    
-    SYMAP = {VERTL : VERTR for VERTR in R for VERTL in L if R[VERTR] == L[VERTL] }            
+    object = bpy.context.object
+
+    rdqual = quality
+    rd = lambda x : round(x,rdqual)
+    absol = lambda x : (abs(x[0]),x[1],x[2])
+
+    inddict = { tuple(map(rd, vert.co[:])) : vert.index for vert in object.data.vertices[:]}
+    reldict = { inddict[vert] : inddict.get(absol(vert),inddict[vert]) for vert in inddict if vert[0] <= 0  }       
         
-    FILEPATH=bpy.data.filepath
-    ACTIVEFOLDER = os.path.split(FILEPATH)[0]
-    ENTFILEPATH= "%s_%s_SYM_TEMPLATE.xml" %  (os.path.join(ACTIVEFOLDER, bpy.context.scene.name), bpy.context.object.name)
+    ENTFILEPATH= "%s_%s_SYM_TEMPLATE.xml" %  (os.path.join(os.path.dirname(bpy.data.filepath), bpy.context.scene.name), bpy.context.object.name)
     with open(ENTFILEPATH ,mode="w") as file:   
-        file.writelines(str(SYMAP))
-        SYMAP.clear()
+        file.writelines(str(reldict))
+        reldict.clear()
 
 def reSymMesh (self, SELECTED, SIDE):    
-    bpy.ops.object.mode_set(mode='EDIT')    
-    BM = bmesh.from_edit_mesh(bpy.context.object.data)    
-    FILEPATH=bpy.data.filepath
-    ACTIVEFOLDER = os.path.split(FILEPATH)[0]
-    ENTFILEPATH= "%s_%s_SYM_TEMPLATE.xml" %  (os.path.join(ACTIVEFOLDER,bpy.context.scene.name), bpy.context.object.name)
+    bpy.ops.object.mode_set(mode='EDIT')     
+    ENTFILEPATH= "%s_%s_SYM_TEMPLATE.xml" %  (os.path.join(os.path.dirname(bpy.data.filepath),bpy.context.scene.name), bpy.context.object.name)
     with open(ENTFILEPATH ,mode="r") as file: 
         SYMAP = eval(file.readlines()[0])    
+        bm = bmesh.from_edit_mesh(bpy.context.object.data)
+        object = bpy.context.object       
+        
+        def MAME (SYMAP):
+            if SELECTED:
+                for vert in SYMAP:
+                    if bm.verts[SYMAP[vert]].select:
+                        bm.verts[vert].co = (-1*bm.verts[SYMAP[vert]].co[0],
+                            bm.verts[SYMAP[vert]].co[1],
+                                bm.verts[SYMAP[vert]].co[2])
+            else:
+                for vert in SYMAP:
+                    bm.verts[vert].co = (-1*bm.verts[SYMAP[vert]].co[0],
+                        bm.verts[SYMAP[vert]].co[1],
+                        bm.verts[SYMAP[vert]].co[2])
+            bmesh.update_edit_mesh(object.data)  
+       
+                                
+        def MEMA (SYMAP):
+            if SELECTED:
+                for vert in SYMAP:
+                    if bm.verts[vert].select:
+                        bm.verts[SYMAP[vert]].co = (-1*bm.verts[vert].co[0],
+                            bm.verts[vert].co[1],
+                            bm.verts[vert].co[2])   
+            else:
+                for vert in SYMAP:
+                    bm.verts[SYMAP[vert]].co = (-1*bm.verts[vert].co[0],
+                        bm.verts[vert].co[1],
+                        bm.verts[vert].co[2])  
+            bmesh.update_edit_mesh(object.data)  
+                                        
+                    
         if SIDE == "+-":
-            if SELECTED:
-                for VERT in SYMAP:
-                    if BM.verts[SYMAP[VERT]].select:
-                        if VERT == SYMAP[VERT]:
-                            BM.verts[VERT].co[0] = 0
-                            BM.verts[VERT].co[1] = BM.verts[SYMAP[VERT]].co[1]
-                            BM.verts[VERT].co[2] = BM.verts[SYMAP[VERT]].co[2]            
-                        else:    
-                            BM.verts[VERT].co[0] = -BM.verts[SYMAP[VERT]].co[0]
-                            BM.verts[VERT].co[1] = BM.verts[SYMAP[VERT]].co[1]
-                            BM.verts[VERT].co[2] = BM.verts[SYMAP[VERT]].co[2]        
-            else:    
-                for VERT in SYMAP:
-                    if VERT == SYMAP[VERT]:
-                        BM.verts[VERT].co[0] = 0
-                        BM.verts[VERT].co[1] = BM.verts[SYMAP[VERT]].co[1]
-                        BM.verts[VERT].co[2] = BM.verts[SYMAP[VERT]].co[2]            
-                    else:    
-                        BM.verts[VERT].co[0] = -BM.verts[SYMAP[VERT]].co[0]
-                        BM.verts[VERT].co[1] = BM.verts[SYMAP[VERT]].co[1]
-                        BM.verts[VERT].co[2] = BM.verts[SYMAP[VERT]].co[2]
+            MAME(SYMAP)
         else:
-            if SELECTED:
-                for VERT in SYMAP:
-                    if BM.verts[VERT].select:
-                        if VERT == SYMAP[VERT]:
-                            BM.verts[SYMAP[VERT]].co[0] = 0
-                            BM.verts[SYMAP[VERT]].co[1] = BM.verts[VERT].co[1]
-                            BM.verts[SYMAP[VERT]].co[2] = BM.verts[VERT].co[2]            
-                        else:    
-                            BM.verts[SYMAP[VERT]].co[0] = -BM.verts[VERT].co[0]
-                            BM.verts[SYMAP[VERT]].co[1] = BM.verts[VERT].co[1]
-                            BM.verts[SYMAP[VERT]].co[2] = BM.verts[VERT].co[2]        
-            else:    
-                for VERT in SYMAP:
-                    if VERT == SYMAP[VERT]:
-                        BM.verts[SYMAP[VERT]].co[0] = 0
-                        BM.verts[SYMAP[VERT]].co[1] = BM.verts[VERT].co[1]
-                        BM.verts[SYMAP[VERT]].co[2] = BM.verts[VERT].co[2]            
-                    else:    
-                        BM.verts[SYMAP[VERT]].co[0] = -BM.verts[VERT].co[0]
-                        BM.verts[SYMAP[VERT]].co[1] = BM.verts[VERT].co[1]
-                        BM.verts[SYMAP[VERT]].co[2] = BM.verts[VERT].co[2]                    
-        
-        bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.mode_set(mode='EDIT')
-        SYMAP.clear()
-        
+            MEMA(SYMAP)           
+                         
+   
 class OscResymSave (bpy.types.Operator):
     bl_idname = "mesh.resym_save_map"
     bl_label = "Resym save XML Map"
     bl_options = {"REGISTER", "UNDO"}
 
+    quality = bpy.props.IntProperty(default=4, name="Quality")
+    
     def execute (self, context):
-        reSymSave(self)
+        reSymSave(self,self.quality)
         return {'FINISHED'}
 
 class OscResymMesh (bpy.types.Operator):
@@ -307,27 +275,142 @@ class OscObjectToMesh(bpy.types.Operator):
 ## ----------------------------- OVERLAP UV --------------------------------------------
 
 
-def DefOscOverlapUv(valprecision):
-    rd = 4
-    ACTOBJ = bpy.context.object
+def DefOscOverlapUv(valpresicion):
     inicio= time.time()
-    bpy.ops.mesh.faces_mirror_uv(direction='POSITIVE', precision=valprecision)
-    bpy.ops.object.mode_set(mode='OBJECT')
-    SELUVVERT = [ver for ver in ACTOBJ.data.uv_layers[ACTOBJ.data.uv_textures.active.name].data[:] if ver.select]
-    MAY = [ver for ver in SELUVVERT if ver.uv[0] > .5]
+    mode = bpy.context.object.mode
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+    rd = valpresicion
+    ob = bpy.context.object
+    absco = lambda x: (abs(round(x[0],rd)),round(x[1],rd),round(x[2],rd))
+    rounder = lambda x: (round(x[0],rd),round(x[1],rd),round(x[2],rd))
+
+    # vertice a vertex
+    vertvertex = {}
+    for vert in ob.data.loops:
+        vertvertex.setdefault(vert.vertex_index,[]).append(vert.index)
+
+    # posicion de cada vertice y cada face 
+    vertloc = { rounder(vert.co[:]) : vert for vert in ob.data.vertices} 
+    faceloc = { rounder(poly.center[:]) : poly for poly in ob.data.polygons} 
+
+    # relativo de cada vertice y cada face
+    verteq = {vert : vertloc.get(absco(co),vertloc[co]) for co,vert in vertloc.items() if co[0] <= 0}    
+    polyeq = {face : faceloc.get(absco(center),faceloc[center]) for center,face in faceloc.items() if center[0] <= 0}  
+
+    # loops in faces
+    lif = {poly : [i for i in poly.loop_indices] for poly in ob.data.polygons}
+
+    # acomoda
+    for l, r in polyeq.items():
+        for llif,rlif in zip(lif[l],lif[r]):
+            ob.data.uv_layers.active.data[rlif].uv = ob.data.uv_layers.active.data[llif].uv
+
+    bpy.ops.object.mode_set(mode=mode, toggle=False) 
+   
+    print("Time elapsed: %4s seconds" % (time.time()-inicio))          
     
-    for vl in MAY:
-        vl.uv = (1-vl.uv[0],vl.uv[1])   
-                   
-    bpy.ops.object.mode_set(mode='EDIT')
-    print("Time elapsed: %4s seconds" % (time.time()-inicio))
+
 
 class OscOverlapUv(bpy.types.Operator):
     bl_idname = "mesh.overlap_uv_faces"
     bl_label = "Overlap Uvs"
     bl_options = {"REGISTER", "UNDO"}
-
-    precision = bpy.props.IntProperty(default=4, min=1, max=10, name="precision" )
+    
+    presicion = bpy.props.IntProperty(default=4, min=1, max=10, name="precision" )
+    
     def execute(self, context):
-        DefOscOverlapUv(self.precision)
+        DefOscOverlapUv(self.presicion)
         return {'FINISHED'}
+
+## ------------------------------- IO VERTEX COLORS --------------------
+
+def DefOscExportVC():
+    with open(os.path.join(os.path.dirname(bpy.data.filepath),bpy.context.object.name) + ".vc", mode="w") as file:
+        ob = bpy.context.object
+        di = { loopind : ob.data.vertex_colors.active.data[loopind].color[:] for face in ob.data.polygons for loopind in face.loop_indices[:] }
+        file.write(str(di))
+        
+def DefOscImportVC():
+    with open(os.path.join(os.path.dirname(bpy.data.filepath),bpy.context.object.name) + ".vc", mode="r") as file:
+        di = eval(file.read())
+        for loopind in di:
+            bpy.context.object.data.vertex_colors.active.data[loopind].color = di[loopind]        
+            
+class OscExportVC (bpy.types.Operator):
+    bl_idname = "mesh.export_vertex_colors"
+    bl_label = "Export Vertex Colors"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        DefOscExportVC()
+        return {'FINISHED'}    
+    
+class OscImportVC (bpy.types.Operator):
+    bl_idname = "mesh.import_vertex_colors"
+    bl_label = "Import Vertex Colors"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        DefOscImportVC()
+        return {'FINISHED'}              
+    
+    
+## ------------------ PRINT VERTICES ----------------------
+
+
+def dibuja_callback(self, context):
+    font_id = 0     
+    bm = bmesh.from_edit_mesh(bpy.context.object.data)    
+    for v in bm.verts:
+        cord = location_3d_to_region_2d(context.region, context.space_data.region_3d, self.matr * v.co)
+        blf.position(font_id, cord[0], cord[1], 0)
+        blf.size(font_id, self.tsize, 72)
+        blf.draw(font_id, str(v.index))
+    
+    
+class ModalIndexOperator(bpy.types.Operator):
+    bl_idname = "view3d.modal_operator"
+    bl_label = "Print Vertices"    
+    
+    @classmethod
+    def poll(cls, context):
+        return True if context.active_object is not None and context.object.type == "MESH" else False
+    
+    def modal(self, context, event):
+        context.area.tag_redraw()        
+        if event.type == 'MOUSEMOVE':
+            self.x = event.mouse_region_x
+            self.matr = context.object.matrix_world
+        elif event.type == 'LEFTMOUSE':
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            return {'FINISHED'}
+        elif event.type == 'PAGE_UP':
+            self.tsize += 1
+        elif event.type == 'PAGE_DOWN':
+            self.tsize -= 1            
+        elif event.type in {'RIGHTMOUSE', 'ESC', 'TAB'}:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            context.area.header_text_set()
+            return {'CANCELLED'}
+
+        return {'PASS_THROUGH'}
+    
+    def invoke(self, context, event):
+        if context.area.type == "VIEW_3D":
+            context.area.header_text_set("Esc: exit, PageUP/Down: text size")
+            bpy.ops.object.mode_set(mode="EDIT")
+            self.tsize = 20
+            args = (self, context)
+            self._handle = bpy.types.SpaceView3D.draw_handler_add(dibuja_callback, args, "WINDOW", "POST_PIXEL")  
+            context.window_manager.modal_handler_add(self)
+            return{'RUNNING_MODAL'}
+        else:
+            self.report({"WARNING"}, "Is not a 3D Space")
+            return {'CANCELLED'}
+                
+
+
+
+
+

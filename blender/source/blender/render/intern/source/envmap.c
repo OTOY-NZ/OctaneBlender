@@ -31,7 +31,6 @@
 #include <string.h>
 
 /* external modules: */
-#include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -50,13 +49,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_image.h"   /* BKE_imbuf_write */
 #include "BKE_texture.h"
-
-
-
 
 /* this module */
 #include "render_types.h"
@@ -172,6 +167,8 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	envre->duh = re->duh;
 	envre->test_break = re->test_break;
 	envre->tbh = re->tbh;
+	envre->current_scene_update = re->current_scene_update;
+	envre->suh = re->suh;
 	
 	/* and for the evil stuff; copy the database... */
 	envre->totvlak = re->totvlak;
@@ -321,6 +318,10 @@ void env_rotate_scene(Render *re, float mat[4][4], int do_rotate)
 		
 			mul_m4_v3(tmat, har->co);
 		}
+
+		/* imat_ren is needed for correct texture coordinates */
+		mul_m4_m4m4(obr->ob->imat_ren, re->viewmat, obr->ob->obmat);
+		invert_m4(obr->ob->imat_ren);
 	}
 	
 	for (go = re->lights.first; go; go = go->next) {
@@ -328,9 +329,9 @@ void env_rotate_scene(Render *re, float mat[4][4], int do_rotate)
 		
 		/* copy from add_render_lamp */
 		if (do_rotate == 1)
-			mul_m4_m4m4(tmpmat, re->viewmat, go->ob->obmat);
+			mul_m4_m4m4(tmpmat, re->viewmat, lar->lampmat);
 		else
-			mul_m4_m4m4(tmpmat, re->viewmat_orig, go->ob->obmat);
+			mul_m4_m4m4(tmpmat, re->viewmat_orig, lar->lampmat);
 		invert_m4_m4(go->ob->imat, tmpmat);
 		
 		copy_m3_m4(lar->mat, tmpmat);

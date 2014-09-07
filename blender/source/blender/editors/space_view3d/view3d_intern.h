@@ -140,7 +140,9 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, struc
 void drawaxes(float size, char drawtype);
 
 void view3d_cached_text_draw_begin(void);
-void view3d_cached_text_draw_add(const float co[3], const char *str, short xoffs, short flag, const unsigned char col[4]);
+void view3d_cached_text_draw_add(const float co[3],
+                                 const char *str, const size_t str_len,
+                                 short xoffs, short flag, const unsigned char col[4]);
 void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, float mat[4][4]);
 
 bool check_object_draw_texture(struct Scene *scene, struct View3D *v3d, const char drawtype);
@@ -175,8 +177,8 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);
-void draw_depth(Scene *scene, struct ARegion *ar, View3D *v3d, int (*func)(void *), bool alphaoverride);
-void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d);
+void ED_view3d_draw_depth(Scene *scene, struct ARegion *ar, View3D *v3d, bool alphaoverride);
+void ED_view3d_draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d);
 void ED_view3d_after_add(ListBase *lb, Base *base, const short dflag);
 
 void circf(float x, float y, float rad);
@@ -202,12 +204,22 @@ void VIEW3D_OT_game_start(struct wmOperatorType *ot);
 bool ED_view3d_boundbox_clip_ex(RegionView3D *rv3d, const struct BoundBox *bb, float obmat[4][4]);
 bool ED_view3d_boundbox_clip(RegionView3D *rv3d, const struct BoundBox *bb);
 
-void ED_view3d_smooth_view(struct bContext *C, struct View3D *v3d, struct ARegion *ar, struct Object *, struct Object *,
-                           float *ofs, float *quat, float *dist, float *lens,
-                           const int smooth_viewtx);
+void ED_view3d_smooth_view_ex(
+        struct wmWindowManager *wm, struct wmWindow *win, struct ScrArea *sa,
+        struct View3D *v3d, struct ARegion *ar,
+        struct Object *camera_old, struct Object *camera,
+        const float *ofs, const float *quat, const float *dist, const float *lens,
+        const int smooth_viewtx);
 
-void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect);
-void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d);
+void ED_view3d_smooth_view(
+        struct bContext *C,
+        struct View3D *v3d, struct ARegion *ar,
+        struct Object *camera_old, struct Object *camera,
+        const float *ofs, const float *quat, const float *dist, const float *lens,
+        const int smooth_viewtx);
+
+void view3d_winmatrix_set(ARegion *ar, View3D *v3d, const rctf *rect);
+void view3d_viewmatrix_set(Scene *scene, View3D *v3d, RegionView3D *rv3d);
 
 void fly_modal_keymap(struct wmKeyConfig *keyconf);
 void walk_modal_keymap(struct wmKeyConfig *keyconf);
@@ -221,7 +233,7 @@ void VIEW3D_OT_properties(struct wmOperatorType *ot);
 void view3d_buttons_register(struct ARegionType *art);
 
 /* view3d_camera_control.c */
-struct View3DCameraControl *ED_view3d_cameracontrol_aquire(
+struct View3DCameraControl *ED_view3d_cameracontrol_acquire(
         Scene *scene, View3D *v3d, RegionView3D *rv3d,
         const bool use_parent_root);
 void ED_view3d_cameracontrol_update(
@@ -257,8 +269,8 @@ extern const char *view3d_context_dir[]; /* doc access */
 
 /* draw_volume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,
-                       struct GPUTexture *tex, float min[3], float max[3],
-                       int res[3], float dx, float base_scale, float viewnormal[3],
+                       struct GPUTexture *tex, const float min[3], const float max[3],
+                       const int res[3], float dx, float base_scale, const float viewnormal[3],
                        struct GPUTexture *tex_shadow, struct GPUTexture *tex_flame);
 
 //#define SMOKE_DEBUG_VELOCITY
@@ -273,7 +285,7 @@ void draw_smoke_heat(struct SmokeDomainSettings *domain, struct Object *ob);
 
 /* workaround for trivial but noticeable camera bug caused by imprecision
  * between view border calculation in 2D/3D space, workaround for bug [#28037].
- * without this deifne we get the old behavior which is to try and align them
+ * without this define we get the old behavior which is to try and align them
  * both which _mostly_ works fine, but when the camera moves beyond ~1000 in
  * any direction it starts to fail */
 #define VIEW3D_CAMERA_BORDER_HACK

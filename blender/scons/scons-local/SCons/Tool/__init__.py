@@ -14,7 +14,7 @@ tool definition.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -35,7 +35,7 @@ tool definition.
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Tool/__init__.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Tool/__init__.py  2014/03/02 14:18:15 garyo"
 
 import imp
 import sys
@@ -257,6 +257,10 @@ def VersionShLibLinkNames(version, libname, env):
             print "VersionShLibLinkNames: linkname = ",linkname
         linknames.append(linkname)
     elif platform == 'posix':
+        if sys.platform.startswith('openbsd'):
+            # OpenBSD uses x.y shared library versioning numbering convention
+            # and doesn't use symlinks to backwards-compatible libraries
+            return []
         # For libfoo.so.x.y.z, linknames libfoo.so libfoo.so.x.y libfoo.so.x
         suffix_re = re.escape(shlib_suffix + '.' + version)
         # First linkname has no version number
@@ -302,13 +306,17 @@ symlinks for the platform we are on"""
     if version:
         # set the shared library link flags
         if platform == 'posix':
-            suffix_re = re.escape(shlib_suffix + '.' + version)
-            (major, age, revision) = version.split(".")
-            # soname will have only the major version number in it
-            soname = re.sub(suffix_re, shlib_suffix, libname) + '.' + major
-            shlink_flags += [ '-Wl,-Bsymbolic', '-Wl,-soname=%s' % soname ]
-            if Verbose:
-                print " soname ",soname,", shlink_flags ",shlink_flags
+            shlink_flags += [ '-Wl,-Bsymbolic' ]
+            # OpenBSD doesn't usually use SONAME for libraries
+            if not sys.platform.startswith('openbsd'):
+                # continue setup of shlink flags for all other POSIX systems
+                suffix_re = re.escape(shlib_suffix + '.' + version)
+                (major, age, revision) = version.split(".")
+                # soname will have only the major version number in it
+                soname = re.sub(suffix_re, shlib_suffix, libname) + '.' + major
+                shlink_flags += [ '-Wl,-soname=%s' % soname ]
+                if Verbose:
+                    print " soname ",soname,", shlink_flags ",shlink_flags
         elif platform == 'cygwin':
             shlink_flags += [ '-Wl,-Bsymbolic',
                               '-Wl,--out-implib,${TARGET.base}.a' ]
@@ -337,18 +345,32 @@ symlinks for the platform we are on"""
         for count in range(len(linknames)):
             linkname = linknames[count]
             if count > 0:
-                os.symlink(os.path.basename(linkname),lastname)
+                try:
+                    os.remove(lastlinkname)
+                except:
+                    pass
+                os.symlink(os.path.basename(linkname),lastlinkname)
                 if Verbose:
-                    print "VerShLib: made sym link of %s -> %s" % (lastname,linkname)
-            lastname = linkname
+                    print "VerShLib: made sym link of %s -> %s" % (lastlinkname,linkname)
+            lastlinkname = linkname
         # finish chain of sym links with link to the actual library
         if len(linknames)>0:
-            os.symlink(lib_ver,lastname)
+            try:
+                os.remove(lastlinkname)
+            except:
+                pass
+            os.symlink(lib_ver,lastlinkname)
             if Verbose:
-                print "VerShLib: made sym link of %s -> %s" % (lib_ver,linkname)
+                print "VerShLib: made sym link of %s -> %s" % (linkname, lib_ver)
     return result
 
-ShLibAction = SCons.Action.Action(VersionedSharedLibrary, None)
+# Fix http://scons.tigris.org/issues/show_bug.cgi?id=2903 :
+# Ensure we still depend on SCons.Defaults.ShLinkAction command line which is $SHLINKCOM.
+# This was tricky because we don't want changing LIBPATH to cause a rebuild, but
+# changing other link args should.  LIBPATH has $( ... $) around it but until this
+# fix, when the varlist was added to the build sig those ignored parts weren't getting
+# ignored.
+ShLibAction = SCons.Action.Action(VersionedSharedLibrary, None, varlist=['SHLINKCOM'])
 
 def createSharedLibBuilder(env):
     """This is a utility function that creates the SharedLibrary
@@ -733,6 +755,14 @@ def tool_list(platform, env):
         assemblers = ['as']
         fortran_compilers = ['gfortran', 'f95', 'f90', 'g77']
         ars = ['ar']
+    elif str(platform) == 'cygwin':
+        "prefer GNU tools on Cygwin, except for a platform-specific linker"
+        linkers = ['cyglink', 'mslink', 'ilink']
+        c_compilers = ['gcc', 'msvc', 'intelc', 'icc', 'cc']
+        cxx_compilers = ['g++', 'msvc', 'intelc', 'icc', 'c++']
+        assemblers = ['gas', 'nasm', 'masm']
+        fortran_compilers = ['gfortran', 'g77', 'ifort', 'ifl', 'f95', 'f90', 'f77']
+        ars = ['ar', 'mslib']
     else:
         "prefer GNU tools on all other platforms"
         linkers = ['gnulink', 'mslink', 'ilink']

@@ -39,7 +39,6 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
@@ -58,6 +57,10 @@
 
 #include "view3d_intern.h"
 
+#ifdef WIN32
+#  include "BLI_math_base.h" /* M_PI */
+#endif
+
 /* ************************** copy paste ***************************** */
 
 static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
@@ -74,7 +77,7 @@ static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
 	}
 	CTX_DATA_END;
 	
-	BLI_make_file_string("/", str, BLI_temporary_dir(), "copybuffer.blend");
+	BLI_make_file_string("/", str, BLI_temp_dir_base(), "copybuffer.blend");
 	BKE_copybuffer_save(str, op->reports);
 	
 	BKE_report(op->reports, RPT_INFO, "Copied selected objects to buffer");
@@ -99,7 +102,7 @@ static int view3d_pastebuffer_exec(bContext *C, wmOperator *op)
 {
 	char str[FILE_MAX];
 
-	BLI_make_file_string("/", str, BLI_temporary_dir(), "copybuffer.blend");
+	BLI_make_file_string("/", str, BLI_temp_dir_base(), "copybuffer.blend");
 	if (BKE_copybuffer_paste(C, str, op->reports)) {
 		WM_event_add_notifier(C, NC_WINDOW, NULL);
 

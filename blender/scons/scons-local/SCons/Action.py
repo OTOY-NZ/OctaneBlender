@@ -76,7 +76,7 @@ way for wrapping up the functions.
 
 """
 
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -97,7 +97,7 @@ way for wrapping up the functions.
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Action.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Action.py  2014/03/02 14:18:15 garyo"
 
 import SCons.compat
 
@@ -109,6 +109,7 @@ import re
 import sys
 import subprocess
 
+import SCons.Debug
 from SCons.Debug import logInstanceCreation
 import SCons.Errors
 import SCons.Executor
@@ -439,7 +440,8 @@ class ActionBase(object):
         vl = self.get_varlist(target, source, env)
         if is_String(vl): vl = (vl,)
         for v in vl:
-            result.append(env.subst('${'+v+'}'))
+            # do the subst this way to ignore $(...$) parts:
+            result.append(env.subst_target_source('${'+v+'}', SCons.Subst.SUBST_SIG, target, source))
         return ''.join(result)
 
     def __add__(self, other):
@@ -698,7 +700,7 @@ class CommandAction(_ActionAction):
         # factory above does).  cmd will be passed to
         # Environment.subst_list() for substituting environment
         # variables.
-        if __debug__: logInstanceCreation(self, 'Action.CommandAction')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Action.CommandAction')
 
         _ActionAction.__init__(self, **kw)
         if is_List(cmd):
@@ -855,7 +857,7 @@ class CommandAction(_ActionAction):
 class CommandGeneratorAction(ActionBase):
     """Class for command-generator actions."""
     def __init__(self, generator, kw):
-        if __debug__: logInstanceCreation(self, 'Action.CommandGeneratorAction')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Action.CommandGeneratorAction')
         self.generator = generator
         self.gen_kw = kw
         self.varlist = kw.get('varlist', ())
@@ -944,7 +946,7 @@ class CommandGeneratorAction(ActionBase):
 class LazyAction(CommandGeneratorAction, CommandAction):
 
     def __init__(self, var, kw):
-        if __debug__: logInstanceCreation(self, 'Action.LazyAction')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Action.LazyAction')
         #FUTURE CommandAction.__init__(self, '${'+var+'}', **kw)
         CommandAction.__init__(self, '${'+var+'}', **kw)
         self.var = SCons.Util.to_String(var)
@@ -986,7 +988,7 @@ class FunctionAction(_ActionAction):
     """Class for Python function actions."""
 
     def __init__(self, execfunction, kw):
-        if __debug__: logInstanceCreation(self, 'Action.FunctionAction')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Action.FunctionAction')
 
         self.execfunction = execfunction
         try:
@@ -1108,7 +1110,7 @@ class FunctionAction(_ActionAction):
 class ListAction(ActionBase):
     """Class for lists of other actions."""
     def __init__(self, actionlist):
-        if __debug__: logInstanceCreation(self, 'Action.ListAction')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Action.ListAction')
         def list_of_actions(x):
             if isinstance(x, ActionBase):
                 return x

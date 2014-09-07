@@ -28,12 +28,11 @@ bl_info = {
     "location": "View3D > Add > Mesh ",
     "description": "Adds a mesh Twisted Torus to the Add Mesh menu",
     "warning": "",
-    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/"\
-        "Scripts/Add_Mesh/Add_Twisted_Torus",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"\
-        "func=detail&aid=21622",
-    "category": "Add Mesh"}
-	
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/"
+                "Scripts/Add_Mesh/Add_Twisted_Torus",
+    "category": "Add Mesh",
+}
+
 Usage:
 
 * Launch from Add Mesh menu

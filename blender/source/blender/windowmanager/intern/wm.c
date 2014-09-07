@@ -47,7 +47,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 
-#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_idprop.h"
 #include "BKE_library.h"
@@ -463,7 +462,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 	BLI_freelistN(&wm->queue);
 	
 	BLI_freelistN(&wm->paintcursors);
-	BLI_freelistN(&wm->drags);
+
+	WM_drag_free_list(&wm->drags);
 	
 	wm_reports_free(wm);
 	

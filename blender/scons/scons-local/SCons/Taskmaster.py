@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -47,7 +47,7 @@ interface and the SCons build engine.  There are two key classes here:
         target(s) that it decides need to be evaluated and/or built.
 """
 
-__revision__ = "src/engine/SCons/Taskmaster.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Taskmaster.py  2014/03/02 14:18:15 garyo"
 
 from itertools import chain
 import operator
@@ -186,6 +186,8 @@ class Task(object):
         # or implicit dependencies exists, and also initialize the
         # .sconsign info.
         executor = self.targets[0].get_executor()
+        if executor is None:
+            return
         executor.prepare()
         for t in executor.get_action_targets():
             if print_prepare:
@@ -289,6 +291,7 @@ class Task(object):
         post-visit actions that must take place regardless of whether
         or not the target was an actual built target or a source Node.
         """
+        global print_prepare
         T = self.tm.trace
         if T: T.write(self.trace_message('Task.executed_with_callbacks()',
                                          self.node))
@@ -301,7 +304,12 @@ class Task(object):
                 if not t.cached:
                     t.push_to_cache()
                 t.built()
-            t.visited()
+                t.visited()
+                if (not print_prepare and 
+                    (not hasattr(self, 'options') or not self.options.debug_includes)):
+                    t.release_target_info()
+            else:
+                t.visited()
 
     executed = executed_with_callbacks
 
@@ -382,6 +390,7 @@ class Task(object):
 
         This is the default behavior for building only what's necessary.
         """
+        global print_prepare
         T = self.tm.trace
         if T: T.write(self.trace_message(u'Task.make_ready_current()',
                                          self.node))
@@ -414,6 +423,9 @@ class Task(object):
                 # parallel build...)
                 t.visited()
                 t.set_state(NODE_UP_TO_DATE)
+                if (not print_prepare and 
+                    (not hasattr(self, 'options') or not self.options.debug_includes)):
+                    t.release_target_info()
 
     make_ready = make_ready_current
 
@@ -453,14 +465,15 @@ class Task(object):
                 parents[p] = parents.get(p, 0) + 1
 
         for t in targets:
-            for s in t.side_effects:
-                if s.get_state() == NODE_EXECUTING:
-                    s.set_state(NODE_NO_STATE)
-                    for p in s.waiting_parents:
-                        parents[p] = parents.get(p, 0) + 1
-                for p in s.waiting_s_e:
-                    if p.ref_count == 0:
-                        self.tm.candidates.append(p)
+            if t.side_effects is not None:
+                for s in t.side_effects:
+                    if s.get_state() == NODE_EXECUTING:
+                        s.set_state(NODE_NO_STATE)
+                        for p in s.waiting_parents:
+                            parents[p] = parents.get(p, 0) + 1
+                    for p in s.waiting_s_e:
+                        if p.ref_count == 0:
+                            self.tm.candidates.append(p)
 
         for p, subtract in parents.items():
             p.ref_count = p.ref_count - subtract
@@ -927,7 +940,11 @@ class Taskmaster(object):
         if node is None:
             return None
 
-        tlist = node.get_executor().get_all_targets()
+        executor = node.get_executor()
+        if executor is None:
+            return None
+        
+        tlist = executor.get_all_targets()
 
         task = self.tasker(self, tlist, node in self.original_top, node)
         try:

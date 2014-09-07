@@ -36,7 +36,6 @@
 #include "BIF_gl.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
 
@@ -423,7 +422,7 @@ static void file_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", true);
-	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, KM_ALT, 0);
+	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, KM_CTRL | KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", true);
 	RNA_boolean_set(kmi->ptr, "fill", true);
 

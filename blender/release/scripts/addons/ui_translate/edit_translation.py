@@ -85,7 +85,7 @@ class UI_OT_i18n_edittranslation_update_mo(bpy.types.Operator):
 
 
 class UI_OT_i18n_edittranslation(bpy.types.Operator):
-    """Translate the label and tool tip of the property defined by given 'parameters'"""
+    """Translate the label and tooltip of the property defined by given 'parameters'"""
     bl_idname = "ui.edittranslation"
     bl_label = "Edit Translation"
 

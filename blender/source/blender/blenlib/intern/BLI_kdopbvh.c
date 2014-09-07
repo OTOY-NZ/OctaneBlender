@@ -34,6 +34,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_stack.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_math.h"
 #include "BLI_strict_flags.h"
@@ -43,6 +44,17 @@
 #endif
 
 #define MAX_TREETYPE 32
+
+/* Setting zero so we can catch bugs in OpenMP/KDOPBVH.
+ * TODO(sergey): Deduplicate the limits with PBVH from BKE.
+ */
+#ifdef _OPENMP
+#  ifdef DEBUG
+#    define KDOPBVH_OMP_LIMIT 0
+#  else
+#    define KDOPBVH_OMP_LIMIT 1024
+#  endif
+#endif
 
 typedef unsigned char axis_t;
 
@@ -77,9 +89,7 @@ BLI_STATIC_ASSERT((sizeof(void *) == 8 && sizeof(BVHTree) <= 48) ||
 
 typedef struct BVHOverlapData {
 	BVHTree *tree1, *tree2; 
-	BVHTreeOverlap *overlap; 
-	unsigned int i;
-	unsigned int max_overlap; /* i is number of overlaps */
+	struct BLI_Stack *overlap;  /* store BVHTreeOverlap */
 	axis_t start_axis, stop_axis;
 } BVHOverlapData;
 
@@ -617,9 +627,7 @@ static void build_implicit_tree_helper(BVHTree *tree, BVHBuildHelper *data)
 
 	data->branches_on_level[0] = 1;
 
-	/* We could stop the loop first (but I am lazy to find out when) */
-	/* note: this often causes integer overflow, may be worth avoiding? - campbell */
-	for (depth = 1; depth < 32; depth++) {
+	for (depth = 1; (depth < 32) && data->leafs_per_child[depth - 1]; depth++) {
 		data->branches_on_level[depth] = data->branches_on_level[depth - 1] * data->tree_type;
 		data->leafs_per_child[depth] = data->leafs_per_child[depth - 1] / data->tree_type;
 	}
@@ -752,7 +760,8 @@ static void non_recursive_bvh_div_nodes(BVHTree *tree, BVHNode *branches_array, 
 		int j;
 
 		/* Loop all branches on this level */
-#pragma omp parallel for private(j) schedule(static)
+
+#pragma omp parallel for private(j) schedule(static) if (num_leafs > KDOPBVH_OMP_LIMIT)
 		for (j = i; j < end_j; j++) {
 			int k;
 			const int parent_level_index = j - i;
@@ -1040,27 +1049,16 @@ static void traverse(BVHOverlapData *data, BVHNode *node1, BVHNode *node2)
 		if (!node1->totnode) {
 			/* check if node2 is a leaf */
 			if (!node2->totnode) {
+				BVHTreeOverlap *overlap;
 
-				if (node1 == node2) {
+				if (UNLIKELY(node1 == node2)) {
 					return;
 				}
 
-				if (data->i >= data->max_overlap) {
-					/* try to make alloc'ed memory bigger */
-					data->overlap = realloc(data->overlap, sizeof(BVHTreeOverlap) * (size_t)data->max_overlap * 2);
-					
-					if (!data->overlap) {
-						printf("Out of Memory in traverse\n");
-						return;
-					}
-					data->max_overlap *= 2;
-				}
-				
 				/* both leafs, insert overlap! */
-				data->overlap[data->i].indexA = node1->index;
-				data->overlap[data->i].indexB = node2->index;
-
-				data->i++;
+				overlap = BLI_stack_push_r(data->overlap);
+				overlap->indexA = node1->index;
+				overlap->indexB = node2->index;
 			}
 			else {
 				for (j = 0; j < data->tree2->tree_type; j++) {
@@ -1079,16 +1077,21 @@ static void traverse(BVHOverlapData *data, BVHNode *node1, BVHNode *node2)
 	return;
 }
 
-BVHTreeOverlap *BLI_bvhtree_overlap(BVHTree *tree1, BVHTree *tree2, unsigned int *result)
+BVHTreeOverlap *BLI_bvhtree_overlap(BVHTree *tree1, BVHTree *tree2, unsigned int *r_overlap_tot)
 {
 	int j;
-	unsigned int total = 0;
+	size_t total = 0;
 	BVHTreeOverlap *overlap = NULL, *to = NULL;
 	BVHOverlapData **data;
 	
 	/* check for compatibility of both trees (can't compare 14-DOP with 18-DOP) */
-	if ((tree1->axis != tree2->axis) && (tree1->axis == 14 || tree2->axis == 14) && (tree1->axis == 18 || tree2->axis == 18))
+	if (UNLIKELY((tree1->axis != tree2->axis) &&
+	             (tree1->axis == 14 || tree2->axis == 14) &&
+	             (tree1->axis == 18 || tree2->axis == 18)))
+	{
+		BLI_assert(0);
 		return NULL;
+	}
 	
 	/* fast check root nodes for collision before doing big splitting + traversal */
 	if (!tree_overlap(tree1->nodes[tree1->totleaf], tree2->nodes[tree2->totleaf],
@@ -1098,43 +1101,42 @@ BVHTreeOverlap *BLI_bvhtree_overlap(BVHTree *tree1, BVHTree *tree2, unsigned int
 		return NULL;
 	}
 
-	data = MEM_callocN(sizeof(BVHOverlapData *) * tree1->tree_type, "BVHOverlapData_star");
+	data = MEM_mallocN(sizeof(BVHOverlapData *) * tree1->tree_type, "BVHOverlapData_star");
 	
 	for (j = 0; j < tree1->tree_type; j++) {
-		data[j] = MEM_callocN(sizeof(BVHOverlapData), "BVHOverlapData");
+		data[j] = MEM_mallocN(sizeof(BVHOverlapData), "BVHOverlapData");
 		
 		/* init BVHOverlapData */
-		data[j]->overlap = malloc(sizeof(BVHTreeOverlap) * (size_t)max_ii(tree1->totleaf, tree2->totleaf));
+		data[j]->overlap = BLI_stack_new(sizeof(BVHTreeOverlap), __func__);
 		data[j]->tree1 = tree1;
 		data[j]->tree2 = tree2;
-		data[j]->max_overlap = (unsigned int)max_ii(tree1->totleaf, tree2->totleaf);
-		data[j]->i = 0;
 		data[j]->start_axis = min_axis(tree1->start_axis, tree2->start_axis);
 		data[j]->stop_axis  = min_axis(tree1->stop_axis,  tree2->stop_axis);
 	}
 
-#pragma omp parallel for private(j) schedule(static)
+#pragma omp parallel for private(j) schedule(static)  if (tree1->totleaf > KDOPBVH_OMP_LIMIT)
 	for (j = 0; j < MIN2(tree1->tree_type, tree1->nodes[tree1->totleaf]->totnode); j++) {
 		traverse(data[j], tree1->nodes[tree1->totleaf]->children[j], tree2->nodes[tree2->totleaf]);
 	}
 	
 	for (j = 0; j < tree1->tree_type; j++)
-		total += data[j]->i;
+		total += BLI_stack_count(data[j]->overlap);
 	
-	to = overlap = MEM_callocN(sizeof(BVHTreeOverlap) * total, "BVHTreeOverlap");
+	to = overlap = MEM_mallocN(sizeof(BVHTreeOverlap) * total, "BVHTreeOverlap");
 	
 	for (j = 0; j < tree1->tree_type; j++) {
-		memcpy(to, data[j]->overlap, data[j]->i * sizeof(BVHTreeOverlap));
-		to += data[j]->i;
+		unsigned int count = (unsigned int)BLI_stack_count(data[j]->overlap);
+		BLI_stack_pop_n(data[j]->overlap, to, count);
+		BLI_stack_free(data[j]->overlap);
+		to += count;
 	}
 	
 	for (j = 0; j < tree1->tree_type; j++) {
-		free(data[j]->overlap);
 		MEM_freeN(data[j]);
 	}
 	MEM_freeN(data);
 	
-	(*result) = total;
+	*r_overlap_tot = (unsigned int)total;
 	return overlap;
 }
 
@@ -1173,13 +1175,6 @@ static float calc_nearest_point_squared(const float proj[3], BVHNode *node, floa
 
 	return len_squared_v3v3(proj, nearest);
 }
-
-
-typedef struct NodeDistance {
-	BVHNode *node;
-	float dist;
-
-} NodeDistance;
 
 /* TODO: use a priority queue to reduce the number of nodes looked on */
 static void dfs_find_nearest_dfs(BVHNearestData *data, BVHNode *node)
@@ -1227,6 +1222,12 @@ static void dfs_find_nearest_begin(BVHNearestData *data, BVHNode *node)
 
 
 #if 0
+
+typedef struct NodeDistance {
+	BVHNode *node;
+	float dist;
+
+} NodeDistance;
 
 #define DEFAULT_FIND_NEAREST_HEAP_SIZE 1024
 

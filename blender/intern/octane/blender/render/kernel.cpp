@@ -60,6 +60,7 @@ Kernel::Kernel() {
     info_channel_type   = CHANNEL_GEOMETRICNORMALS;
     zdepth_max          = 5.0f;
     uv_max              = 1.0f;
+    distributed_tracing = true;
 
     uiGPUs              = 0;
 

@@ -77,288 +77,6 @@ static float sphereray_tri_intersection(const BVHTreeRay *ray, float radius, con
 	return FLT_MAX;
 }
 
-
-/*
- * Function adapted from David Eberly's distance tools (LGPL)
- * http://www.geometrictools.com/LibFoundation/Distance/Distance.html
- */
-float nearest_point_in_tri_surface_squared(
-        const float v0[3], const float v1[3], const float v2[3],
-        const float p[3], int *v, int *e, float nearest[3])
-{
-	float diff[3];
-	float e0[3];
-	float e1[3];
-	float A00;
-	float A01;
-	float A11;
-	float B0;
-	float B1;
-	float C;
-	float Det;
-	float S;
-	float T;
-	float sqrDist;
-	int lv = -1, le = -1;
-	
-	sub_v3_v3v3(diff, v0, p);
-	sub_v3_v3v3(e0, v1, v0);
-	sub_v3_v3v3(e1, v2, v0);
-	
-	A00 = dot_v3v3(e0, e0);
-	A01 = dot_v3v3(e0, e1);
-	A11 = dot_v3v3(e1, e1);
-	B0 = dot_v3v3(diff, e0);
-	B1 = dot_v3v3(diff, e1);
-	C = dot_v3v3(diff, diff);
-	Det = fabs(A00 * A11 - A01 * A01);
-	S = A01 * B1 - A11 * B0;
-	T = A01 * B0 - A00 * B1;
-
-	if (S + T <= Det) {
-		if (S < 0.0f) {
-			if (T < 0.0f) { /* Region 4 */
-				if (B0 < 0.0f) {
-					T = 0.0f;
-					if (-B0 >= A00) {
-						S = 1.0f;
-						sqrDist = A00 + 2.0f * B0 + C;
-						lv = 1;
-					}
-					else {
-						if (fabsf(A00) > FLT_EPSILON)
-							S = -B0 / A00;
-						else
-							S = 0.0f;
-						sqrDist = B0 * S + C;
-						le = 0;
-					}
-				}
-				else {
-					S = 0.0f;
-					if (B1 >= 0.0f) {
-						T = 0.0f;
-						sqrDist = C;
-						lv = 0;
-					}
-					else if (-B1 >= A11) {
-						T = 1.0f;
-						sqrDist = A11 + 2.0f * B1 + C;
-						lv = 2;
-					}
-					else {
-						if (fabsf(A11) > FLT_EPSILON)
-							T = -B1 / A11;
-						else
-							T = 0.0f;
-						sqrDist = B1 * T + C;
-						le = 1;
-					}
-				}
-			}
-			else { /* Region 3 */
-				S = 0.0f;
-				if (B1 >= 0.0f) {
-					T = 0.0f;
-					sqrDist = C;
-					lv = 0;
-				}
-				else if (-B1 >= A11) {
-					T = 1.0f;
-					sqrDist = A11 + 2.0f * B1 + C;
-					lv = 2;
-				}
-				else {
-					if (fabsf(A11) > FLT_EPSILON)
-						T = -B1 / A11;
-					else
-						T = 0.0;
-					sqrDist = B1 * T + C;
-					le = 1;
-				}
-			}
-		}
-		else if (T < 0.0f) { /* Region 5 */
-			T = 0.0f;
-			if (B0 >= 0.0f) {
-				S = 0.0f;
-				sqrDist = C;
-				lv = 0;
-			}
-			else if (-B0 >= A00) {
-				S = 1.0f;
-				sqrDist = A00 + 2.0f * B0 + C;
-				lv = 1;
-			}
-			else {
-				if (fabsf(A00) > FLT_EPSILON)
-					S = -B0 / A00;
-				else
-					S = 0.0f;
-				sqrDist = B0 * S + C;
-				le = 0;
-			}
-		}
-		else { /* Region 0 */
-			/* Minimum at interior lv */
-			float invDet;
-			if (fabsf(Det) > FLT_EPSILON)
-				invDet = 1.0f / Det;
-			else
-				invDet = 0.0f;
-			S *= invDet;
-			T *= invDet;
-			sqrDist = S * (A00 * S + A01 * T + 2.0f * B0) +
-			          T * (A01 * S + A11 * T + 2.0f * B1) + C;
-		}
-	}
-	else {
-		float tmp0, tmp1, numer, denom;
-
-		if (S < 0.0f) { /* Region 2 */
-			tmp0 = A01 + B0;
-			tmp1 = A11 + B1;
-			if (tmp1 > tmp0) {
-				numer = tmp1 - tmp0;
-				denom = A00 - 2.0f * A01 + A11;
-				if (numer >= denom) {
-					S = 1.0f;
-					T = 0.0f;
-					sqrDist = A00 + 2.0f * B0 + C;
-					lv = 1;
-				}
-				else {
-					if (fabsf(denom) > FLT_EPSILON)
-						S = numer / denom;
-					else
-						S = 0.0f;
-					T = 1.0f - S;
-					sqrDist = S * (A00 * S + A01 * T + 2.0f * B0) +
-					          T * (A01 * S + A11 * T + 2.0f * B1) + C;
-					le = 2;
-				}
-			}
-			else {
-				S = 0.0f;
-				if (tmp1 <= 0.0f) {
-					T = 1.0f;
-					sqrDist = A11 + 2.0f * B1 + C;
-					lv = 2;
-				}
-				else if (B1 >= 0.0f) {
-					T = 0.0f;
-					sqrDist = C;
-					lv = 0;
-				}
-				else {
-					if (fabsf(A11) > FLT_EPSILON)
-						T = -B1 / A11;
-					else
-						T = 0.0f;
-					sqrDist = B1 * T + C;
-					le = 1;
-				}
-			}
-		}
-		else if (T < 0.0f) { /* Region 6 */
-			tmp0 = A01 + B1;
-			tmp1 = A00 + B0;
-			if (tmp1 > tmp0) {
-				numer = tmp1 - tmp0;
-				denom = A00 - 2.0f * A01 + A11;
-				if (numer >= denom) {
-					T = 1.0f;
-					S = 0.0f;
-					sqrDist = A11 + 2.0f * B1 + C;
-					lv = 2;
-				}
-				else {
-					if (fabsf(denom) > FLT_EPSILON)
-						T = numer / denom;
-					else
-						T = 0.0f;
-					S = 1.0f - T;
-					sqrDist = S * (A00 * S + A01 * T + 2.0f * B0) +
-					          T * (A01 * S + A11 * T + 2.0f * B1) + C;
-					le = 2;
-				}
-			}
-			else {
-				T = 0.0f;
-				if (tmp1 <= 0.0f) {
-					S = 1.0f;
-					sqrDist = A00 + 2.0f * B0 + C;
-					lv = 1;
-				}
-				else if (B0 >= 0.0f) {
-					S = 0.0f;
-					sqrDist = C;
-					lv = 0;
-				}
-				else {
-					if (fabsf(A00) > FLT_EPSILON)
-						S = -B0 / A00;
-					else
-						S = 0.0f;
-					sqrDist = B0 * S + C;
-					le = 0;
-				}
-			}
-		}
-		else { /* Region 1 */
-			numer = A11 + B1 - A01 - B0;
-			if (numer <= 0.0f) {
-				S = 0.0f;
-				T = 1.0f;
-				sqrDist = A11 + 2.0f * B1 + C;
-				lv = 2;
-			}
-			else {
-				denom = A00 - 2.0f * A01 + A11;
-				if (numer >= denom) {
-					S = 1.0f;
-					T = 0.0f;
-					sqrDist = A00 + 2.0f * B0 + C;
-					lv = 1;
-				}
-				else {
-					if (fabsf(denom) > FLT_EPSILON)
-						S = numer / denom;
-					else
-						S = 0.0f;
-					T = 1.0f - S;
-					sqrDist = S * (A00 * S + A01 * T + 2.0f * B0) +
-					          T * (A01 * S + A11 * T + 2.0f * B1) + C;
-					le = 2;
-				}
-			}
-		}
-	}
-
-	/* Account for numerical round-off error */
-	if (sqrDist < FLT_EPSILON)
-		sqrDist = 0.0f;
-	
-	{
-		float w[3], x[3], y[3], z[3];
-		copy_v3_v3(w, v0);
-		copy_v3_v3(x, e0);
-		mul_v3_fl(x, S);
-		copy_v3_v3(y, e1);
-		mul_v3_fl(y, T);
-		add_v3_v3v3(z, w, x);
-		add_v3_v3v3(z, z, y);
-		//sub_v3_v3v3(d, p, z);
-		copy_v3_v3(nearest, z);
-		//d = p - ( v0 + S * e0 + T * e1 );
-	}
-	*v = lv;
-	*e = le;
-
-	return sqrDist;
-}
-
-
 /*
  * BVH from meshes callbacks
  */
@@ -371,7 +89,7 @@ static void mesh_faces_nearest_point(void *userdata, int index, const float co[3
 	MVert *vert = data->vert;
 	MFace *face = data->face + index;
 
-	float *t0, *t1, *t2, *t3;
+	const float *t0, *t1, *t2, *t3;
 	t0 = vert[face->v1].co;
 	t1 = vert[face->v2].co;
 	t2 = vert[face->v3].co;
@@ -380,9 +98,10 @@ static void mesh_faces_nearest_point(void *userdata, int index, const float co[3
 	
 	do {
 		float nearest_tmp[3], dist_sq;
-		int vertex, edge;
-		
-		dist_sq = nearest_point_in_tri_surface_squared(t0, t1, t2, co, &vertex, &edge, nearest_tmp);
+
+		closest_on_tri_to_point_v3(nearest_tmp, co, t0, t1, t2);
+		dist_sq = len_squared_v3v3(co, nearest_tmp);
+
 		if (dist_sq < nearest->dist_sq) {
 			nearest->index = index;
 			nearest->dist_sq = dist_sq;
@@ -406,16 +125,17 @@ static void editmesh_faces_nearest_point(void *userdata, int index, const float 
 	BMEditMesh *em = data->em_evil;
 	const BMLoop **ltri = (const BMLoop **)em->looptris[index];
 
-	float *t0, *t1, *t2;
+	const float *t0, *t1, *t2;
 	t0 = ltri[0]->v->co;
 	t1 = ltri[1]->v->co;
 	t2 = ltri[2]->v->co;
 
 	{
 		float nearest_tmp[3], dist_sq;
-		int vertex, edge;
 
-		dist_sq = nearest_point_in_tri_surface_squared(t0, t1, t2, co, &vertex, &edge, nearest_tmp);
+		closest_on_tri_to_point_v3(nearest_tmp, co, t0, t1, t2);
+		dist_sq = len_squared_v3v3(co, nearest_tmp);
+
 		if (dist_sq < nearest->dist_sq) {
 			nearest->index = index;
 			nearest->dist_sq = dist_sq;
@@ -433,7 +153,7 @@ static void mesh_faces_spherecast(void *userdata, int index, const BVHTreeRay *r
 	MVert *vert = data->vert;
 	MFace *face = data->face + index;
 
-	float *t0, *t1, *t2, *t3;
+	const float *t0, *t1, *t2, *t3;
 	t0 = vert[face->v1].co;
 	t1 = vert[face->v2].co;
 	t2 = vert[face->v3].co;
@@ -471,7 +191,7 @@ static void editmesh_faces_spherecast(void *userdata, int index, const BVHTreeRa
 	BMEditMesh *em = data->em_evil;
 	const BMLoop **ltri = (const BMLoop **)em->looptris[index];
 
-	float *t0, *t1, *t2;
+	const float *t0, *t1, *t2;
 	t0 = ltri[0]->v->co;
 	t1 = ltri[1]->v->co;
 	t2 = ltri[2]->v->co;
@@ -503,7 +223,7 @@ static void mesh_edges_nearest_point(void *userdata, int index, const float co[3
 	MEdge *edge = data->edge + index;
 	float nearest_tmp[3], dist_sq;
 
-	float *t0, *t1;
+	const float *t0, *t1;
 	t0 = vert[edge->v1].co;
 	t1 = vert[edge->v2].co;
 
@@ -517,55 +237,6 @@ static void mesh_edges_nearest_point(void *userdata, int index, const float co[3
 		sub_v3_v3v3(nearest->no, t0, t1);
 		normalize_v3(nearest->no);
 	}
-}
-
-static MVert *get_dm_vert_data_array(DerivedMesh *dm, bool *allocated)
-{
-	CustomData *vert_data = dm->getVertDataLayout(dm);
-	MVert *mvert = CustomData_get_layer(vert_data, CD_MVERT);
-	*allocated = false;
-
-	if (mvert == NULL) {
-		mvert = MEM_mallocN(sizeof(MVert) * dm->getNumVerts(dm), "bvh vert data array");
-		dm->copyVertArray(dm, mvert);
-		*allocated = true;
-	}
-
-	return mvert;
-}
-
-static MEdge *get_dm_edge_data_array(DerivedMesh *dm, bool *allocated)
-{
-	CustomData *edge_data = dm->getEdgeDataLayout(dm);
-	MEdge *medge = CustomData_get_layer(edge_data, CD_MEDGE);
-	*allocated = false;
-
-	if (medge == NULL) {
-		medge = MEM_mallocN(sizeof(MEdge) * dm->getNumEdges(dm), "bvh medge data array");
-		dm->copyEdgeArray(dm, medge);
-		*allocated = true;
-	}
-
-	return medge;
-}
-
-static MFace *get_dm_tessface_data_array(DerivedMesh *dm, bool *allocated)
-{
-	CustomData *tessface_data = dm->getTessFaceDataLayout(dm);
-	MFace *mface = CustomData_get_layer(tessface_data, CD_MFACE);
-	*allocated = false;
-
-	if (mface == NULL) {
-		int numTessFaces = dm->getNumTessFaces(dm);
-
-		if (numTessFaces > 0) {
-			mface = MEM_mallocN(sizeof(MFace) * numTessFaces, "bvh mface data array");
-			dm->copyTessFaceArray(dm, mface);
-			*allocated = true;
-		}
-	}
-
-	return mface;
 }
 
 /*
@@ -582,7 +253,7 @@ BVHTree *bvhtree_from_mesh_verts(BVHTreeFromMesh *data, DerivedMesh *dm, float e
 	tree = bvhcache_find(&dm->bvhCache, BVHTREE_FROM_VERTICES);
 	BLI_rw_mutex_unlock(&cache_rwlock);
 
-	vert = get_dm_vert_data_array(dm, &vert_allocated);
+	vert = DM_get_vert_array(dm, &vert_allocated);
 
 	/* Not in cache */
 	if (tree == NULL) {
@@ -629,7 +300,7 @@ BVHTree *bvhtree_from_mesh_verts(BVHTreeFromMesh *data, DerivedMesh *dm, float e
 
 		data->vert = vert;
 		data->vert_allocated = vert_allocated;
-		data->face = get_dm_tessface_data_array(dm, &data->face_allocated);
+		data->face = DM_get_tessface_array(dm, &data->face_allocated);
 
 		data->sphere_radius = epsilon;
 	}
@@ -657,8 +328,8 @@ BVHTree *bvhtree_from_mesh_faces(BVHTreeFromMesh *data, DerivedMesh *dm, float e
 	BLI_rw_mutex_unlock(&cache_rwlock);
 
 	if (em == NULL) {
-		vert = get_dm_vert_data_array(dm, &vert_allocated);
-		face = get_dm_tessface_data_array(dm, &face_allocated);
+		vert = DM_get_vert_array(dm, &vert_allocated);
+		face = DM_get_tessface_array(dm, &face_allocated);
 	}
 
 	/* Not in cache */
@@ -827,8 +498,8 @@ BVHTree *bvhtree_from_mesh_edges(BVHTreeFromMesh *data, DerivedMesh *dm, float e
 	tree = bvhcache_find(&dm->bvhCache, BVHTREE_FROM_EDGES);
 	BLI_rw_mutex_unlock(&cache_rwlock);
 
-	vert = get_dm_vert_data_array(dm, &vert_allocated);
-	edge = get_dm_edge_data_array(dm, &edge_allocated);
+	vert = DM_get_vert_array(dm, &vert_allocated);
+	edge = DM_get_edge_array(dm, &edge_allocated);
 
 	/* Not in cache */
 	if (tree == NULL) {

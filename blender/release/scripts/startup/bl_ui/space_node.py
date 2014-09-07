@@ -67,6 +67,16 @@ class NODE_HT_header(Header):
                 if snode_id:
                     row.prop(snode_id, "use_nodes")
 
+            if scene.render.use_shading_nodes and snode.shader_type == 'LINESTYLE':
+                rl = context.scene.render.layers.active
+                lineset = rl.freestyle_settings.linesets.active
+                if lineset is not None:
+                    row = layout.row()
+                    row.enabled = not snode.pin
+                    row.template_ID(lineset, "linestyle", new="scene.freestyle_linestyle_new")
+                    if snode_id:
+                        row.prop(snode_id, "use_nodes")
+
         elif snode.tree_type == 'TextureNodeTree':
             layout.prop(snode, "texture_type", text="", expand=True)
 
@@ -164,7 +174,7 @@ class NODE_MT_view(Menu):
 
             layout.operator("node.backimage_move", text="Backdrop move")
             layout.operator("node.backimage_zoom", text="Backdrop zoom in").factor = 1.2
-            layout.operator("node.backimage_zoom", text="Backdrop zoom out").factor = 0.833
+            layout.operator("node.backimage_zoom", text="Backdrop zoom out").factor = 0.83333
             layout.operator("node.backimage_fit", text="Fit backdrop to available space")
 
         layout.separator()
@@ -274,7 +284,6 @@ class NODE_PT_active_node_generic(Panel):
 
     @classmethod
     def poll(cls, context):
-        space = context.space_data
         return context.active_node is not None
 
     def draw(self, context):
@@ -293,7 +302,6 @@ class NODE_PT_active_node_color(Panel):
 
     @classmethod
     def poll(cls, context):
-        space = context.space_data
         return context.active_node is not None
 
     def draw_header(self, context):
@@ -323,7 +331,6 @@ class NODE_PT_active_node_properties(Panel):
 
     @classmethod
     def poll(cls, context):
-        space = context.space_data
         return context.active_node is not None
 
     def draw(self, context):

@@ -93,7 +93,7 @@ BLI_INLINE unsigned int edgehash_keyhash(EdgeHash *eh, unsigned int v0, unsigned
 {
 	BLI_assert(v0 < v1);
 
-	return ((v0 * 39) ^ (v1 * 31)) % eh->nbuckets;
+	return ((v0 * 65) ^ (v1 * 31)) % eh->nbuckets;
 }
 
 /**
@@ -270,7 +270,7 @@ static void edgehash_free_cb(EdgeHash *eh, EdgeHashFreeFP valfreefp)
 		for (e = eh->buckets[i]; e; ) {
 			EdgeEntry *e_next = e->next;
 
-			if (valfreefp) valfreefp(e->val);
+			valfreefp(e->val);
 
 			e = e_next;
 		}
@@ -353,6 +353,16 @@ void *BLI_edgehash_lookup(EdgeHash *eh, unsigned int v0, unsigned int v1)
 	EdgeEntry *e = edgehash_lookup_entry(eh, v0, v1);
 	IS_EDGEHASH_ASSERT(eh);
 	return e ? e->val : NULL;
+}
+
+/**
+ * A version of #BLI_edgehash_lookup which accepts a fallback argument.
+ */
+void *BLI_edgehash_lookup_default(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val_default)
+{
+	EdgeEntry *e = edgehash_lookup_entry(eh, v0, v1);
+	IS_EDGEHASH_ASSERT(eh);
+	return e ? e->val : val_default;
 }
 
 /**
@@ -452,11 +462,33 @@ void BLI_edgehashIterator_init(EdgeHashIterator *ehi, EdgeHash *eh)
 	ehi->eh = eh;
 	ehi->curEntry = NULL;
 	ehi->curBucket = UINT_MAX;  /* wraps to zero */
-	while (!ehi->curEntry) {
-		ehi->curBucket++;
-		if (ehi->curBucket == ehi->eh->nbuckets)
-			break;
-		ehi->curEntry = ehi->eh->buckets[ehi->curBucket];
+	if (eh->nentries) {
+		do {
+			ehi->curBucket++;
+			if (UNLIKELY(ehi->curBucket == ehi->eh->nbuckets)) {
+				break;
+			}
+
+			ehi->curEntry = ehi->eh->buckets[ehi->curBucket];
+		} while (!ehi->curEntry);
+	}
+}
+
+/**
+ * Steps the iterator to the next index.
+ */
+void BLI_edgehashIterator_step(EdgeHashIterator *ehi)
+{
+	if (ehi->curEntry) {
+		ehi->curEntry = ehi->curEntry->next;
+		while (!ehi->curEntry) {
+			ehi->curBucket++;
+			if (UNLIKELY(ehi->curBucket == ehi->eh->nbuckets)) {
+				break;
+			}
+
+			ehi->curEntry = ehi->eh->buckets[ehi->curBucket];
+		}
 	}
 }
 
@@ -512,24 +544,6 @@ bool BLI_edgehashIterator_isDone(EdgeHashIterator *ehi)
 }
 #endif
 
-/**
- * Steps the iterator to the next index.
- */
-void BLI_edgehashIterator_step(EdgeHashIterator *ehi)
-{
-	if (ehi->curEntry) {
-		ehi->curEntry = ehi->curEntry->next;
-		while (!ehi->curEntry) {
-			ehi->curBucket++;
-			if (ehi->curBucket == ehi->eh->nbuckets) {
-				break;
-			}
-
-			ehi->curEntry = ehi->eh->buckets[ehi->curBucket];
-		}
-	}
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -574,9 +588,12 @@ void BLI_edgeset_insert(EdgeSet *es, unsigned int v0, unsigned int v1)
 }
 
 /**
- * Assign a new value to a key that may already be in edgehash.
+ * A version of BLI_edgeset_insert which checks first if the key is in the set.
+ * \returns true if a new key has been added.
+ *
+ * \note EdgeHash has no equivalent to this because typically the value would be different.
  */
-bool BLI_edgeset_reinsert(EdgeSet *es, unsigned int v0, unsigned int v1)
+bool BLI_edgeset_add(EdgeSet *es, unsigned int v0, unsigned int v1)
 {
 	unsigned int hash;
 	EdgeEntry *e;
@@ -605,4 +622,49 @@ void BLI_edgeset_free(EdgeSet *es)
 	BLI_edgehash_free((EdgeHash *)es, NULL);
 }
 
+void BLI_edgeset_flag_set(EdgeSet *es, unsigned int flag)
+{
+	((EdgeHash *)es)->flag |= flag;
+}
+
+void BLI_edgeset_flag_clear(EdgeSet *es, unsigned int flag)
+{
+	((EdgeHash *)es)->flag &= ~flag;
+}
+
+/** \} */
+
+/** \name Debugging & Introspection
+ * \{ */
+#ifdef DEBUG
+
+/**
+ * Measure how well the hash function performs
+ * (1.0 is approx as good as random distribution).
+ */
+double BLI_edgehash_calc_quality(EdgeHash *eh)
+{
+	uint64_t sum = 0;
+	unsigned int i;
+
+	if (eh->nentries == 0)
+		return -1.0;
+
+	for (i = 0; i < eh->nbuckets; i++) {
+		uint64_t count = 0;
+		EdgeEntry *e;
+		for (e = eh->buckets[i]; e; e = e->next) {
+			count += 1;
+		}
+		sum += count * (count + 1);
+	}
+	return ((double)sum * (double)eh->nbuckets /
+	        ((double)eh->nentries * (eh->nentries + 2 * eh->nbuckets - 1)));
+}
+double BLI_edgeset_calc_quality(EdgeSet *es)
+{
+	return BLI_edgehash_calc_quality((EdgeHash *)es);
+}
+
+#endif
 /** \} */

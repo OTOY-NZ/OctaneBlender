@@ -33,9 +33,7 @@
 #include <math.h>
 
 #include "DNA_scene_types.h"
-#include "DNA_anim_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_math_base.h"
 
@@ -112,19 +110,27 @@ static int graphview_cursor_exec(bContext *C, wmOperator *op)
 /* set the operator properties from the initial event */
 static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	Scene *scene = CTX_data_scene(C);
 	ARegion *ar = CTX_wm_region(C);
 	float viewx, viewy;
-
+	int frame;
+	
 	/* abort if not active region (should not really be possible) */
 	if (ar == NULL)
 		return;
-
+	
 	/* convert from region coordinates to View2D 'tot' space */
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 	
-	/* store the values in the operator properties */
 	/* frame is rounded to the nearest int, since frames are ints */
-	RNA_int_set(op->ptr, "frame", iroundf(viewx));
+	frame = iroundf(viewx);
+	
+	if (scene->r.flag & SCER_LOCK_FRAME_SELECTION) {
+		CLAMP(frame, PSFRA, PEFRA);
+	}
+	
+	/* store the values in the operator properties */
+	RNA_int_set(op->ptr, "frame", frame);
 	RNA_float_set(op->ptr, "value", viewy);
 }
 
@@ -435,8 +441,12 @@ void graphedit_keymap(wmKeyConfig *keyconf)
 	/* keymap for all regions */
 	keymap = WM_keymap_find(keyconf, "Graph Editor Generic", SPACE_IPO, 0);
 	WM_keymap_add_item(keymap, "GRAPH_OT_properties", NKEY, KM_PRESS, 0, 0);
+	
 	/* extrapolation works on channels, not keys */
 	WM_keymap_add_item(keymap, "GRAPH_OT_extrapolation_type", EKEY, KM_PRESS, KM_SHIFT, 0);
+	
+	/* find (i.e. a shortcut for setting the name filter) */
+	WM_keymap_add_item(keymap, "ANIM_OT_channels_find", FKEY, KM_PRESS, KM_CTRL, 0);
 
 	/* channels */
 	/* Channels are not directly handled by the Graph Editor module, but are inherited from the Animation module. 

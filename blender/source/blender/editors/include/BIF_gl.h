@@ -38,9 +38,12 @@
 #ifdef __APPLE__
 
 /* hacking pointsize and linewidth */
-#define glPointSize(f)	glPointSize(U.pixelsize*(f))
-#define glLineWidth(f)	glLineWidth(U.pixelsize*(f))
-
+#  define glPointSize(f)	glPointSize(U.pixelsize * (f))
+#  define glLineWidth(f)	glLineWidth(U.pixelsize * (f))
+#else
+   /* avoid include mismatch by referencing 'U' from both */
+#  define glPointSize(f)	glPointSize(((void)U.pixelsize, (f)))
+#  define glLineWidth(f)	glLineWidth(((void)U.pixelsize, (f)))
 #endif
 
 /*
@@ -55,8 +58,24 @@
  * */
 void cpack(unsigned int x);
 
-#define glMultMatrixf(x)  glMultMatrixf( (float *)(x))
-#define glLoadMatrixf(x)  glLoadMatrixf( (float *)(x))
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#  define glMultMatrixf(x)  \
+	glMultMatrixf(_Generic((x), \
+	        float *:      (float *)(x), \
+	        float (*)[4]: (float *)(x), \
+	        const float *:      (float *)(x), \
+	        const float (*)[4]: (float *)(x)) \
+)
+#  define glLoadMatrixf(x)  \
+	glLoadMatrixf(_Generic((x), \
+	        float *:      (float *)(x), \
+	        float (*)[4]: (float *)(x)) \
+)
+#else
+#  define glMultMatrixf(x)  glMultMatrixf((float *)(x))
+#  define glLoadMatrixf(x)  glLoadMatrixf((float *)(x))
+#endif
 
 #define GLA_PIXEL_OFS 0.375f
 

@@ -21,7 +21,7 @@ bl_info = {
     "name": "UV Utility",
     "author": "Paul Geraskin",
     "version": (0, 1),
-    "blender": (2, 69, 0),
+    "blender": (2, 70, 0),
     "location": "View3D > ToolBar",
     "description": "Change Index Of UVMap.",
     "wiki_url": "",
@@ -43,6 +43,10 @@ from bpy.props import (IntProperty,
 class UV_IC_Panel():
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
+    bl_category = 'Tools'
+    bl_label = "UV Utility"
+    bl_context = "objectmode"
+    bl_options = {'DEFAULT_CLOSED'}
 
 
 class UV_IC_TexIndex(PropertyGroup):
@@ -65,7 +69,7 @@ class UV_IC_TexIndex(PropertyGroup):
     )
 
 
-class UV_IC_panel(UV_IC_Panel, Panel):
+class UV_IC_Base(UV_IC_Panel, Panel):
     bl_context = "objectmode"
     bl_label = "UV Utility"
     bl_options = {"DEFAULT_CLOSED"}
@@ -100,7 +104,7 @@ class UV_IC_panel(UV_IC_Panel, Panel):
         col.operator("uvutil.remove_active", text="Remove Active UV")
 
 
-class UV_IC_ChangeIndex(UV_IC_Panel, Operator):
+class UV_IC_ChangeIndex(Operator):
     bl_idname = "uvutil.change_index"
     bl_label = "Change Index"
 
@@ -129,7 +133,7 @@ class UV_IC_ChangeIndex(UV_IC_Panel, Operator):
         return{'FINISHED'}
 
 
-class UV_IC_SelectIndex(UV_IC_Panel, Operator):
+class UV_IC_SelectIndex(Operator):
     bl_idname = "uvutil.select_index"
     bl_label = "Select Index"
 
@@ -150,7 +154,7 @@ class UV_IC_SelectIndex(UV_IC_Panel, Operator):
         return{'FINISHED'}
 
 
-class UV_IC_SelectName(UV_IC_Panel, Operator):
+class UV_IC_SelectName(Operator):
     bl_idname = "uvutil.select_name"
     bl_label = "Select Name"
 
@@ -174,7 +178,7 @@ class UV_IC_SelectName(UV_IC_Panel, Operator):
         return{'FINISHED'}
 
 
-class UV_IC_RemoveActiveUV(UV_IC_Panel, Operator):
+class UV_IC_RemoveActiveUV(Operator):
     bl_idname = "uvutil.remove_active"
     bl_label = "Remove Active UV"
 

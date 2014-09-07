@@ -26,9 +26,11 @@ class OpenCLDevice;
 #define _COM_OpenCLDevice_h
 
 #include "COM_Device.h"
-#include "OCL_opencl.h"
+#include "clew.h"
 #include "COM_WorkScheduler.h"
 #include "COM_ReadBufferOperation.h"
+
+using std::list;
 
 /**
  * @brief device representing an GPU OpenCL device.

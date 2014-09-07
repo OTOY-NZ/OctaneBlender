@@ -17,6 +17,7 @@
 #ifndef __IMAGE_H__
 #define __IMAGE_H__
 
+#include "device.h"
 #include "device_memory.h"
 
 #include "util_string.h"
@@ -27,11 +28,16 @@
 
 CCL_NAMESPACE_BEGIN
 
-#define TEX_NUM_IMAGES			95
+/* generic */
+#define TEX_NUM_IMAGES			94
 #define TEX_IMAGE_BYTE_START	TEX_NUM_FLOAT_IMAGES
 
+/* extended gpu */
+#define TEX_EXTENDED_NUM_IMAGES_GPU		145
+
+/* extended cpu */
 #define TEX_EXTENDED_NUM_FLOAT_IMAGES	1024
-#define TEX_EXTENDED_NUM_IMAGES			1024
+#define TEX_EXTENDED_NUM_IMAGES_CPU		1024
 #define TEX_EXTENDED_IMAGE_BYTE_START	TEX_EXTENDED_NUM_FLOAT_IMAGES
 
 /* color to use when textures are not found */
@@ -49,17 +55,20 @@ public:
 	ImageManager();
 	~ImageManager();
 
-	int add_image(const string& filename, void *builtin_data, bool animated, bool& is_float, bool& is_linear, InterpolationType interpolation);
+	int add_image(const string& filename, void *builtin_data, bool animated, float frame,
+		bool& is_float, bool& is_linear, InterpolationType interpolation, bool use_alpha);
 	void remove_image(int slot);
 	void remove_image(const string& filename, void *builtin_data, InterpolationType interpolation);
+	void tag_reload_image(const string& filename, void *builtin_data, InterpolationType interpolation);
 	bool is_float_image(const string& filename, void *builtin_data, bool& is_linear);
 
 	void device_update(Device *device, DeviceScene *dscene, Progress& progress);
 	void device_free(Device *device, DeviceScene *dscene);
+	void device_free_builtin(Device *device, DeviceScene *dscene);
 
 	void set_osl_texture_system(void *texture_system);
 	void set_pack_images(bool pack_images_);
-	void set_extended_image_limits(void);
+	void set_extended_image_limits(const DeviceInfo& info);
 	bool set_animation_frame_update(int frame);
 
 	bool need_update;
@@ -72,8 +81,10 @@ public:
 		string filename;
 		void *builtin_data;
 
+		bool use_alpha;
 		bool need_load;
 		bool animated;
+		float frame;
 		InterpolationType interpolation;
 
 		int users;

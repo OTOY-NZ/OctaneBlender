@@ -30,7 +30,8 @@ OCT_NAMESPACE_BEGIN
 OctaneMaterialNode::OctaneMaterialNode() : ShaderNode("oMat") {
 }
 
-void OctaneMaterialNode::load_to_server(RenderServer* server) {
+void OctaneMaterialNode::delete_from_server(RenderServer* server) {
+    server->delete_material(name);
 }
 
 OctaneDiffuseMaterial::OctaneDiffuseMaterial() {
@@ -77,7 +78,8 @@ void OctanePortalMaterial::load_to_server(RenderServer* server) {
 OctaneTextureNode::OctaneTextureNode() : ShaderNode("oTex") {
 }
 
-void OctaneTextureNode::load_to_server(RenderServer* server) {
+void OctaneTextureNode::delete_from_server(RenderServer* server) {
+    server->delete_texture(name);
 }
 
 OctaneFloatTexture::OctaneFloatTexture() {
@@ -243,7 +245,8 @@ void OctaneGradientTexture::load_to_server(RenderServer* server) {
 OctaneEmissionNode::OctaneEmissionNode() : ShaderNode("oTex") {
 }
 
-void OctaneEmissionNode::load_to_server(RenderServer* server) {
+void OctaneEmissionNode::delete_from_server(RenderServer* server) {
+    server->delete_emission(name);
 }
 
 OctaneBlackBodyEmission::OctaneBlackBodyEmission() {
@@ -269,7 +272,8 @@ void OctaneTextureEmission::load_to_server(RenderServer* server) {
 OctaneMediumNode::OctaneMediumNode() : ShaderNode("oTex") {
 }
 
-void OctaneMediumNode::load_to_server(RenderServer* server) {
+void OctaneMediumNode::delete_from_server(RenderServer* server) {
+    server->delete_medium(name);
 }
 
 OctaneAbsorptionMedium::OctaneAbsorptionMedium() {
@@ -295,7 +299,8 @@ void OctaneScatteringMedium::load_to_server(RenderServer* server) {
 OctaneTransformNode::OctaneTransformNode() : ShaderNode("oTex") {
 }
 
-void OctaneTransformNode::load_to_server(RenderServer* server) {
+void OctaneTransformNode::delete_from_server(RenderServer* server) {
+    server->delete_transform(name);
 }
 
 OctaneRotationTransform::OctaneRotationTransform() {
@@ -319,6 +324,20 @@ void OctaneFullTransform::load_to_server(RenderServer* server) {
     server->load_full_transform(this);
 }
 
+Octane3DTransform::Octane3DTransform() {
+}
+
+void Octane3DTransform::load_to_server(RenderServer* server) {
+    server->load_3d_transform(this);
+}
+
+Octane2DTransform::Octane2DTransform() {
+}
+
+void Octane2DTransform::load_to_server(RenderServer* server) {
+    server->load_2d_transform(this);
+}
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -328,7 +347,8 @@ void OctaneFullTransform::load_to_server(RenderServer* server) {
 OctaneProjectionNode::OctaneProjectionNode() : ShaderNode("oPrj") {
 }
 
-void OctaneProjectionNode::load_to_server(RenderServer* server) {
+void OctaneProjectionNode::delete_from_server(RenderServer* server) {
+    server->delete_projection(name);
 }
 
 OctaneOctXYZProjection::OctaneOctXYZProjection() {
@@ -382,7 +402,8 @@ void OctaneOctUVWProjection::load_to_server(RenderServer* server) {
 OctaneValueNode::OctaneValueNode() : ShaderNode("oVal") {
 }
 
-void OctaneValueNode::load_to_server(RenderServer* server) {
+void OctaneValueNode::delete_from_server(RenderServer* server) {
+    server->delete_value(name);
 }
 
 OctaneOctFloatValue::OctaneOctFloatValue() {

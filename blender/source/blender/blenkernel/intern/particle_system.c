@@ -54,12 +54,9 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
-#include "DNA_material_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_group_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
-#include "DNA_ipo_types.h" // XXX old animation system stuff... to be removed!
 #include "DNA_listBase.h"
 
 #include "BLI_utildefines.h"
@@ -74,12 +71,10 @@
 #include "BLI_threads.h"
 #include "BLI_linklist.h"
 
-#include "BKE_main.h"
 #include "BKE_animsys.h"
 #include "BKE_boids.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_collision.h"
-#include "BKE_displist.h"
 #include "BKE_effect.h"
 #include "BKE_particle.h"
 #include "BKE_global.h"
@@ -88,7 +83,6 @@
 #include "BKE_object.h"
 #include "BKE_material.h"
 #include "BKE_cloth.h"
-#include "BKE_depsgraph.h"
 #include "BKE_lattice.h"
 #include "BKE_pointcache.h"
 #include "BKE_mesh.h"
@@ -123,7 +117,7 @@ static int particles_are_dynamic(ParticleSystem *psys)
 	if (psys->part->type == PART_HAIR)
 		return psys->flag & PSYS_HAIR_DYNAMICS;
 	else
-		return ELEM3(psys->part->phystype, PART_PHYS_NEWTON, PART_PHYS_BOIDS, PART_PHYS_FLUID);
+		return ELEM(psys->part->phystype, PART_PHYS_NEWTON, PART_PHYS_BOIDS, PART_PHYS_FLUID);
 }
 
 float psys_get_current_display_percentage(ParticleSystem *psys)
@@ -405,7 +399,7 @@ void psys_calc_dmcache(Object *ob, DerivedMesh *dm, ParticleSystem *psys)
 				}
 			}
 
-			if (origindex_final != ORIGINDEX_NONE) {
+			if (origindex_final != ORIGINDEX_NONE && origindex_final < totelem) {
 				if (nodearray[origindex_final]) {
 					/* prepend */
 					node->next = nodearray[origindex_final];
@@ -495,21 +489,25 @@ static void distribute_grid(DerivedMesh *dm, ParticleSystem *psys)
 	int totvert=dm->getNumVerts(dm), from=psys->part->from;
 	int i, j, k, p, res=psys->part->grid_res, size[3], axis;
 
-	mv=mvert;
-
 	/* find bounding box of dm */
-	copy_v3_v3(min, mv->co);
-	copy_v3_v3(max, mv->co);
-	mv++;
-
-	for (i=1; i<totvert; i++, mv++) {
-		minmax_v3v3_v3(min, max, mv->co);
+	if (totvert > 0) {
+		mv=mvert;
+		copy_v3_v3(min, mv->co);
+		copy_v3_v3(max, mv->co);
+		mv++;
+		for (i = 1; i < totvert; i++, mv++) {
+			minmax_v3v3_v3(min, max, mv->co);
+		}
+	}
+	else {
+		zero_v3(min);
+		zero_v3(max);
 	}
 
 	sub_v3_v3v3(delta, max, min);
 
 	/* determine major axis */
-	axis = (delta[0]>=delta[1]) ? 0 : ((delta[1]>=delta[2]) ? 1 : 2);
+	axis = axis_dominant_v3_single(delta);
 	 
 	d = delta[axis]/(float)res;
 
@@ -1013,7 +1011,7 @@ static void *distribute_threads_exec_cb(void *data)
 	return 0;
 }
 
-static int distribute_compare_orig_index(void *user_data, const void *p1, const void *p2)
+static int distribute_compare_orig_index(const void *p1, const void *p2, void *user_data)
 {
 	int *orig_index = (int *) user_data;
 	int index1 = orig_index[*(const int *)p1];
@@ -1081,7 +1079,7 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 	float *element_weight=NULL,*element_sum=NULL,*jitter_offset=NULL, *vweight=NULL;
 	float cur, maxweight=0.0, tweight, totweight, inv_totweight, co[3], nor[3], orco[3];
 	
-	if (ELEM3(NULL, ob, psys, psys->part))
+	if (ELEM(NULL, ob, psys, psys->part))
 		return 0;
 
 	part=psys->part;
@@ -1346,7 +1344,7 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 		}
 
 		if (orig_index) {
-			BLI_qsort_r(particle_element, totpart, sizeof(int), orig_index, distribute_compare_orig_index);
+			BLI_qsort_r(particle_element, totpart, sizeof(int), distribute_compare_orig_index, orig_index);
 		}
 	}
 
@@ -1548,20 +1546,32 @@ static void initialize_particle_texture(ParticleSimulationData *sim, ParticleDat
 	ParticleSettings *part = psys->part;
 	ParticleTexture ptex;
 
-	if (part->type != PART_FLUID) {
-		psys_get_texture(sim, pa, &ptex, PAMAP_INIT, 0.f);
-
+	psys_get_texture(sim, pa, &ptex, PAMAP_INIT, 0.f);
+	
+	switch (part->type) {
+	case PART_EMITTER:
 		if (ptex.exist < psys_frand(psys, p+125))
 			pa->flag |= PARS_UNEXIST;
-
-		pa->time = (part->type == PART_HAIR) ? 0.f : part->sta + (part->end - part->sta)*ptex.time;
+		pa->time = part->sta + (part->end - part->sta)*ptex.time;
+		break;
+	case PART_HAIR:
+		if (ptex.exist < psys_frand(psys, p+125))
+			pa->flag |= PARS_UNEXIST;
+		pa->time = 0.f;
+		break;
+	case PART_FLUID:
+		break;
 	}
 }
 
 /* set particle parameters that don't change during particle's life */
-void initialize_particle(ParticleData *pa)
+void initialize_particle(ParticleSimulationData *sim, ParticleData *pa)
 {
+	ParticleSettings *part = sim->psys->part;
+	float birth_time = (float)(pa - sim->psys->particles) / (float)sim->psys->totpart;
+	
 	pa->flag &= ~PARS_UNEXIST;
+	pa->time = part->sta + (part->end - part->sta) * birth_time;
 
 	pa->hair_index = 0;
 	/* we can't reset to -1 anymore since we've figured out correct index in distribute_particles */
@@ -1577,7 +1587,7 @@ static void initialize_all_particles(ParticleSimulationData *sim)
 
 	LOOP_PARTICLES {
 		if ((pa->flag & PARS_UNEXIST)==0)
-			initialize_particle(pa);
+			initialize_particle(sim, pa);
 
 		if (pa->flag & PARS_UNEXIST)
 			psys->totunexist++;
@@ -1964,10 +1974,21 @@ void psys_get_birth_coordinates(ParticleSimulationData *sim, ParticleData *pa, P
 		}
 	}
 }
+
+/* recursively evaluate emitter parent anim at cfra */
+static void evaluate_emitter_anim(Scene *scene, Object *ob, float cfra)
+{
+	if (ob->parent)
+		evaluate_emitter_anim(scene, ob->parent, cfra);
+	
+	/* we have to force RECALC_ANIM here since where_is_objec_time only does drivers */
+	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, cfra, ADT_RECALC_ANIM);
+	BKE_object_where_is_calc_time(scene, ob, cfra);
+}
+
 /* sets particle to the emitter surface with initial velocity & rotation */
 void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, float cfra)
 {
-	Object *ob = sim->ob;
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part;
 	ParticleTexture ptex;
@@ -1976,13 +1997,7 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 	
 	/* get precise emitter matrix if particle is born */
 	if (part->type!=PART_HAIR && dtime > 0.f && pa->time < cfra && pa->time >= sim->psys->cfra) {
-		/* we have to force RECALC_ANIM here since where_is_objec_time only does drivers */
-		while (ob) {
-			BKE_animsys_evaluate_animdata(sim->scene, &ob->id, ob->adt, pa->time, ADT_RECALC_ANIM);
-			BKE_object_where_is_calc_time(sim->scene, ob, pa->time);
-			ob = ob->parent;
-		}
-		ob = sim->ob;
+		evaluate_emitter_anim(sim->scene, sim->ob, pa->time);
 
 		psys->flag |= PSYS_OB_ANIM_RESTORE;
 	}
@@ -2623,7 +2638,7 @@ static void sph_particle_courant(SPHData *sphdata, SPHRangeData *pfr)
 		mul_v3_v3fl(sphdata->flow, flow, 1.0f / pfr->tot_neighbors);
 	}
 	else {
-		sphdata->element_size = MAXFLOAT;
+		sphdata->element_size = FLT_MAX;
 		copy_v3_v3(sphdata->flow, flow);
 	}
 }
@@ -3138,7 +3153,7 @@ static void basic_rotate(ParticleSettings *part, ParticleData *pa, float dfra, f
 		extrotfac = 0.0f;
 	}
 
-	if ((part->flag & PART_ROT_DYN) && ELEM3(part->avemode, PART_AVE_VELOCITY, PART_AVE_HORIZONTAL, PART_AVE_VERTICAL)) {
+	if ((part->flag & PART_ROT_DYN) && ELEM(part->avemode, PART_AVE_VELOCITY, PART_AVE_HORIZONTAL, PART_AVE_VERTICAL)) {
 		float angle;
 		float len1 = len_v3(pa->prev_state.vel);
 		float len2 = len_v3(pa->state.vel);
@@ -4433,7 +4448,7 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 				 * and Monaghan). Note that, unlike double-density relaxation,
 				 * this algorithm is separated into distinct loops. */
 
-#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
+#pragma omp parallel for private (pa) schedule(dynamic,5)
 				LOOP_DYNAMIC_PARTICLES {
 					basic_integrate(sim, p, pa->state.time, cfra);
 				}
@@ -4831,13 +4846,13 @@ void psys_changed_type(Object *ob, ParticleSystem *psys)
 		psys->flag &= ~PSYS_KEYED;
 
 	if (part->type == PART_HAIR) {
-		if (ELEM4(part->ren_as, PART_DRAW_NOT, PART_DRAW_PATH, PART_DRAW_OB, PART_DRAW_GR)==0)
+		if (ELEM(part->ren_as, PART_DRAW_NOT, PART_DRAW_PATH, PART_DRAW_OB, PART_DRAW_GR)==0)
 			part->ren_as = PART_DRAW_PATH;
 
 		if (part->distr == PART_DISTR_GRID)
 			part->distr = PART_DISTR_JIT;
 
-		if (ELEM3(part->draw_as, PART_DRAW_NOT, PART_DRAW_REND, PART_DRAW_PATH)==0)
+		if (ELEM(part->draw_as, PART_DRAW_NOT, PART_DRAW_REND, PART_DRAW_PATH)==0)
 			part->draw_as = PART_DRAW_REND;
 
 		CLAMP(part->path_start, 0.0f, 100.0f);
@@ -5100,13 +5115,7 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 
 	/* make sure emitter is left at correct time (particle emission can change this) */
 	if (psys->flag & PSYS_OB_ANIM_RESTORE) {
-		while (ob) {
-			BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, cfra, ADT_RECALC_ANIM);
-			BKE_object_where_is_calc_time(scene, ob, cfra);
-			ob = ob->parent;
-		}
-		ob = sim.ob;
-
+		evaluate_emitter_anim(scene, ob, cfra);
 		psys->flag &= ~PSYS_OB_ANIM_RESTORE;
 	}
 

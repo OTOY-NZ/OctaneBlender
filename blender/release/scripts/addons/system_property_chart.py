@@ -27,11 +27,10 @@ bl_info = {
     "description": ("Edit arbitrary selected properties for "
                     "objects/sequence strips of the same type"),
     "warning": "",
-    "wiki_url": ("http://wiki.blender.org/index.php/Extensions:2.6/Py/"
-                 "Scripts/System/Object Property Chart"),
-    "tracker_url": ("https://projects.blender.org/tracker/index.php?"
-                    "func=detail&aid=22701"),
-    "category": "System"}
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
+                "Scripts/System/Object Property Chart",
+    "category": "System",
+}
 
 """List properties of selected objects"""
 

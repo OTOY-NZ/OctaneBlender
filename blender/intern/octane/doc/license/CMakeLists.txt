@@ -2,7 +2,6 @@
 set(LICENSES
 	Blender.txt
 	GPL.txt
-	Boost.txt
 	readme.txt
 )
 

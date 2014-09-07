@@ -32,30 +32,24 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_text_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 
-#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_material.h"
 #include "BKE_node.h"
-#include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_texture.h"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -99,7 +93,7 @@ typedef struct CompoJob {
 	Scene *scene;
 	bNodeTree *ntree;
 	bNodeTree *localtree;
-	short *stop;
+	const short *stop;
 	short *do_update;
 	float *progress;
 	short need_sync;
@@ -257,7 +251,6 @@ static void compo_startjob(void *cjv, short *stop, short *do_update, float *prog
 	ntree->udh = cj;
 
 	// XXX BIF_store_spare();
-	
 	/* 1 is do_previews */
 	ntreeCompositExecTree(cj->scene, ntree, &cj->scene->r, false, true, &scene->view_settings, &scene->display_settings);
 
@@ -278,6 +271,7 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
 {
 	wmJob *wm_job;
 	CompoJob *cj;
+	Scene *scene = CTX_data_scene(C);
 
 	/* to fix bug: [#32272] */
 	if (G.is_rendering) {
@@ -288,12 +282,14 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
 	G.is_break = false;
 #endif
 
+	BKE_image_backup_render(scene, BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result"));
+
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene_owner, "Compositing",
 	                     WM_JOB_EXCL_RENDER | WM_JOB_PROGRESS, WM_JOB_TYPE_COMPOSITE);
 	cj = MEM_callocN(sizeof(CompoJob), "compo job");
 
 	/* customdata for preview thread */
-	cj->scene = CTX_data_scene(C);
+	cj->scene = scene;
 	cj->ntree = nodetree;
 	cj->recalc_flags = compo_get_recalc_flags(C);
 
@@ -644,11 +640,11 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 		/* tree specific activate calls */
 		if (ntree->type == NTREE_SHADER) {
 			/* when we select a material, active texture is cleared, for buttons */
-			if (node->id && ELEM3(GS(node->id->name), ID_MA, ID_LA, ID_WO))
+			if (node->id && ELEM(GS(node->id->name), ID_MA, ID_LA, ID_WO))
 				nodeClearActiveID(ntree, ID_TE);
 			
-			if (ELEM4(node->type, SH_NODE_OUTPUT, SH_NODE_OUTPUT_MATERIAL,
-			          SH_NODE_OUTPUT_WORLD, SH_NODE_OUTPUT_LAMP))
+			if (ELEM(node->type, SH_NODE_OUTPUT, SH_NODE_OUTPUT_MATERIAL,
+			         SH_NODE_OUTPUT_WORLD, SH_NODE_OUTPUT_LAMP, SH_NODE_OUTPUT_LINESTYLE))
 			{
 				bNode *tnode;
 				
@@ -699,7 +695,12 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 				for (scene = bmain->scene.first; scene; scene = scene->id.next) {
 					if (scene->nodetree && scene->use_nodes && ntreeHasTree(scene->nodetree, ntree)) {
 						if (node->id == NULL || node->id == (ID *)scene) {
+							int num_layers = BLI_countlist(&scene->r.layers);
 							scene->r.actlay = node->custom1;
+							/* Clamp the value, because it might have come from a different
+							 * scene which could have more render layers than new one.
+							 */
+							scene->r.actlay = min_ff(scene->r.actlay, num_layers - 1);
 						}
 					}
 				}
@@ -878,37 +879,38 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			dy = (my - nsw->mystart) / UI_DPI_FAC;
 			
 			if (node) {
-				if (node->flag & NODE_HIDDEN) {
-					float widthmin = 0.0f;
-					float widthmax = 100.0f;
-					if (nsw->directions & NODE_RESIZE_RIGHT) {
-						node->miniwidth = nsw->oldminiwidth + dx;
-						CLAMP(node->miniwidth, widthmin, widthmax);
-					}
-					if (nsw->directions & NODE_RESIZE_LEFT) {
-						float locmax = nsw->oldlocx + nsw->oldminiwidth;
-						
-						node->locx = nsw->oldlocx + dx;
-						CLAMP(node->locx, locmax - widthmax, locmax - widthmin);
-						node->miniwidth = locmax - node->locx;
-					}
+				/* width can use node->width or node->miniwidth (hidden nodes) */
+				float *pwidth;
+				float oldwidth, widthmin, widthmax;
+				/* ignore hidden flag for frame nodes */
+				bool use_hidden = (node->type != NODE_FRAME);
+				if (use_hidden && node->flag & NODE_HIDDEN) {
+					pwidth = &node->miniwidth;
+					oldwidth = nsw->oldminiwidth;
+					widthmin = 0.0f;
+					widthmax = 100.0f;
 				}
 				else {
-					float widthmin = node->typeinfo->minwidth;
-					float widthmax = node->typeinfo->maxwidth;
+					pwidth = &node->width;
+					oldwidth = nsw->oldwidth;
+					widthmin = node->typeinfo->minwidth;
+					widthmax = node->typeinfo->maxwidth;
+				}
+				
+				{
 					if (nsw->directions & NODE_RESIZE_RIGHT) {
-						node->width = nsw->oldwidth + dx;
-						CLAMP(node->width, widthmin, widthmax);
+						*pwidth = oldwidth + dx;
+						CLAMP(*pwidth, widthmin, widthmax);
 					}
 					if (nsw->directions & NODE_RESIZE_LEFT) {
-						float locmax = nsw->oldlocx + nsw->oldwidth;
+						float locmax = nsw->oldlocx + oldwidth;
 						
 						node->locx = nsw->oldlocx + dx;
 						CLAMP(node->locx, locmax - widthmax, locmax - widthmin);
-						node->width = locmax - node->locx;
+						*pwidth = locmax - node->locx;
 					}
 				}
-			
+				
 				/* height works the other way round ... */
 				{
 					float heightmin = UI_DPI_FAC * node->typeinfo->minheight;
@@ -2480,14 +2482,6 @@ static int viewer_border_exec(bContext *C, wmOperator *op)
 				btree->flag &= ~NTREE_VIEWER_BORDER;
 			}
 			else {
-				if (ibuf->rect)
-					memset(ibuf->rect, 0, 4 * ibuf->x * ibuf->y);
-
-				if (ibuf->rect_float)
-					memset(ibuf->rect_float, 0, 4 * ibuf->x * ibuf->y * sizeof(float));
-
-				ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-
 				btree->flag |= NTREE_VIEWER_BORDER;
 			}
 
@@ -2523,4 +2517,31 @@ void NODE_OT_viewer_border(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_gesture_border(ot, true);
+}
+
+static int clear_viewer_border_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+	bNodeTree *btree = snode->nodetree;
+
+	btree->flag &= ~NTREE_VIEWER_BORDER;
+	snode_notify(C, snode);
+	WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void NODE_OT_clear_viewer_border(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Clear Viewer Border";
+	ot->description = "Clear the boundaries for viewer operations";
+	ot->idname = "NODE_OT_clear_viewer_border";
+
+	/* api callbacks */
+	ot->exec = clear_viewer_border_exec;
+	ot->poll = composite_node_active;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

@@ -119,7 +119,8 @@ enum {
 	CD_FREESTYLE_FACE   = 38,
 	CD_MLOOPTANGENT     = 39,
 	CD_TESSLOOPNORMAL   = 40,
-	CD_NUMTYPES         = 41,
+
+	CD_NUMTYPES         = 41
 };
 
 /* Bits for CustomDataMask */
@@ -184,6 +185,8 @@ enum {
 /* Limits */
 #define MAX_MTFACE  8
 #define MAX_MCOL    8
+
+#define DYNTOPO_NODE_NONE -1
 
 #ifdef __cplusplus
 }

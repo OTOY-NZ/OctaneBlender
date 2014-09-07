@@ -76,7 +76,7 @@ There are the following methods for internal use within this module:
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -97,11 +97,12 @@ There are the following methods for internal use within this module:
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Builder.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Builder.py  2014/03/02 14:18:15 garyo"
 
 import collections
 
 import SCons.Action
+import SCons.Debug
 from SCons.Debug import logInstanceCreation
 from SCons.Errors import InternalError, UserError
 import SCons.Executor
@@ -225,7 +226,7 @@ class OverrideWarner(collections.UserDict):
     """
     def __init__(self, dict):
         collections.UserDict.__init__(self, dict)
-        if __debug__: logInstanceCreation(self, 'Builder.OverrideWarner')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Builder.OverrideWarner')
         self.already_warned = None
     def warn(self):
         if self.already_warned:
@@ -376,7 +377,7 @@ class BuilderBase(object):
                         src_builder = None,
                         ensure_suffix = False,
                         **overrides):
-        if __debug__: logInstanceCreation(self, 'Builder.BuilderBase')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Builder.BuilderBase')
         self._memo = {}
         self.action = action
         self.multi = multi
@@ -847,7 +848,7 @@ class CompositeBuilder(SCons.Util.Proxy):
     """
 
     def __init__(self, builder, cmdgen):
-        if __debug__: logInstanceCreation(self, 'Builder.CompositeBuilder')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Builder.CompositeBuilder')
         SCons.Util.Proxy.__init__(self, builder)
 
         # cmdgen should always be an instance of DictCmdGenerator.

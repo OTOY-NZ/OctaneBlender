@@ -45,7 +45,6 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BLO_readfile.h"
@@ -57,7 +56,6 @@
 #include "DNA_object_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
@@ -65,7 +63,6 @@
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_colortools.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
@@ -75,7 +72,6 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
-#include "BKE_object.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
 #include "BKE_world.h"
@@ -98,7 +94,6 @@
 
 #include "ED_datafiles.h"
 #include "ED_render.h"
-#include "ED_view3d.h"
 
 #include "UI_interface.h"
 
@@ -313,10 +308,10 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 
 		sce->r.cfra = scene->r.cfra;
 
-		if (id_type == ID_TE && sp->pr_method == PR_ICON_RENDER) {
-			/* force blender internal for texture icons render,
+		if (id_type == ID_TE) {
+			/* Force blender internal for texture icons and nodes render,
 			 * seems commonly used render engines does not support
-			 * such kind of rendering
+			 * such kind of rendering.
 			 */
 			BLI_strncpy(sce->r.engine, "BLENDER_RENDER", sizeof(sce->r.engine));
 		}
@@ -359,7 +354,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 						if (base->object->id.name[2] == 'c') {
 							Material *shadmat = give_current_material(base->object, base->object->actcol);
 							if (shadmat) {
-								if (mat->mode & MA_SHADBUF) shadmat->septex = 0;
+								if (mat->mode2 & MA_CASTSHADOW) shadmat->septex = 0;
 								else shadmat->septex |= 1;
 							}
 						}
@@ -1158,10 +1153,13 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	wmJob *wm_job;
 	ShaderPreview *sp;
 	Scene *scene = CTX_data_scene(C);
+	short id_type = GS(id->name);
+	bool use_new_shading = BKE_scene_use_new_shading_nodes(scene);
 
-	/* node previews not supported for cycles */
-	if (BKE_scene_use_new_shading_nodes(scene) && method == PR_NODE_RENDER)
+	/* Only texture node preview is supported with Cycles. */
+	if (use_new_shading && method == PR_NODE_RENDER && id_type != ID_TE) {
 		return;
+	}
 
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Shader Preview",
 	                    WM_JOB_EXCL_RENDER, WM_JOB_TYPE_RENDER_PREVIEW);
@@ -1179,17 +1177,25 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 
 	/* hardcoded preview .blend for cycles/internal, this should be solved
 	 * once with custom preview .blend path for external engines */
-	if (BKE_scene_use_new_shading_nodes(scene))
 #ifndef WITH_OCTANE
+	if ((method != PR_NODE_RENDER) && id_type != ID_TE && use_new_shading) {
 		sp->pr_main = G_pr_main_cycles;
+	}
 #else
-        if(strcmp(scene->r.engine, "octane"))
-    		sp->pr_main = G_pr_main_cycles;
-        else
+	if (use_new_shading) {
+       	if(strcmp(scene->r.engine, "octane")) {
+			if ((method != PR_NODE_RENDER) && id_type != ID_TE)
+    			sp->pr_main = G_pr_main_cycles;
+			else
+				sp->pr_main = G_pr_main;
+		}
+		else
             sp->pr_main = G_pr_main_octane;
+	}
 #endif
-	else
+	else {
 		sp->pr_main = G_pr_main;
+	}
 
 	if (ob && ob->totcol) copy_v4_v4(sp->col, ob->col);
 	else sp->col[0] = sp->col[1] = sp->col[2] = sp->col[3] = 1.0f;

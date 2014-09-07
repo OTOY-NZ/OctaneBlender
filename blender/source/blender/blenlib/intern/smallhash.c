@@ -44,8 +44,6 @@
  *
  * Note that the values and keys are often pointers or index values,
  * use the maximum values to avoid real pointers colliding with magic numbers.
- *
- * \note these have the SMHASH prefix because we may want to make them public.
  */
 
 #include <string.h>
@@ -55,7 +53,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_alloca.h"
 
 #include "BLI_smallhash.h"
 

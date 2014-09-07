@@ -35,6 +35,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
+#include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
@@ -45,7 +46,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
-#include "BLI_ghash.h"
 
 #include "BKE_animsys.h"
 #include "BKE_context.h"
@@ -57,7 +57,6 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
-#include "BKE_treehash.h"
 
 #include "ED_armature.h"
 #include "ED_object.h"
@@ -192,6 +191,10 @@ static void unlink_texture_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEle
 	else if (GS(tsep->id->name) == ID_WO) {
 		World *wrld = (World *)tsep->id;
 		mtex = wrld->mtex;
+	}
+	else if (GS(tsep->id->name) == ID_LS) {
+		FreestyleLineStyle *ls = (FreestyleLineStyle *)tsep->id;
+		mtex = ls->mtex;
 	}
 	else {
 		return;
@@ -455,6 +458,13 @@ void outliner_do_object_operation(bContext *C, Scene *scene_act, SpaceOops *soop
 }
 
 /* ******************************************** */
+
+static void clear_animdata_cb(int UNUSED(event), TreeElement *UNUSED(te),
+                              TreeStoreElem *tselem, void *UNUSED(arg))
+{
+	BKE_free_animdata(tselem->id);
+}
+
 
 static void unlinkact_animdata_cb(int UNUSED(event), TreeElement *UNUSED(te),
                                   TreeStoreElem *tselem, void *UNUSED(arg))
@@ -1064,6 +1074,7 @@ void OUTLINER_OT_action_set(wmOperatorType *ot)
 	// TODO: this would be nicer as an ID-pointer...
 	prop = RNA_def_enum(ot->srna, "action", DummyRNA_NULL_items, 0, "Action", "");
 	RNA_def_enum_funcs(prop, RNA_action_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -1071,6 +1082,8 @@ void OUTLINER_OT_action_set(wmOperatorType *ot)
 
 typedef enum eOutliner_AnimDataOps {
 	OUTLINER_ANIMOP_INVALID = 0,
+	
+	OUTLINER_ANIMOP_CLEAR_ADT,
 	
 	OUTLINER_ANIMOP_SET_ACT,
 	OUTLINER_ANIMOP_CLEAR_ACT,
@@ -1083,6 +1096,7 @@ typedef enum eOutliner_AnimDataOps {
 } eOutliner_AnimDataOps;
 
 static EnumPropertyItem prop_animdata_op_types[] = {
+	{OUTLINER_ANIMOP_CLEAR_ADT, "CLEAR_ANIMDATA", 0, "Clear Animation Data", "Remove this animation data container"},
 	{OUTLINER_ANIMOP_SET_ACT, "SET_ACT", 0, "Set Action", ""},
 	{OUTLINER_ANIMOP_CLEAR_ACT, "CLEAR_ACT", 0, "Unlink Action", ""},
 	{OUTLINER_ANIMOP_REFRESH_DRV, "REFRESH_DRIVERS", 0, "Refresh Drivers", ""},
@@ -1111,6 +1125,14 @@ static int outliner_animdata_operation_exec(bContext *C, wmOperator *op)
 	
 	/* perform the core operation */
 	switch (event) {
+		case OUTLINER_ANIMOP_CLEAR_ADT:
+			/* Remove Animation Data - this may remove the active action, in some cases... */
+			outliner_do_data_operation(soops, datalevel, event, &soops->tree, clear_animdata_cb, NULL);
+			
+			WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
+			ED_undo_push(C, "Clear Animation Data");
+			break;
+		
 		case OUTLINER_ANIMOP_SET_ACT:
 			/* delegate once again... */
 			WM_operator_name_call(C, "OUTLINER_OT_action_set", WM_OP_INVOKE_REGION_WIN, NULL);
@@ -1317,7 +1339,7 @@ static int do_outliner_operation_event(bContext *C, Scene *scene, ARegion *ar, S
 				else if (datalevel == TSE_DRIVER_BASE) {
 					/* do nothing... no special ops needed yet */
 				}
-				else if (ELEM3(datalevel, TSE_R_LAYER_BASE, TSE_R_LAYER, TSE_R_PASS)) {
+				else if (ELEM(datalevel, TSE_R_LAYER_BASE, TSE_R_LAYER, TSE_R_PASS)) {
 					/*WM_operator_name_call(C, "OUTLINER_OT_renderdata_operation", WM_OP_INVOKE_REGION_WIN, NULL)*/
 				}
 				else {
@@ -1345,7 +1367,7 @@ static int outliner_operation(bContext *C, wmOperator *UNUSED(op), const wmEvent
 	TreeElement *te;
 	float fmval[2];
 
-	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], fmval, fmval + 1);
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 	
 	for (te = soops->tree.first; te; te = te->next) {
 		if (do_outliner_operation_event(C, scene, ar, soops, te, event, fmval)) {

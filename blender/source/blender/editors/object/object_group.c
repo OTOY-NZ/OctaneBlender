@@ -74,33 +74,31 @@ static bool group_link_early_exit_check(Group *group, Object *object)
 	return false;
 }
 
-static bool check_group_contains_object_recursive(Group *group, Object *object)
+static bool check_object_instances_group_recursive(Object *object, Group *group)
 {
-	GroupObject *group_object;
-
-	if ((group->id.flag & LIB_DOIT) == 0) {
-		/* Cycle already exists in groups, let's prevent further crappyness */
-		return true;
-	}
-
-	group->id.flag &= ~LIB_DOIT;
-
-	for (group_object = group->gobject.first; group_object; group_object = group_object->next) {
-		Object *current_object = group_object->ob;
-
-		if (current_object == object) {
+	if (object->dup_group) {
+		Group *dup_group = object->dup_group;
+		if ((dup_group->id.flag & LIB_DOIT) == 0) {
+			/* Cycle already exists in groups, let's prevent further crappyness */
 			return true;
 		}
-
-		if (current_object->dup_group) {
-			if (check_group_contains_object_recursive(current_object->dup_group, object)) {
-				return true;
+		/* flag the object to identify cyclic dependencies in further dupli groups */
+		dup_group->id.flag &= ~LIB_DOIT;
+		
+		if (dup_group == group)
+			return true;
+		else {
+			GroupObject *gob;
+			for (gob = dup_group->gobject.first; gob; gob = gob->next) {
+				if (check_object_instances_group_recursive(gob->ob, group))
+					return true;
 			}
 		}
+		
+		/* un-flag the object, it's allowed to have the same group multiple times in parallel */
+		dup_group->id.flag |= LIB_DOIT;
 	}
-
-	group->id.flag |= LIB_DOIT;
-
+	
 	return false;
 }
 
@@ -195,7 +193,7 @@ static int objects_add_active_exec(bContext *C, wmOperator *op)
 			if (group_link_early_exit_check(group, base->object))
 				continue;
 
-			if (base->object->dup_group != group && !check_group_contains_object_recursive(group, base->object)) {
+			if (!check_object_instances_group_recursive(base->object, group)) {
 				BKE_group_object_add(group, base->object, scene, base);
 				updated = true;
 			}
@@ -238,6 +236,7 @@ void GROUP_OT_objects_add_active(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "The group to add other selected objects to");
 	RNA_def_enum_funcs(prop, group_object_active_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -301,6 +300,7 @@ void GROUP_OT_objects_remove_active(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "The group to remove other selected objects from");
 	RNA_def_enum_funcs(prop, group_object_active_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -393,6 +393,7 @@ void GROUP_OT_objects_remove(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "The group to remove this object from");
 	RNA_def_enum_funcs(prop, group_object_active_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -476,7 +477,7 @@ static int group_link_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_context(C);
-	Group *group = BLI_findlink(&CTX_data_main(C)->group, RNA_enum_get(op->ptr, "group"));
+	Group *group = BLI_findlink(&bmain->group, RNA_enum_get(op->ptr, "group"));
 
 	if (ELEM(NULL, ob, group))
 		return OPERATOR_CANCELLED;
@@ -495,7 +496,7 @@ static int group_link_exec(bContext *C, wmOperator *op)
 	 * contains our current object.
 	 */
 	BKE_main_id_tag_listbase(&bmain->group, true);
-	if (ob->dup_group == group || check_group_contains_object_recursive(group, ob)) {
+	if (check_object_instances_group_recursive(ob, group)) {
 		BKE_report(op->reports, RPT_ERROR, "Could not add the group because of dependency cycle detected");
 		return OPERATOR_CANCELLED;
 	}
@@ -527,6 +528,7 @@ void OBJECT_OT_group_link(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "");
 	RNA_def_enum_funcs(prop, RNA_group_local_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -561,3 +563,67 @@ void OBJECT_OT_group_remove(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+
+static int group_unlink_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Group *group = CTX_data_pointer_get_type(C, "group", &RNA_Group).data;
+
+	if (!group)
+		return OPERATOR_CANCELLED;
+
+	BKE_group_unlink(group);
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_group_unlink(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Unlink Group";
+	ot->idname = "OBJECT_OT_group_unlink";
+	ot->description = "Unlink the group from all objects";
+
+	/* api callbacks */
+	ot->exec = group_unlink_exec;
+	ot->poll = ED_operator_objectmode;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int select_grouped_exec(bContext *C, wmOperator *UNUSED(op))  /* Select objects in the same group as the active */
+{
+	Group *group = CTX_data_pointer_get_type(C, "group", &RNA_Group).data;
+
+	if (!group)
+		return OPERATOR_CANCELLED;
+
+	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
+	{
+		if (!(base->flag & SELECT) && BKE_group_object_exists(group, base->object)) {
+			ED_base_object_select(base, BA_SELECT);
+		}
+	}
+	CTX_DATA_END;
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_grouped_select(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Grouped";
+	ot->idname = "OBJECT_OT_grouped_select";
+	ot->description = "Select all objects in group";
+
+	/* api callbacks */
+	ot->exec = select_grouped_exec;
+	ot->poll = ED_operator_objectmode;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}

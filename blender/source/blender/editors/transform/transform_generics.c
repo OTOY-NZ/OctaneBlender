@@ -38,6 +38,7 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_brush_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -45,11 +46,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_mask_types.h"
+#include "DNA_meta_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -70,12 +71,11 @@
 #include "BKE_armature.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
-#include "BKE_displist.h"
 #include "BKE_fcurve.h"
 #include "BKE_lattice.h"
-#include "BKE_mesh.h"
 #include "BKE_nla.h"
 #include "BKE_context.h"
+#include "BKE_paint.h"
 #include "BKE_sequencer.h"
 #include "BKE_editmesh.h"
 #include "BKE_tracking.h"
@@ -100,6 +100,7 @@
 #include "WM_api.h"
 
 #include "UI_resources.h"
+#include "UI_view2d.h"
 
 #include "transform.h"
 
@@ -264,7 +265,7 @@ static void animrecord_check_state(Scene *scene, ID *id, wmTimer *animtimer)
 	ScreenAnimData *sad = (animtimer) ? animtimer->customdata : NULL;
 	
 	/* sanity checks */
-	if (ELEM3(NULL, scene, id, sad))
+	if (ELEM(NULL, scene, id, sad))
 		return;
 	
 	/* check if we need a new strip if:
@@ -365,7 +366,7 @@ static void recalcData_actedit(TransInfo *t)
 		}
 		
 		/* now free temp channels */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 	}
 }
 /* helper for recalcData() - for Graph Editor transforms */
@@ -404,7 +405,7 @@ static void recalcData_graphedit(TransInfo *t)
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		FCurve *fcu = (FCurve *)ale->key_data;
 		
-		/* ignore unselected fcurves */
+		/* ignore FC-Curves without any selected verts */
 		if (!fcu_test_selected(fcu))
 			continue;
 
@@ -425,7 +426,7 @@ static void recalcData_graphedit(TransInfo *t)
 	if (dosort) remake_graph_transdata(t, &anim_data);
 	
 	/* now free temp channels */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* helper for recalcData() - for NLA Editor transforms */
@@ -529,23 +530,46 @@ static void recalcData_nla(TransInfo *t)
 				break;
 		}
 		
-		/* handle auto-snapping */
-		switch (snla->autosnap) {
-			case SACTSNAP_FRAME: /* snap to nearest frame/time  */
-				if (snla->flag & SNLA_DRAWTIME) {
-					tdn->h1[0] = (float)(floor(((double)tdn->h1[0] / secf) + 0.5) * secf);
-					tdn->h2[0] = (float)(floor(((double)tdn->h2[0] / secf) + 0.5) * secf);
-				}
-				else {
+		/* handle auto-snapping
+		 * NOTE: only do this when transform is still running, or we can't restore
+		 */
+		if (t->state != TRANS_CANCEL) {
+			switch (snla->autosnap) {
+				case SACTSNAP_FRAME: /* snap to nearest frame */
+				case SACTSNAP_STEP: /* frame step - this is basically the same, since we don't have any remapping going on */
+				{
 					tdn->h1[0] = floorf(tdn->h1[0] + 0.5f);
 					tdn->h2[0] = floorf(tdn->h2[0] + 0.5f);
+					break;
 				}
-				break;
-			
-			case SACTSNAP_MARKER: /* snap to nearest marker */
-				tdn->h1[0] = (float)ED_markers_find_nearest_marker_time(&t->scene->markers, tdn->h1[0]);
-				tdn->h2[0] = (float)ED_markers_find_nearest_marker_time(&t->scene->markers, tdn->h2[0]);
-				break;
+				
+				case SACTSNAP_SECOND: /* snap to nearest second */
+				case SACTSNAP_TSTEP: /* second step - this is basically the same, since we don't have any remapping going on */
+				{
+					/* This case behaves differently from the rest, since lengths of strips
+					 * may not be multiples of a second. If we just naively resize adjust
+					 * the handles, things may not work correctly. Instead, we only snap
+					 * the first handle, and move the other to fit.
+					 *
+					 * FIXME: we do run into problems here when user attempts to negatively
+					 *        scale the strip, as it then just compresses down and refuses
+					 *        to expand out the other end.
+					 */
+					float h1_new = (float)(floor(((double)tdn->h1[0] / secf) + 0.5) * secf);
+					float delta  = h1_new - tdn->h1[0];
+					
+					tdn->h1[0] = h1_new;
+					tdn->h2[0] += delta;
+					break;
+				}
+				
+				case SACTSNAP_MARKER: /* snap to nearest marker */
+				{
+					tdn->h1[0] = (float)ED_markers_find_nearest_marker_time(&t->scene->markers, tdn->h1[0]);
+					tdn->h2[0] = (float)ED_markers_find_nearest_marker_time(&t->scene->markers, tdn->h2[0]);
+					break;
+				}
+			}
 		}
 		
 		/* Use RNA to write the values to ensure that constraints on these are obeyed
@@ -631,6 +655,9 @@ static void recalcData_image(TransInfo *t)
 {
 	if (t->options & CTX_MASK) {
 		recalcData_mask_common(t);
+	}
+	else if (t->options & CTX_PAINT_CURVE) {
+		flushTransPaintCurve(t);
 	}
 	else if (t->obedit && t->obedit->type == OB_MESH) {
 		SpaceImage *sima = t->sa->spacedata.first;
@@ -796,7 +823,7 @@ static void recalcData_objects(TransInfo *t)
 				}
 			}
 			
-			if (!ELEM3(t->mode, TFM_BONE_ROLL, TFM_BONE_ENVELOPE, TFM_BONESIZE)) {
+			if (!ELEM(t->mode, TFM_BONE_ROLL, TFM_BONE_ENVELOPE, TFM_BONESIZE)) {
 				/* fix roll */
 				for (i = 0; i < t->total; i++, td++) {
 					if (td->extra) {
@@ -826,9 +853,12 @@ static void recalcData_objects(TransInfo *t)
 				}
 			}
 			
-			if (arm->flag & ARM_MIRROR_EDIT)
-				transform_armature_mirror_update(t->obedit);
-			
+			if (arm->flag & ARM_MIRROR_EDIT) {
+				if (t->state != TRANS_CANCEL)
+					transform_armature_mirror_update(t->obedit);
+				else
+					restoreBones(t);
+			}
 		}
 		else {
 			if (t->state != TRANS_CANCEL) {
@@ -941,6 +971,9 @@ void recalcData(TransInfo *t)
 	else if (t->options & CTX_EDGE) {
 		recalcData_objects(t);
 	}
+	else if (t->options & CTX_PAINT_CURVE) {
+		flushTransPaintCurve(t);
+	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		recalcData_image(t);
 	}
@@ -1049,6 +1082,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	ARegion *ar = CTX_wm_region(C);
 	ScrArea *sa = CTX_wm_area(C);
 	Object *obedit = CTX_data_edit_object(C);
+	Object *ob = CTX_data_active_object(C);
 	PropertyRNA *prop;
 	
 	t->scene = sce;
@@ -1169,8 +1203,15 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
 		/* exceptional case */
 		if (t->around == V3D_LOCAL && (t->settings->selectmode & SCE_SELECT_FACE)) {
-			if (ELEM3(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
+			if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
 				t->options |= CTX_NO_PET;
+			}
+		}
+
+		if (ob && ob->mode & OB_MODE_ALL_PAINT) {
+			Paint *p = BKE_paint_get_active_from_context(C);
+			if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
+				t->options |= CTX_PAINT_CURVE;
 			}
 		}
 
@@ -1202,9 +1243,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		else if (sima->mode == SI_MODE_MASK) {
 			t->options |= CTX_MASK;
 		}
-		else {
-			/* image not in uv edit, nor in mask mode, can happen for some tools */
+		else if (sima->mode == SI_MODE_PAINT) {
+			Paint *p = &sce->toolsettings->imapaint.paint;
+			if (p->brush && (p->brush->flag & BRUSH_CURVE)) {
+				t->options |= CTX_PAINT_CURVE;
+			}
 		}
+		/* image not in uv edit, nor in mask mode, can happen for some tools */
 	}
 	else if (t->spacetype == SPACE_NODE) {
 		// XXX for now, get View2D from the active region
@@ -1385,7 +1430,7 @@ void postTrans(bContext *C, TransInfo *t)
 	}
 	
 	if (t->spacetype == SPACE_IMAGE) {
-		if (t->options & CTX_MASK) {
+		if (t->options & (CTX_MASK | CTX_PAINT_CURVE)) {
 			/* pass */
 		}
 		else {
@@ -1498,31 +1543,36 @@ void calculateCenter2D(TransInfo *t)
 	}
 }
 
-void calculateCenterCursor(TransInfo *t)
+void calculateCenterCursor(TransInfo *t, float r_center[3])
 {
 	const float *cursor;
 	
 	cursor = ED_view3d_cursor3d_get(t->scene, t->view);
-	copy_v3_v3(t->center, cursor);
+	copy_v3_v3(r_center, cursor);
 	
 	/* If edit or pose mode, move cursor in local space */
 	if (t->flag & (T_EDIT | T_POSE)) {
 		Object *ob = t->obedit ? t->obedit : t->poseobj;
 		float mat[3][3], imat[3][3];
 		
-		sub_v3_v3v3(t->center, t->center, ob->obmat[3]);
+		sub_v3_v3v3(r_center, r_center, ob->obmat[3]);
 		copy_m3_m4(mat, ob->obmat);
 		invert_m3_m3(imat, mat);
-		mul_m3_v3(imat, t->center);
+		mul_m3_v3(imat, r_center);
 	}
-	
-	calculateCenter2D(t);
+	else if (t->options & CTX_PAINT_CURVE) {
+		if (ED_view3d_project_float_global(t->ar, cursor, r_center, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK) {
+			r_center[0] = t->ar->winx / 2.0f;
+			r_center[1] = t->ar->winy / 2.0f;
+		}
+		r_center[2] = 0.0f;
+	}
 }
 
-void calculateCenterCursor2D(TransInfo *t)
+void calculateCenterCursor2D(TransInfo *t, float r_center[2])
 {
 	float aspx = 1.0, aspy = 1.0;
-	float *cursor = NULL;
+	const float *cursor = NULL;
 	
 	if (t->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
@@ -1548,49 +1598,46 @@ void calculateCenterCursor2D(TransInfo *t)
 	if (cursor) {
 		if (t->options & CTX_MASK) {
 			float co[2];
-			float frame_size[2];
 
 			if (t->spacetype == SPACE_IMAGE) {
 				SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
-				ED_space_image_get_size_fl(sima, frame_size);
-				BKE_mask_coord_from_frame(co, cursor, frame_size);
-				ED_space_image_get_aspect(sima, &aspx, &aspy);
+				BKE_mask_coord_from_image(sima->image, &sima->iuser, co, cursor);
 			}
 			else if (t->spacetype == SPACE_CLIP) {
 				SpaceClip *space_clip = (SpaceClip *) t->sa->spacedata.first;
-				ED_space_clip_get_size_fl(space_clip, frame_size);
-				BKE_mask_coord_from_frame(co, cursor, frame_size);
-				ED_space_clip_get_aspect(space_clip, &aspx, &aspy);
+				BKE_mask_coord_from_movieclip(space_clip->clip, &space_clip->user, co, cursor);
 			}
 			else {
 				BLI_assert(!"Shall not happen");
 			}
 
-			t->center[0] = co[0] * aspx;
-			t->center[1] = co[1] * aspy;
+			r_center[0] = co[0] * aspx;
+			r_center[1] = co[1] * aspy;
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			if (t->spacetype == SPACE_IMAGE) {
+				r_center[0] = UI_view2d_view_to_region_x(&t->ar->v2d, cursor[0]);
+				r_center[1] = UI_view2d_view_to_region_y(&t->ar->v2d, cursor[1]);
+			}
 		}
 		else {
-			t->center[0] = cursor[0] * aspx;
-			t->center[1] = cursor[1] * aspy;
+			r_center[0] = cursor[0] * aspx;
+			r_center[1] = cursor[1] * aspy;
 		}
 	}
-	
-	calculateCenter2D(t);
 }
 
-static void calculateCenterCursorGraph2D(TransInfo *t)
+void calculateCenterCursorGraph2D(TransInfo *t, float r_center[2])
 {
 	SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
 	Scene *scene = t->scene;
 	
 	/* cursor is combination of current frame, and graph-editor cursor value */
-	t->center[0] = (float)(scene->r.cfra);
-	t->center[1] = sipo->cursorVal;
-	
-	calculateCenter2D(t);
+	r_center[0] = (float)(scene->r.cfra);
+	r_center[1] = sipo->cursorVal;
 }
 
-void calculateCenterMedian(TransInfo *t)
+void calculateCenterMedian(TransInfo *t, float r_center[3])
 {
 	float partial[3] = {0.0f, 0.0f, 0.0f};
 	int total = 0;
@@ -1606,12 +1653,10 @@ void calculateCenterMedian(TransInfo *t)
 	}
 	if (i)
 		mul_v3_fl(partial, 1.0f / total);
-	copy_v3_v3(t->center, partial);
-	
-	calculateCenter2D(t);
+	copy_v3_v3(r_center, partial);
 }
 
-void calculateCenterBound(TransInfo *t)
+void calculateCenterBound(TransInfo *t, float r_center[3])
 {
 	float max[3];
 	float min[3];
@@ -1628,83 +1673,145 @@ void calculateCenterBound(TransInfo *t)
 			copy_v3_v3(min, t->data[i].center);
 		}
 	}
-	mid_v3_v3v3(t->center, min, max);
-
-	calculateCenter2D(t);
+	mid_v3_v3v3(r_center, min, max);
 }
+
+/**
+ * \param select_only only get active center from data being transformed.
+ */
+bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
+{
+	bool ok = false;
+
+	if (t->obedit) {
+		switch (t->obedit->type) {
+			case OB_MESH:
+			{
+				BMEditSelection ese;
+				BMEditMesh *em = BKE_editmesh_from_object(t->obedit);
+
+				if (BM_select_history_active_get(em->bm, &ese)) {
+					BM_editselection_center(&ese, r_center);
+					ok = true;
+				}
+				break;
+			}
+			case OB_ARMATURE:
+			{
+				bArmature *arm = t->obedit->data;
+				EditBone *ebo = arm->act_edbone;
+
+				if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
+					copy_v3_v3(r_center, ebo->head);
+					ok = true;
+				}
+
+				break;
+			}
+			case OB_CURVE:
+			case OB_SURF:
+			{
+				float center[3];
+				Curve *cu = (Curve *)t->obedit->data;
+
+				if (ED_curve_active_center(cu, center)) {
+					copy_v3_v3(r_center, center);
+					ok = true;
+				}
+				break;
+			}
+			case OB_MBALL:
+			{
+				MetaBall *mb = (MetaBall *)t->obedit->data;
+				MetaElem *ml_act = mb->lastelem;
+
+				if (ml_act && (!select_only || (ml_act->flag & SELECT))) {
+					copy_v3_v3(r_center, &ml_act->x);
+					ok = true;
+				}
+				break;
+			}
+			case OB_LATTICE:
+			{
+				BPoint *actbp = BKE_lattice_active_point_get(t->obedit->data);
+
+				if (actbp) {
+					copy_v3_v3(r_center, actbp->vec);
+					ok = true;
+				}
+				break;
+			}
+		}
+	}
+	else if (t->flag & T_POSE) {
+		Scene *scene = t->scene;
+		Object *ob = OBACT;
+		if (ob) {
+			bPoseChannel *pchan = BKE_pose_channel_active(ob);
+			if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
+				copy_v3_v3(r_center, pchan->pose_head);
+				ok = true;
+			}
+		}
+	}
+	else if (t->options & CTX_PAINT_CURVE) {
+		Paint *p = BKE_paint_get_active(t->scene);
+		Brush *br = p->brush;
+		PaintCurve *pc = br->paint_curve;
+		copy_v3_v3(r_center, pc->points[pc->add_index - 1].bez.vec[1]);
+		r_center[2] = 0.0f;
+		ok = true;
+	}
+	else {
+		/* object mode */
+		Scene *scene = t->scene;
+		Object *ob = OBACT;
+		if (ob && (!select_only || (ob->flag & SELECT))) {
+			copy_v3_v3(r_center, ob->obmat[3]);
+			ok = true;
+		}
+	}
+
+	return ok;
+}
+
 
 void calculateCenter(TransInfo *t)
 {
 	switch (t->around) {
 		case V3D_CENTER:
-			calculateCenterBound(t);
+			calculateCenterBound(t, t->center);
 			break;
 		case V3D_CENTROID:
-			calculateCenterMedian(t);
+			calculateCenterMedian(t, t->center);
 			break;
 		case V3D_CURSOR:
 			if (ELEM(t->spacetype, SPACE_IMAGE, SPACE_CLIP))
-				calculateCenterCursor2D(t);
+				calculateCenterCursor2D(t, t->center);
 			else if (t->spacetype == SPACE_IPO)
-				calculateCenterCursorGraph2D(t);
+				calculateCenterCursorGraph2D(t, t->center);
 			else
-				calculateCenterCursor(t);
+				calculateCenterCursor(t, t->center);
 			break;
 		case V3D_LOCAL:
 			/* Individual element center uses median center for helpline and such */
-			calculateCenterMedian(t);
+			calculateCenterMedian(t, t->center);
 			break;
 		case V3D_ACTIVE:
 		{
-			/* set median, and if if if... do object center */
-		
-			/* EDIT MODE ACTIVE EDITMODE ELEMENT */
-
-			if (t->obedit) {
-				if (t->obedit && t->obedit->type == OB_MESH) {
-					BMEditSelection ese;
-					BMEditMesh *em = BKE_editmesh_from_object(t->obedit);
-
-					if (BM_select_history_active_get(em->bm, &ese)) {
-						BM_editselection_center(&ese, t->center);
-						calculateCenter2D(t);
-						break;
-					}
-				}
-				else if (ELEM(t->obedit->type, OB_CURVE, OB_SURF)) {
-					float center[3];
-					Curve *cu = (Curve *)t->obedit->data;
-
-					if (ED_curve_active_center(cu, center)) {
-						copy_v3_v3(t->center, center);
-						calculateCenter2D(t);
-						break;
-					}
-				}
-				else if (t->obedit && t->obedit->type == OB_LATTICE) {
-					BPoint *actbp = BKE_lattice_active_point_get(t->obedit->data);
-
-					if (actbp) {
-						copy_v3_v3(t->center, actbp->vec);
-						calculateCenter2D(t);
-						break;
-					}
-				}
-			} /* END EDIT MODE ACTIVE ELEMENT */
-
-			calculateCenterMedian(t);
-			if ((t->flag & (T_EDIT | T_POSE)) == 0) {
-				Scene *scene = t->scene;
-				Object *ob = OBACT;
-				if (ob) {
-					copy_v3_v3(t->center, ob->obmat[3]);
-					projectFloatView(t, t->center, t->center2d);
-				}
+			if (calculateCenterActive(t, false, t->center)) {
+				/* pass */
+			}
+			else {
+				/* fallback */
+				calculateCenterMedian(t, t->center);
 			}
 			break;
 		}
 	}
-	
+
+	calculateCenter2D(t);
+
 	/* setting constraint center */
 	copy_v3_v3(t->con.center, t->center);
 	if (t->flag & (T_EDIT | T_POSE)) {

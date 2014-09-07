@@ -53,7 +53,8 @@ class AddPresetKernel(AddPresetBase, Operator):
         "octane.zdepth_max",
         "octane.uv_max",
         "octane.bump_normal_mapping",
-        "octane.wf_bktrace_hl"
+        "octane.wf_bktrace_hl",
+        "octane.distributed_tracing"
     ]
 
     preset_subdir = "octane/kernel"

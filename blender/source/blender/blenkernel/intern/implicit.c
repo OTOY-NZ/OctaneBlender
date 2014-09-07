@@ -37,7 +37,6 @@
 #include "DNA_object_force.h"
 #include "DNA_meshdata_types.h"
 
-#include "BLI_threads.h"
 #include "BLI_math.h"
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
@@ -1400,7 +1399,7 @@ static void CalcFloat4( float *v1, float *v2, float *v3, float *v4, float *n)
 	n[2] = n1[0]*n2[1]-n1[1]*n2[0];
 }
 
-static float calculateVertexWindForce(float wind[3], float vertexnormal[3])  
+static float calculateVertexWindForce(const float wind[3], const float vertexnormal[3])
 {
 	return dot_v3v3(wind, vertexnormal);
 }
@@ -1433,7 +1432,7 @@ static void hair_velocity_smoothing(ClothModifierData *clmd, lfVector *lF, lfVec
 	float smoothfac = 2.0f * clmd->sim_parms->velocity_smooth;
 	float collfac = 2.0f * clmd->sim_parms->collider_friction;
 	unsigned int	v = 0;
-	unsigned int	i = 0;
+	int	            i = 0;
 	int				j = 0;
 	int				k = 0;
 

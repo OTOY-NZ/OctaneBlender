@@ -34,7 +34,6 @@
 
 #include "DNA_curve_types.h"
 #include "DNA_image_types.h"
-#include "DNA_lattice_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -199,7 +198,7 @@ DerivedMesh *get_dm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
 			DM_add_vert_layer(dm, CD_ORCO, CD_ASSIGN, BKE_mesh_orco_verts_get(ob));
 		}
 	}
-	else if (ELEM3(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
+	else if (ELEM(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
 		dm = CDDM_from_curve(ob);
 	}
 

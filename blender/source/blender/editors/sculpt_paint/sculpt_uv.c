@@ -40,16 +40,13 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "BKE_brush.h"
 #include "BKE_paint.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_main.h"
 #include "BKE_depsgraph.h"
-#include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_customdata.h"
 #include "BKE_editmesh.h"
@@ -242,12 +239,14 @@ void ED_space_image_uv_sculpt_update(wmWindowManager *wm, ToolSettings *settings
 
 		BKE_paint_init(&settings->uvsculpt->paint, PAINT_CURSOR_SCULPT);
 
-		WM_paint_cursor_activate(wm, uv_sculpt_brush_poll,
-		                         brush_drawcursor_uvsculpt, NULL);
+		settings->uvsculpt->paint.paint_cursor = WM_paint_cursor_activate(wm, uv_sculpt_brush_poll,
+		                                                                  brush_drawcursor_uvsculpt, NULL);
 	}
 	else {
-		if (settings->uvsculpt)
-			settings->uvsculpt->paint.flags &= ~PAINT_SHOW_BRUSH;
+		if (settings->uvsculpt) {
+			WM_paint_cursor_end(wm, settings->uvsculpt->paint.paint_cursor);
+			settings->uvsculpt->paint.paint_cursor = NULL;
+		}
 	}
 }
 
@@ -672,7 +671,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 				MEM_freeN(uniqueUv);
 			}
 			if (edgeHash) {
-				MEM_freeN(edgeHash);
+				BLI_ghash_free(edgeHash, NULL, NULL);
 			}
 			uv_sculpt_stroke_exit(C, op);
 			return NULL;

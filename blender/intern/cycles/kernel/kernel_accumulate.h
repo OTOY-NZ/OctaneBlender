@@ -111,7 +111,7 @@ ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, float3 value)
 /* Path Radiance
  *
  * We accumulate different render passes separately. After summing at the end
- * to get the combined result, it should be identical. We definte directly
+ * to get the combined result, it should be identical. We definite directly
  * visible as the first non-transparent hit, while indirectly visible are the
  * bounces after that. */
 
@@ -405,6 +405,31 @@ ccl_device_inline float3 path_radiance_clamp_and_sum(KernelGlobals *kg, PathRadi
 		L_sum = make_float3(0.0f, 0.0f, 0.0f);
 
 	return L_sum;
+}
+
+ccl_device_inline void path_radiance_accum_sample(PathRadiance *L, PathRadiance *L_sample, int num_samples)
+{
+	float fac = 1.0f/num_samples;
+
+#ifdef __PASSES__
+	L->direct_diffuse += L_sample->direct_diffuse*fac;
+	L->direct_glossy += L_sample->direct_glossy*fac;
+	L->direct_transmission += L_sample->direct_transmission*fac;
+	L->direct_subsurface += L_sample->direct_subsurface*fac;
+
+	L->indirect_diffuse += L_sample->indirect_diffuse*fac;
+	L->indirect_glossy += L_sample->indirect_glossy*fac;
+	L->indirect_transmission += L_sample->indirect_transmission*fac;
+	L->indirect_subsurface += L_sample->indirect_subsurface*fac;
+
+	L->emission += L_sample->emission*fac;
+	L->background += L_sample->background*fac;
+	L->ao += L_sample->ao*fac;
+	L->shadow += L_sample->shadow*fac;
+	L->mist += L_sample->mist*fac;
+#else
+	*L += *L_sample * fac;
+#endif
 }
 
 CCL_NAMESPACE_END

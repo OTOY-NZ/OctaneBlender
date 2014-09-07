@@ -188,6 +188,7 @@ info_channel_types = (
     ('5', "Textures coordinates", ""),
     ('7', "Wireframe", ""),
     ('8', "Interpolated vertex normals", ""),
+    ('9', "Object layer ID", ""),
     )
 
 kernel_types = (

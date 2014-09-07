@@ -80,13 +80,15 @@ void *get_bone_from_selectbuffer(Scene *scene, Base *base, unsigned int *buffer,
 	EditBone *ebone;
 	void *firstunSel = NULL, *firstSel = NULL, *data;
 	unsigned int hitresult;
-	short i, takeNext = 0, sel;
+	short i;
+	bool takeNext = false;
 	
 	for (i = 0; i < hits; i++) {
 		hitresult = buffer[3 + (i * 4)];
 		
-		if (!(hitresult & BONESEL_NOSEL)) { // -1
-			if (hitresult & BONESEL_ANY) {  // to avoid including objects in selection
+		if (!(hitresult & BONESEL_NOSEL)) {
+			if (hitresult & BONESEL_ANY) {  /* to avoid including objects in selection */
+				bool sel;
 				
 				hitresult &= ~(BONESEL_ANY);
 				/* Determine what the current bone is */
@@ -158,7 +160,7 @@ void *get_nearest_bone(bContext *C, short findunsel, int x, int y)
 	rect.ymin = rect.ymax = y;
 	
 	glInitNames();
-	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect);
+	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect, true);
 
 	if (hits > 0)
 		return get_bone_from_selectbuffer(vc.scene, vc.scene->basact, buffer, hits, findunsel);
@@ -293,19 +295,19 @@ static EditBone *get_nearest_editbonepoint(ViewContext *vc, const int mval[2],
 	rect.ymin = mval[1] - 5;
 	rect.ymax = mval[1] + 5;
 
-	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect);
+	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect, true);
 	if (hits == 0) {
 		rect.xmin = mval[0] - 12;
 		rect.xmax = mval[0] + 12;
 		rect.ymin = mval[1] - 12;
 		rect.ymax = mval[1] + 12;
-		hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect);
+		hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect, true);
 	}
 	/* See if there are any selected bones in this group */
 	if (hits > 0) {
 		
 		if (hits == 1) {
-			if (!(buffer[3] & BONESEL_NOSEL)) 
+			if (!(buffer[3] & BONESEL_NOSEL))
 				besthitresult = buffer[3];
 		}
 		else {

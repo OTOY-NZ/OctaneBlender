@@ -39,11 +39,7 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
-#include "BLI_threads.h"
 
-#include "BKE_blender.h"
-#include "BKE_global.h"
-#include "BKE_colortools.h"
 #include "BKE_context.h"
 
 #include "BIF_gl.h"
@@ -53,6 +49,8 @@
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
+
+#include "UI_interface.h"
 
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE                        0x812F
@@ -502,7 +500,7 @@ static int get_cached_work_texture(int *r_w, int *r_h)
 void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY)
 {
 	unsigned char *uc_rect = (unsigned char *) rect;
-	float *f_rect = (float *)rect;
+	const float *f_rect = (float *)rect;
 	float xzoom = glaGetOneFloat(GL_ZOOM_X), yzoom = glaGetOneFloat(GL_ZOOM_Y);
 	int ltexid = glaGetOneInteger(GL_TEXTURE_2D);
 	int lrowlength = glaGetOneInteger(GL_UNPACK_ROW_LENGTH);
@@ -692,17 +690,17 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_w);
 		if (format == GL_LUMINANCE || format == GL_RED) {
 			if (type == GL_FLOAT) {
-				float *f_rect = (float *)rect;
+				const float *f_rect = (float *)rect;
 				glDrawPixels(draw_w, draw_h, format, type, f_rect + (off_y * row_w + off_x));
 			}
 			else if (type == GL_INT || type == GL_UNSIGNED_INT) {
-				int *i_rect = (int *)rect;
+				const int *i_rect = (int *)rect;
 				glDrawPixels(draw_w, draw_h, format, type, i_rect + (off_y * row_w + off_x));
 			}
 		}
 		else { /* RGBA */
 			if (type == GL_FLOAT) {
-				float *f_rect = (float *)rect;
+				const float *f_rect = (float *)rect;
 				glDrawPixels(draw_w, draw_h, format, type, f_rect + (off_y * row_w + off_x) * 4);
 			}
 			else if (type == GL_UNSIGNED_BYTE) {
@@ -1142,4 +1140,41 @@ void cpack(unsigned int x)
 	glColor3ub( ( (x)        & 0xFF),
 	            (((x) >>  8) & 0xFF),
 	            (((x) >> 16) & 0xFF) );
+}
+
+void glaDrawBorderCorners(const rcti *border, float zoomx, float zoomy)
+{
+	float delta_x = 4.0f * UI_DPI_FAC / zoomx;
+	float delta_y = 4.0f * UI_DPI_FAC / zoomy;
+
+	delta_x = min_ff(delta_x, border->xmax - border->xmin);
+	delta_y = min_ff(delta_y, border->ymax - border->ymin);
+
+	/* left bottom corner */
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(border->xmin, border->ymin + delta_y);
+	glVertex2f(border->xmin, border->ymin);
+	glVertex2f(border->xmin + delta_x, border->ymin);
+	glEnd();
+
+	/* left top corner */
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(border->xmin, border->ymax - delta_y);
+	glVertex2f(border->xmin, border->ymax);
+	glVertex2f(border->xmin + delta_x, border->ymax);
+	glEnd();
+
+	/* right bottom corner */
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(border->xmax - delta_x, border->ymin);
+	glVertex2f(border->xmax, border->ymin);
+	glVertex2f(border->xmax, border->ymin + delta_y);
+	glEnd();
+
+	/* right top corner */
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(border->xmax - delta_x, border->ymax);
+	glVertex2f(border->xmax, border->ymax);
+	glVertex2f(border->xmax, border->ymax - delta_y);
+	glEnd();
 }

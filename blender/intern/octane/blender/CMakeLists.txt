@@ -4,7 +4,6 @@ set(INC
 	./render
 	./server
 	./util
-	./subd
 	../../guardedalloc
 	../../../source/blender/makesdna
 	../../../source/blender/makesrna

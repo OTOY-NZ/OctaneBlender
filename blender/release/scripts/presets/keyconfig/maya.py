@@ -326,9 +326,10 @@ kmi.properties.name = 'VIEW3D_MT_pose_group'
 kmi = km.keymap_items.new('wm.call_menu', 'RIGHTMOUSE', 'PRESS')
 kmi.properties.name = 'VIEW3D_MT_bone_options_toggle'
 kmi = km.keymap_items.new('armature.layers_show_all', 'ACCENT_GRAVE', 'PRESS', ctrl=True)
-kmi = km.keymap_items.new('pose.armature_layers', 'M', 'PRESS', shift=True)
+kmi = km.keymap_items.new('armature.armature_layers', 'M', 'PRESS', shift=True)
 kmi = km.keymap_items.new('pose.bone_layers', 'M', 'PRESS')
 kmi = km.keymap_items.new('transform.transform', 'S', 'PRESS', ctrl=True, alt=True)
+kmi.properties.mode = 'BONE_SIZE'
 kmi = km.keymap_items.new('anim.keyframe_insert_menu', 'S', 'PRESS')
 kmi = km.keymap_items.new('anim.keyframe_delete_v3d', 'S', 'PRESS', alt=True)
 kmi = km.keymap_items.new('anim.keying_set_active_set', 'I', 'PRESS', shift=True, ctrl=True, alt=True)
@@ -707,10 +708,10 @@ kmi = km.keymap_items.new_modal('CONFIRM', 'NUMPAD_ENTER', 'PRESS', any=True)
 kmi = km.keymap_items.new_modal('CONFIRM', 'SPACE', 'PRESS', any=True)
 kmi = km.keymap_items.new_modal('NEW_CUT', 'E', 'PRESS')
 
-kmi = km.keymap_items.new_modal('SNAP_MIDPOINT_ON', 'LEFT_CTRL', 'PRESS', any=True)
-kmi = km.keymap_items.new_modal('SNAP_MIDPOINT_OFF', 'LEFT_CTRL', 'RELEASE', any=True)
-kmi = km.keymap_items.new_modal('SNAP_MIDPOINT_ON', 'RIGHT_CTRL', 'PRESS', any=True)
-kmi = km.keymap_items.new_modal('SNAP_MIDPOINT_OFF', 'RIGHT_CTRL', 'RELEASE', any=True)
+kmi = km.keymap_items.new_modal('SNAP_MIDPOINTS_ON', 'LEFT_CTRL', 'PRESS', any=True)
+kmi = km.keymap_items.new_modal('SNAP_MIDPOINTS_OFF', 'LEFT_CTRL', 'RELEASE', any=True)
+kmi = km.keymap_items.new_modal('SNAP_MIDPOINTS_ON', 'RIGHT_CTRL', 'PRESS', any=True)
+kmi = km.keymap_items.new_modal('SNAP_MIDPOINTS_OFF', 'RIGHT_CTRL', 'RELEASE', any=True)
 
 kmi = km.keymap_items.new_modal('IGNORE_SNAP_ON', 'LEFT_SHIFT', 'PRESS', any=True)
 kmi = km.keymap_items.new_modal('IGNORE_SNAP_OFF', 'LEFT_SHIFT', 'RELEASE', any=True)
@@ -1094,6 +1095,8 @@ kmi = km.keymap_items.new('wm.context_set_enum', 'V', 'PRESS')
 kmi.properties.data_path = 'tool_settings.snap_element'
 kmi.properties.value = 'VERTEX'
 
+km.keymap_items.new('view3d.render_border', 'B', 'PRESS', ctrl=True)
+
 # Map Animation Channels
 km = kc.keymaps.new('Animation Channels', space_type='EMPTY', region_type='WINDOW', modal=False)
 
@@ -1446,9 +1449,9 @@ kmi.properties.value = 8
 # Map Node Editor
 km = kc.keymaps.new('Node Editor', space_type='NODE_EDITOR', region_type='WINDOW', modal=False)
 
-kmi = km.keymap_items.new('node.select', 'SELECTMOUSE', 'CLICK')
+kmi = km.keymap_items.new('node.select', 'SELECTMOUSE', 'PRESS')
 kmi.properties.extend = False
-kmi = km.keymap_items.new('node.select', 'SELECTMOUSE', 'CLICK', shift=True)
+kmi = km.keymap_items.new('node.select', 'SELECTMOUSE', 'PRESS', shift=True)
 kmi.properties.extend = True
 kmi = km.keymap_items.new('node.select_border', 'EVT_TWEAK_S', 'ANY')
 kmi.properties.extend = False
@@ -1484,7 +1487,7 @@ kmi = km.keymap_items.new('node.delete_reconnect', 'X', 'PRESS', ctrl=True)
 kmi = km.keymap_items.new('node.select_all', 'A', 'PRESS', ctrl=True)
 kmi = km.keymap_items.new('node.select_linked_to', 'L', 'PRESS', shift=True)
 kmi = km.keymap_items.new('node.select_linked_from', 'L', 'PRESS')
-kmi = km.keymap_items.new('node.select_same_type', 'G', 'PRESS', shift=True)
+kmi = km.keymap_items.new('node.select_grouped', 'G', 'PRESS', shift=True)
 kmi = km.keymap_items.new('node.select_same_type_step', 'RIGHT_BRACKET', 'PRESS', shift=True)
 kmi.properties.prev = True
 kmi = km.keymap_items.new('node.select_same_type_step', 'LEFT_BRACKET', 'PRESS', shift=True)

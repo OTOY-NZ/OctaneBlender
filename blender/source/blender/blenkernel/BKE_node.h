@@ -44,6 +44,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "RNA_types.h"
 
@@ -351,7 +352,7 @@ struct bNodeTree *ntreeAddTree(struct Main *bmain, const char *name, const char 
 /* copy/free funcs, need to manage ID users */
 void              ntreeFreeTree_ex(struct bNodeTree *ntree, const bool do_id_user);
 void              ntreeFreeTree(struct bNodeTree *ntree);
-struct bNodeTree *ntreeCopyTree_ex(struct bNodeTree *ntree, const bool do_id_user);
+struct bNodeTree *ntreeCopyTree_ex(struct bNodeTree *ntree, struct Main *bmain, const bool do_id_user);
 struct bNodeTree *ntreeCopyTree(struct bNodeTree *ntree);
 void              ntreeSwitchID_ex(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to, const bool do_id_user);
 void              ntreeSwitchID(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to);
@@ -594,6 +595,9 @@ void            node_type_gpu(struct bNodeType *ntype, NodeGPUExecFunction gpufu
 void            node_type_internal_links(struct bNodeType *ntype, void (*update_internal_links)(struct bNodeTree *, struct bNode *));
 void            node_type_compatibility(struct bNodeType *ntype, short compatibility);
 
+/* ************** GENERIC NODE FUNCTIONS *************** */
+bool BKE_node_is_connected_to_output(struct bNodeTree *ntree, struct bNode *node);
+
 /* ************** COMMON NODES *************** */
 
 #define NODE_UNDEFINED	-2		/* node type is not registered */
@@ -642,6 +646,7 @@ struct NodeTreeIterStore {
 	Tex *tex;
 	Lamp *lamp;
 	World *world;
+	FreestyleLineStyle *linestyle;
 };
 
 void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *bmain);
@@ -735,7 +740,7 @@ struct ShadeResult;
 #define SH_NODE_BRIGHTCONTRAST			165
 #define SH_NODE_LIGHT_FALLOFF			166
 #define SH_NODE_OBJECT_INFO				167
-#define SH_NODE_PARTICLE_INFO           168
+#define SH_NODE_PARTICLE_INFO			168
 #define SH_NODE_TEX_BRICK				169
 #define SH_NODE_BUMP					170
 #define SH_NODE_SCRIPT					171
@@ -754,7 +759,11 @@ struct ShadeResult;
 #define SH_NODE_COMBHSV					184
 #define SH_NODE_BSDF_HAIR				185
 #define SH_NODE_LAMP					186
-#define SH_NODE_UVMAP                   187
+#define SH_NODE_UVMAP					187
+#define SH_NODE_SEPXYZ					188
+#define SH_NODE_COMBXYZ					189
+#define SH_NODE_OUTPUT_LINESTYLE		190
+#define SH_NODE_UVALONGSTROKE			191
 
 #ifdef WITH_OCTANE
 #define SH_NODE_OCT_DIFFUSE_MAT			800
@@ -769,6 +778,8 @@ struct ShadeResult;
 #define SH_NODE_OCT_SCALE_TRN			830
 #define SH_NODE_OCT_ROTATE_TRN			831
 #define SH_NODE_OCT_FULL_TRN			832
+#define SH_NODE_OCT_2D_TRN		    	833
+#define SH_NODE_OCT_3D_TRN	    		834
 
 #define SH_NODE_OCT_ABSORP_MED			840
 #define SH_NODE_OCT_SCATTER_MED			841
@@ -948,6 +959,7 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 #define CMP_NODE_GLARE		301
 #define CMP_NODE_TONEMAP	302
 #define CMP_NODE_LENSDIST	303
+#define CMP_NODE_SUNBEAMS	304
 
 #define CMP_NODE_COLORCORRECTION 312
 #define CMP_NODE_MASK_BOX       313

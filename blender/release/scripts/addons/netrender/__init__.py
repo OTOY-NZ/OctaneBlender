@@ -26,8 +26,8 @@ bl_info = {
     "location": "Render > Engine > Network Render",
     "description": "Distributed rendering for Blender",
     "warning": "Stable but still work in progress",
-    "wiki_url": "http://wiki.blender.org/index.php/Doc:2.5/Manual/Render/Engines/Netrender",
-    "tracker_url": "https://projects.blender.org/tracker/?func=detail&atid=469&aid=36513&group_id=153",
+    "wiki_url": "http://wiki.blender.org/index.php/Doc:2.5/Manual/"
+                "Render/Engines/Netrender",
     "category": "Render",
 }
 

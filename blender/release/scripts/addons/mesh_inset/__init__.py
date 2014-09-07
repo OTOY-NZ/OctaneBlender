@@ -21,16 +21,15 @@
 bl_info = {
     "name": "Inset Polygon",
     "author": "Howard Trickey",
-    "version": (0, 4),
-    "blender": (2, 63, 0),
+    "version": (1, 0),
+    "blender": (2, 69, 0),
     "location": "View3D > Tools",
     "description": "Make an inset polygon inside selection.",
     "warning": "",
-    "wiki_url": \
-      "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Modeling/Inset-Polygon",
-    "tracker_url": \
-      "http://projects.blender.org/tracker/index.php?func=detail&aid=27290&group_id=153&atid=469",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
+                "Scripts/Modeling/Inset-Polygon",
     "category": "Mesh"}
+
 
 if "bpy" in locals():
     import imp

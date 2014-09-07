@@ -76,7 +76,7 @@ extern "C" {
 	extern size_t (*MEM_allocN_len)(const void *vmemh) ATTR_WARN_UNUSED_RESULT;
 
 	/**
-	 * Release memory previously allocatred by this module. 
+	 * Release memory previously allocated by this module.
 	 */
 	extern void (*MEM_freeN)(void *vmemh);
 
@@ -118,6 +118,12 @@ extern "C" {
 	 * name must be a static, because only a pointer to it is stored !
 	 * */
 	extern void *(*MEM_mallocN)(size_t len, const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT ATTR_ALLOC_SIZE(1) ATTR_NONNULL(2);
+
+	/**
+	 * Allocate an aligned block of memory of size len, with tag name str. The
+	 * name must be a static, because only a pointer to it is stored !
+	 * */
+	extern void *(*MEM_mallocN_aligned)(size_t len, size_t alignment, const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT ATTR_ALLOC_SIZE(1) ATTR_NONNULL(3);
 
 	/**
 	 * Same as callocN, clears memory and uses mmap (disk cached) if supported.

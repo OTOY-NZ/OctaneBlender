@@ -897,7 +897,7 @@ static void calc_shapeKeys(Object *obedit)
 				}
 				else {
 					int index;
-					float *curofp;
+					const float *curofp;
 
 					if (oldkey) {
 						if (nu->bezt) {
@@ -1042,7 +1042,7 @@ static void curve_rename_fcurves(Curve *cu, ListBase *orig_curves)
 {
 	int nu_index = 0, a, pt_index;
 	EditNurb *editnurb = cu->editnurb;
-	Nurb *nu = editnurb->nurbs.first;
+	Nurb *nu;
 	CVKeyIndex *keyIndex;
 	char rna_path[64], orig_rna_path[64];
 	AnimData *adt = BKE_animdata_from_id(&cu->id);
@@ -1111,7 +1111,7 @@ static void curve_rename_fcurves(Curve *cu, ListBase *orig_curves)
 		next = fcu->next;
 
 		if (!strncmp(fcu->rna_path, "splines", 7)) {
-			char *ch = strchr(fcu->rna_path, '.');
+			const char *ch = strchr(fcu->rna_path, '.');
 
 			if (ch && (!strncmp(ch, ".bezier_points", 14) || !strncmp(ch, ".points", 7)))
 				fcurve_remove(adt, orig_curves, fcu);
@@ -1191,7 +1191,7 @@ static int *initialize_index_map(Object *obedit, int *r_old_totvert)
 
 	for (nu = editnurb->nurbs.first, vertex_index = 0;
 	     nu != NULL;
-	     nu = nu->next, vertex_index++)
+	     nu = nu->next)
 	{
 		if (nu->bezt) {
 			BezTriple *bezt = nu->bezt;
@@ -1238,8 +1238,17 @@ static void remap_hooks_and_vertex_parents(Object *obedit)
 {
 	Object *object;
 	Curve *curve = (Curve *) obedit->data;
+	EditNurb *editnurb = curve->editnurb;
 	int *old_to_new_map = NULL;
 	int old_totvert;
+
+	if (editnurb->keyindex == NULL) {
+		/* TODO(sergey): Happens when separating curves, this would lead to
+		 * the wrong indices in the hook modifier, address this together with
+		 * other indices issues.
+		 */
+		return;
+	}
 
 	for (object = G.main->object.first; object; object = object->id.next) {
 		ModifierData *md;
@@ -1926,7 +1935,7 @@ static void ed_curve_delete_selected(Object *obedit)
 				}
 				if (a == 0) {
 					if (cu->actnu == nuindex)
-						cu->actnu = -1;
+						cu->actnu = CU_ACT_NONE;
 
 					BLI_remlink(nubase, nu);
 					keyIndex_delNurb(editnurb, nu);
@@ -1950,7 +1959,7 @@ static void ed_curve_delete_selected(Object *obedit)
 				}
 				if (a == 0) {
 					if (cu->actnu == nuindex)
-						cu->actnu = -1;
+						cu->actnu = CU_ACT_NONE;
 
 					BLI_remlink(nubase, nu);
 					keyIndex_delNurb(editnurb, nu);
@@ -1975,17 +1984,15 @@ static void ed_curve_delete_selected(Object *obedit)
 		next = nu->next;
 		type = 0;
 		if (nu->type == CU_BEZIER) {
-			int delta = 0;
 			bezt = nu->bezt;
 			for (a = 0; a < nu->pntsu; a++) {
 				if (BEZSELECTED_HIDDENHANDLES(cu, bezt)) {
 					memmove(bezt, bezt + 1, (nu->pntsu - a - 1) * sizeof(BezTriple));
-					keyIndex_delBezt(editnurb, bezt + delta);
+					keyIndex_delBezt(editnurb, bezt);
 					keyIndex_updateBezt(editnurb, bezt + 1, bezt, nu->pntsu - a - 1);
 					nu->pntsu--;
 					a--;
 					type = 1;
-					delta++;
 				}
 				else {
 					bezt++;
@@ -2001,18 +2008,16 @@ static void ed_curve_delete_selected(Object *obedit)
 			}
 		}
 		else if (nu->pntsv == 1) {
-			int delta = 0;
 			bp = nu->bp;
 
 			for (a = 0; a < nu->pntsu; a++) {
 				if (bp->f1 & SELECT) {
 					memmove(bp, bp + 1, (nu->pntsu - a - 1) * sizeof(BPoint));
-					keyIndex_delBP(editnurb, bp + delta);
+					keyIndex_delBP(editnurb, bp);
 					keyIndex_updateBP(editnurb, bp + 1, bp, nu->pntsu - a - 1);
 					nu->pntsu--;
 					a--;
 					type = 1;
-					delta++;
 				}
 				else {
 					bp++;
@@ -2427,11 +2432,15 @@ static int switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 	Curve *cu = (Curve *)obedit->data;
 	EditNurb *editnurb = cu->editnurb;
 	Nurb *nu;
+	int i;
 
-	for (nu = editnurb->nurbs.first; nu; nu = nu->next) {
+	for (nu = editnurb->nurbs.first, i = 0; nu; nu = nu->next, i++) {
 		if (isNurbsel(nu)) {
 			BKE_nurb_direction_switch(nu);
 			keyData_switchDirectionNurb(cu, nu);
+			if ((i == cu->actnu) && (cu->actvert != CU_ACT_NONE)) {
+				cu->actvert = (nu->pntsu - 1) - cu->actvert;
+			}
 		}
 	}
 
@@ -3916,6 +3925,7 @@ static int set_spline_type_exec(bContext *C, wmOperator *op)
 	ListBase *editnurb = object_editcurve_get(obedit);
 	Nurb *nu;
 	bool changed = false;
+	bool changed_size = false;
 	const bool use_handles = RNA_boolean_get(op->ptr, "use_handles");
 	const int type = RNA_enum_get(op->ptr, "type");
 
@@ -3926,10 +3936,16 @@ static int set_spline_type_exec(bContext *C, wmOperator *op)
 	
 	for (nu = editnurb->first; nu; nu = nu->next) {
 		if (isNurbsel(nu)) {
-			if (BKE_nurb_type_convert(nu, type, use_handles) == false)
-				BKE_report(op->reports, RPT_ERROR, "No conversion possible");
-			else
+			const int pntsu_prev = nu->pntsu;
+			if (BKE_nurb_type_convert(nu, type, use_handles)) {
 				changed = true;
+				if (pntsu_prev != nu->pntsu) {
+					changed_size = true;
+				}
+			}
+			else {
+				BKE_report(op->reports, RPT_ERROR, "No conversion possible");
+			}
 		}
 	}
 
@@ -3939,6 +3955,11 @@ static int set_spline_type_exec(bContext *C, wmOperator *op)
 
 		DAG_id_tag_update(obedit->data, 0);
 		WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+
+		if (changed_size) {
+			Curve *cu = obedit->data;
+			cu->actvert = CU_ACT_NONE;
+		}
 
 		return OPERATOR_FINISHED;
 	}
@@ -4216,7 +4237,7 @@ static void make_selection_list_nurb(ListBase *editnurb)
 	}
 }
 
-static void merge_2_nurb(wmOperator *op, ListBase *editnurb, Nurb *nu1, Nurb *nu2)
+static void merge_2_nurb(wmOperator *op, Curve *cu, ListBase *editnurb, Nurb *nu1, Nurb *nu2)
 {
 	BPoint *bp, *bp1, *bp2, *temp;
 	float len1, len2;
@@ -4331,10 +4352,12 @@ static void merge_2_nurb(wmOperator *op, ListBase *editnurb, Nurb *nu1, Nurb *nu
 
 		for (u = 0; u < nu1->pntsu; u++, bp++) {
 			if (u < origu) {
+				keyIndex_updateBP(cu->editnurb, bp1, bp, 1);
 				*bp = *bp1; bp1++;
 				select_bpoint(bp, SELECT, SELECT, HIDDEN);
 			}
 			else {
+				keyIndex_updateBP(cu->editnurb, bp2, bp, 1);
 				*bp = *bp2; bp2++;
 			}
 		}
@@ -4356,6 +4379,7 @@ static void merge_2_nurb(wmOperator *op, ListBase *editnurb, Nurb *nu1, Nurb *nu
 static int merge_nurb(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
+	Curve *cu = obedit->data;
 	ListBase *editnurb = object_editcurve_get(obedit);
 	NurbSort *nus1, *nus2;
 	bool ok = true;
@@ -4405,7 +4429,7 @@ static int merge_nurb(bContext *C, wmOperator *op)
 	}
 
 	while (nus2) {
-		merge_2_nurb(op, editnurb, nus1->nu, nus2->nu);
+		merge_2_nurb(op, cu, editnurb, nus1->nu, nus2->nu);
 		nus2 = nus2->next;
 	}
 	
@@ -4552,6 +4576,7 @@ static int make_segment_exec(bContext *C, wmOperator *op)
 				nu1->bezt = bezt;
 				nu1->pntsu += nu2->pntsu;
 				BLI_remlink(nubase, nu2);
+				keyIndex_delNurb(cu->editnurb, nu2);
 				BKE_nurb_free(nu2); nu2 = NULL;
 				BKE_nurb_handles_calc(nu1);
 			}
@@ -4576,6 +4601,7 @@ static int make_segment_exec(bContext *C, wmOperator *op)
 
 					BKE_nurb_knot_calc_u(nu1);
 				}
+				keyIndex_delNurb(cu->editnurb, nu2);
 				BKE_nurb_free(nu2); nu2 = NULL;
 			}
 
@@ -4922,7 +4948,7 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 
 	if ((nu == NULL) || (nu->type == CU_BEZIER && bezt == NULL) || (nu->type != CU_BEZIER && bp == NULL)) {
 		if (mode != 'e') {
-			if (cu->actnu >= 0)
+			if (cu->actnu != CU_ACT_NONE)
 				nu = BLI_findlink(&editnurb->nurbs, cu->actnu);
 
 			if (!nu || nu->type == CU_BEZIER) {
@@ -5696,7 +5722,7 @@ static int select_more_exec(bContext *C, wmOperator *UNUSED(op))
 			bp = nu->bp;
 			selbpoints = BLI_BITMAP_NEW(a, "selectlist");
 			while (a > 0) {
-				if ((!BLI_BITMAP_GET(selbpoints, a)) && (bp->hide == 0) && (bp->f1 & SELECT)) {
+				if ((!BLI_BITMAP_TEST(selbpoints, a)) && (bp->hide == 0) && (bp->f1 & SELECT)) {
 					/* upper control point */
 					if (a % nu->pntsu != 0) {
 						tempbp = bp - 1;
@@ -5709,7 +5735,7 @@ static int select_more_exec(bContext *C, wmOperator *UNUSED(op))
 						tempbp = bp + nu->pntsu;
 						if (!(tempbp->f1 & SELECT)) sel = select_bpoint(tempbp, SELECT, SELECT, VISIBLE);
 						/* make sure selected bpoint is discarded */
-						if (sel == 1) BLI_BITMAP_SET(selbpoints, a - nu->pntsu);
+						if (sel == 1) BLI_BITMAP_ENABLE(selbpoints, a - nu->pntsu);
 					}
 					
 					/* right control point */
@@ -5793,7 +5819,7 @@ static int select_less_exec(bContext *C, wmOperator *UNUSED(op))
 					}
 					else {
 						bp--;
-						if (BLI_BITMAP_GET(selbpoints, a + 1) || ((bp->hide == 0) && (bp->f1 & SELECT))) sel++;
+						if (BLI_BITMAP_TEST(selbpoints, a + 1) || ((bp->hide == 0) && (bp->f1 & SELECT))) sel++;
 						bp++;
 					}
 					
@@ -5811,7 +5837,7 @@ static int select_less_exec(bContext *C, wmOperator *UNUSED(op))
 					}
 					else {
 						bp -= nu->pntsu;
-						if (BLI_BITMAP_GET(selbpoints, a + nu->pntsu) || ((bp->hide == 0) && (bp->f1 & SELECT))) sel++;
+						if (BLI_BITMAP_TEST(selbpoints, a + nu->pntsu) || ((bp->hide == 0) && (bp->f1 & SELECT))) sel++;
 						bp += nu->pntsu;
 					}
 
@@ -5826,7 +5852,7 @@ static int select_less_exec(bContext *C, wmOperator *UNUSED(op))
 
 					if (sel != 4) {
 						select_bpoint(bp, DESELECT, SELECT, VISIBLE);
-						BLI_BITMAP_SET(selbpoints, a);
+						BLI_BITMAP_ENABLE(selbpoints, a);
 					}
 				}
 				else {
@@ -7002,7 +7028,7 @@ static int match_texture_space_poll(bContext *C)
 {
 	Object *object = CTX_data_active_object(C);
 
-	return object && ELEM3(object->type, OB_CURVE, OB_SURF, OB_FONT);
+	return object && ELEM(object->type, OB_CURVE, OB_SURF, OB_FONT);
 }
 
 static int match_texture_space_exec(bContext *C, wmOperator *UNUSED(op))

@@ -157,8 +157,12 @@ void free_nladata(ListBase *tracks)
 
 /* Copying ------------------------------------------- */
 
-/* Copy NLA strip */
-NlaStrip *copy_nlastrip(NlaStrip *strip)
+/**
+ * Copy NLA strip
+ *
+ * \param use_same_action When true, the existing action is used (instead of being duplicated)
+ */
+NlaStrip *copy_nlastrip(NlaStrip *strip, const bool use_same_action)
 {
 	NlaStrip *strip_d;
 	NlaStrip *cs, *cs_d;
@@ -171,9 +175,17 @@ NlaStrip *copy_nlastrip(NlaStrip *strip)
 	strip_d = MEM_dupallocN(strip);
 	strip_d->next = strip_d->prev = NULL;
 	
-	/* increase user-count of action */
-	if (strip_d->act)
-		id_us_plus(&strip_d->act->id);
+	/* handle action */
+	if (strip_d->act) {
+		if (use_same_action) {
+			/* increase user-count of action */
+			id_us_plus(&strip_d->act->id);
+		}
+		else {
+			/* use a copy of the action instead (user count shouldn't have changed yet) */
+			strip_d->act = BKE_action_copy(strip_d->act);
+		}
+	}
 		
 	/* copy F-Curves and modifiers */
 	copy_fcurves(&strip_d->fcurves, &strip->fcurves);
@@ -183,7 +195,7 @@ NlaStrip *copy_nlastrip(NlaStrip *strip)
 	BLI_listbase_clear(&strip_d->strips);
 	
 	for (cs = strip->strips.first; cs; cs = cs->next) {
-		cs_d = copy_nlastrip(cs);
+		cs_d = copy_nlastrip(cs, use_same_action);
 		BLI_addtail(&strip_d->strips, cs_d);
 	}
 	
@@ -192,7 +204,7 @@ NlaStrip *copy_nlastrip(NlaStrip *strip)
 }
 
 /* Copy NLA Track */
-NlaTrack *copy_nlatrack(NlaTrack *nlt)
+NlaTrack *copy_nlatrack(NlaTrack *nlt, const bool use_same_actions)
 {
 	NlaStrip *strip, *strip_d;
 	NlaTrack *nlt_d;
@@ -209,7 +221,7 @@ NlaTrack *copy_nlatrack(NlaTrack *nlt)
 	BLI_listbase_clear(&nlt_d->strips);
 	
 	for (strip = nlt->strips.first; strip; strip = strip->next) {
-		strip_d = copy_nlastrip(strip);
+		strip_d = copy_nlastrip(strip, use_same_actions);
 		BLI_addtail(&nlt_d->strips, strip_d);
 	}
 	
@@ -232,7 +244,8 @@ void copy_nladata(ListBase *dst, ListBase *src)
 	/* copy each NLA-track, one at a time */
 	for (nlt = src->first; nlt; nlt = nlt->next) {
 		/* make a copy, and add the copy to the destination list */
-		nlt_d = copy_nlatrack(nlt);
+		// XXX: we need to fix this sometime
+		nlt_d = copy_nlatrack(nlt, true);
 		BLI_addtail(dst, nlt_d);
 	}
 }
@@ -417,7 +430,7 @@ static float nlastrip_get_frame_actionclip(NlaStrip *strip, float cframe, short 
 			return (strip->end + (strip->actstart * scale - cframe)) / scale;
 		}
 		else { /* if (mode == NLATIME_CONVERT_EVAL) */
-			if (IS_EQF(cframe, strip->end) && IS_EQF(strip->repeat, ((int)strip->repeat))) {
+			if (IS_EQF((float)cframe, strip->end) && IS_EQF(strip->repeat, floorf(strip->repeat))) {
 				/* this case prevents the motion snapping back to the first frame at the end of the strip 
 				 * by catching the case where repeats is a whole number, which means that the end of the strip
 				 * could also be interpreted as the end of the start of a repeat
@@ -440,7 +453,7 @@ static float nlastrip_get_frame_actionclip(NlaStrip *strip, float cframe, short 
 			return strip->actstart + (cframe - strip->start) / scale;
 		}
 		else { /* if (mode == NLATIME_CONVERT_EVAL) */
-			if (IS_EQF(cframe, strip->end) && IS_EQF(strip->repeat, ((int)strip->repeat))) {
+			if (IS_EQF(cframe, strip->end) && IS_EQF(strip->repeat, floorf(strip->repeat))) {
 				/* this case prevents the motion snapping back to the first frame at the end of the strip 
 				 * by catching the case where repeats is a whole number, which means that the end of the strip
 				 * could also be interpreted as the end of the start of a repeat
@@ -1624,7 +1637,7 @@ bool BKE_nla_tweakmode_enter(AnimData *adt)
 		}
 	}
 	
-	if (ELEM3(NULL, activeTrack, activeStrip, activeStrip->act)) {
+	if (ELEM(NULL, activeTrack, activeStrip, activeStrip->act)) {
 		if (G.debug & G_DEBUG) {
 			printf("NLA tweakmode enter - neither active requirement found\n");
 			printf("\tactiveTrack = %p, activeStrip = %p\n", (void *)activeTrack, (void *)activeStrip);
@@ -1731,7 +1744,7 @@ static void UNUSED_FUNCTION(BKE_nla_bake) (Scene *scene, ID *UNUSED(id), AnimDat
 	 *	1) Scene and AnimData must be provided 
 	 *	2) there must be tracks to merge...
 	 */
-	if (ELEM3(NULL, scene, adt, adt->nla_tracks.first))
+	if (ELEM(NULL, scene, adt, adt->nla_tracks.first))
 		return;
 	
 	/* if animdata currently has an action, 'push down' this onto the stack first */

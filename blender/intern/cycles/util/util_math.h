@@ -76,17 +76,6 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef _WIN32
 
-#ifndef __KERNEL_GPU__
-
-#if defined(_MSC_VER) && (_MSC_VER < 1800)
-#  define copysignf(x, y) ((float)_copysign(x, y))
-#  define hypotf(x, y) _hypotf(x, y)
-#  define isnan(x) _isnan(x)
-#  define isfinite(x) _finite(x)
-#endif
-
-#endif
-
 #ifndef __KERNEL_OPENCL__
 
 ccl_device_inline float fmaxf(float a, float b)
@@ -622,11 +611,7 @@ ccl_device_inline bool is_zero(const float3 a)
 
 ccl_device_inline float reduce_add(const float3 a)
 {
-#ifdef __KERNEL_SSE__
 	return (a.x + a.y + a.z);
-#else
-	return (a.x + a.y + a.z);
-#endif
 }
 
 ccl_device_inline float average(const float3 a)
@@ -1237,7 +1222,7 @@ ccl_device float compatible_powf(float x, float y)
 
 ccl_device float safe_powf(float a, float b)
 {
-	if(a < 0.0f && b != float_to_int(b))
+	if(UNLIKELY(a < 0.0f && b != float_to_int(b)))
 		return 0.0f;
 
 	return compatible_powf(a, b);
@@ -1245,7 +1230,7 @@ ccl_device float safe_powf(float a, float b)
 
 ccl_device float safe_logf(float a, float b)
 {
-	if(a < 0.0f || b < 0.0f)
+	if(UNLIKELY(a < 0.0f || b < 0.0f))
 		return 0.0f;
 
 	return logf(a)/logf(b);
@@ -1305,7 +1290,7 @@ ccl_device bool ray_aligned_disk_intersect(
 	float3 disk_N = normalize_len(ray_P - disk_P, &disk_t);
 	float div = dot(ray_D, disk_N);
 
-	if(div == 0.0f)
+	if(UNLIKELY(div == 0.0f))
 		return false;
 
 	/* compute t to intersection point */
@@ -1335,7 +1320,7 @@ ccl_device bool ray_triangle_intersect(
 	float3 s1 = cross(ray_D, e2);
 
 	const float divisor = dot(s1, e1);
-	if(divisor == 0.0f)
+	if(UNLIKELY(divisor == 0.0f))
 		return false;
 
 	const float invdivisor = 1.0f/divisor;
@@ -1378,7 +1363,7 @@ ccl_device bool ray_triangle_intersect_uv(
 	float3 s1 = cross(ray_D, e2);
 
 	const float divisor = dot(s1, e1);
-	if(divisor == 0.0f)
+	if(UNLIKELY(divisor == 0.0f))
 		return false;
 
 	const float invdivisor = 1.0f/divisor;
@@ -1427,6 +1412,23 @@ ccl_device bool ray_quad_intersect(
 		return true;
 	
 	return false;
+}
+
+/* projections */
+ccl_device bool map_to_sphere(float *r_u, float *r_v,
+                              const float x, const float y, const float z)
+{
+	float len = sqrtf(x * x + y * y + z * z);
+	if (len > 0.0f) {
+		if (x == 0.0f && y == 0.0f) *r_u = 0.0f;  /* othwise domain error */
+		else *r_u = (1.0f - atan2f(x, y) / (float)M_PI) / 2.0f;
+		*r_v = 1.0f - safe_acosf(z / len) / (float)M_PI;
+		return true;
+	}
+	else {
+		*r_v = *r_u = 0.0f; /* to avoid un-initialized variables */
+		return false;
+	}
 }
 
 CCL_NAMESPACE_END

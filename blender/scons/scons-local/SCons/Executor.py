@@ -6,7 +6,7 @@ Nodes.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -27,10 +27,11 @@ Nodes.
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Executor.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Executor.py  2014/03/02 14:18:15 garyo"
 
 import collections
 
+import SCons.Debug
 from SCons.Debug import logInstanceCreation
 import SCons.Errors
 import SCons.Memoize
@@ -123,7 +124,7 @@ class Executor(object):
 
     def __init__(self, action, env=None, overridelist=[{}],
                  targets=[], sources=[], builder_kw={}):
-        if __debug__: logInstanceCreation(self, 'Executor.Executor')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Executor.Executor')
         self.set_action_list(action)
         self.pre_actions = []
         self.post_actions = []
@@ -229,6 +230,8 @@ class Executor(object):
         self.action_list = action
 
     def get_action_list(self):
+        if self.action_list is None:
+            return []
         return self.pre_actions + self.action_list + self.post_actions
 
     def get_all_targets(self):
@@ -267,7 +270,8 @@ class Executor(object):
         """
         result = SCons.Util.UniqueList([])
         for target in self.get_all_targets():
-            result.extend(target.prerequisites)
+            if target.prerequisites is not None:
+                result.extend(target.prerequisites)
         return result
 
     def get_action_side_effects(self):
@@ -570,12 +574,12 @@ class Null(object):
     """A null Executor, with a null build Environment, that does
     nothing when the rest of the methods call it.
 
-    This might be able to disapper when we refactor things to
+    This might be able to disappear when we refactor things to
     disassociate Builders from Nodes entirely, so we're not
     going to worry about unit tests for this--at least for now.
     """
     def __init__(self, *args, **kw):
-        if __debug__: logInstanceCreation(self, 'Executor.Null')
+        if SCons.Debug.track_instances: logInstanceCreation(self, 'Executor.Null')
         self.batches = [Batch(kw['targets'][:], [])]
     def get_build_env(self):
         return get_NullEnvironment()
@@ -624,7 +628,6 @@ class Null(object):
     def set_action_list(self, action):
         self._morph()
         self.set_action_list(action)
-
 
 # Local Variables:
 # tab-width:4

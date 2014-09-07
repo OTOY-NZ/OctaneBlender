@@ -36,7 +36,6 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_armature.h"
 #include "BKE_report.h"
 
 #include "RNA_access.h"
@@ -50,12 +49,13 @@
 #include "UI_resources.h"
 
 #include "ED_screen.h"
+/* for USE_LOOPSLIDE_HACK only */
 #include "ED_mesh.h"
 
 #include "transform.h"
 
 typedef struct TransformModeItem {
-	char *idname;
+	const char *idname;
 	int mode;
 	void (*opfunc)(wmOperatorType *);
 } TransformModeItem;
@@ -392,6 +392,15 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	t->context = C;
 	exit_code = transformEvent(t, event);
 	t->context = NULL;
+
+	/* XXX, workaround: active needs to be calculated before transforming,
+	 * since we're not reading from 'td->center' in this case. see: T40241 */
+	if (t->tsnap.target == SCE_SNAP_TARGET_ACTIVE) {
+		/* In camera view, tsnap callback is not set (see initSnappingMode() in transfrom_snap.c, and T40348). */
+		if (t->tsnap.targetSnap && ((t->tsnap.status & TARGET_INIT) == 0)) {
+			t->tsnap.targetSnap(t);
+		}
+	}
 
 	transformApply(C, t);
 

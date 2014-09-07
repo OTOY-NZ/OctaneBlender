@@ -26,8 +26,8 @@
  * Connect verts across faces (splits faces).
  */
 
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_stackdefines.h"
 #include "BLI_alloca.h"
 #include "BLI_linklist_stack.h"
 
@@ -52,8 +52,8 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f, const bool check_degenera
 	BMLoop *l_last;
 	unsigned int i;
 
-	STACK_INIT(loops_split);
-	STACK_INIT(verts_pair);
+	STACK_INIT(loops_split, f->len);
+	STACK_INIT(verts_pair, f->len);
 
 	l_last = NULL;
 	BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
@@ -64,9 +64,13 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f, const bool check_degenera
 			}
 
 			if (!BM_loop_is_adjacent(l_last, l)) {
-				BMLoop **l_pair = STACK_PUSH_RET(loops_split);
-				l_pair[0] = l_last;
-				l_pair[1] = l;
+				BMEdge *e;
+				e = BM_edge_exists(l_last->v, l->v);
+				if (e == NULL || !BMO_elem_flag_test(bm, e, EDGE_OUT)) {
+					BMLoop **l_pair = STACK_PUSH_RET(loops_split);
+					l_pair[0] = l_last;
+					l_pair[1] = l;
+				}
 			}
 			l_last = l;
 		}
@@ -83,7 +87,10 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f, const bool check_degenera
 	}
 
 	if (check_degenerate) {
-		BM_face_legal_splits(f, loops_split, STACK_SIZE(loops_split));
+		BM_face_splits_check_legal(bm, f, loops_split, STACK_SIZE(loops_split));
+	}
+	else {
+		BM_face_splits_check_optimal(f, loops_split, STACK_SIZE(loops_split));
 	}
 
 	for (i = 0; i < STACK_SIZE(loops_split); i++) {

@@ -26,8 +26,8 @@ bl_info = {
     "category": "Object",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Object/Animated_Render_Baker",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"
-                   "func=detail&aid=24836"}
+}
+
 
 import bpy
 from bpy.props import IntProperty

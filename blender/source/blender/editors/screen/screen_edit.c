@@ -55,11 +55,9 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "ED_image.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_screen_types.h"
-#include "ED_fileselect.h"
 #include "ED_clip.h"
 #include "ED_render.h"
 
@@ -380,7 +378,7 @@ ScrArea *area_split(bScreen *sc, ScrArea *sa, char dir, float fac, int merge)
 	if (split == 0) return NULL;
 	
 	/* note regarding (fac > 0.5f) checks below.
-	 * notmally it shouldn't matter which is used since the copy should match the original
+	 * normally it shouldn't matter which is used since the copy should match the original
 	 * however with viewport rendering and python console this isn't the case. - campbell */
 
 	if (dir == 'h') {

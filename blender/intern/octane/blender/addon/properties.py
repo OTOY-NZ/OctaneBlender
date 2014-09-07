@@ -266,6 +266,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 step=1,
                 precision=5,
                 )
+        cls.distributed_tracing = BoolProperty(
+                name="Distributed ray tracing",
+                description="",
+                default=True,
+                )
 
         cls.bump_normal_mapping = BoolProperty(
                 name="Bump and normal mapping",

@@ -177,6 +177,20 @@ static void* mat_livedb_receive(int _socket, uint64_t _type, uint32_t *buf_size)
         type = header[0];
         if(type != _type) {
             *buf_size = 0;
+            if(type == 4) {
+                uint32_t string_size = (uint32_t)header[1];
+                if(string_size) {
+                    buffer = MEM_mallocN(string_size, "error msg");
+
+                    if(recv(_socket, buffer, string_size, MSG_WAITALL) == string_size) {
+                        fprintf(stderr, "Octane: ERROR getting LiveDB material.");
+                        if(strlen(buffer+1) > 0) fprintf(stderr, " Server response:\n%s\n", buffer+1);
+                        else fprintf(stderr, "\n");
+                    }
+
+                    MEM_freeN(buffer);
+                }
+            }
             return 0;
         }
         else *buf_size = (uint32_t)header[1];

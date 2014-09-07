@@ -24,11 +24,10 @@ bl_info = {
     "location": "View3D > Add > Mesh > Gemstones",
     "description": "Adds various gemstone (Diamond & Gem) meshes.",
     "warning": "",
-    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/"\
-        "Scripts/Add_Mesh/Add_Gemstones",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"\
-        "func=detail&aid=21432",
-    "category": "Add Mesh"}
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/"
+                "Scripts/Add_Mesh/Add_Gemstones",
+    "category": "Add Mesh",
+}
 '''
 import bpy
 from mathutils import *

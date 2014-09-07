@@ -37,7 +37,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_gpencil_types.h"
@@ -46,7 +45,6 @@
 #include "BKE_fcurve.h"
 #include "BKE_gpencil.h"
 
-#include "ED_anim_api.h"
 #include "ED_gpencil.h"
 #include "ED_keyframes_edit.h"
 #include "ED_markers.h"
@@ -63,30 +61,30 @@
 /* Generics - Loopers */
 
 /* Loops over the gp-frames for a gp-layer, and applies the given callback */
-short ED_gplayer_frames_looper(bGPDlayer *gpl, Scene *scene, short (*gpf_cb)(bGPDframe *, Scene *))
+bool ED_gplayer_frames_looper(bGPDlayer *gpl, Scene *scene, short (*gpf_cb)(bGPDframe *, Scene *))
 {
 	bGPDframe *gpf;
 	
 	/* error checker */
 	if (gpl == NULL)
-		return 0;
+		return false;
 	
 	/* do loop */
 	for (gpf = gpl->frames.first; gpf; gpf = gpf->next) {
 		/* execute callback */
 		if (gpf_cb(gpf, scene))
-			return 1;
+			return true;
 	}
 		
 	/* nothing to return */
-	return 0;
+	return false;
 }
 
 /* ****************************************** */
 /* Data Conversion Tools */
 
 /* make a listing all the gp-frames in a layer as cfraelems */
-void ED_gplayer_make_cfra_list(bGPDlayer *gpl, ListBase *elems, short onlysel)
+void ED_gplayer_make_cfra_list(bGPDlayer *gpl, ListBase *elems, bool onlysel)
 {
 	bGPDframe *gpf;
 	CfraElem *ce;
@@ -112,22 +110,22 @@ void ED_gplayer_make_cfra_list(bGPDlayer *gpl, ListBase *elems, short onlysel)
 /* Selection Tools */
 
 /* check if one of the frames in this layer is selected */
-short ED_gplayer_frame_select_check(bGPDlayer *gpl)
+bool ED_gplayer_frame_select_check(bGPDlayer *gpl)
 {
 	bGPDframe *gpf;
 	
 	/* error checking */
 	if (gpl == NULL) 
-		return 0;
+		return false;
 	
 	/* stop at the first one found */
 	for (gpf = gpl->frames.first; gpf; gpf = gpf->next) {
 		if (gpf->flag & GP_FRAME_SELECT)
-			return 1;
+			return true;
 	}
 	
 	/* not found */
-	return 0;
+	return false;
 }
 
 /* helper function - select gp-frame based on SELECT_* mode */

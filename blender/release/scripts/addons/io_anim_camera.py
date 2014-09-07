@@ -26,12 +26,11 @@ bl_info = {
     "location": "File > Export > Cameras & Markers (.py)",
     "description": "Export Cameras & Markers (.py)",
     "warning": "",
-    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"\
-        "Scripts/Import-Export/Camera_Animation",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"\
-        "func=detail&aid=22835",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
+                "Scripts/Import-Export/Camera_Animation",
     "support": 'OFFICIAL',
-    "category": "Import-Export"}
+    "category": "Import-Export",
+}
 
 
 import bpy

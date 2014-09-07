@@ -28,8 +28,9 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_VECTOR,      1,  N_("Rotation"),		1.0f, 1.0f, 1.0f, 0.0f, -180.0f, 180.0f, PROP_NONE},
-	{-1, 0, ""}
+	{SOCK_VECTOR,      1,  N_("Rotation"),		 0.0f, 0.0f, 0.0f, 0.0f, -180.0f, 180.0f, PROP_NONE},
+    {SOCK_INT,         1,  N_("Rotation order"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f},
+    {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {

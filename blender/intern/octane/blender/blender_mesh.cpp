@@ -52,136 +52,98 @@ static void create_mesh(Scene *scene, BL::Object b_ob, Mesh *mesh, BL::Mesh b_me
 	}
 
     // Check if UVs are present in this mesh
-    bool uvs_present = false;
+    int uvs_cnt = 0;
     BL::Mesh::tessface_uv_textures_iterator l;
     BL::MeshTextureFaceLayer::data_iterator t;
     for(b_mesh.tessface_uv_textures.begin(l); l != b_mesh.tessface_uv_textures.end(); ++l) {
         if(!l->active_render()) continue;
-
         for(l->data.begin(t); t != l->data.end(); ++t) {
-            uvs_present = true;
-            break;
+            ++uvs_cnt;
         }
-        break;
     }
 
     // Create faces
-	vector<int> vert_cnts;
-    bool        triangulate = false; // stub
-	int         i = 0;
-	BL::Mesh::tessfaces_iterator f;
-	for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f) {
+	int         i = 0, k = 0, facesCnt = 0;
+    mesh->points_indices.resize(b_mesh.tessfaces.length() * 4);
+    mesh->uv_indices.resize(b_mesh.tessfaces.length() * 4);
+    mesh->vert_per_poly.resize(b_mesh.tessfaces.length());
+    mesh->poly_mat_index.resize(b_mesh.tessfaces.length());
+    int *points_indices = &mesh->points_indices[0];
+    int *uv_indices     = &mesh->uv_indices[0];
+    int *vert_per_poly  = &mesh->vert_per_poly[0];
+    int *poly_mat_index = &mesh->poly_mat_index[0];
+
+    BL::Mesh::tessfaces_iterator f;
+	for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f, ++k) {
 		int4    vi      = get_int4(f->vertices_raw());
 		int     n       = (vi[3] == 0) ? 3 : 4;
 		int     mi      = clamp(f->material_index(), 0, used_shaders.size()-1);
 		bool    smooth  = f->use_smooth();
-
-        vert_cnts.push_back(n);
+        facesCnt        += n;
 
 	    if(n == 4) {
-            if(!triangulate) {
-		        mesh->points_indices.push_back(vi[0]);
-		        mesh->points_indices.push_back(vi[1]);
-		        mesh->points_indices.push_back(vi[2]);
-		        mesh->points_indices.push_back(vi[3]);
+            points_indices[i]       = vi[0];
+            points_indices[i + 1]   = vi[1];
+            points_indices[i + 2]   = vi[2];
+            points_indices[i + 3]   = vi[3];
 
-                if(uvs_present) {
-                    mesh->uv_indices.push_back(i++);
-                    mesh->uv_indices.push_back(i++);
-                    mesh->uv_indices.push_back(i++);
-                    mesh->uv_indices.push_back(i++);
-                }
-                else {
-                    mesh->uv_indices.push_back(0);
-                    mesh->uv_indices.push_back(0);
-                    mesh->uv_indices.push_back(0);
-                    mesh->uv_indices.push_back(0);
-                }
-            } //if(!triangulate)
+            if(uvs_cnt > 0) {
+                uv_indices[i]       = i;
+                uv_indices[i + 1]   = i + 1;
+                uv_indices[i + 2]   = i + 2;
+                uv_indices[i + 3]   = i + 3;
+            }
             else {
-		        if(len_squared(cross(mesh->points[vi[1]] - mesh->points[vi[0]], mesh->points[vi[2]] - mesh->points[vi[0]])) == 0.0f ||
-			            len_squared(cross(mesh->points[vi[2]] - mesh->points[vi[0]], mesh->points[vi[3]] - mesh->points[vi[0]])) == 0.0f) {
-                    n = 3;
-	                mesh->points_indices.push_back(vi[0]);
-	                mesh->points_indices.push_back(vi[1]);
-	                mesh->points_indices.push_back(vi[3]);
-
-	                mesh->points_indices.push_back(vi[2]);
-	                mesh->points_indices.push_back(vi[3]);
-	                mesh->points_indices.push_back(vi[1]);
-                }
-		        else {
-	                mesh->points_indices.push_back(vi[0]);
-	                mesh->points_indices.push_back(vi[1]);
-	                mesh->points_indices.push_back(vi[2]);
-
-	                mesh->points_indices.push_back(vi[0]);
-	                mesh->points_indices.push_back(vi[2]);
-	                mesh->points_indices.push_back(vi[3]);
-                }
-                if(uvs_present) {
-                    mesh->uv_indices.push_back(i++);
-                    mesh->uv_indices.push_back(i++);
-                    mesh->uv_indices.push_back(i++);
-
-                    mesh->uv_indices.push_back(i++);
-                    mesh->uv_indices.push_back(i++);
-                    mesh->uv_indices.push_back(i++);
-                }
-                else {
-                    mesh->uv_indices.push_back(0);
-                    mesh->uv_indices.push_back(0);
-                    mesh->uv_indices.push_back(0);
-
-                    mesh->uv_indices.push_back(0);
-                    mesh->uv_indices.push_back(0);
-                    mesh->uv_indices.push_back(0);
-                }
-    	        mesh->vert_per_poly.push_back(n);
-                mesh->poly_mat_index.push_back(mi);
-            } //if(!triangulate), else
-	        mesh->vert_per_poly.push_back(n);
-            mesh->poly_mat_index.push_back(mi);
-	    } //if(n == 4)
+                uv_indices[i]       = 0;
+                uv_indices[i + 1]   = 0;
+                uv_indices[i + 2]   = 0;
+                uv_indices[i + 3]   = 0;
+            }
+            i += 4;
+            vert_per_poly[k]    = n;
+            poly_mat_index[k]   = mi;
+        } //if(n == 4)
         else {
-            mesh->points_indices.push_back(vi[0]);
-            mesh->points_indices.push_back(vi[1]);
-            mesh->points_indices.push_back(vi[2]);
+            points_indices[i]       = vi[0];
+            points_indices[i + 1]   = vi[1];
+            points_indices[i + 2]   = vi[2];
 
-            if(uvs_present) {
-                mesh->uv_indices.push_back(i++);
-                mesh->uv_indices.push_back(i++);
-                mesh->uv_indices.push_back(i++);
+            if(uvs_cnt > 0) {
+                uv_indices[i]       = i;
+                uv_indices[i + 1]   = i + 1;
+                uv_indices[i + 2]   = i + 2;
             }
             else {
-                mesh->uv_indices.push_back(0);
-                mesh->uv_indices.push_back(0);
-                mesh->uv_indices.push_back(0);
+                uv_indices[i]       = 0;
+                uv_indices[i + 1]   = 0;
+                uv_indices[i + 2]   = 0;
             }
-	        mesh->vert_per_poly.push_back(3);
-            mesh->poly_mat_index.push_back(mi);
+            vert_per_poly[k]    = 3;
+            poly_mat_index[k]   = mi;
+            i += 3;
         } //if(n == 4), else
 	} //for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f)
+    mesh->points_indices.resize(i);
+    mesh->uv_indices.resize(i);
 
-    if(!uvs_present) mesh->uvs.push_back(make_float3(0,0,0));
+    if(uvs_cnt <= 0) mesh->uvs.push_back(make_float3(0, 0, 0));
     else {
+        mesh->uvs.resize(uvs_cnt * 4);
+        float3 *uvs = &mesh->uvs[0];
+        uvs_cnt = 0;
         for(b_mesh.tessface_uv_textures.begin(l); l != b_mesh.tessface_uv_textures.end(); ++l) {
             if(!l->active_render()) continue;
 
             i = 0;
             for(l->data.begin(t); t != l->data.end(); ++t, ++i) {
-                mesh->uvs.push_back(get_float3(t->uv1()));
-                mesh->uvs.push_back(get_float3(t->uv2()));
-                mesh->uvs.push_back(get_float3(t->uv3()));
-                if(!triangulate && vert_cnts[i] == 4) mesh->uvs.push_back(get_float3(t->uv4()));
-                else if(vert_cnts[i] == 4) {
-                    mesh->uvs.push_back(get_float3(t->uv1()));
-                    mesh->uvs.push_back(get_float3(t->uv3()));
-                    mesh->uvs.push_back(get_float3(t->uv4()));
-                }
+                uvs[uvs_cnt++] = get_float3(t->uv1());
+                uvs[uvs_cnt++] = get_float3(t->uv2());
+                uvs[uvs_cnt++] = get_float3(t->uv3());
+                if(vert_per_poly[i] == 4) uvs[uvs_cnt++] = get_float3(t->uv4());
             }
             break;
         }
+        mesh->uvs.resize(uvs_cnt);
     }
 
     mesh->mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(cmesh, "mesh_type"));

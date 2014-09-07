@@ -54,6 +54,7 @@ public:
 	bool display_device;
 	bool advanced_shading;
 	bool pack_images;
+	bool extended_images; /* flag for GPU and Multi device */
 	vector<DeviceInfo> multi_devices;
 
 	DeviceInfo()
@@ -64,6 +65,7 @@ public:
 		display_device = false;
 		advanced_shading = true;
 		pack_images = false;
+		extended_images = false;
 	}
 };
 
@@ -120,6 +122,7 @@ public:
 	virtual bool load_kernels(bool experimental) { return true; }
 
 	/* tasks */
+	virtual int get_split_task_count(DeviceTask& task) = 0;
 	virtual void task_add(DeviceTask& task) = 0;
 	virtual void task_wait() = 0;
 	virtual void task_cancel() = 0;

@@ -57,11 +57,9 @@ class INFO_HT_header(Header):
         row = layout.row(align=True)
 
         if bpy.app.autoexec_fail is True and bpy.app.autoexec_fail_quiet is False:
-            layout.operator_context = 'EXEC_DEFAULT'
             row.label("Auto-run disabled: %s" % bpy.app.autoexec_fail_message, icon='ERROR')
             if bpy.data.is_saved:
-                props = row.operator("wm.open_mainfile", icon='SCREEN_BACK', text="Reload Trusted")
-                props.filepath = bpy.data.filepath
+                props = row.operator("wm.revert_mainfile", icon='SCREEN_BACK', text="Reload Trusted")
                 props.use_scripts = True
 
             row.operator("script.autoexec_warn_clear", text="Ignore")
@@ -281,7 +279,7 @@ class INFO_MT_help(Menu):
         layout = self.layout
 
         layout.operator("wm.url_open", text="Manual", icon='HELP').url = "http://wiki.blender.org/index.php/Doc:2.6/Manual"
-        layout.operator("wm.url_open", text="Release Log", icon='URL').url = "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.70"
+        layout.operator("wm.url_open", text="Release Log", icon='URL').url = "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/%d.%d" % bpy.app.version[:2]
         layout.separator()
 
         layout.operator("wm.url_open", text="Blender Website", icon='URL').url = "http://www.blender.org"

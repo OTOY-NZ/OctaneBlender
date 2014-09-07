@@ -36,7 +36,6 @@
 
 #include "BLI_sys_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -44,10 +43,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_userdef_types.h"
 
-#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
@@ -58,7 +56,6 @@
 #include "BIF_glutil.h"
 
 #include "ED_gpencil.h"
-#include "ED_sequencer.h"
 #include "ED_view3d.h"
 
 #include "gpencil_intern.h"
@@ -475,7 +472,7 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 
 /* draw a set of strokes */
 static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int winy, int dflag,
-                            short debug, short lthick, float color[4])
+                            short debug, short lthick, const float color[4])
 {
 	bGPDstroke *gps;
 	
@@ -679,7 +676,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
  * ............................ */
 
 /* draw grease-pencil sketches to specified 2d-view that uses ibuf corrections */
-void draw_gpencil_2dimage(const bContext *C)
+void ED_gpencil_draw_2dimage(const bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -688,7 +685,7 @@ void draw_gpencil_2dimage(const bContext *C)
 	int offsx, offsy, sizex, sizey;
 	int dflag = GP_DRAWDATA_NOSTATUS;
 	
-	gpd = gpencil_data_get_active(C); // XXX
+	gpd = ED_gpencil_data_get_active(C); // XXX
 	if (gpd == NULL) return;
 	
 	/* calculate rect */
@@ -741,7 +738,7 @@ void draw_gpencil_2dimage(const bContext *C)
 /* draw grease-pencil sketches to specified 2d-view assuming that matrices are already set correctly 
  * Note: this gets called twice - first time with onlyv2d=1 to draw 'canvas' strokes,
  * second time with onlyv2d=0 for screen-aligned strokes */
-void draw_gpencil_view2d(const bContext *C, bool onlyv2d)
+void ED_gpencil_draw_view2d(const bContext *C, bool onlyv2d)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -751,7 +748,7 @@ void draw_gpencil_view2d(const bContext *C, bool onlyv2d)
 	
 	/* check that we have grease-pencil stuff to draw */
 	if (sa == NULL) return;
-	gpd = gpencil_data_get_active(C); // XXX
+	gpd = ED_gpencil_data_get_active(C); // XXX
 	if (gpd == NULL) return;
 	
 	/* special hack for Image Editor */
@@ -767,7 +764,7 @@ void draw_gpencil_view2d(const bContext *C, bool onlyv2d)
 /* draw grease-pencil sketches to specified 3d-view assuming that matrices are already set correctly 
  * Note: this gets called twice - first time with only3d=1 to draw 3d-strokes,
  * second time with only3d=0 for screen-aligned strokes */
-void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, bool only3d)
+void ED_gpencil_draw_view3d(Scene *scene, View3D *v3d, ARegion *ar, bool only3d)
 {
 	bGPdata *gpd;
 	int dflag = 0;
@@ -775,7 +772,7 @@ void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, bool only3d)
 	int offsx,  offsy,  winx,  winy;
 
 	/* check that we have grease-pencil stuff to draw */
-	gpd = gpencil_data_get_active_v3d(scene); // XXX
+	gpd = ED_gpencil_data_get_active_v3d(scene); // XXX
 	if (gpd == NULL) return;
 
 	/* when rendering to the offscreen buffer we don't want to
@@ -800,6 +797,13 @@ void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, bool only3d)
 	if (only3d) dflag |= (GP_DRAWDATA_ONLY3D | GP_DRAWDATA_NOSTATUS);
 
 	gp_draw_data(gpd, offsx, offsy, winx, winy, CFRA, dflag);
+}
+
+void ED_gpencil_draw_ex(bGPdata *gpd, int winx, int winy, const int cfra)
+{
+	int dflag = GP_DRAWDATA_NOSTATUS | GP_DRAWDATA_ONLYV2D;
+
+	gp_draw_data(gpd, 0, 0, winx, winy, cfra, dflag);
 }
 
 /* ************************************************** */

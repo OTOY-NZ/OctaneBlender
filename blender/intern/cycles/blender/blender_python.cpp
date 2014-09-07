@@ -35,6 +35,13 @@
 
 CCL_NAMESPACE_BEGIN
 
+static void *pylong_as_voidptr_typesafe(PyObject *object)
+{
+	if(object == Py_None)
+		return NULL;
+	return PyLong_AsVoidPtr(object);
+}
+
 void python_thread_state_save(void **python_thread_state)
 {
 	*python_thread_state = (void*)PyEval_SaveThread();
@@ -84,15 +91,15 @@ static PyObject *create_func(PyObject *self, PyObject *args)
 	BL::Scene scene(sceneptr);
 
 	PointerRNA regionptr;
-	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyregion), &regionptr);
+	RNA_id_pointer_create((ID*)pylong_as_voidptr_typesafe(pyregion), &regionptr);
 	BL::Region region(regionptr);
 
 	PointerRNA v3dptr;
-	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyv3d), &v3dptr);
+	RNA_id_pointer_create((ID*)pylong_as_voidptr_typesafe(pyv3d), &v3dptr);
 	BL::SpaceView3D v3d(v3dptr);
 
 	PointerRNA rv3dptr;
-	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyrv3d), &rv3dptr);
+	RNA_id_pointer_create((ID*)pylong_as_voidptr_typesafe(pyrv3d), &rv3dptr);
 	BL::RegionView3D rv3d(rv3dptr);
 
 	/* create session */
@@ -141,6 +148,38 @@ static PyObject *render_func(PyObject *self, PyObject *value)
 	python_thread_state_save(&session->python_thread_state);
 
 	session->render();
+
+	python_thread_state_restore(&session->python_thread_state);
+
+	Py_RETURN_NONE;
+}
+
+/* pixel_array and result passed as pointers */
+static PyObject *bake_func(PyObject *self, PyObject *args)
+{
+	PyObject *pysession, *pyobject;
+	PyObject *pypixel_array, *pyresult;
+	const char *pass_type;
+	int num_pixels, depth;
+
+	if(!PyArg_ParseTuple(args, "OOsOiiO", &pysession, &pyobject, &pass_type, &pypixel_array,  &num_pixels, &depth, &pyresult))
+		return NULL;
+
+	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(pysession);
+
+	PointerRNA objectptr;
+	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyobject), &objectptr);
+	BL::Object b_object(objectptr);
+
+	void *b_result = PyLong_AsVoidPtr(pyresult);
+
+	PointerRNA bakepixelptr;
+	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pypixel_array), &bakepixelptr);
+	BL::BakePixel b_bake_pixel(bakepixelptr);
+
+	python_thread_state_save(&session->python_thread_state);
+
+	session->bake(b_object, pass_type, b_bake_pixel, (size_t)num_pixels, depth, (float *)b_result);
 
 	python_thread_state_restore(&session->python_thread_state);
 
@@ -285,7 +324,8 @@ static PyObject *osl_update_node_func(PyObject *self, PyObject *args)
 		}
 		else if(param->type.vecsemantics == TypeDesc::POINT ||
 		        param->type.vecsemantics == TypeDesc::VECTOR ||
-		        param->type.vecsemantics == TypeDesc::NORMAL) {
+		        param->type.vecsemantics == TypeDesc::NORMAL)
+		{
 			socket_type = "NodeSocketVector";
 			data_type = BL::NodeSocket::type_VECTOR;
 
@@ -323,7 +363,12 @@ static PyObject *osl_update_node_func(PyObject *self, PyObject *args)
 		/* find socket socket */
 		BL::NodeSocket b_sock(PointerRNA_NULL);
 		if (param->isoutput) {
+#if OSL_LIBRARY_VERSION_CODE < 10500
 			b_sock = b_node.outputs[param->name];
+#else
+			b_sock = b_node.outputs[param->name.string()];
+#endif
+
 			
 			/* remove if type no longer matches */
 			if(b_sock && b_sock.bl_idname() != socket_type) {
@@ -332,7 +377,11 @@ static PyObject *osl_update_node_func(PyObject *self, PyObject *args)
 			}
 		}
 		else {
+#if OSL_LIBRARY_VERSION_CODE < 10500
 			b_sock = b_node.inputs[param->name];
+#else
+			b_sock = b_node.inputs[param->name.string()];
+#endif
 			
 			/* remove if type no longer matches */
 			if(b_sock && b_sock.bl_idname() != socket_type) {
@@ -418,6 +467,7 @@ static PyMethodDef methods[] = {
 	{"create", create_func, METH_VARARGS, ""},
 	{"free", free_func, METH_O, ""},
 	{"render", render_func, METH_O, ""},
+	{"bake", bake_func, METH_VARARGS, ""},
 	{"draw", draw_func, METH_VARARGS, ""},
 	{"sync", sync_func, METH_O, ""},
 	{"reset", reset_func, METH_VARARGS, ""},

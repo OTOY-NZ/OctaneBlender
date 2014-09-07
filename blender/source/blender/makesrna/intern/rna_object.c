@@ -61,12 +61,12 @@
 EnumPropertyItem object_mode_items[] = {
 	{OB_MODE_OBJECT, "OBJECT", ICON_OBJECT_DATAMODE, "Object Mode", ""},
 	{OB_MODE_EDIT, "EDIT", ICON_EDITMODE_HLT, "Edit Mode", ""},
+	{OB_MODE_POSE, "POSE", ICON_POSE_HLT, "Pose Mode", ""},
 	{OB_MODE_SCULPT, "SCULPT", ICON_SCULPTMODE_HLT, "Sculpt Mode", ""},
 	{OB_MODE_VERTEX_PAINT, "VERTEX_PAINT", ICON_VPAINT_HLT, "Vertex Paint", ""},
 	{OB_MODE_WEIGHT_PAINT, "WEIGHT_PAINT", ICON_WPAINT_HLT, "Weight Paint", ""},
 	{OB_MODE_TEXTURE_PAINT, "TEXTURE_PAINT", ICON_TPAINT_HLT, "Texture Paint", ""},
 	{OB_MODE_PARTICLE_EDIT, "PARTICLE_EDIT", ICON_PARTICLEMODE, "Particle Edit", ""},
-	{OB_MODE_POSE, "POSE", ICON_POSE_HLT, "Pose Mode", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -370,8 +370,14 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->data;
 	ID *id = value.data;
 
-	if (id == NULL || ob->mode & OB_MODE_EDIT)
+	if (ob->mode & OB_MODE_EDIT) {
 		return;
+	}
+
+	/* assigning NULL only for empties */
+	if ((id == NULL) && (ob->type != OB_EMPTY)) {
+		return;
+	}
 
 	if (ob->type == OB_EMPTY) {
 		if (ob->data) {
@@ -379,7 +385,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 			ob->data = NULL;
 		}
 
-		if (id && GS(id->name) == ID_IM) {
+		if (!id || GS(id->name) == ID_IM) {
 			id_us_plus(id);
 			ob->data = id;
 		}
@@ -391,11 +397,10 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 		if (ob->data) {
 			id_us_min((ID *)ob->data);
 		}
-		if (id) {
-			/* no need to type-check here ID. this is done in the _typef() function */
-			BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
-			id_us_plus(id);
-		}
+
+		/* no need to type-check here ID. this is done in the _typef() function */
+		BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+		id_us_plus(id);
 
 		ob->data = id;
 		test_object_materials(G.main, id);
@@ -710,6 +715,22 @@ static void rna_Object_active_material_set(PointerRNA *ptr, PointerRNA value)
 	assign_material(ob, value.data, ob->actcol, BKE_MAT_ASSIGN_USERPREF);
 }
 
+static int rna_Object_active_material_editable(PointerRNA *ptr)
+{
+	Object *ob = (Object *)ptr->id.data;
+	bool is_editable;
+
+	if ((ob->matbits == NULL) || (ob->actcol == 0) || ob->matbits[ob->actcol - 1]) {
+		is_editable = (ob->id.lib == NULL);
+	}
+	else {
+		is_editable = ob->data ? (((ID *)ob->data)->lib == NULL) : false;
+	}
+
+	return is_editable ? PROP_EDITABLE : 0;
+}
+
+
 static void rna_Object_active_particle_system_index_range(PointerRNA *ptr, int *min, int *max,
                                                           int *UNUSED(softmin), int *UNUSED(softmax))
 {
@@ -987,7 +1008,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 
 	switch (ob->body_type) {
 		case OB_BODY_TYPE_SENSOR:
-			ob->gameflag |= OB_SENSOR | OB_COLLISION | OB_GHOST;
+			ob->gameflag |= OB_SENSOR | OB_COLLISION;
 			ob->gameflag &= ~(OB_OCCLUDER | OB_CHARACTER | OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_ACTOR |
 			                  OB_ANISOTROPIC_FRICTION | OB_DO_FH | OB_ROT_FH | OB_COLLISION_RESPONSE | OB_NAVMESH);
 			break;
@@ -1009,7 +1030,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 			ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER | OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH);
 			break;
 		case OB_BODY_TYPE_CHARACTER:
-			ob->gameflag |= OB_COLLISION | OB_GHOST | OB_CHARACTER;
+			ob->gameflag |= OB_COLLISION | OB_CHARACTER;
 			ob->gameflag &= ~(OB_SENSOR | OB_OCCLUDER | OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_ACTOR |
 			                  OB_ANISOTROPIC_FRICTION | OB_DO_FH | OB_ROT_FH | OB_COLLISION_RESPONSE | OB_NAVMESH);
 			break;
@@ -2252,6 +2273,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, "rna_Object_active_material_get",
 	                               "rna_Object_active_material_set", NULL, NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_editable_func(prop, "rna_Object_active_material_editable");
 	RNA_def_property_ui_text(prop, "Active Material", "Active material being displayed");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_MaterialSlot_update");
 

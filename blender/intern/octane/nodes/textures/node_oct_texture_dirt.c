@@ -31,8 +31,9 @@ static bNodeSocketTemplate sh_node_in[] = {
 	{SOCK_FLOAT,     1,  N_("Strength"),        1.0f, 0.0f, 0.0f, 0.0f, 0.1f, 10.0f},
 	{SOCK_FLOAT,     1,  N_("Details"),         1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 100.0f},
 	{SOCK_FLOAT,     1,  N_("Radius"),          1.0f, 0.0f, 0.0f, 0.0f, 0.001f, 100000.0f},
-	{SOCK_BOOLEAN,   1,  N_("Invert Normal"),   0.0f},
-	{-1, 0, ""}
+    {SOCK_FLOAT,     1,  N_("Tolerance"),       0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.3f},
+    {SOCK_BOOLEAN,   1,  N_("Invert Normal"),   0.0f},
+    {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {

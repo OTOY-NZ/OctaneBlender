@@ -1364,6 +1364,15 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Radius_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
+            else if(b_input->name() == "Tolerance") {
+                if(b_input->is_linked())
+                    cur_node->Tolerance = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Tolerance = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Tolerance_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
             else if(b_input->name() == "Invert Normal") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->InvertNormal = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
@@ -1636,12 +1645,26 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Rotation") {
-                BL::NodeSocket value_sock(*b_input);
-                float Rotation[3];
-                RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
-                cur_node->Rotation.x = Rotation[0];
-                cur_node->Rotation.y = Rotation[1];
-                cur_node->Rotation.z = Rotation[2];
+                if(b_input->is_linked())
+                    cur_node->Rotation = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Rotation = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float Rotation[3];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
+                    cur_node->Rotation_default_val.x = Rotation[0];
+                    cur_node->Rotation_default_val.y = Rotation[1];
+                    cur_node->Rotation_default_val.z = Rotation[2];
+                }
+            }
+            else if(b_input->name() == "Rotation order") {
+                if(b_input->is_linked())
+                    cur_node->RotationOrder = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->RotationOrder = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->RotationOrder_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+                }
             }
         }
     } //case BL::ShaderNode::type_OCT_ROTATE_TRN
@@ -1656,12 +1679,17 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Scale") {
-                BL::NodeSocket value_sock(*b_input);
-                float Scale[3];
-                RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
-                cur_node->Scale.x = Scale[0];
-                cur_node->Scale.y = Scale[1];
-                cur_node->Scale.z = Scale[2];
+                if(b_input->is_linked())
+                    cur_node->Scale = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Scale = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float Scale[3];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
+                    cur_node->Scale_default_val.x = Scale[0];
+                    cur_node->Scale_default_val.y = Scale[1];
+                    cur_node->Scale_default_val.z = Scale[2];
+                }
             }
         }
     } //case BL::ShaderNode::type_OCT_SCALE_TRN
@@ -1675,6 +1703,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            //Can't be linked to attributes
             if(b_input->name() == "Rotation") {
                 BL::NodeSocket value_sock(*b_input);
                 float Rotation[3];
@@ -1699,8 +1728,120 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 cur_node->Translation.y = Translation[1];
                 cur_node->Translation.z = Translation[2];
             }
+            else if(b_input->name() == "Rotation order") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->RotationOrder_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+            }
         }
     } //case BL::ShaderNode::type_OCT_FULL_TRN
+    else if(b_node.is_a(&RNA_ShaderNodeOct2DTransform)) {
+        BL::ShaderNodeOct2DTransform b_trans_node(b_node);
+        Octane2DTransform* cur_node = new Octane2DTransform();
+        node = cur_node;
+        char tmp[32];
+        ::sprintf(tmp, "%p", b_trans_node.ptr.data);
+        cur_node->name = tmp;
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Rotation") {
+                if(b_input->is_linked())
+                    cur_node->Rotation = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Rotation = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float Rotation[2];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
+                    cur_node->Rotation_default_val.x = Rotation[0];
+                    cur_node->Rotation_default_val.y = Rotation[1];
+                }
+            }
+            else if(b_input->name() == "Scale") {
+                if(b_input->is_linked())
+                    cur_node->Scale = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Scale = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float Scale[2];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
+                    cur_node->Scale_default_val.x = Scale[0];
+                    cur_node->Scale_default_val.y = Scale[1];
+                }
+            }
+            else if(b_input->name() == "Translation") {
+                if(b_input->is_linked())
+                    cur_node->Translation = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Translation = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float Translation[2];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", Translation);
+                    cur_node->Translation_default_val.x = Translation[0];
+                    cur_node->Translation_default_val.y = Translation[1];
+                }
+            }
+        }
+    } //case BL::ShaderNode::type_OCT_2D_TRN
+    else if(b_node.is_a(&RNA_ShaderNodeOct3DTransform)) {
+        BL::ShaderNodeOct3DTransform b_trans_node(b_node);
+        Octane3DTransform* cur_node = new Octane3DTransform();
+        node = cur_node;
+        char tmp[32];
+        ::sprintf(tmp, "%p", b_trans_node.ptr.data);
+        cur_node->name = tmp;
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Rotation") {
+                if(b_input->is_linked())
+                    cur_node->Rotation = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Rotation = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float Rotation[3];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
+                    cur_node->Rotation_default_val.x = Rotation[0];
+                    cur_node->Rotation_default_val.y = Rotation[1];
+                    cur_node->Rotation_default_val.z = Rotation[2];
+                }
+            }
+            else if(b_input->name() == "Scale") {
+                if(b_input->is_linked())
+                    cur_node->Scale = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Scale = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float Scale[3];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
+                    cur_node->Scale_default_val.x = Scale[0];
+                    cur_node->Scale_default_val.y = Scale[1];
+                    cur_node->Scale_default_val.z = Scale[2];
+                }
+            }
+            else if(b_input->name() == "Translation") {
+                if(b_input->is_linked())
+                    cur_node->Translation = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Translation = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    float Translation[3];
+                    RNA_float_get_array(&value_sock.ptr, "default_value", Translation);
+                    cur_node->Translation_default_val.x = Translation[0];
+                    cur_node->Translation_default_val.y = Translation[1];
+                    cur_node->Translation_default_val.z = Translation[2];
+                }
+            }
+            else if(b_input->name() == "Rotation order") {
+                if(b_input->is_linked())
+                    cur_node->RotationOrder = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->RotationOrder = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->RotationOrder_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+                }
+            }
+        }
+    } //case BL::ShaderNode::type_OCT_3D_TRN
 
     else if(b_node.is_a(&RNA_ShaderNodeBsdfDiffuse)) {
 		BL::ShaderNodeBsdfDiffuse b_diffuse_node(b_node);
@@ -1932,7 +2073,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Value") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Value = RNA_float_get(&value_sock.ptr, "default_value");
+                float Value[3];
+                RNA_float_get_array(&value_sock.ptr, "default_value", Value);
+                cur_node->Value.x = Value[0];
+                cur_node->Value.y = Value[1];
+                cur_node->Value.z = Value[2];
             }
         }
     }
@@ -2064,14 +2209,19 @@ void BlenderSync::sync_materials() {
 		Shader *shader;
 		// Test if we need to sync
 		if(shader_map.sync(&shader, *b_mat)) {
-			ShaderGraph *graph = new ShaderGraph();
-
 			shader->name = b_mat->name().c_str();
 			//shader->pass_id = b_mat->pass_index();
 
+            if(shader->graph) {
+                for(std::list<ShaderNode*>::iterator it = shader->graph->nodes.begin(); it != shader->graph->nodes.end(); ++it) {
+                    (*it)->delete_from_server(scene->server);
+                }
+            }
+
 			// Create nodes
             if(b_mat->use_nodes() && b_mat->node_tree()) {
-				BL::ShaderNodeTree b_ntree(b_mat->node_tree());
+                ShaderGraph *graph = new ShaderGraph();
+                BL::ShaderNodeTree b_ntree(b_mat->node_tree());
 
 				add_shader_nodes(shader->name, b_data, b_scene, graph, b_ntree);
 
@@ -2089,6 +2239,12 @@ void BlenderSync::sync_materials() {
 		if(shader_map.sync(&shader, *b_tex)) {
 			shader->name = b_tex->name().c_str();
 			//shader->pass_id = b_tex->pass_index();
+
+            if(shader->graph) {
+                for(std::list<ShaderNode*>::iterator it = shader->graph->nodes.begin(); it != shader->graph->nodes.end(); ++it) {
+                    (*it)->delete_from_server(scene->server);
+                }
+            }
 
 			// Create nodes
             if(b_tex->use_nodes() && b_tex->node_tree()) {

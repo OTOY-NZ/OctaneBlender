@@ -127,6 +127,9 @@ bool BKE_mesh_uv_cdlayer_rename(struct Mesh *me, const char *old_name, const cha
 
 float (*BKE_mesh_vertexCos_get(struct Mesh *me, int *r_numVerts))[3];
 
+struct Mesh *BKE_mesh_new_from_object(struct Main *bmain, struct Scene *sce, struct Object *ob,
+                                      int apply_modifiers, int settings, int calc_tessface, int calc_undeformed);
+
 /* vertex level transformations & checks (no derived mesh) */
 
 bool BKE_mesh_minmax(struct Mesh *me, float r_min[3], float r_max[3]);
@@ -192,7 +195,7 @@ void BKE_mesh_calc_poly_center(
         struct MVert *mvarray, float cent[3]);
 float BKE_mesh_calc_poly_area(
         struct MPoly *mpoly, struct MLoop *loopstart,
-        struct MVert *mvarray, const float polynormal[3]);
+        struct MVert *mvarray);
 void BKE_mesh_calc_poly_angles(
         struct MPoly *mpoly, struct MLoop *loopstart,
         struct MVert *mvarray, float angles[]);
@@ -208,6 +211,10 @@ void BKE_mesh_poly_edgebitmap_insert(
 bool BKE_mesh_center_median(struct Mesh *me, float cent[3]);
 bool BKE_mesh_center_bounds(struct Mesh *me, float cent[3]);
 bool BKE_mesh_center_centroid(struct Mesh *me, float cent[3]);
+
+void BKE_mesh_calc_volume(struct MVert *mverts, int numVerts,
+                          struct MFace *mfaces, int numFaces,
+                          float *r_vol, float *r_com);
 
 /* tessface */
 void BKE_mesh_loops_to_mface_corners(
@@ -280,6 +287,7 @@ void BKE_mesh_calc_relative_deform(
 
 int BKE_mesh_validate(struct Mesh *me, const int do_verbose);
 void BKE_mesh_cd_validate(struct Mesh *me);
+int BKE_mesh_validate_material_indices(struct Mesh *me);
 
 bool BKE_mesh_validate_arrays(
         struct Mesh *me,

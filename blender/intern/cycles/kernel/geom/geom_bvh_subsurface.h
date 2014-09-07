@@ -48,12 +48,11 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 	int nodeAddr = kernel_data.bvh.root;
 
 	/* ray parameters in registers */
-	const float tmax = ray->t;
 	float3 P = ray->P;
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
 	int object = OBJECT_NONE;
-	float isect_t = tmax;
+	float isect_t = ray->t;
 
 	const uint visibility = PATH_RAY_ALL_VISIBILITY;
 	uint num_hits = 0;
@@ -66,15 +65,15 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 	const shuffle_swap_t shuf_identity = shuffle_swap_identity();
 	const shuffle_swap_t shuf_swap = shuffle_swap_swap();
 	
-	const __m128 pn = _mm_castsi128_ps(_mm_set_epi32(0x80000000, 0x80000000, 0, 0));
-	__m128 Psplat[3], idirsplat[3];
+	const ssef pn = cast(ssei(0, 0, 0x80000000, 0x80000000));
+	ssef Psplat[3], idirsplat[3];
 	shuffle_swap_t shufflexyz[3];
 
-	Psplat[0] = _mm_set_ps1(P.x);
-	Psplat[1] = _mm_set_ps1(P.y);
-	Psplat[2] = _mm_set_ps1(P.z);
+	Psplat[0] = ssef(P.x);
+	Psplat[1] = ssef(P.y);
+	Psplat[2] = ssef(P.z);
 
-	__m128 tsplat = _mm_set_ps(-isect_t, -isect_t, 0.0f, 0.0f);
+	ssef tsplat(0.0f, 0.0f, -isect_t, -isect_t);
 
 	gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
@@ -132,25 +131,27 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 				/* Intersect two child bounding boxes, SSE3 version adapted from Embree */
 
 				/* fetch node data */
-				const __m128 *bvh_nodes = (__m128*)kg->__bvh_nodes.data + nodeAddr*BVH_NODE_SIZE;
+				const ssef *bvh_nodes = (ssef*)kg->__bvh_nodes.data + nodeAddr*BVH_NODE_SIZE;
 				const float4 cnodes = ((float4*)bvh_nodes)[3];
 
 				/* intersect ray against child nodes */
-				const __m128 tminmaxx = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[0], shufflexyz[0]), Psplat[0]), idirsplat[0]);
-				const __m128 tminmaxy = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[1], shufflexyz[1]), Psplat[1]), idirsplat[1]);
-				const __m128 tminmaxz = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[2], shufflexyz[2]), Psplat[2]), idirsplat[2]);
+				const ssef tminmaxx = (shuffle_swap(bvh_nodes[0], shufflexyz[0]) - Psplat[0]) * idirsplat[0];
+				const ssef tminmaxy = (shuffle_swap(bvh_nodes[1], shufflexyz[1]) - Psplat[1]) * idirsplat[1];
+				const ssef tminmaxz = (shuffle_swap(bvh_nodes[2], shufflexyz[2]) - Psplat[2]) * idirsplat[2];
 
-				const __m128 tminmax = _mm_xor_ps(_mm_max_ps(_mm_max_ps(tminmaxx, tminmaxy), _mm_max_ps(tminmaxz, tsplat)), pn);
-				const __m128 lrhit = _mm_cmple_ps(tminmax, shuffle<2, 3, 0, 1>(tminmax));
+				/* calculate { c0min, c1min, -c0max, -c1max} */
+				const ssef minmax = max(max(tminmaxx, tminmaxy), max(tminmaxz, tsplat));
+				const ssef tminmax = minmax ^ pn;
+				const sseb lrhit = tminmax <= shuffle<2, 3, 0, 1>(tminmax);
 
 				/* decide which nodes to traverse next */
 #ifdef __VISIBILITY_FLAG__
 				/* this visibility test gives a 5% performance hit, how to solve? */
-				traverseChild0 = (_mm_movemask_ps(lrhit) & 1) && (__float_as_uint(cnodes.z) & visibility);
-				traverseChild1 = (_mm_movemask_ps(lrhit) & 2) && (__float_as_uint(cnodes.w) & visibility);
+				traverseChild0 = (movemask(lrhit) & 1) && (__float_as_uint(cnodes.z) & visibility);
+				traverseChild1 = (movemask(lrhit) & 2) && (__float_as_uint(cnodes.w) & visibility);
 #else
-				traverseChild0 = (_mm_movemask_ps(lrhit) & 1);
-				traverseChild1 = (_mm_movemask_ps(lrhit) & 2);
+				traverseChild0 = (movemask(lrhit) & 1);
+				traverseChild1 = (movemask(lrhit) & 2);
 #endif
 #endif // __KERNEL_SSE2__
 
@@ -162,9 +163,7 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 #if !defined(__KERNEL_SSE2__)
 					bool closestChild1 = (c1min < c0min);
 #else
-					union { __m128 m128; float v[4]; } uminmax;
-					uminmax.m128 = tminmax;
-					bool closestChild1 = uminmax.v[1] < uminmax.v[0];
+					bool closestChild1 = tminmax[1] < tminmax[0];
 #endif
 
 					if(closestChild1) {
@@ -219,10 +218,12 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 								triangle_intersect_subsurface(kg, isect_array, P, dir, object, primAddr, isect_t, &num_hits, lcg_state, max_hits);
 								break;
 							}
+#if FEATURE(BVH_MOTION)
 							case PRIMITIVE_MOTION_TRIANGLE: {
 								motion_triangle_intersect_subsurface(kg, isect_array, P, dir, ray->time, object, primAddr, isect_t, &num_hits, lcg_state, max_hits);
 								break;
 							}
+#endif
 							default: {
 								break;
 							}
@@ -236,17 +237,17 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 						object = subsurface_object;
 
 #if FEATURE(BVH_MOTION)
-						bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &isect_t, &ob_tfm, tmax);
+						bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &isect_t, &ob_tfm);
 #else
-						bvh_instance_push(kg, object, ray, &P, &dir, &idir, &isect_t, tmax);
+						bvh_instance_push(kg, object, ray, &P, &dir, &idir, &isect_t);
 #endif
 
 #if defined(__KERNEL_SSE2__)
-						Psplat[0] = _mm_set_ps1(P.x);
-						Psplat[1] = _mm_set_ps1(P.y);
-						Psplat[2] = _mm_set_ps1(P.z);
+						Psplat[0] = ssef(P.x);
+						Psplat[1] = ssef(P.y);
+						Psplat[2] = ssef(P.z);
 
-						tsplat = _mm_set_ps(-isect_t, -isect_t, 0.0f, 0.0f);
+						tsplat = ssef(0.0f, 0.0f, -isect_t, -isect_t);
 
 						gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
@@ -272,17 +273,17 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 
 			/* instance pop */
 #if FEATURE(BVH_MOTION)
-			bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &isect_t, &ob_tfm, tmax);
+			bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &isect_t, &ob_tfm);
 #else
-			bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &isect_t, tmax);
+			bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &isect_t);
 #endif
 
 #if defined(__KERNEL_SSE2__)
-			Psplat[0] = _mm_set_ps1(P.x);
-			Psplat[1] = _mm_set_ps1(P.y);
-			Psplat[2] = _mm_set_ps1(P.z);
+			Psplat[0] = ssef(P.x);
+			Psplat[1] = ssef(P.y);
+			Psplat[2] = ssef(P.z);
 
-			tsplat = _mm_set_ps(-isect_t, -isect_t, 0.0f, 0.0f);
+			tsplat = ssef(0.0f, 0.0f, -isect_t, -isect_t);
 
 			gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif

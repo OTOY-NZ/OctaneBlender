@@ -28,10 +28,10 @@ bl_info = {
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Import-Export/UV_Layout",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"
-                   "func=detail&aid=22837",
     "support": 'OFFICIAL',
-    "category": "Import-Export"}
+    "category": "Import-Export",
+}
+
 
 # @todo write the wiki page
 
@@ -102,6 +102,7 @@ class ExportUVLayout(bpy.types.Operator):
             name="Fill Opacity",
             min=0.0, max=1.0,
             default=0.25,
+            description="Set amount of opacity for exported UV layout"
             )
     tessellated = BoolProperty(
             name="Tessellated UVs",

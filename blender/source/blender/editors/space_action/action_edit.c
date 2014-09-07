@@ -42,7 +42,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_mask_types.h"
 
@@ -65,7 +64,6 @@
 #include "ED_keyframing.h"
 #include "ED_keyframes_edit.h"
 #include "ED_screen.h"
-#include "ED_transform.h"
 #include "ED_markers.h"
 #include "ED_mask.h"
 
@@ -122,7 +120,7 @@ static int act_new_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* set notifier that keyframes have changed */
-	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -301,7 +299,7 @@ static bool get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
 		}
 		
 		/* free memory */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 	}
 	else {
 		/* set default range */
@@ -364,7 +362,62 @@ void ACTION_OT_previewrange_set(wmOperatorType *ot)
 
 /* ****************** View-All Operator ****************** */
 
-static int actkeys_viewall(bContext *C, const bool only_sel, const bool only_xaxis)
+/**
+ * Find the extents of the active channel
+ *
+ * \param[out] min Bottom y-extent of channel
+ * \param[out] max Top y-extent of channel
+ * \return Success of finding a selected channel
+ */
+static bool actkeys_channels_get_selected_extents(bAnimContext *ac, float *min, float *max)
+{
+	ListBase anim_data = {NULL, NULL};
+	bAnimListElem *ale;
+	int filter;
+	
+	short found = 0; /* NOTE: not bool, since we want prioritise individual channels over expanders */
+	float y;
+	
+	/* get all items - we need to do it this way */
+	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+	
+	/* loop through all channels, finding the first one that's selected */
+	y = (float)ACHANNEL_FIRST;
+	
+	for (ale = anim_data.first; ale; ale = ale->next) {
+		bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
+		
+		/* must be selected... */
+		if (acf && acf->has_setting(ac, ale, ACHANNEL_SETTING_SELECT) && 
+		    ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_SELECT))
+		{
+			/* update best estimate */
+			*min = (float)(y - ACHANNEL_HEIGHT_HALF);
+			*max = (float)(y + ACHANNEL_HEIGHT_HALF);
+			
+			/* is this high enough priority yet? */
+			found = acf->channel_role;
+			
+			/* only stop our search when we've found an actual channel
+			 * - datablock expanders get less priority so that we don't abort prematurely
+			 */
+			if (found == ACHANNEL_ROLE_CHANNEL) {
+				break;
+			}
+		}
+		
+		/* adjust y-position for next one */
+		y -= ACHANNEL_STEP;
+	}
+	
+	/* free all temp data */
+	ANIM_animdata_freelist(&anim_data);
+	
+	return (found != 0);
+}
+
+static int actkeys_viewall(bContext *C, const bool only_sel)
 {
 	bAnimContext ac;
 	View2D *v2d;
@@ -390,9 +443,24 @@ static int actkeys_viewall(bContext *C, const bool only_sel, const bool only_xax
 	v2d->cur.xmax += extra;
 	
 	/* set vertical range */
-	if (only_xaxis == false) {
+	if (only_sel == false) {
+		/* view all -> the summary channel is usually the shows everything, and resides right at the top... */
 		v2d->cur.ymax = 0.0f;
 		v2d->cur.ymin = (float)-BLI_rcti_size_y(&v2d->mask);
+	}
+	else {
+		/* locate first selected channel (or the active one), and frame those */
+		float ymin = v2d->cur.ymin;
+		float ymax = v2d->cur.ymax;
+		
+		if (actkeys_channels_get_selected_extents(&ac, &ymin, &ymax)) {
+			/* recenter the view so that this range is in the middle */
+			float ymid = (ymax - ymin) / 2.0f + ymin;
+			float x_center;
+			
+			UI_view2d_center_get(v2d, &x_center, NULL);
+			UI_view2d_center_set(v2d, x_center, ymid);
+		}
 	}
 	
 	/* do View2D syncing */
@@ -409,13 +477,13 @@ static int actkeys_viewall(bContext *C, const bool only_sel, const bool only_xax
 static int actkeys_viewall_exec(bContext *C, wmOperator *UNUSED(op))
 {	
 	/* whole range */
-	return actkeys_viewall(C, false, false);
+	return actkeys_viewall(C, false);
 }
 
 static int actkeys_viewsel_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	/* only selected */
-	return actkeys_viewall(C, true, true);
+	return actkeys_viewall(C, true);
 }
  
 void ACTION_OT_view_all(wmOperatorType *ot)
@@ -470,7 +538,7 @@ static short copy_action_keys(bAnimContext *ac)
 	ok = copy_animedit_keys(ac, &anim_data);
 	
 	/* clean up */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 
 	return ok;
 }
@@ -495,9 +563,9 @@ static short paste_action_keys(bAnimContext *ac,
 	
 	/* paste keyframes */
 	ok = paste_animedit_keys(ac, &anim_data, offset_mode, merge_mode);
-	
+
 	/* clean up */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 
 	return ok;
 }
@@ -574,10 +642,7 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
 			return OPERATOR_CANCELLED;
 		}
 	}
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
-	
+
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	
@@ -652,9 +717,12 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 			insert_keyframe(reports, ale->id, NULL, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
 		else
 			insert_vert_fcurve(fcu, cfra, fcu->curval, 0);
+
+		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
-	
-	BLI_freelistN(&anim_data);
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -675,12 +743,9 @@ static int actkeys_insertkey_exec(bContext *C, wmOperator *op)
 	
 	/* insert keyframes */
 	insert_action_keys(&ac, mode);
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
-	
+
 	/* set notifier that keyframes have changed */
-	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -729,10 +794,12 @@ static void duplicate_action_keys(bAnimContext *ac)
 			ED_masklayer_frames_duplicate((MaskLayer *)ale->data);
 		else
 			BLI_assert(0);
+
+		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
-	
-	/* free filtered list */
-	BLI_freelistN(&anim_data);
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -747,13 +814,9 @@ static int actkeys_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 		
 	/* duplicate keyframes */
 	duplicate_action_keys(&ac);
-	
-	/* validate keyframes after editing */
-	if (!ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
-		ANIM_editkeyframes_refresh(&ac);
-	
+
 	/* set notifier that keyframes have changed */
-	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -788,40 +851,49 @@ static bool delete_action_keys(bAnimContext *ac)
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
-	bool changed = false;
-	
+	bool changed_final = false;
+
 	/* filter data */
 	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
 	else
 		filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
-	
+
 	/* loop through filtered data and delete selected keys */
 	for (ale = anim_data.first; ale; ale = ale->next) {
+		bool changed = false;
+
 		if (ale->type == ANIMTYPE_GPLAYER) {
-			changed |= ED_gplayer_frames_delete((bGPDlayer *)ale->data);
+			changed = ED_gplayer_frames_delete((bGPDlayer *)ale->data);
 		}
 		else if (ale->type == ANIMTYPE_MASKLAYER) {
-			changed |= ED_masklayer_frames_delete((MaskLayer *)ale->data);
+			changed = ED_masklayer_frames_delete((MaskLayer *)ale->data);
 		}
 		else {
 			FCurve *fcu = (FCurve *)ale->key_data;
 			AnimData *adt = ale->adt;
 			
 			/* delete selected keyframes only */
-			changed |= delete_fcurve_keys(fcu);
+			changed = delete_fcurve_keys(fcu);
 			
 			/* Only delete curve too if it won't be doing anything anymore */
-			if ((fcu->totvert == 0) && (list_has_suitable_fmodifier(&fcu->modifiers, 0, FMI_TYPE_GENERATE_CURVE) == 0))
+			if ((fcu->totvert == 0) && (list_has_suitable_fmodifier(&fcu->modifiers, 0, FMI_TYPE_GENERATE_CURVE) == 0)) {
 				ANIM_fcurve_delete_from_animdata(ac, adt, fcu);
+				ale->key_data = NULL;
+			}
+		}
+
+		if (changed) {
+			ale->update |= ANIM_UPDATE_DEFAULT;
+			changed_final = true;
 		}
 	}
-	
-	/* free filtered list */
-	BLI_freelistN(&anim_data);
 
-	return changed;
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
+
+	return changed_final;
 }
 
 /* ------------------- */
@@ -838,12 +910,8 @@ static int actkeys_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	if (!delete_action_keys(&ac))
 		return OPERATOR_CANCELLED;
 	
-	/* validate keyframes after editing */
-	if (!ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
-		ANIM_editkeyframes_refresh(&ac);
-	
 	/* set notifier that keyframes have changed */
-	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -877,11 +945,14 @@ static void clean_action_keys(bAnimContext *ac, float thresh)
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* loop through filtered data and clean curves */
-	for (ale = anim_data.first; ale; ale = ale->next)
+	for (ale = anim_data.first; ale; ale = ale->next) {
 		clean_fcurve((FCurve *)ale->key_data, thresh);
-	
-	/* free temp data */
-	BLI_freelistN(&anim_data);
+
+		ale->update |= ANIM_UPDATE_DEFAULT;
+	}
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -902,9 +973,6 @@ static int actkeys_clean_exec(bContext *C, wmOperator *op)
 	
 	/* clean keyframes */
 	clean_action_keys(&ac, thresh);
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
 	
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
@@ -945,11 +1013,14 @@ static void sample_action_keys(bAnimContext *ac)
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* loop through filtered data and add keys between selected keyframes on every frame  */
-	for (ale = anim_data.first; ale; ale = ale->next)
+	for (ale = anim_data.first; ale; ale = ale->next) {
 		sample_fcurve((FCurve *)ale->key_data);
-	
-	/* admin and redraws */
-	BLI_freelistN(&anim_data);
+
+		ale->update |= ANIM_UPDATE_DEPS;
+	}
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -966,9 +1037,6 @@ static int actkeys_sample_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	/* sample keyframes */
 	sample_action_keys(&ac);
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
 	
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
@@ -1052,10 +1120,12 @@ static void setexpo_action_keys(bAnimContext *ac, short mode)
 				}
 			}
 		}
+
+		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
-	
-	/* cleanup */
-	BLI_freelistN(&anim_data);
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -1076,9 +1146,6 @@ static int actkeys_expo_exec(bContext *C, wmOperator *op)
 	
 	/* set handle type */
 	setexpo_action_keys(&ac, mode);
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
 	
 	/* set notifier that keyframe properties have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
@@ -1122,11 +1189,14 @@ static void setipo_action_keys(bAnimContext *ac, short mode)
 	/* loop through setting BezTriple interpolation
 	 * Note: we do not supply KeyframeEditData to the looper yet. Currently that's not necessary here...
 	 */
-	for (ale = anim_data.first; ale; ale = ale->next)
+	for (ale = anim_data.first; ale; ale = ale->next) {
 		ANIM_fcurve_keyframes_loop(NULL, ale->key_data, NULL, set_cb, calchandles_fcurve);
-	
-	/* cleanup */
-	BLI_freelistN(&anim_data);
+
+		ale->update |= ANIM_UPDATE_DEFAULT;
+	}
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -1147,9 +1217,6 @@ static int actkeys_ipo_exec(bContext *C, wmOperator *op)
 	
 	/* set handle type */
 	setipo_action_keys(&ac, mode);
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
 	
 	/* set notifier that keyframe properties have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
@@ -1202,11 +1269,13 @@ static void sethandles_action_keys(bAnimContext *ac, short mode)
 		if (ANIM_fcurve_keyframes_loop(NULL, fcu, NULL, sel_cb, NULL)) {
 			/* change type of selected handles */
 			ANIM_fcurve_keyframes_loop(NULL, fcu, NULL, edit_cb, calchandles_fcurve);
+
+			ale->update |= ANIM_UPDATE_DEFAULT;
 		}
 	}
-	
-	/* cleanup */
-	BLI_freelistN(&anim_data);
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -1227,9 +1296,6 @@ static int actkeys_handletype_exec(bContext *C, wmOperator *op)
 	
 	/* set handle type */
 	sethandles_action_keys(&ac, mode);
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
 	
 	/* set notifier that keyframe properties have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
@@ -1273,11 +1339,14 @@ static void setkeytype_action_keys(bAnimContext *ac, short mode)
 	/* loop through setting BezTriple interpolation
 	 * Note: we do not supply KeyframeEditData to the looper yet. Currently that's not necessary here...
 	 */
-	for (ale = anim_data.first; ale; ale = ale->next)
+	for (ale = anim_data.first; ale; ale = ale->next) {
 		ANIM_fcurve_keyframes_loop(NULL, ale->key_data, NULL, set_cb, NULL);
-	
-	/* cleanup */
-	BLI_freelistN(&anim_data);
+
+		ale->update |= ANIM_UPDATE_DEPS | ANIM_UPDATE_HANDLES;
+	}
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -1298,9 +1367,6 @@ static int actkeys_keytype_exec(bContext *C, wmOperator *op)
 	
 	/* set handle type */
 	setkeytype_action_keys(&ac, mode);
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
 	
 	/* set notifier that keyframe properties have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
@@ -1370,7 +1436,7 @@ static int actkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, bezt_calc_average, NULL);
 	}
 	
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* set the new current frame value, based on the average time */
 	if (ked.i1) {
@@ -1459,9 +1525,12 @@ static void snap_action_keys(bAnimContext *ac, short mode)
 		else {
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
 		}
+
+		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
-	
-	BLI_freelistN(&anim_data);
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -1480,10 +1549,6 @@ static int actkeys_snap_exec(bContext *C, wmOperator *op)
 	
 	/* snap keyframes */
 	snap_action_keys(&ac, mode);
-	
-	/* validate keyframes after editing */
-	if (!ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
-		ANIM_editkeyframes_refresh(&ac);
 	
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
@@ -1569,9 +1634,12 @@ static void mirror_action_keys(bAnimContext *ac, short mode)
 		//	snap_gplayer_frames(ale->data, mode);
 		else 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
+
+		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
-	
-	BLI_freelistN(&anim_data);
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ------------------- */
@@ -1594,9 +1662,6 @@ static int actkeys_mirror_exec(bContext *C, wmOperator *op)
 	
 	/* mirror keyframes */
 	mirror_action_keys(&ac, mode);
-	
-	/* validate keyframes after editing */
-	ANIM_editkeyframes_refresh(&ac);
 	
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);

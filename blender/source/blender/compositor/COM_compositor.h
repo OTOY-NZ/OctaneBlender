@@ -208,13 +208,13 @@ extern "C" {
  *
  * @see ExecutionGroup.execute Execute a complete ExecutionGroup. Halts until finished or breaked by user
  * @see ExecutionGroup.scheduleChunkWhenPossible Tries to schedule a single chunk,
- * checks if all input data is available. Can trigger dependant chunks to be calculated
+ * checks if all input data is available. Can trigger dependent chunks to be calculated
  * @see ExecutionGroup.scheduleAreaWhenPossible Tries to schedule an area. This can be multiple chunks
  * (is called from [@ref ExecutionGroup.scheduleChunkWhenPossible])
  * @see ExecutionGroup.scheduleChunk Schedule a chunk on the WorkScheduler
  * @see NodeOperation.determineDependingAreaOfInterest Influence the area of interest of a chunk.
- * @see WriteBufferOperation NodeOperation to write to a MemoryProxy/MemoryBuffer
- * @see ReadBufferOperation NodeOperation to read from a MemoryProxy/MemoryBuffer
+ * @see WriteBufferOperation Operation to write to a MemoryProxy/MemoryBuffer
+ * @see ReadBufferOperation Operation to read from a MemoryProxy/MemoryBuffer
  * @see MemoryProxy proxy for information about memory image (a image consist out of multiple chunks)
  * @see MemoryBuffer Allocated memory for a single chunk
  *

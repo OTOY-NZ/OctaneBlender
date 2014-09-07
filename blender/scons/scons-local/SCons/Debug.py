@@ -6,7 +6,7 @@ needed by most users.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 The SCons Foundation
+# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -28,13 +28,17 @@ needed by most users.
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-__revision__ = "src/engine/SCons/Debug.py  2013/03/03 09:48:35 garyo"
+__revision__ = "src/engine/SCons/Debug.py  2014/03/02 14:18:15 garyo"
 
 import os
 import sys
 import time
 import weakref
 
+# Global variable that gets set to 'True' by the Main script,
+# when the creation of class instances should get tracked.
+track_instances = False
+# List of currently tracked classes
 tracked_classes = {}
 
 def logInstanceCreation(instance, name=None):
@@ -109,14 +113,15 @@ else:
             return res[4]
 
 # returns caller's stack
-def caller_stack(*backlist):
+def caller_stack():
     import traceback
-    if not backlist:
-        backlist = [0]
+    tb = traceback.extract_stack()
+    # strip itself and the caller from the output
+    tb = tb[:-2]
     result = []
-    for back in backlist:
-        tb = traceback.extract_stack(limit=3+back)
-        key = tb[0][:3]
+    for back in tb:
+        # (filename, line number, function name, text)
+        key = back[:3]
         result.append('%s:%d(%s)' % func_shorten(key))
     return result
 

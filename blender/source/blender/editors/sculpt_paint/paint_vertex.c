@@ -33,7 +33,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_memarena.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -58,7 +57,6 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
 #include "BKE_object_deform.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
@@ -199,11 +197,11 @@ static int *get_indexarray(Mesh *me)
 	return MEM_mallocN(sizeof(int) * (me->totpoly + 1), "vertexpaint");
 }
 
-unsigned int vpaint_get_current_col(VPaint *vp)
+unsigned int vpaint_get_current_col(Scene *scene, VPaint *vp)
 {
 	Brush *brush = BKE_paint_brush(&vp->paint);
 	unsigned char col[4];
-	rgb_float_to_uchar(col, brush->rgb);
+	rgb_float_to_uchar(col, BKE_brush_color_get(scene, brush));
 	col[3] = 255; /* alpha isn't used, could even be removed to speedup paint a little */
 	return *(unsigned int *)col;
 }
@@ -217,7 +215,7 @@ static void do_shared_vertex_tesscol(Mesh *me, bool *mfacetag)
 	int a;
 	short *scolmain, *scol;
 	char *mcol;
-	bool *mftag;
+	const bool *mftag;
 	
 	if (me->mcol == NULL || me->totvert == 0 || me->totface == 0) return;
 	
@@ -1185,8 +1183,10 @@ static EnumPropertyItem *weight_paint_sample_enum_itemf(bContext *C, PointerRNA 
 				bool found = false;
 				unsigned int index;
 
-				int mval[2] = {win->eventstate->x - vc.ar->winrct.xmin,
-				               win->eventstate->y - vc.ar->winrct.ymin};
+				const int mval[2] = {
+				    win->eventstate->x - vc.ar->winrct.xmin,
+				    win->eventstate->y - vc.ar->winrct.ymin,
+				};
 
 				view3d_operator_needs_opengl(C);
 				ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
@@ -1273,6 +1273,7 @@ void PAINT_OT_weight_sample_group(wmOperatorType *ot)
 	/* keyingset to use (dynamic enum) */
 	prop = RNA_def_enum(ot->srna, "group", DummyRNA_DEFAULT_items, 0, "Keying Set", "The Keying Set to use");
 	RNA_def_enum_funcs(prop, weight_paint_sample_enum_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -2546,14 +2547,17 @@ static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	int retval;
 
-	op->customdata = paint_stroke_new(C, NULL, wpaint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, wpaint_stroke_test_start,
 	                                  wpaint_stroke_update_step, NULL,
 	                                  wpaint_stroke_done, event->type);
 	
+	if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
+		paint_stroke_data_free(op);
+		return OPERATOR_FINISHED;
+	}
 	/* add modal handler */
 	WM_event_add_modal_handler(C, op);
 
-	retval = op->type->modal(C, op, event);
 	OPERATOR_RETVAL_CHECK(retval);
 	BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 	
@@ -2562,7 +2566,7 @@ static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 static int wpaint_exec(bContext *C, wmOperator *op)
 {
-	op->customdata = paint_stroke_new(C, NULL, wpaint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, wpaint_stroke_test_start,
 	                                  wpaint_stroke_update_step, NULL,
 	                                  wpaint_stroke_done, 0);
 
@@ -2777,7 +2781,8 @@ static void vpaint_build_poly_facemap(struct VPaintData *vd, Mesh *me)
 
 static bool vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const float UNUSED(mouse[2]))
 {
-	ToolSettings *ts = CTX_data_tool_settings(C);
+	Scene *scene = CTX_data_scene(C);
+	ToolSettings *ts = scene->toolsettings;
 	struct PaintStroke *stroke = op->customdata;
 	VPaint *vp = ts->vpaint;
 	Brush *brush = BKE_paint_brush(&vp->paint);
@@ -2809,7 +2814,7 @@ static bool vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const f
 	vpd->vp_handle = ED_vpaint_proj_handle_create(vpd->vc.scene, ob, &vpd->vertexcosnos);
 
 	vpd->indexar = get_indexarray(me);
-	vpd->paintcol = vpaint_get_current_col(vp);
+	vpd->paintcol = vpaint_get_current_col(scene, vp);
 
 	vpd->is_texbrush = !(brush->vertexpaint_tool == PAINT_BLEND_BLUR) &&
 	                   brush->mtex.tex;
@@ -3061,14 +3066,18 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	int retval;
 
-	op->customdata = paint_stroke_new(C, NULL, vpaint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, vpaint_stroke_test_start,
 	                                  vpaint_stroke_update_step, NULL,
 	                                  vpaint_stroke_done, event->type);
 	
+	if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
+		paint_stroke_data_free(op);
+		return OPERATOR_FINISHED;
+	}
+
 	/* add modal handler */
 	WM_event_add_modal_handler(C, op);
 
-	retval = op->type->modal(C, op, event);
 	OPERATOR_RETVAL_CHECK(retval);
 	BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 	
@@ -3077,7 +3086,7 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 static int vpaint_exec(bContext *C, wmOperator *op)
 {
-	op->customdata = paint_stroke_new(C, NULL, vpaint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, vpaint_stroke_test_start,
 	                                  vpaint_stroke_update_step, NULL,
 	                                  vpaint_stroke_done, 0);
 

@@ -47,6 +47,7 @@ struct Image;
 struct bNode;
 struct LinkNode;
 struct Scene;
+struct SceneRenderLayer;
 struct GPUVertexAttribs;
 struct GPUNode;
 struct GPUNodeLink;
@@ -135,7 +136,8 @@ void GPU_material_free(struct Material *ma);
 
 void GPU_materials_free(void);
 
-void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double time, int mipmap, float viewmat[4][4], float viewinv[4][4]);
+bool GPU_lamp_override_visible(GPULamp *lamp, struct SceneRenderLayer *srl, struct Material *ma);
+void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double time, int mipmap, float viewmat[4][4], float viewinv[4][4], bool scenelock);
 void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float obcol[4], float autobumpscale);
 void GPU_material_unbind(GPUMaterial *material);
 int GPU_material_bound(GPUMaterial *material);
@@ -145,6 +147,7 @@ void GPU_material_vertex_attributes(GPUMaterial *material,
 	struct GPUVertexAttribs *attrib);
 
 bool GPU_material_do_color_management(GPUMaterial *mat);
+bool GPU_material_use_new_shading_nodes(GPUMaterial *mat);
 
 /* Exported shading */
 

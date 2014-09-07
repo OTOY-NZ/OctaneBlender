@@ -29,8 +29,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
@@ -50,14 +48,10 @@
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_icons.h"
-#include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
-#include "BKE_scene.h"
-#include "BKE_texture.h"
-#include "BKE_world.h"
 
 #include "GPU_material.h"
 #include "GPU_buffers.h"
@@ -172,6 +166,7 @@ void ED_render_engine_changed(Main *bmain)
 	bScreen *sc;
 	ScrArea *sa;
 	Scene *scene;
+	Material *ma;
 
 	for (sc = bmain->screen.first; sc; sc = sc->id.next)
 		for (sa = sc->areabase.first; sa; sa = sa->next)
@@ -181,6 +176,14 @@ void ED_render_engine_changed(Main *bmain)
 
 	for (scene = bmain->scene.first; scene; scene = scene->id.next)
 		ED_render_id_flush_update(bmain, &scene->id);
+
+	/* reset texture painting */
+	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
+		if (ma->texpaintslot) {
+			BKE_texpaint_slots_clear(ma);
+			DAG_id_tag_update(&ma->id, 0);
+		}
+	}
 }
 
 /***************************** Updates ***********************************

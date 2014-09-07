@@ -34,12 +34,6 @@
 #include <string.h>
 #include <math.h>
 
-#ifndef WIN32
-#  include <unistd.h>
-#else
-#  include <io.h>
-#endif
-
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -625,8 +619,9 @@ void setUserConstraint(TransInfo *t, short orientation, int mode, const char fte
 	switch (orientation) {
 		case V3D_MANIP_GLOBAL:
 		{
-			float mtx[3][3] = MAT3_UNITY;
+			float mtx[3][3];
 			BLI_snprintf(text, sizeof(text), ftext, IFACE_("global"));
+			unit_m3(mtx);
 			setConstraint(t, mtx, mode, text);
 			break;
 		}
@@ -668,7 +663,7 @@ void drawConstraint(TransInfo *t)
 {
 	TransCon *tc = &(t->con);
 
-	if (!ELEM3(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE))
+	if (!ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE))
 		return;
 	if (!(tc->mode & CON_APPLY))
 		return;
@@ -760,6 +755,9 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			if (t->options & CTX_MASK) {
 				/* untested - mask aspect is TODO */
 				ED_space_image_get_aspect(t->sa->spacedata.first, &aspx, &aspy);
+			}
+			else if (t->options & CTX_PAINT_CURVE) {
+				aspx = aspy = 1.0;
 			}
 			else {
 				ED_space_image_get_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);

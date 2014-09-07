@@ -250,7 +250,8 @@ def optiRotateUvIsland(faces):
     # orient them vertically (could be an option)
     minx, miny, maxx, maxy = boundsIsland(faces)
     w, h = maxx - minx, maxy - miny
-    if h < w:
+    # use epsilon so we dont randomly rotate (almost) perfect squares.
+    if h + 0.00001 < w:
         from math import pi
         angle = pi / 2.0
         rotate_uvs(uv_points, angle)
@@ -633,7 +634,7 @@ def packIslands(islandList):
     # print 'Box Packing Time:', time.time() - time1
 
     #if len(pa	ckedLs) != len(islandList):
-    #	raise "Error packed boxes differs from original length"
+    #    raise ValueError("Packed boxes differs from original length")
 
     #print '\tWriting Packed Data to faces'
 #XXX	Window.DrawProgressBar(0.8, "Writing Packed Data to faces")

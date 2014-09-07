@@ -180,6 +180,8 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.active = (oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "zdepth_max", text="Z-Depth max.")
         sub.prop(oct_scene, "uv_max", text="UV max.")
+        sub.prop(oct_scene, "ray_epsilon", text="Ray epsilon")
+        sub.prop(oct_scene, "distributed_tracing", text="Distributed ray tracing")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')

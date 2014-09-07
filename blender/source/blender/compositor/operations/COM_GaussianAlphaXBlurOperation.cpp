@@ -54,7 +54,7 @@ void GaussianAlphaXBlurOperation::initExecution()
 	initMutex();
 
 	if (this->m_sizeavailable) {
-		float rad = max_ff(m_size * m_data->sizex, 0.0f);
+		float rad = max_ff(m_size * m_data.sizex, 0.0f);
 		m_filtersize = min_ii(ceil(rad), MAX_GAUSSTAB_RADIUS);
 		
 		m_gausstab = BlurBaseOperation::make_gausstab(rad, m_filtersize);
@@ -66,7 +66,7 @@ void GaussianAlphaXBlurOperation::updateGauss()
 {
 	if (this->m_gausstab == NULL) {
 		updateSize();
-		float rad = max_ff(m_size * m_data->sizex, 0.0f);
+		float rad = max_ff(m_size * m_data.sizex, 0.0f);
 		m_filtersize = min_ii(ceil(rad), MAX_GAUSSTAB_RADIUS);
 		
 		m_gausstab = BlurBaseOperation::make_gausstab(rad, m_filtersize);
@@ -74,7 +74,7 @@ void GaussianAlphaXBlurOperation::updateGauss()
 
 	if (this->m_distbuf_inv == NULL) {
 		updateSize();
-		float rad = max_ff(m_size * m_data->sizex, 0.0f);
+		float rad = max_ff(m_size * m_data.sizex, 0.0f);
 		m_filtersize = min_ii(ceil(rad), MAX_GAUSSTAB_RADIUS);
 		
 		m_distbuf_inv = BlurBaseOperation::make_dist_fac_inverse(rad, m_filtersize, m_falloff);
@@ -146,10 +146,16 @@ void GaussianAlphaXBlurOperation::executePixel(float output[4], int x, int y, vo
 void GaussianAlphaXBlurOperation::deinitExecution()
 {
 	BlurBaseOperation::deinitExecution();
-	MEM_freeN(this->m_gausstab);
-	this->m_gausstab = NULL;
-	MEM_freeN(this->m_distbuf_inv);
-	this->m_distbuf_inv = NULL;
+
+	if (this->m_gausstab) {
+		MEM_freeN(this->m_gausstab);
+		this->m_gausstab = NULL;
+	}
+
+	if (this->m_distbuf_inv) {
+		MEM_freeN(this->m_distbuf_inv);
+		this->m_distbuf_inv = NULL;
+	}
 
 	deinitMutex();
 }

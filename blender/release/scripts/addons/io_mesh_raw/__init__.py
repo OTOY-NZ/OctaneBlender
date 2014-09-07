@@ -29,9 +29,8 @@ bl_info = {
     "warning": "",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
                 "Scripts/Import-Export/Raw_Mesh_IO",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"
-                   "func=detail&aid=25692",
-    "category": "Import-Export"}
+    "category": "Import-Export",
+}
 
 if "bpy" in locals():
     import imp

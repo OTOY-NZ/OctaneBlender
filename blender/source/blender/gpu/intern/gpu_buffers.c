@@ -46,13 +46,14 @@
 #include "BLI_ghash.h"
 #include "BLI_threads.h"
 
-#include "DNA_meshdata_types.h"
 #include "DNA_material_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_paint.h"
-#include "BKE_subsurf.h"
+#include "BKE_material.h"
+#include "BKE_pbvh.h"
 
 #include "DNA_userdef_types.h"
 
@@ -64,12 +65,15 @@
 typedef enum {
 	GPU_BUFFER_VERTEX_STATE = 1,
 	GPU_BUFFER_NORMAL_STATE = 2,
-	GPU_BUFFER_TEXCOORD_STATE = 4,
-	GPU_BUFFER_COLOR_STATE = 8,
-	GPU_BUFFER_ELEMENT_STATE = 16,
+	GPU_BUFFER_TEXCOORD_UNIT_0_STATE = 4,
+	GPU_BUFFER_TEXCOORD_UNIT_1_STATE = 8,
+	GPU_BUFFER_COLOR_STATE = 16,
+	GPU_BUFFER_ELEMENT_STATE = 32,
 } GPUBufferState;
 
 #define MAX_GPU_ATTRIB_DATA 32
+
+#define BUFFER_OFFSET(n) ((GLubyte *)NULL + (n))
 
 /* -1 - undefined, 0 - vertex arrays, 1 - VBOs */
 static int useVBOs = -1;
@@ -594,7 +598,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int *mat_orig_to_new;
 	int *cur_index_per_mat;
 	int i;
-	int success;
+	bool success;
 	GLboolean uploaded;
 
 	pool = gpu_get_global_buffer_pool();
@@ -612,7 +616,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	}
 
 	mat_orig_to_new = MEM_mallocN(sizeof(*mat_orig_to_new) * dm->totmat,
-                                  "GPU_buffer_setup.mat_orig_to_new");
+	                              "GPU_buffer_setup.mat_orig_to_new");
 	cur_index_per_mat = MEM_mallocN(sizeof(int) * object->totmaterial,
 	                                "GPU_buffer_setup.cur_index_per_mat");
 	for (i = 0; i < object->totmaterial; i++) {
@@ -736,7 +740,7 @@ static void GPU_buffer_copy_normal(DerivedMesh *dm, float *varray, int *index, i
 	int start;
 	float f_no[3];
 
-	float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	const float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
 	short (*tlnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	MVert *mvert = dm->getVertArray(dm);
 	MFace *f = dm->getTessFaceArray(dm);
@@ -837,6 +841,61 @@ static void GPU_buffer_copy_uv(DerivedMesh *dm, float *varray, int *index, int *
 	}
 }
 
+
+static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
+{
+	int start;
+	int i, totface;
+
+	int totmaterial = dm->totmat;
+	MTFace **mtface_base;
+	MTFace *stencil_base;
+	int stencil;
+	MFace *mf;
+
+	/* should have been checked for before, reassert */
+	BLI_assert(DM_get_tessface_data_layer(dm, CD_MTFACE));
+	mf = dm->getTessFaceArray(dm);
+	mtface_base = MEM_mallocN(totmaterial * sizeof(*mtface_base), "texslots");
+
+	for (i = 0; i < totmaterial; i++) {
+		mtface_base[i] = DM_paint_uvlayer_active_get(dm, i);
+	}
+
+	stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);
+	stencil_base = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, stencil);
+
+	totface = dm->getNumTessFaces(dm);
+
+	for (i = 0; i < totface; i++, mf++) {
+		int mat_i = mf->mat_nr;
+		start = index[mat_orig_to_new[mat_i]];
+
+		/* v1 v2 v3 */
+		copy_v2_v2(&varray[start], mtface_base[mat_i][i].uv[0]);
+		copy_v2_v2(&varray[start + 2], stencil_base[i].uv[0]);
+		copy_v2_v2(&varray[start + 4], mtface_base[mat_i][i].uv[1]);
+		copy_v2_v2(&varray[start + 6], stencil_base[i].uv[1]);
+		copy_v2_v2(&varray[start + 8], mtface_base[mat_i][i].uv[2]);
+		copy_v2_v2(&varray[start + 10], stencil_base[i].uv[2]);
+		index[mat_orig_to_new[mat_i]] += 12;
+
+		if (mf->v4) {
+			/* v3 v4 v1 */
+			copy_v2_v2(&varray[start + 12], mtface_base[mat_i][i].uv[2]);
+			copy_v2_v2(&varray[start + 14], stencil_base[i].uv[2]);
+			copy_v2_v2(&varray[start + 16], mtface_base[mat_i][i].uv[3]);
+			copy_v2_v2(&varray[start + 18], stencil_base[i].uv[3]);
+			copy_v2_v2(&varray[start + 20], mtface_base[mat_i][i].uv[0]);
+			copy_v2_v2(&varray[start + 22], stencil_base[i].uv[0]);
+			index[mat_orig_to_new[mat_i]] += 12;
+		}
+	}
+
+	MEM_freeN(mtface_base);
+}
+
+
 static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
 {
 	v[0] = col[3];
@@ -926,6 +985,7 @@ typedef enum {
 	GPU_BUFFER_NORMAL,
 	GPU_BUFFER_COLOR,
 	GPU_BUFFER_UV,
+	GPU_BUFFER_UV_TEXPAINT,
 	GPU_BUFFER_EDGE,
 	GPU_BUFFER_UVEDGE,
 } GPUBufferType;
@@ -941,6 +1001,7 @@ const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
 	{GPU_buffer_copy_normal, GL_ARRAY_BUFFER_ARB, 3},
 	{GPU_buffer_copy_mcol, GL_ARRAY_BUFFER_ARB, 3},
 	{GPU_buffer_copy_uv, GL_ARRAY_BUFFER_ARB, 2},
+    {GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 4},
 	{GPU_buffer_copy_edge, GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
 	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4}
 };
@@ -956,6 +1017,8 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 		case GPU_BUFFER_COLOR:
 			return &gdo->colors;
 		case GPU_BUFFER_UV:
+			return &gdo->uv;
+		case GPU_BUFFER_UV_TEXPAINT:
 			return &gdo->uv;
 		case GPU_BUFFER_EDGE:
 			return &gdo->edges;
@@ -978,6 +1041,8 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 			return sizeof(char) * 3 * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_UV:
 			return sizeof(float) * 2 * dm->drawObject->tot_triangle_point;
+		case GPU_BUFFER_UV_TEXPAINT:
+			return sizeof(float) * 4 * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_EDGE:
 			return sizeof(int) * 2 * dm->drawObject->totedge;
 		case GPU_BUFFER_UVEDGE:
@@ -1006,7 +1071,7 @@ static GPUBuffer *gpu_buffer_setup_type(DerivedMesh *dm, GPUBufferType type)
 		if (!(user_data = DM_get_tessface_data_layer(dm, dm->drawObject->colType)))
 			return NULL;
 	}
-	else if (type == GPU_BUFFER_UV) {
+	else if (ELEM(type, GPU_BUFFER_UV, GPU_BUFFER_UV_TEXPAINT)) {
 		if (!DM_get_tessface_data_layer(dm, CD_MTFACE))
 			return NULL;
 	}
@@ -1082,8 +1147,34 @@ void GPU_uv_setup(DerivedMesh *dm)
 		glTexCoordPointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
 	}
 
-	GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+	GLStates |= GPU_BUFFER_TEXCOORD_UNIT_0_STATE;
 }
+
+void GPU_texpaint_uv_setup(DerivedMesh *dm)
+{
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UV_TEXPAINT))
+		return;
+
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	if (useVBOs) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->uv->id);
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), 0);
+		glClientActiveTexture(GL_TEXTURE1);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), BUFFER_OFFSET(2 * sizeof(float)));
+		glClientActiveTexture(GL_TEXTURE0);
+	}
+	else {
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), dm->drawObject->uv->pointer);
+		glClientActiveTexture(GL_TEXTURE1);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), (char *)dm->drawObject->uv->pointer + 2 * sizeof(float));
+		glClientActiveTexture(GL_TEXTURE0);
+	}
+
+	GLStates |= GPU_BUFFER_TEXCOORD_UNIT_0_STATE | GPU_BUFFER_TEXCOORD_UNIT_1_STATE;
+}
+
 
 void GPU_color_setup(DerivedMesh *dm, int colType)
 {
@@ -1242,8 +1333,13 @@ void GPU_buffer_unbind(void)
 		glDisableClientState(GL_VERTEX_ARRAY);
 	if (GLStates & GPU_BUFFER_NORMAL_STATE)
 		glDisableClientState(GL_NORMAL_ARRAY);
-	if (GLStates & GPU_BUFFER_TEXCOORD_STATE)
+	if (GLStates & GPU_BUFFER_TEXCOORD_UNIT_0_STATE)
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	if (GLStates & GPU_BUFFER_TEXCOORD_UNIT_1_STATE) {
+		glClientActiveTexture(GL_TEXTURE1);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		glClientActiveTexture(GL_TEXTURE0);
+	}
 	if (GLStates & GPU_BUFFER_COLOR_STATE)
 		glDisableClientState(GL_COLOR_ARRAY);
 	if (GLStates & GPU_BUFFER_ELEMENT_STATE) {
@@ -1252,8 +1348,8 @@ void GPU_buffer_unbind(void)
 		}
 	}
 	GLStates &= ~(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
-	              GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE |
-	              GPU_BUFFER_ELEMENT_STATE);
+	              GPU_BUFFER_TEXCOORD_UNIT_0_STATE | GPU_BUFFER_TEXCOORD_UNIT_1_STATE |
+	              GPU_BUFFER_COLOR_STATE | GPU_BUFFER_ELEMENT_STATE);
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
 		if (attribData[i].index != -1) {
@@ -1283,13 +1379,13 @@ void GPU_color_switch(int mode)
 
 /* return 1 if drawing should be done using old immediate-mode
  * code, 0 otherwise */
-int GPU_buffer_legacy(DerivedMesh *dm)
+bool GPU_buffer_legacy(DerivedMesh *dm)
 {
 	int test = (U.gameflags & USER_DISABLE_VBO);
 	if (test)
 		return 1;
 
-	if (dm->drawObject == 0)
+	if (dm->drawObject == NULL)
 		dm->drawObject = GPU_drawobject_new(dm);
 	return dm->drawObject->legacy;
 }
@@ -1384,7 +1480,7 @@ struct GPU_PBVH_Buffers {
 	/* mesh pointers in case buffer allocation fails */
 	MFace *mface;
 	MVert *mvert;
-	int *face_indices;
+	const int *face_indices;
 	int totface;
 	const float *vmask;
 
@@ -1393,7 +1489,7 @@ struct GPU_PBVH_Buffers {
 	CCGElem **grids;
 	const DMFlagMat *grid_flag_mats;
 	BLI_bitmap * const *grid_hidden;
-	int *grid_indices;
+	const int *grid_indices;
 	int totgrid;
 	int has_hidden;
 
@@ -1481,7 +1577,7 @@ static void gpu_color_from_mask_quad_copy(const CCGKey *key,
 static void gpu_color_from_mask_quad_set(const CCGKey *key,
                                          CCGElem *a, CCGElem *b,
                                          CCGElem *c, CCGElem *d,
-                                         float diffuse_color[4])
+                                         const float diffuse_color[4])
 {
 	float color = gpu_color_from_mask_quad(key, a, b, c, d);
 	glColor3f(diffuse_color[0] * color, diffuse_color[1] * color, diffuse_color[2] * color);
@@ -1625,7 +1721,7 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 	buffers->mvert = mvert;
 }
 
-GPU_PBVH_Buffers *GPU_build_pbvh_mesh_buffers(int (*face_vert_indices)[4],
+GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(int (*face_vert_indices)[4],
                                     MFace *mface, MVert *mvert,
                                     int *face_indices,
                                     int totface)
@@ -1646,6 +1742,16 @@ GPU_PBVH_Buffers *GPU_build_pbvh_mesh_buffers(int (*face_vert_indices)[4],
 		const MFace *f = &mface[face_indices[i]];
 		if (!paint_is_face_hidden(f, mvert))
 			tottri += f->v4 ? 2 : 1;
+	}
+
+	if (tottri == 0) {
+		buffers->tot_tri = 0;
+
+		buffers->mface = mface;
+		buffers->face_indices = face_indices;
+		buffers->totface = 0;
+
+		return buffers;
 	}
 
 	/* An element index buffer is used for smooth shading, but flat
@@ -1819,36 +1925,6 @@ void GPU_update_grid_pbvh_buffers(GPU_PBVH_Buffers *buffers, CCGElem **grids,
 	//printf("node updated %p\n", buffers);
 }
 
-/* Returns the number of visible quads in the nodes' grids. */
-static int gpu_count_grid_quads(BLI_bitmap **grid_hidden,
-                                int *grid_indices, int totgrid,
-                                int gridsize)
-{
-	int gridarea = (gridsize - 1) * (gridsize - 1);
-	int i, x, y, totquad;
-
-	/* grid hidden layer is present, so have to check each grid for
-	 * visibility */
-
-	for (i = 0, totquad = 0; i < totgrid; i++) {
-		const BLI_bitmap *gh = grid_hidden[grid_indices[i]];
-
-		if (gh) {
-			/* grid hidden are present, have to check each element */
-			for (y = 0; y < gridsize - 1; y++) {
-				for (x = 0; x < gridsize - 1; x++) {
-					if (!paint_is_grid_face_hidden(gh, gridsize, x, y))
-						totquad++;
-				}
-			}
-		}
-		else
-			totquad += gridarea;
-	}
-
-	return totquad;
-}
-
 /* Build the element array buffer of grid indices using either
  * unsigned shorts or unsigned ints. */
 #define FILL_QUAD_BUFFER(type_, tot_quad_, buffer_)                     \
@@ -1908,7 +1984,7 @@ static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *to
 
 	/* used in the FILL_QUAD_BUFFER macro */
 	BLI_bitmap * const *grid_hidden = NULL;
-	int *grid_indices = NULL;
+	const int *grid_indices = NULL;
 	int totgrid = 1;
 
 	/* VBO is disabled; delete the previous buffer (if it exists) and
@@ -1952,7 +2028,7 @@ static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *to
 }
 
 GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
-                                              BLI_bitmap **grid_hidden, int gridsize)
+											  BLI_bitmap **grid_hidden, int gridsize)
 {
 	GPU_PBVH_Buffers *buffers;
 	int totquad;
@@ -1966,7 +2042,11 @@ GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
 	buffers->use_matcaps = false;
 
 	/* Count the number of quads */
-	totquad = gpu_count_grid_quads(grid_hidden, grid_indices, totgrid, gridsize);
+	totquad = BKE_pbvh_count_grid_quads(grid_hidden, grid_indices, totgrid, gridsize);
+
+	/* totally hidden node, return here to avoid BufferData with zero below. */
+	if (totquad == 0)
+		return buffers;
 
 	if (totquad == fully_visible_totquad) {
 		buffers->index_buf = gpu_get_grid_buffer(gridsize, &buffers->index_type, &buffers->tot_quad);
@@ -2520,7 +2600,7 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 		if (buffers->tot_quad) {
-			char *offset = 0;
+			const char *offset = 0;
 			int i, last = buffers->has_hidden ? 1 : buffers->totgrid;
 			for (i = 0; i < last; i++) {
 				glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat),
@@ -2576,14 +2656,15 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GSet *bm_faces, bool show_diffuse_color)
 {
 	float diffuse_color[4];
+	bool use_matcaps = GPU_material_use_matcaps_get();
 
 	if (buffers->show_diffuse_color != show_diffuse_color)
 		return true;
 
-	if (buffers->use_matcaps != GPU_material_use_matcaps_get())
+	if (buffers->use_matcaps != use_matcaps)
 		return true;
 
-	if (buffers->show_diffuse_color == false)
+	if ((buffers->show_diffuse_color == false) || use_matcaps)
 		return false;
 
 	if (buffers->mface) {
@@ -2593,11 +2674,17 @@ bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GSet *bm_faces,
 	}
 	else if (buffers->use_bmesh) {
 		/* due to dynamc nature of dyntopo, only get first material */
-		GSetIterator gs_iter;
-		BMFace *f;
-		BLI_gsetIterator_init(&gs_iter, bm_faces);
-		f = BLI_gsetIterator_getKey(&gs_iter);
-		GPU_material_diffuse_get(f->mat_nr + 1, diffuse_color);
+		if (BLI_gset_size(bm_faces) > 0) {
+			GSetIterator gs_iter;
+			BMFace *f;
+
+			BLI_gsetIterator_init(&gs_iter, bm_faces);
+			f = BLI_gsetIterator_getKey(&gs_iter);
+			GPU_material_diffuse_get(f->mat_nr + 1, diffuse_color);
+		}
+		else {
+			return false;
+		}
 	}
 	else {
 		const DMFlagMat *flags = &buffers->grid_flag_mats[buffers->grid_indices[0]];
@@ -2605,9 +2692,7 @@ bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GSet *bm_faces,
 		GPU_material_diffuse_get(flags->mat_nr + 1, diffuse_color);
 	}
 
-	return diffuse_color[0] != buffers->diffuse_color[0] ||
-	       diffuse_color[1] != buffers->diffuse_color[1] ||
-	       diffuse_color[2] != buffers->diffuse_color[2];
+	return !equals_v3v3(diffuse_color, buffers->diffuse_color);
 }
 
 /* release a GPU_PBVH_Buffers id;
@@ -2657,4 +2742,66 @@ void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers)
 
 		MEM_freeN(buffers);
 	}
+}
+
+
+/* debug function, draws the pbvh BB */
+void GPU_draw_pbvh_BB(float min[3], float max[3], bool leaf)
+{
+	float quads[4][4][3] = {
+	    {
+	        {min[0], min[1], min[2]},
+	        {max[0], min[1], min[2]},
+	        {max[0], min[1], max[2]},
+	        {min[0], min[1], max[2]}
+	    },
+
+	    {
+	        {min[0], min[1], min[2]},
+	        {min[0], max[1], min[2]},
+	        {min[0], max[1], max[2]},
+	        {min[0], min[1], max[2]}
+	    },
+
+	    {
+	        {max[0], max[1], min[2]},
+	        {max[0], min[1], min[2]},
+	        {max[0], min[1], max[2]},
+	        {max[0], max[1], max[2]}
+	    },
+
+	    {
+	        {max[0], max[1], min[2]},
+	        {min[0], max[1], min[2]},
+	        {min[0], max[1], max[2]},
+	        {max[0], max[1], max[2]}
+	    },
+	};
+
+	if (leaf)
+		glColor4f(0.0, 1.0, 0.0, 0.5);
+	else
+		glColor4f(1.0, 0.0, 0.0, 0.5);
+
+	glVertexPointer(3, GL_FLOAT, 0, &quads[0][0][0]);
+	glDrawArrays(GL_QUADS, 0, 16);
+}
+
+void GPU_init_draw_pbvh_BB(void)
+{
+	glPushAttrib(GL_ENABLE_BIT);
+	glDisable(GL_CULL_FACE);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_COLOR_MATERIAL);
+	glEnable(GL_BLEND);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+}
+
+void GPU_end_draw_pbvh_BB(void)
+{
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glPopAttrib();
 }

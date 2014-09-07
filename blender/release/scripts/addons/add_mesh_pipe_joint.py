@@ -24,11 +24,10 @@ bl_info = {
     "location": "View3D > Add > Mesh > Pipe Joints",
     "description": "Add different types of pipe joints",
     "warning": "",
-    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"\
-        "Scripts/Add_Mesh/Add_Pipe_Joints",
-    "tracker_url": "https://projects.blender.org/tracker/index.php?"\
-        "func=detail&aid=21443",
-    "category": "Add Mesh"}
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/"
+                "Scripts/Add_Mesh/Add_Pipe_Joints",
+    "category": "Add Mesh",
+}
 
 import bpy
 from math import *

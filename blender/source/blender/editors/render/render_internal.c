@@ -51,15 +51,12 @@
 #include "BKE_context.h"
 #include "BKE_colortools.h"
 #include "BKE_depsgraph.h"
-#include "BKE_freestyle.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
-#include "BKE_multires.h"
 #include "BKE_object.h"
-#include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
 #include "BKE_screen.h"
@@ -99,6 +96,7 @@ static int render_break(void *rjv);
 typedef struct RenderJob {
 	Main *main;
 	Scene *scene;
+	Scene *current_scene;
 	Render *re;
 	SceneRenderLayer *srl;
 	struct Object *camera_override;
@@ -124,7 +122,7 @@ typedef struct RenderJob {
 static void image_buffer_rect_update(RenderJob *rj, RenderResult *rr, ImBuf *ibuf, ImageUser *iuser, volatile rcti *renrect)
 {
 	Scene *scene = rj->scene;
-	float *rectf = NULL;
+	const float *rectf = NULL;
 	int ymin, ymax, xmin, xmax;
 	int rymin, rxmin;
 	int linear_stride, linear_offset_x, linear_offset_y;
@@ -319,10 +317,12 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 
 	RE_SetReports(re, op->reports);
 
+	BLI_begin_threaded_malloc();
 	if (is_animation)
 		RE_BlenderAnim(re, mainp, scene, camera_override, lay_override, scene->r.sfra, scene->r.efra, scene->r.frame_step);
 	else
 		RE_BlenderFrame(re, mainp, scene, srl, camera_override, lay_override, scene->r.cfra, is_write_still);
+	BLI_end_threaded_malloc();
 
 	RE_SetReports(re, NULL);
 
@@ -564,6 +564,13 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 		*(rj->do_update) = true;
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+static void current_scene_update(void *rjv, Scene *scene)
+{
+	RenderJob *rj = rjv;
+	rj->current_scene = scene;
+	rj->iuser.scene = scene;
 }
 
 static void render_startjob(void *rjv, short *stop, short *do_update, float *progress)
@@ -870,6 +877,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	rj = MEM_callocN(sizeof(RenderJob), "render job");
 	rj->main = mainp;
 	rj->scene = scene;
+	rj->current_scene = rj->scene;
 	rj->srl = srl;
 	rj->camera_override = camera_override;
 	rj->lay_override = 0;
@@ -942,6 +950,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	RE_test_break_cb(re, rj, render_breakjob);
 	RE_draw_lock_cb(re, rj, render_drawlock);
 	RE_display_update_cb(re, rj, image_rect_update);
+	RE_current_scene_update_cb(re, rj, current_scene_update);
 	RE_stats_draw_cb(re, rj, image_renderinfo_cb);
 	RE_progress_cb(re, rj, render_progress_update);
 
@@ -1020,6 +1029,10 @@ typedef struct RenderPreview {
 	RenderEngine *engine;
 	
 	float viewmat[4][4];
+
+	int start_resolution_divider;
+	int resolution_divider;
+	bool has_freestyle;
 } RenderPreview;
 
 static int render_view3d_disprect(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, rcti *disprect)
@@ -1115,19 +1128,52 @@ static void render_view3d_renderinfo_cb(void *rjp, RenderStats *rs)
 	}
 }
 
+BLI_INLINE void rcti_scale_coords(rcti *scaled_rect, const rcti *rect,
+                                  const float scale)
+{
+	scaled_rect->xmin = rect->xmin * scale;
+	scaled_rect->ymin = rect->ymin * scale;
+	scaled_rect->xmax = rect->xmax * scale;
+	scaled_rect->ymax = rect->ymax * scale;
+}
+
+static void render_update_resolution(Render *re, const RenderPreview *rp,
+                                     bool use_border, const rcti *clip_rect)
+{
+	int winx = rp->ar->winx / rp->resolution_divider,
+	    winy = rp->ar->winy / rp->resolution_divider;
+	if (use_border) {
+		rcti scaled_cliprct;
+		rcti_scale_coords(&scaled_cliprct, clip_rect,
+		                  1.0f / rp->resolution_divider);
+		RE_ChangeResolution(re, winx, winy, &scaled_cliprct);
+	}
+	else {
+		RE_ChangeResolution(re, winx, winy, NULL);
+	}
+
+	if (rp->has_freestyle) {
+		if (rp->resolution_divider == 1) {
+			RE_ChangeModeFlag(re, R_EDGE_FRS, false);
+		}
+		else {
+			RE_ChangeModeFlag(re, R_EDGE_FRS, true);
+		}
+	}
+}
 
 static void render_view3d_startjob(void *customdata, short *stop, short *do_update, float *UNUSED(progress))
 {
 	RenderPreview *rp = customdata;
 	Render *re;
 	RenderStats *rstats;
-	RenderData rdata;
 	rctf viewplane;
 	rcti cliprct;
 	float clipsta, clipend, pixsize;
 	bool orth, restore = 0;
 	char name[32];
 	int update_flag;
+	bool use_border;
 
 	update_flag = rp->engine->job_update_flag;
 	rp->engine->job_update_flag = 0;
@@ -1155,18 +1201,37 @@ static void render_view3d_startjob(void *customdata, short *stop, short *do_upda
 	
 	rstats = RE_GetStats(re);
 
+	if (update_flag & PR_UPDATE_VIEW) {
+		Object *object;
+		rp->resolution_divider = rp->start_resolution_divider;
+
+		/* Same as database_init_objects(), loop over all objects.
+		 * We might consider de-duplicating the code between this two cases.
+		 */
+		for (object = rp->bmain->object.first; object; object = object->id.next) {
+			float mat[4][4];
+			mul_m4_m4m4(mat, rp->viewmat, object->obmat);
+			invert_m4_m4(object->imat_ren, mat);
+		}
+	}
+
+	use_border = render_view3d_disprect(rp->scene, rp->ar, rp->v3d,
+	                                    rp->rv3d, &cliprct);
+
 	if ((update_flag & (PR_UPDATE_RENDERSIZE | PR_UPDATE_DATABASE)) || rstats->convertdone == 0) {
+		RenderData rdata;
+
 		/* no osa, blur, seq, layers, etc for preview render */
 		rdata = rp->scene->r;
 		rdata.mode &= ~(R_OSA | R_MBLUR | R_BORDER | R_PANORAMA);
 		rdata.scemode &= ~(R_DOSEQ | R_DOCOMP | R_FREE_IMAGE);
 		rdata.scemode |= R_VIEWPORT_PREVIEW;
-		
+
 		/* we do use layers, but only active */
 		rdata.scemode |= R_SINGLE_LAYER;
 
 		/* initalize always */
-		if (render_view3d_disprect(rp->scene, rp->ar, rp->v3d, rp->rv3d, &cliprct)) {
+		if (use_border) {
 			rdata.mode |= R_BORDER;
 			RE_InitState(re, NULL, &rdata, NULL, rp->ar->winx, rp->ar->winy, &cliprct);
 		}
@@ -1219,8 +1284,34 @@ static void render_view3d_startjob(void *customdata, short *stop, short *do_upda
 
 	/* OK, can we enter render code? */
 	if (rstats->convertdone) {
-		RE_TileProcessor(re);
-		
+		bool first_time = true;
+		for (;;) {
+			if (first_time == false) {
+				if (restore)
+					RE_DataBase_IncrementalView(re, rp->viewmat, 1);
+
+				rp->resolution_divider /= 2;
+				*do_update = 1;
+
+				render_update_resolution(re, rp, use_border, &cliprct);
+
+				RE_DataBase_IncrementalView(re, rp->viewmat, 0);
+				RE_DataBase_ApplyWindow(re);
+				restore = 1;
+			}
+			else {
+				render_update_resolution(re, rp, use_border, &cliprct);
+			}
+
+			RE_TileProcessor(re);
+
+			first_time = false;
+
+			if (*stop || rp->resolution_divider == 1) {
+				break;
+			}
+		}
+
 		/* always rotate back */
 		if (restore)
 			RE_DataBase_IncrementalView(re, rp->viewmat, 1);
@@ -1316,7 +1407,12 @@ static void render_view3d_do(RenderEngine *engine, const bContext *C)
 	wmJob *wm_job;
 	RenderPreview *rp;
 	Scene *scene = CTX_data_scene(C);
-	
+	ARegion *ar = CTX_wm_region(C);
+	int width = ar->winx, height = ar->winy;
+	int divider = 1;
+	int resolution_threshold = scene->r.preview_start_resolution *
+	                           scene->r.preview_start_resolution;
+
 	if (CTX_wm_window(C) == NULL)
 		return;
 	if (!render_view3d_flag_changed(engine, C))
@@ -1327,6 +1423,12 @@ static void render_view3d_do(RenderEngine *engine, const bContext *C)
 	rp = MEM_callocN(sizeof(RenderPreview), "render preview");
 	rp->job = wm_job;
 
+	while (width * height > resolution_threshold) {
+		width = max_ii(1, width / 2);
+		height = max_ii(1, height / 2);
+		divider *= 2;
+	}
+
 	/* customdata for preview thread */
 	rp->scene = scene;
 	rp->engine = engine;
@@ -1335,6 +1437,9 @@ static void render_view3d_do(RenderEngine *engine, const bContext *C)
 	rp->v3d = rp->sa->spacedata.first;
 	rp->rv3d = CTX_wm_region_view3d(C);
 	rp->bmain = CTX_data_main(C);
+	rp->resolution_divider = divider;
+	rp->start_resolution_divider = divider;
+	rp->has_freestyle = scene->r.mode & R_EDGE_FRS;
 	copy_m4_m4(rp->viewmat, rp->rv3d->viewmat);
 	
 	/* clear info text */
@@ -1379,24 +1484,42 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 	RE_AcquireResultImage(re, &rres);
 	
 	if (rres.rectf) {
+		RegionView3D *rv3d = CTX_wm_region_view3d(C);
+		View3D *v3d = CTX_wm_view3d(C);
 		Scene *scene = CTX_data_scene(C);
+		ARegion *ar = CTX_wm_region(C);
 		bool force_fallback = false;
 		bool need_fallback = true;
 		float dither = scene->r.dither_intensity;
+		float scale_x, scale_y;
+		rcti clip_rect;
+		int xof, yof;
 
-		/* Dithering is not supported on GLSL yet */
-		force_fallback |= dither != 0.0f;
+		if (render_view3d_disprect(scene, ar, v3d, rv3d, &clip_rect)) {
+			scale_x = (float) BLI_rcti_size_x(&clip_rect) / rres.rectx;
+			scale_y = (float) BLI_rcti_size_y(&clip_rect) / rres.recty;
+			xof = clip_rect.xmin;
+			yof = clip_rect.ymin;
+		}
+		else {
+			scale_x = (float) ar->winx / rres.rectx;
+			scale_y = (float) ar->winy / rres.recty;
+			xof = rres.xof;
+			yof = rres.yof;
+		}
 
 		/* If user decided not to use GLSL, fallback to glaDrawPixelsAuto */
 		force_fallback |= (U.image_draw_method != IMAGE_DRAW_METHOD_GLSL);
 
 		/* Try using GLSL display transform. */
 		if (force_fallback == false) {
-			if (IMB_colormanagement_setup_glsl_draw(&scene->view_settings, &scene->display_settings, 0.0f, true)) {
+			if (IMB_colormanagement_setup_glsl_draw(&scene->view_settings, &scene->display_settings, dither, true)) {
 				glEnable(GL_BLEND);
 				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-				glaDrawPixelsTex(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_FLOAT,
-				                 GL_NEAREST, rres.rectf);
+				glPixelZoom(scale_x, scale_y);
+				glaDrawPixelsTex(xof, yof, rres.rectx, rres.recty,
+				                 GL_RGBA, GL_FLOAT, GL_NEAREST, rres.rectf);
+				glPixelZoom(1.0f, 1.0f);
 				glDisable(GL_BLEND);
 
 				IMB_colormanagement_finish_glsl_draw();
@@ -1414,8 +1537,11 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 
 			glEnable(GL_BLEND);
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-			glaDrawPixelsAuto(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_UNSIGNED_BYTE,
+			glPixelZoom(scale_x, scale_y);
+			glaDrawPixelsAuto(xof, yof, rres.rectx, rres.recty,
+			                  GL_RGBA, GL_UNSIGNED_BYTE,
 			                  GL_NEAREST, display_buffer);
+			glPixelZoom(1.0f, 1.0f);
 			glDisable(GL_BLEND);
 
 			MEM_freeN(display_buffer);
@@ -1485,7 +1611,7 @@ Scene *ED_render_job_get_scene(const bContext *C)
 	RenderJob *rj = (RenderJob *)WM_jobs_customdata_from_type(wm, WM_JOB_TYPE_RENDER);
 	
 	if (rj)
-		return rj->scene;
+		return rj->current_scene;
 	
 	return NULL;
 }

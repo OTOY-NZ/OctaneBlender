@@ -105,6 +105,7 @@ set(SRC
 	composite/nodes/node_composite_setalpha.c
 	composite/nodes/node_composite_splitViewer.c
 	composite/nodes/node_composite_stabilize2d.c
+	composite/nodes/node_composite_sunbeams.c
 	composite/nodes/node_composite_texture.c
 	composite/nodes/node_composite_tonemap.c
 	composite/nodes/node_composite_trackpos.c
@@ -144,6 +145,7 @@ set(SRC
 	shader/nodes/node_shader_rgb.c
 	shader/nodes/node_shader_sepcombRGB.c
 	shader/nodes/node_shader_sepcombHSV.c
+	shader/nodes/node_shader_sepcombXYZ.c
 	shader/nodes/node_shader_squeeze.c
 	shader/nodes/node_shader_texture.c
 	shader/nodes/node_shader_valToRgb.c
@@ -182,6 +184,7 @@ set(SRC
 	shader/nodes/node_shader_output_lamp.c
 	shader/nodes/node_shader_output_material.c
 	shader/nodes/node_shader_output_world.c
+	shader/nodes/node_shader_output_linestyle.c
 	shader/nodes/node_shader_particle_info.c
 	shader/nodes/node_shader_script.c
 	shader/nodes/node_shader_subsurface_scattering.c
@@ -200,6 +203,7 @@ set(SRC
 	shader/nodes/node_shader_tex_wave.c
 	shader/nodes/node_shader_volume_scatter.c
 	shader/nodes/node_shader_volume_absorption.c
+	shader/nodes/node_shader_uvAlongStroke.c
 	shader/nodes/node_shader_uvmap.c
 	shader/node_shader_tree.c
 	shader/node_shader_util.c
@@ -286,6 +290,8 @@ if(WITH_OCTANE)
 		../../../intern/octane/nodes/transforms/node_oct_transform_scale.c
 		../../../intern/octane/nodes/transforms/node_oct_transform_rotation.c
 		../../../intern/octane/nodes/transforms/node_oct_transform_full.c
+		../../../intern/octane/nodes/transforms/node_oct_transform_2d.c
+		../../../intern/octane/nodes/transforms/node_oct_transform_3d.c
 
 		../../../intern/octane/nodes/mediums/node_oct_medium_absorption.c
 		../../../intern/octane/nodes/mediums/node_oct_medium_scattering.c
@@ -329,6 +335,10 @@ endif()
 
 if(WITH_OCTANE)
 	add_definitions(-DWITH_OCTANE)
+endif()
+
+if(WITH_FREESTYLE)
+	add_definitions(-DWITH_FREESTYLE)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

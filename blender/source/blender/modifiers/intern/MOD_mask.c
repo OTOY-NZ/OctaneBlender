@@ -37,7 +37,6 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_ghash.h"
 
 #include "DNA_armature_types.h"
@@ -47,7 +46,6 @@
 
 #include "BKE_action.h" /* BKE_pose_channel_find_name */
 #include "BKE_cdderivedmesh.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_deform.h"
 
@@ -155,7 +153,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		const int defbase_tot = BLI_countlist(&ob->defbase);
 		
 		/* check that there is armature object with bones to use, otherwise return original mesh */
-		if (ELEM3(NULL, oba, oba->pose, ob->defbase.first))
+		if (ELEM(NULL, oba, oba->pose, ob->defbase.first))
 			return dm;
 		
 		/* determine whether each vertexgroup is associated with a selected bone or not 

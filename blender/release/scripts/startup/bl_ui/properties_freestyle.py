@@ -39,7 +39,7 @@ class RenderFreestyleButtonsPanel():
 class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
     bl_label = "Freestyle"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'CYCLES'}
 
     def draw_header(self, context):
         rd = context.scene.render
@@ -58,10 +58,6 @@ class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
 
         if (rd.line_thickness_mode == 'ABSOLUTE'):
             layout.prop(rd, "line_thickness")
-
-        row = layout.row()
-        row.label(text="Line style settings are in the Render Layers tab")
-        row.operator("wm.properties_context_change", text="", icon='BUTS').context = 'RENDER_LAYER'
 
 
 # Render layer properties
@@ -115,7 +111,7 @@ class RENDER_MT_lineset_specials(Menu):
 
 class RENDERLAYER_PT_freestyle(RenderLayerFreestyleButtonsPanel, Panel):
     bl_label = "Freestyle"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'CYCLES'}
 
     def draw(self, context):
         layout = self.layout
@@ -169,7 +165,7 @@ class RENDERLAYER_PT_freestyle(RenderLayerFreestyleButtonsPanel, Panel):
 
 class RENDERLAYER_PT_freestyle_lineset(RenderLayerFreestyleEditorButtonsPanel, Panel):
     bl_label = "Freestyle Line Set"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'CYCLES'}
 
     def draw_edge_type_buttons(self, box, lineset, edge_type):
         # property names
@@ -261,7 +257,7 @@ class RENDERLAYER_PT_freestyle_lineset(RenderLayerFreestyleEditorButtonsPanel, P
 class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel, Panel):
     bl_label = "Freestyle Line Style"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'CYCLES'}
 
     def draw_modifier_box_header(self, box, modifier):
         row = box.row()
@@ -344,7 +340,7 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
                 row.prop(modifier, "material_attribute", text="")
                 sub = row.column()
                 sub.prop(modifier, "use_ramp")
-                if modifier.material_attribute in {'DIFF', 'SPEC'}:
+                if modifier.material_attribute in {'LINE', 'DIFF', 'SPEC'}:
                     sub.active = True
                     show_ramp = modifier.use_ramp
                 else:
@@ -534,20 +530,18 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
         row.prop(linestyle, "panel", expand=True)
         if linestyle.panel == 'STROKES':
             ## Chaining
-            layout.label(text="Chaining:")
+            layout.prop(linestyle, "use_chaining", text="Chaining:")
             split = layout.split(align=True)
+            split.active = linestyle.use_chaining
             # First column
-            col = split.column()
-            col.prop(linestyle, "use_chaining", text="Enable Chaining")
-            sub = col.row()
-            sub.active = linestyle.use_chaining
-            sub.prop(linestyle, "use_same_object")
-            # Second column
             col = split.column()
             col.active = linestyle.use_chaining
             col.prop(linestyle, "chaining", text="")
             if linestyle.chaining == 'SKETCHY':
                 col.prop(linestyle, "rounds")
+            # Second column
+            col = split.column()
+            col.prop(linestyle, "use_same_object")
 
             ## Splitting
             layout.label(text="Splitting:")
@@ -603,23 +597,33 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             sub.active = linestyle.use_length_max
             sub.prop(linestyle, "length_max")
 
+            ## Sorting
+            layout.prop(linestyle, "use_sorting", text="Sorting:")
+            col = layout.column()
+            col.active = linestyle.use_sorting
+            row = col.row(align=True)
+            row.prop(linestyle, "sort_key", text="")
+            sub = row.row()
+            sub.active = linestyle.sort_key in {'DISTANCE_FROM_CAMERA'}
+            sub.prop(linestyle, "integration_type", text="")
+            row = col.row(align=True)
+            row.prop(linestyle, "sort_order", expand=True)
+
             ## Caps
             layout.label(text="Caps:")
             row = layout.row(align=True)
             row.prop(linestyle, "caps", expand=True)
 
             ## Dashed lines
-            layout.label(text="Dashed Line:")
+            layout.prop(linestyle, "use_dashed_line", text="Dashed Line:")
             row = layout.row(align=True)
-            row.prop(linestyle, "use_dashed_line", text="")
-            sub = row.row(align=True)
-            sub.active = linestyle.use_dashed_line
-            sub.prop(linestyle, "dash1", text="D1")
-            sub.prop(linestyle, "gap1", text="G1")
-            sub.prop(linestyle, "dash2", text="D2")
-            sub.prop(linestyle, "gap2", text="G2")
-            sub.prop(linestyle, "dash3", text="D3")
-            sub.prop(linestyle, "gap3", text="G3")
+            row.active = linestyle.use_dashed_line
+            row.prop(linestyle, "dash1", text="D1")
+            row.prop(linestyle, "gap1", text="G1")
+            row.prop(linestyle, "dash2", text="D2")
+            row.prop(linestyle, "gap2", text="G2")
+            row.prop(linestyle, "dash3", text="D3")
+            row.prop(linestyle, "gap3", text="G3")
 
         elif linestyle.panel == 'COLOR':
             col = layout.column()
@@ -646,9 +650,11 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             row = col.row()
             row.label(text="Base Thickness:")
             row.prop(linestyle, "thickness")
-            row = col.row()
+            subcol = col.column()
+            subcol.active = linestyle.chaining == 'PLAIN' and linestyle.use_same_object
+            row = subcol.row()
             row.prop(linestyle, "thickness_position", expand=True)
-            row = col.row()
+            row = subcol.row()
             row.prop(linestyle, "thickness_ratio")
             row.active = (linestyle.thickness_position == 'RELATIVE')
             col = layout.column()
@@ -664,8 +670,56 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             for modifier in linestyle.geometry_modifiers:
                 self.draw_geometry_modifier(context, modifier)
 
+        elif linestyle.panel == 'TEXTURE':
+            layout.separator()
+
+            row = layout.row()
+            if rd.use_shading_nodes:
+                row.prop(linestyle, "use_nodes")
+            else:
+                row.prop(linestyle, "use_texture")
+            row.prop(linestyle, "texture_spacing", text="Spacing Along Stroke")
+
+            row = layout.row()
+            op = row.operator("wm.properties_context_change",
+                         text="Go to Linestyle Textures Properties",
+                         icon='TEXTURE')
+            op.context = 'TEXTURE'
+
         elif linestyle.panel == 'MISC':
             pass
+
+
+# Material properties
+
+class MaterialFreestyleButtonsPanel():
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "material"
+    # COMPAT_ENGINES must be defined in each subclass, external engines can add themselves here
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        material = context.material
+        with_freestyle = bpy.app.build_options.freestyle
+        return with_freestyle and material and scene and scene.render.use_freestyle and \
+            (scene.render.engine in cls.COMPAT_ENGINES)
+
+
+class MATERIAL_PT_freestyle_line(MaterialFreestyleButtonsPanel, Panel):
+    bl_label = "Freestyle Line"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'CYCLES'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        mat = context.material
+
+        row = layout.row()
+        row.prop(mat, "line_color", text="")
+        row.prop(mat, "line_priority", text="Priority")
 
 
 if __name__ == "__main__":  # only for live edit.

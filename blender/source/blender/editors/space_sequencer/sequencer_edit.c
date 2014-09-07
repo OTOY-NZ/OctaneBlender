@@ -32,24 +32,15 @@
 #include <math.h>
 #include <string.h>
 
-#ifndef WIN32
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
-#include <sys/types.h>
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_threads.h"
 
 #include "BLF_translation.h"
 
 #include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -57,7 +48,6 @@
 #include "BKE_sequencer.h"
 #include "BKE_report.h"
 #include "BKE_sound.h"
-#include "BKE_movieclip.h"
 
 #include "IMB_imbuf.h"
 
@@ -96,6 +86,7 @@ EnumPropertyItem sequencer_prop_effect_types[] = {
 	{SEQ_TYPE_SPEED, "SPEED", 0, "Speed", "Color effect strip type"},
 	{SEQ_TYPE_MULTICAM, "MULTICAM", 0, "Multicam Selector", ""},
 	{SEQ_TYPE_ADJUSTMENT, "ADJUSTMENT", 0, "Adjustment Layer", ""},
+	{SEQ_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -219,7 +210,7 @@ static void seq_proxy_build_job(const bContext *C)
 		WM_jobs_start(CTX_wm_manager(C), wm_job);
 	}
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_area_tag_redraw(sa);
 }
 
 /* ********************************************************************** */
@@ -1928,9 +1919,12 @@ static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
 				strip_new = seq_new->strip;
 				strip_new->us = 1;
 
-				/* new stripdata */
-				se_new = strip_new->stripdata;
+				/* new stripdata (only one element now!) */
+				/* Note this assume all elements (images) have the same dimension, since we only copy the name here. */
+				se_new = MEM_reallocN(strip_new->stripdata, sizeof(*se_new));
 				BLI_strncpy(se_new->name, se->name, sizeof(se_new->name));
+				strip_new->stripdata = se_new;
+
 				BKE_sequence_calc(scene, seq_new);
 
 				if (step > 1) {
@@ -2081,6 +2075,7 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator *op)
 	while (seq) {
 		next = seq->next;
 		if (seq != seqm && (seq->flag & SELECT)) {
+			BKE_sequence_invalidate_cache(scene, seq);
 			channel_max = max_ii(seq->machine, channel_max);
 			BLI_remlink(ed->seqbasep, seq);
 			BLI_addtail(&seqm->seqbase, seq);
@@ -2141,6 +2136,10 @@ static int sequencer_meta_separate_exec(bContext *C, wmOperator *UNUSED(op))
 
 	if (last_seq == NULL || last_seq->type != SEQ_TYPE_META)
 		return OPERATOR_CANCELLED;
+
+	for (seq = last_seq->seqbase.first; seq != NULL; seq = seq->next) {
+		BKE_sequence_invalidate_cache(scene, seq);
+	}
 
 	BLI_movelisttolist(ed->seqbasep, &last_seq->seqbase);
 
@@ -2296,7 +2295,7 @@ static int sequencer_view_zoom_ratio_exec(bContext *C, wmOperator *op)
 	float facx = BLI_rcti_size_x(&v2d->mask) / winx;
 	float facy = BLI_rcti_size_y(&v2d->mask) / winy;
 
-	BLI_rctf_resize(&v2d->cur, floorf(winx * facx * ratio + 0.5f), floorf(winy * facy * ratio + 0.5f));
+	BLI_rctf_resize(&v2d->cur, floorf(winx * facx / ratio + 0.5f), floorf(winy * facy / ratio + 0.5f));
 
 	ED_region_tag_redraw(CTX_wm_region(C));
 
@@ -2955,17 +2954,13 @@ void SEQUENCER_OT_swap_data(wmOperatorType *ot)
 static int view_ghost_border_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	View2D *v2d = UI_view2d_fromcontext(C);
 
 	rctf rect;
 
 	/* convert coordinates of rect to 'tot' rect coordinates */
-	UI_view2d_region_to_view(v2d, RNA_int_get(op->ptr, "xmin"), RNA_int_get(op->ptr, "ymin"), &rect.xmin, &rect.ymin);
-	UI_view2d_region_to_view(v2d, RNA_int_get(op->ptr, "xmax"), RNA_int_get(op->ptr, "ymax"), &rect.xmax, &rect.ymax);
-
-	if (ed == NULL)
-		return OPERATOR_CANCELLED;
+	WM_operator_properties_border_to_rctf(op, &rect);
+	UI_view2d_region_to_view_rctf(v2d, &rect, &rect);
 
 	rect.xmin /=  fabsf(BLI_rctf_size_x(&v2d->tot));
 	rect.ymin /=  fabsf(BLI_rctf_size_y(&v2d->tot));

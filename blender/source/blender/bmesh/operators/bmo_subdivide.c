@@ -140,12 +140,18 @@ static BMEdge *connect_smallest_face(BMesh *bm, BMVert *v_a, BMVert *v_b, BMFace
 
 	/* this isn't the best thing in the world.  it doesn't handle cases where there's
 	 * multiple faces yet.  that might require a convexity test to figure out which
-	 * face is "best" and who knows what for non-manifold conditions. */
-	f = BM_vert_pair_share_face(v_a, v_b, &l_a, &l_b);
+	 * face is "best" and who knows what for non-manifold conditions.
+	 *
+	 * note: we allow adjacent here, since theres no chance this happens.
+	 */
+	f = BM_vert_pair_share_face_by_len(v_a, v_b, &l_a, &l_b, true);
+
 
 	if (f) {
 		BMFace *f_new;
 		BMLoop *l_new;
+
+		BLI_assert(!BM_loop_is_adjacent(l_a, l_b));
 
 		f_new = BM_face_split(bm, f, l_a, l_b, &l_new, NULL, false);
 		
@@ -159,14 +165,11 @@ static BMEdge *connect_smallest_face(BMesh *bm, BMVert *v_a, BMVert *v_b, BMFace
 static void alter_co(BMVert *v, BMEdge *UNUSED(origed), const SubDParams *params, float perc,
                      BMVert *vsta, BMVert *vend)
 {
-	float tvec[3], prev_co[3], fac;
+	float tvec[3], fac;
 	float *co = BM_ELEM_CD_GET_VOID_P(v, params->shape_info.cd_vert_shape_offset_tmp);
 	int i;
-	
-	BM_vert_normal_update_all(v);
 
 	copy_v3_v3(co, v->co);
-	copy_v3_v3(prev_co, co);
 
 	if (UNLIKELY(params->use_sphere)) { /* subdivide sphere */
 		normalize_v3(co);
@@ -230,7 +233,7 @@ static void alter_co(BMVert *v, BMEdge *UNUSED(origed), const SubDParams *params
 	 * this by getting the normals and coords for each shape key and
 	 * re-calculate the smooth value for each but this is quite involved.
 	 * for now its ok to simply apply the difference IMHO - campbell */
-	sub_v3_v3v3(tvec, prev_co, co);
+	sub_v3_v3v3(tvec, v->co, co);
 
 	if (params->shape_info.totlayer > 1) {
 		/* skip the last layer since its the temp */
@@ -749,7 +752,7 @@ static const SubDPattern *patterns[] = {
 	NULL,
 };
 
-#define PATTERNS_TOT  (sizeof(patterns) / sizeof(void *))
+#define PATTERNS_TOT  ARRAY_SIZE(patterns)
 
 typedef struct SubDFaceData {
 	BMVert *start;
@@ -1002,7 +1005,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 
 	/* copy original-geometry displacements to current coordinates */
 	BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-		float *co = BM_ELEM_CD_GET_VOID_P(v, params.shape_info.cd_vert_shape_offset_tmp);
+		const float *co = BM_ELEM_CD_GET_VOID_P(v, params.shape_info.cd_vert_shape_offset_tmp);
 		copy_v3_v3(v->co, co);
 	}
 
@@ -1107,7 +1110,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 			 * - concave corner of an ngon.
 			 * - 2 edges being used in 2+ ngons.
 			 */
-//			BM_face_legal_splits(face, loops_split, BLI_array_count(loops_split));
+//			BM_face_splits_check_legal(bm, face, loops_split, BLI_array_count(loops_split));
 
 			for (j = 0; j < BLI_array_count(loops_split); j++) {
 				if (loops_split[j][0]) {
@@ -1147,7 +1150,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 
 	/* copy original-geometry displacements to current coordinates */
 	BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-		float *co = BM_ELEM_CD_GET_VOID_P(v, params.shape_info.cd_vert_shape_offset_tmp);
+		const float *co = BM_ELEM_CD_GET_VOID_P(v, params.shape_info.cd_vert_shape_offset_tmp);
 		copy_v3_v3(v->co, co);
 	}
 

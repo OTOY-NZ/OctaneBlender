@@ -603,20 +603,21 @@ def MapAdd_Window(kc):
     kmi = km.keymap_items.new('wm.save_homefile', 'U', 'PRESS', ctrl=True)
 
     # NDof Device
-    kmi = km.keymap_items.new('wm.call_menu', 'NDOF_BUTTON_MENU', 'PRESS')
-    kmi.properties.name = 'USERPREF_MT_ndof_settings'
-    kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_PLUS', 'PRESS')
-    kmi.properties.decrease = False
-    kmi.properties.fast = False
-    kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_MINUS', 'PRESS')
-    kmi.properties.decrease = True
-    kmi.properties.fast = False
-    kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_PLUS', 'PRESS', shift=True)
-    kmi.properties.decrease = False
-    kmi.properties.fast = True
-    kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_MINUS', 'PRESS', shift=True)
-    kmi.properties.decrease = True
-    kmi.properties.fast = True
+    # TODO: fix NDof below
+    #kmi = km.keymap_items.new('wm.call_menu', 'NDOF_BUTTON_MENU', 'PRESS')
+    #kmi.properties.name = 'USERPREF_MT_ndof_settings'
+    #kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_PLUS', 'PRESS')
+    #kmi.properties.decrease = False
+    #kmi.properties.fast = False
+    #kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_MINUS', 'PRESS')
+    #kmi.properties.decrease = True
+    #kmi.properties.fast = False
+    #kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_PLUS', 'PRESS', shift=True)
+    #kmi.properties.decrease = False
+    #kmi.properties.fast = True
+    #kmi = km.keymap_items.new('wm.ndof_sensitivity_change', 'NDOF_BUTTON_MINUS', 'PRESS', shift=True)
+    #kmi.properties.decrease = True
+    #kmi.properties.fast = True
 
     # Misc
     # TODO: find good replacements for the F# keys
@@ -2186,7 +2187,7 @@ def MapAdd_ArmaturePose(kc):
     #kmi.properties.name = 'VIEW3D_MT_pose_group'
     
     #kmi = km.keymap_items.new('armature.layers_show_all', 'ACCENT_GRAVE', 'PRESS', ctrl=True)
-    #kmi = km.keymap_items.new('pose.armature_layers', 'M', 'PRESS', shift=True)
+    #kmi = km.keymap_items.new('armature.armature_layers', 'M', 'PRESS', shift=True)
     #kmi = km.keymap_items.new('pose.bone_layers', 'M', 'PRESS')
     #kmi = km.keymap_items.new('transform.transform', 'S', 'PRESS', ctrl=True, alt=True)
     #kmi.properties.mode = 'BONE_SIZE'

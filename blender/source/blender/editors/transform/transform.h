@@ -61,6 +61,7 @@ struct wmEvent;
 struct wmTimer;
 struct ARegion;
 struct ReportList;
+struct EditBone;
 
 /* transinfo->redraw */
 typedef enum {
@@ -80,9 +81,9 @@ typedef struct TransSnap {
 	short	modePoint;
 	short	modeSelect;
 	bool	align;
-	char	project;
-	char	snap_self;
-	short	peel;
+	bool	project;
+	bool	snap_self;
+	bool	peel;
 	short  	status;
 	float	snapPoint[3]; /* snapping from this point */
 	float	snapTarget[3]; /* to this point */
@@ -96,7 +97,8 @@ typedef struct TransSnap {
 	void  (*applySnap)(struct TransInfo *, float *);
 	void  (*calcSnap)(struct TransInfo *, float *);
 	void  (*targetSnap)(struct TransInfo *);
-	float  (*distance)(struct TransInfo *, float p1[3], float p2[3]); // Get the transform distance between two points (used by Closest snap)
+	/* Get the transform distance between two points (used by Closest snap) */
+	float  (*distance)(struct TransInfo *, const float p1[3], const float p2[3]);
 } TransSnap;
 
 typedef struct TransCon {
@@ -128,15 +130,15 @@ typedef struct TransDataExtension {
 	// float drotAxis[3];	 /* Initial object drotAxis, TODO: not yet implemented */
 	float dquat[4];		 /* Initial object dquat */
 	float dscale[3];     /* Initial object dscale */
-	float *rot;          /* Rotation of the data to transform (Faculative)                                 */
+	float *rot;          /* Rotation of the data to transform                                              */
 	float  irot[3];      /* Initial rotation                                                               */
-	float *quat;         /* Rotation quaternion of the data to transform (Faculative)                      */
+	float *quat;         /* Rotation quaternion of the data to transform                                   */
 	float  iquat[4];	 /* Initial rotation quaternion                                                    */
-	float *rotAngle;	 /* Rotation angle of the data to transform (Faculative)                           */
+	float *rotAngle;	 /* Rotation angle of the data to transform                                        */
 	float  irotAngle;	 /* Initial rotation angle                                                         */
-	float *rotAxis;		 /* Rotation axis of the data to transform (Faculative)                            */
+	float *rotAxis;		 /* Rotation axis of the data to transform                                         */
 	float  irotAxis[4];	 /* Initial rotation axis                                                          */
-	float *size;         /* Size of the data to transform (Faculative)                                     */
+	float *size;         /* Size of the data to transform                                                  */
 	float  isize[3];	 /* Initial size                                                                   */
 	float  obmat[4][4];	 /* Object matrix */
 	float  l_smtx[3][3]; /* use instead of td->smtx, It is the same but without the 'bone->bone_mat', see TD_PBONE_LOCAL_MTX_C */
@@ -250,6 +252,17 @@ typedef struct VertSlideData {
 	int curr_sv_index;
 } VertSlideData;
 
+typedef struct BoneInitData {
+	struct EditBone *bone;
+	float tail[3];
+	float rad_tail;
+	float roll;
+	float head[3];
+	float dist;
+	float xwidth;
+	float zwidth;
+} BoneInitData;
+
 typedef struct TransData {
 	float  dist;         /* Distance needed to affect element (for Proportionnal Editing)                  */
 	float  rdist;        /* Distance to the nearest element (for Proportionnal Editing)                    */
@@ -276,7 +289,7 @@ typedef struct MouseInput {
 	void	(*post)(struct TransInfo *t, float values[3]);
 
 	int     imval[2];       	/* initial mouse position                */
-	char	precision;
+	bool	precision;
 	int     precision_mval[2];	/* mouse position when precision key was pressed */
 	float	center[2];
 	float	factor;
@@ -349,7 +362,7 @@ typedef struct TransInfo {
 	float		axis[3];
 	float		axis_orig[3];	/* TransCon can change 'axis', store the original value here */
 
-	short		remove_on_cancel; /* remove elements if operator is canceled */
+	bool		remove_on_cancel; /* remove elements if operator is canceled */
 
 	void		*view;
 	struct bContext *context; /* Only valid (non null) during an operator called function. */
@@ -460,7 +473,6 @@ typedef struct TransInfo {
 
 /* transdata->flag */
 #define TD_SELECTED			1
-#define TD_ACTIVE			(1 << 1)
 #define	TD_NOACTION			(1 << 2)
 #define	TD_USEQUAT			(1 << 3)
 #define TD_NOTCONNECTED		(1 << 4)
@@ -485,7 +497,7 @@ typedef struct TransInfo {
 #define POINT_INIT		4
 #define MULTI_POINTS	8
 
-int initTransform(struct bContext *C, struct TransInfo *t, struct wmOperator *op, const struct wmEvent *event, int mode);
+bool initTransform(struct bContext *C, struct TransInfo *t, struct wmOperator *op, const struct wmEvent *event, int mode);
 void saveTransform(struct bContext *C, struct TransInfo *t, struct wmOperator *op);
 int  transformEvent(TransInfo *t, const struct wmEvent *event);
 void transformApply(struct bContext *C, TransInfo *t);
@@ -520,9 +532,11 @@ void flushTransNodes(TransInfo *t);
 void flushTransSeq(TransInfo *t);
 void flushTransTracking(TransInfo *t);
 void flushTransMasking(TransInfo *t);
+void flushTransPaintCurve(TransInfo *t);
+void restoreBones(TransInfo *t);
 
 /*********************** exported from transform_manipulator.c ********** */
-int gimbal_axis(struct Object *ob, float gmat[3][3]); /* return 0 when no gimbal for selection */
+bool gimbal_axis(struct Object *ob, float gmat[3][3]); /* return 0 when no gimbal for selection */
 int calc_manipulator_stats(const struct bContext *C);
 
 /*********************** TransData Creation and General Handling *********** */
@@ -600,6 +614,7 @@ typedef enum {
 	INPUT_VECTOR,
 	INPUT_SPRING,
 	INPUT_SPRING_FLIP,
+	INPUT_SPRING_DELTA,
 	INPUT_ANGLE,
 	INPUT_ANGLE_SPRING,
 	INPUT_TRACKBALL,
@@ -608,7 +623,7 @@ typedef enum {
 	INPUT_VERTICAL_RATIO,
 	INPUT_VERTICAL_ABSOLUTE,
 	INPUT_CUSTOM_RATIO,
-	INPUT_CUSTOM_RATIO_FLIP
+	INPUT_CUSTOM_RATIO_FLIP,
 } MouseInputMode;
 
 void initMouseInput(TransInfo *t, MouseInput *mi, const float center[2], const int mval[2]);
@@ -635,13 +650,18 @@ void applyTransObjects(TransInfo *t);
 void restoreTransObjects(TransInfo *t);
 void recalcData(TransInfo *t);
 
-void calculateCenter(TransInfo *t);
 void calculateCenter2D(TransInfo *t);
-void calculateCenterBound(TransInfo *t);
-void calculateCenterMedian(TransInfo *t);
-void calculateCenterCursor(TransInfo *t);
 
-void calculateCenterCursor2D(TransInfo *t);
+void calculateCenter(TransInfo *t);
+
+/* API functions for getting center points */
+void calculateCenterBound(TransInfo *t, float r_center[3]);
+void calculateCenterMedian(TransInfo *t, float r_center[3]);
+void calculateCenterCursor(TransInfo *t, float r_center[3]);
+void calculateCenterCursor2D(TransInfo *t, float r_center[2]);
+void calculateCenterCursorGraph2D(TransInfo *t, float r_center[2]);
+bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3]);
+
 void calculatePropRatio(TransInfo *t);
 
 void getViewVector(TransInfo *t, float coord[3], float vec[3]);
@@ -674,7 +694,6 @@ void freeVertSlideVerts(TransInfo *t);
 
 
 /* TODO. transform_queries.c */
-bool checkUseLocalCenter_GraphEdit(TransInfo *t);
 bool checkUseAxisMatrix(TransInfo *t);
 
 #endif
