@@ -52,7 +52,7 @@ public:
         AS_IS
 	};
 
-	ustring     name;
+	std::string name;
 	MeshType    mesh_type;
     bool        use_subdivision;
     float       subdiv_divider;

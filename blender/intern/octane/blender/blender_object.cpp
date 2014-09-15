@@ -515,7 +515,7 @@ bool objects_map::sync(Object **r_data, BL::Object b_ob, BL::ID parent, const Ob
 		data = new Object(scene);
     	data->mesh = sync->sync_mesh(b_ob, used_shaders, true, hide_tris);
 
-        (*scene_data)[data->mesh].push_back(data);
+        (*scene_data)[data->mesh->name].push_back(data);
 		b_map[key] = data;
 		recalc = true;
 	}
@@ -526,17 +526,17 @@ bool objects_map::sync(Object **r_data, BL::Object b_ob, BL::ID parent, const Ob
 
     	Mesh *mesh = sync->sync_mesh(b_ob, used_shaders, recalc, hide_tris);
         if(mesh != data->mesh) {
-            vector<Object*> &objects = (*scene_data)[data->mesh];
-            if(!objects.size()) (*scene_data).erase(data->mesh);
+            vector<Object*> &objects = (*scene_data)[data->mesh->name];
+            if(!objects.size()) (*scene_data).erase(data->mesh->name);
             //FIXME: Rework this to normal fast search
             for(vector<Object*>::iterator it = objects.begin(); it != objects.end(); ++it) {
                 if(*it == data) {
-                    if(objects.size() == 1) (*scene_data).erase(data->mesh);
+                    if(objects.size() == 1) (*scene_data).erase(data->mesh->name);
                     else objects.erase(it);
                     break;
                 }
             }
-            (*scene_data)[mesh].push_back(data);
+            (*scene_data)[mesh->name].push_back(data);
             data->mesh = mesh;
         }
     }
@@ -559,7 +559,7 @@ bool lights_map::sync(Object **r_data, BL::Object b_ob, BL::ID parent, const Obj
 		data = new Object(scene);
     	data->light = sync->sync_light(b_ob, tfm, true);
 
-        (*scene_data)[data->light].push_back(data);
+        (*scene_data)[data->light->name].push_back(data);
 		b_map[key] = data;
 		recalc = true;
 	}

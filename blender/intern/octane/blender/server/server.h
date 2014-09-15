@@ -23,14 +23,16 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 5
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 0
+#   define OCTANE_SERVER_MINOR_VERSION 1
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
 #define SEND_CHUNK_SIZE     67108864
 
-#undef htonl
-#undef ntohl
+#if !defined(__APPLE__)
+#  undef htonl
+#  undef ntohl
+#endif
 
 #ifndef WIN32
 #  include <unistd.h> // for read close
@@ -38,6 +40,9 @@
 #  include <sys/socket.h>
 #  include <netinet/ip.h>
 #  include <netdb.h>
+#  if defined(__APPLE__)
+#    include <arpa/inet.h>
+#  endif
 #else
 #  include "winsock2.h"
 #  include <io.h> // for open close read

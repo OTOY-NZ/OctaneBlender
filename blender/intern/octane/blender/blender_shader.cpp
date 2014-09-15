@@ -2121,8 +2121,29 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
 		if(b_from_node && b_to_node) {
             if(b_to_sock) {
                 char tmp[32];
-                ::sprintf(tmp, "%p", b_from_node.ptr.data);
-                ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                if(b_from_node.is_a(&RNA_ShaderNodeGroup)) {
+                    std::string         from_name = b_from_sock.name();
+                    BL::ShaderNodeGroup b_gnode(b_from_node);
+                    BL::ShaderNodeTree  b_group_ntree(b_gnode.node_tree());
+                    if(b_group_ntree) {
+                        BL::NodeTree::links_iterator b_nested_link;
+                        for(b_group_ntree.links.begin(b_nested_link); b_nested_link != b_group_ntree.links.end(); ++b_nested_link) {
+                            BL::Node b_nested_from_node = b_nested_link->from_node();
+                            BL::Node b_nested_to_node = b_nested_link->to_node();
+                            BL::NodeSocket b_nested_from_sock = b_nested_link->from_socket();
+                            BL::NodeSocket b_nested_to_sock = b_nested_link->to_socket();
+                            if(b_nested_to_node.is_a(&RNA_NodeGroupOutput) && b_nested_to_sock.name() == from_name) {
+                                ::sprintf(tmp, "%p", b_nested_from_node.ptr.data);
+                                break;
+                            }
+                        }
+                    }
+                    ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                }
+                else {
+                    ::sprintf(tmp, "%p", b_from_node.ptr.data);
+                    ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                }
 
                 if(b_to_sock.name() == "Color") {
                     ConnectedNodesMap[b_from_sock.ptr.data] = "__Color";
@@ -2140,8 +2161,8 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
 	PtrNodeMap node_map;
 	PtrSockMap proxy_map;
 	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
-		if(b_node->is_a(&RNA_NodeGroup)) {
-			BL::NodeGroup       b_gnode(*b_node);
+        if(b_node->is_a(&RNA_ShaderNodeGroup)) {
+			BL::ShaderNodeGroup b_gnode(*b_node);
 			BL::TextureNodeTree b_group_ntree(b_gnode.node_tree());
 			if(!b_group_ntree) continue;
 
@@ -2167,8 +2188,29 @@ static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Sc
 		if(b_from_node && b_to_node) {
             if(b_to_sock) {
                 char tmp[32];
-                ::sprintf(tmp, "%p", b_from_node.ptr.data);
-                ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                if(b_from_node.is_a(&RNA_ShaderNodeGroup)) {
+                    std::string         from_name = b_from_sock.name();
+                    BL::ShaderNodeGroup b_gnode(b_from_node);
+                    BL::ShaderNodeTree  b_group_ntree(b_gnode.node_tree());
+                    if(b_group_ntree) {
+                        BL::NodeTree::links_iterator b_nested_link;
+                        for(b_group_ntree.links.begin(b_nested_link); b_nested_link != b_group_ntree.links.end(); ++b_nested_link) {
+                            BL::Node b_nested_from_node         = b_nested_link->from_node();
+                            BL::Node b_nested_to_node           = b_nested_link->to_node();
+                            BL::NodeSocket b_nested_from_sock   = b_nested_link->from_socket();
+                            BL::NodeSocket b_nested_to_sock     = b_nested_link->to_socket();
+                            if(b_nested_to_node.is_a(&RNA_NodeGroupOutput) && b_nested_to_sock.name() == from_name) {
+                                ::sprintf(tmp, "%p", b_nested_from_node.ptr.data);
+                                break;
+                            }
+                        }
+                    }
+                    ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                }
+                else {
+                    ::sprintf(tmp, "%p", b_from_node.ptr.data);
+                    ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                }
 
                 if(b_to_sock.name() == "Surface") {
                     ConnectedNodesMap[b_from_sock.ptr.data] = "__Surface";
@@ -2186,8 +2228,8 @@ static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Sc
 	PtrNodeMap node_map;
 	PtrSockMap proxy_map;
 	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
-		if(b_node->is_a(&RNA_NodeGroup)) {
-			BL::NodeGroup       b_gnode(*b_node);
+        if(b_node->is_a(&RNA_ShaderNodeGroup)) {
+            BL::ShaderNodeGroup b_gnode(*b_node);
 			BL::ShaderNodeTree  b_group_ntree(b_gnode.node_tree());
 			if(!b_group_ntree) continue;
 

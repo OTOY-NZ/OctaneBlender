@@ -219,7 +219,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 
 	octane_mesh->clear();
 	octane_mesh->used_shaders       = used_shaders;
-	octane_mesh->name               = ustring(b_ob_data.name().c_str());
+	octane_mesh->name               = b_ob_data.name().c_str();
     octane_mesh->use_subdivision    = RNA_boolean_get(&cmesh, "use_subdivision");
     octane_mesh->subdiv_divider     = RNA_float_get(&cmesh, "subdiv_divider");
     octane_mesh->vis_general        = RNA_float_get(&cmesh, "vis_general");

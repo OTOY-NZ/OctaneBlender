@@ -34,17 +34,21 @@ def init():
 def create(cls, engine, data, scene, region=0, v3d=0, rv3d=0):
     import _octane
 
-    data = data.as_pointer()
     userpref = bpy.context.user_preferences.as_pointer()
-    scene = scene.as_pointer()
     if region:
-        region = region.as_pointer()
+        cur_region = region.as_pointer()
+    else:
+        cur_region = 0
     if v3d:
-        v3d = v3d.as_pointer()
+        cur_v3d = v3d.as_pointer()
+    else:
+        cur_v3d = 0
     if rv3d:
-        rv3d = rv3d.as_pointer()
+        cur_rv3d = rv3d.as_pointer()
+    else:
+        cur_rv3d = 0
 
-    cls.session = _octane.create(engine.as_pointer(), userpref, data, scene, region, v3d, rv3d)
+    cls.session = _octane.create(engine.as_pointer(), userpref, data.as_pointer(), scene.as_pointer(), cur_region, cur_v3d, cur_rv3d)
 
 
 def free(cls, engine):
@@ -62,9 +66,7 @@ def render(cls, engine):
 
 def reset(cls, engine, data, scene):
     import _octane
-    data = data.as_pointer()
-    scene = scene.as_pointer()
-    _octane.reset(cls.session, data, scene)
+    _octane.reset(cls.session, data.as_pointer(), scene.as_pointer())
     cls.session = 0
 
 
@@ -75,11 +77,9 @@ def update(cls, engine, data, scene):
 
 def draw(cls, engine, region, v3d, rv3d):
     import _octane
-    v3d = v3d.as_pointer()
-    rv3d = rv3d.as_pointer()
 
     # draw render image
-    _octane.draw(cls.session, v3d, rv3d)
+    _octane.draw(cls.session, v3d.as_pointer(), rv3d.as_pointer())
 
 
 def available_devices():

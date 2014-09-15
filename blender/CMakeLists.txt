@@ -1553,8 +1553,8 @@ elseif(WIN32)
 		endif()
 		
 		if(WITH_LLVM)
-			set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-			set(LLVM_LIBPATH ${LLVM_DIRECTORY}/lib)
+			set(LLVM_DIRECTORY "${LIBDIR}/llvm" CACHE PATH	"Path to the LLVM installation")
+			set(LLVM_LIBPATH "${LLVM_DIRECTORY}/lib")
 			# Explicitly set llvm lib order.
 			#---- WARNING ON GCC ORDER OF LIBS IS IMPORTANT, DO NOT CHANGE! ---------
 			set(LLVM_LIBRARY LLVMSelectionDAG LLVMCodeGen LLVMScalarOpts LLVMAnalysis LLVMArchive
@@ -1656,12 +1656,12 @@ elseif(APPLE)
 	endif()
 
 	if(WITH_LIBS10.5)
-		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-9.x.universal)
+		set(LIBDIR "${CMAKE_SOURCE_DIR}/../lib/darwin-9.x.universal")
 	else()
 		if(CMAKE_OSX_ARCHITECTURES MATCHES i386)
-			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-8.x.i386)
+			set(LIBDIR "${CMAKE_SOURCE_DIR}/../lib/darwin-8.x.i386")
 		else()
-			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-8.0.0-powerpc)
+			set(LIBDIR "${CMAKE_SOURCE_DIR}/../lib/darwin-8.0.0-powerpc")
 		endif()
 	endif()
 
@@ -1888,35 +1888,78 @@ elseif(APPLE)
 	endif()
 
 	if(WITH_LLVM)
-		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
+		set(LLVM_DIRECTORY "${LIBDIR}/llvm" CACHE PATH	"Path to the LLVM installation")
 		set(LLVM_VERSION "3.4" CACHE STRING	"Version of LLVM to use")
 		if(EXISTS "${LLVM_DIRECTORY}/bin/llvm-config")
 			set(LLVM_CONFIG "${LLVM_DIRECTORY}/bin/llvm-config")
 		else()
 			set(LLVM_CONFIG llvm-config)
 		endif()
-		execute_process(COMMAND ${LLVM_CONFIG} --version
+		execute_process(COMMAND "${LLVM_CONFIG}" --version
 		                OUTPUT_VARIABLE LLVM_VERSION
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
-		execute_process(COMMAND ${LLVM_CONFIG} --prefix
+		execute_process(COMMAND "${LLVM_CONFIG}" --prefix
 		                OUTPUT_VARIABLE LLVM_DIRECTORY
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
-		execute_process(COMMAND ${LLVM_CONFIG} --libdir
+		execute_process(COMMAND "${LLVM_CONFIG}" --libdir
 		                OUTPUT_VARIABLE LLVM_LIBPATH
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
 		find_library(LLVM_LIBRARY
 		             NAMES LLVMAnalysis # first of a whole bunch of libs to get
-		             PATHS ${LLVM_LIBPATH})
+		             PATHS "${LLVM_LIBPATH}")
 
 		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIBPATH)
 			if(LLVM_STATIC)
 				# if static LLVM libraries were requested, use llvm-config to generate
 				# the list of what libraries we need, and substitute that in the right
 				# way for LLVM_LIBRARY.
-				execute_process(COMMAND ${LLVM_CONFIG} --libfiles
-				                OUTPUT_VARIABLE LLVM_LIBRARY
-				                OUTPUT_STRIP_TRAILING_WHITESPACE)
-				string(REPLACE " " ";" LLVM_LIBRARY ${LLVM_LIBRARY})
+				#execute_process(COMMAND "${LLVM_CONFIG}" --libfiles
+				#                OUTPUT_VARIABLE LLVM_LIBRARY
+				#                OUTPUT_STRIP_TRAILING_WHITESPACE)
+				#string(REPLACE " " ";" LLVM_LIBRARY "${LLVM_LIBRARY}")
+				link_directories("${LLVM_LIBPATH}")
+				set(LLVM_LIBRARY
+					LLVMAnalysis
+					LLVMAsmParser
+					LLVMAsmPrinter
+					LLVMBitReader
+					LLVMBitWriter
+					LLVMCodeGen
+					LLVMCore
+					LLVMDebugInfo
+					LLVMExecutionEngine
+					LLVMInstCombine
+					LLVMInstrumentation
+					LLVMInterpreter
+					LLVMipa
+					LLVMipo
+					LLVMIRReader
+					LLVMJIT
+					LLVMLinker
+					LLVMLTO
+					LLVMMC
+					LLVMMCDisassembler
+					LLVMMCJIT
+					LLVMMCParser
+					LLVMObjCARCOpts
+					LLVMObject
+					LLVMOption
+					LLVMRuntimeDyld
+					LLVMScalarOpts
+					LLVMSelectionDAG
+					LLVMSupport
+					LLVMTableGen
+					LLVMTarget
+					LLVMTransformUtils
+					LLVMVectorize
+					LLVMX86AsmParser
+					LLVMX86AsmPrinter
+					LLVMX86CodeGen
+					LLVMX86Desc
+					LLVMX86Disassembler
+					LLVMX86Info
+					LLVMX86Utils
+					LTO)
 			else()
 				set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -lLLVM-3.4")
 			endif()
@@ -1984,7 +2027,7 @@ elseif(APPLE)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
 	endif()
 	# Get rid of eventually clashes, we export some symbols explicite as local
-	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Xlinker -unexported_symbols_list -Xlinker ${CMAKE_SOURCE_DIR}/source/creator/osx_locals.map")
+	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Xlinker -unexported_symbols_list -Xlinker '${CMAKE_SOURCE_DIR}/source/creator/osx_locals.map'")
 endif()
 
 #-----------------------------------------------------------------------------

@@ -135,23 +135,23 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
 
     if(ulLocalCnt) {
         char            **mesh_names            = new char*[ulLocalCnt];
-        size_t          *used_shaders_size      = new size_t[ulLocalCnt];
+        uint64_t          *used_shaders_size    = new uint64_t[ulLocalCnt];
         vector<string>  *shader_names           = new vector<string>[ulLocalCnt];
         float3          **points                = new float3*[ulLocalCnt];
-        size_t          *points_size            = new size_t[ulLocalCnt];
+        uint64_t          *points_size          = new uint64_t[ulLocalCnt];
         float3          **normals               = new float3*[ulLocalCnt];
-        size_t          *normals_size           = new size_t[ulLocalCnt];
+        uint64_t          *normals_size         = new uint64_t[ulLocalCnt];
         int             **points_indices        = new int*[ulLocalCnt];
         int             **normals_indices       = new int*[ulLocalCnt];
-        size_t          *points_indices_size    = new size_t[ulLocalCnt];
-        size_t          *normals_indices_size   = new size_t[ulLocalCnt];
+        uint64_t          *points_indices_size  = new uint64_t[ulLocalCnt];
+        uint64_t          *normals_indices_size = new uint64_t[ulLocalCnt];
         int             **vert_per_poly         = new int*[ulLocalCnt];
-        size_t          *vert_per_poly_size     = new size_t[ulLocalCnt];
+        uint64_t          *vert_per_poly_size   = new uint64_t[ulLocalCnt];
         int             **poly_mat_index        = new int*[ulLocalCnt];
         float3          **uvs                   = new float3*[ulLocalCnt];
-        size_t          *uvs_size               = new size_t[ulLocalCnt];
+        uint64_t          *uvs_size             = new uint64_t[ulLocalCnt];
         int             **uv_indices            = new int*[ulLocalCnt];
-        size_t          *uv_indices_size        = new size_t[ulLocalCnt];
+        uint64_t          *uv_indices_size      = new uint64_t[ulLocalCnt];
         bool            *use_subdivision        = new bool[ulLocalCnt];
         float           *subdiv_divider         = new float[ulLocalCnt];
         float           *general_vis            = new float[ulLocalCnt];
@@ -259,32 +259,34 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
     if(global_update) {
         progress.set_status("Loading global Mesh to render-server", "");
         uint64_t obj_cnt = 0;
-        for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
-            Mesh* mesh = obj_it->first;
-            if(mesh->empty
+        for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
+            uint64_t cur_size = obj_it->second.size();
+            Mesh* mesh = cur_size > 0 ? obj_it->second[0]->mesh : 0;
+
+            if(!mesh || mesh->empty
                || (!scene->first_frame && scene->anim_mode != FULL)
                || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
                || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != Mesh::GLOBAL)) continue;
-            obj_cnt += obj_it->second.size();
+            obj_cnt += cur_size;
         }
         if(obj_cnt > 0) {
-            size_t          *used_shaders_size      = new size_t[obj_cnt];
+            uint64_t          *used_shaders_size    = new uint64_t[obj_cnt];
             vector<string>  *shader_names           = new vector<string>[obj_cnt];
             float3          **points                = new float3*[obj_cnt];
-            size_t          *points_size            = new size_t[obj_cnt];
+            uint64_t          *points_size          = new uint64_t[obj_cnt];
             float3          **normals               = new float3*[obj_cnt];
-            size_t          *normals_size           = new size_t[obj_cnt];
+            uint64_t          *normals_size         = new uint64_t[obj_cnt];
             int             **points_indices        = new int*[obj_cnt];
             int             **normals_indices       = new int*[obj_cnt];
-            size_t          *points_indices_size    = new size_t[obj_cnt];
-            size_t          *normals_indices_size   = new size_t[obj_cnt];
+            uint64_t          *points_indices_size  = new uint64_t[obj_cnt];
+            uint64_t          *normals_indices_size = new uint64_t[obj_cnt];
             int             **vert_per_poly         = new int*[obj_cnt];
-            size_t          *vert_per_poly_size     = new size_t[obj_cnt];
+            uint64_t          *vert_per_poly_size   = new uint64_t[obj_cnt];
             int             **poly_mat_index        = new int*[obj_cnt];
             float3          **uvs                   = new float3*[obj_cnt];
-            size_t          *uvs_size               = new size_t[obj_cnt];
+            uint64_t          *uvs_size             = new uint64_t[obj_cnt];
             int             **uv_indices            = new int*[obj_cnt];
-            size_t          *uv_indices_size        = new size_t[obj_cnt];
+            uint64_t          *uv_indices_size      = new uint64_t[obj_cnt];
             bool            *use_subdivision        = new bool[obj_cnt];
             float           *subdiv_divider         = new float[obj_cnt];
             float           *general_vis            = new float[obj_cnt];
@@ -292,9 +294,11 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             bool            *shadow_vis             = new bool[obj_cnt];
 
             obj_cnt = 0;
-            for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
-                Mesh* mesh = obj_it->first;
-                if(mesh->empty
+            for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
+                uint64_t cur_size = obj_it->second.size();
+                Mesh* mesh = cur_size > 0 ? obj_it->second[0]->mesh : 0;
+
+                if(!mesh || mesh->empty
                    || (!scene->first_frame && scene->anim_mode != FULL)
                    || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
                    || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != oct::Mesh::GLOBAL)) continue;

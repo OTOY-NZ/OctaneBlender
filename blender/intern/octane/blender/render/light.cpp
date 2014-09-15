@@ -131,23 +131,23 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 
     if(ulLocalCnt) {
         char            **mesh_names            = new char*[ulLocalCnt];
-        size_t          *used_shaders_size      = new size_t[ulLocalCnt];
+        uint64_t          *used_shaders_size    = new uint64_t[ulLocalCnt];
         vector<string>  *shader_names           = new vector<string>[ulLocalCnt];
         float3          **points                = new float3*[ulLocalCnt];
-        size_t          *points_size            = new size_t[ulLocalCnt];
+        uint64_t          *points_size          = new uint64_t[ulLocalCnt];
         float3          **normals               = new float3*[ulLocalCnt];
-        size_t          *normals_size           = new size_t[ulLocalCnt];
+        uint64_t          *normals_size         = new uint64_t[ulLocalCnt];
         int             **points_indices        = new int*[ulLocalCnt];
         int             **normals_indices       = new int*[ulLocalCnt];
-        size_t          *points_indices_size    = new size_t[ulLocalCnt];
-        size_t          *normals_indices_size   = new size_t[ulLocalCnt];
+        uint64_t          *points_indices_size  = new uint64_t[ulLocalCnt];
+        uint64_t          *normals_indices_size = new uint64_t[ulLocalCnt];
         int             **vert_per_poly         = new int*[ulLocalCnt];
-        size_t          *vert_per_poly_size     = new size_t[ulLocalCnt];
+        uint64_t          *vert_per_poly_size   = new uint64_t[ulLocalCnt];
         int             **poly_mat_index        = new int*[ulLocalCnt];
         float3          **uvs                   = new float3*[ulLocalCnt];
-        size_t          *uvs_size               = new size_t[ulLocalCnt];
+        uint64_t          *uvs_size             = new uint64_t[ulLocalCnt];
         int             **uv_indices            = new int*[ulLocalCnt];
-        size_t          *uv_indices_size        = new size_t[ulLocalCnt];
+        uint64_t          *uv_indices_size      = new uint64_t[ulLocalCnt];
         bool            *use_subdivision        = new bool[ulLocalCnt];
         float           *subdiv_divider         = new float[ulLocalCnt];
         float           *general_vis            = new float[ulLocalCnt];
@@ -270,9 +270,10 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         progress.set_status("Loading global Lights to render-server", "");
 
         uint64_t obj_cnt = 0;
-        for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
-            Light* light = light_it->first;
-            if(!light->enable) continue;
+        for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
+            uint64_t cur_size = light_it->second.size();
+            Light* light = cur_size > 0 ? light_it->second[0]->light : 0;
+            if(!light || !light->enable) continue;
 
 	        if(light->type == Light::LIGHT_POINT) {
                 continue;
@@ -292,26 +293,26 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
                || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != Mesh::GLOBAL)) continue;
 
-            obj_cnt += light_it->second.size();
+            obj_cnt += cur_size;
         }
 
-        size_t          *used_shaders_size      = new size_t[obj_cnt];
+        uint64_t          *used_shaders_size    = new uint64_t[obj_cnt];
         vector<string>  *shader_names           = new vector<string>[obj_cnt];
         float3          **points                = new float3*[obj_cnt];
-        size_t          *points_size            = new size_t[obj_cnt];
+        uint64_t          *points_size          = new uint64_t[obj_cnt];
         float3          **normals               = new float3*[obj_cnt];
-        size_t          *normals_size           = new size_t[obj_cnt];
+        uint64_t          *normals_size         = new uint64_t[obj_cnt];
         int             **points_indices        = new int*[obj_cnt];
         int             **normals_indices       = new int*[obj_cnt];
-        size_t          *points_indices_size    = new size_t[obj_cnt];
-        size_t          *normals_indices_size   = new size_t[obj_cnt];
+        uint64_t          *points_indices_size  = new uint64_t[obj_cnt];
+        uint64_t          *normals_indices_size = new uint64_t[obj_cnt];
         int             **vert_per_poly         = new int*[obj_cnt];
-        size_t          *vert_per_poly_size     = new size_t[obj_cnt];
+        uint64_t          *vert_per_poly_size   = new uint64_t[obj_cnt];
         int             **poly_mat_index        = new int*[obj_cnt];
         float3          **uvs                   = new float3*[obj_cnt];
-        size_t          *uvs_size               = new size_t[obj_cnt];
+        uint64_t          *uvs_size             = new uint64_t[obj_cnt];
         int             **uv_indices            = new int*[obj_cnt];
-        size_t          *uv_indices_size        = new size_t[obj_cnt];
+        uint64_t          *uv_indices_size      = new uint64_t[obj_cnt];
         bool            *use_subdivision        = new bool[obj_cnt];
         float           *subdiv_divider         = new float[obj_cnt];
         float           *general_vis            = new float[obj_cnt];
@@ -319,9 +320,10 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         bool            *shadow_vis             = new bool[obj_cnt];
 
         obj_cnt = 0;
-        for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
-            Light* light = light_it->first;
-            if(!light->enable) continue;
+        for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
+            uint64_t cur_size = light_it->second.size();
+            Light* light = cur_size > 0 ? light_it->second[0]->light : 0;
+            if(!light || !light->enable) continue;
 
 	        if(light->type == Light::LIGHT_POINT) {
                 continue;

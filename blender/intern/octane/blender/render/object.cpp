@@ -102,8 +102,11 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
 
 	    if(progress.get_cancel()) return;
         
-        for(map<Mesh*, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it) {
-            Mesh* cur_mesh = mesh_it->first;
+        for(map<std::string, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it) {
+            uint64_t cur_size = mesh_it->second.size();
+            if(!cur_size) continue;
+            Mesh* cur_mesh = mesh_it->second[0]->mesh;
+
             if((scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_mesh->mesh_type == Mesh::GLOBAL))
                || (!scene->first_frame
                    && (scene->anim_mode == CAM_ONLY
@@ -194,8 +197,11 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
 	    progress.set_status("Updating Lamp Objects", "Copying Transformations to server");
 	    if(progress.get_cancel()) return;
 
-        for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
-            Light* cur_light = light_it->first;
+        for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
+            uint64_t cur_size = light_it->second.size();
+            if(!cur_size) continue;
+            Light* cur_light = light_it->second[0]->light;
+
             if((scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_light->mesh->mesh_type == Mesh::GLOBAL))
                || (!scene->first_frame
                    && (scene->anim_mode == CAM_ONLY

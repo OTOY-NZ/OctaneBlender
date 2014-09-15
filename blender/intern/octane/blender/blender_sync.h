@@ -40,7 +40,7 @@ class SessionParams;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class objects_map {
 public:
-    objects_map(Scene* scene_, map<Mesh*, vector<Object*> > *scene_data_) : scene(scene_), scene_data(scene_data_) {}
+    objects_map(Scene* scene_, map<std::string, vector<Object*> > *scene_data_) : scene(scene_), scene_data(scene_data_) {}
 
 	Object *find(const ObjectKey& key) {
         map<ObjectKey, Object*>::const_iterator it = b_map.find(key);
@@ -67,8 +67,8 @@ public:
 	}
 	bool post_sync(bool do_delete = true) {
 		// Remove unused data
-		map<Mesh*, vector<Object*> > new_scene_data;
-		map<Mesh*, vector<Object*> >::iterator it;
+        map<std::string, vector<Object*> > new_scene_data;
+        map<std::string, vector<Object*> >::iterator it;
 		vector<Object*>::iterator ob_it;
 		bool deleted = false;
 
@@ -106,7 +106,7 @@ public:
 	} //post_sync()
 
 protected:
-	map<Mesh*, vector<Object*> > *scene_data;
+    map<std::string, vector<Object*> > *scene_data;
 	map<ObjectKey, Object*>     b_map;
 	set<Object*>                used_set;
 	set<void*>                  b_recalc;
@@ -118,7 +118,7 @@ protected:
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class lights_map {
 public:
-    lights_map(Scene* scene_, map<Light*, vector<Object*> > *scene_data_) : scene(scene_), scene_data(scene_data_) {}
+    lights_map(Scene* scene_, map<std::string, vector<Object*> > *scene_data_) : scene(scene_), scene_data(scene_data_) {}
 
 	Object *find(const ObjectKey& key) {
         map<ObjectKey, Object*>::const_iterator it = b_map.find(key);
@@ -145,8 +145,8 @@ public:
 	}
 	bool post_sync(bool do_delete = true) {
 		// Remove unused data
-		map<Light*, vector<Object*> > new_scene_data;
-		map<Light*, vector<Object*> >::iterator it;
+        map<std::string, vector<Object*> > new_scene_data;
+        map<std::string, vector<Object*> >::iterator it;
 		vector<Object*>::iterator ob_it;
 		bool deleted = false;
 
@@ -184,7 +184,7 @@ public:
 	} //post_sync()
 
 protected:
-	map<Light*, vector<Object*> >    *scene_data;
+    map<std::string, vector<Object*> > *scene_data;
 	map<ObjectKey, Object*>         b_map;
 	set<Object*>                    used_set;
 	set<void*>                      b_recalc;
