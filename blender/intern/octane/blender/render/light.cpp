@@ -131,28 +131,34 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 
     if(ulLocalCnt) {
         char            **mesh_names            = new char*[ulLocalCnt];
-        uint64_t          *used_shaders_size    = new uint64_t[ulLocalCnt];
+        uint64_t        *used_shaders_size      = new uint64_t[ulLocalCnt];
         vector<string>  *shader_names           = new vector<string>[ulLocalCnt];
         float3          **points                = new float3*[ulLocalCnt];
-        uint64_t          *points_size          = new uint64_t[ulLocalCnt];
+        uint64_t        *points_size            = new uint64_t[ulLocalCnt];
         float3          **normals               = new float3*[ulLocalCnt];
-        uint64_t          *normals_size         = new uint64_t[ulLocalCnt];
+        uint64_t        *normals_size           = new uint64_t[ulLocalCnt];
         int             **points_indices        = new int*[ulLocalCnt];
         int             **normals_indices       = new int*[ulLocalCnt];
-        uint64_t          *points_indices_size  = new uint64_t[ulLocalCnt];
-        uint64_t          *normals_indices_size = new uint64_t[ulLocalCnt];
+        uint64_t        *points_indices_size    = new uint64_t[ulLocalCnt];
+        uint64_t        *normals_indices_size   = new uint64_t[ulLocalCnt];
         int             **vert_per_poly         = new int*[ulLocalCnt];
-        uint64_t          *vert_per_poly_size   = new uint64_t[ulLocalCnt];
+        uint64_t        *vert_per_poly_size     = new uint64_t[ulLocalCnt];
         int             **poly_mat_index        = new int*[ulLocalCnt];
         float3          **uvs                   = new float3*[ulLocalCnt];
-        uint64_t          *uvs_size             = new uint64_t[ulLocalCnt];
+        uint64_t        *uvs_size               = new uint64_t[ulLocalCnt];
         int             **uv_indices            = new int*[ulLocalCnt];
-        uint64_t          *uv_indices_size      = new uint64_t[ulLocalCnt];
-        bool            *use_subdivision        = new bool[ulLocalCnt];
-        float           *subdiv_divider         = new float[ulLocalCnt];
+        uint64_t        *uv_indices_size        = new uint64_t[ulLocalCnt];
+        bool            *open_subd_enable       = new bool[ulLocalCnt];
+        int32_t         *open_subd_scheme       = new int32_t[ulLocalCnt];
+        int32_t         *open_subd_level        = new int32_t[ulLocalCnt];
+        float           *open_subd_sharpness    = new float[ulLocalCnt];
+        int32_t         *open_subd_bound_interp = new int32_t[ulLocalCnt];
         float           *general_vis            = new float[ulLocalCnt];
         bool            *cam_vis                = new bool[ulLocalCnt];
         bool            *shadow_vis             = new bool[ulLocalCnt];
+
+        uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
+        uint64_t        *vert_per_hair_size     = new uint64_t[ulLocalCnt];
 
         uint64_t i = 0;
     	for(size_t n = 0; n < scene->lights.size(); n++) {
@@ -206,13 +212,19 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             uvs_size[i]             = light->mesh->uvs.size();
             uv_indices[i]           = &light->mesh->uv_indices[0];
             uv_indices_size[i]      = light->mesh->uv_indices.size();
-            use_subdivision[i]      = light->mesh->use_subdivision;
-            subdiv_divider[i]       = light->mesh->subdiv_divider;
+            open_subd_enable[i]     = light->mesh->open_subd_enable;
+            open_subd_scheme[i]     = light->mesh->open_subd_scheme;
+            open_subd_level[i]      = light->mesh->open_subd_level;
+            open_subd_sharpness[i]  = light->mesh->open_subd_sharpness;
+            open_subd_bound_interp[i] = light->mesh->open_subd_bound_interp;
             general_vis[i]          = 1.f;
             cam_vis[i]              = true;
             shadow_vis[i]           = true;
 
-       	    if(light->need_update) light->need_update = false;
+            hair_points_size[i]     = light->mesh->hair_points.size();
+            vert_per_hair_size[i]   = light->mesh->vert_per_hair.size();
+
+            if(light->need_update) light->need_update = false;
     		if(progress.get_cancel()) return;
             ++i;
 	    }
@@ -236,8 +248,14 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         uvs_size,
                                         uv_indices,
                                         uv_indices_size,
-                                        use_subdivision,
-                                        subdiv_divider,
+                                        0, hair_points_size,
+                                        0, vert_per_hair_size,
+                                        0, 0, 0,
+                                        open_subd_enable,
+                                        open_subd_scheme,
+                                        open_subd_level,
+                                        open_subd_sharpness,
+                                        open_subd_bound_interp,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis);
@@ -260,11 +278,17 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] uvs_size;
         delete[] uv_indices;
         delete[] uv_indices_size;
-        delete[] use_subdivision;
-        delete[] subdiv_divider;
+        delete[] open_subd_enable;
+        delete[] open_subd_scheme;
+        delete[] open_subd_level;
+        delete[] open_subd_sharpness;
+        delete[] open_subd_bound_interp;
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+
+        delete[] hair_points_size;
+        delete[] vert_per_hair_size;
     }
     if(global_update) {
         progress.set_status("Loading global Lights to render-server", "");
@@ -313,11 +337,17 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         uint64_t          *uvs_size             = new uint64_t[obj_cnt];
         int             **uv_indices            = new int*[obj_cnt];
         uint64_t          *uv_indices_size      = new uint64_t[obj_cnt];
-        bool            *use_subdivision        = new bool[obj_cnt];
-        float           *subdiv_divider         = new float[obj_cnt];
+        bool            *open_subd_enable       = new bool[obj_cnt];
+        int32_t         *open_subd_scheme       = new int32_t[obj_cnt];
+        int32_t         *open_subd_level        = new int32_t[obj_cnt];
+        float           *open_subd_sharpness    = new float[obj_cnt];
+        int32_t         *open_subd_bound_interp = new int32_t[obj_cnt];
         float           *general_vis            = new float[obj_cnt];
         bool            *cam_vis                = new bool[obj_cnt];
         bool            *shadow_vis             = new bool[obj_cnt];
+
+        uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
+        uint64_t        *vert_per_hair_size     = new uint64_t[obj_cnt];
 
         obj_cnt = 0;
         for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
@@ -373,13 +403,19 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 uvs_size[obj_cnt]             = light->mesh->uvs.size();
                 uv_indices[obj_cnt]           = &light->mesh->uv_indices[0];
                 uv_indices_size[obj_cnt]      = light->mesh->uv_indices.size();
-                use_subdivision[obj_cnt]      = light->mesh->use_subdivision;
-                subdiv_divider[obj_cnt]       = light->mesh->subdiv_divider;
+                open_subd_enable[obj_cnt]     = light->mesh->open_subd_enable;
+                open_subd_scheme[obj_cnt]     = light->mesh->open_subd_scheme;
+                open_subd_level[obj_cnt]      = light->mesh->open_subd_level;
+                open_subd_sharpness[obj_cnt]  = light->mesh->open_subd_sharpness;
+                open_subd_bound_interp[obj_cnt] = light->mesh->open_subd_bound_interp;
                 general_vis[obj_cnt]          = 1.f;
                 cam_vis[obj_cnt]              = true;
                 shadow_vis[obj_cnt]           = true;
 
-          	    if(light->need_update) light->need_update = false;
+                hair_points_size[obj_cnt]     = light->mesh->hair_points.size();
+                vert_per_hair_size[obj_cnt]   = light->mesh->vert_per_hair.size();
+                
+                if(light->need_update) light->need_update = false;
     		    if(progress.get_cancel()) return;
                 ++obj_cnt;
             }
@@ -405,8 +441,14 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         uvs_size,
                                         uv_indices,
                                         uv_indices_size,
-                                        use_subdivision,
-                                        subdiv_divider,
+                                        0, hair_points_size,
+                                        0, vert_per_hair_size,
+                                        0, 0, 0,
+                                        open_subd_enable,
+                                        open_subd_scheme,
+                                        open_subd_level,
+                                        open_subd_sharpness,
+                                        open_subd_bound_interp,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis);
@@ -432,11 +474,17 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] uvs_size;
         delete[] uv_indices;
         delete[] uv_indices_size;
-        delete[] use_subdivision;
-        delete[] subdiv_divider;
+        delete[] open_subd_enable;
+        delete[] open_subd_scheme;
+        delete[] open_subd_level;
+        delete[] open_subd_sharpness;
+        delete[] open_subd_bound_interp;
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+
+        delete[] hair_points_size;
+        delete[] vert_per_hair_size;
     }
 } //server_update()
 

@@ -38,7 +38,9 @@ static bNodeSocketTemplate sh_node_in[] = {
 	{	SOCK_FLOAT,     1,  N_("Opacity"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_BOOLEAN,   1,  N_("Smooth"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT,     1,  N_("Index"),	        1.3f, 0.0f, 0.0f, 0.0f, 1.0f, 8.0f},
-	{	-1, 0, ""	}
+    {   SOCK_FLOAT,     1,  N_("Edges rounding"),   0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 100.0f},
+    {   SOCK_SHADER,    1,  N_("Displacement"),     0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {

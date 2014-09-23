@@ -185,8 +185,10 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
-        sub.prop(oct_scene, "max_depth", text="Max. depth")
+        sub.prop(oct_scene, "max_diffuse_depth", text="Max. diffuse depth")
+        sub.prop(oct_scene, "max_glossy_depth", text="Max. glossy depth")
         sub.prop(oct_scene, "caustic_blur", text="Caustic blur")
+        sub.prop(oct_scene, "gi_clamp", text="GI clamp")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
@@ -206,8 +208,10 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.active = (oct_scene.kernel_type == '1')
         sub.prop(oct_scene, "specular_depth", text="Specular depth")
         sub.prop(oct_scene, "glossy_depth", text="Glossy depth")
-        sub.prop(oct_scene, "ao_dist", text="AOdist")
         sub.prop(oct_scene, "diffuse_depth", text="Diffuse depth")
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '4')
+        sub.prop(oct_scene, "ao_dist", text="AOdist")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
@@ -348,24 +352,31 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "aperture", text="Aperture")
         sub.prop(oct_cam, "aperture_edge", text="Aperture edge")
         sub.prop(oct_cam, "distortion", text="Distortion")
+        sub.prop(oct_cam, "persp_corr", text="Persp. correction")
 
         sub.label("Focus:")
-#        col.prop(oct_cam, "autofocus", text="Autofocus")
+        sub.prop(oct_cam, "autofocus", text="Autofocus")
+        sub = layout.row(align=True)
+        sub.active = oct_cam.autofocus is False
         sub.prop(cam, "dof_object", text="")
         sub = layout.row(align=True)
-        sub.active = cam.dof_object is None
+        sub.active = oct_cam.autofocus is False and cam.dof_object is None
         sub.prop(cam, "dof_distance", text="Distance")
 
         layout.label("Stereo:")
-        layout.prop(oct_cam, "stereo", text="Enable")
         sub = layout.row()
-        sub.active = oct_cam.stereo is True
+        sub.prop(oct_cam, "stereo_mode", text="Stereo mode")
+        sub = layout.row()
+        sub.active = oct_cam.stereo_mode != '0'
+        sub.prop(oct_cam, "stereo_out", text="Stereo output")
+        sub = layout.row()
+        sub.active = oct_cam.stereo_mode != '0'
         sub.prop(oct_cam, "stereo_dist", text="Stereo distance")
         sub = layout.row()
-        sub.active = oct_cam.stereo is True
+        sub.active = oct_cam.stereo_mode != '0'
         sub.prop(oct_cam, "left_filter", text="Left filter")
         sub = layout.row()
-        sub.active = oct_cam.stereo is True
+        sub.active = oct_cam.stereo_mode != '0'
         sub.prop(oct_cam, "right_filter", text="Right filter")
 
 
@@ -541,11 +552,17 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "mesh_type")
         sub.operator("octane.set_meshes_type", "", "", True, 'MESH_DATA')
 
-        sub = layout.row(align=True)
-        sub.label("Subdivision:")
-        row1 = sub.split(percentage=0.1, align=True)
-        row1.prop(cdata, "use_subdivision", text=" ")
-        row1.prop(cdata, "subdiv_divider", text="Divider")
+        box = layout.box()
+        box.label(text="OpenSubDiv:")
+        sub = box.row(align=True)
+        sub.prop(cdata, "open_subd_enable", text="Enable")
+        sub = box.row(align=True)
+        sub.prop(cdata, "open_subd_scheme", text="Scheme")
+        sub = box.row(align=True)
+        sub.prop(cdata, "open_subd_bound_interp", text="Boundary interp.")
+        sub = box.column(align=True)
+        sub.prop(cdata, "open_subd_level", text="Level")
+        sub.prop(cdata, "open_subd_sharpness", text="Sharpness")
 
         layout.prop(cdata, "vis_general")
         layout.prop(cdata, "vis_cam")
@@ -715,12 +732,10 @@ class OctaneWorld_PT_settings(OctaneButtonsPanel, Panel):
         row.prop(oct_world, "env_power", text="Power")
         
         row = layout.row(align=True)
-        row.active = (oct_world.env_type == '0')
 #        row.prop(oct_world, "env_texture", text="Texture")
         row.prop_search(oct_world, "env_texture",  bpy.data, "textures")
 
         row = layout.row(align=True)
-        row.active = (oct_world.env_type == '0')
         row.prop(oct_world, "env_importance_sampling", text="Importance sampling")
 
         row = layout.row(align=True)
@@ -928,6 +943,27 @@ class OctaneTexture_PT_colors(OctaneButtonsPanel, Panel):
         layout.prop(mapping, "use_color_ramp", text="Ramp")
         if mapping.use_color_ramp:
             layout.template_color_ramp(mapping, "color_ramp", expand=True)
+
+
+class OctaneParticle_PT_HairSettings(OctaneButtonsPanel, Panel):
+    bl_label = "Octane Hair Settings"
+    bl_context = "particle"
+
+    @classmethod
+    def poll(cls, context):
+        psys = context.particle_system
+        return psys and OctaneButtonsPanel.poll(context) and psys.settings.type == 'HAIR'
+
+    def draw(self, context):
+        layout = self.layout
+
+        psys = context.particle_settings
+        opsys = psys.octane
+
+        layout.label(text="Thickness:")
+        row = layout.row()
+        row.prop(opsys, "root_width", text="Root")
+        row.prop(opsys, "tip_width", text="Tip")
 
 
 def draw_device(self, context):

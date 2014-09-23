@@ -220,8 +220,11 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 	octane_mesh->clear();
 	octane_mesh->used_shaders       = used_shaders;
 	octane_mesh->name               = b_ob_data.name().c_str();
-    octane_mesh->use_subdivision    = RNA_boolean_get(&cmesh, "use_subdivision");
-    octane_mesh->subdiv_divider     = RNA_float_get(&cmesh, "subdiv_divider");
+    octane_mesh->open_subd_enable   = RNA_boolean_get(&cmesh, "open_subd_enable");
+    octane_mesh->open_subd_scheme   = RNA_enum_get(&cmesh, "open_subd_scheme");
+    octane_mesh->open_subd_level    = RNA_int_get(&cmesh, "open_subd_level");
+    octane_mesh->open_subd_sharpness    = RNA_float_get(&cmesh, "open_subd_sharpness");
+    octane_mesh->open_subd_bound_interp = RNA_enum_get(&cmesh, "open_subd_bound_interp");
     octane_mesh->vis_general        = RNA_float_get(&cmesh, "vis_general");
     octane_mesh->vis_cam            = RNA_boolean_get(&cmesh, "vis_cam");
     octane_mesh->vis_shadow         = RNA_boolean_get(&cmesh, "vis_shadow");
@@ -229,7 +232,11 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 	if(b_mesh) {
         if(!hide_tris) create_mesh(scene, b_ob, octane_mesh, b_mesh, &cmesh, octane_mesh->used_shaders);
         else octane_mesh->empty = true;
-		// Free derived mesh
+
+        if(!octane_mesh->empty)
+            sync_hair(octane_mesh, b_mesh, b_ob, false);
+
+        // Free derived mesh
 		b_data.meshes.remove(b_mesh);
 	}
     else octane_mesh->empty = true;

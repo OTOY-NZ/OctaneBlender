@@ -375,12 +375,14 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
                             for(unsigned int k = 0; k < buf_size; ++k)
                                 pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
                         }
-                        session->server->get_pass_rect(pass_type, components, mb_pixels, width, height);
+                        session->server->get_pass_rect(pass_type, components, mb_pixels, width, height,
+                            (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height));
                     }
                     b_pass.rect(pixels);
                 }
                 else {
-                    if(session->server->get_pass_rect(pass_type, components, pixels, width, height))
+                    if(session->server->get_pass_rect(pass_type, components, pixels, width, height,
+                       (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height)))
 			            b_pass.rect(pixels);
                 }
             }
@@ -413,11 +415,13 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
                 for(unsigned int k = 0; k < buf_size; ++k)
                     pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
             }
-            session->server->get_pass_rect(PASS_COMBINED, 4, mb_pixels, width, height);
+            session->server->get_pass_rect(PASS_COMBINED, 4, mb_pixels, width, height,
+                (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height));
         }
   		b_rlay.rect(pixels);
     }
-    else if(session->server->get_pass_rect(PASS_COMBINED, 4, pixels, width, height))
+    else if(session->server->get_pass_rect(PASS_COMBINED, 4, pixels, width, height,
+            (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height)))
 		b_rlay.rect(pixels);
 
 	// Tag result as updated

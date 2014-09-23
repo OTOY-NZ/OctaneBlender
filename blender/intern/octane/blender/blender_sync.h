@@ -206,7 +206,8 @@ public:
 	void sync_kernel(PassType pass_type);
 	void sync_camera(BL::Object b_override, int width, int height);
 	void sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
-	int  get_layer_samples() { return render_layer.samples; }
+    void get_camera_border(Camera *cam, BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
+    int  get_layer_samples() { return render_layer.samples; }
 
     Mesh  *sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool object_updated, bool hide_tris);
 	Light *sync_light(BL::Object b_ob, Transform& tfm, bool object_updated);
@@ -226,6 +227,9 @@ private:
 	void sync_render_layers(BL::SpaceView3D b_v3d, const char *layer);
 	void sync_shaders();
     void sync_curve_settings();
+    
+    void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
+    bool fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, int uv_num = 0, int vcol_num = 0);
 
 	void    sync_nodes(Shader *shader, BL::ShaderNodeTree b_ntree);
     void    sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool object_updated);
@@ -240,7 +244,7 @@ private:
 	bool object_is_mesh(BL::Object b_ob);
 	bool object_is_light(BL::Object b_ob);
 
-    void load_camera_from_object(Camera* cam, BL::Object b_ob, int width, int height, float zoom, float2& offset, bool skip_panorama = false);
+    void load_camera_from_object(Camera* cam, BL::Object b_ob, int width, int height, float2& offset, bool skip_panorama = false);
 
     void get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool view = false);
 

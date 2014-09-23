@@ -45,6 +45,7 @@ void Camera::Init(void) {
 
     width           = 1024;
     height          = 512;
+    zoom            = 1.0f;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //Camera
@@ -56,14 +57,16 @@ void Camera::Init(void) {
     aperture_edge   = 1.0f;
     distortion      = 0.0f;
     autofocus       = true;
-    focal_depth     = 10.0f;
+    focal_depth     = 0.0001f;
     near_clip_depth = 0.0001f;
     far_clip_depth  = 100000.0f;
     lens_shift_x    = 0.0f;
     lens_shift_y    = 0.0f;
     offset_x        = 0.0f;
     offset_y        = 0.0f;
-    stereo          = false;
+    persp_corr      = false;
+    stereo_mode     = 0;
+    stereo_out      = 3;
     stereo_dist     = 0.02f;
     ortho           = false;
 
@@ -99,6 +102,11 @@ void Camera::Init(void) {
     sensor_fit  = AUTO;
     ortho_scale = 0;
 	pixelaspect = make_float2(1.0f, 1.0f);
+    use_border  = false;
+    border.x    = 0;
+    border.y    = 0;
+    border.z    = 0;
+    border.w    = 0;
 
 	need_update             = true;
 } //Init()
@@ -119,7 +127,7 @@ void Camera::set_focal_depth(BL::Object b_ob, BL::Camera b_camera) {
 	Transform dofmat    = get_transform(b_dof_object.matrix_world());
 	Transform mat       = transform_inverse(obmat) * dofmat;
 
-	focal_depth = fabsf(transform_get_column(&mat, 3).z);
+    focal_depth = fabsf(transform_get_column(&mat, 3).z);
 } //set_focal_depth()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,6 +145,7 @@ void Camera::update(Scene *scene) {
 void Camera::server_update(RenderServer *server, Scene *scene) {
 	update(scene);
     server->load_camera(this);
+    server->set_render_region(this);
 } //server_update()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -165,12 +174,14 @@ bool Camera::modified(const Camera& cam) {
 		(distortion         == cam.distortion) &&
 		(autofocus          == cam.autofocus) &&
 		(focal_depth        == cam.focal_depth) &&
-		(near_clip_depth    == cam.near_clip_depth) &&
+        (near_clip_depth    == cam.near_clip_depth) &&
         (far_clip_depth     == cam.far_clip_depth) &&
         (lens_shift_x       == cam.lens_shift_x) &&
         (lens_shift_y       == cam.lens_shift_y) &&
-        (stereo             == cam.stereo) &&
+        (persp_corr         == cam.persp_corr) &&
         (stereo_dist        == cam.stereo_dist) &&
+        (stereo_mode        == cam.stereo_mode) &&
+        (stereo_out         == cam.stereo_out) &&
 
         (white_balance          == cam.white_balance) &&
         (response_type          == cam.response_type) &&
@@ -193,7 +204,9 @@ bool Camera::modified(const Camera& cam) {
         (glare_angle        == cam.glare_angle) &&
         (glare_blur         == cam.glare_blur) &&
         (spectral_shift     == cam.spectral_shift) &&
-        (spectral_intencity == cam.spectral_intencity));
+        (spectral_intencity == cam.spectral_intencity) &&
+        (use_border         == cam.use_border) &&
+        (border             == cam.border));
 } //modified()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

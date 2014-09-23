@@ -167,12 +167,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 default=True,
                 )
 
-        cls.max_depth = IntProperty(
-                name="Max. depth",
-                description="",
-                min=1, max=2048,
-                default=16,
-                )
         cls.caustic_blur = FloatProperty(
                 name="Caustic blur",
                 description="",
@@ -214,11 +208,31 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 items=types.gi_modes,
                 default='3',
                 )
+        cls.gi_clamp = FloatProperty(
+                name="GI clamp",
+                description="GI clamp reducing fireflies",
+                min=0.001, soft_min=0.001, max=1000000.0, soft_max=1000000.0,
+                default=1000000.0,
+                step=1,
+                precision=3,
+                )
         cls.diffuse_depth = IntProperty(
                 name="Diffuse depth",
                 description="",
                 min=1, max=8,
                 default=2,
+                )
+        cls.max_diffuse_depth = IntProperty(
+                name="Max. diffuse depth",
+                description="",
+                min=1, max=2048,
+                default=8,
+                )
+        cls.max_glossy_depth = IntProperty(
+                name="Max. glossy depth",
+                description="",
+                min=1, max=2048,
+                default=24,
                 )
 
         cls.exploration = FloatProperty(
@@ -337,10 +351,22 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 step=10,
                 precision=3,
                 )
-        cls.stereo = BoolProperty(
-                name="Stereo",
+        cls.persp_corr = BoolProperty(
+                name="Persp. correction",
 #                description="",
                 default=False,
+                )
+        cls.stereo_mode = EnumProperty(
+                name="Stereo mode",
+#                description="",
+                items=types.camera_stereo_modes,
+                default='0',
+                )
+        cls.stereo_out = EnumProperty(
+                name="Stereo output",
+#                description="",
+                items=types.camera_stereo_outs,
+                default='3',
                 )
         cls.stereo_dist = FloatProperty(
                 name="Stereo distance",
@@ -940,16 +966,34 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 items=types.mesh_types,
                 default='0',
                 )
-        cls.use_subdivision = BoolProperty(
-                name="Use Subdivision",
+        cls.open_subd_enable = BoolProperty(
+                name="Enable OpenSubDiv",
                 description="Subdivide mesh for rendering",
                 default=False,
                 )
-        cls.subdiv_divider = FloatProperty(
-                name="Divider",
+        cls.open_subd_scheme = EnumProperty(
+                name="Scheme",
                 description="",
-                min=1.000, max=1000.0, soft_max=10.0,
-                default=1.0,
+                items=types.subd_scheme,
+                default='1',
+                )
+        cls.open_subd_level = IntProperty(
+                name="Level",
+                description="",
+                min=0, max=10,
+                default=0,
+                )
+        cls.open_subd_sharpness = FloatProperty(
+                name="Sharpness",
+                description="",
+                min=0.0, max=11.0, soft_max=11.0,
+                default=0.0,
+                )
+        cls.open_subd_bound_interp = EnumProperty(
+                name="Boundary interp.",
+                description="",
+                items=types.bound_interp,
+                default='3',
                 )
         cls.vis_general = FloatProperty(
                 name="General visibility",
@@ -975,6 +1019,32 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         del bpy.types.MetaBall.octane
 
 
+class OctaneHairSettings(bpy.types.PropertyGroup):
+    @classmethod
+    def register(cls):
+        bpy.types.ParticleSettings.octane = PointerProperty(
+                name="Octane Hair Settings",
+                description="Octane hair settings",
+                type=cls,
+                )
+        cls.root_width = FloatProperty(
+                name="Root thickness",
+                description="Hair thickness at root",
+                min=0.0, max=1000.0,
+                default=0.001,
+                )
+        cls.tip_width = FloatProperty(
+                name="Tip thickness",
+                description="Hair thickness at tip",
+                min=0.0, max=1000.0,
+                default=0.001,
+                )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.ParticleSettings.octane
+
+
 def register():
     bpy.utils.register_class(OctaneRenderSettings)
     bpy.utils.register_class(OctaneCameraSettings)
@@ -984,6 +1054,7 @@ def register():
     bpy.utils.register_class(OctaneWorldSettings)
     bpy.utils.register_class(OctaneObjPropertiesSettings)
     bpy.utils.register_class(OctaneMeshSettings)
+    bpy.utils.register_class(OctaneHairSettings)
 
 
 def unregister():
@@ -995,3 +1066,4 @@ def unregister():
     bpy.utils.unregister_class(OctaneWorldSettings)
     bpy.utils.unregister_class(OctaneMeshSettings)
     bpy.utils.unregister_class(OctaneObjPropertiesSettings)
+    bpy.utils.unregister_class(OctaneHairSettings)

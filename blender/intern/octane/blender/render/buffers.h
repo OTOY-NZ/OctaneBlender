@@ -37,6 +37,8 @@ public:
 	int offset_y;
 	int full_width;
 	int full_height;
+
+    uint32_4 border;
 };
 
 class DisplayBuffer {

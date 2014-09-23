@@ -117,6 +117,9 @@ public:
 	float   ortho_scale;
 	float2  pixelaspect;
 	bool    need_update;
+    bool    use_border;
+    uint32_4 border;
+    float   zoom;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Camera
@@ -140,10 +143,11 @@ public:
     float lens_shift_y;
     float offset_x;
     float offset_y;
-    bool  stereo;
+    bool  persp_corr;
     float stereo_dist;
     bool  ortho;
     int32_t pan_type;
+    int32_t stereo_mode, stereo_out;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Imager

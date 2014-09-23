@@ -36,9 +36,12 @@ Mesh::Mesh() {
     empty           = false;
 	mesh_type       = GLOBAL;
 
-	need_update     = true;
-    use_subdivision = false;
-    subdiv_divider  = 1.0f;
+	need_update             = true;
+    open_subd_enable        = false;
+    open_subd_scheme        = 1;
+    open_subd_level         = 0;
+    open_subd_sharpness     = 0.0f;
+    open_subd_bound_interp  = 3;
 
     vis_general     = 1.0f;
 	vis_cam         = true;
@@ -152,11 +155,22 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         uint64_t          *uvs_size             = new uint64_t[ulLocalCnt];
         int             **uv_indices            = new int*[ulLocalCnt];
         uint64_t          *uv_indices_size      = new uint64_t[ulLocalCnt];
-        bool            *use_subdivision        = new bool[ulLocalCnt];
-        float           *subdiv_divider         = new float[ulLocalCnt];
+        bool            *open_subd_enable       = new bool[ulLocalCnt];
+        int32_t         *open_subd_scheme       = new int32_t[ulLocalCnt];
+        int32_t         *open_subd_level        = new int32_t[ulLocalCnt];
+        float           *open_subd_sharpness    = new float[ulLocalCnt];
+        int32_t         *open_subd_bound_interp = new int32_t[ulLocalCnt];
         float           *general_vis            = new float[ulLocalCnt];
         bool            *cam_vis                = new bool[ulLocalCnt];
         bool            *shadow_vis             = new bool[ulLocalCnt];
+
+        float3          **hair_points           = new float3*[ulLocalCnt];
+        uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
+        int32_t         **vert_per_hair         = new int32_t*[ulLocalCnt];
+        uint64_t        *vert_per_hair_size     = new uint64_t[ulLocalCnt];
+        float           **hair_thickness        = new float*[ulLocalCnt];
+        int32_t         **hair_mat_indices      = new int32_t*[ulLocalCnt];
+        float2          **hair_uvs              = new float2*[ulLocalCnt];
 
         uint64_t i = 0;
         vector<Mesh*>::iterator it;
@@ -196,13 +210,24 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             uvs_size[i]             = mesh->uvs.size();
             uv_indices[i]           = &mesh->uv_indices[0];
             uv_indices_size[i]      = mesh->uv_indices.size();
-            use_subdivision[i]      = mesh->use_subdivision;
-            subdiv_divider[i]       = mesh->subdiv_divider;
+            open_subd_enable[i]     = mesh->open_subd_enable;
+            open_subd_scheme[i]     = mesh->open_subd_scheme;
+            open_subd_level[i]      = mesh->open_subd_level;
+            open_subd_sharpness[i]  = mesh->open_subd_sharpness;
+            open_subd_bound_interp[i] = mesh->open_subd_bound_interp;
             general_vis[i]          = mesh->vis_general;
             cam_vis[i]              = mesh->vis_cam;
             shadow_vis[i]           = mesh->vis_shadow;
 
-        	if(mesh->need_update) mesh->need_update = false;
+            hair_points_size[i]     = mesh->hair_points.size();
+            hair_points[i]          = hair_points_size[i] ? &mesh->hair_points[0] : 0;
+            vert_per_hair_size[i]   = mesh->vert_per_hair.size();
+            vert_per_hair[i]        = vert_per_hair_size[i] ? &mesh->vert_per_hair[0] : 0;
+            hair_thickness[i]       = hair_points_size[i] ? &mesh->hair_thickness[0] : 0;
+            hair_mat_indices[i]     = vert_per_hair_size[i] ? &mesh->hair_mat_indices[0] : 0;
+            hair_uvs[i]             = vert_per_hair_size[i] ? &mesh->hair_uvs[0] : 0;
+
+            if(mesh->need_update) mesh->need_update = false;
     		if(progress.get_cancel()) return;
             ++i;
 	    }
@@ -226,8 +251,14 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         uvs_size,
                                         uv_indices,
                                         uv_indices_size,
-                                        use_subdivision,
-                                        subdiv_divider,
+                                        hair_points, hair_points_size,
+                                        vert_per_hair, vert_per_hair_size,
+                                        hair_thickness, hair_mat_indices, hair_uvs,
+                                        open_subd_enable,
+                                        open_subd_scheme,
+                                        open_subd_level,
+                                        open_subd_sharpness,
+                                        open_subd_bound_interp,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis);
@@ -250,11 +281,22 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] uvs_size;
         delete[] uv_indices;
         delete[] uv_indices_size;
-        delete[] use_subdivision;
-        delete[] subdiv_divider;
+        delete[] open_subd_enable;
+        delete[] open_subd_scheme;
+        delete[] open_subd_level;
+        delete[] open_subd_sharpness;
+        delete[] open_subd_bound_interp;
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+
+        delete[] hair_points_size;
+        delete[] vert_per_hair_size;
+        delete[] hair_points;
+        delete[] vert_per_hair;
+        delete[] hair_thickness;
+        delete[] hair_mat_indices;
+        delete[] hair_uvs;
     }
     if(global_update) {
         progress.set_status("Loading global Mesh to render-server", "");
@@ -287,11 +329,22 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             uint64_t          *uvs_size             = new uint64_t[obj_cnt];
             int             **uv_indices            = new int*[obj_cnt];
             uint64_t          *uv_indices_size      = new uint64_t[obj_cnt];
-            bool            *use_subdivision        = new bool[obj_cnt];
-            float           *subdiv_divider         = new float[obj_cnt];
+            bool            *open_subd_enable       = new bool[obj_cnt];
+            int32_t         *open_subd_scheme       = new int32_t[obj_cnt];
+            int32_t         *open_subd_level        = new int32_t[obj_cnt];
+            float           *open_subd_sharpness    = new float[obj_cnt];
+            int32_t         *open_subd_bound_interp = new int32_t[obj_cnt];
             float           *general_vis            = new float[obj_cnt];
             bool            *cam_vis                = new bool[obj_cnt];
             bool            *shadow_vis             = new bool[obj_cnt];
+
+            float3          **hair_points           = new float3*[obj_cnt];
+            uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
+            int32_t         **vert_per_hair         = new int32_t*[obj_cnt];
+            uint64_t        *vert_per_hair_size     = new uint64_t[obj_cnt];
+            float           **hair_thickness        = new float*[obj_cnt];
+            int32_t         **hair_mat_indices      = new int32_t*[obj_cnt];
+            float2          **hair_uvs              = new float2*[obj_cnt];
 
             obj_cnt = 0;
             for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
@@ -334,11 +387,22 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     uvs_size[obj_cnt]             = mesh->uvs.size();
                     uv_indices[obj_cnt]           = &mesh->uv_indices[0];
                     uv_indices_size[obj_cnt]      = mesh->uv_indices.size();
-                    use_subdivision[obj_cnt]      = mesh->use_subdivision;
-                    subdiv_divider[obj_cnt]       = mesh->subdiv_divider;
+                    open_subd_enable[obj_cnt]     = mesh->open_subd_enable;
+                    open_subd_scheme[obj_cnt]     = mesh->open_subd_scheme;
+                    open_subd_level[obj_cnt]      = mesh->open_subd_level;
+                    open_subd_sharpness[obj_cnt]  = mesh->open_subd_sharpness;
+                    open_subd_bound_interp[obj_cnt] = mesh->open_subd_bound_interp;
                     general_vis[obj_cnt]          = mesh->vis_general;
                     cam_vis[obj_cnt]              = mesh->vis_cam;
                     shadow_vis[obj_cnt]           = mesh->vis_shadow;
+
+                    hair_points_size[obj_cnt]     = mesh->hair_points.size();
+                    hair_points[obj_cnt]          = hair_points_size[obj_cnt] ? &mesh->hair_points[0] : 0;
+                    vert_per_hair_size[obj_cnt]   = mesh->vert_per_hair.size();
+                    vert_per_hair[obj_cnt]        = vert_per_hair_size[obj_cnt] ? &mesh->vert_per_hair[0] : 0;
+                    hair_thickness[obj_cnt]       = hair_points_size[obj_cnt] ? &mesh->hair_thickness[0] : 0;
+                    hair_mat_indices[obj_cnt]     = vert_per_hair_size[obj_cnt] ? &mesh->hair_mat_indices[0] : 0;
+                    hair_uvs[obj_cnt]             = vert_per_hair_size[obj_cnt] ? &mesh->hair_uvs[0] : 0;
 
         	        if(mesh->need_update) mesh->need_update = false;
     		        if(progress.get_cancel()) return;
@@ -365,8 +429,14 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         uvs_size,
                                         uv_indices,
                                         uv_indices_size,
-                                        use_subdivision,
-                                        subdiv_divider,
+                                        hair_points, hair_points_size,
+                                        vert_per_hair, vert_per_hair_size,
+                                        hair_thickness, hair_mat_indices, hair_uvs,
+                                        open_subd_enable,
+                                        open_subd_scheme,
+                                        open_subd_level,
+                                        open_subd_sharpness,
+                                        open_subd_bound_interp,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis);
@@ -387,11 +457,22 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             delete[] uvs_size;
             delete[] uv_indices;
             delete[] uv_indices_size;
-            delete[] use_subdivision;
-            delete[] subdiv_divider;
+            delete[] open_subd_enable;
+            delete[] open_subd_scheme;
+            delete[] open_subd_level;
+            delete[] open_subd_sharpness;
+            delete[] open_subd_bound_interp;
             delete[] general_vis;
             delete[] cam_vis;
             delete[] shadow_vis;
+
+            delete[] hair_points_size;
+            delete[] vert_per_hair_size;
+            delete[] hair_points;
+            delete[] vert_per_hair;
+            delete[] hair_thickness;
+            delete[] hair_mat_indices;
+            delete[] hair_uvs;
         }
     }
     std::string cur_name("__global");

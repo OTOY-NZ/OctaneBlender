@@ -20,10 +20,10 @@
 #define __SERVER_H__
 
 #ifndef OCTANE_SERVER_MAJOR_VERSION
-#   define OCTANE_SERVER_MAJOR_VERSION 5
+#   define OCTANE_SERVER_MAJOR_VERSION 6
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 2
+#   define OCTANE_SERVER_MINOR_VERSION 0
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -114,6 +114,7 @@ enum PacketType {
 
     LOAD_GPU,
     LOAD_KERNEL,
+    LOAD_RENDER_REGION,
     LOAD_THIN_LENS_CAMERA,
     LOAD_PANORAMIC_CAMERA,
     //LOAD_IMAGER,
@@ -164,7 +165,9 @@ enum PacketType {
     LOAD_COLOR_CORRECT_TEXTURE,
     LOAD_DIRT_TEXTURE,
     LOAD_GRADIENT_TEXTURE,
-    LOAD_TEXTURE_LAST = LOAD_GRADIENT_TEXTURE,
+    LOAD_DISPLACEMENT_TEXTURE,
+    LOAD_RANDOM_COLOR_TEXTURE,
+    LOAD_TEXTURE_LAST = LOAD_RANDOM_COLOR_TEXTURE,
     DEL_TEXTURE,
 
     LOAD_EMISSION_FIRST,
@@ -354,6 +357,19 @@ typedef struct RPCSend {
                 *(ptr++) = buf[i].x;
                 *(ptr++) = buf[i].y;
                 *(ptr++) = buf[i].z;
+            }
+            buf_pointer = (uint8_t*)ptr;
+            return true;
+        }
+        else return false;
+    }
+
+    bool write_float2_buffer(float2* buf, uint64_t len) {
+        if(buffer && (buf_pointer + len*sizeof(float) * 2 <= buffer + buf_size)) {
+            register float* ptr = (float*)buf_pointer;
+            for(register uint64_t i = 0; i < len; ++i) {
+                *(ptr++) = buf[i].x;
+                *(ptr++) = buf[i].y;
             }
             buf_pointer = (uint8_t*)ptr;
             return true;
@@ -682,7 +698,8 @@ public:
     uint64_t used_vram, free_vram, total_vram;
     float spp;
     uint32_t tri_cnt, meshes_cnt;
-    uint32_t rgb32_cnt, rgb32_max, rgb64_cnt, rgb64_max, grey8_cnt, grey8_max, grey16_cnt, grey16_max;
+    uint32_t rgb32_cnt, rgb64_cnt, grey8_cnt, grey16_cnt;
+    uint32_t net_gpus, used_net_gpus;
 }; //ImageStatistics
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -691,7 +708,7 @@ public:
 class RenderServer {
     uint8_t*    image_buf;
     float*      float_img_buf;
-    int32_t     cur_w, cur_h;
+    int32_t     cur_w, cur_h, cur_reg_w, cur_reg_h;
     uint32_t    m_Export_alembic;
     bool        m_bInteractive;
 
@@ -711,7 +728,7 @@ public:
 
     // Create the render-server object, connected to the server
     // addr - server address
-    RenderServer(const char *addr, const char *_out_path, bool export_alembic, bool interactive) : image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), socket(-1),
+    RenderServer(const char *addr, const char *_out_path, bool export_alembic, bool interactive) : image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), cur_reg_w(0), cur_reg_h(0), socket(-1),
                                                                                                    m_Export_alembic(export_alembic), m_bInteractive(interactive) {
         struct  hostent *host;
         struct  sockaddr_in sa;
@@ -1023,7 +1040,7 @@ public:
         }
         else {
             {
-                RPCSend snd(socket, sizeof(float3)*6 + sizeof(float)*23 + sizeof(int32_t)*9, LOAD_THIN_LENS_CAMERA);
+                RPCSend snd(socket, sizeof(float3)*6 + sizeof(float)*23 + sizeof(int32_t)*11, LOAD_THIN_LENS_CAMERA);
                 snd << cam->eye_point << cam->look_at << cam->up << cam->left_filter << cam->right_filter << cam->white_balance 
 
                     << cam->aperture << cam->aperture_edge << cam->distortion << cam->focal_depth << cam->near_clip_depth << cam->lens_shift_x << cam->lens_shift_y
@@ -1031,11 +1048,11 @@ public:
                     << cam->saturation << cam->hot_pix << cam->white_saturation
                     << cam->bloom_power << cam->glare_power << cam->glare_angle << cam->glare_blur << cam->spectral_shift << cam->spectral_intencity
 
-                    << response_type << min_display_samples << glare_ray_count
+                    << response_type << min_display_samples << glare_ray_count << cam->stereo_mode << cam->stereo_out
 
-                    << cam->ortho << cam->autofocus << cam->stereo
+                    << cam->ortho << cam->autofocus
                     << cam->premultiplied_alpha << cam->dithering
-                    << cam->postprocess;
+                    << cam->postprocess << cam->persp_corr;
                 snd.write();
             }
 
@@ -1071,27 +1088,27 @@ public:
                 break;
             case Kernel::PATH_TRACE:
                 {
-                    RPCSend snd(socket, sizeof(float)*4 + sizeof(int32_t)*6, LOAD_KERNEL);
-                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->caustic_blur
+                    RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*7, LOAD_KERNEL);
+                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->caustic_blur << kernel->gi_clamp
                         << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
-                        << kernel->max_depth;
+                        << kernel->max_diffuse_depth << kernel->max_glossy_depth;
                     snd.write();
                 }
                 break;
             case Kernel::PMC:
                 {
-                    RPCSend snd(socket, sizeof(float)*6 + sizeof(int32_t)*8, LOAD_KERNEL);
-                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->exploration << kernel->direct_light_importance << kernel->caustic_blur
+                    RPCSend snd(socket, sizeof(float)*7 + sizeof(int32_t)*9, LOAD_KERNEL);
+                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->exploration << kernel->direct_light_importance << kernel->caustic_blur << kernel->gi_clamp
                         << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
-                        << kernel->max_depth << kernel->max_rejects << kernel->parallelism;
+                        << kernel->max_diffuse_depth << kernel->max_glossy_depth << kernel->max_rejects << kernel->parallelism;
                     snd.write();
                 }
                 break;
             case Kernel::INFO_CHANNEL:
                 {
-                    RPCSend snd(socket, sizeof(float)*4 + sizeof(int32_t)*7, LOAD_KERNEL);
+                    RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*7, LOAD_KERNEL);
                     int32_t info_channel_type = static_cast<int32_t>(kernel->info_channel_type);
-                    snd << kernel_type << info_channel_type << kernel->filter_size << kernel->zdepth_max << kernel->uv_max << kernel->ray_epsilon
+                    snd << kernel_type << info_channel_type << kernel->filter_size << kernel->zdepth_max << kernel->uv_max << kernel->ray_epsilon << kernel->ao_dist
                         << kernel->alpha_channel << kernel->bump_normal_mapping << kernel->wf_bktrace_hl << kernel->distributed_tracing << (interactive ? kernel->max_preview_samples : kernel->max_samples);
                     snd.write();
                 }
@@ -1115,6 +1132,27 @@ public:
         }
     } //load_kernel()
 
+    // Set region of image to render
+    void set_render_region(Camera* cam) {
+        if(socket < 0) return;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+
+        {
+            RPCSend snd(socket, sizeof(uint32_t) * 4, LOAD_RENDER_REGION);
+            snd << cam->border.x << cam->border.y << cam->border.z << cam->border.w;
+            snd.write();
+        }
+
+        RPCReceive rcv(socket);
+        if(rcv.type != LOAD_RENDER_REGION) {
+            rcv >> error_msg;
+            fprintf(stderr, "Octane: ERROR setting render region.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
+        }
+    } //set_render_region()
+
     // Load environment to render server.
     // env - environment data structure
     void load_environment(Environment* env) {
@@ -1129,17 +1167,17 @@ public:
         }
         else {
             if(env->daylight_type == 0) {
-                RPCSend snd(socket, sizeof(uint32_t) * 2 + sizeof(float) * 13 + sizeof(int32_t), LOAD_SUNSKY);
+                RPCSend snd(socket, sizeof(uint32_t) * 3 + sizeof(float) * 13 + sizeof(int32_t) + env->texture.length()+2, LOAD_SUNSKY);
                 snd << env->type << env->daylight_type << env->sun_vector.x << env->sun_vector.y << env->sun_vector.z << env->power << env->turbidity << env->northoffset
                     << env->sun_size << env->sky_color.x << env->sky_color.y << env->sky_color.z << env->sunset_color.x << env->sunset_color.y << env->sunset_color.z
-                    << env->model;
+                    << env->model << env->importance_sampling << env->texture.c_str();
                 snd.write();
             }
             else {
-                RPCSend snd(socket, sizeof(uint32_t) * 2 + sizeof(float) * 13 + sizeof(int32_t) * 4, LOAD_SUNSKY);
+                RPCSend snd(socket, sizeof(uint32_t) * 3 + sizeof(float) * 13 + sizeof(int32_t) * 4 + env->texture.length()+2, LOAD_SUNSKY);
                 snd << env->type << env->daylight_type << env->longitude << env->latitude << env->hour << env->power << env->turbidity << env->northoffset
                     << env->sun_size << env->sky_color.x << env->sky_color.y << env->sky_color.z << env->sunset_color.x << env->sunset_color.y << env->sunset_color.z
-                    << env->model << env->month << env->day << env->gmtoffset;
+                    << env->model << env->month << env->day << env->gmtoffset << env->importance_sampling << env->texture.c_str();
                 snd.write();
             }
         }
@@ -1241,8 +1279,18 @@ public:
                                     uint64_t        *uvs_size,
                                     int             **uv_indices,
                                     uint64_t        *uv_indices_size,
-                                    bool            *subdivide,
-                                    float           *subdiv_divider,
+                                    float3          **hair_points,
+                                    uint64_t        *hair_points_size,
+                                    int32_t         **vert_per_hair,
+                                    uint64_t        *vert_per_hair_size,
+                                    float           **hair_thickness,
+                                    int32_t         **hair_mat_indices,
+                                    float2          **hair_uvs,
+                                    bool            *open_subd_enable,
+                                    int32_t         *open_subd_scheme,
+                                    int32_t         *open_subd_level,
+                                    float           *open_subd_sharpness,
+                                    int32_t         *open_subd_bound_interp,
                                     float           *general_vis,
                                     bool            *cam_vis,
                                     bool            *shadow_vis) {
@@ -1252,8 +1300,9 @@ public:
 
             {
                 uint64_t size = sizeof(uint64_t) //Meshes count;
-                    + sizeof(int32_t) * 3 * mesh_cnt + sizeof(float) * 2 * mesh_cnt //Subdivision addributes
-                    + sizeof(uint64_t) * 8 * mesh_cnt;
+                    + sizeof(int32_t) * 4 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Subdivision addributes
+                    + sizeof(int32_t) * 2 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Visibility addributes
+                    + sizeof(uint64_t) * 10 * mesh_cnt;
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     size +=
                     + points_size[i]*sizeof(float)*3
@@ -1262,7 +1311,12 @@ public:
                     + normals_indices_size[i]*sizeof(int32_t)
                     + + 2*vert_per_poly_size[i]*sizeof(int32_t)
                     + uvs_size[i]*sizeof(float)*3
-                    + uv_indices_size[i]*sizeof(int32_t);
+                    + uv_indices_size[i] * sizeof(int32_t)
+                    + hair_points_size[i] * sizeof(float) * 3
+                    + vert_per_hair_size[i] * sizeof(int32_t)
+                    + hair_points_size[i] * sizeof(float)
+                    + vert_per_hair_size[i] * sizeof(int32_t)
+                    + vert_per_hair_size[i] * sizeof(float) * 2;
 
                     if(!global) size += strlen(names[i])+2;
                     for(unsigned int n=0; n<shaders_count[i]; ++n)
@@ -1274,7 +1328,7 @@ public:
                 snd << mesh_cnt;
 
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
-                    if(!points_size[i] || (!subdivide[i] && !normals_size[i]) || !points_indices_size[i] || !vert_per_poly_size[i] || (!subdivide[i] && !uvs_size[i]) || (!subdivide[i] && !uv_indices_size[i])) return;
+                    if(!hair_points_size[i] && (!points_size[i] || !normals_size[i] || !points_indices_size[i] || !vert_per_poly_size[i] || !uvs_size[i] || !uv_indices_size[i])) return;
 
                     snd << points_size[i]
                         << normals_size[i]
@@ -1283,14 +1337,19 @@ public:
                         << vert_per_poly_size[i]
                         << uvs_size[i]
                         << uv_indices_size[i]
-                        << shaders_count[i];
+                        << shaders_count[i]
+                        << hair_points_size[i]
+                        << vert_per_hair_size[i];
                 }
 
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     snd.write_float3_buffer(points[i], points_size[i]);
                     if(normals_size[i]) snd.write_float3_buffer(normals[i], normals_size[i]);
                     if(uvs_size[i]) snd.write_float3_buffer(uvs[i], uvs_size[i]);
-                    snd << subdiv_divider[i] << general_vis[i];
+                    if(hair_points_size[i]) snd.write_float3_buffer(hair_points[i], hair_points_size[i]);
+                    if(vert_per_hair_size[i]) snd.write_float2_buffer(hair_uvs[i], vert_per_hair_size[i]);
+                    if(hair_points_size[i]) snd.write_buffer(hair_thickness[i], hair_points_size[i] * sizeof(float));
+                    snd << open_subd_sharpness[i] << general_vis[i];
                 }
 
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
@@ -1299,7 +1358,9 @@ public:
                     snd.write_buffer(poly_mat_index[i], vert_per_poly_size[i] * sizeof(int32_t));
                     if(normals_indices_size[i]) snd.write_buffer(normals_indices[i], normals_indices_size[i] * sizeof(int32_t));
                     if(uv_indices_size[i]) snd.write_buffer(uv_indices[i], uv_indices_size[i] * sizeof(int32_t));
-                    snd << subdivide[i] << cam_vis[i] << shadow_vis[i];
+                    if(vert_per_hair_size[i]) snd.write_buffer(vert_per_hair[i], vert_per_hair_size[i] * sizeof(int32_t));
+                    if(vert_per_hair_size[i]) snd.write_buffer(hair_mat_indices[i], vert_per_hair_size[i] * sizeof(int32_t));
+                    snd << open_subd_enable[i] << open_subd_scheme[i] << open_subd_level[i] << open_subd_bound_interp[i] << cam_vis[i] << shadow_vis[i];
                 }
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     if(!global) snd << names[i];
@@ -1356,14 +1417,16 @@ public:
     inline void load_diffuse_mat(OctaneDiffuseMaterial* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 7 + sizeof(int32_t) * 2
+        uint64_t size = sizeof(float) * 8 + sizeof(int32_t) * 2
             + node->diffuse.length() + 2
             + node->transmission.length() + 2
             + node->bump.length() + 2
             + node->normal.length() + 2
             + node->opacity.length() + 2
+            + node->rounding.length() + 2
             + node->emission.length() + 2
-            + node->medium.length() + 2;
+            + node->medium.length() + 2
+            + node->displacement.length() + 2;
 
         const char* mat_name = node->name.c_str();
 
@@ -1371,9 +1434,9 @@ public:
         {
             RPCSend snd(socket, size, LOAD_DIFFUSE_MATERIAL, mat_name);
             snd << node->diffuse_default_val.x << node->diffuse_default_val.y << node->diffuse_default_val.z
-                 << node->transmission_default_val << node->bump_default_val << node->normal_default_val << node->opacity_default_val
+                 << node->transmission_default_val << node->bump_default_val << node->normal_default_val << node->opacity_default_val << node->rounding_default_val
                  << node->smooth << node->matte << node->diffuse.c_str() << node->transmission.c_str() << node->bump.c_str()
-                 << node->normal.c_str() << node->opacity.c_str() << node->emission.c_str() << node->medium.c_str();
+                 << node->normal.c_str() << node->opacity.c_str() << node->rounding.c_str() << node->emission.c_str() << node->medium.c_str() << node->displacement.c_str();
             snd.write();
         }
         wait_error(LOAD_DIFFUSE_MATERIAL);
@@ -1382,7 +1445,7 @@ public:
     inline void load_glossy_mat(OctaneGlossyMaterial* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 9 + sizeof(float) * 2 + sizeof(int32_t) * 1
+        uint64_t size = sizeof(float) * 10 + sizeof(float) * 2 + sizeof(int32_t) * 1
             + node->diffuse.length() + 2
             + node->specular.length() + 2
             + node->roughness.length() + 2
@@ -1391,7 +1454,9 @@ public:
             + node->normal.length() + 2
             + node->opacity.length() + 2
             + node->filmindex.length() + 2
-            + node->index.length() + 2;
+            + node->index.length() + 2
+            + node->rounding.length() + 2
+            + node->displacement.length() + 2;
 
         const char* mat_name = node->name.c_str();
 
@@ -1400,11 +1465,11 @@ public:
             RPCSend snd(socket, size, LOAD_GLOSSY_MATERIAL, mat_name);
             snd << node->diffuse_default_val.x << node->diffuse_default_val.y << node->diffuse_default_val.z
                 << node->specular_default_val << node->roughness_default_val << node->filmwidth_default_val << node->bump_default_val
-                << node->normal_default_val << node->opacity_default_val << node->filmindex_default_val << node->index_default_val
+                << node->normal_default_val << node->opacity_default_val << node->filmindex_default_val << node->index_default_val << node->rounding_default_val
                 << node->smooth
-                << node->filmindex.c_str() << node->index.c_str()
+                << node->filmindex.c_str() << node->index.c_str() << node->rounding.c_str()
                 << node->diffuse.c_str() << node->specular.c_str() << node->roughness.c_str()
-                << node->filmwidth.c_str() << node->bump.c_str() << node->normal.c_str() << node->opacity.c_str();
+                << node->filmwidth.c_str() << node->bump.c_str() << node->normal.c_str() << node->opacity.c_str() << node->displacement.c_str();
             snd.write();
         }
         wait_error(LOAD_GLOSSY_MATERIAL);
@@ -1413,7 +1478,7 @@ public:
     inline void load_specular_mat(OctaneSpecularMaterial* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 9 + sizeof(float) * 3 + sizeof(int32_t) * 2
+        uint64_t size = sizeof(float) * 10 + sizeof(float) * 3 + sizeof(int32_t) * 2
             + node->reflection.length() + 2
             + node->transmission.length() + 2
             + node->filmwidth.length() + 2
@@ -1424,7 +1489,9 @@ public:
             + node->medium.length() + 2
             + node->filmindex.length() + 2
             + node->index.length() + 2
-            + node->dispersion_coef_B.length() + 2;
+            + node->dispersion_coef_B.length() + 2
+            + node->rounding.length() + 2
+            + node->displacement.length() + 2;
 
         const char* mat_name = node->name.c_str();
 
@@ -1433,11 +1500,11 @@ public:
             RPCSend snd(socket, size, LOAD_SPECULAR_MATERIAL, mat_name);
             snd << node->reflection_default_val.x << node->reflection_default_val.y << node->reflection_default_val.z
                 << node->transmission_default_val << node->filmwidth_default_val << node->bump_default_val << node->normal_default_val
-                << node->opacity_default_val << node->roughness_default_val << node->filmindex_default_val << node->index_default_val << node->dispersion_coef_B_default_val
+                << node->opacity_default_val << node->roughness_default_val << node->filmindex_default_val << node->index_default_val << node->dispersion_coef_B_default_val << node->rounding_default_val
                 << node->smooth << node->fake_shadows
-                << node->filmindex.c_str() << node->index.c_str() << node->dispersion_coef_B.c_str()
+                << node->filmindex.c_str() << node->index.c_str() << node->dispersion_coef_B.c_str() << node->rounding.c_str()
                 << node->reflection.c_str() << node->transmission.c_str() << node->filmwidth.c_str() << node->bump.c_str()
-                << node->normal.c_str() << node->opacity.c_str() << node->roughness.c_str() << node->medium.c_str();
+                << node->normal.c_str() << node->opacity.c_str() << node->roughness.c_str() << node->medium.c_str() << node->displacement.c_str();
             snd.write();
         }
         wait_error(LOAD_SPECULAR_MATERIAL);
@@ -1449,14 +1516,15 @@ public:
         uint64_t size = sizeof(float)
             + node->amount.length() + 2
             + node->material1.length() + 2
-            + node->material2.length() + 2;
+            + node->material2.length() + 2
+            + node->displacement.length() + 2;
 
         const char* mat_name = node->name.c_str();
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_MIX_MATERIAL, mat_name);
-            snd << node->amount_default_val << node->amount.c_str() << node->material2.c_str() << node->material1.c_str();
+            snd << node->amount_default_val << node->amount.c_str() << node->material2.c_str() << node->material1.c_str() << node->displacement.c_str();
             snd.write();
         }
         wait_error(LOAD_MIX_MATERIAL);
@@ -2067,6 +2135,41 @@ public:
         wait_error(LOAD_GRADIENT_TEXTURE);
     } //load_gradient_tex()
 
+    inline void load_random_color_tex(OctaneRandomColorTexture* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(int32_t)
+            + node->Seed.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_RANDOM_COLOR_TEXTURE, node->name.c_str());
+            snd << node->Seed_default_val
+                << node->Seed.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_RANDOM_COLOR_TEXTURE);
+    } //load_random_color_tex()
+
+    inline void load_displacement_tex(OctaneDisplacementTexture* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(float) * 2 + sizeof(int32_t)
+            + node->texture.length() + 2
+            + node->Height.length() + 2
+            + node->Offset.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_DISPLACEMENT_TEXTURE, node->name.c_str());
+            snd << node->Height_default_val << node->Offset_default_val
+                << node->DetailsLevel
+                << node->texture.c_str() << node->Height.c_str() << node->Offset.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_DISPLACEMENT_TEXTURE);
+    } //load_displacement_tex()
+
     inline void delete_texture(string& name) {
         if(socket < 0 || !m_bInteractive) return;
         thread_scoped_lock socket_lock(socket_mutex);
@@ -2534,12 +2637,9 @@ public:
 
             RPCReceive rcv(socket);
             if(rcv.type == GET_IMAGE) {
-                uint64_t ullUsedMem = 0, ullFreeMem = 0, ullTotalMem = 0;
-                uint32_t ui32TriCnt = 0, ui32MeshCnt = 0;
-                uint32_t uiRgb32Cnt = 0, uiRgb32Max = 0, uiRgb64Cnt = 0, uiRgb64Max = 0, uiGrey8Cnt = 0, uiGrey8Max = 0, uiGrey16Cnt = 0, uiGrey16Max = 0;
                 uint32_t uiW, uiH, uiSamples;
-                rcv >> image_stat.used_vram >> image_stat.free_vram >> image_stat.total_vram >> image_stat.spp >> image_stat.tri_cnt >> image_stat.meshes_cnt >> image_stat.rgb32_cnt >> image_stat.rgb32_max
-                    >> image_stat.rgb64_cnt >> image_stat.rgb64_max >> image_stat.grey8_cnt >> image_stat.grey8_max >> image_stat.grey16_cnt >> image_stat.grey16_max >> uiSamples >> uiW >> uiH;
+                rcv >> image_stat.used_vram >> image_stat.free_vram >> image_stat.total_vram >> image_stat.spp >> image_stat.tri_cnt >> image_stat.meshes_cnt >> image_stat.rgb32_cnt
+                    >> image_stat.rgb64_cnt >> image_stat.grey8_cnt >> image_stat.grey16_cnt >> uiSamples >> uiW >> uiH >> image_stat.net_gpus >> image_stat.used_net_gpus;
 
                 if(uiSamples) image_stat.cur_samples = uiSamples;
 
@@ -2553,9 +2653,9 @@ public:
                     memcpy(image_buf, ucBuf, len);
                 }
                 else {
-                    if(!float_img_buf || static_cast<uint32_t>(cur_w) != uiW || static_cast<uint32_t>(cur_h) != uiH) return false;
+                    if(!float_img_buf || static_cast<uint32_t>(cur_reg_w) != uiW || static_cast<uint32_t>(cur_reg_h) != uiH) return false;
 
-                    size_t len  = uiW * uiH * 4;
+                    size_t len = uiW * uiH * 4;
                     float* fBuf = (float*)rcv.read_buffer(len * sizeof(float));
 
                     if(type == PASS_COMBINED) {
@@ -2574,23 +2674,27 @@ public:
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Get Image-buffer of given pass
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    inline bool get_pass_rect(PassType type, int components, float *pixels, int w, int h) {
+    inline bool get_pass_rect(PassType type, int components, float *pixels, int w, int h, int reg_w, int reg_h) {
         if(w <= 0) w = 4;
         if(h <= 0) h = 4;
+        if(reg_w <= 0) reg_w = 4;
+        if(reg_h <= 0) reg_h = 4;
         thread_scoped_lock img_buf_lock(img_buf_mutex);
-        if(!float_img_buf || cur_w != w || cur_h != h) {
+        if(!float_img_buf || cur_w != w || cur_h != h || cur_reg_w != reg_w || cur_reg_h != reg_h) {
             if(float_img_buf) delete[] float_img_buf;
-            size_t len = w * h * 4;
+            size_t len = reg_w * reg_h * 4;
             float_img_buf = new float[len];
 
-            cur_w = w;
-            cur_h = h;
+            cur_w     = w;
+            cur_h     = h;
+            cur_reg_w = reg_w;
+            cur_reg_h = reg_h;
             memset(float_img_buf, 0, len * sizeof(float));
-            memset(pixels, 0, w * h * components * sizeof(float));
+            memset(pixels, 0, reg_w * reg_h * components * sizeof(float));
             return false;
         }
 
-        size_t pixel_size = cur_w * cur_h;
+        size_t pixel_size = cur_reg_w * cur_reg_h;
         float* in = float_img_buf;
 
         if(components == 1) {

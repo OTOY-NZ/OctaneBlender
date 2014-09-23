@@ -31,7 +31,8 @@ static bNodeSocketTemplate sh_node_in[] = {
 	{SOCK_FLOAT,     1,  N_("Amount"),	        0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{SOCK_SHADER,    1,  N_("Material1")},
 	{SOCK_SHADER,    1,  N_("Material2")},
-	{	-1, 0, ""	}
+    {SOCK_SHADER,    1,  N_("Displacement"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {

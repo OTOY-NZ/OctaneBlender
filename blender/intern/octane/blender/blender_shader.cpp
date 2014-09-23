@@ -36,8 +36,6 @@ typedef pair<ShaderNode*, std::string>  SocketPair;
 typedef map<void*, SocketPair>          PtrSockMap;
 typedef map<void*, std::string>         PtrStringMap;
 
-static PtrStringMap ConnectedNodesMap;
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Find Octane shader in current shader-map (by Object ID key)
@@ -57,7 +55,7 @@ void BlenderSync::add_used_shader_index(BL::ID id, vector<uint>& used_shaders, i
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static std::string get_oct_mat_name(BL::ShaderNode& b_node, std::string& mat_name) {
+static std::string get_oct_mat_name(BL::ShaderNode& b_node, std::string& mat_name, PtrStringMap &ConnectedNodesMap) {
     BL::Node::outputs_iterator b_output;
     for(b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
         std::string sName;
@@ -73,7 +71,7 @@ static std::string get_oct_mat_name(BL::ShaderNode& b_node, std::string& mat_nam
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static std::string get_oct_tex_name(BL::ShaderNode& b_node, std::string& tex_name) {
+static std::string get_oct_tex_name(BL::ShaderNode& b_node, std::string& tex_name, PtrStringMap &ConnectedNodesMap) {
     BL::Node::outputs_iterator b_output;
     for(b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
         std::string sName;
@@ -90,7 +88,7 @@ static std::string get_oct_tex_name(BL::ShaderNode& b_node, std::string& tex_nam
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static std::string get_non_oct_mat_name(BL::ShaderNode& b_node, std::string& mat_name) {
+static std::string get_non_oct_mat_name(BL::ShaderNode& b_node, std::string& mat_name, PtrStringMap &ConnectedNodesMap) {
     BL::Node::outputs_iterator b_output;
     for(b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
         std::string sName;
@@ -106,7 +104,7 @@ static std::string get_non_oct_mat_name(BL::ShaderNode& b_node, std::string& mat
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static std::string get_non_oct_tex_name(BL::ShaderNode& b_node, std::string& tex_name) {
+static std::string get_non_oct_tex_name(BL::ShaderNode& b_node, std::string& tex_name, PtrStringMap &ConnectedNodesMap) {
     BL::Node::outputs_iterator b_output;
     for(b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
         std::string sName;
@@ -123,7 +121,7 @@ static std::string get_non_oct_tex_name(BL::ShaderNode& b_node, std::string& tex
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNode b_node) {
+static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNode b_node, PtrStringMap &ConnectedNodesMap) {
 	ShaderNode *node = NULL;
         
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +131,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 		OctaneDiffuseMaterial* cur_node = new OctaneDiffuseMaterial();
         node = cur_node;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName);
+        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -186,6 +184,15 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->opacity_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
+            else if(b_input->name() == "Edges rounding") {
+                if(b_input->is_linked())
+                    cur_node->rounding = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->rounding = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->rounding_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
             else if(b_input->name() == "Smooth") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->smooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
@@ -200,6 +207,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->medium = ConnectedNodesMap[b_input->ptr.data];
                 else cur_node->medium = "";
             }
+            else if(b_input->name() == "Displacement") {
+                if(b_input->is_linked())
+                    cur_node->displacement = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->displacement = "";
+            }
             else if(b_input->name() == "Matte") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->matte = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
@@ -211,7 +223,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         OctaneGlossyMaterial* cur_node = new OctaneGlossyMaterial();
         node = cur_node;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName);
+        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -304,6 +316,20 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->index_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
+            else if(b_input->name() == "Edges rounding") {
+                if(b_input->is_linked())
+                    cur_node->rounding = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->rounding = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->rounding_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Displacement") {
+                if(b_input->is_linked())
+                    cur_node->displacement = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->displacement = "";
+            }
         }
     } //case BL::ShaderNode::type_OCT_GLOSSY_MAT
     else if(b_node.is_a(&RNA_ShaderNodeOctSpecularMat)) {
@@ -311,7 +337,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         OctaneSpecularMaterial* cur_node = new OctaneSpecularMaterial();
         node = cur_node;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName);
+        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -422,6 +448,20 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->fake_shadows = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
+            else if(b_input->name() == "Edges rounding") {
+                if(b_input->is_linked())
+                    cur_node->rounding = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->rounding = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->rounding_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Displacement") {
+                if(b_input->is_linked())
+                    cur_node->displacement = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->displacement = "";
+            }
         }
     } //case BL::ShaderNode::type_OCT_SPECULAR_MAT
     else if(b_node.is_a(&RNA_ShaderNodeOctMixMat)) {
@@ -429,7 +469,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         OctaneMixMaterial* cur_node = new OctaneMixMaterial();
         node = cur_node;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName);
+        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -452,6 +492,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->material2 = ConnectedNodesMap[b_input->ptr.data];
                 else cur_node->material2 = "";
             }
+            else if(b_input->name() == "Displacement") {
+                if(b_input->is_linked())
+                    cur_node->displacement = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->displacement = "";
+            }
         }
     } //case BL::ShaderNode::type_OCT_MIX_MAT
     else if(b_node.is_a(&RNA_ShaderNodeOctPortalMat)) {
@@ -459,7 +504,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         OctanePortalMaterial* cur_node = new OctanePortalMaterial();
         node = cur_node;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName);
+        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -476,7 +521,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctFloatTex b_tex_node(b_node);
         OctaneFloatTexture* cur_node = new OctaneFloatTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -490,7 +535,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctRGBSpectrumTex b_tex_node(b_node);
         OctaneRGBSpectrumTexture* cur_node = new OctaneRGBSpectrumTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -509,7 +554,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctGaussSpectrumTex b_tex_node(b_node);
         OctaneGaussianSpectrumTexture* cur_node = new OctaneGaussianSpectrumTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -546,7 +591,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctChecksTex b_tex_node(b_node);
         OctaneChecksTexture* cur_node = new OctaneChecksTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -570,7 +615,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctMarbleTex b_tex_node(b_node);
         OctaneMarbleTexture* cur_node = new OctaneMarbleTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -635,7 +680,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctRidgedFractalTex b_tex_node(b_node);
         OctaneRidgedFractalTexture* cur_node = new OctaneRidgedFractalTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -691,7 +736,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctSawWaveTex b_tex_node(b_node);
         OctaneSawWaveTexture* cur_node = new OctaneSawWaveTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -720,7 +765,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctSineWaveTex b_tex_node(b_node);
         OctaneSineWaveTexture* cur_node = new OctaneSineWaveTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -749,7 +794,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctTriWaveTex b_tex_node(b_node);
         OctaneTriangleWaveTexture* cur_node = new OctaneTriangleWaveTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -778,7 +823,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctTurbulenceTex b_tex_node(b_node);
         OctaneTurbulenceTexture* cur_node = new OctaneTurbulenceTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -834,7 +879,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctClampTex b_tex_node(b_node);
         OctaneClampTexture* cur_node = new OctaneClampTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -871,7 +916,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctCosineMixTex b_tex_node(b_node);
         OctaneCosineMixTexture* cur_node = new OctaneCosineMixTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -900,7 +945,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctInvertTex b_tex_node(b_node);
         OctaneInvertTexture* cur_node = new OctaneInvertTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -915,7 +960,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctMixTex b_tex_node(b_node);
         OctaneMixTexture* cur_node = new OctaneMixTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -944,7 +989,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctMultiplyTex b_tex_node(b_node);
         OctaneMultiplyTexture* cur_node = new OctaneMultiplyTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -964,7 +1009,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctFalloffTex b_tex_node(b_node);
         OctaneFalloffTexture* cur_node = new OctaneFalloffTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1001,7 +1046,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctColorCorrectTex b_tex_node(b_node);
         OctaneColorCorrectTexture* cur_node = new OctaneColorCorrectTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1069,7 +1114,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         }
         OctaneImageTexture* cur_node = new OctaneImageTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
 		BL::Image b_image(b_tex_node.image());
 	    if(b_image) {
@@ -1161,7 +1206,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         }
         OctaneFloatImageTexture* cur_node = new OctaneFloatImageTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
 		BL::Image b_image(b_tex_node.image());
 	    if(b_image) {
@@ -1253,7 +1298,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         }
         OctaneAlphaImageTexture* cur_node = new OctaneAlphaImageTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
 		BL::Image b_image(b_tex_node.image());
 	    if(b_image) {
@@ -1333,7 +1378,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctDirtTex b_tex_node(b_node);
         OctaneDirtTexture* cur_node = new OctaneDirtTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1383,7 +1428,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctGradientTex b_tex_node(b_node);
         OctaneGradientTexture* cur_node = new OctaneGradientTexture();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1428,6 +1473,63 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->End_default_val.x = ret[0];
                     cur_node->End_default_val.y = ret[1];
                     cur_node->End_default_val.z = ret[2];
+                }
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctRandomColorTex)) {
+        BL::ShaderNodeOctRandomColorTex b_tex_node(b_node);
+        OctaneRandomColorTexture* cur_node = new OctaneRandomColorTexture();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Random Seed") {
+                if(b_input->is_linked())
+                    cur_node->Seed = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Seed = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Seed_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+                }
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctDisplacementTex)) {
+        BL::ShaderNodeOctDisplacementTex b_tex_node(b_node);
+        OctaneDisplacementTexture* cur_node = new OctaneDisplacementTexture();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Texture") {
+                if(b_input->is_linked())
+                    cur_node->texture = ConnectedNodesMap[b_input->ptr.data];
+                else
+                    cur_node->texture = "";
+            }
+            else if(b_input->name() == "Level of details") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->DetailsLevel = (RNA_int_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Height") {
+                if(b_input->is_linked())
+                    cur_node->Height = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Height = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Height_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Offset") {
+                if(b_input->is_linked())
+                    cur_node->Offset = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Offset = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
@@ -1848,15 +1950,17 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 		OctaneDiffuseMaterial* cur_node = new OctaneDiffuseMaterial();
         node = cur_node;
 
-        cur_node->name = get_non_oct_mat_name(b_node, sMatName);
+        cur_node->name = get_non_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         cur_node->transmission_default_val  = 0;
         cur_node->bump_default_val          = 0;
         cur_node->opacity_default_val       = 1;
-        cur_node->smooth                    = true;
+        cur_node->rounding_default_val      = 0;
+        cur_node->smooth = true;
         cur_node->emission                  = "";
         cur_node->medium                    = "";
-        cur_node->matte                     = false;
+        cur_node->displacement              = "";
+        cur_node->matte = false;
         cur_node->normal_default_val        = 0;
 
         BL::Node::inputs_iterator b_input;
@@ -1881,7 +1985,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         OctaneGlossyMaterial* cur_node = new OctaneGlossyMaterial();
         node = cur_node;
 
-        cur_node->name = get_non_oct_mat_name(b_node, sMatName);
+        cur_node->name = get_non_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         cur_node->specular_default_val  = 1.0f;
         cur_node->roughness_default_val = 0.063f;
@@ -1892,6 +1996,8 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         cur_node->opacity_default_val   = 1.0f;
         cur_node->smooth                = true;
         cur_node->index                 = 1.3f;
+        cur_node->rounding_default_val  = 0;
+        cur_node->displacement          = "";
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1915,7 +2021,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeTexChecker b_tex_node(b_node);
         OctaneChecksTexture* cur_node = new OctaneChecksTexture();
         node = cur_node;
-        cur_node->name = get_non_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_non_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1933,7 +2039,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctXYZProjection b_tex_node(b_node);
         OctaneOctXYZProjection* cur_node = new OctaneOctXYZProjection();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1958,7 +2064,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctBoxProjection b_tex_node(b_node);
         OctaneOctBoxProjection* cur_node = new OctaneOctBoxProjection();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1983,7 +2089,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctCylProjection b_tex_node(b_node);
         OctaneOctCylProjection* cur_node = new OctaneOctCylProjection();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -2008,7 +2114,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctPerspProjection b_tex_node(b_node);
         OctaneOctPerspProjection* cur_node = new OctaneOctPerspProjection();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -2033,7 +2139,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctSphericalProjection b_tex_node(b_node);
         OctaneOctSphericalProjection* cur_node = new OctaneOctSphericalProjection();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -2058,7 +2164,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctUVWProjection b_tex_node(b_node);
         OctaneOctUVWProjection* cur_node = new OctaneOctUVWProjection();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2067,7 +2173,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctFloatValue b_tex_node(b_node);
         OctaneOctFloatValue* cur_node = new OctaneOctFloatValue();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -2085,7 +2191,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         BL::ShaderNodeOctIntValue b_tex_node(b_node);
         OctaneOctIntValue* cur_node = new OctaneOctIntValue();
         node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName);
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -2110,7 +2216,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::TextureNodeTree b_ntree) {
     //Fill the socket-incoming_node map
-    ConnectedNodesMap.clear();
+    PtrStringMap ConnectedNodesMap;
 	BL::NodeTree::links_iterator b_link;
 	for(b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
 		BL::Node b_from_node        = b_link->from_node();
@@ -2168,7 +2274,7 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
 
 			add_tex_nodes(sTexName, b_data, b_scene, graph, b_group_ntree);
 		}
-		else get_octane_node(sTexName, b_data, b_scene, graph, BL::ShaderNode(*b_node));
+		else get_octane_node(sTexName, b_data, b_scene, graph, BL::ShaderNode(*b_node), ConnectedNodesMap);
 	}
 } //add_tex_nodes()
 
@@ -2177,7 +2283,7 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNodeTree b_ntree) {
     //Fill the socket-incoming_node map
-    ConnectedNodesMap.clear();
+    PtrStringMap ConnectedNodesMap;
 	BL::NodeTree::links_iterator b_link;
 	for(b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
 		BL::Node b_from_node        = b_link->from_node();
@@ -2235,7 +2341,7 @@ static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Sc
 
 			add_shader_nodes(sMatName, b_data, b_scene, graph, b_group_ntree);
 		}
-		else get_octane_node(sMatName, b_data, b_scene, graph, BL::ShaderNode(*b_node));
+		else get_octane_node(sMatName, b_data, b_scene, graph, BL::ShaderNode(*b_node), ConnectedNodesMap);
 	}
 } //add_shader_nodes()
 

@@ -3577,6 +3577,8 @@ static void registerShaderNodes(void)
     register_node_type_tex_oct_alpha_image();
     register_node_type_tex_oct_dirt();
     register_node_type_tex_oct_gradient();
+    register_node_type_tex_oct_random_color();
+    register_node_type_tex_oct_displacement();
 
     register_node_type_emission_oct_black_body();
     register_node_type_emission_oct_texture();

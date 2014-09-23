@@ -408,6 +408,91 @@ struct ObjectKey {
     }
 }; //ObjectKey
 
+
+/* 2D BoundBox */
+class BoundBox2D {
+public:
+    float left;
+    float right;
+    float bottom;
+    float top;
+
+    BoundBox2D() : left(0.0f), right(1.0f), bottom(0.0f), top(1.0f) {}
+    BoundBox2D(float _left, float _right, float _bottom, float _top) : left(_left), right(_right), bottom(_bottom), top(_top) {}
+
+    bool operator==(const BoundBox2D& other) const {
+        return (left == other.left && right == other.right &&
+            bottom == other.bottom && top == other.top);
+    }
+
+    float width() {
+        return right - left;
+    }
+
+    float height() {
+        return top - bottom;
+    }
+
+    BoundBox2D operator*(float f) const {
+        BoundBox2D result;
+
+        result.left = left*f;
+        result.right = right*f;
+        result.bottom = bottom*f;
+        result.top = top*f;
+
+        return result;
+    }
+
+    BoundBox2D operator/(float f) const {
+        BoundBox2D result;
+
+        result.left = left / f;
+        result.right = right / f;
+        result.bottom = bottom / f;
+        result.top = top / f;
+
+        return result;
+    }
+
+    BoundBox2D subset(const BoundBox2D& other) const {
+        BoundBox2D subset;
+
+        subset.left = left + other.left*(right - left);
+        subset.right = left + other.right*(right - left);
+        subset.bottom = bottom + other.bottom*(top - bottom);
+        subset.top = bottom + other.top*(top - bottom);
+
+        return subset;
+    }
+
+    BoundBox2D make_relative_to(const BoundBox2D& other) const {
+        BoundBox2D result;
+
+        result.left = ((left - other.left) / (other.right - other.left));
+        result.right = ((right - other.left) / (other.right - other.left));
+        result.bottom = ((bottom - other.bottom) / (other.top - other.bottom));
+        result.top = ((top - other.bottom) / (other.top - other.bottom));
+
+        return result;
+    }
+
+    float clamp(float a, float mn, float mx) {
+        return min(max(a, mn), mx);
+    }
+
+    BoundBox2D clamp(float mn = 0.0f, float mx = 1.0f) {
+        BoundBox2D result;
+
+        result.left = clamp(left, mn, mx);
+        result.right = clamp(right, mn, mx);
+        result.bottom = clamp(bottom, mn, mx);
+        result.top = clamp(top, mn, mx);
+
+        return result;
+    }
+};
+
 OCT_NAMESPACE_END
 
 #endif /* __BLENDER_UTIL_H__ */

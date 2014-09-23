@@ -117,6 +117,21 @@ struct int4 {
 	__forceinline int& operator[](int i) { return *(&x + i); }
 };
 
+struct int32_4 {
+    int32_t x, y, z, w;
+
+    __forceinline int32_t operator[](int i) const { return *(&x + i); }
+    __forceinline int32_t& operator[](int i) { return *(&x + i); }
+};
+
+struct uint32_4 {
+    uint32_t x, y, z, w;
+
+    __forceinline uint32_t operator[](int i) const { return *(&x + i); }
+    __forceinline uint32_t& operator[](int i) { return *(&x + i); }
+    __forceinline bool operator==(uint32_4 b) { return (x == b.x && y == b.y && z == b.z && w == b.w); }
+};
+
 struct uint2 {
 	uint x, y;
 

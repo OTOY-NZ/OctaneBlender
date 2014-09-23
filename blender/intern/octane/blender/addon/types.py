@@ -107,6 +107,20 @@ camera_pan_modes = (
     ('CYLINDER', "Cylindrical", ""),
     )
 
+camera_stereo_modes = (
+    ('0', "None", ""),
+    ('1', "Off axis", ""),
+    ('2', "Parallel", ""),
+    )
+
+camera_stereo_outs = (
+    ('0', "Undefined", ""),
+    ('1', "Left eye", ""),
+    ('2', "Right eye", ""),
+    ('3', "Side by side", ""),
+    ('4', "Anaglyphic", ""),
+    )
+
 response_types = (
     ('99', "Agfacolor_Futura_100CD", ""),
     ('100', "Agfacolor_Futura_200CD", ""),
@@ -189,6 +203,7 @@ info_channel_types = (
     ('7', "Wireframe", ""),
     ('8', "Interpolated vertex normals", ""),
     ('9', "Object layer ID", ""),
+    ('10',"Ambient occlusion", ""),
     )
 
 kernel_types = (
@@ -227,4 +242,17 @@ environment_daylight_types = (
 environment_daylight_models = (
     ('0', "Old", ""),
     ('1', "New", ""),
+    )
+
+bound_interp = (
+    ('1', "None", ""),
+    ('2', "Edge only", ""),
+    ('3', "Edge and corner", ""),
+    ('4', "Always sharp", ""),
+    )
+
+subd_scheme = (
+    ('1', "Catmull Clark", ""),
+    ('2', "Loop", ""),
+    ('3', "Bilinear", ""),
     )

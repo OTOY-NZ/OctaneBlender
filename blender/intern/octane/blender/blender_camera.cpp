@@ -87,11 +87,27 @@ static ResponseType response_type_translation[55] = {
 // Sync rendered Camera from blender scene to Octane data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSync::sync_camera(BL::Object b_override, int width, int height) {
-    Camera* cam = scene->camera;
+    Camera* cam     = scene->camera;
+    Camera  prevcam = *cam;
 
     BL::RenderSettings r = b_scene.render();
     cam->pixelaspect.x   = r.pixel_aspect_x();
     cam->pixelaspect.y   = r.pixel_aspect_y();
+    cam->use_border      = r.use_border();
+    if(cam->use_border) {
+        /* border render */
+        cam->border.x = (uint32_t)(r.border_min_x() * (float)width);
+        cam->border.y = (uint32_t)((1.0f - r.border_max_y()) * (float)height);
+        cam->border.z = (uint32_t)(r.border_max_x() * (float)width);
+        cam->border.w = (uint32_t)((1.0f - r.border_min_y()) * (float)height);
+    }
+    else {
+        cam->border.x = 0;
+        cam->border.y = 0;
+        cam->border.z = 0;
+        cam->border.w = 0;
+    }
+    if(cam->modified(prevcam)) cam->tag_update();
 
     BL::Object b_ob = b_scene.camera();
     if(b_override) b_ob = b_override;
@@ -99,27 +115,139 @@ void BlenderSync::sync_camera(BL::Object b_override, int width, int height) {
     if(b_ob) {
         cam->matrix = scene->matrix * get_transform(b_ob.matrix_world());
         float2 offset = {0};
-        load_camera_from_object(cam, b_ob, width, height, 1.0f, offset);
+        cam->zoom = 1.0f;
+        load_camera_from_object(cam, b_ob, width, height, offset);
         cam->is_hidden = (scene->use_viewport_hide ? b_ob.hide() : b_ob.hide_render());
     }
     else
         cam->is_hidden = true;
+
+    if(cam->modified(prevcam)) cam->tag_update();
 } //sync_camera()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sync rendered View from blender scene to Octane camera data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSync::sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height) {
-    Camera* cam = scene->camera;
+    Camera* cam     = scene->camera;
+    Camera  prevcam = *cam;
 
     cam->pixelaspect = make_float2(1.0f, 1.0f);
 
     float2 offset = {0};
     load_camera_from_view(cam, b_scene, b_v3d, b_rv3d, width, height, offset);
     cam->is_hidden = false;
+
+    if(cam->modified(prevcam)) cam->tag_update();
 } //sync_view()
 
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sync rendered View from blender scene to Octane camera data
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void BlenderSync::get_camera_border(Camera *cam, BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height) {
+    BL::RenderSettings r = b_scene.render();
+
+    /* camera view? */
+    if(b_rv3d.view_perspective() != BL::RegionView3D::view_perspective_CAMERA) {
+        /* for non-camera view check whether render border is enabled for viewport
+        * and if so use border from 3d viewport assume viewport has got correctly clamped border already */
+        cam->use_border = b_v3d.use_render_border();
+        if(cam->use_border) {
+            cam->border.x = (uint32_t)(b_v3d.render_border_min_x() * (float)width);
+            cam->border.y = (uint32_t)((1.0f - b_v3d.render_border_max_y()) * (float)height);
+            cam->border.z = (uint32_t)(b_v3d.render_border_max_x() * (float)width);
+            cam->border.w = (uint32_t)((1.0f - b_v3d.render_border_min_y()) * (float)height);
+            return;
+        }
+    }
+    else {
+        cam->use_border = r.use_border();
+        if(!cam->use_border) return;
+
+        BL::Object b_ob = (b_v3d.lock_camera_and_layers()) ? b_scene.camera() : b_v3d.camera();
+        if(!b_ob) return;
+
+        BoundBox2D orig_border(r.border_min_x(), r.border_max_x(), r.border_min_y(), r.border_max_y());
+
+        float aspectratio, xaspect, yaspect;
+        bool horizontal_fit;
+
+        // Get View plane
+        float xratio = (float)width * cam->pixelaspect.x;
+        float yratio = (float)height * cam->pixelaspect.y;
+
+        if(cam->sensor_fit == Camera::AUTO)             horizontal_fit = (xratio > yratio);
+        else if(cam->sensor_fit == Camera::HORIZONTAL)  horizontal_fit = true;
+        else                                            horizontal_fit = false;
+
+        if(horizontal_fit) {
+            aspectratio = xratio / yratio;
+            xaspect     = aspectratio;
+            yaspect     = 1.0f;
+        }
+        else {
+            aspectratio = yratio / xratio;
+            xaspect     = 1.0f;
+            yaspect     = aspectratio;
+        }
+
+        BoundBox2D view_box(-xaspect, xaspect, -yaspect, yaspect);
+        view_box = view_box * cam->zoom;
+
+        float dx = 2.0f * (aspectratio * cam->lens_shift_x + cam->offset_x * xaspect * 2.0f);
+        float dy = 2.0f * (aspectratio * cam->lens_shift_y + cam->offset_y * yaspect * 2.0f);
+
+        view_box.left   += dx;
+        view_box.right  += dx;
+        view_box.bottom += dy;
+        view_box.top    += dy;
+        view_box = view_box  / aspectratio;
+
+        // Get camera plane
+        BL::ID b_ob_data = b_ob.data();
+        BL::Camera b_camera(b_ob_data);
+
+        xratio = (float)r.resolution_x() * r.resolution_percentage() / 100;
+        yratio = (float)r.resolution_y() * r.resolution_percentage() / 100;
+
+        if(b_camera.sensor_fit() == BL::Camera::sensor_fit_AUTO)            horizontal_fit = (xratio > yratio);
+        else if(b_camera.sensor_fit() == BL::Camera::sensor_fit_HORIZONTAL) horizontal_fit = true;
+        else                                                                horizontal_fit = false;
+
+        if(horizontal_fit) {
+            aspectratio = xratio / yratio;
+            xaspect     = aspectratio;
+            yaspect     = 1.0f;
+        }
+        else {
+            aspectratio = yratio / xratio;
+            xaspect     = 1.0f;
+            yaspect     = aspectratio;
+        }
+
+        BoundBox2D cam_box(-xaspect, xaspect, -yaspect, yaspect);
+
+        dx = 2.0f * aspectratio * b_camera.shift_x();
+        dy = 2.0f * aspectratio * b_camera.shift_y();
+
+        cam_box.left    += dx;
+        cam_box.right   += dx;
+        cam_box.bottom  += dy;
+        cam_box.top     += dy;
+        cam_box = cam_box / aspectratio;
+
+        // Get render region
+        cam_box = cam_box.make_relative_to(view_box);
+        BoundBox2D border = cam_box.subset(orig_border).clamp();
+
+        cam->border.x = (uint32_t)(border.left * (float)width);
+        cam->border.y = (uint32_t)((1.0f - border.top) * (float)height);
+        cam->border.z = (uint32_t)(border.right * (float)width);
+        cam->border.w = (uint32_t)((1.0f - border.bottom) * (float)height);
+    }
+} //get_camera_border()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
@@ -200,7 +328,9 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
         cam->aperture_edge  = RNA_float_get(&oct_camera, "aperture_edge");
         cam->distortion     = RNA_float_get(&oct_camera, "distortion");
         cam->autofocus      = RNA_boolean_get(&oct_camera, "autofocus");
-        cam->stereo         = RNA_boolean_get(&oct_camera, "stereo");
+        cam->persp_corr     = RNA_boolean_get(&oct_camera, "persp_corr");
+        cam->stereo_mode    = RNA_enum_get(&oct_camera, "stereo_mode");
+        cam->stereo_out     = RNA_enum_get(&oct_camera, "stereo_out");
         cam->stereo_dist    = RNA_float_get(&oct_camera, "stereo_dist");
 
         cam->postprocess        = RNA_boolean_get(&oct_camera, "postprocess");
@@ -218,8 +348,10 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
         cam->aperture_edge  = 1.0f;
         cam->distortion     = 0;
         cam->autofocus      = true;
-        cam->stereo         = false;
+        cam->persp_corr     = false;
         cam->postprocess    = false;
+        cam->stereo_mode    = 0;
+        cam->stereo_out     = 3;
     }
 
     RNA_float_get_array(&oct_camera, "white_balance", reinterpret_cast<float*>(&cam->white_balance));
@@ -244,8 +376,7 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Fill the Octane Camera properties from Blender data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSync::load_camera_from_object(Camera* cam, BL::Object b_ob, int width, int height, float zoom, float2& offset, bool skip_panorama) {
-    Camera prevcam      = *cam;
+void BlenderSync::load_camera_from_object(Camera* cam, BL::Object b_ob, int width, int height, float2& offset, bool skip_panorama) {
     BL::ID b_ob_data    = b_ob.data();
 
     if(b_ob_data.is_a(&RNA_Camera)) {
@@ -276,14 +407,14 @@ void BlenderSync::load_camera_from_object(Camera* cam, BL::Object b_ob, int widt
 
         get_cam_settings(cam, oct_camera);
 
-        cam->lens_shift_x   = b_camera.shift_x() / zoom;
-        cam->lens_shift_y   = b_camera.shift_y() / zoom;
+        cam->lens_shift_x   = b_camera.shift_x() / cam->zoom;
+        cam->lens_shift_y   = b_camera.shift_y() / cam->zoom;
 
         cam->sensorwidth    = b_camera.sensor_width();
         cam->sensorheight   = b_camera.sensor_height();
 
-        cam->offset_x = offset.x * 2.0f / zoom;
-        cam->offset_y = offset.y * 2.0f / zoom;
+        cam->offset_x = offset.x * 2.0f / cam->zoom;
+        cam->offset_y = offset.y * 2.0f / cam->zoom;
 
         if(b_camera.sensor_fit() == BL::Camera::sensor_fit_AUTO) cam->sensor_fit = Camera::AUTO;
         else if(b_camera.sensor_fit() == BL::Camera::sensor_fit_HORIZONTAL) cam->sensor_fit = Camera::HORIZONTAL;
@@ -292,12 +423,12 @@ void BlenderSync::load_camera_from_object(Camera* cam, BL::Object b_ob, int widt
         if(cam->ortho) {
             float ortho_scale;
             get_camera_ortho_scale(cam, b_camera, width, height, &ortho_scale);
-            cam->fov = ortho_scale * zoom;
+            cam->fov = ortho_scale * cam->zoom;
         }
         else {
             float sensor_size;
             get_camera_sensor_size(cam, width, height, &sensor_size);
-            cam->fov = 2.0f * atanf((0.5f * sensor_size * zoom) / b_camera.lens()) *180.0f/M_PI_F;
+            cam->fov = 2.0f * atanf((0.5f * sensor_size * cam->zoom) / b_camera.lens()) *180.0f / M_PI_F;
         }	
 
         // Position
@@ -315,7 +446,6 @@ void BlenderSync::load_camera_from_object(Camera* cam, BL::Object b_ob, int widt
     else {
         //TODO: Implement it for Lamp
     }
-    if(cam->modified(prevcam)) cam->tag_update();
 } //camera_from_object()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -337,14 +467,15 @@ void BlenderSync::load_camera_from_view(Camera* cam, BL::Scene b_scene, BL::Spac
             zoom = 2.0f/zoom;
             zoom *= 2.0f;
 
+            cam->zoom = zoom;
+
             offset = get_float2(b_rv3d.view_camera_offset());
 
-            load_camera_from_object(cam, b_ob, width, height, zoom, offset, skip_panorama);
+            load_camera_from_object(cam, b_ob, width, height, offset, skip_panorama);
         }
     } //if(b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_CAMERA)
     else if(b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_ORTHO || b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_PERSP) {
-        Camera prevcam = *cam;
-        zoom = 2.0f;
+        cam->zoom = 2.0f;
 
         cam->near_clip_depth    = b_v3d.clip_start();
         cam->far_clip_depth     = b_v3d.clip_end();
@@ -370,12 +501,12 @@ void BlenderSync::load_camera_from_view(Camera* cam, BL::Scene b_scene, BL::Spac
         if(cam->ortho) {
             float ortho_scale;
             get_viewport_ortho_scale(cam, b_rv3d.view_distance(), b_v3d.lens(), width, height, &ortho_scale);
-            cam->fov = ortho_scale * zoom;
+            cam->fov = ortho_scale * cam->zoom;
         }
         else {
             float sensor_size;
             get_camera_sensor_size(cam, width, height, &sensor_size);
-            cam->fov = 2.0f * atanf((0.5f * sensor_size * zoom) / b_v3d.lens()) *180.0f/M_PI_F;
+            cam->fov = 2.0f * atanf((0.5f * sensor_size * cam->zoom) / b_v3d.lens()) *180.0f / M_PI_F;
         }
 
         // Position
@@ -397,8 +528,9 @@ void BlenderSync::load_camera_from_view(Camera* cam, BL::Scene b_scene, BL::Spac
         }
         cam->up = transform_direction(&cam->matrix, make_float3(0.0f, 1.0f, 0.0f));
 
-        if(cam->modified(prevcam)) cam->tag_update();
     } //else if(b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_ORTHO || b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_PERSP)
+
+    get_camera_border(cam, b_v3d, b_rv3d, width, height);
 } //load_camera_from_view()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -406,12 +538,22 @@ void BlenderSync::load_camera_from_view(Camera* cam, BL::Scene b_scene, BL::Spac
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BufferParams BlenderSync::get_display_buffer_params(Camera* cam, int width, int height) {
     BufferParams params;
+    bool use_border = false;
 
     params.full_width  = width;
     params.full_height = height;
 
     params.offset_x = -cam->offset_x * width;
     params.offset_y = -cam->offset_y * height;
+
+    if(cam->use_border)
+        params.border = cam->border;
+    else {
+        params.border.x = 0;
+        params.border.y = 0;
+        params.border.z = 0;
+        params.border.w = 0;
+    }
 
     return params;
 } //get_buffer_params()

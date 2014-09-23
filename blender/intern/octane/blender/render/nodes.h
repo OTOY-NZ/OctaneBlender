@@ -47,9 +47,12 @@ public:
     float       normal_default_val;
     std::string opacity;
     float       opacity_default_val;
+    std::string rounding;
+    float       rounding_default_val;
     bool        smooth;
     std::string emission;
     std::string medium;
+    std::string displacement;
     bool        matte;
 };
 
@@ -76,6 +79,9 @@ public:
     bool        smooth;
     std::string index;
     float       index_default_val;
+    std::string rounding;
+    float       rounding_default_val;
+    std::string displacement;
 };
 
 class OctaneSpecularMaterial : public OctaneMaterialNode {
@@ -105,6 +111,9 @@ public:
     float       dispersion_coef_B_default_val;
     std::string medium;
     bool        fake_shadows;
+    std::string rounding;
+    float       rounding_default_val;
+    std::string displacement;
 };
 
 class OctaneMixMaterial : public OctaneMaterialNode {
@@ -115,6 +124,7 @@ public:
     float       amount_default_val;
     std::string material1;
     std::string material2;
+    std::string displacement;
 };
 
 class OctanePortalMaterial : public OctaneMaterialNode {
@@ -396,6 +406,26 @@ public:
     float3      Start_default_val;
     std::string End;
     float3      End_default_val;
+};
+
+class OctaneRandomColorTexture : public OctaneTextureNode {
+    SHADER_NODE_CLASS(OctaneRandomColorTexture)
+
+public:
+    std::string Seed;
+    int32_t     Seed_default_val;
+};
+
+class OctaneDisplacementTexture : public OctaneTextureNode {
+    SHADER_NODE_CLASS(OctaneDisplacementTexture)
+
+public:
+    std::string texture;
+    int32_t     DetailsLevel;
+    std::string Height;
+    float       Height_default_val;
+    std::string Offset;
+    float       Offset_default_val;
 };
 
 

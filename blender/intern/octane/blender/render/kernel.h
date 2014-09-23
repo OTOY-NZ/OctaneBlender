@@ -78,8 +78,8 @@ public:
     bool    wf_bktrace_hl;
 
     //PATH_TRACE + PMC
-    int32_t max_depth;
     float   caustic_blur;
+    int32_t max_diffuse_depth, max_glossy_depth;
 
     //DIRECT_LIGHT
     int32_t specular_depth;
@@ -93,6 +93,7 @@ public:
     //PMC
     float   exploration;
     float   direct_light_importance;
+    float   gi_clamp;
     int32_t max_rejects;
     int32_t parallelism;
 

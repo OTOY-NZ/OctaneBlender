@@ -38,8 +38,9 @@ Kernel::Kernel() {
     wf_bktrace_hl       = false;
 
     //PATH_TRACE + PMC
-    max_depth           = 16;
     caustic_blur        = 0.0f;
+    max_diffuse_depth   = 3;
+    max_glossy_depth    = 24;
 
     //DIRECT_LIGHT
     specular_depth      = 5;
@@ -52,6 +53,7 @@ Kernel::Kernel() {
 
     //PMC
     exploration             = 0.7f;
+    gi_clamp                = 1000000.0f;
     direct_light_importance = 0.1f;
     max_rejects             = 500;
     parallelism             = 4;
@@ -102,8 +104,9 @@ bool Kernel::modified(const Kernel& kernel) {
         bump_normal_mapping == kernel.bump_normal_mapping &&
         wf_bktrace_hl       == kernel.wf_bktrace_hl &&
 
-        max_depth           == kernel.max_depth &&
         caustic_blur        == kernel.caustic_blur &&
+        max_diffuse_depth   == kernel.max_diffuse_depth &&
+        max_glossy_depth    == kernel.max_glossy_depth &&
 
         specular_depth      == kernel.specular_depth &&
         glossy_depth        == kernel.glossy_depth &&
@@ -112,6 +115,7 @@ bool Kernel::modified(const Kernel& kernel) {
         diffuse_depth       == kernel.diffuse_depth &&
 
         exploration             == kernel.exploration &&
+        gi_clamp                == kernel.gi_clamp &&
         direct_light_importance == kernel.direct_light_importance &&
         max_rejects             == kernel.max_rejects &&
         parallelism             == kernel.parallelism &&

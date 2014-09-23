@@ -54,8 +54,11 @@ public:
 
 	std::string name;
 	MeshType    mesh_type;
-    bool        use_subdivision;
-    float       subdiv_divider;
+    bool        open_subd_enable;
+    int32_t     open_subd_scheme;
+    int32_t     open_subd_level;
+    float       open_subd_sharpness;
+    int32_t     open_subd_bound_interp;
     bool        empty;
     float       vis_general;
     bool        vis_cam;
@@ -68,6 +71,12 @@ public:
 	vector<int>		points_indices;
 	vector<int>		uv_indices;
 	vector<int>		poly_mat_index;
+
+    vector<float3>	hair_points;
+    vector<int32_t>	vert_per_hair;
+    vector<float>	hair_thickness;
+    vector<int32_t>	hair_mat_indices;
+    vector<float2>	hair_uvs;
 
     //Array of indices of Octane shaders in Octane Scene.shaders array
 	vector<uint> used_shaders;

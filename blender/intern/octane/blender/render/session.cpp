@@ -386,14 +386,26 @@ void Session::update_status_time(bool show_pause, bool show_done) {
 #endif
             }
 
-            if(params.samples == INT_MAX)
-                substatus = string_printf("Sample %d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d/%d, Rgb64: %d/%d, grey8: %d/%d, grey16: %d/%d )",
-                    params.image_stat.cur_samples, szSamples, params.image_stat.used_vram/1000000, params.image_stat.free_vram/1000000, params.image_stat.total_vram/1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
-                    params.image_stat.rgb32_cnt, params.image_stat.rgb32_max, params.image_stat.rgb64_cnt, params.image_stat.rgb64_max, params.image_stat.grey8_cnt, params.image_stat.grey8_max, params.image_stat.grey16_cnt, params.image_stat.grey16_max);
-	        else
-                substatus = string_printf("Sample %d/%d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d/%d, Rgb64: %d/%d, grey8: %d/%d, grey16: %d/%d )",
-                    params.image_stat.cur_samples, params.samples, szSamples, params.image_stat.used_vram/1000000, params.image_stat.free_vram/1000000, params.image_stat.total_vram/1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
-                    params.image_stat.rgb32_cnt, params.image_stat.rgb32_max, params.image_stat.rgb64_cnt, params.image_stat.rgb64_max, params.image_stat.grey8_cnt, params.image_stat.grey8_max, params.image_stat.grey16_cnt, params.image_stat.grey16_max);
+            if(params.samples == INT_MAX) {
+                if(params.image_stat.net_gpus > 0)
+                    substatus = string_printf("Sample %d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d ) | Net GPUs: %u/%u",
+                        params.image_stat.cur_samples, szSamples, params.image_stat.used_vram/1000000, params.image_stat.free_vram/1000000, params.image_stat.total_vram/1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
+                        params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt, params.image_stat.used_net_gpus, params.image_stat.net_gpus);
+                else
+                    substatus = string_printf("Sample %d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d ) | No net GPUs",
+                        params.image_stat.cur_samples, szSamples, params.image_stat.used_vram / 1000000, params.image_stat.free_vram / 1000000, params.image_stat.total_vram / 1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
+                        params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt);
+            }
+	        else {
+                if(params.image_stat.net_gpus > 0)
+                    substatus = string_printf("Sample %d/%d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d ) | Net GPUs: %u/%u",
+                        params.image_stat.cur_samples, params.samples, szSamples, params.image_stat.used_vram/1000000, params.image_stat.free_vram/1000000, params.image_stat.total_vram/1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
+                        params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt, params.image_stat.used_net_gpus, params.image_stat.net_gpus);
+                else
+                    substatus = string_printf("Sample %d/%d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d ) | No net GPUs",
+                        params.image_stat.cur_samples, params.samples, szSamples, params.image_stat.used_vram / 1000000, params.image_stat.free_vram / 1000000, params.image_stat.total_vram / 1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
+                        params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt);
+            }
         }
         else
             substatus = "Waiting for image...";

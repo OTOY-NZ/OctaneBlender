@@ -175,6 +175,8 @@ void register_node_type_tex_oct_float_image(void);
 void register_node_type_tex_oct_alpha_image(void);
 void register_node_type_tex_oct_dirt(void);
 void register_node_type_tex_oct_gradient(void);
+void register_node_type_tex_oct_random_color(void);
+void register_node_type_tex_oct_displacement(void);
 
 void register_node_type_projection_oct_xyz(void);
 void register_node_type_projection_oct_box(void);

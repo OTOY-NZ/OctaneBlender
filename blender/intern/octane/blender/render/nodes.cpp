@@ -236,6 +236,20 @@ void OctaneGradientTexture::load_to_server(RenderServer* server) {
     server->load_gradient_tex(this);
 }
 
+OctaneRandomColorTexture::OctaneRandomColorTexture() {
+}
+
+void OctaneRandomColorTexture::load_to_server(RenderServer* server) {
+    server->load_random_color_tex(this);
+}
+
+OctaneDisplacementTexture::OctaneDisplacementTexture() {
+}
+
+void OctaneDisplacementTexture::load_to_server(RenderServer* server) {
+    server->load_displacement_tex(this);
+}
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

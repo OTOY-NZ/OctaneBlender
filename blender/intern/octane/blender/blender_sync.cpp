@@ -188,8 +188,9 @@ void BlenderSync::sync_kernel(PassType pass_type) {
     kernel->bump_normal_mapping = get_boolean(oct_scene, "bump_normal_mapping");
     kernel->wf_bktrace_hl       = get_boolean(oct_scene, "wf_bktrace_hl");
 
-    kernel->max_depth           = get_int(oct_scene, "max_depth");
     kernel->caustic_blur        = get_float(oct_scene, "caustic_blur");
+    kernel->max_diffuse_depth   = get_int(oct_scene, "max_diffuse_depth");
+    kernel->max_glossy_depth    = get_int(oct_scene, "max_glossy_depth");
 
     kernel->specular_depth      = get_int(oct_scene, "specular_depth");
     kernel->glossy_depth        = get_int(oct_scene, "glossy_depth");
@@ -198,6 +199,7 @@ void BlenderSync::sync_kernel(PassType pass_type) {
     kernel->diffuse_depth       = get_int(oct_scene, "diffuse_depth");
 
     kernel->exploration         = get_float(oct_scene, "exploration");
+    kernel->gi_clamp            = get_float(oct_scene, "gi_clamp");
     kernel->direct_light_importance = get_float(oct_scene, "direct_light_importance");
     kernel->max_rejects         = get_int(oct_scene, "max_rejects");
     kernel->parallelism         = get_int(oct_scene, "parallelism");
