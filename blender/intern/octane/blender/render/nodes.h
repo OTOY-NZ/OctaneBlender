@@ -346,6 +346,7 @@ public:
     std::string Projection;
     std::string BorderMode;
     int         BorderMode_default_val;
+    void*       builtin_data;
 };
 
 class OctaneFloatImageTexture : public OctaneTextureNode {
@@ -362,6 +363,7 @@ public:
     std::string Projection;
     std::string BorderMode;
     int         BorderMode_default_val;
+    void*       builtin_data;
 };
 
 class OctaneAlphaImageTexture : public OctaneTextureNode {
@@ -378,6 +380,7 @@ public:
     std::string Projection;
     std::string BorderMode;
     int         BorderMode_default_val;
+    void*       builtin_data;
 };
 
 class OctaneDirtTexture : public OctaneTextureNode {

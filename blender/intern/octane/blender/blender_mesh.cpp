@@ -219,7 +219,10 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 
 	octane_mesh->clear();
 	octane_mesh->used_shaders       = used_shaders;
-	octane_mesh->name               = b_ob_data.name().c_str();
+	octane_mesh->nice_name          = b_ob_data.name().c_str();
+    char szName[32];
+    sprintf(szName, "%p", octane_mesh);
+    octane_mesh->name               = szName;
     octane_mesh->open_subd_enable   = RNA_boolean_get(&cmesh, "open_subd_enable");
     octane_mesh->open_subd_scheme   = RNA_enum_get(&cmesh, "open_subd_scheme");
     octane_mesh->open_subd_level    = RNA_int_get(&cmesh, "open_subd_level");

@@ -161,7 +161,10 @@ Light* BlenderSync::sync_light(BL::Object b_ob, Transform& tfm, bool object_upda
     if(!light->mesh) light->mesh = new Mesh;
 	
 	BL::Lamp b_lamp(b_ob.data());
-    light->name = b_lamp.name();
+    light->nice_name = b_lamp.name();
+    char szName[32];
+    sprintf(szName, "%p", light);
+    light->name = szName;
 
 	PointerRNA oct_lamp     = RNA_pointer_get(&b_lamp.ptr, "octane");
 	light->enable           = get_boolean(oct_lamp, "enable");
@@ -473,6 +476,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion) {
 				// Test if object needs to be hidden
 				bool hide_tris;
 				if(!object_render_hide(*b_ob, true, true, hide_tris)) {
+                    std::string sTmp = (*b_ob).name();
 					// Object itself
                     Transform tfm;
 			        tfm = scene->matrix * get_transform(b_ob->matrix_world());
@@ -515,7 +519,7 @@ bool objects_map::sync(Object **r_data, BL::Object b_ob, BL::ID parent, const Ob
 		data = new Object(scene);
     	data->mesh = sync->sync_mesh(b_ob, used_shaders, true, hide_tris);
 
-        (*scene_data)[data->mesh->name].push_back(data);
+        (*scene_data)[data->mesh].push_back(data);
 		b_map[key] = data;
 		recalc = true;
 	}
@@ -526,17 +530,17 @@ bool objects_map::sync(Object **r_data, BL::Object b_ob, BL::ID parent, const Ob
 
     	Mesh *mesh = sync->sync_mesh(b_ob, used_shaders, recalc, hide_tris);
         if(mesh != data->mesh) {
-            vector<Object*> &objects = (*scene_data)[data->mesh->name];
-            if(!objects.size()) (*scene_data).erase(data->mesh->name);
+            vector<Object*> &objects = (*scene_data)[data->mesh];
+            if(!objects.size()) (*scene_data).erase(data->mesh);
             //FIXME: Rework this to normal fast search
             for(vector<Object*>::iterator it = objects.begin(); it != objects.end(); ++it) {
                 if(*it == data) {
-                    if(objects.size() == 1) (*scene_data).erase(data->mesh->name);
+                    if(objects.size() == 1) (*scene_data).erase(data->mesh);
                     else objects.erase(it);
                     break;
                 }
             }
-            (*scene_data)[mesh->name].push_back(data);
+            (*scene_data)[mesh].push_back(data);
             data->mesh = mesh;
         }
     }
@@ -559,7 +563,7 @@ bool lights_map::sync(Object **r_data, BL::Object b_ob, BL::ID parent, const Obj
 		data = new Object(scene);
     	data->light = sync->sync_light(b_ob, tfm, true);
 
-        (*scene_data)[data->light->name].push_back(data);
+        (*scene_data)[data->light].push_back(data);
 		b_map[key] = data;
 		recalc = true;
 	}

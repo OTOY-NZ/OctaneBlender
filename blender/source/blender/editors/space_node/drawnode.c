@@ -955,29 +955,22 @@ static void node_shader_buts_anisotropic(uiLayout *layout, bContext *UNUSED(C), 
 
 static void node_shader_buts_subsurface(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-	/* SSS does not work on GPU yet */
+	/* SSS only enabled in Experimental Kernel */
 	PointerRNA scene = CTX_data_pointer_get(C, "scene");
 	if (scene.data) {
 		PointerRNA cscene = RNA_pointer_get(&scene, "cycles");
-		if (cscene.data && (RNA_enum_get(&cscene, "device") == 1 && U.compute_device_type != 0))
-			uiItemL(layout, IFACE_("SSS not supported on GPU"), ICON_ERROR);
+		if (cscene.data &&
+		    ((U.compute_device_type != USER_COMPUTE_DEVICE_NONE) &&
+		     (RNA_enum_get(&cscene, "device") == 1) &&
+		     (RNA_enum_get(&cscene, "feature_set") == 0)))
+		{
+			uiItemL(layout, IFACE_("Only enabled in experimental GPU kernel"), ICON_ERROR);
+		}
 	}
 
 	uiItemR(layout, ptr, "falloff", 0, "", ICON_NONE);
 }
 
-
-static void node_shader_buts_volume(uiLayout *layout, bContext *C, PointerRNA *UNUSED(ptr))
-{
-	/* Volume does not work on GPU yet */
-	PointerRNA scene = CTX_data_pointer_get(C, "scene");
-	if (scene.data) {
-		PointerRNA cscene = RNA_pointer_get(&scene, "cycles");
-
-		if (cscene.data && (RNA_enum_get(&cscene, "device") == 1 && U.compute_device_type != 0))
-			uiItemL(layout, IFACE_("Volumes not supported on GPU"), ICON_ERROR);
-	}
-}
 
 static void node_shader_buts_toon(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
@@ -1141,12 +1134,6 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			break;
 		case SH_NODE_SUBSURFACE_SCATTERING:
 			ntype->draw_buttons = node_shader_buts_subsurface;
-			break;
-		case SH_NODE_VOLUME_SCATTER:
-			ntype->draw_buttons = node_shader_buts_volume;
-			break;
-		case SH_NODE_VOLUME_ABSORPTION:
-			ntype->draw_buttons = node_shader_buts_volume;
 			break;
 		case SH_NODE_BSDF_TOON:
 			ntype->draw_buttons = node_shader_buts_toon;
@@ -3089,7 +3076,8 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		
 		glaDefine2DArea(&ar->winrct);
 		/* ortho at pixel level curarea */
-		wmOrtho2(-GLA_PIXEL_OFS, ar->winx - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, ar->winy - GLA_PIXEL_OFS);
+		/* almost #wmOrtho2_region_pixelspace, but no +1 px */
+		wmOrtho2_pixelspace(ar->winx, ar->winy);
 		
 		x = (ar->winx - snode->zoom * ibuf->x) / 2 + snode->xof;
 		y = (ar->winy - snode->zoom * ibuf->y) / 2 + snode->yof;

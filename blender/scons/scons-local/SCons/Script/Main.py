@@ -13,7 +13,7 @@ it goes here.
 unsupported_python_version = (2, 3, 0)
 deprecated_python_version = (2, 7, 0)
 
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
+# Copyright (c) 2001 - 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -34,7 +34,7 @@ deprecated_python_version = (2, 7, 0)
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Script/Main.py  2014/03/02 14:18:15 garyo"
+__revision__ = "src/engine/SCons/Script/Main.py  2014/07/05 09:42:21 garyo"
 
 import SCons.compat
 
@@ -312,7 +312,7 @@ class BuildTask(SCons.Taskmaster.OutOfDateTask):
 
 class CleanTask(SCons.Taskmaster.AlwaysTask):
     """An SCons clean task."""
-    def fs_delete(self, path, pathstr, remove=1):
+    def fs_delete(self, path, pathstr, remove=True):
         try:
             if os.path.lexists(path):
                 if os.path.isfile(path) or os.path.islink(path):
@@ -339,37 +339,41 @@ class CleanTask(SCons.Taskmaster.AlwaysTask):
         except (IOError, OSError), e:
             print "scons: Could not remove '%s':" % pathstr, e.strerror
 
-    def show(self):
+    def _get_files_to_clean(self):
+        result = []
         target = self.targets[0]
-        if (target.has_builder() or target.side_effect) and not target.noclean:
-            for t in self.targets:
-                if not t.isdir():
-                    display("Removed " + str(t))
+        if target.has_builder() or target.side_effect:
+            result = [t for t in self.targets if not t.noclean]
+        return result
+
+    def _clean_targets(self, remove=True):
+        target = self.targets[0]
         if target in SCons.Environment.CleanTargets:
             files = SCons.Environment.CleanTargets[target]
             for f in files:
-                self.fs_delete(f.abspath, str(f), 0)
+                self.fs_delete(f.abspath, str(f), remove)
+
+    def show(self):
+        for t in self._get_files_to_clean():
+            if not t.isdir():
+                display("Removed " + str(t))
+        self._clean_targets(remove=False)
 
     def remove(self):
-        target = self.targets[0]
-        if (target.has_builder() or target.side_effect) and not target.noclean:
-            for t in self.targets:
-                try:
-                    removed = t.remove()
-                except OSError, e:
-                    # An OSError may indicate something like a permissions
-                    # issue, an IOError would indicate something like
-                    # the file not existing.  In either case, print a
-                    # message and keep going to try to remove as many
-                    # targets aa possible.
-                    print "scons: Could not remove '%s':" % str(t), e.strerror
-                else:
-                    if removed:
-                        display("Removed " + str(t))
-        if target in SCons.Environment.CleanTargets:
-            files = SCons.Environment.CleanTargets[target]
-            for f in files:
-                self.fs_delete(f.abspath, str(f))
+        for t in self._get_files_to_clean():
+            try:
+                removed = t.remove()
+            except OSError, e:
+                # An OSError may indicate something like a permissions
+                # issue, an IOError would indicate something like
+                # the file not existing.  In either case, print a
+                # message and keep going to try to remove as many
+                # targets aa possible.
+                print "scons: Could not remove '%s':" % str(t), e.strerror
+            else:
+                if removed:
+                    display("Removed " + str(t))
+        self._clean_targets(remove=True)
 
     execute = remove
 
@@ -1021,13 +1025,17 @@ def _main(parser):
     # in case they disabled the warning in the SConscript files.
     if python_version_deprecated():
         msg = "Support for pre-%s Python version (%s) is deprecated.\n" + \
-              "    If this will cause hardship, contact dev@scons.tigris.org."
+              "    If this will cause hardship, contact scons-dev@scons.org"
         deprecated_version_string = ".".join(map(str, deprecated_python_version))
         SCons.Warnings.warn(SCons.Warnings.PythonVersionWarning,
                             msg % (deprecated_version_string, python_version_string()))
 
     if not options.help:
-        SCons.SConf.CreateConfigHBuilder(SCons.Defaults.DefaultEnvironment())
+        # [ ] Clarify why we need to create Builder here at all, and
+        #     why it is created in DefaultEnvironment
+        # https://bitbucket.org/scons/scons/commits/d27a548aeee8ad5e67ea75c2d19a7d305f784e30
+        if SCons.SConf.NeedConfigHBuilder():
+            SCons.SConf.CreateConfigHBuilder(SCons.Defaults.DefaultEnvironment())
 
     # Now re-parse the command-line options (any to the left of a '--'
     # argument, that is) with any user-defined command-line options that
@@ -1343,7 +1351,7 @@ def main():
         pass
     parts.append(version_string("engine", SCons))
     parts.append(path_string("engine", SCons))
-    parts.append("Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation")
+    parts.append("Copyright (c) 2001 - 2014 The SCons Foundation")
     version = ''.join(parts)
 
     import SConsOptions

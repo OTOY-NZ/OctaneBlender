@@ -184,17 +184,17 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                            && scene->meshes_type != Mesh::RESHAPABLE_PROXY && (scene->meshes_type != Mesh::AS_IS || mesh->mesh_type != Mesh::RESHAPABLE_PROXY))))) continue;
 
             if(scene->meshes_type == Mesh::SCATTER || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::SCATTER))
-                progress.set_status("Loading Meshes to render-server", string("Scatter: ") + mesh->name.c_str());
+                progress.set_status("Loading Meshes to render-server", string("Scatter: ") + mesh->nice_name.c_str());
             else if(scene->meshes_type == Mesh::MOVABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::MOVABLE_PROXY))
-                progress.set_status("Loading Meshes to render-server", string("Movable: ") + mesh->name.c_str());
+                progress.set_status("Loading Meshes to render-server", string("Movable: ") + mesh->nice_name.c_str());
             else if(scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY))
-                progress.set_status("Loading Meshes to render-server", string("Reshapable: ") + mesh->name.c_str());
+                progress.set_status("Loading Meshes to render-server", string("Reshapable: ") + mesh->nice_name.c_str());
 
             used_shaders_size[i] = mesh->used_shaders.size();
             for(size_t n=0; n<used_shaders_size[i]; ++n) {
                 shader_names[i].push_back(scene->shaders[mesh->used_shaders[n]]->name);
             }
-            mesh_names[i]           = (char*) mesh->name.c_str();
+            mesh_names[i]           = (char*)mesh->name.c_str();
             points[i]               = &mesh->points[0];
             points_size[i]          = mesh->points.size();
             normals[i]              = &mesh->normals[0];
@@ -301,7 +301,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
     if(global_update) {
         progress.set_status("Loading global Mesh to render-server", "");
         uint64_t obj_cnt = 0;
-        for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
+        for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
             uint64_t cur_size = obj_it->second.size();
             Mesh* mesh = cur_size > 0 ? obj_it->second[0]->mesh : 0;
 
@@ -347,7 +347,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             float2          **hair_uvs              = new float2*[obj_cnt];
 
             obj_cnt = 0;
-            for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
+            bool hair_present = false;
+            for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
                 uint64_t cur_size = obj_it->second.size();
                 Mesh* mesh = cur_size > 0 ? obj_it->second[0]->mesh : 0;
 
@@ -407,8 +408,12 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         	        if(mesh->need_update) mesh->need_update = false;
     		        if(progress.get_cancel()) return;
                     ++obj_cnt;
+
+                    if(!hair_present && mesh->hair_points.size()) hair_present = true;
                 }
             }
+            if(hair_present) fprintf(stderr, "Octane: WARNING: hair can't be rendered on \"Global\" mesh\n");
+            
             progress.set_status("Loading global Mesh to render-server", string("Transferring..."));
             char* name = "__global";
 	        server->load_mesh(true, obj_cnt, &name,

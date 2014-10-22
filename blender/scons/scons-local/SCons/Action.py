@@ -76,7 +76,7 @@ way for wrapping up the functions.
 
 """
 
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
+# Copyright (c) 2001 - 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -97,7 +97,7 @@ way for wrapping up the functions.
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Action.py  2014/03/02 14:18:15 garyo"
+__revision__ = "src/engine/SCons/Action.py  2014/07/05 09:42:21 garyo"
 
 import SCons.compat
 
@@ -337,7 +337,7 @@ def _do_create_keywords(args, kw):
                 'You must either pass a string or a callback which '
                 'accepts (target, source, env) as parameters.')
         if len(args) > 1:
-            kw['varlist'] = args[1:] + kw['varlist']
+            kw['varlist'] = tuple(SCons.Util.flatten(args[1:])) + kw['varlist']
     if kw.get('strfunction', _null) is not _null \
                       and kw.get('cmdstr', _null) is not _null:
         raise SCons.Errors.UserError(
@@ -679,12 +679,13 @@ def _subproc(scons_env, cmd, error = 'ignore', **kw):
         # return a dummy Popen instance that only returns error
         class dummyPopen(object):
             def __init__(self, e): self.exception = e
-            def communicate(self): return ('','')
+            def communicate(self,input=None): return ('','')
             def wait(self): return -self.exception.errno
             stdin = None
             class f(object):
                 def read(self): return ''
                 def readline(self): return ''
+                def __iter__(self): return iter(())
             stdout = stderr = f()
         return dummyPopen(e)
 

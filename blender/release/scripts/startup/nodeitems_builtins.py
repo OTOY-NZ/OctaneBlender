@@ -34,6 +34,14 @@ class ShaderNewNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
         return (context.space_data.tree_type == 'ShaderNodeTree' and
+                context.scene.render.use_shading_nodes and
+                context.scene.render.engine != 'octane')
+
+
+class ShaderNewCommonNodeCategory(NodeCategory):
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.tree_type == 'ShaderNodeTree' and
                 context.scene.render.use_shading_nodes)
 
 
@@ -47,7 +55,8 @@ class ShaderOldNodeCategory(NodeCategory):
 class TextureNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
-        return context.space_data.tree_type == 'TextureNodeTree'
+        return (context.space_data.tree_type == 'TextureNodeTree' and
+                context.scene.render.engine != 'octane')
 
 
 # menu entry for node group tools
@@ -103,6 +112,13 @@ def group_input_output_item_poll(context):
     if space.edit_tree in bpy.data.node_groups.values():
         return True
     return False
+
+
+# only show input/output nodes when editing line style node trees
+def line_style_shader_nodes_poll(context):
+    snode = context.space_data
+    return (snode.tree_type == 'ShaderNodeTree' and
+            snode.shader_type == 'LINESTYLE')
 
 
 # All standard node categories currently used in nodes.
@@ -169,14 +185,14 @@ shader_node_categories = [
         NodeItem("ShaderNodeParticleInfo"),
         NodeItem("ShaderNodeCameraData"),
         NodeItem("ShaderNodeUVMap"),
-        NodeItem("ShaderNodeUVAlongStroke"),
+        NodeItem("ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll),
         NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
         ]),
     ShaderNewNodeCategory("SH_NEW_OUTPUT", "Output", items=[
         NodeItem("ShaderNodeOutputMaterial"),
         NodeItem("ShaderNodeOutputLamp"),
         NodeItem("ShaderNodeOutputWorld"),
-        NodeItem("ShaderNodeOutputLineStyle"),
+        NodeItem("ShaderNodeOutputLineStyle", poll=line_style_shader_nodes_poll),
         NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
         ]),
     ShaderNewNodeCategory("SH_NEW_SHADER", "Shader", items=[
@@ -244,11 +260,11 @@ shader_node_categories = [
         NodeItem("ShaderNodeWavelength"),
         NodeItem("ShaderNodeBlackbody"),
         ]),
-    ShaderNewNodeCategory("SH_NEW_SCRIPT", "Script", items=[
+    ShaderNewCommonNodeCategory("SH_NEW_SCRIPT", "Script", items=[
         NodeItem("ShaderNodeScript"),
         ]),
-    ShaderNewNodeCategory("SH_NEW_GROUP", "Group", items=node_group_items),
-    ShaderNewNodeCategory("SH_NEW_LAYOUT", "Layout", items=[
+    ShaderNewCommonNodeCategory("SH_NEW_GROUP", "Group", items=node_group_items),
+    ShaderNewCommonNodeCategory("SH_NEW_LAYOUT", "Layout", items=[
         NodeItem("NodeFrame"),
         NodeItem("NodeReroute"),
         ]),

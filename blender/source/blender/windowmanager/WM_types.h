@@ -128,7 +128,7 @@ struct ImBuf;
 #define OPTYPE_UNDO			2	/* do undo push after after */
 #define OPTYPE_BLOCKING		4	/* let blender grab all input from the WM (X11) */
 #define OPTYPE_MACRO		8
-#define OPTYPE_GRAB_POINTER	16	/* */
+#define OPTYPE_GRAB_POINTER	16	/* grabs the cursor and optionally enables continuous cursor wrapping */
 #define OPTYPE_PRESET		32	/* show preset menu */
 #define OPTYPE_INTERNAL		64	/* some operators are mainly for internal use
 								 * and don't make sense to be accessed from the
@@ -249,6 +249,7 @@ typedef struct wmNotifier {
 #define ND_DATACHANGED		(3<<16)
 #define ND_HISTORY			(4<<16)
 #define ND_JOB				(5<<16)
+#define ND_UNDO				(6<<16)
 
 	/* NC_SCREEN screen */
 #define ND_SCREENBROWSE		(1<<16)

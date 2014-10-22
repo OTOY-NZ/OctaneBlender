@@ -102,7 +102,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
 
 	    if(progress.get_cancel()) return;
         
-        for(map<std::string, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it) {
+        for(map<Mesh*, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it) {
             uint64_t cur_size = mesh_it->second.size();
             if(!cur_size) continue;
             Mesh* cur_mesh = mesh_it->second[0]->mesh;
@@ -197,10 +197,11 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
 	    progress.set_status("Updating Lamp Objects", "Copying Transformations to server");
 	    if(progress.get_cancel()) return;
 
-        for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
+        for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
             uint64_t cur_size = light_it->second.size();
             if(!cur_size) continue;
             Light* cur_light = light_it->second[0]->light;
+            if(cur_light->type != Light::LIGHT_AREA) continue;
 
             if((scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_light->mesh->mesh_type == Mesh::GLOBAL))
                || (!scene->first_frame
@@ -212,7 +213,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
             size_t cnt = 0;//light_it->second.size();
             float* matrices = new float[12];
             vector<string> shader_names;
-            shader_names.push_back("__" + cur_light->name);
+            shader_names.push_back("__" + cur_light->nice_name);
 
             bool mesh_needs_update = false;
             for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it) {

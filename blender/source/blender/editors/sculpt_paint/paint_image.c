@@ -74,7 +74,6 @@
 #include "UI_view2d.h"
 
 #include "ED_image.h"
-#include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_paint.h"
 #include "ED_screen.h"
@@ -510,19 +509,35 @@ void imapaint_image_update(SpaceImage *sima, Image *image, ImBuf *ibuf, short te
 	}
 }
 
-/* paint blur kernels */
-BlurKernel *paint_new_blur_kernel(Brush *br)
+/* paint blur kernels. Projective painting enforces use of a 2x2 kernel due to lagging */
+BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 {
 	int i, j;
 	BlurKernel *kernel = MEM_mallocN(sizeof(BlurKernel), "blur kernel");
-	float pixel_len = br->blur_kernel_radius / 2.0f;
+	float radius;
+	int side;
 	BlurKernelType type = br->blur_mode;
 
-	kernel->side = br->blur_kernel_radius + 1;
-	kernel->side_squared = kernel->side * kernel->side;
-	kernel->wdata = MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data");
-	kernel->pixel_len = pixel_len;
-
+	if (proj) {
+		radius = 0.5f;
+		
+		side = kernel->side = 2;
+		kernel->side_squared = kernel->side * kernel->side;
+		kernel->wdata = MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data");
+		kernel->pixel_len = radius;
+	}
+	else {
+		if (br->blur_kernel_radius <= 0)
+			br->blur_kernel_radius = 1;
+		
+		radius = br->blur_kernel_radius;
+					
+		side = kernel->side = radius * 2 + 1;
+		kernel->side_squared = kernel->side * kernel->side;
+		kernel->wdata = MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data");
+		kernel->pixel_len = br->blur_kernel_radius;
+	}
+	
 	switch (type) {
 		case KERNEL_BOX:
 			for (i = 0; i < kernel->side_squared; i++)
@@ -531,19 +546,19 @@ BlurKernel *paint_new_blur_kernel(Brush *br)
 
 		case KERNEL_GAUSSIAN:
 		{
-			float standard_dev = pixel_len / 3.0f; /* at standard deviation of 3.0 kernel is at about zero */
-
+			/* at 3.0 standard deviations distance, kernel is about zero */			
+			float standard_dev = radius / 3.0f; 
+			
 			/* make the necessary adjustment to the value for use in the normal distribution formula */
-			standard_dev = standard_dev * standard_dev * 2;
+			standard_dev = -standard_dev * standard_dev * 2;
 
-			for (i = 0; i < kernel->side; i++) {
-				for (j = 0; j < kernel->side; j++) {
-					float idist = pixel_len - i;
-					float jdist = pixel_len - j;
-
+			for (i = 0; i < side; i++) {
+				for (j = 0; j < side; j++) {
+					float idist = radius - i;
+					float jdist = radius - j;
 					float value = exp((idist * idist + jdist * jdist) / standard_dev);
-
-					kernel->wdata[i + j * kernel->side] = value;
+					
+					kernel->wdata[i + j * side] = value;
 				}
 			}
 
@@ -579,11 +594,12 @@ static Brush *image_paint_brush(bContext *C)
 
 static int image_paint_poll(bContext *C)
 {
-	Object *obact = CTX_data_active_object(C);
+	Object *obact;
 
 	if (!image_paint_brush(C))
 		return 0;
 
+	obact = CTX_data_active_object(C);
 	if ((obact && obact->mode & OB_MODE_TEXTURE_PAINT) && CTX_wm_region_view3d(C)) {
 		return 1;
 	}
@@ -966,12 +982,6 @@ static int paint_exec(bContext *C, wmOperator *op)
 
 void PAINT_OT_image_paint(wmOperatorType *ot)
 {
-	static EnumPropertyItem stroke_mode_items[] = {
-		{BRUSH_STROKE_NORMAL, "NORMAL", 0, "Normal", "Apply brush normally"},
-		{BRUSH_STROKE_INVERT, "INVERT", 0, "Invert", "Invert action of brush for duration of stroke"},
-		{0}
-	};
-
 	/* identifiers */
 	ot->name = "Image Paint";
 	ot->idname = "PAINT_OT_image_paint";
@@ -987,11 +997,7 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_BLOCKING;
 
-	RNA_def_enum(ot->srna, "mode", stroke_mode_items, BRUSH_STROKE_NORMAL,
-	             "Paint Stroke Mode",
-	             "Action taken when a paint stroke is made");
-
-	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+	paint_stroke_operator_properties(ot);
 }
 
 
@@ -1343,72 +1349,6 @@ static int texture_paint_toggle_poll(bContext *C)
 	return 1;
 }
 
-
-/* Make sure that active object has a material, and assign UVs and image layers if they do not exist */
-void paint_proj_mesh_data_ensure(bContext *C, Object *ob, wmOperator *op)
-{
-	Mesh *me;
-	int layernum;
-	bool add_material = false;
-	ImagePaintSettings *imapaint = &(CTX_data_tool_settings(C)->imapaint);
-	Brush *br = BKE_paint_brush(&imapaint->paint);
-
-	/* no material, add one */
-	if (ob->totcol == 0) {
-		add_material = true;
-	}
-	else {
-		/* there may be material slots but they may be empty, check */
-		bool has_material = false;
-		int i;
-
-		for (i = 1; i < ob->totcol + 1; i++) {
-			Material *ma = give_current_material(ob, i);
-			if (ma) {
-				has_material = true;
-				if (!ma->texpaintslot) {
-					proj_paint_add_slot(C, ma, NULL);
-				}
-			}
-		}
-
-		if (!has_material)
-			add_material = true;
-	}
-
-	if (add_material) {
-		Material *ma = BKE_material_add(CTX_data_main(C), "Material");
-		/* no material found, just assign to first slot */
-		assign_material(ob, ma, 1, BKE_MAT_ASSIGN_USERPREF);
-		proj_paint_add_slot(C, ma, NULL);
-	}
-
-	me = BKE_mesh_from_object(ob);
-	layernum = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
-
-	if (layernum == 0) {
-		BKE_reportf(op->reports, RPT_WARNING, "Object did not have UV map, manual unwrap recommended");
-
-		ED_mesh_uv_texture_add(me, "UVMap", true);
-	}
-
-	/* Make sure we have a stencil to paint on! */
-	if (br && br->imagepaint_tool == PAINT_TOOL_MASK) {
-		imapaint->flag |= IMAGEPAINT_PROJECT_LAYER_STENCIL;
-
-		if (imapaint->stencil == NULL) {
-			int width;
-			int height;
-			Main *bmain = CTX_data_main(C);
-			float color[4] = {0.0, 0.0, 0.0, 1.0};
-
-			width = 1024;
-			height = 1024;
-			imapaint->stencil = BKE_image_add_generated(bmain, width, height, "Stencil", 32, false, IMA_GENTYPE_BLANK, color);
-		}
-	}
-}
-
 static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
@@ -1434,33 +1374,41 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 	else {
 		bScreen *sc;
 		Main *bmain = CTX_data_main(C);
-		Material *ma;
+		Image *ima = NULL;
+		ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
 
-		bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
 		/* This has to stay here to regenerate the texture paint
 		 * cache in case we are loading a file */
-		BKE_texpaint_slots_refresh_object(ob, use_nodes);
+		BKE_texpaint_slots_refresh_object(scene, ob);
 
 		paint_proj_mesh_data_ensure(C, ob, op);
 
-		/* set the current material active paint slot on image editor */
-		ma = give_current_material(ob, ob->actcol);
+		/* entering paint mode also sets image to editors */
+		if (imapaint->mode == IMAGEPAINT_MODE_MATERIAL) {
+			Material *ma = give_current_material(ob, ob->actcol); /* set the current material active paint slot on image editor */
 
-		if (ma->tot_slots > 0) {
-			for (sc = bmain->screen.first; sc; sc = sc->id.next) {
-				ScrArea *sa;
-				for (sa = sc->areabase.first; sa; sa = sa->next) {
-					SpaceLink *sl;
-					for (sl = sa->spacedata.first; sl; sl = sl->next) {
-						if (sl->spacetype == SPACE_IMAGE) {
-							SpaceImage *sima = (SpaceImage *)sl;
-							ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot[ma->paint_active_slot].ima);
-						}
+			if (ma->texpaintslot)
+				ima = ma->texpaintslot[ma->paint_active_slot].ima;
+		}
+		else if (imapaint->mode == IMAGEPAINT_MODE_MATERIAL) {
+			ima = imapaint->canvas;
+		}	
+		
+		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_IMAGE) {
+						SpaceImage *sima = (SpaceImage *)sl;
+						
+						if (!sima->pin)
+							ED_space_image_set(sima, scene, scene->obedit, ima);
 					}
 				}
 			}
 		}
-
+		
 		ob->mode |= mode_flag;
 
 		BKE_paint_init(&scene->toolsettings->imapaint.paint, PAINT_CURSOR_TEXTURE_PAINT);
@@ -1538,12 +1486,17 @@ void PAINT_OT_brush_colors_flip(wmOperatorType *ot)
 
 void ED_imapaint_bucket_fill(struct bContext *C, float color[3], wmOperator *op)
 {
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Image *ima = sima->image;
+
 	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
 	                      ED_image_undo_restore, ED_image_undo_free, NULL);
 
 	paint_2d_bucket_fill(C, color, NULL, NULL, NULL);
 
 	ED_undo_paint_push_end(UNDO_PAINT_IMAGE);
+
+	DAG_id_tag_update(&ima->id, 0);
 }
 
 

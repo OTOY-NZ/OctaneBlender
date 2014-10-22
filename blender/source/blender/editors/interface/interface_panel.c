@@ -201,20 +201,33 @@ static void ui_panel_copy_offset(Panel *pa, Panel *papar)
 	pa->ofsy = papar->ofsy + papar->sizey - pa->sizey;
 }
 
+
+/* XXX Disabled paneltab handling for now. Old 2.4x feature, *DO NOT* confuse it with new tool tabs in 2.70. ;)
+ *     See also T41704.
+ */
+/* #define UI_USE_PANELTAB */
+
 Panel *uiPanelFindByType(ARegion *ar, PanelType *pt)
 {
 	Panel *pa;
-
 	const char *idname = pt->idname;
-	const char *tabname = pt->idname;
 
+#ifdef UI_USE_PANELTAB
+	const char *tabname = pt->idname;
 	for (pa = ar->panels.first; pa; pa = pa->next) {
 		if (STREQLEN(pa->panelname, idname, sizeof(pa->panelname))) {
-			if (STREQLEN(pa->tabname, tabname, sizeof(pa->panelname))) {
+			if (STREQLEN(pa->tabname, tabname, sizeof(pa->tabname))) {
 				return pa;
 			}
 		}
 	}
+#else
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		if (STREQLEN(pa->panelname, idname, sizeof(pa->panelname))) {
+			return pa;
+		}
+	}
+#endif
 
 	return NULL;
 }
@@ -224,11 +237,13 @@ Panel *uiPanelFindByType(ARegion *ar, PanelType *pt)
  */
 Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Panel *pa, bool *r_open)
 {
-	Panel *patab, *palast, *panext;
+	Panel *palast, *panext;
 	const char *drawname = CTX_IFACE_(pt->translation_context, pt->label);
 	const char *idname = pt->idname;
+#ifdef UI_USE_PANELTAB
 	const char *tabname = pt->idname;
 	const char *hookname = NULL;
+#endif
 	const bool newpanel = (pa == NULL);
 	int align = panel_aligned(sa, ar);
 
@@ -240,7 +255,6 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 		pa = MEM_callocN(sizeof(Panel), "new panel");
 		pa->type = pt;
 		BLI_strncpy(pa->panelname, idname, sizeof(pa->panelname));
-		BLI_strncpy(pa->tabname, tabname, sizeof(pa->tabname));
 
 		if (pt->flag & PNL_DEFAULT_CLOSED) {
 			if (align == BUT_VERTICAL)
@@ -256,9 +270,13 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 		pa->runtime_flag |= PNL_NEW_ADDED;
 
 		BLI_addtail(&ar->panels, pa);
-		
+
+#ifdef UI_USE_PANELTAB
+		BLI_strncpy(pa->tabname, tabname, sizeof(pa->tabname));
+
 		/* make new Panel tabbed? */
 		if (hookname) {
+			Panel *patab;
 			for (patab = ar->panels.first; patab; patab = patab->next) {
 				if ((patab->runtime_flag & PNL_ACTIVE) && patab->paneltab == NULL) {
 					if (STREQLEN(hookname, patab->panelname, sizeof(patab->panelname))) {
@@ -271,6 +289,9 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 				}
 			}
 		}
+#else
+		BLI_strncpy(pa->tabname, idname, sizeof(pa->tabname));
+#endif
 	}
 
 	/* Do not allow closed panels without headers! Else user could get "disappeared" UI! */
@@ -1533,6 +1554,12 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 		// int category_width = BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX);
 
 		const bool is_active = STREQ(category_id, category_id_active);
+
+#ifdef DEBUG
+		if (STREQ(category_id, PNL_CATEGORY_FALLBACK)) {
+			printf("WARNING: Panel has no 'bl_category', script needs updating!\n");
+		}
+#endif
 
 		glEnable(GL_BLEND);
 

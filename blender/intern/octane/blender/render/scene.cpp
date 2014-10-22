@@ -63,7 +63,7 @@ Scene::Scene(const Session *session_, bool first_frame_) : session(session_), fi
 Scene::~Scene() {
     session = 0;
 
-    for(map<std::string, vector<Object*> >::const_iterator mesh_it = objects.begin(); mesh_it != objects.end(); ++mesh_it) {
+    for(map<Mesh*, vector<Object*> >::const_iterator mesh_it = objects.begin(); mesh_it != objects.end(); ++mesh_it) {
         for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it)
 		    delete *it;
     }
@@ -72,7 +72,7 @@ Scene::~Scene() {
     for(it = lights.begin(); it != lights.end(); ++it)
 		delete *it;
 
-    for(map<std::string, vector<Object*> >::const_iterator light_it = light_objects.begin(); light_it != light_objects.end(); ++light_it) {
+    for(map<Light*, vector<Object*> >::const_iterator light_it = light_objects.begin(); light_it != light_objects.end(); ++light_it) {
         for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it)
 		    delete *it;
     }

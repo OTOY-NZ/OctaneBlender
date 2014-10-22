@@ -1124,7 +1124,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 		                      b_image.source() == BL::Image::source_GENERATED ||
 		                      b_image.source() == BL::Image::source_MOVIE;
 
-		    if(false) {//is_builtin) {
+            if(is_builtin) {//is_builtin) {
 			    // for builtin images we're using image datablock name to find an image to
 			    // read pixels from later
 			    //
@@ -1133,11 +1133,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 			    int scene_frame = b_scene.frame_current();
 			    int image_frame = image_user_frame_number(b_tex_node.image_user(), scene_frame);
 			    cur_node->FileName = b_image.name() + "@" + string_printf("%d", image_frame);
-			    //image->builtin_data = b_image.ptr.data;
-		    }
+			    cur_node->builtin_data = b_image.ptr.data;
+            }
 		    else {
 			    cur_node->FileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
-			    //cur_node->builtin_data = NULL;
+			    cur_node->builtin_data = 0;
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
@@ -1216,7 +1216,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 		                      b_image.source() == BL::Image::source_GENERATED ||
 		                      b_image.source() == BL::Image::source_MOVIE;
 
-		    if(false) {//is_builtin) {
+            if(is_builtin) {//is_builtin) {
 			    // for builtin images we're using image datablock name to find an image to
 			    // read pixels from later
 			    //
@@ -1225,11 +1225,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 			    int scene_frame = b_scene.frame_current();
 			    int image_frame = image_user_frame_number(b_tex_node.image_user(), scene_frame);
 			    cur_node->FileName = b_image.name() + "@" + string_printf("%d", image_frame);
-			    //image->builtin_data = b_image.ptr.data;
+			    cur_node->builtin_data = b_image.ptr.data;
 		    }
 		    else {
 			    cur_node->FileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
-			    //cur_node->builtin_data = NULL;
+			    cur_node->builtin_data = 0;
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
@@ -1308,7 +1308,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 		                      b_image.source() == BL::Image::source_GENERATED ||
 		                      b_image.source() == BL::Image::source_MOVIE;
 
-            if(false) {//is_builtin) {
+            if(is_builtin) {//is_builtin) {
 			    // for builtin images we're using image datablock name to find an image to
 			    // read pixels from later
 			    //
@@ -1317,11 +1317,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 			    int scene_frame = b_scene.frame_current();
 			    int image_frame = image_user_frame_number(b_tex_node.image_user(), scene_frame);
 			    cur_node->FileName = b_image.name() + "@" + string_printf("%d", image_frame);
-			    //image->builtin_data = b_image.ptr.data;
+			    cur_node->builtin_data = b_image.ptr.data;
 		    }
 		    else {
 			    cur_node->FileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
-			    //cur_node->builtin_data = NULL;
+			    cur_node->builtin_data = 0;
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
@@ -1512,7 +1512,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
             }
             else if(b_input->name() == "Level of details") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->DetailsLevel = (RNA_int_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->DetailsLevel = RNA_int_get(&value_sock.ptr, "default_value");
             }
             else if(b_input->name() == "Height") {
                 if(b_input->is_linked())

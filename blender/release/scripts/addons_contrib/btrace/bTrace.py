@@ -20,8 +20,8 @@ bl_info = {
     "name": "Btrace",
     "author": "liero, crazycourier, Atom, Meta-Androcto, MacKracken",
     "version": (1, 1, ),
-    "blender": (2, 68, 0),
-    "location": "View3D > Tools",
+    "blender": (2, 71, 0),
+    "location": "View3D > Toolshelf > Addons Tab",
     "description": "Tools for converting/animating objects/particles into curves",
     "warning": "Still under development, bug reports appreciated",
     "wiki_url": "",
@@ -191,7 +191,9 @@ class addTracerObjectPanel(bpy.types.Panel):
     bl_region_type = 'TOOLS'
     bl_context = 'objectmode'
     selected = "tool_objectTrace"
+    bl_category = 'Addons'
     bl_options = {'DEFAULT_CLOSED'}
+
 
     def draw(self, context):
         layout = self.layout

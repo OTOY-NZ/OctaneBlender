@@ -53,7 +53,8 @@ public:
 	};
 
 	std::string name;
-	MeshType    mesh_type;
+    std::string nice_name;
+    MeshType    mesh_type;
     bool        open_subd_enable;
     int32_t     open_subd_scheme;
     int32_t     open_subd_level;

@@ -20,7 +20,7 @@ bl_info = {
     "name": "Sapling",
     "author": "Andrew Hale (TrumanBlending)",
     "version": (0, 2, 6),
-    "blender": (2, 64, 0),
+    "blender": (2, 71, 0),
     "location": "View3D > Add > Curve",
     "description": ("Adds a parametric tree. The method is presented by "
     "Jason Weber & Joseph Penn in their paper 'Creation and Rendering of "
@@ -244,7 +244,7 @@ class AddTree(bpy.types.Operator):
         size=4, update=update_tree)
     scale = FloatProperty(name='Scale',
         description='The tree scale (Scale)',
-        min=0.0,
+        min=0.001,
         default=13.0, update=update_tree)
     scaleV = FloatProperty(name='Scale Variation',
         description='The variation in the tree scale (ScaleV)',
@@ -323,8 +323,10 @@ class AddTree(bpy.types.Operator):
         min=0.0,
         max=1.0,
         default=1.0, update=update_tree)
-    leaves = IntProperty(name='Leaves',
+    leaves = FloatProperty(name='Leaves',
         description='Maximum number of leaves per branch (Leaves)',
+        min=0,
+        max=50,
         default=25, update=update_tree)
     leafScale = FloatProperty(name='Leaf Scale',
         description='The scaling applied to the whole leaf (LeafScale)',

@@ -14,7 +14,7 @@ tool definition.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
+# Copyright (c) 2001 - 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -35,7 +35,7 @@ tool definition.
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Tool/__init__.py  2014/03/02 14:18:15 garyo"
+__revision__ = "src/engine/SCons/Tool/__init__.py  2014/07/05 09:42:21 garyo"
 
 import imp
 import sys
@@ -705,7 +705,7 @@ def tool_list(platform, env):
         assemblers = ['masm', 'nasm', 'gas', '386asm' ]
         fortran_compilers = ['gfortran', 'g77', 'ifl', 'cvf', 'f95', 'f90', 'fortran']
         ars = ['mslib', 'ar', 'tlib']
-        other_plat_tools=['msvs','midl']
+        other_plat_tools = ['msvs', 'midl']
     elif str(platform) == 'os2':
         "prefer IBM tools on OS/2"
         linkers = ['ilink', 'gnulink', ]#'mslink']
@@ -772,6 +772,9 @@ def tool_list(platform, env):
         fortran_compilers = ['gfortran', 'g77', 'ifort', 'ifl', 'f95', 'f90', 'f77']
         ars = ['ar', 'mslib']
 
+    if not str(platform) == 'win32':
+        other_plat_tools += ['m4', 'rpm']
+
     c_compiler = FindTool(c_compilers, env) or c_compilers[0]
 
     # XXX this logic about what tool provides what should somehow be
@@ -795,12 +798,13 @@ def tool_list(platform, env):
         fortran_compiler = FindTool(fortran_compilers, env) or fortran_compilers[0]
         ar = FindTool(ars, env) or ars[0]
 
+    d_compilers = ['dmd', 'gdc', 'ldc']
+    d_compiler = FindTool(d_compilers, env) or d_compilers[0]
+
     other_tools = FindAllTools(other_plat_tools + [
-                               'dmd',
                                #TODO: merge 'install' into 'filesystem' and
                                # make 'filesystem' the default
                                'filesystem',
-                               'm4',
                                'wix', #'midl', 'msvs',
                                # Parser generators
                                'lex', 'yacc',
@@ -812,14 +816,14 @@ def tool_list(platform, env):
                                'dvipdf', 'dvips', 'gs',
                                'tex', 'latex', 'pdflatex', 'pdftex',
                                # Archivers
-                               'tar', 'zip', 'rpm',
+                               'tar', 'zip',
                                # SourceCode factories
                                'BitKeeper', 'CVS', 'Perforce',
                                'RCS', 'SCCS', # 'Subversion',
                                ], env)
 
     tools = ([linker, c_compiler, cxx_compiler,
-              fortran_compiler, assembler, ar]
+              fortran_compiler, assembler, ar, d_compiler]
              + other_tools)
 
     return [x for x in tools if x]

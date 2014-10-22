@@ -411,11 +411,11 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 			if (is_texbrush) {
 				brush_imbuf_tex_co(&tex_mapping, x, y, texco);
 				BKE_brush_sample_tex_3D(scene, brush, texco, rgba, thread, pool);
+				mul_v3_v3(rgba, brush_rgb);
 				/* TODO(sergey): Support texture paint color space. */
 				if (!use_float) {
 					IMB_colormanagement_scene_linear_to_display_v3(rgba, display);
 				}
-				mul_v3_v3(rgba, brush_rgb);
 			}
 			else {
 				copy_v3_v3(rgba, brush_rgb);
@@ -485,11 +485,11 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 				if (is_texbrush) {
 					brush_imbuf_tex_co(&tex_mapping, x, y, texco);
 					BKE_brush_sample_tex_3D(scene, brush, texco, rgba, thread, pool);
+					mul_v3_v3(rgba, brush_rgb);
 					/* TODO(sergey): Support texture paint color space. */
 					if (!use_float) {
 						IMB_colormanagement_scene_linear_to_display_v3(rgba, display);
 					}
-					mul_v3_v3(rgba, brush_rgb);
 				}
 				else {
 					copy_v3_v3(rgba, brush_rgb);
@@ -877,10 +877,8 @@ static void paint_2d_lift_soften(ImagePaintState *s, ImBuf *ibuf, ImBuf *ibufb, 
 
 			for (yk = 0; yk < kernel->side; yk++) {
 				for (xk = 0; xk < kernel->side; xk++) {
-					float x_offs = xk - kernel->pixel_len;
-					float y_offs = yk - kernel->pixel_len;
-					count += paint_2d_ibuf_add_if(ibuf, xi + signf(x_offs) * fabs(x_offs + 0.51f),
-					                               yi + signf(y_offs) * fabs(y_offs + 0.51f), outrgb, is_torus,
+					count += paint_2d_ibuf_add_if(ibuf, xi + xk - kernel->pixel_len,
+					                               yi + yk - kernel->pixel_len, outrgb, is_torus,
 					                               kernel->wdata[xk + yk * kernel->side]);
 				}
 			}
@@ -1251,7 +1249,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
 	}
 
 	if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN) {
-		s->blurkernel = paint_new_blur_kernel(brush);
+		s->blurkernel = paint_new_blur_kernel(brush, false);
 	}
 
 	paint_brush_init_tex(s->brush);

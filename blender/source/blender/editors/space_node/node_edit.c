@@ -396,8 +396,11 @@ void ED_node_shader_default(const bContext *C, ID *id)
 
 			if (BKE_scene_use_new_shading_nodes(scene)) {
 				output_type = SH_NODE_OUTPUT_MATERIAL;
-				shader_type = SH_NODE_BSDF_DIFFUSE;
-			}
+                if(strcmp(scene->r.engine, "octane"))
+                    shader_type = SH_NODE_BSDF_DIFFUSE;
+                else
+                    shader_type = SH_NODE_OCT_DIFFUSE_MAT;
+            }
 			else {
 				output_type = SH_NODE_OUTPUT;
 				shader_type = SH_NODE_MATERIAL;

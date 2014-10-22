@@ -52,6 +52,8 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
     Transform itfm  = transform_quick_inverse(tfm);
 
     BL::Object::modifiers_iterator b_mod;
+    size_t hair_points_size = 0, hair_thickness_size = 0, vert_per_hair_size = 0, hair_mat_indices_size = 0, hair_uvs_size = 0;
+
     for(b_ob->modifiers.begin(b_mod); b_mod != b_ob->modifiers.end(); ++b_mod) {
         if(b_mod->type() == b_mod->type_PARTICLE_SYSTEM && (interactive ? b_mod->show_viewport() : b_mod->show_render())) {
             BL::ParticleSystemModifier  psmd((const PointerRNA)b_mod->ptr);
@@ -59,7 +61,6 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
             BL::ParticleSettings        b_part((const PointerRNA)b_psys.settings().ptr);
 
             if(b_part.render_type() == BL::ParticleSettings::render_type_PATH && b_part.type() == BL::ParticleSettings::type_HAIR) {
-                int shader_idx  = clamp(b_part.material() - 1, 0, mesh->used_shaders.size() - 1);
                 int draw_step   = interactive ? b_part.draw_step() : b_part.render_step();
                 int ren_step    = (int)powf(2.0f, (float)draw_step);
                 int totparts    = b_psys.particles.length();
@@ -69,41 +70,65 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                 if(b_part.child_type() == 0)    totcurves += totparts;
                 if(totcurves == 0)              continue;
 
-                PointerRNA  oct_settings    = RNA_pointer_get(&b_part.ptr, "octane");
-                float       root_width      = get_float(oct_settings, "root_width");
-                float       tip_width       = get_float(oct_settings, "tip_width");
-                float       width_step      = (tip_width - root_width) / ren_step;
+                hair_points_size        += totcurves * (ren_step + 1);
+                hair_thickness_size     += totcurves * (ren_step + 1);
+                vert_per_hair_size      += totcurves;
+                hair_mat_indices_size   += totcurves;
+                hair_uvs_size           += totcurves;
+            }
+        }
+    }
+
+    if(hair_points_size == 0 || hair_thickness_size == 0 || vert_per_hair_size == 0 || hair_mat_indices_size == 0 || hair_uvs_size == 0)
+        return true;
+
+    mesh->hair_points.resize(hair_points_size);
+    float3 *hair_points = &mesh->hair_points[0];
+
+    mesh->hair_thickness.resize(hair_thickness_size);
+    float *hair_thickness = &mesh->hair_thickness[0];
+
+    mesh->vert_per_hair.resize(vert_per_hair_size);
+    int *vert_per_hair = &mesh->vert_per_hair[0];
+
+    mesh->hair_mat_indices.resize(hair_mat_indices_size);
+    int *hair_mat_indices = &mesh->hair_mat_indices[0];
+
+    mesh->hair_uvs.resize(hair_uvs_size);
+    float2 *hair_uvs = &mesh->hair_uvs[0];
+
+    for(b_ob->modifiers.begin(b_mod); b_mod != b_ob->modifiers.end(); ++b_mod) {
+        if(b_mod->type() == b_mod->type_PARTICLE_SYSTEM && (interactive ? b_mod->show_viewport() : b_mod->show_render())) {
+            BL::ParticleSystemModifier  psmd((const PointerRNA)b_mod->ptr);
+            BL::ParticleSystem          b_psys((const PointerRNA)psmd.particle_system().ptr);
+            BL::ParticleSettings        b_part((const PointerRNA)b_psys.settings().ptr);
+
+            if(b_part.render_type() == BL::ParticleSettings::render_type_PATH && b_part.type() == BL::ParticleSettings::type_HAIR) {
+                int shader_idx = clamp(b_part.material() - 1, 0, mesh->used_shaders.size() - 1);
+                int draw_step = interactive ? b_part.draw_step() : b_part.render_step();
+                int ren_step = (int)powf(2.0f, (float)draw_step);
+                int totparts = b_psys.particles.length();
+                int totchild = interactive ? (int)((float)b_psys.child_particles.length() * (float)b_part.draw_percentage() / 100.0f) : b_psys.child_particles.length();
+                int totcurves = totchild;
+
+                if(b_part.child_type() == 0)    totcurves += totparts;
+                if(totcurves == 0)              continue;
+
+                PointerRNA  oct_settings = RNA_pointer_get(&b_part.ptr, "octane");
+                float       root_width = get_float(oct_settings, "root_width");
+                float       tip_width = get_float(oct_settings, "tip_width");
+                float       width_step = (tip_width - root_width) / ren_step;
 
                 int pa_no = 0;
                 if(b_part.child_type() != 0) pa_no = totparts;
-
-                size_t cur_size = mesh->hair_points.size();
-                mesh->hair_points.resize(cur_size + totcurves * (ren_step + 1));
-                float3 *hair_points = &mesh->hair_points[cur_size];
-
-                cur_size = mesh->hair_thickness.size();
-                mesh->hair_thickness.resize(cur_size + totcurves * (ren_step + 1));
-                float *hair_thickness = &mesh->hair_thickness[cur_size];
-
-                cur_size = mesh->vert_per_hair.size();
-                mesh->vert_per_hair.resize(cur_size + totcurves);
-                int *vert_per_hair = &mesh->vert_per_hair[cur_size];
-
-                cur_size = mesh->hair_mat_indices.size();
-                mesh->hair_mat_indices.resize(cur_size + totcurves);
-                int *hair_mat_indices = &mesh->hair_mat_indices[cur_size];
-
-                cur_size = mesh->hair_uvs.size();
-                mesh->hair_uvs.resize(cur_size + totcurves);
-                float2 *hair_uvs = &mesh->hair_uvs[cur_size];
 
                 BL::ParticleSystem::particles_iterator b_pa;
                 b_psys.particles.begin(b_pa);
 
                 for(; pa_no < (totparts + totchild); ++pa_no) {
                     float3  prev_point;
-                    int     vert_cnt        = 0;
-                    float   cur_width       = root_width;
+                    int     vert_cnt = 0;
+                    float   cur_width = root_width;
 
                     for(int step_no = 0; step_no <= ren_step; step_no++) {
                         float nco[3];
@@ -114,8 +139,8 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                             float step_length = len(cur_point - prev_point);
                             if(step_length == 0.0f) continue;
                         }
-                        hair_points[cur_vertex_idx]     = cur_point;
-                        hair_thickness[cur_vertex_idx]  = cur_width;
+                        hair_points[cur_vertex_idx] = cur_point;
+                        hair_thickness[cur_vertex_idx] = cur_width;
                         cur_width += width_step;
 
                         prev_point = cur_point;
@@ -123,8 +148,8 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                         ++vert_cnt;
                     }
 
-                    vert_per_hair[cur_hair_idx]     = vert_cnt;
-                    hair_mat_indices[cur_hair_idx]  = shader_idx;
+                    vert_per_hair[cur_hair_idx] = vert_cnt;
+                    hair_mat_indices[cur_hair_idx] = shader_idx;
 
                     // Add UVs
                     BL::Mesh::tessface_uv_textures_iterator l;

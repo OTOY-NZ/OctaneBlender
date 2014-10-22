@@ -391,18 +391,25 @@ endif()
 
 if(UNIX AND NOT APPLE)
 
-	install(
-		CODE
-		"
-		execute_process(COMMAND
-		                \"${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py\"
-		                \"${TARGETDIR}/blender\"
-		                \"${TARGETDIR}/blender.1\")
-		"
-	)
+	if(NOT WITH_PYTHON_MODULE)
+		install(
+			CODE
+			"
+			execute_process(COMMAND
+							\"${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py\"
+							\"${TARGETDIR}/blender\"
+							\"${TARGETDIR}/blender.1\")
+			"
+		)
+	endif()
 
 	# there are a few differences between portable and system install
 	if(WITH_INSTALL_PORTABLE)
+		install(
+			FILES ${TARGETDIR}/blender.1
+			DESTINATION ${TARGETDIR}
+		)
+
 		install(
 			FILES
 				${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
@@ -433,6 +440,11 @@ if(UNIX AND NOT APPLE)
 			install(
 				PROGRAMS ${TARGETDIR}/blender
 				DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+			)
+			# manpage only with 'blender' binary
+			install(
+				FILES ${TARGETDIR}/blender.1
+				DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
 			)
 		endif()
 
@@ -467,10 +479,6 @@ if(UNIX AND NOT APPLE)
 		install(
 			PROGRAMS ${CMAKE_SOURCE_DIR}/release/bin/blender-thumbnailer.py
 			DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-		)
-		install(
-			FILES ${TARGETDIR}/blender.1
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
 		)
 		install(
 			FILES ${BLENDER_TEXT_FILES}
@@ -597,13 +605,13 @@ elseif(WIN32)
 		string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 
 		install(
-			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll
+			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll ${LIBDIR}/python/lib/sqlite3.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
 		)
 
 		install(
-			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll
+			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll ${LIBDIR}/python/lib/sqlite3_d.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Debug
 		)
@@ -942,7 +950,7 @@ if(WIN32 AND NOT WITH_PYTHON_MODULE)
 		../icons/winblender.rc
 	)
 	add_executable(blender-launcher ${LAUNCHER_SRC})
-	target_link_libraries(blender-launcher ${PLATFORM_LINKLIBS})
+	target_link_libraries(blender-launcher bf_intern_utfconv ${PLATFORM_LINKLIBS})
 
 	set_target_properties(blender PROPERTIES OUTPUT_NAME blender-app)
 	set_target_properties(blender-launcher PROPERTIES OUTPUT_NAME blender)

@@ -169,8 +169,6 @@ void BlenderSync::get_camera_border(Camera *cam, BL::SpaceView3D b_v3d, BL::Regi
         BL::Object b_ob = (b_v3d.lock_camera_and_layers()) ? b_scene.camera() : b_v3d.camera();
         if(!b_ob) return;
 
-        BoundBox2D orig_border(r.border_min_x(), r.border_max_x(), r.border_min_y(), r.border_max_y());
-
         float aspectratio, xaspect, yaspect;
         bool horizontal_fit;
 
@@ -196,13 +194,13 @@ void BlenderSync::get_camera_border(Camera *cam, BL::SpaceView3D b_v3d, BL::Regi
         BoundBox2D view_box(-xaspect, xaspect, -yaspect, yaspect);
         view_box = view_box * cam->zoom;
 
-        float dx = 2.0f * (aspectratio * cam->lens_shift_x + cam->offset_x * xaspect * 2.0f);
-        float dy = 2.0f * (aspectratio * cam->lens_shift_y + cam->offset_y * yaspect * 2.0f);
+        //float view_dx = 2.0f * (aspectratio * cam->lens_shift_x + cam->offset_x * xaspect * 2.0f);
+        //float view_dy = 2.0f * (aspectratio * cam->lens_shift_y + cam->offset_y * yaspect * 2.0f);
 
-        view_box.left   += dx;
-        view_box.right  += dx;
-        view_box.bottom += dy;
-        view_box.top    += dy;
+        //view_box.left   += view_dx;
+        //view_box.right  += view_dx;
+        //view_box.bottom += view_dy;
+        //view_box.top    += view_dy;
         view_box = view_box  / aspectratio;
 
         // Get camera plane
@@ -229,17 +227,18 @@ void BlenderSync::get_camera_border(Camera *cam, BL::SpaceView3D b_v3d, BL::Regi
 
         BoundBox2D cam_box(-xaspect, xaspect, -yaspect, yaspect);
 
-        dx = 2.0f * aspectratio * b_camera.shift_x();
-        dy = 2.0f * aspectratio * b_camera.shift_y();
+        //float cam_dx = 2.0f * aspectratio * b_camera.shift_x();
+        //float cam_dy = 2.0f * aspectratio * b_camera.shift_y();
 
-        cam_box.left    += dx;
-        cam_box.right   += dx;
-        cam_box.bottom  += dy;
-        cam_box.top     += dy;
+        //cam_box.left    += cam_dx;
+        //cam_box.right   += cam_dx;
+        //cam_box.bottom  += cam_dy;
+        //cam_box.top     += cam_dy;
         cam_box = cam_box / aspectratio;
 
         // Get render region
         cam_box = cam_box.make_relative_to(view_box);
+        BoundBox2D orig_border(r.border_min_x(), r.border_max_x(), r.border_min_y(), r.border_max_y());
         BoundBox2D border = cam_box.subset(orig_border).clamp();
 
         cam->border.x = (uint32_t)(border.left * (float)width);

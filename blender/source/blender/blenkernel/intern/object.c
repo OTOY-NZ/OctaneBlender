@@ -42,6 +42,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
+#include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
@@ -873,9 +874,9 @@ bool BKE_object_is_in_wpaint_select_vert(Object *ob)
 {
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
-		return ( (ob->mode & OB_MODE_WEIGHT_PAINT) &&
-		         (me->edit_btmesh == NULL) &&
-		         (ME_EDIT_PAINT_SEL_MODE(me) == SCE_SELECT_VERTEX) );
+		return ((ob->mode & OB_MODE_WEIGHT_PAINT) &&
+		        (me->edit_btmesh == NULL) &&
+		        (ME_EDIT_PAINT_SEL_MODE(me) == SCE_SELECT_VERTEX));
 	}
 
 	return false;
@@ -1526,6 +1527,18 @@ Object *BKE_object_copy(Object *ob)
 	return BKE_object_copy_ex(G.main, ob, false);
 }
 
+static void extern_local_object__modifiersForeachIDLink(
+        void *UNUSED(userData), Object *UNUSED(ob),
+        ID **idpoin)
+{
+	if (*idpoin) {
+		/* intentionally omit ID_OB */
+		if (ELEM(GS((*idpoin)->name), ID_IM, ID_TE)) {
+			id_lib_extern(*idpoin);
+		}
+	}
+}
+
 static void extern_local_object(Object *ob)
 {
 	ParticleSystem *psys;
@@ -1539,6 +1552,8 @@ static void extern_local_object(Object *ob)
 
 	for (psys = ob->particlesystem.first; psys; psys = psys->next)
 		id_lib_extern((ID *)psys->part);
+
+	modifiers_foreachIDLink(ob, extern_local_object__modifiersForeachIDLink, NULL);
 }
 
 void BKE_object_make_local(Object *ob)
@@ -1778,6 +1793,55 @@ void BKE_object_make_proxy(Object *ob, Object *target, Object *gob)
 	ob->dt = target->dt;
 }
 
+/**
+ * Use with newly created objects to set their size
+ * (used to apply scene-scale).
+ */
+void BKE_object_obdata_size_init(struct Object *ob, const float size)
+{
+	/* apply radius as a scale to types that support it */
+	switch (ob->type) {
+		case OB_EMPTY:
+		{
+			ob->empty_drawsize *= size;
+			break;
+		}
+		case OB_FONT:
+		{
+			Curve *cu = ob->data;
+			cu->fsize *= size;
+			break;
+		}
+		case OB_CAMERA:
+		{
+			Camera *cam = ob->data;
+			cam->drawsize *= size;
+			break;
+		}
+		case OB_LAMP:
+		{
+			Lamp *lamp = ob->data;
+			lamp->dist *= size;
+			lamp->area_size  *= size;
+			lamp->area_sizey *= size;
+			lamp->area_sizez *= size;
+			break;
+		}
+		/* Only lattice (not mesh, curve, mball...),
+		 * because its got data when newly added */
+		case OB_LATTICE:
+		{
+			struct Lattice *lt = ob->data;
+			float mat[4][4];
+
+			unit_m4(mat);
+			scale_m4_fl(mat, size);
+
+			BKE_lattice_transform(lt, (float (*)[4])mat, false);
+			break;
+		}
+	}
+}
 
 /* *************** CALC ****************** */
 
@@ -2292,7 +2356,7 @@ static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat
 	int a;
 
 	/* include framerate */
-	fac1 = (1.0f / (1.0f + fabsf(ob->sf)) );
+	fac1 = (1.0f / (1.0f + fabsf(ob->sf)));
 	if (fac1 >= 1.0f) return 0;
 	fac2 = 1.0f - fac1;
 

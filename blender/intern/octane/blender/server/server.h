@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 6
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 1
+#   define OCTANE_SERVER_MINOR_VERSION 3
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -72,6 +72,7 @@
 #include "util_types.h"
 #include "util_lists.h"
 #include "util_progress.h"
+#include "blender_util.h"
 #include <OpenImageIO/ustring.h>
 
 #include "nodes.h"
@@ -159,8 +160,11 @@ enum PacketType {
     LOAD_MIX_TEXTURE,
     LOAD_MULTIPLY_TEXTURE,
     LOAD_IMAGE_TEXTURE,
+    LOAD_IMAGE_TEXTURE_DATA,
     LOAD_ALPHA_IMAGE_TEXTURE,
+    LOAD_ALPHA_IMAGE_TEXTURE_DATA,
     LOAD_FLOAT_IMAGE_TEXTURE,
+    LOAD_FLOAT_IMAGE_TEXTURE_DATA,
     LOAD_FALLOFF_TEXTURE,
     LOAD_COLOR_CORRECT_TEXTURE,
     LOAD_DIRT_TEXTURE,
@@ -711,6 +715,7 @@ class RenderServer {
     int32_t     cur_w, cur_h, cur_reg_w, cur_reg_h;
     uint32_t    m_Export_alembic;
     bool        m_bInteractive;
+    bool        unpacked_msg;
 
 protected:
 	RenderServer() {}
@@ -855,6 +860,8 @@ public:
     inline void reset(uint32_t GPUs) {
         if(socket < 0) return;
 
+        unpacked_msg = false;
+
         thread_scoped_lock socket_lock(socket_mutex);
 
         int path_len = m_Export_alembic ? strlen(out_path) : 0;
@@ -877,6 +884,8 @@ public:
     // Clear the server project.
     inline void clear() {
         if(socket < 0) return;
+
+        unpacked_msg = false;
 
         thread_scoped_lock socket_lock(socket_mutex);
 
@@ -1140,7 +1149,12 @@ public:
 
         {
             RPCSend snd(socket, sizeof(uint32_t) * 4, LOAD_RENDER_REGION);
-            snd << cam->border.x << cam->border.y << cam->border.z << cam->border.w;
+            if(cam->use_border)
+                snd << cam->border.x << cam->border.y << cam->border.z << cam->border.w;
+            else {
+                uint32_t tmp = 0;
+                snd << tmp << tmp << tmp << tmp;
+            }
             snd.write();
         }
 
@@ -1938,37 +1952,69 @@ public:
     inline void load_image_tex(OctaneImageTexture* node) {
         if(socket < 0) return;
 
-        uint64_t mod_time = get_file_time(node->FileName);
-        string file_name  = get_file_name(node->FileName);
+        void *pixels = 0;
+        bool is_float;
+        int32_t width, height, depth, components, img_size;
+        if(node->builtin_data) {
+            builtin_image_info(node->FileName, node->builtin_data, is_float, width, height, depth, components);
 
-        uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
-            + file_name.length() + 2
-            + node->Power.length() + 2
-            + node->Projection.length() + 2
-            + node->Transform.length() + 2
-            + node->Gamma.length() + 2
-            + node->BorderMode.length() + 2;
-
-        thread_scoped_lock socket_lock(socket_mutex);
-
-        {
-            RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
-            snd << mod_time << node->Power_default_val << node->Gamma_default_val
-                << node->BorderMode_default_val << node->Invert
-                << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
-            snd.write();
+            if(components == 1 || components == 4) {
+                img_size = width * height * components;
+                if(is_float) {
+                    pixels = new float[img_size];
+                    builtin_image_float_pixels(node->FileName, node->builtin_data, (float*)pixels);
+                }
+                else {
+                    pixels = new uint8_t[img_size];
+                    builtin_image_pixels(node->FileName, node->builtin_data, (uint8_t*)pixels);
+                }
+            }
         }
 
-        bool file_is_needed;
-        {
-            RPCReceive rcv(socket);
-            if(rcv.type != LOAD_IMAGE_TEXTURE)
-                file_is_needed = true;
-            else
-                file_is_needed = false;
-        }
+        if(pixels) {
+            if(!unpacked_msg) {
+                unpacked_msg = true;
+                fprintf(stderr, "Octane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server\n");
+            }
 
-        if(file_is_needed && send_file(node->FileName, file_name)) {
+            uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 6 + img_size * (is_float ? sizeof(float) : 1)
+                + node->Power.length() + 2
+                + node->Projection.length() + 2
+                + node->Transform.length() + 2
+                + node->Gamma.length() + 2
+                + node->BorderMode.length() + 2;
+
+            thread_scoped_lock socket_lock(socket_mutex);
+
+            {
+                RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE_DATA, node->name.c_str());
+                snd << node->Power_default_val << node->Gamma_default_val
+                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert
+                    << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                if(is_float)
+                    snd.write_buffer(pixels, img_size * sizeof(float));
+                else
+                    snd.write_buffer(pixels, img_size);
+                snd.write();
+            }
+            delete[] pixels;
+
+            wait_error(LOAD_IMAGE_TEXTURE_DATA);
+        }
+        else {
+            uint64_t mod_time = get_file_time(node->FileName);
+            string file_name  = get_file_name(node->FileName);
+
+            uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
+                + file_name.length() + 2
+                + node->Power.length() + 2
+                + node->Projection.length() + 2
+                + node->Transform.length() + 2
+                + node->Gamma.length() + 2
+                + node->BorderMode.length() + 2;
+
+            thread_scoped_lock socket_lock(socket_mutex);
+
             {
                 RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
                 snd << mod_time << node->Power_default_val << node->Gamma_default_val
@@ -1976,13 +2022,32 @@ public:
                     << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();
             }
+
+            bool file_is_needed;
             {
                 RPCReceive rcv(socket);
-                if(rcv.type != LOAD_IMAGE_TEXTURE) {
-                    rcv >> error_msg;
-                    fprintf(stderr, "Octane: ERROR loading image texture.");
-                    if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
-                    else fprintf(stderr, "\n");
+                if(rcv.type != LOAD_IMAGE_TEXTURE)
+                    file_is_needed = true;
+                else
+                    file_is_needed = false;
+            }
+
+            if(file_is_needed && send_file(node->FileName, file_name)) {
+                {
+                    RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE, node->name.c_str());
+                    snd << mod_time << node->Power_default_val << node->Gamma_default_val
+                        << node->BorderMode_default_val << node->Invert
+                        << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                    snd.write();
+                }
+                {
+                    RPCReceive rcv(socket);
+                    if(rcv.type != LOAD_IMAGE_TEXTURE) {
+                        rcv >> error_msg;
+                        fprintf(stderr, "Octane: ERROR loading image texture.");
+                        if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                        else fprintf(stderr, "\n");
+                    }
                 }
             }
         }
@@ -1991,37 +2056,69 @@ public:
     inline void load_float_image_tex(OctaneFloatImageTexture* node) {
         if(socket < 0) return;
 
-        uint64_t mod_time = get_file_time(node->FileName);
-        string file_name  = get_file_name(node->FileName);
+        void *pixels = 0;
+        bool is_float;
+        int32_t width, height, depth, components, img_size;
+        if(node->builtin_data) {
+            builtin_image_info(node->FileName, node->builtin_data, is_float, width, height, depth, components);
 
-        uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
-            + file_name.length() + 2
-            + node->Power.length() + 2
-            + node->Projection.length() + 2
-            + node->Transform.length() + 2
-            + node->Gamma.length() + 2
-            + node->BorderMode.length() + 2;
-
-        thread_scoped_lock socket_lock(socket_mutex);
-
-        {
-            RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
-            snd << mod_time << node->Power_default_val << node->Gamma_default_val
-                << node->BorderMode_default_val << node->Invert
-                << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
-            snd.write();
+            if(components == 1 || components == 4) {
+                img_size = width * height * components;
+                if(is_float) {
+                    pixels = new float[img_size];
+                    builtin_image_float_pixels(node->FileName, node->builtin_data, (float*)pixels);
+                }
+                else {
+                    pixels = new uint8_t[img_size];
+                    builtin_image_pixels(node->FileName, node->builtin_data, (uint8_t*)pixels);
+                }
+            }
         }
 
-        bool file_is_needed;
-        {
-            RPCReceive rcv(socket);
-            if(rcv.type != LOAD_FLOAT_IMAGE_TEXTURE)
-                file_is_needed = true;
-            else
-                file_is_needed = false;
-        }
+        if(pixels) {
+            if(!unpacked_msg) {
+                unpacked_msg = true;
+                fprintf(stderr, "Octane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server\n");
+            }
 
-        if(file_is_needed && send_file(node->FileName, file_name)) {
+            uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 6 + img_size * (is_float ? sizeof(float) : 1)
+                + node->Power.length() + 2
+                + node->Projection.length() + 2
+                + node->Transform.length() + 2
+                + node->Gamma.length() + 2
+                + node->BorderMode.length() + 2;
+
+            thread_scoped_lock socket_lock(socket_mutex);
+
+            {
+                RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE_DATA, node->name.c_str());
+                snd << node->Power_default_val << node->Gamma_default_val
+                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert
+                    << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                if(is_float)
+                    snd.write_buffer(pixels, img_size * sizeof(float));
+                else
+                    snd.write_buffer(pixels, img_size);
+                snd.write();
+            }
+            delete[] pixels;
+
+            wait_error(LOAD_FLOAT_IMAGE_TEXTURE_DATA);
+        }
+        else {
+            uint64_t mod_time = get_file_time(node->FileName);
+            string file_name  = get_file_name(node->FileName);
+
+            uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
+                + file_name.length() + 2
+                + node->Power.length() + 2
+                + node->Projection.length() + 2
+                + node->Transform.length() + 2
+                + node->Gamma.length() + 2
+                + node->BorderMode.length() + 2;
+
+            thread_scoped_lock socket_lock(socket_mutex);
+
             {
                 RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
                 snd << mod_time << node->Power_default_val << node->Gamma_default_val
@@ -2029,13 +2126,32 @@ public:
                     << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();
             }
+
+            bool file_is_needed;
             {
                 RPCReceive rcv(socket);
-                if(rcv.type != LOAD_FLOAT_IMAGE_TEXTURE) {
-                    rcv >> error_msg;
-                    fprintf(stderr, "Octane: ERROR loading float image texture.");
-                    if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
-                    else fprintf(stderr, "\n");
+                if(rcv.type != LOAD_FLOAT_IMAGE_TEXTURE)
+                    file_is_needed = true;
+                else
+                    file_is_needed = false;
+            }
+
+            if(file_is_needed && send_file(node->FileName, file_name)) {
+                {
+                    RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE, node->name.c_str());
+                    snd << mod_time << node->Power_default_val << node->Gamma_default_val
+                        << node->BorderMode_default_val << node->Invert
+                        << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                    snd.write();
+                }
+                {
+                    RPCReceive rcv(socket);
+                    if(rcv.type != LOAD_FLOAT_IMAGE_TEXTURE) {
+                        rcv >> error_msg;
+                        fprintf(stderr, "Octane: ERROR loading float image texture.");
+                        if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                        else fprintf(stderr, "\n");
+                    }
                 }
             }
         }
@@ -2044,37 +2160,69 @@ public:
     inline void load_alpha_image_tex(OctaneAlphaImageTexture* node) {
         if(socket < 0) return;
 
-        uint64_t mod_time = get_file_time(node->FileName);
-        string file_name  = get_file_name(node->FileName);
+        void *pixels = 0;
+        bool is_float;
+        int32_t width, height, depth, components, img_size;
+        if(node->builtin_data) {
+            builtin_image_info(node->FileName, node->builtin_data, is_float, width, height, depth, components);
 
-        uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
-            + file_name.length() + 2
-            + node->Power.length() + 2
-            + node->Projection.length() + 2
-            + node->Transform.length() + 2
-            + node->Gamma.length() + 2
-            + node->BorderMode.length() + 2;
-
-        thread_scoped_lock socket_lock(socket_mutex);
-
-        {
-            RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
-            snd << mod_time << node->Power_default_val << node->Gamma_default_val
-                << node->BorderMode_default_val << node->Invert
-                << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
-            snd.write();
+            if(components == 1 || components == 4) {
+                img_size = width * height * components;
+                if(is_float) {
+                    pixels = new float[img_size];
+                    builtin_image_float_pixels(node->FileName, node->builtin_data, (float*)pixels);
+                }
+                else {
+                    pixels = new uint8_t[img_size];
+                    builtin_image_pixels(node->FileName, node->builtin_data, (uint8_t*)pixels);
+                }
+            }
         }
 
-        bool file_is_needed;
-        {
-            RPCReceive rcv(socket);
-            if(rcv.type != LOAD_ALPHA_IMAGE_TEXTURE)
-                file_is_needed = true;
-            else
-                file_is_needed = false;
-        }
+        if(pixels) {
+            if(!unpacked_msg) {
+                unpacked_msg = true;
+                fprintf(stderr, "Octane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server\n");
+            }
 
-        if(file_is_needed && send_file(node->FileName, file_name)) {
+            uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 6 + img_size * (is_float ? sizeof(float) : 1)
+                + node->Power.length() + 2
+                + node->Projection.length() + 2
+                + node->Transform.length() + 2
+                + node->Gamma.length() + 2
+                + node->BorderMode.length() + 2;
+
+            thread_scoped_lock socket_lock(socket_mutex);
+
+            {
+                RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE_DATA, node->name.c_str());
+                snd << node->Power_default_val << node->Gamma_default_val
+                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert
+                    << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                if(is_float)
+                    snd.write_buffer(pixels, img_size * sizeof(float));
+                else
+                    snd.write_buffer(pixels, img_size);
+                snd.write();
+            }
+            delete[] pixels;
+
+            wait_error(LOAD_ALPHA_IMAGE_TEXTURE_DATA);
+        }
+        else {
+            uint64_t mod_time = get_file_time(node->FileName);
+            string file_name  = get_file_name(node->FileName);
+
+            uint64_t size = sizeof(uint64_t) + sizeof(float) * 2 + sizeof(int32_t) * 2
+                + file_name.length() + 2
+                + node->Power.length() + 2
+                + node->Projection.length() + 2
+                + node->Transform.length() + 2
+                + node->Gamma.length() + 2
+                + node->BorderMode.length() + 2;
+
+            thread_scoped_lock socket_lock(socket_mutex);
+
             {
                 RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
                 snd << mod_time << node->Power_default_val << node->Gamma_default_val
@@ -2082,13 +2230,32 @@ public:
                     << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();
             }
+
+            bool file_is_needed;
             {
                 RPCReceive rcv(socket);
-                if(rcv.type != LOAD_ALPHA_IMAGE_TEXTURE) {
-                    rcv >> error_msg;
-                    fprintf(stderr, "Octane: ERROR loading alpha image texture.");
-                    if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
-                    else fprintf(stderr, "\n");
+                if(rcv.type != LOAD_ALPHA_IMAGE_TEXTURE)
+                    file_is_needed = true;
+                else
+                    file_is_needed = false;
+            }
+
+            if(file_is_needed && send_file(node->FileName, file_name)) {
+                {
+                    RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE, node->name.c_str());
+                    snd << mod_time << node->Power_default_val << node->Gamma_default_val
+                        << node->BorderMode_default_val << node->Invert
+                        << node->Gamma.c_str() << node->BorderMode.c_str() << file_name.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                    snd.write();
+                }
+                {
+                    RPCReceive rcv(socket);
+                    if(rcv.type != LOAD_ALPHA_IMAGE_TEXTURE) {
+                        rcv >> error_msg;
+                        fprintf(stderr, "Octane: ERROR loading alpha image texture.");
+                        if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+                        else fprintf(stderr, "\n");
+                    }
                 }
             }
         }
@@ -2729,6 +2896,146 @@ public:
 
 	static RenderServer*        create(RenderServerInfo& info, bool export_alembic, const char *_out_path, bool interactive = false);
     static RenderServerInfo&    get_info(void);
+
+private:
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    inline int builtin_image_frame(const string &builtin_name) {
+        int last = builtin_name.find_last_of('@');
+        return atoi(builtin_name.substr(last + 1, builtin_name.size() - last - 1).c_str());
+    } //builtin_image_frame()
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    inline void builtin_image_info(const string &builtin_name, void *builtin_data, bool &is_float, int &width, int &height, int &depth, int &channels) {
+        /* empty image */
+        is_float = false;
+        width = 0;
+        height = 0;
+        depth = 0;
+        channels = 0;
+
+        if(!builtin_data)
+            return;
+
+        /* recover ID pointer */
+        PointerRNA ptr;
+        RNA_id_pointer_create((ID*)builtin_data, &ptr);
+        BL::ID b_id(ptr);
+
+        if(b_id.is_a(&RNA_Image)) {
+            /* image data */
+            BL::Image b_image(b_id);
+
+            is_float = b_image.is_float();
+            width = b_image.size()[0];
+            height = b_image.size()[1];
+            depth = b_image.depth();
+            channels = b_image.channels();
+        }
+    } //builtin_image_info()
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    inline bool builtin_image_pixels(const string &builtin_name, void *builtin_data, unsigned char *pixels) {
+        if(!builtin_data)
+            return false;
+
+        int frame = builtin_image_frame(builtin_name);
+
+        PointerRNA ptr;
+        RNA_id_pointer_create((ID*)builtin_data, &ptr);
+        BL::Image b_image(ptr);
+
+        int width = b_image.size()[0];
+        int height = b_image.size()[1];
+        int channels = b_image.channels();
+
+        unsigned char *image_pixels;
+        image_pixels = image_get_pixels_for_frame(b_image, frame);
+
+        if(image_pixels) {
+            memcpy(pixels, image_pixels, width * height * channels * sizeof(unsigned char));
+            MEM_freeN(image_pixels);
+        }
+        else {
+            if(channels == 1) {
+                memset(pixels, 0, width * height * sizeof(unsigned char));
+            }
+            else {
+                unsigned char *cp = pixels;
+                for(int i = 0; i < width * height; i++, cp += channels) {
+                    cp[0] = 255;
+                    cp[1] = 0;
+                    cp[2] = 255;
+                    if(channels == 4)
+                        cp[3] = 255;
+                }
+            }
+        }
+
+        /* premultiply, byte images are always straight for blender */
+        unsigned char *cp = pixels;
+        for(int i = 0; i < width * height; i++, cp += channels) {
+            cp[0] = (cp[0] * cp[3]) >> 8;
+            cp[1] = (cp[1] * cp[3]) >> 8;
+            cp[2] = (cp[2] * cp[3]) >> 8;
+        }
+
+        return true;
+    } //builtin_image_pixels()
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    inline bool builtin_image_float_pixels(const string &builtin_name, void *builtin_data, float *pixels) {
+        if(!builtin_data)
+            return false;
+
+        PointerRNA ptr;
+        RNA_id_pointer_create((ID*)builtin_data, &ptr);
+        BL::ID b_id(ptr);
+
+        if(b_id.is_a(&RNA_Image)) {
+            /* image data */
+            BL::Image b_image(b_id);
+            int frame = builtin_image_frame(builtin_name);
+
+            int width = b_image.size()[0];
+            int height = b_image.size()[1];
+            int channels = b_image.channels();
+
+            float *image_pixels;
+            image_pixels = image_get_float_pixels_for_frame(b_image, frame);
+
+            if(image_pixels) {
+                memcpy(pixels, image_pixels, width * height * channels * sizeof(float));
+                MEM_freeN(image_pixels);
+            }
+            else {
+                if(channels == 1) {
+                    memset(pixels, 0, width * height * sizeof(float));
+                }
+                else {
+                    float *fp = pixels;
+                    for(int i = 0; i < width * height; i++, fp += channels) {
+                        fp[0] = 1.0f;
+                        fp[1] = 0.0f;
+                        fp[2] = 1.0f;
+                        if(channels == 4)
+                            fp[3] = 1.0f;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        return false;
+    } //builtin_image_float_pixels()
 }; //RenderServer
 
 OCT_NAMESPACE_END

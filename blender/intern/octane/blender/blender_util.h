@@ -78,16 +78,16 @@ static inline string image_user_file_path(BL::ImageUser iuser, BL::Image ima, in
 }
 
 static inline int image_user_frame_number(BL::ImageUser iuser, int cfra) {
-	BKE_image_user_frame_calc(iuser.ptr.data, cfra, 0);
-	return iuser.frame_current();
+    BKE_image_user_frame_calc(iuser.ptr.data, cfra, 0);
+    return iuser.frame_current();
 }
 
 static inline unsigned char *image_get_pixels_for_frame(BL::Image image, int frame) {
-	return BKE_image_get_pixels_for_frame(image.ptr.data, frame);
+    return BKE_image_get_pixels_for_frame(image.ptr.data, frame);
 }
 
 static inline float *image_get_float_pixels_for_frame(BL::Image image, int frame) {
-	return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame);
+    return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

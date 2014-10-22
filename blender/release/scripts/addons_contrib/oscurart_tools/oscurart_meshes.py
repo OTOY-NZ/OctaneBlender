@@ -48,6 +48,10 @@ class reConst (bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
     OFFSET=bpy.props.FloatProperty(name="Offset", default=0.001, min=-0, max=0.1)
 
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
     def execute(self,context):
         defReconst(self, self.OFFSET)
         return {'FINISHED'}
@@ -78,6 +82,10 @@ class SelectMenor (bpy.types.Operator):
     bl_label = "Select Side"
     bl_options = {"REGISTER", "UNDO"}
 
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
     side = bpy.props.BoolProperty(name="Greater than zero", default=False)
     offset = bpy.props.FloatProperty(name="Offset", default=0)
     def execute(self,context):
@@ -94,7 +102,12 @@ class SelectMenor (bpy.types.Operator):
 class resymVertexGroups (bpy.types.Operator):
     bl_idname = "mesh.resym_vertex_weights_osc"
     bl_label = "Resym Vertex Weights"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}    
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+    
     def execute(self,context):
 
         with open("%s_%s_SYM_TEMPLATE.xml" % (os.path.join(os.path.dirname(bpy.data.filepath),bpy.context.scene.name),bpy.context.object.name)) as file:
@@ -118,6 +131,11 @@ class OscExportVG (bpy.types.Operator):
     bl_idname = "file.export_groups_osc"
     bl_label = "Export Groups"
     bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+    
     def execute(self,context):
         
         ob = bpy.context.object
@@ -138,6 +156,11 @@ class OscImportVG (bpy.types.Operator):
     bl_idname = "file.import_groups_osc"
     bl_label = "Import Groups"
     bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None   
+    
     def execute(self,context):
         
         ob = bpy.context.object    
@@ -224,6 +247,10 @@ class OscResymSave (bpy.types.Operator):
     bl_label = "Resym save XML Map"
     bl_options = {"REGISTER", "UNDO"}
 
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
     quality = bpy.props.IntProperty(default=4, name="Quality")
     
     def execute (self, context):
@@ -234,6 +261,10 @@ class OscResymMesh (bpy.types.Operator):
     bl_idname = "mesh.resym_mesh"
     bl_label = "Resym save Apply XML"
     bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
 
     selected=bpy.props.BoolProperty(default=False, name="Only Selected")
     
@@ -265,7 +296,7 @@ class OscObjectToMesh(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return True if context.active_object is not None and context.object.type == "MESH" else False
+        return context.active_object is not None
 
     def execute(self, context):
         DefOscObjectToMesh()
@@ -290,21 +321,31 @@ def DefOscOverlapUv(valpresicion):
     for vert in ob.data.loops:
         vertvertex.setdefault(vert.vertex_index,[]).append(vert.index)
 
+    vertexvert = {}
+    for vertex in ob.data.loops:
+        vertexvert[vertex.index]=vertex.vertex_index  
+
     # posicion de cada vertice y cada face 
     vertloc = { rounder(vert.co[:]) : vert for vert in ob.data.vertices} 
     faceloc = { rounder(poly.center[:]) : poly for poly in ob.data.polygons} 
 
     # relativo de cada vertice y cada face
-    verteq = {vert : vertloc.get(absco(co),vertloc[co]) for co,vert in vertloc.items() if co[0] <= 0}    
+    verteq = {vert : vertloc.get(absco(co),vertloc[co]) for co,vert in vertloc.items() if co[0] <= 0}  
+    verteqind = {vert.index : vertloc.get(absco(co),vertloc[co]).index for co,vert in vertloc.items() if co[0] <= 0}     
     polyeq = {face : faceloc.get(absco(center),faceloc[center]) for center,face in faceloc.items() if center[0] <= 0}  
 
     # loops in faces
     lif = {poly : [i for i in poly.loop_indices] for poly in ob.data.polygons}
 
     # acomoda
+    vertexeq = {}
     for l, r in polyeq.items():
-        for llif,rlif in zip(lif[l],lif[r]):
-            ob.data.uv_layers.active.data[rlif].uv = ob.data.uv_layers.active.data[llif].uv
+        if l.select:
+            for lloop in lif[l]:
+                for rloop in lif[r]:
+                    #lloop,verteq[vertexvert[lloop]],rloop,vertexvert[rloop]
+                    if verteqind[vertexvert[lloop]] == vertexvert[rloop] and ob.data.uv_layers.active.data[rloop].select:
+                        ob.data.uv_layers.active.data[lloop].uv = ob.data.uv_layers.active.data[rloop].uv
 
     bpy.ops.object.mode_set(mode=mode, toggle=False) 
    
@@ -316,6 +357,10 @@ class OscOverlapUv(bpy.types.Operator):
     bl_idname = "mesh.overlap_uv_faces"
     bl_label = "Overlap Uvs"
     bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
     
     presicion = bpy.props.IntProperty(default=4, min=1, max=10, name="precision" )
     
@@ -342,6 +387,10 @@ class OscExportVC (bpy.types.Operator):
     bl_label = "Export Vertex Colors"
     bl_options = {"REGISTER", "UNDO"}
 
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
     def execute(self, context):
         DefOscExportVC()
         return {'FINISHED'}    
@@ -350,6 +399,10 @@ class OscImportVC (bpy.types.Operator):
     bl_idname = "mesh.import_vertex_colors"
     bl_label = "Import Vertex Colors"
     bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
 
     def execute(self, context):
         DefOscImportVC()
@@ -375,7 +428,7 @@ class ModalIndexOperator(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return True if context.active_object is not None and context.object.type == "MESH" else False
+        return context.active_object is not None
     
     def modal(self, context, event):
         context.area.tag_redraw()        
@@ -409,6 +462,16 @@ class ModalIndexOperator(bpy.types.Operator):
             self.report({"WARNING"}, "Is not a 3D Space")
             return {'CANCELLED'}
                 
+
+
+
+
+
+
+
+
+
+
 
 
 

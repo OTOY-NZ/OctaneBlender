@@ -10,7 +10,7 @@ Environment
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
+# Copyright (c) 2001 - 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -31,7 +31,7 @@ Environment
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__revision__ = "src/engine/SCons/Environment.py  2014/03/02 14:18:15 garyo"
+__revision__ = "src/engine/SCons/Environment.py  2014/07/05 09:42:21 garyo"
 
 
 import copy
@@ -1803,8 +1803,8 @@ class Base(SubstitutionEnvironment):
                 pass
         elif SCons.Util.is_String(pathext):
             pathext = self.subst(pathext)
-        prog = self.subst(prog)
-        path = SCons.Util.WhereIs(prog, path, pathext, reject)
+        prog = SCons.Util.CLVar(self.subst(prog)) # support "program --with-args"
+        path = SCons.Util.WhereIs(prog[0], path, pathext, reject)
         if path: return path
         return None
 
@@ -2149,7 +2149,7 @@ class Base(SubstitutionEnvironment):
     def SourceCode(self, entry, builder):
         """Arrange for a source code builder for (part of) a tree."""
         msg = """SourceCode() has been deprecated and there is no replacement.
-\tIf you need this function, please contact dev@scons.tigris.org."""
+\tIf you need this function, please contact scons-dev@scons.org"""
         SCons.Warnings.warn(SCons.Warnings.DeprecatedSourceCodeWarning, msg)
         entries = self.arg2nodes(entry, self.fs.Entry)
         for entry in entries:

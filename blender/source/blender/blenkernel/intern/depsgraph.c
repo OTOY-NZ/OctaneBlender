@@ -62,6 +62,7 @@
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
@@ -79,6 +80,8 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_tracking.h"
+
+#include "GPU_buffers.h"
 
 #include "atomic_ops.h"
 
@@ -1771,7 +1774,8 @@ static unsigned int flush_layer_node(Scene *sce, DagNode *node, int curtime)
 }
 
 /* node was checked to have lasttime != curtime, and is of type ID_OB */
-static void flush_pointcache_reset(Main *bmain, Scene *scene, DagNode *node, int curtime, int reset)
+static void flush_pointcache_reset(Main *bmain, Scene *scene, DagNode *node,
+                                   int curtime, unsigned int lay, bool reset)
 {
 	DagAdjList *itA;
 	Object *ob;
@@ -1785,14 +1789,17 @@ static void flush_pointcache_reset(Main *bmain, Scene *scene, DagNode *node, int
 
 				if (reset || (ob->recalc & OB_RECALC_ALL)) {
 					if (BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH)) {
-						ob->recalc |= OB_RECALC_DATA;
-						lib_id_recalc_data_tag(bmain, &ob->id);
+						/* Don't tag nodes which are on invisible layer. */
+						if (itA->node->lay & lay) {
+							ob->recalc |= OB_RECALC_DATA;
+							lib_id_recalc_data_tag(bmain, &ob->id);
+						}
 					}
 
-					flush_pointcache_reset(bmain, scene, itA->node, curtime, 1);
+					flush_pointcache_reset(bmain, scene, itA->node, curtime, lay, true);
 				}
 				else
-					flush_pointcache_reset(bmain, scene, itA->node, curtime, 0);
+					flush_pointcache_reset(bmain, scene, itA->node, curtime, lay, false);
 			}
 		}
 	}
@@ -1909,10 +1916,12 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 						lib_id_recalc_data_tag(bmain, &ob->id);
 					}
 
-					flush_pointcache_reset(bmain, sce, itA->node, lasttime, 1);
+					flush_pointcache_reset(bmain, sce, itA->node, lasttime,
+					                       lay, true);
 				}
 				else
-					flush_pointcache_reset(bmain, sce, itA->node, lasttime, 0);
+					flush_pointcache_reset(bmain, sce, itA->node, lasttime,
+					                       lay, false);
 			}
 		}
 	}
@@ -2497,13 +2506,10 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 		}
 
 		if (ELEM(idtype, ID_MA, ID_TE)) {
-			const bool new_shading_nodes = BKE_scene_use_new_shading_nodes(sce);
-			for (obt = bmain->object.first; obt; obt = obt->id.next) {
-				if (obt->mode & OB_MODE_TEXTURE_PAINT) {
-					obt->recalc |= OB_RECALC_DATA;
-					BKE_texpaint_slots_refresh_object(obt, new_shading_nodes);
-					lib_id_recalc_data_tag(bmain, &obt->id);
-				}
+			obt = sce->basact ? sce->basact->object : NULL;
+			if (obt && obt->mode & OB_MODE_TEXTURE_PAINT) {
+				BKE_texpaint_slots_refresh_object(sce, obt);
+				GPU_drawobject_free(obt->derivedFinal);
 			}
 		}
 

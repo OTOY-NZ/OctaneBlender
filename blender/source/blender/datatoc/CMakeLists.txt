@@ -33,7 +33,6 @@ add_executable(datatoc ${SRC})
 # Build datatoc_icon executable
 
 if(NOT WITH_HEADLESS)
-
 	set(SRC
 		datatoc_icon.c
 	)

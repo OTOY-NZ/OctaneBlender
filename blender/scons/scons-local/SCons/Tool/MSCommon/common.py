@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
+# Copyright (c) 2001 - 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-__revision__ = "src/engine/SCons/Tool/MSCommon/common.py  2014/03/02 14:18:15 garyo"
+__revision__ = "src/engine/SCons/Tool/MSCommon/common.py  2014/07/05 09:42:21 garyo"
 
 __doc__ = """
 Common helper functions for working with the Microsoft tool chain.
@@ -149,7 +149,6 @@ def get_output(vcbat, args = None, env = None):
 # VS100 and VS110: Still set, but modern MSVC setup scripts will
 # discard these if registry has values.  However Intel compiler setup
 # script still requires these as of 2013/2014.
-        'VS120COMNTOOLS',
         'VS110COMNTOOLS',
         'VS100COMNTOOLS',
         'VS90COMNTOOLS',

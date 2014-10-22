@@ -228,8 +228,9 @@ static int palette_color_delete_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Palette *palette = paint->palette;
+	PaletteColor *color = BLI_findlink(&palette->colors, palette->active_color);
 
-	BKE_palette_color_delete(palette);
+	BKE_palette_color_remove(palette, color);
 
 	return OPERATOR_FINISHED;
 }
@@ -1083,6 +1084,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_image_from_view);
 	WM_operatortype_append(PAINT_OT_brush_colors_flip);
 	WM_operatortype_append(PAINT_OT_add_texture_paint_slot);
+	WM_operatortype_append(PAINT_OT_delete_texture_paint_slot);
 
 	/* weight */
 	WM_operatortype_append(PAINT_OT_weight_paint_toggle);

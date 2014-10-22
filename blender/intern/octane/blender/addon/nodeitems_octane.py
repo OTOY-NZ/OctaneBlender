@@ -41,7 +41,7 @@ class TextureNodeCategory(NodeCategory):
 
 shader_node_categories = [
     # Shader Nodes
-    # New Shader Nodes (Cycles)
+    # New Shader Nodes (Octane)
     ShaderNewNodeCategory("SH_NEW_OCT_SHADER", "Octane Shader", items=[
         NodeItem("ShaderNodeOctDiffuseMat"),
         NodeItem("ShaderNodeOctGlossyMat"),

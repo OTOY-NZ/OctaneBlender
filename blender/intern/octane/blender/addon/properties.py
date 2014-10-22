@@ -417,7 +417,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
         cls.autofocus = BoolProperty(
                 name="Autofocus",
 #                description="",
-                default=False,
+                default=True,
                 )
 
         cls.white_balance = FloatVectorProperty(

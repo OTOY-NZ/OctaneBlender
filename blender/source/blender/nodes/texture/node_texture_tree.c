@@ -158,7 +158,7 @@ static void foreach_nodeclass(Scene *scene, void *calldata, bNodeClassCallback f
 /* XXX muting disabled in previews because of threading issues with the main execution
  * it works here, but disabled for consistency
  */
-#if 0
+#if 1
 static void localize(bNodeTree *localtree, bNodeTree *UNUSED(ntree))
 {
 	bNode *node, *node_next;

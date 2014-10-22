@@ -30,7 +30,7 @@ from itertools import zip_longest, chain
 import bpy
 import bpy_extras
 from bpy.types import Object, Bone, PoseBone, DupliObject
-from mathutils import Matrix
+from mathutils import Vector, Matrix
 
 from . import encode_bin, data_types
 
@@ -70,9 +70,10 @@ FBX_ANIM_PROPSGROUP_NAME = "d"
 FBX_KTIME = 46186158000  # This is the number of "ktimes" in one second (yep, precision over the nanosecond...)
 
 
-MAT_CONVERT_LAMP = Matrix.Rotation(math.pi / 2.0, 4, 'X')  # Blender is -Z, FBX is -Y.
-MAT_CONVERT_CAMERA = Matrix.Rotation(math.pi / 2.0, 4, 'Y')  # Blender is -Z, FBX is +X.
-#MAT_CONVERT_BONE = Matrix.Rotation(math.pi / -2.0, 4, 'X')  # Blender is +Y, FBX is +Z.
+MAT_CONVERT_LAMP = Matrix.Rotation(math.pi / -2.0, 4, 'X')  # Blender is -Z, FBX is +Y.
+MAT_CONVERT_CAMERA = Matrix.Rotation(math.pi / -2.0, 4, 'Y')  # Blender is -Z, FBX is -X.
+# XXX I can't get this working :(
+# MAT_CONVERT_BONE = Matrix.Rotation(math.pi / 2.0, 4, 'Z')  # Blender is +Y, FBX is -X.
 MAT_CONVERT_BONE = Matrix()
 
 
@@ -99,31 +100,30 @@ FBX_LIGHT_DECAY_TYPES = {
 
 RIGHT_HAND_AXES = {
     # Up, Front -> FBX values (tuples of (axis, sign), Up, Front, Coord).
-    # Note: Since we always stay in right-handed system, third coord sign is always positive!
-    ('X',  'Y'):  ((0, 1),  (1, -1),  (2, 1)),
-    ('X',  '-Y'): ((0, 1),  (1, 1), (2, 1)),
-    ('X',  'Z'):  ((0, 1),  (2, -1),  (1, 1)),
-    ('X',  '-Z'): ((0, 1),  (2, 1), (1, 1)),
-    ('-X', 'Y'):  ((0, -1), (1, -1),  (2, 1)),
-    ('-X', '-Y'): ((0, -1), (1, 1), (2, 1)),
-    ('-X', 'Z'):  ((0, -1), (2, -1),  (1, 1)),
-    ('-X', '-Z'): ((0, -1), (2, 1), (1, 1)),
-    ('Y',  'X'):  ((1, 1),  (0, -1),  (2, 1)),
-    ('Y',  '-X'): ((1, 1),  (0, 1), (2, 1)),
-    ('Y',  'Z'):  ((1, 1),  (2, -1),  (0, 1)),
-    ('Y',  '-Z'): ((1, 1),  (2, 1), (0, 1)),
-    ('-Y', 'X'):  ((1, -1), (0, -1),  (2, 1)),
-    ('-Y', '-X'): ((1, -1), (0, 1), (2, 1)),
-    ('-Y', 'Z'):  ((1, -1), (2, -1),  (0, 1)),
-    ('-Y', '-Z'): ((1, -1), (2, 1), (0, 1)),
-    ('Z',  'X'):  ((2, 1),  (0, -1),  (1, 1)),
-    ('Z',  '-X'): ((2, 1),  (0, 1), (1, 1)),
-    ('Z',  'Y'):  ((2, 1),  (1, -1),  (0, 1)),  # Blender system!
-    ('Z',  '-Y'): ((2, 1),  (1, 1), (0, 1)),
-    ('-Z', 'X'):  ((2, -1), (0, -1),  (1, 1)),
-    ('-Z', '-X'): ((2, -1), (0, 1), (1, 1)),
-    ('-Z', 'Y'):  ((2, -1), (1, -1),  (0, 1)),
-    ('-Z', '-Y'): ((2, -1), (1, 1), (0, 1)),
+    ('X',  'Y'):  ((0, 1),  (1, 1),  (2, 1)),
+    ('X',  '-Y'): ((0, 1),  (1, -1), (2, -1)),
+    ('X',  'Z'):  ((0, 1),  (2, 1),  (1, -1)),
+    ('X',  '-Z'): ((0, 1),  (2, -1), (1, 1)),
+    ('-X', 'Y'):  ((0, -1), (1, 1),  (2, -1)),
+    ('-X', '-Y'): ((0, -1), (1, -1), (2, 1)),
+    ('-X', 'Z'):  ((0, -1), (2, 1),  (1, 1)),
+    ('-X', '-Z'): ((0, -1), (2, -1), (1, -1)),
+    ('Y',  'X'):  ((1, 1),  (0, 1),  (2, -1)),
+    ('Y',  '-X'): ((1, 1),  (0, -1), (2, 1)),
+    ('Y',  'Z'):  ((1, 1),  (2, 1),  (0, 1)),
+    ('Y',  '-Z'): ((1, 1),  (2, -1), (0, -1)),
+    ('-Y', 'X'):  ((1, -1), (0, 1),  (2, 1)),
+    ('-Y', '-X'): ((1, -1), (0, -1), (2, -1)),
+    ('-Y', 'Z'):  ((1, -1), (2, 1),  (0, -1)),
+    ('-Y', '-Z'): ((1, -1), (2, -1), (0, 1)),
+    ('Z',  'X'):  ((2, 1),  (0, 1),  (1, 1)),
+    ('Z',  '-X'): ((2, 1),  (0, -1), (1, -1)),
+    ('Z',  'Y'):  ((2, 1),  (1, 1),  (0, -1)),
+    ('Z',  '-Y'): ((2, 1),  (1, -1), (0, 1)),  # Blender system!
+    ('-Z', 'X'):  ((2, -1), (0, 1),  (1, -1)),
+    ('-Z', '-X'): ((2, -1), (0, -1), (1, 1)),
+    ('-Z', 'Y'):  ((2, -1), (1, 1),  (0, 1)),
+    ('-Z', '-Y'): ((2, -1), (1, -1), (0, -1)),
 }
 
 
@@ -145,7 +145,7 @@ FBX_FRAMERATES = (
 )
 
 
-##### Misc utilities #####
+# ##### Misc utilities #####
 
 # Note: this could be in a utility (math.units e.g.)...
 
@@ -172,9 +172,11 @@ def units_convertor(u_from, u_to):
 def units_convertor_iter(u_from, u_to):
     """Return an iterable convertor between specified units."""
     conv = units_convertor(u_from, u_to)
+
     def convertor(it):
         for v in it:
             yield(conv(v))
+
     return convertor
 
 
@@ -202,12 +204,24 @@ def similar_values_iter(v1, v2, e=1e-6):
     if v1 == v2:
         return True
     for v1, v2 in zip(v1, v2):
-        if (abs(v1 - v2) / max(abs(v1), abs(v2))) > e:
+        if (v1 != v2) and ((abs(v1 - v2) / max(abs(v1), abs(v2))) > e):
             return False
     return True
 
+def vcos_transformed_gen(raw_cos, m=None):
+    # Note: we could most likely get much better performances with numpy, but will leave this as TODO for now.
+    gen = zip(*(iter(raw_cos),) * 3)
+    return gen if m is None else (m * Vector(v) for v in gen)
 
-##### UIDs code. #####
+def nors_transformed_gen(raw_nors, m=None):
+    # Great, now normals are also expected 4D!
+    # XXX Back to 3D normals for now!
+    # gen = zip(*(iter(raw_nors),) * 3 + (_infinite_gen(1.0),))
+    gen = zip(*(iter(raw_nors),) * 3)
+    return gen if m is None else (m * Vector(v) for v in gen)
+
+
+# ##### UIDs code. #####
 
 # ID class (mere int).
 class UUID(int):
@@ -349,7 +363,7 @@ def get_blender_anim_curve_key(scene, ref_id, obj_key, fbx_prop_name, fbx_prop_i
                      fbx_prop_item_name, "AnimCurve"))
 
 
-##### Element generators. #####
+# ##### Element generators. #####
 
 # Note: elem may be None, in this case the element is not added to any parent.
 def elem_empty(elem, name):
@@ -436,7 +450,8 @@ def elem_data_single_byte_array(elem, name, value):
 def elem_data_vec_float64(elem, name, value):
     return _elem_data_vec(elem, name, value, "add_float64")
 
-##### Generators for standard FBXProperties70 properties. #####
+
+# ##### Generators for standard FBXProperties70 properties. #####
 
 def elem_properties(elem):
     return elem_empty(elem, b"Properties70")
@@ -466,13 +481,13 @@ FBX_PROPERTIES_DEFINITIONS = {
     "p_object": (b"object", b""),  # XXX Check this! No value for this prop??? Would really like to know how it works!
     "p_compound": (b"Compound", b""),
     # Specific types (sic).
-    ## Objects (Models).
+    # ## Objects (Models).
     "p_lcl_translation": (b"Lcl Translation", b"", "add_float64", "add_float64", "add_float64"),
     "p_lcl_rotation": (b"Lcl Rotation", b"", "add_float64", "add_float64", "add_float64"),
     "p_lcl_scaling": (b"Lcl Scaling", b"", "add_float64", "add_float64", "add_float64"),
     "p_visibility": (b"Visibility", b"", "add_float64"),
     "p_visibility_inheritance": (b"Visibility Inheritance", b"", "add_int32"),
-    ## Cameras!!!
+    # ## Cameras!!!
     "p_roll": (b"Roll", b"", "add_float64"),
     "p_opticalcenterx": (b"OpticalCenterX", b"", "add_float64"),
     "p_opticalcentery": (b"OpticalCenterY", b"", "add_float64"),
@@ -568,7 +583,7 @@ def elem_props_template_finalize(template, elem):
         _elem_props_set(elem, ptype, name, value, _elem_props_flags(animatable, False))
 
 
-##### Templates #####
+# ##### Templates #####
 # TODO: check all those "default" values, they should match Blender's default as much as possible, I guess?
 
 FBXTemplate = namedtuple("FBXTemplate", ("type_name", "prop_type_name", "properties", "nbr_users", "written"))
@@ -620,7 +635,7 @@ def fbx_templates_generate(root, fbx_templates):
                     print(props, ptype, name, value, animatable)
 
 
-##### FBX animation helpers. #####
+# ##### FBX animation helpers. #####
 
 
 class AnimationCurveNodeWrapper:
@@ -656,7 +671,7 @@ class AnimationCurveNodeWrapper:
 
     def __bool__(self):
         # We are 'True' if we do have some validated keyframes...
-        return self._keys and True in ((True in k[2]) for k in self._keys)
+        return bool(self._keys) and (True in ((True in k[2]) for k in self._keys))
 
     def add_group(self, elem_key, fbx_group, fbx_gname, fbx_props):
         """
@@ -676,7 +691,7 @@ class AnimationCurveNodeWrapper:
         assert(len(values) == len(self.fbx_props[0]))
         self._keys.append((frame, values, [True] * len(values)))  # write everything by default.
 
-    def simplfy(self, fac, step):
+    def simplify(self, fac, step, force_keep=False):
         """
         Simplifies sampled curves by only enabling samples when:
             * their values differ significantly from the previous sample ones, or
@@ -723,6 +738,12 @@ class AnimationCurveNodeWrapper:
                         p_keyed[idx] = (currframe, val)
                         are_keyed[idx] = True
             p_currframe, p_key, p_key_write = currframe, key, key_write
+
+        # If we write nothing (action doing nothing) and are in 'force_keep' mode, we key everything! :P
+        # See T41766.
+        if (force_keep and not self):
+            are_keyed[:] = [True] * len(are_keyed)
+
         # If we did key something, ensure first and last sampled values are keyed as well.
         for idx, is_keyed in enumerate(are_keyed):
             if is_keyed:
@@ -739,18 +760,20 @@ class AnimationCurveNodeWrapper:
                 if wrt:
                     curve.append((currframe, val))
 
-        for elem_key, fbx_group, fbx_gname, fbx_props in zip(self.elem_keys, self.fbx_group, self.fbx_gname, self.fbx_props):
+        for elem_key, fbx_group, fbx_gname, fbx_props in \
+            zip(self.elem_keys, self.fbx_group, self.fbx_gname, self.fbx_props):
             group_key = get_blender_anim_curve_node_key(scene, ref_id, elem_key, fbx_group)
             group = OrderedDict()
             for c, def_val, fbx_item in zip(curves, self.default_values, fbx_props):
                 fbx_item = FBX_ANIM_PROPSGROUP_NAME + "|" + fbx_item
                 curve_key = get_blender_anim_curve_key(scene, ref_id, elem_key, fbx_group, fbx_item)
                 # (curve key, default value, keyframes, write flag).
-                group[fbx_item] = (curve_key, def_val, c, True if (len(c) > 1 or (len(c) > 0 and force_keep)) else False)
+                group[fbx_item] = (curve_key, def_val, c,
+                                   True if (len(c) > 1 or (len(c) > 0 and force_keep)) else False)
             yield elem_key, group_key, group, fbx_group, fbx_gname
 
 
-##### FBX objects generators. #####
+# ##### FBX objects generators. #####
 
 # FBX Model-like data (i.e. Blender objects, dupliobjects and bones) are wrapped in ObjectWrapper.
 # This allows us to have a (nearly) same code FBX-wise for all those types.
@@ -802,7 +825,10 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
     Note since a same Blender object might be 'mapped' to several FBX models (esp. with duplis),
     we need to use a key to identify each.
     """
-    __slots__ = ('name', 'key', 'bdata', '_tag', '_ref', '_dupli_matrix')
+    __slots__ = (
+        'name', 'key', 'bdata', 'parented_to_armature',
+        '_tag', '_ref', '_dupli_matrix'
+    )
 
     @classmethod
     def cache_clear(cls):
@@ -833,9 +859,10 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
             if isinstance(bdata, PoseBone):
                 bdata = armature.data.bones[bdata.name]
             self._tag = 'BO'
-            self.name = get_blenderID_name((armature, bdata))
+            self.name = get_blenderID_name(bdata)
             self.bdata = bdata
             self._ref = armature
+        self.parented_to_armature = False
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.key == other.key
@@ -843,7 +870,7 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
     def __hash__(self):
         return hash(self.key)
 
-    #### Common to all _tag values.
+    # #### Common to all _tag values.
     def get_fbx_uuid(self):
         return get_fbx_uuid_from_key(self.key)
     fbx_uuid = property(get_fbx_uuid)
@@ -899,7 +926,7 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
             return self.matrix_global
     matrix_rest_global = property(get_matrix_rest_global)
 
-    #### Transform and helpers
+    # #### Transform and helpers
     def has_valid_parent(self, objects):
         par = self.parent
         if par in objects:
@@ -914,11 +941,10 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
         return False
 
     def use_bake_space_transform(self, scene_data):
-        # NOTE: Only applies to object types supporting this!!! Currently, only meshes...
-        #       Also, do not apply it to children objects.
+        # NOTE: Only applies to object types supporting this!!! Currently, only meshes and the like...
         # TODO: Check whether this can work for bones too...
-        return (scene_data.settings.bake_space_transform and self._tag == 'OB' and
-                self.bdata.type in BLENDER_OBJECT_TYPES_MESHLIKE and not self.has_valid_parent(scene_data.objects))
+        return (scene_data.settings.bake_space_transform and self._tag in {'OB', 'DP'} and
+                self.bdata.type in BLENDER_OBJECT_TYPES_MESHLIKE | {'EMPTY'})
 
     def fbx_object_matrix(self, scene_data, rest=False, local_space=False, global_space=False):
         """
@@ -936,34 +962,36 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
         is_global = (not local_space and
                      (global_space or not (self._tag in {'DP', 'BO'} or self.has_valid_parent(scene_data.objects))))
 
+        # Objects (meshes!) parented to armature are not parented to anything in FBX, hence we need them
+        # in global space, which is their 'virtual' local space...
+        is_global = is_global or self.parented_to_armature
+
+        # Since we have to apply corrections to some types of object, we always need local Blender space here...
+        matrix = self.matrix_rest_local if rest else self.matrix_local
+        parent = self.parent
+
+        # Bones, lamps and cameras need to be rotated (in local space!).
         if self._tag == 'BO':
-            if rest:
-                matrix = self.matrix_rest_global if is_global else self.matrix_rest_local
-            else:  # Current pose.
-                matrix = self.matrix_global if is_global else self.matrix_local
-        else:
-            # Since we have to apply corrections to some types of object, we always need local Blender space here...
-            matrix = self.matrix_local
-            parent = self.parent
+            # XXX This should work smoothly, but actually is only OK for 'rest' pose, actual pose/animations
+            #     give insane results... :(
+            matrix = matrix * MAT_CONVERT_BONE
+        elif self.bdata.type == 'LAMP':
+            matrix = matrix * MAT_CONVERT_LAMP
+        elif self.bdata.type == 'CAMERA':
+            matrix = matrix * MAT_CONVERT_CAMERA
 
-            # Lamps and cameras need to be rotated (in local space!).
-            if self.bdata.type == 'LAMP':
-                matrix = matrix * MAT_CONVERT_LAMP
-            elif self.bdata.type == 'CAMERA':
-                matrix = matrix * MAT_CONVERT_CAMERA
-
-            # Our matrix is in local space, time to bring it in its final desired space.
-            if parent:
-                if is_global:
-                    # Move matrix to global Blender space.
-                    matrix = parent.matrix_global * matrix
-                elif parent.use_bake_space_transform(scene_data):
-                    # Blender's and FBX's local space of parent may differ if we use bake_space_transform...
-                    # Apply parent's *Blender* local space...
-                    matrix = parent.matrix_local * matrix
-                    # ...and move it back into parent's *FBX* local space.
-                    par_mat = parent.fbx_object_matrix(scene_data, local_space=True)
-                    matrix = par_mat.inverted() * matrix
+        # Our matrix is in local space, time to bring it in its final desired space.
+        if parent:
+            if is_global:
+                # Move matrix to global Blender space.
+                matrix = (parent.matrix_rest_global if rest else parent.matrix_global) * matrix
+            elif parent.use_bake_space_transform(scene_data):
+                # Blender's and FBX's local space of parent may differ if we use bake_space_transform...
+                # Apply parent's *Blender* local space...
+                matrix = (parent.matrix_rest_local if rest else parent.matrix_local) * matrix
+                # ...and move it back into parent's *FBX* local space.
+                par_mat = parent.fbx_object_matrix(scene_data, rest=rest, local_space=True)
+                matrix = par_mat.inverted() * matrix
 
         if self.use_bake_space_transform(scene_data):
             # If we bake the transforms we need to post-multiply inverse global transform.
@@ -989,7 +1017,7 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
             rot = rot.to_euler('XYZ')
         return loc, rot, scale, matrix, matrix_rot
 
-    #### _tag dependent...
+    # #### _tag dependent...
     def get_is_object(self):
         return self._tag == 'OB'
     is_object = property(get_is_object)
@@ -1026,7 +1054,16 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
         return ()
     material_slots = property(get_material_slots)
 
-    #### Duplis...
+    def is_deformed_by_armature(self, arm_obj):
+        if not (self.is_object and self.type == 'MESH'):
+            return False
+        if self.parent == arm_obj:
+            return True
+        for mod in self.bdata.modifiers:
+            if mod.type == 'ARMATURE' and mod.object == arm_obj.bdata:
+                return True
+
+    # #### Duplis...
     def dupli_list_create(self, scene, settings='PREVIEW'):
         if self._tag == 'OB':
             # Sigh, why raise exception here? :/
@@ -1050,22 +1087,22 @@ def fbx_name_class(name, cls):
     return FBX_NAME_CLASS_SEP.join((name, cls))
 
 
-##### Top-level FBX data container. #####
+# ##### Top-level FBX data container. #####
 
 # Helper sub-container gathering all exporter settings related to media (texture files).
-FBXSettingsMedia = namedtuple("FBXSettingsMedia", (
+FBXExportSettingsMedia = namedtuple("FBXExportSettingsMedia", (
     "path_mode", "base_src", "base_dst", "subdir",
     "embed_textures", "copy_set",
 ))
 
 # Helper container gathering all exporter settings.
-FBXSettings = namedtuple("FBXSettings", (
+FBXExportSettings = namedtuple("FBXExportSettings", (
     "report", "to_axes", "global_matrix", "global_scale",
     "bake_space_transform", "global_matrix_inv", "global_matrix_inv_transposed",
     "context_objects", "object_types", "use_mesh_modifiers",
     "mesh_smooth_type", "use_mesh_edges", "use_tspace", "use_armature_deform_only",
     "bake_anim", "bake_anim_use_nla_strips", "bake_anim_use_all_actions", "bake_anim_step", "bake_anim_simplify_factor",
-    "use_metadata", "media_settings", "use_custom_properties",
+    "use_metadata", "media_settings", "use_custom_props",
 ))
 
 # Helper container gathering some data we need multiple times:
@@ -1075,10 +1112,19 @@ FBXSettings = namedtuple("FBXSettings", (
 #     * object data.
 #     * skinning data (binding armature/mesh).
 #     * animations.
-FBXData = namedtuple("FBXData", (
+FBXExportData = namedtuple("FBXExportData", (
     "templates", "templates_users", "connections",
     "settings", "scene", "objects", "animations", "frame_start", "frame_end",
     "data_empties", "data_lamps", "data_cameras", "data_meshes", "mesh_mat_indices",
     "data_bones", "data_deformers_skin", "data_deformers_shape",
     "data_world", "data_materials", "data_textures", "data_videos",
+))
+
+# Helper container gathering all importer settings.
+FBXImportSettings = namedtuple("FBXImportSettings", (
+    "report", "to_axes", "global_matrix", "global_scale",
+    "use_cycles", "use_image_search",
+    "use_alpha_decals", "decal_offset",
+    "use_custom_props", "use_custom_props_enum_as_string",
+    "object_tdata_cache", "cycles_material_wrap_map", "image_cache",
 ))

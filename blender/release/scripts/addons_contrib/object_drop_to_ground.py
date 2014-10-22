@@ -20,8 +20,8 @@ bl_info = {
     'name': 'Drop to Ground',
     'author': 'Unnikrishnan(kodemax), Florian Meyer(testscreenings)',
     'version': (1, 2),
-    "blender": (2, 63, 0),
-    'location': '3D View > Tool Shelf > Object Tools Panel (at the bottom)',
+    "blender": (2, 71, 0),
+    'location': '3D View > Toolshelf > Addons Tab',
     'description': 'Drop selected objects on active object',
     'warning': '',
     'wiki_url': 'http://wiki.blender.org/index.php/Extensions:2.6/Py/'
@@ -168,17 +168,52 @@ class OBJECT_OT_drop_to_ground(Operator):
         return {'FINISHED'}
 
 #################################################################
-def drop_to_ground_button(self, context):
-    self.layout.operator(OBJECT_OT_drop_to_ground.bl_idname,
-                         text="Drop to Ground")
+class drop_help(bpy.types.Operator):
+	bl_idname = 'help.drop'
+	bl_label = ''
 
+	def draw(self, context):
+		layout = self.layout
+		layout.label("To use:")
+		layout.label("Name the base object 'Ground'")
+		layout.label("Select the object/s to drop")
+		layout.label("Then Shift Select 'Ground'")
+
+	def execute(self, context):
+		return {'FINISHED'}
+
+	def invoke(self, context, event):
+		return context.window_manager.invoke_popup(self, width = 300)
+		
+class Drop_Operator_Panel(bpy.types.Panel):
+    bl_label = "Drop To Ground"
+    bl_region_type = "TOOLS" #UI possible too
+    bl_space_type = "VIEW_3D"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "objectmode"
+    bl_category = "Addons"
+
+    def draw(self,context):
+        sce = context.scene
+        layout = self.layout
+        row = layout.row()
+        row = layout.split(0.80)
+        row.operator(OBJECT_OT_drop_to_ground.bl_idname,
+                         text="Drop to Ground")
+        row.operator('help.drop', icon = 'INFO')
+
+
+
+# register the class
 def register():
     bpy.utils.register_module(__name__)
-    bpy.types.VIEW3D_PT_tools_objectmode.append(drop_to_ground_button)
+
+    pass
 
 def unregister():
     bpy.utils.unregister_module(__name__)
-    bpy.types.VIEW3D_PT_tools_objectmode.remove(drop_to_ground_button)
 
-if __name__ == '__main__':
+    pass
+
+if __name__ == "__main__":
     register()

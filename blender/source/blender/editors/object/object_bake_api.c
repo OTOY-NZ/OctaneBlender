@@ -56,6 +56,7 @@
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
 #include "BKE_screen.h"
+#include "BKE_depsgraph.h"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -214,7 +215,7 @@ static bool write_internal_bake_pixels(
 			IMB_buffer_float_from_float(
 			        ibuf->rect_float, buffer, ibuf->channels,
 			        IB_PROFILE_LINEAR_RGB, IB_PROFILE_LINEAR_RGB, false,
-			        ibuf->x, ibuf->y, ibuf->x, ibuf->y);
+			        ibuf->x, ibuf->y, ibuf->x, ibuf->x);
 		}
 		else {
 			IMB_buffer_byte_from_float(
@@ -227,7 +228,7 @@ static bool write_internal_bake_pixels(
 		if (is_float) {
 			IMB_buffer_float_from_float_mask(
 			        ibuf->rect_float, buffer, ibuf->channels,
-			        ibuf->x, ibuf->y, ibuf->x, ibuf->y, mask_buffer);
+			        ibuf->x, ibuf->y, ibuf->x, ibuf->x, mask_buffer);
 		}
 		else {
 			IMB_buffer_byte_from_float_mask(
@@ -260,13 +261,14 @@ static bool write_internal_bake_pixels(
 }
 
 /* force OpenGL reload */
-static void reset_images_gpu(BakeImages *bake_images)
+static void refresh_images(BakeImages *bake_images)
 {
 	int i;
 	for (i = 0; i < bake_images->size; i++) {
 		Image *ima = bake_images->data[i].image;
 		if (ima->ok == IMA_OK_LOADED) {
 			GPU_free_image(ima);
+			DAG_id_tag_update(&ima->id, 0);		
 		}
 	}
 }
@@ -293,7 +295,7 @@ static bool write_external_bake_pixels(
 		IMB_buffer_float_from_float(
 		        ibuf->rect_float, buffer, ibuf->channels,
 		        IB_PROFILE_LINEAR_RGB, IB_PROFILE_LINEAR_RGB, false,
-		        ibuf->x, ibuf->y, ibuf->x, ibuf->y);
+		        ibuf->x, ibuf->y, ibuf->x, ibuf->x);
 	}
 	else {
 		if (!is_noncolor) {
@@ -561,7 +563,7 @@ static int bake(
 	int tot_highpoly;
 
 	char restrict_flag_low = ob_low->restrictflag;
-	char restrict_flag_cage;
+	char restrict_flag_cage = 0;
 
 	Mesh *me_low = NULL;
 	Mesh *me_cage = NULL;
@@ -618,8 +620,8 @@ static int bake(
 	}
 
 	/* we overallocate in case there is more materials than images */
-	bake_images.data = MEM_callocN(sizeof(BakeImage) * tot_materials, "bake images dimensions (width, height, offset)");
-	bake_images.lookup = MEM_callocN(sizeof(int) * tot_materials, "bake images lookup (from material to BakeImage)");
+	bake_images.data = MEM_mallocN(sizeof(BakeImage) * tot_materials, "bake images dimensions (width, height, offset)");
+	bake_images.lookup = MEM_mallocN(sizeof(int) * tot_materials, "bake images lookup (from material to BakeImage)");
 
 	build_image_lookup(bmain, ob_low, &bake_images);
 
@@ -676,7 +678,7 @@ static int bake(
 		}
 	}
 
-	pixel_array_low = MEM_callocN(sizeof(BakePixel) * num_pixels, "bake pixels low poly");
+	pixel_array_low = MEM_mallocN(sizeof(BakePixel) * num_pixels, "bake pixels low poly");
 	result = MEM_callocN(sizeof(float) * depth * num_pixels, "bake return pixels");
 
 	/* get the mesh as it arrives in the renderer */
@@ -743,10 +745,8 @@ static int bake(
 
 			/* initialize highpoly_data */
 			highpoly[i].ob = ob_iter;
-			highpoly[i].me = NULL;
-			highpoly[i].tri_mod = NULL;
 			highpoly[i].restrict_flag = ob_iter->restrictflag;
-			highpoly[i].pixel_array = MEM_callocN(sizeof(BakePixel) * num_pixels, "bake pixels high poly");
+			highpoly[i].pixel_array = MEM_mallocN(sizeof(BakePixel) * num_pixels, "bake pixels high poly");
 
 
 			/* triangulating so BVH returns the primitive_id that will be used for rendering */
@@ -968,7 +968,7 @@ cage_cleanup:
 	}
 
 	if (is_save_internal)
-		reset_images_gpu(&bake_images);
+		refresh_images(&bake_images);
 
 cleanup:
 
@@ -1280,7 +1280,7 @@ static int bake_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event)
 	if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_OBJECT_BAKE))
 		return OPERATOR_CANCELLED;
 
-	bkr = MEM_callocN(sizeof(BakeAPIRender), "render bake");
+	bkr = MEM_mallocN(sizeof(BakeAPIRender), "render bake");
 
 	/* init bake render */
 	bake_init_api_data(op, C, bkr);

@@ -50,7 +50,8 @@ public:
     } LightType;
 
     string      name;
-	LightType   type;
+    string      nice_name;
+    LightType   type;
 	float       size;
 
     Mesh  *mesh;

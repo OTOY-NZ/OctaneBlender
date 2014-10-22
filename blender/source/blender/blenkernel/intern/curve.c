@@ -2590,7 +2590,7 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 			if (nu->type == CU_POLY) {
 				len = nu->pntsu;
 				bl = MEM_callocN(sizeof(BevList) + len * sizeof(BevPoint), "makeBevelList2");
-				if (need_seglen) {
+				if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
 					bl->seglen = MEM_mallocN(segcount * sizeof(float), "makeBevelList2_seglen");
 					bl->segbevcount = MEM_mallocN(segcount * sizeof(int), "makeBevelList2_segbevcount");
 				}
@@ -2605,7 +2605,6 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 				bp = nu->bp;
 				seglen = bl->seglen;
 				segbevcount = bl->segbevcount;
-				BLI_assert(segcount >= len);
 
 				while (len--) {
 					copy_v3_v3(bevp->vec, bp->vec);
@@ -2614,7 +2613,7 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 					bevp->weight = bp->weight;
 					bevp->split_tag = true;
 					bp++;
-					if (seglen != NULL) {
+					if (seglen != NULL && len != 0) {
 						*seglen = len_v3v3(bevp->vec, bp->vec);
 						bevp++;
 						bevp->offset = *seglen;
@@ -2630,11 +2629,6 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 
 				if ((nu->flagu & CU_NURB_CYCLIC) == 0) {
 					bevlist_firstlast_direction_calc_from_bpoint(nu, bl);
-					if (seglen != NULL) {
-						*seglen = len_v3v3(bevp->vec, nu->bp->vec);
-						bl->bevpoints->offset = *seglen;
-						*segbevcount = 1;
-					}
 				}
 			}
 			else if (nu->type == CU_BEZIER) {
@@ -2642,7 +2636,7 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 				len = segcount * resolu + 1;
 
 				bl = MEM_callocN(sizeof(BevList) + len * sizeof(BevPoint), "makeBevelBPoints");
-				if (need_seglen) {
+				if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
 					bl->seglen = MEM_mallocN(segcount * sizeof(float), "makeBevelBPoints_seglen");
 					bl->segbevcount = MEM_mallocN(segcount * sizeof(int), "makeBevelBPoints_segbevcount");
 				}
@@ -2778,7 +2772,7 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 					len = (resolu * segcount);
 
 					bl = MEM_callocN(sizeof(BevList) + len * sizeof(BevPoint), "makeBevelList3");
-					if (need_seglen) {
+					if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
 						bl->seglen = MEM_mallocN(segcount * sizeof(float), "makeBevelList3_seglen");
 						bl->segbevcount = MEM_mallocN(segcount * sizeof(int), "makeBevelList3_segbevcount");
 					}
@@ -3209,7 +3203,13 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 		madd_v3_v3v3fl(p2_h2, p2, dvec_b,  1.0f / 3.0f);
 	}
 
-	if (skip_align || (!ELEM(HD_ALIGN, bezt->h1, bezt->h2) && !ELEM(HD_ALIGN_DOUBLESIDE, bezt->h1, bezt->h2))) {
+	if (skip_align ||
+	    /* when one handle is free, alignming makes no sense, see: T35952 */
+	    (ELEM(HD_FREE, bezt->h1, bezt->h2)) ||
+	    /* also when no handles are aligned, skip this step */
+	    (!ELEM(HD_ALIGN, bezt->h1, bezt->h2) &&
+	     !ELEM(HD_ALIGN_DOUBLESIDE, bezt->h1, bezt->h2)))
+	{
 		/* handles need to be updated during animation and applying stuff like hooks,
 		 * but in such situations it's quite difficult to distinguish in which order
 		 * align handles should be aligned so skip them for now */
@@ -3305,6 +3305,31 @@ void BKE_nurb_handle_calc(BezTriple *bezt, BezTriple *prev, BezTriple *next, con
 void BKE_nurb_handles_calc(Nurb *nu) /* first, if needed, set handle flags */
 {
 	calchandlesNurb_intern(nu, false);
+}
+
+/**
+ * Workaround #BKE_nurb_handles_calc logic
+ * that makes unselected align to the selected handle.
+ */
+static void nurbList_handles_swap_select(Nurb *nu)
+{
+	BezTriple *bezt;
+	int i;
+
+	for (i = nu->pntsu, bezt = nu->bezt; i--; bezt++) {
+		if ((bezt->f1 & SELECT) != (bezt->f3 & SELECT)) {
+			bezt->f1 ^= SELECT;
+			bezt->f3 ^= SELECT;
+		}
+	}
+}
+
+/* internal use only (weak) */
+static void nurb_handles_calc__align_selected(Nurb *nu)
+{
+	nurbList_handles_swap_select(nu);
+	BKE_nurb_handles_calc(nu);
+	nurbList_handles_swap_select(nu);
 }
 
 /* similar to BKE_nurb_handle_calc but for curves and
@@ -3504,7 +3529,9 @@ void BKE_nurbList_handles_set(ListBase *editnurb, const char code)
 					}
 					bezt++;
 				}
-				BKE_nurb_handles_calc(nu);
+
+				/* like BKE_nurb_handles_calc but moves selected */
+				nurb_handles_calc__align_selected(nu);
 			}
 			nu = nu->next;
 		}
@@ -3548,7 +3575,9 @@ void BKE_nurbList_handles_set(ListBase *editnurb, const char code)
 
 					bezt++;
 				}
-				BKE_nurb_handles_calc(nu);
+
+				/* like BKE_nurb_handles_calc but moves selected */
+				nurb_handles_calc__align_selected(nu);
 			}
 		}
 	}
@@ -4282,7 +4311,50 @@ bool BKE_curve_center_bounds(Curve *cu, float cent[3])
 	return false;
 }
 
-void BKE_curve_translate(Curve *cu, float offset[3], const bool do_keys)
+
+void BKE_curve_transform_ex(Curve *cu, float mat[4][4], bool do_keys, float unit_scale)
+{
+	Nurb *nu;
+	BPoint *bp;
+	BezTriple *bezt;
+	int i;
+
+	for (nu = cu->nurb.first; nu; nu = nu->next) {
+		if (nu->type == CU_BEZIER) {
+			i = nu->pntsu;
+			for (bezt = nu->bezt; i--; bezt++) {
+				mul_m4_v3(mat, bezt->vec[0]);
+				mul_m4_v3(mat, bezt->vec[1]);
+				mul_m4_v3(mat, bezt->vec[2]);
+				bezt->radius *= unit_scale;
+			}
+			BKE_nurb_handles_calc(nu);
+		}
+		else {
+			i = nu->pntsu * nu->pntsv;
+			for (bp = nu->bp; i--; bp++)
+				mul_m4_v3(mat, bp->vec);
+		}
+	}
+
+	if (do_keys && cu->key) {
+		KeyBlock *kb;
+		for (kb = cu->key->block.first; kb; kb = kb->next) {
+			float *fp = kb->data;
+			for (i = kb->totelem; i--; fp += 3) {
+				mul_m4_v3(mat, fp);
+			}
+		}
+	}
+}
+
+void BKE_curve_transform(Curve *cu, float mat[4][4], bool do_keys)
+{
+	float unit_scale = mat4_to_scale(mat);
+	BKE_curve_transform_ex(cu, mat, do_keys, unit_scale);
+}
+
+void BKE_curve_translate(Curve *cu, float offset[3], bool do_keys)
 {
 	ListBase *nurb_lb = BKE_curve_nurbs_get(cu);
 	Nurb *nu;

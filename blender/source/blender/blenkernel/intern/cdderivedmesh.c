@@ -802,7 +802,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 				glBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
 				if (tf) glTexCoord2fv(tf->uv[0]);
-				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf->uv[0]);
+				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf->uv[0]);
 				if (cp) glColor3ub(cp[3], cp[2], cp[1]);
 				mvert = &mv[mf->v1];
 				if (lnors) glNormal3sv((const GLshort *)lnors[0][0]);
@@ -810,7 +810,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				glVertex3fv(mvert->co);
 
 				if (tf) glTexCoord2fv(tf->uv[1]);
-				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf->uv[1]);
+				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf->uv[1]);
 				if (cp) glColor3ub(cp[7], cp[6], cp[5]);
 				mvert = &mv[mf->v2];
 				if (lnors) glNormal3sv((const GLshort *)lnors[0][1]);
@@ -818,7 +818,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				glVertex3fv(mvert->co);
 
 				if (tf) glTexCoord2fv(tf->uv[2]);
-				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf->uv[2]);
+				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf->uv[2]);
 				if (cp) glColor3ub(cp[11], cp[10], cp[9]);
 				mvert = &mv[mf->v3];
 				if (lnors) glNormal3sv((const GLshort *)lnors[0][2]);
@@ -827,7 +827,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 				if (mf->v4) {
 					if (tf) glTexCoord2fv(tf->uv[3]);
-					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf->uv[3]);
+					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf->uv[3]);
 					if (cp) glColor3ub(cp[15], cp[14], cp[13]);
 					mvert = &mv[mf->v4];
 					if (lnors) glNormal3sv((const GLshort *)lnors[0][3]);
@@ -1324,13 +1324,11 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 					glNormal3fv(nor);
 				}
 			}
-
-			if (lnors) {
-				ln1 = &lnors[0][0];
-				ln2 = &lnors[0][1];
-				ln3 = &lnors[0][2];
-				ln4 = &lnors[0][3];
-				lnors++;
+			else if (lnors) {
+				ln1 = &lnors[a][0];
+				ln2 = &lnors[a][1];
+				ln3 = &lnors[a][2];
+				ln4 = &lnors[a][3];
 			}
 
 			cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v1, 0, ln1, smoothnormal);
@@ -1651,13 +1649,11 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 				glNormal3fv(nor);
 			}
 		}
-
-		if (lnors) {
-			ln1 = &lnors[0][0];
-			ln2 = &lnors[0][1];
-			ln3 = &lnors[0][2];
-			ln4 = &lnors[0][3];
-			lnors++;
+		else if (lnors) {
+			ln1 = &lnors[a][0];
+			ln2 = &lnors[a][1];
+			ln3 = &lnors[a][2];
+			ln4 = &lnors[a][3];
 		}
 
 		/* vertices */
@@ -3018,10 +3014,17 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 		if (UNLIKELY(c == 0)) {
 			continue;
 		}
+		else if (UNLIKELY(c < 3)) {
+			STACK_DISCARD(oldl, c);
+			STACK_DISCARD(mloop, c);
+			continue;
+		}
+
 
 		mp_new = STACK_PUSH_RET_PTR(mpoly);
 		*mp_new = *mp;
 		mp_new->totloop = c;
+		BLI_assert(mp_new->totloop >= 3);
 		mp_new->loopstart = STACK_SIZE(mloop) - c;
 		
 		STACK_PUSH(oldp, i);

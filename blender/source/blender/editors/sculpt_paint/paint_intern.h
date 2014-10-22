@@ -184,6 +184,7 @@ void PAINT_OT_texture_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_project_image(struct wmOperatorType *ot);
 void PAINT_OT_image_from_view(struct wmOperatorType *ot);
 void PAINT_OT_add_texture_paint_slot(struct wmOperatorType *ot);
+void PAINT_OT_delete_texture_paint_slot(struct wmOperatorType *ot);
 void PAINT_OT_image_paint(struct wmOperatorType *ot);
 
 /* uv sculpting */
@@ -217,6 +218,9 @@ float paint_get_tex_pixel(struct MTex *mtex, float u, float v, struct ImagePool 
 void paint_get_tex_pixel_col(struct MTex *mtex, float u, float v, float rgba[4], struct ImagePool *pool, int thread, bool convert, struct ColorSpace *colorspace);
 
 void paint_sample_color(bContext *C, struct ARegion *ar, int x, int y, bool texpaint_proj, bool palette);
+
+void paint_stroke_operator_properties(struct wmOperatorType *ot);
+
 void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
 
 void PAINT_OT_face_select_linked(struct wmOperatorType *ot);
@@ -287,12 +291,12 @@ typedef struct {
 	float *wdata; /* actual kernel */
 	int side; /* kernel side */
 	int side_squared; /* data side */
-	float pixel_len; /* pixels around center that kernel is wide */
+	int pixel_len; /* pixels around center that kernel is wide */
 } BlurKernel;
 
 enum BlurKernelType;
 /* can be extended to other blur kernels later */
-BlurKernel *paint_new_blur_kernel(struct Brush *br);
+BlurKernel *paint_new_blur_kernel(struct Brush *br, bool proj);
 void paint_delete_blur_kernel(BlurKernel *);
 
 /* paint curve defines */

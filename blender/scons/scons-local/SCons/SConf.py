@@ -1,10 +1,19 @@
 """SCons.SConf
 
 Autoconf-like configuration support.
+
+In other words, this package allows to run series of tests to detect
+capabilities of current system and generate config files (header files
+in C/C++) that turn on system-specific options and optimizations.
+
+For example, it is possible to detect if optional libraries are present
+on current system and generate config that makes compiler include them.
+C compilers do not have ability to catch ImportError if some library is
+not found, so these checks should be done externally.
 """
 
 #
-# Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 The SCons Foundation
+# Copyright (c) 2001 - 2014 The SCons Foundation
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -26,7 +35,7 @@ Autoconf-like configuration support.
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-__revision__ = "src/engine/SCons/SConf.py  2014/03/02 14:18:15 garyo"
+__revision__ = "src/engine/SCons/SConf.py  2014/07/05 09:42:21 garyo"
 
 import SCons.compat
 
@@ -110,16 +119,22 @@ def _createConfigH(target, source, env):
 def _stringConfigH(target, source, env):
     return "scons: Configure: creating " + str(target[0])
 
-def CreateConfigHBuilder(env):
-    """Called just before the building targets phase begins."""
+
+def NeedConfigHBuilder():
     if len(_ac_config_hs) == 0:
-        return
+       return False
+    else:
+       return True
+
+def CreateConfigHBuilder(env):
+    """Called if necessary just before the building targets phase begins."""
     action = SCons.Action.Action(_createConfigH,
                                  _stringConfigH)
     sconfigHBld = SCons.Builder.Builder(action=action)
     env.Append( BUILDERS={'SConfigHBuilder':sconfigHBld} )
     for k in _ac_config_hs.keys():
         env.SConfigHBuilder(k, env.Value(_ac_config_hs[k]))
+
     
 class SConfWarning(SCons.Warnings.Warning):
     pass
@@ -180,7 +195,13 @@ class Streamer(object):
     def write(self, str):
         if self.orig:
             self.orig.write(str)
-        self.s.write(str)
+        try:
+            self.s.write(str)
+        except TypeError as e:
+            if e.message.startswith('unicode argument expected'):
+                self.s.write(str.decode())
+            else:
+                raise
 
     def writelines(self, lines):
         for l in lines:
