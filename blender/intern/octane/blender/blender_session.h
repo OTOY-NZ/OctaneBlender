@@ -61,6 +61,8 @@ public:
 
 	~BlenderSession();
 
+    static bool activate(BL::Scene b_scene_);
+
 	// session
 	void create_session(PassType pass_type);
 	void free_session();

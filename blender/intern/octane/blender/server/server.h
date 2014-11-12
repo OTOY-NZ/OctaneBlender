@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 6
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 3
+#   define OCTANE_SERVER_MINOR_VERSION 5
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -83,6 +83,7 @@
 
 #include "BLI_math_color.h"
 #include "BLI_fileops.h"
+#include "DNA_ID.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -723,18 +724,27 @@ protected:
 	string error_msg;
 
 public:
+    enum fail_reasons {
+        NONE = -1,
+        UNKNOWN,
+        WRONG_VERSION,
+        NO_CONNECTION,
+        NOT_ACTIVATED
+    };
+
     static char         address[256];
     static char         out_path[256];
     thread_mutex        socket_mutex;
     thread_mutex        img_buf_mutex;
 	RenderServerInfo    info;
+    fail_reasons        fail_reason;
 
     int socket;
 
     // Create the render-server object, connected to the server
     // addr - server address
     RenderServer(const char *addr, const char *_out_path, bool export_alembic, bool interactive) : image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), cur_reg_w(0), cur_reg_h(0), socket(-1),
-                                                                                                   m_Export_alembic(export_alembic), m_bInteractive(interactive) {
+                                                                                                   m_Export_alembic(export_alembic), m_bInteractive(interactive), fail_reason(NONE) {
         struct  hostent *host;
         struct  sockaddr_in sa;
 
@@ -768,6 +778,7 @@ public:
 #else
             closesocket(socket);
 #endif
+            fail_reason = NO_CONNECTION;
             socket = -1;
         }
     } //RenderServer()
@@ -807,6 +818,8 @@ public:
 
         RPCReceive rcv(socket);
         if(rcv.type != DESCRIPTION) {
+            fail_reason = UNKNOWN;
+
             rcv >> error_msg;
             fprintf(stderr, "Octane: ERROR getting render-server version.");
             if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
@@ -815,9 +828,11 @@ public:
         }
         else {
             uint32_t maj_num, min_num;
-            rcv >> maj_num >> min_num;
+            bool active;
+            rcv >> maj_num >> min_num >> active;
 
             if(maj_num != OCTANE_SERVER_MAJOR_VERSION || min_num != OCTANE_SERVER_MINOR_VERSION) {
+                fail_reason = WRONG_VERSION;
                 fprintf(stderr, "Octane: ERROR: Wrong version of render-server (%d.%d), %d.%d is needed\n",
                         maj_num, min_num, OCTANE_SERVER_MAJOR_VERSION, OCTANE_SERVER_MINOR_VERSION);
 
@@ -830,7 +845,23 @@ public:
                 socket = -1;
                 return false;
             }
-            else return true;
+            else if(!active) {
+                fail_reason = NOT_ACTIVATED;
+                fprintf(stderr, "Octane: ERROR: server license is not activated.\n");
+
+                if(socket >= 0)
+#ifndef WIN32
+                    close(socket);
+#else
+                    closesocket(socket);
+#endif
+                socket = -1;
+                return false;
+            }
+            else {
+                fail_reason = NONE;
+                return true;
+            }
         }
     } //check_server_version()
 
@@ -847,7 +878,7 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != SET_LIC_DATA) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR activate render-server.");
+            fprintf(stderr, "Octane: ERROR of the license activation on render-server.");
             if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
             else fprintf(stderr, "\n");
             return 0;
@@ -1997,7 +2028,10 @@ public:
                     snd.write_buffer(pixels, img_size);
                 snd.write();
             }
-            delete[] pixels;
+            if(is_float)
+                delete[] (float*)pixels;
+            else
+                delete[] (uint8_t*)pixels;
 
             wait_error(LOAD_IMAGE_TEXTURE_DATA);
         }
@@ -2101,7 +2135,10 @@ public:
                     snd.write_buffer(pixels, img_size);
                 snd.write();
             }
-            delete[] pixels;
+            if(is_float)
+                delete[] (float*)pixels;
+            else
+                delete[] (uint8_t*)pixels;
 
             wait_error(LOAD_FLOAT_IMAGE_TEXTURE_DATA);
         }
@@ -2205,7 +2242,10 @@ public:
                     snd.write_buffer(pixels, img_size);
                 snd.write();
             }
-            delete[] pixels;
+            if(is_float)
+                delete[] (float*)pixels;
+            else
+                delete[] (uint8_t*)pixels;
 
             wait_error(LOAD_ALPHA_IMAGE_TEXTURE_DATA);
         }

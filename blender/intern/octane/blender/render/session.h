@@ -65,10 +65,6 @@ public:
 	}
 
 	RenderServerInfo    server;
-    string              login;
-    string              pass;
-    string              stand_login;
-    string              stand_pass;
 	bool		        interactive;
 	string		        output_path;
 
@@ -99,12 +95,12 @@ public:
 	void wait();
 
 	bool ready_to_reset();
-	void reset(BufferParams& params, int samples);
+	void reset(BufferParams& params);
 	void set_samples(int samples);
 	void set_pause(bool pause);
     void set_blender_session(BlenderSession *b_session_);
 
-    void update(BufferParams& params, int samples);
+    void update(BufferParams& params);
     void update_params(SessionParams& session_params);
 	void update_scene_to_server();
 
@@ -120,7 +116,7 @@ protected:
 	void update_status_time(bool show_pause = false, bool show_done = false);
 
 	void update_render_buffer();
-	void reset_parameters(BufferParams& buffer_params, int samples);
+	void reset_parameters(BufferParams& buffer_params);
 
 	void run_cpu();
 	bool draw_cpu(BufferParams& params);

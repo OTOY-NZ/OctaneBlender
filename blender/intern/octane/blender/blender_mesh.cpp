@@ -22,6 +22,10 @@
 #include "blender_sync.h"
 #include "blender_util.h"
 
+#ifdef WIN32
+#   include "BLI_winstuff.h"
+#endif
+
 OCT_NAMESPACE_BEGIN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,7 +174,7 @@ static void create_mesh(Scene *scene, BL::Object b_ob, Mesh *mesh, BL::Mesh b_me
 } //create_mesh()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Sync mesh (fill thle Octane mesh data from Blender mesh)
+// Sync mesh (fill the Octane mesh data from Blender mesh)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool object_updated, bool hide_tris) {
 	// Test if we can instance or if the object is modified
@@ -220,9 +224,13 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 	octane_mesh->clear();
 	octane_mesh->used_shaders       = used_shaders;
 	octane_mesh->nice_name          = b_ob_data.name().c_str();
-    char szName[32];
-    sprintf(szName, "%p", octane_mesh);
-    octane_mesh->name               = szName;
+    if(BKE_object_is_modified(b_ob)) {
+        char szName[128];
+        snprintf(szName, 128, "%s.%s", b_ob.name().c_str(), b_ob_data.name().c_str());
+        octane_mesh->name = szName;
+    }
+    else
+        octane_mesh->name = b_ob_data.name().c_str();
     octane_mesh->open_subd_enable   = RNA_boolean_get(&cmesh, "open_subd_enable");
     octane_mesh->open_subd_scheme   = RNA_enum_get(&cmesh, "open_subd_scheme");
     octane_mesh->open_subd_level    = RNA_int_get(&cmesh, "open_subd_level");

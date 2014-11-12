@@ -61,6 +61,9 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
+#ifdef WIN32
+#   include "BLI_winstuff.h"
+#endif
 
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -256,7 +259,7 @@ unsigned char* mat_livedb_get_mat_preview(const char *address, int32_t id, unsig
     char            file_path[FILE_MAX];
 
     /* create file path */
-    sprintf(file_path, "%s%d.raw", _file_path, id);
+    snprintf(file_path, FILE_MAX, "%s%d.raw", _file_path, id);
 
     hFile = BLI_fopen(file_path, "rb");
     if(hFile) {

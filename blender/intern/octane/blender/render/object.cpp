@@ -102,7 +102,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
 
 	    if(progress.get_cancel()) return;
         
-        for(map<Mesh*, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it) {
+        for(map<std::string, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it) {
             uint64_t cur_size = mesh_it->second.size();
             if(!cur_size) continue;
             Mesh* cur_mesh = mesh_it->second[0]->mesh;
@@ -190,14 +190,14 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                 delete[] matrices;
             }
             //if(mesh_needs_update) server->load_scatter(scatter_names, string(cur_mesh->name.c_str()), matrices, shader_names);
-	    } //for(map<Mesh*, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it)
+	    } //for(map<std::string, vector<Object*> >::const_iterator mesh_it = scene->objects.begin(); mesh_it != scene->objects.end(); ++mesh_it)
     } //if(scene->objects.size())
 
     if(scene->light_objects.size()) {
 	    progress.set_status("Updating Lamp Objects", "Copying Transformations to server");
 	    if(progress.get_cancel()) return;
 
-        for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
+        for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
             uint64_t cur_size = light_it->second.size();
             if(!cur_size) continue;
             Light* cur_light = light_it->second[0]->light;
@@ -244,7 +244,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
             } //for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it)
             //if(mesh_needs_update) server->load_scatter(scatter_names, string(cur_light->name.c_str()), matrices, cnt, shader_names);
             delete[] matrices;
-	    } //for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it)
+	    } //for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it)
     } //if(scene->light_objects.size())
 	//need_update = false;
 } //server_update()

@@ -59,6 +59,22 @@ class Reset(Operator):
         _octane.reload(types.OctaneRender.session)
         return {'FINISHED'}
 
+class ActivateOctane(Operator):
+    """Activate the Octane license"""
+    bl_idname = "octane.activate"
+    bl_label = "Send activation info to the OctaneServer"
+    bl_register = True
+    bl_undo = False
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        import _octane
+        _octane.activate(bpy.context.scene.as_pointer())
+        return {'FINISHED'}
+
 
 class OCTANE_MT_kernel_presets(Menu):
     bl_label = "Kernel presets"
@@ -227,6 +243,32 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "direct_light_importance", text="Direct light imp.")
         sub.prop(oct_scene, "max_rejects", text="Max. rejects")
         sub.prop(oct_scene, "parallelism", text="Parallelism")
+
+
+
+class OctaneRender_PT_server(OctaneButtonsPanel, Panel):
+    bl_label = "Octane server"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        oct_scene = scene.octane
+
+        col = layout.column()
+        col.prop(oct_scene, "server_address")
+        box = col.box()
+        box.label(text="License Login/Password:")
+        sub = box.row()
+        sub.prop(oct_scene, "stand_login")
+        sub.prop(oct_scene, "stand_pass")
+        sub = box.row()
+        sub.prop(oct_scene, "server_login")
+        sub.prop(oct_scene, "server_pass")
+        sub = box.row()
+        sub.operator("octane.activate", text="Activate license")
+
 
 
 class OctaneRender_PT_motion_blur(OctaneButtonsPanel, Panel):
@@ -975,17 +1017,6 @@ def draw_device(self, context):
 
         layout.prop(oct_scene, "anim_mode")
         layout.prop(oct_scene, "devices")
-        box = layout.box()
-        box.label(text="Server:")
-        box.prop(oct_scene, "server_address")
-        box1 = box.box()
-        box1.label(text="License Login/Password:")
-        sub = box1.row()
-        sub.prop(oct_scene, "stand_login")
-        sub.prop(oct_scene, "stand_pass")
-        sub = box1.row()
-        sub.prop(oct_scene, "server_login")
-        sub.prop(oct_scene, "server_pass")
         sub = layout.row()
         sub.prop(oct_scene, "use_passes")
         sub.prop(oct_scene, "viewport_hide")

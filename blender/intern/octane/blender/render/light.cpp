@@ -294,7 +294,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         progress.set_status("Loading global Lights to render-server", "");
 
         uint64_t obj_cnt = 0;
-        for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
+        for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
             uint64_t cur_size = light_it->second.size();
             Light* light = cur_size > 0 ? light_it->second[0]->light : 0;
             if(!light || !light->enable) continue;
@@ -350,7 +350,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         uint64_t        *vert_per_hair_size     = new uint64_t[obj_cnt];
 
         obj_cnt = 0;
-        for(map<Light*, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
+        for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
             uint64_t cur_size = light_it->second.size();
             Light* light = cur_size > 0 ? light_it->second[0]->light : 0;
             if(!light || !light->enable) continue;

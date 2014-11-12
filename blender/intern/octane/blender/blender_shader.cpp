@@ -1141,6 +1141,10 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
+        else {
+            cur_node->FileName = "";
+            cur_node->builtin_data = 0;
+        }
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1233,6 +1237,10 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
+        else {
+            cur_node->FileName = "";
+            cur_node->builtin_data = 0;
+        }
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1325,6 +1333,10 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
+        else {
+            cur_node->FileName = "";
+            cur_node->builtin_data = 0;
+        }
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -2376,7 +2388,7 @@ void BlenderSync::sync_materials() {
 			    shader->set_graph(graph);
 			    shader->tag_update(scene);
 			}
-			else printf("Octane: WARNING: only node-materials are supported\n");
+            else printf("Octane: WARNING: only node-materials are supported: material \"%s\"\n", shader->name.c_str());
 		}
 	}
 	// Textures loop
@@ -2404,7 +2416,7 @@ void BlenderSync::sync_materials() {
 			    shader->set_graph(graph);
 			    shader->tag_update(scene);
 			}
-			else printf("Octane: WARNING: only node-textures are supported\n");
+            else printf("Octane: WARNING: only node-textures are supported: texture \"%s\"\n", shader->name.c_str());
 		}
 	}
 } //sync_materials()

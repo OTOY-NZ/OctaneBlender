@@ -30,6 +30,10 @@
 #include "util_opengl.h"
 #include "util_time.h"
 
+#ifdef WIN32
+#   include "BLI_winstuff.h"
+#endif
+
 OCT_NAMESPACE_BEGIN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,15 +41,6 @@ OCT_NAMESPACE_BEGIN
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Session::Session(const SessionParams& params_, const char *_out_path) : params(params_) {
 	server = RenderServer::create(params.server, params.export_alembic, _out_path, params.interactive);
-
-    if(params.login.length() > 0 && params.pass.length() > 0) {
-        if(server->activate(params.stand_login, params.stand_pass, params.login, params.pass)) {
-            params.stand_login  = "";
-            params.stand_pass   = "";
-            params.login        = "";
-            params.pass         = "";
-        }
-    }
 
 	if(!params.interactive)
 		display = NULL;
@@ -237,7 +232,7 @@ bool Session::draw(BufferParams& buffer_params) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::reset_parameters(BufferParams& buffer_params, int samples) {
+void Session::reset_parameters(BufferParams& buffer_params) {
     if(display) {
 		if(buffer_params.modified(display->params)) {
 			display->reset(buffer_params);
@@ -253,7 +248,7 @@ void Session::reset_parameters(BufferParams& buffer_params, int samples) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Reset all session data buffers
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::reset(BufferParams& buffer_params, int samples) {
+void Session::reset(BufferParams& buffer_params) {
 	// Block for buffer acces and reset immediately. we can't do this
 	// in the thread, because we need to allocate an OpenGL buffer, and
 	// that only works in the main thread
@@ -263,7 +258,7 @@ void Session::reset(BufferParams& buffer_params, int samples) {
 	display_outdated    = true;
 	reset_time          = time_dt();
 
-	reset_parameters(buffer_params, samples);
+	reset_parameters(buffer_params);
     server->reset(scene->kernel->uiGPUs);
 	pause_cond.notify_all();
 } //reset()
@@ -271,7 +266,7 @@ void Session::reset(BufferParams& buffer_params, int samples) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Update render project on the render-server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::update(BufferParams& buffer_params, int samples) {
+void Session::update(BufferParams& buffer_params) {
 	// Block for buffer acces and reset immediately. we can't do this
 	// in the thread, because we need to allocate an OpenGL buffer, and
 	// that only works in the main thread
@@ -281,7 +276,7 @@ void Session::update(BufferParams& buffer_params, int samples) {
 	display_outdated    = true;
 	reset_time          = time_dt();
 
-	reset_parameters(buffer_params, samples);
+	reset_parameters(buffer_params);
     //server->update();
 	pause_cond.notify_all();
 } //update()
@@ -372,17 +367,17 @@ void Session::update_status_time(bool show_pause, bool show_done) {
             if(params.image_stat.spp < 999999) {
                 ulSPSdivider = 1000;
 #ifndef WIN32
-                ::sprintf(szSamples, "%.2f Ks/sec", params.image_stat.spp/ulSPSdivider);
+                ::snprintf(szSamples, 16, "%.2f Ks/sec", params.image_stat.spp/ulSPSdivider);
 #else
-                ::sprintf_s(szSamples, 15, "%.2f Ks/sec", params.image_stat.spp/ulSPSdivider);
+                ::snprintf(szSamples, 16, "%.2f Ks/sec", params.image_stat.spp/ulSPSdivider);
 #endif
             }
             else {
                 ulSPSdivider = 1000000;
 #ifndef WIN32
-                ::sprintf(szSamples, "%.2f Ms/sec", params.image_stat.spp/ulSPSdivider);
+                ::snprintf(szSamples, 16, "%.2f Ms/sec", params.image_stat.spp/ulSPSdivider);
 #else
-                ::sprintf_s(szSamples, 15, "%.2f Ms/sec", params.image_stat.spp/ulSPSdivider);
+                ::snprintf(szSamples, 16, "%.2f Ms/sec", params.image_stat.spp/ulSPSdivider);
 #endif
             }
 
@@ -421,8 +416,24 @@ void Session::update_status_time(bool show_pause, bool show_done) {
 	        status += " - Rendering";
     }
     else {
-        status      = "Not connected";
-        substatus   = string("No Render-server at address \"") + server->address + "\"";
+        switch(server->fail_reason) {
+        case RenderServer::NO_CONNECTION:
+            status = "Not connected";
+            substatus = string("No Render-server at address \"") + server->address + "\"";
+            break;
+        case RenderServer::WRONG_VERSION:
+            status = "Wrong version";
+            substatus = string("Wrong Render-server version at address \"") + server->address + "\"";
+            break;
+        case RenderServer::NOT_ACTIVATED:
+            status = "Not activated";
+            substatus = string("Render-server at address \"") + server->address + "\" is not activated";
+            break;
+        default:
+            status = "Server error";
+            substatus = string("Error in Render-server at address \"") + server->address + "\"";
+            break;
+        }
     }
 	progress.set_status(status, substatus);
 	progress.refresh_cur_info();

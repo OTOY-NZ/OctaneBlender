@@ -29,7 +29,7 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
 	{SOCK_SHADER,    1,  N_("Cylinder Transformation")},
-	{SOCK_INT,       1,  N_("Coordinate Space"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_UNSIGNED},
+	{SOCK_INT,       1,  N_("Coordinate Space"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 2.0f, PROP_UNSIGNED},
 	{-1, 0, ""}
 };
 

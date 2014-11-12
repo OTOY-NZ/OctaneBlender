@@ -45,6 +45,9 @@
 
 #include "BLI_path_util.h"
 #include "BLI_fileops.h"
+#ifdef WIN32
+#   include "BLI_winstuff.h"
+#endif
 
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
@@ -333,7 +336,7 @@ static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *off
         else ++mat_cnt;
     }
     if (cat_cnt > 0) {
-        sprintf(cnt_str, "%d", cat_cnt);
+        snprintf(cnt_str, 16, "%d", cat_cnt);
         string_width = UI_GetStringWidth(cnt_str);
 
         uiSetRoundBox(UI_CNR_ALL);
@@ -354,7 +357,7 @@ static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *off
         offsx += (int)(UI_UNIT_X + string_width);
     }
     if (mat_cnt > 0) {
-        sprintf(cnt_str, "%d", mat_cnt);
+        snprintf(cnt_str, 16, "%d", mat_cnt);
         string_width = UI_GetStringWidth(cnt_str);
 
         uiSetRoundBox(UI_CNR_ALL);

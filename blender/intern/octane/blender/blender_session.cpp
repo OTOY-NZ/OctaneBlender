@@ -128,6 +128,51 @@ BlenderSession::~BlenderSession() {
 } //~BlenderSession()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Send the license info to OctaneServer
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool BlenderSession::activate(BL::Scene b_scene) {
+    bool ret = false;
+
+    PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+
+    // Render-server address
+    RenderServerInfo &server_info = RenderServer::get_info();
+    string server_addr = get_string(oct_scene, "server_address");
+    if(server_addr.length() > 0)
+        ::strcpy(server_info.net_address, server_addr.c_str());
+
+    string login        = get_string(oct_scene, "server_login");
+    string pass         = get_string(oct_scene, "server_pass");
+    string stand_login  = get_string(oct_scene, "stand_login");
+    string stand_pass   = get_string(oct_scene, "stand_pass");
+    if(stand_login.length() > 0 && stand_pass.length() > 0 && login.length() > 0 && pass.length() > 0) {
+        RenderServer *server = new RenderServer(server_info.net_address, "", false, true);
+
+        if(server) {
+            if(server->activate(stand_login, stand_pass, login, pass)) {
+                RNA_string_set(&oct_scene, "stand_login", "");
+                RNA_string_set(&oct_scene, "stand_pass", "");
+                RNA_string_set(&oct_scene, "server_login", "");
+                RNA_string_set(&oct_scene, "server_pass", "");
+                fprintf(stdout, "Octane: server activation is completed successfully.\n");
+                ret = true;
+            }
+            delete server;
+        }
+        else {
+            fprintf(stderr, "Octane: ERROR during server activation.\n");
+            ret = false;
+        }
+    }
+    else {
+        fprintf(stderr, "Octane: ERROR: login-password fields must be filled in before activation.\n");
+        ret = false;
+    }
+
+    return ret;
+} //activate()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Create the Blender session and all Octane session data structures
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::create_session(PassType pass_type) {
@@ -164,7 +209,7 @@ void BlenderSession::create_session(PassType pass_type) {
 	BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
 
     if(interactive || !b_engine.is_animation() || b_scene.frame_current() == b_scene.frame_start())
-	    session->reset(buffer_params, session_params.samples);
+	    session->reset(buffer_params);
 } //create_session()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -177,11 +222,8 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_) {
 
     session->set_pause(false);
 
-    SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
-    session_params.width  = width;
-    session_params.height = height;
 	BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-	session->reset(buffer_params, session_params.samples);
+	session->reset(buffer_params);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -617,7 +659,7 @@ void BlenderSession::render() {
                 sync->sync_kernel(cur_pass_type);
 		        session->update_scene_to_server();
 	            BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-                session->update(buffer_params, session_params.samples);
+                session->update(buffer_params);
                 mb_cur_sample = 0;
                 session->start(cur_message, true);
                 session->params.image_stat.cur_samples = 0;
@@ -695,7 +737,7 @@ void BlenderSession::synchronize() {
 	// Reset if needed
 	if(scene->need_reset()) {
 		BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-        session->update(buffer_params, session_params.samples);
+        session->update(buffer_params);
 	}
 } //synchronize()
 
@@ -726,10 +768,9 @@ bool BlenderSession::draw(int w, int h) {
 
 		// Reset if requested
         if(reset) {
-			SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
 			buffer_params = BlenderSync::get_display_buffer_params(scene->camera, w, h);
 
-            session->update(buffer_params, session_params.samples);
+            session->update(buffer_params);
 		}
 	}
 
@@ -739,8 +780,7 @@ bool BlenderSession::draw(int w, int h) {
 	// Draw
     if(!reset) buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
     if(!session->draw(buffer_params)) {
-    	SessionParams session_params  = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
-        session->update(buffer_params, session_params.samples);
+        session->update(buffer_params);
         if(!session->draw(buffer_params)) tag_redraw();
     }
     return true;

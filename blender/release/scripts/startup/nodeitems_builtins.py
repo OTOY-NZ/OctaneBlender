@@ -188,13 +188,6 @@ shader_node_categories = [
         NodeItem("ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll),
         NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
         ]),
-    ShaderNewNodeCategory("SH_NEW_OUTPUT", "Output", items=[
-        NodeItem("ShaderNodeOutputMaterial"),
-        NodeItem("ShaderNodeOutputLamp"),
-        NodeItem("ShaderNodeOutputWorld"),
-        NodeItem("ShaderNodeOutputLineStyle", poll=line_style_shader_nodes_poll),
-        NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
-        ]),
     ShaderNewNodeCategory("SH_NEW_SHADER", "Shader", items=[
         NodeItem("ShaderNodeMixShader"),
         NodeItem("ShaderNodeAddShader"),
@@ -259,6 +252,13 @@ shader_node_categories = [
         NodeItem("ShaderNodeCombineHSV"),
         NodeItem("ShaderNodeWavelength"),
         NodeItem("ShaderNodeBlackbody"),
+        ]),
+    ShaderNewCommonNodeCategory("SH_NEW_OUTPUT", "Output", items=[
+        NodeItem("ShaderNodeOutputMaterial"),
+        NodeItem("ShaderNodeOutputLamp"),
+        NodeItem("ShaderNodeOutputWorld"),
+        NodeItem("ShaderNodeOutputLineStyle", poll=line_style_shader_nodes_poll),
+        NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
         ]),
     ShaderNewCommonNodeCategory("SH_NEW_SCRIPT", "Script", items=[
         NodeItem("ShaderNodeScript"),

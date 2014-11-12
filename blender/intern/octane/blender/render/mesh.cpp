@@ -301,7 +301,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
     if(global_update) {
         progress.set_status("Loading global Mesh to render-server", "");
         uint64_t obj_cnt = 0;
-        for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
+        for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
             uint64_t cur_size = obj_it->second.size();
             Mesh* mesh = cur_size > 0 ? obj_it->second[0]->mesh : 0;
 
@@ -348,7 +348,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
 
             obj_cnt = 0;
             bool hair_present = false;
-            for(map<Mesh*, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
+            for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
                 uint64_t cur_size = obj_it->second.size();
                 Mesh* mesh = cur_size > 0 ? obj_it->second[0]->mesh : 0;
 

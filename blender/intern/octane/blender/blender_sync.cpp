@@ -298,15 +298,13 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     string server_addr = get_string(oct_scene, "server_address");
     if(server_addr.length() > 0)
         ::strcpy(params.server.net_address, server_addr.c_str());
+
     string login        = get_string(oct_scene, "server_login");
     string pass         = get_string(oct_scene, "server_pass");
     string stand_login  = get_string(oct_scene, "stand_login");
     string stand_pass   = get_string(oct_scene, "stand_pass");
-    if(stand_login.length() > 0 && stand_pass.length() > 0 && login.length() > 0 && pass.length() > 0) {
-        params.stand_login  = stand_login;
-        params.stand_pass   = stand_pass;
-        params.login        = login;
-        params.pass         = pass;
+    if(stand_login.length() > 0 || stand_pass.length() > 0 || login.length() > 0 || pass.length() > 0) {
+        fprintf(stderr, "Octane: WARNING: you can't use the server activation form during active rendering session.\n");
         RNA_string_set(&oct_scene, "stand_login", "");
         RNA_string_set(&oct_scene, "stand_pass", "");
         RNA_string_set(&oct_scene, "server_login", "");

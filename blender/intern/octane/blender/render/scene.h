@@ -65,10 +65,10 @@ public:
 	Kernel	        *kernel;
 
 	// Data lists
-    map<Mesh*, vector<Object*> >    objects;
+    map<std::string, vector<Object*> > objects;
 	vector<Mesh*>			        meshes;
 	vector<Shader*>	                shaders;
-    map<Light*, vector<Object*> >   light_objects;
+    map<std::string, vector<Object*> > light_objects;
 	vector<Light*>			        lights;
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////

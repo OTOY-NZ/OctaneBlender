@@ -265,6 +265,31 @@ static PyObject *set_meshes_type_func(PyObject *self, PyObject *args) {
 	Py_RETURN_NONE;
 } //set_meshes_type_func()
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static PyObject *activate_func(PyObject *self, PyObject *args) {
+    PyObject *pyscene;
+
+    if(!PyArg_ParseTuple(args, "O", &pyscene))
+        return PyBool_FromLong(0);
+
+    // RNA
+    PointerRNA sceneptr;
+    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
+    BL::Scene scene(sceneptr);
+
+    bool ret;
+
+    Py_BEGIN_ALLOW_THREADS
+
+    ret = BlenderSession::activate(scene);
+
+    Py_END_ALLOW_THREADS
+
+    return PyBool_FromLong(ret ? 1 : 0);
+} //activate_func()
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -281,7 +306,8 @@ static PyMethodDef methods[] = {
     {"reload",          reload_func,            METH_O,         ""},
 	{"server_info",     server_info_func,       METH_NOARGS,    ""},
 	{"set_meshes_type", set_meshes_type_func,   METH_VARARGS,   ""},
-	{NULL, NULL, 0, NULL},
+    {"activate",        activate_func,          METH_VARARGS,   ""},
+    {NULL, NULL, 0, NULL},
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
