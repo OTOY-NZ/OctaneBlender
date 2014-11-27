@@ -76,9 +76,10 @@ LightManager::~LightManager() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void LightManager::server_update(RenderServer *server, Scene *scene, Progress& progress) {
+void LightManager::server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
 	if(!need_update) return;
-    need_update = false;
+    if(!total_frames || frame_idx >= (total_frames - 1))
+        need_update = false;
 
 	if(scene->lights.size() == 0) return;
 
@@ -156,6 +157,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         float           *general_vis            = new float[ulLocalCnt];
         bool            *cam_vis                = new bool[ulLocalCnt];
         bool            *shadow_vis             = new bool[ulLocalCnt];
+        bool            *reshapable             = new bool[ulLocalCnt];
 
         uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
         uint64_t        *vert_per_hair_size     = new uint64_t[ulLocalCnt];
@@ -220,17 +222,20 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             general_vis[i]          = 1.f;
             cam_vis[i]              = true;
             shadow_vis[i]           = true;
+            reshapable[i] = (scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && (light->mesh->mesh_type == Mesh::MOVABLE_PROXY || light->mesh->mesh_type == Mesh::RESHAPABLE_PROXY)));
 
             hair_points_size[i]     = light->mesh->hair_points.size();
             vert_per_hair_size[i]   = light->mesh->vert_per_hair.size();
 
-            if(light->need_update) light->need_update = false;
+            if(light->need_update
+               && (!total_frames || frame_idx >= (total_frames - 1) || !reshapable[i]))
+                light->need_update = false;
     		if(progress.get_cancel()) return;
             ++i;
 	    }
         if(i) {
             progress.set_status("Loading Lamps to render-server", "Transferring...");
-	        server->load_mesh(false, ulLocalCnt, mesh_names,
+            server->load_mesh(false, frame_idx, total_frames, ulLocalCnt, mesh_names,
                                         used_shaders_size,
                                         shader_names,
                                         points,
@@ -258,7 +263,8 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         open_subd_bound_interp,
                                         general_vis,
                                         cam_vis,
-                                        shadow_vis);
+                                        shadow_vis,
+                                        reshapable);
         }
         delete[] mesh_names;
         delete[] used_shaders_size;
@@ -286,6 +292,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+        delete[] reshapable;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
@@ -345,6 +352,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         float           *general_vis            = new float[obj_cnt];
         bool            *cam_vis                = new bool[obj_cnt];
         bool            *shadow_vis             = new bool[obj_cnt];
+        bool            *reshapable             = new bool[obj_cnt];
 
         uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
         uint64_t        *vert_per_hair_size     = new uint64_t[obj_cnt];
@@ -411,6 +419,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 general_vis[obj_cnt]          = 1.f;
                 cam_vis[obj_cnt]              = true;
                 shadow_vis[obj_cnt]           = true;
+                reshapable[obj_cnt]           = false;
 
                 hair_points_size[obj_cnt]     = light->mesh->hair_points.size();
                 vert_per_hair_size[obj_cnt]   = light->mesh->vert_per_hair.size();
@@ -423,7 +432,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         if(obj_cnt > 0) {
             progress.set_status("Loading global Lights to render-server", string("Transferring..."));
             char* name = "__global_lights";
-	        server->load_mesh(true, obj_cnt, &name,
+            server->load_mesh(true, frame_idx, total_frames, obj_cnt, &name,
                                         used_shaders_size,
                                         shader_names,
                                         points,
@@ -451,7 +460,8 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         open_subd_bound_interp,
                                         general_vis,
                                         cam_vis,
-                                        shadow_vis);
+                                        shadow_vis,
+                                        reshapable);
             for(size_t n = 0; n < obj_cnt; n++) {
                 delete[] points[n];
                 delete[] normals[n];
@@ -482,6 +492,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+        delete[] reshapable;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;

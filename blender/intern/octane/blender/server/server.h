@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 6
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 5
+#   define OCTANE_SERVER_MINOR_VERSION 6
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -888,7 +888,7 @@ public:
 
     // Reset the server project (SOFT reset).
     // GPUs - the GPUs which should be used by server, as bit map
-    inline void reset(uint32_t GPUs) {
+    inline void reset(uint32_t GPUs, float frame_time_sampling) {
         if(socket < 0) return;
 
         unpacked_msg = false;
@@ -897,8 +897,8 @@ public:
 
         int path_len = m_Export_alembic ? strlen(out_path) : 0;
 
-        RPCSend snd(socket, sizeof(uint32_t) * 2 + path_len + 2, RESET);
-        snd << GPUs << m_Export_alembic;
+        RPCSend snd(socket, sizeof(float) + sizeof(uint32_t) * 2 + path_len + 2, RESET);
+        snd << frame_time_sampling << GPUs << m_Export_alembic;
         if(m_Export_alembic) snd << out_path;
 
         snd.write();
@@ -1118,9 +1118,9 @@ public:
         switch(kernel->kernel_type) {
             case Kernel::DIRECT_LIGHT:
                 {
-                    RPCSend snd(socket, sizeof(float)*4 + sizeof(int32_t)*9, LOAD_KERNEL);
+                    RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*9, LOAD_KERNEL);
                     int32_t gi_mode = static_cast<int32_t>(kernel->gi_mode);
-                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->ao_dist
+                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->ao_dist
                         << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
                         << kernel->specular_depth << kernel->glossy_depth << gi_mode << kernel->diffuse_depth;
                     snd.write();
@@ -1128,8 +1128,8 @@ public:
                 break;
             case Kernel::PATH_TRACE:
                 {
-                    RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*7, LOAD_KERNEL);
-                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->caustic_blur << kernel->gi_clamp
+                    RPCSend snd(socket, sizeof(float)*6 + sizeof(int32_t)*7, LOAD_KERNEL);
+                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->caustic_blur << kernel->gi_clamp
                         << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
                         << kernel->max_diffuse_depth << kernel->max_glossy_depth;
                     snd.write();
@@ -1137,8 +1137,8 @@ public:
                 break;
             case Kernel::PMC:
                 {
-                    RPCSend snd(socket, sizeof(float)*7 + sizeof(int32_t)*9, LOAD_KERNEL);
-                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->exploration << kernel->direct_light_importance << kernel->caustic_blur << kernel->gi_clamp
+                    RPCSend snd(socket, sizeof(float)*8 + sizeof(int32_t)*9, LOAD_KERNEL);
+                    snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->rrprob << kernel->exploration << kernel->direct_light_importance << kernel->caustic_blur << kernel->gi_clamp
                         << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
                         << kernel->max_diffuse_depth << kernel->max_glossy_depth << kernel->max_rejects << kernel->parallelism;
                     snd.write();
@@ -1146,18 +1146,18 @@ public:
                 break;
             case Kernel::INFO_CHANNEL:
                 {
-                    RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*7, LOAD_KERNEL);
+                    RPCSend snd(socket, sizeof(float)*6 + sizeof(int32_t)*7, LOAD_KERNEL);
                     int32_t info_channel_type = static_cast<int32_t>(kernel->info_channel_type);
-                    snd << kernel_type << info_channel_type << kernel->filter_size << kernel->zdepth_max << kernel->uv_max << kernel->ray_epsilon << kernel->ao_dist
+                    snd << kernel_type << info_channel_type << kernel->shuttertime << kernel->filter_size << kernel->zdepth_max << kernel->uv_max << kernel->ray_epsilon << kernel->ao_dist
                         << kernel->alpha_channel << kernel->bump_normal_mapping << kernel->wf_bktrace_hl << kernel->distributed_tracing << (interactive ? kernel->max_preview_samples : kernel->max_samples);
                     snd.write();
                 }
                 break;
             default:
                 {
-                    RPCSend snd(socket, sizeof(int32_t), LOAD_KERNEL);
+                    RPCSend snd(socket, sizeof(int32_t) * 2 + sizeof(float), LOAD_KERNEL);
                     int32_t def_kernel_type = static_cast<int32_t>(Kernel::DEFAULT);
-                    snd << def_kernel_type;
+                    snd << def_kernel_type << def_kernel_type << kernel->shuttertime;
                     snd.write();
                 }
                 break;
@@ -1241,14 +1241,14 @@ public:
     // matrices     - matrices array
     // mat_cnt      - count of matrices
     // shader_names - names of shaders assigned to transforms
-    inline void load_scatter(string& scatter_name, string& mesh_name, float* matrices, uint64_t mat_cnt, vector<string>& shader_names) {
+    inline void load_scatter(string& scatter_name, string& mesh_name, float* matrices, uint64_t mat_cnt, bool movable, vector<string>& shader_names, uint32_t frame_idx, uint32_t total_frames) {
         if(socket < 0) return;
         thread_scoped_lock socket_lock(socket_mutex);
 
         uint64_t shaders_cnt = shader_names.size();
         
         {
-            uint64_t size = sizeof(uint64_t) + mesh_name.length()+2;
+            uint64_t size = sizeof(uint64_t) + mesh_name.length() + 2;
             for(uint64_t n=0; n<shaders_cnt; ++n)
                 size += shader_names[n].length()+2;
 
@@ -1269,11 +1269,14 @@ public:
         }
 
         {
-            uint64_t size = sizeof(uint64_t) + scatter_name.length()+4+2 + sizeof(float)*12*mat_cnt;
+            uint64_t size = sizeof(uint64_t)
+                + sizeof(int32_t) //Movable
+                + sizeof(uint32_t) * 2 //Frame index
+                + scatter_name.length() + 4 + 2 + sizeof(float) * 12 * mat_cnt;
 
             RPCSend snd(socket, size, LOAD_GEO_SCATTER, (scatter_name+"_s__").c_str());
             std::string tmp = scatter_name+"_m__";
-            snd << mat_cnt << tmp;
+            snd << mat_cnt << movable << frame_idx << total_frames << tmp;
             snd.write_buffer(matrices, sizeof(float)*12*mat_cnt);
             snd.write();
         }
@@ -1304,7 +1307,7 @@ public:
     } //delete_scatter()
 
     // Load mesh to render server.
-    inline void load_mesh(          bool            global,
+    inline void load_mesh(          bool            global, uint32_t frame_idx, uint32_t total_frames,
                                     uint64_t        mesh_cnt,
                                     char            **names,
                                     uint64_t        *shaders_count,
@@ -1338,15 +1341,17 @@ public:
                                     int32_t         *open_subd_bound_interp,
                                     float           *general_vis,
                                     bool            *cam_vis,
-                                    bool            *shadow_vis) {
+                                    bool            *shadow_vis,
+                                    bool            *reshapable) {
             if(socket < 0) return;
 
             thread_scoped_lock socket_lock(socket_mutex);
 
             {
                 uint64_t size = sizeof(uint64_t) //Meshes count;
+                    + sizeof(uint32_t) * 2 //Frame index
                     + sizeof(int32_t) * 4 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Subdivision addributes
-                    + sizeof(int32_t) * 2 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Visibility addributes
+                    + sizeof(int32_t) * 3 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Visibility and reshapable addributes
                     + sizeof(uint64_t) * 10 * mesh_cnt;
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     size +=
@@ -1370,7 +1375,7 @@ public:
 
                 RPCSend snd(socket, size, global ? LOAD_GLOBAL_MESH : LOAD_LOCAL_MESH, names[0]);
 
-                snd << mesh_cnt;
+                snd << mesh_cnt << frame_idx << total_frames;
 
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     if(!hair_points_size[i] && (!points_size[i] || !normals_size[i] || !points_indices_size[i] || !vert_per_poly_size[i] || !uvs_size[i] || !uv_indices_size[i])) return;
@@ -1405,7 +1410,7 @@ public:
                     if(uv_indices_size[i]) snd.write_buffer(uv_indices[i], uv_indices_size[i] * sizeof(int32_t));
                     if(vert_per_hair_size[i]) snd.write_buffer(vert_per_hair[i], vert_per_hair_size[i] * sizeof(int32_t));
                     if(vert_per_hair_size[i]) snd.write_buffer(hair_mat_indices[i], vert_per_hair_size[i] * sizeof(int32_t));
-                    snd << open_subd_enable[i] << open_subd_scheme[i] << open_subd_level[i] << open_subd_bound_interp[i] << cam_vis[i] << shadow_vis[i];
+                    snd << open_subd_enable[i] << open_subd_scheme[i] << open_subd_level[i] << open_subd_bound_interp[i] << cam_vis[i] << shadow_vis[i] << reshapable[i];
                 }
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     if(!global) snd << names[i];

@@ -174,7 +174,7 @@ void BlenderSync::sync_kernel(PassType pass_type) {
             break;
     }
     kernel->max_samples         = get_int(oct_scene, "max_samples");
-    if(scene->session->b_session && scene->session->b_session->motion_blur && scene->session->b_session->mb_samples > 1)
+    if(scene->session->b_session && scene->session->b_session->motion_blur && scene->session->b_session->mb_type == BlenderSession::SUBFRAME && scene->session->b_session->mb_samples > 1)
         kernel->max_samples = kernel->max_samples / scene->session->b_session->mb_samples;
     if(kernel->max_samples < 1) kernel->max_samples = 1;
 
@@ -208,7 +208,10 @@ void BlenderSync::sync_kernel(PassType pass_type) {
     kernel->uv_max              = get_float(oct_scene, "uv_max");
     kernel->distributed_tracing = get_boolean(oct_scene, "distributed_tracing");
 
-	if(kernel->modified(prevkernel)) kernel->tag_update();
+    BL::RenderSettings r = b_scene.render();
+    kernel->shuttertime = r.motion_blur_shutter();
+    
+    if(kernel->modified(prevkernel)) kernel->tag_update();
 
 	// GPUs
     int iValues[8] = {0,0,0,0,0,0,0,0};

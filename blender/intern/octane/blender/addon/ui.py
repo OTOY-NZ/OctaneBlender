@@ -286,8 +286,13 @@ class OctaneRender_PT_motion_blur(OctaneButtonsPanel, Panel):
         layout.active = rd.use_motion_blur
 
         row = layout.row()
+        row.prop(context.scene.octane, "mb_type")
+        row = layout.row()
+        row.prop(context.scene.octane, "mb_direction")
+        row = layout.row()
         row.prop(rd, "motion_blur_shutter")
         row = layout.row()
+        row.active = (context.scene.octane.mb_type == '1')
         row.prop(rd, "motion_blur_samples")
 
 

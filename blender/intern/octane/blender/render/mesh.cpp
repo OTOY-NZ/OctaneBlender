@@ -99,9 +99,10 @@ MeshManager::~MeshManager() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Update all (already compiled) scene meshes on render-server (finally sends one LOAD_MESH packet for global mesh and one for each scattered mesh)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progress& progress) {
+void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
 	if(!need_update) return;
-    need_update = false;
+    if(!total_frames || frame_idx >= (total_frames - 1))
+        need_update = false;
 	progress.set_status("Loading Meshes to render-server", "");
 
     uint64_t ulGlobalCnt    = 0;
@@ -163,6 +164,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         float           *general_vis            = new float[ulLocalCnt];
         bool            *cam_vis                = new bool[ulLocalCnt];
         bool            *shadow_vis             = new bool[ulLocalCnt];
+        bool            *reshapable             = new bool[ulLocalCnt];
 
         float3          **hair_points           = new float3*[ulLocalCnt];
         uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
@@ -218,6 +220,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             general_vis[i]          = mesh->vis_general;
             cam_vis[i]              = mesh->vis_cam;
             shadow_vis[i]           = mesh->vis_shadow;
+            reshapable[i]           = (scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY));
 
             hair_points_size[i]     = mesh->hair_points.size();
             hair_points[i]          = hair_points_size[i] ? &mesh->hair_points[0] : 0;
@@ -227,13 +230,15 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             hair_mat_indices[i]     = vert_per_hair_size[i] ? &mesh->hair_mat_indices[0] : 0;
             hair_uvs[i]             = vert_per_hair_size[i] ? &mesh->hair_uvs[0] : 0;
 
-            if(mesh->need_update) mesh->need_update = false;
+            if(mesh->need_update
+               && (!total_frames || frame_idx >= (total_frames - 1) || !reshapable[i]))
+                mesh->need_update = false;
     		if(progress.get_cancel()) return;
             ++i;
 	    }
         if(i) {
             progress.set_status("Loading Meshes to render-server", "Transferring...");
-	        server->load_mesh(false, ulLocalCnt, mesh_names,
+            server->load_mesh(false, frame_idx, total_frames, ulLocalCnt, mesh_names,
                                         used_shaders_size,
                                         shader_names,
                                         points,
@@ -261,7 +266,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         open_subd_bound_interp,
                                         general_vis,
                                         cam_vis,
-                                        shadow_vis);
+                                        shadow_vis,
+                                        reshapable);
         }
         delete[] mesh_names;
         delete[] used_shaders_size;
@@ -289,6 +295,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+        delete[] reshapable;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
@@ -337,6 +344,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             float           *general_vis            = new float[obj_cnt];
             bool            *cam_vis                = new bool[obj_cnt];
             bool            *shadow_vis             = new bool[obj_cnt];
+            bool            *reshapable             = new bool[obj_cnt];
 
             float3          **hair_points           = new float3*[obj_cnt];
             uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
@@ -396,6 +404,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     general_vis[obj_cnt]          = mesh->vis_general;
                     cam_vis[obj_cnt]              = mesh->vis_cam;
                     shadow_vis[obj_cnt]           = mesh->vis_shadow;
+                    reshapable[obj_cnt]           = false;
 
                     hair_points_size[obj_cnt]     = mesh->hair_points.size();
                     hair_points[obj_cnt]          = hair_points_size[obj_cnt] ? &mesh->hair_points[0] : 0;
@@ -416,7 +425,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             
             progress.set_status("Loading global Mesh to render-server", string("Transferring..."));
             char* name = "__global";
-	        server->load_mesh(true, obj_cnt, &name,
+            server->load_mesh(true, frame_idx, total_frames, obj_cnt, &name,
                                         used_shaders_size,
                                         shader_names,
                                         points,
@@ -444,7 +453,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         open_subd_bound_interp,
                                         general_vis,
                                         cam_vis,
-                                        shadow_vis);
+                                        shadow_vis,
+                                        reshapable);
             delete[] used_shaders_size;
             delete[] shader_names;
             delete[] points;
@@ -470,6 +480,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             delete[] general_vis;
             delete[] cam_vis;
             delete[] shadow_vis;
+            delete[] reshapable;
 
             delete[] hair_points_size;
             delete[] vert_per_hair_size;
@@ -488,12 +499,12 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Update render-server (sends "LOAD_MESH" packets finally)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void MeshManager::server_update(RenderServer *server, Scene *scene, Progress& progress) {
+void MeshManager::server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
 	if(!need_update) return;
 
-    server_update_mesh(server, scene, progress);
+    server_update_mesh(server, scene, progress, frame_idx, total_frames);
 
-	need_update = false;
+    //need_update = false;
 } //server_update()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -93,9 +93,10 @@ ObjectManager::~ObjectManager() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Load transforms to render-server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& progress) {
+void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
 	if(!need_update) return;
-	need_update = false;
+    if(!total_frames || frame_idx >= (total_frames - 1))
+        need_update = false;
 	
     if(scene->objects.size()) {
 	    progress.set_status("Updating Objects", "Copying Transformations to server");
@@ -106,6 +107,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
             uint64_t cur_size = mesh_it->second.size();
             if(!cur_size) continue;
             Mesh* cur_mesh = mesh_it->second[0]->mesh;
+            bool movable = (scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && (cur_mesh->mesh_type == Mesh::MOVABLE_PROXY || cur_mesh->mesh_type == Mesh::RESHAPABLE_PROXY)));
 
             if((scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && cur_mesh->mesh_type == Mesh::GLOBAL))
                || (!scene->first_frame
@@ -126,7 +128,8 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                 }
 
                 if(object->need_update) {
-                    object->need_update = false;
+                    if(!total_frames || frame_idx >= (total_frames - 1) || !movable)
+                        object->need_update = false;
                 }
                 else continue;
 
@@ -152,7 +155,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                 std::string cur_object_name(object->name.c_str());
                 cur_object_name = cur_object_name + "__" + cur_mesh->name.c_str();
                 std::string cur_mesh_name(cur_mesh->name.c_str());
-                server->load_scatter(cur_object_name, cur_mesh_name, matrices, 1, shader_names);
+                server->load_scatter(cur_object_name, cur_mesh_name, matrices, 1, movable, shader_names, frame_idx, total_frames);
             } //for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it)
             delete[] matrices;
             if(mesh_needs_update && cnt) {
@@ -169,7 +172,11 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                     if(!object->particle_id) {
                         continue;
                     }
-                    if(object->need_update) object->need_update = false;
+
+                    if(object->need_update) {
+                        if(!total_frames || frame_idx >= (total_frames - 1) || !movable)
+                            object->need_update = false;
+                    }
 
                     matrices[i++] = object->tfm.x.x;
                     matrices[i++] = object->tfm.x.y;
@@ -186,7 +193,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                 } //for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it)
                 std::string cur_mesh_name(cur_mesh->name.c_str());
                 std::string cur_part_name = cur_mesh_name + "__part__";
-                server->load_scatter(cur_part_name, cur_mesh_name, matrices, cnt, shader_names);
+                server->load_scatter(cur_part_name, cur_mesh_name, matrices, cnt, movable, shader_names, frame_idx, total_frames);
                 delete[] matrices;
             }
             //if(mesh_needs_update) server->load_scatter(scatter_names, string(cur_mesh->name.c_str()), matrices, shader_names);
@@ -214,12 +221,14 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
             float* matrices = new float[12];
             vector<string> shader_names;
             shader_names.push_back("__" + cur_light->nice_name);
+            bool movable = (scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && (cur_light->mesh->mesh_type == Mesh::MOVABLE_PROXY || cur_light->mesh->mesh_type == Mesh::RESHAPABLE_PROXY)));
 
             bool mesh_needs_update = false;
             for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it) {
                 Object* object = *it;
                 if(object->need_update) {
-                    object->need_update = false;
+                    if(!total_frames || frame_idx >= (total_frames - 1) || !movable)
+                        object->need_update = false;
                     if(!mesh_needs_update) mesh_needs_update = true;
                 }
 
@@ -240,7 +249,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                 std::string cur_scatter_name(object->name.c_str());
                 std::string cur_light_name(cur_light->name.c_str());
                 cur_scatter_name = cur_scatter_name + "__" + cur_light_name;
-                if(mesh_needs_update) server->load_scatter(cur_scatter_name, cur_light_name, matrices, 1, shader_names);
+                if(mesh_needs_update) server->load_scatter(cur_scatter_name, cur_light_name, matrices, 1, movable, shader_names, frame_idx, total_frames);
             } //for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it)
             //if(mesh_needs_update) server->load_scatter(scatter_names, string(cur_light->name.c_str()), matrices, cnt, shader_names);
             delete[] matrices;

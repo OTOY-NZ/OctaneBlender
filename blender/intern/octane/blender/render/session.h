@@ -90,19 +90,19 @@ public:
     Session(const SessionParams& params, const char *_out_path);
 	~Session();
 
-	void start(const char* pass_name_, bool synchronous);
+    void start(const char* pass_name_, bool synchronous, uint32_t frame_idx_, uint32_t total_frames_);
 	bool draw(BufferParams& params);
 	void wait();
 
 	bool ready_to_reset();
-	void reset(BufferParams& params);
+    void reset(BufferParams& params, float mb_frame_time_sampling);
 	void set_samples(int samples);
 	void set_pause(bool pause);
     void set_blender_session(BlenderSession *b_session_);
 
     void update(BufferParams& params);
     void update_params(SessionParams& session_params);
-	void update_scene_to_server();
+    void update_scene_to_server(uint32_t frame_idx, uint32_t total_frames);
 
 	RenderServer	*server;
 	Scene			*scene;
@@ -140,6 +140,9 @@ protected:
 	double paused_time;
 
     const char* pass_name;
+
+    uint32_t frame_idx;
+    uint32_t total_frames;
 }; //Session
 
 OCT_NAMESPACE_END

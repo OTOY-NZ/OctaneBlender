@@ -55,6 +55,16 @@ public:
 
 class BlenderSession {
 public:
+    enum MotionBlurType {
+        INTERNAL = 0,
+        SUBFRAME
+    };
+    enum MotionBlurDirection {
+        AFTER = 0,
+        BEFORE,
+        SYMMETRIC
+    };
+
 	BlenderSession(BL::RenderEngine b_engine, BL::UserPreferences b_userpref, BL::BlendData b_data, BL::Scene b_scene);
 	BlenderSession(BL::RenderEngine b_engine, BL::UserPreferences b_userpref, BL::BlendData b_data, BL::Scene b_scene,
 		           BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
@@ -103,8 +113,13 @@ public:
     int         ready_passes;
     float*      pass_buffers[NUM_PASSES];
     float*      mb_pass_buffers[NUM_PASSES];
-    bool        motion_blur;
-    int         mb_samples;
+
+    bool                motion_blur;
+    int                 mb_samples;
+    MotionBlurType      mb_type;
+    MotionBlurDirection mb_direction;
+    float               mb_frames_cnt, mb_frame_time_sampling;
+    int                 mb_first_frame, mb_last_frame;
 
 	BL::RenderEngine    b_engine;
 	BL::UserPreferences b_userpref;
@@ -120,10 +135,11 @@ public:
 	int width, height;
 
 protected:
-	void do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only);
-	void do_write_update_render_img(bool do_update_only);
+	void        do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only);
+	void        do_write_update_render_img(bool do_update_only);
 
-    inline int get_render_passes(vector<Pass> &passes);
+    inline int  get_render_passes(vector<Pass> &passes);
+    int         load_internal_mb_sequence(PassType pass_type, bool &stop_render);
 
     float shuttertime;
     int   mb_cur_sample;

@@ -108,6 +108,19 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 maxlen=128,
                 )
 
+        cls.mb_type = EnumProperty(
+                name="Motion blur type",
+                description="",
+                items=types.mb_types,
+                default='1',
+                )
+        cls.mb_direction = EnumProperty(
+                name="Motion blur direction",
+                description="",
+                items=types.mb_directions,
+                default='0',
+                )
+
         cls.kernel_type = EnumProperty(
                 name="Kernel type",
                 description="",

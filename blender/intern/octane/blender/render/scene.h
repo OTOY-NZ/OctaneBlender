@@ -50,7 +50,7 @@ public:
     Scene(const Session *session_, bool first_frame_);
 	~Scene();
 
-	void server_update(RenderServer *server, Progress& progress, bool interactive);
+    void server_update(RenderServer *server, Progress& progress, bool interactive, uint32_t frame_idx, uint32_t total_frames);
 	bool need_update();
 	bool need_reset();
 

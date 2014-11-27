@@ -206,6 +206,17 @@ info_channel_types = (
     ('10',"Ambient occlusion", ""),
     )
 
+mb_types = (
+    ('0', "Internal", ""),
+    ('1', "Subframe", ""),
+    )
+
+mb_directions = (
+    ('0', "After", ""),
+    ('1', "Before", ""),
+    ('2', "Symmetric", ""),
+    )
+
 kernel_types = (
     ('0', "Default", ""),
     ('1', "Direct light", ""),

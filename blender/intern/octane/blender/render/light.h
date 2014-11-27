@@ -74,7 +74,7 @@ public:
 	LightManager();
 	~LightManager();
 
-	void server_update(RenderServer *server, Scene *scene, Progress& progress);
+    void server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
 	void tag_update(Scene *scene);
 
 	bool need_update;

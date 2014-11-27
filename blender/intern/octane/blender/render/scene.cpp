@@ -110,7 +110,7 @@ Scene::~Scene() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Updates the data on render-server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Scene::server_update(RenderServer *server_, Progress& progress, bool interactive) {
+void Scene::server_update(RenderServer *server_, Progress& progress, bool interactive, uint32_t frame_idx, uint32_t total_frames) {
 	if(!server) server = server_;
 	
 	progress.set_status("Updating Environment");
@@ -129,17 +129,17 @@ void Scene::server_update(RenderServer *server_, Progress& progress, bool intera
 	if(progress.get_cancel()) return;
 
 	progress.set_status("Updating Meshes");
-	mesh_manager->server_update(server, this, progress);
+    mesh_manager->server_update(server, this, progress, frame_idx, total_frames);
 
 	if(progress.get_cancel()) return;
 
 	progress.set_status("Updating Lights");
-	light_manager->server_update(server, this, progress);
+    light_manager->server_update(server, this, progress, frame_idx, total_frames);
 
 	if(progress.get_cancel()) return;
 
 	progress.set_status("Updating Objects");
-    object_manager->server_update(server, this, progress);
+    object_manager->server_update(server, this, progress, frame_idx, total_frames);
 
 	if(progress.get_cancel()) return;
 

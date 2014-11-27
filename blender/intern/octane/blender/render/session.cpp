@@ -93,8 +93,11 @@ bool Session::ready_to_reset() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Runs the new rendering loop
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::start(const char* pass_name_, bool synchronous) {
-    pass_name = pass_name_;
+void Session::start(const char* pass_name_, bool synchronous, uint32_t frame_idx_, uint32_t total_frames_) {
+    pass_name       = pass_name_;
+    frame_idx       = frame_idx_;
+    total_frames    = total_frames_;
+
     if(!synchronous)
         //FIXME: kill this boost here
         session_thread = new thread(boost::bind(&Session::run, this));
@@ -153,7 +156,7 @@ void Session::run_render() {
             time_sleep(0.01);
 
 			// Update scene on the render-server - send all changed objects
-			update_scene_to_server();
+            update_scene_to_server(frame_idx, total_frames);
             if(!bStarted) {
                 server->start_render(params.width, params.height, params.interactive ? 0 : 2); //FIXME: Perhaps the wrong place for it...
                 bStarted = true;
@@ -248,7 +251,7 @@ void Session::reset_parameters(BufferParams& buffer_params) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Reset all session data buffers
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::reset(BufferParams& buffer_params) {
+void Session::reset(BufferParams& buffer_params, float mb_frame_time_sampling) {
 	// Block for buffer acces and reset immediately. we can't do this
 	// in the thread, because we need to allocate an OpenGL buffer, and
 	// that only works in the main thread
@@ -259,7 +262,7 @@ void Session::reset(BufferParams& buffer_params) {
 	reset_time          = time_dt();
 
 	reset_parameters(buffer_params);
-    server->reset(scene->kernel->uiGPUs);
+    server->reset(scene->kernel->uiGPUs, mb_frame_time_sampling);
 	pause_cond.notify_all();
 } //reset()
 
@@ -331,7 +334,7 @@ void Session::set_blender_session(BlenderSession *b_session_) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Updates the data on the render-server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::update_scene_to_server() {
+void Session::update_scene_to_server(uint32_t frame_idx, uint32_t total_frames) {
 	thread_scoped_lock scene_lock(scene->mutex);
 
 	// Update camera if dimensions changed for progressive render. The camera
@@ -350,7 +353,7 @@ void Session::update_scene_to_server() {
 	// Update scene
 	if(params.export_alembic || scene->need_update()) {
 		progress.set_status("Updating Scene");
-		scene->server_update(server, progress, params.interactive);
+        scene->server_update(server, progress, params.interactive, frame_idx, total_frames);
 	}
 } //update_scene_to_device()
 

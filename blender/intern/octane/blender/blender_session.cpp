@@ -30,6 +30,11 @@
 #include "blender_sync.h"
 #include "blender_util.h"
 
+#include "DNA_scene_types.h"
+#include "BKE_scene.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
+
 OCT_NAMESPACE_BEGIN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,14 +75,6 @@ void Pass::add(PassType type, vector<Pass>& passes) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_)
 								: b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL) {
-
-    BL::RenderSettings r = b_scene.render();
-    motion_blur          = r.use_motion_blur();
-    shuttertime          = r.motion_blur_shutter();
-    mb_samples           = r.motion_blur_samples();
-    mb_cur_sample        = 0;
-    mb_sample_in_work    = 0;
-
     for(int i=0; i < NUM_PASSES; ++i) {
         if(pass_buffers[i]) pass_buffers[i] = 0;
     }
@@ -99,8 +96,6 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_, BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
 								: b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(b_v3d_), b_rv3d(b_rv3d_) {
-    motion_blur = false;
-
     for(int i=0; i < NUM_PASSES; ++i) {
         if(pass_buffers[i]) pass_buffers[i] = 0;
     }
@@ -114,9 +109,17 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 	interactive         = true;
 	last_redraw_time    = 0.0f;
 
-	create_session(PASS_COMBINED);
-    sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
-	session->start("Interactive", false);
+    create_session(PASS_COMBINED);
+
+    if(motion_blur && mb_type == INTERNAL) {
+        bool stop_render;
+        session->start("Interactive", false, load_internal_mb_sequence(PASS_COMBINED, stop_render), 0);
+    }
+    else {
+		motion_blur = false;
+        sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
+        session->start("Interactive", false, 0, 0);
+    }
 } //BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_, BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,6 +183,18 @@ void BlenderSession::create_session(PassType pass_type) {
     session_params.width            = width;
     session_params.height           = height;
 
+    BL::RenderSettings r    = b_scene.render();
+    motion_blur             = r.use_motion_blur();
+    shuttertime             = r.motion_blur_shutter();
+    mb_samples              = r.motion_blur_samples();
+    mb_cur_sample           = 0;
+    mb_sample_in_work       = 0;
+
+    PointerRNA oct_scene    = RNA_pointer_get(&b_scene.ptr, "octane");
+    mb_type                 = static_cast<MotionBlurType>(RNA_enum_get(&oct_scene, "mb_type"));
+    mb_direction            = static_cast<MotionBlurDirection>(RNA_enum_get(&oct_scene, "mb_direction"));
+    mb_frame_time_sampling  = motion_blur && mb_type == INTERNAL ? 1.0f / session_params.fps : -1.0f;
+
 	// Reset status/progress
 	last_status		= "";
 	last_progress	= -1.0f;
@@ -209,7 +224,7 @@ void BlenderSession::create_session(PassType pass_type) {
 	BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
 
     if(interactive || !b_engine.is_animation() || b_scene.frame_current() == b_scene.frame_start())
-	    session->reset(buffer_params);
+        session->reset(buffer_params, mb_frame_time_sampling);
 } //create_session()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -223,8 +238,8 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_) {
     session->set_pause(false);
 
 	BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-	session->reset(buffer_params);
-}
+    session->reset(buffer_params, mb_frame_time_sampling);
+} //reset_session()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Reload the scene
@@ -233,9 +248,16 @@ void BlenderSession::reload_session() {
 	free_session();
     last_redraw_time = 0.0f;
     create_session(PASS_COMBINED);
-    sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
-    if(interactive) session->start("Combined pass", false);
-}
+
+    if(motion_blur && mb_type == INTERNAL) {
+        bool stop_render;
+        session->start("Interactive", false, load_internal_mb_sequence(PASS_COMBINED, stop_render), 0);
+    }
+    else {
+        sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
+        if(interactive) session->start("Interactive", false, 0, 0);
+    }
+} //reload_session()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Free Blender session and all Octane session data structures
@@ -254,6 +276,61 @@ void BlenderSession::free_session() {
 	delete sync;
 	delete session;
 } //free_session()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Returns: the current frame index inside the sequence
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+int BlenderSession::load_internal_mb_sequence(PassType pass_type, bool &stop_render) {
+    stop_render = false;
+
+    int     cur_frame = b_scene.frame_current();
+    float   frames_cnt = shuttertime / mb_frame_time_sampling;
+    int     first_frame, last_frame;
+
+    if(mb_direction == AFTER) {
+        first_frame = cur_frame;
+        last_frame = static_cast<int>(ceilf(static_cast<float>(cur_frame)+frames_cnt));
+    }
+    else if(mb_direction == BEFORE) {
+        first_frame = static_cast<int>(floorf(static_cast<float>(cur_frame)-frames_cnt));
+        last_frame = cur_frame;
+    }
+    else if(mb_direction == SYMMETRIC) {
+        first_frame = static_cast<int>(floorf(static_cast<float>(cur_frame)-frames_cnt / 2));
+        last_frame = static_cast<int>(ceilf(static_cast<float>(cur_frame)+frames_cnt / 2));
+    }
+    CLAMP(first_frame, b_scene.frame_start(), b_scene.frame_end());
+    CLAMP(last_frame, b_scene.frame_start(), b_scene.frame_end());
+
+    double last_cfra;
+    for(int cur_mb_frame = first_frame; cur_mb_frame <= last_frame; ++cur_mb_frame) {
+        //b_scene.frame_set(cur_mb_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
+        last_cfra = (double)cur_mb_frame;
+        CLAMP(last_cfra, MINAFRAME, MAXFRAME);
+        BKE_scene_frame_set((::Scene *)b_scene.ptr.data, last_cfra);
+        BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+        BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+
+        sync->sync_data(pass_type, b_v3d, b_engine.camera_override());
+        sync->sync_camera(b_engine.camera_override(), width, height);
+        session->update_scene_to_server(cur_mb_frame - first_frame, last_frame - first_frame + 1);
+
+        if(!interactive && session->progress.get_cancel()) {
+            stop_render = true;
+            break;
+        }
+    }
+    //b_scene.frame_set(cur_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
+    double cfra = (double)cur_frame;
+    CLAMP(cfra, MINAFRAME, MAXFRAME);
+    if(last_cfra != cfra) {
+        BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+        BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+        BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+    }
+
+    return cur_frame - first_frame;
+} //load_internal_mb_sequence()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Get Blender render-pass type translated to Octane pass type
@@ -524,7 +601,7 @@ void BlenderSession::render() {
 	// Get buffer parameters
 	SessionParams	session_params	= BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
     if(session_params.export_alembic) {
-	    session->update_scene_to_server();
+        session->update_scene_to_server(0, 0);
         session->server->start_render(width, height, 0);
 
         if(b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
@@ -539,7 +616,7 @@ void BlenderSession::render() {
 	BL::RenderSettings render = b_scene.render();
 	BL::RenderSettings::layers_iterator b_iter;
 
-    if(motion_blur && mb_samples > 1)
+    if(motion_blur && mb_type == SUBFRAME && mb_samples > 1)
         session->params.samples = session->params.samples / mb_samples;
     if(session->params.samples < 1) session->params.samples = 1;
 	
@@ -567,17 +644,23 @@ void BlenderSession::render() {
         cur_pass_type = PASS_COMBINED;
 
         // Render
-        if(motion_blur && mb_samples > 1) {
+        if(motion_blur && mb_type == SUBFRAME && mb_samples > 1) {
             mb_sample_in_work = 0;
             float subframe = 0;
             int cur_frame = b_scene.frame_current();
             for(mb_cur_sample = 1; mb_cur_sample <= mb_samples; ++mb_cur_sample) {
-                session->start("Combined pass", true);
+                session->start("Combined pass", true, 0, 0);
                 session->params.image_stat.cur_samples = 0;
 
                 subframe += shuttertime / (mb_samples - 1);
-                if(subframe < 1.0f)
-        		    b_scene.frame_set(cur_frame, subframe);
+                if(subframe < 1.0f) {
+                    //b_scene.frame_set(cur_frame, subframe); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
+                    double cfra = (double)cur_frame + (double)subframe;
+                    CLAMP(cfra, MINAFRAME, MAXFRAME);
+                    BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+                    BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+                    BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+                }
 
                 sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
         		sync->sync_camera(b_engine.camera_override(), width, height);
@@ -587,12 +670,25 @@ void BlenderSession::render() {
                     break;
                 }
             }
-      		b_scene.frame_set(cur_frame, 0);
+            //b_scene.frame_set(cur_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
+            double cfra = (double)cur_frame;
+            CLAMP(cfra, MINAFRAME, MAXFRAME);
+            BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+            BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+            BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+        }
+        else if(motion_blur && mb_type == INTERNAL) {
+            int int_frame_idx = load_internal_mb_sequence(PASS_COMBINED, stop_render);
+
+            if(!stop_render) {
+                session->start("Combined pass", true, int_frame_idx, 0);
+                session->params.image_stat.cur_samples = 0;
+            }
         }
         else {
             if(motion_blur) motion_blur = false;
             mb_cur_sample = 0;
-            session->start("Combined pass", true);
+            session->start("Combined pass", true, 0, 0);
             session->params.image_stat.cur_samples = 0;
         }
         ready_passes = 1;
@@ -628,7 +724,7 @@ void BlenderSession::render() {
             }
 
 	        // Render
-            if(motion_blur && mb_samples > 1) {
+            if(motion_blur && mb_type == SUBFRAME && mb_samples > 1) {
                 sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
         		sync->sync_camera(b_engine.camera_override(), width, height);
 
@@ -636,12 +732,18 @@ void BlenderSession::render() {
                 float subframe = 0;
                 int cur_frame = b_scene.frame_current();
                 for(mb_cur_sample = 1; mb_cur_sample <= mb_samples; ++mb_cur_sample) {
-                    session->start(cur_message, true);
+                    session->start(cur_message, true, 0, 0);
                     session->params.image_stat.cur_samples = 0;
 
                     subframe += shuttertime / (mb_samples - 1);
-                    if(subframe < 1.0f)
-        		        b_scene.frame_set(cur_frame, subframe);
+                    if(subframe < 1.0f) {
+                        //b_scene.frame_set(cur_frame, subframe); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
+                        double cfra = (double)cur_frame + (double)subframe;
+                        CLAMP(cfra, MINAFRAME, MAXFRAME);
+                        BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+                        BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+                        BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+                    }
 
                     sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
             		sync->sync_camera(b_engine.camera_override(), width, height);
@@ -651,17 +753,30 @@ void BlenderSession::render() {
                         break;
                     }
                 }
-      		    b_scene.frame_set(cur_frame, 0);
+                //b_scene.frame_set(cur_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
+                double cfra = (double)cur_frame;
+                CLAMP(cfra, MINAFRAME, MAXFRAME);
+                BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+                BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+                BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+            }
+            else if(motion_blur && mb_type == INTERNAL) {
+                int int_frame_idx = load_internal_mb_sequence(cur_pass_type, stop_render);
+
+                if(!stop_render) {
+                    session->start(cur_message, true, int_frame_idx, 0);
+                    session->params.image_stat.cur_samples = 0;
+                }
             }
             else {
                 if(motion_blur) motion_blur = false;
 
                 sync->sync_kernel(cur_pass_type);
-		        session->update_scene_to_server();
+                session->update_scene_to_server(0, 0);
 	            BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
                 session->update(buffer_params);
                 mb_cur_sample = 0;
-                session->start(cur_message, true);
+                session->start(cur_message, true, 0, 0);
                 session->params.image_stat.cur_samples = 0;
             }
             ++ready_passes;

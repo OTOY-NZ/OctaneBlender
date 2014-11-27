@@ -66,6 +66,8 @@ Kernel::Kernel() {
 
     uiGPUs              = 0;
 
+    shuttertime         = 0;
+
 	need_update         = true;
     need_update_GPUs    = false;
 } //Kernel()
@@ -122,9 +124,10 @@ bool Kernel::modified(const Kernel& kernel) {
 
         info_channel_type       == kernel.info_channel_type &&
         zdepth_max              == kernel.zdepth_max &&
-        uv_max                  == kernel.uv_max
+        uv_max                  == kernel.uv_max &&
+        shuttertime             == kernel.shuttertime
         
-        //uiGPUs == kernel.uiGPUs
+        //uiGPUs                == kernel.uiGPUs
         );
 } //modified()
 

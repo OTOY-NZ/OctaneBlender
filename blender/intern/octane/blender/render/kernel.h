@@ -105,8 +105,10 @@ public:
 
     uint32_t    uiGPUs;
 
-	bool need_update;
-	bool need_update_GPUs;
+    float       shuttertime;
+
+	bool        need_update;
+	bool        need_update_GPUs;
 }; //Kernel
 
 OCT_NAMESPACE_END

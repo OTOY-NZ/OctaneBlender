@@ -93,8 +93,8 @@ public:
 	MeshManager();
 	~MeshManager();
 
-	void server_update(RenderServer *server, Scene *scene, Progress& progress);
-	void server_update_mesh(RenderServer *server, Scene *scene, Progress& progress);
+    void server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
+    void server_update_mesh(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
 
 	void tag_update(Scene *scene);
 	void tag_global_update();
