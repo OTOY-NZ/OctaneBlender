@@ -43,12 +43,107 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="OctaneRender settings",
                 type=cls,
                 )
-
+# ################################################################################################
+# OCTANE RENDER PASSES
+# ################################################################################################
         cls.use_passes = BoolProperty(
                 name="Render passes",
                 description="",
                 default=False,
                 )
+
+        cls.reflection_pass_subtype = EnumProperty(
+                name="Subtype",
+                description="",
+                items=types.pass_dir_subtype,
+                default='0',
+                )
+        cls.normal_pass_subtype = EnumProperty(
+                name="Subtype",
+                description="",
+                items=types.pass_normal_subtype,
+                default='0',
+                )
+
+        cls.pass_max_samples = IntProperty(
+                name="Max samples",
+                description="The maximum number of samples for the info passes (excluding AO)",
+                min=1, max=1024,
+                default=128,
+                )
+        cls.pass_ao_max_samples = IntProperty(
+                name="AO max samples",
+                description="Ambient Occlusion (AO) maximum samples per pixel",
+                min=1, max=256000,
+                default=1024,
+                )
+        cls.pass_start_samples = IntProperty(
+                name="Start samples",
+                description="The minimum number of samples we need to have rendered for the beauty passes before we're allowed to start rendering the info passes. 0 means that we wait until all the beauty passes are finished",
+                min=0, max=256000,
+                default=0,
+                )
+        cls.pass_distributed_tracing = BoolProperty(
+                name="Distributed ray tracing",
+                description="Enable motion blur and depth of field",
+                default=False,
+                )
+        cls.pass_filter_size = FloatProperty(
+                name="Filter size",
+                description="Film splatting width (to reduce aliasing)",
+                min=1.0, soft_min=1.0, max=8.0, soft_max=8.0,
+                default=1.0,
+                step=10,
+                precision=2,
+                )
+        cls.pass_z_depth_max = FloatProperty(
+                name="Z-depth max",
+                description="Z-depth value mapped to white (0 is mapped to black)",
+                min=0.001, soft_min=0.001, max=100000.0, soft_max=100000.0,
+                default=5.0,
+                step=10,
+                precision=4,
+                )
+        cls.pass_uv_max = FloatProperty(
+                name="UV max",
+                description="UV coordinate value mapped to maximum intensity",
+                min=0.00001, soft_min=0.00001, max=1000.0, soft_max=1000.0,
+                default=1.0,
+                step=10,
+                precision=5,
+                )
+        cls.pass_max_speed = FloatProperty(
+                name="Max speed",
+                description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval",
+                min=0.00001, soft_min=0.00001, max=10000.0, soft_max=10000.0,
+                default=1.0,
+                step=10,
+                precision=5,
+                )
+        cls.pass_ao_distance = FloatProperty(
+                name="AO distance",
+                description="Ambient occlusion distance",
+                min=0.01, soft_min=0.01, max=1024.0, soft_max=1024.0,
+                default=3.0,
+                step=10,
+                precision=2,
+                )
+        cls.pass_alpha_shadows = BoolProperty(
+                name="AO alpha shadows",
+                description="Take into account alpha maps when calculating ambient occlusion",
+                default=False,
+                )
+
+        cls.cur_pass_type = EnumProperty(
+                name="Preview pass type",
+                description="",
+                items=types.pass_types,
+                default='0',
+                )
+
+# ################################################################################################
+# OCTANE COMMON
+# ################################################################################################
         cls.viewport_hide = BoolProperty(
                 name="Viewport hide priority",
                 description="Hide from final render objects hidden in viewport",
@@ -155,14 +250,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 default=0.0001,
                 step=10,
                 precision=6,
-                )
-        cls.rrprob = FloatProperty(
-                name="RRprob",
-                description="",
-                min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
-                default=0.0,
-                step=1,
-                precision=4,
                 )
         cls.alpha_channel = BoolProperty(
                 name="Alpha channel",
@@ -298,6 +385,14 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="",
                 default=True,
                 )
+        cls.max_speed = FloatProperty(
+                name="Max speed",
+                description="",
+                min=0.00001, soft_min=0.00001, max=10000.0, soft_max=10000.0,
+                default=1.0,
+                step=100,
+                precision=3,
+                )
 
         cls.bump_normal_mapping = BoolProperty(
                 name="Bump and normal mapping",
@@ -306,6 +401,27 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.wf_bktrace_hl = BoolProperty(
                 name="Wireframe backtrace highlighting",
+                description="",
+                default=False,
+                )
+        cls.path_term_power = FloatProperty(
+                name="Path term. power",
+                description="",
+                min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+                default=0.3,
+                step=10,
+                precision=2,
+                )
+        cls.coherent_ratio = FloatProperty(
+                name="Coherent ratio",
+                description="",
+                min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+                default=0.0,
+                step=10,
+                precision=2,
+                )
+        cls.static_noise = BoolProperty(
+                name="Static noise",
                 description="",
                 default=False,
                 )
@@ -454,22 +570,6 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 step=10,
                 precision=2,
                 )
-        cls.fstop = FloatProperty(
-                name="F-Stop",
-                description="",
-                min=1.0, soft_min=1.0, max=64.0, soft_max=64.0,
-                default=2.8,
-                step=10,
-                precision=1,
-                )
-        cls.iso = FloatProperty(
-                name="ISO",
-                description="",
-                min=1.0, soft_min=1.0, max=800.0, soft_max=800.0,
-                default=100.0,
-                step=100,
-                precision=1,
-                )
         cls.gamma = FloatProperty(
                 name="Gamma",
                 description="",
@@ -520,6 +620,14 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.white_saturation = FloatProperty(
                 name="White saturation",
+                description="",
+                min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+                default=0.0,
+                step=1,
+                precision=2,
+                )
+        cls.highlight_compression = FloatProperty(
+                name="Highlight compression",
                 description="",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
@@ -714,6 +822,14 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.white_saturation = FloatProperty(
                 name="White saturation",
+                description="",
+                min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+                default=0.0,
+                step=1,
+                precision=2,
+                )
+        cls.highlight_compression = FloatProperty(
+                name="Highlight compression",
                 description="",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,

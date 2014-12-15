@@ -30,17 +30,21 @@ Kernel::Kernel() {
     max_preview_samples = 16000;
     filter_size         = 1.2f;
     ray_epsilon         = 0.0001f;
-    rrprob              = 0.0f;
     alpha_channel       = false;
     keep_environment    = false;
     alpha_shadows       = true;
     bump_normal_mapping = false;
     wf_bktrace_hl       = false;
+    path_term_power     = 0.3f;
 
     //PATH_TRACE + PMC
     caustic_blur        = 0.0f;
     max_diffuse_depth   = 3;
     max_glossy_depth    = 24;
+
+    //PATH_TRACE + DIRECT_LIGHT
+    coherent_ratio      = 0.0f;
+    static_noise        = false;
 
     //DIRECT_LIGHT
     specular_depth      = 5;
@@ -63,6 +67,7 @@ Kernel::Kernel() {
     zdepth_max          = 5.0f;
     uv_max              = 1.0f;
     distributed_tracing = true;
+    max_speed           = 1.0f;
 
     uiGPUs              = 0;
 
@@ -99,16 +104,19 @@ bool Kernel::modified(const Kernel& kernel) {
         max_preview_samples == kernel.max_preview_samples &&
         filter_size         == kernel.filter_size &&
         ray_epsilon         == kernel.ray_epsilon &&
-        rrprob              == kernel.rrprob &&
         alpha_channel       == kernel.alpha_channel &&
         keep_environment    == kernel.keep_environment &&
         alpha_shadows       == kernel.alpha_shadows &&
         bump_normal_mapping == kernel.bump_normal_mapping &&
         wf_bktrace_hl       == kernel.wf_bktrace_hl &&
+        path_term_power     == kernel.path_term_power &&
 
         caustic_blur        == kernel.caustic_blur &&
         max_diffuse_depth   == kernel.max_diffuse_depth &&
         max_glossy_depth    == kernel.max_glossy_depth &&
+
+        coherent_ratio      == kernel.coherent_ratio &&
+        static_noise        == kernel.static_noise &&
 
         specular_depth      == kernel.specular_depth &&
         glossy_depth        == kernel.glossy_depth &&
@@ -125,7 +133,8 @@ bool Kernel::modified(const Kernel& kernel) {
         info_channel_type       == kernel.info_channel_type &&
         zdepth_max              == kernel.zdepth_max &&
         uv_max                  == kernel.uv_max &&
-        shuttertime             == kernel.shuttertime
+        shuttertime             == kernel.shuttertime &&
+        max_speed               == kernel.max_speed
         
         //uiGPUs                == kernel.uiGPUs
         );

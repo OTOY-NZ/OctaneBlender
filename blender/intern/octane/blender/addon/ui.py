@@ -156,6 +156,7 @@ class VIEW3D_PT_octcam(Panel):
         sub.prop(oct_cam, "min_display_samples", text="Min. display samples")
         sub.prop(oct_cam, "dithering", text="Dithering")
         sub.prop(oct_cam, "premultiplied_alpha", text="Premultiplied alpha")
+        sub.prop(oct_cam, "highlight_compression", text="Highlight compression")
 
 
 
@@ -198,6 +199,7 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "uv_max", text="UV max.")
         sub.prop(oct_scene, "ray_epsilon", text="Ray epsilon")
         sub.prop(oct_scene, "distributed_tracing", text="Distributed ray tracing")
+        sub.prop(oct_scene, "max_speed", text="Max speed")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
@@ -209,14 +211,14 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "alpha_channel", text="Alpha channel")
+        sub.prop(oct_scene, "alpha_shadows", text="Alpha shadows")
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
         sub.prop(oct_scene, "keep_environment", text="Keep environment")
-        sub.prop(oct_scene, "alpha_shadows", text="Alpha shadows")
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '4')
-        sub.prop(oct_scene, "bump_normal_mapping", text="Bump and normal mapping")
         sub.prop(oct_scene, "wf_bktrace_hl", text="Wireframe backtrace highlighting")
+
 
         col = split.column()
 
@@ -233,9 +235,6 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "filter_size", text="Filter size")
         sub.prop(oct_scene, "ray_epsilon", text="Ray epsilon")
-        sub = col.column(align=True)
-        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
-        sub.prop(oct_scene, "rrprob", text="RRprob")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '3')
@@ -244,6 +243,17 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "max_rejects", text="Max. rejects")
         sub.prop(oct_scene, "parallelism", text="Parallelism")
 
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2')
+        sub.prop(oct_scene, "coherent_ratio", text="Coherent ratio")
+        sub.prop(oct_scene, "static_noise", text="Static noise")
+
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
+        sub.prop(oct_scene, "path_term_power", text="Path term. power")
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '4')
+        sub.prop(oct_scene, "bump_normal_mapping", text="Bump and normal mapping")
 
 
 class OctaneRender_PT_server(OctaneButtonsPanel, Panel):
@@ -288,6 +298,7 @@ class OctaneRender_PT_motion_blur(OctaneButtonsPanel, Panel):
         row = layout.row()
         row.prop(context.scene.octane, "mb_type")
         row = layout.row()
+        row.active = (context.scene.octane.mb_type == '0')
         row.prop(context.scene.octane, "mb_direction")
         row = layout.row()
         row.prop(rd, "motion_blur_shutter")
@@ -355,23 +366,58 @@ class OctaneRender_PT_layer_options(OctaneButtonsPanel, Panel):
 
 
 class OctaneRender_PT_layer_passes(OctaneButtonsPanel, Panel):
-    bl_label = "Passes"
+    bl_label = "Render Passes"
     bl_context = "render_layer"
     bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.octane, "use_passes", text="")
 
     def draw(self, context):
         layout = self.layout
 
         scene = context.scene
+        octane = scene.octane
         rd = scene.render
         rl = rd.layers.active
 
         col = layout.column()
+        col.prop(octane, "cur_pass_type")
+
         col.prop(rl, "use_pass_combined")
+        col.prop(rl, "use_pass_emit")
+        col.prop(rl, "use_pass_environment")
+        col.prop(rl, "use_pass_diffuse_direct")
+        col.prop(rl, "use_pass_diffuse_indirect")
+
+        row = col.row()
+        row.prop(rl, "use_pass_reflection")
+        row.prop(octane, "reflection_pass_subtype")
+
+        col.prop(rl, "use_pass_refraction")
+        col.prop(rl, "use_pass_transmission_color", text="Transmission")
+        col.prop(rl, "use_pass_subsurface_color", text="SSS")
+
+        row = col.row()
+        row.prop(rl, "use_pass_normal")
+        row.prop(octane, "normal_pass_subtype")
+
         col.prop(rl, "use_pass_z")
-        col.prop(rl, "use_pass_normal")
-        col.prop(rl, "use_pass_uv")
         col.prop(rl, "use_pass_material_index")
+        col.prop(rl, "use_pass_uv")
+        col.prop(rl, "use_pass_object_index")
+        col.prop(rl, "use_pass_ambient_occlusion")
+
+        col.prop(octane, "pass_max_samples")
+        col.prop(octane, "pass_ao_max_samples")
+        col.prop(octane, "pass_start_samples")
+        col.prop(octane, "pass_distributed_tracing")
+        col.prop(octane, "pass_filter_size")
+        col.prop(octane, "pass_z_depth_max")
+        col.prop(octane, "pass_uv_max")
+        col.prop(octane, "pass_max_speed")
+        col.prop(octane, "pass_ao_distance")
+        col.prop(octane, "pass_alpha_shadows")
 
 
 class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
@@ -452,8 +498,6 @@ class OctaneCamera_PT_imager(OctaneButtonsPanel, Panel):
         sub = layout.column(align=True)
         sub.prop(oct_cam, "white_balance", text="White balance")
         sub.prop(oct_cam, "exposure", text="Exposure")
-        sub.prop(oct_cam, "fstop", text="F-Stop")
-        sub.prop(oct_cam, "iso", text="ISO")
         sub.prop(oct_cam, "gamma", text="Gamma")
         sub.prop(oct_cam, "vignetting", text="Vignetting")
         sub.prop(oct_cam, "saturation", text="Saturation")
@@ -462,6 +506,7 @@ class OctaneCamera_PT_imager(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "min_display_samples", text="Min. display samples")
         sub.prop(oct_cam, "dithering", text="Dithering")
         sub.prop(oct_cam, "premultiplied_alpha", text="Premultiplied alpha")
+        sub.prop(oct_cam, "highlight_compression", text="Highlight compression")
 
 
 class OctaneCamera_PT_post(OctaneButtonsPanel, Panel):
@@ -1023,7 +1068,6 @@ def draw_device(self, context):
         layout.prop(oct_scene, "anim_mode")
         layout.prop(oct_scene, "devices")
         sub = layout.row()
-        sub.prop(oct_scene, "use_passes")
         sub.prop(oct_scene, "viewport_hide")
         sub.prop(oct_scene, "export_alembic")
         layout.prop(oct_scene, "meshes_type", expand=True)

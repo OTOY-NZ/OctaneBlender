@@ -202,9 +202,10 @@ public:
 
 	bool sync_recalc();
 	// Sync the Blender scene data to Octane
-	void sync_data(PassType pass_type, BL::SpaceView3D b_v3d, BL::Object b_override, const char *layer = 0);
-	void sync_kernel(PassType pass_type);
-	void sync_camera(BL::Object b_override, int width, int height);
+    void sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, BL::RenderLayer *layer = 0);
+    void sync_passes(BL::RenderLayer *layer);
+    void sync_kernel();
+    void sync_camera(BL::Object b_override, int width, int height);
 	void sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
     void get_camera_border(Camera *cam, BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
     int  get_layer_samples() { return render_layer.samples; }

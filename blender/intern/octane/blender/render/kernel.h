@@ -70,16 +70,20 @@ public:
     int32_t max_preview_samples;
     float   filter_size;
     float   ray_epsilon;
-    float   rrprob;
     bool    alpha_channel;
     bool    keep_environment;
     bool    alpha_shadows;
     bool    bump_normal_mapping;
     bool    wf_bktrace_hl;
+    float   path_term_power;
 
     //PATH_TRACE + PMC
     float   caustic_blur;
     int32_t max_diffuse_depth, max_glossy_depth;
+
+    //PATH_TRACE + DIRECT_LIGHT
+    float   coherent_ratio;
+    bool    static_noise;
 
     //DIRECT_LIGHT
     int32_t specular_depth;
@@ -102,6 +106,7 @@ public:
     float       zdepth_max;
     float       uv_max;
     bool        distributed_tracing;
+    float       max_speed;
 
     uint32_t    uiGPUs;
 

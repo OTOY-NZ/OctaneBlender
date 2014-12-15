@@ -32,9 +32,12 @@ static bNodeSocketTemplate sh_node_in[] = {
 	{SOCK_FLOAT,     1,  N_("Offset"),	    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{SOCK_INT,       1,  N_("Octaves"),		3.0f, 0.0f, 0.0f, 0.0f, 1.0f, 16.0f, PROP_UNSIGNED},
 	{SOCK_FLOAT,     1,  N_("Omega"),	    0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_SHADER,    1,  N_("Transform")},
+    {SOCK_SHADER,    1,  N_("Transform")},
 	{SOCK_SHADER,    1,  N_("Projection")},
-	{-1, 0, ""}
+    {SOCK_BOOLEAN,   1,  N_("Turbulence"),  1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_BOOLEAN,   1,  N_("Invert"),      0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT,     1,  N_("Gamma"),       1.0f, 0.0f, 0.0f, 0.0f, 0.01f, 100.0f},
+    {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {

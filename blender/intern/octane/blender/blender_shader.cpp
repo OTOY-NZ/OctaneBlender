@@ -216,6 +216,15 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->matte = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
+            else if(b_input->name() == "Roughness") {
+                if(b_input->is_linked())
+                    cur_node->roughness = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->roughness = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->roughness_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
         }
 	} //case BL::ShaderNode::type_OCT_DIFFUSE_MAT
     else if(b_node.is_a(&RNA_ShaderNodeOctGlossyMat)) {
@@ -863,6 +872,23 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Omega_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
+            else if(b_input->name() == "Turbulence") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->Turbulence = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Invert") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Gamma") {
+                if(b_input->is_linked())
+                    cur_node->Gamma = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Gamma = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Gamma_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
                     cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
@@ -956,6 +982,20 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
             }
         }
     } //case BL::ShaderNode::type_OCT_INVERT_TEX
+    else if(b_node.is_a(&RNA_ShaderNodeOctPolygonSideTex)) {
+        BL::ShaderNodeOctPolygonSideTex b_tex_node(b_node);
+        OctanePolygonSideTexture* cur_node = new OctanePolygonSideTexture();
+        node = cur_node;
+        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Invert") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+        }
+    } //case BL::ShaderNode::type_OCT_PYLYGON_SIDE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctMixTex)) {
         BL::ShaderNodeOctMixTex b_tex_node(b_node);
         OctaneMixTexture* cur_node = new OctaneMixTexture();
@@ -1068,24 +1108,6 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Brightness_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
-            else if(b_input->name() == "Brightness Scale") {
-                if(b_input->is_linked())
-                    cur_node->BrightnessScale = ConnectedNodesMap[b_input->ptr.data];
-                else {
-                    cur_node->BrightnessScale = "";
-                    BL::NodeSocket value_sock(*b_input);
-                    cur_node->BrightnessScale_default_val = RNA_float_get(&value_sock.ptr, "default_value");
-                }
-            }
-            else if(b_input->name() == "Black Level") {
-                if(b_input->is_linked())
-                    cur_node->BlackLevel = ConnectedNodesMap[b_input->ptr.data];
-                else {
-                    cur_node->BlackLevel = "";
-                    BL::NodeSocket value_sock(*b_input);
-                    cur_node->BlackLevel_default_val = RNA_float_get(&value_sock.ptr, "default_value");
-                }
-            }
             else if(b_input->name() == "Gamma") {
                 if(b_input->is_linked())
                     cur_node->Gamma = ConnectedNodesMap[b_input->ptr.data];
@@ -1093,6 +1115,33 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Gamma = "";
                     BL::NodeSocket value_sock(*b_input);
                     cur_node->Gamma_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Hue") {
+                if(b_input->is_linked())
+                    cur_node->Hue = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Hue = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Hue_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Saturation") {
+                if(b_input->is_linked())
+                    cur_node->Saturation = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Saturation = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Saturation_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Contrast") {
+                if(b_input->is_linked())
+                    cur_node->Contrast = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->Contrast = "";
+                    BL::NodeSocket value_sock(*b_input);
+                    cur_node->Contrast_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
@@ -1582,7 +1631,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Normalize = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
-            else if(b_input->name() == "Distribution") {
+            else if(b_input->name() == "Emission pattern") {
                 if(b_input->is_linked())
                     cur_node->Distribution = ConnectedNodesMap[b_input->ptr.data];
                 else {
@@ -1608,6 +1657,14 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     BL::NodeSocket value_sock(*b_input);
                     cur_node->SamplingRate_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
+            }
+            else if(b_input->name() == "Surface brightness") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->SurfaceBrightness = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Cast illumination") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->CastIllumination = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
         }
     } //case BL::ShaderNode::type_OCT_BBODY_EMI
@@ -1639,7 +1696,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
-            else if(b_input->name() == "Distribution") {
+            else if(b_input->name() == "Emission pattern") {
                 if(b_input->is_linked())
                     cur_node->Distribution = ConnectedNodesMap[b_input->ptr.data];
                 else {
@@ -1656,6 +1713,14 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     BL::NodeSocket value_sock(*b_input);
                     cur_node->SamplingRate_default_val = RNA_float_get(&value_sock.ptr, "default_value");
                 }
+            }
+            else if(b_input->name() == "Surface brightness") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->SurfaceBrightness = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Cast illumination") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->CastIllumination = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
         }
     } //case BL::ShaderNode::type_OCT_TEXT_EMI

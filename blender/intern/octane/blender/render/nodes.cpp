@@ -243,6 +243,13 @@ void OctaneRandomColorTexture::load_to_server(RenderServer* server) {
     server->load_random_color_tex(this);
 }
 
+OctanePolygonSideTexture::OctanePolygonSideTexture() {
+}
+
+void OctanePolygonSideTexture::load_to_server(RenderServer* server) {
+    server->load_polygon_side_tex(this);
+}
+
 OctaneDisplacementTexture::OctaneDisplacementTexture() {
 }
 

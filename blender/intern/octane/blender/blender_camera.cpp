@@ -360,8 +360,6 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
     else cam->response_type = Linear;
 
     cam->exposure               = RNA_float_get(&oct_camera, "exposure");
-    cam->fstop                  = RNA_float_get(&oct_camera, "fstop");
-    cam->ISO                    = RNA_float_get(&oct_camera, "iso");
     cam->gamma                  = RNA_float_get(&oct_camera, "gamma");
     cam->vignetting             = RNA_float_get(&oct_camera, "vignetting");
     cam->saturation             = RNA_float_get(&oct_camera, "saturation");
@@ -370,6 +368,7 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
     cam->min_display_samples    = RNA_int_get(&oct_camera, "min_display_samples");
     cam->dithering              = RNA_boolean_get(&oct_camera, "dithering");
     cam->white_saturation       = RNA_float_get(&oct_camera, "white_saturation");
+    cam->highlight_compression  = RNA_float_get(&oct_camera, "highlight_compression");
 } //get_cam_settings()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

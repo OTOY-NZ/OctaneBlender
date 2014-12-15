@@ -154,8 +154,6 @@ public:
     float3          white_balance;
     ResponseType    response_type;
     float           exposure;
-    float           fstop;
-    float           ISO;
     float           gamma;
     float           vignetting;
     float           saturation;
@@ -164,6 +162,7 @@ public:
     int             min_display_samples;
     bool            dithering;
     float           white_saturation;
+    float           highlight_compression;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Postprocessor

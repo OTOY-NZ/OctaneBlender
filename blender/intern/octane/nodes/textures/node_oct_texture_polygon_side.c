@@ -28,15 +28,8 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Temperature"),         6500.0f, 0.0f, 0.0f, 0.0f, 500.0f, 12000.0f},
-	{SOCK_FLOAT,     1,  N_("Power"),               100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 100000.0f},
-	{SOCK_BOOLEAN,   1,  N_("Normalize"),	        1.0f},
-	{SOCK_FLOAT,     1,  N_("Emission pattern"),    1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Efficiency"),          0.025f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT,     1,  N_("Sampling Rate"),       1.0f, 0.0f, 0.0f, 0.0f, 0.0f, FLT_MAX},
-    {SOCK_BOOLEAN,   1,  N_("Surface brightness"),  0.0f},
-    {SOCK_BOOLEAN,   1,  N_("Cast illumination"),   1.0f},
-    {-1, 0, ""}
+        {SOCK_BOOLEAN, 1, N_("Invert"), 0.0f},
+        {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {
@@ -44,10 +37,10 @@ static bNodeSocketTemplate sh_node_out[] = {
 	{-1, 0, ""}
 };
 
-void register_node_type_emission_oct_black_body(void) {
+void register_node_type_tex_oct_polygon_side(void) {
 	static bNodeType ntype;
 	
-	if(ntype.type != SH_NODE_OCT_BBODY_EMI) node_type_base(&ntype, SH_NODE_OCT_BBODY_EMI, "Octane Black Body Emission", NODE_CLASS_OCT_EMISSION, NODE_OPTIONS);
+    if(ntype.type != SH_NODE_OCT_POLYGON_SIDE_TEX) node_type_base(&ntype, SH_NODE_OCT_POLYGON_SIDE_TEX, "Octane Polygon Side Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
 	node_type_size(&ntype, 160, 160, 200);
@@ -55,4 +48,4 @@ void register_node_type_emission_oct_black_body(void) {
 	node_type_exec(&ntype, 0, 0, 0);
 	
 	nodeRegisterType(&ntype);
-} /* register_node_type_emission_oct_black_body() */
+} /* register_node_type_tex_oct_polygon_side() */

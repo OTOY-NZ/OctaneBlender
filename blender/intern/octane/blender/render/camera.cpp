@@ -72,32 +72,31 @@ void Camera::Init(void) {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //Imager
-    white_balance.x     = 1.0f;
-    white_balance.y     = 1.0f;
-    white_balance.z     = 1.0f;
-    response_type       = Linear;
-    exposure            = 0.25f;
-    fstop               = 1.0f;
-    ISO                 = 50.0f;
-    gamma               = 1.0f;
-    vignetting          = 1.0f;
-    saturation          = 1.0f;
-    hot_pix             = 1.0f;
-    premultiplied_alpha = false;
-    min_display_samples = 0;
-    dithering           = false;
-    white_saturation    = 0.0f;
+    white_balance.x         = 1.0f;
+    white_balance.y         = 1.0f;
+    white_balance.z         = 1.0f;
+    response_type           = Linear;
+    exposure                = 0.25f;
+    gamma                   = 1.0f;
+    vignetting              = 1.0f;
+    saturation              = 1.0f;
+    hot_pix                 = 1.0f;
+    premultiplied_alpha     = false;
+    min_display_samples     = 0;
+    dithering               = false;
+    white_saturation        = 0.0f;
+    highlight_compression   = 0.0f;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //Postprocessor
-    postprocess     = false;
-    bloom_power     = 1.0f;
-    glare_power     = 0.1f;
-    glare_ray_count = 3;
-    glare_angle     = 15.0f;
-    glare_blur      = 0.0f;
-    spectral_intencity = 0.0f;
-    spectral_shift  = 2.0f;
+    postprocess         = false;
+    bloom_power         = 1.0f;
+    glare_power         = 0.1f;
+    glare_ray_count     = 3;
+    glare_angle         = 15.0f;
+    glare_blur          = 0.0f;
+    spectral_intencity  = 0.0f;
+    spectral_shift      = 2.0f;
 
     sensor_fit  = AUTO;
     ortho_scale = 0;
@@ -186,8 +185,6 @@ bool Camera::modified(const Camera& cam) {
         (white_balance          == cam.white_balance) &&
         (response_type          == cam.response_type) &&
         (exposure               == cam.exposure) &&
-        (fstop                  == cam.fstop) &&
-        (ISO                    == cam.ISO) &&
         (gamma                  == cam.gamma) &&
         (vignetting             == cam.vignetting) &&
         (saturation             == cam.saturation) &&
@@ -196,6 +193,7 @@ bool Camera::modified(const Camera& cam) {
         (min_display_samples    == cam.min_display_samples) &&
         (dithering              == cam.dithering) &&
         (white_saturation       == cam.white_saturation) &&
+        (highlight_compression  == cam.highlight_compression) &&
 
         (postprocess        == cam.postprocess) &&
         (bloom_power        == cam.bloom_power) &&

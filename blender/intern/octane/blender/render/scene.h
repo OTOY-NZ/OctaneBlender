@@ -31,6 +31,7 @@ class Environment;
 class Camera;
 class RenderServer;
 class RenderServerInfo;
+class Passes;
 class Kernel;
 class Light;
 class LightManager;
@@ -62,6 +63,7 @@ public:
 	Transform       matrix;
 	Camera		    *camera;
 	Environment	    *environment;
+    Passes          *passes;
 	Kernel	        *kernel;
 
 	// Data lists

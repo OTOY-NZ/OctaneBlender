@@ -28,11 +28,13 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Efficiency"),      0.025f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Power"),           100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 100000.0f},
-	{SOCK_FLOAT,     1,  N_("Distribution"),    1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Sampling Rate"),   1.0f, 0.0f, 0.0f, 0.0f, 0.001f, 10000.0f},
-	{-1, 0, ""}
+	{SOCK_FLOAT,     1,  N_("Efficiency"),          0.025f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{SOCK_FLOAT,     1,  N_("Power"),               100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 100000.0f},
+	{SOCK_FLOAT,     1,  N_("Emission pattern"),    1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{SOCK_FLOAT,     1,  N_("Sampling Rate"),       1.0f, 0.0f, 0.0f, 0.0f, 0.0f, FLT_MAX},
+    {SOCK_BOOLEAN,   1,  N_("Surface brightness"),  0.0f},
+    {SOCK_BOOLEAN,   1,  N_("Cast illumination"),   1.0f},
+    {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {

@@ -39,6 +39,7 @@ static bNodeSocketTemplate sh_node_in[] = {
 	{	SOCK_BOOLEAN,   1, N_("Matte"),	        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {   SOCK_FLOAT,     1, N_("Edges rounding"),0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 100.0f},
     {   SOCK_SHADER,    1, N_("Displacement"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {   SOCK_FLOAT,     1, N_("Roughness"),     0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {-1, 0, ""}
 };
 

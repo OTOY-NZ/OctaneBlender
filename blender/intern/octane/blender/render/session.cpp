@@ -448,9 +448,9 @@ void Session::update_status_time(bool show_pause, bool show_done) {
 void Session::update_render_buffer() {
     if(progress.get_cancel()) return;
 
-    if(!server->get_image_buffer(params.image_stat, params.interactive, b_session ? b_session->cur_pass_type : PASS_COMBINED, progress) && b_session) {
+    if(!server->get_image_buffer(params.image_stat, params.interactive, scene->passes->use_passes ? scene->passes->cur_pass_type : Passes::COMBINED, progress) && b_session) {
         if(!params.interactive) update_img_sample();
-        server->get_image_buffer(params.image_stat, params.interactive, b_session ? b_session->cur_pass_type : PASS_COMBINED, progress);
+        server->get_image_buffer(params.image_stat, params.interactive, scene->passes->use_passes ? scene->passes->cur_pass_type : Passes::COMBINED, progress);
     }
     if(!params.interactive) update_img_sample();
 } //update_render_buffer()

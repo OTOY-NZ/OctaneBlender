@@ -24,34 +24,13 @@
 #include "RNA_blender_cpp.h"
 
 #include "util_string.h"
+#include "passes.h"
 
 OCT_NAMESPACE_BEGIN
 
 class Scene;
 class Session;
 class BlenderSync;
-
-typedef enum PassType {
-    PASS_NONE               = 0,
-    PASS_COMBINED           = 1,
-    PASS_DEPTH              = 2,
-    PASS_GEO_NORMALS        = 4,
-    PASS_SHADING_NORMALS    = 8,
-    PASS_MATERIAL_ID        = 16,
-    PASS_POSITION           = 32,
-    PASS_TEX_COORD          = 64
-} PassType;
-#define NUM_PASSES 7
-
-class Pass {
-public:
-	PassType type;
-	int components;
-
-	static void add(PassType type, vector<Pass>& passes);
-	static bool equals(const vector<Pass>& A, const vector<Pass>& B);
-	static bool contains(const vector<Pass>& passes, PassType);
-};
 
 class BlenderSession {
 public:
@@ -74,7 +53,7 @@ public:
     static bool activate(BL::Scene b_scene_);
 
 	// session
-	void create_session(PassType pass_type);
+    void create_session();
 	void free_session();
 
     void reset_session(BL::BlendData b_data, BL::Scene b_scene);
@@ -103,16 +82,13 @@ public:
 	void test_cancel();
 	void update_status_progress();
 
-	bool        interactive;
-	Session     *session;
-	Scene       *scene;
-	BlenderSync *sync;
-	double      last_redraw_time;
-    PassType    cur_pass_type;
-    int         num_passes;
-    int         ready_passes;
-    float*      pass_buffers[NUM_PASSES];
-    float*      mb_pass_buffers[NUM_PASSES];
+	bool                interactive;
+	Session             *session;
+	Scene               *scene;
+	BlenderSync         *sync;
+	double              last_redraw_time;
+    float*              pass_buffers[Passes::NUM_PASSES];
+    float*              mb_pass_buffers[Passes::NUM_PASSES];
 
     bool                motion_blur;
     int                 mb_samples;
@@ -138,12 +114,17 @@ protected:
 	void        do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only);
 	void        do_write_update_render_img(bool do_update_only);
 
-    inline int  get_render_passes(vector<Pass> &passes);
-    int         load_internal_mb_sequence(PassType pass_type, bool &stop_render);
+    int         load_internal_mb_sequence(bool &stop_render, BL::RenderLayer *layer = 0);
 
     float shuttertime;
     int   mb_cur_sample;
     int   mb_sample_in_work;
+
+private:
+    inline void                         clear_passes_buffers();
+    inline Passes::PassTypes            get_octane_pass_type(BL::RenderPass b_pass);
+    inline BL::RenderPass::type_enum    get_blender_pass_type(Passes::PassTypes pass);
+    inline int                          get_pass_index(Passes::PassTypes pass);
 };
 
 OCT_NAMESPACE_END

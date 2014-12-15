@@ -38,47 +38,14 @@
 OCT_NAMESPACE_BEGIN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Pass::add(PassType type, vector<Pass>& passes) {
-    Pass pass;
-
-    pass.type = type;
-    switch(type) {
-	    case PASS_NONE:
-		    pass.components = 0;
-		    break;
-	    case PASS_COMBINED:
-		    pass.components = 4;
-		    break;
-	    case PASS_DEPTH:
-		    pass.components = 1;
-		    break;
-	    case PASS_GEO_NORMALS:
-		    pass.components = 3;
-		    break;
-	    case PASS_TEX_COORD:
-		    pass.components = 3;
-		    break;
-	    case PASS_MATERIAL_ID:
-		    pass.components = 1;
-		    break;
-	    default:
-		    pass.components = 0;
-		    break;
-    }
-    passes.push_back(pass);
-} //Pass::add()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Non-Interactive render session constructor
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_)
-								: b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL) {
-    for(int i=0; i < NUM_PASSES; ++i) {
+                                : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL) {
+    for(int i=0; i < Passes::NUM_PASSES; ++i) {
         if(pass_buffers[i]) pass_buffers[i] = 0;
     }
-    for(int i=0; i < NUM_PASSES; ++i) {
+    for(int i=0; i < Passes::NUM_PASSES; ++i) {
         if(mb_pass_buffers[i]) mb_pass_buffers[i] = 0;
     }
     // Offline render
@@ -88,18 +55,18 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 	interactive         = false;
 	last_redraw_time    = 0.0f;
 
-	create_session(PASS_COMBINED);
+	create_session();
 } //BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Interactive render session constructor
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_, BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
-								: b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(b_v3d_), b_rv3d(b_rv3d_) {
-    for(int i=0; i < NUM_PASSES; ++i) {
+                                : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(b_v3d_), b_rv3d(b_rv3d_) {
+    for(int i = 0; i < Passes::NUM_PASSES; ++i) {
         if(pass_buffers[i]) pass_buffers[i] = 0;
     }
-    for(int i=0; i < NUM_PASSES; ++i) {
+    for(int i = 0; i < Passes::NUM_PASSES; ++i) {
         if(mb_pass_buffers[i]) mb_pass_buffers[i] = 0;
     }
 	// 3d view render
@@ -109,15 +76,15 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 	interactive         = true;
 	last_redraw_time    = 0.0f;
 
-    create_session(PASS_COMBINED);
+    create_session();
 
     if(motion_blur && mb_type == INTERNAL) {
         bool stop_render;
-        session->start("Interactive", false, load_internal_mb_sequence(PASS_COMBINED, stop_render), 0);
+        session->start("Interactive", false, load_internal_mb_sequence(stop_render), 0);
     }
     else {
 		motion_blur = false;
-        sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
+        sync->sync_data(b_v3d, b_engine.camera_override());
         session->start("Interactive", false, 0, 0);
     }
 } //BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_, BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
@@ -178,7 +145,7 @@ bool BlenderSession::activate(BL::Scene b_scene) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Create the Blender session and all Octane session data structures
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::create_session(PassType pass_type) {
+void BlenderSession::create_session() {
 	SessionParams session_params    = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
     session_params.width            = width;
     session_params.height           = height;
@@ -247,14 +214,14 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_) {
 void BlenderSession::reload_session() {
 	free_session();
     last_redraw_time = 0.0f;
-    create_session(PASS_COMBINED);
+    create_session();
 
     if(motion_blur && mb_type == INTERNAL) {
         bool stop_render;
-        session->start("Interactive", false, load_internal_mb_sequence(PASS_COMBINED, stop_render), 0);
+        session->start("Interactive", false, load_internal_mb_sequence(stop_render), 0);
     }
     else {
-        sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
+        sync->sync_data(b_v3d, b_engine.camera_override());
         if(interactive) session->start("Interactive", false, 0, 0);
     }
 } //reload_session()
@@ -263,24 +230,15 @@ void BlenderSession::reload_session() {
 // Free Blender session and all Octane session data structures
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::free_session() {
-    for(int i=0; i < NUM_PASSES; ++i) {
-        if(pass_buffers[i]) {
-            delete[] pass_buffers[i];
-            pass_buffers[i] = 0;
-        }
-        if(mb_pass_buffers[i]) {
-            delete[] mb_pass_buffers[i];
-            mb_pass_buffers[i] = 0;
-        }
-    }
-	delete sync;
+    clear_passes_buffers();
+    delete sync;
 	delete session;
 } //free_session()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Returns: the current frame index inside the sequence
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int BlenderSession::load_internal_mb_sequence(PassType pass_type, bool &stop_render) {
+int BlenderSession::load_internal_mb_sequence(bool &stop_render, BL::RenderLayer *layer) {
     stop_render = false;
 
     int     cur_frame = b_scene.frame_current();
@@ -311,7 +269,7 @@ int BlenderSession::load_internal_mb_sequence(PassType pass_type, bool &stop_ren
         BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
         BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
 
-        sync->sync_data(pass_type, b_v3d, b_engine.camera_override());
+        sync->sync_data(b_v3d, b_engine.camera_override(), layer);
         sync->sync_camera(b_engine.camera_override(), width, height);
         session->update_scene_to_server(cur_mb_frame - first_frame, last_frame - first_frame + 1);
 
@@ -335,47 +293,180 @@ int BlenderSession::load_internal_mb_sequence(PassType pass_type, bool &stop_ren
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Get Blender render-pass type translated to Octane pass type
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PassType get_pass_type(BL::RenderPass b_pass) {
+inline Passes::PassTypes BlenderSession::get_octane_pass_type(BL::RenderPass b_pass) {
 	switch(b_pass.type()) {
 		case BL::RenderPass::type_COMBINED:
-			return PASS_COMBINED;
+            return Passes::COMBINED;
 
-		case BL::RenderPass::type_Z:
-			return PASS_DEPTH;
-		case BL::RenderPass::type_NORMAL:
-			return PASS_GEO_NORMALS;
-		case BL::RenderPass::type_UV:
-			return PASS_TEX_COORD;
-		case BL::RenderPass::type_MATERIAL_INDEX:
-			return PASS_MATERIAL_ID;
+        case BL::RenderPass::type_EMIT:
+            return Passes::EMIT;
+        case BL::RenderPass::type_ENVIRONMENT:
+            return Passes::ENVIRONMENT;
+        case BL::RenderPass::type_DIFFUSE_DIRECT:
+            return Passes::DIFFUSE_DIRECT;
+        case BL::RenderPass::type_DIFFUSE_INDIRECT:
+            return Passes::DIFFUSE_INDIRECT;
+
+        case BL::RenderPass::type_REFLECTION:
+            if(scene->passes->reflection_direct_pass)
+                return Passes::REFLECTION_DIRECT;
+            else
+                return Passes::REFLECTION_INDIRECT;
+
+        case BL::RenderPass::type_REFRACTION:
+            return Passes::REFRACTION;
+        case BL::RenderPass::type_TRANSMISSION_COLOR:
+            return Passes::TRANSMISSION;
+        case BL::RenderPass::type_SUBSURFACE_COLOR:
+            return Passes::SSS;
+
+        case BL::RenderPass::type_NORMAL:
+            if(scene->passes->geom_normals_pass)
+                return Passes::GEOMETRIC_NORMAL;
+            else if(scene->passes->shading_normals_pass)
+                return Passes::SHADING_NORMAL;
+            else
+                return Passes::VERTEX_NORMAL;
+
+        case BL::RenderPass::type_Z:
+            return Passes::Z_DEPTH;
+        case BL::RenderPass::type_MATERIAL_INDEX:
+            return Passes::MATERIAL_ID;
+        case BL::RenderPass::type_UV:
+            return Passes::UV_COORD;
+        case BL::RenderPass::type_OBJECT_INDEX:
+            return Passes::OBJECT_ID;
+        case BL::RenderPass::type_AO:
+            return Passes::AMBIENT_OCCLUSION;
 
 		case BL::RenderPass::type_VECTOR:
-		case BL::RenderPass::type_EMIT:
-		case BL::RenderPass::type_ENVIRONMENT:
-		case BL::RenderPass::type_AO:
 		case BL::RenderPass::type_SHADOW:
 		case BL::RenderPass::type_DIFFUSE_COLOR:
 		case BL::RenderPass::type_GLOSSY_COLOR:
-		case BL::RenderPass::type_TRANSMISSION_COLOR:
-		case BL::RenderPass::type_DIFFUSE_INDIRECT:
 		case BL::RenderPass::type_GLOSSY_INDIRECT:
 		case BL::RenderPass::type_TRANSMISSION_INDIRECT:
-		case BL::RenderPass::type_DIFFUSE_DIRECT:
 		case BL::RenderPass::type_GLOSSY_DIRECT:
 		case BL::RenderPass::type_TRANSMISSION_DIRECT:
-		case BL::RenderPass::type_OBJECT_INDEX:
 		case BL::RenderPass::type_DIFFUSE:
 		case BL::RenderPass::type_COLOR:
-		case BL::RenderPass::type_REFRACTION:
 		case BL::RenderPass::type_SPECULAR:
-		case BL::RenderPass::type_REFLECTION:
 		case BL::RenderPass::type_MIST:
-			return PASS_NONE;
+            return Passes::PASS_NONE;
         default:
-			return PASS_NONE;
+            return Passes::PASS_NONE;
 	}
-	return PASS_NONE;
-} //get_pass_type()
+    return Passes::PASS_NONE;
+} //get_octane_pass_type()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get Octane render-pass type translated to Blender pass type
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline BL::RenderPass::type_enum BlenderSession::get_blender_pass_type(Passes::PassTypes pass) {
+    switch(pass) {
+    case Passes::COMBINED:
+        return BL::RenderPass::type_COMBINED;
+
+    case Passes::EMIT:
+        return BL::RenderPass::type_EMIT;
+    case Passes::ENVIRONMENT:
+        return BL::RenderPass::type_ENVIRONMENT;
+    case Passes::DIFFUSE_DIRECT:
+        return BL::RenderPass::type_DIFFUSE_DIRECT;
+    case Passes::DIFFUSE_INDIRECT:
+        return BL::RenderPass::type_DIFFUSE_INDIRECT;
+
+    case Passes::REFLECTION_DIRECT:
+    case Passes::REFLECTION_INDIRECT:
+        return BL::RenderPass::type_REFLECTION;
+
+    case Passes::REFRACTION:
+        return BL::RenderPass::type_REFRACTION;
+    case Passes::TRANSMISSION:
+        return BL::RenderPass::type_TRANSMISSION_COLOR;
+    case Passes::SSS:
+        return BL::RenderPass::type_SUBSURFACE_COLOR;
+
+    case Passes::GEOMETRIC_NORMAL:
+    case Passes::SHADING_NORMAL:
+    case Passes::VERTEX_NORMAL:
+        return BL::RenderPass::type_NORMAL;
+
+    case Passes::Z_DEPTH:
+        return BL::RenderPass::type_Z;
+    case Passes::MATERIAL_ID:
+        return BL::RenderPass::type_MATERIAL_INDEX;
+    case Passes::UV_COORD:
+        return BL::RenderPass::type_UV;
+    case Passes::OBJECT_ID:
+        return BL::RenderPass::type_OBJECT_INDEX;
+    case Passes::AMBIENT_OCCLUSION:
+        return BL::RenderPass::type_AO;
+
+    default:
+        return BL::RenderPass::type_COMBINED;
+    }
+    return BL::RenderPass::type_COMBINED;
+} //get_blender_pass_type()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get Blender render-pass type translated to Octane pass type
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int BlenderSession::get_pass_index(Passes::PassTypes pass) {
+    switch(pass) {
+    case Passes::COMBINED:
+        return 0;
+
+    case Passes::EMIT:
+        return 1;
+    case Passes::ENVIRONMENT:
+        return 2;
+    case Passes::DIFFUSE_DIRECT:
+        return 3;
+    case Passes::DIFFUSE_INDIRECT:
+        return 4;
+    case Passes::REFLECTION_DIRECT:
+        return 5;
+    case Passes::REFLECTION_INDIRECT:
+        return 6;
+    case Passes::REFRACTION:
+        return 7;
+    case Passes::TRANSMISSION:
+        return 8;
+    case Passes::SSS:
+        return 9;
+    case Passes::POST_PROC:
+        return 10;
+
+    case Passes::GEOMETRIC_NORMAL:
+        return 11;
+    case Passes::SHADING_NORMAL:
+        return 12;
+    case Passes::POSITION:
+        return 13;
+    case Passes::Z_DEPTH:
+        return 14;
+    case Passes::MATERIAL_ID:
+        return 15;
+    case Passes::UV_COORD:
+        return 16;
+    case Passes::TANGENT_U:
+        return 17;
+    case Passes::WIREFRAME:
+        return 18;
+    case Passes::VERTEX_NORMAL:
+        return 19;
+    case Passes::OBJECT_ID:
+        return 20;
+    case Passes::AMBIENT_OCCLUSION:
+        return 21;
+    case Passes::MOTION_VECTOR:
+        return 22;
+
+    default:
+        return 0;
+    }
+    return 0;
+} //get_pass_index()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
@@ -436,7 +527,6 @@ void BlenderSession::update_render_img() {
 	if (!b_engine.is_preview())
 	    do_write_update_render_img(true);
     else {
-        if(cur_pass_type != PASS_COMBINED) return;
 	    do_write_update_render_img(false);
     }
 } //update_render_img()
@@ -445,70 +535,6 @@ void BlenderSession::update_render_img() {
 // Update render image, with passes if needed
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only) {
-	if(!do_update_only || motion_blur) {
-		// Copy each pass
-		BL::RenderLayer::passes_iterator b_iter;
-
-		for(b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter) {
-			BL::RenderPass b_pass(*b_iter);
-
-			// Find matching pass type
-			int components = b_pass.channels();
-            int buf_size = width * height * components;
-
-            PassType pass_type = get_pass_type(b_pass);
-            if(pass_type == PASS_NONE) {
-                if(!do_update_only) {
-	                float* pixels  = new float[buf_size];
-                    memset(pixels, 0, sizeof(float) * buf_size);
-			        b_pass.rect(pixels);
-                    delete[] pixels;
-                }
-                continue;
-            }
-
-            register int i = -1;
-            for(register int cur_pass_idx = pass_type; cur_pass_idx; cur_pass_idx >>= 1, ++i);
-
-    	    float* pixels  = pass_buffers[i];
-            if(!pixels) {
-	            pixels = new float[buf_size];
-                pass_buffers[i] = pixels;
-            }
-            float* mb_pixels = mb_pass_buffers[i];
-            if(motion_blur && !mb_pixels) {
-                mb_pixels = new float[buf_size];
-                mb_pass_buffers[i] = mb_pixels;
-            }
-
-            // Copy pixels
-            if(pass_type == cur_pass_type) {
-                if(motion_blur && mb_cur_sample > 1) {
-                    if(!do_update_only) {
-                        for(unsigned int k = 0; k < buf_size; ++k)
-                            pixels[k] = (pixels[k] * (mb_cur_sample - 1) + mb_pixels[k]) / (float)mb_cur_sample;
-                    }
-                    else {
-                        if(mb_cur_sample > 2 && mb_cur_sample > mb_sample_in_work) {
-                            mb_sample_in_work = mb_cur_sample;
-                            for(unsigned int k = 0; k < buf_size; ++k)
-                                pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
-                        }
-                        session->server->get_pass_rect(pass_type, components, mb_pixels, width, height,
-                            (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height));
-                    }
-                    b_pass.rect(pixels);
-                }
-                else {
-                    if(session->server->get_pass_rect(pass_type, components, pixels, width, height,
-                       (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height)))
-			            b_pass.rect(pixels);
-                }
-            }
-            else b_pass.rect(pixels);
-		}
-	}
-
     int buf_size = width * height * 4;
     float* pixels = pass_buffers[0];
     if(!pixels) {
@@ -521,9 +547,16 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
         mb_pass_buffers[0] = mb_pixels;
     }
 
-    if(cur_pass_type != PASS_COMBINED)
-		b_rlay.rect(pixels);
-    else if(motion_blur && mb_cur_sample > 1) {
+    Passes::PassTypes cur_pass_type;
+    if(scene->passes->use_passes)
+        cur_pass_type = scene->passes->cur_pass_type;
+    else
+        cur_pass_type = Passes::COMBINED;
+
+    if(scene->passes->use_passes && session->server->cur_pass_type != cur_pass_type)
+        session->server->get_image_buffer(session->params.image_stat, interactive, cur_pass_type, session->progress);
+
+    if(motion_blur && mb_type == SUBFRAME && mb_cur_sample > 1) {
         if(!do_update_only) {
             for(unsigned int k = 0; k < buf_size; ++k)
                 pixels[k] = (pixels[k] * (mb_cur_sample - 1) + mb_pixels[k]) / (float)mb_cur_sample;
@@ -534,14 +567,73 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
                 for(unsigned int k = 0; k < buf_size; ++k)
                     pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
             }
-            session->server->get_pass_rect(PASS_COMBINED, 4, mb_pixels, width, height,
+            session->server->get_pass_rect(cur_pass_type, 4, mb_pixels, width, height,
                 (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height));
         }
-  		b_rlay.rect(pixels);
+        b_rlay.rect(pixels);
     }
-    else if(session->server->get_pass_rect(PASS_COMBINED, 4, pixels, width, height,
-            (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height)))
-		b_rlay.rect(pixels);
+    else if(session->server->get_pass_rect(cur_pass_type, 4, pixels, width, height,
+        (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height)))
+        b_rlay.rect(pixels);
+
+    if(scene->passes->use_passes && (!do_update_only || (motion_blur && mb_type == SUBFRAME && session->params.image_stat.cur_samples >= session->params.samples))) {
+		// Copy each pass
+		BL::RenderLayer::passes_iterator b_iter;
+		for(b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter) {
+			BL::RenderPass b_pass(*b_iter);
+
+			int components = b_pass.channels();
+            buf_size = width * height * components;
+
+            // Find matching pass type
+            Passes::PassTypes pass_type = get_octane_pass_type(b_pass);
+            if(pass_type == Passes::COMBINED)
+                continue;
+            else if(pass_type == Passes::PASS_NONE || !session->server->get_image_buffer(session->params.image_stat, interactive, pass_type, session->progress)) {
+                if(!do_update_only) {
+	                float* pixels  = new float[buf_size];
+                    memset(pixels, 0, sizeof(float) * buf_size);
+			        b_pass.rect(pixels);
+                    delete[] pixels;
+                }
+                continue;
+            }
+            int pass_idx = get_pass_index(pass_type);
+
+            pixels = pass_buffers[pass_idx];
+            if(!pixels) {
+	            pixels = new float[buf_size];
+                pass_buffers[pass_idx] = pixels;
+            }
+            mb_pixels = mb_pass_buffers[pass_idx];
+            if(motion_blur && !mb_pixels) {
+                mb_pixels = new float[buf_size];
+                mb_pass_buffers[pass_idx] = mb_pixels;
+            }
+
+            if(motion_blur && mb_type == SUBFRAME && mb_cur_sample > 1) {
+                if(!do_update_only) {
+                    for(unsigned int k = 0; k < buf_size; ++k)
+                        pixels[k] = (pixels[k] * (mb_cur_sample - 1) + mb_pixels[k]) / (float)mb_cur_sample;
+                }
+                else {
+                    if(mb_cur_sample > 2 && mb_cur_sample > mb_sample_in_work) {
+                        mb_sample_in_work = mb_cur_sample;
+                        for(unsigned int k = 0; k < buf_size; ++k)
+                            pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
+                    }
+                    session->server->get_pass_rect(pass_type, components, mb_pixels, width, height,
+                        (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height));
+                }
+                b_pass.rect(pixels);
+            }
+            else {
+                if(session->server->get_pass_rect(pass_type, components, pixels, width, height,
+                    (scene->camera->use_border ? scene->camera->border.z - scene->camera->border.x : width), (scene->camera->use_border ? scene->camera->border.w - scene->camera->border.y : height)))
+			        b_pass.rect(pixels);
+            }
+		} //for(b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter)
+	} //if(scene->passes->use_passes && (!do_update_only || motion_blur && mb_type == SUBFRAME))
 
 	// Tag result as updated
 	b_engine.update_result(b_rr);
@@ -562,36 +654,20 @@ void BlenderSession::update_render_result(BL::RenderResult b_rr, BL::RenderLayer
 } //update_render_result()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Collect needed render-passes
+// Clear all passes buffers
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline int BlenderSession::get_render_passes(vector<Pass> &passes) {
-	// Temporary render result to find needed passes
-	BL::RenderResult b_rr = begin_render_result(b_engine, 0, 0, 1, 1, b_rlay_name.c_str());
-	BL::RenderResult::layers_iterator b_single_rlay;
-	b_rr.layers.begin(b_single_rlay);
-
-	// Layer will be missing if it was disabled in the UI
-	if(b_single_rlay == b_rr.layers.end()) {
-		end_render_result(b_engine, b_rr, true, false);
-		return -1;
-	}
-
-	BL::RenderLayer b_rlay = *b_single_rlay;
-
-	// Add passes
-	// Loop over passes
-	BL::RenderLayer::passes_iterator b_pass_iter;
-	for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
-		BL::RenderPass b_pass(*b_pass_iter);
-		PassType pass_type = get_pass_type(b_pass);
-
-		if(pass_type != PASS_NONE) Pass::add(pass_type, passes);
-	}
-	// Free result without merging
-	end_render_result(b_engine, b_rr, true, false);
-    return passes.size();
-} //get_render_passes()
-
+void BlenderSession::clear_passes_buffers() {
+    for(int i = 0; i < Passes::NUM_PASSES; ++i) {
+        if(pass_buffers[i]) {
+            delete[] pass_buffers[i];
+            pass_buffers[i] = 0;
+        }
+        if(mb_pass_buffers[i]) {
+            delete[] mb_pass_buffers[i];
+            mb_pass_buffers[i] = 0;
+        }
+    }
+} //clear_passes_buffers()
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -614,34 +690,16 @@ void BlenderSession::render() {
 
 	// Render each layer
 	BL::RenderSettings render = b_scene.render();
-	BL::RenderSettings::layers_iterator b_iter;
 
     if(motion_blur && mb_type == SUBFRAME && mb_samples > 1)
         session->params.samples = session->params.samples / mb_samples;
     if(session->params.samples < 1) session->params.samples = 1;
-	
+
     bool stop_render = false;
-	for(render.layers.begin(b_iter); b_iter != render.layers.end(); ++b_iter) {
-		b_rlay_name = b_iter->name();
-
-		// Add passes
-        vector<Pass> passes;
-		if(session_params.use_passes) num_passes = get_render_passes(passes) + 1;
-        else num_passes = 1;
-        if(num_passes < 0) continue;
-        ready_passes = 0;
-
-        for(int i=0; i < NUM_PASSES; ++i) {
-            if(pass_buffers[i]) {
-                delete[] pass_buffers[i];
-                pass_buffers[i] = 0;
-            }
-            if(mb_pass_buffers[i]) {
-                delete[] mb_pass_buffers[i];
-                mb_pass_buffers[i] = 0;
-            }
-        }
-        cur_pass_type = PASS_COMBINED;
+    BL::RenderSettings::layers_iterator b_iter;
+    for(render.layers.begin(b_iter); b_iter != render.layers.end(); ++b_iter) {
+        clear_passes_buffers();
+        BL::RenderLayer cur_layer(*b_iter);
 
         // Render
         if(motion_blur && mb_type == SUBFRAME && mb_samples > 1) {
@@ -649,21 +707,23 @@ void BlenderSession::render() {
             float subframe = 0;
             int cur_frame = b_scene.frame_current();
             for(mb_cur_sample = 1; mb_cur_sample <= mb_samples; ++mb_cur_sample) {
-                session->start("Combined pass", true, 0, 0);
+                session->start("Final render", true, 0, 0);
                 session->params.image_stat.cur_samples = 0;
 
-                subframe += shuttertime / (mb_samples - 1);
-                if(subframe < 1.0f) {
-                    //b_scene.frame_set(cur_frame, subframe); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
-                    double cfra = (double)cur_frame + (double)subframe;
-                    CLAMP(cfra, MINAFRAME, MAXFRAME);
-                    BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-                    BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
-                    BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-                }
+                if(mb_cur_sample < mb_samples) {
+                    subframe += shuttertime / (mb_samples - 1);
+                    if(subframe < 1.0f) {
+                        //b_scene.frame_set(cur_frame, subframe); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
+                        double cfra = (double)cur_frame + (double)subframe;
+                        CLAMP(cfra, MINAFRAME, MAXFRAME);
+                        BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+                        BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+                        BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+                    }
 
-                sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
-        		sync->sync_camera(b_engine.camera_override(), width, height);
+                    sync->sync_data(b_v3d, b_engine.camera_override(), &cur_layer);
+                    sync->sync_camera(b_engine.camera_override(), width, height);
+                }
 
                 if(session->progress.get_cancel()) {
                     stop_render = true;
@@ -678,132 +738,31 @@ void BlenderSession::render() {
             BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
         }
         else if(motion_blur && mb_type == INTERNAL) {
-            int int_frame_idx = load_internal_mb_sequence(PASS_COMBINED, stop_render);
+            int int_frame_idx = load_internal_mb_sequence(stop_render, &cur_layer);
 
             if(!stop_render) {
-                session->start("Combined pass", true, int_frame_idx, 0);
+                session->start("Final render", true, int_frame_idx, 0);
                 session->params.image_stat.cur_samples = 0;
             }
         }
         else {
             if(motion_blur) motion_blur = false;
             mb_cur_sample = 0;
-            session->start("Combined pass", true, 0, 0);
-            session->params.image_stat.cur_samples = 0;
-        }
-        ready_passes = 1;
-        write_render_img();
-
-        vector<Pass>::const_iterator it;
-        for(it = passes.begin(); it != passes.end(); ++it) {
-            cur_pass_type = it->type;
-
-            char* cur_message;
-            switch(cur_pass_type) {
-                case PASS_DEPTH:
-                    cur_message = "Depth pass";
-                    break;
-                case PASS_GEO_NORMALS:
-                    cur_message = "Geo normals pass";
-                    break;
-                case PASS_TEX_COORD:
-                    cur_message = "UV pass";
-                    break;
-                case PASS_MATERIAL_ID:
-                    cur_message = "MatID pass";
-                    break;
-                case PASS_SHADING_NORMALS:
-                    cur_message = "Shading normals pass";
-                    break;
-                case PASS_POSITION:
-                    cur_message = "Position pass";
-                    break;
-                default:
-                    continue;
-                    break;
-            }
-
-	        // Render
-            if(motion_blur && mb_type == SUBFRAME && mb_samples > 1) {
-                sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
-        		sync->sync_camera(b_engine.camera_override(), width, height);
-
-                mb_sample_in_work = 0;
-                float subframe = 0;
-                int cur_frame = b_scene.frame_current();
-                for(mb_cur_sample = 1; mb_cur_sample <= mb_samples; ++mb_cur_sample) {
-                    session->start(cur_message, true, 0, 0);
-                    session->params.image_stat.cur_samples = 0;
-
-                    subframe += shuttertime / (mb_samples - 1);
-                    if(subframe < 1.0f) {
-                        //b_scene.frame_set(cur_frame, subframe); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
-                        double cfra = (double)cur_frame + (double)subframe;
-                        CLAMP(cfra, MINAFRAME, MAXFRAME);
-                        BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-                        BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
-                        BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-                    }
-
-                    sync->sync_data(cur_pass_type, b_v3d, b_engine.camera_override());
-            		sync->sync_camera(b_engine.camera_override(), width, height);
-
-                    if(session->progress.get_cancel()) {
-                        stop_render = true;
-                        break;
-                    }
-                }
-                //b_scene.frame_set(cur_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
-                double cfra = (double)cur_frame;
-                CLAMP(cfra, MINAFRAME, MAXFRAME);
-                BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-                BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
-                BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-            }
-            else if(motion_blur && mb_type == INTERNAL) {
-                int int_frame_idx = load_internal_mb_sequence(cur_pass_type, stop_render);
-
-                if(!stop_render) {
-                    session->start(cur_message, true, int_frame_idx, 0);
-                    session->params.image_stat.cur_samples = 0;
-                }
-            }
-            else {
-                if(motion_blur) motion_blur = false;
-
-                sync->sync_kernel(cur_pass_type);
-                session->update_scene_to_server(0, 0);
-	            BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-                session->update(buffer_params);
-                mb_cur_sample = 0;
-                session->start(cur_message, true, 0, 0);
+            if(!stop_render) {
+                session->start("Final render", true, 0, 0);
                 session->params.image_stat.cur_samples = 0;
             }
-            ++ready_passes;
-            write_render_img();
-
-            if(session->progress.get_cancel()) {
-                stop_render = true;
-                break;
-            }
         }
+
+        write_render_img();
+
         if(session->progress.get_cancel()) {
             stop_render = true;
             break;
         }
 	} //for(r.layers.begin(b_iter); b_iter != r.layers.end(); ++b_iter)
-    for(int i=0; i < NUM_PASSES; ++i) {
-        if(pass_buffers[i]) {
-            delete[] pass_buffers[i];
-            pass_buffers[i] = 0;
-        }
-        if(mb_pass_buffers[i]) {
-            delete[] mb_pass_buffers[i];
-            mb_pass_buffers[i] = 0;
-        }
-    }
-    num_passes   = -1;
-    ready_passes = -1;
+
+    clear_passes_buffers();
 
     if(stop_render || !b_engine.is_animation() || b_scene.frame_current() >= b_scene.frame_end())
         session->server->stop_render(session_params.fps);
@@ -813,8 +772,6 @@ void BlenderSession::render() {
 // "sync" python API function
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::synchronize() {
-    if(num_passes < 0) num_passes   = 0;
-    if(ready_passes < 0) ready_passes = 0;
     SessionParams session_params;
 
     session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
@@ -838,7 +795,7 @@ void BlenderSession::synchronize() {
 	}
 
 	// Data synchronize
-	sync->sync_data(PASS_COMBINED, b_v3d, b_engine.camera_override());
+	sync->sync_data(b_v3d, b_engine.camera_override());
 
 	// Camera synchronize
 	if(b_rv3d)
@@ -914,16 +871,16 @@ void BlenderSession::get_status(string& status, string& substatus) {
 void BlenderSession::get_progress(float& progress, double& total_time) {
 	session->progress.get_time(total_time);
     if(!motion_blur) {
-        if(session->params.samples * num_passes == 0)
+        if(session->params.samples == 0)
             progress = 0;
         else
-	        progress = ((ready_passes * (float)session->params.samples + (float)session->params.image_stat.cur_samples) / ((float)session->params.samples * num_passes));
+	        progress = (((float)session->params.samples + (float)session->params.image_stat.cur_samples) / (float)session->params.samples);
     }
     else {
-        if(session->params.samples * mb_samples * num_passes == 0)
+        if(session->params.samples * mb_samples == 0)
             progress = 0;
         else
-	        progress = ((ready_passes * (float)session->params.samples * mb_samples + (float)session->params.samples * (mb_sample_in_work - 1) + (float)session->params.image_stat.cur_samples) / ((float)session->params.samples * mb_samples * num_passes));
+	        progress = (((float)session->params.samples * mb_samples + (float)session->params.samples * (mb_sample_in_work - 1) + (float)session->params.image_stat.cur_samples) / ((float)session->params.samples * mb_samples));
     }
 } //get_progress()
 

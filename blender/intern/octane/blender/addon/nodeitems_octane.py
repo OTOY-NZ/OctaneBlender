@@ -73,6 +73,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeOctDirtTex"),
         NodeItem("ShaderNodeOctGradientTex"),
         NodeItem("ShaderNodeOctRandomColorTex"),
+        NodeItem("ShaderNodeOctPolygonSideTex"),
         NodeItem("ShaderNodeOctDisplacementTex"),
        ]),
     ShaderNewNodeCategory("SH_NEW_OCT_EMISSION", "Octane Emission", items=[
@@ -130,6 +131,7 @@ texture_node_categories = [
         NodeItem("ShaderNodeOctDirtTex"),
         NodeItem("ShaderNodeOctGradientTex"),
         NodeItem("ShaderNodeOctRandomColorTex"),
+        NodeItem("ShaderNodeOctPolygonSideTex"),
         NodeItem("ShaderNodeOctDisplacementTex"),
         ]),
     TextureNodeCategory("TEX_OCT_TRANSFORM", "Octane Transform", items=[

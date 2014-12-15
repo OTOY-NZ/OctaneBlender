@@ -49,6 +49,8 @@ public:
     float       opacity_default_val;
     std::string rounding;
     float       rounding_default_val;
+    std::string roughness;
+    float       roughness_default_val;
     bool        smooth;
     std::string emission;
     std::string medium;
@@ -253,6 +255,10 @@ public:
     int32_t     Octaves_default_val;
     std::string Omega;
     float       Omega_default_val;
+    std::string Gamma;
+    float       Gamma_default_val;
+    bool        Turbulence;
+    bool        Invert;
     std::string Transform;
     std::string Projection;
 };
@@ -324,12 +330,14 @@ public:
     bool        Invert;
     std::string Brightness;
     float       Brightness_default_val;
-    std::string BrightnessScale;
-    float       BrightnessScale_default_val;
-    std::string BlackLevel;
-    float       BlackLevel_default_val;
     std::string Gamma;
     float       Gamma_default_val;
+    std::string Hue;
+    float       Hue_default_val;
+    std::string Saturation;
+    float       Saturation_default_val;
+    std::string Contrast;
+    float       Contrast_default_val;
 };
 
 class OctaneImageTexture : public OctaneTextureNode {
@@ -419,6 +427,13 @@ public:
     int32_t     Seed_default_val;
 };
 
+class OctanePolygonSideTexture : public OctaneTextureNode {
+    SHADER_NODE_CLASS(OctanePolygonSideTexture)
+
+public:
+    bool Invert;
+};
+
 class OctaneDisplacementTexture : public OctaneTextureNode {
     SHADER_NODE_CLASS(OctaneDisplacementTexture)
 
@@ -454,6 +469,8 @@ public:
     float       Efficiency_default_val;
     std::string SamplingRate;
     float       SamplingRate_default_val;
+    bool        SurfaceBrightness;
+    bool        CastIllumination;
 };
 
 class OctaneTextureEmission : public OctaneEmissionNode {
@@ -468,6 +485,8 @@ public:
     float       Distribution_default_val;
     std::string SamplingRate;
     float       SamplingRate_default_val;
+    bool        SurfaceBrightness;
+    bool        CastIllumination;
 };
 
 

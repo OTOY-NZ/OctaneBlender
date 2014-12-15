@@ -31,10 +31,11 @@ static bNodeSocketTemplate sh_node_in[] = {
 	{SOCK_FLOAT,     1,  N_("Texture"),             0.7f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{SOCK_BOOLEAN,   1,  N_("Invert"),	            0.0f},
 	{SOCK_FLOAT,     1,  N_("Brightness"),          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Brightness Scale"),    1.0f, 0.0f, 0.0f, 0.0f, 0.1f, 10.0f},
-	{SOCK_FLOAT,     1,  N_("Black Level"),         0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f},
 	{SOCK_FLOAT,     1,  N_("Gamma"),               1.0f, 0.0f, 0.0f, 0.0f, 0.1f, 10.0f},
-	{-1, 0, ""}
+    {SOCK_FLOAT,     1,  N_("Hue"),                 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f},
+    {SOCK_FLOAT,     1,  N_("Saturation"),          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f},
+    {SOCK_FLOAT,     1,  N_("Contrast"),            0.001f, 0.0f, 0.0f, 0.0f, 0.001f, 1000.0f},
+    {-1, 0, ""}
 };
 
 static bNodeSocketTemplate sh_node_out[] = {

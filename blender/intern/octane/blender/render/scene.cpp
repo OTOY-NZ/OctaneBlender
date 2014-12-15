@@ -24,6 +24,7 @@
 #include "environment.h"
 #include "camera.h"
 #include "server.h"
+#include "passes.h"
 #include "kernel.h"
 #include "light.h"
 #include "shader.h"
@@ -53,8 +54,9 @@ Scene::Scene(const Session *session_, bool first_frame_) : session(session_), fi
 	light_manager           = new LightManager();
 	mesh_manager            = new MeshManager();
 	object_manager          = new ObjectManager();
-	kernel                  = new Kernel();
-	shader_manager          = ShaderManager::create(this);
+	passes                  = new Passes();
+    kernel                  = new Kernel();
+    shader_manager = ShaderManager::create(this);
 } //Scene()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +105,10 @@ Scene::~Scene() {
 	delete light_manager;
     light_manager = 0;
 
-	delete kernel;
+	delete passes;
+    passes = 0;
+
+    delete kernel;
     kernel = 0;
 } //~Scene()
 
@@ -143,8 +148,11 @@ void Scene::server_update(RenderServer *server_, Progress& progress, bool intera
 
 	if(progress.get_cancel()) return;
 
-	progress.set_status("Updating Kernel");
-	kernel->server_update(server, this, interactive);
+	progress.set_status("Updating Passes");
+	passes->server_update(server, this, interactive);
+
+    progress.set_status("Updating Kernel");
+    kernel->server_update(server, this, interactive);
 
 	if(progress.get_cancel()) return;
 
@@ -168,7 +176,8 @@ bool Scene::need_reset() {
 		|| object_manager->need_update
 		|| mesh_manager->need_update
 		|| light_manager->need_update
-		|| kernel->need_update
+        || passes->need_update
+        || kernel->need_update
 		|| kernel->need_update_GPUs
 		|| shader_manager->need_update);
 } //need_reset()

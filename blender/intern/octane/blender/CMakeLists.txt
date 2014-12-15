@@ -42,6 +42,7 @@ set(SRC
 	./render/buffers.cpp
 	./render/camera.cpp
 	./render/graph.cpp
+	./render/passes.cpp
 	./render/kernel.cpp
 	./render/light.cpp
 	./render/mesh.cpp
@@ -55,6 +56,7 @@ set(SRC
 	./render/buffers.h
 	./render/camera.h
 	./render/graph.h
+	./render/passes.h
 	./render/kernel.h
 	./render/light.h
 	./render/mesh.h

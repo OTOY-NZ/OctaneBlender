@@ -25,7 +25,7 @@
 
 OCT_NAMESPACE_BEGIN
 
-Kernel::ChannelType channel_translator[] = {
+static Kernel::ChannelType channel_translator[] = {
     Kernel::CHANNEL_GEOMETRICNORMALS,
     Kernel::CHANNEL_SHADINGNORMALS,
     Kernel::CHANNEL_POSITION,
@@ -123,104 +123,261 @@ bool BlenderSync::sync_recalc() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Syncronise all scene data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSync::sync_data(PassType pass_type, BL::SpaceView3D b_v3d, BL::Object b_override, const char *layer) {
-	sync_render_layers(b_v3d, layer);
-	sync_kernel(pass_type);
+void BlenderSync::sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, BL::RenderLayer *layer) {
+    sync_render_layers(b_v3d, layer ? layer->name().c_str() : 0);
+    sync_passes(layer);
+	sync_kernel();
 	sync_shaders(); //Environment here so far...
 	sync_objects(b_v3d);
 } //sync_data()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Get additional Octane scene settings.
+// Get Octane render passes settings.
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSync::sync_kernel(PassType pass_type) {
+void BlenderSync::sync_passes(BL::RenderLayer *layer) {
 	PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
 
-	Kernel *kernel      = scene->kernel;
-	Kernel prevkernel   = *kernel;
-
-    switch(pass_type) {
-        case PASS_COMBINED:
-            kernel->kernel_type         = static_cast<Kernel::KernelType>(RNA_enum_get(&oct_scene, "kernel_type"));
-            kernel->info_channel_type   = channel_translator[RNA_enum_get(&oct_scene, "info_channel_type")];
-            break;
-        case PASS_DEPTH:
-            kernel->kernel_type         = Kernel::INFO_CHANNEL;
-            kernel->info_channel_type   = Kernel::CHANNEL_ZDEPTH;
-            break;
-        case PASS_GEO_NORMALS:
-            kernel->kernel_type         = Kernel::INFO_CHANNEL;
-            kernel->info_channel_type   = Kernel::CHANNEL_GEOMETRICNORMALS;
-            break;
-        case PASS_SHADING_NORMALS:
-            kernel->kernel_type         = Kernel::INFO_CHANNEL;
-            kernel->info_channel_type   = Kernel::CHANNEL_SHADINGNORMALS;
-            break;
-        case PASS_MATERIAL_ID:
-            kernel->kernel_type         = Kernel::INFO_CHANNEL;
-            kernel->info_channel_type   = Kernel::CHANNEL_MATERIALID;
-            break;
-        case PASS_POSITION:
-            kernel->kernel_type         = Kernel::INFO_CHANNEL;
-            kernel->info_channel_type   = Kernel::CHANNEL_POSITION;
-            break;
-        case PASS_TEX_COORD:
-            kernel->kernel_type         = Kernel::INFO_CHANNEL;
-            kernel->info_channel_type   = Kernel::CHANNEL_TEXTURESCOORDINATES;
-            break;
-        default:
-            kernel->kernel_type         = static_cast<Kernel::KernelType>(RNA_enum_get(&oct_scene, "kernel_type"));
-            kernel->info_channel_type   = channel_translator[RNA_enum_get(&oct_scene, "info_channel_type")];
-            break;
+    PointerRNA rlayer;
+    if(layer)
+        rlayer = layer->ptr;
+    else {
+        BL::RenderLayer b_rlay = static_cast<BL::RenderLayer>(b_scene.render().layers.active());
+        rlayer = b_rlay.ptr;
     }
-    kernel->max_samples         = get_int(oct_scene, "max_samples");
+
+	Passes *passes      = scene->passes;
+    Passes prevpasses   = *passes;
+
+    passes->use_passes = get_boolean(oct_scene, "use_passes");
+    if(passes->use_passes) {
+        passes->cur_pass_type = pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
+
+        passes->pass_max_samples            = get_int(oct_scene, "pass_max_samples");
+        passes->pass_ao_max_samples         = get_int(oct_scene, "pass_ao_max_samples");
+        passes->pass_start_samples          = get_int(oct_scene, "pass_start_samples");
+        passes->pass_distributed_tracing    = get_boolean(oct_scene, "pass_distributed_tracing");
+        passes->pass_filter_size            = get_float(oct_scene, "pass_filter_size");
+        passes->pass_z_depth_max            = get_float(oct_scene, "pass_z_depth_max");
+        passes->pass_uv_max                 = get_float(oct_scene, "pass_uv_max");
+        passes->pass_max_speed              = get_float(oct_scene, "pass_max_speed");
+        passes->pass_ao_distance            = get_float(oct_scene, "pass_ao_distance");
+        passes->pass_alpha_shadows          = get_boolean(oct_scene, "pass_alpha_shadows");
+
+        if(!interactive) {
+            passes->combined_pass               = get_boolean(rlayer, "use_pass_combined");
+            passes->emitters_pass               = get_boolean(rlayer, "use_pass_emit");
+            passes->environment_pass            = get_boolean(rlayer, "use_pass_environment");
+            passes->diffuse_direct_pass         = get_boolean(rlayer, "use_pass_diffuse_direct");
+            passes->diffuse_indirect_pass       = get_boolean(rlayer, "use_pass_diffuse_indirect");
+
+            bool cur_use = get_boolean(rlayer, "use_pass_reflection");
+            int  subtype = RNA_enum_get(&oct_scene, "reflection_pass_subtype");
+            passes->reflection_direct_pass      = cur_use && (subtype == 0);
+            passes->reflection_indirect_pass    = cur_use && (subtype == 1);
+
+            passes->refraction_pass             = get_boolean(rlayer, "use_pass_refraction");
+            passes->transmission_pass           = get_boolean(rlayer, "use_pass_transmission_color");
+            passes->subsurf_scattering_pass     = get_boolean(rlayer, "use_pass_subsurface_color");
+            passes->post_processing_pass        = false;
+
+            cur_use = get_boolean(rlayer, "use_pass_normal");
+            subtype = RNA_enum_get(&oct_scene, "normal_pass_subtype");
+            passes->geom_normals_pass           = cur_use && (subtype == 0);
+            passes->shading_normals_pass        = cur_use && (subtype == 1);
+            passes->vertex_normals_pass         = cur_use && (subtype == 2);
+
+            passes->position_pass               = false;
+            passes->z_depth_pass                = get_boolean(rlayer, "use_pass_z");
+            passes->material_id_pass            = get_boolean(rlayer, "use_pass_material_index");
+            passes->uv_coordinates_pass         = get_boolean(rlayer, "use_pass_uv");
+            passes->tangents_pass               = false;
+            passes->wireframe_pass              = false;
+            passes->object_id_pass              = get_boolean(rlayer, "use_pass_object_index");
+            passes->ao_pass                     = get_boolean(rlayer, "use_pass_ambient_occlusion");
+            passes->motion_vector_pass          = false;
+        }
+        else {
+            passes->combined_pass               = false;
+            passes->emitters_pass               = false;
+            passes->environment_pass            = false;
+            passes->diffuse_direct_pass         = false;
+            passes->diffuse_indirect_pass       = false;
+            passes->reflection_direct_pass      = false;
+            passes->reflection_indirect_pass    = false;
+            passes->refraction_pass             = false;
+            passes->transmission_pass           = false;
+            passes->subsurf_scattering_pass     = false;
+            passes->post_processing_pass        = false;
+
+            passes->geom_normals_pass           = false;
+            passes->shading_normals_pass        = false;
+            passes->vertex_normals_pass         = false;
+            passes->position_pass               = false;
+            passes->z_depth_pass                = false;
+            passes->material_id_pass            = false;
+            passes->uv_coordinates_pass         = false;
+            passes->tangents_pass               = false;
+            passes->wireframe_pass              = false;
+            passes->object_id_pass              = false;
+            passes->ao_pass                     = false;
+            passes->motion_vector_pass          = false;
+
+            switch(passes->cur_pass_type) {
+            case Passes::COMBINED:
+                passes->combined_pass = true;
+                break;
+            case Passes::EMIT:
+                passes->emitters_pass = true;
+                break;
+            case Passes::ENVIRONMENT:
+                passes->environment_pass = true;
+                break;
+            case Passes::DIFFUSE_DIRECT:
+                passes->diffuse_direct_pass = true;
+                break;
+            case Passes::DIFFUSE_INDIRECT:
+                passes->diffuse_indirect_pass = true;
+                break;
+            case Passes::REFLECTION_DIRECT:
+                passes->reflection_direct_pass = true;
+                break;
+            case Passes::REFLECTION_INDIRECT:
+                passes->reflection_indirect_pass = true;
+                break;
+            case Passes::REFRACTION:
+                passes->refraction_pass = true;
+                break;
+            case Passes::TRANSMISSION:
+                passes->transmission_pass = true;
+                break;
+            case Passes::SSS:
+                passes->subsurf_scattering_pass = true;
+                break;
+            case Passes::POST_PROC:
+                passes->post_processing_pass = true;
+                break;
+            case Passes::GEOMETRIC_NORMAL:
+                passes->geom_normals_pass = true;
+                break;
+            case Passes::SHADING_NORMAL:
+                passes->shading_normals_pass = true;
+                break;
+            case Passes::VERTEX_NORMAL:
+                passes->vertex_normals_pass = true;
+                break;
+            case Passes::POSITION:
+                passes->position_pass = true;
+                break;
+            case Passes::Z_DEPTH:
+                passes->z_depth_pass = true;
+                break;
+            case Passes::MATERIAL_ID:
+                passes->material_id_pass = true;
+                break;
+            case Passes::UV_COORD:
+                passes->uv_coordinates_pass = true;
+                break;
+            case Passes::TANGENT_U:
+                passes->tangents_pass = true;
+                break;
+            case Passes::WIREFRAME:
+                passes->wireframe_pass = true;
+                break;
+            case Passes::OBJECT_ID:
+                passes->object_id_pass = true;
+                break;
+            case Passes::AMBIENT_OCCLUSION:
+                passes->ao_pass = true;
+                break;
+            case Passes::MOTION_VECTOR:
+                passes->motion_vector_pass = true;
+                break;
+            default:
+                passes->combined_pass = true;
+                break;
+            }
+        }
+    } //if(passes->use_passes)
+    
+    if(passes->modified(prevpasses)) passes->tag_update();
+} //sync_passes()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get additional Octane scene settings.
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void BlenderSync::sync_kernel() {
+    PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+
+    Kernel *kernel = scene->kernel;
+    Kernel prevkernel = *kernel;
+
+    kernel->kernel_type = static_cast<Kernel::KernelType>(RNA_enum_get(&oct_scene, "kernel_type"));
+    kernel->info_channel_type = channel_translator[RNA_enum_get(&oct_scene, "info_channel_type")];
+
+    Passes::PassTypes cur_pass_type = pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
+    if(cur_pass_type == Passes::COMBINED) {
+        kernel->max_samples = get_int(oct_scene, "max_samples");
+        kernel->max_preview_samples = get_int(oct_scene, "max_preview_samples");
+        if(kernel->max_preview_samples == 0) kernel->max_preview_samples = 16000;
+    }
+    else if(cur_pass_type == Passes::AMBIENT_OCCLUSION) {
+        kernel->max_samples = get_int(oct_scene, "pass_ao_max_samples");
+        kernel->max_preview_samples = kernel->max_samples;
+    }
+    else {
+        kernel->max_samples = get_int(oct_scene, "pass_max_samples");
+        kernel->max_preview_samples = kernel->max_samples;
+    }
     if(scene->session->b_session && scene->session->b_session->motion_blur && scene->session->b_session->mb_type == BlenderSession::SUBFRAME && scene->session->b_session->mb_samples > 1)
         kernel->max_samples = kernel->max_samples / scene->session->b_session->mb_samples;
     if(kernel->max_samples < 1) kernel->max_samples = 1;
 
-    kernel->max_preview_samples = get_int(oct_scene, "max_preview_samples");
-    kernel->filter_size         = get_float(oct_scene, "filter_size");
-    kernel->ray_epsilon         = get_float(oct_scene, "ray_epsilon");
-    kernel->rrprob              = get_float(oct_scene, "rrprob");
-    kernel->alpha_channel       = get_boolean(oct_scene, "alpha_channel");
-    kernel->keep_environment    = get_boolean(oct_scene, "keep_environment");
-    kernel->alpha_shadows       = get_boolean(oct_scene, "alpha_shadows");
+    kernel->filter_size = get_float(oct_scene, "filter_size");
+    kernel->ray_epsilon = get_float(oct_scene, "ray_epsilon");
+    kernel->alpha_channel = get_boolean(oct_scene, "alpha_channel");
+    kernel->keep_environment = get_boolean(oct_scene, "keep_environment");
+    kernel->alpha_shadows = get_boolean(oct_scene, "alpha_shadows");
     kernel->bump_normal_mapping = get_boolean(oct_scene, "bump_normal_mapping");
-    kernel->wf_bktrace_hl       = get_boolean(oct_scene, "wf_bktrace_hl");
+    kernel->wf_bktrace_hl = get_boolean(oct_scene, "wf_bktrace_hl");
+    kernel->path_term_power = get_float(oct_scene, "path_term_power");
 
-    kernel->caustic_blur        = get_float(oct_scene, "caustic_blur");
-    kernel->max_diffuse_depth   = get_int(oct_scene, "max_diffuse_depth");
-    kernel->max_glossy_depth    = get_int(oct_scene, "max_glossy_depth");
+    kernel->caustic_blur = get_float(oct_scene, "caustic_blur");
+    kernel->max_diffuse_depth = get_int(oct_scene, "max_diffuse_depth");
+    kernel->max_glossy_depth = get_int(oct_scene, "max_glossy_depth");
 
-    kernel->specular_depth      = get_int(oct_scene, "specular_depth");
-    kernel->glossy_depth        = get_int(oct_scene, "glossy_depth");
-    kernel->ao_dist             = get_float(oct_scene, "ao_dist");
-    kernel->gi_mode             = static_cast<Kernel::GIType>(RNA_enum_get(&oct_scene, "gi_mode"));
-    kernel->diffuse_depth       = get_int(oct_scene, "diffuse_depth");
+    kernel->coherent_ratio = get_float(oct_scene, "coherent_ratio");
+    kernel->static_noise = get_boolean(oct_scene, "static_noise");
 
-    kernel->exploration         = get_float(oct_scene, "exploration");
-    kernel->gi_clamp            = get_float(oct_scene, "gi_clamp");
+    kernel->specular_depth = get_int(oct_scene, "specular_depth");
+    kernel->glossy_depth = get_int(oct_scene, "glossy_depth");
+    kernel->ao_dist = get_float(oct_scene, "ao_dist");
+    kernel->gi_mode = static_cast<Kernel::GIType>(RNA_enum_get(&oct_scene, "gi_mode"));
+    kernel->diffuse_depth = get_int(oct_scene, "diffuse_depth");
+
+    kernel->exploration = get_float(oct_scene, "exploration");
+    kernel->gi_clamp = get_float(oct_scene, "gi_clamp");
     kernel->direct_light_importance = get_float(oct_scene, "direct_light_importance");
-    kernel->max_rejects         = get_int(oct_scene, "max_rejects");
-    kernel->parallelism         = get_int(oct_scene, "parallelism");
+    kernel->max_rejects = get_int(oct_scene, "max_rejects");
+    kernel->parallelism = get_int(oct_scene, "parallelism");
 
-    kernel->zdepth_max          = get_float(oct_scene, "zdepth_max");
-    kernel->uv_max              = get_float(oct_scene, "uv_max");
+    kernel->zdepth_max = get_float(oct_scene, "zdepth_max");
+    kernel->uv_max = get_float(oct_scene, "uv_max");
     kernel->distributed_tracing = get_boolean(oct_scene, "distributed_tracing");
+    kernel->max_speed = get_float(oct_scene, "max_speed");
 
     BL::RenderSettings r = b_scene.render();
     kernel->shuttertime = r.motion_blur_shutter();
-    
+
     if(kernel->modified(prevkernel)) kernel->tag_update();
 
-	// GPUs
-    int iValues[8] = {0,0,0,0,0,0,0,0};
+    // GPUs
+    int iValues[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     RNA_boolean_get_array(&oct_scene, "devices", iValues);
     kernel->uiGPUs = 0;
-    for(int i=0; i<8; ++i)
+    for(int i = 0; i < 8; ++i)
         if(iValues[i]) kernel->uiGPUs |= 0x01 << i;
 
-	if(kernel->uiGPUs != prevkernel.uiGPUs) kernel->tag_updateGPUs();
+    if(kernel->uiGPUs != prevkernel.uiGPUs) kernel->tag_updateGPUs();
 } //sync_kernel()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -318,13 +475,22 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 	params.interactive = interactive;
 
 	// Samples
-    if(!interactive) {
-        params.samples = get_int(oct_scene, "max_samples");
+    Passes::PassTypes cur_pass_type = pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
+    if(cur_pass_type == Passes::COMBINED) {
+        if(!interactive) {
+            params.samples = get_int(oct_scene, "max_samples");
+        }
+	    else {
+		    params.samples = get_int(oct_scene, "max_preview_samples");
+		    if(params.samples == 0) params.samples = 16000;
+	    }
     }
-	else {
-		params.samples = get_int(oct_scene, "max_preview_samples");
-		if(params.samples == 0) params.samples = 16000;
-	}
+    else if(cur_pass_type == Passes::AMBIENT_OCCLUSION) {
+        params.samples = get_int(oct_scene, "pass_ao_max_samples");
+    }
+    else {
+        params.samples = get_int(oct_scene, "pass_max_samples");
+    }
 
     params.anim_mode            = static_cast<AnimationMode>(RNA_enum_get(&oct_scene, "anim_mode"));
     params.export_alembic       = interactive ? false : get_boolean(oct_scene, "export_alembic");
