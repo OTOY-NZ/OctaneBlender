@@ -49,7 +49,6 @@
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_font.h"
-#include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
@@ -1037,8 +1036,8 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 		 * - dragged. */
 		phi = si * (float)(M_PI / 2.0);
 
-		q1[0] = cos(phi);
-		mul_v3_fl(q1 + 1, sin(phi));
+		q1[0] = cosf(phi);
+		mul_v3_fl(q1 + 1, sinf(phi));
 		mul_qt_qtqt(vod->viewquat, q1, vod->oldquat);
 
 		viewrotate_apply_dyn_ofs(vod, vod->viewquat);
@@ -1119,6 +1118,8 @@ static int viewrotate_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == MOUSEMOVE) {
@@ -1153,17 +1154,25 @@ static int viewrotate_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewrotate_apply(vod, event->x, event->y);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, true);
 		ED_view3d_depth_tag_update(vod->rv3d);
-
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, true);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 /**
@@ -1221,26 +1230,31 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		ED_region_tag_redraw(vod->ar);
 	}
 
-	if (event->type == MOUSEPAN) {
+	if (ELEM(event->type, MOUSEPAN, MOUSEROTATE)) {
 		/* Rotate direction we keep always same */
-		if (U.uiflag2 & USER_TRACKPAD_NATURAL)
-			viewrotate_apply(vod, 2 * event->x - event->prevx, 2 * event->y - event->prevy);
-		else
-			viewrotate_apply(vod, event->prevx, event->prevy);
-			
+		int x, y;
+
+		if (event->type == MOUSEPAN) {
+			if (U.uiflag2 & USER_TRACKPAD_NATURAL) {
+				x = 2 * event->x - event->prevx;
+				y = 2 * event->y - event->prevy;
+			}
+			else {
+				x = event->prevx;
+				y = event->prevy;
+			}
+		}
+		else {
+			/* MOUSEROTATE performs orbital rotation, so y axis delta is set to 0 */
+			x = event->prevx;
+			y = event->y;
+		}
+
+		viewrotate_apply(vod, x, y);
 		ED_view3d_depth_tag_update(vod->rv3d);
-		
+
 		viewops_data_free(C, op);
-		
-		return OPERATOR_FINISHED;
-	}
-	else if (event->type == MOUSEROTATE) {
-		/* MOUSEROTATE performs orbital rotation, so y axis delta is set to 0 */
-		viewrotate_apply(vod, event->prevx, event->y);
-		ED_view3d_depth_tag_update(vod->rv3d);
-		
-		viewops_data_free(C, op);
-		
+
 		return OPERATOR_FINISHED;
 	}
 	else {
@@ -1448,7 +1462,7 @@ static void view3d_ndof_orbit(const struct wmNDOFMotionData *ndof, ScrArea *sa, 
 		/* Perform the up/down rotation */
 		angle = ndof->dt * rot[0];
 		quat[0] = cosf(angle);
-		mul_v3_v3fl(quat + 1, xvec, sin(angle));
+		mul_v3_v3fl(quat + 1, xvec, sinf(angle));
 		mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, quat);
 
 		/* Perform the orbital rotation */
@@ -1946,6 +1960,8 @@ static int viewmove_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == MOUSEMOVE) {
@@ -1972,17 +1988,25 @@ static int viewmove_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewmove_apply(vod, event->x, event->y);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
 		ED_view3d_depth_tag_update(vod->rv3d);
-
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 static int viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2214,6 +2238,8 @@ static int viewzoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == TIMER && event->customdata == vod->timer) {
@@ -2244,16 +2270,25 @@ static int viewzoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewzoom_apply(vod, &event->x, U.viewzoom, (U.uiflag & USER_ZOOM_INVERT) != 0);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
 		ED_view3d_depth_tag_update(vod->rv3d);
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 static int viewzoom_exec(bContext *C, wmOperator *op)
@@ -2315,6 +2350,7 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 	ED_view3d_depth_tag_update(rv3d);
 
 	ED_view3d_camera_lock_sync(v3d, rv3d);
+	ED_view3d_camera_lock_autokey(v3d, rv3d, C, false, true);
 
 	ED_region_tag_redraw(ar);
 
@@ -2389,8 +2425,10 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 				vod->origy = vod->oldy = vod->origy + event->x - event->prevx;
 				viewzoom_apply(vod, &event->prevx, USER_ZOOM_DOLLY, (U.uiflag & USER_ZOOM_INVERT) != 0);
 			}
+			ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+
 			ED_view3d_depth_tag_update(vod->rv3d);
-			
+
 			viewops_data_free(C, op);
 			return OPERATOR_FINISHED;
 		}
@@ -2486,6 +2524,8 @@ static int viewdolly_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == MOUSEMOVE) {
@@ -2512,16 +2552,25 @@ static int viewdolly_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewdolly_apply(vod, event->x, event->y, (U.uiflag & USER_ZOOM_INVERT) != 0);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
 		ED_view3d_depth_tag_update(vod->rv3d);
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 static int viewdolly_exec(bContext *C, wmOperator *op)
@@ -3423,7 +3472,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		/* find the closest Z pixel */
 		depth_close = view3d_depth_near(&depth_temp);
 	
-		MEM_freeN(depth_temp.depths);
+		MEM_SAFE_FREE(depth_temp.depths);
 	}
 
 	cent[0] = (((double)rect.xmin) + ((double)rect.xmax)) / 2;
@@ -3970,6 +4019,8 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == MOUSEMOVE) {
@@ -3996,17 +4047,34 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewroll_apply(vod, event->x, event->y);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, false);
 		ED_view3d_depth_tag_update(vod->rv3d);
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, false);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
+
+static EnumPropertyItem prop_view_roll_items[] = {
+	{0, "ROLLANGLE", 0, "Roll Angle", "Roll the view using an angle value"},
+	{V3D_VIEW_STEPLEFT, "ROLLLEFT", 0, "Roll Left", "Roll the view around to the Left"},
+	{V3D_VIEW_STEPRIGHT, "ROLLTRIGHT", 0, "Roll Right", "Roll the view around to the Right"},
+	{0, NULL, 0, NULL, NULL}
+};
+
 
 static int viewroll_exec(bContext *C, wmOperator *op)
 {
@@ -4025,11 +4093,16 @@ static int viewroll_exec(bContext *C, wmOperator *op)
 
 	rv3d = ar->regiondata;
 	if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d)) {
-		const float angle = RNA_float_get(op->ptr, "angle");
+		int type = RNA_enum_get(op->ptr, "type");
+		float angle = (type == 0) ? RNA_float_get(op->ptr, "angle") : DEG2RADF((float)U.pad_rot_angle);
 		float mousevec[3];
 		float quat_new[4];
 
 		const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+
+		if (type == V3D_VIEW_STEPLEFT) {
+			angle = -angle;
+		}
 
 		normalize_v3_v3(mousevec, rv3d->viewinv[2]);
 		negate_v3(mousevec);
@@ -4052,7 +4125,9 @@ static int viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod;
 
-	if (RNA_struct_property_is_set(op->ptr, "angle")) {
+	bool use_angle = RNA_enum_get(op->ptr, "type") != 0;
+
+	if (use_angle || RNA_struct_property_is_set(op->ptr, "angle")) {
 		viewroll_exec(C, op);
 	}
 	else {
@@ -4090,6 +4165,8 @@ static void viewroll_cancel(bContext *C, wmOperator *op)
 
 void VIEW3D_OT_view_roll(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "View Roll";
 	ot->description = "Roll the view";
@@ -4106,7 +4183,10 @@ void VIEW3D_OT_view_roll(wmOperatorType *ot)
 	ot->flag = 0;
 
 	/* properties */
-	ot->prop = RNA_def_float(ot->srna, "angle", 0, -FLT_MAX, FLT_MAX, "Roll", "", -FLT_MAX, FLT_MAX);
+	ot->prop = prop = RNA_def_float(ot->srna, "angle", 0, -FLT_MAX, FLT_MAX, "Roll", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_enum(ot->srna, "type", prop_view_roll_items, 0, "Roll Angle Source", "How roll angle is calculated");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 static EnumPropertyItem prop_view_pan_items[] = {
@@ -4259,32 +4339,16 @@ static int background_image_add_exec(bContext *C, wmOperator *UNUSED(op))
 static int background_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	View3D *v3d = CTX_wm_view3d(C);
-	Image *ima = NULL;
+	Image *ima;
 	BGpic *bgpic;
-	char name[MAX_ID_NAME - 2];
 	
-	/* check input variables */
-	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
-		char path[FILE_MAX];
-		
-		RNA_string_get(op->ptr, "filepath", path);
-		ima = BKE_image_load_exists(path);
-	}
-	else if (RNA_struct_property_is_set(op->ptr, "name")) {
-		RNA_string_get(op->ptr, "name", name);
-		ima = (Image *)BKE_libblock_find_name(ID_IM, name);
-	}
-	
+	ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+	/* may be NULL, continue anyway */
+
 	bgpic = background_image_add(C);
-	
-	if (ima) {
-		bgpic->ima = ima;
-		
-		id_us_plus(&ima->id);
-		
-		if (!(v3d->flag & V3D_DISPBGPICS))
-			v3d->flag |= V3D_DISPBGPICS;
-	}
+	bgpic->ima = ima;
+
+	v3d->flag |= V3D_DISPBGPICS;
 	
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 	
@@ -4310,7 +4374,8 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_string(ot->srna, "name", "Image", MAX_ID_NAME - 2, "Name", "Image name to assign");
-	RNA_def_string(ot->srna, "filepath", "Path", FILE_MAX, "Filepath", "Path to image file");
+	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 
@@ -4360,12 +4425,16 @@ void VIEW3D_OT_background_image_remove(wmOperatorType *ot)
 
 /* ********************* set clipping operator ****************** */
 
-static void calc_clipping_plane(float clip[6][4], const BoundBox *clipbb)
+static void calc_clipping_plane(float clip[6][4], const BoundBox *clipbb, const bool is_flip)
 {
 	int val;
 
 	for (val = 0; val < 4; val++) {
 		normal_tri_v3(clip[val], clipbb->vec[val], clipbb->vec[val == 3 ? 0 : val + 1], clipbb->vec[val + 4]);
+		if (UNLIKELY(is_flip)) {
+			negate_v3(clip[val]);
+		}
+
 		clip[val][3] = -dot_v3v3(clip[val], clipbb->vec[val]);
 	}
 }
@@ -4382,7 +4451,7 @@ static void calc_local_clipping(float clip_local[6][4], BoundBox *clipbb, float 
 		mul_v3_m4v3(clipbb_local.vec[i], imat, clipbb->vec[i]);
 	}
 
-	calc_clipping_plane(clip_local, &clipbb_local);
+	calc_clipping_plane(clip_local, &clipbb_local, is_negative_m4(mat));
 }
 
 void ED_view3d_clipping_local(RegionView3D *rv3d, float mat[4][4])
@@ -4640,7 +4709,7 @@ static float view_autodist_depth_margin(ARegion *ar, const int mval[2], int marg
 
 	view3d_update_depths_rect(ar, &depth_temp, &rect);
 	depth_close = view3d_depth_near(&depth_temp);
-	if (depth_temp.depths) MEM_freeN(depth_temp.depths);
+	MEM_SAFE_FREE(depth_temp.depths);
 	return depth_close;
 }
 

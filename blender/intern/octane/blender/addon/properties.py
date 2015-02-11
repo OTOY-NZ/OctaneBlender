@@ -55,13 +55,19 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         cls.reflection_pass_subtype = EnumProperty(
                 name="Subtype",
                 description="",
-                items=types.pass_dir_subtype,
+                items=types.pass_refl_subtype,
                 default='0',
                 )
         cls.normal_pass_subtype = EnumProperty(
                 name="Subtype",
                 description="",
                 items=types.pass_normal_subtype,
+                default='0',
+                )
+        cls.shadows_pass_subtype = EnumProperty(
+                name="Subtype",
+                description="",
+                items=types.pass_shadows_subtype,
                 default='0',
                 )
 
@@ -140,6 +146,27 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 items=types.pass_types,
                 default='0',
                 )
+
+# ################################################################################################
+# OCTANE COMMON
+# ################################################################################################
+        cls.layers_enable = BoolProperty(
+                name="Enable",
+                description="Tick to enable Octane render layers",
+                default=False,
+                )
+        cls.layers_current = IntProperty(
+                name="Active layer ID",
+                description="ID of the active render layer",
+                min=1, max=100,
+                default=1,
+                )
+        cls.layers_invert = BoolProperty(
+                name="Invert",
+                description="All the non-active render layers become the active render layer and the active render layer becomes inactive",
+                default=False,
+                )
+
 
 # ################################################################################################
 # OCTANE COMMON
@@ -253,11 +280,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.alpha_channel = BoolProperty(
                 name="Alpha channel",
-                description="",
-                default=False,
-                )
-        cls.keep_environment = BoolProperty(
-                name="Keep environment",
                 description="",
                 default=False,
                 )
@@ -441,6 +463,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 name="Preview Active Layer",
                 description="Preview active render layer in viewport",
                 default=False,
+                )
+
+        cls.hdr_tonemapped = BoolProperty(
+                name="Tonemapped HDR",
+                description="",
+                default=True,
                 )
 
     @classmethod
@@ -755,22 +783,6 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 default=1.0,
                 step=10,
                 precision=2,
-                )
-        cls.fstop = FloatProperty(
-                name="F-Stop",
-                description="",
-                min=1.0, soft_min=1.0, max=64.0, soft_max=64.0,
-                default=2.8,
-                step=10,
-                precision=1,
-                )
-        cls.iso = FloatProperty(
-                name="ISO",
-                description="",
-                min=1.0, soft_min=1.0, max=800.0, soft_max=800.0,
-                default=100.0,
-                step=100,
-                precision=1,
                 )
         cls.gamma = FloatProperty(
                 name="Gamma",
@@ -1107,7 +1119,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 default='1',
                 )
         cls.open_subd_level = IntProperty(
-                name="Level",
+                name="Subd level",
                 description="",
                 min=0, max=10,
                 default=0,
@@ -1139,6 +1151,12 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 name="Shadow visibility",
                 description="",
                 default=True,
+                )
+        cls.layer_number = IntProperty(
+                name="Layer number",
+                description="",
+                min=1, max=100,
+                default=1,
                 )
 
     @classmethod

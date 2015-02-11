@@ -19,6 +19,7 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
+from bl_ui.properties_grease_pencil_common import GreasePencilDataPanel
 from bl_ui.properties_paint_common import UnifiedPaintPanel
 from bpy.app.translations import contexts as i18n_contexts
 
@@ -56,7 +57,12 @@ class VIEW3D_HT_header(Header):
                 row.prop(view, "use_occlude_geometry", text="")
 
             # Proportional editing
-            if mode in {'EDIT', 'PARTICLE_EDIT'}:
+            if context.gpencil_data and context.gpencil_data.use_stroke_edit_mode:
+                row = layout.row(align=True)
+                row.prop(toolsettings, "proportional_edit", icon_only=True)
+                if toolsettings.proportional_edit != 'DISABLED':
+                    row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
+            elif mode in {'EDIT', 'PARTICLE_EDIT'}:
                 row = layout.row(align=True)
                 row.prop(toolsettings, "proportional_edit", icon_only=True)
                 if toolsettings.proportional_edit != 'DISABLED':
@@ -65,6 +71,13 @@ class VIEW3D_HT_header(Header):
                 row = layout.row(align=True)
                 row.prop(toolsettings, "use_proportional_edit_objects", icon_only=True)
                 if toolsettings.use_proportional_edit_objects:
+                    row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
+        else:
+            # Proportional editing
+            if context.gpencil_data and context.gpencil_data.use_stroke_edit_mode:
+                row = layout.row(align=True)
+                row.prop(toolsettings, "proportional_edit", icon_only=True)
+                if toolsettings.proportional_edit != 'DISABLED':
                     row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
 
         # Snap
@@ -421,7 +434,8 @@ class VIEW3D_MT_view(Menu):
 
         layout.operator("screen.area_dupli")
         layout.operator("screen.region_quadview")
-        layout.operator("screen.screen_full_area")
+        layout.operator("screen.screen_full_area", text="Toggle Maximize Area")
+        layout.operator("screen.screen_full_area").use_hide_panels = True
 
 
 class VIEW3D_MT_view_navigation(Menu):
@@ -604,8 +618,25 @@ class VIEW3D_MT_select_particle(Menu):
 
         layout.separator()
 
+        layout.operator("particle.select_random")
+
+        layout.separator()
+
         layout.operator("particle.select_roots", text="Roots")
         layout.operator("particle.select_tips", text="Tips")
+
+
+class VIEW3D_MT_edit_mesh_select_similar(Menu):
+    bl_label = "Select Similar"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_enum("mesh.select_similar", "type")
+
+        layout.separator()
+
+        layout.operator("mesh.select_similar_region", text="Face Regions")
 
 
 class VIEW3D_MT_select_edit_mesh(Menu):
@@ -647,7 +678,7 @@ class VIEW3D_MT_select_edit_mesh(Menu):
         layout.separator()
 
         # other ...
-        layout.operator_menu_enum("mesh.select_similar", "type", text="Similar")
+        layout.menu("VIEW3D_MT_edit_mesh_select_similar")
         layout.operator("mesh.select_ungrouped", text="Ungrouped Verts")
 
         layout.separator()
@@ -1712,6 +1743,10 @@ class VIEW3D_MT_particle_specials(Menu):
 
             layout.separator()
 
+            layout.operator("particle.select_random")
+
+            layout.separator()
+
             layout.operator("particle.select_more")
             layout.operator("particle.select_less")
 
@@ -2286,6 +2321,8 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.faces_shade_smooth")
         layout.operator("mesh.faces_shade_flat")
 
+        layout.operator("mesh.normals_make_consistent", text="Recalculate Normals")
+
         layout.separator()
 
         layout.operator("mesh.edge_rotate", text="Rotate Edge CW").use_ccw = False
@@ -2679,6 +2716,12 @@ class VIEW3D_MT_edit_armature_roll(Menu):
 
 # ********** Panel **********
 
+class VIEW3D_PT_grease_pencil(GreasePencilDataPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+
+    # NOTE: this is just a wrapper around the generic GP Panel
+
 
 class VIEW3D_PT_view3d_properties(Panel):
     bl_space_type = 'VIEW_3D'
@@ -2789,6 +2832,7 @@ class VIEW3D_PT_view3d_display(Panel):
 
         col = layout.column()
         col.prop(view, "show_only_render")
+        col.prop(view, "show_world")
 
         col = layout.column()
         display_all = not view.show_only_render

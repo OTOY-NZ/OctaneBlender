@@ -28,21 +28,22 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_RGBA,      1,  N_("Reflection"),		0.7f, 0.7f, 0.7f, 1.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Roughness"),	    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Index"),	        1.45f, 0.0f, 0.0f, 0.0f, 1.0f, 8.0f},
-	{SOCK_FLOAT,     1,  N_("Transmission"),	1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Film Width"),	    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Film Index"),	    1.45f, 0.0f, 0.0f, 0.0f, 1.0f, 8.0f},
-	{SOCK_FLOAT,     1,  N_("Bump"),	        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Normal"),	        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Opacity"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_BOOLEAN,   1,  N_("Smooth"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Dispersion Coef."),0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_SHADER,    1,  N_("Medium"),	        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-	{SOCK_BOOLEAN,   1,  N_("Fake Shadows"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT,     1,  N_("Edges rounding"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 100.0f},
-    {SOCK_SHADER,    1,  N_("Displacement"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{SOCK_RGBA,      1,  N_("Reflection"),		0.7f, 0.7f, 0.7f, 1.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Roughness"),	    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Index"),	        1.45f, 0.0f, 0.0f, 0.0f, 1.0f, 8.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Transmission"),	1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Film Width"),	    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Film Index"),	    1.45f, 0.0f, 0.0f, 0.0f, 1.0f, 8.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Bump"),	        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Normal"),	        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Opacity"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_BOOLEAN,   1,  N_("Smooth"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_BOOLEAN,   1,  N_("Affect aplha"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Dispersion Coef."),0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_SHADER,    1,  N_("Medium"),	        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_BOOLEAN,   1,  N_("Fake Shadows"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_FLOAT,     1,  N_("Edges rounding"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 100.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_SHADER,    1,  N_("Displacement"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
     {-1, 0, ""}
 };
 
@@ -67,6 +68,7 @@ void register_node_type_sh_oct_specular_mat(void) {
 	node_type_init(&ntype, 0);
 	node_type_storage(&ntype, "", NULL, NULL);
 	node_type_gpu(&ntype, node_shader_gpu_oct_specular_mat);
+    ntype.update_internal_links = node_update_internal_links_default;
 
 	nodeRegisterType(&ntype);
 } /* register_node_type_sh_oct_specular_mat() */

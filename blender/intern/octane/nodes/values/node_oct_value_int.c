@@ -28,7 +28,7 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_INT, 1, N_("Value"), 0.0f, 0.0f, 0.0f, 0.0f, INT_MIN, INT_MAX},
+	{SOCK_INT, 1, N_("Value"), 0.0f, 0.0f, 0.0f, 0.0f, INT_MIN, INT_MAX, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{-1, 0, ""}
 };
 
@@ -46,6 +46,7 @@ void register_node_type_val_oct_int(void) {
 	node_type_size(&ntype, 160, 160, 200);
 	node_type_init(&ntype, 0);
 	node_type_exec(&ntype, 0, 0, 0);
+    ntype.update_internal_links = node_update_internal_links_default;
 	
 	nodeRegisterType(&ntype);
 } /* register_node_type_val_oct_int() */

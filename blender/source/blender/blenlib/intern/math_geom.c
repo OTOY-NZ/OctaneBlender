@@ -50,6 +50,21 @@ void cent_quad_v3(float cent[3], const float v1[3], const float v2[3], const flo
 	cent[2] = 0.25f * (v1[2] + v2[2] + v3[2] + v4[2]);
 }
 
+void cross_tri_v3(float n[3], const float v1[3], const float v2[3], const float v3[3])
+{
+	float n1[3], n2[3];
+
+	n1[0] = v1[0] - v2[0];
+	n2[0] = v2[0] - v3[0];
+	n1[1] = v1[1] - v2[1];
+	n2[1] = v2[1] - v3[1];
+	n1[2] = v1[2] - v2[2];
+	n2[2] = v2[2] - v3[2];
+	n[0] = n1[1] * n2[2] - n1[2] * n2[1];
+	n[1] = n1[2] * n2[0] - n1[0] * n2[2];
+	n[2] = n1[0] * n2[1] - n1[1] * n2[0];
+}
+
 float normal_tri_v3(float n[3], const float v1[3], const float v2[3], const float v3[3])
 {
 	float n1[3], n2[3];
@@ -160,6 +175,12 @@ float area_poly_v3(const float verts[][3], unsigned int nr)
 	return normal_poly_v3(n, verts, nr) * 0.5f;
 }
 
+/**
+ * Scalar cross product of a 2d polygon.
+ *
+ * - equivalent to ``area * 2``
+ * - useful for checking polygon winding (a positive value is clockwise).
+ */
 float cross_poly_v2(const float verts[][2], unsigned int nr)
 {
 	unsigned int a;
@@ -906,12 +927,12 @@ bool isect_point_tri_v2_cw(const float pt[2], const float v1[2], const float v2[
 	if (line_point_side_v2(v1, v2, pt) >= 0.0f) {
 		if (line_point_side_v2(v2, v3, pt) >= 0.0f) {
 			if (line_point_side_v2(v3, v1, pt) >= 0.0f) {
-				return 1;
+				return true;
 			}
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 int isect_point_tri_v2(const float pt[2], const float v1[2], const float v2[2], const float v3[2])
@@ -977,28 +998,28 @@ bool isect_line_tri_v3(const float p1[3], const float p2[3],
 
 	cross_v3_v3v3(p, d, e2);
 	a = dot_v3v3(e1, p);
-	if (a == 0.0f) return 0;
+	if (a == 0.0f) return false;
 	f = 1.0f / a;
 
 	sub_v3_v3v3(s, p1, v0);
 
 	u = f * dot_v3v3(s, p);
-	if ((u < 0.0f) || (u > 1.0f)) return 0;
+	if ((u < 0.0f) || (u > 1.0f)) return false;
 
 	cross_v3_v3v3(q, s, e1);
 
 	v = f * dot_v3v3(d, q);
-	if ((v < 0.0f) || ((u + v) > 1.0f)) return 0;
+	if ((v < 0.0f) || ((u + v) > 1.0f)) return false;
 
 	*r_lambda = f * dot_v3v3(e2, q);
-	if ((*r_lambda < 0.0f) || (*r_lambda > 1.0f)) return 0;
+	if ((*r_lambda < 0.0f) || (*r_lambda > 1.0f)) return false;
 
 	if (r_uv) {
 		r_uv[0] = u;
 		r_uv[1] = v;
 	}
 
-	return 1;
+	return true;
 }
 
 /* like isect_line_tri_v3, but allows epsilon tolerance around triangle */
@@ -1016,28 +1037,28 @@ bool isect_line_tri_epsilon_v3(const float p1[3], const float p2[3],
 
 	cross_v3_v3v3(p, d, e2);
 	a = dot_v3v3(e1, p);
-	if (a == 0.0f) return 0;
+	if (a == 0.0f) return false;
 	f = 1.0f / a;
 
 	sub_v3_v3v3(s, p1, v0);
 
 	u = f * dot_v3v3(s, p);
-	if ((u < -epsilon) || (u > 1.0f + epsilon)) return 0;
+	if ((u < -epsilon) || (u > 1.0f + epsilon)) return false;
 
 	cross_v3_v3v3(q, s, e1);
 
 	v = f * dot_v3v3(d, q);
-	if ((v < -epsilon) || ((u + v) > 1.0f + epsilon)) return 0;
+	if ((v < -epsilon) || ((u + v) > 1.0f + epsilon)) return false;
 
 	*r_lambda = f * dot_v3v3(e2, q);
-	if ((*r_lambda < 0.0f) || (*r_lambda > 1.0f)) return 0;
+	if ((*r_lambda < 0.0f) || (*r_lambda > 1.0f)) return false;
 
 	if (r_uv) {
 		r_uv[0] = u;
 		r_uv[1] = v;
 	}
 
-	return 1;
+	return true;
 }
 
 /* moved from effect.c
@@ -1058,28 +1079,28 @@ bool isect_ray_tri_v3(const float p1[3], const float d[3],
 	a = dot_v3v3(e1, p);
 	/* note: these values were 0.000001 in 2.4x but for projection snapping on
 	 * a human head (1BU == 1m), subsurf level 2, this gave many errors - campbell */
-	if ((a > -0.00000001f) && (a < 0.00000001f)) return 0;
+	if ((a > -0.00000001f) && (a < 0.00000001f)) return false;
 	f = 1.0f / a;
 
 	sub_v3_v3v3(s, p1, v0);
 
 	u = f * dot_v3v3(s, p);
-	if ((u < 0.0f) || (u > 1.0f)) return 0;
+	if ((u < 0.0f) || (u > 1.0f)) return false;
 
 	cross_v3_v3v3(q, s, e1);
 
 	v = f * dot_v3v3(d, q);
-	if ((v < 0.0f) || ((u + v) > 1.0f)) return 0;
+	if ((v < 0.0f) || ((u + v) > 1.0f)) return false;
 
 	*r_lambda = f * dot_v3v3(e2, q);
-	if ((*r_lambda < 0.0f)) return 0;
+	if ((*r_lambda < 0.0f)) return false;
 
 	if (r_uv) {
 		r_uv[0] = u;
 		r_uv[1] = v;
 	}
 
-	return 1;
+	return true;
 }
 
 /**
@@ -1101,7 +1122,7 @@ bool isect_ray_plane_v3(const float p1[3], const float d[3],
 	a = dot_v3v3(e1, p);
 	/* note: these values were 0.000001 in 2.4x but for projection snapping on
 	 * a human head (1BU == 1m), subsurf level 2, this gave many errors - campbell */
-	if ((a > -0.00000001f) && (a < 0.00000001f)) return 0;
+	if ((a > -0.00000001f) && (a < 0.00000001f)) return false;
 	f = 1.0f / a;
 
 	sub_v3_v3v3(s, p1, v0);
@@ -1113,9 +1134,9 @@ bool isect_ray_plane_v3(const float p1[3], const float d[3],
 	/* v = f * dot_v3v3(d, q); */ /*UNUSED*/
 
 	*r_lambda = f * dot_v3v3(e2, q);
-	if (clip && (*r_lambda < 0.0f)) return 0;
+	if (clip && (*r_lambda < 0.0f)) return false;
 
-	return 1;
+	return true;
 }
 
 bool isect_ray_tri_epsilon_v3(const float p1[3], const float d[3],
@@ -1136,22 +1157,22 @@ bool isect_ray_tri_epsilon_v3(const float p1[3], const float d[3],
 	sub_v3_v3v3(s, p1, v0);
 
 	u = f * dot_v3v3(s, p);
-	if ((u < -epsilon) || (u > 1.0f + epsilon)) return 0;
+	if ((u < -epsilon) || (u > 1.0f + epsilon)) return false;
 
 	cross_v3_v3v3(q, s, e1);
 
 	v = f * dot_v3v3(d, q);
-	if ((v < -epsilon) || ((u + v) > 1.0f + epsilon)) return 0;
+	if ((v < -epsilon) || ((u + v) > 1.0f + epsilon)) return false;
 
 	*r_lambda = f * dot_v3v3(e2, q);
-	if ((*r_lambda < 0.0f)) return 0;
+	if ((*r_lambda < 0.0f)) return false;
 
 	if (uv) {
 		uv[0] = u;
 		uv[1] = v;
 	}
 
-	return 1;
+	return true;
 }
 
 bool isect_ray_tri_threshold_v3(const float p1[3], const float d[3],
@@ -1167,14 +1188,14 @@ bool isect_ray_tri_threshold_v3(const float p1[3], const float d[3],
 
 	cross_v3_v3v3(p, d, e2);
 	a = dot_v3v3(e1, p);
-	if ((a > -0.000001f) && (a < 0.000001f)) return 0;
+	if ((a > -0.000001f) && (a < 0.000001f)) return false;
 	f = 1.0f / a;
 
 	sub_v3_v3v3(s, p1, v0);
 
 	cross_v3_v3v3(q, s, e1);
 	*r_lambda = f * dot_v3v3(e2, q);
-	if ((*r_lambda < 0.0f)) return 0;
+	if ((*r_lambda < 0.0f)) return false;
 
 	u = f * dot_v3v3(s, p);
 	v = f * dot_v3v3(d, q);
@@ -1198,7 +1219,7 @@ bool isect_ray_tri_threshold_v3(const float p1[3], const float d[3],
 	mul_v3_fl(e2, dv);
 
 	if (len_squared_v3(e1) + len_squared_v3(e2) > threshold * threshold) {
-		return 0;
+		return false;
 	}
 
 	if (r_uv) {
@@ -1206,7 +1227,7 @@ bool isect_ray_tri_threshold_v3(const float p1[3], const float d[3],
 		r_uv[1] = v;
 	}
 
-	return 1;
+	return true;
 }
 
 /**
@@ -1357,7 +1378,7 @@ bool isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const fl
 		if (t0 > t1)
 			SWAP(float, t0, t1);
 
-		if (t0 > 1.0f || t1 < 0.0f) return 0;
+		if (t0 > 1.0f || t1 < 0.0f) return false;
 
 		/* clamp to [0, 1] */
 		CLAMP(t0, 0.0f, 1.0f);
@@ -1536,7 +1557,7 @@ bool isect_axial_line_tri_v3(const int axis, const float p1[3], const float p2[3
 	if ((f > -0.000001f) && (f < 0.000001f)) return false;
 
 	v = (p[a2] * e1[a1] - p[a1] * e1[a2]) / f;
-	if ((v < 0.0f) || (v > 1.0f)) return 0;
+	if ((v < 0.0f) || (v > 1.0f)) return false;
 
 	f = e1[a1];
 	if ((f > -0.000001f) && (f < 0.000001f)) {
@@ -1547,7 +1568,7 @@ bool isect_axial_line_tri_v3(const int axis, const float p1[3], const float p2[3
 	else
 		u = (-p[a1] - v * e2[a1]) / f;
 
-	if ((u < 0.0f) || ((u + v) > 1.0f)) return 0;
+	if ((u < 0.0f) || ((u + v) > 1.0f)) return false;
 
 	*r_lambda = (p[a0] + u * e1[a0] + v * e2[a0]) / (p2[a0] - p1[a0]);
 
@@ -1750,8 +1771,8 @@ bool isect_ray_aabb(const IsectRayAABBData *data, const float bb_min[3],
 	if (tzmin > tmin)
 		tmin = tzmin;
 
-	/* XXX jwilkins: tmax does not need to be updated since we don't use it
-	 * keeping this here for future reference */
+	/* Note: tmax does not need to be updated since we don't use it
+	 * keeping this here for future reference - jwilkins */
 	//if (tzmax < tmax) tmax = tzmax;
 
 	if (tmin_out)
@@ -1786,7 +1807,10 @@ float closest_to_line_v2(float cp[2], const float p[2], const float l1[2], const
 	return lambda;
 }
 
-/* little sister we only need to know lambda */
+/**
+ * A simplified version of #closest_to_line_v3
+ * we only need to return the ``lambda``
+ */
 float line_point_factor_v3(const float p[3], const float l1[3], const float l2[3])
 {
 	float h[3], u[3];
@@ -1831,7 +1855,7 @@ float line_plane_factor_v3(const float plane_co[3], const float plane_no[3],
 	return (dot != 0.0f) ? -dot_v3v3(plane_no, h) / dot : 0.0f;
 }
 
-/** Ensure the distance between these points is no greater then 'dist'.
+/** Ensure the distance between these points is no greater than 'dist'.
  *  If it is, scale then both into the center.
  */
 void limit_dist_v3(float v1[3], float v2[3], const float dist)
@@ -2341,15 +2365,15 @@ bool barycentric_coords_v2(const float v1[2], const float v2[2], const float v3[
 }
 
 /**
- * \note: using #area_tri_signed_v2 means locations outside the triangle are correctly weighted
+ * \note: using #cross_tri_v2 means locations outside the triangle are correctly weighted
  */
 void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3])
 {
 	float wtot;
 
-	w[0] = area_tri_signed_v2(v2, v3, co);
-	w[1] = area_tri_signed_v2(v3, v1, co);
-	w[2] = area_tri_signed_v2(v1, v2, co);
+	w[0] = cross_tri_v2(v2, v3, co);
+	w[1] = cross_tri_v2(v3, v1, co);
+	w[2] = cross_tri_v2(v1, v2, co);
 	wtot = w[0] + w[1] + w[2];
 
 	if (wtot != 0.0f) {
@@ -2368,9 +2392,9 @@ void barycentric_weights_v2_persp(const float v1[4], const float v2[4], const fl
 {
 	float wtot;
 
-	w[0] = area_tri_signed_v2(v2, v3, co) / v1[3];
-	w[1] = area_tri_signed_v2(v3, v1, co) / v2[3];
-	w[2] = area_tri_signed_v2(v1, v2, co) / v3[3];
+	w[0] = cross_tri_v2(v2, v3, co) / v1[3];
+	w[1] = cross_tri_v2(v3, v1, co) / v2[3];
+	w[2] = cross_tri_v2(v1, v2, co) / v3[3];
 	wtot = w[0] + w[1] + w[2];
 
 	if (wtot != 0.0f) {
@@ -3193,7 +3217,7 @@ void map_to_tube(float *r_u, float *r_v, const float x, const float y, const flo
 
 	len = sqrtf(x * x + y * y);
 	if (len > 0.0f) {
-		*r_u = (float)((1.0 - (atan2(x / len, y / len) / M_PI)) / 2.0);
+		*r_u = (1.0f - (atan2f(x / len, y / len) / (float)M_PI)) / 2.0f;
 	}
 	else {
 		*r_v = *r_u = 0.0f; /* to avoid un-initialized variables */
@@ -3222,9 +3246,10 @@ void map_to_sphere(float *r_u, float *r_v, const float x, const float y, const f
 
 /********************************* Normals **********************************/
 
-void accumulate_vertex_normals(float n1[3], float n2[3], float n3[3],
-                               float n4[3], const float f_no[3], const float co1[3], const float co2[3],
-                               const float co3[3], const float co4[3])
+void accumulate_vertex_normals(
+        float n1[3], float n2[3], float n3[3], float n4[3],
+        const float f_no[3],
+        const float co1[3], const float co2[3], const float co3[3], const float co4[3])
 {
 	float vdiffs[4][3];
 	const int nverts = (n4 != NULL && co4 != NULL) ? 4 : 3;
@@ -3296,7 +3321,11 @@ void accumulate_vertex_normals_poly(float **vertnos, const float polyno[3],
 
 /********************************* Tangents **********************************/
 
-void tangent_from_uv(float uv1[2], float uv2[2], float uv3[3], float co1[3], float co2[3], float co3[3], float n[3], float tang[3])
+void tangent_from_uv(
+        const float uv1[2], const float uv2[2], const float uv3[3],
+        const float co1[3], const float co2[3], const float co3[3],
+        const float n[3],
+        float r_tang[3])
 {
 	const float s1 = uv2[0] - uv1[0];
 	const float s2 = uv3[0] - uv1[0];
@@ -3304,7 +3333,8 @@ void tangent_from_uv(float uv1[2], float uv2[2], float uv3[3], float co1[3], flo
 	const float t2 = uv3[1] - uv1[1];
 	float det = (s1 * t2 - s2 * t1);
 
-	if (det != 0.0f) { /* otherwise 'tang' becomes nan */
+	/* otherwise 'r_tang' becomes nan */
+	if (det != 0.0f) {
 		float tangv[3], ct[3], e1[3], e2[3];
 
 		det = 1.0f / det;
@@ -3312,21 +3342,21 @@ void tangent_from_uv(float uv1[2], float uv2[2], float uv3[3], float co1[3], flo
 		/* normals in render are inversed... */
 		sub_v3_v3v3(e1, co1, co2);
 		sub_v3_v3v3(e2, co1, co3);
-		tang[0] = (t2 * e1[0] - t1 * e2[0]) * det;
-		tang[1] = (t2 * e1[1] - t1 * e2[1]) * det;
-		tang[2] = (t2 * e1[2] - t1 * e2[2]) * det;
+		r_tang[0] = (t2 * e1[0] - t1 * e2[0]) * det;
+		r_tang[1] = (t2 * e1[1] - t1 * e2[1]) * det;
+		r_tang[2] = (t2 * e1[2] - t1 * e2[2]) * det;
 		tangv[0] = (s1 * e2[0] - s2 * e1[0]) * det;
 		tangv[1] = (s1 * e2[1] - s2 * e1[1]) * det;
 		tangv[2] = (s1 * e2[2] - s2 * e1[2]) * det;
-		cross_v3_v3v3(ct, tang, tangv);
+		cross_v3_v3v3(ct, r_tang, tangv);
 
 		/* check flip */
 		if (dot_v3v3(ct, n) < 0.0f) {
-			negate_v3(tang);
+			negate_v3(r_tang);
 		}
 	}
 	else {
-		tang[0] = tang[1] = tang[2] = 0.0f;
+		zero_v3(r_tang);
 	}
 }
 
@@ -4000,4 +4030,32 @@ bool is_poly_convex_v2(const float verts[][2], unsigned int nr)
 	}
 
 	return true;
+}
+
+/**
+ * Check if either of the diagonals along this quad create flipped triangles
+ * (normals pointing away from eachother).
+ * - (1 << 0): (v1-v3) is flipped.
+ * - (1 << 1): (v2-v4) is flipped.
+ */
+int is_quad_flip_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
+{
+	float d_12[3], d_23[3], d_34[3], d_41[3];
+	float cross_a[3], cross_b[3];
+	int ret = 0;
+
+	sub_v3_v3v3(d_12, v1, v2);
+	sub_v3_v3v3(d_23, v2, v3);
+	sub_v3_v3v3(d_34, v3, v4);
+	sub_v3_v3v3(d_41, v4, v1);
+
+	cross_v3_v3v3(cross_a, d_12, d_23);
+	cross_v3_v3v3(cross_b, d_34, d_41);
+	ret |= ((dot_v3v3(cross_a, cross_b) < 0.0f) << 0);
+
+	cross_v3_v3v3(cross_a, d_23, d_34);
+	cross_v3_v3v3(cross_b, d_41, d_12);
+	ret |= ((dot_v3v3(cross_a, cross_b) < 0.0f) << 1);
+
+	return ret;
 }

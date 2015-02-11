@@ -31,7 +31,6 @@ Kernel::Kernel() {
     filter_size         = 1.2f;
     ray_epsilon         = 0.0001f;
     alpha_channel       = false;
-    keep_environment    = false;
     alpha_shadows       = true;
     bump_normal_mapping = false;
     wf_bktrace_hl       = false;
@@ -69,6 +68,10 @@ Kernel::Kernel() {
     distributed_tracing = true;
     max_speed           = 1.0f;
 
+    layers_enable       = false;
+    layers_current      = 1;
+    layers_invert       = false;
+
     uiGPUs              = 0;
 
     shuttertime         = 0;
@@ -105,7 +108,6 @@ bool Kernel::modified(const Kernel& kernel) {
         filter_size         == kernel.filter_size &&
         ray_epsilon         == kernel.ray_epsilon &&
         alpha_channel       == kernel.alpha_channel &&
-        keep_environment    == kernel.keep_environment &&
         alpha_shadows       == kernel.alpha_shadows &&
         bump_normal_mapping == kernel.bump_normal_mapping &&
         wf_bktrace_hl       == kernel.wf_bktrace_hl &&
@@ -134,8 +136,12 @@ bool Kernel::modified(const Kernel& kernel) {
         zdepth_max              == kernel.zdepth_max &&
         uv_max                  == kernel.uv_max &&
         shuttertime             == kernel.shuttertime &&
-        max_speed               == kernel.max_speed
-        
+        max_speed               == kernel.max_speed &&
+
+        layers_enable       == kernel.layers_enable &&
+        layers_current      == kernel.layers_current &&
+        layers_invert       == kernel.layers_invert
+
         //uiGPUs                == kernel.uiGPUs
         );
 } //modified()

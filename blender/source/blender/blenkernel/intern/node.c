@@ -2293,8 +2293,8 @@ bool ntreeHasType(const bNodeTree *ntree, int type)
 	if (ntree)
 		for (node = ntree->nodes.first; node; node = node->next)
 			if (node->type == type)
-				return 1;
-	return 0;
+				return true;
+	return false;
 }
 
 bool ntreeHasTree(const bNodeTree *ntree, const bNodeTree *lookup)
@@ -2559,8 +2559,8 @@ bool BKE_node_clipboard_validate(void)
 
 
 	/* lists must be aligned */
-	BLI_assert(BLI_countlist(&node_clipboard.nodes) ==
-	           BLI_countlist(&node_clipboard.nodes_extra_info));
+	BLI_assert(BLI_listbase_count(&node_clipboard.nodes) ==
+	           BLI_listbase_count(&node_clipboard.nodes_extra_info));
 
 	for (node = node_clipboard.nodes.first, node_info = node_clipboard.nodes_extra_info.first;
 	     node;
@@ -2682,16 +2682,12 @@ static unsigned int node_instance_hash_key(const void *key)
 	return ((const bNodeInstanceKey *)key)->value;
 }
 
-static int node_instance_hash_key_cmp(const void *a, const void *b)
+static bool node_instance_hash_key_cmp(const void *a, const void *b)
 {
 	unsigned int value_a = ((const bNodeInstanceKey *)a)->value;
 	unsigned int value_b = ((const bNodeInstanceKey *)b)->value;
-	if (value_a == value_b)
-		return 0;
-	else if (value_a < value_b)
-		return -1;
-	else
-		return 1;
+
+	return (value_a != value_b);
 }
 
 bNodeInstanceHash *BKE_node_instance_hash_new(const char *info)
@@ -3579,6 +3575,7 @@ static void registerShaderNodes(void)
     register_node_type_tex_oct_gradient();
     register_node_type_tex_oct_random_color();
     register_node_type_tex_oct_polygon_side();
+    register_node_type_tex_oct_noise();
     register_node_type_tex_oct_displacement();
 
     register_node_type_emission_oct_black_body();

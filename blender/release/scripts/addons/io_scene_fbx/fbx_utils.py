@@ -881,7 +881,17 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
 
     def get_parent(self):
         if self._tag == 'OB':
-            return ObjectWrapper(self.bdata.parent)
+            if (self.bdata.parent and self.bdata.parent.type == 'ARMATURE' and
+                self.bdata.parent_type == 'BONE' and self.bdata.parent_bone):
+                # Try to parent to a bone.
+                bo_par = self.bdata.parent.pose.bones.get(self.bdata.parent_bone, None)
+                if (bo_par):
+                    return ObjectWrapper(bo_par, self.bdata.parent)
+                else:  # Fallback to mere object parenting.
+                    return ObjectWrapper(self.bdata.parent)
+            else:
+                # Mere object parenting.
+                return ObjectWrapper(self.bdata.parent)
         elif self._tag == 'DP':
             return ObjectWrapper(self.bdata.parent or self._ref)
         else:  # self._tag == 'BO'
@@ -892,11 +902,11 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
         if self._tag == 'OB':
             return self.bdata.matrix_local.copy()
         elif self._tag == 'DP':
-            return self._ref.matrix_world.inverted() * self._dupli_matrix
+            return self._ref.matrix_world.inverted_safe() * self._dupli_matrix
         else:  # 'BO', current pose
             # PoseBone.matrix is in armature space, bring in back in real local one!
             par = self.bdata.parent
-            par_mat_inv = self._ref.pose.bones[par.name].matrix.inverted() if par else Matrix()
+            par_mat_inv = self._ref.pose.bones[par.name].matrix.inverted_safe() if par else Matrix()
             return par_mat_inv * self._ref.pose.bones[self.bdata.name].matrix
     matrix_local = property(get_matrix_local)
 
@@ -913,17 +923,17 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
         if self._tag == 'BO':
             # Bone.matrix_local is in armature space, bring in back in real local one!
             par = self.bdata.parent
-            par_mat_inv = par.matrix_local.inverted() if par else Matrix()
+            par_mat_inv = par.matrix_local.inverted_safe() if par else Matrix()
             return par_mat_inv * self.bdata.matrix_local
         else:
-            return self.matrix_local
+            return self.matrix_local.copy()
     matrix_rest_local = property(get_matrix_rest_local)
 
     def get_matrix_rest_global(self):
         if self._tag == 'BO':
             return self._ref.matrix_world * self.bdata.matrix_local
         else:
-            return self.matrix_global
+            return self.matrix_global.copy()
     matrix_rest_global = property(get_matrix_rest_global)
 
     # #### Transform and helpers
@@ -972,13 +982,22 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
 
         # Bones, lamps and cameras need to be rotated (in local space!).
         if self._tag == 'BO':
-            # XXX This should work smoothly, but actually is only OK for 'rest' pose, actual pose/animations
-            #     give insane results... :(
-            matrix = matrix * MAT_CONVERT_BONE
+            # If we have a bone parent we need to undo the parent correction.
+            if not is_global and scene_data.settings.bone_correction_matrix_inv and parent and parent.is_bone:
+                matrix = scene_data.settings.bone_correction_matrix_inv * matrix
+            # Apply the bone correction.
+            if scene_data.settings.bone_correction_matrix:
+                matrix = matrix * scene_data.settings.bone_correction_matrix
         elif self.bdata.type == 'LAMP':
             matrix = matrix * MAT_CONVERT_LAMP
         elif self.bdata.type == 'CAMERA':
             matrix = matrix * MAT_CONVERT_CAMERA
+
+        if self._tag in {'DP', 'OB'} and parent:
+            if parent._tag == 'BO':
+                # In bone parent case, we get transformation in **bone tip** space (sigh).
+                # Have to bring it back into bone root, which is FBX expected value.
+                matrix = Matrix.Translation((0, (parent.bdata.tail - parent.bdata.head).length, 0)) * matrix
 
         # Our matrix is in local space, time to bring it in its final desired space.
         if parent:
@@ -991,7 +1010,7 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
                 matrix = (parent.matrix_rest_local if rest else parent.matrix_local) * matrix
                 # ...and move it back into parent's *FBX* local space.
                 par_mat = parent.fbx_object_matrix(scene_data, rest=rest, local_space=True)
-                matrix = par_mat.inverted() * matrix
+                matrix = par_mat.inverted_safe() * matrix
 
         if self.use_bake_space_transform(scene_data):
             # If we bake the transforms we need to post-multiply inverse global transform.
@@ -1057,7 +1076,7 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
     def is_deformed_by_armature(self, arm_obj):
         if not (self.is_object and self.type == 'MESH'):
             return False
-        if self.parent == arm_obj:
+        if self.parent == arm_obj and self.bdata.parent_type == 'ARMATURE':
             return True
         for mod in self.bdata.modifiers:
             if mod.type == 'ARMATURE' and mod.object == arm_obj.bdata:
@@ -1100,7 +1119,8 @@ FBXExportSettings = namedtuple("FBXExportSettings", (
     "report", "to_axes", "global_matrix", "global_scale",
     "bake_space_transform", "global_matrix_inv", "global_matrix_inv_transposed",
     "context_objects", "object_types", "use_mesh_modifiers",
-    "mesh_smooth_type", "use_mesh_edges", "use_tspace", "use_armature_deform_only",
+    "mesh_smooth_type", "use_mesh_edges", "use_tspace",
+    "use_armature_deform_only", "add_leaf_bones", "bone_correction_matrix", "bone_correction_matrix_inv",
     "bake_anim", "bake_anim_use_nla_strips", "bake_anim_use_all_actions", "bake_anim_step", "bake_anim_simplify_factor",
     "use_metadata", "media_settings", "use_custom_props",
 ))
@@ -1116,15 +1136,17 @@ FBXExportData = namedtuple("FBXExportData", (
     "templates", "templates_users", "connections",
     "settings", "scene", "objects", "animations", "frame_start", "frame_end",
     "data_empties", "data_lamps", "data_cameras", "data_meshes", "mesh_mat_indices",
-    "data_bones", "data_deformers_skin", "data_deformers_shape",
+    "data_bones", "data_leaf_bones", "data_deformers_skin", "data_deformers_shape",
     "data_world", "data_materials", "data_textures", "data_videos",
 ))
 
 # Helper container gathering all importer settings.
 FBXImportSettings = namedtuple("FBXImportSettings", (
     "report", "to_axes", "global_matrix", "global_scale",
+    "bake_space_transform", "global_matrix_inv", "global_matrix_inv_transposed",
     "use_cycles", "use_image_search",
     "use_alpha_decals", "decal_offset",
     "use_custom_props", "use_custom_props_enum_as_string",
-    "object_tdata_cache", "cycles_material_wrap_map", "image_cache",
+    "cycles_material_wrap_map", "image_cache",
+    "ignore_leaf_bones", "automatic_bone_orientation", "bone_correction_matrix", "use_prepost_rot",
 ))

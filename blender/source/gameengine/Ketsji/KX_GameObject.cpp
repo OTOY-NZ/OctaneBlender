@@ -1587,9 +1587,10 @@ CListValue* KX_GameObject::GetChildrenRecursive()
 KX_Scene* KX_GameObject::GetScene()
 {
 	SG_Node* node = this->GetSGNode();
-	KX_Scene* scene = static_cast<KX_Scene*>(node->GetSGClientInfo());
-
-	return scene;
+    if (node == NULL)
+        // this happens for object in non active layers, rely on static scene then
+        return KX_GetActiveScene();
+    return static_cast<KX_Scene*>(node->GetSGClientInfo());
 }
 
 /* ---------------------------------------------------------------------
@@ -1823,7 +1824,7 @@ static Mathutils_Callback mathutils_kxgameob_matrix_cb = {
 
 void KX_GameObject_Mathutils_Callback_Init(void)
 {
-	// register mathutils callbacks, ok to run more then once.
+	// register mathutils callbacks, ok to run more than once.
 	mathutils_kxgameob_vector_cb_index= Mathutils_RegisterCallback(&mathutils_kxgameob_vector_cb);
 	mathutils_kxgameob_matrix_cb_index= Mathutils_RegisterCallback(&mathutils_kxgameob_matrix_cb);
 }

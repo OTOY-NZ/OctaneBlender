@@ -809,6 +809,7 @@ struct ShadeResult;
 #define SH_NODE_OCT_RANDOM_COLOR_TEX        872
 #define SH_NODE_OCT_DISPLACEMENT_TEX        873
 #define SH_NODE_OCT_POLYGON_SIDE_TEX        874
+#define SH_NODE_OCT_NOISE_TEX               875
 
 #define SH_NODE_OCT_PROJECTION_XYZ          950
 #define SH_NODE_OCT_PROJECTION_BOX          951

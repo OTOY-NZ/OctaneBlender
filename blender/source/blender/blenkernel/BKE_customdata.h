@@ -173,6 +173,7 @@ int CustomData_number_of_layers_typemask(const struct CustomData *data, CustomDa
 /* duplicate data of a layer with flag NOFREE, and remove that flag.
  * returns the layer data */
 void *CustomData_duplicate_referenced_layer(struct CustomData *data, const int type, const int totelem);
+void *CustomData_duplicate_referenced_layer_n(struct CustomData *data, const int type, const int n, const int totelem);
 void *CustomData_duplicate_referenced_layer_named(struct CustomData *data,
                                                   const int type, const char *name, const int totelem);
 bool CustomData_is_referenced_layer(struct CustomData *data, int type);
@@ -310,7 +311,7 @@ void CustomData_set_layer_flag(struct CustomData *data, int type, int flag);
 
 void CustomData_bmesh_set_default(struct CustomData *data, void **block);
 void CustomData_bmesh_free_block(struct CustomData *data, void **block);
-void CustomData_bmesh_free_block_data(struct CustomData *data, void **block);
+void CustomData_bmesh_free_block_data(struct CustomData *data, void *block);
 
 /* copy custom data to/from layers as in mesh/derivedmesh, to editmesh
  * blocks of data. the CustomData's must not be compatible */
@@ -327,6 +328,7 @@ int CustomData_sizeof(int type);
 /* get the name of a layer type */
 const char *CustomData_layertype_name(int type);
 bool        CustomData_layertype_is_singleton(int type);
+int         CustomData_layertype_layers_max(const int type);
 
 /* make sure the name of layer at index is unique */
 void CustomData_set_layer_unique_name(struct CustomData *data, int index);

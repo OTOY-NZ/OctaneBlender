@@ -43,6 +43,7 @@
 #include "DNA_lattice_types.h"
 #include "DNA_object_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_mask_types.h"
@@ -80,8 +81,6 @@
 
 #include "UI_interface.h"
 #include "UI_resources.h"
-
-#include "wm_window.h"
 
 #include "screen_intern.h"  /* own module include */
 
@@ -129,11 +128,29 @@ static int screen_active_editable(bContext *C)
 {
 	if (ED_operator_screenactive(C)) {
 		/* no full window splitting allowed */
-		if (CTX_wm_screen(C)->full != SCREENNORMAL)
+		if (CTX_wm_screen(C)->state != SCREENNORMAL)
 			return 0;
 		return 1;
 	}
 	return 0;
+}
+
+static ARegion *screen_find_region_type(bContext *C, int type)
+{
+	ARegion *ar = CTX_wm_region(C);
+
+	/* find the header region
+	 * - try context first, but upon failing, search all regions in area...
+	 */
+	if ((ar == NULL) || (ar->regiontype != type)) {
+		ScrArea *sa = CTX_wm_area(C);
+		ar = BKE_area_find_region_type(sa, type);
+	}
+	else {
+		ar = NULL;
+	}
+
+	return ar;
 }
 
 /* when mouse is over area-edge */
@@ -399,7 +416,7 @@ int ED_operator_posemode_exclusive(bContext *C)
 }
 
 /* allows for pinned pose objects to be used in the object buttons
- * and the the non-active pose object to be used in the 3D view */
+ * and the non-active pose object to be used in the 3D view */
 int ED_operator_posemode_context(bContext *C)
 {
 	Object *obpose = ED_pose_object_from_context(C);
@@ -616,6 +633,24 @@ static int actionzone_area_poll(bContext *C)
 	return 0;
 }
 
+/* the debug drawing of the click_rect is in area_draw_azone_fullscreen, keep both in sync */
+static void fullscreen_click_rcti_init(rcti *rect, const short x1, const short y1, const short x2, const short y2)
+{
+	int x = x2 - ((float) x2 - x1) * 0.5f / UI_DPI_FAC;
+	int y = y2 - ((float) y2 - y1) * 0.5f / UI_DPI_FAC;
+	float icon_size = UI_DPI_ICON_SIZE + 7 * UI_DPI_FAC;
+
+	/* adjust the icon distance from the corner */
+	x += 36.0f / UI_DPI_FAC;
+	y += 36.0f / UI_DPI_FAC;
+
+	/* draws from the left bottom corner of the icon */
+	x -= UI_DPI_ICON_SIZE;
+	y -= UI_DPI_ICON_SIZE;
+
+	BLI_rcti_init(rect, x, x + icon_size, y, y + icon_size);
+}
+
 AZone *is_in_area_actionzone(ScrArea *sa, const int xy[2])
 {
 	AZone *az = NULL;
@@ -630,6 +665,42 @@ AZone *is_in_area_actionzone(ScrArea *sa, const int xy[2])
 					break;
 			}
 			else if (az->type == AZONE_REGION) {
+				break;
+			}
+			else if (az->type == AZONE_FULLSCREEN) {
+				int mouse_radius, spot_radius, fadein_radius, fadeout_radius;
+				rcti click_rect;
+
+				fullscreen_click_rcti_init(&click_rect, az->x1, az->y1, az->x2, az->y2);
+
+				if (BLI_rcti_isect_pt_v(&click_rect, xy)) {
+					az->alpha = 1.0f;
+				}
+				else {
+					mouse_radius = (xy[0] - az->x2) * (xy[0] - az->x2) + (xy[1] - az->y2) * (xy[1] - az->y2);
+					spot_radius = AZONESPOT * AZONESPOT;
+					fadein_radius = AZONEFADEIN * AZONEFADEIN;
+					fadeout_radius = AZONEFADEOUT * AZONEFADEOUT;
+
+					if (mouse_radius < spot_radius) {
+						az->alpha = 1.0f;
+					}
+					else if (mouse_radius < fadein_radius) {
+						az->alpha = 1.0f;
+					}
+					else if (mouse_radius < fadeout_radius) {
+						az->alpha = 1.0f - ((float)(mouse_radius - fadein_radius)) / ((float)(fadeout_radius - fadein_radius));
+					}
+					else {
+						az->alpha = 0.0f;
+					}
+
+					/* fade in/out but no click */
+					az = NULL;
+				}
+
+				/* XXX force redraw to show/hide the action zone */
+				ED_area_tag_redraw(sa);
 				break;
 			}
 		}
@@ -659,8 +730,11 @@ static void actionzone_apply(bContext *C, wmOperator *op, int type)
 
 	if (type == AZONE_AREA)
 		event.type = EVT_ACTIONZONE_AREA;
+	else if (type == AZONE_FULLSCREEN)
+		event.type = EVT_ACTIONZONE_FULLSCREEN;
 	else
 		event.type = EVT_ACTIONZONE_REGION;
+
 	event.val = 0;
 	event.customdata = op->customdata;
 	event.customdatafree = true;
@@ -685,8 +759,8 @@ static int actionzone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	sad->x = event->x; sad->y = event->y;
 	
 	/* region azone directly reacts on mouse clicks */
-	if (sad->az->type == AZONE_REGION) {
-		actionzone_apply(C, op, AZONE_REGION);
+	if (ELEM(sad->az->type, AZONE_REGION, AZONE_FULLSCREEN)) {
+		actionzone_apply(C, op, sad->az->type);
 		actionzone_exit(op);
 		return OPERATOR_FINISHED;
 	}
@@ -1467,7 +1541,7 @@ static int area_split_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	int dir;
 	
 	/* no full window splitting allowed */
-	if (sc->full != SCREENNORMAL)
+	if (sc->state != SCREENNORMAL)
 		return OPERATOR_CANCELLED;
 	
 	if (event->type == EVT_ACTIONZONE_AREA) {
@@ -2080,6 +2154,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
+	bGPdata *gpd = CTX_data_gpencil_data(C);
 	bDopeSheet ads = {NULL};
 	DLRBT_Tree keys;
 	ActKeyColumn *ak;
@@ -2107,7 +2182,9 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 
 	if (ob)
 		ob_to_keylist(&ads, ob, &keys, NULL);
-
+	
+	gpencil_to_keylist(&ads, gpd, &keys);
+	
 	{
 		Mask *mask = CTX_data_edit_mask(C);
 		if (mask) {
@@ -2236,8 +2313,8 @@ static void SCREEN_OT_marker_jump(wmOperatorType *ot)
 
 static bool screen_set_is_ok(bScreen *screen, bScreen *screen_prev)
 {
-	return ((screen->winid == 0)    &&
-	        (screen->full == 0)     &&
+	return ((screen->winid == 0) &&
+	        (screen->state == SCREENNORMAL) &&
 	        (screen != screen_prev) &&
 	        (screen->id.name[2] != '.' || !(U.uiflag & USER_HIDE_DOT)));
 }
@@ -2250,7 +2327,7 @@ static int screen_set_exec(bContext *C, wmOperator *op)
 	bScreen *screen_prev = screen;
 	
 	ScrArea *sa = CTX_wm_area(C);
-	int tot = BLI_countlist(&bmain->screen);
+	int tot = BLI_listbase_count(&bmain->screen);
 	int delta = RNA_int_get(op->ptr, "delta");
 	
 	/* temp screens are for userpref or render display */
@@ -2308,10 +2385,11 @@ static void SCREEN_OT_screen_set(wmOperatorType *ot)
 
 
 /* function to be called outside UI context, or for redo */
-static int screen_full_area_exec(bContext *C, wmOperator *UNUSED(op))
+static int screen_maximize_area_exec(bContext *C, wmOperator *op)
 {
 	bScreen *screen = CTX_wm_screen(C);
 	ScrArea *sa = NULL;
+	const bool hide_panels = RNA_boolean_get(op->ptr, "use_hide_panels");
 	
 	/* search current screen for 'fullscreen' areas */
 	/* prevents restoring info header, when mouse is over it */
@@ -2319,25 +2397,41 @@ static int screen_full_area_exec(bContext *C, wmOperator *UNUSED(op))
 		if (sa->full) break;
 	}
 	
-	if (sa == NULL) sa = CTX_wm_area(C);
+	if (sa == NULL) {
+		sa = CTX_wm_area(C);
+	}
 	
-	ED_screen_full_toggle(C, CTX_wm_window(C), sa);
+	if (hide_panels) {
+		if (!ELEM(screen->state, SCREENNORMAL, SCREENFULL)) {
+			return OPERATOR_CANCELLED;
+		}
+		ED_screen_state_toggle(C, CTX_wm_window(C), sa, SCREENFULL);
+	}
+	else {
+		if (!ELEM(screen->state, SCREENNORMAL, SCREENMAXIMIZED)) {
+			return OPERATOR_CANCELLED;
+		}
+		ED_screen_state_toggle(C, CTX_wm_window(C), sa, SCREENMAXIMIZED);
+	}
+
 	return OPERATOR_FINISHED;
 }
 
 static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
 {
-	ot->name = "Toggle Full Screen";
-	ot->description = "Toggle display selected area as fullscreen";
+	PropertyRNA *prop;
+
+	ot->name = "Toggle Fullscreen Area";
+	ot->description = "Toggle display selected area as fullscreen/maximized";
 	ot->idname = "SCREEN_OT_screen_full_area";
 	
-	ot->exec = screen_full_area_exec;
+	ot->exec = screen_maximize_area_exec;
 	ot->poll = ED_operator_areaactive;
 	ot->flag = 0;
-	
+
+	prop = RNA_def_boolean(ot->srna, "use_hide_panels", false, "Hide Panels", "Hide all the panels");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
-
-
 
 /* ************** join area operator ********************************************** */
 
@@ -2650,8 +2744,8 @@ static int screen_area_options_invoke(bContext *C, wmOperator *op, const wmEvent
 	
 	if (actedge == NULL) return OPERATOR_CANCELLED;
 	
-	pup = uiPupMenuBegin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 	
 	WM_operator_properties_create(&ptr1, "SCREEN_OT_area_join");
 	
@@ -2670,9 +2764,9 @@ static int screen_area_options_invoke(bContext *C, wmOperator *op, const wmEvent
 	uiItemFullO(layout, "SCREEN_OT_area_split", NULL, ICON_NONE, ptr2.data, WM_OP_INVOKE_DEFAULT, 0);
 	uiItemFullO(layout, "SCREEN_OT_area_join", NULL, ICON_NONE, ptr1.data, WM_OP_INVOKE_DEFAULT, 0);
 	
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 	
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 static void SCREEN_OT_area_options(wmOperatorType *ot)
@@ -2708,7 +2802,7 @@ static int spacedata_cleanup_exec(bContext *C, wmOperator *op)
 				SpaceLink *sl = sa->spacedata.first;
 
 				BLI_remlink(&sa->spacedata, sl);
-				tot += BLI_countlist(&sa->spacedata);
+				tot += BLI_listbase_count(&sa->spacedata);
 				BKE_spacedata_freelist(&sa->spacedata);
 				BLI_addtail(&sa->spacedata, sl);
 			}
@@ -2766,20 +2860,20 @@ static int repeat_history_invoke(bContext *C, wmOperator *op, const wmEvent *UNU
 	uiLayout *layout;
 	int items, i;
 	
-	items = BLI_countlist(&wm->operators);
+	items = BLI_listbase_count(&wm->operators);
 	if (items == 0)
 		return OPERATOR_CANCELLED;
 	
-	pup = uiPupMenuBegin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 	
 	for (i = items - 1, lastop = wm->operators.last; lastop; lastop = lastop->prev, i--)
 		if (WM_operator_repeat_check(C, lastop))
 			uiItemIntO(layout, RNA_struct_ui_name(lastop->type->srna), ICON_NONE, op->type->idname, "index", i);
 	
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 	
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 static int repeat_history_exec(bContext *C, wmOperator *op)
@@ -3032,23 +3126,44 @@ static void SCREEN_OT_region_flip(wmOperatorType *ot)
 	ot->flag = 0;
 }
 
+/* ************** header operator ***************************** */
+static int header_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	ARegion *ar = screen_find_region_type(C, RGN_TYPE_HEADER);
+
+	if (ar == NULL) {
+		return OPERATOR_CANCELLED;
+	}
+
+	ar->flag ^= RGN_FLAG_HIDDEN;
+
+	ED_area_tag_redraw(CTX_wm_area(C));
+
+	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_header(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Header";
+	ot->description = "Display header";
+	ot->idname = "SCREEN_OT_header";
+
+	/* api callbacks */
+	ot->exec = header_exec;
+}
+
 /* ************** header flip operator ***************************** */
 
 /* flip a header region alignment */
 static int header_flip_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	ARegion *ar = CTX_wm_region(C);
-	
-	/* find the header region 
-	 *	- try context first, but upon failing, search all regions in area...
-	 */
-	if ((ar == NULL) || (ar->regiontype != RGN_TYPE_HEADER)) {
-		ScrArea *sa = CTX_wm_area(C);
-		ar = BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
+	ARegion *ar = screen_find_region_type(C, RGN_TYPE_HEADER);
 
-		/* don't do anything if no region */
-		if (ar == NULL)
-			return OPERATOR_CANCELLED;
+	if (ar == NULL) {
+		return OPERATOR_CANCELLED;
 	}
 	
 	/* copied from SCREEN_OT_region_flip */
@@ -3147,14 +3262,14 @@ static int header_toolbox_invoke(bContext *C, wmOperator *UNUSED(op), const wmEv
 	uiPopupMenu *pup;
 	uiLayout *layout;
 
-	pup = uiPupMenuBegin(C, IFACE_("Header"), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, IFACE_("Header"), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 
 	ED_screens_header_tools_menu_create(C, layout, NULL);
 
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 static void SCREEN_OT_header_toolbox(wmOperatorType *ot)
@@ -3415,12 +3530,14 @@ static void SCREEN_OT_animation_step(wmOperatorType *ot)
 /* find window that owns the animation timer */
 bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 {
-	wmWindow *window;
+	wmWindow *win;
 
-	for (window = wm->windows.first; window; window = window->next)
-		if (window->screen->animtimer)
-			return window->screen;
-	
+	for (win = wm->windows.first; win; win = win->next) {
+		if (win->screen->animtimer) {
+			return win->screen;
+		}
+	}
+
 	return NULL;
 }
 
@@ -3950,6 +4067,7 @@ void ED_operatortypes_screen(void)
 	WM_operatortype_append(SCREEN_OT_region_scale);
 	WM_operatortype_append(SCREEN_OT_region_flip);
 	WM_operatortype_append(SCREEN_OT_header_flip);
+	WM_operatortype_append(SCREEN_OT_header);
 	WM_operatortype_append(SCREEN_OT_header_toggle_menus);
 	WM_operatortype_append(SCREEN_OT_header_toolbox);
 	WM_operatortype_append(SCREEN_OT_screen_set);
@@ -4052,6 +4170,7 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
 	
 	WM_keymap_verify_item(keymap, "SCREEN_OT_area_options", RIGHTMOUSE, KM_PRESS, 0, 0);
 	
+	WM_keymap_add_item(keymap, "SCREEN_OT_header", F9KEY, KM_PRESS, KM_ALT, 0);
 	
 	/* Header Editing ------------------------------------------------ */
 	keymap = WM_keymap_find(keyconf, "Header", 0, 0);
@@ -4071,6 +4190,11 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "SCREEN_OT_screen_full_area", UPARROWKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "SCREEN_OT_screen_full_area", DOWNARROWKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "SCREEN_OT_screen_full_area", SPACEKEY, KM_PRESS, KM_SHIFT, 0);
+	kmi = WM_keymap_add_item(keymap, "SCREEN_OT_screen_full_area", F10KEY, KM_PRESS, KM_ALT, 0);
+	RNA_boolean_set(kmi->ptr, "use_hide_panels", true);
+	kmi = WM_keymap_add_item(keymap, "SCREEN_OT_screen_full_area", EVT_ACTIONZONE_FULLSCREEN, 0, 0, 0);
+	RNA_boolean_set(kmi->ptr, "use_hide_panels", true);
+
 	WM_keymap_add_item(keymap, "SCREEN_OT_screenshot", F3KEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "SCREEN_OT_screencast", F3KEY, KM_PRESS, KM_ALT, 0);
 	

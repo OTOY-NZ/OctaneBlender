@@ -87,7 +87,7 @@ ccl_device void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 	if(sd->type & PRIMITIVE_TRIANGLE) {
 		/* static triangle */
 		float3 Ng = triangle_normal(kg, sd);
-		sd->shader =  __float_as_int(kernel_tex_fetch(__tri_shader, sd->prim));
+		sd->shader =  kernel_tex_fetch(__tri_shader, sd->prim);
 
 		/* vectors */
 		sd->P = triangle_refine(kg, sd, isect, ray);
@@ -166,7 +166,7 @@ ccl_device_inline void shader_setup_from_subsurface(KernelGlobals *kg, ShaderDat
 	/* fetch triangle data */
 	if(sd->type == PRIMITIVE_TRIANGLE) {
 		float3 Ng = triangle_normal(kg, sd);
-		sd->shader =  __float_as_int(kernel_tex_fetch(__tri_shader, sd->prim));
+		sd->shader =  kernel_tex_fetch(__tri_shader, sd->prim);
 
 		/* static triangle */
 		sd->P = triangle_refine_subsurface(kg, sd, isect, ray);
@@ -681,7 +681,7 @@ ccl_device float3 shader_bsdf_subsurface(KernelGlobals *kg, ShaderData *sd)
 	for(int i = 0; i< sd->num_closure; i++) {
 		ShaderClosure *sc = &sd->closure[i];
 
-		if(CLOSURE_IS_BSSRDF(sc->type))
+		if(CLOSURE_IS_BSSRDF(sc->type) || CLOSURE_IS_BSDF_BSSRDF(sc->type))
 			eval += sc->weight;
 	}
 
@@ -1026,7 +1026,7 @@ ccl_device bool shader_transparent_shadow(KernelGlobals *kg, Intersection *isect
 #ifdef __HAIR__
 	if(kernel_tex_fetch(__prim_type, isect->prim) & PRIMITIVE_ALL_TRIANGLE) {
 #endif
-		shader = __float_as_int(kernel_tex_fetch(__tri_shader, prim));
+		shader = kernel_tex_fetch(__tri_shader, prim);
 #ifdef __HAIR__
 	}
 	else {

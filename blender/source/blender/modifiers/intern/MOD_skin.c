@@ -79,8 +79,6 @@
 
 #include "bmesh.h"
 
-#include "MOD_util.h"
-
 typedef struct {
 	float mat[3][3];
 	/* Vert that edge is pointing away from, no relation to
@@ -218,6 +216,7 @@ static bool skin_frame_find_contained_faces(const Frame *frame,
 /* Returns true if hull is successfully built, false otherwise */
 static bool build_hull(SkinOutput *so, Frame **frames, int totframe)
 {
+#ifdef WITH_BULLET
 	BMesh *bm = so->bm;
 	BMOperator op;
 	BMIter iter;
@@ -326,6 +325,10 @@ static bool build_hull(SkinOutput *so, Frame **frames, int totframe)
 	BM_mesh_delete_hflag_tagged(bm, BM_ELEM_TAG, BM_EDGE | BM_FACE);
 
 	return true;
+#else
+	UNUSED_VARS(so, frames, totframe, skin_frame_find_contained_faces);
+	return false;
+#endif
 }
 
 /* Returns the average frame side length (frames are rectangular, so
@@ -1257,7 +1260,7 @@ static void skin_fix_hole_no_good_verts(BMesh *bm, Frame *frame, BMFace *split_f
 
 		BMO_op_callf(bm, BMO_FLAG_DEFAULTS,
 		             "subdivide_edges edges=%he cuts=%i quad_corner_type=%i",
-		             BM_ELEM_TAG, 1, SUBD_STRAIGHT_CUT);
+		             BM_ELEM_TAG, 1, SUBD_CORNER_STRAIGHT_CUT);
 	}
 	else if (split_face->len > 4) {
 		/* Maintain a dynamic vert array containing the split_face's

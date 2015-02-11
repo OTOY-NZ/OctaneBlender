@@ -25,6 +25,8 @@
 
 #include "util_lists.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 using std::string;

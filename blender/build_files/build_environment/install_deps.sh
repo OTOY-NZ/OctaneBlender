@@ -29,7 +29,7 @@ getopt \
 ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,\
 force-all,force-python,force-numpy,force-boost,force-ocio,force-oiio,force-llvm,force-osl,force-opencollada,\
 force-ffmpeg,\
-skip-python,skip-numpy,skip-boost,skip-ocio,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,skip-opencollada,\
+skip-python,skip-numpy,skip-boost,skip-ocio,skip-openexr,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,skip-opencollada,\
 required-numpy: \
 -- "$@" \
 )
@@ -83,7 +83,7 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     -t n, --threads=n
         Use a specific number of threads when building the libraries (auto-detected as '\$THREADS').
 
-    --no_sudo
+    --no-sudo
         Disable use of sudo (this script won't be able to do much though, will just print needed packages...).
 
     --with-all
@@ -471,9 +471,10 @@ while true; do
   esac
 done
 
-if $WITH_ALL; then
+if [ $WITH_ALL == true -a $OPENCOLLADA_SKIP == false ]; then
   WITH_OPENCOLLADA=true
 fi
+
 
 
 # This has to be done here, because user might force some versions...
@@ -497,8 +498,12 @@ LLVM_SOURCE=( "http://llvm.org/releases/$LLVM_VERSION/llvm-$LLVM_VERSION.src.tar
 LLVM_CLANG_SOURCE=( "http://llvm.org/releases/$LLVM_VERSION/clang-$LLVM_VERSION.src.tar.gz" "http://llvm.org/releases/$LLVM_VERSION/cfe-$LLVM_VERSION.src.tar.gz" )
 #OSL_SOURCE=( "https://github.com/imageworks/OpenShadingLanguage/archive/Release-$OSL_VERSION.tar.gz" )
 #OSL_SOURCE=( "https://github.com/imageworks/OpenShadingLanguage.git" )
-OSL_SOURCE=( "https://github.com/mont29/OpenShadingLanguage.git" )
-OSL_REPO_UID="85179714e1bc69cd25ecb6bb711c1a156685d395"
+#OSL_SOURCE=( "https://github.com/mont29/OpenShadingLanguage.git" )
+#OSL_REPO_UID="85179714e1bc69cd25ecb6bb711c1a156685d395"
+#OSL_REPO_BRANCH="master"
+OSL_SOURCE=( "https://github.com/Nazg-Gul/OpenShadingLanguage.git" )
+OSL_REPO_UID="22ee5ea298fd215430dfbd160b5aefd507f06db0"
+OSL_REPO_BRANCH="blender-fixes"
 
 OPENCOLLADA_SOURCE=( "https://github.com/KhronosGroup/OpenCOLLADA.git" )
 OPENCOLLADA_REPO_UID="18da7f4109a8eafaa290a33f5550501cc4c8bae8"
@@ -1404,12 +1409,13 @@ clean_OSL() {
 
 compile_OSL() {
   # To be changed each time we make edits that would modify the compiled result!
-  osl_magic=15
+  osl_magic=16
   _init_osl
 
   # Clean install if needed!
   magic_compile_check osl-$OSL_VERSION $osl_magic
   if [ $? -eq 1 -o $OSL_FORCE_REBUILD == true ]; then
+    rm -Rf $_src  # XXX Radical, but not easy to change remote repo fully automatically
     clean_OSL
   fi
 
@@ -1433,10 +1439,10 @@ compile_OSL() {
 
     cd $_src
 
-    git remote set-url origin $OSL_SOURCE
+    git remote set-url origin ${OSL_SOURCE[0]}
 
     # XXX For now, always update from latest repo...
-    git pull -X theirs origin master
+    git pull --no-edit -X theirs origin $OSL_GIT_BRANCH
 
     # Stick to same rev as windows' libs...
     git checkout $OSL_REPO_UID
@@ -1795,7 +1801,7 @@ install_DEB() {
   _packages="gawk cmake cmake-curses-gui scons build-essential libjpeg-dev libpng-dev \
              libfreetype6-dev libx11-dev libxi-dev wget libsqlite3-dev libbz2-dev \
              libncurses5-dev libssl-dev liblzma-dev libreadline-dev $OPENJPEG_DEV \
-             libopenal-dev libglew-dev yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV \
+             libopenal-dev libglew-dev libglewmx-dev yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV \
              libsdl1.2-dev libfftw3-dev patch bzip2 libxml2-dev libtinyxml-dev"
 
   OPENJPEG_USE=true

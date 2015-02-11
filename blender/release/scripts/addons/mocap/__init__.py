@@ -21,7 +21,8 @@
 bl_info = {
     "name": "Motion Capture Tools",
     "author": "Benjy Cook",
-    "blender": (2, 62, 0),
+    "blender": (2, 72, 0),
+    "version": (1, 0, 1),
     "location": "Object UI > Mocap tools",
     "description": "Various tools for working with motion capture animation",
     "warning": "",
@@ -333,7 +334,7 @@ class MocapPanel(bpy.types.Panel):
                     mapRow.operator("mocap.savemapping", text='Save mapping')
                     mapRow.operator("mocap.loadmapping", text='Load mapping')
                     extraSettings = self.layout.box()
-                    if performer_obj.animation_data:
+                    if performer_obj.animation_data and performer_obj.animation_data.action:
                         extraSettings.prop(data=performer_obj.animation_data.action, property='name', text='Action Name')
                     extraSettings.prop(enduser_arm, "frameStep")
                     extraSettings.prop(enduser_arm, "advancedRetarget", text='Advanced Retarget')
@@ -578,18 +579,19 @@ class OBJECT_OT_LooperButton(bpy.types.Operator):
 
 class OBJECT_OT_DenoiseButton(bpy.types.Operator):
     #Operator to denoise impluse noise on the active object's fcurves
-    """Denoise active armature's animation (good for dealing """ \
-    """with 'bad' frames inherent in mocap animation)"""
+    """Removes spikes from all fcurves on the selected object"""
     bl_idname = "mocap.denoise"
     bl_label = "Denoise Mocap"
 
     def execute(self, context):
-        mocap_tools.denoise_median()
+        obj = context.active_object
+        mocap_tools.denoise(obj, obj.animation_data.action.fcurves)
         return {'FINISHED'}
 
     @classmethod
     def poll(cls, context):
-        return context.active_object.animation_data
+        obj = context.active_object
+        return obj and obj.animation_data and obj.animation_data.action
 
 
 class OBJECT_OT_LimitDOFButton(bpy.types.Operator):

@@ -28,8 +28,8 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_VECTOR,      1,  N_("Rotation"),		 0.0f, 0.0f, 0.0f, 0.0f, -180.0f, 180.0f, PROP_NONE},
-    {SOCK_INT,         1,  N_("Rotation order"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f},
+	{SOCK_VECTOR,      1,  N_("Rotation"),		 0.0f, 0.0f, 0.0f, 0.0f, -180.0f, 180.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_INT,         1,  N_("Rotation order"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
     {-1, 0, ""}
 };
 
@@ -47,6 +47,7 @@ void register_node_type_transform_oct_rotation(void) {
 	node_type_size(&ntype, 160, 160, 200);
 	node_type_init(&ntype, 0);
 	node_type_exec(&ntype, 0, 0, 0);
+    ntype.update_internal_links = node_update_internal_links_default;
 	
 	nodeRegisterType(&ntype);
 } /* register_node_type_transform_oct_rotation() */

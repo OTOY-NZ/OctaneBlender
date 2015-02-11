@@ -26,6 +26,8 @@
 #include "util_string.h"
 #include "passes.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class Scene;

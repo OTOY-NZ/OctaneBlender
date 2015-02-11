@@ -42,6 +42,7 @@ Mesh::Mesh() {
     open_subd_level         = 0;
     open_subd_sharpness     = 0.0f;
     open_subd_bound_interp  = 3;
+    layer_number            = 1;
 
     vis_general     = 1.0f;
 	vis_cam         = true;
@@ -165,6 +166,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         bool            *cam_vis                = new bool[ulLocalCnt];
         bool            *shadow_vis             = new bool[ulLocalCnt];
         bool            *reshapable             = new bool[ulLocalCnt];
+        int32_t         *layer_number           = new int32_t[ulLocalCnt];
 
         float3          **hair_points           = new float3*[ulLocalCnt];
         uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
@@ -221,6 +223,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             cam_vis[i]              = mesh->vis_cam;
             shadow_vis[i]           = mesh->vis_shadow;
             reshapable[i]           = (scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY));
+            layer_number[i]         = (scene->kernel->layers_enable ? mesh->layer_number : 1);
 
             hair_points_size[i]     = mesh->hair_points.size();
             hair_points[i]          = hair_points_size[i] ? &mesh->hair_points[0] : 0;
@@ -264,6 +267,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         open_subd_level,
                                         open_subd_sharpness,
                                         open_subd_bound_interp,
+                                        layer_number,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
@@ -296,6 +300,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] cam_vis;
         delete[] shadow_vis;
         delete[] reshapable;
+        delete[] layer_number;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
@@ -345,6 +350,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             bool            *cam_vis                = new bool[obj_cnt];
             bool            *shadow_vis             = new bool[obj_cnt];
             bool            *reshapable             = new bool[obj_cnt];
+            int32_t         *layer_number           = new int32_t[obj_cnt];
 
             float3          **hair_points           = new float3*[obj_cnt];
             uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
@@ -405,6 +411,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     cam_vis[obj_cnt]              = mesh->vis_cam;
                     shadow_vis[obj_cnt]           = mesh->vis_shadow;
                     reshapable[obj_cnt]           = false;
+                    layer_number[obj_cnt]         = (scene->kernel->layers_enable ? mesh->layer_number : 1);
 
                     hair_points_size[obj_cnt]     = mesh->hair_points.size();
                     hair_points[obj_cnt]          = hair_points_size[obj_cnt] ? &mesh->hair_points[0] : 0;
@@ -451,6 +458,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         open_subd_level,
                                         open_subd_sharpness,
                                         open_subd_bound_interp,
+                                        layer_number,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
@@ -481,6 +489,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             delete[] cam_vis;
             delete[] shadow_vis;
             delete[] reshapable;
+            delete[] layer_number;
 
             delete[] hair_points_size;
             delete[] vert_per_hair_size;

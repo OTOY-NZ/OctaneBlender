@@ -197,7 +197,7 @@ BF_BOOST = '/usr'
 BF_BOOST_INC = '${BF_BOOST}/include'
 BF_BOOST_LIB = 'boost_filesystem boost_regex boost_system boost_thread boost_date_time'
 BF_BOOST_LIB_STATIC = '${BF_BOOST_LIBPATH}/libboost_filesystem.a ${BF_BOOST_LIBPATH}/libboost_date_time.a ' + \
-    '${BF_BOOST_LIBPATH}/libboost_regex.a ${BF_BOOST_LIBPATH}/libboost_locale.a ${BF_BOOST_LIBPATH}/libboost_system.a' + \
+    '${BF_BOOST_LIBPATH}/libboost_regex.a ${BF_BOOST_LIBPATH}/libboost_locale.a ${BF_BOOST_LIBPATH}/libboost_system.a ' + \
     '${BF_BOOST_LIBPATH}/libboost_thread.a'
 BF_BOOST_LIB_INTERNATIONAL = 'boost_locale'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
@@ -263,6 +263,6 @@ BF_INSTALLDIR='../install/linux'
 #Link against pthread
 PLATFORM_LINKFLAGS = ['-pthread']
 
-#Fix for LLVM conflict with Mesa llvmpipe
-if WITH_BF_LLVM:
-    PLATFORM_LINKFLAGS += ['-Wl,--version-script=source/creator/blender.map']
+#Fix for LLVM conflict with Mesa llvmpipe, SDL dynload also requires symbols to be hidden.
+# TODO(sergey): Move this to SConstruct, so we can have this line depended on user config.
+PLATFORM_LINKFLAGS += ['-Wl,--version-script=source/creator/blender.map']

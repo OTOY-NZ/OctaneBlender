@@ -200,12 +200,13 @@ class BONE_PT_rigify_buttons(bpy.types.Panel):
 
 class VIEW3D_PT_tools_rigify_dev(bpy.types.Panel):
     bl_label = "Rigify Dev Tools"
+    bl_category = 'Tools'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
 
     def draw(self, context):
         obj = context.active_object
-        if obj != None:
+        if obj is not None:
             if context.mode == 'EDIT_ARMATURE':
                 r = self.layout.row()
                 r.operator("armature.rigify_encode_metarig", text="Encode Metarig to Python")

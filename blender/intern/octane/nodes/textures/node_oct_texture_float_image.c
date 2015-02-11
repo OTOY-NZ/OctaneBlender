@@ -28,12 +28,12 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Power"),   0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Gamma"),   2.2f, 0.0f, 0.0f, 0.0f, 0.1f, 8.0f},
-	{SOCK_SHADER,    1,  N_("Transform")},
-	{SOCK_BOOLEAN,   1,  N_("Invert"),  0.0f},
-	{SOCK_SHADER,    1,  N_("Projection")},
-	{SOCK_INT,       1,  N_("Border mode"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f},
+	{SOCK_FLOAT,     1,  N_("Power"),       0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Gamma"),       2.2f, 0.0f, 0.0f, 0.0f, 0.1f, 8.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_SHADER,    1,  N_("Transform"),   0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_BOOLEAN,   1,  N_("Invert"),      0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_SHADER,    1,  N_("Projection"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_INT,       1,  N_("Border mode"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{-1, 0, ""}
 };
 
@@ -97,6 +97,7 @@ void register_node_type_tex_oct_float_image(void) {
 	node_type_storage(&ntype, "NodeTexImage", node_free_standard_storage, node_copy_standard_storage);
 	node_type_exec(&ntype, 0, 0, 0);
 	node_type_gpu(&ntype, node_shader_gpu_oct_tex_float_image);
+    ntype.update_internal_links = node_update_internal_links_default;
 	
 	nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_float_image() */

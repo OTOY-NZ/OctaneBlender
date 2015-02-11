@@ -310,8 +310,10 @@ inline Passes::PassTypes BlenderSession::get_octane_pass_type(BL::RenderPass b_p
         case BL::RenderPass::type_REFLECTION:
             if(scene->passes->reflection_direct_pass)
                 return Passes::REFLECTION_DIRECT;
-            else
+            else if(scene->passes->reflection_indirect_pass)
                 return Passes::REFLECTION_INDIRECT;
+            else
+                return Passes::LAYER_REFLECTIONS;
 
         case BL::RenderPass::type_REFRACTION:
             return Passes::REFRACTION;
@@ -339,8 +341,15 @@ inline Passes::PassTypes BlenderSession::get_octane_pass_type(BL::RenderPass b_p
         case BL::RenderPass::type_AO:
             return Passes::AMBIENT_OCCLUSION;
 
-		case BL::RenderPass::type_VECTOR:
-		case BL::RenderPass::type_SHADOW:
+        case BL::RenderPass::type_SHADOW:
+            if(scene->passes->layer_shadows_pass)
+                return Passes::LAYER_SHADOWS;
+            else if(scene->passes->layer_black_shadows_pass)
+                return Passes::LAYER_BLACK_SHADOWS;
+            else
+                return Passes::LAYER_COLOR_SHADOWS;
+
+        case BL::RenderPass::type_VECTOR:
 		case BL::RenderPass::type_DIFFUSE_COLOR:
 		case BL::RenderPass::type_GLOSSY_COLOR:
 		case BL::RenderPass::type_GLOSSY_INDIRECT:
@@ -377,6 +386,7 @@ inline BL::RenderPass::type_enum BlenderSession::get_blender_pass_type(Passes::P
 
     case Passes::REFLECTION_DIRECT:
     case Passes::REFLECTION_INDIRECT:
+    case Passes::LAYER_REFLECTIONS:
         return BL::RenderPass::type_REFLECTION;
 
     case Passes::REFRACTION:
@@ -402,6 +412,11 @@ inline BL::RenderPass::type_enum BlenderSession::get_blender_pass_type(Passes::P
     case Passes::AMBIENT_OCCLUSION:
         return BL::RenderPass::type_AO;
 
+    case Passes::LAYER_SHADOWS:
+    case Passes::LAYER_BLACK_SHADOWS:
+    case Passes::LAYER_COLOR_SHADOWS:
+        return BL::RenderPass::type_SHADOW;
+
     default:
         return BL::RenderPass::type_COMBINED;
     }
@@ -418,49 +433,61 @@ inline int BlenderSession::get_pass_index(Passes::PassTypes pass) {
 
     case Passes::EMIT:
         return 1;
-    case Passes::ENVIRONMENT:
-        return 2;
     case Passes::DIFFUSE_DIRECT:
-        return 3;
+        return 2;
     case Passes::DIFFUSE_INDIRECT:
-        return 4;
+        return 3;
     case Passes::REFLECTION_DIRECT:
-        return 5;
+        return 4;
     case Passes::REFLECTION_INDIRECT:
-        return 6;
+        return 5;
     case Passes::REFRACTION:
-        return 7;
+        return 6;
     case Passes::TRANSMISSION:
-        return 8;
+        return 7;
     case Passes::SSS:
-        return 9;
+        return 8;
     case Passes::POST_PROC:
+        return 9;
+    case Passes::LAYER_SHADOWS:
         return 10;
+    case Passes::LAYER_BLACK_SHADOWS:
+        return 11;
+    case Passes::LAYER_COLOR_SHADOWS:
+        return 12;
+    case Passes::LAYER_REFLECTIONS:
+        return 13;
 
     case Passes::GEOMETRIC_NORMAL:
-        return 11;
-    case Passes::SHADING_NORMAL:
-        return 12;
-    case Passes::POSITION:
-        return 13;
-    case Passes::Z_DEPTH:
         return 14;
-    case Passes::MATERIAL_ID:
+    case Passes::SHADING_NORMAL:
         return 15;
-    case Passes::UV_COORD:
+    case Passes::POSITION:
         return 16;
-    case Passes::TANGENT_U:
+    case Passes::Z_DEPTH:
         return 17;
-    case Passes::WIREFRAME:
+    case Passes::MATERIAL_ID:
         return 18;
-    case Passes::VERTEX_NORMAL:
+    case Passes::UV_COORD:
         return 19;
-    case Passes::OBJECT_ID:
+    case Passes::TANGENT_U:
         return 20;
-    case Passes::AMBIENT_OCCLUSION:
+    case Passes::WIREFRAME:
         return 21;
-    case Passes::MOTION_VECTOR:
+    case Passes::VERTEX_NORMAL:
         return 22;
+    case Passes::OBJECT_ID:
+        return 23;
+    case Passes::AMBIENT_OCCLUSION:
+        return 24;
+    case Passes::MOTION_VECTOR:
+        return 25;
+    case Passes::LAYER_ID:
+        return 26;
+    case Passes::LAYER_MASK:
+        return 27;
+    case Passes::ENVIRONMENT:
+        return 28;
 
     default:
         return 0;

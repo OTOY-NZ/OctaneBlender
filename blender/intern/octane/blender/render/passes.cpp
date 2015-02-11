@@ -52,10 +52,15 @@ Passes::Passes() {
     object_id_pass              = false;
     ao_pass                     = false;
     motion_vector_pass          = false;
+    layer_shadows_pass          = false;
+    layer_black_shadows_pass    = false;
+    layer_color_shadows_pass    = false;
+    layer_reflections_pass      = false;
+    layer_id_pass               = false;
+    layer_mask_pass             = false;
 
     pass_max_samples            = 128;
     pass_ao_max_samples         = 1024;
-    pass_start_samples          = 0;
     pass_distributed_tracing    = false;
     pass_filter_size            = 1.0f;
     pass_z_depth_max            = 5.0f;
@@ -112,10 +117,15 @@ bool Passes::modified(const Passes& passes) {
         object_id_pass              == passes.object_id_pass &&
         ao_pass                     == passes.ao_pass &&
         motion_vector_pass          == passes.motion_vector_pass &&
+        layer_shadows_pass          == passes.layer_shadows_pass &&
+        layer_black_shadows_pass    == passes.layer_black_shadows_pass &&
+        layer_color_shadows_pass    == passes.layer_color_shadows_pass &&
+        layer_reflections_pass      == passes.layer_reflections_pass &&
+        layer_id_pass               == passes.layer_id_pass &&
+        layer_mask_pass             == passes.layer_mask_pass &&
 
         pass_max_samples            == passes.pass_max_samples &&
         pass_ao_max_samples         == passes.pass_ao_max_samples &&
-        pass_start_samples          == passes.pass_start_samples &&
         pass_distributed_tracing    == passes.pass_distributed_tracing &&
         pass_filter_size            == passes.pass_filter_size &&
         pass_z_depth_max            == passes.pass_z_depth_max &&

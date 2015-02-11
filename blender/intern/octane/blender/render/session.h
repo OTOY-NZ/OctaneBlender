@@ -26,6 +26,8 @@
 #include "util_progress.h"
 #include "util_thread.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class Progress;
@@ -52,6 +54,7 @@ public:
         export_alembic  = false;
         anim_mode       = FULL;
         fps             = 24.0f;
+        hdr_tonemapped  = true;
 	}
 
 	bool modified(const SessionParams& params) {
@@ -61,6 +64,7 @@ public:
 			&& meshes_type == params.meshes_type
 			&& use_viewport_hide == params.use_viewport_hide
 			&& use_passes == params.use_passes
+            && hdr_tonemapped == params.hdr_tonemapped
 			&& output_path == params.output_path);
 	}
 
@@ -75,6 +79,7 @@ public:
     int             width;
     int             height;
 	bool            use_passes;
+    bool            hdr_tonemapped;
 	bool            use_viewport_hide;
 	Mesh::MeshType  meshes_type;
 	bool            export_alembic;

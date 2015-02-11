@@ -31,14 +31,13 @@
  */
 #include "GPU_select.h"
 #include "GPU_extensions.h"
-
-#include "BLI_utildefines.h"
-
+#include "GPU_glew.h"
+ 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
 
-#include <GL/glew.h>
+#include "BLI_utildefines.h"
 
 /* Ad hoc number of queries to allocate to skip doing many glGenQueries */
 #define ALLOC_QUERIES 200
@@ -127,7 +126,7 @@ void GPU_select_begin(unsigned int *buffer, unsigned int bufsize, rctf *input, c
 		}
 		else if (mode == GPU_SELECT_NEAREST_SECOND_PASS) {
 			glEnable(GL_DEPTH_TEST);
-			glDepthMask(GL_TRUE);
+			glDepthMask(GL_FALSE);
 			glDepthFunc(GL_EQUAL);
 		}
 	}

@@ -21,6 +21,8 @@
 
 #include "util_types.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class RenderServer;
@@ -37,19 +39,22 @@ public:
 	void tag_update(void);
 
     enum PassTypes {
-        COMBINED = 0,
-        EMIT = 1,
-        ENVIRONMENT = 2,
-        DIFFUSE_DIRECT = 3,
-        DIFFUSE_INDIRECT = 4,
-        REFLECTION_DIRECT = 5,
-        REFLECTION_INDIRECT = 6,
-        REFRACTION = 7,
-        TRANSMISSION = 8,
-        SSS = 9,
-        POST_PROC = 10,
+        COMBINED            = 0,
+        EMIT                = 1,
+        DIFFUSE_DIRECT      = 2,
+        DIFFUSE_INDIRECT    = 3,
+        REFLECTION_DIRECT   = 4,
+        REFLECTION_INDIRECT = 5,
+        REFRACTION          = 6,
+        TRANSMISSION        = 7,
+        SSS                 = 8,
+        POST_PROC           = 9,
+        LAYER_SHADOWS       = 10,
+        LAYER_BLACK_SHADOWS = 11,
+        LAYER_COLOR_SHADOWS = 12,
+        LAYER_REFLECTIONS   = 13,
 
-        GEOMETRIC_NORMAL = 100000,
+        GEOMETRIC_NORMAL    = 100000,
         SHADING_NORMAL,
         POSITION,
         Z_DEPTH,
@@ -61,8 +66,11 @@ public:
         OBJECT_ID,
         AMBIENT_OCCLUSION,
         MOTION_VECTOR,
+        LAYER_ID,
+        LAYER_MASK,
+        ENVIRONMENT,
 
-        NUM_PASSES = MOTION_VECTOR + 1,
+        NUM_PASSES = 29,
         PASS_NONE = -1
     };
 
@@ -93,10 +101,15 @@ public:
     bool        object_id_pass;
     bool        ao_pass;
     bool        motion_vector_pass;
+    bool        layer_shadows_pass;
+    bool        layer_black_shadows_pass;
+    bool        layer_color_shadows_pass;
+    bool        layer_reflections_pass;
+    bool        layer_id_pass;
+    bool        layer_mask_pass;
 
     int32_t     pass_max_samples;
     int32_t     pass_ao_max_samples;
-    int32_t     pass_start_samples;
     bool        pass_distributed_tracing;
     float       pass_filter_size;
     float       pass_z_depth_max;
@@ -108,10 +121,9 @@ public:
 	bool        need_update;
 }; //Passes
 
-static Passes::PassTypes pass_type_translator[23] = {
+static Passes::PassTypes pass_type_translator[Passes::NUM_PASSES] = {
     Passes::COMBINED,
     Passes::EMIT,
-    Passes::ENVIRONMENT,
     Passes::DIFFUSE_DIRECT,
     Passes::DIFFUSE_INDIRECT,
     Passes::REFLECTION_DIRECT,
@@ -120,6 +132,11 @@ static Passes::PassTypes pass_type_translator[23] = {
     Passes::TRANSMISSION,
     Passes::SSS,
     Passes::POST_PROC,
+    Passes::LAYER_SHADOWS,
+    Passes::LAYER_BLACK_SHADOWS,
+    Passes::LAYER_COLOR_SHADOWS,
+    Passes::LAYER_REFLECTIONS,
+
     Passes::GEOMETRIC_NORMAL,
     Passes::SHADING_NORMAL,
     Passes::POSITION,
@@ -131,7 +148,10 @@ static Passes::PassTypes pass_type_translator[23] = {
     Passes::VERTEX_NORMAL,
     Passes::OBJECT_ID,
     Passes::AMBIENT_OCCLUSION,
-    Passes::MOTION_VECTOR
+    Passes::MOTION_VECTOR,
+    Passes::LAYER_ID,
+    Passes::LAYER_MASK,
+    Passes::ENVIRONMENT
 };
 
 OCT_NAMESPACE_END

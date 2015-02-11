@@ -22,22 +22,24 @@
 #include <list>
 
 #include <set>
-#include <boost/tr1/unordered_set.hpp>
+//#include <boost/tr1/unordered_set.hpp>
 
 #include <map>
-#include <boost/tr1/unordered_map.hpp>
+//#include <boost/tr1/unordered_map.hpp>
 
 #include <string.h>
 #include <vector>
 
+#include "memleaks_check.h"
+
 using std::list;
 
 using std::set;
-using std::tr1::unordered_set;
+//using std::tr1::unordered_set;
 
 using std::map;
 using std::pair;
-using std::tr1::unordered_map;
+//using std::tr1::unordered_map;
 
 using std::vector;
 

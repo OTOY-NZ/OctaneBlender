@@ -19,11 +19,26 @@
 #ifndef __UTIL_THREAD_H__
 #define __UTIL_THREAD_H__
 
+#ifdef WIN32
+#   ifdef _DEBUG
+#       pragma pack(push,_CRT_PACKING)
+#       pragma push_macro("new")
+#       undef new
+#   endif
+#endif
 #include <boost/thread.hpp>
+#include <boost/function.hpp>
+#ifdef WIN32
+#   ifdef _DEBUG
+#       pragma pop_macro("new")
+#       pragma pack(pop)
+#   endif
+#endif
+
 #include <pthread.h>
 #include <queue>
 
-#include <boost/function.hpp>
+#include "memleaks_check.h"
 
 OCT_NAMESPACE_BEGIN
 

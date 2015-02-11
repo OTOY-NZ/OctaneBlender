@@ -439,7 +439,7 @@ void BlenderSync::load_camera_from_object(Camera* cam, BL::Object b_ob, int widt
         cam->look_at.y = cam->eye_point.y + dir.y;
         cam->look_at.z = cam->eye_point.z + dir.z;
 
-        cam->up = transform_direction(&cam->matrix, make_float3(0.0f, 1.0f, 0.0f));
+        cam->up = normalize(transform_direction(&cam->matrix, make_float3(0.0f, 1.0f, 0.0f)));
     }
     else {
         //TODO: Implement it for Lamp
@@ -524,7 +524,7 @@ void BlenderSync::load_camera_from_view(Camera* cam, BL::Scene b_scene, BL::Spac
             cam->look_at.y = cam->look_at.y + dir.y;
             cam->look_at.z = cam->look_at.z + dir.z;
         }
-        cam->up = transform_direction(&cam->matrix, make_float3(0.0f, 1.0f, 0.0f));
+        cam->up = normalize(transform_direction(&cam->matrix, make_float3(0.0f, 1.0f, 0.0f)));
 
     } //else if(b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_ORTHO || b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_PERSP)
 

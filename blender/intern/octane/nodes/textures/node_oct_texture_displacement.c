@@ -28,10 +28,10 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-        {SOCK_SHADER,   1, N_("Texture")},
-        {SOCK_INT,      1, N_("Level of details"),  10.0f, 0.0f, 0.0f, 0.0f, 8.0f, 13.0f, PROP_UNSIGNED},
-        {SOCK_FLOAT,    1, N_("Height"),            0.001f, 0.0f, 0.0f, 0.0f, 0.0f, FLT_MAX},
-        {SOCK_FLOAT,    1, N_("Offset"),            0.0f, 0.0f, 0.0f, 0.0f, -FLT_MAX, FLT_MAX},
+        {SOCK_SHADER,   1, N_("Texture"),           0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+        {SOCK_INT,      1, N_("Level of details"),  10.0f, 0.0f, 0.0f, 0.0f, 8.0f, 13.0f, PROP_UNSIGNED, SOCK_NO_INTERNAL_LINK},
+        {SOCK_FLOAT,    1, N_("Height"),            0.001f, 0.0f, 0.0f, 0.0f, 0.0f, FLT_MAX, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+        {SOCK_FLOAT,    1, N_("Offset"),            0.0f, 0.0f, 0.0f, 0.0f, -FLT_MAX, FLT_MAX, PROP_NONE, SOCK_NO_INTERNAL_LINK},
         {-1, 0, ""}
 };
 
@@ -49,6 +49,7 @@ void register_node_type_tex_oct_displacement(void) {
     node_type_size(&ntype, 160, 160, 200);
     node_type_init(&ntype, 0);
     node_type_exec(&ntype, 0, 0, 0);
+    ntype.update_internal_links = node_update_internal_links_default;
 
     nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_displacement() */

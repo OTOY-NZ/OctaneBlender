@@ -28,9 +28,9 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Input"),   0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Min"),     0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Max"),     1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{SOCK_FLOAT,     1,  N_("Input"),   0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Min"),     0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Max"),     1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{-1, 0, ""}
 };
 
@@ -48,6 +48,7 @@ void register_node_type_tex_oct_clamp(void) {
 	node_type_size(&ntype, 160, 160, 200);
 	node_type_init(&ntype, 0);
 	node_type_exec(&ntype, 0, 0, 0);
+    ntype.update_internal_links = node_update_internal_links_default;
 	
 	nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_clamp() */

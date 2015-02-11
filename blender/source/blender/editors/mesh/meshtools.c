@@ -627,7 +627,7 @@ int join_mesh_shapes_exec(bContext *C, wmOperator *op)
 
 		/* first key added, so it was the basis. initialize it with the existing mesh */
 		kb = BKE_keyblock_add(key, NULL);
-		BKE_key_convert_from_mesh(me, kb);
+		BKE_keyblock_convert_from_mesh(me, kb);
 	}
 	
 	/* now ready to add new keys from selected meshes */
@@ -999,7 +999,7 @@ static int mirror_facerotation(MFace *a, MFace *b)
 	return -1;
 }
 
-static int mirror_facecmp(const void *a, const void *b)
+static bool mirror_facecmp(const void *a, const void *b)
 {
 	return (mirror_facerotation((MFace *)a, (MFace *)b) == -1);
 }

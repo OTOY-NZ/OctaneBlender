@@ -82,9 +82,7 @@
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 
-
 #include "PIL_time.h"
-#include "IMB_imbuf_types.h"
 
 #include "envmap.h"
 #include "occlusion.h"
@@ -102,8 +100,6 @@
 #include "sss.h"
 #include "zbuf.h"
 #include "sunsky.h"
-
-#include "RE_render_ext.h"
 
 /* 10 times larger than normal epsilon, test it on default nurbs sphere with ray_transp (for quad detection) */
 /* or for checking vertex normal flips */
@@ -762,7 +758,7 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 	w= vec[2]*re->winmat[2][3] + re->winmat[3][3];
 	dx= re->winx*cross[0]*re->winmat[0][0];
 	dy= re->winy*cross[1]*re->winmat[1][1];
-	w= sqrt(dx*dx + dy*dy)/w;
+	w = sqrtf(dx * dx + dy * dy) / w;
 	
 	if (w!=0.0f) {
 		float fac;
@@ -927,7 +923,7 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 			w= vec[2]*re->winmat[2][3] + re->winmat[3][3];
 			dx= re->winx*dvec[0]*re->winmat[0][0]/w;
 			dy= re->winy*dvec[1]*re->winmat[1][1]/w;
-			w= sqrt(dx*dx + dy*dy);
+			w = sqrtf(dx * dx + dy * dy);
 			if (dot_v3v3(anor, nor)<sd->adapt_angle && w>sd->adapt_pix) {
 				vlr= RE_findOrAddVlak(obr, obr->totvlak++);
 				vlr->flag= flag;
@@ -1305,7 +1301,6 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 	int totchild=0, step_nbr;
 	int seed, path_nbr=0, orco1=0, num;
 	int totface;
-	const char **uv_name = NULL;
 
 	const int *index_mf_to_mpoly = NULL;
 	const int *index_mp_to_orig = NULL;
@@ -1427,8 +1422,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 /* 2.5 setup matrices */
 	mul_m4_m4m4(mat, re->viewmat, ob->obmat);
 	invert_m4_m4(ob->imat, mat);	/* need to be that way, for imat texture */
-	copy_m3_m4(nmat, ob->imat);
-	transpose_m3(nmat);
+	transpose_m3_m4(nmat, ob->imat);
 
 	if (psys->flag & PSYS_USE_IMAT) {
 		/* psys->imat is the original emitter's inverse matrix, ob->obmat is the duplicated object's matrix */
@@ -1854,9 +1848,6 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 	
 	if (sd.mcol)
 		MEM_freeN(sd.mcol);
-
-	if (uv_name)
-		MEM_freeN(uv_name);
 
 	if (states)
 		MEM_freeN(states);
@@ -2652,8 +2643,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 	negative_scale = is_negative_m4(mat);
 
 	/* local object -> world space transform for normals */
-	copy_m4_m4(nmat, mat);
-	transpose_m4(nmat);
+	transpose_m4_m4(nmat, mat);
 	invert_m4(nmat);
 
 	/* material array */
@@ -3796,8 +3786,8 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 		normalize_v3(lar->imat[1]);
 		normalize_v3(lar->imat[2]);
 
-		xn= saacos(lar->spotsi);
-		xn= sin(xn)/cos(xn);
+		xn = saacos(lar->spotsi);
+		xn = sinf(xn) / cosf(xn);
 		lar->spottexfac= 1.0f/(xn);
 
 		if (lar->mode & LA_ONLYSHADOW) {
@@ -3820,7 +3810,7 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 			/* z factor, for a normalized volume */
 			angle= saacos(lar->spotsi);
 			xn= lar->spotsi;
-			yn= sin(angle);
+			yn = sinf(angle);
 			lar->sh_zfac= yn/xn;
 			/* pre-scale */
 			lar->sh_invcampos[2]*= lar->sh_zfac;
@@ -3917,7 +3907,15 @@ static bool is_object_hidden(Render *re, Object *ob)
 	if (re->r.scemode & R_VIEWPORT_PREVIEW) {
 		/* Mesh deform cages and so on mess up the preview. To avoid the problem,
 		 * viewport doesn't show mesh object if its draw type is bounding box or wireframe.
+		 * Unless it's an active smoke domain!
 		 */
+		ModifierData *md = NULL;
+
+		if ((md = modifiers_findByType(ob, eModifierType_Smoke)) &&
+		    (modifier_isEnabled(re->scene, md, eModifierMode_Realtime)))
+		{
+			return false;
+		}
 		return ELEM(ob->dt, OB_BOUNDBOX, OB_WIRE);
 	}
 	else {
@@ -5438,7 +5436,7 @@ static float *calculate_strandsurface_speedvectors(Render *re, ObjectInstanceRen
 {
 	if (mesh->co && mesh->prevco && mesh->nextco) {
 		float winsq= (float)re->winx*(float)re->winy; /* int's can wrap on large images */
-		float winroot= sqrt(winsq);
+		float winroot= sqrtf(winsq);
 		float (*winspeed)[4];
 		float ho[4], prevho[4], nextho[4], winmat[4][4], vec[2];
 		int a;
@@ -5477,7 +5475,7 @@ static void calculate_speedvectors(Render *re, ObjectInstanceRen *obi, float *ve
 	StrandSurface *mesh= NULL;
 	float *speed, (*winspeed)[4]=NULL, ho[4], winmat[4][4];
 	float *co1, *co2, *co3, *co4, w[4];
-	float winsq= (float)re->winx*(float)re->winy, winroot= sqrt(winsq);  /* int's can wrap on large images */
+	float winsq = (float)re->winx * (float)re->winy, winroot = sqrtf(winsq);  /* int's can wrap on large images */
 	int a, *face, *index;
 
 	if (obi->flag & R_TRANSFORMED)
@@ -5544,7 +5542,7 @@ static int load_fluidsimspeedvectors(Render *re, ObjectInstanceRen *obi, float *
 	VertRen *ver= NULL;
 	float *speed, div, zco[2], avgvel[4] = {0.0, 0.0, 0.0, 0.0};
 	float zmulx= re->winx/2, zmuly= re->winy/2, len;
-	float winsq= (float)re->winx*(float)re->winy, winroot= sqrt(winsq); /* int's can wrap on large images */
+	float winsq = (float)re->winx * (float)re->winy, winroot= sqrtf(winsq); /* int's can wrap on large images */
 	int a, j;
 	float hoco[4], ho[4], fsvec[4], camco[4];
 	float mat[4][4], winmat[4][4];

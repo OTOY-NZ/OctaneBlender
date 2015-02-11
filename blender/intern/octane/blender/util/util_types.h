@@ -42,6 +42,8 @@
 #include <stdint.h>
 #endif
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 /* Types

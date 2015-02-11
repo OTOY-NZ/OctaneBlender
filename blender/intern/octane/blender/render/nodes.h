@@ -24,6 +24,8 @@
 #include "util_types.h"
 #include "util_string.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -107,6 +109,7 @@ public:
     std::string opacity;
     float       opacity_default_val;
     bool        smooth;
+    bool        refraction_alpha;
     std::string roughness;
     float       roughness_default_val;
     std::string dispersion_coef_B;
@@ -432,6 +435,25 @@ class OctanePolygonSideTexture : public OctaneTextureNode {
 
 public:
     bool Invert;
+};
+
+class OctaneNoiseTexture : public OctaneTextureNode {
+    SHADER_NODE_CLASS(OctaneNoiseTexture)
+
+public:
+    std::string noise_type;
+    int         noise_type_default_val;
+    std::string Octaves;
+    int         Octaves_default_val;
+    std::string Omega;
+    float       Omega_default_val;
+    std::string Transform;
+    std::string Projection;
+    bool        Invert;
+    std::string Gamma;
+    float       Gamma_default_val;
+    std::string Contrast;
+    float       Contrast_default_val;
 };
 
 class OctaneDisplacementTexture : public OctaneTextureNode {

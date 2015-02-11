@@ -48,13 +48,6 @@
 #  include "utfconv.h"
 #endif
 
-/* for backtrace */
-#if defined(__linux__) || defined(__APPLE__)
-#  include <execinfo.h>
-#elif defined(_MSV_VER)
-#  include <DbgHelp.h>
-#endif
-
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
@@ -82,6 +75,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -107,6 +101,7 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+#include "RE_render_ext.h"
 
 #include "ED_datafiles.h"
 #include "ED_util.h"
@@ -148,6 +143,25 @@
 #ifdef WITH_LIBMV
 #  include "libmv-capi.h"
 #endif
+
+#ifdef WITH_CYCLES_LOGGING
+#  include "CCL_api.h"
+#endif
+
+#ifdef WITH_SDL_DYNLOAD
+#  include "sdlew.h"
+#endif
+
+/* Can't just include <crtdbg.h> as there are a lot of "free" and "new" names
+   defined - they all may become broken by macroses defined in this header. */
+#ifdef WIN32
+#   ifdef _DEBUG
+        _CRTIMP int __cdecl _CrtSetDbgFlag(_In_ int _NewFlag);
+#       define _CRTDBG_ALLOC_MEM_DF     0x01
+#       define _CRTDBG_LEAK_CHECK_DF    0x20
+#   endif //#ifdef _DEBUG
+#endif //#ifdef WIN32
+
 
 /* from buildinfo.c */
 #ifdef BUILD_DATE
@@ -197,7 +211,7 @@ static bool use_crash_handler = true;
 #if defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
 static void fpe_handler(int UNUSED(sig))
 {
-	// printf("SIGFPE trapped\n");
+	fprintf(stderr, "debug: SIGFPE trapped\n");
 }
 #endif
 
@@ -308,6 +322,9 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	BLI_argsPrintArgDoc(ba, "--debug-handlers");
 #ifdef WITH_LIBMV
 	BLI_argsPrintArgDoc(ba, "--debug-libmv");
+#endif
+#ifdef WITH_CYCLES_LOGGING
+	BLI_argsPrintArgDoc(ba, "--debug-cycles");
 #endif
 	BLI_argsPrintArgDoc(ba, "--debug-memory");
 	BLI_argsPrintArgDoc(ba, "--debug-jobs");
@@ -450,6 +467,15 @@ static int debug_mode_libmv(int UNUSED(argc), const char **UNUSED(argv), void *U
 }
 #endif
 
+#ifdef WITH_CYCLES_LOGGING
+static int debug_mode_cycles(int UNUSED(argc), const char **UNUSED(argv),
+                             void *UNUSED(data))
+{
+	CCL_start_debug_logging();
+	return 0;
+}
+#endif
+
 static int debug_mode_memory(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	MEM_set_memory_debug();
@@ -494,72 +520,11 @@ static int set_fpe(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(dat
 	return 0;
 }
 
-#if defined(__linux__) || defined(__APPLE__)
-
-/* Unix */
 static void blender_crash_handler_backtrace(FILE *fp)
 {
-#define SIZE 100
-	void *buffer[SIZE];
-	int nptrs;
-	char **strings;
-	int i;
-
 	fputs("\n# backtrace\n", fp);
-
-	/* include a backtrace for good measure */
-	nptrs = backtrace(buffer, SIZE);
-	strings = backtrace_symbols(buffer, nptrs);
-	for (i = 0; i < nptrs; i++) {
-		fputs(strings[i], fp);
-		fputc('\n', fp);
-	}
-
-	free(strings);
-#undef SIZE
+	BLI_system_backtrace(fp);
 }
-
-#elif defined(_MSC_VER)
-
-static void blender_crash_handler_backtrace(FILE *fp)
-{
-	(void)fp;
-
-#if 0
-#define MAXSYMBOL 256
-	unsigned short	i;
-	void *stack[SIZE];
-	unsigned short nframes;
-	SYMBOL_INFO	*symbolinfo;
-	HANDLE process;
-
-	process = GetCurrentProcess();
-
-	SymInitialize(process, NULL, true);
-
-	nframes = CaptureStackBackTrace(0, SIZE, stack, NULL);
-	symbolinfo = MEM_callocN(sizeof(SYMBOL_INFO) + MAXSYMBOL * sizeof(char), "crash Symbol table");
-	symbolinfo->MaxNameLen = MAXSYMBOL - 1;
-	symbolinfo->SizeOfStruct = sizeof(SYMBOL_INFO);
-
-	for (i = 0; i < nframes; i++) {
-		SymFromAddr(process, ( DWORD64 )( stack[ i ] ), 0, symbolinfo);
-
-		fprintf(fp, "%u: %s - 0x%0X\n", nframes - i - 1, symbolinfo->Name, symbolinfo->Address);
-	}
-
-	MEM_freeN(symbolinfo);
-#endif
-}
-
-#else  /* non msvc/osx/linux */
-
-static void blender_crash_handler_backtrace(FILE *fp)
-{
-	(void)fp;
-}
-
-#endif
 
 static void blender_crash_handler(int signum)
 {
@@ -569,7 +534,7 @@ static void blender_crash_handler(int signum)
 		char fname[FILE_MAX];
 
 		if (!G.main->name[0]) {
-			BLI_make_file_string("/", fname, BLI_temp_dir_base(), "crash.blend");
+			BLI_make_file_string("/", fname, BKE_tempdir_base(), "crash.blend");
 		}
 		else {
 			BLI_strncpy(fname, G.main->name, sizeof(fname));
@@ -590,10 +555,10 @@ static void blender_crash_handler(int signum)
 	char fname[FILE_MAX];
 
 	if (!G.main->name[0]) {
-		BLI_join_dirfile(fname, sizeof(fname), BLI_temp_dir_base(), "blender.crash.txt");
+		BLI_join_dirfile(fname, sizeof(fname), BKE_tempdir_base(), "blender.crash.txt");
 	}
 	else {
-		BLI_join_dirfile(fname, sizeof(fname), BLI_temp_dir_base(), BLI_path_basename(G.main->name));
+		BLI_join_dirfile(fname, sizeof(fname), BKE_tempdir_base(), BLI_path_basename(G.main->name));
 		BLI_replace_extension(fname, sizeof(fname), ".crash.txt");
 	}
 
@@ -625,7 +590,7 @@ static void blender_crash_handler(int signum)
 	}
 
 	/* Delete content of temp dir! */
-	BLI_temp_dir_session_purge();
+	BKE_tempdir_session_purge();
 
 	/* really crash */
 	signal(signum, SIG_DFL);
@@ -887,6 +852,8 @@ static int set_verbosity(int argc, const char **argv, void *UNUSED(data))
 
 #ifdef WITH_LIBMV
 		libmv_setLoggingVerbosity(level);
+#elif defined(WITH_CYCLES_LOGGING)
+		CCL_logging_verbosity_set(level);
 #else
 		(void)level;
 #endif
@@ -1172,7 +1139,7 @@ static int run_python_file(int argc, const char **argv, void *data)
 		return 0;
 	}
 #else
-	(void)argc; (void)argv; (void)data; /* unused */
+	UNUSED_VARS(argc, argv, data);
 	printf("This blender was built without python support\n");
 	return 0;
 #endif /* WITH_PYTHON */
@@ -1202,7 +1169,7 @@ static int run_python_text(int argc, const char **argv, void *data)
 		return 0;
 	}
 #else
-	(void)argc; (void)argv; (void)data; /* unused */
+	UNUSED_VARS(argc, argv, data);
 	printf("This blender was built without python support\n");
 	return 0;
 #endif /* WITH_PYTHON */
@@ -1217,7 +1184,7 @@ static int run_python_console(int UNUSED(argc), const char **argv, void *data)
 
 	return 0;
 #else
-	(void)argv; (void)data; /* unused */
+	UNUSED_VARS(argv, data);
 	printf("This blender was built without python support\n");
 	return 0;
 #endif /* WITH_PYTHON */
@@ -1235,7 +1202,7 @@ static int set_addons(int argc, const char **argv, void *data)
 		BPY_CTX_SETUP(BPY_string_exec(C, str));
 		free(str);
 #else
-		(void)argv; (void)data; /* unused */
+		UNUSED_VARS(argv, data);
 #endif /* WITH_PYTHON */
 		return 1;
 	}
@@ -1419,6 +1386,9 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #ifdef WITH_LIBMV
 	BLI_argsAdd(ba, 1, NULL, "--debug-libmv", "\n\tEnable debug messages from libmv library", debug_mode_libmv, NULL);
 #endif
+#ifdef WITH_CYCLES_LOGGING
+	BLI_argsAdd(ba, 1, NULL, "--debug-cycles", "\n\tEnable debug messages from Cycles", debug_mode_cycles, NULL);
+#endif
 	BLI_argsAdd(ba, 1, NULL, "--debug-memory", "\n\tEnable fully guarded memory allocation and debugging", debug_mode_memory, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
@@ -1503,14 +1473,24 @@ int main(
 	bContext *C;
 	SYS_SystemHandle syshandle;
 
+    /* Lets catch all the memory leaks...
+       Is not usable for Blender internals currently - as there are a lot of "free" and "new" names
+       defined - they all become broken by macroses defined in <crtdbg.h> header.
+       */
+#ifdef WIN32
+#   ifdef _DEBUG
+        _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#   endif //#ifdef _DEBUG
+#endif //#ifdef WIN32
+
 #ifndef WITH_PYTHON_MODULE
 	bArgs *ba;
 #endif
 
 #ifdef WIN32
-    /* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
+	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
 #  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
-    _set_FMA3_enable(0);
+	_set_FMA3_enable(0);
 #  endif
 
 	/* Win32 Unicode Args */
@@ -1564,6 +1544,10 @@ int main(
 	}
 #endif
 
+#ifdef WITH_SDL_DYNLOAD
+	sdlewInit();
+#endif
+
 	C = CTX_create();
 
 #ifdef WITH_PYTHON_MODULE
@@ -1583,11 +1567,14 @@ int main(
 
 #ifdef WITH_LIBMV
 	libmv_initLogging(argv[0]);
+#elif defined(WITH_CYCLES_LOGGING)
+	CCL_init_logging(argv[0]);
 #endif
 
 	setCallbacks();
+	
 #if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE)
-	/* patch to ignore argument finder gives us (pid?) */
+/* patch to ignore argument finder gives us (pid?) */
 	if (argc == 2 && strncmp(argv[1], "-psn_", 5) == 0) {
 		extern int GHOST_HACK_getFirstFile(char buf[]);
 		static char firstfilebuf[512];
@@ -1599,15 +1586,14 @@ int main(
 			argv[1] = firstfilebuf;
 		}
 	}
-
 #endif
-
+	
 #ifdef __FreeBSD__
 	fpsetmask(0);
 #endif
 
 	/* initialize path to executable */
-	BLI_init_program_path(argv[0]);
+	BKE_appdir_program_path_init(argv[0]);
 
 	BLI_threadapi_init();
 
@@ -1619,6 +1605,8 @@ int main(
 	DAG_init();
 
 	BKE_brush_system_init();
+	RE_init_texture_rng();
+	
 
 	BLI_callback_global_init();
 
@@ -1684,7 +1672,7 @@ int main(
 
 		/* this is properly initialized with user defs, but this is default */
 		/* call after loading the startup.blend so we can read U.tempdir */
-		BLI_temp_dir_init(U.tempdir);
+		BKE_tempdir_init(U.tempdir);
 	}
 	else {
 #ifndef WITH_PYTHON_MODULE
@@ -1694,7 +1682,7 @@ int main(
 		WM_init(C, argc, (const char **)argv);
 
 		/* don't use user preferences temp dir */
-		BLI_temp_dir_init(NULL);
+		BKE_tempdir_init(NULL);
 	}
 #ifdef WITH_PYTHON
 	/**

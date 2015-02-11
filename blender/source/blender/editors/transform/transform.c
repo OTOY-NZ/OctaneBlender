@@ -58,6 +58,7 @@
 #include "BKE_particle.h"
 #include "BKE_unit.h"
 #include "BKE_mask.h"
+#include "BKE_report.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -199,6 +200,12 @@ static bool transdata_check_local_center(TransInfo *t, short around)
 	        );
 }
 
+bool transdata_check_local_islands(TransInfo *t, short around)
+{
+	return ((around == V3D_LOCAL) && (
+	        (t->obedit && ELEM(t->obedit->type, OB_MESH))));
+}
+
 /* ************************** SPACE DEPENDANT CODE **************************** */
 
 void setTransformViewMatrices(TransInfo *t)
@@ -270,7 +277,8 @@ void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 			r_vec[0] = dx;
 			r_vec[1] = dy;
 		}
-		else {	const float mval_f[2] = {(float)dx, (float)dy};
+		else {
+			const float mval_f[2] = {(float)dx, (float)dy};
 			ED_view3d_win_to_delta(t->ar, mval_f, r_vec, t->zfac);
 		}
 	}
@@ -577,7 +585,10 @@ void removeAspectRatio(TransInfo *t, float vec[2])
 
 static void viewRedrawForce(const bContext *C, TransInfo *t)
 {
-	if (t->spacetype == SPACE_VIEW3D) {
+	if (t->options & CTX_GPENCIL_STROKES) {
+		WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
+	}
+	else if (t->spacetype == SPACE_VIEW3D) {
 		if (t->options & CTX_PAINT_CURVE) {
 			wmWindow *window = CTX_wm_window(C);
 			WM_paint_cursor_tag_redraw(window, t->ar);
@@ -1123,47 +1134,22 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				handled = true;
 				break;
 			case TFM_MODAL_AXIS_X:
-				if ((t->flag & T_NO_CONSTRAINT) == 0) {
-					if (cmode == 'X') {
-						stopConstraint(t);
-					}
-					else {
-						if (t->flag & T_2D_EDIT) {
-							setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS0), IFACE_("along X"));
-						}
-						else {
-							setUserConstraint(t, t->current_orientation, (CON_AXIS0), IFACE_("along %s X"));
-						}
-					}
+				if (!(t->flag & T_NO_CONSTRAINT)) {
+					transform_event_xyz_constraint(t, XKEY, cmode);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_AXIS_Y:
 				if ((t->flag & T_NO_CONSTRAINT) == 0) {
-					if (cmode == 'Y') {
-						stopConstraint(t);
-					}
-					else {
-						if (t->flag & T_2D_EDIT) {
-							setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS1), IFACE_("along Y"));
-						}
-						else {
-							setUserConstraint(t, t->current_orientation, (CON_AXIS1), IFACE_("along %s Y"));
-						}
-					}
+					transform_event_xyz_constraint(t, YKEY, cmode);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_AXIS_Z:
-				if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-					if (cmode == 'Z') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, t->current_orientation, (CON_AXIS2), IFACE_("along %s Z"));
-					}
+				if ((t->flag & (T_NO_CONSTRAINT)) == 0) {
+					transform_event_xyz_constraint(t, ZKEY, cmode);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
@@ -2030,6 +2016,12 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			options |= CTX_TEXTURE;
 		}
 	}
+	
+	if ((prop = RNA_struct_find_property(op->ptr, "gpencil_strokes")) && RNA_property_is_set(op->ptr, prop)) {
+		if (RNA_property_boolean_get(op->ptr, prop)) {
+			options |= CTX_GPENCIL_STROKES;
+		}
+	}
 
 	t->options = options;
 
@@ -2053,7 +2045,6 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	initTransInfo(C, t, op, event);
 
 	if (t->spacetype == SPACE_VIEW3D) {
-		//calc_manipulator_stats(curarea);
 		initTransformOrientation(C, t);
 
 		t->draw_handle_apply = ED_region_draw_cb_activate(t->ar->type, drawTransformApply, t, REGION_DRAW_PRE_VIEW);
@@ -3183,37 +3174,22 @@ static void headerResize(TransInfo *t, float vec[3], char str[MAX_INFO_LEN])
 	}
 }
 
-/* FLT_EPSILON is too small [#29633], 0.0000001f starts to flip */
-#define TX_FLIP_EPS 0.00001f
-BLI_INLINE int tx_sign(const float a)
-{
-	return (a < -TX_FLIP_EPS ? 1 : a > TX_FLIP_EPS ? 2 : 3);
-}
-BLI_INLINE int tx_vec_sign_flip(const float a[3], const float b[3])
-{
-	return ((tx_sign(a[0]) & tx_sign(b[0])) == 0 ||
-	        (tx_sign(a[1]) & tx_sign(b[1])) == 0 ||
-	        (tx_sign(a[2]) & tx_sign(b[2])) == 0);
-}
-
-/* smat is reference matrix, only scaled */
+/**
+ * \a smat is reference matrix only.
+ *
+ * \note this is a tricky area, before making changes see: T29633, T42444
+ */
 static void TransMat3ToSize(float mat[3][3], float smat[3][3], float size[3])
 {
-	float vec[3];
-	
-	copy_v3_v3(vec, mat[0]);
-	size[0] = normalize_v3(vec);
-	copy_v3_v3(vec, mat[1]);
-	size[1] = normalize_v3(vec);
-	copy_v3_v3(vec, mat[2]);
-	size[2] = normalize_v3(vec);
-	
-	/* first tried with dotproduct... but the sign flip is crucial */
-	if (tx_vec_sign_flip(mat[0], smat[0]) ) size[0] = -size[0];
-	if (tx_vec_sign_flip(mat[1], smat[1]) ) size[1] = -size[1];
-	if (tx_vec_sign_flip(mat[2], smat[2]) ) size[2] = -size[2];
-}
+	float rmat[3][3];
 
+	mat3_to_rot_size(rmat, size, mat);
+
+	/* first tried with dotproduct... but the sign flip is crucial */
+	if (dot_v3v3(rmat[0], smat[0]) < 0.0f) size[0] = -size[0];
+	if (dot_v3v3(rmat[1], smat[1]) < 0.0f) size[1] = -size[1];
+	if (dot_v3v3(rmat[2], smat[2]) < 0.0f) size[2] = -size[2];
+}
 
 static void ElementResize(TransInfo *t, TransData *td, float mat[3][3])
 {
@@ -4066,6 +4042,9 @@ static void initTranslation(TransInfo *t)
 {
 	if (t->spacetype == SPACE_ACTION) {
 		/* this space uses time translate */
+		BKE_report(t->reports, RPT_ERROR, 
+		           "Use 'Time_Translate' transform mode instead of 'Translation' mode "
+		           "for translating keyframes in Dope Sheet Editor");
 		t->state = TRANS_CANCEL;
 	}
 
@@ -4096,6 +4075,11 @@ static void initTranslation(TransInfo *t)
 		t->snap[0] = 0.0f;
 		t->snap[1] = ED_node_grid_size() * NODE_GRID_STEPS;
 		t->snap[2] = ED_node_grid_size();
+	}
+	else if (t->spacetype == SPACE_IPO) {
+		t->snap[0] = 0.0f;
+		t->snap[1] = 1.0;
+		t->snap[2] = 0.1f;
 	}
 	else {
 		t->snap[0] = 0.0f;
@@ -4223,29 +4207,21 @@ static void applyTranslationValue(TransInfo *t, float vec[3])
 		
 		if (td->flag & TD_SKIP)
 			continue;
-		
+
 		/* handle snapping rotation before doing the translation */
 		if (usingSnappingNormal(t)) {
 			if (validSnappingNormal(t)) {
 				const float *original_normal;
-				float axis[3];
-				float quat[4];
 				float mat[3][3];
-				float angle;
 				
 				/* In pose mode, we want to align normals with Y axis of bones... */
 				if (t->flag & T_POSE)
 					original_normal = td->axismtx[1];
 				else
 					original_normal = td->axismtx[2];
-				
-				cross_v3_v3v3(axis, original_normal, t->tsnap.snapNormal);
-				angle = saacos(dot_v3v3(original_normal, t->tsnap.snapNormal));
-				
-				axis_angle_to_quat(quat, axis, angle);
-				
-				quat_to_mat3(mat, quat);
-				
+
+				rotation_between_vecs_to_mat3(mat, original_normal, t->tsnap.snapNormal);
+
 				ElementRotation(t, td, mat, V3D_LOCAL);
 			}
 			else {
@@ -7165,10 +7141,11 @@ static void headerSeqSlide(TransInfo *t, float val[2], char str[MAX_INFO_LEN])
 	                    WM_bool_as_string((t->flag & T_ALT_TRANSFORM) != 0));
 }
 
-static void applySeqSlideValue(TransInfo *t, const float val[2])
+static void applySeqSlideValue(TransInfo *t, const float val[2], int frame)
 {
 	TransData *td = t->data;
 	int i;
+	TransSeq *ts = t->customData;
 
 	for (i = 0; i < t->total; i++, td++) {
 		float tvec[2];
@@ -7183,15 +7160,21 @@ static void applySeqSlideValue(TransInfo *t, const float val[2])
 
 		mul_v2_fl(tvec, td->factor);
 
-		td->loc[0] = td->iloc[0] + tvec[0];
+		if (t->modifiers & MOD_SNAP_INVERT) {
+			td->loc[0] = frame + td->factor * (td->iloc[0] - ts->min);
+		}
+		else {
+			td->loc[0] = td->iloc[0] + tvec[0];
+		}
+
 		td->loc[1] = td->iloc[1] + tvec[1];
 	}
 }
 
-static void applySeqSlide(TransInfo *t, const int UNUSED(mval[2]))
+static void applySeqSlide(TransInfo *t, const int mval[2])
 {
 	char str[MAX_INFO_LEN];
-
+	int snap_frame = 0;
 	if (t->con.mode & CON_APPLY) {
 		float pvec[3] = {0.0f, 0.0f, 0.0f};
 		float tvec[3];
@@ -7199,7 +7182,8 @@ static void applySeqSlide(TransInfo *t, const int UNUSED(mval[2]))
 		copy_v3_v3(t->values, tvec);
 	}
 	else {
-		snapGridIncrement(t, t->values);
+		snap_frame = snapSequenceBounds(t, mval);
+		// snapGridIncrement(t, t->values);
 		applyNumInput(&t->num, t->values);
 	}
 
@@ -7207,7 +7191,7 @@ static void applySeqSlide(TransInfo *t, const int UNUSED(mval[2]))
 	t->values[1] = floor(t->values[1] + 0.5f);
 
 	headerSeqSlide(t, t->values, str);
-	applySeqSlideValue(t, t->values);
+	applySeqSlideValue(t, t->values, snap_frame);
 
 	recalcData(t);
 

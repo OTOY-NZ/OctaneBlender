@@ -1360,7 +1360,7 @@ static unsigned int uv_edge_hash(const void *key)
 	        BLI_ghashutil_uinthash(edge->uv1);
 }
 
-static int uv_edge_compare(const void *a, const void *b)
+static bool uv_edge_compare(const void *a, const void *b)
 {
 	UvEdge *edge1 = (UvEdge *)a;
 	UvEdge *edge2 = (UvEdge *)b;
@@ -1660,7 +1660,7 @@ static int stitch_init(bContext *C, wmOperator *op)
 		return 0;
 	}
 
-	uvedit_get_aspect(scene, obedit, em, &aspx, &aspy);
+	ED_uvedit_get_aspect(scene, obedit, em->bm, &aspx, &aspy);
 	state->aspect = aspx / aspy;
 
 	/* Entirely possible if redoing last operator that static island is bigger than total number of islands.

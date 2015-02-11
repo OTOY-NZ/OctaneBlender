@@ -25,6 +25,8 @@
 #include "util_types.h"
 #include <OpenImageIO/ustring.h>
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 using namespace OIIO_NAMESPACE;
@@ -64,6 +66,7 @@ public:
     float       vis_general;
     bool        vis_cam;
     bool        vis_shadow;
+    int32_t     layer_number;
 
 	vector<float3>	points;
 	vector<float3>	normals;

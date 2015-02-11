@@ -78,11 +78,8 @@
 
 #include "rayintersection.h"
 #include "rayobject.h"
-#include "renderpipeline.h"
 #include "render_types.h"
 #include "renderdatabase.h"
-#include "texture.h"
-#include "strand.h"
 #include "zbuf.h"
 
 /* ------------------------------------------------------------------------- */
@@ -992,10 +989,10 @@ HaloRen *RE_inithalo(Render *re, ObjectRen *obr, Material *ma,
 		xn=  har->xs - 0.5f*re->winx*(hoco1[0]/hoco1[3]);
 		yn=  har->ys - 0.5f*re->winy*(hoco1[1]/hoco1[3]);
 		if (xn==0.0f || (xn==0.0f && yn==0.0f)) zn= 0.0f;
-		else zn= atan2(yn, xn);
+		else zn = atan2f(yn, xn);
 
-		har->sin= sin(zn);
-		har->cos= cos(zn);
+		har->sin = sinf(zn);
+		har->cos = cosf(zn);
 		zn= len_v3v3(vec1, vec);
 
 		har->hasize= vectsize*zn + (1.0f-vectsize)*hasize;
@@ -1112,10 +1109,10 @@ HaloRen *RE_inithalo_particle(Render *re, ObjectRen *obr, DerivedMesh *dm, Mater
 		xn=  har->xs - 0.5f*re->winx*(hoco1[0]/hoco1[3]);
 		yn=  har->ys - 0.5f*re->winy*(hoco1[1]/hoco1[3]);
 		if (xn==0.0f || (xn==0.0f && yn==0.0f)) zn= 0.0;
-		else zn= atan2(yn, xn);
+		else zn = atan2f(yn, xn);
 
-		har->sin= sin(zn);
-		har->cos= cos(zn);
+		har->sin = sinf(zn);
+		har->cos = cosf(zn);
 		zn= len_v3v3(vec1, vec)*0.5f;
 
 		har->hasize= vectsize*zn + (1.0f-vectsize)*hasize;
@@ -1284,8 +1281,8 @@ void project_renderdata(Render *re,
 	if (do_pano) {
 		float panophi= xoffs;
 		
-		re->panosi= sin(panophi);
-		re->panoco= cos(panophi);
+		re->panosi = sinf(panophi);
+		re->panoco = cosf(panophi);
 	}
 
 	for (obr=re->objecttable.first; obr; obr=obr->next) {
@@ -1394,7 +1391,7 @@ void RE_makeRenderInstances(Render *re)
 	int tot;
 
 	/* convert list of object instances to an array for index based lookup */
-	tot= BLI_countlist(&re->instancetable);
+	tot= BLI_listbase_count(&re->instancetable);
 	re->objectinstance= MEM_callocN(sizeof(ObjectInstanceRen)*tot, "ObjectInstance");
 	re->totinstance= tot;
 	newlist.first= newlist.last= NULL;

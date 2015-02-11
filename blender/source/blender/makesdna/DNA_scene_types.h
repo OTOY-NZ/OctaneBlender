@@ -242,6 +242,7 @@ typedef enum ScenePassType {
 	SCE_PASS_SUBSURFACE_DIRECT        = (1 << 28),
 	SCE_PASS_SUBSURFACE_INDIRECT      = (1 << 29),
 	SCE_PASS_SUBSURFACE_COLOR         = (1 << 30),
+	SCE_PASS_DEBUG                    = (1 << 31),  /* This is a virtual pass. */
 } ScenePassType;
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
@@ -835,7 +836,7 @@ typedef struct Paint {
 typedef struct ImagePaintSettings {
 	Paint paint;
 
-	short flag, pad;
+	short flag, missing_data;
 	
 	/* for projection painting only */
 	short seam_bleed, normal_angle;
@@ -1092,9 +1093,10 @@ typedef struct ToolSettings {
 	short autoik_chainlen;  /* runtime only */
 
 	/* Grease Pencil */
-	char gpencil_flags;
+	char gpencil_flags;		/* flags/options for how the tool works */
+	char gpencil_src;		/* for main 3D view Grease Pencil, where data comes from */
 
-	char pad[5];
+	char pad[4];
 
 	/* Image Paint (8 byttse aligned please!) */
 	struct ImagePaintSettings imapaint;
@@ -1483,7 +1485,10 @@ enum {
 
 /* sequencer seq_prev_type seq_rend_type */
 
-
+/* scene->r.engine (scene.c) */
+extern const char *RE_engine_id_BLENDER_RENDER;
+extern const char *RE_engine_id_BLENDER_GAME;
+extern const char *RE_engine_id_CYCLES;
 
 /* **************** SCENE ********************* */
 
@@ -1733,6 +1738,11 @@ typedef enum ImagePaintMode {
 #define IMAGEPAINT_PROJECT_LAYER_STENCIL	256
 #define IMAGEPAINT_PROJECT_LAYER_STENCIL_INV	512
 
+#define IMAGEPAINT_MISSING_UVS       (1 << 0)
+#define IMAGEPAINT_MISSING_MATERIAL  (1 << 1)
+#define IMAGEPAINT_MISSING_TEX       (1 << 2)
+#define IMAGEPAINT_MISSING_STENCIL   (1 << 3)
+
 /* toolsettings->uvcalc_flag */
 #define UVCALC_FILLHOLES			1
 #define UVCALC_NO_ASPECT_CORRECT	2	/* would call this UVCALC_ASPECT_CORRECT, except it should be default with old file */
@@ -1759,6 +1769,12 @@ typedef enum ImagePaintMode {
 
 /* toolsettings->gpencil_flags */
 #define GP_TOOL_FLAG_PAINTSESSIONS_ON	(1<<0)
+
+/* toolsettings->gpencil_src */
+typedef enum eGPencil_Source_3D {
+	GP_TOOL_SOURCE_SCENE    = 0,
+	GP_TOOL_SOURCE_OBJECT   = 1
+} eGPencil_Source_3d;
 
 /* toolsettings->particle flag */
 #define PE_KEEP_LENGTHS			1

@@ -33,7 +33,6 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_rand.h"
-#include "BLI_rect.h"
 
 #include "BKE_brush.h"
 #include "BKE_colortools.h"
@@ -49,7 +48,6 @@
 #include "IMB_imbuf_types.h"
 
 #include "RE_render_ext.h" /* externtex */
-#include "RE_shader_ext.h"
 
 static RNG *brush_rng;
 
@@ -937,7 +935,7 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
 	do {
 		rand_pos[0] = BLI_rng_get_float(brush_rng) - 0.5f;
 		rand_pos[1] = BLI_rng_get_float(brush_rng) - 0.5f;
-	} while (len_squared_v2(rand_pos) > (0.5f * 0.5f));
+	} while (len_squared_v2(rand_pos) > SQUARE(0.5f));
 
 
 	if (brush->flag & BRUSH_ABSOLUTE_JITTER) {
@@ -1048,7 +1046,7 @@ struct ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary)
 
 	for (i = 0; i < side; ++i) {
 		for (j = 0; j < side; ++j) {
-			float magn = sqrtf(powf(i - half, 2) + powf(j - half, 2));
+			float magn = sqrtf(pow2f(i - half) + pow2f(j - half));
 			im->rect_float[i * side + j] = BKE_brush_curve_strength_clamp(br, magn, half);
 		}
 	}

@@ -53,8 +53,6 @@
 #include "BKE_colortools.h"
 #include "BKE_animsys.h"
 
-#include "RNA_access.h"
-
 static const char *modifier_name[LS_MODIFIER_NUM] = {
 	NULL,
 	"Along Stroke",
@@ -93,6 +91,7 @@ static void default_linestyle_settings(FreestyleLineStyle *linestyle)
 	linestyle->min_length = 0.0f;
 	linestyle->max_length = 10000.0f;
 	linestyle->split_length = 100;
+	linestyle->chain_count = 10;
 	linestyle->sort_key = LS_SORT_KEY_DISTANCE_FROM_CAMERA;
 	linestyle->integration_type = LS_INTEGRATION_MEAN;
 	linestyle->texstep = 1.0f;
@@ -186,6 +185,7 @@ FreestyleLineStyle *BKE_linestyle_copy(FreestyleLineStyle *linestyle)
 	new_linestyle->max_angle = linestyle->max_angle;
 	new_linestyle->min_length = linestyle->min_length;
 	new_linestyle->max_length = linestyle->max_length;
+	new_linestyle->chain_count = linestyle->chain_count;
 	new_linestyle->split_dash1 = linestyle->split_dash1;
 	new_linestyle->split_gap1 = linestyle->split_gap1;
 	new_linestyle->split_dash2 = linestyle->split_dash2;
@@ -440,7 +440,7 @@ LineStyleModifier *BKE_linestyle_alpha_modifier_add(FreestyleLineStyle *linestyl
 		{
 			LineStyleAlphaModifier_Material *p = (LineStyleAlphaModifier_Material *)m;
 			p->curve = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-			p->mat_attr = LS_MODIFIER_MATERIAL_ALPHA;
+			p->mat_attr = LS_MODIFIER_MATERIAL_LINE_A;
 			break;
 		}
 		default:

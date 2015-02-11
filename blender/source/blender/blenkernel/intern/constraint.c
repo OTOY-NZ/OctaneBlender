@@ -185,6 +185,10 @@ void BKE_constraints_clear_evalob(bConstraintOb *cob)
 	
 	/* calculate delta of constraints evaluation */
 	invert_m4_m4(imat, cob->startmat);
+	/* XXX This would seem to be in wrong order. However, it does not work in 'right' order - would be nice to
+	 *     understand why premul is needed here instead of usual postmul?
+	 *     In any case, we **do not get a delta** here (e.g. startmat & matrix having same location, still gives
+	 *     a 'delta' with non-null translation component :/ ).*/
 	mul_m4_m4m4(delta, cob->matrix, imat);
 	
 	/* copy matrices back to source */
@@ -1967,7 +1971,7 @@ static void pycon_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstraintTa
 static void pycon_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targets)
 {
 #ifndef WITH_PYTHON
-	(void)con; (void)cob; (void)targets; /* unused */
+	UNUSED_VARS(con, cob, targets);
 	return;
 #else
 	bPythonConstraint *data = con->data;
@@ -2613,6 +2617,8 @@ static void stretchto_new_data(void *cdata)
 	data->plane = 0;
 	data->orglength = 0.0; 
 	data->bulge = 1.0;
+	data->bulge_max = 1.0f;
+	data->bulge_min = 1.0f;
 }
 
 static void stretchto_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -2658,7 +2664,7 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 	if (VALID_CONS_TARGET(ct)) {
 		float size[3], scale[3], vec[3], xx[3], zz[3], orth[3];
 		float totmat[3][3];
-		float dist;
+		float dist, bulge;
 		
 		/* store scaling before destroying obmat */
 		mat4_to_size(size, cob->matrix);
@@ -2676,7 +2682,7 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 /*		vec[2] /= size[2];*/
 		
 /*		dist = normalize_v3(vec);*/
-		
+
 		dist = len_v3v3(cob->matrix[3], ct->matrix[3]);
 		/* Only Y constrained object axis scale should be used, to keep same length when scaling it. */
 		dist /= size[1];
@@ -2684,23 +2690,49 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		/* data->orglength==0 occurs on first run, and after 'R' button is clicked */
 		if (data->orglength == 0)
 			data->orglength = dist;
-		if (data->bulge == 0)
-			data->bulge = 1.0;
-		
+
 		scale[1] = dist / data->orglength;
+		
+		bulge = powf(data->orglength / dist, data->bulge);
+		
+		if (bulge > 1.0f) {
+			if (data->flag & STRETCHTOCON_USE_BULGE_MAX) {
+				float bulge_max = max_ff(data->bulge_max, 1.0f);
+				float hard = min_ff(bulge, bulge_max);
+				
+				float range = bulge_max - 1.0f;
+				float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
+				float soft = 1.0f + range * atanf((bulge - 1.0f) * scale) / (0.5f * M_PI);
+				
+				bulge = interpf(soft, hard, data->bulge_smooth);
+			}
+		}
+		if (bulge < 1.0f) {
+			if (data->flag & STRETCHTOCON_USE_BULGE_MIN) {
+				float bulge_min = CLAMPIS(data->bulge_max, 0.0f, 1.0f);
+				float hard = max_ff(bulge, bulge_min);
+				
+				float range = 1.0f - bulge_min;
+				float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
+				float soft = 1.0f - range * atanf((1.0f - bulge) * scale) / (0.5f * M_PI);
+				
+				bulge = interpf(soft, hard, data->bulge_smooth);
+			}
+		}
+		
 		switch (data->volmode) {
 			/* volume preserving scaling */
 			case VOLUME_XZ:
-				scale[0] = 1.0f - sqrtf(data->bulge) + sqrtf(data->bulge * (data->orglength / dist));
+				scale[0] = sqrtf(bulge);
 				scale[2] = scale[0];
 				break;
 			case VOLUME_X:
-				scale[0] = 1.0f + data->bulge * (data->orglength / dist - 1);
+				scale[0] = bulge;
 				scale[2] = 1.0;
 				break;
 			case VOLUME_Z:
 				scale[0] = 1.0;
-				scale[2] = 1.0f + data->bulge * (data->orglength / dist - 1);
+				scale[2] = bulge;
 				break;
 			/* don't care for volume */
 			case NO_VOLUME:
@@ -3429,10 +3461,16 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 					}
 					
 					/* transform normal into requested space */
-					unit_m4(mat);
-					BKE_constraint_mat_convertspace(cob->ob, cob->pchan, mat, CONSTRAINT_SPACE_LOCAL, scon->projAxisSpace);
-					invert_m4(mat);
-					mul_mat3_m4_v3(mat, no);
+					/* We cannot use BKE_constraint_mat_convertspace here, it does not take into account scaling...
+					 * In theory we would not need it, but in this case we'd have to tweak SpaceTransform to also
+					 * optionally ignore scaling when handling normals - simpler to directly call BKE_object_to_mat4
+					 * if needed! See T42447. */
+					if (scon->projAxisSpace == CONSTRAINT_SPACE_WORLD) {
+						BKE_object_to_mat4(cob->ob, mat);
+						invert_m4(mat);
+						mul_mat3_m4_v3(mat, no);
+					}
+					/* Else, we remain in local space, nothing to do. */
 
 					if (normalize_v3(no) < FLT_EPSILON) {
 						fail = true;
@@ -3592,7 +3630,7 @@ static void damptrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		cross_v3_v3v3(raxis, obvec, tarvec);
 		
 		rangle = dot_v3v3(obvec, tarvec);
-		rangle = acos(max_ff(-1.0f, min_ff(1.0f, rangle)));
+		rangle = acosf(max_ff(-1.0f, min_ff(1.0f, rangle)));
 		
 		/* construct rotation matrix from the axis-angle rotation found above 
 		 *	- this call takes care to make sure that the axis provided is a unit vector first
@@ -4357,10 +4395,10 @@ bool BKE_constraint_remove(ListBase *list, bConstraint *con)
 	if (con) {
 		BKE_constraint_free_data(con);
 		BLI_freelinkN(list, con);
-		return 1;
+		return true;
 	}
 	else
-		return 0;
+		return false;
 }
 
 /* ......... */
@@ -4624,15 +4662,15 @@ bool BKE_constraints_proxylocked_owner(Object *ob, bPoseChannel *pchan)
 			
 			/* On bone-level, check if bone is on proxy-protected layer */
 			if ((pchan->bone) && (pchan->bone->layer & arm->layer_protected))
-				return 1;
+				return true;
 		}
 		else {
 			/* FIXME: constraints on object-level are not handled well yet */
-			return 1;
+			return true;
 		}
 	}
 	
-	return 0;
+	return false;
 }
 
 /* -------- Target-Matrix Stuff ------- */

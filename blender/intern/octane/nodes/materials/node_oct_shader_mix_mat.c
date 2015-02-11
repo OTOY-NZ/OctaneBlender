@@ -28,10 +28,10 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Amount"),	        0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_SHADER,    1,  N_("Material1")},
-	{SOCK_SHADER,    1,  N_("Material2")},
-    {SOCK_SHADER,    1,  N_("Displacement"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{SOCK_FLOAT,     1,  N_("Amount"),	        0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_SHADER,    1,  N_("Material1"),       0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_SHADER,    1,  N_("Material2"),       0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_SHADER,    1,  N_("Displacement"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
     {-1, 0, ""}
 };
 
@@ -54,6 +54,7 @@ void register_node_type_sh_oct_mix_mat(void) {
 	node_type_init(&ntype, 0);
 	node_type_storage(&ntype, "", NULL, NULL);
 	node_type_gpu(&ntype, node_shader_gpu_oct_mix_mat);
+    ntype.update_internal_links = node_update_internal_links_default;
 
 	nodeRegisterType(&ntype);
 } /* register_node_type_sh_oct_mix_mat() */

@@ -92,6 +92,7 @@ void BlenderSession::create_session()
 
 	/* reset status/progress */
 	last_status = "";
+	last_error = "";
 	last_progress = -1.0f;
 	start_resize_time = 0.0;
 
@@ -261,6 +262,14 @@ static PassType get_pass_type(BL::RenderPass b_pass)
 		case BL::RenderPass::type_SPECULAR:
 		case BL::RenderPass::type_REFLECTION:
 			return PASS_NONE;
+#ifdef WITH_CYCLES_DEBUG
+		case BL::RenderPass::type_DEBUG:
+		{
+			if(b_pass.debug_type() == BL::RenderPass::debug_type_BVH_TRAVERSAL_STEPS)
+				return PASS_BVH_TRAVERSAL_STEPS;
+			break;
+		}
+#endif
 	}
 	
 	return PASS_NONE;
@@ -423,6 +432,9 @@ void BlenderSession::render()
 		/* add passes */
 		vector<Pass> passes;
 		Pass::add(PASS_COMBINED, passes);
+#ifdef WITH_CYCLES_DEBUG
+		Pass::add(PASS_BVH_TRAVERSAL_STEPS, passes);
+#endif
 
 		if(session_params.device.advanced_shading) {
 
@@ -815,11 +827,9 @@ void BlenderSession::update_status_progress()
 	get_status(status, substatus);
 	get_progress(progress, total_time);
 
-	
-
 	if(background) {
-		if(progress>0)
-			remaining_time = (1-progress) * (total_time / progress);
+		if(progress > 0)
+			remaining_time = (1.0 - (double)progress) * (total_time / (double)progress);
 
 		scene += " | " + b_scene.name();
 		if(b_rlay_name != "")
@@ -832,13 +842,13 @@ void BlenderSession::update_status_progress()
 		if(samples > 0 && total_samples != USHRT_MAX)
 			remaining_time = (total_samples - samples) * (total_time / samples);
 	}
-	
-	if(remaining_time>0) {
+
+	if(remaining_time > 0) {
 		BLI_timestr(remaining_time, time_str, sizeof(time_str));
 		timestatus += "Remaining:" + string(time_str) + " | ";
 	}
-	
-	timestatus += string_printf("Mem:%.2fM, Peak:%.2fM", mem_used, mem_peak);
+
+	timestatus += string_printf("Mem:%.2fM, Peak:%.2fM", (double)mem_used, (double)mem_peak);
 
 	if(status.size() > 0)
 		status = " | " + status;
@@ -853,6 +863,21 @@ void BlenderSession::update_status_progress()
 	if(progress != last_progress) {
 		b_engine.update_progress(progress);
 		last_progress = progress;
+	}
+
+	if (session->progress.get_error()) {
+		string error = session->progress.get_error_message();
+		if(error != last_error) {
+			/* TODO(sergey): Currently C++ RNA API doesn't let us to
+			 * use mnemonic name for the variable. Would be nice to
+			 * have this figured out.
+			 *
+			 * For until then, 1 << 5 means RPT_ERROR.
+			 */
+			b_engine.report(1 << 5, error.c_str());
+			b_engine.error_set(error.c_str());
+			last_error = error;
+		}
 	}
 }
 

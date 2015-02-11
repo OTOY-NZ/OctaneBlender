@@ -158,6 +158,7 @@ DefNode( ShaderNode,     SH_NODE_OCT_GRADIENT_TEX,          0,               "OC
 DefNode( ShaderNode,     SH_NODE_OCT_RANDOM_COLOR_TEX,      0,               "OCT_RANDOM_COLOR_TEX",  OctRandomColorTex,   "Octane Random Color Tex",      ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_DISPLACEMENT_TEX,      0,               "OCT_DISPLACEMENT_TEX",  OctDisplacementTex,  "Octane Displacement",          ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_POLYGON_SIDE_TEX,      0,               "OCT_POLYGON_SIDE_TEX",  OctPolygonSideTex,   "Octane Polygon Side Tex",      ""    )
+DefNode(ShaderNode,      SH_NODE_OCT_NOISE_TEX,             0,               "OCT_NOISE_TEX",         OctNoiseTex,         "Octane Noise Tex",             ""    )
 
 DefNode( ShaderNode,     SH_NODE_OCT_BBODY_EMI,             0,               "OCT_BBODY_EMI",         OctBlackBodyEmission,"Octane Black Body Emission",   ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_TEXTURE_EMI,           0,               "OCT_TEXT_EMI",          OctTextureEmission,  "Octane Texture Emission",      ""    )

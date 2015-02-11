@@ -1,16 +1,16 @@
 
 set(INC
 	.
+	../../glew-mx
 )
 
 set(INC_SYS
 	${GLEW_INCLUDE_PATH}
-	${OPENGL_INCLUDE_DIR}
 )
 
 set(SRC
 	util_cache.cpp
-	util_dynlib.cpp
+	util_logging.cpp
 	util_md5.cpp
 	util_path.cpp
 	util_string.cpp
@@ -30,16 +30,17 @@ endif()
 set(SRC_HEADERS
 	util_algorithm.h
 	util_args.h
+	util_atomic.h
 	util_boundbox.h
 	util_cache.h
 	util_debug.h
-	util_dynlib.h
 	util_foreach.h
 	util_function.h
 	util_half.h
 	util_hash.h
 	util_image.h
 	util_list.h
+	util_logging.h
 	util_map.h
 	util_math.h
 	util_md5.h
@@ -68,5 +69,7 @@ set(SRC_HEADERS
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
+
+add_definitions(${GL_DEFINITIONS})
 
 add_library(cycles_util ${SRC} ${SRC_HEADERS})

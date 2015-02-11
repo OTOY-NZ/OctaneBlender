@@ -28,6 +28,8 @@
 #include "util_types.h"
 #include "util_lists.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 void    path_init(const string& path = "", const string& user_path = "");

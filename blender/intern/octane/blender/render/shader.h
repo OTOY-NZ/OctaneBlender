@@ -21,6 +21,8 @@
 
 #include "util_string.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class RenderServer;

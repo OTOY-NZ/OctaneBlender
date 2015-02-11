@@ -505,7 +505,7 @@ void b_bone_spline_setup(bPoseChannel *pchan, int rest, Mat4 result_array[MAX_BB
 			invert_m3_m3(imat3, mat3);
 			mul_m3_m3m3(mat3, result, imat3); /* the matrix transforming vec_roll to desired roll */
 
-			roll1 = (float)atan2(mat3[2][0], mat3[2][2]);
+			roll1 = atan2f(mat3[2][0], mat3[2][2]);
 		}
 	}
 	else {
@@ -543,7 +543,7 @@ void b_bone_spline_setup(bPoseChannel *pchan, int rest, Mat4 result_array[MAX_BB
 		invert_m3_m3(imat3, mat3);
 		mul_m3_m3m3(mat3, imat3, result); /* the matrix transforming vec_roll to desired roll */
 
-		roll2 = (float)atan2(mat3[2][0], mat3[2][2]);
+		roll2 = atan2f(mat3[2][0], mat3[2][2]);
 
 		/* and only now negate handle */
 		mul_v3_fl(h2, -hlength2);
@@ -840,7 +840,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm, float
 	/* bone defmats are already in the channels, chan_mat */
 
 	/* initialize B_bone matrices and dual quaternions */
-	totchan = BLI_countlist(&armOb->pose->chanbase);
+	totchan = BLI_listbase_count(&armOb->pose->chanbase);
 
 	if (use_quaternion) {
 		dualquats = MEM_callocN(sizeof(DualQuat) * totchan, "dualquats");
@@ -866,7 +866,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm, float
 	armature_def_nr = defgroup_name_index(target, defgrp_name);
 
 	if (ELEM(target->type, OB_MESH, OB_LATTICE)) {
-		defbase_tot = BLI_countlist(&target->defbase);
+		defbase_tot = BLI_listbase_count(&target->defbase);
 
 		if (target->type == OB_MESH) {
 			Mesh *me = target->data;
@@ -1654,6 +1654,7 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			pchanw.next = pchan->next;
 			pchanw.parent = pchan->parent;
 			pchanw.child = pchan->child;
+			pchanw.custom_tx = pchan->custom_tx;
 
 			pchanw.mpath = pchan->mpath;
 			pchan->mpath = NULL;
@@ -1662,7 +1663,7 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			if (pchanw.prop) {
 				pchanw.prop = IDP_CopyProperty(pchanw.prop);
 				
-				/* use the values from the the existing props */
+				/* use the values from the existing props */
 				if (pchan->prop) {
 					IDP_SyncGroupValues(pchanw.prop, pchan->prop);
 				}
@@ -1916,7 +1917,7 @@ static void splineik_init_tree_from_pchan(Scene *scene, Object *UNUSED(ob), bPos
 		if (ikData->points)
 			MEM_freeN(ikData->points);
 		ikData->numpoints = ikData->chainlen + 1;
-		ikData->points = MEM_callocN(sizeof(float) * ikData->numpoints, "Spline IK Binding");
+		ikData->points = MEM_mallocN(sizeof(float) * ikData->numpoints, "Spline IK Binding");
 
 		/* bind 'tip' of chain (i.e. first joint = tip of bone with the Spline IK Constraint) */
 		ikData->points[0] = 1.0f;
@@ -1943,6 +1944,9 @@ static void splineik_init_tree_from_pchan(Scene *scene, Object *UNUSED(ob), bPos
 		/* spline has now been bound */
 		ikData->flag |= CONSTRAINT_SPLINEIK_BOUND;
 	}
+
+	/* disallow negative values (happens with float precision) */
+	CLAMP_MIN(ikData->points[segcount], 0.0f);
 
 	/* apply corrections for sensitivity to scaling on a copy of the bind points,
 	 * since it's easier to determine the positions of all the joints beforehand this way
@@ -1989,7 +1993,7 @@ static void splineik_init_tree_from_pchan(Scene *scene, Object *UNUSED(ob), bPos
 		tree->chainlen = segcount;
 
 		/* copy over the array of links to bones in the chain (from tip to root) */
-		tree->chain = MEM_callocN(sizeof(bPoseChannel *) * segcount, "SplineIK Chain");
+		tree->chain = MEM_mallocN(sizeof(bPoseChannel *) * segcount, "SplineIK Chain");
 		memcpy(tree->chain, pchanChain, sizeof(bPoseChannel *) * segcount);
 
 		/* store reference to joint position array */

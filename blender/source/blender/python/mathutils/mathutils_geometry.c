@@ -149,6 +149,11 @@ static PyObject *M_Geometry_intersect_ray_tri(PyObject *UNUSED(self), PyObject *
 	/* calculate t, ray intersects triangle */
 	t = dot_v3v3(e2, qvec) * inv_det;
 
+	/* ray hit behind */
+	if (t < 0.0f) {
+		Py_RETURN_NONE;
+	}
+
 	mul_v3_fl(dir, t);
 	add_v3_v3v3(pvec, orig, dir);
 
@@ -692,12 +697,12 @@ static PyObject *M_Geometry_intersect_plane_plane(PyObject *UNUSED(self), PyObje
 PyDoc_STRVAR(M_Geometry_intersect_line_sphere_doc,
 ".. function:: intersect_line_sphere(line_a, line_b, sphere_co, sphere_radius, clip=True)\n"
 "\n"
-"   Takes a lines (as 2 vectors), a sphere as a point and a radius and\n"
+"   Takes a line (as 2 points) and a sphere (as a point and a radius) and\n"
 "   returns the intersection\n"
 "\n"
-"   :arg line_a: First point of the first line\n"
+"   :arg line_a: First point of the line\n"
 "   :type line_a: :class:`mathutils.Vector`\n"
-"   :arg line_b: Second point of the first line\n"
+"   :arg line_b: Second point of the line\n"
 "   :type line_b: :class:`mathutils.Vector`\n"
 "   :arg sphere_co: The center of the sphere\n"
 "   :type sphere_co: :class:`mathutils.Vector`\n"
@@ -773,12 +778,12 @@ static PyObject *M_Geometry_intersect_line_sphere(PyObject *UNUSED(self), PyObje
 PyDoc_STRVAR(M_Geometry_intersect_line_sphere_2d_doc,
 ".. function:: intersect_line_sphere_2d(line_a, line_b, sphere_co, sphere_radius, clip=True)\n"
 "\n"
-"   Takes a lines (as 2 vectors), a sphere as a point and a radius and\n"
+"   Takes a line (as 2 points) and a sphere (as a point and a radius) and\n"
 "   returns the intersection\n"
 "\n"
-"   :arg line_a: First point of the first line\n"
+"   :arg line_a: First point of the line\n"
 "   :type line_a: :class:`mathutils.Vector`\n"
-"   :arg line_b: Second point of the first line\n"
+"   :arg line_b: Second point of the line\n"
 "   :type line_b: :class:`mathutils.Vector`\n"
 "   :arg sphere_co: The center of the sphere\n"
 "   :type sphere_co: :class:`mathutils.Vector`\n"

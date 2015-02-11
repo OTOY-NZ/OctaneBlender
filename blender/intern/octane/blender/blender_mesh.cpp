@@ -239,6 +239,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
     octane_mesh->vis_general        = RNA_float_get(&cmesh, "vis_general");
     octane_mesh->vis_cam            = RNA_boolean_get(&cmesh, "vis_cam");
     octane_mesh->vis_shadow         = RNA_boolean_get(&cmesh, "vis_shadow");
+    octane_mesh->layer_number       = RNA_int_get(&cmesh, "layer_number");
 
 	if(b_mesh) {
         if(!hide_tris) create_mesh(scene, b_ob, octane_mesh, b_mesh, &cmesh, octane_mesh->used_shaders);

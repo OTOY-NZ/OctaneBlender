@@ -21,6 +21,8 @@
 
 #include "util_types.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class RenderServer;
@@ -71,7 +73,6 @@ public:
     float   filter_size;
     float   ray_epsilon;
     bool    alpha_channel;
-    bool    keep_environment;
     bool    alpha_shadows;
     bool    bump_normal_mapping;
     bool    wf_bktrace_hl;
@@ -107,6 +108,10 @@ public:
     float       uv_max;
     bool        distributed_tracing;
     float       max_speed;
+
+    bool        layers_enable;
+    int32_t     layers_current;
+    bool        layers_invert;
 
     uint32_t    uiGPUs;
 

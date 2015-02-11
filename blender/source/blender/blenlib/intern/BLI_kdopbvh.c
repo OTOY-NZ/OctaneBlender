@@ -979,14 +979,14 @@ void BLI_bvhtree_insert(BVHTree *tree, int index, const float co[3], int numpoin
 
 
 /* call before BLI_bvhtree_update_tree() */
-int BLI_bvhtree_update_node(BVHTree *tree, int index, const float co[3], const float co_moving[3], int numpoints)
+bool BLI_bvhtree_update_node(BVHTree *tree, int index, const float co[3], const float co_moving[3], int numpoints)
 {
 	BVHNode *node = NULL;
 	axis_t axis_iter;
 	
 	/* check if index exists */
 	if (index > tree->totleaf)
-		return 0;
+		return false;
 	
 	node = tree->nodearray + index;
 	
@@ -1001,7 +1001,7 @@ int BLI_bvhtree_update_node(BVHTree *tree, int index, const float co[3], const f
 		node->bv[(2 * axis_iter) + 1] += tree->epsilon; /* maximum */
 	}
 
-	return 1;
+	return true;
 }
 
 /* call BLI_bvhtree_update_node() first for every node/point/triangle */

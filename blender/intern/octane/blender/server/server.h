@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 7
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 0
+#   define OCTANE_SERVER_MINOR_VERSION 1
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -85,6 +85,8 @@
 #include "BLI_math_color.h"
 #include "BLI_fileops.h"
 #include "DNA_ID.h"
+
+#include "memleaks_check.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -175,7 +177,8 @@ enum PacketType {
     LOAD_DISPLACEMENT_TEXTURE,
     LOAD_RANDOM_COLOR_TEXTURE,
     LOAD_POLYGON_SIDE_TEXTURE,
-    LOAD_TEXTURE_LAST = LOAD_POLYGON_SIDE_TEXTURE,
+    LOAD_NOISE_TEXTURE,
+    LOAD_TEXTURE_LAST = LOAD_NOISE_TEXTURE,
     DEL_TEXTURE,
 
     LOAD_EMISSION_FIRST,
@@ -1121,16 +1124,18 @@ public:
         thread_scoped_lock socket_lock(socket_mutex);
 
         {
-            RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*30, LOAD_PASSES);
+            RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*35, LOAD_PASSES);
             uint32_t cur_pass_type = static_cast<uint32_t>(passes->cur_pass_type);
             snd << passes->pass_filter_size << passes->pass_z_depth_max << passes->pass_uv_max << passes->pass_max_speed << passes->pass_ao_distance
-                << passes->use_passes << cur_pass_type << passes->pass_max_samples << passes->pass_ao_max_samples << passes->pass_start_samples << passes->pass_distributed_tracing << passes->pass_alpha_shadows
+                << passes->use_passes << cur_pass_type << passes->pass_max_samples << passes->pass_ao_max_samples << passes->pass_distributed_tracing << passes->pass_alpha_shadows
 
                 << passes->combined_pass << passes->emitters_pass << passes->environment_pass << passes->diffuse_direct_pass << passes->diffuse_indirect_pass << passes->reflection_direct_pass << passes->reflection_indirect_pass
                 << passes->refraction_pass << passes->transmission_pass << passes->subsurf_scattering_pass << passes->post_processing_pass
 
                 << passes->geom_normals_pass << passes->shading_normals_pass << passes->vertex_normals_pass << passes->position_pass << passes->z_depth_pass << passes->material_id_pass << passes->uv_coordinates_pass
-                << passes->tangents_pass << passes->wireframe_pass << passes->object_id_pass << passes->ao_pass << passes->motion_vector_pass;
+                << passes->tangents_pass << passes->wireframe_pass << passes->object_id_pass << passes->ao_pass << passes->motion_vector_pass
+                << passes->layer_shadows_pass << passes->layer_black_shadows_pass << passes->layer_color_shadows_pass << passes->layer_reflections_pass
+                << passes->layer_id_pass << passes->layer_mask_pass;
             snd.write();
         }
 
@@ -1155,47 +1160,47 @@ public:
         switch(kernel->kernel_type) {
         case Kernel::DIRECT_LIGHT:
         {
-            RPCSend snd(socket, sizeof(float) * 6 + sizeof(int32_t) * 10, LOAD_KERNEL);
+            RPCSend snd(socket, sizeof(float) * 6 + sizeof(int32_t) * 12, LOAD_KERNEL);
             int32_t gi_mode = static_cast<int32_t>(kernel->gi_mode);
             snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->path_term_power << kernel->coherent_ratio << kernel->ao_dist
-                << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows << kernel->static_noise
-                << kernel->specular_depth << kernel->glossy_depth << gi_mode << kernel->diffuse_depth;
+                << kernel->alpha_channel << kernel->alpha_shadows << kernel->static_noise
+                << kernel->specular_depth << kernel->glossy_depth << gi_mode << kernel->diffuse_depth << kernel->layers_enable << kernel->layers_current << kernel->layers_invert;
             snd.write();
         }
             break;
         case Kernel::PATH_TRACE:
         {
-            RPCSend snd(socket, sizeof(float) * 7 + sizeof(int32_t) * 8, LOAD_KERNEL);
+            RPCSend snd(socket, sizeof(float) * 7 + sizeof(int32_t) * 10, LOAD_KERNEL);
             snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->path_term_power << kernel->coherent_ratio << kernel->caustic_blur << kernel->gi_clamp
-                << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows << kernel->static_noise
-                << kernel->max_diffuse_depth << kernel->max_glossy_depth;
+                << kernel->alpha_channel << kernel->alpha_shadows << kernel->static_noise
+                << kernel->max_diffuse_depth << kernel->max_glossy_depth << kernel->layers_enable << kernel->layers_current << kernel->layers_invert;
             snd.write();
         }
             break;
         case Kernel::PMC:
         {
-            RPCSend snd(socket, sizeof(float) * 8 + sizeof(int32_t) * 9, LOAD_KERNEL);
+            RPCSend snd(socket, sizeof(float) * 8 + sizeof(int32_t) * 11, LOAD_KERNEL);
             snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->path_term_power << kernel->exploration << kernel->direct_light_importance << kernel->caustic_blur << kernel->gi_clamp
-                << kernel->alpha_channel << kernel->keep_environment << kernel->alpha_shadows
-                << kernel->max_diffuse_depth << kernel->max_glossy_depth << kernel->max_rejects << kernel->parallelism;
+                << kernel->alpha_channel << kernel->alpha_shadows
+                << kernel->max_diffuse_depth << kernel->max_glossy_depth << kernel->max_rejects << kernel->parallelism << kernel->layers_enable << kernel->layers_current << kernel->layers_invert;
             snd.write();
         }
             break;
         case Kernel::INFO_CHANNEL:
         {
-            RPCSend snd(socket, sizeof(float) * 7 + sizeof(int32_t) * 8, LOAD_KERNEL);
+            RPCSend snd(socket, sizeof(float) * 7 + sizeof(int32_t) * 11, LOAD_KERNEL);
             int32_t info_channel_type = static_cast<int32_t>(kernel->info_channel_type);
             snd << kernel_type << info_channel_type << kernel->shuttertime << kernel->filter_size << kernel->zdepth_max << kernel->uv_max << kernel->ray_epsilon << kernel->ao_dist << kernel->max_speed
                 << kernel->alpha_channel << kernel->bump_normal_mapping << kernel->alpha_shadows
-                << kernel->wf_bktrace_hl << kernel->distributed_tracing << (interactive ? kernel->max_preview_samples : kernel->max_samples);
+                << kernel->wf_bktrace_hl << kernel->distributed_tracing << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->layers_enable << kernel->layers_current << kernel->layers_invert;
             snd.write();
         }
             break;
         default:
         {
-            RPCSend snd(socket, sizeof(int32_t) * 2 + sizeof(float), LOAD_KERNEL);
+            RPCSend snd(socket, sizeof(int32_t) * 5 + sizeof(float), LOAD_KERNEL);
             int32_t def_kernel_type = static_cast<int32_t>(Kernel::DEFAULT);
-            snd << def_kernel_type << def_kernel_type << kernel->shuttertime;
+            snd << def_kernel_type << def_kernel_type << kernel->shuttertime << kernel->layers_enable << kernel->layers_current << kernel->layers_invert;
             snd.write();
         }
             break;
@@ -1377,6 +1382,7 @@ public:
                                     int32_t         *open_subd_level,
                                     float           *open_subd_sharpness,
                                     int32_t         *open_subd_bound_interp,
+                                    int32_t         *layer_number,
                                     float           *general_vis,
                                     bool            *cam_vis,
                                     bool            *shadow_vis,
@@ -1389,7 +1395,7 @@ public:
                 uint64_t size = sizeof(uint64_t) //Meshes count;
                     + sizeof(uint32_t) * 2 //Frame index
                     + sizeof(int32_t) * 4 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Subdivision addributes
-                    + sizeof(int32_t) * 3 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Visibility and reshapable addributes
+                    + sizeof(int32_t) * 4 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Visibility and reshapable addributes
                     + sizeof(uint64_t) * 10 * mesh_cnt;
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     size +=
@@ -1448,7 +1454,7 @@ public:
                     if(uv_indices_size[i]) snd.write_buffer(uv_indices[i], uv_indices_size[i] * sizeof(int32_t));
                     if(vert_per_hair_size[i]) snd.write_buffer(vert_per_hair[i], vert_per_hair_size[i] * sizeof(int32_t));
                     if(vert_per_hair_size[i]) snd.write_buffer(hair_mat_indices[i], vert_per_hair_size[i] * sizeof(int32_t));
-                    snd << open_subd_enable[i] << open_subd_scheme[i] << open_subd_level[i] << open_subd_bound_interp[i] << cam_vis[i] << shadow_vis[i] << reshapable[i];
+                    snd << open_subd_enable[i] << open_subd_scheme[i] << open_subd_level[i] << open_subd_bound_interp[i] << layer_number[i] << cam_vis[i] << shadow_vis[i] << reshapable[i];
                 }
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     if(!global) snd << names[i];
@@ -1567,7 +1573,7 @@ public:
     inline void load_specular_mat(OctaneSpecularMaterial* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 10 + sizeof(float) * 3 + sizeof(int32_t) * 2
+        uint64_t size = sizeof(float) * 10 + sizeof(float) * 3 + sizeof(int32_t) * 3
             + node->reflection.length() + 2
             + node->transmission.length() + 2
             + node->filmwidth.length() + 2
@@ -1590,7 +1596,7 @@ public:
             snd << node->reflection_default_val.x << node->reflection_default_val.y << node->reflection_default_val.z
                 << node->transmission_default_val << node->filmwidth_default_val << node->bump_default_val << node->normal_default_val
                 << node->opacity_default_val << node->roughness_default_val << node->filmindex_default_val << node->index_default_val << node->dispersion_coef_B_default_val << node->rounding_default_val
-                << node->smooth << node->fake_shadows
+                << node->smooth << node->refraction_alpha << node->fake_shadows
                 << node->filmindex.c_str() << node->index.c_str() << node->dispersion_coef_B.c_str() << node->rounding.c_str()
                 << node->reflection.c_str() << node->transmission.c_str() << node->filmwidth.c_str() << node->bump.c_str()
                 << node->normal.c_str() << node->opacity.c_str() << node->roughness.c_str() << node->medium.c_str() << node->displacement.c_str();
@@ -2416,6 +2422,30 @@ public:
         }
         wait_error(LOAD_POLYGON_SIDE_TEXTURE);
     } //load_polygon_side_tex()
+
+    inline void load_noise_tex(OctaneNoiseTexture* node) {
+        if(socket < 0) return;
+
+        uint64_t size = sizeof(float) * 3 + sizeof(int32_t) * 3
+            + node->noise_type.length() + 2
+            + node->Octaves.length() + 2
+            + node->Omega.length() + 2
+            + node->Transform.length() + 2
+            + node->Projection.length() + 2
+            + node->Gamma.length() + 2
+            + node->Contrast.length() + 2;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+        {
+            RPCSend snd(socket, size, LOAD_NOISE_TEXTURE, node->name.c_str());
+            snd << node->Omega_default_val << node->Gamma_default_val << node->Contrast_default_val
+                << node->noise_type_default_val << node->Octaves_default_val << node->Invert
+                << node->noise_type.c_str() << node->Octaves.c_str() << node->Omega.c_str() << node->Transform.c_str()
+                << node->Projection.c_str() << node->Gamma.c_str() << node->Contrast.c_str();
+            snd.write();
+        }
+        wait_error(LOAD_NOISE_TEXTURE);
+    } //load_noise_tex()
 
     inline void load_displacement_tex(OctaneDisplacementTexture* node) {
         if(socket < 0) return;

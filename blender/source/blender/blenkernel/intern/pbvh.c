@@ -943,7 +943,7 @@ static bool update_search_cb(PBVHNode *node, void *data_v)
 	if (node->flag & PBVH_Leaf)
 		return (node->flag & flag) != 0;
 
-	return 1;
+	return true;
 }
 
 static void pbvh_update_normals(PBVH *bvh, PBVHNode **nodes,
@@ -1433,7 +1433,7 @@ void BKE_pbvh_node_get_proxies(PBVHNode *node, PBVHProxyNode **proxies, int *pro
 
 typedef struct {
 	IsectRayAABBData ray;
-	int original;
+	bool original;
 } RaycastData;
 
 static bool ray_aabb_intersect(PBVHNode *node, void *data_v)
@@ -1449,9 +1449,10 @@ static bool ray_aabb_intersect(PBVHNode *node, void *data_v)
 	return isect_ray_aabb(&rcd->ray, bb_min, bb_max, &node->tmin);
 }
 
-void BKE_pbvh_raycast(PBVH *bvh, BKE_pbvh_HitOccludedCallback cb, void *data,
-                      const float ray_start[3], const float ray_normal[3],
-                      int original)
+void BKE_pbvh_raycast(
+        PBVH *bvh, BKE_pbvh_HitOccludedCallback cb, void *data,
+        const float ray_start[3], const float ray_normal[3],
+        bool original)
 {
 	RaycastData rcd;
 
@@ -1473,10 +1474,10 @@ bool ray_face_intersection(const float ray_start[3],
 	    (t3 && isect_ray_tri_epsilon_v3(ray_start, ray_normal, t0, t2, t3, &dist, NULL, 0.1f) && dist < *fdist))
 	{
 		*fdist = dist;
-		return 1;
+		return true;
 	}
 	else {
-		return 0;
+		return false;
 	}
 }
 
@@ -1644,7 +1645,7 @@ void BKE_pbvh_raycast_project_ray_root (PBVH *bvh, bool original, float ray_star
 }
 
 
-//#include <GL/glew.h>
+//#include "GPU_glew.h"
 
 typedef struct {
 	DMSetMaterial setMaterial;

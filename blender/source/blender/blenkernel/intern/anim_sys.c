@@ -51,18 +51,23 @@
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_nla.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_library.h"
 #include "BKE_report.h"
+#include "BKE_texture.h"
 
 #include "RNA_access.h"
 
@@ -78,7 +83,7 @@ bool id_type_can_have_animdata(ID *id)
 {
 	/* sanity check */
 	if (id == NULL)
-		return 0;
+		return false;
 
 	/* Only some ID-blocks have this info for now */
 	/* TODO: finish adding this for the other blocktypes */
@@ -95,13 +100,14 @@ bool id_type_can_have_animdata(ID *id)
 		case ID_SCE:
 		case ID_MC:
 		case ID_MSK:
+		case ID_GD:
 		{
-			return 1;
+			return true;
 		}
 		
 		/* no AnimData */
 		default:
-			return 0;
+			return false;
 	}
 }
 
@@ -188,20 +194,20 @@ bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
 			/* can set */
 			adt->action = act;
 			id_us_plus((ID *)adt->action);
-			ok = 1;
+			ok = true;
 		}
 		else {
 			/* cannot set */
 			BKE_reportf(reports, RPT_ERROR,
 			            "Could not set action '%s' onto ID '%s', as it does not have suitably rooted paths "
 			            "for this purpose", act->id.name + 2, id->name);
-			/* ok = 0; */
+			/* ok = false; */
 		}
 	}
 	else {
 		/* just clearing the action... */
 		adt->action = NULL;
-		ok = 1;
+		ok = true;
 	}
 	
 	return ok;
@@ -284,7 +290,7 @@ bool BKE_copy_animdata_id(ID *id_to, ID *id_from, const bool do_action)
 	AnimData *adt;
 
 	if ((id_to && id_from) && (GS(id_to->name) != GS(id_from->name)))
-		return 0;
+		return false;
 
 	BKE_free_animdata(id_to);
 
@@ -294,7 +300,7 @@ bool BKE_copy_animdata_id(ID *id_to, ID *id_from, const bool do_action)
 		iat->adt = BKE_copy_animdata(adt, do_action);
 	}
 
-	return 1;
+	return true;
 }
 
 void BKE_copy_animdata_id_action(ID *id)
@@ -549,6 +555,74 @@ void BKE_animdata_separate_by_basepath(ID *srcID, ID *dstID, ListBase *basepaths
 			}
 		}
 	}
+}
+
+/**
+ * Temporary wrapper for driver operators for buttons to make it easier to create
+ * such drivers by rerouting all paths through the active object instead so that
+ * they will get picked up by the dependency system.
+ *
+ * \param C Context pointer - for getting active data
+ * \param[in,out] ptr RNA pointer for property's datablock. May be modified as result of path remapping.
+ * \param prop RNA definition of property to add for
+ * \return MEM_alloc'd string representing the path to the property from the given #PointerRNA
+ */
+char *BKE_animdata_driver_path_hack(bContext *C, PointerRNA *ptr, PropertyRNA *prop, char *base_path)
+{
+	ID *id = (ID *)ptr->id.data;
+	ScrArea *sa = CTX_wm_area(C);
+
+	/* get standard path which may be extended */
+	char *basepath = base_path ? base_path : RNA_path_from_ID_to_property(ptr, prop);
+	char *path = basepath; /* in case no remapping is needed */
+
+	/* Remapping will only be performed in the Properties Editor, as only this
+	 * restricts the subspace of options to the 'active' data (a manageable state)
+	 */
+	/* TODO: watch out for pinned context? */
+	if ((sa) && (sa->spacetype == SPACE_BUTS)) {
+		Object *ob = CTX_data_active_object(C);
+
+		if (ob && id) {
+			/* only id-types which can be remapped to go through objects should be considered */
+			switch (GS(id->name)) {
+				case ID_TE: /* textures */
+				{
+					Material *ma = give_current_material(ob, ob->actcol);
+					Tex *tex = give_current_material_texture(ma);
+
+					/* assumes: texture will only be shown if it is active material's active texture it's ok */
+					if ((ID *)tex == id) {
+						char name_esc_ma[(sizeof(ma->id.name) - 2) * 2];
+						char name_esc_tex[(sizeof(tex->id.name) - 2) * 2];
+
+						BLI_strescape(name_esc_ma, ma->id.name + 2, sizeof(name_esc_ma));
+						BLI_strescape(name_esc_tex, tex->id.name + 2, sizeof(name_esc_tex));
+
+						/* create new path */
+						// TODO: use RNA path functions to construct step by step instead?
+						// FIXME: maybe this isn't even needed anymore...
+						path = BLI_sprintfN("material_slots[\"%s\"].material.texture_slots[\"%s\"].texture.%s",
+						                    name_esc_ma, name_esc_tex, basepath);
+
+						/* free old one */
+						if (basepath != base_path)
+							MEM_freeN(basepath);
+					}
+					break;
+				}
+			}
+
+			/* fix RNA pointer, as we've now changed the ID root by changing the paths */
+			if (basepath != path) {
+				/* rebase provided pointer so that it starts from object... */
+				RNA_pointer_create(&ob->id, ptr->type, ptr->data, ptr);
+			}
+		}
+	}
+
+	/* the path should now have been corrected for use */
+	return path;
 }
 
 /* Path Validation -------------------------------------------- */
@@ -958,6 +1032,9 @@ void BKE_animdata_main_cb(Main *mainptr, ID_AnimData_Edit_Callback func, void *u
 
 	/* line styles */
 	ANIMDATA_IDS_CB(mainptr->linestyle.first);
+	
+	/* grease pencil */
+	ANIMDATA_IDS_CB(mainptr->gpencil.first);
 }
 
 /* Fix all RNA-Paths throughout the database (directly access the Global.main version)
@@ -1045,6 +1122,9 @@ void BKE_all_animdata_fix_paths_rename(ID *ref_id, const char *prefix, const cha
 	
 	/* linestyles */
 	RENAMEFIX_ANIM_IDS(mainptr->linestyle.first);
+	
+	/* grease pencil */
+	RENAMEFIX_ANIM_IDS(mainptr->gpencil.first);
 	
 	/* scenes */
 	RENAMEFIX_ANIM_NODETREE_IDS(mainptr->scene.first, Scene);
@@ -1273,11 +1353,11 @@ static bool animsys_remap_path(AnimMapper *UNUSED(remap), char *path, char **dst
 
 	/* nothing suitable found, so just set dst to look at path (i.e. no alloc/free needed) */
 	*dst = path;
-	return 0;
+	return false;
 }
 
 
-/* less then 1.0 evaluates to false, use epsilon to avoid float error */
+/* less than 1.0 evaluates to false, use epsilon to avoid float error */
 #define ANIMSYS_FLOAT_AS_BOOL(value) ((value) > ((1.0f - FLT_EPSILON)))
 
 /* Write the given value to a setting using RNA, and return success */
@@ -1302,7 +1382,7 @@ static bool animsys_write_rna_setting(PointerRNA *ptr, char *path, int array_ind
 					       path, array_index, array_len - 1);
 				}
 				
-				return 0;
+				return false;
 			}
 			
 			switch (RNA_property_type(prop)) {
@@ -1356,7 +1436,7 @@ static bool animsys_write_rna_setting(PointerRNA *ptr, char *path, int array_ind
 					break;
 				default:
 					/* nothing can be done here... so it is unsuccessful? */
-					return 0;
+					return false;
 			}
 			
 			/* RNA property update disabled for now - [#28525] [#28690] [#28774] [#28777] */
@@ -1395,7 +1475,7 @@ static bool animsys_write_rna_setting(PointerRNA *ptr, char *path, int array_ind
 		}
 		
 		/* successful */
-		return 1;
+		return true;
 	}
 	else {
 		/* failed to get path */
@@ -1406,7 +1486,7 @@ static bool animsys_write_rna_setting(PointerRNA *ptr, char *path, int array_ind
 			       (ptr->id.data) ? (((ID *)ptr->id.data)->name + 2) : "<No ID>",
 			       path, array_index);
 		}
-		return 0;
+		return false;
 	}
 }
 
@@ -2606,6 +2686,9 @@ void BKE_animsys_evaluate_all_animation(Main *main, Scene *scene, float ctime)
 
 	/* linestyles */
 	EVAL_ANIM_IDS(main->linestyle.first, ADT_RECALC_ANIM);
+	
+	/* grease pencil */
+	EVAL_ANIM_IDS(main->gpencil.first, ADT_RECALC_ANIM);
 	
 	/* objects */
 	/* ADT_RECALC_ANIM doesn't need to be supplied here, since object AnimData gets

@@ -49,17 +49,20 @@
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_packedFile.h"
+#include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_sound.h"
 
 #include "GPU_draw.h"
+#include "GPU_buffers.h"
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
@@ -88,6 +91,8 @@
 #include "WM_types.h"
 
 #include "PIL_time.h"
+
+#include "RE_engine.h"
 
 #include "image_intern.h"
 
@@ -944,7 +949,7 @@ static void image_open_init(bContext *C, wmOperator *op)
 
 	op->customdata = iod = MEM_callocN(sizeof(ImageOpenData), __func__);
 	iod->iuser = CTX_data_pointer_get_type(C, "image_user", &RNA_ImageUser).data;
-	uiIDContextProperty(C, &iod->pprop.ptr, &iod->pprop.prop);
+	UI_context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
 }
 
 static void image_open_cancel(bContext *UNUSED(C), wmOperator *op)
@@ -1001,10 +1006,10 @@ static void image_sequence_get_frames(PointerRNA *ptr, ListBase *frames, char *p
 	RNA_END
 }
 
-static int image_cmp_frame(void *a, void *b)
+static int image_cmp_frame(const void *a, const void *b)
 {
-	ImageFrame *frame_a = (ImageFrame *)a;
-	ImageFrame *frame_b = (ImageFrame *)b;
+	const ImageFrame *frame_a = a;
+	const ImageFrame *frame_b = b;
 
 	if (frame_a->framenr < frame_b->framenr) return -1;
 	if (frame_a->framenr > frame_b->framenr) return 1;
@@ -1021,7 +1026,7 @@ static int image_sequence_get_len(ListBase *frames, int *ofs)
 {
 	ImageFrame *frame;
 
-	BLI_sortlist(frames, image_cmp_frame);
+	BLI_listbase_sort(frames, image_cmp_frame);
 
 	frame = frames->first;
 	if (frame) {
@@ -1049,6 +1054,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	char path[FILE_MAX];
 	int frame_seq_len = 0;
 	int frame_ofs = 1;
+	bool exists = false;
 
 	const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
 
@@ -1067,7 +1073,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 
 	errno = 0;
 
-	ima = BKE_image_load_exists(path);
+	ima = BKE_image_load_exists_ex(path, &exists);
 
 	if (!ima) {
 		if (op->customdata) MEM_freeN(op->customdata);
@@ -1081,8 +1087,9 @@ static int image_open_exec(bContext *C, wmOperator *op)
 
 	/* only image path after save, never ibuf */
 	if (is_relative_path) {
-		const char *relbase = ID_BLEND_PATH(bmain, &ima->id);
-		BLI_path_rel(ima->name, relbase);
+		if (!exists) {
+			BLI_path_rel(ima->name, bmain->name);
+		}
 	}
 
 	/* hook into UI */
@@ -1124,7 +1131,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	}
 
 	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(C);
+	ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
 	
 	BKE_image_signal(ima, iuser, IMA_SIGNAL_RELOAD);
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
@@ -1155,7 +1162,7 @@ static int image_open_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 		PropertyRNA *prop;
 
 		/* hook into UI */
-		uiIDContextProperty(C, &ptr, &prop);
+		UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
 
 		if (prop) {
 			PointerRNA oldptr;
@@ -1276,7 +1283,7 @@ static int image_replace_exec(bContext *C, wmOperator *op)
 		sima->image->source = IMA_SRC_FILE;
 
 	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(C);
+	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 	
 	BKE_icon_changed(BKE_icon_getid(&sima->image->id));
 	BKE_image_signal(sima->image, &sima->iuser, IMA_SIGNAL_RELOAD);
@@ -1877,7 +1884,7 @@ static int image_reload_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 
 	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(C);
+	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 	
 	// XXX other users?
 	BKE_image_signal(ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_RELOAD);
@@ -1905,6 +1912,12 @@ void IMAGE_OT_reload(wmOperatorType *ot)
 /********************** new image operator *********************/
 #define IMA_DEF_NAME N_("Untitled")
 
+enum {
+	GEN_CONTEXT_NONE = 0,
+	GEN_CONTEXT_PAINT_CANVAS = 1,
+	GEN_CONTEXT_PAINT_STENCIL = 2
+};
+
 static int image_new_exec(bContext *C, wmOperator *op)
 {
 	SpaceImage *sima;
@@ -1918,6 +1931,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	char *name = _name;
 	float color[4];
 	int width, height, floatbuf, gen_type, alpha;
+	int gen_context;
 
 	/* retrieve state */
 	sima = CTX_wm_space_image(C);
@@ -1937,6 +1951,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	gen_type = RNA_enum_get(op->ptr, "generated_type");
 	RNA_float_get_array(op->ptr, "color", color);
 	alpha = RNA_boolean_get(op->ptr, "alpha");
+	gen_context = RNA_enum_get(op->ptr, "gen_context");
 
 	if (!alpha)
 		color[3] = 1.0f;
@@ -1947,7 +1962,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	/* hook into UI */
-	uiIDContextProperty(C, &ptr, &prop);
+	UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
 
 	if (prop) {
 		/* when creating new ID blocks, use is already 1, but RNA
@@ -1960,6 +1975,40 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	}
 	else if (sima) {
 		ED_space_image_set(sima, scene, obedit, ima);
+	}
+	else if (gen_context == GEN_CONTEXT_PAINT_CANVAS) {
+		bScreen *sc;
+		Object *ob = CTX_data_active_object(C);
+		
+		GPU_drawobject_free(ob->derivedFinal);	
+		if (scene->toolsettings->imapaint.canvas)
+			id_us_min(&scene->toolsettings->imapaint.canvas->id);
+		scene->toolsettings->imapaint.canvas = ima;
+		
+		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_IMAGE) {
+						SpaceImage *sima = (SpaceImage *)sl;
+						
+						if (!sima->pin)
+							ED_space_image_set(sima, scene, scene->obedit, ima);
+					}
+				}
+			}
+		}
+		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
+	}
+	else if (gen_context == GEN_CONTEXT_PAINT_STENCIL) {
+		Object *ob = CTX_data_active_object(C);
+		if (scene->toolsettings->imapaint.stencil)
+			id_us_min(&scene->toolsettings->imapaint.stencil->id);
+		scene->toolsettings->imapaint.stencil = ima;
+		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);	
+		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);		
 	}
 	else {
 		Tex *tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
@@ -1979,7 +2028,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 }
 
 /* XXX, Ton is not a fan of OK buttons but using this function to avoid undo/redo bug while in mesh-editmode, - campbell */
-/* XXX Note: the WM_operator_props_dialog_popup() doesn't work for uiIDContextProperty(), image is not being that way */
+/* XXX Note: the WM_operator_props_dialog_popup() doesn't work for UI_context_active_but_prop_get_templateID(), image is not being that way */
 static int image_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	/* Better for user feedback. */
@@ -1991,6 +2040,13 @@ void IMAGE_OT_new(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
 	static float default_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+	static EnumPropertyItem gen_context_items[] = {
+		{GEN_CONTEXT_NONE, "NONE", 0, "None", ""},
+		{GEN_CONTEXT_PAINT_CANVAS, "PAINT_CANVAS", 0, "Paint Canvas", ""},
+	    {GEN_CONTEXT_PAINT_STENCIL, "PAINT_STENCIL", 0, "Paint Stencil", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
 	
 	/* identifiers */
 	ot->name = "New Image";
@@ -2017,7 +2073,7 @@ void IMAGE_OT_new(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "generated_type", image_generated_type_items, IMA_GENTYPE_BLANK,
 	             "Generated Type", "Fill the image with a grid for UV map testing");
 	RNA_def_boolean(ot->srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
-	prop = RNA_def_boolean(ot->srna, "texstencil", 0, "Stencil", "Set Image as stencil");
+	prop = RNA_def_enum(ot->srna, "gen_context", gen_context_items, 0, "Gen Context", "Generation context");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 
 }
@@ -2196,15 +2252,15 @@ static int image_pack_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
 
 	if (!as_png && (ibuf && (ibuf->userflags & IB_BITMAPDIRTY))) {
-		pup = uiPupMenuBegin(C, IFACE_("OK"), ICON_QUESTION);
-		layout = uiPupMenuLayout(pup);
+		pup = UI_popup_menu_begin(C, IFACE_("OK"), ICON_QUESTION);
+		layout = UI_popup_menu_layout(pup);
 		uiItemBooleanO(layout, IFACE_("Can't pack edited image from disk, pack as internal PNG?"), ICON_NONE,
 		               op->idname, "as_png", 1);
-		uiPupMenuEnd(C, pup);
+		UI_popup_menu_end(C, pup);
 
 		BKE_image_release_ibuf(ima, ibuf, NULL);
 
-		return OPERATOR_CANCELLED;
+		return OPERATOR_INTERFACE;
 	}
 
 	BKE_image_release_ibuf(ima, ibuf, NULL);
@@ -2257,7 +2313,7 @@ static int image_unpack_exec(bContext *C, wmOperator *op)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save");
 	
 	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(C);
+	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 	
 	unpackImage(op->reports, ima, method);
 	
@@ -2528,8 +2584,9 @@ static int image_sample_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	ImageSampleInfo *info;
 
 	if (ar->regiontype == RGN_TYPE_WINDOW) {
-		if (event->mval[1] <= 16)
+		if (event->mval[1] <= 16 && ED_space_image_show_cache(sima)) {
 			return OPERATOR_PASS_THROUGH;
+		}
 	}
 
 	if (!ED_space_image_has_buffer(sima))
@@ -2963,8 +3020,10 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	ARegion *ar = CTX_wm_region(C);
 
 	if (ar->regiontype == RGN_TYPE_WINDOW) {
-		if (event->mval[1] > 16)
+		SpaceImage *sima = CTX_wm_space_image(C);
+		if (event->mval[1] > 16 || !ED_space_image_show_cache(sima)) {
 			return OPERATOR_PASS_THROUGH;
+		}
 	}
 
 	RNA_int_set(op->ptr, "frame", frame_from_event(C, event));
@@ -3048,4 +3107,102 @@ void IMAGE_OT_read_renderlayers(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = 0;
+}
+
+/* ********************* Render border operator ****************** */
+
+static int render_border_exec(bContext *C, wmOperator *op)
+{
+	ARegion *ar = CTX_wm_region(C);
+	Scene *scene = CTX_data_scene(C);
+	Render *re = RE_GetRender(scene->id.name);
+	RenderData *rd;
+	rctf border;
+
+	if (re == NULL) {
+		/* Shouldn't happen, but better be safe close to the release. */
+		return OPERATOR_CANCELLED;
+	}
+
+	rd = RE_engine_get_render_data(re);
+	if ((rd->mode & (R_BORDER | R_CROP)) == (R_BORDER | R_CROP)) {
+		BKE_report(op->reports, RPT_INFO, "Can not set border from a cropped render");
+		return OPERATOR_CANCELLED;
+	}
+
+	/* get rectangle from operator */
+	WM_operator_properties_border_to_rctf(op, &border);
+	UI_view2d_region_to_view_rctf(&ar->v2d, &border, &border);
+
+	/* actually set border */
+	CLAMP(border.xmin, 0.0f, 1.0f);
+	CLAMP(border.ymin, 0.0f, 1.0f);
+	CLAMP(border.xmax, 0.0f, 1.0f);
+	CLAMP(border.ymax, 0.0f, 1.0f);
+	scene->r.border = border;
+
+	/* drawing a border surrounding the entire camera view switches off border rendering
+	 * or the border covers no pixels */
+	if ((border.xmin <= 0.0f && border.xmax >= 1.0f &&
+	     border.ymin <= 0.0f && border.ymax >= 1.0f) ||
+	    (border.xmin == border.xmax || border.ymin == border.ymax))
+	{
+		scene->r.mode &= ~R_BORDER;
+	}
+	else {
+		scene->r.mode |= R_BORDER;
+	}
+
+	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	return OPERATOR_FINISHED;
+
+}
+
+void IMAGE_OT_render_border(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Render Border";
+	ot->description = "Set the boundaries of the border render and enable border render";
+	ot->idname = "IMAGE_OT_render_border";
+
+	/* api callbacks */
+	ot->invoke = WM_border_select_invoke;
+	ot->exec = render_border_exec;
+	ot->modal = WM_border_select_modal;
+	ot->cancel = WM_border_select_cancel;
+	ot->poll = image_cycle_render_slot_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* rna */
+	WM_operator_properties_border(ot);
+}
+
+/* ********************* Clear render border operator ****************** */
+
+static int clear_render_border_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	scene->r.mode &= ~R_BORDER;
+	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+	BLI_rctf_init(&scene->r.border, 0.0f, 1.0f, 0.0f, 1.0f);
+	return OPERATOR_FINISHED;
+
+}
+
+void IMAGE_OT_clear_render_border(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Render Border";
+	ot->description = "Clear the boundaries of the border render and disable border render";
+	ot->idname = "IMAGE_OT_clear_render_border";
+
+	/* api callbacks */
+	ot->exec = clear_render_border_exec;
+	ot->poll = image_cycle_render_slot_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

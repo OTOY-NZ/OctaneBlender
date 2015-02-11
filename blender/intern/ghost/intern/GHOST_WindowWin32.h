@@ -39,13 +39,9 @@
 
 #include "GHOST_Window.h"
 #include "GHOST_TaskbarWin32.h"
-
-#ifndef __MINGW64__
-#define _WIN32_WINNT 0x501 // require Windows XP or newer
+#ifdef WITH_INPUT_IME
+#  include "GHOST_ImeWin32.h"
 #endif
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 
 #include <wintab.h>
 #define PACKETDATA  (PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR)
@@ -80,8 +76,9 @@ public:
 	 * \param height	The height the window.
 	 * \param state		The state the window is initially opened with.
 	 * \param type		The type of drawing context installed in this window.
-	 * \param stereoVisual	Stereo visual for quad buffered stereo.
-	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
+	 * \param wantStereoVisual   Stereo visual for quad buffered stereo.
+	 * \param wantNumOfAASamples Number of samples used for AA (zero if no AA)
+	 * \param parentWindowHwnd
 	 */
 	GHOST_WindowWin32(
 	    GHOST_SystemWin32 *system,
@@ -92,11 +89,9 @@ public:
 	    GHOST_TUns32 height,
 	    GHOST_TWindowState state,
 	    GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
-	    const bool stereoVisual = false,
-	    const GHOST_TUns16 numOfAASamples = 0,
-	    GHOST_TEmbedderWindowID parentWindowHwnd = 0,
-	    GHOST_TSuccess msEnabled = GHOST_kFailure,
-	    int msPixelFormat = 0
+	    bool wantStereoVisual = false,
+	    GHOST_TUns16 wantNumOfAASamples = 0,
+	    GHOST_TEmbedderWindowID parentWindowHwnd = 0
 	    );
 
 	/**
@@ -104,13 +99,6 @@ public:
 	 * Closes the window and disposes resources allocated.
 	 */
 	virtual ~GHOST_WindowWin32();
-
-	/**
-	 * Returns the window to replace this one if it's getting replaced
-	 * \return The window replacing this one.
-	 */
-
-	GHOST_Window *getNextWindow();
 
 	/**
 	 * Returns indication as to whether the window is valid.
@@ -208,29 +196,6 @@ public:
 	virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order);
 
 	/**
-	 * Swaps front and back buffers of a window.
-	 * \return Indication of success.
-	 */
-	virtual GHOST_TSuccess swapBuffers();
-
-	/**
-	 * Sets the swap interval for swapBuffers.
-	 * \param interval The swap interval to use.
-	 * \return A boolean success indicator.
-	 */
-	virtual GHOST_TSuccess setSwapInterval(int interval);
-
-	/**
-	 * Gets the current swap interval for swapBuffers.
-	 * \return An integer.
-	 */
-	virtual int getSwapInterval();
-
-	/**
-	 * Activates the drawing context of this window.
-	 * \return Indication of success.
-	 */
-	virtual GHOST_TSuccess activateDrawingContext();
 
 	/**
 	 * Invalidates the contents of this window.
@@ -248,13 +213,6 @@ public:
 	 */
 	virtual GHOST_TSuccess endProgressBar();
 	
-	/**
-	 * Returns the name of the window class.
-	 * \return The name of the window class.
-	 */
-	static const wchar_t *getWindowClassName() {
-		return s_windowClassName;
-	}
 
 	/**
 	 * Register a mouse click event (should be called 
@@ -298,21 +256,24 @@ public:
 	/** if the window currently resizing */
 	bool m_inLiveResize;
 
-protected:
-	GHOST_TSuccess initMultisample(PIXELFORMATDESCRIPTOR pfd);
+#ifdef WITH_INPUT_IME
+	GHOST_ImeWin32 *getImeInput() {return &m_imeImput;}
+
+	virtual void beginIME(
+	        GHOST_TInt32 x, GHOST_TInt32 y,
+	        GHOST_TInt32 w, GHOST_TInt32 h,
+	        int completed);
+
+	virtual void endIME();
+#endif /* WITH_INPUT_IME */
+
+private:
 
 	/**
-	 * Tries to install a rendering context in this window.
-	 * \param type	The type of rendering context installed.
+	 * \param type	The type of rendering context create.
 	 * \return Indication of success.
 	 */
-	virtual GHOST_TSuccess installDrawingContext(GHOST_TDrawingContextType type);
-
-	/**
-	 * Removes the current drawing context.
-	 * \return Indication of success.
-	 */
-	virtual GHOST_TSuccess removeDrawingContext();
+	virtual GHOST_Context *newDrawingContext(GHOST_TDrawingContextType type);
 
 	/**
 	 * Sets the cursor visibility on the window using
@@ -360,12 +321,7 @@ protected:
 	HWND m_hWnd;
 	/** Device context handle. */
 	HDC m_hDC;
-	/** OpenGL rendering context. */
-	HGLRC m_hGlRc;
-	/** The first created OpenGL context (for sharing display lists) */
-	static HGLRC s_firsthGLRc;
-	/** The first created device context handle. */
-	static HDC s_firstHDC;
+
 	/** Flag for if window has captured the mouse */
 	bool m_hasMouseCaptured;
 	/** Flag if an operator grabs the mouse with WM_cursor_grab_enable/ungrab() 
@@ -393,29 +349,15 @@ protected:
 	LONG m_maxPressure;
 	LONG m_maxAzimuth, m_maxAltitude;
 
-	/** Preferred number of samples */
-	GHOST_TUns16 m_multisample;
-
-	/** Check if multisample is supported */
-	GHOST_TSuccess m_multisampleEnabled;
-
-	/** The pixelFormat to use for multisample */
-	int m_msPixelFormat;
-
-	/** We need to following to recreate the window */
-	const STR_String& m_title;
-	GHOST_TInt32 m_left;
-	GHOST_TInt32 m_top;
-	GHOST_TUns32 m_width;
-	GHOST_TUns32 m_height;
 	GHOST_TWindowState m_normal_state;
-	bool m_stereo;
-
-	/** The GHOST_System passes this to wm if this window is being replaced */
-	GHOST_Window *m_nextWindow;
 
 	/** Hwnd to parent window */
 	GHOST_TEmbedderWindowID m_parentWindowHwnd;
+
+#ifdef WITH_INPUT_IME
+	/** Handle input method editors event */
+	GHOST_ImeWin32 m_imeImput;
+#endif
 };
 
 #endif // __GHOST_WINDOWWIN32_H__

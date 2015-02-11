@@ -667,7 +667,7 @@ static void stencil_set_target(StencilControlData *scd)
 
 	scd->lenorig = len_v2(mdiff);
 
-	scd->init_angle = atan2(mdiff[1], mdiff[0]);
+	scd->init_angle = atan2f(mdiff[1], mdiff[0]);
 }
 
 static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -763,7 +763,7 @@ static void stencil_control_calculate(StencilControlData *scd, const int mval[2]
 		{
 			float angle;
 			sub_v2_v2v2(mdiff, mvalf, scd->pos_target);
-			angle = atan2(mdiff[1], mdiff[0]);
+			angle = atan2f(mdiff[1], mdiff[0]);
 			angle = scd->init_rot + angle - scd->init_angle;
 			if (angle < 0.0f)
 				angle += (float)(2 * M_PI);
@@ -916,7 +916,7 @@ static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
 			stencil_area = br->stencil_dimension[0] * br->stencil_dimension[1];
 		}
 
-		factor = sqrt(stencil_area / orig_area);
+		factor = sqrtf(stencil_area / orig_area);
 
 		if (do_mask) {
 			br->mask_stencil_dimension[0] = factor * aspx;
@@ -1085,6 +1085,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_brush_colors_flip);
 	WM_operatortype_append(PAINT_OT_add_texture_paint_slot);
 	WM_operatortype_append(PAINT_OT_delete_texture_paint_slot);
+	WM_operatortype_append(PAINT_OT_add_simple_uvs);
 
 	/* weight */
 	WM_operatortype_append(PAINT_OT_weight_paint_toggle);
@@ -1148,14 +1149,6 @@ static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *UNUSED(path
 	RNA_float_set(kmi->ptr, "scalar", 10.0 / 9.0); // 1.1111....
 }
 
-typedef enum {
-	RC_COLOR    = 1,
-	RC_ROTATION = 2,
-	RC_ZOOM     = 4,
-	RC_WEIGHT   = 8,
-	RC_SECONDARY_ROTATION = 16
-} RCFlags;
-
 static void set_brush_rc_path(PointerRNA *ptr, const char *brush_path,
                               const char *output_name, const char *input_name)
 {
@@ -1166,9 +1159,9 @@ static void set_brush_rc_path(PointerRNA *ptr, const char *brush_path,
 	MEM_freeN(path);
 }
 
-static void set_brush_rc_props(PointerRNA *ptr, const char *paint,
-                               const char *prop, const char *secondary_prop,
-                               RCFlags flags)
+void set_brush_rc_props(PointerRNA *ptr, const char *paint,
+                        const char *prop, const char *secondary_prop,
+                        RCFlags flags)
 {
 	const char *ups_path = "tool_settings.unified_paint_settings";
 	char *brush_path;
@@ -1324,9 +1317,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	 * 
 	 * This should be improved further, perhaps by showing a triangle
 	 * grid rather than brush alpha */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", DKEY, KM_PRESS, KM_SHIFT, 0);
-	set_brush_rc_props(kmi->ptr, "sculpt", "detail_size", NULL, 0);
-	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.sculpt.detail_size");
+	kmi = WM_keymap_add_item(keymap, "SCULPT_OT_set_detail_size", DKEY, KM_PRESS, KM_SHIFT, 0);
 
 	/* multires switch */
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_subdivision_set", PAGEUPKEY, KM_PRESS, 0, 0);

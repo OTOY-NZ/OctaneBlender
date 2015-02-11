@@ -118,7 +118,8 @@ class GRAPH_MT_view(Menu):
 
         layout.separator()
         layout.operator("screen.area_dupli")
-        layout.operator("screen.screen_full_area")
+        layout.operator("screen.screen_full_area", text="Toggle Maximize Area")
+        layout.operator("screen.screen_full_area").use_hide_panels = True
 
 
 class GRAPH_MT_select(Menu):
@@ -188,8 +189,12 @@ class GRAPH_MT_channel(Menu):
 
         layout.separator()
         layout.operator("anim.channels_editable_toggle")
-        layout.operator("anim.channels_visibility_set")
         layout.operator_menu_enum("graph.extrapolation_type", "type", text="Extrapolation Mode")
+
+        layout.separator()
+        layout.operator("graph.hide", text="Hide Selected Curves").unselected = False
+        layout.operator("graph.hide", text="Hide Unselected Curves").unselected = True
+        layout.operator("graph.reveal")
 
         layout.separator()
         layout.operator("anim.channels_expand")

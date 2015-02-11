@@ -62,6 +62,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_math_vector.h"
 #include "BLI_threads.h"
 #include "BLI_timecode.h"  /* for stamp timecode format */
 #include "BLI_utildefines.h"
@@ -120,12 +121,12 @@ static unsigned int imagecache_hashhash(const void *key_v)
 	return key->index;
 }
 
-static int imagecache_hashcmp(const void *a_v, const void *b_v)
+static bool imagecache_hashcmp(const void *a_v, const void *b_v)
 {
 	const ImageCacheKey *a = (ImageCacheKey *) a_v;
 	const ImageCacheKey *b = (ImageCacheKey *) b_v;
 
-	return a->index - b->index;
+	return (a->index != b->index);
 }
 
 static void imagecache_keydata(void *userkey, int *framenr, int *proxy, int *render_flags)
@@ -248,7 +249,7 @@ void BKE_image_de_interlace(Image *ima, int odd)
 
 /* ***************** ALLOC & FREE, DATA MANAGING *************** */
 
-static void image_free_cahced_frames(Image *image)
+static void image_free_cached_frames(Image *image)
 {
 	if (image->cache) {
 		IMB_moviecache_free(image->cache);
@@ -262,7 +263,7 @@ static void image_free_cahced_frames(Image *image)
  */
 void BKE_image_free_buffers(Image *ima)
 {
-	image_free_cahced_frames(ima);
+	image_free_cached_frames(ima);
 
 	if (ima->anim) IMB_free_anim(ima->anim);
 	ima->anim = NULL;
@@ -272,7 +273,13 @@ void BKE_image_free_buffers(Image *ima)
 		ima->rr = NULL;
 	}
 
-	GPU_free_image(ima);
+	if (!G.background) {
+		/* Background mode doesn't use opnegl,
+		 * so we can avoid freeing GPU images and save some
+		 * time by skipping mutex lock.
+		 */
+		GPU_free_image(ima);
+	}
 
 	ima->ok = IMA_OK;
 }
@@ -365,6 +372,7 @@ Image *BKE_image_copy(Main *bmain, Image *ima)
 	nima->gen_x = ima->gen_x;
 	nima->gen_y = ima->gen_y;
 	nima->gen_type = ima->gen_type;
+	copy_v4_v4(nima->gen_color, ima->gen_color);
 
 	nima->animspeed = ima->animspeed;
 
@@ -659,7 +667,7 @@ Image *BKE_image_load(Main *bmain, const char *filepath)
 /* otherwise creates new. */
 /* does not load ibuf itself */
 /* pass on optional frame for #name images */
-Image *BKE_image_load_exists(const char *filepath)
+Image *BKE_image_load_exists_ex(const char *filepath, bool *r_exists)
 {
 	Image *ima;
 	char str[FILE_MAX], strtest[FILE_MAX];
@@ -679,14 +687,22 @@ Image *BKE_image_load_exists(const char *filepath)
 					ima->id.us++;                                       /* officially should not, it doesn't link here! */
 					if (ima->ok == 0)
 						ima->ok = IMA_OK;
-					/* RETURN! */
+					if (r_exists)
+						*r_exists = true;
 					return ima;
 				}
 			}
 		}
 	}
 
+	if (r_exists)
+		*r_exists = false;
 	return BKE_image_load(G.main, filepath);
+}
+
+Image *BKE_image_load_exists(const char *filepath)
+{
+	return BKE_image_load_exists_ex(filepath, NULL);
 }
 
 static ImBuf *add_ibuf_size(unsigned int width, unsigned int height, const char *name, int depth, int floatbuf, short gen_type,
@@ -769,6 +785,7 @@ Image *BKE_image_add_generated(Main *bmain, unsigned int width, unsigned int hei
 		ima->gen_type = gen_type;
 		ima->gen_flag |= (floatbuf ? IMA_GEN_FLOAT : 0);
 		ima->gen_depth = depth;
+		copy_v4_v4(ima->gen_color, color);
 
 		ibuf = add_ibuf_size(width, height, ima->name, depth, floatbuf, gen_type, color, &ima->colorspace_settings);
 		image_assign_ibuf(ima, ibuf, IMA_NO_INDEX, 0);
@@ -2526,7 +2543,7 @@ static ImBuf *image_load_sequence_multilayer(Image *ima, ImageUser *iuser, int f
 			 * need to ensure there's no image buffers are hanging around
 			 * with dead links after freeing the render result.
 			 */
-			image_free_cahced_frames(ima);
+			image_free_cached_frames(ima);
 			RE_FreeRenderResult(ima->rr);
 			ima->rr = NULL;
 		}
@@ -2996,7 +3013,6 @@ BLI_INLINE bool image_quick_test(Image *ima, ImageUser *iuser)
 static ImBuf *image_acquire_ibuf(Image *ima, ImageUser *iuser, void **lock_r)
 {
 	ImBuf *ibuf = NULL;
-	float color[] = {0, 0, 0, 1};
 	int frame = 0, index = 0;
 
 	if (lock_r)
@@ -3041,7 +3057,7 @@ static ImBuf *image_acquire_ibuf(Image *ima, ImageUser *iuser, void **lock_r)
 			if (ima->gen_y == 0) ima->gen_y = 1024;
 			if (ima->gen_depth == 0) ima->gen_depth = 24;
 			ibuf = add_ibuf_size(ima->gen_x, ima->gen_y, ima->name, ima->gen_depth, (ima->gen_flag & IMA_GEN_FLOAT) != 0, ima->gen_type,
-			                     color, &ima->colorspace_settings);
+			                     ima->gen_color, &ima->colorspace_settings);
 			image_assign_ibuf(ima, ibuf, IMA_NO_INDEX, 0);
 			ima->ok = IMA_OK_LOADED;
 		}
@@ -3391,9 +3407,9 @@ bool BKE_image_has_alpha(struct Image *image)
 	BKE_image_release_ibuf(image, ibuf, lock);
 
 	if (planes == 32)
-		return 1;
+		return true;
 	else
-		return 0;
+		return false;
 }
 
 void BKE_image_get_size(Image *image, ImageUser *iuser, int *width, int *height)

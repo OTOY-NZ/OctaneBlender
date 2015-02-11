@@ -57,6 +57,7 @@
 #include "BKE_node.h"
 #include "BKE_material.h"
 #include "BKE_scene.h"
+#include "BKE_appdir.h"
 
 #include "ED_screen.h"
 
@@ -102,7 +103,7 @@ static void mat_livedb_width(SpaceLDB *slivedb, ListBase *lb, int *w, short star
     LiveDbTreeElement *te = lb->first;
     while (te) {
         if (!MAT_LIVEDB_ELEM_OPEN(te, slivedb)) {
-            short offsx = te->xend = startx + UI_UNIT_X * 3 + UI_GetStringWidth(te->name);
+            short offsx = te->xend = startx + UI_UNIT_X * 3 + UI_fontstyle_string_width(te->name);
             if (offsx > *w)
                 *w = offsx;
         }
@@ -232,7 +233,7 @@ static void mat_livedb_namebutton_cb(bContext *C, void *itemp, char *oldname)
 static void mat_livedb_draw_mat_preview(uiBlock *block, Scene *scene, ARegion *ar, SpaceLDB *slivedb, ListBase *lb)
 {
     LiveDbTreeElement   *te;
-    char                *file_path = (char*)BLI_get_folder_create(BLENDER_USER_DATAFILES, 0);
+    char                *file_path = (char*)BKE_appdir_folder_id_create(BLENDER_USER_DATAFILES, 0);
 
     strcat(file_path, "/livedb/");
     strcat(file_path, slivedb->server_address);
@@ -285,16 +286,16 @@ static void mat_draw_rename_buttons(const bContext *C, uiBlock *block, ARegion *
                 uiBut *bt;
                 if(new_name[0] == 0) strcpy(new_name, te->name);
 
-                dx = (int)UI_GetStringWidth(te->name);
+                dx = (int)UI_fontstyle_string_width(te->name);
                 if (dx < 5 * UI_UNIT_X) dx = 5 * UI_UNIT_X;
                 spx = te->xs + 1.8f * UI_UNIT_X;
                 if (spx + dx + 0.5f * UI_UNIT_X > ar->v2d.cur.xmax) dx = ar->v2d.cur.xmax - spx - 0.5f * UI_UNIT_X;
 
-                bt = uiDefBut(block, TEX, LDB_NAMEBUTTON, "", spx, (int)te->ys + UI_UNIT_Y * 3, dx + UI_UNIT_X, UI_UNIT_Y - 1, (void *)new_name, 1.0, 255.0f, 0, 0, "");
-                uiButSetRenameFunc(bt, mat_livedb_namebutton_cb, te->item);
+                bt = uiDefBut(block, UI_BTYPE_TEXT, LDB_NAMEBUTTON, "", spx, (int)te->ys + UI_UNIT_Y * 3, dx + UI_UNIT_X, UI_UNIT_Y - 1, (void *)new_name, 1.0, 255.0f, 0, 0, "");
+                UI_but_func_rename_set(bt, mat_livedb_namebutton_cb, te->item);
 
                 /* returns false if button got removed */
-                if (!uiButActiveOnly(C, ar, block, bt)) {
+                if (!UI_but_active_only(C, ar, block, bt)) {
                     *te->flag &= ~TE_TEXTBUT;
                     new_name[0] = 0;
                 }
@@ -337,11 +338,11 @@ static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *off
     }
     if (cat_cnt > 0) {
         snprintf(cnt_str, 16, "%d", cat_cnt);
-        string_width = UI_GetStringWidth(cnt_str);
+        string_width = UI_fontstyle_string_width(cnt_str);
 
-        uiSetRoundBox(UI_CNR_ALL);
+        UI_draw_roundbox_corner_set(UI_CNR_ALL);
         glColor4ub(220, 220, 255, 100);
-        uiRoundBox((float) *offsx - 4.0f * ufac,
+        UI_draw_roundbox((float) *offsx - 4.0f * ufac,
                    (float)ys + 1.0f * ufac,
                    (float)*offsx + UI_UNIT_X + string_width,
                    (float)ys + UI_UNIT_Y - ufac,
@@ -352,17 +353,17 @@ static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *off
 
         (*offsx) += UI_UNIT_X;
         UI_ThemeColor(TH_TEXT);
-        UI_DrawString((float)*offsx - 2 * ufac, (float)ys + 5 * ufac, cnt_str);
+        UI_draw_string((float)*offsx - 2 * ufac, (float)ys + 5 * ufac, cnt_str);
 
         offsx += (int)(UI_UNIT_X + string_width);
     }
     if (mat_cnt > 0) {
         snprintf(cnt_str, 16, "%d", mat_cnt);
-        string_width = UI_GetStringWidth(cnt_str);
+        string_width = UI_fontstyle_string_width(cnt_str);
 
-        uiSetRoundBox(UI_CNR_ALL);
+        UI_draw_roundbox_corner_set(UI_CNR_ALL);
         glColor4ub(220, 220, 255, 100);
-        uiRoundBox((float) *offsx - 4.0f * ufac,
+        UI_draw_roundbox((float) *offsx - 4.0f * ufac,
                    (float)ys + 1.0f * ufac,
                    (float)*offsx + UI_UNIT_X + string_width,
                    (float)ys + UI_UNIT_Y - ufac,
@@ -373,7 +374,7 @@ static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *off
 
         (*offsx) += UI_UNIT_X;
         UI_ThemeColor(TH_TEXT);
-        UI_DrawString((float)*offsx - 2 * ufac, (float)ys + 5 * ufac, cnt_str);
+        UI_draw_string((float)*offsx - 2 * ufac, (float)ys + 5 * ufac, cnt_str);
 
         offsx += (int)(UI_UNIT_X + string_width);
     }
@@ -441,8 +442,8 @@ static void mat_livedb_draw_tree_element(bContext *C, uiBlock *block, ARegion *a
             col_circle[3] = alpha;
             glColor4ubv((GLubyte *)col_circle);
 
-            uiSetRoundBox(UI_CNR_ALL);
-            uiRoundBox((float)startx + UI_UNIT_X - ufac,
+            UI_draw_roundbox_corner_set(UI_CNR_ALL);
+            UI_draw_roundbox((float)startx + UI_UNIT_X - ufac,
                        (float)*starty + (TE_GET_TYPE(te->item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY ? 1.0f : UI_UNIT_Y * 3),
                        (float)startx + 2.0f * UI_UNIT_X - 2.0f * ufac,
                        (float)*starty + CUR_UNIT_Y - 1.0f * ufac,
@@ -490,22 +491,22 @@ static void mat_livedb_draw_tree_element(bContext *C, uiBlock *block, ARegion *a
         else UI_ThemeColor(TH_TEXT);
 
         if(TE_GET_TYPE(te->item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY)
-            UI_DrawString(startx + offsx, *starty + 5 * ufac, te->name);
+            UI_draw_string(startx + offsx, *starty + 5 * ufac, te->name);
         else {
             uiBut *bt;
 
-            UI_DrawString(startx + offsx, *starty + UI_UNIT_X * 3 + 5 * ufac, te->name);
-            UI_DrawString(startx + offsx, *starty + UI_UNIT_X * 2 + 5 * ufac, te->nick_name);
-            UI_DrawString(startx + offsx, *starty + UI_UNIT_X + 5 * ufac, te->copyright);
+            UI_draw_string(startx + offsx, *starty + UI_UNIT_X * 3 + 5 * ufac, te->name);
+            UI_draw_string(startx + offsx, *starty + UI_UNIT_X * 2 + 5 * ufac, te->nick_name);
+            UI_draw_string(startx + offsx, *starty + UI_UNIT_X + 5 * ufac, te->copyright);
 
-            bt = uiDefIconBut(block, ICONTOG, 0, ICON_WORLD,
+            bt = uiDefIconBut(block, UI_BTYPE_ICON_TOGGLE, 0, ICON_WORLD,
                                 xmax - UI_UNIT_X - 3, *starty + 1 * ufac, UI_UNIT_X, UI_UNIT_Y,
                                 NULL, 0.0, 0.0, 1.0, 0.5f, "Get item");
-            uiButSetFunc(bt, get_material_cb, (void*)slivedb->server_address, (void*)te->item->mat_item.id);
-            uiButSetFlag(bt, UI_BUT_DRAG_LOCK);
+            UI_but_func_set(bt, get_material_cb, (void*)slivedb->server_address, (void*)te->item->mat_item.id);
+            UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
         }
 
-        offsx += (int)(UI_UNIT_X + UI_GetStringWidth(te->name));
+        offsx += (int)(UI_UNIT_X + UI_fontstyle_string_width(te->name));
 
         /* Closed item, we draw the category-info icons */
         if (TE_GET_TYPE(te->item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY && !MAT_LIVEDB_ELEM_OPEN(te, slivedb)) {
@@ -640,15 +641,15 @@ void draw_mat_livedb(const bContext *C)
     UI_view2d_view_ortho(v2d);
 
     /* draw LiveDB stuff */
-    block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
+    block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
     mat_livedb_draw_tree((bContext *)C, block, ar, slivedb);
     mat_livedb_draw_mat_preview(block, scene, ar, slivedb, &slivedb->tree);
 
     /* draw edit buttons if nessecery */
     mat_draw_rename_buttons(C, block, ar, slivedb, &slivedb->tree);
 
-    uiEndBlock(C, block);
-    uiDrawBlock(C, block);
+    UI_block_end(C, block);
+    UI_block_draw(C, block);
 
     /* clear flag that allows quick redraws */
     slivedb->storeflag &= ~LDB_TREESTORE_REDRAW;

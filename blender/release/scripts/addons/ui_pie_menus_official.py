@@ -21,7 +21,7 @@
 bl_info = {
     "name": "Pie Menus Official",
     "author": "Antony Riakiotakis",
-    "version": (1, 0, 0),
+    "version": (1, 0, 1),
     "blender": (2, 71, 4),
     "description": "Enable official pie Menus in blender",
     "category": "User Interface",
@@ -43,6 +43,21 @@ class VIEW3D_PIE_object_mode(Menu):
         pie.operator_enum("OBJECT_OT_mode_set", "mode")
 
 
+class VIEW3D_PIE_view_more(Menu):
+    bl_label = "More"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.operator("VIEW3D_OT_view_persportho", text="Persp/Ortho", icon='RESTRICT_VIEW_OFF')
+        pie.operator("VIEW3D_OT_camera_to_view")
+        pie.operator("VIEW3D_OT_view_selected")
+        pie.operator("VIEW3D_OT_view_all")
+        pie.operator("VIEW3D_OT_localview")
+        pie.operator("SCREEN_OT_region_quadview")
+
+
 class VIEW3D_PIE_view(Menu):
     bl_label = "View"
 
@@ -51,7 +66,7 @@ class VIEW3D_PIE_view(Menu):
 
         pie = layout.menu_pie()
         pie.operator_enum("VIEW3D_OT_viewnumpad", "type")
-        pie.operator("VIEW3D_OT_view_persportho", text="Persp/Ortho", icon='RESTRICT_VIEW_OFF')
+        pie.operator("wm.call_menu_pie", text="More", icon='PLUS').name = "VIEW3D_PIE_view_more"
 
 
 class VIEW3D_PIE_shade(Menu):
@@ -81,11 +96,11 @@ class VIEW3D_manipulator_set(Operator):
             items=(('TRANSLATE', "Translate", "Use the manipulator for movement transformations"),
                    ('ROTATE', "Rotate", "Use the manipulator for rotation transformations"),
                    ('SCALE', "Scale", "Use the manipulator for scale transformations"),
-                  ),
-        )
+                   ),
+            )
 
     def execute(self, context):
-        #show manipulator if user selects an option
+        # show manipulator if user selects an option
         context.space_data.show_manipulator = True
 
         context.space_data.transform_manipulators = {self.type}
@@ -132,17 +147,22 @@ class VIEW3D_PIE_snap(Menu):
 
 addon_keymaps = []
 
+classes = (
+    VIEW3D_manipulator_set,
+
+    VIEW3D_PIE_object_mode,
+    VIEW3D_PIE_view,
+    VIEW3D_PIE_view_more,
+    VIEW3D_PIE_shade,
+    VIEW3D_PIE_manipulator,
+    VIEW3D_PIE_pivot,
+    VIEW3D_PIE_snap,
+    )
+
 
 def register():
-    bpy.utils.register_class(VIEW3D_manipulator_set)
-
-    #register menus
-    bpy.utils.register_class(VIEW3D_PIE_object_mode)
-    bpy.utils.register_class(VIEW3D_PIE_view)
-    bpy.utils.register_class(VIEW3D_PIE_shade)
-    bpy.utils.register_class(VIEW3D_PIE_manipulator)
-    bpy.utils.register_class(VIEW3D_PIE_pivot)
-    bpy.utils.register_class(VIEW3D_PIE_snap)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
     wm = bpy.context.window_manager
 
@@ -165,14 +185,8 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_class(VIEW3D_manipulator_set)
-
-    bpy.utils.unregister_class(VIEW3D_PIE_object_mode)
-    bpy.utils.unregister_class(VIEW3D_PIE_view)
-    bpy.utils.unregister_class(VIEW3D_PIE_shade)
-    bpy.utils.unregister_class(VIEW3D_PIE_manipulator)
-    bpy.utils.unregister_class(VIEW3D_PIE_pivot)
-    bpy.utils.unregister_class(VIEW3D_PIE_snap)
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 
     wm = bpy.context.window_manager
 
@@ -183,5 +197,4 @@ def unregister():
 
             wm.keyconfigs.addon.keymaps.remove(km)
 
-    # clear the list
-    del addon_keymaps[:]
+    addon_keymaps.clear()

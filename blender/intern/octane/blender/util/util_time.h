@@ -19,6 +19,8 @@
 #ifndef __UTIL_TIME_H__
 #define __UTIL_TIME_H__
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 // Give current time in seconds in double precision, with good accuracy.

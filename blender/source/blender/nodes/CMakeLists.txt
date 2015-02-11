@@ -38,6 +38,7 @@ set(INC
 	../makesrna
 	../render/extern/include
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -285,6 +286,7 @@ if(WITH_OCTANE)
 		../../../intern/octane/nodes/textures/node_oct_texture_gradient.c
 		../../../intern/octane/nodes/textures/node_oct_texture_random_color.c
 		../../../intern/octane/nodes/textures/node_oct_texture_displacement.c
+		../../../intern/octane/nodes/textures/node_oct_texture_noise.c
 		../../../intern/octane/nodes/textures/node_oct_texture_polygon_side.c
 
 		../../../intern/octane/nodes/emissions/node_oct_emission_black_body.c
@@ -339,6 +341,8 @@ endif()
 if(WITH_OCTANE)
 	add_definitions(-DWITH_OCTANE)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)

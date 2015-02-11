@@ -44,7 +44,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "IMB_filter.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_filetype.h"
@@ -53,14 +52,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_fileops.h"
 #include "BLI_math.h"
 #include "BLI_math_color.h"
-#include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_rect.h"
 
+#include "BKE_appdir.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
@@ -252,22 +250,13 @@ static unsigned int colormanage_hashhash(const void *key_v)
 	return rval;
 }
 
-static int colormanage_hashcmp(const void *av, const void *bv)
+static bool colormanage_hashcmp(const void *av, const void *bv)
 {
 	const ColormanageCacheKey *a = (ColormanageCacheKey *) av;
 	const ColormanageCacheKey *b = (ColormanageCacheKey *) bv;
 
-	if (a->view < b->view)
-		return -1;
-	else if (a->view > b->view)
-		return 1;
-
-	if (a->display < b->display)
-		return -1;
-	else if (a->display > b->display)
-		return 1;
-
-	return 0;
+	return ((a->view != b->view) ||
+	        (a->display != b->display));
 }
 
 static struct MovieCache *colormanage_moviecache_ensure(ImBuf *ibuf)
@@ -634,7 +623,7 @@ void colormanagement_init(void)
 	}
 
 	if (config == NULL) {
-		configdir = BLI_get_folder(BLENDER_DATAFILES, "colormanagement");
+		configdir = BKE_appdir_folder_id(BLENDER_DATAFILES, "colormanagement");
 
 		if (configdir) {
 			BLI_join_dirfile(configfile, sizeof(configfile), configdir, BCM_CONFIG_FILE);

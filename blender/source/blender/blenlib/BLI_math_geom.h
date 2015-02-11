@@ -60,6 +60,7 @@ float area_poly_v3(const float verts[][3], unsigned int nr);
 float area_poly_v2(const float verts[][2], unsigned int nr);
 float cotangent_tri_weight_v3(const float v1[3], const float v2[3], const float v3[3]);
 
+void          cross_tri_v3(float n[3], const float v1[3], const float v2[3], const float v3[3]);
 MINLINE float cross_tri_v2(const float v1[2], const float v2[2], const float v3[2]);
 float cross_poly_v2(const float verts[][2], unsigned int nr);
 
@@ -77,6 +78,7 @@ float volume_tetrahedron_signed_v3(const float v1[3], const float v2[3], const f
 bool is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3]);
 bool is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2]);
 bool is_poly_convex_v2(const float verts[][2], unsigned int nr);
+int  is_quad_flip_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3]);
 
 /********************************* Distance **********************************/
 
@@ -275,17 +277,22 @@ void map_to_sphere(float *r_u, float *r_v, const float x, const float y, const f
 
 /********************************** Normals **********************************/
 
-void accumulate_vertex_normals(float n1[3], float n2[3], float n3[3],
-                               float n4[3], const float f_no[3], const float co1[3], const float co2[3],
-                               const float co3[3], const float co4[3]);
+void accumulate_vertex_normals(
+        float n1[3], float n2[3], float n3[3], float n4[3],
+        const float f_no[3],
+        const float co1[3], const float co2[3], const float co3[3], const float co4[3]);
 
-void accumulate_vertex_normals_poly(float **vertnos, const float polyno[3],
-                                    const float **vertcos, float vdiffs[][3], const int nverts);
+void accumulate_vertex_normals_poly(
+        float **vertnos, const float polyno[3],
+        const float **vertcos, float vdiffs[][3], const int nverts);
 
 /********************************* Tangents **********************************/
 
-void tangent_from_uv(float uv1[2], float uv2[2], float uv3[2],
-                     float co1[3], float co2[3], float co3[3], float n[3], float tang[3]);
+void tangent_from_uv(
+        const float uv1[2], const float uv2[2], const float uv3[2],
+        const float co1[3], const float co2[3], const float co3[3],
+        const float n[3],
+        float r_tang[3]);
 
 /******************************** Vector Clouds ******************************/
 

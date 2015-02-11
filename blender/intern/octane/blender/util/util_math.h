@@ -34,6 +34,8 @@
 
 #include "util_types.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 /* Float Pi variations */

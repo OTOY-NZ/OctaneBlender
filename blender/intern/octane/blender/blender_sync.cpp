@@ -154,7 +154,6 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
 
         passes->pass_max_samples            = get_int(oct_scene, "pass_max_samples");
         passes->pass_ao_max_samples         = get_int(oct_scene, "pass_ao_max_samples");
-        passes->pass_start_samples          = get_int(oct_scene, "pass_start_samples");
         passes->pass_distributed_tracing    = get_boolean(oct_scene, "pass_distributed_tracing");
         passes->pass_filter_size            = get_float(oct_scene, "pass_filter_size");
         passes->pass_z_depth_max            = get_float(oct_scene, "pass_z_depth_max");
@@ -174,6 +173,7 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             int  subtype = RNA_enum_get(&oct_scene, "reflection_pass_subtype");
             passes->reflection_direct_pass      = cur_use && (subtype == 0);
             passes->reflection_indirect_pass    = cur_use && (subtype == 1);
+            passes->layer_reflections_pass      = cur_use && (subtype == 1);
 
             passes->refraction_pass             = get_boolean(rlayer, "use_pass_refraction");
             passes->transmission_pass           = get_boolean(rlayer, "use_pass_transmission_color");
@@ -195,6 +195,15 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             passes->object_id_pass              = get_boolean(rlayer, "use_pass_object_index");
             passes->ao_pass                     = get_boolean(rlayer, "use_pass_ambient_occlusion");
             passes->motion_vector_pass          = false;
+
+            cur_use = get_boolean(rlayer, "use_pass_shadow");
+            subtype = RNA_enum_get(&oct_scene, "shadows_pass_subtype");
+            passes->layer_shadows_pass          = cur_use && (subtype == 0);
+            passes->layer_black_shadows_pass    = cur_use && (subtype == 1);
+            passes->layer_color_shadows_pass    = cur_use && (subtype == 2);
+
+            passes->layer_id_pass               = false;
+            passes->layer_mask_pass             = false;
         }
         else {
             passes->combined_pass               = false;
@@ -221,6 +230,12 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             passes->object_id_pass              = false;
             passes->ao_pass                     = false;
             passes->motion_vector_pass          = false;
+            passes->layer_shadows_pass          = false;
+            passes->layer_black_shadows_pass    = false;
+            passes->layer_color_shadows_pass    = false;
+            passes->layer_reflections_pass      = false;
+            passes->layer_id_pass               = false;
+            passes->layer_mask_pass             = false;
 
             switch(passes->cur_pass_type) {
             case Passes::COMBINED:
@@ -292,6 +307,24 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             case Passes::MOTION_VECTOR:
                 passes->motion_vector_pass = true;
                 break;
+            case Passes::LAYER_SHADOWS:
+                passes->layer_shadows_pass = true;
+                break;
+            case Passes::LAYER_BLACK_SHADOWS:
+                passes->layer_black_shadows_pass = true;
+                break;
+            case Passes::LAYER_COLOR_SHADOWS:
+                passes->layer_color_shadows_pass = true;
+                break;
+            case Passes::LAYER_REFLECTIONS:
+                passes->layer_reflections_pass = true;
+                break;
+            case Passes::LAYER_ID:
+                passes->layer_id_pass = true;
+                break;
+            case Passes::LAYER_MASK:
+                passes->layer_mask_pass = true;
+                break;
             default:
                 passes->combined_pass = true;
                 break;
@@ -335,7 +368,6 @@ void BlenderSync::sync_kernel() {
     kernel->filter_size = get_float(oct_scene, "filter_size");
     kernel->ray_epsilon = get_float(oct_scene, "ray_epsilon");
     kernel->alpha_channel = get_boolean(oct_scene, "alpha_channel");
-    kernel->keep_environment = get_boolean(oct_scene, "keep_environment");
     kernel->alpha_shadows = get_boolean(oct_scene, "alpha_shadows");
     kernel->bump_normal_mapping = get_boolean(oct_scene, "bump_normal_mapping");
     kernel->wf_bktrace_hl = get_boolean(oct_scene, "wf_bktrace_hl");
@@ -364,6 +396,10 @@ void BlenderSync::sync_kernel() {
     kernel->uv_max = get_float(oct_scene, "uv_max");
     kernel->distributed_tracing = get_boolean(oct_scene, "distributed_tracing");
     kernel->max_speed = get_float(oct_scene, "max_speed");
+
+    kernel->layers_enable = get_boolean(oct_scene, "layers_enable");
+    kernel->layers_current = get_int(oct_scene, "layers_current");
+    kernel->layers_invert = get_boolean(oct_scene, "layers_invert");
 
     BL::RenderSettings r = b_scene.render();
     kernel->shuttertime = r.motion_blur_shutter();
@@ -500,6 +536,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     if(params.export_alembic && params.meshes_type == Mesh::GLOBAL)
         params.meshes_type = Mesh::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
+    params.hdr_tonemapped       = get_boolean(oct_scene, "hdr_tonemapped");
 	
     params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
 

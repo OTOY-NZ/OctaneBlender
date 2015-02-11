@@ -19,8 +19,12 @@
 #ifndef __GRAPH_H__
 #define __GRAPH_H__
 
+#include <string>
+
 #include "util_lists.h"
 #include "util_types.h"
+
+#include "memleaks_check.h"
 
 OCT_NAMESPACE_BEGIN
 

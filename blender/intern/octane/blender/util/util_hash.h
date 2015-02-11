@@ -21,6 +21,8 @@
 
 #include "util_types.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 static inline uint hash_int_2d(uint kx, uint ky) {

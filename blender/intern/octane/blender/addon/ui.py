@@ -146,8 +146,6 @@ class VIEW3D_PT_octcam(Panel):
         sub.prop(oct_cam, "white_balance", text="White balance")
         sub = layout.column(align=True)
         sub.prop(oct_cam, "exposure", text="Exposure")
-        sub.prop(oct_cam, "fstop", text="F-Stop")
-        sub.prop(oct_cam, "iso", text="ISO")
         sub.prop(oct_cam, "gamma", text="Gamma")
         sub.prop(oct_cam, "vignetting", text="Vignetting")
         sub.prop(oct_cam, "saturation", text="Saturation")
@@ -212,9 +210,6 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "alpha_channel", text="Alpha channel")
         sub.prop(oct_scene, "alpha_shadows", text="Alpha shadows")
-        sub = col.column(align=True)
-        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
-        sub.prop(oct_scene, "keep_environment", text="Keep environment")
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "wf_bktrace_hl", text="Wireframe backtrace highlighting")
@@ -408,6 +403,10 @@ class OctaneRender_PT_layer_passes(OctaneButtonsPanel, Panel):
         col.prop(rl, "use_pass_object_index")
         col.prop(rl, "use_pass_ambient_occlusion")
 
+        row = col.row()
+        row.prop(rl, "use_pass_shadow")
+        row.prop(octane, "shadows_pass_subtype")
+
         col.prop(octane, "pass_max_samples")
         col.prop(octane, "pass_ao_max_samples")
         col.prop(octane, "pass_start_samples")
@@ -418,6 +417,25 @@ class OctaneRender_PT_layer_passes(OctaneButtonsPanel, Panel):
         col.prop(octane, "pass_max_speed")
         col.prop(octane, "pass_ao_distance")
         col.prop(octane, "pass_alpha_shadows")
+
+
+class OctaneRender_PT_octane_layers(OctaneButtonsPanel, Panel):
+    bl_label = "Octane Render Layers"
+    bl_context = "render_layer"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.octane, "layers_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        octane = scene.octane
+
+        col = layout.column()
+        col.prop(octane, "layers_current")
+        col.prop(octane, "layers_invert")
 
 
 class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
@@ -643,6 +661,9 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub = layout.row(align=True)
         sub.prop(cdata, "mesh_type")
         sub.operator("octane.set_meshes_type", "", "", True, 'MESH_DATA')
+        sub = layout.row(align=True)
+        sub.active = (cdata.mesh_type != '0')
+        sub.prop(cdata, "layer_number", text="Layer number")
 
         box = layout.box()
         box.label(text="OpenSubDiv:")
@@ -656,9 +677,11 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "open_subd_level", text="Level")
         sub.prop(cdata, "open_subd_sharpness", text="Sharpness")
 
-        layout.prop(cdata, "vis_general")
-        layout.prop(cdata, "vis_cam")
-        layout.prop(cdata, "vis_shadow")
+        sub = layout.column(align=True)
+        sub.active = (cdata.mesh_type != '0')
+        sub.prop(cdata, "vis_general")
+        sub.prop(cdata, "vis_cam")
+        sub.prop(cdata, "vis_shadow")
 
 
 class OctaneObject_PT_octane_properties(OctaneButtonsPanel, Panel):
@@ -1070,6 +1093,7 @@ def draw_device(self, context):
         sub = layout.row()
         sub.prop(oct_scene, "viewport_hide")
         sub.prop(oct_scene, "export_alembic")
+        sub.prop(oct_scene, "hdr_tonemapped")
         layout.prop(oct_scene, "meshes_type", expand=True)
 
 

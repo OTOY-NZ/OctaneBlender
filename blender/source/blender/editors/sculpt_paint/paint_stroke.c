@@ -68,6 +68,12 @@
 #include <float.h>
 #include <math.h>
 
+// #define DEBUG_TIME
+
+#ifdef DEBUG_TIME
+#  include "PIL_time_utildefines.h"
+#endif
+
 typedef struct PaintSample {
 	float mouse[2];
 	float pressure;
@@ -283,9 +289,9 @@ static bool paint_brush_update(bContext *C,
 		const float dx = mouse[0] - stroke->initial_mouse[0];
 		const float dy = mouse[1] - stroke->initial_mouse[1];
 
-		ups->anchored_size = ups->pixel_radius = sqrt(dx * dx + dy * dy);
+		ups->anchored_size = ups->pixel_radius = sqrtf(dx * dx + dy * dy);
 
-		ups->brush_rotation = atan2(dx, dy) + M_PI;
+		ups->brush_rotation = atan2f(dx, dy) + M_PI;
 
 		if (brush->flag & BRUSH_EDGE_TO_EDGE) {
 			halfway[0] = dx * 0.5f + stroke->initial_mouse[0];
@@ -498,7 +504,7 @@ static float paint_stroke_overlapped_curve(Brush *br, float x, float spacing)
 	for (i = 0; i < n; i++) {
 		float xx;
 
-		xx = fabs(x0 + i * h);
+		xx = fabsf(x0 + i * h);
 
 		if (xx < 1.0f)
 			sum += BKE_brush_curve_strength(br, xx, 1);
@@ -758,7 +764,7 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 
 bool paint_supports_texture(PaintMode mode)
 {
-	/* ommit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
+	/* omit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
 	return ELEM(mode, PAINT_SCULPT, PAINT_VERTEX, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D);
 }
 
@@ -910,6 +916,7 @@ static void paint_stroke_line_end(bContext *C, wmOperator *op, PaintStroke *stro
 static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
 	Brush *br = stroke->brush;
+
 	if (br->flag & BRUSH_CURVE) {
 		const Scene *scene = CTX_data_scene(C);
 		const float spacing = paint_space_stroke_spacing(scene, stroke, 1.0f, 1.0f);
@@ -920,6 +927,10 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 
 		if (!pc)
 			return true;
+
+#ifdef DEBUG_TIME
+		TIMEIT_START(stroke);
+#endif
 
 		pcp = pc->points;
 		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
@@ -956,6 +967,11 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 		}
 
 		stroke_done(C, op);
+
+#ifdef DEBUG_TIME
+		TIMEIT_END(stroke);
+#endif
+
 		return true;
 	}
 

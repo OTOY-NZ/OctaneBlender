@@ -28,6 +28,8 @@
 #include "util_transform.h"
 #include "util_types.h"
 
+#include "memleaks_check.h"
+
 // Hacks to hook into Blender API
 // todo: clean this up ...
 

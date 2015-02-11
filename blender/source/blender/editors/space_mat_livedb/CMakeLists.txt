@@ -27,9 +27,11 @@ set(INC
 	../../makesdna
 	../../makesrna
 	../../windowmanager
+	../../gpu
 	../../../../intern/guardedalloc
 	../../../../intern/opennl/extern
 	../../../../intern/utfconv
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS

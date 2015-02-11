@@ -2468,7 +2468,7 @@ static void make_bevel_list_2D(BevList *bl)
 
 		/* first */
 		bevp = bl->bevpoints;
-		angle = atan2(bevp->dir[0], bevp->dir[1]) - M_PI / 2.0;
+		angle = atan2f(bevp->dir[0], bevp->dir[1]) - (float)(M_PI / 2.0f);
 		bevp->sina = sinf(angle);
 		bevp->cosa = cosf(angle);
 		vec_to_quat(bevp->quat, bevp->dir, 5, 1);
@@ -2476,7 +2476,7 @@ static void make_bevel_list_2D(BevList *bl)
 		/* last */
 		bevp = bl->bevpoints;
 		bevp += (bl->nr - 1);
-		angle = atan2(bevp->dir[0], bevp->dir[1]) - M_PI / 2.0;
+		angle = atan2f(bevp->dir[0], bevp->dir[1]) - (float)(M_PI / 2.0f);
 		bevp->sina = sinf(angle);
 		bevp->cosa = cosf(angle);
 		vec_to_quat(bevp->quat, bevp->dir, 5, 1);
@@ -4312,7 +4312,7 @@ bool BKE_curve_center_bounds(Curve *cu, float cent[3])
 }
 
 
-void BKE_curve_transform_ex(Curve *cu, float mat[4][4], bool do_keys, float unit_scale)
+void BKE_curve_transform_ex(Curve *cu, float mat[4][4], const bool do_keys, const float unit_scale)
 {
 	Nurb *nu;
 	BPoint *bp;
@@ -4348,13 +4348,13 @@ void BKE_curve_transform_ex(Curve *cu, float mat[4][4], bool do_keys, float unit
 	}
 }
 
-void BKE_curve_transform(Curve *cu, float mat[4][4], bool do_keys)
+void BKE_curve_transform(Curve *cu, float mat[4][4], const bool do_keys)
 {
 	float unit_scale = mat4_to_scale(mat);
 	BKE_curve_transform_ex(cu, mat, do_keys, unit_scale);
 }
 
-void BKE_curve_translate(Curve *cu, float offset[3], bool do_keys)
+void BKE_curve_translate(Curve *cu, float offset[3], const bool do_keys)
 {
 	ListBase *nurb_lb = BKE_curve_nurbs_get(cu);
 	Nurb *nu;

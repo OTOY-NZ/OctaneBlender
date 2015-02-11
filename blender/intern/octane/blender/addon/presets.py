@@ -110,8 +110,6 @@ class AddPresetImager(AddPresetBase, Operator):
         "octane.white_balance",
 
         "octane.exposure",
-        "octane.fstop",
-        "octane.iso",
         "octane.gamma",
         "octane.vignetting",
         "octane.saturation",

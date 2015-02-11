@@ -22,6 +22,8 @@
 #include "util_string.h"
 #include "util_types.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class RenderServer;
@@ -56,7 +58,7 @@ public:
     uchar4* rgba;
 
 protected:
-	void free();
+	void free_buffers();
 
 	RenderServer *server;
 };

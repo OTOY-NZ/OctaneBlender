@@ -5,6 +5,7 @@
                           menu_shadow_width="12"
                           icon_file=""
                           icon_alpha="1"
+                          widget_emboss="#ffffff05"
                           axis_x="#dc0000"
                           axis_y="#00dc00"
                           axis_z="#0000dc">
@@ -154,10 +155,10 @@
         </wcol_menu_back>
         <wcol_pie_menu>
           <ThemeWidgetColors outline="#0a0a0a"
-                             inner="#191919e6"
+                             inner="#aaaaaae6"
                              inner_sel="#8c8c8cff"
-                             item="#2d2d2de6"
-                             text="#a0a0a0"
+                             item="#a2a2a2e6"
+                             text="#000000"
                              text_sel="#ffffff"
                              show_shaded="TRUE"
                              shadetop="10"
@@ -286,6 +287,7 @@
                    editmesh_active="#fcf8ff80"
                    normal="#22dddd"
                    vertex_normal="#2361dd"
+                   split_normal="#dd23dd"
                    bone_solid="#c8c8c8"
                    bone_pose="#50c8ff"
                    bone_pose_active="#8cffff"
@@ -312,9 +314,9 @@
                               tab_back="#bfbfbfff"
                               tab_outline="#d1cccb">
             <gradients>
-              <ThemeGradientColors show_grad="TRUE"
-                                   gradient="#333333"
-                                   high_gradient="#404040">
+              <ThemeGradientColors show_grad="FALSE"
+                                   gradient="#808080"
+                                   high_gradient="#818181">
               </ThemeGradientColors>
             </gradients>
             <panelcolors>
@@ -504,7 +506,7 @@
                       keyframe_jitter_selected="#61c042"
                       keyframe_border="#000000ff"
                       keyframe_border_selected="#000000ff"
-                      summary="#00000000">
+                      summary="#94949400">
         <space>
           <ThemeSpaceGeneric back="#737373"
                              title="#000000"
@@ -746,6 +748,7 @@
       <ThemeNodeEditor node_selected="#ffffff"
                        node_active="#ffffff"
                        wire="#000000"
+                       wire_inner="#737373"
                        wire_select="#ffffff"
                        selected_text="#7f7070"
                        node_backdrop="#9b9b9ba0"
@@ -969,7 +972,6 @@
                        locked_marker="#7f7f7f"
                        path_before="#ff0000"
                        path_after="#0000ff"
-                       grid="#5e5e5e"
                        frame_current="#60c040"
                        strips="#0c0a0a"
                        strips_selected="#ff8c00"

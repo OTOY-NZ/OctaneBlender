@@ -265,7 +265,8 @@ BMFace *BM_faces_join_pair(BMesh *bm, BMFace *f_a, BMFace *f_b, BMEdge *e, const
  *
  * \param bm The bmesh
  * \param f the original face
- * \param v1, v2 vertices which define the split edge, must be different
+ * \param l_a, l_b  Loops of this face, their vertices define
+ * the split edge to be created (must be differ and not can't be adjacent in the face).
  * \param r_l pointer which will receive the BMLoop for the split edge in the new face
  * \param example Edge used for attributes of splitting edge, if non-NULL
  * \param nodouble Use an existing edge if found
@@ -348,7 +349,7 @@ BMFace *BM_face_split(BMesh *bm, BMFace *f,
  * \param l_a, l_b vertices which define the split edge, must be different
  * \param cos Array of coordinates for intermediate points
  * \param n Length of \a cos (must be > 0)
- * \param r_l pointer which will receive the BMLoop for the first split edge (from \a v1) in the new face
+ * \param r_l pointer which will receive the BMLoop for the first split edge (from \a l_a) in the new face
  * \param example Edge used for attributes of splitting edge, if non-NULL
  *
  * \return Pointer to the newly created face representing one side of the split
@@ -1148,7 +1149,7 @@ BMEdge *BM_vert_collapse_edge(BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
  * </pre>
  *
  * \param e  The edge to split.
- * \param v  One of the vertices in \a e and defines the the "from" end of the splitting operation,
+ * \param v  One of the vertices in \a e and defines the "from" end of the splitting operation,
  * the new vertex will be \a fac of the way from \a v to the other end.
  * \param r_e  The newly created edge.
  * \return  The new vertex.

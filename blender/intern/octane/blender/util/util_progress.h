@@ -29,6 +29,8 @@
 #include "util_time.h"
 #include "util_thread.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class BlenderSession;
@@ -52,7 +54,7 @@ public:
     void refresh_cur_info();
 	void get_time(double& total_time_);
 	void reset_cur_samples();
-	void set_cur_samples(unsigned long cur_samples);
+	void set_cur_samples(unsigned long cur_samples_);
 	int  get_cur_samples();
 
 	// Status messages

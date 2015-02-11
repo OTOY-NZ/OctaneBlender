@@ -109,21 +109,7 @@
 void getViewVector(TransInfo *t, float coord[3], float vec[3])
 {
 	if (t->persp != RV3D_ORTHO) {
-		float p1[4], p2[4];
-		
-		copy_v3_v3(p1, coord);
-		p1[3] = 1.0f;
-		copy_v3_v3(p2, p1);
-		p2[3] = 1.0f;
-		mul_m4_v4(t->viewmat, p2);
-		
-		p2[0] = 2.0f * p2[0];
-		p2[1] = 2.0f * p2[1];
-		p2[2] = 2.0f * p2[2];
-		
-		mul_m4_v4(t->viewinv, p2);
-		
-		sub_v3_v3v3(vec, p1, p2);
+		sub_v3_v3v3(vec, coord, t->viewinv[3]);
 	}
 	else {
 		copy_v3_v3(vec, t->viewinv[2]);
@@ -779,7 +765,7 @@ static void recalcData_objects(TransInfo *t)
 		else if (t->obedit->type == OB_ARMATURE) { /* no recalc flag, does pose */
 			bArmature *arm = t->obedit->data;
 			ListBase *edbo = arm->edbo;
-			EditBone *ebo;
+			EditBone *ebo, *ebo_parent;
 			TransData *td = t->data;
 			int i;
 			
@@ -789,17 +775,18 @@ static void recalcData_objects(TransInfo *t)
 			
 			/* Ensure all bones are correctly adjusted */
 			for (ebo = edbo->first; ebo; ebo = ebo->next) {
+				ebo_parent = (ebo->flag & BONE_CONNECTED) ? ebo->parent : NULL;
 				
-				if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
+				if (ebo_parent) {
 					/* If this bone has a parent tip that has been moved */
-					if (ebo->parent->flag & BONE_TIPSEL) {
-						copy_v3_v3(ebo->head, ebo->parent->tail);
-						if (t->mode == TFM_BONE_ENVELOPE) ebo->rad_head = ebo->parent->rad_tail;
+					if (ebo_parent->flag & BONE_TIPSEL) {
+						copy_v3_v3(ebo->head, ebo_parent->tail);
+						if (t->mode == TFM_BONE_ENVELOPE) ebo->rad_head = ebo_parent->rad_tail;
 					}
 					/* If this bone has a parent tip that has NOT been moved */
 					else {
-						copy_v3_v3(ebo->parent->tail, ebo->head);
-						if (t->mode == TFM_BONE_ENVELOPE) ebo->parent->rad_tail = ebo->rad_head;
+						copy_v3_v3(ebo_parent->tail, ebo->head);
+						if (t->mode == TFM_BONE_ENVELOPE) ebo_parent->rad_tail = ebo->rad_head;
 					}
 				}
 				
@@ -973,6 +960,9 @@ void recalcData(TransInfo *t)
 	}
 	else if (t->options & CTX_PAINT_CURVE) {
 		flushTransPaintCurve(t);
+	}
+	else if (t->options & CTX_GPENCIL_STROKES) {
+		/* pass? */
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		recalcData_image(t);
@@ -1202,9 +1192,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		}
 
 		/* exceptional case */
-		if (t->around == V3D_LOCAL && (t->settings->selectmode & SCE_SELECT_FACE)) {
+		if (t->around == V3D_LOCAL) {
 			if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
-				t->options |= CTX_NO_PET;
+				const bool use_island = transdata_check_local_islands(t, t->around);
+
+				if (!use_island) {
+					t->options |= CTX_NO_PET;
+				}
 			}
 		}
 
@@ -1322,6 +1316,9 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			if (t->flag & T_MODAL) {
 				if ((t->options & CTX_NO_PET) == 0) {
 					if (t->obedit) {
+						t->flag |= initTransInfo_edit_pet_to_flag(ts->proportional);
+					}
+					else if (t->options & CTX_GPENCIL_STROKES) {
 						t->flag |= initTransInfo_edit_pet_to_flag(ts->proportional);
 					}
 					else if (t->options & CTX_MASK) {
@@ -1651,8 +1648,9 @@ void calculateCenterMedian(TransInfo *t, float r_center[3])
 			}
 		}
 	}
-	if (i)
-		mul_v3_fl(partial, 1.0f / total);
+	if (total) {
+		mul_v3_fl(partial, 1.0f / (float)total);
+	}
 	copy_v3_v3(r_center, partial);
 }
 

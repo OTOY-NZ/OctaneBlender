@@ -25,11 +25,10 @@
  *  \ingroup blenloader
  */
 
-#include "zlib.h"
-
 #ifndef WIN32
 #  include <unistd.h>  /* for read close */
 #else
+#  include <zlib.h>  /* odd include order-issue */
 #  include <io.h> // for open close read
 #  include "winsock2.h"
 #  include "BLI_winstuff.h"
@@ -89,17 +88,9 @@
 
 #include "NOD_socket.h"
 
-//XXX #include "BIF_butspace.h" // badlevel, for do_versions, patching event codes
-//XXX #include "BIF_filelist.h" // badlevel too, where to move this? - elubie
-//XXX #include "BIF_previewrender.h" // bedlelvel, for struct RenderInfo
 #include "BLO_readfile.h"
-#include "BLO_undofile.h"
-
-#include "RE_engine.h"
 
 #include "readfile.h"
-
-#include "PIL_time.h"
 
 #include <errno.h>
 

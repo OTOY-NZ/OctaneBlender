@@ -33,6 +33,7 @@ set(SRC
 	blender_sync.h
 	blender_session.h
 	blender_util.h
+	memleaks_check.h
 
 	./server/server.cpp
 

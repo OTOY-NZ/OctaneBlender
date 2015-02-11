@@ -24,6 +24,8 @@
 #include "util_types.h"
 #include "util_lists.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 using namespace OIIO_NAMESPACE;

@@ -29,7 +29,7 @@ class MESH_MT_vertex_group_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("object.vertex_group_sort", icon='SORTALPHA').sort_type = "NAME"
+        layout.operator("object.vertex_group_sort", icon='SORTALPHA', text="Sort by Name").sort_type = "NAME"
         layout.operator("object.vertex_group_sort", icon='ARMATURE_DATA', text="Sort by Bone Hierarchy").sort_type = "BONE_HIERARCHY"
         layout.operator("object.vertex_group_copy", icon='COPY_ID')
         layout.operator("object.vertex_group_copy_to_linked", icon='LINK_AREA')
@@ -58,6 +58,8 @@ class MESH_MT_shape_key_specials(Menu):
         layout.operator("object.shape_key_mirror", text="Mirror Shape Key (Topology)", icon='ARROW_LEFTRIGHT').use_topology = True
         layout.operator("object.shape_key_add", icon='ZOOMIN', text="New Shape From Mix").from_mix = True
         layout.operator("object.shape_key_remove", icon='X', text="Delete All Shapes").all = True
+        layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move To Top").type = 'TOP'
+        layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move To Bottom").type = 'BOTTOM'
 
 
 class MESH_UL_vgroups(UIList):

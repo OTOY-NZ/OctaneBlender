@@ -45,6 +45,7 @@ void register_node_type_projection_oct_uvw(void) {
 	node_type_size(&ntype, 100, 100, 200);
 	node_type_init(&ntype, 0);
 	node_type_exec(&ntype, 0, 0, 0);
+    ntype.update_internal_links = node_update_internal_links_default;
 	
 	nodeRegisterType(&ntype);
 } /* register_node_type_projection_oct_uvw() */

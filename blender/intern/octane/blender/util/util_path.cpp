@@ -25,14 +25,26 @@ OIIO_NAMESPACE_USING
 
 #include <stdio.h>
 
+#ifdef WIN32
+#   ifdef _DEBUG
+#       pragma pack(push,_CRT_PACKING)
+#       pragma push_macro("new")
+#       undef new
+#   endif
+#endif
 #include <boost/version.hpp>
+#include <boost/filesystem.hpp> 
+#include <boost/algorithm/string.hpp>
+#ifdef WIN32
+#   ifdef _DEBUG
+#       pragma pop_macro("new")
+#       pragma pack(pop)
+#   endif
+#endif
 
 #if (BOOST_VERSION < 104400)
 #  define BOOST_FILESYSTEM_VERSION 2
 #endif
-
-#include <boost/filesystem.hpp> 
-#include <boost/algorithm/string.hpp>
 
 OCT_NAMESPACE_BEGIN
 

@@ -158,6 +158,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         bool            *cam_vis                = new bool[ulLocalCnt];
         bool            *shadow_vis             = new bool[ulLocalCnt];
         bool            *reshapable             = new bool[ulLocalCnt];
+        int32_t         *layer_number           = new int32_t[ulLocalCnt];
 
         uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
         uint64_t        *vert_per_hair_size     = new uint64_t[ulLocalCnt];
@@ -219,6 +220,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             open_subd_level[i]      = light->mesh->open_subd_level;
             open_subd_sharpness[i]  = light->mesh->open_subd_sharpness;
             open_subd_bound_interp[i] = light->mesh->open_subd_bound_interp;
+            layer_number[i]         = (scene->kernel->layers_enable ? light->mesh->layer_number : 1);
             general_vis[i]          = 1.f;
             cam_vis[i]              = true;
             shadow_vis[i]           = true;
@@ -261,6 +263,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         open_subd_level,
                                         open_subd_sharpness,
                                         open_subd_bound_interp,
+                                        layer_number,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
@@ -293,6 +296,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] cam_vis;
         delete[] shadow_vis;
         delete[] reshapable;
+        delete[] layer_number;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
@@ -353,6 +357,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         bool            *cam_vis                = new bool[obj_cnt];
         bool            *shadow_vis             = new bool[obj_cnt];
         bool            *reshapable             = new bool[obj_cnt];
+        int32_t         *layer_number           = new int32_t[obj_cnt];
 
         uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
         uint64_t        *vert_per_hair_size     = new uint64_t[obj_cnt];
@@ -416,6 +421,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 open_subd_level[obj_cnt]      = light->mesh->open_subd_level;
                 open_subd_sharpness[obj_cnt]  = light->mesh->open_subd_sharpness;
                 open_subd_bound_interp[obj_cnt] = light->mesh->open_subd_bound_interp;
+                layer_number[obj_cnt]         = (scene->kernel->layers_enable ? light->mesh->layer_number : 1);
                 general_vis[obj_cnt]          = 1.f;
                 cam_vis[obj_cnt]              = true;
                 shadow_vis[obj_cnt]           = true;
@@ -458,6 +464,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         open_subd_level,
                                         open_subd_sharpness,
                                         open_subd_bound_interp,
+                                        layer_number,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
@@ -493,6 +500,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] cam_vis;
         delete[] shadow_vis;
         delete[] reshapable;
+        delete[] layer_number;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;

@@ -158,7 +158,7 @@ void Session::run_render() {
 			// Update scene on the render-server - send all changed objects
             update_scene_to_server(frame_idx, total_frames);
             if(!bStarted) {
-                server->start_render(params.width, params.height, params.interactive ? 0 : 2); //FIXME: Perhaps the wrong place for it...
+                server->start_render(params.width, params.height, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1)); //FIXME: Perhaps the wrong place for it...
                 bStarted = true;
             }
             if(!server->error_message().empty()) {

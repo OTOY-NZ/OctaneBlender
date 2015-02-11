@@ -250,6 +250,13 @@ void OctanePolygonSideTexture::load_to_server(RenderServer* server) {
     server->load_polygon_side_tex(this);
 }
 
+OctaneNoiseTexture::OctaneNoiseTexture() {
+}
+
+void OctaneNoiseTexture::load_to_server(RenderServer* server) {
+    server->load_noise_tex(this);
+}
+
 OctaneDisplacementTexture::OctaneDisplacementTexture() {
 }
 

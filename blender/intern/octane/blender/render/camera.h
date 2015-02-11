@@ -24,6 +24,8 @@
 #include "MEM_guardedalloc.h"
 #include "RNA_blender_cpp.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class RenderServer;

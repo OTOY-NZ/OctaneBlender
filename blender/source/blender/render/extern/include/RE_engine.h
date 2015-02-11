@@ -60,6 +60,7 @@ struct BakePixel;
 #define RE_USE_SHADING_NODES	16
 #define RE_USE_EXCLUDE_LAYERS	32
 #define RE_USE_SAVE_BUFFERS		64
+#define RE_USE_TEXTURE_PREVIEW		128
 
 /* RenderEngine.flag */
 #define RE_ENGINE_ANIMATION		1
@@ -143,6 +144,7 @@ void RE_engine_update_stats(RenderEngine *engine, const char *stats, const char 
 void RE_engine_update_progress(RenderEngine *engine, float progress);
 void RE_engine_update_memory_stats(RenderEngine *engine, float mem_used, float mem_peak);
 void RE_engine_report(RenderEngine *engine, int type, const char *msg);
+void RE_engine_set_error_message(RenderEngine *engine, const char *msg);
 
 int RE_engine_render(struct Render *re, int do_all);
 

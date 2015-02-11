@@ -50,6 +50,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_appdir.h"
 
 #include "ED_render.h"
 #include "ED_node.h"
@@ -337,7 +338,7 @@ static void get_material_startjob(void *customdata, short *stop, short *do_updat
         float       cur_y_pos = 0;
 
         /* Remove all existing nodes */
-        ED_preview_kill_jobs(C);
+        ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
         for (node = ntree->nodes.first; node; node = next) {
             next = node->next;
             /* check id user here, nodeFreeNode is called for free dbase too */
@@ -357,7 +358,7 @@ static void get_material_startjob(void *customdata, short *stop, short *do_updat
 
         /* create file path */
         if(!strlen(G.main->name)) {
-            char *cur_path = (char*)BLI_get_folder_create(BLENDER_USER_DATAFILES, 0);
+            char *cur_path = (char*)BKE_appdir_folder_id_create(BLENDER_USER_DATAFILES, 0);
             strcpy(file_path, cur_path);
             strcat(file_path, "/livedb/");
         }

@@ -93,7 +93,6 @@
 #include "ED_mball.h"
 
 #include "UI_interface.h"
-#include "UI_resources.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -1143,7 +1142,7 @@ static Base *object_mouse_select_menu(bContext *C, ViewContext *vc, unsigned int
 			const char *name = ob->id.name + 2;
 
 			BLI_strncpy(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME - 2);
-			object_mouse_select_menu_data[i].icon = uiIconFromID(&ob->id);
+			object_mouse_select_menu_data[i].icon = UI_icon_from_id(&ob->id);
 		}
 
 		{
@@ -1181,14 +1180,14 @@ static short selectbuffer_ret_hits_15(unsigned int *UNUSED(buffer), const short 
 static short selectbuffer_ret_hits_9(unsigned int *buffer, const short hits15, const short hits9)
 {
 	const int offs = 4 * hits15;
-	memcpy(buffer, buffer + offs, 4 * hits9);
+	memcpy(buffer, buffer + offs, 4 * hits9 * sizeof(unsigned int));
 	return hits9;
 }
 
 static short selectbuffer_ret_hits_5(unsigned int *buffer, const short hits15, const short hits9, const short hits5)
 {
 	const int offs = 4 * hits15 + 4 * hits9;
-	memcpy(buffer, buffer + offs, 4 * hits5);
+	memcpy(buffer, buffer + offs, 4 * hits5  * sizeof(unsigned int));
 	return hits5;
 }
 
@@ -1522,7 +1521,7 @@ static bool mouse_select(bContext *C, const int mval[2],
 						}
 					}
 				}
-				else if (ED_do_pose_selectbuffer(scene, basact, buffer, hits, extend, deselect, toggle) ) {
+				else if (ED_do_pose_selectbuffer(scene, basact, buffer, hits, extend, deselect, toggle, do_nearest)) {
 					/* then bone is found */
 				
 					/* we make the armature selected: 

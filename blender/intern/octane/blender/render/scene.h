@@ -25,6 +25,8 @@
 #include "mesh.h"
 #include "session.h"
 
+#include "memleaks_check.h"
+
 OCT_NAMESPACE_BEGIN
 
 class Environment;

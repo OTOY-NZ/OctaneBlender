@@ -271,15 +271,18 @@ subd_scheme = (
 pass_types = (
     ('0', "Combined", "Combined pass"),
     ('1', "Emitters", "Emitters pass"),
-    ('2', "Environment", "Environment pass"),
-    ('3', "Diffuse direct", "Diffuse direct pass"),
-    ('4', "Diffuse indirect", "Diffuse indirect pass"),
-    ('5', "Reflection direct", "Reflection direct pass"),
-    ('6', "Reflection indirect", "Reflection indirect pass"),
-    ('7', "Refraction", "Refraction pass pass"),
-    ('8', "Transmission", "Transmission pass"),
-    ('9', "Subsurface scattering", "Subsurface scattering pass"),
-    ('10', "Post processing", "Post processing pass"),
+    ('2', "Diffuse direct", "Diffuse direct pass"),
+    ('3', "Diffuse indirect", "Diffuse indirect pass"),
+    ('4', "Reflection direct", "Reflection direct pass"),
+    ('5', "Reflection indirect", "Reflection indirect pass"),
+    ('6', "Refraction", "Refraction pass pass"),
+    ('7', "Transmission", "Transmission pass"),
+    ('8', "Subsurface scattering", "Subsurface scattering pass"),
+    ('9', "Post processing", "Post processing pass"),
+    ('10', "Layer shadows", "Layer shadows pass"),
+    ('11', "Layer black shadows", "Layer black shadows pass"),
+    ('12', "Layer color shadows", "Layer color shadows pass"),
+    ('13', "Layer reflections", "Layer reflections pass"),
     ('100000', "Geometric normals", "Geometric normals pass"),
     ('100001', "Shading normals", "Shading normals pass"),
     ('100002', "Position", "Position pass"),
@@ -292,11 +295,26 @@ pass_types = (
     ('100009', "Object id", "Object id pass"),
     ('100010', "Ambient occlusion", "Ambient occlusion pass"),
     ('100011', "Motion vector", "Motion vector pass"),
+    ('100012', "Layer ID", "Layer ID pass"),
+    ('100013', "Layer mask", "Layer mask pass"),
+    ('100014', "Environment", "Environment pass"),
     )
 
 pass_dir_subtype = (
     ('0', "Direct", ""),
     ('1', "Indirect", ""),
+    )
+
+pass_refl_subtype = (
+    ('0', "Direct", ""),
+    ('1', "Indirect", ""),
+    ('2', "Layers", ""),
+    )
+
+pass_shadows_subtype = (
+    ('0', "Shadows", ""),
+    ('1', "Black shadows", ""),
+    ('2', "Colored shadows", ""),
     )
 
 pass_normal_subtype = (

@@ -44,7 +44,6 @@
 #include "BLF_translation.h"
 
 #include "RNA_types.h"
-#include "RNA_access.h"
 
 
 typedef struct
@@ -86,16 +85,15 @@ static unsigned int _ghashutil_keyhash(const void *ptr)
 	return hash ^ BLI_ghashutil_strhash(key->msgid);
 }
 
-static int _ghashutil_keycmp(const void *a, const void *b)
+static bool _ghashutil_keycmp(const void *a, const void *b)
 {
 	const GHashKey *A = a;
 	const GHashKey *B = b;
 
 	/* Note: comparing msgid first, most of the time it will be enough! */
-	int cmp = BLI_ghashutil_strcmp(A->msgid, B->msgid);
-	if (cmp == 0)
+	if (BLI_ghashutil_strcmp(A->msgid, B->msgid) == false)
 		return BLI_ghashutil_strcmp(A->msgctxt, B->msgctxt);
-	return cmp;
+	return true;  /* true means they are not equal! */
 }
 
 static void _ghashutil_keyfree(void *ptr)
@@ -243,12 +241,9 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
 	}
 
 	/* Clean up! */
-	if (language)
-		MEM_freeN(language);
-	if (language_country)
-		MEM_freeN(language_country);
-	if (language_variant)
-		MEM_freeN(language_variant);
+	MEM_SAFE_FREE(language);
+	MEM_SAFE_FREE(language_country);
+	MEM_SAFE_FREE(language_variant);
 }
 
 const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid)
@@ -633,6 +628,7 @@ PyDoc_STRVAR(app_translations_locale_explode_doc,
 );
 static PyObject *app_translations_locale_explode(BlenderAppTranslations *UNUSED(self), PyObject *args, PyObject *kw)
 {
+	PyObject *ret_tuple;
 	static const char *kwlist[] = {"locale", NULL};
 	const char *locale;
 	char *language, *country, *variant, *language_country, *language_variant;
@@ -643,7 +639,15 @@ static PyObject *app_translations_locale_explode(BlenderAppTranslations *UNUSED(
 
 	BLF_locale_explode(locale, &language, &country, &variant, &language_country, &language_variant);
 
-	return Py_BuildValue("sssss", language, country, variant, language_country, language_variant);
+	ret_tuple = Py_BuildValue("sssss", language, country, variant, language_country, language_variant);
+
+	MEM_SAFE_FREE(language);
+	MEM_SAFE_FREE(country);
+	MEM_SAFE_FREE(variant);
+	MEM_SAFE_FREE(language_country);
+	MEM_SAFE_FREE(language_variant);
+
+	return ret_tuple;
 }
 
 static PyMethodDef app_translations_methods[] = {

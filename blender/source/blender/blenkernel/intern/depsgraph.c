@@ -75,6 +75,7 @@
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
+#include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
@@ -2356,6 +2357,15 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 					ob->recalc |= OB_RECALC_DATA;
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
+				/* This should not be needed here, but in some cases, like after a redo, we can end up with
+				 * a wrong final matrix (see T42472).
+				 * Quoting Sergey, this comes from BKE_object_handle_update_ex, which is calling
+				 * BKE_object_where_is_calc_ex when it shouldn't, but that issue is not easily fixable.
+				 */
+				else {
+					ob->recalc |= OB_RECALC_OB;
+					lib_id_recalc_tag(bmain, &ob->id);
+				}
 				if (ob->proxy && (ob->proxy_group == NULL)) {
 					ob->proxy->recalc |= OB_RECALC_DATA;
 					lib_id_recalc_tag(bmain, &ob->id);
@@ -2509,6 +2519,7 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 			obt = sce->basact ? sce->basact->object : NULL;
 			if (obt && obt->mode & OB_MODE_TEXTURE_PAINT) {
 				BKE_texpaint_slots_refresh_object(sce, obt);
+				BKE_paint_proj_mesh_data_check(sce, obt, NULL, NULL, NULL, NULL);
 				GPU_drawobject_free(obt->derivedFinal);
 			}
 		}

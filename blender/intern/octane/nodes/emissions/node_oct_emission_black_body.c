@@ -28,14 +28,14 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Temperature"),         6500.0f, 0.0f, 0.0f, 0.0f, 500.0f, 12000.0f},
-	{SOCK_FLOAT,     1,  N_("Power"),               100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 100000.0f},
-	{SOCK_BOOLEAN,   1,  N_("Normalize"),	        1.0f},
-	{SOCK_FLOAT,     1,  N_("Emission pattern"),    1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{SOCK_FLOAT,     1,  N_("Efficiency"),          0.025f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT,     1,  N_("Sampling Rate"),       1.0f, 0.0f, 0.0f, 0.0f, 0.0f, FLT_MAX},
-    {SOCK_BOOLEAN,   1,  N_("Surface brightness"),  0.0f},
-    {SOCK_BOOLEAN,   1,  N_("Cast illumination"),   1.0f},
+	{SOCK_FLOAT,     1,  N_("Temperature"),         6500.0f, 0.0f, 0.0f, 0.0f, 500.0f, 12000.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Power"),               100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 100000.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_BOOLEAN,   1,  N_("Normalize"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Emission pattern"),    1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,     1,  N_("Efficiency"),          0.025f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_FLOAT,     1,  N_("Sampling Rate"),       1.0f, 0.0f, 0.0f, 0.0f, 0.0f, FLT_MAX, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_BOOLEAN,   1,  N_("Surface brightness"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_BOOLEAN,   1,  N_("Cast illumination"),   1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
     {-1, 0, ""}
 };
 
@@ -53,6 +53,7 @@ void register_node_type_emission_oct_black_body(void) {
 	node_type_size(&ntype, 160, 160, 200);
 	node_type_init(&ntype, 0);
 	node_type_exec(&ntype, 0, 0, 0);
+    ntype.update_internal_links = node_update_internal_links_default;
 	
 	nodeRegisterType(&ntype);
 } /* register_node_type_emission_oct_black_body() */

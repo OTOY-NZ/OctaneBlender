@@ -53,11 +53,12 @@ makesrna_tool = env.Clone()
 rna = env.Clone()
 makesrna_tool.Append(CCFLAGS = '-DBASE_HEADER="\\"source/blender/makesrna/\\"" ')
 
-defs = []
+defs = env['BF_GL_DEFINITIONS']
 
 incs = [
     '#/intern/guardedalloc',
-    '#/extern/glew/include',
+    env['BF_GLEW_INC'],
+    '#/intern/glew-mx',
     '#/intern/audaspace/intern',
     '#/intern/cycles/blender',
     '#/intern/octane/blender',
@@ -67,6 +68,7 @@ incs = [
     '../../blenlib',
     '../../bmesh',
     '../../editors/include',
+    '../../gpu',
     '../../ikplugin',
     '../../imbuf',
     '../../makesdna',
@@ -122,6 +124,9 @@ if env['WITH_BF_FFTW3']:
     defs.append('WITH_FFTW3')
 
 if env['WITH_BF_SDL']:
+    if env['WITH_BF_SDL_DYNLOAD']:
+        defs.append('WITH_SDL_DYNLOAD')
+        incs += ' #extern/sdlew/include'
     defs.append('WITH_SDL')
 
 if env['WITH_BF_OPENAL']:
@@ -141,12 +146,15 @@ if env['WITH_BF_COLLADA']:
 
 if env['WITH_BF_CYCLES']:
     defs.append('WITH_CYCLES')
+    if env['WITH_BF_CYCLES_DEBUG']:
+        defs.append('WITH_CYCLES_DEBUG')
 
 if env['WITH_BF_OCTANE']:
     defs.append('WITH_OCTANE')
 
 if env['WITH_BF_FREESTYLE']:
     defs.append('WITH_FREESTYLE')
+    incs += ' ../../freestyle'
 
 if env['OURPLATFORM'] == 'linux':
     cflags='-pthread'

@@ -232,7 +232,7 @@ void BKE_camera_params_from_object(CameraParams *params, Object *ob)
 		/* lamp object */
 		Lamp *la = ob->data;
 		float fac = cosf(la->spotsize * 0.5f);
-		float phi = acos(fac);
+		float phi = acosf(fac);
 
 		params->lens = 16.0f * fac / sinf(phi);
 		if (params->lens == 0.0f)
@@ -454,7 +454,7 @@ void BKE_camera_view_frame(Scene *scene, Camera *camera, float r_vec[4][3])
 	float dummy_drawsize;
 	const float dummy_scale[3] = {1.0f, 1.0f, 1.0f};
 
-	BKE_camera_view_frame_ex(scene, camera, false, 1.0, dummy_scale,
+	BKE_camera_view_frame_ex(scene, camera, 0.0, true, dummy_scale,
 	                         dummy_asp, dummy_shift, &dummy_drawsize, r_vec);
 }
 
