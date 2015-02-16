@@ -147,8 +147,9 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 default='0',
                 )
 
+
 # ################################################################################################
-# OCTANE COMMON
+# OCTANE LAYERS
 # ################################################################################################
         cls.layers_enable = BoolProperty(
                 name="Enable",
@@ -165,6 +166,28 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 name="Invert",
                 description="All the non-active render layers become the active render layer and the active render layer becomes inactive",
                 default=False,
+                )
+
+
+# ################################################################################################
+# OCTANE OUT OF CORE
+# ################################################################################################
+        cls.out_of_core_enable = BoolProperty(
+                name="Enable out of core",
+                description="Tick to enable Octane out of core",
+                default=False,
+                )
+        cls.out_of_core_limit = IntProperty(
+                name="Out of core memory limit (MB)",
+                description="Maximal amount of memory to be used for out-of-core textures",
+                min=1,
+                default=4096,
+                )
+        cls.out_of_core_gpu_headroom = IntProperty(
+                name="GPU headroom (MB)",
+                description="To run the render kernels successfully, there needs to be some amount of free GPU memory. This setting determines how much GPU memory the render engine will leave available when uploading the images. The default value should work for most scenes",
+                min=1,
+                default=300,
                 )
 
 

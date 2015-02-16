@@ -420,7 +420,7 @@ class OctaneRender_PT_layer_passes(OctaneButtonsPanel, Panel):
 
 
 class OctaneRender_PT_octane_layers(OctaneButtonsPanel, Panel):
-    bl_label = "Octane Render Layers"
+    bl_label = "Octane render layers"
     bl_context = "render_layer"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -436,6 +436,24 @@ class OctaneRender_PT_octane_layers(OctaneButtonsPanel, Panel):
         col = layout.column()
         col.prop(octane, "layers_current")
         col.prop(octane, "layers_invert")
+
+
+class OctaneRender_PT_octane_out_of_core(OctaneButtonsPanel, Panel):
+    bl_label = "Octane out of core"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.octane, "out_of_core_enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        octane = scene.octane
+
+        col = layout.column()
+        col.prop(octane, "out_of_core_limit")
+        col.prop(octane, "out_of_core_gpu_headroom")
 
 
 class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):

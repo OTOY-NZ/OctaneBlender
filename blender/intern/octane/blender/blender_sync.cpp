@@ -540,6 +540,10 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 	
     params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
 
+    params.out_of_core_enabled = get_boolean(oct_scene, "out_of_core_enable");
+    params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
+    params.out_of_core_gpu_headroom = get_int(oct_scene, "out_of_core_gpu_headroom");
+
 	return params;
 } //get_session_params()
 

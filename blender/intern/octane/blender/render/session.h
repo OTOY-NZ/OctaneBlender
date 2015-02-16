@@ -55,6 +55,10 @@ public:
         anim_mode       = FULL;
         fps             = 24.0f;
         hdr_tonemapped  = true;
+
+        out_of_core_enabled         = false;
+        out_of_core_mem_limit       = 4096;
+        out_of_core_gpu_headroom    = 300;
 	}
 
 	bool modified(const SessionParams& params) {
@@ -65,7 +69,10 @@ public:
 			&& use_viewport_hide == params.use_viewport_hide
 			&& use_passes == params.use_passes
             && hdr_tonemapped == params.hdr_tonemapped
-			&& output_path == params.output_path);
+            && output_path == params.output_path
+            && out_of_core_enabled == params.out_of_core_enabled
+            && out_of_core_mem_limit == params.out_of_core_mem_limit
+            && out_of_core_gpu_headroom == params.out_of_core_gpu_headroom);
 	}
 
 	RenderServerInfo    server;
@@ -84,6 +91,10 @@ public:
 	Mesh::MeshType  meshes_type;
 	bool            export_alembic;
     float           fps;
+
+    bool            out_of_core_enabled;
+    int32_t         out_of_core_mem_limit,
+                    out_of_core_gpu_headroom;
 }; //SessionParams
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

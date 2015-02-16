@@ -581,7 +581,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
         cur_pass_type = Passes::COMBINED;
 
     if(scene->passes->use_passes && session->server->cur_pass_type != cur_pass_type)
-        session->server->get_image_buffer(session->params.image_stat, interactive, cur_pass_type, session->progress);
+        session->server->get_image_buffer(session->params.image_stat, session->params.interactive ? 0 : (session->params.hdr_tonemapped ? 2 : 1), cur_pass_type, session->progress);
 
     if(motion_blur && mb_type == SUBFRAME && mb_cur_sample > 1) {
         if(!do_update_only) {
@@ -616,7 +616,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
             Passes::PassTypes pass_type = get_octane_pass_type(b_pass);
             if(pass_type == Passes::COMBINED)
                 continue;
-            else if(pass_type == Passes::PASS_NONE || !session->server->get_image_buffer(session->params.image_stat, interactive, pass_type, session->progress)) {
+            else if(pass_type == Passes::PASS_NONE || !session->server->get_image_buffer(session->params.image_stat, session->params.interactive ? 0 : (session->params.hdr_tonemapped ? 2 : 1), pass_type, session->progress)) {
                 if(!do_update_only) {
 	                float* pixels  = new float[buf_size];
                     memset(pixels, 0, sizeof(float) * buf_size);
@@ -705,7 +705,7 @@ void BlenderSession::render() {
 	SessionParams	session_params	= BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
     if(session_params.export_alembic) {
         session->update_scene_to_server(0, 0);
-        session->server->start_render(width, height, 0);
+        session->server->start_render(width, height, 0, session_params.out_of_core_enabled, session_params.out_of_core_mem_limit, session_params.out_of_core_gpu_headroom);
 
         if(b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
     		session->progress.set_status("Transferring alembic file...");

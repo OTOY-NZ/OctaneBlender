@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 7
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 3
+#   define OCTANE_SERVER_MINOR_VERSION 4
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -979,13 +979,13 @@ public:
     // Start the render process on the server.
     // w - the width of the the rendered image needed 
     // h - the height of the the rendered image needed
-    inline void start_render(int32_t w, int32_t h, uint32_t img_type) {
+    inline void start_render(int32_t w, int32_t h, uint32_t img_type, bool out_of_core_enabled, int32_t out_of_core_mem_limit, int32_t out_of_core_gpu_headroom) {
         if(socket < 0) return;
 
         thread_scoped_lock socket_lock(socket_mutex);
 
-        RPCSend snd(socket, sizeof(int32_t) * 2 + sizeof(uint32_t), START);
-        snd << w << h << img_type;
+        RPCSend snd(socket, sizeof(int32_t) * 5 + sizeof(uint32_t), START);
+        snd << out_of_core_enabled << out_of_core_mem_limit << out_of_core_gpu_headroom << w << h << img_type;
         snd.write();
 
         RPCReceive rcv(socket);
@@ -2916,7 +2916,7 @@ public:
         return true;
     } //get_8bit_pixels()
 
-    inline bool get_image_buffer(ImageStatistics &image_stat, bool interactive, Passes::PassTypes type, Progress &progress) {
+    inline bool get_image_buffer(ImageStatistics &image_stat, uint32_t img_type, Passes::PassTypes type, Progress &progress) {
         if(socket < 0) return false;
 
         thread_scoped_lock socket_lock(socket_mutex);
@@ -2925,9 +2925,8 @@ public:
             if(progress.get_cancel()) return false;
             {
                 RPCSend snd(socket, sizeof(int32_t)*3 + sizeof(uint32_t), GET_IMAGE);
-                uint32_t uiType = (interactive ? 0 : 2);
                 int32_t cur_type = static_cast<int32_t>(type);
-                snd << uiType << cur_w << cur_h << cur_type;
+                snd << img_type << cur_w << cur_h << cur_type;
                 snd.write();
             }
 
@@ -2940,7 +2939,7 @@ public:
                 if(uiSamples) image_stat.cur_samples = uiSamples;
 
                 thread_scoped_lock img_buf_lock(img_buf_mutex);
-                if(interactive) {
+                if(img_type == 0) {
                     if(!image_buf || static_cast<uint32_t>(cur_w) != uiW || static_cast<uint32_t>(cur_h) != uiH) return false;
 
                     size_t  len     = uiW * uiH * 4;

@@ -158,7 +158,8 @@ void Session::run_render() {
 			// Update scene on the render-server - send all changed objects
             update_scene_to_server(frame_idx, total_frames);
             if(!bStarted) {
-                server->start_render(params.width, params.height, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1)); //FIXME: Perhaps the wrong place for it...
+                server->start_render(params.width, params.height, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1),
+                                     params.out_of_core_enabled, params.out_of_core_mem_limit, params.out_of_core_gpu_headroom); //FIXME: Perhaps the wrong place for it...
                 bStarted = true;
             }
             if(!server->error_message().empty()) {
@@ -448,9 +449,9 @@ void Session::update_status_time(bool show_pause, bool show_done) {
 void Session::update_render_buffer() {
     if(progress.get_cancel()) return;
 
-    if(!server->get_image_buffer(params.image_stat, params.interactive, scene->passes->use_passes ? scene->passes->cur_pass_type : Passes::COMBINED, progress) && b_session) {
+    if(!server->get_image_buffer(params.image_stat, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1), scene->passes->use_passes ? scene->passes->cur_pass_type : Passes::COMBINED, progress) && b_session) {
         if(!params.interactive) update_img_sample();
-        server->get_image_buffer(params.image_stat, params.interactive, scene->passes->use_passes ? scene->passes->cur_pass_type : Passes::COMBINED, progress);
+        server->get_image_buffer(params.image_stat, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1), scene->passes->use_passes ? scene->passes->cur_pass_type : Passes::COMBINED, progress);
     }
     if(!params.interactive) update_img_sample();
 } //update_render_buffer()
