@@ -39,20 +39,21 @@ public:
 	void tag_update(void);
 
     enum PassTypes {
-        COMBINED            = 0,
-        EMIT                = 1,
-        DIFFUSE_DIRECT      = 2,
-        DIFFUSE_INDIRECT    = 3,
-        REFLECTION_DIRECT   = 4,
-        REFLECTION_INDIRECT = 5,
-        REFRACTION          = 6,
-        TRANSMISSION        = 7,
-        SSS                 = 8,
-        POST_PROC           = 9,
-        LAYER_SHADOWS       = 10,
-        LAYER_BLACK_SHADOWS = 11,
-        LAYER_COLOR_SHADOWS = 12,
-        LAYER_REFLECTIONS   = 13,
+        COMBINED = 0,
+        EMIT,
+        ENVIRONMENT,
+        DIFFUSE_DIRECT,
+        DIFFUSE_INDIRECT,
+        REFLECTION_DIRECT,
+        REFLECTION_INDIRECT,
+        REFRACTION,
+        TRANSMISSION,
+        SSS,
+        POST_PROC,
+        LAYER_SHADOWS,
+        LAYER_BLACK_SHADOWS,
+        LAYER_COLOR_SHADOWS,
+        LAYER_REFLECTIONS,
 
         GEOMETRIC_NORMAL    = 100000,
         SHADING_NORMAL,
@@ -68,7 +69,6 @@ public:
         MOTION_VECTOR,
         LAYER_ID,
         LAYER_MASK,
-        ENVIRONMENT,
 
         NUM_PASSES = 29,
         PASS_NONE = -1
