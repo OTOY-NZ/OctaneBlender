@@ -28,14 +28,15 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Temperature"),         6500.0f, 0.0f, 0.0f, 0.0f, 500.0f, 12000.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_FLOAT,     1,  N_("Power"),               100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 100000.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_BOOLEAN,   1,  N_("Normalize"),	        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_FLOAT,     1,  N_("Emission pattern"),    1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_FLOAT,     1,  N_("Efficiency"),          0.025f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-    {SOCK_FLOAT,     1,  N_("Sampling Rate"),       1.0f, 0.0f, 0.0f, 0.0f, 0.0f, FLT_MAX, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-    {SOCK_BOOLEAN,   1,  N_("Surface brightness"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-    {SOCK_BOOLEAN,   1,  N_("Cast illumination"),   1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_FLOAT,    1, N_("Texture"),               0.025f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_FLOAT,    1, N_("Power"),                 100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 100000.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_BOOLEAN,  1, N_("Surface brightness"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_FLOAT,    1, N_("Temperature"),           6500.0f, 0.0f, 0.0f, 0.0f, 500.0f, 12000.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_BOOLEAN,  1, N_("Normalize"),	            1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_FLOAT,    1, N_("Distribution"),          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_FLOAT,    1, N_("Sampling Rate"),         1.0f, 0.0f, 0.0f, 0.0f, 0.0f, FLT_MAX, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_BOOLEAN,  1, N_("Cast illumination"),     1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_INT,      1, N_("Ligth pass ID"),         1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 8.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
     {-1, 0, ""}
 };
 

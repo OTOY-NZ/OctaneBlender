@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 7
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 4
+#   define OCTANE_SERVER_MINOR_VERSION 5
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -2492,19 +2492,20 @@ public:
     inline void load_bbody_emission(OctaneBlackBodyEmission* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 5 + sizeof(int32_t) * 3
-            + node->Efficiency.length() + 2
-            + node->Distribution.length() + 2
-            + node->Temperature.length() + 2
+        uint64_t size = sizeof(float) * 5 + sizeof(int32_t) * 4
+            + node->TextureOrEff.length() + 2
             + node->Power.length() + 2
-            + node->SamplingRate.length() + 2;
+            + node->Temperature.length() + 2
+            + node->Distribution.length() + 2
+            + node->SamplingRate.length() + 2
+            + node->LightPassID.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_BLACKBODY_EMISSION, node->name.c_str());
-            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Temperature_default_val << node->Power_default_val << node->SamplingRate_default_val
-                << node->Normalize << node->SurfaceBrightness << node->CastIllumination
-                << node->Temperature.c_str() << node->Power.c_str() << node->SamplingRate.c_str() << node->Efficiency.c_str() << node->Distribution.c_str();
+            snd << node->TextureOrEff_default_val << node->Power_default_val << node->Temperature_default_val << node->Distribution_default_val << node->SamplingRate_default_val
+                << node->LightPassID_default_val << node->SurfaceBrightness << node->Normalize << node->CastIllumination
+                << node->TextureOrEff.c_str() << node->Power.c_str() << node->Temperature.c_str() << node->Distribution.c_str() << node->SamplingRate.c_str() << node->LightPassID.c_str();
             snd.write();
         }
         wait_error(LOAD_BLACKBODY_EMISSION);
@@ -2513,18 +2514,19 @@ public:
     inline void load_texture_emission(OctaneTextureEmission* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 4 + sizeof(int32_t) * 2
-            + node->Efficiency.length() + 2
-            + node->Distribution.length() + 2
+        uint64_t size = sizeof(float) * 4 + sizeof(int32_t) * 3
+            + node->TextureOrEff.length() + 2
             + node->Power.length() + 2
-            + node->SamplingRate.length() + 2;
+            + node->Distribution.length() + 2
+            + node->SamplingRate.length() + 2
+            + node->LightPassID.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, size, LOAD_TEXTURE_EMISSION, node->name.c_str());
-            snd << node->Efficiency_default_val << node->Distribution_default_val << node->Power_default_val << node->SamplingRate_default_val
-                << node->SurfaceBrightness << node->CastIllumination
-                << node->Power.c_str() << node->SamplingRate.c_str() << node->Efficiency.c_str() << node->Distribution.c_str();
+            snd << node->TextureOrEff_default_val << node->Power_default_val << node->Distribution_default_val << node->SamplingRate_default_val
+                << node->LightPassID_default_val << node->SurfaceBrightness << node->CastIllumination
+                << node->TextureOrEff.c_str() << node->Power.c_str() << node->Distribution.c_str() << node->SamplingRate.c_str() << node->LightPassID.c_str();
             snd.write();
         }
         wait_error(LOAD_TEXTURE_EMISSION);

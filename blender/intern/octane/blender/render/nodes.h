@@ -480,35 +480,39 @@ class OctaneBlackBodyEmission : public OctaneEmissionNode {
     SHADER_NODE_CLASS(OctaneBlackBodyEmission)
 
 public:
-    std::string Temperature;
-    float       Temperature_default_val;
+    std::string TextureOrEff;
+    float       TextureOrEff_default_val;
     std::string Power;
     float       Power_default_val;
+    bool        SurfaceBrightness;
+    std::string Temperature;
+    float       Temperature_default_val;
     bool        Normalize;
     std::string Distribution;
     float       Distribution_default_val;
-    std::string Efficiency;
-    float       Efficiency_default_val;
     std::string SamplingRate;
     float       SamplingRate_default_val;
-    bool        SurfaceBrightness;
     bool        CastIllumination;
+    std::string LightPassID;
+    int32_t     LightPassID_default_val;
 };
 
 class OctaneTextureEmission : public OctaneEmissionNode {
     SHADER_NODE_CLASS(OctaneTextureEmission)
 
 public:
-    std::string Efficiency;
-    float       Efficiency_default_val;
+    std::string TextureOrEff;
+    float       TextureOrEff_default_val;
     std::string Power;
     float       Power_default_val;
+    bool        SurfaceBrightness;
     std::string Distribution;
     float       Distribution_default_val;
     std::string SamplingRate;
     float       SamplingRate_default_val;
-    bool        SurfaceBrightness;
     bool        CastIllumination;
+    std::string LightPassID;
+    int32_t     LightPassID_default_val;
 };
 
 
