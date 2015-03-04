@@ -409,7 +409,6 @@ class OctaneRender_PT_layer_passes(OctaneButtonsPanel, Panel):
 
         col.prop(octane, "pass_max_samples")
         col.prop(octane, "pass_ao_max_samples")
-        col.prop(octane, "pass_start_samples")
         col.prop(octane, "pass_distributed_tracing")
         col.prop(octane, "pass_filter_size")
         col.prop(octane, "pass_z_depth_max")

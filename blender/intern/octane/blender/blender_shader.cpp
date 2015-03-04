@@ -1803,7 +1803,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 if(!b_input->is_linked() || (cur_node->Rotation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
                     cur_node->Rotation = "";
                     BL::NodeSocket value_sock(*b_input);
-                    float Rotation[2];
+                    float Rotation[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
                     cur_node->Rotation_default_val.x = Rotation[0];
                     cur_node->Rotation_default_val.y = Rotation[1];
@@ -1813,7 +1813,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 if(!b_input->is_linked() || (cur_node->Scale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
                     cur_node->Scale = "";
                     BL::NodeSocket value_sock(*b_input);
-                    float Scale[2];
+                    float Scale[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
                     cur_node->Scale_default_val.x = Scale[0];
                     cur_node->Scale_default_val.y = Scale[1];
@@ -1823,7 +1823,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 if(!b_input->is_linked() || (cur_node->Translation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
                     cur_node->Translation = "";
                     BL::NodeSocket value_sock(*b_input);
-                    float Translation[2];
+                    float Translation[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Translation);
                     cur_node->Translation_default_val.x = Translation[0];
                     cur_node->Translation_default_val.y = Translation[1];

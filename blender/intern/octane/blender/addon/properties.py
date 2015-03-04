@@ -83,12 +83,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 min=1, max=256000,
                 default=1024,
                 )
-        cls.pass_start_samples = IntProperty(
-                name="Start samples",
-                description="The minimum number of samples we need to have rendered for the beauty passes before we're allowed to start rendering the info passes. 0 means that we wait until all the beauty passes are finished",
-                min=0, max=256000,
-                default=0,
-                )
         cls.pass_distributed_tracing = BoolProperty(
                 name="Distributed ray tracing",
                 description="Enable motion blur and depth of field",
