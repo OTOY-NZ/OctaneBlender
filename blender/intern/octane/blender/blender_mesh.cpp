@@ -26,6 +26,11 @@
 #   include "BLI_winstuff.h"
 #endif
 
+#include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
+#include "BKE_depsgraph.h"
+
 OCT_NAMESPACE_BEGIN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -217,6 +222,8 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 		b_ob.update_from_editmode();
 
     // Create derived mesh
+    char tagged_state[256];
+    memcpy(tagged_state, G.main->id_tag_update, 256); //object_to_mesh() tags the scene to synchronize again, so clean the extra refresh-tags produced by object_to_mesh() later
 	BL::Mesh b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !interactive, true);
 
 	PointerRNA cmesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
@@ -250,6 +257,8 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
 
         // Free derived mesh
 		b_data.meshes.remove(b_mesh);
+
+        memcpy(G.main->id_tag_update, tagged_state, 256);
 	}
     else octane_mesh->empty = true;
 	

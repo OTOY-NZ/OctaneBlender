@@ -451,7 +451,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion) {
 
                 if(b_ob->is_duplicator() && !object_render_hide_duplis(*b_ob)) {
 					// Dupli objects
-					b_ob->dupli_list_create(b_scene, 2);
+					b_ob->dupli_list_create(b_scene, interactive ? 1 : 2);
 
 					BL::Object::dupli_list_iterator b_dup;
 					for(b_ob->dupli_list.begin(b_dup); b_dup != b_ob->dupli_list.end(); ++b_dup) {
