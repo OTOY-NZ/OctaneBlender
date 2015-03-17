@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 7
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 8
+#   define OCTANE_SERVER_MINOR_VERSION 9
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -74,7 +74,6 @@
 #include "util_lists.h"
 #include "util_progress.h"
 #include "blender_util.h"
-#include <OpenImageIO/ustring.h>
 
 #include "nodes.h"
 #include "blender_session.h"
