@@ -28,10 +28,8 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_RGBA,      1,  N_("Texture"),             0.7f, 0.7f, 0.7f, 1.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_SHADER,    1,  N_("Texture"),             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{SOCK_BOOLEAN,   1,  N_("Smooth"),	            1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_RGBA,      1,  N_("Start Value"),         0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_RGBA,      1,  N_("End Value"),           1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{-1, 0, ""}
 };
 
@@ -40,14 +38,20 @@ static bNodeSocketTemplate sh_node_out[] = {
 	{-1, 0, ""}
 };
 
+static void node_oct_init_gradient(bNodeTree *UNUSED(ntree), bNode *node) {
+    node->storage = add_colorband(true);
+}
+
 void register_node_type_tex_oct_gradient(void) {
 	static bNodeType ntype;
 	
 	if(ntype.type != SH_NODE_OCT_GRADIENT_TEX) node_type_base(&ntype, SH_NODE_OCT_GRADIENT_TEX, "Octane Gradient Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
+    //if(ntype.type != SH_NODE_OCT_GRADIENT_TEX) cmp_node_type_base(&ntype, SH_NODE_OCT_GRADIENT_TEX, "Octane Gradient Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
 	node_type_size(&ntype, 160, 160, 200);
-	node_type_init(&ntype, 0);
+	node_type_init(&ntype, node_oct_init_gradient);
+    node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
 	node_type_exec(&ntype, 0, 0, 0);
     ntype.update_internal_links = node_update_internal_links_default;
 	

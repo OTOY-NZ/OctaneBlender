@@ -2377,6 +2377,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_VALTORGB:
 			ntype->draw_buttons = node_buts_colorramp;
 			break;
+        case SH_NODE_OCT_GRADIENT_TEX:
+            ntype->draw_buttons = node_buts_colorramp;
+            break;
 		case CMP_NODE_CROP:
 			ntype->draw_buttons = node_composit_buts_crop;
 			break;

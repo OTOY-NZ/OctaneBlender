@@ -121,6 +121,26 @@ static std::string get_non_oct_tex_name(BL::ShaderNode& b_node, std::string& tex
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static inline void translate_colorramp(BL::ColorRamp ramp, std::vector<float> &pos_data, std::vector<float> &color_data) {
+    pos_data.resize(ramp.elements.length());
+    color_data.resize(ramp.elements.length() * 3);
+    float  *ppos_data   = &pos_data[0];
+    float  *pcolor_data = &color_data[0];
+
+    int i = 0;
+    BL::ColorRamp::elements_iterator el;
+    for(ramp.elements.begin(el); el != ramp.elements.end(); ++el, ++i) {
+        BL::Array<float,4> cur_color = el->color();
+        ppos_data[i]        = el->position();
+        pcolor_data[i*3]    = cur_color[0];
+        pcolor_data[i*3+1]  = cur_color[1];
+        pcolor_data[i*3+2]  = cur_color[2];
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNode b_node, PtrStringMap &ConnectedNodesMap) {
 	ShaderNode *node = NULL;
         
@@ -1402,44 +1422,18 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         node = cur_node;
         cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
+        translate_colorramp(b_tex_node.color_ramp(), cur_node->pos_data, cur_node->color_data);
+
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Texture") {
-                if(!b_input->is_linked() || (cur_node->texture = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->texture = "";
-                    BL::NodeSocket value_sock(*b_input);
-                    float ret[4];
-                    RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                    cur_node->texture_default_val.x = ret[0];
-                    cur_node->texture_default_val.y = ret[1];
-                    cur_node->texture_default_val.z = ret[2];
-                }
+                if(b_input->is_linked())
+                    cur_node->texture = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->texture = "";
             }
             else if(b_input->name() == "Smooth") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->Smooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
-            }
-            else if(b_input->name() == "Start Value") {
-                if(!b_input->is_linked() || (cur_node->Start = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Start = "";
-                    BL::NodeSocket value_sock(*b_input);
-                    float ret[4];
-                    RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                    cur_node->Start_default_val.x = ret[0];
-                    cur_node->Start_default_val.y = ret[1];
-                    cur_node->Start_default_val.z = ret[2];
-                }
-            }
-            else if(b_input->name() == "End Value") {
-                if(!b_input->is_linked() || (cur_node->End = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->End = "";
-                    BL::NodeSocket value_sock(*b_input);
-                    float ret[4];
-                    RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                    cur_node->End_default_val.x = ret[0];
-                    cur_node->End_default_val.y = ret[1];
-                    cur_node->End_default_val.z = ret[2];
-                }
             }
         }
     }

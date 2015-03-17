@@ -1501,6 +1501,7 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 	float xs = butr->xmin;
 	float ys = butr->ymin;
 	PointerRNA ptr;
+    Scene *scene = G.main->scene.first;
 
 	RNA_pointer_create(cb->ptr.id.data, &RNA_ColorRamp, coba, &ptr);
 
@@ -1525,17 +1526,19 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 	UI_block_align_end(block);
 	UI_block_emboss_set(block, UI_EMBOSS);
 
-	row = uiLayoutRow(split, false);
+    if(!scene || strcmp(scene->r.engine, "octane")) {
+	    row = uiLayoutRow(split, false);
 
-	UI_block_align_begin(block);
-	uiItemR(row, &ptr, "color_mode", 0, "", ICON_NONE);
-	if (ELEM(coba->color_mode, COLBAND_BLEND_HSV, COLBAND_BLEND_HSL)) {
-		uiItemR(row, &ptr, "hue_interpolation", 0, "", ICON_NONE);
-	}
-	else {  /* COLBAND_BLEND_RGB */
-		uiItemR(row, &ptr, "interpolation", 0, "", ICON_NONE);
-	}
-	UI_block_align_end(block);
+	    UI_block_align_begin(block);
+	    uiItemR(row, &ptr, "color_mode", 0, "", ICON_NONE);
+	    if (ELEM(coba->color_mode, COLBAND_BLEND_HSV, COLBAND_BLEND_HSL)) {
+		    uiItemR(row, &ptr, "hue_interpolation", 0, "", ICON_NONE);
+	    }
+	    else {  /* COLBAND_BLEND_RGB */
+		    uiItemR(row, &ptr, "interpolation", 0, "", ICON_NONE);
+	    }
+	    UI_block_align_end(block);
+    }
 
 	row = uiLayoutRow(layout, false);
 

@@ -414,12 +414,10 @@ class OctaneGradientTexture : public OctaneTextureNode {
 
 public:
     std::string texture;
-    float3      texture_default_val;
     bool        Smooth;
-    std::string Start;
-    float3      Start_default_val;
-    std::string End;
-    float3      End_default_val;
+
+    std::vector<float>  pos_data;
+    std::vector<float>  color_data;
 };
 
 class OctaneRandomColorTexture : public OctaneTextureNode {

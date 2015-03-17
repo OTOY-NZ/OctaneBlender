@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 7
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 7
+#   define OCTANE_SERVER_MINOR_VERSION 8
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -1319,8 +1319,9 @@ public:
 
             RPCSend snd(socket, size, LOAD_GEO_SCATTER, (scatter_name+"_s__").c_str());
             std::string tmp = scatter_name+"_m__";
-            snd << mat_cnt << movable << frame_idx << total_frames << tmp;
+            snd << mat_cnt;
             snd.write_buffer(matrices, sizeof(float)*12*mat_cnt);
+            snd << movable << frame_idx << total_frames << tmp;
             snd.write();
         }
         RPCReceive rcv(socket);
@@ -2071,12 +2072,12 @@ public:
             {
                 RPCSend snd(socket, size, LOAD_IMAGE_TEXTURE_DATA, node->name.c_str());
                 snd << node->Power_default_val << node->Gamma_default_val
-                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert
-                    << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert;
                 if(is_float)
                     snd.write_buffer(pixels, img_size * sizeof(float));
                 else
                     snd.write_buffer(pixels, img_size);
+                snd << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();
             }
             if(is_float)
@@ -2178,12 +2179,12 @@ public:
             {
                 RPCSend snd(socket, size, LOAD_FLOAT_IMAGE_TEXTURE_DATA, node->name.c_str());
                 snd << node->Power_default_val << node->Gamma_default_val
-                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert
-                    << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert;
                 if(is_float)
                     snd.write_buffer(pixels, img_size * sizeof(float));
                 else
                     snd.write_buffer(pixels, img_size);
+                snd << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();
             }
             if(is_float)
@@ -2285,12 +2286,12 @@ public:
             {
                 RPCSend snd(socket, size, LOAD_ALPHA_IMAGE_TEXTURE_DATA, node->name.c_str());
                 snd << node->Power_default_val << node->Gamma_default_val
-                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert
-                    << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
+                    << node->BorderMode_default_val << width << height << components << is_float << node->Invert;
                 if(is_float)
                     snd.write_buffer(pixels, img_size * sizeof(float));
                 else
                     snd.write_buffer(pixels, img_size);
+                snd << node->Gamma.c_str() << node->BorderMode.c_str() << node->Power.c_str() << node->Transform.c_str() << node->Projection.c_str();
                 snd.write();
             }
             if(is_float)
@@ -2375,19 +2376,20 @@ public:
     inline void load_gradient_tex(OctaneGradientTexture* node) {
         if(socket < 0) return;
 
-        uint64_t size = sizeof(float) * 9 + sizeof(int32_t)
-            + node->texture.length() + 2
-            + node->Start.length() + 2
-            + node->End.length() + 2;
+        uint64_t size = sizeof(int32_t) * 2
+            + node->pos_data.size() * sizeof(float)
+            + node->color_data.size() * sizeof(float)
+            + node->texture.length() + 2;
 
         thread_scoped_lock socket_lock(socket_mutex);
         {
+            int32_t grad_cnt = node->pos_data.size();
+
             RPCSend snd(socket, size, LOAD_GRADIENT_TEXTURE, node->name.c_str());
-            snd << node->texture_default_val.x << node->texture_default_val.y << node->texture_default_val.z
-                << node->Start_default_val.x << node->Start_default_val.y << node->Start_default_val.z
-                << node->End_default_val.x << node->End_default_val.y << node->End_default_val.z
-                << node->Smooth
-                << node->texture.c_str() << node->Start.c_str() << node->End.c_str();
+            snd << grad_cnt << node->Smooth;
+            snd.write_buffer(&node->pos_data[0], sizeof(float) * node->pos_data.size());
+            snd.write_buffer(&node->color_data[0], sizeof(float) * node->color_data.size());
+            snd << node->texture.c_str();
             snd.write();
         }
         wait_error(LOAD_GRADIENT_TEXTURE);
