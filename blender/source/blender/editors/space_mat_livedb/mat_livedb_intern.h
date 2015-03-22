@@ -63,6 +63,7 @@ static unsigned short LIVEDB_PORT = 5131;
 #define MAT_LDB_VALUE_TYPE_FILE      13
 #define MAT_LDB_VALUE_TYPE_NLINK     14
 #define MAT_LDB_VALUE_TYPE_FLINK     15
+#define MAT_LDB_VALUE_TYPE_RAMP      16
 
 struct wmOperatorType;
 struct wmKeyConfig;
@@ -83,6 +84,12 @@ typedef struct CategoryItem {
     uint32_t mat_cnt;
     char     name[1];
 } CategoryItem;
+
+#pragma pack (4)
+typedef struct RampItem {
+    uint32_t pos_cnt;
+    float    pos_data[1];
+} RampItem;
 
 #pragma pack (4)
 typedef struct LiveDbItem {

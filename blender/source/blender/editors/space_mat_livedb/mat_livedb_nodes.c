@@ -165,6 +165,12 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
 
                     mat_livedb_add_mat_element(bmain, C, ntree, node_fr, sock, &ptr, file_path, node_fr->locx, &cur_y_pos);
                 }
+
+                if(node_fr->type == SH_NODE_OCT_GRADIENT_TEX) {
+                    mat_livedb_add_mat_element(bmain, C, ntree, node_fr, 0, &ptr, file_path, 0, 0);
+                    node_height += (U.widget_unit * 2.5);
+                }
+
                 *_item = ptr;
 
                 *y_pos -= (node_height + LDB_NODES_V_GAP);
@@ -282,6 +288,28 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
 
             if(!ima)
                 node_to->id = (struct ID*)BKE_image_load_exists(tex_file_name);
+
+            *_item = (MatItem*)((char*)item + item->size);
+            break;
+        }
+        case MAT_LDB_VALUE_TYPE_RAMP: {
+            char* file_name;
+            FILE *file;
+            struct ColorBand *coba = (struct ColorBand*)node_to->storage;
+
+            RampItem *ramp_item = (RampItem*)item->data;
+
+            if(coba && ramp_item->pos_cnt > 1) {
+                int i;
+                coba->tot = ramp_item->pos_cnt;
+                for(i = 0; i < ramp_item->pos_cnt; ++i) {
+                    coba->data[i].pos   = ramp_item->pos_data[i * 4 + 0];
+                    coba->data[i].r     = ramp_item->pos_data[i * 4 + 1];
+                    coba->data[i].g     = ramp_item->pos_data[i * 4 + 2];
+                    coba->data[i].b     = ramp_item->pos_data[i * 4 + 3];
+                    coba->data[i].a     = 1.0;
+                }
+            }
 
             *_item = (MatItem*)((char*)item + item->size);
             break;
