@@ -40,6 +40,7 @@ public:
 
     enum PassTypes {
         COMBINED = 0,
+
         EMIT,
         ENVIRONMENT,
         DIFFUSE_DIRECT,
@@ -50,10 +51,22 @@ public:
         TRANSMISSION,
         SSS,
         POST_PROC,
+
         LAYER_SHADOWS,
         LAYER_BLACK_SHADOWS,
         LAYER_COLOR_SHADOWS,
         LAYER_REFLECTIONS,
+
+        AMBIENT_LIGHT,
+        SUNLIGHT,
+        LIGHT1,
+        LIGHT2,
+        LIGHT3,
+        LIGHT4,
+        LIGHT5,
+        LIGHT6,
+        LIGHT7,
+        LIGHT8,
 
         GEOMETRIC_NORMAL    = 100000,
         SHADING_NORMAL,
@@ -69,8 +82,13 @@ public:
         MOTION_VECTOR,
         LAYER_ID,
         LAYER_MASK,
+        LIGHT_PASS_ID,
+        //DIFFUSE_FILTER,
+        //REFLECTION_FILTER,
+        //REFRACTION_FILTER,
+        //TRANSMISISON_FILTER,
 
-        NUM_PASSES = 29,
+        NUM_PASSES = 40,
         PASS_NONE = -1
     };
 
@@ -78,6 +96,7 @@ public:
     PassTypes   cur_pass_type;
 
     bool        combined_pass;
+
     bool        emitters_pass;
     bool        environment_pass;
     bool        diffuse_direct_pass;
@@ -89,6 +108,22 @@ public:
     bool        subsurf_scattering_pass;
     bool        post_processing_pass;
 
+    bool        layer_shadows_pass;
+    bool        layer_black_shadows_pass;
+    bool        layer_color_shadows_pass;
+    bool        layer_reflections_pass;
+
+    bool        ambient_light_pass;
+    bool        sunlight_pass;
+    bool        light1_pass;
+    bool        light2_pass;
+    bool        light3_pass;
+    bool        light4_pass;
+    bool        light5_pass;
+    bool        light6_pass;
+    bool        light7_pass;
+    bool        light8_pass;
+
     bool        geom_normals_pass;
     bool        shading_normals_pass;
     bool        vertex_normals_pass;
@@ -98,15 +133,13 @@ public:
     bool        uv_coordinates_pass;
     bool        tangents_pass;
     bool        wireframe_pass;
-    bool        object_id_pass;
-    bool        ao_pass;
     bool        motion_vector_pass;
-    bool        layer_shadows_pass;
-    bool        layer_black_shadows_pass;
-    bool        layer_color_shadows_pass;
-    bool        layer_reflections_pass;
+    bool        object_id_pass;
     bool        layer_id_pass;
     bool        layer_mask_pass;
+    bool        light_pass_id_pass;
+
+    bool        ao_pass;
 
     int32_t     pass_max_samples;
     int32_t     pass_ao_max_samples;
@@ -123,7 +156,9 @@ public:
 
 static Passes::PassTypes pass_type_translator[Passes::NUM_PASSES] = {
     Passes::COMBINED,
+
     Passes::EMIT,
+    Passes::ENVIRONMENT,
     Passes::DIFFUSE_DIRECT,
     Passes::DIFFUSE_INDIRECT,
     Passes::REFLECTION_DIRECT,
@@ -132,10 +167,22 @@ static Passes::PassTypes pass_type_translator[Passes::NUM_PASSES] = {
     Passes::TRANSMISSION,
     Passes::SSS,
     Passes::POST_PROC,
+
     Passes::LAYER_SHADOWS,
     Passes::LAYER_BLACK_SHADOWS,
     Passes::LAYER_COLOR_SHADOWS,
     Passes::LAYER_REFLECTIONS,
+
+    Passes::AMBIENT_LIGHT,
+    Passes::SUNLIGHT,
+    Passes::LIGHT1,
+    Passes::LIGHT2,
+    Passes::LIGHT3,
+    Passes::LIGHT4,
+    Passes::LIGHT5,
+    Passes::LIGHT6,
+    Passes::LIGHT7,
+    Passes::LIGHT8,
 
     Passes::GEOMETRIC_NORMAL,
     Passes::SHADING_NORMAL,
@@ -151,7 +198,7 @@ static Passes::PassTypes pass_type_translator[Passes::NUM_PASSES] = {
     Passes::MOTION_VECTOR,
     Passes::LAYER_ID,
     Passes::LAYER_MASK,
-    Passes::ENVIRONMENT
+    Passes::LIGHT_PASS_ID
 };
 
 OCT_NAMESPACE_END

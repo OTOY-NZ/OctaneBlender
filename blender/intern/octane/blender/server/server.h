@@ -20,10 +20,10 @@
 #define __SERVER_H__
 
 #ifndef OCTANE_SERVER_MAJOR_VERSION
-#   define OCTANE_SERVER_MAJOR_VERSION 7
+#   define OCTANE_SERVER_MAJOR_VERSION 8
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 10
+#   define OCTANE_SERVER_MINOR_VERSION 2
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -710,6 +710,7 @@ public:
     uint32_t tri_cnt, meshes_cnt;
     uint32_t rgb32_cnt, rgb64_cnt, grey8_cnt, grey16_cnt;
     uint32_t net_gpus, used_net_gpus;
+    int32_t expiry_time;
 }; //ImageStatistics
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1065,16 +1066,17 @@ public:
 
         if(cam->type == CAMERA_PANORAMA) {
             {
-                RPCSend snd(socket, sizeof(float3)*4 + sizeof(float)*18 + sizeof(int32_t)*7, LOAD_PANORAMIC_CAMERA);
+                RPCSend snd(socket, sizeof(float3)*4 + sizeof(float)*19 + sizeof(int32_t)*8, LOAD_PANORAMIC_CAMERA);
                 snd << cam->eye_point << cam->look_at << cam->up << cam->white_balance 
 
                     << cam->fov_x << cam->fov_y << cam->near_clip_depth << cam->exposure
                     << cam->gamma << cam->vignetting << cam->saturation << cam->hot_pix << cam->white_saturation
                     << cam->bloom_power << cam->glare_power << cam->glare_angle << cam->glare_blur << cam->spectral_shift << cam->spectral_intencity << cam->highlight_compression
+                    << cam->blackout_lat
 
                     << cam->pan_type << response_type << min_display_samples << glare_ray_count
                     
-                    << cam->premultiplied_alpha << cam->dithering << cam->postprocess;
+                    << cam->premultiplied_alpha << cam->dithering << cam->postprocess << cam->keep_upright;
                 snd.write();
             }
 
@@ -1088,13 +1090,14 @@ public:
         }
         else {
             {
-                RPCSend snd(socket, sizeof(float3)*6 + sizeof(float)*24 + sizeof(int32_t)*11, LOAD_THIN_LENS_CAMERA);
+                RPCSend snd(socket, sizeof(float3)*6 + sizeof(float)*26 + sizeof(int32_t)*11, LOAD_THIN_LENS_CAMERA);
                 snd << cam->eye_point << cam->look_at << cam->up << cam->left_filter << cam->right_filter << cam->white_balance 
 
                     << cam->aperture << cam->aperture_edge << cam->distortion << cam->focal_depth << cam->near_clip_depth << cam->lens_shift_x << cam->lens_shift_y
                     << cam->stereo_dist << cam->fov << cam->exposure << cam->gamma << cam->vignetting
                     << cam->saturation << cam->hot_pix << cam->white_saturation
                     << cam->bloom_power << cam->glare_power << cam->glare_angle << cam->glare_blur << cam->spectral_shift << cam->spectral_intencity << cam->highlight_compression
+                    << cam->pixel_aspect << cam->aperture_aspect
 
                     << response_type << min_display_samples << glare_ray_count << cam->stereo_mode << cam->stereo_out
 
@@ -1123,7 +1126,7 @@ public:
         thread_scoped_lock socket_lock(socket_mutex);
 
         {
-            RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*35, LOAD_PASSES);
+            RPCSend snd(socket, sizeof(float)*5 + sizeof(int32_t)*46, LOAD_PASSES);
             uint32_t cur_pass_type = static_cast<uint32_t>(passes->cur_pass_type);
             snd << passes->pass_filter_size << passes->pass_z_depth_max << passes->pass_uv_max << passes->pass_max_speed << passes->pass_ao_distance
                 << passes->use_passes << cur_pass_type << passes->pass_max_samples << passes->pass_ao_max_samples << passes->pass_distributed_tracing << passes->pass_alpha_shadows
@@ -1134,7 +1137,10 @@ public:
                 << passes->geom_normals_pass << passes->shading_normals_pass << passes->vertex_normals_pass << passes->position_pass << passes->z_depth_pass << passes->material_id_pass << passes->uv_coordinates_pass
                 << passes->tangents_pass << passes->wireframe_pass << passes->object_id_pass << passes->ao_pass << passes->motion_vector_pass
                 << passes->layer_shadows_pass << passes->layer_black_shadows_pass << passes->layer_color_shadows_pass << passes->layer_reflections_pass
-                << passes->layer_id_pass << passes->layer_mask_pass;
+                << passes->layer_id_pass << passes->layer_mask_pass
+                << passes->light_pass_id_pass
+                << passes->ambient_light_pass << passes->sunlight_pass << passes->light1_pass << passes->light2_pass << passes->light3_pass
+                << passes->light4_pass << passes->light5_pass << passes->light6_pass << passes->light7_pass << passes->light8_pass;
             snd.write();
         }
 
@@ -1159,28 +1165,28 @@ public:
         switch(kernel->kernel_type) {
         case Kernel::DIRECT_LIGHT:
         {
-            RPCSend snd(socket, sizeof(float) * 6 + sizeof(int32_t) * 12, LOAD_KERNEL);
+            RPCSend snd(socket, sizeof(float) * 6 + sizeof(int32_t) * 13, LOAD_KERNEL);
             int32_t gi_mode = static_cast<int32_t>(kernel->gi_mode);
             snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->path_term_power << kernel->coherent_ratio << kernel->ao_dist
-                << kernel->alpha_channel << kernel->alpha_shadows << kernel->static_noise
+                << kernel->alpha_channel << kernel->alpha_shadows << kernel->static_noise << kernel->keep_environment
                 << kernel->specular_depth << kernel->glossy_depth << gi_mode << kernel->diffuse_depth << kernel->layers_enable << kernel->layers_current << kernel->layers_invert;
             snd.write();
         }
             break;
         case Kernel::PATH_TRACE:
         {
-            RPCSend snd(socket, sizeof(float) * 7 + sizeof(int32_t) * 10, LOAD_KERNEL);
+            RPCSend snd(socket, sizeof(float) * 7 + sizeof(int32_t) * 11, LOAD_KERNEL);
             snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->path_term_power << kernel->coherent_ratio << kernel->caustic_blur << kernel->gi_clamp
-                << kernel->alpha_channel << kernel->alpha_shadows << kernel->static_noise
+                << kernel->alpha_channel << kernel->alpha_shadows << kernel->static_noise << kernel->keep_environment
                 << kernel->max_diffuse_depth << kernel->max_glossy_depth << kernel->layers_enable << kernel->layers_current << kernel->layers_invert;
             snd.write();
         }
             break;
         case Kernel::PMC:
         {
-            RPCSend snd(socket, sizeof(float) * 8 + sizeof(int32_t) * 11, LOAD_KERNEL);
+            RPCSend snd(socket, sizeof(float) * 8 + sizeof(int32_t) * 12, LOAD_KERNEL);
             snd << kernel_type << (interactive ? kernel->max_preview_samples : kernel->max_samples) << kernel->shuttertime << kernel->filter_size << kernel->ray_epsilon << kernel->path_term_power << kernel->exploration << kernel->direct_light_importance << kernel->caustic_blur << kernel->gi_clamp
-                << kernel->alpha_channel << kernel->alpha_shadows
+                << kernel->alpha_channel << kernel->alpha_shadows << kernel->keep_environment
                 << kernel->max_diffuse_depth << kernel->max_glossy_depth << kernel->max_rejects << kernel->parallelism << kernel->layers_enable << kernel->layers_current << kernel->layers_invert;
             snd.write();
         }
@@ -2936,7 +2942,7 @@ public:
             RPCReceive rcv(socket);
             if(rcv.type == GET_IMAGE) {
                 uint32_t uiW, uiH, uiSamples;
-                rcv >> image_stat.used_vram >> image_stat.free_vram >> image_stat.total_vram >> image_stat.spp >> image_stat.tri_cnt >> image_stat.meshes_cnt >> image_stat.rgb32_cnt
+                rcv >> image_stat.used_vram >> image_stat.free_vram >> image_stat.total_vram >> image_stat.spp >> image_stat.expiry_time >> image_stat.tri_cnt >> image_stat.meshes_cnt >> image_stat.rgb32_cnt
                     >> image_stat.rgb64_cnt >> image_stat.grey8_cnt >> image_stat.grey16_cnt >> uiSamples >> uiW >> uiH >> image_stat.net_gpus >> image_stat.used_net_gpus;
 
                 if(uiSamples) image_stat.cur_samples = uiSamples;

@@ -20,7 +20,6 @@
 12:Portuguese (Português):pt_PT
 15:Russian (Русский):ru_RU
 18:Ukrainian (Український):uk_UA
-14:Traditional Chinese (繁體中文):zh_TW
 #
 0:In Progress:
 21:Arabic (ﺔﻴﺑﺮﻌﻟﺍ):ar_EG
@@ -34,6 +33,7 @@
 7:Swedish (Svenska):sv_SE
 30:Turkish (Türkçe):tr_TR
 13:Simplified Chinese (简体中文):zh_CN
+14:Traditional Chinese (繁體中文):zh_TW
 #
 0:Starting:
 # No translation yet! #37:Amharic (አማርኛ):am_ET
@@ -51,7 +51,7 @@
 29:Kyrgyz (Кыргыз тили):ky_KG
 # No translation yet! #25:Nepali (नेपाली):ne_NP
 3:Dutch (Nederlandse taal):nl_NL
-# No translation yet! #19:Polish (Polski):pl_PL
+19:Polish (Polski):pl_PL
 # No translation yet! #20:Romanian (Român):ro_RO
 # No translation yet! #38:Uzbek (Oʻzbek):uz_UZ
 # No translation yet! #39:Uzbek Cyrillic (Ўзбек):uz_UZ@cyrillic

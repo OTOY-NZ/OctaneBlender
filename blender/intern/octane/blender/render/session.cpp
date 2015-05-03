@@ -405,6 +405,12 @@ void Session::update_status_time(bool show_pause, bool show_done) {
                         params.image_stat.cur_samples, params.samples, szSamples, params.image_stat.used_vram / 1000000, params.image_stat.free_vram / 1000000, params.image_stat.total_vram / 1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
                         params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt);
             }
+            if(params.image_stat.expiry_time == 0) {
+                substatus = substatus + " | SUBSCRIPTION IS EXPIRED!";
+            }
+            else if(params.image_stat.expiry_time > 0 && params.image_stat.expiry_time < (3600 * 48)) {
+                substatus = substatus + string_printf(" | Subscription expires in %d:%.2d:%.2d", params.image_stat.expiry_time / 3600, (params.image_stat.expiry_time % 3600) / 60, (params.image_stat.expiry_time % 3600) % 60);
+            }
         }
         else
             substatus = "Waiting for image...";

@@ -305,6 +305,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="",
                 default=True,
                 )
+        cls.keep_environment = BoolProperty(
+                name="Keep environment",
+                description="",
+                default=False,
+                )
 
         cls.caustic_blur = FloatProperty(
                 name="Caustic blur",
@@ -534,13 +539,13 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 name="Stereo mode",
 #                description="",
                 items=types.camera_stereo_modes,
-                default='0',
+                default='1',
                 )
         cls.stereo_out = EnumProperty(
                 name="Stereo output",
 #                description="",
                 items=types.camera_stereo_outs,
-                default='3',
+                default='0',
                 )
         cls.stereo_dist = FloatProperty(
                 name="Stereo distance",
@@ -592,6 +597,35 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 name="Autofocus",
 #                description="",
                 default=True,
+                )
+        cls.pixel_aspect = FloatProperty(
+                name="Pixel aspect",
+#                description="",
+                min=0.1, soft_min=0.1, max=10.0, soft_max=10.0,
+                default=1.0,
+                step=10,
+                precision=2,
+                )
+        cls.aperture_aspect = FloatProperty(
+                name="Aperture aspect",
+#                description="",
+                min=0.1, soft_min=0.1, max=10.0, soft_max=10.0,
+                default=1.0,
+                step=10,
+                precision=2,
+                )
+        cls.keep_upright = BoolProperty(
+                name="Keep upright",
+#                description="",
+                default=False,
+                )
+        cls.blackout_lat = FloatProperty(
+                name="Pano blackout lat.",
+#                description="",
+                min=1.0, soft_min=1.0, max=90.0, soft_max=90.0,
+                default=90.0,
+                step=10,
+                precision=3,
                 )
 
         cls.white_balance = FloatVectorProperty(

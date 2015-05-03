@@ -78,6 +78,9 @@ public:
     bool    wf_bktrace_hl;
     float   path_term_power;
 
+    //PATH_TRACE + PMC + DIRECT_LIGHT
+    bool    keep_environment;
+
     //PATH_TRACE + PMC
     float   caustic_blur;
     int32_t max_diffuse_depth, max_glossy_depth;

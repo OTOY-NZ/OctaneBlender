@@ -340,6 +340,11 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
         cam->glare_blur         = RNA_float_get(&oct_camera, "glare_blur");
         cam->spectral_intencity = RNA_float_get(&oct_camera, "spectral_intencity");
         cam->spectral_shift     = RNA_float_get(&oct_camera, "spectral_shift");
+
+        cam->pixel_aspect = RNA_float_get(&oct_camera, "pixel_aspect");
+        cam->aperture_aspect = RNA_float_get(&oct_camera, "aperture_aspect");
+        cam->keep_upright = RNA_boolean_get(&oct_camera, "keep_upright");
+        cam->blackout_lat = RNA_float_get(&oct_camera, "blackout_lat");
     }
     else {
         cam->pan_type       = 0;
@@ -349,8 +354,13 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
         cam->autofocus      = true;
         cam->persp_corr     = false;
         cam->postprocess    = false;
-        cam->stereo_mode    = 0;
-        cam->stereo_out     = 3;
+        cam->stereo_mode    = 1;
+        cam->stereo_out     = 0;
+
+        cam->pixel_aspect = 1.0f;
+        cam->aperture_aspect = 1.0f;
+        cam->keep_upright = false;
+        cam->blackout_lat = 90.0f;
     }
 
     RNA_float_get_array(&oct_camera, "white_balance", reinterpret_cast<float*>(&cam->white_balance));

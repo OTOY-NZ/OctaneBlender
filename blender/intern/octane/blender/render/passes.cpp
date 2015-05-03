@@ -29,6 +29,7 @@ Passes::Passes() {
     cur_pass_type       = COMBINED;
 
     combined_pass               = true;
+
     emitters_pass               = false;
     environment_pass            = false;
     diffuse_direct_pass         = false;
@@ -40,6 +41,22 @@ Passes::Passes() {
     subsurf_scattering_pass     = false;
     post_processing_pass        = false;
 
+    layer_shadows_pass          = false;
+    layer_black_shadows_pass    = false;
+    layer_color_shadows_pass    = false;
+    layer_reflections_pass      = false;
+
+    ambient_light_pass          = false;
+    sunlight_pass               = false;
+    light1_pass                 = false;
+    light2_pass                 = false;
+    light3_pass                 = false;
+    light4_pass                 = false;
+    light5_pass                 = false;
+    light6_pass                 = false;
+    light7_pass                 = false;
+    light8_pass                 = false;
+
     geom_normals_pass           = false;
     shading_normals_pass        = false;
     vertex_normals_pass         = false;
@@ -49,15 +66,13 @@ Passes::Passes() {
     uv_coordinates_pass         = false;
     tangents_pass               = false;
     wireframe_pass              = false;
-    object_id_pass              = false;
-    ao_pass                     = false;
     motion_vector_pass          = false;
-    layer_shadows_pass          = false;
-    layer_black_shadows_pass    = false;
-    layer_color_shadows_pass    = false;
-    layer_reflections_pass      = false;
+    object_id_pass              = false;
     layer_id_pass               = false;
     layer_mask_pass             = false;
+    light_pass_id_pass          = false;
+
+    ao_pass                     = false;
 
     pass_max_samples            = 128;
     pass_ao_max_samples         = 1024;
@@ -94,6 +109,7 @@ bool Passes::modified(const Passes& passes) {
         cur_pass_type               == passes.cur_pass_type &&
 
         combined_pass               == passes.combined_pass &&
+
         emitters_pass               == passes.emitters_pass &&
         environment_pass            == passes.environment_pass &&
         diffuse_direct_pass         == passes.diffuse_direct_pass &&
@@ -105,6 +121,22 @@ bool Passes::modified(const Passes& passes) {
         subsurf_scattering_pass     == passes.subsurf_scattering_pass &&
         post_processing_pass        == passes.post_processing_pass &&
 
+        layer_shadows_pass          == passes.layer_shadows_pass &&
+        layer_black_shadows_pass    == passes.layer_black_shadows_pass &&
+        layer_color_shadows_pass    == passes.layer_color_shadows_pass &&
+        layer_reflections_pass      == passes.layer_reflections_pass &&
+
+        ambient_light_pass          == passes.ambient_light_pass &&
+        sunlight_pass               == passes.sunlight_pass &&
+        light1_pass                 == passes.light1_pass &&
+        light2_pass                 == passes.light2_pass &&
+        light3_pass                 == passes.light3_pass &&
+        light4_pass                 == passes.light4_pass &&
+        light5_pass                 == passes.light5_pass &&
+        light6_pass                 == passes.light6_pass &&
+        light7_pass                 == passes.light7_pass &&
+        light8_pass                 == passes.light8_pass &&
+
         geom_normals_pass           == passes.geom_normals_pass &&
         shading_normals_pass        == passes.shading_normals_pass &&
         vertex_normals_pass         == passes.vertex_normals_pass &&
@@ -114,15 +146,13 @@ bool Passes::modified(const Passes& passes) {
         uv_coordinates_pass         == passes.uv_coordinates_pass &&
         tangents_pass               == passes.tangents_pass &&
         wireframe_pass              == passes.wireframe_pass &&
-        object_id_pass              == passes.object_id_pass &&
-        ao_pass                     == passes.ao_pass &&
         motion_vector_pass          == passes.motion_vector_pass &&
-        layer_shadows_pass          == passes.layer_shadows_pass &&
-        layer_black_shadows_pass    == passes.layer_black_shadows_pass &&
-        layer_color_shadows_pass    == passes.layer_color_shadows_pass &&
-        layer_reflections_pass      == passes.layer_reflections_pass &&
+        object_id_pass              == passes.object_id_pass &&
         layer_id_pass               == passes.layer_id_pass &&
         layer_mask_pass             == passes.layer_mask_pass &&
+        light_pass_id_pass          == passes.light_pass_id_pass &&
+
+        ao_pass                     == passes.ao_pass &&
 
         pass_max_samples            == passes.pass_max_samples &&
         pass_ao_max_samples         == passes.pass_ao_max_samples &&

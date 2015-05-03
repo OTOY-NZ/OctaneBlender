@@ -105,20 +105,21 @@ panorama_types = (
 camera_pan_modes = (
     ('SPHERE', "Spherical", ""),
     ('CYLINDER', "Cylindrical", ""),
+    ('CUBEMAP', "Cube map", ""),
     )
 
 camera_stereo_modes = (
-    ('0', "None", ""),
     ('1', "Off axis", ""),
     ('2', "Parallel", ""),
     )
 
 camera_stereo_outs = (
-    ('0', "Undefined", ""),
+    ('0', "Disabled", ""),
     ('1', "Left eye", ""),
     ('2', "Right eye", ""),
     ('3', "Side by side", ""),
     ('4', "Anaglyphic", ""),
+    ('5', "Over-under", ""),
     )
 
 response_types = (
@@ -270,19 +271,34 @@ subd_scheme = (
 
 pass_types = (
     ('0', "Combined", "Combined pass"),
+
     ('1', "Emitters", "Emitters pass"),
-    ('2', "Diffuse direct", "Diffuse direct pass"),
-    ('3', "Diffuse indirect", "Diffuse indirect pass"),
-    ('4', "Reflection direct", "Reflection direct pass"),
-    ('5', "Reflection indirect", "Reflection indirect pass"),
-    ('6', "Refraction", "Refraction pass pass"),
-    ('7', "Transmission", "Transmission pass"),
-    ('8', "Subsurface scattering", "Subsurface scattering pass"),
-    ('9', "Post processing", "Post processing pass"),
-    ('10', "Layer shadows", "Layer shadows pass"),
-    ('11', "Layer black shadows", "Layer black shadows pass"),
-    ('12', "Layer color shadows", "Layer color shadows pass"),
-    ('13', "Layer reflections", "Layer reflections pass"),
+    ('2', "Environment", "Environment pass"),
+    ('3', "Diffuse direct", "Diffuse direct pass"),
+    ('4', "Diffuse indirect", "Diffuse indirect pass"),
+    ('5', "Reflection direct", "Reflection direct pass"),
+    ('6', "Reflection indirect", "Reflection indirect pass"),
+    ('7', "Refraction", "Refraction pass pass"),
+    ('8', "Transmission", "Transmission pass"),
+    ('9', "Subsurface scattering", "Subsurface scattering pass"),
+    ('10', "Post processing", "Post processing pass"),
+
+    ('11', "Layer shadows", "Layer shadows pass"),
+    ('12', "Layer black shadows", "Layer black shadows pass"),
+    ('13', "Layer color shadows", "Layer color shadows pass"),
+    ('14', "Layer reflections", "Layer reflections pass"),
+
+    ('15', "Ambient light", "Ambient light pass"),
+    ('16', "Sunlight", "Sunlight pass"),
+    ('17', "Light pass 1", "Light pass 1 pass"),
+    ('18', "Light pass 2", "Light pass 2 pass"),
+    ('19', "Light pass 3", "Light pass 3 pass"),
+    ('20', "Light pass 4", "Light pass 4 pass"),
+    ('21', "Light pass 5", "Light pass 5 pass"),
+    ('22', "Light pass 6", "Light pass 6 pass"),
+    ('23', "Light pass 7", "Light pass 7 pass"),
+    ('24', "Light pass 8", "Light pass 8 pass"),
+
     ('100000', "Geometric normals", "Geometric normals pass"),
     ('100001', "Shading normals", "Shading normals pass"),
     ('100002', "Position", "Position pass"),
@@ -297,7 +313,7 @@ pass_types = (
     ('100011', "Motion vector", "Motion vector pass"),
     ('100012', "Layer ID", "Layer ID pass"),
     ('100013', "Layer mask", "Layer mask pass"),
-    ('100014', "Environment", "Environment pass"),
+    ('100014', "Light pass ID", "Light pass ID pass"),
     )
 
 pass_dir_subtype = (

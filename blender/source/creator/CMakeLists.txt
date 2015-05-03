@@ -399,9 +399,9 @@ if(UNIX AND NOT APPLE)
 		if(WITH_DOC_MANPAGE)
 			add_custom_target(
 				blender_man_page ALL
-				COMMAND \"${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py\"
-				        \"${EXECUTABLE_OUTPUT_PATH}/blender\"
-				        \"${CMAKE_CURRENT_BINARY_DIR}/blender.1\")
+				COMMAND ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
+				        ${EXECUTABLE_OUTPUT_PATH}/blender
+				        ${CMAKE_CURRENT_BINARY_DIR}/blender.1)
 			add_dependencies(blender_man_page blender)
 		endif()
 	endif()
@@ -639,7 +639,7 @@ elseif(WIN32)
 				CODE
 				"
 				message(STATUS \"Extracting Python to: \${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python\")
-				if(\${CMAKE_INSTALL_CONFIG_NAME} MATCHES \"^([Dd][Ee][Bb][Uu][Gg])$\")
+				if(\"\${CMAKE_INSTALL_CONFIG_NAME}\" MATCHES \"^([Dd][Ee][Bb][Uu][Gg])$\")
 					set(PYTHON_ZIP \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}_d.tar.gz\")
 				else()
 					set(PYTHON_ZIP \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}.tar.gz\")
@@ -651,7 +651,7 @@ elseif(WIN32)
 					COMMAND \${CMAKE_COMMAND} -E
 					        chdir \"\${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python/lib\"
 					        \${CMAKE_COMMAND} -E
-					        tar xzfv \${PYTHON_ZIP}
+					        tar xzfv \"\${PYTHON_ZIP}\"
 				)
 				unset(PYTHON_ZIP)
 				"
@@ -761,7 +761,6 @@ elseif(WIN32)
 		install(
 			FILES
 				${LIBDIR}/openal/lib/OpenAL32.dll
-				${LIBDIR}/openal/lib/wrap_oal.dll
 			DESTINATION "."
 		)
 	endif()

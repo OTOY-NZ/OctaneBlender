@@ -246,6 +246,7 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
         sub.prop(oct_scene, "path_term_power", text="Path term. power")
+        sub.prop(oct_scene, "keep_environment", text="Keep environment")
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "bump_normal_mapping", text="Bump and normal mapping")
@@ -481,6 +482,16 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "aperture_edge", text="Aperture edge")
         sub.prop(oct_cam, "distortion", text="Distortion")
         sub.prop(oct_cam, "persp_corr", text="Persp. correction")
+
+        sub = layout.column(align=True)
+        sub.active = (cam.type != 'PANO')
+        sub.prop(oct_cam, "pixel_aspect", text="Pixel aspect")
+        sub.prop(oct_cam, "aperture_aspect", text="Aperture aspect")
+
+        sub = layout.column(align=True)
+        sub.active = (cam.type == 'PANO')
+        sub.prop(oct_cam, "keep_upright", text="Keep upright")
+        sub.prop(oct_cam, "blackout_lat", text="Pano blackout lat.")
 
         sub.label("Focus:")
         sub.prop(oct_cam, "autofocus", text="Autofocus")

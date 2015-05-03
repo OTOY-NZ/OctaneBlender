@@ -70,6 +70,11 @@ void Camera::Init(void) {
     stereo_dist     = 0.02f;
     ortho           = false;
 
+    pixel_aspect = 1.0f;
+    aperture_aspect = 1.0f;
+    keep_upright = false;
+    blackout_lat = 90.0f;
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //Imager
     white_balance.x         = 1.0f;
@@ -181,6 +186,10 @@ bool Camera::modified(const Camera& cam) {
         (stereo_dist        == cam.stereo_dist) &&
         (stereo_mode        == cam.stereo_mode) &&
         (stereo_out         == cam.stereo_out) &&
+        (pixel_aspect       == cam.pixel_aspect) &&
+        (aperture_aspect    == cam.aperture_aspect) &&
+        (keep_upright       == cam.keep_upright) &&
+        (blackout_lat       == cam.blackout_lat) &&
 
         (white_balance          == cam.white_balance) &&
         (response_type          == cam.response_type) &&

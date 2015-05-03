@@ -36,6 +36,9 @@ Kernel::Kernel() {
     wf_bktrace_hl       = false;
     path_term_power     = 0.3f;
 
+    //PATH_TRACE + PMC + DIRECT_LIGHT
+    keep_environment    = false;
+
     //PATH_TRACE + PMC
     caustic_blur        = 0.0f;
     max_diffuse_depth   = 3;
@@ -112,6 +115,7 @@ bool Kernel::modified(const Kernel& kernel) {
         bump_normal_mapping == kernel.bump_normal_mapping &&
         wf_bktrace_hl       == kernel.wf_bktrace_hl &&
         path_term_power     == kernel.path_term_power &&
+        keep_environment    == kernel.keep_environment &&
 
         caustic_blur        == kernel.caustic_blur &&
         max_diffuse_depth   == kernel.max_diffuse_depth &&

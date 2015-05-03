@@ -73,6 +73,7 @@ incs = [
     '../../imbuf',
     '../../makesdna',
     '../../makesrna',
+    '../../physics',
     '../../render/extern/include',
     '../../windowmanager',
     ]

@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 /*
@@ -800,6 +800,8 @@ ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd,
 #else
 		sd->closure->weight = make_float3(0.8f, 0.8f, 0.8f);
 		sd->closure->N = sd->N;
+		sd->closure->data0 = 0.0f;
+		sd->closure->data1 = 0.0f;
 		sd->flag |= bsdf_diffuse_setup(&sd->closure);
 #endif
 	}

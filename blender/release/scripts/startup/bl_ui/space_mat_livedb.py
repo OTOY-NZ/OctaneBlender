@@ -29,7 +29,10 @@ class MAT_LIVEDB_HT_header(Header):
 
         space = context.space_data
         scene = context.scene
-        mat = context.scene.objects.active.active_material
+        if context.scene.objects.active and hasattr(context.scene.objects.active, 'active_material'):
+        	mat = context.scene.objects.active.active_material
+        else:
+        	mat = False
 
         row = layout.row(align=True)
         row.template_header()

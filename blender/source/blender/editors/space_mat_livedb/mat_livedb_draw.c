@@ -103,7 +103,7 @@ static void mat_livedb_width(SpaceLDB *slivedb, ListBase *lb, int *w, short star
     LiveDbTreeElement *te = lb->first;
     while (te) {
         if (!MAT_LIVEDB_ELEM_OPEN(te, slivedb)) {
-            short offsx = te->xend = startx + UI_UNIT_X * 3 + UI_fontstyle_string_width(te->name);
+            short offsx = te->xend = startx + UI_UNIT_X * 3 + UI_fontstyle_string_width(UI_FSTYLE_WIDGET, te->name);
             if (offsx > *w)
                 *w = offsx;
         }
@@ -286,7 +286,7 @@ static void mat_draw_rename_buttons(const bContext *C, uiBlock *block, ARegion *
                 uiBut *bt;
                 if(new_name[0] == 0) strcpy(new_name, te->name);
 
-                dx = (int)UI_fontstyle_string_width(te->name);
+                dx = (int)UI_fontstyle_string_width(UI_FSTYLE_WIDGET, te->name);
                 if (dx < 5 * UI_UNIT_X) dx = 5 * UI_UNIT_X;
                 spx = te->xs + 1.8f * UI_UNIT_X;
                 if (spx + dx + 0.5f * UI_UNIT_X > ar->v2d.cur.xmax) dx = ar->v2d.cur.xmax - spx - 0.5f * UI_UNIT_X;
@@ -338,7 +338,7 @@ static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *off
     }
     if (cat_cnt > 0) {
         snprintf(cnt_str, 16, "%d", cat_cnt);
-        string_width = UI_fontstyle_string_width(cnt_str);
+        string_width = UI_fontstyle_string_width(UI_FSTYLE_WIDGET, cnt_str);
 
         UI_draw_roundbox_corner_set(UI_CNR_ALL);
         glColor4ub(220, 220, 255, 100);
@@ -353,13 +353,13 @@ static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *off
 
         (*offsx) += UI_UNIT_X;
         UI_ThemeColor(TH_TEXT);
-        UI_draw_string((float)*offsx - 2 * ufac, (float)ys + 5 * ufac, cnt_str);
+        UI_fontstyle_draw_simple(UI_FSTYLE_WIDGET, (float)*offsx - 2 * ufac, (float)ys + 5 * ufac, cnt_str);
 
         offsx += (int)(UI_UNIT_X + string_width);
     }
     if (mat_cnt > 0) {
         snprintf(cnt_str, 16, "%d", mat_cnt);
-        string_width = UI_fontstyle_string_width(cnt_str);
+        string_width = UI_fontstyle_string_width(UI_FSTYLE_WIDGET, cnt_str);
 
         UI_draw_roundbox_corner_set(UI_CNR_ALL);
         glColor4ub(220, 220, 255, 100);
@@ -374,7 +374,7 @@ static void mat_livedb_draw_content_count_icons(ListBase *lb, int xmax, int *off
 
         (*offsx) += UI_UNIT_X;
         UI_ThemeColor(TH_TEXT);
-        UI_draw_string((float)*offsx - 2 * ufac, (float)ys + 5 * ufac, cnt_str);
+        UI_fontstyle_draw_simple(UI_FSTYLE_WIDGET, (float)*offsx - 2 * ufac, (float)ys + 5 * ufac, cnt_str);
 
         offsx += (int)(UI_UNIT_X + string_width);
     }
@@ -491,13 +491,13 @@ static void mat_livedb_draw_tree_element(bContext *C, uiBlock *block, ARegion *a
         else UI_ThemeColor(TH_TEXT);
 
         if(TE_GET_TYPE(te->item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY)
-            UI_draw_string(startx + offsx, *starty + 5 * ufac, te->name);
+            UI_fontstyle_draw_simple(UI_FSTYLE_WIDGET, startx + offsx, *starty + 5 * ufac, te->name);
         else {
             uiBut *bt;
 
-            UI_draw_string(startx + offsx, *starty + UI_UNIT_X * 3 + 5 * ufac, te->name);
-            UI_draw_string(startx + offsx, *starty + UI_UNIT_X * 2 + 5 * ufac, te->nick_name);
-            UI_draw_string(startx + offsx, *starty + UI_UNIT_X + 5 * ufac, te->copyright);
+            UI_fontstyle_draw_simple(UI_FSTYLE_WIDGET, startx + offsx, *starty + UI_UNIT_X * 3 + 5 * ufac, te->name);
+            UI_fontstyle_draw_simple(UI_FSTYLE_WIDGET, startx + offsx, *starty + UI_UNIT_X * 2 + 5 * ufac, te->nick_name);
+            UI_fontstyle_draw_simple(UI_FSTYLE_WIDGET, startx + offsx, *starty + UI_UNIT_X + 5 * ufac, te->copyright);
 
             bt = uiDefIconBut(block, UI_BTYPE_ICON_TOGGLE, 0, ICON_WORLD,
                                 xmax - UI_UNIT_X - 3, *starty + 1 * ufac, UI_UNIT_X, UI_UNIT_Y,
@@ -506,7 +506,7 @@ static void mat_livedb_draw_tree_element(bContext *C, uiBlock *block, ARegion *a
             UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
         }
 
-        offsx += (int)(UI_UNIT_X + UI_fontstyle_string_width(te->name));
+        offsx += (int)(UI_UNIT_X + UI_fontstyle_string_width(UI_FSTYLE_WIDGET, te->name));
 
         /* Closed item, we draw the category-info icons */
         if (TE_GET_TYPE(te->item->type) == MAT_LDB_TREE_ITEM_TYPE_CATEGORY && !MAT_LIVEDB_ELEM_OPEN(te, slivedb)) {

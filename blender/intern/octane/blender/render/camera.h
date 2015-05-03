@@ -150,6 +150,8 @@ public:
     bool  ortho;
     int32_t pan_type;
     int32_t stereo_mode, stereo_out;
+    float pixel_aspect, aperture_aspect, blackout_lat;
+    bool keep_upright;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Imager

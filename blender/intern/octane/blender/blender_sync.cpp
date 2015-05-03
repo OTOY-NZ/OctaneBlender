@@ -204,9 +204,22 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
 
             passes->layer_id_pass               = false;
             passes->layer_mask_pass             = false;
+            passes->light_pass_id_pass          = false;
+
+            passes->ambient_light_pass          = false;
+            passes->sunlight_pass               = false;
+            passes->light1_pass                 = false;
+            passes->light2_pass                 = false;
+            passes->light3_pass                 = false;
+            passes->light4_pass                 = false;
+            passes->light5_pass                 = false;
+            passes->light6_pass                 = false;
+            passes->light7_pass                 = false;
+            passes->light8_pass                 = false;
         }
         else {
             passes->combined_pass               = false;
+
             passes->emitters_pass               = false;
             passes->environment_pass            = false;
             passes->diffuse_direct_pass         = false;
@@ -218,6 +231,22 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             passes->subsurf_scattering_pass     = false;
             passes->post_processing_pass        = false;
 
+            passes->layer_shadows_pass          = false;
+            passes->layer_black_shadows_pass    = false;
+            passes->layer_color_shadows_pass    = false;
+            passes->layer_reflections_pass      = false;
+
+            passes->ambient_light_pass          = false;
+            passes->sunlight_pass               = false;
+            passes->light1_pass                 = false;
+            passes->light2_pass                 = false;
+            passes->light3_pass                 = false;
+            passes->light4_pass                 = false;
+            passes->light5_pass                 = false;
+            passes->light6_pass                 = false;
+            passes->light7_pass                 = false;
+            passes->light8_pass                 = false;
+
             passes->geom_normals_pass           = false;
             passes->shading_normals_pass        = false;
             passes->vertex_normals_pass         = false;
@@ -227,20 +256,19 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             passes->uv_coordinates_pass         = false;
             passes->tangents_pass               = false;
             passes->wireframe_pass              = false;
-            passes->object_id_pass              = false;
-            passes->ao_pass                     = false;
             passes->motion_vector_pass          = false;
-            passes->layer_shadows_pass          = false;
-            passes->layer_black_shadows_pass    = false;
-            passes->layer_color_shadows_pass    = false;
-            passes->layer_reflections_pass      = false;
+            passes->object_id_pass              = false;
             passes->layer_id_pass               = false;
             passes->layer_mask_pass             = false;
+            passes->light_pass_id_pass          = false;
+
+            passes->ao_pass                     = false;
 
             switch(passes->cur_pass_type) {
             case Passes::COMBINED:
                 passes->combined_pass = true;
                 break;
+
             case Passes::EMIT:
                 passes->emitters_pass = true;
                 break;
@@ -271,6 +299,51 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             case Passes::POST_PROC:
                 passes->post_processing_pass = true;
                 break;
+
+            case Passes::LAYER_SHADOWS:
+                passes->layer_shadows_pass = true;
+                break;
+            case Passes::LAYER_BLACK_SHADOWS:
+                passes->layer_black_shadows_pass = true;
+                break;
+            case Passes::LAYER_COLOR_SHADOWS:
+                passes->layer_color_shadows_pass = true;
+                break;
+            case Passes::LAYER_REFLECTIONS:
+                passes->layer_reflections_pass = true;
+                break;
+
+            case Passes::AMBIENT_LIGHT:
+                passes->ambient_light_pass = true;
+                break;
+            case Passes::SUNLIGHT:
+                passes->sunlight_pass = true;
+                break;
+            case Passes::LIGHT1:
+                passes->light1_pass = true;
+                break;
+            case Passes::LIGHT2:
+                passes->light2_pass = true;
+                break;
+            case Passes::LIGHT3:
+                passes->light3_pass = true;
+                break;
+            case Passes::LIGHT4:
+                passes->light4_pass = true;
+                break;
+            case Passes::LIGHT5:
+                passes->light5_pass = true;
+                break;
+            case Passes::LIGHT6:
+                passes->light6_pass = true;
+                break;
+            case Passes::LIGHT7:
+                passes->light7_pass = true;
+                break;
+            case Passes::LIGHT8:
+                passes->light8_pass = true;
+                break;
+
             case Passes::GEOMETRIC_NORMAL:
                 passes->geom_normals_pass = true;
                 break;
@@ -301,23 +374,8 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             case Passes::OBJECT_ID:
                 passes->object_id_pass = true;
                 break;
-            case Passes::AMBIENT_OCCLUSION:
-                passes->ao_pass = true;
-                break;
             case Passes::MOTION_VECTOR:
                 passes->motion_vector_pass = true;
-                break;
-            case Passes::LAYER_SHADOWS:
-                passes->layer_shadows_pass = true;
-                break;
-            case Passes::LAYER_BLACK_SHADOWS:
-                passes->layer_black_shadows_pass = true;
-                break;
-            case Passes::LAYER_COLOR_SHADOWS:
-                passes->layer_color_shadows_pass = true;
-                break;
-            case Passes::LAYER_REFLECTIONS:
-                passes->layer_reflections_pass = true;
                 break;
             case Passes::LAYER_ID:
                 passes->layer_id_pass = true;
@@ -325,6 +383,14 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             case Passes::LAYER_MASK:
                 passes->layer_mask_pass = true;
                 break;
+            case Passes::LIGHT_PASS_ID:
+                passes->light_pass_id_pass = true;
+                break;
+
+            case Passes::AMBIENT_OCCLUSION:
+                passes->ao_pass = true;
+                break;
+
             default:
                 passes->combined_pass = true;
                 break;
@@ -369,6 +435,7 @@ void BlenderSync::sync_kernel() {
     kernel->ray_epsilon = get_float(oct_scene, "ray_epsilon");
     kernel->alpha_channel = get_boolean(oct_scene, "alpha_channel");
     kernel->alpha_shadows = get_boolean(oct_scene, "alpha_shadows");
+    kernel->keep_environment = get_boolean(oct_scene, "keep_environment");
     kernel->bump_normal_mapping = get_boolean(oct_scene, "bump_normal_mapping");
     kernel->wf_bktrace_hl = get_boolean(oct_scene, "wf_bktrace_hl");
     kernel->path_term_power = get_float(oct_scene, "path_term_power");
