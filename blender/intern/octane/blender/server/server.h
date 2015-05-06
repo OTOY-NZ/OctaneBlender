@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 8
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 2
+#   define OCTANE_SERVER_MINOR_VERSION 3
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -1066,15 +1066,15 @@ public:
 
         if(cam->type == CAMERA_PANORAMA) {
             {
-                RPCSend snd(socket, sizeof(float3)*4 + sizeof(float)*19 + sizeof(int32_t)*8, LOAD_PANORAMIC_CAMERA);
-                snd << cam->eye_point << cam->look_at << cam->up << cam->white_balance 
+                RPCSend snd(socket, sizeof(float3)*4 + sizeof(float)*25 + sizeof(int32_t)*9, LOAD_PANORAMIC_CAMERA);
+                snd << cam->eye_point << cam->look_at << cam->up << cam->left_filter << cam->right_filter << cam->white_balance 
 
                     << cam->fov_x << cam->fov_y << cam->near_clip_depth << cam->exposure
                     << cam->gamma << cam->vignetting << cam->saturation << cam->hot_pix << cam->white_saturation
                     << cam->bloom_power << cam->glare_power << cam->glare_angle << cam->glare_blur << cam->spectral_shift << cam->spectral_intencity << cam->highlight_compression
-                    << cam->blackout_lat
+                    << cam->blackout_lat << cam->stereo_dist << cam->stereo_dist_falloff
 
-                    << cam->pan_type << response_type << min_display_samples << glare_ray_count
+                    << cam->pan_type << response_type << min_display_samples << glare_ray_count << cam->stereo_out
                     
                     << cam->premultiplied_alpha << cam->dithering << cam->postprocess << cam->keep_upright;
                 snd.write();

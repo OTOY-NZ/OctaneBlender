@@ -555,6 +555,14 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 step=10,
                 precision=3,
                 )
+        cls.stereo_dist_falloff = FloatProperty(
+                name="Stereo dist. falloff",
+#                description="",
+                min=0.001, soft_min=0.001, max=1.0, soft_max=1.0,
+                default=1.0,
+                step=10,
+                precision=3,
+                )
         cls.left_filter = FloatVectorProperty(
                 name="Left filter",
 #                description="",

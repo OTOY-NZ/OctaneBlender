@@ -331,6 +331,7 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
         cam->stereo_mode    = RNA_enum_get(&oct_camera, "stereo_mode");
         cam->stereo_out     = RNA_enum_get(&oct_camera, "stereo_out");
         cam->stereo_dist    = RNA_float_get(&oct_camera, "stereo_dist");
+        cam->stereo_dist_falloff = RNA_float_get(&oct_camera, "stereo_dist_falloff");
 
         cam->postprocess        = RNA_boolean_get(&oct_camera, "postprocess");
         cam->bloom_power        = RNA_float_get(&oct_camera, "bloom_power");

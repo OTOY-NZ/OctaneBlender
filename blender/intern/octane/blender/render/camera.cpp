@@ -68,6 +68,7 @@ void Camera::Init(void) {
     stereo_mode     = 0;
     stereo_out      = 3;
     stereo_dist     = 0.02f;
+    stereo_dist_falloff = 1.0f;
     ortho           = false;
 
     pixel_aspect = 1.0f;
@@ -184,6 +185,7 @@ bool Camera::modified(const Camera& cam) {
         (lens_shift_y       == cam.lens_shift_y) &&
         (persp_corr         == cam.persp_corr) &&
         (stereo_dist        == cam.stereo_dist) &&
+        (stereo_dist_falloff == cam.stereo_dist_falloff) &&
         (stereo_mode        == cam.stereo_mode) &&
         (stereo_out         == cam.stereo_out) &&
         (pixel_aspect       == cam.pixel_aspect) &&

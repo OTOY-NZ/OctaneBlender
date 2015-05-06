@@ -147,6 +147,7 @@ public:
     float offset_y;
     bool  persp_corr;
     float stereo_dist;
+    float stereo_dist_falloff;
     bool  ortho;
     int32_t pan_type;
     int32_t stereo_mode, stereo_out;

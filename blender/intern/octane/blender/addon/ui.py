@@ -477,6 +477,7 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "fov_y", text="FOV Y")
 
         sub = layout.column(align=True)
+        sub.active = (cam.type != 'PANO')
 #        sub.prop(oct_cam, "ortho", text="Orthographic")
         sub.prop(oct_cam, "aperture", text="Aperture")
         sub.prop(oct_cam, "aperture_edge", text="Aperture edge")
@@ -488,11 +489,11 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "pixel_aspect", text="Pixel aspect")
         sub.prop(oct_cam, "aperture_aspect", text="Aperture aspect")
 
-        sub = layout.column(align=True)
+        sub = layout.row(align=True)
         sub.active = (cam.type == 'PANO')
         sub.prop(oct_cam, "keep_upright", text="Keep upright")
-        sub.prop(oct_cam, "blackout_lat", text="Pano blackout lat.")
 
+        sub = layout.column(align=True)
         sub.label("Focus:")
         sub.prop(oct_cam, "autofocus", text="Autofocus")
         sub = layout.row(align=True)
@@ -504,18 +505,23 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
 
         layout.label("Stereo:")
         sub = layout.row()
+        sub.active = (cam.type != 'PANO')
         sub.prop(oct_cam, "stereo_mode", text="Stereo mode")
         sub = layout.row()
-        sub.active = oct_cam.stereo_mode != '0'
+        sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '0')
         sub.prop(oct_cam, "stereo_out", text="Stereo output")
         sub = layout.row()
-        sub.active = oct_cam.stereo_mode != '0'
-        sub.prop(oct_cam, "stereo_dist", text="Stereo distance")
+        sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '0')
+        sub.prop(oct_cam, "stereo_dist", text="Eye distance")
+        sub = layout.column()
+        sub.active = (cam.type == 'PANO')
+        sub.prop(oct_cam, "stereo_dist_falloff", text="Eye dist. falloff")
+        sub.prop(oct_cam, "blackout_lat", text="Pano blackout lat.")
         sub = layout.row()
-        sub.active = oct_cam.stereo_mode != '0'
+        sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '0')
         sub.prop(oct_cam, "left_filter", text="Left filter")
         sub = layout.row()
-        sub.active = oct_cam.stereo_mode != '0'
+        sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '0')
         sub.prop(oct_cam, "right_filter", text="Right filter")
 
 
