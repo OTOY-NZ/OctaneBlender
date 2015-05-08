@@ -106,6 +106,12 @@ camera_pan_modes = (
     ('SPHERE', "Spherical", ""),
     ('CYLINDER', "Cylindrical", ""),
     ('CUBEMAP', "Cube map", ""),
+    ('CUBEMAPPX', "Cube map (+X)", ""),
+    ('CUBEMAPMX', "Cube map (-X)", ""),
+    ('CUBEMAPPY', "Cube map (+Y)", ""),
+    ('CUBEMAPMY', "Cube map (-Y)", ""),
+    ('CUBEMAPPZ', "Cube map (+Z)", ""),
+    ('CUBEMAPMZ', "Cube map (-Z)", ""),
     )
 
 camera_stereo_modes = (
