@@ -117,47 +117,56 @@ Scene::~Scene() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void Scene::server_update(RenderServer *server_, Progress& progress, bool interactive, uint32_t frame_idx, uint32_t total_frames) {
 	if(!server) server = server_;
+    bool ret = false;
 	
-	progress.set_status("Updating Environment");
-	environment->server_update(server, this);
+    if(!interactive) server->start_frame_load();
 
-	if(progress.get_cancel()) return;
+    do {
+	    progress.set_status("Updating Environment");
+	    environment->server_update(server, this);
 
-	progress.set_status("Updating Shaders");
-    shader_manager->server_update(server, this, progress);
+	    if(progress.get_cancel()) break;
 
-	if(progress.get_cancel()) return;
+	    progress.set_status("Updating Shaders");
+        shader_manager->server_update(server, this, progress);
 
-	progress.set_status("Updating Camera");
-    camera->server_update(server, this);
+	    if(progress.get_cancel()) break;
 
-	if(progress.get_cancel()) return;
+	    progress.set_status("Updating Camera");
+        camera->server_update(server, this);
 
-	progress.set_status("Updating Meshes");
-    mesh_manager->server_update(server, this, progress, frame_idx, total_frames);
+	    if(progress.get_cancel()) break;
 
-	if(progress.get_cancel()) return;
+	    progress.set_status("Updating Meshes");
+        mesh_manager->server_update(server, this, progress, frame_idx, total_frames);
 
-	progress.set_status("Updating Lights");
-    light_manager->server_update(server, this, progress, frame_idx, total_frames);
+	    if(progress.get_cancel()) break;
 
-	if(progress.get_cancel()) return;
+	    progress.set_status("Updating Lights");
+        light_manager->server_update(server, this, progress, frame_idx, total_frames);
 
-	progress.set_status("Updating Objects");
-    object_manager->server_update(server, this, progress, frame_idx, total_frames);
+	    if(progress.get_cancel()) break;
 
-	if(progress.get_cancel()) return;
+	    progress.set_status("Updating Objects");
+        object_manager->server_update(server, this, progress, frame_idx, total_frames);
 
-	progress.set_status("Updating Passes");
-	passes->server_update(server, this, interactive);
+	    if(progress.get_cancel()) break;
 
-    progress.set_status("Updating Kernel");
-    kernel->server_update(server, this, interactive);
+	    progress.set_status("Updating Passes");
+	    passes->server_update(server, this, interactive);
 
-	if(progress.get_cancel()) return;
+	    if(progress.get_cancel()) break;
 
-	progress.set_status("Refreshing server");
-    server->update();
+        progress.set_status("Updating Kernel");
+        kernel->server_update(server, this, interactive);
+
+	    if(progress.get_cancel()) break;
+        ret = true;
+    } while(false);
+
+	if(ret) progress.set_status("Render-target evaluation on server...");
+    if(!interactive) server->finish_frame_load(ret);
+    else if(ret) server->update();
 } //server_update()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

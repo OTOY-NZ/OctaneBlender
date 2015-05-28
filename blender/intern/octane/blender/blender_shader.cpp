@@ -2301,7 +2301,7 @@ void BlenderSync::sync_materials() {
 			    shader->set_graph(graph);
 			    shader->tag_update(scene);
 			}
-            else printf("Octane: WARNING: only node-materials are supported: material \"%s\"\n", shader->name.c_str());
+            //else printf("Octane: WARNING: only node-materials are supported: material \"%s\"\n", shader->name.c_str());
 		}
 	}
 	// Textures loop
@@ -2329,7 +2329,7 @@ void BlenderSync::sync_materials() {
 			    shader->set_graph(graph);
 			    shader->tag_update(scene);
 			}
-            else printf("Octane: WARNING: only node-textures are supported: texture \"%s\"\n", shader->name.c_str());
+            //else printf("Octane: WARNING: only node-textures are supported: texture \"%s\"\n", shader->name.c_str());
 		}
 	}
 } //sync_materials()

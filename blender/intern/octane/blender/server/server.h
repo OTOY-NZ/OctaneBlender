@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 8
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 5
+#   define OCTANE_SERVER_MINOR_VERSION 6
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -111,6 +111,8 @@ enum PacketType {
     CLEAR,
     START,
     STOP,
+    START_FRAME_LOAD,
+    FINISH_FRAME_LOAD,
     UPDATE,
     PAUSE,
     GET_IMAGE,
@@ -1052,6 +1054,41 @@ public:
             else fprintf(stderr, "\n");
         }
     } //pause_render()
+
+    inline void start_frame_load() {
+        if(socket < 0) return;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+
+        RPCSend snd(socket, 0, START_FRAME_LOAD);
+        snd.write();
+
+        RPCReceive rcv(socket);
+        if(rcv.type != START_FRAME_LOAD) {
+            rcv >> error_msg;
+            fprintf(stderr, "Octane: ERROR starting frame load.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
+        }
+    } //start_frame_load()
+
+    inline void finish_frame_load(bool update) {
+        if(socket < 0) return;
+
+        thread_scoped_lock socket_lock(socket_mutex);
+
+        RPCSend snd(socket, sizeof(int32_t), FINISH_FRAME_LOAD);
+        snd << update;
+        snd.write();
+
+        RPCReceive rcv(socket);
+        if(rcv.type != FINISH_FRAME_LOAD) {
+            rcv >> error_msg;
+            fprintf(stderr, "Octane: ERROR finishing frame load.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            else fprintf(stderr, "\n");
+        }
+    } //finish_frame_load()
 
     // Load camera to render server.
     // cam - camera data structure
@@ -2062,7 +2099,7 @@ public:
         if(pixels) {
             if(!unpacked_msg) {
                 unpacked_msg = true;
-                fprintf(stderr, "Octane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server\n");
+                fprintf(stderr, "\nOctane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server.\n\n");
             }
 
             uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 6 + img_size * (is_float ? sizeof(float) : 1)
@@ -2169,7 +2206,7 @@ public:
         if(pixels) {
             if(!unpacked_msg) {
                 unpacked_msg = true;
-                fprintf(stderr, "Octane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server\n");
+                fprintf(stderr, "\nOctane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server.\n\n");
             }
 
             uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 6 + img_size * (is_float ? sizeof(float) : 1)
@@ -2276,7 +2313,7 @@ public:
         if(pixels) {
             if(!unpacked_msg) {
                 unpacked_msg = true;
-                fprintf(stderr, "Octane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server\n");
+                fprintf(stderr, "\nOctane: rendering of UNPACKED textures would be faster, as they are cached on the Octane server.\n\n");
             }
 
             uint64_t size = sizeof(float) * 2 + sizeof(int32_t) * 6 + img_size * (is_float ? sizeof(float) : 1)

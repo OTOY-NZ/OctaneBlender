@@ -156,12 +156,14 @@ void Session::run_render() {
             time_sleep(0.01);
 
 			// Update scene on the render-server - send all changed objects
-            update_scene_to_server(frame_idx, total_frames);
+            if(!bStarted || params.interactive) update_scene_to_server(frame_idx, total_frames);
+
             if(!bStarted) {
                 server->start_render(params.width, params.height, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1),
                                      params.out_of_core_enabled, params.out_of_core_mem_limit, params.out_of_core_gpu_headroom); //FIXME: Perhaps the wrong place for it...
                 bStarted = true;
             }
+
             if(!server->error_message().empty()) {
                 progress.set_cancel("ERROR! Check console for detailed error messages.");
                 server->clear_error_message();

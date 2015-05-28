@@ -69,40 +69,37 @@ public:
 	}
 	bool post_sync(bool do_delete = true) {
 		// Remove unused data
-        map<std::string, vector<Object*> > new_scene_data;
         map<std::string, vector<Object*> >::iterator it;
 		vector<Object*>::iterator ob_it;
 		bool deleted = false;
 
-		for(it = scene_data->begin(); it != scene_data->end(); it++) {
-    		for(ob_it = it->second.begin(); ob_it != it->second.end(); ob_it++) {
+		for(it = scene_data->begin(); it != scene_data->end(); ) {
+            vector<Object*> new_vector;
+    		for(ob_it = it->second.begin(); ob_it != it->second.end(); ++ob_it) {
 			    Object *data = *ob_it;
 
 			    if(do_delete && used_set.find(data) == used_set.end()) {
 				    delete data;
 				    deleted = true;
 			    }
-			    else new_scene_data[it->first].push_back(data);
+			    else new_vector.push_back(data);
+            }
+			if(new_vector.empty()) scene_data->erase(it++);
+            else {
+                (*scene_data)[it->first] = new_vector;
+                ++it;
             }
 		}
 
-		*scene_data = new_scene_data;
-
 		// Update mapping
-		map<ObjectKey, Object*> new_map;
-		typedef pair<const ObjectKey, Object*> TMapPair;
 		map<ObjectKey, Object*>::iterator jt;
-
-		for(jt = b_map.begin(); jt != b_map.end(); jt++) {
-			TMapPair& pair = *jt;
-
-			if(used_set.find(pair.second) != used_set.end())
-				new_map[pair.first] = pair.second;
+		for(jt = b_map.begin(); jt != b_map.end(); ) {
+			if(used_set.find(jt->second) == used_set.end()) b_map.erase(jt++);
+            else ++jt;
 		}
 
 		used_set.clear();
 		b_recalc.clear();
-		b_map = new_map;
 
 		return deleted;
 	} //post_sync()
@@ -147,40 +144,37 @@ public:
 	}
 	bool post_sync(bool do_delete = true) {
 		// Remove unused data
-        map<std::string, vector<Object*> > new_scene_data;
         map<std::string, vector<Object*> >::iterator it;
 		vector<Object*>::iterator ob_it;
 		bool deleted = false;
 
-		for(it = scene_data->begin(); it != scene_data->end(); it++) {
-    		for(ob_it = it->second.begin(); ob_it != it->second.end(); ob_it++) {
+		for(it = scene_data->begin(); it != scene_data->end(); ) {
+            vector<Object*> new_vector;
+    		for(ob_it = it->second.begin(); ob_it != it->second.end(); ++ob_it) {
 			    Object *data = *ob_it;
 
 			    if(do_delete && used_set.find(data) == used_set.end()) {
 				    delete data;
 				    deleted = true;
 			    }
-			    else new_scene_data[it->first].push_back(data);
+			    else new_vector.push_back(data);
+            }
+			if(new_vector.empty()) scene_data->erase(it++);
+            else {
+                (*scene_data)[it->first] = new_vector;
+                ++it;
             }
 		}
 
-		*scene_data = new_scene_data;
-
 		// Update mapping
-		map<ObjectKey, Object*> new_map;
-		typedef pair<const ObjectKey, Object*> TMapPair;
 		map<ObjectKey, Object*>::iterator jt;
-
-		for(jt = b_map.begin(); jt != b_map.end(); jt++) {
-			TMapPair& pair = *jt;
-
-			if(used_set.find(pair.second) != used_set.end())
-				new_map[pair.first] = pair.second;
+		for(jt = b_map.begin(); jt != b_map.end(); ) {
+			if(used_set.find(jt->second) == used_set.end()) b_map.erase(jt++);
+            else ++jt;
 		}
 
 		used_set.clear();
 		b_recalc.clear();
-		b_map = new_map;
 
 		return deleted;
 	} //post_sync()
