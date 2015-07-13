@@ -21,7 +21,7 @@
 bl_info = {
     "name": "VRML2 (Virtual Reality Modeling Language)",
     "author": "Campbell Barton",
-    "blender": (2, 66, 0),
+    "blender": (2, 74, 0),
     "location": "File > Export",
     "description": "Exports mesh objects to VRML2, supporting vertex and material colors",
     "warning": "",
@@ -31,27 +31,33 @@ bl_info = {
     "category": "Import-Export"}
 
 if "bpy" in locals():
-    import imp
+    import importlib
     if "export_vrml2" in locals():
-        imp.reload(export_vrml2)
+        importlib.reload(export_vrml2)
 
 
 import os
 import bpy
-from bpy.props import (CollectionProperty,
-                       StringProperty,
-                       BoolProperty,
-                       EnumProperty,
-                       FloatProperty,
-                       )
-from bpy_extras.io_utils import (ExportHelper,
-                                 path_reference_mode,
-                                 axis_conversion,
-                                 )
+from bpy.props import (
+        CollectionProperty,
+        StringProperty,
+        BoolProperty,
+        EnumProperty,
+        FloatProperty,
+        )
+from bpy_extras.io_utils import (
+        ExportHelper,
+        orientation_helper_factory,
+        path_reference_mode,
+        axis_conversion,
+        )
 
-class ExportVRML(bpy.types.Operator, ExportHelper):
-    """Export mesh objects as a VRML2, """ \
-    """colors and texture coordinates"""
+
+ExportVRMLOrientationHelper = orientation_helper_factory("ExportVRMLOrientationHelper", axis_forward='Z', axis_up='Y')
+
+
+class ExportVRML(bpy.types.Operator, ExportHelper, ExportVRMLOrientationHelper):
+    """Export mesh objects as a VRML2, colors and texture coordinates"""
     bl_idname = "export_scene.vrml2"
     bl_label = "Export VRML2"
 
@@ -86,28 +92,6 @@ class ExportVRML(bpy.types.Operator, ExportHelper):
             default=True,
             )
 
-    axis_forward = EnumProperty(
-            name="Forward",
-            items=(('X', "X Forward", ""),
-                   ('Y', "Y Forward", ""),
-                   ('Z', "Z Forward", ""),
-                   ('-X', "-X Forward", ""),
-                   ('-Y', "-Y Forward", ""),
-                   ('-Z', "-Z Forward", ""),
-               ),
-        default='Z',
-        )
-    axis_up = EnumProperty(
-            name="Up",
-            items=(('X', "X Up", ""),
-                   ('Y', "Y Up", ""),
-                   ('Z', "Z Up", ""),
-                   ('-X', "-X Up", ""),
-                   ('-Y', "-Y Up", ""),
-                   ('-Z', "-Z Up", ""),
-                   ),
-            default='Y',
-            )
     global_scale = FloatProperty(
             name="Scale",
             min=0.01, max=1000.0,

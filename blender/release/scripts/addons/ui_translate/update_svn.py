@@ -19,21 +19,22 @@
 # <pep8 compliant>
 
 if "bpy" in locals():
-    import imp
-    imp.reload(settings)
-    imp.reload(utils_i18n)
-    imp.reload(utils_languages_menu)
+    import importlib
+    importlib.reload(settings)
+    importlib.reload(utils_i18n)
+    importlib.reload(utils_languages_menu)
 else:
     import bpy
-    from bpy.props import (BoolProperty,
-                           CollectionProperty,
-                           EnumProperty,
-                           FloatProperty,
-                           FloatVectorProperty,
-                           IntProperty,
-                           PointerProperty,
-                           StringProperty,
-                           )
+    from bpy.props import (
+            BoolProperty,
+            CollectionProperty,
+            EnumProperty,
+            FloatProperty,
+            FloatVectorProperty,
+            IntProperty,
+            PointerProperty,
+            StringProperty,
+            )
     from . import settings
     from bl_i18n_utils import utils as utils_i18n
     from bl_i18n_utils import utils_languages_menu
@@ -72,7 +73,6 @@ class UI_OT_i18n_updatetranslation_svn_branches(bpy.types.Operator):
                 "--python",
                 os.path.join(os.path.dirname(utils_i18n.__file__), "bl_extract_messages.py"),
                 "--",
-                "bl_extract_messages.py",  # arg parser expects first arg to be prog name!
                 "--settings",
                 self.settings.to_json(),
             )

@@ -32,17 +32,19 @@ bl_info = {
 
 # To support reload properly, try to access a package var, if it's there, reload everything
 if "bpy" in locals():
-    import imp
+    import importlib
     if "config" in locals():
-        imp.reload(config)
+        importlib.reload(config)
 
 
 import bpy
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       IntProperty,
-                       FloatProperty,
-                       EnumProperty)
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        IntProperty,
+        FloatProperty,
+        EnumProperty,
+        )
 
 
 class DemoModeSetup(bpy.types.Operator):

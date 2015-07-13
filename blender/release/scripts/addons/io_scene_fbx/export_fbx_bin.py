@@ -61,7 +61,9 @@ from .fbx_utils import (
     FBX_LIGHT_TYPES, FBX_LIGHT_DECAY_TYPES,
     RIGHT_HAND_AXES, FBX_FRAMERATES,
     # Miscellaneous utils.
-    units_convertor, units_convertor_iter, matrix4_to_array, similar_values, similar_values_iter,
+    PerfMon,
+    units_blender_to_fbx_factor, units_convertor, units_convertor_iter,
+    matrix4_to_array, similar_values, similar_values_iter,
     # Mesh transform helpers.
     vcos_transformed_gen, nors_transformed_gen,
     # UUID from key.
@@ -697,7 +699,7 @@ def fbx_data_camera_elements(root, cam_obj, scene_data):
     elem_data_single_float64(cam, b"CameraOrthoZoom", 1.0)
 
 
-def fbx_data_bindpose_element(root, me_obj, me, scene_data, arm_obj=None, bones=[]):
+def fbx_data_bindpose_element(root, me_obj, me, scene_data, arm_obj=None, mat_world_arm=None, bones=[]):
     """
     Helper, since bindpose are used by both meshes shape keys and armature bones...
     """
@@ -712,13 +714,18 @@ def fbx_data_bindpose_element(root, me_obj, me, scene_data, arm_obj=None, bones=
 
     elem_data_single_string(fbx_pose, b"Type", b"BindPose")
     elem_data_single_int32(fbx_pose, b"Version", FBX_POSE_BIND_VERSION)
-    elem_data_single_int32(fbx_pose, b"NbPoseNodes", 1 + len(bones))
+    elem_data_single_int32(fbx_pose, b"NbPoseNodes", 1 + (1 if (arm_obj != me_obj) else 0) + len(bones))
 
     # First node is mesh/object.
     mat_world_obj = me_obj.fbx_object_matrix(scene_data, global_space=True)
     fbx_posenode = elem_empty(fbx_pose, b"PoseNode")
     elem_data_single_int64(fbx_posenode, b"Node", me_obj.fbx_uuid)
     elem_data_single_float64_array(fbx_posenode, b"Matrix", matrix4_to_array(mat_world_obj))
+    # Second node is armature object itself.
+    if arm_obj != me_obj:
+        fbx_posenode = elem_empty(fbx_pose, b"PoseNode")
+        elem_data_single_int64(fbx_posenode, b"Node", arm_obj.fbx_uuid)
+        elem_data_single_float64_array(fbx_posenode, b"Matrix", matrix4_to_array(mat_world_arm))
     # And all bones of armature!
     mat_world_bones = {}
     for bo_obj in bones:
@@ -737,6 +744,8 @@ def fbx_data_mesh_shapes_elements(root, me_obj, me, scene_data, fbx_me_tmpl, fbx
     """
     if me not in scene_data.data_deformers_shape:
         return
+
+    write_normals = True  # scene_data.settings.mesh_smooth_type in {'OFF'}
 
     # First, write the geometry data itself (i.e. shapes).
     _me_key, shape_key, shapes = scene_data.data_deformers_shape[me]
@@ -768,7 +777,8 @@ def fbx_data_mesh_shapes_elements(root, me_obj, me, scene_data, fbx_me_tmpl, fbx
 
         elem_data_single_int32_array(geom, b"Indexes", shape_verts_idx)
         elem_data_single_float64_array(geom, b"Vertices", shape_verts_co)
-        elem_data_single_float64_array(geom, b"Normals", [0.0] * len(shape_verts_co))
+        if write_normals:
+            elem_data_single_float64_array(geom, b"Normals", [0.0] * len(shape_verts_co))
 
     # Yiha! BindPose for shapekeys too! Dodecasigh...
     # XXX Not sure yet whether several bindposes on same mesh are allowed, or not... :/
@@ -813,7 +823,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
 
     # No gscale/gmat here, all data are supposed to be in object space.
     smooth_type = scene_data.settings.mesh_smooth_type
-    write_normals = smooth_type in {'OFF'}
+    write_normals = True  # smooth_type in {'OFF'}
 
     do_bake_space_transform = me_obj.use_bake_space_transform(scene_data)
 
@@ -879,6 +889,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
     if t_ls and t_pvi:
         t_ls = set(t_ls)
         todo_edges = [None] * len(me.edges) * 2
+        # Sigh, cannot access edge.key through foreach_get... :/
         me.edges.foreach_get("vertices", todo_edges)
         todo_edges = set((v1, v2) if v1 < v2 else (v2, v1) for v1, v2 in zip(*(iter(todo_edges),) * 2))
 
@@ -925,11 +936,24 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
             _map = b"ByPolygon"
         else:  # EDGE
             # Write Edge Smoothing.
+            # Note edge is sharp also if it's used by more than two faces, or one of its faces is flat.
             t_ps = array.array(data_types.ARRAY_INT32, (0,)) * edges_nbr
+            sharp_edges = set()
+            temp_sharp_edges = {}
+            for p in me.polygons:
+                if not p.use_smooth:
+                    sharp_edges.update(p.edge_keys)
+                    continue
+                for k in p.edge_keys:
+                    if temp_sharp_edges.setdefault(k, 0) > 1:
+                        sharp_edges.add(k)
+                    else:
+                        temp_sharp_edges[k] += 1
+            del temp_sharp_edges
             for e in me.edges:
                 if e.key not in edges_map:
                     continue  # Only loose edges, in theory!
-                t_ps[edges_map[e.key]] = not e.use_edge_sharp
+                t_ps[edges_map[e.key]] = not (e.use_edge_sharp or (e.key in sharp_edges))
             _map = b"ByEdge"
         lay_smooth = elem_data_single_int32(geom, b"LayerElementSmoothing", 0)
         elem_data_single_int32(lay_smooth, b"Version", FBX_GEOMETRY_SMOOTHING_VERSION)
@@ -1325,6 +1349,8 @@ def fbx_data_video_elements(root, vid, scene_data):
     """
     Write the actual image data block.
     """
+    msetts = scene_data.settings.media_settings
+
     vid_key, _texs = scene_data.data_videos[vid]
     fname_abs, fname_rel = _gen_vid_path(vid, scene_data)
 
@@ -1341,22 +1367,30 @@ def fbx_data_video_elements(root, vid, scene_data):
     elem_props_template_finalize(tmpl, props)
 
     elem_data_single_int32(fbx_vid, b"UseMipMap", 0)
-    elem_data_single_string_unicode(fbx_vid, b"FileName", fname_abs)
+    elem_data_single_string_unicode(fbx_vid, b"Filename", fname_abs)
     elem_data_single_string_unicode(fbx_vid, b"RelativeFilename", fname_rel)
 
     if scene_data.settings.media_settings.embed_textures:
         if vid.packed_file is not None:
-            elem_data_single_bytes(fbx_vid, b"Content", vid.packed_file.data)
+            # We only ever embed a given file once!
+            if fname_abs not in msetts.embedded_set:
+                elem_data_single_bytes(fbx_vid, b"Content", vid.packed_file.data)
+                msetts.embedded_set.add(fname_abs)
         else:
             filepath = bpy.path.abspath(vid.filepath)
-            try:
-                with open(filepath, 'br') as f:
-                    elem_data_single_bytes(fbx_vid, b"Content", f.read())
-            except Exception as e:
-                print("WARNING: embedding file {} failed ({})".format(filepath, e))
-                elem_data_single_bytes(fbx_vid, b"Content", b"")
-    else:
-        elem_data_single_bytes(fbx_vid, b"Content", b"")
+            # We only ever embed a given file once!
+            if filepath not in msetts.embedded_set:
+                try:
+                    with open(filepath, 'br') as f:
+                        elem_data_single_bytes(fbx_vid, b"Content", f.read())
+                except Exception as e:
+                    print("WARNING: embedding file {} failed ({})".format(filepath, e))
+                    elem_data_single_bytes(fbx_vid, b"Content", b"")
+                msetts.embedded_set.add(filepath)
+    # Looks like we'd rather not write any 'Content' element in this case (see T44442).
+    # Sounds suspect, but let's try it!
+    #~ else:
+        #~ elem_data_single_bytes(fbx_vid, b"Content", b"")
 
 
 def fbx_data_armature_elements(root, arm_obj, scene_data):
@@ -1371,7 +1405,7 @@ def fbx_data_armature_elements(root, arm_obj, scene_data):
     mat_world_arm = arm_obj.fbx_object_matrix(scene_data, global_space=True)
     bones = tuple(bo_obj for bo_obj in arm_obj.bones if bo_obj in scene_data.objects)
 
-    bone_radius_scale = scene_data.settings.global_scale * 33.0
+    bone_radius_scale = 33.0
 
     # Bones "data".
     for bo_obj in bones:
@@ -1402,8 +1436,8 @@ def fbx_data_armature_elements(root, arm_obj, scene_data):
     if deformer is not None:
         for me, (skin_key, ob_obj, clusters) in deformer.items():
             # BindPose.
-
-            mat_world_obj, mat_world_bones = fbx_data_bindpose_element(root, ob_obj, me, scene_data, arm_obj, bones)
+            mat_world_obj, mat_world_bones = fbx_data_bindpose_element(root, ob_obj, me, scene_data,
+                                                                       arm_obj, mat_world_arm, bones)
 
             # Deformer.
             fbx_skin = elem_data_single_int64(root, b"Deformer", get_fbx_uuid_from_key(skin_key))
@@ -1443,8 +1477,9 @@ def fbx_data_armature_elements(root, arm_obj, scene_data):
                 # No idea what that user data might be...
                 fbx_userdata = elem_data_single_string(fbx_clstr, b"UserData", b"")
                 fbx_userdata.add_string(b"")
-                elem_data_single_int32_array(fbx_clstr, b"Indexes", indices)
-                elem_data_single_float64_array(fbx_clstr, b"Weights", weights)
+                if indices:
+                    elem_data_single_int32_array(fbx_clstr, b"Indexes", indices)
+                    elem_data_single_float64_array(fbx_clstr, b"Weights", weights)
                 # Transform, TransformLink and TransformAssociateModel matrices...
                 # They seem to be doublons of BindPose ones??? Have armature (associatemodel) in addition, though.
                 # WARNING! Even though official FBX API presents Transform in global space,
@@ -1486,6 +1521,7 @@ def fbx_data_leaf_bone_elements(root, scene_data):
         tmpl = elem_props_template_init(scene_data.templates, b"Model")
         # For now add only loc/rot/scale...
         props = elem_properties(model)
+        # Generated leaf bones are obviously never animated!
         elem_props_template_set(tmpl, props, "p_lcl_translation", b"Lcl Translation", loc)
         elem_props_template_set(tmpl, props, "p_lcl_rotation", b"Lcl Rotation", rot)
         elem_props_template_set(tmpl, props, "p_lcl_scaling", b"Lcl Scaling", scale)
@@ -1516,7 +1552,8 @@ def fbx_data_object_elements(root, ob_obj, scene_data):
     if ob_obj.is_bone:
         obj_type = b"LimbNode"
     elif (ob_obj.type == 'ARMATURE'):
-        obj_type = b"Root"
+        #~ obj_type = b"Root"
+        obj_type = b"Null"
     elif (ob_obj.type in BLENDER_OBJECT_TYPES_MESHLIKE):
         obj_type = b"Mesh"
     elif (ob_obj.type == 'LAMP'):
@@ -1536,9 +1573,12 @@ def fbx_data_object_elements(root, ob_obj, scene_data):
     tmpl = elem_props_template_init(scene_data.templates, b"Model")
     # For now add only loc/rot/scale...
     props = elem_properties(model)
-    elem_props_template_set(tmpl, props, "p_lcl_translation", b"Lcl Translation", loc)
-    elem_props_template_set(tmpl, props, "p_lcl_rotation", b"Lcl Rotation", rot)
-    elem_props_template_set(tmpl, props, "p_lcl_scaling", b"Lcl Scaling", scale)
+    elem_props_template_set(tmpl, props, "p_lcl_translation", b"Lcl Translation", loc,
+                            animatable=True, animated=((ob_obj.key, "Lcl Translation") in scene_data.animated))
+    elem_props_template_set(tmpl, props, "p_lcl_rotation", b"Lcl Rotation", rot,
+                            animatable=True, animated=((ob_obj.key, "Lcl Rotation") in scene_data.animated))
+    elem_props_template_set(tmpl, props, "p_lcl_scaling", b"Lcl Scaling", scale,
+                            animatable=True, animated=((ob_obj.key, "Lcl Scaling") in scene_data.animated))
     elem_props_template_set(tmpl, props, "p_visibility", b"Visibility", float(not ob_obj.hide))
 
     # Absolutely no idea what this is, but seems mandatory for validity of the file, and defaults to
@@ -1706,13 +1746,16 @@ def fbx_mat_properties_from_texture(tex):
 
 
 def fbx_skeleton_from_armature(scene, settings, arm_obj, objects, data_meshes,
-                               data_bones, data_deformers_skin, arm_parents):
+                               data_bones, data_deformers_skin, data_empties, arm_parents):
     """
     Create skeleton from armature/bones (NodeAttribute/LimbNode and Model/LimbNode), and for each deformed mesh,
     create Pose/BindPose(with sub PoseNode) and Deformer/Skin(with Deformer/SubDeformer/Cluster).
     Also supports "parent to bone" (simple parent to Model/LimbNode).
     arm_parents is a set of tuples (armature, object) for all successful armature bindings.
     """
+    # We need some data for our armature 'object' too!!!
+    data_empties[arm_obj] = get_blender_empty_key(arm_obj.bdata)
+
     arm_data = arm_obj.bdata.data
     bones = OrderedDict()
     for bo in arm_obj.bones:
@@ -1806,6 +1849,7 @@ def fbx_animations_do(scene_data, ref_id, f_start, f_end, start_zero, objects=No
     bake_step = scene_data.settings.bake_anim_step
     scene = scene_data.scene
     meshes = scene_data.data_meshes
+    force_keying = scene_data.settings.bake_anim_use_all_bones
 
     if objects is not None:
         # Add bones and duplis!
@@ -1823,10 +1867,17 @@ def fbx_animations_do(scene_data, ref_id, f_start, f_end, start_zero, objects=No
         objects = scene_data.objects
 
     back_currframe = scene.frame_current
-    animdata_ob = OrderedDict((ob_obj, (AnimationCurveNodeWrapper(ob_obj.key, 'LCL_TRANSLATION', (0.0, 0.0, 0.0)),
-                                        AnimationCurveNodeWrapper(ob_obj.key, 'LCL_ROTATION', (0.0, 0.0, 0.0)),
-                                        AnimationCurveNodeWrapper(ob_obj.key, 'LCL_SCALING', (1.0, 1.0, 1.0))))
-                              for ob_obj in objects)
+    animdata_ob = OrderedDict()
+    p_rots = {}
+
+    for ob_obj in objects:
+        ACNW = AnimationCurveNodeWrapper
+        loc, rot, scale, _m, _mr = ob_obj.fbx_object_tx(scene_data)
+        rot_deg = tuple(convert_rad_to_deg_iter(rot))
+        animdata_ob[ob_obj] = (ACNW(ob_obj.key, 'LCL_TRANSLATION', ob_obj.is_bone and force_keying, loc),
+                               ACNW(ob_obj.key, 'LCL_ROTATION', ob_obj.is_bone and force_keying, rot_deg),
+                               ACNW(ob_obj.key, 'LCL_SCALING', ob_obj.is_bone and force_keying, scale))
+        p_rots[ob_obj] = rot
 
     animdata_shapes = OrderedDict()
     for me, (me_key, _shapes_key, shapes) in scene_data.data_deformers_shape.items():
@@ -1834,12 +1885,10 @@ def fbx_animations_do(scene_data, ref_id, f_start, f_end, start_zero, objects=No
         if not me.shape_keys.use_relative:
             continue
         for shape, (channel_key, geom_key, _shape_verts_co, _shape_verts_idx) in shapes.items():
-            acnode = AnimationCurveNodeWrapper(channel_key, 'SHAPE_KEY', (0.0,))
+            acnode = AnimationCurveNodeWrapper(channel_key, 'SHAPE_KEY', False, (0.0,))
             # Sooooo happy to have to twist again like a mad snake... Yes, we need to write those curves twice. :/
             acnode.add_group(me_key, shape.name, shape.name, (shape.name,))
             animdata_shapes[channel_key] = (acnode, me, shape)
-
-    p_rots = {}
 
     currframe = f_start
     while currframe <= f_end:
@@ -1909,10 +1958,11 @@ def fbx_animations(scene_data):
     """
     scene = scene_data.scene
     animations = []
+    animated = set()
     frame_start = 1e100
     frame_end = -1e100
 
-    def add_anim(animations, anim):
+    def add_anim(animations, animated, anim):
         nonlocal frame_start, frame_end
         if anim is not None:
             animations.append(anim)
@@ -1921,6 +1971,11 @@ def fbx_animations(scene_data):
                 frame_start = f_start
             if f_end > frame_end:
                 frame_end = f_end
+
+            _astack_key, astack, _alayer_key, _name, _fstart, _fend = anim
+            for elem_key, (alayer_key, acurvenodes) in astack.items():
+                for fbx_prop, (acurvenode_key, acurves, acurvenode_name) in acurvenodes.items():
+                    animated.add((elem_key, fbx_prop))
 
     # Per-NLA strip animstacks.
     if scene_data.settings.bake_anim_use_nla_strips:
@@ -1943,7 +1998,8 @@ def fbx_animations(scene_data):
 
         for strip in strips:
             strip.mute = False
-            add_anim(animations, fbx_animations_do(scene_data, strip, strip.frame_start, strip.frame_end, True))
+            add_anim(animations, animated,
+                     fbx_animations_do(scene_data, strip, strip.frame_start, strip.frame_end, True))
             strip.mute = True
 
         for strip in strips:
@@ -1979,7 +2035,8 @@ def fbx_animations(scene_data):
                 'show_only_shape_key', 'use_shape_key_edit_mode', 'active_shape_key_index',
             )
             for p in props:
-                setattr(ob_to, p, getattr(ob_from, p))
+                if not ob_to.is_property_readonly(p):
+                    setattr(ob_to, p, getattr(ob_from, p))
 
         for ob_obj in scene_data.objects:
             # Actions only for objects, not bones!
@@ -1988,17 +2045,16 @@ def fbx_animations(scene_data):
 
             ob = ob_obj.bdata  # Back to real Blender Object.
 
+            if not ob.animation_data:
+                continue  # Do not export animations for objects that are absolutely not animated, see T44386.
+
             # We can't play with animdata and actions and get back to org state easily.
             # So we have to add a temp copy of the object to the scene, animate it, and remove it... :/
             ob_copy = ob.copy()
             # Great, have to handle bones as well if needed...
             pbones_matrices = [pbo.matrix_basis.copy() for pbo in ob.pose.bones] if ob.type == 'ARMATURE' else ...
 
-            if ob.animation_data:
-                org_act = ob.animation_data.action
-            else:
-                org_act = ...
-                ob.animation_data_create()
+            org_act = ob.animation_data.action
             path_resolve = ob.path_resolve
 
             for act in bpy.data.actions:
@@ -2008,33 +2064,30 @@ def fbx_animations(scene_data):
                     continue
                 ob.animation_data.action = act
                 frame_start, frame_end = act.frame_range  # sic!
-                add_anim(animations,
+                add_anim(animations, animated,
                          fbx_animations_do(scene_data, (ob, act), frame_start, frame_end, True, {ob_obj}, True))
                 # Ugly! :/
                 if pbones_matrices is not ...:
                     for pbo, mat in zip(ob.pose.bones, pbones_matrices):
                         pbo.matrix_basis = mat.copy()
-                ob.animation_data.action = None if org_act is ... else org_act
+                ob.animation_data.action = org_act
                 restore_object(ob, ob_copy)
 
             if pbones_matrices is not ...:
                 for pbo, mat in zip(ob.pose.bones, pbones_matrices):
                     pbo.matrix_basis = mat.copy()
-            if org_act is ...:
-                ob.animation_data_clear()
-            else:
-                ob.animation_data.action = org_act
+            ob.animation_data.action = org_act
 
             bpy.data.objects.remove(ob_copy)
 
     # Global (containing everything) animstack, only if not exporting NLA strips and/or all actions.
     if not scene_data.settings.bake_anim_use_nla_strips and not scene_data.settings.bake_anim_use_all_actions:
-        add_anim(animations, fbx_animations_do(scene_data, None, scene.frame_start, scene.frame_end, False))
+        add_anim(animations, animated, fbx_animations_do(scene_data, None, scene.frame_start, scene.frame_end, False))
 
     # Be sure to update all matrices back to org state!
     scene.frame_set(scene.frame_current, 0.0)
 
-    return animations, frame_start, frame_end
+    return animations, animated, frame_start, frame_end
 
 
 def fbx_data_from_scene(scene, settings):
@@ -2042,8 +2095,12 @@ def fbx_data_from_scene(scene, settings):
     Do some pre-processing over scene's data...
     """
     objtypes = settings.object_types
+    perfmon = PerfMon()
+    perfmon.level_up()
 
     # ##### Gathering data...
+
+    perfmon.step("FBX export prepare: Wrapping Objects...")
 
     # This is rather simple for now, maybe we could end generating templates with most-used values
     # instead of default ones?
@@ -2059,6 +2116,8 @@ def fbx_data_from_scene(scene, settings):
             objects[dp_obj] = None
         ob_obj.dupli_list_clear()
 
+    perfmon.step("FBX export prepare: Wrapping Data (lamps, cameras, empties)...")
+
     data_lamps = OrderedDict((ob_obj.bdata.data, get_blenderID_key(ob_obj.bdata.data))
                              for ob_obj in objects if ob_obj.type == 'LAMP')
     # Unfortunately, FBX camera data contains object-level data (like position, orientation, etc.)...
@@ -2067,6 +2126,8 @@ def fbx_data_from_scene(scene, settings):
     # Yep! Contains nothing, but needed!
     data_empties = OrderedDict((ob_obj, get_blender_empty_key(ob_obj.bdata))
                                for ob_obj in objects if ob_obj.type == 'EMPTY')
+
+    perfmon.step("FBX export prepare: Wrapping Meshes...")
 
     data_meshes = OrderedDict()
     for ob_obj in objects:
@@ -2097,6 +2158,8 @@ def fbx_data_from_scene(scene, settings):
                 mod.show_render = show_render
         if use_org_data:
             data_meshes[ob_obj] = (get_blenderID_key(ob.data), ob.data, False)
+
+    perfmon.step("FBX export prepare: Wrapping ShapeKeys...")
 
     # ShapeKeys.
     data_deformers_shape = OrderedDict()
@@ -2130,6 +2193,8 @@ def fbx_data_from_scene(scene, settings):
             data = (channel_key, geom_key, shape_verts_co, shape_verts_idx)
             data_deformers_shape.setdefault(me, (me_key, shapes_key, OrderedDict()))[2][shape] = data
 
+    perfmon.step("FBX export prepare: Wrapping Armatures...")
+
     # Armatures!
     data_deformers_skin = OrderedDict()
     data_bones = OrderedDict()
@@ -2138,18 +2203,22 @@ def fbx_data_from_scene(scene, settings):
         if not (ob_obj.is_object and ob_obj.type in {'ARMATURE'}):
             continue
         fbx_skeleton_from_armature(scene, settings, ob_obj, objects, data_meshes,
-                                   data_bones, data_deformers_skin, arm_parents)
+                                   data_bones, data_deformers_skin, data_empties, arm_parents)
 
     # Generate leaf bones
     data_leaf_bones = []
     if settings.add_leaf_bones:
         data_leaf_bones = fbx_generate_leaf_bones(settings, data_bones)
 
+    perfmon.step("FBX export prepare: Wrapping World...")
+
     # Some world settings are embedded in FBX materials...
     if scene.world:
         data_world = OrderedDict(((scene.world, get_blenderID_key(scene.world)),))
     else:
         data_world = OrderedDict()
+
+    perfmon.step("FBX export prepare: Wrapping Materials...")
 
     # TODO: Check all the mat stuff works even when mats are linked to Objects
     #       (we can then have the same mesh used with different materials...).
@@ -2172,6 +2241,8 @@ def fbx_data_from_scene(scene, settings):
             else:
                 data_materials[mat] = (get_blenderID_key(mat), [ob_obj])
 
+    perfmon.step("FBX export prepare: Wrapping Textures...")
+
     # Note FBX textures also hold their mapping info.
     # TODO: Support layers?
     data_textures = OrderedDict()
@@ -2182,7 +2253,7 @@ def fbx_data_from_scene(scene, settings):
         if check_skip_material(mat):
             continue
         for tex, use_tex in zip(mat.texture_slots, mat.use_textures):
-            if tex is None or not use_tex:
+            if tex is None or tex.texture is None or not use_tex:
                 continue
             # For now, only consider image textures.
             # Note FBX does has support for procedural, but this is not portable at all (opaque blob),
@@ -2209,8 +2280,11 @@ def fbx_data_from_scene(scene, settings):
             else:
                 data_videos[img] = (get_blenderID_key(img), [tex])
 
+    perfmon.step("FBX export prepare: Wrapping Animations...")
+
     # Animation...
     animations = ()
+    animated = set()
     frame_start = scene.frame_start
     frame_end = scene.frame_end
     if settings.bake_anim:
@@ -2218,14 +2292,16 @@ def fbx_data_from_scene(scene, settings):
         # Kind of hack, we need a temp scene_data for object's space handling to bake animations...
         tmp_scdata = FBXExportData(
             None, None, None,
-            settings, scene, objects, None, 0.0, 0.0,
+            settings, scene, objects, None, None, 0.0, 0.0,
             data_empties, data_lamps, data_cameras, data_meshes, None,
             data_bones, data_leaf_bones, data_deformers_skin, data_deformers_shape,
             data_world, data_materials, data_textures, data_videos,
         )
-        animations, frame_start, frame_end = fbx_animations(tmp_scdata)
+        animations, animated, frame_start, frame_end = fbx_animations(tmp_scdata)
 
     # ##### Creation of templates...
+
+    perfmon.step("FBX export prepare: Generating templates...")
 
     templates = OrderedDict()
     templates[b"GlobalSettings"] = fbx_template_def_globalsettings(scene, settings, nbr_users=1)
@@ -2304,6 +2380,8 @@ def fbx_data_from_scene(scene, settings):
 
     # ##### Creation of connections...
 
+    perfmon.step("FBX export prepare: Generating Connections...")
+
     connections = []
 
     # Objects (with classical parenting).
@@ -2336,7 +2414,7 @@ def fbx_data_from_scene(scene, settings):
             elif ob_obj.type == 'CAMERA':
                 cam_key = data_cameras[ob_obj]
                 connections.append((b"OO", get_fbx_uuid_from_key(cam_key), ob_obj.fbx_uuid, None))
-            elif ob_obj.type == 'EMPTY':
+            elif ob_obj.type == 'EMPTY' or ob_obj.type == 'ARMATURE':
                 empty_key = data_empties[ob_obj]
                 connections.append((b"OO", get_fbx_uuid_from_key(empty_key), ob_obj.fbx_uuid, None))
             elif ob_obj.type in BLENDER_OBJECT_TYPES_MESHLIKE:
@@ -2426,11 +2504,13 @@ def fbx_data_from_scene(scene, settings):
                         # Animcurve -> Animcurvenode.
                         connections.append((b"OP", get_fbx_uuid_from_key(acurve_key), acurvenode_id, fbx_item.encode()))
 
+    perfmon.level_down()
+
     # ##### And pack all this!
 
     return FBXExportData(
         templates, templates_users, connections,
-        settings, scene, objects, animations, frame_start, frame_end,
+        settings, scene, objects, animations, animated, frame_start, frame_end,
         data_empties, data_lamps, data_cameras, data_meshes, mesh_mat_indices,
         data_bones, data_leaf_bones, data_deformers_skin, data_deformers_shape,
         data_world, data_materials, data_textures, data_videos,
@@ -2533,8 +2613,13 @@ def fbx_header_elements(root, scene_data, time=None):
 
     props = elem_properties(global_settings)
     up_axis, front_axis, coord_axis = RIGHT_HAND_AXES[scene_data.settings.to_axes]
-    # Currently not sure about that, but looks like default unit of FBX is cm...
-    scale_factor = (1.0 if scene.unit_settings.system == 'NONE' else scene.unit_settings.scale_length) * 100
+    if scene_data.settings.apply_unit_scale:
+        # Unit scaling is applied to objects' scale, so our unit is effectively FBX one (centimeter).
+        scale_factor_org = 1.0
+        scale_factor = scene_data.settings.global_scale / units_blender_to_fbx_factor(scene)
+    else:
+        scale_factor_org = units_blender_to_fbx_factor(scene)
+        scale_factor = scene_data.settings.global_scale * units_blender_to_fbx_factor(scene)
     elem_props_set(props, "p_integer", b"UpAxis", up_axis[0])
     elem_props_set(props, "p_integer", b"UpAxisSign", up_axis[1])
     elem_props_set(props, "p_integer", b"FrontAxis", front_axis[0])
@@ -2544,7 +2629,7 @@ def fbx_header_elements(root, scene_data, time=None):
     elem_props_set(props, "p_integer", b"OriginalUpAxis", -1)
     elem_props_set(props, "p_integer", b"OriginalUpAxisSign", 1)
     elem_props_set(props, "p_double", b"UnitScaleFactor", scale_factor)
-    elem_props_set(props, "p_double", b"OriginalUnitScaleFactor", scale_factor)
+    elem_props_set(props, "p_double", b"OriginalUnitScaleFactor", scale_factor_org)
     elem_props_set(props, "p_color_rgb", b"AmbientColor", (0.0, 0.0, 0.0))
     elem_props_set(props, "p_string", b"DefaultCamera", "Producer Perspective")
 
@@ -2612,23 +2697,35 @@ def fbx_definitions_elements(root, scene_data):
 
 def fbx_objects_elements(root, scene_data):
     """
-    Data (objects, geometry, material, textures, armatures, etc.
+    Data (objects, geometry, material, textures, armatures, etc.).
     """
+    perfmon = PerfMon()
+    perfmon.level_up()
     objects = elem_empty(root, b"Objects")
+
+    perfmon.step("FBX export fetch empties (%d)..." % len(scene_data.data_empties))
 
     for empty in scene_data.data_empties:
         fbx_data_empty_elements(objects, empty, scene_data)
 
+    perfmon.step("FBX export fetch lamps (%d)..." % len(scene_data.data_lamps))
+
     for lamp in scene_data.data_lamps:
         fbx_data_lamp_elements(objects, lamp, scene_data)
 
+    perfmon.step("FBX export fetch cameras (%d)..." % len(scene_data.data_cameras))
+
     for cam in scene_data.data_cameras:
         fbx_data_camera_elements(objects, cam, scene_data)
+
+    perfmon.step("FBX export fetch meshes (%d)..." % len(scene_data.data_meshes))
 
     done_meshes = set()
     for me_obj in scene_data.data_meshes:
         fbx_data_mesh_elements(objects, me_obj, scene_data, done_meshes)
     del done_meshes
+
+    perfmon.step("FBX export fetch objects (%d)..." % len(scene_data.objects))
 
     for ob_obj in scene_data.objects:
         if ob_obj.is_dupli:
@@ -2640,6 +2737,8 @@ def fbx_objects_elements(root, scene_data):
                 continue
             fbx_data_object_elements(objects, dp_obj, scene_data)
         ob_obj.dupli_list_clear()
+
+    perfmon.step("FBX export fetch remaining...")
 
     for ob_obj in scene_data.objects:
         if not (ob_obj.is_object and ob_obj.type == 'ARMATURE'):
@@ -2658,7 +2757,12 @@ def fbx_objects_elements(root, scene_data):
     for vid in scene_data.data_videos:
         fbx_data_video_elements(objects, vid, scene_data)
 
+    perfmon.step("FBX export fetch animations...")
+    start_time = time.process_time()
+
     fbx_data_animation_elements(objects, scene_data)
+
+    perfmon.level_down()
 
 
 def fbx_connections_elements(root, scene_data):
@@ -2699,6 +2803,7 @@ def fbx_takes_elements(root, scene_data):
 # This func can be called with just the filepath
 def save_single(operator, scene, filepath="",
                 global_matrix=Matrix(),
+                apply_unit_scale=False,
                 axis_up="Z",
                 axis_forward="Y",
                 context_objects=None,
@@ -2707,6 +2812,7 @@ def save_single(operator, scene, filepath="",
                 mesh_smooth_type='FACE',
                 use_armature_deform_only=False,
                 bake_anim=True,
+                bake_anim_use_all_bones=True,
                 bake_anim_use_nla_strips=True,
                 bake_anim_use_all_actions=True,
                 bake_anim_step=1.0,
@@ -2733,11 +2839,8 @@ def save_single(operator, scene, filepath="",
     if 'OTHER' in object_types:
         object_types |= BLENDER_OTHER_OBJECT_TYPES
 
-    # Scale/unit mess. FBX can store the 'reference' unit of a file in its UnitScaleFactor property
-    # (1.0 meaning centimeter, afaik). We use that to reflect user's default unit as set in Blender with scale_length.
-    # However, we always get values in BU (i.e. meters), so we have to reverse-apply that scale in global matrix...
-    if scene.unit_settings.system != 'NONE':
-        global_matrix = global_matrix * Matrix.Scale(1.0 / scene.unit_settings.scale_length, 4)
+    if apply_unit_scale:
+        global_matrix = global_matrix * Matrix.Scale(units_blender_to_fbx_factor(scene), 4)
     global_scale = global_matrix.median_scale
     global_matrix_inv = global_matrix.inverted()
     # For transforming mesh normals.
@@ -2768,15 +2871,17 @@ def save_single(operator, scene, filepath="",
         os.path.splitext(os.path.basename(filepath))[0] + ".fbm",  # subdir
         embed_textures,
         set(),  # copy_set
+        set(),  # embedded_set
     )
 
     settings = FBXExportSettings(
-        operator.report, (axis_up, axis_forward), global_matrix, global_scale,
+        operator.report, (axis_up, axis_forward), global_matrix, global_scale, apply_unit_scale,
         bake_space_transform, global_matrix_inv, global_matrix_inv_transposed,
         context_objects, object_types, use_mesh_modifiers,
         mesh_smooth_type, use_mesh_edges, use_tspace,
         use_armature_deform_only, add_leaf_bones, bone_correction_matrix, bone_correction_matrix_inv,
-        bake_anim, bake_anim_use_nla_strips, bake_anim_use_all_actions, bake_anim_step, bake_anim_simplify_factor,
+        bake_anim, bake_anim_use_all_bones, bake_anim_use_nla_strips, bake_anim_use_all_actions,
+        bake_anim_step, bake_anim_simplify_factor,
         False, media_settings, use_custom_props,
     )
 

@@ -114,8 +114,9 @@ def rotcopy(item, mat):
     if item.rotation_mode == 'QUATERNION':
         item.rotation_quaternion = mat.to_3x3().to_quaternion()
     elif item.rotation_mode == 'AXIS_ANGLE':
-        quat = mat.to_3x3().to_quaternion()
-        item.rotation_axis_angle = quat.axis[:] + (quat.angle, )
+        rot = mat.to_3x3().to_quaternion().to_axis_angle()  # returns (Vector((x, y, z)), w)
+        axis_angle = rot[1], rot[0][0], rot[0][1], rot[0][2]  # convert to w, x, y, z
+        item.rotation_axis_angle = axis_angle
     else:
         item.rotation_euler = mat.to_3x3().to_euler(item.rotation_mode)
 
@@ -230,7 +231,7 @@ class CopySelectedPoseConstraints(bpy.types.Operator):
     """Copy Chosen constraints from active to selected"""
     bl_idname = "pose.copy_selected_constraints"
     bl_label = "Copy Selected Constraints"
-    selection = bpy.props.BoolVectorProperty(size=32)
+    selection = bpy.props.BoolVectorProperty(size=32, options={'SKIP_SAVE'})
 
     poll = pose_poll_func
     invoke = pose_invoke_func
@@ -487,7 +488,7 @@ object_copies = (
                 #('obj_dmp', "Damping",
                 #"Copy Damping from Active to Selected"),
                 #('obj_all', "All Physical Attributes",
-                #"Copy Physical Atributes from Active to Selected"),
+                #"Copy Physical Attributes from Active to Selected"),
                 #('obj_prp', "Properties",
                 #"Copy Properties from Active to Selected"),
                 #('obj_log', "Logic Bricks",
@@ -529,7 +530,7 @@ class CopySelectedObjectConstraints(bpy.types.Operator):
     """Copy Chosen constraints from active to selected"""
     bl_idname = "object.copy_selected_constraints"
     bl_label = "Copy Selected Constraints"
-    selection = bpy.props.BoolVectorProperty(size=32)
+    selection = bpy.props.BoolVectorProperty(size=32, options={'SKIP_SAVE'})
 
     poll = object_poll_func
 
@@ -559,7 +560,7 @@ class CopySelectedObjectModifiers(bpy.types.Operator):
     """Copy Chosen modifiers from active to selected"""
     bl_idname = "object.copy_selected_modifiers"
     bl_label = "Copy Selected Modifiers"
-    selection = bpy.props.BoolVectorProperty(size=32)
+    selection = bpy.props.BoolVectorProperty(size=32, options={'SKIP_SAVE'})
 
     poll = object_poll_func
 

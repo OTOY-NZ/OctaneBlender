@@ -44,8 +44,8 @@ static bNodeSocketTemplate sh_node_out[] = {
 
 static void node_oct_float_image_tex_init(bNodeTree *ntree, bNode *node) {
 	NodeTexImage *tex = MEM_callocN(sizeof(NodeTexImage), "NodeTexImage");
-	default_tex_mapping(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
-	default_color_mapping(&tex->base.color_mapping);
+	BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
+	BKE_texture_colormapping_default(&tex->base.color_mapping);
 	tex->color_space = SHD_COLORSPACE_COLOR;
 	tex->iuser.frames= 1;
 	tex->iuser.sfra= 1;

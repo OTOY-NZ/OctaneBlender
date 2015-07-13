@@ -21,7 +21,7 @@
 bl_info = {
     "name": "Autodesk 3DS format",
     "author": "Bob Holcomb, Campbell Barton",
-    "blender": (2, 57, 0),
+    "blender": (2, 74, 0),
     "location": "File > Import-Export",
     "description": "Import-Export 3DS, meshes, uvs, materials, textures, "
                    "cameras & lamps",
@@ -32,23 +32,32 @@ bl_info = {
     "category": "Import-Export"}
 
 if "bpy" in locals():
-    import imp
+    import importlib
     if "import_3ds" in locals():
-        imp.reload(import_3ds)
+        importlib.reload(import_3ds)
     if "export_3ds" in locals():
-        imp.reload(export_3ds)
+        importlib.reload(export_3ds)
 
 
 import bpy
-from bpy.props import StringProperty, FloatProperty, BoolProperty, EnumProperty
+from bpy.props import (
+        BoolProperty,
+        EnumProperty,
+        FloatProperty,
+        StringProperty,
+        )
+from bpy_extras.io_utils import (
+        ImportHelper,
+        ExportHelper,
+        orientation_helper_factory,
+        axis_conversion,
+        )
 
-from bpy_extras.io_utils import (ImportHelper,
-                                 ExportHelper,
-                                 axis_conversion,
-                                 )
+
+IO3DSOrientationHelper = orientation_helper_factory("IO3DSOrientationHelper", axis_forward='Y', axis_up='Z')
 
 
-class Import3DS(bpy.types.Operator, ImportHelper):
+class Import3DS(bpy.types.Operator, ImportHelper, IO3DSOrientationHelper):
     """Import from 3DS file format (.3ds)"""
     bl_idname = "import_scene.autodesk_3ds"
     bl_label = 'Import 3DS'
@@ -78,30 +87,6 @@ class Import3DS(bpy.types.Operator, ImportHelper):
             default=True,
             )
 
-    axis_forward = EnumProperty(
-            name="Forward",
-            items=(('X', "X Forward", ""),
-                   ('Y', "Y Forward", ""),
-                   ('Z', "Z Forward", ""),
-                   ('-X', "-X Forward", ""),
-                   ('-Y', "-Y Forward", ""),
-                   ('-Z', "-Z Forward", ""),
-                   ),
-            default='Y',
-            )
-
-    axis_up = EnumProperty(
-            name="Up",
-            items=(('X', "X Up", ""),
-                   ('Y', "Y Up", ""),
-                   ('Z', "Z Up", ""),
-                   ('-X', "-X Up", ""),
-                   ('-Y', "-Y Up", ""),
-                   ('-Z', "-Z Up", ""),
-                   ),
-            default='Z',
-            )
-
     def execute(self, context):
         from . import import_3ds
 
@@ -118,7 +103,7 @@ class Import3DS(bpy.types.Operator, ImportHelper):
         return import_3ds.load(self, context, **keywords)
 
 
-class Export3DS(bpy.types.Operator, ExportHelper):
+class Export3DS(bpy.types.Operator, ExportHelper, IO3DSOrientationHelper):
     """Export to 3DS file format (.3ds)"""
     bl_idname = "export_scene.autodesk_3ds"
     bl_label = 'Export 3DS'
@@ -133,30 +118,6 @@ class Export3DS(bpy.types.Operator, ExportHelper):
             name="Selection Only",
             description="Export selected objects only",
             default=False,
-            )
-
-    axis_forward = EnumProperty(
-            name="Forward",
-            items=(('X', "X Forward", ""),
-                   ('Y', "Y Forward", ""),
-                   ('Z', "Z Forward", ""),
-                   ('-X', "-X Forward", ""),
-                   ('-Y', "-Y Forward", ""),
-                   ('-Z', "-Z Forward", ""),
-                   ),
-            default='Y',
-            )
-
-    axis_up = EnumProperty(
-            name="Up",
-            items=(('X', "X Up", ""),
-                   ('Y', "Y Up", ""),
-                   ('Z', "Z Up", ""),
-                   ('-X', "-X Up", ""),
-                   ('-Y', "-Y Up", ""),
-                   ('-Z', "-Z Up", ""),
-                   ),
-            default='Z',
             )
 
     def execute(self, context):

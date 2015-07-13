@@ -303,32 +303,6 @@ class OctaneRender_PT_motion_blur(OctaneButtonsPanel, Panel):
         row.prop(rd, "motion_blur_samples")
 
 
-
-class OctaneRender_PT_layers(OctaneButtonsPanel, Panel):
-    bl_label = "Layer List"
-    bl_context = "render_layer"
-    bl_options = {'HIDE_HEADER'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        rd = scene.render
-        rl = rd.layers.active
-
-        row = layout.row()
-        row.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
-
-        col = row.column(align=True)
-        col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
-        col.operator("scene.render_layer_remove", icon='ZOOMOUT', text="")
-
-        row = layout.row()
-        if rl:
-            row.prop(rl, "name")
-        row.prop(rd, "use_single_layer", text="", icon_only=True)
-
-
 class OctaneRender_PT_layer_options(OctaneButtonsPanel, Panel):
     bl_label = "Layer"
     bl_context = "render_layer"
@@ -436,6 +410,49 @@ class OctaneRender_PT_octane_layers(OctaneButtonsPanel, Panel):
         col = layout.column()
         col.prop(octane, "layers_current")
         col.prop(octane, "layers_invert")
+
+
+class OctaneRender_PT_views(OctaneButtonsPanel, Panel):
+    bl_label = "Views"
+    bl_context = "render_layer"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        rd = context.scene.render
+        self.layout.prop(rd, "use_multiview", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        rd = scene.render
+        rv = rd.views.active
+
+        layout.active = rd.use_multiview
+        basic_stereo = (rd.views_format == 'STEREO_3D')
+
+        row = layout.row()
+        row.prop(rd, "views_format", expand=True)
+
+        if basic_stereo:
+            row = layout.row()
+            row.template_list("RENDERLAYER_UL_renderviews", "name", rd, "stereo_views", rd.views, "active_index", rows=2)
+
+            row = layout.row()
+            row.label(text="File Suffix:")
+            row.prop(rv, "file_suffix", text="")
+
+        else:
+            row = layout.row()
+            row.template_list("RENDERLAYER_UL_renderviews", "name", rd, "views", rd.views, "active_index", rows=2)
+
+            col = row.column(align=True)
+            col.operator("scene.render_view_add", icon='ZOOMIN', text="")
+            col.operator("scene.render_view_remove", icon='ZOOMOUT', text="")
+
+            row = layout.row()
+            row.label(text="Camera Suffix:")
+            row.prop(rv, "camera_suffix", text="")
 
 
 class OctaneRender_PT_octane_out_of_core(OctaneButtonsPanel, Panel):

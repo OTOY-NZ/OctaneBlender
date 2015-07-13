@@ -30,18 +30,19 @@ bl_info = {
 }
 
 import bpy
-from bpy.types import (Operator,
-                       Panel,
-                       PropertyGroup,
-                       )
-
-from bpy.props import (BoolProperty,
-                       CollectionProperty,
-                       EnumProperty,
-                       FloatProperty,
-                       IntProperty,
-                       StringProperty,
-                       )
+from bpy.types import (
+        Operator,
+        Panel,
+        PropertyGroup,
+        )
+from bpy.props import (
+        BoolProperty,
+        CollectionProperty,
+        EnumProperty,
+        FloatProperty,
+        IntProperty,
+        StringProperty,
+        )
 import mathutils
 
 
@@ -133,7 +134,7 @@ class TexAtl_Main(Panel):
             row.operator(
                 "object.ms_run", text="StartManualUnwrap", icon="LAMP_SPOT")
             row.operator(
-                "object.ms_run_remove", text="FinshManualUnwrap", icon="LAMP_SPOT")
+                "object.ms_run_remove", text="FinishManualUnwrap", icon="LAMP_SPOT")
 
 
 class TexAtl_RunAuto(Operator):

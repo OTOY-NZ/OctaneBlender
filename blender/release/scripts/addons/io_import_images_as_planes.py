@@ -19,8 +19,8 @@
 bl_info = {
     "name": "Import Images as Planes",
     "author": "Florian Meyer (tstscr), mont29, matali",
-    "version": (2, 0, 0),
-    "blender": (2, 73, 0),
+    "version": (2, 0, 1),
+    "blender": (2, 74, 0),
     "location": "File > Import > Images as Planes or Add > Mesh > Images as Planes",
     "description": "Imports images and creates planes with the appropriate aspect ratio. "
                    "The images are mapped to the planes.",
@@ -36,13 +36,14 @@ import mathutils
 import os
 import collections
 
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       EnumProperty,
-                       IntProperty,
-                       FloatProperty,
-                       CollectionProperty,
-                       )
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        EnumProperty,
+        IntProperty,
+        FloatProperty,
+        CollectionProperty,
+        )
 
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
 from bpy_extras.image_utils import load_image
@@ -271,6 +272,11 @@ class IMPORT_OT_image_to_plane(Operator, AddObjectHelper):
         row.active = bpy.data.is_saved
         row.prop(self, "relative")
         box.prop(self, "match_len")
+        row = box.row()
+        row.prop(self, "use_transparency")
+        sub = row.row()
+        sub.active = self.use_transparency
+        sub.prop(self, "alpha_mode", text="")
         box.prop(self, "use_fields")
         box.prop(self, "use_auto_refresh")
 
@@ -278,8 +284,6 @@ class IMPORT_OT_image_to_plane(Operator, AddObjectHelper):
         if engine == 'BLENDER_RENDER':
             box.label("Material Settings: (Blender)", icon='MATERIAL')
             box.prop(self, "use_shadeless")
-            box.prop(self, "use_transparency")
-            box.prop(self, "alpha_mode")
             row = box.row()
             row.prop(self, "transparency_method", expand=True)
             box.prop(self, "use_transparent_shadows")
@@ -442,6 +446,7 @@ class IMPORT_OT_image_to_plane(Operator, AddObjectHelper):
         return material
 
     def set_image_options(self, image):
+        image.use_alpha = self.use_transparency
         image.alpha_mode = self.alpha_mode
         image.use_fields = self.use_fields
 
@@ -452,7 +457,6 @@ class IMPORT_OT_image_to_plane(Operator, AddObjectHelper):
                 pass
 
     def set_texture_options(self, context, texture):
-        texture.image.use_alpha = self.use_transparency
         texture.image_user.use_auto_refresh = self.use_auto_refresh
         if self.match_len:
             texture.image_user.frame_duration = texture.image.frame_duration

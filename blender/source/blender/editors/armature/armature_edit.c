@@ -714,7 +714,7 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 	}
 
 	if (newbone) {
-		ED_armature_deselect_all(obedit, 0);
+		ED_armature_deselect_all(obedit);
 		arm->act_edbone = newbone;
 		newbone->flag |= BONE_TIPSEL;
 	}
@@ -1264,7 +1264,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
 			}
 			else {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+					const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					

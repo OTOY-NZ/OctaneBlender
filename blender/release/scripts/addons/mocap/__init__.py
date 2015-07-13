@@ -21,8 +21,8 @@
 bl_info = {
     "name": "Motion Capture Tools",
     "author": "Benjy Cook",
-    "blender": (2, 72, 0),
-    "version": (1, 0, 1),
+    "blender": (2, 73, 0),
+    "version": (1, 1, 1),
     "location": "Object UI > Mocap tools",
     "description": "Various tools for working with motion capture animation",
     "warning": "",
@@ -33,28 +33,30 @@ bl_info = {
 }
 
 if "bpy" in locals():
-    import imp
+    import importlib
     if "mocap_constraints" in locals():
-        imp.reload(mocap_constraints)
+        importlib.reload(mocap_constraints)
     if "retarget" in locals():
-        imp.reload(retarget)
+        importlib.reload(retarget)
     if "mocap_tools" in locals():
-        imp.reload(mocap_tools)
+        importlib.reload(mocap_tools)
 else:
     import bpy
-    from bpy.props import (BoolProperty,
-                           CollectionProperty,
-                           EnumProperty,
-                           FloatProperty,
-                           FloatVectorProperty,
-                           IntProperty,
-                           PointerProperty,
-                           StringProperty,
-                           )
-    from . import (mocap_constraints,
-                   retarget,
-                   mocap_tools,
-                   )
+    from bpy.props import (
+            BoolProperty,
+            CollectionProperty,
+            EnumProperty,
+            FloatProperty,
+            FloatVectorProperty,
+            IntProperty,
+            PointerProperty,
+            StringProperty,
+            )
+    from . import (
+            mocap_constraints,
+            retarget,
+            mocap_tools,
+            )
 
 
 # MocapConstraint class

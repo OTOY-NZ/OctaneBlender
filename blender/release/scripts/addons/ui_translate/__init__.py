@@ -33,20 +33,21 @@ bl_info = {
 
 
 if "bpy" in locals():
-    import imp
-    imp.reload(settings)
-    imp.reload(edit_translation)
-    imp.reload(update_svn)
-    imp.reload(update_addon)
-    imp.reload(update_ui)
+    import importlib
+    importlib.reload(settings)
+    importlib.reload(edit_translation)
+    importlib.reload(update_svn)
+    importlib.reload(update_addon)
+    importlib.reload(update_ui)
 else:
     import bpy
-    from . import (settings,
-                   edit_translation,
-                   update_svn,
-                   update_addon,
-                   update_ui,
-                  )
+    from . import (
+            settings,
+            edit_translation,
+            update_svn,
+            update_addon,
+            update_ui,
+            )
 
 
 import os

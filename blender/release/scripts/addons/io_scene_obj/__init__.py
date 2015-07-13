@@ -21,8 +21,8 @@
 bl_info = {
     "name": "Wavefront OBJ format",
     "author": "Campbell Barton, Bastien Montagne",
-    "version": (2, 0, 0),
-    "blender": (2, 58, 0),
+    "version": (2, 1, 1),
+    "blender": (2, 74, 0),
     "location": "File > Import-Export",
     "description": "Import-Export OBJ, Import OBJ mesh, UV's, "
                    "materials and textures",
@@ -33,27 +33,33 @@ bl_info = {
     "category": "Import-Export"}
 
 if "bpy" in locals():
-    import imp
+    import importlib
     if "import_obj" in locals():
-        imp.reload(import_obj)
+        importlib.reload(import_obj)
     if "export_obj" in locals():
-        imp.reload(export_obj)
+        importlib.reload(export_obj)
 
 
 import bpy
-from bpy.props import (BoolProperty,
-                       FloatProperty,
-                       StringProperty,
-                       EnumProperty,
-                       )
-from bpy_extras.io_utils import (ImportHelper,
-                                 ExportHelper,
-                                 path_reference_mode,
-                                 axis_conversion,
-                                 )
+from bpy.props import (
+        BoolProperty,
+        FloatProperty,
+        StringProperty,
+        EnumProperty,
+        )
+from bpy_extras.io_utils import (
+        ImportHelper,
+        ExportHelper,
+        orientation_helper_factory,
+        path_reference_mode,
+        axis_conversion,
+        )
 
 
-class ImportOBJ(bpy.types.Operator, ImportHelper):
+IOOBJOrientationHelper = orientation_helper_factory("IOOBJOrientationHelper", axis_forward='-Z', axis_up='Y')
+
+
+class ImportOBJ(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
     """Load a Wavefront OBJ File"""
     bl_idname = "import_scene.obj"
     bl_label = "Import OBJ"
@@ -65,11 +71,6 @@ class ImportOBJ(bpy.types.Operator, ImportHelper):
             options={'HIDDEN'},
             )
 
-    use_ngons = BoolProperty(
-            name="NGons",
-            description="Import faces with more than 4 verts as ngons",
-            default=True,
-            )
     use_edges = BoolProperty(
             name="Lines",
             description="Import lines and faces with 2 verts as edge",
@@ -119,29 +120,6 @@ class ImportOBJ(bpy.types.Operator, ImportHelper):
             soft_min=0.0, soft_max=1000.0,
             default=0.0,
             )
-    axis_forward = EnumProperty(
-            name="Forward",
-            items=(('X', "X Forward", ""),
-                   ('Y', "Y Forward", ""),
-                   ('Z', "Z Forward", ""),
-                   ('-X', "-X Forward", ""),
-                   ('-Y', "-Y Forward", ""),
-                   ('-Z', "-Z Forward", ""),
-                   ),
-            default='-Z',
-            )
-
-    axis_up = EnumProperty(
-            name="Up",
-            items=(('X', "X Up", ""),
-                   ('Y', "Y Up", ""),
-                   ('Z', "Z Up", ""),
-                   ('-X', "-X Up", ""),
-                   ('-Y', "-Y Up", ""),
-                   ('-Z', "-Z Up", ""),
-                   ),
-            default='Y',
-            )
 
     def execute(self, context):
         # print("Selected: " + context.active_object.name)
@@ -174,10 +152,8 @@ class ImportOBJ(bpy.types.Operator, ImportHelper):
         layout = self.layout
 
         row = layout.row(align=True)
-        row.prop(self, "use_ngons")
+        row.prop(self, "use_smooth_groups")
         row.prop(self, "use_edges")
-
-        layout.prop(self, "use_smooth_groups")
 
         box = layout.box()
         row = box.row()
@@ -199,7 +175,7 @@ class ImportOBJ(bpy.types.Operator, ImportHelper):
         layout.prop(self, "use_image_search")
 
 
-class ExportOBJ(bpy.types.Operator, ExportHelper):
+class ExportOBJ(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
     """Save a Wavefront OBJ File"""
 
     bl_idname = "export_scene.obj"
@@ -251,7 +227,7 @@ class ExportOBJ(bpy.types.Operator, ExportHelper):
     use_normals = BoolProperty(
             name="Write Normals",
             description="Export one normal per vertex and per face, to represent flat faces and sharp edges",
-            default=False,
+            default=True,
             )
     use_uvs = BoolProperty(
             name="Include UVs",
@@ -302,28 +278,6 @@ class ExportOBJ(bpy.types.Operator, ExportHelper):
             default=False,
             )
 
-    axis_forward = EnumProperty(
-            name="Forward",
-            items=(('X', "X Forward", ""),
-                   ('Y', "Y Forward", ""),
-                   ('Z', "Z Forward", ""),
-                   ('-X', "-X Forward", ""),
-                   ('-Y', "-Y Forward", ""),
-                   ('-Z', "-Z Forward", ""),
-                   ),
-            default='-Z',
-            )
-    axis_up = EnumProperty(
-            name="Up",
-            items=(('X', "X Up", ""),
-                   ('Y', "Y Up", ""),
-                   ('Z', "Z Up", ""),
-                   ('-X', "-X Up", ""),
-                   ('-Y', "-Y Up", ""),
-                   ('-Z', "-Z Up", ""),
-                   ),
-            default='Y',
-            )
     global_scale = FloatProperty(
             name="Scale",
             min=0.01, max=1000.0,

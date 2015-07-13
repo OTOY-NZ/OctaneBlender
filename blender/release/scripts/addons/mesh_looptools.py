@@ -19,8 +19,8 @@
 bl_info = {
     "name": "LoopTools",
     "author": "Bart Crouch",
-    "version": (4, 6, 3),
-    "blender": (2, 71, 3),
+    "version": (4, 6, 6),
+    "blender": (2, 72, 2),
     "location": "View3D > Toolbar and View3D > Specials (W-key)",
     "warning": "",
     "description": "Mesh modelling toolkit. Several tools to aid modelling",
@@ -45,6 +45,13 @@ from bpy_extras import view3d_utils
 
 # used by all tools to improve speed on reruns
 looptools_cache = {}
+
+
+def get_grease_pencil(object, context):
+    gp = object.grease_pencil
+    if not gp:
+        gp = context.scene.grease_pencil
+    return gp
 
 
 # force a full recalculation next time
@@ -206,7 +213,6 @@ def calculate_linear_splines(bm_mod, tknots, knots):
 
 # calculate a best-fit plane to the given vertices
 def calculate_plane(bm_mod, loop, method="best_fit", object=False):
-    bm_mod.verts.ensure_lookup_table() # to work in 2.73 
     # getting the vertex locations
     locs = [bm_mod.verts[v].co.copy() for v in loop[0]]
 
@@ -254,15 +260,14 @@ def calculate_plane(bm_mod, loop, method="best_fit", object=False):
         if not normal:
             # warning! this is different from .normalize()
             itermax = 500
-            iter = 0
-            vec = mathutils.Vector((1.0, 1.0, 1.0))
-            vec2 = (mat * vec)/(mat * vec).length
-            while vec != vec2 and iter<itermax:
-                iter+=1
+            vec2 = mathutils.Vector((1.0, 1.0, 1.0))
+            for i in range(itermax):
                 vec = vec2
                 vec2 = mat * vec
                 if vec2.length != 0:
                     vec2 /= vec2.length
+                if vec2 == vec:
+                    break
             if vec2.length == 0:
                 vec2 = mathutils.Vector((1.0, 1.0, 1.0))
             normal = vec2
@@ -301,7 +306,6 @@ def calculate_splines(interpolation, bm_mod, tknots, knots):
 # check loops and only return valid ones
 def check_loops(loops, mapping, bm_mod):
     valid_loops = []
-    bm_mod.verts.ensure_lookup_table() # to work in 2.73 
     for loop, circular in loops:
         # loop needs to have at least 3 vertices
         if len(loop) < 3:
@@ -525,6 +529,10 @@ def get_derived_bmesh(object, bm, scene):
         derived = False
         bm_mod = bm
 
+    bm_mod.verts.ensure_lookup_table()
+    bm_mod.edges.ensure_lookup_table()
+    bm_mod.faces.ensure_lookup_table()
+
     return(derived, bm_mod)
 
 
@@ -605,7 +613,6 @@ def get_parallel_loops(bm_mod, loops):
     connected_faces = dict_face_faces(bm_mod, edge_faces)
     # turn vertex loops into edge loops
     edgeloops = []
-    bm_mod.faces.ensure_lookup_table() # to work in 2.73 
     for loop in loops:
         edgeloop = [[sorted([loop[0][i], loop[0][i+1]]) for i in \
             range(len(loop[0])-1)], loop[1]]
@@ -676,7 +683,7 @@ def get_parallel_loops(bm_mod, loops):
                 sides.append(side_a)
             if side_b:
                 sides.append(side_b)
-      
+
             for side in sides:
                 extraloop = []
                 for fi in side:
@@ -740,6 +747,10 @@ def initialise():
         bpy.ops.object.mode_set(mode='EDIT')
     bm = bmesh.from_edit_mesh(object.data)
 
+    bm.verts.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
+
     return(global_undo, object, bm)
 
 
@@ -785,6 +796,10 @@ def move_verts(object, bm, mapping, move, lock, influence):
             bm.verts[index].co = new_loc
     bm.normal_update()
     object.data.update()
+
+    bm.verts.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
 
 
 # load custom tool settings
@@ -971,7 +986,6 @@ def bridge_calculate_lines(bm, loops, mode, twist, reverse):
 
     # calculate loop centers
     centers = []
-    bm.verts.ensure_lookup_table() # to work in 2.73 
     for loop in [loop1, loop2]:
         center = mathutils.Vector()
         for vertex in loop:
@@ -1399,6 +1413,7 @@ edgekey_to_edge):
 def bridge_create_vertices(bm, vertices):
     for i in range(len(vertices)):
         bm.verts.new(vertices[i])
+    bm.verts.ensure_lookup_table()
 
 
 # add faces to mesh
@@ -1422,12 +1437,13 @@ def bridge_create_faces(object, bm, faces, twist):
 
     new_faces = []
     for i in range(len(faces)):
-        bm.faces.ensure_lookup_table()
-        bm.verts.ensure_lookup_table()
         new_faces.append(bm.faces.new([bm.verts[v] for v in faces[i]]))
-
     bm.normal_update()
     object.data.update(calc_edges=True) # calc_edges prevents memory-corruption
+
+    bm.verts.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
 
     return(new_faces)
 
@@ -1510,7 +1526,6 @@ def bridge_match_loops(bm, loops):
         normal = mathutils.Vector()
         center = mathutils.Vector()
         for vertex in vertices:
-            bm.verts.ensure_lookup_table()
             normal += bm.verts[vertex].normal
             center += bm.verts[vertex].co
         normals.append(normal / len(vertices) / 10)
@@ -1566,7 +1581,6 @@ def bridge_match_loops(bm, loops):
 # remove old_selected_faces
 def bridge_remove_internal_faces(bm, old_selected_faces):
     # collect bmesh faces and internal bmesh edges
-    bm.faces.ensure_lookup_table()
     remove_faces = [bm.faces[face] for face in old_selected_faces]
     edges = collections.Counter([edge.index for face in remove_faces for \
         edge in face.edges])
@@ -1578,11 +1592,14 @@ def bridge_remove_internal_faces(bm, old_selected_faces):
     for edge in remove_edges:
         bm.edges.remove(edge)
 
+    bm.faces.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    bm.verts.ensure_lookup_table()
+
 
 # update list of internal faces that are flagged for removal
 def bridge_save_unused_faces(bm, old_selected_faces, loops):
     # key: vertex index, value: lists of selected faces using it
-    bm.faces.ensure_lookup_table()
 
     vertex_to_face = dict([[i, []] for i in range(len(bm.verts))])
     [[vertex_to_face[vertex.index].append(face) for vertex in \
@@ -1787,7 +1804,6 @@ def circle_calculate_verts(flatten, bm_mod, locs_2d, com, p, q, normal):
         vert_edges = dict_vert_edges(bm_mod)
         vert_faces = dict_vert_faces(bm_mod)
         faces = [f for f in bm_mod.faces if not f.hide]
-        bm_mod.faces.ensure_lookup_table() # to work in 2.73 
         rays = [normal, -normal]
         new_locs = []
         for loc in locs_3d:
@@ -2263,7 +2279,6 @@ def curve_get_input(object, bm, boundaries, scene):
     vert_edges = dict_vert_edges(bm_mod)
     edge_faces = dict_edge_faces(bm_mod)
     correct_loops = []
-    bm_mod.verts.ensure_lookup_table() # to work in 2.73
     # find loops through each selected vertex
     while len(verts_unsorted) > 0:
         loops = curve_vertex_loops(bm_mod, verts_unsorted[0], vert_edges,
@@ -2378,7 +2393,6 @@ def curve_project_knots(bm_mod, verts_selected, knots, points, circular):
         start = 1
         end = -1
         pknots = [mathutils.Vector(bm_mod.verts[knots[0]].co[:])]
-    bm_mod.verts.ensure_lookup_table() # to work in 2.73 
     for knot in knots[start:end]:
         if knot in verts_selected:
             knot_left = knot_right = False
@@ -2678,6 +2692,7 @@ conversion_distance, conversion_max, conversion_min, conversion_vertices):
                         mat_world * point.co))
                 # force even spreading of points, so they are placed on stroke
                 method = 'regular'
+    bm_mod.verts.ensure_lookup_table()
     bm_mod.verts.index_update()
     for stroke, verts_seq in stroke_verts:
         if len(verts_seq) < 2:
@@ -2698,7 +2713,7 @@ conversion_distance, conversion_max, conversion_min, conversion_vertices):
                 if m_stroke != stroke:
                     continue
                 bm_mod.edges.new((vert, verts_seq[point]))
-
+        bm_mod.edges.ensure_lookup_table()
     bmesh.update_edit_mesh(object.data)
 
     return(move)
@@ -2775,8 +2790,8 @@ def gstretch_get_fake_strokes(object, bm_mod, loops):
 
 
 # get grease pencil strokes for the active object
-def gstretch_get_strokes(object):
-    gp = object.grease_pencil
+def gstretch_get_strokes(object, context):
+    gp = get_grease_pencil(object, context)
     if not gp:
         return(None)
     layer = gp.layers.active
@@ -2799,6 +2814,7 @@ def gstretch_match_loops_strokes(loops, strokes, object, bm_mod):
 
     # calculate loop centers
     loop_centers = []
+    bm_mod.verts.ensure_lookup_table()
     for loop in loops:
         center = mathutils.Vector()
         for v_index in loop[0]:
@@ -2985,7 +3001,6 @@ def relax_calculate_knots(loops):
 def relax_calculate_t(bm_mod, knots, points, regular):
     all_tknots = []
     all_tpoints = []
-    bm_mod.verts.ensure_lookup_table() # to work in 2.73 
     for i in range(len(knots)):
         amount = len(knots[i]) + len(points[i])
         mix  = []
@@ -3068,7 +3083,6 @@ def space_calculate_t(bm_mod, knots):
     tknots = []
     loc_prev = False
     len_total = 0
-    bm_mod.verts.ensure_lookup_table() # to work in 2.73
     for k in knots:
         loc = mathutils.Vector(bm_mod.verts[k].co[:])
         if not loc_prev:
@@ -3838,31 +3852,37 @@ class GStretch(bpy.types.Operator):
             if safe_strokes:
                 strokes = gstretch_safe_to_true_strokes(safe_strokes)
             # cached strokes were flushed (see operator's invoke function)
-            elif object.grease_pencil:
-                strokes = gstretch_get_strokes(object)
+            elif get_grease_pencil(object, context):
+                strokes = gstretch_get_strokes(object, context)
             else:
                 # straightening function (no GP) -> loops ignore modifiers
                 straightening = True
                 derived = False
                 bm_mod = bm.copy()
+                bm_mod.verts.ensure_lookup_table()
+                bm_mod.edges.ensure_lookup_table()
+                bm_mod.faces.ensure_lookup_table()
                 strokes = gstretch_get_fake_strokes(object, bm_mod, loops)
             if not straightening:
                 derived, bm_mod = get_derived_bmesh(object, bm, context.scene)
         else:
             # get loops and strokes
-            if object.grease_pencil:
+            if get_grease_pencil(object, context):
                  # find loops
                 derived, bm_mod, loops = get_connected_input(object, bm,
                 context.scene, input='selected')
                 mapping = get_mapping(derived, bm, bm_mod, False, False, loops)
                 loops = check_loops(loops, mapping, bm_mod)
                 # get strokes
-                strokes = gstretch_get_strokes(object)
+                strokes = gstretch_get_strokes(object, context)
             else:
                 # straightening function (no GP) -> loops ignore modifiers
                 derived = False
                 mapping = False
                 bm_mod = bm.copy()
+                bm_mod.verts.ensure_lookup_table()
+                bm_mod.edges.ensure_lookup_table()
+                bm_mod.faces.ensure_lookup_table()
                 edge_keys = [edgekey(edge) for edge in bm_mod.edges if \
                     edge.select and not edge.hide]
                 loops = get_connected_selections(edge_keys)
@@ -3900,8 +3920,8 @@ class GStretch(bpy.types.Operator):
                 if self.delete_strokes:
                     if type(stroke) != bpy.types.GPencilStroke:
                         # in case of cached fake stroke, get the real one
-                        if object.grease_pencil:
-                            strokes = gstretch_get_strokes(object)
+                        if get_grease_pencil(object, context):
+                            strokes = gstretch_get_strokes(object, context)
                             if loops and strokes:
                                 ls_pairs = gstretch_match_loops_strokes(loops,
                                     strokes, object, bm_mod)

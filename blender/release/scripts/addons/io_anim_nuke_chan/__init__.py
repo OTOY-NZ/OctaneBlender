@@ -35,20 +35,22 @@ bl_info = {
 # To support reload properly, try to access a package var,
 # if it's there, reload everything
 if "bpy" in locals():
-    import imp
+    import importlib
     if "import_nuke_chan" in locals():
-        imp.reload(import_nuke_chan)
+        importlib.reload(import_nuke_chan)
     if "export_nuke_chan" in locals():
-        imp.reload(export_nuke_chan)
+        importlib.reload(export_nuke_chan)
 
 
 import bpy
 from bpy.types import Operator
 from bpy_extras.io_utils import ImportHelper, ExportHelper
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       EnumProperty,
-                       FloatProperty)
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        EnumProperty,
+        FloatProperty,
+        )
 
 # property shared by both operators
 rotation_order = EnumProperty(

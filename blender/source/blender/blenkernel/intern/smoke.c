@@ -267,7 +267,7 @@ static void smoke_set_domain_from_derivedmesh(SmokeDomainSettings *sds, Object *
 	}
 	/* apply object scale */
 	for (i = 0; i < 3; i++) {
-		size[i] = fabs(size[i] * ob->size[i]);
+		size[i] = fabsf(size[i] * ob->size[i]);
 	}
 	copy_v3_v3(sds->global_size, size);
 	copy_v3_v3(sds->dp0, min);
@@ -972,7 +972,7 @@ static bool subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int
 
 		/* also update constraint targets */
 		for (con = ob->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+			const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 
 			if (cti && cti->get_constraint_targets) {

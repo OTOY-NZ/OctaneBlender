@@ -73,6 +73,8 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
         fw('\nnewmtl %s\n' % mtl_mat_name)  # Define a new material: matname_imgname
 
         if mat:
+            use_mirror = mat.raytrace_mirror.use and mat.raytrace_mirror.reflect_factor != 0.0
+
             # convert from blenders spec to 0 - 1000 range.
             if mat.specular_shader == 'WARDISO':
                 tspec = (0.4 - mat.specular_slope) / 0.0004
@@ -81,7 +83,10 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
             fw('Ns %.6f\n' % tspec)
             del tspec
 
-            fw('Ka %.6f %.6f %.6f\n' % (mat.ambient * world_amb)[:])  # Ambient, uses mirror color,
+            if use_mirror:
+                fw('Ka %.6f %.6f %.6f\n' % (mat.raytrace_mirror.reflect_factor * mat.mirror_color)[:])
+            else:
+                fw('Ka %.6f %.6f %.6f\n' % (mat.ambient * world_amb)[:])  # Ambient, uses mirror color,
             fw('Kd %.6f %.6f %.6f\n' % (mat.diffuse_intensity * mat.diffuse_color)[:])  # Diffuse
             fw('Ks %.6f %.6f %.6f\n' % (mat.specular_intensity * mat.specular_color)[:])  # Specular
             if hasattr(mat, "raytrace_transparency") and hasattr(mat.raytrace_transparency, "ior"):
@@ -90,16 +95,29 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                 fw('Ni %.6f\n' % 1.0)
             fw('d %.6f\n' % mat.alpha)  # Alpha (obj uses 'd' for dissolve)
 
-            # 0 to disable lighting, 1 for ambient & diffuse only (specular color set to black), 2 for full lighting.
+            # See http://en.wikipedia.org/wiki/Wavefront_.obj_file for whole list of values...
+            # Note that mapping is rather fuzzy sometimes, trying to do our best here.
             if mat.use_shadeless:
                 fw('illum 0\n')  # ignore lighting
             elif mat.specular_intensity == 0:
                 fw('illum 1\n')  # no specular.
+            elif use_mirror:
+                if mat.use_transparency and mat.transparency_method == 'RAYTRACE':
+                    if mat.raytrace_mirror.fresnel != 0.0:
+                        fw('illum 7\n')  # Reflection, Transparency, Ray trace and Fresnel
+                    else:
+                        fw('illum 6\n')  # Reflection, Transparency, Ray trace
+                elif mat.raytrace_mirror.fresnel != 0.0:
+                    fw('illum 5\n')  # Reflection, Ray trace and Fresnel
+                else:
+                    fw('illum 3\n')  # Reflection and Ray trace
+            elif mat.use_transparency and mat.transparency_method == 'RAYTRACE':
+                fw('illum 9\n')  # 'Glass' transparency and no Ray trace reflection... fuzzy matching, but...
             else:
                 fw('illum 2\n')  # light normaly
 
         else:
-            #write a dummy material here?
+            # Write a dummy material here?
             fw('Ns 0\n')
             fw('Ka %.6f %.6f %.6f\n' % world_amb[:])  # Ambient, uses mirror color,
             fw('Kd 0.8 0.8 0.8\n')
@@ -128,10 +146,8 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                     image = mtex.texture.image
                     if image:
                         # texface overrides others
-                        if      (mtex.use_map_color_diffuse and
-                                (face_img is None) and
-                                (mtex.use_map_warp is False) and
-                                (mtex.texture_coords != 'REFLECTION')):
+                        if (mtex.use_map_color_diffuse and (face_img is None) and
+                            (mtex.use_map_warp is False) and (mtex.texture_coords != 'REFLECTION')):
                             image_map["map_Kd"] = image
                         if mtex.use_map_ambient:
                             image_map["map_Ka"] = image
@@ -151,7 +167,7 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                         if mtex.use_map_normal:
                             image_map["map_Bump"] = image
                         if mtex.use_map_displacement:
-                            image_map["disp"] = image                      
+                            image_map["disp"] = image
                         if mtex.use_map_color_diffuse and (mtex.texture_coords == 'REFLECTION'):
                             image_map["refl"] = image
                         if mtex.use_map_emit:
@@ -564,7 +580,7 @@ def write_file(filepath, objects, scene,
                         # Write a null material, since we know the context has changed.
                         if EXPORT_GROUP_BY_MAT:
                             # can be mat_image or (null)
-                            fw("g %s_%s\n" % (name_compat(ob.name), name_compat(ob.data.name)))  # can be mat_image or (null)
+                            fw("g %s_%s\n" % (name_compat(ob.name), name_compat(ob.data.name)))
                         if EXPORT_MTL:
                             fw("usemtl (null)\n")  # mat, image
 
@@ -595,7 +611,8 @@ def write_file(filepath, objects, scene,
                             mtl_rev_dict[mtl_name] = key
 
                         if EXPORT_GROUP_BY_MAT:
-                            fw("g %s_%s_%s\n" % (name_compat(ob.name), name_compat(ob.data.name), mat_data[0]))  # can be mat_image or (null)
+                            # can be mat_image or (null)
+                            fw("g %s_%s_%s\n" % (name_compat(ob.name), name_compat(ob.data.name), mat_data[0]))
                         if EXPORT_MTL:
                             fw("usemtl %s\n" % mat_data[0])  # can be mat_image or (null)
 
@@ -611,24 +628,22 @@ def write_file(filepath, objects, scene,
                         fw('s off\n')
                     contextSmooth = f_smooth
 
-                #f_v = [(vi, me_verts[v_idx]) for vi, v_idx in enumerate(f.vertices)]
-                f_v = [(vi, me_verts[v_idx], l_idx) for vi, (v_idx, l_idx) in enumerate(zip(f.vertices, f.loop_indices))]
+                f_v = [(vi, me_verts[v_idx], l_idx)
+                       for vi, (v_idx, l_idx) in enumerate(zip(f.vertices, f.loop_indices))]
 
                 fw('f')
                 if faceuv:
                     if EXPORT_NORMALS:
                         for vi, v, li in f_v:
-                            fw(" %d/%d/%d" %
-                                       (totverts + v.index,
-                                        totuvco + uv_face_mapping[f_index][vi],
-                                        totno + loops_to_normals[li],
-                                        ))  # vert, uv, normal
+                            fw(" %d/%d/%d" % (totverts + v.index,
+                                              totuvco + uv_face_mapping[f_index][vi],
+                                              totno + loops_to_normals[li],
+                                              ))  # vert, uv, normal
                     else:  # No Normals
                         for vi, v, li in f_v:
-                            fw(" %d/%d" % (
-                                       totverts + v.index,
-                                       totuvco + uv_face_mapping[f_index][vi],
-                                       ))  # vert, uv
+                            fw(" %d/%d" % (totverts + v.index,
+                                           totuvco + uv_face_mapping[f_index][vi],
+                                           ))  # vert, uv
 
                     face_vert_index += len(f_v)
 
@@ -672,25 +687,25 @@ def write_file(filepath, objects, scene,
 
 
 def _write(context, filepath,
-              EXPORT_TRI,  # ok
-              EXPORT_EDGES,
-              EXPORT_SMOOTH_GROUPS,
-              EXPORT_SMOOTH_GROUPS_BITFLAGS,
-              EXPORT_NORMALS,  # not yet
-              EXPORT_UV,  # ok
-              EXPORT_MTL,
-              EXPORT_APPLY_MODIFIERS,  # ok
-              EXPORT_BLEN_OBS,
-              EXPORT_GROUP_BY_OB,
-              EXPORT_GROUP_BY_MAT,
-              EXPORT_KEEP_VERT_ORDER,
-              EXPORT_POLYGROUPS,
-              EXPORT_CURVE_AS_NURBS,
-              EXPORT_SEL_ONLY,  # ok
-              EXPORT_ANIMATION,
-              EXPORT_GLOBAL_MATRIX,
-              EXPORT_PATH_MODE,
-              ):  # Not used
+           EXPORT_TRI,  # ok
+           EXPORT_EDGES,
+           EXPORT_SMOOTH_GROUPS,
+           EXPORT_SMOOTH_GROUPS_BITFLAGS,
+           EXPORT_NORMALS,  # ok
+           EXPORT_UV,  # ok
+           EXPORT_MTL,
+           EXPORT_APPLY_MODIFIERS,  # ok
+           EXPORT_BLEN_OBS,
+           EXPORT_GROUP_BY_OB,
+           EXPORT_GROUP_BY_MAT,
+           EXPORT_KEEP_VERT_ORDER,
+           EXPORT_POLYGROUPS,
+           EXPORT_CURVE_AS_NURBS,
+           EXPORT_SEL_ONLY,  # ok
+           EXPORT_ANIMATION,
+           EXPORT_GLOBAL_MATRIX,
+           EXPORT_PATH_MODE,  # Not used
+           ):
 
     base_name, ext = os.path.splitext(filepath)
     context_name = [base_name, '', '', ext]  # Base name, scene name, frame number, extension

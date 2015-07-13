@@ -185,6 +185,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 					if(traverseChild == 0) {
 						if(d1 < d0) {
 							nodeAddr = c1;
+							nodeDist = d1;
 							++stackPtr;
 							kernel_assert(stackPtr < BVH_QSTACK_SIZE);
 							traversalStack[stackPtr].addr = c0;
@@ -193,6 +194,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 						}
 						else {
 							nodeAddr = c0;
+							nodeDist = d0;
 							++stackPtr;
 							kernel_assert(stackPtr < BVH_QSTACK_SIZE);
 							traversalStack[stackPtr].addr = c1;
@@ -260,7 +262,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 			/* If node is leaf, fetch triangle list. */
 			if(nodeAddr < 0) {
-				float4 leaf = kernel_tex_fetch(__bvh_nodes, (-nodeAddr-1)*BVH_QNODE_SIZE+6);
+				float4 leaf = kernel_tex_fetch(__bvh_leaf_nodes, (-nodeAddr-1)*BVH_QNODE_LEAF_SIZE);
 
 #ifdef __VISIBILITY_FLAG__
 				if(UNLIKELY((nodeDist > isect->t) || ((__float_as_uint(leaf.z) & visibility) == 0)))
@@ -296,7 +298,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 								isect->num_traversal_steps++;
 #endif
 								kernel_assert(kernel_tex_fetch(__prim_type, primAddr) == type);
-								if(triangle_intersect(kg, &isect_precalc, isect, P, dir, visibility, object, primAddr)) {
+								if(triangle_intersect(kg, &isect_precalc, isect, P, visibility, object, primAddr)) {
 									tfar = ssef(isect->t);
 									/* Shadow ray early termination. */
 									if(visibility == PATH_RAY_SHADOW_OPAQUE)

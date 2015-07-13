@@ -32,21 +32,24 @@ bl_info = {
 
 
 if "bpy" in locals():
-    import imp
+    import importlib
 else:
-    from . import geom
-    from . import model
-    from . import offset
-    from . import triquad
+    from . import (
+            geom,
+            model,
+            offset,
+            triquad,
+            )
 
 import math
 import bpy
 import bmesh
 import mathutils
-from bpy.props import (BoolProperty,
-                       EnumProperty,
-                       FloatProperty,
-                       )
+from bpy.props import (
+        BoolProperty,
+        EnumProperty,
+        FloatProperty,
+        )
 
 
 class Inset(bpy.types.Operator):
@@ -152,7 +155,9 @@ def do_inset(mesh, amount, height, region, as_percent):
     start_faces = len(bm.faces)
     for i, newf in enumerate(blender_faces):
         bm.verts.ensure_lookup_table()
-        vs = [bm.verts[j] for j in newf]
+        vs = remove_dups([bm.verts[j] for j in newf])
+        if len(vs) < 3:
+            continue
         # copy face attributes from old face that it was derived from
         bfi = blender_old_face_index[i]
         if bfi and 0 <= bfi < start_faces:
@@ -172,6 +177,9 @@ def do_inset(mesh, amount, height, region, as_percent):
     for face in new_faces:
         face.select_set(True)
 
+def remove_dups(vs):
+    seen = set()
+    return [x for x in vs if not (x in seen or seen.add(x))]
 
 def panel_func(self, context):
     self.layout.label(text="Inset Polygon:")

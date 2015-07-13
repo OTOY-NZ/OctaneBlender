@@ -75,6 +75,8 @@ node_tree_group_type = {
 
 # generic node group items generator for shader, compositor and texture node groups
 def node_group_items(context):
+    if context is None:
+        return
     space = context.space_data
     if not space:
         return
@@ -337,6 +339,7 @@ compositor_node_categories = [
         NodeItem("CompositorNodeCombYUVA"),
         NodeItem("CompositorNodeSepYCCA"),
         NodeItem("CompositorNodeCombYCCA"),
+        NodeItem("CompositorNodeSwitchView"),
         ]),
     CompositorNodeCategory("CMP_OP_FILTER", "Filter", items=[
         NodeItem("CompositorNodeBlur"),

@@ -39,11 +39,12 @@ import re
 import bpy
 from mathutils import Vector, Matrix
 from math import radians, degrees
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       FloatProperty,
-                       IntProperty,
-                       )
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        FloatProperty,
+        IntProperty,
+        )
 
 
 class DataStructure:
@@ -382,10 +383,12 @@ class AmcAnimator(bpy.types.Operator):
 
     def modal(self, context, event):
         if event.type == 'ESC':
-            return self.cancel(context)
+            self.cancel(context)
+            return {'CANCELLED'}
         if event.type == 'TIMER':
             if not self.sb.apply_next_frame():
-                return self.cancel(context)
+                self.cancel(context)
+                return {'FINISHED'}
         return {'PASS_THROUGH'}
 
     def execute(self, context):

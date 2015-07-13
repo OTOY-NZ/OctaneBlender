@@ -20,7 +20,7 @@ bl_info = {
     "name": "Sapling",
     "author": "Andrew Hale (TrumanBlending)",
     "version": (0, 2, 6),
-    "blender": (2, 71, 0),
+    "blender": (2, 73, 0),
     "location": "View3D > Add > Curve",
     "description": ("Adds a parametric tree. The method is presented by "
     "Jason Weber & Joseph Penn in their paper 'Creation and Rendering of "
@@ -33,8 +33,8 @@ bl_info = {
 
 
 if "bpy" in locals():
-    import imp
-    imp.reload(utils)
+    import importlib
+    importlib.reload(utils)
 else:
     from add_curve_sapling import utils
 
@@ -189,7 +189,7 @@ class AddTree(bpy.types.Operator):
         max=1,
         default=0, update=update_tree)
     levels = IntProperty(name='Levels',
-        description='Number of recursive branches (Levels)',
+        description='Number of recursive branches (Levels, note that last level is also used for generating leaves)',
         min=1,
         max=6,
         default=3, update=update_tree)
@@ -253,7 +253,7 @@ class AddTree(bpy.types.Operator):
         description='Branch upward attraction',
         default=0.0, update=update_tree)
     shape = EnumProperty(name='Shape',
-        description='The overall shape of the tree (Shape)',
+        description='The overall shape of the tree (Shape) - WARNING: at least three "Levels" of branching are needed',
         items=shapeList,
         default='7', update=update_tree)
     baseSize = FloatProperty(name='Base Size',
@@ -415,7 +415,9 @@ class AddTree(bpy.types.Operator):
             row.prop(self, 'resU')
 
             box.prop(self, 'handleType')
-            box.prop(self, 'shape')
+            sub = box.row()
+            sub.active = self.levels >= 3
+            sub.prop(self, 'shape')
             box.prop(self, 'seed')
             box.prop(self, 'ratio')
 

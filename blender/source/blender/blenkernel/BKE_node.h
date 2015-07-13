@@ -62,24 +62,20 @@ struct bNodeTreeExec;
 struct bNodeExecContext;
 struct bNodeExecData;
 struct GPUMaterial;
-struct GPUNode;
 struct GPUNodeStack;
 struct ID;
 struct ImBuf;
 struct ImageFormatData;
 struct ListBase;
 struct Main;
-struct uiBlock;
 struct uiLayout;
 struct MTex;
 struct PointerRNA;
-struct rctf;
 struct RenderData;
 struct Scene;
 struct Tex;
 struct SpaceNode;
 struct ARegion;
-struct Object;
 struct ColorManagedViewSettings;
 struct ColorManagedDisplaySettings;
 struct bNodeInstanceHash;
@@ -333,7 +329,7 @@ typedef struct bNodeTreeType {
 
 struct bNodeTreeType *ntreeTypeFind(const char *idname);
 void ntreeTypeAdd(struct bNodeTreeType *nt);
-void ntreeTypeFreeLink(struct bNodeTreeType *nt);
+void ntreeTypeFreeLink(const struct bNodeTreeType *nt);
 bool ntreeIsRegistered(struct bNodeTree *ntree);
 struct GHashIterator *ntreeTypeGetIterator(void);
 
@@ -521,8 +517,7 @@ const struct ListBase *BKE_node_clipboard_get_links(void);
 int                    BKE_node_clipboard_get_type(void);
 
 /* Node Instance Hash */
-typedef struct bNodeInstanceHash
-{
+typedef struct bNodeInstanceHash {
 	 GHash *ghash;	/* XXX should be made a direct member, GHash allocation needs to support it */
 } bNodeInstanceHash;
 
@@ -1012,6 +1007,7 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 #define CMP_NODE_MAP_RANGE	319
 #define CMP_NODE_PLANETRACKDEFORM	320
 #define CMP_NODE_CORNERPIN          321
+#define CMP_NODE_SWITCH_VIEW    322
 
 /* channel toggles */
 #define CMP_CHAN_RGB		1
@@ -1045,9 +1041,9 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 #define CMP_TRACKPOS_ABSOLUTE_FRAME	3
 
 /* API */
-struct CompBuf;
 void ntreeCompositExecTree(struct Scene *scene, struct bNodeTree *ntree, struct RenderData *rd, int rendering, int do_previews,
-                           const struct ColorManagedViewSettings *view_settings, const struct ColorManagedDisplaySettings *display_settings);
+                           const struct ColorManagedViewSettings *view_settings, const struct ColorManagedDisplaySettings *display_settings,
+                           const char *view_name);
 void ntreeCompositTagRender(struct Scene *sce);
 int ntreeCompositTagAnimated(struct bNodeTree *ntree);
 void ntreeCompositTagGenerators(struct bNodeTree *ntree);

@@ -21,7 +21,7 @@
 bl_info = {
     "name": "Dynamic Spacebar Menu",
     "author": "meta-androcto, JayDez, sim88, sam",
-    "version": (1, 7, 3),
+    "version": (1, 7, 4),
     "blender": (2, 72, 0),
     "location": "View3D > Spacebar for menu then 's' key for Search",
     "description": "Context Sensitive Spacebar Menu",
@@ -32,7 +32,6 @@ bl_info = {
 }
 
 import bpy
-from bpy import *
 
 # Dynamic Menu
 class VIEW3D_MT_Space_Dynamic_Menu(bpy.types.Menu):
@@ -1219,7 +1218,7 @@ class VIEW3D_MT_KeyframeMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        # Keyframe Bleck
+        # Keyframe Block
         layout.operator("anim.keyframe_insert_menu",
                         text="Insert Keyframe...")
         layout.operator("anim.keyframe_delete_v3d",

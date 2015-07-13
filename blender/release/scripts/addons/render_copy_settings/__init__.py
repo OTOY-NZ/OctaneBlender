@@ -33,21 +33,27 @@ bl_info = {
 
 
 if "bpy" in locals():
-    import imp
-    imp.reload(operator)
-    imp.reload(panel)
-    imp.reload(translations)
+    import importlib
+    importlib.reload(operator)
+    importlib.reload(panel)
+    importlib.reload(translations)
 
 else:
-    from . import operator, panel, translations
+    from . import (
+            operator,
+            panel,
+            translations,
+            )
 
 
 import bpy
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       IntProperty,
-                       CollectionProperty,
-                       PointerProperty)
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        IntProperty,
+        CollectionProperty,
+        PointerProperty,
+        )
 
 ########################################################################################################################
 # Global properties for the script, for UI (as there’s no way to let them in the operator…).
