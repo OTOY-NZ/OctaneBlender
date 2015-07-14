@@ -30,8 +30,8 @@ char RenderServer::out_path[256] = "";
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Create server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-RenderServer *RenderServer::create(RenderServerInfo& info, bool export_alembic, const char *_out_path, bool interactive) {
-	RenderServer *server = new RenderServer(info.net_address, _out_path, export_alembic, interactive);
+RenderServer *RenderServer::create(RenderServerInfo& info, uint32_t export_scene, const char *_out_path, bool interactive) {
+	RenderServer *server = new RenderServer(info.net_address, _out_path, export_scene, interactive);
 
     if(server) {
         server->info = info;

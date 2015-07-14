@@ -51,7 +51,7 @@ public:
         use_passes      = false;
         meshes_type     = Mesh::AS_IS;
 		samples		    = INT_MAX;
-        export_alembic  = false;
+        export_scene  = 0;
         anim_mode       = FULL;
         fps             = 24.0f;
         hdr_tonemapped  = true;
@@ -89,7 +89,7 @@ public:
     bool            hdr_tonemapped;
 	bool            use_viewport_hide;
 	Mesh::MeshType  meshes_type;
-	bool            export_alembic;
+	uint32_t        export_scene;
     float           fps;
 
     bool            out_of_core_enabled;

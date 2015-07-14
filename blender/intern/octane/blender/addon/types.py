@@ -119,6 +119,12 @@ camera_stereo_modes = (
     ('2', "Parallel", ""),
     )
 
+export_types = (
+    ('0', "None", ""),
+    ('1', "Alembic", ""),
+    ('2', "ORBX", ""),
+    )
+
 camera_stereo_outs = (
     ('0', "Disabled", ""),
     ('1', "Left eye", ""),

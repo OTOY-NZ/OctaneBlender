@@ -40,7 +40,7 @@ OCT_NAMESPACE_BEGIN
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Session::Session(const SessionParams& params_, const char *_out_path) : params(params_) {
-	server = RenderServer::create(params.server, params.export_alembic, _out_path, params.interactive);
+	server = RenderServer::create(params.server, params.export_scene, _out_path, params.interactive);
 
 	if(!params.interactive)
 		display = NULL;
@@ -354,7 +354,7 @@ void Session::update_scene_to_server(uint32_t frame_idx, uint32_t total_frames) 
 	}
 
 	// Update scene
-	if(params.export_alembic || scene->need_update()) {
+	if(params.export_scene || scene->need_update()) {
 		progress.set_status("Updating Scene");
         scene->server_update(server, progress, params.interactive, frame_idx, total_frames);
 	}

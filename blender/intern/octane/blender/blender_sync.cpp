@@ -596,11 +596,11 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     }
 
     params.anim_mode            = static_cast<AnimationMode>(RNA_enum_get(&oct_scene, "anim_mode"));
-    params.export_alembic       = interactive ? false : get_boolean(oct_scene, "export_alembic");
+    params.export_scene         = interactive ? 0 : get_enum(oct_scene, "export_scene");
 
     params.use_passes           = get_boolean(oct_scene, "use_passes");
     params.meshes_type          = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
-    if(params.export_alembic && params.meshes_type == Mesh::GLOBAL)
+    if(params.export_scene && params.meshes_type == Mesh::GLOBAL)
         params.meshes_type = Mesh::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
     params.hdr_tonemapped       = get_boolean(oct_scene, "hdr_tonemapped");

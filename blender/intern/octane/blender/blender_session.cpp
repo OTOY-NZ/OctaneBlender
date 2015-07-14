@@ -167,7 +167,7 @@ void BlenderSession::create_session() {
 
     // Create session
     string cur_path = blender_absolute_path(b_data, b_scene, b_scene.render().filepath().c_str());
-    cur_path += "/alembic_export.abc";
+    cur_path += "/octane_export";
     session = new Session(session_params, cur_path.c_str());
     session->set_blender_session(this);
     session->set_pause(BlenderSync::get_session_pause_state(b_scene, interactive));
@@ -705,7 +705,7 @@ void BlenderSession::clear_passes_buffers() {
 void BlenderSession::render() {
     // Get buffer parameters
     SessionParams	session_params	= BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
-    if(session_params.export_alembic) {
+    if(session_params.export_scene) {
         session->update_scene_to_server(0, 0);
         session->server->start_render(width, height, 0, session_params.out_of_core_enabled, session_params.out_of_core_mem_limit, session_params.out_of_core_gpu_headroom);
 

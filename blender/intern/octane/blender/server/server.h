@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 9
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 0
+#   define OCTANE_SERVER_MINOR_VERSION 1
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -723,7 +723,7 @@ class RenderServer {
     float*              float_img_buf;
 
     int32_t     cur_w, cur_h, cur_reg_w, cur_reg_h;
-    uint32_t    m_Export_alembic;
+    uint32_t    m_Export_scene;
     bool        m_bInteractive;
     bool        unpacked_msg;
 
@@ -754,8 +754,8 @@ public:
 
     // Create the render-server object, connected to the server
     // addr - server address
-    RenderServer(const char *addr, const char *_out_path, bool export_alembic, bool interactive) : image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), cur_reg_w(0), cur_reg_h(0), socket(-1),
-                                                                                                   m_Export_alembic(export_alembic), m_bInteractive(interactive), fail_reason(NONE), cur_pass_type(Passes::PASS_NONE) {
+    RenderServer(const char *addr, const char *_out_path, uint32_t export_scene, bool interactive) : image_buf(0), float_img_buf(0), cur_w(0), cur_h(0), cur_reg_w(0), cur_reg_h(0), socket(-1),
+                                                                                                   m_Export_scene(export_scene), m_bInteractive(interactive), fail_reason(NONE), cur_pass_type(Passes::PASS_NONE) {
         struct  hostent *host;
         struct  sockaddr_in sa;
 
@@ -906,11 +906,11 @@ public:
 
         thread_scoped_lock socket_lock(socket_mutex);
 
-        int path_len = m_Export_alembic ? strlen(out_path) : 0;
+        int path_len = m_Export_scene ? strlen(out_path) : 0;
 
         RPCSend snd(socket, sizeof(float) + sizeof(uint32_t) * 2 + path_len + 2, RESET);
-        snd << frame_time_sampling << GPUs << m_Export_alembic;
-        if(m_Export_alembic) snd << out_path;
+        snd << frame_time_sampling << GPUs << m_Export_scene;
+        if(m_Export_scene) snd << out_path;
 
         snd.write();
 
@@ -1006,8 +1006,9 @@ public:
 
         thread_scoped_lock socket_lock(socket_mutex);
 
-        RPCSend snd(socket, m_Export_alembic ? sizeof(float) : 0, STOP);
-        if(m_Export_alembic) snd << fps;
+        bool is_alembic = (m_Export_scene == 1 ? true : false);
+        RPCSend snd(socket, m_Export_scene ? sizeof(float) + sizeof(uint32_t) : 0, STOP);
+        if(m_Export_scene) snd << fps << is_alembic;
         snd.write();
 
         RPCReceive rcv(socket);
@@ -1017,20 +1018,22 @@ public:
             if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
             else fprintf(stderr, "\n");
         }
-        else if(m_Export_alembic && strlen(out_path)) {
+        else if(m_Export_scene && strlen(out_path)) {
             int err;
             RPCReceive rcv(socket);
             std::string s_out_path(out_path);
+            if(m_Export_scene == 1) s_out_path += ".abc";
+            else s_out_path += ".orbx";
             
             if(rcv.type != LOAD_FILE) {
                 rcv >> error_msg;
-                fprintf(stderr, "Octane: ERROR downloading alembic file from server.");
+                fprintf(stderr, "Octane: ERROR downloading scene file from server.");
                 if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
                 else fprintf(stderr, "\n");
             }
             else if(!rcv.read_file(s_out_path, &err)) {
                 char *err_str;
-                fprintf(stderr, "Octane: ERROR downloading alembic file from server.");
+                fprintf(stderr, "Octane: ERROR downloading scene file from server.");
                 if(err && (err_str = strerror(err)) && err_str[0]) fprintf(stderr, " Description: %s\n", err_str);
                 else fprintf(stderr, "\n");
             }
@@ -3070,7 +3073,7 @@ public:
     } //get_pass_rect()
 
 
-	static RenderServer*        create(RenderServerInfo& info, bool export_alembic, const char *_out_path, bool interactive = false);
+	static RenderServer*        create(RenderServerInfo& info, uint32_t export_scene, const char *_out_path, bool interactive = false);
     static RenderServerInfo&    get_info(void);
 
 private:

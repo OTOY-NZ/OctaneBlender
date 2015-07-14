@@ -1139,11 +1139,13 @@ def draw_device(self, context):
     if scene.render.engine == 'octane':
         oct_scene = scene.octane
 
-        layout.prop(oct_scene, "anim_mode")
+        sub = layout.row()
+        sub.prop(oct_scene, "anim_mode")
+        sub = layout.row()
+        sub.prop(oct_scene, "export_scene")
         layout.prop(oct_scene, "devices")
         sub = layout.row()
         sub.prop(oct_scene, "viewport_hide")
-        sub.prop(oct_scene, "export_alembic")
         sub.prop(oct_scene, "hdr_tonemapped")
         layout.prop(oct_scene, "meshes_type", expand=True)
 
