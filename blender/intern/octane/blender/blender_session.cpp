@@ -220,8 +220,10 @@ void BlenderSession::reload_session() {
         session->start("Interactive", false, load_internal_mb_sequence(stop_render), 0);
     }
     else {
-        sync->sync_data(b_v3d, b_engine.camera_override());
-        if(interactive) session->start("Interactive", false, 0, 0);
+        if(interactive) {
+            sync->sync_data(b_v3d, b_engine.camera_override());
+            session->start("Interactive", false, 0, 0);
+        }
     }
 } //reload_session()
 
@@ -706,11 +708,14 @@ void BlenderSession::render() {
     // Get buffer parameters
     SessionParams	session_params	= BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
     if(session_params.export_scene) {
+        sync->sync_data(b_v3d, b_engine.camera_override());
+        sync->sync_camera(b_engine.camera_override(), width, height);
+
         session->update_scene_to_server(0, 0);
         session->server->start_render(width, height, 0, session_params.out_of_core_enabled, session_params.out_of_core_mem_limit, session_params.out_of_core_gpu_headroom);
 
         if(b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
-            session->progress.set_status("Transferring alembic file...");
+            session->progress.set_status("Transferring scene file...");
             session->server->stop_render(session_params.fps);
         }
         return;
@@ -750,6 +755,9 @@ void BlenderSession::render() {
 
         // Free result without merging.
         end_render_result(b_engine, b_rr, true, false);
+
+        sync->sync_data(b_v3d, b_engine.camera_override(), &cur_layer);
+        sync->sync_camera(b_engine.camera_override(), width, height);
 
         for(int i = 0; i < views.size(); ++i) {
             b_rview_name = views[i];
@@ -852,13 +860,13 @@ void BlenderSession::synchronize() {
     }
 
     // Data synchronize
-    sync->sync_data(b_v3d, b_engine.camera_override());
+    if(b_rv3d) sync->sync_data(b_v3d, b_engine.camera_override());
 
     // Camera synchronize
     if(b_rv3d)
         sync->sync_view(b_v3d, b_rv3d, width, height);
-    else
-        sync->sync_camera(b_engine.camera_override(), width, height);
+    //else
+    //    sync->sync_camera(b_engine.camera_override(), width, height);
 
     // Unlock
     session->scene->mutex.unlock();

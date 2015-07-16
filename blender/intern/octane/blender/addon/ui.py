@@ -733,6 +733,7 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "vis_general")
         sub.prop(cdata, "vis_cam")
         sub.prop(cdata, "vis_shadow")
+        sub.prop(cdata, "rand_color_seed")
 
 
 class OctaneObject_PT_octane_properties(OctaneButtonsPanel, Panel):

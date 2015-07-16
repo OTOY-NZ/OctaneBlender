@@ -146,14 +146,17 @@ void BlenderSync::sync_light_object(BL::Object b_parent, int persistent_id[OBJEC
 	if(light_object_map.sync(&light_object, b_ob, b_parent, key, this, tfm)) object_updated = true;
     else object_updated = false;
 
+    // Make holdout objects on excluded layer invisible for non-camera rays
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
+    bool visibility = !(use_holdout && (layer_flag & render_layer.exclude_layer)) && (layer_flag & render_layer.layer);
+	visibility = visibility && object_ray_visibility(b_ob);
+	if(visibility && b_parent.ptr.data != b_ob.ptr.data && !object_ray_visibility(b_parent)) visibility = false;
 	
 	// Light sync
 	light_object->light = sync_light(b_ob, tfm, object_updated);
 
 	// Special case not tracked by object update flags
-	if(use_holdout != light_object->use_holdout) {
-		light_object->use_holdout = use_holdout;
+	if(visibility != light_object->visibility) {
 		scene->light_manager->tag_update(scene);
 		object_updated = true;
 	}
@@ -178,14 +181,9 @@ void BlenderSync::sync_light_object(BL::Object b_parent, int persistent_id[OBJEC
 		else light_object->random_id = hash_int_2d(light_object->random_id, 0);
 
 		// Visibility flags for both parent
-		light_object->visibility = object_ray_visibility(b_ob);
-		if(b_parent.ptr.data != b_ob.ptr.data) {
-            if(!object_ray_visibility(b_parent) && light_object->visibility) light_object->visibility = false;
+		light_object->visibility = visibility;
+		if(b_parent.ptr.data != b_ob.ptr.data)
 			light_object->random_id ^= hash_int(hash_string(b_parent.name().c_str()));
-		}
-
-		// Make holdout objects on excluded layer invisible for non-camera rays
-		if(use_holdout && (layer_flag & render_layer.exclude_layer)) light_object->visibility = false;
 
 		if (b_dupli_ob) {
 			light_object->dupli_generated   = get_float3(b_dupli_ob.orco());
@@ -359,11 +357,14 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 	if(object_map.sync(&object, b_ob, b_parent, key, this, used_shaders, hide_tris)) object_updated = true;
     else object_updated = false;
 	
+    // Make holdout objects on excluded layer invisible for non-camera rays
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
+    bool visibility = !(use_holdout && (layer_flag & render_layer.exclude_layer)) && (layer_flag & render_layer.layer);
+	visibility = visibility && object_ray_visibility(b_ob);
+	if(visibility && b_parent.ptr.data != b_ob.ptr.data && !object_ray_visibility(b_parent)) visibility = false;
 	
 	// Special case not tracked by object update flags
-	if(use_holdout != object->use_holdout) {
-		object->use_holdout = use_holdout;
+	if(visibility != object->visibility) {
 		scene->object_manager->tag_update(scene);
 		object_updated = true;
 	}
@@ -390,16 +391,9 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 			object->random_id = hash_int_2d(object->random_id, 0);
 
 		// Visibility flags for both parent
-		object->visibility = object_ray_visibility(b_ob);
-		if(b_parent.ptr.data != b_ob.ptr.data) {
-            if(!object_ray_visibility(b_parent) && object->visibility)
-			    object->visibility = false;
+		object->visibility = visibility;
+		if(b_parent.ptr.data != b_ob.ptr.data)
 			object->random_id ^= hash_int(hash_string(b_parent.name().c_str()));
-		}
-
-		// Make holdout objects on excluded layer invisible for non-camera rays
-		if(use_holdout && (layer_flag & render_layer.exclude_layer))
-			object->visibility = false;
 
 		if (b_dupli_ob) {
 			object->dupli_generated = get_float3(b_dupli_ob.orco());

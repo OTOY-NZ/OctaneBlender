@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 9
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 1
+#   define OCTANE_SERVER_MINOR_VERSION 2
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -1378,7 +1378,7 @@ public:
         }
     } //load_scatter()
     inline void delete_scatter(string& name) {
-        if(socket < 0 || !m_bInteractive) return;
+        if(socket < 0 /*|| !m_bInteractive*/) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, DEL_GEO_SCATTER, name.c_str());
@@ -1432,6 +1432,7 @@ public:
                                     float           *general_vis,
                                     bool            *cam_vis,
                                     bool            *shadow_vis,
+                                    int32_t         *rand_color_seed,
                                     bool            *reshapable) {
             if(socket < 0) return;
 
@@ -1441,7 +1442,7 @@ public:
                 uint64_t size = sizeof(uint64_t) //Meshes count;
                     + sizeof(uint32_t) * 2 //Frame index
                     + sizeof(int32_t) * 4 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Subdivision addributes
-                    + sizeof(int32_t) * 4 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Visibility and reshapable addributes
+                    + sizeof(int32_t) * 5 * mesh_cnt + sizeof(float) * 1 * mesh_cnt //Visibility and reshapable addributes
                     + sizeof(uint64_t) * 10 * mesh_cnt;
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     size +=
@@ -1500,7 +1501,7 @@ public:
                     if(uv_indices_size[i]) snd.write_buffer(uv_indices[i], uv_indices_size[i] * sizeof(int32_t));
                     if(vert_per_hair_size[i]) snd.write_buffer(vert_per_hair[i], vert_per_hair_size[i] * sizeof(int32_t));
                     if(vert_per_hair_size[i]) snd.write_buffer(hair_mat_indices[i], vert_per_hair_size[i] * sizeof(int32_t));
-                    snd << open_subd_enable[i] << open_subd_scheme[i] << open_subd_level[i] << open_subd_bound_interp[i] << layer_number[i] << cam_vis[i] << shadow_vis[i] << reshapable[i];
+                    snd << open_subd_enable[i] << open_subd_scheme[i] << open_subd_level[i] << open_subd_bound_interp[i] << layer_number[i] << rand_color_seed[i] << cam_vis[i] << shadow_vis[i] << reshapable[i];
                 }
                 for(unsigned long i=0; i<mesh_cnt; ++i) {
                     if(!global) snd << names[i];
@@ -1520,7 +1521,7 @@ public:
             }
     } //load_mesh()
     inline void delete_mesh(bool global, string& name) {
-        if(socket < 0 || !m_bInteractive) return;
+        if(socket < 0 /*|| !m_bInteractive*/) return;
         thread_scoped_lock socket_lock(socket_mutex);
         {
             RPCSend snd(socket, 0, (global ? DEL_GLOBAL_MESH : DEL_LOCAL_MESH), name.c_str());

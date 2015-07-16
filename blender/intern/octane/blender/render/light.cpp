@@ -157,6 +157,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         float           *general_vis            = new float[ulLocalCnt];
         bool            *cam_vis                = new bool[ulLocalCnt];
         bool            *shadow_vis             = new bool[ulLocalCnt];
+        int32_t         *rand_color_seed        = new int32_t[ulLocalCnt];
         bool            *reshapable             = new bool[ulLocalCnt];
         int32_t         *layer_number           = new int32_t[ulLocalCnt];
 
@@ -224,6 +225,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             general_vis[i]          = 1.f;
             cam_vis[i]              = true;
             shadow_vis[i]           = true;
+            rand_color_seed[i]      = 0;
             reshapable[i] = (scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && (light->mesh->mesh_type == Mesh::MOVABLE_PROXY || light->mesh->mesh_type == Mesh::RESHAPABLE_PROXY)));
 
             hair_points_size[i]     = light->mesh->hair_points.size();
@@ -267,6 +269,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
+                                        rand_color_seed,
                                         reshapable);
         }
         delete[] mesh_names;
@@ -295,6 +298,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+        delete[] rand_color_seed;
         delete[] reshapable;
         delete[] layer_number;
 
@@ -306,8 +310,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 
         uint64_t obj_cnt = 0;
         for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it) {
-            uint64_t cur_size = light_it->second.size();
-            Light* light = cur_size > 0 ? light_it->second[0]->light : 0;
+            Light* light = light_it->second.size() > 0 ? light_it->second[0]->light : 0;
             if(!light || !light->enable) continue;
 
 	        if(light->type == Light::LIGHT_POINT) {
@@ -324,11 +327,16 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 	        else if(light->type == Light::LIGHT_SPOT) {
                 continue;
 	        }
+
             if((!scene->first_frame && scene->anim_mode != FULL)
                || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
                || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != Mesh::GLOBAL)) continue;
 
-            obj_cnt += cur_size;
+            for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it) {
+    		    Object *light_object = *it;
+                if(!light_object->visibility) continue;
+                ++obj_cnt;
+            }
         }
 
         uint64_t          *used_shaders_size    = new uint64_t[obj_cnt];
@@ -356,6 +364,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         float           *general_vis            = new float[obj_cnt];
         bool            *cam_vis                = new bool[obj_cnt];
         bool            *shadow_vis             = new bool[obj_cnt];
+        int32_t         *rand_color_seed        = new int32_t[obj_cnt];
         bool            *reshapable             = new bool[obj_cnt];
         int32_t         *layer_number           = new int32_t[obj_cnt];
 
@@ -388,6 +397,8 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
 
             for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it) {
     		    Object *light_object = *it;
+                if(!light_object->visibility) continue;
+
                 Transform &tfm = light_object->tfm;
 
                 used_shaders_size[obj_cnt] = 1;
@@ -425,6 +436,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 general_vis[obj_cnt]          = 1.f;
                 cam_vis[obj_cnt]              = true;
                 shadow_vis[obj_cnt]           = true;
+                rand_color_seed[obj_cnt]      = 0;
                 reshapable[obj_cnt]           = false;
 
                 hair_points_size[obj_cnt]     = light->mesh->hair_points.size();
@@ -435,9 +447,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 ++obj_cnt;
             }
         }
+        char* name = "__global_lights";
         if(obj_cnt > 0) {
             progress.set_status("Loading global Lights to render-server", string("Transferring..."));
-            char* name = "__global_lights";
             server->load_mesh(true, frame_idx, total_frames, obj_cnt, &name,
                                         used_shaders_size,
                                         shader_names,
@@ -468,12 +480,15 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
+                                        rand_color_seed,
                                         reshapable);
             for(size_t n = 0; n < obj_cnt; n++) {
                 delete[] points[n];
                 delete[] normals[n];
             }
         }
+        else ulGlobalCnt = 0;
+
         delete[] used_shaders_size;
         delete[] shader_names;
         delete[] points;
@@ -499,12 +514,15 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+        delete[] rand_color_seed;
         delete[] reshapable;
         delete[] layer_number;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
     }
+    std::string cur_name("__global_lights");
+    if(!ulGlobalCnt) server->delete_mesh(true, cur_name);
 } //server_update()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

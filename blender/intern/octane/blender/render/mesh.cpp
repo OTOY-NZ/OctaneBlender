@@ -47,6 +47,7 @@ Mesh::Mesh() {
     vis_general     = 1.0f;
 	vis_cam         = true;
 	vis_shadow      = true;
+    rand_color_seed = 0;
 } //Mesh()
 
 Mesh::~Mesh() {
@@ -165,6 +166,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         float           *general_vis            = new float[ulLocalCnt];
         bool            *cam_vis                = new bool[ulLocalCnt];
         bool            *shadow_vis             = new bool[ulLocalCnt];
+        int32_t         *rand_color_seed        = new int32_t[ulLocalCnt];
         bool            *reshapable             = new bool[ulLocalCnt];
         int32_t         *layer_number           = new int32_t[ulLocalCnt];
 
@@ -222,6 +224,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             general_vis[i]          = mesh->vis_general;
             cam_vis[i]              = mesh->vis_cam;
             shadow_vis[i]           = mesh->vis_shadow;
+            rand_color_seed[i]      = mesh->rand_color_seed;
             reshapable[i]           = (scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY));
             layer_number[i]         = (scene->kernel->layers_enable ? mesh->layer_number : 1);
 
@@ -271,6 +274,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
+                                        rand_color_seed,
                                         reshapable);
         }
         delete[] mesh_names;
@@ -299,6 +303,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
+        delete[] rand_color_seed;
         delete[] reshapable;
         delete[] layer_number;
 
@@ -314,15 +319,20 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         progress.set_status("Loading global Mesh to render-server", "");
         uint64_t obj_cnt = 0;
         for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
-            uint64_t cur_size = obj_it->second.size();
-            Mesh* mesh = cur_size > 0 ? obj_it->second[0]->mesh : 0;
+            Mesh* mesh = obj_it->second.size() > 0 ? obj_it->second[0]->mesh : 0;
 
             if(!mesh || mesh->empty
                || (!scene->first_frame && scene->anim_mode != FULL)
                || (scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
                || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type != Mesh::GLOBAL)) continue;
-            obj_cnt += cur_size;
+
+            for(vector<Object*>::const_iterator it = obj_it->second.begin(); it != obj_it->second.end(); ++it) {
+    		    Object *mesh_object = *it;
+                if(!mesh_object->visibility) continue;
+                ++obj_cnt;
+            }
         }
+        char* name = "__global";
         if(obj_cnt > 0) {
             uint64_t          *used_shaders_size    = new uint64_t[obj_cnt];
             vector<string>  *shader_names           = new vector<string>[obj_cnt];
@@ -349,6 +359,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             float           *general_vis            = new float[obj_cnt];
             bool            *cam_vis                = new bool[obj_cnt];
             bool            *shadow_vis             = new bool[obj_cnt];
+            int32_t         *rand_color_seed        = new int32_t[obj_cnt];
             bool            *reshapable             = new bool[obj_cnt];
             int32_t         *layer_number           = new int32_t[obj_cnt];
 
@@ -363,8 +374,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             obj_cnt = 0;
             bool hair_present = false;
             for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
-                uint64_t cur_size = obj_it->second.size();
-                Mesh* mesh = cur_size > 0 ? obj_it->second[0]->mesh : 0;
+                Mesh* mesh = obj_it->second.size() > 0 ? obj_it->second[0]->mesh : 0;
 
                 if(!mesh || mesh->empty
                    || (!scene->first_frame && scene->anim_mode != FULL)
@@ -373,6 +383,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
 
                 for(vector<Object*>::const_iterator it = obj_it->second.begin(); it != obj_it->second.end(); ++it) {
     		        Object *mesh_object = *it;
+                    if(!mesh_object->visibility) continue;
+
                     Transform &tfm = mesh_object->tfm;
 
                     used_shaders_size[obj_cnt] = mesh_object->used_shaders.size();
@@ -410,6 +422,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     general_vis[obj_cnt]          = mesh->vis_general;
                     cam_vis[obj_cnt]              = mesh->vis_cam;
                     shadow_vis[obj_cnt]           = mesh->vis_shadow;
+                    rand_color_seed[obj_cnt]      = mesh->rand_color_seed;
                     reshapable[obj_cnt]           = false;
                     layer_number[obj_cnt]         = (scene->kernel->layers_enable ? mesh->layer_number : 1);
 
@@ -431,7 +444,6 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             if(hair_present) fprintf(stderr, "Octane: WARNING: hair can't be rendered on \"Global\" mesh\n");
             
             progress.set_status("Loading global Mesh to render-server", string("Transferring..."));
-            char* name = "__global";
             server->load_mesh(true, frame_idx, total_frames, obj_cnt, &name,
                                         used_shaders_size,
                                         shader_names,
@@ -462,6 +474,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
+                                        rand_color_seed,
                                         reshapable);
             delete[] used_shaders_size;
             delete[] shader_names;
@@ -488,6 +501,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             delete[] general_vis;
             delete[] cam_vis;
             delete[] shadow_vis;
+            delete[] rand_color_seed;
             delete[] reshapable;
             delete[] layer_number;
 
@@ -499,6 +513,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             delete[] hair_mat_indices;
             delete[] hair_uvs;
         }
+        else ulGlobalCnt = 0;
     }
     std::string cur_name("__global");
     if(!ulGlobalCnt) server->delete_mesh(true, cur_name);

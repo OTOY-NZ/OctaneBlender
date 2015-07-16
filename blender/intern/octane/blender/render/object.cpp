@@ -155,7 +155,11 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                 std::string cur_object_name(object->name.c_str());
                 cur_object_name = cur_object_name + "__" + cur_mesh->name.c_str();
                 std::string cur_mesh_name(cur_mesh->name.c_str());
-                server->load_scatter(cur_object_name, cur_mesh_name, matrices, 1, movable, shader_names, frame_idx, total_frames);
+                if(object->visibility) server->load_scatter(cur_object_name, cur_mesh_name, matrices, 1, movable, shader_names, frame_idx, total_frames);
+                else {
+                    string scatter_name = cur_object_name +  "_s__";
+                    server->delete_scatter(scatter_name);
+                }
             } //for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it)
             delete[] matrices;
             if(mesh_needs_update && cnt) {
@@ -166,6 +170,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                     shader_names.push_back(scene->shaders[*it]->name);
                 }
 
+                bool visibility = true;
                 unsigned long i = 0;
                 for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it) {
                     Object* object = *it;
@@ -177,6 +182,7 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                         if(!total_frames || frame_idx >= (total_frames - 1) || !movable)
                             object->need_update = false;
                     }
+                    if(!object->visibility && visibility) visibility = false;
 
                     matrices[i++] = object->tfm.x.x;
                     matrices[i++] = object->tfm.x.y;
@@ -193,7 +199,11 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                 } //for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it)
                 std::string cur_mesh_name(cur_mesh->name.c_str());
                 std::string cur_part_name = cur_mesh_name + "__part__";
-                server->load_scatter(cur_part_name, cur_mesh_name, matrices, cnt, movable, shader_names, frame_idx, total_frames);
+                if(visibility) server->load_scatter(cur_part_name, cur_mesh_name, matrices, cnt, movable, shader_names, frame_idx, total_frames);
+                else {
+                    string scatter_name = cur_part_name +  "_s__";
+                    server->delete_scatter(scatter_name);
+                }
                 delete[] matrices;
             }
             //if(mesh_needs_update) server->load_scatter(scatter_names, string(cur_mesh->name.c_str()), matrices, shader_names);
@@ -249,7 +259,11 @@ void ObjectManager::server_update(RenderServer *server, Scene *scene, Progress& 
                 std::string cur_scatter_name(object->name.c_str());
                 std::string cur_light_name(cur_light->name.c_str());
                 cur_scatter_name = cur_scatter_name + "__" + cur_light_name;
-                if(mesh_needs_update) server->load_scatter(cur_scatter_name, cur_light_name, matrices, 1, movable, shader_names, frame_idx, total_frames);
+                if(mesh_needs_update && object->visibility) server->load_scatter(cur_scatter_name, cur_light_name, matrices, 1, movable, shader_names, frame_idx, total_frames);
+                else if(mesh_needs_update && !object->visibility) {
+                    string scatter_name = cur_scatter_name +  "_s__";
+                    server->delete_scatter(scatter_name);
+                }
             } //for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it)
             //if(mesh_needs_update) server->load_scatter(scatter_names, string(cur_light->name.c_str()), matrices, cnt, shader_names);
             delete[] matrices;

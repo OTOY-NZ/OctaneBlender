@@ -66,6 +66,7 @@ public:
     float       vis_general;
     bool        vis_cam;
     bool        vis_shadow;
+    int32_t     rand_color_seed;
     int32_t     layer_number;
 
 	vector<float3>	points;

@@ -1212,6 +1212,12 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 description="",
                 default=True,
                 )
+        cls.rand_color_seed = IntProperty(
+                name="Random color seed",
+                description="",
+                min=0, max=65535,
+                default=0,
+                )
         cls.layer_number = IntProperty(
                 name="Layer number",
                 description="",
