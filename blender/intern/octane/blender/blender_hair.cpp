@@ -52,49 +52,53 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
     Transform itfm  = transform_quick_inverse(tfm);
 
     BL::Object::modifiers_iterator b_mod;
-    size_t hair_points_size = 0, hair_thickness_size = 0, vert_per_hair_size = 0, hair_mat_indices_size = 0, hair_uvs_size = 0;
+    size_t hair_points_size = 0, total_hair_cnt = 0;
 
     for(b_ob->modifiers.begin(b_mod); b_mod != b_ob->modifiers.end(); ++b_mod) {
         if(b_mod->type() == b_mod->type_PARTICLE_SYSTEM && (interactive ? b_mod->show_viewport() : b_mod->show_render())) {
             BL::ParticleSystemModifier  psmd((const PointerRNA)b_mod->ptr);
             BL::ParticleSystem          b_psys((const PointerRNA)psmd.particle_system().ptr);
+	        if(!interactive) b_psys.set_resolution(b_scene, *b_ob, 2);
             BL::ParticleSettings        b_part((const PointerRNA)b_psys.settings().ptr);
 
             if(b_part.render_type() == BL::ParticleSettings::render_type_PATH && b_part.type() == BL::ParticleSettings::type_HAIR) {
                 int draw_step   = interactive ? b_part.draw_step() : b_part.render_step();
-                int ren_step    = (int)powf(2.0f, (float)draw_step);
                 int totparts    = b_psys.particles.length();
                 int totchild    = interactive ? (int)((float)b_psys.child_particles.length() * (float)b_part.draw_percentage() / 100.0f) : b_psys.child_particles.length();
                 int totcurves   = totchild;
+
+                int ren_step = 1 << draw_step;
+				if(b_part.kink() == BL::ParticleSettings::kink_SPIRAL)
+					ren_step += b_part.kink_extra_steps();
 
                 if(b_part.child_type() == 0)    totcurves += totparts;
                 if(totcurves == 0)              continue;
 
                 hair_points_size        += totcurves * (ren_step + 1);
-                hair_thickness_size     += totcurves * (ren_step + 1);
-                vert_per_hair_size      += totcurves;
-                hair_mat_indices_size   += totcurves;
-                hair_uvs_size           += totcurves;
+                total_hair_cnt          += totcurves;
             }
         }
     }
 
-    if(hair_points_size == 0 || hair_thickness_size == 0 || vert_per_hair_size == 0 || hair_mat_indices_size == 0 || hair_uvs_size == 0)
+    if(hair_points_size == 0 || total_hair_cnt == 0) {
+	    if(!interactive)
+		    set_resolution(b_ob, &b_scene, false);
         return true;
+    }
 
     mesh->hair_points.resize(hair_points_size);
     float3 *hair_points = &mesh->hair_points[0];
 
-    mesh->hair_thickness.resize(hair_thickness_size);
+    mesh->hair_thickness.resize(hair_points_size);
     float *hair_thickness = &mesh->hair_thickness[0];
 
-    mesh->vert_per_hair.resize(vert_per_hair_size);
+    mesh->vert_per_hair.resize(total_hair_cnt);
     int *vert_per_hair = &mesh->vert_per_hair[0];
 
-    mesh->hair_mat_indices.resize(hair_mat_indices_size);
+    mesh->hair_mat_indices.resize(total_hair_cnt);
     int *hair_mat_indices = &mesh->hair_mat_indices[0];
 
-    mesh->hair_uvs.resize(hair_uvs_size);
+    mesh->hair_uvs.resize(total_hair_cnt);
     float2 *hair_uvs = &mesh->hair_uvs[0];
 
     for(b_ob->modifiers.begin(b_mod); b_mod != b_ob->modifiers.end(); ++b_mod) {
@@ -104,12 +108,15 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
             BL::ParticleSettings        b_part((const PointerRNA)b_psys.settings().ptr);
 
             if(b_part.render_type() == BL::ParticleSettings::render_type_PATH && b_part.type() == BL::ParticleSettings::type_HAIR) {
-                int shader_idx = clamp(b_part.material() - 1, 0, mesh->used_shaders.size() - 1);
-                int draw_step = interactive ? b_part.draw_step() : b_part.render_step();
-                int ren_step = (int)powf(2.0f, (float)draw_step);
-                int totparts = b_psys.particles.length();
-                int totchild = interactive ? (int)((float)b_psys.child_particles.length() * (float)b_part.draw_percentage() / 100.0f) : b_psys.child_particles.length();
-                int totcurves = totchild;
+                int shader_idx  = clamp(b_part.material() - 1, 0, mesh->used_shaders.size() - 1);
+                int draw_step   = interactive ? b_part.draw_step() : b_part.render_step();
+                int totparts    = b_psys.particles.length();
+                int totchild    = interactive ? (int)((float)b_psys.child_particles.length() * (float)b_part.draw_percentage() / 100.0f) : b_psys.child_particles.length();
+                int totcurves   = totchild;
+
+                int ren_step = 1 << draw_step;
+				if(b_part.kink() == BL::ParticleSettings::kink_SPIRAL)
+					ren_step += b_part.kink_extra_steps();
 
                 if(b_part.child_type() == 0)    totcurves += totparts;
                 if(totcurves == 0)              continue;
@@ -176,9 +183,30 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
             }
         }
     }
+    if(hair_points_size != cur_vertex_idx) {
+        mesh->hair_points.resize(cur_vertex_idx);
+        mesh->hair_thickness.resize(cur_vertex_idx);
+    }
+
+	if(!interactive)
+		set_resolution(b_ob, &b_scene, false);
 
     return true;
 } //fill_mesh_hair_data()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void BlenderSync::set_resolution(BL::Object *b_ob, BL::Scene *scene, bool render) {
+	BL::Object::modifiers_iterator b_mod;
+	for(b_ob->modifiers.begin(b_mod); b_mod != b_ob->modifiers.end(); ++b_mod) {
+        if(b_mod->type() == b_mod->type_PARTICLE_SYSTEM && (interactive ? b_mod->show_viewport() : b_mod->show_render())) {
+			BL::ParticleSystemModifier psmd((const PointerRNA)b_mod->ptr);
+			BL::ParticleSystem b_psys((const PointerRNA)psmd.particle_system().ptr);
+			b_psys.set_resolution(*scene, *b_ob, render ? 2 : 1);
+		}
+	}
+} //set_resolution()
 
 OCT_NAMESPACE_END
 

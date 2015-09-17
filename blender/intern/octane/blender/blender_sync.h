@@ -227,6 +227,7 @@ private:
     
     void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
     bool fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, int uv_num = 0, int vcol_num = 0);
+    void set_resolution(BL::Object *b_ob, BL::Scene *scene, bool render);
 
 	void    sync_nodes(Shader *shader, BL::ShaderNodeTree b_ntree);
     void    sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool object_updated);
