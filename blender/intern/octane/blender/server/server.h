@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 9
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 3
+#   define OCTANE_SERVER_MINOR_VERSION 4
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -1365,7 +1365,7 @@ public:
             RPCSend snd(socket, size, LOAD_GEO_SCATTER, (scatter_name+"_s__").c_str());
             std::string tmp = scatter_name+"_m__";
             snd << mat_cnt;
-            snd.write_buffer(matrices, sizeof(float)*12*mat_cnt);
+            if(mat_cnt) snd.write_buffer(matrices, sizeof(float)*12*mat_cnt);
             snd << movable << frame_idx << total_frames << tmp;
             snd.write();
         }
