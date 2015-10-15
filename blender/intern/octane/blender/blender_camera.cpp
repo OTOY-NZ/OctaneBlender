@@ -416,14 +416,20 @@ void BlenderSync::load_camera_from_object(Camera* cam, BL::Object b_ob, int widt
 
         get_cam_settings(cam, oct_camera);
 
-        cam->lens_shift_x   = b_camera.shift_x() / cam->zoom;
-        cam->lens_shift_y   = b_camera.shift_y() / cam->zoom;
+        if(cam->ortho) {
+            cam->lens_shift_x   = b_camera.shift_x() / cam->zoom + offset.x * 2.0f / cam->zoom;
+            cam->lens_shift_y   = b_camera.shift_y() / cam->zoom + offset.y * 2.0f / cam->zoom;
+        }
+        else {
+            cam->lens_shift_x   = b_camera.shift_x() / cam->zoom + offset.x * 2.0f / cam->zoom * (width < height ? (float)width / height : 1.0f);
+            cam->lens_shift_y   = b_camera.shift_y() / cam->zoom + offset.y * 2.0f / cam->zoom * (height < width ? (float)height / width : 1.0f);
+        }	
 
         cam->sensorwidth    = b_camera.sensor_width();
         cam->sensorheight   = b_camera.sensor_height();
 
-        cam->offset_x = offset.x * 2.0f / cam->zoom;
-        cam->offset_y = offset.y * 2.0f / cam->zoom;
+        cam->offset_x = 0;//offset.x * 2.0f / cam->zoom;
+        cam->offset_y = 0;//offset.y * 2.0f / cam->zoom;
 
         if(b_camera.sensor_fit() == BL::Camera::sensor_fit_AUTO) cam->sensor_fit = Camera::AUTO;
         else if(b_camera.sensor_fit() == BL::Camera::sensor_fit_HORIZONTAL) cam->sensor_fit = Camera::HORIZONTAL;
