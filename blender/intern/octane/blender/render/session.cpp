@@ -337,8 +337,8 @@ void Session::set_blender_session(BlenderSession *b_session_) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Updates the data on the render-server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::update_scene_to_server(uint32_t frame_idx, uint32_t total_frames) {
-	thread_scoped_lock scene_lock(scene->mutex);
+void Session::update_scene_to_server(uint32_t frame_idx, uint32_t total_frames, bool scene_locked) {
+    if(!scene_locked) scene->mutex.lock();
 
 	// Update camera if dimensions changed for progressive render. The camera
 	// knows nothing about progressive or cropped rendering, it just gets the
@@ -358,6 +358,8 @@ void Session::update_scene_to_server(uint32_t frame_idx, uint32_t total_frames) 
 		progress.set_status("Updating Scene");
         scene->server_update(server, progress, params.interactive, frame_idx, total_frames);
 	}
+
+    if(!scene_locked) scene->mutex.unlock();
 } //update_scene_to_device()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

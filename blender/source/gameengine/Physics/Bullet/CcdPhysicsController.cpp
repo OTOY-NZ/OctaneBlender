@@ -713,6 +713,17 @@ void CcdPhysicsController::SimulationTick(float timestep)
 		else if (m_cci.m_clamp_vel_min > 0.0f && !btFuzzyZero(len) && len < m_cci.m_clamp_vel_min)
 			body->setLinearVelocity(linvel * (m_cci.m_clamp_vel_min / len));
 	}
+
+	// Clamp angular velocity
+	if (m_cci.m_clamp_angvel_max > 0.0f || m_cci.m_clamp_angvel_min > 0.0f) {
+		const btVector3 &angvel = body->getAngularVelocity();
+		btScalar len = angvel.length();
+
+		if (m_cci.m_clamp_angvel_max > 0.0f && len > m_cci.m_clamp_angvel_max)
+			body->setAngularVelocity(angvel * (m_cci.m_clamp_angvel_max / len));
+		else if (m_cci.m_clamp_angvel_min > 0.0f && !btFuzzyZero(len) && len < m_cci.m_clamp_angvel_min)
+			body->setAngularVelocity(angvel * (m_cci.m_clamp_angvel_min / len));
+	}
 }
 
 
@@ -809,6 +820,9 @@ void		CcdPhysicsController::PostProcessReplica(class PHY_IMotionState* motionsta
 	m_registerCount = 0;
 	m_collisionShape = NULL;
 
+	// Clear all old constraints.
+	m_ccdConstraintRefs.clear();
+
 	// always create a new shape to avoid scaling bug
 	if (m_shapeInfo)
 	{
@@ -897,12 +911,6 @@ void	CcdPhysicsController::SetCenterOfMassTransform(btTransform& xform)
 			} else
 			{
 				m_object->setInterpolationWorldTransform(xform);
-			}
-			if (body)
-			{
-				body->setInterpolationLinearVelocity(body->getLinearVelocity());
-				body->setInterpolationAngularVelocity(body->getAngularVelocity());
-				body->updateInertiaTensor();
 			}
 			m_object->setWorldTransform(xform);
 		}
@@ -1075,7 +1083,7 @@ void CcdPhysicsController::RefreshCollisions()
 void	CcdPhysicsController::SuspendDynamics(bool ghost)
 {
 	btRigidBody *body = GetRigidBody();
-	if (body && !m_suspended && !GetConstructionInfo().m_bSensor)
+	if (body && !m_suspended && !GetConstructionInfo().m_bSensor && GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this))
 	{
 		btBroadphaseProxy* handle = body->getBroadphaseHandle();
 
@@ -1097,7 +1105,7 @@ void	CcdPhysicsController::SuspendDynamics(bool ghost)
 void	CcdPhysicsController::RestoreDynamics()
 {
 	btRigidBody *body = GetRigidBody();
-	if (body && m_suspended)
+	if (body && m_suspended && GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this))
 	{
 		// before make sure any position change that was done in this logic frame are accounted for
 		SetTransform();
@@ -1850,8 +1858,10 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 	if (!dm) {
 		free_dm = true;
 		dm = CDDM_from_mesh(meshobj->GetMesh());
-		DM_ensure_tessface(dm);
 	}
+
+	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
 	MFace *mface = dm->getTessFaceArray(dm);

@@ -239,7 +239,7 @@ void BlenderSession::free_session() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Returns: the current frame index inside the sequence
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int BlenderSession::load_internal_mb_sequence(bool &stop_render, BL::RenderLayer *layer) {
+int BlenderSession::load_internal_mb_sequence(bool &stop_render, BL::RenderLayer *layer, bool do_sync) {
     stop_render = false;
 
     int     cur_frame = b_scene.frame_current();
@@ -270,9 +270,9 @@ int BlenderSession::load_internal_mb_sequence(bool &stop_render, BL::RenderLayer
         BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
         BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
 
-        sync->sync_data(b_v3d, b_engine.camera_override(), layer);
-        sync->sync_camera(b_engine.camera_override(), width, height);
-        session->update_scene_to_server(cur_mb_frame - first_frame, last_frame - first_frame + 1);
+        sync->sync_data(b_v3d, b_engine.camera_override(), layer, (int)(cur_mb_frame != first_frame));
+        if(!do_sync) sync->sync_camera(b_engine.camera_override(), width, height);
+        session->update_scene_to_server(cur_mb_frame - first_frame, last_frame - first_frame + 1, do_sync);
 
         if(!interactive && session->progress.get_cancel()) {
             stop_render = true;
@@ -860,7 +860,14 @@ void BlenderSession::synchronize() {
     }
 
     // Data synchronize
-    if(b_rv3d) sync->sync_data(b_v3d, b_engine.camera_override());
+    if(b_rv3d) {
+        if(motion_blur && mb_type == INTERNAL) {
+            bool stop_render;
+            load_internal_mb_sequence(stop_render, (BL::RenderLayer*)0, true);
+        }
+        else
+            sync->sync_data(b_v3d, b_engine.camera_override());
+    }
 
     // Camera synchronize
     if(b_rv3d)
@@ -966,7 +973,7 @@ void BlenderSession::update_status_progress() {
     if(b_rview_name != "") timestatus += ", " + b_rview_name;
     timestatus += " | ";
 
-    BLI_timestr(total_time, time_str, 60);
+    BLI_timecode_string_from_time_simple(time_str, 60, total_time);
     timestatus += "Elapsed: " + string(time_str) + " | ";
 
     if(substatus.size() > 0)

@@ -99,7 +99,7 @@ static void draw_render_info(const bContext *C,
 
 	if (rr && rr->text) {
 		float fill_color[4] = {0.0f, 0.0f, 0.0f, 0.25f};
-		ED_region_info_draw(ar, rr->text, 1, fill_color);
+		ED_region_info_draw(ar, rr->text, fill_color, true);
 	}
 
 	BKE_image_release_renderresult(stats_scene, ima);
@@ -813,7 +813,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
 	show_viewer = (ima && ima->source == IMA_SRC_VIEWER) != 0;
 	show_render = (show_viewer && ima->type == IMA_TYPE_R_RESULT) != 0;
 	show_paint = (ima && (sima->mode == SI_MODE_PAINT) && (show_viewer == false) && (show_render == false));
-	show_stereo3d = (ima && (ima->flag & IMA_IS_STEREO) && (sima->iuser.flag & IMA_SHOW_STEREO));
+	show_stereo3d = (ima && BKE_image_is_stereo(ima) && (sima->iuser.flag & IMA_SHOW_STEREO));
 	show_multilayer = ima && BKE_image_is_multilayer(ima);
 
 	if (show_viewer) {

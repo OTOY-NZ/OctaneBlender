@@ -118,7 +118,7 @@ public:
 
     void update(BufferParams& params);
     void update_params(SessionParams& session_params);
-    void update_scene_to_server(uint32_t frame_idx, uint32_t total_frames);
+    void update_scene_to_server(uint32_t frame_idx, uint32_t total_frames, bool scene_locked = false);
 
 	RenderServer	*server;
 	Scene			*scene;

@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 9
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 6
+#   define OCTANE_SERVER_MINOR_VERSION 7
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -2982,9 +2982,9 @@ public:
 
             RPCReceive rcv(socket);
             if(rcv.type == GET_IMAGE) {
-                uint32_t uiW, uiH, uiSamples;
+                uint32_t uiW, uiH, uiRegW, uiRegH, uiSamples;
                 rcv >> image_stat.used_vram >> image_stat.free_vram >> image_stat.total_vram >> image_stat.spp >> image_stat.expiry_time >> image_stat.tri_cnt >> image_stat.meshes_cnt >> image_stat.rgb32_cnt
-                    >> image_stat.rgb64_cnt >> image_stat.grey8_cnt >> image_stat.grey16_cnt >> uiSamples >> uiW >> uiH >> image_stat.net_gpus >> image_stat.used_net_gpus;
+                    >> image_stat.rgb64_cnt >> image_stat.grey8_cnt >> image_stat.grey16_cnt >> uiSamples >> uiW >> uiH >> uiRegW >> uiRegH >> image_stat.net_gpus >> image_stat.used_net_gpus;
 
                 if(uiSamples) image_stat.cur_samples = uiSamples;
 
@@ -2999,9 +2999,9 @@ public:
                     cur_pass_type = type;
                 }
                 else {
-                    if(!float_img_buf || static_cast<uint32_t>(cur_reg_w) != uiW || static_cast<uint32_t>(cur_reg_h) != uiH) return false;
+                    if(!float_img_buf || static_cast<uint32_t>(cur_reg_w) != uiRegW || static_cast<uint32_t>(cur_reg_h) != uiRegH) return false;
 
-                    size_t len = uiW * uiH * 4;
+                    size_t len = uiRegW * uiRegH * 4;
                     float* fBuf = (float*)rcv.read_buffer(len * sizeof(float));
 
                     if(type == Passes::COMBINED) {

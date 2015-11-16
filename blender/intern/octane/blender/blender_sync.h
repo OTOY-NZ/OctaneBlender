@@ -198,7 +198,7 @@ public:
 
 	bool sync_recalc();
 	// Sync the Blender scene data to Octane
-    void sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, BL::RenderLayer *layer = 0);
+    void sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, BL::RenderLayer *layer = 0, int motion = 0);
     void sync_passes(BL::RenderLayer *layer);
     void sync_kernel();
     void sync_camera(BL::Object b_override, int width, int height);

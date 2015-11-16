@@ -150,6 +150,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTexture"),
         NodeItem("ShaderNodeGeometry"),
         NodeItem("ShaderNodeExtendedMaterial"),
+        NodeItem("ShaderNodeParticleInfo"),
         NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
         ]),
     ShaderOldNodeCategory("SH_OUTPUT", "Output", items=[
@@ -238,6 +239,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTexMagic"),
         NodeItem("ShaderNodeTexChecker"),
         NodeItem("ShaderNodeTexBrick"),
+        NodeItem("ShaderNodeTexPointDensity"),
         ]),
     ShaderNewNodeCategory("SH_NEW_OP_COLOR", "Color", items=[
         NodeItem("ShaderNodeMixRGB"),

@@ -242,6 +242,11 @@ def setup_staticlibs(lenv):
             if lenv['WITH_BF_STATIC3DMOUSE']:
                 statlibs += Split(lenv['BF_3DMOUSE_LIB_STATIC'])
 
+    if lenv['WITH_BF_OPENSUBDIV']:
+        libincs += Split(lenv['BF_OPENSUBDIV_LIBPATH'])
+        if lenv['WITH_BF_STATICOPENSUBDIV']:
+            statlibs += Split(lenv['BF_OPENSUBDIV_LIB_STATIC'])
+
     # setting this last so any overriding of manually libs could be handled
     if lenv['OURPLATFORM'] not in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross', 'win64-mingw'):
         # We must remove any previous items defining this path, for same reason stated above!
@@ -343,6 +348,13 @@ def setup_syslibs(lenv):
 
     if not lenv['WITH_BF_STATICPNG']:
         syslibs += Split(lenv['BF_PNG_LIB'])
+
+    if lenv['WITH_BF_OPENSUBDIV']:
+        if not lenv['WITH_BF_STATICOPENSUBDIV']:
+            if lenv['BF_DEBUG'] and lenv['OURPLATFORM'] in ('win32-vc', 'win64-vc', 'win32-mingw', 'win64-mingw'):
+                syslibs += [osdlib+'_d' for osdlib in Split(lenv['BF_OPENSUBDIV_LIB'])]
+            else:
+                syslibs += Split(lenv['BF_OPENSUBDIV_LIB'])
 
     # Hack to pass OSD libraries to linker before extern_{clew,cuew}
     for syslib in create_blender_liblist(lenv, 'system'):
@@ -796,6 +808,8 @@ def AppIt(target=None, source=None, env=None):
         cmd = 'unzip -q %s/release/%s -d %s/%s.app/Contents/Resources/%s/python/'%(libdir,python_zip,installdir,binary,VERSION)
         commands.getoutput(cmd)
         cmd = 'cp -R %s/release/site-packages/ %s/%s.app/Contents/Resources/%s/python/lib/python%s/site-packages/'%(libdir,installdir,binary,VERSION,env['BF_PYTHON_VERSION'])
+        commands.getoutput(cmd)
+        cmd = 'cp -r %s/python/bin -d %s/%s.app/Contents/Resources/%s/python/'%(libdir,installdir,binary,VERSION)
         commands.getoutput(cmd)
 
     cmd = 'chmod +x  %s/%s.app/Contents/MacOS/%s'%(installdir,binary, binary)

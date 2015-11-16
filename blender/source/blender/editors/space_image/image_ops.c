@@ -46,7 +46,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_string_utf8.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_object_types.h"
 #include "DNA_node_types.h"
@@ -85,6 +85,7 @@
 #include "RNA_enum_types.h"
 
 #include "ED_image.h"
+#include "ED_mask.h"
 #include "ED_paint.h"
 #include "ED_render.h"
 #include "ED_screen.h"
@@ -158,10 +159,29 @@ static int image_poll(bContext *C)
 static int space_image_buffer_exists_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
-	if (sima && sima->spacetype == SPACE_IMAGE)
-		if (ED_space_image_has_buffer(sima))
-			return 1;
-	return 0;
+	if (sima && ED_space_image_has_buffer(sima)) {
+		return true;
+	}
+	return false;
+}
+
+static int image_not_packed_poll(bContext *C)
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+
+	/* Do not run 'replace' on packed images, it does not give user expected results at all. */
+	if (sima && sima->image && BLI_listbase_is_empty(&sima->image->packedfiles)) {
+		return true;
+	}
+	return false;
+}
+
+static bool imbuf_format_writeable(const ImBuf *ibuf)
+{
+	ImageFormatData im_format;
+	ImbFormatOptions options_dummy;
+	BKE_imbuf_to_image_format(&im_format, ibuf);
+	return (BKE_image_imtype_to_ftype(im_format.imtype, &options_dummy) == ibuf->ftype);
 }
 
 static int space_image_file_exists_poll(bContext *C)
@@ -185,6 +205,9 @@ static int space_image_file_exists_poll(bContext *C)
 			else if (!BLI_file_is_writable(name)) {
 				CTX_wm_operator_poll_msg_set(C, "image path can't be written to");
 			}
+			else if (!imbuf_format_writeable(ibuf)) {
+				CTX_wm_operator_poll_msg_set(C, "image format is read-only");
+			}
 			else {
 				ret = true;
 			}
@@ -193,26 +216,29 @@ static int space_image_file_exists_poll(bContext *C)
 
 		return ret;
 	}
-	return 0;
+	return false;
 }
 
+#if 0  /* UNUSED */
 static int space_image_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
-	if (sima && sima->spacetype == SPACE_IMAGE && sima->image)
-		return 1;
-	return 0;
+	if (sima && sima->image) {
+		return true;
+	}
+	return false;
 }
+#endif
 
 int space_image_main_area_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
-	// XXX ARegion *ar = CTX_wm_region(C);
+	/* XXX ARegion *ar = CTX_wm_region(C); */
 
-	if (sima)
-		return 1;  // XXX (ar && ar->type->regionid == RGN_TYPE_WINDOW);
-	
-	return 0;
+	if (sima) {
+		return true;  /* XXX (ar && ar->type->regionid == RGN_TYPE_WINDOW); */
+	}
+	return false;
 }
 
 /* For IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or editmode */
@@ -754,8 +780,15 @@ static int image_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
 	height = height * aspy;
 
 	/* get bounds */
-	if (!ED_uvedit_minmax(scene, ima, obedit, min, max))
-		return OPERATOR_CANCELLED;
+	if (ED_space_image_show_uvedit(sima, obedit)) {
+		if (!ED_uvedit_minmax(scene, ima, obedit, min, max))
+			return OPERATOR_CANCELLED;
+	}
+	else if (ED_space_image_check_show_maskedit(scene, sima)) {
+		if (!ED_mask_selected_minmax(C, min, max)) {
+			return OPERATOR_CANCELLED;
+		}
+	}
 
 	/* adjust offset and zoom */
 	sima->xof = (int)(((min[0] + max[0]) * 0.5f - 0.5f) * width);
@@ -775,7 +808,7 @@ static int image_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
 
 static int image_view_selected_poll(bContext *C)
 {
-	return (space_image_main_area_poll(C) && ED_operator_uvedit(C));
+	return (space_image_main_area_poll(C) && (ED_operator_uvedit(C) || ED_operator_mask(C)));
 }
 
 void IMAGE_OT_view_selected(wmOperatorType *ot)
@@ -1120,8 +1153,6 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		ima->flag &= ~IMA_USE_VIEWS;
-		ima->flag &= ~IMA_IS_STEREO;
-		ima->flag &= ~IMA_IS_MULTIVIEW;
 		BKE_image_free_views(ima);
 	}
 
@@ -1285,7 +1316,7 @@ void IMAGE_OT_open(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILES | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILES | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /******************** Match movie length operator ********************/
@@ -1397,14 +1428,14 @@ void IMAGE_OT_replace(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = image_replace_exec;
 	ot->invoke = image_replace_invoke;
-	ot->poll = space_image_poll;
+	ot->poll = image_not_packed_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /******************** save image as operator ********************/
@@ -1461,12 +1492,11 @@ static int save_image_options_init(SaveImageOptions *simopts, SpaceImage *sima, 
 		else {
 			if (ima->source == IMA_SRC_GENERATED) {
 				simopts->im_format.imtype = R_IMF_IMTYPE_PNG;
+				simopts->im_format.compress = ibuf->foptions.quality;
 			}
 			else {
 				BKE_imbuf_to_image_format(&simopts->im_format, ibuf);
-				simopts->im_format.quality = ibuf->ftype & 0xff;
 			}
-			simopts->im_format.quality = ibuf->ftype & 0xff;
 		}
 
 		simopts->im_format.planes = ibuf->planes;
@@ -1611,6 +1641,7 @@ static void save_imbuf_post(ImBuf *ibuf, ImBuf *colormanaged_ibuf)
 		 * original one, so file type of image is being properly updated.
 		 */
 		ibuf->ftype = colormanaged_ibuf->ftype;
+		ibuf->foptions = colormanaged_ibuf->foptions;
 		ibuf->planes = colormanaged_ibuf->planes;
 
 		IMB_freeImBuf(colormanaged_ibuf);
@@ -1670,7 +1701,7 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 		/* we need renderresult for exr and rendered multiview */
 		scene = CTX_data_scene(C);
 		rr = BKE_image_acquire_renderresult(scene, ima);
-		is_mono = rr ? BLI_listbase_count_ex(&rr->views, 2) < 2 : (ima->flag & IMA_IS_MULTIVIEW) == 0;
+		is_mono = rr ? BLI_listbase_count_ex(&rr->views, 2) < 2 : BLI_listbase_count_ex(&ima->views, 2) < 2;
 
 		/* error handling */
 		if (!rr) {
@@ -1681,7 +1712,7 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 		}
 		else {
 			if (imf->views_format == R_IMF_VIEWS_STEREO_3D) {
-				if ((ima->flag & IMA_IS_STEREO) == 0) {
+				if (!BKE_image_is_stereo(ima)) {
 					BKE_reportf(op->reports, RPT_ERROR, "Did not write, the image doesn't have a \"%s\" and \"%s\" views",
 					           STEREO_LEFT_NAME, STEREO_RIGHT_NAME);
 					goto cleanup;
@@ -1926,9 +1957,9 @@ static int image_save_as_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 
 	/* show multiview save options only if image has multiviews */
 	prop = RNA_struct_find_property(op->ptr, "show_multiview");
-	RNA_property_boolean_set(op->ptr, prop, (ima->flag & IMA_IS_MULTIVIEW) != 0);
+	RNA_property_boolean_set(op->ptr, prop, BKE_image_is_multiview(ima));
 	prop = RNA_struct_find_property(op->ptr, "use_multiview");
-	RNA_property_boolean_set(op->ptr, prop, (ima->flag & IMA_IS_MULTIVIEW) != 0);
+	RNA_property_boolean_set(op->ptr, prop, BKE_image_is_multiview(ima));
 
 	image_filesel(C, op, simopts.filepath);
 
@@ -2013,7 +2044,7 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "copy", 0, "Copy", "Create a new image file without modifying the current image in blender");
 
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_SAVE,
-	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /******************** save image operator ********************/

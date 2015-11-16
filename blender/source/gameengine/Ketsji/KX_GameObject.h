@@ -40,7 +40,7 @@
 
 #include <stddef.h>
 
-#include "ListValue.h"
+#include "EXP_ListValue.h"
 #include "SCA_IObject.h"
 #include "SG_Node.h"
 #include "MT_Transform.h"
@@ -277,6 +277,11 @@ public:
 	float GetActionFrame(short layer);
 
 	/**
+	 * Gets the name of the current action
+	 */
+	const char *GetActionName(short layer);
+
+	/**
 	 * Sets the current frame of an action
 	 */
 	void SetActionFrame(short layer, float frame);
@@ -302,6 +307,11 @@ public:
 	void StopAction(short layer);
 
 	/**
+	 * Remove playing tagged actions.
+	 */
+	void RemoveTaggedActions();
+
+	/**
 	 * Check if an action has finished playing
 	 */
 	bool IsActionDone(short layer);
@@ -310,12 +320,6 @@ public:
 	 * Kick the object's action manager
 	 */
 	void UpdateActionManager(float curtime);
-
-	/**
-	 * Have the action manager update IPOs
-	 * note: not thread-safe!
-	 */
-	void UpdateActionIPOs();
 
 	/*********************************
 	 * End Animation API
@@ -1032,6 +1036,7 @@ public:
 	KX_PYMETHOD_DOC(KX_GameObject, playAction);
 	KX_PYMETHOD_DOC(KX_GameObject, stopAction);
 	KX_PYMETHOD_DOC(KX_GameObject, getActionFrame);
+	KX_PYMETHOD_DOC(KX_GameObject, getActionName);
 	KX_PYMETHOD_DOC(KX_GameObject, setActionFrame);
 	KX_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
 	
@@ -1054,6 +1059,10 @@ public:
 	static int			pyattr_set_lin_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lin_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lin_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_ang_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_ang_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_ang_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_ang_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

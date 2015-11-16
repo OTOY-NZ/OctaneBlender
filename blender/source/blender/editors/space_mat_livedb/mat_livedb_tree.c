@@ -44,7 +44,7 @@
 
 #include "MEM_guardedalloc.h"
 #include "BLI_blenlib.h"
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 #include "BKE_main.h"
 #include "ED_screen.h"
 

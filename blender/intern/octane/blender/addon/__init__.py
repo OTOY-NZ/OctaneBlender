@@ -19,13 +19,13 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 9.6)",
+    "name": "OctaneRender Engine (v. 9.7)",
     "author": "OTOY Inc.",
-    "blender": (2, 70, 0),
+    "blender": (2, 76, 0),
     "location": "Info header, render engine menu",
     "description": "OctaneRender Engine integration",
     "warning": "",
-    "wiki_url": "http://render.otoy.com/manuals/Blender",
+    "wiki_url": "https://docs.otoy.com/#34Introduction%20%E2%80%93%20Blender%20Plugin",
     "tracker_url": "",
     "support": 'OFFICIAL',
     "category": "Render"}

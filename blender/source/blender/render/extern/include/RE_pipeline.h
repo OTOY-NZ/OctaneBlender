@@ -99,6 +99,8 @@ typedef struct RenderPass {
 
 enum {
 	RENDER_PASS_DEBUG_BVH_TRAVERSAL_STEPS = 0,
+	RENDER_PASS_DEBUG_BVH_TRAVERSED_INSTANCES = 1,
+	RENDER_PASS_DEBUG_RAY_BOUNCES = 2,
 };
 
 /* a renderlayer is a full image, but with all passes and samples */
@@ -205,6 +207,10 @@ void RE_InitRenderCB(struct Render *re);
 void RE_FreeRender(struct Render *re);
 /* only called on exit */
 void RE_FreeAllRender(void);
+/* Free memory used by persistent data.
+ * Invoked when loading new file.
+ */
+void RE_FreeAllPersistentData(void);
 /* only call on file load */
 void RE_FreeAllRenderResults(void);
 /* for external render engines that can keep persistent data */
@@ -358,6 +364,14 @@ bool RE_HasFakeLayer(RenderResult *res);
 bool RE_RenderResult_is_stereo(RenderResult *res);
 struct RenderView *RE_RenderViewGetById(struct RenderResult *res, const int view_id);
 struct RenderView *RE_RenderViewGetByName(struct RenderResult *res, const char *viewname);
+
+/******* Debug pass helper functions *********/
+
+#ifdef WITH_CYCLES_DEBUG
+int RE_debug_pass_num_channels_get(int pass_type);
+const char *RE_debug_pass_name_get(int pass_type);
+int RE_debug_pass_type_get(struct Render *re);
+#endif
 
 #endif /* __RE_PIPELINE_H__ */
 

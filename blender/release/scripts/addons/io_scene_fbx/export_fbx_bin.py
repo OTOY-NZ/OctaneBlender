@@ -542,8 +542,13 @@ def fbx_data_element_custom_properties(props, bid):
             elem_props_set(props, "p_integer", k.encode(), v, custom=True)
         elif isinstance(v, float):
             elem_props_set(props, "p_double", k.encode(), v, custom=True)
-        elif list_val and len(list_val) == 3:
-            elem_props_set(props, "p_vector", k.encode(), list_val, custom=True)
+        elif list_val:
+            if len(list_val) == 3:
+                elem_props_set(props, "p_vector", k.encode(), list_val, custom=True)
+            else:
+                elem_props_set(props, "p_string", k.encode(), str(list_val), custom=True)
+        else:
+            elem_props_set(props, "p_string", k.encode(), str(v), custom=True)
 
 
 def fbx_data_empty_elements(root, empty, scene_data):
@@ -1848,8 +1853,8 @@ def fbx_animations_do(scene_data, ref_id, f_start, f_end, start_zero, objects=No
     """
     bake_step = scene_data.settings.bake_anim_step
     scene = scene_data.scene
-    meshes = scene_data.data_meshes
     force_keying = scene_data.settings.bake_anim_use_all_bones
+    force_sek = scene_data.settings.bake_anim_force_startend_keying
 
     if objects is not None:
         # Add bones and duplis!
@@ -1874,9 +1879,9 @@ def fbx_animations_do(scene_data, ref_id, f_start, f_end, start_zero, objects=No
         ACNW = AnimationCurveNodeWrapper
         loc, rot, scale, _m, _mr = ob_obj.fbx_object_tx(scene_data)
         rot_deg = tuple(convert_rad_to_deg_iter(rot))
-        animdata_ob[ob_obj] = (ACNW(ob_obj.key, 'LCL_TRANSLATION', ob_obj.is_bone and force_keying, loc),
-                               ACNW(ob_obj.key, 'LCL_ROTATION', ob_obj.is_bone and force_keying, rot_deg),
-                               ACNW(ob_obj.key, 'LCL_SCALING', ob_obj.is_bone and force_keying, scale))
+        animdata_ob[ob_obj] = (ACNW(ob_obj.key, 'LCL_TRANSLATION', ob_obj.is_bone and force_keying, force_sek, loc),
+                               ACNW(ob_obj.key, 'LCL_ROTATION', ob_obj.is_bone and force_keying, force_sek, rot_deg),
+                               ACNW(ob_obj.key, 'LCL_SCALING', ob_obj.is_bone and force_keying, force_sek, scale))
         p_rots[ob_obj] = rot
 
     animdata_shapes = OrderedDict()
@@ -1885,7 +1890,7 @@ def fbx_animations_do(scene_data, ref_id, f_start, f_end, start_zero, objects=No
         if not me.shape_keys.use_relative:
             continue
         for shape, (channel_key, geom_key, _shape_verts_co, _shape_verts_idx) in shapes.items():
-            acnode = AnimationCurveNodeWrapper(channel_key, 'SHAPE_KEY', False, (0.0,))
+            acnode = AnimationCurveNodeWrapper(channel_key, 'SHAPE_KEY', False, force_sek, (0.0,))
             # Sooooo happy to have to twist again like a mad snake... Yes, we need to write those curves twice. :/
             acnode.add_group(me_key, shape.name, shape.name, (shape.name,))
             animdata_shapes[channel_key] = (acnode, me, shape)
@@ -1999,7 +2004,7 @@ def fbx_animations(scene_data):
         for strip in strips:
             strip.mute = False
             add_anim(animations, animated,
-                     fbx_animations_do(scene_data, strip, strip.frame_start, strip.frame_end, True))
+                     fbx_animations_do(scene_data, strip, strip.frame_start, strip.frame_end, True, force_keep=True))
             strip.mute = True
 
         for strip in strips:
@@ -2065,7 +2070,8 @@ def fbx_animations(scene_data):
                 ob.animation_data.action = act
                 frame_start, frame_end = act.frame_range  # sic!
                 add_anim(animations, animated,
-                         fbx_animations_do(scene_data, (ob, act), frame_start, frame_end, True, {ob_obj}, True))
+                         fbx_animations_do(scene_data, (ob, act), frame_start, frame_end, True,
+                                           objects={ob_obj}, force_keep=True))
                 # Ugly! :/
                 if pbones_matrices is not ...:
                     for pbo, mat in zip(ob.pose.bones, pbones_matrices):
@@ -2095,6 +2101,7 @@ def fbx_data_from_scene(scene, settings):
     Do some pre-processing over scene's data...
     """
     objtypes = settings.object_types
+    dp_objtypes = objtypes - {'ARMATURE'}  # Armatures are not supported as dupli instances currently...
     perfmon = PerfMon()
     perfmon.level_up()
 
@@ -2113,6 +2120,8 @@ def fbx_data_from_scene(scene, settings):
         # Duplis...
         ob_obj.dupli_list_create(scene, 'RENDER')
         for dp_obj in ob_obj.dupli_list:
+            if dp_obj.type not in dp_objtypes:
+                continue
             objects[dp_obj] = None
         ob_obj.dupli_list_clear()
 
@@ -2134,9 +2143,16 @@ def fbx_data_from_scene(scene, settings):
         if ob_obj.type not in BLENDER_OBJECT_TYPES_MESHLIKE:
             continue
         ob = ob_obj.bdata
-        if ob in data_meshes:  # Happens with dupli instances.
-            continue
         use_org_data = True
+        org_ob_obj = None
+
+        # Do not want to systematically recreate a new mesh for dupliobject instances, kind of break purpose of those.
+        if ob_obj.is_dupli:
+            org_ob_obj = ObjectWrapper(ob)  # We get the "real" object wrapper from that dupli instance.
+            if org_ob_obj in data_meshes:
+                data_meshes[ob_obj] = data_meshes[org_ob_obj]
+                continue
+
         if settings.use_mesh_modifiers or ob.type in BLENDER_OTHER_OBJECT_TYPES:
             use_org_data = False
             tmp_mods = []
@@ -2159,33 +2175,46 @@ def fbx_data_from_scene(scene, settings):
         if use_org_data:
             data_meshes[ob_obj] = (get_blenderID_key(ob.data), ob.data, False)
 
+        # In case "real" source object of that dupli did not yet still existed in data_meshes, create it now!
+        if org_ob_obj is not None:
+            data_meshes[org_ob_obj] = data_meshes[ob_obj]
+
     perfmon.step("FBX export prepare: Wrapping ShapeKeys...")
 
     # ShapeKeys.
     data_deformers_shape = OrderedDict()
     geom_mat_co = settings.global_matrix if settings.bake_space_transform else None
-    for me_obj, (me_key, me, _org) in data_meshes.items():
-        if not (me.shape_keys and me.shape_keys.key_blocks):
+    for me_key, me, _free in data_meshes.values():
+        if not (me.shape_keys and len(me.shape_keys.key_blocks) > 1):  # We do not want basis-only relative skeys...
+            continue
+        if me in data_deformers_shape:
             continue
 
         shapes_key = get_blender_mesh_shape_key(me)
+        # We gather all vcos first, since some skeys may be based on others...
         _cos = array.array(data_types.ARRAY_FLOAT64, (0.0,)) * len(me.vertices) * 3
         me.vertices.foreach_get("co", _cos)
         v_cos = tuple(vcos_transformed_gen(_cos, geom_mat_co))
-        for shape in me.shape_keys.key_blocks:
+        sk_cos = {}
+        for shape in me.shape_keys.key_blocks[1:]:
+            shape.data.foreach_get("co", _cos)
+            sk_cos[shape] = tuple(vcos_transformed_gen(_cos, geom_mat_co))
+        sk_base = me.shape_keys.key_blocks[0]
+
+        for shape in me.shape_keys.key_blocks[1:]:
             # Only write vertices really different from org coordinates!
             # XXX FBX does not like empty shapes (makes Unity crash e.g.), so we have to do this here... :/
             shape_verts_co = []
             shape_verts_idx = []
 
-            shape.data.foreach_get("co", _cos)
-            sv_cos = tuple(vcos_transformed_gen(_cos, geom_mat_co))
-            for idx, (sv_co, v_co) in enumerate(zip(sv_cos, v_cos)):
-                if similar_values_iter(sv_co, v_co):
+            sv_cos = sk_cos[shape]
+            ref_cos = v_cos if shape.relative_key == sk_base else sk_cos[shape.relative_key]
+            for idx, (sv_co, ref_co) in enumerate(zip(sv_cos, ref_cos)):
+                if similar_values_iter(sv_co, ref_co):
                     # Note: Maybe this is a bit too simplistic, should we use real shape base here? Though FBX does not
                     #       have this at all... Anyway, this should cover most common cases imho.
                     continue
-                shape_verts_co.extend(Vector(sv_co) - Vector(v_co))
+                shape_verts_co.extend(Vector(sv_co) - Vector(ref_co))
                 shape_verts_idx.append(idx)
             if not shape_verts_co:
                 continue
@@ -2319,7 +2348,7 @@ def fbx_data_from_scene(scene, settings):
         templates[b"Bone"] = fbx_template_def_bone(scene, settings, nbr_users=len(data_bones))
 
     if data_meshes:
-        nbr = len(data_meshes)
+        nbr = len({me_key for me_key, _me, _free in data_meshes.values()})
         if data_deformers_shape:
             nbr += sum(len(shapes[2]) for shapes in data_deformers_shape.values())
         templates[b"Geometry"] = fbx_template_def_geometry(scene, settings, nbr_users=nbr)
@@ -2522,9 +2551,11 @@ def fbx_scene_data_cleanup(scene_data):
     Some final cleanup...
     """
     # Delete temp meshes.
-    for _key, me, free in scene_data.data_meshes.values():
-        if free:
+    done_meshes = set()
+    for me_key, me, free in scene_data.data_meshes.values():
+        if free and me_key not in done_meshes:
             bpy.data.meshes.remove(me)
+            done_meshes.add(me_key)
 
 
 # ##### Top-level FBX elements generators. #####
@@ -2537,6 +2568,11 @@ def fbx_header_elements(root, scene_data, time=None):
     app_vendor = "Blender Foundation"
     app_name = "Blender (stable FBX IO)"
     app_ver = bpy.app.version_string
+
+    import addon_utils
+    import sys
+    addon_ver = addon_utils.module_bl_info(sys.modules[__package__])['version']
+
     # ##### Start of FBXHeaderExtension element.
     header_ext = elem_empty(root, b"FBXHeaderExtension")
 
@@ -2559,7 +2595,8 @@ def fbx_header_elements(root, scene_data, time=None):
     elem_data_single_int32(elem, b"Second", time.second)
     elem_data_single_int32(elem, b"Millisecond", time.microsecond // 1000)
 
-    elem_data_single_string_unicode(header_ext, b"Creator", "%s - %s" % (app_name, app_ver))
+    elem_data_single_string_unicode(header_ext, b"Creator", "%s - %s - %d.%d.%d"
+                                                % (app_name, app_ver, addon_ver[0], addon_ver[1], addon_ver[2]))
 
     # 'SceneInfo' seems mandatory to get a valid FBX file...
     # TODO use real values!
@@ -2603,7 +2640,8 @@ def fbx_header_elements(root, scene_data, time=None):
                                     "".format(time.year, time.month, time.day, time.hour, time.minute, time.second,
                                               time.microsecond * 1000))
 
-    elem_data_single_string_unicode(root, b"Creator", "%s - %s" % (app_name, app_ver))
+    elem_data_single_string_unicode(root, b"Creator", "%s - %s - %d.%d.%d"
+                                          % (app_name, app_ver, addon_ver[0], addon_ver[1], addon_ver[2]))
 
     # ##### Start of GlobalSettings element.
     global_settings = elem_empty(root, b"GlobalSettings")
@@ -2718,7 +2756,8 @@ def fbx_objects_elements(root, scene_data):
     for cam in scene_data.data_cameras:
         fbx_data_camera_elements(objects, cam, scene_data)
 
-    perfmon.step("FBX export fetch meshes (%d)..." % len(scene_data.data_meshes))
+    perfmon.step("FBX export fetch meshes (%d)..."
+                 % len({me_key for me_key, _me, _free in scene_data.data_meshes.values()}))
 
     done_meshes = set()
     for me_obj in scene_data.data_meshes:
@@ -2817,6 +2856,7 @@ def save_single(operator, scene, filepath="",
                 bake_anim_use_all_actions=True,
                 bake_anim_step=1.0,
                 bake_anim_simplify_factor=1.0,
+                bake_anim_force_startend_keying=True,
                 add_leaf_bones=False,
                 primary_bone_axis='Y',
                 secondary_bone_axis='X',
@@ -2881,7 +2921,7 @@ def save_single(operator, scene, filepath="",
         mesh_smooth_type, use_mesh_edges, use_tspace,
         use_armature_deform_only, add_leaf_bones, bone_correction_matrix, bone_correction_matrix_inv,
         bake_anim, bake_anim_use_all_bones, bake_anim_use_nla_strips, bake_anim_use_all_actions,
-        bake_anim_step, bake_anim_simplify_factor,
+        bake_anim_step, bake_anim_simplify_factor, bake_anim_force_startend_keying,
         False, media_settings, use_custom_props,
     )
 

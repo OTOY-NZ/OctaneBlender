@@ -117,7 +117,7 @@ protected:
 	void        do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only);
 	void        do_write_update_render_img(bool do_update_only);
 
-    int         load_internal_mb_sequence(bool &stop_render, BL::RenderLayer *layer = 0);
+    int         load_internal_mb_sequence(bool &stop_render, BL::RenderLayer *layer = 0, bool do_sync = false);
 
     float shuttertime;
     int   mb_cur_sample;

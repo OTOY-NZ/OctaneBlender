@@ -228,7 +228,11 @@ if(WITH_IMAGE_FRAMESERVER)
 endif()
 
 if(WITH_AUDASPACE)
-	add_definitions(-DWITH_AUDASPACE)
+	add_definitions(${AUDASPACE_DEFINITIONS})
+
+	list(APPEND INC_SYS
+		${AUDASPACE_C_INCLUDE_DIRS}
+	)
 endif()
 
 if(WITH_CODEC_QUICKTIME)
@@ -304,14 +308,22 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
+if(WITH_OPENSUBDIV)
+	list(APPEND INC
+		../../../../intern/opensubdiv
+	)
+	add_definitions(-DWITH_OPENSUBDIV)
+endif()
+
 # Build makesrna executable
 blender_include_dirs(
 	.
 	..
+	../../blenfont
 	../../blenkernel
 	../../blenlib
 	../../bmesh
-	../../blenfont
+	../../blentranslation
 	../../depsgraph
 	../../gpu
 	../../imbuf
@@ -322,7 +334,6 @@ blender_include_dirs(
 	../../windowmanager
 	../../editors/include
 	../../render/extern/include
-	../../../../intern/audaspace/intern
 	../../../../intern/cycles/blender
 	../../../../intern/octane/blender
 	../../../../intern/guardedalloc
@@ -344,7 +355,7 @@ target_link_libraries(makesrna bf_dna_blenlib)
 # note (linux only): with crashes try add this after COMMAND: valgrind --leak-check=full --track-origins=yes
 add_custom_command(
 	OUTPUT ${GENSRC}
-	COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/makesrna ${CMAKE_CURRENT_BINARY_DIR}/
+	COMMAND "$<TARGET_FILE:makesrna>" ${CMAKE_CURRENT_BINARY_DIR}/
 	DEPENDS makesrna
 )
 
