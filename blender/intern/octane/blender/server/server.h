@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 9
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 7
+#   define OCTANE_SERVER_MINOR_VERSION 8
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -3004,11 +3004,7 @@ public:
                     size_t len = uiRegW * uiRegH * 4;
                     float* fBuf = (float*)rcv.read_buffer(len * sizeof(float));
 
-                    if(type == Passes::COMBINED) {
-                        for(register size_t i=0; i<len; i+=4)
-                            srgb_to_linearrgb_v4(&float_img_buf[i], &fBuf[i]);
-                    }
-                    else memcpy(float_img_buf, fBuf, len * sizeof(float));
+                    memcpy(float_img_buf, fBuf, len * sizeof(float));
                     cur_pass_type = type;
                 }
                 break;

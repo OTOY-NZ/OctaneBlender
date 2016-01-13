@@ -139,6 +139,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
 		if(progress.get_cancel()) return;
 	}
 
+    bool interrupted = false;
+
     if(ulLocalCnt) {
         char            **mesh_names            = new char*[ulLocalCnt];
         uint64_t          *used_shaders_size    = new uint64_t[ulLocalCnt];
@@ -239,10 +241,13 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             if(mesh->need_update
                && (!total_frames || frame_idx >= (total_frames - 1) || !reshapable[i]))
                 mesh->need_update = false;
-    		if(progress.get_cancel()) return;
+    		if(progress.get_cancel()) {
+                interrupted = true;
+                break;
+            }
             ++i;
 	    }
-        if(i) {
+        if(i && !interrupted) {
             progress.set_status("Loading Meshes to render-server", "Transferring...");
             server->load_mesh(false, frame_idx, total_frames, ulLocalCnt, mesh_names,
                                         used_shaders_size,
@@ -315,7 +320,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] hair_mat_indices;
         delete[] hair_uvs;
     }
-    if(global_update) {
+    if(global_update && !interrupted) {
         progress.set_status("Loading global Mesh to render-server", "");
         uint64_t obj_cnt = 0;
         for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
@@ -337,8 +342,10 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             uint64_t          *used_shaders_size    = new uint64_t[obj_cnt];
             vector<string>  *shader_names           = new vector<string>[obj_cnt];
             float3          **points                = new float3*[obj_cnt];
+            for(int k = 0; k < obj_cnt; ++k) points[k] = 0;
             uint64_t          *points_size          = new uint64_t[obj_cnt];
             float3          **normals               = new float3*[obj_cnt];
+            for(int k = 0; k < obj_cnt; ++k) normals[k] = 0;
             uint64_t          *normals_size         = new uint64_t[obj_cnt];
             int             **points_indices        = new int*[obj_cnt];
             int             **normals_indices       = new int*[obj_cnt];
@@ -435,51 +442,62 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     hair_uvs[obj_cnt]             = vert_per_hair_size[obj_cnt] ? &mesh->hair_uvs[0] : 0;
 
         	        if(mesh->need_update) mesh->need_update = false;
-    		        if(progress.get_cancel()) return;
+    		        if(progress.get_cancel()) {
+                        interrupted = true;
+                        break;
+                    }
                     ++obj_cnt;
 
                     if(!hair_present && mesh->hair_points.size()) hair_present = true;
                 }
             }
-            if(hair_present) fprintf(stderr, "Octane: WARNING: hair can't be rendered on \"Global\" mesh\n");
+            if(obj_cnt && !interrupted) {
+                if(hair_present) fprintf(stderr, "Octane: WARNING: hair can't be rendered on \"Global\" mesh\n");
             
-            progress.set_status("Loading global Mesh to render-server", string("Transferring..."));
-            server->load_mesh(true, frame_idx, total_frames, obj_cnt, &name,
-                                        used_shaders_size,
-                                        shader_names,
-                                        points,
-                                        points_size,
-                                        normals,
-                                        normals_size,
-                                        points_indices,
-                                        normals_indices,
-                                        points_indices_size,
-                                        normals_indices_size,
-                                        vert_per_poly,
-                                        vert_per_poly_size,
-                                        poly_mat_index,
-                                        uvs,
-                                        uvs_size,
-                                        uv_indices,
-                                        uv_indices_size,
-                                        hair_points, hair_points_size,
-                                        vert_per_hair, vert_per_hair_size,
-                                        hair_thickness, hair_mat_indices, hair_uvs,
-                                        open_subd_enable,
-                                        open_subd_scheme,
-                                        open_subd_level,
-                                        open_subd_sharpness,
-                                        open_subd_bound_interp,
-                                        layer_number,
-                                        general_vis,
-                                        cam_vis,
-                                        shadow_vis,
-                                        rand_color_seed,
-                                        reshapable);
+                progress.set_status("Loading global Mesh to render-server", string("Transferring..."));
+                server->load_mesh(true, frame_idx, total_frames, obj_cnt, &name,
+                                            used_shaders_size,
+                                            shader_names,
+                                            points,
+                                            points_size,
+                                            normals,
+                                            normals_size,
+                                            points_indices,
+                                            normals_indices,
+                                            points_indices_size,
+                                            normals_indices_size,
+                                            vert_per_poly,
+                                            vert_per_poly_size,
+                                            poly_mat_index,
+                                            uvs,
+                                            uvs_size,
+                                            uv_indices,
+                                            uv_indices_size,
+                                            hair_points, hair_points_size,
+                                            vert_per_hair, vert_per_hair_size,
+                                            hair_thickness, hair_mat_indices, hair_uvs,
+                                            open_subd_enable,
+                                            open_subd_scheme,
+                                            open_subd_level,
+                                            open_subd_sharpness,
+                                            open_subd_bound_interp,
+                                            layer_number,
+                                            general_vis,
+                                            cam_vis,
+                                            shadow_vis,
+                                            rand_color_seed,
+                                            reshapable);
+            }
             delete[] used_shaders_size;
             delete[] shader_names;
+            for(int k = 0; k < obj_cnt; ++k) {
+                if(points[k]) delete[] points[k];
+            }
             delete[] points;
             delete[] points_size;
+            for(int k = 0; k < obj_cnt; ++k) {
+                if(normals[k]) delete[] normals[k];
+            }
             delete[] normals;
             delete[] normals_size;
             delete[] points_indices;
@@ -516,7 +534,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         else ulGlobalCnt = 0;
     }
     std::string cur_name("__global");
-    if(!ulGlobalCnt) server->delete_mesh(true, cur_name);
+    if(!ulGlobalCnt && scene->anim_mode == FULL) server->delete_mesh(true, cur_name);
 	//need_update = false;
 } //server_update_mesh()
 

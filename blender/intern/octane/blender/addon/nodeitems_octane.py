@@ -37,6 +37,13 @@ class TextureNodeCategory(NodeCategory):
         return context.space_data.tree_type == 'TextureNodeTree' and \
                context.scene.render.engine == 'octane'
 
+# only show input/output nodes inside node groups
+def group_input_output_item_poll(context):
+    space = context.space_data
+    if space.edit_tree in bpy.data.node_groups.values():
+        return True
+    return False
+
 # All standard node categories currently used in nodes.
 
 shader_node_categories = [
@@ -107,6 +114,11 @@ shader_node_categories = [
     ]
 
 texture_node_categories = [
+    TextureNodeCategory("TEX_OUTPUT", "Output", items=[
+        NodeItem("TextureNodeOutput"),
+        NodeItem("TextureNodeViewer"),
+        NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
+        ]),
     # Texture Nodes
     TextureNodeCategory("TEX_OCT_TEXTURE", "Octane Texture", items = [
         NodeItem("ShaderNodeOctFloatTex"),

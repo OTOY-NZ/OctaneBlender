@@ -272,19 +272,23 @@ static MatItem *mat_livedb_add_mat_element(Main *bmain, bContext *C, bNodeTree *
             struct Image *ima = (struct Image*)node_to->id;
 
             file_name = item->data + sizeof(uint32_t);
-            strcpy(tex_file_name, file_path);
-            strcat(tex_file_name, file_name);
 
-            file = BLI_fopen(tex_file_name, "rb");
-            if(!file) {
-                file = BLI_fopen(tex_file_name, "wb");
-                if(file) {
-                    if(!fwrite(item->data + sizeof(uint32_t) + strlen(file_name) + 1, *((uint32_t*)item->data), 1, file)) {
+            if(file_name[0]) {
+                strcpy(tex_file_name, file_path);
+                strcat(tex_file_name, file_name);
+
+                file = BLI_fopen(tex_file_name, "rb");
+                if(!file) {
+                    file = BLI_fopen(tex_file_name, "wb");
+                    if(file) {
+                        if(!fwrite(item->data + sizeof(uint32_t) + strlen(file_name) + 1, *((uint32_t*)item->data), 1, file)) {
+                        }
+                        fclose(file);
                     }
-                    fclose(file);
                 }
+                else fclose(file);
             }
-            else fclose(file);
+            else tex_file_name[0] = 0;
 
             if(!ima)
                 node_to->id = (struct ID*)BKE_image_load_exists(tex_file_name);

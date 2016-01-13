@@ -1147,7 +1147,7 @@ def draw_device(self, context):
         layout.prop(oct_scene, "devices")
         sub = layout.row()
         sub.prop(oct_scene, "viewport_hide")
-        sub.prop(oct_scene, "hdr_tonemapped")
+        #sub.prop(oct_scene, "hdr_tonemapped")
         layout.prop(oct_scene, "meshes_type", expand=True)
 
 

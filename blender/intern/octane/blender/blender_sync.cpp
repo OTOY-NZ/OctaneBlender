@@ -607,7 +607,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     if(params.export_scene && params.meshes_type == Mesh::GLOBAL)
         params.meshes_type = Mesh::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
-    params.hdr_tonemapped       = get_boolean(oct_scene, "hdr_tonemapped");
+    params.hdr_tonemapped       = false;//get_boolean(oct_scene, "hdr_tonemapped");
 	
     params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
 

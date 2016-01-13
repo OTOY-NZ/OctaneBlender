@@ -488,11 +488,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 default=False,
                 )
 
-        cls.hdr_tonemapped = BoolProperty(
-                name="Tonemapped HDR",
-                description="",
-                default=True,
-                )
+#        cls.hdr_tonemapped = BoolProperty(
+#                name="Tonemapped HDR",
+#                description="",
+#                default=True,
+#                )
 
     @classmethod
     def unregister(cls):
