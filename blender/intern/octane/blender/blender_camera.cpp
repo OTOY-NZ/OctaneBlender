@@ -553,7 +553,6 @@ void BlenderSync::load_camera_from_view(Camera* cam, BL::Scene b_scene, BL::Spac
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BufferParams BlenderSync::get_display_buffer_params(Camera* cam, int width, int height) {
     BufferParams params;
-    bool use_border = false;
 
     params.full_width  = width;
     params.full_height = height;
@@ -561,9 +560,12 @@ BufferParams BlenderSync::get_display_buffer_params(Camera* cam, int width, int 
     params.offset_x = -cam->offset_x * width;
     params.offset_y = -cam->offset_y * height;
 
-    if(cam->use_border)
+    if(cam->use_border) {
+        params.use_border = true;
         params.border = cam->border;
+    }
     else {
+        params.use_border = false;
         params.border.x = 0;
         params.border.y = 0;
         params.border.z = 0;

@@ -72,7 +72,7 @@ Session::~Session() {
 		pause_cond.notify_all();
 		wait();
 	}
-	if(display && params.output_path != "") {
+	if(params.interactive && display && params.output_path != "") {
 		progress.set_status("Writing Image", params.output_path);
 		display->write(params.output_path);
 	}

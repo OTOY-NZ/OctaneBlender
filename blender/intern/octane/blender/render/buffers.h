@@ -40,6 +40,7 @@ public:
 	int full_width;
 	int full_height;
 
+    bool     use_border;
     uint32_4 border;
 };
 

@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 9
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 8
+#   define OCTANE_SERVER_MINOR_VERSION 10
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -89,7 +89,7 @@
 
 OCT_NAMESPACE_BEGIN
 
-using std::cout;
+//using std::cout;
 using std::exception;
 
 static const int SERVER_PORT = 5130;
@@ -2946,23 +2946,27 @@ public:
 
 
     //FIXME: The partial buffer is not needed here ("y" parameter)...
-    inline bool get_8bit_pixels(uchar4* mem, int y, int w, int h) {
+    inline bool get_8bit_pixels(uchar4* mem, int w, int h, int reg_w, int reg_h) {
         if(w <= 0) w = 4;
         if(h <= 0) h = 4;
+        if(reg_w <= 0) reg_w = 4;
+        if(reg_h <= 0) reg_h = 4;
         thread_scoped_lock img_buf_lock(img_buf_mutex);
 
-        if(!image_buf || cur_w != w || cur_h != (h-y)) {
+        size_t buf_len  = reg_w * reg_h * 4;
+        if(!image_buf || cur_w != w || cur_h != h || cur_reg_w != reg_w || cur_reg_h != reg_h) {
             if(image_buf) delete[] image_buf;
-            size_t len  = w * (h-y) * 4;
-            image_buf   = new unsigned char[len];
+            image_buf   = new unsigned char[buf_len];
 
             cur_w = w;
-            cur_h = h-y;
-            memset(image_buf, 1, len);
-            memcpy(mem + y*w, image_buf, cur_w * cur_h * 4);
+            cur_h = h;
+            cur_reg_w = reg_w;
+            cur_reg_h = reg_h;
+            memset(image_buf, 1, buf_len);
+            memcpy(mem, image_buf, buf_len);
             return false;
         }
-        memcpy(mem + y*w, image_buf, cur_w * cur_h * 4);
+        memcpy(mem, image_buf, buf_len);
         return true;
     } //get_8bit_pixels()
 
@@ -2990,9 +2994,9 @@ public:
 
                 thread_scoped_lock img_buf_lock(img_buf_mutex);
                 if(img_type == 0) {
-                    if(!image_buf || static_cast<uint32_t>(cur_w) != uiW || static_cast<uint32_t>(cur_h) != uiH) return false;
+                    if(!image_buf || static_cast<uint32_t>(cur_reg_w) != uiRegW || static_cast<uint32_t>(cur_reg_h) != uiRegH) return false;
 
-                    size_t  len     = uiW * uiH * 4;
+                    size_t  len     = uiRegW * uiRegH * 4;
                     uint8_t *ucBuf  = (uint8_t*)rcv.read_buffer(len);
 
                     memcpy(image_buf, ucBuf, len);

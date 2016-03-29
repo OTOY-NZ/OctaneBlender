@@ -28,6 +28,7 @@ include_directories(
 	${BOOST_INCLUDE_DIR}
 	${OPENIMAGEIO_INCLUDE_DIRS}
 	${OPENIMAGEIO_INCLUDE_DIRS}/OpenImageIO
+	${PNG_INCLUDE_DIRS}
 	${OPENEXR_INCLUDE_DIR})
 
 # Subdirectories

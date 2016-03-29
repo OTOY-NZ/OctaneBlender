@@ -615,6 +615,13 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
     params.out_of_core_gpu_headroom = get_int(oct_scene, "out_of_core_gpu_headroom");
 
+	PointerRNA render_settings = RNA_pointer_get(&b_scene.ptr, "render");
+    params.output_path = get_string(render_settings, "filepath");
+    const char *cur_path = params.output_path.c_str();
+    size_t len = params.output_path.length();
+    if(len > 0 && cur_path[len - 1] != '/' && cur_path[len - 1] != '\\')
+        params.output_path += "/";
+
 	return params;
 } //get_session_params()
 

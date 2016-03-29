@@ -22,6 +22,13 @@
 #include "server.h"
 
 #include <OpenImageIO/imageio.h>
+#ifndef NOPNG
+#	ifdef WIN32
+#		include "png.h"
+#	else
+#		include <png.h>
+#	endif
+#endif // NOPNG
 
 #include "util_opengl.h"
 #include "util_types.h"
@@ -95,8 +102,11 @@ void DisplayBuffer::reset(BufferParams& params_) {
 // Do the OpenGL draw of the Image-buffer chunk
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool DisplayBuffer::draw(RenderServer *server) {
+    int reg_width  = params.use_border ? params.border.z - params.border.x : params.full_width,
+        reg_height = params.use_border ? params.border.w - params.border.y : params.full_height;
+
 	if(params.full_width > 0 && params.full_height > 0) {
-        if(!server->get_8bit_pixels(rgba, 0, params.full_width, params.full_height)) return false;
+        if(!server->get_8bit_pixels(rgba, params.full_width, params.full_height, reg_width, reg_height)) return false;
 
 		glPushMatrix();
         glTranslatef(max(0, params.offset_x), max(0, params.offset_y), 0.0f);
@@ -110,10 +120,20 @@ bool DisplayBuffer::draw(RenderServer *server) {
 	    glPixelZoom(1.0f, 1.0f);
         int iViewport[4];
         glGetIntegerv(GL_VIEWPORT, iViewport);
-        glViewport(iViewport[0] + min(0, params.offset_x), iViewport[1] + min(0, params.offset_y), iViewport[2] - min(0, params.offset_x), iViewport[3] - min(0, params.offset_y));
-	    glRasterPos2f(0, 0);
 
-	    glDrawPixels(params.full_width, params.full_height, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)rgba);
+        if(params.use_border) {
+            glViewport(iViewport[0] + min(0, params.offset_x) + params.border.x, iViewport[1] + min(0, params.offset_y) + (iViewport[3] - params.border.y - reg_height),
+                       min(reg_width, iViewport[2] - min(0, params.offset_x) - params.border.x), min(reg_height, iViewport[3] - min(0, params.offset_y) - params.border.y));
+	        glRasterPos2f(0, 0);
+
+	        glDrawPixels(reg_width, reg_height, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)rgba);
+        }
+        else {
+            glViewport(iViewport[0] + min(0, params.offset_x), iViewport[1] + min(0, params.offset_y), iViewport[2] - min(0, params.offset_x), iViewport[3] - min(0, params.offset_y));
+	        glRasterPos2f(0, 0);
+
+	        glDrawPixels(params.full_width, params.full_height, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)rgba);
+        }
         glViewport(iViewport[0], iViewport[1], iViewport[2], iViewport[3]);
 
 	    if(transparent) glDisable(GL_BLEND);
@@ -126,30 +146,58 @@ bool DisplayBuffer::draw(RenderServer *server) {
 // Write the Image to the file
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void DisplayBuffer::write(const string& filename) {
+#ifndef NOPNG
 	int w = params.full_width;
 	int h = params.full_height;
+    int reg_width  = params.use_border ? params.border.z - params.border.x : params.full_width,
+        reg_height = params.use_border ? params.border.w - params.border.y : params.full_height;
 
 	if(w == 0 || h == 0) return;
 
 	// Read buffer from server
-	server->get_8bit_pixels(rgba, 0, w, h);
+	if(!server->get_8bit_pixels(rgba, w, h, reg_width, reg_height)) return;
+    if(!rgba) return;
 
 	// Write image
-	ImageOutput *out = ImageOutput::create(filename);
-	ImageSpec spec(w, h, 4, TypeDesc::UINT8);
-	int scanlinesize = w * 4 * sizeof(uchar);
+    std::string full_path = filename + "interactive_session.png";
 
-	out->open(filename, spec);
+    unsigned char *buf          = (unsigned char*)rgba;
+	unsigned rowbytes           = reg_width * 4;
+	unsigned char **rows_buf    = new unsigned char*[reg_height * sizeof(unsigned char*)];
 
-	// Conversion for different top/bottom convention
-	out->write_image(TypeDesc::UINT8,
-		(uchar*)rgba + (h-1)*scanlinesize,
-		AutoStride,
-		-scanlinesize,
-		AutoStride);
+	for(int i = 0; i < reg_height; ++i) rows_buf[i] = &buf[(reg_height - i - 1) * rowbytes];
+	png_structp png_ptr = NULL;
+	png_infop info_ptr  = NULL;
+	png_bytep *rows     = rows_buf;
 
-	out->close();
-	delete out;
+    FILE *fp = NULL;
+    if(!(fp = BLI_fopen(full_path.c_str(), "wb"))) goto fail;
+
+    if(!png_ptr) {
+        if(!(png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL))) goto fail;
+    }
+
+    if(!info_ptr) {
+        if(!(info_ptr = png_create_info_struct(png_ptr))) goto fail;
+    }
+
+    if(setjmp(png_jmpbuf(png_ptr))) goto fail;
+    png_init_io(png_ptr, fp);
+    png_set_IHDR(png_ptr, info_ptr, reg_width, reg_height, 8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+    png_write_info(png_ptr, info_ptr);
+    png_write_image(png_ptr, rows);
+    png_write_end(png_ptr, NULL);
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+
+	fclose(fp);
+    delete[] rows_buf;
+    return;
+
+fail:	
+	if(fp) fclose(fp);
+	if(png_ptr || info_ptr) png_destroy_write_struct(&png_ptr, &info_ptr);
+    delete[] rows_buf;
+#endif // NOPNG
 } //write()
 
 OCT_NAMESPACE_END
