@@ -607,10 +607,10 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     if(params.export_scene && params.meshes_type == Mesh::GLOBAL)
         params.meshes_type = Mesh::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
-    params.hdr_tonemapped       = false;//get_boolean(oct_scene, "hdr_tonemapped");
 	
     params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
 
+    params.hdr_tonemapped = get_boolean(oct_scene, "hdr_tonemap_enable");
     params.out_of_core_enabled = get_boolean(oct_scene, "out_of_core_enable");
     params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
     params.out_of_core_gpu_headroom = get_int(oct_scene, "out_of_core_gpu_headroom");

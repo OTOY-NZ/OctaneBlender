@@ -487,6 +487,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="Preview active render layer in viewport",
                 default=False,
                 )
+        cls.hdr_tonemap_enable = BoolProperty(
+                name="Enable HDR tonemapping",
+                description="Tick to enable Octane HDR tonemapping",
+                default=False,
+                )
 
 #        cls.hdr_tonemapped = BoolProperty(
 #                name="Tonemapped HDR",

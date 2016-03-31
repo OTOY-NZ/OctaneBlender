@@ -117,15 +117,18 @@ class OctaneButtonsPanel():
         return rd.engine == 'octane'
 
 
-class VIEW3D_PT_octcam(Panel):
+class VIEW3D_PT_octimager(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_label = "Octane camera"
+    bl_label = "Octane imager"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
         return context.space_data and OctaneButtonsPanel.poll(context)
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.octane, "hdr_tonemap_enable", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -549,6 +552,9 @@ class OctaneCamera_PT_imager(OctaneButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         return context.camera and OctaneButtonsPanel.poll(context)
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.octane, "hdr_tonemap_enable", text="")
 
     def draw(self, context):
         layout = self.layout

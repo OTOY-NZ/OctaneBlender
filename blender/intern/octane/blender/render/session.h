@@ -54,7 +54,7 @@ public:
         export_scene  = 0;
         anim_mode       = FULL;
         fps             = 24.0f;
-        hdr_tonemapped  = true;
+        hdr_tonemapped  = false;
 
         out_of_core_enabled         = false;
         out_of_core_mem_limit       = 4096;
