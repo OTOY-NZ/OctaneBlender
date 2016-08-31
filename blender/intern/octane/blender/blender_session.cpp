@@ -114,7 +114,7 @@ bool BlenderSession::activate(BL::Scene b_scene) {
     string pass         = get_string(oct_scene, "server_pass");
     string stand_login  = get_string(oct_scene, "stand_login");
     string stand_pass   = get_string(oct_scene, "stand_pass");
-    if(stand_login.length() > 0 && stand_pass.length() > 0 && login.length() > 0 && pass.length() > 0) {
+    //if(stand_login.length() > 0 && stand_pass.length() > 0 && login.length() > 0 && pass.length() > 0) {
         RenderServer *server = new RenderServer(server_info.net_address, "", false, true);
 
         if(server) {
@@ -123,7 +123,10 @@ bool BlenderSession::activate(BL::Scene b_scene) {
                 RNA_string_set(&oct_scene, "stand_pass", "");
                 RNA_string_set(&oct_scene, "server_login", "");
                 RNA_string_set(&oct_scene, "server_pass", "");
-                fprintf(stdout, "Octane: server activation is completed successfully.\n");
+                if(login.size() && pass.size())
+                    fprintf(stdout, "Octane: server activation is completed successfully.\n");
+                else
+                    fprintf(stdout, "Octane: server deactivation is completed successfully.\n");
                 ret = true;
             }
             delete server;
@@ -132,11 +135,11 @@ bool BlenderSession::activate(BL::Scene b_scene) {
             fprintf(stderr, "Octane: ERROR during server activation.\n");
             ret = false;
         }
-    }
-    else {
-        fprintf(stderr, "Octane: ERROR: login-password fields must be filled in before activation.\n");
-        ret = false;
-    }
+    //}
+    //else {
+    //    fprintf(stderr, "Octane: ERROR: login-password fields must be filled in before activation.\n");
+    //    ret = false;
+    //}
 
     return ret;
 } //activate()

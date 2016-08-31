@@ -23,7 +23,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 9
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 12
+#   define OCTANE_SERVER_MINOR_VERSION 13
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -889,9 +889,9 @@ public:
         RPCReceive rcv(socket);
         if(rcv.type != SET_LIC_DATA) {
             rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR of the license activation on render-server.");
-            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
-            else fprintf(stderr, "\n");
+            fprintf(stderr, "Octane: ERROR of the license activation/deactivation on render-server.");
+            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n  %s\n", error_msg.c_str());
+            else fprintf(stderr, "\n  No scecific error messages from OctaneLive\n");
             return 0;
         }
         else return 1;
@@ -936,10 +936,10 @@ public:
 
         RPCReceive rcv(socket);
         if(rcv.type != CLEAR) {
-            rcv >> error_msg;
-            fprintf(stderr, "Octane: ERROR clearing render server.");
-            if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
-            else fprintf(stderr, "\n");
+            //rcv >> error_msg;
+            //fprintf(stderr, "Octane: ERROR clearing render server.");
+            //if(error_msg.length() > 0) fprintf(stderr, " Server response:\n%s\n", error_msg.c_str());
+            //else fprintf(stderr, "\n");
         }
     } //clear()
 
