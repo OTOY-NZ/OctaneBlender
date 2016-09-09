@@ -20,13 +20,14 @@
 #define __SESSION_H__
 
 #include "buffers.h"
-#include "server.h"
+#include "OctaneClient.h"
 #include "mesh.h"
 
 #include "util_progress.h"
 #include "util_thread.h"
 
 #include "memleaks_check.h"
+#include "OctaneClient.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -51,10 +52,10 @@ public:
         use_passes      = false;
         meshes_type     = Mesh::AS_IS;
 		samples		    = INT_MAX;
-        export_scene  = 0;
+        export_scene    = ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
         anim_mode       = FULL;
         fps             = 24.0f;
-        hdr_tonemapped  = false;
+        hdr_tonemapped  = true;
 
         out_of_core_enabled         = false;
         out_of_core_mem_limit       = 4096;
@@ -64,6 +65,7 @@ public:
 	bool modified(const SessionParams& params) {
 		return !(
             anim_mode == params.anim_mode
+			&& deep_image == params.deep_image
 			&& interactive == params.interactive
 			&& meshes_type == params.meshes_type
 			&& use_viewport_hide == params.use_viewport_hide
@@ -75,12 +77,12 @@ public:
             && out_of_core_gpu_headroom == params.out_of_core_gpu_headroom);
 	}
 
-	RenderServerInfo    server;
+	::OctaneEngine::OctaneClient::RenderServerInfo server;
 	bool		        interactive;
 	string		        output_path;
 
 	int		        samples;
-    ImageStatistics image_stat;
+    ::OctaneEngine::OctaneClient::RenderStatistics image_stat;
 
     AnimationMode   anim_mode;
     int             width;
@@ -89,8 +91,9 @@ public:
     bool            hdr_tonemapped;
 	bool            use_viewport_hide;
 	Mesh::MeshType  meshes_type;
-	uint32_t        export_scene;
+	::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_scene;
     float           fps;
+    bool            deep_image;
 
     bool            out_of_core_enabled;
     int32_t         out_of_core_mem_limit,
@@ -120,7 +123,7 @@ public:
     void update_params(SessionParams& session_params);
     void update_scene_to_server(uint32_t frame_idx, uint32_t total_frames, bool scene_locked = false);
 
-	RenderServer	*server;
+	::OctaneEngine::OctaneClient *server;
 	Scene			*scene;
 	DisplayBuffer	*display;//Only for INTERACTIVE session
 	Progress		progress;
@@ -139,7 +142,7 @@ protected:
 	void reset_cpu(BufferParams& params, int samples);
 
 	void run_render();
-	void update_img_sample(void);
+	void update_img_sample();
 
 	thread          *session_thread;
 	volatile bool   display_outdated;

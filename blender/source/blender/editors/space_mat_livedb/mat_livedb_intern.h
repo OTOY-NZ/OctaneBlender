@@ -39,9 +39,9 @@
 static unsigned short LIVEDB_PORT = 5131;
 
 /* Network packet types */
-#define GET_LDB_CAT         1
-#define GET_LDB_MAT_PREVIEW 2
-#define GET_LDB_MAT         3
+#define GET_LDB_CAT         2
+#define GET_LDB_MAT_PREVIEW 3
+#define GET_LDB_MAT         4
 
 #define MAT_LDB_TREE_ITEM_TYPE_NONE      0
 #define MAT_LDB_TREE_ITEM_TYPE_CATEGORY  1

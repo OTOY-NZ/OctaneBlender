@@ -17,7 +17,6 @@
  */
 
 #include "graph.h"
-#include "nodes.h"
 #include "scene.h"
 #include "shader.h"
 #include "environment.h"
@@ -59,7 +58,7 @@ static std::string get_oct_mat_name(BL::ShaderNode& b_node, std::string& mat_nam
     BL::Node::outputs_iterator b_output;
     for(b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
         std::string sName;
-        if(b_output->is_linked() && b_output->name() == "OutMat" && ConnectedNodesMap[b_output->ptr.data] == "__Surface") {
+        if(b_output->is_linked() && ((b_output->name() == "OutMat" && ConnectedNodesMap[b_output->ptr.data] == "__Surface") || (b_output->name() == "OutTex" && ConnectedNodesMap[b_output->ptr.data] == "__Volume"))) {
             return mat_name;
         }
     }
@@ -99,7 +98,7 @@ static std::string get_non_oct_mat_name(BL::ShaderNode& b_node, std::string& mat
     char name[32];
     ::sprintf(name, "%p", b_node.ptr.data);
     return name;
-} //get_oct_mat_name()
+} //get_non_oct_mat_name()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
@@ -141,351 +140,510 @@ static inline void translate_colorramp(BL::ColorRamp ramp, std::vector<float> &p
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static inline ShaderNode *const create_shader_node(::OctaneEngine::OctaneNodeBase *const oct_node) {
+    if(!oct_node) return nullptr;
+
+    ShaderNode *node = newnt ShaderNode(oct_node);
+    if(!node) {
+        delete oct_node;
+        return nullptr;
+    }
+    return node;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static bool builtinImagePixels(string const &sFileName, void const *pvBuiltinData, int iFrame, ::OctaneEngine::OctaneImageTextureBuffer *pNode) {
+    pNode->clear();
+    if(!pvBuiltinData) return false;
+
+    PointerRNA ptr;
+    RNA_id_pointer_create((ID*)pvBuiltinData, &ptr);
+    BL::ID b_id(ptr);
+
+    if(b_id.is_a(&RNA_Image)) {
+        BL::Image b_image(b_id);
+
+        int iChannels = b_image.channels();
+        if(iChannels != 1 && iChannels != 4) return false;
+        pNode->iBufComponents = iChannels;
+
+        bool bIsFloat   = pNode->bBufIsFloat    = b_image.is_float();
+        int  iWidth     = pNode->iBufWidth      = b_image.size()[0];
+        int  iHeight    = pNode->iBufHeight     = b_image.size()[1];
+        int  iDepth                             = b_image.depth();
+
+        //int iLast   = sFileName.find_last_of('@');
+        //int iFrame  = atoi(sFileName.substr(iLast + 1, sFileName.size() - iLast - 1).c_str());
+        int iPixelSize = iWidth * iHeight * iChannels;
+
+        if(bIsFloat) {
+            float *pfImagePixels = image_get_float_pixels_for_frame(b_image, iFrame);
+
+            if(!pfImagePixels) {
+                pfImagePixels = new float[iPixelSize];
+
+                if(iChannels == 1)
+                    memset(pfImagePixels, 0, iPixelSize * sizeof(float));
+                else {
+                    float *pfBuf = pfImagePixels;
+                    for(int i = 0; i < iWidth * iHeight; ++i, pfBuf += iChannels) {
+                        pfBuf[0] = 0.0f;
+                        pfBuf[1] = 0.0f;
+                        pfBuf[2] = 0.0f;
+                        if(iChannels == 4) pfBuf[3] = 1.0f;
+                    }
+                }
+            }
+            else {
+                float *pfTmp = new float[iPixelSize];
+                memcpy(pfTmp, pfImagePixels, iPixelSize * sizeof(float));
+                MEM_freeN(pfImagePixels);
+                pfImagePixels = pfTmp;
+            }
+            pNode->pvBufImgData = pfImagePixels;
+            return true;
+        }
+        else {
+            unsigned char *pucImagePixels = image_get_pixels_for_frame(b_image, iFrame);
+
+            if(!pucImagePixels) {
+                pucImagePixels = new unsigned char[iPixelSize];
+                if(iChannels == 1) {
+                    memset(pucImagePixels, 0, iPixelSize * sizeof(unsigned char));
+                }
+                else {
+                    unsigned char *pucBuf = pucImagePixels;
+                    for(int i = 0; i < iWidth * iHeight; ++i, pucBuf += iChannels) {
+                        pucBuf[0] = 0;
+                        pucBuf[1] = 0;
+                        pucBuf[2] = 0;
+                        if(iChannels == 4) pucBuf[3] = 255;
+                    }
+                }
+            }
+            else {
+                unsigned char *pucTmp = new unsigned char[iPixelSize];
+                memcpy(pucTmp, pucImagePixels, iPixelSize);
+                MEM_freeN(pucImagePixels);
+                pucImagePixels = pucTmp;
+
+                //if(iChannels > 1) {
+                //    /* premultiply, byte images are always straight for blender */
+                //    unsigned char *cp = pucImagePixels;
+                //    for(int i = 0; i < iWidth * iHeight; ++i, cp += iChannels) {
+                //        cp[0] = (cp[0] * cp[3]) >> 8;
+                //        cp[1] = (cp[1] * cp[3]) >> 8;
+                //        cp[2] = (cp[2] * cp[3]) >> 8;
+                //    }
+                //}
+            }
+            pNode->pvBufImgData = pucImagePixels;
+            return true;
+        }
+    }
+    else return false;
+} //builtinImageFloatPixels()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNode b_node, PtrStringMap &ConnectedNodesMap) {
-	ShaderNode *node = NULL;
+	ShaderNode *node = nullptr;
         
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // OCTANE MATERIALS
     if(b_node.is_a(&RNA_ShaderNodeOctDiffuseMat)) {
-		BL::ShaderNodeOctDiffuseMat b_diffuse_node(b_node);
-		OctaneDiffuseMaterial* cur_node = new OctaneDiffuseMaterial();
-        node = cur_node;
+        ::OctaneEngine::OctaneDiffuseMaterial* cur_node = newnt ::OctaneEngine::OctaneDiffuseMaterial;
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
+        cur_node->sName = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Diffuse") {
-                if(!b_input->is_linked() || (cur_node->diffuse = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->diffuse = "";
+                if(!b_input->is_linked() || (cur_node->sDiffuse = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sDiffuse = "";
                     BL::NodeSocket value_sock(*b_input);
                     float ret[4];
                     RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                    cur_node->diffuse_default_val.x = ret[0];
-                    cur_node->diffuse_default_val.y = ret[1];
-                    cur_node->diffuse_default_val.z = ret[2];
+
+                    cur_node->diffuseDefaultVal.iType = 3;
+                    cur_node->diffuseDefaultVal.f3Value.x = ret[0];
+                    cur_node->diffuseDefaultVal.f3Value.y = ret[1];
+                    cur_node->diffuseDefaultVal.f3Value.z = ret[2];
                 }
             }
             else if(b_input->name() == "Transmission") {
-                if(!b_input->is_linked() || (cur_node->transmission = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->transmission = "";
+                if(!b_input->is_linked() || (cur_node->sTransmission = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTransmission = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->transmission_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->transmissionDefaultVal.iType = 1;
+                    cur_node->transmissionDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Bump") {
-                if(!b_input->is_linked() || (cur_node->bump = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->bump = "";
+                if(!b_input->is_linked() || (cur_node->sBump = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sBump = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->bump_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->bumpDefaultVal.iType = 1;
+                    cur_node->bumpDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Normal") {
-                if(!b_input->is_linked() || (cur_node->normal = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->normal = "";
+                if(!b_input->is_linked() || (cur_node->sNormal = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sNormal = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->normal_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->normalDefaultVal.iType = 1;
+                    cur_node->normalDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Opacity") {
-                if(!b_input->is_linked() || (cur_node->opacity = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->opacity = "";
+                if(!b_input->is_linked() || (cur_node->sOpacity = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOpacity = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->opacity_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->opacityDefaultVal.iType = 1;
+                    cur_node->opacityDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Edges rounding") {
-                if(!b_input->is_linked() || (cur_node->rounding = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->rounding = "";
+                if(!b_input->is_linked() || (cur_node->sRounding = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRounding = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->rounding_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fRoundingDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Smooth") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->smooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bSmooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Emission") {
                 if(b_input->is_linked())
-                    cur_node->emission = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->emission = "";
+                    cur_node->sEmission = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sEmission = "";
             }
             else if(b_input->name() == "Medium") {
                 if(b_input->is_linked())
-                    cur_node->medium = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->medium = "";
+                    cur_node->sMedium = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sMedium = "";
             }
             else if(b_input->name() == "Displacement") {
                 if(b_input->is_linked())
-                    cur_node->displacement = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->displacement = "";
+                    cur_node->sDisplacement = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sDisplacement = "";
             }
             else if(b_input->name() == "Matte") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->matte = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bMatte = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Roughness") {
-                if(!b_input->is_linked() || (cur_node->roughness = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->roughness = "";
+                if(!b_input->is_linked() || (cur_node->sRoughness = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRoughness = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->roughness_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->roughnessDefaultVal.iType = 1;
+                    cur_node->roughnessDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
 	} //case BL::ShaderNode::type_OCT_DIFFUSE_MAT
     else if(b_node.is_a(&RNA_ShaderNodeOctGlossyMat)) {
-        BL::ShaderNodeOctGlossyMat b_diffuse_node(b_node);
-        OctaneGlossyMaterial* cur_node = new OctaneGlossyMaterial();
-        node = cur_node;
+        ::OctaneEngine::OctaneGlossyMaterial* cur_node = newnt ::OctaneEngine::OctaneGlossyMaterial();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
+        cur_node->sName = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Diffuse") {
-                if(!b_input->is_linked() || (cur_node->diffuse = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->diffuse = "";
+                if(!b_input->is_linked() || (cur_node->sDiffuse = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sDiffuse = "";
                     BL::NodeSocket value_sock(*b_input);
                     float ret[4];
                     RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                    cur_node->diffuse_default_val.x = ret[0];
-                    cur_node->diffuse_default_val.y = ret[1];
-                    cur_node->diffuse_default_val.z = ret[2];
+
+                    cur_node->diffuseDefaultVal.iType = 3;
+                    cur_node->diffuseDefaultVal.f3Value.x = ret[0];
+                    cur_node->diffuseDefaultVal.f3Value.y = ret[1];
+                    cur_node->diffuseDefaultVal.f3Value.z = ret[2];
                 }
             }
             else if(b_input->name() == "Specular") {
-                if(!b_input->is_linked() || (cur_node->specular = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->specular = "";
+                if(!b_input->is_linked() || (cur_node->sSpecular = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sSpecular = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->specular_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->specularDefaultVal.iType = 1;
+                    cur_node->specularDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Roughness") {
-                if(!b_input->is_linked() || (cur_node->roughness = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->roughness = "";
+                if(!b_input->is_linked() || (cur_node->sRoughness = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRoughness = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->roughness_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->roughnessDefaultVal.iType = 1;
+                    cur_node->roughnessDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Film Width") {
-                if(!b_input->is_linked() || (cur_node->filmwidth = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->filmwidth = "";
+                if(!b_input->is_linked() || (cur_node->sFilmwidth = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sFilmwidth = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->filmwidth_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->filmwidthDefaultVal.iType = 1;
+                    cur_node->filmwidthDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Film Index") {
-                if(!b_input->is_linked() || (cur_node->filmindex = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->filmindex = "";
+                if(!b_input->is_linked() || (cur_node->sFilmindex = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sFilmindex = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->filmindex_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fFilmindexDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Bump") {
-                if(!b_input->is_linked() || (cur_node->bump = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->bump = "";
+                if(!b_input->is_linked() || (cur_node->sBump = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sBump = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->bump_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->bumpDefaultVal.iType = 1;
+                    cur_node->bumpDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Normal") {
-                if(!b_input->is_linked() || (cur_node->normal = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->normal = "";
+                if(!b_input->is_linked() || (cur_node->sNormal = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sNormal = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->normal_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->normalDefaultVal.iType = 1;
+                    cur_node->normalDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Opacity") {
-                if(!b_input->is_linked() || (cur_node->opacity = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->opacity = "";
+                if(!b_input->is_linked() || (cur_node->sOpacity = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOpacity = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->opacity_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->opacityDefaultVal.iType = 1;
+                    cur_node->opacityDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Smooth") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->smooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bSmooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Index") {
-                if(!b_input->is_linked() || (cur_node->index = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->index = "";
+                if(!b_input->is_linked() || (cur_node->sIndex = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sIndex = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->index_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fIndexDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Edges rounding") {
-                if(!b_input->is_linked() || (cur_node->rounding = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->rounding = "";
+                if(!b_input->is_linked() || (cur_node->sRounding = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRounding = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->rounding_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fRoundingDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Displacement") {
                 if(b_input->is_linked())
-                    cur_node->displacement = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->displacement = "";
+                    cur_node->sDisplacement = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sDisplacement = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_GLOSSY_MAT
     else if(b_node.is_a(&RNA_ShaderNodeOctSpecularMat)) {
-        BL::ShaderNodeOctSpecularMat b_diffuse_node(b_node);
-        OctaneSpecularMaterial* cur_node = new OctaneSpecularMaterial();
-        node = cur_node;
+        ::OctaneEngine::OctaneSpecularMaterial* cur_node = newnt ::OctaneEngine::OctaneSpecularMaterial();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
+        cur_node->sName = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Reflection") {
-                if(!b_input->is_linked() || (cur_node->reflection = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->reflection = "";
+                if(!b_input->is_linked() || (cur_node->sReflection = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sReflection = "";
                     BL::NodeSocket value_sock(*b_input);
                     float ret[4];
                     RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                    cur_node->reflection_default_val.x = ret[0];
-                    cur_node->reflection_default_val.y = ret[1];
-                    cur_node->reflection_default_val.z = ret[2];
+
+                    cur_node->reflectionDefaultVal.iType = 3;
+                    cur_node->reflectionDefaultVal.f3Value.x = ret[0];
+                    cur_node->reflectionDefaultVal.f3Value.y = ret[1];
+                    cur_node->reflectionDefaultVal.f3Value.z = ret[2];
                 }
             }
             else if(b_input->name() == "Transmission") {
-                if(!b_input->is_linked() || (cur_node->transmission = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->transmission = "";
+                if(!b_input->is_linked() || (cur_node->sTransmission = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTransmission = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->transmission_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->transmissionDefaultVal.iType = 1;
+                    cur_node->transmissionDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Index") {
-                if(!b_input->is_linked() || (cur_node->index = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->index = "";
+                if(!b_input->is_linked() || (cur_node->sIndex = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sIndex = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->index_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fIndexDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Film Width") {
-                if(!b_input->is_linked() || (cur_node->filmwidth = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->filmwidth = "";
+                if(!b_input->is_linked() || (cur_node->sFilmwidth = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sFilmwidth = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->filmwidth_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->filmwidthDefaultVal.iType = 1;
+                    cur_node->filmwidthDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Film Index") {
-                if(!b_input->is_linked() || (cur_node->filmindex = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->filmindex = "";
+                if(!b_input->is_linked() || (cur_node->sFilmindex = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sFilmindex = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->filmindex_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fFilmindexDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Bump") {
-                if(!b_input->is_linked() || (cur_node->bump = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->bump = "";
+                if(!b_input->is_linked() || (cur_node->sBump = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sBump = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->bump_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->bumpDefaultVal.iType = 1;
+                    cur_node->bumpDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Normal") {
-                if(!b_input->is_linked() || (cur_node->normal = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->normal = "";
+                if(!b_input->is_linked() || (cur_node->sNormal = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sNormal = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->normal_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->normalDefaultVal.iType = 1;
+                    cur_node->normalDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Opacity") {
-                if(!b_input->is_linked() || (cur_node->opacity = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->opacity = "";
+                if(!b_input->is_linked() || (cur_node->sOpacity = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOpacity = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->opacity_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->opacityDefaultVal.iType = 1;
+                    cur_node->opacityDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Smooth") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->smooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bSmooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Affect aplha") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->refraction_alpha = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bRefractionAlpha = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Roughness") {
-                if(!b_input->is_linked() || (cur_node->roughness = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->roughness = "";
+                if(!b_input->is_linked() || (cur_node->sRoughness = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRoughness = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->roughness_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->roughnessDefaultVal.iType = 1;
+                    cur_node->roughnessDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Dispersion Coef.") {
-                if(!b_input->is_linked() || (cur_node->dispersion_coef_B = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->dispersion_coef_B = "";
+                if(!b_input->is_linked() || (cur_node->sDispersionCoefB = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sDispersionCoefB = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->dispersion_coef_B_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fDispersionCoefBDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Medium") {
                 if(b_input->is_linked())
-                    cur_node->medium = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->medium = "";
+                    cur_node->sMedium = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sMedium = "";
             }
             else if(b_input->name() == "Fake Shadows") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->fake_shadows = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bFakeShadows = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Edges rounding") {
-                if(!b_input->is_linked() || (cur_node->rounding = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->rounding = "";
+                if(!b_input->is_linked() || (cur_node->sRounding = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRounding = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->rounding_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fRoundingDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Displacement") {
                 if(b_input->is_linked())
-                    cur_node->displacement = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->displacement = "";
+                    cur_node->sDisplacement = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sDisplacement = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_SPECULAR_MAT
     else if(b_node.is_a(&RNA_ShaderNodeOctMixMat)) {
-        BL::ShaderNodeOctMixMat b_diffuse_node(b_node);
-        OctaneMixMaterial* cur_node = new OctaneMixMaterial();
-        node = cur_node;
+        ::OctaneEngine::OctaneMixMaterial* cur_node = newnt ::OctaneEngine::OctaneMixMaterial();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
+        cur_node->sName = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Amount") {
-                if(!b_input->is_linked() || (cur_node->amount = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->amount = "";
+                if(!b_input->is_linked() || (cur_node->sAmount = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sAmount = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->amount_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->amountDefaultVal.iType = 1;
+                    cur_node->amountDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Material1") {
                 if(b_input->is_linked())
-                    cur_node->material1 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->material1 = "";
+                    cur_node->sMaterial1 = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sMaterial1 = "";
             }
             else if(b_input->name() == "Material2") {
                 if(b_input->is_linked())
-                    cur_node->material2 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->material2 = "";
+                    cur_node->sMaterial2 = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sMaterial2 = "";
             }
             else if(b_input->name() == "Displacement") {
                 if(b_input->is_linked())
-                    cur_node->displacement = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->displacement = "";
+                    cur_node->sDisplacement = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sDisplacement = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_MIX_MAT
     else if(b_node.is_a(&RNA_ShaderNodeOctPortalMat)) {
-        BL::ShaderNodeOctPortalMat b_diffuse_node(b_node);
-        OctanePortalMaterial* cur_node = new OctanePortalMaterial();
-        node = cur_node;
+        ::OctaneEngine::OctanePortalMaterial* cur_node = newnt ::OctaneEngine::OctanePortalMaterial();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
 
-        cur_node->name = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
+        cur_node->sName = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Enabled") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->enabled = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bEnabled = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
         }
     } //case BL::ShaderNode::type_OCT_PORTAL_MAT
@@ -493,24 +651,26 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // OCTANE TEXTURES
     else if(b_node.is_a(&RNA_ShaderNodeOctFloatTex)) {
-        BL::ShaderNodeOctFloatTex b_tex_node(b_node);
-        OctaneFloatTexture* cur_node = new OctaneFloatTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneFloatTexture* cur_node = newnt ::OctaneEngine::OctaneFloatTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Value") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->value = RNA_float_get(&value_sock.ptr, "default_value");
+                cur_node->fValue = RNA_float_get(&value_sock.ptr, "default_value");
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctRGBSpectrumTex)) {
-        BL::ShaderNodeOctRGBSpectrumTex b_tex_node(b_node);
-        OctaneRGBSpectrumTexture* cur_node = new OctaneRGBSpectrumTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneRGBSpectrumTexture* cur_node = newnt ::OctaneEngine::OctaneRGBSpectrumTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -518,587 +678,667 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 float ret[4];
                 RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                cur_node->value[0] = ret[0];
-                cur_node->value[1] = ret[1];
-                cur_node->value[2] = ret[2];
-                cur_node->value[3] = ret[3];
+
+                cur_node->f3Value.x = ret[0];
+                cur_node->f3Value.y = ret[1];
+                cur_node->f3Value.z = ret[2];
+                //cur_node->f3Value.w = ret[3];
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctGaussSpectrumTex)) {
-        BL::ShaderNodeOctGaussSpectrumTex b_tex_node(b_node);
-        OctaneGaussianSpectrumTexture* cur_node = new OctaneGaussianSpectrumTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneGaussianSpectrumTexture* cur_node = newnt ::OctaneEngine::OctaneGaussianSpectrumTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Wave Length") {
-                if(!b_input->is_linked() || (cur_node->WaveLength = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->WaveLength = "";
+                if(!b_input->is_linked() || (cur_node->sWaveLength = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sWaveLength = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->WaveLength_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->waveLengthDefaultVal.iType = 1;
+                    cur_node->waveLengthDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Width") {
-                if(!b_input->is_linked() || (cur_node->Width = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Width = "";
+                if(!b_input->is_linked() || (cur_node->sWidth = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sWidth = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Width_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->widthDefaultVal.iType = 1;
+                    cur_node->widthDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->powerDefaultVal.iType = 1;
+                    cur_node->powerDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_GAUSSSPECTRUM_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctChecksTex)) {
-        BL::ShaderNodeOctChecksTex b_tex_node(b_node);
-        OctaneChecksTexture* cur_node = new OctaneChecksTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneChecksTexture* cur_node = newnt ::OctaneEngine::OctaneChecksTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Transform") {
-                if(!b_input->is_linked() || (cur_node->Transform = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Transform = "";
+                if(!b_input->is_linked() || (cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTransform = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Transform_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->transformDefaultVal.iType = 1;
+                    cur_node->transformDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Projection = "";
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sProjection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_CHECKS_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctMarbleTex)) {
-        BL::ShaderNodeOctMarbleTex b_tex_node(b_node);
-        OctaneMarbleTexture* cur_node = new OctaneMarbleTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneMarbleTexture* cur_node = newnt ::OctaneEngine::OctaneMarbleTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->powerDefaultVal.iType = 1;
+                    cur_node->powerDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Offset") {
-                if(!b_input->is_linked() || (cur_node->Offset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Offset = "";
+                if(!b_input->is_linked() || (cur_node->sOffset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOffset = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->offsetDefaultVal.iType = 1;
+                    cur_node->offsetDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Octaves") {
-                if(!b_input->is_linked() || (cur_node->Octaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Octaves = "";
+                if(!b_input->is_linked() || (cur_node->sOctaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOctaves = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Octaves_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iOctavesDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Omega") {
-                if(!b_input->is_linked() || (cur_node->Omega = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Omega = "";
+                if(!b_input->is_linked() || (cur_node->sOmega = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOmega = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Omega_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->omegaDefaultVal.iType = 1;
+                    cur_node->omegaDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Variance") {
-                if(!b_input->is_linked() || (cur_node->Variance = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Variance = "";
+                if(!b_input->is_linked() || (cur_node->sVariance = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sVariance = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Variance_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->varianceDefaultVal.iType = 1;
+                    cur_node->varianceDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTransform = "";
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Projection = "";
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sProjection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_MARBLE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctRidgedFractalTex)) {
-        BL::ShaderNodeOctRidgedFractalTex b_tex_node(b_node);
-        OctaneRidgedFractalTexture* cur_node = new OctaneRidgedFractalTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneRidgedFractalTexture* cur_node = newnt ::OctaneEngine::OctaneRidgedFractalTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->powerDefaultVal.iType = 1;
+                    cur_node->powerDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Offset") {
-                if(!b_input->is_linked() || (cur_node->Offset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Offset = "";
+                if(!b_input->is_linked() || (cur_node->sOffset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOffset = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->offsetDefaultVal.iType = 1;
+                    cur_node->offsetDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Octaves") {
-                if(!b_input->is_linked() || (cur_node->Octaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Octaves = "";
+                if(!b_input->is_linked() || (cur_node->sOctaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOctaves = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Octaves_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iOctavesDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Lacunarity") {
-                if(!b_input->is_linked() || (cur_node->Lacunarity = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Lacunarity = "";
+                if(!b_input->is_linked() || (cur_node->sLacunarity = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sLacunarity = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Lacunarity_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->lacunarityDefaultVal.iType = 1;
+                    cur_node->lacunarityDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTransform = "";
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Projection = "";
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sProjection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_RDGFRACTAL_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctSawWaveTex)) {
-        BL::ShaderNodeOctSawWaveTex b_tex_node(b_node);
-        OctaneSawWaveTexture* cur_node = new OctaneSawWaveTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneSawWaveTexture* cur_node = newnt ::OctaneEngine::OctaneSawWaveTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Offset") {
-                if(!b_input->is_linked() || (cur_node->Offset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Offset = "";
+                if(!b_input->is_linked() || (cur_node->sOffset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOffset = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->offsetDefaultVal.iType = 1;
+                    cur_node->offsetDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTransform = "";
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Projection = "";
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sProjection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_SAWWAVE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctSineWaveTex)) {
-        BL::ShaderNodeOctSineWaveTex b_tex_node(b_node);
-        OctaneSineWaveTexture* cur_node = new OctaneSineWaveTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneSineWaveTexture* cur_node = newnt ::OctaneEngine::OctaneSineWaveTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Offset") {
-                if(!b_input->is_linked() || (cur_node->Offset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Offset = "";
+                if(!b_input->is_linked() || (cur_node->sOffset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOffset = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->offsetDefaultVal.iType = 1;
+                    cur_node->offsetDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTransform = "";
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Projection = "";
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sProjection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_SINEWAVE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctTriWaveTex)) {
-        BL::ShaderNodeOctTriWaveTex b_tex_node(b_node);
-        OctaneTriangleWaveTexture* cur_node = new OctaneTriangleWaveTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneTriangleWaveTexture* cur_node = newnt ::OctaneEngine::OctaneTriangleWaveTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Offset") {
-                if(!b_input->is_linked() || (cur_node->Offset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Offset = "";
+                if(!b_input->is_linked() || (cur_node->sOffset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOffset = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->offsetDefaultVal.iType = 1;
+                    cur_node->offsetDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTransform = "";
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Projection = "";
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sProjection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_TRIWAVE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctTurbulenceTex)) {
-        BL::ShaderNodeOctTurbulenceTex b_tex_node(b_node);
-        OctaneTurbulenceTexture* cur_node = new OctaneTurbulenceTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneTurbulenceTexture* cur_node = newnt ::OctaneEngine::OctaneTurbulenceTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->powerDefaultVal.iType = 1;
+                    cur_node->powerDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Offset") {
-                if(!b_input->is_linked() || (cur_node->Offset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Offset = "";
+                if(!b_input->is_linked() || (cur_node->sOffset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOffset = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->offsetDefaultVal.iType = 1;
+                    cur_node->offsetDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Octaves") {
-                if(!b_input->is_linked() || (cur_node->Octaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Octaves = "";
+                if(!b_input->is_linked() || (cur_node->sOctaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOctaves = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Octaves_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iOctavesDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Omega") {
-                if(!b_input->is_linked() || (cur_node->Omega = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Omega = "";
+                if(!b_input->is_linked() || (cur_node->sOmega = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOmega = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Omega_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->omegaDefaultVal.iType = 1;
+                    cur_node->omegaDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Turbulence") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Turbulence = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bTurbulence = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Invert") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bInvert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Gamma") {
-                if(!b_input->is_linked() || (cur_node->Gamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Gamma = "";
+                if(!b_input->is_linked() || (cur_node->sGamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sGamma = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Gamma_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fGammaDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTransform = "";
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Projection = "";
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sProjection = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_TURBULENCE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctClampTex)) {
-        BL::ShaderNodeOctClampTex b_tex_node(b_node);
-        OctaneClampTexture* cur_node = new OctaneClampTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneClampTexture* cur_node = newnt ::OctaneEngine::OctaneClampTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Input") {
-                if(!b_input->is_linked() || (cur_node->Input = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Input = "";
+                if(!b_input->is_linked() || (cur_node->sInput = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sInput = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Input_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->inputDefaultVal.iType = 1;
+                    cur_node->inputDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Min") {
-                if(!b_input->is_linked() || (cur_node->Min = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Min = "";
+                if(!b_input->is_linked() || (cur_node->sMin = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sMin = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Min_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->minDefaultVal.iType = 1;
+                    cur_node->minDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Max") {
-                if(!b_input->is_linked() || (cur_node->Max = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Max = "";
+                if(!b_input->is_linked() || (cur_node->sMax = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sMax = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Max_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->maxDefaultVal.iType = 1;
+                    cur_node->maxDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_CLAMP_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctCosineMixTex)) {
-        BL::ShaderNodeOctCosineMixTex b_tex_node(b_node);
-        OctaneCosineMixTexture* cur_node = new OctaneCosineMixTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneCosineMixTexture* cur_node = newnt ::OctaneEngine::OctaneCosineMixTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Amount") {
-                if(!b_input->is_linked() || (cur_node->Amount = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Amount = "";
+                if(!b_input->is_linked() || (cur_node->sAmount = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sAmount = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Amount_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->amountDefaultVal.iType = 1;
+                    cur_node->amountDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Texture1") {
                 if(b_input->is_linked())
-                    cur_node->Texture1 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Texture1 = "";
+                    cur_node->sTexture1 = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture1 = "";
             }
             else if(b_input->name() == "Texture2") {
                 if(b_input->is_linked())
-                    cur_node->Texture2 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Texture2 = "";
+                    cur_node->sTexture2 = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture2 = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_COSMIX_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctInvertTex)) {
-        BL::ShaderNodeOctInvertTex b_tex_node(b_node);
-        OctaneInvertTexture* cur_node = new OctaneInvertTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneInvertTexture* cur_node = newnt ::OctaneEngine::OctaneInvertTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Texture") {
                 if(b_input->is_linked())
-                    cur_node->Texture = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Texture = "";
+                    cur_node->sTexture = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_INVERT_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctPolygonSideTex)) {
-        BL::ShaderNodeOctPolygonSideTex b_tex_node(b_node);
-        OctanePolygonSideTexture* cur_node = new OctanePolygonSideTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctanePolygonSideTexture* cur_node = newnt ::OctaneEngine::OctanePolygonSideTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Invert") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bInvert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
         }
     } //case BL::ShaderNode::type_OCT_PYLYGON_SIDE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctNoiseTex)) {
-        BL::ShaderNodeOctNoiseTex b_tex_node(b_node);
-        OctaneNoiseTexture* cur_node = new OctaneNoiseTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneNoiseTexture* cur_node = newnt ::OctaneEngine::OctaneNoiseTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Noise type") {
-                if(!b_input->is_linked() || (cur_node->Octaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->noise_type = "";
+                if(!b_input->is_linked() || (cur_node->sNoiseType = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sNoiseType = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->noise_type_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iNoiseTypeDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Octaves") {
-                if(!b_input->is_linked() || (cur_node->Octaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Octaves = "";
+                if(!b_input->is_linked() || (cur_node->sOctaves = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOctaves = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Octaves_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iOctavesDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Omega") {
-                if(!b_input->is_linked() || (cur_node->Omega = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Omega = "";
+                if(!b_input->is_linked() || (cur_node->sOmega = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOmega = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Omega_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fOmegaDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTransform = "";
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Projection = "";
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sProjection = "";
             }
             else if(b_input->name() == "Invert") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bInvert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Gamma") {
-                if(!b_input->is_linked() || (cur_node->Gamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Gamma = "";
+                if(!b_input->is_linked() || (cur_node->sGamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sGamma = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Gamma_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fGammaDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Contrast") {
-                if(!b_input->is_linked() || (cur_node->Contrast = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Contrast = "";
+                if(!b_input->is_linked() || (cur_node->sContrast = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sContrast = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Contrast_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fContrastDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_PYLYGON_SIDE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctMixTex)) {
-        BL::ShaderNodeOctMixTex b_tex_node(b_node);
-        OctaneMixTexture* cur_node = new OctaneMixTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneMixTexture* cur_node = newnt ::OctaneEngine::OctaneMixTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Amount") {
-                if(!b_input->is_linked() || (cur_node->Amount = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Amount = "";
+                if(!b_input->is_linked() || (cur_node->sAmount = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sAmount = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Amount_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->amountDefaultVal.iType = 1;
+                    cur_node->amountDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Texture1") {
                 if(b_input->is_linked())
-                    cur_node->Texture1 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Texture1 = "";
+                    cur_node->sTexture1 = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture1 = "";
             }
             else if(b_input->name() == "Texture2") {
                 if(b_input->is_linked())
-                    cur_node->Texture2 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Texture2 = "";
+                    cur_node->sTexture2 = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture2 = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_MIX_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctMultiplyTex)) {
-        BL::ShaderNodeOctMultiplyTex b_tex_node(b_node);
-        OctaneMultiplyTexture* cur_node = new OctaneMultiplyTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneMultiplyTexture* cur_node = newnt ::OctaneEngine::OctaneMultiplyTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Texture1") {
                 if(b_input->is_linked())
-                    cur_node->Texture1 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Texture1 = "";
+                    cur_node->sTexture1 = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture1 = "";
             }
             else if(b_input->name() == "Texture2") {
                 if(b_input->is_linked())
-                    cur_node->Texture2 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Texture2 = "";
+                    cur_node->sTexture2 = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture2 = "";
             }
         }
     } //case BL::ShaderNode::type_OCT_MULTIPLY_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctFalloffTex)) {
-        BL::ShaderNodeOctFalloffTex b_tex_node(b_node);
-        OctaneFalloffTexture* cur_node = new OctaneFalloffTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneFalloffTexture* cur_node = newnt ::OctaneEngine::OctaneFalloffTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Normal") {
-                if(!b_input->is_linked() || (cur_node->Normal = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Normal = "";
+                if(!b_input->is_linked() || (cur_node->sNormal = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sNormal = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Normal_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fNormalDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Grazing") {
-                if(!b_input->is_linked() || (cur_node->Grazing = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Grazing = "";
+                if(!b_input->is_linked() || (cur_node->sGrazing = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sGrazing = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Grazing_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fGrazingDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Falloff Skew Factor") {
-                if(!b_input->is_linked() || (cur_node->Index = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Index = "";
+                if(!b_input->is_linked() || (cur_node->sIndex = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sIndex = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Index_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fIndexDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_FALLOFF_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctColorCorrectTex)) {
-        BL::ShaderNodeOctColorCorrectTex b_tex_node(b_node);
-        OctaneColorCorrectTexture* cur_node = new OctaneColorCorrectTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneColorCorrectTexture* cur_node = newnt ::OctaneEngine::OctaneColorCorrectTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Texture") {
                 if(b_input->is_linked())
-                    cur_node->Texture = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Texture = "";
+                    cur_node->sTexture = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture = "";
             }
             else if(b_input->name() == "Invert") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bInvert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Brightness") {
-                if(!b_input->is_linked() || (cur_node->Brightness = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Brightness = "";
+                if(!b_input->is_linked() || (cur_node->sBrightness = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sBrightness = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Brightness_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->brightnessDefaultVal.iType = 1;
+                    cur_node->brightnessDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Gamma") {
-                if(!b_input->is_linked() || (cur_node->Gamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Gamma = "";
+                if(!b_input->is_linked() || (cur_node->sGamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sGamma = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Gamma_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fGammaDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Hue") {
-                if(!b_input->is_linked() || (cur_node->Hue = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Hue = "";
+                if(!b_input->is_linked() || (cur_node->sHue = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sHue = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Hue_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fHueDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Saturation") {
-                if(!b_input->is_linked() || (cur_node->Saturation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Saturation = "";
+                if(!b_input->is_linked() || (cur_node->sSaturation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sSaturation = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Saturation_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fSaturationDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Contrast") {
-                if(!b_input->is_linked() || (cur_node->Contrast = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Contrast = "";
+                if(!b_input->is_linked() || (cur_node->sContrast = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sContrast = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Contrast_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fContrastDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
@@ -1118,9 +1358,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 	        tex->iuser.ok= 1;
 	        cur_bnode->storage = tex;
         }
-        OctaneImageTexture* cur_node = new OctaneImageTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneImageTexture* cur_node = newnt ::OctaneEngine::OctaneImageTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
 		BL::Image b_image(b_tex_node.image());
 	    if(b_image) {
@@ -1138,57 +1380,62 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 			    // builtin names for packed images and movies
 			    int scene_frame = b_scene.frame_current();
 			    int image_frame = image_user_frame_number(b_tex_node.image_user(), scene_frame);
-			    cur_node->FileName = b_image.name() + "@" + string_printf("%d", image_frame);
-			    cur_node->builtin_data = b_image.ptr.data;
+			    cur_node->sFileName = b_image.name() + "@" + string_printf("%d", image_frame);
+
+                builtinImagePixels(cur_node->sFileName, b_image.ptr.data, image_frame, &(cur_node->dataBuffer));
             }
 		    else {
-			    cur_node->FileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
-			    cur_node->builtin_data = 0;
+			    cur_node->sFileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
+			    cur_node->dataBuffer.clear();
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
         else {
-            cur_node->FileName = "";
-            cur_node->builtin_data = 0;
+            cur_node->sFileName = "";
+		    cur_node->dataBuffer.clear();
         }
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->powerDefaultVal.iType = 1;
+                    cur_node->powerDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Gamma") {
-                if(!b_input->is_linked() || (cur_node->Gamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Gamma = "";
+                if(!b_input->is_linked() || (cur_node->sGamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sGamma = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Gamma_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fGammaDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Transform = "";
+                    cur_node->sTransform = "";
             }
             else if(b_input->name() == "Invert") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bInvert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Projection = "";
+                    cur_node->sProjection = "";
             }
             else if(b_input->name() == "Border mode") {
-                if(!b_input->is_linked() || (cur_node->BorderMode = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->BorderMode = "";
+                if(!b_input->is_linked() || (cur_node->sBorderMode = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sBorderMode = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->BorderMode_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iBorderModeDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
         }
@@ -1208,9 +1455,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 	        tex->iuser.ok= 1;
 	        cur_bnode->storage = tex;
         }
-        OctaneFloatImageTexture* cur_node = new OctaneFloatImageTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneFloatImageTexture* cur_node = newnt ::OctaneEngine::OctaneFloatImageTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
 		BL::Image b_image(b_tex_node.image());
 	    if(b_image) {
@@ -1228,57 +1477,62 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 			    // builtin names for packed images and movies
 			    int scene_frame = b_scene.frame_current();
 			    int image_frame = image_user_frame_number(b_tex_node.image_user(), scene_frame);
-			    cur_node->FileName = b_image.name() + "@" + string_printf("%d", image_frame);
-			    cur_node->builtin_data = b_image.ptr.data;
+			    cur_node->sFileName = b_image.name() + "@" + string_printf("%d", image_frame);
+
+                builtinImagePixels(cur_node->sFileName, b_image.ptr.data, image_frame, &(cur_node->dataBuffer));
 		    }
 		    else {
-			    cur_node->FileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
-			    cur_node->builtin_data = 0;
+			    cur_node->sFileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
+			    cur_node->dataBuffer.clear();
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
         else {
-            cur_node->FileName = "";
-            cur_node->builtin_data = 0;
+            cur_node->sFileName = "";
+    	    cur_node->dataBuffer.clear();
         }
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->powerDefaultVal.iType = 1;
+                    cur_node->powerDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Gamma") {
-                if(!b_input->is_linked() || (cur_node->Gamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Gamma = "";
+                if(!b_input->is_linked() || (cur_node->sGamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sGamma = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Gamma_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fGammaDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Transform = "";
+                    cur_node->sTransform = "";
             }
             else if(b_input->name() == "Invert") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bInvert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Projection = "";
+                    cur_node->sProjection = "";
             }
             else if(b_input->name() == "Border mode") {
-                if(!b_input->is_linked() || (cur_node->BorderMode = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->BorderMode = "";
+                if(!b_input->is_linked() || (cur_node->sBorderMode = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sBorderMode = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->BorderMode_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iBorderModeDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
         }
@@ -1298,9 +1552,11 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 	        tex->iuser.ok= 1;
 	        cur_bnode->storage = tex;
         }
-        OctaneAlphaImageTexture* cur_node = new OctaneAlphaImageTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneAlphaImageTexture* cur_node = newnt ::OctaneEngine::OctaneAlphaImageTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
 		BL::Image b_image(b_tex_node.image());
 	    if(b_image) {
@@ -1318,172 +1574,217 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 			    // builtin names for packed images and movies
 			    int scene_frame = b_scene.frame_current();
 			    int image_frame = image_user_frame_number(b_tex_node.image_user(), scene_frame);
-			    cur_node->FileName = b_image.name() + "@" + string_printf("%d", image_frame);
-			    cur_node->builtin_data = b_image.ptr.data;
+			    cur_node->sFileName = b_image.name() + "@" + string_printf("%d", image_frame);
+
+                builtinImagePixels(cur_node->sFileName, b_image.ptr.data, image_frame, &(cur_node->dataBuffer));
 		    }
 		    else {
-			    cur_node->FileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
-			    cur_node->builtin_data = 0;
+			    cur_node->sFileName = image_user_file_path(b_tex_node.image_user(), b_image, b_scene.frame_current());
+			    cur_node->dataBuffer.clear();
 		    }
 		    //cur_node->animated = b_image_node.image_user().use_auto_refresh();
 	    } //if(b_image)
         else {
-            cur_node->FileName = "";
-            cur_node->builtin_data = 0;
+            cur_node->sFileName = "";
+    	    cur_node->dataBuffer.clear();
         }
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->powerDefaultVal.iType = 1;
+                    cur_node->powerDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Gamma") {
-                if(!b_input->is_linked() || (cur_node->Gamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Gamma = "";
+                if(!b_input->is_linked() || (cur_node->sGamma = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sGamma = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Gamma_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fGammaDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Transform") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Transform = "";
+                    cur_node->sTransform = "";
             }
             else if(b_input->name() == "Invert") {
                 //BL::NodeSocketBoolean value_sock(*b_input);
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Invert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bInvert = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Projection") {
                 if(b_input->is_linked())
-                    cur_node->Projection = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sProjection = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Projection = "";
+                    cur_node->sProjection = "";
             }
             else if(b_input->name() == "Border mode") {
-                if(!b_input->is_linked() || (cur_node->BorderMode = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->BorderMode = "";
+                if(!b_input->is_linked() || (cur_node->sBorderMode = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sBorderMode = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->BorderMode_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iBorderModeDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_AIMAGE_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctDirtTex)) {
-        BL::ShaderNodeOctDirtTex b_tex_node(b_node);
-        OctaneDirtTexture* cur_node = new OctaneDirtTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneDirtTexture* cur_node = newnt ::OctaneEngine::OctaneDirtTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Strength") {
-                if(!b_input->is_linked() || (cur_node->Strength = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Strength = "";
+                if(!b_input->is_linked() || (cur_node->sStrength = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sStrength = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Strength_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fStrengthDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Details") {
-                if(!b_input->is_linked() || (cur_node->Details = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Details = "";
+                if(!b_input->is_linked() || (cur_node->sDetails = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sDetails = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Details_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fDetailsDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Radius") {
-                if(!b_input->is_linked() || (cur_node->Radius = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Radius = "";
+                if(!b_input->is_linked() || (cur_node->sRadius = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRadius = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Radius_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fRadiusDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Tolerance") {
-                if(!b_input->is_linked() || (cur_node->Tolerance = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Tolerance = "";
+                if(!b_input->is_linked() || (cur_node->sTolerance = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTolerance = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Tolerance_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fToleranceDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Invert Normal") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->InvertNormal = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bInvertNormal = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
         }
     } //case BL::ShaderNode::type_OCT_DIRT_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctGradientTex)) {
         BL::ShaderNodeOctGradientTex b_tex_node(b_node);
-        OctaneGradientTexture* cur_node = new OctaneGradientTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneGradientTexture* cur_node = newnt ::OctaneEngine::OctaneGradientTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
 
-        translate_colorramp(b_tex_node.color_ramp(), cur_node->pos_data, cur_node->color_data);
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+
+        translate_colorramp(b_tex_node.color_ramp(), cur_node->aPosData, cur_node->aColorData);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Texture") {
                 if(b_input->is_linked())
-                    cur_node->texture = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->texture = "";
+                    cur_node->sTexture = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sTexture = "";
             }
-            else if(b_input->name() == "Smooth") {
+            else if(b_input->name() == "Interp. type") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Smooth = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->sInterpolationType = "";
+                cur_node->iInterpolationTypeDefaultVal = (RNA_int_get(&value_sock.ptr, "default_value") != 0);
+            }
+        }
+    }
+    else if(b_node.is_a(&RNA_ShaderNodeOctVolumeRampTex)) {
+        BL::ShaderNodeOctVolumeRampTex b_tex_node(b_node);
+        ::OctaneEngine::OctaneVolumeRampTexture* cur_node = newnt ::OctaneEngine::OctaneVolumeRampTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+
+        translate_colorramp(b_tex_node.color_ramp(), cur_node->aPosData, cur_node->aColorData);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Interp. type") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->sInterpolationType = "";
+                cur_node->iInterpolationTypeDefaultVal = (RNA_int_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Max grid val.") {
+                if(!b_input->is_linked() || (cur_node->sMaxGridValue = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sMaxGridValue = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->fMaxGridValueDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
+                }
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctRandomColorTex)) {
-        BL::ShaderNodeOctRandomColorTex b_tex_node(b_node);
-        OctaneRandomColorTexture* cur_node = new OctaneRandomColorTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneRandomColorTexture* cur_node = newnt ::OctaneEngine::OctaneRandomColorTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Random Seed") {
-                if(!b_input->is_linked() || (cur_node->Seed = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Seed = "";
+                if(!b_input->is_linked() || (cur_node->sSeed = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sSeed = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Seed_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iSeedDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctDisplacementTex)) {
-        BL::ShaderNodeOctDisplacementTex b_tex_node(b_node);
-        OctaneDisplacementTexture* cur_node = new OctaneDisplacementTexture();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneDisplacementTexture* cur_node = newnt ::OctaneEngine::OctaneDisplacementTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Texture") {
                 if(b_input->is_linked())
-                    cur_node->texture = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTexture = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->texture = "";
+                    cur_node->sTexture = "";
             }
             else if(b_input->name() == "Level of details") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->DetailsLevel = RNA_int_get(&value_sock.ptr, "default_value");
+                cur_node->iDetailsLevel = RNA_int_get(&value_sock.ptr, "default_value");
             }
             else if(b_input->name() == "Height") {
-                if(!b_input->is_linked() || (cur_node->Height = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Height = "";
+                if(!b_input->is_linked() || (cur_node->sHeight = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sHeight = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Height_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fHeightDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Offset") {
-                if(!b_input->is_linked() || (cur_node->Offset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Offset = "";
+                if(!b_input->is_linked() || (cur_node->sOffset = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sOffset = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Offset_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fOffsetDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
         }
@@ -1493,121 +1794,140 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
     // OCTANE EMISSIONS
     else if(b_node.is_a(&RNA_ShaderNodeOctBlackBodyEmission)) {
         BL::ShaderNodeOctBlackBodyEmission b_emi_node(b_node);
-        OctaneBlackBodyEmission* cur_node = new OctaneBlackBodyEmission();
-        node = cur_node;
+        ::OctaneEngine::OctaneBlackBodyEmission* cur_node = newnt ::OctaneEngine::OctaneBlackBodyEmission();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_emi_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Texture") {
-                if(!b_input->is_linked() || (cur_node->TextureOrEff = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->TextureOrEff = "";
+                if(!b_input->is_linked() || (cur_node->sTextureOrEff = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTextureOrEff = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->TextureOrEff_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->textureOrEffDefaultVal.iType = 1;
+                    cur_node->textureOrEffDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fPowerDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Surface brightness") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->SurfaceBrightness = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bSurfaceBrightness = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Temperature") {
-                if(!b_input->is_linked() || (cur_node->Temperature = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Temperature = "";
+                if(!b_input->is_linked() || (cur_node->sTemperature = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTemperature = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Temperature_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fTemperatureDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Normalize") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Normalize = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bNormalize = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Distribution") {
-                if(!b_input->is_linked() || (cur_node->Distribution = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Distribution = "";
+                if(!b_input->is_linked() || (cur_node->sDistribution = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sDistribution = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Distribution_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->distributionDefaultVal.iType = 1;
+                    cur_node->distributionDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Sampling Rate") {
-                if(!b_input->is_linked() || (cur_node->SamplingRate = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->SamplingRate = "";
+                if(!b_input->is_linked() || (cur_node->sSamplingRate = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sSamplingRate = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->SamplingRate_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fSamplingRateDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Cast illumination") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->CastIllumination = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bCastIllumination = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Ligth pass ID") {
-                if(!b_input->is_linked() || (cur_node->LightPassID = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->LightPassID = "";
+                if(!b_input->is_linked() || (cur_node->sLightPassId = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sLightPassId = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->LightPassID_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iLightPassIdDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_BBODY_EMI
     else if(b_node.is_a(&RNA_ShaderNodeOctTextureEmission)) {
         BL::ShaderNodeOctTextureEmission b_emi_node(b_node);
-        OctaneTextureEmission* cur_node = new OctaneTextureEmission();
-        node = cur_node;
+        ::OctaneEngine::OctaneTextureEmission* cur_node = newnt ::OctaneEngine::OctaneTextureEmission();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_emi_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Texture") {
-                if(!b_input->is_linked() || (cur_node->TextureOrEff = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->TextureOrEff = "";
+                if(!b_input->is_linked() || (cur_node->sTextureOrEff = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTextureOrEff = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->TextureOrEff_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->textureOrEffDefaultVal.iType = 1;
+                    cur_node->textureOrEffDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Power") {
-                if(!b_input->is_linked() || (cur_node->Power = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Power = "";
+                if(!b_input->is_linked() || (cur_node->sPower = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPower = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Power_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fPowerDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Surface brightness") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->SurfaceBrightness = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bSurfaceBrightness = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Distribution") {
-                if(!b_input->is_linked() || (cur_node->Distribution = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Distribution = "";
+                if(!b_input->is_linked() || (cur_node->sDistribution = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sDistribution = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Distribution_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->distributionDefaultVal.iType = 1;
+                    cur_node->distributionDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Sampling Rate") {
-                if(!b_input->is_linked() || (cur_node->SamplingRate = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->SamplingRate = "";
+                if(!b_input->is_linked() || (cur_node->sSamplingRate = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sSamplingRate = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->SamplingRate_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fSamplingRateDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Cast illumination") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->CastIllumination = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->bCastIllumination = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
             else if(b_input->name() == "Ligth pass ID") {
-                if(!b_input->is_linked() || (cur_node->LightPassID = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->LightPassID = "";
+                if(!b_input->is_linked() || (cur_node->sLightPassId = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sLightPassId = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->LightPassID_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iLightPassIdDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
         }
@@ -1617,138 +1937,247 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
     // OCTANE MEDIUMS
     else if(b_node.is_a(&RNA_ShaderNodeOctAbsorptionMedium)) {
         BL::ShaderNodeOctAbsorptionMedium b_med_node(b_node);
-        OctaneAbsorptionMedium* cur_node = new OctaneAbsorptionMedium();
-        node = cur_node;
+        ::OctaneEngine::OctaneAbsorptionMedium* cur_node = newnt ::OctaneEngine::OctaneAbsorptionMedium();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_med_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Absorption") {
-                if(!b_input->is_linked() || (cur_node->Absorption = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Absorption = "";
+                if(!b_input->is_linked() || (cur_node->sAbsorption = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sAbsorption = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Absorption_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->absorptionDefaultVal.iType = 1;
+                    cur_node->absorptionDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Scale") {
-                if(!b_input->is_linked() || (cur_node->Scale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Scale = "";
+                if(!b_input->is_linked() || (cur_node->sScale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sScale = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Scale_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fScaleDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
+            }
+            else if(b_input->name() == "Invert abs.") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->bInvertAbsorption = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
         }
     } //case BL::ShaderNode::type_OCT_ABSORP_MED
     else if(b_node.is_a(&RNA_ShaderNodeOctScatteringMedium)) {
         BL::ShaderNodeOctScatteringMedium b_med_node(b_node);
-        OctaneScatteringMedium* cur_node = new OctaneScatteringMedium();
-        node = cur_node;
+        ::OctaneEngine::OctaneScatteringMedium* cur_node = newnt ::OctaneEngine::OctaneScatteringMedium();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_med_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Absorption") {
-                if(!b_input->is_linked() || (cur_node->Absorption = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Absorption = "";
+                if(!b_input->is_linked() || (cur_node->sAbsorption = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sAbsorption = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Absorption_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->absorptionDefaultVal.iType = 1;
+                    cur_node->absorptionDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Scattering") {
-                if(!b_input->is_linked() || (cur_node->Scattering = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Scattering = "";
+                if(!b_input->is_linked() || (cur_node->sScattering = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sScattering = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Scattering_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->scatteringDefaultVal.iType = 1;
+                    cur_node->scatteringDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Phase") {
-                if(!b_input->is_linked() || (cur_node->Phase = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Phase = "";
+                if(!b_input->is_linked() || (cur_node->sPhase = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPhase = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Phase_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fPhaseDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Emission") {
                 if(b_input->is_linked())
-                    cur_node->Emission = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Emission = "";
+                    cur_node->sEmission = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sEmission = "";
             }
             else if(b_input->name() == "Scale") {
-                if(!b_input->is_linked() || (cur_node->Scale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Scale = "";
+                if(!b_input->is_linked() || (cur_node->sScale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sScale = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->Scale_default_val = RNA_float_get(&value_sock.ptr, "default_value");
+
+                    cur_node->fScaleDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
+            }
+            else if(b_input->name() == "Invert abs.") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->bInvertAbsorption = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
             }
         }
     } //case BL::ShaderNode::type_OCT_SCATTER_MED
+    else if(b_node.is_a(&RNA_ShaderNodeOctVolumeMedium)) {
+        BL::ShaderNodeOctVolumeMedium b_med_node(b_node);
+        ::OctaneEngine::OctaneVolumeMedium* cur_node = newnt ::OctaneEngine::OctaneVolumeMedium();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
+
+        BL::Node::inputs_iterator b_input;
+        for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if(b_input->name() == "Scale") {
+                if(!b_input->is_linked() || (cur_node->sScale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sScale = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->fScaleDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Step len.") {
+                if(!b_input->is_linked() || (cur_node->sStepLength = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sStepLength = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->fStepLengthDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Absorption") {
+                if(!b_input->is_linked() || (cur_node->sAbsorption = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sAbsorption = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->absorptionDefaultVal.iType = 1;
+                    cur_node->absorptionDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Abs. ramp") {
+                if(b_input->is_linked())
+                    cur_node->sAbsorptionRamp = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sAbsorptionRamp = "";
+            }
+            else if(b_input->name() == "Invert abs.") {
+                BL::NodeSocket value_sock(*b_input);
+                cur_node->bInvertAbsorption = (RNA_boolean_get(&value_sock.ptr, "default_value") != 0);
+            }
+            else if(b_input->name() == "Scattering") {
+                if(!b_input->is_linked() || (cur_node->sScattering = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sScattering = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->scatteringDefaultVal.iType = 1;
+                    cur_node->scatteringDefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Scat. ramp") {
+                if(b_input->is_linked())
+                    cur_node->sScatteringRamp = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sScatteringRamp = "";
+            }
+            else if(b_input->name() == "Phase") {
+                if(!b_input->is_linked() || (cur_node->sPhase = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sPhase = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->fPhaseDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
+                }
+            }
+            else if(b_input->name() == "Emission") {
+                if(b_input->is_linked())
+                    cur_node->sEmission = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sEmission = "";
+            }
+            else if(b_input->name() == "Emiss. ramp") {
+                if(b_input->is_linked())
+                    cur_node->sEmissionRamp = ConnectedNodesMap[b_input->ptr.data];
+                else cur_node->sEmissionRamp = "";
+            }
+        }
+    } //case BL::ShaderNode::type_OCT_VOLUME_MED
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // OCTANE TRANSFORMS
     else if(b_node.is_a(&RNA_ShaderNodeOctRotateTransform)) {
         BL::ShaderNodeOctRotateTransform b_trans_node(b_node);
-        OctaneRotationTransform* cur_node = new OctaneRotationTransform();
-        node = cur_node;
+        ::OctaneEngine::OctaneRotationTransform* cur_node = newnt ::OctaneEngine::OctaneRotationTransform();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_trans_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Rotation") {
-                if(!b_input->is_linked() || (cur_node->Rotation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Rotation = "";
+                if(!b_input->is_linked() || (cur_node->sRotation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRotation = "";
                     BL::NodeSocket value_sock(*b_input);
                     float Rotation[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
-                    cur_node->Rotation_default_val.x = Rotation[0];
-                    cur_node->Rotation_default_val.y = Rotation[1];
-                    cur_node->Rotation_default_val.z = Rotation[2];
+
+                    cur_node->f3RotationDefaultVal.x = Rotation[0];
+                    cur_node->f3RotationDefaultVal.y = Rotation[1];
+                    cur_node->f3RotationDefaultVal.z = Rotation[2];
                 }
             }
             else if(b_input->name() == "Rotation order") {
-                if(!b_input->is_linked() || (cur_node->RotationOrder = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->RotationOrder = "";
+                if(!b_input->is_linked() || (cur_node->sRotationOrder = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRotationOrder = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->RotationOrder_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iRotationOrderDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_ROTATE_TRN
     else if(b_node.is_a(&RNA_ShaderNodeOctScaleTransform)) {
         BL::ShaderNodeOctScaleTransform b_trans_node(b_node);
-        OctaneScaleTransform* cur_node = new OctaneScaleTransform();
-        node = cur_node;
+        ::OctaneEngine::OctaneScaleTransform* cur_node = newnt ::OctaneEngine::OctaneScaleTransform();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_trans_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Scale") {
-                if(!b_input->is_linked() || (cur_node->Scale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Scale = "";
+                if(!b_input->is_linked() || (cur_node->sScale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sScale = "";
                     BL::NodeSocket value_sock(*b_input);
                     float Scale[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
-                    cur_node->Scale_default_val.x = Scale[0];
-                    cur_node->Scale_default_val.y = Scale[1];
-                    cur_node->Scale_default_val.z = Scale[2];
+
+                    cur_node->f3ScaleDefaultVal.x = Scale[0];
+                    cur_node->f3ScaleDefaultVal.y = Scale[1];
+                    cur_node->f3ScaleDefaultVal.z = Scale[2];
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_SCALE_TRN
     else if(b_node.is_a(&RNA_ShaderNodeOctFullTransform)) {
         BL::ShaderNodeOctFullTransform b_trans_node(b_node);
-        OctaneFullTransform* cur_node = new OctaneFullTransform();
-        node = cur_node;
+        ::OctaneEngine::OctaneFullTransform* cur_node = newnt ::OctaneEngine::OctaneFullTransform();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_trans_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
+        cur_node->bIsValue = false;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1757,207 +2186,269 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 float Rotation[3];
                 RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
-                cur_node->Rotation.x = Rotation[0];
-                cur_node->Rotation.y = Rotation[1];
-                cur_node->Rotation.z = Rotation[2];
+
+                cur_node->f3Rotation.x = Rotation[0];
+                cur_node->f3Rotation.y = Rotation[1];
+                cur_node->f3Rotation.z = Rotation[2];
             }
             else if(b_input->name() == "Scale") {
                 BL::NodeSocket value_sock(*b_input);
                 float Scale[3];
                 RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
-                cur_node->Scale.x = Scale[0];
-                cur_node->Scale.y = Scale[1];
-                cur_node->Scale.z = Scale[2];
+
+                cur_node->f3Scale.x = Scale[0];
+                cur_node->f3Scale.y = Scale[1];
+                cur_node->f3Scale.z = Scale[2];
             }
             else if(b_input->name() == "Translation") {
                 BL::NodeSocket value_sock(*b_input);
                 float Translation[3];
                 RNA_float_get_array(&value_sock.ptr, "default_value", Translation);
-                cur_node->Translation.x = Translation[0];
-                cur_node->Translation.y = Translation[1];
-                cur_node->Translation.z = Translation[2];
+
+                cur_node->f3Translation.x = Translation[0];
+                cur_node->f3Translation.y = Translation[1];
+                cur_node->f3Translation.z = Translation[2];
             }
             else if(b_input->name() == "Rotation order") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->RotationOrder_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+                cur_node->iRotationOrderDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
             }
         }
     } //case BL::ShaderNode::type_OCT_FULL_TRN
     else if(b_node.is_a(&RNA_ShaderNodeOct2DTransform)) {
         BL::ShaderNodeOct2DTransform b_trans_node(b_node);
-        Octane2DTransform* cur_node = new Octane2DTransform();
-        node = cur_node;
+        ::OctaneEngine::Octane2DTransform* cur_node = newnt ::OctaneEngine::Octane2DTransform();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_trans_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Rotation") {
-                if(!b_input->is_linked() || (cur_node->Rotation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Rotation = "";
+                if(!b_input->is_linked() || (cur_node->sRotation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRotation = "";
                     BL::NodeSocket value_sock(*b_input);
                     float Rotation[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
-                    cur_node->Rotation_default_val.x = Rotation[0];
-                    cur_node->Rotation_default_val.y = Rotation[1];
+
+                    cur_node->f2RotationDefaultVal.x = Rotation[0];
+                    cur_node->f2RotationDefaultVal.y = Rotation[1];
                 }
             }
             else if(b_input->name() == "Scale") {
-                if(!b_input->is_linked() || (cur_node->Scale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Scale = "";
+                if(!b_input->is_linked() || (cur_node->sScale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sScale = "";
                     BL::NodeSocket value_sock(*b_input);
                     float Scale[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
-                    cur_node->Scale_default_val.x = Scale[0];
-                    cur_node->Scale_default_val.y = Scale[1];
+
+                    cur_node->f2ScaleDefaultVal.x = Scale[0];
+                    cur_node->f2ScaleDefaultVal.y = Scale[1];
                 }
             }
             else if(b_input->name() == "Translation") {
-                if(!b_input->is_linked() || (cur_node->Translation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Translation = "";
+                if(!b_input->is_linked() || (cur_node->sTranslation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTranslation = "";
                     BL::NodeSocket value_sock(*b_input);
                     float Translation[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Translation);
-                    cur_node->Translation_default_val.x = Translation[0];
-                    cur_node->Translation_default_val.y = Translation[1];
+
+                    cur_node->f2TranslationDefaultVal.x = Translation[0];
+                    cur_node->f2TranslationDefaultVal.y = Translation[1];
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_2D_TRN
     else if(b_node.is_a(&RNA_ShaderNodeOct3DTransform)) {
         BL::ShaderNodeOct3DTransform b_trans_node(b_node);
-        Octane3DTransform* cur_node = new Octane3DTransform();
-        node = cur_node;
+        ::OctaneEngine::Octane3DTransform* cur_node = newnt ::OctaneEngine::Octane3DTransform();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
         char tmp[32];
         ::sprintf(tmp, "%p", b_trans_node.ptr.data);
-        cur_node->name = tmp;
+        cur_node->sName = tmp;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Rotation") {
-                if(!b_input->is_linked() || (cur_node->Rotation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Rotation = "";
+                if(!b_input->is_linked() || (cur_node->sRotation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRotation = "";
                     BL::NodeSocket value_sock(*b_input);
                     float Rotation[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Rotation);
-                    cur_node->Rotation_default_val.x = Rotation[0];
-                    cur_node->Rotation_default_val.y = Rotation[1];
-                    cur_node->Rotation_default_val.z = Rotation[2];
+
+                    cur_node->f3RotationDefaultVal.x = Rotation[0];
+                    cur_node->f3RotationDefaultVal.y = Rotation[1];
+                    cur_node->f3RotationDefaultVal.z = Rotation[2];
                 }
             }
             else if(b_input->name() == "Scale") {
-                if(!b_input->is_linked() || (cur_node->Scale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Scale = "";
+                if(!b_input->is_linked() || (cur_node->sScale = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sScale = "";
                     BL::NodeSocket value_sock(*b_input);
                     float Scale[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Scale);
-                    cur_node->Scale_default_val.x = Scale[0];
-                    cur_node->Scale_default_val.y = Scale[1];
-                    cur_node->Scale_default_val.z = Scale[2];
+
+                    cur_node->f3ScaleDefaultVal.x = Scale[0];
+                    cur_node->f3ScaleDefaultVal.y = Scale[1];
+                    cur_node->f3ScaleDefaultVal.z = Scale[2];
                 }
             }
             else if(b_input->name() == "Translation") {
-                if(!b_input->is_linked() || (cur_node->Translation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->Translation = "";
+                if(!b_input->is_linked() || (cur_node->sTranslation = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTranslation = "";
                     BL::NodeSocket value_sock(*b_input);
                     float Translation[3];
                     RNA_float_get_array(&value_sock.ptr, "default_value", Translation);
-                    cur_node->Translation_default_val.x = Translation[0];
-                    cur_node->Translation_default_val.y = Translation[1];
-                    cur_node->Translation_default_val.z = Translation[2];
+
+                    cur_node->f3TranslationDefaultVal.x = Translation[0];
+                    cur_node->f3TranslationDefaultVal.y = Translation[1];
+                    cur_node->f3TranslationDefaultVal.z = Translation[2];
                 }
             }
             else if(b_input->name() == "Rotation order") {
-                if(!b_input->is_linked() || (cur_node->RotationOrder = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->RotationOrder = "";
+                if(!b_input->is_linked() || (cur_node->sRotationOrder = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sRotationOrder = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->RotationOrder_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iRotationOrderDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
         }
     } //case BL::ShaderNode::type_OCT_3D_TRN
 
     else if(b_node.is_a(&RNA_ShaderNodeBsdfDiffuse)) {
-		BL::ShaderNodeBsdfDiffuse b_diffuse_node(b_node);
-		OctaneDiffuseMaterial* cur_node = new OctaneDiffuseMaterial();
-        node = cur_node;
+        ::OctaneEngine::OctaneDiffuseMaterial* cur_node = newnt ::OctaneEngine::OctaneDiffuseMaterial();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
 
-        cur_node->name = get_non_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
+        cur_node->sName = get_non_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
-        cur_node->transmission_default_val  = 0;
-        cur_node->bump_default_val          = 0;
-        cur_node->opacity_default_val       = 1;
-        cur_node->rounding_default_val      = 0;
-        cur_node->smooth = true;
-        cur_node->emission                  = "";
-        cur_node->medium                    = "";
-        cur_node->displacement              = "";
-        cur_node->matte = false;
-        cur_node->normal_default_val        = 0;
+        cur_node->sTransmission                     = "";
+        cur_node->transmissionDefaultVal.iType      = 1;
+        cur_node->transmissionDefaultVal.f3Value.x  = 0;
+
+        cur_node->sBump                             = "";
+        cur_node->bumpDefaultVal.iType              = 1;
+        cur_node->bumpDefaultVal.f3Value.x          = 0;
+
+        cur_node->sOpacity                          = "";
+        cur_node->opacityDefaultVal.iType           = 1;
+        cur_node->opacityDefaultVal.f3Value.x       = 1;
+
+        cur_node->sRoughness                        = "";
+        cur_node->roughnessDefaultVal.iType         = 1;
+        cur_node->roughnessDefaultVal.f3Value.x     = 0;
+
+        cur_node->sRounding                         = "";
+        cur_node->fRoundingDefaultVal               = 0;
+
+        cur_node->bSmooth                           = true;
+        cur_node->sEmission                         = "";
+        cur_node->sMedium                           = "";
+        cur_node->sDisplacement                     = "";
+        cur_node->bMatte = false;
+
+        cur_node->normalDefaultVal.f3Value.x        = 0;
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Color") {
-                if(!b_input->is_linked() || (cur_node->diffuse = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->diffuse = "";
+                if(!b_input->is_linked() || (cur_node->sDiffuse = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sDiffuse = "";
                     BL::NodeSocket value_sock(*b_input);
                     float ret[4];
                     RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                    cur_node->diffuse_default_val.x = ret[0];
-                    cur_node->diffuse_default_val.y = ret[1];
-                    cur_node->diffuse_default_val.z = ret[2];
+
+                    cur_node->diffuseDefaultVal.iType = 1;
+                    cur_node->diffuseDefaultVal.f3Value.x = ret[0];
+                    cur_node->diffuseDefaultVal.f3Value.y = ret[1];
+                    cur_node->diffuseDefaultVal.f3Value.z = ret[2];
                 }
             }
         }
 	} //else if(b_node.is_a(&RNA_ShaderNodeBsdfDiffuse))
     else if(b_node.is_a(&RNA_ShaderNodeBsdfGlossy)) {
-        BL::ShaderNodeBsdfGlossy b_diffuse_node(b_node);
-        OctaneGlossyMaterial* cur_node = new OctaneGlossyMaterial();
-        node = cur_node;
+        ::OctaneEngine::OctaneGlossyMaterial* cur_node = newnt ::OctaneEngine::OctaneGlossyMaterial();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
 
-        cur_node->name = get_non_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
+        cur_node->sName = get_non_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
-        cur_node->specular_default_val  = 1.0f;
-        cur_node->roughness_default_val = 0.063f;
-        cur_node->filmwidth_default_val = 0.0f;
-        cur_node->filmindex             = 1.45f;
-        cur_node->bump_default_val      = 0;
-        cur_node->normal_default_val    = 0;
-        cur_node->opacity_default_val   = 1.0f;
-        cur_node->smooth                = true;
-        cur_node->index                 = 1.3f;
-        cur_node->rounding_default_val  = 0;
-        cur_node->displacement          = "";
+        cur_node->sSpecular                     = "";
+        cur_node->specularDefaultVal.iType      = 1;
+        cur_node->specularDefaultVal.f3Value.x  = 1.0f;
+
+        cur_node->sRoughness                    = "";
+        cur_node->roughnessDefaultVal.iType     = 1;
+        cur_node->roughnessDefaultVal.f3Value.x = 0.063f;
+
+        cur_node->sBump                         = "";
+        cur_node->bumpDefaultVal.iType          = 1;
+        cur_node->bumpDefaultVal.f3Value.x      = 0;
+
+        cur_node->sNormal                       = "";
+        cur_node->normalDefaultVal.iType        = 1;
+        cur_node->normalDefaultVal.f3Value.x    = 0;
+
+        cur_node->sOpacity                      = "";
+        cur_node->opacityDefaultVal.iType       = 1;
+        cur_node->opacityDefaultVal.f3Value.x   = 1.0f;
+
+        cur_node->sFilmwidth                    = "";
+        cur_node->filmwidthDefaultVal.iType       = 1;
+        cur_node->filmwidthDefaultVal.f3Value.x = 0.0f;
+
+        cur_node->sRounding                     = "";
+        cur_node->fRoundingDefaultVal           = 0;
+
+        cur_node->sFilmindex                    = "";
+        cur_node->fFilmindexDefaultVal          = 1.45f;
+
+        cur_node->bSmooth                       = true;
+        cur_node->sIndex                        = "";
+        cur_node->fIndexDefaultVal              = 1.3f;
+        cur_node->fRoundingDefaultVal           = 0;
+        cur_node->sDisplacement                 = "";
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Color") {
-                if(!b_input->is_linked() || (cur_node->diffuse = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->diffuse = "";
+                if(!b_input->is_linked() || (cur_node->sDiffuse = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sDiffuse = "";
                     BL::NodeSocket value_sock(*b_input);
                     float ret[4];
                     RNA_float_get_array(&value_sock.ptr, "default_value", ret);
-                    cur_node->diffuse_default_val.x = ret[0];
-                    cur_node->diffuse_default_val.y = ret[1];
-                    cur_node->diffuse_default_val.z = ret[2];
+
+                    cur_node->diffuseDefaultVal.iType = 1;
+                    cur_node->diffuseDefaultVal.f3Value.x = ret[0];
+                    cur_node->diffuseDefaultVal.f3Value.y = ret[1];
+                    cur_node->diffuseDefaultVal.f3Value.z = ret[2];
                 }
             }
         }
     } //else if(b_node.is_a(&RNA_ShaderNodeBsdfGlossy))
 
     else if(b_node.is_a(&RNA_ShaderNodeTexChecker)) {
-        BL::ShaderNodeTexChecker b_tex_node(b_node);
-        OctaneChecksTexture* cur_node = new OctaneChecksTexture();
-        node = cur_node;
-        cur_node->name = get_non_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneChecksTexture* cur_node = newnt ::OctaneEngine::OctaneChecksTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_non_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Scale") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->Transform = "";
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
+                else {
+                    cur_node->sTransform = "";
+                    cur_node->transformDefaultVal.iType = 0;
+                }
             }
         }
     } //else if(b_node.is_a(&RNA_ShaderNodeTexChecker))
@@ -1965,134 +2456,146 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // OCTANE PROJECTIONS
     else if(b_node.is_a(&RNA_ShaderNodeOctXYZProjection)) {
-        BL::ShaderNodeOctXYZProjection b_tex_node(b_node);
-        OctaneOctXYZProjection* cur_node = new OctaneOctXYZProjection();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneXYZProjection* cur_node = newnt ::OctaneEngine::OctaneXYZProjection();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Coordinate Space") {
-                if(!b_input->is_linked() || (cur_node->CoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->CoordinateSpace = "";
+                if(!b_input->is_linked() || (cur_node->sCoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sCoordinateSpace = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->CoordinateSpace_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iCoordinateSpaceDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "XYZ Transformation") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Transform = "";
+                    cur_node->sTransform = "";
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctBoxProjection)) {
-        BL::ShaderNodeOctBoxProjection b_tex_node(b_node);
-        OctaneOctBoxProjection* cur_node = new OctaneOctBoxProjection();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneBoxProjection* cur_node = newnt ::OctaneEngine::OctaneBoxProjection();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Coordinate Space") {
-                if(!b_input->is_linked() || (cur_node->CoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->CoordinateSpace = "";
+                if(!b_input->is_linked() || (cur_node->sCoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sCoordinateSpace = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->CoordinateSpace_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iCoordinateSpaceDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Box Transformation") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Transform = "";
+                    cur_node->sTransform = "";
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctCylProjection)) {
-        BL::ShaderNodeOctCylProjection b_tex_node(b_node);
-        OctaneOctCylProjection* cur_node = new OctaneOctCylProjection();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneCylProjection* cur_node = newnt ::OctaneEngine::OctaneCylProjection();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Coordinate Space") {
-                if(!b_input->is_linked() || (cur_node->CoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->CoordinateSpace = "";
+                if(!b_input->is_linked() || (cur_node->sCoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sCoordinateSpace = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->CoordinateSpace_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iCoordinateSpaceDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Cylinder Transformation") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Transform = "";
+                    cur_node->sTransform = "";
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctPerspProjection)) {
-        BL::ShaderNodeOctPerspProjection b_tex_node(b_node);
-        OctaneOctPerspProjection* cur_node = new OctaneOctPerspProjection();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctanePerspProjection* cur_node = newnt ::OctaneEngine::OctanePerspProjection();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Coordinate Space") {
-                if(!b_input->is_linked() || (cur_node->CoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->CoordinateSpace = "";
+                if(!b_input->is_linked() || (cur_node->sCoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sCoordinateSpace = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->CoordinateSpace_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iCoordinateSpaceDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Plane Transformation") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Transform = "";
+                    cur_node->sTransform = "";
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctSphericalProjection)) {
-        BL::ShaderNodeOctSphericalProjection b_tex_node(b_node);
-        OctaneOctSphericalProjection* cur_node = new OctaneOctSphericalProjection();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneSphericalProjection* cur_node = newnt ::OctaneEngine::OctaneSphericalProjection();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Coordinate Space") {
-                if(!b_input->is_linked() || (cur_node->CoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
-                    cur_node->CoordinateSpace = "";
+                if(!b_input->is_linked() || (cur_node->sCoordinateSpace = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sCoordinateSpace = "";
                     BL::NodeSocket value_sock(*b_input);
-                    cur_node->CoordinateSpace_default_val = RNA_int_get(&value_sock.ptr, "default_value");
+
+                    cur_node->iCoordinateSpaceDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
                 }
             }
             else if(b_input->name() == "Sphere Transformation") {
                 if(b_input->is_linked())
-                    cur_node->Transform = ConnectedNodesMap[b_input->ptr.data];
+                    cur_node->sTransform = ConnectedNodesMap[b_input->ptr.data];
                 else
-                    cur_node->Transform = "";
+                    cur_node->sTransform = "";
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctUVWProjection)) {
-        BL::ShaderNodeOctUVWProjection b_tex_node(b_node);
-        OctaneOctUVWProjection* cur_node = new OctaneOctUVWProjection();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneUVWProjection* cur_node = newnt ::OctaneEngine::OctaneUVWProjection();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // OCTANE VALUES
     else if(b_node.is_a(&RNA_ShaderNodeOctFloatValue)) {
-        BL::ShaderNodeOctFloatValue b_tex_node(b_node);
-        OctaneOctFloatValue* cur_node = new OctaneOctFloatValue();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneFloatValue* cur_node = newnt ::OctaneEngine::OctaneFloatValue();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -2100,23 +2603,25 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 BL::NodeSocket value_sock(*b_input);
                 float Value[3];
                 RNA_float_get_array(&value_sock.ptr, "default_value", Value);
-                cur_node->Value.x = Value[0];
-                cur_node->Value.y = Value[1];
-                cur_node->Value.z = Value[2];
+
+                cur_node->f3Value.x = Value[0];
+                cur_node->f3Value.y = Value[1];
+                cur_node->f3Value.z = Value[2];
             }
         }
     }
     else if(b_node.is_a(&RNA_ShaderNodeOctIntValue)) {
-        BL::ShaderNodeOctIntValue b_tex_node(b_node);
-        OctaneOctIntValue* cur_node = new OctaneOctIntValue();
-        node = cur_node;
-        cur_node->name = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+        ::OctaneEngine::OctaneIntValue* cur_node = newnt ::OctaneEngine::OctaneIntValue();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
             if(b_input->name() == "Value") {
                 BL::NodeSocket value_sock(*b_input);
-                cur_node->Value = RNA_int_get(&value_sock.ptr, "default_value");
+                cur_node->iValue = RNA_int_get(&value_sock.ptr, "default_value");
             }
         }
     }
@@ -2201,6 +2706,8 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
 // Add shader nodes
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNodeTree b_ntree) {
+    bool surface_connected = false, volume_connected = false;
+
     //Fill the socket-incoming_node map
     PtrStringMap ConnectedNodesMap;
 	BL::NodeTree::links_iterator b_link;
@@ -2244,7 +2751,12 @@ static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Sc
                 }
 
                 if(b_to_sock.name() == "Surface") {
-                    ConnectedNodesMap[b_from_sock.ptr.data] = "__Surface";
+                    if(!volume_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Surface";
+                    if(!surface_connected) surface_connected = true;
+                }
+                else if(b_to_sock.name() == "Volume") {
+                    if(!surface_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Volume";
+                    if(!volume_connected) volume_connected = true;
                 }
             }
 		}
@@ -2344,37 +2856,80 @@ void BlenderSync::sync_world() {
 
     if(b_world && (world_recalc || b_world.ptr.data != world_map)) {
     	PointerRNA oct_scene = RNA_pointer_get(&b_world.ptr, "octane");
-        env->type                   = static_cast<uint32_t>(RNA_enum_get(&oct_scene, "env_type"));
-        env->texture                = get_string(oct_scene, "env_texture");
-        env->power                  = get_float(oct_scene, "env_power");
-        if (b_engine.is_preview() && env->type == 1) {
-            env->type  = 0;
-            env->power = 1.1f;
+        env->oct_node->type                   = static_cast< ::OctaneEngine::Environment::EnvType>(RNA_enum_get(&oct_scene, "env_type"));
+
+        env->oct_node->sTexture               = get_string(oct_scene, "env_texture");
+        env->oct_node->fPower                 = get_float(oct_scene, "env_power");
+        if(b_engine.is_preview() && env->oct_node->type != ::OctaneEngine::Environment::TEXTURE) {
+            env->oct_node->type  = ::OctaneEngine::Environment::TEXTURE;
+            env->oct_node->fPower = 1.1f;
         }
-        env->importance_sampling    = get_boolean(oct_scene, "env_importance_sampling");
-        env->daylight_type          = static_cast<uint32_t>(RNA_enum_get(&oct_scene, "env_daylight_type"));
-        env->sun_vector.x           = get_float(oct_scene, "env_sundir_x");
-        env->sun_vector.y           = get_float(oct_scene, "env_sundir_y");
-        env->sun_vector.z           = get_float(oct_scene, "env_sundir_z");
-        env->turbidity              = get_float(oct_scene, "env_turbidity");
+        env->oct_node->bImportanceSampling    = get_boolean(oct_scene, "env_importance_sampling");
+        env->oct_node->daylightType           = static_cast< ::OctaneEngine::Environment::DaylightType>(RNA_enum_get(&oct_scene, "env_daylight_type"));
+        env->oct_node->f3SunVector.x          = get_float(oct_scene, "env_sundir_x");
+        env->oct_node->f3SunVector.y          = get_float(oct_scene, "env_sundir_y");
+        env->oct_node->f3SunVector.z          = get_float(oct_scene, "env_sundir_z");
+        env->oct_node->fTurbidity             = get_float(oct_scene, "env_turbidity");
 
-        env->northoffset            = get_float(oct_scene, "env_northoffset");
-        env->model                  = static_cast<uint32_t>(RNA_enum_get(&oct_scene, "env_model"));
-        env->sun_size               = get_float(oct_scene, "env_sun_size");
+        env->oct_node->fNorthOffset           = get_float(oct_scene, "env_northoffset");
+        env->oct_node->model                  = static_cast< ::OctaneEngine::Environment::DaylightModel>(RNA_enum_get(&oct_scene, "env_model"));
+        env->oct_node->fSunSize               = get_float(oct_scene, "env_sun_size");
 
-        RNA_float_get_array(&oct_scene, "env_sky_color", reinterpret_cast<float*>(&env->sky_color));
-        RNA_float_get_array(&oct_scene, "env_sunset_color", reinterpret_cast<float*>(&env->sunset_color));
+        RNA_float_get_array(&oct_scene, "env_sky_color", reinterpret_cast<float*>(&env->oct_node->f3SkyColor));
+        RNA_float_get_array(&oct_scene, "env_sunset_color", reinterpret_cast<float*>(&env->oct_node->f3SunsetColor));
 
-        env->longitude              = get_float(oct_scene, "env_longitude");
-        env->latitude               = get_float(oct_scene, "env_latitude");
-        env->day                    = get_int(oct_scene, "env_day");
-        env->month                  = get_int(oct_scene, "env_month");
-        env->gmtoffset              = get_int(oct_scene, "env_gmtoffset");
-        env->hour                   = get_float(oct_scene, "env_hour");
+        env->oct_node->fLongitude             = get_float(oct_scene, "env_longitude");
+        env->oct_node->fLatitude              = get_float(oct_scene, "env_latitude");
+        env->oct_node->iDay                   = get_int(oct_scene, "env_day");
+        env->oct_node->iMonth                 = get_int(oct_scene, "env_month");
+        env->oct_node->iGMTOffset             = get_int(oct_scene, "env_gmtoffset");
+        env->oct_node->fHour                  = get_float(oct_scene, "env_hour");
+
+        env->oct_node->sMedium                = get_string(oct_scene, "env_medium");
+        env->oct_node->fMediumRadius          = get_float(oct_scene, "env_med_radius");
+
+        env->use_vis_environment = get_boolean(oct_scene, "use_vis_env");
+        if(env->use_vis_environment) {
+            env->oct_vis_node->type                 = static_cast< ::OctaneEngine::Environment::EnvType>(RNA_enum_get(&oct_scene, "env_vis_type"));
+            env->oct_vis_node->sTexture             = get_string(oct_scene, "env_vis_texture");
+            env->oct_vis_node->fPower               = get_float(oct_scene, "env_vis_power");
+            if(b_engine.is_preview() && env->oct_vis_node->type != ::OctaneEngine::Environment::TEXTURE) {
+                env->oct_vis_node->type  = ::OctaneEngine::Environment::TEXTURE;
+                env->oct_vis_node->fPower = 1.1f;
+            }
+            env->oct_vis_node->bImportanceSampling  = get_boolean(oct_scene, "env_vis_importance_sampling");
+            env->oct_vis_node->daylightType         = static_cast< ::OctaneEngine::Environment::DaylightType>(RNA_enum_get(&oct_scene, "env_vis_daylight_type"));
+            env->oct_vis_node->f3SunVector.x        = get_float(oct_scene, "env_vis_sundir_x");
+            env->oct_vis_node->f3SunVector.y        = get_float(oct_scene, "env_vis_sundir_y");
+            env->oct_vis_node->f3SunVector.z        = get_float(oct_scene, "env_vis_sundir_z");
+            env->oct_vis_node->fTurbidity       = get_float(oct_scene, "env_vis_turbidity");
+
+            env->oct_vis_node->fNorthOffset         = get_float(oct_scene, "env_vis_northoffset");
+            env->oct_vis_node->model                = static_cast< ::OctaneEngine::Environment::DaylightModel>(RNA_enum_get(&oct_scene, "env_vis_model"));
+            env->oct_vis_node->fSunSize             = get_float(oct_scene, "env_vis_sun_size");
+
+            RNA_float_get_array(&oct_scene, "env_vis_sky_color", reinterpret_cast<float*>(&env->oct_vis_node->f3SkyColor));
+            RNA_float_get_array(&oct_scene, "env_vis_sunset_color", reinterpret_cast<float*>(&env->oct_vis_node->f3SunsetColor));
+
+            env->oct_vis_node->fLongitude           = get_float(oct_scene, "env_vis_longitude");
+            env->oct_vis_node->fLatitude            = get_float(oct_scene, "env_vis_latitude");
+            env->oct_vis_node->iDay                 = get_int(oct_scene, "env_vis_day");
+            env->oct_vis_node->iMonth               = get_int(oct_scene, "env_vis_month");
+            env->oct_vis_node->iGMTOffset           = get_int(oct_scene, "env_vis_gmtoffset");
+            env->oct_vis_node->fHour                = get_float(oct_scene, "env_vis_hour");
+
+            env->oct_vis_node->sMedium              = get_string(oct_scene, "env_vis_medium");
+            env->oct_vis_node->fMediumRadius        = get_float(oct_scene, "env_vis_med_radius");
+
+            env->oct_vis_node->bVisibleBackplate    = get_boolean(oct_scene, "env_vis_backplate");
+            env->oct_vis_node->bVisibleReflections  = get_boolean(oct_scene, "env_vis_reflections");
+            env->oct_vis_node->bVisibleRefractions  = get_boolean(oct_scene, "env_vis_refractions");
+        }
+        else env->oct_vis_node->type = ::OctaneEngine::Environment::NONE;
 
         world_map    = b_world.ptr.data;
         world_recalc = false;
-	}
+    }
 	env->use_background = render_layer.use_background;
 
 	if(env->modified(prevenv)) env->tag_update(scene);

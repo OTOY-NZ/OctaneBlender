@@ -18,6 +18,7 @@
 
 #include "scene.h"
 #include "session.h"
+#include "render/kernel.h"
 
 #include "blender_sync.h"
 #include "blender_session.h"
@@ -25,15 +26,15 @@
 
 OCT_NAMESPACE_BEGIN
 
-static Kernel::ChannelType channel_translator[] = {
-    Kernel::CHANNEL_GEOMETRICNORMALS,
-    Kernel::CHANNEL_SHADINGNORMALS,
-    Kernel::CHANNEL_POSITION,
-    Kernel::CHANNEL_ZDEPTH,
-    Kernel::CHANNEL_MATERIALID,
-    Kernel::CHANNEL_TEXTURESCOORDINATES,
-    Kernel::CHANNEL_WIREFRAME,
-    Kernel::CHANNEL_VERTEXNORMAL
+static ::Octane::InfoChannelType channel_translator[] = {
+    ::Octane::IC_TYPE_GEOMETRIC_NORMAL,
+    ::Octane::IC_TYPE_SHADING_NORMAL,
+    ::Octane::IC_TYPE_POSITION,
+    ::Octane::IC_TYPE_Z_DEPTH,
+    ::Octane::IC_TYPE_MATERIAL_ID,
+    ::Octane::IC_TYPE_UV_COORD,
+    ::Octane::IC_TYPE_WIREFRAME,
+    ::Octane::IC_TYPE_VERTEX_NORMAL
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,255 +149,257 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
 	Passes *passes      = scene->passes;
     Passes prevpasses   = *passes;
 
-    passes->use_passes = get_boolean(oct_scene, "use_passes");
-    if(passes->use_passes) {
-        passes->cur_pass_type = pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
+    passes->oct_node->bUsePasses = get_boolean(oct_scene, "use_passes");
+    if(passes->oct_node->bUsePasses) {
+        passes->oct_node->curPassType = Passes::pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
 
-        passes->pass_max_samples            = get_int(oct_scene, "pass_max_samples");
-        passes->pass_ao_max_samples         = get_int(oct_scene, "pass_ao_max_samples");
-        passes->pass_distributed_tracing    = get_boolean(oct_scene, "pass_distributed_tracing");
-        passes->pass_filter_size            = get_float(oct_scene, "pass_filter_size");
-        passes->pass_z_depth_max            = get_float(oct_scene, "pass_z_depth_max");
-        passes->pass_uv_max                 = get_float(oct_scene, "pass_uv_max");
-        passes->pass_max_speed              = get_float(oct_scene, "pass_max_speed");
-        passes->pass_ao_distance            = get_float(oct_scene, "pass_ao_distance");
-        passes->pass_alpha_shadows          = get_boolean(oct_scene, "pass_alpha_shadows");
+        passes->oct_node->iMaxSamples           = get_int(oct_scene, "pass_max_samples");
+        passes->oct_node->bDistributedTracing   = get_boolean(oct_scene, "pass_distributed_tracing");
+        passes->oct_node->fZdepthMax            = get_float(oct_scene, "pass_z_depth_max");
+        passes->oct_node->fUVMax                = get_float(oct_scene, "pass_uv_max");
+        passes->oct_node->fMaxSpeed             = get_float(oct_scene, "pass_max_speed");
+        passes->oct_node->fAODistance           = get_float(oct_scene, "pass_ao_distance");
+        passes->oct_node->bAoAlphaShadows       = get_boolean(oct_scene, "pass_alpha_shadows");
+        passes->oct_node->bPassesRaw            = get_boolean(oct_scene, "pass_raw");
+        passes->oct_node->bPostProcEnvironment  = get_boolean(oct_scene, "pass_pp_env");
+        passes->oct_node->bBump                 = get_boolean(oct_scene, "pass_bump");
+        passes->oct_node->fOpacityThreshold     = get_float(oct_scene, "pass_opacity_threshold");
 
         if(!interactive) {
-            passes->combined_pass               = get_boolean(rlayer, "use_pass_combined");
-            passes->emitters_pass               = get_boolean(rlayer, "use_pass_emit");
-            passes->environment_pass            = get_boolean(rlayer, "use_pass_environment");
-            passes->diffuse_direct_pass         = get_boolean(rlayer, "use_pass_diffuse_direct");
-            passes->diffuse_indirect_pass       = get_boolean(rlayer, "use_pass_diffuse_indirect");
+            passes->oct_node->bBeautyPass             = get_boolean(rlayer, "use_pass_combined");
+            passes->oct_node->bEmittersPass           = get_boolean(rlayer, "use_pass_emit");
+            passes->oct_node->bEnvironmentPass        = get_boolean(rlayer, "use_pass_environment");
+            passes->oct_node->bDiffuseDirectPass      = get_boolean(rlayer, "use_pass_diffuse_direct");
+            passes->oct_node->bDiffuseIndirectPass    = get_boolean(rlayer, "use_pass_diffuse_indirect");
 
             bool cur_use = get_boolean(rlayer, "use_pass_reflection");
             int  subtype = RNA_enum_get(&oct_scene, "reflection_pass_subtype");
-            passes->reflection_direct_pass      = cur_use && (subtype == 0);
-            passes->reflection_indirect_pass    = cur_use && (subtype == 1);
-            passes->layer_reflections_pass      = cur_use && (subtype == 1);
+            passes->oct_node->bReflectionDirectPass   = cur_use && (subtype == 0);
+            passes->oct_node->bReflectionIndirectPass = cur_use && (subtype == 1);
+            passes->oct_node->bLayerReflectionsPass   = cur_use && (subtype == 1);
 
-            passes->refraction_pass             = get_boolean(rlayer, "use_pass_refraction");
-            passes->transmission_pass           = get_boolean(rlayer, "use_pass_transmission_color");
-            passes->subsurf_scattering_pass     = get_boolean(rlayer, "use_pass_subsurface_color");
-            passes->post_processing_pass        = false;
+            passes->oct_node->bRefractionPass         = get_boolean(rlayer, "use_pass_refraction");
+            passes->oct_node->bTransmissionPass       = get_boolean(rlayer, "use_pass_transmission_color");
+            passes->oct_node->bSubsurfScatteringPass  = get_boolean(rlayer, "use_pass_subsurface_color");
+            passes->oct_node->bPostProcessingPass     = false;
 
             cur_use = get_boolean(rlayer, "use_pass_normal");
             subtype = RNA_enum_get(&oct_scene, "normal_pass_subtype");
-            passes->geom_normals_pass           = cur_use && (subtype == 0);
-            passes->shading_normals_pass        = cur_use && (subtype == 1);
-            passes->vertex_normals_pass         = cur_use && (subtype == 2);
+            passes->oct_node->bGeomNormalsPass    = cur_use && (subtype == 0);
+            passes->oct_node->bShadingNormalsPass = cur_use && (subtype == 1);
+            passes->oct_node->bVertexNormalsPass  = cur_use && (subtype == 2);
 
-            passes->position_pass               = false;
-            passes->z_depth_pass                = get_boolean(rlayer, "use_pass_z");
-            passes->material_id_pass            = get_boolean(rlayer, "use_pass_material_index");
-            passes->uv_coordinates_pass         = get_boolean(rlayer, "use_pass_uv");
-            passes->tangents_pass               = false;
-            passes->wireframe_pass              = false;
-            passes->object_id_pass              = get_boolean(rlayer, "use_pass_object_index");
-            passes->ao_pass                     = get_boolean(rlayer, "use_pass_ambient_occlusion");
-            passes->motion_vector_pass          = false;
+            passes->oct_node->bPositionPass       = false;
+            passes->oct_node->bZdepthPass         = get_boolean(rlayer, "use_pass_z");
+            passes->oct_node->bMaterialIdPass     = get_boolean(rlayer, "use_pass_material_index");
+            passes->oct_node->bUVCoordinatesPass  = get_boolean(rlayer, "use_pass_uv");
+            passes->oct_node->bTangentsPass       = false;
+            passes->oct_node->bWireframePass      = false;
+            passes->oct_node->bObjectIdPass       = get_boolean(rlayer, "use_pass_object_index");
+            passes->oct_node->bAOPass             = get_boolean(rlayer, "use_pass_ambient_occlusion");
+            passes->oct_node->bMotionVectorPass   = false;
 
             cur_use = get_boolean(rlayer, "use_pass_shadow");
             subtype = RNA_enum_get(&oct_scene, "shadows_pass_subtype");
-            passes->layer_shadows_pass          = cur_use && (subtype == 0);
-            passes->layer_black_shadows_pass    = cur_use && (subtype == 1);
-            passes->layer_color_shadows_pass    = cur_use && (subtype == 2);
+            passes->oct_node->bLayerShadowsPass       = cur_use && (subtype == 0);
+            passes->oct_node->bLayerBlackShadowsPass  = cur_use && (subtype == 1);
+            passes->oct_node->bLayerColorShadowsPass  = cur_use && (subtype == 2);
 
-            passes->layer_id_pass               = false;
-            passes->layer_mask_pass             = false;
-            passes->light_pass_id_pass          = false;
+            passes->oct_node->bLayerIdPass            = false;
+            passes->oct_node->bLayerMaskPass          = false;
+            passes->oct_node->bLightPassIdPass        = false;
 
-            passes->ambient_light_pass          = false;
-            passes->sunlight_pass               = false;
-            passes->light1_pass                 = false;
-            passes->light2_pass                 = false;
-            passes->light3_pass                 = false;
-            passes->light4_pass                 = false;
-            passes->light5_pass                 = false;
-            passes->light6_pass                 = false;
-            passes->light7_pass                 = false;
-            passes->light8_pass                 = false;
+            passes->oct_node->bAmbientLightPass       = false;
+            passes->oct_node->bSunlightPass           = false;
+            passes->oct_node->bLight1Pass             = false;
+            passes->oct_node->bLight2Pass             = false;
+            passes->oct_node->bLight3Pass             = false;
+            passes->oct_node->bLight4Pass             = false;
+            passes->oct_node->bLight5Pass             = false;
+            passes->oct_node->bLight6Pass             = false;
+            passes->oct_node->bLight7Pass             = false;
+            passes->oct_node->bLight8Pass             = false;
         }
         else {
-            passes->combined_pass               = false;
+            passes->oct_node->bBeautyPass             = false;
 
-            passes->emitters_pass               = false;
-            passes->environment_pass            = false;
-            passes->diffuse_direct_pass         = false;
-            passes->diffuse_indirect_pass       = false;
-            passes->reflection_direct_pass      = false;
-            passes->reflection_indirect_pass    = false;
-            passes->refraction_pass             = false;
-            passes->transmission_pass           = false;
-            passes->subsurf_scattering_pass     = false;
-            passes->post_processing_pass        = false;
+            passes->oct_node->bEmittersPass           = false;
+            passes->oct_node->bEnvironmentPass        = false;
+            passes->oct_node->bDiffuseDirectPass      = false;
+            passes->oct_node->bDiffuseIndirectPass    = false;
+            passes->oct_node->bReflectionDirectPass   = false;
+            passes->oct_node->bReflectionIndirectPass = false;
+            passes->oct_node->bRefractionPass         = false;
+            passes->oct_node->bTransmissionPass       = false;
+            passes->oct_node->bSubsurfScatteringPass  = false;
+            passes->oct_node->bPostProcessingPass     = false;
 
-            passes->layer_shadows_pass          = false;
-            passes->layer_black_shadows_pass    = false;
-            passes->layer_color_shadows_pass    = false;
-            passes->layer_reflections_pass      = false;
+            passes->oct_node->bLayerShadowsPass       = false;
+            passes->oct_node->bLayerBlackShadowsPass  = false;
+            passes->oct_node->bLayerColorShadowsPass  = false;
+            passes->oct_node->bLayerReflectionsPass   = false;
 
-            passes->ambient_light_pass          = false;
-            passes->sunlight_pass               = false;
-            passes->light1_pass                 = false;
-            passes->light2_pass                 = false;
-            passes->light3_pass                 = false;
-            passes->light4_pass                 = false;
-            passes->light5_pass                 = false;
-            passes->light6_pass                 = false;
-            passes->light7_pass                 = false;
-            passes->light8_pass                 = false;
+            passes->oct_node->bAmbientLightPass       = false;
+            passes->oct_node->bSunlightPass           = false;
+            passes->oct_node->bLight1Pass             = false;
+            passes->oct_node->bLight2Pass             = false;
+            passes->oct_node->bLight3Pass             = false;
+            passes->oct_node->bLight4Pass             = false;
+            passes->oct_node->bLight5Pass             = false;
+            passes->oct_node->bLight6Pass             = false;
+            passes->oct_node->bLight7Pass             = false;
+            passes->oct_node->bLight8Pass             = false;
 
-            passes->geom_normals_pass           = false;
-            passes->shading_normals_pass        = false;
-            passes->vertex_normals_pass         = false;
-            passes->position_pass               = false;
-            passes->z_depth_pass                = false;
-            passes->material_id_pass            = false;
-            passes->uv_coordinates_pass         = false;
-            passes->tangents_pass               = false;
-            passes->wireframe_pass              = false;
-            passes->motion_vector_pass          = false;
-            passes->object_id_pass              = false;
-            passes->layer_id_pass               = false;
-            passes->layer_mask_pass             = false;
-            passes->light_pass_id_pass          = false;
+            passes->oct_node->bGeomNormalsPass        = false;
+            passes->oct_node->bShadingNormalsPass     = false;
+            passes->oct_node->bVertexNormalsPass      = false;
+            passes->oct_node->bPositionPass           = false;
+            passes->oct_node->bZdepthPass             = false;
+            passes->oct_node->bMaterialIdPass         = false;
+            passes->oct_node->bUVCoordinatesPass      = false;
+            passes->oct_node->bTangentsPass           = false;
+            passes->oct_node->bWireframePass          = false;
+            passes->oct_node->bMotionVectorPass       = false;
+            passes->oct_node->bObjectIdPass           = false;
+            passes->oct_node->bLayerIdPass            = false;
+            passes->oct_node->bLayerMaskPass          = false;
+            passes->oct_node->bLightPassIdPass        = false;
 
-            passes->ao_pass                     = false;
+            passes->oct_node->bAOPass                 = false;
 
-            switch(passes->cur_pass_type) {
-            case Passes::COMBINED:
-                passes->combined_pass = true;
-                break;
-
-            case Passes::EMIT:
-                passes->emitters_pass = true;
-                break;
-            case Passes::ENVIRONMENT:
-                passes->environment_pass = true;
-                break;
-            case Passes::DIFFUSE_DIRECT:
-                passes->diffuse_direct_pass = true;
-                break;
-            case Passes::DIFFUSE_INDIRECT:
-                passes->diffuse_indirect_pass = true;
-                break;
-            case Passes::REFLECTION_DIRECT:
-                passes->reflection_direct_pass = true;
-                break;
-            case Passes::REFLECTION_INDIRECT:
-                passes->reflection_indirect_pass = true;
-                break;
-            case Passes::REFRACTION:
-                passes->refraction_pass = true;
-                break;
-            case Passes::TRANSMISSION:
-                passes->transmission_pass = true;
-                break;
-            case Passes::SSS:
-                passes->subsurf_scattering_pass = true;
-                break;
-            case Passes::POST_PROC:
-                passes->post_processing_pass = true;
+            switch(passes->oct_node->curPassType) {
+            case ::Octane::RenderPassId::RENDER_PASS_BEAUTY:
+                passes->oct_node->bBeautyPass = true;
                 break;
 
-            case Passes::LAYER_SHADOWS:
-                passes->layer_shadows_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_EMIT:
+                passes->oct_node->bEmittersPass = true;
                 break;
-            case Passes::LAYER_BLACK_SHADOWS:
-                passes->layer_black_shadows_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_ENVIRONMENT:
+                passes->oct_node->bEnvironmentPass = true;
                 break;
-            case Passes::LAYER_COLOR_SHADOWS:
-                passes->layer_color_shadows_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_DIRECT:
+                passes->oct_node->bDiffuseDirectPass = true;
                 break;
-            case Passes::LAYER_REFLECTIONS:
-                passes->layer_reflections_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_INDIRECT:
+                passes->oct_node->bDiffuseIndirectPass = true;
                 break;
-
-            case Passes::AMBIENT_LIGHT:
-                passes->ambient_light_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_REFLECTION_DIRECT:
+                passes->oct_node->bReflectionDirectPass = true;
                 break;
-            case Passes::SUNLIGHT:
-                passes->sunlight_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_REFLECTION_INDIRECT:
+                passes->oct_node->bReflectionIndirectPass = true;
                 break;
-            case Passes::LIGHT1:
-                passes->light1_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_REFRACTION:
+                passes->oct_node->bRefractionPass = true;
                 break;
-            case Passes::LIGHT2:
-                passes->light2_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_TRANSMISSION:
+                passes->oct_node->bTransmissionPass = true;
                 break;
-            case Passes::LIGHT3:
-                passes->light3_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_SSS:
+                passes->oct_node->bSubsurfScatteringPass = true;
                 break;
-            case Passes::LIGHT4:
-                passes->light4_pass = true;
-                break;
-            case Passes::LIGHT5:
-                passes->light5_pass = true;
-                break;
-            case Passes::LIGHT6:
-                passes->light6_pass = true;
-                break;
-            case Passes::LIGHT7:
-                passes->light7_pass = true;
-                break;
-            case Passes::LIGHT8:
-                passes->light8_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_POST_PROC:
+                passes->oct_node->bPostProcessingPass = true;
                 break;
 
-            case Passes::GEOMETRIC_NORMAL:
-                passes->geom_normals_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_LAYER_SHADOWS:
+                passes->oct_node->bLayerShadowsPass = true;
                 break;
-            case Passes::SHADING_NORMAL:
-                passes->shading_normals_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_LAYER_BLACK_SHADOWS:
+                passes->oct_node->bLayerBlackShadowsPass = true;
                 break;
-            case Passes::VERTEX_NORMAL:
-                passes->vertex_normals_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_LAYER_COLOR_SHADOWS:
+                passes->oct_node->bLayerColorShadowsPass = true;
                 break;
-            case Passes::POSITION:
-                passes->position_pass = true;
-                break;
-            case Passes::Z_DEPTH:
-                passes->z_depth_pass = true;
-                break;
-            case Passes::MATERIAL_ID:
-                passes->material_id_pass = true;
-                break;
-            case Passes::UV_COORD:
-                passes->uv_coordinates_pass = true;
-                break;
-            case Passes::TANGENT_U:
-                passes->tangents_pass = true;
-                break;
-            case Passes::WIREFRAME:
-                passes->wireframe_pass = true;
-                break;
-            case Passes::OBJECT_ID:
-                passes->object_id_pass = true;
-                break;
-            case Passes::MOTION_VECTOR:
-                passes->motion_vector_pass = true;
-                break;
-            case Passes::LAYER_ID:
-                passes->layer_id_pass = true;
-                break;
-            case Passes::LAYER_MASK:
-                passes->layer_mask_pass = true;
-                break;
-            case Passes::LIGHT_PASS_ID:
-                passes->light_pass_id_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_LAYER_REFLECTIONS:
+                passes->oct_node->bLayerReflectionsPass = true;
                 break;
 
-            case Passes::AMBIENT_OCCLUSION:
-                passes->ao_pass = true;
+            case ::Octane::RenderPassId::RENDER_PASS_AMBIENT_LIGHT:
+                passes->oct_node->bAmbientLightPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_SUNLIGHT:
+                passes->oct_node->bSunlightPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_1:
+                passes->oct_node->bLight1Pass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_2:
+                passes->oct_node->bLight2Pass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_3:
+                passes->oct_node->bLight3Pass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_4:
+                passes->oct_node->bLight4Pass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_5:
+                passes->oct_node->bLight5Pass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_6:
+                passes->oct_node->bLight6Pass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_7:
+                passes->oct_node->bLight7Pass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_8:
+                passes->oct_node->bLight8Pass = true;
+                break;
+
+            case ::Octane::RenderPassId::RENDER_PASS_GEOMETRIC_NORMAL:
+                passes->oct_node->bGeomNormalsPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_SHADING_NORMAL:
+                passes->oct_node->bShadingNormalsPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_VERTEX_NORMAL:
+                passes->oct_node->bVertexNormalsPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_POSITION:
+                passes->oct_node->bPositionPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_Z_DEPTH:
+                passes->oct_node->bZdepthPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_MATERIAL_ID:
+                passes->oct_node->bMaterialIdPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_UV_COORD:
+                passes->oct_node->bUVCoordinatesPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_TANGENT_U:
+                passes->oct_node->bTangentsPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_WIREFRAME:
+                passes->oct_node->bWireframePass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_OBJECT_ID:
+                passes->oct_node->bObjectIdPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_MOTION_VECTOR:
+                passes->oct_node->bMotionVectorPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_RENDER_LAYER_ID:
+                passes->oct_node->bLayerIdPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_RENDER_LAYER_MASK:
+                passes->oct_node->bLayerMaskPass = true;
+                break;
+            case ::Octane::RenderPassId::RENDER_PASS_LIGHT_PASS_ID:
+                passes->oct_node->bLightPassIdPass = true;
+                break;
+
+            case ::Octane::RenderPassId::RENDER_PASS_AMBIENT_OCCLUSION:
+                passes->oct_node->bAOPass = true;
                 break;
 
             default:
-                passes->combined_pass = true;
+                passes->oct_node->bBeautyPass = true;
                 break;
             }
         }
-    } //if(passes->use_passes)
+    } //if(passes->oct_node->use_passes)
     
     if(passes->modified(prevpasses)) passes->tag_update();
 } //sync_passes()
@@ -410,66 +413,98 @@ void BlenderSync::sync_kernel() {
     Kernel *kernel = scene->kernel;
     Kernel prevkernel = *kernel;
 
-    kernel->kernel_type = static_cast<Kernel::KernelType>(RNA_enum_get(&oct_scene, "kernel_type"));
-    kernel->info_channel_type = channel_translator[RNA_enum_get(&oct_scene, "info_channel_type")];
-
-    Passes::PassTypes cur_pass_type = pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
-    if(cur_pass_type == Passes::COMBINED) {
-        kernel->max_samples = get_int(oct_scene, "max_samples");
-        kernel->max_preview_samples = get_int(oct_scene, "max_preview_samples");
-        if(kernel->max_preview_samples == 0) kernel->max_preview_samples = 16000;
+    BL::RenderSettings r = b_scene.render();
+    if(r.use_motion_blur()) {
+        float fps                                           = (float)b_scene.render().fps() / b_scene.render().fps_base();
+        float shuttertime                                   = r.motion_blur_shutter();
+        BlenderSession::MotionBlurType mb_type              = static_cast<BlenderSession::MotionBlurType>(RNA_enum_get(&oct_scene, "mb_type"));
+        float mb_frame_time_sampling                        = mb_type == BlenderSession::INTERNAL ? 1.0f / fps : 0.0f;
+        kernel->oct_node->fShutterTime                      = mb_frame_time_sampling != 0.0f ? shuttertime / mb_frame_time_sampling : 0.0f;
+        BlenderSession::MotionBlurDirection mb_direction    = static_cast<BlenderSession::MotionBlurDirection>(RNA_enum_get(&oct_scene, "mb_direction"));
+        switch(mb_direction) {
+            case BlenderSession::BEFORE:
+                kernel->oct_node->mbAlignment = ::OctaneEngine::Kernel::BEFORE;
+                break;
+            case BlenderSession::AFTER:
+                kernel->oct_node->mbAlignment = ::OctaneEngine::Kernel::AFTER;
+                break;
+            case BlenderSession::SYMMETRIC:
+                kernel->oct_node->mbAlignment = ::OctaneEngine::Kernel::SYMMETRIC;
+                break;
+            default:
+                break;
+        }
     }
-    else if(cur_pass_type == Passes::AMBIENT_OCCLUSION) {
-        kernel->max_samples = get_int(oct_scene, "pass_ao_max_samples");
-        kernel->max_preview_samples = kernel->max_samples;
+    else kernel->oct_node->fShutterTime = 0.0f;
+
+    kernel->oct_node->type = static_cast< ::OctaneEngine::Kernel::KernelType>(RNA_enum_get(&oct_scene, "kernel_type"));
+    kernel->oct_node->infoChannelType = channel_translator[RNA_enum_get(&oct_scene, "info_channel_type")];
+
+    ::Octane::RenderPassId cur_pass_type = Passes::pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
+    if(cur_pass_type == ::Octane::RenderPassId::RENDER_PASS_BEAUTY) {
+        kernel->oct_node->iMaxSamples = interactive ? get_int(oct_scene, "max_preview_samples") : get_int(oct_scene, "max_samples");
+        //kernel->oct_node->iMaxPreviewSamples = get_int(oct_scene, "max_preview_samples");
+        //if(kernel->oct_node->iMaxPreviewSamples == 0) kernel->oct_node->iMaxPreviewSamples = 16000;
+    }
+    else if(cur_pass_type == ::Octane::RenderPassId::RENDER_PASS_AMBIENT_OCCLUSION) {
+        kernel->oct_node->iMaxSamples = get_int(oct_scene, "pass_ao_max_samples");
+        //kernel->oct_node->iMaxPreviewSamples = kernel->oct_node->iMaxSamples;
     }
     else {
-        kernel->max_samples = get_int(oct_scene, "pass_max_samples");
-        kernel->max_preview_samples = kernel->max_samples;
+        kernel->oct_node->iMaxSamples = get_int(oct_scene, "pass_max_samples");
+        //kernel->oct_node->iMaxPreviewSamples = kernel->oct_node->iMaxSamples;
     }
     if(scene->session->b_session && scene->session->b_session->motion_blur && scene->session->b_session->mb_type == BlenderSession::SUBFRAME && scene->session->b_session->mb_samples > 1)
-        kernel->max_samples = kernel->max_samples / scene->session->b_session->mb_samples;
-    if(kernel->max_samples < 1) kernel->max_samples = 1;
+        kernel->oct_node->iMaxSamples = kernel->oct_node->iMaxSamples / scene->session->b_session->mb_samples;
+    if(kernel->oct_node->iMaxSamples < 1) kernel->oct_node->iMaxSamples = 1;
 
-    kernel->filter_size = get_float(oct_scene, "filter_size");
-    kernel->ray_epsilon = get_float(oct_scene, "ray_epsilon");
-    kernel->alpha_channel = get_boolean(oct_scene, "alpha_channel");
-    kernel->alpha_shadows = get_boolean(oct_scene, "alpha_shadows");
-    kernel->keep_environment = get_boolean(oct_scene, "keep_environment");
-    kernel->bump_normal_mapping = get_boolean(oct_scene, "bump_normal_mapping");
-    kernel->wf_bktrace_hl = get_boolean(oct_scene, "wf_bktrace_hl");
-    kernel->path_term_power = get_float(oct_scene, "path_term_power");
+    kernel->oct_node->fFilterSize = get_float(oct_scene, "filter_size");
+    kernel->oct_node->fRayEpsilon = get_float(oct_scene, "ray_epsilon");
+    kernel->oct_node->bAlphaChannel = get_boolean(oct_scene, "alpha_channel");
+    kernel->oct_node->bAlphaShadows = get_boolean(oct_scene, "alpha_shadows");
+    kernel->oct_node->bBumpNormalMapping = get_boolean(oct_scene, "bump_normal_mapping");
+    kernel->oct_node->bBkFaceHighlight = get_boolean(oct_scene, "wf_bktrace_hl");
+    kernel->oct_node->fPathTermPower = get_float(oct_scene, "path_term_power");
 
-    kernel->caustic_blur = get_float(oct_scene, "caustic_blur");
-    kernel->max_diffuse_depth = get_int(oct_scene, "max_diffuse_depth");
-    kernel->max_glossy_depth = get_int(oct_scene, "max_glossy_depth");
+    kernel->oct_node->bKeepEnvironment = get_boolean(oct_scene, "keep_environment");
 
-    kernel->coherent_ratio = get_float(oct_scene, "coherent_ratio");
-    kernel->static_noise = get_boolean(oct_scene, "static_noise");
+    kernel->oct_node->fCausticBlur = get_float(oct_scene, "caustic_blur");
+    kernel->oct_node->iMaxDiffuseDepth = get_int(oct_scene, "max_diffuse_depth");
+    kernel->oct_node->iMaxGlossyDepth = get_int(oct_scene, "max_glossy_depth");
 
-    kernel->specular_depth = get_int(oct_scene, "specular_depth");
-    kernel->glossy_depth = get_int(oct_scene, "glossy_depth");
-    kernel->ao_dist = get_float(oct_scene, "ao_dist");
-    kernel->gi_mode = static_cast<Kernel::GIType>(RNA_enum_get(&oct_scene, "gi_mode"));
-    kernel->diffuse_depth = get_int(oct_scene, "diffuse_depth");
+    kernel->oct_node->fCoherentRatio = get_float(oct_scene, "coherent_ratio");
+    kernel->oct_node->bStaticNoise = get_boolean(oct_scene, "static_noise");
 
-    kernel->exploration = get_float(oct_scene, "exploration");
-    kernel->gi_clamp = get_float(oct_scene, "gi_clamp");
-    kernel->direct_light_importance = get_float(oct_scene, "direct_light_importance");
-    kernel->max_rejects = get_int(oct_scene, "max_rejects");
-    kernel->parallelism = get_int(oct_scene, "parallelism");
+    kernel->oct_node->iSpecularDepth = get_int(oct_scene, "specular_depth");
+    kernel->oct_node->iGlossyDepth = get_int(oct_scene, "glossy_depth");
+    kernel->oct_node->fAODist = get_float(oct_scene, "ao_dist");
+    kernel->oct_node->GIMode = static_cast< ::OctaneEngine::Kernel::DirectLightMode>(RNA_enum_get(&oct_scene, "gi_mode"));
+    kernel->oct_node->iDiffuseDepth = get_int(oct_scene, "diffuse_depth");
 
-    kernel->zdepth_max = get_float(oct_scene, "zdepth_max");
-    kernel->uv_max = get_float(oct_scene, "uv_max");
-    kernel->distributed_tracing = get_boolean(oct_scene, "distributed_tracing");
-    kernel->max_speed = get_float(oct_scene, "max_speed");
+    kernel->oct_node->fExploration = get_float(oct_scene, "exploration");
+    kernel->oct_node->fGIClamp = get_float(oct_scene, "gi_clamp");
+    kernel->oct_node->fDLImportance = get_float(oct_scene, "direct_light_importance");
+    kernel->oct_node->iMaxRejects = get_int(oct_scene, "max_rejects");
+    kernel->oct_node->iParallelism = get_int(oct_scene, "parallelism");
 
-    kernel->layers_enable = get_boolean(oct_scene, "layers_enable");
-    kernel->layers_current = get_int(oct_scene, "layers_current");
-    kernel->layers_invert = get_boolean(oct_scene, "layers_invert");
+    kernel->oct_node->fZdepthMax = get_float(oct_scene, "zdepth_max");
+    kernel->oct_node->fUVMax = get_float(oct_scene, "uv_max");
+    kernel->oct_node->bDistributedTracing = get_boolean(oct_scene, "distributed_tracing");
+    kernel->oct_node->fMaxSpeed = get_float(oct_scene, "max_speed");
 
-    BL::RenderSettings r = b_scene.render();
-    kernel->shuttertime = r.motion_blur_shutter();
+    kernel->oct_node->bLayersEnable = get_boolean(oct_scene, "layers_enable");
+    kernel->oct_node->iLayersCurrent = get_int(oct_scene, "layers_current");
+    kernel->oct_node->bLayersInvert = get_boolean(oct_scene, "layers_invert");
+
+    kernel->oct_node->iParallelSamples = get_int(oct_scene, "parallel_samples");
+    kernel->oct_node->iMaxTileSamples = get_int(oct_scene, "max_tile_samples");
+    kernel->oct_node->bMinimizeNetTraffic = get_boolean(oct_scene, "minimize_net_traffic");
+    kernel->oct_node->bDeepImageEnable = get_boolean(oct_scene, "deep_image");
+    kernel->oct_node->iMaxDepthSamples = get_int(oct_scene, "max_depth_samples");
+    kernel->oct_node->fDepthTolerance = get_float(oct_scene, "depth_tolerance");
+    kernel->oct_node->iWorkChunkSize = get_int(oct_scene, "work_chunk_size");
+    kernel->oct_node->bAoAlphaShadows = get_boolean(oct_scene, "ao_alpha_shadows");
+    kernel->oct_node->fOpacityThreshold = get_float(oct_scene, "opacity_threshold");
 
     if(kernel->modified(prevkernel)) kernel->tag_update();
 
@@ -560,30 +595,12 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 	SessionParams params;
 	PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
 
-	// Render-server address
-	params.server = RenderServer::get_info();
-    string server_addr = get_string(oct_scene, "server_address");
-    if(server_addr.length() > 0)
-        ::strcpy(params.server.net_address, server_addr.c_str());
-
-    string login        = get_string(oct_scene, "server_login");
-    string pass         = get_string(oct_scene, "server_pass");
-    string stand_login  = get_string(oct_scene, "stand_login");
-    string stand_pass   = get_string(oct_scene, "stand_pass");
-    if(stand_login.length() > 0 || stand_pass.length() > 0 || login.length() > 0 || pass.length() > 0) {
-        fprintf(stderr, "Octane: WARNING: you can't use the server activation form during active rendering session.\n");
-        RNA_string_set(&oct_scene, "stand_login", "");
-        RNA_string_set(&oct_scene, "stand_pass", "");
-        RNA_string_set(&oct_scene, "server_login", "");
-        RNA_string_set(&oct_scene, "server_pass", "");
-    }
-
 	// Interactive
 	params.interactive = interactive;
 
 	// Samples
-    Passes::PassTypes cur_pass_type = pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
-    if(cur_pass_type == Passes::COMBINED) {
+    ::Octane::RenderPassId cur_pass_type = Passes::pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
+    if(cur_pass_type == ::Octane::RenderPassId::RENDER_PASS_BEAUTY) {
         if(!interactive) {
             params.samples = get_int(oct_scene, "max_samples");
         }
@@ -592,7 +609,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 		    if(params.samples == 0) params.samples = 16000;
 	    }
     }
-    else if(cur_pass_type == Passes::AMBIENT_OCCLUSION) {
+    else if(cur_pass_type == ::Octane::RenderPassId::RENDER_PASS_AMBIENT_OCCLUSION) {
         params.samples = get_int(oct_scene, "pass_ao_max_samples");
     }
     else {
@@ -600,17 +617,18 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     }
 
     params.anim_mode            = static_cast<AnimationMode>(RNA_enum_get(&oct_scene, "anim_mode"));
-    params.export_scene         = interactive ? 0 : get_enum(oct_scene, "export_scene");
+    params.export_scene         = interactive ? ::OctaneEngine::OctaneClient::SceneExportTypes::NONE : static_cast< ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum>(get_enum(oct_scene, "export_scene"));
 
+    params.deep_image           = get_boolean(oct_scene, "deep_image");
     params.use_passes           = get_boolean(oct_scene, "use_passes");
     params.meshes_type          = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
-    if(params.export_scene && params.meshes_type == Mesh::GLOBAL)
+    if(params.export_scene != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE && params.meshes_type == Mesh::GLOBAL)
         params.meshes_type = Mesh::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
+    params.hdr_tonemapped       = false;//get_boolean(oct_scene, "hdr_tonemapped");
 	
     params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
 
-    params.hdr_tonemapped = get_boolean(oct_scene, "hdr_tonemap_enable");
     params.out_of_core_enabled = get_boolean(oct_scene, "out_of_core_enable");
     params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
     params.out_of_core_gpu_headroom = get_int(oct_scene, "out_of_core_gpu_headroom");

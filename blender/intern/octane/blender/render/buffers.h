@@ -21,12 +21,15 @@
 
 #include "util_string.h"
 #include "util_types.h"
+#include "OctaneClient.h"
 
 #include "memleaks_check.h"
 
-OCT_NAMESPACE_BEGIN
+namespace OctaneEngine {
+class OctaneClient;
+}
 
-class RenderServer;
+OCT_NAMESPACE_BEGIN
 
 class BufferParams {
 public:
@@ -41,27 +44,27 @@ public:
 	int full_height;
 
     bool     use_border;
-    uint32_4 border;
+    ::OctaneEngine::uint32_4 border;
 };
 
 class DisplayBuffer {
 public:
-	DisplayBuffer(RenderServer *server);
+	DisplayBuffer(::OctaneEngine::OctaneClient *server);
 	~DisplayBuffer();
 
 	void reset(BufferParams& params);
     void write(const string& filename);
 
-	bool draw(RenderServer *server);
+	bool draw();
 
 	BufferParams params;
 	bool transparent;
-    uchar4* rgba;
+    uint8_t* rgba;
 
 protected:
 	void free_buffers();
 
-	RenderServer *server;
+	::OctaneEngine::OctaneClient *server;
 };
 
 OCT_NAMESPACE_END

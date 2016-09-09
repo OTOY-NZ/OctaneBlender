@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 2.76 (sub 0) (b'fb78f6d')\n"
+"Project-Id-Version: Blender 2.77 (sub 0) (b'870f911')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-05 20:13:42\n"
+"POT-Creation-Date: 2016-03-18 13:04:16\n"
 "PO-Revision-Date: 2012-10-07 13:56+0300\n"
 "Last-Translator: Barak Itkin <lightningismyname@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -39,12 +39,12 @@ msgid "Value"
 msgstr "ךרע"
 
 
-msgid "Reset"
-msgstr "לוחתא"
-
-
 msgid "Y Axis"
 msgstr "Y ריצ"
+
+
+msgid "Reset"
+msgstr "לוחתא"
 
 
 msgid "Location"
@@ -79,6 +79,14 @@ msgid "Right"
 msgstr "ןימי"
 
 
+msgid "Indirect"
+msgstr "ףיקע"
+
+
+msgid "Color"
+msgstr "עבצ"
+
+
 msgid "Vector"
 msgstr "רוטקו"
 
@@ -109,10 +117,6 @@ msgstr "אמג"
 
 msgid "Saturation"
 msgstr "היוור"
-
-
-msgid "Color"
-msgstr "עבצ"
 
 
 msgid "Constant"
@@ -155,16 +159,20 @@ msgid "Smooth"
 msgstr "קלח"
 
 
-msgid "Vertex Color"
-msgstr "דוקדוק עבצ"
-
-
 msgid "Shrink"
 msgstr "ץווכ"
 
 
+msgid "Vertex Color"
+msgstr "דוקדוק עבצ"
+
+
 msgid "Modifiers"
 msgstr "םינשמ"
+
+
+msgid "Frequency"
+msgstr "תורידת"
 
 
 msgid "Surface"
@@ -173,10 +181,6 @@ msgstr "חטשמ"
 
 msgid "Apply Density"
 msgstr "תופיפצ"
-
-
-msgid "Frequency"
-msgstr "תורידת"
 
 
 msgid "Path"
@@ -191,12 +195,12 @@ msgid "Both"
 msgstr "םהינש"
 
 
-msgid "Start"
-msgstr "הלחתה"
-
-
 msgid "End"
 msgstr "ףוס"
+
+
+msgid "Start"
+msgstr "הלחתה"
 
 
 msgid "3D Space"
@@ -235,8 +239,12 @@ msgid "Off"
 msgstr "יובכ"
 
 
-msgid "View"
-msgstr "הגוצת"
+msgid "Straight"
+msgstr "ןימי"
+
+
+msgid "Reflection"
+msgstr "תופקתשה"
 
 
 msgid "Movie"
@@ -251,24 +259,16 @@ msgid "Fields"
 msgstr "תודש"
 
 
-msgid "Reflection"
-msgstr "תופקתשה"
-
-
-msgid "Straight"
-msgstr "ןימי"
-
-
 msgid "Specular"
 msgstr "רלקפסא"
 
 
-msgid "Translucency"
-msgstr "הצחמל תופיקש"
-
-
 msgid "Roughness"
 msgstr "תוסג"
+
+
+msgid "Translucency"
+msgstr "הצחמל תופיקש"
 
 
 msgid "Edit Mode"
@@ -285,6 +285,10 @@ msgstr "םידוקדוק תעיבצ"
 
 msgid "Weight Paint"
 msgstr "לקשמ תעיבצ"
+
+
+msgid "View"
+msgstr "הגוצת"
 
 
 msgid "Quadratic"
@@ -407,6 +411,14 @@ msgid "Other"
 msgstr "רחא"
 
 
+msgid "Gap Duration"
+msgstr "היוור"
+
+
+msgid "Gap Randomness"
+msgstr "יארקא"
+
+
 msgid "Radius Fac"
 msgstr ":X סוידר"
 
@@ -417,14 +429,6 @@ msgstr "הכירע בצמ"
 
 msgid "Ignore timing"
 msgstr "סנכנ"
-
-
-msgid "Gap Duration"
-msgstr "היוור"
-
-
-msgid "Gap Randomness"
-msgstr "יארקא"
 
 
 msgid "U (X) Axis"
@@ -531,12 +535,12 @@ msgid "Tooltip"
 msgstr "םילכ"
 
 
-msgid "Show Diffuse Color"
-msgstr "חתפמ עבצ"
-
-
 msgid "Detail Size"
 msgstr "טוריפ"
+
+
+msgid "Show Diffuse Color"
+msgstr "חתפמ עבצ"
 
 
 msgid "System"
@@ -555,20 +559,16 @@ msgid "Progressive Refine"
 msgstr "תומדקתה"
 
 
-msgid "PO File Path"
+msgid "MO File Path"
 msgstr ":ץבוק ביתנ"
 
 
-msgid "MO File Path"
+msgid "PO File Path"
 msgstr ":ץבוק ביתנ"
 
 
 msgid "POT File Path"
 msgstr ":ץבוק ביתנ"
-
-
-msgid "Indirect"
-msgstr "ףיקע"
 
 
 msgid "Bake to Vertex Color"
@@ -581,10 +581,6 @@ msgstr "תופיפצ"
 
 msgid "Auto Select"
 msgstr "רחבנל קתעה"
-
-
-msgid "Immediate Mode"
-msgstr "הכירע בצמ"
 
 
 msgid "Vertex Arrays"
@@ -679,6 +675,11 @@ msgid "Start"
 msgstr "הלחתה"
 
 
+msgctxt "Operator"
+msgid "Cursor to Selected"
+msgstr "רחבנל קתעה"
+
+
 msgid "File Path:"
 msgstr ":ץבוק ביתנ"
 
@@ -713,11 +714,6 @@ msgstr "Y ריצ"
 msgctxt "Operator"
 msgid "Interpolation Mode"
 msgstr "תופקתשה"
-
-
-msgctxt "Operator"
-msgid "Cursor to Selected"
-msgstr "רחבנל קתעה"
 
 
 msgctxt "Operator"
@@ -1015,10 +1011,6 @@ msgid "Stop this job"
 msgstr "וז הדובע רוצע"
 
 
-msgid "Progress"
-msgstr "תומדקתה"
-
-
 msgid "%d items"
 msgstr "‪%d‬ םיטירפ"
 
@@ -1121,14 +1113,6 @@ msgstr " + Z"
 
 msgid "Select Layer"
 msgstr "הבכש רחב"
-
-
-msgid "Previous Layer"
-msgstr "תמדוק הבכש"
-
-
-msgid "Next Layer"
-msgstr "האבה הבכש"
 
 
 msgid "Saved %s"
@@ -1318,10 +1302,6 @@ msgstr "Blender לש טנרטניאה רתא"
 msgctxt "Operator"
 msgid "Toggle System Console"
 msgstr "רחבנל קתעה"
-
-
-msgid "Nothing indicated"
-msgstr "רבד רחבנ אל"
 
 
 msgid "Blender User Preferences"

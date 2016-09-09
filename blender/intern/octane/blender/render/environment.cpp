@@ -17,7 +17,6 @@
  */
 
 #include "environment.h"
-#include "server.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -25,32 +24,9 @@ OCT_NAMESPACE_BEGIN
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Environment::Environment() {
-    type                = 0;
-    texture             = "";
-    importance_sampling = 1;
-    daylight_type       = 0;
-    sun_vector.x        = 0;
-    sun_vector.y        = 1;
-    sun_vector.z        = 0;
-    power               = 1.0f;
-    longitude           = 4.4667f;
-    latitude            = 50.7667f;
-    hour                = 14;
-    month               = 3;
-    day                 = 1;
-    gmtoffset           = 0;
-    turbidity           = 2.2f;
-    northoffset         = 0;
-    model               = 1;
-    sun_size            = 1.0f;
-
-    sky_color.x         = 0.05f;
-    sky_color.y         = 0.3f;
-    sky_color.z         = 1.0f;
-
-    sunset_color.x      = 0.6f;
-    sunset_color.y      = 0.12f;
-    sunset_color.z      = 0.02;
+    oct_node = new ::OctaneEngine::Environment;
+    oct_vis_node = new ::OctaneEngine::Environment;
+    use_vis_environment = false;
 
 	use_background      = true;
 	transparent         = false;
@@ -61,15 +37,18 @@ Environment::Environment() {
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Environment::~Environment() {
+    delete oct_node;
+    delete oct_vis_node;
 } //~Environment()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Environment::server_update(RenderServer *server, Scene *scene) {
+void Environment::server_update(::OctaneEngine::OctaneClient *server, Scene *scene) {
 	if(!need_update) return;
 	
-    server->load_environment(this);
+    server->uploadEnvironment(oct_node);
+    server->uploadVisibleEnvironment(oct_vis_node);
 	need_update = false;
 } //server_update()
 
@@ -77,25 +56,11 @@ void Environment::server_update(RenderServer *server, Scene *scene) {
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool Environment::modified(const Environment& environment) {
-	return !(
-        type == environment.type &&
-		texture == environment.texture &&
-		importance_sampling == environment.importance_sampling &&
-		daylight_type == environment.daylight_type &&
-		sun_vector == environment.sun_vector &&
-		power == environment.power &&
-		longitude == environment.longitude &&
-		latitude == environment.latitude &&
-		hour == environment.hour &&
-		month == environment.month &&
-		day == environment.day &&
-		gmtoffset == environment.gmtoffset &&
-		turbidity == environment.turbidity &&
-		northoffset == environment.northoffset &&
-		model == environment.model &&
-		sun_size == environment.sun_size &&
-		sky_color == environment.sky_color &&
-		sunset_color == environment.sunset_color);
+    if(!oct_node || !oct_vis_node) return false;
+
+	return !(*oct_node              == *environment.oct_node &&
+             *oct_vis_node          == *environment.oct_vis_node &&
+             use_vis_environment    == use_vis_environment);
 } //modified()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

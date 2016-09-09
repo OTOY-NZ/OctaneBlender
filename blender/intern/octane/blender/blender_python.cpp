@@ -20,7 +20,7 @@
 
 #include "OCT_api.h"
 
-#include "server.h"
+#include "OctaneClient.h"
 #include "blender_sync.h"
 #include "blender_session.h"
 
@@ -211,10 +211,39 @@ static PyObject *sync_func(PyObject *self, PyObject *value) {
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static PyObject *server_info_func(PyObject *self, PyObject *args) {
-	oct::RenderServerInfo& server = oct::RenderServer::get_info();
 	PyObject *ret = PyTuple_New(1);
 
-    PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(server.net_address));
+	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(args);
+	if(session) {
+        PointerRNA oct_scene = RNA_pointer_get(&(session->b_scene.ptr), "octane");
+        string server_addr = get_string(oct_scene, "server_address");
+        if(!server_addr.length())
+            PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("No server address set"));
+        else {
+            ::OctaneEngine::OctaneClient *server = newnt ::OctaneEngine::OctaneClient;
+            if(server) {
+                if(!server->connectToServer(server_addr.c_str())) {
+                    if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED)
+                        PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("Current server is not activated"));
+                    else {
+                        if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION)
+                            PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("Can't connect to Octane server"));
+                        else if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION)
+                            PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("Wrong version of Octane server"));
+                        else PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("Can't connect to Octane server"));
+                    }
+                }
+                else {
+                    ::OctaneEngine::OctaneClient::RenderServerInfo const &info = server->getServerInfo();
+                    PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(info.sNetAddress.c_str()));
+                }
+
+                delete server;
+            }
+            else PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(""));
+        }
+    }
+    else PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(""));
 
 	return ret;
 } //server_info_func()

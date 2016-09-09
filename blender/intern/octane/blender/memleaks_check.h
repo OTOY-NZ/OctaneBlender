@@ -29,7 +29,12 @@
 #	    include <crtdbg.h>
 
 #       define new DBG_NEW
+#       define newnt new
+#   else
+#       define newnt new(std::nothrow)
 #   endif //#ifdef _DEBUG
+#else
+#   define newnt new(std::nothrow)
 #endif //#ifdef WIN32
 
 #endif //#ifndef _MEMLEAKS_CHECK_H_

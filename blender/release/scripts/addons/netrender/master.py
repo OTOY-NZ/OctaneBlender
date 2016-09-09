@@ -135,7 +135,7 @@ class MRenderJob(netrender.model.RenderJob):
 
     def testFinished(self):
         for f in self.frames:
-            if f.status == netrender.model.FRAME_QUEUED or f.status == netrender.model.FRAME_DISPATCHED:
+            if f.status in {netrender.model.FRAME_QUEUED, netrender.model.FRAME_DISPATCHED, netrender.model.FRAME_ERROR}:
                 break
         else:
             self.status = netrender.model.JOB_FINISHED
@@ -455,7 +455,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                             message = frame.serialize()
                         else:
                             # no such frame
-                            self.send_heat(http.client.NO_CONTENT)
+                            self.send_head(http.client.NO_CONTENT)
                             return
                     else:
                         message = job.serialize()

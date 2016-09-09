@@ -157,7 +157,7 @@ static Brush *uv_sculpt_brush(bContext *C)
 }
 
 
-static int uv_sculpt_brush_poll(bContext *C)
+static int uv_sculpt_brush_poll_do(bContext *C, const bool check_region)
 {
 	BMEditMesh *em;
 	int ret;
@@ -177,11 +177,17 @@ static int uv_sculpt_brush_poll(bContext *C)
 
 	if (ret) {
 		ARegion *ar = CTX_wm_region(C);
-		if ((toolsettings->use_uv_sculpt) && ar->regiontype == RGN_TYPE_WINDOW)
-			return 1;
+		if ((!toolsettings->use_uv_sculpt) || (check_region && ar && (ar->regiontype != RGN_TYPE_WINDOW))) {
+			ret = 0;
+		}
 	}
 
-	return 0;
+	return ret;
+}
+
+static int uv_sculpt_brush_poll(bContext *C)
+{
+	return uv_sculpt_brush_poll_do(C, true);
 }
 
 static void brush_drawcursor_uvsculpt(bContext *C, int x, int y, void *UNUSED(customdata))
@@ -252,7 +258,12 @@ void ED_space_image_uv_sculpt_update(wmWindowManager *wm, Scene *scene)
 
 int uv_sculpt_poll(bContext *C)
 {
-	return uv_sculpt_brush_poll(C);
+	return uv_sculpt_brush_poll_do(C, true);
+}
+
+int uv_sculpt_keymap_poll(bContext *C)
+{
+	return uv_sculpt_brush_poll_do(C, false);
 }
 
 /*********** Improved Laplacian Relaxation Operator ************************/

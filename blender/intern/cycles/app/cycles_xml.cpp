@@ -513,6 +513,7 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "wave_texture")) {
 			WaveTextureNode *wave = new WaveTextureNode();
 			xml_read_enum(&wave->type, WaveTextureNode::type_enum, node, "type");
+			xml_read_enum(&wave->profile, WaveTextureNode::profile_enum, node, "profile");
 			snode = wave;
 		}
 		else if(string_iequals(node.name(), "normal")) {
@@ -595,8 +596,10 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			xml_read_string(&falloff, node, "falloff");
 			if(falloff == "cubic")
 				sss->closure = CLOSURE_BSSRDF_CUBIC_ID;
-			else
+			else if(falloff == "gaussian")
 				sss->closure = CLOSURE_BSSRDF_GAUSSIAN_ID;
+			else /*if(falloff == "burley")*/
+				sss->closure = CLOSURE_BSSRDF_BURLEY_ID;
 
 			snode = sss;
 		}
@@ -1001,6 +1004,8 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 					fdata[2] = make_float3(UV[v2*2], UV[v2*2+1], 0.0);
 					fdata += 3;
 				}
+
+				index_offset += nverts[i];
 			}
 		}
 	}

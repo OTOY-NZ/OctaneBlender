@@ -10,6 +10,7 @@ set(INC
 	../../../source/blender/blenloader
 	../../../source/blender/blenlib
 	../../../source/blender/blenkernel
+	../../../source/blender/render/extern/include
 	${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 
@@ -35,9 +36,7 @@ set(SRC
 	blender_util.h
 	memleaks_check.h
 
-	./server/server.cpp
-
-	./server/server.h
+	./server/OctaneClient.h
 
 	./render/environment.cpp
 	./render/buffers.cpp
@@ -47,7 +46,6 @@ set(SRC
 	./render/kernel.cpp
 	./render/light.cpp
 	./render/mesh.cpp
-	./render/nodes.cpp
 	./render/object.cpp
 	./render/scene.cpp
 	./render/session.cpp
@@ -61,7 +59,6 @@ set(SRC
 	./render/kernel.h
 	./render/light.h
 	./render/mesh.h
-	./render/nodes.h
 	./render/object.h
 	./render/scene.h
 	./render/session.h
@@ -104,6 +101,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
 add_definitions(-DGLEW_STATIC)
 
 blender_add_lib(bf_intern_octane "${SRC}" "${INC}" "${INC_SYS}")
+if(APPLE)
+	target_link_libraries(bf_intern_octane -lc++)
+endif()
 
 add_dependencies(bf_intern_octane bf_rna)
 

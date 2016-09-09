@@ -29,7 +29,8 @@
 
 ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
                                              const Ray *ray,
-                                             Intersection *isect)
+                                             Intersection *isect,
+                                             const uint visibility)
 {
 	/* TODO(sergey):
 	 * - Test if pushing distance on the stack helps.
@@ -51,10 +52,8 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	float3 idir = bvh_inverse_direction(dir);
 	int object = OBJECT_NONE;
 
-	const uint visibility = PATH_RAY_ALL_VISIBILITY;
-
 #if BVH_FEATURE(BVH_MOTION)
-	Transform ob_tfm;
+	Transform ob_itfm;
 #endif
 
 #ifndef __KERNEL_SSE41__
@@ -281,7 +280,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 					if(object_flag & SD_OBJECT_HAS_VOLUME) {
 
 #if BVH_FEATURE(BVH_MOTION)
-						bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &isect->t, &ob_tfm);
+						bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &isect->t, &ob_itfm);
 #else
 						bvh_instance_push(kg, object, ray, &P, &dir, &idir, &isect->t);
 #endif
@@ -322,7 +321,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 			/* Instance pop. */
 #if BVH_FEATURE(BVH_MOTION)
-			bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &isect->t, &ob_tfm);
+			bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &isect->t, &ob_itfm);
 #else
 			bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &isect->t);
 #endif

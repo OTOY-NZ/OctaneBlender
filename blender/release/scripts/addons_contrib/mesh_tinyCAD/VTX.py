@@ -5,7 +5,7 @@ from mathutils import Vector
 from mathutils.geometry import intersect_line_line as LineIntersect
 from mathutils.geometry import intersect_point_line as PtLineIntersect
 
-from mesh_tinyCAD import cad_module as cm
+from . import cad_module as cm
 
 
 def getVTX(self):
@@ -112,40 +112,42 @@ def doVTX(self):
     bmesh.update_edit_mesh(self.me, True)
 
 
-class AutoVTX(bpy.types.Operator):
-    bl_idname = 'view3d.autovtx'
-    bl_label = 'autoVTX'
-    # bl_options = {'REGISTER', 'UNDO'}
+class TCAutoVTX(bpy.types.Operator):
+    bl_idname = 'tinycad.autovtx'
+    bl_label = 'VTX autoVTX'
 
     VTX_PRECISION = 1.0e-5  # or 1.0e-6 ..if you need
 
     @classmethod
     def poll(self, context):
-        '''
-        - only activate if two selected edges
-        - and both are not hidden
-        '''
+        obj = context.active_object
+        return obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
         obj = context.active_object
         self.me = obj.data
         self.bm = bmesh.from_edit_mesh(self.me)
+        self.bm.verts.ensure_lookup_table()
+        self.bm.edges.ensure_lookup_table()
 
-        # self.me.update()
-        if hasattr(self.bm.verts, "ensure_lookup_table"):
-            self.bm.verts.ensure_lookup_table()
-            self.bm.edges.ensure_lookup_table()
-
-        if obj is not None and obj.type == 'MESH':
-            edges = self.bm.edges
-            ok = lambda v: v.select and not v.hide
-            idxs = [v.index for v in edges if ok(v)]
-            if len(idxs) is 2:
-                self.selected_edges = idxs
-                return True
-
-    def execute(self, context):
+        edges = self.bm.edges
+        ok = lambda v: v.select and not v.hide
+        idxs = [v.index for v in edges if ok(v)]
+        if len(idxs) is 2:
+            self.selected_edges = idxs
+        else:
+            print('select two edges!')
 
         self.me.update()
         if checkVTX(self, context):
             doVTX(self)
 
         return {'FINISHED'}
+
+
+def register():
+    bpy.utils.register_module(__name__)
+
+
+def unregister():
+    bpy.utils.unregister_module(__name__)

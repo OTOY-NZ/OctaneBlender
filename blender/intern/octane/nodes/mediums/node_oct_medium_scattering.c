@@ -33,6 +33,7 @@ static bNodeSocketTemplate sh_node_in[] = {
 	{SOCK_FLOAT,     1,  N_("Phase"),       0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{SOCK_SHADER,    1,  N_("Emission"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{SOCK_FLOAT,     1,  N_("Scale"),       100.0f, 0.0f, 0.0f, 0.0f, 0.001f, 10000.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_BOOLEAN,   1,  N_("Invert abs."), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{-1, 0, ""}
 };
 

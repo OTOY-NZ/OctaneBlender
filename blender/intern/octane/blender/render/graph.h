@@ -25,6 +25,7 @@
 #include "util_types.h"
 
 #include "memleaks_check.h"
+#include "OctaneClient.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -32,7 +33,6 @@ class ShaderInput;
 class ShaderOutput;
 class ShaderNode;
 class ShaderGraph;
-class RenderServer;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Socket Type
@@ -88,41 +88,28 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class ShaderNode {
 public:
-	ShaderNode(const char *name);
+	ShaderNode(::OctaneEngine::OctaneNodeBase *node_);
 	virtual ~ShaderNode();
 
 	ShaderInput *input(const char *name);
 	ShaderOutput *output(const char *name);
 
-    virtual void load_to_server(RenderServer* server)       = 0;
-    virtual void delete_from_server(RenderServer* server)   = 0;
+    virtual void load_to_server(::OctaneEngine::OctaneClient* server) {
+        if(oct_node) server->uploadNode(oct_node);
+    }
+    virtual void delete_from_server(::OctaneEngine::OctaneClient* server) {
+        if(oct_node) server->deleteNode(oct_node);
+    }
 
 	vector<ShaderInput*>  inputs;
 	vector<ShaderOutput*> outputs;
 
-    std::string name; // name, not required to be unique
+    //std::string name; // name, not required to be unique
 	int         id;   // index in graph node array
     int         pass_id;
+
+    ::OctaneEngine::OctaneNodeBase *oct_node;
 }; //ShaderNode
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Node definition utility macros
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define SHADER_NODE_CLASS(type) \
-public: \
-	type(); \
-    virtual void load_to_server(RenderServer* server);
-
-#define SHADER_NODE_NO_CLONE_CLASS(type) \
-	type(); \
-    virtual void load_to_server(RenderServer* server);
-
-#define SHADER_NODE_BASE_CLASS(type) \
-protected: \
-	type(); \
-public: \
-    virtual void delete_from_server(RenderServer* server);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Graph

@@ -85,7 +85,7 @@ static int edbm_subdivide_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	const int cuts = RNA_int_get(op->ptr, "number_cuts");
-	float smooth = 0.292f * RNA_float_get(op->ptr, "smoothness");
+	float smooth = RNA_float_get(op->ptr, "smoothness");
 	const float fractal = RNA_float_get(op->ptr, "fractal") / 2.5f;
 	const float along_normal = RNA_float_get(op->ptr, "fractal_along_normal");
 
@@ -96,7 +96,7 @@ static int edbm_subdivide_exec(bContext *C, wmOperator *op)
 	}
 	
 	BM_mesh_esubdivide(em->bm, BM_ELEM_SELECT,
-	                   smooth, SUBD_FALLOFF_INVSQUARE, false,
+	                   smooth, SUBD_FALLOFF_LIN, false,
 	                   fractal, along_normal,
 	                   cuts,
 	                   SUBDIV_SELECT_ORIG, RNA_enum_get(op->ptr, "quadcorner"),
@@ -191,7 +191,7 @@ static void mesh_operator_edgering_props(wmOperatorType *ot, const int cuts_defa
 	              "Profile Factor", "How much intermediary new edges are shrunk/expanded", -2.0f, 2.0f);
 
 	prop = RNA_def_property(ot->srna, "profile_shape", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, proportional_falloff_curve_only_items);
+	RNA_def_property_enum_items(prop, rna_enum_proportional_falloff_curve_only_items);
 	RNA_def_property_enum_default(prop, PROP_SMOOTH);
 	RNA_def_property_ui_text(prop, "Profile Shape", "Shape of the profile");
 	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
@@ -306,7 +306,10 @@ void EMBM_project_snap_verts(bContext *C, ARegion *ar, BMEditMesh *em)
 			float mval[2], co_proj[3], no_dummy[3];
 			float dist_px_dummy;
 			if (ED_view3d_project_float_object(ar, eve->co, mval, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
-				if (snapObjectsContext(C, mval, &dist_px_dummy, co_proj, no_dummy, SNAP_NOT_OBEDIT)) {
+				if (snapObjectsContext(
+				        C, mval, SNAP_NOT_OBEDIT,
+				        co_proj, no_dummy, &dist_px_dummy))
+				{
 					mul_v3_m4v3(eve->co, obedit->imat, co_proj);
 				}
 			}
@@ -1465,8 +1468,12 @@ static int edbm_flip_normals_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	
-	if (!EDBM_op_callf(em, op, "reverse_faces faces=%hf", BM_ELEM_SELECT))
+	if (!EDBM_op_callf(
+	        em, op, "reverse_faces faces=%hf flip_multires=%b",
+	        BM_ELEM_SELECT, true))
+	{
 		return OPERATOR_CANCELLED;
+	}
 	
 	EDBM_update_generic(em, true, false);
 
@@ -1634,8 +1641,9 @@ static int edbm_normals_make_consistent_exec(bContext *C, wmOperator *op)
 	if (!EDBM_op_callf(em, op, "recalc_face_normals faces=%hf", BM_ELEM_SELECT))
 		return OPERATOR_CANCELLED;
 
-	if (RNA_boolean_get(op->ptr, "inside"))
-		EDBM_op_callf(em, op, "reverse_faces faces=%hf", BM_ELEM_SELECT);
+	if (RNA_boolean_get(op->ptr, "inside")) {
+		EDBM_op_callf(em, op, "reverse_faces faces=%hf flip_multires=%b", BM_ELEM_SELECT, true);
+	}
 
 	EDBM_update_generic(em, true, false);
 
@@ -2357,8 +2365,8 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_float(ot->srna, "threshold", 1e-4f, 1e-6f, 50.0f, "Merge Distance",
-	              "Minimum distance between elements to merge", 1e-5f, 10.0f);
+	RNA_def_float_distance(ot->srna, "threshold", 1e-4f, 1e-6f, 50.0f, "Merge Distance",
+	                       "Minimum distance between elements to merge", 1e-5f, 10.0f);
 	RNA_def_boolean(ot->srna, "use_unselected", false, "Unselected", "Merge selected to other unselected vertices");
 }
 
@@ -2608,7 +2616,7 @@ void MESH_OT_solidify(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	prop = RNA_def_float(ot->srna, "thickness", 0.01f, -1e4f, 1e4f, "Thickness", "", -10.0f, 10.0f);
+	prop = RNA_def_float_distance(ot->srna, "thickness", 0.01f, -1e4f, 1e4f, "Thickness", "", -10.0f, 10.0f);
 	RNA_def_property_ui_range(prop, -10.0, 10.0, 0.1, 4);
 }
 
@@ -3783,7 +3791,6 @@ static int edbm_poke_face_exec(bContext *C, wmOperator *op)
 
 void MESH_OT_poke(wmOperatorType *ot)
 {
-
 	static EnumPropertyItem poke_center_modes[] = {
 		{BMOP_POKE_MEAN_WEIGHTED, "MEAN_WEIGHTED", 0, "Weighted Mean", "Weighted Mean Face Center"},
 		{BMOP_POKE_MEAN, "MEAN", 0, "Mean", "Mean Face Center"},
@@ -3803,7 +3810,7 @@ void MESH_OT_poke(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_float(ot->srna, "offset", 0.0f, -1e3f, 1e3f, "Poke Offset", "Poke Offset", -1.0f, 1.0f);
+	RNA_def_float_distance(ot->srna, "offset", 0.0f, -1e3f, 1e3f, "Poke Offset", "Poke Offset", -1.0f, 1.0f);
 	RNA_def_boolean(ot->srna, "use_relative_offset", false, "Offset Relative", "Scale the offset by surrounding geometry");
 	RNA_def_enum(ot->srna, "center_mode", poke_center_modes, BMOP_POKE_MEAN_WEIGHTED,
 	             "Poke Center", "Poke Face Center Calculation");
@@ -3818,12 +3825,20 @@ static int edbm_quads_convert_to_tris_exec(bContext *C, wmOperator *op)
 	BMOperator bmop;
 	const int quad_method = RNA_enum_get(op->ptr, "quad_method");
 	const int ngon_method = RNA_enum_get(op->ptr, "ngon_method");
+	BMOIter oiter;
+	BMFace *f;
 
 	EDBM_op_init(em, &bmop, op, "triangulate faces=%hf quad_method=%i ngon_method=%i", BM_ELEM_SELECT, quad_method, ngon_method);
 	BMO_op_exec(em->bm, &bmop);
 
 	/* select the output */
 	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+
+	/* remove the doubles */
+	BMO_ITER (f, &oiter, bmop.slots_out, "face_map_double.out", BM_FACE) {
+		BM_face_kill(em->bm, f);
+	}
+
 	EDBM_selectmode_flush(em);
 
 	if (!EDBM_op_finish(em, &bmop, op, true)) {
@@ -3850,9 +3865,9 @@ void MESH_OT_quads_convert_to_tris(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_enum(ot->srna, "quad_method", modifier_triangulate_quad_method_items, MOD_TRIANGULATE_QUAD_BEAUTY,
+	RNA_def_enum(ot->srna, "quad_method", rna_enum_modifier_triangulate_quad_method_items, MOD_TRIANGULATE_QUAD_BEAUTY,
 	             "Quad Method", "Method for splitting the quads into triangles");
-	RNA_def_enum(ot->srna, "ngon_method", modifier_triangulate_ngon_method_items, MOD_TRIANGULATE_NGON_BEAUTY,
+	RNA_def_enum(ot->srna, "ngon_method", rna_enum_modifier_triangulate_ngon_method_items, MOD_TRIANGULATE_NGON_BEAUTY,
 	             "Polygon Method", "Method for splitting the polygons into triangles");
 }
 
@@ -4203,7 +4218,7 @@ void MESH_OT_dissolve_limited(wmOperatorType *ot)
 	RNA_def_property_float_default(prop, DEG2RADF(5.0f));
 	RNA_def_boolean(ot->srna, "use_dissolve_boundaries", false, "All Boundaries",
 	                "Dissolve all vertices inbetween face boundaries");
-	RNA_def_enum_flag(ot->srna, "delimit", mesh_delimit_mode_items, BMO_DELIM_NORMAL, "Delimit",
+	RNA_def_enum_flag(ot->srna, "delimit", rna_enum_mesh_delimit_mode_items, BMO_DELIM_NORMAL, "Delimit",
 	                  "Delimit dissolve operation");
 }
 
@@ -4247,8 +4262,8 @@ void MESH_OT_dissolve_degenerate(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_float(ot->srna, "threshold", 1e-4f, 1e-6f, 50.0f,  "Merge Distance",
-	              "Minimum distance between elements to merge", 1e-5f, 10.0f);
+	RNA_def_float_distance(ot->srna, "threshold", 1e-4f, 1e-6f, 50.0f,  "Merge Distance",
+	                       "Minimum distance between elements to merge", 1e-5f, 10.0f);
 }
 
 
@@ -5127,7 +5142,7 @@ static int edbm_bridge_edge_loops_exec(bContext *C, wmOperator *op)
 				EDBM_mesh_normals_update(em);
 
 				BMO_op_initf(
-				        em->bm, &bmop_subd, op->flag,
+				        em->bm, &bmop_subd, 0,
 				        "subdivide_edgering edges=%S interp_mode=%i cuts=%i smooth=%f "
 				        "profile_shape=%i profile_shape_factor=%f",
 				        &bmop, "edges.out", op_props.interp_mode, op_props.cuts, op_props.smooth,
@@ -5244,10 +5259,10 @@ void MESH_OT_wireframe(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "use_even_offset", true, "Offset Even", "Scale the offset to give more even thickness");
 	RNA_def_boolean(ot->srna, "use_relative_offset", false, "Offset Relative", "Scale the offset by surrounding geometry");
 	RNA_def_boolean(ot->srna, "use_replace", true, "Replace", "Remove original faces");
-	prop = RNA_def_float(ot->srna, "thickness", 0.01f, 0.0f, 1e4f, "Thickness", "", 0.0f, 10.0f);
+	prop = RNA_def_float_distance(ot->srna, "thickness", 0.01f, 0.0f, 1e4f, "Thickness", "", 0.0f, 10.0f);
 	/* use 1 rather then 10 for max else dragging the button moves too far */
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 0.01, 4);
-	RNA_def_float(ot->srna, "offset", 0.01f, 0.0f, 1e4f, "Offset", "", 0.0f, 10.0f);
+	RNA_def_float_distance(ot->srna, "offset", 0.01f, 0.0f, 1e4f, "Offset", "", 0.0f, 10.0f);
 	RNA_def_boolean(ot->srna, "use_crease", false, "Crease", "Crease hub edges for improved subsurf");
 	prop = RNA_def_float(ot->srna, "crease_weight", 0.01f, 0.0f, 1e3f, "Crease weight", "", 0.0f, 1.0f);
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 0.1, 2);
@@ -5452,7 +5467,7 @@ void MESH_OT_symmetrize(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	ot->prop = RNA_def_enum(ot->srna, "direction", symmetrize_direction_items,
+	ot->prop = RNA_def_enum(ot->srna, "direction", rna_enum_symmetrize_direction_items,
 	                        BMO_SYMMETRIZE_NEGATIVE_X,
 	                        "Direction", "Which sides to copy from and to");
 	RNA_def_float(ot->srna, "threshold", 1e-4f, 0.0f, 10.0f, "Threshold", "", 1e-5f, 0.1f);
@@ -5576,10 +5591,10 @@ void MESH_OT_symmetry_snap(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	ot->prop = RNA_def_enum(ot->srna, "direction", symmetrize_direction_items,
+	ot->prop = RNA_def_enum(ot->srna, "direction", rna_enum_symmetrize_direction_items,
 	                        BMO_SYMMETRIZE_NEGATIVE_X,
 	                        "Direction", "Which sides to copy from and to");
-	RNA_def_float(ot->srna, "threshold", 0.05f, 0.0f, 10.0f, "Threshold", "", 1e-4f, 1.0f);
+	RNA_def_float_distance(ot->srna, "threshold", 0.05f, 0.0f, 10.0f, "Threshold", "", 1e-4f, 1.0f);
 	RNA_def_float(ot->srna, "factor", 0.5f, 0.0f, 1.0f, "Factor", "", 0.0f, 1.0f);
 	RNA_def_boolean(ot->srna, "use_center", true, "Center", "Snap mid verts to the axis center");
 }

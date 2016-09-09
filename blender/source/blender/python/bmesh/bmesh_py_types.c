@@ -937,8 +937,9 @@ PyDoc_STRVAR(bpy_bmesh_from_object_doc,
 "   :arg face_normals: Calculate face normals.\n"
 "   :type face_normals: boolean\n"
 );
-static PyObject *bpy_bmesh_from_object(BPy_BMesh *self, PyObject *args)
+static PyObject *bpy_bmesh_from_object(BPy_BMesh *self, PyObject *args, PyObject *kw)
 {
+	static const char *kwlist[] = {"object", "scene", "deform", "render", "cage", "face_normals", NULL};
 	PyObject *py_object;
 	PyObject *py_scene;
 	Object *ob;
@@ -953,8 +954,8 @@ static PyObject *bpy_bmesh_from_object(BPy_BMesh *self, PyObject *args)
 
 	BPY_BM_CHECK_OBJ(self);
 
-	if (!PyArg_ParseTuple(
-	        args, "OO|O&O&O&O&:from_object",
+	if (!PyArg_ParseTupleAndKeywords(
+	        args, kw, "OO|O&O&O&O&:from_object", (char **)kwlist,
 	        &py_object, &py_scene,
 	        PyC_ParseBool, &use_deform,
 	        PyC_ParseBool, &use_render,
@@ -1257,7 +1258,7 @@ static PyObject *bpy_bmesh_calc_tessface(BPy_BMElem *self)
 	looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
 	looptris = PyMem_MALLOC(sizeof(*looptris) * looptris_tot);
 
-	BM_bmesh_calc_tessellation(bm, looptris, &tottri);
+	BM_mesh_calc_tessellation(bm, looptris, &tottri);
 
 	ret = PyList_New(tottri);
 	for (i = 0; i < tottri; i++) {
@@ -2789,7 +2790,7 @@ static PyTypeObject *bpy_bm_itype_as_pytype(const char itype)
 		case BM_FACES_OF_VERT:
 			return &BPy_BMFace_Type;
 
-		case BM_ALL_LOOPS_OF_FACE:
+		// case BM_ALL_LOOPS_OF_FACE:
 		case BM_LOOPS_OF_FACE:
 		case BM_LOOPS_OF_EDGE:
 		case BM_LOOPS_OF_VERT:

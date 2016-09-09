@@ -728,9 +728,9 @@ static void solidify_add_thickness(BMesh *bm, const float dist)
 		if (BMO_elem_flag_test(bm, f, FACE_MARK)) {
 
 			/* array for passing verts to angle_poly_v3 */
-			float  *face_angles = BLI_buffer_resize_data(&face_angles_buf, float, f->len);
+			float  *face_angles = BLI_buffer_reinit_data(&face_angles_buf, float, f->len);
 			/* array for receiving angles from angle_poly_v3 */
-			float **verts = BLI_buffer_resize_data(&verts_buf, float *, f->len);
+			float **verts = BLI_buffer_reinit_data(&verts_buf, float *, f->len);
 
 			BM_ITER_ELEM_INDEX (l, &loopIter, f, BM_LOOPS_OF_FACE, i) {
 				verts[i] = l->v->co;
@@ -772,6 +772,7 @@ void bmo_solidify_face_region_exec(BMesh *bm, BMOperator *op)
 
 	/* Flip original faces (so the shell is extruded inward) */
 	BMO_op_init(bm, &reverseop, op->flag, "reverse_faces");
+	BMO_slot_bool_set(reverseop.slots_in, "flip_multires", true);
 	BMO_slot_copy(op,         slots_in, "geom",
 	              &reverseop, slots_in, "faces");
 	BMO_op_exec(bm, &reverseop);

@@ -153,6 +153,7 @@ void register_node_type_transform_oct_3d(void);
 
 void register_node_type_medium_oct_absorption(void);
 void register_node_type_medium_oct_scattering(void);
+void register_node_type_medium_oct_volume(void);
 
 void register_node_type_tex_oct_float(void);
 void register_node_type_tex_oct_rgb_spectrum(void);
@@ -180,6 +181,7 @@ void register_node_type_tex_oct_random_color(void);
 void register_node_type_tex_oct_polygon_side(void);
 void register_node_type_tex_oct_noise(void);
 void register_node_type_tex_oct_displacement(void);
+void register_node_type_tex_oct_volume_ramp(void);
 
 void register_node_type_projection_oct_xyz(void);
 void register_node_type_projection_oct_box(void);

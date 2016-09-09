@@ -17,85 +17,74 @@
  */
 
 #include "passes.h"
-#include "server.h"
 
 OCT_NAMESPACE_BEGIN
+
+::Octane::RenderPassId const Passes::pass_type_translator[NUM_PASSES] = {
+    ::Octane::RenderPassId::RENDER_PASS_BEAUTY,
+
+    ::Octane::RenderPassId::RENDER_PASS_EMIT,
+    ::Octane::RenderPassId::RENDER_PASS_ENVIRONMENT,
+    ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_DIRECT,
+    ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_INDIRECT,
+    ::Octane::RenderPassId::RENDER_PASS_REFLECTION_DIRECT,
+    ::Octane::RenderPassId::RENDER_PASS_REFLECTION_INDIRECT,
+    ::Octane::RenderPassId::RENDER_PASS_REFRACTION,
+    ::Octane::RenderPassId::RENDER_PASS_TRANSMISSION,
+    ::Octane::RenderPassId::RENDER_PASS_SSS,
+    ::Octane::RenderPassId::RENDER_PASS_POST_PROC,
+
+    ::Octane::RenderPassId::RENDER_PASS_LAYER_SHADOWS,
+    ::Octane::RenderPassId::RENDER_PASS_LAYER_BLACK_SHADOWS,
+    ::Octane::RenderPassId::RENDER_PASS_LAYER_COLOR_SHADOWS,
+    ::Octane::RenderPassId::RENDER_PASS_LAYER_REFLECTIONS,
+
+    ::Octane::RenderPassId::RENDER_PASS_AMBIENT_LIGHT,
+    ::Octane::RenderPassId::RENDER_PASS_SUNLIGHT,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_1,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_2,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_3,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_4,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_5,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_6,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_7,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_8,
+
+    ::Octane::RenderPassId::RENDER_PASS_GEOMETRIC_NORMAL,
+    ::Octane::RenderPassId::RENDER_PASS_SHADING_NORMAL,
+    ::Octane::RenderPassId::RENDER_PASS_POSITION,
+    ::Octane::RenderPassId::RENDER_PASS_Z_DEPTH,
+    ::Octane::RenderPassId::RENDER_PASS_MATERIAL_ID,
+    ::Octane::RenderPassId::RENDER_PASS_UV_COORD,
+    ::Octane::RenderPassId::RENDER_PASS_TANGENT_U,
+    ::Octane::RenderPassId::RENDER_PASS_WIREFRAME,
+    ::Octane::RenderPassId::RENDER_PASS_VERTEX_NORMAL,
+    ::Octane::RenderPassId::RENDER_PASS_OBJECT_ID,
+    ::Octane::RenderPassId::RENDER_PASS_AMBIENT_OCCLUSION,
+    ::Octane::RenderPassId::RENDER_PASS_MOTION_VECTOR,
+    ::Octane::RenderPassId::RENDER_PASS_RENDER_LAYER_ID,
+    ::Octane::RenderPassId::RENDER_PASS_RENDER_LAYER_MASK,
+    ::Octane::RenderPassId::RENDER_PASS_LIGHT_PASS_ID
+};
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Passes::Passes() {
-    use_passes          = false;
-    cur_pass_type       = COMBINED;
-
-    combined_pass               = true;
-
-    emitters_pass               = false;
-    environment_pass            = false;
-    diffuse_direct_pass         = false;
-    diffuse_indirect_pass       = false;
-    reflection_direct_pass      = false;
-    reflection_indirect_pass    = false;
-    refraction_pass             = false;
-    transmission_pass           = false;
-    subsurf_scattering_pass     = false;
-    post_processing_pass        = false;
-
-    layer_shadows_pass          = false;
-    layer_black_shadows_pass    = false;
-    layer_color_shadows_pass    = false;
-    layer_reflections_pass      = false;
-
-    ambient_light_pass          = false;
-    sunlight_pass               = false;
-    light1_pass                 = false;
-    light2_pass                 = false;
-    light3_pass                 = false;
-    light4_pass                 = false;
-    light5_pass                 = false;
-    light6_pass                 = false;
-    light7_pass                 = false;
-    light8_pass                 = false;
-
-    geom_normals_pass           = false;
-    shading_normals_pass        = false;
-    vertex_normals_pass         = false;
-    position_pass               = false;
-    z_depth_pass                = false;
-    material_id_pass            = false;
-    uv_coordinates_pass         = false;
-    tangents_pass               = false;
-    wireframe_pass              = false;
-    motion_vector_pass          = false;
-    object_id_pass              = false;
-    layer_id_pass               = false;
-    layer_mask_pass             = false;
-    light_pass_id_pass          = false;
-
-    ao_pass                     = false;
-
-    pass_max_samples            = 128;
-    pass_ao_max_samples         = 1024;
-    pass_distributed_tracing    = false;
-    pass_filter_size            = 1.0f;
-    pass_z_depth_max            = 5.0f;
-    pass_uv_max                 = 1.0f;
-    pass_max_speed              = 1.0f;
-    pass_ao_distance            = 3.0f;
-    pass_alpha_shadows          = false;
-
-	need_update                 = true;
+    oct_node = new ::OctaneEngine::Passes;
+	need_update = true;
 } //Passes()
 
 Passes::~Passes() {
+    delete oct_node;
 } //~Passes()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the passes settings to Octane
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Passes::server_update(RenderServer *server, Scene *scene, bool interactive) {
+void Passes::server_update(::OctaneEngine::OctaneClient *server, Scene *scene, bool interactive) {
     if(need_update) {
-        server->load_passes(this, interactive);
+        server->uploadPasses(oct_node);
 	    need_update = false;
     }
 } //server_update()
@@ -104,66 +93,7 @@ void Passes::server_update(RenderServer *server, Scene *scene, bool interactive)
 // Check if passes settings were modified
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool Passes::modified(const Passes& passes) {
-    return !(
-        use_passes                  == passes.use_passes &&
-        cur_pass_type               == passes.cur_pass_type &&
-
-        combined_pass               == passes.combined_pass &&
-
-        emitters_pass               == passes.emitters_pass &&
-        environment_pass            == passes.environment_pass &&
-        diffuse_direct_pass         == passes.diffuse_direct_pass &&
-        diffuse_indirect_pass       == passes.diffuse_indirect_pass &&
-        reflection_direct_pass      == passes.reflection_direct_pass &&
-        reflection_indirect_pass    == passes.reflection_indirect_pass &&
-        refraction_pass             == passes.refraction_pass &&
-        transmission_pass           == passes.transmission_pass &&
-        subsurf_scattering_pass     == passes.subsurf_scattering_pass &&
-        post_processing_pass        == passes.post_processing_pass &&
-
-        layer_shadows_pass          == passes.layer_shadows_pass &&
-        layer_black_shadows_pass    == passes.layer_black_shadows_pass &&
-        layer_color_shadows_pass    == passes.layer_color_shadows_pass &&
-        layer_reflections_pass      == passes.layer_reflections_pass &&
-
-        ambient_light_pass          == passes.ambient_light_pass &&
-        sunlight_pass               == passes.sunlight_pass &&
-        light1_pass                 == passes.light1_pass &&
-        light2_pass                 == passes.light2_pass &&
-        light3_pass                 == passes.light3_pass &&
-        light4_pass                 == passes.light4_pass &&
-        light5_pass                 == passes.light5_pass &&
-        light6_pass                 == passes.light6_pass &&
-        light7_pass                 == passes.light7_pass &&
-        light8_pass                 == passes.light8_pass &&
-
-        geom_normals_pass           == passes.geom_normals_pass &&
-        shading_normals_pass        == passes.shading_normals_pass &&
-        vertex_normals_pass         == passes.vertex_normals_pass &&
-        position_pass               == passes.position_pass &&
-        z_depth_pass                == passes.z_depth_pass &&
-        material_id_pass            == passes.material_id_pass &&
-        uv_coordinates_pass         == passes.uv_coordinates_pass &&
-        tangents_pass               == passes.tangents_pass &&
-        wireframe_pass              == passes.wireframe_pass &&
-        motion_vector_pass          == passes.motion_vector_pass &&
-        object_id_pass              == passes.object_id_pass &&
-        layer_id_pass               == passes.layer_id_pass &&
-        layer_mask_pass             == passes.layer_mask_pass &&
-        light_pass_id_pass          == passes.light_pass_id_pass &&
-
-        ao_pass                     == passes.ao_pass &&
-
-        pass_max_samples            == passes.pass_max_samples &&
-        pass_ao_max_samples         == passes.pass_ao_max_samples &&
-        pass_distributed_tracing    == passes.pass_distributed_tracing &&
-        pass_filter_size            == passes.pass_filter_size &&
-        pass_z_depth_max            == passes.pass_z_depth_max &&
-        pass_uv_max                 == passes.pass_uv_max &&
-        pass_max_speed              == passes.pass_max_speed &&
-        pass_ao_distance            == passes.pass_ao_distance &&
-        pass_alpha_shadows          == passes.pass_alpha_shadows
-        );
+    return !(*oct_node == *passes.oct_node);
 } //modified()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

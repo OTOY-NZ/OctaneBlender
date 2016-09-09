@@ -1575,10 +1575,7 @@ class NWEmissionViewer(Operator, NWBase):
                     out_i = valid_outputs[0]  # Start index of node's outputs
                 for i, valid_i in enumerate(valid_outputs):
                     for out_link in active.outputs[valid_i].links:
-                        linked_to_out = False
-                        if "Emission Viewer" in out_link.to_node.name or out_link.to_node == materialout:
-                            linked_to_out = True
-                        if linked_to_out:
+                        if "Emission Viewer" in out_link.to_node.name or (out_link.to_node == materialout and out_link.to_socket == materialout.inputs[0]):
                             if i < len(valid_outputs) - 1:
                                 out_i = valid_outputs[i + 1]
                             else:
@@ -1897,6 +1894,7 @@ class NWSwitchNodeType(Operator, NWBase):
                     if new_node.outputs:
                         links.new(new_node.outputs[0], out_src_link.to_socket)
             nodes.remove(node)
+        force_update(context)
         return {'FINISHED'}
 
 

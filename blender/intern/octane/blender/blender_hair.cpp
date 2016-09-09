@@ -22,6 +22,11 @@
 
 OCT_NAMESPACE_BEGIN
 
+struct HairVerts {
+    bool   skip;
+    float3 point;
+};
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sync hair data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -74,8 +79,45 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                 if(b_part.child_type() == 0)    totcurves += totparts;
                 if(totcurves == 0)              continue;
 
-                hair_points_size        += totcurves * (ren_step + 1);
                 total_hair_cnt          += totcurves;
+                //hair_points_size        += totcurves * (ren_step + 1);
+
+                PointerRNA  oct_settings    = RNA_pointer_get(&b_part.ptr, "octane");
+                float       min_curvature   = get_float(oct_settings, "min_curvature");
+
+                int pa_no = 0;
+                if(b_part.child_type() != 0) pa_no = totparts;
+
+                BL::ParticleSystem::particles_iterator b_pa;
+                b_psys.particles.begin(b_pa);
+
+                for(; pa_no < (totparts + totchild); ++pa_no) {
+                    float3  prev_point, prev_prev_point;
+
+                    for(int step_no = 0; step_no <= ren_step; step_no++) {
+                        float nco[3];
+                        b_psys.co_hair(*b_ob, pa_no, step_no, nco);
+                        float3 cur_point = make_float3(nco[0], nco[1], nco[2]);
+                        cur_point = transform_point(&itfm, cur_point);
+                        if(step_no > 0) {
+                            float step_length = len(cur_point - prev_point);
+                            if(step_length == 0.0f)
+                                continue;
+                        }
+                        if(step_no > 1 && step_no < ren_step && min_curvature > 0.0f) {
+                            float3 curVector = normalize(cur_point - prev_prev_point), prevVector = normalize(prev_point - prev_prev_point);
+                            float fLength = len(curVector - prevVector);
+                            if(fLength <= 0.0f || fLength >= 2.0f || asinf(fLength / 2.0f) * 180.0f / M_PI_F < min_curvature)
+                                continue;
+                        }
+
+                        if(step_no > 0) prev_prev_point = prev_point;
+                        prev_point = cur_point;
+                        ++hair_points_size;
+                    }
+
+                    if(pa_no < totparts && b_pa != b_psys.particles.end()) ++b_pa;
+                }
             }
         }
     }
@@ -121,10 +163,11 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                 if(b_part.child_type() == 0)    totcurves += totparts;
                 if(totcurves == 0)              continue;
 
-                PointerRNA  oct_settings = RNA_pointer_get(&b_part.ptr, "octane");
-                float       root_width = get_float(oct_settings, "root_width");
-                float       tip_width = get_float(oct_settings, "tip_width");
-                float       width_step = (tip_width - root_width) / ren_step;
+                PointerRNA  oct_settings    = RNA_pointer_get(&b_part.ptr, "octane");
+                float       min_curvature   = get_float(oct_settings, "min_curvature");
+                float       root_width      = get_float(oct_settings, "root_width");
+                float       tip_width       = get_float(oct_settings, "tip_width");
+                //float       width_step      = (tip_width - root_width) / ren_step;
 
                 int pa_no = 0;
                 if(b_part.child_type() != 0) pa_no = totparts;
@@ -132,24 +175,55 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                 BL::ParticleSystem::particles_iterator b_pa;
                 b_psys.particles.begin(b_pa);
 
+                HairVerts *hair_verts_arr = new HairVerts[ren_step + 1];
+
                 for(; pa_no < (totparts + totchild); ++pa_no) {
-                    float3  prev_point;
+                    float3  prev_point, prev_prev_point;
                     int     vert_cnt = 0;
                     float   cur_width = root_width;
 
+                    int actual_num_steps = 0;
                     for(int step_no = 0; step_no <= ren_step; step_no++) {
+                        HairVerts *cur_hair_verts = &hair_verts_arr[step_no];
                         float nco[3];
                         b_psys.co_hair(*b_ob, pa_no, step_no, nco);
                         float3 cur_point = make_float3(nco[0], nco[1], nco[2]);
                         cur_point = transform_point(&itfm, cur_point);
                         if(step_no > 0) {
                             float step_length = len(cur_point - prev_point);
-                            if(step_length == 0.0f) continue;
+                            if(step_length == 0.0f) {
+                                cur_hair_verts->skip = true;
+                                continue;
+                            }
                         }
+                        if(step_no > 1 && step_no < ren_step && min_curvature > 0.0f) {
+                            float3 curVector = normalize(cur_point - prev_prev_point), prevVector = normalize(prev_point - prev_prev_point);
+                            float fLength = len(curVector - prevVector);
+                            if(fLength <= 0.0f || fLength >= 2.0f || asinf(fLength / 2.0f) * 180.0f / M_PI_F < min_curvature) {
+                                cur_hair_verts->skip = true;
+                                continue;
+                            }
+                        }
+                        cur_hair_verts->point = cur_point;
+                        cur_hair_verts->skip = false;
+                        ++actual_num_steps;
+
+                        if(step_no > 0) prev_prev_point = prev_point;
+                        prev_point = cur_point;
+                    }
+                    float width_step = actual_num_steps > 1 ? (tip_width - root_width) / (actual_num_steps - 1): 0;
+
+                    for(int step_no = 0; step_no <= ren_step; step_no++) {
+                        HairVerts *cur_hair_verts = &hair_verts_arr[step_no];
+                        if(cur_hair_verts->skip) continue;
+
+                        float3 cur_point = cur_hair_verts->point;
+
                         hair_points[cur_vertex_idx] = cur_point;
                         hair_thickness[cur_vertex_idx] = cur_width;
                         cur_width += width_step;
 
+                        if(step_no > 0) prev_prev_point = prev_point;
                         prev_point = cur_point;
                         ++cur_vertex_idx;
                         ++vert_cnt;
@@ -180,6 +254,7 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                     if(pa_no < totparts && b_pa != b_psys.particles.end()) ++b_pa;
                     ++cur_hair_idx;
                 }
+                delete[] hair_verts_arr;
             }
         }
     }

@@ -67,6 +67,16 @@ class AddPresetKernel(AddPresetBase, Operator):
         "octane.distributed_tracing",
         "octane.max_speed",
         "octane.info_channel_type",
+
+        "octane.parallel_samples",
+        "octane.max_tile_samples",
+        "octane.minimize_net_traffic",
+        "octane.deep_image",
+        "octane.max_depth_samples",
+        "octane.depth_tolerance",
+        "octane.work_chunk_size",
+        "octane.ao_alpha_shadows",
+        "octane.opacity_threshold"
     ]
 
     preset_subdir = "octane/kernel"
@@ -84,7 +94,6 @@ class AddPresetEnvironment(AddPresetBase, Operator):
     preset_values = [
         "octane.env_type",
         "octane.env_texture",
-
         "octane.env_power",
         "octane.env_importance_sampling",
         "octane.env_daylight_type",
@@ -102,7 +111,35 @@ class AddPresetEnvironment(AddPresetBase, Operator):
         "octane.env_day",
         "octane.env_month",
         "octane.env_gmtoffset",
-        "octane.env_hour"
+        "octane.env_hour",
+        "octane.env_med_radius",
+        "octane.env_medium",
+
+        "octane.env_vis_type",
+        "octane.env_vis_texture",
+        "octane.env_vis_power",
+        "octane.env_vis_importance_sampling",
+        "octane.env_vis_daylight_type",
+        "octane.env_vis_sundir_x",
+        "octane.env_vis_sundir_y",
+        "octane.env_vis_sundir_z",
+        "octane.env_vis_turbidity",
+        "octane.env_vis_northoffset",
+        "octane.env_vis_model",
+        "octane.env_vis_sky_color",
+        "octane.env_vis_sunset_color",
+        "octane.env_vis_sun_size",
+        "octane.env_vis_longitude",
+        "octane.env_vis_latitude",
+        "octane.env_vis_day",
+        "octane.env_vis_month",
+        "octane.env_vis_gmtoffset",
+        "octane.env_vis_hour",
+        "octane.env_vis_med_radius",
+        "octane.env_vis_medium",
+        "octane.env_vis_backplate",
+        "octane.env_vis_reflections",
+        "octane.env_vis_refractions"
     ]
 
     preset_subdir = "octane/environment"
@@ -129,7 +166,10 @@ class AddPresetImager(AddPresetBase, Operator):
         "octane.hot_pix",
         "octane.min_display_samples",
         "octane.dithering",
-        "octane.premultiplied_alpha"
+        "octane.premultiplied_alpha",
+        "octane.neutral_response",
+        "octane.max_tonemap_interval",
+        "octane.disable_partial_alpha"
     ]
 
     preset_subdir = "octane/imager_presets"
@@ -158,7 +198,10 @@ class AddPreset3dImager(AddPresetBase, Operator):
         "octane.hot_pix",
         "octane.min_display_samples",
         "octane.dithering",
-        "octane.premultiplied_alpha"
+        "octane.premultiplied_alpha",
+        "octane.neutral_response",
+        "octane.max_tonemap_interval",
+        "octane.disable_partial_alpha"
     ]
 
     preset_subdir = "octane/3dimager_presets"

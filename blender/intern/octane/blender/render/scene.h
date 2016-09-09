@@ -27,11 +27,14 @@
 
 #include "memleaks_check.h"
 
+namespace OctaneEngine {
+class OctaneClient;
+}
+
 OCT_NAMESPACE_BEGIN
 
 class Environment;
 class Camera;
-class RenderServer;
 class RenderServerInfo;
 class Passes;
 class Kernel;
@@ -53,7 +56,7 @@ public:
     Scene(const Session *session_, bool first_frame_);
 	~Scene();
 
-    void server_update(RenderServer *server, Progress& progress, bool interactive, uint32_t frame_idx, uint32_t total_frames);
+    void server_update(::OctaneEngine::OctaneClient *server, Progress& progress, bool interactive, uint32_t frame_idx, uint32_t total_frames);
 	bool need_update();
 	bool need_reset();
 
@@ -88,7 +91,7 @@ public:
 	int default_surface;
 	int default_light;
 
-	RenderServer    *server;
+	::OctaneEngine::OctaneClient *server;
     bool            first_frame;
     AnimationMode   anim_mode;
     Mesh::MeshType  meshes_type;

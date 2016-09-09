@@ -28,6 +28,8 @@
 
 #include "memleaks_check.h"
 
+#include <mutex>
+
 OCT_NAMESPACE_BEGIN
 
 class Scene;
@@ -108,8 +110,9 @@ public:
 	string              b_rlay_name;
 	string              b_rview_name;
 
-	string  last_status;
-	float   last_progress;
+	string              last_status;
+	float               last_progress;
+    std::mutex          sync_mutex;
 
 	int width, height;
 
@@ -117,7 +120,7 @@ protected:
 	void        do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only);
 	void        do_write_update_render_img(bool do_update_only);
 
-    int         load_internal_mb_sequence(bool &stop_render, BL::RenderLayer *layer = 0, bool do_sync = false);
+    int         load_internal_mb_sequence(bool &stop_render, int &num_frames, BL::RenderLayer *layer = 0, bool do_sync = false);
 
     float shuttertime;
     int   mb_cur_sample;
@@ -125,9 +128,9 @@ protected:
 
 private:
     inline void                         clear_passes_buffers();
-    inline Passes::PassTypes            get_octane_pass_type(BL::RenderPass b_pass);
-    inline BL::RenderPass::type_enum    get_blender_pass_type(Passes::PassTypes pass);
-    inline int                          get_pass_index(Passes::PassTypes pass);
+    inline ::Octane::RenderPassId         get_octane_pass_type(BL::RenderPass b_pass);
+    inline BL::RenderPass::type_enum    get_blender_pass_type(::Octane::RenderPassId pass);
+    inline int                          get_pass_index(::Octane::RenderPassId pass);
 };
 
 OCT_NAMESPACE_END

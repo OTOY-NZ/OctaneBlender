@@ -25,10 +25,11 @@
 #include "RNA_blender_cpp.h"
 
 #include "memleaks_check.h"
+#include "OctaneClient.h"
+
 
 OCT_NAMESPACE_BEGIN
 
-class RenderServer;
 class Scene;
 
 enum CameraType {
@@ -36,78 +37,92 @@ enum CameraType {
     CAMERA_PANORAMA
 };
 
-enum ResponseType {
-    Agfacolor_Futura_100CD      = 99 ,
-    Agfacolor_Futura_200CD      = 100,
-    Agfacolor_Futura_400CD      = 101,
-    Agfacolor_Futura_II_100CD   = 102,
-    Agfacolor_Futura_II_200CD   = 103,
-    Agfacolor_Futura_II_400CD   = 104,
-    Agfacolor_HDC_100_plusCD    = 105,
-    Agfacolor_HDC_200_plusCD    = 106,
-    Agfacolor_HDC_400_plusCD    = 107,
-    Agfacolor_Optima_II_100CD   = 108,
-    Agfacolor_Optima_II_200CD   = 109,
-    Agfacolor_ultra_050_CD      = 110,
-    Agfacolor_Vista_100CD       = 111,
-    Agfacolor_Vista_200CD       = 112,
-    Agfacolor_Vista_400CD       = 113,
-    Agfacolor_Vista_800CD       = 114,
-    Agfachrome_CT_precisa_100CD = 115,
-    Agfachrome_CT_precisa_200CD = 116,
-    Agfachrome_RSX2_050CD       = 117,
-    Agfachrome_RSX2_100CD       = 118,
-    Agfachrome_RSX2_200CD       = 119,
-    Advantix_100CD              = 201,
-    Advantix_200CD              = 202,
-    Advantix_400CD              = 203,
-    Gold_100CD                  = 204,
-    Gold_200CD                  = 205,
-    Max_Zoom_800CD              = 206,
-    Portra_100TCD               = 207,
-    Portra_160NCCD              = 208,
-    Portra_160VCCD              = 209,
-    Portra_800CD                = 210,
-    Portra_400VCCD              = 211,
-    Portra_400NCCD              = 212,
-    Ektachrome_100_plusCD       = 213,
-    Ektachrome_320TCD           = 214,
-    Ektachrome_400XCD           = 215,
-    Ektachrome_64CD             = 216,
-    Ektachrome_64TCD            = 217,
-    Ektachrome_E100SCD          = 218,
-    Ektachrome_100CD            = 219,
-    Kodachrome_200CD            = 220,
-    Kodachrome_25               = 221,
-    Kodachrome_64CD             = 222,
-    F125CD                      = 301,
-    F250CD                      = 302,
-    F400CD                      = 303,
-    FCICD                       = 304,
-    DSCS315_1                   = 305,
-    DSCS315_2                   = 306,
-    DSCS315_3                   = 307,
-    DSCS315_4                   = 308,
-    DSCS315_5                   = 309,
-    DSCS315_6                   = 310,
-    FP2900Z                     = 311,
-    Linear                      = 400
-};
-
 class Camera {
 public:
 	Camera();
+    ~Camera();
 
-    void Init(void);
+    inline Camera(Camera &other) {
+        oct_node = new ::OctaneEngine::Camera;
+        *oct_node = *other.oct_node;
+
+        need_update     = other.need_update;
+        matrix          = other.matrix;
+        width           = other.width;
+        height          = other.height;
+        is_hidden       = other.is_hidden;
+        sensorwidth     = other.sensorwidth;
+        sensorheight    = other.sensorheight;
+        sensor_fit      = other.sensor_fit;
+        ortho_scale     = other.ortho_scale;
+        pixelaspect     = other.pixelaspect;
+        zoom            = other.zoom;
+    }
+    inline Camera(Camera &&other) {
+        delete oct_node;
+        oct_node = other.oct_node;
+        other.oct_node = 0;
+
+        need_update     = other.need_update;
+        matrix          = other.matrix;
+        width           = other.width;
+        height          = other.height;
+        is_hidden       = other.is_hidden;
+        sensorwidth     = other.sensorwidth;
+        sensorheight    = other.sensorheight;
+        sensor_fit      = other.sensor_fit;
+        ortho_scale     = other.ortho_scale;
+        pixelaspect     = other.pixelaspect;
+        zoom            = other.zoom;
+    }
+
+    inline Camera& operator=(Camera &other) {
+        *oct_node = *other.oct_node;
+
+        need_update     = other.need_update;
+        matrix          = other.matrix;
+        width           = other.width;
+        height          = other.height;
+        is_hidden       = other.is_hidden;
+        sensorwidth     = other.sensorwidth;
+        sensorheight    = other.sensorheight;
+        sensor_fit      = other.sensor_fit;
+        ortho_scale     = other.ortho_scale;
+        pixelaspect     = other.pixelaspect;
+        zoom            = other.zoom;
+        return *this;
+    }
+    inline Camera& operator=(Camera &&other) {
+        delete oct_node;
+        oct_node = other.oct_node;
+        other.oct_node = 0;
+
+        need_update     = other.need_update;
+        matrix          = other.matrix;
+        width           = other.width;
+        height          = other.height;
+        is_hidden       = other.is_hidden;
+        sensorwidth     = other.sensorwidth;
+        sensorheight    = other.sensorheight;
+        sensor_fit      = other.sensor_fit;
+        ortho_scale     = other.ortho_scale;
+        pixelaspect     = other.pixelaspect;
+        zoom            = other.zoom;
+        return *this;
+    }
+
 	void update(Scene *scene);
     void set_focal_depth(BL::Object b_ob, BL::Camera b_camera);
 
-    void server_update(RenderServer *server, Scene *scene);
+    void server_update(::OctaneEngine::OctaneClient *server, Scene *scene, uint32_t frame_idx, uint32_t total_frames);
 
 	bool modified(const Camera& cam);
 	void tag_update();
 
-    CameraType  type;
+
+    ::OctaneEngine::Camera *oct_node;
+	bool need_update;
+
     Transform   matrix;
     int         width, height;
     bool        is_hidden;
@@ -118,67 +133,68 @@ public:
 	enum {AUTO, HORIZONTAL, VERTICAL} sensor_fit;
 	float   ortho_scale;
 	float2  pixelaspect;
-	bool    need_update;
-    bool    use_border;
-    uint32_4 border;
     float   zoom;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Camera
-    float3 left_filter;
-    float3 right_filter;
+    //CameraType  type;
+    //bool    use_border;
+    //uint32_4 border;
 
-    float3 eye_point;
-    float3 look_at;
-    float3 up;
-    float fov;
-    float fov_x;
-    float fov_y;
-    float aperture;
-    float aperture_edge;
-    float distortion;
-    bool  autofocus;
-    float focal_depth;
-    float near_clip_depth;
-    float far_clip_depth;
-    float lens_shift_x;
-    float lens_shift_y;
-    float offset_x;
-    float offset_y;
-    bool  persp_corr;
-    float stereo_dist;
-    float stereo_dist_falloff;
-    bool  ortho;
-    int32_t pan_type;
-    int32_t stereo_mode, stereo_out;
-    float pixel_aspect, aperture_aspect, blackout_lat;
-    bool keep_upright;
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Camera
+    //float3 left_filter;
+    //float3 right_filter;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Imager
-    float3          white_balance;
-    ResponseType    response_type;
-    float           exposure;
-    float           gamma;
-    float           vignetting;
-    float           saturation;
-    float           hot_pix;
-    bool            premultiplied_alpha;
-    int             min_display_samples;
-    bool            dithering;
-    float           white_saturation;
-    float           highlight_compression;
+    //float3 eye_point;
+    //float3 look_at;
+    //float3 up;
+    //float fov;
+    //float fov_x;
+    //float fov_y;
+    //float aperture;
+    //float aperture_edge;
+    //float distortion;
+    //bool  autofocus;
+    //float focal_depth;
+    //float near_clip_depth;
+    //float far_clip_depth;
+    //float lens_shift_x;
+    //float lens_shift_y;
+    //float offset_x;
+    //float offset_y;
+    //bool  persp_corr;
+    //float stereo_dist;
+    //float stereo_dist_falloff;
+    //bool  ortho;
+    //int32_t pan_type;
+    //int32_t stereo_mode, stereo_out;
+    //float pixel_aspect, aperture_aspect, blackout_lat;
+    //bool keep_upright;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Postprocessor
-    bool    postprocess;
-    float   bloom_power;
-    float   glare_power;
-    int     glare_ray_count;
-    float   glare_angle;
-    float   glare_blur;
-    float   spectral_intencity;
-    float   spectral_shift;
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Imager
+    //float3          white_balance;
+    //ResponseType    response_type;
+    //float           exposure;
+    //float           gamma;
+    //float           vignetting;
+    //float           saturation;
+    //float           hot_pix;
+    //bool            premultiplied_alpha;
+    //int             min_display_samples;
+    //bool            dithering;
+    //float           white_saturation;
+    //float           highlight_compression;
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Postprocessor
+    //bool    postprocess;
+    //float   bloom_power;
+    //float   glare_power;
+    //int     glare_ray_count;
+    //float   glare_angle;
+    //float   glare_blur;
+    //float   spectral_intencity;
+    //float   spectral_shift;
 };
 
 OCT_NAMESPACE_END

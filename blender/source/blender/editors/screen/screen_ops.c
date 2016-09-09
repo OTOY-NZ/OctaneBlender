@@ -997,6 +997,11 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	rect.ymax = rect.ymin + BLI_rcti_size_y(&rect) / U.pixelsize;
 
 	newwin = WM_window_open(C, &rect);
+	if (newwin == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
+		goto finally;
+	}
+
 	*newwin->stereo3d_format = *win->stereo3d_format;
 	
 	/* allocs new screen and adds to newly created window, using window size */
@@ -1010,11 +1015,18 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* screen, areas init */
 	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
-	
+
+
+finally:
 	if (event->type == EVT_ACTIONZONE_AREA)
 		actionzone_exit(op);
 	
-	return OPERATOR_FINISHED;
+	if (newwin) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 static void SCREEN_OT_area_dupli(wmOperatorType *ot)
@@ -2197,7 +2209,6 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
-	bGPdata *gpd = CTX_data_gpencil_data(C);
 	bDopeSheet ads = {NULL};
 	DLRBT_Tree keys;
 	ActKeyColumn *ak;
@@ -2222,11 +2233,12 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 	
 	/* populate tree with keyframe nodes */
 	scene_to_keylist(&ads, scene, &keys, NULL);
+	gpencil_to_keylist(&ads, scene->gpd, &keys);
 
-	if (ob)
+	if (ob) {
 		ob_to_keylist(&ads, ob, &keys, NULL);
-	
-	gpencil_to_keylist(&ads, gpd, &keys);
+		gpencil_to_keylist(&ads, ob->gpd, &keys);
+	}
 	
 	{
 		Mask *mask = CTX_data_edit_mask(C);
@@ -3198,8 +3210,8 @@ static int header_exec(bContext *C, wmOperator *UNUSED(op))
 static void SCREEN_OT_header(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Header";
-	ot->description = "Display header";
+	ot->name = "Toggle Header";
+	ot->description = "Toggle header display";
 	ot->idname = "SCREEN_OT_header";
 
 	/* api callbacks */
@@ -3850,7 +3862,7 @@ static void SCREEN_OT_back_to_previous(struct wmOperatorType *ot)
 
 /* *********** show user pref window ****** */
 
-static int userpref_show_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+static int userpref_show_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	wmWindow *win = CTX_wm_window(C);
 	rcti rect;
@@ -3867,9 +3879,13 @@ static int userpref_show_invoke(bContext *C, wmOperator *UNUSED(op), const wmEve
 	rect.ymax = rect.ymin + sizey;
 	
 	/* changes context! */
-	WM_window_open_temp(C, &rect, WM_WINDOW_USERPREFS);
-	
-	return OPERATOR_FINISHED;
+	if (WM_window_open_temp(C, &rect, WM_WINDOW_USERPREFS) != NULL) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
+		return OPERATOR_CANCELLED;
+	}
 }
 
 
@@ -4220,6 +4236,8 @@ void ED_operatortypes_screen(void)
 	WM_operatortype_append(ED_OT_undo_push);
 	WM_operatortype_append(ED_OT_redo);
 	WM_operatortype_append(ED_OT_undo_history);
+
+	WM_operatortype_append(ED_OT_flush_edits);
 	
 }
 
@@ -4291,14 +4309,15 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
 	WM_keymap_verify_item(keymap, "SCREEN_OT_area_move", LEFTMOUSE, KM_PRESS, 0, 0);
 	
 	WM_keymap_verify_item(keymap, "SCREEN_OT_area_options", RIGHTMOUSE, KM_PRESS, 0, 0);
-	
+
 	WM_keymap_add_item(keymap, "SCREEN_OT_header", F9KEY, KM_PRESS, KM_ALT, 0);
-	
+
 	/* Header Editing ------------------------------------------------ */
+	/* note: this is only used when the cursor is inside the header */
 	keymap = WM_keymap_find(keyconf, "Header", 0, 0);
-	
+
 	WM_keymap_add_item(keymap, "SCREEN_OT_header_toolbox", RIGHTMOUSE, KM_PRESS, 0, 0);
-	
+
 	/* Screen General ------------------------------------------------ */
 	keymap = WM_keymap_find(keyconf, "Screen", 0, 0);
 	

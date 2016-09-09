@@ -184,7 +184,6 @@ def elem_props_get_color_rgb(elem, elem_prop_id, default=None):
             # FBX version 7300
             assert(elem_prop.props[1] == b'Color')
             assert(elem_prop.props[2] == b'')
-            assert(elem_prop.props[3] in {b'A', b'A+', b'AU'})
         else:
             assert(elem_prop.props[1] == b'ColorRGB')
             assert(elem_prop.props[2] == b'Color')
@@ -211,7 +210,6 @@ def elem_props_get_number(elem, elem_prop_id, default=None):
         else:
             assert(elem_prop.props[1] == b'Number')
             assert(elem_prop.props[2] == b'')
-            assert(elem_prop.props[3] in {b'A', b'A+', b'AU'})
 
         # we could allow other number types
         assert(elem_prop.props_type[4] == data_types.FLOAT64)
@@ -275,7 +273,6 @@ def elem_props_get_visibility(elem, elem_prop_id, default=None):
         assert(elem_prop.props[0] == elem_prop_id)
         assert(elem_prop.props[1] == b'Visibility')
         assert(elem_prop.props[2] == b'')
-        assert(elem_prop.props[3] in {b'A', b'A+', b'AU'})
 
         # we could allow other number types
         assert(elem_prop.props_type[4] == data_types.FLOAT64)
@@ -2095,7 +2092,7 @@ class FbxImportHelperNode:
                 child_obj = child.build_skeleton_children(fbx_tmpl, settings, scene)
 
             return arm
-        elif self.fbx_elem:
+        elif self.fbx_elem and not self.is_bone:
             obj = self.build_node_obj(fbx_tmpl, settings)
 
             # walk through children
@@ -2137,7 +2134,7 @@ class FbxImportHelperNode:
                     #       Probably because org app (max) handles it completely aside from any parenting stuff,
                     #       which we obviously cannot do in Blender. :/
                     if amat is None:
-                        amat = self.get_bind_matrix()
+                        amat = self.bind_matrix
                     amat = settings.global_matrix * (Matrix() if amat is None else amat)
                     if self.matrix_geom:
                         amat = amat * self.matrix_geom
@@ -2166,7 +2163,8 @@ class FbxImportHelperNode:
             # walk through children
             for child in self.children:
                 child_obj = child.link_hierarchy(fbx_tmpl, settings, scene)
-                child_obj.parent = obj
+                if child_obj:
+                    child_obj.parent = obj
 
             return obj
         else:
@@ -2245,6 +2243,8 @@ def load(operator, context, filepath="",
         operator.report({'ERROR'}, "Version %r unsupported, must be %r or later" % (version, 7100))
         return {'CANCELLED'}
 
+    print("FBX version: %r" % version)
+
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
@@ -2315,7 +2315,7 @@ def load(operator, context, filepath="",
     custom_fps = elem_props_get_number(fbx_settings_props, b'CustomFrameRate', 25.0)
     time_mode = elem_props_get_enum(fbx_settings_props, b'TimeMode')
     real_fps = {eid: val for val, eid in FBX_FRAMERATES[1:]}.get(time_mode, custom_fps)
-    if real_fps < 0.0:
+    if real_fps <= 0.0:
         real_fps = 25.0
     scene.render.fps = round(real_fps)
     scene.render.fps_base = scene.render.fps / real_fps
@@ -2534,7 +2534,9 @@ def load(operator, context, filepath="",
             assert(fbx_props[0] is not None)
 
             transform_data = blen_read_object_transform_preprocess(fbx_props, fbx_obj, Matrix(), use_prepost_rot)
-            is_bone = fbx_obj.props[2] in {b'LimbNode'}  # Note: 'Root' "bones" are handled as (armature) objects.
+            # Note: 'Root' "bones" are handled as (armature) objects.
+            # Note: See T46912 for first FBX file I ever saw with 'Limb' bones - thought those were totally deprecated.
+            is_bone = fbx_obj.props[2] in {b'LimbNode', b'Limb'}
             fbx_helper_nodes[a_uuid] = FbxImportHelperNode(fbx_obj, bl_data, transform_data, is_bone)
 
         # add parent-child relations and add blender data to the node

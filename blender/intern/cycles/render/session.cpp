@@ -619,8 +619,7 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 		requested_features.max_closure = get_max_closure_count();
 		scene->shader_manager->get_requested_features(
 		        scene,
-		        requested_features.max_nodes_group,
-		        requested_features.nodes_features);
+		        &requested_features);
 	}
 
 	/* This features are not being tweaked as often as shaders,
@@ -640,6 +639,7 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 
 	BakeManager *bake_manager = scene->bake_manager;
 	requested_features.use_baking = bake_manager->get_baking();
+	requested_features.use_integrator_branched = (scene->integrator->method == Integrator::BRANCHED_PATH);
 
 	return requested_features;
 }
@@ -870,7 +870,7 @@ void Session::update_status_time(bool show_pause, bool show_done)
 			substatus += string_printf(", Sample %d/%d", status_sample, num_samples);
 		}
 	}
-	else if(tile_manager.num_samples == USHRT_MAX)
+	else if(tile_manager.num_samples == INT_MAX)
 		substatus = string_printf("Path Tracing Sample %d", sample+1);
 	else
 		substatus = string_printf("Path Tracing Sample %d/%d", sample+1, tile_manager.num_samples);

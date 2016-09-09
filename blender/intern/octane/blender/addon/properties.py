@@ -77,24 +77,10 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 min=1, max=1024,
                 default=128,
                 )
-        cls.pass_ao_max_samples = IntProperty(
-                name="AO max samples",
-                description="Ambient Occlusion (AO) maximum samples per pixel",
-                min=1, max=256000,
-                default=1024,
-                )
         cls.pass_distributed_tracing = BoolProperty(
                 name="Distributed ray tracing",
                 description="Enable motion blur and depth of field",
                 default=False,
-                )
-        cls.pass_filter_size = FloatProperty(
-                name="Filter size",
-                description="Film splatting width (to reduce aliasing)",
-                min=1.0, soft_min=1.0, max=8.0, soft_max=8.0,
-                default=1.0,
-                step=10,
-                precision=2,
                 )
         cls.pass_z_depth_max = FloatProperty(
                 name="Z-depth max",
@@ -132,6 +118,29 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 name="AO alpha shadows",
                 description="Take into account alpha maps when calculating ambient occlusion",
                 default=False,
+                )
+        cls.pass_raw = BoolProperty(
+                name="Raw",
+                description="Make the beauty pass raw render passes by dividing out the color of the BxDF of the surface hit by the camera ray",
+                default=False,
+                )
+        cls.pass_pp_env = BoolProperty(
+                name="Include environment",
+                description="When enabled, the environment render pass is included when doing post-processing. This option only applies when the environment render pass and alpha channel are enabled",
+                default=False,
+                )
+        cls.pass_bump = BoolProperty(
+                name="Bump and normal mapping",
+                description="Take bump and normal mapping into account for shading normal output and wireframe shading",
+                default=True,
+                )
+        cls.pass_opacity_threshold = FloatProperty(
+                name="Opacity threshold",
+                description="Geometry with opacity higher or equal to this value is treated as totally opaque",
+                min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+                default=1.0,
+                step=10,
+                precision=3,
                 )
 
         cls.cur_pass_type = EnumProperty(
@@ -246,6 +255,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="Octane render-server password",
                 default="",
                 maxlen=128,
+                )
+        cls.deep_image = BoolProperty(
+                name="Save deep image",
+                description="Save deep image file into output folder after frame render is finished",
+                default=False,
                 )
 
         cls.mb_type = EnumProperty(
@@ -379,6 +393,59 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 min=1, max=2048,
                 default=24,
                 )
+        cls.parallel_samples = IntProperty(
+                name="Parallel samples",
+                description="",
+                min=1, max=16,
+                default=8,
+                )
+        cls.max_tile_samples = IntProperty(
+                name="Max. tile samples",
+                description="",
+                min=1, max=32,
+                default=16,
+                )
+        cls.minimize_net_traffic = BoolProperty(
+                name="Minimize net traffic",
+                description="",
+                default=True,
+                )
+        cls.deep_image = BoolProperty(
+                name="Deep image",
+                description="",
+                default=False,
+                )
+        cls.max_depth_samples = IntProperty(
+                name="Max. depth samples",
+                description="",
+                min=1, max=32,
+                default=8,
+                )
+        cls.depth_tolerance = FloatProperty(
+                name="Depth tolerance",
+                min=0.001, soft_min=0.001, max=1.0, soft_max=1.0,
+                default=0.05,
+                step=1,
+                precision=3,
+                )
+        cls.work_chunk_size = IntProperty(
+                name="Work chunk size",
+                description="",
+                min=1, max=32,
+                default=8,
+                )
+        cls.ao_alpha_shadows = BoolProperty(
+                name="AO alpha shadows",
+                description="",
+                default=False,
+                )
+        cls.opacity_threshold = FloatProperty(
+                name="Opacity threshold",
+                min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+                default=1.0,
+                step=1,
+                precision=3,
+                )
 
         cls.exploration = FloatProperty(
                 name="Exploration",
@@ -487,11 +554,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="Preview active render layer in viewport",
                 default=False,
                 )
-        cls.hdr_tonemap_enable = BoolProperty(
-                name="Enable HDR tonemapping",
-                description="Tick to enable Octane HDR tonemapping",
-                default=False,
-                )
 
 #        cls.hdr_tonemapped = BoolProperty(
 #                name="Tonemapped HDR",
@@ -569,6 +631,11 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 step=10,
                 precision=3,
                 )
+        cls.stereo_swap_eyes = BoolProperty(
+                name="Swap eyes",
+                description="Swaps left and right eye positions when stereo mode is showing both",
+                default=False,
+                )
         cls.left_filter = FloatVectorProperty(
                 name="Left filter",
 #                description="",
@@ -640,6 +707,17 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 default=90.0,
                 step=10,
                 precision=3,
+                )
+        cls.baking_camera = BoolProperty(
+                name="Baking camera",
+                description="Use as baking camera",
+                default=False,
+                )
+        cls.baking_uv_set = IntProperty(
+                name="UV set",
+                description="Determines which set of UV coordinates to use for baking camera",
+                min=1, max=3,
+                default=1,
                 )
 
         cls.white_balance = FloatVectorProperty(
@@ -726,6 +804,22 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 default=0.0,
                 step=1,
                 precision=2,
+                )
+        cls.neutral_response = BoolProperty(
+                name="Neutral response",
+                description="If enabled, the camera response curve will not affect the colors",
+                default=False,
+                )
+        cls.max_tonemap_interval = IntProperty(
+                name="Max. tonemap interval",
+                description="Maximum interval between tonemaps (in seconds)",
+                min=1, max=120,
+                default=20,
+                )
+        cls.disable_partial_alpha = BoolProperty(
+                name="Disable partial alpha",
+                description="Make pixels that are partially transparent (alpha > 0) fully opaque",
+                default=False,
                 )
 
         cls.postprocess = BoolProperty(
@@ -912,6 +1006,22 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 default=0.0,
                 step=1,
                 precision=2,
+                )
+        cls.neutral_response = BoolProperty(
+                name="Neutral response",
+                description="If enabled, the camera response curve will not affect the colors",
+                default=False,
+                )
+        cls.max_tonemap_interval = IntProperty(
+                name="Max. tonemap interval",
+                description="Maximum interval between tonemaps (in seconds)",
+                min=1, max=120,
+                default=20,
+                )
+        cls.disable_partial_alpha = BoolProperty(
+                name="Disable partial alpha",
+                description="Make pixels that are partially transparent (alpha > 0) fully opaque",
+                default=False,
                 )
 
     @classmethod
@@ -1120,6 +1230,197 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 step=100,
                 precision=1,
                 )
+        cls.env_med_radius = FloatProperty(
+                name="Medium radius",
+                description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius",
+                min=0.0001, soft_min=0.0001, max=10000000000, soft_max=10000000000,
+                default=1.0,
+                step=3,
+                precision=4,
+                )
+        cls.env_medium = StringProperty(
+                name="Medium",
+                description="The medium in the environment (free space). Ignored when this environment is used as a the visible environment",
+                default="",
+                maxlen=512,
+                )
+
+
+        cls.use_vis_env = BoolProperty(
+                name="Use visible environment",
+                description="",
+                default=False,
+                )
+        cls.env_vis_type = EnumProperty(
+                name="Environment type",
+                description="",
+                items=types.environment_types,
+                default='1',
+                )
+        cls.env_vis_texture = StringProperty(
+                name="Texture",
+                description="Octane environment texture",
+                default="",
+                maxlen=512,
+                )
+        cls.env_vis_power = FloatProperty(
+                name="Power",
+                description="Octane environment power",
+                min=0.001, soft_min=0.001, max=1000.0, soft_max=1000.0,
+                default=1.0,
+                step=10,
+                precision=3,
+                )
+        cls.env_vis_importance_sampling = BoolProperty(
+                name="Octane importance sampling",
+                description="",
+                default=True,
+                )
+        cls.env_vis_daylight_type = EnumProperty(
+                name="Daylight type",
+                description="Octane daylight type",
+                items=types.environment_daylight_types,
+                default='1',
+                )
+        cls.env_vis_sundir_x = FloatProperty(
+                name="Sun direction X",
+                description="",
+                min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
+                default=0.0,
+                step=10,
+                precision=3,
+                )
+        cls.env_vis_sundir_y = FloatProperty(
+                name="Sun direction Y",
+                description="",
+                min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
+                default=1.0,
+                step=10,
+                precision=3,
+                )
+        cls.env_vis_sundir_z = FloatProperty(
+                name="Sun direction Z",
+                description="",
+                min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
+                default=-0.0,
+                step=10,
+                precision=3,
+                )
+        cls.env_vis_turbidity = FloatProperty(
+                name="Turbidity",
+                description="Octane environment turbidity",
+                min=2.0, soft_min=2.0, max=6.0, soft_max=6.0,
+                default=2.2,
+                step=10,
+                precision=3,
+                )
+        cls.env_vis_northoffset = FloatProperty(
+                name="North offset",
+                description="Octane environment north offset",
+                min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
+                default=0.0,
+                step=10,
+                precision=3,
+                )
+        cls.env_vis_model = EnumProperty(
+                name="Model",
+                description="Octane daylight model",
+                items=types.environment_daylight_models,
+                default='1',
+                )
+        cls.env_vis_sky_color = FloatVectorProperty(
+                name="Sky color",
+                description="Octane sky color",
+                min=0.0, max=1.0,
+                default=(0.05, 0.3, 1.0),
+                subtype='COLOR',
+                )
+        cls.env_vis_sunset_color = FloatVectorProperty(
+                name="Sunset color",
+                description="Octane sunset color",
+                min=0.0, max=1.0,
+                default=(0.6, 0.12, 0.02),
+                subtype='COLOR',
+                )
+        cls.env_vis_sun_size = FloatProperty(
+                name="Sun size",
+                description="Octane sun size",
+                min=0.1, soft_min=0.1, max=30.0, soft_max=30.0,
+                default=1.0,
+                step=10,
+                precision=4,
+                )
+        cls.env_vis_longitude = FloatProperty(
+                name="Longitude",
+                description="Octane environment longitude",
+                min=-180.0, soft_min=-180.0, max=180.0, soft_max=180.0,
+                default=4.4667,
+                step=1,
+                precision=4,
+                )
+        cls.env_vis_latitude = FloatProperty(
+                name="Latitude",
+                description="Octane environment latitude",
+                min=-90.0, soft_min=-90.0, max=90.0, soft_max=90.0,
+                default=50.7667,
+                step=1,
+                precision=4,
+                )
+        cls.env_vis_day = IntProperty(
+                name="Day",
+                description="",
+                min=1, max=31,
+                default=1,
+                )
+        cls.env_vis_month = IntProperty(
+                name="Month",
+                description="",
+                min=1, max=12,
+                default=3,
+                )
+        cls.env_vis_gmtoffset = IntProperty(
+                name="GMT offset",
+                description="",
+                min=-12, max=12,
+                default=0,
+                )
+        cls.env_vis_hour = FloatProperty(
+                name="Longitude",
+                description="Octane environment longitude",
+                min=0.0, soft_min=0.0, max=24.0, soft_max=24.0,
+                default=14,
+                step=100,
+                precision=1,
+                )
+        cls.env_vis_med_radius = FloatProperty(
+                name="Medium radius",
+                description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius",
+                min=0.0001, soft_min=0.0001, max=10000000000, soft_max=10000000000,
+                default=1.0,
+                step=3,
+                precision=4,
+                )
+        cls.env_vis_medium = StringProperty(
+                name="Medium",
+                description="The medium in the environment (free space). Ignored when this environment is used as a the visible environment",
+                default="",
+                maxlen=512,
+                )
+        cls.env_vis_backplate = BoolProperty(
+                name="Backplate",
+                description="When used as a visible environment, this environment will behave as a backplate image",
+                default=False,
+                )
+        cls.env_vis_reflections = BoolProperty(
+                name="Reflections",
+                description="When used as a visible environment, this environment will be visible in reflections (specular and glossy materials)",
+                default=False,
+                )
+        cls.env_vis_refractions = BoolProperty(
+                name="Refractions",
+                description="When used as a visible environment, this environment will be visible in refractions",
+                default=False,
+                )
 
 
     @classmethod
@@ -1226,8 +1527,45 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         cls.layer_number = IntProperty(
                 name="Layer number",
                 description="",
-                min=1, max=100,
+                min=1, max=255,
                 default=1,
+                )
+        cls.baking_group_id = IntProperty(
+                name="Baking group",
+                description="",
+                min=1, max=65535,
+                default=1,
+                )
+
+        cls.vdb_iso = FloatProperty(
+                name="ISO",
+                description="Isovalue used for when rendering openvdb level sets",
+                min=0.0,
+                default=0.04,
+                )
+        cls.vdb_abs_scale = FloatProperty(
+                name="Absorption scale",
+                description="This scalar value scales the grid value used for absorption",
+                min=0.0,
+                default=1.0,
+                )
+        cls.vdb_emiss_scale = FloatProperty(
+                name="Emission scale",
+                description="This scalar value scales the grid value used for temperature. Use this when temperature information in a grid is too low",
+                min=0.0,
+                default=1.0,
+                )
+        cls.vdb_scatter_scale = FloatProperty(
+                name="Scatter scale",
+                description="This scalar value scales the grid value used for scattering",
+                min=0.0,
+                default=1.0,
+                )
+        cls.vdb_vel_scale = FloatProperty(
+                name="Velocity scale",
+                description="This scalar value linearly scales velocity vectors in the velocity grid",
+                min=0.0,
+                default=1.0,
                 )
 
     @classmethod
@@ -1256,6 +1594,12 @@ class OctaneHairSettings(bpy.types.PropertyGroup):
                 description="Hair thickness at tip",
                 min=0.0, max=1000.0,
                 default=0.001,
+                )
+        cls.min_curvature = FloatProperty(
+                name="Minimal curvature (deg.)",
+                description="Hair points having angle deviation from previous point less than this value will be skipped",
+                min=0.0, max=180.0,
+                default=0.0001,
                 )
 
     @classmethod

@@ -29,7 +29,7 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_SHADER,    1,  N_("Texture"),             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_BOOLEAN,   1,  N_("Smooth"),	            1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+	{SOCK_INT,       1,  N_("Interp. type"),        2.0f, 0.0f, 0.0f, 0.0f, 1.0f, 3.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{-1, 0, ""}
 };
 

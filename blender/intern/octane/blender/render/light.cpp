@@ -18,10 +18,11 @@
 
 #include "light.h"
 
-#include "server.h"
+#include "OctaneClient.h"
 #include "object.h"
 #include "scene.h"
 #include "session.h"
+#include "kernel.h"
 
 #include "util_progress.h"
 
@@ -76,9 +77,9 @@ LightManager::~LightManager() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void LightManager::server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
+void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
 	if(!need_update) return;
-    if(!total_frames || frame_idx >= (total_frames - 1))
+    if(total_frames <= 1)
         need_update = false;
 
 	if(scene->lights.size() == 0) return;
@@ -93,7 +94,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             if(light->need_update) light->need_update = false;
             if((scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY)
                 || (scene->meshes_type == Mesh::AS_IS && light->mesh->mesh_type != oct::Mesh::GLOBAL))
-                server->delete_mesh(false, light->name);
+                server->deleteMesh(false, light->name);
             continue;
         }
 
@@ -133,7 +134,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
     if(ulLocalCnt) {
         char            **mesh_names            = new char*[ulLocalCnt];
         uint64_t        *used_shaders_size      = new uint64_t[ulLocalCnt];
+        uint64_t        *used_objects_size      = new uint64_t[ulLocalCnt];
         vector<string>  *shader_names           = new vector<string>[ulLocalCnt];
+        vector<string>  *object_names           = new vector<string>[ulLocalCnt];
         float3          **points                = new float3*[ulLocalCnt];
         uint64_t        *points_size            = new uint64_t[ulLocalCnt];
         float3          **normals               = new float3*[ulLocalCnt];
@@ -145,6 +148,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         int             **vert_per_poly         = new int*[ulLocalCnt];
         uint64_t        *vert_per_poly_size     = new uint64_t[ulLocalCnt];
         int             **poly_mat_index        = new int*[ulLocalCnt];
+        int             **poly_obj_index        = new int*[ulLocalCnt];
         float3          **uvs                   = new float3*[ulLocalCnt];
         uint64_t        *uvs_size               = new uint64_t[ulLocalCnt];
         int             **uv_indices            = new int*[ulLocalCnt];
@@ -160,6 +164,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         int32_t         *rand_color_seed        = new int32_t[ulLocalCnt];
         bool            *reshapable             = new bool[ulLocalCnt];
         int32_t         *layer_number           = new int32_t[ulLocalCnt];
+        int32_t         *baking_group_id        = new int32_t[ulLocalCnt];
 
         uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
         uint64_t        *vert_per_hair_size     = new uint64_t[ulLocalCnt];
@@ -200,6 +205,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             used_shaders_size[i] = 1;
             shader_names[i].push_back("__"+light->nice_name);
 
+            used_objects_size[i] = 1;
+            object_names[i].push_back("__"+light->nice_name);
+
             mesh_names[i]           = (char*) light->name.c_str();
             points[i]               = &light->mesh->points[0];
             points_size[i]          = light->mesh->points.size();
@@ -212,6 +220,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             vert_per_poly[i]        = &light->mesh->vert_per_poly[0];
             vert_per_poly_size[i]   = light->mesh->vert_per_poly.size();
             poly_mat_index[i]       = &light->mesh->poly_mat_index[0];
+            poly_obj_index[i]       = &light->mesh->poly_mat_index[0];
             uvs[i]                  = &light->mesh->uvs[0];
             uvs_size[i]             = light->mesh->uvs.size();
             uv_indices[i]           = &light->mesh->uv_indices[0];
@@ -221,7 +230,8 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             open_subd_level[i]      = light->mesh->open_subd_level;
             open_subd_sharpness[i]  = light->mesh->open_subd_sharpness;
             open_subd_bound_interp[i] = light->mesh->open_subd_bound_interp;
-            layer_number[i]         = (scene->kernel->layers_enable ? light->mesh->layer_number : 1);
+            layer_number[i]         = (scene->kernel->oct_node->bLayersEnable ? light->mesh->layer_number : 1);
+            baking_group_id[i]      = light->mesh->baking_group_id;
             general_vis[i]          = 1.f;
             cam_vis[i]              = true;
             shadow_vis[i]           = true;
@@ -232,19 +242,21 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             vert_per_hair_size[i]   = light->mesh->vert_per_hair.size();
 
             if(light->need_update
-               && (!total_frames || frame_idx >= (total_frames - 1) || !reshapable[i]))
+               && (total_frames <= 1 || !reshapable[i]))
                 light->need_update = false;
     		if(progress.get_cancel()) return;
             ++i;
 	    }
         if(i) {
             progress.set_status("Loading Lamps to render-server", "Transferring...");
-            server->load_mesh(false, frame_idx, total_frames, ulLocalCnt, mesh_names,
+            server->uploadMesh(false, frame_idx, total_frames, ulLocalCnt, mesh_names,
                                         used_shaders_size,
+                                        used_objects_size,
                                         shader_names,
-                                        points,
+                                        object_names,
+                                        (::OctaneEngine::float_3**)points,
                                         points_size,
-                                        normals,
+                                        (::OctaneEngine::float_3**)normals,
                                         normals_size,
                                         points_indices,
                                         normals_indices,
@@ -253,7 +265,8 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         vert_per_poly,
                                         vert_per_poly_size,
                                         poly_mat_index,
-                                        uvs,
+                                        poly_obj_index,
+                                        (::OctaneEngine::float_3**)uvs,
                                         uvs_size,
                                         uv_indices,
                                         uv_indices_size,
@@ -266,6 +279,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         open_subd_sharpness,
                                         open_subd_bound_interp,
                                         layer_number,
+                                        baking_group_id,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
@@ -274,7 +288,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         }
         delete[] mesh_names;
         delete[] used_shaders_size;
+        delete[] used_objects_size;
         delete[] shader_names;
+        delete[] object_names;
         delete[] points;
         delete[] points_size;
         delete[] normals;
@@ -286,6 +302,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] vert_per_poly;
         delete[] vert_per_poly_size;
         delete[] poly_mat_index;
+        delete[] poly_obj_index;
         delete[] uvs;
         delete[] uvs_size;
         delete[] uv_indices;
@@ -301,6 +318,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] rand_color_seed;
         delete[] reshapable;
         delete[] layer_number;
+        delete[] baking_group_id;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
@@ -339,8 +357,10 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
             }
         }
 
-        uint64_t          *used_shaders_size    = new uint64_t[obj_cnt];
+        uint64_t        *used_shaders_size      = new uint64_t[obj_cnt];
+        uint64_t        *used_objects_size      = new uint64_t[obj_cnt];
         vector<string>  *shader_names           = new vector<string>[obj_cnt];
+        vector<string>  *object_names           = new vector<string>[obj_cnt];
         float3          **points                = new float3*[obj_cnt];
         uint64_t          *points_size          = new uint64_t[obj_cnt];
         float3          **normals               = new float3*[obj_cnt];
@@ -352,6 +372,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         int             **vert_per_poly         = new int*[obj_cnt];
         uint64_t          *vert_per_poly_size   = new uint64_t[obj_cnt];
         int             **poly_mat_index        = new int*[obj_cnt];
+        int             **poly_obj_index        = new int*[obj_cnt];
         float3          **uvs                   = new float3*[obj_cnt];
         uint64_t          *uvs_size             = new uint64_t[obj_cnt];
         int             **uv_indices            = new int*[obj_cnt];
@@ -367,6 +388,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         int32_t         *rand_color_seed        = new int32_t[obj_cnt];
         bool            *reshapable             = new bool[obj_cnt];
         int32_t         *layer_number           = new int32_t[obj_cnt];
+        int32_t         *baking_group_id        = new int32_t[obj_cnt];
 
         uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
         uint64_t        *vert_per_hair_size     = new uint64_t[obj_cnt];
@@ -404,6 +426,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 used_shaders_size[obj_cnt] = 1;
                 shader_names[obj_cnt].push_back("__"+light->nice_name);
 
+                used_objects_size[obj_cnt] = 1;
+                object_names[obj_cnt].push_back("__"+light->nice_name);
+
                 size_t points_cnt             = light->mesh->points.size();
                 points[obj_cnt]               = new float3[points_cnt];
                 float3 *p                     = &light->mesh->points[0];
@@ -423,6 +448,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 vert_per_poly[obj_cnt]        = &light->mesh->vert_per_poly[0];
                 vert_per_poly_size[obj_cnt]   = light->mesh->vert_per_poly.size();
                 poly_mat_index[obj_cnt]       = &light->mesh->poly_mat_index[0];
+                poly_obj_index[obj_cnt]       = &light->mesh->poly_mat_index[0];
                 uvs[obj_cnt]                  = &light->mesh->uvs[0];
                 uvs_size[obj_cnt]             = light->mesh->uvs.size();
                 uv_indices[obj_cnt]           = &light->mesh->uv_indices[0];
@@ -432,7 +458,8 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                 open_subd_level[obj_cnt]      = light->mesh->open_subd_level;
                 open_subd_sharpness[obj_cnt]  = light->mesh->open_subd_sharpness;
                 open_subd_bound_interp[obj_cnt] = light->mesh->open_subd_bound_interp;
-                layer_number[obj_cnt]         = (scene->kernel->layers_enable ? light->mesh->layer_number : 1);
+                layer_number[obj_cnt]         = (scene->kernel->oct_node->bLayersEnable ? light->mesh->layer_number : 1);
+                baking_group_id[obj_cnt]      = light->mesh->baking_group_id;
                 general_vis[obj_cnt]          = 1.f;
                 cam_vis[obj_cnt]              = true;
                 shadow_vis[obj_cnt]           = true;
@@ -450,12 +477,14 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         char* name = "__global_lights";
         if(obj_cnt > 0) {
             progress.set_status("Loading global Lights to render-server", string("Transferring..."));
-            server->load_mesh(true, frame_idx, total_frames, obj_cnt, &name,
+            server->uploadMesh(true, frame_idx, total_frames, obj_cnt, &name,
                                         used_shaders_size,
+                                        used_objects_size,
                                         shader_names,
-                                        points,
+                                        object_names,
+                                        (::OctaneEngine::float_3**)points,
                                         points_size,
-                                        normals,
+                                        (::OctaneEngine::float_3**)normals,
                                         normals_size,
                                         points_indices,
                                         normals_indices,
@@ -464,7 +493,8 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         vert_per_poly,
                                         vert_per_poly_size,
                                         poly_mat_index,
-                                        uvs,
+                                        poly_obj_index,
+                                        (::OctaneEngine::float_3**)uvs,
                                         uvs_size,
                                         uv_indices,
                                         uv_indices_size,
@@ -477,11 +507,14 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
                                         open_subd_sharpness,
                                         open_subd_bound_interp,
                                         layer_number,
+                                        baking_group_id,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
                                         rand_color_seed,
                                         reshapable);
+            server->uploadLayerMap(true, "__global_lights_lm", name, static_cast< ::OctaneEngine::int32_t>(obj_cnt), layer_number, baking_group_id, general_vis, cam_vis, shadow_vis, static_cast< ::OctaneEngine::int32_t*>(rand_color_seed));
+
             for(size_t n = 0; n < obj_cnt; n++) {
                 delete[] points[n];
                 delete[] normals[n];
@@ -490,7 +523,9 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         else ulGlobalCnt = 0;
 
         delete[] used_shaders_size;
+        delete[] used_objects_size;
         delete[] shader_names;
+        delete[] object_names;
         delete[] points;
         delete[] points_size;
         delete[] normals;
@@ -502,6 +537,7 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] vert_per_poly;
         delete[] vert_per_poly_size;
         delete[] poly_mat_index;
+        delete[] poly_obj_index;
         delete[] uvs;
         delete[] uvs_size;
         delete[] uv_indices;
@@ -517,12 +553,13 @@ void LightManager::server_update(RenderServer *server, Scene *scene, Progress& p
         delete[] rand_color_seed;
         delete[] reshapable;
         delete[] layer_number;
+        delete[] baking_group_id;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
     }
     std::string cur_name("__global_lights");
-    if(!ulGlobalCnt) server->delete_mesh(true, cur_name);
+    if(!ulGlobalCnt) server->deleteMesh(true, cur_name);
 } //server_update()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

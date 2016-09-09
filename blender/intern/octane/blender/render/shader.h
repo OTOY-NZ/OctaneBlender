@@ -23,9 +23,12 @@
 
 #include "memleaks_check.h"
 
+namespace OctaneEngine {
+class OctaneClient;
+}
+
 OCT_NAMESPACE_BEGIN
 
-class RenderServer;
 class Progress;
 class Scene;
 class ShaderGraph;
@@ -56,7 +59,7 @@ public:
 
 	static ShaderManager *create(Scene *scene);
 
-	void        server_update(RenderServer *server, Scene *scene, Progress& progress);
+	void        server_update(::OctaneEngine::OctaneClient *server, Scene *scene, Progress& progress);
 	static void add_default(Scene *scene);
 
 	bool need_update;

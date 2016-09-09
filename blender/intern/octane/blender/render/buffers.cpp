@@ -19,7 +19,7 @@
 #include <stdlib.h>
 
 #include "buffers.h"
-#include "server.h"
+#include "OctaneClient.h"
 
 #include <OpenImageIO/imageio.h>
 #ifndef NOPNG
@@ -32,6 +32,9 @@
 
 #include "util_opengl.h"
 #include "util_types.h"
+
+#include "BLI_sys_types.h"
+#include "BLI_fileops.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -51,10 +54,12 @@ BufferParams::BufferParams() {
 // Check if buffer sizes and passes are nod equal
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool BufferParams::modified(const BufferParams& params) {
-	return !(full_width == params.full_width
-        && full_height == params.full_height
-        && offset_x == params.offset_x
-		&& offset_y == params.offset_y);
+	return !(full_width    == params.full_width
+            && full_height == params.full_height
+            && use_border  == params.use_border
+            && border      == params.border
+            && offset_x    == params.offset_x
+		    && offset_y    == params.offset_y);
 } //modified()
 
 
@@ -64,7 +69,7 @@ bool BufferParams::modified(const BufferParams& params) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-DisplayBuffer::DisplayBuffer(RenderServer *server_) {
+DisplayBuffer::DisplayBuffer(::OctaneEngine::OctaneClient *server_) {
     rgba        = 0;
 	server      = server_;
 	transparent = true; //TODO: determine from background
@@ -81,10 +86,10 @@ DisplayBuffer::~DisplayBuffer() {
 // Free the Image-buffer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void DisplayBuffer::free_buffers() {
-    if(rgba) {
-        delete[] rgba;
-        rgba = 0;
-    }
+    //if(rgba) {
+    //    delete[] rgba;
+    //    rgba = 0;
+    //}
 } //free()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -94,22 +99,43 @@ void DisplayBuffer::reset(BufferParams& params_) {
 	params = params_;
 
     free_buffers();
-    if(params.full_width > 0 && params.full_height > 0)
-        rgba = new uchar4[params.full_width * params.full_height];
+    //if(params.full_width > 0 && params.full_height > 0)
+    //    rgba = new uint8_t[params.full_width * params.full_height];
 } //reset()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Do the OpenGL draw of the Image-buffer chunk
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool DisplayBuffer::draw(RenderServer *server) {
+bool DisplayBuffer::draw() {
     int reg_width  = params.use_border ? params.border.z - params.border.x : params.full_width,
         reg_height = params.use_border ? params.border.w - params.border.y : params.full_height;
 
 	if(params.full_width > 0 && params.full_height > 0) {
-        if(!server->get_8bit_pixels(rgba, params.full_width, params.full_height, reg_width, reg_height)) return false;
+        int components_cnt;
+        if(!server->getImgBuffer8bit(components_cnt, rgba, params.full_width, params.full_height, reg_width, reg_height)) return false;
+        if(!rgba) return false;
+
+        GLenum imgFormat;
+        switch(components_cnt) {
+            case 1:
+                imgFormat = GL_LUMINANCE;
+                break;
+            case 2:
+                imgFormat = GL_LUMINANCE_ALPHA;
+                break;
+            case 3:
+                imgFormat = GL_RGB;
+                break;
+            case 4:
+                imgFormat = GL_RGBA;
+                break;
+            default:
+                imgFormat = GL_LUMINANCE;
+                break;
+        }
 
 		glPushMatrix();
-        glTranslatef(max(0, params.offset_x), max(0, params.offset_y), 0.0f);
+        glTranslatef(std::max(0, params.offset_x), std::max(0, params.offset_y), 0.0f);
         glTranslatef(0, 0, 0.0f);
 
         if(transparent) {
@@ -122,17 +148,17 @@ bool DisplayBuffer::draw(RenderServer *server) {
         glGetIntegerv(GL_VIEWPORT, iViewport);
 
         if(params.use_border) {
-            glViewport(iViewport[0] + min(0, params.offset_x) + params.border.x, iViewport[1] + min(0, params.offset_y) + (iViewport[3] - params.border.y - reg_height),
-                       min(reg_width, iViewport[2] - min(0, params.offset_x) - params.border.x), min(reg_height, iViewport[3] - min(0, params.offset_y) - params.border.y));
+            glViewport(iViewport[0] + std::min(0, params.offset_x) + params.border.x, iViewport[1] + std::min(0, params.offset_y) + (iViewport[3] - params.border.y - reg_height),
+                       std::min(static_cast<uint32_t>(reg_width), iViewport[2] - std::min(0, params.offset_x) - params.border.x), std::min(static_cast<uint32_t>(reg_height), iViewport[3] - std::min(0, params.offset_y) - params.border.y));
 	        glRasterPos2f(0, 0);
 
-	        glDrawPixels(reg_width, reg_height, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)rgba);
+	        glDrawPixels(reg_width, reg_height, imgFormat, GL_UNSIGNED_BYTE, rgba);
         }
         else {
-            glViewport(iViewport[0] + min(0, params.offset_x), iViewport[1] + min(0, params.offset_y), iViewport[2] - min(0, params.offset_x), iViewport[3] - min(0, params.offset_y));
+            glViewport(iViewport[0] + std::min(0, params.offset_x), iViewport[1] + std::min(0, params.offset_y), iViewport[2] - std::min(0, params.offset_x), iViewport[3] - std::min(0, params.offset_y));
 	        glRasterPos2f(0, 0);
 
-	        glDrawPixels(params.full_width, params.full_height, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)rgba);
+	        glDrawPixels(params.full_width, params.full_height, imgFormat, GL_UNSIGNED_BYTE, rgba);
         }
         glViewport(iViewport[0], iViewport[1], iViewport[2], iViewport[3]);
 
@@ -155,13 +181,33 @@ void DisplayBuffer::write(const string& filename) {
 	if(w == 0 || h == 0) return;
 
 	// Read buffer from server
-	if(!server->get_8bit_pixels(rgba, w, h, reg_width, reg_height)) return;
+    int components_cnt;
+	if(!server->getImgBuffer8bit(components_cnt, rgba, w, h, reg_width, reg_height)) return;
     if(!rgba) return;
+
+    int imgFormat;
+    switch(components_cnt) {
+        case 1:
+            imgFormat = PNG_COLOR_TYPE_GRAY;
+            break;
+        case 2:
+            imgFormat = PNG_COLOR_TYPE_GRAY_ALPHA;
+            break;
+        case 3:
+            imgFormat = PNG_COLOR_TYPE_RGB;
+            break;
+        case 4:
+            imgFormat = PNG_COLOR_TYPE_RGBA;
+            break;
+        default:
+            imgFormat = PNG_COLOR_TYPE_GRAY;
+            break;
+    }
 
 	// Write image
     std::string full_path = filename + "interactive_session.png";
 
-    unsigned char *buf          = (unsigned char*)rgba;
+    unsigned char *buf          = rgba;
 	unsigned rowbytes           = reg_width * 4;
 	unsigned char **rows_buf    = new unsigned char*[reg_height * sizeof(unsigned char*)];
 
@@ -183,7 +229,7 @@ void DisplayBuffer::write(const string& filename) {
 
     if(setjmp(png_jmpbuf(png_ptr))) goto fail;
     png_init_io(png_ptr, fp);
-    png_set_IHDR(png_ptr, info_ptr, reg_width, reg_height, 8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+    png_set_IHDR(png_ptr, info_ptr, reg_width, reg_height, 8, imgFormat, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
     png_write_info(png_ptr, info_ptr);
     png_write_image(png_ptr, rows);
     png_write_end(png_ptr, NULL);

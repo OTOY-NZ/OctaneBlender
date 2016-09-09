@@ -23,17 +23,21 @@
 
 #include "util_lists.h"
 #include "util_types.h"
-#include <OpenImageIO/ustring.h>
 
 #include "memleaks_check.h"
+#include "OctaneClient.h"
+
+namespace OctaneEngine {
+class OctaneClient;
+}
 
 OCT_NAMESPACE_BEGIN
 
-using namespace OIIO_NAMESPACE;
-
-class RenderServer;
 class Progress;
 class Scene;
+namespace OctaneEngine {
+class OctaneClient;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -68,6 +72,7 @@ public:
     bool        vis_shadow;
     int32_t     rand_color_seed;
     int32_t     layer_number;
+    int32_t     baking_group_id;
 
 	vector<float3>	points;
 	vector<float3>	normals;
@@ -76,12 +81,30 @@ public:
 	vector<int>		points_indices;
 	vector<int>		uv_indices;
 	vector<int>		poly_mat_index;
+	vector<int>		poly_obj_index;
 
     vector<float3>	hair_points;
     vector<int32_t>	vert_per_hair;
     vector<float>	hair_thickness;
     vector<int32_t>	hair_mat_indices;
     vector<float2>	hair_uvs;
+
+    float                   *vdb_regular_grid;
+    int32_t                 vdb_grid_size;
+
+    float3                  vdb_resolution;
+    float                   vdb_iso;
+    int32_t                 vdb_absorption_offset;
+    float                   vdb_absorption_scale;
+    int32_t                 vdb_emission_offset;
+    float                   vdb_emission_scale;
+    int32_t                 vdb_scatter_offset;
+    float                   vdb_scatter_scale;
+    int32_t                 vdb_velocity_x_offset;
+    int32_t                 vdb_velocity_y_offset;
+    int32_t                 vdb_velocity_z_offset;
+    float                   vdb_velocity_scale;
+    ::OctaneEngine::MatrixF vdb_grid_matrix;
 
     //Array of indices of Octane shaders in Octane Scene.shaders array
 	vector<uint> used_shaders;
@@ -97,8 +120,8 @@ public:
 	MeshManager();
 	~MeshManager();
 
-    void server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
-    void server_update_mesh(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
+    void server_update(::OctaneEngine::OctaneClient *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
+    void server_update_mesh(::OctaneEngine::OctaneClient *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
 
 	void tag_update(Scene *scene);
 	void tag_global_update();

@@ -21,14 +21,17 @@
 
 #include "session.h"
 #include "buffers.h"
-#include "server.h"
+#include "OctaneClient.h"
 #include "scene.h"
+#include "kernel.h"
+#include "camera.h"
 
 #include "blender_session.h"
 
 #include "util_math.h"
 #include "util_opengl.h"
 #include "util_time.h"
+#include "blender_util.h"
 
 #ifdef WIN32
 #   include "BLI_winstuff.h"
@@ -40,7 +43,10 @@ OCT_NAMESPACE_BEGIN
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Session::Session(const SessionParams& params_, const char *_out_path) : params(params_) {
-	server = RenderServer::create(params.server, params.export_scene, _out_path, params.interactive);
+    server = new ::OctaneEngine::OctaneClient;
+    server->setExportType(params_.export_scene);
+    server->setOutputPath(_out_path);
+	//server = RenderServer::create(params.server, params.export_scene, _out_path, params.interactive);
 
 	if(!params.interactive)
 		display = NULL;
@@ -100,7 +106,7 @@ void Session::start(const char* pass_name_, bool synchronous, uint32_t frame_idx
 
     if(!synchronous)
         //FIXME: kill this boost here
-        session_thread = new thread(boost::bind(&Session::run, this));
+        session_thread = new thread(function_bind(&Session::run, this));
     else
         run();
 } //start()
@@ -113,15 +119,16 @@ void Session::run_render() {
 	paused_time         = 0.0;
     bool bStarted       = false;
 
+    params.image_stat.uiCurSamples = 0;
+
     if(params.interactive) progress.set_start_time(start_time);
 
+    bool is_done = false;
 	while(!progress.get_cancel()) {
-		bool is_done = !params.interactive && (params.image_stat.cur_samples >= params.samples);
-
 		if(!params.interactive) {
 			// If no work left and in background mode, we can stop immediately
 			if(is_done) {
-            	update_status_time();
+                update_status_time();
 				progress.set_status(string(pass_name) + " finished");
 				break;
 			}
@@ -133,7 +140,7 @@ void Session::run_render() {
 			if(pause || is_done) {
 				update_status_time(pause, is_done);
 				while(true) {
-                    if(pause) server->pause_render(true);
+                    if(pause) server->pauseRender(true);
 
 					double pause_start = time_dt();
 					pause_cond.wait(pause_lock);
@@ -144,7 +151,7 @@ void Session::run_render() {
 					progress.set_update();
 
                     if(!pause) {
-                        server->pause_render(false);
+                        server->pauseRender(false);
                         break;
                     }
 				}
@@ -159,14 +166,14 @@ void Session::run_render() {
             if(!bStarted || params.interactive) update_scene_to_server(frame_idx, total_frames);
 
             if(!bStarted) {
-                server->start_render(params.width, params.height, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1),
+                server->startRender(params.width, params.height, params.interactive ? ::OctaneEngine::OctaneClient::IMAGE_8BIT : (params.hdr_tonemapped ? ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED : ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
                                      params.out_of_core_enabled, params.out_of_core_mem_limit, params.out_of_core_gpu_headroom); //FIXME: Perhaps the wrong place for it...
                 bStarted = true;
             }
 
-            if(!server->error_message().empty()) {
+            if(!server->getServerErrorMessage().empty()) {
                 progress.set_cancel("ERROR! Check console for detailed error messages.");
-                server->clear_error_message();
+                server->clearServerErrorMessage();
             }
 			if(progress.get_cancel()) break;
 
@@ -176,12 +183,12 @@ void Session::run_render() {
 			thread_scoped_lock buffers_lock(render_buffer_mutex);
 
 			// Update status and timing
-			update_status_time();
+			//update_status_time();
 
             update_render_buffer();
-            if(!server->error_message().empty()) {
+            if(!server->getServerErrorMessage().empty()) {
                 progress.set_cancel("ERROR! Check console for detailed error messages.");
-                server->clear_error_message();
+                server->clearServerErrorMessage();
             }
 
 			// Update status and timing
@@ -190,10 +197,12 @@ void Session::run_render() {
 		} //if(!is_done)
         else {
 			thread_scoped_lock buffers_lock(render_buffer_mutex);
-			// Update status and timing
-			update_status_time();
             update_render_buffer();
+
+            // Update status and timing
+			update_status_time();
         }
+		is_done = !params.interactive && (params.image_stat.uiCurSamples >= params.samples);
 	} //while(!progress.get_cancel())
 } //run_render()
 
@@ -225,7 +234,7 @@ bool Session::draw(BufferParams& buffer_params) {
 	// then verify the buffers have the expected size, so we don't
 	// draw previous results in a resized window
 	if(!buffer_params.modified(display->params)) {
-		return display->draw(server);
+		return display->draw();
 
 		if(display_outdated)// && (time_dt() - reset_time) > params.text_timeout)
 			return false;
@@ -247,7 +256,7 @@ void Session::reset_parameters(BufferParams& buffer_params) {
 	start_time      = time_dt();
 	paused_time     = 0.0;
 
-    params.image_stat.cur_samples = 0;
+    //params.image_stat.uiCurSamples = 0;
 	if(params.interactive) progress.set_start_time(start_time + paused_time);
 } //reset_parameters()
 
@@ -265,7 +274,7 @@ void Session::reset(BufferParams& buffer_params, float mb_frame_time_sampling) {
 	reset_time          = time_dt();
 
 	reset_parameters(buffer_params);
-    server->reset(scene->kernel->uiGPUs, mb_frame_time_sampling);
+    server->reset(params.export_scene, scene->kernel->uiGPUs, mb_frame_time_sampling, params.deep_image);
 	pause_cond.notify_all();
 } //reset()
 
@@ -332,6 +341,24 @@ void Session::wait() {
 void Session::set_blender_session(BlenderSession *b_session_) {
     if(!b_session_->interactive) b_session = b_session_;
 	progress.set_blender_session(b_session_);
+
+    // Render-server address
+    PointerRNA oct_scene = RNA_pointer_get(&b_session_->b_scene.ptr, "octane");
+    string server_addr = get_string(oct_scene, "server_address");
+    if(!server_addr.length())
+        fprintf(stderr, "Octane: no server address set.\n");
+    else {
+        if(!server->connectToServer(server_addr.c_str())) {
+            if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED)
+                fprintf(stdout, "Octane: current server activation state is: not activated.\n");
+            else if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION)
+                    fprintf(stderr, "Octane: can't connect to Octane server.\n");
+            else if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION)
+                fprintf(stderr, "Octane: wrong version of Octane server.\n");
+            else
+                fprintf(stderr, "Octane: can't connect to Octane server.\n");
+        }
+    }
 } //set_blender_session()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -354,7 +381,7 @@ void Session::update_scene_to_server(uint32_t frame_idx, uint32_t total_frames, 
 	}
 
 	// Update scene
-	if(params.export_scene || scene->need_update()) {
+	if(params.export_scene != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE || scene->need_update()) {
 		progress.set_status("Updating Scene");
         scene->server_update(server, progress, params.interactive, frame_idx, total_frames);
 	}
@@ -368,52 +395,52 @@ void Session::update_scene_to_server(uint32_t frame_idx, uint32_t total_frames, 
 void Session::update_status_time(bool show_pause, bool show_done) {
 	string status, substatus;
 
-    if(server->socket >= 0) {
-        if(params.image_stat.cur_samples > 0) {
+    if(server->checkServerConnection()) {
+        if(params.image_stat.uiCurSamples > 0) {
             char szSamples[16];
             unsigned long ulSPSdivider;
-            if(params.image_stat.spp < 999999) {
+            if(params.image_stat.fSPS < 999999) {
                 ulSPSdivider = 1000;
 #ifndef WIN32
-                ::snprintf(szSamples, 16, "%.2f Ks/sec", params.image_stat.spp/ulSPSdivider);
+                ::snprintf(szSamples, 16, "%.2f Ks/sec", params.image_stat.fSPS/ulSPSdivider);
 #else
-                ::snprintf(szSamples, 16, "%.2f Ks/sec", params.image_stat.spp/ulSPSdivider);
+                ::snprintf(szSamples, 16, "%.2f Ks/sec", params.image_stat.fSPS/ulSPSdivider);
 #endif
             }
             else {
                 ulSPSdivider = 1000000;
 #ifndef WIN32
-                ::snprintf(szSamples, 16, "%.2f Ms/sec", params.image_stat.spp/ulSPSdivider);
+                ::snprintf(szSamples, 16, "%.2f Ms/sec", params.image_stat.fSPS/ulSPSdivider);
 #else
-                ::snprintf(szSamples, 16, "%.2f Ms/sec", params.image_stat.spp/ulSPSdivider);
+                ::snprintf(szSamples, 16, "%.2f Ms/sec", params.image_stat.fSPS/ulSPSdivider);
 #endif
             }
 
             if(params.samples == INT_MAX) {
-                if(params.image_stat.net_gpus > 0)
+                if(params.image_stat.uiNetGPUs > 0)
                     substatus = string_printf("Sample %d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d ) | Net GPUs: %u/%u",
-                        params.image_stat.cur_samples, szSamples, params.image_stat.used_vram/1000000, params.image_stat.free_vram/1000000, params.image_stat.total_vram/1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
-                        params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt, params.image_stat.used_net_gpus, params.image_stat.net_gpus);
+                        params.image_stat.uiCurSamples, szSamples, params.image_stat.ulVramUsed/1000000, params.image_stat.ulVramFree/1000000, params.image_stat.ulVramTotal/1000000, params.image_stat.uiMeshesCnt, params.image_stat.uiTrianglesCnt,
+                        params.image_stat.uiRgb32Cnt, params.image_stat.uiRgb64Cnt, params.image_stat.uiGrey8Cnt, params.image_stat.uiGrey16Cnt, params.image_stat.uiNetGPUsUsed, params.image_stat.uiNetGPUs);
                 else
                     substatus = string_printf("Sample %d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d ) | No net GPUs",
-                        params.image_stat.cur_samples, szSamples, params.image_stat.used_vram / 1000000, params.image_stat.free_vram / 1000000, params.image_stat.total_vram / 1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
-                        params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt);
+                        params.image_stat.uiCurSamples, szSamples, params.image_stat.ulVramUsed / 1000000, params.image_stat.ulVramFree / 1000000, params.image_stat.ulVramTotal / 1000000, params.image_stat.uiMeshesCnt, params.image_stat.uiTrianglesCnt,
+                        params.image_stat.uiRgb32Cnt, params.image_stat.uiRgb64Cnt, params.image_stat.uiGrey8Cnt, params.image_stat.uiGrey16Cnt);
             }
 	        else {
-                if(params.image_stat.net_gpus > 0)
+                if(params.image_stat.uiNetGPUs > 0)
                     substatus = string_printf("Sample %d/%d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d ) | Net GPUs: %u/%u",
-                        params.image_stat.cur_samples, params.samples, szSamples, params.image_stat.used_vram/1000000, params.image_stat.free_vram/1000000, params.image_stat.total_vram/1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
-                        params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt, params.image_stat.used_net_gpus, params.image_stat.net_gpus);
+                        params.image_stat.uiCurSamples, params.samples, szSamples, params.image_stat.ulVramUsed/1000000, params.image_stat.ulVramFree / 1000000, params.image_stat.ulVramTotal/1000000, params.image_stat.uiMeshesCnt, params.image_stat.uiTrianglesCnt,
+                        params.image_stat.uiRgb32Cnt, params.image_stat.uiRgb64Cnt, params.image_stat.uiGrey8Cnt, params.image_stat.uiGrey16Cnt, params.image_stat.uiNetGPUsUsed, params.image_stat.uiNetGPUs);
                 else
                     substatus = string_printf("Sample %d/%d, %s | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, grey8: %d, grey16: %d ) | No net GPUs",
-                        params.image_stat.cur_samples, params.samples, szSamples, params.image_stat.used_vram / 1000000, params.image_stat.free_vram / 1000000, params.image_stat.total_vram / 1000000, params.image_stat.meshes_cnt, params.image_stat.tri_cnt,
-                        params.image_stat.rgb32_cnt, params.image_stat.rgb64_cnt, params.image_stat.grey8_cnt, params.image_stat.grey16_cnt);
+                        params.image_stat.uiCurSamples, params.samples, szSamples, params.image_stat.ulVramUsed / 1000000, params.image_stat.ulVramFree / 1000000, params.image_stat.ulVramTotal / 1000000, params.image_stat.uiMeshesCnt, params.image_stat.uiTrianglesCnt,
+                        params.image_stat.uiRgb32Cnt, params.image_stat.uiRgb64Cnt, params.image_stat.uiGrey8Cnt, params.image_stat.uiGrey16Cnt);
             }
-            if(params.image_stat.expiry_time == 0) {
+            if(params.image_stat.iExpiryTime == 0) {
                 substatus = substatus + " | SUBSCRIPTION IS EXPIRED!";
             }
-            else if(params.image_stat.expiry_time > 0 && params.image_stat.expiry_time < (3600 * 48)) {
-                substatus = substatus + string_printf(" | Subscription expires in %d:%.2d:%.2d", params.image_stat.expiry_time / 3600, (params.image_stat.expiry_time % 3600) / 60, (params.image_stat.expiry_time % 3600) % 60);
+            else if(params.image_stat.iExpiryTime > 0 && params.image_stat.iExpiryTime < (3600 * 48)) {
+                substatus = substatus + string_printf(" | Subscription expires in %d:%.2d:%.2d", params.image_stat.iExpiryTime / 3600, (params.image_stat.iExpiryTime % 3600) / 60, (params.image_stat.iExpiryTime % 3600) % 60);
             }
         }
         else
@@ -430,22 +457,22 @@ void Session::update_status_time(bool show_pause, bool show_done) {
 	        status += " - Rendering";
     }
     else {
-        switch(server->fail_reason) {
-        case RenderServer::NO_CONNECTION:
+        switch(server->getFailReason()) {
+            case ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION:
             status = "Not connected";
-            substatus = string("No Render-server at address \"") + server->address + "\"";
+            substatus = string("No Render-server at address \"") + server->getServerInfo().sNetAddress + "\"";
             break;
-        case RenderServer::WRONG_VERSION:
+        case ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION:
             status = "Wrong version";
-            substatus = string("Wrong Render-server version at address \"") + server->address + "\"";
+            substatus = string("Wrong Render-server version at address \"") + server->getServerInfo().sNetAddress + "\"";
             break;
-        case RenderServer::NOT_ACTIVATED:
+        case ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED:
             status = "Not activated";
-            substatus = string("Render-server at address \"") + server->address + "\" is not activated";
+            substatus = string("Render-server at address \"") + server->getServerInfo().sNetAddress + "\" is not activated";
             break;
         default:
             status = "Server error";
-            substatus = string("Error in Render-server at address \"") + server->address + "\"";
+            substatus = string("Error in Render-server at address \"") + server->getServerInfo().sNetAddress + "\"";
             break;
         }
     }
@@ -459,17 +486,21 @@ void Session::update_status_time(bool show_pause, bool show_done) {
 void Session::update_render_buffer() {
     if(progress.get_cancel()) return;
 
-    if(!server->get_image_buffer(params.image_stat, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1), scene->passes->use_passes ? scene->passes->cur_pass_type : Passes::COMBINED, progress) && b_session) {
+    ::Octane::RenderPassId passId = scene->passes->oct_node->bUsePasses ? scene->passes->oct_node->curPassType : ::Octane::RENDER_PASS_BEAUTY;
+    if(params.interactive && !server->downloadImageBuffer(params.image_stat, params.interactive ? ::OctaneEngine::OctaneClient::IMAGE_8BIT : (params.hdr_tonemapped ? ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED : ::OctaneEngine::OctaneClient::IMAGE_FLOAT), passId) && b_session) {
+        if(progress.get_cancel()) return;
         if(!params.interactive) update_img_sample();
-        server->get_image_buffer(params.image_stat, params.interactive ? 0 : (params.hdr_tonemapped ? 2 : 1), scene->passes->use_passes ? scene->passes->cur_pass_type : Passes::COMBINED, progress);
+        passId = scene->passes->oct_node->bUsePasses ? scene->passes->oct_node->curPassType : ::Octane::RENDER_PASS_BEAUTY;
+        server->downloadImageBuffer(params.image_stat, params.interactive ? ::OctaneEngine::OctaneClient::IMAGE_8BIT : (params.hdr_tonemapped ? ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED : ::OctaneEngine::OctaneClient::IMAGE_FLOAT), passId);
     }
+    if(progress.get_cancel()) return;
     if(!params.interactive) update_img_sample();
 } //update_render_buffer()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Refresh the render-view with new image from render-buffer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::update_img_sample(void) {
+void Session::update_img_sample() {
     //Only for NON-INTERACTIVE session
 	if(b_session) {
     	thread_scoped_lock img_lock(img_mutex);

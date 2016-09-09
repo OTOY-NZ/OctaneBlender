@@ -17,7 +17,6 @@
  */
 
 #include "kernel.h"
-#include "server.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -25,77 +24,81 @@ OCT_NAMESPACE_BEGIN
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Kernel::Kernel() {
+    oct_node = new ::OctaneEngine::Kernel;
+
+    oct_node->type = ::OctaneEngine::Kernel::DIRECT_LIGHT;
+
     //COMMON
-    max_samples         = 10;
-    max_preview_samples = 16000;
-    filter_size         = 1.2f;
-    ray_epsilon         = 0.0001f;
-    alpha_channel       = false;
-    alpha_shadows       = true;
-    bump_normal_mapping = false;
-    wf_bktrace_hl       = false;
-    path_term_power     = 0.3f;
+    oct_node->fShutterTime        = 0.0f;
+    oct_node->iMaxSamples         = 10;
+    //oct_node->iMaxPreviewSamples  = 16000;
+    oct_node->fFilterSize         = 1.2f;
+    oct_node->fRayEpsilon         = 0.0001f;
+    oct_node->bAlphaChannel       = false;
+    oct_node->bAlphaShadows       = true;
+    oct_node->bBumpNormalMapping  = false;
+    oct_node->bBkFaceHighlight    = false;
+    oct_node->fPathTermPower      = 0.3f;
 
     //PATH_TRACE + PMC + DIRECT_LIGHT
-    keep_environment    = false;
+    oct_node->bKeepEnvironment    = false;
 
     //PATH_TRACE + PMC
-    caustic_blur        = 0.0f;
-    max_diffuse_depth   = 3;
-    max_glossy_depth    = 24;
+    oct_node->fCausticBlur        = 0.0f;
+    oct_node->iMaxDiffuseDepth    = 3;
+    oct_node->iMaxGlossyDepth     = 24;
 
     //PATH_TRACE + DIRECT_LIGHT
-    coherent_ratio      = 0.0f;
-    static_noise        = false;
+    oct_node->fCoherentRatio      = 0.0f;
+    oct_node->bStaticNoise        = false;
 
     //DIRECT_LIGHT
-    specular_depth      = 5;
-    glossy_depth        = 2;
-    ao_dist             = 3.0f;
-    GIType gi_mode      = GI_AMBIENT_OCCLUSION;
-    diffuse_depth       = 2;
+    oct_node->iSpecularDepth      = 5;
+    oct_node->iGlossyDepth        = 2;
+    oct_node->fAODist             = 3.0f;
+    oct_node->GIMode              = ::OctaneEngine::Kernel::GI_AMBIENT_OCCLUSION;
+    oct_node->iDiffuseDepth       = 2;
 
     //PATH_TRACE
 
     //PMC
-    exploration             = 0.7f;
-    gi_clamp                = 1000000.0f;
-    direct_light_importance = 0.1f;
-    max_rejects             = 500;
-    parallelism             = 4;
+    oct_node->fExploration          = 0.7f;
+    oct_node->fGIClamp              = 1000000.0f;
+    oct_node->fDLImportance         = 0.1f;
+    oct_node->iMaxRejects           = 500;
+    oct_node->iParallelism          = 4;
 
     //INFO_CHANNEL
-    info_channel_type   = CHANNEL_GEOMETRICNORMALS;
-    zdepth_max          = 5.0f;
-    uv_max              = 1.0f;
-    distributed_tracing = true;
-    max_speed           = 1.0f;
+    oct_node->infoChannelType     = ::Octane::IC_TYPE_GEOMETRIC_NORMAL;
+    oct_node->fZdepthMax          = 5.0f;
+    oct_node->fUVMax              = 1.0f;
+    oct_node->bDistributedTracing = true;
+    oct_node->fMaxSpeed           = 1.0f;
 
-    layers_enable       = false;
-    layers_current      = 1;
-    layers_invert       = false;
+    oct_node->bLayersEnable       = false;
+    oct_node->iLayersCurrent      = 1;
+    oct_node->bLayersInvert       = false;
 
     uiGPUs              = 0;
-
-    shuttertime         = 0;
 
 	need_update         = true;
     need_update_GPUs    = false;
 } //Kernel()
 
 Kernel::~Kernel() {
+    delete oct_node;
 } //~Kernel()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Load the kernel settings to Octane
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Kernel::server_update(RenderServer *server, Scene *scene, bool interactive) {
+void Kernel::server_update(::OctaneEngine::OctaneClient *server, Scene *scene, bool interactive) {
     if(need_update) {
-        server->load_kernel(this, interactive);
+        server->uploadKernel(oct_node);
 	    need_update = false;
     }
     if(need_update_GPUs) {
-        server->load_GPUs(uiGPUs);
+        server->uploadGPUs(uiGPUs);
 	    need_update_GPUs = false;
     }
 } //server_update()
@@ -105,48 +108,8 @@ void Kernel::server_update(RenderServer *server, Scene *scene, bool interactive)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool Kernel::modified(const Kernel& kernel) {
     return !(
-        kernel_type         == kernel.kernel_type &&
-        max_samples         == kernel.max_samples &&
-        max_preview_samples == kernel.max_preview_samples &&
-        filter_size         == kernel.filter_size &&
-        ray_epsilon         == kernel.ray_epsilon &&
-        alpha_channel       == kernel.alpha_channel &&
-        alpha_shadows       == kernel.alpha_shadows &&
-        bump_normal_mapping == kernel.bump_normal_mapping &&
-        wf_bktrace_hl       == kernel.wf_bktrace_hl &&
-        path_term_power     == kernel.path_term_power &&
-        keep_environment    == kernel.keep_environment &&
-
-        caustic_blur        == kernel.caustic_blur &&
-        max_diffuse_depth   == kernel.max_diffuse_depth &&
-        max_glossy_depth    == kernel.max_glossy_depth &&
-
-        coherent_ratio      == kernel.coherent_ratio &&
-        static_noise        == kernel.static_noise &&
-
-        specular_depth      == kernel.specular_depth &&
-        glossy_depth        == kernel.glossy_depth &&
-        ao_dist             == kernel.ao_dist &&
-        gi_mode             == kernel.gi_mode &&
-        diffuse_depth       == kernel.diffuse_depth &&
-
-        exploration             == kernel.exploration &&
-        gi_clamp                == kernel.gi_clamp &&
-        direct_light_importance == kernel.direct_light_importance &&
-        max_rejects             == kernel.max_rejects &&
-        parallelism             == kernel.parallelism &&
-
-        info_channel_type       == kernel.info_channel_type &&
-        zdepth_max              == kernel.zdepth_max &&
-        uv_max                  == kernel.uv_max &&
-        shuttertime             == kernel.shuttertime &&
-        max_speed               == kernel.max_speed &&
-
-        layers_enable       == kernel.layers_enable &&
-        layers_current      == kernel.layers_current &&
-        layers_invert       == kernel.layers_invert
-
-        //uiGPUs                == kernel.uiGPUs
+        *oct_node                       == *kernel.oct_node
+        //uiGPUs                          == kernel.uiGPUs
         );
 } //modified()
 

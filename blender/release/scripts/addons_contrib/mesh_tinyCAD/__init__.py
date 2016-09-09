@@ -21,46 +21,44 @@ END GPL LICENCE BLOCK
 bl_info = {
     "name": "tinyCAD Mesh tools",
     "author": "zeffii (aka Dealga McArdle)",
-    "version": (1, 0, 7),
-    "blender": (2, 7, 3),
+    "version": (1, 2, 3),
+    "blender": (2, 7, 6),
     "category": "Mesh",
     "location": "View3D > EditMode > (w) Specials",
     "wiki_url": "",
-    "tracker_url": ""
+    "tracker_url": "https://github.com/zeffii/Blender_CAD_utils/issues"
 }
 
-## implemented lookup table for bmesh changes in 2.73
 
 if "bpy" in locals():
-    import imp
+    if 'VTX' in locals():
 
+        print('tinyCAD: detected reload event.')
+        import importlib
+
+        try:
+            modules = [CFG, VTX, V2X, XALL, BIX, CCEN, E2F]
+            for m in modules:
+                importlib.reload(m)
+            print("tinyCAD: reloaded modules, all systems operational")
+
+        except Exception as E:
+            print('reload failed with error:')
+            print(E)
+
+
+import os
 import bpy
-from mesh_tinyCAD.VTX import AutoVTX
-from mesh_tinyCAD.V2X import Vert2Intersection
-# from mesh_tinyCAD.EXM import ExtendEdgesMulti
-from mesh_tinyCAD.XALL import IntersectAllEdges
-from mesh_tinyCAD.BIX import LineOnBisection
-from mesh_tinyCAD.PERP import CutOnPerpendicular
-from mesh_tinyCAD.CCEN import CircleCenter
 
-
-vtx_classes = (
-    [AutoVTX, "tinyCAD autoVTX"],
-    [Vert2Intersection, "tinyCAD V2X"],
-    [IntersectAllEdges, "tinyCAD XALL"],
-    # [ExtendEdgesMulti, "tinyCAD EXM"],      # this is buggy
-    [LineOnBisection, "tinyCAD BIX"],
-    [CutOnPerpendicular, "tinyCAD PERP CUT"],
-    [CircleCenter, "tC Circle Center"]
-)
-
-
-class VIEW3D_MT_edit_mesh_tinycad(bpy.types.Menu):
-    bl_label = "TinyCAD"
-
-    def draw(self, context):
-        for i, text in vtx_classes:
-            self.layout.operator(i.bl_idname, text=text)
+from .CFG import TinyCADProperties
+from .CFG import VIEW3D_MT_edit_mesh_tinycad
+from .VTX import TCAutoVTX
+from .V2X import TCVert2Intersection
+from .XALL import TCIntersectAllEdges
+from .BIX import TCLineOnBisection
+from .CCEN import TCCircleCenter
+from .CCEN import TCCircleMake
+from .E2F import TCEdgeToFace
 
 
 def menu_func(self, context):
@@ -69,14 +67,12 @@ def menu_func(self, context):
 
 
 def register():
-    for i, _ in vtx_classes:
-        bpy.utils.register_class(i)
-    bpy.utils.register_class(VIEW3D_MT_edit_mesh_tinycad)
+    bpy.utils.register_module(__name__)
+    bpy.types.Scene.tinycad_props = bpy.props.PointerProperty(name="TinyCAD props", type=TinyCADProperties)
     bpy.types.VIEW3D_MT_edit_mesh_specials.prepend(menu_func)
 
 
 def unregister():
-    for i, _ in vtx_classes:
-        bpy.utils.unregister_class(i)
-    bpy.utils.unregister_class(VIEW3D_MT_edit_mesh_tinycad)
     bpy.types.VIEW3D_MT_edit_mesh_specials.remove(menu_func)
+    bpy.utils.unregister_module(__name__)
+    del bpy.types.Scene.tinycad_props

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 2.76 (sub 0) (b'fb78f6d')\n"
+"Project-Id-Version: Blender 2.77 (sub 0) (b'870f911')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-05 20:13:42\n"
+"POT-Creation-Date: 2016-03-18 13:04:16\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -29,10 +29,6 @@ msgid "Render"
 msgstr "Por Kapitulacigi"
 
 
-msgid "View"
-msgstr "Rigardi"
-
-
 msgid "Links"
 msgstr "Ligiloj"
 
@@ -47,6 +43,10 @@ msgstr "Prilaborado Modo"
 
 msgid "Sculpt Mode"
 msgstr "Skulptaĵo Modo"
+
+
+msgid "View"
+msgstr "Rigardi"
 
 
 msgid "Window"
@@ -111,10 +111,6 @@ msgstr "Freŝaj"
 
 msgid "Auto Select"
 msgstr "Elektas"
-
-
-msgid "Immediate Mode"
-msgstr "Prilaborado Modo"
 
 
 msgid "Keep Session"

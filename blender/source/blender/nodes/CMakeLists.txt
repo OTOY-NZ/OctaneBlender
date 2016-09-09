@@ -286,6 +286,7 @@ if(WITH_OCTANE)
 		../../../intern/octane/nodes/textures/node_oct_texture_alpha_image.c
 		../../../intern/octane/nodes/textures/node_oct_texture_dirt.c
 		../../../intern/octane/nodes/textures/node_oct_texture_gradient.c
+		../../../intern/octane/nodes/textures/node_oct_texture_volume_ramp.c
 		../../../intern/octane/nodes/textures/node_oct_texture_random_color.c
 		../../../intern/octane/nodes/textures/node_oct_texture_displacement.c
 		../../../intern/octane/nodes/textures/node_oct_texture_noise.c
@@ -302,6 +303,7 @@ if(WITH_OCTANE)
 
 		../../../intern/octane/nodes/mediums/node_oct_medium_absorption.c
 		../../../intern/octane/nodes/mediums/node_oct_medium_scattering.c
+		../../../intern/octane/nodes/mediums/node_oct_medium_volume.c
 
 		../../../intern/octane/nodes/projections/node_oct_projection_xyz.c
 		../../../intern/octane/nodes/projections/node_oct_projection_box.c

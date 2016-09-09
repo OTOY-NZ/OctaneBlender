@@ -16,7 +16,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "nodes.h"
 #include "graph.h"
 #include "scene.h"
 #include "shader.h"
@@ -77,7 +76,7 @@ ShaderManager *ShaderManager::create(Scene *scene) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void ShaderManager::server_update(RenderServer *server, Scene *scene, Progress& progress) {
+void ShaderManager::server_update(::OctaneEngine::OctaneClient *server, Scene *scene, Progress& progress) {
 	if(!need_update) return;
 
     size_t cnt = scene->shaders.size();
@@ -105,7 +104,7 @@ void ShaderManager::server_update(RenderServer *server, Scene *scene, Progress& 
 void ShaderManager::add_default(Scene *scene) {
 	// Add default surface material
 	ShaderGraph *graph = new ShaderGraph();
-    graph->add(new OctaneDiffuseMaterial());
+    graph->add(new ShaderNode(new ::OctaneEngine::OctaneDiffuseMaterial()));
 
 	Shader *shader  = new Shader();
 	shader->name    = "default_surface";

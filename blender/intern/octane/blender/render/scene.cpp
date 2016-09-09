@@ -23,7 +23,7 @@
 //#include "curves.h"
 #include "environment.h"
 #include "camera.h"
-#include "server.h"
+#include "OctaneClient.h"
 #include "passes.h"
 #include "kernel.h"
 #include "light.h"
@@ -88,38 +88,23 @@ Scene::~Scene() {
 		delete *it3;
 
 	delete camera;
-    camera = 0;
-
 	delete environment;
-    environment = 0;
-
 	delete object_manager;
-    object_manager = 0;
-
 	delete mesh_manager;
-    mesh_manager = 0;
-
 	delete shader_manager;
-    shader_manager = 0;
-
 	delete light_manager;
-    light_manager = 0;
-
 	delete passes;
-    passes = 0;
-
     delete kernel;
-    kernel = 0;
 } //~Scene()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Updates the data on render-server
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Scene::server_update(RenderServer *server_, Progress& progress, bool interactive, uint32_t frame_idx, uint32_t total_frames) {
+void Scene::server_update(::OctaneEngine::OctaneClient *server_, Progress& progress, bool interactive, uint32_t frame_idx, uint32_t total_frames) {
 	if(!server) server = server_;
     bool ret = false;
 	
-    if(!interactive) server->start_frame_load();
+    if(!interactive) server->startFrameUpload();
 
     do {
 	    progress.set_status("Updating Environment");
@@ -133,7 +118,7 @@ void Scene::server_update(RenderServer *server_, Progress& progress, bool intera
 	    if(progress.get_cancel()) break;
 
 	    progress.set_status("Updating Camera");
-        camera->server_update(server, this);
+        camera->server_update(server, this, frame_idx, total_frames);
 
 	    if(progress.get_cancel()) break;
 
@@ -165,7 +150,7 @@ void Scene::server_update(RenderServer *server_, Progress& progress, bool intera
     } while(false);
 
 	if(ret) progress.set_status("Render-target evaluation on server...");
-    if(!interactive) server->finish_frame_load(ret);
+    if(!interactive) server->finishFrameUpload(ret);
     else if(ret) server->update();
 } //server_update()
 

@@ -85,12 +85,12 @@ extern struct Render R;
 static RNG_THREAD_ARRAY *random_tex_array;
 
 
-void RE_init_texture_rng(void)
+void RE_texture_rng_init(void)
 {
 	random_tex_array = BLI_rng_threaded_new();
 }
 
-void RE_exit_texture_rng(void)
+void RE_texture_rng_exit(void)
 {
 	BLI_rng_threaded_free(random_tex_array);
 }
@@ -3018,13 +3018,15 @@ void do_halo_tex(HaloRen *har, float xn, float yn, float col_r[4])
 /* ------------------------------------------------------------------------- */
 
 /* hor and zen are RGB vectors, blend is 1 float, should all be initialized */
-void do_sky_tex(const float rco[3], float lo[3], const float dxyview[2], float hor[3], float zen[3], float *blend, int skyflag, short thread)
+void do_sky_tex(
+        const float rco[3], const float view[3], const float lo[3], const float dxyview[2],
+        float hor[3], float zen[3], float *blend, int skyflag, short thread)
 {
 	const bool skip_load_image = (R.r.scemode & R_NO_IMAGE_LOAD) != 0;
 	MTex *mtex;
 	Tex *tex;
 	TexResult texres= {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, NULL};
-	float *co, fact, stencilTin=1.0;
+	float fact, stencilTin=1.0;
 	float tempvec[3], texvec[3], dxt[3], dyt[3];
 	int tex_nr, rgb= 0;
 	
@@ -3034,6 +3036,8 @@ void do_sky_tex(const float rco[3], float lo[3], const float dxyview[2], float h
 	
 	for (tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
 		if (R.wrld.mtex[tex_nr]) {
+			const float *co;
+
 			mtex= R.wrld.mtex[tex_nr];
 			
 			tex= mtex->tex;
@@ -3095,8 +3099,8 @@ void do_sky_tex(const float rco[3], float lo[3], const float dxyview[2], float h
 				}
 				break;
 			case TEXCO_EQUIRECTMAP:
-				tempvec[0]= atan2f(lo[0], lo[2]) / (float)M_PI;
-				tempvec[1]= 1.0f - 2.0f*saacos(lo[1]) / (float)M_PI;
+				tempvec[0]= -atan2f(lo[2], lo[0]) / M_PI;
+				tempvec[1]=  atan2f(lo[1], hypot(lo[0], lo[2])) / M_PI_2;
 				tempvec[2]= 0.0f;
 				co= tempvec;
 				break;
@@ -3121,6 +3125,9 @@ void do_sky_tex(const float rco[3], float lo[3], const float dxyview[2], float h
 //				mul_m3_v3(R.imat, shi->dxco);
 //				copy_v3_v3(shi->dygl, shi->dyco);
 //				mul_m3_v3(R.imat, shi->dyco);
+				break;
+			case TEXCO_VIEW:
+				co = view;
 				break;
 			}
 			
@@ -3559,7 +3566,7 @@ static void textured_face_generate_uv(
 }
 
 /* Generate an updated copy of material to use for color sampling. */
-Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
+Material *RE_sample_material_init(Material *orig_mat, Scene *scene)
 {
 	Tex *tex = NULL;
 	Material *mat;
@@ -3647,8 +3654,8 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 	return mat;
 }
 
-/* free all duplicate data allocated by RE_init_sample_material() */
-void RE_free_sample_material(Material *mat)
+/* free all duplicate data allocated by RE_sample_material_init() */
+void RE_sample_material_free(Material *mat)
 {
 	int tex_nr;
 
@@ -3688,7 +3695,7 @@ void RE_sample_material_color(
 	MVert *mvert;
 	MLoop *mloop;
 	const MLoopTri *mlooptri;
-	float uv[3], normal[3];
+	float normal[3];
 	ShadeInput shi = {NULL};
 	Render re = {NULL};
 
@@ -3716,6 +3723,7 @@ void RE_sample_material_color(
 		mul_m4_v3(ob->imat, shi.co);
 		/* orco coordinates */
 		{
+			float uv[2];
 			float l;
 			/* Get generated UV */
 			textured_face_generate_uv(normal, shi.co, mvert[v1].co, mvert[v2].co, mvert[v3].co, uv);

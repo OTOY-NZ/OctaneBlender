@@ -24,11 +24,8 @@
 #include <vector>
 
 #include "util_aligned_malloc.h"
+#include "util_guarded_allocator.h"
 #include "util_types.h"
-
-#ifdef WITH_CYCLES_DEBUG
-#  include "util_guarded_allocator.h"
-#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -36,18 +33,12 @@ CCL_NAMESPACE_BEGIN
  *
  * Own subclass-ed vestion of std::vector. Subclass is needed because:
  *
- * - When building with WITH_CYCLES_DEBUG we need to use own allocator which
- *   keeps track of used/peak memory.
+ * - Use own allocator which keeps track of used/peak memory.
  *
  * - Have method to ensure capacity is re-set to 0.
  */
 template<typename value_type,
-#ifdef WITH_CYCLES_DEBUG
-         typename allocator_type = GuardedAllocator<value_type>
-#else
-         typename allocator_type = std::allocator<value_type>
-#endif
-        >
+         typename allocator_type = GuardedAllocator<value_type> >
 class vector : public std::vector<value_type, allocator_type>
 {
 public:
@@ -84,7 +75,7 @@ public:
 	/* Some external API might demand working with std::vector. */
 	operator std::vector<value_type>()
 	{
-		return std::vector<value_type>(*this);
+		return std::vector<value_type>(this->begin(), this->end());
 	}
 };
 
@@ -116,7 +107,7 @@ public:
 			capacity = 0;
 		}
 		else {
-			data = (T*)util_aligned_malloc(sizeof(T)*newsize, alignment);
+			data = mem_allocate(newsize);
 			datasize = newsize;
 			capacity = datasize;
 		}
@@ -135,7 +126,7 @@ public:
 			capacity = 0;
 		}
 		else {
-			data = (T*)util_aligned_malloc(sizeof(T)*from.datasize, alignment);
+			data = mem_allocate(from.datasize);
 			memcpy(data, from.data, from.datasize*sizeof(T));
 			datasize = from.datasize;
 			capacity = datasize;
@@ -151,7 +142,7 @@ public:
 		data = NULL;
 
 		if(datasize > 0) {
-			data = (T*)util_aligned_malloc(sizeof(T)*datasize, alignment);
+			data = mem_allocate(datasize);
 			memcpy(data, &from[0], datasize*sizeof(T));
 		}
 
@@ -160,32 +151,40 @@ public:
 
 	~array()
 	{
-		util_aligned_free(data);
+		mem_free(data, capacity);
 	}
 
-	void resize(size_t newsize)
+	T* resize(size_t newsize)
 	{
 		if(newsize == 0) {
 			clear();
 		}
 		else if(newsize != datasize) {
 			if(newsize > capacity) {
-				T *newdata = (T*)util_aligned_malloc(sizeof(T)*newsize, alignment);
-				if(data) {
+				T *newdata = mem_allocate(newsize);
+				if(newdata == NULL) {
+					/* Allocation failed, likely out of memory. */
+					clear();
+					return NULL;
+				}
+				else if(data != NULL) {
 					memcpy(newdata, data, ((datasize < newsize)? datasize: newsize)*sizeof(T));
-					util_aligned_free(data);
+					mem_free(data, capacity);
 				}
 				data = newdata;
 				capacity = newsize;
 			}
 			datasize = newsize;
 		}
+		return data;
 	}
 
 	void clear()
 	{
-		util_aligned_free(data);
-		data = NULL;
+		if(data != NULL) {
+			mem_free(data, capacity);
+			data = NULL;
+		}
 		datasize = 0;
 		capacity = 0;
 	}
@@ -203,10 +202,10 @@ public:
 
 	void reserve(size_t newcapacity) {
 		if(newcapacity > capacity) {
-			T *newdata = (T*)util_aligned_malloc(sizeof(T)*newcapacity, alignment);
+			T *newdata = mem_allocate(newcapacity);
 			if(data) {
 				memcpy(newdata, data, ((datasize < newcapacity)? datasize: newcapacity)*sizeof(T));
-				util_aligned_free(data);
+				mem_free(data, capacity);
 			}
 			data = newdata;
 			capacity = newcapacity;
@@ -214,6 +213,23 @@ public:
 	}
 
 protected:
+	inline T* mem_allocate(size_t N)
+	{
+		T *mem = (T*)util_aligned_malloc(sizeof(T)*N, alignment);
+		if(mem != NULL) {
+			util_guarded_mem_alloc(sizeof(T)*N);
+		}
+		return mem;
+	}
+
+	inline void mem_free(T *mem, size_t N)
+	{
+		if(mem != NULL) {
+			util_guarded_mem_free(sizeof(T)*N);
+			util_aligned_free(mem);
+		}
+	}
+
 	T *data;
 	size_t datasize;
 	size_t capacity;

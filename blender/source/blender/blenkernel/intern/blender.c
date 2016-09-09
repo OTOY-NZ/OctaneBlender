@@ -52,6 +52,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
@@ -121,7 +122,7 @@ void free_blender(void)
 	DAG_exit();
 
 	BKE_brush_system_exit();
-	RE_exit_texture_rng();	
+	RE_texture_rng_exit();	
 
 	BLI_callback_global_finalize();
 
@@ -196,17 +197,21 @@ static bool wm_scene_is_visible(wmWindowManager *wm, Scene *scene)
 	return false;
 }
 
-/* context matching */
-/* handle no-ui case */
-
-/* note, this is called on Undo so any slow conversion functions here
- * should be avoided or check (mode!='u') */
-
-static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath)
+/**
+ * Context matching, handle no-ui case
+ *
+ * \note this is called on Undo so any slow conversion functions here
+ * should be avoided or check (mode != LOAD_UNDO).
+ *
+ * \param bfd: Blend file data, freed by this function on exit.
+ * \param filepath: File path or identifier.
+ */
+static void setup_app_data(
+        bContext *C, BlendFileData *bfd,
+        const char *filepath, ReportList *reports)
 {
-	bScreen *curscreen = NULL;
 	Scene *curscene = NULL;
-	int recover;
+	const bool recover = (G.fileflags & G_FILE_RECOVER) != 0;
 	enum {
 		LOAD_UI = 1,
 		LOAD_UI_OFF,
@@ -223,7 +228,13 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		mode = LOAD_UI;
 	}
 
-	recover = (G.fileflags & G_FILE_RECOVER);
+	if (mode != LOAD_UNDO) {
+		/* may happen with library files */
+		if (ELEM(NULL, bfd->curscreen, bfd->curscene)) {
+			BKE_report(reports, RPT_WARNING, "Library file, loading empty scene");
+			mode = LOAD_UI_OFF;
+		}
+	}
 
 	/* Free all render results, without this stale data gets displayed after loading files */
 	if (mode != LOAD_UNDO) {
@@ -251,12 +262,12 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		 * (otherwise we'd be undoing on an off-screen scene which isn't acceptable).
 		 * see: T43424
 		 */
+		bScreen *curscreen = NULL;
 		bool track_undo_scene;
 
 		/* comes from readfile.c */
 		SWAP(ListBase, G.main->wm, bfd->main->wm);
 		SWAP(ListBase, G.main->screen, bfd->main->screen);
-		SWAP(ListBase, G.main->script, bfd->main->script);
 		
 		/* we re-use current screen */
 		curscreen = CTX_wm_screen(C);
@@ -265,9 +276,13 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 
 		track_undo_scene = (mode == LOAD_UNDO && curscreen && curscene && bfd->main->wm.first);
 
-		if (curscene == NULL) curscene = bfd->main->scene.first;
+		if (curscene == NULL) {
+			curscene = bfd->main->scene.first;
+		}
 		/* empty file, we add a scene to make Blender work */
-		if (curscene == NULL) curscene = BKE_scene_add(bfd->main, "Empty");
+		if (curscene == NULL) {
+			curscene = BKE_scene_add(bfd->main, "Empty");
+		}
 
 		if (track_undo_scene) {
 			/* keep the old (free'd) scene, let 'blo_lib_link_screen_restore'
@@ -349,7 +364,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	if (CTX_data_scene(C) == NULL) {
 		/* in case we don't even have a local scene, add one */
 		if (!G.main->scene.first)
-			BKE_scene_add(G.main, "Scene");
+			BKE_scene_add(G.main, "Empty");
 
 		CTX_data_scene_set(C, G.main->scene.first);
 		CTX_wm_screen(C)->scene = CTX_data_scene(C);
@@ -373,10 +388,6 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	BPY_context_update(C);
 #endif
 
-	if (!G.background) {
-		//setscreen(G.curscreen);
-	}
-	
 	/* FIXME: this version patching should really be part of the file-reading code,
 	 * but we still get too many unrelated data-corruption crashes otherwise... */
 	if (G.main->versionfile < 250)
@@ -527,8 +538,9 @@ int BKE_read_file(bContext *C, const char *filepath, ReportList *reports)
 			bfd = NULL;
 			retval = BKE_READ_FILE_FAIL;
 		}
-		else
-			setup_app_data(C, bfd, filepath);  // frees BFD
+		else {
+			setup_app_data(C, bfd, filepath, reports);
+		}
 	}
 	else
 		BKE_reports_prependf(reports, "Loading '%s' failed: ", filepath);
@@ -546,7 +558,7 @@ bool BKE_read_file_from_memory(
 	if (bfd) {
 		if (update_defaults)
 			BLO_update_defaults_startup_blend(bfd->main);
-		setup_app_data(C, bfd, "<memory2>");
+		setup_app_data(C, bfd, "<memory2>", reports);
 	}
 	else {
 		BKE_reports_prepend(reports, "Loading failed: ");
@@ -570,7 +582,7 @@ bool BKE_read_file_from_memfile(
 		while (bfd->main->screen.first)
 			BKE_libblock_free_ex(bfd->main, bfd->main->screen.first, true);
 		
-		setup_app_data(C, bfd, "<memory1>");
+		setup_app_data(C, bfd, "<memory1>", reports);
 	}
 	else {
 		BKE_reports_prepend(reports, "Loading failed: ");
@@ -964,12 +976,12 @@ Main *BKE_undo_get_main(Scene **r_scene)
 void BKE_copybuffer_begin(Main *bmain)
 {
 	/* set all id flags to zero; */
-	BKE_main_id_flag_all(bmain, LIB_NEED_EXPAND | LIB_DOIT, false);
+	BKE_main_id_tag_all(bmain, LIB_TAG_NEED_EXPAND | LIB_TAG_DOIT, false);
 }
 
 void BKE_copybuffer_tag_ID(ID *id)
 {
-	id->flag |= LIB_NEED_EXPAND | LIB_DOIT;
+	id->tag |= LIB_TAG_NEED_EXPAND | LIB_TAG_DOIT;
 }
 
 static void copybuffer_doit(void *UNUSED(handle), Main *UNUSED(bmain), void *vid)
@@ -977,8 +989,8 @@ static void copybuffer_doit(void *UNUSED(handle), Main *UNUSED(bmain), void *vid
 	if (vid) {
 		ID *id = vid;
 		/* only tag for need-expand if not done, prevents eternal loops */
-		if ((id->flag & LIB_DOIT) == 0)
-			id->flag |= LIB_NEED_EXPAND | LIB_DOIT;
+		if ((id->tag & LIB_TAG_DOIT) == 0)
+			id->tag |= LIB_TAG_NEED_EXPAND | LIB_TAG_DOIT;
 	}
 }
 
@@ -1007,7 +1019,7 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 		
 		for (id = lb2->first; id; id = nextid) {
 			nextid = id->next;
-			if (id->flag & LIB_DOIT) {
+			if (id->tag & LIB_TAG_DOIT) {
 				BLI_remlink(lb2, id);
 				BLI_addtail(lb1, id);
 			}
@@ -1034,7 +1046,7 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 	MEM_freeN(mainb);
 	
 	/* set id flag to zero; */
-	BKE_main_id_flag_all(G.main, LIB_NEED_EXPAND | LIB_DOIT, false);
+	BKE_main_id_tag_all(G.main, LIB_TAG_NEED_EXPAND | LIB_TAG_DOIT, false);
 	
 	if (path_list_backup) {
 		BKE_bpath_list_restore(G.main, path_list_flag, path_list_backup);
@@ -1045,10 +1057,11 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 }
 
 /* return success (1) */
-int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
+int BKE_copybuffer_paste(bContext *C, const char *libname, const short flag, ReportList *reports)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
+	View3D *v3d = CTX_wm_view3d(C);
 	Main *mainl = NULL;
 	Library *lib;
 	BlendHandle *bh;
@@ -1065,15 +1078,15 @@ int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
 	/* tag everything, all untagged data can be made local
 	 * its also generally useful to know what is new
 	 *
-	 * take extra care BKE_main_id_flag_all(bmain, LIB_LINK_TAG, false) is called after! */
-	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
+	 * take extra care BKE_main_id_flag_all(bmain, LIB_TAG_PRE_EXISTING, false) is called after! */
+	BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, true);
 	
 	/* here appending/linking starts */
-	mainl = BLO_library_append_begin(bmain, &bh, libname);
+	mainl = BLO_library_link_begin(bmain, &bh, libname);
 	
-	BLO_library_append_all(mainl, bh);
+	BLO_library_link_copypaste(mainl, bh);
 
-	BLO_library_append_end(C, mainl, &bh, 0, 0);
+	BLO_library_link_end(mainl, &bh, flag, scene, v3d);
 	
 	/* mark all library linked objects to be updated */
 	BKE_main_lib_objects_recalc_all(bmain);
@@ -1081,11 +1094,11 @@ int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
 	
 	/* append, rather than linking */
 	lib = BLI_findstring(&bmain->library, libname, offsetof(Library, filepath));
-	BKE_library_make_local(bmain, lib, true);
+	BKE_library_make_local(bmain, lib, true, false);
 	
 	/* important we unset, otherwise these object wont
 	 * link into other scenes from this blend file */
-	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, false);
+	BKE_main_id_tag_all(bmain, LIB_TAG_PRE_EXISTING, false);
 	
 	/* recreate dependency graph to include new objects */
 	DAG_relations_tag_update(bmain);

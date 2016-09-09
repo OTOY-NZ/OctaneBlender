@@ -17,12 +17,13 @@
  */
 
 #include "mesh.h"
-#include "server.h"
+#include "OctaneClient.h"
 #include "shader.h"
 #include "light.h"
 #include "object.h"
 #include "scene.h"
 #include "session.h"
+#include "kernel.h"
 
 #include "util_progress.h"
 #include "util_lists.h"
@@ -32,7 +33,17 @@ OCT_NAMESPACE_BEGIN
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTOR
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Mesh::Mesh() {
+Mesh::Mesh() : vdb_regular_grid(nullptr), vdb_grid_size(0) {
+    vdb_resolution.x = 0.0f;
+    vdb_resolution.y = 0.0f;
+    vdb_resolution.z = 0.0f;
+    vdb_absorption_offset = -1;
+    vdb_emission_offset = -1;
+    vdb_scatter_offset = -1;
+    vdb_velocity_x_offset = -1;
+    vdb_velocity_y_offset = -1;
+    vdb_velocity_z_offset = -1;
+
     empty           = false;
 	mesh_type       = GLOBAL;
 
@@ -43,6 +54,7 @@ Mesh::Mesh() {
     open_subd_sharpness     = 0.0f;
     open_subd_bound_interp  = 3;
     layer_number            = 1;
+    baking_group_id         = 1;
 
     vis_general     = 1.0f;
 	vis_cam         = true;
@@ -57,6 +69,21 @@ Mesh::~Mesh() {
 // Clear all mesh data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void Mesh::clear() {
+    if(vdb_regular_grid) {
+        delete[] vdb_regular_grid;
+        vdb_regular_grid = nullptr;
+    }
+    vdb_resolution.x = 0.0f;
+    vdb_resolution.y = 0.0f;
+    vdb_resolution.z = 0.0f;
+    vdb_grid_size    = 0;
+    vdb_absorption_offset = -1;
+    vdb_emission_offset = -1;
+    vdb_scatter_offset = -1;
+    vdb_velocity_x_offset = -1;
+    vdb_velocity_y_offset = -1;
+    vdb_velocity_z_offset = -1;
+
 	// Clear all verts and triangles
 	points.clear();
 	normals.clear();
@@ -65,6 +92,7 @@ void Mesh::clear() {
 	points_indices.clear();
 	uv_indices.clear();
 	poly_mat_index.clear();
+    poly_obj_index.clear();
 
 	used_shaders.clear();
 } //clear()
@@ -101,14 +129,15 @@ MeshManager::~MeshManager() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Update all (already compiled) scene meshes on render-server (finally sends one LOAD_MESH packet for global mesh and one for each scattered mesh)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
+void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
 	if(!need_update) return;
-    if(!total_frames || frame_idx >= (total_frames - 1))
+    if(total_frames <= 1)
         need_update = false;
 	progress.set_status("Loading Meshes to render-server", "");
 
     uint64_t ulGlobalCnt    = 0;
     uint64_t ulLocalCnt     = 0;
+    uint64_t ulLocalVdbCnt  = 0;
     bool global_update      = false;
 
     if(need_global_update) {
@@ -123,7 +152,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             continue;
         }
         else if(scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::GLOBAL)) {
-            if(scene->first_frame || scene->anim_mode == FULL) {
+            if(mesh->vdb_regular_grid) ++ulLocalVdbCnt;
+            else if(total_frames <= 1 && (scene->first_frame || scene->anim_mode == FULL)) {
                 ++ulGlobalCnt;
                 if(mesh->need_update && !global_update) global_update = true;
             }
@@ -135,7 +165,10 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                    || (scene->anim_mode == MOVABLE_PROXIES
                        && scene->meshes_type != Mesh::RESHAPABLE_PROXY && (scene->meshes_type != Mesh::AS_IS || mesh->mesh_type != Mesh::RESHAPABLE_PROXY)))))
             continue;
-        ++ulLocalCnt;
+
+        if(mesh->vdb_regular_grid) ++ulLocalVdbCnt;
+        else ++ulLocalCnt;
+
 		if(progress.get_cancel()) return;
 	}
 
@@ -144,7 +177,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
     if(ulLocalCnt) {
         char            **mesh_names            = new char*[ulLocalCnt];
         uint64_t          *used_shaders_size    = new uint64_t[ulLocalCnt];
+        uint64_t          *used_objects_size    = new uint64_t[ulLocalCnt];
         vector<string>  *shader_names           = new vector<string>[ulLocalCnt];
+        vector<string>  *object_names           = new vector<string>[ulLocalCnt];
         float3          **points                = new float3*[ulLocalCnt];
         uint64_t          *points_size          = new uint64_t[ulLocalCnt];
         float3          **normals               = new float3*[ulLocalCnt];
@@ -156,6 +191,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         int             **vert_per_poly         = new int*[ulLocalCnt];
         uint64_t          *vert_per_poly_size   = new uint64_t[ulLocalCnt];
         int             **poly_mat_index        = new int*[ulLocalCnt];
+        int             **poly_obj_index        = new int*[ulLocalCnt];
         float3          **uvs                   = new float3*[ulLocalCnt];
         uint64_t          *uvs_size             = new uint64_t[ulLocalCnt];
         int             **uv_indices            = new int*[ulLocalCnt];
@@ -171,6 +207,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         int32_t         *rand_color_seed        = new int32_t[ulLocalCnt];
         bool            *reshapable             = new bool[ulLocalCnt];
         int32_t         *layer_number           = new int32_t[ulLocalCnt];
+        int32_t         *baking_group_id        = new int32_t[ulLocalCnt];
 
         float3          **hair_points           = new float3*[ulLocalCnt];
         uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
@@ -184,6 +221,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         vector<Mesh*>::iterator it;
         for(it = scene->meshes.begin(); it != scene->meshes.end(); ++it) {
             Mesh *mesh = *it;
+            if(mesh->vdb_regular_grid) continue;
             if(mesh->empty || !mesh->need_update
                || (scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::GLOBAL))
                || (!scene->first_frame
@@ -202,6 +240,10 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             for(size_t n=0; n<used_shaders_size[i]; ++n) {
                 shader_names[i].push_back(scene->shaders[mesh->used_shaders[n]]->name);
             }
+
+            used_objects_size[i] = 1;
+            object_names[i].push_back("__" + mesh->name);
+
             mesh_names[i]           = (char*)mesh->name.c_str();
             points[i]               = &mesh->points[0];
             points_size[i]          = mesh->points.size();
@@ -214,6 +256,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             vert_per_poly[i]        = &mesh->vert_per_poly[0];
             vert_per_poly_size[i]   = mesh->vert_per_poly.size();
             poly_mat_index[i]       = &mesh->poly_mat_index[0];
+            poly_obj_index[i]       = &mesh->poly_obj_index[0];
             uvs[i]                  = &mesh->uvs[0];
             uvs_size[i]             = mesh->uvs.size();
             uv_indices[i]           = &mesh->uv_indices[0];
@@ -228,7 +271,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             shadow_vis[i]           = mesh->vis_shadow;
             rand_color_seed[i]      = mesh->rand_color_seed;
             reshapable[i]           = (scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY));
-            layer_number[i]         = (scene->kernel->layers_enable ? mesh->layer_number : 1);
+            layer_number[i]         = (scene->kernel->oct_node->bLayersEnable ? mesh->layer_number : 1);
+            baking_group_id[i]      = mesh->baking_group_id;
 
             hair_points_size[i]     = mesh->hair_points.size();
             hair_points[i]          = hair_points_size[i] ? &mesh->hair_points[0] : 0;
@@ -239,7 +283,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             hair_uvs[i]             = vert_per_hair_size[i] ? &mesh->hair_uvs[0] : 0;
 
             if(mesh->need_update
-               && (!total_frames || frame_idx >= (total_frames - 1) || !reshapable[i]))
+               && (total_frames <= 1 || !reshapable[i]))
                 mesh->need_update = false;
     		if(progress.get_cancel()) {
                 interrupted = true;
@@ -249,12 +293,14 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
 	    }
         if(i && !interrupted) {
             progress.set_status("Loading Meshes to render-server", "Transferring...");
-            server->load_mesh(false, frame_idx, total_frames, ulLocalCnt, mesh_names,
+            server->uploadMesh(false, frame_idx, total_frames, ulLocalCnt, mesh_names,
                                         used_shaders_size,
+                                        used_objects_size,
                                         shader_names,
-                                        points,
+                                        object_names,
+                                        (::OctaneEngine::float_3**)points,
                                         points_size,
-                                        normals,
+                                        (::OctaneEngine::float_3**)normals,
                                         normals_size,
                                         points_indices,
                                         normals_indices,
@@ -263,19 +309,21 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                         vert_per_poly,
                                         vert_per_poly_size,
                                         poly_mat_index,
-                                        uvs,
+                                        poly_obj_index,
+                                        (::OctaneEngine::float_3**)uvs,
                                         uvs_size,
                                         uv_indices,
                                         uv_indices_size,
-                                        hair_points, hair_points_size,
+                                        (::OctaneEngine::float_3**)hair_points, hair_points_size,
                                         vert_per_hair, vert_per_hair_size,
-                                        hair_thickness, hair_mat_indices, hair_uvs,
+                                        hair_thickness, hair_mat_indices, (::OctaneEngine::float_2**)hair_uvs,
                                         open_subd_enable,
                                         open_subd_scheme,
                                         open_subd_level,
                                         open_subd_sharpness,
                                         open_subd_bound_interp,
                                         layer_number,
+                                        baking_group_id,
                                         general_vis,
                                         cam_vis,
                                         shadow_vis,
@@ -284,7 +332,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         }
         delete[] mesh_names;
         delete[] used_shaders_size;
+        delete[] used_objects_size;
         delete[] shader_names;
+        delete[] object_names;
         delete[] points;
         delete[] points_size;
         delete[] normals;
@@ -296,6 +346,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] vert_per_poly;
         delete[] vert_per_poly_size;
         delete[] poly_mat_index;
+        delete[] poly_obj_index;
         delete[] uvs;
         delete[] uvs_size;
         delete[] uv_indices;
@@ -311,6 +362,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] rand_color_seed;
         delete[] reshapable;
         delete[] layer_number;
+        delete[] baking_group_id;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
@@ -320,11 +372,67 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         delete[] hair_mat_indices;
         delete[] hair_uvs;
     }
+
+    if(ulLocalVdbCnt && !interrupted) {
+        uint64_t i = 0;
+        vector<Mesh*>::iterator it;
+        for(it = scene->meshes.begin(); it != scene->meshes.end(); ++it) {
+            Mesh *mesh = *it;
+            if(!mesh->vdb_regular_grid) continue;
+            if(mesh->empty || !mesh->need_update
+               //|| (scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::GLOBAL))
+               || (!scene->first_frame
+                   && (scene->anim_mode == CAM_ONLY
+                       || (scene->anim_mode == MOVABLE_PROXIES
+                           && scene->meshes_type != Mesh::RESHAPABLE_PROXY && (scene->meshes_type != Mesh::AS_IS || mesh->mesh_type != Mesh::RESHAPABLE_PROXY))))) continue;
+
+            if(scene->meshes_type == Mesh::SCATTER || scene->meshes_type == Mesh::GLOBAL || scene->meshes_type == Mesh::GLOBAL || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::SCATTER))
+                progress.set_status("Loading Volumes to render-server", string("Scatter: ") + mesh->nice_name.c_str());
+            else if(scene->meshes_type == Mesh::MOVABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::MOVABLE_PROXY))
+                progress.set_status("Loading Volumes to render-server", string("Movable: ") + mesh->nice_name.c_str());
+            else if(scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY))
+                progress.set_status("Loading Volumes to render-server", string("Reshapable: ") + mesh->nice_name.c_str());
+
+            ::OctaneEngine::OctaneVolume volume;
+
+            volume.sName                = mesh->name;
+            volume.pfRegularGrid        = mesh->vdb_regular_grid;
+            volume.iGridSize            = mesh->vdb_grid_size;
+            volume.f3Resolution         = {mesh->vdb_resolution.x, mesh->vdb_resolution.y, mesh->vdb_resolution.z};
+            volume.gridMatrix           = mesh->vdb_grid_matrix;
+            volume.fISO                 = mesh->vdb_iso;
+            volume.iAbsorptionOffset    = mesh->vdb_absorption_offset;
+            volume.fAbsorptionScale     = mesh->vdb_absorption_scale;
+            volume.iEmissionOffset      = mesh->vdb_emission_offset;
+            volume.fEmissionScale       = mesh->vdb_emission_scale;
+            volume.iScatterOffset       = mesh->vdb_scatter_offset;
+            volume.fScatterScale        = mesh->vdb_scatter_scale;
+            volume.iVelocityOffsetX     = mesh->vdb_velocity_x_offset;
+            volume.iVelocityOffsetY     = mesh->vdb_velocity_y_offset;
+            volume.iVelocityOffsetZ     = mesh->vdb_velocity_z_offset;
+            volume.fVelocityScale       = mesh->vdb_velocity_scale;
+            if(mesh->used_shaders.size())
+                volume.sMedium = scene->shaders[mesh->used_shaders[0]]->name;
+
+            if(mesh->need_update && (total_frames <= 1 || !(scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY))))
+                mesh->need_update = false;
+    		if(progress.get_cancel()) {
+                interrupted = true;
+                break;
+            }
+            ++i;
+
+            progress.set_status("Loading Volumes to render-server", "Transferring...");
+            server->uploadVolume(&volume);
+        }
+    }
+
     if(global_update && !interrupted) {
         progress.set_status("Loading global Mesh to render-server", "");
         uint64_t obj_cnt = 0;
         for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
             Mesh* mesh = obj_it->second.size() > 0 ? obj_it->second[0]->mesh : 0;
+            if(mesh->vdb_regular_grid) continue;
 
             if(!mesh || mesh->empty
                || (!scene->first_frame && scene->anim_mode != FULL)
@@ -340,7 +448,9 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         char* name = "__global";
         if(obj_cnt > 0) {
             uint64_t          *used_shaders_size    = new uint64_t[obj_cnt];
+            uint64_t          *used_objects_size    = new uint64_t[obj_cnt];
             vector<string>  *shader_names           = new vector<string>[obj_cnt];
+            vector<string>  *object_names           = new vector<string>[obj_cnt];
             float3          **points                = new float3*[obj_cnt];
             for(int k = 0; k < obj_cnt; ++k) points[k] = 0;
             uint64_t          *points_size          = new uint64_t[obj_cnt];
@@ -354,6 +464,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             int             **vert_per_poly         = new int*[obj_cnt];
             uint64_t          *vert_per_poly_size   = new uint64_t[obj_cnt];
             int             **poly_mat_index        = new int*[obj_cnt];
+            int             **poly_obj_index        = new int*[obj_cnt];
             float3          **uvs                   = new float3*[obj_cnt];
             uint64_t          *uvs_size             = new uint64_t[obj_cnt];
             int             **uv_indices            = new int*[obj_cnt];
@@ -369,6 +480,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             int32_t         *rand_color_seed        = new int32_t[obj_cnt];
             bool            *reshapable             = new bool[obj_cnt];
             int32_t         *layer_number           = new int32_t[obj_cnt];
+            int32_t         *baking_group_id        = new int32_t[obj_cnt];
 
             float3          **hair_points           = new float3*[obj_cnt];
             uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
@@ -382,6 +494,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             bool hair_present = false;
             for(map<std::string, vector<Object*> >::const_iterator obj_it = scene->objects.begin(); obj_it != scene->objects.end(); ++obj_it) {
                 Mesh* mesh = obj_it->second.size() > 0 ? obj_it->second[0]->mesh : 0;
+                if(mesh->vdb_regular_grid) continue;
 
                 if(!mesh || mesh->empty
                    || (!scene->first_frame && scene->anim_mode != FULL)
@@ -398,6 +511,10 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     for(size_t n=0; n<used_shaders_size[obj_cnt]; ++n) {
                         shader_names[obj_cnt].push_back(scene->shaders[mesh_object->used_shaders[n]]->name);
                     }
+
+                    used_objects_size[obj_cnt] = 1;
+                    object_names[obj_cnt].push_back("__" + mesh->name);
+
                     size_t points_cnt             = mesh->points.size();
                     points[obj_cnt]               = new float3[points_cnt];
                     float3 *p                     = &mesh->points[0];
@@ -417,6 +534,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     vert_per_poly[obj_cnt]        = &mesh->vert_per_poly[0];
                     vert_per_poly_size[obj_cnt]   = mesh->vert_per_poly.size();
                     poly_mat_index[obj_cnt]       = &mesh->poly_mat_index[0];
+                    poly_obj_index[obj_cnt]       = &mesh->poly_obj_index[0];
                     uvs[obj_cnt]                  = &mesh->uvs[0];
                     uvs_size[obj_cnt]             = mesh->uvs.size();
                     uv_indices[obj_cnt]           = &mesh->uv_indices[0];
@@ -431,7 +549,8 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                     shadow_vis[obj_cnt]           = mesh->vis_shadow;
                     rand_color_seed[obj_cnt]      = mesh->rand_color_seed;
                     reshapable[obj_cnt]           = false;
-                    layer_number[obj_cnt]         = (scene->kernel->layers_enable ? mesh->layer_number : 1);
+                    layer_number[obj_cnt]         = (scene->kernel->oct_node->bLayersEnable ? mesh->layer_number : 1);
+                    baking_group_id[obj_cnt]      = mesh->baking_group_id;
 
                     hair_points_size[obj_cnt]     = mesh->hair_points.size();
                     hair_points[obj_cnt]          = hair_points_size[obj_cnt] ? &mesh->hair_points[0] : 0;
@@ -455,12 +574,14 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                 if(hair_present) fprintf(stderr, "Octane: WARNING: hair can't be rendered on \"Global\" mesh\n");
             
                 progress.set_status("Loading global Mesh to render-server", string("Transferring..."));
-                server->load_mesh(true, frame_idx, total_frames, obj_cnt, &name,
+                server->uploadMesh(true, frame_idx, total_frames, obj_cnt, &name,
                                             used_shaders_size,
+                                            used_objects_size,
                                             shader_names,
-                                            points,
+                                            object_names,
+                                            (::OctaneEngine::float_3**)points,
                                             points_size,
-                                            normals,
+                                            (::OctaneEngine::float_3**)normals,
                                             normals_size,
                                             points_indices,
                                             normals_indices,
@@ -469,27 +590,32 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
                                             vert_per_poly,
                                             vert_per_poly_size,
                                             poly_mat_index,
-                                            uvs,
+                                            poly_obj_index,
+                                            (::OctaneEngine::float_3**)uvs,
                                             uvs_size,
                                             uv_indices,
                                             uv_indices_size,
-                                            hair_points, hair_points_size,
+                                            (::OctaneEngine::float_3**)hair_points, hair_points_size,
                                             vert_per_hair, vert_per_hair_size,
-                                            hair_thickness, hair_mat_indices, hair_uvs,
+                                            hair_thickness, hair_mat_indices, (::OctaneEngine::float_2**)hair_uvs,
                                             open_subd_enable,
                                             open_subd_scheme,
                                             open_subd_level,
                                             open_subd_sharpness,
                                             open_subd_bound_interp,
                                             layer_number,
+                                            baking_group_id,
                                             general_vis,
                                             cam_vis,
                                             shadow_vis,
                                             rand_color_seed,
                                             reshapable);
+                server->uploadLayerMap(true, "__global_lm", name, static_cast< ::OctaneEngine::int32_t>(obj_cnt), layer_number, baking_group_id, general_vis, cam_vis, shadow_vis, static_cast< ::OctaneEngine::int32_t*>(rand_color_seed));
             }
             delete[] used_shaders_size;
+            delete[] used_objects_size;
             delete[] shader_names;
+            delete[] object_names;
             for(int k = 0; k < obj_cnt; ++k) {
                 if(points[k]) delete[] points[k];
             }
@@ -507,6 +633,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             delete[] vert_per_poly;
             delete[] vert_per_poly_size;
             delete[] poly_mat_index;
+            delete[] poly_obj_index;
             delete[] uvs;
             delete[] uvs_size;
             delete[] uv_indices;
@@ -522,6 +649,7 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
             delete[] rand_color_seed;
             delete[] reshapable;
             delete[] layer_number;
+            delete[] baking_group_id;
 
             delete[] hair_points_size;
             delete[] vert_per_hair_size;
@@ -534,14 +662,14 @@ void MeshManager::server_update_mesh(RenderServer *server, Scene *scene, Progres
         else ulGlobalCnt = 0;
     }
     std::string cur_name("__global");
-    if(!ulGlobalCnt && scene->anim_mode == FULL) server->delete_mesh(true, cur_name);
+    if(!ulGlobalCnt && scene->anim_mode == FULL) server->deleteMesh(true, cur_name);
 	//need_update = false;
 } //server_update_mesh()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Update render-server (sends "LOAD_MESH" packets finally)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void MeshManager::server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
+void MeshManager::server_update(::OctaneEngine::OctaneClient *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames) {
 	if(!need_update) return;
 
     server_update_mesh(server, scene, progress, frame_idx, total_frames);

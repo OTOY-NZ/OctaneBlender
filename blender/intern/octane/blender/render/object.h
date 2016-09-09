@@ -19,16 +19,14 @@
 #ifndef __OBJECT_H__
 #define __OBJECT_H__
 
-#include <OpenImageIO/ustring.h>
 #include "util_transform.h"
 #include "util_types.h"
 #include "util_lists.h"
 
 #include "memleaks_check.h"
+#include "OctaneClient.h"
 
 OCT_NAMESPACE_BEGIN
-
-using namespace OIIO_NAMESPACE;
 
 class   Mesh;
 class   Light;
@@ -52,7 +50,7 @@ public:
     Mesh        *mesh;
     Light       *light;
 	Transform   tfm;
-	ustring     name;
+	std::string name;
 	uint        random_id;
 	int         pass_id;
 	bool        visibility;
@@ -67,6 +65,7 @@ public:
     Scene*      scene;
 
 	vector<uint> used_shaders;
+	//vector<uint> used_objects;
 }; //Object
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +76,7 @@ public:
 	ObjectManager();
 	~ObjectManager();
 
-    void server_update(RenderServer *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
+    void server_update(::OctaneEngine::OctaneClient *server, Scene *scene, Progress& progress, uint32_t frame_idx, uint32_t total_frames);
 	void tag_update(Scene *scene);
 
 	bool need_update;

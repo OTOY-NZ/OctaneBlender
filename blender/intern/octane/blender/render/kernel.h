@@ -22,10 +22,10 @@
 #include "util_types.h"
 
 #include "memleaks_check.h"
+#include "OctaneClient.h"
 
 OCT_NAMESPACE_BEGIN
 
-class RenderServer;
 class Scene;
 
 class Kernel {
@@ -33,92 +33,52 @@ public:
 	Kernel();
 	~Kernel();
 
-	void server_update(RenderServer *server, Scene *scene, bool interactive);
+    inline Kernel(Kernel &other) {
+        oct_node = new ::OctaneEngine::Kernel;
+        *oct_node = *other.oct_node;
+
+        uiGPUs = other.uiGPUs;
+        need_update = other.need_update;
+        need_update_GPUs = other.need_update_GPUs;
+    }
+    inline Kernel(Kernel &&other) {
+        delete oct_node;
+        oct_node = other.oct_node;
+        other.oct_node = 0;
+
+        uiGPUs = other.uiGPUs;
+        need_update = other.need_update;
+        need_update_GPUs = other.need_update_GPUs;
+    }
+
+    inline Kernel& operator=(Kernel &other) {
+        *oct_node = *other.oct_node;
+
+        uiGPUs = other.uiGPUs;
+        need_update = other.need_update;
+        need_update_GPUs = other.need_update_GPUs;
+        return *this;
+    }
+    inline Kernel& operator=(Kernel &&other) {
+        delete oct_node;
+        oct_node = other.oct_node;
+        other.oct_node = 0;
+
+        uiGPUs = other.uiGPUs;
+        need_update = other.need_update;
+        need_update_GPUs = other.need_update_GPUs;
+        return *this;
+    }
+
+	void server_update(::OctaneEngine::OctaneClient *server, Scene *scene, bool interactive);
 
 	bool modified(const Kernel& kernel);
 	void tag_update(void);
 	void tag_updateGPUs(void);
 
-    enum KernelType {
-        DEFAULT = 0,
-        DIRECT_LIGHT,
-        PATH_TRACE,
-        PMC,
-        INFO_CHANNEL
-    };
-    enum GIType {
-        GI_NONE,
-        GI_AMBIENT,
-        GI_SAMPLE_AMBIENT,
-        GI_AMBIENT_OCCLUSION,
-        GI_DIFFUSE
-    };
-    enum ChannelType {
-        CHANNEL_GEOMETRICNORMALS,
-        CHANNEL_SHADINGNORMALS,
-        CHANNEL_POSITION,
-        CHANNEL_ZDEPTH,
-        CHANNEL_MATERIALID,
-        CHANNEL_TEXTURESCOORDINATES,
-        RESERVED_1,
-        CHANNEL_WIREFRAME,
-        CHANNEL_VERTEXNORMAL
-    };
-
-    KernelType  kernel_type;
-
-    //COMMON
-    int32_t max_samples;
-    int32_t max_preview_samples;
-    float   filter_size;
-    float   ray_epsilon;
-    bool    alpha_channel;
-    bool    alpha_shadows;
-    bool    bump_normal_mapping;
-    bool    wf_bktrace_hl;
-    float   path_term_power;
-
-    //PATH_TRACE + PMC + DIRECT_LIGHT
-    bool    keep_environment;
-
-    //PATH_TRACE + PMC
-    float   caustic_blur;
-    int32_t max_diffuse_depth, max_glossy_depth;
-
-    //PATH_TRACE + DIRECT_LIGHT
-    float   coherent_ratio;
-    bool    static_noise;
-
-    //DIRECT_LIGHT
-    int32_t specular_depth;
-    int32_t glossy_depth;
-    float   ao_dist;
-    GIType  gi_mode;
-    int32_t diffuse_depth;
-
-    //PATH_TRACE
-
-    //PMC
-    float   exploration;
-    float   direct_light_importance;
-    float   gi_clamp;
-    int32_t max_rejects;
-    int32_t parallelism;
-
-    //INFO_CHANNEL
-    ChannelType info_channel_type;
-    float       zdepth_max;
-    float       uv_max;
-    bool        distributed_tracing;
-    float       max_speed;
-
-    bool        layers_enable;
-    int32_t     layers_current;
-    bool        layers_invert;
+    ::OctaneEngine::Kernel *oct_node;
 
     uint32_t    uiGPUs;
-
-    float       shuttertime;
 
 	bool        need_update;
 	bool        need_update_GPUs;

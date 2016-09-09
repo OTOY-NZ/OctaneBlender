@@ -26,8 +26,23 @@
 #       undef new
 #   endif
 #endif
-#include <boost/thread.hpp>
-#include <boost/function.hpp>
+
+#if (__cplusplus > 199711L) || (defined(_MSC_VER) && _MSC_VER >= 1800)
+#   include <thread>
+#   include <mutex>
+#   include <condition_variable>
+#   include <functional>
+#else
+#   include <boost/thread.hpp>
+#endif
+
+#if (__cplusplus > 199711L) || (defined(_MSC_VER) && _MSC_VER >= 1800)
+#   include <functional>
+#else
+#   include <boost/bind.hpp>
+#   include <boost/function.hpp>
+#endif
+
 #ifdef WIN32
 #   ifdef _DEBUG
 #       pragma pop_macro("new")
@@ -42,10 +57,35 @@
 
 OCT_NAMESPACE_BEGIN
 
-// Use boost for mutexes
-typedef boost::mutex				thread_mutex;
-typedef boost::mutex::scoped_lock	thread_scoped_lock;
-typedef boost::condition_variable	thread_condition_variable;
+#if (__cplusplus > 199711L) || (defined(_MSC_VER) && _MSC_VER >= 1800)
+#   define function_bind std::bind
+#   define function_null nullptr
+    using std::function;
+    using std::placeholders::_1;
+    using std::placeholders::_2;
+    using std::placeholders::_3;
+    using std::placeholders::_4;
+    using std::placeholders::_5;
+    using std::placeholders::_6;
+    using std::placeholders::_7;
+    using std::placeholders::_8;
+    using std::placeholders::_9;
+#else
+    using boost::function;
+#   define function_bind boost::bind
+#   define function_null NULL
+#endif
+
+#if (__cplusplus > 199711L) || (defined(_MSC_VER) && _MSC_VER >= 1800)
+    typedef std::mutex thread_mutex;
+    typedef std::unique_lock<std::mutex> thread_scoped_lock;
+    typedef std::condition_variable thread_condition_variable;
+#else
+    /* use boost for mutexes */
+    typedef boost::mutex thread_mutex;
+    typedef boost::mutex::scoped_lock thread_scoped_lock;
+    typedef boost::condition_variable thread_condition_variable;
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Own pthread based implementation, to avoid boost version conflicts with
@@ -53,7 +93,7 @@ typedef boost::condition_variable	thread_condition_variable;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class thread {
 public:
-	thread(boost::function<void(void)> run_cb_) {
+	thread(function<void(void)> run_cb_) {
 		joined = false;
 		run_cb = run_cb_;
 
@@ -74,7 +114,7 @@ public:
 	}
 
 protected:
-	boost::function<void(void)>	run_cb;
+	function<void(void)>	    run_cb;
 	pthread_t					pthread_id;
 	bool						joined;
 }; //thread

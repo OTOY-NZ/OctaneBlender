@@ -160,6 +160,7 @@ DefNode( ShaderNode,     SH_NODE_OCT_RANDOM_COLOR_TEX,      0,               "OC
 DefNode( ShaderNode,     SH_NODE_OCT_DISPLACEMENT_TEX,      0,               "OCT_DISPLACEMENT_TEX",  OctDisplacementTex,  "Octane Displacement",          ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_POLYGON_SIDE_TEX,      0,               "OCT_POLYGON_SIDE_TEX",  OctPolygonSideTex,   "Octane Polygon Side Tex",      ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_NOISE_TEX,             0,               "OCT_NOISE_TEX",         OctNoiseTex,         "Octane Noise Tex",             ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_VOLUME_RAMP_TEX,       def_colorramp,   "OCT_VOLUME_RAMP_TEX",   OctVolumeRampTex,     "Octane Volume Ramp Tex",      ""    )
 
 DefNode( ShaderNode,     SH_NODE_OCT_BBODY_EMI,             0,               "OCT_BBODY_EMI",         OctBlackBodyEmission,"Octane Black Body Emission",   ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_TEXTURE_EMI,           0,               "OCT_TEXT_EMI",          OctTextureEmission,  "Octane Texture Emission",      ""    )
@@ -172,6 +173,7 @@ DefNode( ShaderNode,     SH_NODE_OCT_3D_TRN,                0,               "OC
 
 DefNode( ShaderNode,     SH_NODE_OCT_ABSORP_MED,            0,               "OCT_ABSORP_MED",        OctAbsorptionMedium, "Octane Absorption Medium",     ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_SCATTER_MED,           0,               "OCT_SCATTER_MED",       OctScatteringMedium, "Octane Scatter Medium",        ""    )
+DefNode( ShaderNode,     SH_NODE_OCT_VOLUME_MED,            0,               "OCT_VOLUME_MED",        OctVolumeMedium,     "Octane Volume Medium",         ""    )
 
 DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_XYZ,        0,               "OCT_XYZ_PROJ",          OctXYZProjection,    "Octane XYZ Projection",        ""    )
 DefNode( ShaderNode,     SH_NODE_OCT_PROJECTION_BOX,        0,               "OCT_BOX_PROJ",          OctBoxProjection,    "Octane Box Projection",        ""    )

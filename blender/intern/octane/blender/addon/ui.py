@@ -62,7 +62,7 @@ class Reset(Operator):
 class ActivateOctane(Operator):
     """Activate the Octane license"""
     bl_idname = "octane.activate"
-    bl_label = "Send activation info to the OctaneServer"
+    bl_label = "Open activation state dialog on OctaneServer"
     bl_register = True
     bl_undo = False
 
@@ -117,18 +117,15 @@ class OctaneButtonsPanel():
         return rd.engine == 'octane'
 
 
-class VIEW3D_PT_octimager(Panel):
+class VIEW3D_PT_octcam(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_label = "Octane imager"
+    bl_label = "Octane camera"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
         return context.space_data and OctaneButtonsPanel.poll(context)
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.octane, "hdr_tonemap_enable", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -155,9 +152,12 @@ class VIEW3D_PT_octimager(Panel):
         sub.prop(oct_cam, "white_saturation", text="White saturation")
         sub.prop(oct_cam, "hot_pix", text="Hot pix. removal")
         sub.prop(oct_cam, "min_display_samples", text="Min. display samples")
+        sub.prop(oct_cam, "highlight_compression", text="Highlight compression")
+        sub.prop(oct_cam, "max_tonemap_interval", text="Max. tonemap interval")
         sub.prop(oct_cam, "dithering", text="Dithering")
         sub.prop(oct_cam, "premultiplied_alpha", text="Premultiplied alpha")
-        sub.prop(oct_cam, "highlight_compression", text="Highlight compression")
+        sub.prop(oct_cam, "neutral_response", text="Neutral response")
+        sub.prop(oct_cam, "disable_partial_alpha", text="Disable partial alpha")
 
 
 
@@ -193,6 +193,10 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.label("Samples:")
         sub.prop(oct_scene, "max_samples", text="Max. samples")
         sub.prop(oct_scene, "max_preview_samples", text="Prev. samples")
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '4')
+        sub.prop(oct_scene, "parallel_samples", text="Parallel samples")
+        sub.prop(oct_scene, "max_tile_samples", text="Max. tile samples")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '4')
@@ -201,6 +205,7 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "ray_epsilon", text="Ray epsilon")
         sub.prop(oct_scene, "distributed_tracing", text="Distributed ray tracing")
         sub.prop(oct_scene, "max_speed", text="Max speed")
+        sub.prop(oct_scene, "opacity_threshold", text="Opacity threshold")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
@@ -212,10 +217,13 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "alpha_channel", text="Alpha channel")
-        sub.prop(oct_scene, "alpha_shadows", text="Alpha shadows")
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "wf_bktrace_hl", text="Wireframe backtrace highlighting")
+        sub.prop(oct_scene, "ao_alpha_shadows", text="AO alpha shadows")
+        sub = col.column(align=True)
+        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '4')
+        sub.prop(oct_scene, "minimize_net_traffic", text="Minimize net traffic")
 
 
         col = split.column()
@@ -240,16 +248,21 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "direct_light_importance", text="Direct light imp.")
         sub.prop(oct_scene, "max_rejects", text="Max. rejects")
         sub.prop(oct_scene, "parallelism", text="Parallelism")
+        sub.prop(oct_scene, "work_chunk_size", text="Work chunk size")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2')
         sub.prop(oct_scene, "coherent_ratio", text="Coherent ratio")
+        sub.prop(oct_scene, "max_depth_samples", text="Max. depth samples")
+        sub.prop(oct_scene, "depth_tolerance", text="Depth tolerance")
         sub.prop(oct_scene, "static_noise", text="Static noise")
+        sub.prop(oct_scene, "deep_image", text="Deep image")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
         sub.prop(oct_scene, "path_term_power", text="Path term. power")
         sub.prop(oct_scene, "keep_environment", text="Keep environment")
+        sub.prop(oct_scene, "alpha_shadows", text="Alpha shadows")
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "bump_normal_mapping", text="Bump and normal mapping")
@@ -265,18 +278,12 @@ class OctaneRender_PT_server(OctaneButtonsPanel, Panel):
         scene = context.scene
         oct_scene = scene.octane
 
-        col = layout.column()
-        col.prop(oct_scene, "server_address")
-        box = col.box()
-        box.label(text="License Login/Password:")
+        box = layout.box()
+        box.label(text="Render server:")
         sub = box.row()
-        sub.prop(oct_scene, "stand_login")
-        sub.prop(oct_scene, "stand_pass")
+        sub.prop(oct_scene, "server_address")
         sub = box.row()
-        sub.prop(oct_scene, "server_login")
-        sub.prop(oct_scene, "server_pass")
-        sub = box.row()
-        sub.operator("octane.activate", text="Activate license")
+        sub.operator("octane.activate", text="Activation state")
 
 
 
@@ -385,15 +392,19 @@ class OctaneRender_PT_layer_passes(OctaneButtonsPanel, Panel):
         row.prop(rl, "use_pass_shadow")
         row.prop(octane, "shadows_pass_subtype")
 
-        col.prop(octane, "pass_max_samples")
-        col.prop(octane, "pass_ao_max_samples")
+        sub = col.column(align=True)
+        sub.prop(octane, "pass_max_samples")
+        sub.prop(octane, "pass_z_depth_max")
+        sub.prop(octane, "pass_uv_max")
+        sub.prop(octane, "pass_max_speed")
+        sub.prop(octane, "pass_ao_distance")
+        sub.prop(octane, "pass_opacity_threshold")
+
         col.prop(octane, "pass_distributed_tracing")
-        col.prop(octane, "pass_filter_size")
-        col.prop(octane, "pass_z_depth_max")
-        col.prop(octane, "pass_uv_max")
-        col.prop(octane, "pass_max_speed")
-        col.prop(octane, "pass_ao_distance")
         col.prop(octane, "pass_alpha_shadows")
+        col.prop(octane, "pass_raw")
+        col.prop(octane, "pass_pp_env")
+        col.prop(octane, "pass_bump")
 
 
 class OctaneRender_PT_octane_layers(OctaneButtonsPanel, Panel):
@@ -490,6 +501,12 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
         cam = context.camera
         oct_cam = cam.octane
 
+        sub = layout.row(align=True)
+        sub.prop(oct_cam, "baking_camera", text="Baking camera")
+        sub = layout.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_uv_set", text="UV set")
+
         sub = layout.column(align=True)
         sub.active = (cam.type == 'PANO')
         sub.prop(oct_cam, "pan_mode", text="Pan mode")
@@ -533,6 +550,7 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
         sub = layout.row()
         sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '0')
         sub.prop(oct_cam, "stereo_dist", text="Eye distance")
+        sub.prop(oct_cam, "stereo_swap_eyes", text="Swap eyes")
         sub = layout.column()
         sub.active = (cam.type == 'PANO')
         sub.prop(oct_cam, "stereo_dist_falloff", text="Eye dist. falloff")
@@ -552,9 +570,6 @@ class OctaneCamera_PT_imager(OctaneButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         return context.camera and OctaneButtonsPanel.poll(context)
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.octane, "hdr_tonemap_enable", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -579,9 +594,12 @@ class OctaneCamera_PT_imager(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "white_saturation", text="White saturation")
         sub.prop(oct_cam, "hot_pix", text="Hot pix. removal")
         sub.prop(oct_cam, "min_display_samples", text="Min. display samples")
+        sub.prop(oct_cam, "highlight_compression", text="Highlight compression")
+        sub.prop(oct_cam, "max_tonemap_interval", text="Max. tonemap interval")
         sub.prop(oct_cam, "dithering", text="Dithering")
         sub.prop(oct_cam, "premultiplied_alpha", text="Premultiplied alpha")
-        sub.prop(oct_cam, "highlight_compression", text="Highlight compression")
+        sub.prop(oct_cam, "neutral_response", text="Neutral response")
+        sub.prop(oct_cam, "disable_partial_alpha", text="Disable partial alpha")
 
 
 class OctaneCamera_PT_post(OctaneButtonsPanel, Panel):
@@ -719,8 +737,8 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "mesh_type")
         sub.operator("octane.set_meshes_type", "", "", True, 'MESH_DATA')
         sub = layout.row(align=True)
-        sub.active = (cdata.mesh_type != '0')
         sub.prop(cdata, "layer_number", text="Layer number")
+        sub.prop(cdata, "baking_group_id", text="Baking group")
 
         box = layout.box()
         box.label(text="OpenSubDiv:")
@@ -735,11 +753,19 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "open_subd_sharpness", text="Sharpness")
 
         sub = layout.column(align=True)
-        sub.active = (cdata.mesh_type != '0')
         sub.prop(cdata, "vis_general")
         sub.prop(cdata, "vis_cam")
         sub.prop(cdata, "vis_shadow")
         sub.prop(cdata, "rand_color_seed")
+
+        box = layout.box()
+        box.label(text="Volume properties:")
+        sub = box.column(align=True)
+        sub.prop(cdata, "vdb_iso")
+        sub.prop(cdata, "vdb_abs_scale")
+        sub.prop(cdata, "vdb_emiss_scale")
+        sub.prop(cdata, "vdb_scatter_scale")
+        sub.prop(cdata, "vdb_vel_scale")
 
 
 class OctaneObject_PT_octane_properties(OctaneButtonsPanel, Panel):
@@ -909,6 +935,11 @@ class OctaneWorld_PT_settings(OctaneButtonsPanel, Panel):
         row.prop_search(oct_world, "env_texture",  bpy.data, "textures")
 
         row = layout.row(align=True)
+        row.prop_search(oct_world, "env_medium",  bpy.data, "textures")
+        row = layout.row(align=True)
+        row.prop(oct_world, "env_med_radius", text="Medium radius")
+
+        row = layout.row(align=True)
         row.prop(oct_world, "env_importance_sampling", text="Importance sampling")
 
         row = layout.row(align=True)
@@ -956,6 +987,100 @@ class OctaneWorld_PT_settings(OctaneButtonsPanel, Panel):
         row = layout.row(align=True)
         row.active = (oct_world.env_type == '1')
         row.prop(oct_world, "env_model", text="Model")
+
+
+class OctaneVisibleWorld_PT_settings(OctaneButtonsPanel, Panel):
+    bl_label = "Octane visible environment"
+    bl_context = "world"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.world and OctaneButtonsPanel.poll(context)
+
+    def draw_header(self, context):
+        self.layout.prop(context.world.octane, "use_vis_env", text="")
+
+    def draw(self, context):
+        layout = self.layout
+#        obj = context.object
+
+        world = context.world
+        oct_world = world.octane
+
+        row = layout.row(align=True)
+        row.menu("OCTANE_MT_environment_presets", text=bpy.types.OCTANE_MT_environment_presets.bl_label)
+        row.operator("render.octane_environment_preset_add", text="", icon="ZOOMIN")
+        row.operator("render.octane_environment_preset_add", text="", icon="ZOOMOUT").remove_active = True
+
+        row = layout.row(align=True)
+        row.prop(oct_world, "env_vis_type", text="Type")
+        row = layout.row(align=True)
+        row.prop(oct_world, "env_vis_power", text="Power")
+        
+        row = layout.row(align=True)
+#        row.prop(oct_world, "env_vis_texture", text="Texture")
+        row.prop_search(oct_world, "env_vis_texture",  bpy.data, "textures")
+
+        row = layout.row(align=True)
+        row.prop_search(oct_world, "env_vis_medium",  bpy.data, "textures")
+        row = layout.row(align=True)
+        row.prop(oct_world, "env_vis_med_radius", text="Medium radius")
+
+        row = layout.row(align=True)
+        row.prop(oct_world, "env_vis_importance_sampling", text="Importance sampling")
+
+        row = layout.row(align=True)
+        row.active = (oct_world.env_vis_type == '1')
+        row.prop(oct_world, "env_vis_daylight_type", text="Daylight type")
+
+        split = layout.split()
+        col = split.column()
+
+        sub = col.column(align=True)
+        sub.active = (oct_world.env_vis_type == '1' and oct_world.env_vis_daylight_type == '1')
+        sub.label("Daylight:")
+        sub.prop(oct_world, "env_vis_longitude", text="Longitude")
+        sub.prop(oct_world, "env_vis_latitude", text="Latitude")
+        sub.prop(oct_world, "env_vis_day", text="Day")
+        sub.prop(oct_world, "env_vis_month", text="Month")
+        sub.prop(oct_world, "env_vis_gmtoffset", text="GMT offset")
+        sub.prop(oct_world, "env_vis_hour", text="Hour")
+
+        col = split.column()
+
+        sub = col.column(align=True)
+        sub.active = (oct_world.env_vis_type == '1' and oct_world.env_vis_daylight_type == '0')
+        sub.label("Sun direction:")
+        sub.prop(oct_world, "env_vis_sundir_x", text="Sun direction X")
+        sub.prop(oct_world, "env_vis_sundir_y", text="Sun direction Y")
+        sub.prop(oct_world, "env_vis_sundir_z", text="Sun direction Z")
+        
+        split = layout.split()
+        col = split.column()
+        sub = col.column(align=True)
+        sub.active = (oct_world.env_vis_type == '1')
+        sub.prop(oct_world, "env_vis_turbidity", text="Turbidity")
+        sub.prop(oct_world, "env_vis_northoffset", text="North offset")
+        sub.prop(oct_world, "env_vis_sun_size", text="Sun size")
+
+        col = split.column()
+
+        sub = col.column(align=True)
+        sub.label("Sky-Sunset colors:")
+        sub.active = (oct_world.env_vis_type == '1')
+        sub.prop(oct_world, "env_vis_sky_color", text="")
+        sub.prop(oct_world, "env_vis_sunset_color", text="")
+
+        row = layout.row(align=True)
+        row.active = (oct_world.env_vis_type == '1')
+        row.prop(oct_world, "env_vis_model", text="Model")
+
+        sub = layout.column(align=True)
+        sub.label("Visible environment:")
+        sub.prop(oct_world, "env_vis_backplate", text="Backplate")
+        sub.prop(oct_world, "env_vis_reflections", text="Reflections")
+        sub.prop(oct_world, "env_vis_refractions", text="Refractions")
 
 
 class OctaneMaterial_PT_surface(OctaneButtonsPanel, Panel):
@@ -1137,6 +1262,8 @@ class OctaneParticle_PT_HairSettings(OctaneButtonsPanel, Panel):
         row = layout.row()
         row.prop(opsys, "root_width", text="Root")
         row.prop(opsys, "tip_width", text="Tip")
+        row = layout.row()
+        row.prop(opsys, "min_curvature")
 
 
 def draw_device(self, context):
@@ -1153,7 +1280,7 @@ def draw_device(self, context):
         layout.prop(oct_scene, "devices")
         sub = layout.row()
         sub.prop(oct_scene, "viewport_hide")
-        #sub.prop(oct_scene, "hdr_tonemapped")
+        sub.prop(oct_scene, "deep_image")
         layout.prop(oct_scene, "meshes_type", expand=True)
 
 

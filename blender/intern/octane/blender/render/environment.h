@@ -23,10 +23,10 @@
 #include "util_string.h"
 
 #include "memleaks_check.h"
+#include "OctaneClient.h"
 
 OCT_NAMESPACE_BEGIN
 
-class RenderServer;
 class Scene;
 
 class Environment {
@@ -34,36 +34,67 @@ public:
 	Environment();
 	~Environment();
 
-	void server_update(RenderServer *server, Scene *scene);
+    inline Environment(Environment &other) {
+        oct_node = new ::OctaneEngine::Environment;
+        *oct_node = *other.oct_node;
+        oct_vis_node = new ::OctaneEngine::Environment;
+        *oct_vis_node = *other.oct_vis_node;
+
+        use_vis_environment = other.use_vis_environment;
+        use_background = other.use_background;
+        transparent = other.transparent;
+        need_update = other.need_update;
+    }
+    inline Environment(Environment &&other) {
+        delete oct_node;
+        oct_node = other.oct_node;
+        other.oct_node = 0;
+        delete oct_vis_node;
+        oct_vis_node = other.oct_vis_node;
+        other.oct_vis_node = 0;
+
+        use_vis_environment = other.use_vis_environment;
+        use_background = other.use_background;
+        transparent = other.transparent;
+        need_update = other.need_update;
+    }
+
+    inline Environment& operator=(Environment &other) {
+        *oct_node = *other.oct_node;
+        *oct_vis_node = *other.oct_vis_node;
+
+        use_vis_environment = other.use_vis_environment;
+        use_background = other.use_background;
+        transparent = other.transparent;
+        need_update = other.need_update;
+        return *this;
+    }
+    inline Environment& operator=(Environment &&other) {
+        delete oct_node;
+        oct_node = other.oct_node;
+        other.oct_node = 0;
+        delete oct_vis_node;
+        oct_vis_node = other.oct_vis_node;
+        other.oct_vis_node = 0;
+
+        use_vis_environment = other.use_vis_environment;
+        use_background = other.use_background;
+        transparent = other.transparent;
+        need_update = other.need_update;
+        return *this;
+    }
+
+    void server_update(::OctaneEngine::OctaneClient *server, Scene *scene);
 
 	bool modified(const Environment& background);
 	void tag_update(Scene *scene);
 
-    uint32_t type;
-    string   texture;
-    uint32_t importance_sampling;
-    uint32_t daylight_type;
-    float3   sun_vector;
-    float    power;
-    float    longitude;
-    float    latitude;
-    float    hour;
-    int32_t  month;
-    int32_t  day;
-    int32_t  gmtoffset;
-    float    turbidity;
-    float    northoffset;
-    int32_t  model;
-    float3   sun_color;
-    float    sun_size;
+    ::OctaneEngine::Environment *oct_node, *oct_vis_node;
+    bool    use_vis_environment;
 
-    float3   sky_color;
-    float3   sunset_color;
-
-	bool     use_background;
-
-	bool     transparent;
-	bool     need_update;
+	bool    use_background;
+	bool    transparent;
+	bool    need_update;
 }; //Environment
 
 OCT_NAMESPACE_END
