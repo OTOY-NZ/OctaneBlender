@@ -650,6 +650,11 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 default=(0.0, 1.0, 0.188),
                 subtype='COLOR',
                 )
+        cls.use_fstop = BoolProperty(
+                name="Use F-Stop",
+                description="Use F-Stop setting inside of aperture",
+                default=False,
+                )
         cls.aperture = FloatProperty(
                 name="Aperture",
                 description="Aperture (higher numbers give more defocus, lower numbers give a sharper image)",
@@ -657,6 +662,14 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 default=0.0,
                 step=10,
                 precision=2,
+                )
+        cls.fstop = FloatProperty(
+                name="F-Stop",
+                description="",
+                min=0.5, soft_min=1.4, max=64.0, soft_max=16.0,
+                default=2.8,
+                step=10,
+                precision=1,
                 )
         cls.aperture_edge = FloatProperty(
                 name="Aperture edge",
@@ -897,6 +910,11 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 options={'HIDDEN'},
                 )
 
+        cls.use_fstop = BoolProperty(
+                name="Use F-Stop",
+                description="Use F-Stop setting inside of aperture",
+                default=False,
+                )
         cls.aperture = FloatProperty(
                 name="Aperture",
                 description="Aperture (higher numbers give more defocus, lower numbers give a sharper image)",
@@ -904,6 +922,14 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 default=0.0,
                 step=10,
                 precision=2,
+                )
+        cls.fstop = FloatProperty(
+                name="F-Stop",
+                description="",
+                min=0.5, soft_min=1.4, max=64.0, soft_max=16.0,
+                default=2.8,
+                step=10,
+                precision=1,
                 )
         cls.aperture_edge = FloatProperty(
                 name="Aperture edge",

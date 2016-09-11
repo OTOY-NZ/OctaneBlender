@@ -325,7 +325,11 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
         RNA_float_get_array(&oct_camera, "left_filter", reinterpret_cast<float*>(&cam->oct_node->f3LeftFilter));
         RNA_float_get_array(&oct_camera, "right_filter", reinterpret_cast<float*>(&cam->oct_node->f3RightFilter));
 
-        cam->oct_node->fAperture            = RNA_float_get(&oct_camera, "aperture");
+        cam->oct_node->bUseFstopValue       = RNA_boolean_get(&oct_camera, "use_fstop");
+        if(cam->oct_node->bUseFstopValue)
+            cam->oct_node->fAperture        = RNA_float_get(&oct_camera, "fstop");
+        else
+            cam->oct_node->fAperture        = RNA_float_get(&oct_camera, "aperture");
         cam->oct_node->fApertureEdge        = RNA_float_get(&oct_camera, "aperture_edge");
         cam->oct_node->fDistortion          = RNA_float_get(&oct_camera, "distortion");
         cam->oct_node->bAutofocus           = RNA_boolean_get(&oct_camera, "autofocus");

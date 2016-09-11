@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 10
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 2
+#   define OCTANE_SERVER_MINOR_VERSION 3
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -4486,50 +4486,50 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
     LOCK_MUTEX(m_SocketMutex);
 
     switch(pKernel->type) {
-    case Kernel::DIRECT_LIGHT:
-    {
-        RPCSend snd(m_Socket, sizeof(float) * 7 + sizeof(int32_t) * 20, LOAD_KERNEL);
-        snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fAODist << pKernel->fDepthTolerance
-            << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
-            << pKernel->iSpecularDepth << pKernel->iGlossyDepth << pKernel->GIMode << pKernel->iDiffuseDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
-        snd.write();
-    }
-        break;
-    case Kernel::PATH_TRACE:
-    {
-        RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 18, LOAD_KERNEL);
-        snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
-            << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
-            << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
-        snd.write();
-    }
-        break;
-    case Kernel::PMC:
-    {
-        RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 15, LOAD_KERNEL);
-        snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fExploration << pKernel->fDLImportance << pKernel->fCausticBlur << pKernel->fGIClamp
-            << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bKeepEnvironment
-            << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iMaxRejects << pKernel->iParallelism << pKernel->iWorkChunkSize << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
-        snd.write();
-    }
-        break;
-    case Kernel::INFO_CHANNEL:
-    {
-        RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 16, LOAD_KERNEL);
-        snd << pKernel->type << pKernel->infoChannelType << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fZdepthMax << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist << pKernel->fMaxSpeed << pKernel->fOpacityThreshold
-            << pKernel->bAlphaChannel << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bDistributedTracing << pKernel->bAoAlphaShadows << pKernel->bMinimizeNetTraffic
-            << pKernel->iMaxSamples << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
-        snd.write();
-    }
-        break;
-    default:
-    {
-        RPCSend snd(m_Socket, sizeof(int32_t) * 6 + sizeof(float), LOAD_KERNEL);
-        OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
-        snd << defType << pKernel->mbAlignment << pKernel->fShutterTime << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
-        snd.write();
-    }
-        break;
+        case Kernel::DIRECT_LIGHT:
+        {
+            RPCSend snd(m_Socket, sizeof(float) * 7 + sizeof(int32_t) * 20, LOAD_KERNEL);
+            snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fAODist << pKernel->fDepthTolerance
+                << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
+                << pKernel->iSpecularDepth << pKernel->iGlossyDepth << pKernel->GIMode << pKernel->iDiffuseDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+            snd.write();
+        }
+            break;
+        case Kernel::PATH_TRACE:
+        {
+            RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 18, LOAD_KERNEL);
+            snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
+                << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
+                << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+            snd.write();
+        }
+            break;
+        case Kernel::PMC:
+        {
+            RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 15, LOAD_KERNEL);
+            snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fExploration << pKernel->fDLImportance << pKernel->fCausticBlur << pKernel->fGIClamp
+                << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bKeepEnvironment
+                << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iMaxRejects << pKernel->iParallelism << pKernel->iWorkChunkSize << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+            snd.write();
+        }
+            break;
+        case Kernel::INFO_CHANNEL:
+        {
+            RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 16, LOAD_KERNEL);
+            snd << pKernel->type << pKernel->infoChannelType << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fZdepthMax << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist << pKernel->fMaxSpeed << pKernel->fOpacityThreshold
+                << pKernel->bAlphaChannel << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bDistributedTracing << pKernel->bAoAlphaShadows << pKernel->bMinimizeNetTraffic
+                << pKernel->iMaxSamples << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+            snd.write();
+        }
+            break;
+        default:
+        {
+            RPCSend snd(m_Socket, sizeof(int32_t) * 6 + sizeof(float), LOAD_KERNEL);
+            OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
+            snd << defType << pKernel->mbAlignment << pKernel->fShutterTime << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+            snd.write();
+        }
+            break;
     }
 
     RPCReceive rcv(m_Socket);
@@ -7111,6 +7111,8 @@ inline void OctaneClient::uploadFloatValue(OctaneFloatValue *pNode) {
         snd.write();
     }
     checkResponsePacket(LOAD_VALUE_FLOAT);
+
+    UNLOCK_MUTEX(m_SocketMutex);
 } //uploadFloatValue()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
