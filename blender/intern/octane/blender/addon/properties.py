@@ -40,7 +40,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     def register(cls):
         bpy.types.Scene.octane = PointerProperty(
                 name="OctaneRender Settings",
-                description="OctaneRender settings",
+                description="",
                 type=cls,
                 )
 # ################################################################################################
@@ -145,7 +145,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
 
         cls.cur_pass_type = EnumProperty(
                 name="Preview pass type",
-                description="",
+                description="Pass used for preview rendering",
                 items=types.pass_types,
                 default='0',
                 )
@@ -216,7 +216,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.anim_mode = EnumProperty(
                 name="Animation mode",
-                description="",
+                description="Optimize animation rendering speed (use in conjunction with Octane mesh types, see the manual)",
                 items=types.anim_modes,
                 default='0',
                 )
@@ -256,11 +256,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 default="",
                 maxlen=128,
                 )
-        cls.deep_image = BoolProperty(
-                name="Save deep image",
-                description="Save deep image file into output folder after frame render is finished",
-                default=False,
-                )
 
         cls.mb_type = EnumProperty(
                 name="Motion blur type",
@@ -296,7 +291,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.filter_size = FloatProperty(
                 name="Filter size",
-                description="",
+                description="Film splatting width (to reduce aliasing)",
                 min=1.0, soft_min=1.0, max=16.0, soft_max=16.0,
                 default=1.2,
                 step=10,
@@ -304,7 +299,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.ray_epsilon = FloatProperty(
                 name="Ray epsilon",
-                description="",
+                description="Shadow ray offset distance to avoid self-intersection",
                 min=0.000001, soft_min=0.000001, max=0.1, soft_max=0.1,
                 default=0.0001,
                 step=10,
@@ -312,23 +307,23 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.alpha_channel = BoolProperty(
                 name="Alpha channel",
-                description="",
+                description="Enables a compositing alpha channel",
                 default=False,
                 )
         cls.alpha_shadows = BoolProperty(
                 name="Alpha shadows",
-                description="",
+                description="Enables direct light through opacity maps. If disabled, ray tracing will be faster but renders incorrect shadows for alpha-mapped geometry or specular materials with \"fake shadows\" enabled",
                 default=True,
                 )
         cls.keep_environment = BoolProperty(
                 name="Keep environment",
-                description="",
+                description="Keeps environment with enabled alpha channel",
                 default=False,
                 )
 
         cls.caustic_blur = FloatProperty(
                 name="Caustic blur",
-                description="",
+                description="Caustic blur for noise reduction",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=1,
@@ -336,26 +331,26 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.parallelism = IntProperty(
                 name="Parallelism",
-                description="",
+                description="Specifies the number of samples that are run in parallel. A small number means less parallel samples, less memory usage and it makes caustics visible faster, but renders probably slower. A large number means more memory usage, slower visible caustics and probably a higher speed",
                 min=1, max=4,
                 default=4,
                 )
 
         cls.specular_depth = IntProperty(
                 name="Specular depth",
-                description="",
+                description="The maximum path depth for which specular reflections/refractions are allowed",
                 min=1, max=1024,
                 default=5,
                 )
         cls.glossy_depth = IntProperty(
                 name="Glossy depth",
-                description="",
+                description="The maximum path depth for which glossy reflections are allowed",
                 min=1, max=1024,
                 default=2,
                 )
         cls.ao_dist = FloatProperty(
                 name="AOdist",
-                description="",
+                description="Maximum distance for environment ambient occlusion",
                 min=0.01, soft_min=0.01, max=1024.0, soft_max=1024.0,
                 default=3.0,
                 step=1,
@@ -363,7 +358,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.gi_mode = EnumProperty(
                 name="GImode",
-                description="",
+                description="Determines how global illumination is approximated",
                 items=types.gi_modes,
                 default='3',
                 )
@@ -377,52 +372,53 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.diffuse_depth = IntProperty(
                 name="Diffuse depth",
-                description="",
+                description="The maximum path depth for which diffuse reflections are allowed",
                 min=1, max=8,
                 default=2,
                 )
         cls.max_diffuse_depth = IntProperty(
                 name="Max. diffuse depth",
-                description="",
+                description="The maximum path depth for which diffuse reflections are allowed",
                 min=1, max=2048,
                 default=8,
                 )
         cls.max_glossy_depth = IntProperty(
                 name="Max. glossy depth",
-                description="",
+                description="The maximum path depth for which specular reflections/refractions are allowed",
                 min=1, max=2048,
                 default=24,
                 )
         cls.parallel_samples = IntProperty(
                 name="Parallel samples",
-                description="",
+                description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed",
                 min=1, max=16,
                 default=8,
                 )
         cls.max_tile_samples = IntProperty(
                 name="Max. tile samples",
-                description="",
+                description="The maximum samples we calculate until we switch to a new tile",
                 min=1, max=32,
                 default=16,
                 )
         cls.minimize_net_traffic = BoolProperty(
                 name="Minimize net traffic",
-                description="",
+                description="If enabled, the work is distributed to the network render slaves in such a way to minimize the amount of data that is sent to the network render master",
                 default=True,
                 )
         cls.deep_image = BoolProperty(
                 name="Deep image",
-                description="",
+                description="Render and save deep image file into output folder after frame render is finished",
                 default=False,
                 )
         cls.max_depth_samples = IntProperty(
                 name="Max. depth samples",
-                description="",
+                description="Maximum number of depth samples per pixels",
                 min=1, max=32,
                 default=8,
                 )
         cls.depth_tolerance = FloatProperty(
                 name="Depth tolerance",
+                description="Depth samples whose relative depth difference falls below the tolerance value are merged together",
                 min=0.001, soft_min=0.001, max=1.0, soft_max=1.0,
                 default=0.05,
                 step=1,
@@ -430,17 +426,18 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.work_chunk_size = IntProperty(
                 name="Work chunk size",
-                description="",
+                description="The number of work blocks (of 512K samples each) we do per kernel run. Increasing this value increases the memory usage on the system, but doesn't affect memory usage on the system and may increase render speed",
                 min=1, max=32,
                 default=8,
                 )
         cls.ao_alpha_shadows = BoolProperty(
                 name="AO alpha shadows",
-                description="",
+                description="Take into account alpha maps when calculating ambient occlusion",
                 default=False,
                 )
         cls.opacity_threshold = FloatProperty(
                 name="Opacity threshold",
+                description="Geometry with opacity higher or equal to this value is treated as totally opaque",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=1.0,
                 step=1,
@@ -448,8 +445,8 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
 
         cls.exploration = FloatProperty(
-                name="Exploration",
-                description="",
+                name="Exploration strength",
+                description="Effort on investigating good paths",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.7,
                 step=10,
@@ -457,7 +454,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.direct_light_importance = FloatProperty(
                 name="Direct light imp.",
-                description="",
+                description="Computational effort on direct lighting",
                 min=0.01, soft_min=0.01, max=1.0, soft_max=1.0,
                 default=0.1,
                 step=1,
@@ -465,7 +462,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.max_rejects = IntProperty(
                 name="Max. rejects",
-                description="",
+                description="Maximum number of consecutive rejects",
                 min=100, max=10000,
                 default=500,
                 )
@@ -486,7 +483,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.uv_max = FloatProperty(
                 name="UV max.",
-                description="",
+                description="UV coordinate value mapped to maximum intensity",
                 min=0.00001, soft_min=0.00001, max=1000.0, soft_max=1000.0,
                 default=1.0,
                 step=1,
@@ -494,12 +491,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.distributed_tracing = BoolProperty(
                 name="Distributed ray tracing",
-                description="",
+                description="Enable depth of field and motion blur",
                 default=True,
                 )
         cls.max_speed = FloatProperty(
                 name="Max speed",
-                description="",
+                description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval",
                 min=0.00001, soft_min=0.00001, max=10000.0, soft_max=10000.0,
                 default=1.0,
                 step=100,
@@ -508,17 +505,17 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
 
         cls.bump_normal_mapping = BoolProperty(
                 name="Bump and normal mapping",
-                description="",
+                description="Take bump and normal mapping into account for shading normal output and wireframe shading",
                 default=False,
                 )
-        cls.wf_bktrace_hl = BoolProperty(
-                name="Wireframe backtrace highlighting",
-                description="",
+        cls.wf_bkface_hl = BoolProperty(
+                name="Wireframe backface highlighting",
+                description="Show faces seen from the backside of the face normal in a different color in wireframe mode",
                 default=False,
                 )
         cls.path_term_power = FloatProperty(
                 name="Path term. power",
-                description="",
+                description="Path may get terminated when ray power is less then this value",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.3,
                 step=10,
@@ -526,7 +523,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.coherent_ratio = FloatProperty(
                 name="Coherent ratio",
-                description="",
+                description="Runs the kernel more coherently which makes it usually faster, but may require at least a few hundred samples/pixel to get rid of visible artifacts",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=10,
@@ -534,7 +531,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.static_noise = BoolProperty(
                 name="Static noise",
-                description="",
+                description="If enabled, the noise patterns are kept stable between frames",
                 default=False,
                 )
 
@@ -578,13 +575,13 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
 
         cls.pan_mode = EnumProperty(
                 name="Pan mode",
-#                description="",
+                description="The panoramic projection that should be used",
                 items=types.camera_pan_modes,
                 default='SPHERE',
                 )
         cls.fov_x = FloatProperty(
                 name="FOV X",
-#                description="",
+                description="Horizontal field of view in degrees. Will be ignored if cube mapping is used",
                 min=1.0, soft_min=1.0, max=360.0, soft_max=360.0,
                 default=360.0,
                 step=10,
@@ -592,7 +589,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.fov_y = FloatProperty(
                 name="FOV Y",
-#                description="",
+                description="Vertical field of view in degrees. Will be ignored if cube mapping is used",
                 min=1.0, soft_min=1.0, max=180.0, soft_max=180.0,
                 default=360.0,
                 step=10,
@@ -600,24 +597,24 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.persp_corr = BoolProperty(
                 name="Persp. correction",
-#                description="",
+                description="Perspective correction keeps vertical lines parallel if up-vector is vertical",
                 default=False,
                 )
         cls.stereo_mode = EnumProperty(
                 name="Stereo mode",
-#                description="",
+                description="The modus operandi for stereo rendering",
                 items=types.camera_stereo_modes,
                 default='1',
                 )
         cls.stereo_out = EnumProperty(
                 name="Stereo output",
-#                description="",
+                description="The output rendered in stereo mode",
                 items=types.camera_stereo_outs,
                 default='0',
                 )
         cls.stereo_dist = FloatProperty(
                 name="Stereo distance",
-#                description="",
+                description="Distance between the left and right eye in stereo mode [m]",
                 min=0.001, soft_min=0.001, max=2.0, soft_max=2.0,
                 default=0.02,
                 step=10,
@@ -625,7 +622,11 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.stereo_dist_falloff = FloatProperty(
                 name="Stereo dist. falloff",
-#                description="",
+                description="Controls how quickly the eye distance gets reduced towards the poles. This is to reduce eye strain at the poles when the panorama is looked at in an HMD. A value of 1"
+                    " will reduce the eye distance more or less continuously from equator to the poles, which will create a relaxed viewing experience, but this will also cause flat surfaces"
+                    " to appear curved. A value smaller than 1 keeps the eye distance more or less constant for a larger latitude range above and below the horizon, but will then rapidly reduce"
+                    " the eye distance near the poles. This will keep flat surface flat, but cause more eye strain near the poles (which can be reduced again by setting the pano cutoff latitude"
+                    " to something < 90 degrees",
                 min=0.001, soft_min=0.001, max=1.0, soft_max=1.0,
                 default=1.0,
                 step=10,
@@ -638,14 +639,14 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.left_filter = FloatVectorProperty(
                 name="Left filter",
-#                description="",
+                description="Left eye filter color",
                 min=0.0, max=1.0,
                 default=(1.0, 0.0, 0.812),
                 subtype='COLOR',
                 )
         cls.right_filter = FloatVectorProperty(
                 name="Right filter",
-#                description="",
+                description="Right eye filter color",
                 min=0.0, max=1.0,
                 default=(0.0, 1.0, 0.188),
                 subtype='COLOR',
@@ -665,7 +666,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.fstop = FloatProperty(
                 name="F-Stop",
-                description="",
+                description="Aperture to focal length ratio",
                 min=0.5, soft_min=1.4, max=64.0, soft_max=16.0,
                 default=2.8,
                 step=10,
@@ -673,7 +674,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.aperture_edge = FloatProperty(
                 name="Aperture edge",
-#                description="Aperture edge",
+                description="Modifies the bokeh of the DOF. A high value increases the contrast towards the edge",
                 min=1.0, soft_min=1.0, max=3.0, soft_max=3.0,
                 default=1.0,
                 step=10,
@@ -681,7 +682,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.distortion = FloatProperty(
                 name="Distortion",
-#                description="Distortion",
+                description="The amount of spherical distortion",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=10,
@@ -689,12 +690,12 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.autofocus = BoolProperty(
                 name="Autofocus",
-#                description="",
+                description="If enabled, the focus will be kept on the closest visible surface at the center of the image",
                 default=True,
                 )
         cls.pixel_aspect = FloatProperty(
                 name="Pixel aspect",
-#                description="",
+                description="The X:Y aspect ratio of pixels",
                 min=0.1, soft_min=0.1, max=10.0, soft_max=10.0,
                 default=1.0,
                 step=10,
@@ -702,7 +703,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.aperture_aspect = FloatProperty(
                 name="Aperture aspect",
-#                description="",
+                description="The X:Y aspect ratio of the aperture",
                 min=0.1, soft_min=0.1, max=10.0, soft_max=10.0,
                 default=1.0,
                 step=10,
@@ -710,12 +711,13 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.keep_upright = BoolProperty(
                 name="Keep upright",
-#                description="",
+                description="If enabled, the panoramic camera is always oriented towards the horizon and the up-vector will stay (0, 1, 0), i.e. vertical",
                 default=False,
                 )
         cls.blackout_lat = FloatProperty(
                 name="Pano blackout lat.",
-#                description="",
+                description="The +/- latitude at which the panorama gets cut off, when stereo rendering is enabled. The area with higher latitudes will be blacked out. If set to 90, nothing will be"
+                    " blacked out. If set to 70, an angle of 2x20 degrees will be blacked out at both poles. If set to 0, everything will be blacked out",
                 min=1.0, soft_min=1.0, max=90.0, soft_max=90.0,
                 default=90.0,
                 step=10,
@@ -735,14 +737,14 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
 
         cls.white_balance = FloatVectorProperty(
                 name="White balance",
-#                description="",
+                description="White point color",
                 min=0.0, max=1.0,
                 default=(1.0, 1.0, 1.0),
                 subtype='COLOR',
                 )
         cls.response_type = EnumProperty(
                 name="Response type",
-#                description="",
+                description="Camera response curve",
                 items=types.response_types,
                 default='105',
                 )
@@ -756,7 +758,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.gamma = FloatProperty(
                 name="Gamma",
-                description="",
+                description="Output gamma correction",
                 min=0.1, soft_min=0.1, max=32.0, soft_max=32.0,
                 default=1.0,
                 step=10,
@@ -764,7 +766,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.vignetting = FloatProperty(
                 name="Vignetting",
-                description="",
+                description="Amount of lens vignetting",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.3,
                 step=1,
@@ -772,15 +774,15 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.saturation = FloatProperty(
                 name="Saturation",
-                description="",
+                description="Amount of saturation",
                 min=0.0, soft_min=0.0, max=4.0, soft_max=4.0,
                 default=1.0,
                 step=1,
                 precision=2,
                 )
         cls.hot_pix = FloatProperty(
-                name="hot_pix",
-                description="",
+                name="Hotpixel removal",
+                description="Luminance threshold for firefly reduction",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=1.0,
                 step=1,
@@ -788,23 +790,23 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.premultiplied_alpha = BoolProperty(
                 name="Premultiplied alpha",
-#                description="",
+                description="If enabled, we pre-multiply an alpha value",
                 default=False,
                 )
         cls.min_display_samples = IntProperty(
                 name="Min. display samples",
-                description="",
+                description="Minumum number of samples before the first image is displayed",
                 min=1, max=32,
                 default=1,
                 )
         cls.dithering = BoolProperty(
                 name="Dithering",
-#                description="",
+                description="Enables dithering to remove banding",
                 default=False,
                 )
         cls.white_saturation = FloatProperty(
                 name="White saturation",
-                description="",
+                description="Controls if clipping is done per channel or not",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=1,
@@ -812,7 +814,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 )
         cls.highlight_compression = FloatProperty(
                 name="Highlight compression",
-                description="",
+                description="Reduces burned out highlights by compressing them and reducing their contrast",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=1,
@@ -837,7 +839,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
 
         cls.postprocess = BoolProperty(
                 name="Postprocess",
-#                description="",
+                description="Enable post processing",
                 default=False,
                 )
         cls.bloom_power = FloatProperty(
@@ -925,7 +927,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.fstop = FloatProperty(
                 name="F-Stop",
-                description="",
+                description="Aperture to focal length ratio",
                 min=0.5, soft_min=1.4, max=64.0, soft_max=16.0,
                 default=2.8,
                 step=10,
@@ -933,7 +935,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.aperture_edge = FloatProperty(
                 name="Aperture edge",
-#                description="Aperture edge",
+                description="Modifies the bokeh of the DOF. A high value increases the contrast towards the edge",
                 min=1.0, soft_min=1.0, max=3.0, soft_max=3.0,
                 default=1.0,
                 step=10,
@@ -941,7 +943,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.distortion = FloatProperty(
                 name="Distortion",
-#                description="Distortion",
+                description="The amount of spherical distortion",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=10,
@@ -950,14 +952,14 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
 
         cls.white_balance = FloatVectorProperty(
                 name="White balance",
-#                description="",
+                description="White point color",
                 min=0.0, max=1.0,
                 default=(1.0, 1.0, 1.0),
                 subtype='COLOR',
                 )
         cls.response_type = EnumProperty(
                 name="Response type",
-#                description="",
+                description="Camera response curve",
                 items=types.response_types,
                 default='105',
                 )
@@ -971,7 +973,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.gamma = FloatProperty(
                 name="Gamma",
-                description="",
+                description="Output gamma correction",
                 min=0.1, soft_min=0.1, max=32.0, soft_max=32.0,
                 default=1.0,
                 step=10,
@@ -979,7 +981,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.vignetting = FloatProperty(
                 name="Vignetting",
-                description="",
+                description="Amount of lens vignetting",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.3,
                 step=1,
@@ -987,15 +989,15 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.saturation = FloatProperty(
                 name="Saturation",
-                description="",
+                description="Amount of saturation",
                 min=0.0, soft_min=0.0, max=4.0, soft_max=4.0,
                 default=1.0,
                 step=1,
                 precision=2,
                 )
         cls.hot_pix = FloatProperty(
-                name="hot_pix",
-                description="",
+                name="Hotpixel removal",
+                description="Luminance threshold for firefly reduction",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=1.0,
                 step=1,
@@ -1003,23 +1005,23 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.premultiplied_alpha = BoolProperty(
                 name="Premultiplied alpha",
-#                description="",
+                description="If enabled, we pre-multiply an alpha value",
                 default=False,
                 )
         cls.min_display_samples = IntProperty(
                 name="Min. display samples",
-                description="",
+                description="Minumum number of samples before the first image is displayed",
                 min=1, max=32,
                 default=1,
                 )
         cls.dithering = BoolProperty(
                 name="Dithering",
-#                description="",
+                description="Enables dithering to remove banding",
                 default=False,
                 )
         cls.white_saturation = FloatProperty(
                 name="White saturation",
-                description="",
+                description="Controls if clipping is done per channel or not",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=1,
@@ -1027,7 +1029,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
                 )
         cls.highlight_compression = FloatProperty(
                 name="Highlight compression",
-                description="",
+                description="Reduces burned out highlights by compressing them and reducing their contrast",
                 min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=1,
@@ -1123,26 +1125,26 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_texture = StringProperty(
                 name="Texture",
-                description="Octane environment texture",
+                description="Environment texture",
                 default="",
                 maxlen=512,
                 )
         cls.env_power = FloatProperty(
                 name="Power",
-                description="Octane environment power",
+                description="Scale factor that is applied to the sun and sky",
                 min=0.001, soft_min=0.001, max=1000.0, soft_max=1000.0,
                 default=1.0,
                 step=10,
                 precision=3,
                 )
         cls.env_importance_sampling = BoolProperty(
-                name="Octane importance sampling",
-                description="",
+                name="Importance sampling",
+                description="Use importance sampling for image textures",
                 default=True,
                 )
         cls.env_daylight_type = EnumProperty(
                 name="Daylight type",
-                description="Octane daylight type",
+                description="",
                 items=types.environment_daylight_types,
                 default='1',
                 )
@@ -1172,7 +1174,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_turbidity = FloatProperty(
                 name="Turbidity",
-                description="Octane environment turbidity",
+                description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light",
                 min=2.0, soft_min=2.0, max=6.0, soft_max=6.0,
                 default=2.2,
                 step=10,
@@ -1180,7 +1182,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_northoffset = FloatProperty(
                 name="North offset",
-                description="Octane environment north offset",
+                description="Additional rotation offset on longitude",
                 min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=10,
@@ -1188,27 +1190,27 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_model = EnumProperty(
                 name="Model",
-                description="Octane daylight model",
+                description="The daylight model you want to use. Sky and sunset color apply only to the new daylight model",
                 items=types.environment_daylight_models,
                 default='1',
                 )
         cls.env_sky_color = FloatVectorProperty(
                 name="Sky color",
-                description="Octane sky color",
+                description="Base color of the sky, which works only with the new daylight model",
                 min=0.0, max=1.0,
                 default=(0.05, 0.3, 1.0),
                 subtype='COLOR',
                 )
         cls.env_sunset_color = FloatVectorProperty(
                 name="Sunset color",
-                description="Octane sunset color",
+                description="Color of the sky and sun at sunset, which works only with the new daylight model",
                 min=0.0, max=1.0,
                 default=(0.6, 0.12, 0.02),
                 subtype='COLOR',
                 )
         cls.env_sun_size = FloatProperty(
                 name="Sun size",
-                description="Octane sun size",
+                description="Size of the sun given as a factor of the actual sun radius (which is ~0.5 degree)",
                 min=0.1, soft_min=0.1, max=30.0, soft_max=30.0,
                 default=1.0,
                 step=10,
@@ -1216,7 +1218,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_longitude = FloatProperty(
                 name="Longitude",
-                description="Octane environment longitude",
+                description="Longitude of the location",
                 min=-180.0, soft_min=-180.0, max=180.0, soft_max=180.0,
                 default=4.4667,
                 step=1,
@@ -1224,7 +1226,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_latitude = FloatProperty(
                 name="Latitude",
-                description="Octane environment latitude",
+                description="Latitude of the location",
                 min=-90.0, soft_min=-90.0, max=90.0, soft_max=90.0,
                 default=50.7667,
                 step=1,
@@ -1232,25 +1234,25 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_day = IntProperty(
                 name="Day",
-                description="",
+                description="Day of the month of the time the sun direction should be calculated for",
                 min=1, max=31,
                 default=1,
                 )
         cls.env_month = IntProperty(
                 name="Month",
-                description="",
+                description="Month of the time the sun direction should be calculated for",
                 min=1, max=12,
                 default=3,
                 )
         cls.env_gmtoffset = IntProperty(
                 name="GMT offset",
-                description="",
+                description="The time zone as offset to GMT",
                 min=-12, max=12,
                 default=0,
                 )
         cls.env_hour = FloatProperty(
-                name="Longitude",
-                description="Octane environment longitude",
+                name="Local time",
+                description="The local time as hours since 0:00",
                 min=0.0, soft_min=0.0, max=24.0, soft_max=24.0,
                 default=14,
                 step=100,
@@ -1285,13 +1287,13 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_vis_texture = StringProperty(
                 name="Texture",
-                description="Octane environment texture",
+                description="Environment texture",
                 default="",
                 maxlen=512,
                 )
         cls.env_vis_power = FloatProperty(
                 name="Power",
-                description="Octane environment power",
+                description="Scale factor that is applied to the sun and sky",
                 min=0.001, soft_min=0.001, max=1000.0, soft_max=1000.0,
                 default=1.0,
                 step=10,
@@ -1299,12 +1301,12 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_vis_importance_sampling = BoolProperty(
                 name="Octane importance sampling",
-                description="",
+                description="Use importance sampling for image textures",
                 default=True,
                 )
         cls.env_vis_daylight_type = EnumProperty(
                 name="Daylight type",
-                description="Octane daylight type",
+                description="",
                 items=types.environment_daylight_types,
                 default='1',
                 )
@@ -1334,7 +1336,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_vis_turbidity = FloatProperty(
                 name="Turbidity",
-                description="Octane environment turbidity",
+                description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light",
                 min=2.0, soft_min=2.0, max=6.0, soft_max=6.0,
                 default=2.2,
                 step=10,
@@ -1342,7 +1344,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_vis_northoffset = FloatProperty(
                 name="North offset",
-                description="Octane environment north offset",
+                description="Additional rotation offset on longitude",
                 min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
                 default=0.0,
                 step=10,
@@ -1350,27 +1352,27 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_vis_model = EnumProperty(
                 name="Model",
-                description="Octane daylight model",
+                description="The daylight model you want to use. Sky and sunset color apply only to the new daylight model",
                 items=types.environment_daylight_models,
                 default='1',
                 )
         cls.env_vis_sky_color = FloatVectorProperty(
                 name="Sky color",
-                description="Octane sky color",
+                description="Base color of the sky, which works only with the new daylight model",
                 min=0.0, max=1.0,
                 default=(0.05, 0.3, 1.0),
                 subtype='COLOR',
                 )
         cls.env_vis_sunset_color = FloatVectorProperty(
                 name="Sunset color",
-                description="Octane sunset color",
+                description="Color of the sky and sun at sunset, which works only with the new daylight model",
                 min=0.0, max=1.0,
                 default=(0.6, 0.12, 0.02),
                 subtype='COLOR',
                 )
         cls.env_vis_sun_size = FloatProperty(
                 name="Sun size",
-                description="Octane sun size",
+                description="Size of the sun given as a factor of the actual sun radius (which is ~0.5 degree)",
                 min=0.1, soft_min=0.1, max=30.0, soft_max=30.0,
                 default=1.0,
                 step=10,
@@ -1378,7 +1380,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_vis_longitude = FloatProperty(
                 name="Longitude",
-                description="Octane environment longitude",
+                description="Longitude of the location",
                 min=-180.0, soft_min=-180.0, max=180.0, soft_max=180.0,
                 default=4.4667,
                 step=1,
@@ -1386,7 +1388,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_vis_latitude = FloatProperty(
                 name="Latitude",
-                description="Octane environment latitude",
+                description="Latitude of the location",
                 min=-90.0, soft_min=-90.0, max=90.0, soft_max=90.0,
                 default=50.7667,
                 step=1,
@@ -1394,25 +1396,25 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 )
         cls.env_vis_day = IntProperty(
                 name="Day",
-                description="",
+                description="Day of the month of the time the sun direction should be calculated for",
                 min=1, max=31,
                 default=1,
                 )
         cls.env_vis_month = IntProperty(
                 name="Month",
-                description="",
+                description="Month of the time the sun direction should be calculated for",
                 min=1, max=12,
                 default=3,
                 )
         cls.env_vis_gmtoffset = IntProperty(
                 name="GMT offset",
-                description="",
+                description="The time zone as offset to GMT",
                 min=-12, max=12,
                 default=0,
                 )
         cls.env_vis_hour = FloatProperty(
-                name="Longitude",
-                description="Octane environment longitude",
+                name="Local time",
+                description="The local time as hours since 0:00",
                 min=0.0, soft_min=0.0, max=24.0, soft_max=24.0,
                 default=14,
                 step=100,
@@ -1479,29 +1481,29 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
     def register(cls):
         bpy.types.Mesh.octane = PointerProperty(
                 name="OctaneRender Mesh Settings",
-                description="OctaneRender mesh settings",
+                description="",
                 type=cls,
                 )
         bpy.types.Curve.octane = PointerProperty(
                 name="OctaneRender Curve Settings",
-                description="OctaneRender mesh settings",
+                description="",
                 type=cls,
                 )
         bpy.types.MetaBall.octane = PointerProperty(
                 name="OctaneRender MetaBall Settings",
-                description="OctaneRender mesh settings",
+                description="",
                 type=cls,
                 )
 
         cls.mesh_type = EnumProperty(
                 name="Mesh type",
-                description="",
+                description="Used for rendering speed optimization, see the manual",
                 items=types.mesh_types,
                 default='0',
                 )
         cls.open_subd_enable = BoolProperty(
                 name="Enable OpenSubDiv",
-                description="Subdivide mesh for rendering",
+                description="Subdivide mesh before rendering",
                 default=False,
                 )
         cls.open_subd_scheme = EnumProperty(

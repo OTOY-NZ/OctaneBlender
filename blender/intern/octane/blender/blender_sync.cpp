@@ -463,7 +463,7 @@ void BlenderSync::sync_kernel() {
     kernel->oct_node->bAlphaChannel = get_boolean(oct_scene, "alpha_channel");
     kernel->oct_node->bAlphaShadows = get_boolean(oct_scene, "alpha_shadows");
     kernel->oct_node->bBumpNormalMapping = get_boolean(oct_scene, "bump_normal_mapping");
-    kernel->oct_node->bBkFaceHighlight = get_boolean(oct_scene, "wf_bktrace_hl");
+    kernel->oct_node->bBkFaceHighlight = get_boolean(oct_scene, "wf_bkface_hl");
     kernel->oct_node->fPathTermPower = get_float(oct_scene, "path_term_power");
 
     kernel->oct_node->bKeepEnvironment = get_boolean(oct_scene, "keep_environment");

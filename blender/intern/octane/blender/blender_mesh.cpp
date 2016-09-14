@@ -203,15 +203,7 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain, Scene *scen
 
         float *dencity = new float[num_pixels];
         float *flame = new float[num_pixels];
-        float *color = new float[num_pixels];
-
-		//if(builtin_name == Attribute::standard_name(ATTR_STD_VOLUME_DENSITY) ||
-		//   builtin_name == Attribute::standard_name(ATTR_STD_VOLUME_FLAME))
-			// channels = 1;
-		//else if(builtin_name == Attribute::standard_name(ATTR_STD_VOLUME_COLOR))
-			// channels = 4;
-		//else
-			// return;
+        //float *color = new float[num_pixels * 4];
 
         int grid_offset = 0;
 
@@ -219,7 +211,7 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain, Scene *scen
 		if(length == num_pixels) {
 			SmokeDomainSettings_density_grid_get(&b_domain.ptr, (float*)dencity);
             mesh->vdb_absorption_offset = grid_offset++;
-            mesh->vdb_scatter_offset = grid_offset++;
+            mesh->vdb_scatter_offset = mesh->vdb_absorption_offset;
 		}
 		/* this is in range 0..1, and interpreted by the OpenGL smoke viewer
 			* as 1500..3000 K with the first part faded to zero density */
@@ -229,11 +221,11 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain, Scene *scen
             mesh->vdb_emission_offset = grid_offset++;
 		}
 		/* the RGB is "premultiplied" by density for better interpolation results */
-		//SmokeDomainSettings_color_grid_get_length(&b_domain.ptr, &length);
-		//if(length == num_pixels*4) {
-		//	SmokeDomainSettings_color_grid_get(&b_domain.ptr, (float*)color);
-        //    mesh->vdb_absorption_offset = grid_offset++;
-		//}
+        //SmokeDomainSettings_color_grid_get_length(&b_domain.ptr, &length);
+        //if(length == num_pixels * 4) {
+        //    SmokeDomainSettings_color_grid_get(&b_domain.ptr, (float*)color);
+        //    mesh->vdb_emission_offset = grid_offset++;
+        //}
 
         if(grid_offset > 0) {
             mesh->vdb_iso               = RNA_float_get(oct_mesh, "vdb_iso");
@@ -267,13 +259,13 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain, Scene *scen
             for(int i = 0; i < num_pixels; ++i) {
                 register int index = i * grid_offset;
                 if(mesh->vdb_absorption_offset >= 0)    mesh->vdb_regular_grid[index + mesh->vdb_absorption_offset] = dencity[i];
-                if(mesh->vdb_scatter_offset >= 0)       mesh->vdb_regular_grid[index + mesh->vdb_scatter_offset]    = dencity[i];
+                //if(mesh->vdb_scatter_offset >= 0)       mesh->vdb_regular_grid[index + mesh->vdb_scatter_offset]    = dencity[i];
                 if(mesh->vdb_emission_offset >= 0)      mesh->vdb_regular_grid[index + mesh->vdb_emission_offset]   = flame[i];
             }
         }
         delete[] dencity;
         delete[] flame;
-        delete[] color;
+        //delete[] color;
     }
     else {
         if(!mesh->empty) mesh->empty = true;
