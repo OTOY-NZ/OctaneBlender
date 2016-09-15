@@ -235,6 +235,9 @@ void BlenderSession::create_session() {
 // Free Blender session and all Octane session data structures
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::free_session() {
+    if(session->server && (interactive || !b_engine.is_animation() || b_scene.frame_current() == b_scene.frame_end()))
+        session->server->clear();
+
     clear_passes_buffers();
     delete sync;
     delete session;

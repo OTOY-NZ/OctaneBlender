@@ -216,9 +216,12 @@ void Session::run() {
 		progress.reset_cur_samples();
         run_render();
 	}
+
 	// Progress update
-	if(progress.get_cancel())
+	if(progress.get_cancel()) {
+        server->clear();
 		progress.set_status("Cancel", progress.get_cancel_message());
+    }
 	else
 		progress.set_update();
 } //run()

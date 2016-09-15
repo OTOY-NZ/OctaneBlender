@@ -33,8 +33,11 @@
 #include "util_opengl.h"
 #include "util_types.h"
 
+#include "BKE_global.h"
+#include "BKE_main.h"
 #include "BLI_sys_types.h"
 #include "BLI_fileops.h"
+#include "BLI_path_util.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -216,8 +219,15 @@ void DisplayBuffer::write(const string& filename) {
 	png_infop info_ptr  = NULL;
 	png_bytep *rows     = rows_buf;
 
+#if not defined(MAX_PATH)
+#   define MAX_PATH 512
+#endif
+    char abs_path[MAX_PATH];
+    strncpy(abs_path, full_path.c_str(), MAX_PATH);
+	BLI_path_abs(abs_path, G.main->name);
+
     FILE *fp = NULL;
-    if(!(fp = BLI_fopen(full_path.c_str(), "wb"))) goto fail;
+    if(!(fp = BLI_fopen(abs_path, "wb"))) goto fail;
 
     if(!png_ptr) {
         if(!(png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL))) goto fail;
