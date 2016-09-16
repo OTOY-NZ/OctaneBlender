@@ -668,7 +668,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
         b_combined_pass.rect(pixels);
     }
     else if(session->server->getCopyImgBufferFloat(4, pixels, width, height,
-        (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.z - scene->camera->oct_node->ui4Region.x : width), (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.w - scene->camera->oct_node->ui4Region.y : height))) {
+            (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.z - scene->camera->oct_node->ui4Region.x : width), (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.w - scene->camera->oct_node->ui4Region.y : height))) {
         BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
         b_combined_pass.rect(pixels);
     }

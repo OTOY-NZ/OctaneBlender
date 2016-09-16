@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 10
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 5
+#   define OCTANE_SERVER_MINOR_VERSION 6
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -7327,25 +7327,29 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
         case 1: {
             switch(m_iComponentCnt) {
                 case 1: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut++)
                         *pOut = *in;
                     break;
                 }
                 case 2: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut++)
                         *pOut = *in;
                     break;
                 }
                 case 3: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut++)
                         *pOut = (uint8_t)floorf((in[0] + in[1] + in[2]) / 3.0f + 0.5f);
                     break;
                 }
                 case 4: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut++)
                         *pOut = (uint8_t)floorf((in[0] + in[1] + in[2]) / 3.0f + 0.5f);
                     break;
@@ -7361,7 +7365,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
         case 2: {
             switch(m_iComponentCnt) {
                 case 1: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 2];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut += 2) {
                         pOut[0] = in[0];
                         pOut[1] = 255;
@@ -7369,7 +7374,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 2: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 2];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut += 2) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7377,7 +7383,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 3: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 2];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut += 2) {
                         pOut[0] = (uint8_t)floorf((in[0] + in[1] + in[2]) / 3.0f + 0.5f);
                         pOut[1] = 255;
@@ -7385,7 +7392,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 4: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 2];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut += 2) {
                         pOut[0] = (uint8_t)floorf((in[0] + in[1] + in[2]) / 3.0f + 0.5f);
                         pOut[1] = in[1];
@@ -7403,7 +7411,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
         case 3: {
             switch(m_iComponentCnt) {
                 case 1: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 3];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut += 3) {
                         pOut[0] = in[0];
                         pOut[1] = in[0];
@@ -7412,7 +7421,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 2: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 3];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut += 3) {
                         pOut[0] = in[0];
                         pOut[1] = in[0];
@@ -7421,7 +7431,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 3: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 3];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut += 3) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7430,7 +7441,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 4: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 3];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut += 3) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7449,7 +7461,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
         case 4: {
             switch(m_iComponentCnt) {
                 case 1: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 4];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut += 4) {
                         pOut[0] = in[0];
                         pOut[1] = in[0];
@@ -7459,7 +7472,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 2: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 4];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut += 4) {
                         pOut[0] = in[0];
                         pOut[1] = in[0];
@@ -7469,7 +7483,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 3: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 4];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut += 4) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7479,7 +7494,8 @@ inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&puc
                     break;
                 }
                 case 4: {
-                    uint8_t *pOut = pucBuf = new uint8_t[stPixelSize * 4];
+                    if(!pucBuf) pucBuf = new uint8_t[stPixelSize];
+                    uint8_t *pOut = pucBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut += 4) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7625,25 +7641,29 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
         case 1: {
             switch(m_iComponentCnt) {
                 case 1: {
-                    float *pOut = pfBuf = new float[stPixelSize];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut++)
                         *pOut = *in;
                     break;
                 }
                 case 2: {
-                    float *pOut = pfBuf = new float[stPixelSize];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut++)
                         *pOut = *in;
                     break;
                 }
                 case 3: {
-                    float *pOut = pfBuf = new float[stPixelSize];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut++)
                         *pOut = (in[0] + in[1] + in[2]) / 3.0f;
                     break;
                 }
                 case 4: {
-                    float *pOut = pfBuf = new float[stPixelSize];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut++)
                         *pOut = (in[0] + in[1] + in[2]) / 3.0f;
                     break;
@@ -7659,25 +7679,29 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
         case -1: { //Usable for MaterialId pass in host-applications requiring just one ID number instead of color
             switch(m_iComponentCnt) {
                 case 1: {
-                    float *pOut = pfBuf = new float[stPixelSize];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut++)
                         *pOut = *in;
                     break;
                 }
                 case 2: {
-                    float *pOut = pfBuf = new float[stPixelSize];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut++)
                         *pOut = *in;
                     break;
                 }
                 case 3: {
-                    float *pOut = pfBuf = new float[stPixelSize];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut++)
                         *pOut = ((uint32_t)(in[0] * 255) << 16) | ((uint32_t)(in[1] * 255) << 8) | ((uint32_t)(in[2] * 255));
                     break;
                 }
                 case 4: {
-                    float *pOut = pfBuf = new float[stPixelSize];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut++)
                         *pOut = ((uint32_t)(in[0] * 255) << 16) | ((uint32_t)(in[1] * 255) << 8) | ((uint32_t)(in[2] * 255));
                     break;
@@ -7693,7 +7717,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
         case 2: {
             switch(m_iComponentCnt) {
                 case 1: {
-                    float *pOut = pfBuf = new float[stPixelSize * 2];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut += 2) {
                         pOut[0] = in[0];
                         pOut[1] = 1.0f;
@@ -7701,7 +7726,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 2: {
-                    float *pOut = pfBuf = new float[stPixelSize * 2];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut += 2) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7709,7 +7735,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 3: {
-                    float *pOut = pfBuf = new float[stPixelSize * 2];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut += 2) {
                         pOut[0] = (in[0] + in[1] + in[2]) / 3.0f;
                         pOut[1] = 1.0f;
@@ -7717,7 +7744,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 4: {
-                    float *pOut = pfBuf = new float[stPixelSize * 2];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut += 2) {
                         pOut[0] = (in[0] + in[1] + in[2]) / 3.0f;
                         pOut[1] = in[1];
@@ -7735,7 +7763,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
         case 3: {
             switch(m_iComponentCnt) {
                 case 1: {
-                    float *pOut = pfBuf = new float[stPixelSize * 3];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut += 3) {
                         pOut[0] = in[0];
                         pOut[1] = in[0];
@@ -7744,7 +7773,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 2: {
-                    float *pOut = pfBuf = new float[stPixelSize * 3];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut += 3) {
                         pOut[0] = in[0];
                         pOut[1] = in[0];
@@ -7753,7 +7783,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 3: {
-                    float *pOut = pfBuf = new float[stPixelSize * 3];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut += 3) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7762,7 +7793,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 4: {
-                    float *pOut = pfBuf = new float[stPixelSize * 3];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut += 3) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7781,7 +7813,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
         case 4: {
             switch(m_iComponentCnt) {
                 case 1: {
-                    float *pOut = pfBuf = new float[stPixelSize * 4];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 1, pOut += 4) {
                         pOut[0] = in[0];
                         pOut[1] = in[0];
@@ -7791,7 +7824,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 2: {
-                    float *pOut = pfBuf = new float[stPixelSize * 4];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 2, pOut += 4) {
                         pOut[0] = in[0];
                         pOut[1] = in[0];
@@ -7801,7 +7835,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 3: {
-                    float *pOut = pfBuf = new float[stPixelSize * 4];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 3, pOut += 4) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
@@ -7811,7 +7846,8 @@ inline bool OctaneClient::getCopyImgBufferFloat(int iComponentsCnt, float *&pfBu
                     break;
                 }
                 case 4: {
-                    float *pOut = pfBuf = new float[stPixelSize * 4];
+                    if(!pfBuf) pfBuf = new float[stPixelSize];
+                    float *pOut = pfBuf;
                     for(int i = 0; i < stPixelSize; ++i, in += 4, pOut += 4) {
                         pOut[0] = in[0];
                         pOut[1] = in[1];
