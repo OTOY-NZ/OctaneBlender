@@ -660,10 +660,10 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 				
 				node->flag |= NODE_DO_OUTPUT;
 				if (was_output == 0)
-					ED_node_tag_update_nodetree(bmain, ntree);
+					ED_node_tag_update_nodetree(bmain, ntree, node);
 			}
 			else if (do_update)
-				ED_node_tag_update_nodetree(bmain, ntree);
+				ED_node_tag_update_nodetree(bmain, ntree, node);
 
 			/* if active texture changed, free glsl materials */
 			if ((node->flag & NODE_ACTIVE_TEXTURE) && !was_active_texture) {
@@ -695,7 +695,7 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 				
 				node->flag |= NODE_DO_OUTPUT;
 				if (was_output == 0)
-					ED_node_tag_update_nodetree(bmain, ntree);
+					ED_node_tag_update_nodetree(bmain, ntree, node);
 				
 				/* addnode() doesnt link this yet... */
 				node->id = (ID *)BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
@@ -725,11 +725,11 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 							tnode->flag &= ~NODE_DO_OUTPUT;
 					
 					node->flag |= NODE_DO_OUTPUT;
-					ED_node_tag_update_nodetree(bmain, ntree);
+					ED_node_tag_update_nodetree(bmain, ntree, node);
 				}
 			}
 			else if (do_update)
-				ED_node_tag_update_nodetree(bmain, ntree);
+				ED_node_tag_update_nodetree(bmain, ntree, node);
 		}
 		else if (ntree->type == NTREE_TEXTURE) {
 			// XXX
@@ -739,34 +739,6 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 			// allqueue(REDRAWBUTSSHADING, 1);
 			// allqueue(REDRAWIPO, 0);
 #endif
-		}
-	}
-}
-
-void ED_node_id_unref(SpaceNode *snode, const ID *id)
-{
-	if (GS(id->name) == ID_SCE) {
-		if (snode->id == id) {
-			/* nasty DNA logic for SpaceNode:
-			 * ideally should be handled by editor code, but would be bad level call
-			 */
-			bNodeTreePath *path, *path_next;
-			for (path = snode->treepath.first; path; path = path_next) {
-				path_next = path->next;
-				MEM_freeN(path);
-			}
-			BLI_listbase_clear(&snode->treepath);
-
-			snode->id = NULL;
-			snode->from = NULL;
-			snode->nodetree = NULL;
-			snode->edittree = NULL;
-		}
-	}
-	else if (GS(id->name) == ID_OB) {
-		if (snode->from == id) {
-			snode->flag &= ~SNODE_PIN;
-			snode->from = NULL;
 		}
 	}
 }
@@ -927,14 +899,13 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					pwidth = &node->miniwidth;
 					oldwidth = nsw->oldminiwidth;
 					widthmin = 0.0f;
-					widthmax = 100.0f;
 				}
 				else {
 					pwidth = &node->width;
 					oldwidth = nsw->oldwidth;
 					widthmin = node->typeinfo->minwidth;
-					widthmax = node->typeinfo->maxwidth;
 				}
+				widthmax = node->typeinfo->maxwidth;
 				
 				{
 					if (nsw->directions & NODE_RESIZE_RIGHT) {
@@ -1180,7 +1151,8 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
 	bNode *node, *newnode, *lastnode;
 	bNodeLink *link, *newlink, *lastlink;
 	const bool keep_inputs = RNA_boolean_get(op->ptr, "keep_inputs");
-	
+	bool do_tag_update = false;
+
 	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 	
 	lastnode = ntree->nodes.last;
@@ -1257,6 +1229,8 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
 			nodeSetSelected(node, false);
 			node->flag &= ~NODE_ACTIVE;
 			nodeSetSelected(newnode, true);
+
+			do_tag_update |= (do_tag_update || node_connected_to_output(ntree, newnode));
 		}
 		
 		/* make sure we don't copy new nodes again! */
@@ -1267,7 +1241,9 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
 	ntreeUpdateTree(CTX_data_main(C), snode->edittree);
 	
 	snode_notify(C, snode);
-	snode_dag_update(C, snode);
+	if (do_tag_update) {
+		snode_dag_update(C, snode);
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -1626,6 +1602,7 @@ static int node_mute_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNode *node;
+	bool do_tag_update = false;
 
 	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
@@ -1634,11 +1611,14 @@ static int node_mute_exec(bContext *C, wmOperator *UNUSED(op))
 		if ((node->flag & SELECT) && node->typeinfo->update_internal_links) {
 			node->flag ^= NODE_MUTED;
 			snode_update(snode, node);
+			do_tag_update |= (do_tag_update || node_connected_to_output(snode->edittree, node));
 		}
 	}
 	
 	snode_notify(C, snode);
-	snode_dag_update(C, snode);
+	if (do_tag_update) {
+		snode_dag_update(C, snode);
+	}
 	
 	return OPERATOR_FINISHED;
 }
@@ -1664,13 +1644,15 @@ static int node_delete_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNode *node, *next;
-	
+	bool do_tag_update = false;
+
 	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
 	for (node = snode->edittree->nodes.first; node; node = next) {
 		next = node->next;
 		if (node->flag & SELECT) {
 			/* check id user here, nodeFreeNode is called for free dbase too */
+			do_tag_update |= (do_tag_update || node_connected_to_output(snode->edittree, node));
 			if (node->id)
 				id_us_min(node->id);
 			nodeFreeNode(snode->edittree, node);
@@ -1680,7 +1662,9 @@ static int node_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	ntreeUpdateTree(CTX_data_main(C), snode->edittree);
 
 	snode_notify(C, snode);
-	snode_dag_update(C, snode);
+	if (do_tag_update) {
+		snode_dag_update(C, snode);
+	}
 	
 	return OPERATOR_FINISHED;
 }

@@ -366,6 +366,8 @@ inline ::Octane::RenderPassId BlenderSession::get_octane_pass_type(BL::RenderPas
             return ::Octane::RenderPassId::RENDER_PASS_EMIT;
         case BL::RenderPass::type_ENVIRONMENT:
             return ::Octane::RenderPassId::RENDER_PASS_ENVIRONMENT;
+        case BL::RenderPass::type_DIFFUSE:
+            return ::Octane::RenderPassId::RENDER_PASS_DIFFUSE;
         case BL::RenderPass::type_DIFFUSE_DIRECT:
             return ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_DIRECT;
         case BL::RenderPass::type_DIFFUSE_INDIRECT:
@@ -420,7 +422,6 @@ inline ::Octane::RenderPassId BlenderSession::get_octane_pass_type(BL::RenderPas
         case BL::RenderPass::type_TRANSMISSION_INDIRECT:
         case BL::RenderPass::type_GLOSSY_DIRECT:
         case BL::RenderPass::type_TRANSMISSION_DIRECT:
-        case BL::RenderPass::type_DIFFUSE:
         case BL::RenderPass::type_COLOR:
         case BL::RenderPass::type_SPECULAR:
         case BL::RenderPass::type_MIST:
@@ -443,6 +444,8 @@ inline BL::RenderPass::type_enum BlenderSession::get_blender_pass_type(::Octane:
         return BL::RenderPass::type_EMIT;
     case ::Octane::RenderPassId::RENDER_PASS_ENVIRONMENT:
         return BL::RenderPass::type_ENVIRONMENT;
+    case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE:
+        return BL::RenderPass::type_DIFFUSE;
     case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_DIRECT:
         return BL::RenderPass::type_DIFFUSE_DIRECT;
     case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_INDIRECT:

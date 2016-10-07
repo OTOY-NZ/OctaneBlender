@@ -2797,7 +2797,7 @@ void BlenderSync::sync_materials() {
 			shader->name = b_mat->name().c_str();
 			//shader->pass_id = b_mat->pass_index();
 
-            if(shader->graph) {
+            if(!interactive && shader->graph) {
                 for(std::list<ShaderNode*>::iterator it = shader->graph->nodes.begin(); it != shader->graph->nodes.end(); ++it) {
                     (*it)->delete_from_server(scene->server);
                 }
@@ -2825,7 +2825,7 @@ void BlenderSync::sync_materials() {
 			shader->name = b_tex->name().c_str();
 			//shader->pass_id = b_tex->pass_index();
 
-            if(shader->graph) {
+            if(!interactive && shader->graph) {
                 for(std::list<ShaderNode*>::iterator it = shader->graph->nodes.begin(); it != shader->graph->nodes.end(); ++it) {
                     (*it)->delete_from_server(scene->server);
                 }

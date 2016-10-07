@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 2.77 (sub 0) (b'870f911')\n"
+"Project-Id-Version: Blender 2.78 (sub 0) (b'2c19ddf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-03-18 13:04:16\n"
+"POT-Creation-Date: 2016-09-26 12:09:58\n"
 "PO-Revision-Date: 2012-10-07 13:56+0300\n"
 "Last-Translator: Barak Itkin <lightningismyname@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -59,8 +59,8 @@ msgid "Mean"
 msgstr "עצוממ"
 
 
-msgid "Addon Preferences"
-msgstr "Blender שמתשמ תופדעה"
+msgid "Path"
+msgstr "ביתנ"
 
 
 msgid "Width"
@@ -139,6 +139,14 @@ msgid "White Level"
 msgstr "ןבל תמר"
 
 
+msgid "Surface"
+msgstr "חטשמ"
+
+
+msgid "View"
+msgstr "הגוצת"
+
+
 msgid "Lamp"
 msgstr "הרונמ"
 
@@ -175,16 +183,8 @@ msgid "Frequency"
 msgstr "תורידת"
 
 
-msgid "Surface"
-msgstr "חטשמ"
-
-
 msgid "Apply Density"
 msgstr "תופיפצ"
-
-
-msgid "Path"
-msgstr "ביתנ"
 
 
 msgid "Environment"
@@ -239,6 +239,10 @@ msgid "Off"
 msgstr "יובכ"
 
 
+msgid "Up"
+msgstr "הלעמ"
+
+
 msgid "Straight"
 msgstr "ןימי"
 
@@ -287,10 +291,6 @@ msgid "Weight Paint"
 msgstr "לקשמ תעיבצ"
 
 
-msgid "View"
-msgstr "הגוצת"
-
-
 msgid "Quadratic"
 msgstr "יעוביר"
 
@@ -325,10 +325,6 @@ msgstr "הארמ"
 
 msgid "Apply"
 msgstr "לחה"
-
-
-msgid "Up"
-msgstr "הלעמ"
 
 
 msgid "Triangulate Modifier"
@@ -656,10 +652,6 @@ msgstr ":לקשמ"
 msgctxt "Operator"
 msgid "Remove"
 msgstr "רסה"
-
-
-msgid "Radius:"
-msgstr ":סוידר"
 
 
 msgid "Color Space:"
@@ -1075,14 +1067,6 @@ msgid "Right Handle:"
 msgstr ":תינמי תידי"
 
 
-msgid "Bone 1:"
-msgstr ":1 םצע"
-
-
-msgid "Bone 2:"
-msgstr ":2 םצע"
-
-
 msgid "ERROR: Invalid Python expression"
 msgstr "ןיקת אל Python יוטיב :האיגש"
 
@@ -1191,6 +1175,10 @@ msgid "Radius Y:"
 msgstr ":Y סוידר"
 
 
+msgid "Radius:"
+msgstr ":סוידר"
+
+
 msgid "Mean Radius:"
 msgstr ":עצוממ סוידר"
 
@@ -1285,6 +1273,10 @@ msgstr "רבד רחבנ אל"
 
 msgid "Paste name"
 msgstr "םש קבדה"
+
+
+msgid "Nothing indicated"
+msgstr "רבד רחבנ אל"
 
 
 msgid "Donations"

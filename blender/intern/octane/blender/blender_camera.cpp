@@ -361,7 +361,8 @@ void BlenderSync::get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool vie
         cam->oct_node->fAperture            = 0;
         cam->oct_node->fApertureEdge        = 1.0f;
         cam->oct_node->fDistortion          = 0;
-        cam->oct_node->bAutofocus           = true;
+        cam->oct_node->bAutofocus           = false;
+        cam->oct_node->fFocalDepth          = 1.1754943508222875e-017;
         cam->oct_node->bPerspCorr           = false;
         cam->oct_node->bUsePostprocess      = false;
         cam->oct_node->stereoMode           = ::Octane::STEREO_MODE_OFF_AXIS;

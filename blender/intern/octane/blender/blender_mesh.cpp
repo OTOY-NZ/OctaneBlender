@@ -87,57 +87,113 @@ static void create_mesh(Scene *scene, BL::Object b_ob, Mesh *mesh, BL::Mesh b_me
     int *poly_mat_index = &mesh->poly_mat_index[0];
     int *poly_obj_index = &mesh->poly_obj_index[0];
 
-    BL::Mesh::tessfaces_iterator f;
-	for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f, ++k) {
-		int4    vi      = get_int4(f->vertices_raw());
-		int     n       = (vi[3] == 0) ? 3 : 4;
-		int     mi      = clamp(f->material_index(), 0, used_shaders.size()-1);
-		bool    smooth  = f->use_smooth();
-        facesCnt        += n;
+    Mesh::WindingOrder winding_order = static_cast<Mesh::WindingOrder>(RNA_enum_get(oct_mesh, "winding_order"));
+    if(winding_order == Mesh::CLOCKWISE) {
+        BL::Mesh::tessfaces_iterator f;
+	    for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f, ++k) {
+		    int4    vi      = get_int4(f->vertices_raw());
+		    int     n       = (vi[3] == 0) ? 3 : 4;
+		    int     mi      = clamp(f->material_index(), 0, used_shaders.size()-1);
+		    bool    smooth  = f->use_smooth();
+            facesCnt        += n;
 
-	    if(n == 4) {
-            points_indices[i]       = vi[0];
-            points_indices[i + 1]   = vi[1];
-            points_indices[i + 2]   = vi[2];
-            points_indices[i + 3]   = vi[3];
+	        if(n == 4) {
+                points_indices[i]       = vi[0];
+                points_indices[i + 1]   = vi[1];
+                points_indices[i + 2]   = vi[2];
+                points_indices[i + 3]   = vi[3];
 
-            if(uvs_cnt > 0) {
-                uv_indices[i]       = i;
-                uv_indices[i + 1]   = i + 1;
-                uv_indices[i + 2]   = i + 2;
-                uv_indices[i + 3]   = i + 3;
-            }
+                if(uvs_cnt > 0) {
+                    uv_indices[i]       = i;
+                    uv_indices[i + 1]   = i + 1;
+                    uv_indices[i + 2]   = i + 2;
+                    uv_indices[i + 3]   = i + 3;
+                }
+                else {
+                    uv_indices[i]       = 0;
+                    uv_indices[i + 1]   = 0;
+                    uv_indices[i + 2]   = 0;
+                    uv_indices[i + 3]   = 0;
+                }
+                i += 4;
+                vert_per_poly[k]    = n;
+                poly_mat_index[k]   = mi;
+            } //if(n == 4)
             else {
-                uv_indices[i]       = 0;
-                uv_indices[i + 1]   = 0;
-                uv_indices[i + 2]   = 0;
-                uv_indices[i + 3]   = 0;
-            }
-            i += 4;
-            vert_per_poly[k]    = n;
-            poly_mat_index[k]   = mi;
-        } //if(n == 4)
-        else {
-            points_indices[i]       = vi[0];
-            points_indices[i + 1]   = vi[1];
-            points_indices[i + 2]   = vi[2];
+                points_indices[i]       = vi[0];
+                points_indices[i + 1]   = vi[1];
+                points_indices[i + 2]   = vi[2];
 
-            if(uvs_cnt > 0) {
-                uv_indices[i]       = i;
-                uv_indices[i + 1]   = i + 1;
-                uv_indices[i + 2]   = i + 2;
-            }
+                if(uvs_cnt > 0) {
+                    uv_indices[i]       = i;
+                    uv_indices[i + 1]   = i + 1;
+                    uv_indices[i + 2]   = i + 2;
+                }
+                else {
+                    uv_indices[i]       = 0;
+                    uv_indices[i + 1]   = 0;
+                    uv_indices[i + 2]   = 0;
+                }
+                vert_per_poly[k]    = 3;
+                poly_mat_index[k]   = mi;
+                i += 3;
+            } //if(n == 4), else
+            poly_obj_index[k] = 0;
+	    } //for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f)
+    }
+    else {
+        BL::Mesh::tessfaces_iterator f;
+	    for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f, ++k) {
+		    int4    vi      = get_int4(f->vertices_raw());
+		    int     n       = (vi[3] == 0) ? 3 : 4;
+		    int     mi      = clamp(f->material_index(), 0, used_shaders.size()-1);
+		    bool    smooth  = f->use_smooth();
+            facesCnt        += n;
+
+	        if(n == 4) {
+                points_indices[i]       = vi[3];
+                points_indices[i + 1]   = vi[2];
+                points_indices[i + 2]   = vi[1];
+                points_indices[i + 3]   = vi[0];
+
+                if(uvs_cnt > 0) {
+                    uv_indices[i]       = i + 3;
+                    uv_indices[i + 1]   = i + 2;
+                    uv_indices[i + 2]   = i + 1;
+                    uv_indices[i + 3]   = i;
+                }
+                else {
+                    uv_indices[i]       = 0;
+                    uv_indices[i + 1]   = 0;
+                    uv_indices[i + 2]   = 0;
+                    uv_indices[i + 3]   = 0;
+                }
+                i += 4;
+                vert_per_poly[k]    = n;
+                poly_mat_index[k]   = mi;
+            } //if(n == 4)
             else {
-                uv_indices[i]       = 0;
-                uv_indices[i + 1]   = 0;
-                uv_indices[i + 2]   = 0;
-            }
-            vert_per_poly[k]    = 3;
-            poly_mat_index[k]   = mi;
-            i += 3;
-        } //if(n == 4), else
-        poly_obj_index[k] = 0;
-	} //for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f)
+                points_indices[i]       = vi[2];
+                points_indices[i + 1]   = vi[1];
+                points_indices[i + 2]   = vi[0];
+
+                if(uvs_cnt > 0) {
+                    uv_indices[i]       = i + 2;
+                    uv_indices[i + 1]   = i + 1;
+                    uv_indices[i + 2]   = i;
+                }
+                else {
+                    uv_indices[i]       = 0;
+                    uv_indices[i + 1]   = 0;
+                    uv_indices[i + 2]   = 0;
+                }
+                vert_per_poly[k]    = 3;
+                poly_mat_index[k]   = mi;
+                i += 3;
+            } //if(n == 4), else
+            poly_obj_index[k] = 0;
+	    } //for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f)
+    }
     mesh->points_indices.resize(i);
     mesh->uv_indices.resize(i);
 
@@ -362,6 +418,10 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
     octane_mesh->rand_color_seed        = RNA_int_get(&oct_mesh, "rand_color_seed");
     octane_mesh->layer_number           = RNA_int_get(&oct_mesh, "layer_number");
     octane_mesh->baking_group_id        = RNA_int_get(&oct_mesh, "baking_group_id");
+	if(RNA_boolean_get(&b_ob_data.ptr, "use_auto_smooth"))
+        octane_mesh->max_smooth_angle   = RNA_float_get(&b_ob_data.ptr, "auto_smooth_angle") / M_PI * 180;
+    else
+        octane_mesh->max_smooth_angle   = -1.0f;
 
 	if(b_mesh) {
         if(!hide_tris) {
@@ -376,7 +436,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
         else octane_mesh->empty = true;
 
         // Free derived mesh
-		b_data.meshes.remove(b_mesh);
+		b_data.meshes.remove(b_mesh, false);
 
         memcpy(G.main->id_tag_update, tagged_state, 256);
 	}

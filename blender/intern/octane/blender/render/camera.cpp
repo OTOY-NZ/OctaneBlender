@@ -123,7 +123,7 @@ void Camera::set_focal_depth(BL::Object b_ob, BL::Camera b_camera) {
 
     if(!b_dof_object) {
         oct_node->fFocalDepth = b_camera.dof_distance();
-        if(oct_node->fFocalDepth <= 0.0f) oct_node->fFocalDepth = FLT_MIN;
+        if(oct_node->fFocalDepth <= 0.0f) oct_node->fFocalDepth = 1.1754943508222875e-017;
         return;
     }
 	
@@ -133,7 +133,7 @@ void Camera::set_focal_depth(BL::Object b_ob, BL::Camera b_camera) {
 	Transform mat       = transform_inverse(obmat) * dofmat;
 
     oct_node->fFocalDepth = fabsf(transform_get_column(&mat, 3).z);
-    if(oct_node->fFocalDepth <= 0.0f) oct_node->fFocalDepth = FLT_MIN;
+    if(oct_node->fFocalDepth <= 0.0f) oct_node->fFocalDepth = 1.1754943508222875e-017;
 } //set_focal_depth()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

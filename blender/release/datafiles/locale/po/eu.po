@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 2.77 (sub 0) (b'870f911')\n"
+"Project-Id-Version: Blender 2.78 (sub 0) (b'2c19ddf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-03-18 13:04:16\n"
+"POT-Creation-Date: 2016-09-26 12:09:58\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Ainhize & Miriam <agoenaga006@ikasle.ehu.eus>\n"
 "Language-Team: Euskara <agoenaga006@ikasle.ehu.eus>\n"
@@ -657,6 +657,14 @@ msgid "Curve"
 msgstr "Kurba"
 
 
+msgid "Method"
+msgstr "Metodoak"
+
+
+msgid "Plane"
+msgstr "Planoa"
+
+
 msgid "Lamp"
 msgstr "Lanpara"
 
@@ -671,10 +679,6 @@ msgstr "Mundua"
 
 msgid "Cube"
 msgstr "Kuboa"
-
-
-msgid "Plane"
-msgstr "Planoa"
 
 
 msgid "Point"
@@ -723,6 +727,10 @@ msgstr "Zilindroa"
 
 msgid "Visible Layers"
 msgstr "Ikusgai Dauden Geruzak"
+
+
+msgid "Sequence"
+msgstr "Sekuentzia"
 
 
 msgid "Reflection"
@@ -901,21 +909,25 @@ msgid "Duplicate"
 msgstr "Bikoiztu"
 
 
-msgid "Select all elements"
-msgstr "Elementu guztiak hautatu"
+msgctxt "Operator"
+msgid "Properties"
+msgstr "Propietateak"
+
+
+msgid "Event Type"
+msgstr "Gertaera mota"
 
 
 msgid "Deselect"
 msgstr "Hautaketa deuseztatu"
 
 
+msgid "Select all elements"
+msgstr "Elementu guztiak hautatu"
+
+
 msgid "Deselect all elements"
 msgstr "Elementu guztien hautaketa deuseztatu"
-
-
-msgctxt "Operator"
-msgid "Properties"
-msgstr "Propietateak"
 
 
 msgctxt "Operator"
@@ -1103,6 +1115,14 @@ msgstr "(Ez)hautatu Lehena"
 msgctxt "Operator"
 msgid "(De)select Last"
 msgstr "(Ez)hautatu Azkena"
+
+
+msgid "Stroke"
+msgstr "Trazua"
+
+
+msgid "Wait for Input"
+msgstr "Input-aren zain"
 
 
 msgctxt "Operator"
@@ -1389,10 +1409,6 @@ msgid "Unpack All Into Files"
 msgstr "Guztia fitxategietara despaketatu"
 
 
-msgid "Method"
-msgstr "Metodoak"
-
-
 msgid "How to unpack"
 msgstr "Nola despaketatu"
 
@@ -1618,14 +1634,6 @@ msgid "Unlink"
 msgstr "Esteka ezabatu"
 
 
-msgid "Stroke"
-msgstr "Trazua"
-
-
-msgid "Wait for Input"
-msgstr "Input-aren zain"
-
-
 msgid "Timing Mode"
 msgstr "Egokitzapen modua"
 
@@ -1644,11 +1652,6 @@ msgstr "Jatorrizkoa"
 
 msgid "Normalize Weight"
 msgstr "Altuera normalizatu"
-
-
-msgctxt "Operator"
-msgid "Delete..."
-msgstr "Ezabatu..."
 
 
 msgctxt "Operator"
@@ -1748,6 +1751,11 @@ msgstr "Geruza partekatuak"
 
 
 msgctxt "Operator"
+msgid "Hide Selection"
+msgstr "Hautaketa Ezkutatu"
+
+
+msgctxt "Operator"
 msgid "Unlock All Layers"
 msgstr "Geruza guztiak ireki"
 
@@ -1755,10 +1763,6 @@ msgstr "Geruza guztiak ireki"
 msgctxt "Operator"
 msgid "Set Cursor"
 msgstr "Kurtsorea finkatu"
-
-
-msgid "Event Type"
-msgstr "Gertaera mota"
 
 
 msgid "Cursor Value"
@@ -1909,11 +1913,6 @@ msgid "Hide"
 msgstr "Ezkutatu"
 
 
-msgctxt "Operator"
-msgid "Hide Selection"
-msgstr "Hautaketa Ezkutatu"
-
-
 msgid "Selected"
 msgstr "Hautatutako"
 
@@ -2046,6 +2045,11 @@ msgstr "X 1"
 
 msgid "Y 1"
 msgstr "Y 1"
+
+
+msgctxt "Operator"
+msgid "Toggle Maximize Area"
+msgstr "Ingurune Mazimizatua Txandakatu"
 
 
 msgctxt "Operator"
@@ -2247,10 +2251,6 @@ msgid "Same Types"
 msgstr "Mota Berdinekoak"
 
 
-msgid "Sequence"
-msgstr "Sekuentzia"
-
-
 msgid "Blender File"
 msgstr "Blender Fitxategia"
 
@@ -2352,6 +2352,11 @@ msgstr "Eskalatu"
 
 
 msgctxt "Operator"
+msgid "Delete..."
+msgstr "Ezabatu..."
+
+
+msgctxt "Operator"
 msgid "New"
 msgstr "Berria"
 
@@ -2359,11 +2364,6 @@ msgstr "Berria"
 msgctxt "Operator"
 msgid "Animation"
 msgstr "Animazioa"
-
-
-msgctxt "Operator"
-msgid "Toggle Maximize Area"
-msgstr "Ingurune Mazimizatua Txandakatu"
 
 
 msgctxt "Operator"
@@ -3077,6 +3077,10 @@ msgid "Paste name"
 msgstr "Izena itsatsi"
 
 
+msgid "Save Over?"
+msgstr "Gaingorde?"
+
+
 msgid "unable to open the file"
 msgstr "Ezin izan da fitxategia ireki"
 
@@ -3105,6 +3109,10 @@ msgid "Could not read '%s'"
 msgstr "Ezin izan da '%s' irakurri"
 
 
+msgid "'%s': nothing indicated"
+msgstr "'%s': ez da ezer adierazi"
+
+
 msgid "dbl-"
 msgstr "dbl-"
 
@@ -3129,10 +3137,6 @@ msgid "Blender Website"
 msgstr "Blender Webgunea"
 
 
-msgid "Save Over?"
-msgstr "Gaingorde?"
-
-
 msgid "unsupported format"
 msgstr "Euskarri gabeko formatua"
 
@@ -3143,10 +3147,6 @@ msgstr "(Dokumentatu gabeko operadorea)"
 
 msgid "Cannot read %s '%s': %s"
 msgstr "Ezin da irakurri %s '%s': %s"
-
-
-msgid "'%s': nothing indicated"
-msgstr "'%s': ez da ezer adierazi"
 
 
 msgid "Blender User Preferences"

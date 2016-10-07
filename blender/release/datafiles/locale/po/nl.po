@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 2.77 (sub 0) (b'870f911')\n"
+"Project-Id-Version: Blender 2.78 (sub 0) (b'2c19ddf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-03-18 13:04:16\n"
+"POT-Creation-Date: 2016-09-26 12:09:58\n"
 "PO-Revision-Date: 2016-02-27 15:14+0100\n"
 "Language: nl\n"
 "MIME-Version: 1.0\n"
@@ -659,6 +659,10 @@ msgid "Children"
 msgstr "Kinderen"
 
 
+msgid "Path"
+msgstr "Pad"
+
+
 msgid "Animation Data"
 msgstr "Aimatie Gegevens"
 
@@ -709,6 +713,10 @@ msgstr "Videobewerker gereedschap"
 
 msgid "Properties"
 msgstr "Eigenschappen"
+
+
+msgid "Active Bone"
+msgstr "Actieve Bot"
 
 
 msgid "Back"
@@ -840,6 +848,22 @@ msgid "Clip"
 msgstr "Clip"
 
 
+msgid "Surface"
+msgstr "Oppervlak"
+
+
+msgid "Split"
+msgstr "Splits"
+
+
+msgid "Plane"
+msgstr "Vlak"
+
+
+msgid "View"
+msgstr "Weergave"
+
+
 msgid "Group"
 msgstr "Groep"
 
@@ -858,6 +882,10 @@ msgstr "Stijl voor Lijnen"
 
 msgid "Mask"
 msgstr "Mask"
+
+
+msgid "Node Tree"
+msgstr "Node Boom"
 
 
 msgid "World"
@@ -916,10 +944,6 @@ msgid "Cube"
 msgstr "Kubus"
 
 
-msgid "Plane"
-msgstr "Vlak"
-
-
 msgid "Point"
 msgstr "Punt"
 
@@ -930,14 +954,6 @@ msgstr "Bol"
 
 msgid "Cone"
 msgstr "Kegel"
-
-
-msgid "Surface"
-msgstr "Oppervlak"
-
-
-msgid "Path"
-msgstr "Pad"
 
 
 msgid "Save"
@@ -1004,6 +1020,10 @@ msgid "Active Frame"
 msgstr "Actieve Frame"
 
 
+msgid "Palette Color"
+msgstr "Palet Kleur"
+
+
 msgid "Collision Shape"
 msgstr "Botsingvorm"
 
@@ -1038,6 +1058,18 @@ msgstr "Toon sensoren van dit object"
 
 msgid "Game Property"
 msgstr "Speleigenschap"
+
+
+msgid "Active Brush"
+msgstr "Actieve Penseel"
+
+
+msgid "Active Layer"
+msgstr "Actieve Laag"
+
+
+msgid "Active Palette"
+msgstr "Actieve Palet"
 
 
 msgid "Show Line"
@@ -1112,10 +1144,6 @@ msgid "Follow"
 msgstr "Volg"
 
 
-msgid "Text Align"
-msgstr "Tekst Positionering"
-
-
 msgid "Center text"
 msgstr "Centreer tekst"
 
@@ -1146,10 +1174,6 @@ msgstr "Actieve Textuur"
 
 msgid "Round"
 msgstr "Rond"
-
-
-msgid "Node Tree"
-msgstr "Node Boom"
 
 
 msgid "Use Nodes"
@@ -1266,10 +1290,6 @@ msgid "Meta"
 msgstr "Meta"
 
 
-msgid "View"
-msgstr "Weergave"
-
-
 msgid "Grid"
 msgstr "Rooster"
 
@@ -1284,10 +1304,6 @@ msgstr "Weegave"
 
 msgid "Material Slot"
 msgstr "Materiaal Plek"
-
-
-msgid "Active Layer"
-msgstr "Actieve Laag"
 
 
 msgid "Rigid Body World"
@@ -1760,6 +1776,14 @@ msgid "Face"
 msgstr "Vlak"
 
 
+msgid "Active Track"
+msgstr "Actieve Baan"
+
+
+msgid "Active Object"
+msgstr "Actieve Object"
+
+
 msgid "Delete Track"
 msgstr "Verwijder Baan"
 
@@ -1901,6 +1925,10 @@ msgid "Is Output"
 msgstr "Is Uitvoer"
 
 
+msgid "Active Node"
+msgstr "Actieve Node"
+
+
 msgctxt "Operator"
 msgid "Clean Keyframes"
 msgstr "Sleutelframes Opschonen"
@@ -2002,6 +2030,11 @@ msgstr "Sleutelframes Plakken"
 msgctxt "Operator"
 msgid "Auto-Set Preview Range"
 msgstr "Auto-zet Preview Bereik"
+
+
+msgctxt "Operator"
+msgid "Properties"
+msgstr "Eigenschappen"
 
 
 msgctxt "Operator"
@@ -2188,10 +2221,6 @@ msgstr "Verander Skellet Lagen"
 msgctxt "Operator"
 msgid "Add Bone"
 msgstr "Voeg Bot Toe"
-
-
-msgid "Active Bone"
-msgstr "Actieve Bot"
 
 
 msgid "Translate (move) selected items"
@@ -2437,11 +2466,6 @@ msgstr "Plak Banen"
 
 
 msgctxt "Operator"
-msgid "Properties"
-msgstr "Eigenschappen"
-
-
-msgctxt "Operator"
 msgid "Set Active Clip"
 msgstr "Zet Actieve Clip"
 
@@ -2526,6 +2550,11 @@ msgstr "Zet Selectie"
 msgctxt "Operator"
 msgid "Delete Constraint"
 msgstr "Verwijder Beperking"
+
+
+msgctxt "Operator"
+msgid "Dissolve Vertices"
+msgstr "Los Punten Op"
 
 
 msgctxt "Operator"
@@ -2853,6 +2882,11 @@ msgid "Delete Active Frame"
 msgstr "Verwijder Actieve Frame"
 
 
+msgctxt "Operator"
+msgid "Remove Brush"
+msgstr "Verwijder Penseel"
+
+
 msgid "Animation path"
 msgstr "Animatie pad"
 
@@ -2874,11 +2908,6 @@ msgstr "Voeg Nieuwe Vetkrijt Toe"
 msgctxt "Operator"
 msgid "Grease Pencil Unlink"
 msgstr "Ontkoppel"
-
-
-msgctxt "Operator"
-msgid "Delete..."
-msgstr "Verwijder..."
 
 
 msgid "Delete selected strokes"
@@ -2975,6 +3004,11 @@ msgstr "Plak Strepen"
 
 msgid "Toggle Selection"
 msgstr "Selectie Aan/Uit"
+
+
+msgctxt "Operator"
+msgid "Hide Selection"
+msgstr "Verberg Selectie"
 
 
 msgctxt "Operator"
@@ -3103,10 +3137,6 @@ msgstr "HGT Resolutie"
 msgctxt "Operator"
 msgid "Import OBJ"
 msgstr "Importeer OBJ"
-
-
-msgid "Split"
-msgstr "Splits"
 
 
 msgctxt "Operator"
@@ -3340,11 +3370,6 @@ msgid "Dissolve Selection"
 msgstr "Los Selectie Op"
 
 
-msgctxt "Operator"
-msgid "Dissolve Vertices"
-msgstr "Los Punten Op"
-
-
 msgid "Duplicate"
 msgstr "Dupliceren"
 
@@ -3362,11 +3387,6 @@ msgstr "Draai Eigen Normalen Om"
 msgctxt "Operator"
 msgid "Flip Normals"
 msgstr "Draai Normalen Om"
-
-
-msgctxt "Operator"
-msgid "Hide Selection"
-msgstr "Verberg Selectie"
 
 
 msgctxt "Operator"
@@ -4053,6 +4073,10 @@ msgid "Make Local"
 msgstr "Maak Lokaal"
 
 
+msgid "Reload"
+msgstr "Herlaad"
+
+
 msgid "Toggle render use"
 msgstr "Render gebruik aan/uit"
 
@@ -4424,11 +4448,6 @@ msgstr "Herhaal laatste actie"
 
 
 msgctxt "Operator"
-msgid "Toggle Fullscreen Area"
-msgstr "Volledig Scherm Gebied aan/uit"
-
-
-msgctxt "Operator"
 msgid "Set Screen"
 msgstr "Zet Scherm"
 
@@ -4627,10 +4646,6 @@ msgstr "Los Conflict Op"
 
 msgid "Ignore"
 msgstr "Negeer"
-
-
-msgid "Reload"
-msgstr "Herlaad"
 
 
 msgid "Make Internal"
@@ -5072,20 +5087,8 @@ msgid "Toggle the current window fullscreen"
 msgstr "Schakel Fullscreen in/uit"
 
 
-msgid "Active Brush"
-msgstr "Actieve Penseel"
-
-
-msgid "Active Palette"
-msgstr "Actieve Palet"
-
-
 msgid "Show Brush"
 msgstr "Toon Penseel"
-
-
-msgid "Palette Color"
-msgstr "Palet Kleur"
 
 
 msgid "Relations"
@@ -5662,10 +5665,6 @@ msgid "Group Node"
 msgstr "Groepeer Node"
 
 
-msgid "Active Node"
-msgstr "Actieve Node"
-
-
 msgid "Selected Text"
 msgstr "Geselecteerde Tekst"
 
@@ -5676,10 +5675,6 @@ msgstr "Toon Achtergrond"
 
 msgid "Show Header"
 msgstr "Toon Hoofd"
-
-
-msgid "Active Object"
-msgstr "Actieve Object"
 
 
 msgid "Split Normal"
@@ -6118,15 +6113,6 @@ msgid "Draw:"
 msgstr "Tekenen:"
 
 
-msgid "Select:"
-msgstr "Selecteer:"
-
-
-msgctxt "Operator"
-msgid "Scale"
-msgstr "Schaal"
-
-
 msgctxt "Operator"
 msgid "Convert..."
 msgstr "Converteer..."
@@ -6154,6 +6140,20 @@ msgstr "Lijn"
 
 msgid "Tools:"
 msgstr "Gereedschap:"
+
+
+msgctxt "Operator"
+msgid "Convert to Geometry..."
+msgstr "Converteer naar Geometrie"
+
+
+msgid "Select:"
+msgstr "Selecteer:"
+
+
+msgctxt "Operator"
+msgid "Scale"
+msgstr "Schaal"
 
 
 msgctxt "Operator"
@@ -6194,6 +6194,11 @@ msgstr "Instellingen..."
 msgctxt "Operator"
 msgid "Select Inverse"
 msgstr "Selecteer Omgedraaide"
+
+
+msgctxt "Operator"
+msgid "Delete..."
+msgstr "Verwijder..."
 
 
 msgctxt "Operator"
@@ -6277,11 +6282,6 @@ msgstr "Voeg Canvas Toe"
 msgctxt "Operator"
 msgid "Remove Canvas"
 msgstr "Verwijder Canvas"
-
-
-msgctxt "Operator"
-msgid "Remove Brush"
-msgstr "Verwijder Penseel"
 
 
 msgid "Sensitivity:"
@@ -6371,6 +6371,11 @@ msgstr "Zet X As"
 msgctxt "Operator"
 msgid "Set Y Axis"
 msgstr "Zet Y As"
+
+
+msgctxt "Operator"
+msgid "Toggle Fullscreen Area"
+msgstr "Volledig Scherm Gebied aan/uit"
 
 
 msgctxt "Operator"
@@ -6864,11 +6869,6 @@ msgstr "Maak"
 msgctxt "Operator"
 msgid "Delete Bones"
 msgstr "Verwijder Botten"
-
-
-msgctxt "Operator"
-msgid "Convert to Geometry..."
-msgstr "Converteer naar Geometrie"
 
 
 msgctxt "Plural"
@@ -7497,6 +7497,10 @@ msgid "Without Targets"
 msgstr "Zonder Doelen"
 
 
+msgid "Active Keyframe"
+msgstr "Actieve Sleutelframe"
+
+
 msgid "Parent Directory"
 msgstr "Bron Map"
 
@@ -7515,10 +7519,6 @@ msgstr "Voeg Variabele Toe"
 
 msgid "Add Modifier"
 msgstr "Voeg Aanpasser Toe"
-
-
-msgid "Active Keyframe"
-msgstr "Actieve Sleutelframe"
 
 
 msgid "Select Layer"
@@ -7567,10 +7567,6 @@ msgstr "Voeg Sensor Toe"
 
 msgid "Add Actuator"
 msgstr "Voeg Actuator Toe"
-
-
-msgid "Active Track"
-msgstr "Actieve Baan"
 
 
 msgid "Remove"
@@ -7704,6 +7700,10 @@ msgid "Blender Game"
 msgstr "Blender Spel"
 
 
+msgid "Context window not set"
+msgstr "Context scherm niet gezet"
+
+
 msgid "Toggle System Console"
 msgstr "Systeem Console aan/uit"
 
@@ -7715,10 +7715,6 @@ msgstr "Systeem Console aan/uit"
 
 msgid "No operator in context"
 msgstr "Geen operatie in context"
-
-
-msgid "Context window not set"
-msgstr "Context scherm niet gezet"
 
 
 msgid "Property cannot be both boolean and float"

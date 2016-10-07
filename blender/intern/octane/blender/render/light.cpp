@@ -165,6 +165,7 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *sc
         bool            *reshapable             = new bool[ulLocalCnt];
         int32_t         *layer_number           = new int32_t[ulLocalCnt];
         int32_t         *baking_group_id        = new int32_t[ulLocalCnt];
+        float           *max_smooth_angle       = new float[ulLocalCnt];
 
         uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
         uint64_t        *vert_per_hair_size     = new uint64_t[ulLocalCnt];
@@ -237,6 +238,7 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *sc
             shadow_vis[i]           = true;
             rand_color_seed[i]      = 0;
             reshapable[i] = (scene->meshes_type == Mesh::MOVABLE_PROXY || scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && (light->mesh->mesh_type == Mesh::MOVABLE_PROXY || light->mesh->mesh_type == Mesh::RESHAPABLE_PROXY)));
+            max_smooth_angle[i]     = 89.0f;
 
             hair_points_size[i]     = light->mesh->hair_points.size();
             vert_per_hair_size[i]   = light->mesh->vert_per_hair.size();
@@ -284,7 +286,8 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *sc
                                         cam_vis,
                                         shadow_vis,
                                         rand_color_seed,
-                                        reshapable);
+                                        reshapable,
+                                        max_smooth_angle);
         }
         delete[] mesh_names;
         delete[] used_shaders_size;
@@ -319,6 +322,7 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *sc
         delete[] reshapable;
         delete[] layer_number;
         delete[] baking_group_id;
+        delete[] max_smooth_angle;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;
@@ -389,6 +393,7 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *sc
         bool            *reshapable             = new bool[obj_cnt];
         int32_t         *layer_number           = new int32_t[obj_cnt];
         int32_t         *baking_group_id        = new int32_t[obj_cnt];
+        float           *max_smooth_angle       = new float[obj_cnt];
 
         uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
         uint64_t        *vert_per_hair_size     = new uint64_t[obj_cnt];
@@ -465,6 +470,7 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *sc
                 shadow_vis[obj_cnt]           = true;
                 rand_color_seed[obj_cnt]      = 0;
                 reshapable[obj_cnt]           = false;
+                max_smooth_angle[obj_cnt]     = 89.0f;
 
                 hair_points_size[obj_cnt]     = light->mesh->hair_points.size();
                 vert_per_hair_size[obj_cnt]   = light->mesh->vert_per_hair.size();
@@ -512,7 +518,8 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *sc
                                         cam_vis,
                                         shadow_vis,
                                         rand_color_seed,
-                                        reshapable);
+                                        reshapable,
+                                        max_smooth_angle);
             server->uploadLayerMap(true, "__global_lights_lm", name, static_cast< ::OctaneEngine::int32_t>(obj_cnt), layer_number, baking_group_id, general_vis, cam_vis, shadow_vis, static_cast< ::OctaneEngine::int32_t*>(rand_color_seed));
 
             for(size_t n = 0; n < obj_cnt; n++) {
@@ -554,6 +561,7 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server, Scene *sc
         delete[] reshapable;
         delete[] layer_number;
         delete[] baking_group_id;
+        delete[] max_smooth_angle;
 
         delete[] hair_points_size;
         delete[] vert_per_hair_size;

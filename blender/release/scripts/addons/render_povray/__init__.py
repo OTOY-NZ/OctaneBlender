@@ -351,7 +351,7 @@ class RenderPovSettingsScene(PropertyGroup):
 ###############################################################################
 class RenderPovSettingsMaterial(PropertyGroup):
     irid_enable = BoolProperty(
-            name="Enable Iridescence",
+            name="Iridescence coating",
             description="Newton's thin film interference (like an oil slick on a puddle of "
                         "water or the rainbow hues of a soap bubble.)",
             default=False)
@@ -392,7 +392,7 @@ class RenderPovSettingsMaterial(PropertyGroup):
             min=0.0, max=10.0, soft_min=0.000, soft_max=1.0, default=0)
 
     interior_fade_color = FloatVectorProperty(
-            name="Fade Color", description="Color of filtered attenuation for transparent "
+            name="Interior Fade Color", description="Color of filtered attenuation for transparent "
                                            "materials",
             precision=4, step=0.01, min=0.0, soft_max=1.0,
             default=(0, 0, 0), options={'ANIMATABLE'}, subtype='COLOR')
@@ -412,11 +412,11 @@ class RenderPovSettingsMaterial(PropertyGroup):
             description="Values typically range from 0.0 to 1.0 or higher. Zero is no caustics. "
                         "Low, non-zero values give broad hot-spots while higher values give "
                         "tighter, smaller simulated focal points",
-            min=0.00, max=10.0, soft_min=0.00, soft_max=1.10, default=0.5)
+            min=0.00, max=10.0, soft_min=0.00, soft_max=5.0, default=0.07)
 
-    photons_refraction = BoolProperty(
-            name="Refractive Photon Caustics", description="more physically correct",
-            default=False)
+    refraction_caustics = BoolProperty(
+            name="Refractive Caustics", description="hotspots of light focused when going through the material",
+            default=True)
 
     photons_dispersion = FloatProperty(
             name="Chromatic Dispersion",
@@ -435,10 +435,10 @@ class RenderPovSettingsMaterial(PropertyGroup):
             default=False)
 
     refraction_type = EnumProperty(
-            items=[("0", "None", "use only reflective caustics"),
+            items=[
                    ("1", "Fake Caustics", "use fake caustics"),
                    ("2", "Photons Caustics", "use photons for refractive caustics")],
-            name="Refractive",
+            name="Refraction Type:",
             description="use fake caustics (fast) or true photons for refractive Caustics",
             default="1")
 
@@ -993,6 +993,11 @@ class RenderPovSettingsObject(PropertyGroup):
         name="Imported Pov location",
         precision=6, 
         default=(0.0, 0.0, 0.0))
+        
+    imported_loc_cap = FloatVectorProperty(
+        name="Imported Pov location",
+        precision=6, 
+        default=(0.0, 0.0, 2.0))
 
     unlock_parameters = BoolProperty(name="Lock",default = False)
     
@@ -1061,11 +1066,7 @@ class RenderPovSettingsObject(PropertyGroup):
     addboundorclip = BoolProperty(description="",default=False)
     
     blob_threshold = FloatProperty(name="Threshold",min=0.00, max=10.0, default=0.6)
-    
-    cylinder_radius = FloatProperty(name="Cylinder R",min=0.00, max=10.0, default=0.04)
-    
 
-    
     blob_strength = FloatProperty(name="Strength",min=-10.00, max=10.0, default=1.00)
     
     res_u = IntProperty(name="U",min=100, max=1000, default=500)
@@ -1089,14 +1090,32 @@ class RenderPovSettingsObject(PropertyGroup):
     all_intersections = BoolProperty(name="All Intersections",default=False)
     
     max_trace = IntProperty(name="Max Trace",min=1, max=100,default=1)
-    
-    
-    
+
+
+    def prop_update_cylinder(self, context):
+        if bpy.ops.pov.cylinder_update.poll():
+            bpy.ops.pov.cylinder_update()
+    cylinder_radius = FloatProperty(name="Cylinder R",min=0.00, max=10.0, default=0.04, update=prop_update_cylinder)
+    cylinder_location_cap = FloatVectorProperty(
+            name="Cylinder Cap Location", subtype='TRANSLATION',
+            description="The position of the 'other' end of the cylinder (relative to object location)",
+            default=(0.0, 0.0, 2.0), update=prop_update_cylinder,
+    )
+
+    imported_cyl_loc = FloatVectorProperty(
+        name="Imported Pov location",
+        precision=6, 
+        default=(0.0, 0.0, 0.0))
+        
+    imported_cyl_loc_cap = FloatVectorProperty(
+        name="Imported Pov location",
+        precision=6, 
+        default=(0.0, 0.0, 2.0))
+
     def prop_update_sphere(self, context):
         bpy.ops.pov.sphere_update()
-    sphere_radius = FloatProperty(name="Sphere radius",min=0.00, max=10.0, default=0.5, update=prop_update_sphere)    
+    sphere_radius = FloatProperty(name="Sphere radius",min=0.00, max=10.0, default=0.5, update=prop_update_sphere)
 
-            
 
     def prop_update_cone(self, context):
         bpy.ops.pov.cone_update()

@@ -44,11 +44,10 @@ class OctaneClient;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class Mesh {
 public:
-	Mesh();
-	~Mesh();
-
-	void clear();
-	void tag_update(Scene *scene);
+    enum WindingOrder {
+        CLOCKWISE,
+        COUNTERCLOCKWISE
+    };
 
     enum MeshType {
 		GLOBAL,
@@ -57,6 +56,12 @@ public:
 		RESHAPABLE_PROXY,
         AS_IS
 	};
+
+	Mesh();
+	~Mesh();
+
+	void clear();
+	void tag_update(Scene *scene);
 
 	std::string name;
     std::string nice_name;
@@ -73,6 +78,7 @@ public:
     int32_t     rand_color_seed;
     int32_t     layer_number;
     int32_t     baking_group_id;
+    float       max_smooth_angle;
 
 	vector<float3>	points;
 	vector<float3>	normals;

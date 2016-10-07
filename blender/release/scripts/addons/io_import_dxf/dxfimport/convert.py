@@ -78,7 +78,7 @@ def bspline_to_cubic(do, en, curve, errors=None):
         return new_spline
 
     knots = list(en.knots)
-    spline = [ShortVec(cp) for cp in en.controlpoints]
+    spline = [ShortVec(cp) for cp in en.control_points]
     degree = len(knots) - len(spline) - 1
     if degree <= 3:
         clean_knots()
@@ -244,7 +244,19 @@ def extrusion_to_matrix(entity):
 
     az = Vector(entity.extrusion)
     ax, ay = arbitrary_x_axis(az)
-    return Matrix((ax, ay, az)).inverted()
+    ax4 = ax.to_4d()
+    ay4 = ay.to_4d()
+    az4 = az.to_4d()
+    ax4[3] = 0
+    ay4[3] = 0
+    az4[3] = 0
+    translation = Vector((0, 0, 0, 1))
+    if hasattr(entity, "elevation"):
+        if type(entity.elevation) is tuple:
+            translation = Vector(entity.elevation).to_4d()
+        else:
+            translation = (az * entity.elevation).to_4d()
+    return Matrix((ax4, ay4, az4, translation)).transposed()
 
 
 def split_by_width(entity):

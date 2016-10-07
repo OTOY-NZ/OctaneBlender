@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 2.77 (sub 0) (b'870f911')\n"
+"Project-Id-Version: Blender 2.78 (sub 0) (b'2c19ddf')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-03-18 13:04:16\n"
+"POT-Creation-Date: 2016-09-26 12:09:58\n"
 "PO-Revision-Date: 2013-09-26 14:51+0700\n"
 "Last-Translator: Daffi A. Prabowo <daffi.ap@gmail.com>\n"
 "Language-Team: Indonesian <>\n"
@@ -596,10 +596,6 @@ msgstr "lokasi"
 
 msgid "Target object"
 msgstr "Sunting Objek"
-
-
-msgid "Addon Preferences"
-msgstr "Pengaturan Pengguna"
 
 
 msgid "Translation Root"
@@ -1295,6 +1291,14 @@ msgid "Attenuation"
 msgstr "lokasi"
 
 
+msgid "Parent Bone"
+msgstr "Induk"
+
+
+msgid "Parent Type"
+msgstr "Induk"
+
+
 msgid "Draw Mode"
 msgstr "Modus"
 
@@ -1309,6 +1313,10 @@ msgstr "Tekstur"
 
 msgid "2D Image"
 msgstr "Tambah Gambar"
+
+
+msgid "Triangles"
+msgstr "Hapus"
 
 
 msgid "Collision Shape"
@@ -1886,14 +1894,6 @@ msgid "Sculpt Mode"
 msgstr "Modus Pahat"
 
 
-msgid "Parent Bone"
-msgstr "Induk"
-
-
-msgid "Parent Type"
-msgstr "Induk"
-
-
 msgid "3 Vertices"
 msgstr "Partikel"
 
@@ -2398,6 +2398,10 @@ msgstr "Garis Lurus"
 
 msgid "Invert the mask black/white"
 msgstr "Saluran"
+
+
+msgid "Mask Layers"
+msgstr "Lapisan"
 
 
 msgid "Mask Parent"
@@ -3485,6 +3489,10 @@ msgid "String Node Socket"
 msgstr "String Node Socket"
 
 
+msgid "Active Node"
+msgstr "Tambah Baru"
+
+
 msgid "Modifier Object"
 msgstr "Sunting Objek"
 
@@ -3560,6 +3568,11 @@ msgstr "Partikel"
 
 
 msgctxt "Operator"
+msgid "Properties"
+msgstr "Nama Properti"
+
+
+msgctxt "Operator"
 msgid "Sample Keyframes"
 msgstr "Tekstur"
 
@@ -3572,6 +3585,16 @@ msgstr "Seleksi"
 msgctxt "Operator"
 msgid "Border Select"
 msgstr "Modus Sunting"
+
+
+msgctxt "Operator"
+msgid "Circle Select"
+msgstr "Seleksi"
+
+
+msgctxt "Operator"
+msgid "Lasso Select"
+msgstr "Seleksi"
 
 
 msgctxt "Operator"
@@ -4009,27 +4032,12 @@ msgstr "Hapus"
 
 
 msgctxt "Operator"
-msgid "Properties"
-msgstr "Nama Properti"
-
-
-msgctxt "Operator"
 msgid "Reload Clip"
 msgstr "Kamera"
 
 
 msgctxt "Operator"
-msgid "Circle Select"
-msgstr "Seleksi"
-
-
-msgctxt "Operator"
 msgid "Select Grouped"
-msgstr "Seleksi"
-
-
-msgctxt "Operator"
-msgid "Lasso Select"
 msgstr "Seleksi"
 
 
@@ -4088,11 +4096,6 @@ msgstr "Adegan"
 msgctxt "Operator"
 msgid "Solve Camera"
 msgstr "Kamera"
-
-
-msgctxt "Operator"
-msgid "Set Rotation Track"
-msgstr "lokasi"
 
 
 msgctxt "Operator"
@@ -4522,6 +4525,11 @@ msgid "Delete Active Frame"
 msgstr "Hapus"
 
 
+msgctxt "Operator"
+msgid "Remove Brush"
+msgstr "Setel Ulang"
+
+
 msgid "Gap Duration"
 msgstr "lokasi"
 
@@ -4550,11 +4558,6 @@ msgid "Normalize Weight"
 msgstr "Orientasi Transformasi"
 
 
-msgctxt "Operator"
-msgid "Delete..."
-msgstr "Hapus"
-
-
 msgid "Hide unselected rather than selected layers"
 msgstr "Warna Standar"
 
@@ -4574,6 +4577,11 @@ msgstr "Hapus"
 
 msgid "Toggle the selection"
 msgstr "Hapus"
+
+
+msgctxt "Operator"
+msgid "Hide Selection"
+msgstr "Modus Sunting"
 
 
 msgctxt "Operator"
@@ -4634,6 +4642,11 @@ msgstr "Grup"
 msgctxt "Operator"
 msgid "Remove From All Groups"
 msgstr "Warna Standar"
+
+
+msgctxt "Operator"
+msgid "Clear Render Border"
+msgstr "Modus Pahat"
 
 
 msgctxt "Operator"
@@ -5223,11 +5236,6 @@ msgstr "Tipe"
 
 msgctxt "Operator"
 msgid "Fill"
-msgstr "Modus Sunting"
-
-
-msgctxt "Operator"
-msgid "Hide Selection"
 msgstr "Modus Sunting"
 
 
@@ -7383,11 +7391,6 @@ msgid "Background image index to remove"
 msgstr "Tampilkan Gambar Latar pada tampilan atas"
 
 
-msgctxt "Operator"
-msgid "Clear Render Border"
-msgstr "Modus Pahat"
-
-
 msgid "Selected objects are saved in a temp file"
 msgstr "Bahan"
 
@@ -7513,21 +7516,6 @@ msgstr "Hapus"
 msgctxt "Operator"
 msgid "Zoom View"
 msgstr "Perbesar"
-
-
-msgctxt "Operator"
-msgid "Disable Addon"
-msgstr "Matikan"
-
-
-msgctxt "Operator"
-msgid "Enable Addon"
-msgstr "Hidupkan"
-
-
-msgctxt "Operator"
-msgid "Remove Addon"
-msgstr "Induk"
 
 
 msgctxt "Operator"
@@ -7761,10 +7749,6 @@ msgid "Mask Display"
 msgstr "Grup"
 
 
-msgid "Mask Layers"
-msgstr "Lapisan"
-
-
 msgid "Mask Tools"
 msgstr "Grup"
 
@@ -7831,10 +7815,6 @@ msgstr "lokasi"
 
 msgid "Ideal for fulldomes, ignore the sensor dimensions"
 msgstr "Saluran"
-
-
-msgid "Triangles"
-msgstr "Hapus"
 
 
 msgid "Line Segments"
@@ -8511,10 +8491,6 @@ msgid "Frame Node"
 msgstr "Dalam Jarak"
 
 
-msgid "Active Node"
-msgstr "Tambah Baru"
-
-
 msgid "Node Selected"
 msgstr "Modus Sunting"
 
@@ -8837,11 +8813,6 @@ msgstr "Seleksi"
 
 
 msgctxt "Operator"
-msgid "Scale"
-msgstr "Adegan"
-
-
-msgctxt "Operator"
 msgid "Cursor to Selected"
 msgstr "lokasi"
 
@@ -8862,8 +8833,18 @@ msgstr "Putar"
 
 
 msgctxt "Operator"
+msgid "Scale"
+msgstr "Adegan"
+
+
+msgctxt "Operator"
 msgid "Select Inverse"
 msgstr "Seleksi"
+
+
+msgctxt "Operator"
+msgid "Delete..."
+msgstr "Hapus"
 
 
 msgid "Spline:"
@@ -8919,6 +8900,10 @@ msgid "Split UVs:"
 msgstr "Modus Pahat"
 
 
+msgid "Speed:"
+msgstr "Ukurang"
+
+
 msgid "Filename:"
 msgstr "Nama file"
 
@@ -8929,11 +8914,6 @@ msgstr "Partikel"
 
 msgid "Use Particle's Radius"
 msgstr "Partikel"
-
-
-msgctxt "Operator"
-msgid "Remove Brush"
-msgstr "Setel Ulang"
 
 
 msgid "Domain Object:"
@@ -9300,10 +9280,6 @@ msgid "Sound:"
 msgstr "Suara:"
 
 
-msgid "Sequencer / Clip Editor:"
-msgstr "Penyunting Grafik"
-
-
 msgid "Kerning Style:"
 msgstr "Adegan"
 
@@ -9344,10 +9320,6 @@ msgid "Mouse:"
 msgstr "Tetikus:"
 
 
-msgid "NDOF Orbit Sensitivity"
-msgstr "Tampilan 3D"
-
-
 msgid "Text:"
 msgstr "Teks:"
 
@@ -9362,6 +9334,10 @@ msgstr "Alat"
 
 msgid "Axis Colors:"
 msgstr "Warna Standar"
+
+
+msgid "NDOF Orbit Sensitivity"
+msgstr "Tampilan 3D"
 
 
 msgid "Description:"
@@ -10056,11 +10032,6 @@ msgstr "Tambah Gambar"
 
 
 msgctxt "Operator"
-msgid "Add Single Driver"
-msgstr "Tambah Gambar"
-
-
-msgctxt "Operator"
 msgid "Add All to Keying Set"
 msgstr "Tekstur"
 
@@ -10315,10 +10286,6 @@ msgid "Failed to erode walkable area"
 msgstr "Tidak dapat membuka dokumen"
 
 
-msgid "Failed to build regions"
-msgstr "Tidak dapat membuka dokumen"
-
-
 msgid "Failed to build contours"
 msgstr "Tidak dapat membuka dokumen"
 
@@ -10471,6 +10438,14 @@ msgid "OK"
 msgstr "OK"
 
 
+msgid "Active F-Curve"
+msgstr "Tekstur"
+
+
+msgid "Active Keyframe"
+msgstr "Tekstur"
+
+
 msgid "Width:"
 msgstr "Lebar"
 
@@ -10529,30 +10504,6 @@ msgstr "Warna Standar"
 
 msgid "Value:"
 msgstr "Nilai"
-
-
-msgid "Bone 1:"
-msgstr "Tulang"
-
-
-msgid "Bone 2:"
-msgstr "Tulang"
-
-
-msgid "Ob/Bone 2:"
-msgstr "Tulang"
-
-
-msgid "Ob/Bone:"
-msgstr "Tulang"
-
-
-msgid "Active F-Curve"
-msgstr "Tekstur"
-
-
-msgid "Active Keyframe"
-msgstr "Tekstur"
 
 
 msgid "Active F-Curve is not editable"
@@ -10669,10 +10620,6 @@ msgstr "Internet:"
 
 msgid "Bokeh Type:"
 msgstr "Gambar"
-
-
-msgid "Speed:"
-msgstr "Ukurang"
 
 
 msgid "Buffer Edge:"
@@ -11063,8 +11010,16 @@ msgid "unable to open the file"
 msgstr "Tidak dapat membuka dokumen"
 
 
+msgid "Context window not set"
+msgstr "Warna Standar"
+
+
 msgid "Cannot read file '%s': %s"
 msgstr "Tidak dapat membuka: \"%s\",%s."
+
+
+msgid "Nothing indicated"
+msgstr "Hapus"
 
 
 msgid "Donations"
@@ -11082,10 +11037,6 @@ msgstr "Kamera"
 msgctxt "Operator"
 msgid "Toggle System Console"
 msgstr "Kamera"
-
-
-msgid "Context window not set"
-msgstr "Warna Standar"
 
 
 msgid "Blender User Preferences"

@@ -405,7 +405,7 @@ static void get_material_startjob(void *customdata, short *stop, short *do_updat
         mat_livedb_add_mat_element(bmain, C, ntree, node_to, sock_to, &cur_item, file_path, 0, &cur_y_pos);
 
         ED_node_tree_update(C);
-        ED_node_tag_update_nodetree(bmain, ntree);
+        ED_node_tag_update_nodetree(bmain, ntree, 0);
 
         MEM_freeN(items);
     }

@@ -7,14 +7,15 @@
 #define __OCTANECLIENT_H__
 
 #ifndef OCTANE_SERVER_MAJOR_VERSION
-#   define OCTANE_SERVER_MAJOR_VERSION 10
+#   define OCTANE_SERVER_MAJOR_VERSION 11
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 6
+#   define OCTANE_SERVER_MINOR_VERSION 1
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
 #define SEND_CHUNK_SIZE 67108864
+
 
 #if !defined(__APPLE__)
 #  undef htonl
@@ -36,11 +37,18 @@
 #  include <pthread.h>
 #  include <math.h>
 #  include <string.h>
+
+#  include <stdio.h>
+#  include <fcntl.h>
+#  include <stdlib.h>
 #else
 #  undef _WINSOCKAPI_ //Needs to be difined project-wide to prevent the inclusion of winsock.h from windows.h
 #  include <winsock2.h>
 #  include <windows.h>
 #  include <ws2tcpip.h>
+
+#  include <wchar.h>
+#  include <io.h>
 #endif
 
 #ifdef __GNUC__
@@ -63,6 +71,10 @@
 
 #pragma pop_macro("htonl")
 #pragma pop_macro("ntohl")
+
+#ifndef MAX_PATH
+#   define MAX_PATH 512
+#endif
 
 
 namespace Octane {
@@ -506,6 +518,13 @@ static const int SERVER_PORT = 5130;
 #   define UNLOCK_MUTEX(x) pthread_mutex_unlock(&(x));
 #endif //#ifdef _WIN32
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DATA TYPES
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #pragma pack(push, 4)
 template <typename T> struct Vec2 {
     T x;
@@ -632,6 +651,727 @@ struct MatrixF {
 typedef Vec2<float> float_2;
 typedef Vec3<float> float_3;
 typedef Vec4<float> float_4;
+
+
+#ifdef _WIN32
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// UTF-8 TO UTF-16 CONVERSION HELPERS
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define UTF_ERROR_NULL_IN 1 << 0 /* Error occures when requered parameter is missing*/
+#define UTF_ERROR_ILLCHAR 1 << 1 /* Error if character is in illigal UTF rage*/
+#define UTF_ERROR_SMALL   1 << 2 /* Passed size is to small. It gives legal string with character missing at the end*/
+#define UTF_ERROR_ILLSEQ  1 << 3 /* Error if sequence is broken and doesn't finish*/
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get the nuber of Utf-16 characters representing the given Utf-8 string
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
+#   pragma warning (push)
+#   pragma warning (disable : 4706)
+#endif
+inline size_t utf16_len_of_utf8(const char *szU8) {
+    size_t          stCharCnt   = 0;
+    char            cCurType    = 0;
+    uint32_t        u32         = 0;
+    char            u;
+
+    if(!szU8) return 0;
+
+    for(; (u = *szU8); ++szU8) {
+#ifdef _WIN32
+#   pragma warning (pop)
+#endif
+        if(cCurType == 0) {
+            if((u & 0x01 << 7) == 0)     { ++stCharCnt; u32 = 0; continue; }         //1 utf-8 char
+            if((u & 0x07 << 5) == 0xC0)  { cCurType = 1; u32 = u & 0x1F; continue; } //2 utf-8 char
+            if((u & 0x0F << 4) == 0xE0)  { cCurType = 2; u32 = u & 0x0F; continue; } //3 utf-8 char
+            if((u & 0x1F << 3) == 0xF0)  { cCurType = 3; u32 = u & 0x07; continue; } //4 utf-8 char
+            continue;
+        }
+        else {
+            if((u & 0xC0) == 0x80) {
+                u32 = (u32 << 6) | (u & 0x3F);
+                --cCurType;
+            }
+            else {
+                u32      = 0;
+                cCurType = 0;
+            }
+        }
+
+        if(cCurType == 0) {
+            if((0 < u32 && u32 < 0xD800) || (0xE000 <= u32 && u32 < 0x10000)) ++stCharCnt;
+            else if(0x10000 <= u32 && u32 < 0x110000) stCharCnt += 2;
+            u32 = 0;
+        }
+    }
+
+    return ++stCharCnt;
+} //utf16_len_of_utf8()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Convert the Utf-8 string to Utf-16 string
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
+#   pragma warning (push)
+#   pragma warning (disable : 4706)
+#endif
+inline int utf8_to_utf16(const char *szU8, wchar_t *wszU16, size_t stSizeU16) {
+    char        cCurType    = 0;
+    uint32_t    u32         = 0;
+    int         err         = 0;
+    wchar_t     *wszU16end  = wszU16 + stSizeU16 - 1;
+    char        u;
+
+    if(!stSizeU16 || !szU8 || !wszU16) return UTF_ERROR_NULL_IN;
+    //wszU16end--;
+
+    for(; wszU16 < wszU16end && (u = *szU8); ++szU8) {
+#ifdef _WIN32
+#   pragma warning (pop)
+#endif
+        if(cCurType == 0) {
+            if((u & 0x01 << 7) == 0)     { *wszU16 = u; ++wszU16; u32 = 0; continue; }  //1 utf-8 char
+            if((u & 0x07 << 5) == 0xC0)  { cCurType = 1; u32 = u & 0x1F; continue; }    //2 utf-8 char
+            if((u & 0x0F << 4) == 0xE0)  { cCurType = 2; u32 = u & 0x0F; continue; }    //3 utf-8 char
+            if((u & 0x1F << 3) == 0xF0)  { cCurType = 3; u32 = u & 0x07; continue; }    //4 utf-8 char
+            err |= UTF_ERROR_ILLCHAR;
+            continue;
+        }
+        else {
+            if((u & 0xC0) == 0x80) {
+                u32 = (u32 << 6) | (u & 0x3F);
+                --cCurType;
+            }
+            else {
+                u32 = 0; cCurType = 0; err |= UTF_ERROR_ILLSEQ;
+            }
+        }
+        if(cCurType == 0) {
+            if((0 < u32 && u32 < 0xD800) || (0xE000 <= u32 && u32 < 0x10000)) {
+                *wszU16 = static_cast<wchar_t>(u32);
+                ++wszU16;
+            }
+            else if(0x10000 <= u32 && u32 < 0x110000) {
+                if(wszU16 + 1 >= wszU16end) break;
+                u32 -= 0x10000;
+                *wszU16 = static_cast<wchar_t>(0xD800 + (u32 >> 10));
+                ++wszU16;
+                *wszU16 = 0xDC00 + (u32 & 0x3FF);
+                ++wszU16;
+            }
+            u32 = 0;
+        }
+
+    }
+
+    *wszU16 = *wszU16end = 0;
+
+    if(*szU8) err |= UTF_ERROR_SMALL;
+
+    return err;
+} //utf8_to_utf16()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get the nuber of Utf-8 characters representing the given Utf-16 string
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline size_t utf8_len_of_utf16(const wchar_t *szU16) {
+    size_t      stCharCnt   = 0;
+    wchar_t     u           = 0;
+
+    if(!szU16) return 0;
+
+    for(int i = 0; (u = szU16[i]); ++i) {
+        if(u < 0x0080) stCharCnt += 1;
+        else {
+            if(u < 0x0800) stCharCnt += 2;
+            else {
+                if(u < 0xD800) stCharCnt += 3;
+                else {
+                    if(u < 0xDC00) {
+                        ++i;
+                        if((u = szU16[i]) == 0) break;
+                        if(u >= 0xDC00 && u < 0xE000) stCharCnt += 4;
+                    }
+                    else {
+                        if(u < 0xE000) {
+                            /*illigal*/;
+                        }
+                        else stCharCnt += 3;
+                    }
+                }
+            }
+        }
+    }
+
+    return ++stCharCnt;
+} //utf8_len_of_utf16()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Convert the Utf-16 string to Utf-8 string
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int utf16_to_utf8(const wchar_t *szU16, char *szU8, size_t stSizeU8) {
+    wchar_t u           = 0;
+    int     err         = 0;
+    char    *wszU8end   = szU8 + stSizeU8 - 1;
+
+    if(!stSizeU8 || !szU16 || !szU8) return UTF_ERROR_NULL_IN;
+    //wszU8end--;
+
+    for(; szU8 < wszU8end && (u = *szU16); ++szU16, ++szU8) {
+        if(u < 0x0080) *szU8 = static_cast<char>(u);
+        else if(u < 0x0800) {
+            if(szU8 + 1 >= wszU8end) break;
+            *szU8++ = (0x3 << 6) | (0x1F & (u >> 6));
+            *szU8   = (0x1 << 7) | (0x3F & (u));
+        }
+        else if(u < 0xD800 || u >= 0xE000) {
+            if(szU8 + 2 >= wszU8end) break;
+            *szU8++ = (0x7 << 5) | (0xF & (u >> 12));
+            *szU8++ = (0x1 << 7) | (0x3F & (u >> 6));
+            *szU8   = (0x1 << 7) | (0x3F & (u));
+        }
+        else if(u < 0xDC00) {
+            wchar_t u2 = *++szU16;
+
+            if(!u2) break;
+            if(u2 >= 0xDC00 && u2 < 0xE000) {
+                if(szU8 + 3 >= wszU8end) break;
+                else {
+                    uint32_t uc = 0x10000 + (u2 - 0xDC00) + ((u - 0xD800) << 10);
+
+                    *szU8++ = (0xF << 4) | (0x7 & (uc >> 18));
+                    *szU8++ = (0x1 << 7) | (0x3F & (uc >> 12));
+                    *szU8++ = (0x1 << 7) | (0x3F & (uc >> 6));
+                    *szU8   = (0x1 << 7) | (0x3F & (uc));
+                }
+            }
+            else {
+                --szU8; err |= UTF_ERROR_ILLCHAR;
+            }
+        }
+        else if(u < 0xE000) {
+            --szU8; err |= UTF_ERROR_ILLCHAR;
+        }
+    }
+
+    *szU8 = *wszU8end = 0;
+
+    if(*szU16) err |= UTF_ERROR_SMALL;
+
+    return err;
+} //utf16_to_utf8()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Convert the Utf-8 string to Utf-16 string, allocating the Utf-16 buffer (must be freed by caller)
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline wchar_t *utf8_to_utf16_alloc(const char *szU8) {
+    size_t stU16len = utf16_len_of_utf8(szU8);
+    if(!stU16len) return 0;
+
+    wchar_t *wszU16 = (wchar_t*) malloc(sizeof(wchar_t) * stU16len);
+    utf8_to_utf16(szU8, wszU16, stU16len);
+    return wszU16;
+} //alloc_utf16_from_8()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Convert the Utf-16 string to Utf-8 string, allocating the Utf-8 buffer (must be freed by caller)
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline char *utf16_to_utf8_alloc(const wchar_t *szU16) {
+    size_t stU8len = utf8_len_of_utf16(szU16);
+    if (!stU8len) return 0;
+
+    char *szU8 = (char*) malloc(sizeof(char) * stU8len);
+    utf16_to_utf8(szU16, szU8, stU8len);
+    return szU8;
+} //utf16_to_utf8_alloc()
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Easy allocation and conversion to the new Utf-16 string. New string has _16 suffix. Must be deallocated with UTF16_ENCODE_FINISH in right order.
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#define UTF16_ENCODE(u8string) { \
+    wchar_t *u8string ## _16 = utf8_to_utf16_alloc((char*)u8string)
+
+#define UTF16_ENCODE_FINISH(u8string) \
+    free(u8string ## _16); } (void)0
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FILE FUNCTIONS WORKING WITH UTF-8 NAMES
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline FILE *ufopen(const char *filename, const char *mode) {
+	FILE *f = 0;
+
+	UTF16_ENCODE(filename);
+	UTF16_ENCODE(mode);
+
+	if(filename_16 && mode_16)
+		f = _wfopen(filename_16, mode_16);
+	
+	UTF16_ENCODE_FINISH(mode);
+	UTF16_ENCODE_FINISH(filename);
+
+	if(!f) {
+		if((f = fopen(filename, mode))) {
+			//printf("%s is not Utf-8 file name.\n", filename);
+		}
+	}
+	return f;
+} //ufopen()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline FILE *ufopen(const wchar_t *wszU16part, const char *szU8part, const char *szU8mode) {
+    FILE *f = 0;
+
+    UTF16_ENCODE(szU8part);
+    UTF16_ENCODE(szU8mode);
+
+    if(szU8part_16 && szU8mode_16) {
+        wchar_t wszFullPath[MAX_PATH];
+        wcscpy_s(wszFullPath, wszU16part);
+        wcscat_s(wszFullPath, szU8part_16);
+        f = _wfopen(wszFullPath, szU8mode_16);
+    }
+
+    UTF16_ENCODE_FINISH(szU8mode);
+    UTF16_ENCODE_FINISH(szU8part);
+
+    return f;
+} //ufopen()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline FILE *ufopen(const char *szU8part, const wchar_t *wszU16part, const char *szU8mode) {
+    FILE *f = 0;
+
+    UTF16_ENCODE(szU8part);
+    UTF16_ENCODE(szU8mode);
+
+    if(szU8part_16 && szU8mode_16) {
+        wchar_t wszFullPath[MAX_PATH];
+        wcscpy_s(wszFullPath, szU8part_16);
+        wcscat_s(wszFullPath, wszU16part);
+        f = _wfopen(wszFullPath, szU8mode_16);
+    }
+
+    UTF16_ENCODE_FINISH(szU8mode);
+    UTF16_ENCODE_FINISH(szU8part);
+
+    return f;
+} //ufopen()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int ustat(const char *filename, struct _stat64i32 *attrib) {
+    int ret = -1;
+
+    UTF16_ENCODE(filename);
+
+    if(filename_16) {
+        ret = _wstat(filename_16, attrib);
+    }
+
+    UTF16_ENCODE_FINISH(filename);
+
+    return ret;
+} //ustat()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int ustat(const wchar_t *wszU16part, const char *szU8part, struct _stat64i32 *attrib) {
+    int ret = -1;
+
+    UTF16_ENCODE(szU8part);
+
+    if(szU8part_16) {
+        wchar_t wszFullPath[MAX_PATH];
+        wcscpy_s(wszFullPath, wszU16part);
+        wcscat_s(wszFullPath, szU8part_16);
+        ret = _wstat(wszFullPath, attrib);
+    }
+
+    UTF16_ENCODE_FINISH(szU8part);
+
+    return ret;
+} //ustat()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int ustat(const char *szU8part, const wchar_t *wszU16part, struct _stat64i32 *attrib) {
+    int ret = -1;
+
+    UTF16_ENCODE(szU8part);
+
+    if(szU8part_16) {
+        wchar_t wszFullPath[MAX_PATH];
+        wcscpy_s(wszFullPath, szU8part_16);
+        wcscat_s(wszFullPath, wszU16part);
+        ret = _wstat(wszFullPath, attrib);
+    }
+
+    UTF16_ENCODE_FINISH(szU8part);
+
+    return ret;
+} //ustat()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uremove(const wchar_t *wszU16part, const char *szU8part) {
+    int ret = -1;
+
+    UTF16_ENCODE(szU8part);
+
+    if(szU8part_16) {
+        wchar_t wszFullPath[MAX_PATH];
+        wcscpy_s(wszFullPath, wszU16part);
+        wcscat_s(wszFullPath, szU8part_16);
+        ret = _wremove(wszFullPath);
+    }
+
+    UTF16_ENCODE_FINISH(szU8part);
+
+    return ret;
+} //uremove()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uremove(const char *szU8part, const wchar_t *wszU16part) {
+    int ret = -1;
+
+    UTF16_ENCODE(szU8part);
+
+    if(szU8part_16) {
+        wchar_t wszFullPath[MAX_PATH];
+        wcscpy_s(wszFullPath, szU8part_16);
+        wcscat_s(wszFullPath, wszU16part);
+        ret = _wremove(wszFullPath);
+    }
+
+    UTF16_ENCODE_FINISH(szU8part);
+
+    return ret;
+} //uremove()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uopen(const char *filename, int oflag, int pmode) {
+	int f = -1;
+
+	UTF16_ENCODE(filename);
+	
+	if(filename_16)
+		f = _wopen(filename_16, oflag, pmode);
+
+	UTF16_ENCODE_FINISH(filename);
+
+	if(f == -1) {
+		if((f = _open(filename, oflag, pmode)) != -1) {
+			//printf("%s is not Utf-8 file name.\n", filename);
+		}
+	}
+	return f;
+} //uopen()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uaccess(const char *filename, int mode) {
+	int r = -1;
+
+	UTF16_ENCODE(filename);
+
+	if(filename_16)
+		r = _waccess(filename_16, mode);
+
+	UTF16_ENCODE_FINISH(filename);
+
+	return r;
+} //uaccess()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int urename(const char *oldname, const char *newname) {
+	int r = -1;
+
+	UTF16_ENCODE(oldname);
+	UTF16_ENCODE(newname);
+
+	if(oldname_16 && newname_16)
+		r = _wrename(oldname_16, newname_16);
+	
+	UTF16_ENCODE_FINISH(newname);
+	UTF16_ENCODE_FINISH(oldname);
+
+	return r;
+} //urename()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int umkdir(const char *pathname) {
+	bool ret = false;
+
+	UTF16_ENCODE(pathname);
+	
+	if(pathname_16)
+		ret = CreateDirectoryW(pathname_16, 0) ? true : false;
+
+	UTF16_ENCODE_FINISH(pathname);
+
+	return ret ? 0 : -1;
+} //umkdir()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline char *ugetenv_alloc(const char *varname) {
+	char    *ret = 0;
+	wchar_t *wszValue;
+
+	UTF16_ENCODE(varname);
+
+	if(varname_16) {
+		wszValue = _wgetenv(varname_16);
+		ret      = utf16_to_utf8_alloc(wszValue);
+	}
+	UTF16_ENCODE_FINISH(varname);
+
+	return ret;
+} //ugetenv_alloc()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline void  ugetenv_free(char *val) {
+	free(val);
+} //ugetenv_free()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int ugetenv_put(const char *varname, char *szU8, size_t buffsize) {
+	int     ret = 0;
+	wchar_t *wszValue;
+
+	if(!buffsize) return ret;
+
+	UTF16_ENCODE(varname);
+
+	if(varname_16) {
+		wszValue = _wgetenv(varname_16);
+		utf16_to_utf8(wszValue, szU8, buffsize);
+		ret = 1;
+	}
+
+	UTF16_ENCODE_FINISH(varname);
+
+	if(!ret) szU8[0] = 0;
+
+	return ret;
+} //ugetenv_put()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uputenv(const char *szU8name, const char *szU8value) {
+	int ret = -1;
+
+	UTF16_ENCODE(szU8name);
+
+	if(szU8value) {
+		// Set the env variable
+		UTF16_ENCODE(szU8value);
+
+		if(szU8name_16 && szU8value_16)
+			ret = (SetEnvironmentVariableW(szU8name_16, szU8value_16) != 0) ? 0 : -1;
+
+		UTF16_ENCODE_FINISH(szU8value);
+	}
+	else {
+        // Clear the env variable
+		if(szU8name_16)
+			ret = (SetEnvironmentVariableW(szU8name_16, 0) != 0) ? 0 : -1;
+	}
+
+	UTF16_ENCODE_FINISH(szU8name);
+
+	return ret;
+} //uputenv()
+
+#else //#ifdef _WIN32
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline FILE *ufopen(const char *filename, const char *mode) {
+    return fopen(filename, mode);
+} //ufopen()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline FILE *ufopen(const char *szFirstPart, const char *szSecondPart, const char *szU8mode) {
+    FILE *f = 0;
+
+    if(szFirstPart && szSecondPart && szU8mode) {
+        char szFullPath[MAX_PATH];
+        strcpy(szFullPath, szFirstPart);
+        strcat(szFullPath, szSecondPart);
+        f = fopen(szFullPath, szU8mode);
+    }
+
+    return f;
+} //ufopen()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int ustat(const char *filename, struct stat *attrib) {
+    int ret = -1;
+
+    if(filename && attrib) {
+        ret = stat(filename, attrib);
+    }
+
+    return ret;
+} //ustat()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int ustat(const char *szFirstPart, const char *szSecondPart, struct stat *attrib) {
+    int ret = -1;
+
+    if(szFirstPart && szSecondPart && attrib) {
+        char szFullPath[MAX_PATH];
+        strcpy(szFullPath, szFirstPart);
+        strcat(szFullPath, szSecondPart);
+        ret = stat(szFullPath, attrib);
+    }
+
+    return ret;
+} //ustat()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uremove(const char *szFirstPart, const char *szSecondPart) {
+    int ret = -1;
+
+    if(szFirstPart && szSecondPart) {
+        char szFullPath[MAX_PATH];
+        strcpy(szFullPath, szFirstPart);
+        strcat(szFullPath, szSecondPart);
+        ret = remove(szFullPath);
+    }
+
+    return ret;
+} //uremove()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uopen(const char *filename, int oflag, int pmode) {
+    return open(filename,oflag, pmode);
+} //uopen()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uaccess(const char *filename, int mode) {
+    return access(filename, mode);
+} //uaccess()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int urename(const char *oldname, const char *newname) {
+    return rename(oldname, newname);
+} //urename()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int umkdir(const char *pathname) {
+    return mkdir(pathname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+} //umkdir()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline char *ugetenv_alloc(const char *varname) {
+    return getenv(varname);
+} //ugetenv_alloc()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline void  ugetenv_free(char *val) {
+    return;
+} //ugetenv_free()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int ugetenv_put(const char *varname, char *szU8, size_t buffsize) {
+    int     ret = 0;
+
+    if(!buffsize) return ret;
+
+    char *szValue = getenv(varname);
+    strncpy(szU8, szValue, buffsize);
+    ret = 1;
+
+    return ret;
+} //ugetenv_put()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline int uputenv(const char *szU8name, const char *szU8value) {
+    int ret = -1;
+
+    if(szU8name && szU8value) {
+        // Set the env variable
+        ret = (setenv(szU8name, szU8value, 1) != 0) ? 0 : -1;
+    }
+    else {
+        // Clear the env variable
+        ret = (unsetenv(szU8name) != 0) ? 0 : -1;
+    }
+
+    return ret;
+} //uputenv()
+
+#endif //#ifdef _WIN32
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// OCTANE SERVER
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2452,8 +3192,9 @@ public:
 
     /// The information about the server we are currently connected to.
     struct RenderServerInfo {
-        string  sNetAddress;    ///< The network address of the server.
-	    string  sDescription;   ///< Server description (currently not used).
+        string              sNetAddress;    ///< The network address of the server.
+	    string              sDescription;   ///< Server description (currently not used).
+        std::vector<string> gpuNames;       ///< Names of active GPUs on a server.
     }; //struct RenderServerInfo
 
     /// The type of the rendered image.
@@ -2501,7 +3242,8 @@ public:
             UNKNOWN,        ///< Unknown fail reason.
             WRONG_VERSION,  ///< The OctaneEngine version differs from that of the current client library.
             NO_CONNECTION,  ///< No network connection to the server.
-            NOT_ACTIVATED   ///< The Octane license is not activated on the server. Use the activate() method to activate the license on the server.
+            NOT_ACTIVATED,  ///< The Octane license is not activated on the server. Use the activate() method to activate the license on the server.
+            NO_GPUS         ///< No CUDA GPUs available on a server.
         }; //enum FailReasonsEnum
     };
 
@@ -2701,6 +3443,7 @@ public:
     /// @param [in] pbShadowVis - Array with "Shadow visibility" value for each mesh.
     /// @param [in] piRandColorSeed - Array with "Random color seed" value for each mesh.
     /// @param [in] pbReshapable - Array with "Reshapable mesh" switch for each mesh. Only reshapable meshes are deform-animated and can have deform-motionblur.
+    /// @param [in] pfMaxSmoothAngle - Array with "Max. smooth angle" value for each mesh. If negative - normals data is used, otherwise - normals data is ignored.
     inline void uploadMesh(         bool            bGlobal, uint32_t uiFrameIdx, uint32_t uiTotalFrames,
                                     uint64_t        uiMeshCnt,
                                     char            **ppcNames,
@@ -2742,7 +3485,8 @@ public:
                                     bool            *pbCamVis,
                                     bool            *pbShadowVis,
                                     int32_t         *piRandColorSeed,
-                                    bool            *pbReshapable);
+                                    bool            *pbReshapable,
+                                    float           *pfMaxSmoothAngle);
     /// Delete the mesh node on the server.
     /// @param [in] bGlobal - Set to **true** if the global world-space mesh needs to be deleted.
     /// @param [in] sName - Unique name of the mesh node that is going to be deleted on the server. Does not make sense if **bGloabl** is true.
@@ -3381,7 +4125,7 @@ private:
             uint8_t *pucBuf = 0;
             int64_t lFileSize = 0;
 
-            FILE *hFile = fopen(path.c_str(), "rb");
+            FILE *hFile = ufopen(path.c_str(), "rb");
             if(!hFile) goto exit3;
 
 #ifndef WIN32
@@ -3521,7 +4265,7 @@ exit3:
             if(sPath[sPath.length() - 1] == '/' || sPath[sPath.length() - 1] == '\\')
                 sPath.operator+=(m_szName);
 
-            FILE *hFile = fopen(sPath.c_str(), "wb");
+            FILE *hFile = ufopen(sPath.c_str(), "wb");
             if(!hFile) {
                 *piErr = errno;
                 return false;
@@ -3833,9 +4577,7 @@ inline bool OctaneClient::connectToServer(const char *szAddr) {
     }
 
     UNLOCK_MUTEX(m_SocketMutex);
-    if(!checkServerVersion()) {
-        return false;
-    }
+    if(!checkServerVersion()) return false;
 
     LOCK_MUTEX(m_SocketMutex);
     m_FailReason = FailReasons::NONE;
@@ -3864,6 +4606,7 @@ inline bool OctaneClient::disconnectFromServer() {
         
     m_ServerInfo.sNetAddress  = "";
     m_ServerInfo.sDescription = "";
+    m_ServerInfo.gpuNames.clear();
 
     UNLOCK_MUTEX(m_SocketMutex);
     return true;
@@ -3908,6 +4651,7 @@ inline bool OctaneClient::checkServerConnection() {
         
         m_ServerInfo.sNetAddress  = "";
         m_ServerInfo.sDescription = "";
+        m_ServerInfo.gpuNames.clear();
     }
 
     UNLOCK_MUTEX(m_SocketMutex);
@@ -3936,6 +4680,7 @@ inline bool OctaneClient::checkServerVersion() {
 
     LOCK_MUTEX(m_SocketMutex);
 
+    m_ServerInfo.gpuNames.clear();
     RPCSend snd(m_Socket, 0, DESCRIPTION);
     snd.write();
 
@@ -3944,7 +4689,7 @@ inline bool OctaneClient::checkServerVersion() {
         m_FailReason = FailReasons::UNKNOWN;
 
         rcv >> m_sErrorMsg;
-        fprintf(stderr, "Octane: ERROR getting render-server version.");
+        fprintf(stderr, "Octane: ERROR getting render-server description.");
         if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
 
@@ -3952,9 +4697,11 @@ inline bool OctaneClient::checkServerVersion() {
         return false;
     }
     else {
-        uint32_t maj_num, min_num;
+        m_FailReason = FailReasons::NONE;
+
+        uint32_t maj_num, min_num, num_gpus;
         bool active;
-        rcv >> maj_num >> min_num >> active;
+        rcv >> maj_num >> min_num >> num_gpus >> active;
 
         if(maj_num != OCTANE_SERVER_MAJOR_VERSION || min_num != OCTANE_SERVER_MINOR_VERSION) {
             m_FailReason = FailReasons::WRONG_VERSION;
@@ -3971,16 +4718,24 @@ inline bool OctaneClient::checkServerVersion() {
             UNLOCK_MUTEX(m_SocketMutex);
             return false;
         }
-        else if(!active) {
-            m_FailReason = FailReasons::NOT_ACTIVATED;
-            UNLOCK_MUTEX(m_SocketMutex);
-            return false;
+        
+        if(num_gpus) {
+            m_ServerInfo.gpuNames.resize(num_gpus);
+            string *str = &m_ServerInfo.gpuNames[0];
+            for(uint32_t i = 0; i < num_gpus; ++i) rcv >> str[i];
         }
         else {
-            m_FailReason = FailReasons::NONE;
-            UNLOCK_MUTEX(m_SocketMutex);
-            return true;
-        }
+			m_FailReason = FailReasons::NO_GPUS;
+            fprintf(stderr, "Octane: ERROR: no available CUDA GPUs on a server\n");
+		}
+
+        if(!active) {
+			m_FailReason = FailReasons::NOT_ACTIVATED;
+            fprintf(stderr, "Octane: ERROR: server is not activated\n");
+		}
+
+        UNLOCK_MUTEX(m_SocketMutex);
+        return m_FailReason == FailReasons::NONE;
     }
 
     UNLOCK_MUTEX(m_SocketMutex);
@@ -5062,7 +5817,8 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
                                 bool            *pbCamVis,
                                 bool            *pbShadowVis,
                                 int32_t         *piRandColorSeed,
-                                bool            *pbReshapable) {
+                                bool            *pbReshapable,
+                                float           *pfMaxSmoothAngle) {
     if(m_Socket < 0 || m_cBlockUpdates) return;
 
     LOCK_MUTEX(m_SocketMutex);
@@ -5072,7 +5828,8 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
             + sizeof(uint32_t) * 2 //Frame index
             + sizeof(int32_t) * 4 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt //Subdivision addributes
             + sizeof(int32_t) * 6 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt //Visibility and reshapable addributes
-            + sizeof(uint64_t) * 11 * uiMeshCnt;
+            + sizeof(uint64_t) * 11 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt; //Array lentghs and smooth angles
+
         for(unsigned long i=0; i<uiMeshCnt; ++i) {
             size +=
             + pulPointsSize[i]*sizeof(float)*3
@@ -5116,7 +5873,8 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
                 << puiShadersCnt[i]
                 << puiObjectsCnt[i]
                 << plHairPointsSize[i]
-                << plVertPerHairSize[i];
+                << plVertPerHairSize[i]
+                << pfMaxSmoothAngle[i];
         }
 
         for(unsigned long i=0; i<uiMeshCnt; ++i) {
@@ -6033,8 +6791,12 @@ inline string OctaneClient::getFileName(string &sFullPath) {
 inline uint64_t OctaneClient::getFileTime(string &sFullPath) {
     if(!sFullPath.length()) return 0;
 
+#ifdef _WIN32
+    struct _stat64i32 attrib;
+#else
     struct stat attrib;
-    stat(sFullPath.c_str(), &attrib);
+#endif
+    ustat(sFullPath.c_str(), &attrib);
 
     return static_cast<uint64_t>(attrib.st_mtime);
 } //getFileTime()
@@ -6043,7 +6805,7 @@ inline uint64_t OctaneClient::getFileTime(string &sFullPath) {
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 inline bool OctaneClient::uploadFile(string &sFilePath, string &sFileName) {
-    FILE *hFile = fopen(sFilePath.c_str(), "rb");
+    FILE *hFile = ufopen(sFilePath.c_str(), "rb");
     if(hFile) {
         fseek(hFile, 0, SEEK_END);
         uint32_t ulFileSize = ftell(hFile);

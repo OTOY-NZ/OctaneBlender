@@ -551,6 +551,11 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="Preview active render layer in viewport",
                 default=False,
                 )
+        cls.hdr_tonemap_enable = BoolProperty(
+                name="Enable HDR tonemapping",
+                description="Tick to enable Octane HDR tonemapping",
+                default=False,
+                )
 
 #        cls.hdr_tonemapped = BoolProperty(
 #                name="Tonemapped HDR",
@@ -1495,6 +1500,12 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 type=cls,
                 )
 
+        cls.winding_order = EnumProperty(
+                name="Winding order",
+                description="May be usable if you need to correct some Octane's triangulation artifacts. Alembic export requires clockwise order",
+                items=types.winding_orders,
+                default='0',
+                )
         cls.mesh_type = EnumProperty(
                 name="Mesh type",
                 description="Used for rendering speed optimization, see the manual",

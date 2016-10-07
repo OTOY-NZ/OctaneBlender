@@ -612,46 +612,36 @@ class RENDER_PT_povray_media(WorldButtonsPanel, bpy.types.Panel):
 ##        layout.active = scene.pov.baking_enable
 
 
-class MATERIAL_PT_povray_mirrorIOR(MaterialButtonsPanel, bpy.types.Panel):
-    bl_label = "IOR Mirror"
+class MATERIAL_PT_povray_reflection(MaterialButtonsPanel, bpy.types.Panel):
+    bl_label = "POV-Ray Reflection"
     COMPAT_ENGINES = {'POVRAY_RENDER'}
-
-    def draw_header(self, context):
-        scene = context.material
-
-        self.layout.prop(scene.pov, "mirror_use_IOR", text="")
 
     def draw(self, context):
         layout = self.layout
-
         mat = context.material
-        layout.active = mat.pov.mirror_use_IOR
-
-        if mat.pov.mirror_use_IOR:
+        col = layout.column()
+        col.prop(mat.pov, "irid_enable")
+        if mat.pov.irid_enable:
             col = layout.column()
-            col.alignment = 'CENTER'
-            col.label(text="The current Raytrace ")
-            col.label(text="Transparency IOR is: " + str(mat.raytrace_transparency.ior))
-
-
-class MATERIAL_PT_povray_metallic(MaterialButtonsPanel, bpy.types.Panel):
-    bl_label = "metallic Mirror"
-    COMPAT_ENGINES = {'POVRAY_RENDER'}
-
-    def draw_header(self, context):
-        scene = context.material
-
-        self.layout.prop(scene.pov, "mirror_metallic", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        mat = context.material
-        layout.active = mat.pov.mirror_metallic
-
-
+            col.prop(mat.pov, "irid_amount", slider=True)
+            col.prop(mat.pov, "irid_thickness", slider=True)
+            col.prop(mat.pov, "irid_turbulence", slider=True) 
+        col.prop(mat.pov, "conserve_energy")
+        col2=col.split().column()
+        
+        if not mat.raytrace_mirror.use:
+            col2.label(text="Please Check Mirror settings :")    
+        col2.active = mat.raytrace_mirror.use
+        col2.prop(mat.pov, "mirror_use_IOR")
+        if mat.pov.mirror_use_IOR:
+            col2.alignment = 'CENTER'
+            col2.label(text="The current Raytrace ")
+            col2.label(text="Transparency IOR is: " + str(mat.raytrace_transparency.ior))        
+        col2.prop(mat.pov, "mirror_metallic")
+        
+ 
 class MATERIAL_PT_povray_fade_color(MaterialButtonsPanel, bpy.types.Panel):
-    bl_label = "Interior Fade Color"
+    bl_label = "POV-Ray Absorption"
     COMPAT_ENGINES = {'POVRAY_RENDER'}
 
     def draw_header(self, context):
@@ -660,48 +650,15 @@ class MATERIAL_PT_povray_fade_color(MaterialButtonsPanel, bpy.types.Panel):
         self.layout.prop(mat.pov, "interior_fade_color", text="")
 
     def draw(self, context):
-        # layout = self.layout
-        # mat = context.material
+        layout = self.layout
+        mat = context.material
         # layout.active = mat.pov.interior_fade_color
+        if mat.pov.interior_fade_color != (0.0, 0.0, 0.0):
+            layout.label(text="Raytrace transparency")
+            layout.label(text="depth max Limit needs")
+            layout.label(text="to be non zero to fade")
+        
         pass
-
-
-class MATERIAL_PT_povray_conserve_energy(MaterialButtonsPanel, bpy.types.Panel):
-    bl_label = "conserve energy"
-    COMPAT_ENGINES = {'POVRAY_RENDER'}
-
-    def draw_header(self, context):
-        mat = context.material
-
-        self.layout.prop(mat.pov, "conserve_energy", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        mat = context.material
-        layout.active = mat.pov.conserve_energy
-
-
-class MATERIAL_PT_povray_iridescence(MaterialButtonsPanel, bpy.types.Panel):
-    bl_label = "iridescence"
-    COMPAT_ENGINES = {'POVRAY_RENDER'}
-
-    def draw_header(self, context):
-        mat = context.material
-
-        self.layout.prop(mat.pov, "irid_enable", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        mat = context.material
-        layout.active = mat.pov.irid_enable
-
-        if mat.pov.irid_enable:
-            col = layout.column()
-            col.prop(mat.pov, "irid_amount", slider=True)
-            col.prop(mat.pov, "irid_thickness", slider=True)
-            col.prop(mat.pov, "irid_turbulence", slider=True)
 
 
 class MATERIAL_PT_povray_caustics(MaterialButtonsPanel, bpy.types.Panel):
@@ -710,28 +667,31 @@ class MATERIAL_PT_povray_caustics(MaterialButtonsPanel, bpy.types.Panel):
 
     def draw_header(self, context):
         mat = context.material
-
-        self.layout.prop(mat.pov, "caustics_enable", text="")
-
+        if mat.pov.caustics_enable:
+            self.layout.prop(mat.pov, "caustics_enable", text="", icon="PMARKER_SEL" )
+        else:
+            self.layout.prop(mat.pov, "caustics_enable", text="", icon="PMARKER" )
     def draw(self, context):
 
         layout = self.layout
 
         mat = context.material
         layout.active = mat.pov.caustics_enable
-
+        col = layout.column()
         if mat.pov.caustics_enable:
-            col = layout.column()
-            col.prop(mat.pov, "refraction_type")
+            col.prop(mat.pov, "refraction_caustics")
+            if mat.pov.refraction_caustics:
 
-            if mat.pov.refraction_type == "1":
-                col.prop(mat.pov, "fake_caustics_power", slider=True)
-            elif mat.pov.refraction_type == "2":
-                col.prop(mat.pov, "photons_dispersion", slider=True)
-                col.prop(mat.pov, "photons_dispersion_samples", slider=True)
+                col.prop(mat.pov, "refraction_type", text="")
+
+                if mat.pov.refraction_type == "1":
+                    col.prop(mat.pov, "fake_caustics_power", slider=True)
+                elif mat.pov.refraction_type == "2":
+                    col.prop(mat.pov, "photons_dispersion", slider=True)
+                    col.prop(mat.pov, "photons_dispersion_samples", slider=True)
             col.prop(mat.pov, "photons_reflection")
 
-            if mat.pov.refraction_type == "0" and not mat.pov.photons_reflection:
+            if not mat.pov.refraction_caustics and not mat.pov.photons_reflection:
                 col = layout.column()
                 col.alignment = 'CENTER'
                 col.label(text="Caustics override is on, ")
@@ -1082,7 +1042,41 @@ class OBJECT_PT_povray_obj_sphere(PovDataButtonsPanel, bpy.types.Panel):
                 #col.label(text="Parameters:")
                 col.prop(obj.pov, "sphere_radius", text="Radius of Sphere")
 
-            
+
+class OBJECT_PT_povray_obj_cylinder(PovDataButtonsPanel, bpy.types.Panel):
+    bl_label = "POV-Ray Cylinder"
+    COMPAT_ENGINES = {'POVRAY_RENDER'}
+    #bl_options = {'HIDE_HEADER'}
+    @classmethod
+    def poll(cls, context):
+        engine = context.scene.render.engine
+        obj = context.object
+        return (obj and obj.pov.object_as == 'CYLINDER' and (engine in cls.COMPAT_ENGINES))    
+    def draw(self, context):
+        layout = self.layout
+
+        obj = context.object
+        
+        col = layout.column()
+
+        if obj.pov.object_as == 'CYLINDER':
+            if obj.pov.unlock_parameters == False:
+                col.prop(obj.pov, "unlock_parameters", text="Exported parameters below", icon='LOCKED') 
+                col.label(text="Cylinder radius: " + str(obj.pov.cylinder_radius))
+                col.label(text="Cylinder cap location: " + str(obj.pov.cylinder_location_cap))
+
+            else:
+                col.prop(obj.pov, "unlock_parameters", text="Edit exported parameters", icon='UNLOCKED') 
+                col.label(text="3D view proxy may get out of synch")
+                col.active = obj.pov.unlock_parameters
+                
+
+                layout.operator("pov.cylinder_update", text="Update",icon="MESH_CYLINDER")        
+                
+                #col.label(text="Parameters:")
+                col.prop(obj.pov, "cylinder_radius")
+                col.prop(obj.pov, "cylinder_location_cap")
+
 class OBJECT_PT_povray_obj_cone(PovDataButtonsPanel, bpy.types.Panel):
     bl_label = "POV-Ray Cone"
     COMPAT_ENGINES = {'POVRAY_RENDER'}
@@ -1370,7 +1364,7 @@ class ImportMenu(bpy.types.Menu):
         pov = bpy.types.Object.pov #context.object.pov ? 
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("import_scene.avogadro", text="Avogadro",icon="FORCE_LENNARDJONES")
+        layout.operator("import_scene.pov",icon="FORCE_LENNARDJONES")
 
 def menu_func_add(self, context):
     engine = context.scene.render.engine
@@ -1380,7 +1374,7 @@ def menu_func_add(self, context):
 def menu_func_import(self, context):
     engine = context.scene.render.engine
     if engine == 'POVRAY_RENDER':
-        self.layout.operator("import_scene.avogadro", text="POV-Ray Avogadro (.pov)",icon="FORCE_LENNARDJONES")
+        self.layout.operator("import_scene.pov",icon="FORCE_LENNARDJONES")
 
         
 ###############################################################################

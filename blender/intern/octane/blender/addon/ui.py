@@ -117,15 +117,18 @@ class OctaneButtonsPanel():
         return rd.engine == 'octane'
 
 
-class VIEW3D_PT_octcam(Panel):
+class VIEW3D_PT_octimager(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_label = "Octane camera"
+    bl_label = "Octane imager"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
         return context.space_data and OctaneButtonsPanel.poll(context)
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.octane, "hdr_tonemap_enable", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -367,6 +370,7 @@ class OctaneRender_PT_layer_passes(OctaneButtonsPanel, Panel):
         col.prop(rl, "use_pass_combined")
         col.prop(rl, "use_pass_emit")
         col.prop(rl, "use_pass_environment")
+        col.prop(rl, "use_pass_diffuse")
         col.prop(rl, "use_pass_diffuse_direct")
         col.prop(rl, "use_pass_diffuse_indirect")
 
@@ -578,6 +582,9 @@ class OctaneCamera_PT_imager(OctaneButtonsPanel, Panel):
     def poll(cls, context):
         return context.camera and OctaneButtonsPanel.poll(context)
 
+    def draw_header(self, context):
+        self.layout.prop(context.scene.octane, "hdr_tonemap_enable", text="")
+
     def draw(self, context):
         layout = self.layout
 
@@ -743,6 +750,8 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub = layout.row(align=True)
         sub.prop(cdata, "mesh_type")
         sub.operator("octane.set_meshes_type", "", "", True, 'MESH_DATA')
+        sub = layout.row(align=True)
+        sub.prop(cdata, "winding_order")
         sub = layout.row(align=True)
         sub.prop(cdata, "layer_number")
         sub.prop(cdata, "baking_group_id")
@@ -1284,7 +1293,18 @@ def draw_device(self, context):
         sub.prop(oct_scene, "anim_mode")
         sub = layout.row()
         sub.prop(oct_scene, "export_scene")
-        layout.prop(oct_scene, "devices")
+
+        import _octane
+        box = layout.box()
+        box.label(text="Octane GPUs:")
+        col = box.column(align=True)
+        devices = _octane.octane_devices(scene.as_pointer())
+        i = 0
+        for device in devices:
+            sub = col.row(align=True)
+            sub.prop(oct_scene, "devices", index=i, text=device)
+            i = i + 1
+
         sub = layout.row()
         sub.prop(oct_scene, "viewport_hide")
         layout.prop(oct_scene, "meshes_type", expand=True)
@@ -1306,104 +1326,62 @@ def draw_pause(self, context):
 
 
 def get_panels():
-    types = bpy.types
-    panels = [
-        "RENDER_PT_render",
-        "RENDER_PT_output",
-        "RENDER_PT_encoding",
-        "RENDER_PT_dimensions",
-        "RENDER_PT_stamp",
+    exclude_panels = {
+        'DATA_PT_area',
+        'DATA_PT_camera_dof',
+        'DATA_PT_falloff_curve',
+        'DATA_PT_lamp',
+        'DATA_PT_preview',
+        'DATA_PT_shadow',
+        'DATA_PT_spot',
+        'DATA_PT_sunsky',
+        'MATERIAL_PT_context_material',
+        'MATERIAL_PT_diffuse',
+        'MATERIAL_PT_flare',
+        'MATERIAL_PT_halo',
+        'MATERIAL_PT_mirror',
+        'MATERIAL_PT_options',
+        'MATERIAL_PT_pipeline',
+        'MATERIAL_PT_preview',
+        'MATERIAL_PT_shading',
+        'MATERIAL_PT_shadow',
+        'MATERIAL_PT_specular',
+        'MATERIAL_PT_sss',
+        'MATERIAL_PT_strand',
+        'MATERIAL_PT_transp',
+        'MATERIAL_PT_volume_density',
+        'MATERIAL_PT_volume_integration',
+        'MATERIAL_PT_volume_lighting',
+        'MATERIAL_PT_volume_options',
+        'MATERIAL_PT_volume_shading',
+        'MATERIAL_PT_volume_transp',
+        'RENDERLAYER_PT_layer_options',
+        'RENDERLAYER_PT_layer_passes',
+        'RENDERLAYER_PT_views',
+        'RENDER_PT_antialiasing',
+        'RENDER_PT_bake',
+        'RENDER_PT_motion_blur',
+        'RENDER_PT_performance',
+        'RENDER_PT_post_processing',
+        'RENDER_PT_shading',
+        'SCENE_PT_simplify',
+        'TEXTURE_PT_context_texture',
+        'WORLD_PT_ambient_occlusion',
+        'WORLD_PT_environment_lighting',
+        'WORLD_PT_gather',
+        'WORLD_PT_indirect_lighting',
+        'WORLD_PT_mist',
+        'WORLD_PT_preview',
+        'WORLD_PT_world'
+        }
 
-        "RENDER_PT_freestyle",
-        "RENDERLAYER_PT_layers",
-        "RENDERLAYER_PT_freestyle",
-        "RENDERLAYER_PT_freestyle_lineset",
-        "RENDERLAYER_PT_freestyle_linestyle",
+    panels = []
+    for panel in bpy.types.Panel.__subclasses__():
+        if hasattr(panel, 'COMPAT_ENGINES') and 'BLENDER_RENDER' in panel.COMPAT_ENGINES:
+            if panel.__name__ not in exclude_panels:
+                panels.append(panel)
 
-        "SCENE_PT_scene",
-        "SCENE_PT_color_management",
-        "SCENE_PT_custom_props",
-        "SCENE_PT_audio",
-        "SCENE_PT_unit",
-        "SCENE_PT_keying_sets",
-        "SCENE_PT_keying_set_paths",
-        "SCENE_PT_physics",
-        "WORLD_PT_context_world",
-        "WORLD_PT_custom_props",
-        "DATA_PT_context_mesh",
-        "DATA_PT_context_camera",
-        "DATA_PT_context_lamp",
-        "DATA_PT_context_speaker",
-        "DATA_PT_normals",
-        "DATA_PT_texture_space",
-        "DATA_PT_curve_texture_space",
-        "DATA_PT_mball_texture_space",
-        "DATA_PT_vertex_groups",
-        "DATA_PT_shape_keys",
-        "DATA_PT_uv_texture",
-        "DATA_PT_vertex_colors",
-        "DATA_PT_camera",
-        "DATA_PT_camera_display",
-        "DATA_PT_camera_safe_areas",
-        "DATA_PT_lens",
-        "DATA_PT_speaker",
-        "DATA_PT_distance",
-        "DATA_PT_cone",
-        "DATA_PT_customdata",
-        "DATA_PT_custom_props_mesh",
-        "DATA_PT_custom_props_camera",
-        "DATA_PT_custom_props_lamp",
-        "DATA_PT_custom_props_speaker",
-        "DATA_PT_custom_props_arm",
-        "DATA_PT_custom_props_curve",
-        "DATA_PT_custom_props_lattice",
-        "DATA_PT_custom_props_metaball",
-        "TEXTURE_PT_preview",
-        "TEXTURE_PT_custom_props",
-        "TEXTURE_PT_clouds",
-        "TEXTURE_PT_wood",
-        "TEXTURE_PT_marble",
-        "TEXTURE_PT_magic",
-        "TEXTURE_PT_blend",
-        "TEXTURE_PT_stucci",
-        "TEXTURE_PT_image",
-        "TEXTURE_PT_image_sampling",
-        "TEXTURE_PT_image_mapping",
-        "TEXTURE_PT_musgrave",
-        "TEXTURE_PT_voronoi",
-        "TEXTURE_PT_distortednoise",
-        "TEXTURE_PT_voxeldata",
-        "TEXTURE_PT_pointdensity",
-        "TEXTURE_PT_pointdensity_turbulence",
-        "TEXTURE_PT_mapping",
-        "TEXTURE_PT_ocean",
-        "TEXTURE_PT_influence",
-        "TEXTURE_PT_colors",
-        "PARTICLE_PT_context_particles",
-        "PARTICLE_PT_custom_props",
-        "PARTICLE_PT_emission",
-        "PARTICLE_PT_hair_dynamics",
-        "PARTICLE_PT_cache",
-        "PARTICLE_PT_velocity",
-        "PARTICLE_PT_rotation",
-        "PARTICLE_PT_physics",
-        "SCENE_PT_rigid_body_world",
-        "SCENE_PT_rigid_body_cache",
-        "SCENE_PT_rigid_body_field_weights",
-        "PARTICLE_PT_boidbrain",
-        "PARTICLE_PT_render",
-        "PARTICLE_PT_draw",
-        "PARTICLE_PT_children",
-        "PARTICLE_PT_field_weights",
-        "PARTICLE_PT_force_fields",
-        "PARTICLE_PT_vertexgroups",
-        "MATERIAL_PT_custom_props",
-        "MATERIAL_PT_freestyle_line",
-        "BONE_PT_custom_props",
-        "OBJECT_PT_custom_props",
-        ]
-
-    return [getattr(types, p) for p in panels if hasattr(types, p)]
+    return panels
 
 
 def register():
@@ -1419,4 +1397,5 @@ def unregister():
     bpy.types.VIEW3D_HT_header.remove(draw_pause)
 
     for panel in get_panels():
-        panel.COMPAT_ENGINES.remove('octane')
+        if 'octane' in panel.COMPAT_ENGINES:
+            panel.COMPAT_ENGINES.remove('octane')

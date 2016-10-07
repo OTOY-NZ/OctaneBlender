@@ -84,4 +84,4 @@ def draw(cls, engine, region, v3d, rv3d):
 
 def available_devices():
     import _octane
-    return _octane.available_devices()
+    return _octane.octane_devices(bpy.context.scene.as_pointer())

@@ -72,7 +72,7 @@ public:
 	bool        need_update;
 
     enum {
-        NUM_PASSES = 40
+        NUM_PASSES = 41
     };
     static ::Octane::RenderPassId const pass_type_translator[NUM_PASSES];
 }; //Passes

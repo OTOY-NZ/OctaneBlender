@@ -248,17 +248,39 @@ static inline void set_string(PointerRNA& ptr, const char *name, const string &v
 
 // Relative Paths
 static inline string blender_absolute_path(BL::BlendData b_data, BL::ID b_id, const string& path) {
-    if(path.size() >= 2 && path[0] == '/' && path[1] == '/') {
-        string dirname;
+	if(path.size() >= 2 && path[0] == '/' && path[1] == '/') {
+		string dirname;
+		
+		if(b_id.library()) {
+			BL::ID b_library_id(b_id.library());
+			dirname = blender_absolute_path(b_data, b_library_id, b_id.library().filepath());
+		}
+		else dirname = b_data.filepath();
 
-        if(b_id.library())
-            dirname = blender_absolute_path(b_data, b_id.library(), b_id.library().filepath());
-        else
-            dirname = b_data.filepath();
-
-        return path_join(path_dirname(dirname), path.substr(2));
+        //path_join(path_dirname(dirname), path.substr(2)); 
+        if(dirname.length() < 512) {
+            char str[512];
+            ::strcpy(str, dirname.c_str());
+            size_t i;
+            for(i = dirname.length() - 1; i >= 0; --i) {
+                if(str[i] == '.') break;
+            }
+            for(size_t k = i - 1; k >= 0; --k) {
+                if(str[k] == '/' || str[k] == '\\') {
+                    str[k] = 0;
+                    break;
+                }
+            }
+            size_t len = ::strlen(str) - 1;
+            if(len > 0 && (str[len - 1] == '/' || str[len - 1] == '\\')) str[len - 1] = 0;
+            dirname = str;
+            string ending = path.substr(2);
+            dirname += ending[0] == '/' || ending[0] == '\\' ? ending : "/" + ending;
+            return dirname;
+        }
+	    else return path;
     }
-    return path;
+	return path;
 }
 
 // Texture Space
@@ -384,7 +406,7 @@ protected:
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Object Key
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum { OBJECT_PERSISTENT_ID_SIZE = 8 };
+enum { OBJECT_PERSISTENT_ID_SIZE = 16 };
 
 struct ObjectKey {
     void *parent;

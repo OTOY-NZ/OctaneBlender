@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 2.77 (sub 0) (b'870f911')\n"
+"Project-Id-Version: Blender 2.78 (sub 0) (b'2c19ddf')\n"
 "(b'0000000000000000000000000000000000000000')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-03-18 13:04:16\n"
+"POT-Creation-Date: 2016-09-26 12:09:58\n"
 "PO-Revision-Date: 2013-11-05 13:47+0600\n"
 "Last-Translator: Chyngyz Dzhumaliev <kyrgyzl10n@gmail.com>\n"
 "Language-Team: Kirghiz <kyrgyzl10n@gmail.com>\n"
@@ -471,6 +471,10 @@ msgid "Width"
 msgstr "Туурасы"
 
 
+msgid "Active Bone"
+msgstr "Активдүү сөөк"
+
+
 msgid "Background Image"
 msgstr "Фон сүрөтү"
 
@@ -545,6 +549,10 @@ msgstr "Үстү"
 
 msgid "All Views"
 msgstr "Бардык көрүнүштөр"
+
+
+msgid "Background Images"
+msgstr "Фон сүрөттөрү"
 
 
 msgid "Margin"
@@ -764,6 +772,30 @@ msgid "Clip"
 msgstr "Клип"
 
 
+msgid "Poly"
+msgstr "Полисызык"
+
+
+msgid "Bezier"
+msgstr "Безье"
+
+
+msgid "Surface"
+msgstr "Бет"
+
+
+msgid "Method"
+msgstr "Метод"
+
+
+msgid "Plane"
+msgstr "Тегиздик"
+
+
+msgid "View"
+msgstr "Көрүнүш"
+
+
 msgid "Show Errors"
 msgstr "Каталарды көрсөтүү"
 
@@ -798,10 +830,6 @@ msgstr "Лампа"
 
 msgid "Mask"
 msgstr "Маска"
-
-
-msgid "MetaBall"
-msgstr "Метасфера"
 
 
 msgid "Particle"
@@ -902,10 +930,6 @@ msgstr "Баяндама"
 
 msgid "Icon"
 msgstr "Белги"
-
-
-msgid "Plane"
-msgstr "Тегиздик"
 
 
 msgid "Image File"
@@ -1020,10 +1044,6 @@ msgid "Shape"
 msgstr "Калып"
 
 
-msgid "Surface"
-msgstr "Бет"
-
-
 msgid "Save"
 msgstr "Сактоо"
 
@@ -1058,6 +1078,10 @@ msgstr "Визуалдаштыруу"
 
 msgid "Focal Length"
 msgstr "Фокус аралыгы"
+
+
+msgid "Angle"
+msgstr "Бурч"
 
 
 msgid "Tool"
@@ -1510,20 +1534,12 @@ msgid "Meta"
 msgstr "Мета"
 
 
-msgid "View"
-msgstr "Көрүнүш"
-
-
 msgid "Animate"
 msgstr "Анимация"
 
 
 msgid "Age"
 msgstr "Жаш"
-
-
-msgid "Angle"
-msgstr "Бурч"
 
 
 msgid "No"
@@ -1746,10 +1762,6 @@ msgid "Shift"
 msgstr "Shift"
 
 
-msgid "Bezier"
-msgstr "Безье"
-
-
 msgid "Sun Size"
 msgstr "Күн өлчөмү"
 
@@ -1769,6 +1781,10 @@ msgstr "Тегеректер"
 msgctxt "Curve"
 msgid "Sphere"
 msgstr "Сфера"
+
+
+msgid "Mask Layers"
+msgstr "Маска каттары"
 
 
 msgid "Material Game Settings"
@@ -1922,6 +1938,10 @@ msgstr "UV 3"
 
 msgid "UV 4"
 msgstr "UV 4"
+
+
+msgid "Active Element"
+msgstr "Активдүү элемент"
 
 
 msgid "Ellipsoid"
@@ -2104,6 +2124,15 @@ msgid "Camera Data"
 msgstr "Камера маалыматтары"
 
 
+msgid "Active Node"
+msgstr "Активдүү түйүн"
+
+
+msgctxt "Operator"
+msgid "Properties"
+msgstr "Касиеттери"
+
+
 msgctxt "Operator"
 msgid "Select All"
 msgstr "Баарын тандоо"
@@ -2122,10 +2151,6 @@ msgstr "Каналдарды ташуу"
 msgctxt "Operator"
 msgid "Rename Channels"
 msgstr "Каналдардын аттарын өзгөртүү"
-
-
-msgid "Active Bone"
-msgstr "Активдүү сөөк"
 
 
 msgid "Translate (move) selected items"
@@ -2191,11 +2216,6 @@ msgstr "Видеофрагментти ачуу"
 
 msgid "Files"
 msgstr "Файлдар"
-
-
-msgctxt "Operator"
-msgid "Properties"
-msgstr "Касиеттери"
 
 
 msgid "Wall"
@@ -2344,10 +2364,6 @@ msgid "Spin"
 msgstr "Буроо"
 
 
-msgid "Poly"
-msgstr "Полисызык"
-
-
 msgctxt "Operator"
 msgid "Subdivide"
 msgstr "Бөлүү"
@@ -2449,10 +2465,6 @@ msgid "Select Directory"
 msgstr "Каталогду тандоо"
 
 
-msgid "Method"
-msgstr "Метод"
-
-
 msgid "ID name"
 msgstr "ID аты"
 
@@ -2507,11 +2519,6 @@ msgstr "Текстти кесүү"
 msgctxt "Operator"
 msgid "Paste Text"
 msgstr "Текстти коюу"
-
-
-msgctxt "Operator"
-msgid "Delete..."
-msgstr "Өчүрүү..."
 
 
 msgid "Eraser"
@@ -2880,6 +2887,10 @@ msgid "All Groups"
 msgstr "Бардык топтор"
 
 
+msgid "Reload"
+msgstr "Кайтадан жүктөө"
+
+
 msgid "Bake"
 msgstr "Бышыруу"
 
@@ -3192,10 +3203,6 @@ msgid "Replace"
 msgstr "Алмаштыруу"
 
 
-msgid "Reload"
-msgstr "Кайтадан жүктөө"
-
-
 msgctxt "Operator"
 msgid "Save"
 msgstr "Сактоо"
@@ -3252,10 +3259,6 @@ msgstr "Өзгөртүү"
 msgctxt "Operator"
 msgid "Translate"
 msgstr "Жылдыруу"
-
-
-msgid "Addon"
-msgstr "Кошумча"
 
 
 msgid "Select All"
@@ -3390,10 +3393,6 @@ msgid "Add a new world"
 msgstr "Жаңы дүйнөнү кошуу"
 
 
-msgid "Mask Layers"
-msgstr "Маска каттары"
-
-
 msgid "Solve"
 msgstr "Чечим"
 
@@ -3420,10 +3419,6 @@ msgstr "Өндүргүчтүк"
 
 msgid "Post Processing"
 msgstr "Постиштетүү"
-
-
-msgid "Active Element"
-msgstr "Активдүү элемент"
 
 
 msgid "Paragraph"
@@ -3472,10 +3467,6 @@ msgstr "Табуу"
 
 msgid "Themes"
 msgstr "Темалар"
-
-
-msgid "Background Images"
-msgstr "Фон сүрөттөрү"
 
 
 msgid "Obstacle simulation"
@@ -3953,10 +3944,6 @@ msgid "Shadow Size"
 msgstr "Көлөкө өлчөмү"
 
 
-msgid "Active Node"
-msgstr "Активдүү түйүн"
-
-
 msgid "Window Background"
 msgstr "Терезе фону"
 
@@ -4237,10 +4224,6 @@ msgid "Statistics"
 msgstr "Статистика"
 
 
-msgid "Addons:"
-msgstr "Кошумчалар:"
-
-
 msgid "[{}]: \"{}\" ({})"
 msgstr "[{}]: \"{}\" ({})"
 
@@ -4386,11 +4369,6 @@ msgstr "Тартуу:"
 
 
 msgctxt "Operator"
-msgid "Scale"
-msgstr "Масштаб"
-
-
-msgctxt "Operator"
 msgid "Draw"
 msgstr "Тартуу"
 
@@ -4398,6 +4376,16 @@ msgstr "Тартуу"
 msgctxt "Operator"
 msgid "Line"
 msgstr "Түз сызык"
+
+
+msgctxt "Operator"
+msgid "Scale"
+msgstr "Масштаб"
+
+
+msgctxt "Operator"
+msgid "Delete..."
+msgstr "Өчүрүү..."
 
 
 msgid "Transform:"

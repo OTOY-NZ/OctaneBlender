@@ -350,3 +350,8 @@ pass_normal_subtype = (
     ('1', "Shading", ""),
     ('2', "Vertex", ""),
     )
+
+winding_orders = (
+    ('0', "Clockwise", ""),
+    ('1', "Counterclockwise", ""),
+    )

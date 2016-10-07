@@ -210,43 +210,69 @@ static PyObject *sync_func(PyObject *self, PyObject *value) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *server_info_func(PyObject *self, PyObject *args) {
-	PyObject *ret = PyTuple_New(1);
+static PyObject *octane_devices_func(PyObject */*self*/, PyObject *args) {
+    static std::string sCurrentServerAddress;
+    static ::OctaneEngine::OctaneClient::RenderServerInfo serverInfo;
 
-	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(args);
-	if(session) {
-        PointerRNA oct_scene = RNA_pointer_get(&(session->b_scene.ptr), "octane");
+    PyObject *ret;
+
+    PyObject *pyscene;
+    if(!PyArg_ParseTuple(args, "O", &pyscene)) {
+        ret = PyTuple_New(0);
+        return ret;
+    }
+
+    PointerRNA sceneptr;
+    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
+    BL::Scene b_scene(sceneptr);
+
+    if(b_scene) {
+        PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
         string server_addr = get_string(oct_scene, "server_address");
-        if(!server_addr.length())
-            PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("No server address set"));
-        else {
-            ::OctaneEngine::OctaneClient *server = newnt ::OctaneEngine::OctaneClient;
-            if(server) {
-                if(!server->connectToServer(server_addr.c_str())) {
-                    if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED)
-                        PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("Current server is not activated"));
-                    else {
-                        if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION)
-                            PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("Can't connect to Octane server"));
-                        else if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION)
-                            PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("Wrong version of Octane server"));
-                        else PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString("Can't connect to Octane server"));
+        if(server_addr != sCurrentServerAddress) {
+            sCurrentServerAddress = server_addr;
+
+            if(!server_addr.length()) {
+	            ret = PyTuple_New(0);
+                serverInfo.gpuNames.clear();
+            }
+            else {
+                ::OctaneEngine::OctaneClient *server = newnt ::OctaneEngine::OctaneClient;
+                if(server) {
+                    if(!server->connectToServer(server_addr.c_str())) {
+	                    ret = PyTuple_New(0);
+                        serverInfo.gpuNames.clear();
                     }
+                    else {
+                        serverInfo = server->getServerInfo();
+                        size_t num_gpus = serverInfo.gpuNames.size();
+	                    ret = PyTuple_New(num_gpus);
+                        if(num_gpus) {
+                            std::string *cur_name = &serverInfo.gpuNames[0];
+                            for(size_t i = 0; i < num_gpus; ++i) PyTuple_SET_ITEM(ret, i, PyUnicode_FromString(cur_name[i].c_str()));
+                        }
+                    }
+                    delete server;
                 }
                 else {
-                    ::OctaneEngine::OctaneClient::RenderServerInfo const &info = server->getServerInfo();
-                    PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(info.sNetAddress.c_str()));
+	                ret = PyTuple_New(0);
+                    serverInfo.gpuNames.clear();
                 }
-
-                delete server;
             }
-            else PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(""));
+        }
+        else {
+            size_t num_gpus = serverInfo.gpuNames.size();
+            ret = PyTuple_New(num_gpus);
+            if(num_gpus) {
+                std::string *cur_name = &serverInfo.gpuNames[0];
+                for(size_t i = 0; i < num_gpus; ++i) PyTuple_SET_ITEM(ret, i, PyUnicode_FromString(cur_name[i].c_str()));
+            }
         }
     }
-    else PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(""));
+    else ret = PyTuple_New(0);
 
 	return ret;
-} //server_info_func()
+} //octane_devices_func()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
@@ -325,17 +351,17 @@ static PyObject *activate_func(PyObject *self, PyObject *args) {
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static PyMethodDef methods[] = {
-	{"init",            init_func,              METH_VARARGS,   ""},
-	{"create",          create_func,            METH_VARARGS,   ""},
-	{"free",            free_func,              METH_O,         ""},
-	{"render",          render_func,            METH_O,         ""},
-	{"draw",            draw_func,              METH_VARARGS,   ""},
-	{"sync",            sync_func,              METH_O,         ""},
-    {"reset",           reset_func,             METH_VARARGS,   ""},
-    {"reload",          reload_func,            METH_O,         ""},
-	{"server_info",     server_info_func,       METH_NOARGS,    ""},
-	{"set_meshes_type", set_meshes_type_func,   METH_VARARGS,   ""},
-    {"activate",        activate_func,          METH_VARARGS,   ""},
+	{"init",                init_func,              METH_VARARGS,   ""},
+	{"create",              create_func,            METH_VARARGS,   ""},
+	{"free",                free_func,              METH_O,         ""},
+	{"render",              render_func,            METH_O,         ""},
+	{"draw",                draw_func,              METH_VARARGS,   ""},
+	{"sync",                sync_func,              METH_O,         ""},
+    {"reset",               reset_func,             METH_VARARGS,   ""},
+    {"reload",              reload_func,            METH_O,         ""},
+	{"octane_devices",      octane_devices_func,    METH_VARARGS,   ""},
+	{"set_meshes_type",     set_meshes_type_func,   METH_VARARGS,   ""},
+    {"activate",            activate_func,          METH_VARARGS,   ""},
     {NULL, NULL, 0, NULL},
 };
 
