@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 11
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 1
+#   define OCTANE_SERVER_MINOR_VERSION 2
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -2708,7 +2708,7 @@ struct OctaneVolumeRampTexture : public OctaneNodeBase {
     string  sInterpolationType;
     int32_t iInterpolationTypeDefaultVal;
     string  sMaxGridValue;
-    int32_t fMaxGridValueDefaultVal;
+    float   fMaxGridValueDefaultVal;
 
     vector<float>  aPosData;
     vector<float>  aColorData;

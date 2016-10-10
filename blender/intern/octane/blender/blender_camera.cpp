@@ -409,8 +409,20 @@ void BlenderSync::load_camera_from_object(Camera* cam, BL::Object b_ob, int widt
         PointerRNA oct_camera = RNA_pointer_get(&b_camera.ptr, "octane");
 
         bool baking_camera = RNA_boolean_get(&oct_camera, "baking_camera");
-        if(baking_camera)
+        if(baking_camera) {
             cam->oct_node->type = ::OctaneEngine::Camera::CAMERA_BAKING;
+            cam->oct_node->iBakingGroupId       = RNA_int_get(&oct_camera, "baking_group_id");
+            cam->oct_node->bBakeOutwards        = RNA_boolean_get(&oct_camera, "baking_revert");
+            cam->oct_node->iPadding             = RNA_int_get(&oct_camera, "baking_padding");
+            cam->oct_node->fTolerance           = RNA_float_get(&oct_camera, "baking_tolerance");
+            cam->oct_node->bUseBakingPosition   = RNA_boolean_get(&oct_camera, "baking_use_position");
+            cam->oct_node->bBackfaceCulling     = RNA_boolean_get(&oct_camera, "baking_bkface_culling");
+            cam->oct_node->f2UVboxMin.x         = RNA_float_get(&oct_camera, "baking_uvbox_min_x");
+            cam->oct_node->f2UVboxMin.y         = RNA_float_get(&oct_camera, "baking_uvbox_min_y");
+            cam->oct_node->f2UVboxSize.x        = RNA_float_get(&oct_camera, "baking_uvbox_size_x");
+            cam->oct_node->f2UVboxSize.y        = RNA_float_get(&oct_camera, "baking_uvbox_size_y");
+            cam->oct_node->iUvSet               = RNA_int_get(&oct_camera, "baking_uv_set");
+        }
         else {
             switch(b_camera.type()) {
                 case BL::Camera::type_ORTHO:

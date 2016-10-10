@@ -505,12 +505,6 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
         cam = context.camera
         oct_cam = cam.octane
 
-        sub = layout.row(align=True)
-        sub.prop(oct_cam, "baking_camera")
-        sub = layout.row(align=True)
-        sub.active = (oct_cam.baking_camera == True)
-        sub.prop(oct_cam, "baking_uv_set")
-
         sub = layout.column(align=True)
         sub.active = (cam.type == 'PANO')
         sub.prop(oct_cam, "pan_mode")
@@ -572,6 +566,50 @@ class OctaneCamera_PT_cam(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "left_filter")
         sub = col.row()
         sub.prop(oct_cam, "right_filter")
+
+        box = layout.box()
+        box.label(text="Baking:")
+        col = box.column(align=True)
+
+        sub = col.row(align=True)
+        sub.prop(oct_cam, "baking_camera")
+        sub = col.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_revert")
+        sub = col.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_use_position")
+        sub = col.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_bkface_culling")
+        sub = col.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_tolerance")
+        sub = col.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_group_id")
+        sub = col.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_padding")
+        sub = col.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_uv_set")
+
+        col1 = box.column(align=True)
+        sub = col1.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_uvbox_min_x")
+        sub = col1.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_uvbox_min_y")
+
+        col1 = box.column(align=True)
+        sub = col1.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_uvbox_size_x")
+        sub = col1.row(align=True)
+        sub.active = (oct_cam.baking_camera == True)
+        sub.prop(oct_cam, "baking_uvbox_size_y")
 
 
 class OctaneCamera_PT_imager(OctaneButtonsPanel, Panel):

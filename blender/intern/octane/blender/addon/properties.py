@@ -728,10 +728,76 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
                 step=10,
                 precision=3,
                 )
+
         cls.baking_camera = BoolProperty(
                 name="Baking camera",
                 description="Use as baking camera",
                 default=False,
+                )
+        cls.baking_revert = BoolProperty(
+                name="Revert baking",
+                description="If enabled, camera rays are flipped, which allows using the geometry as a lens",
+                default=False,
+                )
+        cls.baking_use_position = BoolProperty(
+                name="Use baking position",
+                description="Use the provided position for baking position-dependent artifacts",
+                default=False,
+                )
+        cls.baking_bkface_culling = BoolProperty(
+                name="Backface culling",
+                description="When using a baking position, tells whether to bake back geometry faces",
+                default=True,
+                )
+        cls.baking_tolerance = FloatProperty(
+                name="Edge noise tolerance",
+                description="Specifies the tolerance to either keep or discard edge noise",
+                min=0.0, max=1.0,
+                default=0.5,
+                step=10,
+                precision=2,
+                )
+        cls.baking_uvbox_min_x = FloatProperty(
+                name="UV box min. X",
+                description="Coordinates in UV space of the the origin of the bounding region for baking",
+                default=0.0,
+                step=10,
+                precision=2,
+                )
+        cls.baking_uvbox_min_y = FloatProperty(
+                name="UV box min. Y",
+                description="Coordinates in UV space of the the origin of the bounding region for baking",
+                default=0.0,
+                step=10,
+                precision=2,
+                )
+        cls.baking_uvbox_size_x = FloatProperty(
+                name="UV box size X",
+                description="Size in UV space of the bounding region for baking",
+                min=0.0001,
+                default=1.0,
+                step=10,
+                precision=2,
+                )
+        cls.baking_uvbox_size_y = FloatProperty(
+                name="UV box size Y",
+                description="Size in UV space of the bounding region for baking",
+                min=0.0001,
+                default=1.0,
+                step=10,
+                precision=2,
+                )
+        cls.baking_group_id = IntProperty(
+                name="Baking group ID",
+                description="Specifies which baking group ID should be baked",
+                min=1, max=65535,
+                default=1,
+                )
+        cls.baking_padding = IntProperty(
+                name="Size",
+                description="Number of pixels added to the UV map edges",
+                min=0, max=16,
+                default=4,
                 )
         cls.baking_uv_set = IntProperty(
                 name="UV set",

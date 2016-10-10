@@ -58,7 +58,9 @@ static std::string get_oct_mat_name(BL::ShaderNode& b_node, std::string& mat_nam
     BL::Node::outputs_iterator b_output;
     for(b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
         std::string sName;
-        if(b_output->is_linked() && ((b_output->name() == "OutMat" && ConnectedNodesMap[b_output->ptr.data] == "__Surface") || (b_output->name() == "OutTex" && ConnectedNodesMap[b_output->ptr.data] == "__Volume"))) {
+        if(b_output->is_linked() && ((b_output->name() == "OutMat" && ConnectedNodesMap[b_output->ptr.data] == "__Surface")
+                                     || (b_output->name() == "OutTex" && ConnectedNodesMap[b_output->ptr.data] == "__Volume")
+                                     || (b_output->name() == "OutTex" && ConnectedNodesMap[b_output->ptr.data] == "__Color"))) {
             return mat_name;
         }
     }
@@ -121,12 +123,48 @@ static std::string get_non_oct_tex_name(BL::ShaderNode& b_node, std::string& tex
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static inline void translate_colorramp(BL::ColorRamp ramp, std::vector<float> &pos_data, std::vector<float> &color_data) {
-    pos_data.resize(ramp.elements.length());
-    color_data.resize(ramp.elements.length() * 3);
+    int el_cnt = ramp.elements.length();
+    if(el_cnt <= 0) {
+        pos_data.clear();
+        color_data.clear();
+        return;
+    }
+
+    bool fill_start;
+    if(ramp.elements[0].position() > 0.0f) {
+        fill_start = true;
+        ++el_cnt;
+    }
+    else fill_start = false;
+
+    bool fill_end;
+    if(ramp.elements[ramp.elements.length() - 1].position() < 1.0f) {
+        fill_end = true;
+        ++el_cnt;
+    }
+    else fill_end = false;
+
+    pos_data.resize(el_cnt);
+    color_data.resize(el_cnt * 3);
+
     float  *ppos_data   = &pos_data[0];
     float  *pcolor_data = &color_data[0];
 
-    int i = 0;
+    float cur_color[4];
+    if(fill_start) {
+        ramp.evaluate(0.0f, cur_color);
+        pcolor_data[0] = cur_color[0];
+        pcolor_data[1] = cur_color[1];
+        pcolor_data[2] = cur_color[2];
+    }
+    if(fill_end) {
+        ramp.evaluate(1.0f, cur_color);
+        pcolor_data[(el_cnt - 1) * 3 + 0] = cur_color[0];
+        pcolor_data[(el_cnt - 1) * 3 + 1] = cur_color[1];
+        pcolor_data[(el_cnt - 1) * 3 + 2] = cur_color[2];
+    }
+
+    int i = fill_start ? 1 : 0;
     BL::ColorRamp::elements_iterator el;
     for(ramp.elements.begin(el); el != ramp.elements.end(); ++el, ++i) {
         BL::Array<float,4> cur_color = el->color();
@@ -1702,7 +1740,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
             else if(b_input->name() == "Interp. type") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->sInterpolationType = "";
-                cur_node->iInterpolationTypeDefaultVal = (RNA_int_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->iInterpolationTypeDefaultVal = RNA_int_get(&value_sock.ptr, "default_value") != 0;
             }
         }
     }
@@ -1721,7 +1759,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
             if(b_input->name() == "Interp. type") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->sInterpolationType = "";
-                cur_node->iInterpolationTypeDefaultVal = (RNA_int_get(&value_sock.ptr, "default_value") != 0);
+                cur_node->iInterpolationTypeDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
             }
             else if(b_input->name() == "Max grid val.") {
                 if(!b_input->is_linked() || (cur_node->sMaxGridValue = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
@@ -1941,9 +1979,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         node = create_shader_node(cur_node);
         if(!node) return nullptr;
 
-        char tmp[32];
-        ::sprintf(tmp, "%p", b_med_node.ptr.data);
-        cur_node->sName = tmp;
+        cur_node->sName = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
@@ -1976,9 +2012,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
         node = create_shader_node(cur_node);
         if(!node) return nullptr;
 
-        char tmp[32];
-        ::sprintf(tmp, "%p", b_med_node.ptr.data);
-        cur_node->sName = tmp;
+        cur_node->sName = get_oct_mat_name(b_node, sMatName, ConnectedNodesMap);
 
         BL::Node::inputs_iterator b_input;
         for(b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
