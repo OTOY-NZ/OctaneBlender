@@ -400,6 +400,7 @@ static void get_material_startjob(void *customdata, short *stop, short *do_updat
         }
         strcat(file_path, mj->address);
         strcat(file_path, "/textures/");
+        BLI_path_native_slash(file_path);
         BLI_dir_create_recursive(file_path);
 
         mat_livedb_add_mat_element(bmain, C, ntree, node_to, sock_to, &cur_item, file_path, 0, &cur_y_pos);

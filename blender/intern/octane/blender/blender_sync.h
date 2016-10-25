@@ -209,8 +209,10 @@ public:
     Mesh  *sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool object_updated, bool hide_tris);
 	Light *sync_light(BL::Object b_ob, Transform& tfm, bool object_updated);
 
+    static BL::SmokeDomainSettings object_smoke_domain_find(BL::Object &b_ob);
+
 	// Get parameters
-	static SessionParams    get_session_params(BL::RenderEngine b_engine, BL::UserPreferences b_userpref, BL::Scene b_scene, bool background);
+	static SessionParams    get_session_params(BL::UserPreferences b_userpref, BL::Scene b_scene, ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type, bool background);
 	static bool             get_session_pause_state(BL::Scene b_scene, bool background);
 	static void             set_session_pause_state(BL::Scene b_scene, bool state);
 	static BufferParams     get_display_buffer_params(Camera* cam, int width, int height);

@@ -66,11 +66,15 @@ public:
 	std::string name;
     std::string nice_name;
     MeshType    mesh_type;
-    bool        open_subd_enable;
-    int32_t     open_subd_scheme;
-    int32_t     open_subd_level;
-    float       open_subd_sharpness;
-    int32_t     open_subd_bound_interp;
+
+    bool            open_subd_enable;
+    int32_t         open_subd_scheme;
+    int32_t         open_subd_level;
+    float           open_subd_sharpness;
+    int32_t         open_subd_bound_interp;
+	vector<int>     open_subd_crease_indices;
+	vector<float>   open_subd_crease_sharpnesses;
+
     bool        empty;
     float       vis_general;
     bool        vis_cam;
@@ -79,6 +83,7 @@ public:
     int32_t     layer_number;
     int32_t     baking_group_id;
     float       max_smooth_angle;
+    int32_t     hair_interpolation;
 
 	vector<float3>	points;
 	vector<float3>	normals;
@@ -94,6 +99,7 @@ public:
     vector<float>	hair_thickness;
     vector<int32_t>	hair_mat_indices;
     vector<float2>	hair_uvs;
+    vector<float2>	hair_ws;
 
     float                   *vdb_regular_grid;
     int32_t                 vdb_grid_size;

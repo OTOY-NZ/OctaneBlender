@@ -44,7 +44,7 @@ class OctaneRender(bpy.types.RenderEngine):
     def update(self, data, scene):
         if self.busy:
             return
-            
+
         if self.is_preview:
             if not OctaneRender.session:
                 engine.create(OctaneRender, self, data, scene, None, None, None)
@@ -117,12 +117,6 @@ camera_pan_modes = (
 camera_stereo_modes = (
     ('1', "Off axis", ""),
     ('2', "Parallel", ""),
-    )
-
-export_types = (
-    ('0', "None", ""),
-    ('1', "Alembic", ""),
-    ('2', "ORBX", ""),
     )
 
 camera_stereo_outs = (
@@ -354,4 +348,16 @@ pass_normal_subtype = (
 winding_orders = (
     ('0', "Clockwise", ""),
     ('1', "Counterclockwise", ""),
+    )
+
+layer_modes = (
+    ('0', "Normal", ""),
+    ('1', "Hide inactive layers", ""),
+    ('2', "Only side effects", ""),
+    )
+
+hair_interpolations = (
+    ('0', "Hair length", ""),
+    ('1', "Segment count", ""),
+    ('2', "Use hair Ws", ""),
     )

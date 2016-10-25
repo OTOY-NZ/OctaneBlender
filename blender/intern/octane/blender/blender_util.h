@@ -39,6 +39,13 @@ extern "C" {
     void            BKE_image_user_file_path(void *iuser, void *ima, char *path);
     unsigned char   *BKE_image_get_pixels_for_frame(void *image, int frame);
     float           *BKE_image_get_float_pixels_for_frame(void *image, int frame);
+
+#   include "RE_engine.h"
+#   include "RE_pipeline.h"
+#   pragma push_macro("new")
+#   define new extern_new
+#   include "BKE_screen.h"
+#   pragma pop_macro("new")
 }
 
 OCT_NAMESPACE_BEGIN
@@ -259,7 +266,7 @@ static inline string blender_absolute_path(BL::BlendData b_data, BL::ID b_id, co
 
         //path_join(path_dirname(dirname), path.substr(2)); 
         if(dirname.length() < 512) {
-            char str[512];
+            char str[1024];
             ::strcpy(str, dirname.c_str());
             size_t i;
             for(i = dirname.length() - 1; i >= 0; --i) {

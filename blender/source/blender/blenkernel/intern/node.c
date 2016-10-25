@@ -3660,6 +3660,7 @@ static void registerShaderNodes(void)
     register_node_type_tex_oct_noise();
     register_node_type_tex_oct_displacement();
     register_node_type_tex_oct_volume_ramp();
+    register_node_type_tex_oct_w();
     
     register_node_type_emission_oct_black_body();
     register_node_type_emission_oct_texture();

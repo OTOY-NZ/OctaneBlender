@@ -151,7 +151,7 @@ void Camera::update(Scene *scene) {
 void Camera::server_update(::OctaneEngine::OctaneClient *server, Scene *scene, uint32_t frame_idx, uint32_t total_frames) {
 	update(scene);
     server->uploadCamera(oct_node, frame_idx, total_frames);
-    server->uploadRenderRegion(oct_node);
+    server->uploadRenderRegion(oct_node, scene->session->params.interactive);
 } //server_update()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

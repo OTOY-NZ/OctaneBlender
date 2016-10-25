@@ -44,9 +44,8 @@ OCT_NAMESPACE_BEGIN
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Session::Session(const SessionParams& params_, const char *_out_path) : params(params_) {
     server = new ::OctaneEngine::OctaneClient;
-    server->setExportType(params_.export_scene);
+    server->setExportType(params_.export_type);
     server->setOutputPath(_out_path);
-	//server = RenderServer::create(params.server, params.export_scene, _out_path, params.interactive);
 
 	if(!params.interactive)
 		display = NULL;
@@ -166,7 +165,7 @@ void Session::run_render() {
             if(!bStarted || params.interactive) update_scene_to_server(frame_idx, total_frames);
 
             if(!bStarted) {
-                server->startRender(params.width, params.height, params.interactive ? ::OctaneEngine::OctaneClient::IMAGE_8BIT : (params.hdr_tonemapped ? ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED : ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
+                server->startRender(params.interactive, params.width, params.height, params.interactive ? ::OctaneEngine::OctaneClient::IMAGE_8BIT : (params.hdr_tonemapped ? ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED : ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
                                      params.out_of_core_enabled, params.out_of_core_mem_limit, params.out_of_core_gpu_headroom); //FIXME: Perhaps the wrong place for it...
                 bStarted = true;
             }
@@ -266,7 +265,7 @@ void Session::reset_parameters(BufferParams& buffer_params) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Reset all session data buffers
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Session::reset(BufferParams& buffer_params, float mb_frame_time_sampling) {
+void Session::reset(BufferParams& buffer_params, float mb_frame_time_sampling, float fps) {
 	// Block for buffer acces and reset immediately. we can't do this
 	// in the thread, because we need to allocate an OpenGL buffer, and
 	// that only works in the main thread
@@ -277,7 +276,7 @@ void Session::reset(BufferParams& buffer_params, float mb_frame_time_sampling) {
 	reset_time          = time_dt();
 
 	reset_parameters(buffer_params);
-    server->reset(params.export_scene, scene->kernel->uiGPUs, mb_frame_time_sampling, params.deep_image);
+    server->reset(params.export_type, scene->kernel->uiGPUs, mb_frame_time_sampling, fps, params.deep_image);
 	pause_cond.notify_all();
 } //reset()
 
@@ -384,7 +383,7 @@ void Session::update_scene_to_server(uint32_t frame_idx, uint32_t total_frames, 
 	}
 
 	// Update scene
-	if(params.export_scene != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE || scene->need_update()) {
+	if(params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE || scene->need_update()) {
 		progress.set_status("Updating Scene");
         scene->server_update(server, progress, params.interactive, frame_idx, total_frames);
 	}

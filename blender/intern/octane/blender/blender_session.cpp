@@ -38,15 +38,20 @@
 
 #include <thread>
 #include <chrono>
+#include <math.h>
 
 OCT_NAMESPACE_BEGIN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Non-Interactive render session constructor
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_)
-                                : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL) {
+BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_,
+                               ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type_, std::string &export_path_)
+                                : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), export_type(export_type_),
+                                export_path(export_path_), b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL) {
     sync_mutex.lock();
+
+    no_progress_update = export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
 
     for(int i=0; i < Passes::NUM_PASSES; ++i) {
         if(pass_buffers[i]) pass_buffers[i] = 0;
@@ -69,9 +74,14 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Interactive render session constructor
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_, BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
-                                : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), b_v3d(b_v3d_), b_rv3d(b_rv3d_) {
+BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_,
+                               ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type_, std::string &export_path_,
+                               BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
+                                : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), export_type(export_type_),
+                                export_path(export_path_), b_v3d(b_v3d_), b_rv3d(b_rv3d_) {
     sync_mutex.lock();
+
+    no_progress_update = export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
 
     for(int i = 0; i < Passes::NUM_PASSES; ++i) {
         if(pass_buffers[i]) pass_buffers[i] = 0;
@@ -183,7 +193,7 @@ bool BlenderSession::activate(BL::Scene b_scene) {
 // Create the Blender session and all Octane session data structures
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::create_session() {
-    SessionParams session_params    = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
+    SessionParams session_params    = BlenderSync::get_session_params(b_userpref, b_scene, export_type, interactive);
     session_params.width            = width;
     session_params.height           = height;
 
@@ -204,9 +214,13 @@ void BlenderSession::create_session() {
     last_progress	= -1.0f;
 
     // Create session
-    string cur_path = blender_absolute_path(b_data, b_scene, b_scene.render().filepath().c_str());
-    cur_path += "/octane_export";
-    session = new Session(session_params, cur_path.c_str());
+    if(export_path.length())
+        session = new Session(session_params, export_path.c_str());
+    else {
+        string cur_path = blender_absolute_path(b_data, b_scene, b_scene.render().filepath().c_str());
+        cur_path += "/octane_export";
+        session = new Session(session_params, cur_path.c_str());
+    }
     session->set_blender_session(this);
     session->set_pause(BlenderSync::get_session_pause_state(b_scene, interactive));
 
@@ -228,7 +242,7 @@ void BlenderSession::create_session() {
     BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
 
     if(interactive || !b_engine.is_animation() || b_scene.frame_current() == b_scene.frame_start())
-        session->reset(buffer_params, mb_frame_time_sampling);
+        session->reset(buffer_params, mb_frame_time_sampling, session_params.fps);
 } //create_session()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -256,7 +270,7 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_) {
     session->set_pause(false);
 
     BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-    session->reset(buffer_params, mb_frame_time_sampling);
+    session->reset(buffer_params, mb_frame_time_sampling, session->params.fps);
 
     sync_mutex.unlock();
 } //reset_session()
@@ -314,6 +328,8 @@ int BlenderSession::load_internal_mb_sequence(bool &stop_render, int &num_frames
     //CLAMP(first_frame, start_frame, end_frame);
     //CLAMP(last_frame, start_frame, end_frame);
 
+    ::Scene *m_scene = (::Scene*)b_scene.ptr.data;
+
     num_frames = last_frame - first_frame + 1;
     double last_cfra;
     int motion = 0;
@@ -323,8 +339,12 @@ int BlenderSession::load_internal_mb_sequence(bool &stop_render, int &num_frames
         //b_scene.frame_set(cur_mb_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
         last_cfra = (double)cur_mb_frame;
         CLAMP(last_cfra, MINAFRAME, MAXFRAME);
-        BKE_scene_frame_set((::Scene *)b_scene.ptr.data, last_cfra);
-        BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+        //BKE_scene_frame_set((::Scene *)b_scene.ptr.data, last_cfra);
+        //BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+        //BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+	    m_scene->r.cfra = floor(last_cfra);
+	    m_scene->r.subframe = last_cfra - m_scene->r.cfra;
+	    BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
         BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
 
         sync->sync_data(b_v3d, b_engine.camera_override(), layer, motion);
@@ -346,8 +366,12 @@ int BlenderSession::load_internal_mb_sequence(bool &stop_render, int &num_frames
     double cfra = (double)cur_frame;
     CLAMP(cfra, MINAFRAME, MAXFRAME);
     if(last_cfra != cfra) {
-        BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-        BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+        //BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+        //BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+        //BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+	    m_scene->r.cfra = floor(cfra);
+	    m_scene->r.subframe = cfra - m_scene->r.cfra;
+	    BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
         BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
     }
 
@@ -779,13 +803,13 @@ void BlenderSession::clear_passes_buffers() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSession::render() {
     // Get buffer parameters
-    SessionParams	session_params	= BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
-    if(session_params.export_scene != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE) {
+    SessionParams	session_params	= BlenderSync::get_session_params(b_userpref, b_scene, export_type, interactive);
+    if(session_params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE) {
         sync->sync_data(b_v3d, b_engine.camera_override());
         sync->sync_camera(b_engine.camera_override(), width, height);
 
         session->update_scene_to_server(0, 1);
-        session->server->startRender(width, height, ::OctaneEngine::OctaneClient::IMAGE_8BIT, session_params.out_of_core_enabled, session_params.out_of_core_mem_limit, session_params.out_of_core_gpu_headroom);
+        session->server->startRender(interactive, width, height, ::OctaneEngine::OctaneClient::IMAGE_8BIT, session_params.out_of_core_enabled, session_params.out_of_core_mem_limit, session_params.out_of_core_gpu_headroom);
 
         if(b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
             session->progress.set_status("Transferring scene file...");
@@ -840,6 +864,8 @@ void BlenderSession::render() {
 
             // Render
             if(motion_blur && mb_type == SUBFRAME && mb_samples > 1) {
+                ::Scene *m_scene = (::Scene*)b_scene.ptr.data;
+
                 mb_sample_in_work = 0;
                 float subframe = 0;
                 int cur_frame = b_scene.frame_current();
@@ -853,8 +879,12 @@ void BlenderSession::render() {
                             //b_scene.frame_set(cur_frame, subframe); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
                             double cfra = (double)cur_frame + (double)subframe;
                             CLAMP(cfra, MINAFRAME, MAXFRAME);
-                            BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-                            BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+                            //BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+                            //BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+                            //BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+	                        m_scene->r.cfra = floor(cfra);
+	                        m_scene->r.subframe = cfra - m_scene->r.cfra;
+	                        BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
                             BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
                         }
 
@@ -870,8 +900,12 @@ void BlenderSession::render() {
                 //b_scene.frame_set(cur_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
                 double cfra = (double)cur_frame;
                 CLAMP(cfra, MINAFRAME, MAXFRAME);
-                BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-                BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+                //BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
+                //BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
+                //BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+	            m_scene->r.cfra = floor(cfra);
+	            m_scene->r.subframe = cfra - m_scene->r.cfra;
+	            BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
                 BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
             }
             else if(motion_blur && mb_type == INTERNAL) {
@@ -915,7 +949,7 @@ void BlenderSession::synchronize() {
 
     SessionParams session_params;
 
-    session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, interactive);
+    session_params = BlenderSync::get_session_params(b_userpref, b_scene, export_type, interactive);
     if(session->params.modified(session_params)) {
         sync_mutex.unlock();
         reload_session();
@@ -1000,7 +1034,7 @@ bool BlenderSession::draw(int w, int h) {
     }
 
     // Update status and progress for 3d view draw
-    update_status_progress();
+    if(!no_progress_update) update_status_progress();
 
     // Draw
     if(!reset) buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
@@ -1086,7 +1120,7 @@ void BlenderSession::tag_update() {
 void BlenderSession::tag_redraw() {
     if(!interactive) {
         // Update stats and progress, only for background here because in 3d view we do it in draw for thread safety reasons
-        update_status_progress();
+        if(!no_progress_update) update_status_progress();
 
         // Offline render, redraw if timeout passed
         if(time_dt() - last_redraw_time > 1.0) {

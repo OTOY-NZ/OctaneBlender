@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 11
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 2
+#   define OCTANE_SERVER_MINOR_VERSION 5
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -114,102 +114,103 @@ enum NodePinType {
 
 #define NODE_TYPE(_name, _enum)   _name = _enum,
 enum NodeType {
-    NODE_TYPE(NT_UNKNOWN                    , 0)
+    NODE_TYPE(NT_UNKNOWN                    ,   0)
 
-    NODE_TYPE(NT_ANIMATION_SETTINGS         , 99)
-    NODE_TYPE(NT_ANNOTATION                 , 68)
-    NODE_TYPE(NT_BOOL                       , 11)
-    NODE_TYPE(NT_CAM_BAKING                 , 94)
-    NODE_TYPE(NT_CAM_CUSTOM                 , 97)
-    NODE_TYPE(NT_CAM_PANORAMIC              , 62)
-    NODE_TYPE(NT_CAM_THINLENS               , 13)
+    NODE_TYPE(NT_ANIMATION_SETTINGS         ,  99)
+    NODE_TYPE(NT_ANNOTATION                 ,  68)
+    NODE_TYPE(NT_BOOL                       ,  11)
+    NODE_TYPE(NT_CAM_BAKING                 ,  94)
+    NODE_TYPE(NT_CAM_CUSTOM                 ,  97)
+    NODE_TYPE(NT_CAM_PANORAMIC              ,  62)
+    NODE_TYPE(NT_CAM_THINLENS               ,  13)
     NODE_TYPE(NT_DIRECTORY                  , 101)
-    NODE_TYPE(NT_DISPLACEMENT               , 80)
-    NODE_TYPE(NT_EMIS_BLACKBODY             , 53)
-    NODE_TYPE(NT_EMIS_TEXTURE               , 54)
-    NODE_TYPE(NT_ENUM                       , 57)
-    NODE_TYPE(NT_ENV_DAYLIGHT               , 14)
-    NODE_TYPE(NT_ENV_TEXTURE                , 37)
-    NODE_TYPE(NT_FILE                       , 88)
+    NODE_TYPE(NT_DISPLACEMENT               ,  80)
+    NODE_TYPE(NT_EMIS_BLACKBODY             ,  53)
+    NODE_TYPE(NT_EMIS_TEXTURE               ,  54)
+    NODE_TYPE(NT_ENUM                       ,  57)
+    NODE_TYPE(NT_ENV_DAYLIGHT               ,  14)
+    NODE_TYPE(NT_ENV_TEXTURE                ,  37)
+    NODE_TYPE(NT_FILE                       ,  88)
     NODE_TYPE(NT_FILM_SETTINGS              , 100)
-    NODE_TYPE(NT_FLOAT                      , 6)
-    NODE_TYPE(NT_GEO_GROUP                  , 3)
-    NODE_TYPE(NT_GEO_MESH                   , 1)
-    NODE_TYPE(NT_GEO_VOLUME                 , 91)
-    NODE_TYPE(NT_GEO_PLACEMENT              , 4)
-    NODE_TYPE(NT_GEO_SCATTER                , 5)
-    NODE_TYPE(NT_IMAGER_CAMERA              , 15)
-    NODE_TYPE(NT_IMPORT_ALEMBIC_PREFS       , 82)
-    NODE_TYPE(NT_IMPORT_OBJ_PREFS           , 83)
-    NODE_TYPE(NT_IMPORT_VDB_PREFS           , 93)
-    NODE_TYPE(NT_IMAGE_RESOLUTION           , 12)
-    NODE_TYPE(NT_INT                        , 9)
-    NODE_TYPE(NT_KERN_DIRECTLIGHTING        , 24)
-    NODE_TYPE(NT_KERN_INFO                  , 26)
-    NODE_TYPE(NT_KERN_MATPREVIEW            , 69)
-    NODE_TYPE(NT_KERN_PATHTRACING           , 25)
-    NODE_TYPE(NT_KERN_PMC                   , 23)
-    NODE_TYPE(NT_LOCAL_APP_PREFS            , 55)
-    NODE_TYPE(NT_MAT_DIFFUSE                , 17)
-    NODE_TYPE(NT_MAT_GLOSSY                 , 16)
-    NODE_TYPE(NT_MAT_MAP                    , 2)
-    NODE_TYPE(NT_MAT_MIX                    , 19)
-    NODE_TYPE(NT_MAT_PORTAL                 , 20)
-    NODE_TYPE(NT_MAT_SPECULAR               , 18)
-    NODE_TYPE(NT_MED_ABSORPTION             , 58)
-    NODE_TYPE(NT_MED_SCATTERING             , 59)
-    NODE_TYPE(NT_MED_VOLUME                 , 98)
-    NODE_TYPE(NT_OBJECTLAYER                , 65)
-    NODE_TYPE(NT_OBJECTLAYER_MAP            , 64)
-    NODE_TYPE(NT_ORC_VERSION                , 92)
-    NODE_TYPE(NT_PHASE_SCHLICK              , 60)
-    NODE_TYPE(NT_POSTPROCESSING             , 61)
-    NODE_TYPE(NT_PROJ_BOX                   , 79)
-    NODE_TYPE(NT_PROJ_CYLINDRICAL           , 74)
-    NODE_TYPE(NT_PROJ_LINEAR                , 75)
-    NODE_TYPE(NT_PROJ_PERSPECTIVE           , 76)
-    NODE_TYPE(NT_PROJ_SPHERICAL             , 77)
-    NODE_TYPE(NT_PROJ_UVW                   , 78)
-    NODE_TYPE(NT_PROJECT_SETTINGS           , 70)
-    NODE_TYPE(NT_RENDER_LAYER               , 90)
-    NODE_TYPE(NT_RENDER_PASSES              , 86)
-    NODE_TYPE(NT_RENDERTARGET               , 56)
-    NODE_TYPE(NT_SCRIPT_INPUT               , 85)
-    NODE_TYPE(NT_SPLIT_PANE                 , 72)
-    NODE_TYPE(NT_STRING                     , 84)
-    NODE_TYPE(NT_SUN_DIRECTION              , 30)
-    NODE_TYPE(NT_TEX_ALPHAIMAGE             , 35)
-    NODE_TYPE(NT_TEX_CHECKS                 , 45)
-    NODE_TYPE(NT_TEX_CLAMP                  , 41)
-    NODE_TYPE(NT_TEX_COLORCORRECTION        , 51)
-    NODE_TYPE(NT_TEX_COSINEMIX              , 40)
-    NODE_TYPE(NT_TEX_DIRT                   , 63)
-    NODE_TYPE(NT_TEX_FALLOFF                , 50)
-    NODE_TYPE(NT_TEX_FLOAT                  , 31)
-    NODE_TYPE(NT_TEX_FLOATIMAGE             , 36)
-    NODE_TYPE(NT_TEX_GAUSSIANSPECTRUM       , 32)
-    NODE_TYPE(NT_TEX_GRADIENT               , 49)
-    NODE_TYPE(NT_TEX_IMAGE                  , 34)
-    NODE_TYPE(NT_TEX_INVERT                 , 46)
-    NODE_TYPE(NT_TEX_MARBLE                 , 47)
-    NODE_TYPE(NT_TEX_MIX                    , 38)
-    NODE_TYPE(NT_TEX_MULTIPLY               , 39)
-    NODE_TYPE(NT_TEX_NOISE                  , 87)
-    NODE_TYPE(NT_TEX_RANDOMCOLOR            , 81)
-    NODE_TYPE(NT_TEX_RGB                    , 33)
-    NODE_TYPE(NT_TEX_RGFRACTAL              , 48)
-    NODE_TYPE(NT_TEX_SAWWAVE                , 42)
-    NODE_TYPE(NT_TEX_SINEWAVE               , 44)
-    NODE_TYPE(NT_TEX_SIDE                   , 89)
-    NODE_TYPE(NT_TEX_TRIANGLEWAVE           , 43)
-    NODE_TYPE(NT_TEX_TURBULENCE             , 22)
-    NODE_TYPE(NT_TRANSFORM_2D               , 66)
-    NODE_TYPE(NT_TRANSFORM_3D               , 27)
-    NODE_TYPE(NT_TRANSFORM_ROTATION         , 29)
-    NODE_TYPE(NT_TRANSFORM_SCALE            , 28)
-    NODE_TYPE(NT_TRANSFORM_VALUE            , 67)
-    NODE_TYPE(NT_VOLUME_RAMP                , 95)
-    NODE_TYPE(NT_WORK_PANE                  , 73)
+    NODE_TYPE(NT_FLOAT                      ,   6)
+    NODE_TYPE(NT_GEO_GROUP                  ,   3)
+    NODE_TYPE(NT_GEO_MESH                   ,   1)
+    NODE_TYPE(NT_GEO_VOLUME                 ,  91)
+    NODE_TYPE(NT_GEO_PLACEMENT              ,   4)
+    NODE_TYPE(NT_GEO_SCATTER                ,   5)
+    NODE_TYPE(NT_IMAGER_CAMERA              ,  15)
+    NODE_TYPE(NT_IMPORT_ALEMBIC_PREFS       ,  82)
+    NODE_TYPE(NT_IMPORT_OBJ_PREFS           ,  83)
+    NODE_TYPE(NT_IMPORT_VDB_PREFS           ,  93)
+    NODE_TYPE(NT_IMAGE_RESOLUTION           ,  12)
+    NODE_TYPE(NT_INT                        ,   9)
+    NODE_TYPE(NT_KERN_DIRECTLIGHTING        ,  24)
+    NODE_TYPE(NT_KERN_INFO                  ,  26)
+    NODE_TYPE(NT_KERN_MATPREVIEW            ,  69)
+    NODE_TYPE(NT_KERN_PATHTRACING           ,  25)
+    NODE_TYPE(NT_KERN_PMC                   ,  23)
+    NODE_TYPE(NT_LOCAL_APP_PREFS            ,  55)
+    NODE_TYPE(NT_MAT_DIFFUSE                ,  17)
+    NODE_TYPE(NT_MAT_GLOSSY                 ,  16)
+    NODE_TYPE(NT_MAT_MAP                    ,   2)
+    NODE_TYPE(NT_MAT_MIX                    ,  19)
+    NODE_TYPE(NT_MAT_PORTAL                 ,  20)
+    NODE_TYPE(NT_MAT_SPECULAR               ,  18)
+    NODE_TYPE(NT_MED_ABSORPTION             ,  58)
+    NODE_TYPE(NT_MED_SCATTERING             ,  59)
+    NODE_TYPE(NT_MED_VOLUME                 ,  98)
+    NODE_TYPE(NT_OBJECTLAYER                ,  65)
+    NODE_TYPE(NT_OBJECTLAYER_MAP            ,  64)
+    NODE_TYPE(NT_ORC_VERSION                ,  92)
+    NODE_TYPE(NT_PHASE_SCHLICK              ,  60)
+    NODE_TYPE(NT_POSTPROCESSING             ,  61)
+    NODE_TYPE(NT_PROJ_BOX                   ,  79)
+    NODE_TYPE(NT_PROJ_CYLINDRICAL           ,  74)
+    NODE_TYPE(NT_PROJ_LINEAR                ,  75)
+    NODE_TYPE(NT_PROJ_PERSPECTIVE           ,  76)
+    NODE_TYPE(NT_PROJ_SPHERICAL             ,  77)
+    NODE_TYPE(NT_PROJ_UVW                   ,  78)
+    NODE_TYPE(NT_PROJECT_SETTINGS           ,  70)
+    NODE_TYPE(NT_RENDER_LAYER               ,  90)
+    NODE_TYPE(NT_RENDER_PASSES              ,  86)
+    NODE_TYPE(NT_RENDERTARGET               ,  56)
+    NODE_TYPE(NT_SCRIPT_INPUT               ,  85)
+    NODE_TYPE(NT_SPLIT_PANE                 ,  72)
+    NODE_TYPE(NT_STRING                     ,  84)
+    NODE_TYPE(NT_SUN_DIRECTION              ,  30)
+    NODE_TYPE(NT_TEX_ALPHAIMAGE             ,  35)
+    NODE_TYPE(NT_TEX_CHECKS                 ,  45)
+    NODE_TYPE(NT_TEX_CLAMP                  ,  41)
+    NODE_TYPE(NT_TEX_COLORCORRECTION        ,  51)
+    NODE_TYPE(NT_TEX_COSINEMIX              ,  40)
+    NODE_TYPE(NT_TEX_DIRT                   ,  63)
+    NODE_TYPE(NT_TEX_FALLOFF                ,  50)
+    NODE_TYPE(NT_TEX_FLOAT                  ,  31)
+    NODE_TYPE(NT_TEX_FLOATIMAGE             ,  36)
+    NODE_TYPE(NT_TEX_GAUSSIANSPECTRUM       ,  32)
+    NODE_TYPE(NT_TEX_GRADIENT               ,  49)
+    NODE_TYPE(NT_TEX_IMAGE                  ,  34)
+    NODE_TYPE(NT_TEX_INVERT                 ,  46)
+    NODE_TYPE(NT_TEX_MARBLE                 ,  47)
+    NODE_TYPE(NT_TEX_MIX                    ,  38)
+    NODE_TYPE(NT_TEX_MULTIPLY               ,  39)
+    NODE_TYPE(NT_TEX_NOISE                  ,  87)
+    NODE_TYPE(NT_TEX_RANDOMCOLOR            ,  81)
+    NODE_TYPE(NT_TEX_RGB                    ,  33)
+    NODE_TYPE(NT_TEX_RGFRACTAL              ,  48)
+    NODE_TYPE(NT_TEX_SAWWAVE                ,  42)
+    NODE_TYPE(NT_TEX_SINEWAVE               ,  44)
+    NODE_TYPE(NT_TEX_SIDE                   ,  89)
+    NODE_TYPE(NT_TEX_TRIANGLEWAVE           ,  43)
+    NODE_TYPE(NT_TEX_TURBULENCE             ,  22)
+    NODE_TYPE(NT_TEX_W                      , 104)
+    NODE_TYPE(NT_TRANSFORM_2D               ,  66)
+    NODE_TYPE(NT_TRANSFORM_3D               ,  27)
+    NODE_TYPE(NT_TRANSFORM_ROTATION         ,  29)
+    NODE_TYPE(NT_TRANSFORM_SCALE            ,  28)
+    NODE_TYPE(NT_TRANSFORM_VALUE            ,  67)
+    NODE_TYPE(NT_VOLUME_RAMP                ,  95)
+    NODE_TYPE(NT_WORK_PANE                  ,  73)
 
     // The input linker node types.
     NODE_TYPE(NT_IN_OFFSET                  , 20000)
@@ -493,6 +494,23 @@ enum RenderPassId {
     RENDER_PASS_OBJECT_LAYER_COLOR       = RENDER_PASS_INFO_OFFSET + IC_TYPE_OBJECT_LAYER_COLOR,
 
     PASS_NONE = -1
+};
+
+enum FalloffTextureMode {
+    FALLOFF_NORMAL_VS_EYE_RAY,
+    FALLOFF_NORMAL_VS_VECTOR_90DEG,
+    FALLOFF_NORMAL_VS_VECTOR_180DEG,
+};
+
+enum HairInterpolationType {
+    /// W is calculated using the relative vertex position in the hair they belong to
+    HAIR_INTERP_LENGTH   = 0,
+    /// W is calculated using the index of the vertex in the hair they belong to
+    HAIR_INTERP_SEGMENTS = 1,
+    HAIR_INTERP_NONE,
+
+    /// default hair interpolation type
+    HAIR_INTERP_DEFAULT  = HAIR_INTERP_LENGTH,
 };
 
 } //namespace Octane
@@ -1959,6 +1977,11 @@ struct Kernel {
         SYMMETRIC,
         AFTER
     };
+    enum LayersMode {
+        NORMAL = 0,
+        HIDE_INACTIVE,
+        ONLY_SIDE_EFFECTS
+    };
 
     KernelType      type;
 
@@ -2001,6 +2024,7 @@ struct Kernel {
     int32_t         iGlossyDepth;
     int32_t         iSpecularDepth;
     DirectLightMode GIMode;
+    std::string     sAoTexture;
 
     //PATH_TRACE
 
@@ -2026,7 +2050,7 @@ struct Kernel {
     bool            bLayersEnable;
     int32_t         iLayersCurrent;
     bool            bLayersInvert;
-    bool            bLayersVisOnly;
+    LayersMode      layersMode;
 
     inline Kernel() : type(NONE) {}
     inline bool operator==(const Kernel& otherKernel) {
@@ -2062,6 +2086,7 @@ struct Kernel {
                 && iGlossyDepth == otherKernel.iGlossyDepth
                 && iSpecularDepth == otherKernel.iSpecularDepth
                 && GIMode == otherKernel.GIMode
+                && sAoTexture == otherKernel.sAoTexture
 
                 && fExploration == otherKernel.fExploration
                 && fDLImportance == otherKernel.fDLImportance
@@ -2082,7 +2107,7 @@ struct Kernel {
                 && bLayersEnable == otherKernel.bLayersEnable
                 && iLayersCurrent == otherKernel.iLayersCurrent
                 && bLayersInvert == otherKernel.bLayersInvert
-                && bLayersVisOnly == otherKernel.bLayersVisOnly
+                && layersMode == otherKernel.layersMode
 
                 && fShutterTime == otherKernel.fShutterTime
                 && mbAlignment == otherKernel.mbAlignment);
@@ -2120,6 +2145,7 @@ struct Kernel {
         if(iGlossyDepth != otherKernel.iGlossyDepth)                iGlossyDepth = otherKernel.iGlossyDepth;
         if(iSpecularDepth != otherKernel.iSpecularDepth)            iSpecularDepth = otherKernel.iSpecularDepth;
         if(GIMode != otherKernel.GIMode)                            GIMode = otherKernel.GIMode;
+        if(sAoTexture != otherKernel.sAoTexture)                    sAoTexture = otherKernel.sAoTexture;
 
         if(fExploration != otherKernel.fExploration)                fExploration = otherKernel.fExploration;
         if(fDLImportance != otherKernel.fDLImportance)              fDLImportance = otherKernel.fDLImportance;
@@ -2140,7 +2166,7 @@ struct Kernel {
         if(bLayersEnable != otherKernel.bLayersEnable)              bLayersEnable = otherKernel.bLayersEnable;
         if(iLayersCurrent != otherKernel.iLayersCurrent)            iLayersCurrent = otherKernel.iLayersCurrent;
         if(bLayersInvert != otherKernel.bLayersInvert)              bLayersInvert = otherKernel.bLayersInvert;
-        if(bLayersVisOnly != otherKernel.bLayersVisOnly)            bLayersVisOnly = otherKernel.bLayersVisOnly;
+        if(layersMode != otherKernel.layersMode)            layersMode = otherKernel.layersMode;
 
         if(fShutterTime != otherKernel.fShutterTime)                fShutterTime = otherKernel.fShutterTime;
         if(mbAlignment != otherKernel.mbAlignment)                  mbAlignment = otherKernel.mbAlignment;
@@ -2573,12 +2599,15 @@ struct OctaneMultiplyTexture : public OctaneNodeBase {
 
 /// The structure holding a falloff texture data that is going to be uploaded to the Octane server.
 struct OctaneFalloffTexture : public OctaneNodeBase {
-    string  sNormal;
-    float   fNormalDefaultVal;
-    string  sGrazing;
-    float   fGrazingDefaultVal;
-    string  sIndex;
-    float   fIndexDefaultVal;
+    string              sMode;
+    FalloffTextureMode  modeDefaultVal;
+    string              sNormal;
+    float               fNormalDefaultVal;
+    string              sGrazing;
+    float               fGrazingDefaultVal;
+    string              sIndex;
+    float               fIndexDefaultVal;
+    float_3             f3Direction;
 
     OctaneFalloffTexture() : OctaneNodeBase(Octane::NT_TEX_FALLOFF) {}
 }; //struct OctaneFalloffTexture
@@ -2761,6 +2790,11 @@ struct OctaneDisplacementTexture : public OctaneNodeBase {
 
     OctaneDisplacementTexture() : OctaneNodeBase(Octane::NT_DISPLACEMENT) {}
 }; //struct OctaneDisplacementTexture
+
+/// The structure holding a displacement data that is going to be uploaded to the Octane server.
+struct OctaneWTexture : public OctaneNodeBase {
+    OctaneWTexture() : OctaneNodeBase(Octane::NT_TEX_W) {}
+}; //struct OctaneWTexture
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3109,6 +3143,7 @@ enum PacketType {
     LOAD_COSINE_MIX_TEXTURE,
     LOAD_INVERT_TEXTURE,
     LOAD_MIX_TEXTURE,
+    LOAD_W_TEXTURE,
     LOAD_MULTIPLY_TEXTURE,
     LOAD_IMAGE_TEXTURE,
     LOAD_IMAGE_TEXTURE_DATA,
@@ -3311,7 +3346,8 @@ public:
     /// @param [in] exportSceneType - Type of the scene export (NONE if just rendering).
     /// @param [in] uiGPUs - The GPUs that should be used by server, as a bit-map.
     /// @param [in] fFrameTimeSampling - Time sampling of the frames (for the animation and motion blur).
-    inline void reset(SceneExportTypes::SceneExportTypesEnum exportSceneType, uint32_t uiGPUs, float fFrameTimeSampling, bool bDeepImage);
+    /// @param [in] fFps - Frames per second value.
+    inline void reset(SceneExportTypes::SceneExportTypesEnum exportSceneType, uint32_t uiGPUs, float fFrameTimeSampling, float fFps, bool bDeepImage);
 
     /// Delete all the nodes int the project currently loaded on the server. Does nothing if a file export session is active.
     inline void clear();
@@ -3321,13 +3357,14 @@ public:
     inline bool update();
 
     /// Start the rendering process on the server.
+    /// @param [in] bInteractive - Is the session ment to be interactive or "final render".
     /// @param [in] iWidth - The width of the the rendered image.
     /// @param [in] iHeigth - The heigth of the the rendered image.
     /// @param [in] imgType - The type of the rendered image.
     /// @param [in] bOutOfCoreEnabled - Enable "out of core" mode.
     /// @param [in] iOutOfCoreMemLimit - Memory limit for "out of core" mode.
     /// @param [in] iOutOfCoreGPUHeadroom - GPU headroom for "out of core" mode.
-    inline void startRender(int32_t iWidth, int32_t iHeigth, ImageType imgType, bool bOutOfCoreEnabled, int32_t iOutOfCoreMemLimit, int32_t iOutOfCoreGPUHeadroom);
+    inline void startRender(bool bInteractive, int32_t iWidth, int32_t iHeigth, ImageType imgType, bool bOutOfCoreEnabled, int32_t iOutOfCoreMemLimit, int32_t iOutOfCoreGPUHeadroom);
     /// Stop the render process on the server.
     /// Mostly needed to close the animation export sequence on the server.
     /// @param [in] fFPS - Frames per second value.
@@ -3364,7 +3401,8 @@ public:
 
     /// Upload the configuration of region of image to render.
     /// @param [in] pCamera - Camera data structure.
-    void uploadRenderRegion(Camera *pCamera);
+    /// @param [in] bInteractive - Is the session ment to be interactive or "final render".
+    void uploadRenderRegion(Camera *pCamera, bool bInteractive);
 
     /// Upload environment configuration to render server.
     /// @param [in] pEnv - Environment data structure.
@@ -3426,16 +3464,22 @@ public:
     /// @param [in] plUVIndicesSize - Array with number of UVs for each mesh.
     /// @param [in] ppf3HairPoints - Array with arrays of hair points coordinates for each mesh.
     /// @param [in] plHairPointsSize - Array with number of hair points for each mesh.
+    /// @param [in] plHairWsSize - Array with number of hair Ws for each mesh.
     /// @param [in] ppiVertPerHair - Array with arrays of number of vertices per hair for each mesh.
     /// @param [in] plVertPerHairSize - Array with number of hairs for each mesh.
     /// @param [in] ppfHairThickness - Array with arrays of hair thicknesses for each mesh.
     /// @param [in] ppiHairMatIndices - Array with arrays of material indices for hairs of each mesh.
     /// @param [in] ppf2HairUVs - Array with arrays of UVs for hairs of each mesh.
+    /// @param [in] ppf2HairWs - Array with arrays of Ws for hairs of each mesh.
+    /// @param [in] aiHairInterpolations - Array with W interpolation types for hairs of each mesh.
     /// @param [in] pbOpenSubdEnable - Array with "OpenSubDiv enable" switches for each mesh.
     /// @param [in] piOpenSubdScheme - Array with "OpenSubDiv scheme" value for each mesh.
     /// @param [in] piOpenSubdLevel - Array with "OpenSubDiv level" value for each mesh.
     /// @param [in] pfOpenSubdSharpness - Array with "OpenSubDiv sharpness" value for each mesh.
     /// @param [in] piOpenSubdBoundInterp - Array with "OpenSubDiv boundary interpolation" value for each mesh.
+    /// @param [in] piOpenSubdCreasesCnt - Array with creases count for each mesh.
+    /// @param [in] ppiOpenSubdCreasesIndices - Array with creases indices for each mesh.
+    /// @param [in] ppfOpenSubdCreasesSharpnesses - Array with creases sharpnesses for each mesh.
     /// @param [in] piLayerNumber - Array with layer number for each mesh.
     /// @param [in] piBakingGroupId - Array with baking group id for each mesh.
     /// @param [in] pfGeneralVis - Array with "General visibility" value for each mesh.
@@ -3469,16 +3513,22 @@ public:
                                     uint64_t        *plUVIndicesSize,
                                     float_3         **ppf3HairPoints,
                                     uint64_t        *plHairPointsSize,
+                                    uint64_t        *plHairWsSize,
                                     int32_t         **ppiVertPerHair,
                                     uint64_t        *plVertPerHairSize,
                                     float           **ppfHairThickness,
                                     int32_t         **ppiHairMatIndices,
                                     float_2         **ppf2HairUVs,
+                                    float_2         **ppf2HairWs,
+                                    int32_t         *aiHairInterpolations,
                                     bool            *pbOpenSubdEnable,
                                     int32_t         *piOpenSubdScheme,
                                     int32_t         *piOpenSubdLevel,
                                     float           *pfOpenSubdSharpness,
                                     int32_t         *piOpenSubdBoundInterp,
+                                    uint64_t        *piOpenSubdCreasesCnt,
+                                    int32_t         **ppiOpenSubdCreasesIndices,
+                                    float           **ppfOpenSubdCreasesSharpnesses,
                                     int32_t         *piLayerNumber,
                                     int32_t         *piBakingGroupId,
                                     float           *pfGeneralVis,
@@ -3631,6 +3681,9 @@ public:
     /// Upload the displacement node to the server.
     /// @param [in] pNode - Texture data structure.
     inline void uploadDisplacementTex(OctaneDisplacementTexture *pNode);
+    /// Upload the W texture node to the server.
+    /// @param [in] pNode - Texture data structure.
+    inline void uploadWTex(OctaneWTexture *pNode);
 
     /// Delete the texture node on the server.
     /// @param [in] sName - Unique name of the texture.
@@ -3921,6 +3974,11 @@ private:
             return this->operator<<(uiVal);
         }
 
+        inline RPCSend& operator<<(HairInterpolationType const &enumVal) {
+            uint32_t uiVal = static_cast<uint32_t>(enumVal);
+            return this->operator<<(uiVal);
+        }
+
         inline RPCSend& operator<<(OctaneClient::ImageType const &enumVal) {
             int32_t iVal = static_cast<int32_t>(enumVal);
             return this->operator<<(iVal);
@@ -3932,6 +3990,11 @@ private:
         }
 
         inline RPCSend& operator<<(InfoChannelType const &enumVal) {
+            int32_t iVal = static_cast<int32_t>(enumVal);
+            return this->operator<<(iVal);
+        }
+
+        inline RPCSend& operator<<(Kernel::LayersMode const &enumVal) {
             int32_t iVal = static_cast<int32_t>(enumVal);
             return this->operator<<(iVal);
         }
@@ -4776,7 +4839,7 @@ inline bool OctaneClient::activate(string const &sStandLogin, string const &sSta
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline void OctaneClient::reset(SceneExportTypes::SceneExportTypesEnum exportSceneType, uint32_t uiGPUs, float fFrameTimeSampling, bool bDeepImage) {
+inline void OctaneClient::reset(SceneExportTypes::SceneExportTypesEnum exportSceneType, uint32_t uiGPUs, float fFrameTimeSampling, float fFps, bool bDeepImage) {
     if(m_Socket < 0 || m_cBlockUpdates) return;
 
     m_bUnpackedTexturesMsgShown = false;
@@ -4786,8 +4849,8 @@ inline void OctaneClient::reset(SceneExportTypes::SceneExportTypesEnum exportSce
     m_ExportSceneType = exportSceneType;
     m_bDeepImage      = bDeepImage;
 
-    RPCSend snd(m_Socket, sizeof(float) + sizeof(uint32_t) * 2, RESET);
-    snd << fFrameTimeSampling << m_ExportSceneType << bDeepImage;
+    RPCSend snd(m_Socket, sizeof(float) * 2 + sizeof(uint32_t) * 2, RESET);
+    snd << fFrameTimeSampling << fFps << m_ExportSceneType << bDeepImage;
 
     snd.write();
 
@@ -4868,15 +4931,15 @@ inline bool OctaneClient::update() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline void OctaneClient::startRender(int32_t iWidth, int32_t iHeigth, ImageType imgType, bool bOutOfCoreEnabled, int32_t iOutOfCoreMemLimit, int32_t iOutOfCoreGPUHeadroom) {
+inline void OctaneClient::startRender(bool bInteractive, int32_t iWidth, int32_t iHeigth, ImageType imgType, bool bOutOfCoreEnabled, int32_t iOutOfCoreMemLimit, int32_t iOutOfCoreGPUHeadroom) {
     if(m_bRenderStarted) m_bRenderStarted = false;
 
     if(m_Socket < 0 || m_cBlockUpdates) return;
 
     LOCK_MUTEX(m_SocketMutex);
 
-    RPCSend snd(m_Socket, sizeof(int32_t) * 5 + sizeof(uint32_t), START);
-    snd << bOutOfCoreEnabled << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom << iWidth << iHeigth << imgType;
+    RPCSend snd(m_Socket, sizeof(int32_t) * 5 + sizeof(uint32_t) * 2, START);
+    snd << bInteractive << bOutOfCoreEnabled << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom << iWidth << iHeigth << imgType;
     snd.write();
 
     RPCReceive rcv(m_Socket);
@@ -5241,10 +5304,11 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
     switch(pKernel->type) {
         case Kernel::DIRECT_LIGHT:
         {
-            RPCSend snd(m_Socket, sizeof(float) * 7 + sizeof(int32_t) * 20, LOAD_KERNEL);
+            RPCSend snd(m_Socket, sizeof(float) * 7 + sizeof(int32_t) * 20 + pKernel->sAoTexture.length() + 2, LOAD_KERNEL);
             snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fAODist << pKernel->fDepthTolerance
                 << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
-                << pKernel->iSpecularDepth << pKernel->iGlossyDepth << pKernel->GIMode << pKernel->iDiffuseDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+                << pKernel->iSpecularDepth << pKernel->iGlossyDepth << pKernel->GIMode << pKernel->iDiffuseDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
+                << pKernel->sAoTexture;
             snd.write();
         }
             break;
@@ -5253,7 +5317,7 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
             RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 18, LOAD_KERNEL);
             snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fCoherentRatio << pKernel->fCausticBlur << pKernel->fGIClamp << pKernel->fDepthTolerance
                 << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
-                << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+                << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode;
             snd.write();
         }
             break;
@@ -5262,7 +5326,7 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
             RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 15, LOAD_KERNEL);
             snd << pKernel->type << pKernel->iMaxSamples << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower << pKernel->fExploration << pKernel->fDLImportance << pKernel->fCausticBlur << pKernel->fGIClamp
                 << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bKeepEnvironment
-                << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iMaxRejects << pKernel->iParallelism << pKernel->iWorkChunkSize << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+                << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth << pKernel->iMaxRejects << pKernel->iParallelism << pKernel->iWorkChunkSize << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode;
             snd.write();
         }
             break;
@@ -5271,7 +5335,7 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
             RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 16, LOAD_KERNEL);
             snd << pKernel->type << pKernel->infoChannelType << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fZdepthMax << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist << pKernel->fMaxSpeed << pKernel->fOpacityThreshold
                 << pKernel->bAlphaChannel << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bDistributedTracing << pKernel->bAoAlphaShadows << pKernel->bMinimizeNetTraffic
-                << pKernel->iMaxSamples << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+                << pKernel->iMaxSamples << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode;
             snd.write();
         }
             break;
@@ -5279,7 +5343,7 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
         {
             RPCSend snd(m_Socket, sizeof(int32_t) * 6 + sizeof(float), LOAD_KERNEL);
             OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
-            snd << defType << pKernel->mbAlignment << pKernel->fShutterTime << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->bLayersVisOnly;
+            snd << defType << pKernel->mbAlignment << pKernel->fShutterTime << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode;
             snd.write();
         }
             break;
@@ -5302,15 +5366,15 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline void OctaneClient::uploadRenderRegion(Camera *pCamera) {
+inline void OctaneClient::uploadRenderRegion(Camera *pCamera, bool bInteractive) {
     if(m_Socket < 0 || m_cBlockUpdates) return;
 
     LOCK_MUTEX(m_SocketMutex);
 
     {
-        RPCSend snd(m_Socket, sizeof(uint32_t) * 4, LOAD_RENDER_REGION);
+        RPCSend snd(m_Socket, sizeof(uint32_t) * 5, LOAD_RENDER_REGION);
         if(pCamera->bUseRegion)
-            snd << pCamera->ui4Region.x << pCamera->ui4Region.y << pCamera->ui4Region.z << pCamera->ui4Region.w;
+            snd << pCamera->ui4Region.x << pCamera->ui4Region.y << pCamera->ui4Region.z << pCamera->ui4Region.w << bInteractive;
         else {
             uint32_t tmp = 0;
             snd << tmp << tmp << tmp << tmp;
@@ -5594,6 +5658,9 @@ inline void OctaneClient::uploadNode(OctaneNodeBase *pNodeData) {
         case Octane::NT_TRANSFORM_VALUE:
             uploadFullTransform((OctaneEngine::OctaneFullTransform*)pNodeData);
             break;
+        case Octane::NT_TEX_W:
+            uploadWTex((OctaneEngine::OctaneWTexture*)pNodeData);
+            break;
         default:
             break;
     }
@@ -5801,16 +5868,22 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
                                 uint64_t        *plUVIndicesSize,
                                 float_3         **ppf3HairPoints,
                                 uint64_t        *plHairPointsSize,
+                                uint64_t        *plHairWsSize,
                                 int32_t         **ppiVertPerHair,
                                 uint64_t        *plVertPerHairSize,
                                 float           **ppfHairThickness,
                                 int32_t         **ppiHairMatIndices,
                                 float_2         **ppf2HairUVs,
+                                float_2         **ppf2HairWs,
+                                int32_t         *aiHairInterpolations,
                                 bool            *pbOpenSubdEnable,
                                 int32_t         *piOpenSubdScheme,
                                 int32_t         *piOpenSubdLevel,
                                 float           *pfOpenSubdSharpness,
                                 int32_t         *piOpenSubdBoundInterp,
+                                uint64_t        *piOpenSubdCreasesCnt,
+                                int32_t         **ppiOpenSubdCreasesIndices,
+                                float           **ppfOpenSubdCreasesSharpnesses,
                                 int32_t         *piLayerNumber,
                                 int32_t         *piBakingGroupId,
                                 float           *pfGeneralVis,
@@ -5826,9 +5899,9 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
     {
         uint64_t size = sizeof(uint64_t) //Meshes count;
             + sizeof(uint32_t) * 2 //Frame index
-            + sizeof(int32_t) * 4 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt //Subdivision addributes
-            + sizeof(int32_t) * 6 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt //Visibility and reshapable addributes
-            + sizeof(uint64_t) * 11 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt; //Array lentghs and smooth angles
+            + sizeof(uint64_t) * 1 * uiMeshCnt + sizeof(int32_t) * 4 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt //Subdivision addributes
+            + sizeof(int32_t) * 7 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt //Visibility and reshapable addributes
+            + sizeof(uint64_t) * 12 * uiMeshCnt + sizeof(float) * 1 * uiMeshCnt; //Array lentghs and smooth angles
 
         for(unsigned long i=0; i<uiMeshCnt; ++i) {
             size +=
@@ -5840,10 +5913,13 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
             + plUVsSize[i]*sizeof(float)*3
             + plUVIndicesSize[i] * sizeof(int32_t)
             + plHairPointsSize[i] * sizeof(float) * 3
+            + (plHairWsSize && ppf2HairWs ? plHairWsSize[i] * sizeof(float) * 2 : 0)
             + plVertPerHairSize[i] * sizeof(int32_t)
             + plHairPointsSize[i] * sizeof(float)
             + plVertPerHairSize[i] * sizeof(int32_t)
-            + plVertPerHairSize[i] * sizeof(float) * 2;
+            + plVertPerHairSize[i] * sizeof(float) * 2
+            + piOpenSubdCreasesCnt[i] * sizeof(int32_t) * 2
+            + piOpenSubdCreasesCnt[i] * sizeof(float);
 
             if(!bGlobal) size += strlen(ppcNames[i])+2;
             for(unsigned int n=0; n < puiShadersCnt[i]; ++n)
@@ -5874,6 +5950,8 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
                 << puiObjectsCnt[i]
                 << plHairPointsSize[i]
                 << plVertPerHairSize[i]
+                << (plHairWsSize ? plHairWsSize[i] : (uint64_t)0)
+                << piOpenSubdCreasesCnt[i]
                 << pfMaxSmoothAngle[i];
         }
 
@@ -5884,6 +5962,8 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
             if(plHairPointsSize[i]) snd.writeFloat3Buffer(ppf3HairPoints[i], plHairPointsSize[i]);
             if(plVertPerHairSize[i]) snd.writeFloat2Buffer(ppf2HairUVs[i], plVertPerHairSize[i]);
             if(plHairPointsSize[i]) snd.writeBuffer(ppfHairThickness[i], plHairPointsSize[i] * sizeof(float));
+            if(plHairWsSize && plHairWsSize[i] && ppf2HairWs) snd.writeFloat2Buffer(ppf2HairWs[i], plHairWsSize[i]);
+            if(piOpenSubdCreasesCnt[i]) snd.writeBuffer(ppfOpenSubdCreasesSharpnesses[i], piOpenSubdCreasesCnt[i] * sizeof(float));
             snd << pfOpenSubdSharpness[i] << pfGeneralVis[i];
         }
 
@@ -5896,7 +5976,9 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
             if(plUVIndicesSize[i]) snd.writeBuffer(ppiUVIndices[i], plUVIndicesSize[i] * sizeof(int32_t));
             if(plVertPerHairSize[i]) snd.writeBuffer(ppiVertPerHair[i], plVertPerHairSize[i] * sizeof(int32_t));
             if(plVertPerHairSize[i]) snd.writeBuffer(ppiHairMatIndices[i], plVertPerHairSize[i] * sizeof(int32_t));
-            snd << pbOpenSubdEnable[i] << piOpenSubdScheme[i] << piOpenSubdLevel[i] << piOpenSubdBoundInterp[i] << piLayerNumber[i] << piBakingGroupId[i] << piRandColorSeed[i] << pbCamVis[i] << pbShadowVis[i] << pbReshapable[i];
+            if(piOpenSubdCreasesCnt[i]) snd.writeBuffer(ppiOpenSubdCreasesIndices[i], piOpenSubdCreasesCnt[i] * sizeof(int32_t) * 2);
+            snd << pbOpenSubdEnable[i] << piOpenSubdScheme[i] << piOpenSubdLevel[i] << piOpenSubdBoundInterp[i] << piLayerNumber[i] << piBakingGroupId[i] << piRandColorSeed[i]
+                << (aiHairInterpolations ? aiHairInterpolations[i] : ::Octane::HairInterpolationType::HAIR_INTERP_DEFAULT) << pbCamVis[i] << pbShadowVis[i] << pbReshapable[i];
         }
         for(unsigned long i=0; i<uiMeshCnt; ++i) {
             if(!bGlobal) snd << ppcNames[i];
@@ -6717,17 +6799,19 @@ inline void OctaneClient::uploadMultiplyTex(OctaneMultiplyTexture *pNode) {
 inline void OctaneClient::uploadFalloffTex(OctaneFalloffTexture *pNode) {
     if(m_Socket < 0 || m_cBlockUpdates) return;
 
-    uint64_t size = sizeof(float) * 3
+    uint64_t size = sizeof(float) * 6 + sizeof(int32_t) * 1
         + pNode->sNormal.length() + 2
         + pNode->sGrazing.length() + 2
-        + pNode->sIndex.length() + 2;
+        + pNode->sIndex.length() + 2
+        + pNode->sMode.length() + 2;
 
     LOCK_MUTEX(m_SocketMutex);
 
     {
         RPCSend snd(m_Socket, size, LOAD_FALLOFF_TEXTURE, pNode->sName.c_str());
-        snd << pNode->fNormalDefaultVal << pNode->fGrazingDefaultVal << pNode->fIndexDefaultVal
-            << pNode->sNormal.c_str() << pNode->sGrazing.c_str() << pNode->sIndex.c_str();
+        snd << pNode->fNormalDefaultVal << pNode->fGrazingDefaultVal << pNode->fIndexDefaultVal << pNode->f3Direction
+            << pNode->modeDefaultVal
+            << pNode->sNormal.c_str() << pNode->sGrazing.c_str() << pNode->sIndex.c_str() << pNode->sMode.c_str();
         snd.write();
     }
     checkResponsePacket(LOAD_FALLOFF_TEXTURE);
@@ -7220,7 +7304,7 @@ inline void OctaneClient::uploadPolygonSideTex(OctanePolygonSideTexture *pNode) 
     checkResponsePacket(LOAD_POLYGON_SIDE_TEXTURE);
 
     UNLOCK_MUTEX(m_SocketMutex);
-} //load_polygon_side_tex()
+} //uploadPolygonSideTex()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -7276,6 +7360,23 @@ inline void OctaneClient::uploadDisplacementTex(OctaneDisplacementTexture *pNode
 
     UNLOCK_MUTEX(m_SocketMutex);
 } //uploadDisplacementTex()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+inline void OctaneClient::uploadWTex(OctaneWTexture *pNode) {
+    if(m_Socket < 0 || m_cBlockUpdates) return;
+
+    LOCK_MUTEX(m_SocketMutex);
+
+    {
+        RPCSend snd(m_Socket, 0, LOAD_W_TEXTURE, pNode->sName.c_str());
+        snd.write();
+    }
+    checkResponsePacket(LOAD_W_TEXTURE);
+
+    UNLOCK_MUTEX(m_SocketMutex);
+} //uploadWTex()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //

@@ -28,11 +28,6 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-	{SOCK_FLOAT,     1,  N_("Normal"),              0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_FLOAT,     1,  N_("Grazing"),             1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_FLOAT,     1,  N_("Falloff Skew Factor"), 6.0f, 0.0f, 0.0f, 0.0f, 0.1f, 15.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-	{SOCK_VECTOR,    1,  N_("Falloff direction"),	0.0f, 1.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_DIRECTION, SOCK_NO_INTERNAL_LINK},
-	{SOCK_INT,       1,  N_("Mode"),                0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 2.0f, PROP_NONE, SOCK_NO_INTERNAL_LINK},
 	{-1, 0, ""}
 };
 
@@ -41,10 +36,10 @@ static bNodeSocketTemplate sh_node_out[] = {
 	{-1, 0, ""}
 };
 
-void register_node_type_tex_oct_falloff(void) {
+void register_node_type_tex_oct_w(void) {
 	static bNodeType ntype;
 	
-	if(ntype.type != SH_NODE_OCT_FALLOFF_TEX) node_type_base(&ntype, SH_NODE_OCT_FALLOFF_TEX, "Octane Falloff Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
+	if(ntype.type != SH_NODE_OCT_W_TEX) node_type_base(&ntype, SH_NODE_OCT_W_TEX, "Octane W Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
     node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
 	node_type_size(&ntype, 160, 160, 200);
@@ -53,4 +48,4 @@ void register_node_type_tex_oct_falloff(void) {
     ntype.update_internal_links = node_update_internal_links_default;
 	
 	nodeRegisterType(&ntype);
-} /* register_node_type_tex_oct_falloff() */
+} /* register_node_type_tex_oct_w() */

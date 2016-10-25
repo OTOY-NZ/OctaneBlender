@@ -5,11 +5,13 @@ set(INC
 	./server
 	./util
 	../../guardedalloc
+	../../../source/blender/render/intern/include
 	../../../source/blender/makesdna
 	../../../source/blender/makesrna
 	../../../source/blender/blenloader
 	../../../source/blender/blenlib
 	../../../source/blender/blenkernel
+	../../../source/blender/windowmanager
 	../../../source/blender/render/extern/include
 	${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )

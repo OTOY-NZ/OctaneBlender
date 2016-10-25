@@ -516,6 +516,7 @@ void ED_node_composit_default(const bContext *C, struct Scene *sce)
 /* called from shading buttons or header */
 void ED_node_texture_default(const bContext *C, Tex *tx)
 {
+	Scene *scene = CTX_data_scene(C);
 	bNode *in, *out;
 	bNodeSocket *fromsock, *tosock;
 	
@@ -531,7 +532,10 @@ void ED_node_texture_default(const bContext *C, Tex *tx)
 	out = nodeAddStaticNode(C, tx->nodetree, TEX_NODE_OUTPUT);
 	out->locx = 300.0f; out->locy = 300.0f;
 	
-	in = nodeAddStaticNode(C, tx->nodetree, TEX_NODE_CHECKER);
+    if(strcmp(scene->r.engine, "octane"))
+	    in = nodeAddStaticNode(C, tx->nodetree, TEX_NODE_CHECKER);
+    else
+	    in = nodeAddStaticNode(C, tx->nodetree, SH_NODE_OCT_IMAGE_TEX);
 	in->locx = 10.0f; in->locy = 300.0f;
 	nodeSetActive(tx->nodetree, in);
 	

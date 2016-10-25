@@ -48,8 +48,8 @@ public:
         SYMMETRIC
     };
 
-	BlenderSession(BL::RenderEngine b_engine, BL::UserPreferences b_userpref, BL::BlendData b_data, BL::Scene b_scene);
-	BlenderSession(BL::RenderEngine b_engine, BL::UserPreferences b_userpref, BL::BlendData b_data, BL::Scene b_scene,
+	BlenderSession(BL::RenderEngine b_engine, BL::UserPreferences b_userpref, BL::BlendData b_data, BL::Scene b_scene, ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type, std::string &export_path);
+	BlenderSession(BL::RenderEngine b_engine, BL::UserPreferences b_userpref, BL::BlendData b_data, BL::Scene b_scene, ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type, std::string &export_path,
 		           BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
 
 	~BlenderSession();
@@ -109,6 +109,10 @@ public:
 	BL::RegionView3D    b_rv3d;
 	string              b_rlay_name;
 	string              b_rview_name;
+
+    ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type;
+    string              export_path;
+    bool                no_progress_update;
 
 	string              last_status;
 	float               last_progress;

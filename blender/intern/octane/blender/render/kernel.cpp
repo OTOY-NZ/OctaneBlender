@@ -58,6 +58,7 @@ Kernel::Kernel() {
     oct_node->fAODist             = 3.0f;
     oct_node->GIMode              = ::OctaneEngine::Kernel::GI_AMBIENT_OCCLUSION;
     oct_node->iDiffuseDepth       = 2;
+    oct_node->sAoTexture          = "";
 
     //PATH_TRACE
 
@@ -78,6 +79,7 @@ Kernel::Kernel() {
     oct_node->bLayersEnable       = false;
     oct_node->iLayersCurrent      = 1;
     oct_node->bLayersInvert       = false;
+    oct_node->layersMode          = ::OctaneEngine::Kernel::NORMAL;
 
     uiGPUs              = 0;
 

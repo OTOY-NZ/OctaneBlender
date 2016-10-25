@@ -61,6 +61,7 @@ Mesh::Mesh() : vdb_regular_grid(nullptr), vdb_grid_size(0) {
 	vis_shadow      = true;
     rand_color_seed = 0;
     max_smooth_angle = -1.0f;
+    hair_interpolation = (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_DEFAULT;
 } //Mesh()
 
 Mesh::~Mesh() {
@@ -97,6 +98,9 @@ void Mesh::clear() {
     poly_obj_index.clear();
 
 	used_shaders.clear();
+
+    open_subd_crease_indices.clear();
+    open_subd_crease_sharpnesses.clear();
 } //clear()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -177,48 +181,54 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
     bool interrupted = false;
 
     if(ulLocalCnt) {
-        char            **mesh_names            = new char*[ulLocalCnt];
-        uint64_t          *used_shaders_size    = new uint64_t[ulLocalCnt];
-        uint64_t          *used_objects_size    = new uint64_t[ulLocalCnt];
-        vector<string>  *shader_names           = new vector<string>[ulLocalCnt];
-        vector<string>  *object_names           = new vector<string>[ulLocalCnt];
-        float3          **points                = new float3*[ulLocalCnt];
-        uint64_t          *points_size          = new uint64_t[ulLocalCnt];
-        float3          **normals               = new float3*[ulLocalCnt];
-        uint64_t          *normals_size         = new uint64_t[ulLocalCnt];
-        int             **points_indices        = new int*[ulLocalCnt];
-        int             **normals_indices       = new int*[ulLocalCnt];
-        uint64_t          *points_indices_size  = new uint64_t[ulLocalCnt];
-        uint64_t          *normals_indices_size = new uint64_t[ulLocalCnt];
-        int             **vert_per_poly         = new int*[ulLocalCnt];
-        uint64_t          *vert_per_poly_size   = new uint64_t[ulLocalCnt];
-        int             **poly_mat_index        = new int*[ulLocalCnt];
-        int             **poly_obj_index        = new int*[ulLocalCnt];
-        float3          **uvs                   = new float3*[ulLocalCnt];
-        uint64_t          *uvs_size             = new uint64_t[ulLocalCnt];
-        int             **uv_indices            = new int*[ulLocalCnt];
-        uint64_t          *uv_indices_size      = new uint64_t[ulLocalCnt];
-        bool            *open_subd_enable       = new bool[ulLocalCnt];
-        int32_t         *open_subd_scheme       = new int32_t[ulLocalCnt];
-        int32_t         *open_subd_level        = new int32_t[ulLocalCnt];
-        float           *open_subd_sharpness    = new float[ulLocalCnt];
-        int32_t         *open_subd_bound_interp = new int32_t[ulLocalCnt];
-        float           *general_vis            = new float[ulLocalCnt];
-        bool            *cam_vis                = new bool[ulLocalCnt];
-        bool            *shadow_vis             = new bool[ulLocalCnt];
-        int32_t         *rand_color_seed        = new int32_t[ulLocalCnt];
-        bool            *reshapable             = new bool[ulLocalCnt];
-        int32_t         *layer_number           = new int32_t[ulLocalCnt];
-        int32_t         *baking_group_id        = new int32_t[ulLocalCnt];
-        float           *max_smooth_angle       = new float[ulLocalCnt];
+        char            **mesh_names                    = new char*[ulLocalCnt];
+        uint64_t        *used_shaders_size              = new uint64_t[ulLocalCnt];
+        uint64_t        *used_objects_size              = new uint64_t[ulLocalCnt];
+        vector<string>  *shader_names                   = new vector<string>[ulLocalCnt];
+        vector<string>  *object_names                   = new vector<string>[ulLocalCnt];
+        float3          **points                        = new float3*[ulLocalCnt];
+        uint64_t        *points_size                    = new uint64_t[ulLocalCnt];
+        float3          **normals                       = new float3*[ulLocalCnt];
+        uint64_t        *normals_size                   = new uint64_t[ulLocalCnt];
+        int             **points_indices                = new int*[ulLocalCnt];
+        int             **normals_indices               = new int*[ulLocalCnt];
+        uint64_t        *points_indices_size            = new uint64_t[ulLocalCnt];
+        uint64_t        *normals_indices_size           = new uint64_t[ulLocalCnt];
+        int             **vert_per_poly                 = new int*[ulLocalCnt];
+        uint64_t        *vert_per_poly_size             = new uint64_t[ulLocalCnt];
+        int             **poly_mat_index                = new int*[ulLocalCnt];
+        int             **poly_obj_index                = new int*[ulLocalCnt];
+        float3          **uvs                           = new float3*[ulLocalCnt];
+        uint64_t        *uvs_size                       = new uint64_t[ulLocalCnt];
+        int             **uv_indices                    = new int*[ulLocalCnt];
+        uint64_t        *uv_indices_size                = new uint64_t[ulLocalCnt];
+        bool            *open_subd_enable               = new bool[ulLocalCnt];
+        int32_t         *open_subd_scheme               = new int32_t[ulLocalCnt];
+        int32_t         *open_subd_level                = new int32_t[ulLocalCnt];
+        float           *open_subd_sharpness            = new float[ulLocalCnt];
+        int32_t         *open_subd_bound_interp         = new int32_t[ulLocalCnt];
+        uint64_t        *open_subd_crease_indices_cnt   = new uint64_t[ulLocalCnt];
+        int             **open_subd_crease_indices      = new int*[ulLocalCnt];
+        float           **open_subd_crease_sharpnesses  = new float*[ulLocalCnt];
+        float           *general_vis                    = new float[ulLocalCnt];
+        bool            *cam_vis                        = new bool[ulLocalCnt];
+        bool            *shadow_vis                     = new bool[ulLocalCnt];
+        int32_t         *rand_color_seed                = new int32_t[ulLocalCnt];
+        bool            *reshapable                     = new bool[ulLocalCnt];
+        int32_t         *layer_number                   = new int32_t[ulLocalCnt];
+        int32_t         *baking_group_id                = new int32_t[ulLocalCnt];
+        float           *max_smooth_angle               = new float[ulLocalCnt];
 
-        float3          **hair_points           = new float3*[ulLocalCnt];
-        uint64_t        *hair_points_size       = new uint64_t[ulLocalCnt];
-        int32_t         **vert_per_hair         = new int32_t*[ulLocalCnt];
-        uint64_t        *vert_per_hair_size     = new uint64_t[ulLocalCnt];
-        float           **hair_thickness        = new float*[ulLocalCnt];
-        int32_t         **hair_mat_indices      = new int32_t*[ulLocalCnt];
-        float2          **hair_uvs              = new float2*[ulLocalCnt];
+        float3          **hair_points                   = new float3*[ulLocalCnt];
+        uint64_t        *hair_points_size               = new uint64_t[ulLocalCnt];
+        uint64_t        *hair_ws_size                   = new uint64_t[ulLocalCnt];
+        int32_t         **vert_per_hair                 = new int32_t*[ulLocalCnt];
+        uint64_t        *vert_per_hair_size             = new uint64_t[ulLocalCnt];
+        float           **hair_thickness                = new float*[ulLocalCnt];
+        int32_t         **hair_mat_indices              = new int32_t*[ulLocalCnt];
+        float2          **hair_uvs                      = new float2*[ulLocalCnt];
+        float2          **hair_ws                       = new float2*[ulLocalCnt];
+        int32_t         *hair_interpolation             = new int32_t[ulLocalCnt];
 
         uint64_t i = 0;
         vector<Mesh*>::iterator it;
@@ -247,44 +257,56 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
             used_objects_size[i] = 1;
             object_names[i].push_back("__" + mesh->name);
 
-            mesh_names[i]           = (char*)mesh->name.c_str();
-            points[i]               = &mesh->points[0];
-            points_size[i]          = mesh->points.size();
-            normals[i]              = &mesh->normals[0];
-            normals_size[i]         = mesh->normals.size();
-            points_indices[i]       = &mesh->points_indices[0];
-            normals_indices[i]      = &mesh->points_indices[0];
-            points_indices_size[i]  = mesh->points_indices.size();
-            normals_indices_size[i] = 0;//mesh->points_indices.size();
-            vert_per_poly[i]        = &mesh->vert_per_poly[0];
-            vert_per_poly_size[i]   = mesh->vert_per_poly.size();
-            poly_mat_index[i]       = &mesh->poly_mat_index[0];
-            poly_obj_index[i]       = &mesh->poly_obj_index[0];
-            uvs[i]                  = &mesh->uvs[0];
-            uvs_size[i]             = mesh->uvs.size();
-            uv_indices[i]           = &mesh->uv_indices[0];
-            uv_indices_size[i]      = mesh->uv_indices.size();
-            open_subd_enable[i]     = mesh->open_subd_enable;
-            open_subd_scheme[i]     = mesh->open_subd_scheme;
-            open_subd_level[i]      = mesh->open_subd_level;
-            open_subd_sharpness[i]  = mesh->open_subd_sharpness;
-            open_subd_bound_interp[i] = mesh->open_subd_bound_interp;
-            general_vis[i]          = mesh->vis_general;
-            cam_vis[i]              = mesh->vis_cam;
-            shadow_vis[i]           = mesh->vis_shadow;
-            rand_color_seed[i]      = mesh->rand_color_seed;
-            reshapable[i]           = (scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY));
-            layer_number[i]         = (scene->kernel->oct_node->bLayersEnable ? mesh->layer_number : 1);
-            baking_group_id[i]      = mesh->baking_group_id;
-            max_smooth_angle[i]     = mesh->max_smooth_angle;
+            mesh_names[i]                   = (char*)mesh->name.c_str();
+            points[i]                       = &mesh->points[0];
+            points_size[i]                  = mesh->points.size();
+            normals[i]                      = &mesh->normals[0];
+            normals_size[i]                 = mesh->normals.size();
+            points_indices[i]               = &mesh->points_indices[0];
+            normals_indices[i]              = &mesh->points_indices[0];
+            points_indices_size[i]          = mesh->points_indices.size();
+            normals_indices_size[i]         = 0;//mesh->points_indices.size();
+            vert_per_poly[i]                = &mesh->vert_per_poly[0];
+            vert_per_poly_size[i]           = mesh->vert_per_poly.size();
+            poly_mat_index[i]               = &mesh->poly_mat_index[0];
+            poly_obj_index[i]               = &mesh->poly_obj_index[0];
+            uvs[i]                          = &mesh->uvs[0];
+            uvs_size[i]                     = mesh->uvs.size();
+            uv_indices[i]                   = &mesh->uv_indices[0];
+            uv_indices_size[i]              = mesh->uv_indices.size();
+            open_subd_enable[i]             = mesh->open_subd_enable;
+            open_subd_scheme[i]             = mesh->open_subd_scheme;
+            open_subd_level[i]              = mesh->open_subd_level;
+            open_subd_sharpness[i]          = mesh->open_subd_sharpness;
+            open_subd_bound_interp[i]       = mesh->open_subd_bound_interp;
+            open_subd_crease_indices_cnt[i] = mesh->open_subd_crease_indices.size() / 2;
+            if(open_subd_crease_indices_cnt[i]) {
+                open_subd_crease_indices[i]     = &mesh->open_subd_crease_indices[0];
+                open_subd_crease_sharpnesses[i] = &mesh->open_subd_crease_sharpnesses[0];
+            }
+            else {
+                open_subd_crease_indices[i]     = nullptr;
+                open_subd_crease_sharpnesses[i] = nullptr;
+            }
+            general_vis[i]                  = mesh->vis_general;
+            cam_vis[i]                      = mesh->vis_cam;
+            shadow_vis[i]                   = mesh->vis_shadow;
+            rand_color_seed[i]              = mesh->rand_color_seed;
+            reshapable[i]                   = (scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && mesh->mesh_type == Mesh::RESHAPABLE_PROXY));
+            layer_number[i]                 = (scene->kernel->oct_node->bLayersEnable ? mesh->layer_number : 1);
+            baking_group_id[i]              = mesh->baking_group_id;
+            max_smooth_angle[i]             = mesh->max_smooth_angle;
 
-            hair_points_size[i]     = mesh->hair_points.size();
-            hair_points[i]          = hair_points_size[i] ? &mesh->hair_points[0] : 0;
-            vert_per_hair_size[i]   = mesh->vert_per_hair.size();
-            vert_per_hair[i]        = vert_per_hair_size[i] ? &mesh->vert_per_hair[0] : 0;
-            hair_thickness[i]       = hair_points_size[i] ? &mesh->hair_thickness[0] : 0;
-            hair_mat_indices[i]     = vert_per_hair_size[i] ? &mesh->hair_mat_indices[0] : 0;
-            hair_uvs[i]             = vert_per_hair_size[i] ? &mesh->hair_uvs[0] : 0;
+            hair_points_size[i]             = mesh->hair_points.size();
+            hair_ws_size[i]                 = mesh->hair_interpolation == (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_NONE ? mesh->hair_ws.size() : 0;
+            hair_points[i]                  = hair_points_size[i] ? &mesh->hair_points[0] : 0;
+            vert_per_hair_size[i]           = mesh->vert_per_hair.size();
+            vert_per_hair[i]                = vert_per_hair_size[i] ? &mesh->vert_per_hair[0] : 0;
+            hair_thickness[i]               = hair_points_size[i] ? &mesh->hair_thickness[0] : 0;
+            hair_mat_indices[i]             = vert_per_hair_size[i] ? &mesh->hair_mat_indices[0] : 0;
+            hair_uvs[i]                     = vert_per_hair_size[i] ? &mesh->hair_uvs[0] : 0;
+            hair_ws[i]                      = hair_ws_size[i] ? &mesh->hair_ws[0] : 0;
+            hair_interpolation[i]           = mesh->hair_interpolation == (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_NONE ? (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_DEFAULT : mesh->hair_interpolation;
 
             if(mesh->need_update
                && (total_frames <= 1 || !reshapable[i]))
@@ -318,14 +340,17 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
                                         uvs_size,
                                         uv_indices,
                                         uv_indices_size,
-                                        (::OctaneEngine::float_3**)hair_points, hair_points_size,
+                                        (::OctaneEngine::float_3**)hair_points, hair_points_size, hair_ws_size,
                                         vert_per_hair, vert_per_hair_size,
-                                        hair_thickness, hair_mat_indices, (::OctaneEngine::float_2**)hair_uvs,
+                                        hair_thickness, hair_mat_indices, (::OctaneEngine::float_2**)hair_uvs, (::OctaneEngine::float_2**)hair_ws, hair_interpolation,
                                         open_subd_enable,
                                         open_subd_scheme,
                                         open_subd_level,
                                         open_subd_sharpness,
                                         open_subd_bound_interp,
+                                        open_subd_crease_indices_cnt,
+                                        open_subd_crease_indices,
+                                        open_subd_crease_sharpnesses,
                                         layer_number,
                                         baking_group_id,
                                         general_vis,
@@ -361,6 +386,9 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
         delete[] open_subd_level;
         delete[] open_subd_sharpness;
         delete[] open_subd_bound_interp;
+        delete[] open_subd_crease_indices_cnt;
+        delete[] open_subd_crease_indices;
+        delete[] open_subd_crease_sharpnesses;
         delete[] general_vis;
         delete[] cam_vis;
         delete[] shadow_vis;
@@ -369,14 +397,17 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
         delete[] layer_number;
         delete[] baking_group_id;
         delete[] max_smooth_angle;
+        delete[] hair_interpolation;
 
         delete[] hair_points_size;
+        delete[] hair_ws_size;
         delete[] vert_per_hair_size;
         delete[] hair_points;
         delete[] vert_per_hair;
         delete[] hair_thickness;
         delete[] hair_mat_indices;
         delete[] hair_uvs;
+        delete[] hair_ws;
     }
 
     if(ulLocalVdbCnt && !interrupted) {
@@ -453,49 +484,55 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
         }
         char* name = "__global";
         if(obj_cnt > 0) {
-            uint64_t          *used_shaders_size    = new uint64_t[obj_cnt];
-            uint64_t          *used_objects_size    = new uint64_t[obj_cnt];
-            vector<string>  *shader_names           = new vector<string>[obj_cnt];
-            vector<string>  *object_names           = new vector<string>[obj_cnt];
-            float3          **points                = new float3*[obj_cnt];
+            uint64_t        *used_shaders_size              = new uint64_t[obj_cnt];
+            uint64_t        *used_objects_size              = new uint64_t[obj_cnt];
+            vector<string>  *shader_names                   = new vector<string>[obj_cnt];
+            vector<string>  *object_names                   = new vector<string>[obj_cnt];
+            float3          **points                        = new float3*[obj_cnt];
             for(int k = 0; k < obj_cnt; ++k) points[k] = 0;
-            uint64_t          *points_size          = new uint64_t[obj_cnt];
-            float3          **normals               = new float3*[obj_cnt];
+            uint64_t        *points_size                    = new uint64_t[obj_cnt];
+            float3          **normals                       = new float3*[obj_cnt];
             for(int k = 0; k < obj_cnt; ++k) normals[k] = 0;
-            uint64_t          *normals_size         = new uint64_t[obj_cnt];
-            int             **points_indices        = new int*[obj_cnt];
-            int             **normals_indices       = new int*[obj_cnt];
-            uint64_t          *points_indices_size  = new uint64_t[obj_cnt];
-            uint64_t          *normals_indices_size = new uint64_t[obj_cnt];
-            int             **vert_per_poly         = new int*[obj_cnt];
-            uint64_t          *vert_per_poly_size   = new uint64_t[obj_cnt];
-            int             **poly_mat_index        = new int*[obj_cnt];
-            int             **poly_obj_index        = new int*[obj_cnt];
-            float3          **uvs                   = new float3*[obj_cnt];
-            uint64_t          *uvs_size             = new uint64_t[obj_cnt];
-            int             **uv_indices            = new int*[obj_cnt];
-            uint64_t          *uv_indices_size      = new uint64_t[obj_cnt];
-            bool            *open_subd_enable       = new bool[obj_cnt];
-            int32_t         *open_subd_scheme       = new int32_t[obj_cnt];
-            int32_t         *open_subd_level        = new int32_t[obj_cnt];
-            float           *open_subd_sharpness    = new float[obj_cnt];
-            int32_t         *open_subd_bound_interp = new int32_t[obj_cnt];
-            float           *general_vis            = new float[obj_cnt];
-            bool            *cam_vis                = new bool[obj_cnt];
-            bool            *shadow_vis             = new bool[obj_cnt];
-            int32_t         *rand_color_seed        = new int32_t[obj_cnt];
-            bool            *reshapable             = new bool[obj_cnt];
-            int32_t         *layer_number           = new int32_t[obj_cnt];
-            int32_t         *baking_group_id        = new int32_t[obj_cnt];
-            float           *max_smooth_angle       = new float[obj_cnt];
+            uint64_t        *normals_size                   = new uint64_t[obj_cnt];
+            int             **points_indices                = new int*[obj_cnt];
+            int             **normals_indices               = new int*[obj_cnt];
+            uint64_t        *points_indices_size            = new uint64_t[obj_cnt];
+            uint64_t        *normals_indices_size           = new uint64_t[obj_cnt];
+            int             **vert_per_poly                 = new int*[obj_cnt];
+            uint64_t        *vert_per_poly_size             = new uint64_t[obj_cnt];
+            int             **poly_mat_index                = new int*[obj_cnt];
+            int             **poly_obj_index                = new int*[obj_cnt];
+            float3          **uvs                           = new float3*[obj_cnt];
+            uint64_t        *uvs_size                       = new uint64_t[obj_cnt];
+            int             **uv_indices                    = new int*[obj_cnt];
+            uint64_t        *uv_indices_size                = new uint64_t[obj_cnt];
+            bool            *open_subd_enable               = new bool[obj_cnt];
+            int32_t         *open_subd_scheme               = new int32_t[obj_cnt];
+            int32_t         *open_subd_level                = new int32_t[obj_cnt];
+            float           *open_subd_sharpness            = new float[obj_cnt];
+            int32_t         *open_subd_bound_interp         = new int32_t[obj_cnt];
+            uint64_t        *open_subd_crease_indices_cnt   = new uint64_t[obj_cnt];
+            int             **open_subd_crease_indices      = new int*[obj_cnt];
+            float           **open_subd_crease_sharpnesses  = new float*[obj_cnt];
+            float           *general_vis                    = new float[obj_cnt];
+            bool            *cam_vis                        = new bool[obj_cnt];
+            bool            *shadow_vis                     = new bool[obj_cnt];
+            int32_t         *rand_color_seed                = new int32_t[obj_cnt];
+            bool            *reshapable                     = new bool[obj_cnt];
+            int32_t         *layer_number                   = new int32_t[obj_cnt];
+            int32_t         *baking_group_id                = new int32_t[obj_cnt];
+            float           *max_smooth_angle               = new float[obj_cnt];
 
-            float3          **hair_points           = new float3*[obj_cnt];
-            uint64_t        *hair_points_size       = new uint64_t[obj_cnt];
-            int32_t         **vert_per_hair         = new int32_t*[obj_cnt];
-            uint64_t        *vert_per_hair_size     = new uint64_t[obj_cnt];
-            float           **hair_thickness        = new float*[obj_cnt];
-            int32_t         **hair_mat_indices      = new int32_t*[obj_cnt];
-            float2          **hair_uvs              = new float2*[obj_cnt];
+            float3          **hair_points                   = new float3*[obj_cnt];
+            uint64_t        *hair_points_size               = new uint64_t[obj_cnt];
+            uint64_t        *hair_ws_size                   = new uint64_t[obj_cnt];
+            int32_t         **vert_per_hair                 = new int32_t*[obj_cnt];
+            uint64_t        *vert_per_hair_size             = new uint64_t[obj_cnt];
+            float           **hair_thickness                = new float*[obj_cnt];
+            int32_t         **hair_mat_indices              = new int32_t*[obj_cnt];
+            float2          **hair_uvs                      = new float2*[obj_cnt];
+            int32_t         *hair_interpolation             = new int32_t[obj_cnt];
+            float2          **hair_ws                       = new float2*[obj_cnt];
 
             obj_cnt = 0;
             bool hair_present = false;
@@ -534,39 +571,51 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
                     for(size_t k=0; k<norm_cnt; ++k) normals[obj_cnt][k] = transform_direction(&tfm, n[k]);
                     normals_size[obj_cnt]         = norm_cnt;
 
-                    points_indices[obj_cnt]       = &mesh->points_indices[0];
-                    normals_indices[obj_cnt]      = &mesh->points_indices[0];
-                    points_indices_size[obj_cnt]  = mesh->points_indices.size();
-                    normals_indices_size[obj_cnt] = 0;
-                    vert_per_poly[obj_cnt]        = &mesh->vert_per_poly[0];
-                    vert_per_poly_size[obj_cnt]   = mesh->vert_per_poly.size();
-                    poly_mat_index[obj_cnt]       = &mesh->poly_mat_index[0];
-                    poly_obj_index[obj_cnt]       = &mesh->poly_obj_index[0];
-                    uvs[obj_cnt]                  = &mesh->uvs[0];
-                    uvs_size[obj_cnt]             = mesh->uvs.size();
-                    uv_indices[obj_cnt]           = &mesh->uv_indices[0];
-                    uv_indices_size[obj_cnt]      = mesh->uv_indices.size();
-                    open_subd_enable[obj_cnt]     = mesh->open_subd_enable;
-                    open_subd_scheme[obj_cnt]     = mesh->open_subd_scheme;
-                    open_subd_level[obj_cnt]      = mesh->open_subd_level;
-                    open_subd_sharpness[obj_cnt]  = mesh->open_subd_sharpness;
-                    open_subd_bound_interp[obj_cnt] = mesh->open_subd_bound_interp;
-                    general_vis[obj_cnt]          = mesh->vis_general;
-                    cam_vis[obj_cnt]              = mesh->vis_cam;
-                    shadow_vis[obj_cnt]           = mesh->vis_shadow;
-                    rand_color_seed[obj_cnt]      = mesh->rand_color_seed;
-                    reshapable[obj_cnt]           = false;
-                    layer_number[obj_cnt]         = (scene->kernel->oct_node->bLayersEnable ? mesh->layer_number : 1);
-                    baking_group_id[obj_cnt]      = mesh->baking_group_id;
-                    max_smooth_angle[obj_cnt]     = mesh->max_smooth_angle;
+                    points_indices[obj_cnt]                 = &mesh->points_indices[0];
+                    normals_indices[obj_cnt]                = &mesh->points_indices[0];
+                    points_indices_size[obj_cnt]            = mesh->points_indices.size();
+                    normals_indices_size[obj_cnt]           = 0;
+                    vert_per_poly[obj_cnt]                  = &mesh->vert_per_poly[0];
+                    vert_per_poly_size[obj_cnt]             = mesh->vert_per_poly.size();
+                    poly_mat_index[obj_cnt]                 = &mesh->poly_mat_index[0];
+                    poly_obj_index[obj_cnt]                 = &mesh->poly_obj_index[0];
+                    uvs[obj_cnt]                            = &mesh->uvs[0];
+                    uvs_size[obj_cnt]                       = mesh->uvs.size();
+                    uv_indices[obj_cnt]                     = &mesh->uv_indices[0];
+                    uv_indices_size[obj_cnt]                = mesh->uv_indices.size();
+                    open_subd_enable[obj_cnt]               = mesh->open_subd_enable;
+                    open_subd_scheme[obj_cnt]               = mesh->open_subd_scheme;
+                    open_subd_level[obj_cnt]                = mesh->open_subd_level;
+                    open_subd_sharpness[obj_cnt]            = mesh->open_subd_sharpness;
+                    open_subd_bound_interp[obj_cnt]         = mesh->open_subd_bound_interp;
+                    open_subd_crease_indices_cnt[obj_cnt]   = mesh->open_subd_crease_indices.size() / 2;
+                    if(open_subd_crease_indices_cnt[obj_cnt]) {
+                        open_subd_crease_indices[obj_cnt]       = &mesh->open_subd_crease_indices[0];
+                        open_subd_crease_sharpnesses[obj_cnt]   = &mesh->open_subd_crease_sharpnesses[0];
+                    }
+                    else {
+                        open_subd_crease_indices[obj_cnt]     = nullptr;
+                        open_subd_crease_sharpnesses[obj_cnt] = nullptr;
+                    }
+                    general_vis[obj_cnt]                    = mesh->vis_general;
+                    cam_vis[obj_cnt]                        = mesh->vis_cam;
+                    shadow_vis[obj_cnt]                     = mesh->vis_shadow;
+                    rand_color_seed[obj_cnt]                = mesh->rand_color_seed;
+                    reshapable[obj_cnt]                     = false;
+                    layer_number[obj_cnt]                   = (scene->kernel->oct_node->bLayersEnable ? mesh->layer_number : 1);
+                    baking_group_id[obj_cnt]                = mesh->baking_group_id;
+                    max_smooth_angle[obj_cnt]               = mesh->max_smooth_angle;
 
-                    hair_points_size[obj_cnt]     = mesh->hair_points.size();
-                    hair_points[obj_cnt]          = hair_points_size[obj_cnt] ? &mesh->hair_points[0] : 0;
-                    vert_per_hair_size[obj_cnt]   = mesh->vert_per_hair.size();
-                    vert_per_hair[obj_cnt]        = vert_per_hair_size[obj_cnt] ? &mesh->vert_per_hair[0] : 0;
-                    hair_thickness[obj_cnt]       = hair_points_size[obj_cnt] ? &mesh->hair_thickness[0] : 0;
-                    hair_mat_indices[obj_cnt]     = vert_per_hair_size[obj_cnt] ? &mesh->hair_mat_indices[0] : 0;
-                    hair_uvs[obj_cnt]             = vert_per_hair_size[obj_cnt] ? &mesh->hair_uvs[0] : 0;
+                    hair_points_size[obj_cnt]               = mesh->hair_points.size();
+                    hair_ws_size[obj_cnt]                   = mesh->hair_interpolation == (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_NONE ? mesh->hair_ws.size() : 0;
+                    hair_points[obj_cnt]                    = hair_points_size[obj_cnt] ? &mesh->hair_points[0] : 0;
+                    vert_per_hair_size[obj_cnt]             = mesh->vert_per_hair.size();
+                    vert_per_hair[obj_cnt]                  = vert_per_hair_size[obj_cnt] ? &mesh->vert_per_hair[0] : 0;
+                    hair_thickness[obj_cnt]                 = hair_points_size[obj_cnt] ? &mesh->hair_thickness[0] : 0;
+                    hair_mat_indices[obj_cnt]               = vert_per_hair_size[obj_cnt] ? &mesh->hair_mat_indices[0] : 0;
+                    hair_uvs[obj_cnt]                       = vert_per_hair_size[obj_cnt] ? &mesh->hair_uvs[0] : 0;
+                    hair_interpolation[obj_cnt]             = mesh->hair_interpolation == (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_NONE ? (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_DEFAULT : mesh->hair_interpolation;
+                    hair_ws[obj_cnt]                        = hair_ws_size[obj_cnt] ? &mesh->hair_ws[0] : 0;
 
         	        if(mesh->need_update) mesh->need_update = false;
     		        if(progress.get_cancel()) {
@@ -603,14 +652,17 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
                                             uvs_size,
                                             uv_indices,
                                             uv_indices_size,
-                                            (::OctaneEngine::float_3**)hair_points, hair_points_size,
+                                            (::OctaneEngine::float_3**)hair_points, hair_points_size, hair_ws_size,
                                             vert_per_hair, vert_per_hair_size,
-                                            hair_thickness, hair_mat_indices, (::OctaneEngine::float_2**)hair_uvs,
+                                            hair_thickness, hair_mat_indices, (::OctaneEngine::float_2**)hair_uvs, (::OctaneEngine::float_2**)hair_ws, hair_interpolation,
                                             open_subd_enable,
                                             open_subd_scheme,
                                             open_subd_level,
                                             open_subd_sharpness,
                                             open_subd_bound_interp,
+                                            open_subd_crease_indices_cnt,
+                                            open_subd_crease_indices,
+                                            open_subd_crease_sharpnesses,
                                             layer_number,
                                             baking_group_id,
                                             general_vis,
@@ -652,6 +704,9 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
             delete[] open_subd_level;
             delete[] open_subd_sharpness;
             delete[] open_subd_bound_interp;
+            delete[] open_subd_crease_indices_cnt;
+            delete[] open_subd_crease_indices;
+            delete[] open_subd_crease_sharpnesses;
             delete[] general_vis;
             delete[] cam_vis;
             delete[] shadow_vis;
@@ -662,12 +717,15 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
             delete[] max_smooth_angle;
 
             delete[] hair_points_size;
+            delete[] hair_ws_size;
             delete[] vert_per_hair_size;
             delete[] hair_points;
             delete[] vert_per_hair;
             delete[] hair_thickness;
             delete[] hair_mat_indices;
             delete[] hair_uvs;
+            delete[] hair_ws;
+            delete[] hair_interpolation;
         }
         else ulGlobalCnt = 0;
     }

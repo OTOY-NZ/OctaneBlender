@@ -37,6 +37,7 @@ void BlenderSync::sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool m
         mesh->hair_thickness.clear();
         mesh->hair_mat_indices.clear();
         mesh->hair_uvs.clear();
+        mesh->hair_ws.clear();
     }
 
     if(b_ob.mode() == b_ob.mode_PARTICLE_EDIT) return;
@@ -143,6 +144,9 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
     mesh->hair_uvs.resize(total_hair_cnt);
     float2 *hair_uvs = &mesh->hair_uvs[0];
 
+    mesh->hair_ws.resize(hair_points_size);
+    float2 *hair_ws = &mesh->hair_ws[0];
+
     for(b_ob->modifiers.begin(b_mod); b_mod != b_ob->modifiers.end(); ++b_mod) {
         if(b_mod->type() == b_mod->type_PARTICLE_SYSTEM && (interactive ? b_mod->show_viewport() : b_mod->show_render())) {
             BL::ParticleSystemModifier  psmd((const PointerRNA)b_mod->ptr);
@@ -168,6 +172,8 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                 float       root_width      = get_float(oct_settings, "root_width");
                 float       tip_width       = get_float(oct_settings, "tip_width");
                 //float       width_step      = (tip_width - root_width) / ren_step;
+                float       w_min           = get_float(oct_settings, "w_min");
+                float       w_max           = get_float(oct_settings, "w_max");
 
                 int pa_no = 0;
                 if(b_part.child_type() != 0) pa_no = totparts;
@@ -181,6 +187,7 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                     float3  prev_point, prev_prev_point;
                     int     vert_cnt = 0;
                     float   cur_width = root_width;
+                    float   cur_w = w_min;
 
                     int actual_num_steps = 0;
                     for(int step_no = 0; step_no <= ren_step; step_no++) {
@@ -211,7 +218,8 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                         if(step_no > 0) prev_prev_point = prev_point;
                         prev_point = cur_point;
                     }
-                    float width_step = actual_num_steps > 1 ? (tip_width - root_width) / (actual_num_steps - 1): 0;
+                    float width_step    = actual_num_steps > 1 ? (tip_width - root_width) / (actual_num_steps - 1) : 0;
+                    float w_step        = actual_num_steps > 1 ? (w_max - w_min) / (actual_num_steps - 1) : 0;
 
                     for(int step_no = 0; step_no <= ren_step; step_no++) {
                         HairVerts *cur_hair_verts = &hair_verts_arr[step_no];
@@ -220,8 +228,13 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
                         float3 cur_point = cur_hair_verts->point;
 
                         hair_points[cur_vertex_idx] = cur_point;
+
                         hair_thickness[cur_vertex_idx] = cur_width;
                         cur_width += width_step;
+
+                        hair_ws[cur_vertex_idx].x = cur_w;
+                        hair_ws[cur_vertex_idx].y = cur_w;
+                        cur_w += w_step;
 
                         if(step_no > 0) prev_prev_point = prev_point;
                         prev_point = cur_point;
@@ -261,6 +274,7 @@ bool BlenderSync::fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *
     if(hair_points_size != cur_vertex_idx) {
         mesh->hair_points.resize(cur_vertex_idx);
         mesh->hair_thickness.resize(cur_vertex_idx);
+        mesh->hair_ws.resize(cur_vertex_idx);
     }
 
 	if(!interactive)

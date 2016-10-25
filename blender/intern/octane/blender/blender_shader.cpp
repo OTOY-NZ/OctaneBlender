@@ -1318,6 +1318,23 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                     cur_node->fIndexDefaultVal = RNA_float_get(&value_sock.ptr, "default_value");
                 }
             }
+            else if(b_input->name() == "Mode") {
+                if(!b_input->is_linked() || (cur_node->sMode = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sMode = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->modeDefaultVal = static_cast< ::Octane::FalloffTextureMode>(RNA_int_get(&value_sock.ptr, "default_value"));
+                }
+            }
+            else if(b_input->name() == "Falloff direction") {
+                BL::NodeSocket value_sock(*b_input);
+                float Direction[3];
+                RNA_float_get_array(&value_sock.ptr, "default_value", Direction);
+
+                cur_node->f3Direction.x = Direction[0];
+                cur_node->f3Direction.y = Direction[1];
+                cur_node->f3Direction.z = Direction[2];
+            }
         }
     } //case BL::ShaderNode::type_OCT_FALLOFF_TEX
     else if(b_node.is_a(&RNA_ShaderNodeOctColorCorrectTex)) {
@@ -1740,7 +1757,7 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
             else if(b_input->name() == "Interp. type") {
                 BL::NodeSocket value_sock(*b_input);
                 cur_node->sInterpolationType = "";
-                cur_node->iInterpolationTypeDefaultVal = RNA_int_get(&value_sock.ptr, "default_value") != 0;
+                cur_node->iInterpolationTypeDefaultVal = RNA_int_get(&value_sock.ptr, "default_value");
             }
         }
     }
@@ -1827,6 +1844,13 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
             }
         }
     }
+    else if(b_node.is_a(&RNA_ShaderNodeOctWTex)) {
+        ::OctaneEngine::OctaneWTexture* cur_node = newnt ::OctaneEngine::OctaneWTexture();
+        node = create_shader_node(cur_node);
+        if(!node) return nullptr;
+
+        cur_node->sName = get_oct_tex_name(b_node, sMatName, ConnectedNodesMap);
+    } //case BL::ShaderNode::type_OCT_W_TEX
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // OCTANE EMISSIONS

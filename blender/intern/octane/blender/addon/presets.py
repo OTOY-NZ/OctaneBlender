@@ -114,7 +114,21 @@ class AddPresetEnvironment(AddPresetBase, Operator):
         "octane.env_hour",
         "octane.env_med_radius",
         "octane.env_medium",
+    ]
 
+    preset_subdir = "octane/environment"
+
+class AddPresetVisEnvironment(AddPresetBase, Operator):
+    '''Add Octane visible environment preset'''
+    bl_idname = "render.octane_vis_environment_preset_add"
+    bl_label = "Add visible environment preset"
+    preset_menu = "OCTANE_MT_vis_environment_presets"
+
+    preset_defines = [
+        "octane = bpy.context.world.octane"
+    ]
+
+    preset_values = [
         "octane.env_vis_type",
         "octane.env_vis_texture",
         "octane.env_vis_power",
@@ -142,7 +156,7 @@ class AddPresetEnvironment(AddPresetBase, Operator):
         "octane.env_vis_refractions"
     ]
 
-    preset_subdir = "octane/environment"
+    preset_subdir = "octane/vis_environment"
 
 class AddPresetImager(AddPresetBase, Operator):
     '''Add Octane Imager preset'''

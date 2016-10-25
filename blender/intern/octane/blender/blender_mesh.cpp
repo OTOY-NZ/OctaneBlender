@@ -238,6 +238,35 @@ static void create_mesh(Scene *scene, BL::Object b_ob, Mesh *mesh, BL::Mesh b_me
 	//	for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v)
 	//		p_points[i++] = get_float3(v->undeformed_co()) * size - loc;
 	//}
+
+    if(mesh->open_subd_enable) {
+	    size_t num_creases = 0;
+	    BL::Mesh::edges_iterator e;
+
+	    for(b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e) {
+		    if(e->crease() != 0.0f) num_creases++;
+	    }
+
+	    mesh->open_subd_crease_indices.resize(num_creases * 2);
+	    mesh->open_subd_crease_sharpnesses.resize(num_creases);
+
+        if(num_creases) {
+	        int *crease_indices = &mesh->open_subd_crease_indices[0];
+	        float *crease_sharpnesses = &mesh->open_subd_crease_sharpnesses[0];
+
+	        for(b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e) {
+		        if(e->crease() != 0.0f) {
+			        crease_indices[0] = e->vertices()[0];
+			        crease_indices[1] = e->vertices()[1];
+			        *crease_sharpnesses = e->crease();
+
+			        crease_indices += 2;
+                    ++crease_sharpnesses;
+		        }
+	        }
+        }
+
+    }
 } //create_mesh()
 
 
@@ -332,7 +361,7 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain, Scene *scen
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Get object's smoke domain
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static inline BL::SmokeDomainSettings object_smoke_domain_find(BL::Object &b_ob) {
+BL::SmokeDomainSettings BlenderSync::object_smoke_domain_find(BL::Object &b_ob) {
 	BL::Object::modifiers_iterator b_mod;
 
 	for(b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
@@ -422,6 +451,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
         octane_mesh->max_smooth_angle   = RNA_float_get(&b_ob_data.ptr, "auto_smooth_angle") / M_PI * 180;
     else
         octane_mesh->max_smooth_angle   = -1.0f;
+    octane_mesh->hair_interpolation     = RNA_enum_get(&oct_mesh, "hair_interpolation");
 
 	if(b_mesh) {
         if(!hide_tris) {

@@ -91,6 +91,13 @@ class OCTANE_MT_environment_presets(Menu):
     COMPAT_ENGINES = {'octane'}
     draw = Menu.draw_preset
 
+class OCTANE_MT_vis_environment_presets(Menu):
+    bl_label = "Visible environment presets"
+    preset_subdir = "octane/vis_environment"
+    preset_operator = "script.execute_preset"
+    COMPAT_ENGINES = {'octane'}
+    draw = Menu.draw_preset
+
 class OCTANE_MT_imager_presets(Menu):
     bl_label = "Imager presets"
     preset_subdir = "octane/imager_presets"
@@ -184,6 +191,9 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         row = layout.row(align=True)
         row.active = (oct_scene.kernel_type == '1')
         row.prop(oct_scene, "gi_mode")
+        row = layout.row(align=True)
+        row.active = (oct_scene.kernel_type == '1')
+        row.prop_search(oct_scene, "ao_texture", bpy.data, "textures")
         row = layout.row(align=True)
         row.active = (oct_scene.kernel_type == '4')
         row.prop(oct_scene, "info_channel_type")
@@ -426,6 +436,7 @@ class OctaneRender_PT_octane_layers(OctaneButtonsPanel, Panel):
         octane = scene.octane
 
         col = layout.column()
+        col.prop(octane, "layers_mode")
         col.prop(octane, "layers_current")
         col.prop(octane, "layers_invert")
 
@@ -793,6 +804,10 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub = layout.row(align=True)
         sub.prop(cdata, "layer_number")
         sub.prop(cdata, "baking_group_id")
+        sub = layout.row(align=True)
+        sub.prop(cdata, "rand_color_seed")
+        sub = layout.row(align=True)
+        sub.prop(cdata, "hair_interpolation")
 
         box = layout.box()
         box.label(text="OpenSubDiv:")
@@ -806,11 +821,12 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "open_subd_level")
         sub.prop(cdata, "open_subd_sharpness")
 
-        sub = layout.column(align=True)
+        box = layout.box()
+        box.label(text="Visibility:")
+        sub = box.column(align=True)
         sub.prop(cdata, "vis_general")
         sub.prop(cdata, "vis_cam")
         sub.prop(cdata, "vis_shadow")
-        sub.prop(cdata, "rand_color_seed")
 
         box = layout.box()
         box.label(text="Volume properties:")
@@ -986,10 +1002,10 @@ class OctaneWorld_PT_settings(OctaneButtonsPanel, Panel):
 
         row = layout.row(align=True)
 #        row.prop(oct_world, "env_texture")
-        row.prop_search(oct_world, "env_texture",  bpy.data, "textures")
+        row.prop_search(oct_world, "env_texture", bpy.data, "textures")
 
         row = layout.row(align=True)
-        row.prop_search(oct_world, "env_medium",  bpy.data, "textures")
+        row.prop_search(oct_world, "env_medium", bpy.data, "textures")
         row = layout.row(align=True)
         row.prop(oct_world, "env_med_radius")
 
@@ -1063,9 +1079,9 @@ class OctaneVisibleWorld_PT_settings(OctaneButtonsPanel, Panel):
         oct_world = world.octane
 
         row = layout.row(align=True)
-        row.menu("OCTANE_MT_environment_presets", text=bpy.types.OCTANE_MT_environment_presets.bl_label)
-        row.operator("render.octane_environment_preset_add", text="", icon="ZOOMIN")
-        row.operator("render.octane_environment_preset_add", text="", icon="ZOOMOUT").remove_active = True
+        row.menu("OCTANE_MT_vis_environment_presets", text=bpy.types.OCTANE_MT_vis_environment_presets.bl_label)
+        row.operator("render.octane_vis_environment_preset_add", text="", icon="ZOOMIN")
+        row.operator("render.octane_vis_environment_preset_add", text="", icon="ZOOMOUT").remove_active = True
 
         row = layout.row(align=True)
         row.prop(oct_world, "env_vis_type")
@@ -1074,10 +1090,10 @@ class OctaneVisibleWorld_PT_settings(OctaneButtonsPanel, Panel):
 
         row = layout.row(align=True)
 #        row.prop(oct_world, "env_vis_texture")
-        row.prop_search(oct_world, "env_vis_texture",  bpy.data, "textures")
+        row.prop_search(oct_world, "env_vis_texture", bpy.data, "textures")
 
         row = layout.row(align=True)
-        row.prop_search(oct_world, "env_vis_medium",  bpy.data, "textures")
+        row.prop_search(oct_world, "env_vis_medium", bpy.data, "textures")
         row = layout.row(align=True)
         row.prop(oct_world, "env_vis_med_radius")
 
@@ -1312,12 +1328,18 @@ class OctaneParticle_PT_HairSettings(OctaneButtonsPanel, Panel):
         psys = context.particle_settings
         opsys = psys.octane
 
-        layout.label(text="Thickness:")
-        row = layout.row()
-        row.prop(opsys, "root_width")
-        row.prop(opsys, "tip_width")
         row = layout.row()
         row.prop(opsys, "min_curvature")
+
+        layout.label(text="Thickness:")
+        row = layout.row(align=True)
+        row.prop(opsys, "root_width")
+        row.prop(opsys, "tip_width")
+
+        layout.label(text="W coordinate:")
+        row = layout.row(align=True)
+        row.prop(opsys, "w_min")
+        row.prop(opsys, "w_max")
 
 
 def draw_device(self, context):
@@ -1329,8 +1351,6 @@ def draw_device(self, context):
 
         sub = layout.row()
         sub.prop(oct_scene, "anim_mode")
-        sub = layout.row()
-        sub.prop(oct_scene, "export_scene")
 
         import _octane
         box = layout.box()

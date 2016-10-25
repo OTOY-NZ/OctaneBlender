@@ -182,6 +182,7 @@ void register_node_type_tex_oct_polygon_side(void);
 void register_node_type_tex_oct_noise(void);
 void register_node_type_tex_oct_displacement(void);
 void register_node_type_tex_oct_volume_ramp(void);
+void register_node_type_tex_oct_w(void);
 
 void register_node_type_projection_oct_xyz(void);
 void register_node_type_projection_oct_box(void);

@@ -86,7 +86,12 @@ bool BlenderSync::sync_recalc() {
 			else object_map.set_recalc(*b_ob);
 		}
 
-		if(object_is_mesh(*b_ob)) {
+        BL::SmokeDomainSettings b_domain = BlenderSync::object_smoke_domain_find(*b_ob);
+        if(b_domain && b_domain.cache_file_format() == BL::SmokeDomainSettings::cache_file_format_OPENVDB) {
+			BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
+			mesh_map.set_recalc(key);
+        }
+		else if(object_is_mesh(*b_ob)) {
 			if(b_ob->is_updated_data() || b_ob->data().is_updated()) {
 				BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
 				mesh_map.set_recalc(key);
@@ -98,10 +103,10 @@ bool BlenderSync::sync_recalc() {
 		}
 	}
 
-	BL::BlendData::meshes_iterator b_mesh;
-	for(b_data.meshes.begin(b_mesh); b_mesh != b_data.meshes.end(); ++b_mesh)
-		if(b_mesh->is_updated())
-			mesh_map.set_recalc(*b_mesh);
+	//BL::BlendData::meshes_iterator b_mesh;
+	//for(b_data.meshes.begin(b_mesh); b_mesh != b_data.meshes.end(); ++b_mesh)
+	//	if(b_mesh->is_updated())
+	//		mesh_map.set_recalc(*b_mesh);
 
 	BL::BlendData::worlds_iterator b_world;
 	for(b_data.worlds.begin(b_world); b_world != b_data.worlds.end(); ++b_world) {
@@ -480,6 +485,7 @@ void BlenderSync::sync_kernel() {
     kernel->oct_node->fAODist = get_float(oct_scene, "ao_dist");
     kernel->oct_node->GIMode = static_cast< ::OctaneEngine::Kernel::DirectLightMode>(RNA_enum_get(&oct_scene, "gi_mode"));
     kernel->oct_node->iDiffuseDepth = get_int(oct_scene, "diffuse_depth");
+    kernel->oct_node->sAoTexture = get_string(oct_scene, "ao_texture");
 
     kernel->oct_node->fExploration = get_float(oct_scene, "exploration");
     kernel->oct_node->fGIClamp = get_float(oct_scene, "gi_clamp");
@@ -495,6 +501,7 @@ void BlenderSync::sync_kernel() {
     kernel->oct_node->bLayersEnable = get_boolean(oct_scene, "layers_enable");
     kernel->oct_node->iLayersCurrent = get_int(oct_scene, "layers_current");
     kernel->oct_node->bLayersInvert = get_boolean(oct_scene, "layers_invert");
+    kernel->oct_node->layersMode = static_cast< ::OctaneEngine::Kernel::LayersMode>(RNA_enum_get(&oct_scene, "layers_mode"));
 
     kernel->oct_node->iParallelSamples = get_int(oct_scene, "parallel_samples");
     kernel->oct_node->iMaxTileSamples = get_int(oct_scene, "max_tile_samples");
@@ -591,7 +598,7 @@ void BlenderSync::set_session_pause_state(BL::Scene b_scene, bool state) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Get Octane common settings
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::UserPreferences b_userpref, BL::Scene b_scene, bool interactive) {
+SessionParams BlenderSync::get_session_params(BL::UserPreferences b_userpref, BL::Scene b_scene, ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type, bool interactive) {
 	SessionParams params;
 	PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
 
@@ -617,12 +624,12 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
     }
 
     params.anim_mode            = static_cast<AnimationMode>(RNA_enum_get(&oct_scene, "anim_mode"));
-    params.export_scene         = interactive ? ::OctaneEngine::OctaneClient::SceneExportTypes::NONE : static_cast< ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum>(get_enum(oct_scene, "export_scene"));
+    params.export_type         = interactive ? ::OctaneEngine::OctaneClient::SceneExportTypes::NONE : export_type;
 
     params.deep_image           = get_boolean(oct_scene, "deep_image");
     params.use_passes           = get_boolean(oct_scene, "use_passes");
     params.meshes_type          = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
-    if(params.export_scene != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE && params.meshes_type == Mesh::GLOBAL)
+    if(params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE && params.meshes_type == Mesh::GLOBAL)
         params.meshes_type = Mesh::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
 	

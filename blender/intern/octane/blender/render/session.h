@@ -52,10 +52,10 @@ public:
         use_passes      = false;
         meshes_type     = Mesh::AS_IS;
 		samples		    = INT_MAX;
-        export_scene    = ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
         anim_mode       = FULL;
         fps             = 24.0f;
         hdr_tonemapped  = false;
+        export_type    = ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
 
         out_of_core_enabled         = false;
         out_of_core_mem_limit       = 4096;
@@ -83,6 +83,7 @@ public:
 
 	int		        samples;
     ::OctaneEngine::OctaneClient::RenderStatistics image_stat;
+    ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type;
 
     AnimationMode   anim_mode;
     int             width;
@@ -91,7 +92,6 @@ public:
     bool            hdr_tonemapped;
 	bool            use_viewport_hide;
 	Mesh::MeshType  meshes_type;
-	::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_scene;
     float           fps;
     bool            deep_image;
 
@@ -114,7 +114,7 @@ public:
 	void wait();
 
 	bool ready_to_reset();
-    void reset(BufferParams& params, float mb_frame_time_sampling);
+    void reset(BufferParams& params, float mb_frame_time_sampling, float fps);
 	void set_samples(int samples);
 	void set_pause(bool pause);
     void set_blender_session(BlenderSession *b_session_);

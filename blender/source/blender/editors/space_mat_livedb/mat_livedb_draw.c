@@ -238,6 +238,7 @@ static void mat_livedb_draw_mat_preview(uiBlock *block, Scene *scene, ARegion *a
     strcat(file_path, "/livedb/");
     strcat(file_path, slivedb->server_address);
     strcat(file_path, "/previews/");
+    BLI_path_native_slash(file_path);
     BLI_dir_create_recursive(file_path);
 
     for (te = lb->first; te; te = te->next) {

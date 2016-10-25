@@ -170,6 +170,31 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 description="All the non-active render layers become the active render layer and the active render layer becomes inactive",
                 default=False,
                 )
+        cls.layers_mode = EnumProperty(
+                name="Mode",
+                description="The render mode that should be used to render layers:\n"
+                    "\n"
+                    "'Normal':"
+                    " The beauty passes contain the active layer only and the render layer passes (shadows,"
+                    " reflections...) record the side-effects of the active render layer for those samples/pixels"
+                    " that are not obstructed by the active render layer.\n"
+                    "Beauty passes will be transparent for those pixels which are covered by objects on the"
+                    " inactive layers, even if there is an object on the active layer behind the foreground"
+                    " object.\n"
+                    "\n"
+                    "'Hide inactive layers':"
+                    " All geometry that is not on an active layer will be made invisible. No side effects"
+                    " will be recorded in the render layer passes, i.e. the render layer passes will be empty.\n"
+                    "\n"
+                    "'Only side effects':"
+                    " Similar to 'normal', with the exception that the active layer will be made invisible"
+                    " to the camera, i.e. the beauty passes will be empty. The render layer passes"
+                    " (shadows, reflections...) still record the side-effects of the active render layer.\n"
+                    "This is useful to capture all side-effects without having the active layer obstructing"
+                    " those",
+                items=types.layer_modes,
+                default='0',
+                )
 
 
 # ################################################################################################
@@ -201,12 +226,6 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 name="Viewport hide priority",
                 description="Hide from final render objects hidden in viewport",
                 default=False,
-                )
-        cls.export_scene = EnumProperty(
-                name="Export scene",
-                description="Export alembic or ORBX file instead of rendering",
-                items=types.export_types,
-                default='0',
                 )
         cls.meshes_type = EnumProperty(
                 name="Render all meshes as",
@@ -355,6 +374,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 default=3.0,
                 step=1,
                 precision=2,
+                )
+        cls.ao_texture = StringProperty(
+                name="AO ambient texture",
+                description="Ambient occlusion environment texture, which is used for AO rays. If not specified, the environment will be used instead",
+                default="",
+                maxlen=512,
                 )
         cls.gi_mode = EnumProperty(
                 name="GImode",
@@ -1672,6 +1697,12 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 min=0.0,
                 default=1.0,
                 )
+        cls.hair_interpolation = EnumProperty(
+                name="Hair W interpolation",
+                description="Specifies the hair interpolation type. If \"Use hair Ws\" is chosen - you need to explicitly set the hairs root/tip W coordinates in Octane's part of particle settings",
+                items=types.hair_interpolations,
+                default='0',
+                )
 
     @classmethod
     def unregister(cls):
@@ -1705,6 +1736,18 @@ class OctaneHairSettings(bpy.types.PropertyGroup):
                 description="Hair points having angle deviation from previous point less than this value will be skipped",
                 min=0.0, max=180.0,
                 default=0.0001,
+                )
+        cls.w_min = FloatProperty(
+                name="Min. W",
+                description="W coordinate of the root of a hair: it represents a position on a color gradient for roots of all hairs of this particle system",
+                min=0.0, max=1.0,
+                default=0.0,
+                )
+        cls.w_max = FloatProperty(
+                name="Max. W",
+                description="W coordinate of the tip of a hair: it represents a position on a color gradient for tips of all hairs of this particle system",
+                min=0.0, max=1.0,
+                default=1.0,
                 )
 
     @classmethod

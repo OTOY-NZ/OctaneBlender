@@ -84,6 +84,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeOctNoiseTex"),
         NodeItem("ShaderNodeOctDisplacementTex"),
         NodeItem("ShaderNodeOctVolumeRampTex"),
+        NodeItem("ShaderNodeOctWTex"),
        ]),
     ShaderNewNodeCategory("SH_NEW_OCT_EMISSION", "Octane Emission", items=[
         NodeItem("ShaderNodeOctBlackBodyEmission"),
@@ -150,6 +151,7 @@ texture_node_categories = [
         NodeItem("ShaderNodeOctNoiseTex"),
         NodeItem("ShaderNodeOctDisplacementTex"),
         NodeItem("ShaderNodeOctVolumeRampTex"),
+        NodeItem("ShaderNodeOctWTex"),
         ]),
     TextureNodeCategory("TEX_OCT_TRANSFORM", "Octane Transform", items=[
         NodeItem("ShaderNodeOctScaleTransform"),

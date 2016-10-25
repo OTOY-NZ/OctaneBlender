@@ -291,6 +291,7 @@ if(WITH_OCTANE)
 		../../../intern/octane/nodes/textures/node_oct_texture_displacement.c
 		../../../intern/octane/nodes/textures/node_oct_texture_noise.c
 		../../../intern/octane/nodes/textures/node_oct_texture_polygon_side.c
+		../../../intern/octane/nodes/textures/node_oct_texture_w.c
 
 		../../../intern/octane/nodes/emissions/node_oct_emission_black_body.c
 		../../../intern/octane/nodes/emissions/node_oct_emission_texture.c
