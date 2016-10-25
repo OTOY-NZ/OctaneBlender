@@ -242,6 +242,7 @@ private:
 	void add_used_shader_index(BL::ID id, vector<uint>& used_shaders, int default_shader);
 	bool BKE_object_is_modified(BL::Object b_ob);
 	bool object_is_mesh(BL::Object b_ob);
+	bool object_is_curve(BL::Object b_ob);
 	bool object_is_light(BL::Object b_ob);
 
     void load_camera_from_object(Camera* cam, BL::Object b_ob, int width, int height, float2& offset, bool skip_panorama = false);

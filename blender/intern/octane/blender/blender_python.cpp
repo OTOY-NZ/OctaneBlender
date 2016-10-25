@@ -119,6 +119,7 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
         m_scene->r.cfra = first_frame;
         m_scene->r.subframe = first_frame - m_scene->r.cfra;
         BKE_scene_update_for_newframe(CTX_data_main(data->cont)->eval_ctx, CTX_data_main(data->cont), m_scene, m_scene->lay);
+        BKE_scene_camera_switch_update(m_scene);
 
         // Create session
         std::string export_path(data->filename);

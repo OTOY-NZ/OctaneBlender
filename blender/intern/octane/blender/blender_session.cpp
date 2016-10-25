@@ -346,6 +346,7 @@ int BlenderSession::load_internal_mb_sequence(bool &stop_render, int &num_frames
 	    m_scene->r.subframe = last_cfra - m_scene->r.cfra;
 	    BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
         BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+        sync->sync_recalc();
 
         sync->sync_data(b_v3d, b_engine.camera_override(), layer, motion);
         if(!do_sync) {
@@ -373,6 +374,7 @@ int BlenderSession::load_internal_mb_sequence(bool &stop_render, int &num_frames
 	    m_scene->r.subframe = cfra - m_scene->r.cfra;
 	    BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
         BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+        sync->sync_recalc();
     }
 
     return cur_frame - first_frame;
@@ -886,6 +888,7 @@ void BlenderSession::render() {
 	                        m_scene->r.subframe = cfra - m_scene->r.cfra;
 	                        BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
                             BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+                            sync->sync_recalc();
                         }
 
                         sync->sync_data(b_v3d, b_engine.camera_override(), &cur_layer);
@@ -907,6 +910,7 @@ void BlenderSession::render() {
 	            m_scene->r.subframe = cfra - m_scene->r.cfra;
 	            BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
                 BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
+                sync->sync_recalc();
             }
             else if(motion_blur && mb_type == INTERNAL) {
                 int total_frames;

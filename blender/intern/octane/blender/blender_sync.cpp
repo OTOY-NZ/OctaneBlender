@@ -87,10 +87,14 @@ bool BlenderSync::sync_recalc() {
 		}
 
         BL::SmokeDomainSettings b_domain = BlenderSync::object_smoke_domain_find(*b_ob);
-        if(b_domain && b_domain.cache_file_format() == BL::SmokeDomainSettings::cache_file_format_OPENVDB) {
+        if(b_domain && b_domain.cache_file_format() == BL::SmokeDomainSettings::cache_file_format_OPENVDB) { // Workaround, smoke is not tagged for update by BKE_scene_update_for_newframe()
 			BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
 			mesh_map.set_recalc(key);
         }
+		else if(object_is_curve(*b_ob)) { // Workaround, curves are not tagged for update by BKE_scene_update_for_newframe()
+			BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
+			mesh_map.set_recalc(key);
+		}
 		else if(object_is_mesh(*b_ob)) {
 			if(b_ob->is_updated_data() || b_ob->data().is_updated()) {
 				BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
@@ -103,7 +107,7 @@ bool BlenderSync::sync_recalc() {
 		}
 	}
 
-	//BL::BlendData::meshes_iterator b_mesh;
+    //BL::BlendData::meshes_iterator b_mesh;
 	//for(b_data.meshes.begin(b_mesh); b_mesh != b_data.meshes.end(); ++b_mesh)
 	//	if(b_mesh->is_updated())
 	//		mesh_map.set_recalc(*b_mesh);

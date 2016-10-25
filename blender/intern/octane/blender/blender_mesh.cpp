@@ -447,7 +447,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool o
     octane_mesh->rand_color_seed        = RNA_int_get(&oct_mesh, "rand_color_seed");
     octane_mesh->layer_number           = RNA_int_get(&oct_mesh, "layer_number");
     octane_mesh->baking_group_id        = RNA_int_get(&oct_mesh, "baking_group_id");
-	if(RNA_boolean_get(&b_ob_data.ptr, "use_auto_smooth"))
+	if(!object_is_curve(b_ob) && RNA_boolean_get(&b_ob_data.ptr, "use_auto_smooth"))
         octane_mesh->max_smooth_angle   = RNA_float_get(&b_ob_data.ptr, "auto_smooth_angle") / M_PI * 180;
     else
         octane_mesh->max_smooth_angle   = -1.0f;
