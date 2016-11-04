@@ -448,6 +448,14 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server, Scene
             volume.iVelocityOffsetY     = mesh->vdb_velocity_y_offset;
             volume.iVelocityOffsetZ     = mesh->vdb_velocity_z_offset;
             volume.fVelocityScale       = mesh->vdb_velocity_scale;
+
+            volume.fGenVisibility       = mesh->vis_general;
+            volume.bCamVisibility       = mesh->vis_cam;
+            volume.bShadowVisibility    = mesh->vis_shadow;
+            volume.iRandomColorSeed     = mesh->rand_color_seed;
+            volume.iLayerNumber         = (scene->kernel->oct_node->bLayersEnable ? mesh->layer_number : 1);
+            volume.iBakingGroupId       = mesh->baking_group_id;
+
             if(mesh->used_shaders.size())
                 volume.sMedium = scene->shaders[mesh->used_shaders[0]]->name;
 

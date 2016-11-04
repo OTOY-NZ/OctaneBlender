@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 11
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 6
+#   define OCTANE_SERVER_MINOR_VERSION 10
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -3040,7 +3040,12 @@ struct OctaneVolume : public OctaneNodeBase {
     string  sVelocityIdY;
     string  sVelocityIdZ;
 
-
+    float   fGenVisibility;
+    bool    bCamVisibility;
+    bool    bShadowVisibility;
+    int32_t iRandomColorSeed;
+    int32_t iLayerNumber;
+    int32_t iBakingGroupId;
 
     OctaneVolume() : OctaneNodeBase(Octane::NT_GEO_VOLUME) {}
 }; //struct OctaneVolume
@@ -4753,7 +4758,7 @@ inline bool OctaneClient::checkServerVersion() {
 
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR getting render-server description.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
 
         UNLOCK_MUTEX(m_SocketMutex);
@@ -4821,7 +4826,7 @@ inline bool OctaneClient::activate(string const &sStandLogin, string const &sSta
     if(rcv.m_PacketType != SET_LIC_DATA) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR of the license activation on render-server.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
 
         UNLOCK_MUTEX(m_SocketMutex);
@@ -4858,7 +4863,7 @@ inline void OctaneClient::reset(SceneExportTypes::SceneExportTypesEnum exportSce
     if(rcv.m_PacketType != RESET) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR resetting render server.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
     else {
@@ -4889,7 +4894,7 @@ inline void OctaneClient::clear() {
     if(rcv.m_PacketType != CLEAR) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR clearing render server.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
     else {
@@ -4946,7 +4951,7 @@ inline void OctaneClient::startRender(bool bInteractive, int32_t iWidth, int32_t
     if(rcv.m_PacketType != START) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR starting render.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
     else m_bRenderStarted = true;
@@ -4976,7 +4981,7 @@ inline void OctaneClient::stopRender(float fFPS) {
     if(rcv.m_PacketType != STOP) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR stopping render.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
     else if(m_ExportSceneType != SceneExportTypes::NONE && m_sOutPath.length()) {
@@ -4989,7 +4994,7 @@ inline void OctaneClient::stopRender(float fFPS) {
         if(rcv.m_PacketType != LOAD_FILE) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR downloading scene file from server.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
         else if(!rcv.readFile(s_out_path, &err)) {
@@ -5011,7 +5016,7 @@ inline void OctaneClient::stopRender(float fFPS) {
         if(rcv.m_PacketType != LOAD_FILE) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR downloading deep image file from server.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
         else if(!rcv.readFile(s_out_path, &err)) {
@@ -5056,7 +5061,7 @@ inline void OctaneClient::pauseRender(int32_t bPause) {
     if(rcv.m_PacketType != PAUSE) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR pause render.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
 
@@ -5078,7 +5083,7 @@ inline void OctaneClient::startFrameUpload() {
     if(rcv.m_PacketType != START_FRAME_LOAD) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR starting frame load.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
 
@@ -5101,7 +5106,7 @@ inline void OctaneClient::finishFrameUpload(bool bUpdate) {
     if(rcv.m_PacketType != FINISH_FRAME_LOAD) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR finishing frame load.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
 
@@ -5124,7 +5129,7 @@ inline void OctaneClient::uploadGPUs(uint32_t uiGPUs) {
     if(rcv.m_PacketType != LOAD_GPU) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR setting GPUs on render server.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
 
@@ -5166,7 +5171,7 @@ inline void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uin
         if(rcv.m_PacketType != LOAD_PANORAMIC_CAMERA) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR loading camera.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
         else {
@@ -5193,7 +5198,7 @@ inline void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uin
         if(rcv.m_PacketType != LOAD_BAKING_CAMERA) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR loading camera.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
         else {
@@ -5223,7 +5228,7 @@ inline void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uin
         if(rcv.m_PacketType != LOAD_THIN_LENS_CAMERA) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR loading camera.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
         else {
@@ -5274,7 +5279,7 @@ inline void OctaneClient::uploadPasses(Passes *pPasses) {
     if(rcv.m_PacketType != LOAD_PASSES) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR loading render passes.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
     else {
@@ -5353,7 +5358,7 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
     if(rcv.m_PacketType != LOAD_KERNEL) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR loading kernel.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
     else {
@@ -5386,7 +5391,7 @@ inline void OctaneClient::uploadRenderRegion(Camera *pCamera, bool bInteractive)
     if(rcv.m_PacketType != LOAD_RENDER_REGION) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR setting render region.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
 
@@ -5435,7 +5440,7 @@ inline void OctaneClient::uploadEnvironment(Environment *pEnv) {
     if(rcv.m_PacketType != LOAD_SUNSKY) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR loading environment.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
     else {
@@ -5487,7 +5492,7 @@ inline void OctaneClient::uploadVisibleEnvironment(Environment *pEnv) {
     if(rcv.m_PacketType != LOAD_VISIBLE_SUNSKY) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR loading visible environment.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
     else {
@@ -5770,7 +5775,7 @@ inline void OctaneClient::uploadScatter(string &sScatterName, string &sMeshName,
         if(rcv.m_PacketType != LOAD_GEO_MAT) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR loading materials of transform.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -5792,7 +5797,7 @@ inline void OctaneClient::uploadScatter(string &sScatterName, string &sMeshName,
     if(rcv.m_PacketType != LOAD_GEO_SCATTER) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR loading transform.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
 
@@ -5817,7 +5822,7 @@ inline void OctaneClient::deleteScatter(string const &sName) {
         if(rcv.m_PacketType != DEL_GEO_SCATTER) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting transform.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -5832,7 +5837,7 @@ inline void OctaneClient::deleteScatter(string const &sName) {
         if(rcv.m_PacketType != DEL_GEO_MAT) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting transform materials.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -5996,7 +6001,7 @@ inline void OctaneClient::uploadMesh(  bool            bGlobal, uint32_t uiFrame
     if(rcv.m_PacketType != (bGlobal ? LOAD_GLOBAL_MESH : LOAD_LOCAL_MESH)) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR loading mesh.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
 
@@ -6020,7 +6025,7 @@ inline void OctaneClient::deleteMesh(bool bGlobal, string const &sName) {
         if(rcv.m_PacketType != (bGlobal ? DEL_GLOBAL_MESH : DEL_LOCAL_MESH)) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting mesh.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -6068,7 +6073,7 @@ inline void OctaneClient::uploadLayerMap(bool bGlobal,
     if(rcv.m_PacketType != LOAD_GEO_LAYERMAP) {
         rcv >> m_sErrorMsg;
         fprintf(stderr, "Octane: ERROR loading layer map.");
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
     }
 
@@ -6092,7 +6097,7 @@ inline void OctaneClient::deleteLayerMap(string const &sName) {
         if(rcv.m_PacketType != DEL_GEO_LAYERMAP) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting layer map.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -6107,14 +6112,15 @@ inline void OctaneClient::uploadVolume(OctaneVolume *pNode) {
     if(m_Socket < 0 || m_cBlockUpdates) return;
 
     if(pNode->pfRegularGrid) {
-        uint64_t size = sizeof(int32_t) * 7 + sizeof(float) * 8 + sizeof(float) * pNode->iGridSize + sizeof(float) * 12
+        uint64_t size = sizeof(int32_t) * 12 + sizeof(float) * 9 + sizeof(float) * pNode->iGridSize + sizeof(float) * 12
             + pNode->sMedium.length() + 2;
 
         LOCK_MUTEX(m_SocketMutex);
 
         {
             RPCSend snd(m_Socket, size, LOAD_VOLUME_DATA, pNode->sName.c_str());
-            snd << pNode->iGridSize << pNode->iAbsorptionOffset << pNode->iEmissionOffset << pNode->iScatterOffset << pNode->iVelocityOffsetX << pNode->iVelocityOffsetY << pNode->iVelocityOffsetZ
+            snd << pNode->fGenVisibility << pNode->iLayerNumber << pNode->iBakingGroupId << pNode->iRandomColorSeed << pNode->bShadowVisibility << pNode->bCamVisibility
+                << pNode->iGridSize << pNode->iAbsorptionOffset << pNode->iEmissionOffset << pNode->iScatterOffset << pNode->iVelocityOffsetX << pNode->iVelocityOffsetY << pNode->iVelocityOffsetZ
                 << pNode->f3Resolution << pNode->fISO << pNode->fAbsorptionScale << pNode->fEmissionScale << pNode->fScatterScale << pNode->fVelocityScale;
             snd.writeBuffer(pNode->pfRegularGrid, pNode->iGridSize * sizeof(float));
             snd.writeBuffer(&pNode->gridMatrix, 12 * sizeof(float));
@@ -6126,7 +6132,7 @@ inline void OctaneClient::uploadVolume(OctaneVolume *pNode) {
         if(rcv.m_PacketType != LOAD_VOLUME_DATA) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR loading volume.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
 
@@ -6136,7 +6142,7 @@ inline void OctaneClient::uploadVolume(OctaneVolume *pNode) {
         uint64_t mod_time = getFileTime(pNode->sFileName);
         string file_name  = getFileName(pNode->sFileName);
 
-        uint64_t size = sizeof(uint64_t) + sizeof(float) * 4
+        uint64_t size = sizeof(uint64_t) + sizeof(float) * 5 + sizeof(int32_t) * 5
             + file_name.length() + 2
             + pNode->sMedium.length() + 2
             + pNode->sAbsorptionId.length() + 2
@@ -6151,7 +6157,9 @@ inline void OctaneClient::uploadVolume(OctaneVolume *pNode) {
 
         {
             RPCSend snd(m_Socket, size, LOAD_VOLUME, pNode->sName.c_str());
-            snd << mod_time << pNode->fAbsorptionScale << pNode->fEmissionScale << pNode->fScatterScale << pNode->fVelocityScale
+            snd << mod_time
+                << pNode->fGenVisibility << pNode->iLayerNumber << pNode->iBakingGroupId << pNode->iRandomColorSeed << pNode->bShadowVisibility << pNode->bCamVisibility
+                << pNode->fAbsorptionScale << pNode->fEmissionScale << pNode->fScatterScale << pNode->fVelocityScale
                 << file_name.c_str() << pNode->sMedium.c_str() << pNode->sAbsorptionId.c_str() << pNode->sEmissionId.c_str() << pNode->sScatterId.c_str()
                 << pNode->sVelocityId.c_str() << pNode->sVelocityIdX.c_str() << pNode->sVelocityIdY.c_str() << pNode->sVelocityIdZ.c_str();
             snd.write();
@@ -6169,7 +6177,9 @@ inline void OctaneClient::uploadVolume(OctaneVolume *pNode) {
         if(file_is_needed && uploadFile(pNode->sFileName, file_name)) {
             {
                 RPCSend snd(m_Socket, size, LOAD_VOLUME, pNode->sName.c_str());
-                snd << mod_time << pNode->fAbsorptionScale << pNode->fEmissionScale << pNode->fScatterScale << pNode->fVelocityScale
+                snd << mod_time
+                    << pNode->fGenVisibility << pNode->iLayerNumber << pNode->iBakingGroupId << pNode->iRandomColorSeed << pNode->bShadowVisibility << pNode->bCamVisibility
+                    << pNode->fAbsorptionScale << pNode->fEmissionScale << pNode->fScatterScale << pNode->fVelocityScale
                     << file_name.c_str() << pNode->sMedium.c_str() << pNode->sAbsorptionId.c_str() << pNode->sEmissionId.c_str() << pNode->sScatterId.c_str()
                     << pNode->sVelocityId.c_str() << pNode->sVelocityIdX.c_str() << pNode->sVelocityIdY.c_str() << pNode->sVelocityIdZ.c_str();
                 snd.write();
@@ -6179,7 +6189,7 @@ inline void OctaneClient::uploadVolume(OctaneVolume *pNode) {
                 if(rcv.m_PacketType != LOAD_VOLUME) {
                     rcv >> m_sErrorMsg;
                     fprintf(stderr, "Octane: ERROR loading volume.");
-                    if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+                    if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
                     else fprintf(stderr, "\n");
                 }
             }
@@ -6206,7 +6216,7 @@ inline void OctaneClient::deleteVolume(string const &sName) {
         if(rcv.m_PacketType != DEL_VOLUME) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting volume.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -6229,7 +6239,7 @@ inline bool OctaneClient::checkResponsePacket(PacketType packetType, const char 
         else
             fprintf(stderr, "Octane: uploading ERROR.");
 
-        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+        if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
         else fprintf(stderr, "\n");
         return false;
     }
@@ -6421,7 +6431,7 @@ inline void OctaneClient::deleteMaterial(string const &sName) {
         if(rcv.m_PacketType != DEL_MATERIAL) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting material.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -6915,7 +6925,7 @@ inline bool OctaneClient::uploadFile(string &sFilePath, string &sFileName) {
             if(rcv.m_PacketType != LOAD_IMAGE_FILE) {
                 rcv >> m_sErrorMsg;
                 fprintf(stderr, "Octane: ERROR loading image file.");
-                if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+                if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
                 else fprintf(stderr, "\n");
                 return false;
             }
@@ -7001,7 +7011,7 @@ inline void OctaneClient::uploadImageTex(OctaneImageTexture *pNode) {
                 if(rcv.m_PacketType != LOAD_IMAGE_TEXTURE) {
                     rcv >> m_sErrorMsg;
                     fprintf(stderr, "Octane: ERROR loading image texture.");
-                    if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+                    if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
                     else fprintf(stderr, "\n");
                 }
             }
@@ -7086,7 +7096,7 @@ inline void OctaneClient::uploadFloatImageTex(OctaneFloatImageTexture *pNode) {
                 if(rcv.m_PacketType != LOAD_FLOAT_IMAGE_TEXTURE) {
                     rcv >> m_sErrorMsg;
                     fprintf(stderr, "Octane: ERROR loading float image texture.");
-                    if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+                    if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
                     else fprintf(stderr, "\n");
                 }
             }
@@ -7171,7 +7181,7 @@ inline void OctaneClient::uploadAlphaImageTex(OctaneAlphaImageTexture *pNode) {
                 if(rcv.m_PacketType != LOAD_ALPHA_IMAGE_TEXTURE) {
                     rcv >> m_sErrorMsg;
                     fprintf(stderr, "Octane: ERROR loading alpha image texture.");
-                    if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+                    if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
                     else fprintf(stderr, "\n");
                 }
             }
@@ -7395,7 +7405,7 @@ inline void OctaneClient::deleteTexture(string const &sName) {
         if(rcv.m_PacketType != DEL_TEXTURE) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting texture.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -7485,7 +7495,7 @@ inline void OctaneClient::deleteEmission(string const &sName) {
         if(rcv.m_PacketType != DEL_EMISSION) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting emission.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -7605,7 +7615,7 @@ inline void OctaneClient::deleteMedium(string const &sName) {
         if(rcv.m_PacketType != DEL_MEDIUM) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting medium.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -7774,7 +7784,7 @@ inline void OctaneClient::deleteTransform(string const &sName) {
         if(rcv.m_PacketType != DEL_TRANSFORM) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting transform.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -7941,7 +7951,7 @@ inline void OctaneClient::deleteProjection(string const &sName) {
         if(rcv.m_PacketType != DEL_PROJECTION) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting projection.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -8013,7 +8023,7 @@ inline void OctaneClient::deleteValue(string const &sName) {
         if(rcv.m_PacketType != DEL_VALUE) {
             rcv >> m_sErrorMsg;
             fprintf(stderr, "Octane: ERROR deleting value node.");
-            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server response:\n%s\n", m_sErrorMsg.c_str());
+            if(m_sErrorMsg.length() > 0) fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
             else fprintf(stderr, "\n");
         }
     }
@@ -8832,6 +8842,13 @@ inline bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat, Imag
             break;
         }
         else if(!bForce) {
+            std::string sError;
+            rcv >> sError;
+            if(sError.length() > 0) {
+                fprintf(stderr, "\nOctane: ERROR. Server log:\n%s\n", sError.c_str());
+                m_sErrorMsg += sError;
+            }
+
             if(imgType == IMAGE_8BIT && m_pucImageBuf && m_stImgBufLen) {
                 UNLOCK_MUTEX(m_SocketMutex);
                 return true;
@@ -8846,6 +8863,13 @@ inline bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat, Imag
             }
         }
         else {
+            std::string sError;
+            rcv >> sError;
+            if(sError.length() > 0) {
+                fprintf(stderr, "\nOctane: ERROR. Server log:\n%s\n", sError.c_str());
+                m_sErrorMsg += sError;
+            }
+
             UNLOCK_MUTEX(m_SocketMutex);
             return false;
         }

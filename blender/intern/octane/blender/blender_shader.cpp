@@ -2696,7 +2696,9 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Add texture nodes
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::TextureNodeTree b_ntree) {
+static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::TextureNodeTree b_ntree, int socket_type = 0) {
+    int cur_socket_type = 0;
+
     //Fill the socket-incoming_node map
     PtrStringMap ConnectedNodesMap;
 	BL::NodeTree::links_iterator b_link;
@@ -2721,7 +2723,12 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
                             BL::NodeSocket b_nested_from_sock = b_nested_link->from_socket();
                             BL::NodeSocket b_nested_to_sock = b_nested_link->to_socket();
                             if(b_nested_to_node.is_a(&RNA_NodeGroupOutput) && b_nested_to_sock.name() == from_name) {
-                                ::sprintf(tmp, "%p", b_nested_from_node.ptr.data);
+                                if(b_nested_from_node.mute())
+                                    ::sprintf(tmp, "");
+                                else {
+                                    if(b_to_sock.name() == "Color") cur_socket_type = 1;
+                                    ::sprintf(tmp, "%p", b_nested_from_node.ptr.data);
+                                }
                                 break;
                             }
                         }
@@ -2729,11 +2736,17 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
                     ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
                 }
                 else {
-                    ::sprintf(tmp, "%p", b_from_node.ptr.data);
+                    if(b_from_node.mute())
+                        ::sprintf(tmp, "");
+                    else
+                        ::sprintf(tmp, "%p", b_from_node.ptr.data);
                     ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
                 }
 
                 if(b_to_sock.name() == "Color") {
+                    ConnectedNodesMap[b_from_sock.ptr.data] = "__Color";
+                }
+                else if(socket_type == 1 && b_to_node.is_a(&RNA_NodeGroupOutput) && b_to_sock.name() == b_from_sock.name()) {
                     ConnectedNodesMap[b_from_sock.ptr.data] = "__Color";
                 }
             }
@@ -2754,7 +2767,7 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
 			BL::TextureNodeTree b_group_ntree(b_gnode.node_tree());
 			if(!b_group_ntree) continue;
 
-			add_tex_nodes(sTexName, b_data, b_scene, graph, b_group_ntree);
+			add_tex_nodes(sTexName, b_data, b_scene, graph, b_group_ntree, cur_socket_type);
 		}
 		else get_octane_node(sTexName, b_data, b_scene, graph, BL::ShaderNode(*b_node), ConnectedNodesMap);
 	}
@@ -2763,8 +2776,9 @@ static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Add shader nodes
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNodeTree b_ntree) {
+static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNodeTree b_ntree, int socket_type = 0) {
     bool surface_connected = false, volume_connected = false;
+    int cur_socket_type = 0;
 
     //Fill the socket-incoming_node map
     PtrStringMap ConnectedNodesMap;
@@ -2774,6 +2788,7 @@ static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Sc
 		BL::Node b_to_node          = b_link->to_node();
 		BL::NodeSocket b_from_sock  = b_link->from_socket();
 		BL::NodeSocket b_to_sock    = b_link->to_socket();
+        //void *b_group_from_sock_data = nullptr;
 
 		if(b_from_node && b_to_node) {
             if(b_to_sock) {
@@ -2792,8 +2807,11 @@ static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Sc
                             if(b_nested_to_node.is_a(&RNA_NodeGroupOutput) && b_nested_to_sock.name() == from_name) {
                                 if(b_nested_from_node.mute())
                                     ::sprintf(tmp, "");
-                                else
+                                else {
+                                    if(b_to_sock.name() == "Surface") cur_socket_type = 1;
+                                    else if(b_to_sock.name() == "Volume") cur_socket_type = 2;
                                     ::sprintf(tmp, "%p", b_nested_from_node.ptr.data);
+                                }
                                 break;
                             }
                         }
@@ -2816,6 +2834,14 @@ static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Sc
                     if(!surface_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Volume";
                     if(!volume_connected) volume_connected = true;
                 }
+                else if(socket_type == 1 && b_to_node.is_a(&RNA_NodeGroupOutput) && b_to_sock.name() == b_from_sock.name()) {
+                    if(!volume_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Surface";
+                    if(!surface_connected) surface_connected = true;
+                }
+                else if(socket_type == 2 && b_to_node.is_a(&RNA_NodeGroupOutput) && b_to_sock.name() == b_from_sock.name()) {
+                    if(!surface_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Volume";
+                    if(!volume_connected) volume_connected = true;
+                }
             }
 		}
 		// Links without a node pointer are connections to group inputs/outputs
@@ -2834,7 +2860,7 @@ static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Sc
 			BL::ShaderNodeTree  b_group_ntree(b_gnode.node_tree());
 			if(!b_group_ntree) continue;
 
-			add_shader_nodes(sMatName, b_data, b_scene, graph, b_group_ntree);
+			add_shader_nodes(sMatName, b_data, b_scene, graph, b_group_ntree, cur_socket_type);
 		}
         else if(!b_node->mute()) get_octane_node(sMatName, b_data, b_scene, graph, BL::ShaderNode(*b_node), ConnectedNodesMap);
 	}

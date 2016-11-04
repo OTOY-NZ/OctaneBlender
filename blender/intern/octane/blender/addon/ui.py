@@ -809,6 +809,13 @@ class Octane_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub = layout.row(align=True)
         sub.prop(cdata, "hair_interpolation")
 
+        if context.curve:
+            row = layout.row(align=True)
+            sub = row.column(align=True)
+            sub.prop(cdata, "use_auto_smooth")
+            sub = row.column(align=True)
+            sub.prop(cdata, "auto_smooth_angle")
+
         box = layout.box()
         box.label(text="OpenSubDiv:")
         sub = box.row(align=True)

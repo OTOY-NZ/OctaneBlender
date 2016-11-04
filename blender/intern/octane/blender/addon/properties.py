@@ -1704,6 +1704,19 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 default='0',
                 )
 
+        cls.use_auto_smooth = BoolProperty(
+                name="Auto smooth",
+                description="Curves autosmooth",
+                default=False,
+                )
+        cls.auto_smooth_angle = FloatProperty(
+                subtype='ANGLE',
+                name="Angle",
+                description="Curves autosmooth angle",
+                min=0.0, max=3.141593,
+                default=1.55,
+                )
+
     @classmethod
     def unregister(cls):
         del bpy.types.Mesh.octane
