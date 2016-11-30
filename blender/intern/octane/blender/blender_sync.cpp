@@ -51,8 +51,8 @@ BlenderSync::BlenderSync(BL::RenderEngine b_engine_, BL::BlendData b_data_, BL::
                               world_map(NULL),
                               world_recalc(false),
                               progress(progress_) {
-	scene = scene_;
-	interactive = interactive_;
+    scene = scene_;
+    interactive = interactive_;
 } //BlenderSync()
 
 BlenderSync::~BlenderSync() {
@@ -63,71 +63,114 @@ BlenderSync::~BlenderSync() {
 // so we can do it later on if doing it immediate is not suitable.
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool BlenderSync::sync_recalc() {
-	BL::BlendData::materials_iterator b_mat;
-	for(b_data.materials.begin(b_mat); b_mat != b_data.materials.end(); ++b_mat)
-		if(b_mat->is_updated() || (b_mat->node_tree() && b_mat->node_tree().is_updated()))
-			shader_map.set_recalc(*b_mat);
+    BL::BlendData::materials_iterator b_mat;
+    for(b_data.materials.begin(b_mat); b_mat != b_data.materials.end(); ++b_mat)
+        if(b_mat->is_updated() || (b_mat->node_tree() && b_mat->node_tree().is_updated()))
+            shader_map.set_recalc(*b_mat);
 
-	//FIXME: Perhaps not needed...
-	BL::BlendData::textures_iterator b_tex;
-	for(b_data.textures.begin(b_tex); b_tex != b_data.textures.end(); ++b_tex)
-		if(b_tex->is_updated() || (b_tex->node_tree() && b_tex->node_tree().is_updated()))
-			shader_map.set_recalc(*b_tex);
+    //FIXME: Perhaps not needed...
+    BL::BlendData::textures_iterator b_tex;
+    for(b_data.textures.begin(b_tex); b_tex != b_data.textures.end(); ++b_tex)
+        if(b_tex->is_updated() || (b_tex->node_tree() && b_tex->node_tree().is_updated()))
+            shader_map.set_recalc(*b_tex);
 
     BL::BlendData::lamps_iterator b_lamp;
-	for(b_data.lamps.begin(b_lamp); b_lamp != b_data.lamps.end(); ++b_lamp)
-		if(b_lamp->is_updated() || (b_lamp->node_tree() && b_lamp->node_tree().is_updated()))
-			shader_map.set_recalc(*b_lamp);
+    for(b_data.lamps.begin(b_lamp); b_lamp != b_data.lamps.end(); ++b_lamp)
+        if(b_lamp->is_updated() || (b_lamp->node_tree() && b_lamp->node_tree().is_updated()))
+            shader_map.set_recalc(*b_lamp);
 
-	BL::BlendData::objects_iterator b_ob;
-	for(b_data.objects.begin(b_ob); b_ob != b_data.objects.end(); ++b_ob) {
-		if(b_ob->is_updated()) {
-			if(object_is_light(*b_ob)) light_object_map.set_recalc(*b_ob);
-			else object_map.set_recalc(*b_ob);
-		}
+    BL::BlendData::objects_iterator b_ob;
+    for(b_data.objects.begin(b_ob); b_ob != b_data.objects.end(); ++b_ob) {
+        if(b_ob->is_updated()) {
+            if(object_is_light(*b_ob)) light_object_map.set_recalc(*b_ob);
+            else object_map.set_recalc(*b_ob);
+        }
 
         BL::SmokeDomainSettings b_domain = BlenderSync::object_smoke_domain_find(*b_ob);
         if(b_domain && b_domain.cache_file_format() == BL::SmokeDomainSettings::cache_file_format_OPENVDB) { // Workaround, smoke is not tagged for update by BKE_scene_update_for_newframe()
-			BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
-			mesh_map.set_recalc(key);
+            bool is_export = scene->session->b_session && scene->session->b_session->export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
+            BL::ID b_ob_data = b_ob->data();
+            PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+            bool is_reshapable = scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && static_cast<Mesh::MeshType>(RNA_enum_get(&oct_mesh, "mesh_type")) == Mesh::RESHAPABLE_PROXY);
+
+            if(is_export) {
+                BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
+                mesh_map.set_recalc(key);
+            }
+            else if((interactive && is_reshapable) || (!interactive && (scene->anim_mode == FULL || (scene->anim_mode == MOVABLE_PROXIES && is_reshapable)))) {
+                BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
+                mesh_map.set_recalc(key);
+            }
         }
-		else if(object_is_curve(*b_ob)) { // Workaround, curves are not tagged for update by BKE_scene_update_for_newframe()
-			BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
-			mesh_map.set_recalc(key);
-		}
-		else if(object_is_mesh(*b_ob)) {
-			if(b_ob->is_updated_data() || b_ob->data().is_updated()) {
-				BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
-				mesh_map.set_recalc(key);
-			}
-		}
-		else if(object_is_light(*b_ob)) {
-			if(b_ob->is_updated_data() || b_ob->data().is_updated())
-				light_map.set_recalc(b_ob->data());
-		}
-	}
+        else if(object_is_curve(*b_ob)) { // Workaround, curves are not tagged for update by BKE_scene_update_for_newframe()
+            if(b_ob->is_updated_data() || b_ob->data().is_updated()) {
+                BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
+                mesh_map.set_recalc(key);
+            }
+            else {
+                bool is_export = scene->session->b_session && scene->session->b_session->export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
+                BL::ID b_ob_data = b_ob->data();
+                PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+                bool is_reshapable = scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && static_cast<Mesh::MeshType>(RNA_enum_get(&oct_mesh, "mesh_type")) == Mesh::RESHAPABLE_PROXY);
+
+                if(is_export) {
+                    BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
+                    mesh_map.set_recalc(key);
+                }
+                else if((interactive && is_reshapable) || (!interactive && (scene->anim_mode == FULL || (scene->anim_mode == MOVABLE_PROXIES && is_reshapable)))) {
+                    BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
+                    mesh_map.set_recalc(key);
+                }
+            }
+        }
+        else if(object_is_mesh(*b_ob)) {
+            if(b_ob->is_updated_data() || b_ob->data().is_updated()) {
+                BL::ID key = BKE_object_is_modified(*b_ob) ? *b_ob : b_ob->data();
+                mesh_map.set_recalc(key);
+            }
+            else if(!interactive && BKE_object_is_modified(*b_ob)) { // Workaround, some modified meshes are not tagged for update by BKE_scene_update_for_newframe()
+                bool is_export = scene->session->b_session && scene->session->b_session->export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
+                BL::ID b_ob_data = b_ob->data();
+                PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+                bool is_reshapable = scene->meshes_type == Mesh::RESHAPABLE_PROXY || (scene->meshes_type == Mesh::AS_IS && static_cast<Mesh::MeshType>(RNA_enum_get(&oct_mesh, "mesh_type")) == Mesh::RESHAPABLE_PROXY);
+
+                if(is_export) {
+                    BL::ID key = *b_ob;
+                    mesh_map.set_recalc(key);
+                }
+                else if(scene->anim_mode == FULL || (scene->anim_mode == MOVABLE_PROXIES && is_reshapable)) {
+                    BL::ID key = *b_ob;
+                    mesh_map.set_recalc(key);
+                }
+            }
+        }
+        else if(object_is_light(*b_ob)) {
+            if(b_ob->is_updated_data() || b_ob->data().is_updated())
+                light_map.set_recalc(b_ob->data());
+        }
+    }
 
     //BL::BlendData::meshes_iterator b_mesh;
-	//for(b_data.meshes.begin(b_mesh); b_mesh != b_data.meshes.end(); ++b_mesh)
-	//	if(b_mesh->is_updated())
-	//		mesh_map.set_recalc(*b_mesh);
+    //for(b_data.meshes.begin(b_mesh); b_mesh != b_data.meshes.end(); ++b_mesh)
+    //	if(b_mesh->is_updated() || b_mesh->is_updated_data())
+    //		mesh_map.set_recalc(*b_mesh);
 
-	BL::BlendData::worlds_iterator b_world;
-	for(b_data.worlds.begin(b_world); b_world != b_data.worlds.end(); ++b_world) {
-		if(world_map == b_world->ptr.data && (b_world->is_updated() || (b_world->node_tree() && b_world->node_tree().is_updated()))) {
-			world_recalc = true;
-		}
-	}
+    BL::BlendData::worlds_iterator b_world;
+    for(b_data.worlds.begin(b_world); b_world != b_data.worlds.end(); ++b_world) {
+        if(world_map == b_world->ptr.data && (b_world->is_updated() || (b_world->node_tree() && b_world->node_tree().is_updated()))) {
+            world_recalc = true;
+        }
+    }
 
-	bool recalc =
-		shader_map.has_recalc() ||
-		object_map.has_recalc() ||
-		light_map.has_recalc() ||
-		mesh_map.has_recalc() ||
-		BlendDataObjects_is_updated_get(&b_data.ptr) ||
-		world_recalc;
+    bool recalc =
+        shader_map.has_recalc() ||
+        object_map.has_recalc() ||
+        light_map.has_recalc() ||
+        mesh_map.has_recalc() ||
+        BlendDataObjects_is_updated_get(&b_data.ptr) ||
+        world_recalc;
 
-	return recalc;
+    return recalc;
 } //sync_recalc()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,16 +179,16 @@ bool BlenderSync::sync_recalc() {
 void BlenderSync::sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, BL::RenderLayer *layer, int motion) {
     sync_render_layers(b_v3d, layer ? layer->name().c_str() : 0);
     sync_passes(layer);
-	sync_kernel();
-	sync_shaders(); //Environment here so far...
-	sync_objects(b_v3d, motion);
+    sync_kernel();
+    sync_shaders(); //Environment here so far...
+    sync_objects(b_v3d, motion);
 } //sync_data()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Get Octane render passes settings.
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSync::sync_passes(BL::RenderLayer *layer) {
-	PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+    PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
 
     PointerRNA rlayer;
     if(layer)
@@ -155,7 +198,7 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
         rlayer = b_rlay.ptr;
     }
 
-	Passes *passes      = scene->passes;
+    Passes *passes      = scene->passes;
     Passes prevpasses   = *passes;
 
     passes->oct_node->bUsePasses = get_boolean(oct_scene, "use_passes");
@@ -533,92 +576,92 @@ void BlenderSync::sync_kernel() {
 // Get render layer (by name, or first one if name is NULL)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSync::sync_render_layers(BL::SpaceView3D b_v3d, const char *layer) {
-	string layername;
+    string layername;
 
-	// 3d view
-	if(b_v3d) {
-		PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+    // 3d view
+    if(b_v3d) {
+        PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
 
-		if(RNA_boolean_get(&oct_scene, "preview_active_layer")) {
-			BL::RenderLayers layers(b_scene.render().ptr);
-			layername   = layers.active().name();
-			layer       = layername.c_str();
-		}
-		else {
-			render_layer.use_localview              = (b_v3d.local_view() ? true : false);
-			render_layer.scene_layer                = get_layer(b_v3d.layers(), b_v3d.layers_local_view(), render_layer.use_localview);
-			render_layer.layer                      = render_layer.scene_layer;
-			render_layer.holdout_layer              = 0;
-			render_layer.material_override          = PointerRNA_NULL;
-			render_layer.use_background             = true;
-			render_layer.use_viewport_visibility    = true;
-			render_layer.samples                    = 0;
-			return;
-		}
-	}
+        if(RNA_boolean_get(&oct_scene, "preview_active_layer")) {
+            BL::RenderLayers layers(b_scene.render().ptr);
+            layername   = layers.active().name();
+            layer       = layername.c_str();
+        }
+        else {
+            render_layer.use_localview              = (b_v3d.local_view() ? true : false);
+            render_layer.scene_layer                = get_layer(b_v3d.layers(), b_v3d.layers_local_view(), render_layer.use_localview);
+            render_layer.layer                      = render_layer.scene_layer;
+            render_layer.holdout_layer              = 0;
+            render_layer.material_override          = PointerRNA_NULL;
+            render_layer.use_background             = true;
+            render_layer.use_viewport_visibility    = true;
+            render_layer.samples                    = 0;
+            return;
+        }
+    }
 
-	// Render layer
-	BL::RenderSettings r = b_scene.render();
-	BL::RenderSettings::layers_iterator b_rlay;
-	bool first_layer = true;
-	uint layer_override = get_layer(b_engine.layer_override());
-	uint scene_layers = layer_override ? layer_override : get_layer(b_scene.layers());
+    // Render layer
+    BL::RenderSettings r = b_scene.render();
+    BL::RenderSettings::layers_iterator b_rlay;
+    bool first_layer = true;
+    uint layer_override = get_layer(b_engine.layer_override());
+    uint scene_layers = layer_override ? layer_override : get_layer(b_scene.layers());
 
-	for(r.layers.begin(b_rlay); b_rlay != r.layers.end(); ++b_rlay) {
-		if((!layer && first_layer) || (layer && b_rlay->name() == layer)) {
-			render_layer.name                       = b_rlay->name();
-			render_layer.holdout_layer              = get_layer(b_rlay->layers_zmask());
-			render_layer.exclude_layer              = get_layer(b_rlay->layers_exclude());
-			render_layer.scene_layer                = scene_layers & ~render_layer.exclude_layer;
-			render_layer.scene_layer                |= render_layer.exclude_layer & render_layer.holdout_layer;
+    for(r.layers.begin(b_rlay); b_rlay != r.layers.end(); ++b_rlay) {
+        if((!layer && first_layer) || (layer && b_rlay->name() == layer)) {
+            render_layer.name                       = b_rlay->name();
+            render_layer.holdout_layer              = get_layer(b_rlay->layers_zmask());
+            render_layer.exclude_layer              = get_layer(b_rlay->layers_exclude());
+            render_layer.scene_layer                = scene_layers & ~render_layer.exclude_layer;
+            render_layer.scene_layer                |= render_layer.exclude_layer & render_layer.holdout_layer;
             render_layer.layer                      = get_layer(b_rlay->layers());
-			render_layer.layer                      |= render_layer.holdout_layer;
-			render_layer.material_override          = b_rlay->material_override();
-			render_layer.use_background             = b_rlay->use_sky();
+            render_layer.layer                      |= render_layer.holdout_layer;
+            render_layer.material_override          = b_rlay->material_override();
+            render_layer.use_background             = b_rlay->use_sky();
             render_layer.use_viewport_visibility    = (b_v3d ? false : scene->use_viewport_hide);//false;
-			render_layer.use_localview              = false;
-			render_layer.samples                    = b_rlay->samples();
-		}
-		first_layer = false;
-	}
+            render_layer.use_localview              = false;
+            render_layer.samples                    = b_rlay->samples();
+        }
+        first_layer = false;
+    }
 } //sync_render_layers()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Get current render session pause state (pause is pressed or not)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool BlenderSync::get_session_pause_state(BL::Scene b_scene, bool interactive) {
-	PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
-	return (!interactive) ? false : get_boolean(oct_scene, "preview_pause");
+    PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+    return (!interactive) ? false : get_boolean(oct_scene, "preview_pause");
 } //get_session_pause_state()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Set current render session pause state
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSync::set_session_pause_state(BL::Scene b_scene, bool state) {
-	PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
-	set_boolean(oct_scene, "preview_pause", state);
+    PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+    set_boolean(oct_scene, "preview_pause", state);
 } //get_session_pause_state()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Get Octane common settings
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 SessionParams BlenderSync::get_session_params(BL::UserPreferences b_userpref, BL::Scene b_scene, ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type, bool interactive) {
-	SessionParams params;
-	PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+    SessionParams params;
+    PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
 
-	// Interactive
-	params.interactive = interactive;
+    // Interactive
+    params.interactive = interactive;
 
-	// Samples
+    // Samples
     ::Octane::RenderPassId cur_pass_type = Passes::pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
     if(cur_pass_type == ::Octane::RenderPassId::RENDER_PASS_BEAUTY) {
         if(!interactive) {
             params.samples = get_int(oct_scene, "max_samples");
         }
-	    else {
-		    params.samples = get_int(oct_scene, "max_preview_samples");
-		    if(params.samples == 0) params.samples = 16000;
-	    }
+        else {
+            params.samples = get_int(oct_scene, "max_preview_samples");
+            if(params.samples == 0) params.samples = 16000;
+        }
     }
     else if(cur_pass_type == ::Octane::RenderPassId::RENDER_PASS_AMBIENT_OCCLUSION) {
         params.samples = get_int(oct_scene, "pass_ao_max_samples");
@@ -636,7 +679,7 @@ SessionParams BlenderSync::get_session_params(BL::UserPreferences b_userpref, BL
     if(params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE && params.meshes_type == Mesh::GLOBAL)
         params.meshes_type = Mesh::RESHAPABLE_PROXY;
     params.use_viewport_hide    = get_boolean(oct_scene, "viewport_hide");
-	
+    
     params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
 
     params.hdr_tonemapped = get_boolean(oct_scene, "hdr_tonemap_enable");
@@ -644,14 +687,14 @@ SessionParams BlenderSync::get_session_params(BL::UserPreferences b_userpref, BL
     params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
     params.out_of_core_gpu_headroom = get_int(oct_scene, "out_of_core_gpu_headroom");
 
-	PointerRNA render_settings = RNA_pointer_get(&b_scene.ptr, "render");
+    PointerRNA render_settings = RNA_pointer_get(&b_scene.ptr, "render");
     params.output_path = get_string(render_settings, "filepath");
     const char *cur_path = params.output_path.c_str();
     size_t len = params.output_path.length();
     if(len > 0 && cur_path[len - 1] != '/' && cur_path[len - 1] != '\\')
         params.output_path += "/";
 
-	return params;
+    return params;
 } //get_session_params()
 
 OCT_NAMESPACE_END

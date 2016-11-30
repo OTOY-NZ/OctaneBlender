@@ -354,6 +354,7 @@ layer_modes = (
     ('0', "Normal", ""),
     ('1', "Hide inactive layers", ""),
     ('2', "Only side effects", ""),
+    ('3', "Hide from camera", ""),
     )
 
 hair_interpolations = (

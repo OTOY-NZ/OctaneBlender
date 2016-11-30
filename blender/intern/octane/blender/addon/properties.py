@@ -1189,7 +1189,7 @@ class OctaneLampSettings(bpy.types.PropertyGroup):
                 name="Mesh type",
                 description="",
                 items=types.mesh_types,
-                default='0',
+                default='1',
                 )
 #        cls.power = FloatProperty(
 #                name="Power",
@@ -1601,7 +1601,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 name="Mesh type",
                 description="Used for rendering speed optimization, see the manual",
                 items=types.mesh_types,
-                default='0',
+                default='1',
                 )
         cls.open_subd_enable = BoolProperty(
                 name="Enable OpenSubDiv",
