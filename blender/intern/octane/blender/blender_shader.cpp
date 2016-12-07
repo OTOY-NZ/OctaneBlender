@@ -3057,7 +3057,7 @@ void BlenderSync::sync_shaders() {
 	sync_materials();
 
 	//FIXME: false = don't delete unused shaders, not supported
-	shader_map.post_sync(false);
+	shader_map.post_sync(nullptr, false);
 } //sync_shaders()
 
 OCT_NAMESPACE_END

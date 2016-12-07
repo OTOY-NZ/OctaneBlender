@@ -211,7 +211,7 @@ void DisplayBuffer::write(const string& filename) {
     std::string full_path = filename + "interactive_session.png";
 
     unsigned char *buf          = rgba;
-	unsigned rowbytes           = reg_width * components_cnt;
+    unsigned rowbytes           = ((reg_width * components_cnt) / 4 + ((reg_width * components_cnt) % 4 ? 1 : 0)) * 4;
 	unsigned char **rows_buf    = new unsigned char*[reg_height * sizeof(unsigned char*)];
 
 	for(int i = 0; i < reg_height; ++i) rows_buf[i] = &buf[(reg_height - i - 1) * rowbytes];

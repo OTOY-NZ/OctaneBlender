@@ -502,13 +502,13 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion) {
 
 	if(!cancel && !motion) {
 		// Handle removed data and modified pointers
-		if(light_map.post_sync())
+		if(light_map.post_sync(nullptr))
 			scene->light_manager->tag_update(scene);
 		if(object_map.post_sync())
 			scene->object_manager->tag_update(scene);
 		if(light_object_map.post_sync())
 			scene->object_manager->tag_update(scene);
-		if(mesh_map.post_sync())
+		if(mesh_map.post_sync(scene->server))
 			scene->mesh_manager->tag_update(scene);
 		mesh_synced.clear();
 		lights_synced.clear();

@@ -365,7 +365,7 @@ public:
 	void set_default(T *data) {
 		b_map[NULL] = data;
 	}
-	bool post_sync(bool do_delete = true) {
+	bool post_sync(::OctaneEngine::OctaneClient *server, bool do_delete = true) {
 		// Remove unused data
 		vector<T*> new_scene_data;
 		typename vector<T*>::iterator it;
@@ -375,6 +375,7 @@ public:
 			T *data = *it;
 
 			if(do_delete && used_set.find(data) == used_set.end()) {
+                if(server) server->deleteMesh(false, data->name);
 				delete data;
 				deleted = true;
 			}

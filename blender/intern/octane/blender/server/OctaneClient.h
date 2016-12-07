@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 11
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 12
+#   define OCTANE_SERVER_MINOR_VERSION 15
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -4583,6 +4583,8 @@ inline bool OctaneClient::connectToServer(const char *szAddr) {
     struct  hostent *host;
     struct  sockaddr_in sa;
 
+    m_ServerInfo.sNetAddress  = szAddr;
+
     m_sAddress = szAddr;
     host = gethostbyname(szAddr);
     if(!host || host->h_length != sizeof(struct in_addr)) {
@@ -4650,7 +4652,7 @@ inline bool OctaneClient::connectToServer(const char *szAddr) {
     LOCK_MUTEX(m_SocketMutex);
     m_FailReason = FailReasons::NONE;
 
-    m_ServerInfo.sNetAddress  = szAddr;
+    //m_ServerInfo.sNetAddress  = szAddr;
     m_ServerInfo.sDescription = "";
 
     UNLOCK_MUTEX(m_SocketMutex);
@@ -4717,7 +4719,7 @@ inline bool OctaneClient::checkServerConnection() {
             m_Socket = -1;
         }
         
-        m_ServerInfo.sNetAddress  = "";
+        //m_ServerInfo.sNetAddress  = "";
         m_ServerInfo.sDescription = "";
         m_ServerInfo.gpuNames.clear();
     }
@@ -8170,6 +8172,9 @@ inline bool OctaneClient::getCopyImgBuffer8bit(uint8_4 *&puc4Buf, int &iWidth, i
 } //getCopyImgBuffer8bit()
 */
 inline bool OctaneClient::getCopyImgBuffer8bit(int iComponentsCnt, uint8_t *&pucBuf, int iWidth, int iHeight, int iRegionWidth, int iRegionHeight) {
+    //FIXME: Make it respect 8-bit buffer alignment
+    return false;
+
     LOCK_MUTEX(m_ImgBufMutex);
 
     if(iWidth != m_iCurImgBufWidth || iHeight != m_iCurImgBufHeight || iRegionWidth != m_iCurRegionWidth || iRegionHeight != m_iCurRegionHeight) {
@@ -8792,11 +8797,15 @@ inline bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat, Imag
             if(m_CurPassType != passType) m_CurPassType = passType;
 
             if(imgType == IMAGE_8BIT) {
-                if(!m_pucImageBuf || m_stImgBufLen != stLen) {
-                    m_stImgBufLen = stLen;
+                size_t stSrcStringSize = uiRegW * renderStat.iComponentsCnt;
+                size_t stDstStringSize = ((uiRegW * renderStat.iComponentsCnt) / 4 + ((uiRegW * renderStat.iComponentsCnt) % 4 ? 1 : 0)) * 4;
+                size_t stDstLen = stDstStringSize * uiRegH;
+
+                if(!m_pucImageBuf || m_stImgBufLen != stDstLen) {
+                    m_stImgBufLen = stDstLen;
 
                     if(m_pucImageBuf) delete[] m_pucImageBuf;
-                    if(stLen) m_pucImageBuf = new unsigned char[stLen];
+                    if(stLen) m_pucImageBuf = new unsigned char[stDstLen];
                     else m_pucImageBuf = 0;
 
                     if(m_pfImageBuf) delete[] m_pfImageBuf;
@@ -8812,7 +8821,14 @@ inline bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat, Imag
 
                 uint8_t *ucBuf  = (uint8_t*)rcv.readBuffer(stLen);
 
-                if(ucBuf) memcpy(m_pucImageBuf, ucBuf, stLen);
+                //if(ucBuf) memcpy(m_pucImageBuf, ucBuf, stLen);
+                uint8_t *p = m_pucImageBuf;
+                uint8_t *s = ucBuf;
+                for(int y = 0; y < uiRegH; ++y) {
+                    memcpy(p, s, stSrcStringSize);
+                    p += stDstStringSize;
+                    s += stSrcStringSize;
+                }
             }
             else {
                 if(!m_pfImageBuf || m_stImgBufLen != stLen) {
