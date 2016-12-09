@@ -215,10 +215,9 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.active = (oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "zdepth_max")
         sub.prop(oct_scene, "uv_max")
-        sub.prop(oct_scene, "ray_epsilon")
-        sub.prop(oct_scene, "distributed_tracing")
         sub.prop(oct_scene, "max_speed")
         sub.prop(oct_scene, "opacity_threshold")
+        sub.prop(oct_scene, "distributed_tracing")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
@@ -251,7 +250,7 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "ao_dist")
 
         sub = col.column(align=True)
-        sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
+        #sub.active = (oct_scene.kernel_type == '1' or oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3' or oct_scene.kernel_type == '4')
         sub.prop(oct_scene, "filter_size")
         sub.prop(oct_scene, "ray_epsilon")
 
