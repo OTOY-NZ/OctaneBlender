@@ -325,21 +325,28 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain, Scene *scen
             mesh->vdb_resolution.y  = height;
             mesh->vdb_resolution.z  = depth;
 
-            float3 max_bound{FLT_MIN, FLT_MIN, FLT_MIN}, min_bound{FLT_MAX, FLT_MAX, FLT_MAX};
-	        BL::Mesh::vertices_iterator v;
-	        for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v) {
-                float3 point  = get_float3(v->co());
-                if(min_bound.x > point.x) min_bound.x = point.x;
-                if(min_bound.y > point.y) min_bound.y = point.y;
-                if(min_bound.z > point.z) min_bound.z = point.z;
-                if(max_bound.x < point.x) max_bound.x = point.x;
-                if(max_bound.y < point.y) max_bound.y = point.y;
-                if(max_bound.z < point.z) max_bound.z = point.z;
-	        }
+            float3 max_bound{-FLT_MAX, -FLT_MAX, -FLT_MAX}, min_bound{FLT_MAX, FLT_MAX, FLT_MAX};
+            if(b_mesh.vertices.length() > 0) {
+	            BL::Mesh::vertices_iterator v;
+	            for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v) {
+                    float3 point  = get_float3(v->co());
+                    if(min_bound.x > point.x) min_bound.x = point.x;
+                    if(min_bound.y > point.y) min_bound.y = point.y;
+                    if(min_bound.z > point.z) min_bound.z = point.z;
+                    if(max_bound.x < point.x) max_bound.x = point.x;
+                    if(max_bound.y < point.y) max_bound.y = point.y;
+                    if(max_bound.z < point.z) max_bound.z = point.z;
+	            }
 
-            mesh->vdb_grid_matrix.m[0]   = {(max_bound.x - min_bound.x) / width, 0.0f, 0.0f, min_bound.x};
-            mesh->vdb_grid_matrix.m[1]   = {0.0f, (max_bound.y - min_bound.y) / height, 0.0f, min_bound.y};
-            mesh->vdb_grid_matrix.m[2]   = {0.0f, 0.0f, (max_bound.z - min_bound.z) / depth, min_bound.z};
+                mesh->vdb_grid_matrix.m[0]   = {(max_bound.x - min_bound.x) / width, 0.0f, 0.0f, min_bound.x};
+                mesh->vdb_grid_matrix.m[1]   = {0.0f, (max_bound.y - min_bound.y) / height, 0.0f, min_bound.y};
+                mesh->vdb_grid_matrix.m[2]   = {0.0f, 0.0f, (max_bound.z - min_bound.z) / depth, min_bound.z};
+            }
+            else {
+                mesh->vdb_grid_matrix.m[0]   = {0.0f, 0.0f, 0.0f, 0.0f};
+                mesh->vdb_grid_matrix.m[1]   = {0.0f, 0.0f, 0.0f, 0.0f};
+                mesh->vdb_grid_matrix.m[2]   = {0.0f, 0.0f, 0.0f, 0.0f};
+            }
 
             for(int i = 0; i < num_pixels; ++i) {
                 register int index = i * grid_offset;

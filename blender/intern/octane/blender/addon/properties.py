@@ -77,10 +77,18 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 min=1, max=1024,
                 default=128,
                 )
-        cls.pass_distributed_tracing = BoolProperty(
-                name="Distributed ray tracing",
-                description="Enable motion blur and depth of field",
-                default=False,
+        cls.pass_sampling_mode = EnumProperty(
+                name="Distributed tracing mode",
+                description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n"
+                    "'Distributed rays':"
+                    " Enables motion blur and DOF, and also enables pixel filtering.\n"
+                    "'Non-distributed pixel filtering':"
+                    " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
+                    "'Non-distributed, no pixel filtering':"
+                    " Disables motion blur and DOF, and disables pixel filtering for all render passes"
+                    " except for render layer mask and ambient occlusion\n",
+                items=types.pass_sampling_modes,
+                default='0',
                 )
         cls.pass_z_depth_max = FloatProperty(
                 name="Z-depth max",

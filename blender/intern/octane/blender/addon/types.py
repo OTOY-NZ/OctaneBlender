@@ -362,3 +362,9 @@ hair_interpolations = (
     ('1', "Segment count", ""),
     ('2', "Use hair Ws", ""),
     )
+
+pass_sampling_modes = (
+    ('0', "Distributed rays", ""),
+    ('1', "Non-distributed pixel filtering", ""),
+    ('2', "Non-distributed, no pixel filtering", ""),
+    )

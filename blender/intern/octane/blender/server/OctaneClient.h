@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 11
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 16
+#   define OCTANE_SERVER_MINOR_VERSION 19
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -1780,7 +1780,7 @@ struct Passes {
     bool    bAOPass;
 
     int32_t iMaxSamples;
-    bool    bDistributedTracing;
+    bool    iSamplingMode;
     bool    bPassesRaw;
     bool    bPostProcEnvironment;
     bool    bBump;
@@ -1859,7 +1859,7 @@ struct Passes {
                 && bAOPass == otherPasses.bAOPass
 
                 && iMaxSamples == otherPasses.iMaxSamples
-                && bDistributedTracing == otherPasses.bDistributedTracing
+                && iSamplingMode == otherPasses.iSamplingMode
                 && bPassesRaw == otherPasses.bPassesRaw
                 && bPostProcEnvironment == otherPasses.bPostProcEnvironment
                 && bBump == otherPasses.bBump
@@ -1937,7 +1937,7 @@ struct Passes {
         if(bAOPass != otherPasses.bAOPass)                                          bAOPass = otherPasses.bAOPass;
 
         if(iMaxSamples != otherPasses.iMaxSamples)                                  iMaxSamples = otherPasses.iMaxSamples;
-        if(bDistributedTracing != otherPasses.bDistributedTracing)                  bDistributedTracing = otherPasses.bDistributedTracing;
+        if(iSamplingMode != otherPasses.iSamplingMode)                  iSamplingMode = otherPasses.iSamplingMode;
         if(bPassesRaw != otherPasses.bPassesRaw)                                    bPassesRaw = otherPasses.bPassesRaw;
         if(bPostProcEnvironment != otherPasses.bPostProcEnvironment)                bPostProcEnvironment = otherPasses.bPostProcEnvironment;
         if(bBump != otherPasses.bBump)                                              bBump = otherPasses.bBump;
@@ -2584,7 +2584,9 @@ struct OctaneMixTexture : public OctaneNodeBase {
     string          sAmount;
     ComplexValue    amountDefaultVal;
     string          sTexture1;
+    ComplexValue    tex1DefaultVal;
     string          sTexture2;
+    ComplexValue    tex2DefaultVal;
 
     OctaneMixTexture() : OctaneNodeBase(Octane::NT_TEX_MIX) {}
 }; //struct OctaneMixTexture
@@ -5261,7 +5263,7 @@ inline void OctaneClient::uploadPasses(Passes *pPasses) {
     {
         RPCSend snd(m_Socket, sizeof(float) * 5 + sizeof(int32_t) * 63, LOAD_PASSES);
         snd << pPasses->fZdepthMax << pPasses->fUVMax << pPasses->fMaxSpeed << pPasses->fAODistance << pPasses->fOpacityThreshold
-            << pPasses->bUsePasses << pPasses->curPassType << pPasses->iMaxSamples << pPasses->bDistributedTracing << pPasses->bPassesRaw << pPasses->bPostProcEnvironment << pPasses->bBump << pPasses->bAoAlphaShadows
+            << pPasses->bUsePasses << pPasses->curPassType << pPasses->iMaxSamples << pPasses->iSamplingMode << pPasses->bPassesRaw << pPasses->bPostProcEnvironment << pPasses->bBump << pPasses->bAoAlphaShadows
 
             << pPasses->bBeautyPass << pPasses->bEmittersPass << pPasses->bEnvironmentPass << pPasses->bDiffusePass << pPasses->bDiffuseDirectPass << pPasses->bDiffuseIndirectPass << pPasses->bDiffuseFilterPass << pPasses->bReflectionPass << pPasses->bReflectionDirectPass << pPasses->bReflectionIndirectPass << pPasses->bReflectionFilterPass
             << pPasses->bRefractionPass << pPasses->bRefractionFilterPass << pPasses->bTransmissionPass << pPasses->bTransmissionFilterPass << pPasses->bSubsurfScatteringPass << pPasses->bPostProcessingPass
@@ -6766,7 +6768,7 @@ inline void OctaneClient::uploadInvertTex(OctaneInvertTexture *pNode) {
 inline void OctaneClient::uploadMixTex(OctaneMixTexture *pNode) {
     if(m_Socket < 0 || m_cBlockUpdates) return;
 
-    uint64_t size = sizeof(ComplexValue)
+    uint64_t size = sizeof(ComplexValue) * 3
         + pNode->sAmount.length() + 2
         + pNode->sTexture1.length() + 2
         + pNode->sTexture2.length() + 2;
@@ -6775,7 +6777,7 @@ inline void OctaneClient::uploadMixTex(OctaneMixTexture *pNode) {
 
     {
         RPCSend snd(m_Socket, size, LOAD_MIX_TEXTURE, pNode->sName.c_str());
-        snd << pNode->amountDefaultVal
+        snd << pNode->amountDefaultVal << pNode->tex1DefaultVal << pNode->tex2DefaultVal
             << pNode->sAmount.c_str() << pNode->sTexture1.c_str() << pNode->sTexture2.c_str();
         snd.write();
     }

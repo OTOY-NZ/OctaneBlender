@@ -413,7 +413,7 @@ class OctaneRender_PT_layer_passes(OctaneButtonsPanel, Panel):
         sub.prop(octane, "pass_ao_distance")
         sub.prop(octane, "pass_opacity_threshold")
 
-        col.prop(octane, "pass_distributed_tracing")
+        col.prop(octane, "pass_sampling_mode")
         col.prop(octane, "pass_alpha_shadows")
         col.prop(octane, "pass_raw")
         col.prop(octane, "pass_pp_env")

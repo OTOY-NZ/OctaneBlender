@@ -206,7 +206,7 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
         passes->oct_node->curPassType = Passes::pass_type_translator[RNA_enum_get(&oct_scene, "cur_pass_type")];
 
         passes->oct_node->iMaxSamples           = get_int(oct_scene, "pass_max_samples");
-        passes->oct_node->bDistributedTracing   = get_boolean(oct_scene, "pass_distributed_tracing");
+        passes->oct_node->iSamplingMode         = RNA_enum_get(&oct_scene, "pass_sampling_mode");
         passes->oct_node->fZdepthMax            = get_float(oct_scene, "pass_z_depth_max");
         passes->oct_node->fUVMax                = get_float(oct_scene, "pass_uv_max");
         passes->oct_node->fMaxSpeed             = get_float(oct_scene, "pass_max_speed");

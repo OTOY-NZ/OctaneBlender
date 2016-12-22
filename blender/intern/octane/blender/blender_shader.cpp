@@ -1253,14 +1253,22 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
                 }
             }
             else if(b_input->name() == "Texture1") {
-                if(b_input->is_linked())
-                    cur_node->sTexture1 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->sTexture1 = "";
+                if(!b_input->is_linked() || (cur_node->sTexture1 = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTexture1 = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->tex1DefaultVal.iType = 1;
+                    cur_node->tex1DefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
+                }
             }
             else if(b_input->name() == "Texture2") {
-                if(b_input->is_linked())
-                    cur_node->sTexture2 = ConnectedNodesMap[b_input->ptr.data];
-                else cur_node->sTexture2 = "";
+                if(!b_input->is_linked() || (cur_node->sTexture2 = ConnectedNodesMap[b_input->ptr.data]).length() == 0) {
+                    cur_node->sTexture2 = "";
+                    BL::NodeSocket value_sock(*b_input);
+
+                    cur_node->tex2DefaultVal.iType = 1;
+                    cur_node->tex2DefaultVal.f3Value.x = RNA_float_get(&value_sock.ptr, "default_value");
+                }
             }
         }
     } //case BL::ShaderNode::type_OCT_MIX_TEX
