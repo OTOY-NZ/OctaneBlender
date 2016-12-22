@@ -78,13 +78,13 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 default=128,
                 )
         cls.pass_sampling_mode = EnumProperty(
-                name="Distributed tracing mode",
+                name="Sampling mode",
                 description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n"
                     "'Distributed rays':"
                     " Enables motion blur and DOF, and also enables pixel filtering.\n"
-                    "'Non-distributed pixel filtering':"
+                    "'Non-distributed with pixel filtering':"
                     " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
-                    "'Non-distributed, no pixel filtering':"
+                    "'Non-distributed without pixel filtering':"
                     " Disables motion blur and DOF, and disables pixel filtering for all render passes"
                     " except for render layer mask and ambient occlusion\n",
                 items=types.pass_sampling_modes,
@@ -522,10 +522,18 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
                 step=1,
                 precision=5,
                 )
-        cls.distributed_tracing = BoolProperty(
-                name="Distributed ray tracing",
-                description="Enable depth of field and motion blur",
-                default=True,
+        cls.sampling_mode = EnumProperty(
+                name="Sampling mode",
+                description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n"
+                    "'Distributed rays':"
+                    " Enables motion blur and DOF, and also enables pixel filtering.\n"
+                    "'Non-distributed with pixel filtering':"
+                    " Disables motion blur and DOF, but leaves pixel filtering enabled.\n"
+                    "'Non-distributed without pixel filtering':"
+                    " Disables motion blur and DOF, and disables pixel filtering for all render passes"
+                    " except for render layer mask and ambient occlusion\n",
+                items=types.pass_sampling_modes,
+                default='0',
                 )
         cls.max_speed = FloatProperty(
                 name="Max speed",
@@ -1279,7 +1287,7 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
         cls.env_turbidity = FloatProperty(
                 name="Turbidity",
                 description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light",
-                min=2.0, soft_min=2.0, max=6.0, soft_max=6.0,
+                min=2.0, soft_min=2.0, max=15.0, soft_max=15.0,
                 default=2.2,
                 step=10,
                 precision=3,
@@ -1311,6 +1319,29 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 min=0.0, max=1.0,
                 default=(0.6, 0.12, 0.02),
                 subtype='COLOR',
+                )
+        cls.env_ground_color = FloatVectorProperty(
+                name="Ground color",
+                description="Base color of the ground, which works only with the new daylight model",
+                min=0.0, max=1.0,
+                default=(0.0, 0.0, 0.0),
+                subtype='COLOR',
+                )
+        cls.env_ground_start_angle = FloatProperty(
+                name="Ground start angle",
+                description="The angle (in degrees) below the horizon where the transition to the ground color starts",
+                min=0.0, max=90.0,
+                default=90.0,
+                step=10,
+                precision=4,
+                )
+        cls.env_ground_blend_angle = FloatProperty(
+                name="Ground blend angle",
+                description="The angle over which the sky color transitions to the ground color",
+                min=1.0, max=90.0,
+                default=5.0,
+                step=10,
+                precision=4,
                 )
         cls.env_sun_size = FloatProperty(
                 name="Sun size",
@@ -1473,6 +1504,29 @@ class OctaneWorldSettings(bpy.types.PropertyGroup):
                 min=0.0, max=1.0,
                 default=(0.6, 0.12, 0.02),
                 subtype='COLOR',
+                )
+        cls.env_vis_ground_color = FloatVectorProperty(
+                name="Ground color",
+                description="Base color of the ground, which works only with the new daylight model",
+                min=0.0, max=1.0,
+                default=(0.0, 0.0, 0.0),
+                subtype='COLOR',
+                )
+        cls.env_vis_ground_start_angle = FloatProperty(
+                name="Ground start angle",
+                description="The angle (in degrees) below the horizon where the transition to the ground color starts",
+                min=0.0, max=90.0,
+                default=90.0,
+                step=10,
+                precision=4,
+                )
+        cls.env_vis_ground_blend_angle = FloatProperty(
+                name="Ground blend angle",
+                description="The angle over which the sky color transitions to the ground color",
+                min=1.0, max=90.0,
+                default=5.0,
+                step=10,
+                precision=4,
                 )
         cls.env_vis_sun_size = FloatProperty(
                 name="Sun size",

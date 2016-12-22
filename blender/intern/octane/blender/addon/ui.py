@@ -217,7 +217,7 @@ class OctaneRender_PT_kernel(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "uv_max")
         sub.prop(oct_scene, "max_speed")
         sub.prop(oct_scene, "opacity_threshold")
-        sub.prop(oct_scene, "distributed_tracing")
+        sub.prop(oct_scene, "sampling_mode")
 
         sub = col.column(align=True)
         sub.active = (oct_scene.kernel_type == '2' or oct_scene.kernel_type == '3')
@@ -1035,17 +1035,6 @@ class OctaneWorld_PT_settings(OctaneButtonsPanel, Panel):
         sub.prop(oct_world, "env_gmtoffset")
         sub.prop(oct_world, "env_hour")
 
-        col = split.column()
-
-        sub = col.column(align=True)
-        sub.active = (oct_world.env_type == '1' and oct_world.env_daylight_type == '0')
-        sub.label("Sun direction:")
-        sub.prop(oct_world, "env_sundir_x")
-        sub.prop(oct_world, "env_sundir_y")
-        sub.prop(oct_world, "env_sundir_z")
-
-        split = layout.split()
-        col = split.column()
         sub = col.column(align=True)
         sub.active = (oct_world.env_type == '1')
         sub.prop(oct_world, "env_turbidity")
@@ -1055,10 +1044,23 @@ class OctaneWorld_PT_settings(OctaneButtonsPanel, Panel):
         col = split.column()
 
         sub = col.column(align=True)
-        sub.label("Sky-Sunset colors:")
+        sub.active = (oct_world.env_type == '1' and oct_world.env_daylight_type == '0')
+        sub.label("Sun direction:")
+        sub.prop(oct_world, "env_sundir_x")
+        sub.prop(oct_world, "env_sundir_y")
+        sub.prop(oct_world, "env_sundir_z")
+
+        sub = col.column(align=True)
+        sub.label("Sky colors:")
         sub.active = (oct_world.env_type == '1')
         sub.prop(oct_world, "env_sky_color", text="")
         sub.prop(oct_world, "env_sunset_color", text="")
+        sub.prop(oct_world, "env_ground_color", text="")
+
+        sub = col.column(align=True)
+        sub.active = (oct_world.env_type == '1')
+        sub.prop(oct_world, "env_ground_start_angle")
+        sub.prop(oct_world, "env_ground_blend_angle")
 
         row = layout.row(align=True)
         row.active = (oct_world.env_type == '1')
@@ -1123,17 +1125,6 @@ class OctaneVisibleWorld_PT_settings(OctaneButtonsPanel, Panel):
         sub.prop(oct_world, "env_vis_gmtoffset")
         sub.prop(oct_world, "env_vis_hour")
 
-        col = split.column()
-
-        sub = col.column(align=True)
-        sub.active = (oct_world.env_vis_type == '1' and oct_world.env_vis_daylight_type == '0')
-        sub.label("Sun direction:")
-        sub.prop(oct_world, "env_vis_sundir_x")
-        sub.prop(oct_world, "env_vis_sundir_y")
-        sub.prop(oct_world, "env_vis_sundir_z")
-
-        split = layout.split()
-        col = split.column()
         sub = col.column(align=True)
         sub.active = (oct_world.env_vis_type == '1')
         sub.prop(oct_world, "env_vis_turbidity")
@@ -1143,10 +1134,23 @@ class OctaneVisibleWorld_PT_settings(OctaneButtonsPanel, Panel):
         col = split.column()
 
         sub = col.column(align=True)
-        sub.label("Sky-Sunset colors:")
+        sub.active = (oct_world.env_vis_type == '1' and oct_world.env_vis_daylight_type == '0')
+        sub.label("Sun direction:")
+        sub.prop(oct_world, "env_vis_sundir_x")
+        sub.prop(oct_world, "env_vis_sundir_y")
+        sub.prop(oct_world, "env_vis_sundir_z")
+
+        sub = col.column(align=True)
+        sub.label("Sky colors:")
         sub.active = (oct_world.env_vis_type == '1')
         sub.prop(oct_world, "env_vis_sky_color", text="")
         sub.prop(oct_world, "env_vis_sunset_color", text="")
+        sub.prop(oct_world, "env_vis_ground_color", text="")
+
+        sub = col.column(align=True)
+        sub.active = (oct_world.env_type == '1')
+        sub.prop(oct_world, "env_vis_ground_start_angle")
+        sub.prop(oct_world, "env_vis_ground_blend_angle")
 
         row = layout.row(align=True)
         row.active = (oct_world.env_vis_type == '1')

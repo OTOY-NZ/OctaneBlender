@@ -2969,6 +2969,10 @@ void BlenderSync::sync_world() {
 
         RNA_float_get_array(&oct_scene, "env_sky_color", reinterpret_cast<float*>(&env->oct_node->f3SkyColor));
         RNA_float_get_array(&oct_scene, "env_sunset_color", reinterpret_cast<float*>(&env->oct_node->f3SunsetColor));
+        RNA_float_get_array(&oct_scene, "env_ground_color", reinterpret_cast<float*>(&env->oct_node->f3GroundColor));
+
+        env->oct_node->fGroundStartAngle      = get_float(oct_scene, "env_ground_start_angle");
+        env->oct_node->fGroundBlendAngle      = get_float(oct_scene, "env_ground_blend_angle");
 
         env->oct_node->fLongitude             = get_float(oct_scene, "env_longitude");
         env->oct_node->fLatitude              = get_float(oct_scene, "env_latitude");
@@ -3002,6 +3006,10 @@ void BlenderSync::sync_world() {
 
             RNA_float_get_array(&oct_scene, "env_vis_sky_color", reinterpret_cast<float*>(&env->oct_vis_node->f3SkyColor));
             RNA_float_get_array(&oct_scene, "env_vis_sunset_color", reinterpret_cast<float*>(&env->oct_vis_node->f3SunsetColor));
+            RNA_float_get_array(&oct_scene, "env_vis_ground_color", reinterpret_cast<float*>(&env->oct_node->f3GroundColor));
+
+            env->oct_node->fGroundStartAngle      = get_float(oct_scene, "env_vis_ground_start_angle");
+            env->oct_node->fGroundBlendAngle      = get_float(oct_scene, "env_vis_ground_blend_angle");
 
             env->oct_vis_node->fLongitude           = get_float(oct_scene, "env_vis_longitude");
             env->oct_vis_node->fLatitude            = get_float(oct_scene, "env_vis_latitude");

@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 11
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 19
+#   define OCTANE_SERVER_MINOR_VERSION 20
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -2039,7 +2039,7 @@ struct Kernel {
     InfoChannelType infoChannelType;
     float           fZdepthMax;
     float           fUVMax;
-    bool            bDistributedTracing;
+    bool            iSamplingMode;
     float           fMaxSpeed;
     bool            bAoAlphaShadows;
     float           fOpacityThreshold;
@@ -2097,7 +2097,7 @@ struct Kernel {
                 && infoChannelType == otherKernel.infoChannelType
                 && fZdepthMax == otherKernel.fZdepthMax
                 && fUVMax == otherKernel.fUVMax
-                && bDistributedTracing == otherKernel.bDistributedTracing
+                && iSamplingMode == otherKernel.iSamplingMode
                 && fMaxSpeed == otherKernel.fMaxSpeed
                 && bAoAlphaShadows == otherKernel.bAoAlphaShadows
                 && fOpacityThreshold == otherKernel.fOpacityThreshold
@@ -2156,7 +2156,7 @@ struct Kernel {
         if(infoChannelType != otherKernel.infoChannelType)          infoChannelType = otherKernel.infoChannelType;
         if(fZdepthMax != otherKernel.fZdepthMax)                    fZdepthMax = otherKernel.fZdepthMax;
         if(fUVMax != otherKernel.fUVMax)                            fUVMax = otherKernel.fUVMax;
-        if(bDistributedTracing != otherKernel.bDistributedTracing)  bDistributedTracing = otherKernel.bDistributedTracing;
+        if(iSamplingMode != otherKernel.iSamplingMode)              iSamplingMode = otherKernel.iSamplingMode;
         if(fMaxSpeed != otherKernel.fMaxSpeed)                      fMaxSpeed = otherKernel.fMaxSpeed;
         if(bAoAlphaShadows != otherKernel.bAoAlphaShadows)          bAoAlphaShadows = otherKernel.bAoAlphaShadows;
         if(fOpacityThreshold != otherKernel.fOpacityThreshold)                        fOpacityThreshold = otherKernel.fOpacityThreshold;
@@ -2219,6 +2219,10 @@ struct Environment {
                                             
     float_3         f3SkyColor;
     float_3         f3SunsetColor;
+    float_3         f3GroundColor;
+
+    float           fGroundStartAngle;
+    float           fGroundBlendAngle;
 
     inline Environment() :  type                    (NONE),
                             sTexture                (""),
@@ -2251,6 +2255,13 @@ struct Environment {
         f3SunsetColor.x = 0.6f;
         f3SunsetColor.y = 0.12f;
         f3SunsetColor.z = 0.02;
+
+        f3GroundColor.x = 0.0f;
+        f3GroundColor.y = 0.0f;
+        f3GroundColor.z = 0.0f;
+
+        fGroundStartAngle = 90.0f;
+		fGroundStartAngle = 5.0f;
     }
 
     inline bool operator==(const Environment& otherEnv) {
@@ -2276,8 +2287,12 @@ struct Environment {
                 && fNorthOffset == otherEnv.fNorthOffset
                 && fSunSize == otherEnv.fSunSize
 
+                && fGroundStartAngle == otherEnv.fGroundStartAngle
+                && fGroundBlendAngle == otherEnv.fGroundBlendAngle
+
                 && f3SkyColor == otherEnv.f3SkyColor
-                && f3SunsetColor == otherEnv.f3SunsetColor);
+                && f3SunsetColor == otherEnv.f3SunsetColor
+                && f3GroundColor == otherEnv.f3GroundColor);
     }
     inline Environment& operator=(const Environment& otherEnv) {
         if(type != otherEnv.type)                                type = otherEnv.type;
@@ -2301,8 +2316,11 @@ struct Environment {
         if(fTurbidity != otherEnv.fTurbidity)                   fTurbidity = otherEnv.fTurbidity;
         if(fNorthOffset != otherEnv.fNorthOffset)               fNorthOffset = otherEnv.fNorthOffset;
         if(fSunSize != otherEnv.fSunSize)                       fSunSize = otherEnv.fSunSize;
+        if(fGroundStartAngle != otherEnv.fGroundStartAngle)     fGroundStartAngle = otherEnv.fGroundStartAngle;
+        if(fGroundBlendAngle != otherEnv.fGroundBlendAngle)     fGroundBlendAngle = otherEnv.fGroundBlendAngle;
         if(f3SkyColor != otherEnv.f3SkyColor)                   f3SkyColor = otherEnv.f3SkyColor;
         if(f3SunsetColor != otherEnv.f3SunsetColor)             f3SunsetColor = otherEnv.f3SunsetColor;
+        if(f3GroundColor != otherEnv.f3GroundColor)             f3GroundColor = otherEnv.f3GroundColor;
 
         return *this;
     }
@@ -5343,8 +5361,8 @@ inline void OctaneClient::uploadKernel(Kernel *pKernel) {
         {
             RPCSend snd(m_Socket, sizeof(float) * 8 + sizeof(int32_t) * 16, LOAD_KERNEL);
             snd << pKernel->type << pKernel->infoChannelType << pKernel->fShutterTime << pKernel->fFilterSize << pKernel->fZdepthMax << pKernel->fUVMax << pKernel->fRayEpsilon << pKernel->fAODist << pKernel->fMaxSpeed << pKernel->fOpacityThreshold
-                << pKernel->bAlphaChannel << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bDistributedTracing << pKernel->bAoAlphaShadows << pKernel->bMinimizeNetTraffic
-                << pKernel->iMaxSamples << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode;
+                << pKernel->bAlphaChannel << pKernel->bBumpNormalMapping << pKernel->bBkFaceHighlight << pKernel->bAoAlphaShadows << pKernel->bMinimizeNetTraffic
+                << pKernel->iSamplingMode << pKernel->iMaxSamples << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode;
             snd.write();
         }
             break;
@@ -5426,16 +5444,20 @@ inline void OctaneClient::uploadEnvironment(Environment *pEnv) {
     }
     else {
         if(pEnv->daylightType == Environment::DIRECTION) {
-            RPCSend snd(m_Socket, sizeof(uint32_t) * 6 + sizeof(float) * 14 + sizeof(int32_t) + pEnv->sTexture.length() + 2 + pEnv->sMedium.length() + 2, LOAD_SUNSKY);
+            RPCSend snd(m_Socket, sizeof(uint32_t) * 6 + sizeof(float) * 19 + sizeof(int32_t) + pEnv->sTexture.length() + 2 + pEnv->sMedium.length() + 2, LOAD_SUNSKY);
             snd << pEnv->type << pEnv->daylightType << pEnv->f3SunVector.x << pEnv->f3SunVector.y << pEnv->f3SunVector.z << pEnv->fPower << pEnv->fTurbidity << pEnv->fNorthOffset
-                << pEnv->fSunSize << pEnv->fMediumRadius << pEnv->f3SkyColor.x << pEnv->f3SkyColor.y << pEnv->f3SkyColor.z << pEnv->f3SunsetColor.x << pEnv->f3SunsetColor.y << pEnv->f3SunsetColor.z
+                << pEnv->fSunSize << pEnv->fMediumRadius << pEnv->fGroundStartAngle << pEnv->fGroundBlendAngle
+                << pEnv->f3SkyColor.x << pEnv->f3SkyColor.y << pEnv->f3SkyColor.z << pEnv->f3SunsetColor.x << pEnv->f3SunsetColor.y << pEnv->f3SunsetColor.z
+                << pEnv->f3GroundColor.x << pEnv->f3GroundColor.y << pEnv->f3GroundColor.z
                 << pEnv->model << pEnv->bImportanceSampling << pEnv->bVisibleBackplate << pEnv->bVisibleReflections << pEnv->bVisibleRefractions << pEnv->sTexture.c_str() << pEnv->sMedium.c_str();
             snd.write();
         }
         else {
-            RPCSend snd(m_Socket, sizeof(uint32_t) * 6 + sizeof(float) * 14 + sizeof(int32_t) * 4 + pEnv->sTexture.length() + 2 + pEnv->sMedium.length() + 2, LOAD_SUNSKY);
+            RPCSend snd(m_Socket, sizeof(uint32_t) * 6 + sizeof(float) * 19 + sizeof(int32_t) * 4 + pEnv->sTexture.length() + 2 + pEnv->sMedium.length() + 2, LOAD_SUNSKY);
             snd << pEnv->type << pEnv->daylightType << pEnv->fLongitude << pEnv->fLatitude << pEnv->fHour << pEnv->fPower << pEnv->fTurbidity << pEnv->fNorthOffset
-                << pEnv->fSunSize << pEnv->fMediumRadius << pEnv->f3SkyColor.x << pEnv->f3SkyColor.y << pEnv->f3SkyColor.z << pEnv->f3SunsetColor.x << pEnv->f3SunsetColor.y << pEnv->f3SunsetColor.z
+                << pEnv->fSunSize << pEnv->fMediumRadius << pEnv->fGroundStartAngle << pEnv->fGroundBlendAngle
+                << pEnv->f3SkyColor.x << pEnv->f3SkyColor.y << pEnv->f3SkyColor.z << pEnv->f3SunsetColor.x << pEnv->f3SunsetColor.y << pEnv->f3SunsetColor.z
+                << pEnv->f3GroundColor.x << pEnv->f3GroundColor.y << pEnv->f3GroundColor.z
                 << pEnv->model << pEnv->iMonth << pEnv->iDay << pEnv->iGMTOffset << pEnv->bImportanceSampling << pEnv->bVisibleBackplate << pEnv->bVisibleReflections << pEnv->bVisibleRefractions << pEnv->sTexture.c_str() << pEnv->sMedium.c_str();
             snd.write();
         }
@@ -5478,16 +5500,20 @@ inline void OctaneClient::uploadVisibleEnvironment(Environment *pEnv) {
     }
     else {
         if(pEnv->daylightType == Environment::DIRECTION) {
-            RPCSend snd(m_Socket, sizeof(uint32_t) * 6 + sizeof(float) * 14 + sizeof(int32_t) + pEnv->sTexture.length() + 2 + pEnv->sMedium.length() + 2, LOAD_VISIBLE_SUNSKY);
+            RPCSend snd(m_Socket, sizeof(uint32_t) * 6 + sizeof(float) * 19 + sizeof(int32_t) + pEnv->sTexture.length() + 2 + pEnv->sMedium.length() + 2, LOAD_VISIBLE_SUNSKY);
             snd << pEnv->type << pEnv->daylightType << pEnv->f3SunVector.x << pEnv->f3SunVector.y << pEnv->f3SunVector.z << pEnv->fPower << pEnv->fTurbidity << pEnv->fNorthOffset
-                << pEnv->fSunSize << pEnv->fMediumRadius << pEnv->f3SkyColor.x << pEnv->f3SkyColor.y << pEnv->f3SkyColor.z << pEnv->f3SunsetColor.x << pEnv->f3SunsetColor.y << pEnv->f3SunsetColor.z
+                << pEnv->fSunSize << pEnv->fMediumRadius << pEnv->fGroundStartAngle << pEnv->fGroundBlendAngle
+                << pEnv->f3SkyColor.x << pEnv->f3SkyColor.y << pEnv->f3SkyColor.z << pEnv->f3SunsetColor.x << pEnv->f3SunsetColor.y << pEnv->f3SunsetColor.z
+                << pEnv->f3GroundColor.x << pEnv->f3GroundColor.y << pEnv->f3GroundColor.z
                 << pEnv->model << pEnv->bImportanceSampling << pEnv->bVisibleBackplate << pEnv->bVisibleReflections << pEnv->bVisibleRefractions << pEnv->sTexture.c_str() << pEnv->sMedium.c_str();
             snd.write();
         }
         else {
-            RPCSend snd(m_Socket, sizeof(uint32_t) * 6 + sizeof(float) * 14 + sizeof(int32_t) * 4 + pEnv->sTexture.length() + 2 + pEnv->sMedium.length() + 2, LOAD_VISIBLE_SUNSKY);
+            RPCSend snd(m_Socket, sizeof(uint32_t) * 6 + sizeof(float) * 19 + sizeof(int32_t) * 4 + pEnv->sTexture.length() + 2 + pEnv->sMedium.length() + 2, LOAD_VISIBLE_SUNSKY);
             snd << pEnv->type << pEnv->daylightType << pEnv->fLongitude << pEnv->fLatitude << pEnv->fHour << pEnv->fPower << pEnv->fTurbidity << pEnv->fNorthOffset
-                << pEnv->fSunSize << pEnv->fMediumRadius << pEnv->f3SkyColor.x << pEnv->f3SkyColor.y << pEnv->f3SkyColor.z << pEnv->f3SunsetColor.x << pEnv->f3SunsetColor.y << pEnv->f3SunsetColor.z
+                << pEnv->fSunSize << pEnv->fMediumRadius << pEnv->fGroundStartAngle << pEnv->fGroundBlendAngle
+                << pEnv->f3SkyColor.x << pEnv->f3SkyColor.y << pEnv->f3SkyColor.z << pEnv->f3SunsetColor.x << pEnv->f3SunsetColor.y << pEnv->f3SunsetColor.z
+                << pEnv->f3GroundColor.x << pEnv->f3GroundColor.y << pEnv->f3GroundColor.z
                 << pEnv->model << pEnv->iMonth << pEnv->iDay << pEnv->iGMTOffset << pEnv->bImportanceSampling << pEnv->bVisibleBackplate << pEnv->bVisibleReflections << pEnv->bVisibleRefractions << pEnv->sTexture.c_str() << pEnv->sMedium.c_str();
             snd.write();
         }

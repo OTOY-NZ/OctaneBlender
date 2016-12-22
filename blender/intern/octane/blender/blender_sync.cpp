@@ -542,7 +542,7 @@ void BlenderSync::sync_kernel() {
 
     kernel->oct_node->fZdepthMax = get_float(oct_scene, "zdepth_max");
     kernel->oct_node->fUVMax = get_float(oct_scene, "uv_max");
-    kernel->oct_node->bDistributedTracing = get_boolean(oct_scene, "distributed_tracing");
+    kernel->oct_node->iSamplingMode = RNA_enum_get(&oct_scene, "sampling_mode");
     kernel->oct_node->fMaxSpeed = get_float(oct_scene, "max_speed");
 
     kernel->oct_node->bLayersEnable = get_boolean(oct_scene, "layers_enable");

@@ -73,7 +73,7 @@ Kernel::Kernel() {
     oct_node->infoChannelType     = ::Octane::IC_TYPE_GEOMETRIC_NORMAL;
     oct_node->fZdepthMax          = 5.0f;
     oct_node->fUVMax              = 1.0f;
-    oct_node->bDistributedTracing = true;
+    oct_node->iSamplingMode       = 0;
     oct_node->fMaxSpeed           = 1.0f;
 
     oct_node->bLayersEnable       = false;
