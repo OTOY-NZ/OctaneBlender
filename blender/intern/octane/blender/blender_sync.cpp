@@ -228,7 +228,7 @@ void BlenderSync::sync_passes(BL::RenderLayer *layer) {
             int  subtype = RNA_enum_get(&oct_scene, "reflection_pass_subtype");
             passes->oct_node->bReflectionDirectPass   = cur_use && (subtype == 0);
             passes->oct_node->bReflectionIndirectPass = cur_use && (subtype == 1);
-            passes->oct_node->bLayerReflectionsPass   = cur_use && (subtype == 1);
+            passes->oct_node->bLayerReflectionsPass   = cur_use && (subtype == 2);
 
             passes->oct_node->bRefractionPass         = get_boolean(rlayer, "use_pass_refraction");
             passes->oct_node->bTransmissionPass       = get_boolean(rlayer, "use_pass_transmission_color");

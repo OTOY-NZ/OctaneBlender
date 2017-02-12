@@ -117,14 +117,17 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server, Scene *s
                            && scene->meshes_type != Mesh::RESHAPABLE_PROXY && scene->meshes_type != Mesh::MOVABLE_PROXY
                            && (scene->meshes_type != Mesh::AS_IS || (cur_mesh->mesh_type != Mesh::RESHAPABLE_PROXY && cur_mesh->mesh_type != Mesh::MOVABLE_PROXY)))))) continue;
 
-            uint64_t cnt = 0;
+            uint64_t particles_cnt = 0;
+            map<int, Object*> particles_map;
+
             float* matrices = new float[12];
             bool mesh_needs_update = false;
             for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it) {
                 Object* object = *it;
                 if(object->particle_id) {
                     if(object->need_update && !mesh_needs_update) mesh_needs_update = true;
-                    ++cnt;
+                    ++particles_cnt;
+                    particles_map.insert(map<int, Object*>::value_type(object->particle_id, object));
                     continue;
                 }
 
@@ -135,6 +138,7 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server, Scene *s
                 else continue;
 
                 vector<string> shader_names;
+                shader_names.reserve(object->used_shaders.size());
                 for(vector<uint>::iterator it = object->used_shaders.begin(); it != object->used_shaders.end(); ++it) {
                     shader_names.push_back(scene->shaders[*it]->name);
                 }
@@ -164,18 +168,20 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server, Scene *s
                 }
             } //for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it)
             delete[] matrices;
-            if(mesh_needs_update && cnt) {
-                float* matrices = new float[cnt * 12];
+
+            if(mesh_needs_update && particles_cnt) {
+                float* matrices = new float[particles_cnt * 12];
 
                 vector<string> shader_names;
+                shader_names.reserve(cur_mesh->used_shaders.size());
                 for(vector<uint>::iterator it = cur_mesh->used_shaders.begin(); it != cur_mesh->used_shaders.end(); ++it) {
                     shader_names.push_back(scene->shaders[*it]->name);
                 }
 
                 bool visibility = true;
                 unsigned long i = 0;
-                for(vector<Object*>::const_iterator it = mesh_it->second.begin(); it != mesh_it->second.end(); ++it) {
-                    Object* object = *it;
+                for(map<int, Object*>::const_iterator it = particles_map.begin(); it != particles_map.end(); ++it) {
+                    Object* object = it->second;
                     if(!object->particle_id) {
                         continue;
                     }
@@ -202,7 +208,7 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server, Scene *s
                 std::string cur_mesh_name(cur_mesh->name.c_str());
                 std::string cur_part_name = cur_mesh_name + "__part__";
 
-                if(visibility) server->uploadScatter(cur_part_name, cur_mesh_name, matrices, cnt, movable, shader_names, frame_idx, total_frames);
+                if(visibility) server->uploadScatter(cur_part_name, cur_mesh_name, matrices, particles_cnt, movable, shader_names, frame_idx, total_frames);
                 else {
                     string scatter_name = cur_part_name +  "_s__";
                     server->deleteScatter(scatter_name);
@@ -269,7 +275,7 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server, Scene *s
                     server->deleteScatter(scatter_name);
                 }
             } //for(vector<Object*>::const_iterator it = light_it->second.begin(); it != light_it->second.end(); ++it)
-            //if(mesh_needs_update) server->load_scatter(scatter_names, string(cur_light->name.c_str()), matrices, cnt, shader_names);
+            //if(mesh_needs_update) server->load_scatter(scatter_names, string(cur_light->name.c_str()), matrices, particles_cnt, shader_names);
             delete[] matrices;
 	    } //for(map<std::string, vector<Object*> >::const_iterator light_it = scene->light_objects.begin(); light_it != scene->light_objects.end(); ++light_it)
     } //if(scene->light_objects.size())

@@ -10,7 +10,7 @@
 #   define OCTANE_SERVER_MAJOR_VERSION 11
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#   define OCTANE_SERVER_MINOR_VERSION 20
+#   define OCTANE_SERVER_MINOR_VERSION 22
 #endif
 #define OCTANE_SERVER_VERSION_NUMBER (((OCTANE_SERVER_MAJOR_VERSION & 0x0000FFFF) << 16) | (OCTANE_SERVER_MINOR_VERSION & 0x0000FFFF))
 
@@ -2335,6 +2335,7 @@ struct OctaneNodeBase {
     Octane::NodeType nodeType;
 
     OctaneNodeBase(Octane::NodeType _nodeType) : nodeType(_nodeType) {}
+    virtual ~OctaneNodeBase() {}
 }; //struct OctaneNodeBase
 
 

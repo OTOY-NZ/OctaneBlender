@@ -75,6 +75,7 @@ public:
 
 		for(it = scene_data->begin(); it != scene_data->end(); ) {
             vector<Object*> new_vector;
+            new_vector.reserve(it->second.size());
     		for(ob_it = it->second.begin(); ob_it != it->second.end(); ++ob_it) {
 			    Object *data = *ob_it;
 
@@ -150,6 +151,7 @@ public:
 
 		for(it = scene_data->begin(); it != scene_data->end(); ) {
             vector<Object*> new_vector;
+            new_vector.reserve(it->second.size());
     		for(ob_it = it->second.begin(); ob_it != it->second.end(); ++ob_it) {
 			    Object *data = *ob_it;
 
