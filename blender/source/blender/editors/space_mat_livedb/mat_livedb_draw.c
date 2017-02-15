@@ -634,7 +634,7 @@ void draw_mat_livedb(const bContext *C)
     sizey += LDB_Y_OFFSET;
 
     /* update size of tot-rect (extents of data/viewable area) */
-    UI_view2d_totRect_set(v2d, sizex, sizey);
+    UI_view2d_totRect_set(v2d, sizex <= 0 ? 1 : sizex, sizey <= 0 ? 1 : sizey);
 
     /* force display to pixel coords */
     v2d->flag |= (V2D_PIXELOFS_X | V2D_PIXELOFS_Y);

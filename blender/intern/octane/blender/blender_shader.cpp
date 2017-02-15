@@ -2702,176 +2702,352 @@ static ShaderNode *get_octane_node(std::string& sMatName, BL::BlendData b_data, 
 } //get_octane_node()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Add texture nodes
+// 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::TextureNodeTree b_ntree, int socket_type = 0) {
-    int cur_socket_type = 0;
+inline bool skip_reroutes(BL::Node &b_from_node, BL::NodeSocket &b_from_sock, BL::NodeTree &b_ntree) {
+	while(b_from_node.is_a(&RNA_NodeReroute)) {
+		BL::Node::internal_links_iterator int_link;
+		b_from_node.internal_links.begin(int_link);
+        if(int_link != b_from_node.internal_links.end()) {
+            BL::NodeSocket in_sock = int_link->from_socket();
+            if(in_sock && in_sock.is_linked()) {
+                BL::NodeLink cur_link(PointerRNA_NULL);
+	            BL::NodeTree::links_iterator it_link;
+	            for(b_ntree.links.begin(it_link); it_link != b_ntree.links.end(); ++it_link) {
+                    if(it_link->to_socket().ptr.data == in_sock.ptr.data) {
+                        cur_link = *it_link;
+                        break;
+                    }
+                }
+                if(cur_link && cur_link.from_socket() && cur_link.to_socket()) {
+                    BL::Node cur_node = cur_link.from_node();
+                    BL::NodeSocket from_sock = cur_link.from_socket();
+                    if(cur_node && from_sock) {
+                        b_from_node = cur_node;
+                        b_from_sock = from_sock;
+                    }
+                    else break;
+                }
+                else break;
+            }
+            else break;
+        }
+        else break;
+	}
+    return !b_from_node.is_a(&RNA_NodeReroute);
+}
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get input node (recursion)
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static BL::Node get_input_node(BL::NodeSocket from_sock, BL::NodeSocket &new_sock) {
+    BL::Node cur_node = from_sock.node();
+
+    if(cur_node.is_a(&RNA_ShaderNodeGroup) || cur_node.is_a(&RNA_NodeCustomGroup)) {
+        BL::NodeTree b_group_ntree(PointerRNA_NULL);
+		if(cur_node.is_a(&RNA_ShaderNodeGroup))
+			b_group_ntree = BL::TextureNodeTree(((BL::NodeGroup)cur_node).node_tree());
+		else
+			b_group_ntree = BL::TextureNodeTree(((BL::NodeCustomGroup)cur_node).node_tree());
+
+        if(b_group_ntree) {
+            std::string from_sock_name = from_sock.name();
+
+            BL::NodeTree::links_iterator b_nested_link;
+            for(b_group_ntree.links.begin(b_nested_link); b_nested_link != b_group_ntree.links.end(); ++b_nested_link) {
+                BL::Node        b_nested_to_node    = b_nested_link->to_node();
+                BL::NodeSocket  b_nested_to_sock    = b_nested_link->to_socket();
+                if(!b_nested_to_node.is_a(&RNA_NodeGroupOutput) || b_nested_to_sock.name() != from_sock_name) continue;
+
+                BL::Node b_nested_from_node = b_nested_link->from_node();
+                BL::NodeSocket b_nested_from_sock = b_nested_link->from_socket();
+                skip_reroutes(b_nested_from_node, b_nested_from_sock, b_group_ntree);
+
+                if(b_nested_from_node.is_a(&RNA_ShaderNodeGroup) || b_nested_from_node.is_a(&RNA_NodeCustomGroup)) {
+                    return get_input_node(b_nested_from_sock, new_sock);
+                }
+                else {
+                    new_sock = b_nested_from_sock;
+                    return b_nested_from_node;
+                }
+            }
+            return PointerRNA_NULL;
+        }
+        else return PointerRNA_NULL;
+    }
+    else return cur_node;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Add texture nodes (recursion)
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static void add_tex_nodes(std::string& sTexName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::TextureNodeTree b_ntree, BL::Node parent_gnode = PointerRNA_NULL, BL::TextureNodeTree parent_ntree = PointerRNA_NULL) {
     //Fill the socket-incoming_node map
-    PtrStringMap ConnectedNodesMap;
+    static PtrStringMap ConnectedNodesMap;
+    if(!parent_gnode || !parent_ntree) ConnectedNodesMap.clear();
+
 	BL::NodeTree::links_iterator b_link;
 	for(b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
 		BL::Node b_from_node        = b_link->from_node();
 		BL::Node b_to_node          = b_link->to_node();
 		BL::NodeSocket b_from_sock  = b_link->from_socket();
-		BL::NodeSocket b_to_sock    = b_link->to_socket();
+
+        if(b_to_node.is_a(&RNA_NodeReroute)) continue;
+        if(!skip_reroutes(b_from_node, b_from_sock, b_ntree)) continue;
 
 		if(b_from_node && b_to_node) {
+		    BL::NodeSocket b_to_sock    = b_link->to_socket();
             if(b_to_sock) {
                 char tmp[32];
-                if(b_from_node.is_a(&RNA_ShaderNodeGroup)) {
-                    std::string         from_name = b_from_sock.name();
-                    BL::ShaderNodeGroup b_gnode(b_from_node);
-                    BL::ShaderNodeTree  b_group_ntree(b_gnode.node_tree());
-                    if(b_group_ntree) {
-                        BL::NodeTree::links_iterator b_nested_link;
-                        for(b_group_ntree.links.begin(b_nested_link); b_nested_link != b_group_ntree.links.end(); ++b_nested_link) {
-                            BL::Node b_nested_from_node = b_nested_link->from_node();
-                            BL::Node b_nested_to_node = b_nested_link->to_node();
-                            BL::NodeSocket b_nested_from_sock = b_nested_link->from_socket();
-                            BL::NodeSocket b_nested_to_sock = b_nested_link->to_socket();
-                            if(b_nested_to_node.is_a(&RNA_NodeGroupOutput) && b_nested_to_sock.name() == from_name) {
-                                if(b_nested_from_node.mute())
-                                    ::sprintf(tmp, "");
-                                else {
-                                    if(b_to_sock.name() == "Color") cur_socket_type = 1;
-                                    ::sprintf(tmp, "%p", b_nested_from_node.ptr.data);
-                                }
-                                break;
-                            }
-                        }
-                    }
+                if(b_from_node.is_a(&RNA_ShaderNodeGroup) || b_from_node.is_a(&RNA_NodeCustomGroup)) {
+                    BL::NodeSocket input_socket(PointerRNA_NULL);
+                    BL::Node input_node = get_input_node(b_from_sock, input_socket);
+                    if(input_node && !input_node.mute())
+                        ::sprintf(tmp, "%p", input_node.ptr.data);
+                    else
+                        ::sprintf(tmp, "");
                     ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+
+                    if(b_to_sock.name() == "Color") ConnectedNodesMap[input_socket.ptr.data] = "__Color";
                 }
                 else {
-                    if(b_from_node.mute())
-                        ::sprintf(tmp, "");
-                    else
-                        ::sprintf(tmp, "%p", b_from_node.ptr.data);
-                    ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
-                }
+                    if(b_from_node.is_a(&RNA_NodeGroupInput)) {
+                        BL::NodeSocket outer_sock = parent_gnode.inputs[b_from_sock.name()];
+                        if(outer_sock) {
+                            bool got_link = false;
+                            if(outer_sock.is_linked()) {
+                                BL::NodeSocket from_socket(PointerRNA_NULL);
+                                BL::NodeTree::links_iterator b_nested_link;
+                                for(parent_ntree.links.begin(b_nested_link); b_nested_link != parent_ntree.links.end(); ++b_nested_link) {
+                                    BL::NodeSocket  b_nested_to_sock = b_nested_link->to_socket();
+                                    if(b_nested_to_sock && b_nested_to_sock.ptr.data == outer_sock.ptr.data) {
+                                        from_socket = b_nested_link->from_socket();
+                                        break;
+                                    }
+                                }
+                                if(from_socket) {
+                                    got_link = true;
 
-                if(b_to_sock.name() == "Color") {
-                    ConnectedNodesMap[b_from_sock.ptr.data] = "__Color";
-                }
-                else if(socket_type == 1 && b_to_node.is_a(&RNA_NodeGroupOutput) && b_to_sock.name() == b_from_sock.name()) {
-                    ConnectedNodesMap[b_from_sock.ptr.data] = "__Color";
+                                    BL::NodeSocket input_socket(PointerRNA_NULL);
+                                    BL::Node input_node = get_input_node(from_socket, input_socket);
+                                    if(input_node && !input_node.mute())
+                                        ::sprintf(tmp, "%p", input_node.ptr.data);
+                                    else
+                                        ::sprintf(tmp, "");
+                                }
+                            }
+                            if(!got_link) {
+                                switch(outer_sock.type()) {
+                                    case BL::NodeSocket::type_RGBA: {
+                                        float ret[4];
+                                        RNA_float_get_array(&outer_sock.ptr, "default_value", ret);
+                                        RNA_float_set_array(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    case BL::NodeSocket::type_VALUE: {
+                                        float ret = RNA_float_get(&outer_sock.ptr, "default_value");
+                                        RNA_float_set(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    case BL::NodeSocket::type_VECTOR: {
+                                        float ret[4];
+                                        RNA_float_get_array(&outer_sock.ptr, "default_value", ret);
+                                        RNA_float_set_array(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    case BL::NodeSocket::type_INT: {
+                                        int ret = RNA_int_get(&outer_sock.ptr, "default_value");
+                                        RNA_int_set(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    case BL::NodeSocket::type_BOOLEAN: {
+                                        bool ret = RNA_boolean_get(&outer_sock.ptr, "default_value");
+                                        RNA_boolean_set(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    //case BL::NodeSocket::type_STRING: {
+                                    //    char ret[512];
+                                    //    RNA_string_get(&value_sock.ptr, "default_value", ret);
+                                    //    RNA_string_set(&b_nested_to_sock.ptr, "default_value", ret);
+                                    //    break;
+                                    //}
+                                    default:
+                                        break;
+                                }
+                                ::sprintf(tmp, "");
+                            }
+                        }
+                        else ::sprintf(tmp, "");
+                        ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                    }
+                    else {
+                        if(b_from_node.mute())
+                            ::sprintf(tmp, "");
+                        else
+                            ::sprintf(tmp, "%p", b_from_node.ptr.data);
+                        ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                    }
+                    if(b_to_sock.name() == "Color") ConnectedNodesMap[b_from_sock.ptr.data] = "__Color";
                 }
             }
 		}
-		// Links without a node pointer are connections to group inputs/outputs
-        else {
-            //TODO: Implement here connections to groups
-        }
 	}
 
     // Add nodes
 	BL::TextureNodeTree::nodes_iterator b_node;
-	PtrNodeMap node_map;
-	PtrSockMap proxy_map;
 	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
-        if(b_node->is_a(&RNA_ShaderNodeGroup)) {
-			BL::ShaderNodeGroup b_gnode(*b_node);
-			BL::TextureNodeTree b_group_ntree(b_gnode.node_tree());
+        if(b_node->is_a(&RNA_ShaderNodeGroup) || b_node->is_a(&RNA_NodeCustomGroup)) {
+            BL::TextureNodeTree b_group_ntree(PointerRNA_NULL);
+			if(b_node->is_a(&RNA_ShaderNodeGroup))
+				b_group_ntree = BL::TextureNodeTree(((BL::NodeGroup)(*b_node)).node_tree());
+			else
+				b_group_ntree = BL::TextureNodeTree(((BL::NodeCustomGroup)(*b_node)).node_tree());
+
 			if(!b_group_ntree) continue;
 
-			add_tex_nodes(sTexName, b_data, b_scene, graph, b_group_ntree, cur_socket_type);
+			add_tex_nodes(sTexName, b_data, b_scene, graph, b_group_ntree, *b_node, b_ntree);
 		}
-		else get_octane_node(sTexName, b_data, b_scene, graph, BL::ShaderNode(*b_node), ConnectedNodesMap);
+		else if(!b_node->mute()) get_octane_node(sTexName, b_data, b_scene, graph, BL::ShaderNode(*b_node), ConnectedNodesMap);
 	}
+
+    if(!parent_gnode || !parent_ntree) ConnectedNodesMap.clear();
 } //add_tex_nodes()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Add shader nodes
+// Add shader nodes (recursion)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNodeTree b_ntree, int socket_type = 0) {
-    bool surface_connected = false, volume_connected = false;
-    int cur_socket_type = 0;
+static void add_shader_nodes(std::string& sMatName, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNodeTree b_ntree, BL::Node parent_gnode = PointerRNA_NULL, BL::ShaderNodeTree parent_ntree = PointerRNA_NULL) {
+    //Fill the socket-incoming_node map for current graph
+    static PtrStringMap ConnectedNodesMap;
+    if(!parent_gnode || !parent_ntree) ConnectedNodesMap.clear();
 
-    //Fill the socket-incoming_node map
-    PtrStringMap ConnectedNodesMap;
 	BL::NodeTree::links_iterator b_link;
 	for(b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
 		BL::Node b_from_node        = b_link->from_node();
 		BL::Node b_to_node          = b_link->to_node();
-		BL::NodeSocket b_from_sock  = b_link->from_socket();
-		BL::NodeSocket b_to_sock    = b_link->to_socket();
-        //void *b_group_from_sock_data = nullptr;
+        BL::NodeSocket b_from_sock  = b_link->from_socket();
 
-		if(b_from_node && b_to_node) {
+        if(b_to_node.is_a(&RNA_NodeReroute)) continue;
+        if(!skip_reroutes(b_from_node, b_from_sock, b_ntree)) continue;
+
+        if(b_from_node && b_to_node) {
+		    BL::NodeSocket b_to_sock = b_link->to_socket();
             if(b_to_sock) {
                 char tmp[32] = "";
-                if(b_from_node.is_a(&RNA_ShaderNodeGroup)) {
-                    std::string         from_name = b_from_sock.name();
-                    BL::ShaderNodeGroup b_gnode(b_from_node);
-                    BL::ShaderNodeTree  b_group_ntree(b_gnode.node_tree());
-                    if(b_group_ntree) {
-                        BL::NodeTree::links_iterator b_nested_link;
-                        for(b_group_ntree.links.begin(b_nested_link); b_nested_link != b_group_ntree.links.end(); ++b_nested_link) {
-                            BL::Node b_nested_from_node         = b_nested_link->from_node();
-                            BL::Node b_nested_to_node           = b_nested_link->to_node();
-                            BL::NodeSocket b_nested_from_sock   = b_nested_link->from_socket();
-                            BL::NodeSocket b_nested_to_sock     = b_nested_link->to_socket();
-                            if(b_nested_to_node.is_a(&RNA_NodeGroupOutput) && b_nested_to_sock.name() == from_name) {
-                                if(b_nested_from_node.mute())
-                                    ::sprintf(tmp, "");
-                                else {
-                                    if(b_to_sock.name() == "Surface") cur_socket_type = 1;
-                                    else if(b_to_sock.name() == "Volume") cur_socket_type = 2;
-                                    ::sprintf(tmp, "%p", b_nested_from_node.ptr.data);
-                                }
-                                break;
-                            }
-                        }
-                    }
+                if(b_from_node.is_a(&RNA_ShaderNodeGroup) || b_from_node.is_a(&RNA_NodeCustomGroup)) {
+                    BL::NodeSocket input_socket(PointerRNA_NULL);
+                    BL::Node input_node = get_input_node(b_from_sock, input_socket);
+                    if(input_node && !input_node.mute())
+                        ::sprintf(tmp, "%p", input_node.ptr.data);
+                    else
+                        ::sprintf(tmp, "");
                     ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+
+                    if(b_to_sock.name() == "Surface") ConnectedNodesMap[input_socket.ptr.data] = "__Surface";
+                    else if(b_to_sock.name() == "Volume") ConnectedNodesMap[input_socket.ptr.data] = "__Volume";
                 }
                 else {
-                    if(b_from_node.mute())
-                        ::sprintf(tmp, "");
-                    else
-                        ::sprintf(tmp, "%p", b_from_node.ptr.data);
-                    ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
-                }
+                    if(b_from_node.is_a(&RNA_NodeGroupInput)) {
+                        BL::NodeSocket outer_sock = parent_gnode.inputs[b_from_sock.name()];
+                        if(outer_sock) {
+                            bool got_link = false;
+                            if(outer_sock.is_linked()) {
+                                BL::NodeSocket from_socket(PointerRNA_NULL);
+                                BL::NodeTree::links_iterator b_nested_link;
+                                for(parent_ntree.links.begin(b_nested_link); b_nested_link != parent_ntree.links.end(); ++b_nested_link) {
+                                    BL::NodeSocket  b_nested_to_sock = b_nested_link->to_socket();
+                                    if(b_nested_to_sock && b_nested_to_sock.ptr.data == outer_sock.ptr.data) {
+                                        from_socket = b_nested_link->from_socket();
+                                        break;
+                                    }
+                                }
+                                if(from_socket) {
+                                    got_link = true;
 
-                if(b_to_sock.name() == "Surface") {
-                    if(!volume_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Surface";
-                    if(!surface_connected) surface_connected = true;
-                }
-                else if(b_to_sock.name() == "Volume") {
-                    if(!surface_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Volume";
-                    if(!volume_connected) volume_connected = true;
-                }
-                else if(socket_type == 1 && b_to_node.is_a(&RNA_NodeGroupOutput) && b_to_sock.name() == b_from_sock.name()) {
-                    if(!volume_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Surface";
-                    if(!surface_connected) surface_connected = true;
-                }
-                else if(socket_type == 2 && b_to_node.is_a(&RNA_NodeGroupOutput) && b_to_sock.name() == b_from_sock.name()) {
-                    if(!surface_connected) ConnectedNodesMap[b_from_sock.ptr.data] = "__Volume";
-                    if(!volume_connected) volume_connected = true;
+                                    BL::NodeSocket input_socket(PointerRNA_NULL);
+                                    BL::Node input_node = get_input_node(from_socket, input_socket);
+                                    if(input_node && !input_node.mute())
+                                        ::sprintf(tmp, "%p", input_node.ptr.data);
+                                    else
+                                        ::sprintf(tmp, "");
+                                }
+                            }
+                            if(!got_link) {
+                                switch(outer_sock.type()) {
+                                    case BL::NodeSocket::type_RGBA: {
+                                        float ret[4];
+                                        RNA_float_get_array(&outer_sock.ptr, "default_value", ret);
+                                        RNA_float_set_array(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    case BL::NodeSocket::type_VALUE: {
+                                        float ret = RNA_float_get(&outer_sock.ptr, "default_value");
+                                        RNA_float_set(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    case BL::NodeSocket::type_VECTOR: {
+                                        float ret[4];
+                                        RNA_float_get_array(&outer_sock.ptr, "default_value", ret);
+                                        RNA_float_set_array(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    case BL::NodeSocket::type_INT: {
+                                        int ret = RNA_int_get(&outer_sock.ptr, "default_value");
+                                        RNA_int_set(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    case BL::NodeSocket::type_BOOLEAN: {
+                                        bool ret = RNA_boolean_get(&outer_sock.ptr, "default_value");
+                                        RNA_boolean_set(&b_to_sock.ptr, "default_value", ret);
+                                        break;
+                                    }
+                                    //case BL::NodeSocket::type_STRING: {
+                                    //    char ret[512];
+                                    //    RNA_string_get(&value_sock.ptr, "default_value", ret);
+                                    //    RNA_string_set(&b_nested_to_sock.ptr, "default_value", ret);
+                                    //    break;
+                                    //}
+                                    default:
+                                        break;
+                                }
+                                ::sprintf(tmp, "");
+                            }
+                        }
+                        else ::sprintf(tmp, "");
+                        ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                    }
+                    else {
+                        if(b_from_node.mute())
+                            ::sprintf(tmp, "");
+                        else
+                            ::sprintf(tmp, "%p", b_from_node.ptr.data);
+                        ConnectedNodesMap[b_to_sock.ptr.data] = tmp;
+                    }
+
+                    if(b_to_sock.name() == "Surface") ConnectedNodesMap[b_from_sock.ptr.data] = "__Surface";
+                    else if(b_to_sock.name() == "Volume") ConnectedNodesMap[b_from_sock.ptr.data] = "__Volume";
                 }
             }
 		}
-		// Links without a node pointer are connections to group inputs/outputs
-        else {
-            //TODO: Implement here connections to groups
-        }
 	}
 
     // add nodes
 	BL::ShaderNodeTree::nodes_iterator b_node;
-	PtrNodeMap node_map;
-	PtrSockMap proxy_map;
 	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
-        if(b_node->is_a(&RNA_ShaderNodeGroup)) {
-            BL::ShaderNodeGroup b_gnode(*b_node);
-			BL::ShaderNodeTree  b_group_ntree(b_gnode.node_tree());
-			if(!b_group_ntree) continue;
+        if(b_node->is_a(&RNA_ShaderNodeGroup) || b_node->is_a(&RNA_NodeCustomGroup)) {
+			BL::ShaderNodeTree b_group_ntree(PointerRNA_NULL);
+			if(b_node->is_a(&RNA_ShaderNodeGroup))
+				b_group_ntree = BL::ShaderNodeTree(((BL::NodeGroup)(*b_node)).node_tree());
+			else
+				b_group_ntree = BL::ShaderNodeTree(((BL::NodeCustomGroup)(*b_node)).node_tree());
 
-			add_shader_nodes(sMatName, b_data, b_scene, graph, b_group_ntree, cur_socket_type);
+            if(!b_group_ntree) continue;
+			add_shader_nodes(sMatName, b_data, b_scene, graph, b_group_ntree, *b_node, b_ntree);
 		}
         else if(!b_node->mute()) get_octane_node(sMatName, b_data, b_scene, graph, BL::ShaderNode(*b_node), ConnectedNodesMap);
 	}
+
+    if(!parent_gnode || !parent_ntree) ConnectedNodesMap.clear();
 } //add_shader_nodes()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
