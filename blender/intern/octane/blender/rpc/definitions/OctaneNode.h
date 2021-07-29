@@ -281,6 +281,555 @@ namespace OctaneDataTransferObject {
 			bVisableEnvBackplate, bVisableReflections, bVisableRefractions, MSGPACK_BASE(OctaneEnvironment));
 	};
 
+	struct OctaneGeoNode : public OctaneNodeBase {
+		std::string     sGeoName;
+
+		OctaneGeoNode() : OctaneNodeBase(Octane::ENT_OCTANE_GEO_NODE, "OctaneGeoNode") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		MSGPACK_DEFINE(sGeoName, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneScatterToolObjects : public OctaneNodeBase {
+        REFLECTABLE
+        (
+		(OctaneDTOShader)	sScatteredObject1,
+		(OctaneDTOShader)	sScatteredObject2,
+		(OctaneDTOShader)	sScatteredObject3,
+		(OctaneDTOShader)	sScatteredObject4,
+		(OctaneDTOEnum)		iObjectSelectionMethod,
+		(OctaneDTOInt)		iObjectSelectionSeed,
+		(OctaneDTOShader)	sObjectSelectionMap
+		)
+
+		OctaneScatterToolObjects() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sScatteredObject1, sScatteredObject2, sScatteredObject3, sScatteredObject4,
+			iObjectSelectionMethod, iObjectSelectionSeed, sObjectSelectionMap, MSGPACK_BASE(OctaneNodeBase));
+    };
+
+	struct OctaneScatterToolGrid : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOInt3)		i3Dimension,
+		(OctaneDTOFloat3)	f3Offset
+		)
+
+		OctaneScatterToolGrid() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(i3Dimension, f3Offset, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneScatterToolShape : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOEnum)		iShape,
+		(OctaneDTOShader)	sCullingMap,
+		(OctaneDTOFloat)	fCullingMin,
+		(OctaneDTOFloat)	fCullingMax
+		)
+
+		OctaneScatterToolShape() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iShape, sCullingMap, fCullingMin, fCullingMax, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneScatterToolDistribution : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOEnum)		iDistributionMethod,
+		(OctaneDTOShader)	sRelativeDensityMap,
+		(OctaneDTOInt)		iSeed
+		)
+
+		OctaneScatterToolDistribution() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iDistributionMethod, sRelativeDensityMap, iSeed, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneScatterToolDensity : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOInt)		iInstances,
+		(OctaneDTOShader)	sCullingMap,
+		(OctaneDTOFloat)	fCullingMin,
+		(OctaneDTOFloat)	fCullingMax,
+		(OctaneDTOFloat)	fCullingAngleLow,
+		(OctaneDTOFloat)	fCullingAngleHigh
+		)
+
+		OctaneScatterToolDensity() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iInstances, sCullingMap, fCullingMin, fCullingMax, fCullingAngleLow, fCullingAngleHigh, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneScatterToolInstanceOrientation : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOBool)		bSmoothNormals,
+		(OctaneDTOFloat)	fNormalAlign,
+		(OctaneDTOEnum)		iOrientationPriority,
+		(OctaneDTOEnum)		iUpDirectionMode,
+		(OctaneDTOFloat3)	f3ReferenceUpDirection,
+		(OctaneDTOFloat3)	f3ReferenceUpPoint,
+		(OctaneDTOEnum)		iFrontDirectionMode,
+		(OctaneDTOFloat3)	f3ReferenceFrontDirection,
+		(OctaneDTOFloat3)	f3ReferenceFrontPoint
+		)
+
+		OctaneScatterToolInstanceOrientation() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(bSmoothNormals, fNormalAlign, iOrientationPriority, 
+			iUpDirectionMode, f3ReferenceUpDirection, f3ReferenceUpPoint, 
+			iFrontDirectionMode, f3ReferenceFrontDirection, f3ReferenceFrontPoint,
+			MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneScatterToolInstanceTransform : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOEnum)		iRotationMode,
+		(OctaneDTOFloat3)	f3RotationMin,
+		(OctaneDTOFloat3)	f3RotationMax,
+		(OctaneDTOFloat)	fRotationStep,
+		(OctaneDTOShader)	sRotationMap,
+		(OctaneDTOEnum)		iScaleMode,
+		(OctaneDTOFloat3)	f3ScaleMin,
+		(OctaneDTOFloat3)	f3ScaleMax,
+		(OctaneDTOFloat)	fScaleStep,
+		(OctaneDTOShader)	sScaleMap,
+		(OctaneDTOEnum)		iTranslationMode,
+		(OctaneDTOFloat3)	f3TranslationMin,
+		(OctaneDTOFloat3)	f3TranslationMax,
+		(OctaneDTOFloat)	fTranslationStep,
+		(OctaneDTOShader)	sTranslationMap
+		)
+
+		OctaneScatterToolInstanceTransform() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iRotationMode, f3RotationMin, f3RotationMax, fRotationStep, sRotationMap,
+			iScaleMode, f3ScaleMin, f3ScaleMax, fScaleStep, sScaleMap,
+			iTranslationMode, f3TranslationMin, f3TranslationMax, fTranslationStep, sTranslationMap,
+			MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneScatterToolSurface : public OctaneNodeBase {
+		REFLECTABLE
+		(				
+		// Geometry
+		(OctaneDTOShader)	sSurface,
+		// Objects
+		(OctaneDTOShader)	sScatteredObject1,
+		(OctaneDTOShader)	sScatteredObject2,
+		(OctaneDTOShader)	sScatteredObject3,
+		(OctaneDTOShader)	sScatteredObject4,
+		(OctaneDTOEnum)		iObjectSelectionMethod,
+		(OctaneDTOInt)		iObjectSelectionSeed,
+		(OctaneDTOShader)	sObjectSelectionMap,
+		// Distribution
+		(OctaneDTOEnum)		iDistributionMethod,
+		(OctaneDTOShader)	sRelativeDensityMap,
+		(OctaneDTOInt)		iSeed,
+		// Density
+		(OctaneDTOInt)		iInstances,
+		(OctaneDTOShader)	sCullingMap,
+		(OctaneDTOFloat)	fCullingMin,
+		(OctaneDTOFloat)	fCullingMax,
+		(OctaneDTOFloat)	fCullingAngleLow,
+		(OctaneDTOFloat)	fCullingAngleHigh,
+		// Instance orientation
+		(OctaneDTOBool)		bSmoothNormals,
+		(OctaneDTOFloat)	fNormalAlign,
+		(OctaneDTOEnum)		iOrientationPriority,
+		(OctaneDTOEnum)		iUpDirectionMode,
+		(OctaneDTOFloat3)	f3ReferenceUpDirection,
+		(OctaneDTOFloat3)	f3ReferenceUpPoint,
+		(OctaneDTOEnum)		iFrontDirectionMode,
+		(OctaneDTOFloat3)	f3ReferenceFrontDirection,
+		(OctaneDTOFloat3)	f3ReferenceFrontPoint,
+		// Instance transform
+		(OctaneDTOEnum)		iRotationMode,
+		(OctaneDTOFloat3)	f3RotationMin,
+		(OctaneDTOFloat3)	f3RotationMax,
+		(OctaneDTOFloat)	fRotationStep,
+		(OctaneDTOShader)	sRotationMap,
+		(OctaneDTOEnum)		iScaleMode,
+		(OctaneDTOFloat3)	f3ScaleMin,
+		(OctaneDTOFloat3)	f3ScaleMax,
+		(OctaneDTOFloat)	fScaleStep,
+		(OctaneDTOShader)	sScaleMap,
+		(OctaneDTOEnum)		iTranslationMode,
+		(OctaneDTOFloat3)	f3TranslationMin,
+		(OctaneDTOFloat3)	f3TranslationMax,
+		(OctaneDTOFloat)	fTranslationStep,
+		(OctaneDTOShader)	sTranslationMap
+		)
+		OctaneScatterToolObjects oOctaneScatterToolObjects;
+		OctaneScatterToolDistribution oOctaneScatterToolDistribution;
+		OctaneScatterToolDensity oOctaneScatterToolDensity;
+		OctaneScatterToolInstanceOrientation oOctaneScatterToolInstanceOrientation;
+		OctaneScatterToolInstanceTransform oOctaneScatterToolInstanceTransform;
+
+		OctaneScatterToolSurface() :
+			// Geometry
+			sSurface("Surface"),
+			// Objects
+			sScatteredObject1("Scattered object 1"),
+			sScatteredObject2("Scattered object 2"),
+			sScatteredObject3("Scattered object 3"),
+			sScatteredObject4("Scattered object 4"),
+			iObjectSelectionMethod("object_selection_method", false),
+			iObjectSelectionSeed("Object selection seed"),
+			sObjectSelectionMap("Object selection map"),
+			// Distribution
+			iDistributionMethod("distribution_method", false),
+			sRelativeDensityMap("Relative density map"),
+			iSeed("Seed"),
+			// Density
+			iInstances("Instances"),
+			sCullingMap("Culling map"),
+			fCullingMin("Culling min"),
+			fCullingMax("Culling max"),
+			fCullingAngleLow("Culling angle low"),
+			fCullingAngleHigh("Culling angle high"),
+			// Instance orientation
+			bSmoothNormals("Smooth normals"),
+			fNormalAlign("Normal align"),
+			iOrientationPriority("orientation_priority", false),
+			iUpDirectionMode("up_direction_mode", false),
+			f3ReferenceUpDirection("Reference up direction"),
+			f3ReferenceUpPoint("Reference up point"),
+			iFrontDirectionMode("front_direction_mode", false),
+			f3ReferenceFrontDirection("Reference front direction"),
+			f3ReferenceFrontPoint("Reference front point"),
+			// Instance transform
+			iRotationMode("rotation_mode", false),
+			f3RotationMin("Rotation min"),
+			f3RotationMax("Rotation max"),
+			fRotationStep("Rotation step"),
+			sRotationMap("Rotation map"),
+			iScaleMode("scale_mode", false),
+			f3ScaleMin("Scale min"),
+			f3ScaleMax("Scale max"),
+			fScaleStep("Scale step"),
+			sScaleMap("Scale map"),
+			iTranslationMode("translation_mode", false),
+			f3TranslationMin("Translation min"),
+			f3TranslationMax("Translation max"),
+			fTranslationStep("Translation step"),
+			sTranslationMap("Translation map"),
+			OctaneNodeBase(Octane::NT_SCATTER_SURFACE, "ShaderNodeOctScatterToolSurface")
+		{
+		}
+
+		void PackAttributes() {
+			oOctaneScatterToolObjects.sScatteredObject1 = sScatteredObject1;
+			oOctaneScatterToolObjects.sScatteredObject2 = sScatteredObject2;
+			oOctaneScatterToolObjects.sScatteredObject3 = sScatteredObject3;
+			oOctaneScatterToolObjects.sScatteredObject4 = sScatteredObject4;
+			oOctaneScatterToolObjects.iObjectSelectionMethod = iObjectSelectionMethod;
+			oOctaneScatterToolObjects.iObjectSelectionSeed = iObjectSelectionSeed;
+			oOctaneScatterToolObjects.sObjectSelectionMap = sObjectSelectionMap;
+
+			oOctaneScatterToolDistribution.iDistributionMethod = iDistributionMethod;
+			oOctaneScatterToolDistribution.sRelativeDensityMap = sRelativeDensityMap;
+			oOctaneScatterToolDistribution.iSeed = iSeed;
+
+			oOctaneScatterToolDensity.iInstances = iInstances;
+			oOctaneScatterToolDensity.sCullingMap = sCullingMap;
+			oOctaneScatterToolDensity.fCullingMin = fCullingMin;
+			oOctaneScatterToolDensity.fCullingMax = fCullingMax;
+			oOctaneScatterToolDensity.fCullingAngleLow = fCullingAngleLow;
+			oOctaneScatterToolDensity.fCullingAngleHigh = fCullingAngleHigh;
+
+			oOctaneScatterToolInstanceOrientation.bSmoothNormals = bSmoothNormals;
+			oOctaneScatterToolInstanceOrientation.fNormalAlign = fNormalAlign;
+			oOctaneScatterToolInstanceOrientation.iOrientationPriority = iOrientationPriority;
+			oOctaneScatterToolInstanceOrientation.iUpDirectionMode = iUpDirectionMode;
+			oOctaneScatterToolInstanceOrientation.f3ReferenceUpDirection = f3ReferenceUpDirection;
+			oOctaneScatterToolInstanceOrientation.f3ReferenceUpPoint = f3ReferenceUpPoint;
+			oOctaneScatterToolInstanceOrientation.iFrontDirectionMode = iFrontDirectionMode;
+			oOctaneScatterToolInstanceOrientation.f3ReferenceFrontDirection = f3ReferenceFrontDirection;
+			oOctaneScatterToolInstanceOrientation.f3ReferenceFrontPoint = f3ReferenceFrontPoint;
+
+			oOctaneScatterToolInstanceTransform.iRotationMode = iRotationMode;
+			oOctaneScatterToolInstanceTransform.f3RotationMin = f3RotationMin;
+			oOctaneScatterToolInstanceTransform.f3RotationMax = f3RotationMax;
+			oOctaneScatterToolInstanceTransform.fRotationStep = fRotationStep;
+			oOctaneScatterToolInstanceTransform.sRotationMap = sRotationMap;
+			oOctaneScatterToolInstanceTransform.iScaleMode = iScaleMode;
+			oOctaneScatterToolInstanceTransform.f3ScaleMin = f3ScaleMin;
+			oOctaneScatterToolInstanceTransform.f3ScaleMax = f3ScaleMax;
+			oOctaneScatterToolInstanceTransform.fScaleStep = fScaleStep;
+			oOctaneScatterToolInstanceTransform.sScaleMap = sScaleMap;
+			oOctaneScatterToolInstanceTransform.iTranslationMode = iTranslationMode;
+			oOctaneScatterToolInstanceTransform.f3TranslationMin = f3TranslationMin;
+			oOctaneScatterToolInstanceTransform.f3TranslationMax = f3TranslationMax;
+			oOctaneScatterToolInstanceTransform.fTranslationStep = fTranslationStep;
+			oOctaneScatterToolInstanceTransform.sTranslationMap = sTranslationMap;
+		}
+		void UnpackAttributes() {
+			sScatteredObject1 = oOctaneScatterToolObjects.sScatteredObject1;
+			sScatteredObject2 = oOctaneScatterToolObjects.sScatteredObject2;
+			sScatteredObject3 = oOctaneScatterToolObjects.sScatteredObject3;
+			sScatteredObject4 = oOctaneScatterToolObjects.sScatteredObject4;
+			iObjectSelectionMethod = oOctaneScatterToolObjects.iObjectSelectionMethod;
+			iObjectSelectionSeed = oOctaneScatterToolObjects.iObjectSelectionSeed;
+			sObjectSelectionMap = oOctaneScatterToolObjects.sObjectSelectionMap;
+
+			iDistributionMethod = oOctaneScatterToolDistribution.iDistributionMethod;
+			sRelativeDensityMap = oOctaneScatterToolDistribution.sRelativeDensityMap;
+			iSeed = oOctaneScatterToolDistribution.iSeed;
+
+			iInstances = oOctaneScatterToolDensity.iInstances;
+			sCullingMap = oOctaneScatterToolDensity.sCullingMap;
+			fCullingMin = oOctaneScatterToolDensity.fCullingMin;
+			fCullingMax = oOctaneScatterToolDensity.fCullingMax;
+			fCullingAngleLow = oOctaneScatterToolDensity.fCullingAngleLow;
+			fCullingAngleHigh = oOctaneScatterToolDensity.fCullingAngleHigh;
+
+			bSmoothNormals = oOctaneScatterToolInstanceOrientation.bSmoothNormals;
+			fNormalAlign = oOctaneScatterToolInstanceOrientation.fNormalAlign;
+			iOrientationPriority = oOctaneScatterToolInstanceOrientation.iOrientationPriority;
+			iUpDirectionMode = oOctaneScatterToolInstanceOrientation.iUpDirectionMode;
+			f3ReferenceUpDirection = oOctaneScatterToolInstanceOrientation.f3ReferenceUpDirection;
+			f3ReferenceUpPoint = oOctaneScatterToolInstanceOrientation.f3ReferenceUpPoint;
+			iFrontDirectionMode = oOctaneScatterToolInstanceOrientation.iFrontDirectionMode;
+			f3ReferenceFrontDirection = oOctaneScatterToolInstanceOrientation.f3ReferenceFrontDirection;
+			f3ReferenceFrontPoint = oOctaneScatterToolInstanceOrientation.f3ReferenceFrontPoint;
+
+			iRotationMode = oOctaneScatterToolInstanceTransform.iRotationMode;
+			f3RotationMin = oOctaneScatterToolInstanceTransform.f3RotationMin;
+			f3RotationMax = oOctaneScatterToolInstanceTransform.f3RotationMax;
+			fRotationStep = oOctaneScatterToolInstanceTransform.fRotationStep;
+			sRotationMap = oOctaneScatterToolInstanceTransform.sRotationMap;
+			iScaleMode = oOctaneScatterToolInstanceTransform.iScaleMode;
+			f3ScaleMin = oOctaneScatterToolInstanceTransform.f3ScaleMin;
+			f3ScaleMax = oOctaneScatterToolInstanceTransform.f3ScaleMax;
+			fScaleStep = oOctaneScatterToolInstanceTransform.fScaleStep;
+			sScaleMap = oOctaneScatterToolInstanceTransform.sScaleMap;
+			iTranslationMode = oOctaneScatterToolInstanceTransform.iTranslationMode;
+			f3TranslationMin = oOctaneScatterToolInstanceTransform.f3TranslationMin;
+			f3TranslationMax = oOctaneScatterToolInstanceTransform.f3TranslationMax;
+			fTranslationStep = oOctaneScatterToolInstanceTransform.fTranslationStep;
+			sTranslationMap = oOctaneScatterToolInstanceTransform.sTranslationMap;
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sSurface, 
+			oOctaneScatterToolObjects,
+			oOctaneScatterToolDistribution,
+			oOctaneScatterToolDensity, 
+			oOctaneScatterToolInstanceOrientation,
+			oOctaneScatterToolInstanceTransform, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneScatterToolSurface
+
+	struct OctaneScatterToolVolume : public OctaneNodeBase {
+		REFLECTABLE
+		(				
+		// Objects
+		(OctaneDTOShader)	sScatteredObject1,
+		(OctaneDTOShader)	sScatteredObject2,
+		(OctaneDTOShader)	sScatteredObject3,
+		(OctaneDTOShader)	sScatteredObject4,
+		(OctaneDTOEnum)		iObjectSelectionMethod,
+		(OctaneDTOInt)		iObjectSelectionSeed,
+		(OctaneDTOShader)	sObjectSelectionMap,
+		// Grid
+		(OctaneDTOInt3)		i3Dimension,
+		(OctaneDTOInt)		iDimensionX,
+		(OctaneDTOInt)		iDimensionY,
+		(OctaneDTOInt)		iDimensionZ,
+		(OctaneDTOFloat3)	f3Offset,
+		// Shape
+		(OctaneDTOEnum)		iShape,
+		(OctaneDTOShader)	sCullingMap,
+		(OctaneDTOFloat)	fCullingMin,
+		(OctaneDTOFloat)	fCullingMax,
+		// Instance orientation
+		(OctaneDTOEnum)		iOrientationPriority,
+		(OctaneDTOEnum)		iUpDirectionMode,
+		(OctaneDTOFloat3)	f3ReferenceUpDirection,
+		(OctaneDTOFloat3)	f3ReferenceUpPoint,
+		(OctaneDTOEnum)		iFrontDirectionMode,
+		(OctaneDTOFloat3)	f3ReferenceFrontDirection,
+		(OctaneDTOFloat3)	f3ReferenceFrontPoint,
+		// Instance transform
+		(OctaneDTOEnum)		iRotationMode,
+		(OctaneDTOFloat3)	f3RotationMin,
+		(OctaneDTOFloat3)	f3RotationMax,
+		(OctaneDTOFloat)	fRotationStep,
+		(OctaneDTOShader)	sRotationMap,
+		(OctaneDTOEnum)		iScaleMode,
+		(OctaneDTOFloat3)	f3ScaleMin,
+		(OctaneDTOFloat3)	f3ScaleMax,
+		(OctaneDTOFloat)	fScaleStep,
+		(OctaneDTOShader)	sScaleMap,
+		(OctaneDTOEnum)		iTranslationMode,
+		(OctaneDTOFloat3)	f3TranslationMin,
+		(OctaneDTOFloat3)	f3TranslationMax,
+		(OctaneDTOFloat)	fTranslationStep,
+		(OctaneDTOShader)	sTranslationMap
+		)
+		OctaneScatterToolObjects oOctaneScatterToolObjects;
+		OctaneScatterToolGrid oOctaneScatterToolGrid;
+		OctaneScatterToolShape oOctaneScatterToolShape;
+		OctaneScatterToolInstanceOrientation oOctaneScatterToolInstanceOrientation;
+		OctaneScatterToolInstanceTransform oOctaneScatterToolInstanceTransform;
+
+		OctaneScatterToolVolume() :
+			// Objects
+			sScatteredObject1("Scattered object 1"),
+			sScatteredObject2("Scattered object 2"),
+			sScatteredObject3("Scattered object 3"),
+			sScatteredObject4("Scattered object 4"),
+			iObjectSelectionMethod("object_selection_method", false),
+			iObjectSelectionSeed("Object selection seed"),
+			sObjectSelectionMap("Object selection map"),
+			// Grid
+			i3Dimension("Dimension"),
+			iDimensionX("DimensionX"),
+			iDimensionY("DimensionY"),
+			iDimensionZ("DimensionZ"),
+			f3Offset("Offsets"),
+			// Shape
+			iShape("shape", false),
+			sCullingMap("Culling map"),
+			fCullingMin("Culling min"),
+			fCullingMax("Culling max"),
+			// Instance orientation
+			iOrientationPriority("orientation_priority", false),
+			iUpDirectionMode("up_direction_mode", false),
+			f3ReferenceUpDirection("Reference up direction"),
+			f3ReferenceUpPoint("Reference up point"),
+			iFrontDirectionMode("front_direction_mode", false),
+			f3ReferenceFrontDirection("Reference front direction"),
+			f3ReferenceFrontPoint("Reference front point"),
+			// Instance transform
+			iRotationMode("rotation_mode", false),
+			f3RotationMin("Rotation min"),
+			f3RotationMax("Rotation max"),
+			fRotationStep("Rotation step"),
+			sRotationMap("Rotation map"),
+			iScaleMode("scale_mode", false),
+			f3ScaleMin("Scale min"),
+			f3ScaleMax("Scale max"),
+			fScaleStep("Scale step"),
+			sScaleMap("Scale map"),
+			iTranslationMode("translation_mode", false),
+			f3TranslationMin("Translation min"),
+			f3TranslationMax("Translation max"),
+			fTranslationStep("Translation step"),
+			sTranslationMap("Translation map"),
+			OctaneNodeBase(Octane::NT_SCATTER_VOLUME, "ShaderNodeOctScatterToolVolume")
+		{
+		}
+
+		void PackAttributes() {
+			oOctaneScatterToolObjects.sScatteredObject1 = sScatteredObject1;
+			oOctaneScatterToolObjects.sScatteredObject2 = sScatteredObject2;
+			oOctaneScatterToolObjects.sScatteredObject3 = sScatteredObject3;
+			oOctaneScatterToolObjects.sScatteredObject4 = sScatteredObject4;
+			oOctaneScatterToolObjects.iObjectSelectionMethod = iObjectSelectionMethod;
+			oOctaneScatterToolObjects.iObjectSelectionSeed = iObjectSelectionSeed;
+			oOctaneScatterToolObjects.sObjectSelectionMap = sObjectSelectionMap;
+
+			i3Dimension.iVal.x = iDimensionX.iVal;
+			i3Dimension.iVal.y = iDimensionY.iVal;
+			i3Dimension.iVal.z = iDimensionZ.iVal;
+			oOctaneScatterToolGrid.i3Dimension = i3Dimension;
+			oOctaneScatterToolGrid.f3Offset = f3Offset;
+
+			oOctaneScatterToolShape.iShape = iShape;
+			oOctaneScatterToolShape.sCullingMap = sCullingMap;
+			oOctaneScatterToolShape.fCullingMin = fCullingMin;
+			oOctaneScatterToolShape.fCullingMax = fCullingMax;
+
+			oOctaneScatterToolInstanceOrientation.iOrientationPriority = iOrientationPriority;
+			oOctaneScatterToolInstanceOrientation.iUpDirectionMode = iUpDirectionMode;
+			oOctaneScatterToolInstanceOrientation.f3ReferenceUpDirection = f3ReferenceUpDirection;
+			oOctaneScatterToolInstanceOrientation.f3ReferenceUpPoint = f3ReferenceUpPoint;
+			oOctaneScatterToolInstanceOrientation.iFrontDirectionMode = iFrontDirectionMode;
+			oOctaneScatterToolInstanceOrientation.f3ReferenceFrontDirection = f3ReferenceFrontDirection;
+			oOctaneScatterToolInstanceOrientation.f3ReferenceFrontPoint = f3ReferenceFrontPoint;
+
+			oOctaneScatterToolInstanceTransform.iRotationMode = iRotationMode;
+			oOctaneScatterToolInstanceTransform.f3RotationMin = f3RotationMin;
+			oOctaneScatterToolInstanceTransform.f3RotationMax = f3RotationMax;
+			oOctaneScatterToolInstanceTransform.fRotationStep = fRotationStep;
+			oOctaneScatterToolInstanceTransform.sRotationMap = sRotationMap;
+			oOctaneScatterToolInstanceTransform.iScaleMode = iScaleMode;
+			oOctaneScatterToolInstanceTransform.f3ScaleMin = f3ScaleMin;
+			oOctaneScatterToolInstanceTransform.f3ScaleMax = f3ScaleMax;
+			oOctaneScatterToolInstanceTransform.fScaleStep = fScaleStep;
+			oOctaneScatterToolInstanceTransform.sScaleMap = sScaleMap;
+			oOctaneScatterToolInstanceTransform.iTranslationMode = iTranslationMode;
+			oOctaneScatterToolInstanceTransform.f3TranslationMin = f3TranslationMin;
+			oOctaneScatterToolInstanceTransform.f3TranslationMax = f3TranslationMax;
+			oOctaneScatterToolInstanceTransform.fTranslationStep = fTranslationStep;
+			oOctaneScatterToolInstanceTransform.sTranslationMap = sTranslationMap;
+		}
+		void UnpackAttributes() {
+			sScatteredObject1 = oOctaneScatterToolObjects.sScatteredObject1;
+			sScatteredObject2 = oOctaneScatterToolObjects.sScatteredObject2;
+			sScatteredObject3 = oOctaneScatterToolObjects.sScatteredObject3;
+			sScatteredObject4 = oOctaneScatterToolObjects.sScatteredObject4;
+			iObjectSelectionMethod = oOctaneScatterToolObjects.iObjectSelectionMethod;
+			iObjectSelectionSeed = oOctaneScatterToolObjects.iObjectSelectionSeed;
+			sObjectSelectionMap = oOctaneScatterToolObjects.sObjectSelectionMap;
+			
+			i3Dimension = oOctaneScatterToolGrid.i3Dimension;
+			iDimensionX.iVal = i3Dimension.iVal.x;
+			iDimensionY.iVal = i3Dimension.iVal.y;
+			iDimensionZ.iVal = i3Dimension.iVal.z;
+			f3Offset = oOctaneScatterToolGrid.f3Offset;
+
+			iShape = oOctaneScatterToolShape.iShape;
+			sCullingMap = oOctaneScatterToolShape.sCullingMap;
+			fCullingMin = oOctaneScatterToolShape.fCullingMin;
+			fCullingMax = oOctaneScatterToolShape.fCullingMax;
+
+			iOrientationPriority = oOctaneScatterToolInstanceOrientation.iOrientationPriority;
+			iUpDirectionMode = oOctaneScatterToolInstanceOrientation.iUpDirectionMode;
+			f3ReferenceUpDirection = oOctaneScatterToolInstanceOrientation.f3ReferenceUpDirection;
+			f3ReferenceUpPoint = oOctaneScatterToolInstanceOrientation.f3ReferenceUpPoint;
+			iFrontDirectionMode = oOctaneScatterToolInstanceOrientation.iFrontDirectionMode;
+			f3ReferenceFrontDirection = oOctaneScatterToolInstanceOrientation.f3ReferenceFrontDirection;
+			f3ReferenceFrontPoint = oOctaneScatterToolInstanceOrientation.f3ReferenceFrontPoint;
+
+			iRotationMode = oOctaneScatterToolInstanceTransform.iRotationMode;
+			f3RotationMin = oOctaneScatterToolInstanceTransform.f3RotationMin;
+			f3RotationMax = oOctaneScatterToolInstanceTransform.f3RotationMax;
+			fRotationStep = oOctaneScatterToolInstanceTransform.fRotationStep;
+			sRotationMap = oOctaneScatterToolInstanceTransform.sRotationMap;
+			iScaleMode = oOctaneScatterToolInstanceTransform.iScaleMode;
+			f3ScaleMin = oOctaneScatterToolInstanceTransform.f3ScaleMin;
+			f3ScaleMax = oOctaneScatterToolInstanceTransform.f3ScaleMax;
+			fScaleStep = oOctaneScatterToolInstanceTransform.fScaleStep;
+			sScaleMap = oOctaneScatterToolInstanceTransform.sScaleMap;
+			iTranslationMode = oOctaneScatterToolInstanceTransform.iTranslationMode;
+			f3TranslationMin = oOctaneScatterToolInstanceTransform.f3TranslationMin;
+			f3TranslationMax = oOctaneScatterToolInstanceTransform.f3TranslationMax;
+			fTranslationStep = oOctaneScatterToolInstanceTransform.fTranslationStep;
+			sTranslationMap = oOctaneScatterToolInstanceTransform.sTranslationMap;
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(oOctaneScatterToolObjects,
+			oOctaneScatterToolGrid,
+			oOctaneScatterToolShape, 
+			oOctaneScatterToolInstanceOrientation,
+			oOctaneScatterToolInstanceTransform, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneScatterToolVolume
+
 	struct OctaneCameraPosition : public OctaneNodeBase {
         REFLECTABLE
         (
@@ -682,6 +1231,9 @@ namespace OctaneDataTransferObject {
 		std::string					sOctaneTag;
 		std::vector<std::string>	sPassNames;
 		std::vector<int>			iPasses;
+		std::string					sOCIOColorSpaceName;
+		std::string					sOCIOLookName;
+		bool						bForceToneMapping;
 		int							iExportType;
 		int							iImageType;
 		int							iExrCompressionType;
@@ -689,7 +1241,7 @@ namespace OctaneDataTransferObject {
 
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
-		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, iExportType, iImageType, iExrCompressionType, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, sOCIOColorSpaceName, sOCIOLookName, bForceToneMapping, iExportType, iImageType, iExrCompressionType, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneCameraData : public OctaneNodeBase {
@@ -760,6 +1312,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,
+		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fTransmission,
 		(OctaneDTOShader)	tMedium,
 		(OctaneDTOShader)	tEmission,
@@ -776,6 +1329,7 @@ namespace OctaneDataTransferObject {
 			fOpacity("Opacity"),
 			bSmooth("Smooth"),
 			fRoundedEdgeRadius("Edges rounding"),
+			iPriority("Priority"),
 			fTransmission("Transmission"),
 			tMedium("Medium"),
 			tEmission("Emission"),
@@ -786,7 +1340,7 @@ namespace OctaneDataTransferObject {
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fDiffuse, fRoughness, sBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, fTransmission, tMedium, tEmission, bShadowCatcher, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fDiffuse, fRoughness, sBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, iPriority, fTransmission, tMedium, tEmission, bShadowCatcher, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneDiffuseMaterial
 
 	struct OctaneMixMaterial : public OctaneNodeBase{
@@ -844,6 +1398,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tDisplacement,
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,		
 		(OctaneDTOFloat)	fFilmWidth,
 		(OctaneDTOFloat)	fFilmIndex,
@@ -865,6 +1420,7 @@ namespace OctaneDataTransferObject {
 			tDisplacement("Displacement"),
 			fOpacity("Opacity"),
 			bSmooth("Smooth"),
+			iPriority("Priority"),
 			fRoundedEdgeRadius("Edges rounding"),
 			fFilmWidth("Film Width"),
 			fFilmIndex("Film Index"),
@@ -874,7 +1430,7 @@ namespace OctaneDataTransferObject {
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fDiffuse, fSpecular, iBRDFModel, fRoughness, fAnisotropy, fRotation, fSheen, fSheenRoughness, fIndexOfReflection, sBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fDiffuse, fSpecular, iBRDFModel, fRoughness, fAnisotropy, fRotation, fSheen, fSheenRoughness, fIndexOfReflection, sBump, tNormal, tDisplacement, fOpacity, bSmooth, iPriority, fRoundedEdgeRadius, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneGlossyMaterial
 
 	struct OctaneSpecularMaterial : public OctaneNodeBase {
@@ -893,6 +1449,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tDisplacement,
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,
 		(OctaneDTOShader)	tMedium,
 		(OctaneDTOBool)		bFakeShadows,
@@ -916,6 +1473,7 @@ namespace OctaneDataTransferObject {
 			tNormal("Normal"),
 			tDisplacement("Displacement"),
 			fOpacity("Opacity"),
+			iPriority("Priority"),
 			bSmooth("Smooth"),
 			fRoundedEdgeRadius("Edges rounding"),
 			tMedium("Medium"),
@@ -930,7 +1488,7 @@ namespace OctaneDataTransferObject {
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fReflection, fTransmission, iBRDFModel, fRoughness, fAnisotropy, fRotation, fIndexOfReflection, fDispersionCoef, sBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, tMedium, bFakeShadows, bAffectAplha, bThinWall, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fReflection, fTransmission, iBRDFModel, fRoughness, fAnisotropy, fRotation, fIndexOfReflection, fDispersionCoef, sBump, tNormal, tDisplacement, fOpacity, bSmooth, iPriority, fRoundedEdgeRadius, tMedium, bFakeShadows, bAffectAplha, bThinWall, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneSpecularMaterial
 
 	struct OctaneToonMaterial : public OctaneNodeBase {
@@ -996,6 +1554,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tDisplacement,
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,
 		(OctaneDTOFloat)	fFilmWidth,
 		(OctaneDTOFloat)	fFilmIndex,
@@ -1021,6 +1580,7 @@ namespace OctaneDataTransferObject {
 			tDisplacement("Displacement"),
 			fOpacity("Opacity"),
 			bSmooth("Smooth"),
+			iPriority("Priority"),
 			fRoundedEdgeRadius("Rounded Edge Radius"),
 			fFilmWidth("Film Width"),
 			fFilmIndex("Film Index"),
@@ -1030,7 +1590,7 @@ namespace OctaneDataTransferObject {
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(tDiffuse, fSpecular, tSpecularMap, iBRDFModel, fRoughness, fAnisotropy, fRotation, fSheen, fSheenRoughness, iIORModel, fIndexOfReflection, fIndexOfReflectionGreen, fIndexOfReflectionBlue, tBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(tDiffuse, fSpecular, tSpecularMap, iBRDFModel, fRoughness, fAnisotropy, fRotation, fSheen, fSheenRoughness, iIORModel, fIndexOfReflection, fIndexOfReflectionGreen, fIndexOfReflectionBlue, tBump, tNormal, tDisplacement, fOpacity, bSmooth, iPriority, fRoundedEdgeRadius, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneMetalMaterial
 
 	struct OctaneUniversalIOR : public OctaneNodeBase {
@@ -1113,6 +1673,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tNormal,
 		(OctaneDTOShader)	tDisplacement,		
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,		
 		(OctaneDTOShader)	tEmission,
 		(OctaneDTOBool)		bShadowCatcher,
@@ -1167,6 +1728,7 @@ namespace OctaneDataTransferObject {
 			tNormal("Normal"),
 			tDisplacement("Displacement"),
 			bSmooth("Smooth"),
+			iPriority("Priority"),
 			fRoundedEdgeRadius("Rounded Edge Radius"),
 			tEmission("Emission"),
 			bShadowCatcher("Shadow catcher"),
@@ -1210,7 +1772,7 @@ namespace OctaneDataTransferObject {
 			oOctaneUniversalIOR, 
 			oOctaneUniversalCoating,
 			fFilmWidth, fFilmIndex, fSheen, fSheenRoughness, tSheenBump, tSheenNormal, fDispersionCoef, tMedium, fOpacity, bFakeShadows, bAffectAplha,
-			tBump, tNormal, tDisplacement, bSmooth, fRoundedEdgeRadius, tEmission, bShadowCatcher, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
+			tBump, tNormal, tDisplacement, bSmooth, iPriority, fRoundedEdgeRadius, tEmission, bShadowCatcher, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneUniversalMaterial
 
 	struct OctaneShadowCatcherMaterial : public OctaneNodeBase{
@@ -1316,6 +1878,32 @@ namespace OctaneDataTransferObject {
 		MSGPACK_DEFINE(fAlbedo, fSpecular, fMelanin, fPheomelanin, iMode, fIndexOfRefraction, fLongitudinalRoughness, fAzimuthalRoughness, fOffset,
 			fRandomnessFrequency, fRandomnessOffset, fRandomnessIntensity, fRandomnessAlbedo, fOpacity, tEmission, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneHairMaterial
+
+	struct OctaneNullMaterial : public OctaneNodeBase{
+		REFLECTABLE
+		(
+		(OctaneDTOShader)	tMedium,
+		(OctaneDTOFloat)	fOpacity,
+		(OctaneDTOBool)		bAffectAplha,
+		(OctaneDTOShader)	tDisplacement,
+		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOFloat)	fRoundedEdgeRadius
+		)
+
+		OctaneNullMaterial() :
+			tMedium("Medium"),
+			fOpacity("Opacity"),
+			bAffectAplha("Affect alpha"),
+			tDisplacement("Displacement"),
+			bSmooth("Smooth"),
+			fRoundedEdgeRadius("Edges rounding"),
+			OctaneNodeBase(Octane::NT_MAT_NULL, "ShaderNodeOctNullMat")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(tMedium, fOpacity, bAffectAplha, tDisplacement, bSmooth, fRoundedEdgeRadius, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneNullMaterial
 
 	struct OctaneGroupLayer : public OctaneNodeBase{
 		REFLECTABLE
@@ -1749,6 +2337,42 @@ namespace OctaneDataTransferObject {
 		MSGPACK_DEFINE(iNoiseType, iOctaves, fOmega, sTransform, sProjection, bInvert, fGamma, fContrast, MSGPACK_BASE(OctaneNodeBase));
 	};
 
+	struct OctaneCinema4DNoiseTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOEnum)		iC4DNoiseType,
+		(OctaneDTOFloat)	fOctaves,
+		(OctaneDTOFloat)	fLacunarity,
+		(OctaneDTOFloat)	fGain,
+		(OctaneDTOShader)	sTransform,
+		(OctaneDTOShader)	sProjection,
+		(OctaneDTOFloat)	fT,
+		(OctaneDTOBool)		bAbsolute,
+		(OctaneDTOBool)		bUse4DNoise,
+		(OctaneDTOFloat)	fSampleRadius,
+		(OctaneDTOInt)		iRandomSeed
+		)
+
+		OctaneCinema4DNoiseTexture() :
+			iC4DNoiseType("c4d_noise_type", false),
+			fOctaves("Octaves"),
+			fLacunarity("Lacunarity"),
+			fGain("Gain"),
+			sTransform("Transform"),
+			sProjection("Projection"),
+			fT("T"),
+			bAbsolute("Absolute"),
+			bUse4DNoise("Use 4D noise"),
+			fSampleRadius("Sample radius"),
+			iRandomSeed("Random seed"),
+			OctaneNodeBase(Octane::NT_TEX_C4D_NOISE, "ShaderNodeOctCinema4DNoiseTex")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iC4DNoiseType, fOctaves, fLacunarity, fGain, sTransform, sProjection, fT, bAbsolute, bUse4DNoise, fSampleRadius, iRandomSeed, MSGPACK_BASE(OctaneNodeBase));
+	};
+
 	struct OctaneClampTexture : public OctaneNodeBase {
 		REFLECTABLE
 		(
@@ -1967,7 +2591,10 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fHue,
 		(OctaneDTOFloat)	fSaturation,
 		(OctaneDTOFloat)	fGamma,
-		(OctaneDTOFloat)	fContrast
+		(OctaneDTOFloat)	fContrast,
+		(OctaneDTOFloat)	fGain,
+		(OctaneDTOFloat)	fExposure,
+		(OctaneDTOFloat)	fMask
 		)
 
 		OctaneColorCorrectTexture() :
@@ -1978,12 +2605,15 @@ namespace OctaneDataTransferObject {
 			fSaturation("Saturation"),
 			fGamma("Gamma"),
 			fContrast("Contrast"),
+			fGain("Gain"),
+			fExposure("Exposure"),
+			fMask("Mask"),
 			OctaneNodeBase(Octane::NT_TEX_COLORCORRECTION, "ShaderNodeOctColorCorrectTex")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fTexture, fBrightness, bInvert, fHue, fSaturation, fGamma, fContrast, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fTexture, fBrightness, bInvert, fHue, fSaturation, fGamma, fContrast, fGain, fExposure, fMask, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneImageData : public OctaneNodeBase {
@@ -1999,6 +2629,7 @@ namespace OctaneDataTransferObject {
 		uint32_t			iDataLength;
 		float*				pFData;
 		uint8_t*			pIData;
+    std::string   sImageDataMD5Hex;
 
 		OctaneImageData() :
 			OctaneNodeBase(Octane::ENT_IMAGE_DATA, "OctaneImageData")
@@ -2011,6 +2642,7 @@ namespace OctaneDataTransferObject {
 			fImageData.clear();
 			iImageData.clear();
 			sFilePath = "";
+      sImageDataMD5Hex = "";
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		MSGPACK_DEFINE(iHDRDepthType, sFilePath, bReload, iWidth, iHeight, iChannelNum, fDataLength, iDataLength, MSGPACK_BASE(OctaneNodeBase));
@@ -2412,6 +3044,237 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(bInvert, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneChaosTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOShader)	sTexture,
+		(OctaneDTOInt)		iResolutionX,
+		(OctaneDTOInt)		iResolutionY,
+		(OctaneDTOInt2)		i2Resolution,
+		(OctaneDTOFloat)	fTileScale,
+		(OctaneDTOFloat)	fCoverage,
+		(OctaneDTOFloat)	fBlendingExponent,
+		(OctaneDTOBool)		bHistogramInvariant,
+		(OctaneDTOBool)		bShowTileStructure,
+		(OctaneDTOShader)	tTransform,
+		(OctaneDTOBool)		bEnableRotation,
+		(OctaneDTOInt)		iRotationSeed,
+		(OctaneDTOInt)		iMaxRotation
+		)
+
+		OctaneChaosTexture() :
+			sTexture("Texture"),
+			iResolutionX("Resolution X"),
+			iResolutionY("Resolution Y"),
+			fTileScale("Tile scale"),
+			fCoverage("Coverage"),
+			fBlendingExponent("Blend exponent"),
+			bHistogramInvariant("Histogram invariant blending"),
+			bShowTileStructure("Show tile structure"),
+			tTransform("UV transform"),
+			bEnableRotation("Enable rotation"),
+			iRotationSeed("Rotation seed"),
+			iMaxRotation("Max rotation"),
+			OctaneNodeBase(Octane::NT_TEX_CHAOS, "ShaderNodeOctChaosTex")
+		{
+		}
+
+		void PackAttributes() {
+			i2Resolution.iVal.x = iResolutionX.iVal;
+			i2Resolution.iVal.y = iResolutionY.iVal;
+		}
+
+		void UnpackAttributes() {
+			iResolutionX.iVal = i2Resolution.iVal.x;
+			iResolutionY.iVal = i2Resolution.iVal.y;
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sTexture, i2Resolution, fTileScale, fCoverage, fBlendingExponent, bHistogramInvariant,
+			bShowTileStructure, tTransform, bEnableRotation, iRotationSeed, iMaxRotation, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneChannelInverterTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOShader)	sInput,
+		(OctaneDTOBool)		bInvertRedChannel,
+		(OctaneDTOBool)		bInvertGreenChannel,
+		(OctaneDTOBool)		bInvertBlueChannel
+		)
+
+		OctaneChannelInverterTexture() :
+			sInput("Input"),
+			bInvertRedChannel("Invert red channel"),
+			bInvertGreenChannel("Invert green channel"),
+			bInvertBlueChannel("Invert blue channel"),
+			OctaneNodeBase(Octane::NT_TEX_CHANNEL_INVERT, "ShaderNodeOctChannelInverterTex")
+		{
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sInput, bInvertRedChannel, bInvertGreenChannel, bInvertBlueChannel, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneChannelMapperTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOShader)	sInput,
+		(OctaneDTOInt)		iRedChannelIndex,
+		(OctaneDTOInt)		iGreenChannelIndex,
+		(OctaneDTOInt)		iBlueChannelIndex
+		)
+
+		OctaneChannelMapperTexture() :
+			sInput("Input"),
+			iRedChannelIndex("Red channel index"),
+			iGreenChannelIndex("Green channel index"),
+			iBlueChannelIndex("Blue channel index"),
+			OctaneNodeBase(Octane::NT_TEX_CHANNEL_MAP, "ShaderNodeOctChannelMapperTex")
+		{
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sInput, iRedChannelIndex, iGreenChannelIndex, iBlueChannelIndex, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneChannelMergerTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOShader)	sRedChannel,
+		(OctaneDTOShader)	sGreenChannel,
+		(OctaneDTOShader)	sBlueChannel
+		)
+
+		OctaneChannelMergerTexture() :
+			sRedChannel("Red channel"),
+			sGreenChannel("Green channel"),
+			sBlueChannel("Blue channel"),
+			OctaneNodeBase(Octane::NT_TEX_CHANNEL_MERGE, "ShaderNodeOctChannelMergerTex")
+		{
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sRedChannel, sGreenChannel, sBlueChannel, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneChannelPickerTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOShader)	sInput,
+		(OctaneDTOEnum)		iChannel
+		)
+
+		OctaneChannelPickerTexture() :
+			sInput("Input"),
+			iChannel("channel", false),
+			OctaneNodeBase(Octane::NT_TEX_CHANNEL_PICK, "ShaderNodeOctChannelPickerTex")
+		{
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sInput, iChannel, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneRaySwitchTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOFloat)	fCameraRay,
+		(OctaneDTOFloat)	fShadowRay,
+		(OctaneDTOFloat)	fDiffuseRay,
+		(OctaneDTOFloat)	fReflectionRay,
+		(OctaneDTOFloat)	fRefractionRay,
+		(OctaneDTOFloat)	fAORay
+		)
+
+		OctaneRaySwitchTexture() :
+			fCameraRay("Camera ray"),
+			fShadowRay("Shadow ray"),
+			fDiffuseRay("Diffuse ray"),
+			fReflectionRay("Reflection ray"),
+			fRefractionRay("Refraction ray"),
+			fAORay("AO ray"),
+			OctaneNodeBase(Octane::NT_TEX_RAY_SWITCH, "ShaderNodeOctRaySwitchTex")
+		{
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fCameraRay, fShadowRay, fDiffuseRay, fReflectionRay, fRefractionRay, fAORay, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneSpotlightTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOEnum)		iOrientation,
+		(OctaneDTOFloat3)	f3DirectionOfTarget,
+		(OctaneDTOFloat)	fConeAngle,
+		(OctaneDTOFloat)	fHardness
+		)
+
+		OctaneSpotlightTexture() :
+			iOrientation("orientation", false),
+			f3DirectionOfTarget("Direction of target"),
+			fConeAngle("Cone angle"),
+			fHardness("Hardness"),
+			OctaneNodeBase(Octane::NT_TEX_SPOTLIGHT, "ShaderNodeOctSpotlightTex")
+		{
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iOrientation, f3DirectionOfTarget, fConeAngle, fHardness, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneCompositeLayerTexture : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOShader)	sInput,
+		(OctaneDTOFloat)	fOpacity,
+		(OctaneDTOEnum)		iBlendMode,
+		(OctaneDTOEnum)		iOverlayMode,
+		(OctaneDTOEnum)		iAlphaOperationMode
+		)
+
+		OctaneCompositeLayerTexture() :
+			sInput("Input"),
+			fOpacity("Opacity"),
+			iBlendMode("blend_mode", false),
+			iOverlayMode("overlay_mode", false),
+			iAlphaOperationMode("alpha_operation_mode", false),
+			OctaneNodeBase(Octane::NT_TEX_COMPOSITE_LAYER, "ShaderNodeOctCompositeLayerTex")
+		{
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sInput, fOpacity, iBlendMode, iOverlayMode, iAlphaOperationMode, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneCompositeTexture : public OctaneNodeBase{
+		REFLECTABLE
+		(		
+		(OctaneDTOBool)		bClamp
+		)
+		std::vector<std::string>	sLayers;
+
+		OctaneCompositeTexture() :
+			bClamp("Clamp"),
+			OctaneNodeBase(Octane::NT_TEX_COMPOSITE, "ShaderNodeOctCompositeTex")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(bClamp, sLayers, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneDisplacementTexture : public OctaneNodeBase {
@@ -3004,6 +3867,176 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iMode, fRadius, fRoundness, iSample, bConsiderOtherObjects, MSGPACK_BASE(OctaneNodeBase));
 	};
+
+	struct OctaneOCIOInfo : public OctaneNodeBase {
+		std::string					sPath;
+		bool						bUseOtherConfig;
+		bool						bAutomatic;
+		int							iIntermediateColorSpaceOctane;
+		std::string					sIntermediateColorSpaceOCIO;
+		std::vector<std::string>	sRoleNames;
+		std::vector<std::string>	sRoleColorSpaceNames;
+		std::vector<std::string>	sColorSpaceNames;
+		std::vector<std::string>	sColorSpaceFamilyNames;
+		std::vector<std::string>	sDisplayNames;
+		std::vector<std::string>	sDisplayViewNames;
+		std::vector<std::string>	sLookNames;
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
+		OctaneOCIOInfo() : OctaneNodeBase(Octane::ENT_OCIO_INFO, "OCIOInfo", 0, 1) {
+			sPath = "";
+			bUseOtherConfig = false;
+			bAutomatic = false;
+			iIntermediateColorSpaceOctane = 0;
+			sIntermediateColorSpaceOCIO = "";
+			sRoleNames.clear();
+			sRoleColorSpaceNames.clear();
+			sColorSpaceNames.clear();
+			sColorSpaceFamilyNames.clear();
+			sDisplayNames.clear();
+			sDisplayViewNames.clear();
+			sLookNames.clear();
+		}
+		MSGPACK_DEFINE(sPath, bUseOtherConfig, bAutomatic, iIntermediateColorSpaceOctane, sIntermediateColorSpaceOCIO, sRoleNames, sRoleColorSpaceNames, sColorSpaceNames, sColorSpaceFamilyNames, sDisplayNames, sDisplayViewNames, sLookNames, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneAovOutputGroup : public OctaneNodeBase{
+		REFLECTABLE
+		(		
+		(OctaneDTOInt)		iPlaceHolder
+		)
+		std::vector<std::string>	sGroups;
+
+		OctaneAovOutputGroup() :
+			OctaneNodeBase(Octane::NT_OUTPUT_AOV_GROUP, "ShaderNodeOctAovOutputGroup")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(sGroups, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneAovOutputGroup
+
+	struct OctaneColorAovOutput : public OctaneNodeBase{
+		REFLECTABLE
+		(		
+		(OctaneDTOFloat3)		f3Color,
+		(OctaneDTOFloat)		fAlpha
+		)
+
+		OctaneColorAovOutput() :
+			f3Color("Color"),
+			fAlpha("Alpha"),
+			OctaneNodeBase(Octane::NT_OUTPUT_AOV_COLOR, "ShaderNodeOctColorAovOutput")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(f3Color, fAlpha, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneColorAovOutput
+
+	struct OctaneCompositeAovOutput : public OctaneNodeBase{
+		REFLECTABLE
+		(		
+		(OctaneDTOBool)		bEnableImager,
+		(OctaneDTOBool)		bEnablePostProcessing
+		)
+		std::vector<std::string>	sLayers;
+
+		OctaneCompositeAovOutput() :
+			bEnableImager("Enable imager"),
+			bEnablePostProcessing("Enable post processing"),
+			OctaneNodeBase(Octane::NT_OUTPUT_AOV_COMPOSITE, "ShaderNodeOctCompositeAovOutput")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(bEnableImager, bEnablePostProcessing, sLayers, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneCompositeAovOutput
+
+	struct OctaneCompositeAovOutputLayer : public OctaneNodeBase{
+		REFLECTABLE
+		(		
+		(OctaneDTOBool)		bEnable,
+		(OctaneDTOShader)	sInput,
+		(OctaneDTOShader)	sMask,
+		(OctaneDTOEnum)		iMaskChannel,
+		(OctaneDTOBool)		bInvert,
+		(OctaneDTOFloat)	fScale,
+		(OctaneDTOFloat3)	f3ColorMultiplier,
+		(OctaneDTOFloat)	fOpacity,
+		(OctaneDTOEnum)		iBlendMode,
+		(OctaneDTOEnum)		iAlphaOperation
+		)
+
+		OctaneCompositeAovOutputLayer() :
+			bEnable("Enable"),
+			sInput("Input"),
+			sMask("Mask"),
+			iMaskChannel("mask_channel", false),
+			bInvert("Invert"),
+			fScale("Scale"),
+			f3ColorMultiplier("Color multiplier"),
+			fOpacity("Opacity"),
+			iBlendMode("blend_mode", false),
+			iAlphaOperation("alpha_operation", false),
+			OctaneNodeBase(Octane::NT_COMPOSITE_AOV_LAYER, "ShaderNodeOctCompositeAovOutputLayer")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(bEnable, sInput, sMask, iMaskChannel, bInvert, fScale, f3ColorMultiplier, fOpacity, iBlendMode, iAlphaOperation, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneCompositeAovOutputLayer
+
+	struct OctaneImageAovOutput : public OctaneBaseImageNode {
+		REFLECTABLE
+		(		
+		(OctaneDTOEnum)		iColorSpace,
+		(OctaneDTOEnum)		iOutputChannels,
+		(OctaneDTOBool)		bPreMultiplyAlpha,
+		(OctaneDTOBool)		bEnableImager,
+		(OctaneDTOBool)		bEnablePostProcessing
+		)
+
+		OctaneImageAovOutput() :
+			iColorSpace("color_space", false),
+			iOutputChannels("output_channel", false),
+			bPreMultiplyAlpha("Pre multiply alpha"),
+			bEnableImager("Enable imager"),
+			bEnablePostProcessing("Enable post processing"),
+			OctaneBaseImageNode(Octane::NT_OUTPUT_AOV_IMAGE, "ShaderNodeOctImageAovOutput")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iColorSpace, iOutputChannels, bPreMultiplyAlpha, bEnableImager, bEnablePostProcessing, MSGPACK_BASE(OctaneBaseImageNode));
+	}; //struct OctaneImageAovOutput
+
+	struct OctaneRenderAovOutput : public OctaneNodeBase {
+		REFLECTABLE
+		(		
+		(OctaneDTOEnum)		iInput,
+		(OctaneDTOEnum)		iOutputChannels,
+		(OctaneDTOBool)		bEnableImager,
+		(OctaneDTOBool)		bEnablePostProcessing
+		)
+
+		OctaneRenderAovOutput() :
+			iInput("input", false),
+			iOutputChannels("output_channel", false),
+			bEnableImager("Enable imager"),
+			bEnablePostProcessing("Enable post processing"),
+			OctaneNodeBase(Octane::NT_OUTPUT_AOV_RENDER, "ShaderNodeOctRenderAovOutput")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iInput, iOutputChannels, bEnableImager, bEnablePostProcessing, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneRenderAovOutput
 }
 
 #endif

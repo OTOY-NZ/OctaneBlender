@@ -33,6 +33,7 @@ Shader::Shader()
   has_volume = false;
 
   need_update = true;
+  need_update_paint = false;
   need_update_mesh = false;
   need_sync_object = false;
   has_object_dependency = false;
@@ -58,6 +59,7 @@ void Shader::set_graph(ShaderGraph *graph_)
   if (graph)
     delete graph;
   graph = graph_;
+  has_object_dependency |= graph->has_object_dependency;
 }  // set_graph()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -166,6 +168,13 @@ void ShaderManager::add_default(Scene *scene)
   environment_shader->graph = environment_graph;
   scene->shaders.push_back(environment_shader);
   scene->default_environment = environment_shader;
+
+  ShaderGraph *composite_graph = new ShaderGraph();
+  Shader *composite_shader = new Shader();
+  composite_shader->name = "Composite";
+  composite_shader->graph = composite_graph;
+  scene->shaders.push_back(composite_shader);
+  scene->default_composite = composite_shader;
 }  // add_default()
 
 OCT_NAMESPACE_END

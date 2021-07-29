@@ -242,6 +242,12 @@ struct Camera {
   std::string sCustomLut;
   float fLutStrength;
 
+  // Ocio
+  std::string sOcioViewDisplay;
+  std::string sOcioViewDisplayView;
+  std::string sOcioLook;
+  bool bForceToneMapping;
+
   // Denoiser
   bool bEnableDenoiser;
   bool bDenoiseVolumes;
@@ -318,7 +324,11 @@ struct Camera {
         iMaxTonemapInterval != otherCam.iMaxTonemapInterval ||
         bNeutralResponse != otherCam.bNeutralResponse ||
         bDisablePartialAlpha != otherCam.bDisablePartialAlpha || bSwapEyes != otherCam.bSwapEyes ||
-        sCustomLut != otherCam.sCustomLut || fLutStrength != otherCam.fLutStrength
+        sCustomLut != otherCam.sCustomLut || fLutStrength != otherCam.fLutStrength ||
+        sOcioLook != otherCam.sOcioLook ||
+        sOcioViewDisplay != otherCam.sOcioViewDisplay ||
+        sOcioViewDisplayView != otherCam.sOcioViewDisplayView ||
+        bForceToneMapping != otherCam.bForceToneMapping
 
         || bEnableDenoiser != otherCam.bEnableDenoiser ||
         bDenoiseVolumes != otherCam.bDenoiseVolumes ||
@@ -449,7 +459,11 @@ struct Camera {
         iMaxTonemapInterval == otherCam.iMaxTonemapInterval &&
         bNeutralResponse == otherCam.bNeutralResponse &&
         bDisablePartialAlpha == otherCam.bDisablePartialAlpha && bSwapEyes == otherCam.bSwapEyes &&
-        sCustomLut == otherCam.sCustomLut && fLutStrength == otherCam.fLutStrength
+        sCustomLut == otherCam.sCustomLut && fLutStrength == otherCam.fLutStrength &&
+        sOcioLook == otherCam.sOcioLook &&
+        sOcioViewDisplay == otherCam.sOcioViewDisplay &&
+        sOcioViewDisplayView == otherCam.sOcioViewDisplayView &&
+        bForceToneMapping == otherCam.bForceToneMapping
 
         && bEnableDenoiser == otherCam.bEnableDenoiser &&
         bDenoiseVolumes == otherCam.bDenoiseVolumes &&
@@ -685,6 +699,15 @@ struct Camera {
       sCustomLut = otherCam.sCustomLut;
     if (fLutStrength != otherCam.fLutStrength)
       fLutStrength = otherCam.fLutStrength;
+
+    if (sOcioLook != otherCam.sOcioLook)
+      sOcioLook = otherCam.sOcioLook;
+    if (sOcioViewDisplay != otherCam.sOcioViewDisplay)
+      sOcioViewDisplay = otherCam.sOcioViewDisplay;
+    if (sOcioViewDisplayView != otherCam.sOcioViewDisplayView)
+      sOcioViewDisplayView = otherCam.sOcioViewDisplayView;
+    if (bForceToneMapping != otherCam.bForceToneMapping)
+      bForceToneMapping = otherCam.bForceToneMapping;
 
     if (bEnableDenoiser != otherCam.bEnableDenoiser)
       bEnableDenoiser = otherCam.bEnableDenoiser;
@@ -1369,6 +1392,7 @@ struct Kernel {
   bool bAlphaShadows;
   bool bKeepEnvironment;
   bool bIrradianceMode;
+  bool bNestDielectrics;
   bool bEmulateOldVolumeBehavior;
 
   // AI Light: PATH_TRACE + PMC + DIRECT_LIGHT
@@ -1461,6 +1485,7 @@ struct Kernel {
         && bAlphaShadows == otherKernel.bAlphaShadows &&
         bKeepEnvironment == otherKernel.bKeepEnvironment &&
         bIrradianceMode == otherKernel.bIrradianceMode &&
+        bNestDielectrics == otherKernel.bNestDielectrics &&
         bEmulateOldVolumeBehavior == otherKernel.bEmulateOldVolumeBehavior
 
         && bAILightEnable == otherKernel.bAILightEnable &&
@@ -1547,6 +1572,8 @@ struct Kernel {
       bKeepEnvironment = otherKernel.bKeepEnvironment;
     if (bIrradianceMode != otherKernel.bIrradianceMode)
       bIrradianceMode = otherKernel.bIrradianceMode;
+    if (bNestDielectrics != otherKernel.bNestDielectrics)
+      bNestDielectrics = otherKernel.bNestDielectrics;
     if (bEmulateOldVolumeBehavior != otherKernel.bEmulateOldVolumeBehavior)
       bEmulateOldVolumeBehavior = otherKernel.bEmulateOldVolumeBehavior;
 

@@ -27,12 +27,16 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_collection_types.h"
+#include "DNA_constraint_types.h"
+#include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_shader_fx_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
@@ -40,21 +44,26 @@
 
 #include "BKE_armature.h"
 #include "BKE_collection.h"
+#include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_gpencil.h"
+#include "BKE_gpencil_modifier.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
+#include "BKE_particle.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_sequencer.h"
+#include "BKE_shader_fx.h"
 #include "BKE_workspace.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
 #include "ED_armature.h"
+#include "ED_buttons.h"
 #include "ED_gpencil.h"
 #include "ED_object.h"
 #include "ED_outliner.h"
@@ -62,6 +71,9 @@
 #include "ED_select_utils.h"
 #include "ED_sequencer.h"
 #include "ED_undo.h"
+
+#include "SEQ_select.h"
+#include "SEQ_sequencer.h"
 
 #include "WM_api.h"
 #include "WM_toolsystem.h"
@@ -386,13 +398,9 @@ static eOLDrawState tree_element_set_active_object(bContext *C,
     }
 
     if (set != OL_SETSEL_NONE) {
-      ED_object_base_activate(C, base); /* adds notifier */
+      ED_object_base_activate_with_mode_exit_if_needed(C, base); /* adds notifier */
       DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-    }
-
-    if (ob != OBEDIT_FROM_VIEW_LAYER(view_layer)) {
-      ED_object_editmode_exit(C, EM_FREEDATA);
     }
   }
   return OL_DRAWSEL_NORMAL;
@@ -801,14 +809,25 @@ static eOLDrawState tree_element_active_psys(bContext *C,
 }
 
 static int tree_element_active_constraint(bContext *C,
-                                          Scene *UNUSED(scene),
-                                          ViewLayer *UNUSED(sl),
-                                          TreeElement *UNUSED(te),
+                                          Scene *scene,
+                                          ViewLayer *view_layer,
+                                          TreeElement *te,
                                           TreeStoreElem *tselem,
                                           const eOLSetState set)
 {
   if (set != OL_SETSEL_NONE) {
     Object *ob = (Object *)tselem->id;
+
+    /* Activate the parent bone if this is a bone constraint. */
+    te = te->parent;
+    while (te) {
+      tselem = TREESTORE(te);
+      if (tselem->type == TSE_POSE_CHANNEL) {
+        tree_element_active_posechannel(C, scene, view_layer, ob, te, tselem, set, false);
+        return OL_DRAWSEL_NONE;
+      }
+      te = te->parent;
+    }
 
     WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
   }
@@ -848,13 +867,13 @@ static eOLDrawState tree_element_active_sequence(bContext *C,
                                                  const eOLSetState set)
 {
   Sequence *seq = (Sequence *)te->directdata;
-  Editing *ed = BKE_sequencer_editing_get(scene, false);
+  Editing *ed = SEQ_editing_get(scene, false);
 
   if (set != OL_SETSEL_NONE) {
     /* only check on setting */
     if (BLI_findindex(ed->seqbasep, seq) != -1) {
       if (set == OL_SETSEL_EXTEND) {
-        BKE_sequencer_active_set(scene, NULL);
+        SEQ_select_active_set(scene, NULL);
       }
       ED_sequencer_deselect_all(scene);
 
@@ -863,7 +882,7 @@ static eOLDrawState tree_element_active_sequence(bContext *C,
       }
       else {
         seq->flag |= SELECT;
-        BKE_sequencer_active_set(scene, seq);
+        SEQ_select_active_set(scene, seq);
       }
     }
 
@@ -883,7 +902,7 @@ static eOLDrawState tree_element_active_sequence_dup(Scene *scene,
                                                      const eOLSetState set)
 {
   Sequence *seq, *p;
-  Editing *ed = BKE_sequencer_editing_get(scene, false);
+  Editing *ed = SEQ_editing_get(scene, false);
 
   seq = (Sequence *)te->directdata;
   if (set == OL_SETSEL_NONE) {
@@ -1041,6 +1060,7 @@ eOLDrawState tree_element_type_active(bContext *C,
     case TSE_POSE_CHANNEL:
       return tree_element_active_posechannel(
           C, tvc->scene, tvc->view_layer, tvc->ob_pose, te, tselem, set, recursive);
+    case TSE_CONSTRAINT_BASE:
     case TSE_CONSTRAINT:
       return tree_element_active_constraint(C, tvc->scene, tvc->view_layer, te, tselem, set);
     case TSE_R_LAYER:
@@ -1081,6 +1101,208 @@ bPoseChannel *outliner_find_parent_bone(TreeElement *te, TreeElement **r_bone_te
   return NULL;
 }
 
+static void outliner_sync_to_properties_editors(const bContext *C,
+                                                PointerRNA *ptr,
+                                                const int context)
+{
+  bScreen *screen = CTX_wm_screen(C);
+
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (area->spacetype != SPACE_PROPERTIES) {
+      continue;
+    }
+
+    SpaceProperties *sbuts = (SpaceProperties *)area->spacedata.first;
+    if (ED_buttons_should_sync_with_outliner(C, sbuts, area)) {
+      ED_buttons_set_context(C, sbuts, ptr, context);
+    }
+  }
+}
+
+static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreElem *tselem)
+{
+  PointerRNA ptr = {0};
+  int context = 0;
+
+  /* ID Types */
+  if (tselem->type == 0) {
+    RNA_id_pointer_create(tselem->id, &ptr);
+
+    switch (te->idcode) {
+      case ID_SCE:
+        context = BCONTEXT_SCENE;
+        break;
+      case ID_OB:
+        context = BCONTEXT_OBJECT;
+        break;
+      case ID_ME:
+      case ID_CU:
+      case ID_MB:
+      case ID_IM:
+      case ID_LT:
+      case ID_LA:
+      case ID_CA:
+      case ID_KE:
+      case ID_SPK:
+      case ID_AR:
+      case ID_GD:
+      case ID_LP:
+      case ID_HA:
+      case ID_PT:
+      case ID_VO:
+        context = BCONTEXT_DATA;
+        break;
+      case ID_MA:
+        context = BCONTEXT_MATERIAL;
+        break;
+      case ID_WO:
+        context = BCONTEXT_WORLD;
+        break;
+    }
+  }
+  else {
+    switch (tselem->type) {
+      case TSE_DEFGROUP_BASE:
+      case TSE_DEFGROUP:
+        RNA_id_pointer_create(tselem->id, &ptr);
+        context = BCONTEXT_DATA;
+        break;
+      case TSE_CONSTRAINT_BASE:
+      case TSE_CONSTRAINT: {
+        TreeElement *bone_te = NULL;
+        bPoseChannel *pchan = outliner_find_parent_bone(te, &bone_te);
+
+        if (pchan) {
+          RNA_pointer_create(TREESTORE(bone_te)->id, &RNA_PoseBone, pchan, &ptr);
+          context = BCONTEXT_BONE_CONSTRAINT;
+        }
+        else {
+          RNA_id_pointer_create(tselem->id, &ptr);
+          context = BCONTEXT_CONSTRAINT;
+        }
+
+        /* Expand the selected constraint in the properties editor. */
+        if (tselem->type != TSE_CONSTRAINT_BASE) {
+          BKE_constraint_panel_expand(te->directdata);
+        }
+        break;
+      }
+      case TSE_MODIFIER_BASE:
+      case TSE_MODIFIER:
+        RNA_id_pointer_create(tselem->id, &ptr);
+        context = BCONTEXT_MODIFIER;
+
+        if (tselem->type != TSE_MODIFIER_BASE) {
+          Object *ob = (Object *)tselem->id;
+
+          if (ob->type == OB_GPENCIL) {
+            BKE_gpencil_modifier_panel_expand(te->directdata);
+          }
+          else {
+            ModifierData *md = (ModifierData *)te->directdata;
+            BKE_object_modifier_set_active(ob, md);
+
+            switch ((ModifierType)md->type) {
+              case eModifierType_ParticleSystem:
+                context = BCONTEXT_PARTICLE;
+                break;
+              case eModifierType_Cloth:
+              case eModifierType_Softbody:
+              case eModifierType_Collision:
+              case eModifierType_Fluidsim:
+              case eModifierType_DynamicPaint:
+              case eModifierType_Fluid:
+                context = BCONTEXT_PHYSICS;
+                break;
+              default:
+                break;
+            }
+
+            if (context == BCONTEXT_MODIFIER) {
+              BKE_modifier_panel_expand(md);
+            }
+          }
+        }
+        break;
+      case TSE_GPENCIL_EFFECT_BASE:
+      case TSE_GPENCIL_EFFECT:
+        RNA_id_pointer_create(tselem->id, &ptr);
+        context = BCONTEXT_SHADERFX;
+
+        if (tselem->type != TSE_GPENCIL_EFFECT_BASE) {
+          BKE_shaderfx_panel_expand(te->directdata);
+        }
+        break;
+      case TSE_BONE: {
+        bArmature *arm = (bArmature *)tselem->id;
+        Bone *bone = te->directdata;
+
+        RNA_pointer_create(&arm->id, &RNA_Bone, bone, &ptr);
+        context = BCONTEXT_BONE;
+        break;
+      }
+      case TSE_EBONE: {
+        bArmature *arm = (bArmature *)tselem->id;
+        EditBone *ebone = te->directdata;
+
+        RNA_pointer_create(&arm->id, &RNA_EditBone, ebone, &ptr);
+        context = BCONTEXT_BONE;
+        break;
+      }
+      case TSE_POSE_CHANNEL: {
+        Object *ob = (Object *)tselem->id;
+        bArmature *arm = ob->data;
+        bPoseChannel *pchan = te->directdata;
+
+        RNA_pointer_create(&arm->id, &RNA_PoseBone, pchan, &ptr);
+        context = BCONTEXT_BONE;
+        break;
+      }
+      case TSE_POSE_BASE: {
+        Object *ob = (Object *)tselem->id;
+        bArmature *arm = ob->data;
+
+        RNA_pointer_create(&arm->id, &RNA_Armature, arm, &ptr);
+        context = BCONTEXT_DATA;
+        break;
+      }
+      case TSE_R_LAYER_BASE:
+      case TSE_R_LAYER: {
+        ViewLayer *view_layer = te->directdata;
+
+        RNA_pointer_create(tselem->id, &RNA_ViewLayer, view_layer, &ptr);
+        context = BCONTEXT_VIEW_LAYER;
+        break;
+      }
+      case TSE_POSEGRP_BASE:
+      case TSE_POSEGRP: {
+        Object *ob = (Object *)tselem->id;
+        bArmature *arm = ob->data;
+
+        RNA_pointer_create(&arm->id, &RNA_Armature, arm, &ptr);
+        context = BCONTEXT_DATA;
+        break;
+      }
+      case TSE_LINKED_PSYS: {
+        Object *ob = (Object *)tselem->id;
+        ParticleSystem *psys = psys_get_current(ob);
+
+        RNA_pointer_create(&ob->id, &RNA_ParticleSystem, psys, &ptr);
+        context = BCONTEXT_PARTICLE;
+        break;
+      }
+      case TSE_GP_LAYER:
+        RNA_id_pointer_create(tselem->id, &ptr);
+        context = BCONTEXT_DATA;
+        break;
+    }
+  }
+
+  if (ptr.data) {
+    outliner_sync_to_properties_editors(C, &ptr, context);
+  }
+}
+
 /* ================================================ */
 
 /**
@@ -1105,14 +1327,8 @@ static void do_outliner_item_activate_tree_element(bContext *C,
            TSE_SEQUENCE_DUP,
            TSE_EBONE,
            TSE_LAYER_COLLECTION)) {
-    /* Note about TSE_EBONE: In case of a same ID_AR datablock shared among several objects,
-     * we do not want to switch out of edit mode (see T48328 for details). */
-  }
-  else if (tselem->id && OB_DATA_SUPPORT_EDITMODE(te->idcode)) {
-    /* Support edit-mode toggle, keeping the active object as is. */
-  }
-  else if (tselem->type == TSE_POSE_BASE) {
-    /* Support pose mode toggle, keeping the active object as is. */
+    /* Note about TSE_EBONE: In case of a same ID_AR datablock shared among several
+     * objects, we do not want to switch out of edit mode (see T48328 for details). */
   }
   else if (do_activate_data) {
     tree_element_set_active_object(C,
@@ -1242,7 +1458,7 @@ static bool do_outliner_range_select_recursive(ListBase *lb,
     }
 
     /* Set state for selection */
-    if (te == active || te == cursor) {
+    if (ELEM(te, active, cursor)) {
       selecting = !selecting;
     }
 
@@ -1363,8 +1579,9 @@ static int outliner_item_do_activate_from_cursor(bContext *C,
   else {
     /* The row may also contain children, if one is hovered we want this instead of current te. */
     bool merged_elements = false;
+    bool is_over_icon = false;
     TreeElement *activate_te = outliner_find_item_at_x_in_row(
-        space_outliner, te, view_mval[0], &merged_elements);
+        space_outliner, te, view_mval[0], &merged_elements, &is_over_icon);
 
     /* If the selected icon was an aggregate of multiple elements, run the search popup */
     if (merged_elements) {
@@ -1389,6 +1606,11 @@ static int outliner_item_do_activate_from_cursor(bContext *C,
                                 (extend ? OL_ITEM_EXTEND : 0);
 
       outliner_item_select(C, space_outliner, activate_te, select_flag);
+
+      /* Only switch properties editor tabs when icons are selected. */
+      if (is_over_icon) {
+        outliner_set_properties_tab(C, activate_te, activate_tselem);
+      }
     }
 
     changed = true;

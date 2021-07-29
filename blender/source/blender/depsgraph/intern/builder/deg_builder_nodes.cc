@@ -25,8 +25,8 @@
 
 #include "intern/builder/deg_builder_nodes.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "MEM_guardedalloc.h"
 
@@ -83,6 +83,7 @@
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_layer.h"
+#include "BKE_lib_id.h"
 #include "BKE_light.h"
 #include "BKE_mask.h"
 #include "BKE_material.h"
@@ -96,7 +97,6 @@
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.h"
-#include "BKE_sequencer.h"
 #include "BKE_shader_fx.h"
 #include "BKE_simulation.h"
 #include "BKE_sound.h"
@@ -110,6 +110,8 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
+#include "SEQ_iterator.h"
+
 #include "intern/builder/deg_builder.h"
 #include "intern/depsgraph.h"
 #include "intern/depsgraph_type.h"
@@ -119,8 +121,7 @@
 #include "intern/node/deg_node_id.h"
 #include "intern/node/deg_node_operation.h"
 
-namespace blender {
-namespace deg {
+namespace blender::deg {
 
 /* ************ */
 /* Node Builder */
@@ -152,12 +153,15 @@ DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
 
 IDNode *DepsgraphNodeBuilder::add_id_node(ID *id)
 {
+  BLI_assert(id->session_uuid != MAIN_ID_SESSION_UUID_UNSET);
+
+  const ID_Type id_type = GS(id->name);
   IDNode *id_node = nullptr;
   ID *id_cow = nullptr;
   IDComponentsMask previously_visible_components_mask = 0;
   uint32_t previous_eval_flags = 0;
   DEGCustomDataMeshMasks previous_customdata_masks;
-  IDInfo *id_info = id_info_hash_.lookup_default(id, nullptr);
+  IDInfo *id_info = id_info_hash_.lookup_default(id->session_uuid, nullptr);
   if (id_info != nullptr) {
     id_cow = id_info->id_cow;
     previously_visible_components_mask = id_info->previously_visible_components_mask;
@@ -170,10 +174,8 @@ IDNode *DepsgraphNodeBuilder::add_id_node(ID *id)
   id_node->previously_visible_components_mask = previously_visible_components_mask;
   id_node->previous_eval_flags = previous_eval_flags;
   id_node->previous_customdata_masks = previous_customdata_masks;
-  /* Currently all ID nodes are supposed to have copy-on-write logic.
-   *
-   * NOTE: Zero number of components indicates that ID node was just created. */
-  if (id_node->components.is_empty()) {
+  /* NOTE: Zero number of components indicates that ID node was just created. */
+  if (id_node->components.is_empty() && deg_copy_on_write_is_needed(id_type)) {
     ComponentNode *comp_cow = id_node->add_component(NodeType::COPY_ON_WRITE);
     OperationNode *op_cow = comp_cow->add_operation(
         function_bind(deg_evaluate_copy_on_write, _1, id_node),
@@ -334,7 +336,8 @@ void DepsgraphNodeBuilder::begin_build()
     id_info->previously_visible_components_mask = id_node->visible_components_mask;
     id_info->previous_eval_flags = id_node->eval_flags;
     id_info->previous_customdata_masks = id_node->customdata_masks;
-    id_info_hash_.add_new(id_node->id_orig, id_info);
+    BLI_assert(!id_info_hash_.contains(id_node->id_orig_session_uuid));
+    id_info_hash_.add_new(id_node->id_orig_session_uuid, id_info);
     id_node->id_cow = nullptr;
   }
 
@@ -384,7 +387,9 @@ void DepsgraphNodeBuilder::build_id(ID *id)
   if (id == nullptr) {
     return;
   }
-  switch (GS(id->name)) {
+
+  const ID_Type id_type = GS(id->name);
+  switch (id_type) {
     case ID_AC:
       build_action((bAction *)id);
       break;
@@ -474,11 +479,37 @@ void DepsgraphNodeBuilder::build_id(ID *id)
     case ID_SIM:
       build_simulation((Simulation *)id);
       break;
-    default:
-      fprintf(stderr, "Unhandled ID %s\n", id->name);
-      BLI_assert(!"Should never happen");
+    case ID_PA:
+      build_particle_settings((ParticleSettings *)id);
+      break;
+    case ID_GD:
+      build_gpencil((bGPdata *)id);
+      break;
+
+    case ID_LI:
+    case ID_IP:
+    case ID_SCR:
+    case ID_VF:
+    case ID_BR:
+    case ID_WM:
+    case ID_PAL:
+    case ID_PC:
+    case ID_WS:
+      BLI_assert(!deg_copy_on_write_is_needed(id_type));
+      build_generic_id(id);
       break;
   }
+}
+
+void DepsgraphNodeBuilder::build_generic_id(ID *id)
+{
+  if (built_map_.checkIsBuiltAndTag(id)) {
+    return;
+  }
+
+  build_idproperties(id->properties);
+  build_animdata(id);
+  build_parameters(id);
 }
 
 static void build_idproperties_callback(IDProperty *id_property, void *user_data)
@@ -645,6 +676,11 @@ void DepsgraphNodeBuilder::build_object(int base_index,
   /* Particle systems. */
   if (object->particlesystem.first != nullptr) {
     build_particle_systems(object, is_visible);
+  }
+  /* Force field Texture. */
+  if ((object->pd != nullptr) && (object->pd->forcefield == PFIELD_TEXTURE) &&
+      (object->pd->tex != nullptr)) {
+    build_texture(object->pd->tex);
   }
   /* Proxy object to copy from. */
   build_object_proxy_from(object, is_visible);
@@ -1199,7 +1235,7 @@ void DepsgraphNodeBuilder::build_particle_systems(Object *object, bool is_object
     /* Keyed particle targets. */
     if (ELEM(part->phystype, PART_PHYS_KEYED, PART_PHYS_BOIDS)) {
       LISTBASE_FOREACH (ParticleTarget *, particle_target, &psys->targets) {
-        if (particle_target->ob == nullptr || particle_target->ob == object) {
+        if (ELEM(particle_target->ob, nullptr, object)) {
           continue;
         }
         build_object(-1, particle_target->ob, DEG_ID_LINKED_INDIRECTLY, is_object_visible);
@@ -1247,8 +1283,7 @@ void DepsgraphNodeBuilder::build_particle_settings(ParticleSettings *particle_se
       &particle_settings->id, NodeType::PARTICLE_SETTINGS, OperationCode::PARTICLE_SETTINGS_EVAL);
   op_node->set_as_exit();
   /* Texture slots. */
-  for (int mtex_index = 0; mtex_index < MAX_MTEX; mtex_index++) {
-    MTex *mtex = particle_settings->mtex[mtex_index];
+  for (MTex *mtex : particle_settings->mtex) {
     if (mtex == nullptr || mtex->tex == nullptr) {
       continue;
     }
@@ -1483,6 +1518,9 @@ void DepsgraphNodeBuilder::build_nodetree_socket(bNodeSocket *socket)
   }
   else if (socket->type == SOCK_IMAGE) {
     build_id((ID *)((bNodeSocketValueImage *)socket->default_value)->value);
+  }
+  else if (socket->type == SOCK_COLLECTION) {
+    build_id((ID *)((bNodeSocketValueCollection *)socket->default_value)->value);
   }
 }
 
@@ -1929,5 +1967,4 @@ void DepsgraphNodeBuilder::constraint_walk(bConstraint * /*con*/,
   }
 }
 
-}  // namespace deg
-}  // namespace blender
+}  // namespace blender::deg

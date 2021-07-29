@@ -54,11 +54,16 @@ void main()
   bool handle_selected = (showCurveHandles &&
                           (((vertFlag[1] | vertFlag[0]) & VERT_SELECTED_BEZT_HANDLE) != 0));
 
+  bool is_gpencil = ((vertFlag[1] & VERT_GPENCIL_BEZT_HANDLE) != 0);
+
   /* If handle type is only selected and the edge is not selected, don't show. */
   if ((curveHandleDisplay != CURVE_HANDLE_ALL) && (!handle_selected)) {
     /* Nurbs must show the handles always. */
     bool is_u_segment = (((vertFlag[1] ^ vertFlag[0]) & EVEN_U_BIT) != 0);
     if ((!is_u_segment) && (color_id <= 4)) {
+      return;
+    }
+    if (is_gpencil) {
       return;
     }
   }

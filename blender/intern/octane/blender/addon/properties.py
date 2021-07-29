@@ -35,6 +35,9 @@ from bpy.props import (
 from math import pi
 import nodeitems_utils
 from . import nodeitems_octane
+from .utils import consts
+
+from operator import add
 
 universal_camera_modes = (
     ('Thin lens', "Thin lens", '', 1),
@@ -364,6 +367,8 @@ octane_render_pass_types = (
     ('2007', "Cryptomatte ObjectPinName", "Cryptomatte channels for object layer pin names", 2007), 
     
     ('2005', "Cryptomatte InstanceID", "Cryptomatte channels for instance IDs", 2005),    
+
+    ('10000', "AOV Output", "AOV Outputs", 10000),   
     )
 
 
@@ -398,7 +403,7 @@ object_mesh_types = (
     ('Scatter', "Scatter", "", 1),
     ('Movable proxy', "Movable proxy", "", 2),
     ('Reshapable proxy', "Reshapable proxy", "", 3),
-    ('Auto', "Auto(Experimental)", "", 4),
+    ('Auto', "Scatter/Movable", "", 4),
 )
 
 meshes_render_types = (
@@ -676,6 +681,10 @@ orbx_preview_types = (
     ('External Alembic', 'External Alembic', "The previwe data will be shown as imported Alembic. The preview is exactly the same as the render results with animation support", 1), 
 )
 
+intermediate_color_space_types = (
+    ('Linear sRGB', 'Linear sRGB', "Linear sRGB", 2),
+    ('ACES2065-1', 'ACES2065-1', "ACES2065-1", 3), 
+)
 
 def get_int_response_type(cls):
     return int(cls.response_type)
@@ -916,6 +925,9 @@ class OctaneBakingLayerTransformCollection(bpy.types.PropertyGroup):
 def OctaneSpecificNodeCollection_update_function(self, context):
     self.update_nodes(context)
 
+def OctaneSpecificNodeCollection_sync_function(self, context):
+    self.sync_geo_node_info(context)
+
 class OctaneGeoNode(bpy.types.PropertyGroup):    
     name: StringProperty(name="Octane Geo Node Name")  
 
@@ -932,10 +944,19 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
 
     osl_geo_node: StringProperty(
             name="Octane Geo Node",
-            description="Octane Geo Node(Vectron or Geometric primitives)",
+            description="Octane Geo Node(Vectron or Scatter Tools)",
             default="",
+            update=OctaneSpecificNodeCollection_sync_function,
             maxlen=512,
             ) 
+
+    def sync_geo_node_info(self, context):
+        for obj in bpy.data.objects:
+            if obj.type == "MESH":
+                if hasattr(obj, "octane") and hasattr(obj.data, "octane"):
+                    if len(obj.data.octane.octane_geo_node_collections.node_graph_tree) or len(obj.data.octane.octane_geo_node_collections.osl_geo_node):
+                        obj.octane.node_graph_tree = obj.data.octane.octane_geo_node_collections.node_graph_tree
+                        obj.octane.osl_geo_node = obj.data.octane.octane_geo_node_collections.osl_geo_node
 
     def update_nodes(self, context):  
         print('Update OSL GEO Nodes') 
@@ -948,9 +969,10 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
                 if mat.name != self.node_graph_tree:
                     continue
                 for node in mat.node_tree.nodes.values():
-                    if node.bl_idname in ('ShaderNodeOctVectron'):                        
+                    if node.bl_idname in ('ShaderNodeOctVectron', 'ShaderNodeOctScatterToolSurface', 'ShaderNodeOctScatterToolVolume'):                        
                         self.osl_geo_nodes.add()
                         self.osl_geo_nodes[-1].name = node.name
+        self.sync_geo_node_info(context)
 
 
 class OctaneVDBGridID(bpy.types.PropertyGroup):    
@@ -995,9 +1017,120 @@ class OctaneVDBInfo(bpy.types.PropertyGroup):
                 set_container(self.vdb_float_grid_id_container, vdb_float_grid_ids)
                 set_container(self.vdb_vector_grid_id_container, vdb_vector_grid_ids)               
 
+raw_ocio_info = {}
+ocio_config_map = {}
+ocio_view_map = {}
+is_ocio_updating = False
+
+class OctaneOCIOConfigName(bpy.types.PropertyGroup):    
+    name: StringProperty(name="Octane OCIO Config Name")  
+
+def OctaneOCIOManagement_update_ocio_intermediate_color_space_ocio(self=None, context=None):
+    global ocio_config_map
+    try:
+        preferences = bpy.context.preferences.addons[__package__].preferences
+        preferences.octane_format_ocio_intermediate_color_space_ocio = ocio_config_map.get(preferences.ocio_intermediate_color_space_ocio, '')
+    except:
+        pass
+    OctaneOCIOManagement_update_ocio_info()
+
+def OctaneOCIOManagement_update_ocio_view(self, context):
+    global ocio_view_map
+    self.ocio_view_display_name = ocio_view_map.get(self.ocio_view, ['', ''])[0]
+    self.ocio_view_display_view_name = ocio_view_map.get(self.ocio_view, ['', ''])[1]
+
+def OctaneOCIOManagement_update_octane_export_ocio_params(self, context):
+    global ocio_config_map
+    self.octane_export_ocio_color_space_name = ocio_config_map.get(self.gui_octane_export_ocio_color_space_name, '')
+    self.octane_export_ocio_look = self.gui_octane_export_ocio_look
+    
+def OctaneOCIOManagement_update_ocio_info(self=None, context=None):
+    global is_ocio_updating
+    global raw_ocio_info
+    global ocio_config_map
+    global ocio_view_map
+    import _octane    
+    def set_container(container, items):
+        for i in range(0, len(container)):
+            container.remove(0)
+        for item in items:
+            container.add()
+            container[-1].name = item      
+    concat_func = lambda x, y : x + ((" (" + y + ")") if len(y) else "")
+    role_name_concat_func = lambda x, y : "[Role]" + x + ((" (" + y + ")") if len(y) else "")
+    color_space_name_concat_func = lambda x, y : "[ColorSpace]" + x + ((" (" + y + ")") if len(y) else "")
+    ocio_view_concat_func = lambda x, y : ((x + ": ") if len(x) else "") + y     
+    if is_ocio_updating:
+        return
+    is_ocio_updating = True            
+    preferences = bpy.context.preferences.addons[__package__].preferences
+    ocio_intermediate_color_space_octane = preferences.rna_type.properties['ocio_intermediate_color_space_octane'].enum_items[preferences.ocio_intermediate_color_space_octane].value        
+    print("Octane Ocio Management Update Start")
+    ocio_use_automatic = preferences.ocio_use_automatic
+    results = _octane.update_ocio_info(preferences.ocio_config_file_path, preferences.ocio_use_other_config_file, ocio_use_automatic, ocio_intermediate_color_space_octane, preferences.octane_format_ocio_intermediate_color_space_ocio) 
+    if results is False or len(results) == 0:
+        results = [[], [], [], [], [], [], [], [2, '']]
+    raw_ocio_info = results
+    intermediate_default_names = [' None(OCIO disabled) ', ]
+    intermediate_default_name_map = {' None(OCIO disabled) ': ''}
+    export_png_default_names = [' sRGB(default) ', ]
+    export_png_default_name_map = {' sRGB(default) ': 'sRGB(default)'}      
+    export_exr_default_names = [' Linear sRGB(default) ', ' ACES2065-1 ', ' ACEScg ']  
+    export_exr_default_name_map = {' Linear sRGB(default) ': 'Linear sRGB(default)', ' ACES2065-1 ': 'ACES2065-1', ' ACEScg ': 'ACEScg'}
+    role_names = list(raw_ocio_info[0])
+    role_color_space_names = list(raw_ocio_info[1])
+    ui_role_names = list(map(role_name_concat_func, role_names, role_color_space_names))
+    role_name_map = dict(zip(ui_role_names, role_names))
+    color_space_names = list(raw_ocio_info[2])
+    color_space_family_names = list(raw_ocio_info[3])
+    ui_color_space_names = list(map(color_space_name_concat_func, color_space_names, color_space_family_names))
+    color_space_name_map = dict(zip(ui_color_space_names, color_space_names))
+    ocio_config_map = {}
+    ocio_config_map.update(intermediate_default_name_map)
+    ocio_config_map.update(export_png_default_name_map)
+    ocio_config_map.update(export_exr_default_name_map)
+    ocio_config_map.update(role_name_map)
+    ocio_config_map.update(color_space_name_map)
+    if ocio_use_automatic:          
+        automatic_ocio_intermediate_color_space_octane = int(raw_ocio_info[7][0])
+        automatic_ocio_intermediate_color_space_ocio = "[ColorSpace]" + raw_ocio_info[7][1]           
+        for k, v in preferences.rna_type.properties['ocio_intermediate_color_space_octane'].enum_items.items():
+            if v.value == automatic_ocio_intermediate_color_space_octane:
+                preferences.ocio_intermediate_color_space_octane = k
+                break
+        preferences.ocio_intermediate_color_space_ocio = automatic_ocio_intermediate_color_space_ocio
+    set_container(preferences.ocio_intermediate_color_space_configs, intermediate_default_names + ui_role_names + ui_color_space_names)
+    if preferences.octane_format_ocio_intermediate_color_space_ocio == '' and not ocio_use_automatic:
+        set_container(preferences.ocio_export_png_color_space_configs, export_png_default_names)
+        set_container(preferences.ocio_export_exr_color_space_configs, export_exr_default_names)
+    else:
+        set_container(preferences.ocio_export_png_color_space_configs, export_png_default_names + ui_role_names + ui_color_space_names)
+        set_container(preferences.ocio_export_exr_color_space_configs, export_exr_default_names + ui_role_names + ui_color_space_names)
+    display_names = ['', ] + list(raw_ocio_info[4])
+    display_view_names = [' None(sRGB) ', ] + list(raw_ocio_info[5])
+    display_pair_names = list(map(lambda x, y : [x, y], display_names, display_view_names) )
+    ui_ocio_view_names = list(map(ocio_view_concat_func, display_names, display_view_names))   
+    display_name_map = dict(zip(ui_ocio_view_names, display_pair_names))
+    ocio_view_map = {}
+    ocio_view_map.update(display_name_map)
+    if preferences.octane_format_ocio_intermediate_color_space_ocio == '' and not ocio_use_automatic:
+        set_container(preferences.ocio_view_configs, [])
+    else:    
+        set_container(preferences.ocio_view_configs, ui_ocio_view_names)
+    default_export_ocio_look_names =  [' None ', ]
+    default_ocio_look_names =  [' None ', ' Use view look(s) ']
+    look_names = list(raw_ocio_info[6])
+    if preferences.octane_format_ocio_intermediate_color_space_ocio == '' and not ocio_use_automatic:
+        set_container(preferences.ocio_export_look_configs, default_export_ocio_look_names)
+        set_container(preferences.ocio_look_configs, default_ocio_look_names)
+    else:        
+        set_container(preferences.ocio_export_look_configs, default_export_ocio_look_names + look_names)
+        set_container(preferences.ocio_look_configs, default_ocio_look_names + look_names)  
+    is_ocio_updating = False      
+    print("Octane Ocio Management Update End")
+
 
 class OctaneOSLCameraNode(bpy.types.PropertyGroup):    
-
     name: StringProperty(
             name="Node Name"          
             )   
@@ -1044,6 +1177,55 @@ class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
                     if node.bl_idname in ('ShaderNodeOctOSLCamera', 'ShaderNodeOctOSLBakingCamera'):                        
                         cls.osl_camera_nodes.add()
                         cls.osl_camera_nodes[-1].name = node.name
+
+
+class OctaneAovOutputGroupNode(bpy.types.PropertyGroup):    
+    name: StringProperty(name="Node Name")   
+
+class OctaneAovOutputGroupCollection(bpy.types.PropertyGroup):    
+    composite_node_trees: CollectionProperty(type=OctaneAovOutputGroupNode)
+    aov_output_group_nodes: CollectionProperty(type=OctaneAovOutputGroupNode)
+
+    composite_node_tree: StringProperty(
+            name="Octane Composite Node Tree",
+            description="Octane composite node tree containing target Aov Output Group node",
+            default="",
+            update=lambda self, context: self.update_nodes(context),
+            maxlen=512,
+            )   
+
+    aov_output_group_node: StringProperty(
+            name="Aov Output Group Node",
+            description="Aov Output Group Node",
+            default="",
+            update=lambda self, context: self.update_nodes(context),
+            maxlen=512,
+            )   
+
+    @classmethod
+    def unregister(cls):
+        pass
+
+    def update_nodes(cls, context):   
+        for i in range(0, len(cls.composite_node_trees)):
+            cls.composite_node_trees.remove(0)
+        if bpy.data.node_groups:      
+            for node_tree in bpy.data.node_groups.values():
+                if getattr(node_tree, "bl_idname", "") == consts.NODE_TREE_IDNAME_COMPOSITE:
+                    cls.composite_node_trees.add()
+                    cls.composite_node_trees[-1].name = node_tree.name
+        for i in range(0, len(cls.aov_output_group_nodes)):
+            cls.aov_output_group_nodes.remove(0)  
+        if bpy.data.node_groups:      
+            for node_tree in bpy.data.node_groups.values():
+                if getattr(node_tree, "bl_idname", "") != consts.NODE_TREE_IDNAME_COMPOSITE:
+                    continue
+                if node_tree.name != cls.composite_node_tree:
+                    continue
+                for node in node_tree.nodes.values():
+                    if node.bl_idname == "ShaderNodeOctAovOutputGroup":                        
+                        cls.aov_output_group_nodes.add()
+                        cls.aov_output_group_nodes[-1].name = node.name
 
 
 class OctaneAIUpSamplertSettings(bpy.types.PropertyGroup):
@@ -1154,7 +1336,49 @@ class OctanePreferences(bpy.types.AddonPreferences):
             description="Octane render-server address",
             default="127.0.0.1",
             maxlen=255,
-            )                           
+            )     
+    ocio_use_other_config_file: BoolProperty(
+        name="Use other config file",
+        description="Use other config file instead of environment config file",
+        default=False,
+        update=OctaneOCIOManagement_update_ocio_info,
+    )  
+    ocio_use_automatic: BoolProperty(
+        name="Automatic(recommended)",
+        description="Let Octane guess the intermediate settings automatically",
+        default=True,
+        update=OctaneOCIOManagement_update_ocio_info,
+    )      
+    ocio_config_file_path: StringProperty(
+        name="OCIO Config File",
+        description="OCIO Config File",
+        default='',
+        subtype='FILE_PATH',
+        update=OctaneOCIOManagement_update_ocio_info,
+    )      
+    ocio_intermediate_color_space_octane: EnumProperty(
+        name="Manual(Octane)",
+        description="Choose intermediate color space to allow conversions with OCIO. This should correspond to the same color space as the 'OCIO' box",
+        items=intermediate_color_space_types,
+        default='Linear sRGB',
+        update=OctaneOCIOManagement_update_ocio_info,
+    )
+    ocio_intermediate_color_space_ocio: StringProperty(
+        name="Manual(OCIO)",
+        description="Choose intermediate color space to allow conversions with OCIO. This should correspond to the same color space as the 'Octane' box",        
+        default="",
+        update=OctaneOCIOManagement_update_ocio_intermediate_color_space_ocio,
+    )
+    octane_format_ocio_intermediate_color_space_ocio: StringProperty(
+        name="OCIO(Octane Format)",
+        default="",
+    )    
+    ocio_intermediate_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName)
+    ocio_export_png_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName)    
+    ocio_export_exr_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName) 
+    ocio_view_configs: CollectionProperty(type=OctaneOCIOConfigName)
+    ocio_look_configs: CollectionProperty(type=OctaneOCIOConfigName)
+    ocio_export_look_configs: CollectionProperty(type=OctaneOCIOConfigName)                                    
 
     def draw(self, context):
         layout = self.layout
@@ -1164,10 +1388,18 @@ class OctanePreferences(bpy.types.AddonPreferences):
         layout.row().prop(self, "octane_texture_cache_path", expand=False)   
         layout.row().prop(self, "default_material_id", expand=False)
         layout.row().prop(self, "default_texture_node_layout_id", expand=False)     
-        # layout.row().prop(self, "enable_empty_gpus_automatically", expand=False)
-        # layout.row().prop(self, "enable_generate_default_uvs", expand=False)
-        # layout.row().prop(self, "enable_node_graph_upload_opt", expand=False)        
-        # layout.row().prop(self, "enable_mesh_upload_optimization", expand=False)          
+        layout = self.layout
+        box = layout.box()
+        box.label(text="Octane Color Management")        
+        box.row().prop(self, "ocio_use_other_config_file")
+        box.row().prop(self, "ocio_config_file_path")
+        box.row().prop(self, "ocio_use_automatic")        
+        row = box.row()
+        row.active = not self.ocio_use_automatic
+        row.prop(self, "ocio_intermediate_color_space_octane")
+        row = box.row()
+        row.active = not self.ocio_use_automatic
+        row.prop_search(self, "ocio_intermediate_color_space_ocio", self, "ocio_intermediate_color_space_configs")           
         import _octane
         # _octane.update_default_mat_id(int(self.default_material_id))        
         # _octane.update_generate_default_uvs(int(self.enable_generate_default_uvs))        
@@ -1193,7 +1425,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Use Opt. Mesh Generation Mode in Preview",
         description="[PREVIEW MODE] Do not regenerate & upload meshes(except reshapble ones) which are already cached",
         default=False,
-    )          
+    )        
 # ################################################################################################
 # OCTANE RENDER PASSES
 # ################################################################################################
@@ -1510,19 +1742,19 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             name="Kernel type",
             description="",
             items=kernel_types,
-            default='1',
+            default='2',
             )
 
     max_samples: IntProperty(
             name="Max. samples",
             description="Number of samples to render for each pixel",
-            min=1, max=64000,
+            min=1, max=100000,
             default=500,
             )
     max_preview_samples: IntProperty(
             name="Max. preview samples",
             description="Number of samples to render for each pixel for preview",
-            min=1, max=64000,
+            min=1, max=100000,
             default=100,
             )
     max_subdivision_level: IntProperty(
@@ -1566,7 +1798,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             name="Irradiance mode",
             description="Render the first surface as a white diffuse material",
             default=False,
-            )  
+            )
+    nested_dielectrics: BoolProperty(
+            name="Nested dielectrics",
+            description="Enables nested dielectrics. If disabled, the surface IORs not tracked and surface priorities are ignored",
+            default=True,
+            )              
     ai_light_enable: BoolProperty(
             name="AI light",
             description="Enables AI light",
@@ -1765,7 +2002,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             name="GI clamp",
             description="GI clamp reducing fireflies",
             min=0.001, soft_min=0.001, max=1000000.0, soft_max=1000000.0,
-            default=1000000.0,
+            default=5.0,
             step=1,
             precision=3,
             )
@@ -1984,12 +2221,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     hdr_tonemap_preview_enable: BoolProperty(
             name="Enable HDR tonemapping in Interactive Mode",
             description="Tick to enable Octane HDR tonemapping in interactive preview mode",
-            default=False,
+            default=True,
             )
     hdr_tonemap_render_enable: BoolProperty(
             name="Enable HDR tonemapping in Render Mode",
             description="Tick to enable Octane HDR tonemapping in render mode",
-            default=False,
+            default=True,
             )        
     use_preview_setting_for_camera_imager: BoolProperty(
             name="Override",
@@ -2035,6 +2272,39 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             items=adaptive_group_pixels,
             default='2',
             )
+    gui_octane_export_ocio_color_space_name: StringProperty(
+            name="Color space",
+            description="Choose intermediate color space to allow conversions with OCIO. This should correspond to the same color space as the 'Octane' box",        
+            default="",
+            update=OctaneOCIOManagement_update_octane_export_ocio_params,
+            )  
+    gui_octane_export_ocio_look: StringProperty(
+            name="OCIO look",
+            description="OCIO look to apply",        
+            default="",
+            update=OctaneOCIOManagement_update_octane_export_ocio_params,
+            ) 
+    octane_export_ocio_color_space_name: StringProperty(
+            name="Color space",
+            description="Choose intermediate color space to allow conversions with OCIO. This should correspond to the same color space as the 'Octane' box",        
+            default="",
+            )  
+    octane_export_ocio_look: StringProperty(
+            name="OCIO look",
+            description="OCIO look to apply",        
+            default="",
+            )                                                 
+    octane_export_force_use_tone_map: BoolProperty(
+            name="Force use tone map",
+            description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
+            default=False,
+            )        
+
+    need_upgrade_octane_output_tag: BoolProperty(
+       name="Need to Upgrade Octane Output Tag",
+       description="",
+       default=True,
+    )  
 
     #LEGACY COMPATIBILITY
     hdr_tonemap_enable: BoolProperty(
@@ -2642,7 +2912,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
     premultiplied_alpha: BoolProperty(
             name="Premultiplied alpha",
             description="If enabled, we pre-multiply an alpha value",
-            default=False,
+            default=True,
             )
     min_display_samples: IntProperty(
             name="Min. display samples",
@@ -2687,6 +2957,30 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
             description="Make pixels that are partially transparent (alpha > 0) fully opaque",
             default=False,
             )
+    ocio_view: StringProperty(
+            name="OCIO view",
+            description="OCIO view to use when displaying in the render viewport",
+            default='',
+            update=OctaneOCIOManagement_update_ocio_view,
+            )
+    ocio_view_display_name: StringProperty(
+            name="OCIO view display name",
+            default='',
+            ) 
+    ocio_view_display_view_name: StringProperty(
+            name="OCIO view display view name",
+            default='',
+            )              
+    ocio_look: StringProperty(
+            name="OCIO look",
+            description="OCIO look to apply when displaying in the render viewport, if using an OCIO view",
+            default='',
+            )   
+    force_tone_mapping: BoolProperty(
+            name="Force tone mapping",
+            description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
+            default=False,
+            )                 
     custom_lut: StringProperty(
             name="Custom LUT",
             description="If set the custom LUT is applied in the order as specified in 'Order'",
@@ -2931,7 +3225,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
     premultiplied_alpha: BoolProperty(
             name="Premultiplied alpha",
             description="If enabled, we pre-multiply an alpha value",
-            default=False,
+            default=True,
             )
     min_display_samples: IntProperty(
             name="Min. display samples",
@@ -2976,6 +3270,38 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
             description="Make pixels that are partially transparent (alpha > 0) fully opaque",
             default=False,
             )
+    ocio_view: StringProperty(
+            name="OCIO view",
+            description="OCIO view to use when displaying in the render viewport",
+            default='',
+            update=OctaneOCIOManagement_update_ocio_view,
+            ) 
+    ocio_view_display_name: StringProperty(
+            name="OCIO view display name",
+            default='',
+            ) 
+    ocio_view_display_view_name: StringProperty(
+            name="OCIO view display view name",
+            default='',
+            )     
+    ocio_look: StringProperty(
+            name="OCIO look",
+            description="OCIO look to apply when displaying in the render viewport, if using an OCIO view",
+            default='',
+            )
+    octane_format_ocio_view: StringProperty(
+            name="OCIO view(Octane Format)",
+            default='',
+            ) 
+    octane_format_ocio_look: StringProperty(
+            name="OCIO look(Octane Format)",
+            default='',
+            )        
+    force_tone_mapping: BoolProperty(
+            name="Force tone mapping",
+            description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
+            default=False,
+            )    
     custom_lut: StringProperty(
             name="Custom LUT",
             description="If set the custom LUT is applied in the order as specified in 'Order'",
@@ -3097,7 +3423,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
             default=2.0,
             step=100,
             precision=3,
-            )                                                   
+            )                                                           
 
     @classmethod
     def register(cls):
@@ -3864,7 +4190,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             name="Octane VDB Info Container",
             description="",
             type=OctaneVDBInfo,        
-            )
+            )   
     is_octane_vdb: BoolProperty(
             name="Used as Octane VDB",
             description="Will use the imported OpenVDB file as source",
@@ -4624,6 +4950,17 @@ class OctaneRenderLayerSettings(bpy.types.PropertyGroup):
             items=octane_render_pass_types,
             default='0',
             )
+    current_aov_output_id: IntProperty(
+            name="Preivew AOV Output ID",
+            description="The ID of the AOV Outputs for preview(beauty pass output will be used if no valid results for the assigned index)",
+            min=1, max=16,
+            default=1,
+            )
+    aov_output_group_collection: PointerProperty(
+            name="Octane Aov Output Group Collection",
+            description="",
+            type=OctaneAovOutputGroupCollection,
+            )     
 
     @classmethod
     def register(cls):
@@ -4787,7 +5124,18 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         description="Used for rendering speed optimization, see the manual",
         items=object_mesh_types,
         default='Auto',
+    )   
+    node_graph_tree: StringProperty(
+        name="Node Graph",
+        default="",
+        maxlen=512,
     )    
+    osl_geo_node: StringProperty(
+        name="Octane Geo Node",
+        default="",
+        maxlen=512,
+    ) 
+
 
     @classmethod
     def register(cls):
@@ -4850,16 +5198,19 @@ class OctaneHairSettings(bpy.types.PropertyGroup):
 
 
 classes = (
+    OctaneOCIOConfigName,   
     OctanePreferences,    
     OctaneAIUpSamplertSettings,
     OctaneBakingLayerTransform,
     OctaneBakingLayerTransformCollection,
-	OctaneGeoNode,
-	OctaneGeoNodeCollection,
+    OctaneGeoNode,
+    OctaneGeoNodeCollection,
     OctaneVDBGridID,
     OctaneVDBInfo,
-	OctaneOSLCameraNode,
-	OctaneOSLCameraNodeCollection,
+    OctaneAovOutputGroupNode,
+    OctaneAovOutputGroupCollection,
+    OctaneOSLCameraNode,
+    OctaneOSLCameraNodeCollection,
     OctaneRenderSettings,
     OctaneCameraSettings,
     OctaneSpaceDataSettings,
@@ -4871,7 +5222,7 @@ classes = (
     OctaneMaterialSettings,
     OctaneRenderLayerSettings,
     OctaneObjectSettings,
-    OctaneVolumeSettings
+    OctaneVolumeSettings,
 )
 
 @persistent
@@ -4888,10 +5239,18 @@ def register():
     for cls in classes:
         register_class(cls) 
     shader_node_categories = nodeitems_octane.shader_node_categories_based_functions
-    nodeitems_utils.register_node_categories("OCT_SHADER", shader_node_categories)    
     texture_node_categories = nodeitems_octane.texture_node_categories_based_functions
+    try:
+        default_texture_node_layout_id = int(bpy.context.preferences.addons['octane'].preferences.default_texture_node_layout_id)  
+        if default_texture_node_layout_id == 1:
+            shader_node_categories = nodeitems_octane.shader_node_categories_based_octane
+            texture_node_categories = nodeitems_octane.texture_node_categories_based_octane
+    except:
+        pass     
+    nodeitems_utils.register_node_categories("OCT_SHADER", shader_node_categories)    
     nodeitems_utils.register_node_categories("OCT_TEXTURE", texture_node_categories)
     update_octane_data()
+    OctaneOCIOManagement_update_ocio_info()  
     bpy.app.handlers.load_post.append(load_handler)
 
 

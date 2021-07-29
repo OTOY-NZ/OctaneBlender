@@ -336,7 +336,7 @@ static void rna_def_dopesheet(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flag", ADS_FLAG_SHOW_DBFILTERS);
   RNA_def_property_ui_text(
       prop,
-      "Show Datablock Filters",
+      "Show Data-Block Filters",
       "Show options for whether channels related to certain types of data are included");
   RNA_def_property_ui_icon(prop, ICON_DISCLOSURE_TRI_RIGHT, 1);
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, NULL);
@@ -450,7 +450,7 @@ static void rna_def_dopesheet(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_shapekeys", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "filterflag", ADS_FILTER_NOSHAPEKEYS);
   RNA_def_property_ui_text(
-      prop, "Display Shapekeys", "Include visualization of shape key related animation data");
+      prop, "Display Shape Keys", "Include visualization of shape key related animation data");
   RNA_def_property_ui_icon(prop, ICON_SHAPEKEY_DATA, 0);
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 

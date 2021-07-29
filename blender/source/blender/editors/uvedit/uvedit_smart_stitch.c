@@ -2539,8 +2539,8 @@ static StitchState *stitch_select(bContext *C,
 {
   /* add uv under mouse to processed uv's */
   float co[2];
-  UvNearestHit hit = UV_NEAREST_HIT_INIT;
   ARegion *region = CTX_wm_region(C);
+  UvNearestHit hit = UV_NEAREST_HIT_INIT_MAX(&region->v2d);
 
   UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
@@ -2808,7 +2808,7 @@ void UV_OT_stitch(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "midpoint_snap",
                   0,
-                  "Snap At Midpoint",
+                  "Snap at Midpoint",
                   "UVs are stitched at midpoint instead of at static island");
   RNA_def_boolean(ot->srna, "clear_seams", 1, "Clear Seams", "Clear seams of stitched edges");
   RNA_def_enum(ot->srna,

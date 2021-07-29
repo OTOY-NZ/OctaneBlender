@@ -336,7 +336,7 @@ class DOPESHEET_MT_view(Menu):
 
         layout.separator()
 
-        layout.prop(st.dopesheet, "use_multi_word_filter", text="Multi-word Match Search")
+        layout.prop(st.dopesheet, "use_multi_word_filter", text="Multi-Word Match Search")
 
         layout.separator()
 
@@ -347,7 +347,8 @@ class DOPESHEET_MT_view(Menu):
         col.active = context.space_data.mode != 'SHAPEKEY'
         col.prop(st, "show_sliders")
 
-        layout.prop(st, "show_group_colors")
+        if bpy.app.version < (2, 93):
+            layout.operator("anim.show_group_colors_deprecated", icon='CHECKBOX_HLT')
         layout.prop(st, "show_interpolation")
         layout.prop(st, "show_extremes")
         layout.prop(st, "use_auto_merge_keyframes")

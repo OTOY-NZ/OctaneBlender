@@ -417,8 +417,8 @@ finished:
 
 /**
  * Dispose of a context.
- * \param   context Pointer to the context to be disposed.
- * \return  Indication of success.
+ * \param context: Pointer to the context to be disposed.
+ * \return Indication of success.
  */
 GHOST_TSuccess GHOST_SystemWin32::disposeContext(GHOST_IContext *context)
 {
@@ -564,13 +564,13 @@ GHOST_TSuccess GHOST_SystemWin32::getButtons(GHOST_Buttons &buttons) const
    */
   bool swapped = ::GetSystemMetrics(SM_SWAPBUTTON) == TRUE;
 
-  bool down = HIBYTE(::GetKeyState(VK_LBUTTON)) != 0;
+  bool down = HIBYTE(::GetAsyncKeyState(VK_LBUTTON)) != 0;
   buttons.set(swapped ? GHOST_kButtonMaskRight : GHOST_kButtonMaskLeft, down);
 
-  down = HIBYTE(::GetKeyState(VK_MBUTTON)) != 0;
+  down = HIBYTE(::GetAsyncKeyState(VK_MBUTTON)) != 0;
   buttons.set(GHOST_kButtonMaskMiddle, down);
 
-  down = HIBYTE(::GetKeyState(VK_RBUTTON)) != 0;
+  down = HIBYTE(::GetAsyncKeyState(VK_RBUTTON)) != 0;
   buttons.set(swapped ? GHOST_kButtonMaskLeft : GHOST_kButtonMaskRight, down);
   return GHOST_kSuccess;
 }
@@ -941,26 +941,21 @@ GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
     window->updateMouseCapture(MouseReleased);
   }
 
-  if (window->m_tabletInRange) {
-    if (window->useTabletAPI(GHOST_kTabletNative)) {
-      // Win32 Pointer processing handles input while in-range and in-contact events.
-      return NULL;
-    }
-  }
-
   return new GHOST_EventButton(
       system->getMilliSeconds(), type, window, mask, window->getTabletData());
 }
 
-void GHOST_SystemWin32::processPointerEvents(
+void GHOST_SystemWin32::processPointerEvent(
     UINT type, GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam, bool &eventHandled)
 {
-  std::vector<GHOST_PointerInfoWin32> pointerInfo;
-  GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
-
+  /* Pointer events might fire when changing windows for a device which is set to use Wintab, even
+   * when when Wintab is left enabled but set to the bottom of Wintab overlap order. */
   if (!window->useTabletAPI(GHOST_kTabletNative)) {
     return;
   }
+
+  GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
+  std::vector<GHOST_PointerInfoWin32> pointerInfo;
 
   if (window->getPointerInfo(pointerInfo, wParam, lParam) != GHOST_kSuccess) {
     return;
@@ -982,7 +977,7 @@ void GHOST_SystemWin32::processPointerEvents(
                                               pointerInfo[0].tabletData));
       break;
     case WM_POINTERDOWN:
-      // Move cursor to point of contact because GHOST_EventButton does not include position.
+      /* Move cursor to point of contact because GHOST_EventButton does not include position. */
       system->pushEvent(new GHOST_EventCursor(pointerInfo[0].time,
                                               GHOST_kEventCursorMove,
                                               window,
@@ -997,8 +992,8 @@ void GHOST_SystemWin32::processPointerEvents(
       window->updateMouseCapture(MousePressed);
       break;
     case WM_POINTERUPDATE:
-      // Coalesced pointer events are reverse chronological order, reorder chronologically.
-      // Only contiguous move events are coalesced.
+      /* Coalesced pointer events are reverse chronological order, reorder chronologically.
+       * Only contiguous move events are coalesced. */
       for (GHOST_TUns32 i = pointerInfo.size(); i-- > 0;) {
         system->pushEvent(new GHOST_EventCursor(pointerInfo[i].time,
                                                 GHOST_kEventCursorMove,
@@ -1018,11 +1013,6 @@ void GHOST_SystemWin32::processPointerEvents(
       break;
     case WM_POINTERLEAVE:
       window->m_tabletInRange = false;
-      system->pushEvent(new GHOST_EventButton(pointerInfo[0].time,
-                                              GHOST_kEventCursorMove,
-                                              window,
-                                              pointerInfo[0].buttonMask,
-                                              pointerInfo[0].tabletData));
       break;
     default:
       break;
@@ -1039,9 +1029,9 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
 
   if (window->m_tabletInRange) {
     if (window->useTabletAPI(GHOST_kTabletNative)) {
-      // Tablet input handled in WM_POINTER* events. WM_MOUSEMOVE events in response to tablet
-      // input aren't normally generated when using WM_POINTER events, but manually moving the
-      // system cursor as we do in WM_POINTER handling does.
+      /* Tablet input handled in WM_POINTER* events. WM_MOUSEMOVE events in response to tablet
+       * input aren't normally generated when using WM_POINTER events, but manually moving the
+       * system cursor as we do in WM_POINTER handling does. */
       return NULL;
     }
   }
@@ -1054,7 +1044,7 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
     GHOST_TInt32 x_accum, y_accum;
     GHOST_Rect bounds;
 
-    /* fallback to window bounds */
+    /* Fallback to window bounds. */
     if (window->getCursorGrabBounds(bounds) == GHOST_kFailure) {
       window->getClientBounds(bounds);
     }
@@ -1065,8 +1055,8 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
 
     window->getCursorGrabAccum(x_accum, y_accum);
     if (x_new != x_screen || y_new != y_screen) {
-      /* when wrapping we don't need to add an event because the
-       * setCursorPosition call will cause a new event after */
+      /* When wrapping we don't need to add an event because the setCursorPosition call will cause
+       * a new event after. */
       system->setCursorPosition(x_new, y_new); /* wrap */
       window->setCursorGrabAccum(x_accum + (x_screen - x_new), y_accum + (y_screen - y_new));
     }
@@ -1467,7 +1457,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
           }
           break;
         ////////////////////////////////////////////////////////////////////////
-        // Tablet events, processed
+        // Wintab events, processed
         ////////////////////////////////////////////////////////////////////////
         case WT_PACKET:
           window->processWin32TabletEvent(wParam, lParam);
@@ -1484,7 +1474,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
         case WM_POINTERUPDATE:
         case WM_POINTERUP:
         case WM_POINTERLEAVE:
-          processPointerEvents(msg, window, wParam, lParam, eventHandled);
+          processPointerEvent(msg, window, wParam, lParam, eventHandled);
           break;
         ////////////////////////////////////////////////////////////////////////
         // Mouse events, processed
@@ -1915,6 +1905,7 @@ void GHOST_SystemWin32::putClipboard(GHOST_TInt8 *buffer, bool selection) const
   }
 }
 
+/* -------------------------------------------------------------------- */
 /** \name Message Box
  * \{ */
 GHOST_TSuccess GHOST_SystemWin32::showMessageBox(const char *title,

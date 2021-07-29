@@ -140,7 +140,7 @@ void GPENCIL_engine_init(void *ved)
 
     /* For non active frame, use only lines in multiedit mode. */
     const bool overlays_on = (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
-    stl->pd->use_multiedit_lines_only = !overlays_on ||
+    stl->pd->use_multiedit_lines_only = overlays_on &&
                                         (v3d->gp_flag & V3D_GP_SHOW_MULTIEDIT_LINES) != 0;
 
     const bool shmode_xray_support = v3d->shading.type <= OB_SOLID;
@@ -252,7 +252,7 @@ void GPENCIL_cache_init(void *ved)
     pd->do_fast_drawing = false;
 
     pd->obact = draw_ctx->obact;
-    if (pd->obact && pd->obact->type == OB_GPENCIL) {
+    if (pd->obact && pd->obact->type == OB_GPENCIL && !(pd->draw_depth_only)) {
       /* Check if active object has a temp stroke data. */
       bGPdata *gpd = (bGPdata *)pd->obact->data;
       if (gpd->runtime.sbuffer_used > 0) {
@@ -495,10 +495,10 @@ static void gpencil_stroke_cache_populate(bGPDlayer *gpl,
                    (!iter->pd->simplify_fill) && ((gps->flag & GP_STROKE_NOFILL) == 0);
 
   bool only_lines = gpl && gpf && gpl->actframe != gpf && iter->pd->use_multiedit_lines_only;
-  bool hide_onion = gpl && gpf && gpf->runtime.onion_id != 0 &&
-                    ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0);
-
-  if (hide_material || (!show_stroke && !show_fill) || only_lines || hide_onion) {
+  bool is_onion = gpl && gpf && gpf->runtime.onion_id != 0;
+  bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0);
+  if ((hide_material) || (!show_stroke && !show_fill) || (only_lines && !is_onion) ||
+      (hide_onion)) {
     return;
   }
 
@@ -617,6 +617,14 @@ void GPENCIL_cache_populate(void *ved, Object *ob)
     /* Special case for rendering onion skin. */
     bGPdata *gpd = (bGPdata *)ob->data;
     bool do_onion = (!pd->is_render) ? pd->do_onion : (gpd->onion_flag & GP_ONION_GHOST_ALWAYS);
+
+    /* When render in background the active frame could not be properly set due thread priority
+     * better set again. This is not required in viewport. */
+    if (txl->render_depth_tx) {
+      LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+        gpl->actframe = BKE_gpencil_layer_frame_get(gpl, pd->cfra, GP_GETFRAME_USE_PREV);
+      }
+    }
 
     BKE_gpencil_visible_stroke_iter(is_final_render ? pd->view_layer : NULL,
                                     ob,
@@ -977,4 +985,5 @@ DrawEngineType draw_engine_gpencil_type = {
     NULL,
     NULL,
     &GPENCIL_render_to_image,
+    NULL,
 };

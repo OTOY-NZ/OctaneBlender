@@ -223,7 +223,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
     light->light.oObject.iInstanceId = *persistent_id;
   }
   else {
-    light->light.oObject.iInstanceId = 0;
+    light->light.oObject.iInstanceId = -1;
   }
   light->scene = scene;
 
@@ -285,7 +285,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
     }
     case BL::Light::type_AREA: {
       BL::AreaLight b_area_light(b_light);
-      light->light.iLightNodeType = Octane::NT_GEO_MESH;
+      CHECK_LIGHT_OBJECT_UPDATE(light->light.iLightNodeType, Octane::NT_GEO_MESH);
       float sizeu = b_area_light.size();
       float sizev = sizeu;
       std::string sub_object_path = "libraries/objects/";
@@ -542,7 +542,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       object->octane_object.iInstanceId = *persistent_id;
     }
     else {
-      object->octane_object.iInstanceId = 0;
+      object->octane_object.iInstanceId = -1;
     }
 
     object->update_transform(octane_tfm);

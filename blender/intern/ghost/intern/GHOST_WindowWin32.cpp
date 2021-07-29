@@ -814,11 +814,6 @@ void GHOST_WindowWin32::updateMouseCapture(GHOST_MouseCaptureEventWin32 event)
   }
 }
 
-bool GHOST_WindowWin32::getMousePressed() const
-{
-  return m_nPressedButtons;
-}
-
 HCURSOR GHOST_WindowWin32::getStandardCursor(GHOST_TStandardCursor shape) const
 {
   // Convert GHOST cursor to Windows OEM cursor
@@ -1102,16 +1097,6 @@ GHOST_TSuccess GHOST_WindowWin32::getPointerInfo(
   }
 
   return GHOST_kSuccess;
-}
-
-void GHOST_WindowWin32::setTabletData(GHOST_TabletData *pTabletData)
-{
-  if (pTabletData) {
-    m_tabletData = *pTabletData;
-  }
-  else {
-    m_tabletData = GHOST_TABLET_DATA_NONE;
-  }
 }
 
 void GHOST_WindowWin32::processWin32TabletActivateEvent(WORD state)

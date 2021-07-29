@@ -14,6 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/* Use a define instead of `#pragma once` because of `rna_internal.h` */
 #ifndef __RNA_ACCESS_H__
 #define __RNA_ACCESS_H__
 
@@ -60,6 +61,7 @@ extern StructRNA RNA_AnimData;
 extern StructRNA RNA_AnimViz;
 extern StructRNA RNA_AnimVizMotionPaths;
 extern StructRNA RNA_AnyType;
+extern StructRNA RNA_AOV;
 extern StructRNA RNA_Area;
 extern StructRNA RNA_AreaLight;
 extern StructRNA RNA_Armature;
@@ -69,6 +71,8 @@ extern StructRNA RNA_ArrayGpencilModifier;
 extern StructRNA RNA_ArrayModifier;
 extern StructRNA RNA_Attribute;
 extern StructRNA RNA_AttributeGroup;
+extern StructRNA RNA_AssetMetaData;
+extern StructRNA RNA_AssetTag;
 extern StructRNA RNA_BackgroundImage;
 extern StructRNA RNA_BevelModifier;
 extern StructRNA RNA_BezierSplinePoint;
@@ -146,6 +150,7 @@ extern StructRNA RNA_CompositorNodeDilateErode;
 extern StructRNA RNA_CompositorNodeDisplace;
 extern StructRNA RNA_CompositorNodeDistanceMatte;
 extern StructRNA RNA_CompositorNodeDoubleEdgeMask;
+extern StructRNA RNA_CompositorNodeExposure;
 extern StructRNA RNA_CompositorNodeFilter;
 extern StructRNA RNA_CompositorNodeFlip;
 extern StructRNA RNA_CompositorNodeGamma;
@@ -201,6 +206,7 @@ extern StructRNA RNA_CopyRotationConstraint;
 extern StructRNA RNA_CopyScaleConstraint;
 extern StructRNA RNA_CopyTransformsConstraint;
 extern StructRNA RNA_CorrectiveSmoothModifier;
+extern StructRNA RNA_CryptomatteEntry;
 extern StructRNA RNA_Curve;
 extern StructRNA RNA_CurveMap;
 extern StructRNA RNA_CurveMapPoint;
@@ -249,7 +255,9 @@ extern StructRNA RNA_FModifierPython;
 extern StructRNA RNA_FModifierStepped;
 extern StructRNA RNA_FaceMap;
 extern StructRNA RNA_FieldSettings;
+extern StructRNA RNA_FileAssetSelectParams;
 extern StructRNA RNA_FileBrowserFSMenuEntry;
+extern StructRNA RNA_FileSelectEntry;
 extern StructRNA RNA_FileSelectParams;
 extern StructRNA RNA_FloatAttribute;
 extern StructRNA RNA_FloatAttributeValue;
@@ -567,11 +575,9 @@ extern StructRNA RNA_ShrinkwrapModifier;
 extern StructRNA RNA_SimpleDeformModifier;
 extern StructRNA RNA_SimplifyGpencilModifier;
 extern StructRNA RNA_Simulation;
-#ifdef WITH_GEOMETRY_NODES
-extern StructRNA RNA_SimulationModifier;
-#endif
-extern StructRNA RNA_SimulationNode;
-extern StructRNA RNA_SimulationNodeTree;
+extern StructRNA RNA_NodesModifier;
+extern StructRNA RNA_GeometryNode;
+extern StructRNA RNA_GeometryNodeTree;
 extern StructRNA RNA_SkinModifier;
 extern StructRNA RNA_SmoothGpencilModifier;
 extern StructRNA RNA_SmoothModifier;
@@ -696,6 +702,7 @@ extern StructRNA RNA_UVProjector;
 extern StructRNA RNA_UVWarpModifier;
 extern StructRNA RNA_UnitSettings;
 extern StructRNA RNA_UnknownType;
+extern StructRNA RNA_UserAssetLibrary;
 extern StructRNA RNA_UserSolidLight;
 extern StructRNA RNA_VertexcolorGpencilModifier;
 extern StructRNA RNA_VectorFont;
@@ -737,6 +744,8 @@ extern StructRNA RNA_ShaderNodeOctOSLProjection;
 extern StructRNA RNA_ShaderNodeOctOSLCamera;
 extern StructRNA RNA_ShaderNodeOctOSLBakingCamera;
 extern StructRNA RNA_ShaderNodeOctVectron;
+extern StructRNA RNA_ShaderNodeOctScatterToolSurface;
+extern StructRNA RNA_ShaderNodeOctScatterToolVolume;
 extern StructRNA RNA_ShaderNodeOctObjectData;
 
 /* Pointer

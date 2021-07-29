@@ -154,6 +154,7 @@ void register_node_type_sh_oct_shadow_catcher_mat(void);
 void register_node_type_sh_oct_layered_mat(void);
 void register_node_type_sh_oct_composite_mat(void);
 void register_node_type_sh_oct_hair_mat(void);
+void register_node_type_sh_oct_null_mat(void);
 
 void register_node_type_sh_oct_group_layer(void);
 void register_node_type_sh_oct_diffuse_layer(void);
@@ -199,6 +200,7 @@ void register_node_type_tex_oct_compare(void);
 void register_node_type_tex_oct_triplanar(void);
 void register_node_type_tex_oct_falloff(void);
 void register_node_type_tex_oct_colorcorrect(void);
+void register_node_type_tex_oct_chaos(void);
 void register_node_type_tex_oct_image(void);
 void register_node_type_tex_oct_float_image(void);
 void register_node_type_tex_oct_alpha_image(void);
@@ -221,6 +223,7 @@ void register_node_type_tex_oct_toon_ramp(void);
 void register_node_type_tex_oct_image_tile(void);
 void register_node_type_tex_oct_float_vertex(void);
 void register_node_type_tex_oct_color_vertex(void);
+void register_node_type_tex_oct_cinema4d_noise(void);
 
 void register_node_type_projection_oct_xyz(void);
 void register_node_type_projection_oct_box(void);
@@ -249,6 +252,25 @@ void register_node_type_oct_object_data(void);
 void register_node_type_environment_oct_texture(void);
 void register_node_type_environment_oct_daylight(void);
 void register_node_type_environment_oct_planetary(void);
+
+void register_node_type_scatter_tool_surface(void);
+void register_node_type_scatter_tool_volume(void);
+
+void register_node_type_tex_oct_channel_inverter(void);
+void register_node_type_tex_oct_channel_mapper(void);
+void register_node_type_tex_oct_channel_merger(void);
+void register_node_type_tex_oct_channel_picker(void);
+void register_node_type_tex_oct_ray_switch(void);
+void register_node_type_tex_oct_spotlight(void);
+void register_node_type_tex_oct_composite(void);
+void register_node_type_tex_oct_composite_layer(void);
+
+void register_node_type_aov_output_group(void);
+void register_node_type_composite_aov_output(void);
+void register_node_type_composite_aov_output_layer(void);
+void register_node_type_color_aov_output(void);
+void register_node_type_render_aov_output(void);
+void register_node_type_image_aov_output(void);
 #ifdef __cplusplus
 }
 #endif

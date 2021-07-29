@@ -51,7 +51,6 @@
 extern "C" {
 #endif
 
-struct BlendDataReader;
 struct BlendWriter;
 struct GHash;
 struct ID;
@@ -201,7 +200,7 @@ void BKE_id_free(struct Main *bmain, void *idv);
 void BKE_id_free_us(struct Main *bmain, void *idv) ATTR_NONNULL();
 
 void BKE_id_delete(struct Main *bmain, void *idv) ATTR_NONNULL();
-void BKE_id_multi_tagged_delete(struct Main *bmain) ATTR_NONNULL();
+size_t BKE_id_multi_tagged_delete(struct Main *bmain) ATTR_NONNULL();
 
 void BKE_libblock_management_main_add(struct Main *bmain, void *idv);
 void BKE_libblock_management_main_remove(struct Main *bmain, void *idv);
@@ -297,6 +296,8 @@ void BKE_id_tag_set_atomic(struct ID *id, int tag);
 void BKE_id_tag_clear_atomic(struct ID *id, int tag);
 
 bool BKE_id_is_in_global_main(struct ID *id);
+
+bool BKE_id_can_be_asset(const struct ID *id);
 
 void BKE_id_ordered_list(struct ListBase *ordered_lb, const struct ListBase *lb);
 void BKE_id_reorder(const struct ListBase *lb, struct ID *id, struct ID *relative, bool after);

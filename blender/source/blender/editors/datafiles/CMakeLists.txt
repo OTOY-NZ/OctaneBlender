@@ -645,6 +645,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   brush.sculpt.cloth
   brush.sculpt.crease
   brush.sculpt.displacement_eraser
+  brush.sculpt.displacement_smear
   brush.sculpt.draw
   brush.sculpt.draw_face_sets
   brush.sculpt.draw_sharp
@@ -791,6 +792,7 @@ if(WITH_BLENDER)
     # images
     data_to_c_simple(../../../../release/datafiles/splash.png SRC)
     data_to_c_simple(../../../../release/datafiles/alert_icons.png SRC)
+    data_to_c_simple(../../../../release/datafiles/blender_logo.png SRC)
     # XXX These are handy, but give nasty "false changes" in svn :/
     # svg_to_png(../../../../release/datafiles/blender_icons.svg
     #            ../../../../release/datafiles/blender_icons16.png

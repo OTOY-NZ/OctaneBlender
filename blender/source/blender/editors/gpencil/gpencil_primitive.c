@@ -711,10 +711,10 @@ static void gpencil_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
   bGPDstroke *gps = tgpi->gpf->strokes.first;
   GP_Sculpt_Settings *gset = &ts->gp_sculpt;
   int depth_margin = (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 4 : 0;
-  const char *align_flag = &ts->gpencil_v3d_align;
-  bool is_depth = (bool)(*align_flag & (GP_PROJECT_DEPTH_VIEW | GP_PROJECT_DEPTH_STROKE));
-  const bool is_camera = (bool)(ts->gp_sculpt.lock_axis == 0) &&
-                         (tgpi->rv3d->persp == RV3D_CAMOB) && (!is_depth);
+  const char align_flag = ts->gpencil_v3d_align;
+  bool is_depth = (bool)(align_flag & (GP_PROJECT_DEPTH_VIEW | GP_PROJECT_DEPTH_STROKE));
+  const bool is_lock_axis_view = (bool)(ts->gp_sculpt.lock_axis == 0);
+  const bool is_camera = is_lock_axis_view && (tgpi->rv3d->persp == RV3D_CAMOB) && (!is_depth);
 
   if (tgpi->type == GP_STROKE_BOX) {
     tgpi->tot_edges--;
@@ -849,7 +849,7 @@ static void gpencil_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
           /* invalidate any other point, to interpolate between
            * first and last contact in an imaginary line between them */
           for (i = 0; i < gps->totpoints; i++) {
-            if ((i != first_valid) && (i != last_valid)) {
+            if (!ELEM(i, first_valid, last_valid)) {
               depth_arr[i] = FLT_MAX;
             }
           }
@@ -1018,7 +1018,7 @@ static void gpencil_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
       tpt->uv_fac = 0.0f;
     }
 
-    tpt->uv_rot = p2d->uv_rot;
+    tpt->uv_rot = 0.0f;
 
     gpd->runtime.sbuffer_used++;
 
@@ -1040,6 +1040,7 @@ static void gpencil_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     pt->time = 0.0f;
     pt->flag = 0;
     pt->uv_fac = tpt->uv_fac;
+    pt->uv_rot = 0.0f;
     ED_gpencil_point_vertex_color_set(ts, brush, pt, tpt);
 
     if (gps->dvert != NULL) {
@@ -1076,13 +1077,13 @@ static void gpencil_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     gpencil_apply_parent_point(tgpi->depsgraph, tgpi->ob, tgpi->gpl, pt);
   }
 
-  /* if camera view, reproject flat to view to avoid perspective effect */
-  if (is_camera) {
+  /* If camera view or view projection, reproject flat to view to avoid perspective effect. */
+  if ((!is_depth) && (((align_flag & GP_PROJECT_VIEWSPACE) && is_lock_axis_view) || (is_camera))) {
     ED_gpencil_project_stroke_to_view(C, tgpi->gpl, gps);
   }
 
   /* Calc geometry data. */
-  BKE_gpencil_stroke_geometry_update(gps);
+  BKE_gpencil_stroke_geometry_update(gpd, gps);
 
   /* Update evaluated data. */
   ED_gpencil_sbuffer_update_eval(tgpi->gpd, tgpi->ob_eval);
@@ -1196,6 +1197,9 @@ static void gpencil_primitive_init(bContext *C, wmOperator *op)
 
   /* set GP datablock */
   tgpi->gpd = gpd;
+
+  /* Setup space conversions. */
+  gpencil_point_conversion_init(C, &tgpi->gsc);
 
   /* if brush doesn't exist, create a new set (fix damaged files from old versions) */
   if ((paint->brush == NULL) || (paint->brush->gpencil_settings == NULL)) {
@@ -1323,7 +1327,7 @@ static void gpencil_primitive_interaction_end(bContext *C,
     copy_v2_v2(gps->aspect_ratio, brush_settings->aspect_ratio);
 
     /* Calc geometry data. */
-    BKE_gpencil_stroke_geometry_update(gps);
+    BKE_gpencil_stroke_geometry_update(tgpi->gpd, gps);
   }
 
   /* transfer stroke from temporary buffer to the actual frame */
@@ -1345,6 +1349,28 @@ static void gpencil_primitive_interaction_end(bContext *C,
         dw->weight = ts->vgroup_weight;
       }
     }
+  }
+
+  /* Join previous stroke. */
+  if (ts->gpencil_flags & GP_TOOL_FLAG_AUTOMERGE_STROKE) {
+    if (ELEM(tgpi->type, GP_STROKE_ARC, GP_STROKE_LINE, GP_STROKE_CURVE, GP_STROKE_POLYLINE)) {
+      if (gps->prev != NULL) {
+        int pt_index = 0;
+        bool doit = true;
+        while (doit && gps) {
+          bGPDstroke *gps_target = ED_gpencil_stroke_nearest_to_ends(
+              C, &tgpi->gsc, tgpi->gpl, gpf, gps, GPENCIL_MINIMUM_JOIN_DIST, &pt_index);
+          if (gps_target != NULL) {
+            gps = ED_gpencil_stroke_join_and_trim(tgpi->gpd, gpf, gps, gps_target, pt_index);
+          }
+          else {
+            doit = false;
+          }
+        }
+      }
+      ED_gpencil_stroke_close_by_distance(gps, 0.02f);
+    }
+    BKE_gpencil_stroke_geometry_update(tgpi->gpd, gps);
   }
 
   DEG_id_tag_update(&tgpi->gpd->id, ID_RECALC_COPY_ON_WRITE);

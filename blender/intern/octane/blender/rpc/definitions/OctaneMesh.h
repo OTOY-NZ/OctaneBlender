@@ -40,6 +40,7 @@
 #define MESH_TAG "[Mesh]"
 #define LIGHT_TAG "[Light]"
 #define OBJECT_TAG "[Object]"
+#define COLLECTION_TAG "[Collection]"
 #define OBJECT_MATERIAL_MAP_TAG "[ObjMM]"
 #define OBJECT_LAYER_MAP_TAG "[ObjLM]"
 #define TOON_DIRECTIONAL_LIGHT_OBJECT_DIRECTION_TAG "[ToonDirLightObjDir]"
@@ -394,6 +395,41 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
 		OctaneVolumeInfo() : OctaneNodeBase(Octane::ENT_VDB_INFO, "VDBInfo", 0, 1) {}
 		MSGPACK_DEFINE(sVolumePath, sFloatGridNames, sVectorGridNames, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctanePlacement : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOShader)	oTransform,
+		(OctaneDTOShader)	oMesh
+		)
+
+		OctanePlacement() :
+			oTransform("Transform"),
+			oMesh("Mesh"),
+			OctaneNodeBase(Octane::NT_GEO_PLACEMENT, "ShaderNodeOctPlacement")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(oTransform, oMesh, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneGeometryGroup : public OctaneNodeBase {
+		REFLECTABLE
+		(		
+		(OctaneDTOInt)		iPlaceHolder
+		)
+		std::vector<std::string> sGeometries;
+
+		OctaneGeometryGroup() :
+			OctaneNodeBase(Octane::NT_GEO_GROUP, "GeometryCollection")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		MSGPACK_DEFINE(iPlaceHolder, sGeometries, MSGPACK_BASE(OctaneNodeBase));
 	};
 }
 

@@ -37,14 +37,15 @@ def init():
 
     path = os.path.dirname(__file__)
     user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', '')))
-    _octane.init(path, user_path)
+    _octane.init(path, user_path)    
     # bpy.app.timers.register(heart_beat)
 
 
 def exit():
     print("OctaneBlender Engine Exit")    
     import _octane
-
+    from . import operators
+    _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
     _octane.exit()  
     # try:
     #     bpy.app.timers.unregister(heart_beat)
@@ -58,6 +59,9 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
 
     global IS_RENDERING
     IS_RENDERING = True
+
+    from . import properties
+    properties.OctaneOCIOManagement_update_ocio_info()
 
     import _octane
     import bpy

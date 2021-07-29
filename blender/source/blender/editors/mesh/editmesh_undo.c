@@ -27,6 +27,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_array_utils.h"
 #include "BLI_listbase.h"
@@ -118,6 +119,7 @@ typedef struct UndoMesh {
 
 #ifdef USE_ARRAY_STORE
 
+/* -------------------------------------------------------------------- */
 /** \name Array Store
  * \{ */
 
@@ -150,6 +152,23 @@ static void um_arraystore_cd_compact(struct CustomData *cdata,
   BArrayCustomData *bcd = NULL, *bcd_first = NULL, *bcd_prev = NULL;
   for (int layer_start = 0, layer_end; layer_start < cdata->totlayer; layer_start = layer_end) {
     const CustomDataType type = cdata->layers[layer_start].type;
+
+    /* Perform a full copy on dynamic layers.
+     *
+     * Unfortunately we can't compare dynamic layer types as they contain allocated pointers,
+     * which burns CPU cycles looking for duplicate data that doesn't exist.
+     * The array data isn't comparable once copied from the mesh,
+     * this bottlenecks on high poly meshes, see T84114.
+     *
+     * Notes:
+     *
+     * - Ideally the data would be expanded into a format that could be de-duplicated effectively,
+     *   this would require a flat representation of each dynamic custom-data layer.
+     *
+     * - The data in the layer could be kept as-is to save on the extra copy,
+     *   it would complicate logic in this function.
+     */
+    const bool layer_type_is_dynamic = CustomData_layertype_is_dynamic(type);
 
     layer_end = layer_start + 1;
     while ((layer_end < cdata->totlayer) && (type == cdata->layers[layer_end].type)) {
@@ -207,6 +226,11 @@ static void um_arraystore_cd_compact(struct CustomData *cdata,
                                           i < bcd_reference_current->states_len) ?
                                              bcd_reference_current->states[i] :
                                              NULL;
+          /* See comment on `layer_type_is_dynamic` above. */
+          if (layer_type_is_dynamic) {
+            state_reference = NULL;
+          }
+
           bcd->states[i] = BLI_array_store_state_add(
               bs, layer->data, (size_t)data_len * stride, state_reference);
         }
@@ -817,7 +841,7 @@ void ED_mesh_undosys_type(UndoType *ut)
 
   ut->step_foreach_ID_ref = mesh_undosys_foreach_ID_ref;
 
-  ut->use_context = true;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
 
   ut->step_size = sizeof(MeshUndoStep);
 }

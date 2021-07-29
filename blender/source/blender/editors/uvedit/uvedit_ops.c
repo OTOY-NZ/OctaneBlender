@@ -119,7 +119,13 @@ static int UNUSED_FUNCTION(ED_operator_uvmap_mesh)(bContext *C)
 
 static bool is_image_texture_node(bNode *node)
 {
-  return ELEM(node->type, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT);
+  return ELEM(node->type,
+              SH_NODE_TEX_IMAGE,
+              SH_NODE_OCT_IMAGE_TEX,
+              SH_NODE_OCT_IMAGE_AOV_OUTPUT,
+              SH_NODE_OCT_FLOAT_IMAGE_TEX,
+              SH_NODE_OCT_ALPHA_IMAGE_TEX,
+              SH_NODE_TEX_ENVIRONMENT);
 }
 
 bool ED_object_get_active_image(Object *ob,
@@ -139,6 +145,13 @@ bool ED_object_get_active_image(Object *ob,
     }
     if (r_iuser) {
       if (node->type == SH_NODE_TEX_IMAGE) {
+        *r_iuser = &((NodeTexImage *)node->storage)->iuser;
+      }
+      else if (ELEM(node->type,
+                    SH_NODE_OCT_IMAGE_TEX,
+                    SH_NODE_OCT_IMAGE_AOV_OUTPUT,
+                    SH_NODE_OCT_FLOAT_IMAGE_TEX,
+                    SH_NODE_OCT_ALPHA_IMAGE_TEX)) {
         *r_iuser = &((NodeTexImage *)node->storage)->iuser;
       }
       else if (node->type == SH_NODE_TEX_ENVIRONMENT) {
@@ -182,28 +195,6 @@ void ED_object_assign_active_image(Main *bmain, Object *ob, int mat_nr, Image *i
     node->id = &ima->id;
     ED_node_tag_update_nodetree(bmain, ma->nodetree, node);
   }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Space Conversion
- * \{ */
-
-void uvedit_pixel_to_float(SpaceImage *sima, float pixeldist, float r_dist[2])
-{
-  int width, height;
-
-  if (sima) {
-    ED_space_image_get_size(sima, &width, &height);
-  }
-  else {
-    width = IMG_SIZE_FALLBACK;
-    height = IMG_SIZE_FALLBACK;
-  }
-
-  r_dist[0] = pixeldist / width;
-  r_dist[1] = pixeldist / height;
 }
 
 /** \} */
@@ -1473,7 +1464,7 @@ static int uv_hide_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
   const bool swap = RNA_boolean_get(op->ptr, "unselected");
-  const int use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
+  const bool use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
 
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -1605,8 +1596,8 @@ static int uv_reveal_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
 
-  const int use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
-  const int stickymode = sima ? (sima->sticky != SI_STICKY_DISABLE) : 1;
+  const bool use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
+  const bool stickymode = sima ? (sima->sticky != SI_STICKY_DISABLE) : 1;
   const bool select = RNA_boolean_get(op->ptr, "select");
 
   uint objects_len = 0;
@@ -1812,7 +1803,7 @@ static void UV_OT_cursor_set(wmOperatorType *ot)
                        -FLT_MAX,
                        FLT_MAX,
                        "Location",
-                       "Cursor location in normalized (0.0-1.0) coordinates",
+                       "Cursor location in normalized (0.0 to 1.0) coordinates",
                        -10.0f,
                        10.0f);
 }

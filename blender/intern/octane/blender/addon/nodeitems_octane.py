@@ -68,6 +68,7 @@ OCT_SHADERS = (
     NodeItem("ShaderNodeOctLayeredMat"),   
     NodeItem("ShaderNodeOctCompositeMat"), 
     NodeItem("ShaderNodeOctHairMat"), 
+    NodeItem("ShaderNodeOctNullMat"), 
 )
 
 OCT_LAYERS = (
@@ -91,6 +92,7 @@ OCT_TEXTURES = (
     NodeItemSeperator('Procedural'),
     NodeItem("ShaderNodeOctChecksTex"),
     NodeItem("ShaderNodeOctMarbleTex"),
+    # NodeItem("ShaderNodeOctCinema4DNoiseTex"),
     NodeItem("ShaderNodeOctNoiseTex"),
     NodeItem("ShaderNodeOctRidgedFractalTex"),
     NodeItem("ShaderNodeOctSawWaveTex"),
@@ -109,6 +111,7 @@ OCT_TEXTURES = (
     NodeItem("ShaderNodeOctColorVertexTex"),
     NodeItemSeperator('Mapping'),
     NodeItem("ShaderNodeOctBakingTex"),
+    NodeItem("ShaderNodeOctChaosTex"),
     NodeItem("ShaderNodeOctTriplanarTex"),
     NodeItem("ShaderNodeOctUVWTransformTex"),
     NodeItemSeperator('Operators'),
@@ -129,6 +132,15 @@ OCT_TEXTURES = (
     NodeItemSeperator('Ramp'),
     NodeItem("ShaderNodeOctToonRampTex"),
     NodeItem("ShaderNodeOctVolumeRampTex"),
+    NodeItemSeperator('Utility'),
+    NodeItem("ShaderNodeOctChannelInverterTex"),
+    NodeItem("ShaderNodeOctChannelMapperTex"),
+    NodeItem("ShaderNodeOctChannelMergerTex"),
+    NodeItem("ShaderNodeOctChannelPickerTex"),
+    NodeItem("ShaderNodeOctRaySwitchTex"),
+    NodeItem("ShaderNodeOctSpotlightTex"),
+    NodeItem("ShaderNodeOctCompositeTex"),
+    NodeItem("ShaderNodeOctCompositeLayerTex"),
 )
 
 OCT_TEXTURE_PROCEDURALS = (
@@ -136,11 +148,13 @@ OCT_TEXTURE_PROCEDURALS = (
     NodeItem("ShaderNodeOctDirtTex"),
     NodeItem("ShaderNodeOctFloatTex"),
     NodeItem("ShaderNodeOctMarbleTex"),
+    # NodeItem("ShaderNodeOctCinema4DNoiseTex"),
     NodeItem("ShaderNodeOctNoiseTex"),
     NodeItem("ShaderNodeOctOSLTex"),
     NodeItem("ShaderNodeOctPolygonSideTex"),
     NodeItem("ShaderNodeOctRandomColorTex"),
     NodeItem("ShaderNodeOctRidgedFractalTex"),
+    NodeItem("ShaderNodeOctChaosTex"),
     NodeItem("ShaderNodeOctTriplanarTex"),
     NodeItem("ShaderNodeOctSawWaveTex"),
     NodeItem("ShaderNodeOctSineWaveTex"),
@@ -150,6 +164,14 @@ OCT_TEXTURE_PROCEDURALS = (
     NodeItem("ShaderNodeOctWTex"),
     NodeItem("ShaderNodeOctFloatVertexTex"),
     NodeItem("ShaderNodeOctColorVertexTex"),
+    NodeItem("ShaderNodeOctChannelInverterTex"),
+    NodeItem("ShaderNodeOctChannelMapperTex"),
+    NodeItem("ShaderNodeOctChannelMergerTex"),
+    NodeItem("ShaderNodeOctChannelPickerTex"),
+    NodeItem("ShaderNodeOctRaySwitchTex"),
+    NodeItem("ShaderNodeOctSpotlightTex"),
+    NodeItem("ShaderNodeOctCompositeTex"),
+    NodeItem("ShaderNodeOctCompositeLayerTex"),
 )
 
 OCT_TEXTURE_TEXTURES = (
@@ -230,8 +252,10 @@ OCT_CAMERAS = (
     NodeItem("ShaderNodeOctOSLBakingCamera"),
 )
 
-OCT_VECTRONS = (
+OCT_GEOMETRIES = (
     NodeItem("ShaderNodeOctVectron"),
+    NodeItem("ShaderNodeOctScatterToolSurface"),
+    NodeItem("ShaderNodeOctScatterToolVolume"),
 )
 
 OCT_ROUND_EDGES = (
@@ -263,7 +287,7 @@ shader_node_categories_based_functions = [
     ShaderNewNodeCategory("SH_NEW_OCT_PROJECTION", "Octane Projection", items=OCT_PROJECTIONS),
     ShaderNewNodeCategory("SH_NEW_OCT_VALUE", "Octane Value", items=OCT_VALUES),
     ShaderNewNodeCategory("SH_NEW_OCT_CAMERA", "Octane Camera", items=OCT_CAMERAS),     
-    ShaderNewNodeCategory("SH_NEW_OCT_VECTRON", "Octane Vectron", items=OCT_VECTRONS),    
+    ShaderNewNodeCategory("SH_NEW_OCT_VECTRON", "Octane Geometry", items=OCT_GEOMETRIES),    
     ShaderNewNodeCategory("SH_NEW_OCT_ROUND_EDGES", "Octane Round Edges", items=OCT_ROUND_EDGES),
     ShaderNewNodeCategory("SH_NEW_OCT_ENVIRONMENT", "Octane Environment", items=OCT_ENVIRONMENTS),     
     ]
@@ -278,7 +302,7 @@ shader_node_categories_based_octane = [
     ShaderNewNodeCategory("SH_NEW_OCT_PROJECTION", "Octane Projection", items=OCT_PROJECTIONS),
     ShaderNewNodeCategory("SH_NEW_OCT_VALUE", "Octane Value", items=OCT_VALUES),
     ShaderNewNodeCategory("SH_NEW_OCT_CAMERA", "Octane Camera", items=OCT_CAMERAS),       
-    ShaderNewNodeCategory("SH_NEW_OCT_VECTRON", "Octane Vectron", items=OCT_VECTRONS),    
+    ShaderNewNodeCategory("SH_NEW_OCT_VECTRON", "Octane Geometry", items=OCT_GEOMETRIES),    
     ShaderNewNodeCategory("SH_NEW_OCT_ROUND_EDGES", "Octane Round Edges", items=OCT_ROUND_EDGES), 
     ShaderNewNodeCategory("SH_NEW_OCT_ENVIRONMENT", "Octane Environment", items=OCT_ENVIRONMENTS),  
     ]
@@ -294,7 +318,7 @@ texture_node_categories_based_functions = [
     TextureNodeCategory("TEX_OCT_EMISSION", "Octane Emission", items=OCT_EMISSIONS),    
     TextureNodeCategory("TEX_OCT_MEDIUM", "Octane Medium", items=OCT_MEDIUMS),
     TextureNodeCategory("TEX_OCT_CAMERA", "Octane Camera", items=OCT_CAMERAS),  
-    TextureNodeCategory("TEX_OCT_VECTRON", "Octane Vectron", items=OCT_VECTRONS), 
+    TextureNodeCategory("TEX_OCT_VECTRON", "Octane Vectron", items=OCT_GEOMETRIES), 
     TextureNodeCategory("TEX_OCT_ROUND_EDGES", "Octane Round Edges", items=OCT_ROUND_EDGES),  
     TextureNodeCategory("TEX_OCT_ENVIRONMENT", "Octane Environment", items=OCT_ENVIRONMENTS),      
 ]
@@ -308,7 +332,7 @@ texture_node_categories_based_octane = [
     TextureNodeCategory("TEX_OCT_EMISSION", "Octane Emission", items=OCT_EMISSIONS),    
     TextureNodeCategory("TEX_OCT_MEDIUM", "Octane Medium", items=OCT_MEDIUMS),
     TextureNodeCategory("TEX_OCT_CAMERA", "Octane Camera", items=OCT_CAMERAS),   
-    TextureNodeCategory("TEX_OCT_VECTRON", "Octane Vectron", items=OCT_VECTRONS),  
+    TextureNodeCategory("TEX_OCT_VECTRON", "Octane Vectron", items=OCT_GEOMETRIES),  
     TextureNodeCategory("TEX_OCT_ROUND_EDGES", "Octane Round Edges", items=OCT_ROUND_EDGES),   
     TextureNodeCategory("TEX_OCT_ENVIRONMENT", "Octane Environment", items=OCT_ENVIRONMENTS),  
 ]

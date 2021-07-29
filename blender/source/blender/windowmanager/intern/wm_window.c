@@ -801,10 +801,12 @@ wmWindow *WM_window_open(bContext *C, const rcti *rect)
   wmWindow *win_prev = CTX_wm_window(C);
   wmWindow *win = wm_window_new(CTX_data_main(C), wm, win_prev, false);
 
-  win->posx = rect->xmin;
-  win->posy = rect->ymin;
-  win->sizex = BLI_rcti_size_x(rect);
-  win->sizey = BLI_rcti_size_y(rect);
+  const float native_pixel_size = GHOST_GetNativePixelSize(win_prev->ghostwin);
+
+  win->posx = rect->xmin / native_pixel_size;
+  win->posy = rect->ymin / native_pixel_size;
+  win->sizex = BLI_rcti_size_x(rect) / native_pixel_size;
+  win->sizey = BLI_rcti_size_y(rect) / native_pixel_size;
 
   WM_check(C);
 
@@ -1767,7 +1769,7 @@ static char *wm_clipboard_text_get_ex(bool selection, int *r_len, bool firstline
   if (firstline) {
     /* will return an over-alloc'ed value in the case there are newlines */
     for (char *p = buf; *p; p++) {
-      if ((*p != '\n') && (*p != '\r')) {
+      if (!ELEM(*p, '\n', '\r')) {
         *(p2++) = *p;
       }
       else {
@@ -2255,6 +2257,17 @@ Scene *WM_windows_scene_get_from_screen(const wmWindowManager *wm, const bScreen
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     if (WM_window_get_active_screen(win) == screen) {
       return WM_window_get_active_scene(win);
+    }
+  }
+
+  return NULL;
+}
+
+ViewLayer *WM_windows_view_layer_get_from_screen(const wmWindowManager *wm, const bScreen *screen)
+{
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    if (WM_window_get_active_screen(win) == screen) {
+      return WM_window_get_active_view_layer(win);
     }
   }
 

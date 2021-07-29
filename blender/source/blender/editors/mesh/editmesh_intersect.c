@@ -121,11 +121,10 @@ static void edbm_intersect_select(BMEditMesh *em, struct Mesh *me, bool do_selec
 }
 
 /* -------------------------------------------------------------------- */
-/* Cut intersections into geometry */
-
 /** \name Simple Intersect (self-intersect)
- * \{
- */
+ *
+ * Cut intersections into geometry.
+ * \{ */
 
 enum {
   ISECT_SEL = 0,
@@ -303,8 +302,8 @@ void MESH_OT_intersect(struct wmOperatorType *ot)
   };
 
   static const EnumPropertyItem isect_intersect_solver_items[] = {
-      {ISECT_SOLVER_FAST, "FAST", 0, "Fast", "Faster Solver, some limitations"},
-      {ISECT_SOLVER_EXACT, "EXACT", 0, "Exact", "Exact Solver, slower, handles more cases"},
+      {ISECT_SOLVER_FAST, "FAST", 0, "Fast", "Faster solver, some limitations"},
+      {ISECT_SOLVER_EXACT, "EXACT", 0, "Exact", "Exact solver, slower, handles more cases"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -323,7 +322,7 @@ void MESH_OT_intersect(struct wmOperatorType *ot)
   RNA_def_enum(
       ot->srna, "separate_mode", isect_separate_items, ISECT_SEPARATE_CUT, "Separate Mode", "");
   RNA_def_float_distance(
-      ot->srna, "threshold", 0.000001f, 0.0, 0.01, "Merge threshold", "", 0.0, 0.001);
+      ot->srna, "threshold", 0.000001f, 0.0, 0.01, "Merge Threshold", "", 0.0, 0.001);
   RNA_def_enum(ot->srna,
                "solver",
                isect_intersect_solver_items,
@@ -338,15 +337,11 @@ void MESH_OT_intersect(struct wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/* Boolean (a kind of intersect) */
-
 /** \name Boolean Intersect
  *
  * \note internally this is nearly exactly the same as 'MESH_OT_intersect',
  * however from a user perspective they are quite different, so expose as different tools.
- *
- * \{
- */
+ * \{ */
 
 static int edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
 {
@@ -451,8 +446,8 @@ void MESH_OT_intersect_boolean(struct wmOperatorType *ot)
   };
 
   static const EnumPropertyItem isect_boolean_solver_items[] = {
-      {ISECT_SOLVER_FAST, "FAST", 0, "Fast", "Faster Solver, some limitations"},
-      {ISECT_SOLVER_EXACT, "EXACT", 0, "Exact", "Exact Solver, slower, handles more cases"},
+      {ISECT_SOLVER_FAST, "FAST", 0, "Fast", "Faster solver, some limitations"},
+      {ISECT_SOLVER_EXACT, "EXACT", 0, "Exact", "Exact solver, slower, handles more cases"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -471,7 +466,7 @@ void MESH_OT_intersect_boolean(struct wmOperatorType *ot)
                "operation",
                isect_boolean_operation_items,
                BMESH_ISECT_BOOLEAN_DIFFERENCE,
-               "Boolean operation",
+               "Boolean Operation",
                "Which boolean operation to apply");
   RNA_def_boolean(ot->srna,
                   "use_swap",
@@ -480,7 +475,7 @@ void MESH_OT_intersect_boolean(struct wmOperatorType *ot)
                   "Use with difference intersection to swap which side is kept");
   RNA_def_boolean(ot->srna, "use_self", false, "Self", "Do self-union or self-intersection");
   RNA_def_float_distance(
-      ot->srna, "threshold", 0.000001f, 0.0, 0.01, "Merge threshold", "", 0.0, 0.001);
+      ot->srna, "threshold", 0.000001f, 0.0, 0.01, "Merge Threshold", "", 0.0, 0.001);
   RNA_def_enum(ot->srna,
                "solver",
                isect_boolean_solver_items,
@@ -495,9 +490,7 @@ void MESH_OT_intersect_boolean(struct wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/* Face Split by Edges */
-
-/** \name Face/Edge Split
+/** \name Face Split by Edges
  * \{ */
 
 static void bm_face_split_by_edges(BMesh *bm,

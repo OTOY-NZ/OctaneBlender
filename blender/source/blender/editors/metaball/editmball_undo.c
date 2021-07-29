@@ -30,8 +30,10 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_defs.h"
+#include "DNA_layer_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_context.h"
 #include "BKE_layer.h"
@@ -256,7 +258,7 @@ void ED_mball_undosys_type(UndoType *ut)
 
   ut->step_foreach_ID_ref = mball_undosys_foreach_ID_ref;
 
-  ut->use_context = true;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
 
   ut->step_size = sizeof(MBallUndoStep);
 }

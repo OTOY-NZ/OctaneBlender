@@ -62,9 +62,9 @@ struct wmTimer;
 #define UI_MENU_SUBMENU_PADDING (6 * UI_DPI_FAC)
 
 /* menu scrolling */
-#define UI_MENU_SCROLL_ARROW 12
-#define UI_MENU_SCROLL_MOUSE (UI_MENU_SCROLL_ARROW + 2)
-#define UI_MENU_SCROLL_PAD 4
+#define UI_MENU_SCROLL_ARROW (12 * UI_DPI_FAC)
+#define UI_MENU_SCROLL_MOUSE (UI_MENU_SCROLL_ARROW + 2 * UI_DPI_FAC)
+#define UI_MENU_SCROLL_PAD (4 * UI_DPI_FAC)
 
 /* panel limits */
 #define UI_PANEL_MINX 100
@@ -220,8 +220,8 @@ struct uiBut {
   const char *disabled_info;
 
   BIFIconID icon;
-  /** emboss: UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied from the #uiBlock.emboss */
-  char emboss;
+  /** Copied from the #uiBlock.emboss */
+  eUIEmbossType emboss;
   /** direction in a pie menu, used for collision detection (RadialDirection) */
   signed char pie_dir;
   /** could be made into a single flag */
@@ -378,11 +378,20 @@ typedef struct uiButExtraOpIcon {
 
 typedef struct ColorPicker {
   struct ColorPicker *next, *prev;
-  /** Color data, may be HSV or HSL. */
-  float color_data[3];
-  /** Initial color data (detect changes). */
-  float color_data_init[3];
+
+  /** Color in HSV or HSL, in color picking color space. Used for HSV cube,
+   * circle and slider widgets. The color picking space is perceptually
+   * linear for intuitive editing. */
+  float hsv_perceptual[3];
+  /** Initial color data (to detect changes). */
+  float hsv_perceptual_init[3];
   bool is_init;
+
+  /** HSV or HSL color in scene linear color space value used for number
+   * buttons. This is scene linear so that there is a clear correspondence
+   * to the scene linear RGB values. */
+  float hsv_scene_linear[3];
+
   /** Cubic saturation for the color wheel. */
   bool use_color_cubic;
   bool use_color_lock;
@@ -493,8 +502,8 @@ struct uiBlock {
   char direction;
   /** UI_BLOCK_THEME_STYLE_* */
   char theme_style;
-  /** UI_EMBOSS, UI_EMBOSS_NONE ... etc, copied to #uiBut.emboss */
-  char emboss;
+  /** Copied to #uiBut.emboss */
+  eUIEmbossType emboss;
   bool auto_open;
   char _pad[5];
   double auto_open_last;
@@ -734,15 +743,14 @@ struct uiPopupBlockHandle {
 /* exposed as public API in UI_interface.h */
 
 /* interface_region_color_picker.c */
-void ui_rgb_to_color_picker_compat_v(const float rgb[3], float r_cp[3]);
-void ui_rgb_to_color_picker_v(const float rgb[3], float r_cp[3]);
-void ui_color_picker_to_rgb_v(const float r_cp[3], float rgb[3]);
-void ui_color_picker_to_rgb(float r_cp0, float r_cp1, float r_cp2, float *r, float *g, float *b);
+void ui_color_picker_rgb_to_hsv_compat(const float rgb[3], float r_cp[3]);
+void ui_color_picker_rgb_to_hsv(const float rgb[3], float r_cp[3]);
+void ui_color_picker_hsv_to_rgb(const float r_cp[3], float rgb[3]);
 
 bool ui_but_is_color_gamma(uiBut *but);
 
-void ui_scene_linear_to_color_picker_space(uiBut *but, float rgb[3]);
-void ui_color_picker_to_scene_linear_space(uiBut *but, float rgb[3]);
+void ui_scene_linear_to_perceptual_space(uiBut *but, float rgb[3]);
+void ui_perceptual_to_scene_linear_space(uiBut *but, float rgb[3]);
 
 uiBlock *ui_block_func_COLOR(struct bContext *C, uiPopupBlockHandle *handle, void *arg_but);
 ColorPicker *ui_block_colorpicker_create(struct uiBlock *block);
@@ -943,7 +951,7 @@ typedef struct uiWidgetBaseParameters {
   /* We pack alpha check and discard factor in alpha_discard.
    * If the value is negative then we do alpha check.
    * The absolute value itself is the discard factor.
-   * Initialize value to 1.0.f if you don't want discard */
+   * Initialize value to 1.0f if you don't want discard. */
   float alpha_discard;
   float tria_type;
   float _pad[3];
@@ -975,7 +983,7 @@ const struct uiWidgetColors *ui_tooltip_get_theme(void);
 
 void ui_draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float color[4]);
 void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow);
-void ui_draw_tooltip_background(const struct uiStyle *UNUSED(style), uiBlock *block, rcti *rect);
+void ui_draw_tooltip_background(const struct uiStyle *style, uiBlock *block, rcti *rect);
 
 extern void ui_draw_but(const struct bContext *C,
                         struct ARegion *region,
@@ -983,20 +991,35 @@ extern void ui_draw_but(const struct bContext *C,
                         uiBut *but,
                         rcti *rect);
 
+/**
+ * Info about what the separator character separates, used to decide between different drawing
+ * styles. E.g. we never want a shortcut string to be clipped, but other hint strings can be
+ * clipped.
+ */
+typedef enum {
+  UI_MENU_ITEM_SEPARATOR_NONE,
+  /** Separator is used to indicate shortcut string of this item. Shortcut string will not get
+   * clipped. */
+  UI_MENU_ITEM_SEPARATOR_SHORTCUT,
+  /** Separator is used to indicate some additional hint to display for this item. Hint string will
+   * get clipped before the normal text. */
+  UI_MENU_ITEM_SEPARATOR_HINT,
+} uiMenuItemSeparatorType;
 void ui_draw_menu_item(const struct uiFontStyle *fstyle,
                        rcti *rect,
                        const char *name,
                        int iconid,
                        int state,
-                       bool use_sep,
+                       uiMenuItemSeparatorType separator_type,
                        int *r_xmax);
 void ui_draw_preview_item(
     const struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state);
 
 #define UI_TEXT_MARGIN_X 0.4f
 #define UI_POPUP_MARGIN (UI_DPI_FAC * 12)
-/* margin at top of screen for popups */
-#define UI_POPUP_MENU_TOP (int)(8 * UI_DPI_FAC)
+/* Margin at top of screen for popups. Note this value must be sufficient
+   to draw a popover arrow to avoid cropping it. */
+#define UI_POPUP_MENU_TOP (int)(10 * UI_DPI_FAC)
 
 #define UI_PIXEL_AA_JITTER 8
 extern const float ui_pixel_jitter[UI_PIXEL_AA_JITTER][2];
@@ -1030,7 +1053,7 @@ void ui_item_menutype_func(struct bContext *C, struct uiLayout *layout, void *ar
 void ui_item_paneltype_func(struct bContext *C, struct uiLayout *layout, void *arg_pt);
 
 /* interface_button_group.c */
-void ui_block_new_button_group(uiBlock *block, short flag);
+void ui_block_new_button_group(uiBlock *block, uiButtonGroupFlag flag);
 void ui_button_group_add_but(uiBlock *block, uiBut *but);
 void ui_button_group_replace_but_ptr(uiBlock *block, const void *old_but_ptr, uiBut *new_but);
 void ui_block_free_button_groups(uiBlock *block);

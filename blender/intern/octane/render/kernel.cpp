@@ -46,6 +46,7 @@ Kernel::Kernel()
   // PATH_TRACE + PMC + DIRECT_LIGHT
   oct_node->bKeepEnvironment = false;
   oct_node->bIrradianceMode = false;
+  oct_node->bNestDielectrics = true;
   oct_node->bEmulateOldVolumeBehavior = false;
 
   // AI Light: PATH_TRACE + PMC + DIRECT_LIGHT

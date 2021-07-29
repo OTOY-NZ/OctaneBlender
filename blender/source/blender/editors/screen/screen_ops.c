@@ -1354,8 +1354,8 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   /* adds window to WM */
   rcti rect = area->totrct;
   BLI_rcti_translate(&rect, win->posx, win->posy);
-  rect.xmax = rect.xmin + BLI_rcti_size_x(&rect) / U.pixelsize;
-  rect.ymax = rect.ymin + BLI_rcti_size_y(&rect) / U.pixelsize;
+  rect.xmax = rect.xmin + BLI_rcti_size_x(&rect);
+  rect.ymax = rect.ymin + BLI_rcti_size_y(&rect);
 
   wmWindow *newwin = WM_window_open(C, &rect);
   if (newwin == NULL) {
@@ -1617,7 +1617,7 @@ static int area_snap_calc_location(const bScreen *screen,
   switch (snap_type) {
     case SNAP_AREAGRID:
       m_cursor_final = m_cursor;
-      if (delta != bigger && delta != -smaller) {
+      if (!ELEM(delta, bigger, -smaller)) {
         m_cursor_final -= (m_cursor % AREAGRID);
         CLAMP(m_cursor_final, origval - smaller, origval + bigger);
       }
@@ -2477,7 +2477,7 @@ static int area_max_regionsize(ScrArea *area, ARegion *scalear, AZEdge edge)
     }
   }
   else {
-    if (edge == AE_RIGHT_TO_TOPLEFT || edge == AE_LEFT_TO_TOPRIGHT) {
+    if (ELEM(edge, AE_RIGHT_TO_TOPLEFT, AE_LEFT_TO_TOPRIGHT)) {
       dist = BLI_rcti_size_x(&area->totrct);
     }
     else { /* AE_BOTTOM_TO_TOPLEFT, AE_TOP_TO_BOTTOMRIGHT */
@@ -2574,7 +2574,7 @@ static int region_scale_invoke(bContext *C, wmOperator *op, const wmEvent *event
     }
 
     /* now copy to regionmovedata */
-    if (rmd->edge == AE_LEFT_TO_TOPRIGHT || rmd->edge == AE_RIGHT_TO_TOPLEFT) {
+    if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
       rmd->origval = rmd->region->sizex;
     }
     else {
@@ -2598,7 +2598,7 @@ static void region_scale_validate_size(RegionMoveData *rmd)
   if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
     short *size, maxsize = -1;
 
-    if (rmd->edge == AE_LEFT_TO_TOPRIGHT || rmd->edge == AE_RIGHT_TO_TOPLEFT) {
+    if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
       size = &rmd->region->sizex;
     }
     else {
@@ -2648,7 +2648,7 @@ static int region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
       const float aspect = BLI_rctf_size_x(&rmd->region->v2d.cur) /
                            (BLI_rcti_size_x(&rmd->region->v2d.mask) + 1);
       const int snap_size_threshold = (U.widget_unit * 2) / aspect;
-      if (rmd->edge == AE_LEFT_TO_TOPRIGHT || rmd->edge == AE_RIGHT_TO_TOPLEFT) {
+      if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
         delta = event->x - rmd->origx;
         if (rmd->edge == AE_LEFT_TO_TOPRIGHT) {
           delta = -delta;
@@ -2827,7 +2827,7 @@ static int frame_offset_exec(bContext *C, wmOperator *op)
 
   CFRA += delta;
   FRAMENUMBER_MIN_CLAMP(CFRA);
-  SUBFRA = 0.f;
+  SUBFRA = 0.0f;
 
   areas_do_frame_follow(C, false);
 
@@ -3138,6 +3138,8 @@ static int screen_maximize_area_exec(bContext *C, wmOperator *op)
   ScrArea *area = NULL;
   const bool hide_panels = RNA_boolean_get(op->ptr, "use_hide_panels");
 
+  BLI_assert(!screen->temp);
+
   /* search current screen for 'fullscreen' areas */
   /* prevents restoring info header, when mouse is over it */
   LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
@@ -3169,11 +3171,14 @@ static int screen_maximize_area_exec(bContext *C, wmOperator *op)
 
 static bool screen_maximize_area_poll(bContext *C)
 {
+  const wmWindow *win = CTX_wm_window(C);
   const bScreen *screen = CTX_wm_screen(C);
   const ScrArea *area = CTX_wm_area(C);
   return ED_operator_areaactive(C) &&
          /* Don't allow maximizing global areas but allow minimizing from them. */
-         ((screen->state != SCREENNORMAL) || !ED_area_is_global(area));
+         ((screen->state != SCREENNORMAL) || !ED_area_is_global(area)) &&
+         /* Don't change temporary screens. */
+         !WM_window_is_temp_screen(win);
 }
 
 static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
@@ -3606,7 +3611,7 @@ static int spacedata_cleanup_exec(bContext *C, wmOperator *op)
 static void SCREEN_OT_spacedata_cleanup(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Clean-up Space-data";
+  ot->name = "Clean Up Space Data";
   ot->description = "Remove unused settings for invisible editors";
   ot->idname = "SCREEN_OT_spacedata_cleanup";
 
@@ -3918,7 +3923,7 @@ static void SCREEN_OT_region_quadview(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Toggle Quad View";
-  ot->description = "Split selected area into camera, front, right & top views";
+  ot->description = "Split selected area into camera, front, right, and top views";
   ot->idname = "SCREEN_OT_region_quadview";
 
   /* api callbacks */
@@ -5280,7 +5285,7 @@ static void SCREEN_OT_space_type_set_or_cycle(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Cycle Space Type Set";
-  ot->description = "Set the space type or cycle sub-type";
+  ot->description = "Set the space type or cycle subtype";
   ot->idname = "SCREEN_OT_space_type_set_or_cycle";
 
   /* api callbacks */
@@ -5501,15 +5506,6 @@ void ED_operatortypes_screen(void)
   /* new/delete */
   WM_operatortype_append(SCREEN_OT_new);
   WM_operatortype_append(SCREEN_OT_delete);
-
-  /* tools shared by more space types */
-  WM_operatortype_append(ED_OT_undo);
-  WM_operatortype_append(ED_OT_undo_push);
-  WM_operatortype_append(ED_OT_redo);
-  WM_operatortype_append(ED_OT_undo_redo);
-  WM_operatortype_append(ED_OT_undo_history);
-
-  WM_operatortype_append(ED_OT_flush_edits);
 }
 
 /** \} */
@@ -5523,8 +5519,8 @@ static void keymap_modal_set(wmKeyConfig *keyconf)
   static const EnumPropertyItem modal_items[] = {
       {KM_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
       {KM_MODAL_APPLY, "APPLY", 0, "Apply", ""},
-      {KM_MODAL_SNAP_ON, "SNAP", 0, "Snap on", ""},
-      {KM_MODAL_SNAP_OFF, "SNAP_OFF", 0, "Snap off", ""},
+      {KM_MODAL_SNAP_ON, "SNAP", 0, "Snap On", ""},
+      {KM_MODAL_SNAP_OFF, "SNAP_OFF", 0, "Snap Off", ""},
       {0, NULL, 0, NULL, NULL},
   };
 

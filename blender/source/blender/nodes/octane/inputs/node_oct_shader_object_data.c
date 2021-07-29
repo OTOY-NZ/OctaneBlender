@@ -24,18 +24,43 @@
 #include "node_shader_util.h"
 
 /* **************** OBJECT INFO  ******************** */
+static bNodeSocketTemplate sh_node_object_in[] = {
+    {SOCK_OBJECT, N_("Object")},
+    {SOCK_COLLECTION, N_("Collection")},
+    {-1, ""},
+};
 
 static bNodeSocketTemplate sh_node_object_out[] = {
     {SOCK_SHADER, N_("OutTransform")},
+    {SOCK_VECTOR, N_("OutRotation")},
+    {SOCK_SHADER, N_("OutGeo")},
+    {SOCK_SHADER, N_("OutTransformedGeo")},
     {-1, ""},
 };
+
+static void oct_node_object_data_update(bNodeTree *UNUSED(tree), bNode *node)
+{
+  bNodeSocket *object_socket = (bNodeSocket *)BLI_findlink(&node->inputs, 0);
+  bNodeSocket *collection_socket = object_socket->next;
+
+  bNodeSocket *out_transform_socket = (bNodeSocket *)BLI_findlink(&node->outputs, 0);
+  bNodeSocket *out_rotation_socket = out_transform_socket->next;
+
+  ObjectDataNodeSourceType type = (ObjectDataNodeSourceType)node->custom1;
+
+  nodeSetSocketAvailability(object_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
+  nodeSetSocketAvailability(collection_socket, type == OBJECT_DATA_NODE_TYPE_COLLECTION);
+  nodeSetSocketAvailability(out_transform_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
+  nodeSetSocketAvailability(out_rotation_socket, type == OBJECT_DATA_NODE_TYPE_OBJECT);
+}
 
 void register_node_type_oct_object_data(void)
 {
   static bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_OCT_OBJECT_DATA, "Object Data", NODE_CLASS_INPUT, 0);
-  node_type_socket_templates(&ntype, NULL, sh_node_object_out);
+  node_type_socket_templates(&ntype, sh_node_object_in, sh_node_object_out);
+  node_type_update(&ntype, oct_node_object_data_update);
   node_type_storage(&ntype, "", NULL, NULL);
 
   nodeRegisterType(&ntype);

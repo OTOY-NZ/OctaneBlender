@@ -20,6 +20,7 @@
  * \ingroup draw_engine
  */
 
+#include "DNA_collection_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_view3d_types.h"
@@ -62,6 +63,7 @@ void OVERLAY_wireframe_cache_init(OVERLAY_Data *vedata)
   View3DShading *shading = &draw_ctx->v3d->shading;
 
   pd->shdata.wire_step_param = pd->overlay.wireframe_threshold - 254.0f / 255.0f;
+  pd->shdata.wire_opacity = pd->overlay.wireframe_opacity;
 
   bool is_wire_shmode = (shading->type == OB_WIRE);
   bool is_material_shmode = (shading->type > OB_SOLID);
@@ -95,6 +97,7 @@ void OVERLAY_wireframe_cache_init(OVERLAY_Data *vedata)
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
       DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tx);
       DRW_shgroup_uniform_float_copy(grp, "wireStepParam", pd->shdata.wire_step_param);
+      DRW_shgroup_uniform_float_copy(grp, "wireOpacity", pd->shdata.wire_opacity);
       DRW_shgroup_uniform_bool_copy(grp, "useColoring", use_coloring);
       DRW_shgroup_uniform_bool_copy(grp, "isTransform", (G.moving & G_TRANSFORM_OBJ) != 0);
       DRW_shgroup_uniform_bool_copy(grp, "isObjectColor", is_object_color);
@@ -139,7 +142,12 @@ static void wireframe_hair_cache_populate(OVERLAY_Data *vedata, Object *ob, Part
   float dupli_mat[4][4];
   if ((dupli_parent != NULL) && (dupli_object != NULL)) {
     if (dupli_object->type & OB_DUPLICOLLECTION) {
-      copy_m4_m4(dupli_mat, dupli_parent->obmat);
+      unit_m4(dupli_mat);
+      Collection *collection = dupli_parent->instance_collection;
+      if (collection != NULL) {
+        sub_v3_v3(dupli_mat[3], collection->instance_offset);
+      }
+      mul_m4_m4m4(dupli_mat, dupli_parent->obmat, dupli_mat);
     }
     else {
       copy_m4_m4(dupli_mat, dupli_object->ob->obmat);

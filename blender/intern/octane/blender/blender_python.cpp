@@ -17,8 +17,8 @@
  */
 #include "BKE_global.h"
 
-#include <Python.h>
 #include "blender/OCT_api.h"
+#include <Python.h>
 
 #include "blender/blender_session.h"
 
@@ -112,7 +112,7 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
                         &pypreferences,
                         &pydata,
                         &pyscreen,
-						&pyregion,
+                        &pyregion,
                         &pyv3d,
                         &pyrv3d,
                         &py_resource_list)) {
@@ -152,7 +152,7 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
   std::unordered_set<std::string> dirty_resources;
   if (py_resource_list && PyList_Size(py_resource_list)) {
     for (int i = 0; i < PyList_Size(py_resource_list); ++i) {
-        PyObject *obj = PyList_GetItem(py_resource_list, i);
+      PyObject *obj = PyList_GetItem(py_resource_list, i);
       PyObject *strObj = PyUnicode_AsUTF8String(obj);
       std::string str = std::string(PyBytes_AsString(strObj));
       Py_DECREF(strObj);
@@ -450,7 +450,9 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
             data_type = BL::NodeSocket::type_VECTOR;
             default_float4[0] = pinInfo.mFloatInfo.mDefaultValue.x;
             default_float4[1] = pinInfo.mFloatInfo.mDefaultValue.y;
-            default_float4[2] = pinInfo.mFloatInfo.mDimCount > 2 ? pinInfo.mFloatInfo.mDefaultValue.z : 0.f;
+            default_float4[2] = pinInfo.mFloatInfo.mDimCount > 2 ?
+                                    pinInfo.mFloatInfo.mDefaultValue.z :
+                                    0.f;
           }
           else {
             socket_type = "NodeSocketFloat";
@@ -745,19 +747,19 @@ static PyObject *update_vdb_info_func(PyObject *self, PyObject *args)
   PyObject *pydata, *pyscene, *pyobject;
   if (PyArg_ParseTuple(args, "OOO", &pyobject, &pydata, &pyscene)) {
 
-	PointerRNA dataptr;
+    PointerRNA dataptr;
     RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
     BL::BlendData b_data(dataptr);
 
-	PointerRNA sceneptr;
+    PointerRNA sceneptr;
     RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
     BL::Scene b_scene(sceneptr);
 
-	PointerRNA objectptr;
+    PointerRNA objectptr;
     RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyobject), &objectptr);
     BL::Object b_object(objectptr);
     BL::ID b_ob_data = b_object.data();
-	PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+    PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
 
     Py_BEGIN_ALLOW_THREADS;
     BlenderSession::resolve_octane_vdb_info(
@@ -779,6 +781,48 @@ static PyObject *update_vdb_info_func(PyObject *self, PyObject *args)
   return rets;
 }
 
+static PyObject *update_ocio_info_func(PyObject *self, PyObject *args)
+{
+  std::vector<std::vector<std::string>> results;
+  int use_other_config, use_automatic, intermediate_color_space_octane;
+  PyObject *py_path, *py_intermediate_color_space_ocio_name;
+       if (!PyArg_ParseTuple(args,
+                        "OiiiO",
+                        &py_path,
+                        &use_other_config,
+                        &use_automatic,
+                        &intermediate_color_space_octane,
+                        &py_intermediate_color_space_ocio_name)) {
+    return PyBool_FromLong(0);
+  }
+
+  PyObject *path_coerce = NULL;
+  std::string path = PyC_UnicodeAsByte(py_path, &path_coerce);
+  std::string intermediate_color_space_ocio_name = PyC_UnicodeAsByte(
+      py_intermediate_color_space_ocio_name, &path_coerce);
+  Py_XDECREF(path_coerce);
+
+  Py_BEGIN_ALLOW_THREADS;
+  BlenderSession::resolve_octane_ocio_info(G.octane_server_address,
+                                           path,
+                                           use_other_config,
+                                           use_automatic,
+                                           intermediate_color_space_octane,
+                                           intermediate_color_space_ocio_name,
+                                           results);
+  Py_END_ALLOW_THREADS;
+
+  PyObject *rets = PyTuple_New(results.size());
+  for (int i = 0; i < results.size(); ++i) {
+    PyObject *ret = PyTuple_New(results[i].size());
+    for (int j = 0; j < results[i].size(); ++j) {
+      PyTuple_SET_ITEM(ret, j, PyUnicode_FromString(results[i][j].c_str()));
+	}
+    PyTuple_SET_ITEM(rets, i, ret);
+  }
+  return rets;
+}
+
 static PyObject *orbx_preview_func(PyObject *self, PyObject *args)
 {
   PyObject *abc_path_obj, *orbx_path_obj;
@@ -790,7 +834,7 @@ static PyObject *orbx_preview_func(PyObject *self, PyObject *args)
 
   PyObject *path_coerce = NULL;
   std::string orbx_path = PyC_UnicodeAsByte(orbx_path_obj, &path_coerce);
-  std::string abc_path = PyC_UnicodeAsByte(abc_path_obj, &path_coerce);  
+  std::string abc_path = PyC_UnicodeAsByte(abc_path_obj, &path_coerce);
   Py_XDECREF(path_coerce);
 
   Py_BEGIN_ALLOW_THREADS;
@@ -824,6 +868,7 @@ static PyMethodDef methods[] = {
     {"set_octane_params", set_octane_params_func, METH_VARARGS, ""},
     {"update_vdb_info", update_vdb_info_func, METH_VARARGS, ""},
     {"orbx_preview", orbx_preview_func, METH_VARARGS, ""},
+    {"update_ocio_info", update_ocio_info_func, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL},
 };
 

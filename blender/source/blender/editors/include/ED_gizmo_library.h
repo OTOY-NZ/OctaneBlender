@@ -19,7 +19,7 @@
  *
  * \name Generic Gizmos.
  *
- * This is exposes pre-defined gizmos for re-use.
+ * This is exposes predefined gizmos for re-use.
  */
 
 #pragma once
@@ -264,6 +264,7 @@ struct SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(struct Scene *sce
 bool ED_gizmotypes_snap_3d_invert_snap_get(struct wmGizmo *gz);
 void ED_gizmotypes_snap_3d_toggle_set(struct wmGizmo *gz, bool enable);
 void ED_gizmotypes_snap_3d_toggle_clear(struct wmGizmo *gz);
+bool ED_gizmotypes_snap_3d_is_enabled(struct wmGizmo *gz);
 
 short ED_gizmotypes_snap_3d_update(struct wmGizmo *gz,
                                    struct Depsgraph *depsgraph,

@@ -360,6 +360,8 @@ IDTypeInfo IDType_ID_MC = {
     .blend_read_data = movieclip_blend_read_data,
     .blend_read_lib = movieclip_blend_read_lib,
     .blend_read_expand = NULL,
+
+    .blend_read_undo_preserve = NULL,
 };
 
 /*********************** movieclip buffer loaders *************************/
@@ -520,7 +522,7 @@ static void movieclip_convert_multilayer_add_pass(void *UNUSED(layer),
     MEM_freeN(rect);
     return;
   }
-  if (STREQ(pass_name, RE_PASSNAME_COMBINED) || STREQ(chan_id, "RGBA") || STREQ(chan_id, "RGB")) {
+  if (STREQ(pass_name, RE_PASSNAME_COMBINED) || STR_ELEM(chan_id, "RGBA", "RGB")) {
     ctx->combined_pass = rect;
     ctx->num_combined_channels = num_channels;
   }
@@ -2110,7 +2112,8 @@ GPUTexture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
   /* This only means RGBA16F instead of RGBA32F. */
   const bool high_bitdepth = false;
   const bool store_premultiplied = ibuf->rect_float ? false : true;
-  *tex = IMB_create_gpu_texture(clip->id.name + 2, ibuf, high_bitdepth, store_premultiplied);
+  *tex = IMB_create_gpu_texture(
+      clip->id.name + 2, ibuf, high_bitdepth, store_premultiplied, false);
 
   /* Do not generate mips for movieclips... too slow. */
   GPU_texture_mipmap_mode(*tex, false, true);

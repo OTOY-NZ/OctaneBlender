@@ -151,7 +151,7 @@ DefNode(CompositorNode, CMP_NODE_TIME,           def_time,               "TIME",
 DefNode(CompositorNode, CMP_NODE_VECBLUR,        def_cmp_vector_blur,    "VECBLUR",        VecBlur,          "Vector Blur",       ""              )
 DefNode(CompositorNode, CMP_NODE_SEPRGBA,        0,                      "SEPRGBA",        SepRGBA,          "Separate RGBA",     ""              )
 DefNode(CompositorNode, CMP_NODE_SEPHSVA,        0,                      "SEPHSVA",        SepHSVA,          "Separate HSVA",     ""              )
-DefNode(CompositorNode, CMP_NODE_SETALPHA,       0,                      "SETALPHA",       SetAlpha,         "Set Alpha",         ""              )
+DefNode(CompositorNode, CMP_NODE_SETALPHA,       def_cmp_set_alpha,      "SETALPHA",       SetAlpha,         "Set Alpha",         ""              )
 DefNode(CompositorNode, CMP_NODE_HUE_SAT,        0,                      "HUE_SAT",        HueSat,           "Hue Saturation Value",""            )
 DefNode(CompositorNode, CMP_NODE_IMAGE,          def_cmp_image,          "IMAGE",          Image,            "Image",             ""              )
 DefNode(CompositorNode, CMP_NODE_R_LAYERS,       def_cmp_render_layers,  "R_LAYERS",       RLayers,          "Render Layers",     ""              )
@@ -222,6 +222,7 @@ DefNode(CompositorNode, CMP_NODE_CORNERPIN,      0,                      "CORNER
 DefNode(CompositorNode, CMP_NODE_SUNBEAMS,       def_cmp_sunbeams,       "SUNBEAMS",       SunBeams,         "Sun Beams",         ""              )
 DefNode(CompositorNode, CMP_NODE_CRYPTOMATTE,    def_cmp_cryptomatte,    "CRYPTOMATTE",    Cryptomatte,      "Cryptomatte",       ""              )
 DefNode(CompositorNode, CMP_NODE_DENOISE,        def_cmp_denoise,        "DENOISE",        Denoise,          "Denoise",           ""              )
+DefNode(CompositorNode, CMP_NODE_EXPOSURE,       0,                      "EXPOSURE",       Exposure,         "Exposure",          ""              )
 
 DefNode(TextureNode,    TEX_NODE_OUTPUT,         def_tex_output,         "OUTPUT",         Output,           "Output",            ""              )
 DefNode(TextureNode,    TEX_NODE_CHECKER,        0,                      "CHECKER",        Checker,          "Checker",           ""              )
@@ -265,7 +266,29 @@ DefNode(FunctionNode, FN_NODE_GROUP_INSTANCE_ID, 0,             "GROUP_INSTANCE_
 DefNode(FunctionNode, FN_NODE_COMBINE_STRINGS, 0,               "COMBINE_STRINGS", CombineStrings, "Combine Strings", "")
 DefNode(FunctionNode, FN_NODE_OBJECT_TRANSFORMS, 0,             "OBJECT_TRANSFORMS", ObjectTransforms, "Object Transforms", "")
 DefNode(FunctionNode, FN_NODE_RANDOM_FLOAT, 0,                  "RANDOM_FLOAT", RandomFloat, "Random Float", "")
+DefNode(FunctionNode, FN_NODE_INPUT_VECTOR, def_fn_input_vector, "INPUT_VECTOR", InputVector, "Vector", "")
 
+DefNode(GeometryNode, GEO_NODE_TRIANGULATE, def_geo_triangulate, "TRIANGULATE", Triangulate, "Triangulate", "")
+DefNode(GeometryNode, GEO_NODE_EDGE_SPLIT, 0, "EDGE_SPLIT", EdgeSplit, "Edge Split", "")
+DefNode(GeometryNode, GEO_NODE_TRANSFORM, 0, "TRANSFORM", Transform, "Transform", "")
+DefNode(GeometryNode, GEO_NODE_SUBDIVISION_SURFACE, 0, "SUBDIVISION_SURFACE", SubdivisionSurface, "Subdivision Surface", "")
+DefNode(GeometryNode, GEO_NODE_BOOLEAN, def_geo_boolean, "BOOLEAN", Boolean, "Boolean", "")
+DefNode(GeometryNode, GEO_NODE_POINT_DISTRIBUTE, def_geo_point_distribute, "POINT_DISTRIBUTE", PointDistribute, "Point Distribute", "")
+DefNode(GeometryNode, GEO_NODE_POINT_INSTANCE, def_geo_point_instance, "POINT_INSTANCE", PointInstance, "Point Instance", "")
+DefNode(GeometryNode, GEO_NODE_OBJECT_INFO, def_geo_object_info, "OBJECT_INFO", ObjectInfo, "Object Info", "")
+DefNode(GeometryNode, GEO_NODE_ATTRIBUTE_RANDOMIZE, def_geo_attribute_randomize, "ATTRIBUTE_RANDOMIZE", AttributeRandomize, "Attribute Randomize", "")
+DefNode(GeometryNode, GEO_NODE_ATTRIBUTE_MATH, def_geo_attribute_math, "ATTRIBUTE_MATH", AttributeMath, "Attribute Math", "")
+DefNode(GeometryNode, GEO_NODE_JOIN_GEOMETRY, 0, "JOIN_GEOMETRY", JoinGeometry, "Join Geometry", "")
+DefNode(GeometryNode, GEO_NODE_ATTRIBUTE_FILL, def_geo_attribute_fill, "ATTRIBUTE_FILL", AttributeFill, "Attribute Fill", "")
+DefNode(GeometryNode, GEO_NODE_ATTRIBUTE_MIX, def_geo_attribute_mix, "ATTRIBUTE_MIX", AttributeMix, "Attribute Mix", "")
+DefNode(GeometryNode, GEO_NODE_ATTRIBUTE_COLOR_RAMP, def_geo_attribute_color_ramp, "ATTRIBUTE_COLOR_RAMP", AttributeColorRamp, "Attribute Color Ramp", "")
+DefNode(GeometryNode, GEO_NODE_POINT_SEPARATE, 0, "POINT_SEPARATE", PointSeparate, "Point Separate", "")
+DefNode(GeometryNode, GEO_NODE_ATTRIBUTE_COMPARE, def_geo_attribute_attribute_compare, "ATTRIBUTE_COMPARE", AttributeCompare, "Attribute Compare", "")
+DefNode(GeometryNode, GEO_NODE_POINT_ROTATE, def_geo_point_rotate, "POINT_ROTATE", RotatePoints, "Point Rotate", "")
+DefNode(GeometryNode, GEO_NODE_ATTRIBUTE_VECTOR_MATH, def_geo_attribute_vector_math, "ATTRIBUTE_VECTOR_MATH", AttributeVectorMath, "Attribute Vector Math", "")
+DefNode(GeometryNode, GEO_NODE_ALIGN_ROTATION_TO_VECTOR, def_geo_align_rotation_to_vector, "ALIGN_ROTATION_TO_VECTOR", AlignRotationToVector, "Align Rotation to Vector", "")
+DefNode(GeometryNode, GEO_NODE_POINT_SCALE, def_geo_point_scale, "POINT_SCALE", PointScale, "Point Scale", "")
+DefNode(GeometryNode, GEO_NODE_POINT_TRANSLATE, def_geo_point_translate, "POINT_TRANSLATE", PointTranslate, "Point Translate", "")
 
 DefNode( ShaderNode,	 SH_NODE_OCT_DIFFUSE_MAT,			0,						"OCT_DIFFUSE_MAT",			OctDiffuseMat,			"Diffuse Material",		"");
 DefNode( ShaderNode,	 SH_NODE_OCT_GLOSSY_MAT,			def_oct_glossy,			"OCT_GLOSSY_MAT",			OctGlossyMat,			"Glossy Material",		"");
@@ -279,6 +302,7 @@ DefNode( ShaderNode,   SH_NODE_OCT_SHADOW_CATCHER_MAT,     0,              "OCT_
 DefNode( ShaderNode,   SH_NODE_OCT_LAYERED_MAT,     def_oct_layered_mat,	 "OCT_LAYERED_MAT",		OctLayeredMat,	"Layered Material",""   );
 DefNode( ShaderNode,   SH_NODE_OCT_COMPOSITE_MAT,   def_oct_composite_mat, "OCT_COMPOSITE_MAT",	OctCompositeMat,	"Composite Material",""   );
 DefNode( ShaderNode,	 SH_NODE_OCT_HAIR_MAT,				def_oct_hair,			"OCT_HAIR_MAT",			OctHairMat,			"Hair Material",		"");
+DefNode( ShaderNode,	 SH_NODE_OCT_NULL_MAT,				0,			"OCT_NULL_MAT",			OctNullMat,			"Null Material",		"");
 
 DefNode( ShaderNode,   SH_NODE_OCT_GROUP_LAYER,   def_oct_group_layer,	"OCT_GROUP_LAYER",		OctGroupLayer,	"Group Layer",""   );
 DefNode( ShaderNode,   SH_NODE_OCT_DIFFUSE_LAYER, def_oct_diffuse_layer,	"OCT_DIFFUSE_LAYER",	OctDiffuseLayer, "Diffuse Layer",""   );
@@ -313,7 +337,7 @@ DefNode( ShaderNode, SH_NODE_OCT_COMPARE_TEX, 0, "OCT_COMPARE_TEX", OctCompareTe
 DefNode( ShaderNode, SH_NODE_OCT_TRIPLANAR_TEX, def_oct_triplanar_coordinate_space_mode, "OCT_TRIPLANAR_TEX", OctTriplanarTex, "Triplanar Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_FALLOFF_TEX, def_oct_falloff_map_tex, "OCT_FALLOFF_TEX", OctFalloffTex, "Falloff Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_COLOR_CORRECT_TEX, 0, "OCT_CCORRECT_TEX", OctColorCorrectTex, "Color Correct Tex", "");
-
+DefNode( ShaderNode, SH_NODE_OCT_CHAOS_TEX, 0, "OCT_CHAOS_TEX", OctChaosTex, "Chaos Tex", "");
 
 DefNode( ShaderNode, SH_NODE_OCT_DIRT_TEX, def_oct_texture_dirt, "OCT_DIRT_TEX", OctDirtTex, "Dirt Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_GRADIENT_TEX, def_oct_colorramp, "OCT_GRADIENT_TEX", OctGradientTex, "Gradient Tex", "");
@@ -323,6 +347,7 @@ DefNode( ShaderNode, SH_NODE_OCT_VERTEX_DISPLACEMENT_TEX,def_oct_vertex_displace
 DefNode( ShaderNode, SH_NODE_OCT_VERTEX_DISPLACEMENT_MIXER_TEX,def_oct_vertex_displacement_mixer_tex, "OCT_VERTEX_DISPLACEMENT_MIXER_TEX",  OctVertexDisplacementMixerTex,  "Vertex Displacement Mixer",          ""    );
 DefNode( ShaderNode, SH_NODE_OCT_POLYGON_SIDE_TEX, 0, "OCT_POLYGON_SIDE_TEX", OctPolygonSideTex, "Polygon Side Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_NOISE_TEX, def_oct_noise_tex, "OCT_NOISE_TEX", OctNoiseTex, "Noise Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_CINEMA4D_NOISE_TEX, def_oct_cinema4d_noise_tex, "OCT_CINEMA4D_NOISE_TEX", OctCinema4DNoiseTex, "Cinema4D Noise Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_VOLUME_RAMP_TEX, def_oct_colorramp, "OCT_VOLUME_RAMP_TEX", OctVolumeRampTex, "Volume Ramp Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_W_TEX, 0, "OCT_W_TEX", OctWTex, "W Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_BAKING_TEX, def_oct_baking_tex, "OCT_BAKING_TEX", OctBakingTex, "Baking Tex", "");
@@ -370,6 +395,8 @@ DefNode( ShaderNode, SH_NODE_OCT_OSL_CAMERA, def_sh_script, "OCT_OSL_CAMERA", Oc
 DefNode( ShaderNode, SH_NODE_OCT_OSL_BAKING_CAMERA, def_sh_script, "OCT_OSL_BAKING_CAMERA", OctOSLBakingCamera, "OSL Baking Camera", "");
 
 DefNode( ShaderNode, SH_NODE_OCT_VECTRON, def_sh_script, "OCT_VECTRON", OctVectron, "Vectron", "");
+DefNode( ShaderNode, SH_NODE_OCT_SCATTER_TOOL_SURFACE, def_oct_scatter_tool_surface, "OCT_SCATTER_TOOL_SURFACE", OctScatterToolSurface, "Scatter on Surface", "");
+DefNode( ShaderNode, SH_NODE_OCT_SCATTER_TOOL_VOLUME, def_oct_scatter_tool_volume, "OCT_SCATTER_TOOL_VOLUME", OctScatterToolVolume, "Scatter in Volume", "");
 
 DefNode( ShaderNode, SH_NODE_OCT_ROUNDEDGES, def_oct_round_edges, "OCT_ROUND_EDGES", OctRoundEdges, "Round Edges", "");
 
@@ -379,6 +406,21 @@ DefNode( ShaderNode, SH_NODE_OCT_TEXTURE_ENVIRONMENT, 0, "OCT_TEXTURE_ENVIRONMEN
 DefNode( ShaderNode, SH_NODE_OCT_DAYLIGHT_ENVIRONMENT, def_oct_daylight_environment, "OCT_DAYLIGHT_ENVIRONMENT", OctDaylightEnvironment, "Daylight Environment", "");
 DefNode( ShaderNode, SH_NODE_OCT_PLANETARY_ENVIRONMENT, 0, "OCT_PLANETARY_ENVIRONMENT", OctPlanetaryEnvironment, "Planetary Environment", "");
 
+DefNode( ShaderNode, SH_NODE_OCT_CHANNEL_INVERTER_TEX, 0, "OCT_CHANNEL_INVERTER_TEX", OctChannelInverterTex, "Channel Inverter Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_CHANNEL_MAPPER_TEX, 0, "OCT_CHANNEL_MAPPER_TEX", OctChannelMapperTex, "Channel Mapper Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_CHANNEL_MERGER_TEX, 0, "OCT_CHANNEL_MERGER_TEX", OctChannelMergerTex, "Channel Merger Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_CHANNEL_PICKER_TEX, def_oct_channel_picker, "OCT_CHANNEL_PICKER_TEX", OctChannelPickerTex, "Channel Picker Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_RAY_SWITCH_TEX, 0, "OCT_RAY_SWITCH_TEX", OctRaySwitchTex, "Ray Switch Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_SPOTLIGHT_TEX, def_oct_spotlight, "OCT_SPOTLIGHT_TEX", OctSpotlightTex, "Spotlight Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_COMPOSITE_TEX, def_oct_composite_tex, "OCT_COMPOSITE_TEX", OctCompositeTex, "Composite Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_COMPOSITE_LAYER_TEX, def_oct_composite_layer_tex, "OCT_COMPOSITE_LAYER_TEX", OctCompositeLayerTex, "Composite Layer Tex", "");
+
+DefNode( ShaderNode, SH_NODE_OCT_AOV_OUTPUT_GROUP, def_oct_aov_output_group, "OCT_AOV_OUTPUT_GROUP", OctAovOutputGroup, "AOV Output Group", "");
+DefNode( ShaderNode, SH_NODE_OCT_COLOR_AOV_OUTPUT, 0, "OCT_COLOR_AOV_OUTPUT", OctColorAovOutput, "Color AOV Output", "");
+DefNode( ShaderNode, SH_NODE_OCT_COMPOSITE_AOV_OUTPUT, def_oct_composite_aov_output, "OCT_COMPOSITE_AOV_OUTPUT", OctCompositeAovOutput, "Composite AOV Output", "");
+DefNode( ShaderNode, SH_NODE_OCT_COMPOSITE_AOV_OUTPUT_LAYER, def_oct_composite_aov_output_layer, "OCT_COMPOSITE_AOV_OUTPUT_LAYER", OctCompositeAovOutputLayer, "Composite AOV Output Layer", "");
+DefNode( ShaderNode, SH_NODE_OCT_RENDER_AOV_OUTPUT, def_oct_render_aov_output, "OCT_RENDER_AOV_OUTPUT", OctRenderAovOutput, "Render AOV Output", "");
+DefNode( ShaderNode, SH_NODE_OCT_IMAGE_AOV_OUTPUT, def_oct_image_aov_output, "OCT_IMAGE_AOV_OUTPUT", OctImageAovOutput, "Image AOV Output", "");
 /* undefine macros */
 #undef DefNode
 

@@ -260,7 +260,7 @@ eGPUStencilTest GPU_stencil_test_get()
 }
 
 /* NOTE: Already premultiplied by U.pixelsize. */
-float GPU_line_width_get(void)
+float GPU_line_width_get()
 {
   GPUStateMutable &state = Context::get()->state_manager->mutable_state;
   return state.line_width;
@@ -285,13 +285,13 @@ void GPU_viewport_size_get_i(int coords[4])
   Context::get()->active_fb->viewport_get(coords);
 }
 
-bool GPU_depth_mask_get(void)
+bool GPU_depth_mask_get()
 {
   GPUState &state = Context::get()->state_manager->state;
   return (state.write_mask & GPU_WRITE_DEPTH) != 0;
 }
 
-bool GPU_mipmap_enabled(void)
+bool GPU_mipmap_enabled()
 {
   /* TODO(fclem): this used to be a userdef option. */
   return true;
@@ -303,17 +303,17 @@ bool GPU_mipmap_enabled(void)
 /** \name Context Utils
  * \{ */
 
-void GPU_flush(void)
+void GPU_flush()
 {
   Context::get()->flush();
 }
 
-void GPU_finish(void)
+void GPU_finish()
 {
   Context::get()->finish();
 }
 
-void GPU_apply_state(void)
+void GPU_apply_state()
 {
   Context::get()->state_manager->apply_state();
 }
@@ -328,7 +328,7 @@ void GPU_apply_state(void)
  * bgl functions.
  * \{ */
 
-void GPU_bgl_start(void)
+void GPU_bgl_start()
 {
   Context *ctx = Context::get();
   if (!(ctx && ctx->state_manager)) {
@@ -339,13 +339,27 @@ void GPU_bgl_start(void)
     /* Expected by many addons (see T80169, T81289).
      * This will reset the blend function. */
     GPU_blend(GPU_BLEND_NONE);
+
+    /* Equivalent of setting the depth func `glDepthFunc(GL_LEQUAL)`
+     * Needed since Python scripts may enable depth test.
+     * Without this block the depth test function is undefined. */
+    {
+      eGPUDepthTest depth_test_real = GPU_depth_test_get();
+      eGPUDepthTest depth_test_temp = GPU_DEPTH_LESS_EQUAL;
+      if (depth_test_real != depth_test_temp) {
+        GPU_depth_test(depth_test_temp);
+        state_manager.apply_state();
+        GPU_depth_test(depth_test_real);
+      }
+    }
+
     state_manager.apply_state();
     state_manager.use_bgl = true;
   }
 }
 
 /* Just turn off the bgl safeguard system. Can be called even without GPU_bgl_start. */
-void GPU_bgl_end(void)
+void GPU_bgl_end()
 {
   Context *ctx = Context::get();
   if (!(ctx && ctx->state_manager)) {
@@ -359,7 +373,7 @@ void GPU_bgl_end(void)
   }
 }
 
-bool GPU_bgl_get(void)
+bool GPU_bgl_get()
 {
   return Context::get()->state_manager->use_bgl;
 }
@@ -381,7 +395,7 @@ void GPU_memory_barrier(eGPUBarrier barrier)
 /** \name Default State
  * \{ */
 
-StateManager::StateManager(void)
+StateManager::StateManager()
 {
   /* Set default state. */
   state.write_mask = GPU_WRITE_COLOR;

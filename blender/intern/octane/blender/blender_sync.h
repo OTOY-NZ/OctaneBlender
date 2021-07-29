@@ -21,9 +21,9 @@
 
 #include "blender/blender_util.h"
 
+#include "render/object.h"
 #include "render/scene.h"
 #include "render/session.h"
-#include "render/object.h"
 
 #include "util/util_map.h"
 #include "util/util_set.h"
@@ -90,7 +90,7 @@ class BlenderSync {
                         float motion_time);
   void sync_camera_motion(
       BL::RenderSettings &b_render, BL::Object &b_ob, int width, int height, float motion_time);
-  void sync_render_passes(BL::ViewLayer &b_view_layer);
+  void sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &b_view_layer);
   void update_octane_camera_properties(Camera *cam,
                                        PointerRNA oct_camera,
                                        PointerRNA oct_view_camera,
@@ -185,8 +185,9 @@ class BlenderSync {
                   OctaneDataTransferObject::OctaneObjectLayer &object_layer);
   void sync_shaders(BL::Depsgraph &b_depsgraph);
   void sync_material(BL::Material b_material, Shader *shader);
-  void sync_materials(BL::Depsgraph &b_depsgraph, bool update_all);
+  void sync_materials(BL::Depsgraph &b_depsgraph, bool update_all, bool update_paint_only = false);
   void sync_textures(BL::Depsgraph &b_depsgraph, bool update_all);
+  void sync_composites(BL::Depsgraph &b_depsgraph, bool update_all);
 
   void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, float motion_time = 0);
   bool fill_mesh_hair_data(Mesh *mesh,
@@ -266,6 +267,11 @@ class BlenderSync {
   set<std::string> env_textures_in_use;
   std::map<std::string, int> resource_cache_data;
   std::unordered_set<std::string> dirty_resources;
+  std::unordered_map<std::string, std::string> synced_mesh_tags;
+
+  std::string composite_node_tree_name;
+  std::string aov_output_group_name;
+  int current_aov_number;
 };
 
 OCT_NAMESPACE_END

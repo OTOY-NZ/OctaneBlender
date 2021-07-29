@@ -1837,6 +1837,21 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
      layerMultiply_propfloat2,
      NULL,
      layerAdd_propfloat2},
+    /* 50: CD_PROP_BOOL */
+    {sizeof(bool),
+     "bool",
+     1,
+     N_("Boolean"),
+     NULL,
+     NULL,
+     NULL,
+     NULL,
+     NULL,
+     NULL,
+     NULL,
+     NULL,
+     NULL,
+     NULL},
 };
 
 static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
@@ -1892,6 +1907,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
     "CDPropCol",
     "CDPropFloat3",
     "CDPropFloat2",
+    "CDPropBoolean",
 };
 
 const CustomData_MeshMasks CD_MASK_BAREMESH = {
@@ -2509,7 +2525,7 @@ static CustomDataLayer *customData_add_layer__internal(CustomData *data,
     return &data->layers[CustomData_get_layer_index(data, type)];
   }
 
-  if ((alloctype == CD_ASSIGN) || (alloctype == CD_REFERENCE)) {
+  if (ELEM(alloctype, CD_ASSIGN, CD_REFERENCE)) {
     newlayerdata = layerdata;
   }
   else if (totelem > 0 && typeInfo->size > 0) {
@@ -2997,7 +3013,7 @@ void CustomData_free_elem(CustomData *data, int index, int count)
 /**
  * Interpolate given custom data source items into a single destination one.
  *
- * \param src_indices Indices of every source items to interpolate into the destination one.
+ * \param src_indices: Indices of every source items to interpolate into the destination one.
  * \param weights: The weight to apply to each source value individually. If NULL, they will be
  * averaged.
  * \param sub_weights: The weights of sub-items, only used to affect each corners of a
@@ -4275,6 +4291,18 @@ bool CustomData_layertype_is_singleton(int type)
 }
 
 /**
+ * Has dynamically allocated members.
+ * This is useful to know if operations such as #memcmp are
+ * valid when comparing data from two layers.
+ */
+bool CustomData_layertype_is_dynamic(int type)
+{
+  const LayerTypeInfo *typeInfo = layerType_getInfo(type);
+
+  return (typeInfo->free != NULL);
+}
+
+/**
  * \return Maximum number of layers of given \a type, -1 means 'no limit'.
  */
 int CustomData_layertype_layers_max(const int type)
@@ -5088,6 +5116,10 @@ void CustomData_blend_write(BlendWriter *writer,
       const int *layer_data = layer->data;
       BLO_write_raw(writer, sizeof(*layer_data) * count, layer_data);
     }
+    else if (layer->type == CD_PROP_BOOL) {
+      const bool *layer_data = layer->data;
+      BLO_write_raw(writer, sizeof(*layer_data) * count, layer_data);
+    }
     else {
       const char *structname;
       int structnum;
@@ -5177,6 +5209,16 @@ void CustomData_blend_read(BlendDataReader *reader, CustomData *data, int count)
 
     if (CustomData_verify_versions(data, i)) {
       BLO_read_data_address(reader, &layer->data);
+      if (layer->data == NULL && count > 0 && layer->type == CD_PROP_BOOL) {
+        /* Usually this should never happen, except when a custom data layer has not been written
+         * to a file correctly. */
+        CLOG_WARN(&LOG, "Reallocating custom data layer that was not saved correctly.");
+        const LayerTypeInfo *info = layerType_getInfo(layer->type);
+        layer->data = MEM_calloc_arrayN((size_t)count, info->size, layerType_getName(layer->type));
+        if (info->set_default) {
+          info->set_default(layer->data, count);
+        }
+      }
       if (layer->type == CD_MDISPS) {
         blend_read_mdisps(reader, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
       }

@@ -64,19 +64,6 @@
 #include "transform_orientations.h"
 #include "transform_snap.h"
 
-/* ************************** Functions *************************** */
-
-void getViewVector(const TransInfo *t, const float coord[3], float vec[3])
-{
-  if (t->persp != RV3D_ORTHO) {
-    sub_v3_v3v3(vec, coord, t->viewinv[3]);
-  }
-  else {
-    copy_v3_v3(vec, t->viewinv[2]);
-  }
-  normalize_v3(vec);
-}
-
 /* ************************** GENERICS **************************** */
 
 void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis, short options)
@@ -441,7 +428,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   BLI_assert(is_zero_v4(t->values_modal_offset));
 
-  bool use_orient_axis = false;
   bool t_values_set_is_array = false;
 
   if (op && (prop = RNA_struct_find_property(op->ptr, "value")) &&
@@ -466,11 +452,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     }
   }
 
-  if (op && (prop = RNA_struct_find_property(op->ptr, "orient_axis"))) {
-    t->orient_axis = RNA_property_enum_get(op->ptr, prop);
-    use_orient_axis = true;
-  }
-
   if (op && (prop = RNA_struct_find_property(op->ptr, "constraint_axis"))) {
     bool constraint_axis[3] = {false, false, false};
     if (t->flag & T_INPUT_IS_VALUES_FINAL) {
@@ -478,9 +459,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         /* For operators whose `t->values` is array, set constraint so that the
          * orientation is more intuitive in the Redo Panel. */
         constraint_axis[0] = constraint_axis[1] = constraint_axis[2] = true;
-      }
-      else if (use_orient_axis) {
-        constraint_axis[t->orient_axis] = true;
       }
     }
     else if (RNA_property_is_set(op->ptr, prop)) {
@@ -506,10 +484,11 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     short orient_types[3];
     float custom_matrix[3][3];
 
-    short orient_type_default = V3D_ORIENT_GLOBAL;
     short orient_type_scene = V3D_ORIENT_GLOBAL;
     short orient_type_set = V3D_ORIENT_GLOBAL;
     short orient_type_matrix_set = -1;
+
+    bool use_orient_axis = false;
 
     if ((t->spacetype == SPACE_VIEW3D) && (t->region->regiontype == RGN_TYPE_WINDOW)) {
       TransformOrientationSlot *orient_slot = &t->scene->orientation_slots[SCE_ORIENT_DEFAULT];
@@ -518,6 +497,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         const int index_custom = orient_slot->index_custom;
         orient_type_scene += index_custom;
       }
+    }
+
+    short orient_type_default = orient_type_scene;
+
+    if (op && (prop = RNA_struct_find_property(op->ptr, "orient_axis"))) {
+      t->orient_axis = RNA_property_enum_get(op->ptr, prop);
+      use_orient_axis = true;
     }
 
     if (op && (prop = RNA_struct_find_property(op->ptr, "orient_axis_ortho"))) {
@@ -535,7 +521,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
       orient_type_default = orient_type_set;
     }
     else if (t->con.mode & CON_APPLY) {
-      orient_type_set = orient_type_default = orient_type_scene;
+      orient_type_set = orient_type_scene;
     }
     else {
       if (orient_type_set == orient_type_scene) {
@@ -799,7 +785,7 @@ void postTrans(bContext *C, TransInfo *t)
   if (t->data_len_all != 0) {
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       /* free data malloced per trans-data */
-      if (ELEM(t->obedit_type, OB_CURVE, OB_SURF) || (t->spacetype == SPACE_GRAPH)) {
+      if (ELEM(t->obedit_type, OB_CURVE, OB_SURF, OB_GPENCIL) || (t->spacetype == SPACE_GRAPH)) {
         TransData *td = tc->data;
         for (int a = 0; a < tc->data_len; a++, td++) {
           if (td->flag & TD_BEZTRIPLE) {

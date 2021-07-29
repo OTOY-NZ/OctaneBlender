@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='21.12'
+OCTANE_BLENDER_VERSION='23.5'
 
 import bpy
 import math
@@ -34,8 +34,10 @@ def do_versions(self):
     check_compatibility_octane_pariticle(file_version)
     check_compatibility_octane_world(file_version)
     check_compatibility_camera_imagers(file_version)   
-    check_compatibility_octane_node_tree(file_version)     
-    update_current_version()
+    check_compatibility_octane_node_tree(file_version)
+    check_octane_output_settings(file_version)
+    check_color_management()    
+    update_current_version()    
 
 
 # helper functions
@@ -56,6 +58,30 @@ def check_update(current_version, update_version):
         update_version_list = []
     return current_version_list < update_version_list
 
+
+def check_color_management():
+    # Update Color Management Settings for "New Created" files
+    if bpy.data.filepath == '':
+        bpy.context.scene.display_settings.display_device = 'sRGB'
+        bpy.context.scene.view_settings.view_transform = 'Raw'
+
+def check_octane_output_settings(file_version):
+    rd = bpy.context.scene.render
+    image_settings = rd.image_settings    
+    if check_update(file_version, '23.2'):
+        if image_settings.octane_file_format == 'PNG8_TONEMAPPED':
+            image_settings.octane_image_save_format = 'OCT_IMAGE_SAVE_FORMAT_PNG_8'
+        elif image_settings.octane_file_format == 'PNG16_TONEMAPPED':
+            image_settings.octane_image_save_format = 'OCT_IMAGE_SAVE_FORMAT_PNG_16'
+        elif image_settings.octane_file_format in ('EXR16_LINEAR', 'EXR16_TONEMAPPED'):
+            image_settings.octane_image_save_format = 'OCT_IMAGE_SAVE_FORMAT_EXR_16'        
+        elif image_settings.octane_file_format in ('EXR32_LINEAR', 'EXR32_TONEMAPPED', 'EXR_ACES'):
+            image_settings.octane_image_save_format = 'OCT_IMAGE_SAVE_FORMAT_EXR_32'
+    if check_update(file_version, '23.5'):
+        if bpy.context.scene.octane.need_upgrade_octane_output_tag and image_settings.octane_export_tag == "" and image_settings.octane_export_post_tag == "":
+            image_settings.octane_export_tag = "FileName_"
+            image_settings.octane_export_post_tag = "$OCTANE_PASS$_###"
+            bpy.context.scene.octane.need_upgrade_octane_output_tag = False
 
 def update_current_version():
     if bpy.context.scene.octane and hasattr(bpy.context.scene.octane, 'octane_blender_version'):
@@ -353,6 +379,7 @@ def check_compatibility_octane_world_20_1(file_version):
 def check_compatibility_octane_object(file_version):
     check_compatibility_octane_object_17_10(file_version)
     check_compatibility_octane_object_21_11(file_version)
+    check_compatibility_octane_object_23_1(file_version)
 
 
 def check_compatibility_octane_object_17_10(file_version):
@@ -375,6 +402,18 @@ def check_compatibility_octane_object_21_11(file_version):
         if obj.type in ('VOLUME', ):
             if obj.data.speed_multiplier == 0:
                 obj.data.speed_multiplier = 1.0            
+
+
+def check_compatibility_octane_object_23_1(file_version):
+    UPDATE_VERSION = '23.1'
+    if not check_update(file_version, UPDATE_VERSION):
+        return       
+    for obj in bpy.data.objects:
+        if obj.type == "MESH":
+            if hasattr(obj, "octane") and hasattr(obj.data, "octane"):
+                if len(obj.data.octane.octane_geo_node_collections.node_graph_tree) or len(obj.data.octane.octane_geo_node_collections.osl_geo_node):
+                    obj.octane.node_graph_tree = obj.data.octane.octane_geo_node_collections.node_graph_tree
+                    obj.octane.osl_geo_node = obj.data.octane.octane_geo_node_collections.osl_geo_node    
 
 
 def check_compatibility_object_layer_settings(octane_object, octane_mesh, file_version):
@@ -437,6 +476,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_20_4(file_version)
     check_compatibility_octane_node_tree_21_4(file_version)
     check_compatibility_octane_node_tree_21_12(file_version)
+    check_compatibility_octane_node_tree_23_5(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -525,6 +565,10 @@ def check_compatibility_octane_node_tree_21_12(file_version):
     }
     check_compatibility_octane_node_tree_helper(file_version, '21.12', node_handler_map)
 
+def check_compatibility_octane_node_tree_23_5(file_version):
+    node_handler_map = {'OCT_OBJECT_DATA': (_check_compatibility_octane_object_data_node_23_5, )}
+    check_compatibility_octane_node_tree_helper(file_version, '23.5', node_handler_map)
+
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:
         links = node_tree.links
@@ -597,3 +641,11 @@ def _check_compatibility_octane_displacement_node_15_2_7(node_tree, node):
             links.new(src_link.from_socket, target_input)
     except Exception as e:
         pass
+
+def _check_compatibility_octane_object_data_node_23_5(node_tree, node):
+    try:        
+        if node.object is not None:
+            node.inputs['Object'].default_value = node.object
+            node.object = None        
+    except Exception as e:
+        pass        

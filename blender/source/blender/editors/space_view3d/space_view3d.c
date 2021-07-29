@@ -53,6 +53,7 @@
 #include "BKE_screen.h"
 #include "BKE_workspace.h"
 
+#include "ED_render.h"
 #include "ED_screen.h"
 #include "ED_space_api.h"
 #include "ED_transform.h"
@@ -153,7 +154,7 @@ bool ED_view3d_area_user_region(const ScrArea *area, const View3D *v3d, ARegion 
       rv3d = region->regiondata;
       if ((rv3d->viewlock & RV3D_LOCK_ROTATION) == 0) {
         region_unlock = region;
-        if (rv3d->persp == RV3D_PERSP || rv3d->persp == RV3D_CAMOB) {
+        if (ELEM(rv3d->persp, RV3D_PERSP, RV3D_CAMOB)) {
           region_unlock_user = region;
           break;
         }
@@ -392,6 +393,10 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
   keymap = WM_keymap_ensure(wm->defaultconf, "Paint Vertex Selection (Weight, Vertex)", 0, 0);
   WM_event_add_keymap_handler(&region->handlers, keymap);
 
+  /* Before 'Weight/Vertex Paint' so adding curve points is not overriden. */
+  keymap = WM_keymap_ensure(wm->defaultconf, "Paint Curve", 0, 0);
+  WM_event_add_keymap_handler(&region->handlers, keymap);
+
   /* Before 'Pose' so weight paint menus aren't overridden by pose menus. */
   keymap = WM_keymap_ensure(wm->defaultconf, "Weight Paint", 0, 0);
   WM_event_add_keymap_handler(&region->handlers, keymap);
@@ -404,9 +409,6 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler(&region->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Object Mode", 0, 0);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
-
-  keymap = WM_keymap_ensure(wm->defaultconf, "Paint Curve", 0, 0);
   WM_event_add_keymap_handler(&region->handlers, keymap);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Curve", 0, 0);
@@ -461,6 +463,12 @@ static void view3d_main_region_exit(wmWindowManager *wm, ARegion *region)
   ED_view3d_stop_render_preview(wm, region);
 }
 
+static bool view3d_drop_in_main_region_poll(bContext *C, const wmEvent *event)
+{
+  ScrArea *area = CTX_wm_area(C);
+  return ED_region_overlap_isect_any_xy(area, &event->x) == false;
+}
+
 static ID *view3d_drop_id_in_main_region_poll_id(bContext *C,
                                                  wmDrag *drag,
                                                  const wmEvent *event,
@@ -468,9 +476,9 @@ static ID *view3d_drop_id_in_main_region_poll_id(bContext *C,
 {
   ScrArea *area = CTX_wm_area(C);
   if (ED_region_overlap_isect_any_xy(area, &event->x)) {
-    return false;
+    return NULL;
   }
-  return WM_drag_ID(drag, id_type);
+  return view3d_drop_in_main_region_poll(C, event) ? WM_drag_get_local_ID(drag, id_type) : NULL;
 }
 
 static bool view3d_drop_id_in_main_region_poll(bContext *C,
@@ -478,7 +486,11 @@ static bool view3d_drop_id_in_main_region_poll(bContext *C,
                                                const wmEvent *event,
                                                ID_Type id_type)
 {
-  return (view3d_drop_id_in_main_region_poll_id(C, drag, event, id_type) != NULL);
+  if (!view3d_drop_in_main_region_poll(C, event)) {
+    return false;
+  }
+
+  return WM_drag_get_local_ID(drag, id_type) || WM_drag_get_asset_data(drag, id_type);
 }
 
 static bool view3d_ob_drop_poll(bContext *C,
@@ -533,7 +545,7 @@ static bool view3d_ima_drop_poll(bContext *C,
     return (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE));
   }
 
-  return WM_drag_ID(drag, ID_IM) != NULL;
+  return WM_drag_get_local_ID(drag, ID_IM) || WM_drag_get_asset_data(drag, ID_IM);
 }
 
 static bool view3d_ima_bg_is_camera_view(bContext *C)
@@ -596,29 +608,28 @@ static bool view3d_volume_drop_poll(bContext *UNUSED(C),
 
 static void view3d_ob_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
-  ID *id = WM_drag_ID(drag, ID_OB);
+  ID *id = WM_drag_get_local_ID_or_import_from_asset(drag, ID_OB);
 
   RNA_string_set(drop->ptr, "name", id->name + 2);
 }
 
 static void view3d_collection_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
-  ID *id = WM_drag_ID(drag, ID_GR);
+  ID *id = WM_drag_get_local_ID_or_import_from_asset(drag, ID_GR);
 
-  drop->opcontext = WM_OP_EXEC_DEFAULT;
   RNA_string_set(drop->ptr, "name", id->name + 2);
 }
 
 static void view3d_id_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
-  ID *id = WM_drag_ID(drag, 0);
+  ID *id = WM_drag_get_local_ID_or_import_from_asset(drag, 0);
 
   RNA_string_set(drop->ptr, "name", id->name + 2);
 }
 
 static void view3d_id_drop_copy_with_type(wmDrag *drag, wmDropBox *drop)
 {
-  ID *id = WM_drag_ID(drag, 0);
+  ID *id = WM_drag_get_local_ID(drag, 0);
 
   RNA_string_set(drop->ptr, "name", id->name + 2);
   RNA_enum_set(drop->ptr, "type", GS(id->name));
@@ -626,7 +637,7 @@ static void view3d_id_drop_copy_with_type(wmDrag *drag, wmDropBox *drop)
 
 static void view3d_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
-  ID *id = WM_drag_ID(drag, 0);
+  ID *id = WM_drag_get_local_ID_or_import_from_asset(drag, 0);
 
   if (id) {
     RNA_string_set(drop->ptr, "name", id->name + 2);
@@ -774,7 +785,7 @@ static void *view3d_main_region_duplicate(void *poin)
 }
 
 static void view3d_main_region_listener(
-    wmWindow *UNUSED(win), ScrArea *area, ARegion *region, wmNotifier *wmn, const Scene *scene)
+    wmWindow *win, ScrArea *area, ARegion *region, wmNotifier *wmn, const Scene *scene)
 {
   View3D *v3d = area->spacedata.first;
   RegionView3D *rv3d = region->regiondata;
@@ -991,11 +1002,17 @@ static void view3d_main_region_listener(
         if (wmn->subtype == NS_VIEW3D_GPU) {
           rv3d->rflag |= RV3D_GPULIGHT_UPDATE;
         }
-#ifdef WITH_XR_OPENXR
         else if (wmn->subtype == NS_VIEW3D_SHADING) {
+#ifdef WITH_XR_OPENXR
           ED_view3d_xr_shading_update(G_MAIN->wm.first, v3d, scene);
-        }
 #endif
+
+          ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+          Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
+          if (depsgraph) {
+            ED_render_view3d_update(depsgraph, win, area, true);
+          }
+        }
         ED_region_tag_redraw(region);
         WM_gizmomap_tag_refresh(gzmap);
       }

@@ -31,6 +31,10 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Mask {
   ID id;
   struct AnimData *adt;
@@ -221,10 +225,10 @@ enum {
 };
 
 /* MaskSpaceInfo->overlay_mode */
-enum {
+typedef enum eMaskOverlayMode {
   MASK_OVERLAY_ALPHACHANNEL = 0,
   MASK_OVERLAY_COMBINED = 1,
-};
+} eMaskOverlayMode;
 
 /* masklay->blend */
 enum {
@@ -263,3 +267,7 @@ enum {
 enum {
   MASK_ANIMF_EXPAND = (1 << 4),
 };
+
+#ifdef __cplusplus
+}
+#endif

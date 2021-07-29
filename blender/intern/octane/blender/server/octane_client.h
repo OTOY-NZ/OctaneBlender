@@ -240,6 +240,7 @@ class OctaneClient {
   /// from 0) - this value contains the total amount of frames this camera node is going to be
   /// uploaded for.
   void uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t uiTotalFrames);
+  bool checkUniversalCameraUpdated(bool useUniversalCamera, OctaneDataTransferObject::OctaneUniversalCamera& current);
 
   /// Upload kernel configuration to render server.
   /// @param [in] pKernel - Kernel data structure.
@@ -621,6 +622,7 @@ class OctaneClient {
   std::vector<Passes> m_PassesCache;
 
   bool m_bRenderStarted;
+  bool m_bLastUseUniversalCamera;
 
   bool checkResponsePacket(OctaneDataTransferObject::PacketType packetType,
                            const char *szErrorMsg = 0);

@@ -106,6 +106,8 @@
     .rad_root = 1.0f, \
     .rad_tip = 0.0f, \
     .rad_scale = 0.01f, \
+ \
+    .octane_root_width = 0.0001f, \
   }
 
 /** \} */

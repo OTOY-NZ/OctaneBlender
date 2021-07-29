@@ -143,6 +143,23 @@ void ED_object_base_activate(bContext *C, Base *base)
   ED_object_base_active_refresh(CTX_data_main(C), scene, view_layer);
 }
 
+void ED_object_base_activate_with_mode_exit_if_needed(bContext *C, Base *base)
+{
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  /* Currently we only need to be concerned with edit-mode. */
+  Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+  if (obedit) {
+    Object *ob = base->object;
+    if (((ob->mode & OB_MODE_EDIT) == 0) || (obedit->type != ob->type)) {
+      Main *bmain = CTX_data_main(C);
+      Scene *scene = CTX_data_scene(C);
+      ED_object_editmode_exit_multi_ex(bmain, scene, view_layer, EM_FREEDATA);
+    }
+  }
+  ED_object_base_activate(C, base);
+}
+
 bool ED_object_base_deselect_all_ex(ViewLayer *view_layer,
                                     View3D *v3d,
                                     int action,
@@ -770,12 +787,12 @@ static const EnumPropertyItem prop_select_grouped_types[] = {
     {OBJECT_GRPSEL_CHILDREN_RECURSIVE, "CHILDREN_RECURSIVE", 0, "Children", ""},
     {OBJECT_GRPSEL_CHILDREN, "CHILDREN", 0, "Immediate Children", ""},
     {OBJECT_GRPSEL_PARENT, "PARENT", 0, "Parent", ""},
-    {OBJECT_GRPSEL_SIBLINGS, "SIBLINGS", 0, "Siblings", "Shared Parent"},
+    {OBJECT_GRPSEL_SIBLINGS, "SIBLINGS", 0, "Siblings", "Shared parent"},
     {OBJECT_GRPSEL_TYPE, "TYPE", 0, "Type", "Shared object type"},
     {OBJECT_GRPSEL_COLLECTION, "COLLECTION", 0, "Collection", "Shared collection"},
     {OBJECT_GRPSEL_HOOK, "HOOK", 0, "Hook", ""},
-    {OBJECT_GRPSEL_PASS, "PASS", 0, "Pass", "Render pass Index"},
-    {OBJECT_GRPSEL_COLOR, "COLOR", 0, "Color", "Object Color"},
+    {OBJECT_GRPSEL_PASS, "PASS", 0, "Pass", "Render pass index"},
+    {OBJECT_GRPSEL_COLOR, "COLOR", 0, "Color", "Object color"},
     {OBJECT_GRPSEL_KEYINGSET,
      "KEYINGSET",
      0,

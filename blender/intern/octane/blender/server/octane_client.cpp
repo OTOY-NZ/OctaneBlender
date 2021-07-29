@@ -43,6 +43,7 @@ using OctaneDataTransferObject::ComplexValue;
 
 OctaneClient::OctaneClient()
     : m_bRenderStarted(false),
+      m_bLastUseUniversalCamera(false),
       m_cBlockUpdates(0),
       m_iComponentCnt(0),
       m_stImgBufLen(0),
@@ -293,7 +294,7 @@ bool OctaneClient::testProfileTransferData()
     float *data = new float[float_size];
     for (uint32_t i = 0; i < float_size; ++i) {
       data[i] = i;
-	}
+    }
     using milli = std::chrono::milliseconds;
     auto start = std::chrono::high_resolution_clock::now();
     RPCSend snd(m_Socket,
@@ -770,6 +771,7 @@ void OctaneClient::stopRender(float fFPS)
   UNLOCK_MUTEX(m_SocketMutex);
 
   m_bRenderStarted = false;
+  m_bLastUseUniversalCamera = false;
 }  // stopRender()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -877,15 +879,23 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
     return;
 
   LOCK_MUTEX(m_SocketMutex);
+  pCamera->universalCamera.sName = "UniversalCamera";
+  bool isUniversalCameraUpdated = checkUniversalCameraUpdated(pCamera->bUseUniversalCamera,
+                                                              pCamera->universalCamera);
   if (pCamera->bUseUniversalCamera) {
-    pCamera->universalCamera.sName = "UniversalCamera";
-    RPCMsgPackObj::sendOctaneNode(
-        m_Socket, pCamera->universalCamera.sName, &pCamera->universalCamera);
-    if (checkResponsePacket(OctaneDataTransferObject::LOAD_OCTANE_NODE)) {
+    if (isUniversalCameraUpdated) {
+      RPCMsgPackObj::sendOctaneNode(
+          m_Socket, pCamera->universalCamera.sName, &pCamera->universalCamera);
+      if (checkResponsePacket(OctaneDataTransferObject::LOAD_OCTANE_NODE)) {
+        m_CameraCache[uiFrameIdx] = *pCamera;
+      }
+    }
+    else {
       m_CameraCache[uiFrameIdx] = *pCamera;
     }
-	//temp fix
-	//use lens camera upload here to upload imager and postprocess data
+
+    // temp fix
+    // use lens camera upload here to upload imager and postprocess data
     {
       uint32_t motoin_data_num = pCamera->oMotionParams.motions.size();
       std::vector<float_3> motion_eye_point_data;
@@ -902,7 +912,10 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
       RPCSend snd(m_Socket,
                   (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
                       sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 30 +
-                      sizeof(uint32_t) * 5 + (pCamera->sCustomLut.length() + 2),
+                      sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
+                      (pCamera->sOcioViewDisplay.length() + 2) +
+                      (pCamera->sOcioViewDisplayView.length() + 2) +
+                      (pCamera->sOcioLook.length() + 2),
                   OctaneDataTransferObject::LOAD_THIN_LENS_CAMERA);
 
       snd << pCamera->bUseUniversalCamera;
@@ -942,7 +955,8 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->bPremultipliedAlpha << pCamera->bDithering << pCamera->bUsePostprocess
           << pCamera->bPerspCorr << pCamera->bNeutralResponse << pCamera->bUseFstopValue
           << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes << pCamera->bUseOSLCamera
-          << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str();
+          << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str() 
+		  << pCamera->sOcioViewDisplay.c_str() << pCamera->sOcioViewDisplayView.c_str() << pCamera->sOcioLook.c_str() << pCamera->bForceToneMapping;
       snd.write();
     }
 
@@ -961,10 +975,12 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
   }
   else if (pCamera->type == Camera::CAMERA_PANORAMA) {
     {
-      RPCSend snd(m_Socket,
-                  sizeof(float_3) * 6 + sizeof(float) * 28 + sizeof(int32_t) * 30 +
-                      (pCamera->sCustomLut.length() + 2),
-                  OctaneDataTransferObject::LOAD_PANORAMIC_CAMERA);
+      RPCSend snd(
+          m_Socket,
+          sizeof(float_3) * 6 + sizeof(float) * 28 + sizeof(int32_t) * 31 +
+              (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
+              (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
+          OctaneDataTransferObject::LOAD_PANORAMIC_CAMERA);
       snd << pCamera->f3EyePoint << pCamera->f3LookAt << pCamera->f3UpVector
           << pCamera->f3LeftFilter << pCamera->f3RightFilter << pCamera->f3WhiteBalance
 
@@ -992,7 +1008,9 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->bEnableImager << pCamera->bPremultipliedAlpha << pCamera->bDithering
           << pCamera->bUsePostprocess << pCamera->bKeepUpright << pCamera->bNeutralResponse
           << pCamera->bDisablePartialAlpha << pCamera->bUseFstopValue << pCamera->bAutofocus
-          << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str();
+          << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str()
+          << pCamera->sOcioViewDisplay.c_str() << pCamera->sOcioViewDisplayView.c_str()
+          << pCamera->sOcioLook.c_str() << pCamera->bForceToneMapping;
       snd.write();
     }
 
@@ -1012,8 +1030,9 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
   else if (pCamera->type == Camera::CAMERA_BAKING) {
     {
       RPCSend snd(m_Socket,
-                  sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 17 +
-                      sizeof(int32_t) * 30 + (pCamera->sCustomLut.length() + 2),
+                  sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 17 + sizeof(int32_t) * 31 +
+              (pCamera->sCustomLut.length() + 2) + (pCamera->sOcioViewDisplay.length() + 2) +
+              (pCamera->sOcioViewDisplayView.length() + 2) + (pCamera->sOcioLook.length() + 2),
                   OctaneDataTransferObject::LOAD_BAKING_CAMERA);
       snd << pCamera->f3EyePoint << pCamera->f3WhiteBalance
           << pCamera->f3UVWBakingTransformTranslation << pCamera->f3UVWBakingTransformRotation
@@ -1041,7 +1060,9 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->bUsePostprocess << pCamera->bNeutralResponse << pCamera->bBakeOutwards
           << pCamera->bUseBakingPosition << pCamera->bBackfaceCulling
           << pCamera->bDisablePartialAlpha << pCamera->bUseOSLCamera << pCamera->bPreviewCameraMode
-          << pCamera->sCustomLut.c_str();
+          << pCamera->sCustomLut.c_str() << pCamera->sOcioViewDisplay.c_str()
+          << pCamera->sOcioViewDisplayView.c_str() << pCamera->sOcioLook.c_str()
+          << pCamera->bForceToneMapping;
       snd.write();
     }
 
@@ -1075,7 +1096,10 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
       RPCSend snd(m_Socket,
                   (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
                       sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 30 +
-                      sizeof(uint32_t) * 5 + (pCamera->sCustomLut.length() + 2),
+                      sizeof(uint32_t) * 6 + (pCamera->sCustomLut.length() + 2) +
+                      (pCamera->sOcioViewDisplay.length() + 2) +
+                      (pCamera->sOcioViewDisplayView.length() + 2) +
+                      (pCamera->sOcioLook.length() + 2),
                   OctaneDataTransferObject::LOAD_THIN_LENS_CAMERA);
 
       snd << pCamera->bUseUniversalCamera;
@@ -1115,7 +1139,9 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
           << pCamera->bPremultipliedAlpha << pCamera->bDithering << pCamera->bUsePostprocess
           << pCamera->bPerspCorr << pCamera->bNeutralResponse << pCamera->bUseFstopValue
           << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes << pCamera->bUseOSLCamera
-          << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str();
+          << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str()
+          << pCamera->sOcioViewDisplay.c_str() << pCamera->sOcioViewDisplayView.c_str()
+          << pCamera->sOcioLook.c_str() << pCamera->bForceToneMapping;
       snd.write();
     }
 
@@ -1135,6 +1161,132 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
 
   UNLOCK_MUTEX(m_SocketMutex);
 }  // uploadCamera()
+
+bool OctaneClient::checkUniversalCameraUpdated(
+    bool useUniversalCamera, OctaneDataTransferObject::OctaneUniversalCamera &current)
+{
+  static OctaneDataTransferObject::OctaneUniversalCamera lastUniversalCamera;
+  bool isUpdated = !(
+      m_bLastUseUniversalCamera == useUniversalCamera &&
+      lastUniversalCamera.iCameraMode.iVal == current.iCameraMode.iVal &&
+      lastUniversalCamera.fSensorWidth.fVal == current.fSensorWidth.fVal &&
+      lastUniversalCamera.fFocalLength.fVal == current.fFocalLength.fVal &&
+      lastUniversalCamera.fFstop.fVal == current.fFstop.fVal &&
+      lastUniversalCamera.fFieldOfView.fVal == current.fFieldOfView.fVal &&
+      lastUniversalCamera.fScaleOfView.fVal == current.fScaleOfView.fVal &&
+      lastUniversalCamera.f2LensShift.fVal == current.f2LensShift.fVal &&
+      lastUniversalCamera.fPixelAspectRatio.fVal == current.fPixelAspectRatio.fVal &&
+      lastUniversalCamera.fFisheyeAngle.fVal == current.fFisheyeAngle.fVal &&
+      lastUniversalCamera.iFisheyeType.iVal == current.iFisheyeType.iVal &&
+      lastUniversalCamera.bHardVignette.bVal == current.bHardVignette.bVal &&
+      lastUniversalCamera.iFisheyeProjection.iVal == current.iFisheyeProjection.iVal &&
+      lastUniversalCamera.fHorizontalFiledOfView.fVal == current.fHorizontalFiledOfView.fVal &&
+      lastUniversalCamera.fVerticalFiledOfView.fVal == current.fVerticalFiledOfView.fVal &&
+      lastUniversalCamera.iCubemapLayout.iVal == current.iCubemapLayout.iVal &&
+      lastUniversalCamera.bEquiAngularCubemap.bVal == current.bEquiAngularCubemap.bVal &&
+      lastUniversalCamera.bUseDistortionTexture.bVal == current.bUseDistortionTexture.bVal &&
+      lastUniversalCamera.sDistortionTexture.sLinkNodeName ==
+          current.sDistortionTexture.sLinkNodeName &&
+      lastUniversalCamera.fSphereDistortion.fVal == current.fSphereDistortion.fVal &&
+      lastUniversalCamera.fBarrelDistortion.fVal == current.fBarrelDistortion.fVal &&
+      lastUniversalCamera.fBarrelDistortionCorners.fVal == current.fBarrelDistortionCorners.fVal &&
+      lastUniversalCamera.fSphereAberration.fVal == current.fSphereAberration.fVal &&
+      lastUniversalCamera.fComa.fVal == current.fComa.fVal &&
+      lastUniversalCamera.fAstigmatism.fVal == current.fAstigmatism.fVal &&
+      lastUniversalCamera.fFieldCurvature.fVal == current.fFieldCurvature.fVal &&
+      lastUniversalCamera.fNearClipDepth.fVal == current.fNearClipDepth.fVal &&
+      lastUniversalCamera.fFarClipDepth.fVal == current.fFarClipDepth.fVal &&
+      lastUniversalCamera.bAutoFocus.bVal == current.bAutoFocus.bVal &&
+      lastUniversalCamera.fFocalDepth.fVal == current.fFocalDepth.fVal &&
+      lastUniversalCamera.fAperture.fVal == current.fAperture.fVal &&
+      lastUniversalCamera.fApertureAspectRatio.fVal == current.fApertureAspectRatio.fVal &&
+      lastUniversalCamera.iApertureShape.iVal == current.iApertureShape.iVal &&
+      lastUniversalCamera.fApertureEdge.fVal == current.fApertureEdge.fVal &&
+      lastUniversalCamera.iApertureBladeCount.iVal == current.iApertureBladeCount.iVal &&
+      lastUniversalCamera.fApertureRotation.fVal == current.fApertureRotation.fVal &&
+      lastUniversalCamera.fApertureRoundedness.fVal == current.fApertureRoundedness.fVal &&
+      lastUniversalCamera.fCentralObstruction.fVal == current.fCentralObstruction.fVal &&
+      lastUniversalCamera.fNorchPosition.fVal == current.fNorchPosition.fVal &&
+      lastUniversalCamera.fNorchScale.fVal == current.fNorchScale.fVal &&
+      lastUniversalCamera.sCustomAperture.sLinkNodeName == current.sCustomAperture.sLinkNodeName &&
+      lastUniversalCamera.fOpticalVignetteDistance.fVal == current.fOpticalVignetteDistance.fVal &&
+      lastUniversalCamera.fOpticalVignetteScale.fVal == current.fOpticalVignetteScale.fVal &&
+      lastUniversalCamera.bEnableSplitFocusDiopter.bVal == current.bEnableSplitFocusDiopter.bVal &&
+      lastUniversalCamera.fDiopterFocalDepth.fVal == current.fDiopterFocalDepth.fVal &&
+      lastUniversalCamera.fDiopterRotation.fVal == current.fDiopterRotation.fVal &&
+      lastUniversalCamera.f2DiopterTranslation.fVal == current.f2DiopterTranslation.fVal &&
+      lastUniversalCamera.fDiopterBoundaryWidth.fVal == current.fDiopterBoundaryWidth.fVal &&
+      lastUniversalCamera.fDiopterBoundaryFalloff.fVal == current.fDiopterBoundaryFalloff.fVal &&
+      lastUniversalCamera.bShowDiopterGuide.bVal == current.bShowDiopterGuide.bVal &&
+      lastUniversalCamera.f3Position.fVal == current.f3Position.fVal &&
+      lastUniversalCamera.f3Target.fVal == current.f3Target.fVal &&
+      lastUniversalCamera.f3Up.fVal == current.f3Up.fVal &&
+      lastUniversalCamera.bKeepUpright.bVal == current.bKeepUpright.bVal &&
+      lastUniversalCamera.oPositoin.oMotionPositions == current.oPositoin.oMotionPositions &&
+      lastUniversalCamera.oPositoin.oMotionTargets == current.oPositoin.oMotionTargets &&
+      lastUniversalCamera.oPositoin.oMotionUps == current.oPositoin.oMotionUps &&
+      lastUniversalCamera.oPositoin.oMotionFOVs == current.oPositoin.oMotionFOVs);
+  m_bLastUseUniversalCamera = useUniversalCamera;
+  lastUniversalCamera.iCameraMode.iVal = current.iCameraMode.iVal;
+  lastUniversalCamera.fSensorWidth.fVal = current.fSensorWidth.fVal;
+  lastUniversalCamera.fFocalLength.fVal = current.fFocalLength.fVal;
+  lastUniversalCamera.fFstop.fVal = current.fFstop.fVal;
+  lastUniversalCamera.fFieldOfView.fVal = current.fFieldOfView.fVal;
+  lastUniversalCamera.fScaleOfView.fVal = current.fScaleOfView.fVal;
+  lastUniversalCamera.f2LensShift.fVal = current.f2LensShift.fVal;
+  lastUniversalCamera.fPixelAspectRatio.fVal = current.fPixelAspectRatio.fVal;
+  lastUniversalCamera.fFisheyeAngle.fVal = current.fFisheyeAngle.fVal;
+  lastUniversalCamera.iFisheyeType.iVal = current.iFisheyeType.iVal;
+  lastUniversalCamera.bHardVignette.bVal = current.bHardVignette.bVal;
+  lastUniversalCamera.iFisheyeProjection.iVal = current.iFisheyeProjection.iVal;
+  lastUniversalCamera.fHorizontalFiledOfView.fVal = current.fHorizontalFiledOfView.fVal;
+  lastUniversalCamera.fVerticalFiledOfView.fVal = current.fVerticalFiledOfView.fVal;
+  lastUniversalCamera.iCubemapLayout.iVal = current.iCubemapLayout.iVal;
+  lastUniversalCamera.bEquiAngularCubemap.bVal = current.bEquiAngularCubemap.bVal;
+  lastUniversalCamera.bUseDistortionTexture.bVal = current.bUseDistortionTexture.bVal;
+  lastUniversalCamera.sDistortionTexture.sLinkNodeName = current.sDistortionTexture.sLinkNodeName;
+  lastUniversalCamera.fSphereDistortion.fVal = current.fSphereDistortion.fVal;
+  lastUniversalCamera.fBarrelDistortion.fVal = current.fBarrelDistortion.fVal;
+  lastUniversalCamera.fBarrelDistortionCorners.fVal = current.fBarrelDistortionCorners.fVal;
+  lastUniversalCamera.fSphereAberration.fVal = current.fSphereAberration.fVal;
+  lastUniversalCamera.fComa.fVal = current.fComa.fVal;
+  lastUniversalCamera.fAstigmatism.fVal = current.fAstigmatism.fVal;
+  lastUniversalCamera.fFieldCurvature.fVal = current.fFieldCurvature.fVal;
+  lastUniversalCamera.fNearClipDepth.fVal = current.fNearClipDepth.fVal;
+  lastUniversalCamera.fFarClipDepth.fVal = current.fFarClipDepth.fVal;
+  lastUniversalCamera.bAutoFocus.bVal = current.bAutoFocus.bVal;
+  lastUniversalCamera.fFocalDepth.fVal = current.fFocalDepth.fVal;
+  lastUniversalCamera.fAperture.fVal = current.fAperture.fVal;
+  lastUniversalCamera.fApertureAspectRatio.fVal = current.fApertureAspectRatio.fVal;
+  lastUniversalCamera.iApertureShape.iVal = current.iApertureShape.iVal;
+  lastUniversalCamera.fApertureEdge.fVal = current.fApertureEdge.fVal;
+  lastUniversalCamera.iApertureBladeCount.iVal = current.iApertureBladeCount.iVal;
+  lastUniversalCamera.fApertureRotation.fVal = current.fApertureRotation.fVal;
+  lastUniversalCamera.fApertureRoundedness.fVal = current.fApertureRoundedness.fVal;
+  lastUniversalCamera.fCentralObstruction.fVal = current.fCentralObstruction.fVal;
+  lastUniversalCamera.fNorchPosition.fVal = current.fNorchPosition.fVal;
+  lastUniversalCamera.fNorchScale.fVal = current.fNorchScale.fVal;
+  lastUniversalCamera.sCustomAperture.sLinkNodeName = current.sCustomAperture.sLinkNodeName;
+  lastUniversalCamera.fOpticalVignetteDistance.fVal = current.fOpticalVignetteDistance.fVal;
+  lastUniversalCamera.fOpticalVignetteScale.fVal = current.fOpticalVignetteScale.fVal;
+  lastUniversalCamera.bEnableSplitFocusDiopter.bVal = current.bEnableSplitFocusDiopter.bVal;
+  lastUniversalCamera.fDiopterFocalDepth.fVal = current.fDiopterFocalDepth.fVal;
+  lastUniversalCamera.fDiopterRotation.fVal = current.fDiopterRotation.fVal;
+  lastUniversalCamera.f2DiopterTranslation.fVal = current.f2DiopterTranslation.fVal;
+  lastUniversalCamera.fDiopterBoundaryWidth.fVal = current.fDiopterBoundaryWidth.fVal;
+  lastUniversalCamera.fDiopterBoundaryFalloff.fVal = current.fDiopterBoundaryFalloff.fVal;
+  lastUniversalCamera.bShowDiopterGuide.bVal = current.bShowDiopterGuide.bVal;
+  lastUniversalCamera.f3Position.fVal = current.f3Position.fVal;
+  lastUniversalCamera.f3Target.fVal = current.f3Target.fVal;
+  lastUniversalCamera.f3Up.fVal = current.f3Up.fVal;
+  lastUniversalCamera.bKeepUpright.bVal = current.bKeepUpright.bVal;
+  lastUniversalCamera.oPositoin.oMotionPositions = current.oPositoin.oMotionPositions;
+  lastUniversalCamera.oPositoin.oMotionTargets = current.oPositoin.oMotionTargets;
+  lastUniversalCamera.oPositoin.oMotionUps = current.oPositoin.oMotionUps;
+  lastUniversalCamera.oPositoin.oMotionFOVs = current.oPositoin.oMotionFOVs;
+
+  return isUpdated;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -1159,7 +1311,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
   switch (pKernel->type) {
     case Kernel::DIRECT_LIGHT: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 14 + sizeof(int32_t) * 34 + pKernel->sAoTexture.length() +
+                  sizeof(float) * 14 + sizeof(int32_t) * 35 + pKernel->sAoTexture.length() +
                       sizeof(float_3) + 2,
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
@@ -1169,23 +1321,23 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->fAdaptiveNoiseThreshold << pKernel->fAdaptiveExpectedExposure
           << pKernel->fAILightStrength << pKernel->bAlphaChannel << pKernel->bAlphaShadows
           << pKernel->bStaticNoise << pKernel->bKeepEnvironment << pKernel->bIrradianceMode
+          << pKernel->bNestDielectrics
           << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
           << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
           << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
           << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
-          << pKernel->bDeepRenderPasses
-          << pKernel->bAdaptiveSampling << pKernel->iSpecularDepth << pKernel->iGlossyDepth
-          << pKernel->GIMode << pKernel->iDiffuseDepth << pKernel->iParallelSamples
-          << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
-          << pKernel->adaptiveGroupPixels << pKernel->mbAlignment << pKernel->bLayersEnable
-          << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
-          << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
-          << pKernel->f3ToonShadowAmbient << pKernel->sAoTexture;
+          << pKernel->bDeepRenderPasses << pKernel->bAdaptiveSampling << pKernel->iSpecularDepth
+          << pKernel->iGlossyDepth << pKernel->GIMode << pKernel->iDiffuseDepth
+          << pKernel->iParallelSamples << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples
+          << pKernel->iAdaptiveMinSamples << pKernel->adaptiveGroupPixels << pKernel->mbAlignment
+          << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
+          << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
+          << pKernel->iMaxSubdivisionLevel << pKernel->f3ToonShadowAmbient << pKernel->sAoTexture;
       snd.write();
     } break;
     case Kernel::PATH_TRACE: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 15 + sizeof(int32_t) * 33 + sizeof(float_3),
+                  sizeof(float) * 15 + sizeof(int32_t) * 34 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
@@ -1194,15 +1346,14 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->fDepthTolerance << pKernel->fAdaptiveNoiseThreshold
           << pKernel->fAdaptiveExpectedExposure << pKernel->fAILightStrength
           << pKernel->bAlphaChannel << pKernel->bAlphaShadows << pKernel->bStaticNoise
-          << pKernel->bKeepEnvironment << pKernel->bIrradianceMode
+          << pKernel->bKeepEnvironment << pKernel->bIrradianceMode << pKernel->bNestDielectrics
           << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
           << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
           << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
           << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
-          << pKernel->bDeepRenderPasses
-          << pKernel->bAdaptiveSampling << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth
-          << pKernel->iMaxScatterDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples
-          << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
+          << pKernel->bDeepRenderPasses << pKernel->bAdaptiveSampling << pKernel->iMaxDiffuseDepth
+          << pKernel->iMaxGlossyDepth << pKernel->iMaxScatterDepth << pKernel->iParallelSamples
+          << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
           << pKernel->adaptiveGroupPixels << pKernel->mbAlignment << pKernel->bLayersEnable
           << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
           << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
@@ -1211,14 +1362,14 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
     } break;
     case Kernel::PMC: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 12 + sizeof(int32_t) * 26 + sizeof(float_3),
+                  sizeof(float) * 12 + sizeof(int32_t) * 27 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
           << pKernel->fFilterSize << pKernel->fRayEpsilon << pKernel->fPathTermPower
           << pKernel->fExploration << pKernel->fDLImportance << pKernel->fCausticBlur
           << pKernel->fGIClamp << pKernel->bAlphaChannel << pKernel->bAlphaShadows
-          << pKernel->bKeepEnvironment << pKernel->bIrradianceMode
+          << pKernel->bKeepEnvironment << pKernel->bIrradianceMode << pKernel->bNestDielectrics
           << pKernel->bEmulateOldVolumeBehavior << pKernel->fAffectRoughness
           << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
           << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
@@ -2559,7 +2710,7 @@ bool OctaneClient::getImgBuffer8bit(int &iComponentsCnt,
         UNLOCK_MUTEX(m_ImgBufMutex);
         return false;
     }
-    
+    
 
 
 

@@ -18,6 +18,9 @@
  * \ingroup bke
  */
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include <string.h>
 
 #include "BLI_blenlib.h"
@@ -54,6 +57,8 @@
 #include "DEG_depsgraph_query.h"
 
 #include "MEM_guardedalloc.h"
+
+#include "BLO_read_write.h"
 
 /* -------------------------------------------------------------------- */
 /** \name Prototypes
@@ -167,6 +172,173 @@ static void collection_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+void BKE_collection_blend_write_nolib(BlendWriter *writer, Collection *collection)
+{
+  BKE_id_blend_write(writer, &collection->id);
+
+  /* Shared function for collection data-blocks and scene master collection. */
+  BKE_previewimg_blend_write(writer, collection->preview);
+
+  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
+    BLO_write_struct(writer, CollectionObject, cob);
+  }
+
+  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
+    BLO_write_struct(writer, CollectionChild, child);
+  }
+}
+
+static void collection_blend_write(BlendWriter *writer, ID *id, const void *id_address)
+{
+  Collection *collection = (Collection *)id;
+  if (collection->id.us > 0 || BLO_write_is_undo(writer)) {
+    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
+    collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE;
+    collection->tag = 0;
+    BLI_listbase_clear(&collection->object_cache);
+    BLI_listbase_clear(&collection->parents);
+
+    /* write LibData */
+    BLO_write_id_struct(writer, Collection, id_address, &collection->id);
+
+    BKE_collection_blend_write_nolib(writer, collection);
+  }
+}
+
+#ifdef USE_COLLECTION_COMPAT_28
+void BKE_collection_compat_blend_read_data(BlendDataReader *reader, SceneCollection *sc)
+{
+  BLO_read_list(reader, &sc->objects);
+  BLO_read_list(reader, &sc->scene_collections);
+
+  LISTBASE_FOREACH (SceneCollection *, nsc, &sc->scene_collections) {
+    BKE_collection_compat_blend_read_data(reader, nsc);
+  }
+}
+#endif
+
+void BKE_collection_blend_read_data(BlendDataReader *reader, Collection *collection)
+{
+  BLO_read_list(reader, &collection->gobject);
+  BLO_read_list(reader, &collection->children);
+
+  BLO_read_data_address(reader, &collection->preview);
+  BKE_previewimg_blend_read(reader, collection->preview);
+
+  collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE;
+  collection->tag = 0;
+  BLI_listbase_clear(&collection->object_cache);
+  BLI_listbase_clear(&collection->parents);
+
+#ifdef USE_COLLECTION_COMPAT_28
+  /* This runs before the very first doversion. */
+  BLO_read_data_address(reader, &collection->collection);
+  if (collection->collection != NULL) {
+    BKE_collection_compat_blend_read_data(reader, collection->collection);
+  }
+
+  BLO_read_data_address(reader, &collection->view_layer);
+  if (collection->view_layer != NULL) {
+    BKE_view_layer_blend_read_data(reader, collection->view_layer);
+  }
+#endif
+}
+
+static void collection_blend_read_data(BlendDataReader *reader, ID *id)
+{
+  Collection *collection = (Collection *)id;
+  BKE_collection_blend_read_data(reader, collection);
+}
+
+static void lib_link_collection_data(BlendLibReader *reader, Library *lib, Collection *collection)
+{
+  LISTBASE_FOREACH_MUTABLE (CollectionObject *, cob, &collection->gobject) {
+    BLO_read_id_address(reader, lib, &cob->ob);
+
+    if (cob->ob == NULL) {
+      BLI_freelinkN(&collection->gobject, cob);
+    }
+  }
+
+  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
+    BLO_read_id_address(reader, lib, &child->collection);
+  }
+}
+
+#ifdef USE_COLLECTION_COMPAT_28
+void BKE_collection_compat_blend_read_lib(BlendLibReader *reader,
+                                          Library *lib,
+                                          SceneCollection *sc)
+{
+  LISTBASE_FOREACH (LinkData *, link, &sc->objects) {
+    BLO_read_id_address(reader, lib, &link->data);
+    BLI_assert(link->data);
+  }
+
+  LISTBASE_FOREACH (SceneCollection *, nsc, &sc->scene_collections) {
+    BKE_collection_compat_blend_read_lib(reader, lib, nsc);
+  }
+}
+#endif
+
+void BKE_collection_blend_read_lib(BlendLibReader *reader, Collection *collection)
+{
+#ifdef USE_COLLECTION_COMPAT_28
+  if (collection->collection) {
+    BKE_collection_compat_blend_read_lib(reader, collection->id.lib, collection->collection);
+  }
+
+  if (collection->view_layer) {
+    BKE_view_layer_blend_read_lib(reader, collection->id.lib, collection->view_layer);
+  }
+#endif
+
+  lib_link_collection_data(reader, collection->id.lib, collection);
+}
+
+static void collection_blend_read_lib(BlendLibReader *reader, ID *id)
+{
+  Collection *collection = (Collection *)id;
+  BKE_collection_blend_read_lib(reader, collection);
+}
+
+#ifdef USE_COLLECTION_COMPAT_28
+void BKE_collection_compat_blend_read_expand(struct BlendExpander *expander,
+                                             struct SceneCollection *sc)
+{
+  LISTBASE_FOREACH (LinkData *, link, &sc->objects) {
+    BLO_expand(expander, link->data);
+  }
+
+  LISTBASE_FOREACH (SceneCollection *, nsc, &sc->scene_collections) {
+    BKE_collection_compat_blend_read_expand(expander, nsc);
+  }
+}
+#endif
+
+void BKE_collection_blend_read_expand(BlendExpander *expander, Collection *collection)
+{
+  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
+    BLO_expand(expander, cob->ob);
+  }
+
+  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
+    BLO_expand(expander, child->collection);
+  }
+
+#ifdef USE_COLLECTION_COMPAT_28
+  if (collection->collection != NULL) {
+    BKE_collection_compat_blend_read_expand(expander, collection->collection);
+  }
+#endif
+}
+
+static void collection_blend_read_expand(BlendExpander *expander, ID *id)
+{
+  Collection *collection = (Collection *)id;
+  BKE_collection_blend_read_expand(expander, collection);
+}
+
 IDTypeInfo IDType_ID_GR = {
     .id_code = ID_GR,
     .id_filter = FILTER_ID_GR,
@@ -184,10 +356,12 @@ IDTypeInfo IDType_ID_GR = {
     .foreach_id = collection_foreach_id,
     .foreach_cache = NULL,
 
-    .blend_write = NULL,
-    .blend_read_data = NULL,
-    .blend_read_lib = NULL,
-    .blend_read_expand = NULL,
+    .blend_write = collection_blend_write,
+    .blend_read_data = collection_blend_read_data,
+    .blend_read_lib = collection_blend_read_lib,
+    .blend_read_expand = collection_blend_read_expand,
+
+    .blend_read_undo_preserve = NULL,
 };
 
 /** \} */
@@ -278,7 +452,7 @@ void BKE_collection_add_from_collection(Main *bmain,
   bool is_instantiated = false;
 
   FOREACH_SCENE_COLLECTION_BEGIN (scene, collection) {
-    if (!ID_IS_LINKED(collection) && BKE_collection_has_collection(collection, collection_src)) {
+    if (!ID_IS_LINKED(collection) && collection_find_child(collection, collection_src)) {
       collection_child_add(collection, collection_dst, 0, true);
       is_instantiated = true;
     }
@@ -301,6 +475,7 @@ void BKE_collection_add_from_collection(Main *bmain,
 /** Free (or release) any data used by this collection (does not free the collection itself). */
 void BKE_collection_free(Collection *collection)
 {
+  BKE_libblock_free_data(&collection->id, false);
   collection_free_data(&collection->id);
 }
 
@@ -654,8 +829,8 @@ Base *BKE_collection_or_layer_objects(const ViewLayer *view_layer, Collection *c
 Collection *BKE_collection_master_add()
 {
   /* Not an actual datablock, but owned by scene. */
-  Collection *master_collection = MEM_callocN(sizeof(Collection), "Master Collection");
-  STRNCPY(master_collection->id.name, "GRMaster Collection");
+  Collection *master_collection = BKE_libblock_alloc(
+      NULL, ID_GR, "Master Collection", LIB_ID_CREATE_NO_MAIN);
   master_collection->id.flag |= LIB_EMBEDDED_DATA;
   master_collection->flag |= COLLECTION_IS_MASTER;
   master_collection->color_tag = COLLECTION_COLOR_NONE;
@@ -1598,13 +1773,22 @@ static void layer_collection_flags_store(Main *bmain,
   }
 }
 
+static void layer_collection_flags_free_recursive(LayerCollectionFlag *flag)
+{
+  LISTBASE_FOREACH (LayerCollectionFlag *, child, &flag->children) {
+    layer_collection_flags_free_recursive(child);
+  }
+
+  BLI_freelistN(&flag->children);
+}
+
 static void layer_collection_flags_restore_recursive(LayerCollection *layer_collection,
                                                      LayerCollectionFlag *flag)
 {
   /* There should be a flag struct for every layer collection. */
   BLI_assert(BLI_listbase_count(&layer_collection->layer_collections) ==
              BLI_listbase_count(&flag->children));
-  /* The flag and the the layer collection should actually correspond. */
+  /* The flag and the layer collection should actually correspond. */
   BLI_assert(flag->collection == layer_collection->collection);
 
   LayerCollectionFlag *child_flag = flag->children.first;
@@ -1613,7 +1797,6 @@ static void layer_collection_flags_restore_recursive(LayerCollection *layer_coll
 
     child_flag = child_flag->next;
   }
-  BLI_freelistN(&flag->children);
 
   /* We treat exclude as a special case.
    *
@@ -1639,10 +1822,15 @@ static void layer_collection_flags_restore(ListBase *flags, const Collection *co
 
     LayerCollection *layer_collection = BKE_layer_collection_first_from_scene_collection(
         view_layer, collection);
-    /* The flags should only be added if the collection is in the view layer. */
-    BLI_assert(layer_collection != NULL);
-
-    layer_collection_flags_restore_recursive(layer_collection, flag);
+    /* Check that the collection is still in the scene (and therefore its view layers). In most
+     * cases this is true, but if we move a sub-collection shared by several scenes to a collection
+     * local to the target scene, it is effectively removed from every other scene's hierarchy
+     * (e.g. moving into current scene's master collection). Then the other scene's view layers
+     * won't contain a matching layer collection anymore, so there is nothing to restore to. */
+    if (layer_collection != NULL) {
+      layer_collection_flags_restore_recursive(layer_collection, flag);
+    }
+    layer_collection_flags_free_recursive(flag);
   }
 
   BLI_freelistN(flags);
@@ -1702,7 +1890,7 @@ bool BKE_collection_move(Main *bmain,
   /* Create and remove layer collections. */
   BKE_main_collection_sync(bmain);
 
-  /* Restore the original layer collection flags. */
+  /* Restore the original layer collection flags and free their temporary storage. */
   if (do_flag_sync) {
     layer_collection_flags_restore(&layer_flags, collection);
   }

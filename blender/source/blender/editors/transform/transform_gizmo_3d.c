@@ -565,6 +565,9 @@ static bool test_rotmode_euler(short rotmode)
   return (ELEM(rotmode, ROT_MODE_AXISANGLE, ROT_MODE_QUAT)) ? 0 : 1;
 }
 
+/**
+ * Return false when no gimbal for selection.
+ */
 bool gimbal_axis(Object *ob, float gmat[3][3])
 {
   if (ob->mode & OB_MODE_POSE) {
@@ -650,6 +653,7 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
   Object *ob = OBACT(view_layer);
   bGPdata *gpd = CTX_data_gpencil_data(C);
   const bool is_gp_edit = GPENCIL_ANY_MODE(gpd);
+  const bool is_curve_edit = GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
   int a, totsel = 0;
 
   const int pivot_point = scene->toolsettings->transform_pivot_point;
@@ -708,16 +712,39 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
             continue;
           }
 
-          /* we're only interested in selected points here... */
-          if (gps->flag & GP_STROKE_SELECT) {
-            bGPDspoint *pt;
-            int i;
+          if (is_curve_edit) {
+            if (gps->editcurve == NULL) {
+              continue;
+            }
 
-            /* Change selection status of all points, then make the stroke match */
-            for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-              if (pt->flag & GP_SPOINT_SELECT) {
-                calc_tw_center_with_matrix(tbounds, &pt->x, use_mat_local, diff_mat);
-                totsel++;
+            bGPDcurve *gpc = gps->editcurve;
+            if (gpc->flag & GP_CURVE_SELECT) {
+              for (uint32_t i = 0; i < gpc->tot_curve_points; i++) {
+                bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
+                BezTriple *bezt = &gpc_pt->bezt;
+                if (gpc_pt->flag & GP_CURVE_POINT_SELECT) {
+                  for (uint32_t j = 0; j < 3; j++) {
+                    if (BEZT_ISSEL_IDX(bezt, j)) {
+                      calc_tw_center_with_matrix(tbounds, bezt->vec[j], use_mat_local, diff_mat);
+                      totsel++;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          else {
+            /* we're only interested in selected points here... */
+            if (gps->flag & GP_STROKE_SELECT) {
+              bGPDspoint *pt;
+              int i;
+
+              /* Change selection status of all points, then make the stroke match */
+              for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+                if (pt->flag & GP_SPOINT_SELECT) {
+                  calc_tw_center_with_matrix(tbounds, &pt->x, use_mat_local, diff_mat);
+                  totsel++;
+                }
               }
             }
           }
@@ -1271,6 +1298,11 @@ static void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
 void drawDial3d(const TransInfo *t)
 {
   if (t->mode == TFM_ROTATION && t->spacetype == SPACE_VIEW3D) {
+    if (t->options & CTX_PAINT_CURVE) {
+      /* Matrices are in the screen space. Not supported. */
+      return;
+    }
+
     wmGizmo *gz = wm_gizmomap_modal_get(t->region->gizmo_map);
     if (gz == NULL) {
       /* We only draw Dial3d if the operator has been called by a gizmo. */
@@ -1352,7 +1384,7 @@ void drawDial3d(const TransInfo *t)
                                     false,
                                     &(struct Dial3dParams){
                                         .draw_options = ED_GIZMO_DIAL_DRAW_FLAG_ANGLE_VALUE,
-                                        .angle_delta = t->values[0],
+                                        .angle_delta = t->values_final[0],
                                         .angle_increment = increment,
                                     });
 
@@ -1833,7 +1865,10 @@ static void WIDGETGROUP_gizmo_invoke_prepare(const bContext *C,
     PropertyRNA *prop_orient_type = RNA_struct_find_property(ptr, "orient_type");
     const TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(
         scene, ggd->twtype_init);
-    if (orient_slot == &scene->orientation_slots[SCE_ORIENT_DEFAULT]) {
+    if ((gz == ggd->gizmos[MAN_AXIS_ROT_C]) ||
+        (orient_slot == &scene->orientation_slots[SCE_ORIENT_DEFAULT])) {
+      /* #MAN_AXIS_ROT_C always uses the #V3D_ORIENT_VIEW orientation,
+       * optionally we could set this orientation instead of unset the property. */
       RNA_property_unset(ptr, prop_orient_type);
     }
     else {

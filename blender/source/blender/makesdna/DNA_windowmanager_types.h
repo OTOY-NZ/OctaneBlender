@@ -24,12 +24,14 @@
 #pragma once
 
 #include "DNA_listBase.h"
-#include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_vec_types.h"
-#include "DNA_xr_types.h"
+#include "DNA_screen_types.h" /* for #ScrAreaMap */
+#include "DNA_xr_types.h"     /* for #XrSessionSettings */
 
 #include "DNA_ID.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* defined here: */
 struct wmWindow;
@@ -569,3 +571,7 @@ enum {
    * (the regiontype is maintained to prevent errors) */
   OP_IS_MODAL_CURSOR_REGION = (1 << 3),
 };
+
+#ifdef __cplusplus
+}
+#endif

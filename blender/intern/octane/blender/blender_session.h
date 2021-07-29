@@ -133,6 +133,13 @@ class BlenderSession {
                                       BL::Scene &b_scene,
                                       std::vector<std::string> &float_grid_ids,
                                       std::vector<std::string> &vector_grid_ids);
+  static bool resolve_octane_ocio_info(const std::string server_address,
+                                       std::string path,
+                                       bool use_other_config,
+                                       bool use_automatic,
+                                       int intermediate_color_space_octane,
+                                       std::string intermediate_color_space_ocio_name,
+                                       std::vector<std::vector<std::string>> &results);
 
   Session *session;
   Scene *scene;

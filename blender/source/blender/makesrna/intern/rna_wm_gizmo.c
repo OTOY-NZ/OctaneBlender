@@ -558,6 +558,7 @@ static StructRNA *rna_Gizmo_refine(PointerRNA *mnp_ptr)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Gizmo Group API
  * \{ */
 
@@ -598,6 +599,18 @@ static wmGizmo *rna_GizmoGroup_gizmo_new(wmGizmoGroup *gzgroup,
   if (gzt == NULL) {
     BKE_reportf(reports, RPT_ERROR, "GizmoType '%s' not known", idname);
     return NULL;
+  }
+  if ((gzgroup->type->flag & WM_GIZMOGROUPTYPE_3D) == 0) {
+    /* Allow for neither callbacks to be set, while this doesn't seem like a valid use case,
+     * there may be rare situations where a developer wants a gizmo to be draw-only. */
+    if ((gzt->test_select == NULL) && (gzt->draw_select != NULL)) {
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "GizmoType '%s' is for a 3D gizmo-group. "
+                  "The 'draw_select' callback is set where only 'test_select' will be used",
+                  idname);
+      return NULL;
+    }
   }
   wmGizmo *gz = WM_gizmo_new_ptr(gzt, gzgroup, NULL);
   return gz;
@@ -1287,7 +1300,7 @@ static void rna_def_gizmo(BlenderRNA *brna, PropertyRNA *cprop)
   prop = RNA_def_property(srna, "use_tooltip", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(
       prop, "rna_Gizmo_flag_use_tooltip_get", "rna_Gizmo_flag_use_tooltip_set");
-  RNA_def_property_ui_text(prop, "Use Tooltip", "Use tool-tips when hovering over this gizmo");
+  RNA_def_property_ui_text(prop, "Use Tooltip", "Use tooltips when hovering over this gizmo");
   /* No update needed. */
 
   /* wmGizmo.state (readonly) */
@@ -1358,7 +1371,7 @@ static void rna_def_gizmogroup(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "type->gzmap_params.spaceid");
   RNA_def_property_enum_items(prop, rna_enum_space_type_items);
   RNA_def_property_flag(prop, PROP_REGISTER);
-  RNA_def_property_ui_text(prop, "Space type", "The space where the panel is going to be used in");
+  RNA_def_property_ui_text(prop, "Space Type", "The space where the panel is going to be used in");
 
   prop = RNA_def_property(srna, "bl_region_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "type->gzmap_params.regionid");

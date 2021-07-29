@@ -9,6 +9,7 @@ extern "C" {
 #include "BKE_material.h"
 #include "BKE_text.h"
 #include "DNA_text_types.h"
+#include "DNA_material_types.h"
 
 #include "WM_api.h"
 
@@ -367,6 +368,31 @@ void OctaneOSLNodeBase::UpdateOctaneDBNode(void *data)
   //RNA_pointer_create(NULL, setter->bnode->typeinfo->ext.srna, setter->bnode, &ptr);
   //BL::ShaderNode b_shader_node(ptr);
   //oct::osl_node_configuration(setter->bmain, b_shader_node, this->oOSLNodeInfo);
+}
+
+void OctaneCompositeTexture::UpdateOctaneDBNode(void *data)
+{
+  if (!data) {
+    return;
+  }
+  UpdateArrayData(
+      this->sLayers, (oct::BNodeSocketSetter *)data, "layer_number", "Layer", "");
+}
+
+void OctaneAovOutputGroup::UpdateOctaneDBNode(void *data)
+{
+  if (!data) {
+    return;
+  }
+  UpdateArrayData(this->sGroups, (oct::BNodeSocketSetter *)data, "group_number", "AOV output", "");
+}
+
+void OctaneCompositeAovOutput::UpdateOctaneDBNode(void *data)
+{
+  if (!data) {
+    return;
+  }
+  UpdateArrayData(this->sLayers, (oct::BNodeSocketSetter *)data, "layer_number", "Layer", "");
 }
 
 }  // namespace OctaneDataTransferObject

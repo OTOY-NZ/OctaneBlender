@@ -64,7 +64,6 @@
 #include "DEG_depsgraph.h"
 
 struct GPUBatch;
-struct GPUFrameBuffer;
 struct GPUMaterial;
 struct GPUShader;
 struct GPUTexture;
@@ -132,6 +131,7 @@ typedef struct DrawEngineType {
                           struct RenderEngine *engine,
                           struct RenderLayer *layer,
                           const struct rcti *rect);
+  void (*store_metadata)(void *vedata, struct RenderResult *render_result);
 } DrawEngineType;
 
 /* Textures */
@@ -349,7 +349,6 @@ typedef enum {
   DRW_STATE_LOGIC_INVERT = (10 << 11),
   DRW_STATE_BLEND_ALPHA_UNDER_PREMUL = (11 << 11),
 
-
   DRW_STATE_IN_FRONT_SELECT = (1 << 27),
   DRW_STATE_SHADOW_OFFSET = (1 << 28),
   DRW_STATE_CLIP_PLANES = (1 << 29),
@@ -473,7 +472,7 @@ void DRW_buffer_add_entry_array(DRWCallBuffer *callbuf, const void *attr[], uint
   } while (0)
 
 /* Can only be called during iter phase. */
-uint32_t DRW_object_resource_id_get(Object *UNUSED(ob));
+uint32_t DRW_object_resource_id_get(Object *ob);
 
 void DRW_shgroup_state_enable(DRWShadingGroup *shgroup, DRWState state);
 void DRW_shgroup_state_disable(DRWShadingGroup *shgroup, DRWState state);
@@ -482,7 +481,7 @@ void DRW_shgroup_state_disable(DRWShadingGroup *shgroup, DRWState state);
  * - (compare_mask & reference) is what is tested against (compare_mask & stencil_value)
  *   stencil_value being the value stored in the stencil buffer.
  * - (write-mask & reference) is what gets written if the test condition is fulfilled.
- **/
+ */
 void DRW_shgroup_stencil_set(DRWShadingGroup *shgroup,
                              uint write_mask,
                              uint reference,

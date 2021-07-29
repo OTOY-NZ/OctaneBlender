@@ -84,6 +84,7 @@
 
 /* Logging types to use anywhere in the Python modules. */
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_CONTEXT, "bpy.context");
+CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_INTERFACE, "bpy.interface");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_RNA, "bpy.rna");
 
 /* for internal use, when starting and ending python scripts */
@@ -198,10 +199,14 @@ void BPY_context_dict_clear_members_array(void **dict_p,
 
   PyObject *dict = *dict_p;
   BLI_assert(PyDict_Check(dict));
+
+  /* Use #PyDict_Pop instead of #PyDict_DelItemString to avoid setting the exception,
+   * while supported it's good to avoid for low level functions like this that run often. */
   for (uint i = 0; i < context_members_len; i++) {
-    if (PyDict_DelItemString(dict, context_members[i])) {
-      PyErr_Clear();
-    }
+    PyObject *key = PyUnicode_FromString(context_members[i]);
+    PyObject *item = _PyDict_Pop(dict, key, Py_None);
+    Py_DECREF(key);
+    Py_DECREF(item);
   }
 
   if (use_gil) {
@@ -319,7 +324,6 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
 {
 #ifndef WITH_PYTHON_MODULE
   PyThreadState *py_tstate = NULL;
-  const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
 
   /* Needed for Python's initialization for portable Python installations.
    * We could use #Py_SetPath, but this overrides Python's internal logic
@@ -336,8 +340,21 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
   /* must run before python initializes */
   PyImport_ExtendInittab(bpy_internal_modules);
 
-  /* allow to use our own included python */
-  PyC_SetHomePath(py_path_bundle);
+  /* Allow to use our own included Python. `py_path_bundle` may be NULL. */
+  {
+    const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
+    if (py_path_bundle != NULL) {
+      PyC_SetHomePath(py_path_bundle);
+    }
+    else {
+      /* Common enough to use the system Python on Linux/Unix, warn on other systems. */
+#  if defined(__APPLE__) || defined(_WIN32)
+      fprintf(stderr,
+              "Bundled Python not found and is expected on this platform "
+              "(the 'install' target may have not been built)\n");
+#  endif
+    }
+  }
 
   /* Without this the `sys.stdout` may be set to 'ascii'
    * (it is on my system at least), where printing unicode values will raise
@@ -358,17 +375,16 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
   /* Initialize Python (also acquires lock). */
   Py_Initialize();
 
-  // PySys_SetArgv(argc, argv);  /* broken in py3, not a huge deal */
-  /* sigh, why do python guys not have a (char **) version anymore? */
+  /* We could convert to #wchar_t then pass to #PySys_SetArgv (or use #PyConfig in Python 3.8+).
+   * However this risks introducing subtle changes in encoding that are hard to track down.
+   *
+   * So rely on #PyC_UnicodeFromByte since it's a tried & true way of getting paths
+   * that include non `utf-8` compatible characters, see: T20021. */
   {
-    int i;
     PyObject *py_argv = PyList_New(argc);
-    for (i = 0; i < argc; i++) {
-      /* should fix bug T20021 - utf path name problems, by replacing
-       * PyUnicode_FromString, with this one */
+    for (int i = 0; i < argc; i++) {
       PyList_SET_ITEM(py_argv, i, PyC_UnicodeFromByte(argv[i]));
     }
-
     PySys_SetObject("argv", py_argv);
     Py_DECREF(py_argv);
   }
@@ -440,6 +456,13 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
 
   py_tstate = PyGILState_GetThisThreadState();
   PyEval_ReleaseThread(py_tstate);
+#endif
+
+#ifdef WITH_PYTHON_MODULE
+  /* Disable all add-ons at exit, not essential, it just avoids resource leaks, see T71362. */
+  BPY_run_string_eval(C,
+                      (const char *[]){"atexit", "addon_utils", NULL},
+                      "atexit.register(addon_utils.disable_all)");
 #endif
 }
 
@@ -535,7 +558,7 @@ void BPY_DECREF(void *pyob_ptr)
 void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr)
 {
   const PyGILState_STATE gilstate = PyGILState_Ensure();
-  const int do_invalidate = (Py_REFCNT((PyObject *)pyob_ptr) > 1);
+  const bool do_invalidate = (Py_REFCNT((PyObject *)pyob_ptr) > 1);
   Py_DECREF((PyObject *)pyob_ptr);
   if (do_invalidate) {
     pyrna_invalidate(pyob_ptr);

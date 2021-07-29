@@ -51,7 +51,7 @@ enum {
  */
 static bool bm_edge_step_ok(BMEdge *e)
 {
-  return BM_elem_flag_test(e, BM_ELEM_TAG) && ((e->l == NULL) || (e->l->radial_next == e->l));
+  return BM_elem_flag_test(e, BM_ELEM_TAG) && (ELEM(e->l, NULL, e->l->radial_next));
 }
 
 static int bm_edge_face(BMEdge *e)
@@ -60,7 +60,7 @@ static int bm_edge_face(BMEdge *e)
 }
 
 /**
- * Get the next available edge we can use to attempt tp calculate a path from.
+ * Get the next available edge we can use to attempt to calculate a path from.
  */
 static BMEdge *bm_edgenet_edge_get_next(BMesh *bm,
                                         LinkNode **edge_queue,

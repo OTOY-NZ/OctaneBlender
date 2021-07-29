@@ -378,7 +378,7 @@ static int sculpt_mask_expand_invoke(bContext *C, wmOperator *op, const wmEvent 
 
   BKE_pbvh_search_gather(pbvh, NULL, NULL, &ss->filter_cache->nodes, &ss->filter_cache->totnode);
 
-  SCULPT_undo_push_begin("Mask Expand");
+  SCULPT_undo_push_begin(ob, "Mask Expand");
 
   if (create_face_set) {
     SCULPT_undo_push_node(ob, ss->filter_cache->nodes[0], SCULPT_UNDO_FACE_SETS);
@@ -499,8 +499,8 @@ void SCULPT_OT_mask_expand(wmOperatorType *ot)
                              true,
                              "Update Pivot Position",
                              "Set the pivot position to the mask border after creating the mask");
-  ot->prop = RNA_def_int(ot->srna, "smooth_iterations", 2, 0, 10, "Smooth iterations", "", 0, 10);
-  ot->prop = RNA_def_int(ot->srna, "mask_speed", 5, 1, 10, "Mask speed", "", 1, 10);
+  ot->prop = RNA_def_int(ot->srna, "smooth_iterations", 2, 0, 10, "Smooth Iterations", "", 0, 10);
+  ot->prop = RNA_def_int(ot->srna, "mask_speed", 5, 1, 10, "Mask Speed", "", 1, 10);
 
   ot->prop = RNA_def_boolean(ot->srna,
                              "use_normals",

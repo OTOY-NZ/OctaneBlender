@@ -273,6 +273,8 @@ IDTypeInfo IDType_ID_MA = {
     .blend_read_data = material_blend_read_data,
     .blend_read_lib = material_blend_read_lib,
     .blend_read_expand = material_blend_read_expand,
+
+    .blend_read_undo_preserve = NULL,
 };
 
 void BKE_gpencil_material_attr_init(Material *ma)
@@ -1224,6 +1226,17 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
   LISTBASE_FOREACH (bNode *, node, &nodetree->nodes) {
     if (node->typeinfo->nclass == NODE_CLASS_TEXTURE &&
         node->typeinfo->type == SH_NODE_TEX_IMAGE && node->id) {
+      if (!callback(node, userdata)) {
+        return false;
+      }
+    }
+    else if (node->typeinfo->nclass == NODE_CLASS_OCT_TEXTURE &&
+             ELEM(node->typeinfo->type,
+                  SH_NODE_OCT_IMAGE_TEX,
+                  SH_NODE_OCT_ALPHA_IMAGE_TEX,
+                  SH_NODE_OCT_FLOAT_IMAGE_TEX,
+                  SH_NODE_OCT_IMAGE_AOV_OUTPUT) &&
+             node->id) {
       if (!callback(node, userdata)) {
         return false;
       }

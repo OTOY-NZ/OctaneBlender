@@ -1789,7 +1789,7 @@ static float project_paint_uvpixel_mask(const ProjPaintState *ps,
 
 static int project_paint_pixel_sizeof(const short tool)
 {
-  if ((tool == PAINT_TOOL_CLONE) || (tool == PAINT_TOOL_SMEAR)) {
+  if (ELEM(tool, PAINT_TOOL_CLONE, PAINT_TOOL_SMEAR)) {
     return sizeof(ProjPixelClone);
   }
   return sizeof(ProjPixel);
@@ -2210,7 +2210,7 @@ static bool line_clip_rect2f(const rctf *cliprect,
  */
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 
-static void scale_tri(float insetCos[3][3], const float *origCos[4], const float inset)
+static void scale_tri(float insetCos[3][3], const float *origCos[3], const float inset)
 {
   float cent[3];
   cent[0] = (origCos[0][0] + origCos[1][0] + origCos[2][0]) * (1.0f / 3.0f);
@@ -6250,6 +6250,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
                                         IB_rect,
                                         R_ALPHAPREMUL,
                                         NULL,
+                                        false,
                                         NULL,
                                         err_out);
 
@@ -6299,7 +6300,7 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Image from View";
   ot->idname = "PAINT_OT_image_from_view";
-  ot->description = "Make an image from biggest 3D view for re-projection";
+  ot->description = "Make an image from biggest 3D view for reprojection";
 
   /* api callbacks */
   ot->exec = texture_paint_image_from_view_exec;
@@ -6563,12 +6564,13 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 
     /* try to add an image node */
     
-    //bool is_octane_engine = BKE_scene_uses_octane(scene);
+    bool is_octane_engine = BKE_scene_uses_octane(scene);
     //if (is_octane_engine) {
     //  octane_image_node = nodeAddStaticNode(C, ntree, SH_NODE_OCT_IMAGE_TEX);
     //}
 
-    imanode = nodeAddStaticNode(C, ntree, SH_NODE_TEX_IMAGE);
+    imanode = nodeAddStaticNode(C, ntree, is_octane_engine
+                                ? SH_NODE_OCT_IMAGE_TEX:  SH_NODE_TEX_IMAGE);
 
     ima = proj_paint_image_create(op, bmain, is_data);
     imanode->id = &ima->id;
@@ -6627,6 +6629,106 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       if (in_sock != NULL && link == NULL) {
         nodeAddLink(ntree, out_node, out_sock, in_node, in_sock);
 
+        nodePositionRelative(out_node, in_node, out_sock, in_sock);
+      }
+    }
+
+    if (is_octane_engine && imanode != NULL) {
+      bNode *in_node = NULL;
+      bNode *out_node = imanode;
+      bNodeSocket *in_sock = NULL;
+      bNodeSocket *out_sock = nodeFindSocket(out_node, SOCK_OUT, "OutTex");
+      if (ntreeFindType(ntree, SH_NODE_OCT_UNIVERSAL_MAT)) {
+        in_node = ntreeFindType(ntree, SH_NODE_OCT_UNIVERSAL_MAT);
+        if (type == LAYER_BASE_COLOR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Albedo color");
+        }
+        else if (type == LAYER_SPECULAR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Specular");
+        }
+        else if (type == LAYER_ROUGHNESS) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Roughness");
+        }
+        else if (type == LAYER_NORMAL) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Normal");
+        }
+        else if (type == LAYER_BUMP) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Bump");
+        }
+      }
+      else if (ntreeFindType(ntree, SH_NODE_OCT_DIFFUSE_MAT)) {
+        in_node = ntreeFindType(ntree, SH_NODE_OCT_DIFFUSE_MAT);
+        if (type == LAYER_BASE_COLOR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Diffuse");
+        }
+        else if (type == LAYER_ROUGHNESS) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Roughness");
+        }
+        else if (type == LAYER_NORMAL) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Normal");
+        }
+        else if (type == LAYER_BUMP) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Bump");
+        }
+      }
+      else if (ntreeFindType(ntree, SH_NODE_OCT_GLOSSY_MAT)) {
+        in_node = ntreeFindType(ntree, SH_NODE_OCT_GLOSSY_MAT);
+        if (type == LAYER_BASE_COLOR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Diffuse");
+        }
+        else if (type == LAYER_SPECULAR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Specular");
+        }
+        else if (type == LAYER_ROUGHNESS) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Roughness");
+        }
+        else if (type == LAYER_NORMAL) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Normal");
+        }
+        else if (type == LAYER_BUMP) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Bump");
+        }
+      }
+      else if (ntreeFindType(ntree, SH_NODE_OCT_SPECULAR_MAT)) {
+        in_node = ntreeFindType(ntree, SH_NODE_OCT_SPECULAR_MAT);
+        if (type == LAYER_BASE_COLOR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Transmission Color");
+        }
+        else if (type == LAYER_SPECULAR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Reflection");
+        }
+        else if (type == LAYER_ROUGHNESS) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Roughness");
+        }
+        else if (type == LAYER_NORMAL) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Normal");
+        }
+        else if (type == LAYER_BUMP) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Bump");
+        }
+      }
+      else if (ntreeFindType(ntree, SH_NODE_OCT_TOON_MAT)) {
+        in_node = ntreeFindType(ntree, SH_NODE_OCT_TOON_MAT);
+        if (type == LAYER_BASE_COLOR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Diffuse");
+        }
+        else if (type == LAYER_SPECULAR) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Specular");
+        }
+        else if (type == LAYER_ROUGHNESS) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Roughness");
+        }
+        else if (type == LAYER_NORMAL) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Normal");
+        }
+        else if (type == LAYER_BUMP) {
+          in_sock = nodeFindSocket(in_node, SOCK_IN, "Bump");
+        }
+      }
+      /* Check if the socket in already connected to something */
+      bNodeLink *link = in_sock ? in_sock->link : NULL;
+      if (in_sock != NULL && link == NULL) {        
+        nodeAddLink(ntree, out_node, out_sock, in_node, in_sock);
         nodePositionRelative(out_node, in_node, out_sock, in_sock);
       }
     }
@@ -6754,7 +6856,7 @@ void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
                "Generated Type",
                "Fill the image with a grid for UV map testing");
   RNA_def_boolean(
-      ot->srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
+      ot->srna, "float", 0, "32-bit Float", "Create image with 32-bit floating-point bit depth");
 }
 
 static int add_simple_uvs_exec(bContext *C, wmOperator *UNUSED(op))
@@ -6787,7 +6889,7 @@ static bool add_simple_uvs_poll(bContext *C)
 void PAINT_OT_add_simple_uvs(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Add simple UVs";
+  ot->name = "Add Simple UVs";
   ot->description = "Add cube map uvs on mesh";
   ot->idname = "PAINT_OT_add_simple_uvs";
 

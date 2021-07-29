@@ -72,43 +72,51 @@ typedef struct BMPHEADER {
    CHECK_HEADER_FIELD(_mem, "CI") || CHECK_HEADER_FIELD(_mem, "CP") || \
    CHECK_HEADER_FIELD(_mem, "IC") || CHECK_HEADER_FIELD(_mem, "PT"))
 
-static int checkbmp(const uchar *mem)
+static bool checkbmp(const uchar *mem, const size_t size)
 {
+  if (size < BMP_FILEHEADER_SIZE) {
+    return false;
+  }
 
-  int ret_val = 0;
+  if (!CHECK_HEADER_FIELD_BMP(mem)) {
+    return false;
+  }
+
+  bool ok = false;
   BMPINFOHEADER bmi;
   uint u;
 
-  if (mem) {
-    if (CHECK_HEADER_FIELD_BMP(mem)) {
-      /* skip fileheader */
-      mem += BMP_FILEHEADER_SIZE;
-    }
-    else {
-      return 0;
-    }
+  /* skip fileheader */
+  mem += BMP_FILEHEADER_SIZE;
 
-    /* for systems where an int needs to be 4 bytes aligned */
-    memcpy(&bmi, mem, sizeof(bmi));
+  /* for systems where an int needs to be 4 bytes aligned */
+  memcpy(&bmi, mem, sizeof(bmi));
 
-    u = LITTLE_LONG(bmi.biSize);
-    /* we only support uncompressed images for now. */
-    if (u >= sizeof(BMPINFOHEADER)) {
-      if (bmi.biCompression == 0) {
-        u = LITTLE_SHORT(bmi.biBitCount);
-        if (u > 0 && u <= 32) {
-          ret_val = 1;
-        }
+  u = LITTLE_LONG(bmi.biSize);
+  /* we only support uncompressed images for now. */
+  if (u >= sizeof(BMPINFOHEADER)) {
+    if (bmi.biCompression == 0) {
+      u = LITTLE_SHORT(bmi.biBitCount);
+      if (u > 0 && u <= 32) {
+        ok = true;
       }
     }
   }
 
-  return ret_val;
+  return ok;
 }
 
-int imb_is_a_bmp(const uchar *buf)
+bool imb_is_a_bmp(const uchar *buf, size_t size)
 {
-  return checkbmp(buf);
+  return checkbmp(buf, size);
+}
+
+static size_t imb_bmp_calc_row_size_in_bytes(size_t x, size_t depth)
+{
+  if (depth <= 8) {
+    return (depth * x + 31) / 32 * 4;
+  }
+  return (depth >> 3) * x;
 }
 
 ImBuf *imb_bmp_decode(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
@@ -124,13 +132,14 @@ ImBuf *imb_bmp_decode(const uchar *mem, size_t size, int flags, char colorspace[
 
   (void)size; /* unused */
 
-  if (checkbmp(mem) == 0) {
+  if (checkbmp(mem, size) == 0) {
     return NULL;
   }
 
   colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
 
-  bmp = mem + LITTLE_LONG(*(int *)(mem + 10));
+  const size_t pixel_data_offset = LITTLE_LONG(*(int *)(mem + 10));
+  bmp = mem + pixel_data_offset;
 
   if (CHECK_HEADER_FIELD_BMP(mem)) {
     /* skip fileheader */
@@ -149,6 +158,13 @@ ImBuf *imb_bmp_decode(const uchar *mem, size_t size, int flags, char colorspace[
   depth = LITTLE_SHORT(bmi.biBitCount);
   xppm = LITTLE_LONG(bmi.biXPelsPerMeter);
   yppm = LITTLE_LONG(bmi.biYPelsPerMeter);
+
+  const size_t row_size_in_bytes = imb_bmp_calc_row_size_in_bytes(x, depth);
+  const size_t num_expected_data_bytes = row_size_in_bytes * y;
+  const size_t num_actual_data_bytes = size - pixel_data_offset;
+  if (num_actual_data_bytes < num_expected_data_bytes) {
+    return NULL;
+  }
 
   if (depth <= 8) {
     ibuf_depth = 24;
@@ -179,7 +195,6 @@ ImBuf *imb_bmp_decode(const uchar *mem, size_t size, int flags, char colorspace[
     rect = (uchar *)ibuf->rect;
 
     if (depth <= 8) {
-      const int rowsize = (depth * x + 31) / 32 * 4;
       const char(*palette)[4] = (void *)(mem + skip);
       const int startmask = ((1 << depth) - 1) << 8;
       for (size_t i = y; i > 0; i--) {
@@ -212,7 +227,7 @@ ImBuf *imb_bmp_decode(const uchar *mem, size_t size, int flags, char colorspace[
           }
         }
         /* Advance to the next row */
-        bmp += (rowsize - nbytes);
+        bmp += (row_size_in_bytes - nbytes);
       }
     }
     else if (depth == 16) {
@@ -296,12 +311,12 @@ static int putShortLSB(ushort us, FILE *ofile)
 }
 
 /* Found write info at http://users.ece.gatech.edu/~slabaugh/personal/c/bitmapUnix.c */
-int imb_savebmp(ImBuf *ibuf, const char *filepath, int UNUSED(flags))
+bool imb_savebmp(ImBuf *ibuf, const char *filepath, int UNUSED(flags))
 {
   BMPINFOHEADER infoheader;
 
   const size_t bytes_per_pixel = (ibuf->planes + 7) >> 3;
-  BLI_assert(bytes_per_pixel == 1 || bytes_per_pixel == 3);
+  BLI_assert(ELEM(bytes_per_pixel, 1, 3));
 
   const size_t pad_bytes_per_scanline = (4 - ibuf->x * bytes_per_pixel % 4) % 4;
   const size_t bytesize = (ibuf->x * bytes_per_pixel + pad_bytes_per_scanline) * ibuf->y;

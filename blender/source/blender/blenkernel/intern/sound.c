@@ -60,13 +60,15 @@
 #include "BKE_main.h"
 #include "BKE_packedFile.h"
 #include "BKE_scene.h"
-#include "BKE_sequencer.h"
 #include "BKE_sound.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
 #include "BLO_read_write.h"
+
+#include "SEQ_sequencer.h"
+#include "SEQ_sound.h"
 
 static void sound_free_audio(bSound *sound);
 
@@ -134,12 +136,18 @@ static void sound_foreach_cache(ID *id,
 static void sound_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   bSound *sound = (bSound *)id;
-  if (sound->id.us > 0 || BLO_write_is_undo(writer)) {
+  const bool is_undo = BLO_write_is_undo(writer);
+  if (sound->id.us > 0 || is_undo) {
     /* Clean up, important in undo case to reduce false detection of changed datablocks. */
     sound->tags = 0;
     sound->handle = NULL;
     sound->playback_handle = NULL;
     sound->spinlock = NULL;
+
+    /* Do not store packed files in case this is a library override ID. */
+    if (ID_IS_OVERRIDE_LIBRARY(sound) && !is_undo) {
+      sound->packedfile = NULL;
+    }
 
     /* write LibData */
     BLO_write_id_struct(writer, bSound, id_address, &sound->id);
@@ -211,6 +219,8 @@ IDTypeInfo IDType_ID_SO = {
     .blend_read_data = sound_blend_read_data,
     .blend_read_lib = sound_blend_read_lib,
     .blend_read_expand = sound_blend_read_expand,
+
+    .blend_read_undo_preserve = NULL,
 };
 
 #ifdef WITH_AUDASPACE
@@ -674,7 +684,7 @@ void BKE_sound_update_fps(Main *bmain, Scene *scene)
     AUD_Sequence_setFPS(scene->sound_scene, FPS);
   }
 
-  BKE_sequencer_refresh_sound_length(bmain, scene);
+  SEQ_sound_update_length(bmain, scene);
 }
 
 void BKE_sound_update_scene_listener(Scene *scene)
@@ -816,7 +826,7 @@ void BKE_sound_update_sequencer(Main *main, bSound *sound)
   Scene *scene;
 
   for (scene = main->scenes.first; scene; scene = scene->id.next) {
-    BKE_sequencer_update_sound(scene, sound);
+    SEQ_sound_update(scene, sound);
   }
 }
 
@@ -1320,7 +1330,10 @@ int BKE_sound_scene_playing(Scene *UNUSED(scene))
 {
   return -1;
 }
-void BKE_sound_read_waveform(Main *bmain, bSound *sound, short *stop)
+void BKE_sound_read_waveform(Main *bmain,
+                             bSound *sound,
+                             /* NOLINTNEXTLINE: readability-non-const-parameter. */
+                             short *stop)
 {
   UNUSED_VARS(sound, stop, bmain);
 }

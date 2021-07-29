@@ -27,6 +27,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneCameraData);
 		OCTANE_NODE_CREATOR(OctaneEngineData);
 		OCTANE_NODE_CREATOR(OctaneOrbxPreview);
+		OCTANE_NODE_CREATOR(OctaneGeoNode);
 
 		OCTANE_NODE_CREATOR(OctaneDiffuseMaterial);
 		OCTANE_NODE_CREATOR(OctaneMixMaterial);
@@ -40,6 +41,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneLayeredMaterial);
 		OCTANE_NODE_CREATOR(OctaneCompositeMaterial);
 		OCTANE_NODE_CREATOR(OctaneHairMaterial);
+		OCTANE_NODE_CREATOR(OctaneNullMaterial);
 		OCTANE_NODE_CREATOR(OctaneGroupLayer);
 		OCTANE_NODE_CREATOR(OctaneDiffuseLayer);
 		OCTANE_NODE_CREATOR(OctaneMetallicLayer);
@@ -57,6 +59,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneTriangleWaveTexture);
 		OCTANE_NODE_CREATOR(OctaneTurbulenceTexture);
 		OCTANE_NODE_CREATOR(OctaneNoiseTexture);
+		OCTANE_NODE_CREATOR(OctaneCinema4DNoiseTexture);
 		OCTANE_NODE_CREATOR(OctaneClampTexture);
 		OCTANE_NODE_CREATOR(OctaneCosineMixTexture);
 		OCTANE_NODE_CREATOR(OctaneInvertTexture);
@@ -68,6 +71,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneTriplanarTexture);
 		OCTANE_NODE_CREATOR(OctaneFalloffTexture);
 		OCTANE_NODE_CREATOR(OctaneColorCorrectTexture);
+		OCTANE_NODE_CREATOR(OctaneChaosTexture);
 		OCTANE_NODE_CREATOR(OctaneImageData);
 		OCTANE_NODE_CREATOR(OctaneImageTexture);
 		OCTANE_NODE_CREATOR(OctaneImageTileTexture);
@@ -105,6 +109,15 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneVolumeMedium);
 		OCTANE_NODE_CREATOR(OctaneRandomWalkMedium);
 
+		OCTANE_NODE_CREATOR(OctaneChannelInverterTexture);
+		OCTANE_NODE_CREATOR(OctaneChannelMapperTexture);
+		OCTANE_NODE_CREATOR(OctaneChannelMergerTexture);
+		OCTANE_NODE_CREATOR(OctaneChannelPickerTexture);
+		OCTANE_NODE_CREATOR(OctaneRaySwitchTexture);
+		OCTANE_NODE_CREATOR(OctaneSpotlightTexture);
+		OCTANE_NODE_CREATOR(OctaneCompositeLayerTexture);
+		OCTANE_NODE_CREATOR(OctaneCompositeTexture);
+
 		OCTANE_NODE_CREATOR(OctaneFloatValue);
 		OCTANE_NODE_CREATOR(OctaneIntValue);
 		OCTANE_NODE_CREATOR(OctaneSunDirection);
@@ -127,6 +140,21 @@ namespace OctaneDataTransferObject {
 
 		OCTANE_NODE_CREATOR(OctaneVolume);
 		OCTANE_NODE_CREATOR(OctaneVolumeInfo);
+
+		OCTANE_NODE_CREATOR(OctaneScatterToolSurface);
+		OCTANE_NODE_CREATOR(OctaneScatterToolVolume);
+
+		OCTANE_NODE_CREATOR(OctaneOCIOInfo);
+
+		OCTANE_NODE_CREATOR(OctanePlacement);
+		OCTANE_NODE_CREATOR(OctaneGeometryGroup);
+
+		OCTANE_NODE_CREATOR(OctaneAovOutputGroup);
+		OCTANE_NODE_CREATOR(OctaneColorAovOutput);
+		OCTANE_NODE_CREATOR(OctaneCompositeAovOutput);
+		OCTANE_NODE_CREATOR(OctaneCompositeAovOutputLayer);
+		OCTANE_NODE_CREATOR(OctaneImageAovOutput);
+		OCTANE_NODE_CREATOR(OctaneRenderAovOutput);
 #undef OCTANE_NODE_CREATOR
 	};
 

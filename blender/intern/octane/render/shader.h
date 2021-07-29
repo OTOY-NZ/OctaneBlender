@@ -55,6 +55,7 @@ class Shader {
   ShaderGraph *graph;
 
   bool need_update;
+  bool need_update_paint;
   bool need_update_mesh;
   bool need_sync_object;
 

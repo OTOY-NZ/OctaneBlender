@@ -153,6 +153,9 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
         def draw_irradiance_mode():
             col.prop(oct_scene, "irradiance_mode")      
 
+        def draw_nested_dielectrics():
+            col.prop(oct_scene, "nested_dielectrics")
+
         def draw_alpha_channel():
             col.prop(oct_scene, "alpha_channel")
 
@@ -249,6 +252,7 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             draw_ao_dist()
             col.prop_search(oct_scene, "ao_texture", bpy.data, "textures")   
             draw_alpha_shadows()
+            draw_nested_dielectrics()
             draw_irradiance_mode()
             draw_max_subdivision_level()
 
@@ -306,6 +310,7 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             draw_alpha_shadows()
             draw_caustic_blur()
             draw_gi_clamp()
+            draw_nested_dielectrics()
             draw_irradiance_mode()
             draw_max_subdivision_level()
 
@@ -363,6 +368,7 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             draw_alpha_shadows()
             draw_caustic_blur()
             draw_gi_clamp()
+            draw_nested_dielectrics()
             draw_irradiance_mode()
             draw_max_subdivision_level()
 
@@ -578,6 +584,14 @@ class VIEW3D_PT_octimager(Panel):
         sub.prop(oct_cam, "disable_partial_alpha")
         sub.prop(oct_cam, "custom_lut")
         sub.prop(oct_cam, "lut_strength")
+
+        box = layout.box()
+        box.label(text="OCIO")
+        sub = box.column(align=True)
+        preferences = bpy.context.preferences.addons['octane'].preferences
+        sub.prop_search(oct_cam, "ocio_view", preferences, "ocio_view_configs") 
+        sub.prop_search(oct_cam, "ocio_look", preferences, "ocio_look_configs") 
+        sub.prop(oct_cam, 'force_tone_mapping')        
 
         box = layout.box()
         box.label(text="Spectral AI Denoiser:")
@@ -899,6 +913,14 @@ class OCTANE_CAMERA_PT_imager(OctaneButtonsPanel, Panel):
         sub.prop(oct_cam, "disable_partial_alpha")
         sub.prop(oct_cam, "custom_lut")
         sub.prop(oct_cam, "lut_strength")
+
+        box = layout.box()
+        box.label(text="OCIO")
+        sub = box.column(align=True)
+        preferences = bpy.context.preferences.addons['octane'].preferences
+        sub.prop_search(oct_cam, "ocio_view", preferences, "ocio_view_configs") 
+        sub.prop_search(oct_cam, "ocio_look", preferences, "ocio_look_configs") 
+        sub.prop(oct_cam, 'force_tone_mapping')     
 
         box = layout.box()
         box.label(text="Spectral AI Denoiser:")
@@ -1411,6 +1433,21 @@ class OCTANE_RENDER_PT_passes(OctaneButtonsPanel, Panel):
         layout = self.layout
         row = layout.row()
         row.prop(octane_view_layer, "current_preview_pass_type")
+        if octane_view_layer.current_preview_pass_type == '10000':
+            row = layout.row()
+            row.prop(octane_view_layer, "current_aov_output_id")
+            octane_aov_out_number = 0
+            composite_node_tree_name = octane_view_layer.aov_output_group_collection.composite_node_tree
+            aov_output_group_name = octane_view_layer.aov_output_group_collection.aov_output_group_node
+            if composite_node_tree_name in bpy.data.node_groups:
+                if aov_output_group_name in bpy.data.node_groups[composite_node_tree_name].nodes:
+                    node = bpy.data.node_groups[composite_node_tree_name].nodes[aov_output_group_name]
+                    octane_aov_out_number = int(node.group_number)
+            if octane_aov_out_number < octane_view_layer.current_aov_output_id:                
+                row = layout.row(align=True)
+                row.label(text="Beauty pass output will be used as no valid results for the assigned index", icon='INFO')
+                row = layout.row(align=True)
+                row.label(text="Please set Octane AOV Outputs in the 'Octane Composite Editor'", icon='INFO')
 
 
 class OCTANE_RENDER_PT_passes_beauty(OctaneButtonsPanel, Panel):
@@ -1811,6 +1848,37 @@ class OCTANE_RENDER_PT_passes_material(OctaneButtonsPanel, Panel):
         row.prop(view_layer, "use_pass_oct_mat_transm_filter_info", text="Transmission", toggle=True)
 
 
+class OCTANE_RENDER_PT_passes_aov(OctaneButtonsPanel, Panel):
+    bl_label = "AOV Outputs"
+    bl_context = "view_layer"
+    bl_parent_id = "OCTANE_RENDER_PT_passes"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+        rd = scene.render
+        view_layer = context.view_layer
+        octane_view_layer = view_layer.octane
+
+        # layout.row().separator()
+        # row = layout.row(align=True)
+        # row.prop(view_layer, "octane_aov_out_number") 
+
+        box = layout.box()
+        box.label(text = "AOV Output Group:")
+        col = box.column(align = True)
+
+        sub = col.row(align = True)
+        sub.prop_search(octane_view_layer.aov_output_group_collection, "composite_node_tree", octane_view_layer.aov_output_group_collection, "composite_node_trees")
+        sub = col.row(align = True)        
+        sub.prop_search(octane_view_layer.aov_output_group_collection, "aov_output_group_node", octane_view_layer.aov_output_group_collection, "aov_output_group_nodes")        
+        sub.operator('update.aov_output_group_nodes', text = 'Update')        
+
+
 class OCTANE_RENDER_PT_octane_layers(OctaneButtonsPanel, Panel):
     bl_label = "Octane render layers(Global)"
     bl_context = "view_layer"
@@ -2101,6 +2169,25 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
 
         layout.template_octane_export_settings(image_settings)
 
+        oct_scene = context.scene.octane
+        preferences = bpy.context.preferences.addons['octane'].preferences
+        is_png_format = image_settings.octane_image_save_format in ('OCT_IMAGE_SAVE_FORMAT_PNG_8', 'OCT_IMAGE_SAVE_FORMAT_PNG_16')
+        ocio_export_color_space_configs = "ocio_export_png_color_space_configs" if is_png_format else "ocio_export_exr_color_space_configs" 
+        sub = layout.row(align=True)
+        sub.prop_search(oct_scene, "gui_octane_export_ocio_color_space_name", preferences, ocio_export_color_space_configs)
+        if is_png_format:
+            if oct_scene.gui_octane_export_ocio_color_space_name not in (' sRGB(default) ', '' ):
+                sub = layout.row(align=True)
+                sub.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
+                sub = layout.row(align=True)
+                sub.prop(oct_scene, "octane_export_force_use_tone_map")
+        else:
+            if oct_scene.gui_octane_export_ocio_color_space_name not in (' Linear sRGB(default) ', ' ACES2065-1 ', ' ACEScg ', ''):
+                sub = layout.row(align=True)
+                sub.prop_search(oct_scene, "gui_octane_export_ocio_look", preferences, "ocio_export_look_configs")
+            sub = layout.row(align=True)
+            sub.prop(oct_scene, "octane_export_force_use_tone_map")
+
 
 def get_panels():
     exclude_panels = {
@@ -2156,6 +2243,7 @@ classes = (
     OCTANE_RENDER_PT_passes_cryptomatte,
     OCTANE_RENDER_PT_passes_info,
     OCTANE_RENDER_PT_passes_material,
+    OCTANE_RENDER_PT_passes_aov,
     OCTANE_RENDER_PT_octane_layers,
 
     OCTANE_WORLD_PT_environment,

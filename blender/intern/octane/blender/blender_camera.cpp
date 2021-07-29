@@ -789,6 +789,10 @@ void BlenderSync::sync_view(BL::SpaceView3D &b_v3d,
                                      transform_inverse(get_transform(b_rv3d.view_matrix()));
     }
   }
+  else {
+    scene->camera->octane_matrix = OCTANE_MATRIX *
+                                   transform_inverse(get_transform(b_rv3d.view_matrix()));
+  }
   /* copy camera to compare later */
   Camera prevcam = *scene->camera;
   update_octane_camera_properties(scene->camera, oct_camera, oct_view_camera, view);
@@ -963,6 +967,18 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     RNA_string_get(&target_camera, "custom_lut", customLutPath);
     cam->oct_node.sCustomLut = blender_absolute_path(b_data, b_scene, customLutPath);
     cam->oct_node.fLutStrength = RNA_float_get(&target_camera, "lut_strength");
+
+    char ocio[512];
+    RNA_string_get(&target_camera, "ocio_view_display_name", ocio);
+    cam->oct_node.sOcioViewDisplay = ocio;
+    RNA_string_get(&target_camera, "ocio_view_display_view_name", ocio);
+    cam->oct_node.sOcioViewDisplayView = ocio;
+    resolve_octane_ocio_view_params(cam->oct_node.sOcioViewDisplay,
+                                    cam->oct_node.sOcioViewDisplayView);
+    RNA_string_get(&target_camera, "ocio_look", ocio);
+    cam->oct_node.sOcioLook = ocio;
+    resolve_octane_ocio_look_params(cam->oct_node.sOcioLook);
+    cam->oct_node.bForceToneMapping = RNA_boolean_get(&target_camera, "force_tone_mapping");
 
     cam->oct_node.bEnableDenoiser = RNA_boolean_get(&target_camera, "enable_denoising");
     cam->oct_node.bDenoiseVolumes = RNA_boolean_get(&target_camera, "denoise_volumes");

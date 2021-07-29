@@ -254,7 +254,7 @@ class ExecutePreset(Operator):
         ext = splitext(filepath)[1].lower()
 
         if ext not in {".py", ".xml"}:
-            self.report({'ERROR'}, "unknown filetype: %r" % ext)
+            self.report({'ERROR'}, "Unknown file type: %r" % ext)
             return {'CANCELLED'}
 
         if hasattr(preset_class, "reset_cb"):
@@ -676,6 +676,7 @@ class AddPresetGpencilMaterial(AddPresetBase, Operator):
         "gpcolor.pixel_size",
         "gpcolor.mix_stroke_factor",
         "gpcolor.alignment_mode",
+        "gpcolor.alignment_rotation",
         "gpcolor.fill_style",
         "gpcolor.fill_color",
         "gpcolor.fill_image",

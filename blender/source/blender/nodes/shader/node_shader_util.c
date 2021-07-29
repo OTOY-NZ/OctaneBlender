@@ -34,7 +34,7 @@ bool sh_node_poll_default(bNodeType *UNUSED(ntype), bNodeTree *ntree)
 
 static bool sh_fn_poll_default(bNodeType *UNUSED(ntype), bNodeTree *ntree)
 {
-  return STREQ(ntree->idname, "ShaderNodeTree") || STREQ(ntree->idname, "SimulationNodeTree");
+  return STREQ(ntree->idname, "ShaderNodeTree") || STREQ(ntree->idname, "GeometryNodeTree");
 }
 
 void sh_node_type_base(
@@ -155,7 +155,8 @@ static void gpu_stack_from_data_list(GPUNodeStack *gs, ListBase *sockets, bNodeS
 
   for (sock = sockets->first, i = 0; sock; sock = sock->next) {
     if (STREQ(sock->name, "Octane Environment") ||
-        STREQ(sock->name, "Octane VisibleEnvironment")) {
+        STREQ(sock->name, "Octane VisibleEnvironment") ||
+        STREQ(sock->name, "Octane Geometry")) {
       continue;
     }
     node_gpu_stack_from_data(&gs[i], sock->type, ns[i]);

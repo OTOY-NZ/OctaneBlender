@@ -16,20 +16,21 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "render/kernel.h"
 #include "render/environment.h"
+#include "render/kernel.h"
+#include "render/graph.h"
 
-#include "blender_sync.h"
 #include "blender_session.h"
+#include "blender_sync.h"
 #include "blender_util.h"
 
-#include <unordered_set>
-#include <boost/filesystem.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/assign.hpp>
-#include "util/util_foreach.h"
 #include "blender/rpc/definitions/OctaneNode.h"
 #include "blender/rpc/definitions/OctanePrint.cpp"
+#include "util/util_foreach.h"
+#include <boost/algorithm/string.hpp>
+#include <boost/assign.hpp>
+#include <boost/filesystem.hpp>
+#include <unordered_set>
 
 OCT_NAMESPACE_BEGIN
 
@@ -76,11 +77,11 @@ BlenderSync::~BlenderSync()
 }
 
 bool BlenderSync::is_frame_updated()
-{	
+{
   int current_frame_idx = b_scene.frame_current();
   if (last_frame_idx != current_frame_idx) {
     last_frame_idx = current_frame_idx;
-    return true;	
+    return true;
   }
   return false;
 }
@@ -101,10 +102,14 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
   // * so we can do it later on if doing it immediate is not suitable. */
 
   bool has_updated_objects = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_OBJECT);
+  bool has_updated_nodetree = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_NODETREE);
   bool dicing_prop_changed = false, experimental = false;
 
   /* Iterate over all IDs in this depsgraph. */
   BL::Depsgraph::updates_iterator b_update;
+
+  std::unordered_set<void *> updated_object_ids;
+
   for (b_depsgraph.updates.begin(b_update); b_update != b_depsgraph.updates.end(); ++b_update) {
     BL::ID b_id(b_update->id());
 
@@ -121,6 +126,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     /* Object */
     else if (b_id.is_a(&RNA_Object)) {
       BL::Object b_ob(b_id);
+      updated_object_ids.insert(b_ob.ptr.data);
       const bool updated_geometry = b_update->is_updated_geometry();
 
       if (b_update->is_updated_transform()) {
@@ -165,26 +171,86 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       BL::Volume b_volume(b_id);
       mesh_map.set_recalc(b_volume);
     }
+    else if (b_id.is_a(&RNA_Collection)) {
+      BL::Collection b_col(b_id);
+      updated_object_ids.insert(b_col.ptr.data);
+	}
   }
 
   /* Updates shader with object dependency if objects changed. */
   if (has_updated_objects) {
     foreach (Shader *shader, scene->shaders) {
-      if (shader->has_object_dependency) {
+      bool has_object_dependency = false;
+      if (shader->graph) {
+        for (auto updated_id : updated_object_ids) {
+          for (auto dependent_id : shader->graph->dependent_ids) {
+            if (updated_id == dependent_id) {
+              has_object_dependency = true;
+              break;
+			}
+          }
+        }     
+	  }
+      if (has_object_dependency) {
+        shader->has_object_dependency = true;
         shader->need_sync_object = true;
       }
     }
   }
+  if (has_updated_nodetree) {
+    foreach (Shader *shader, scene->shaders) {
+      if (shader->graph && shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE) {
+        shader->need_update = true;
+      }
+    }  
+  }
 }
 
-void BlenderSync::sync_render_passes(BL::ViewLayer &b_view_layer)
+void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &b_view_layer)
 {
   Passes *passes = scene->passes;
   Passes prevpasses = *passes;
 
   PointerRNA oct = RNA_pointer_get(&b_view_layer.ptr, "octane");
+  char tmp[512];
+  PointerRNA aov_output_group_collection = RNA_pointer_get(&oct, "aov_output_group_collection");
+  RNA_string_get(&aov_output_group_collection, "composite_node_tree", tmp);
+  this->composite_node_tree_name = tmp;
+  RNA_string_get(&aov_output_group_collection, "aov_output_group_node", tmp);
+  this->aov_output_group_name = tmp;
+  this->current_aov_number = 0;
+  if (this->composite_node_tree_name.length() > 0 && this->aov_output_group_name.length() > 0) {
+    BL::BlendData::node_groups_iterator b_node_group;
+    for (b_data.node_groups.begin(b_node_group); b_node_group != b_data.node_groups.end();
+         ++b_node_group) {
+      if (b_node_group->name() != this->composite_node_tree_name) {
+        continue;
+      } 
+      BL::NodeTree::nodes_iterator b_node;
+      for (b_node_group->nodes.begin(b_node);
+           b_node != b_node_group->nodes.end();
+           ++b_node) {
+        if (b_node->is_a(&RNA_ShaderNodeOctAovOutputGroup) &&
+            b_node->name() == this->aov_output_group_name) {
+          this->current_aov_number = RNA_enum_get(&b_node->ptr, "group_number");
+          break;
+        }
+      }
+	}
+  }
   passes->oct_node->bUsePasses = get_boolean(oct, "use_passes");
-  passes->oct_node->iPreviewPass = preview ? get_enum(oct, "current_preview_pass_type") :
+  int current_preview_pass_type = get_enum(oct, "current_preview_pass_type");
+  int current_aov_number = this->current_aov_number;
+  int current_aov_output_id = get_int(oct, "current_aov_output_id");
+  if (current_preview_pass_type == 10000) {
+    if (current_aov_output_id > current_aov_number) {
+      current_preview_pass_type = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
+    }
+    else {
+      current_preview_pass_type = current_preview_pass_type + current_aov_output_id - 1;
+    }
+  }
+  passes->oct_node->iPreviewPass = preview ? current_preview_pass_type :
                                              ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
   passes->oct_node->bIncludeEnvironment = get_boolean(oct, "pass_pp_env");
   passes->oct_node->iCryptomatteBins = get_enum(oct, "cryptomatte_pass_channels");
@@ -241,7 +307,7 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
   BL::ViewLayer b_view_layer = b_depsgraph.view_layer_eval();
   sync_view_layer(b_v3d, b_view_layer);
 
-  sync_render_passes(b_view_layer);
+  sync_render_passes(b_depsgraph, b_view_layer);
 
   sync_kernel();
 
@@ -427,6 +493,7 @@ void BlenderSync::sync_kernel()
   kernel->oct_node->fPathTermPower = get_float(oct_scene, "path_term_power");
 
   kernel->oct_node->bKeepEnvironment = get_boolean(oct_scene, "keep_environment");
+  kernel->oct_node->bNestDielectrics = get_boolean(oct_scene, "nested_dielectrics");
   kernel->oct_node->bIrradianceMode = get_boolean(oct_scene, "irradiance_mode");
   kernel->oct_node->bEmulateOldVolumeBehavior = get_boolean(oct_scene,
                                                             "emulate_old_volume_behavior");
@@ -674,6 +741,54 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   MAP_PASS("IndexMA", ::Octane::RenderPassId::RENDER_PASS_MATERIAL_ID);
   MAP_PASS("IndexOB", ::Octane::RenderPassId::RENDER_PASS_OBJECT_ID);
   MAP_PASS("Shadow", ::Octane::RenderPassId::RENDER_PASS_SHADOW);
+  MAP_PASS("OctAovOut1",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET));
+  MAP_PASS("OctAovOut2",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 1));
+  MAP_PASS("OctAovOut3",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 2));
+  MAP_PASS("OctAovOut4",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 3));
+  MAP_PASS("OctAovOut5",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 4));
+  MAP_PASS("OctAovOut6",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 5));
+  MAP_PASS("OctAovOut7",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 6));
+  MAP_PASS("OctAovOut8",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 7));
+  MAP_PASS("OctAovOut9",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 8));
+  MAP_PASS("OctAovOut10",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 9));
+  MAP_PASS("OctAovOut11",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 10));
+  MAP_PASS("OctAovOut12",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 11));
+  MAP_PASS("OctAovOut13",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 12));
+  MAP_PASS("OctAovOut14",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 13));
+  MAP_PASS("OctAovOut15",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 14));
+  MAP_PASS("OctAovOut16",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 15));
 #undef MAP_PASS
   return ::Octane::RenderPassId::PASS_NONE;
 }

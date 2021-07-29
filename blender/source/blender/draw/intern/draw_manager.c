@@ -141,6 +141,10 @@ static bool drw_draw_show_annotation(void)
       SpaceImage *sima = (SpaceImage *)DST.draw_ctx.space_data;
       return (sima->flag & SI_SHOW_GPENCIL) != 0;
     }
+    case SPACE_NODE:
+      /* Don't draw the annotation for the node editor. Annotations are handled by space_image as
+       * the draw manager is only used to draw the background. */
+      return false;
     default:
       BLI_assert("");
       return false;
@@ -351,6 +355,14 @@ static void drw_viewport_colormanagement_set(void)
       use_render_settings = true;
     }
   }
+  else if (DST.draw_ctx.space_data && DST.draw_ctx.space_data->spacetype == SPACE_NODE) {
+    SpaceNode *snode = (SpaceNode *)DST.draw_ctx.space_data;
+    const eSpaceImage_Flag display_channels_mode = snode->flag;
+    const bool display_color_channel = (display_channels_mode & (SI_SHOW_ALPHA)) == 0;
+    if (display_color_channel) {
+      use_render_settings = true;
+    }
+  }
   else {
     use_render_settings = true;
     use_view_transform = false;
@@ -467,6 +479,8 @@ static void drw_viewport_cache_resize(void)
     BLI_memblock_clear(DST.vmempool->passes, NULL);
     BLI_memblock_clear(DST.vmempool->views, NULL);
     BLI_memblock_clear(DST.vmempool->images, NULL);
+
+    DRW_uniform_attrs_pool_clear_all(DST.vmempool->obattrs_ubo_pool);
   }
 
   DRW_instance_data_list_free_unused(DST.idatalist);
@@ -592,6 +606,9 @@ static void drw_viewport_var_init(void)
     }
     if (DST.vmempool->images == NULL) {
       DST.vmempool->images = BLI_memblock_create(sizeof(GPUTexture *));
+    }
+    if (DST.vmempool->obattrs_ubo_pool == NULL) {
+      DST.vmempool->obattrs_ubo_pool = DRW_uniform_attrs_pool_new();
     }
 
     DST.resource_handle = 0;
@@ -1238,6 +1255,14 @@ static void drw_engines_enable_editors(void)
     use_drw_engine(&draw_engine_image_type);
     use_drw_engine(&draw_engine_overlay_type);
   }
+  else if (space_data->spacetype == SPACE_NODE) {
+    /* Only enable when drawing the space image backdrop. */
+    SpaceNode *snode = (SpaceNode *)space_data;
+    if ((snode->flag & SNODE_BACKDRAW) != 0) {
+      use_drw_engine(&draw_engine_image_type);
+      use_drw_engine(&draw_engine_overlay_type);
+    }
+  }
 }
 
 static void drw_engines_enable(ViewLayer *UNUSED(view_layer),
@@ -1487,10 +1512,10 @@ void DRW_draw_view(const bContext *C)
   }
   else {
     Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-    ARegion *ar = CTX_wm_region(C);
-    GPUViewport *viewport = WM_draw_region_get_bound_viewport(ar);
+    ARegion *region = CTX_wm_region(C);
+    GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
     drw_state_prepare_clean_for_draw(&DST);
-    DRW_draw_render_loop_2d_ex(depsgraph, ar, viewport, C);
+    DRW_draw_render_loop_2d_ex(depsgraph, region, viewport, C);
   }
 }
 
@@ -1690,8 +1715,13 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
 
   GPU_matrix_identity_set();
   GPU_matrix_identity_projection_set();
-
-  GPU_viewport_unbind_from_offscreen(render_viewport, ofs, do_color_management);
+  const bool do_overlays = (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 ||
+                           (ELEM(v3d->shading.type, OB_WIRE, OB_SOLID)) ||
+                           (ELEM(v3d->shading.type, OB_MATERIAL) &&
+                            (v3d->shading.flag & V3D_SHADING_SCENE_WORLD) == 0) ||
+                           (ELEM(v3d->shading.type, OB_RENDER) &&
+                            (v3d->shading.flag & V3D_SHADING_SCENE_WORLD_RENDER) == 0);
+  GPU_viewport_unbind_from_offscreen(render_viewport, ofs, do_color_management, do_overlays);
 
   if (draw_background) {
     /* Reset default. */
@@ -1736,8 +1766,7 @@ static void DRW_render_gpencil_to_image(RenderEngine *engine,
 void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph)
 {
   /* This function should only be called if there are are grease pencil objects,
-   * especially important to avoid failing in in background renders without OpenGL
-   * context. */
+   * especially important to avoid failing in background renders without OpenGL context. */
   BLI_assert(DRW_render_check_grease_pencil(depsgraph));
 
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
@@ -1887,6 +1916,11 @@ void DRW_render_to_image(RenderEngine *engine, struct Depsgraph *depsgraph)
 
   RE_engine_end_result(engine, render_result, false, false, false);
 
+  if (engine_type->draw_engine->store_metadata) {
+    RenderResult *final_render_result = RE_engine_get_result(engine);
+    engine_type->draw_engine->store_metadata(data, final_render_result);
+  }
+
   /* Force cache to reset. */
   drw_viewport_cache_resize();
 
@@ -1993,7 +2027,8 @@ void DRW_custom_pipeline(DrawEngineType *draw_engine_type,
 #endif
 }
 
-/* Used when the render engine want to redo another cache populate inside the same render frame. */
+/* Used when the render engine want to redo another cache populate inside the same render frame.
+ */
 void DRW_cache_restart(void)
 {
   /* Save viewport size. */
@@ -2045,8 +2080,9 @@ void DRW_draw_render_loop_2d_ex(struct Depsgraph *depsgraph,
 
   /* TODO(jbakker): Only populate when editor needs to draw object.
    * for the image editor this is when showing UV's.*/
-  const bool do_populate_loop = true;
+  const bool do_populate_loop = (DST.draw_ctx.space_data->spacetype == SPACE_IMAGE);
   const bool do_annotations = drw_draw_show_annotation();
+  const bool do_draw_gizmos = (DST.draw_ctx.space_data->spacetype != SPACE_IMAGE);
 
   /* Get list of enabled engines */
   drw_engines_enable_editors();
@@ -2138,7 +2174,7 @@ void DRW_draw_render_loop_2d_ex(struct Depsgraph *depsgraph,
   DRW_draw_cursor_2d();
   ED_region_pixelspace(DST.draw_ctx.region);
 
-  {
+  if (do_draw_gizmos) {
     GPU_depth_test(GPU_DEPTH_NONE);
     DRW_draw_gizmo_2d();
   }
@@ -2392,11 +2428,7 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
             }
           }
 
-          /* This relies on dupli instances being after their instancing object. */
-          if ((ob->base_flag & BASE_FROM_DUPLI) == 0) {
-            Object *ob_orig = DEG_get_original_object(ob);
-            DRW_select_load_id(ob_orig->runtime.select_id);
-          }
+          DRW_select_load_id(ob->runtime.select_id);
           DST.dupli_parent = data_.dupli_parent;
           DST.dupli_source = data_.dupli_object_current;
           drw_duplidata_load(DST.dupli_source);
@@ -3025,6 +3057,7 @@ void DRW_render_context_disable(Render *render)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Init/Exit (DRW_opengl_ctx)
  * \{ */
 
@@ -3171,6 +3204,7 @@ void DRW_xr_drawing_end(void)
 
 #endif
 
+/* -------------------------------------------------------------------- */
 /** \name Internal testing API for gtests
  * \{ */
 

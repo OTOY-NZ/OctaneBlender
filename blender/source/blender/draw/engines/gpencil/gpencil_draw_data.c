@@ -175,7 +175,7 @@ static MaterialGPencilStyle *gpencil_viewport_material_overrides(GPENCIL_Private
  * Creates a linked list of material pool containing all materials assigned for a given object.
  * We merge the material pools together if object does not contain a huge amount of materials.
  * Also return an offset to the first material of the object in the ubo.
- **/
+ */
 GPENCIL_MaterialPool *gpencil_material_pool_create(GPENCIL_PrivateData *pd, Object *ob, int *ofs)
 {
   GPENCIL_MaterialPool *matpool = pd->last_material_pool;
@@ -246,6 +246,10 @@ GPENCIL_MaterialPool *gpencil_material_pool_create(GPENCIL_PrivateData *pd, Obje
     }
 
     gp_style = gpencil_viewport_material_overrides(pd, ob, color_type, gp_style);
+
+    /* Dots or Squares rotation. */
+    mat_data->alignment_rot_cos = cosf(gp_style->alignment_rotation);
+    mat_data->alignment_rot_sin = sinf(gp_style->alignment_rotation);
 
     /* Stroke Style */
     if ((gp_style->stroke_style == GP_MATERIAL_STROKE_STYLE_TEXTURE) && (gp_style->sima)) {
@@ -367,7 +371,7 @@ static float light_power_get(const Light *la)
   if (la->type == LA_AREA) {
     return 1.0f / (4.0f * M_PI);
   }
-  if (la->type == LA_SPOT || la->type == LA_LOCAL) {
+  if (ELEM(la->type, LA_SPOT, LA_LOCAL)) {
     return 1.0f / (4.0f * M_PI * M_PI);
   }
 
@@ -420,7 +424,7 @@ void gpencil_light_pool_populate(GPENCIL_LightPool *lightpool, Object *ob)
 
 /**
  * Creates a single pool containing all lights assigned (light linked) for a given object.
- **/
+ */
 GPENCIL_LightPool *gpencil_light_pool_create(GPENCIL_PrivateData *pd, Object *UNUSED(ob))
 {
   GPENCIL_LightPool *lightpool = pd->last_light_pool;

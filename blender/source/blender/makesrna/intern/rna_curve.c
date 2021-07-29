@@ -543,11 +543,9 @@ static void rna_Curve_resolution_u_update_data(Main *bmain, Scene *scene, Pointe
 {
   Curve *cu = (Curve *)ptr->owner_id;
   ListBase *nurbs = BKE_curve_nurbs_get(cu);
-  Nurb *nu = nurbs->first;
 
-  while (nu) {
+  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
     nu->resolu = cu->resolu;
-    nu = nu->next;
   }
 
   rna_Curve_update_data(bmain, scene, ptr);
@@ -557,11 +555,9 @@ static void rna_Curve_resolution_v_update_data(Main *bmain, Scene *scene, Pointe
 {
   Curve *cu = (Curve *)ptr->owner_id;
   ListBase *nurbs = BKE_curve_nurbs_get(cu);
-  Nurb *nu = nurbs->first;
 
-  while (nu) {
+  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
     nu->resolv = cu->resolv;
-    nu = nu->next;
   }
 
   rna_Curve_update_data(bmain, scene, ptr);
@@ -876,7 +872,7 @@ static void rna_def_bpoint(BlenderRNA *brna)
 
   /* Boolean values */
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "f1", 0);
+  RNA_def_property_boolean_sdna(prop, NULL, "f1", SELECT);
   RNA_def_property_ui_text(prop, "Select", "Selection status");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
@@ -1146,7 +1142,7 @@ static void rna_def_font(BlenderRNA *UNUSED(brna), StructRNA *srna)
   RNA_def_property_float_sdna(prop, NULL, "fsize");
   RNA_def_property_range(prop, 0.0001f, 10000.0f);
   RNA_def_property_ui_range(prop, 0.01, 10, 1, 3);
-  RNA_def_property_ui_text(prop, "Font size", "");
+  RNA_def_property_ui_text(prop, "Font Size", "");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "small_caps_scale", PROP_FLOAT, PROP_NONE);
@@ -1212,7 +1208,7 @@ static void rna_def_font(BlenderRNA *UNUSED(brna), StructRNA *srna)
 
   prop = RNA_def_property(srna, "active_textbox", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "actbox");
-  RNA_def_property_ui_text(prop, "The active text box", "");
+  RNA_def_property_ui_text(prop, "Active Text Box", "");
   RNA_def_property_int_funcs(prop, NULL, NULL, "rna_Curve_active_textbox_index_range");
 
   /* strings */

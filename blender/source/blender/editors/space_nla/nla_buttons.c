@@ -345,7 +345,7 @@ static void nla_panel_stripname(const bContext *C, Panel *panel)
 
   uiItemR(row, &strip_ptr, "name", 0, "", ICON_NLA);
 
-  UI_block_emboss_set(block, UI_EMBOSS_NONE);
+  UI_block_emboss_set(block, UI_EMBOSS_NONE_OR_STATUS);
   uiItemR(row, &strip_ptr, "mute", 0, "", ICON_NONE);
   UI_block_emboss_set(block, UI_EMBOSS);
 }
@@ -588,7 +588,7 @@ void nla_buttons_register(ARegionType *art)
   strcpy(pt->label, N_("Animation Data"));
   strcpy(pt->category, "Edited Action");
   strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  pt->flag = PNL_NO_HEADER;
+  pt->flag = PANEL_TYPE_NO_HEADER;
   pt->draw = nla_panel_animdata;
   pt->poll = nla_animdata_panel_poll;
   BLI_addtail(&art->paneltypes, pt);
@@ -598,7 +598,7 @@ void nla_buttons_register(ARegionType *art)
   strcpy(pt->label, N_("Active Strip Name"));
   strcpy(pt->category, "Strip");
   strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  pt->flag = PNL_NO_HEADER;
+  pt->flag = PANEL_TYPE_NO_HEADER;
   pt->draw = nla_panel_stripname;
   pt->poll = nla_strip_panel_poll;
   BLI_addtail(&art->paneltypes, pt);
@@ -618,7 +618,7 @@ void nla_buttons_register(ARegionType *art)
   strcpy(pt->category, "Strip");
   strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = nla_panel_actclip;
-  pt->flag = PNL_DEFAULT_CLOSED;
+  pt->flag = PANEL_TYPE_DEFAULT_CLOSED;
   pt->poll = nla_strip_actclip_panel_poll;
   BLI_addtail(&art->paneltypes, pt);
 
@@ -631,7 +631,7 @@ void nla_buttons_register(ARegionType *art)
   pt->draw = nla_panel_evaluation;
   pt->draw_header = nla_panel_animated_influence_header;
   pt->parent = pt_properties;
-  pt->flag = PNL_DEFAULT_CLOSED;
+  pt->flag = PANEL_TYPE_DEFAULT_CLOSED;
   pt->poll = nla_strip_eval_panel_poll;
   BLI_addtail(&pt_properties->children, BLI_genericNodeN(pt));
   BLI_addtail(&art->paneltypes, pt);
@@ -645,7 +645,7 @@ void nla_buttons_register(ARegionType *art)
   pt->draw = nla_panel_animated_strip_time;
   pt->draw_header = nla_panel_animated_strip_time_header;
   pt->parent = pt_properties;
-  pt->flag = PNL_DEFAULT_CLOSED;
+  pt->flag = PANEL_TYPE_DEFAULT_CLOSED;
   pt->poll = nla_strip_eval_panel_poll;
   BLI_addtail(&pt_properties->children, BLI_genericNodeN(pt));
   BLI_addtail(&art->paneltypes, pt);

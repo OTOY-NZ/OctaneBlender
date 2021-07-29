@@ -111,7 +111,7 @@ static void draw_single_handle(const MaskLayer *mask_layer,
   const BezTriple *bezt = &point->bezt;
   char handle_type;
 
-  if (which_handle == MASK_WHICH_HANDLE_STICK || which_handle == MASK_WHICH_HANDLE_LEFT) {
+  if (ELEM(which_handle, MASK_WHICH_HANDLE_STICK, MASK_WHICH_HANDLE_LEFT)) {
     handle_type = bezt->h1;
   }
   else {
@@ -674,7 +674,7 @@ void ED_mask_draw_region(
     ARegion *region,
     const char draw_flag,
     const char draw_type,
-    const char overlay_mode,
+    const eMaskOverlayMode overlay_mode,
     /* convert directly into aspect corrected vars */
     const int width_i,
     const int height_i,

@@ -72,14 +72,15 @@
 
 #include "BKE_addon.h"
 #include "BKE_appdir.h"
-#include "BKE_mask.h"      /* free mask clipboard */
-#include "BKE_material.h"  /* BKE_material_copybuf_clear */
-#include "BKE_sequencer.h" /* free seq clipboard */
+#include "BKE_mask.h"     /* free mask clipboard */
+#include "BKE_material.h" /* BKE_material_copybuf_clear */
 #include "BKE_studiolight.h"
 #include "BKE_tracking.h" /* free tracking clipboard */
 
 #include "RE_engine.h"
 #include "RE_pipeline.h" /* RE_ free stuff */
+
+#include "SEQ_clipboard.h" /* free seq clipboard */
 
 #include "IMB_thumbs.h"
 
@@ -136,6 +137,8 @@
 #include "DEG_depsgraph_query.h"
 
 #include "DRW_engine.h"
+
+#include "../../../../intern/octane/blender/OCT_api.h"
 
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_OPERATORS, "wm.operator");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_HANDLERS, "wm.handler");
@@ -411,9 +414,7 @@ void WM_init_splash(bContext *C)
 /* free strings of open recent files */
 static void free_openrecent(void)
 {
-  struct RecentFile *recent;
-
-  for (recent = G.recent_files.first; recent; recent = recent->next) {
+  LISTBASE_FOREACH (RecentFile *, recent, &G.recent_files) {
     MEM_freeN(recent->filepath);
   }
 
@@ -518,14 +519,21 @@ void WM_exit_ex(bContext *C, const bool do_python)
           BKE_blendfile_userdef_write_all(NULL);
         }
       }
+      /* Free the callback data used on file-open
+       * (will be set when a recover operation has run). */
+      wm_test_autorun_revert_action_set(NULL, NULL);
     }
   }
 
-#ifdef WITH_PYTHON
+#if defined(WITH_PYTHON) && !defined(WITH_PYTHON_MODULE)
   /* Without this, we there isn't a good way to manage false-positive resource leaks
    * where a #PyObject references memory allocated with guarded-alloc, T71362.
    *
-   * This allows add-ons to free resources when unregistered (which is good practice anyway). */
+   * This allows add-ons to free resources when unregistered (which is good practice anyway).
+   *
+   * Don't run this code when built as a Python module as this runs when Python is in the
+   * process of shutting down, where running a snippet like this will crash, see T82675.
+   * Instead use the `atexit` module, installed by #BPY_python_start */
   BPY_run_string_eval(C, (const char *[]){"addon_utils", NULL}, "addon_utils.disable_all()");
 #endif
 
@@ -566,7 +574,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
     wm_free_reports(wm);
   }
 
-  BKE_sequencer_free_clipboard(); /* sequencer.c */
+  SEQ_clipboard_free(); /* sequencer.c */
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
@@ -655,6 +663,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
    * pieces of Blender using sound may exit cleanly, see also T50676. */
   BKE_sound_exit();
 
+  BKE_appdir_exit();
   CLG_exit();
 
   BKE_blender_atexit();
@@ -672,6 +681,8 @@ void WM_exit_ex(bContext *C, const bool do_python)
 void WM_exit(bContext *C)
 {
   WM_exit_ex(C, true);
+
+  OCT_Rlease_API();
 
   printf("\nBlender quit\n");
 

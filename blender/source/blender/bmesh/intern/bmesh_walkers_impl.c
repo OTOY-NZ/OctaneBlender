@@ -37,6 +37,7 @@
   } \
   (void)0
 
+/* -------------------------------------------------------------------- */
 /** \name Mask Flag Checks
  * \{ */
 
@@ -75,6 +76,7 @@ static bool bmw_mask_check_face(BMWalker *walker, BMFace *f)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name BMesh Queries (modified to check walker flags)
  * \{ */
 
@@ -94,8 +96,8 @@ static bool bmw_edge_is_wire(const BMWalker *walker, const BMEdge *e)
 }
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Shell Walker
- * \{
  *
  * Starts at a vertex on the mesh and walks over the 'shell' it belongs
  * to via visiting connected edges.
@@ -104,7 +106,7 @@ static bool bmw_edge_is_wire(const BMWalker *walker, const BMEdge *e)
  * restrict flag acts on the edges as well.
  *
  * \todo Add restriction flag/callback for wire edges.
- */
+ * \{ */
 static void bmw_VertShellWalker_visitEdge(BMWalker *walker, BMEdge *e)
 {
   BMwShellWalker *shellWalk = NULL;
@@ -228,14 +230,14 @@ static void *bmw_VertShellWalker_step(BMWalker *walker)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name LoopShell Walker
- * \{
  *
  * Starts at any element on the mesh and walks over the 'shell' it belongs
  * to via visiting connected loops.
  *
  * \note this is mainly useful to loop over a shell delimited by edges.
- */
+ * \{ */
 static void bmw_LoopShellWalker_visitLoop(BMWalker *walker, BMLoop *l)
 {
   BMwLoopShellWalker *shellWalk = NULL;
@@ -352,10 +354,10 @@ static void *bmw_LoopShellWalker_step(BMWalker *walker)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name LoopShell & 'Wire' Walker
- * \{
  *
- * Piggyback ontop of #BMwLoopShellWalker, but also walk over wire edges
+ * Piggyback on top of #BMwLoopShellWalker, but also walk over wire edges
  * This isn't elegant but users expect it when selecting linked,
  * so we can support delimiters _and_ walking over wire edges.
  *
@@ -363,7 +365,7 @@ static void *bmw_LoopShellWalker_step(BMWalker *walker)
  * - can yield edges (as well as loops)
  * - only step over wire edges.
  * - verts and edges are stored in `visit_set_alt`.
- */
+ * \{ */
 
 static void bmw_LoopShellWalker_visitEdgeWire(BMWalker *walker, BMEdge *e)
 {
@@ -504,12 +506,12 @@ static void *bmw_LoopShellWireWalker_step(BMWalker *walker)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name FaceShell Walker
- * \{
  *
  * Starts at an edge on the mesh and walks over the 'shell' it belongs
  * to via visiting connected faces.
- */
+ * \{ */
 static void bmw_FaceShellWalker_visitEdge(BMWalker *walker, BMEdge *e)
 {
   BMwShellWalker *shellWalk = NULL;
@@ -567,13 +569,13 @@ static void *bmw_FaceShellWalker_step(BMWalker *walker)
 }
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Connected Vertex Walker
- * \{
  *
  * Similar to shell walker, but visits vertices instead of edges.
  *
  * Walk from a vertex to all connected vertices.
- */
+ * \{ */
 static void bmw_ConnectedVertexWalker_visitVertex(BMWalker *walker, BMVert *v)
 {
   BMwConnectedVertexWalker *vwalk;
@@ -629,8 +631,8 @@ static void *bmw_ConnectedVertexWalker_step(BMWalker *walker)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Island Boundary Walker
- * \{
  *
  * Starts at a edge on the mesh and walks over the boundary of an island it belongs to.
  *
@@ -640,7 +642,7 @@ static void *bmw_ConnectedVertexWalker_step(BMWalker *walker)
  * over the boundary.  raises an error if it encounters non-manifold geometry.
  *
  * \todo Add restriction flag/callback for wire edges.
- */
+ * \{ */
 static void bmw_IslandboundWalker_begin(BMWalker *walker, void *data)
 {
   BMLoop *l = data;
@@ -723,13 +725,13 @@ static void *bmw_IslandboundWalker_step(BMWalker *walker)
   return owalk.curloop;
 }
 
+/* -------------------------------------------------------------------- */
 /** \name Island Walker
- * \{
  *
  * Starts at a tool flagged-face and walks over the face region
  *
  * \todo Add restriction flag/callback for wire edges.
- */
+ * \{ */
 static void bmw_IslandWalker_begin(BMWalker *walker, void *data)
 {
   BMwIslandWalker *iwalk = NULL;
@@ -828,11 +830,11 @@ static void *bmw_IslandManifoldWalker_step(BMWalker *walker)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Edge Loop Walker
- * \{
  *
  * Starts at a tool-flagged edge and walks over the edge loop
- */
+ * \{ */
 
 /* utility function to see if an edge is a part of an ngon boundary */
 static bool bm_edge_is_single(BMEdge *e)
@@ -850,6 +852,10 @@ static void bmw_EdgeLoopWalker_begin(BMWalker *walker, void *data)
       BM_vert_edge_count_nonwire(e->v1),
       BM_vert_edge_count_nonwire(e->v2),
   };
+  const int vert_face_count[2] = {
+      BM_vert_face_count(e->v1),
+      BM_vert_face_count(e->v2),
+  };
 
   v = e->v1;
 
@@ -861,8 +867,75 @@ static void bmw_EdgeLoopWalker_begin(BMWalker *walker, void *data)
   lwalk->is_boundary = BM_edge_is_boundary(e);
   lwalk->is_single = (lwalk->is_boundary && bm_edge_is_single(e));
 
-  /* could also check that vertex*/
-  if ((lwalk->is_boundary == false) && (vert_edge_count[0] == 3 || vert_edge_count[1] == 3)) {
+  /**
+   * Detect an NGon (face-hub)
+   * =========================
+   *
+   * The face-hub - #BMwEdgeLoopWalker.f_hub - is set when there is an ngon
+   * on one side of the edge and a series of faces on the other,
+   * loop around the ngon for as long as it's connected to faces which would form an edge loop
+   * in the absence of the ngon (used as the hub).
+   *
+   * This isn't simply ignoring the ngon though, as the edges looped over must all be
+   * connected to the hub.
+   *
+   * NGon in Grid Example
+   * --------------------
+   * \code{.txt}
+   * +-----+-----+-----+-----+-----+
+   * |     |     |     |     |     |
+   * +-----va=ea=+==eb=+==ec=vb----+
+   * |     |                 |     |
+   * +-----+                 +-----+
+   * |     |      f_hub      |     |
+   * +-----+                 +-----+
+   * |     |                 |     |
+   * +-----+-----+-----+-----+-----+
+   * |     |     |     |     |     |
+   * +-----+-----+-----+-----+-----+
+   * \endcode
+   *
+   * In the example above, starting from edges marked `ea/eb/ec`,
+   * the will detect `f_hub` and walk along the edge loop between `va -> vb`.
+   * The same is true for any of the un-marked sides of the ngon,
+   * walking stops for vertices with >= 3 connected faces (in this case they look like corners).
+   *
+   * Mixed Triangle-Fan & Quad Example
+   * ---------------------------------
+   * \code{.txt}
+   * +-----------------------------------------------+
+   * |              f_hub                            |
+   * va-ea-vb=eb=+==ec=+=ed==+=ee=vc=ef=vd----------ve
+   * |     |\    |     |     |    /     / \          |
+   * |     | \    \    |    /    /     /   \         |
+   * |     |  \   |    |    |   /     /     \        |
+   * |     |   \   \   |   /   /     /       \       |
+   * |     |    \  |   |   |  /     /         \      |
+   * |     |     \  \  |  /  /     /           \     |
+   * |     |      \ |  |  | /     /             \    |
+   * |     |       \ \ | / /     /               \   |
+   * |     |        \| | |/     /                 \  |
+   * |     |         \\|//     /                   \ |
+   * |     |          \|/     /                     \|
+   * +-----+-----------+-----+-----------------------+
+   * \endcode
+   *
+   * In the example above, starting from edges marked `eb/eb/ed/ed/ef`,
+   * the will detect `f_hub` and walk along the edge loop between `vb -> vd`.
+   *
+   * Notice `vb` and `vd` delimit the loop, since the faces connected to `vb`
+   * excluding `f_hub` don't share an edge, which isn't walked over in the case
+   * of boundaries either.
+   *
+   * Notice `vc` doesn't delimit stepping from `ee` onto `ef` as the stepping method used
+   * doesn't differentiate between the number of sides of faces opposite `f_hub`,
+   * only that each of the connected faces share an edge.
+   */
+  if ((lwalk->is_boundary == false) &&
+      /* Without checking the face count, the 3 edges could be this edge
+       * plus two boundary edges (which would not be stepped over), see T84906. */
+      ((vert_edge_count[0] == 3 && vert_face_count[0] == 3) ||
+       (vert_edge_count[1] == 3 && vert_face_count[1] == 3))) {
     BMIter iter;
     BMFace *f_iter;
     BMFace *f_best = NULL;
@@ -981,7 +1054,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     /* Typical loopiong over edges in the middle of a mesh */
     /* However, why use 2 here at all?
      * I guess for internal ngon loops it can be useful. Antony R. */
-    if (vert_edge_tot == 4 || vert_edge_tot == 2) {
+    if (ELEM(vert_edge_tot, 4, 2)) {
       int i_opposite = vert_edge_tot / 2;
       int i = 0;
       do {
@@ -1070,13 +1143,13 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Face Loop Walker
- * \{
  *
  * Starts at a tool-flagged face and walks over the face loop
  * Conditions for starting and stepping the face loop have been
  * tuned in an attempt to match the face loops built by EditMesh
- */
+ * \{ */
 
 /* Check whether the face loop should includes the face specified
  * by the given BMLoop */
@@ -1216,13 +1289,13 @@ static void *bmw_FaceLoopWalker_step(BMWalker *walker)
 
 // #define BMW_EDGERING_NGON
 
+/* -------------------------------------------------------------------- */
 /** \name Edge Ring Walker
- * \{
  *
  * Starts at a tool-flagged edge and walks over the edge ring
  * Conditions for starting and stepping the edge ring have been
  * tuned to match behavior users expect (dating back to v2.4x).
- */
+ * \{ */
 static void bmw_EdgeringWalker_begin(BMWalker *walker, void *data)
 {
   BMwEdgeringWalker *lwalk, owalk, *owalk_pt;
@@ -1349,6 +1422,7 @@ static void *bmw_EdgeringWalker_step(BMWalker *walker)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Boundary Edge Walker
  * \{ */
 
@@ -1420,14 +1494,14 @@ static void *bmw_EdgeboundaryWalker_step(BMWalker *walker)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name UV Edge Walker
  *
  * walk over uv islands; takes a loop as input.  restrict flag
  * restricts the walking to loops whose vert has restrict flag set as a
  * tool flag.
  *
- * the flag parameter to BMW_init maps to a loop customdata layer index.
- *
+ * The flag parameter to BMW_init maps to a loop customdata layer index.
  * \{ */
 
 static void bmw_UVEdgeWalker_begin(BMWalker *walker, void *data)

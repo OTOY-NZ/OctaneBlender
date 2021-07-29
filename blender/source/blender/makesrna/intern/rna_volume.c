@@ -228,8 +228,8 @@ static void rna_def_volume_grid(BlenderRNA *brna)
       {VOLUME_GRID_BOOLEAN, "BOOLEAN", 0, "Boolean", "Boolean"},
       {VOLUME_GRID_FLOAT, "FLOAT", 0, "Float", "Single precision float"},
       {VOLUME_GRID_DOUBLE, "DOUBLE", 0, "Double", "Double precision"},
-      {VOLUME_GRID_INT, "INT", 0, "Integer", "32 bit integer"},
-      {VOLUME_GRID_INT64, "INT64", 0, "Integer 64 bit", "64 bit integer"},
+      {VOLUME_GRID_INT, "INT", 0, "Integer", "32-bit integer"},
+      {VOLUME_GRID_INT64, "INT64", 0, "Integer 64-bit", "64-bit integer"},
       {VOLUME_GRID_MASK, "MASK", 0, "Mask", "No data, boolean mask of active voxels"},
       {VOLUME_GRID_STRING, "STRING", 0, "String", "Text string"},
       {VOLUME_GRID_VECTOR_FLOAT, "VECTOR_FLOAT", 0, "Float Vector", "3D float vector"},
@@ -359,7 +359,7 @@ static void rna_def_volume_display(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "VolumeDisplay", NULL);
-  RNA_def_struct_ui_text(srna, "Volume Display", "Volume object display settings for 3d viewport");
+  RNA_def_struct_ui_text(srna, "Volume Display", "Volume object display settings for 3D viewport");
   RNA_def_struct_sdna(srna, "VolumeDisplay");
 
   prop = RNA_def_property(srna, "density", PROP_FLOAT, PROP_NONE);
@@ -609,13 +609,13 @@ static void rna_def_volume(BlenderRNA *brna)
   prop = RNA_def_property(srna, "display", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "display");
   RNA_def_property_struct_type(prop, "VolumeDisplay");
-  RNA_def_property_ui_text(prop, "Display", "Volume display settings for 3d viewport");
+  RNA_def_property_ui_text(prop, "Display", "Volume display settings for 3D viewport");
 
   /* Render */
   prop = RNA_def_property(srna, "render", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "render");
   RNA_def_property_struct_type(prop, "VolumeRender");
-  RNA_def_property_ui_text(prop, "Render", "Volume render settings for 3d viewport");
+  RNA_def_property_ui_text(prop, "Render", "Volume render settings for 3D viewport");
 
   /* Common */
   rna_def_animdata_common(srna);

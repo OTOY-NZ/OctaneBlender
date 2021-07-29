@@ -407,7 +407,7 @@ static void id_search_cb(const bContext *C,
   }
 
   ID **filtered_ids;
-  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+  const int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
 
   for (int i = 0; i < filtered_amount; i++) {
     if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
@@ -444,7 +444,7 @@ static void id_search_cb_tagged(const bContext *C,
   }
 
   ID **filtered_ids;
-  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+  const int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
 
   for (int i = 0; i < filtered_amount; i++) {
     if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
@@ -894,6 +894,9 @@ static void template_ID(const bContext *C,
   id = idptr.data;
   idfrom = template_ui->ptr.owner_id;
   // lb = template_ui->idlb;
+
+  /* Allow opertators to take the ID from context. */
+  uiLayoutSetContextPointer(layout, "id", &idptr);
 
   block = uiLayoutGetBlock(layout);
   UI_block_align_begin(block);
@@ -1931,7 +1934,7 @@ void uiTemplateModifiers(uiLayout *UNUSED(layout), bContext *C)
       }
 
       /* Move to the next instanced panel corresponding to the next modifier. */
-      while ((panel->type == NULL) || !(panel->type->flag & PNL_INSTANCED)) {
+      while ((panel->type == NULL) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         panel = panel->next;
         BLI_assert(panel != NULL); /* There shouldn't be fewer panels than modifiers with UIs. */
       }
@@ -1971,7 +1974,7 @@ static bool constraint_panel_is_bone(Panel *panel)
  */
 static void constraint_reorder(bContext *C, Panel *panel, int new_index)
 {
-  bool constraint_from_bone = constraint_panel_is_bone(panel);
+  const bool constraint_from_bone = constraint_panel_is_bone(panel);
 
   PointerRNA *con_ptr = UI_panel_custom_data_get(panel);
   bConstraint *con = (bConstraint *)con_ptr->data;
@@ -2011,13 +2014,18 @@ static void set_constraint_expand_flag(const bContext *UNUSED(C), Panel *panel, 
 /**
  * Function with void * argument for #uiListPanelIDFromDataFunc.
  *
- * \note: Constraint panel types are assumed to be named with the struct name field
+ * \note Constraint panel types are assumed to be named with the struct name field
  * concatenated to the defined prefix.
  */
 static void object_constraint_panel_id(void *md_link, char *r_name)
 {
   bConstraint *con = (bConstraint *)md_link;
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(con->type);
+
+  /* Cannot get TypeInfo for invalid/legacy constraints. */
+  if (cti == NULL) {
+    return;
+  }
 
   strcpy(r_name, CONSTRAINT_TYPE_PANEL_PREFIX);
   strcat(r_name, cti->structName);
@@ -2027,6 +2035,11 @@ static void bone_constraint_panel_id(void *md_link, char *r_name)
 {
   bConstraint *con = (bConstraint *)md_link;
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(con->type);
+
+  /* Cannot get TypeInfo for invalid/legacy constraints. */
+  if (cti == NULL) {
+    return;
+  }
 
   strcpy(r_name, CONSTRAINT_BONE_TYPE_PANEL_PREFIX);
   strcat(r_name, cti->structName);
@@ -2058,6 +2071,10 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
     UI_panels_free_instanced(C, region);
     bConstraint *con = (constraints == NULL) ? NULL : constraints->first;
     for (int i = 0; con; i++, con = con->next) {
+      /* Dont show invalid/legacy constraints. */
+      if (con->type == CONSTRAINT_TYPE_NULL) {
+        continue;
+      }
       /* Dont show temporary constraints (AutoIK and targetless IK constraints). */
       if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
         bKinematicConstraint *data = con->data;
@@ -2087,6 +2104,10 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = region->panels.first;
     LISTBASE_FOREACH (bConstraint *, con, constraints) {
+      /* Dont show invalid/legacy constraints. */
+      if (con->type == CONSTRAINT_TYPE_NULL) {
+        continue;
+      }
       /* Dont show temporary constraints (AutoIK and targetless IK constraints). */
       if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
         bKinematicConstraint *data = con->data;
@@ -2096,7 +2117,7 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
       }
 
       /* Move to the next instanced panel corresponding to the next constraint. */
-      while ((panel->type == NULL) || !(panel->type->flag & PNL_INSTANCED)) {
+      while ((panel->type == NULL) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         panel = panel->next;
         BLI_assert(panel != NULL); /* There shouldn't be fewer panels than constraint panels. */
       }
@@ -2166,7 +2187,7 @@ void uiTemplateGpencilModifiers(uiLayout *UNUSED(layout), bContext *C)
       }
 
       /* Move to the next instanced panel corresponding to the next modifier. */
-      while ((panel->type == NULL) || !(panel->type->flag & PNL_INSTANCED)) {
+      while ((panel->type == NULL) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         panel = panel->next;
         BLI_assert(panel != NULL); /* There shouldn't be fewer panels than modifiers with UIs. */
       }
@@ -2237,7 +2258,7 @@ void uiTemplateShaderFx(uiLayout *UNUSED(layout), bContext *C)
       }
 
       /* Move to the next instanced panel corresponding to the next modifier. */
-      while ((panel->type == NULL) || !(panel->type->flag & PNL_INSTANCED)) {
+      while ((panel->type == NULL) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         panel = panel->next;
         BLI_assert(panel != NULL); /* There shouldn't be fewer panels than modifiers with UIs. */
       }
@@ -2639,7 +2660,7 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
   }
   else {
     /* enabled */
-    UI_block_emboss_set(block, UI_EMBOSS_NONE);
+    UI_block_emboss_set(block, UI_EMBOSS_NONE_OR_STATUS);
     uiItemR(layout, &ptr, "mute", 0, "", 0);
     UI_block_emboss_set(block, UI_EMBOSS);
 
@@ -3038,7 +3059,7 @@ static uiBlock *colorband_tools_func(bContext *C, ARegion *region, void *coba_v)
   const uiStyle *style = UI_style_get_dpi();
   ColorBand *coba = coba_v;
   short yco = 0;
-  short menuwidth = 10 * UI_UNIT_X;
+  const short menuwidth = 10 * UI_UNIT_X;
 
   uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
   UI_block_func_butmenu_set(block, colorband_tools_dofunc, coba);
@@ -3310,7 +3331,6 @@ static void colorband_buttons_layout(uiLayout *layout,
       row = uiLayoutRow(split, false);
       uiItemR(row, &ptr, "position", 0, IFACE_("Pos"), ICON_NONE);
       bt = block->buttons.last;
-      bt->a1 = 1.0f; /* gives a bit more precision for modifying position */
       UI_but_func_set(bt, colorband_update_cb, bt, coba);
 
       row = uiLayoutRow(layout, false);
@@ -3342,7 +3362,6 @@ static void colorband_buttons_layout(uiLayout *layout,
       row = uiLayoutRow(subsplit, false);
       uiItemR(row, &ptr, "position", UI_ITEM_R_SLIDER, IFACE_("Pos"), ICON_NONE);
       bt = block->buttons.last;
-      bt->a1 = 1.0f; /* gives a bit more precision for modifying position */
       UI_but_func_set(bt, colorband_update_cb, bt, coba);
 
       row = uiLayoutRow(split, false);
@@ -3362,7 +3381,7 @@ void uiTemplateColorRamp(
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_ColorRamp)) {
     return;
   }
@@ -3438,8 +3457,8 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
 
   /* arg_litem is malloced, can be freed by parent button */
   args = *((IconViewMenuArgs *)arg_litem);
-  int w = UI_UNIT_X * (args.icon_scale);
-  int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
+  const int w = UI_UNIT_X * (args.icon_scale);
+  const int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
 
   uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS_PULLDOWN);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_NO_FLIP);
@@ -3450,11 +3469,11 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
   RNA_property_enum_items(C, &args.ptr, args.prop, &item, NULL, &free);
 
   for (int a = 0; item[a].identifier; a++) {
-    int x = (a % 8) * w;
-    int y = -(a / 8) * h;
+    const int x = (a % 8) * w;
+    const int y = -(a / 8) * h;
 
-    int icon = item[a].icon;
-    int value = item[a].value;
+    const int icon = item[a].icon;
+    const int value = item[a].value;
     uiBut *but;
     if (args.show_labels) {
       but = uiDefIconTextButR_prop(block,
@@ -3530,7 +3549,7 @@ void uiTemplateIconView(uiLayout *layout,
   bool free_items;
   const EnumPropertyItem *items;
   RNA_property_enum_items(block->evil_C, ptr, prop, &items, &tot_items, &free_items);
-  int value = RNA_property_enum_get(ptr, prop);
+  const int value = RNA_property_enum_get(ptr, prop);
   int icon = ICON_NONE;
   RNA_enum_icon_from_value(items, value, &icon);
 
@@ -3590,7 +3609,7 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Histogram)) {
     return;
   }
@@ -3640,7 +3659,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Scopes)) {
     return;
   }
@@ -3702,7 +3721,7 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propna
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Scopes)) {
     return;
   }
@@ -4362,7 +4381,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
   UI_but_funcN_set(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 
-  int icon = (cumap->flag & CUMA_DO_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
+  const int icon = (cumap->flag & CUMA_DO_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
   bt = uiDefIconBlockBut(
       block, curvemap_clipping_func, cumap, 0, icon, 0, 0, dx, dx, TIP_("Clipping Options"));
   UI_but_funcN_set(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
@@ -4388,7 +4407,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
   UI_block_funcN_set(block, rna_update_cb, MEM_dupallocN(cb), NULL);
 
   /* curve itself */
-  int size = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
+  const int size = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
   row = uiLayoutRow(layout, false);
   uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
       block, UI_BTYPE_CURVE, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, 0, 0, "");
@@ -4916,7 +4935,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
   UI_but_funcN_set(bt, CurveProfile_buttons_reverse, MEM_dupallocN(cb), profile);
 
   /* Clipping toggle */
-  int icon = (profile->flag & PROF_USE_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
+  const int icon = (profile->flag & PROF_USE_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
   bt = uiDefIconBut(block,
                     UI_BTYPE_BUT,
                     0,
@@ -4938,7 +4957,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
   /* The path itself */
   int path_width = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
   path_width = min_ii(path_width, (int)(16.0f * UI_UNIT_X));
-  int path_height = path_width;
+  const int path_height = path_width;
   uiLayoutRow(layout, false);
   uiDefBut(block,
            UI_BTYPE_CURVEPROFILE,
@@ -4978,7 +4997,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
       selection_y = &point->h2_loc[1];
     }
   }
-  if (i == 0 || i == profile->path_len - 1) {
+  if (ELEM(i, 0, profile->path_len - 1)) {
     point_last_or_first = true;
   }
 
@@ -5337,7 +5356,7 @@ static void ui_template_palette_menu(bContext *UNUSED(C), uiLayout *layout, void
 {
   uiLayout *row;
 
-  uiItemL(layout, IFACE_("Sort by:"), ICON_NONE);
+  uiItemL(layout, IFACE_("Sort By:"), ICON_NONE);
   row = uiLayoutRow(layout, false);
   uiItemEnumO_value(row, IFACE_("Hue"), ICON_NONE, "PALETTE_OT_sort", "type", 1);
   row = uiLayoutRow(layout, false);
@@ -5363,7 +5382,7 @@ void uiTemplatePalette(uiLayout *layout,
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Palette)) {
     return;
   }
@@ -5503,10 +5522,10 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
   uiBut *but = arg1;
   const int cur = POINTER_AS_INT(arg2);
   wmWindow *win = CTX_wm_window(C);
-  int shift = win->eventstate->shift;
+  const int shift = win->eventstate->shift;
 
   if (!shift) {
-    int tot = RNA_property_array_length(&but->rnapoin, but->rnaprop);
+    const int tot = RNA_property_array_length(&but->rnapoin, but->rnaprop);
 
     /* Normally clicking only selects one layer */
     RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, cur, true);
@@ -5848,7 +5867,7 @@ static void uilist_prepare(uiList *ui_list,
     ui_list->flag &= ~UILST_SCROLL_TO_ACTIVE_ITEM;
   }
 
-  int max_scroll = max_ii(0, dyn_data->height - rows);
+  const int max_scroll = max_ii(0, dyn_data->height - rows);
   CLAMP(ui_list->list_scroll, 0, max_scroll);
   ui_list->list_last_len = len;
   dyn_data->visual_height = rows;
@@ -5953,14 +5972,14 @@ void uiTemplateList(uiLayout *layout,
   }
 
   if (prop) {
-    PropertyType type = RNA_property_type(prop);
+    const PropertyType type = RNA_property_type(prop);
     if (type != PROP_COLLECTION) {
       RNA_warning("Expected a collection data property");
       return;
     }
   }
 
-  PropertyType activetype = RNA_property_type(activeprop);
+  const PropertyType activetype = RNA_property_type(activeprop);
   if (activetype != PROP_INT) {
     RNA_warning("Expected an integer active data property");
     return;
@@ -6178,6 +6197,10 @@ void uiTemplateList(uiLayout *layout,
                     active_propname,
                     org_i,
                     flt_flag);
+
+          /* Items should be able to set context pointers for the layout. But the list-row button
+           * swallows events, so it needs the context storage too for handlers to see it. */
+          but->context = uiLayoutGetContextStore(sub);
 
           /* If we are "drawing" active item, set all labels as active. */
           if (i == activei) {

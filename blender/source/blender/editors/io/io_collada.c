@@ -481,11 +481,11 @@ void WM_OT_collada_export(wmOperatorType *ot)
       {0, NULL, 0, NULL, NULL}};
 
   static const EnumPropertyItem prop_bc_export_ui_section[] = {
-      {BC_UI_SECTION_MAIN, "main", 0, "Main", "Data Export Section"},
-      {BC_UI_SECTION_GEOMETRY, "geometry", 0, "Geom", "Geometry Export Section"},
-      {BC_UI_SECTION_ARMATURE, "armature", 0, "Arm", "Armature Export Section"},
-      {BC_UI_SECTION_ANIMATION, "animation", 0, "Anim", "Animation Export Section"},
-      {BC_UI_SECTION_COLLADA, "collada", 0, "Extra", "Collada Export Section"},
+      {BC_UI_SECTION_MAIN, "main", 0, "Main", "Data export section"},
+      {BC_UI_SECTION_GEOMETRY, "geometry", 0, "Geom", "Geometry export section"},
+      {BC_UI_SECTION_ARMATURE, "armature", 0, "Arm", "Armature export section"},
+      {BC_UI_SECTION_ANIMATION, "animation", 0, "Anim", "Animation export section"},
+      {BC_UI_SECTION_COLLADA, "collada", 0, "Extra", "Collada export section"},
       {0, NULL, 0, NULL, NULL}};
 
   ot->name = "Export COLLADA";
@@ -507,7 +507,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
                                  FILE_SAVE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_SHOW_PROPS,
                                  FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_ALPHA);
+                                 FILE_SORT_DEFAULT);
 
   RNA_def_enum(func,
                "prop_bc_export_ui_section",
@@ -649,7 +649,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
                   "Copy textures to same folder where the .dae file is exported");
 
   RNA_def_boolean(
-      func, "triangulate", 1, "Triangulate", "Export Polygons (Quads & NGons) as Triangles");
+      func, "triangulate", 1, "Triangulate", "Export polygons (quads and n-gons) as triangles");
 
   RNA_def_boolean(func,
                   "use_object_instantiation",
@@ -828,7 +828,7 @@ void WM_OT_collada_import(wmOperatorType *ot)
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_SHOW_PROPS,
                                  FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_ALPHA);
+                                 FILE_SORT_DEFAULT);
 
   RNA_def_boolean(ot->srna,
                   "import_units",

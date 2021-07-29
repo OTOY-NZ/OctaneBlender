@@ -19,9 +19,9 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 22.2)",
+    "name": "OctaneRender Engine (v. 23.6)",
     "author": "OTOY Inc.",
-    "blender": (2, 82, 0),
+    "blender": (2, 91, 0),
     "location": "Info header, render engine menu",
     "description": "OctaneRender Engine integration",
     "warning": "",
@@ -159,14 +159,16 @@ def register():
     from . import operators
     from . import properties
     from . import presets
+    from . import nodes
     import atexit
 
     # Make sure we only registered the callback once.
     atexit.unregister(engine_exit)
     atexit.register(engine_exit)
-
+    
     engine.init()
 
+    nodes.register()
     properties.register()
     ui.register()
     operators.register()
@@ -177,6 +179,7 @@ def register():
 
     bpy.app.handlers.version_update.append(version_update.do_versions)
     bpy.app.handlers.load_post.append(operators.clear_resource_cache_system)
+    bpy.app.handlers.depsgraph_update_post.append(operators.sync_octane_aov_output_number)
     bpy.app.handlers.depsgraph_update_post.append(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.append(operators.update_blender_volume_grid_info)
 
@@ -191,9 +194,11 @@ def unregister():
 
     bpy.app.handlers.version_update.remove(version_update.do_versions)
     bpy.app.handlers.load_post.remove(operators.clear_resource_cache_system)
+    bpy.app.handlers.depsgraph_update_post.remove(operators.sync_octane_aov_output_number)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
 
+    nodes.unregister()
     ui.unregister()
     operators.unregister()
     properties.unregister()

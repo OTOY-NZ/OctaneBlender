@@ -172,6 +172,14 @@ add_blender_test(
   --python-text run_tests
 )
 
+add_blender_test(
+  curve_to_mesh
+  ${TEST_SRC_DIR}/modeling/curve_to_mesh.blend
+  --python ${TEST_PYTHON_DIR}/curve_to_mesh.py
+  --
+  --run-all-tests
+)
+
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_blender_test(
@@ -200,6 +208,49 @@ add_blender_test(
   physics_softbody
   ${TEST_SRC_DIR}/physics/softbody_test.blend
   --python ${TEST_PYTHON_DIR}/physics_softbody.py
+  --
+  --run-all-tests
+)
+
+add_blender_test(
+  physics_dynamic_paint
+  ${TEST_SRC_DIR}/physics/dynamic_paint_test.blend
+  --python ${TEST_PYTHON_DIR}/physics_dynamic_paint.py
+  --
+  --run-all-tests
+)
+
+add_blender_test(
+  deform_modifiers
+  ${TEST_SRC_DIR}/modeling/deform_modifiers.blend
+  --python ${TEST_PYTHON_DIR}/deform_modifiers.py
+  --
+  --run-all-tests
+)
+
+if(WITH_MOD_OCEANSIM)
+  add_blender_test(
+    physics_ocean
+    ${TEST_SRC_DIR}/physics/ocean_test.blend
+    --python ${TEST_PYTHON_DIR}/physics_ocean.py
+    --
+    --run-all-tests
+  )
+endif()
+
+
+add_blender_test(
+  physics_particle_system
+  ${TEST_SRC_DIR}/physics/physics_particle_test.blend
+  --python ${TEST_PYTHON_DIR}/physics_particle_system.py
+  --
+  --run-all-tests
+)
+
+add_blender_test(
+  physics_particle_instance
+  ${TEST_SRC_DIR}/physics/physics_particle_instance.blend
+  --python ${TEST_PYTHON_DIR}/physics_particle_instance.py
   --
   --run-all-tests
 )
@@ -598,20 +649,32 @@ if(WITH_CYCLES OR WITH_OPENGL_RENDER_TESTS)
       list(APPEND render_tests grease_pencil)
     endif()
 
+    # Cycles
     if(WITH_CYCLES)
-      foreach(render_test bake;${render_tests})
-        add_python_test(
-          cycles_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
-          -blender "${TEST_BLENDER_EXE}"
-          -testdir "${TEST_SRC_DIR}/render/${render_test}"
-          -idiff "${OPENIMAGEIO_IDIFF}"
-          -outdir "${TEST_OUT_DIR}/cycles"
-        )
+      if(NOT WITH_CYCLES_OSL)
+        set(_cycles_blacklist OSL)
+      endif()
+      foreach(_cycles_device ${CYCLES_TEST_DEVICES})
+        string(TOLOWER "${_cycles_device}" _cycles_device_lower)
+        set(_cycles_render_tests bake;${render_tests};osl)
+
+        foreach(render_test ${_cycles_render_tests})
+          add_python_test(
+            cycles_${render_test}_${_cycles_device_lower}
+            ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
+            -blender "${TEST_BLENDER_EXE}"
+            -testdir "${TEST_SRC_DIR}/render/${render_test}"
+            -idiff "${OPENIMAGEIO_IDIFF}"
+            -outdir "${TEST_OUT_DIR}/cycles"
+            -device ${_cycles_device}
+            -blacklist ${_cycles_blacklist}
+          )
+        endforeach()
       endforeach()
     endif()
 
     if(WITH_OPENGL_RENDER_TESTS)
+      # Eevee
       foreach(render_test ${render_tests})
         add_python_test(
           eevee_${render_test}_test
@@ -624,6 +687,7 @@ if(WITH_CYCLES OR WITH_OPENGL_RENDER_TESTS)
       endforeach()
 
       foreach(render_test ${render_tests})
+        # Workbench
         add_python_test(
           workbench_${render_test}_test
           ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
@@ -698,6 +762,30 @@ if(WITH_CODEC_FFMPEG)
     --testdir "${TEST_SRC_DIR}/ffmpeg"
   )
 endif()
+
+
+# ------------------------------------------------------------------------------
+# SEQUENCER RENDER TESTS
+
+if(NOT OPENIMAGEIO_IDIFF)
+  MESSAGE(STATUS "Disabling sequencer render tests because OIIO idiff does not exist")
+else()
+  set(render_tests
+    transform
+  )
+
+  foreach(render_test ${render_tests})
+    add_python_test(
+      sequencer_render_${render_test}
+      ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
+      -blender "${TEST_BLENDER_EXE}"
+      -testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
+      -idiff "${OPENIMAGEIO_IDIFF}"
+      -outdir "${TEST_OUT_DIR}/sequence_editing"
+    )
+  endforeach()
+endif()
+
 
 add_subdirectory(collada)
 

@@ -25,11 +25,15 @@
 
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
-#include "DNA_scene_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_vec_types.h"
+#include "DNA_scene_types.h" /* for #ImageFormatData */
+#include "DNA_vec_types.h"   /* for #rctf */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct AnimData;
+struct Collection;
 struct ID;
 struct Image;
 struct ListBase;
@@ -155,6 +159,8 @@ typedef enum eNodeSocketDatatype {
   SOCK_STRING = 7,
   SOCK_OBJECT = 8,
   SOCK_IMAGE = 9,
+  SOCK_GEOMETRY = 10,
+  SOCK_COLLECTION = 11,
 } eNodeSocketDatatype;
 
 /* socket shape */
@@ -212,15 +218,14 @@ typedef struct bNode {
   char name[64];
   int flag;
   short type;
-  char _pad[2];
   /** Both for dependency and sorting. */
   short done, level;
-  /** Lasty: check preview render status, menunr: browse ID blocks. */
-  short lasty, menunr;
-  /** For groupnode, offset in global caller stack. */
-  short stack_index;
-  /** Number of this node in list, used for UI exec events. */
-  short nr;
+
+  /** Used as a boolean for execution. */
+  uint8_t need_exec;
+
+  char _pad[1];
+
   /** Custom user-defined color. */
   float color[3];
 
@@ -258,10 +263,8 @@ typedef struct bNode {
   short custom1, custom2;
   float custom3, custom4;
 
-  /** Need_exec is set as UI execution event, exec is flag during exec. */
-  short need_exec, exec;
-  /** Optional extra storage for use in thread (read only then!). */
-  void *threaddata;
+  char _pad1[4];
+
   /** Entire boundbox (worldspace). */
   rctf totr;
   /** Optional buttons area. */
@@ -298,7 +301,7 @@ typedef struct bNode {
    * needs to be a float to feed GPU_uniform.
    */
   float sss_id;
-  short oct_custom1, oct_custom2, oct_custom3, oct_custom4;
+  short oct_custom1, oct_custom2, oct_custom3, oct_custom4, oct_custom5, oct_custom6, oct_custom7, oct_custom8;
 } bNode;
 
 /* node->flag */
@@ -500,7 +503,7 @@ typedef struct bNodeTree {
 #define NTREE_SHADER 0
 #define NTREE_COMPOSIT 1
 #define NTREE_TEXTURE 2
-#define NTREE_SIMULATION 3
+#define NTREE_GEOMETRY 3
 
 /* ntree->init, flag */
 #define NTREE_TYPE_INIT 1
@@ -575,6 +578,10 @@ typedef struct bNodeSocketValueObject {
 typedef struct bNodeSocketValueImage {
   struct Image *value;
 } bNodeSocketValueImage;
+
+typedef struct bNodeSocketValueCollection {
+  struct Collection *value;
+} bNodeSocketValueCollection;
 
 /* data structs, for node->storage */
 enum {
@@ -729,7 +736,8 @@ typedef struct NodeImageMultiFileSocket {
   short use_render_format DNA_DEPRECATED;
   /** Use overall node image format. */
   short use_node_format;
-  char _pad1[4];
+  char save_as_render;
+  char _pad1[3];
   /** 1024 = FILE_MAX. */
   char path[1024];
   ImageFormatData format;
@@ -829,6 +837,11 @@ typedef struct NodeMask {
   int size_x, size_y;
 } NodeMask;
 
+typedef struct NodeSetAlpha {
+  char mode;
+  char _pad[7];
+} NodeSetAlpha;
+
 typedef struct NodeTexBase {
   TexMapping tex_mapping;
   ColorMapping color_mapping;
@@ -924,6 +937,8 @@ typedef struct NodeTexMagic {
 
 typedef struct NodeShaderAttribute {
   char name[64];
+  int type;
+  char _pad[4];
 } NodeShaderAttribute;
 
 typedef struct NodeShaderVectTransform {
@@ -1040,10 +1055,20 @@ typedef struct NodeSunBeams {
   float ray_length;
 } NodeSunBeams;
 
+typedef struct CryptomatteEntry {
+  struct CryptomatteEntry *next, *prev;
+  float encoded_hash;
+  /** MAX_NAME. */
+  char name[64];
+  char _pad[4];
+} CryptomatteEntry;
+
 typedef struct NodeCryptomatte {
   float add[3];
   float remove[3];
-  char *matte_id;
+  char *matte_id DNA_DEPRECATED;
+  /* Contains `CryptomatteEntry`. */
+  ListBase entries;
   int num_inputs;
   char _pad[4];
 } NodeCryptomatte;
@@ -1052,6 +1077,103 @@ typedef struct NodeDenoise {
   char hdr;
   char _pad[7];
 } NodeDenoise;
+
+typedef struct NodeAttributeCompare {
+  /* FloatCompareOperation. */
+  uint8_t operation;
+
+  /* GeometryNodeAttributeInputMode */
+  uint8_t input_type_a;
+  uint8_t input_type_b;
+
+  char _pad[5];
+} NodeAttributeCompare;
+
+typedef struct NodeAttributeMath {
+  /* e.g. NODE_MATH_ADD. */
+  uint8_t operation;
+
+  /* GeometryNodeAttributeInputMode */
+  uint8_t input_type_a;
+  uint8_t input_type_b;
+
+  char _pad[5];
+} NodeAttributeMath;
+
+typedef struct NodeAttributeMix {
+  /* e.g. MA_RAMP_BLEND. */
+  uint8_t blend_type;
+
+  /* GeometryNodeAttributeInputMode */
+  uint8_t input_type_factor;
+  uint8_t input_type_a;
+  uint8_t input_type_b;
+} NodeAttributeMix;
+
+typedef struct NodeAttributeVectorMath {
+  /* NodeVectorMathOperation */
+  uint8_t operation;
+
+  /* GeometryNodeAttributeInputMode */
+  uint8_t input_type_a;
+  uint8_t input_type_b;
+  uint8_t input_type_c;
+
+  char _pad[4];
+} NodeAttributeVectorMath;
+
+typedef struct NodeAttributeColorRamp {
+  ColorBand color_ramp;
+} NodeAttributeColorRamp;
+
+typedef struct NodeInputVector {
+  float vector[3];
+} NodeInputVector;
+
+typedef struct NodeGeometryRotatePoints {
+  /* GeometryNodeRotatePointsType */
+  uint8_t type;
+  /* GeometryNodeRotatePointsSpace */
+  uint8_t space;
+
+  /* GeometryNodeAttributeInputMode */
+  uint8_t input_type_axis;
+  uint8_t input_type_angle;
+  uint8_t input_type_rotation;
+  char _pad[3];
+} NodeGeometryRotatePoints;
+
+typedef struct NodeGeometryAlignRotationToVector {
+  /* GeometryNodeAlignRotationToVectorAxis */
+  uint8_t axis;
+
+  /* GeometryNodeAttributeInputMode */
+  uint8_t input_type_factor;
+  uint8_t input_type_vector;
+
+  char _pad[5];
+} NodeGeometryAlignRotationToVector;
+
+typedef struct NodeGeometryPointScale {
+  /* GeometryNodeAttributeInputMode */
+  uint8_t input_type;
+
+  char _pad[7];
+} NodeGeometryPointScale;
+
+typedef struct NodeGeometryPointTranslate {
+  /* GeometryNodeAttributeInputMode */
+  uint8_t input_type;
+
+  char _pad[7];
+} NodeGeometryPointTranslate;
+
+typedef struct NodeGeometryObjectInfo {
+  /* GeometryNodeTransformSpace. */
+  uint8_t transform_space;
+
+  char _pad[7];
+} NodeGeometryObjectInfo;
 
 /* script node mode */
 #define NODE_SCRIPT_INTERNAL 0
@@ -1092,6 +1214,13 @@ typedef struct NodeDenoise {
 #define SHD_VECT_TRANSFORM_SPACE_WORLD 0
 #define SHD_VECT_TRANSFORM_SPACE_OBJECT 1
 #define SHD_VECT_TRANSFORM_SPACE_CAMERA 2
+
+/* attribute */
+enum {
+  SHD_ATTRIBUTE_GEOMETRY = 0,
+  SHD_ATTRIBUTE_OBJECT = 1,
+  SHD_ATTRIBUTE_INSTANCER = 2,
+};
 
 /* toon modes */
 #define SHD_TOON_DIFFUSE 0
@@ -1285,7 +1414,7 @@ enum {
 };
 
 /* Vector Math node operations. */
-enum {
+typedef enum NodeVectorMathOperation {
   NODE_VECTOR_MATH_ADD = 0,
   NODE_VECTOR_MATH_SUBTRACT = 1,
   NODE_VECTOR_MATH_MULTIPLY = 2,
@@ -1313,7 +1442,7 @@ enum {
   NODE_VECTOR_MATH_SINE = 21,
   NODE_VECTOR_MATH_COSINE = 22,
   NODE_VECTOR_MATH_TANGENT = 23,
-};
+} NodeVectorMathOperation;
 
 /* Boolean math node operations. */
 enum {
@@ -1323,14 +1452,14 @@ enum {
 };
 
 /* Float compare node operations. */
-enum {
+typedef enum FloatCompareOperation {
   NODE_FLOAT_COMPARE_LESS_THAN = 0,
   NODE_FLOAT_COMPARE_LESS_EQUAL = 1,
   NODE_FLOAT_COMPARE_GREATER_THAN = 2,
   NODE_FLOAT_COMPARE_GREATER_EQUAL = 3,
   NODE_FLOAT_COMPARE_EQUAL = 4,
   NODE_FLOAT_COMPARE_NOT_EQUAL = 5,
-};
+} FloatCompareOperation;
 
 /* Clamp node types. */
 enum {
@@ -1390,6 +1519,13 @@ enum {
   CMP_NODEFLAG_STABILIZE_INVERSE = 1,
 };
 
+/* Set Alpha Node. */
+/* `NodeSetAlpha.mode` */
+typedef enum CMPNodeSetAlphaMode {
+  CMP_NODE_SETALPHA_MODE_APPLY = 0,
+  CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA = 1,
+} CMPNodeSetAlphaMode;
+
 #define CMP_NODE_PLANETRACKDEFORM_MBLUR_SAMPLES_MAX 64
 
 /* Point Density shader node */
@@ -1425,12 +1561,70 @@ typedef enum NodeShaderOutputTarget {
   SHD_OUTPUT_OCTANE = 3,
 } NodeShaderOutputTarget;
 
-/* Particle Time Step Event node */
-typedef enum NodeSimParticleTimeStepEventType {
-  NODE_PARTICLE_TIME_STEP_EVENT_BEGIN = 0,
-  NODE_PARTICLE_TIME_STEP_EVENT_END = 1,
-} NodeSimParticleTimeStepEventType;
+/* Geometry Nodes */
 
+/* Boolean Node */
+typedef enum GeometryNodeBooleanOperation {
+  GEO_NODE_BOOLEAN_INTERSECT = 0,
+  GEO_NODE_BOOLEAN_UNION = 1,
+  GEO_NODE_BOOLEAN_DIFFERENCE = 2,
+} GeometryNodeBooleanOperation;
+
+/* Triangulate Node */
+typedef enum GeometryNodeTriangulateNGons {
+  GEO_NODE_TRIANGULATE_NGON_BEAUTY = 0,
+  GEO_NODE_TRIANGULATE_NGON_EARCLIP = 1,
+} GeometryNodeTriangulateNGons;
+
+typedef enum GeometryNodeTriangulateQuads {
+  GEO_NODE_TRIANGULATE_QUAD_BEAUTY = 0,
+  GEO_NODE_TRIANGULATE_QUAD_FIXED = 1,
+  GEO_NODE_TRIANGULATE_QUAD_ALTERNATE = 2,
+  GEO_NODE_TRIANGULATE_QUAD_SHORTEDGE = 3,
+} GeometryNodeTriangulateQuads;
+
+typedef enum GeometryNodePointInstanceType {
+  GEO_NODE_POINT_INSTANCE_TYPE_OBJECT = 0,
+  GEO_NODE_POINT_INSTANCE_TYPE_COLLECTION = 1,
+} GeometryNodePointInstanceType;
+
+typedef enum GeometryNodeAttributeInputMode {
+  GEO_NODE_ATTRIBUTE_INPUT_ATTRIBUTE = 0,
+  GEO_NODE_ATTRIBUTE_INPUT_FLOAT = 1,
+  GEO_NODE_ATTRIBUTE_INPUT_VECTOR = 2,
+  GEO_NODE_ATTRIBUTE_INPUT_COLOR = 3,
+  GEO_NODE_ATTRIBUTE_INPUT_BOOLEAN = 4,
+} GeometryNodeAttributeInputMode;
+
+typedef enum GeometryNodePointDistributeMethod {
+  GEO_NODE_POINT_DISTRIBUTE_RANDOM = 0,
+  GEO_NODE_POINT_DISTRIBUTE_POISSON = 1,
+} GeometryNodePointDistributeMethod;
+
+typedef enum GeometryNodeRotatePointsType {
+  GEO_NODE_POINT_ROTATE_TYPE_EULER = 0,
+  GEO_NODE_POINT_ROTATE_TYPE_AXIS_ANGLE = 1,
+} GeometryNodeRotatePointsType;
+
+typedef enum GeometryNodeRotatePointsSpace {
+  GEO_NODE_POINT_ROTATE_SPACE_OBJECT = 0,
+  GEO_NODE_POINT_ROTATE_SPACE_POINT = 1,
+} GeometryNodeRotatePointsSpace;
+
+typedef enum GeometryNodeAlignRotationToVectorAxis {
+  GEO_NODE_ALIGN_ROTATION_TO_VECTOR_AXIS_X = 0,
+  GEO_NODE_ALIGN_ROTATION_TO_VECTOR_AXIS_Y = 1,
+  GEO_NODE_ALIGN_ROTATION_TO_VECTOR_AXIS_Z = 2,
+} GeometryNodeAlignRotationToVectorAxis;
+
+typedef enum GeometryNodeTransformSpace {
+  GEO_NODE_TRANSFORM_SPACE_ORIGINAL = 0,
+  GEO_NODE_TRANSFORM_SPACE_RELATIVE = 1,
+} GeometryNodeTransformSpace;
+
+#ifdef __cplusplus
+}
+#endif
 /* Simulation Time node */
 typedef enum NodeSimInputTimeType {
   NODE_SIM_INPUT_SIMULATION_TIME = 0,
@@ -1472,6 +1666,40 @@ typedef enum NodeSimInputTimeType {
 #define OCT_NOISE_TYPE_TURBULENCE 1
 #define OCT_NOISE_TYPE_CIRCULAR 2
 #define OCT_NOISE_TYPE_CHIPS 3
+
+/* octane cinema4d noise type */
+#define C4D_NOISE_TYPE_BOX_NOISE 0
+#define C4D_NOISE_TYPE_BLIST_TURB 1
+#define C4D_NOISE_TYPE_BUYA 2
+#define C4D_NOISE_TYPE_CELL_NOISE 3
+#define C4D_NOISE_TYPE_CRANAL 4
+#define C4D_NOISE_TYPE_DENTS 5
+#define C4D_NOISE_TYPE_DISPL_TURB 6
+#define C4D_NOISE_TYPE_FBM 7
+#define C4D_NOISE_TYPE_HAMA 8
+#define C4D_NOISE_TYPE_LUKA 9
+#define C4D_NOISE_TYPE_MOD_NOISE 10
+#define C4D_NOISE_TYPE_NAKI 11
+#define C4D_NOISE_TYPE_NOISE 12
+#define C4D_NOISE_TYPE_NUTOUS 13
+#define C4D_NOISE_TYPE_OBER 14
+#define C4D_NOISE_TYPE_PEZO 15
+#define C4D_NOISE_TYPE_POXO 16
+#define C4D_NOISE_TYPE_SEMA 17
+#define C4D_NOISE_TYPE_STUPL 18
+#define C4D_NOISE_TYPE_TURBULENCE 19
+#define C4D_NOISE_TYPE_VL_NOISE 20
+#define C4D_NOISE_TYPE_WAVY_TURB 21
+#define C4D_NOISE_TYPE_CELL_VORONOI 22
+#define C4D_NOISE_TYPE_DISPL_VORONOI 23
+#define C4D_NOISE_TYPE_VORONOI1 24
+#define C4D_NOISE_TYPE_VORONOI2 25
+#define C4D_NOISE_TYPE_VORONOI3 26
+#define C4D_NOISE_TYPE_ZADA 27
+#define C4D_NOISE_TYPE_FIRE 28
+#define C4D_NOISE_TYPE_ELECTRIC 29
+#define C4D_NOISE_TYPE_GASEOUS 30
+#define C4D_NOISE_TYPE_RIDGEDMULTI 31
 
 /* octane texture lookup behavior */
 #define OCT_BORDER_MODE_WRAP 0
@@ -1535,6 +1763,37 @@ typedef enum NodeSimInputTimeType {
 #define OCT_IC_SAMPLING_MODE_DISTRIBUTED 0
 #define OCT_IC_SAMPLING_MODE_PIXEL_FILTERING_ENABLED 1
 #define OCT_IC_SAMPLING_MODE_PIXEL_FILTERING_DISABLED 2
+
+/* The method used to select between source objects for each instance. */
+#define OCT_INPUT_SELECTION_METHOD_SEQUENTIAL 0
+#define OCT_INPUT_SELECTION_METHOD_RANDOM 1
+#define OCT_INPUT_SELECTION_METHOD_SELECTION_MAP 2
+
+/* The method used to distribute instances. */
+#define OCT_INSTANCE_DISTRIBUTION_VERTEX 0
+#define OCT_INSTANCE_DISTRIBUTION_POLYGON 1
+#define OCT_INSTANCE_DISTRIBUTION_SURFACE_AREA 2
+#define OCT_INSTANCE_DISTRIBUTION_RELATIVE_DENSITY 3
+
+/* If the up and front vector are not orthogonal this option selects which one has priority. */
+#define OCT_ORIENTATION_PRIORITY_UP 0
+#define OCT_ORIENTATION_PRIORITY_FRONT 1
+
+/* Selects between the use of a reference direction or a reference point. */
+#define OCT_ORIENTATION_DIRECTION_MODE_DIRECTION 0
+#define OCT_ORIENTATION_DIRECTION_MODE_POINT 1
+
+/* Instance transform mode. */
+#define OCT_INSTANCE_TRANSFORM_MODE_FIXED 0
+#define OCT_INSTANCE_TRANSFORM_MODE_RANDOMIZED 1
+#define OCT_INSTANCE_TRANSFORM_MODE_RANDOMIZED_UNIFORMLY 2
+#define OCT_INSTANCE_TRANSFORM_MODE_MAP 3
+
+/* Scatter Tool in Volume. Shape mode. */
+#define OCT_SCATTER_IN_VOLUME_SHAPE_MODE_BOX 0
+#define OCT_SCATTER_IN_VOLUME_SHAPE_MODE_SPHERE 1
+#define OCT_SCATTER_IN_VOLUME_SHAPE_MODE_CYLINDER 2
+#define OCT_SCATTER_IN_VOLUME_SHAPE_MODE_CONE 3
 
 /// The types of data the info channels kernel can render
 enum InfoChannelType {
@@ -1627,3 +1886,139 @@ enum InfoChannelType {
 #define OCT_HAIR_MATERIAL_BASE_COLOR_ALBEDO 0
 /// There is no base color
 #define OCT_HAIR_MATERIAL_BASE_COLOR_MELANIN_PLUS_PHEOMELANIN 1
+
+#define OCT_CHANNEL_R 0
+#define OCT_CHANNEL_G 1
+#define OCT_CHANNEL_B 2
+
+#define OCT_ORIENTATION_SPOTLIGHT_NORMAL 1
+#define OCT_ORIENTATION_SPOTLIGHT_DIRECTION 2
+#define OCT_ORIENTATION_SPOTLIGHT_DIRECTION_OBJECT 3
+#define OCT_ORIENTATION_SPOTLIGHT_TARGET 4
+#define OCT_ORIENTATION_SPOTLIGHT_TARGET_OBJECT 5
+
+/// The Porter-Duff composite operations with some additional variations.
+enum CompositeOperation {
+  COMPOSITE_OPERATION_CLEAR = 12,
+  COMPOSITE_OPERATION_DISSOLVE = 14,
+  COMPOSITE_OPERATION_DST = 7,
+  COMPOSITE_OPERATION_DST_ATOP = 11,
+  COMPOSITE_OPERATION_DST_IN = 9,
+  COMPOSITE_OPERATION_DST_OUT = 10,
+  COMPOSITE_OPERATION_DST_OVER = 8,
+  COMPOSITE_OPERATION_MATTE = 16,
+  COMPOSITE_OPERATION_PLUS = 15,
+  COMPOSITE_OPERATION_SRC = 0,
+  COMPOSITE_OPERATION_SRC_ATOP = 6,
+  COMPOSITE_OPERATION_SRC_IN = 4,
+  COMPOSITE_OPERATION_SRC_OUT = 5,
+  COMPOSITE_OPERATION_SRC_OVER = 1,
+  COMPOSITE_OPERATION_SRC_OVER_CONJOINT = 2,
+  COMPOSITE_OPERATION_SRC_OVER_DISJOINT = 3,
+  COMPOSITE_OPERATION_XOR = 13,
+};
+
+/// Types of alpha operation avaliable for composite system.
+enum CompositeAlphaOperation {
+  COMPOSITE_ALPHA_OPERATION_BLEND_MODE,
+  COMPOSITE_ALPHA_OPERATION_ALPHA_COMPOSITING,
+  COMPOSITE_ALPHA_OPERATION_BACKGROUND,
+  COMPOSITE_ALPHA_OPERATION_FOREGROUND,
+  COMPOSITE_ALPHA_OPERATION_ONE,
+  COMPOSITE_ALPHA_OPERATION_ZERO,
+};
+
+/// Blend modes for composite textures and composite AOVs.
+enum BlendMode {
+  BLEND_MODE_ADD = 0,
+  BLEND_MODE_AVERAGE = 1,
+  BLEND_MODE_BLUE = 44,
+  BLEND_MODE_CHROMATICITY = 41,
+  BLEND_MODE_COLOR = 34,
+  BLEND_MODE_COLOR_BURN = 2,
+  BLEND_MODE_COLOR_DODGE = 3,
+  BLEND_MODE_DARKEN = 4,
+  BLEND_MODE_DARKER_COLOR = 36,
+  BLEND_MODE_DARKER_COLOR_LUMINANCE = 38,
+  BLEND_MODE_DIFFERENCE = 5,
+  BLEND_MODE_DIVIDE = 30,
+  BLEND_MODE_DIVIDE_INVERSE = 31,
+  BLEND_MODE_EXCLUDE = 6,
+  BLEND_MODE_FREEZE = 45,
+  BLEND_MODE_GEOMETRIC = 25,
+  BLEND_MODE_GLOW = 7,
+  BLEND_MODE_GRAIN_EXTRACT = 48,
+  BLEND_MODE_GRAIN_MERGE = 49,
+  BLEND_MODE_GREEN = 43,
+  BLEND_MODE_HARD_LIGHT = 8,
+  BLEND_MODE_HARD_MIX = 9,
+  BLEND_MODE_HEAT = 47,
+  BLEND_MODE_HUE = 32,
+  BLEND_MODE_HYPOTENUSE = 26,
+  BLEND_MODE_LEVR = 46,
+  BLEND_MODE_LIGHTEN = 10,
+  BLEND_MODE_LIGHTER_COLOR = 37,
+  BLEND_MODE_LIGHTER_COLOR_LUMINANCE = 39,
+  BLEND_MODE_LINEAR_BURN = 11,
+  BLEND_MODE_LINEAR_DODGE = 12,
+  BLEND_MODE_LINEAR_LIGHT = 13,
+  BLEND_MODE_LUMINOSITY = 35,
+  BLEND_MODE_MULTIPLY = 14,
+  BLEND_MODE_NEGATE = 15,
+  BLEND_MODE_NORMAL = 16,
+  BLEND_MODE_OVERLAY = 17,
+  BLEND_MODE_PHOENIX = 18,
+  BLEND_MODE_PIN_LIGHT = 19,
+  BLEND_MODE_RED = 42,
+  BLEND_MODE_REFLECT = 20,
+  BLEND_MODE_SATURATION = 33,
+  BLEND_MODE_SCREEN = 21,
+  BLEND_MODE_SOFT_LIGHT = 22,
+  BLEND_MODE_SPOTLIGHT = 27,
+  BLEND_MODE_SPOTLIGHT_BLEND = 28,
+  BLEND_MODE_STAMP = 50,
+  BLEND_MODE_SUBTRACT = 23,
+  BLEND_MODE_SUBTRACT_INVERSE = 29,
+  BLEND_MODE_VALUE = 40,
+  BLEND_MODE_VIVID_LIGHT = 24,
+
+  /// Offset used for composite operations reused as blend modes.
+  BLEND_MODE_COMPOSITE_OFFSET = 1000,
+
+  BLEND_MODE_CLEAR = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_CLEAR,
+  BLEND_MODE_DISSOLVE = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_DISSOLVE,
+  BLEND_MODE_DST = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_DST,
+  BLEND_MODE_DST_ATOP = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_DST_ATOP,
+  BLEND_MODE_DST_IN = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_DST_IN,
+  BLEND_MODE_DST_OUT = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_DST_OUT,
+  BLEND_MODE_DST_OVER = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_DST_OVER,
+  BLEND_MODE_MATTE = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_MATTE,
+  BLEND_MODE_PLUS = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_PLUS,
+  BLEND_MODE_SRC = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_SRC,
+  BLEND_MODE_SRC_ATOP = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_SRC_ATOP,
+  BLEND_MODE_SRC_IN = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_SRC_IN,
+  BLEND_MODE_SRC_OUT = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_SRC_OUT,
+  BLEND_MODE_SRC_OVER = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_SRC_OVER,
+  BLEND_MODE_SRC_OVER_CONJOINT = BLEND_MODE_COMPOSITE_OFFSET +
+                                 COMPOSITE_OPERATION_SRC_OVER_CONJOINT,
+  BLEND_MODE_SRC_OVER_DISJOINT = BLEND_MODE_COMPOSITE_OFFSET +
+                                 COMPOSITE_OPERATION_SRC_OVER_DISJOINT,
+  BLEND_MODE_XOR = BLEND_MODE_COMPOSITE_OFFSET + COMPOSITE_OPERATION_XOR,
+};
+
+/// Input channels of the composite AOV layer mask
+enum CompositeAovLayerMaskChannel {
+  COMPOSITE_AOV_LAYER_MASK_CHANNEL_R,
+  COMPOSITE_AOV_LAYER_MASK_CHANNEL_G,
+  COMPOSITE_AOV_LAYER_MASK_CHANNEL_B,
+  COMPOSITE_AOV_LAYER_MASK_CHANNEL_A,
+  COMPOSITE_AOV_LAYER_MASK_CHANNEL_INVERSE_R,
+  COMPOSITE_AOV_LAYER_MASK_CHANNEL_INVERSE_G,
+  COMPOSITE_AOV_LAYER_MASK_CHANNEL_INVERSE_B,
+  COMPOSITE_AOV_LAYER_MASK_CHANNEL_INVERSE_A,
+};
+
+typedef enum ObjectDataNodeSourceType {
+  OBJECT_DATA_NODE_TYPE_OBJECT = 0,
+  OBJECT_DATA_NODE_TYPE_COLLECTION = 1,
+} ObjectDataNodeSourceType;

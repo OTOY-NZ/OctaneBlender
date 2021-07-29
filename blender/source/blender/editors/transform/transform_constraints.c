@@ -79,6 +79,17 @@ static void projection_matrix_calc(const TransInfo *t, float r_pmtx[3][3])
   mul_m3_m3m3(r_pmtx, t->spacemtx, mat);
 }
 
+static void view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3])
+{
+  if (t->persp != RV3D_ORTHO) {
+    sub_v3_v3v3(r_vec, t->viewinv[3], focus);
+  }
+  else {
+    copy_v3_v3(r_vec, t->viewinv[2]);
+  }
+  normalize_v3(r_vec);
+}
+
 /* ************************** CONSTRAINTS ************************* */
 #define CONSTRAIN_EPSILON 0.0001f
 
@@ -218,14 +229,14 @@ static void axisProjection(const TransInfo *t,
     float norm_center[3];
     float plane[3];
 
-    getViewVector(t, t_con_center, norm_center);
+    view_vector_calc(t, t_con_center, norm_center);
     cross_v3_v3v3(plane, norm_center, axis);
 
     project_v3_v3v3(vec, in, plane);
     sub_v3_v3v3(vec, in, vec);
 
     add_v3_v3v3(v, vec, t_con_center);
-    getViewVector(t, v, norm);
+    view_vector_calc(t, v, norm);
 
     /* give arbitrary large value if projection is impossible */
     factor = dot_v3v3(axis, norm);
@@ -284,7 +295,9 @@ static void constraint_snap_plane_to_edge(const TransInfo *t, const float plane[
  * Snap to the nearest point between the snap point and the line that
  * intersects the face plane with the constraint plane.
  */
-static void constraint_snap_plane_to_face(const TransInfo *t, const float plane[4], float r_out[3])
+static void UNUSED_FUNCTION(constraint_snap_plane_to_face(const TransInfo *t,
+                                                          const float plane[4],
+                                                          float r_out[3]))
 {
   float face_plane[4], isect_orig[3], isect_dir[3];
   const float *face_snap_point = t->tsnap.snapPoint;
@@ -340,7 +353,7 @@ static bool isPlaneProjectionViewAligned(const TransInfo *t, const float plane[4
 {
   const float eps = 0.001f;
   float view_to_plane[3];
-  getViewVector(t, t->center_global, view_to_plane);
+  view_vector_calc(t, t->center_global, view_to_plane);
 
   float factor = dot_v3v3(plane, view_to_plane);
   return fabsf(factor) < eps;
@@ -351,7 +364,7 @@ static void planeProjection(const TransInfo *t, const float in[3], float out[3])
   float vec[3], factor, norm[3];
 
   add_v3_v3v3(vec, in, t->center_global);
-  getViewVector(t, vec, norm);
+  view_vector_calc(t, vec, norm);
 
   sub_v3_v3v3(vec, out, in);
 
@@ -406,7 +419,8 @@ static void applyAxisConstraintVec(
             constraint_snap_plane_to_edge(t, plane, out);
           }
           else if (is_snap_to_face) {
-            constraint_snap_plane_to_face(t, plane, out);
+            /* Disabled, as it has not proven to be really useful. (See T82386). */
+            // constraint_snap_plane_to_face(t, plane, out);
           }
           else {
             /* View alignment correction. */
@@ -535,6 +549,38 @@ static void applyObjectConstraintSize(TransInfo *t,
   }
 }
 
+static void constraints_rotation_imp(TransInfo *t,
+                                     float axismtx[3][3],
+                                     float r_vec[3],
+                                     float *r_angle)
+{
+  BLI_assert(t->con.mode & CON_APPLY);
+  int mode = t->con.mode & (CON_AXIS0 | CON_AXIS1 | CON_AXIS2);
+
+  switch (mode) {
+    case CON_AXIS0:
+    case (CON_AXIS1 | CON_AXIS2):
+      copy_v3_v3(r_vec, axismtx[0]);
+      break;
+    case CON_AXIS1:
+    case (CON_AXIS0 | CON_AXIS2):
+      copy_v3_v3(r_vec, axismtx[1]);
+      break;
+    case CON_AXIS2:
+    case (CON_AXIS0 | CON_AXIS1):
+      copy_v3_v3(r_vec, axismtx[2]);
+      break;
+  }
+  /* don't flip axis if asked to or if num input */
+  if (r_angle && (mode & CON_NOFLIP) == 0 && hasNumInput(&t->num) == 0) {
+    float view_vector[3];
+    view_vector_calc(t, t->center_global, view_vector);
+    if (dot_v3v3(r_vec, view_vector) > 0.0f) {
+      *r_angle = -(*r_angle);
+    }
+  }
+}
+
 /*
  * Generic callback for constant spatial constraints applied to rotations
  *
@@ -548,33 +594,11 @@ static void applyObjectConstraintSize(TransInfo *t,
  * This insures that the rotation is always logically following the mouse.
  * (ie: not doing counterclockwise rotations when the mouse moves clockwise).
  */
-
 static void applyAxisConstraintRot(
     TransInfo *t, TransDataContainer *UNUSED(tc), TransData *td, float vec[3], float *angle)
 {
   if (!td && t->con.mode & CON_APPLY) {
-    int mode = t->con.mode & (CON_AXIS0 | CON_AXIS1 | CON_AXIS2);
-
-    switch (mode) {
-      case CON_AXIS0:
-      case (CON_AXIS1 | CON_AXIS2):
-        copy_v3_v3(vec, t->spacemtx[0]);
-        break;
-      case CON_AXIS1:
-      case (CON_AXIS0 | CON_AXIS2):
-        copy_v3_v3(vec, t->spacemtx[1]);
-        break;
-      case CON_AXIS2:
-      case (CON_AXIS0 | CON_AXIS1):
-        copy_v3_v3(vec, t->spacemtx[2]);
-        break;
-    }
-    /* don't flip axis if asked to or if num input */
-    if (angle && (mode & CON_NOFLIP) == 0 && hasNumInput(&t->num) == 0) {
-      if (dot_v3v3(vec, t->viewinv[2]) > 0.0f) {
-        *angle = -(*angle);
-      }
-    }
+    constraints_rotation_imp(t, t->spacemtx, vec, angle);
   }
 }
 
@@ -591,12 +615,10 @@ static void applyAxisConstraintRot(
  * This insures that the rotation is always logically following the mouse.
  * (ie: not doing counterclockwise rotations when the mouse moves clockwise).
  */
-
 static void applyObjectConstraintRot(
     TransInfo *t, TransDataContainer *tc, TransData *td, float vec[3], float *angle)
 {
   if (t->con.mode & CON_APPLY) {
-    int mode = t->con.mode & (CON_AXIS0 | CON_AXIS1 | CON_AXIS2);
     float tmp_axismtx[3][3];
     float(*axismtx)[3];
 
@@ -615,25 +637,7 @@ static void applyObjectConstraintRot(
       axismtx = td->axismtx;
     }
 
-    switch (mode) {
-      case CON_AXIS0:
-      case (CON_AXIS1 | CON_AXIS2):
-        copy_v3_v3(vec, axismtx[0]);
-        break;
-      case CON_AXIS1:
-      case (CON_AXIS0 | CON_AXIS2):
-        copy_v3_v3(vec, axismtx[1]);
-        break;
-      case CON_AXIS2:
-      case (CON_AXIS0 | CON_AXIS1):
-        copy_v3_v3(vec, axismtx[2]);
-        break;
-    }
-    if (angle && (mode & CON_NOFLIP) == 0 && hasNumInput(&t->num) == 0) {
-      if (dot_v3v3(vec, t->viewinv[2]) > 0.0f) {
-        *angle = -(*angle);
-      }
-    }
+    constraints_rotation_imp(t, axismtx, vec, angle);
   }
 }
 
@@ -1122,16 +1126,6 @@ int constraintModeToIndex(const TransInfo *t)
     default:
       return -1;
   }
-}
-
-char constraintModeToChar(const TransInfo *t)
-{
-  int index = constraintModeToIndex(t);
-  if (index == -1) {
-    return '\0';
-  }
-  BLI_assert((uint)index < 3);
-  return 'X' + index;
 }
 
 bool isLockConstraint(TransInfo *t)

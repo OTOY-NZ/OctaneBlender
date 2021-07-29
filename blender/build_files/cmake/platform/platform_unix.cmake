@@ -350,15 +350,17 @@ if(WITH_BOOST)
   endif()
 endif()
 
+if(WITH_PUGIXML)
+  find_package_wrapper(PugiXML)
+
+  if (NOT PUGIXML_FOUND)
+    set(WITH_PUGIXML OFF)
+    message(STATUS "PugiXML not found, disabling WITH_PUGIXML")
+  endif()
+endif()
+
 if(WITH_OPENIMAGEIO)
   find_package_wrapper(OpenImageIO)
-  if(NOT OPENIMAGEIO_PUGIXML_FOUND AND WITH_CYCLES_STANDALONE)
-    find_package_wrapper(PugiXML)
-  else()
-    set(PUGIXML_INCLUDE_DIR "${OPENIMAGEIO_INCLUDE_DIR/OpenImageIO}")
-    set(PUGIXML_LIBRARIES "")
-  endif()
-
   set(OPENIMAGEIO_LIBRARIES
     ${OPENIMAGEIO_LIBRARIES}
     ${PNG_LIBRARIES}
@@ -613,14 +615,20 @@ endif()
 
 # GNU Compiler
 if(CMAKE_COMPILER_IS_GNUCC)
-  set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
+  # ffp-contract=off:
+  # Automatically turned on when building with "-march=native". This is
+  # explicitly turned off here as it will make floating point math give a bit
+  # different results. This will lead to automated test failures. So disable
+  # this until we support it. Seems to default to off in clang and the intel
+  # compiler.
+  set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing -ffp-contract=off")
 
   # `maybe-uninitialized` is unreliable in release builds, but fine in debug builds.
   set(GCC_EXTRA_FLAGS_RELEASE "-Wno-maybe-uninitialized")
   set(CMAKE_C_FLAGS_RELEASE          "${GCC_EXTRA_FLAGS_RELEASE} ${CMAKE_C_FLAGS_RELEASE}")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO   "${GCC_EXTRA_FLAGS_RELEASE} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
   set(CMAKE_CXX_FLAGS_RELEASE        "${GCC_EXTRA_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS_RELEASE}")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${GCC_EXTRA_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  string(PREPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO "${GCC_EXTRA_FLAGS_RELEASE} ")
   unset(GCC_EXTRA_FLAGS_RELEASE)
 
   if(WITH_LINKER_GOLD)
@@ -686,4 +694,16 @@ set(PLATFORM_LINKFLAGS
 # for non-portable installs as typically used by Linux distributions.
 if(WITH_INSTALL_PORTABLE)
   string(APPEND CMAKE_EXE_LINKER_FLAGS " -no-pie")
+endif()
+
+if(WITH_COMPILER_CCACHE)
+  find_program(CCACHE_PROGRAM ccache)
+  if(CCACHE_PROGRAM)
+    # Makefiles and ninja
+    set(CMAKE_C_COMPILER_LAUNCHER   "${CCACHE_PROGRAM}" CACHE STRING "" FORCE)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}" CACHE STRING "" FORCE)
+  else()
+    message(WARNING "Ccache NOT found, disabling WITH_COMPILER_CCACHE")
+    set(WITH_COMPILER_CCACHE OFF)
+  endif()
 endif()

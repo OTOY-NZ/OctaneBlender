@@ -115,7 +115,6 @@
 #include "GHOST_Path-api.h"
 
 #include "UI_interface.h"
-#include "UI_interface_icons.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
@@ -143,6 +142,8 @@ static RecentFile *wm_file_history_find(const char *filepath);
 static void wm_history_file_free(RecentFile *recent);
 static void wm_history_file_update(void);
 static void wm_history_file_write(void);
+
+static void wm_test_autorun_revert_action_exec(bContext *C);
 
 /* -------------------------------------------------------------------- */
 /** \name Misc Utility Functions
@@ -178,22 +179,17 @@ bool wm_file_or_image_is_modified(const Main *bmain, const wmWindowManager *wm)
  */
 static void wm_window_match_init(bContext *C, ListBase *wmlist)
 {
-  wmWindowManager *wm;
-  wmWindow *win, *active_win;
-
   *wmlist = G_MAIN->wm;
   BLI_listbase_clear(&G_MAIN->wm);
 
-  active_win = CTX_wm_window(C);
+  wmWindow *active_win = CTX_wm_window(C);
 
   /* first wrap up running stuff */
   /* code copied from wm_init_exit.c */
-  for (wm = wmlist->first; wm; wm = wm->id.next) {
-
+  LISTBASE_FOREACH (wmWindowManager *, wm, wmlist) {
     WM_jobs_kill_all(wm);
 
-    for (win = wm->windows.first; win; win = win->next) {
-
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       CTX_wm_window_set(C, win); /* needed by operator close callbacks */
       WM_event_remove_handlers(C, &win->handlers);
       WM_event_remove_handlers(C, &win->modalhandlers);
@@ -519,11 +515,9 @@ void WM_file_autoexec_init(const char *filepath)
 void wm_file_read_report(bContext *C, Main *bmain)
 {
   ReportList *reports = NULL;
-  Scene *sce;
-
-  for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
-    if (sce->r.engine[0] &&
-        BLI_findstring(&R_engines, sce->r.engine, offsetof(RenderEngineType, idname)) == NULL) {
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->r.engine[0] &&
+        BLI_findstring(&R_engines, scene->r.engine, offsetof(RenderEngineType, idname)) == NULL) {
       if (reports == NULL) {
         reports = CTX_wm_reports(C);
       }
@@ -532,8 +526,8 @@ void wm_file_read_report(bContext *C, Main *bmain)
                   RPT_ERROR,
                   "Engine '%s' not available for scene '%s' (an add-on may need to be installed "
                   "or enabled)",
-                  sce->r.engine,
-                  sce->id.name + 2);
+                  scene->r.engine,
+                  scene->id.name + 2);
     }
   }
 
@@ -676,6 +670,9 @@ static void wm_file_read_post(bContext *C,
        * a blend file and do anything since the screen
        * won't be set to a valid value again */
       CTX_wm_window_set(C, NULL); /* exits queues */
+
+      /* Ensure auto-run action is not used from a previous blend file load. */
+      wm_test_autorun_revert_action_set(NULL, NULL);
 
       /* Ensure tools are registered. */
       WM_toolsystem_init(C);
@@ -1136,7 +1133,7 @@ void wm_homefile_read(bContext *C,
   if (use_userdef) {
     /* Clear keymaps because the current default keymap may have been initialized
      * from user preferences, which have been reset. */
-    for (wmWindowManager *wm = bmain->wm.first; wm; wm = wm->id.next) {
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       if (wm->defaultconf) {
         wm->defaultconf->flag &= ~KEYCONF_INIT_DEFAULT;
       }
@@ -1236,8 +1233,7 @@ static void wm_history_file_write(void)
 
   fp = BLI_fopen(name, "w");
   if (fp) {
-    struct RecentFile *recent;
-    for (recent = G.recent_files.first; recent; recent = recent->next) {
+    LISTBASE_FOREACH (RecentFile *, recent, &G.recent_files) {
       fprintf(fp, "%s\n", recent->filepath);
     }
     fclose(fp);
@@ -1367,6 +1363,7 @@ static ImBuf *blend_file_thumb(const bContext *C,
                                           IB_rect,
                                           R_ALPHAPREMUL,
                                           NULL,
+                                          true,
                                           NULL,
                                           err_out);
   }
@@ -1430,7 +1427,6 @@ static bool wm_file_write(bContext *C,
                           ReportList *reports)
 {
   Main *bmain = CTX_data_main(C);
-  Library *li;
   int len;
   int ok = false;
   BlendThumbnail *thumb, *main_thumb;
@@ -1459,7 +1455,7 @@ static bool wm_file_write(bContext *C,
    * its handy for scripts to save to a predefined name without blender editing it */
 
   /* send the OnSave event */
-  for (li = bmain->libraries.first; li; li = li->id.next) {
+  LISTBASE_FOREACH (Library *, li, &bmain->libraries) {
     if (BLI_path_cmp(li->filepath_abs, filepath) == 0) {
       BKE_reportf(reports, RPT_ERROR, "Cannot overwrite used library '%.240s'", filepath);
       return ok;
@@ -2177,10 +2173,7 @@ void WM_OT_read_factory_settings(wmOperatorType *ot)
 /**
  * Wrap #WM_file_read, shared by file reading operators.
  */
-static bool wm_file_read_opwrap(bContext *C,
-                                const char *filepath,
-                                ReportList *reports,
-                                const bool autoexec_init)
+static bool wm_file_read_opwrap(bContext *C, const char *filepath, ReportList *reports)
 {
   bool success;
 
@@ -2188,7 +2181,8 @@ static bool wm_file_read_opwrap(bContext *C,
   /* do it before for now, but is this correct with multiple windows? */
   WM_event_add_notifier(C, NC_WINDOW, NULL);
 
-  if (autoexec_init) {
+  /* Set by the "use_scripts" property on file load. */
+  if ((G.f & G_FLAG_SCRIPT_AUTOEXEC) == 0) {
     WM_file_autoexec_init(filepath);
   }
 
@@ -2318,21 +2312,9 @@ static int wm_open_mainfile__open(bContext *C, wmOperator *op)
   wm_open_init_load_ui(op, false);
   wm_open_init_use_scripts(op, false);
 
-  if (RNA_boolean_get(op->ptr, "load_ui")) {
-    G.fileflags &= ~G_FILE_NO_UI;
-  }
-  else {
-    G.fileflags |= G_FILE_NO_UI;
-  }
-
-  if (RNA_boolean_get(op->ptr, "use_scripts")) {
-    G.f |= G_FLAG_SCRIPT_AUTOEXEC;
-  }
-  else {
-    G.f &= ~G_FLAG_SCRIPT_AUTOEXEC;
-  }
-
-  success = wm_file_read_opwrap(C, filepath, op->reports, !(G.f & G_FLAG_SCRIPT_AUTOEXEC));
+  SET_FLAG_FROM_TEST(G.fileflags, !RNA_boolean_get(op->ptr, "load_ui"), G_FILE_NO_UI);
+  SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
+  success = wm_file_read_opwrap(C, filepath, op->reports);
 
   /* for file open also popup for warnings, not only errors */
   BKE_report_print_level_set(op->reports, RPT_WARNING);
@@ -2463,6 +2445,16 @@ static void wm_open_mainfile_ui(bContext *UNUSED(C), wmOperator *op)
   uiItemR(col, op->ptr, "use_scripts", 0, autoexec_text, ICON_NONE);
 }
 
+static void wm_open_mainfile_def_property_use_scripts(wmOperatorType *ot)
+{
+  RNA_def_boolean(ot->srna,
+                  "use_scripts",
+                  true,
+                  "Trusted Source",
+                  "Allow .blend file to execute scripts automatically, default available from "
+                  "system preferences");
+}
+
 void WM_OT_open_mainfile(wmOperatorType *ot)
 {
   ot->name = "Open";
@@ -2482,16 +2474,12 @@ void WM_OT_open_mainfile(wmOperatorType *ot)
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH,
                                  FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_ALPHA);
+                                 FILE_SORT_DEFAULT);
 
   RNA_def_boolean(
       ot->srna, "load_ui", true, "Load UI", "Load user interface setup in the .blend file");
-  RNA_def_boolean(ot->srna,
-                  "use_scripts",
-                  true,
-                  "Trusted Source",
-                  "Allow .blend file to execute scripts automatically, default available from "
-                  "system preferences");
+
+  wm_open_mainfile_def_property_use_scripts(ot);
 
   PropertyRNA *prop = RNA_def_boolean(
       ot->srna, "display_file_selector", true, "Display File Selector", "");
@@ -2514,15 +2502,10 @@ static int wm_revert_mainfile_exec(bContext *C, wmOperator *op)
 
   wm_open_init_use_scripts(op, false);
 
-  if (RNA_boolean_get(op->ptr, "use_scripts")) {
-    G.f |= G_FLAG_SCRIPT_AUTOEXEC;
-  }
-  else {
-    G.f &= ~G_FLAG_SCRIPT_AUTOEXEC;
-  }
+  SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
 
   BLI_strncpy(filepath, BKE_main_blendfile_path(bmain), sizeof(filepath));
-  success = wm_file_read_opwrap(C, filepath, op->reports, !(G.f & G_FLAG_SCRIPT_AUTOEXEC));
+  success = wm_file_read_opwrap(C, filepath, op->reports);
 
   if (success) {
     return OPERATOR_FINISHED;
@@ -2545,12 +2528,7 @@ void WM_OT_revert_mainfile(wmOperatorType *ot)
   ot->exec = wm_revert_mainfile_exec;
   ot->poll = wm_revert_mainfile_poll;
 
-  RNA_def_boolean(ot->srna,
-                  "use_scripts",
-                  true,
-                  "Trusted Source",
-                  "Allow .blend file to execute scripts automatically, default available from "
-                  "system preferences");
+  wm_open_mainfile_def_property_use_scripts(ot);
 }
 
 /** \} */
@@ -2559,35 +2537,39 @@ void WM_OT_revert_mainfile(wmOperatorType *ot)
 /** \name Recover Last Session Operator
  * \{ */
 
-void WM_recover_last_session(bContext *C, ReportList *reports)
+bool WM_recover_last_session(bContext *C, ReportList *reports)
 {
   char filepath[FILE_MAX];
-
   BLI_join_dirfile(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
-  /* if reports==NULL, it's called directly without operator, we add a quick check here */
-  if (reports || BLI_exists(filepath)) {
-    G.fileflags |= G_FILE_RECOVER;
-
-    wm_file_read_opwrap(C, filepath, reports, true);
-
-    G.fileflags &= ~G_FILE_RECOVER;
-
-    /* XXX bad global... fixme */
-    Main *bmain = CTX_data_main(C);
-    if (BKE_main_blendfile_path(bmain)[0] != '\0') {
-      G.file_loaded = 1; /* prevents splash to show */
-    }
-    else {
-      G.relbase_valid = 0;
-      G.save_over = 0; /* start with save preference untitled.blend */
-    }
-  }
+  G.fileflags |= G_FILE_RECOVER;
+  const bool success = wm_file_read_opwrap(C, filepath, reports);
+  G.fileflags &= ~G_FILE_RECOVER;
+  return success;
 }
 
 static int wm_recover_last_session_exec(bContext *C, wmOperator *op)
 {
-  WM_recover_last_session(C, op->reports);
-  return OPERATOR_FINISHED;
+  wm_open_init_use_scripts(op, true);
+  SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
+  if (WM_recover_last_session(C, op->reports)) {
+    if (!G.background) {
+      wmOperatorType *ot = op->type;
+      PointerRNA *props_ptr = MEM_callocN(sizeof(PointerRNA), __func__);
+      WM_operator_properties_create_ptr(props_ptr, ot);
+      RNA_boolean_set(props_ptr, "use_scripts", true);
+      wm_test_autorun_revert_action_set(ot, props_ptr);
+    }
+    return OPERATOR_FINISHED;
+  }
+  return OPERATOR_CANCELLED;
+}
+
+static int wm_recover_last_session_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  /* Keep the current setting instead of using the preferences since a file selector
+   * doesn't give us the option to change the setting. */
+  wm_open_init_use_scripts(op, false);
+  return WM_operator_confirm(C, op, event);
 }
 
 void WM_OT_recover_last_session(wmOperatorType *ot)
@@ -2596,8 +2578,10 @@ void WM_OT_recover_last_session(wmOperatorType *ot)
   ot->idname = "WM_OT_recover_last_session";
   ot->description = "Open the last closed file (\"" BLENDER_QUIT_FILE "\")";
 
-  ot->invoke = WM_operator_confirm;
+  ot->invoke = wm_recover_last_session_invoke;
   ot->exec = wm_recover_last_session_exec;
+
+  wm_open_mainfile_def_property_use_scripts(ot);
 }
 
 /** \} */
@@ -2613,13 +2597,23 @@ static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
 
   RNA_string_get(op->ptr, "filepath", filepath);
 
+  wm_open_init_use_scripts(op, true);
+  SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
+
   G.fileflags |= G_FILE_RECOVER;
 
-  success = wm_file_read_opwrap(C, filepath, op->reports, true);
+  success = wm_file_read_opwrap(C, filepath, op->reports);
 
   G.fileflags &= ~G_FILE_RECOVER;
 
   if (success) {
+    if (!G.background) {
+      wmOperatorType *ot = op->type;
+      PointerRNA *props_ptr = MEM_callocN(sizeof(PointerRNA), __func__);
+      WM_operator_properties_create_ptr(props_ptr, ot);
+      RNA_boolean_set(props_ptr, "use_scripts", true);
+      wm_test_autorun_revert_action_set(ot, props_ptr);
+    }
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -2631,6 +2625,7 @@ static int wm_recover_auto_save_invoke(bContext *C, wmOperator *op, const wmEven
 
   wm_autosave_location(filename);
   RNA_string_set(op->ptr, "filepath", filename);
+  wm_open_init_use_scripts(op, true);
   WM_event_add_fileselect(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -2652,6 +2647,8 @@ void WM_OT_recover_auto_save(wmOperatorType *ot)
                                  WM_FILESEL_FILEPATH,
                                  FILE_VERTICALDISPLAY,
                                  FILE_SORT_TIME);
+
+  wm_open_mainfile_def_property_use_scripts(ot);
 }
 
 /** \} */
@@ -2785,6 +2782,25 @@ static bool blend_save_check(bContext *UNUSED(C), wmOperator *op)
   return false;
 }
 
+static const char *wm_save_as_mainfile_get_name(wmOperatorType *ot, PointerRNA *ptr)
+{
+  if (RNA_boolean_get(ptr, "copy")) {
+    return CTX_IFACE_(ot->translation_context, "Save Copy");
+  }
+  return NULL;
+}
+
+static char *wm_save_as_mainfile_get_description(bContext *UNUSED(C),
+                                                 wmOperatorType *UNUSED(ot),
+                                                 PointerRNA *ptr)
+{
+  if (RNA_boolean_get(ptr, "copy")) {
+    return BLI_strdup(
+        "Save the current file in the desired location but do not make the saved file active");
+  }
+  return NULL;
+}
+
 void WM_OT_save_as_mainfile(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -2795,6 +2811,8 @@ void WM_OT_save_as_mainfile(wmOperatorType *ot)
 
   ot->invoke = wm_save_as_mainfile_invoke;
   ot->exec = wm_save_as_mainfile_exec;
+  ot->get_name = wm_save_as_mainfile_get_name;
+  ot->get_description = wm_save_as_mainfile_get_description;
   ot->check = blend_save_check;
   /* omit window poll so this can work in background mode */
 
@@ -2804,7 +2822,7 @@ void WM_OT_save_as_mainfile(wmOperatorType *ot)
                                  FILE_SAVE,
                                  WM_FILESEL_FILEPATH,
                                  FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_ALPHA);
+                                 FILE_SORT_DEFAULT);
   RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
   RNA_def_boolean(ot->srna,
                   "relative_remap",
@@ -2874,7 +2892,7 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
                                  FILE_SAVE,
                                  WM_FILESEL_FILEPATH,
                                  FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_ALPHA);
+                                 FILE_SORT_DEFAULT);
   RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
   RNA_def_boolean(ot->srna,
                   "relative_remap",
@@ -2896,6 +2914,9 @@ static void wm_block_autorun_warning_ignore(bContext *C, void *arg_block, void *
 {
   wmWindow *win = CTX_wm_window(C);
   UI_popup_block_close(C, win, arg_block);
+
+  /* Free the data as it's no longer needed. */
+  wm_test_autorun_revert_action_set(NULL, NULL);
 }
 
 static void wm_block_autorun_warning_reload_with_scripts(bContext *C,
@@ -2913,13 +2934,7 @@ static void wm_block_autorun_warning_reload_with_scripts(bContext *C,
 
   /* Load file again with scripts enabled.
    * The reload is necessary to allow scripts to run when the files loads. */
-  wmOperatorType *ot = WM_operatortype_find("WM_OT_revert_mainfile", false);
-
-  PointerRNA props_ptr;
-  WM_operator_properties_create_ptr(&props_ptr, ot);
-  RNA_boolean_set(&props_ptr, "use_scripts", true);
-  WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr);
-  WM_operator_properties_free(&props_ptr);
+  wm_test_autorun_revert_action_exec(C);
 }
 
 static void wm_block_autorun_warning_enable_scripts(bContext *C,
@@ -2948,30 +2963,25 @@ static uiBlock *block_create_autorun_warning(struct bContext *C,
                                              void *UNUSED(arg1))
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  const uiStyle *style = UI_style_get_dpi();
-  const int text_points_max = MAX2(style->widget.points, style->widgetlabel.points);
-  const int dialog_width = text_points_max * 44 * U.dpi_fac;
 
   uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
-
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_emboss_set(block, UI_EMBOSS);
 
-  uiLayout *layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 10, 2, dialog_width, 0, 0, style);
+  uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
 
-  /* Text and some vertical space */
+  /* Title and explanation text. */
   uiLayout *col = uiLayoutColumn(layout, true);
   uiItemL_ex(col,
              TIP_("For security reasons, automatic execution of Python scripts "
                   "in this file was disabled:"),
-             ICON_ERROR,
+             ICON_NONE,
              true,
              false);
-  uiItemL_ex(col, G.autoexec_fail, ICON_BLANK1, false, true);
-  uiItemL(col, TIP_("This may lead to unexpected behavior"), ICON_BLANK1);
+  uiItemL_ex(col, G.autoexec_fail, ICON_NONE, false, true);
+  uiItemL(col, TIP_("This may lead to unexpected behavior"), ICON_NONE);
 
   uiItemS(layout);
 
@@ -2984,7 +2994,7 @@ static uiBlock *block_create_autorun_warning(struct bContext *C,
           TIP_("Permanently allow execution of scripts"),
           ICON_NONE);
 
-  uiItemS(layout);
+  uiItemS_ex(layout, 3.0f);
 
   /* Buttons */
   uiBut *but;
@@ -3060,6 +3070,54 @@ static uiBlock *block_create_autorun_warning(struct bContext *C,
   UI_block_bounds_set_centered(block, 14 * U.dpi_fac);
 
   return block;
+}
+
+/**
+ * Store the action needed if the user needs to reload the file with Python scripts enabled.
+ *
+ * When left to NULL, this is simply revert.
+ * When loading files through the recover auto-save or session,
+ * we need to revert using other operators.
+ */
+static struct {
+  wmOperatorType *ot;
+  PointerRNA *ptr;
+} wm_test_autorun_revert_action_data = {
+    .ot = NULL,
+    .ptr = NULL,
+};
+
+void wm_test_autorun_revert_action_set(wmOperatorType *ot, PointerRNA *ptr)
+{
+  BLI_assert(!G.background);
+  wm_test_autorun_revert_action_data.ot = NULL;
+  if (wm_test_autorun_revert_action_data.ptr != NULL) {
+    WM_operator_properties_free(wm_test_autorun_revert_action_data.ptr);
+    MEM_freeN(wm_test_autorun_revert_action_data.ptr);
+    wm_test_autorun_revert_action_data.ptr = NULL;
+  }
+  wm_test_autorun_revert_action_data.ot = ot;
+  wm_test_autorun_revert_action_data.ptr = ptr;
+}
+
+void wm_test_autorun_revert_action_exec(bContext *C)
+{
+  wmOperatorType *ot = wm_test_autorun_revert_action_data.ot;
+  PointerRNA *ptr = wm_test_autorun_revert_action_data.ptr;
+
+  /* Use regular revert. */
+  if (ot == NULL) {
+    ot = WM_operatortype_find("WM_OT_revert_mainfile", false);
+    ptr = MEM_callocN(sizeof(PointerRNA), __func__);
+    WM_operator_properties_create_ptr(ptr, ot);
+    RNA_boolean_set(ptr, "use_scripts", true);
+
+    /* Set state, so it's freed correctly */
+    wm_test_autorun_revert_action_set(ot, ptr);
+  }
+
+  WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, ptr);
+  wm_test_autorun_revert_action_set(NULL, NULL);
 }
 
 void wm_test_autorun_warning(bContext *C)
@@ -3185,33 +3243,13 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C,
 {
   wmGenericCallback *post_action = (wmGenericCallback *)arg1;
   Main *bmain = CTX_data_main(C);
-  const uiStyle *style = UI_style_get_dpi();
-  const short icon_size = 64 * U.dpi_fac;
-  const int text_points_max = MAX2(style->widget.points, style->widgetlabel.points);
-  const int dialog_width = icon_size + (text_points_max * 34 * U.dpi_fac);
-
-  /* Calculate icon column factor. */
-  const float split_factor = (float)icon_size / (float)(dialog_width - style->columnspace);
 
   uiBlock *block = UI_block_begin(C, region, close_file_dialog_name, UI_EMBOSS);
-
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, UI_EMBOSS);
 
-  uiLayout *block_layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, dialog_width, 0, 0, style);
-
-  /* Split layout to put alert icon on left side. */
-  uiLayout *split_block = uiLayoutSplit(block_layout, split_factor, false);
-
-  /* Alert Icon. */
-  uiLayout *layout = uiLayoutColumn(split_block, false);
-  uiDefButAlert(block, ALERT_ICON_QUESTION, 0, 0, 0, icon_size);
-
-  /* The rest of the content on the right. */
-  layout = uiLayoutColumn(split_block, false);
+  uiLayout *layout = uiItemsAlertBox(block, 34, ALERT_ICON_QUESTION);
 
   /* Title. */
   uiItemL_ex(layout, TIP_("Save changes before closing?"), ICON_NONE, true, false);
@@ -3221,10 +3259,9 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C,
   char filename[FILE_MAX];
   if (blendfile_pathpath[0] != '\0') {
     BLI_split_file_part(blendfile_pathpath, filename, sizeof(filename));
-    BLI_path_extension_replace(filename, sizeof(filename), "");
   }
   else {
-    STRNCPY(filename, IFACE_("Untitled"));
+    STRNCPY(filename, IFACE_("untitled.blend"));
   }
   uiItemL(layout, filename, ICON_NONE);
 
@@ -3236,7 +3273,7 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C,
   LISTBASE_FOREACH (Report *, report, &reports.list) {
     uiLayout *row = uiLayoutColumn(layout, false);
     uiLayoutSetScaleY(row, 0.6f);
-    uiItemS_ex(row, 1.2f);
+    uiItemS(row);
 
     /* Error messages created in ED_image_save_all_modified_info() can be long,
      * but are made to separate into two parts at first colon between text and paths.
@@ -3259,12 +3296,8 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C,
   /* Modified Images Checkbox. */
   if (modified_images_count > 0) {
     char message[64];
-    BLI_snprintf(message,
-                 sizeof(message),
-                 (modified_images_count == 1) ? "Save %u modified image" :
-                                                "Save %u modified images",
-                 modified_images_count);
-    uiItemS_ex(layout, 2.0f);
+    BLI_snprintf(message, sizeof(message), "Save %u modified image(s)", modified_images_count);
+    uiItemS(layout);
     uiDefButBitC(block,
                  UI_BTYPE_CHECKBOX,
                  1,
@@ -3284,7 +3317,7 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C,
 
   BKE_reports_clear(&reports);
 
-  uiItemS_ex(layout, 1.0f);
+  uiItemS_ex(layout, modified_images_count > 0 ? 2.0f : 4.0f);
 
   /* Buttons. */
 #ifdef _WIN32
@@ -3296,11 +3329,8 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C,
   if (windows_layout) {
     /* Windows standard layout. */
 
-    uiLayout *split = uiLayoutSplit(block_layout, 0.174f, true);
+    uiLayout *split = uiLayoutSplit(layout, 0.0f, true);
     uiLayoutSetScaleY(split, 1.2f);
-
-    uiLayoutColumn(split, false);
-    uiItemS(layout);
 
     uiLayoutColumn(split, false);
     wm_block_file_close_save_button(block, post_action);
@@ -3314,21 +3344,16 @@ static uiBlock *block_create__close_file_dialog(struct bContext *C,
   else {
     /* Non-Windows layout (macOS and Linux). */
 
-    uiLayout *split = uiLayoutSplit(block_layout, 0.167f, true);
+    uiLayout *split = uiLayoutSplit(layout, 0.3f, true);
     uiLayoutSetScaleY(split, 1.2f);
 
-    layout = uiLayoutColumn(split, false);
-    uiItemS(layout);
-
-    /* Split button area into two sections: 40/60. */
-    uiLayout *split_left = uiLayoutSplit(split, 0.40f, true);
-
-    /* First button uses 75% of left side (30% of original). */
-    uiLayoutSplit(split_left, 0.75f, true);
+    uiLayoutColumn(split, false);
     wm_block_file_close_discard_button(block, post_action);
 
-    /* The right side is split 50/50 (each 30% of original). */
-    uiLayout *split_right = uiLayoutSplit(split_left, 0.50f, true);
+    uiLayout *split_right = uiLayoutSplit(split, 0.1f, true);
+
+    uiLayoutColumn(split_right, false);
+    /* Empty space. */
 
     uiLayoutColumn(split_right, false);
     wm_block_file_close_cancel_button(block, post_action);

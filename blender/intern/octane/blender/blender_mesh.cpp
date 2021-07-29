@@ -23,12 +23,13 @@
 #include "blender_util.h"
 
 #include <openvdb/Grid.h>
+#include <openvdb/io/Stream.h>
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
 #include <openvdb/tools/GridTransformer.h>
 #include <openvdb/tools/Morphology.h>
-#include <openvdb/io/Stream.h>
 
+#include <chrono>
 #include <fstream>
 #include <iostream>
 
@@ -39,23 +40,6 @@ openvdb::GridBase::ConstPtr BKE_volume_grid_openvdb_for_read(const struct Volume
 #include "RNA_blender_cpp.h"
 
 OCT_NAMESPACE_BEGIN
-
-static std::string resolve_octane_geometry_node(PointerRNA &oct_mesh)
-{
-  std::string sScriptGeoName;
-  PointerRNA octane_geo_node_collections = RNA_pointer_get(&oct_mesh,
-                                                           "octane_geo_node_collections");
-  char scriptGeoMaterialName[512];
-  char scriptGeoNodeName[512];
-  RNA_string_get(&octane_geo_node_collections, "node_graph_tree", scriptGeoMaterialName);
-  RNA_string_get(&octane_geo_node_collections, "osl_geo_node", scriptGeoNodeName);
-  std::string scriptGeoMaterialNameStr(scriptGeoMaterialName);
-  std::string scriptGeoNodeNameStr(scriptGeoNodeName);
-  if (scriptGeoMaterialNameStr.size() && scriptGeoNodeNameStr.size()) {
-    sScriptGeoName = scriptGeoMaterialNameStr + "_" + scriptGeoNodeNameStr;
-  }
-  return sScriptGeoName;
-}
 
 static std::string resolve_orbx_proxy_path(PointerRNA &oct_mesh,
                                            BL::BlendData &b_data,
@@ -643,6 +627,12 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       used_shaders.push_back(scene->default_surface);
   }
 
+  for (auto used_shader : used_shaders) {
+    if (used_shader->graph && used_shader->need_update_paint) {
+      used_shader->need_update_paint = false;
+    }
+  }
+
   bool use_octane_vertex_displacement_subdvision = false;
   for (auto used_shader : used_shaders) {
     if (used_shader->graph && used_shader->graph->need_subdivision) {
@@ -658,8 +648,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
 
   bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
-  bool is_mesh_shader_data_updated = octane_mesh->shaders_tag !=
-                                     Mesh::generate_shader_tag(used_shaders);
+  std::string new_mesh_tag = generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
+  bool is_mesh_tag_data_updated = octane_mesh->mesh_tag != new_mesh_tag;
 
   octane_mesh->is_volume_to_mesh = false;
   octane_mesh->is_mesh_to_volume = false;
@@ -683,12 +673,13 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       octane_mesh->is_mesh_to_volume = true;
       BL::VolumeDisplaceModifier volume_displace_mod(*b_mod);
       volume_displace_tag << volume_displace_mod.texture().ptr.data
-                        << volume_displace_mod.texture_map_mode() << volume_displace_mod.strength()
-                        << volume_displace_mod.texture_sample_radius()
-                        << volume_displace_mod.texture_mid_level().data[0]
-                        << volume_displace_mod.texture_mid_level().data[1]
-                        << volume_displace_mod.texture_mid_level().data[2];
-	}
+                          << volume_displace_mod.texture_map_mode()
+                          << volume_displace_mod.strength()
+                          << volume_displace_mod.texture_sample_radius()
+                          << volume_displace_mod.texture_mid_level().data[0]
+                          << volume_displace_mod.texture_mid_level().data[1]
+                          << volume_displace_mod.texture_mid_level().data[2];
+    }
   }
 
   std::string volume_modifier_tag = mesh_to_volume_tag.str() + volume_displace_tag.str();
@@ -717,7 +708,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                octane_mesh->last_vdb_frame != b_scene.frame_current();
     octane_mesh->last_vdb_frame = current_frame;
     octane_mesh->used_shaders = used_shaders;
-    octane_mesh->shaders_tag = Mesh::generate_shader_tag(used_shaders);
+    octane_mesh->mesh_tag = new_mesh_tag;
     octane_mesh->octane_mesh.bInfinitePlane = false;
     std::string selected_grid_name;
     if (b_volume.grids.is_loaded()) {
@@ -733,7 +724,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       }
       std::string volume_path = b_volume.grids.frame_filepath();
       octane_mesh->octane_volume.sVolumePath = blender_absolute_path(b_data, b_scene, volume_path);
-    }       
+    }
     resolve_volume_attributes(oct_mesh, octane_mesh->octane_volume);
     bool apply_import_scale_to_blender_transfrom = RNA_boolean_get(
         &oct_mesh, "apply_import_scale_to_blender_transfrom");
@@ -768,7 +759,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       octane_mesh->offset_transform = make_transform(translate, euler, mode, scale);
     }
 
-	if (octane_mesh->is_mesh_to_volume) {
+    if (octane_mesh->is_mesh_to_volume) {
       BL::Volume::grids_iterator b_grid_iter;
       for (b_volume.grids.begin(b_grid_iter); b_grid_iter != b_volume.grids.end(); ++b_grid_iter) {
         BL::VolumeGrid b_volume_grid(*b_grid_iter);
@@ -787,7 +778,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                 octane_mesh->octane_volume.f3Resolution.y != dim.y() ||
                 octane_mesh->octane_volume.f3Resolution.z != dim.z()) {
               is_volume_data_modified = true;
-			}
+            }
 
             octane_mesh->octane_volume.f3Resolution.x = dim.x();
             octane_mesh->octane_volume.f3Resolution.y = dim.y();
@@ -818,13 +809,13 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
               index_to_object.z.w = offset[2];
               set_octane_matrix(octane_mesh->octane_volume.oMatrix, index_to_object);
               octane_mesh->octane_volume.iAbsorptionOffset = 0;
-              octane_mesh->need_update = is_mesh_data_updated || is_volume_data_modified;        
-			}
+              octane_mesh->need_update = is_mesh_data_updated || is_volume_data_modified;
+            }
           }
           break;
         }
       }
-	}
+    }
     mesh_synced.insert(octane_mesh);
     if (octane_mesh->need_update) {
       octane_mesh->tag_update(scene);
@@ -833,7 +824,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
 
   octane_mesh->octane_mesh.bInfinitePlane = RNA_boolean_get(&oct_mesh, "infinite_plane");
-  octane_mesh->octane_mesh.sScriptGeoName = resolve_octane_geometry_node(oct_mesh);
+  octane_mesh->octane_mesh.sScriptGeoName = resolve_octane_geometry_node(b_ob.ptr);
   octane_mesh->octane_mesh.sOrbxPath = resolve_orbx_proxy_path(oct_mesh, b_data, b_scene);
   octane_mesh->octane_mesh.bReshapeable = resolve_mesh_type(
                                               mesh_name, b_ob.type(), octane_mesh->mesh_type) ==
@@ -844,7 +835,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                       octane_mesh->last_vdb_frame != b_scene.frame_current();
   bool octane_subdivision_need_update = use_octane_vertex_displacement_subdvision &&
                                         !octane_mesh->is_subdivision();
-  bool need_update = preview ? (is_mesh_data_updated || is_mesh_shader_data_updated ||
+  bool need_update = preview ? (is_mesh_data_updated || is_mesh_tag_data_updated ||
                                 octane_vdb_force_update_flag || octane_subdivision_need_update) :
                                is_octane_geometry_required(
                                    mesh_name, b_ob.type(), oct_mesh, octane_mesh, mesh_type);
@@ -852,19 +843,30 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (preview) {
     bool is_synced = is_resource_synced_in_octane_manager(mesh_name, OctaneResourceType::GEOMETRY);
     if (is_synced) {
-      bool paint_mode = b_ob.mode() == b_ob.mode_VERTEX_PAINT || b_ob.mode_WEIGHT_PAINT ||
-                        b_ob.mode_TEXTURE_PAINT;
+      // In isolation mode, blender will clear the mesh_map when objects are hidden. That makes the
+      // is_mesh_shader_data_updated may be false-positive in such cases
+      // We use the synced_mesh_shader_tags to fix it
+      if (is_mesh_tag_data_updated) {
+        if (synced_mesh_tags.find(mesh_name) != synced_mesh_tags.end()) {
+          is_mesh_tag_data_updated = synced_mesh_tags[mesh_name] != new_mesh_tag;
+        }
+      }
+      synced_mesh_tags[mesh_name] = new_mesh_tag;
+      bool paint_mode = b_ob.mode() == b_ob.mode_VERTEX_PAINT ||
+                        b_ob.mode() == b_ob.mode_WEIGHT_PAINT ||
+                        b_ob.mode() == b_ob.mode_TEXTURE_PAINT;
       if (paint_mode) {
         for (auto used_shader : used_shaders) {
           if (used_shader->graph && used_shader->graph->need_subdivision) {
-            used_shader->has_object_dependency = true;
             used_shader->need_sync_object = true;
           }
         }
       }
-      if (paint_mode || b_ob.mode() == b_ob.mode_EDIT || is_mesh_shader_data_updated ||
-          is_modified) {
+      if (paint_mode || b_ob.mode() == b_ob.mode_EDIT || is_mesh_tag_data_updated || is_modified) {
         need_recreate_mesh = need_update;
+        for (auto used_shader : used_shaders) {
+          used_shader->need_update_paint = paint_mode;
+        }
       }
       else {
         need_recreate_mesh = is_octane_geometry_required(
@@ -904,7 +906,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
   octane_mesh->clear();
   octane_mesh->used_shaders = used_shaders;
-  octane_mesh->shaders_tag = Mesh::generate_shader_tag(used_shaders);
+  octane_mesh->mesh_tag = new_mesh_tag;
 
   octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
                                                          "enable_octane_offset_transform");
@@ -995,8 +997,10 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
     if (b_mesh) {
       BL::FluidDomainSettings b_domain = object_fluid_domain_find(b_ob);
-      bool is_openvdb = b_domain && is_vdb_format(int(b_domain.cache_data_format()));
-      if (!is_openvdb || is_octane_vdb) {
+      bool is_blender_internal_liquid_vdb =
+          b_domain && is_blender_internal_vdb_format(int(b_domain.cache_data_format())) &&
+          b_domain.domain_type() == BL::FluidDomainSettings::domain_type_LIQUID;
+      if (!b_domain || is_blender_internal_liquid_vdb || is_octane_vdb) {
         Mesh::WindingOrder winding_order = static_cast<Mesh::WindingOrder>(
             RNA_enum_get(&oct_mesh, "winding_order"));
 

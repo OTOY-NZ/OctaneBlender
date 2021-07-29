@@ -25,6 +25,10 @@
 
 #include "DNA_defs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * This struct contains all the global data required to run a simulation.
  * At the time of this writing, this structure contains data appropriate
@@ -236,9 +240,11 @@ typedef struct ClothCollSettings {
   char _pad[4];
   /** Only use colliders from this group of objects. */
   struct Collection *group;
-  /** Vgroup to paint which vertices are used for self collisions. */
+  /** Vgroup to paint which vertices are not used for self collisions. */
   short vgroup_selfcol;
-  char _pad2[6];
+  /** Vgroup to paint which vertices are not used for object collisions. */
+  short vgroup_objcol;
+  char _pad2[4];
   /** Impulse clamp for object collisions. */
   float clamp;
   /** Impulse clamp for self collisions. */
@@ -250,3 +256,7 @@ typedef enum {
   CLOTH_COLLSETTINGS_FLAG_ENABLED = (1 << 1), /* enables cloth - object collisions */
   CLOTH_COLLSETTINGS_FLAG_SELF = (1 << 2),    /* enables selfcollisions */
 } CLOTH_COLLISIONSETTINGS_FLAGS;
+
+#ifdef __cplusplus
+}
+#endif

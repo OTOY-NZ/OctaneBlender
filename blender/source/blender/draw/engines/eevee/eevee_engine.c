@@ -401,7 +401,7 @@ static void eevee_id_world_update(void *vedata, World *wo)
   EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
   LightCache *lcache = stl->g_data->light_cache;
 
-  if (lcache == NULL || lcache == stl->lookdev_lightcache) {
+  if (ELEM(lcache, NULL, stl->lookdev_lightcache)) {
     /* Avoid Lookdev viewport clearing the update flag (see T67741). */
     return;
   }
@@ -584,6 +584,16 @@ static void eevee_render_to_image(void *vedata,
   }
 }
 
+static void eevee_store_metadata(void *vedata, struct RenderResult *render_result)
+{
+  EEVEE_Data *ved = (EEVEE_Data *)vedata;
+  EEVEE_PrivateData *g_data = ved->stl->g_data;
+  if (g_data->render_passes & EEVEE_RENDER_PASS_CRYPTOMATTE) {
+    EEVEE_cryptomatte_store_metadata(ved, render_result);
+    EEVEE_cryptomatte_free(ved);
+  }
+}
+
 static void eevee_engine_free(void)
 {
   EEVEE_shaders_free();
@@ -609,6 +619,7 @@ DrawEngineType draw_engine_eevee_type = {
     &eevee_view_update,
     &eevee_id_update,
     &eevee_render_to_image,
+    &eevee_store_metadata,
 };
 
 RenderEngineType DRW_engine_viewport_eevee_type = {

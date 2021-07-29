@@ -17,12 +17,12 @@
  */
 
 #include "mesh.h"
-#include "shader.h"
+#include "kernel.h"
 #include "light.h"
 #include "object.h"
 #include "scene.h"
 #include "session.h"
-#include "kernel.h"
+#include "shader.h"
 
 #include "util/util_progress.h"
 
@@ -44,7 +44,7 @@ Mesh::Mesh()
   enable_offset_transform = false;
   need_update = false;
   final_visibility = true;
-  shaders_tag = "";
+  mesh_tag = "";
   volume_modifier_tag = "";
   is_volume_to_mesh = false;
   is_mesh_to_volume = false;
@@ -82,17 +82,6 @@ bool Mesh::is_global_mesh_type(Scene *scene)
            (scene->meshes_type == MeshType::AS_IS && mesh_type == MeshType::GLOBAL);
   }
   return false;
-}
-
-std::string Mesh::generate_shader_tag(std::vector<Shader *> &shaders)
-{
-  std::string result = "";
-  for (int i = 0; i < shaders.size(); ++i) {
-    if (shaders[i]) {
-      result += shaders[i]->name;
-    }
-  }
-  return result;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -209,7 +198,7 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
                                                     mesh->octane_mesh.oMeshData.iSamplesNum);
         int frame_idx = 0;
         for (auto it : mesh->octane_mesh.oMeshData.oMotionf3Points) {
-          //if (it.second.size() != vertices_num) {
+          // if (it.second.size() != vertices_num) {
           //  fprintf(
           //      stderr,
           //      "Octane: WARNING: Octane doesn't support mesh with varied vertices!\n");

@@ -67,7 +67,7 @@
 #include "BKE_scene.h"
 #include "BKE_texture.h"
 
-#include "RE_shader_ext.h"
+#include "RE_texture.h"
 
 #include "BLO_read_write.h"
 
@@ -224,6 +224,8 @@ IDTypeInfo IDType_ID_TE = {
     .blend_read_data = texture_blend_read_data,
     .blend_read_lib = texture_blend_read_lib,
     .blend_read_expand = texture_blend_read_expand,
+
+    .blend_read_undo_preserve = NULL,
 };
 
 /* Utils for all IDs using those texture slots. */
@@ -751,6 +753,15 @@ static void texture_nodes_fetch_images_for_pool(Tex *texture,
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->type == SH_NODE_TEX_IMAGE && node->id != NULL) {
+      Image *image = (Image *)node->id;
+      BKE_image_pool_acquire_ibuf(image, &texture->iuser, pool);
+    }
+    else if (ELEM(node->type,
+                  SH_NODE_OCT_IMAGE_TEX,
+                  SH_NODE_OCT_FLOAT_IMAGE_TEX,
+                  SH_NODE_OCT_ALPHA_IMAGE_TEX,
+                  SH_NODE_OCT_IMAGE_AOV_OUTPUT) &&
+             node->id != NULL) {
       Image *image = (Image *)node->id;
       BKE_image_pool_acquire_ibuf(image, &texture->iuser, pool);
     }

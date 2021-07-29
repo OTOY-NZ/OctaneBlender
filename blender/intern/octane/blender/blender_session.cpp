@@ -18,24 +18,24 @@
 #include <stdio.h>
 
 extern "C" {
-#include "BKE_scene.h"
+#include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
-#include "BKE_context.h"
 #include "BKE_node.h"
+#include "BKE_scene.h"
 /* SpaceType struct has a member called 'new' which obviously conflicts with C++
  * so temporarily redefining the new keyword to make it compile. */
 #define new extern_new
 #include "BKE_screen.h"
 #undef new
 
-#include "BLI_listbase.h"
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 
-#include "RE_pipeline.h"
 #include "RE_engine.h"
+#include "RE_pipeline.h"
+#include "pipeline.h"
 #include "render_types.h"
-#include "renderpipeline.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -43,23 +43,23 @@ extern "C" {
 #include "WM_api.h"
 }
 
+#include "blender/blender_octanedb.h"
 #include "blender/blender_session.h"
-#include "render/environment.h"
+#include "blender/server/octane_client.h"
 #include "render/camera.h"
+#include "render/environment.h"
+#include "render/graph.h"
+#include "render/osl.h"
 #include "render/scene.h"
 #include "render/session.h"
-#include "render/graph.h"
 #include "render/shader.h"
-#include "render/osl.h"
-#include "blender/server/octane_client.h"
-#include "blender/blender_octanedb.h"
 
 #include "util/util_progress.h"
 #include "util/util_time.h"
 
-#include <thread>
 #include <chrono>
 #include <math.h>
+#include <thread>
 
 OCT_NAMESPACE_BEGIN
 
@@ -214,7 +214,7 @@ void BlenderSession::create_session()
   /* set buffer parameters */
   BufferParams buffer_params = BlenderSync::get_buffer_params(
       b_render, b_v3d, b_rv3d, scene->camera, width, height);
-  if (b_scene.frame_current() == b_scene.frame_start() ||
+  if (G.background || b_scene.frame_current() == b_scene.frame_start() ||
       (export_type == ::OctaneEngine::SceneExportTypes::NONE && !b_engine.is_animation())) {
     OctaneManager::getInstance().Reset();
     session->reset(buffer_params, session_params.samples);
@@ -229,8 +229,8 @@ void BlenderSession::create_session()
     if (response.size() == 1) {
       OctaneDataTransferObject::OctaneEngineData *engine_data_node =
           (OctaneDataTransferObject::OctaneEngineData *)(response[0]);
-      sync->set_resource_cache(engine_data_node->oResourceCacheData, dirty_resources);    
-	}
+      sync->set_resource_cache(engine_data_node->oResourceCacheData, dirty_resources);
+    }
     delete cur_node;
     for (auto pResponseNode : response) {
       delete pResponseNode;
@@ -368,14 +368,14 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
 
   bool is_navigation_mode = false;
   if (b_rv3d) {
-    RegionView3D *rv3d = (RegionView3D *)(b_rv3d.ptr.data); 
-	is_navigation_mode = rv3d && rv3d->rflag & RV3D_NAVIGATING;
-  }
-  
-  if (!is_navigation_mode || sync->is_frame_updated()) {
-    sync->sync_data(b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
+    RegionView3D *rv3d = (RegionView3D *)(b_rv3d.ptr.data);
+    is_navigation_mode = rv3d && rv3d->rflag & RV3D_NAVIGATING;
   }
 
+  if (!is_navigation_mode || sync->is_frame_updated()) {
+    sync->sync_data(
+        b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
+  }
 
   if (b_rv3d)
     sync->sync_view(b_v3d, b_rv3d, width, height);
@@ -431,6 +431,7 @@ bool BlenderSession::draw(int w, int h)
       /* update camera from 3d view */
 
       sync->sync_view(b_v3d, b_rv3d, width, height);
+      sync->sync_materials(b_depsgraph, false, true);
 
       if (scene->camera->need_update)
         reset = true;
@@ -549,11 +550,11 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
        ++b_view_iter, ++view_index) {
     b_rview_name = b_view_iter->name();
 
-	if (session && session->server) {
+    if (session && session->server) {
       ::OctaneDataTransferObject::OctaneCommand cmdNode;
       cmdNode.iCommandType = ::OctaneDataTransferObject::CommandType::RESET_BLENDER_VIEWLAYER;
       session->server->uploadOctaneNode(&cmdNode, NULL);
-	}
+    }
 
     /* set the current view */
     b_engine.active_view_set(b_rview_name.c_str());
@@ -672,6 +673,23 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
 
   ::OctaneDataTransferObject::OctaneSaveImage saveImage;
 
+  PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+  char ocio[512];
+  RNA_string_get(&oct_scene, "octane_export_ocio_color_space_name", ocio);
+  saveImage.sOCIOColorSpaceName = ocio;
+  RNA_string_get(&oct_scene, "octane_export_ocio_look", ocio);
+  saveImage.sOCIOLookName = ocio;
+  resolve_octane_ocio_look_params(saveImage.sOCIOLookName);
+  saveImage.bForceToneMapping = RNA_boolean_get(&oct_scene, "octane_export_force_use_tone_map");
+  if (saveImage.sOCIOColorSpaceName == "sRGB(default)") {
+    saveImage.sOCIOLookName = "None";
+    saveImage.bForceToneMapping = true;
+  }
+  if (saveImage.sOCIOColorSpaceName == "Linear sRGB(default)" ||
+      saveImage.sOCIOColorSpaceName == "ACES2065-1" || saveImage.sOCIOColorSpaceName == "ACEScg") {
+    saveImage.sOCIOLookName = "";
+  }
+
   if (!do_update_only) {
     bool include_cryptomatte = false;
     BL::RenderLayer::passes_iterator b_iter;
@@ -727,7 +745,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
 
     if (use_octane_export) {
       saveImage.iExportType = b_scene.render().image_settings().octane_save_mode();
-      saveImage.iImageType = b_scene.render().image_settings().octane_file_format();
+      saveImage.iImageType = b_scene.render().image_settings().octane_image_save_format();
       saveImage.iExrCompressionType =
           b_scene.render().image_settings().octane_exr_compression_type();
       string raw_export_file_path = blender_absolute_path(
@@ -736,7 +754,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       int digits = 4;
       if (post_tag.find("#") != std::string::npos) {
         digits = 0;
-	  }
+      }
       saveImage.sPath = blender_path_frame(raw_export_file_path, b_scene.frame_current(), digits);
       string raw_file_name = path_filename(saveImage.sPath);
       size_t suffix_idx = raw_file_name.rfind(".");
@@ -747,8 +765,8 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       raw_file_name += b_scene.render().image_settings().octane_export_post_tag();
       saveImage.sFileName = blender_path_frame(raw_file_name, b_scene.frame_current(), 0);
       if (viewlayer_name.length() && viewlayer_name != "View Layer") {
-        saveImage.sFileName += ("_" +  viewlayer_name);
-	  }
+        saveImage.sFileName += ("_" + viewlayer_name);
+      }
       saveImage.sOctaneTag = b_scene.render().image_settings().octane_export_tag();
       session->server->uploadOctaneNode(&saveImage, NULL);
     }
@@ -970,14 +988,15 @@ bool BlenderSession::osl_compile(const std::string server_address,
 
 bool BlenderSession::generate_orbx_proxy_preview(const std::string server_address,
                                                  const std::string orbx_path,
-                                                 const std::string abc_path, 
-												 const float fps)
+                                                 const std::string abc_path,
+                                                 const float fps)
 {
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
   bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
   if (ret) {
     OctaneDataTransferObject::OctaneNodeBase *cur_node =
-        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(Octane::ENT_ORBX_PREVIEW);
+        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
+            Octane::ENT_ORBX_PREVIEW);
     OctaneDataTransferObject::OctaneOrbxPreview *cur_orbx_preview_node =
         (OctaneDataTransferObject::OctaneOrbxPreview *)cur_node;
     cur_orbx_preview_node->sOrbxPath = orbx_path;
@@ -985,7 +1004,7 @@ bool BlenderSession::generate_orbx_proxy_preview(const std::string server_addres
     cur_orbx_preview_node->fFps = fps;
     std::vector<OctaneDataTransferObject::OctaneNodeBase *> response;
     server->uploadOctaneNode(cur_orbx_preview_node, &response);
-    //assert(response.size() == 1);
+    // assert(response.size() == 1);
     delete cur_node;
     for (auto pResponseNode : response) {
       delete pResponseNode;
@@ -1022,8 +1041,73 @@ bool BlenderSession::resolve_octane_vdb_info(const std::string server_address,
       OctaneDataTransferObject::OctaneVolumeInfo *pVolInfo =
           (OctaneDataTransferObject::OctaneVolumeInfo *)(response[0]);
       float_grid_ids = pVolInfo->sFloatGridNames;
-      vector_grid_ids = pVolInfo->sVectorGridNames;    
-	}
+      vector_grid_ids = pVolInfo->sVectorGridNames;
+    }
+    delete cur_node;
+    for (auto pResponseNode : response) {
+      delete pResponseNode;
+    }
+  }
+  if (server) {
+    delete server;
+  }
+  return ret;
+}
+
+bool BlenderSession::resolve_octane_ocio_info(const std::string server_address,
+                                              std::string path,
+                                              bool use_other_config,
+                                              bool use_automatic,
+                                              int intermediate_color_space_octane,
+                                              std::string intermediate_color_space_ocio_name,
+                                              std::vector<std::vector<std::string>> &results)
+{
+  ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
+  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  if (ret) {
+    OctaneDataTransferObject::OctaneNodeBase *cur_node =
+        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(Octane::ENT_OCIO_INFO);
+    OctaneDataTransferObject::OctaneOCIOInfo *cur_ocio_node =
+        (OctaneDataTransferObject::OctaneOCIOInfo *)cur_node;
+    cur_ocio_node->sPath = path;
+    cur_ocio_node->bUseOtherConfig = use_other_config;
+    cur_ocio_node->bAutomatic = use_automatic;
+    cur_ocio_node->iIntermediateColorSpaceOctane = intermediate_color_space_octane;
+    cur_ocio_node->sIntermediateColorSpaceOCIO = intermediate_color_space_ocio_name;
+    cur_ocio_node->sRoleNames.clear();
+    cur_ocio_node->sRoleColorSpaceNames.clear();
+    cur_ocio_node->sColorSpaceNames.clear();
+    cur_ocio_node->sColorSpaceFamilyNames.clear();
+    cur_ocio_node->sDisplayNames.clear();
+    cur_ocio_node->sDisplayViewNames.clear();
+    cur_ocio_node->sLookNames.clear();
+    std::vector<OctaneDataTransferObject::OctaneNodeBase *> response;
+    server->uploadOctaneNode(cur_ocio_node, &response);
+    if (response.size() == 1) {
+      OctaneDataTransferObject::OctaneOCIOInfo *pOcioInfo =
+          (OctaneDataTransferObject::OctaneOCIOInfo *)(response[0]);
+      results.resize(8);
+      results[0].insert(
+          results[0].begin(), pOcioInfo->sRoleNames.begin(), pOcioInfo->sRoleNames.end());
+      results[1].insert(results[1].begin(),
+                        pOcioInfo->sRoleColorSpaceNames.begin(),
+                        pOcioInfo->sRoleColorSpaceNames.end());
+      results[2].insert(results[2].begin(),
+                        pOcioInfo->sColorSpaceNames.begin(),
+                        pOcioInfo->sColorSpaceNames.end());
+      results[3].insert(results[3].begin(),
+                        pOcioInfo->sColorSpaceFamilyNames.begin(),
+                        pOcioInfo->sColorSpaceFamilyNames.end());
+      results[4].insert(
+          results[4].begin(), pOcioInfo->sDisplayNames.begin(), pOcioInfo->sDisplayNames.end());
+      results[5].insert(results[5].begin(),
+                        pOcioInfo->sDisplayViewNames.begin(),
+                        pOcioInfo->sDisplayViewNames.end());
+      results[6].insert(
+          results[6].begin(), pOcioInfo->sLookNames.begin(), pOcioInfo->sLookNames.end());
+      results[7].push_back(std::to_string(pOcioInfo->iIntermediateColorSpaceOctane));
+      results[7].push_back(pOcioInfo->sIntermediateColorSpaceOCIO);
+    }
     delete cur_node;
     for (auto pResponseNode : response) {
       delete pResponseNode;
@@ -1388,7 +1472,7 @@ bool BlenderSession::get_octanedb(bContext *context, std::string server_address)
                               scene,
                               "Octane DB Download",
                               WM_JOB_PROGRESS,
-                              WM_JOB_TYPE_RENDER);
+                              WM_JOB_TYPE_RENDER_PREVIEW);
   WM_jobs_customdata_set(wm_job, job, MEM_freeN);
   unsigned int note = 4 << 24 | 12 << 16;  // NC_SCENE | ND_RENDER_RESULT
   WM_jobs_timer(wm_job, 0.1, note, 0);

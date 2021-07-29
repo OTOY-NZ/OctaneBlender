@@ -28,16 +28,15 @@
 /* XXX, temp feature - campbell */
 #define DURIAN_CAMERA_SWITCH
 
+/* check for cyclic set-scene,
+ * libs can cause this case which is normally prevented, see (T#####) */
+#define USE_SETSCENE_CHECK
+
 #include "DNA_ID.h"
-#include "DNA_collection_types.h"
-#include "DNA_color_types.h" /* color management */
-#include "DNA_curveprofile_types.h"
+#include "DNA_color_types.h"      /* color management */
 #include "DNA_customdata_types.h" /* Scene's runtime cddata masks. */
-#include "DNA_freestyle_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
-#include "DNA_material_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
@@ -319,8 +318,7 @@ typedef enum eScenePassType {
 
 #define RE_PASSNAME_FREESTYLE "Freestyle"
 #define RE_PASSNAME_BLOOM "BloomCol"
-#define RE_PASSNAME_VOLUME_TRANSMITTANCE "VolumeTransmCol"
-#define RE_PASSNAME_VOLUME_SCATTER "VolumeScatterCol"
+#define RE_PASSNAME_VOLUME_LIGHT "VolumeDir"
 
 /* View - MultiView */
 typedef struct SceneRenderView {
@@ -456,7 +454,8 @@ typedef struct ImageFormatData {
   char octane_save_mode;
   char octane_file_format;
   char octane_exr_compression_type;
-  char octane_pads[5];
+  char octane_image_save_format;
+  char octane_pads[4];
 } ImageFormatData;
 
 /* ImageFormatData.imtype */
@@ -568,8 +567,9 @@ typedef struct BakeData {
   char normal_swizzle[3];
   char normal_space;
 
+  char target;
   char save_mode;
-  char _pad[7];
+  char _pad[6];
 
   struct Object *cage_object;
 } BakeData;
@@ -583,6 +583,12 @@ typedef enum eBakeNormalSwizzle {
   R_BAKE_NEGY = 4,
   R_BAKE_NEGZ = 5,
 } eBakeNormalSwizzle;
+
+/* BakeData.target (char) */
+typedef enum eBakeTarget {
+  R_BAKE_TARGET_IMAGE_TEXTURES = 0,
+  R_BAKE_TARGET_VERTEX_COLORS = 1,
+} eBakeTarget;
 
 /* BakeData.save_mode (char) */
 typedef enum eBakeSaveMode {
@@ -1097,7 +1103,7 @@ typedef struct GP_Sculpt_Settings {
   int lock_axis;
   /** Threshold for intersections */
   float isect_threshold;
-  char _pad_[4];
+  char _pad[4];
   /** Multiframe edit falloff effect by frame. */
   struct CurveMapping *cur_falloff;
   /** Curve used for primitive tools. */
@@ -1352,6 +1358,18 @@ typedef struct MeshStatVis {
   float sharp_min, sharp_max;
 } MeshStatVis;
 
+typedef struct SequencerToolSettings {
+  /* eSeqImageFitMethod */
+  int fit_method;
+} SequencerToolSettings;
+
+typedef enum eSeqImageFitMethod {
+  SEQ_SCALE_TO_FIT,
+  SEQ_SCALE_TO_FILL,
+  SEQ_STRETCH_TO_FILL,
+  SEQ_USE_ORIGINAL_SIZE,
+} eSeqImageFitMethod;
+
 /* *************************************************************** */
 /* Tool Settings */
 
@@ -1526,6 +1544,9 @@ typedef struct ToolSettings {
    * Temporary until there is a proper preset system that stores the profiles or maybe stores
    * entire bevel configurations. */
   struct CurveProfile *custom_bevel_profile_preset;
+
+  struct SequencerToolSettings *sequencer_tool_settings;
+
 } ToolSettings;
 
 /* *************************************************************** */
@@ -1790,7 +1811,7 @@ typedef struct Scene {
 
   ListBase view_layers;
   /* Not an actual datablock, but memory owned by scene. */
-  Collection *master_collection;
+  struct Collection *master_collection;
   struct SceneCollection *collection DNA_DEPRECATED;
 
   /** Settings to be override by workspaces. */
@@ -2283,6 +2304,8 @@ typedef enum eGPencil_Flags {
   GP_TOOL_FLAG_THUMBNAIL_LIST = (1 << 3),
   /* Generate wheight data for new strokes */
   GP_TOOL_FLAG_CREATE_WEIGHTS = (1 << 4),
+  /* Automerge with last stroke */
+  GP_TOOL_FLAG_AUTOMERGE_STROKE = (1 << 5),
 } eGPencil_Flags;
 
 /* scene->r.simplify_gpencil */
@@ -2670,6 +2693,8 @@ typedef enum OctaneScenePassType {
 #define RE_PASSNAME_OCT_REFLECTION_FILTER_INFO "OctReflectFilterInfo"
 #define RE_PASSNAME_OCT_REFRACTION_FILTER_INFO "OctRefractFilterInfo"
 #define RE_PASSNAME_OCT_TRANSMISSION_FILTER_INFO "OctTransmFilterInfo"
+/* Render AOV Out Passes */
+#define RE_PASSNAME_OCT_AOV_OUT "OctAovOut"
 
 #define OCT_RENDER_LAYER_MODE_NORMAL 0
 #define OCT_RENDER_LAYER_MODE_HIDE_INACTIVE_LAYERS 1
@@ -2689,6 +2714,13 @@ typedef enum OctaneScenePassType {
 /// ACES image container format, which is a 16-bit linear EXR in the ACES2065-1 color space
 /// with no compression and some additional metadata.
 #define OCT_IMAGE_SAVE_TYPE_EXR_ACES 6
+
+enum OctaneImageSaveFormat {
+  OCT_IMAGE_SAVE_FORMAT_PNG_8 = 0,
+  OCT_IMAGE_SAVE_FORMAT_PNG_16 = 1,
+  OCT_IMAGE_SAVE_FORMAT_EXR_16 = 2,
+  OCT_IMAGE_SAVE_FORMAT_EXR_32 = 3,
+};
 
 /// no compression
 #define OCT_EXR_COMPRESSION_NO_COMPRESSION 1

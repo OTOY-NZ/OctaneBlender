@@ -109,7 +109,11 @@ BLI_INLINE void workbench_material_get_image(
   ED_object_get_active_image(ob, mat_nr, r_image, r_iuser, &node, NULL);
   if (node && *r_image) {
     switch (node->type) {
-      case SH_NODE_TEX_IMAGE: {
+      case SH_NODE_TEX_IMAGE:
+      case SH_NODE_OCT_IMAGE_TEX:
+      case SH_NODE_OCT_FLOAT_IMAGE_TEX:
+      case SH_NODE_OCT_ALPHA_IMAGE_TEX:
+      case SH_NODE_OCT_IMAGE_AOV_OUTPUT: {
         NodeTexImage *storage = node->storage;
         const bool use_filter = (storage->interpolation != SHD_INTERP_CLOSEST);
         const bool use_repeat = (storage->extension == SHD_IMAGE_EXTENSION_REPEAT);

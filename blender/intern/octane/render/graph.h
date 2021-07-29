@@ -28,6 +28,7 @@
 #include "util/util_vector.h"
 
 #include "blender/server/octane_client.h"
+#include <unordered_set>
 
 OCT_NAMESPACE_BEGIN
 
@@ -53,7 +54,8 @@ enum ShaderGraphType {
   SHADER_GRAPH_MATERIAL = 0,
   SHADER_GRAPH_LIGHT = 1,
   SHADER_GRAPH_ENVIRONMENT = 2,
-  SHADER_GRAPH_TEXTURE = 3
+  SHADER_GRAPH_TEXTURE = 3,
+  SHADER_GRAPH_COMPOSITE = 4
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -142,21 +144,28 @@ class ShaderGraph {
   {
     type = SHADER_GRAPH_MATERIAL;
     need_subdivision = false;
+    has_object_dependency = false;
+    dependent_ids.clear();
   };
   ShaderGraph(ShaderGraphType graphType)
   {
     type = graphType;
     need_subdivision = false;
+    has_object_dependency = false;
+    dependent_ids.clear();
   };
   ~ShaderGraph();
 
   ShaderNode *add(ShaderNode *node);
   ShaderNode *output();
+  bool is_builtin_image_updated(ShaderGraph& graph);
 
   list<ShaderNode *> nodes;
 
   ShaderGraphType type;
   bool need_subdivision;
+  bool has_object_dependency;
+  std::unordered_set<void *> dependent_ids;
  protected:
 };  // ShaderGraph
 

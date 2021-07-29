@@ -25,6 +25,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_system.h"
+#include "BLI_threads.h"
 
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -47,10 +48,13 @@
 
 #include "GPU_batch.h"
 #include "GPU_batch_presets.h"
+#include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 #include "GPU_platform.h"
 #include "GPU_state.h"
+
+#include "DRW_engine.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -68,8 +72,8 @@
 #include "IMB_imbuf_types.h"
 
 #include "NOD_composite.h"
+#include "NOD_geometry.h"
 #include "NOD_shader.h"
-#include "NOD_simulation.h"
 #include "NOD_texture.h"
 #include "node_intern.h" /* own include */
 
@@ -186,7 +190,10 @@ static void node_buts_curvecol(uiLayout *layout, bContext *UNUSED(C), PointerRNA
     cumap->flag &= ~CUMA_DRAW_SAMPLE;
   }
 
-  uiTemplateCurveMapping(layout, ptr, "mapping", 'c', false, false, false, true);
+  /* "Tone" (Standard/Filmlike) only used in the Compositor. */
+  bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
+  uiTemplateCurveMapping(
+      layout, ptr, "mapping", 'c', false, false, false, (ntree->type == NTREE_COMPOSIT));
 }
 
 static void node_buts_normal(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -199,42 +206,6 @@ static void node_buts_normal(uiLayout *layout, bContext *UNUSED(C), PointerRNA *
 
   uiItemR(layout, &sockptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
 }
-
-#if 0 /* not used in 2.5x yet */
-static void node_browse_tex_cb(bContext *C, void *ntree_v, void *node_v)
-{
-  Main *bmain = CTX_data_main(C);
-  bNodeTree *ntree = ntree_v;
-  bNode *node = node_v;
-  Tex *tex;
-
-  if (node->menunr < 1) {
-    return;
-  }
-
-  if (node->id) {
-    id_us_min(node->id);
-    node->id = NULL;
-  }
-  tex = BLI_findlink(&bmain->tex, node->menunr - 1);
-
-  node->id = &tex->id;
-  id_us_plus(node->id);
-  BLI_strncpy(node->name, node->id->name + 2, sizeof(node->name));
-
-  nodeSetActive(ntree, node);
-
-  if (ntree->type == NTREE_TEXTURE) {
-    ntreeTexCheckCyclics(ntree);
-  }
-
-  // allqueue(REDRAWBUTSSHADING, 0);
-  // allqueue(REDRAWNODE, 0);
-  NodeTagChanged(ntree, node);
-
-  node->menunr = 0;
-}
-#endif
 
 static void node_buts_texture(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
@@ -752,6 +723,7 @@ static void node_shader_buts_vect_transform(uiLayout *layout, bContext *UNUSED(C
 
 static void node_shader_buts_attribute(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
+  uiItemR(layout, ptr, "attribute_type", DEFAULT_FLAGS, IFACE_("Type"), ICON_NONE);
   uiItemR(layout, ptr, "attribute_name", DEFAULT_FLAGS, IFACE_("Name"), ICON_NONE);
 }
 
@@ -1296,6 +1268,11 @@ static void node_shader_buts_oct_noise_tex(uiLayout *layout, bContext *C, Pointe
   uiItemR(layout, ptr, "noise_type", 0, "", ICON_NONE);
 }
 
+static void node_shader_buts_oct_cinema4d_noise_tex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "c4d_noise_type", 0, "", ICON_NONE);
+}
+
 static void node_shader_buts_oct_falloff_tex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "falloff_map_mode", 0, "", ICON_NONE);
@@ -1388,9 +1365,7 @@ static void node_shader_buts_oct_info_channels_kernel(uiLayout *layout,
   uiItemR(layout, ptr, "info_channels_type", 0, "", ICON_NONE);
 }
 
-static void node_shader_buts_oct_dirt_tex(uiLayout *layout,
-                                                               bContext *C,
-                                                               PointerRNA *ptr)
+static void node_shader_buts_oct_dirt_tex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "bias_coordinate_space_type", 0, "", ICON_NONE);
   uiItemR(layout, ptr, "include_object_mode", 0, "", ICON_NONE);
@@ -1406,11 +1381,111 @@ static void node_shader_buts_oct_hair_mat(uiLayout *layout, bContext *C, Pointer
   uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
 }
 
-static void node_shader_buts_oct_object_data(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_shader_buts_oct_object_data(uiLayout *layout,
+                                             bContext *UNUSED(C),
+                                             PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "object", 0, NULL, 0);
+  uiItemR(layout, ptr, "source_type", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+  //uiItemR(layout, ptr, "object", 0, NULL, 0);
 }
 
+static void node_shader_buts_oct_scatter_tool_surface(uiLayout *layout,
+                                                      bContext *UNUSED(C),
+                                                      PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "object_selection_method", 0, NULL, 0);
+  uiItemR(layout, ptr, "distribution_method", 0, NULL, 0);
+  uiItemR(layout, ptr, "orientation_priority", 0, NULL, 0);
+  uiItemR(layout, ptr, "up_direction_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "front_direction_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "rotation_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "scale_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "translation_mode", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_scatter_tool_volume(uiLayout *layout,
+                                                     bContext *UNUSED(C),
+                                                     PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "object_selection_method", 0, NULL, 0);
+  uiItemR(layout, ptr, "shape", 0, NULL, 0);
+  uiItemR(layout, ptr, "orientation_priority", 0, NULL, 0);
+  uiItemR(layout, ptr, "up_direction_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "front_direction_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "rotation_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "scale_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "translation_mode", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_channel_picker_tex(uiLayout *layout,
+                                                     bContext *UNUSED(C),
+                                                     PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "channel", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_spotlight_tex(uiLayout *layout,
+                                                    bContext *UNUSED(C),
+                                                    PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "orientation", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_composite_layer_tex(uiLayout *layout,
+                                               bContext *UNUSED(C),
+                                               PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "blend_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "overlay_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "alpha_operation_mode", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_composite_tex(uiLayout *layout,
+                                               bContext *UNUSED(C),
+                                               PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "layer_number", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_aov_output_group(uiLayout *layout,
+                                               bContext *UNUSED(C),
+                                               PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "group_number", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_composite_aov_output(uiLayout *layout,
+                                                  bContext *UNUSED(C),
+                                                  PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "layer_number", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_composite_aov_output_layer(uiLayout *layout,
+                                                      bContext *UNUSED(C),
+                                                      PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "mask_channel", 0, NULL, 0);
+  uiItemR(layout, ptr, "blend_mode", 0, NULL, 0);
+  uiItemR(layout, ptr, "alpha_operation", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_render_aov_output(uiLayout *layout,
+                                                            bContext *UNUSED(C),
+                                                            PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "input", 0, NULL, 0);
+  uiItemR(layout, ptr, "output_channel", 0, NULL, 0);
+}
+
+static void node_shader_buts_oct_image_aov_output(uiLayout *layout,
+                                                   bContext *C,
+                                                   PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "color_space", 0, NULL, 0);
+  uiItemR(layout, ptr, "output_channel", 0, NULL, 0);
+  node_shader_buts_oct_image(layout, C, ptr);
+}
 
 /* only once called */
 static void node_shader_set_butfunc(bNodeType *ntype)
@@ -1598,6 +1673,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
     case SH_NODE_OCT_NOISE_TEX:
       ntype->draw_buttons = node_shader_buts_oct_noise_tex;
       break;
+    case SH_NODE_OCT_CINEMA4D_NOISE_TEX:
+      ntype->draw_buttons = node_shader_buts_oct_cinema4d_noise_tex;
+      break;
     case SH_NODE_OCT_FALLOFF_TEX:
       ntype->draw_buttons = node_shader_buts_oct_falloff_tex;
       break;
@@ -1689,6 +1767,40 @@ static void node_shader_set_butfunc(bNodeType *ntype)
       break;
     case SH_NODE_OCT_OBJECT_DATA:
       ntype->draw_buttons = node_shader_buts_oct_object_data;
+      break;
+    case SH_NODE_OCT_SCATTER_TOOL_SURFACE:
+      ntype->draw_buttons = node_shader_buts_oct_scatter_tool_surface;
+      break;
+    case SH_NODE_OCT_SCATTER_TOOL_VOLUME:
+      ntype->draw_buttons = node_shader_buts_oct_scatter_tool_volume;
+      break;
+    case SH_NODE_OCT_CHANNEL_PICKER_TEX:
+      ntype->draw_buttons = node_shader_buts_oct_channel_picker_tex;
+      break;
+    case SH_NODE_OCT_SPOTLIGHT_TEX:
+      ntype->draw_buttons = node_shader_buts_oct_spotlight_tex;
+      break;
+    case SH_NODE_OCT_COMPOSITE_LAYER_TEX:
+      ntype->draw_buttons = node_shader_buts_oct_composite_layer_tex;
+      break;
+    case SH_NODE_OCT_COMPOSITE_TEX:
+      ntype->draw_buttons = node_shader_buts_oct_composite_tex;
+      break;
+    case SH_NODE_OCT_AOV_OUTPUT_GROUP:
+      ntype->draw_buttons = node_shader_buts_oct_aov_output_group;
+      break;
+    case SH_NODE_OCT_COMPOSITE_AOV_OUTPUT:
+      ntype->draw_buttons = node_shader_buts_oct_composite_aov_output;
+      break;
+    case SH_NODE_OCT_COMPOSITE_AOV_OUTPUT_LAYER:
+      ntype->draw_buttons = node_shader_buts_oct_composite_aov_output_layer;
+      break;
+    case SH_NODE_OCT_RENDER_AOV_OUTPUT:
+      ntype->draw_buttons = node_shader_buts_oct_render_aov_output;
+      break;
+    case SH_NODE_OCT_IMAGE_AOV_OUTPUT:
+      ntype->draw_buttons = node_shader_buts_oct_image_aov_output;
+      ntype->draw_buttons_ex = node_shader_buts_tex_image_ex;
       break;
   }
 }
@@ -2247,6 +2359,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
   PointerRNA active_input_ptr, op_ptr;
   uiLayout *row, *col;
   const bool multilayer = RNA_enum_get(&imfptr, "file_format") == R_IMF_IMTYPE_MULTILAYER;
+  const bool is_exr = RNA_enum_get(&imfptr, "file_format") == R_IMF_IMTYPE_OPENEXR;
   const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
 
   node_composit_buts_file_output(layout, C, ptr);
@@ -2354,8 +2467,15 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       uiItemL(col, IFACE_("Format:"), ICON_NONE);
       uiItemR(col, &active_input_ptr, "use_node_format", DEFAULT_FLAGS, NULL, ICON_NONE);
 
+      const bool is_socket_exr = RNA_enum_get(&imfptr, "file_format") == R_IMF_IMTYPE_OPENEXR;
+      const bool use_node_format = RNA_boolean_get(&active_input_ptr, "use_node_format");
+
+      if ((!is_exr && use_node_format) || (!is_socket_exr && !use_node_format)) {
+        uiItemR(col, &active_input_ptr, "save_as_render", DEFAULT_FLAGS, NULL, ICON_NONE);
+      }
+
       col = uiLayoutColumn(layout, false);
-      uiLayoutSetActive(col, RNA_boolean_get(&active_input_ptr, "use_node_format") == false);
+      uiLayoutSetActive(col, use_node_format == false);
       uiTemplateImageSettings(col, &imfptr, false);
 
       if (is_multiview) {
@@ -2659,6 +2779,11 @@ static void node_composit_buts_colorcorrection_ex(uiLayout *layout,
   row = uiLayoutRow(layout, false);
   uiItemR(row, ptr, "midtones_start", DEFAULT_FLAGS, NULL, ICON_NONE);
   uiItemR(row, ptr, "midtones_end", DEFAULT_FLAGS, NULL, ICON_NONE);
+}
+
+static void node_composit_buts_set_alpha(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "mode", DEFAULT_FLAGS, NULL, ICON_NONE);
 }
 
 static void node_composit_buts_switch(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -3238,6 +3363,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
       ntype->draw_buttons = node_composit_buts_colorcorrection;
       ntype->draw_buttons_ex = node_composit_buts_colorcorrection_ex;
       break;
+    case CMP_NODE_SETALPHA:
+      ntype->draw_buttons = node_composit_buts_set_alpha;
+      break;
     case CMP_NODE_SWITCH:
       ntype->draw_buttons = node_composit_buts_switch;
       break;
@@ -3477,10 +3605,225 @@ static void node_texture_set_butfunc(bNodeType *ntype)
   }
 }
 
-/* ****************** BUTTON CALLBACKS FOR SIMULATION NODES ***************** */
+/* ****************** BUTTON CALLBACKS FOR GEOMETRY NODES ***************** */
 
-static void node_simulation_set_butfunc(bNodeType *UNUSED(ntype))
+static void node_geometry_buts_boolean_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
+  uiItemR(layout, ptr, "operation", DEFAULT_FLAGS, "", ICON_NONE);
+}
+
+static void node_geometry_buts_attribute_compare(uiLayout *layout,
+                                                 bContext *UNUSED(C),
+                                                 PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "operation", DEFAULT_FLAGS, "", ICON_NONE);
+  uiItemR(layout, ptr, "input_type_a", DEFAULT_FLAGS, IFACE_("Type A"), ICON_NONE);
+  uiItemR(layout, ptr, "input_type_b", DEFAULT_FLAGS, IFACE_("Type B"), ICON_NONE);
+}
+
+static void node_geometry_buts_subdivision_surface(uiLayout *layout,
+                                                   bContext *UNUSED(C),
+                                                   PointerRNA *UNUSED(ptr))
+{
+#ifndef WITH_OPENSUBDIV
+  uiItemL(layout, IFACE_("Disabled, built without OpenSubdiv"), ICON_ERROR);
+#else
+  UNUSED_VARS(layout);
+#endif
+}
+
+static void node_geometry_buts_triangulate(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "quad_method", DEFAULT_FLAGS, "", ICON_NONE);
+  uiItemR(layout, ptr, "ngon_method", DEFAULT_FLAGS, "", ICON_NONE);
+}
+
+static void node_geometry_buts_random_attribute(uiLayout *layout,
+                                                bContext *UNUSED(C),
+                                                PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "data_type", DEFAULT_FLAGS, "", ICON_NONE);
+}
+
+static void node_geometry_buts_attribute_math(uiLayout *layout,
+                                              bContext *UNUSED(C),
+                                              PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "operation", DEFAULT_FLAGS, "", ICON_NONE);
+  uiItemR(layout, ptr, "input_type_a", DEFAULT_FLAGS, IFACE_("Type A"), ICON_NONE);
+  uiItemR(layout, ptr, "input_type_b", DEFAULT_FLAGS, IFACE_("Type B"), ICON_NONE);
+}
+
+static void node_geometry_buts_attribute_vector_math(uiLayout *layout,
+                                                     bContext *UNUSED(C),
+                                                     PointerRNA *ptr)
+{
+  bNode *node = (bNode *)ptr->data;
+  NodeAttributeVectorMath *node_storage = (NodeAttributeVectorMath *)node->storage;
+
+  uiItemR(layout, ptr, "operation", DEFAULT_FLAGS, "", ICON_NONE);
+  uiItemR(layout, ptr, "input_type_a", DEFAULT_FLAGS, IFACE_("Type A"), ICON_NONE);
+
+  /* These "use input b / c" checks are copied from the node's code.
+   * They could be de-duplicated if the drawing code was moved to the node's file. */
+  if (!ELEM(node_storage->operation,
+            NODE_VECTOR_MATH_NORMALIZE,
+            NODE_VECTOR_MATH_FLOOR,
+            NODE_VECTOR_MATH_CEIL,
+            NODE_VECTOR_MATH_FRACTION,
+            NODE_VECTOR_MATH_ABSOLUTE,
+            NODE_VECTOR_MATH_SINE,
+            NODE_VECTOR_MATH_COSINE,
+            NODE_VECTOR_MATH_TANGENT,
+            NODE_VECTOR_MATH_LENGTH)) {
+    uiItemR(layout, ptr, "input_type_b", DEFAULT_FLAGS, IFACE_("Type B"), ICON_NONE);
+  }
+  if (ELEM(node_storage->operation, NODE_VECTOR_MATH_WRAP)) {
+    uiItemR(layout, ptr, "input_type_c", DEFAULT_FLAGS, IFACE_("Type C"), ICON_NONE);
+  }
+}
+
+static void node_geometry_buts_point_instance(uiLayout *layout,
+                                              bContext *UNUSED(C),
+                                              PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "instance_type", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+  if (RNA_enum_get(ptr, "instance_type") == GEO_NODE_POINT_INSTANCE_TYPE_COLLECTION) {
+    uiItemR(layout, ptr, "use_whole_collection", DEFAULT_FLAGS, NULL, ICON_NONE);
+  }
+}
+
+static void node_geometry_buts_attribute_fill(uiLayout *layout,
+                                              bContext *UNUSED(C),
+                                              PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "data_type", DEFAULT_FLAGS, "", ICON_NONE);
+  // uiItemR(layout, ptr, "domain", DEFAULT_FLAGS, "", ICON_NONE);
+}
+
+static void node_geometry_buts_attribute_mix(uiLayout *layout,
+                                             bContext *UNUSED(C),
+                                             PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "blend_type", DEFAULT_FLAGS, "", ICON_NONE);
+  uiLayout *col = uiLayoutColumn(layout, false);
+  uiItemR(col, ptr, "input_type_factor", DEFAULT_FLAGS, IFACE_("Factor"), ICON_NONE);
+  uiItemR(col, ptr, "input_type_a", DEFAULT_FLAGS, IFACE_("A"), ICON_NONE);
+  uiItemR(col, ptr, "input_type_b", DEFAULT_FLAGS, IFACE_("B"), ICON_NONE);
+}
+
+static void node_geometry_buts_attribute_point_distribute(uiLayout *layout,
+                                                          bContext *UNUSED(C),
+                                                          PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "distribute_method", DEFAULT_FLAGS, "", ICON_NONE);
+}
+
+static void node_geometry_buts_attribute_color_ramp(uiLayout *layout,
+                                                    bContext *UNUSED(C),
+                                                    PointerRNA *ptr)
+{
+  uiTemplateColorRamp(layout, ptr, "color_ramp", 0, false);
+}
+
+static void node_geometry_buts_point_rotate(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  NodeGeometryRotatePoints *storage = (NodeGeometryRotatePoints *)((bNode *)ptr->data)->storage;
+
+  uiItemR(layout, ptr, "type", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "space", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+
+  uiLayout *col = uiLayoutColumn(layout, false);
+  if (storage->type == GEO_NODE_POINT_ROTATE_TYPE_AXIS_ANGLE) {
+    uiItemR(col, ptr, "input_type_axis", DEFAULT_FLAGS, IFACE_("Axis"), ICON_NONE);
+    uiItemR(col, ptr, "input_type_angle", DEFAULT_FLAGS, IFACE_("Angle"), ICON_NONE);
+  }
+  else {
+    uiItemR(col, ptr, "input_type_rotation", DEFAULT_FLAGS, IFACE_("Rotation"), ICON_NONE);
+  }
+}
+
+static void node_geometry_buts_align_rotation_to_vector(uiLayout *layout,
+                                                        bContext *UNUSED(C),
+                                                        PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "axis", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+  uiLayout *col = uiLayoutColumn(layout, false);
+  uiItemR(col, ptr, "input_type_factor", DEFAULT_FLAGS, IFACE_("Factor"), ICON_NONE);
+  uiItemR(col, ptr, "input_type_vector", DEFAULT_FLAGS, IFACE_("Vector"), ICON_NONE);
+}
+static void node_geometry_buts_point_translate(uiLayout *layout,
+                                               bContext *UNUSED(C),
+                                               PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "input_type", DEFAULT_FLAGS, IFACE_("Type"), ICON_NONE);
+}
+
+static void node_geometry_buts_point_scale(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "input_type", DEFAULT_FLAGS, IFACE_("Type"), ICON_NONE);
+}
+
+static void node_geometry_buts_object_info(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "transform_space", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+}
+
+static void node_geometry_set_butfunc(bNodeType *ntype)
+{
+  switch (ntype->type) {
+    case GEO_NODE_BOOLEAN:
+      ntype->draw_buttons = node_geometry_buts_boolean_math;
+      break;
+    case GEO_NODE_SUBDIVISION_SURFACE:
+      ntype->draw_buttons = node_geometry_buts_subdivision_surface;
+      break;
+    case GEO_NODE_TRIANGULATE:
+      ntype->draw_buttons = node_geometry_buts_triangulate;
+      break;
+    case GEO_NODE_ATTRIBUTE_RANDOMIZE:
+      ntype->draw_buttons = node_geometry_buts_random_attribute;
+      break;
+    case GEO_NODE_ATTRIBUTE_MATH:
+      ntype->draw_buttons = node_geometry_buts_attribute_math;
+      break;
+    case GEO_NODE_ATTRIBUTE_COMPARE:
+      ntype->draw_buttons = node_geometry_buts_attribute_compare;
+      break;
+    case GEO_NODE_POINT_INSTANCE:
+      ntype->draw_buttons = node_geometry_buts_point_instance;
+      break;
+    case GEO_NODE_ATTRIBUTE_FILL:
+      ntype->draw_buttons = node_geometry_buts_attribute_fill;
+      break;
+    case GEO_NODE_ATTRIBUTE_MIX:
+      ntype->draw_buttons = node_geometry_buts_attribute_mix;
+      break;
+    case GEO_NODE_ATTRIBUTE_VECTOR_MATH:
+      ntype->draw_buttons = node_geometry_buts_attribute_vector_math;
+      break;
+    case GEO_NODE_POINT_DISTRIBUTE:
+      ntype->draw_buttons = node_geometry_buts_attribute_point_distribute;
+      break;
+    case GEO_NODE_ATTRIBUTE_COLOR_RAMP:
+      ntype->draw_buttons = node_geometry_buts_attribute_color_ramp;
+      break;
+    case GEO_NODE_POINT_ROTATE:
+      ntype->draw_buttons = node_geometry_buts_point_rotate;
+      break;
+    case GEO_NODE_ALIGN_ROTATION_TO_VECTOR:
+      ntype->draw_buttons = node_geometry_buts_align_rotation_to_vector;
+      break;
+    case GEO_NODE_POINT_TRANSLATE:
+      ntype->draw_buttons = node_geometry_buts_point_translate;
+      break;
+    case GEO_NODE_POINT_SCALE:
+      ntype->draw_buttons = node_geometry_buts_point_scale;
+      break;
+    case GEO_NODE_OBJECT_INFO:
+      ntype->draw_buttons = node_geometry_buts_object_info;
+      break;
+  }
 }
 
 /* ****************** BUTTON CALLBACKS FOR FUNCTION NODES ***************** */
@@ -3502,6 +3845,12 @@ static void node_function_buts_switch(uiLayout *layout, bContext *UNUSED(C), Poi
   uiItemR(layout, ptr, "data_type", DEFAULT_FLAGS, "", ICON_NONE);
 }
 
+static void node_function_buts_input_vector(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiLayout *col = uiLayoutColumn(layout, true);
+  uiItemR(col, ptr, "vector", UI_ITEM_R_EXPAND, "", ICON_NONE);
+}
+
 static void node_function_set_butfunc(bNodeType *ntype)
 {
   switch (ntype->type) {
@@ -3513,6 +3862,9 @@ static void node_function_set_butfunc(bNodeType *ntype)
       break;
     case FN_NODE_SWITCH:
       ntype->draw_buttons = node_function_buts_switch;
+      break;
+    case FN_NODE_INPUT_VECTOR:
+      ntype->draw_buttons = node_function_buts_input_vector;
       break;
   }
 }
@@ -3625,7 +3977,7 @@ void ED_node_init_butfuncs(void)
     node_composit_set_butfunc(ntype);
     node_shader_set_butfunc(ntype);
     node_texture_set_butfunc(ntype);
-    node_simulation_set_butfunc(ntype);
+    node_geometry_set_butfunc(ntype);
     node_function_set_butfunc(ntype);
 
     /* define update callbacks for socket properties */
@@ -3637,7 +3989,7 @@ void ED_node_init_butfuncs(void)
   ntreeType_Composite->ui_icon = ICON_NODE_COMPOSITING;
   ntreeType_Shader->ui_icon = ICON_NODE_MATERIAL;
   ntreeType_Texture->ui_icon = ICON_NODE_TEXTURE;
-  ntreeType_Simulation->ui_icon = ICON_PHYSICS; /* TODO: Use correct icon. */
+  ntreeType_Geometry->ui_icon = ICON_NODETREE;
 }
 
 void ED_init_custom_node_type(bNodeType *ntype)
@@ -3662,12 +4014,14 @@ static const float std_node_socket_colors[][4] = {
     {0.39, 0.39, 0.78, 1.0}, /* SOCK_VECTOR */
     {0.78, 0.78, 0.16, 1.0}, /* SOCK_RGBA */
     {0.39, 0.78, 0.39, 1.0}, /* SOCK_SHADER */
-    {0.70, 0.65, 0.19, 1.0}, /* SOCK_BOOLEAN */
+    {0.80, 0.65, 0.84, 1.0}, /* SOCK_BOOLEAN */
     {0.0, 0.0, 0.0, 1.0},    /*__SOCK_MESH (deprecated) */
-    {0.06, 0.52, 0.15, 1.0}, /* SOCK_INT */
-    {0.39, 0.39, 0.39, 1.0}, /* SOCK_STRING */
-    {0.40, 0.10, 0.10, 1.0}, /* SOCK_OBJECT */
-    {0.10, 0.40, 0.10, 1.0}, /* SOCK_IMAGE */
+    {0.25, 0.75, 0.26, 1.0}, /* SOCK_INT */
+    {0.44, 0.70, 1.00, 1.0}, /* SOCK_STRING */
+    {0.93, 0.62, 0.36, 1.0}, /* SOCK_OBJECT */
+    {0.89, 0.76, 0.43, 1.0}, /* SOCK_IMAGE */
+    {0.00, 0.84, 0.64, 1.0}, /* SOCK_GEOMETRY */
+    {0.96, 0.96, 0.96, 1.0}, /* SOCK_COLLECTION */
 };
 
 /* common color callbacks for standard types */
@@ -3791,6 +4145,10 @@ static void std_node_socket_draw(
       uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, 0);
       break;
     }
+    case SOCK_COLLECTION: {
+      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, 0);
+      break;
+    }
     default:
       node_socket_button_label(C, layout, ptr, node_ptr, text);
       break;
@@ -3801,37 +4159,35 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 {
   bNodeSocket *sock = ptr->data;
   int type = sock->typeinfo->type;
-  /*int subtype = sock->typeinfo->subtype;*/
+
+  uiLayout *col = uiLayoutColumn(layout, false);
 
   switch (type) {
     case SOCK_FLOAT: {
-      uiLayout *row;
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, NULL, 0);
-      row = uiLayoutRow(layout, true);
-      uiItemR(row, ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), 0);
-      uiItemR(row, ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), 0);
+      uiItemR(col, ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      uiLayout *sub = uiLayoutColumn(col, true);
+      uiItemR(sub, ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
+      uiItemR(sub, ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
       break;
     }
     case SOCK_INT: {
-      uiLayout *row;
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, NULL, 0);
-      row = uiLayoutRow(layout, true);
-      uiItemR(row, ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), 0);
-      uiItemR(row, ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), 0);
+      uiItemR(col, ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      uiLayout *sub = uiLayoutColumn(col, true);
+      uiItemR(sub, ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
+      uiItemR(sub, ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
       break;
     }
     case SOCK_VECTOR: {
-      uiLayout *row;
-      uiItemR(layout, ptr, "default_value", UI_ITEM_R_EXPAND, NULL, DEFAULT_FLAGS);
-      row = uiLayoutRow(layout, true);
-      uiItemR(row, ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), 0);
-      uiItemR(row, ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), 0);
+      uiItemR(col, ptr, "default_value", UI_ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
+      uiLayout *sub = uiLayoutColumn(col, true);
+      uiItemR(sub, ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
+      uiItemR(sub, ptr, "max_value", DEFAULT_FLAGS, IFACE_("Max"), ICON_NONE);
       break;
     }
     case SOCK_BOOLEAN:
     case SOCK_RGBA:
     case SOCK_STRING: {
-      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, NULL, 0);
+      uiItemR(col, ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), 0);
       break;
     }
   }
@@ -3872,8 +4228,6 @@ void draw_nodespace_back_pix(const bContext *C,
   Main *bmain = CTX_data_main(C);
   bNodeInstanceKey active_viewer_key = (snode->nodetree ? snode->nodetree->active_viewer_key :
                                                           NODE_INSTANCE_KEY_NONE);
-  float shuffle[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
   GPU_matrix_push_projection();
   GPU_matrix_push();
   wmOrtho2_region_pixelspace(region);
@@ -3890,73 +4244,28 @@ void draw_nodespace_back_pix(const bContext *C,
     return;
   }
 
+  GPU_matrix_push_projection();
+  GPU_matrix_push();
+
+  /* The draw manager is used to draw the backdrop image. */
+  GPUFrameBuffer *old_fb = GPU_framebuffer_active_get();
+  GPU_framebuffer_restore();
+  BLI_thread_lock(LOCK_DRAW_IMAGE);
+  DRW_draw_view(C);
+  BLI_thread_unlock(LOCK_DRAW_IMAGE);
+  GPU_framebuffer_bind_no_srgb(old_fb);
+  /* Draw manager changes the depth state. Set it back to NONE. Without this the node preview
+   * images aren't drawn correctly. */
+  GPU_depth_test(GPU_DEPTH_NONE);
+
   void *lock;
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
   if (ibuf) {
-    GPU_matrix_push_projection();
-    GPU_matrix_push();
-
     /* somehow the offset has to be calculated inverse */
     wmOrtho2_region_pixelspace(region);
-
     const float x = (region->winx - snode->zoom * ibuf->x) / 2 + snode->xof;
     const float y = (region->winy - snode->zoom * ibuf->y) / 2 + snode->yof;
-
-    if (ibuf->rect || ibuf->rect_float) {
-      uchar *display_buffer = NULL;
-      void *cache_handle = NULL;
-
-      if (snode->flag & (SNODE_SHOW_R | SNODE_SHOW_G | SNODE_SHOW_B | SNODE_SHOW_ALPHA)) {
-
-        display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
-
-        if (snode->flag & SNODE_SHOW_R) {
-          shuffle[0] = 1.0f;
-        }
-        else if (snode->flag & SNODE_SHOW_G) {
-          shuffle[1] = 1.0f;
-        }
-        else if (snode->flag & SNODE_SHOW_B) {
-          shuffle[2] = 1.0f;
-        }
-        else {
-          shuffle[3] = 1.0f;
-        }
-
-        IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR);
-        GPU_shader_uniform_vector(
-            state.shader, GPU_shader_get_uniform(state.shader, "shuffle"), 4, 1, shuffle);
-
-        immDrawPixelsTex(&state,
-                         x,
-                         y,
-                         ibuf->x,
-                         ibuf->y,
-                         GPU_RGBA8,
-                         false,
-                         display_buffer,
-                         snode->zoom,
-                         snode->zoom,
-                         NULL);
-
-        GPU_shader_unbind();
-      }
-      else if (snode->flag & SNODE_USE_ALPHA) {
-        GPU_blend(GPU_BLEND_ALPHA);
-
-        ED_draw_imbuf_ctx(C, ibuf, x, y, false, snode->zoom, snode->zoom);
-
-        GPU_blend(GPU_BLEND_NONE);
-      }
-      else {
-        ED_draw_imbuf_ctx(C, ibuf, x, y, false, snode->zoom, snode->zoom);
-      }
-
-      if (cache_handle) {
-        IMB_display_buffer_release(cache_handle);
-      }
-    }
 
     /** \note draw selected info on backdrop */
     if (snode->edittree) {
@@ -3990,12 +4299,11 @@ void draw_nodespace_back_pix(const bContext *C,
         immUnbindProgram();
       }
     }
-
-    GPU_matrix_pop_projection();
-    GPU_matrix_pop();
   }
 
   BKE_image_release_ibuf(ima, ibuf, lock);
+  GPU_matrix_pop_projection();
+  GPU_matrix_pop();
 }
 
 /* return quadratic beziers points for a given nodelink and clip if v2d is not NULL. */

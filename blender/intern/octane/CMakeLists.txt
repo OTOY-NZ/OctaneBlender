@@ -165,6 +165,10 @@ if(CXX_HAS_AVX2)
   add_definitions(-DWITH_KERNEL_AVX2)
 endif()
 
+if(NOT OPENIMAGEIO_PUGIXML_FOUND)
+  add_definitions(-DWITH_SYSTEM_PUGIXML)
+endif()
+
 # Definitions and Includes
 
 add_definitions(
@@ -205,6 +209,7 @@ include_directories(
 	${PNG_INCLUDE_DIRS}
 	${OPENEXR_INCLUDE_DIR}
 	${OPENVDB_INCLUDE_DIRS}
+	${PUGIXML_INCLUDE_DIR}	
 )
 
 list(APPEND LIB

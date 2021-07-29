@@ -35,6 +35,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_image_types.h"
+#include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_windowmanager_types.h"
@@ -359,14 +360,12 @@ static void gpencil_draw_datablock(tGPDfill *tgpf, const float ink[4])
       tgpw.custonion = true;
 
       /* normal strokes */
-      if ((tgpf->fill_draw_mode == GP_FILL_DMODE_STROKE) ||
-          (tgpf->fill_draw_mode == GP_FILL_DMODE_BOTH)) {
+      if (ELEM(tgpf->fill_draw_mode, GP_FILL_DMODE_STROKE, GP_FILL_DMODE_BOTH)) {
         ED_gpencil_draw_fill(&tgpw);
       }
 
       /* 3D Lines with basic shapes and invisible lines */
-      if ((tgpf->fill_draw_mode == GP_FILL_DMODE_CONTROL) ||
-          (tgpf->fill_draw_mode == GP_FILL_DMODE_BOTH)) {
+      if (ELEM(tgpf->fill_draw_mode, GP_FILL_DMODE_CONTROL, GP_FILL_DMODE_BOTH)) {
         gpencil_draw_basic_stroke(tgpf,
                                   gps,
                                   tgpw.diff_mat,
@@ -723,9 +722,7 @@ static void gpencil_boundaryfill_area(tGPDfill *tgpf)
   }
 
   /* release ibuf */
-  if (ibuf) {
-    BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
-  }
+  BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
 
   tgpf->ima->id.tag |= LIB_TAG_DOIT;
   /* free temp stack data */
@@ -761,9 +758,7 @@ static void gpencil_set_borders(tGPDfill *tgpf, const bool transparent)
   }
 
   /* release ibuf */
-  if (ibuf) {
-    BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
-  }
+  BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
 
   tgpf->ima->id.tag |= LIB_TAG_DOIT;
 }
@@ -795,9 +790,7 @@ static void gpencil_invert_image(tGPDfill *tgpf)
   }
 
   /* release ibuf */
-  if (ibuf) {
-    BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
-  }
+  BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
 
   tgpf->ima->id.tag |= LIB_TAG_DOIT;
 }
@@ -847,9 +840,7 @@ static void gpencil_erase_processed_area(tGPDfill *tgpf)
   }
 
   /* release ibuf */
-  if (ibuf) {
-    BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
-  }
+  BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
 
   tgpf->ima->id.tag |= LIB_TAG_DOIT;
 }
@@ -1063,9 +1054,7 @@ static void gpencil_get_outline_points(tGPDfill *tgpf, const bool dilate)
   }
 
   /* release ibuf */
-  if (ibuf) {
-    BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
-  }
+  BKE_image_release_ibuf(tgpf->ima, ibuf, lock);
 }
 
 /* get z-depth array to reproject on surface */
@@ -1164,10 +1153,11 @@ static int gpencil_points_from_stack(tGPDfill *tgpf)
 static void gpencil_stroke_from_buffer(tGPDfill *tgpf)
 {
   ToolSettings *ts = tgpf->scene->toolsettings;
-  const char *align_flag = &ts->gpencil_v3d_align;
-  const bool is_depth = (bool)(*align_flag & (GP_PROJECT_DEPTH_VIEW | GP_PROJECT_DEPTH_STROKE));
-  const bool is_camera = (bool)(ts->gp_sculpt.lock_axis == 0) &&
-                         (tgpf->rv3d->persp == RV3D_CAMOB) && (!is_depth);
+  const char align_flag = ts->gpencil_v3d_align;
+  const bool is_depth = (bool)(align_flag & (GP_PROJECT_DEPTH_VIEW | GP_PROJECT_DEPTH_STROKE));
+  const bool is_lock_axis_view = (bool)(ts->gp_sculpt.lock_axis == 0);
+  const bool is_camera = is_lock_axis_view && (tgpf->rv3d->persp == RV3D_CAMOB) && (!is_depth);
+
   Brush *brush = BKE_paint_brush(&ts->gp_paint->paint);
   if (brush == NULL) {
     return;
@@ -1294,18 +1284,18 @@ static void gpencil_stroke_from_buffer(tGPDfill *tgpf)
     gpencil_apply_parent_point(tgpf->depsgraph, tgpf->ob, tgpf->gpl, pt);
   }
 
-  /* if camera view, reproject flat to view to avoid perspective effect */
-  if (is_camera) {
+  /* If camera view or view projection, reproject flat to view to avoid perspective effect. */
+  if ((!is_depth) && (((align_flag & GP_PROJECT_VIEWSPACE) && is_lock_axis_view) || (is_camera))) {
     ED_gpencil_project_stroke_to_view(tgpf->C, tgpf->gpl, gps);
   }
 
   /* simplify stroke */
   for (int b = 0; b < tgpf->fill_simplylvl; b++) {
-    BKE_gpencil_stroke_simplify_fixed(gps);
+    BKE_gpencil_stroke_simplify_fixed(tgpf->gpd, gps);
   }
 
   /* Calc geometry data. */
-  BKE_gpencil_stroke_geometry_update(gps);
+  BKE_gpencil_stroke_geometry_update(tgpf->gpd, gps);
 }
 
 /* ----------------------- */
@@ -1708,6 +1698,6 @@ void GPENCIL_OT_fill(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
-  prop = RNA_def_boolean(ot->srna, "on_back", false, "Draw On Back", "Send new stroke to Back");
+  prop = RNA_def_boolean(ot->srna, "on_back", false, "Draw on Back", "Send new stroke to back");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }

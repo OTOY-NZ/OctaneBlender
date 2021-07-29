@@ -37,9 +37,7 @@
 #include "transform_snap.h"
 
 /* -------------------------------------------------------------------- */
-/* Transform (Rotation) */
-
-/** \name Transform Rotation
+/** \name Transform (Rotation)
  * \{ */
 
 static float RotationBetween(TransInfo *t, const float p1[3], const float p2[3])
@@ -202,12 +200,7 @@ static void applyRotation(TransInfo *t, const int UNUSED(mval[2]))
     t->con.applyRot(t, NULL, NULL, axis_final, NULL);
   }
   else {
-    copy_v3_v3(axis_final, t->spacemtx[t->orient_axis]);
-    if (!(t->flag & T_INPUT_IS_VALUES_FINAL) && (dot_v3v3(axis_final, t->viewinv[2]) > 0.0f)) {
-      /* The input is obtained according to the position of the mouse.
-       * Flip to better match the movement. */
-      final *= -1;
-    }
+    negate_v3_v3(axis_final, t->spacemtx[t->orient_axis]);
   }
 
   if (applyNumInput(&t->num, &final)) {
@@ -216,8 +209,10 @@ static void applyRotation(TransInfo *t, const int UNUSED(mval[2]))
     final = large_rotation_limit(final);
   }
   else {
-    transform_snap_increment(t, &final);
     applySnapping(t, &final);
+    if (!(activeSnap(t) && validSnap(t))) {
+      transform_snap_increment(t, &final);
+    }
   }
 
   t->values_final[0] = final;

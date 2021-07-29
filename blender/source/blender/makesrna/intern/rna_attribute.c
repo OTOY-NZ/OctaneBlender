@@ -38,25 +38,25 @@
 #include "WM_types.h"
 
 const EnumPropertyItem rna_enum_attribute_type_items[] = {
-    {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating point value"},
-    {CD_PROP_INT32, "INT", 0, "Integer", "32 bit integer"},
-    {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating point values"},
-    {CD_PROP_COLOR, "FLOAT_COLOR", 0, "Float Color", "RGBA color with floating point precisions"},
+    {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
+    {CD_PROP_INT32, "INT", 0, "Integer", "32-bit integer"},
+    {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
+    {CD_PROP_COLOR, "FLOAT_COLOR", 0, "Color", "RGBA color with floating-point precisions"},
     {CD_MLOOPCOL, "BYTE_COLOR", 0, "Byte Color", "RGBA color with 8-bit precision"},
     {CD_PROP_STRING, "STRING", 0, "String", "Text string"},
+    {CD_PROP_BOOL, "BOOLEAN", 0, "Boolean", "True or false"},
     {0, NULL, 0, NULL, NULL},
 };
 
 const EnumPropertyItem rna_enum_attribute_domain_items[] = {
     /* Not implement yet */
     // {ATTR_DOMAIN_GEOMETRY, "GEOMETRY", 0, "Geometry", "Attribute on (whole) geometry"},
-    {ATTR_DOMAIN_VERTEX, "VERTEX", 0, "Vertex", "Attribute on mesh vertex"},
+    {ATTR_DOMAIN_POINT, "POINT", 0, "Point", "Attribute on point"},
     {ATTR_DOMAIN_EDGE, "EDGE", 0, "Edge", "Attribute on mesh edge"},
     {ATTR_DOMAIN_CORNER, "CORNER", 0, "Corner", "Attribute on mesh polygon corner"},
     {ATTR_DOMAIN_POLYGON, "POLYGON", 0, "Polygon", "Attribute on mesh polygons"},
     /* Not implement yet */
     // {ATTR_DOMAIN_GRIDS, "GRIDS", 0, "Grids", "Attribute on mesh multires grids"},
-    {ATTR_DOMAIN_POINT, "POINT", 0, "Point", "Attribute on point"},
     {ATTR_DOMAIN_CURVE, "CURVE", 0, "Curve", "Attribute on hair curve"},
     {0, NULL, 0, NULL, NULL},
 };
@@ -117,7 +117,7 @@ const EnumPropertyItem *rna_enum_attribute_domain_itemf(ID *id, bool *r_free)
     if (id_type == ID_HA && !ELEM(domain_item->value, ATTR_DOMAIN_POINT, ATTR_DOMAIN_CURVE)) {
       continue;
     }
-    if (id_type == ID_ME && ELEM(domain_item->value, ATTR_DOMAIN_POINT, ATTR_DOMAIN_CURVE)) {
+    if (id_type == ID_ME && ELEM(domain_item->value, ATTR_DOMAIN_CURVE)) {
       continue;
     }
 
@@ -364,7 +364,7 @@ static void rna_def_attribute_float(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "FloatAttribute", "Attribute");
   RNA_def_struct_sdna(srna, "CustomDataLayer");
-  RNA_def_struct_ui_text(srna, "Float Attribute", "Geometry attribute with floating point values");
+  RNA_def_struct_ui_text(srna, "Float Attribute", "Geometry attribute with floating-point values");
 
   prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "FloatAttributeValue");
@@ -381,7 +381,7 @@ static void rna_def_attribute_float(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "FloatAttributeValue", NULL);
   RNA_def_struct_sdna(srna, "MFloatProperty");
   RNA_def_struct_ui_text(
-      srna, "Float Attribute Value", "Floating point value in geometry attribute");
+      srna, "Float Attribute Value", "Floating-point value in geometry attribute");
   prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "f");
   RNA_def_property_update(prop, 0, "rna_Attribute_update_data");
@@ -396,7 +396,7 @@ static void rna_def_attribute_float_vector(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "FloatVectorAttribute", "Attribute");
   RNA_def_struct_sdna(srna, "CustomDataLayer");
   RNA_def_struct_ui_text(
-      srna, "Float Vector Attribute", "Vector geometry attribute, with floating point precision");
+      srna, "Float Vector Attribute", "Vector geometry attribute, with floating-point precision");
 
   prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "FloatVectorAttributeValue");
@@ -432,7 +432,7 @@ static void rna_def_attribute_float_color(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "FloatColorAttribute", "Attribute");
   RNA_def_struct_sdna(srna, "CustomDataLayer");
   RNA_def_struct_ui_text(
-      srna, "Float Color Attribute", "Color geometry attribute, with floating point precision");
+      srna, "Float Color Attribute", "Color geometry attribute, with floating-point precision");
 
   prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "FloatColorAttributeValue");
@@ -566,7 +566,6 @@ static void rna_def_attribute(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_Attribute_path");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
-  RNA_def_struct_name_property(srna, prop);
   RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Attribute_name_set");
   RNA_def_property_editable_func(prop, "rna_Attribute_name_editable");
   RNA_def_property_ui_text(prop, "Name", "Name of the Attribute");
@@ -619,7 +618,7 @@ static void rna_def_attribute_group(BlenderRNA *brna)
   parm = RNA_def_enum(func,
                       "domain",
                       rna_enum_attribute_domain_items,
-                      ATTR_DOMAIN_VERTEX,
+                      ATTR_DOMAIN_POINT,
                       "Domain",
                       "Type of element that attribute is stored on");
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);

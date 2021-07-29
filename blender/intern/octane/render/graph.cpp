@@ -125,4 +125,32 @@ ShaderNode *ShaderGraph::output()
     return nodes.front();
 }  // output()
 
+bool ShaderGraph::is_builtin_image_updated(ShaderGraph &graph)
+{
+  for (auto node1 : nodes) {
+    OctaneDataTransferObject::OctaneBaseImageNode *image_node1 =
+        dynamic_cast<OctaneDataTransferObject::OctaneBaseImageNode *>(node1->oct_node);
+    if (image_node1) {
+      bool equal = false;
+      for (auto node2 : graph.nodes) {
+        if (node1->oct_node->sName == node2->oct_node->sName) {
+          OctaneDataTransferObject::OctaneBaseImageNode *image_node2 =
+              dynamic_cast<OctaneDataTransferObject::OctaneBaseImageNode *>(node2->oct_node);
+          if (image_node2) {
+            if (image_node1->oImageData.sImageDataMD5Hex ==
+                image_node2->oImageData.sImageDataMD5Hex) {
+              equal = true;
+              break;
+			} 
+		  }
+        }
+      }
+      if (!equal) {
+        return true;
+	  }
+    }
+  }
+  return false;
+}
+
 OCT_NAMESPACE_END

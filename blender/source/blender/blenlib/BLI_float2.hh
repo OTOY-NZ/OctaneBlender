@@ -80,6 +80,13 @@ struct float2 {
     return *this;
   }
 
+  uint64_t hash() const
+  {
+    uint64_t x1 = *reinterpret_cast<const uint32_t *>(&x);
+    uint64_t x2 = *reinterpret_cast<const uint32_t *>(&y);
+    return (x1 * 812519) ^ (x2 * 707951);
+  }
+
   friend float2 operator+(const float2 &a, const float2 &b)
   {
     return {a.x + b.x, a.y + b.y};
@@ -134,7 +141,8 @@ struct float2 {
 
   static float distance_squared(const float2 &a, const float2 &b)
   {
-    return float2::dot(a, b);
+    float2 diff = a - b;
+    return float2::dot(diff, diff);
   }
 
   struct isect_result {

@@ -178,11 +178,6 @@ enum_view3d_shading_render_pass = (
     ('MIST', "Mist", "Show the Mist render pass", 32),
 )
 
-enum_aov_types = (
-    ('VALUE', "Value", "Write a Value pass", 0),
-    ('COLOR', "Color", "Write a Color pass", 1),
-)
-
 
 def enum_openimagedenoise_denoiser(self, context):
     import _cycles
@@ -229,7 +224,6 @@ def update_render_passes(self, context):
     scene = context.scene
     view_layer = context.view_layer
     view_layer.update_render_passes()
-    engine.detect_conflicting_passes(scene, view_layer)
 
 
 class CyclesRenderSettings(bpy.types.PropertyGroup):
@@ -1311,27 +1305,6 @@ class CyclesCurveRenderSettings(bpy.types.PropertyGroup):
         del bpy.types.Scene.cycles_curves
 
 
-class CyclesAOVPass(bpy.types.PropertyGroup):
-    name: StringProperty(
-        name="Name",
-        description="Name of the pass, to use in the AOV Output shader node",
-        update=update_render_passes,
-        default="AOV"
-    )
-    type: EnumProperty(
-        name="Type",
-        description="Pass data type",
-        update=update_render_passes,
-        items=enum_aov_types,
-        default='COLOR'
-    )
-    conflict: StringProperty(
-        name="Conflict",
-        description="If there is a conflict with another render passes, message explaining why",
-        default=""
-    )
-
-
 class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
 
     pass_debug_bvh_traversed_nodes: BoolProperty(
@@ -1470,46 +1443,6 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         default='RGB_ALBEDO_NORMAL',
     )
 
-    use_pass_crypto_object: BoolProperty(
-        name="Cryptomatte Object",
-        description="Render cryptomatte object pass, for isolating objects in compositing",
-        default=False,
-        update=update_render_passes,
-    )
-    use_pass_crypto_material: BoolProperty(
-        name="Cryptomatte Material",
-        description="Render cryptomatte material pass, for isolating materials in compositing",
-        default=False,
-        update=update_render_passes,
-    )
-    use_pass_crypto_asset: BoolProperty(
-        name="Cryptomatte Asset",
-        description="Render cryptomatte asset pass, for isolating groups of objects with the same parent",
-        default=False,
-        update=update_render_passes,
-    )
-    pass_crypto_depth: IntProperty(
-        name="Cryptomatte Levels",
-        description="Sets how many unique objects can be distinguished per pixel",
-        default=6, min=2, max=16, step=2,
-        update=update_render_passes,
-    )
-    pass_crypto_accurate: BoolProperty(
-        name="Cryptomatte Accurate",
-        description="Generate a more accurate Cryptomatte pass. CPU only, may render slower and use more memory",
-        default=True,
-        update=update_render_passes,
-    )
-
-    aovs: CollectionProperty(
-        type=CyclesAOVPass,
-        description="Custom render passes that can be output by shader nodes",
-    )
-    active_aov: IntProperty(
-        default=0,
-        min=0
-    )
-
     @classmethod
     def register(cls):
         bpy.types.ViewLayer.cycles = PointerProperty(
@@ -1601,7 +1534,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif entry.type == 'CPU':
                 cpu_devices.append(entry)
         # Extend all GPU devices with CPU.
-        if compute_device_type in {'CUDA', 'OPENCL'}:
+        if compute_device_type in {'CUDA', 'OPTIX', 'OPENCL'}:
             devices.extend(cpu_devices)
         return devices
 
@@ -1651,11 +1584,6 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         for device in devices:
             box.prop(device, "use", text=device.name)
 
-        if device_type == 'OPTIX':
-            col = box.column(align=True)
-            col.label(text="OptiX support is experimental", icon='INFO')
-            col.label(text="Not all Cycles features are supported yet", icon='BLANK1')
-
     def draw_impl(self, layout, context):
         row = layout.row()
         row.prop(self, "compute_device_type", expand=True)
@@ -1701,7 +1629,6 @@ def register():
     bpy.utils.register_class(CyclesCurveRenderSettings)
     bpy.utils.register_class(CyclesDeviceSettings)
     bpy.utils.register_class(CyclesPreferences)
-    bpy.utils.register_class(CyclesAOVPass)
     bpy.utils.register_class(CyclesRenderLayerSettings)
     bpy.utils.register_class(CyclesView3DShadingSettings)
 
@@ -1723,6 +1650,5 @@ def unregister():
     bpy.utils.unregister_class(CyclesCurveRenderSettings)
     bpy.utils.unregister_class(CyclesDeviceSettings)
     bpy.utils.unregister_class(CyclesPreferences)
-    bpy.utils.unregister_class(CyclesAOVPass)
     bpy.utils.unregister_class(CyclesRenderLayerSettings)
     bpy.utils.unregister_class(CyclesView3DShadingSettings)

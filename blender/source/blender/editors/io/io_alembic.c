@@ -292,7 +292,7 @@ void WM_OT_alembic_export(wmOperatorType *ot)
                                  FILE_SAVE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_SHOW_PROPS,
                                  FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_ALPHA);
+                                 FILE_SORT_DEFAULT);
 
   RNA_def_int(ot->srna,
               "start",
@@ -428,7 +428,7 @@ void WM_OT_alembic_export(wmOperatorType *ot)
                   "triangulate",
                   false,
                   "Triangulate",
-                  "Export Polygons (Quads & NGons) as Triangles");
+                  "Export polygons (quads and n-gons) as triangles");
 
   RNA_def_enum(ot->srna,
                "quad_method",
@@ -439,10 +439,10 @@ void WM_OT_alembic_export(wmOperatorType *ot)
 
   RNA_def_enum(ot->srna,
                "ngon_method",
-               rna_enum_modifier_triangulate_quad_method_items,
+               rna_enum_modifier_triangulate_ngon_method_items,
                MOD_TRIANGULATE_NGON_BEAUTY,
-               "Polygon Method",
-               "Method for splitting the polygons into triangles");
+               "N-gon Method",
+               "Method for splitting the n-gons into triangles");
 
   RNA_def_boolean(ot->srna,
                   "export_hair",
@@ -677,7 +677,7 @@ void WM_OT_alembic_import(wmOperatorType *ot)
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_SHOW_PROPS,
                                  FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_ALPHA);
+                                 FILE_SORT_DEFAULT);
 
   RNA_def_float(
       ot->srna,

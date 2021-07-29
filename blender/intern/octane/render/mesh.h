@@ -27,6 +27,8 @@
 #include "util/util_transform.h"
 #include <unordered_map>
 
+#include "RNA_blender_cpp.h"
+
 namespace OctaneEngine {
 class OctaneClient;
 }
@@ -65,8 +67,6 @@ class Mesh {
   bool is_global_mesh_type(Scene *scene);  
   void tag_update(Scene *scene);
 
-  static std::string generate_shader_tag(std::vector<Shader *> &shaders);
-
   std::string name;
   std::string nice_name;
   MeshType mesh_type;
@@ -85,7 +85,7 @@ class Mesh {
 
   std::vector<Shader *> used_shaders;
   std::string volume_modifier_tag;
-  std::string shaders_tag;  
+  std::string mesh_tag;  
   bool is_volume_to_mesh;
   bool is_mesh_to_volume;
   bool enable_offset_transform;

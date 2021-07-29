@@ -18,6 +18,8 @@
 #define __BLENDER_UTIL_H__
 
 #include "MEM_guardedalloc.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "RNA_access.h"
 #include "RNA_blender_cpp.h"
 #include "RNA_types.h"
@@ -33,6 +35,7 @@
 #include "util/util_transform.h"
 #include "util/util_types.h"
 #include "util/util_vector.h"
+#include "BKE_mesh.h"
 
 /* Hacks to hook into Blender API
  * todo: clean this up ... */
@@ -118,6 +121,51 @@ static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
   }
 
   return mesh;
+}
+
+static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
+                                     BL::Object &b_ob,
+                                     std::vector<Shader *> &shaders)
+{
+  //using milli = std::chrono::milliseconds;
+  //auto start = std::chrono::high_resolution_clock::now();
+  std::string result = "";
+  static int SAMPLE_NUMBER = 5;
+  if (b_ob.type() == BL::Object::type_MESH) {
+    BL::Mesh b_mesh = b_ob.to_mesh(false, b_depsgraph);
+    ::Mesh *me = (::Mesh *)(b_mesh.ptr.data);
+    std::stringstream ss;
+    ss << b_mesh.vertices.length() << "|" << b_mesh.polygons.length() << "|"
+       << b_mesh.edges.length() << "|" << b_mesh.loops.length() << "|"
+       << b_mesh.loop_triangles.length() << "|";
+    int delta = std::max(1, b_mesh.vertices.length() / SAMPLE_NUMBER);
+    for (int i = 0; i < b_mesh.vertices.length(); i += delta) {
+      ss << (b_mesh.vertices[i].co()[0] + b_mesh.vertices[i].co()[1] +
+             b_mesh.vertices[i].co()[2]) /
+                3
+         << "|";
+      ss << (b_mesh.vertices[i].normal()[0] + b_mesh.vertices[i].normal()[1] +
+             b_mesh.vertices[i].normal()[2]) /
+                3
+         << "|";
+    }
+    if (me->totpoly > 1) {
+      ss << me->mpoly[0].flag << "|";
+    }    
+    result = ss.str();
+    b_ob.to_mesh_clear();
+  }
+  for (int i = 0; i < shaders.size(); ++i) {
+    if (shaders[i]) {
+      result += shaders[i]->name;
+    }
+  }
+  //auto finish = std::chrono::high_resolution_clock::now();
+  //stringstream profile;
+  //profile << "generate_mesh_tag() took "
+  //        << std::chrono::duration_cast<milli>(finish - start).count() << " milliseconds\n";
+  //fprintf(stderr, "%s", profile.str().c_str());
+  return result;
 }
 
 static inline void free_object_to_mesh(BL::BlendData & /*data*/,
@@ -397,9 +445,21 @@ static inline uint get_layer(const BL::Array<bool, 20> &array,
 
 static inline float3 get_float3(PointerRNA &ptr, const char *name)
 {
-  float3 f;
-  RNA_float_get_array(&ptr, name, &f.x);
-  return f;
+  float3 result;
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+  bool is_array = (prop != NULL) && RNA_property_array_check(prop);
+  if (is_array) {
+    int len = RNA_property_array_length(&ptr, prop);
+    RNA_float_get_array(&ptr, name, &result.x);
+    for (int i = len; i < 3; ++i) {
+      result[i] = 0.f;
+    }
+  }
+  else {
+    float f = RNA_float_get(&ptr, name);
+    result.x = result.y = result.z = f;
+  }
+  return result;
 }
 
 static inline void set_float3(PointerRNA &ptr, const char *name, float3 value)
@@ -409,9 +469,21 @@ static inline void set_float3(PointerRNA &ptr, const char *name, float3 value)
 
 static inline float4 get_float4(PointerRNA &ptr, const char *name)
 {
-  float4 f;
-  RNA_float_get_array(&ptr, name, &f.x);
-  return f;
+  float4 result;
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+  bool is_array = (prop != NULL) && RNA_property_array_check(prop);
+  if (is_array) {
+    int len = RNA_property_array_length(&ptr, prop);
+    RNA_float_get_array(&ptr, name, &result.x);
+    for (int i = len; i < 4; ++i) {
+      result[i] = 0.f;
+    }
+  }
+  else {
+    float f = RNA_float_get(&ptr, name);
+    result.x = result.y = result.z = result.w = f;
+  }
+  return result;
 }
 
 static inline void set_float4(PointerRNA &ptr, const char *name, float4 value)
@@ -431,7 +503,18 @@ static inline void set_boolean(PointerRNA &ptr, const char *name, bool value)
 
 static inline float get_float(PointerRNA &ptr, const char *name)
 {
-  return RNA_float_get(&ptr, name);
+  float result;
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+  bool is_array = (prop != NULL) && RNA_property_array_check(prop);
+  if (is_array) {
+    float4 f4;
+    RNA_float_get_array(&ptr, name, &f4.x);
+    result = f4.x;
+  }
+  else {
+    result = RNA_float_get(&ptr, name);
+  }
+  return result;
 }
 
 static inline void set_float(PointerRNA &ptr, const char *name, float value)
@@ -441,7 +524,18 @@ static inline void set_float(PointerRNA &ptr, const char *name, float value)
 
 static inline int get_int(PointerRNA &ptr, const char *name)
 {
-  return RNA_int_get(&ptr, name);
+  int result;
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+  bool is_array = (prop != NULL) && RNA_property_array_check(prop);
+  if (is_array) {
+    int4 i4;
+    RNA_int_get_array(&ptr, name, &i4.x);
+    result = i4.x;
+  }
+  else {
+    result = RNA_int_get(&ptr, name);
+  }
+  return result;
 }
 
 static inline void set_int(PointerRNA &ptr, const char *name, int value)
@@ -906,9 +1000,21 @@ class EdgeMap {
 
 static inline int4 get_int4(PointerRNA &ptr, const char *name)
 {
-  int4 i;
-  RNA_int_get_array(&ptr, name, &i.x);
-  return i;
+  int4 result;
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+  bool is_array = RNA_property_array_check(prop);
+  if (is_array) {
+    int len = (prop != NULL) && RNA_property_array_length(&ptr, prop);
+    RNA_int_get_array(&ptr, name, &result.x);
+    for (int i = len; i < 4; ++i) {
+      result[i] = 0;
+    }
+  }
+  else {
+    int i = RNA_int_get(&ptr, name);
+    result.x = result.y = result.z = result.w = i;
+  }
+  return result;
 }
 
 static inline void set_int4(PointerRNA &ptr, const char *name, int4 value)
@@ -979,6 +1085,28 @@ static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *b
       break;
   }
   return true;
+}
+
+static inline bool need_upgrade_float_to_color(
+    ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
+    PointerRNA &ptr,
+    float4& color,
+    bool is_socket = false)
+{
+  if (!base_dto_ptr || !ptr.data)
+    return false;
+  const char *name = ((is_socket && base_dto_ptr->type != OctaneDataTransferObject::DTO_ENUM) ?
+                          "default_value" :
+                          base_dto_ptr->sName.c_str());
+  if (base_dto_ptr->type == OctaneDataTransferObject::DTO_FLOAT) {
+    PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+    bool is_array = (prop != NULL) && RNA_property_array_check(prop);
+    if (is_array) {
+      RNA_float_get_array(&ptr, name, &color.x);
+      return true;
+    }
+  }
+  return false;
 }
 
 static inline bool set_octane_data_transfer_object(
@@ -1117,11 +1245,13 @@ static std::string resolve_octane_name(BL::ID &b_ob_data,
                                        std::string modifier_object_tag,
                                        std::string tag)
 {
-  std::string lib_prefix = b_ob_data.library().ptr.data ? (b_ob_data.library().name() + ".") : "";
+  std::string lib_prefix = (b_ob_data.ptr.data && b_ob_data.library().ptr.data) ?
+                               (b_ob_data.library().name() + ".") :
+                               "";
   if (modifier_object_tag.length()) {
     modifier_object_tag += ".";
   }
-  return lib_prefix + modifier_object_tag + b_ob_data.name() + tag;
+  return lib_prefix + modifier_object_tag + (b_ob_data.ptr.data ? b_ob_data.name() : "") + tag;
 }
 
 static inline std::string split_dir_part(std::string path)
@@ -1352,10 +1482,45 @@ static bool osl_node_configuration(Main *main,
   return true;
 }
 
-static bool is_vdb_format(int format)
+static bool is_blender_internal_vdb_format(int format)
 {
+  // FLUID_DOMAIN_FILE_UNI = (1 << 0),
   // FLUID_DOMAIN_FILE_OPENVDB = (1 << 1)
-  return format == (1 << 1);
+  return format == (1 << 1) || format == (1 << 0);
+}
+
+static std::string resolve_octane_geometry_node(PointerRNA &obj)
+{
+  PointerRNA octane_object = RNA_pointer_get(&obj, "octane");
+  std::string sScriptGeoName;
+  char scriptGeoMaterialName[512];
+  char scriptGeoNodeName[512];
+  RNA_string_get(&octane_object, "node_graph_tree", scriptGeoMaterialName);
+  RNA_string_get(&octane_object, "osl_geo_node", scriptGeoNodeName);
+  std::string scriptGeoMaterialNameStr(scriptGeoMaterialName);
+  std::string scriptGeoNodeNameStr(scriptGeoNodeName);
+  if (scriptGeoMaterialNameStr.size() && scriptGeoNodeNameStr.size()) {
+    sScriptGeoName = scriptGeoMaterialNameStr + "_" + scriptGeoNodeNameStr;
+  }
+  return sScriptGeoName;
+}
+
+static void resolve_octane_ocio_view_params(std::string &display, std::string &display_view)
+{
+  if (display == "sRGB" && display_view == "Raw") {
+    display = "";
+    display_view == "None(sRGB)";
+  }
+}
+
+static void resolve_octane_ocio_look_params(std::string &look)
+{
+  if (look == " None ") {
+    look = "";
+  }
+  else if (look == " Use view look(s) ") {
+    look = "Use view look(s)";
+  }
 }
 
 OCT_NAMESPACE_END

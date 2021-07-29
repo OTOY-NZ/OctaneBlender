@@ -26,6 +26,7 @@
 static bNodeSocketTemplate sh_node_output_material_in[] = {
     {SOCK_SHADER, N_("Surface")},
     {SOCK_SHADER, N_("Volume")},
+    {SOCK_SHADER, N_("Octane Geometry")},
     {SOCK_VECTOR,
      N_("Displacement"),
      0.0f,
@@ -73,6 +74,18 @@ static void node_oct_update_output_material(bNodeTree *ntree, bNode *node)
     }
   }
 #undef OCTANE_SOCKET_LIST_LEN
+  for (sock = node->inputs.first; sock; sock = sock->next) {
+    if (STREQ(sock->name, "Octane Geometry")) {
+      bool hide = !is_octane_target;
+      if (hide) {
+        sock->flag |= ~SOCK_UNAVAIL;
+      }
+      else {
+        sock->flag &= SOCK_UNAVAIL;
+      }
+      break;
+    }
+  }
 }
 
 static int node_shader_gpu_output_material(GPUMaterial *mat,

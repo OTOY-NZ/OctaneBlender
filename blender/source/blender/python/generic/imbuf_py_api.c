@@ -93,7 +93,7 @@ static PyObject *py_imbuf_resize(Py_ImBuf *self, PyObject *args, PyObject *kw)
 {
   PY_IMBUF_CHECK_OBJ(self);
 
-  uint size[2];
+  int size[2];
 
   enum { FAST, BILINEAR };
   const struct PyC_StringEnumItems method_items[] = {
@@ -104,11 +104,16 @@ static PyObject *py_imbuf_resize(Py_ImBuf *self, PyObject *args, PyObject *kw)
   struct PyC_StringEnum method = {method_items, FAST};
 
   static const char *_keywords[] = {"size", "method", NULL};
-  static _PyArg_Parser _parser = {"(II)|O&:resize", _keywords, 0};
+  static _PyArg_Parser _parser = {"(ii)|O&:resize", _keywords, 0};
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kw, &_parser, &size[0], &size[1], PyC_ParseStringEnum, &method)) {
     return NULL;
   }
+  if (size[0] <= 0 || size[1] <= 0) {
+    PyErr_Format(PyExc_ValueError, "resize: Image size cannot be below 1 (%d, %d)", UNPACK2(size));
+    return NULL;
+  }
+
   if (method.value_found == FAST) {
     IMB_scalefastImBuf(self->ibuf, UNPACK2(size));
   }
@@ -342,11 +347,15 @@ PyTypeObject Py_ImBuf_Type = {
     /* Methods to implement standard operations */
 
     (destructor)py_imbuf_dealloc, /* destructor tp_dealloc; */
-    (printfunc)NULL,              /* printfunc tp_print; */
-    NULL,                         /* getattrfunc tp_getattr; */
-    NULL,                         /* setattrfunc tp_setattr; */
-    NULL,                         /* cmpfunc tp_compare; */
-    (reprfunc)py_imbuf_repr,      /* reprfunc tp_repr; */
+#if PY_VERSION_HEX >= 0x03080000
+    0, /* tp_vectorcall_offset */
+#else
+    (printfunc)NULL, /* printfunc tp_print */
+#endif
+    NULL,                    /* getattrfunc tp_getattr; */
+    NULL,                    /* setattrfunc tp_setattr; */
+    NULL,                    /* cmpfunc tp_compare; */
+    (reprfunc)py_imbuf_repr, /* reprfunc tp_repr; */
 
     /* Method suites for standard classes */
 
@@ -419,8 +428,12 @@ static PyObject *M_imbuf_new(PyObject *UNUSED(self), PyObject *args, PyObject *k
 {
   int size[2];
   static const char *_keywords[] = {"size", NULL};
-  static _PyArg_Parser _parser = {"(ii)|i:new", _keywords, 0};
+  static _PyArg_Parser _parser = {"(ii):new", _keywords, 0};
   if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &size[0], &size[1])) {
+    return NULL;
+  }
+  if (size[0] <= 0 || size[1] <= 0) {
+    PyErr_Format(PyExc_ValueError, "new: Image size cannot be below 1 (%d, %d)", UNPACK2(size));
     return NULL;
   }
 

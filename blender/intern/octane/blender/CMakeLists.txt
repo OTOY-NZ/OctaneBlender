@@ -11,8 +11,8 @@ set(INC
 	../../../source/blender/blenkernel
   ../../../source/blender/depsgraph
   ../../../source/blender/windowmanager
-  ../../../source/blender/render/intern/include
-  ../../../source/blender/render/extern/include  
+  ../../../source/blender/render
+  ../../../source/blender/render/intern  
 	${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 
@@ -83,6 +83,23 @@ set(ADDON_FILES
   addon/converters.py
 )
 
+set(ADDON_NODES_FILES
+  addon/nodes/__init__.py
+  addon/nodes/base_node.py
+  addon/nodes/base_node_tree.py
+  addon/nodes/base_socket.py
+)
+
+set(ADDON_NODES_COMPOSITE_FILES
+  addon/nodes/composites/__init__.py
+  addon/nodes/composites/node_tree.py
+)
+
+set(ADDON_NODES_UTIL_FILES
+  addon/utils/__init__.py
+  addon/utils/consts.py
+)
+
 set(STARTUP_FILES
 	addon/nodeitems_octane.py
 )
@@ -112,5 +129,8 @@ endif()
 add_dependencies(bf_intern_octane bf_rna)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_FILES}" ${OCTANE_INSTALL_PATH})
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_FILES}" ${OCTANE_INSTALL_PATH}/nodes)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_COMPOSITE_FILES}" ${OCTANE_INSTALL_PATH}/nodes/composites)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_UTIL_FILES}" ${OCTANE_INSTALL_PATH}/utils)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${OBJECT_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/objects)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ORBX_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/orbx)

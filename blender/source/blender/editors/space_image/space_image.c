@@ -131,7 +131,7 @@ static SpaceLink *image_create(const ScrArea *UNUSED(area), const Scene *UNUSED(
   simage->overlay.flag = SI_OVERLAY_SHOW_OVERLAYS;
 
   BKE_imageuser_default(&simage->iuser);
-  simage->iuser.flag = IMA_SHOW_STEREO | IMA_ANIM_ALWAYS;
+  simage->iuser.flag = IMA_SHOW_STEREO | IMA_ANIM_ALWAYS | IMA_SHOW_MAX_RESOLUTION;
 
   BKE_scopes_new(&simage->scopes);
   simage->sample_line_hist.height = 100;
@@ -603,8 +603,8 @@ static void image_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  /* Image space manages own v2d. */
-  // UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
+  /* NOTE: don't use `UI_view2d_region_reinit(&region->v2d, ...)`
+   * since the space clip manages own v2d in #image_main_region_set_view2d */
 
   /* mask polls mode */
   keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", 0, 0);
@@ -639,6 +639,8 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   Mask *mask = NULL;
   Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
+  Image *image = ED_space_image(sima);
+  const bool show_viewer = (image && image->source == IMA_SRC_VIEWER);
 
   /* XXX not supported yet, disabling for now */
   scene->r.scemode &= ~R_COMP_CROP;
@@ -653,13 +655,19 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     mask = ED_space_image_get_mask(sima);
   }
 
-  /* we draw image in pixelspace */
+  if (show_viewer) {
+    BLI_thread_lock(LOCK_DRAW_IMAGE);
+  }
   DRW_draw_view(C);
+  if (show_viewer) {
+    BLI_thread_unlock(LOCK_DRAW_IMAGE);
+  }
+
   draw_image_main_helpers(C, region);
 
   /* Draw Meta data of the image isn't added to the DrawManager as it is
    * used in other areas as well. */
-  if (sima->flag & SI_DRAW_METADATA) {
+  if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS && sima->flag & SI_DRAW_METADATA) {
     void *lock;
     /* `ED_space_image_get_zoom` temporarily locks the image, so this needs to be done before
      * the image is locked when calling `ED_space_image_acquire_buffer`. */
@@ -682,11 +690,8 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_restore(C);
 
   if (mask) {
-    Image *image = ED_space_image(sima);
-    int width, height, show_viewer;
+    int width, height;
     float aspx, aspy;
-
-    show_viewer = (image && image->source == IMA_SRC_VIEWER);
 
     if (show_viewer) {
       /* ED_space_image_get* will acquire image buffer which requires
@@ -705,7 +710,8 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     ED_mask_draw_region(depsgraph,
                         mask,
                         region,
-                        sima->mask_info.draw_flag,
+                        /* Mask overlay is drawn by image/overlay engine. */
+                        sima->mask_info.draw_flag & ~MASK_DRAWFLAG_OVERLAY,
                         sima->mask_info.draw_type,
                         sima->mask_info.overlay_mode,
                         width,

@@ -32,7 +32,7 @@ namespace gpu {
 /**
  * Implementation of shader compilation and uniforms handling.
  * Base class which is then specialized for each implementation (GL, VK, ...).
- **/
+ */
 class Shader {
  public:
   /** Uniform & attribute locations for shader. */
@@ -63,6 +63,9 @@ class Shader {
   virtual void uniform_int(int location, int comp_len, int array_size, const int *data) = 0;
 
   virtual void vertformat_from_shader(GPUVertFormat *) const = 0;
+
+  /* DEPRECATED: Kept only because of BGL API. */
+  virtual int program_handle_get(void) const = 0;
 
   inline const char *const name_get(void) const
   {

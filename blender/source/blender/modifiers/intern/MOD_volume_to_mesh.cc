@@ -59,7 +59,7 @@ using blender::Span;
 static void initData(ModifierData *md)
 {
   VolumeToMeshModifierData *vmmd = reinterpret_cast<VolumeToMeshModifierData *>(md);
-  vmmd->object = NULL;
+  vmmd->object = nullptr;
   vmmd->threshold = 0.1f;
   strncpy(vmmd->grid_name, "density", MAX_NAME);
   vmmd->adaptivity = 0.0f;
@@ -91,34 +91,33 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
   uiLayout *layout = panel->layout;
 
-  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, NULL);
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
   VolumeToMeshModifierData *vmmd = static_cast<VolumeToMeshModifierData *>(ptr->data);
 
   uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
 
   {
     uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "object", 0, NULL, ICON_NONE);
-    uiItemR(col, ptr, "grid_name", 0, NULL, ICON_NONE);
+    uiItemR(col, ptr, "object", 0, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "grid_name", 0, nullptr, ICON_NONE);
   }
 
   {
     uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "resolution_mode", 0, NULL, ICON_NONE);
+    uiItemR(col, ptr, "resolution_mode", 0, nullptr, ICON_NONE);
     if (vmmd->resolution_mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT) {
-      uiItemR(col, ptr, "voxel_amount", 0, NULL, ICON_NONE);
+      uiItemR(col, ptr, "voxel_amount", 0, nullptr, ICON_NONE);
     }
     else if (vmmd->resolution_mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE) {
-      uiItemR(col, ptr, "voxel_size", 0, NULL, ICON_NONE);
+      uiItemR(col, ptr, "voxel_size", 0, nullptr, ICON_NONE);
     }
   }
 
   {
     uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "threshold", 0, NULL, ICON_NONE);
-    uiItemR(col, ptr, "adaptivity", 0, NULL, ICON_NONE);
-    uiItemR(col, ptr, "use_smooth_shade", 0, NULL, ICON_NONE);
+    uiItemR(col, ptr, "threshold", 0, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "adaptivity", 0, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "use_smooth_shade", 0, nullptr, ICON_NONE);
   }
 
   modifier_panel_end(layout, ptr);
@@ -293,7 +292,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   BKE_volume_load(volume, DEG_get_bmain(ctx->depsgraph));
   VolumeGrid *volume_grid = BKE_volume_grid_find(volume, vmmd->grid_name);
   if (volume_grid == nullptr) {
-    BKE_modifier_set_error(md, "Cannot find '%s' grid", vmmd->grid_name);
+    BKE_modifier_set_error(ctx->object, md, "Cannot find '%s' grid", vmmd->grid_name);
     return create_empty_mesh(input_mesh);
   }
 
@@ -302,7 +301,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   const VolumeGridType grid_type = BKE_volume_grid_type(volume_grid);
   VolumeToMeshOp to_mesh_op{*grid, *vmmd, *ctx};
   if (!BKE_volume_grid_type_operation(grid_type, to_mesh_op)) {
-    BKE_modifier_set_error(md, "Expected a scalar grid");
+    BKE_modifier_set_error(ctx->object, md, "Expected a scalar grid");
     return create_empty_mesh(input_mesh);
   }
 
@@ -313,8 +312,8 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   }
   return mesh;
 #else
-  UNUSED_VARS(md, ctx);
-  BKE_modifier_set_error(md, "Compiled without OpenVDB");
+  UNUSED_VARS(md);
+  BKE_modifier_set_error(ctx->object, md, "Compiled without OpenVDB");
   return create_empty_mesh(input_mesh);
 #endif
 }
@@ -330,26 +329,26 @@ ModifierTypeInfo modifierType_VolumeToMesh = {
 
     /* copyData */ BKE_modifier_copydata_generic,
 
-    /* deformVerts */ NULL,
-    /* deformMatrices */ NULL,
-    /* deformVertsEM */ NULL,
-    /* deformMatricesEM */ NULL,
+    /* deformVerts */ nullptr,
+    /* deformMatrices */ nullptr,
+    /* deformVertsEM */ nullptr,
+    /* deformMatricesEM */ nullptr,
     /* modifyMesh */ modifyMesh,
-    /* modifyHair */ NULL,
-    /* modifyPointCloud */ NULL,
-    /* modifyVolume */ NULL,
+    /* modifyHair */ nullptr,
+    /* modifyGeometrySet */ nullptr,
+    /* modifyVolume */ nullptr,
 
     /* initData */ initData,
-    /* requiredDataMask */ NULL,
-    /* freeData */ NULL,
-    /* isDisabled */ NULL,
+    /* requiredDataMask */ nullptr,
+    /* freeData */ nullptr,
+    /* isDisabled */ nullptr,
     /* updateDepsgraph */ updateDepsgraph,
-    /* dependsOnTime */ NULL,
-    /* dependsOnNormals */ NULL,
+    /* dependsOnTime */ nullptr,
+    /* dependsOnNormals */ nullptr,
     /* foreachIDLink */ foreachIDLink,
-    /* foreachTexLink */ NULL,
-    /* freeRuntimeData */ NULL,
+    /* foreachTexLink */ nullptr,
+    /* freeRuntimeData */ nullptr,
     /* panelRegister */ panelRegister,
-    /* blendWrite */ NULL,
-    /* blendRead */ NULL,
+    /* blendWrite */ nullptr,
+    /* blendRead */ nullptr,
 };

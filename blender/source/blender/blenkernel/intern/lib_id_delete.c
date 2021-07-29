@@ -31,6 +31,7 @@
 #include "BLI_listbase.h"
 
 #include "BKE_anim_data.h"
+#include "BKE_asset.h"
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
 #include "BKE_key.h"
@@ -62,6 +63,10 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
   if (id->override_library) {
     BKE_lib_override_library_free(&id->override_library, do_id_user);
     id->override_library = NULL;
+  }
+
+  if (id->asset_data) {
+    BKE_asset_metadata_free(&id->asset_data);
   }
 
   BKE_animdata_free(id, do_id_user);
@@ -232,7 +237,7 @@ void BKE_id_free_us(Main *bmain, void *idv) /* test users */
   }
 }
 
-static void id_delete(Main *bmain, const bool do_tagged_deletion)
+static size_t id_delete(Main *bmain, const bool do_tagged_deletion)
 {
   const int tag = LIB_TAG_DOIT;
   ListBase *lbarray[MAX_LIBARRAY];
@@ -341,6 +346,7 @@ static void id_delete(Main *bmain, const bool do_tagged_deletion)
    * have been already cleared when we reach it
    * (e.g. Objects being processed before meshes, they'll have already released their 'reference'
    * over meshes when we come to freeing obdata). */
+  size_t num_datablocks_deleted = 0;
   for (i = do_tagged_deletion ? 1 : base_count; i--;) {
     ListBase *lb = lbarray[i];
     ID *id, *id_next;
@@ -355,11 +361,13 @@ static void id_delete(Main *bmain, const bool do_tagged_deletion)
           BLI_assert(id->us == 0);
         }
         BKE_id_free_ex(bmain, id, free_flag, !do_tagged_deletion);
+        ++num_datablocks_deleted;
       }
     }
   }
 
   bmain->is_memfile_undo_written = false;
+  return num_datablocks_deleted;
 }
 
 /**
@@ -381,8 +389,9 @@ void BKE_id_delete(Main *bmain, void *idv)
  *
  * \warning Considered experimental for now, seems to be working OK but this is
  *          risky code in a complicated area.
+ * \return Number of deleted datablocks.
  */
-void BKE_id_multi_tagged_delete(Main *bmain)
+size_t BKE_id_multi_tagged_delete(Main *bmain)
 {
-  id_delete(bmain, true);
+  return id_delete(bmain, true);
 }

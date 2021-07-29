@@ -65,7 +65,6 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_sequencer.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -88,6 +87,8 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+
+#include "SEQ_sequencer.h"
 
 #include "outliner_intern.h"
 
@@ -736,7 +737,7 @@ static void id_local_fn(bContext *C,
 }
 
 static void object_proxy_to_override_convert_fn(bContext *C,
-                                                ReportList *UNUSED(reports),
+                                                ReportList *reports,
                                                 Scene *UNUSED(scene),
                                                 TreeElement *UNUSED(te),
                                                 TreeStoreElem *UNUSED(tsep),
@@ -753,8 +754,15 @@ static void object_proxy_to_override_convert_fn(bContext *C,
     return;
   }
 
-  BKE_lib_override_library_proxy_convert(
-      CTX_data_main(C), scene, CTX_data_view_layer(C), ob_proxy);
+  if (!BKE_lib_override_library_proxy_convert(
+          CTX_data_main(C), scene, CTX_data_view_layer(C), ob_proxy)) {
+    BKE_reportf(
+        reports,
+        RPT_ERROR_INVALID_INPUT,
+        "Could not create a library override from proxy '%s' (might use already local data?)",
+        ob_proxy->id.name + 2);
+    return;
+  }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS | ID_RECALC_COPY_ON_WRITE);
   WM_event_add_notifier(C, NC_WINDOW, NULL);
@@ -1198,7 +1206,7 @@ static void sequence_fn(int event, TreeElement *te, TreeStoreElem *tselem, void 
   Sequence *seq = (Sequence *)te->directdata;
   if (event == OL_DOP_SELECT) {
     Scene *scene = (Scene *)scene_ptr;
-    Editing *ed = BKE_sequencer_editing_get(scene, false);
+    Editing *ed = SEQ_editing_get(scene, false);
     if (BLI_findindex(ed->seqbasep, seq) != -1) {
       ED_sequencer_select_sequence_single(scene, seq, true);
     }
@@ -1684,6 +1692,8 @@ typedef enum eOutlinerIdOpTypes {
   OUTLINER_IDOP_INVALID = 0,
 
   OUTLINER_IDOP_UNLINK,
+  OUTLINER_IDOP_MARK_ASSET,
+  OUTLINER_IDOP_CLEAR_ASSET,
   OUTLINER_IDOP_LOCAL,
   OUTLINER_IDOP_OVERRIDE_LIBRARY_CREATE,
   OUTLINER_IDOP_OVERRIDE_LIBRARY_CREATE_HIERARCHY,
@@ -1709,6 +1719,8 @@ typedef enum eOutlinerIdOpTypes {
 /* TODO: implement support for changing the ID-block used. */
 static const EnumPropertyItem prop_id_op_types[] = {
     {OUTLINER_IDOP_UNLINK, "UNLINK", 0, "Unlink", ""},
+    {OUTLINER_IDOP_MARK_ASSET, "MARK_ASSET", 0, "Mark Asset", ""},
+    {OUTLINER_IDOP_CLEAR_ASSET, "CLEAR_ASSET", 0, "Clear Asset", ""},
     {OUTLINER_IDOP_LOCAL, "LOCAL", 0, "Make Local", ""},
     {OUTLINER_IDOP_SINGLE, "SINGLE", 0, "Make Single User", ""},
     {OUTLINER_IDOP_DELETE, "DELETE", ICON_X, "Delete", ""},
@@ -1779,6 +1791,9 @@ static bool outliner_id_operation_item_poll(bContext *C,
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   switch (enum_value) {
+    case OUTLINER_IDOP_MARK_ASSET:
+    case OUTLINER_IDOP_CLEAR_ASSET:
+      return U.experimental.use_asset_browser;
     case OUTLINER_IDOP_OVERRIDE_LIBRARY_CREATE:
     case OUTLINER_IDOP_OVERRIDE_LIBRARY_CREATE_HIERARCHY:
       return true;
@@ -1912,6 +1927,14 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
           BKE_report(op->reports, RPT_WARNING, "Not yet implemented");
           break;
       }
+      break;
+    }
+    case OUTLINER_IDOP_MARK_ASSET: {
+      WM_operator_name_call(C, "ASSET_OT_mark", WM_OP_EXEC_DEFAULT, NULL);
+      break;
+    }
+    case OUTLINER_IDOP_CLEAR_ASSET: {
+      WM_operator_name_call(C, "ASSET_OT_clear", WM_OP_EXEC_DEFAULT, NULL);
       break;
     }
     case OUTLINER_IDOP_LOCAL: {
@@ -2120,7 +2143,7 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 void OUTLINER_OT_id_operation(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Outliner ID data Operation";
+  ot->name = "Outliner ID Data Operation";
   ot->idname = "OUTLINER_OT_id_operation";
 
   /* callbacks */
@@ -2130,7 +2153,7 @@ void OUTLINER_OT_id_operation(wmOperatorType *ot)
 
   ot->flag = 0;
 
-  ot->prop = RNA_def_enum(ot->srna, "type", prop_id_op_types, 0, "ID data Operation", "");
+  ot->prop = RNA_def_enum(ot->srna, "type", prop_id_op_types, 0, "ID Data Operation", "");
   RNA_def_enum_funcs(ot->prop, outliner_id_operation_itemf);
 }
 
@@ -2549,8 +2572,8 @@ void OUTLINER_OT_constraint_operation(wmOperatorType *ot)
  * \{ */
 
 static const EnumPropertyItem prop_modifier_op_types[] = {
-    {OL_MODIFIER_OP_TOGVIS, "TOGVIS", ICON_RESTRICT_VIEW_OFF, "Toggle viewport use", ""},
-    {OL_MODIFIER_OP_TOGREN, "TOGREN", ICON_RESTRICT_RENDER_OFF, "Toggle render use", ""},
+    {OL_MODIFIER_OP_TOGVIS, "TOGVIS", ICON_RESTRICT_VIEW_OFF, "Toggle Viewport Use", ""},
+    {OL_MODIFIER_OP_TOGREN, "TOGREN", ICON_RESTRICT_RENDER_OFF, "Toggle Render Use", ""},
     {OL_MODIFIER_OP_DELETE, "DELETE", ICON_X, "Delete", ""},
     {0, NULL, 0, NULL, NULL},
 };
@@ -2790,7 +2813,7 @@ static int do_outliner_operation_event(bContext *C,
     }
     if (datalevel == TSE_ID_BASE) {
       /* do nothing... there are no ops needed here yet */
-      return 0;
+      return OPERATOR_CANCELLED;
     }
     if (datalevel == TSE_CONSTRAINT) {
       return outliner_operator_menu(C, "OUTLINER_OT_constraint_operation");
@@ -2801,7 +2824,7 @@ static int do_outliner_operation_event(bContext *C,
     return outliner_operator_menu(C, "OUTLINER_OT_data_operation");
   }
 
-  return 0;
+  return OPERATOR_CANCELLED;
 }
 
 static int outliner_operation(bContext *C, wmOperator *op, const wmEvent *event)

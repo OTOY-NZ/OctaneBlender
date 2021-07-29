@@ -1827,7 +1827,7 @@ static int mixed_bones_object_selectbuffer_extended(ViewContext *vc,
 /**
  * \param has_bones: When true, skip non-bone hits, also allow bases to be used
  * that are visible but not select-able,
- * since you may be in pose mode with an an unselect-able object.
+ * since you may be in pose mode with an unselect-able object.
  *
  * \return the active base or NULL.
  */
@@ -2457,13 +2457,16 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
   else if (obact && BKE_paint_select_face_test(obact)) {
     retval = paintface_mouse_select(C, obact, location, extend, deselect, toggle);
     if (!retval && deselect_all) {
-      retval = paintface_deselect_all_visible(C, CTX_data_active_object(C), SEL_DESELECT, false);
+      retval = paintface_deselect_all_visible(C, CTX_data_active_object(C), SEL_DESELECT, true);
     }
   }
   else if (BKE_paint_select_vert_test(obact)) {
     retval = ed_wpaint_vertex_select_pick(C, location, extend, deselect, toggle, obact);
     if (!retval && deselect_all) {
       retval = paintvert_deselect_all_visible(obact, SEL_DESELECT, false);
+      if (retval) {
+        paintvert_tag_select_update(C, obact);
+      }
     }
   }
   else {
@@ -2532,12 +2535,12 @@ void VIEW3D_OT_select(wmOperatorType *ot)
       "center",
       0,
       "Center",
-      "Use the object center when selecting, in edit-mode used to extend object selection");
+      "Use the object center when selecting, in edit mode used to extend object selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
       ot->srna, "enumerate", 0, "Enumerate", "List objects under the mouse (object mode only)");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna, "object", 0, "Object", "Use object selection (edit-mode only)");
+  prop = RNA_def_boolean(ot->srna, "object", 0, "Object", "Use object selection (edit mode only)");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_int_vector(ot->srna,

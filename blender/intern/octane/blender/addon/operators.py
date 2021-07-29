@@ -102,6 +102,22 @@ def set_all_mesh_resource_cache_tags(is_dirty):
         set_mesh_resource_cache_tag(obj, is_dirty) 
 
 @persistent
+def sync_octane_aov_output_number(self):
+    try:
+        view_layer = bpy.context.view_layer
+        octane_view_layer = view_layer.octane
+
+        composite_node_tree_name = octane_view_layer.aov_output_group_collection.composite_node_tree
+        aov_output_group_name = octane_view_layer.aov_output_group_collection.aov_output_group_node
+        if composite_node_tree_name in bpy.data.node_groups:
+            if aov_output_group_name in bpy.data.node_groups[composite_node_tree_name].nodes:
+                bpy.data.node_groups[composite_node_tree_name].check_validity()
+                node = bpy.data.node_groups[composite_node_tree_name].nodes[aov_output_group_name]
+                view_layer.octane_aov_out_number = int(node.group_number)    
+    except:
+        pass
+
+@persistent
 def clear_resource_cache_system(self):
     import _octane
     from . import engine
@@ -285,6 +301,15 @@ class OCTANE_OT_UpdateOSLCameraNodeCollections(bpy.types.Operator):
         oct_cam = cam.octane
         oct_cam.osl_camera_node_collections.update_nodes(context)
         return {'FINISHED'}
+
+class OCTANE_OT_UpdateAovOutputGroupCollections(bpy.types.Operator):
+    bl_idname = 'update.aov_output_group_nodes'
+    bl_label = ''
+    def invoke(self, context, event):
+        view_layer = context.view_layer
+        oct_view_layer = view_layer.octane
+        oct_view_layer.aov_output_group_collection.update_nodes(context)
+        return {'FINISHED'}        
 
 class OCTANE_OT_UpdateOctaneGeoNodeCollections(bpy.types.Operator):
     bl_idname = 'update.octane_geo_nodes'
@@ -570,6 +595,7 @@ classes = (
 
     OCTANE_OT_UpdateOctaneGeoNodeCollections,
     OCTANE_OT_UpdateOSLCameraNodeCollections,
+    OCTANE_OT_UpdateAovOutputGroupCollections,
 
     OCTANE_OT_SetMeshesType,
     OCTANE_OT_SetOctaneShader,

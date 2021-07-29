@@ -23,6 +23,7 @@
 
 #include "BLI_utildefines.h"
 
+#include "BLI_kdopbvh.h"
 #include "BLI_math.h"
 
 #include "BLT_translation.h"
@@ -30,6 +31,7 @@
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
@@ -109,6 +111,16 @@ static void deformVerts(ModifierData *md,
   MVert *tempVert = NULL;
   Object *ob = ctx->object;
 
+  /* If collision is disabled, free the stale data and exit. */
+  if (!ob->pd || !ob->pd->deflect) {
+    if (!ob->pd) {
+      printf("CollisionModifier: collision settings are missing!\n");
+    }
+
+    freeData(md);
+    return;
+  }
+
   if (mesh == NULL) {
     mesh_src = MOD_deform_mesh_eval_get(ob, NULL, NULL, NULL, numVerts, false, false);
   }
@@ -116,11 +128,6 @@ static void deformVerts(ModifierData *md,
     /* Not possible to use get_mesh() in this case as we'll modify its vertices
      * and get_mesh() would return 'mesh' directly. */
     mesh_src = (Mesh *)BKE_id_copy_ex(NULL, (ID *)mesh, NULL, LIB_ID_COPY_LOCALIZE);
-  }
-
-  if (!ob->pd) {
-    printf("CollisionModifier deformVerts: Should not happen!\n");
-    return;
   }
 
   if (mesh_src) {
@@ -309,7 +316,7 @@ ModifierTypeInfo modifierType_Collision = {
     /* deformMatricesEM */ NULL,
     /* modifyMesh */ NULL,
     /* modifyHair */ NULL,
-    /* modifyPointCloud */ NULL,
+    /* modifyGeometrySet */ NULL,
     /* modifyVolume */ NULL,
 
     /* initData */ initData,

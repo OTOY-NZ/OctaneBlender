@@ -1036,12 +1036,13 @@ void ACTION_OT_delete(wmOperatorType *ot)
   ot->description = "Remove all selected keyframes";
 
   /* api callbacks */
-  ot->invoke = WM_operator_confirm;
+  ot->invoke = WM_operator_confirm_or_exec;
   ot->exec = actkeys_delete_exec;
   ot->poll = ED_operator_action_active;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  WM_operator_properties_confirm_or_exec(ot);
 }
 
 /* ******************** Clean Keyframes Operator ************************* */
@@ -1665,7 +1666,7 @@ static int actkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
   if (ked.i1) {
     Scene *scene = ac.scene;
     CFRA = round_fl_to_int(ked.f1 / ked.i1);
-    SUBFRA = 0.f;
+    SUBFRA = 0.0f;
   }
 
   /* set notifier that things have changed */
@@ -1702,7 +1703,7 @@ static const EnumPropertyItem prop_actkeys_snap_types[] = {
      "NEAREST_FRAME",
      0,
      "Selection to Nearest Frame",
-     "Snap selected keyframes to the nearest (whole) frame (use to fix accidental sub-frame "
+     "Snap selected keyframes to the nearest (whole) frame (use to fix accidental subframe "
      "offsets)"},
     {ACTKEYS_SNAP_NEAREST_SECOND,
      "NEAREST_SECOND",
@@ -1827,7 +1828,7 @@ static const EnumPropertyItem prop_actkeys_mirror_types[] = {
     {ACTKEYS_MIRROR_XAXIS,
      "XAXIS",
      0,
-     "By Values Over Value=0",
+     "By Values Over Zero Value",
      "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"},
     {ACTKEYS_MIRROR_MARKER,
      "MARKER",
