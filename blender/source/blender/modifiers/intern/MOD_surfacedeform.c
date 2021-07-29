@@ -26,6 +26,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -150,11 +151,10 @@ enum {
 static void initData(ModifierData *md)
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
-  smd->target = NULL;
-  smd->verts = NULL;
-  smd->flags = 0;
-  smd->falloff = 4.0f;
-  smd->strength = 1.0f;
+
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
+
+  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SurfaceDeformModifierData), modifier);
 }
 
 static void requiredDataMask(Object *UNUSED(ob),
@@ -218,11 +218,11 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   }
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
 
-  walk(userData, ob, &smd->target, IDWALK_NOP);
+  walk(userData, ob, (ID **)&smd->target, IDWALK_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -372,9 +372,8 @@ BLI_INLINE uint nearestVert(SDefBindCalcData *const data, const float point_co[3
       len_squared_v3v3(point_co, data->targetCos[edge->v2])) {
     return edge->v1;
   }
-  else {
-    return edge->v2;
-  }
+
+  return edge->v2;
 }
 
 BLI_INLINE int isPolyValid(const float coords[][2], const uint nr)
@@ -425,15 +424,9 @@ static void freeBindData(SDefBindWeightData *const bwdata)
   MEM_freeN(bwdata);
 }
 
-BLI_INLINE float computeAngularWeight(const float point_angle, const float edgemid_angle)
+BLI_INLINE float computeAngularWeight(const float point_angle)
 {
-  float weight;
-
-  weight = point_angle;
-  weight /= edgemid_angle;
-  weight *= M_PI_2;
-
-  return sinf(weight);
+  return sinf(point_angle * M_PI_2);
 }
 
 BLI_INLINE SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
@@ -450,7 +443,7 @@ BLI_INLINE SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
   SDefBindWeightData *bwdata;
   SDefBindPoly *bpoly;
 
-  float world[3] = {0.0f, 0.0f, 1.0f};
+  const float world[3] = {0.0f, 0.0f, 1.0f};
   float avg_point_dist = 0.0f;
   float tot_weight = 0.0f;
   int inf_weight_flags = 0;
@@ -659,15 +652,12 @@ BLI_INLINE SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
 
       /* Compute angular weight component */
       if (epolys->num == 1) {
-        ang_weights[0] = computeAngularWeight(bpolys[0]->point_edgemid_angles[edge_on_poly[0]],
-                                              bpolys[0]->edgemid_angle);
+        ang_weights[0] = computeAngularWeight(bpolys[0]->point_edgemid_angles[edge_on_poly[0]]);
         bpolys[0]->weight_angular *= ang_weights[0] * ang_weights[0];
       }
       else if (epolys->num == 2) {
-        ang_weights[0] = computeAngularWeight(bpolys[0]->point_edgemid_angles[edge_on_poly[0]],
-                                              bpolys[0]->edgemid_angle);
-        ang_weights[1] = computeAngularWeight(bpolys[1]->point_edgemid_angles[edge_on_poly[1]],
-                                              bpolys[1]->edgemid_angle);
+        ang_weights[0] = computeAngularWeight(bpolys[0]->point_edgemid_angles[edge_on_poly[0]]);
+        ang_weights[1] = computeAngularWeight(bpolys[1]->point_edgemid_angles[edge_on_poly[1]]);
 
         bpolys[0]->weight_angular *= ang_weights[0] * ang_weights[1];
         bpolys[1]->weight_angular *= ang_weights[0] * ang_weights[1];
@@ -708,9 +698,14 @@ BLI_INLINE SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
       bpoly->dominant_angle_weight = sinf(bpoly->dominant_angle_weight * M_PI_2);
 
       /* Compute quadratic angular scale interpolation weight */
-      scale_weight = bpoly->point_edgemid_angles[bpoly->dominant_edge] / bpoly->edgemid_angle;
-      scale_weight /= scale_weight +
-                      (bpoly->point_edgemid_angles[!bpoly->dominant_edge] / bpoly->edgemid_angle);
+      {
+        const float edge_angle_a = bpoly->point_edgemid_angles[bpoly->dominant_edge];
+        const float edge_angle_b = bpoly->point_edgemid_angles[!bpoly->dominant_edge];
+        /* Clamp so skinny faces with near zero `edgemid_angle`
+         * won't cause numeric problems. see T81988. */
+        scale_weight = edge_angle_a / max_ff(edge_angle_a, bpoly->edgemid_angle);
+        scale_weight /= scale_weight + (edge_angle_b / max_ff(edge_angle_b, bpoly->edgemid_angle));
+      }
 
       sqr = scale_weight * scale_weight;
       inv_sqr = 1.0f - scale_weight;
@@ -776,6 +771,11 @@ BLI_INLINE SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
     else {
       bpoly->weight = 1.0f / bpoly->weight_angular / bpoly->weight_dist_proj / bpoly->weight_dist;
     }
+
+    /* Apply after other kinds of scaling so the faces corner angle is always
+     * scaled in a uniform way, preventing heavily sub-divided triangle fans
+     * from having a lop-sided influence on the weighting, see T81988. */
+    bpoly->weight *= bpoly->edgemid_angle / M_PI;
 
     tot_weight += bpoly->weight;
   }
@@ -1283,7 +1283,7 @@ static void surfacedeformModifier_do(ModifierData *md,
     BKE_modifier_set_error(md, "Vertices changed from %u to %u", smd->numverts, numverts);
     return;
   }
-  else if (smd->numpoly != tnumpoly) {
+  if (smd->numpoly != tnumpoly) {
     BKE_modifier_set_error(md, "Target polygons changed from %u to %u", smd->numpoly, tnumpoly);
     return;
   }
@@ -1398,29 +1398,28 @@ static bool isDisabled(const Scene *UNUSED(scene), ModifierData *md, bool UNUSED
          !(smd->verts != NULL && !(smd->flags & MOD_SDEF_BIND));
 }
 
-static void panel_draw(const bContext *C, Panel *panel)
+static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
   uiLayout *col;
   uiLayout *layout = panel->layout;
 
-  PointerRNA ptr;
   PointerRNA ob_ptr;
-  modifier_panel_get_property_pointers(C, panel, &ob_ptr, &ptr);
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  PointerRNA target_ptr = RNA_pointer_get(&ptr, "target");
+  PointerRNA target_ptr = RNA_pointer_get(ptr, "target");
 
-  bool is_bound = RNA_boolean_get(&ptr, "is_bound");
+  bool is_bound = RNA_boolean_get(ptr, "is_bound");
 
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
   uiLayoutSetActive(col, !is_bound);
-  uiItemR(col, &ptr, "target", 0, NULL, ICON_NONE);
+  uiItemR(col, ptr, "target", 0, NULL, ICON_NONE);
 
-  uiItemR(col, &ptr, "falloff", 0, NULL, ICON_NONE);
-  uiItemR(col, &ptr, "strength", 0, NULL, ICON_NONE);
+  uiItemR(col, ptr, "falloff", 0, NULL, ICON_NONE);
+  uiItemR(col, ptr, "strength", 0, NULL, ICON_NONE);
 
-  modifier_vgroup_ui(layout, &ptr, &ob_ptr, "vertex_group", "invert_vertex_group", NULL);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", NULL);
 
   uiItemS(layout);
 
@@ -1432,7 +1431,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     uiLayoutSetActive(col, !RNA_pointer_is_null(&target_ptr));
     uiItemO(col, IFACE_("Bind"), ICON_NONE, "OBJECT_OT_surfacedeform_bind");
   }
-  modifier_panel_end(layout, &ptr);
+  modifier_panel_end(layout, ptr);
 }
 
 static void panelRegister(ARegionType *region_type)
@@ -1502,8 +1501,10 @@ ModifierTypeInfo modifierType_SurfaceDeform = {
     /* name */ "SurfaceDeform",
     /* structName */ "SurfaceDeformModifierData",
     /* structSize */ sizeof(SurfaceDeformModifierData),
+    /* srna */ &RNA_SurfaceDeformModifier,
     /* type */ eModifierTypeType_OnlyDeform,
     /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
+    /* icon */ ICON_MOD_MESHDEFORM,
 
     /* copyData */ copyData,
 
@@ -1523,8 +1524,7 @@ ModifierTypeInfo modifierType_SurfaceDeform = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,

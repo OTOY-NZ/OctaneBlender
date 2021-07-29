@@ -45,6 +45,7 @@ set(SRC_HEADERS
 	shader.h
   osl.h
 	particles.h
+  octane_scatter.h
 
 	kernel/kernel_types.h
 	kernel/kernel_math.h

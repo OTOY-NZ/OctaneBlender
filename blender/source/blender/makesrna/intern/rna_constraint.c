@@ -512,6 +512,17 @@ static void rna_Constraint_influence_update(Main *bmain, Scene *scene, PointerRN
   rna_Constraint_update(bmain, scene, ptr);
 }
 
+/* Update only needed so this isn't overwritten on first evaluation. */
+static void rna_Constraint_childof_inverse_matrix_update(Main *bmain,
+                                                         Scene *scene,
+                                                         PointerRNA *ptr)
+{
+  bConstraint *con = ptr->data;
+  bChildOfConstraint *data = con->data;
+  data->flag &= ~CHILDOF_SET_INVERSE;
+  rna_Constraint_update(bmain, scene, ptr);
+}
+
 static void rna_Constraint_ik_type_set(struct PointerRNA *ptr, int value)
 {
   bConstraint *con = ptr->data;
@@ -999,7 +1010,8 @@ static void rna_def_constraint_childof(BlenderRNA *brna)
   RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Inverse Matrix", "Transformation matrix to apply before");
-  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+  RNA_def_property_update(
+      prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_childof_inverse_matrix_update");
 
   RNA_define_lib_overridable(false);
 }
@@ -1789,6 +1801,21 @@ static void rna_def_constraint_action(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Minimum", "Minimum value for target channel range");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
   RNA_def_property_float_funcs(prop, NULL, NULL, "rna_ActionConstraint_minmax_range");
+
+  prop = RNA_def_property(srna, "eval_time", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, NULL, "eval_time");
+  RNA_def_property_range(prop, 0.f, 1.f);
+  RNA_def_property_ui_text(
+      prop, "Evaluation Time", "Interpolates between Action Start and End frames");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+
+  prop = RNA_def_property(srna, "use_eval_time", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", ACTCON_USE_EVAL_TIME);
+  RNA_def_property_ui_text(prop,
+                           "Use Evaluation Time",
+                           "Interpolate between Action Start and End frames, with the Evaluation "
+                           "Time slider instead of the Target object/bone");
+  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   RNA_define_lib_overridable(false);
 }

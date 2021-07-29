@@ -47,6 +47,7 @@
 
 CCL_NAMESPACE_BEGIN
 
+DeviceTypeMask BlenderSession::device_override = DEVICE_MASK_ALL;
 bool BlenderSession::headless = false;
 int BlenderSession::num_resumable_chunks = 0;
 int BlenderSession::current_resumable_chunk = 0;
@@ -237,6 +238,7 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
    * See note on create_session().
    */
   /* sync object should be re-created */
+  delete sync;
   sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress);
 
   BL::SpaceView3D b_null_space_view3d(PointerRNA_NULL);
@@ -258,6 +260,8 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
 
 void BlenderSession::free_session()
 {
+  session->cancel();
+
   delete sync;
   delete session;
 }
@@ -562,6 +566,10 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
     session->reset(buffer_params, effective_layer_samples);
 
     /* render */
+    if (!b_engine.is_preview() && background && print_render_stats) {
+      scene->enable_update_stats();
+    }
+
     session->start();
     session->wait();
 
@@ -646,7 +654,7 @@ void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
 
   /* Passes are identified by name, so in order to return the combined pass we need to set the
    * name. */
-  Pass::add(PASS_COMBINED, scene->film->passes, "Combined");
+  Pass::add(PASS_COMBINED, scene->passes, "Combined");
 
   session->read_bake_tile_cb = function_bind(&BlenderSession::read_render_tile, this, _1);
   session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
@@ -679,7 +687,7 @@ void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
     BufferParams buffer_params;
     buffer_params.width = bake_width;
     buffer_params.height = bake_height;
-    buffer_params.passes = scene->film->passes;
+    buffer_params.passes = scene->passes;
 
     /* Update session. */
     session->tile_manager.set_samples(session_params.samples);

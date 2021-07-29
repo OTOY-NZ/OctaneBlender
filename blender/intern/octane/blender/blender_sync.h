@@ -180,6 +180,8 @@ class BlenderSync {
                   Transform &tfm,
                   bool *use_portal,
                   bool force_update_transform,
+                  bool motion,
+                  float motion_time,
                   OctaneDataTransferObject::OctaneObjectLayer &object_layer);
   void sync_shaders(BL::Depsgraph &b_depsgraph);
   void sync_material(BL::Material b_material, Shader *shader);

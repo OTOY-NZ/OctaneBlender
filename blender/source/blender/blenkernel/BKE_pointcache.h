@@ -92,9 +92,6 @@ struct Scene;
 struct SoftBody;
 struct ViewLayer;
 
-struct OpenVDBReader;
-struct OpenVDBWriter;
-
 /* temp structure for read/write */
 typedef struct PTCacheData {
   unsigned int index;
@@ -122,7 +119,6 @@ typedef struct PTCacheFile {
 
 enum {
   PTCACHE_FILE_PTCACHE = 0,
-  PTCACHE_FILE_OPENVDB = 1,
 };
 
 typedef struct PTCacheID {
@@ -158,11 +154,6 @@ typedef struct PTCacheID {
   int (*write_stream)(PTCacheFile *pf, void *calldata);
   /* copies cache cata to point data */
   int (*read_stream)(PTCacheFile *pf, void *calldata);
-
-  /* copies point data to cache data */
-  int (*write_openvdb_stream)(struct OpenVDBWriter *writer, void *calldata);
-  /* copies cache cata to point data */
-  int (*read_openvdb_stream)(struct OpenVDBReader *reader, void *calldata);
 
   /* copies custom extradata to cache data */
   void (*write_extra_data)(void *calldata, struct PTCacheMem *pm, int cfra);
@@ -331,9 +322,11 @@ int BKE_ptcache_data_size(int data_type);
 int BKE_ptcache_mem_index_find(struct PTCacheMem *pm, unsigned int index);
 
 /* Memory cache read/write helpers. */
-void BKE_ptcache_mem_pointers_init(struct PTCacheMem *pm);
-void BKE_ptcache_mem_pointers_incr(struct PTCacheMem *pm);
-int BKE_ptcache_mem_pointers_seek(int point_index, struct PTCacheMem *pm);
+void BKE_ptcache_mem_pointers_init(struct PTCacheMem *pm, void *cur[BPHYS_TOT_DATA]);
+void BKE_ptcache_mem_pointers_incr(void *cur[BPHYS_TOT_DATA]);
+int BKE_ptcache_mem_pointers_seek(int point_index,
+                                  struct PTCacheMem *pm,
+                                  void *cur[BPHYS_TOT_DATA]);
 
 /* Main cache reading call. */
 int BKE_ptcache_read(PTCacheID *pid, float cfra, bool no_extrapolate_old);

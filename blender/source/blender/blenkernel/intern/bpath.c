@@ -27,7 +27,6 @@
 
 #include <sys/stat.h>
 
-#include <assert.h>
 #include <string.h>
 
 /* path/file handling stuff */
@@ -715,7 +714,7 @@ void BKE_bpath_traverse_id(
       if (scene->ed) {
         Sequence *seq;
 
-        SEQ_BEGIN (scene->ed, seq) {
+        SEQ_ALL_BEGIN (scene->ed, seq) {
           if (SEQ_HAS_PATH(seq)) {
             StripElem *se = seq->strip->stripdata;
 
@@ -744,7 +743,7 @@ void BKE_bpath_traverse_id(
             }
           }
         }
-        SEQ_END;
+        SEQ_ALL_END;
       }
       break;
     }

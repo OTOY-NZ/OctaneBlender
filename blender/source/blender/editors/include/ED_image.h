@@ -58,7 +58,8 @@ void ED_space_image_set_mask(struct bContext *C, struct SpaceImage *sima, struct
 bool ED_space_image_color_sample(struct SpaceImage *sima,
                                  struct ARegion *region,
                                  int mval[2],
-                                 float r_col[3]);
+                                 float r_col[3],
+                                 bool *r_is_data);
 struct ImBuf *ED_space_image_acquire_buffer(struct SpaceImage *sima, void **r_lock, int tile);
 int ED_space_image_get_display_channel_mask(struct ImBuf *ibuf);
 void ED_space_image_release_buffer(struct SpaceImage *sima, struct ImBuf *ibuf, void *lock);
@@ -109,7 +110,7 @@ bool ED_space_image_show_uvedit(struct SpaceImage *sima, struct Object *obedit);
 
 bool ED_space_image_paint_curve(const struct bContext *C);
 
-bool ED_space_image_check_show_maskedit(struct SpaceImage *sima, struct ViewLayer *view_layer);
+bool ED_space_image_check_show_maskedit(struct SpaceImage *sima, struct Object *obedit);
 bool ED_space_image_maskedit_poll(struct bContext *C);
 bool ED_space_image_maskedit_mask_poll(struct bContext *C);
 bool ED_space_image_cursor_poll(struct bContext *C);

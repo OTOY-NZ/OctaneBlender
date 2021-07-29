@@ -1159,7 +1159,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
   switch (pKernel->type) {
     case Kernel::DIRECT_LIGHT: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 14 + sizeof(int32_t) * 33 + pKernel->sAoTexture.length() +
+                  sizeof(float) * 14 + sizeof(int32_t) * 34 + pKernel->sAoTexture.length() +
                       sizeof(float_3) + 2,
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
@@ -1173,6 +1173,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
           << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
           << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
+          << pKernel->bDeepRenderPasses
           << pKernel->bAdaptiveSampling << pKernel->iSpecularDepth << pKernel->iGlossyDepth
           << pKernel->GIMode << pKernel->iDiffuseDepth << pKernel->iParallelSamples
           << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
@@ -1184,7 +1185,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
     } break;
     case Kernel::PATH_TRACE: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 15 + sizeof(int32_t) * 32 + sizeof(float_3),
+                  sizeof(float) * 15 + sizeof(int32_t) * 33 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
@@ -1198,6 +1199,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->bAILightEnable << pKernel->bAILightUpdate << pKernel->iLightIDsAction
           << pKernel->iLightIDsMask << pKernel->iLightLinkingInvertMask
           << pKernel->bMinimizeNetTraffic << pKernel->bDeepImageEnable
+          << pKernel->bDeepRenderPasses
           << pKernel->bAdaptiveSampling << pKernel->iMaxDiffuseDepth << pKernel->iMaxGlossyDepth
           << pKernel->iMaxScatterDepth << pKernel->iParallelSamples << pKernel->iMaxTileSamples
           << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples

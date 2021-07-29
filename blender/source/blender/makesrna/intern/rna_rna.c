@@ -62,9 +62,7 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
-/* XXX Keep in sync with bpy_props.c's property_subtype_xxx_items ???
- *     Currently it is not...
- */
+/* Keep in sync with RNA_types.h PropertySubType and bpy_props.c's property_subtype_xxx_items */
 const EnumPropertyItem rna_enum_property_subtype_items[] = {
     {PROP_NONE, "NONE", 0, "None", ""},
 
@@ -72,6 +70,7 @@ const EnumPropertyItem rna_enum_property_subtype_items[] = {
     {PROP_FILEPATH, "FILEPATH", 0, "File Path", ""},
     {PROP_DIRPATH, "DIRPATH", 0, "Directory Path", ""},
     {PROP_FILENAME, "FILENAME", 0, "File Name", ""},
+    {PROP_BYTESTRING, "BYTESTRING", 0, "Byte String", ""},
     {PROP_PASSWORD, "PASSWORD", 0, "Password", "A string that is displayed hidden ('********')"},
 
     /* numbers */
@@ -83,6 +82,8 @@ const EnumPropertyItem rna_enum_property_subtype_items[] = {
     {PROP_TIME, "TIME", 0, "Time", ""},
     {PROP_DISTANCE, "DISTANCE", 0, "Distance", ""},
     {PROP_DISTANCE_CAMERA, "DISTANCE_CAMERA", 0, "Camera Distance", ""},
+    {PROP_POWER, "POWER", 0, "Power", ""},
+    {PROP_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""},
 
     /* number arrays */
     {PROP_COLOR, "COLOR", 0, "Color", ""},
@@ -117,6 +118,7 @@ const EnumPropertyItem rna_enum_property_unit_items[] = {
     {PROP_UNIT_MASS, "MASS", 0, "Mass", ""},
     {PROP_UNIT_CAMERA, "CAMERA", 0, "Camera", ""},
     {PROP_UNIT_POWER, "POWER", 0, "Power", ""},
+    {PROP_UNIT_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -127,6 +129,7 @@ const EnumPropertyItem rna_enum_property_unit_items[] = {
 #  include "BLI_string.h"
 #  include "MEM_guardedalloc.h"
 
+#  include "BKE_idprop.h"
 #  include "BKE_lib_override.h"
 
 /* Struct */
@@ -1304,8 +1307,6 @@ static int rna_property_override_diff_propptr(Main *bmain,
 
         /* If not yet overridden, or if we are handling sub-items (inside a collection)... */
         if (op != NULL) {
-          BKE_lib_override_library_operations_tag(op, IDOVERRIDE_LIBRARY_TAG_UNUSED, false);
-
           if (created || op->rna_prop_type == 0) {
             op->rna_prop_type = property_type;
           }
@@ -1315,18 +1316,26 @@ static int rna_property_override_diff_propptr(Main *bmain,
 
           if (created || rna_itemname_a != NULL || rna_itemname_b != NULL ||
               rna_itemindex_a != -1 || rna_itemindex_b != -1) {
-            BKE_lib_override_library_property_operation_get(op,
-                                                            IDOVERRIDE_LIBRARY_OP_REPLACE,
-                                                            rna_itemname_b,
-                                                            rna_itemname_a,
-                                                            rna_itemindex_b,
-                                                            rna_itemindex_a,
-                                                            true,
-                                                            NULL,
-                                                            &created);
+            IDOverrideLibraryPropertyOperation *opop;
+            opop = BKE_lib_override_library_property_operation_get(op,
+                                                                   IDOVERRIDE_LIBRARY_OP_REPLACE,
+                                                                   rna_itemname_b,
+                                                                   rna_itemname_a,
+                                                                   rna_itemindex_b,
+                                                                   rna_itemindex_a,
+                                                                   true,
+                                                                   NULL,
+                                                                   &created);
+            /* Do not use BKE_lib_override_library_operations_tag here, we do not want to validate
+             * as used all of its operations. */
+            op->tag &= ~IDOVERRIDE_LIBRARY_TAG_UNUSED;
+            opop->tag &= ~IDOVERRIDE_LIBRARY_TAG_UNUSED;
             if (r_override_changed) {
               *r_override_changed = created;
             }
+          }
+          else {
+            BKE_lib_override_library_operations_tag(op, IDOVERRIDE_LIBRARY_TAG_UNUSED, false);
           }
         }
       }
@@ -1755,7 +1764,6 @@ int rna_property_override_diff_default(Main *bmain,
     case PROP_COLLECTION: {
       bool equals = true;
       bool abort = false;
-      bool is_first_insert = true;
       int idx_a = 0;
       int idx_b = 0;
 
@@ -1769,6 +1777,22 @@ int rna_property_override_diff_default(Main *bmain,
       char *propname_a = NULL;
       char *prev_propname_a = buff_prev_a;
       char *propname_b = NULL;
+
+      if (use_collection_insertion) {
+        /* We need to clean up all possible existing insertion operations, and then re-generate
+         * them, otherwise we'd end up with a mess of opop's every time something changes. */
+        op = BKE_lib_override_library_property_find(override, rna_path);
+        if (op != NULL) {
+          LISTBASE_FOREACH_MUTABLE (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
+            if (ELEM(opop->operation,
+                     IDOVERRIDE_LIBRARY_OP_INSERT_AFTER,
+                     IDOVERRIDE_LIBRARY_OP_INSERT_BEFORE)) {
+              BKE_lib_override_library_property_operation_delete(op, opop);
+            }
+          }
+          op = NULL;
+        }
+      }
 
       for (; iter_a.valid && !abort;) {
         bool is_valid_for_diffing;
@@ -1851,22 +1875,6 @@ int rna_property_override_diff_default(Main *bmain,
            * also assume then that _a data is the one where things are inserted. */
           if (is_valid_for_insertion && use_collection_insertion) {
             op = BKE_lib_override_library_property_get(override, rna_path, &created);
-
-            if (is_first_insert) {
-              /* We need to clean up all possible existing insertion operations,
-               * otherwise we'd end up with a mess of ops everytime something changes. */
-              for (IDOverrideLibraryPropertyOperation *opop = op->operations.first;
-                   opop != NULL;) {
-                IDOverrideLibraryPropertyOperation *opop_next = opop->next;
-                if (ELEM(opop->operation,
-                         IDOVERRIDE_LIBRARY_OP_INSERT_AFTER,
-                         IDOVERRIDE_LIBRARY_OP_INSERT_BEFORE)) {
-                  BKE_lib_override_library_property_operation_delete(op, opop);
-                }
-                opop = opop_next;
-              }
-              is_first_insert = false;
-            }
 
             BKE_lib_override_library_property_operation_get(op,
                                                             IDOVERRIDE_LIBRARY_OP_INSERT_AFTER,
@@ -2527,8 +2535,75 @@ bool rna_property_override_apply_default(Main *UNUSED(bmain),
       return true;
     }
     case PROP_COLLECTION: {
-      BLI_assert(!"You need to define a specific override apply callback for enums.");
-      return false;
+      /* We only support IDProperty-based collection insertion here. */
+      const bool is_src_idprop = (prop_src->magic != RNA_MAGIC) ||
+                                 (prop_src->flag & PROP_IDPROPERTY) != 0;
+      const bool is_dst_idprop = (prop_dst->magic != RNA_MAGIC) ||
+                                 (prop_dst->flag & PROP_IDPROPERTY) != 0;
+      if (!(is_src_idprop && is_dst_idprop)) {
+        BLI_assert(0 && "You need to define a specific override apply callback for collections");
+        return false;
+      }
+
+      switch (override_op) {
+        case IDOVERRIDE_LIBRARY_OP_INSERT_AFTER: {
+          PointerRNA item_ptr_src, item_ptr_ref, item_ptr_dst;
+          int item_index_dst;
+          bool is_valid = false;
+          if (opop->subitem_local_name != NULL && opop->subitem_local_name[0] != '\0') {
+            /* Find from name. */
+            int item_index_src, item_index_ref;
+            if (RNA_property_collection_lookup_string_index(
+                    ptr_src, prop_src, opop->subitem_local_name, &item_ptr_src, &item_index_src) &&
+                RNA_property_collection_lookup_int(
+                    ptr_src, prop_src, item_index_src + 1, &item_ptr_src) &&
+                RNA_property_collection_lookup_string_index(
+                    ptr_dst, prop_dst, opop->subitem_local_name, &item_ptr_ref, &item_index_ref)) {
+              is_valid = true;
+              item_index_dst = item_index_ref + 1;
+            }
+          }
+          if (!is_valid && opop->subitem_local_index >= 0) {
+            /* Find from index. */
+            if (RNA_property_collection_lookup_int(
+                    ptr_src, prop_src, opop->subitem_local_index + 1, &item_ptr_src) &&
+                RNA_property_collection_lookup_int(
+                    ptr_dst, prop_dst, opop->subitem_local_index, &item_ptr_ref)) {
+              item_index_dst = opop->subitem_local_index + 1;
+              is_valid = true;
+            }
+          }
+          if (!is_valid) {
+            /* Assume it is inserted in first position. */
+            if (RNA_property_collection_lookup_int(ptr_src, prop_src, 0, &item_ptr_src)) {
+              item_index_dst = 0;
+              is_valid = true;
+            }
+          }
+          if (!is_valid) {
+            return false;
+          }
+
+          RNA_property_collection_add(ptr_dst, prop_dst, &item_ptr_dst);
+          const int item_index_added = RNA_property_collection_length(ptr_dst, prop_dst) - 1;
+          BLI_assert(item_index_added >= 0);
+
+          /* This is the section of code that makes it specific to IDProperties (the rest could be
+           * used with some regular RNA/DNA data too, if `RNA_property_collection_add` where
+           * actually implemented for those).
+           * Currently it is close to impossible to copy arbitrary 'real' RNA data between
+           * Collection items. */
+          IDProperty *item_idprop_src = item_ptr_src.data;
+          IDProperty *item_idprop_dst = item_ptr_dst.data;
+          IDP_CopyPropertyContent(item_idprop_dst, item_idprop_src);
+
+          return RNA_property_collection_move(ptr_dst, prop_dst, item_index_added, item_index_dst);
+          break;
+        }
+        default:
+          BLI_assert(0 && "Unsupported RNA override operation on collection");
+          return false;
+      }
     }
     default:
       BLI_assert(0);
@@ -2646,30 +2721,6 @@ static void rna_def_property(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
-  static const EnumPropertyItem subtype_items[] = {
-      {PROP_NONE, "NONE", 0, "None", ""},
-      {PROP_FILEPATH, "FILE_PATH", 0, "File Path", ""},
-      {PROP_DIRPATH, "DIR_PATH", 0, "Directory Path", ""},
-      {PROP_PIXEL, "PIXEL", 0, "Pixel", ""},
-      {PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned Number", ""},
-      {PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", ""},
-      {PROP_FACTOR, "FACTOR", 0, "Factor", ""},
-      {PROP_ANGLE, "ANGLE", 0, "Angle", ""},
-      {PROP_TIME, "TIME", 0, "Time", ""},
-      {PROP_DISTANCE, "DISTANCE", 0, "Distance", ""},
-      {PROP_COLOR, "COLOR", 0, "Color", ""},
-      {PROP_TRANSLATION, "TRANSLATION", 0, "Translation", ""},
-      {PROP_DIRECTION, "DIRECTION", 0, "Direction", ""},
-      {PROP_MATRIX, "MATRIX", 0, "Matrix", ""},
-      {PROP_EULER, "EULER", 0, "Euler", ""},
-      {PROP_QUATERNION, "QUATERNION", 0, "Quaternion", ""},
-      {PROP_XYZ, "XYZ", 0, "XYZ", ""},
-      {PROP_COLOR_GAMMA, "COLOR_GAMMA", 0, "Gamma Corrected Color", ""},
-      {PROP_COORDS, "COORDINATES", 0, "Vector Coordinates", ""},
-      {PROP_LAYER, "LAYER", 0, "Layer", ""},
-      {PROP_LAYER_MEMBER, "LAYER_MEMBERSHIP", 0, "Layer Membership", ""},
-      {0, NULL, 0, NULL, NULL},
-  };
   EnumPropertyItem dummy_prop_tags[] = {
       {0, NULL, 0, NULL, NULL},
   };
@@ -2714,7 +2765,7 @@ static void rna_def_property(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "subtype", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_enum_items(prop, subtype_items);
+  RNA_def_property_enum_items(prop, rna_enum_property_subtype_items);
   RNA_def_property_enum_funcs(prop, "rna_Property_subtype_get", NULL, NULL);
   RNA_def_property_ui_text(prop, "Subtype", "Semantic interpretation of the property");
 

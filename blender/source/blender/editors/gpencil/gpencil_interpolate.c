@@ -235,7 +235,9 @@ static bool gpencil_interpolate_check_todo(bContext *C, bGPdata *gpd)
 
       /* get final stroke to interpolate */
       fFrame = BLI_findindex(&gpl->actframe->strokes, gps_from);
-      gps_to = BLI_findlink(&gpl->actframe->next->strokes, fFrame);
+      gps_to = (gpl->actframe->next != NULL) ?
+                   BLI_findlink(&gpl->actframe->next->strokes, fFrame) :
+                   NULL;
       if (gps_to == NULL) {
         continue;
       }
@@ -271,6 +273,9 @@ static void gpencil_interpolate_set_points(bContext *C, tGPDinterpolate *tgpi)
     }
     /* only editable and visible layers are considered */
     if (!BKE_gpencil_layer_is_editable(gpl) || (gpl->actframe == NULL)) {
+      continue;
+    }
+    if ((gpl->actframe == NULL) || (gpl->actframe->next == NULL)) {
       continue;
     }
 
@@ -954,6 +959,7 @@ static int gpencil_interpolate_seq_exec(bContext *C, wmOperator *op)
 
   GP_Interpolate_Settings *ipo_settings = &ts->gp_interpolate;
   eGP_Interpolate_SettingsFlag flag = ipo_settings->flag;
+  const int step = ipo_settings->step;
 
   /* cannot interpolate if not between 2 frames */
   if (ELEM(NULL, actframe, actframe->next)) {
@@ -995,7 +1001,7 @@ static int gpencil_interpolate_seq_exec(bContext *C, wmOperator *op)
     nextFrame = gpl->actframe->next;
 
     /* Loop over intermediary frames and create the interpolation */
-    for (cframe = prevFrame->framenum + 1; cframe < nextFrame->framenum; cframe++) {
+    for (cframe = prevFrame->framenum + step; cframe < nextFrame->framenum; cframe += step) {
       bGPDframe *interFrame = NULL;
       float factor;
 

@@ -1155,6 +1155,17 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
         cdata = context.volume.octane
         layout = self.layout        
 
+        modifiers = context.object.modifiers
+        is_volume_modified = False
+        for mod in modifiers:
+            if mod.type in ('MESH_TO_VOLUME', 'VOLUME_DISPLACE'):
+                is_volume_modified = True
+                break
+
+        if is_volume_modified:
+            layout.label(text="Octane options does not work for modified volumes")
+            return
+
         box = layout.box()
         box.label(text="Volume properties:")
         sub = box.column(align=True)     
@@ -1163,12 +1174,6 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "vdb_import_scale")
         sub = box.column(align=True) 
         sub.prop(cdata, "apply_import_scale_to_blender_transfrom")
-        # sub = box.row(align=True)
-        # sub.prop(cdata, "openvdb_frame_start")
-        # sub.prop(cdata, "openvdb_frame_end")   
-        # sub = box.row(align=True)     
-        # sub.prop(cdata, "openvdb_frame_start_playing_at")
-        # sub.prop(cdata, "openvdb_frame_speed_mutiplier")
         sub = box.column(align=True)
         sub.prop(cdata, "vdb_iso")
         sub.prop(cdata, "vdb_abs_scale")
@@ -1189,25 +1194,7 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
             sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container") 
 
         box = layout.box()
-        box.label(text="Octane Geometric Node:")        
-        col = box.column(align = True)
-        sub = col.row(align = True)
-        sub.prop_search(cdata.octane_geo_node_collections, "node_graph_tree", bpy.data, "materials")
-        sub.operator('update.octane_geo_nodes', icon='FILE_REFRESH')
-        sub = col.row(align = True)        
-        sub.prop_search(cdata.octane_geo_node_collections, "osl_geo_node", cdata.octane_geo_node_collections, "osl_geo_nodes")            
-        osl_node_draw(box, str(cdata.octane_geo_node_collections.node_graph_tree), str(cdata.octane_geo_node_collections.osl_geo_node))
-
-        box = layout.box()
-        box.label(text="Orbx properties:")   
-        sub = box.column(align=True)     
-        sub.prop(cdata, "imported_orbx_file_path")
-        sub = box.row(align=True)
-        sub.operator("octane.generate_orbx_preview")
-
-        box = layout.box()
-        box.label(text="Octane Offset Transform:")        
-        box = layout.box()      
+        box.label(text="Octane Offset Transform:")     
         sub = box.row(align=True)
         sub.prop(cdata, "enable_octane_offset_transform")
         sub = box.row(align=True)

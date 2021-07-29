@@ -71,6 +71,11 @@ bool Object::is_global_mesh_type()
   return scene->meshes_type == MeshType::GLOBAL || object_mesh_type == MeshType::GLOBAL;
 }
 
+int Object::sample_number()
+{
+  return octane_object.iSamplesNum;
+}
+
 void Object::tag_update(Scene *scene)
 {
   if (is_global_mesh_type()) {

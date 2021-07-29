@@ -44,12 +44,27 @@ Light::~Light()
 
 }  //~Object()
 
-void Light::update_transform(Transform &transform)
+void Light::update_transform(Transform &transform, float motion_time)
 {
-  this->transform = transform;
+  if (motion_time == 0) {
+    this->transform = transform;    
+	set_octane_matrix(this->light.oObject.oMatrix, transform);
+  }
+  this->motion_blur_transforms[motion_time] = transform;
+  set_octane_matrix(this->light.oObject.oMotionMatrices[motion_time], transform);
   float3 f3 = transform_get_column(&transform, 2);
   this->light.f3Direction = OctaneDataTransferObject::float_3(f3.x, f3.y, f3.z);
-  set_octane_matrix(this->light.oObject.oMatrix, transform);
+}
+
+void Light::update_motion_blur_transforms(float time, Transform &transform)
+{
+  this->motion_blur_transforms[time] = transform;
+  set_octane_matrix(this->light.oObject.oMotionMatrices[time], transform);
+}
+
+int Light::sample_number()
+{
+  return light.oObject.iSamplesNum;
 }
 
 void Light::tag_update(Scene *scene)

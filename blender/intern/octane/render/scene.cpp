@@ -205,35 +205,37 @@ void Scene::generate_updated_octane_objects_data(
   octane_objects.fMatrixMap.clear();
   std::unordered_set<std::string> added_octane_object;
 
+  std::vector<OctaneScatter*> octane_scatters;
+
   if (is_light_object) {
-    for (auto &light : lights) {
-      object_counters[light->name]++;
-    }
+    octane_scatters.insert(octane_scatters.end(), lights.begin(), lights.end());
   }
   else {
-    for (auto &object : objects) {
-      object_counters[object->name] += object->motion_blur_times.size();
-      // Complete all necessary samples
-      if (object->motion_blur_transforms.size() > 0 &&
-          object->motion_blur_transforms.size() < object->octane_object.iSamplesNum) {
-        float min_time, max_time;
-        min_time = max_time = object->motion_blur_transforms.begin()->first;
-        for (auto it : object->motion_blur_transforms) {
-          min_time = std::min(it.first, min_time);
-          max_time = std::max(it.first, max_time);
-        }
-        for (auto candidate_motion_time : object->motion_blur_times) {
-          if (object->motion_blur_transforms.find(candidate_motion_time) ==
-              object->motion_blur_transforms.end()) {
+    octane_scatters.insert(octane_scatters.end(), objects.begin(), objects.end());
+  }
 
-            if (candidate_motion_time < min_time) {
-              object->update_motion_blur_transforms(candidate_motion_time,
-                                                    object->motion_blur_transforms[min_time]);
-            }
-            else if (candidate_motion_time > max_time) {
-              object->update_motion_blur_transforms(candidate_motion_time,
-                                                    object->motion_blur_transforms[max_time]);
-            }
+  for (auto &octane_scatter : octane_scatters) {
+    object_counters[octane_scatter->name] += octane_scatter->motion_blur_times.size();
+    // Complete all necessary samples
+    if (octane_scatter->motion_blur_transforms.size() > 0 &&
+        octane_scatter->motion_blur_transforms.size() < octane_scatter->sample_number()) {
+      float min_time, max_time;
+      min_time = max_time = octane_scatter->motion_blur_transforms.begin()->first;
+      for (auto it : octane_scatter->motion_blur_transforms) {
+        min_time = std::min(it.first, min_time);
+        max_time = std::max(it.first, max_time);
+      }
+      for (auto candidate_motion_time : octane_scatter->motion_blur_times) {
+        if (octane_scatter->motion_blur_transforms.find(candidate_motion_time) ==
+            octane_scatter->motion_blur_transforms.end()) {
+
+          if (candidate_motion_time < min_time) {
+            octane_scatter->update_motion_blur_transforms(candidate_motion_time,
+                                                  octane_scatter->motion_blur_transforms[min_time]);
+          }
+          else if (candidate_motion_time > max_time) {
+            octane_scatter->update_motion_blur_transforms(candidate_motion_time,
+                                                  octane_scatter->motion_blur_transforms[max_time]);
           }
         }
       }
@@ -265,9 +267,18 @@ void Scene::generate_updated_octane_objects_data(
           octane_objects.oObjects.emplace_back(light->light.oObject);
         }
         octane_objects.iInstanceIDMap[light->name].emplace_back(light->light.oObject.iInstanceId);
-        float *pMat = (float *)(&light->light.oObject.oMatrix);
-        octane_objects.fMatrixMap[light->name].insert(
-            octane_objects.fMatrixMap[light->name].end(), pMat, pMat + 12);
+        if (light->light.oObject.iSamplesNum == 1) {
+          float *pMat = (float *)(&light->light.oObject.oMatrix);
+          octane_objects.fMatrixMap[light->name].insert(
+              octane_objects.fMatrixMap[light->name].end(), pMat, pMat + 12);
+        }
+        else {
+          for (auto it : light->light.oObject.oMotionMatrices) {
+            float *pMat = (float *)(&it.second);
+            octane_objects.fMatrixMap[light->name].insert(
+                octane_objects.fMatrixMap[light->name].end(), pMat, pMat + 12);
+          }
+        }
       }
     }
   }

@@ -24,6 +24,7 @@
 #include "util/util_transform.h"
 
 #include "blender/server/octane_client.h"
+#include "octane_scatter.h"
 
 namespace OctaneEngine {
 class OctaneClient;
@@ -35,18 +36,18 @@ class Progress;
 class Scene;
 class Mesh;
 
-class Light {
+class Light : public OctaneScatter {
  public:
   Light();
   ~Light();
 
   void tag_update(Scene *scene);
-  void update_transform(Transform &transform);
+  void update_transform(Transform &transform, float motion_time);
+  void update_motion_blur_transforms(float time, Transform &transform);
+  int sample_number();
 
   OctaneDataTransferObject::OctaneLight light;
 
-  string name;
-  Transform transform;
   bool enable;
   Scene *scene;
   bool need_light_object_update;

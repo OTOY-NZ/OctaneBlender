@@ -405,14 +405,10 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
     sync_background_light(b_v3d, use_portal);
 
     /* handle removed data and modified pointers */
-    if (light_map.post_sync())
-      scene->light_manager->tag_update(scene);
-    if (geometry_map.post_sync())
-      scene->geometry_manager->tag_update(scene);
-    if (object_map.post_sync())
-      scene->object_manager->tag_update(scene);
-    if (particle_system_map.post_sync())
-      scene->particle_system_manager->tag_update(scene);
+    light_map.post_sync();
+    geometry_map.post_sync();
+    object_map.post_sync();
+    particle_system_map.post_sync();
   }
 
   if (motion)

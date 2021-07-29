@@ -144,14 +144,7 @@ static void rna_AnimData_dependency_update(Main *bmain, Scene *scene, PointerRNA
 static int rna_AnimData_action_editable(PointerRNA *ptr, const char **UNUSED(r_info))
 {
   AnimData *adt = (AnimData *)ptr->data;
-
-  /* active action is only editable when it is not a tweaking strip */
-  if ((adt->flag & ADT_NLA_EDIT_ON) || (adt->actstrip) || (adt->tmpact)) {
-    return 0;
-  }
-  else {
-    return PROP_EDITABLE;
-  }
+  return BKE_animdata_action_editable(adt) ? PROP_EDITABLE : 0;
 }
 
 static void rna_AnimData_action_set(PointerRNA *ptr,
@@ -1167,7 +1160,7 @@ static void rna_api_animdata_nla_tracks(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_property_pointer_funcs(
       prop, "rna_NlaTrack_active_get", "rna_NlaTrack_active_set", NULL, NULL);
   RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Active Constraint", "Active Object constraint");
+  RNA_def_property_ui_text(prop, "Active Track", "Active NLA Track");
   /* XXX: should (but doesn't) update the active track in the NLA window */
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA | NA_SELECTED, NULL);
 }

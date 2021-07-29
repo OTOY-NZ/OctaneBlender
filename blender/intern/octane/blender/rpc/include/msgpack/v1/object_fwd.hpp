@@ -211,7 +211,6 @@ MSGPACK_API_VERSION_NAMESPACE(v1)
      * @param z The pointer to the zone that is used by the object.
      */
     template<typename T>
-    MSGPACK_DEPRECATED("please use zone reference version instead of the pointer version")
     object(const T &v, msgpack::zone *z);
 
     template<typename T> object &operator=(const T &v);

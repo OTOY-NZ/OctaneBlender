@@ -93,7 +93,7 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
 
 /* Light */
 
-static void update_light_transform(Light *light, BL::Light &b_light, Transform &tfm)
+static void update_light_transform(Light *light, BL::Light &b_light, Transform &tfm, float motion_time)
 {
   if (!light) {
     return;
@@ -103,7 +103,7 @@ static void update_light_transform(Light *light, BL::Light &b_light, Transform &
     case BL::Light::type_SPHERE:
     case BL::Light::type_SUN:
     case BL::Light::type_MESH: {
-      light->update_transform(tfm);
+      light->update_transform(tfm, motion_time);
       break;
     }
     case BL::Light::type_AREA: {
@@ -129,11 +129,11 @@ static void update_light_transform(Light *light, BL::Light &b_light, Transform &
         float3 dir = transform_get_column(&tfm, 2);
         dir *= -1;
         transform_set_column(&tfm, 2, dir);
-        light->update_transform(tfm);
+        light->update_transform(tfm, motion_time);
       }
       else {
         Transform light_tfm(tfm * transform_scale(sizeu, sizev, 1));
-        light->update_transform(light_tfm);
+        light->update_transform(light_tfm, motion_time);
       }
     }
     case BL::Light::type_SPOT:
@@ -151,6 +151,8 @@ void BlenderSync::sync_light(BL::Object &b_parent,
                              Transform &tfm,
                              bool *use_portal,
                              bool force_update_transform,
+                             bool motion,
+                             float motion_time,
                              OctaneDataTransferObject::OctaneObjectLayer &object_layer)
 {
   /* test if we need to sync */
@@ -162,9 +164,37 @@ void BlenderSync::sync_light(BL::Object &b_parent,
 
   BL::Light b_light(b_ob.data());
 
+    // if need motion blur
+  light->light.oObject.iSamplesNum = 1;
+  if (motion_blur && !is_export_mode) {
+    int motion_steps = object_motion_steps(b_parent, b_ob);
+    if (motion_steps) {
+      set<float> candidate_motion_times;
+      for (size_t step = 0; step < motion_steps; step++) {
+        float subframe = 2.0f * step / (motion_steps - 1) - 1.0f;
+        candidate_motion_times.insert(subframe);
+        for (int offset = motion_blur_frame_start_offset; offset <= motion_blur_frame_end_offset;
+             ++offset) {
+          candidate_motion_times.insert(subframe + offset);
+        }
+      }
+      for (auto candidate_motion_time : candidate_motion_times) {
+        if (candidate_motion_time >= motion_blur_frame_start_offset &&
+            candidate_motion_time <= motion_blur_frame_end_offset) {
+          motion_times.insert(candidate_motion_time);
+          light->motion_blur_times.insert(candidate_motion_time);
+        }
+      }
+      light->light.oObject.iSamplesNum = light->motion_blur_times.size();
+    }
+  }
+
   if (force_update_transform) {
-    update_light_transform(light, b_light, tfm);
+    update_light_transform(light, b_light, tfm, motion_time);
     is_transform_updated = true;
+  } else if (motion) {
+    update_light_transform(light, b_light, tfm, motion_time);
+    return;
   }
 
   if (!is_updated) {
@@ -195,7 +225,6 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   else {
     light->light.oObject.iInstanceId = 0;
   }
-  light->light.oObject.iSamplesNum = 1;
   light->scene = scene;
 
   /* shader */
@@ -332,7 +361,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   }
 
   if (!is_transform_updated) {
-    update_light_transform(light, b_light, tfm);
+    update_light_transform(light, b_light, tfm, motion_time);
   }
 
   /* tag */
@@ -385,25 +414,18 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       RNA_enum_get(&octane_parent_object, "object_mesh_type"));
 
   /* light is handled separately */
-  if (!motion && object_is_light(b_ob)) {
-    /* TODO: don't use lights for excluded layers used as mask layer,
-     * when dynamic overrides are back. */
-#if 0
-		if (!((layer_flag & view_layer.holdout_layer) &&
-			(layer_flag & view_layer.exclude_layer)))
-#endif
-    {
-      sync_light(b_parent,
-                 persistent_id,
-                 b_ob,
-                 b_ob_instance,
-                 is_instance ? b_instance.random_id() : 0,
-                 octane_tfm,
-                 use_portal,
-                 mesh_type == MeshType::MOVABLE_PROXY,
-                 object_layer);
-    }
-
+  if (object_is_light(b_ob)) {
+    sync_light(b_parent,
+               persistent_id,
+               b_ob,
+               b_ob_instance,
+               is_instance ? b_instance.random_id() : 0,
+               octane_tfm,
+               use_portal,
+               mesh_type == MeshType::MOVABLE_PROXY,
+               motion,
+               motion_time,
+               object_layer);
     return NULL;
   }
 

@@ -335,7 +335,7 @@ bool ED_gpencil_has_keyframe_v3d(Scene *UNUSED(scene), Object *ob, int cfra)
     bGPDlayer *gpl = BKE_gpencil_layer_active_get(ob->data);
     if (gpl) {
       if (gpl->actframe) {
-        // XXX: assumes that frame has been fetched already
+        /* XXX: assumes that frame has been fetched already */
         return (gpl->actframe->framenum == cfra);
       }
       /* XXX: disabled as could be too much of a penalty */
@@ -1080,7 +1080,7 @@ void ED_gpencil_project_stroke_to_plane(const Scene *scene,
     }
   }
   else {
-    float scale[3] = {1.0f, 1.0f, 1.0f};
+    const float scale[3] = {1.0f, 1.0f, 1.0f};
     plane_normal[2] = 1.0f;
     float mat[4][4];
     loc_eul_size_to_mat4(mat, cursor->location, cursor->rotation_euler, scale);
@@ -1285,7 +1285,7 @@ void ED_gpencil_project_point_to_plane(const Scene *scene,
     }
   }
   else {
-    float scale[3] = {1.0f, 1.0f, 1.0f};
+    const float scale[3] = {1.0f, 1.0f, 1.0f};
     plane_normal[2] = 1.0f;
     float mat[4][4];
     loc_eul_size_to_mat4(mat, cursor->location, cursor->rotation_euler, scale);
@@ -1469,7 +1469,7 @@ void ED_gpencil_reset_layers_parent(Depsgraph *depsgraph, Object *obact, bGPdata
 /* Helper function to create new OB_GPENCIL Object */
 Object *ED_gpencil_add_object(bContext *C, const float loc[3], ushort local_view_bits)
 {
-  float rot[3] = {0.0f};
+  const float rot[3] = {0.0f};
 
   Object *ob = ED_object_add_type(C, OB_GPENCIL, NULL, loc, rot, false, local_view_bits);
 
@@ -1500,7 +1500,7 @@ void ED_gpencil_add_defaults(bContext *C, Object *ob)
   if (ts->gp_sculpt.cur_falloff == NULL) {
     ts->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
     CurveMapping *gp_falloff_curve = ts->gp_sculpt.cur_falloff;
-    BKE_curvemapping_initialize(gp_falloff_curve);
+    BKE_curvemapping_init(gp_falloff_curve);
     BKE_curvemap_reset(gp_falloff_curve->cm,
                        &gp_falloff_curve->clipr,
                        CURVE_PRESET_GAUSS,
@@ -1723,7 +1723,7 @@ void ED_gpencil_vgroup_deselect(bContext *C, Object *ob)
 /* Cursor drawing */
 
 /* check if cursor is in drawing region */
-static bool gpencil_check_cursor_region(bContext *C, int mval_i[2])
+static bool gpencil_check_cursor_region(bContext *C, const int mval_i[2])
 {
   ARegion *region = CTX_wm_region(C);
   ScrArea *area = CTX_wm_area(C);
@@ -1760,9 +1760,7 @@ void ED_gpencil_brush_draw_eraser(Brush *brush, int x, int y)
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
   GPU_line_smooth(true);
-  GPU_blend(true);
-  GPU_blend_set_func_separate(
-      GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   immUniformColor4ub(255, 100, 100, 20);
   imm_draw_circle_fill_2d(shdr_pos, x, y, radius, 40);
@@ -1790,7 +1788,7 @@ void ED_gpencil_brush_draw_eraser(Brush *brush, int x, int y)
 
   immUnbindProgram();
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
 }
 
@@ -1944,7 +1942,7 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
   immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
   GPU_line_smooth(true);
-  GPU_blend(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* Inner Ring: Color from UI panel */
   immUniformColor4f(color[0], color[1], color[2], 0.8f);
@@ -1963,13 +1961,13 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
   immUniformColor4f(darkcolor[0], darkcolor[1], darkcolor[2], 0.8f);
   imm_draw_circle_wire_2d(pos, x, y, radius + 1, 40);
 
-  GPU_blend(false);
+  GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
 
   /* Draw line for lazy mouse */
   if ((last_mouse_position) && (brush->gpencil_settings->flag & GP_BRUSH_STABILIZE_MOUSE_TEMP)) {
     GPU_line_smooth(true);
-    GPU_blend(true);
+    GPU_blend(GPU_BLEND_ALPHA);
 
     copy_v3_v3(color, brush->add_col);
     immUniformColor4f(color[0], color[1], color[2], 0.8f);
@@ -1981,7 +1979,7 @@ static void gpencil_brush_cursor_draw(bContext *C, int x, int y, void *customdat
                 last_mouse_position[1] + region->winrct.ymin);
     immEnd();
 
-    GPU_blend(false);
+    GPU_blend(GPU_BLEND_NONE);
     GPU_line_smooth(false);
   }
 
@@ -2311,7 +2309,9 @@ static void gpencil_insert_point(
   MEM_SAFE_FREE(temp_points);
 }
 
-static float gpencil_calc_factor(float p2d_a1[2], float p2d_a2[2], float r_hit2d[2])
+static float gpencil_calc_factor(const float p2d_a1[2],
+                                 const float p2d_a2[2],
+                                 const float r_hit2d[2])
 {
   float dist1 = len_squared_v2v2(p2d_a1, p2d_a2);
   float dist2 = len_squared_v2v2(p2d_a1, r_hit2d);
@@ -2337,6 +2337,9 @@ int ED_gpencil_select_stroke_segment(bGPDlayer *gpl,
                                      float r_hita[3],
                                      float r_hitb[3])
 {
+  if (gps->totpoints < 2) {
+    return 0;
+  }
   const float min_factor = 0.0015f;
   bGPDspoint *pta1 = NULL;
   bGPDspoint *pta2 = NULL;
@@ -2531,7 +2534,7 @@ void ED_gpencil_select_toggle_all(bContext *C, int action)
     CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
       if (gps->flag & GP_STROKE_SELECT) {
         action = SEL_DESELECT;
-        break;  // XXX: this only gets out of the inner loop...
+        break; /* XXX: this only gets out of the inner loop. */
       }
     }
     CTX_DATA_END;
@@ -2584,9 +2587,11 @@ void ED_gpencil_select_toggle_all(bContext *C, int action)
           case SEL_SELECT:
             pt->flag |= GP_SPOINT_SELECT;
             break;
-          // case SEL_DESELECT:
-          //  pt->flag &= ~GP_SPOINT_SELECT;
-          //  break;
+#if 0
+          case SEL_DESELECT:
+           pt->flag &= ~GP_SPOINT_SELECT;
+           break;
+#endif
           case SEL_INVERT:
             pt->flag ^= GP_SPOINT_SELECT;
             break;
@@ -2688,7 +2693,11 @@ void ED_gpencil_tag_scene_gpencil(Scene *scene)
 
 void ED_gpencil_fill_vertex_color_set(ToolSettings *ts, Brush *brush, bGPDstroke *gps)
 {
-  if (GPENCIL_USE_VERTEX_COLOR_FILL(ts, brush)) {
+  const bool is_vertex = (GPENCIL_USE_VERTEX_COLOR_FILL(ts, brush) &&
+                          (brush->gpencil_settings->brush_draw_mode != GP_BRUSH_MODE_MATERIAL)) ||
+                         (!GPENCIL_USE_VERTEX_COLOR_FILL(ts, brush) &&
+                          (brush->gpencil_settings->brush_draw_mode == GP_BRUSH_MODE_VERTEXCOLOR));
+  if (is_vertex) {
     copy_v3_v3(gps->vert_color_fill, brush->rgb);
     gps->vert_color_fill[3] = brush->gpencil_settings->vertex_factor;
     srgb_to_linearrgb_v4(gps->vert_color_fill, gps->vert_color_fill);
@@ -2703,7 +2712,12 @@ void ED_gpencil_point_vertex_color_set(ToolSettings *ts,
                                        bGPDspoint *pt,
                                        tGPspoint *tpt)
 {
-  if (GPENCIL_USE_VERTEX_COLOR_STROKE(ts, brush)) {
+  const bool is_vertex = (GPENCIL_USE_VERTEX_COLOR_STROKE(ts, brush) &&
+                          (brush->gpencil_settings->brush_draw_mode != GP_BRUSH_MODE_MATERIAL)) ||
+                         (!GPENCIL_USE_VERTEX_COLOR_STROKE(ts, brush) &&
+                          (brush->gpencil_settings->brush_draw_mode == GP_BRUSH_MODE_VERTEXCOLOR));
+
+  if (is_vertex) {
     if (tpt == NULL) {
       copy_v3_v3(pt->vert_color, brush->rgb);
       pt->vert_color[3] = brush->gpencil_settings->vertex_factor;
@@ -2859,6 +2873,18 @@ void ED_gpencil_sbuffer_vertex_color_set(Depsgraph *depsgraph,
   bGPdata *gpd_eval = (bGPdata *)ob_eval->data;
   MaterialGPencilStyle *gp_style = material->gp_style;
 
+  const bool is_vertex_fill =
+      (GPENCIL_USE_VERTEX_COLOR_FILL(ts, brush) &&
+       (brush->gpencil_settings->brush_draw_mode != GP_BRUSH_MODE_MATERIAL)) ||
+      (!GPENCIL_USE_VERTEX_COLOR_FILL(ts, brush) &&
+       (brush->gpencil_settings->brush_draw_mode == GP_BRUSH_MODE_VERTEXCOLOR));
+
+  const bool is_vertex_stroke =
+      (GPENCIL_USE_VERTEX_COLOR_STROKE(ts, brush) &&
+       (brush->gpencil_settings->brush_draw_mode != GP_BRUSH_MODE_MATERIAL)) ||
+      (!GPENCIL_USE_VERTEX_COLOR_STROKE(ts, brush) &&
+       (brush->gpencil_settings->brush_draw_mode == GP_BRUSH_MODE_VERTEXCOLOR));
+
   int idx = gpd->runtime.sbuffer_used;
   tGPspoint *tpt = (tGPspoint *)gpd->runtime.sbuffer + idx;
 
@@ -2868,14 +2894,14 @@ void ED_gpencil_sbuffer_vertex_color_set(Depsgraph *depsgraph,
   srgb_to_linearrgb_v4(vertex_color, vertex_color);
 
   /* Copy fill vertex color. */
-  if (GPENCIL_USE_VERTEX_COLOR_FILL(ts, brush)) {
+  if (is_vertex_fill) {
     copy_v4_v4(gpd->runtime.vert_color_fill, vertex_color);
   }
   else {
     copy_v4_v4(gpd->runtime.vert_color_fill, gp_style->fill_rgba);
   }
   /* Copy stroke vertex color. */
-  if (GPENCIL_USE_VERTEX_COLOR_STROKE(ts, brush)) {
+  if (is_vertex_stroke) {
     copy_v4_v4(tpt->vert_color, vertex_color);
   }
   else {
@@ -2893,6 +2919,40 @@ void ED_gpencil_sbuffer_vertex_color_set(Depsgraph *depsgraph,
   }
 }
 
+/* Helper to get the bigger 2D bound box points. */
+static void gpencil_projected_2d_bound_box(GP_SpaceConversion *gsc,
+                                           bGPDstroke *gps,
+                                           const float diff_mat[4][4],
+                                           float r_min[2],
+                                           float r_max[2])
+{
+  float bounds[8][2];
+  BoundBox bb;
+  BKE_boundbox_init_from_minmax(&bb, gps->boundbox_min, gps->boundbox_max);
+
+  /* Project 8 vertices in 2D. */
+  for (int i = 0; i < 8; i++) {
+    bGPDspoint pt_dummy, pt_dummy_ps;
+    copy_v3_v3(&pt_dummy.x, bb.vec[i]);
+    gpencil_point_to_parent_space(&pt_dummy, diff_mat, &pt_dummy_ps);
+    gpencil_point_to_xy_fl(gsc, gps, &pt_dummy_ps, &bounds[i][0], &bounds[i][1]);
+  }
+
+  /* Take extremes. */
+  INIT_MINMAX2(r_min, r_max);
+  for (int i = 0; i < 8; i++) {
+    minmax_v2v2_v2(r_min, r_max, bounds[i]);
+  }
+
+  /* Ensure the bounding box is oriented to axis. */
+  if (r_max[0] < r_min[0]) {
+    SWAP(float, r_min[0], r_max[0]);
+  }
+  if (r_max[1] < r_min[1]) {
+    SWAP(float, r_min[1], r_max[1]);
+  }
+}
+
 /* Check if the stroke collides with brush. */
 bool ED_gpencil_stroke_check_collision(GP_SpaceConversion *gsc,
                                        bGPDstroke *gps,
@@ -2901,31 +2961,15 @@ bool ED_gpencil_stroke_check_collision(GP_SpaceConversion *gsc,
                                        const float diff_mat[4][4])
 {
   const int offset = (int)ceil(sqrt((radius * radius) * 2));
-  bGPDspoint pt_dummy, pt_dummy_ps;
-  float boundbox_min[2] = {0.0f};
-  float boundbox_max[2] = {0.0f};
+  float boundbox_min[2];
+  float boundbox_max[2];
 
   /* Check we have something to use (only for old files). */
   if (is_zero_v3(gps->boundbox_min)) {
     BKE_gpencil_stroke_boundingbox_calc(gps);
   }
 
-  /* Convert bound box to 2d */
-  copy_v3_v3(&pt_dummy.x, gps->boundbox_min);
-  gpencil_point_to_parent_space(&pt_dummy, diff_mat, &pt_dummy_ps);
-  gpencil_point_to_xy_fl(gsc, gps, &pt_dummy_ps, &boundbox_min[0], &boundbox_min[1]);
-
-  copy_v3_v3(&pt_dummy.x, gps->boundbox_max);
-  gpencil_point_to_parent_space(&pt_dummy, diff_mat, &pt_dummy_ps);
-  gpencil_point_to_xy_fl(gsc, gps, &pt_dummy_ps, &boundbox_max[0], &boundbox_max[1]);
-
-  /* Ensure the bounding box is oriented to axis. */
-  if (boundbox_max[0] < boundbox_min[0]) {
-    SWAP(float, boundbox_min[0], boundbox_max[0]);
-  }
-  if (boundbox_max[1] < boundbox_min[1]) {
-    SWAP(float, boundbox_min[1], boundbox_max[1]);
-  }
+  gpencil_projected_2d_bound_box(gsc, gps, diff_mat, boundbox_min, boundbox_max);
 
   rcti rect_stroke = {boundbox_min[0], boundbox_max[0], boundbox_min[1], boundbox_max[1]};
 
@@ -2957,7 +3001,7 @@ bool ED_gpencil_stroke_point_is_inside(bGPDstroke *gps,
 
   int(*mcoords)[2] = NULL;
   int len = gps->totpoints;
-  mcoords = MEM_mallocN(sizeof(int) * 2 * len, __func__);
+  mcoords = MEM_mallocN(sizeof(int[2]) * len, __func__);
 
   /* Convert stroke to 2D array of points. */
   bGPDspoint *pt;

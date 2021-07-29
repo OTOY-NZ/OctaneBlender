@@ -25,6 +25,7 @@
 #include "util/util_types.h"
 #include "util/util_function.h"
 #include "blender/server/octane_client.h"
+#include "octane_scatter.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -38,7 +39,7 @@ class RenderServer;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class Object {
+class Object : public OctaneScatter {
  public:
   Object();
   ~Object();
@@ -46,14 +47,12 @@ class Object {
   bool is_global_mesh_type();
   void update_transform(Transform &transform);
   void update_motion_blur_transforms(float time, Transform &transform);
+  int sample_number();
   void tag_update(Scene *scene);
 
   Mesh *mesh;
   Light *light;
-  Transform transform;
-  std::unordered_set<float> motion_blur_times;
-  std::unordered_map<float, Transform> motion_blur_transforms;
-  std::string name;
+
   uint random_id;
   int pass_id;
   bool visibility;

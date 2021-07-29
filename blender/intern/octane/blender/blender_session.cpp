@@ -1049,8 +1049,7 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
   int first_frame = data->b_scene.frame_start();
   int last_frame = data->b_scene.frame_end();
 
-  DEG_graph_build_from_view_layer(
-      data->m_depsgraph, data->m_main, data->m_scene, data->m_viewlayer);
+  DEG_graph_build_from_view_layer(data->m_depsgraph);
   BKE_scene_graph_update_tagged(data->m_depsgraph, data->m_main);
 
   G.is_rendering = true;
@@ -1070,7 +1069,7 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
       if (f >= first_frame) {
         data->m_scene->r.cfra = f;
         data->m_scene->r.subframe = f - data->m_scene->r.cfra;
-        BKE_scene_graph_update_for_newframe(data->m_depsgraph, data->m_main);
+        BKE_scene_graph_update_for_newframe(data->m_depsgraph);
 
         session->reset_session(data->b_data, data->b_depsgraph);
         session->sync->sync_recalc(data->b_depsgraph);
@@ -1093,7 +1092,7 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
   if (cur_frame != data->b_scene.frame_current()) {
     data->m_scene->r.cfra = cur_frame;
     data->m_scene->r.subframe = cur_frame - data->m_scene->r.cfra;
-    BKE_scene_graph_update_for_newframe(data->m_depsgraph, data->m_main);
+    BKE_scene_graph_update_for_newframe(data->m_depsgraph);
   }
 }
 
@@ -1249,7 +1248,7 @@ bool BlenderSession::export_localdb(BL::Scene &b_scene,
   std::string empty("");
   std::unordered_set<std::string> dirty_resources;
 
-  DEG_graph_build_from_view_layer(m_depsgraph, m_main, m_scene, m_viewlayer);
+  DEG_graph_build_from_view_layer(m_depsgraph);
   BKE_scene_graph_update_tagged(m_depsgraph, m_main);
 
   BlenderSession *session = new BlenderSession(

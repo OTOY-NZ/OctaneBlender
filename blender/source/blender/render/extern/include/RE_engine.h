@@ -79,7 +79,7 @@ typedef struct RenderEngineType {
   struct RenderEngineType *next, *prev;
 
   /* type info */
-  char idname[64];  // best keep the same size as BKE_ST_MAXNAME
+  char idname[64]; /* best keep the same size as BKE_ST_MAXNAME. */
   char name[64];
   int flag;
 
@@ -149,6 +149,7 @@ typedef struct RenderEngine {
 
   /* Depsgraph */
   struct Depsgraph *depsgraph;
+  bool has_grease_pencil;
 
   /* callback for render pass query */
   ThreadMutex update_render_passes_mutex;

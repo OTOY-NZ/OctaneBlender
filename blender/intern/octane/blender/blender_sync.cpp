@@ -309,6 +309,7 @@ SessionParams BlenderSync::get_session_params(
   params.export_type = params.interactive ? ::OctaneEngine::SceneExportTypes::NONE : export_type;
 
   params.deep_image = get_boolean(oct_scene, "deep_image");
+  params.deep_render_passes = get_boolean(oct_scene, "deep_render_passes");
   params.export_with_object_layers = get_boolean(oct_scene, "export_with_object_layers");
   params.maximize_instancing = get_boolean(oct_scene, "maximize_instancing");
   params.use_passes = get_boolean(oct_scene, "use_passes");
@@ -485,6 +486,7 @@ void BlenderSync::sync_kernel()
   kernel->oct_node->iMaxTileSamples = get_int(oct_scene, "max_tile_samples");
   kernel->oct_node->bMinimizeNetTraffic = get_boolean(oct_scene, "minimize_net_traffic");
   kernel->oct_node->bDeepImageEnable = get_boolean(oct_scene, "deep_image");
+  kernel->oct_node->bDeepRenderPasses = get_boolean(oct_scene, "deep_render_passes");
   kernel->oct_node->iMaxDepthSamples = get_int(oct_scene, "max_depth_samples");
   kernel->oct_node->fDepthTolerance = get_float(oct_scene, "depth_tolerance");
   kernel->oct_node->iWorkChunkSize = get_int(oct_scene, "work_chunk_size");

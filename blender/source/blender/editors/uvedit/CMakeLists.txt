@@ -31,9 +31,6 @@ set(INC
   ../../../../intern/guardedalloc
 )
 
-set(INC_SYS
-  ${GLEW_INCLUDE_PATH}
-)
 
 set(SRC
   uvedit_buttons.c
@@ -42,6 +39,7 @@ set(SRC
   uvedit_parametrizer.c
   uvedit_path.c
   uvedit_rip.c
+  uvedit_islands.c
   uvedit_select.c
   uvedit_smart_stitch.c
   uvedit_unwrap_ops.c
@@ -58,6 +56,5 @@ if(WITH_INTERNATIONAL)
   add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

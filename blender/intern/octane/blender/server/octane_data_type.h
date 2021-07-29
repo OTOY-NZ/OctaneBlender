@@ -1392,6 +1392,7 @@ struct Kernel {
   float fCoherentRatio;
   bool bStaticNoise;
   bool bDeepImageEnable;
+  bool bDeepRenderPasses;
   int iMaxDepthSamples;
   float fDepthTolerance;
 
@@ -1480,6 +1481,7 @@ struct Kernel {
         && fCoherentRatio == otherKernel.fCoherentRatio &&
         bStaticNoise == otherKernel.bStaticNoise &&
         bDeepImageEnable == otherKernel.bDeepImageEnable &&
+        bDeepRenderPasses == otherKernel.bDeepRenderPasses &&
         iMaxDepthSamples == otherKernel.iMaxDepthSamples &&
         fDepthTolerance == otherKernel.fDepthTolerance
 
@@ -1583,6 +1585,8 @@ struct Kernel {
       bStaticNoise = otherKernel.bStaticNoise;
     if (bDeepImageEnable != otherKernel.bDeepImageEnable)
       bDeepImageEnable = otherKernel.bDeepImageEnable;
+    if (bDeepRenderPasses != otherKernel.bDeepRenderPasses)
+      bDeepRenderPasses = otherKernel.bDeepRenderPasses;
     if (iMaxDepthSamples != otherKernel.iMaxDepthSamples)
       iMaxDepthSamples = otherKernel.iMaxDepthSamples;
     if (fDepthTolerance != otherKernel.fDepthTolerance)

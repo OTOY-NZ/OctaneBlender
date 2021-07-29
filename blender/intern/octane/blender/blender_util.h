@@ -17,20 +17,20 @@
 #ifndef __BLENDER_UTIL_H__
 #define __BLENDER_UTIL_H__
 
-#include "render/mesh.h"
-#include "render/osl.h"
 #include "MEM_guardedalloc.h"
-#include "RNA_types.h"
 #include "RNA_access.h"
 #include "RNA_blender_cpp.h"
+#include "RNA_types.h"
+#include "render/mesh.h"
+#include "render/osl.h"
 
 #include "util/util_algorithm.h"
 #include "util/util_array.h"
 #include "util/util_map.h"
 #include "util/util_path.h"
+#include "util/util_projection.h"
 #include "util/util_set.h"
 #include "util/util_transform.h"
-#include "util/util_projection.h"
 #include "util/util_types.h"
 #include "util/util_vector.h"
 
@@ -257,7 +257,12 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
   BKE_image_user_frame_calc(ima.ptr.data, iuser.ptr.data, cfra);
   BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
 
-  string filepath_str = string(filepath);
+  string filepath_str = std::string(filepath);
+#ifdef WIN32
+  if (path_is_relative(filepath)) {
+    filepath_str = ensure_abs_path(ima.filepath_raw(), filepath_str);
+  }
+#endif
   if (load_tiled && ima.source() == BL::Image::source_TILED) {
     string_replace(filepath_str, "1001", "<UDIM>");
   }

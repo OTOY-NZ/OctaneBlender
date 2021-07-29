@@ -286,7 +286,7 @@ static int actkeys_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
   }
 
   /* set notifier that things have changed */
-  // XXX err... there's nothing for frame ranges yet, but this should do fine too
+  /* XXX err... there's nothing for frame ranges yet, but this should do fine too */
   WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
@@ -539,7 +539,7 @@ static short paste_action_keys(bAnimContext *ac,
    * - First time we try to filter more strictly, allowing only selected channels
    *   to allow copying animation between channels
    * - Second time, we loosen things up if nothing was found the first time, allowing
-   *   users to just paste keyframes back into the original curve again [#31670]
+   *   users to just paste keyframes back into the original curve again T31670.
    */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
             ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
@@ -1107,7 +1107,7 @@ void ACTION_OT_clean(wmOperatorType *ot)
   ot->description = "Simplify F-Curves by removing closely spaced keyframes";
 
   /* api callbacks */
-  // ot->invoke =  // XXX we need that number popup for this!
+  // ot->invoke =  /* XXX we need that number popup for this! */
   ot->exec = actkeys_clean_exec;
   ot->poll = ED_operator_action_active;
 
@@ -1696,23 +1696,23 @@ static const EnumPropertyItem prop_actkeys_snap_types[] = {
     {ACTKEYS_SNAP_CFRA,
      "CFRA",
      0,
-     "Current Frame",
+     "Selection to Current Frame",
      "Snap selected keyframes to the current frame"},
     {ACTKEYS_SNAP_NEAREST_FRAME,
      "NEAREST_FRAME",
      0,
-     "Nearest Frame",
+     "Selection to Nearest Frame",
      "Snap selected keyframes to the nearest (whole) frame (use to fix accidental sub-frame "
      "offsets)"},
     {ACTKEYS_SNAP_NEAREST_SECOND,
      "NEAREST_SECOND",
      0,
-     "Nearest Second",
+     "Selection to Nearest Second",
      "Snap selected keyframes to the nearest second"},
     {ACTKEYS_SNAP_NEAREST_MARKER,
      "NEAREST_MARKER",
      0,
-     "Nearest Marker",
+     "Selection to Nearest Marker",
      "Snap selected keyframes to the nearest marker"},
     {0, NULL, 0, NULL, NULL},
 };

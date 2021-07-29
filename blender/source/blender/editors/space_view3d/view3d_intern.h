@@ -170,10 +170,16 @@ bool ED_view3d_boundbox_clip_ex(const RegionView3D *rv3d,
                                 float obmat[4][4]);
 bool ED_view3d_boundbox_clip(RegionView3D *rv3d, const struct BoundBox *bb);
 
+/**
+ * Parameters for setting the new view-port state.
+ *
+ * Each of the struct members may be NULL to signify they aren't to be adjusted.
+ */
 typedef struct V3D_SmoothParams {
   struct Object *camera_old, *camera;
   const float *ofs, *quat, *dist, *lens;
-  /* alternate rotation center (ofs = must be NULL) */
+
+  /** Alternate rotation center, when set `ofs` must be NULL. */
   const float *dyn_ofs;
 } V3D_SmoothParams;
 
@@ -274,7 +280,7 @@ void VIEW3D_GT_navigate_rotate(struct wmGizmoType *gzt);
 void VIEW3D_GGT_placement(struct wmGizmoGroupType *gzgt);
 
 /* workaround for trivial but noticeable camera bug caused by imprecision
- * between view border calculation in 2D/3D space, workaround for bug [#28037].
+ * between view border calculation in 2D/3D space, workaround for bug T28037.
  * without this define we get the old behavior which is to try and align them
  * both which _mostly_ works fine, but when the camera moves beyond ~1000 in
  * any direction it starts to fail */

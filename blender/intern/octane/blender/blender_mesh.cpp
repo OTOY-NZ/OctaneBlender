@@ -22,6 +22,20 @@
 #include "blender_sync.h"
 #include "blender_util.h"
 
+#include <openvdb/Grid.h>
+#include <openvdb/openvdb.h>
+#include <openvdb/tools/Dense.h>
+#include <openvdb/tools/GridTransformer.h>
+#include <openvdb/tools/Morphology.h>
+#include <openvdb/io/Stream.h>
+
+#include <fstream>
+#include <iostream>
+
+struct BoundBox *BKE_volume_boundbox_get(struct Object *ob);
+openvdb::GridBase::ConstPtr BKE_volume_grid_openvdb_for_read(const struct Volume *volume,
+                                                             struct VolumeGrid *grid);
+
 #include "RNA_blender_cpp.h"
 
 OCT_NAMESPACE_BEGIN
@@ -491,7 +505,7 @@ static void create_openvdb_volume(BL::FluidDomainSettings &b_domain,
       }
 
       for (int i = 0; i < num_pixels; ++i) {
-        register int index = i * grid_offset;
+        int index = i * grid_offset;
         if (mesh->octane_volume.iAbsorptionOffset >= 0)
           mesh->octane_volume.fRegularGridData[index + mesh->octane_volume.iAbsorptionOffset] =
               density[i];
@@ -647,6 +661,40 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   bool is_mesh_shader_data_updated = octane_mesh->shaders_tag !=
                                      Mesh::generate_shader_tag(used_shaders);
 
+  octane_mesh->is_volume_to_mesh = false;
+  octane_mesh->is_mesh_to_volume = false;
+  stringstream mesh_to_volume_tag, volume_displace_tag;
+  BL::Object::modifiers_iterator b_mod;
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    if (b_mod->type() == BL::Modifier::type_VOLUME_TO_MESH) {
+      octane_mesh->is_volume_to_mesh = true;
+    }
+    if (b_mod->type() == BL::Modifier::type_MESH_TO_VOLUME) {
+      BL::MeshToVolumeModifier mesh_to_volume_mod(*b_mod);
+      mesh_to_volume_tag << mesh_to_volume_mod.object().ptr.data << mesh_to_volume_mod.density()
+                         << mesh_to_volume_mod.use_fill_volume()
+                         << mesh_to_volume_mod.exterior_band_width()
+                         << mesh_to_volume_mod.interior_band_width()
+                         << mesh_to_volume_mod.resolution_mode()
+                         << mesh_to_volume_mod.voxel_amount();
+      octane_mesh->is_mesh_to_volume = true;
+    }
+    if (b_mod->type() == BL::Modifier::type_VOLUME_DISPLACE) {
+      octane_mesh->is_mesh_to_volume = true;
+      BL::VolumeDisplaceModifier volume_displace_mod(*b_mod);
+      volume_displace_tag << volume_displace_mod.texture().ptr.data
+                        << volume_displace_mod.texture_map_mode() << volume_displace_mod.strength()
+                        << volume_displace_mod.texture_sample_radius()
+                        << volume_displace_mod.texture_mid_level().data[0]
+                        << volume_displace_mod.texture_mid_level().data[1]
+                        << volume_displace_mod.texture_mid_level().data[2];
+	}
+  }
+
+  std::string volume_modifier_tag = mesh_to_volume_tag.str() + volume_displace_tag.str();
+  bool is_volume_data_modified = octane_mesh->volume_modifier_tag != volume_modifier_tag;
+  octane_mesh->volume_modifier_tag = volume_modifier_tag;
+
   octane_mesh->nice_name = mesh_name;
   octane_mesh->name = mesh_name;
   octane_mesh->octane_mesh.sMeshName = mesh_name;
@@ -685,7 +733,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       }
       std::string volume_path = b_volume.grids.frame_filepath();
       octane_mesh->octane_volume.sVolumePath = blender_absolute_path(b_data, b_scene, volume_path);
-    }
+    }       
     resolve_volume_attributes(oct_mesh, octane_mesh->octane_volume);
     bool apply_import_scale_to_blender_transfrom = RNA_boolean_get(
         &oct_mesh, "apply_import_scale_to_blender_transfrom");
@@ -720,6 +768,63 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       octane_mesh->offset_transform = make_transform(translate, euler, mode, scale);
     }
 
+	if (octane_mesh->is_mesh_to_volume) {
+      BL::Volume::grids_iterator b_grid_iter;
+      for (b_volume.grids.begin(b_grid_iter); b_grid_iter != b_volume.grids.end(); ++b_grid_iter) {
+        BL::VolumeGrid b_volume_grid(*b_grid_iter);
+        if (b_volume_grid.name() == "density") {
+          ::Volume *volume = (::Volume *)b_volume.ptr.data;
+          VolumeGrid *volume_grid = (VolumeGrid *)b_volume_grid.ptr.data;
+          openvdb::GridBase::ConstPtr const_grid = BKE_volume_grid_openvdb_for_read(volume,
+                                                                                    volume_grid);
+          if (const_grid->isType<openvdb::FloatGrid>()) {
+            openvdb::FloatGrid::Ptr density_grid = openvdb::gridPtrCast<openvdb::FloatGrid>(
+                const_grid->deepCopyGrid());
+            size_t active_count = density_grid->activeVoxelCount();
+            auto dim = density_grid->evalActiveVoxelDim();
+            auto bbox = density_grid->evalActiveVoxelBoundingBox();
+            if (octane_mesh->octane_volume.f3Resolution.x != dim.x() ||
+                octane_mesh->octane_volume.f3Resolution.y != dim.y() ||
+                octane_mesh->octane_volume.f3Resolution.z != dim.z()) {
+              is_volume_data_modified = true;
+			}
+
+            octane_mesh->octane_volume.f3Resolution.x = dim.x();
+            octane_mesh->octane_volume.f3Resolution.y = dim.y();
+            octane_mesh->octane_volume.f3Resolution.z = dim.z();
+            size_t total_count = dim.x() * dim.y() * dim.z();
+            if (total_count > 0) {
+              octane_mesh->octane_volume.fRegularGridData.resize(total_count);
+              openvdb::tools::Dense<float, openvdb::tools::LayoutXYZ> dense(
+                  bbox, (float *)octane_mesh->octane_volume.fRegularGridData.data());
+              openvdb::tools::copyToDense(
+                  *openvdb::gridConstPtrCast<openvdb::FloatGrid>(density_grid), dense);
+              openvdb::Coord begin_coord;
+              auto begin = bbox.beginXYZ();
+              begin_coord.setX((*begin).asVec3d()[0]);
+              begin_coord.setY((*begin).asVec3d()[1]);
+              begin_coord.setZ((*begin).asVec3d()[2]);
+              auto offset = density_grid->transform().indexToWorld(begin_coord);
+              openvdb::math::Mat4f grid_matrix =
+                  density_grid->transform().baseMap()->getAffineMap()->getMat4();
+              Transform index_to_object;
+              for (int col = 0; col < 4; col++) {
+                for (int row = 0; row < 3; row++) {
+                  index_to_object[row][col] = (float)grid_matrix[col][row];
+                }
+              }
+              index_to_object.x.w = offset[0];
+              index_to_object.y.w = offset[1];
+              index_to_object.z.w = offset[2];
+              set_octane_matrix(octane_mesh->octane_volume.oMatrix, index_to_object);
+              octane_mesh->octane_volume.iAbsorptionOffset = 0;
+              octane_mesh->need_update = is_mesh_data_updated || is_volume_data_modified;        
+			}
+          }
+          break;
+        }
+      }
+	}
     mesh_synced.insert(octane_mesh);
     if (octane_mesh->need_update) {
       octane_mesh->tag_update(scene);
@@ -756,13 +861,15 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
             used_shader->need_sync_object = true;
           }
         }
-	  }
-      if (paint_mode || b_ob.mode() == b_ob.mode_EDIT || is_mesh_shader_data_updated || is_modified) {
+      }
+      if (paint_mode || b_ob.mode() == b_ob.mode_EDIT || is_mesh_shader_data_updated ||
+          is_modified) {
         need_recreate_mesh = need_update;
       }
       else {
         need_recreate_mesh = is_octane_geometry_required(
-            mesh_name, b_ob.type(), oct_mesh, octane_mesh, mesh_type);
+                                 mesh_name, b_ob.type(), oct_mesh, octane_mesh, mesh_type) ||
+                             octane_mesh->is_volume_to_mesh;
       }
     }
     else {
@@ -888,7 +995,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
     if (b_mesh) {
       BL::FluidDomainSettings b_domain = object_fluid_domain_find(b_ob);
-      BL::FluidDomainSettings::cache_data_format_NONE;
       bool is_openvdb = b_domain && is_vdb_format(int(b_domain.cache_data_format()));
       if (!is_openvdb || is_octane_vdb) {
         Mesh::WindingOrder winding_order = static_cast<Mesh::WindingOrder>(
@@ -933,7 +1039,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     }
     if (RNA_boolean_get(&oct_mesh, "external_alembic_mesh_tag")) {
       octane_mesh->empty = true;
-	}
+    }
     /* mesh fluid motion mantaflow */
     sync_mesh_fluid_motion(b_ob, scene, octane_mesh);
     sync_mesh_particles(b_ob, octane_mesh, !preview);
@@ -1045,7 +1151,7 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
   for (int idx = 0; idx < hairMotionData.size(); ++idx) {
     if (idx < mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time].size()) {
       hairMotionData[idx] = mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time][idx];
-	}
+    }
   }
   mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time] = hairMotionData;
 

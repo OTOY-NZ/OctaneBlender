@@ -18,6 +18,7 @@
 #include "render/mesh.h"
 #include "render/object.h"
 #include "render/scene.h"
+#include "render/stats.h"
 #include "render/tables.h"
 
 #include "device/device.h"
@@ -27,6 +28,7 @@
 #include "util/util_logging.h"
 #include "util/util_math_cdf.h"
 #include "util/util_task.h"
+#include "util/util_time.h"
 #include "util/util_vector.h"
 
 /* needed for calculating differentials */
@@ -231,6 +233,12 @@ void Camera::update(Scene *scene)
   if (!need_update)
     return;
 
+  scoped_callback_timer timer([scene](double time) {
+    if (scene->update_stats) {
+      scene->update_stats->camera.times.add_entry({"update", time});
+    }
+  });
+
   /* Full viewport to camera border in the viewport. */
   Transform fulltoborder = transform_from_viewplane(viewport_camera_border);
   Transform bordertofull = transform_inverse(fulltoborder);
@@ -305,9 +313,12 @@ void Camera::update(Scene *scene)
   if (type == CAMERA_PERSPECTIVE) {
     float3 v = transform_perspective(&full_rastertocamera,
                                      make_float3(full_width, full_height, 1.0f));
-
     frustum_right_normal = normalize(make_float3(v.z, 0.0f, -v.x));
     frustum_top_normal = normalize(make_float3(0.0f, v.z, -v.y));
+
+    v = transform_perspective(&full_rastertocamera, make_float3(0.0f, 0.0f, 1.0f));
+    frustum_left_normal = normalize(make_float3(-v.z, 0.0f, v.x));
+    frustum_bottom_normal = normalize(make_float3(0.0f, -v.z, v.y));
   }
 
   /* Compute kernel camera data. */
@@ -465,6 +476,12 @@ void Camera::device_update(Device * /* device */, DeviceScene *dscene, Scene *sc
 
   if (!need_device_update)
     return;
+
+  scoped_callback_timer timer([scene](double time) {
+    if (scene->update_stats) {
+      scene->update_stats->camera.times.add_entry({"device_update", time});
+    }
+  });
 
   scene->lookup_tables->remove_table(&shutter_table_offset);
   if (kernel_camera.shuttertime != -1.0f) {
@@ -630,17 +647,22 @@ float Camera::world_to_raster_size(float3 P)
 
     if (offscreen_dicing_scale > 1.0f) {
       float3 p = transform_point(&worldtocamera, P);
-      float3 v = transform_perspective(&full_rastertocamera,
-                                       make_float3(full_width, full_height, 0.0f));
+      float3 v1 = transform_perspective(&full_rastertocamera,
+                                        make_float3(full_width, full_height, 0.0f));
+      float3 v2 = transform_perspective(&full_rastertocamera, make_float3(0.0f, 0.0f, 0.0f));
 
       /* Create point clamped to frustum */
       float3 c;
-      c.x = max(-v.x, min(v.x, p.x));
-      c.y = max(-v.y, min(v.y, p.y));
+      c.x = max(v2.x, min(v1.x, p.x));
+      c.y = max(v2.y, min(v1.y, p.y));
       c.z = max(0.0f, p.z);
 
-      float f_dist = len(p - c) / sqrtf((v.x * v.x + v.y * v.y) * 0.5f);
-
+      /* Check right side */
+      float f_dist = len(p - c) / sqrtf((v1.x * v1.x + v1.y * v1.y) * 0.5f);
+      if (f_dist < 0.0f) {
+        /* Check left side */
+        f_dist = len(p - c) / sqrtf((v2.x * v2.x + v2.y * v2.y) * 0.5f);
+      }
       if (f_dist > 0.0f) {
         res += res * f_dist * (offscreen_dicing_scale - 1.0f);
       }
@@ -671,10 +693,8 @@ float Camera::world_to_raster_size(float3 P)
       /* Distance from the four planes */
       float r = dot(p, frustum_right_normal);
       float t = dot(p, frustum_top_normal);
-      p = make_float3(-p.x, -p.y, p.z);
-      float l = dot(p, frustum_right_normal);
-      float b = dot(p, frustum_top_normal);
-      p = make_float3(-p.x, -p.y, p.z);
+      float l = dot(p, frustum_left_normal);
+      float b = dot(p, frustum_bottom_normal);
 
       if (r <= 0.0f && l <= 0.0f && t <= 0.0f && b <= 0.0f) {
         /* Point is inside frustum */
@@ -687,9 +707,9 @@ float Camera::world_to_raster_size(float3 P)
       else {
         /* Point may be behind or off to the side, need to check */
         float3 along_right = make_float3(-frustum_right_normal.z, 0.0f, frustum_right_normal.x);
-        float3 along_left = make_float3(frustum_right_normal.z, 0.0f, frustum_right_normal.x);
+        float3 along_left = make_float3(frustum_left_normal.z, 0.0f, -frustum_left_normal.x);
         float3 along_top = make_float3(0.0f, -frustum_top_normal.z, frustum_top_normal.y);
-        float3 along_bottom = make_float3(0.0f, frustum_top_normal.z, frustum_top_normal.y);
+        float3 along_bottom = make_float3(0.0f, frustum_bottom_normal.z, -frustum_bottom_normal.y);
 
         float dist[] = {r, l, t, b};
         float3 along[] = {along_right, along_left, along_top, along_bottom};
@@ -751,7 +771,9 @@ float Camera::world_to_raster_size(float3 P)
     }
 #else
     camera_sample_panorama(&kernel_camera,
+#  ifdef __CAMERA_MOTION__
                            kernel_camera_motion.data(),
+#  endif
                            0.5f * full_width,
                            0.5f * full_height,
                            0.0f,

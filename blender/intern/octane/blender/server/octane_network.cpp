@@ -250,8 +250,8 @@ bool RPCSend::writeBuffer(void *pvBuf, uint64_t ulLen)
 bool RPCSend::writeFloat3Buffer(float_3 *pf3Buf, uint64_t ulLen)
 {
   if (m_pucBuffer && (m_pucCurBuffer + ulLen * sizeof(float) * 3 <= m_pucBuffer + m_ulBufSize)) {
-    register float *pfPtr = (float *)m_pucCurBuffer;
-    for (register uint64_t i = 0; i < ulLen; ++i) {
+    float *pfPtr = (float *)m_pucCurBuffer;
+    for (uint64_t i = 0; i < ulLen; ++i) {
       *(pfPtr++) = pf3Buf[i].x;
       *(pfPtr++) = pf3Buf[i].y;
       *(pfPtr++) = pf3Buf[i].z;
@@ -266,8 +266,8 @@ bool RPCSend::writeFloat3Buffer(float_3 *pf3Buf, uint64_t ulLen)
 bool RPCSend::writeFloat2Buffer(float_2 *pf2Buf, uint64_t ulLen)
 {
   if (m_pucBuffer && (m_pucCurBuffer + ulLen * sizeof(float) * 2 <= m_pucBuffer + m_ulBufSize)) {
-    register float *pfPtr = (float *)m_pucCurBuffer;
-    for (register uint64_t i = 0; i < ulLen; ++i) {
+    float *pfPtr = (float *)m_pucCurBuffer;
+    for (uint64_t i = 0; i < ulLen; ++i) {
       *(pfPtr++) = pf2Buf[i].x;
       *(pfPtr++) = pf2Buf[i].y;
     }

@@ -19,9 +19,9 @@
 #ifndef __SESSION_H__
 #define __SESSION_H__
 
-#include <limits.h>
 #include "buffers.h"
 #include "mesh.h"
+#include <limits.h>
 
 #include "util/util_progress.h"
 #include "util/util_thread.h"
@@ -59,6 +59,7 @@ class SessionParams {
   MeshType meshes_type;
   float fps;
   bool deep_image;
+  bool deep_render_passes;
   bool export_with_object_layers;
   bool maximize_instancing;
 
@@ -90,20 +91,20 @@ class SessionParams {
 
   bool modified(const SessionParams &params)
   {
-    return !(anim_mode == params.anim_mode && deep_image == params.deep_image &&
-             export_with_object_layers == params.export_with_object_layers &&
-             maximize_instancing == params.maximize_instancing &&
-             interactive == params.interactive && meshes_type == params.meshes_type &&
-             use_viewport_hide == params.use_viewport_hide && use_passes == params.use_passes &&
-             output_path == params.output_path &&
-             out_of_core_enabled == params.out_of_core_enabled &&
-             out_of_core_mem_limit == params.out_of_core_mem_limit &&
-             out_of_core_gpu_headroom == params.out_of_core_gpu_headroom &&
-             hdr_tonemapped == params.hdr_tonemapped &&
-             hdr_tonemap_prefer == params.hdr_tonemap_prefer &&
-             render_priority == params.render_priority &&
-             resource_cache_type == params.resource_cache_type && width == width &&
-             height == height);
+    return !(
+        anim_mode == params.anim_mode && deep_image == params.deep_image &&
+        deep_render_passes == params.deep_render_passes &&
+        export_with_object_layers == params.export_with_object_layers &&
+        maximize_instancing == params.maximize_instancing && interactive == params.interactive &&
+        meshes_type == params.meshes_type && use_viewport_hide == params.use_viewport_hide &&
+        use_passes == params.use_passes && output_path == params.output_path &&
+        out_of_core_enabled == params.out_of_core_enabled &&
+        out_of_core_mem_limit == params.out_of_core_mem_limit &&
+        out_of_core_gpu_headroom == params.out_of_core_gpu_headroom &&
+        hdr_tonemapped == params.hdr_tonemapped &&
+        hdr_tonemap_prefer == params.hdr_tonemap_prefer &&
+        render_priority == params.render_priority &&
+        resource_cache_type == params.resource_cache_type && width == width && height == height);
   }
 };  // SessionParams
 

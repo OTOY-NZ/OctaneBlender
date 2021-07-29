@@ -41,10 +41,6 @@ static struct {
   float inverted_cdf[FILTER_CDF_TABLE_SIZE];
 } e_data = {false}; /* Engine data */
 
-extern char datatoc_common_uniforms_lib_glsl[];
-extern char datatoc_common_view_lib_glsl[];
-extern char datatoc_bsdf_common_lib_glsl[];
-
 static float UNUSED_FUNCTION(filter_box)(float UNUSED(x))
 {
   return 1.0f;
@@ -171,7 +167,7 @@ void EEVEE_temporal_sampling_update_matrices(EEVEE_Data *vedata)
 
   double ht_point[2];
   double ht_offset[2] = {0.0, 0.0};
-  uint ht_primes[2] = {2, 3};
+  const uint ht_primes[2] = {2, 3};
 
   BLI_halton_2d(ht_primes, ht_offset, effects->taa_current_sample - 1, ht_point);
 

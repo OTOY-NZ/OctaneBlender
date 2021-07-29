@@ -204,6 +204,11 @@ include_directories(
 	${OPENIMAGEIO_INCLUDE_DIRS}/OpenImageIO
 	${PNG_INCLUDE_DIRS}
 	${OPENEXR_INCLUDE_DIR}
+	${OPENVDB_INCLUDE_DIRS}
+)
+
+list(APPEND LIB
+	${OPENVDB_LIBRARIES}
 )
 
 include_directories(../atomic)

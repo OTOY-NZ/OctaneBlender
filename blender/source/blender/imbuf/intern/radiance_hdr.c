@@ -203,7 +203,7 @@ int imb_is_a_hdr(const unsigned char *buf)
   /* update: actually, the 'RADIANCE' part is just an optional program name,
    * the magic word is really only the '#?' part */
   // if (strstr((char *)buf, "#?RADIANCE")) return 1;
-  if (strstr((char *)buf, "#?")) {
+  if (memcmp((char *)buf, "#?", 2) == 0) {
     return 1;
   }
   // if (strstr((char *)buf, "32-bit_rle_rgbe")) return 1;
@@ -409,9 +409,9 @@ static void writeHeader(FILE *file, int width, int height)
   fputc(10, file);
 }
 
-int imb_savehdr(struct ImBuf *ibuf, const char *name, int flags)
+int imb_savehdr(struct ImBuf *ibuf, const char *filepath, int flags)
 {
-  FILE *file = BLI_fopen(name, "wb");
+  FILE *file = BLI_fopen(filepath, "wb");
   float *fp = NULL;
   size_t width = ibuf->x, height = ibuf->y;
   unsigned char *cp = NULL;

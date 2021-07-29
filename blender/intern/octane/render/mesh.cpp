@@ -45,6 +45,9 @@ Mesh::Mesh()
   need_update = false;
   final_visibility = true;
   shaders_tag = "";
+  volume_modifier_tag = "";
+  is_volume_to_mesh = false;
+  is_mesh_to_volume = false;
 }  // Mesh()
 
 Mesh::~Mesh()

@@ -452,6 +452,14 @@ string path_escape(const string &path)
   return result;
 }
 
+string ensure_abs_path(const string &raw_path, const string &new_path)
+{
+  if (path_is_relative(new_path)) {
+    return path_join(cached_user_path, path_join(path_dirname(raw_path), path_filename(new_path)));
+  }
+  return new_path;
+}
+
 bool path_is_relative(const string &path)
 {
 #ifdef _WIN32
