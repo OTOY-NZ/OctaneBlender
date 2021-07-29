@@ -1243,6 +1243,15 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
   mesh_in_bmain->smoothresh = mesh->smoothresh;
   mesh->mat = NULL;
 
+  /* Copy octane settings. */
+  mesh_in_bmain->oct_sphere_randomized_radius_seed = mesh->oct_sphere_randomized_radius_seed;
+  mesh_in_bmain->oct_sphere_radius = mesh->oct_sphere_radius;
+  mesh_in_bmain->oct_randomized_radius_min = mesh->oct_randomized_radius_min;
+  mesh_in_bmain->oct_randomized_radius_max = mesh->oct_randomized_radius_max;
+  mesh_in_bmain->oct_enable_octane_sphere_attribute = mesh->oct_enable_octane_sphere_attribute;
+  mesh_in_bmain->oct_hide_original_mesh = mesh->oct_hide_original_mesh;
+  mesh_in_bmain->oct_use_randomized_radius = mesh->oct_use_randomized_radius;
+
   BKE_mesh_nomain_to_mesh(mesh, mesh_in_bmain, NULL, &CD_MASK_MESH, true);
 
   /* User-count is required because so far mesh was in a limbo, where library management does

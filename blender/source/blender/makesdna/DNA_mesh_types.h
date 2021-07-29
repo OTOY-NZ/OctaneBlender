@@ -201,6 +201,16 @@ typedef struct Mesh {
   struct Multires *mr DNA_DEPRECATED;
 
   Mesh_Runtime runtime;
+
+  /* Octane Attributes */
+  int oct_sphere_randomized_radius_seed;
+  float oct_sphere_radius;
+  float oct_randomized_radius_min;
+  float oct_randomized_radius_max;
+  short oct_enable_octane_sphere_attribute;
+  short oct_hide_original_mesh;
+  short oct_use_randomized_radius;
+  char _pad2[2];
 } Mesh;
 
 /* deprecated by MTFace, only here for file reading */

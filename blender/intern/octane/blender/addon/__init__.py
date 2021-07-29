@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 21.7)",
+    "name": "OctaneRender Engine (v. 21.8)",
     "author": "OTOY Inc.",
     "blender": (2, 82, 0),
     "location": "Info header, render engine menu",
@@ -131,7 +131,7 @@ class OctaneRender(bpy.types.RenderEngine):
                 self.update_script_node(node)
 
     def _force_update_all_script_nodes(self):
-        collections = (bpy.data.materials, bpy.data.textures, )
+        collections = (bpy.data.materials, bpy.data.textures, bpy.data.worlds)
         for collection in collections:        
             for obj in collection.values():
                 self._update_all_script_nodes(obj)

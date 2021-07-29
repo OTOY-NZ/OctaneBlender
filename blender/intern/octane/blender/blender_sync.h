@@ -56,6 +56,7 @@ class BlenderSync {
   ~BlenderSync();
 
   /* sync */
+  bool is_frame_updated();
   void sync_recalc(BL::Depsgraph &b_depsgraph);
   void sync_data(BL::RenderSettings &b_render,
                  BL::Depsgraph &b_depsgraph,
@@ -183,9 +184,13 @@ class BlenderSync {
   void sync_materials(BL::Depsgraph &b_depsgraph, bool update_all);
   void sync_textures(BL::Depsgraph &b_depsgraph, bool update_all);
 
-  void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
-  bool fill_mesh_hair_data(
-      Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, int uv_num = 0, int vcol_num = 0);
+  void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, float motion_time = 0);
+  bool fill_mesh_hair_data(Mesh *mesh,
+                           BL::Mesh *b_mesh,
+                           BL::Object *b_ob,
+                           float motion_time = 0,
+                           int uv_num = 0,
+                           int vcol_num = 0);
 
   /* Early data free. */
   void free_data_after_sync(BL::Depsgraph &b_depsgraph);
@@ -223,6 +228,7 @@ class BlenderSync {
   bool motion_blur;
   int motion_blur_frame_start_offset;
   int motion_blur_frame_end_offset;
+  int last_frame_idx;
 
   struct RenderLayerInfo {
     RenderLayerInfo()

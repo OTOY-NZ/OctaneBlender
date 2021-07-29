@@ -30,7 +30,7 @@ struct HairVerts {
 // Sync hair data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BlenderSync::sync_hair(
-    Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index)
+    Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, float motion_time)
 {
   if (!motion) {
     mesh->octane_mesh.oMeshData.f3HairPoints.clear();
@@ -44,14 +44,14 @@ void BlenderSync::sync_hair(
   if (b_ob.mode() == b_ob.mode_PARTICLE_EDIT)
     return;
 
-  fill_mesh_hair_data(mesh, &b_mesh, &b_ob);
+  fill_mesh_hair_data(mesh, &b_mesh, &b_ob, motion_time);
 }  // sync_hair()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool BlenderSync::fill_mesh_hair_data(
-    Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, int uv_num, int vcol_num)
+    Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, float motion_time, int uv_num, int vcol_num)
 {
   if (!mesh || !b_mesh || !b_ob)
     return false;
@@ -78,12 +78,17 @@ bool BlenderSync::fill_mesh_hair_data(
     return false;
 
   static const int RESERVE_SIZE = 2048;
-  mesh->octane_mesh.oMeshData.f3HairPoints.reserve(RESERVE_SIZE);
-  mesh->octane_mesh.oMeshData.fHairThickness.reserve(RESERVE_SIZE);
-  mesh->octane_mesh.oMeshData.iVertexPerHair.reserve(RESERVE_SIZE);
-  mesh->octane_mesh.oMeshData.iHairMaterialIndices.reserve(RESERVE_SIZE);
-  mesh->octane_mesh.oMeshData.f2HairUVs.reserve(RESERVE_SIZE);
-  mesh->octane_mesh.oMeshData.f2HairWs.reserve(RESERVE_SIZE);
+  if (motion_time == 0) {
+    mesh->octane_mesh.oMeshData.f3HairPoints.reserve(RESERVE_SIZE);
+    mesh->octane_mesh.oMeshData.fHairThickness.reserve(RESERVE_SIZE);
+    mesh->octane_mesh.oMeshData.iVertexPerHair.reserve(RESERVE_SIZE);
+    mesh->octane_mesh.oMeshData.iHairMaterialIndices.reserve(RESERVE_SIZE);
+    mesh->octane_mesh.oMeshData.f2HairUVs.reserve(RESERVE_SIZE);
+    mesh->octane_mesh.oMeshData.f2HairWs.reserve(RESERVE_SIZE);
+  }
+  else {
+    mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time].reserve(RESERVE_SIZE);
+  }
 
   int cur_hair_idx = 0;
   int cur_vertex_idx = 0;
@@ -187,14 +192,20 @@ bool BlenderSync::fill_mesh_hair_data(
 
             float3 cur_point = cur_hair_verts->point;
 
-            mesh->octane_mesh.oMeshData.f3HairPoints.push_back(OctaneDataTransferObject::float_3(
-                cur_hair_verts->point.x, cur_hair_verts->point.y, cur_hair_verts->point.z));
+            if (motion_time == 0) {
+              mesh->octane_mesh.oMeshData.f3HairPoints.push_back(OctaneDataTransferObject::float_3(
+                  cur_hair_verts->point.x, cur_hair_verts->point.y, cur_hair_verts->point.z));
+              mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_width);
+              mesh->octane_mesh.oMeshData.f2HairWs.push_back(
+                  OctaneDataTransferObject::float_2(cur_w, cur_w));
+            }
+            else {
+              mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time].push_back(
+                  OctaneDataTransferObject::float_3(
+                      cur_hair_verts->point.x, cur_hair_verts->point.y, cur_hair_verts->point.z));
+            }
 
-            mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_width);
             cur_width += width_step;
-
-            mesh->octane_mesh.oMeshData.f2HairWs.push_back(
-                OctaneDataTransferObject::float_2(cur_w, cur_w));
             cur_w += w_step;
 
             if (step_no > 0)
@@ -204,9 +215,10 @@ bool BlenderSync::fill_mesh_hair_data(
             ++vert_cnt;
           }
 
-          mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(vert_cnt);
-          mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
-
+          if (motion_time == 0) {
+            mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(vert_cnt);
+            mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
+          }
           // Add UVs
           BL::Mesh::uv_layers_iterator l;
           b_mesh->uv_layers.begin(l);
@@ -215,8 +227,9 @@ bool BlenderSync::fill_mesh_hair_data(
           if (b_mesh->uv_layers.length())
             b_psys.uv_on_emitter(psmd, *b_pa, pa_no, uv_num, &uv.x);
 
-          mesh->octane_mesh.oMeshData.f2HairUVs.push_back(
-              OctaneDataTransferObject::float_2(uv.x, uv.y));
+		  if (motion_time == 0) {
+            mesh->octane_mesh.oMeshData.f2HairUVs.push_back(OctaneDataTransferObject::float_2(uv.x, uv.y));
+          }
 
           if (pa_no < totparts && b_pa != b_psys.particles.end())
             ++b_pa;
@@ -225,6 +238,9 @@ bool BlenderSync::fill_mesh_hair_data(
         delete[] hair_verts_arr;
       }
     }
+  }
+  if (motion_time == 0) {
+    mesh->octane_mesh.oMeshData.oMotionf3HairPoints[0] = mesh->octane_mesh.oMeshData.f3HairPoints;
   }
   return true;
 }

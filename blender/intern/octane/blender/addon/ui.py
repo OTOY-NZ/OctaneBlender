@@ -229,17 +229,19 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
 
         col = layout.column(align=True)
         col.prop(oct_scene, "kernel_type")
-
+        
         if oct_scene.kernel_type in ('0', '1', ):            
-            # Direct lighting kernel
+            # Direct lighting kernel            
             col = layout.column(align=True)
+            col.prop(oct_scene, "gi_mode")
+            
             draw_clay_mode()
 
             box = layout.box()
             box.label(text="Quality")
             col = box.column(align=True)
             draw_samples()
-            col.prop(oct_scene, "gi_mode")     
+            # col.prop(oct_scene, "gi_mode")
             col.prop(oct_scene, "specular_depth")
             col.prop(oct_scene, "glossy_depth")
             col.prop(oct_scene, "diffuse_depth")
@@ -937,20 +939,24 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
             sub = row.column(align=True)
             sub.prop(cdata, "auto_smooth_angle")
 
-        box = layout.box()
-        box.label(text="Sphere Attributes:")
-        sub = box.row(align=True)
-        sub.prop(cdata, "enable_octane_sphere_attribute")
-        sub = box.row(align=True)
-        sub.prop(cdata, "octane_sphere_radius") 
-        sub = box.row(align=True)
-        sub.prop(cdata, "use_randomized_radius")
-        if cdata.use_randomized_radius:
+        if mesh:
+            box = layout.box()
+            box.label(text="Sphere Attributes:")
             sub = box.row(align=True)
-            sub.prop(cdata, "octane_sphere_randomized_radius_seed")
+            sub.prop(mesh, "octane_enable_sphere_attribute")
             sub = box.row(align=True)
-            sub.prop(cdata, "octane_sphere_randomized_radius_min")
-            sub.prop(cdata, "octane_sphere_randomized_radius_max")
+            sub.active = mesh.octane_enable_sphere_attribute
+            sub.prop(mesh, "octane_hide_original_mesh")
+            sub = box.row(align=True)
+            sub.prop(mesh, "octane_sphere_radius") 
+            sub = box.row(align=True)
+            sub.prop(mesh, "octane_use_randomized_radius")
+            if mesh.octane_use_randomized_radius:
+                sub = box.row(align=True)
+                sub.prop(mesh, "octane_sphere_randomized_radius_seed")
+                sub = box.row(align=True)
+                sub.prop(mesh, "octane_sphere_randomized_radius_min")
+                sub.prop(mesh, "octane_sphere_randomized_radius_max")
 
         box = layout.box()
         box.label(text="OpenSubDiv:")
@@ -1052,6 +1058,43 @@ class OCTANE_RENDER_PT_HairSettings(OctaneButtonsPanel, Panel):
         row = layout.row(align=True)  
         row.prop(psys, "octane_w_min")
         row.prop(psys, "octane_w_max")            
+
+
+class OCTANE_RENDER_PT_SpherePrimitiveSettings(OctaneButtonsPanel, Panel):
+    bl_label = "Octane Sphere Primitive Settings"
+    bl_context = "particle"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    # @classmethod
+    # def poll(cls, context):
+    #     psys = context.particle_system
+    #     return psys and OctaneButtonsPanel.poll(context) and psys.settings.type == 'EMITTER' and (psys.settings.render_type != 'OBJECT' and psys.settings.render_type != 'COLLECTION')
+
+    @classmethod
+    def poll(cls, context):
+        psys = context.particle_system
+        engine = context.engine
+        if psys is None:
+            return False
+        return engine == "octane"
+
+    def draw(self, context):
+        layout = self.layout
+
+        psys = context.particle_system
+        particle_settings = context.particle_settings
+        
+        is_active = psys.settings.type != 'HAIR' and (psys.settings.render_type != 'OBJECT' and psys.settings.render_type != 'COLLECTION')        
+
+        row = layout.row()
+        row.active = is_active
+        row.prop(particle_settings, "use_as_octane_sphere_primitive")
+        row = layout.row()
+        row.active = is_active
+        row.prop(particle_settings, "octane_velocity_multiplier")
+        row = layout.row()
+        row.active = is_active
+        row.prop(particle_settings, "octane_sphere_size_multiplier")        
 
 
 class OCTANE_PT_context_material(OctaneButtonsPanel, Panel):
@@ -1305,8 +1348,9 @@ class OCTANE_RENDER_PT_passes_denoiser(OctaneButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_oct_denoise_reflect_indir", text="ReflectIndir")
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_denoise_emission", text="Emission")
-        col = flow.column()
-        col.prop(view_layer, "use_pass_oct_denoise_remainder", text="Remainder")
+        col = flow.column()        
+        col.prop(view_layer, "use_pass_oct_denoise_remainder", text="Refraction")
+        # col.prop(view_layer, "use_pass_oct_denoise_remainder", text="Remainder")
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_denoise_vol", text="Volume")
         col = flow.column()
@@ -1901,6 +1945,7 @@ classes = (
     OCTANE_CAMERA_PT_post,
     OCTANE_PT_mesh_properties,
     OCTANE_RENDER_PT_HairSettings,
+    OCTANE_RENDER_PT_SpherePrimitiveSettings,
     OCTANE_PT_context_material,
     OCTANE_MATERIAL_PT_surface,
     OCTANE_MATERIAL_PT_volume,

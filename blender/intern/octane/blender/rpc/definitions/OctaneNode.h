@@ -8,6 +8,11 @@
 #define ENVIRONMENT_NODE_NAME "Environment"
 #define VISIBLE_ENVIRONMENT_NODE_NAME "VisibleEnvironment"
 #define OCTANE_STATIC_FRONT_PROJECTION "OCTANE_STATIC_FRONT_PROJECTION"
+#define OCTANE_BLENDER_CAMERA_MODE "OCTANE_BLENDER_CAMERA_MODE"
+#define OCTANE_BLENDER_CAMERA_CENTER_X "OCTANE_BLENDER_CAMERA_CENTER_X"
+#define OCTANE_BLENDER_CAMERA_CENTER_Y "OCTANE_BLENDER_CAMERA_CENTER_Y"
+#define OCTANE_BLENDER_CAMERA_REGION_WIDTH "OCTANE_BLENDER_CAMERA_REGION_WIDTH"
+#define OCTANE_BLENDER_CAMERA_REGION_HEIGHT "OCTANE_BLENDER_CAMERA_REGION_HEIGHT"
 
 namespace OctaneDataTransferObject {
 
@@ -374,15 +379,20 @@ namespace OctaneDataTransferObject {
 	};
 
 	struct OctaneDBNodes : public OctaneNodeBase {
+    enum OctaneDBType {
+      MATERIAL = 0,
+      MEDIUM = 1,
+      TEXTURE = 2,
+    };
 		bool bClose;
-		bool isMaterialType;
+		int iOctaneDBType;
 		uint32_t iNodesNum;
 		std::vector<OctaneNodeBase*> octaneDBNodes;
-		OctaneDBNodes() : bClose(true), isMaterialType(true), iNodesNum(0), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
-		OctaneDBNodes(bool bClose, uint32_t iNodesNum) : bClose(bClose), isMaterialType(true), iNodesNum(iNodesNum), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
+		OctaneDBNodes() : bClose(true), iOctaneDBType(0), iNodesNum(0), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
+		OctaneDBNodes(bool bClose, uint32_t iNodesNum) : bClose(bClose), iOctaneDBType(0), iNodesNum(iNodesNum), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
 
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
-			MSGPACK_DEFINE(bClose, isMaterialType, iNodesNum, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(bClose, iOctaneDBType, iNodesNum, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneSaveImage : public OctaneNodeBase {

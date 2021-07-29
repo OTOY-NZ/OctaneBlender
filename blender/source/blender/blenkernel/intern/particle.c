@@ -3755,6 +3755,8 @@ static void default_particle_settings(ParticleSettings *part)
   part->octane_min_curvature = 0.0001f;
   part->octane_w_min = 0.0f;
   part->octane_w_max = 1.0f;
+  part->octane_velocity_multiplier = 0.001f;
+  part->octane_sphere_size_multiplier = 1.f;
 }
 
 ParticleSettings *BKE_particlesettings_add(Main *bmain, const char *name)

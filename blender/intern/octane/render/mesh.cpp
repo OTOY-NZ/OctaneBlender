@@ -64,8 +64,7 @@ void Mesh::clear()
 
 bool Mesh::is_subdivision()
 {
-  return subdivision_type != SUBDIVISION_NONE ||
-         octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable;
+  return subdivision_type != SUBDIVISION_NONE || octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable;
 }
 
 bool Mesh::is_volume()
@@ -82,7 +81,7 @@ bool Mesh::is_global_mesh_type(Scene *scene)
   return false;
 }
 
-std::string Mesh::generate_shader_tag(std::vector<Shader*>& shaders)
+std::string Mesh::generate_shader_tag(std::vector<Shader *> &shaders)
 {
   std::string result = "";
   for (int i = 0; i < shaders.size(); ++i) {
@@ -189,33 +188,66 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
       }
       mesh->octane_mesh.sObjectNames.push_back("__" + mesh->name);
 
-      bool is_motion_blur_valid = mesh->octane_mesh.oMeshData.iSamplesNum ==
-                                  mesh->octane_mesh.oMeshData.oMotionf3Points.size();
-      if (is_motion_blur_valid && mesh->octane_mesh.oMeshData.iSamplesNum > 1) {
+      bool is_velocity_motion_blur_valid = mesh->octane_mesh.oMeshData.f3Velocities.size() > 0 &&
+                                           mesh->octane_mesh.oMeshData.f3Points.size() ==
+                                               mesh->octane_mesh.oMeshData.f3Velocities.size();
+      bool is_vertex_motion_blur_valid =
+          mesh->octane_mesh.oMeshData.iSamplesNum ==
+              mesh->octane_mesh.oMeshData.oMotionf3Points.size() ||
+          mesh->octane_mesh.oMeshData.iSamplesNum ==
+              mesh->octane_mesh.oMeshData.oMotionf3HairPoints.size();
+      if (is_velocity_motion_blur_valid) {
+        mesh->octane_mesh.oMeshData.iSamplesNum = 1;
+      }
+      else if (is_vertex_motion_blur_valid && mesh->octane_mesh.oMeshData.iSamplesNum > 1) {
         int vertices_num = mesh->octane_mesh.oMeshData.f3Points.size();
         mesh->octane_mesh.oMeshData.f3Points.clear();
         mesh->octane_mesh.oMeshData.f3Points.resize(vertices_num *
                                                     mesh->octane_mesh.oMeshData.iSamplesNum);
         int frame_idx = 0;
         for (auto it : mesh->octane_mesh.oMeshData.oMotionf3Points) {
-          if (it.second.size() != vertices_num) {
-            is_motion_blur_valid = false;
-            break;
-          }
-          for (int vertex_idx = 0; vertex_idx < vertices_num; ++vertex_idx) {
+          //if (it.second.size() != vertices_num) {
+          //  fprintf(
+          //      stderr,
+          //      "Octane: WARNING: Octane doesn't support mesh with varied vertices!\n");
+          //}
+          int min_vertices_num = std::min(int(it.second.size()), vertices_num);
+          for (int vertex_idx = 0; vertex_idx < min_vertices_num; ++vertex_idx) {
             mesh->octane_mesh.oMeshData
                 .f3Points[vertex_idx * mesh->octane_mesh.oMeshData.iSamplesNum + frame_idx] =
                 it.second[vertex_idx];
           }
           frame_idx++;
         }
-      }
-      if (!is_motion_blur_valid) {
-        fprintf(stderr, "Octane: WARNING: Octane doesn't support mesh with varied vertices!\n");
-        continue;
+
+        int hair_vertices_num = mesh->octane_mesh.oMeshData.f3HairPoints.size();
+        mesh->octane_mesh.oMeshData.f3HairPoints.clear();
+        mesh->octane_mesh.oMeshData.f3HairPoints.resize(hair_vertices_num *
+                                                        mesh->octane_mesh.oMeshData.iSamplesNum);
+
+        frame_idx = 0;
+        for (auto it : mesh->octane_mesh.oMeshData.oMotionf3HairPoints) {
+          if (it.second.size() != hair_vertices_num) {
+            is_vertex_motion_blur_valid = false;
+            break;
+          }
+          for (int vertex_idx = 0; vertex_idx < hair_vertices_num; ++vertex_idx) {
+            mesh->octane_mesh.oMeshData
+                .f3HairPoints[vertex_idx * mesh->octane_mesh.oMeshData.iSamplesNum + frame_idx] =
+                it.second[vertex_idx];
+          }
+          frame_idx++;
+        }
+        if (!is_vertex_motion_blur_valid) {
+          fprintf(stderr,
+                  "Octane: WARNING: Octane doesn't support mesh with varied vertices or hairs!\n");
+          continue;
+        }
       }
       mesh->need_update = false;
       octaneMeshes.oMeshes.emplace_back(mesh->octane_mesh);
+      octaneMeshes.oMeshes[octaneMeshes.oMeshes.size() - 1].oMeshData.bShowVertexData =
+          mesh->octane_mesh.oMeshData.bShowVertexData;
 
       if (progress.get_cancel()) {
         break;
@@ -273,7 +305,7 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
         if (!obj->visibility) {
           continue;
         }
-		//Force to update every global object here
+        // Force to update every global object here
         obj->need_update = false;
         Mesh *mesh = obj->mesh;
         if (mesh && !mesh->empty && !mesh->is_volume() && mesh->final_visibility) {
@@ -284,7 +316,7 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
           }
           if (scene->meshes_type == MeshType::GLOBAL || mesh->mesh_type == MeshType::GLOBAL) {
             mesh->need_update = false;
-		  }
+          }
           octaneMeshes.oMeshes.emplace_back(mesh->octane_mesh);
           OctaneDataTransferObject::OctaneMesh &current_octane_mesh =
               octaneMeshes.oMeshes[octaneMeshes.oMeshes.size() - 1];

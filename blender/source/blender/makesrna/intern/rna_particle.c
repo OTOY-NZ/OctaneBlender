@@ -3538,6 +3538,36 @@ static void rna_def_particle_settings(BlenderRNA *brna)
                            "color gradient for tips of all hairs of this particle system");
   RNA_def_property_update(
       prop, 0, "rna_Particle_redo"); /* TODO: Only need to tell the render engine to update. */
+
+  prop = RNA_def_property(srna, "use_as_octane_sphere_primitive", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_as_octane_sphere_primitive", 0);
+  RNA_def_property_ui_text(
+      prop, "Use as Octane Sphere Primitive", "Use as Octane sphere primitive");
+  RNA_def_property_update(
+      prop, 0, "rna_Particle_redo"); /* TODO: Only need to tell the render engine to update. */
+
+  prop = RNA_def_property(srna, "octane_velocity_multiplier", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, NULL, "octane_velocity_multiplier");
+  RNA_def_property_float_default(prop, 0.001f);
+  RNA_def_property_range(prop, 0.0f, 1000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1000.0f, 0.1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Motion vector multiplier",
+                           "Motion vector multiplier, used to adjust the velocity of the octane sphere primitive");
+  RNA_def_property_update(
+      prop, 0, "rna_Particle_redo"); /* TODO: Only need to tell the render engine to update. */
+
+  prop = RNA_def_property(srna, "octane_sphere_size_multiplier", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, NULL, "octane_sphere_size_multiplier");
+  RNA_def_property_float_default(prop, 1.f);
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 100.0f, 0.1, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Sphere primitive size multiplier",
+      "Sphere primitive size multiplier, used to adjust the size of the octane sphere primitive");
+  RNA_def_property_update(
+      prop, 0, "rna_Particle_redo"); /* TODO: Only need to tell the render engine to update. */
 }
 
 static void rna_def_particle_target(BlenderRNA *brna)

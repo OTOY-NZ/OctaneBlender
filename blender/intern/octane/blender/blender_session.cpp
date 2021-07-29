@@ -369,7 +369,7 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
 	is_navigation_mode = rv3d && rv3d->rflag & RV3D_NAVIGATING;
   }
   
-  if (!is_navigation_mode) {
+  if (!is_navigation_mode || sync->is_frame_updated()) {
     sync->sync_data(b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
   }
 

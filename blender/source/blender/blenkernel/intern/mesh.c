@@ -680,6 +680,15 @@ void BKE_mesh_copy_settings(Mesh *me_dst, const Mesh *me_src)
   }
   me_dst->mat = MEM_dupallocN(me_src->mat);
   me_dst->totcol = me_src->totcol;
+
+  /* Copy octane settings. */
+  me_dst->oct_sphere_randomized_radius_seed = me_src->oct_sphere_randomized_radius_seed;
+  me_dst->oct_sphere_radius = me_src->oct_sphere_radius;
+  me_dst->oct_randomized_radius_min = me_src->oct_randomized_radius_min;
+  me_dst->oct_randomized_radius_max = me_src->oct_randomized_radius_max;
+  me_dst->oct_enable_octane_sphere_attribute = me_src->oct_enable_octane_sphere_attribute;
+  me_dst->oct_hide_original_mesh = me_src->oct_hide_original_mesh;
+  me_dst->oct_use_randomized_radius = me_src->oct_use_randomized_radius;
 }
 
 Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,

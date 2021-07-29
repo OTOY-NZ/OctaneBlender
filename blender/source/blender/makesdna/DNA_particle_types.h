@@ -299,8 +299,12 @@ typedef struct ParticleSettings {
   struct CurveMapping *twistcurve;
   void *_pad7;
 
-  float octane_root_width, octane_tip_width, octane_min_curvature, octane_w_min, octane_w_max;
-  float octane_pads[3];
+  float octane_root_width, octane_tip_width, octane_min_curvature, octane_w_min, octane_w_max,
+      octane_velocity_multiplier, octane_sphere_size_multiplier;
+  float octane_pads[1];
+
+  char use_as_octane_sphere_primitive;
+  char _pad9[7];
 } ParticleSettings;
 
 typedef struct ParticleSystem {

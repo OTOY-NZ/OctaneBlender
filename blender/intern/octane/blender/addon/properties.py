@@ -264,7 +264,7 @@ octane_render_pass_types = (
     ('46', "Denoiser ReflectDir", "Denoiser Reflection Direct pass", 46),
     ('47', "Denoiser ReflectIndir", "Denoiser Reflection Indirect pass", 47),
     #('48', "Denoiser Refraction", "Denoiser Refraction pass"),
-    ('49', "Denoiser Remainder", "Denoiser Remainder pass", 49),
+    ('49', "Denoiser Refraction", "Denoiser Refraction(Remainder) pass", 49),
     ('76', "Denoiser Emission", "Denoiser Emission pass", 76),
     ('74', "Denoiser Volume", "Denoiser Volume pass", 74),
     ('75', "Denoiser Volume Emission", "Denoiser Volume Emission pass", 75),
@@ -453,7 +453,7 @@ pass_types = (
     ('46', "Denoiser ReflectDir", "Denoiser Reflection Direct pass"),
     ('47', "Denoiser ReflectIndir", "Denoiser Reflection Indirect pass"),
     #('48', "Denoiser Refraction", "Denoiser Refraction pass"),
-    ('49', "Denoiser Remainder", "Denoiser Remainder pass"),
+    ('49', "Denoiser Refraction", "Denoiser Refraction(Remainder) pass"),
     ('76', "Denoiser Emission", "Denoiser Emission pass"),
     ('74', "Denoiser Volume", "Denoiser Volume pass"),
     ('75', "Denoiser Volume Emission", "Denoiser Volume Emission pass"),
@@ -3384,6 +3384,11 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             description="Use color and float attributes with sphere primitives which adds on top of the current attribute support for triangles",
             default=False,
             )
+    hide_original_mesh: BoolProperty(
+            name="Hide Original Mesh",
+            description="Hide original mesh when the Octane Sphere Primitive is enabled",
+            default=False,
+            )    
     octane_sphere_radius: FloatProperty(
             name="Octane Sphere Radius",
             description="The radius of the sphere primitive",
@@ -3534,6 +3539,9 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
 
     resource_dirty_tag: BoolProperty(
             default=False,
+            )
+    resource_data_hash_tag: StringProperty(            
+            default='',
             )
 
     octane_vdb_helper: BoolProperty(

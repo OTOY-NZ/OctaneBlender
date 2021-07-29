@@ -3162,6 +3162,63 @@ static void rna_def_mesh(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Is Editmode", "True when used in editmode");
 
+  prop = RNA_def_property(srna, "octane_enable_sphere_attribute", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "oct_enable_octane_sphere_attribute", 0);
+  RNA_def_property_boolean_default(prop, 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Enable Octane Sphere Attribute",
+      "Use color and float attributes with sphere primitives which adds on top of the current attribute support for triangles");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+  prop = RNA_def_property(srna, "octane_hide_original_mesh", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "oct_hide_original_mesh", 0);
+  RNA_def_property_boolean_default(prop, 0);
+  RNA_def_property_ui_text(prop,
+                           "Hide Original Mesh",
+                           "Hide original mesh when the Octane Sphere Primitive is enabled");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+  prop = RNA_def_property(srna, "octane_use_randomized_radius", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "oct_use_randomized_radius", 0);
+  RNA_def_property_boolean_default(prop, 0);
+  RNA_def_property_ui_text(prop,
+                           "Use Randomized Radius",
+                           "Enable to use the randomized radiuses");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+  prop = RNA_def_property(srna, "octane_sphere_randomized_radius_seed", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "oct_sphere_randomized_radius_seed");
+  RNA_def_property_range(prop, 1, 65535);
+  RNA_def_property_ui_text(prop, "Random Seed", "The random seed that used for radiuses");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+  prop = RNA_def_property(srna, "octane_sphere_radius", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, NULL, "oct_sphere_radius");
+  RNA_def_property_range(prop, 0.0f, 1000000.f);
+  RNA_def_property_ui_range(prop, 0.0f, 1000000.f, 0.1, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Octane Sphere Primitive Radius",
+      "The radius of the sphere primitive");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+  prop = RNA_def_property(srna, "octane_sphere_randomized_radius_min", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, NULL, "oct_randomized_radius_min");
+  RNA_def_property_range(prop, 0.0f, 1000000.f);
+  RNA_def_property_ui_range(prop, 0.0f, 1000000.f, 0.1, 3);
+  RNA_def_property_ui_text(
+      prop, "Min Radius", "The min randomized radius of the sphere primitive");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+  prop = RNA_def_property(srna, "octane_sphere_randomized_radius_max", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, NULL, "oct_randomized_radius_max");
+  RNA_def_property_range(prop, 0.0f, 1000000.f);
+  RNA_def_property_ui_range(prop, 0.0f, 1000000.f, 0.1, 3);
+  RNA_def_property_ui_text(
+      prop, "Max Radius", "The max randomized radius of the sphere primitive");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
   /* pointers */
   rna_def_animdata_common(srna);
   rna_def_texmat_common(srna, "rna_Mesh_texspace_editable");

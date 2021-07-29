@@ -441,9 +441,9 @@ static void blender_camera_sync(Camera *cam,
 
   cam->oct_node.bUseRegion = bcam->use_border;
   cam->oct_node.ui4Region.x = (uint32_t)(cam->border.left * (float)width);
-  cam->oct_node.ui4Region.y = (uint32_t)((1.0f - cam->border.top) * (float)height);
+  cam->oct_node.ui4Region.y = (uint32_t)(height - (uint32_t)(cam->border.top * height));
   cam->oct_node.ui4Region.z = (uint32_t)(cam->border.right * (float)width);
-  cam->oct_node.ui4Region.w = (uint32_t)((1.0f - cam->border.bottom) * (float)height);
+  cam->oct_node.ui4Region.w = (uint32_t)(height - (uint32_t)(cam->border.bottom * height));
 
   cam->oct_node.bUseBlenderCamera = camera_from_object;
   cam->oct_node.ui2BlenderCameraDemension.x = (uint32_t)(width * (cam->viewport_camera_border.right - cam->viewport_camera_border.left));
@@ -1008,10 +1008,7 @@ void BlenderSync::sync_camera_motion(
   if (!cam || cam->oct_node.type != ::OctaneEngine::Camera::CAMERA_PERSPECTIVE)
     return;
 
-  BL::Array<float, 16> b_ob_matrix;
-  b_engine.camera_model_matrix(b_ob, false, b_ob_matrix);
-  Transform tfm = get_transform(b_ob_matrix);
-  Transform octane_matrix = OCTANE_MATRIX * blender_camera_matrix(tfm, cam->type);
+  Transform octane_matrix = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
 
   if (cam->type == CAMERA_PERSPECTIVE) {
     BlenderCamera bcam;
@@ -1031,7 +1028,7 @@ void BlenderSync::sync_camera_motion(
     f3LookAt.x = f3EyePoint.x = octane_matrix.x.w;
     f3LookAt.y = f3EyePoint.y = octane_matrix.y.w;
     f3LookAt.z = f3EyePoint.z = octane_matrix.z.w;
-    float3 dir = transform_direction(&cam->octane_matrix, bcam.dir);
+    float3 dir = transform_direction(&octane_matrix, bcam.dir);
 
     if (cam->oct_node.bOrtho) {
       fFOV = bcam.ortho_scale * bcam.zoom;

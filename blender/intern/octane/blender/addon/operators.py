@@ -49,14 +49,51 @@ def set_mesh_resource_cache_tag(obj, is_dirty):
             if hasattr(cur_octane_mesh_data, 'resource_dirty_tag'):            
                 cur_octane_mesh_data.resource_dirty_tag = is_dirty
 
+def generate_resource_data_hash_tag(obj):
+    resource_data_hash_tag = ''
+    if obj and obj.type in ('MESH', ):
+        cur_octane_mesh_data = getattr(obj.data, 'octane', None)
+        if cur_octane_mesh_data:
+            material_resource_hash_tag = ''
+            sphere_primitive_hash_tag = ''
+            for mat in obj.material_slots:
+                material_resource_hash_tag += (mat.name + ",")            
+            sphere_primitive_hash_tag_1 = "[%d-%d-%f]" % (obj.data.octane_enable_sphere_attribute, obj.data.octane_hide_original_mesh, obj.data.octane_sphere_radius)
+            sphere_primitive_hash_tag_2 = "[%d-%d-%f-%f]" % (obj.data.octane_use_randomized_radius, obj.data.octane_sphere_randomized_radius_seed, obj.data.octane_sphere_randomized_radius_min, obj.data.octane_sphere_randomized_radius_max)
+            sphere_primitive_hash_tag = sphere_primitive_hash_tag_1 + sphere_primitive_hash_tag_2
+            resource_data_hash_tag = material_resource_hash_tag + sphere_primitive_hash_tag
+    return resource_data_hash_tag
+
+def is_resource_data_hash_tag_updated(obj, cur_resource_data_hash_tag):
+    if obj and obj.type in ('MESH', ):
+        cur_octane_mesh_data = getattr(obj.data, 'octane', None)
+        if cur_octane_mesh_data:
+            return cur_resource_data_hash_tag != cur_octane_mesh_data.resource_data_hash_tag
+    return True
+
+def update_resource_data_hash_tag_updated(obj, cur_resource_data_hash_tag):
+    if obj and obj.type in ('MESH', ):
+        cur_octane_mesh_data = getattr(obj.data, 'octane', None)
+        if cur_octane_mesh_data:
+            cur_octane_mesh_data.resource_data_hash_tag = cur_resource_data_hash_tag
+
 def get_dirty_resources():
     resources = []
     for obj in bpy.data.objects:
         if obj and obj.type in ('MESH', ):
-            cur_octane_mesh_data = getattr(obj.data, 'octane', None)
-            if cur_octane_mesh_data:
-                if getattr(cur_octane_mesh_data, 'resource_dirty_tag', False):     
-                    resources.append(obj.data.name)    
+            resource_data_hash_tag = generate_resource_data_hash_tag(obj)             
+            is_dirty = is_resource_data_hash_tag_updated(obj, resource_data_hash_tag)
+            update_resource_data_hash_tag_updated(obj, resource_data_hash_tag)  
+            if is_dirty:
+                resources.append(obj.data.name)
+            else:
+                if len(obj.particle_systems):
+                    resources.append(obj.data.name)
+                else:
+                    cur_octane_mesh_data = getattr(obj.data, 'octane', None)
+                    if cur_octane_mesh_data:
+                        if getattr(cur_octane_mesh_data, 'resource_dirty_tag', False):     
+                            resources.append(obj.data.name)    
     return resources                       
 
 def set_all_mesh_resource_cache_tags(is_dirty):

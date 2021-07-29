@@ -375,8 +375,11 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
 
   OctaneDataTransferObject::OctaneObjectLayer object_layer;
   PointerRNA octane_object = RNA_pointer_get(&b_ob.ptr, "octane");
+  PointerRNA octane_parent_object = is_instance ? RNA_pointer_get(&b_parent.ptr, "octane") :
+                                                  RNA_pointer_get(&b_ob.ptr, "octane");
   resolve_object_layer(octane_object, object_layer);
-  MeshType mesh_type = static_cast<MeshType>(RNA_enum_get(&octane_object, "object_mesh_type"));
+  MeshType mesh_type = static_cast<MeshType>(
+      RNA_enum_get(&octane_parent_object, "object_mesh_type"));
 
   /* light is handled separately */
   if (!motion && object_is_light(b_ob)) {
@@ -483,8 +486,16 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     }
     object->octane_object.oObjectLayer = object_layer;
     if (!show_self) {
-      object->octane_object.oObjectLayer.fGeneralVisibility = 0.f;
-	}
+      if (object->mesh) {
+		// Only process when the vertex data is shown
+        if (object->mesh->octane_mesh.oMeshData.bShowVertexData) {
+          object->octane_object.oObjectLayer.fGeneralVisibility = 0.f;
+        }
+      }
+      else {
+        object->octane_object.oObjectLayer.fGeneralVisibility = 0.f;
+      }
+    }
     object->octane_object.bMovable = false;
     object->octane_object.iUseObjectLayer =
         object->mesh->octane_mesh.sOrbxPath.length() == 0 ?

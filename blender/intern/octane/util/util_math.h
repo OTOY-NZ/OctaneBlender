@@ -104,6 +104,11 @@ using std::isfinite;
 using std::isnan;
 using std::sqrt;
 
+otc_device_inline float abs(float x)
+{
+  return (x > 0) ? x : -x;
+}
+
 otc_device_inline int abs(int x)
 {
   return (x > 0) ? x : -x;

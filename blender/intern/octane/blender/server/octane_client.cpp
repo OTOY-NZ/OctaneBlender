@@ -446,7 +446,7 @@ bool OctaneClient::downloadOctaneDB(OctaneDataTransferObject::OctaneDBNodes &nod
       (OctaneDataTransferObject::OctaneDBNodes *)RPCMsgPackObj::receiveOctaneNode(m_Socket);
   nodes.sName = pOctaneDBNodes->sName;
   nodes.bClose = pOctaneDBNodes->bClose;
-  nodes.isMaterialType = pOctaneDBNodes->isMaterialType;
+  nodes.iOctaneDBType = pOctaneDBNodes->iOctaneDBType;
   nodes.iNodesNum = pOctaneDBNodes->iNodesNum;
   for (int i = 0; i < pOctaneDBNodes->iNodesNum; ++i) {
     OctaneDataTransferObject::OctaneNodeBase *pResponseNode = RPCMsgPackObj::receiveOctaneNode(
@@ -1521,6 +1521,9 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
           std::pair<uint32_t, uint32_t>(mesh.oMeshData.fVertexFloats[i].size(), fDataOffset);
       fDataOffset += mesh.oMeshData.fVertexFloats[i].size();
     }
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_VELOCITY_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.f3Velocities.size(), fDataOffset);
+    fDataOffset += 3 * mesh.oMeshData.f3Velocities.size();
     mesh.oMeshData.oArrayInfo[ARRAY_INFO_HAIR_POINT_DATA] = std::pair<uint32_t, uint32_t>(
         mesh.oMeshData.f3HairPoints.size(), fDataOffset);
     fDataOffset += 3 * mesh.oMeshData.f3HairPoints.size();
@@ -1547,6 +1550,39 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
         std::pair<uint32_t, uint32_t>(mesh.oMeshOpenSubdivision.fOpenSubdCreasesSharpnesses.size(),
                                       fDataOffset);
     fDataOffset += mesh.oMeshOpenSubdivision.fOpenSubdCreasesSharpnesses.size();
+
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_CENTER_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.f3SphereCenters.size(), fDataOffset);
+    fDataOffset += 3 * mesh.oMeshData.f3SphereCenters.size();
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_RADIUS_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.fSphereRadiuses.size(), fDataOffset);
+    fDataOffset += mesh.oMeshData.fSphereRadiuses.size();
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_SPEED_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.f3SphereSpeeds.size(), fDataOffset);
+    fDataOffset += 3 * mesh.oMeshData.f3SphereSpeeds.size();
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_UV_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.f2SphereUVs.size(), fDataOffset);
+    fDataOffset += 2 * mesh.oMeshData.f2SphereUVs.size();
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_VERTEX_COLOR_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.f3SphereVertexColors.size(), 0);
+    for (int i = 0; i < mesh.oMeshData.f3SphereVertexColors.size(); ++i) {
+      mesh.oMeshData
+          .oArrayInfo[std::string(ARRAY_INFO_SPHERE_VERTEX_COLOR_DATA) + std::to_string(i)] =
+          std::pair<uint32_t, uint32_t>(mesh.oMeshData.f3SphereVertexColors[i].size(),
+                                        fDataOffset);
+      fDataOffset += 3 * mesh.oMeshData.f3SphereVertexColors[i].size();
+    }
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_VERTEX_FLOAT_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.fSphereVertexFloats.size(), 0);
+    for (int i = 0; i < mesh.oMeshData.fSphereVertexFloats.size(); ++i) {
+      mesh.oMeshData
+          .oArrayInfo[std::string(ARRAY_INFO_SPHERE_VERTEX_FLOAT_DATA) + std::to_string(i)] =
+          std::pair<uint32_t, uint32_t>(mesh.oMeshData.fSphereVertexFloats[i].size(), fDataOffset);
+      fDataOffset += mesh.oMeshData.fSphereVertexFloats[i].size();
+    }
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_MATERIAL_INDEX_DATA] = std::pair<uint32_t, uint32_t>(
+        mesh.oMeshData.iSphereMaterialIndices.size(), iDataOffset);
+    iDataOffset += mesh.oMeshData.iSphereMaterialIndices.size();
   }
 
   LOCK_MUTEX(m_SocketMutex);
@@ -1581,6 +1617,8 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
       snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.fVertexFloats[i].data()),
                       mesh.oMeshData.fVertexFloats[i].size() * sizeof(float));
     }
+    snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.f3Velocities.data()),
+                    mesh.oMeshData.f3Velocities.size() * 3 * sizeof(float));
     snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.f3HairPoints.data()),
                     mesh.oMeshData.f3HairPoints.size() * 3 * sizeof(float));
     snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.fHairThickness.data()),
@@ -1592,6 +1630,22 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
     snd.writeBuffer(
         reinterpret_cast<float *>(mesh.oMeshOpenSubdivision.fOpenSubdCreasesSharpnesses.data()),
         mesh.oMeshOpenSubdivision.fOpenSubdCreasesSharpnesses.size() * sizeof(float));
+    snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.f3SphereCenters.data()),
+                    mesh.oMeshData.f3SphereCenters.size() * 3 * sizeof(float));
+    snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.fSphereRadiuses.data()),
+                    mesh.oMeshData.fSphereRadiuses.size() * sizeof(float));
+    snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.f3SphereSpeeds.data()),
+                    mesh.oMeshData.f3SphereSpeeds.size() * 3 * sizeof(float));
+    snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.f2SphereUVs.data()),
+                    mesh.oMeshData.f2SphereUVs.size() * 2 * sizeof(float));
+    for (int i = 0; i < mesh.oMeshData.f3SphereVertexColors.size(); ++i) {
+      snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.f3SphereVertexColors[i].data()),
+                      mesh.oMeshData.f3SphereVertexColors[i].size() * 3 * sizeof(float));
+    }
+    for (int i = 0; i < mesh.oMeshData.fSphereVertexFloats.size(); ++i) {
+      snd.writeBuffer(reinterpret_cast<float *>(mesh.oMeshData.fSphereVertexFloats[i].data()),
+                      mesh.oMeshData.fSphereVertexFloats[i].size() * sizeof(float));
+    }
   }
   for (int idx = 0; idx < totalMeshSize; ++idx) {
     OctaneDataTransferObject::OctaneMesh &mesh = *(meshData + idx);
@@ -1618,6 +1672,8 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
     snd.writeBuffer(
         reinterpret_cast<int32_t *>(mesh.oMeshOpenSubdivision.iOpenSubdCreasesIndices.data()),
         mesh.oMeshOpenSubdivision.iOpenSubdCreasesIndices.size() * sizeof(int32_t));
+    snd.writeBuffer(reinterpret_cast<int32_t *>(mesh.oMeshData.iSphereMaterialIndices.data()),
+                    mesh.oMeshData.iSphereMaterialIndices.size() * sizeof(int32_t));
   }
   snd.write();
 

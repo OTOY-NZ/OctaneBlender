@@ -20,6 +20,7 @@
 #include "render/shader.h"
 #include "render/osl.h"
 #include "render/environment.h"
+#include "render/kernel.h"
 
 #include "DNA_node_types.h"
 
@@ -136,7 +137,13 @@ std::string LinkResolver::resolve_name(std::string prefix, BL::Node node)
     }
     return std::string("");
   }
-  std::string name = prefix + "_" + node.name();
+  std::string node_name = node.name();
+  if (node_name == "") {
+    char node_ptr_name[128];
+    sprintf(node_ptr_name, "%p", node.ptr.data);
+    node_name = node_ptr_name;
+  }
+  std::string name = prefix + "_" + node_name;
   return get_octane_output_name(name);
 }
 
@@ -279,6 +286,8 @@ static bool update_octane_image_data(
     bool is_builtin = b_image.packed_file() || b_image.source() == BL::Image::source_GENERATED ||
                       b_image.source() == BL::Image::source_MOVIE ||
                       (b_engine.is_preview() && b_image.source() != BL::Image::source_SEQUENCE);
+
+	is_auto_refresh |= (b_image.source() == BL::Image::source_MOVIE);
 
     if (is_builtin) {
       /* for builtin images we're using image datablock name to find an image to
@@ -1332,8 +1341,13 @@ void BlenderSync::sync_textures(BL::Depsgraph &b_depsgraph, bool update_all)
     Shader *shader = NULL;
 
     /* test if we need to sync */
-    if (shader_map.sync(&shader, *b_tex) || shader->need_sync_object || update_all) {
-      ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_MATERIAL);
+    bool need_sync = shader_map.sync(&shader, *b_tex);
+    std::string name = b_tex->name().c_str();
+    if (scene && scene->kernel && scene->kernel->oct_node) {
+      need_sync |= scene->kernel->oct_node->sAoTexture == name;
+    }    
+    if (need_sync || shader->need_sync_object || update_all) {
+      ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_TEXTURE);
 
       shader->name = b_tex->name().c_str();
       shader->need_sync_object = false;

@@ -627,13 +627,18 @@ void ED_node_texture_default(const bContext *C, Tex *tx)
     return;
   }
 
+  Scene *scene = CTX_data_scene(C);
+  const char *engine_id = scene->r.engine;
+  bool is_octane_engine = STREQ(engine_id, RE_engine_id_OCTANE);
+
   tx->nodetree = ntreeAddTree(NULL, "Texture Nodetree", ntreeType_Texture->idname);
 
   out = nodeAddStaticNode(C, tx->nodetree, TEX_NODE_OUTPUT);
   out->locx = 300.0f;
   out->locy = 300.0f;
 
-  in = nodeAddStaticNode(C, tx->nodetree, TEX_NODE_CHECKER);
+  in = nodeAddStaticNode(
+      C, tx->nodetree, is_octane_engine ? SH_NODE_OCT_IMAGE_TEX : TEX_NODE_CHECKER);
   in->locx = 10.0f;
   in->locy = 300.0f;
   nodeSetActive(tx->nodetree, in);

@@ -36,6 +36,11 @@
     .remesh_voxel_size = 0.1f, \
     .remesh_voxel_adaptivity = 0.0f, \
     .flag = ME_REMESH_FIX_POLES | ME_REMESH_REPROJECT_VOLUME | ME_AUTOSMOOTH, \
+    .oct_enable_octane_sphere_attribute = 0, \
+    .oct_sphere_randomized_radius_seed = 1, \
+    .oct_sphere_radius = 0.1f, \
+    .oct_randomized_radius_min = 0.1f, \
+    .oct_randomized_radius_max = 0.1f, \
   }
 
 /** \} */

@@ -66,12 +66,23 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
       last_animation_frame(0),
       motion_blur(false),
       motion_blur_frame_start_offset(0),
-      motion_blur_frame_end_offset(0)
+      motion_blur_frame_end_offset(0),
+      last_frame_idx(0)
 {
 }
 
 BlenderSync::~BlenderSync()
 {
+}
+
+bool BlenderSync::is_frame_updated()
+{	
+  int current_frame_idx = b_scene.frame_current();
+  if (last_frame_idx != current_frame_idx) {
+    last_frame_idx = current_frame_idx;
+    return true;	
+  }
+  return false;
 }
 
 /* Sync */

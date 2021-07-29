@@ -25,6 +25,7 @@
 #include "kernel.h"
 #include "camera.h"
 #include "passes.h"
+#include "environment.h"
 
 #include "util/util_math.h"
 #include "util/util_opengl.h"
@@ -304,6 +305,21 @@ void Session::reset(BufferParams &buffer_params, int samples)
 
   display_outdated = true;
   reset_time = time_dt();
+
+  if (scene) {
+    if (scene->camera) {
+      scene->camera->need_update = true;
+	}
+    if (scene->environment) {
+      scene->environment->need_update = true;
+    }
+    if (scene->passes) {
+      scene->passes->need_update = true;
+	}
+    if (scene->kernel) {
+		scene->kernel->need_update = true;
+	}
+  }
 
   reset_parameters(buffer_params);
   server->reset(params.interactive,

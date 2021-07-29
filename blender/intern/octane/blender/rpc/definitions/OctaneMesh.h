@@ -18,6 +18,7 @@
 #define ARRAY_INFO_CANDIDATE_UV_INDEX_DATA "CANDIDATE_UV_INDEX"
 #define ARRAY_INFO_VERTEX_COLOR_DATA "VERTEX_COLOR"
 #define ARRAY_INFO_VERTEX_FLOAT_DATA "VERTEX_FLOAT"
+#define ARRAY_INFO_VELOCITY_DATA "VERTEX_VELOCITY"
 #define ARRAY_INFO_HAIR_POINT_DATA "HAIR_POINT"
 #define ARRAY_INFO_HAIR_VERTEX_PER_HAIR_DATA "HAIR_VERTEX_PER_HAIR"
 #define ARRAY_INFO_HAIR_THICKNESS_DATA "HAIR_THICKNESS"
@@ -28,6 +29,13 @@
 #define ARRAY_INFO_OPENSUBDIVISION_CREASE_SHARPNESS "OPENSUBDIVISION_CREASE_SHARPNESS"
 #define ARRAY_INFO_MATRIX_DATA "MATRIX"
 #define ARRAY_INFO_INSTANCE_ID_DATA "INSTANCE_ID"
+#define ARRAY_INFO_SPHERE_CENTER_DATA "SPHERE_CENTER"
+#define ARRAY_INFO_SPHERE_RADIUS_DATA "SPHERE_RADIUS"
+#define ARRAY_INFO_SPHERE_SPEED_DATA "SPHERE_SPEED"
+#define ARRAY_INFO_SPHERE_UV_DATA "SPHERE_UV"
+#define ARRAY_INFO_SPHERE_VERTEX_COLOR_DATA "SPHERE_VERTEX_COLOR"
+#define ARRAY_INFO_SPHERE_VERTEX_FLOAT_DATA "SPHERE_VERTEX_FLOAT"
+#define ARRAY_INFO_SPHERE_MATERIAL_INDEX_DATA "SPHERE_MATERIAL_INDEX"
 
 #define MESH_TAG "[Mesh]"
 #define LIGHT_TAG "[Light]"
@@ -50,6 +58,7 @@ namespace OctaneDataTransferObject {
 
 	struct OctaneMeshData : public OctaneNodeBase {
 		bool					bUpdate;
+		bool					bShowVertexData;
 		int						iSamplesNum;
 		std::vector<float_3>	f3Points;		
 		std::vector<float_3>	f3Normals;
@@ -62,6 +71,7 @@ namespace OctaneDataTransferObject {
 		std::vector<int32_t>	iUVIndices;		
 		std::vector<std::vector<float_3>>	f3CandidateUVs;
 		std::vector<std::vector<int32_t>>	iCandidateUVIndices;
+		std::vector<float_3>	f3Velocities;	
 		std::vector<float_3>	f3HairPoints;
 		std::vector<int32_t>	iVertexPerHair;
 		std::vector<float>		fHairThickness;
@@ -73,12 +83,23 @@ namespace OctaneDataTransferObject {
 		std::vector<std::string>	sVertexColorNames;
 		std::vector<std::vector<float_3>>	f3VertexColors;	
 		std::map<float, std::vector<float_3>>	oMotionf3Points;
+		std::map<float, std::vector<float_3>>	oMotionf3HairPoints;
 		OctaneSphereAttributeData	oMeshSphereAttribute;
+		std::vector<float_3>	f3SphereCenters;
+		std::vector<float>		fSphereRadiuses;
+		std::vector<float_3>	f3SphereSpeeds;
+		std::vector<float_2>	f2SphereUVs;		
+		std::vector<std::string>	sSphereVertexFloatNames;
+		std::vector<std::vector<float>>	fSphereVertexFloats;
+		std::vector<std::string>	sSphereVertexColorNames;
+		std::vector<std::vector<float_3>>	f3SphereVertexColors;
+		std::vector<int32_t>		iSphereMaterialIndices;
 		std::map<std::string, std::pair<uint32_t, uint32_t>>	oArrayInfo;
 		OctaneMeshData() : OctaneNodeBase(Octane::ENT_MESH_DATA, "OctaneMeshData") {}
 		void Clear() 
 		{ 
 			bUpdate = false;
+			bShowVertexData = true;
 			iSamplesNum = 0;
 			f3Points.clear();
 			f3Normals.clear();
@@ -89,6 +110,7 @@ namespace OctaneDataTransferObject {
 			iPolyObjectIndex.clear();
 			f3UVs.clear();
 			iUVIndices.clear();
+			f3Velocities.clear();
 			f3HairPoints.clear();
 			iVertexPerHair.clear();
 			fHairThickness.clear();
@@ -104,9 +126,19 @@ namespace OctaneDataTransferObject {
 			for (auto &iCandidateUVIndice : iCandidateUVIndices) { iCandidateUVIndice.clear(); }
 			iCandidateUVIndices.clear();
 			oMotionf3Points.clear();
+			oMotionf3HairPoints.clear();
+			f3SphereCenters.clear();
+			fSphereRadiuses.clear();
+			f3SphereSpeeds.clear();
+			f2SphereUVs.clear();
+			sSphereVertexFloatNames.clear();
+			fSphereVertexFloats.clear();
+			sSphereVertexColorNames.clear();
+			f3SphereVertexColors.clear();
+			iSphereMaterialIndices.clear();
 			oArrayInfo.clear();
 		}
-		MSGPACK_DEFINE(bUpdate, iSamplesNum, sVertexFloatNames, sVertexColorNames, oMeshSphereAttribute, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(bUpdate, bShowVertexData, iSamplesNum, sVertexFloatNames, sVertexColorNames, oMeshSphereAttribute, sSphereVertexFloatNames, sSphereVertexColorNames, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMeshOpenSubdivision : public OctaneNodeBase {

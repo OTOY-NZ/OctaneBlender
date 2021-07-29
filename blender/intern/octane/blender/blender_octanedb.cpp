@@ -140,9 +140,12 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   bNodeTree *node_tree = target_material->nodetree;
   bNode *node_output = nodeAddNode(context, node_tree, "ShaderNodeOutputMaterial");
   bNodeSocket *sock_output = NULL;
+  const char* sock_output_destination_name =
+      dbNodes.iOctaneDBType == OctaneDataTransferObject::OctaneDBNodes::MEDIUM ? "Volume" :
+                                                                                 "Surface";
   for (sock_output = (bNodeSocket *)node_output->inputs.first; sock_output;
        sock_output = sock_output->next) {
-    if (!sock_output || strcmp(sock_output->name, "Surface"))
+    if (!sock_output || strcmp(sock_output->name, sock_output_destination_name))
       continue;
     break;
   }
@@ -168,7 +171,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   }
   organize_node_tree_layout(
       target_material->nodetree, node_output, blenderNodes, blenderNodeLevels);
-  if (!dbNodes.isMaterialType) {
+  if (dbNodes.iOctaneDBType == OctaneDataTransferObject::OctaneDBNodes::TEXTURE) {
     bNode *mat_node = nodeAddNode(context, node_tree, "ShaderNodeOctUniversalMat");
     bNodeSocket *socket_color = NULL;
     for (socket_color = (bNodeSocket *)mat_node->inputs.first; socket_color;
