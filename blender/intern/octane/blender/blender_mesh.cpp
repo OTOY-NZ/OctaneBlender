@@ -15,9 +15,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#include "render/graph.h"
 #include "render/mesh.h"
 #include "render/scene.h"
-#include "render/graph.h"
 
 #include "blender_sync.h"
 #include "blender_util.h"
@@ -136,7 +136,7 @@ static void create_mesh(Scene *scene,
   mesh->octane_mesh.oMeshOpenSubdivision.bUpdate = true;
   mesh->octane_mesh.oMeshData.iSamplesNum = 1;
   mesh->octane_mesh.oMeshData.f3Points.reserve(numverts);
-  mesh->octane_mesh.oMeshData.f3Normals.reserve(numverts);  
+  mesh->octane_mesh.oMeshData.f3Normals.reserve(numverts);
   mesh->octane_mesh.oMeshData.iVertexPerPoly.reserve(numfaces);
   mesh->octane_mesh.oMeshData.iPolyMaterialIndex.reserve(numfaces);
   mesh->octane_mesh.oMeshData.iPolyObjectIndex.reserve(numfaces);
@@ -333,16 +333,20 @@ static void create_mesh(Scene *scene,
 
   if (mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable) {
     mesh->octane_mesh.oMeshData.f3SphereCenters = mesh->octane_mesh.oMeshData.f3Points;
-    mesh->octane_mesh.oMeshData.f2SphereUVs.resize(mesh->octane_mesh.oMeshData.f3SphereCenters.size());
+    mesh->octane_mesh.oMeshData.f2SphereUVs.resize(
+        mesh->octane_mesh.oMeshData.f3SphereCenters.size());
     for (int i = 0; i < mesh->octane_mesh.oMeshData.f2SphereUVs.size(); ++i) {
-      size_t j = mesh->octane_mesh.oMeshData.iPointIndices[mesh->octane_mesh.oMeshData.iUVIndices[i]];
+      size_t j =
+          mesh->octane_mesh.oMeshData.iPointIndices[mesh->octane_mesh.oMeshData.iUVIndices[i]];
       mesh->octane_mesh.oMeshData.f2SphereUVs[j].x = mesh->octane_mesh.oMeshData.f3UVs[i].x;
-      mesh->octane_mesh.oMeshData.f2SphereUVs[j].y = mesh->octane_mesh.oMeshData.f3UVs[i].y;   
-	}
-    mesh->octane_mesh.oMeshData.sSphereVertexColorNames = mesh->octane_mesh.oMeshData.sVertexColorNames;
-	mesh->octane_mesh.oMeshData.sSphereVertexFloatNames = mesh->octane_mesh.oMeshData.sVertexFloatNames;
+      mesh->octane_mesh.oMeshData.f2SphereUVs[j].y = mesh->octane_mesh.oMeshData.f3UVs[i].y;
+    }
+    mesh->octane_mesh.oMeshData.sSphereVertexColorNames =
+        mesh->octane_mesh.oMeshData.sVertexColorNames;
+    mesh->octane_mesh.oMeshData.sSphereVertexFloatNames =
+        mesh->octane_mesh.oMeshData.sVertexFloatNames;
     mesh->octane_mesh.oMeshData.f3SphereVertexColors = mesh->octane_mesh.oMeshData.f3VertexColors;
-	mesh->octane_mesh.oMeshData.fSphereVertexFloats = mesh->octane_mesh.oMeshData.fVertexFloats;
+    mesh->octane_mesh.oMeshData.fSphereVertexFloats = mesh->octane_mesh.oMeshData.fVertexFloats;
   }
 }
 
@@ -537,20 +541,23 @@ static void sync_mesh_particles(BL::Object &b_ob, Mesh *mesh, bool background)
       BL::ParticleSystemModifier psmd((const PointerRNA)b_mod->ptr);
       BL::ParticleSystem b_psys((const PointerRNA)psmd.particle_system().ptr);
       BL::ParticleSettings b_part((const PointerRNA)b_psys.settings().ptr);
-	  
+
       PointerRNA particle_settings = b_part.ptr;
       PointerRNA oct_settings = RNA_pointer_get(&b_part.ptr, "octane");
       bool use_as_octane_sphere_primitive =
           get_boolean(particle_settings, "use_as_octane_sphere_primitive") &&
           (b_part.render_type() != BL::ParticleSettings::render_type_COLLECTION &&
            b_part.render_type() != BL::ParticleSettings::render_type_OBJECT);
-      float octane_velocity_multiplier = get_float(particle_settings, "octane_velocity_multiplier");
-      float octane_sphere_size_multiplier = get_float(particle_settings, "octane_sphere_size_multiplier");
-      int material_idx = b_part.material() - 1;      
+      float octane_velocity_multiplier = get_float(particle_settings,
+                                                   "octane_velocity_multiplier");
+      float octane_sphere_size_multiplier = get_float(particle_settings,
+                                                      "octane_sphere_size_multiplier");
+      int material_idx = b_part.material() - 1;
       if (use_as_octane_sphere_primitive) {
         mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = true;
         mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed = -1;
-        size_t num = mesh->octane_mesh.oMeshData.f3SphereCenters.size() + b_psys.particles.length();
+        size_t num = mesh->octane_mesh.oMeshData.f3SphereCenters.size() +
+                     b_psys.particles.length();
         mesh->octane_mesh.oMeshData.fSphereRadiuses.reserve(num);
         mesh->octane_mesh.oMeshData.f3SphereCenters.reserve(num);
         mesh->octane_mesh.oMeshData.f3SphereSpeeds.reserve(num);
@@ -563,12 +570,12 @@ static void sync_mesh_particles(BL::Object &b_ob, Mesh *mesh, bool background)
         b_psys.particles.begin(b_pa);
         for (; b_pa != b_psys.particles.end(); ++b_pa) {
           if (b_pa->is_exist() && b_pa->is_visible() &&
-              b_pa->alive_state() == BL::Particle::alive_state_ALIVE) {            
+              b_pa->alive_state() == BL::Particle::alive_state_ALIVE) {
             oct::float3 location = get_float3(b_pa->location());
             location = transform_point(&itfm, location);
             oct::float3 velocity = get_float3(b_pa->velocity());
             velocity = transform_point(&irotation_tfm, velocity);
-            velocity *= octane_velocity_multiplier;            
+            velocity *= octane_velocity_multiplier;
             mesh->octane_mesh.oMeshData.fSphereRadiuses.emplace_back(
                 b_pa->size() * octane_sphere_size_multiplier);
             mesh->octane_mesh.oMeshData.f3SphereCenters.emplace_back(
@@ -643,6 +650,77 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (octane_mesh->mesh_type == MeshType::AUTO || mesh_type >= octane_mesh->mesh_type) {
     octane_mesh->mesh_type = mesh_type;
   }
+
+  if (b_ob.type() == BL::Object::type_VOLUME) {
+    if (mesh_synced.find(octane_mesh) != mesh_synced.end()) {
+      return octane_mesh;
+    }
+    BL::Volume b_volume = BL::Volume(b_ob.data());
+    b_volume.grids.load(b_data.ptr.data);
+    octane_mesh->is_octane_volume = true;
+    int current_frame = b_scene.frame_current();
+    octane_mesh->need_update = is_mesh_data_updated ||
+                               octane_mesh->last_vdb_frame != b_scene.frame_current();
+    octane_mesh->last_vdb_frame = current_frame;
+    octane_mesh->used_shaders = used_shaders;
+    octane_mesh->shaders_tag = Mesh::generate_shader_tag(used_shaders);
+    octane_mesh->octane_mesh.bInfinitePlane = false;
+    std::string selected_grid_name;
+    if (b_volume.grids.is_loaded()) {
+      if (b_volume.grids.length()) {
+        BL::Volume::grids_iterator grid;
+        int grid_idx = 0, active_idx = b_volume.grids.active_index();
+        for (b_volume.grids.begin(grid); grid != b_volume.grids.end(); ++grid, ++grid_idx) {
+          if (grid->is_loaded() && active_idx == grid_idx) {
+            selected_grid_name = grid->name();
+            break;
+          }
+        }
+      }
+      std::string volume_path = b_volume.grids.frame_filepath();
+      octane_mesh->octane_volume.sVolumePath = blender_absolute_path(b_data, b_scene, volume_path);
+    }
+    resolve_volume_attributes(oct_mesh, octane_mesh->octane_volume);
+    bool apply_import_scale_to_blender_transfrom = RNA_boolean_get(
+        &oct_mesh, "apply_import_scale_to_blender_transfrom");
+    if (apply_import_scale_to_blender_transfrom) {
+      octane_mesh->octane_volume.iImportScale = 4; //Default meters
+    }
+    if (selected_grid_name.length()) {
+      if (octane_mesh->octane_volume.sAbsorptionGridId.sVal.length() == 0) {
+        octane_mesh->octane_volume.sAbsorptionGridId = selected_grid_name;
+      }
+      if (octane_mesh->octane_volume.sEmissionGridId.sVal.length() == 0) {
+        octane_mesh->octane_volume.sEmissionGridId = selected_grid_name;
+      }
+      if (octane_mesh->octane_volume.sScatterGridId.sVal.length() == 0) {
+        octane_mesh->octane_volume.sScatterGridId = selected_grid_name;
+      }
+      if (octane_mesh->octane_volume.sVelocityGridId.sVal.length() == 0) {
+        octane_mesh->octane_volume.sVelocityGridId = selected_grid_name;
+        octane_mesh->octane_volume.sVelocityGridId = selected_grid_name;
+        octane_mesh->octane_volume.sVelocityGridId = selected_grid_name;
+      }
+    }
+    octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
+                                                           "enable_octane_offset_transform");
+    if (octane_mesh->enable_offset_transform) {
+      float3 translate, euler, scale;
+      int mode = RNA_enum_get(&oct_mesh, "octane_offset_rotation_order");
+      RNA_float_get_array(
+          &oct_mesh, "octane_offset_translation", reinterpret_cast<float *>(&translate));
+      RNA_float_get_array(&oct_mesh, "octane_offset_rotation", reinterpret_cast<float *>(&euler));
+      RNA_float_get_array(&oct_mesh, "octane_offset_scale", reinterpret_cast<float *>(&scale));
+      octane_mesh->offset_transform = make_transform(translate, euler, mode, scale);
+    }
+
+    mesh_synced.insert(octane_mesh);
+    if (octane_mesh->need_update) {
+      octane_mesh->tag_update(scene);
+    }
+    return octane_mesh;
+  }
+
   octane_mesh->octane_mesh.bInfinitePlane = RNA_boolean_get(&oct_mesh, "infinite_plane");
   octane_mesh->octane_mesh.sScriptGeoName = resolve_octane_geometry_node(oct_mesh);
   octane_mesh->octane_mesh.sOrbxPath = resolve_orbx_proxy_path(oct_mesh, b_data, b_scene);
@@ -743,18 +821,19 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
   bool bHideOriginalMesh = false;
   if (b_ob.type() == BL::Object::type_MESH) {
-    BL::Mesh b_mesh = BL::Mesh(b_ob.data());  
-	octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable =
+    BL::Mesh b_mesh = BL::Mesh(b_ob.data());
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable =
         b_mesh.octane_enable_sphere_attribute();
     bHideOriginalMesh = b_mesh.octane_hide_original_mesh();
-	octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = b_mesh.octane_sphere_radius();
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius =
+        b_mesh.octane_sphere_radius();
     bool use_randomized_radius = b_mesh.octane_use_randomized_radius();
-	octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed =
-      use_randomized_radius ? b_mesh.octane_sphere_randomized_radius_seed() : -1;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed =
+        use_randomized_radius ? b_mesh.octane_sphere_randomized_radius_seed() : -1;
     octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius =
         b_mesh.octane_sphere_randomized_radius_min();
-	octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius =
-      b_mesh.octane_sphere_randomized_radius_max();    
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius =
+        b_mesh.octane_sphere_randomized_radius_max();
   }
   else {
     octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = false;
@@ -824,7 +903,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         }
         if (!octane_mesh->empty) {
           sync_hair(octane_mesh, b_mesh, b_ob, false);
-        }       
+        }
       }
       else {
         create_openvdb_volume(
@@ -903,19 +982,19 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
   int base_vert_cnt = mesh->octane_mesh.oMeshData.f3Points.size();
 
   int vert_cnt = b_mesh.vertices.length();
-  
+
   float last_valid_motion_time = 0;
   float last_absolute_dt = abs(motion_time);
 
-  //Find the closest motion data
+  // Find the closest motion data
   for (auto it : mesh->octane_mesh.oMeshData.oMotionf3Points) {
     if (it.first * motion_time >= 0) {
       float current_absolute_dt = abs(abs(it.first) - abs(motion_time));
       if (current_absolute_dt < last_absolute_dt) {
         last_absolute_dt = current_absolute_dt;
         last_valid_motion_time = it.first;
-      }    
-	}
+      }
+    }
   }
 
   mesh->octane_mesh.oMeshData.oMotionf3Points[motion_time] =
@@ -930,12 +1009,14 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
       }
       mesh->octane_mesh.oMeshData.oMotionf3Points[motion_time][vert_idx] =
           OctaneDataTransferObject::float_3(v->co()[0], v->co()[1], v->co()[2]);
-    } 
+    }
   }
   else {
-    fprintf(stderr,
-            "Octane: WARNING: Topology differs, discarding motion blur for object %s at time %f!\n",
-            b_ob.name().c_str(), motion_time);
+    fprintf(
+        stderr,
+        "Octane: WARNING: Topology differs, discarding motion blur for object %s at time %f!\n",
+        b_ob.name().c_str(),
+        motion_time);
   }
 
   sync_hair(mesh, b_mesh, b_ob, true, motion_time);

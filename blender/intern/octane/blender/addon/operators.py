@@ -128,6 +128,18 @@ def update_resource_cache_tag(scene):
         else:
             set_mesh_resource_cache_tag(obj, True)
 
+
+@persistent
+def update_blender_volume_grid_info(scene):
+    obj = None
+    try:
+        obj = bpy.context.view_layer.objects.active
+    except:
+        pass
+    if obj.type == 'VOLUME':
+        obj.data.octane.octane_vdb_info.update(bpy.context)
+
+
 class OCTANE_OT_use_shading_nodes(Operator):
     """Enable nodes on a material, world or light"""
     bl_idname = "octane.use_shading_nodes"

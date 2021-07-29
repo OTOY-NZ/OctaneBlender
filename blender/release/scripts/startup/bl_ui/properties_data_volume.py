@@ -70,6 +70,7 @@ class DATA_PT_volume_file(DataButtonsPanel, Panel):
             col = layout.column(align=True)
             col.prop(volume, "is_sequence")
             if volume.is_sequence:
+                col.prop(volume, "speed_multiplier", text="Speed Multiplier")
                 col.prop(volume, "frame_duration", text="Frames")
                 col.prop(volume, "frame_start", text="Start")
                 col.prop(volume, "frame_offset", text="Offset")

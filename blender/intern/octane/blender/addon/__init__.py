@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 21.11)",
+    "name": "OctaneRender Engine (v. 21.12)",
     "author": "OTOY Inc.",
     "blender": (2, 82, 0),
     "location": "Info header, render engine menu",
@@ -178,6 +178,7 @@ def register():
     bpy.app.handlers.version_update.append(version_update.do_versions)
     bpy.app.handlers.load_post.append(operators.clear_resource_cache_system)
     bpy.app.handlers.depsgraph_update_post.append(operators.update_resource_cache_tag)
+    bpy.app.handlers.depsgraph_update_post.append(operators.update_blender_volume_grid_info)
 
 
 def unregister():
@@ -191,6 +192,7 @@ def unregister():
     bpy.app.handlers.version_update.remove(version_update.do_versions)
     bpy.app.handlers.load_post.remove(operators.clear_resource_cache_system)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_resource_cache_tag)
+    bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
 
     ui.unregister()
     operators.unregister()

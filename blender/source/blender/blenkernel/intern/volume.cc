@@ -542,12 +542,13 @@ static int volume_sequence_frame(const Depsgraph *depsgraph, const Volume *volum
   const int frame_duration = volume->frame_duration;
   const int frame_start = volume->frame_start;
   const int frame_offset = volume->frame_offset;
+  const float frame_speed_multiplier = volume->speed_multiplier;
 
   if (frame_duration == 0) {
     return VOLUME_FRAME_NONE;
   }
 
-  int frame = scene_frame - frame_start + 1;
+  int frame = int(scene_frame * frame_speed_multiplier) - frame_start + 1;
 
   switch (mode) {
     case VOLUME_SEQUENCE_CLIP: {

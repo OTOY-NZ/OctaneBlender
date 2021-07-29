@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='21.4'
+OCTANE_BLENDER_VERSION='21.11'
 
 import bpy
 import math
@@ -352,6 +352,7 @@ def check_compatibility_octane_world_20_1(file_version):
 # object
 def check_compatibility_octane_object(file_version):
     check_compatibility_octane_object_17_10(file_version)
+    check_compatibility_octane_object_21_11(file_version)
 
 
 def check_compatibility_octane_object_17_10(file_version):
@@ -364,6 +365,16 @@ def check_compatibility_octane_object_17_10(file_version):
             cur_octane_mesh_data = getattr(obj.data, 'octane', None)
             if cur_octane_object_data and cur_octane_mesh_data:
                 check_compatibility_object_layer_settings(cur_octane_object_data, cur_octane_mesh_data, file_version)
+
+
+def check_compatibility_octane_object_21_11(file_version):
+    UPDATE_VERSION = '21.11'
+    if not check_update(file_version, UPDATE_VERSION):
+        return    
+    for obj in bpy.data.objects:
+        if obj.type in ('VOLUME', ):
+            if obj.data.speed_multiplier == 0:
+                obj.data.speed_multiplier = 1.0            
 
 
 def check_compatibility_object_layer_settings(octane_object, octane_mesh, file_version):

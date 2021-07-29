@@ -60,6 +60,7 @@ class SessionParams {
   float fps;
   bool deep_image;
   bool export_with_object_layers;
+  bool maximize_instancing;
 
   bool out_of_core_enabled;
   int32_t out_of_core_mem_limit;
@@ -91,6 +92,7 @@ class SessionParams {
   {
     return !(anim_mode == params.anim_mode && deep_image == params.deep_image &&
              export_with_object_layers == params.export_with_object_layers &&
+             maximize_instancing == params.maximize_instancing &&
              interactive == params.interactive && meshes_type == params.meshes_type &&
              use_viewport_hide == params.use_viewport_hide && use_passes == params.use_passes &&
              output_path == params.output_path &&

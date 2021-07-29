@@ -48,6 +48,7 @@
     .frame_start = 1, \
     .frame_offset = 0, \
     .frame_duration = 0, \
+    .speed_multiplier = 1.f, \
     .display = _DNA_DEFAULT_VolumeDisplay, \
     .render = _DNA_DEFAULT_VolumeRender, \
   }

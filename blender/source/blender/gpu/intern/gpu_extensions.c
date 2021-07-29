@@ -288,6 +288,19 @@ void gpu_extensions_init(void)
     }
   }
 
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) &&
+      strstr(renderer, "AMD VERDE")) {
+    /* We have issues with this specific renderer. (see T74024) */
+    GG.unused_fb_slot_workaround = true;
+    GG.broken_amd_driver = true;
+  }
+
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) &&
+      strstr(version, "Mesa 19.3.4")) {
+    /* Fix slowdown on this particular driver. (see T77641) */
+    GG.broken_amd_driver = true;
+  }
+
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_MAC, GPU_DRIVER_OFFICIAL)) {
     if (strstr(renderer, "AMD Radeon Pro") || strstr(renderer, "AMD Radeon R9") ||
         strstr(renderer, "AMD Radeon RX")) {
@@ -335,6 +348,12 @@ void gpu_extensions_init(void)
       (strstr(renderer, "HD Graphics 620") || strstr(renderer, "HD Graphics 630"))) {
     GG.mip_render_workaround = true;
     GG.context_local_shaders_workaround = GLEW_ARB_get_program_binary;
+  }
+
+  /* Intel Ivy Bridge GPU's seems to have buggy cubemap array support. (see T75943) */
+  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_OFFICIAL) &&
+      (strstr(renderer, "HD Graphics 4000") || strstr(renderer, "HD Graphics 2500"))) {
+    GG.glew_arb_texture_cube_map_array_is_supported = false;
   }
 
   /* df/dy calculation factors, those are dependent on driver */

@@ -364,8 +364,12 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
   instance_tag = is_instance ? "[Instance]" : "";
   const bool motion = motion_time != 0.0f;
-  /*const*/ Transform tfm = get_transform(b_ob.matrix_world());
+  /*const*/ Transform tfm = get_transform(b_ob.matrix_world()); 
   Transform octane_tfm = OCTANE_MATRIX * tfm;
+  //if (b_ob.type() == BL::Object::type_VOLUME) {
+  //  octane_tfm = OCTANE_MATRIX * (tfm * transform_rotate(M_PI_2_F, make_float3(-1, 0, 0)));
+  //}
+  
   int *persistent_id = NULL;
   BL::Array<int, OBJECT_PERSISTENT_ID_SIZE> persistent_id_array;
   if (is_instance) {
@@ -405,7 +409,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
 
   /* only interested in object that we can create meshes from */
-  if (!object_is_mesh(b_ob)) {
+  if (!object_is_mesh(b_ob) && b_ob.type() != BL::Object::type_VOLUME) {
     return NULL;
   }
 
@@ -429,7 +433,13 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     }
   }
 
-  std::string object_name = parent_name + b_ob.name() + instance_tag + OBJECT_TAG;
+  std::string object_name;
+  if (scene && scene->session && scene->session->params.maximize_instancing) {
+    object_name = b_ob.name() + OBJECT_TAG;
+  }
+  else {
+    object_name = parent_name + b_ob.name() + instance_tag + OBJECT_TAG;
+  }
 
   /* test if we need to sync */
   // This would not work for particles(return false even particles updating)
@@ -456,6 +466,12 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                            mesh_type);
 
   if (object->mesh && object->mesh->enable_offset_transform) {
+ //   if (b_ob.type() == BL::Object::type_VOLUME) {
+ //     octane_tfm = OCTANE_MATRIX * (tfm * transform_rotate(M_PI_2_F, make_float3(-1, 0, 0)) *
+ //                                   object->mesh->offset_transform);
+ //   } else {
+ //     octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
+	//}
     octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
   }
 

@@ -13,7 +13,7 @@
 #define OCTANE_BLENDER_CAMERA_CENTER_Y "OCTANE_BLENDER_CAMERA_CENTER_Y"
 #define OCTANE_BLENDER_CAMERA_REGION_WIDTH "OCTANE_BLENDER_CAMERA_REGION_WIDTH"
 #define OCTANE_BLENDER_CAMERA_REGION_HEIGHT "OCTANE_BLENDER_CAMERA_REGION_HEIGHT"
-#define OCTANE_PASS_TAG = "$OCTANE_PASS$"
+#define OCTANE_PASS_TAG "$OCTANE_PASS$"
 
 namespace OctaneDataTransferObject {
 
@@ -46,6 +46,12 @@ namespace OctaneDataTransferObject {
 		HEAVY = 1,
 		TEXTURE = 1,
 		GEOMETRY = 2
+	};
+
+	enum ImageSaveMode {
+		IMAGE_SAVE_MODE_SEPARATE = 0,
+		IMAGE_SAVE_MODE_MULTILAYER = 1,
+		IMAGE_SAVE_MODE_DEEP_EXR = 2
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -675,14 +681,14 @@ namespace OctaneDataTransferObject {
 		std::string					sOctaneTag;
 		std::vector<std::string>	sPassNames;
 		std::vector<int>			iPasses;
-		bool						bMultiLayers;
+		int							iExportType;
 		int							iImageType;
 		int							iExrCompressionType;
 		OctaneSaveImage() : OctaneNodeBase(Octane::ENT_SAVE_IMAGES, "OctaneSaveImage") {}
 
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
-		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, bMultiLayers, iImageType, iExrCompressionType, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, iExportType, iImageType, iExrCompressionType, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneCameraData : public OctaneNodeBase {

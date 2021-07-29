@@ -501,6 +501,11 @@ static void rna_def_volume(BlenderRNA *brna)
       prop, "Offset", "Offset the number of the frame to use in the animation");
   RNA_def_property_update(prop, 0, "rna_Volume_update_filepath");
 
+  prop = RNA_def_property(srna, "speed_multiplier", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_range(prop, 0.1, 100.0, 1, 3);
+  RNA_def_property_ui_text(prop, "Speed Multiplier", "The speed multiplier will be used when calculating vdb path. VDB_FRAME = CURRENT_FRAME * MULTIPLIER");
+  RNA_def_property_update(prop, 0, "rna_Volume_update_filepath");
+
   static const EnumPropertyItem sequence_mode_items[] = {
       {VOLUME_SEQUENCE_CLIP, "CLIP", 0, "Clip", "Hide frames outside the specified frame range"},
       {VOLUME_SEQUENCE_EXTEND,

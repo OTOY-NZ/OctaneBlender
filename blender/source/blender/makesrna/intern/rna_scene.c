@@ -429,6 +429,7 @@ const EnumPropertyItem rna_enum_octane_image_save_mode_items[] = {
      0,
      "Export multilayer EXR",
      "Export multilayer EXR"},
+    {OCT_IMAGE_SAVE_MODE_DEEP_EXR, "DEEP_EXR", 0, "Export deep EXR", "Export deep EXR"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -1547,21 +1548,69 @@ static const EnumPropertyItem *rna_OctaneExportSettings_file_type_itemf(bContext
     if (imf->octane_save_mode == OCT_IMAGE_SAVE_MODE_SEPARATE) {
       return rna_enum_octane_image_save_type_items;
     }
+    else if (imf->octane_save_mode == OCT_IMAGE_SAVE_MODE_DEEP_EXR) {
+      int totitem = 0;
+      EnumPropertyItem *item = NULL;
+
+#  define OCT_IMAGE_SAVE_TYPE_DEEP_EXR_OFFSET_START 2
+#  define OCT_IMAGE_SAVE_TYPE_DEEP_EXR_OFFSET_END 3
+      for (int i = OCT_IMAGE_SAVE_TYPE_DEEP_EXR_OFFSET_START;
+           i <= OCT_IMAGE_SAVE_TYPE_DEEP_EXR_OFFSET_END;
+           ++i) {
+        RNA_enum_item_add(&item, &totitem, &rna_enum_octane_image_save_type_items[i]);
+      }
+#  undef OCT_IMAGE_SAVE_TYPE_DEEP_EXR_OFFSET_START
+#  undef OCT_IMAGE_SAVE_TYPE_DEEP_EXR_OFFSET_END
+      RNA_enum_item_end(&item, &totitem);
+      *r_free = true;
+      return item;
+    }
     else {
       int totitem = 0;
       EnumPropertyItem *item = NULL;
 
-#define OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_START 2
-#define OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_END 6
+#  define OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_START 2
+#  define OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_END 6
       for (int i = OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_START; i <= OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_END;
            ++i) {
         RNA_enum_item_add(&item, &totitem, &rna_enum_octane_image_save_type_items[i]);
       }
-#undef OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_START
-#undef OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_END
+#  undef OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_START
+#  undef OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_END
       RNA_enum_item_end(&item, &totitem);
       *r_free = true;
       return item;
+    }
+  }
+}
+
+static const EnumPropertyItem *rna_OctaneExportSettings_octane_exr_compression_type_itemf(
+    bContext *UNUSED(C), PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
+{
+  ImageFormatData *imf = (ImageFormatData *)ptr->data;
+  if (imf == NULL) {
+    return rna_enum_octane_image_compression_type_items;
+  }
+  else {
+    if (imf->octane_save_mode == OCT_IMAGE_SAVE_MODE_DEEP_EXR) {
+      int totitem = 0;
+      EnumPropertyItem *item = NULL;
+
+#  define OCT_IMAGE_SAVE_TYPE_DEEP_EXR_COMPRESSION_OFFSET_START 0
+#  define OCT_IMAGE_SAVE_TYPE_DEEP_EXR_COMPRESSION_OFFSET_END 2
+      for (int i = OCT_IMAGE_SAVE_TYPE_DEEP_EXR_COMPRESSION_OFFSET_START;
+           i <= OCT_IMAGE_SAVE_TYPE_DEEP_EXR_COMPRESSION_OFFSET_END;
+           ++i) {
+        RNA_enum_item_add(&item, &totitem, &rna_enum_octane_image_compression_type_items[i]);
+      }
+#  undef OCT_IMAGE_SAVE_TYPE_DEEP_EXR_COMPRESSION_OFFSET_START
+#  undef OCT_IMAGE_SAVE_TYPE_DEEP_EXR_COMPRESSION_OFFSET_END
+      RNA_enum_item_end(&item, &totitem);
+      *r_free = true;
+      return item;
+    }
+    else {
+      return rna_enum_octane_image_compression_type_items;
     }
   }
 }
@@ -5973,7 +6022,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_octane_image_save_mode_items);
   RNA_def_property_enum_funcs(prop, NULL, NULL, NULL);
   RNA_def_property_ui_text(
-      prop, "Octane Export Mode", "Export image as separate files or multilayer EXR");
+      prop, "Octane Export Mode", "Export image as separate files, multilayer EXR, or deep EXR");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "octane_file_format", PROP_ENUM, PROP_NONE);
@@ -5987,14 +6036,19 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "octane_exr_compression_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "octane_exr_compression_type");
   RNA_def_property_enum_items(prop, rna_enum_octane_image_compression_type_items);
-  RNA_def_property_enum_funcs(prop, NULL, NULL, NULL);
+  RNA_def_property_enum_funcs(
+      prop, NULL, NULL, "rna_OctaneExportSettings_octane_exr_compression_type_itemf");
   RNA_def_property_enum_default(prop, OCT_EXR_COMPRESSION_ZIP);
   RNA_def_property_ui_text(prop, "EXR Compression", "EXR compression type");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "octane_export_tag", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "octane_export_tag");
-  RNA_def_property_ui_text(prop, "Octane Prefix Tag", "Octane export prefix tag. If given, this name will be concatenated to the file name as prefix(to distinguish the Blender outputs and Octane export outputs)");
+  RNA_def_property_ui_text(
+      prop,
+      "Octane Prefix Tag",
+      "Octane export prefix tag. If given, this name will be concatenated to the file name as "
+      "prefix(to distinguish the Blender outputs and Octane export outputs)");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "octane_export_post_tag", PROP_STRING, PROP_NONE);
@@ -6002,7 +6056,8 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Octane Postfix Tag",
-      "Octane export postfix. If given, this name will be concatenated to the file name as postfix(use $OCTANE_PASS$ to label to octane pass name)");
+      "Octane export postfix. If given, this name will be concatenated to the file name as "
+      "postfix(use $OCTANE_PASS$ to label to octane pass name)");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   /* was 'file_quality' */

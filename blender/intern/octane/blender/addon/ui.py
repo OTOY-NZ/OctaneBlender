@@ -463,7 +463,10 @@ class OCTANE_RENDER_PT_server(OctaneButtonsPanel, Panel):
         sub.prop(oct_scene, "prefer_tonemap")     
         sub = box.row()
         sub.active = not engine.IS_RENDERING
-        sub.prop(oct_scene, "meshes_type")            
+        sub.prop(oct_scene, "meshes_type")   
+        sub = box.row()
+        sub.active = not engine.IS_RENDERING
+        sub.prop(oct_scene, "maximize_instancing")                    
         sub = box.row()
         sub.prop(oct_scene, "subsample_mode")                
         sub = box.row()
@@ -1060,37 +1063,42 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "open_subd_level")
         sub.prop(cdata, "open_subd_sharpness")
 
-        box = layout.box()
-        box.label(text="Volume properties:")
-        sub = box.column(align=True)     
-        sub.prop(cdata, "is_octane_vdb")
-        sub.prop(cdata, "vdb_sdf")
-        sub.prop(cdata, "imported_openvdb_file_path")
-        sub.prop(cdata, "vdb_import_scale")
-        sub = box.row(align=True)
-        sub.prop(cdata, "openvdb_frame_start")
-        sub.prop(cdata, "openvdb_frame_end")   
-        sub = box.row(align=True)     
-        sub.prop(cdata, "openvdb_frame_start_playing_at")
-        sub.prop(cdata, "openvdb_frame_speed_mutiplier")
-        sub = box.column(align=True)
-        sub.prop(cdata, "vdb_iso")
-        sub.prop(cdata, "vdb_abs_scale")
-        sub.prop(cdata, "vdb_emiss_scale")        
-        sub.prop(cdata, "vdb_scatter_scale")             
-        sub.prop_search(cdata, "vdb_absorption_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
-        sub.prop_search(cdata, "vdb_emission_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
-        sub.prop_search(cdata, "vdb_scattering_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
-        sub = box.column(align=True)
-        sub.prop(cdata, "vdb_motion_blur_enabled")
-        sub.prop(cdata, "vdb_velocity_grid_type")
-        sub.prop(cdata, "vdb_vel_scale")
-        if cdata.vdb_velocity_grid_type == 'Vector grid':
-            sub.prop_search(cdata, "vdb_vector_grid_id", cdata.octane_vdb_info, "vdb_vector_grid_id_container")            
-        else:
-            sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
-            sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
-            sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")            
+        # For the versions after 21.12, we use OpenVDB in Blender volume
+        # This section will be drop so we hide octane volume properites if it's not used
+        if cdata.is_octane_vdb or len(cdata.imported_openvdb_file_path) > 0:
+            box = layout.box()
+            box.label(text="Volume properties:")            
+            sub = box.column(align=True)     
+            sub.label(text="The new OpenVDB feature is supported in the Blender Volume object since Blender 2.83. Please use that one for the new productions", icon='INFO')
+            sub = box.column(align=True)     
+            sub.prop(cdata, "is_octane_vdb")
+            sub.prop(cdata, "vdb_sdf")
+            sub.prop(cdata, "imported_openvdb_file_path")
+            sub.prop(cdata, "vdb_import_scale")
+            sub = box.row(align=True)
+            sub.prop(cdata, "openvdb_frame_start")
+            sub.prop(cdata, "openvdb_frame_end")   
+            sub = box.row(align=True)     
+            sub.prop(cdata, "openvdb_frame_start_playing_at")
+            sub.prop(cdata, "openvdb_frame_speed_mutiplier")
+            sub = box.column(align=True)
+            sub.prop(cdata, "vdb_iso")
+            sub.prop(cdata, "vdb_abs_scale")
+            sub.prop(cdata, "vdb_emiss_scale")        
+            sub.prop(cdata, "vdb_scatter_scale")             
+            sub.prop_search(cdata, "vdb_absorption_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
+            sub.prop_search(cdata, "vdb_emission_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+            sub.prop_search(cdata, "vdb_scattering_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+            sub = box.column(align=True)
+            sub.prop(cdata, "vdb_motion_blur_enabled")
+            sub.prop(cdata, "vdb_velocity_grid_type")
+            sub.prop(cdata, "vdb_vel_scale")
+            if cdata.vdb_velocity_grid_type == 'Vector grid':
+                sub.prop_search(cdata, "vdb_vector_grid_id", cdata.octane_vdb_info, "vdb_vector_grid_id_container")            
+            else:
+                sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
+                sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+                sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")            
 
         box = layout.box()
         box.label(text="Octane Geometric Node:")        
@@ -1109,6 +1117,67 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
 
         box = layout.box()
         box.label(text="Octane Offset Transform:")        
+        sub = box.row(align=True)
+        sub.prop(cdata, "enable_octane_offset_transform")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_offset_translation")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_offset_rotation_order")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_offset_rotation")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_offset_scale")
+
+
+class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
+    bl_label = "Octane properties"
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        if OctaneButtonsPanel.poll(context):
+            if context.volume:
+                return True
+        return False
+
+    def draw(self, context):
+        cdata = context.volume.octane
+        layout = self.layout        
+
+        box = layout.box()
+        box.label(text="Volume properties:")
+        sub = box.column(align=True)     
+        sub.prop(cdata, "vdb_sdf")
+        # sub.prop(cdata, "imported_openvdb_file_path")
+        sub.prop(cdata, "vdb_import_scale")
+        sub = box.column(align=True) 
+        sub.prop(cdata, "apply_import_scale_to_blender_transfrom")
+        # sub = box.row(align=True)
+        # sub.prop(cdata, "openvdb_frame_start")
+        # sub.prop(cdata, "openvdb_frame_end")   
+        # sub = box.row(align=True)     
+        # sub.prop(cdata, "openvdb_frame_start_playing_at")
+        # sub.prop(cdata, "openvdb_frame_speed_mutiplier")
+        sub = box.column(align=True)
+        sub.prop(cdata, "vdb_iso")
+        sub.prop(cdata, "vdb_abs_scale")
+        sub.prop(cdata, "vdb_emiss_scale")        
+        sub.prop(cdata, "vdb_scatter_scale")             
+        sub.prop_search(cdata, "vdb_absorption_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")         
+        sub.prop_search(cdata, "vdb_emission_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")  
+        sub.prop_search(cdata, "vdb_scattering_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")  
+        sub = box.column(align=True)
+        sub.prop(cdata, "vdb_motion_blur_enabled")
+        sub.prop(cdata, "vdb_velocity_grid_type")
+        sub.prop(cdata, "vdb_vel_scale")
+        if cdata.vdb_velocity_grid_type == 'Vector grid':
+            sub.prop_search(cdata, "vdb_vector_grid_id", cdata.octane_vdb_info, "vdb_vector_grid_id_container")            
+        else:
+            sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
+            sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+            sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container") 
+
+        box = layout.box()      
         sub = box.row(align=True)
         sub.prop(cdata, "enable_octane_offset_transform")
         sub = box.row(align=True)
@@ -1856,7 +1925,7 @@ class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):
     def poll(cls, context):
         ob = context.object
         return (OctaneButtonsPanel.poll(context) and
-                ob and ((ob.type in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'LIGHT'}) or
+                ob and ((ob.type in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'LIGHT', 'VOLUME'}) or
                         (ob.instance_type == 'COLLECTION' and ob.instance_collection)))
 
     def draw(self, context):
@@ -2007,6 +2076,12 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
         rd = context.scene.render
         image_settings = rd.image_settings
 
+        if image_settings.octane_save_mode == "DEEP_EXR" and not context.scene.octane.deep_image:
+            sub = layout.row(align=True)
+            sub.label(text="The Deep EXR export is invalid!", icon='ERROR')
+            sub = layout.row(align=True)
+            sub.label(text="Please enable the deep image in the kernel settings", icon='ERROR')
+
         layout.template_octane_export_settings(image_settings)
 
 
@@ -2046,6 +2121,7 @@ classes = (
     OCTANE_CAMERA_PT_imager,
     OCTANE_CAMERA_PT_post,
     OCTANE_PT_mesh_properties,
+    OCTANE_PT_volume_properties,
     OCTANE_RENDER_PT_HairSettings,
     OCTANE_RENDER_PT_SpherePrimitiveSettings,
     OCTANE_PT_context_material,

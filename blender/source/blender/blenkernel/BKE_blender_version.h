@@ -30,7 +30,7 @@
 /* Blender major and minor version. */
 #define BLENDER_VERSION 283
 /* Blender patch version for bugfix releases. */
-#define BLENDER_VERSION_PATCH 1
+#define BLENDER_VERSION_PATCH 3
 /** Blender release cycle stage: alpha/beta/rc/release. */
 #define BLENDER_VERSION_CYCLE release
 

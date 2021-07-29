@@ -956,7 +956,6 @@ class OctaneVDBInfo(bpy.types.PropertyGroup):
     vdb_float_grid_id_container: CollectionProperty(type=OctaneVDBGridID)
 
     def update(self, context):
-        print('Update Octane VDB Info')
         import _octane         
         def set_container(container, items):
             for i in range(0, len(container)):
@@ -965,10 +964,31 @@ class OctaneVDBInfo(bpy.types.PropertyGroup):
                 container.add()
                 container[-1].name = item            
         scene = context.scene
-        cur_obj = context.object        
-        vdb_float_grid_ids, vdb_vector_grid_ids = _octane.update_vdb_info(cur_obj.as_pointer(), context.blend_data.as_pointer(), scene.as_pointer()) 
-        set_container(self.vdb_float_grid_id_container, vdb_float_grid_ids)
-        set_container(self.vdb_vector_grid_id_container, vdb_vector_grid_ids)               
+        try:
+            cur_obj = context.object
+        except:
+            cur_obj = None
+        if cur_obj:
+            if cur_obj.type == 'VOLUME':
+                if cur_obj.data.octane.last_vdb_file_path == cur_obj.data.filepath:
+                    return
+                cur_obj.data.octane.last_vdb_file_path = cur_obj.data.filepath
+                if not cur_obj.data.grids.is_loaded:
+                    cur_obj.data.grids.load()
+                if cur_obj.data.grids.is_loaded:
+                    vdb_float_grid_ids = []
+                    vdb_vector_grid_ids = []           
+                    for grid in cur_obj.data.grids.values():
+                        if grid.data_type == 'FLOAT':
+                            vdb_float_grid_ids.append(grid.name)
+                        elif grid.data_type == 'VECTOR_FLOAT':
+                            vdb_vector_grid_ids.append(grid.name)
+                    set_container(self.vdb_float_grid_id_container, vdb_float_grid_ids)
+                    set_container(self.vdb_vector_grid_id_container, vdb_vector_grid_ids)               
+            else:
+                vdb_float_grid_ids, vdb_vector_grid_ids = _octane.update_vdb_info(cur_obj.as_pointer(), context.blend_data.as_pointer(), scene.as_pointer()) 
+                set_container(self.vdb_float_grid_id_container, vdb_float_grid_ids)
+                set_container(self.vdb_vector_grid_id_container, vdb_vector_grid_ids)               
 
 
 class OctaneOSLCameraNode(bpy.types.PropertyGroup):    
@@ -1376,7 +1396,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             name="Export with object layers",
             description="Export with object layers properties. If disabled, all object layer properties will be removed and the whole scene will be put in a single object layer",
             default=True,
-            )        
+            ) 
+    maximize_instancing: BoolProperty(
+            name="Maximize Instancing",
+            description="If enabled, Octane will try to collect and group instances into scatter as much as possible",
+            default=True,
+            )                    
     meshes_type: EnumProperty(
             name="Render all meshes as",
             description="Override all meshes type by this type during rendering",
@@ -4052,6 +4077,253 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         del bpy.types.MetaBall.octane
 
 
+UNIT_CONVERT_MAP = {
+    'millmeters': 0.001,
+    'centimeters': 0.01,
+    'decimeters': 0.1,
+    'meters': 1,
+    'decameters': 10,
+    'hectometers': 100,
+    'kilometers': 1000,
+    'inches': 1 / 39.3701,
+    'feet': 1 / 3.280841666667,
+    'yards': 1 / 1.0936138888889999077,
+    'furlongs': 1 / 0.00497096,
+    'miles': 1 / 0.00062137123552453663,
+    'DAZ Studio unit': 0.01,
+    'Poser Native Unit': 2.6,
+}
+
+def update_octane_volume_import_scale(self, context):
+    obj = None
+    try:
+        obj = bpy.context.view_layer.objects.active
+    except:
+        pass
+    if obj:
+        if len(obj.data.octane.last_vdb_import_scale) == 0:
+            obj.data.octane.last_vdb_import_scale = 'meters'                     
+        if obj.data.octane.apply_import_scale_to_blender_transfrom:  
+            unit_scale = UNIT_CONVERT_MAP[obj.data.octane.vdb_import_scale] / UNIT_CONVERT_MAP[obj.data.octane.last_vdb_import_scale]                             
+            obj.delta_scale = obj.delta_scale * unit_scale
+            obj.data.octane.last_vdb_import_scale = obj.data.octane.vdb_import_scale
+        else:
+            obj.data.octane.last_vdb_import_scale = 'meters'        
+        obj.data.update_tag()
+
+
+def update_octane_volume_auto_apply_import_scale(self, context):
+    obj = None
+    try:
+        obj = bpy.context.view_layer.objects.active
+    except:
+        pass
+    if obj:
+        if len(obj.data.octane.last_vdb_import_scale) == 0:
+            obj.data.octane.last_vdb_import_scale = 'meters'                     
+        if obj.data.octane.apply_import_scale_to_blender_transfrom:  
+            unit_scale = UNIT_CONVERT_MAP[obj.data.octane.vdb_import_scale]                            
+            obj.delta_scale = obj.delta_scale * unit_scale
+            obj.data.octane.last_vdb_import_scale = obj.data.octane.vdb_import_scale
+        else:
+            unit_scale = UNIT_CONVERT_MAP[obj.data.octane.vdb_import_scale]
+            obj.delta_scale = obj.delta_scale / unit_scale
+            obj.data.octane.last_vdb_import_scale = 'meters'        
+        obj.data.update_tag()
+
+
+class OctaneVolumeSettings(bpy.types.PropertyGroup):
+
+    resource_dirty_tag: BoolProperty(
+            default=False,
+            )
+    resource_data_hash_tag: StringProperty(            
+            default='',
+            )
+
+    octane_vdb_helper: BoolProperty(
+            default=False,
+            )
+    octane_vdb_info: PointerProperty(
+            name="Octane VDB Info Container",
+            description="",
+            type=OctaneVDBInfo,        
+            )    
+    vdb_sdf: BoolProperty(
+            name="SDF",
+            description="SDF",
+            default=False,
+            )    
+    imported_openvdb_file_path: StringProperty(
+            name="OpenVDB File",
+            description="Import the OpenVDB file. Use '$F$' to label the frame parts in vdb file path. E.g. $F$. => (0, 1, ... 100 ...). E.g. $4F$. => (0000, 0001, ... 0100 ...)",
+            default='',
+            update= lambda cls, context : update_octane_vdb_info(cls, context),
+            subtype='FILE_PATH',
+            )  
+    last_vdb_file_path: StringProperty(
+            default="",
+            )       
+    openvdb_frame_speed_mutiplier: FloatProperty(
+            name="Speed Multiplier",
+            description="The speed multiplier will be used when filling vdb path with $F$ label. VDB_FRAME = CURRENT_FRAME * MULTIPLIER",
+            min=0.0,
+            default=1.0,
+            )   
+    openvdb_frame_start_playing_at: IntProperty(
+            name="Start Playing at",
+            description="In which specific frame on the general timeline it should start to show and play the OpenVDB sequence",
+            default=1,
+            )        
+    openvdb_frame_start: IntProperty(
+            name="Start",
+            description="The start frame of vdb sequence",
+            min=0,
+            default=1,
+            )
+    openvdb_frame_end: IntProperty(
+            name="End",
+            description="The end frame of vdb sequence",
+            min=0,
+            default=250,
+            )                                                              
+    vdb_iso: FloatProperty(
+            name="ISO",
+            description="Isovalue used for when rendering openvdb level sets",
+            min=0.0,
+            default=0.04,
+            )
+    last_vdb_import_scale: StringProperty(
+            default="",
+            )     
+    vdb_import_scale: EnumProperty(
+            name="Import scale",
+            description="The various units we support during the geometry import. It's basically the unit used during the export of the geometry",
+            items=geometry_import_scale,
+            default='meters',
+            update=update_octane_volume_import_scale,
+            )    
+    apply_import_scale_to_blender_transfrom: BoolProperty(
+            name="Auto Apply Import Scale to Blender Transform",
+            description="If TRUE, the import scale will be applied to the Blender Delta Transform. This will help you to match the Viewport and Octane Preview results when using import scale",
+            default=False,
+            update=update_octane_volume_auto_apply_import_scale,
+            )
+    vdb_abs_scale: FloatProperty(
+            name="Absorption scale",
+            description="This scalar value scales the grid value used for absorption",
+            min=0.0,
+            default=1.0,
+            )
+    vdb_emiss_scale: FloatProperty(
+            name="Emission scale",
+            description="This scalar value scales the grid value used for temperature. Use this when temperature information in a grid is too low",
+            min=0.0,
+            default=1.0,
+            )
+    vdb_scatter_scale: FloatProperty(
+            name="Scatter scale",
+            description="This scalar value scales the grid value used for scattering",
+            min=0.0,
+            default=1.0,
+            )
+    vdb_vel_scale: FloatProperty(
+            name="Velocity scale",
+            description="This scalar value linearly scales velocity vectors in the velocity grid",
+            min=0.0,
+            default=1.0,
+            )
+    vdb_motion_blur_enabled: BoolProperty(
+            name="Motion blur enabled",
+            description="If TRUE, then any motion blur grids will be ignored",
+            default=True,
+            )    
+    vdb_velocity_grid_type: EnumProperty(
+        name="Velocity Grid Type",
+        description="The grid used for motion blur. A single vec3s type grid or a component grid",
+        items=vdb_velocity_grid_types,
+        default='Vector grid',
+    )    
+    vdb_absorption_grid_id: StringProperty(
+        name="Absorption grid",
+        description="Name of the grid in a VDB to load for absorption",
+        default="",
+        maxlen=512,
+    )  
+    vdb_scattering_grid_id: StringProperty(
+        name="Scattering grid",
+        description="Name of the grid in a VDB to load for scattering",
+        default="",
+        maxlen=512,
+    )  
+    vdb_emission_grid_id: StringProperty(
+        name="Emission grid",
+        description="Name of the grid in a VDB to load for providing temperature information",
+        default="",
+        maxlen=512,
+    )              
+    vdb_vector_grid_id: StringProperty(
+        name="Vector grid",
+        description="Name of a vec3s type grid in the VDB to load for motion blur",
+        default="",
+        maxlen=512,
+    )  
+    vdb_x_components_grid_id: StringProperty(
+        name="X Component grids",
+        description="Name of a float grid in the VDB to use for the x-component of motion blur vectors",
+        default="",
+        maxlen=512,
+    )   
+    vdb_y_components_grid_id: StringProperty(
+        name="Y Component grids",
+        description="Name of a float grid in the VDB to use for the y-component of motion blur vectors",
+        default="",
+        maxlen=512,
+    ) 
+    vdb_z_components_grid_id: StringProperty(
+        name="Z Component grids",
+        description="Name of a float grid in the VDB to use for the z-component of motion blur vectors",
+        default="",
+        maxlen=512,
+    )               
+    enable_octane_offset_transform: BoolProperty(
+        name="Use VDB Transformations",
+        description="If TRUE, then an offset transform will be applied(it would be useful in external VDB transform adjustment)",
+        default=True,
+    ) 
+    octane_offset_translation: FloatVectorProperty(
+        name="Translation",                                
+        subtype='TRANSLATION',
+    )      
+    octane_offset_rotation: FloatVectorProperty(
+        name="Rotation",                             
+        subtype='EULER',
+    )    
+    octane_offset_scale: FloatVectorProperty(
+        name="Scale",                             
+        subtype='XYZ',
+        default=(1, 1, 1)
+    )   
+    octane_offset_rotation_order: EnumProperty(
+        name="Rotation order",
+        items=rotation_orders,
+        default='2',
+    )      
+
+
+    @classmethod
+    def register(cls):
+        bpy.types.Volume.octane = PointerProperty(
+                name="OctaneRender Volume Settings",
+                description="",
+                type=cls,
+                )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.Volume.octane
+
+
 class OctaneObjPropertiesSettings(bpy.types.PropertyGroup):
 
     visibility: BoolProperty(
@@ -4570,7 +4842,8 @@ classes = (
     OctaneLightSettings,
     OctaneMaterialSettings,
     OctaneRenderLayerSettings,
-    OctaneObjectSettings
+    OctaneObjectSettings,
+    OctaneVolumeSettings
 )
 
 @persistent

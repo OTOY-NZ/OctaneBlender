@@ -720,8 +720,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
     bool use_octane_export = b_scene.render().use_octane_export();
 
     if (use_octane_export) {
-      saveImage.bMultiLayers = b_scene.render().image_settings().octane_save_mode() ==
-                               OCT_IMAGE_SAVE_MODE_MULTILAYER;
+      saveImage.iExportType = b_scene.render().image_settings().octane_save_mode();
       saveImage.iImageType = b_scene.render().image_settings().octane_file_format();
       saveImage.iExrCompressionType =
           b_scene.render().image_settings().octane_exr_compression_type();

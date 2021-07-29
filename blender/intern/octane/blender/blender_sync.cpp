@@ -160,6 +160,11 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
         world_recalc = true;
       }
     }
+    /* Volume */
+    else if (b_id.is_a(&RNA_Volume)) {
+      BL::Volume b_volume(b_id);
+      mesh_map.set_recalc(b_volume);
+    }
   }
 
   /* Updates shader with object dependency if objects changed. */
@@ -305,6 +310,7 @@ SessionParams BlenderSync::get_session_params(
 
   params.deep_image = get_boolean(oct_scene, "deep_image");
   params.export_with_object_layers = get_boolean(oct_scene, "export_with_object_layers");
+  params.maximize_instancing = get_boolean(oct_scene, "maximize_instancing");
   params.use_passes = get_boolean(oct_scene, "use_passes");
   params.meshes_type = static_cast<MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
   if (params.export_type != ::OctaneEngine::SceneExportTypes::NONE &&

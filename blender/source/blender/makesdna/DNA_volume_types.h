@@ -85,6 +85,11 @@ typedef struct Volume {
 
   /* Runtime Data */
   Volume_Runtime runtime;
+
+  /* Octane */
+  float speed_multiplier;
+  short import_scale;
+  short _pad3[1];
 } Volume;
 
 /* Volume.flag */
