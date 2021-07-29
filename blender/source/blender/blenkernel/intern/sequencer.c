@@ -4306,6 +4306,10 @@ void BKE_sequence_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_targe
 
 void BKE_sequencer_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
 {
+  if (scene->ed == NULL) {
+    return;
+  }
+
   Sequence *seq;
 
   BKE_sequencer_cache_cleanup(scene);
@@ -5732,7 +5736,7 @@ static Sequence *seq_dupli(const Scene *scene_src,
     struct SeqEffectHandle sh;
     sh = BKE_sequence_get_effect(seq);
     if (sh.copy) {
-      sh.copy(seq, seqn, flag);
+      sh.copy(seqn, seq, flag);
     }
 
     seqn->strip->stripdata = NULL;

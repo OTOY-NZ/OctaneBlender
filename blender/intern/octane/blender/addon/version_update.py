@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='21.11'
+OCTANE_BLENDER_VERSION='21.12'
 
 import bpy
 import math
@@ -436,6 +436,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_20_1(file_version)
     check_compatibility_octane_node_tree_20_4(file_version)
     check_compatibility_octane_node_tree_21_4(file_version)
+    check_compatibility_octane_node_tree_21_12(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -515,6 +516,14 @@ def check_compatibility_octane_node_tree_21_4(file_version):
                 node_handler_map[node] = []
             node_handler_map[node].append(functools.partial(node_output_socket_update, previous_name=old_name, current_name=new_name))                
     check_compatibility_octane_node_tree_helper(file_version, '21.4', node_handler_map)    
+
+def check_compatibility_octane_node_tree_21_12(file_version):
+    node_handler_map = {
+        'OCT_SPECULAR_MAT': (
+            functools.partial(node_input_socket_update, previous_name='Affect aplha', current_name='Affect alpha'),
+        ),
+    }
+    check_compatibility_octane_node_tree_helper(file_version, '21.12', node_handler_map)
 
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:

@@ -315,7 +315,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
         if (mesh_ptr.data) {
           BL::Object obj(mesh_ptr);
           BL::ID bl_id(mesh_ptr);
-          std::string id_name = BKE_object_is_modified(b_ob) ? b_ob.name() : "";
+          std::string id_name = BKE_object_is_modified(b_ob) ? b_ob.name_full() : "";
           current_light_mesh_name = resolve_octane_name(bl_id, id_name, MESH_TAG);
         }
         else {
@@ -360,7 +360,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   BL::Object b_ob_instance = is_instance ? b_instance.instance_object() : b_ob;
   std::string parent_name, instance_tag;
   if (b_parent.ptr.data) {
-    parent_name = b_parent.name() + ".";
+    parent_name = b_parent.name_full() + ".";
   }
   instance_tag = is_instance ? "[Instance]" : "";
   const bool motion = motion_time != 0.0f;
@@ -422,7 +422,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     if (object) {
       if (object->motion_blur_times.find(motion_time) != object->motion_blur_times.end()) {
         if (object->mesh && object->mesh->enable_offset_transform) {
-          octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
+          octane_tfm = OCTANE_MATRIX * (tfm * object->mesh->offset_transform);
         }
         object->update_motion_blur_transforms(motion_time, octane_tfm);
         if (object->mesh) {
@@ -435,10 +435,10 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
 
   std::string object_name;
   if (scene && scene->session && scene->session->params.maximize_instancing) {
-    object_name = b_ob.name() + OBJECT_TAG;
+    object_name = b_ob.name_full() + OBJECT_TAG;
   }
   else {
-    object_name = parent_name + b_ob.name() + instance_tag + OBJECT_TAG;
+    object_name = parent_name + b_ob.name_full() + instance_tag + OBJECT_TAG;
   }
 
   /* test if we need to sync */
@@ -472,7 +472,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
  //   } else {
  //     octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
 	//}
-    octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
+    octane_tfm = OCTANE_MATRIX * (tfm * object->mesh->offset_transform);
   }
 
   /* object sync
@@ -490,7 +490,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   object->need_update |= need_update;
 
   if (need_update || (object->mesh && object->mesh->need_update)) {
-    std::string obj_name = b_ob.name();
+    std::string obj_name = b_ob.name_full();
     object->name = object_name;
     object->pass_id = b_ob.pass_index();
     object->octane_object.sObjectName = object->name;
@@ -614,7 +614,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
     BL::DepsgraphObjectInstance b_instance = *b_instance_iter;
     BL::Object b_ob = b_instance.object();
 
-    progress.set_sync_status("Synchronizing object", b_ob.name());
+    progress.set_sync_status("Synchronizing object", b_ob.name_full());
 
     /* test if object needs to be hidden */
     const bool show_self = b_instance.show_self();

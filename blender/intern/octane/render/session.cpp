@@ -460,6 +460,7 @@ void Session::update_status_time(bool show_pause, bool show_done)
   string status, substatus;
 
   if (server->checkServerConnection()) {
+    //server->testProfileTransferData();
     if (params.image_stat.uiCurSamples > 0) {
       char szSamples[16];
       unsigned long ulSPSdivider;

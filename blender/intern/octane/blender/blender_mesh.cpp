@@ -105,6 +105,11 @@ static void create_mesh(Scene *scene,
                           (mesh->subdivision_type != Mesh::SUBDIVISION_CATMULL_CLARK);
   bool use_uv = numfaces != 0 && b_mesh.uv_layers.length() != 0;
 
+  if (mesh->octane_mesh.sOrbxPath.length() > 0) {
+    mesh->empty = false;
+    return;
+  }
+
   if (mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable && numfaces == 0) {
     mesh->octane_mesh.oMeshData.f3Points.reserve(numverts);
     BL::Mesh::vertices_iterator v;
@@ -635,7 +640,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
 
   bool is_modified = BKE_object_is_modified(b_ob);
-  std::string mesh_name = resolve_octane_name(b_ob_data, is_modified ? b_ob.name() : "", MESH_TAG);
+  std::string mesh_name = resolve_octane_name(
+      b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
 
   bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
   bool is_mesh_shader_data_updated = octane_mesh->shaders_tag !=
@@ -684,7 +690,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     bool apply_import_scale_to_blender_transfrom = RNA_boolean_get(
         &oct_mesh, "apply_import_scale_to_blender_transfrom");
     if (apply_import_scale_to_blender_transfrom) {
-      octane_mesh->octane_volume.iImportScale = 4; //Default meters
+      octane_mesh->octane_volume.iImportScale = 4;  // Default meters
     }
     if (selected_grid_name.length()) {
       if (octane_mesh->octane_volume.sAbsorptionGridId.sVal.length() == 0) {
@@ -741,7 +747,17 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (preview) {
     bool is_synced = is_resource_synced_in_octane_manager(mesh_name, OctaneResourceType::GEOMETRY);
     if (is_synced) {
-      if (b_ob.mode() == b_ob.mode_EDIT || is_mesh_shader_data_updated || is_modified) {
+      bool paint_mode = b_ob.mode() == b_ob.mode_VERTEX_PAINT || b_ob.mode_WEIGHT_PAINT ||
+                        b_ob.mode_TEXTURE_PAINT;
+      if (paint_mode) {
+        for (auto used_shader : used_shaders) {
+          if (used_shader->graph && used_shader->graph->need_subdivision) {
+            used_shader->has_object_dependency = true;
+            used_shader->need_sync_object = true;
+          }
+        }
+	  }
+      if (paint_mode || b_ob.mode() == b_ob.mode_EDIT || is_mesh_shader_data_updated || is_modified) {
         need_recreate_mesh = need_update;
       }
       else {
@@ -915,6 +931,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     else {
       octane_mesh->empty = true;
     }
+    if (RNA_boolean_get(&oct_mesh, "external_alembic_mesh_tag")) {
+      octane_mesh->empty = true;
+	}
     /* mesh fluid motion mantaflow */
     sync_mesh_fluid_motion(b_ob, scene, octane_mesh);
     sync_mesh_particles(b_ob, octane_mesh, !preview);
@@ -1015,11 +1034,20 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
     fprintf(
         stderr,
         "Octane: WARNING: Topology differs, discarding motion blur for object %s at time %f!\n",
-        b_ob.name().c_str(),
+        b_ob.name_full().c_str(),
         motion_time);
   }
 
   sync_hair(mesh, b_mesh, b_ob, true, motion_time);
+
+  std::vector<OctaneDataTransferObject::float_3> hairMotionData =
+      mesh->octane_mesh.oMeshData.oMotionf3HairPoints[last_valid_motion_time];
+  for (int idx = 0; idx < hairMotionData.size(); ++idx) {
+    if (idx < mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time].size()) {
+      hairMotionData[idx] = mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time][idx];
+	}
+  }
+  mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time] = hairMotionData;
 
   /* free derived mesh */
   free_object_to_mesh(b_data, b_ob, b_mesh);

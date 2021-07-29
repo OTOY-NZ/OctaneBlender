@@ -91,6 +91,11 @@ BLI_INLINE void mesh_cd_layers_type_clear(DRW_MeshCDMask *a)
   *((uint32_t *)a) = 0;
 }
 
+BLI_INLINE const Mesh *editmesh_final_or_this(const Mesh *me)
+{
+  return (me->edit_mesh && me->edit_mesh->mesh_eval_final) ? me->edit_mesh->mesh_eval_final : me;
+}
+
 static void mesh_cd_calc_edit_uv_layer(const Mesh *UNUSED(me), DRW_MeshCDMask *cd_used)
 {
   cd_used->edit_uv = 1;
@@ -98,9 +103,8 @@ static void mesh_cd_calc_edit_uv_layer(const Mesh *UNUSED(me), DRW_MeshCDMask *c
 
 static void mesh_cd_calc_active_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
 {
-  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const Mesh *me_final = editmesh_final_or_this(me);
   const CustomData *cd_ldata = &me_final->ldata;
-
   int layer = CustomData_get_active_layer(cd_ldata, CD_MLOOPUV);
   if (layer != -1) {
     cd_used->uv |= (1 << layer);
@@ -109,9 +113,8 @@ static void mesh_cd_calc_active_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used
 
 static void mesh_cd_calc_active_mask_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
 {
-  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const Mesh *me_final = editmesh_final_or_this(me);
   const CustomData *cd_ldata = &me_final->ldata;
-
   int layer = CustomData_get_stencil_layer(cd_ldata, CD_MLOOPUV);
   if (layer != -1) {
     cd_used->uv |= (1 << layer);
@@ -120,7 +123,7 @@ static void mesh_cd_calc_active_mask_uv_layer(const Mesh *me, DRW_MeshCDMask *cd
 
 static void mesh_cd_calc_active_vcol_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
 {
-  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const Mesh *me_final = editmesh_final_or_this(me);
   const CustomData *cd_ldata = &me_final->ldata;
 
   int layer = CustomData_get_active_layer(cd_ldata, CD_MLOOPCOL);
@@ -133,7 +136,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Mesh *me,
                                                    struct GPUMaterial **gpumat_array,
                                                    int gpumat_array_len)
 {
-  const Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+  const Mesh *me_final = editmesh_final_or_this(me);
   const CustomData *cd_ldata = &me_final->ldata;
 
   /* See: DM_vertex_attributes_from_gpu for similar logic */
@@ -1032,7 +1035,15 @@ void DRW_mesh_batch_cache_create_requested(
     BLI_assert(me->edit_mesh->mesh_eval_final != NULL);
   }
 
-  const bool is_editmode = (me->edit_mesh != NULL) && DRW_object_is_in_edit_mode(ob);
+  /* Don't check `DRW_object_is_in_edit_mode(ob)` here because it means the same mesh
+   * may draw with edit-mesh data and regular mesh data.
+   * In this case the custom-data layers used wont always match in `me->runtime.batch_cache`.
+   * If we want to display regular mesh data, we should have a separate cache for the edit-mesh.
+   * See T77359. */
+  const bool is_editmode = (me->edit_mesh != NULL) /* && DRW_object_is_in_edit_mode(ob) */;
+
+  /* This could be set for paint mode too, currently it's only used for edit-mode. */
+  const bool is_mode_active = is_editmode && DRW_object_is_in_edit_mode(ob);
 
   DRWBatchFlag batch_requested = cache->batch_requested;
   cache->batch_requested = 0;
@@ -1370,6 +1381,7 @@ void DRW_mesh_batch_cache_create_requested(
                                        me,
                                        is_editmode,
                                        is_paint_mode,
+                                       is_mode_active,
                                        ob->obmat,
                                        false,
                                        true,
@@ -1386,6 +1398,7 @@ void DRW_mesh_batch_cache_create_requested(
                                        me,
                                        is_editmode,
                                        is_paint_mode,
+                                       is_mode_active,
                                        ob->obmat,
                                        false,
                                        false,
@@ -1401,6 +1414,7 @@ void DRW_mesh_batch_cache_create_requested(
                                      me,
                                      is_editmode,
                                      is_paint_mode,
+                                     is_mode_active,
                                      ob->obmat,
                                      true,
                                      false,

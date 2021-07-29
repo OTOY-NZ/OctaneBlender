@@ -140,6 +140,7 @@ class OctaneClient {
   /// Check if connected to server.
   /// @return **true** if connected, **false** otherwise.
   bool checkServerConnection();
+  bool testProfileTransferData();
   std::string getServerAdress();
 
   bool downloadOctaneDB(OctaneDataTransferObject::OctaneDBNodes &nodes);

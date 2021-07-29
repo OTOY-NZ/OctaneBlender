@@ -26,6 +26,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneSaveImage);
 		OCTANE_NODE_CREATOR(OctaneCameraData);
 		OCTANE_NODE_CREATOR(OctaneEngineData);
+		OCTANE_NODE_CREATOR(OctaneOrbxPreview);
 
 		OCTANE_NODE_CREATOR(OctaneDiffuseMaterial);
 		OCTANE_NODE_CREATOR(OctaneMixMaterial);

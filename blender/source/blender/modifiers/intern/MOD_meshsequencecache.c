@@ -139,6 +139,15 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   }
 
   Mesh *result = ABC_read_mesh(mcmd->reader, ctx->object, mesh, time, &err_str, mcmd->read_flag);
+  if (result) {
+    result->oct_sphere_randomized_radius_seed = org_mesh->oct_sphere_randomized_radius_seed;
+    result->oct_sphere_radius = org_mesh->oct_sphere_radius;
+    result->oct_randomized_radius_min = org_mesh->oct_randomized_radius_min;
+    result->oct_randomized_radius_max = org_mesh->oct_randomized_radius_max;
+    result->oct_enable_octane_sphere_attribute = org_mesh->oct_enable_octane_sphere_attribute;
+    result->oct_hide_original_mesh = org_mesh->oct_hide_original_mesh;
+    result->oct_use_randomized_radius = org_mesh->oct_use_randomized_radius;
+  }
 
   if (err_str) {
     modifier_setError(md, "%s", err_str);

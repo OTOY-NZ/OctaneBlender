@@ -671,6 +671,11 @@ dirty_resource_detection_strategy_types = (
     ('Select', "Select", "A mesh will be marked as dirty and reloaded once it is selected", 1),
 )
 
+orbx_preview_types = (
+    ('Built-in Mesh', 'Built-in Mesh', "The preview will be shown as Built-in Mesh. No external assets are required in this case", 0),
+    ('External Alembic', 'External Alembic', "The previwe data will be shown as imported Alembic. The preview is exactly the same as the render results with animation support", 1), 
+)
+
 
 def get_int_response_type(cls):
     return int(cls.response_type)
@@ -4050,7 +4055,30 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             description="Import the Orbx file",
             default='',
             subtype='FILE_PATH',
-            )     
+            )
+    orbx_preview_type: EnumProperty(
+            name="Orbx Preview Data Type",
+            description="The Data Type that used for the preview geometry(for the animated objects, please use the Alembic format)",
+            items=orbx_preview_types,
+            default='External Alembic',
+            )
+    converted_alembic_asset_path: StringProperty(
+            name="External Alembic Asset Unpack Directory",
+            description="The directory is used for unpacking the External Alembic Asset",
+            default='',
+            subtype='DIR_PATH',
+            )
+    point_cloud_lod: FloatProperty(
+            name="Point Cloud Level of Detail",
+            description="Adjust the level of details of the point cloud",
+            min=1.0,
+            max=100.0,
+            default=100.0,
+            subtype='PERCENTAGE',
+            )   
+    external_alembic_mesh_tag: BoolProperty(
+            default=False,
+            )                          
 
     @classmethod
     def register(cls):

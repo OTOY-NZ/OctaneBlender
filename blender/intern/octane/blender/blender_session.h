@@ -123,6 +123,10 @@ class BlenderSession {
                              BL::Material &b_material);
   static bool heart_beat(std::string server_address);
   static bool get_octanedb(bContext *context, std::string server_address);
+  static bool generate_orbx_proxy_preview(const std::string server_address,
+                                  const std::string orbx_path,
+                                  const std::string abc_path,
+                                  const float fps);
   static bool resolve_octane_vdb_info(const std::string server_address,
                                       PointerRNA &oct_mesh,
                                       BL::BlendData &b_data,

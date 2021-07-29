@@ -733,6 +733,17 @@ namespace OctaneDataTransferObject {
 		MSGPACK_DEFINE(iType, oResourceCacheData, MSGPACK_BASE(OctaneNodeBase));
 	};
 
+	struct OctaneOrbxPreview : public OctaneNodeBase {
+		std::string sOrbxPath;
+		std::string sAbcPath;
+		float fFps;
+		OctaneOrbxPreview() : OctaneNodeBase(Octane::ENT_ORBX_PREVIEW, "OctaneOrbxPreview", 0, 1) {}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
+		MSGPACK_DEFINE(sOrbxPath, sAbcPath, fFps, MSGPACK_BASE(OctaneNodeBase));
+	};
+
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// MATERIALS
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -908,7 +919,7 @@ namespace OctaneDataTransferObject {
 			fRoundedEdgeRadius("Edges rounding"),
 			tMedium("Medium"),
 			bFakeShadows("Fake Shadows"),
-			bAffectAplha("Affect aplha"),
+			bAffectAplha("Affect alpha"),
 			bThinWall("Thin wall"),
 			fFilmWidth("Film Width"),
 			fFilmIndex("Film Index"),

@@ -288,7 +288,8 @@ static bool update_octane_image_data(
                       b_image.source() == BL::Image::source_MOVIE ||
                       (b_engine.is_preview() && b_image.source() != BL::Image::source_SEQUENCE);
 
-    is_auto_refresh |= (b_image.source() == BL::Image::source_MOVIE);
+    is_auto_refresh |= (b_image.source() == BL::Image::source_MOVIE ||
+                        b_image.source() == BL::Image::source_SEQUENCE);
 
     if (is_builtin) {
       /* for builtin images we're using image datablock name to find an image to
@@ -1050,6 +1051,17 @@ static void resolve_octane_outputs(std::string shader_name,
       BL::Node b_to_node = b_link->to_node();
       BL::NodeSocket b_from_sock = b_link->from_socket();
       BL::NodeSocket b_to_sock = b_link->to_socket();
+      while (b_from_node.ptr.data && b_from_node.is_a(&RNA_NodeReroute)) {
+        BL::NodeTree::links_iterator b_link_iterator;
+        for (b_ntree.links.begin(b_link_iterator); b_link_iterator != b_ntree.links.end();
+             ++b_link_iterator) {
+          if (b_link_iterator->to_node().ptr.data == b_from_node.ptr.data) {
+            b_from_node = b_link_iterator->from_node();
+            b_from_sock = b_link_iterator->from_socket();
+            break;
+          }
+        }
+      }
       if (b_to_node && b_from_node && b_to_node.name() == output_node_name) {
         if (group_output_socket_name.length() && b_to_sock.name() != group_output_socket_name) {
           continue;
@@ -1179,12 +1191,23 @@ static void generate_sockets_map(std::string prefix_name,
     BL::NodeSocket b_from_sock = b_link->from_socket();
     BL::NodeSocket b_to_sock = b_link->to_socket();
 
-    if (b_to_node.is_a(&RNA_NodeReroute))
-      continue;
-    if (!skip_reroutes(b_from_node, b_from_sock, b_ntree))
-      continue;
-
-    link_resolver.add_link(b_to_sock.ptr.data, b_from_sock.ptr.data);
+    if (!b_from_node.is_a(&RNA_NodeReroute)) {
+      link_resolver.add_link(b_to_sock.ptr.data, b_from_sock.ptr.data);
+    }
+    else {
+      while (b_from_node.ptr.data && b_from_node.is_a(&RNA_NodeReroute)) {
+        BL::NodeTree::links_iterator b_link_iterator;
+        for (b_ntree.links.begin(b_link_iterator); b_link_iterator != b_ntree.links.end();
+             ++b_link_iterator) {
+          if (b_link_iterator->to_node().ptr.data == b_from_node.ptr.data) {
+            b_from_node = b_link_iterator->from_node();
+            b_from_sock = b_link_iterator->from_socket();
+            break;
+          }
+        }
+        link_resolver.add_link(b_to_sock.ptr.data, b_link_iterator->from_socket().ptr.data);
+      }
+    }
   }
 }
 
@@ -1351,8 +1374,7 @@ void BlenderSync::sync_textures(BL::Depsgraph &b_depsgraph, bool update_all)
     if (scene && scene->camera) {
       need_sync |= scene->camera->oct_node.universalCamera.sDistortionTexture.sLinkNodeName ==
                    name;
-      need_sync |= scene->camera->oct_node.universalCamera.sCustomAperture.sLinkNodeName ==
-                   name;
+      need_sync |= scene->camera->oct_node.universalCamera.sCustomAperture.sLinkNodeName == name;
     }
     if (need_sync || shader->need_sync_object || update_all) {
       ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_TEXTURE);

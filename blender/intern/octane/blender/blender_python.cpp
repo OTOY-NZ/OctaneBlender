@@ -779,6 +779,27 @@ static PyObject *update_vdb_info_func(PyObject *self, PyObject *args)
   return rets;
 }
 
+static PyObject *orbx_preview_func(PyObject *self, PyObject *args)
+{
+  PyObject *abc_path_obj, *orbx_path_obj;
+  float fps;
+  int release_octane_license_after_exiting;
+  if (!PyArg_ParseTuple(args, "OOf", &orbx_path_obj, &abc_path_obj, &fps)) {
+    return PyBool_FromLong(0);
+  }
+
+  PyObject *path_coerce = NULL;
+  std::string orbx_path = PyC_UnicodeAsByte(orbx_path_obj, &path_coerce);
+  std::string abc_path = PyC_UnicodeAsByte(abc_path_obj, &path_coerce);  
+  Py_XDECREF(path_coerce);
+
+  Py_BEGIN_ALLOW_THREADS;
+  BlenderSession::generate_orbx_proxy_preview(G.octane_server_address, orbx_path, abc_path, fps);
+  Py_END_ALLOW_THREADS;
+
+  Py_RETURN_NONE;
+}
+
 static PyMethodDef methods[] = {
     {"init", init_func, METH_VARARGS, ""},
     {"exit", exit_func, METH_VARARGS, ""},
@@ -802,6 +823,7 @@ static PyMethodDef methods[] = {
     {"get_octanedb", get_octanedb_func, METH_VARARGS, ""},
     {"set_octane_params", set_octane_params_func, METH_VARARGS, ""},
     {"update_vdb_info", update_vdb_info_func, METH_VARARGS, ""},
+    {"orbx_preview", orbx_preview_func, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL},
 };
 

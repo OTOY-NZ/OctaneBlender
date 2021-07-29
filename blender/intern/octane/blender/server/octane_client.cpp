@@ -1,5 +1,6 @@
 #include "octane_client.h"
 #include "octane_network.h"
+#include <chrono>
 
 namespace OctaneEngine {
 
@@ -275,6 +276,37 @@ bool OctaneClient::checkServerConnection()
     // m_ServerInfo.sNetAddress  = "";
     m_ServerInfo.sDescription = "";
     m_ServerInfo.gpuNames.clear();
+  }
+
+  UNLOCK_MUTEX(m_SocketMutex);
+  return bRet;
+}
+
+bool OctaneClient::testProfileTransferData()
+{
+  bool bRet = true;
+  LOCK_MUTEX(m_SocketMutex);
+
+  if (m_Socket >= 0) {
+
+    uint32_t float_size = 1024 * 1024 * 16;
+    float *data = new float[float_size];
+    for (uint32_t i = 0; i < float_size; ++i) {
+      data[i] = i;
+	}
+    using milli = std::chrono::milliseconds;
+    auto start = std::chrono::high_resolution_clock::now();
+    RPCSend snd(m_Socket,
+                sizeof(uint32_t) + float_size * sizeof(float),
+                OctaneDataTransferObject::PROFILE_DATA_TRANSFER);
+    snd << static_cast<uint32_t>(float_size);
+    snd.writeBuffer(data, float_size * sizeof(float));
+    snd.write();
+    auto finish = std::chrono::high_resolution_clock::now();
+    long long gap = std::chrono::duration_cast<milli>(finish - start).count();
+    delete[] data;
+    std::string output = "testProfileTransferData() took " + std::to_string(gap) + " ms\n";
+    fprintf(stderr, output.c_str());
   }
 
   UNLOCK_MUTEX(m_SocketMutex);
@@ -980,7 +1012,7 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
   else if (pCamera->type == Camera::CAMERA_BAKING) {
     {
       RPCSend snd(m_Socket,
-                  sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 12 +
+                  sizeof(float_3) * 5 + sizeof(float_2) * 2 + sizeof(float) * 17 +
                       sizeof(int32_t) * 30 + (pCamera->sCustomLut.length() + 2),
                   OctaneDataTransferObject::LOAD_BAKING_CAMERA);
       snd << pCamera->f3EyePoint << pCamera->f3WhiteBalance

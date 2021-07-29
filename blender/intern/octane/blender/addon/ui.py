@@ -460,6 +460,7 @@ class OCTANE_RENDER_PT_server(OctaneButtonsPanel, Panel):
         sub = box.row()
         sub.prop(oct_scene, "priority_mode")        
         sub = box.row()
+        sub.active = not engine.IS_RENDERING
         sub.prop(oct_scene, "prefer_tonemap")     
         sub = box.row()
         sub.active = not engine.IS_RENDERING
@@ -1114,6 +1115,16 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         box.label(text="Orbx properties:")   
         sub = box.column(align=True)     
         sub.prop(cdata, "imported_orbx_file_path")
+        sub = box.row(align=True)
+        sub.prop(cdata, "orbx_preview_type")
+        if cdata.orbx_preview_type == "External Alembic":
+            sub = box.row(align=True)
+            sub.prop(cdata, "converted_alembic_asset_path")
+        # elif cdata.orbx_preview_type == "Point Cloud":
+        #     sub = box.row(align=True)
+        #     sub.prop(cdata, "point_cloud_lod")
+        sub = box.row(align=True)
+        sub.operator("octane.generate_orbx_preview")
 
         box = layout.box()
         box.label(text="Octane Offset Transform:")        
@@ -1177,6 +1188,25 @@ class OCTANE_PT_volume_properties(OctaneButtonsPanel, Panel):
             sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
             sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container") 
 
+        box = layout.box()
+        box.label(text="Octane Geometric Node:")        
+        col = box.column(align = True)
+        sub = col.row(align = True)
+        sub.prop_search(cdata.octane_geo_node_collections, "node_graph_tree", bpy.data, "materials")
+        sub.operator('update.octane_geo_nodes', icon='FILE_REFRESH')
+        sub = col.row(align = True)        
+        sub.prop_search(cdata.octane_geo_node_collections, "osl_geo_node", cdata.octane_geo_node_collections, "osl_geo_nodes")            
+        osl_node_draw(box, str(cdata.octane_geo_node_collections.node_graph_tree), str(cdata.octane_geo_node_collections.osl_geo_node))
+
+        box = layout.box()
+        box.label(text="Orbx properties:")   
+        sub = box.column(align=True)     
+        sub.prop(cdata, "imported_orbx_file_path")
+        sub = box.row(align=True)
+        sub.operator("octane.generate_orbx_preview")
+
+        box = layout.box()
+        box.label(text="Octane Offset Transform:")        
         box = layout.box()      
         sub = box.row(align=True)
         sub.prop(cdata, "enable_octane_offset_transform")

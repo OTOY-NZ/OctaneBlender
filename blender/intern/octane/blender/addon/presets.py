@@ -224,7 +224,7 @@ class AddPreset3dImager(AddPresetBase, Operator):
         "octane.dithering",
         "octane.premultiplied_alpha",
         "octane.neutral_response",        
-        "octane.disable_partial_alpha"
+        "octane.disable_partial_alpha",
         "octane.custom_lut",
         "octane.lut_strength"        
     ]

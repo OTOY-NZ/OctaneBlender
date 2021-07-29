@@ -737,8 +737,12 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       if (raw_file_name.rfind(".") != std::string::npos) {
         raw_file_name = raw_file_name.substr(0, suffix_idx);
       }
+      std::string viewlayer_name = b_rlay.name();
       raw_file_name += b_scene.render().image_settings().octane_export_post_tag();
       saveImage.sFileName = blender_path_frame(raw_file_name, b_scene.frame_current(), 0);
+      if (viewlayer_name.length() && viewlayer_name != "View Layer") {
+        saveImage.sFileName += ("_" +  viewlayer_name);
+	  }
       saveImage.sOctaneTag = b_scene.render().image_settings().octane_export_tag();
       session->server->uploadOctaneNode(&saveImage, NULL);
     }
@@ -955,6 +959,35 @@ bool BlenderSession::osl_compile(const std::string server_address,
     delete server;
   }
 
+  return ret;
+}
+
+bool BlenderSession::generate_orbx_proxy_preview(const std::string server_address,
+                                                 const std::string orbx_path,
+                                                 const std::string abc_path, 
+												 const float fps)
+{
+  ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
+  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  if (ret) {
+    OctaneDataTransferObject::OctaneNodeBase *cur_node =
+        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(Octane::ENT_ORBX_PREVIEW);
+    OctaneDataTransferObject::OctaneOrbxPreview *cur_orbx_preview_node =
+        (OctaneDataTransferObject::OctaneOrbxPreview *)cur_node;
+    cur_orbx_preview_node->sOrbxPath = orbx_path;
+    cur_orbx_preview_node->sAbcPath = abc_path;
+    cur_orbx_preview_node->fFps = fps;
+    std::vector<OctaneDataTransferObject::OctaneNodeBase *> response;
+    server->uploadOctaneNode(cur_orbx_preview_node, &response);
+    //assert(response.size() == 1);
+    delete cur_node;
+    for (auto pResponseNode : response) {
+      delete pResponseNode;
+    }
+  }
+  if (server) {
+    delete server;
+  }
   return ret;
 }
 

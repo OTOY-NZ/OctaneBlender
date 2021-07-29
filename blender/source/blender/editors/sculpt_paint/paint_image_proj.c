@@ -6577,7 +6577,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     int type = RNA_enum_get(op->ptr, "type");
     bool is_data = (type > LAYER_BASE_COLOR);
 
-    bNode *imanode;
+    bNode *imanode, *octane_image_node;
     bNodeTree *ntree = ma->nodetree;
 
     if (!ntree) {
@@ -6588,6 +6588,12 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     ma->use_nodes = true;
 
     /* try to add an image node */
+    
+    //bool is_octane_engine = BKE_scene_uses_octane(scene);
+    //if (is_octane_engine) {
+    //  octane_image_node = nodeAddStaticNode(C, ntree, SH_NODE_OCT_IMAGE_TEX);
+    //}
+
     imanode = nodeAddStaticNode(C, ntree, SH_NODE_TEX_IMAGE);
 
     ima = proj_paint_image_create(op, bmain, is_data);
