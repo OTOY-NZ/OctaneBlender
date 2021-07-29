@@ -18,8 +18,7 @@
  * \ingroup collada
  */
 
-#ifndef __ERRORHANDLER_H__
-#define __ERRORHANDLER_H__
+#pragma once
 
 #include <algorithm>  // sort()
 #include <map>
@@ -46,12 +45,10 @@ class ErrorHandler : public COLLADASaxFWL::IErrorHandler {
   }
 
  private:
-  /** Disable default copy ctor. */
+  /** Disable default copy constructor. */
   ErrorHandler(const ErrorHandler &pre);
   /** Disable default assignment operator. */
   const ErrorHandler &operator=(const ErrorHandler &pre);
   /** Hold error status. */
   bool mError;
 };
-
-#endif /* __ERRORHANDLER_H__ */

@@ -18,15 +18,13 @@
  * \ingroup collada
  */
 
-#ifndef __BCMATH_H__
-#define __BCMATH_H__
+#pragma once
 
 #include "BlenderTypes.h"
 
-extern "C" {
 #include "BKE_object.h"
+
 #include "BLI_math.h"
-}
 
 class BCQuat {
  private:
@@ -106,5 +104,3 @@ class BCMatrix {
   static void sanitize(DMatrix &matrix, int precision);
   static void transpose(Matrix &matrix);
 };
-
-#endif /* __BCMATH_H__ */

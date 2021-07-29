@@ -23,21 +23,34 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.h"
+
 #include "DNA_cachefile_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
 #include "BKE_cachefile.h"
+#include "BKE_context.h"
 #include "BKE_lib_query.h"
 #include "BKE_scene.h"
+#include "BKE_screen.h"
+
+#include "UI_interface.h"
+#include "UI_resources.h"
+
+#include "RNA_access.h"
+
+#include "BLO_read_write.h"
 
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
 
 #include "MOD_modifiertypes.h"
+#include "MOD_ui_common.h"
 
 #ifdef WITH_ALEMBIC
 #  include "ABC_alembic.h"
@@ -64,7 +77,7 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
 #endif
   MeshSeqCacheModifierData *tmcmd = (MeshSeqCacheModifierData *)target;
 
-  modifier_copyData_generic(md, target, flag);
+  BKE_modifier_copydata_generic(md, target, flag);
 
   tmcmd->reader = NULL;
   tmcmd->reader_object_path[0] = '\0';
@@ -90,7 +103,7 @@ static bool isDisabled(const struct Scene *UNUSED(scene),
   return (mcmd->cache_file == NULL) || (mcmd->object_path[0] == '\0');
 }
 
-static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
+static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
 #ifdef WITH_ALEMBIC
   MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *)md;
@@ -109,7 +122,8 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
     STRNCPY(mcmd->reader_object_path, mcmd->object_path);
     BKE_cachefile_reader_open(cache_file, &mcmd->reader, ctx->object, mcmd->object_path);
     if (!mcmd->reader) {
-      modifier_setError(md, "Could not create Alembic reader for file %s", cache_file->filepath);
+      BKE_modifier_set_error(
+          md, "Could not create Alembic reader for file %s", cache_file->filepath);
       return mesh;
     }
   }
@@ -150,7 +164,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   }
 
   if (err_str) {
-    modifier_setError(md, "%s", err_str);
+    BKE_modifier_set_error(md, "%s", err_str);
   }
 
   if (!ELEM(result, NULL, mesh) && (mesh != org_mesh)) {
@@ -193,8 +207,46 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   }
 }
 
+static void panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA ptr;
+  PointerRNA ob_ptr;
+  modifier_panel_get_property_pointers(C, panel, &ob_ptr, &ptr);
+
+  PointerRNA cache_file_ptr = RNA_pointer_get(&ptr, "cache_file");
+  bool has_cache_file = !RNA_pointer_is_null(&cache_file_ptr);
+
+  uiLayoutSetPropSep(layout, true);
+
+  uiTemplateCacheFile(layout, C, &ptr, "cache_file");
+
+  if (has_cache_file) {
+    uiItemPointerR(layout, &ptr, "object_path", &cache_file_ptr, "object_paths", NULL, ICON_NONE);
+  }
+
+  if (RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
+    uiItemR(layout, &ptr, "read_data", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+  }
+
+  modifier_panel_end(layout, &ptr);
+}
+
+static void panelRegister(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, eModifierType_MeshSequenceCache, panel_draw);
+}
+
+static void blendRead(BlendDataReader *UNUSED(reader), ModifierData *md)
+{
+  MeshSeqCacheModifierData *msmcd = (MeshSeqCacheModifierData *)md;
+  msmcd->reader = NULL;
+  msmcd->reader_object_path[0] = '\0';
+}
+
 ModifierTypeInfo modifierType_MeshSequenceCache = {
-    /* name */ "Mesh Sequence Cache",
+    /* name */ "MeshSequenceCache",
     /* structName */ "MeshSeqCacheModifierData",
     /* structSize */ sizeof(MeshSeqCacheModifierData),
     /* type */ eModifierTypeType_Constructive,
@@ -206,7 +258,10 @@ ModifierTypeInfo modifierType_MeshSequenceCache = {
     /* deformMatrices */ NULL,
     /* deformVertsEM */ NULL,
     /* deformMatricesEM */ NULL,
-    /* applyModifier */ applyModifier,
+    /* modifyMesh */ modifyMesh,
+    /* modifyHair */ NULL,
+    /* modifyPointCloud */ NULL,
+    /* modifyVolume */ NULL,
 
     /* initData */ initData,
     /* requiredDataMask */ NULL,
@@ -219,4 +274,7 @@ ModifierTypeInfo modifierType_MeshSequenceCache = {
     /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
+    /* panelRegister */ panelRegister,
+    /* blendWrite */ NULL,
+    /* blendRead */ blendRead,
 };

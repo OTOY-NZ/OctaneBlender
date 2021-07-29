@@ -65,6 +65,7 @@
 #include "BKE_idtype.h"
 #include "BKE_image.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
@@ -131,7 +132,7 @@ static void material_free_data(ID *id)
 
   /* is no lib link block, but material extension */
   if (material->nodetree) {
-    ntreeFreeNestedTree(material->nodetree);
+    ntreeFreeEmbeddedTree(material->nodetree);
     MEM_freeN(material->nodetree);
     material->nodetree = NULL;
   }
@@ -142,6 +143,22 @@ static void material_free_data(ID *id)
 
   BKE_icon_id_delete((ID *)material);
   BKE_previewimg_free(&material->preview);
+}
+
+static void material_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  Material *material = (Material *)id;
+  /* Nodetrees **are owned by IDs**, treat them as mere sub-data and not real ID! */
+  if (!BKE_library_foreach_ID_embedded(data, (ID **)&material->nodetree)) {
+    return;
+  }
+  if (material->texpaintslot != NULL) {
+    BKE_LIB_FOREACHID_PROCESS(data, material->texpaintslot->ima, IDWALK_CB_NOP);
+  }
+  if (material->gp_style != NULL) {
+    BKE_LIB_FOREACHID_PROCESS(data, material->gp_style->sima, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS(data, material->gp_style->ima, IDWALK_CB_USER);
+  }
 }
 
 IDTypeInfo IDType_ID_MA = {
@@ -158,6 +175,7 @@ IDTypeInfo IDType_ID_MA = {
     .copy_data = material_copy_data,
     .free_data = material_free_data,
     .make_local = NULL,
+    .foreach_id = material_foreach_id,
 };
 
 void BKE_gpencil_material_attr_init(Material *ma)
@@ -938,7 +956,8 @@ void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap
 void BKE_object_material_array_assign(Main *bmain,
                                       struct Object *ob,
                                       struct Material ***matar,
-                                      short totcol)
+                                      int totcol,
+                                      const bool to_object_only)
 {
   int actcol_orig = ob->actcol;
   short i;
@@ -949,7 +968,15 @@ void BKE_object_material_array_assign(Main *bmain,
 
   /* now we have the right number of slots */
   for (i = 0; i < totcol; i++) {
-    BKE_object_material_assign(bmain, ob, (*matar)[i], i + 1, BKE_MAT_ASSIGN_USERPREF);
+    if (to_object_only && ob->matbits[i] == 0) {
+      /* If we only assign to object, and that slot uses obdata material, do nothing. */
+      continue;
+    }
+    BKE_object_material_assign(bmain,
+                               ob,
+                               (*matar)[i],
+                               i + 1,
+                               to_object_only ? BKE_MAT_ASSIGN_OBJECT : BKE_MAT_ASSIGN_USERPREF);
   }
 
   if (actcol_orig > ob->totcol) {
@@ -1255,8 +1282,6 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma)
   if (ma->paint_clone_slot >= count) {
     ma->paint_clone_slot = count - 1;
   }
-
-  return;
 }
 
 void BKE_texpaint_slots_refresh_object(Scene *scene, struct Object *ob)
@@ -1602,7 +1627,7 @@ void BKE_material_copybuf_paste(Main *bmain, Material *ma)
   GPU_material_free(&ma->gpumaterial);
 
   if (ma->nodetree) {
-    ntreeFreeNestedTree(ma->nodetree);
+    ntreeFreeEmbeddedTree(ma->nodetree);
     MEM_freeN(ma->nodetree);
   }
 
@@ -1693,6 +1718,29 @@ static void material_default_volume_init(Material *ma)
 
   principled->locx = 10.0f;
   principled->locy = 300.0f;
+  output->locx = 300.0f;
+  output->locy = 300.0f;
+
+  nodeSetActive(ntree, output);
+}
+
+static void material_default_holdout_init(Material *ma)
+{
+  bNodeTree *ntree = ntreeAddTree(NULL, "Shader Nodetree", ntreeType_Shader->idname);
+  ma->nodetree = ntree;
+  ma->use_nodes = true;
+
+  bNode *holdout = nodeAddStaticNode(NULL, ntree, SH_NODE_HOLDOUT);
+  bNode *output = nodeAddStaticNode(NULL, ntree, SH_NODE_OUTPUT_MATERIAL);
+
+  nodeAddLink(ntree,
+              holdout,
+              nodeFindSocket(holdout, SOCK_OUT, "Holdout"),
+              output,
+              nodeFindSocket(output, SOCK_IN, "Surface"));
+
+  holdout->locx = 10.0f;
+  holdout->locy = 300.0f;
   output->locx = 300.0f;
   output->locy = 300.0f;
 
@@ -1804,6 +1852,7 @@ void BKE_materials_init(void)
 
   material_default_surface_init(&default_material_surface);
   material_default_volume_init(&default_material_volume);
+  material_default_holdout_init(&default_material_holdout);
   material_default_gpencil_init(&default_material_gpencil);
   //Delay init as the default material type is not valid now
   //material_default_octane_surface_init(&default_material_octane_surface);

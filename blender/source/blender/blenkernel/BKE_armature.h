@@ -16,26 +16,29 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BKE_ARMATURE_H__
-#define __BKE_ARMATURE_H__
+#pragma once
 
 /** \file
  * \ingroup bke
  */
+#include "BLI_listbase.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct BMEditMesh;
 struct Bone;
 struct Depsgraph;
 struct ListBase;
 struct Main;
+struct Mesh;
 struct Object;
 struct PoseTree;
 struct Scene;
 struct bArmature;
 struct bConstraint;
+struct bGPDstroke;
 struct bPose;
 struct bPoseChannel;
 
@@ -119,22 +122,24 @@ void get_objectspace_bone_matrix(struct Bone *bone,
                                  float M_accumulatedMatrix[4][4],
                                  int root,
                                  int posed);
-void vec_roll_to_mat3(const float vec[3], const float roll, float mat[3][3]);
-void vec_roll_to_mat3_normalized(const float nor[3], const float roll, float mat[3][3]);
+void vec_roll_to_mat3(const float vec[3], const float roll, float r_mat[3][3]);
+void vec_roll_to_mat3_normalized(const float nor[3], const float roll, float r_mat[3][3]);
 void mat3_to_vec_roll(const float mat[3][3], float r_vec[3], float *r_roll);
 void mat3_vec_to_roll(const float mat[3][3], const float vec[3], float *r_roll);
 
 /* Common Conversions Between Co-ordinate Spaces */
-void BKE_armature_mat_world_to_pose(struct Object *ob, float inmat[4][4], float outmat[4][4]);
+void BKE_armature_mat_world_to_pose(struct Object *ob,
+                                    const float inmat[4][4],
+                                    float outmat[4][4]);
 void BKE_armature_loc_world_to_pose(struct Object *ob, const float inloc[3], float outloc[3]);
 void BKE_armature_mat_pose_to_bone(struct bPoseChannel *pchan,
-                                   float inmat[4][4],
+                                   const float inmat[4][4],
                                    float outmat[4][4]);
 void BKE_armature_loc_pose_to_bone(struct bPoseChannel *pchan,
                                    const float inloc[3],
                                    float outloc[3]);
 void BKE_armature_mat_bone_to_pose(struct bPoseChannel *pchan,
-                                   float inmat[4][4],
+                                   const float inmat[4][4],
                                    float outmat[4][4]);
 void BKE_armature_mat_pose_to_delta(float delta_mat[4][4],
                                     float pose_mat[4][4],
@@ -143,13 +148,13 @@ void BKE_armature_mat_pose_to_delta(float delta_mat[4][4],
 void BKE_armature_mat_pose_to_bone_ex(struct Depsgraph *depsgraph,
                                       struct Object *ob,
                                       struct bPoseChannel *pchan,
-                                      float inmat[4][4],
+                                      const float inmat[4][4],
                                       float outmat[4][4]);
 
-void BKE_pchan_mat3_to_rot(struct bPoseChannel *pchan, float mat[3][3], bool use_compat);
-void BKE_pchan_rot_to_mat3(const struct bPoseChannel *pchan, float mat[3][3]);
-void BKE_pchan_apply_mat4(struct bPoseChannel *pchan, float mat[4][4], bool use_comat);
-void BKE_pchan_to_mat4(const struct bPoseChannel *pchan, float chan_mat[4][4]);
+void BKE_pchan_mat3_to_rot(struct bPoseChannel *pchan, const float mat[3][3], bool use_compat);
+void BKE_pchan_rot_to_mat3(const struct bPoseChannel *pchan, float r_mat[3][3]);
+void BKE_pchan_apply_mat4(struct bPoseChannel *pchan, const float mat[4][4], bool use_comat);
+void BKE_pchan_to_mat4(const struct bPoseChannel *pchan, float r_mat[4][4]);
 void BKE_pchan_calc_mat(struct bPoseChannel *pchan);
 
 /* Simple helper, computes the offset bone matrix. */
@@ -341,8 +346,45 @@ void BKE_pose_eval_proxy_copy_bone(struct Depsgraph *depsgraph,
                                    struct Object *object,
                                    int pchan_index);
 
+/* -------------------------------------------------------------------- */
+/** \name Deform 3D Coordinates by Armature (armature_deform.c)
+ * \{ */
+
+/* Note that we could have a 'BKE_armature_deform_coords' that doesn't take object data
+ * currently there are no callers for this though. */
+
+void BKE_armature_deform_coords_with_gpencil_stroke(const struct Object *ob_arm,
+                                                    const struct Object *ob_target,
+                                                    float (*vert_coords)[3],
+                                                    float (*vert_deform_mats)[3][3],
+                                                    int vert_coords_len,
+                                                    int deformflag,
+                                                    float (*vert_coords_prev)[3],
+                                                    const char *defgrp_name,
+                                                    struct bGPDstroke *gps_target);
+
+void BKE_armature_deform_coords_with_mesh(const struct Object *ob_arm,
+                                          const struct Object *ob_target,
+                                          float (*vert_coords)[3],
+                                          float (*vert_deform_mats)[3][3],
+                                          int vert_coords_len,
+                                          int deformflag,
+                                          float (*vert_coords_prev)[3],
+                                          const char *defgrp_name,
+                                          const struct Mesh *me_target);
+
+void BKE_armature_deform_coords_with_editmesh(const struct Object *ob_arm,
+                                              const struct Object *ob_target,
+                                              float (*vert_coords)[3],
+                                              float (*vert_deform_mats)[3][3],
+                                              int vert_coords_len,
+                                              int deformflag,
+                                              float (*vert_coords_prev)[3],
+                                              const char *defgrp_name,
+                                              struct BMEditMesh *em_target);
+
+/** \} */
+
 #ifdef __cplusplus
 }
-#endif
-
 #endif

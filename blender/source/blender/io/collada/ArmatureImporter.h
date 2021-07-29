@@ -18,14 +18,12 @@
  * \ingroup collada
  */
 
-#ifndef __ARMATUREIMPORTER_H__
-#define __ARMATUREIMPORTER_H__
+#pragma once
 
 #include "COLLADAFWMorphController.h"
 #include "COLLADAFWNode.h"
 #include "COLLADAFWUniqueId.h"
 
-extern "C" {
 #include "BKE_context.h"
 #include "BKE_key.h"
 
@@ -35,7 +33,6 @@ extern "C" {
 #include "DNA_scene_types.h"
 
 #include "ED_armature.h"
-}
 
 #include "AnimationImporter.h"
 #include "ExtraTags.h"
@@ -183,5 +180,3 @@ class ArmatureImporter : private TransformReader {
 
   void set_tags_map(TagsMap &tags_map);
 };
-
-#endif

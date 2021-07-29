@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __GRID_H__
-#define __GRID_H__
+#pragma once
 
 /** \file
  * \ingroup freestyle
@@ -33,9 +32,7 @@
 
 #include "../system/FreestyleConfig.h"
 
-extern "C" {
 #include "BLI_utildefines.h"
-}
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #  include "MEM_guardedalloc.h"
@@ -435,5 +432,3 @@ class VirtualOccludersSet {
 };
 
 } /* namespace Freestyle */
-
-#endif  // __GRID_H__

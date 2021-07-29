@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2017, Blender Foundation
@@ -31,6 +31,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
 
+#include "BLT_translation.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_gpencil_modifier_types.h"
@@ -38,18 +40,29 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
 #include "BKE_colortools.h"
+#include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_gpencil.h"
 #include "BKE_gpencil_geom.h"
 #include "BKE_gpencil_modifier.h"
+#include "BKE_lib_query.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
+#include "BKE_screen.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
+#include "UI_interface.h"
+#include "UI_resources.h"
+
+#include "RNA_access.h"
+
 #include "MOD_gpencil_modifiertypes.h"
+#include "MOD_gpencil_ui_common.h"
 #include "MOD_gpencil_util.h"
 
 static void initData(GpencilModifierData *md)
@@ -59,9 +72,7 @@ static void initData(GpencilModifierData *md)
   gpmd->flag |= GP_NOISE_FULL_STROKE;
   gpmd->flag |= GP_NOISE_USE_RANDOM;
   gpmd->factor = 0.5f;
-  gpmd->layername[0] = '\0';
-  gpmd->materialname[0] = '\0';
-  gpmd->vgname[0] = '\0';
+  gpmd->material = NULL;
   gpmd->step = 4;
   gpmd->seed = 1;
   gpmd->curve_intensity = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -91,7 +102,7 @@ static void copyData(const GpencilModifierData *md, GpencilModifierData *target)
     tgmd->curve_intensity = NULL;
   }
 
-  BKE_gpencil_modifier_copyData_generic(md, target);
+  BKE_gpencil_modifier_copydata_generic(md, target);
 
   tgmd->curve_intensity = BKE_curvemapping_copy(gmd->curve_intensity);
 }
@@ -135,7 +146,7 @@ static void deformStroke(GpencilModifierData *md,
 
   if (!is_stroke_affected_by_modifier(ob,
                                       mmd->layername,
-                                      mmd->materialname,
+                                      mmd->material,
                                       mmd->pass_index,
                                       mmd->layer_pass,
                                       1,
@@ -262,6 +273,79 @@ static void bakeModifier(struct Main *UNUSED(bmain),
   }
 }
 
+static void foreachIDLink(GpencilModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+{
+  NoiseGpencilModifierData *mmd = (NoiseGpencilModifierData *)md;
+
+  walk(userData, ob, (ID **)&mmd->material, IDWALK_CB_USER);
+}
+
+static void panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *col;
+  uiLayout *layout = panel->layout;
+
+  PointerRNA ptr;
+  gpencil_modifier_panel_get_property_pointers(C, panel, NULL, &ptr);
+
+  uiLayoutSetPropSep(layout, true);
+
+  col = uiLayoutColumn(layout, false);
+  uiItemR(col, &ptr, "factor", 0, IFACE_("Position"), ICON_NONE);
+  uiItemR(col, &ptr, "factor_strength", 0, IFACE_("Strength"), ICON_NONE);
+  uiItemR(col, &ptr, "factor_thickness", 0, IFACE_("Thickness"), ICON_NONE);
+  uiItemR(col, &ptr, "factor_uvs", 0, IFACE_("UV"), ICON_NONE);
+  uiItemR(col, &ptr, "noise_scale", 0, NULL, ICON_NONE);
+
+  gpencil_modifier_panel_end(layout, &ptr);
+}
+
+static void random_header_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA ptr;
+  gpencil_modifier_panel_get_property_pointers(C, panel, NULL, &ptr);
+
+  uiItemR(layout, &ptr, "random", 0, IFACE_("Randomize"), ICON_NONE);
+}
+
+static void random_panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA ptr;
+  gpencil_modifier_panel_get_property_pointers(C, panel, NULL, &ptr);
+
+  uiLayoutSetPropSep(layout, true);
+
+  uiLayoutSetActive(layout, RNA_boolean_get(&ptr, "random"));
+
+  uiItemR(layout, &ptr, "step", 0, NULL, ICON_NONE);
+  uiItemR(layout, &ptr, "seed", 0, NULL, ICON_NONE);
+}
+
+static void mask_panel_draw(const bContext *C, Panel *panel)
+{
+  gpencil_modifier_masking_panel_draw(C, panel, true, true);
+}
+
+static void panelRegister(ARegionType *region_type)
+{
+  PanelType *panel_type = gpencil_modifier_panel_register(
+      region_type, eGpencilModifierType_Noise, panel_draw);
+  gpencil_modifier_subpanel_register(
+      region_type, "randomize", "", random_header_draw, random_panel_draw, panel_type);
+  PanelType *mask_panel_type = gpencil_modifier_subpanel_register(
+      region_type, "mask", "Influence", NULL, mask_panel_draw, panel_type);
+  gpencil_modifier_subpanel_register(region_type,
+                                     "curve",
+                                     "",
+                                     gpencil_modifier_curve_header_draw,
+                                     gpencil_modifier_curve_panel_draw,
+                                     mask_panel_type);
+}
+
 GpencilModifierTypeInfo modifierType_Gpencil_Noise = {
     /* name */ "Noise",
     /* structName */ "NoiseGpencilModifierData",
@@ -282,6 +366,7 @@ GpencilModifierTypeInfo modifierType_Gpencil_Noise = {
     /* updateDepsgraph */ NULL,
     /* dependsOnTime */ dependsOnTime,
     /* foreachObjectLink */ NULL,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
+    /* panelRegister */ panelRegister,
 };

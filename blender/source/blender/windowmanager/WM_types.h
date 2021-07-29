@@ -106,12 +106,7 @@
  * \endcode
  */
 
-#ifndef __WM_TYPES_H__
-#define __WM_TYPES_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 struct ID;
 struct ImBuf;
@@ -132,6 +127,10 @@ struct wmWindowManager;
 
 /* Include external gizmo API's */
 #include "gizmo/WM_gizmo_api.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct wmGenericUserData {
   void *data;
@@ -310,7 +309,7 @@ typedef struct wmNotifier {
 #define ND_HISTORY (4 << 16)
 #define ND_JOB (5 << 16)
 #define ND_UNDO (6 << 16)
-#define ND_XR_DATA_CHANGED (7 << 17)
+#define ND_XR_DATA_CHANGED (7 << 16)
 
 /* NC_SCREEN */
 #define ND_LAYOUTBROWSE (1 << 16)
@@ -361,6 +360,7 @@ typedef struct wmNotifier {
 #define ND_LOD (30 << 16)
 #define ND_DRAW_RENDER_VIEWPORT \
   (31 << 16) /* for camera & sequencer viewport update, also /w NC_SCENE */
+#define ND_SHADERFX (32 << 16)
 
 /* NC_MATERIAL Material */
 #define ND_SHADING (30 << 16)
@@ -927,5 +927,3 @@ extern struct CLG_LogRef *WM_LOG_MSGBUS_SUB;
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __WM_TYPES_H__ */

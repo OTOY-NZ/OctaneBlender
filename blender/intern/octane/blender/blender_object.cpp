@@ -369,12 +369,11 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   //if (b_ob.type() == BL::Object::type_VOLUME) {
   //  octane_tfm = OCTANE_MATRIX * (tfm * transform_rotate(M_PI_2_F, make_float3(-1, 0, 0)));
   //}
-  
+
   int *persistent_id = NULL;
   BL::Array<int, OBJECT_PERSISTENT_ID_SIZE> persistent_id_array;
   if (is_instance) {
-    persistent_id_array = b_instance.persistent_id();
-    persistent_id = persistent_id_array.data;
+    persistent_id = b_instance.persistent_id().data;
   }
 
   OctaneDataTransferObject::OctaneObjectLayer object_layer;

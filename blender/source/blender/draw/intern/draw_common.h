@@ -20,8 +20,7 @@
  * \ingroup draw
  */
 
-#ifndef __DRAW_COMMON_H__
-#define __DRAW_COMMON_H__
+#pragma once
 
 struct DRWPass;
 struct DRWShadingGroup;
@@ -172,22 +171,17 @@ bool DRW_object_axis_orthogonal_to_view(Object *ob, int axis);
 
 /* This creates a shading group with display hairs.
  * The draw call is already added by this function, just add additional uniforms. */
-struct DRWShadingGroup *DRW_shgroup_hair_create(struct Object *object,
-                                                struct ParticleSystem *psys,
-                                                struct ModifierData *md,
-                                                struct DRWPass *hair_pass,
-                                                struct GPUShader *shader);
-
 struct DRWShadingGroup *DRW_shgroup_hair_create_sub(struct Object *object,
                                                     struct ParticleSystem *psys,
                                                     struct ModifierData *md,
                                                     struct DRWShadingGroup *shgrp);
-
-struct DRWShadingGroup *DRW_shgroup_material_hair_create(struct Object *object,
-                                                         struct ParticleSystem *psys,
-                                                         struct ModifierData *md,
-                                                         struct DRWPass *hair_pass,
-                                                         struct GPUMaterial *material);
+struct GPUVertBuf *DRW_hair_pos_buffer_get(struct Object *object,
+                                           struct ParticleSystem *psys,
+                                           struct ModifierData *md);
+void DRW_hair_duplimat_get(struct Object *object,
+                           struct ParticleSystem *psys,
+                           struct ModifierData *md,
+                           float (*dupli_mat)[4]);
 
 void DRW_hair_init(void);
 void DRW_hair_update(void);
@@ -208,5 +202,3 @@ struct DRW_Global {
   struct GPUUniformBuffer *view_ubo;
 };
 extern struct DRW_Global G_draw;
-
-#endif /* __DRAW_COMMON_H__ */

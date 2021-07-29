@@ -815,7 +815,10 @@ static int node_lasso_select_invoke(bContext *C, wmOperator *op, const wmEvent *
   return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves, eSelectOp sel_op)
+static bool do_lasso_select_node(bContext *C,
+                                 const int mcoords[][2],
+                                 const int mcoords_len,
+                                 eSelectOp sel_op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node;
@@ -832,7 +835,7 @@ static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves
   }
 
   /* get rectangle from operator */
-  BLI_lasso_boundbox(&rect, mcords, moves);
+  BLI_lasso_boundbox(&rect, mcoords, mcoords_len);
 
   /* do actual selection */
   for (node = snode->edittree->nodes.first; node; node = node->next) {
@@ -848,7 +851,7 @@ static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves
     if (UI_view2d_view_to_region_clip(
             &region->v2d, cent[0], cent[1], &screen_co[0], &screen_co[1]) &&
         BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
-        BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], INT_MAX)) {
+        BLI_lasso_is_point_inside(mcoords, mcoords_len, screen_co[0], screen_co[1], INT_MAX)) {
       nodeSetSelected(node, select);
       changed = true;
     }
@@ -863,15 +866,15 @@ static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves
 
 static int node_lasso_select_exec(bContext *C, wmOperator *op)
 {
-  int mcords_tot;
-  const int(*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
+  int mcoords_len;
+  const int(*mcoords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcoords_len);
 
-  if (mcords) {
+  if (mcoords) {
     const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
 
-    do_lasso_select_node(C, mcords, mcords_tot, sel_op);
+    do_lasso_select_node(C, mcoords, mcoords_len, sel_op);
 
-    MEM_freeN((void *)mcords);
+    MEM_freeN((void *)mcoords);
 
     return OPERATOR_FINISHED;
   }
@@ -1094,9 +1097,7 @@ static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
         if (node->type == active->type) {
           break;
         }
-        else {
-          node = NULL;
-        }
+        node = NULL;
       }
       if (node) {
         active = node;
@@ -1162,10 +1163,10 @@ void NODE_OT_select_same_type_step(wmOperatorType *ot)
  * \{ */
 
 /* generic  search invoke */
-static void node_find_cb(const struct bContext *C,
-                         void *UNUSED(arg),
-                         const char *str,
-                         uiSearchItems *items)
+static void node_find_update_fn(const struct bContext *C,
+                                void *UNUSED(arg),
+                                const char *str,
+                                uiSearchItems *items)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node;
@@ -1181,14 +1182,14 @@ static void node_find_cb(const struct bContext *C,
       else {
         BLI_strncpy(name, node->name, 256);
       }
-      if (!UI_search_item_add(items, name, node, ICON_NONE, 0)) {
+      if (!UI_search_item_add(items, name, node, ICON_NONE, 0, 0)) {
         break;
       }
     }
   }
 }
 
-static void node_find_call_cb(struct bContext *C, void *UNUSED(arg1), void *arg2)
+static void node_find_exec_fn(struct bContext *C, void *UNUSED(arg1), void *arg2)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *active = arg2;
@@ -1228,7 +1229,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_op)
                        0,
                        0,
                        "");
-  UI_but_func_search_set(but, NULL, node_find_cb, op->type, NULL, node_find_call_cb, NULL, NULL);
+  UI_but_func_search_set(but, NULL, node_find_update_fn, op->type, NULL, node_find_exec_fn, NULL);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* fake button, it holds space for search items */

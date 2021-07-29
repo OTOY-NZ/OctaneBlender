@@ -209,7 +209,7 @@ static void wm_gesture_draw_line(wmGesture *gt)
   immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
   float viewport_size[4];
-  glGetFloatv(GL_VIEWPORT, viewport_size);
+  GPU_viewport_size_get_f(viewport_size);
   immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
   immUniform1i("colors_len", 2); /* "advanced" mode */
@@ -252,7 +252,7 @@ static void wm_gesture_draw_rect(wmGesture *gt)
   immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
   float viewport_size[4];
-  glGetFloatv(GL_VIEWPORT, viewport_size);
+  GPU_viewport_size_get_f(viewport_size);
   immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
   immUniform1i("colors_len", 2); /* "advanced" mode */
@@ -291,7 +291,7 @@ static void wm_gesture_draw_circle(wmGesture *gt)
   immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
   float viewport_size[4];
-  glGetFloatv(GL_VIEWPORT, viewport_size);
+  GPU_viewport_size_get_f(viewport_size);
   immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
   immUniform1i("colors_len", 2); /* "advanced" mode */
@@ -320,24 +320,24 @@ static void draw_filled_lasso_px_cb(int x, int x_end, int y, void *user_data)
 static void draw_filled_lasso(wmGesture *gt)
 {
   const short *lasso = (short *)gt->customdata;
-  const int tot = gt->points;
-  int(*moves)[2] = MEM_mallocN(sizeof(*moves) * (tot + 1), __func__);
+  const int mcoords_len = gt->points;
+  int(*mcoords)[2] = MEM_mallocN(sizeof(*mcoords) * (mcoords_len + 1), __func__);
   int i;
   rcti rect;
   float red[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 
-  for (i = 0; i < tot; i++, lasso += 2) {
-    moves[i][0] = lasso[0];
-    moves[i][1] = lasso[1];
+  for (i = 0; i < mcoords_len; i++, lasso += 2) {
+    mcoords[i][0] = lasso[0];
+    mcoords[i][1] = lasso[1];
   }
 
-  BLI_lasso_boundbox(&rect, (const int(*)[2])moves, tot);
+  BLI_lasso_boundbox(&rect, (const int(*)[2])mcoords, mcoords_len);
 
   BLI_rcti_translate(&rect, gt->winrct.xmin, gt->winrct.ymin);
   BLI_rcti_isect(&gt->winrct, &rect, &rect);
   BLI_rcti_translate(&rect, -gt->winrct.xmin, -gt->winrct.ymin);
 
-  /* highly unlikely this will fail, but could crash if (tot == 0) */
+  /* Highly unlikely this will fail, but could crash if (mcoords_len == 0). */
   if (BLI_rcti_is_empty(&rect) == false) {
     const int w = BLI_rcti_size_x(&rect);
     const int h = BLI_rcti_size_y(&rect);
@@ -348,24 +348,19 @@ static void draw_filled_lasso(wmGesture *gt)
                                   rect.ymin,
                                   rect.xmax,
                                   rect.ymax,
-                                  (const int(*)[2])moves,
-                                  tot,
+                                  (const int(*)[2])mcoords,
+                                  mcoords_len,
                                   draw_filled_lasso_px_cb,
                                   &lasso_fill_data);
 
     /* Additive Blending */
     GPU_blend(true);
-    glBlendFunc(GL_ONE, GL_ONE);
-
-    GLint unpack_alignment;
-    glGetIntegerv(GL_UNPACK_ALIGNMENT, &unpack_alignment);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    GPU_blend_set_func(GPU_ONE, GPU_ONE);
 
     IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR);
     GPU_shader_bind(state.shader);
     GPU_shader_uniform_vector(
-        state.shader, GPU_shader_get_uniform_ensure(state.shader, "shuffle"), 4, 1, red);
+        state.shader, GPU_shader_get_uniform(state.shader, "shuffle"), 4, 1, red);
 
     immDrawPixelsTex(&state,
                      rect.xmin,
@@ -382,15 +377,13 @@ static void draw_filled_lasso(wmGesture *gt)
 
     GPU_shader_unbind();
 
-    glPixelStorei(GL_UNPACK_ALIGNMENT, unpack_alignment);
-
     MEM_freeN(pixel_buf);
 
     GPU_blend(false);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    GPU_blend_set_func(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
   }
 
-  MEM_freeN(moves);
+  MEM_freeN(mcoords);
 }
 
 static void wm_gesture_draw_lasso(wmGesture *gt, bool filled)
@@ -415,7 +408,7 @@ static void wm_gesture_draw_lasso(wmGesture *gt, bool filled)
   immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
   float viewport_size[4];
-  glGetFloatv(GL_VIEWPORT, viewport_size);
+  GPU_viewport_size_get_f(viewport_size);
   immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
   immUniform1i("colors_len", 2); /* "advanced" mode */
@@ -449,7 +442,7 @@ static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
   immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
 
   float viewport_size[4];
-  glGetFloatv(GL_VIEWPORT, viewport_size);
+  GPU_viewport_size_get_f(viewport_size);
   immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
   immUniform1i("colors_len", 2); /* "advanced" mode */

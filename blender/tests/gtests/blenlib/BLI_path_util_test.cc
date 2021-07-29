@@ -2,7 +2,6 @@
 
 #include "testing/testing.h"
 
-extern "C" {
 #include "../../../source/blender/imbuf/IMB_imbuf.h"
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
@@ -11,7 +10,6 @@ extern "C" {
 #ifdef _WIN32
 #  include "../../../source/blender/blenkernel/BKE_global.h"
 #endif
-}
 
 /* -------------------------------------------------------------------- */
 /* stubs */
@@ -407,6 +405,20 @@ TEST(path_util, Frame)
     ret = BLI_path_frame(path, 123, 0);
     EXPECT_FALSE(ret);
     EXPECT_STREQ("test_middle", path);
+  }
+
+  /* negative frame numbers */
+  {
+    char path[FILE_MAX] = "test_####";
+    ret = BLI_path_frame(path, -1, 4);
+    EXPECT_TRUE(ret);
+    EXPECT_STREQ("test_-0001", path);
+  }
+  {
+    char path[FILE_MAX] = "test_####";
+    ret = BLI_path_frame(path, -100, 4);
+    EXPECT_TRUE(ret);
+    EXPECT_STREQ("test_-0100", path);
   }
 }
 

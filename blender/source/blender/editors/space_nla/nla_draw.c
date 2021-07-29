@@ -325,7 +325,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, uin
 
   /* influence -------------------------- */
   if (strip->flag & NLASTRIP_FLAG_USR_INFLUENCE) {
-    FCurve *fcu = list_find_fcurve(&strip->fcurves, "influence", 0);
+    FCurve *fcu = BKE_fcurve_find(&strip->fcurves, "influence", 0);
     float cfra;
 
     /* plot the curve (over the strip's main region) */
@@ -645,8 +645,9 @@ static void nla_draw_strip_text(AnimData *adt,
   UI_view2d_text_cache_add_rectf(v2d, &rect, str, str_len, col);
 }
 
-/* add frame extents to cache of text-strings to draw in pixelspace
- * for now, only used when transforming strips
+/**
+ * Add frame extents to cache of text-strings to draw in pixel-space
+ * for now, only used when transforming strips.
  */
 static void nla_draw_strip_frames_text(
     NlaTrack *UNUSED(nlt), NlaStrip *strip, View2D *v2d, float UNUSED(yminc), float ymaxc)

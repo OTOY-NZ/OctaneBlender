@@ -569,9 +569,7 @@ static short ok_bezier_selected(KeyframeEditData *UNUSED(ked), BezTriple *bezt)
   if (BEZT_ISSEL_ANY(bezt)) {
     return KEYFRAME_OK_ALL;
   }
-  else {
-    return 0;
-  }
+  return 0;
 }
 
 static short ok_bezier_value(KeyframeEditData *ked, BezTriple *bezt)
@@ -617,9 +615,7 @@ static short ok_bezier_region(KeyframeEditData *ked, BezTriple *bezt)
     /* return ok flags */
     return ok;
   }
-  else {
-    return 0;
-  }
+  return 0;
 }
 
 /**
@@ -633,7 +629,7 @@ bool keyframe_region_lasso_test(const KeyframeEdit_LassoData *data_lasso, const 
     BLI_rctf_transform_pt_v(data_lasso->rectf_view, data_lasso->rectf_scaled, xy_view, xy);
 
     if (BLI_lasso_is_point_inside(
-            data_lasso->mcords, data_lasso->mcords_tot, xy_view[0], xy_view[1], INT_MAX)) {
+            data_lasso->mcoords, data_lasso->mcoords_len, xy_view[0], xy_view[1], INT_MAX)) {
       return true;
     }
   }
@@ -654,9 +650,7 @@ static short ok_bezier_region_lasso(KeyframeEditData *ked, BezTriple *bezt)
     /* return ok flags */
     return ok;
   }
-  else {
-    return 0;
-  }
+  return 0;
 }
 
 static short ok_bezier_channel_lasso(KeyframeEditData *ked, BezTriple *bezt)
@@ -718,9 +712,7 @@ static short ok_bezier_region_circle(KeyframeEditData *ked, BezTriple *bezt)
     /* return ok flags */
     return ok;
   }
-  else {
-    return 0;
-  }
+  return 0;
 }
 
 static short ok_bezier_channel_circle(KeyframeEditData *ked, BezTriple *bezt)

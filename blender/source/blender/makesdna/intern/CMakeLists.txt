@@ -35,11 +35,13 @@ blender_include_dirs(
 set(SRC
   dna_utils.c
   makesdna.c
+  ../../blenlib/intern/BLI_assert.c
   ../../blenlib/intern/BLI_ghash.c
   ../../blenlib/intern/BLI_ghash_utils.c
   ../../blenlib/intern/BLI_memarena.c
   ../../blenlib/intern/BLI_mempool.c
   ../../blenlib/intern/hash_mm2a.c  # needed by 'BLI_ghash_utils.c', not used directly.
+  ../../../../intern/guardedalloc/intern/leak_detector.cc
   ../../../../intern/guardedalloc/intern/mallocn.c
   ../../../../intern/guardedalloc/intern/mallocn_guarded_impl.c
   ../../../../intern/guardedalloc/intern/mallocn_lockfree_impl.c
@@ -57,6 +59,10 @@ add_cc_flags_custom_test(makesdna)
 setup_platform_linker_flags()
 
 add_executable(makesdna ${SRC} ${SRC_DNA_INC})
+
+if(WIN32 AND NOT UNIX)
+  target_link_libraries(makesdna ${PTHREADS_LIBRARIES})
+endif()
 
 # Output dna.c
 add_custom_command(
@@ -92,6 +98,7 @@ set(SRC
   ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.c
   ${SRC_DNA_INC}
 
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
   dna_rename_defs.h
   dna_utils.h
 )
@@ -120,6 +127,7 @@ set(INC_SYS
 )
 
 set(SRC
+  ../../blenlib/intern/BLI_assert.c
   ../../blenlib/intern/BLI_ghash.c
   ../../blenlib/intern/BLI_ghash_utils.c
   ../../blenlib/intern/BLI_linklist.c
@@ -146,6 +154,7 @@ set(SRC
   ../DNA_object_defaults.h
   ../DNA_pointcloud_defaults.h
   ../DNA_scene_defaults.h
+  ../DNA_simulation_defaults.h
   ../DNA_speaker_defaults.h
   ../DNA_texture_defaults.h
   ../DNA_vec_defaults.h

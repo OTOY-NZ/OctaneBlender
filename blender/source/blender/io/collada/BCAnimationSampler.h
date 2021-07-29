@@ -14,19 +14,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BCANIMATIONSAMPLER_H__
-#define __BCANIMATIONSAMPLER_H__
+#pragma once
 
 #include "BCAnimationCurve.h"
 #include "BCSampleData.h"
 #include "collada_utils.h"
 
-extern "C" {
 #include "BKE_action.h"
 #include "BKE_lib_id.h"
+
 #include "BLI_math_rotation.h"
+
 #include "DNA_action_types.h"
-}
 
 /* Collection of animation curves */
 class BCAnimation {
@@ -190,5 +189,3 @@ class BCAnimationSampler {
                                         ListBase *conlist,
                                         std::set<Object *> &animated_objects);
 };
-
-#endif /* __BCANIMATIONSAMPLER_H__ */

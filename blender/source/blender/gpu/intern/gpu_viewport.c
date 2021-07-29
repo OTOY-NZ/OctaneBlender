@@ -382,12 +382,10 @@ GPUTexture *GPU_viewport_texture_pool_query(
   }
 
   tex = GPU_texture_create_2d(width, height, format, NULL, NULL);
-  GPU_texture_bind(tex, 0);
   /* Doing filtering for depth does not make sense when not doing shadow mapping,
    * and enabling texture filtering on integer texture make them unreadable. */
   bool do_filter = !GPU_texture_depth(tex) && !GPU_texture_integer(tex);
   GPU_texture_filter_mode(tex, do_filter);
-  GPU_texture_unbind(tex);
 
   ViewportTempTexture *tmp_tex = MEM_callocN(sizeof(ViewportTempTexture), "ViewportTempTexture");
   tmp_tex->texture = tex;
@@ -559,10 +557,10 @@ void GPU_viewport_colorspace_set(GPUViewport *viewport,
 {
   /**
    * HACK(fclem): We copy the settings here to avoid use after free if an update frees the scene
-   * and the viewport stays cached (see T75443). But this means the OCIO curvemapping caching
-   * (which is based on CurveMap pointer address) cannot operate correctly and it will create
-   * a different OCIO processor for each viewport. We try to only realloc the curvemap copy if
-   * needed to avoid uneeded cache invalidation.
+   * and the viewport stays cached (see T75443). But this means the OCIO curve-mapping caching
+   * (which is based on #CurveMap pointer address) cannot operate correctly and it will create
+   * a different OCIO processor for each viewport. We try to only reallocate the curve-map copy
+   * if needed to avoid unneeded cache invalidation.
    */
   if (view_settings->curve_mapping) {
     if (viewport->view_settings.curve_mapping) {
@@ -632,13 +630,13 @@ void GPU_viewport_stereo_composite(GPUViewport *viewport, Stereo3dFormat *stereo
   if (settings == S3D_DISPLAY_ANAGLYPH) {
     switch (stereo_format->anaglyph_type) {
       case S3D_ANAGLYPH_REDCYAN:
-        glColorMask(GL_FALSE, GL_TRUE, GL_TRUE, GL_TRUE);
+        GPU_color_mask(false, true, true, true);
         break;
       case S3D_ANAGLYPH_GREENMAGENTA:
-        glColorMask(GL_TRUE, GL_FALSE, GL_TRUE, GL_TRUE);
+        GPU_color_mask(true, false, true, true);
         break;
       case S3D_ANAGLYPH_YELLOWBLUE:
-        glColorMask(GL_FALSE, GL_FALSE, GL_TRUE, GL_TRUE);
+        GPU_color_mask(false, false, true, true);
         break;
     }
   }
@@ -668,7 +666,7 @@ void GPU_viewport_stereo_composite(GPUViewport *viewport, Stereo3dFormat *stereo
   GPU_matrix_pop();
 
   if (settings == S3D_DISPLAY_ANAGLYPH) {
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    GPU_color_mask(true, true, true, true);
   }
 
   GPU_framebuffer_restore();
@@ -1037,4 +1035,16 @@ void GPU_viewport_free(GPUViewport *viewport)
   gpu_viewport_batch_free(viewport);
 
   MEM_freeN(viewport);
+}
+
+GPUFrameBuffer *GPU_viewport_framebuffer_default_get(GPUViewport *viewport)
+{
+  DefaultFramebufferList *fbl = GPU_viewport_framebuffer_list_get(viewport);
+  return fbl->default_fb;
+}
+
+GPUFrameBuffer *GPU_viewport_framebuffer_overlay_get(GPUViewport *viewport)
+{
+  DefaultFramebufferList *fbl = GPU_viewport_framebuffer_list_get(viewport);
+  return fbl->overlay_fb;
 }

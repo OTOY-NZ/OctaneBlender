@@ -48,18 +48,14 @@ endfunction()
 
 # Run Python script outside Blender.
 function(add_python_test testname testscript)
-  if(MSVC)
-    add_test(
-      NAME ${testname}
-      COMMAND ${TEST_PYTHON_EXE} ${testscript} ${ARGN}
-    )
-  else()
-    add_test(
-      NAME ${testname}
-      COMMAND ${testscript} ${ARGN}
-    )
+  if(NOT TEST_PYTHON_EXE)
+    message(FATAL_ERROR "No Python configured for running tests, set TEST_PYTHON_EXE.")
   endif()
 
+  add_test(
+    NAME ${testname}
+    COMMAND ${TEST_PYTHON_EXE} ${testscript} ${ARGN}
+  )
   set_tests_properties(${testname} PROPERTIES ENVIRONMENT LSAN_OPTIONS=exitcode=0)
 endfunction()
 
@@ -341,7 +337,7 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_test.py --
   --run={'FINISHED'}&bpy.ops.export_mesh.ply\(filepath='${TEST_OUT_DIR}/io_tests/export_ply_vertices.ply'\)
   --md5_source=${TEST_OUT_DIR}/io_tests/export_ply_vertices.ply
-  --md5=37faba0aa2014451b27f951afa92f870 --md5_method=FILE
+  --md5=ee6ce2e69c1d9a7418ff0548f6338f70 --md5_method=FILE
 )
 
 

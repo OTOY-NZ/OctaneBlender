@@ -45,6 +45,7 @@
 
 #include "BKE_image.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
 #include "BKE_movieclip.h"
@@ -79,6 +80,20 @@ static void mask_free_data(ID *id)
   BKE_mask_layer_free_list(&mask->masklayers);
 }
 
+static void mask_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  Mask *mask = (Mask *)id;
+
+  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
+    LISTBASE_FOREACH (MaskSpline *, mask_spline, &mask_layer->splines) {
+      for (int i = 0; i < mask_spline->tot_point; i++) {
+        MaskSplinePoint *point = &mask_spline->points[i];
+        BKE_LIB_FOREACHID_PROCESS_ID(data, point->parent.id, IDWALK_CB_USER);
+      }
+    }
+  }
+}
+
 IDTypeInfo IDType_ID_MSK = {
     .id_code = ID_MSK,
     .id_filter = FILTER_ID_MSK,
@@ -93,6 +108,7 @@ IDTypeInfo IDType_ID_MSK = {
     .copy_data = mask_copy_data,
     .free_data = mask_free_data,
     .make_local = NULL,
+    .foreach_id = mask_foreach_id,
 };
 
 static struct {
@@ -608,7 +624,7 @@ void BKE_mask_point_segment_co(MaskSpline *spline, MaskSplinePoint *point, float
       co, bezt->vec[1], bezt->vec[2], bezt_next->vec[0], bezt_next->vec[1], u);
 }
 
-BLI_INLINE void orthogonal_direction_get(float vec[2], float result[2])
+BLI_INLINE void orthogonal_direction_get(const float vec[2], float result[2])
 {
   result[0] = -vec[1];
   result[1] = vec[0];

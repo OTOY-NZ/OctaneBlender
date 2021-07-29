@@ -22,8 +22,7 @@
  * Declaration of GHOST_SystemWin32 class.
  */
 
-#ifndef __GHOST_SYSTEMWIN32_H__
-#define __GHOST_SYSTEMWIN32_H__
+#pragma once
 
 #ifndef WIN32
 #  error WIN32 only!
@@ -126,7 +125,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param   parentWindow    Parent window
    * \return  The new window (or 0 if creation failed).
    */
-  GHOST_IWindow *createWindow(const STR_String &title,
+  GHOST_IWindow *createWindow(const char *title,
                               GHOST_TInt32 left,
                               GHOST_TInt32 top,
                               GHOST_TUns32 width,
@@ -212,7 +211,7 @@ class GHOST_SystemWin32 : public GHOST_System {
   GHOST_TSuccess getModifierKeys(GHOST_ModifierKeys &keys) const;
 
   /**
-   * Returns the state of the mouse buttons (ouside the message queue).
+   * Returns the state of the mouse buttons (outside the message queue).
    * \param buttons   The state of the buttons.
    * \return          Indication of success.
    */
@@ -488,4 +487,3 @@ inline void GHOST_SystemWin32::handleKeyboardChange(void)
     }
   }
 }
-#endif  // __GHOST_SYSTEMWIN32_H__

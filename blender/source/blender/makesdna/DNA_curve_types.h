@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_CURVE_TYPES_H__
-#define __DNA_CURVE_TYPES_H__
+#pragma once
 
 #include "DNA_ID.h"
 #include "DNA_defs.h"
@@ -496,11 +495,11 @@ typedef enum eBezTriple_KeyframeType {
 #define BEZT_ISSEL_ALL(bezt) \
   (((bezt)->f2 & SELECT) && ((bezt)->f1 & SELECT) && ((bezt)->f3 & SELECT))
 #define BEZT_ISSEL_ALL_HIDDENHANDLES(v3d, bezt) \
-  ((((v3d) != NULL) && ((v3d)->overlay.edit_flag & V3D_OVERLAY_EDIT_CU_HANDLES) == 0) ? \
+  ((((v3d) != NULL) && ((v3d)->overlay.handle_display == CURVE_HANDLE_NONE)) ? \
        (bezt)->f2 & SELECT : \
        BEZT_ISSEL_ALL(bezt))
 #define BEZT_ISSEL_ANY_HIDDENHANDLES(v3d, bezt) \
-  ((((v3d) != NULL) && ((v3d)->overlay.edit_flag & V3D_OVERLAY_EDIT_CU_HANDLES) == 0) ? \
+  ((((v3d) != NULL) && ((v3d)->overlay.handle_display == CURVE_HANDLE_NONE)) ? \
        (bezt)->f2 & SELECT : \
        BEZT_ISSEL_ANY(bezt))
 
@@ -544,5 +543,3 @@ enum {
 
 /* indicates point has been seen during surface duplication */
 #define SURF_SEEN 4
-
-#endif

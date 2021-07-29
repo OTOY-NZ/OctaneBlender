@@ -20,20 +20,19 @@
  *
  * */
 
-#ifndef __BLI_MATH_VECTOR_H__
-#define __BLI_MATH_VECTOR_H__
+#pragma once
 
 /** \file
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_inline.h"
 #include "BLI_utildefines.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /************************************* Init ***********************************/
 
@@ -62,6 +61,11 @@ MINLINE void swap_v4_v4(float a[4], float b[4]);
 MINLINE void copy_v2_v2_uchar(unsigned char r[2], const unsigned char a[2]);
 MINLINE void copy_v3_v3_uchar(unsigned char r[3], const unsigned char a[3]);
 MINLINE void copy_v4_v4_uchar(unsigned char r[4], const unsigned char a[4]);
+
+MINLINE void copy_v2_uchar(unsigned char r[2], const unsigned char a);
+MINLINE void copy_v3_uchar(unsigned char r[3], const unsigned char a);
+MINLINE void copy_v4_uchar(unsigned char r[4], const unsigned char a);
+
 /* char */
 MINLINE void copy_v2_v2_char(char r[2], const char a[2]);
 MINLINE void copy_v3_v3_char(char r[3], const char a[3]);
@@ -128,6 +132,7 @@ MINLINE void sub_v3_v3v3_db(double r[3], const double a[3], const double b[3]);
 MINLINE void sub_v4_v4(float r[4], const float a[4]);
 MINLINE void sub_v4_v4v4(float r[4], const float a[4], const float b[4]);
 
+MINLINE void sub_v2db_v2fl_v2fl(double r[2], const float a[2], const float b[2]);
 MINLINE void sub_v3db_v3fl_v3fl(double r[3], const float a[3], const float b[3]);
 
 MINLINE void mul_v2_fl(float r[2], float f);
@@ -200,6 +205,7 @@ MINLINE double dot_v3db_v3fl(const double a[3], const float b[3]) ATTR_WARN_UNUS
 MINLINE double dot_v3v3_db(const double a[3], const double b[3]) ATTR_WARN_UNUSED_RESULT;
 
 MINLINE float cross_v2v2(const float a[2], const float b[2]) ATTR_WARN_UNUSED_RESULT;
+MINLINE double cross_v2v2_db(const double a[2], const double b[2]) ATTR_WARN_UNUSED_RESULT;
 MINLINE void cross_v3_v3v3(float r[3], const float a[3], const float b[3]);
 MINLINE void cross_v3_v3v3_hi_prec(float r[3], const float a[3], const float b[3]);
 MINLINE void cross_v3_v3v3_db(double r[3], const double a[3], const double b[3]);
@@ -216,6 +222,7 @@ MINLINE float len_manhattan_v2(const float v[2]) ATTR_WARN_UNUSED_RESULT;
 MINLINE int len_manhattan_v2_int(const int v[2]) ATTR_WARN_UNUSED_RESULT;
 MINLINE float len_manhattan_v3(const float v[3]) ATTR_WARN_UNUSED_RESULT;
 MINLINE float len_v2(const float a[2]) ATTR_WARN_UNUSED_RESULT;
+MINLINE double len_v2_db(const double v[2]) ATTR_WARN_UNUSED_RESULT;
 MINLINE float len_v2v2(const float a[2], const float b[2]) ATTR_WARN_UNUSED_RESULT;
 MINLINE double len_v2v2_db(const double a[2], const double b[2]) ATTR_WARN_UNUSED_RESULT;
 MINLINE float len_v2v2_int(const int v1[2], const int v2[2]);
@@ -431,6 +438,7 @@ MINLINE void normal_short_to_float_v3(float r[3], const short n[3]);
 MINLINE void normal_float_to_short_v3(short r[3], const float n[3]);
 MINLINE void normal_float_to_short_v4(short r[4], const float n[4]);
 
+void minmax_v4v4_v4(float min[4], float max[4], const float vec[4]);
 void minmax_v3v3_v3(float min[3], float max[3], const float vec[3]);
 void minmax_v2v2_v2(float min[2], float max[2], const float vec[2]);
 
@@ -517,5 +525,3 @@ void mul_vn_db(double *array_tar, const int size, const double f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BLI_MATH_VECTOR_H__ */

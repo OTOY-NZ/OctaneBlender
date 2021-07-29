@@ -112,6 +112,20 @@ static void sound_free_data(ID *id)
   }
 }
 
+static void sound_foreach_cache(ID *id,
+                                IDTypeForeachCacheFunctionCallback function_callback,
+                                void *user_data)
+{
+  bSound *sound = (bSound *)id;
+  IDCacheKey key = {
+      .id_session_uuid = id->session_uuid,
+      .offset_in_ID = offsetof(bSound, waveform),
+      .cache_v = sound->waveform,
+  };
+
+  function_callback(id, &key, &sound->waveform, 0, user_data);
+}
+
 IDTypeInfo IDType_ID_SO = {
     .id_code = ID_SO,
     .id_filter = FILTER_ID_SO,
@@ -127,6 +141,8 @@ IDTypeInfo IDType_ID_SO = {
     .copy_data = sound_copy_data,
     .free_data = sound_free_data,
     .make_local = NULL,
+    .foreach_id = NULL,
+    .foreach_cache = sound_foreach_cache,
 };
 
 #ifdef WITH_AUDASPACE
@@ -171,7 +187,7 @@ bSound *BKE_sound_new_file(Main *bmain, const char *filepath)
   BLI_path_abs(str, path);
 
   sound = BKE_libblock_alloc(bmain, ID_SO, BLI_path_basename(filepath), 0);
-  BLI_strncpy(sound->name, filepath, FILE_MAX);
+  BLI_strncpy(sound->filepath, filepath, FILE_MAX);
   /* sound->type = SOUND_TYPE_FILE; */ /* XXX unused currently */
 
   sound->spinlock = MEM_mallocN(sizeof(SpinLock), "sound_spinlock");
@@ -192,7 +208,7 @@ bSound *BKE_sound_new_file_exists_ex(Main *bmain, const char *filepath, bool *r_
 
   /* first search an identical filepath */
   for (sound = bmain->sounds.first; sound; sound = sound->id.next) {
-    BLI_strncpy(strtest, sound->name, sizeof(sound->name));
+    BLI_strncpy(strtest, sound->filepath, sizeof(sound->filepath));
     BLI_path_abs(strtest, ID_BLEND_PATH(bmain, &sound->id));
 
     if (BLI_path_cmp(strtest, str) == 0) {
@@ -451,8 +467,8 @@ static void sound_load_audio(Main *bmain, bSound *sound, bool free_waveform)
     /* load sound */
     PackedFile *pf = sound->packedfile;
 
-    /* don't modify soundact->sound->name, only change a copy */
-    BLI_strncpy(fullpath, sound->name, sizeof(fullpath));
+    /* don't modify soundact->sound->filepath, only change a copy */
+    BLI_strncpy(fullpath, sound->filepath, sizeof(fullpath));
     BLI_path_abs(fullpath, ID_BLEND_PATH(bmain, &sound->id));
 
     /* but we need a packed file then */
@@ -751,12 +767,12 @@ static void sound_start_play_scene(Scene *scene)
   }
 }
 
-static float get_cur_time(Scene *scene)
+static double get_cur_time(Scene *scene)
 {
   /* We divide by the current framelen to take into account time remapping.
    * Otherwise we will get the wrong starting time which will break A/V sync.
    * See T74111 for further details. */
-  return FRA2TIME((CFRA + SUBFRA) / scene->r.framelen);
+  return FRA2TIME((CFRA + SUBFRA) / (double)scene->r.framelen);
 }
 
 void BKE_sound_play_scene(Scene *scene)
@@ -764,7 +780,7 @@ void BKE_sound_play_scene(Scene *scene)
   sound_verify_evaluated_id(&scene->id);
 
   AUD_Status status;
-  const float cur_time = get_cur_time(scene);
+  const double cur_time = get_cur_time(scene);
 
   AUD_Device_lock(sound_device);
 
@@ -811,8 +827,8 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
   bScreen *screen;
   int animation_playing;
 
-  const float one_frame = (float)(1.0 / FPS);
-  const float cur_time = FRA2TIME(CFRA);
+  const double one_frame = 1.0 / FPS;
+  const double cur_time = FRA2TIME(CFRA);
 
   AUD_Device_lock(sound_device);
 
@@ -869,7 +885,7 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
   AUD_Device_unlock(sound_device);
 }
 
-float BKE_sound_sync_scene(Scene *scene)
+double BKE_sound_sync_scene(Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
 
@@ -1230,7 +1246,7 @@ void BKE_sound_stop_scene(Scene *UNUSED(scene))
 void BKE_sound_seek_scene(Main *UNUSED(bmain), Scene *UNUSED(scene))
 {
 }
-float BKE_sound_sync_scene(Scene *UNUSED(scene))
+double BKE_sound_sync_scene(Scene *UNUSED(scene))
 {
   return NAN_FLT;
 }
@@ -1341,7 +1357,7 @@ void BKE_sound_jack_sync_callback_set(SoundJackSyncCallback callback)
 #endif
 }
 
-void BKE_sound_jack_scene_update(Scene *scene, int mode, float time)
+void BKE_sound_jack_scene_update(Scene *scene, int mode, double time)
 {
   sound_verify_evaluated_id(&scene->id);
 

@@ -14,20 +14,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BMESH_OPERATOR_API_H__
-#define __BMESH_OPERATOR_API_H__
+#pragma once
 
 /** \file
  * \ingroup bmesh
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "BLI_ghash.h"
 
 #include <stdarg.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * operators represent logical, executable mesh modules.  all topological
@@ -668,5 +667,3 @@ int BMO_opcode_from_opname(const char *opname);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BMESH_OPERATOR_API_H__ */

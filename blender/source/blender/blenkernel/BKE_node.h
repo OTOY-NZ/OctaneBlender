@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_NODE_H__
-#define __BKE_NODE_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -101,6 +100,30 @@ typedef struct bNodeSocketTemplate {
   char identifier[64];      /* generated from name */
 } bNodeSocketTemplate;
 
+/* Use `void *` for callbacks that require C++. This is rather ugly, but works well for now. This
+ * would not be necessary if we would use bNodeSocketType and bNodeType only in C++ code.
+ * However, achieving this requires quite a few changes currently. */
+#ifdef __cplusplus
+namespace blender {
+namespace nodes {
+class SocketMFNetworkBuilder;
+class NodeMFNetworkBuilder;
+}  // namespace nodes
+namespace fn {
+class MFDataType;
+}
+}  // namespace blender
+
+using NodeExpandInMFNetworkFunction = void (*)(blender::nodes::NodeMFNetworkBuilder &builder);
+using SocketGetMFDataTypeFunction = blender::fn::MFDataType (*)();
+using SocketExpandInMFNetworkFunction = void (*)(blender::nodes::SocketMFNetworkBuilder &builder);
+
+#else
+typedef void *NodeExpandInMFNetworkFunction;
+typedef void *SocketGetMFDataTypeFunction;
+typedef void *SocketExpandInMFNetworkFunction;
+#endif
+
 /**
  * \brief Defines a socket type.
  *
@@ -153,6 +176,11 @@ typedef struct bNodeSocketType {
 
   /* Callback to free the socket type. */
   void (*free_self)(struct bNodeSocketType *stype);
+
+  /* Returns the multi-function data type of this socket type. */
+  SocketGetMFDataTypeFunction get_mf_data_type;
+  /* Expands the socket into a multi-function node that outputs the socket value. */
+  SocketExpandInMFNetworkFunction expand_in_mf_network;
 } bNodeSocketType;
 
 typedef void *(*NodeInitExecFunction)(struct bNodeExecContext *context,
@@ -266,6 +294,9 @@ typedef struct bNodeType {
   NodeExecFunction execfunc;
   /* gpu */
   NodeGPUExecFunction gpufunc;
+
+  /* Expands the bNode into nodes in a multi-function network, which will be evaluated later on. */
+  NodeExpandInMFNetworkFunction expand_in_mf_network;
 
   /* RNA integration */
   ExtensionRNA rna_ext;
@@ -398,8 +429,8 @@ struct bNodeTree *ntreeAddTree(struct Main *bmain, const char *name, const char 
 
 /* copy/free funcs, need to manage ID users */
 void ntreeFreeTree(struct bNodeTree *ntree);
-/* Free tree which is owned byt another datablock. */
-void ntreeFreeNestedTree(struct bNodeTree *ntree);
+/* Free tree which is embedded into another datablock. */
+void ntreeFreeEmbeddedTree(struct bNodeTree *ntree);
 struct bNodeTree *ntreeCopyTree_ex(const struct bNodeTree *ntree,
                                    struct Main *bmain,
                                    const bool do_id_user);
@@ -513,7 +544,7 @@ const char *nodeStaticSocketInterfaceType(int type, int subtype);
   } \
   ((void)0)
 
-struct bNodeSocket *nodeFindSocket(struct bNode *node, int in_out, const char *identifier);
+struct bNodeSocket *nodeFindSocket(const struct bNode *node, int in_out, const char *identifier);
 struct bNodeSocket *nodeAddSocket(struct bNodeTree *ntree,
                                   struct bNode *node,
                                   int in_out,
@@ -865,6 +896,7 @@ struct NodeTreeIterStore {
   struct Light *light;
   struct World *world;
   struct FreestyleLineStyle *linestyle;
+  struct Simulation *simulation;
 };
 
 void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *bmain);
@@ -1367,21 +1399,21 @@ struct TexResult;
 #define SH_NODE_OCT_OSL_CAMERA 998
 #define SH_NODE_OCT_OSL_BAKING_CAMERA 999
 
-#define SH_NODE_OCT_VECTRON 1010
+#define SH_NODE_OCT_VECTRON 10100
 
-#define SH_NODE_OCT_ROUNDEDGES 1100
+#define SH_NODE_OCT_ROUNDEDGES 11000
 
-#define SH_NODE_OCT_GROUP_LAYER 1200
-#define SH_NODE_OCT_DIFFUSE_LAYER 1201
-#define SH_NODE_OCT_METALLIC_LAYER 1202
-#define SH_NODE_OCT_SHEEN_LAYER 1203
-#define SH_NODE_OCT_SPECULAR_LAYER 1204
+#define SH_NODE_OCT_GROUP_LAYER 12000
+#define SH_NODE_OCT_DIFFUSE_LAYER 12001
+#define SH_NODE_OCT_METALLIC_LAYER 12002
+#define SH_NODE_OCT_SHEEN_LAYER 12003
+#define SH_NODE_OCT_SPECULAR_LAYER 12004
 
-#define SH_NODE_OCT_OBJECT_DATA 1500
+#define SH_NODE_OCT_OBJECT_DATA 15000
 
-#define SH_NODE_OCT_TEXTURE_ENVIRONMENT 2000
-#define SH_NODE_OCT_DAYLIGHT_ENVIRONMENT 2001
-#define SH_NODE_OCT_PLANETARY_ENVIRONMENT 2002
+#define SH_NODE_OCT_TEXTURE_ENVIRONMENT 20000
+#define SH_NODE_OCT_DAYLIGHT_ENVIRONMENT 20001
+#define SH_NODE_OCT_PLANETARY_ENVIRONMENT 20002
 
 /* API */
 void ntreeTexCheckCyclics(struct bNodeTree *ntree);
@@ -1395,11 +1427,43 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
                      float dyt[3],
                      int osatex,
                      const short thread,
-                     struct Tex *tex,
+                     const struct Tex *tex,
                      short which_output,
                      int cfra,
                      int preview,
                      struct MTex *mtex);
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Simulation Nodes
+ * \{ */
+
+#define SIM_NODE_PARTICLE_SIMULATION 1000
+#define SIM_NODE_FORCE 1001
+#define SIM_NODE_SET_PARTICLE_ATTRIBUTE 1002
+#define SIM_NODE_PARTICLE_BIRTH_EVENT 1003
+#define SIM_NODE_PARTICLE_TIME_STEP_EVENT 1004
+#define SIM_NODE_EXECUTE_CONDITION 1005
+#define SIM_NODE_MULTI_EXECUTE 1006
+#define SIM_NODE_PARTICLE_MESH_EMITTER 1007
+#define SIM_NODE_PARTICLE_MESH_COLLISION_EVENT 1008
+#define SIM_NODE_EMIT_PARTICLES 1009
+#define SIM_NODE_TIME 1010
+#define SIM_NODE_PARTICLE_ATTRIBUTE 1011
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Function Nodes
+ * \{ */
+
+#define FN_NODE_BOOLEAN_MATH 1200
+#define FN_NODE_SWITCH 1201
+#define FN_NODE_FLOAT_COMPARE 1202
+#define FN_NODE_GROUP_INSTANCE_ID 1203
+#define FN_NODE_COMBINE_STRINGS 1204
+#define FN_NODE_OBJECT_TRANSFORMS 1205
+
 /** \} */
 
 void init_nodesystem(void);
@@ -1420,5 +1484,3 @@ extern struct bNodeSocketType NodeSocketTypeUndefined;
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_NODE_H__ */

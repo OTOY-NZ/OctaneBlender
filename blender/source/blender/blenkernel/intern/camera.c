@@ -42,6 +42,7 @@
 #include "BKE_idtype.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
@@ -53,7 +54,9 @@
 
 #include "MEM_guardedalloc.h"
 
-/****************************** Camera Datablock *****************************/
+/* -------------------------------------------------------------------- */
+/** \name Camera Data-Block
+ * \{ */
 
 static void camera_init_data(ID *id)
 {
@@ -61,17 +64,6 @@ static void camera_init_data(ID *id)
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cam, id));
 
   MEMCPY_STRUCT_AFTER(cam, DNA_struct_default_get(Camera), id);
-}
-
-void *BKE_camera_add(Main *bmain, const char *name)
-{
-  Camera *cam;
-
-  cam = BKE_libblock_alloc(bmain, ID_CA, name, 0);
-
-  camera_init_data(&cam->id);
-
-  return cam;
 }
 
 /**
@@ -94,13 +86,6 @@ static void camera_copy_data(Main *UNUSED(bmain),
   BLI_duplicatelist(&cam_dst->bg_images, &cam_src->bg_images);
 }
 
-Camera *BKE_camera_copy(Main *bmain, const Camera *cam)
-{
-  Camera *cam_copy;
-  BKE_id_copy(bmain, &cam->id, (ID **)&cam_copy);
-  return cam_copy;
-}
-
 static void camera_make_local(Main *bmain, ID *id, const int flags)
 {
   BKE_lib_id_make_local_generic(bmain, id, flags);
@@ -111,6 +96,21 @@ static void camera_free_data(ID *id)
 {
   Camera *cam = (Camera *)id;
   BLI_freelistN(&cam->bg_images);
+}
+
+static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  Camera *camera = (Camera *)id;
+
+  BKE_LIB_FOREACHID_PROCESS(data, camera->dof.focus_object, IDWALK_CB_NOP);
+  LISTBASE_FOREACH (CameraBGImage *, bgpic, &camera->bg_images) {
+    if (bgpic->source == CAM_BGIMG_SOURCE_IMAGE) {
+      BKE_LIB_FOREACHID_PROCESS(data, bgpic->ima, IDWALK_CB_USER);
+    }
+    else if (bgpic->source == CAM_BGIMG_SOURCE_MOVIE) {
+      BKE_LIB_FOREACHID_PROCESS(data, bgpic->clip, IDWALK_CB_USER);
+    }
+  }
 }
 
 IDTypeInfo IDType_ID_CA = {
@@ -127,9 +127,32 @@ IDTypeInfo IDType_ID_CA = {
     .copy_data = camera_copy_data,
     .free_data = camera_free_data,
     .make_local = camera_make_local,
+    .foreach_id = camera_foreach_id,
 };
 
-/******************************** Camera Usage *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera Usage
+ * \{ */
+
+void *BKE_camera_add(Main *bmain, const char *name)
+{
+  Camera *cam;
+
+  cam = BKE_libblock_alloc(bmain, ID_CA, name, 0);
+
+  camera_init_data(&cam->id);
+
+  return cam;
+}
+
+Camera *BKE_camera_copy(Main *bmain, const Camera *cam)
+{
+  Camera *cam_copy;
+  BKE_id_copy(bmain, &cam->id, (ID **)&cam_copy);
+  return cam_copy;
+}
 
 /* get the camera's dof value, takes the dof object into account */
 float BKE_camera_object_dof_distance(Object *ob)
@@ -171,7 +194,11 @@ int BKE_camera_sensor_fit(int sensor_fit, float sizex, float sizey)
   return sensor_fit;
 }
 
-/******************************** Camera Params *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera Parameter Access
+ * \{ */
 
 void BKE_camera_params_init(CameraParams *params)
 {
@@ -363,7 +390,11 @@ void BKE_camera_params_compute_matrix(CameraParams *params)
   }
 }
 
-/***************************** Camera View Frame *****************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera View Frame
+ * \{ */
 
 void BKE_camera_view_frame_ex(const Scene *scene,
                               const Camera *camera,
@@ -464,6 +495,12 @@ void BKE_camera_view_frame(const Scene *scene, const Camera *camera, float r_vec
   BKE_camera_view_frame_ex(
       scene, camera, 1.0, false, dummy_scale, dummy_asp, dummy_shift, &dummy_drawsize, r_vec);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera View Frame Fit to Points
+ * \{ */
 
 #define CAMERA_VIEWFRAME_NUM_PLANES 4
 
@@ -706,7 +743,11 @@ bool BKE_camera_view_frame_fit_to_coords(const Depsgraph *depsgraph,
   return camera_frame_fit_calc_from_data(&params, &data_cb, r_co, r_scale);
 }
 
-/******************* multiview matrix functions ***********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera Multi-View Matrix
+ * \{ */
 
 static void camera_model_matrix(const Object *camera, float r_modelmat[4][4])
 {
@@ -1021,6 +1062,12 @@ void BKE_camera_multiview_params(const RenderData *rd,
   }
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera Background Image
+ * \{ */
+
 CameraBGImage *BKE_camera_background_image_new(Camera *cam)
 {
   CameraBGImage *bgpic = MEM_callocN(sizeof(CameraBGImage), "Background Image");
@@ -1055,3 +1102,5 @@ void BKE_camera_background_image_clear(Camera *cam)
     bgpic = next_bgpic;
   }
 }
+
+/** \} */

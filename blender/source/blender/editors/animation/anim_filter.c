@@ -67,6 +67,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_simulation_types.h"
 #include "DNA_space_types.h"
 #include "DNA_speaker_types.h"
 #include "DNA_userdef_types.h"
@@ -86,6 +87,7 @@
 #include "BKE_collection.h"
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
+#include "BKE_fcurve_driver.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_layer.h"
@@ -417,6 +419,7 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
     ac->markers = ED_context_get_markers(C);
   }
   ac->view_layer = CTX_data_view_layer(C);
+  ac->depsgraph = CTX_data_depsgraph_pointer(C);
   ac->obact = (ac->view_layer->basact) ? ac->view_layer->basact->object : NULL;
   ac->area = area;
   ac->region = region;
@@ -569,7 +572,7 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
     channel_data, channel_type, owner_id, fcurve_owner_id, ale_statement) \
   if (filter_mode & ANIMFILTER_TMP_PEEK) \
     return 1; \
-  else { \
+  { \
     bAnimListElem *ale = make_new_animlistelem( \
         channel_data, channel_type, (ID *)owner_id, fcurve_owner_id); \
     if (ale) { \
@@ -826,6 +829,18 @@ static bAnimListElem *make_new_animlistelem(void *data,
         ale->adt = BKE_animdata_from_id(data);
         break;
       }
+      case ANIMTYPE_DSSIMULATION: {
+        Simulation *simulation = (Simulation *)data;
+        AnimData *adt = simulation->adt;
+
+        ale->flag = FILTER_SIMULATION_OBJD(simulation);
+
+        ale->key_data = (adt) ? adt->action : NULL;
+        ale->datatype = ALE_ACT;
+
+        ale->adt = BKE_animdata_from_id(data);
+        break;
+      }
       case ANIMTYPE_DSSKEY: {
         Key *key = (Key *)data;
         AnimData *adt = key->adt;
@@ -974,7 +989,7 @@ static bAnimListElem *make_new_animlistelem(void *data,
              * then free the MEM_alloc'd string
              */
             if (rna_path) {
-              ale->key_data = (void *)list_find_fcurve(&act->curves, rna_path, 0);
+              ale->key_data = (void *)BKE_fcurve_find(&act->curves, rna_path, 0);
               MEM_freeN(rna_path);
             }
           }
@@ -1155,10 +1170,8 @@ static bool name_matches_dopesheet_filter(bDopeSheet *ads, char *name)
     /* if we have a match somewhere, this returns true */
     return found;
   }
-  else {
-    /* fallback/default - just case insensitive, but starts from start of word */
-    return BLI_strcasestr(name, ads->searchstr) != NULL;
-  }
+  /* fallback/default - just case insensitive, but starts from start of word */
+  return BLI_strcasestr(name, ads->searchstr) != NULL;
 }
 
 /* (Display-)Name-based F-Curve filtering
@@ -2414,7 +2427,7 @@ static size_t animdata_filter_ds_modifiers(
   afm.filter_mode = filter_mode;
 
   /* 2) walk over dependencies */
-  modifiers_foreachIDLink(ob, animfilter_modifier_idpoin_cb, &afm);
+  BKE_modifiers_foreach_ID_link(ob, animfilter_modifier_idpoin_cb, &afm);
 
   /* 3) extract data from the context, merging it back into the standard list */
   if (afm.items) {
@@ -2589,8 +2602,9 @@ static size_t animdata_filter_ds_obdata(
     {
       Hair *hair = (Hair *)ob->data;
 
-      if (ads->filterflag2 & ADS_FILTER_NOHAIR)
+      if (ads->filterflag2 & ADS_FILTER_NOHAIR) {
         return 0;
+      }
 
       type = ANIMTYPE_DSHAIR;
       expanded = FILTER_HAIR_OBJD(hair);
@@ -2600,8 +2614,9 @@ static size_t animdata_filter_ds_obdata(
     {
       PointCloud *pointcloud = (PointCloud *)ob->data;
 
-      if (ads->filterflag2 & ADS_FILTER_NOPOINTCLOUD)
+      if (ads->filterflag2 & ADS_FILTER_NOPOINTCLOUD) {
         return 0;
+      }
 
       type = ANIMTYPE_DSPOINTCLOUD;
       expanded = FILTER_POINTS_OBJD(pointcloud);
@@ -2611,8 +2626,9 @@ static size_t animdata_filter_ds_obdata(
     {
       Volume *volume = (Volume *)ob->data;
 
-      if (ads->filterflag2 & ADS_FILTER_NOVOLUME)
+      if (ads->filterflag2 & ADS_FILTER_NOVOLUME) {
         return 0;
+      }
 
       type = ANIMTYPE_DSVOLUME;
       expanded = FILTER_VOLUME_OBJD(volume);
@@ -3400,12 +3416,13 @@ static size_t animdata_filter_remove_duplis(ListBase *anim_data)
 
 /* ----------- Public API --------------- */
 
-/* This function filters the active data source to leave only animation channels suitable for
+/**
+ * This function filters the active data source to leave only animation channels suitable for
  * usage by the caller. It will return the length of the list
  *
- * *anim_data: is a pointer to a ListBase, to which the filtered animation channels
- * will be placed for use.
- * filter_mode: how should the data be filtered - bitmapping accessed flags
+ * \param anim_data: Is a pointer to a #ListBase,
+ * to which the filtered animation channels will be placed for use.
+ * \param filter_mode: how should the data be filtered - bit-mapping accessed flags.
  */
 size_t ANIM_animdata_filter(bAnimContext *ac,
                             ListBase *anim_data,

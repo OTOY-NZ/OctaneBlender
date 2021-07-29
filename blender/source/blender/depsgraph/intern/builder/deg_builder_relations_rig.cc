@@ -34,7 +34,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-extern "C" {
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -45,7 +44,6 @@ extern "C" {
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
-} /* extern "C" */
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -60,7 +58,8 @@ extern "C" {
 #include "intern/depsgraph_relation.h"
 #include "intern/depsgraph_type.h"
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 /* IK Solver Eval Steps */
 void DepsgraphRelationBuilder::build_ik_pose(Object *object,
@@ -69,7 +68,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
                                              RootPChanMap *root_map)
 {
   if ((con->flag & CONSTRAINT_DISABLE) != 0) {
-    /* Do not add disabled IK constraints to the relations. If these needs to be temporarly
+    /* Do not add disabled IK constraints to the relations. If these needs to be temporarily
      * enabled, they will be added as temporary constraints during transform. */
     return;
   }
@@ -451,7 +450,7 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
     }
     /* Custom shape. */
     if (pchan->custom != nullptr) {
-      build_object(nullptr, pchan->custom);
+      build_object(pchan->custom);
     }
   }
 }
@@ -511,4 +510,5 @@ void DepsgraphRelationBuilder::build_proxy_rig(Object *object)
   }
 }
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

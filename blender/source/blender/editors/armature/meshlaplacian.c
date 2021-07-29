@@ -37,6 +37,7 @@
 #include "BKE_bvhutils.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_mesh_wrapper.h"
 #include "BKE_modifier.h"
 
 #include "ED_armature.h"
@@ -94,9 +95,8 @@ struct LaplacianSystem {
     float (*verts)[3]; /* vertex coordinates */
     float (*vnors)[3]; /* vertex normals */
 
-    float (*root)[3];   /* bone root */
-    float (*tip)[3];    /* bone tip */
-    float (*source)[3]; /* vertex source */
+    float (*root)[3]; /* bone root */
+    float (*tip)[3];  /* bone tip */
     int numsource;
 
     float *H;       /* diagonal H matrix */
@@ -641,13 +641,11 @@ static float heat_limit_weight(float weight)
   if (weight < WEIGHT_LIMIT_END) {
     return 0.0f;
   }
-  else if (weight < WEIGHT_LIMIT_START) {
+  if (weight < WEIGHT_LIMIT_START) {
     t = (weight - WEIGHT_LIMIT_END) / (WEIGHT_LIMIT_START - WEIGHT_LIMIT_END);
     return t * WEIGHT_LIMIT_START;
   }
-  else {
-    return weight;
-  }
+  return weight;
 }
 
 void heat_bone_weighting(Object *ob,
@@ -658,7 +656,7 @@ void heat_bone_weighting(Object *ob,
                          bDeformGroup **dgroupflip,
                          float (*root)[3],
                          float (*tip)[3],
-                         int *selected,
+                         const int *selected,
                          const char **err_str)
 {
   LaplacianSystem *sys;
@@ -1239,7 +1237,7 @@ static float meshdeform_boundary_phi(const MeshDeformBind *mdb,
 }
 
 static float meshdeform_interp_w(MeshDeformBind *mdb,
-                                 float *gridvec,
+                                 const float *gridvec,
                                  float *UNUSED(vec),
                                  int UNUSED(cagevert))
 {
@@ -1549,7 +1547,7 @@ static void meshdeform_matrix_solve(MeshDeformModifierData *mmd, MeshDeformBind 
       }
     }
     else {
-      modifier_setError(&mmd->modifier, "Failed to find bind solution (increase precision?)");
+      BKE_modifier_set_error(&mmd->modifier, "Failed to find bind solution (increase precision?)");
       error("Mesh Deform: failed to find bind solution.");
       break;
     }
@@ -1753,7 +1751,7 @@ void ED_mesh_deform_bind_callback(MeshDeformModifierData *mmd,
                                   int totvert,
                                   float cagemat[4][4])
 {
-  MeshDeformModifierData *mmd_orig = (MeshDeformModifierData *)modifier_get_original(
+  MeshDeformModifierData *mmd_orig = (MeshDeformModifierData *)BKE_modifier_get_original(
       &mmd->modifier);
   MeshDeformBind mdb;
   MVert *mvert;
@@ -1763,6 +1761,9 @@ void ED_mesh_deform_bind_callback(MeshDeformModifierData *mmd,
   start_progress_bar();
 
   memset(&mdb, 0, sizeof(MeshDeformBind));
+
+  /* No need to support other kinds of mesh data as binding is a one-off action. */
+  BKE_mesh_wrapper_ensure_mdata(cagemesh);
 
   /* get mesh and cage mesh */
   mdb.vertexcos = MEM_callocN(sizeof(float) * 3 * totvert, "MeshDeformCos");
@@ -1799,7 +1800,7 @@ void ED_mesh_deform_bind_callback(MeshDeformModifierData *mmd,
   MEM_freeN(mdb.vertexcos);
 
   /* compact weights */
-  modifier_mdef_compact_influences((ModifierData *)mmd_orig);
+  BKE_modifier_mdef_compact_influences((ModifierData *)mmd_orig);
 
   end_progress_bar();
   waitcursor(0);

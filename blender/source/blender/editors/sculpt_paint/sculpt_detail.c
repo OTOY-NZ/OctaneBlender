@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2020 Blender Foundation.
@@ -181,7 +181,7 @@ static void sample_detail_voxel(bContext *C, ViewContext *vc, int mx, int my)
   /* Update the active vertex. */
   float mouse[2] = {mx, my};
   SCULPT_cursor_geometry_info_update(C, &sgi, mouse, false);
-  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, false);
+  BKE_sculpt_update_object_for_edit(depsgraph, ob, true, false, false);
 
   /* Average the edge length of the connected edges to the active vertex. */
   int active_vertex = SCULPT_active_vertex_get(ss);

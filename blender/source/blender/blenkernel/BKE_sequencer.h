@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_SEQUENCER_H__
-#define __BKE_SEQUENCER_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -219,6 +218,15 @@ struct ImBuf *BKE_sequencer_give_ibuf_seqbase(const SeqRenderData *context,
                                               float cfra,
                                               int chan_shown,
                                               struct ListBase *seqbasep);
+struct ImBuf *BKE_sequencer_effect_execute_threaded(struct SeqEffectHandle *sh,
+                                                    const SeqRenderData *context,
+                                                    struct Sequence *seq,
+                                                    float cfra,
+                                                    float facf0,
+                                                    float facf1,
+                                                    struct ImBuf *ibuf1,
+                                                    struct ImBuf *ibuf2,
+                                                    struct ImBuf *ibuf3);
 
 /* **********************************************************************
  * sequencer.c
@@ -276,6 +284,11 @@ void BKE_sequence_reload_new_file(struct Main *bmain,
                                   struct Scene *scene,
                                   struct Sequence *seq,
                                   const bool lock_range);
+void BKE_sequence_movie_reload_if_needed(struct Main *bmain,
+                                         struct Scene *scene,
+                                         struct Sequence *seq,
+                                         bool *r_was_reloaded,
+                                         bool *r_can_produce_frames);
 int BKE_sequencer_evaluate_frame(struct Scene *scene, int cfra);
 int BKE_sequencer_get_shown_sequences(struct ListBase *seqbasep,
                                       int cfra,
@@ -380,6 +393,10 @@ struct Sequence *BKE_sequencer_prefetch_get_original_sequence(struct Sequence *s
 /* intern */
 struct SeqEffectHandle BKE_sequence_get_blend(struct Sequence *seq);
 void BKE_sequence_effect_speed_rebuild_map(struct Scene *scene, struct Sequence *seq, bool force);
+float BKE_sequencer_speed_effect_target_frame_get(const SeqRenderData *context,
+                                                  struct Sequence *seq,
+                                                  float cfra,
+                                                  int input);
 
 /* extern */
 struct SeqEffectHandle BKE_sequence_get_effect(struct Sequence *seq);
@@ -509,10 +526,14 @@ typedef struct Sequence *(*SeqLoadFn)(struct bContext *, ListBase *, struct SeqL
 
 struct Sequence *BKE_sequence_alloc(ListBase *lb, int cfra, int machine, int type);
 
+/* Generate new UUID for the given sequence. */
+void BKE_sequence_session_uuid_generate(struct Sequence *sequence);
+
 void BKE_sequence_alpha_mode_from_extension(struct Sequence *seq);
 void BKE_sequence_init_colorspace(struct Sequence *seq);
 
 float BKE_sequence_get_fps(struct Scene *scene, struct Sequence *seq);
+float BKE_sequencer_give_stripelem_index(struct Sequence *seq, float cfra);
 
 /* RNA enums, just to be more readable */
 enum {
@@ -605,9 +626,12 @@ void BKE_sequencer_color_balance_apply(struct StripColorBalance *cb,
 
 void BKE_sequencer_all_free_anim_ibufs(struct Scene *scene, int cfra);
 bool BKE_sequencer_check_scene_recursion(struct Scene *scene, struct ReportList *reports);
+bool BKE_sequencer_render_loop_check(struct Sequence *seq_main, struct Sequence *seq);
+
+/* A debug and development function which checks whether sequences have unique UUIDs.
+ * Errors will be reported to the console. */
+void BKE_sequencer_check_uuids_unique_and_report(const struct Scene *scene);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_SEQUENCER_H__ */

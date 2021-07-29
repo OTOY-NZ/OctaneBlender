@@ -21,10 +21,13 @@
  * \ingroup nodes
  */
 
-#ifndef __NOD_SHADER_H__
-#define __NOD_SHADER_H__
+#pragma once
 
 #include "BKE_node.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern struct bNodeTreeType *ntreeType_Shader;
 
@@ -246,4 +249,6 @@ void register_node_type_oct_object_data(void);
 void register_node_type_environment_oct_texture(void);
 void register_node_type_environment_oct_daylight(void);
 void register_node_type_environment_oct_planetary(void);
+#ifdef __cplusplus
+}
 #endif

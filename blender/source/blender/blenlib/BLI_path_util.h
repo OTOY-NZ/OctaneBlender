@@ -16,19 +16,18 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BLI_PATH_UTIL_H__
-#define __BLI_PATH_UTIL_H__
+#pragma once
 
 /** \file
  * \ingroup bli
  */
 
+#include "BLI_compiler_attrs.h"
+#include "BLI_utildefines.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
 
 void BLI_setenv(const char *env, const char *val) ATTR_NONNULL(1);
 void BLI_setenv_if_new(const char *env, const char *val) ATTR_NONNULL(1);
@@ -158,5 +157,3 @@ bool BLI_path_suffix(char *string, size_t maxlen, const char *suffix, const char
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BLI_PATH_UTIL_H__ */

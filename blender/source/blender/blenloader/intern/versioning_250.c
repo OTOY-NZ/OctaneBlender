@@ -61,6 +61,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_anim_data.h"
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.h"
 #include "BKE_colortools.h"
@@ -307,7 +308,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->v2d.tot.ymax = 0.0f;
 
         region->v2d.scroll |= (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
-        region->v2d.scroll |= (V2D_SCROLL_RIGHT);
+        region->v2d.scroll |= V2D_SCROLL_RIGHT;
         region->v2d.align = V2D_ALIGN_NO_POS_Y;
         region->v2d.flag |= V2D_VIEWSYNC_AREA_VERTICAL;
         break;
@@ -333,7 +334,7 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->v2d.minzoom = 0.01f;
         region->v2d.maxzoom = 50;
         region->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
-        region->v2d.scroll |= (V2D_SCROLL_RIGHT);
+        region->v2d.scroll |= V2D_SCROLL_RIGHT;
         region->v2d.keepzoom = V2D_LOCKZOOM_Y;
         region->v2d.align = V2D_ALIGN_NO_POS_Y;
         region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
@@ -514,7 +515,7 @@ static void do_version_mdef_250(Main *main)
           mmd->bindcagecos = mmd->bindcos;
           mmd->bindcos = NULL;
 
-          modifier_mdef_compact_influences(md);
+          BKE_modifier_mdef_compact_influences(md);
         }
       }
     }
@@ -871,7 +872,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 
     for (ob = bmain->objects.first; ob; ob = ob->id.next) {
       /* fluid-sim stuff */
-      FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(
+      FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
           ob, eModifierType_Fluidsim);
       if (fluidmd) {
         fluidmd->fss->fmd = fluidmd;
@@ -918,8 +919,8 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 
       if (do_gravity) {
         for (md = ob->modifiers.first; md; md = md->next) {
-          ClothModifierData *clmd = (ClothModifierData *)modifiers_findByType(ob,
-                                                                              eModifierType_Cloth);
+          ClothModifierData *clmd = (ClothModifierData *)BKE_modifiers_findby_type(
+              ob, eModifierType_Cloth);
           if (clmd) {
             clmd->sim_parms->effector_weights->global_gravity = clmd->sim_parms->gravity[2] /
                                                                 -9.81f;
@@ -1154,7 +1155,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       }
 
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-        MultiresModifierData *mmd = (MultiresModifierData *)modifiers_findByType(
+        MultiresModifierData *mmd = (MultiresModifierData *)BKE_modifiers_findby_type(
             ob, eModifierType_Multires);
 
         if (mmd) {
@@ -1625,7 +1626,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             ArmatureModifierData *amd;
             bArmature *arm = (bArmature *)blo_do_versions_newlibadr(fd, lib, parent->data);
 
-            amd = (ArmatureModifierData *)modifier_new(eModifierType_Armature);
+            amd = (ArmatureModifierData *)BKE_modifier_new(eModifierType_Armature);
             amd->object = ob->parent;
             BLI_addtail((ListBase *)&ob->modifiers, amd);
             amd->deformflag = arm->deformflag;
@@ -1634,7 +1635,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
           else if (parent->type == OB_LATTICE && ob->partype == PARSKEL) {
             LatticeModifierData *lmd;
 
-            lmd = (LatticeModifierData *)modifier_new(eModifierType_Lattice);
+            lmd = (LatticeModifierData *)BKE_modifier_new(eModifierType_Lattice);
             lmd->object = ob->parent;
             BLI_addtail((ListBase *)&ob->modifiers, lmd);
             ob->partype = PAROBJECT;
@@ -1642,7 +1643,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
           else if (parent->type == OB_CURVE && ob->partype == PARCURVE) {
             CurveModifierData *cmd;
 
-            cmd = (CurveModifierData *)modifier_new(eModifierType_Curve);
+            cmd = (CurveModifierData *)BKE_modifier_new(eModifierType_Curve);
             cmd->object = ob->parent;
             BLI_addtail((ListBase *)&ob->modifiers, cmd);
             ob->partype = PAROBJECT;
@@ -1792,18 +1793,18 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 
       for (md = ob->modifiers.first; md; md = md->next) {
         if (md->type == eModifierType_Fluid) {
-          FluidModifierData *mmd = (FluidModifierData *)md;
+          FluidModifierData *fmd = (FluidModifierData *)md;
 
-          if ((mmd->type & MOD_FLUID_TYPE_DOMAIN) && mmd->domain) {
-            mmd->domain->vorticity = 2.0f;
-            mmd->domain->time_scale = 1.0f;
+          if ((fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
+            fmd->domain->vorticity = 2.0f;
+            fmd->domain->time_scale = 1.0f;
 
-            if (!(mmd->domain->flags & (1 << 4))) {
+            if (!(fmd->domain->flags & (1 << 4))) {
               continue;
             }
 
             /* delete old MOD_SMOKE_INITVELOCITY flag */
-            mmd->domain->flags &= ~(1 << 4);
+            fmd->domain->flags &= ~(1 << 4);
 
             /* for now just add it to all flow objects in the scene */
             {
@@ -1812,18 +1813,18 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
                 ModifierData *md2;
                 for (md2 = ob2->modifiers.first; md2; md2 = md2->next) {
                   if (md2->type == eModifierType_Fluid) {
-                    FluidModifierData *mmd2 = (FluidModifierData *)md2;
+                    FluidModifierData *fmd2 = (FluidModifierData *)md2;
 
-                    if ((mmd2->type & MOD_FLUID_TYPE_FLOW) && mmd2->flow) {
-                      mmd2->flow->flags |= FLUID_FLOW_INITVELOCITY;
+                    if ((fmd2->type & MOD_FLUID_TYPE_FLOW) && fmd2->flow) {
+                      fmd2->flow->flags |= FLUID_FLOW_INITVELOCITY;
                     }
                   }
                 }
               }
             }
           }
-          else if ((mmd->type & MOD_FLUID_TYPE_FLOW) && mmd->flow) {
-            mmd->flow->vel_multi = 1.0f;
+          else if ((fmd->type & MOD_FLUID_TYPE_FLOW) && fmd->flow) {
+            fmd->flow->vel_multi = 1.0f;
           }
         }
       }
@@ -2351,5 +2352,33 @@ void do_versions_after_linking_250(Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 258, 0)) {
+    /* Some very old (original comments claim pre-2.57) versioning that was wrongly done in
+     * lib-linking code... Putting it here just to be sure (this is also checked at runtime anyway
+     * by `action_idcode_patch_check`). */
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      AnimData *adt = BKE_animdata_from_id(id);
+      if (adt != NULL) {
+        /* Fix actions' id-roots (i.e. if they come from a pre 2.57 .blend file). */
+        if ((adt->action) && (adt->action->idroot == 0)) {
+          adt->action->idroot = GS(id->name);
+        }
+        if ((adt->tmpact) && (adt->tmpact->idroot == 0)) {
+          adt->tmpact->idroot = GS(id->name);
+        }
+
+        LISTBASE_FOREACH (NlaTrack *, nla_track, &adt->nla_tracks) {
+          LISTBASE_FOREACH (NlaStrip *, nla_strip, &nla_track->strips) {
+            if ((nla_strip->act) && (nla_strip->act->idroot == 0)) {
+              nla_strip->act->idroot = GS(id->name);
+            }
+          }
+        }
+      }
+    }
+    FOREACH_MAIN_ID_END;
   }
 }

@@ -21,8 +21,7 @@
  * \ingroup bke
  */
 
-#ifndef __BKE_SUBDIV_H__
-#define __BKE_SUBDIV_H__
+#pragma once
 
 #include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h"
@@ -194,6 +193,12 @@ typedef struct Subdiv {
   } cache_;
 } Subdiv;
 
+/* =================----====--===== MODULE ==========================------== */
+
+/* (De)initialize the entire subdivision surface module. */
+void BKE_subdiv_init(void);
+void BKE_subdiv_exit(void);
+
 /* ========================== CONVERSION HELPERS ============================ */
 
 /* NOTE: uv_smooth is eSubsurfUVSmooth. */
@@ -296,5 +301,3 @@ BLI_INLINE float BKE_subdiv_edge_crease_to_sharpness_char(char edge_crease);
 #endif
 
 #include "intern/subdiv_inline.h"
-
-#endif /* __BKE_SUBDIV_H__ */

@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_NLA_H__
-#define __BKE_NLA_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -29,6 +28,7 @@ extern "C" {
 #endif
 
 struct AnimData;
+struct LibraryForeachIDData;
 struct Main;
 struct NlaStrip;
 struct NlaTrack;
@@ -62,6 +62,8 @@ struct NlaStrip *BKE_nlastack_add_strip(struct AnimData *adt, struct bAction *ac
 struct NlaStrip *BKE_nla_add_soundstrip(struct Main *bmain,
                                         struct Scene *scene,
                                         struct Speaker *spk);
+
+void BKE_nla_strip_foreach_id(struct NlaStrip *strip, struct LibraryForeachIDData *data);
 
 /* ----------------------------- */
 /* API */
@@ -145,6 +147,4 @@ float BKE_nla_tweakedit_remap(struct AnimData *adt, float cframe, short mode);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

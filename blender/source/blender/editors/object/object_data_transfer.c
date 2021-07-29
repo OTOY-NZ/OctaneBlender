@@ -76,7 +76,7 @@ static const EnumPropertyItem DT_layer_items[] = {
     {0, "", 0, "Edge Data", ""},
     {DT_TYPE_SHARP_EDGE, "SHARP_EDGE", 0, "Sharp", "Transfer sharp mark"},
     {DT_TYPE_SEAM, "SEAM", 0, "UV Seam", "Transfer UV seam mark"},
-    {DT_TYPE_CREASE, "CREASE", 0, "Subsurf Crease", "Transfer crease values"},
+    {DT_TYPE_CREASE, "CREASE", 0, "Subdivision Crease", "Transfer crease values"},
     {DT_TYPE_BWEIGHT_EDGE, "BEVEL_WEIGHT_EDGE", 0, "Bevel Weight", "Transfer bevel weights"},
     {DT_TYPE_FREESTYLE_EDGE,
      "FREESTYLE_EDGE",
@@ -254,16 +254,12 @@ static const EnumPropertyItem *dt_layers_select_itemf(bContext *C,
     if (reverse_transfer) {
       return dt_layers_select_src_itemf(C, ptr, prop, r_free);
     }
-    else {
-      return dt_layers_select_dst_itemf(C, ptr, prop, r_free);
-    }
-  }
-  else if (reverse_transfer) {
     return dt_layers_select_dst_itemf(C, ptr, prop, r_free);
   }
-  else {
-    return dt_layers_select_src_itemf(C, ptr, prop, r_free);
+  if (reverse_transfer) {
+    return dt_layers_select_dst_itemf(C, ptr, prop, r_free);
   }
+  return dt_layers_select_src_itemf(C, ptr, prop, r_free);
 }
 
 /* Note: rna_enum_dt_mix_mode_items enum is from rna_modifier.c */
@@ -381,7 +377,7 @@ static bool data_transfer_exec_is_object_valid(wmOperator *op,
     me->id.tag &= ~LIB_TAG_DOIT;
     return true;
   }
-  else if (!ID_IS_LINKED(me)) {
+  if (!ID_IS_LINKED(me) && !ID_IS_OVERRIDE_LIBRARY(me)) {
     /* Do not apply transfer operation more than once. */
     /* XXX This is not nice regarding vgroups, which are half-Object data... :/ */
     BKE_reportf(
@@ -446,8 +442,8 @@ static int data_transfer_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  if (reverse_transfer && ID_IS_LINKED(ob_src->data)) {
-    /* Do not transfer to linked data, not supported. */
+  if (reverse_transfer && (ID_IS_LINKED(ob_src->data) || ID_IS_OVERRIDE_LIBRARY(ob_src->data))) {
+    /* Do not transfer to linked or override data, not supported. */
     return OPERATOR_CANCELLED;
   }
 
@@ -536,7 +532,7 @@ static bool data_transfer_poll(bContext *C)
 {
   Object *ob = ED_object_active_context(C);
   ID *data = (ob) ? ob->data : NULL;
-  return (ob && ob->type == OB_MESH && data);
+  return (ob != NULL && ob->type == OB_MESH && data != NULL);
 }
 
 /* Used by both OBJECT_OT_data_transfer and OBJECT_OT_datalayout_transfer */
@@ -770,7 +766,7 @@ void OBJECT_OT_data_transfer(wmOperatorType *ot)
 
 static bool datalayout_transfer_poll(bContext *C)
 {
-  return (edit_modifier_poll_generic(C, &RNA_DataTransferModifier, (1 << OB_MESH), true) ||
+  return (edit_modifier_poll_generic(C, &RNA_DataTransferModifier, (1 << OB_MESH), true, false) ||
           data_transfer_poll(C));
 }
 
@@ -792,7 +788,7 @@ static int datalayout_transfer_exec(bContext *C, wmOperator *op)
 
     const bool use_delete = false; /* Never when used from modifier, for now. */
 
-    if (!ob_src) {
+    if (!ob_src || ID_IS_LINKED(ob_dst) || ID_IS_OVERRIDE_LIBRARY(ob_dst)) {
       return OPERATOR_CANCELLED;
     }
 
@@ -860,12 +856,10 @@ static int datalayout_transfer_exec(bContext *C, wmOperator *op)
 
 static int datalayout_transfer_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  if (edit_modifier_invoke_properties(C, op)) {
+  if (edit_modifier_invoke_properties(C, op, NULL, NULL)) {
     return datalayout_transfer_exec(C, op);
   }
-  else {
-    return WM_menu_invoke(C, op, event);
-  }
+  return WM_menu_invoke(C, op, event);
 }
 
 void OBJECT_OT_datalayout_transfer(wmOperatorType *ot)

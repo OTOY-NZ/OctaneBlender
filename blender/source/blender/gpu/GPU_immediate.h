@@ -23,14 +23,14 @@
  * GPU immediate mode work-alike
  */
 
-#ifndef __GPU_IMMEDIATE_H__
-#define __GPU_IMMEDIATE_H__
+#pragma once
 
 #include "GPU_batch.h"
 #include "GPU_immediate_util.h"
 #include "GPU_primitive.h"
 #include "GPU_shader.h"
 #include "GPU_shader_interface.h"
+#include "GPU_texture.h"
 #include "GPU_vertex_format.h"
 
 #ifdef __cplusplus
@@ -115,6 +115,9 @@ void immUniform4fv(const char *name, const float data[4]);
 void immUniformArray4fv(const char *bare_name, const float *data, int count);
 void immUniformMatrix4fv(const char *name, const float data[4][4]);
 
+void immBindTexture(const char *name, GPUTexture *tex);
+void immBindTextureSampler(const char *name, GPUTexture *tex, eGPUSamplerState state);
+
 /* Convenience functions for setting "uniform vec4 color". */
 /* The rgb functions have implicit alpha = 1.0. */
 void immUniformColor4f(float r, float g, float b, float a);
@@ -137,6 +140,7 @@ void immBindBuiltinProgram(eGPUBuiltinShader shader_id);
 
 /* Extend immUniformColor to take Blender's themes */
 void immUniformThemeColor(int color_id);
+void immUniformThemeColorAlpha(int color_id, float a);
 void immUniformThemeColor3(int color_id);
 void immUniformThemeColorShade(int color_id, int offset);
 void immUniformThemeColorShadeAlpha(int color_id, int color_offset, int alpha_offset);
@@ -153,5 +157,3 @@ void immDestroy(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __GPU_IMMEDIATE_H__ */

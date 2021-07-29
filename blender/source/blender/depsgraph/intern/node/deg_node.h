@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include "MEM_guardedalloc.h"
+
 #include "intern/depsgraph_type.h"
 
 #include "BLI_utildefines.h"
@@ -32,7 +34,8 @@
 struct ID;
 struct Scene;
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 struct Depsgraph;
 struct OperationNode;
@@ -127,6 +130,8 @@ enum class NodeType {
   DUPLI,
   /* Synchronization back to original datablock. */
   SYNCHRONIZATION,
+  /* Simulation component. */
+  SIMULATION,
 
   /* Total number of meaningful node types. */
   NUM_TYPES,
@@ -163,7 +168,7 @@ struct Node {
    * The reason why all depsgraph nodes are descended from this type (apart
    * from basic serialization benefits - from the typeinfo) is that we can
    * have relationships between these nodes. */
-  typedef vector<Relation *> Relations;
+  typedef Vector<Relation *> Relations;
 
   string name;        /* Identifier - mainly for debugging purposes. */
   NodeType type;      /* Structural type of node. */
@@ -201,6 +206,8 @@ struct Node {
   }
 
   virtual NodeClass get_class() const;
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("Node");
 };
 
 /* Macros for common static typeinfo. */
@@ -210,4 +217,5 @@ struct Node {
 
 void deg_register_base_depsnodes();
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

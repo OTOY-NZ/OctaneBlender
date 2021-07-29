@@ -34,6 +34,7 @@
 #include "BKE_report.h"
 #include "BKE_unit.h"
 
+#include "ED_node.h"
 #include "ED_screen.h"
 
 #include "WM_api.h"
@@ -67,15 +68,27 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
   }
   else {
     float dvec[3];
-
-    copy_v3_v3(dvec, vec);
-    applyAspectRatio(t, dvec);
+    if (!(t->flag & T_2D_EDIT) && t->con.mode & CON_APPLY) {
+      int i = 0;
+      zero_v3(dvec);
+      if (t->con.mode & CON_AXIS0) {
+        dvec[i++] = vec[0];
+      }
+      if (t->con.mode & CON_AXIS1) {
+        dvec[i++] = vec[1];
+      }
+      if (t->con.mode & CON_AXIS2) {
+        dvec[i++] = vec[2];
+      }
+    }
+    else {
+      copy_v3_v3(dvec, vec);
+      applyAspectRatio(t, dvec);
+    }
 
     dist = len_v3(vec);
     if (!(t->flag & T_2D_EDIT) && t->scene->unit.system) {
-      int i;
-
-      for (i = 0; i < 3; i++) {
+      for (int i = 0; i < 3; i++) {
         bUnit_AsString2(&tvec[NUM_STR_REP_LEN * i],
                         NUM_STR_REP_LEN,
                         dvec[i] * t->scene->unit.scale_length,
@@ -214,6 +227,34 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
   }
 }
 
+static void ApplySnapTranslation(TransInfo *t, float vec[3])
+{
+  float point[3];
+  getSnapPoint(t, point);
+
+  if (t->spacetype == SPACE_NODE) {
+    char border = t->tsnap.snapNodeBorder;
+    if (border & (NODE_LEFT | NODE_RIGHT)) {
+      vec[0] = point[0] - t->tsnap.snapTarget[0];
+    }
+    if (border & (NODE_BOTTOM | NODE_TOP)) {
+      vec[1] = point[1] - t->tsnap.snapTarget[1];
+    }
+  }
+  else {
+    if (t->spacetype == SPACE_VIEW3D) {
+      if (t->options & CTX_PAINT_CURVE) {
+        if (ED_view3d_project_float_global(t->region, point, point, V3D_PROJ_TEST_NOP) !=
+            V3D_PROJ_RET_OK) {
+          zero_v3(point); /* no good answer here... */
+        }
+      }
+    }
+
+    sub_v3_v3v3(vec, point, t->tsnap.snapTarget);
+  }
+}
+
 static void applyTranslationValue(TransInfo *t, const float vec[3])
 {
   const bool apply_snap_align_rotation = usingSnappingNormal(
@@ -236,10 +277,6 @@ static void applyTranslationValue(TransInfo *t, const float vec[3])
 
     TransData *td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
-      if (td->flag & TD_NOACTION) {
-        break;
-      }
-
       if (td->flag & TD_SKIP) {
         continue;
       }
@@ -277,8 +314,7 @@ static void applyTranslationValue(TransInfo *t, const float vec[3])
       }
 
       if (t->con.applyVec) {
-        float pvec[3];
-        t->con.applyVec(t, tc, td, vec, tvec, pvec);
+        t->con.applyVec(t, tc, td, vec, tvec);
       }
       else {
         copy_v3_v3(tvec, vec);
@@ -319,57 +355,53 @@ static void applyTranslationValue(TransInfo *t, const float vec[3])
 static void applyTranslation(TransInfo *t, const int UNUSED(mval[2]))
 {
   char str[UI_MAX_DRAW_STR];
-  float values_final[3];
+  float global_dir[3];
 
   if (t->flag & T_INPUT_IS_VALUES_FINAL) {
-    copy_v3_v3(t->values_final, t->values);
+    mul_v3_m3v3(global_dir, t->spacemtx, t->values);
   }
   else {
-    copy_v3_v3(t->values_final, t->values);
+    copy_v3_v3(global_dir, t->values);
     if ((t->con.mode & CON_APPLY) == 0) {
-      snapGridIncrement(t, t->values_final);
+      snapGridIncrement(t, global_dir);
     }
 
-    if (applyNumInput(&t->num, t->values_final)) {
-      removeAspectRatio(t, t->values_final);
+    if (applyNumInput(&t->num, global_dir)) {
+      removeAspectRatio(t, global_dir);
     }
 
-    applySnapping(t, t->values_final);
+    applySnapping(t, global_dir);
   }
-  copy_v3_v3(values_final, t->values_final);
 
   if (t->con.mode & CON_APPLY) {
-    float pvec[3] = {0.0f, 0.0f, 0.0f};
-    t->con.applyVec(t, NULL, NULL, t->values_final, values_final, pvec);
-    headerTranslation(t, pvec, str);
-
-    /* only so we have re-usable value with redo, see T46741. */
-    mul_v3_m3v3(t->values_final, t->con.imtx, values_final);
+    float in[3];
+    copy_v3_v3(in, global_dir);
+    t->con.applyVec(t, NULL, NULL, in, global_dir);
+    headerTranslation(t, global_dir, str);
   }
   else {
-    headerTranslation(t, t->values_final, str);
-    copy_v3_v3(values_final, t->values_final);
+    headerTranslation(t, global_dir, str);
   }
 
-  /* don't use 't->values' now on */
-
-  applyTranslationValue(t, values_final);
+  applyTranslationValue(t, global_dir);
 
   /* evil hack - redo translation if clipping needed */
-  if (t->flag & T_CLIP_UV && clipUVTransform(t, values_final, 0)) {
-    applyTranslationValue(t, values_final);
+  if (t->flag & T_CLIP_UV && clipUVTransform(t, global_dir, 0)) {
+    applyTranslationValue(t, global_dir);
 
     /* In proportional edit it can happen that */
     /* vertices in the radius of the brush end */
     /* outside the clipping area               */
     /* XXX HACK - dg */
-    if (t->flag & T_PROP_EDIT_ALL) {
+    if (t->flag & T_PROP_EDIT) {
       clipUVData(t);
     }
   }
 
-  recalcData(t);
+  /* Set the redo value. */
+  mul_v3_m3v3(t->values_final, t->spacemtx_inv, global_dir);
 
+  recalcData(t);
   ED_area_status_text(t->area, str);
 }
 
@@ -385,6 +417,8 @@ void initTranslation(TransInfo *t)
   }
 
   t->transform = applyTranslation;
+  t->tsnap.applySnap = ApplySnapTranslation;
+  t->tsnap.distance = transform_snap_distance_len_squared_fn;
 
   initMouseInputMode(t, &t->mouse, INPUT_VECTOR);
 

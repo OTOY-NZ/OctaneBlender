@@ -694,25 +694,24 @@ int BKE_layer_collection_findindex(ViewLayer *view_layer, const LayerCollection 
  * in at least one layer collection. That list is also synchronized here, and
  * stores state like selection. */
 
-static short layer_collection_sync(ViewLayer *view_layer,
-                                   const ListBase *lb_scene,
-                                   ListBase *lb_layer,
-                                   ListBase *new_object_bases,
-                                   short parent_exclude,
-                                   short parent_restrict,
-                                   short parent_layer_restrict,
-                                   unsigned short parent_local_collections_bits)
+static void layer_collection_sync(ViewLayer *view_layer,
+                                  const ListBase *lb_collections,
+                                  ListBase *lb_layer_collections,
+                                  ListBase *new_object_bases,
+                                  short parent_exclude,
+                                  short parent_restrict,
+                                  short parent_layer_restrict,
+                                  unsigned short parent_local_collections_bits)
 {
   /* TODO: support recovery after removal of intermediate collections, reordering, ..
    * For local edits we can make editing operating do the appropriate thing, but for
    * linking we can only sync after the fact. */
 
   /* Remove layer collections that no longer have a corresponding scene collection. */
-  for (LayerCollection *lc = lb_layer->first; lc;) {
-    /* Note ID remap can set lc->collection to NULL when deleting collections. */
-    LayerCollection *lc_next = lc->next;
+  LISTBASE_FOREACH_MUTABLE (LayerCollection *, lc, lb_layer_collections) {
+    /* Note that ID remap can set lc->collection to NULL when deleting collections. */
     Collection *collection = (lc->collection) ?
-                                 BLI_findptr(lb_scene,
+                                 BLI_findptr(lb_collections,
                                              lc->collection,
                                              offsetof(CollectionChild, collection)) :
                                  NULL;
@@ -724,22 +723,20 @@ static short layer_collection_sync(ViewLayer *view_layer,
 
       /* Free recursively. */
       layer_collection_free(view_layer, lc);
-      BLI_freelinkN(lb_layer, lc);
+      BLI_freelinkN(lb_layer_collections, lc);
     }
-
-    lc = lc_next;
   }
 
   /* Add layer collections for any new scene collections, and ensure order is the same. */
   ListBase new_lb_layer = {NULL, NULL};
-  short runtime_flag = 0;
 
-  LISTBASE_FOREACH (const CollectionChild *, child, lb_scene) {
+  LISTBASE_FOREACH (const CollectionChild *, child, lb_collections) {
     Collection *collection = child->collection;
-    LayerCollection *lc = BLI_findptr(lb_layer, collection, offsetof(LayerCollection, collection));
+    LayerCollection *lc = BLI_findptr(
+        lb_layer_collections, collection, offsetof(LayerCollection, collection));
 
     if (lc) {
-      BLI_remlink(lb_layer, lc);
+      BLI_remlink(lb_layer_collections, lc);
       BLI_addtail(&new_lb_layer, lc);
     }
     else {
@@ -763,22 +760,19 @@ static short layer_collection_sync(ViewLayer *view_layer,
     }
 
     /* Sync child collections. */
-    short child_runtime_flag = layer_collection_sync(view_layer,
-                                                     &collection->children,
-                                                     &lc->layer_collections,
-                                                     new_object_bases,
-                                                     lc->flag,
-                                                     child_restrict,
-                                                     child_layer_restrict,
-                                                     local_collections_bits);
+    layer_collection_sync(view_layer,
+                          &collection->children,
+                          &lc->layer_collections,
+                          new_object_bases,
+                          lc->flag,
+                          child_restrict,
+                          child_layer_restrict,
+                          local_collections_bits);
 
     /* Layer collection exclude is not inherited. */
+    lc->runtime_flag = 0;
     if (lc->flag & LAYER_COLLECTION_EXCLUDE) {
-      lc->runtime_flag = 0;
       continue;
-    }
-    else {
-      lc->runtime_flag = child_runtime_flag;
     }
 
     /* We separate restrict viewport and visible view layer because a layer collection can be
@@ -846,15 +840,11 @@ static short layer_collection_sync(ViewLayer *view_layer,
 
       lc->runtime_flag |= LAYER_COLLECTION_HAS_OBJECTS;
     }
-
-    runtime_flag |= lc->runtime_flag;
   }
 
   /* Replace layer collection list with new one. */
-  *lb_layer = new_lb_layer;
-  BLI_assert(BLI_listbase_count(lb_scene) == BLI_listbase_count(lb_layer));
-
-  return runtime_flag;
+  *lb_layer_collections = new_lb_layer;
+  BLI_assert(BLI_listbase_count(lb_collections) == BLI_listbase_count(lb_layer_collections));
 }
 
 /**
@@ -884,9 +874,9 @@ void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
   }
 
   /* Generate new layer connections and object bases when collections changed. */
-  CollectionChild child = {NULL, NULL, scene->master_collection};
-  const ListBase collections = {&child, &child};
-  ListBase new_object_bases = {NULL, NULL};
+  CollectionChild child = {.next = NULL, .prev = NULL, .collection = scene->master_collection};
+  const ListBase collections = {.first = &child, .last = &child};
+  ListBase new_object_bases = {.first = NULL, .last = NULL};
 
   const short parent_exclude = 0, parent_restrict = 0, parent_layer_restrict = 0;
   layer_collection_sync(view_layer,

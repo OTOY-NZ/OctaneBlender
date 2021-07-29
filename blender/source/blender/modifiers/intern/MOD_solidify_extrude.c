@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
@@ -76,7 +76,7 @@ BLI_INLINE bool edgeref_is_init(const EdgeFaceRef *edge_ref)
 }
 
 /**
- * \param dm: Mesh to calculate normals for.
+ * \param mesh: Mesh to calculate normals for.
  * \param poly_nors: Precalculated face normals.
  * \param r_vert_nors: Return vert normals.
  */
@@ -183,9 +183,7 @@ static void mesh_calc_hq_normal(Mesh *mesh, float (*poly_nors)[3], float (*r_ver
 /** \name Main Solidify Function
  * \{ */
 
-Mesh *MOD_solidify_extrude_applyModifier(ModifierData *md,
-                                         const ModifierEvalContext *ctx,
-                                         Mesh *mesh)
+Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   Mesh *result;
   const SolidifyModifierData *smd = (SolidifyModifierData *)md;
@@ -286,7 +284,7 @@ Mesh *MOD_solidify_extrude_applyModifier(ModifierData *md,
     new_edge_arr = MEM_malloc_arrayN(((numEdges * 2) + numVerts), sizeof(*new_edge_arr), __func__);
 
     edge_users = MEM_malloc_arrayN(numEdges, sizeof(*edge_users), "solid_mod edges");
-    edge_order = MEM_malloc_arrayN(numEdges, sizeof(*edge_order), "solid_mod eorder");
+    edge_order = MEM_malloc_arrayN(numEdges, sizeof(*edge_order), "solid_mod order");
 
     /* save doing 2 loops here... */
 #if 0

@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BKE_SCREEN_H__
-#define __BKE_SCREEN_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -34,6 +33,7 @@ extern "C" {
 struct ARegion;
 struct Header;
 struct ID;
+struct LibraryForeachIDData;
 struct ListBase;
 struct Menu;
 struct Panel;
@@ -141,6 +141,14 @@ typedef struct ARegionType {
   void (*exit)(struct wmWindowManager *wm, struct ARegion *region);
   /* draw entirely, view changes should be handled here */
   void (*draw)(const struct bContext *C, struct ARegion *region);
+  /**
+   * Handler to draw overlays. This handler is called every draw loop.
+   *
+   * \note Some editors should return early if the interface is locked
+   * (check with #CTX_wm_interface_locked) to avoid accessing scene data
+   * that another thread may be modifying
+   */
+  void (*draw_overlay)(const struct bContext *C, struct ARegion *region);
   /* optional, compute button layout before drawing for dynamic size */
   void (*layout)(const struct bContext *C, struct ARegion *region);
   /* snap the size of the region (can be NULL for no snapping). */
@@ -210,7 +218,7 @@ typedef struct PanelType {
   char context[BKE_ST_MAXNAME];   /* for buttons window */
   char category[BKE_ST_MAXNAME];  /* for category tabs */
   char owner_id[BKE_ST_MAXNAME];  /* for work-spaces to selectively show. */
-  char parent_id[BKE_ST_MAXNAME]; /* parent idname for subpanels */
+  char parent_id[BKE_ST_MAXNAME]; /* parent idname for sub-panels */
   short space_type;
   short region_type;
   /* For popovers, 0 for default. */
@@ -227,6 +235,25 @@ typedef struct PanelType {
   void (*draw_header_preset)(const struct bContext *C, struct Panel *panel);
   /* draw entirely, view changes should be handled here */
   void (*draw)(const struct bContext *C, struct Panel *panel);
+
+  /* For instanced panels corresponding to a list: */
+
+  /** Reorder function, called when drag and drop finishes. */
+  void (*reorder)(struct bContext *C, struct Panel *pa, int new_index);
+  /**
+   * Get the panel and sub-panel's expansion state from the expansion flag in the corresponding
+   * data item. Called on draw updates.
+   * \note Sub-panels are indexed in depth first order,
+   * the visual order you would see if all panels were expanded.
+   */
+  short (*get_list_data_expand_flag)(const struct bContext *C, struct Panel *pa);
+  /**
+   * Set the expansion bit-field from the closed / open state of this panel and its sub-panels.
+   * Called when the expansion state of the panel changes with user input.
+   * \note Sub-panels are indexed in depth first order,
+   * the visual order you would see if all panels were expanded.
+   */
+  void (*set_list_data_expand_flag)(const struct bContext *C, struct Panel *pa, short expand_flag);
 
   /* sub panels */
   struct PanelType *parent;
@@ -389,6 +416,8 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac);
 void BKE_screen_view3d_shading_init(struct View3DShading *shading);
 
 /* screen */
+void BKE_screen_foreach_id_screen_area(struct LibraryForeachIDData *data, struct ScrArea *area);
+
 void BKE_screen_free(struct bScreen *screen);
 void BKE_screen_area_map_free(struct ScrAreaMap *area_map) ATTR_NONNULL();
 
@@ -405,6 +434,4 @@ void BKE_screen_header_alignment_reset(struct bScreen *screen);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

@@ -1071,7 +1071,7 @@ static void mesh_island_to_astar_graph_edge_process(MeshIslandStore *islands,
                                                     BLI_bitmap *done_edges,
                                                     MeshElemMap *edge_to_poly_map,
                                                     const bool is_edge_innercut,
-                                                    int *poly_island_index_map,
+                                                    const int *poly_island_index_map,
                                                     float (*poly_centers)[3],
                                                     unsigned char *poly_status)
 {
@@ -1555,6 +1555,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                                      2,
                                      6,
                                      0,
+                                     NULL,
                                      NULL);
         }
 
@@ -1598,6 +1599,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                                        2,
                                        6,
                                        0,
+                                       NULL,
                                        NULL);
         }
 

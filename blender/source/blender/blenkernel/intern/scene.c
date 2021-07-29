@@ -33,6 +33,7 @@
 #include "DNA_defaults.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_linestyle_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -42,6 +43,7 @@
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
+#include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
@@ -77,6 +79,7 @@
 #include "BKE_image.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
 #include "BKE_linestyle.h"
 #include "BKE_main.h"
@@ -155,7 +158,7 @@ static void scene_init_data(ID *id)
   scene->unit.mass_unit = (uchar)bUnit_GetBaseUnitOfType(USER_UNIT_METRIC, B_UNIT_MASS);
   scene->unit.time_unit = (uchar)bUnit_GetBaseUnitOfType(USER_UNIT_METRIC, B_UNIT_TIME);
 
-  /* Anti-aliasing threshold. */
+  /* Anti-Aliasing threshold. */
   scene->grease_pencil_settings.smaa_threshold = 1.0f;
 
   {
@@ -343,7 +346,7 @@ static void scene_free_data(ID *id)
 
   /* is no lib link block, but scene extension */
   if (scene->nodetree) {
-    ntreeFreeNestedTree(scene->nodetree);
+    ntreeFreeEmbeddedTree(scene->nodetree);
     MEM_freeN(scene->nodetree);
     scene->nodetree = NULL;
   }
@@ -418,6 +421,173 @@ static void scene_free_data(ID *id)
   BLI_assert(scene->layer_properties == NULL);
 }
 
+static void library_foreach_rigidbodyworldSceneLooper(struct RigidBodyWorld *UNUSED(rbw),
+                                                      ID **id_pointer,
+                                                      void *user_data,
+                                                      int cb_flag)
+{
+  LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
+  BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
+}
+
+static void library_foreach_paint(LibraryForeachIDData *data, Paint *paint)
+{
+  BKE_LIB_FOREACHID_PROCESS(data, paint->brush, IDWALK_CB_USER);
+  for (int i = 0; i < paint->tool_slots_len; i++) {
+    BKE_LIB_FOREACHID_PROCESS(data, paint->tool_slots[i].brush, IDWALK_CB_USER);
+  }
+  BKE_LIB_FOREACHID_PROCESS(data, paint->palette, IDWALK_CB_USER);
+}
+
+static void library_foreach_layer_collection(LibraryForeachIDData *data, ListBase *lb)
+{
+  LISTBASE_FOREACH (LayerCollection *, lc, lb) {
+    /* XXX This is very weak. The whole idea of keeping pointers to private IDs is very bad
+     * anyway... */
+    const int cb_flag = (lc->collection != NULL &&
+                         (lc->collection->id.flag & LIB_EMBEDDED_DATA) != 0) ?
+                            IDWALK_CB_EMBEDDED :
+                            IDWALK_CB_NOP;
+    BKE_LIB_FOREACHID_PROCESS(data, lc->collection, cb_flag);
+    library_foreach_layer_collection(data, &lc->layer_collections);
+  }
+}
+
+static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  Scene *scene = (Scene *)id;
+
+  BKE_LIB_FOREACHID_PROCESS(data, scene->camera, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS(data, scene->world, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS(data, scene->set, IDWALK_CB_NEVER_SELF);
+  BKE_LIB_FOREACHID_PROCESS(data, scene->clip, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS(data, scene->gpd, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS(data, scene->r.bake.cage_object, IDWALK_CB_NOP);
+  if (scene->nodetree) {
+    /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
+    BKE_library_foreach_ID_embedded(data, (ID **)&scene->nodetree);
+  }
+  if (scene->ed) {
+    Sequence *seq;
+    SEQ_BEGIN (scene->ed, seq) {
+      BKE_LIB_FOREACHID_PROCESS(data, seq->scene, IDWALK_CB_NEVER_SELF);
+      BKE_LIB_FOREACHID_PROCESS(data, seq->scene_camera, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS(data, seq->clip, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS(data, seq->mask, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS(data, seq->sound, IDWALK_CB_USER);
+      IDP_foreach_property(
+          seq->prop, IDP_TYPE_FILTER_ID, BKE_lib_query_idpropertiesForeachIDLink_callback, data);
+      LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
+        BKE_LIB_FOREACHID_PROCESS(data, smd->mask_id, IDWALK_CB_USER);
+      }
+
+      if (seq->type == SEQ_TYPE_TEXT && seq->effectdata) {
+        TextVars *text_data = seq->effectdata;
+        BKE_LIB_FOREACHID_PROCESS(data, text_data->text_font, IDWALK_CB_USER);
+      }
+    }
+    SEQ_END;
+  }
+
+  /* This pointer can be NULL during old files reading, better be safe than sorry. */
+  if (scene->master_collection != NULL) {
+    BKE_library_foreach_ID_embedded(data, (ID **)&scene->master_collection);
+  }
+
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+    BKE_LIB_FOREACHID_PROCESS(data, view_layer->mat_override, IDWALK_CB_USER);
+
+    LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+      BKE_LIB_FOREACHID_PROCESS(data, base->object, IDWALK_CB_NOP);
+    }
+
+    library_foreach_layer_collection(data, &view_layer->layer_collections);
+
+    LISTBASE_FOREACH (FreestyleModuleConfig *, fmc, &view_layer->freestyle_config.modules) {
+      if (fmc->script) {
+        BKE_LIB_FOREACHID_PROCESS(data, fmc->script, IDWALK_CB_NOP);
+      }
+    }
+
+    LISTBASE_FOREACH (FreestyleLineSet *, fls, &view_layer->freestyle_config.linesets) {
+      if (fls->group) {
+        BKE_LIB_FOREACHID_PROCESS(data, fls->group, IDWALK_CB_USER);
+      }
+
+      if (fls->linestyle) {
+        BKE_LIB_FOREACHID_PROCESS(data, fls->linestyle, IDWALK_CB_USER);
+      }
+    }
+  }
+
+  LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
+    BKE_LIB_FOREACHID_PROCESS(data, marker->camera, IDWALK_CB_NOP);
+  }
+
+  ToolSettings *toolsett = scene->toolsettings;
+  if (toolsett) {
+    BKE_LIB_FOREACHID_PROCESS(data, toolsett->particle.scene, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS(data, toolsett->particle.object, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS(data, toolsett->particle.shape_object, IDWALK_CB_NOP);
+
+    library_foreach_paint(data, &toolsett->imapaint.paint);
+    BKE_LIB_FOREACHID_PROCESS(data, toolsett->imapaint.stencil, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS(data, toolsett->imapaint.clone, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS(data, toolsett->imapaint.canvas, IDWALK_CB_USER);
+
+    if (toolsett->vpaint) {
+      library_foreach_paint(data, &toolsett->vpaint->paint);
+    }
+    if (toolsett->wpaint) {
+      library_foreach_paint(data, &toolsett->wpaint->paint);
+    }
+    if (toolsett->sculpt) {
+      library_foreach_paint(data, &toolsett->sculpt->paint);
+      BKE_LIB_FOREACHID_PROCESS(data, toolsett->sculpt->gravity_object, IDWALK_CB_NOP);
+    }
+    if (toolsett->uvsculpt) {
+      library_foreach_paint(data, &toolsett->uvsculpt->paint);
+    }
+    if (toolsett->gp_paint) {
+      library_foreach_paint(data, &toolsett->gp_paint->paint);
+    }
+    if (toolsett->gp_vertexpaint) {
+      library_foreach_paint(data, &toolsett->gp_vertexpaint->paint);
+    }
+    if (toolsett->gp_sculptpaint) {
+      library_foreach_paint(data, &toolsett->gp_sculptpaint->paint);
+    }
+    if (toolsett->gp_weightpaint) {
+      library_foreach_paint(data, &toolsett->gp_weightpaint->paint);
+    }
+
+    BKE_LIB_FOREACHID_PROCESS(data, toolsett->gp_sculpt.guide.reference_object, IDWALK_CB_NOP);
+  }
+
+  if (scene->rigidbody_world) {
+    BKE_rigidbody_world_id_loop(
+        scene->rigidbody_world, library_foreach_rigidbodyworldSceneLooper, data);
+  }
+}
+
+static void scene_foreach_cache(ID *id,
+                                IDTypeForeachCacheFunctionCallback function_callback,
+                                void *user_data)
+{
+  Scene *scene = (Scene *)id;
+  IDCacheKey key = {
+      .id_session_uuid = id->session_uuid,
+      .offset_in_ID = offsetof(Scene, eevee.light_cache_data),
+      .cache_v = scene->eevee.light_cache_data,
+  };
+
+  function_callback(id,
+                    &key,
+                    (void **)&scene->eevee.light_cache_data,
+                    IDTYPE_CACHE_CB_FLAGS_PERSISTENT,
+                    user_data);
+}
+
 IDTypeInfo IDType_ID_SCE = {
     .id_code = ID_SCE,
     .id_filter = FILTER_ID_SCE,
@@ -434,6 +604,8 @@ IDTypeInfo IDType_ID_SCE = {
     /* For now default `BKE_lib_id_make_local_generic()` should work, may need more work though to
      * support all possible corner cases. */
     .make_local = NULL,
+    .foreach_id = scene_foreach_id,
+    .foreach_cache = scene_foreach_cache,
 };
 
 const char *RE_engine_id_BLENDER_EEVEE = "BLENDER_EEVEE";
@@ -469,7 +641,7 @@ static void remove_sequencer_fcurves(Scene *sce)
 
       if ((fcu->rna_path) && strstr(fcu->rna_path, "sequences_all")) {
         action_groups_remove_channel(adt->action, fcu);
-        free_fcurve(fcu);
+        BKE_fcurve_free(fcu);
       }
     }
   }
@@ -516,7 +688,6 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
   }
 
   BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag);
-  ts->imapaint.paintcursor = NULL;
   ts->particle.paintcursor = NULL;
   ts->particle.scene = NULL;
   ts->particle.object = NULL;
@@ -598,7 +769,7 @@ void BKE_scene_copy_data_eevee(Scene *sce_dst, const Scene *sce_src)
   /* TODO Copy the cache. */
 }
 
-Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
+Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
 {
   Scene *sce_copy;
 
@@ -670,35 +841,71 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
     return sce_copy;
   }
   else {
-    BKE_id_copy_ex(bmain, (ID *)sce, (ID **)&sce_copy, LIB_ID_COPY_ACTIONS);
+    eDupli_ID_Flags duplicate_flags = U.dupflag | USER_DUP_OBJECT;
+
+    BKE_id_copy(bmain, (ID *)sce, (ID **)&sce_copy);
     id_us_min(&sce_copy->id);
     id_us_ensure_real(&sce_copy->id);
+
+    BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
 
     /* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks. */
 
     if (type == SCE_COPY_FULL) {
+      /* Scene duplication is always root of duplication currently. */
+      const bool is_subprocess = false;
+
+      if (!is_subprocess) {
+        BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
+        BKE_main_id_clear_newpoins(bmain);
+        /* In case root duplicated ID is linked, assume we want to get a local copy of it and
+         * duplicate all expected linked data. */
+        if (ID_IS_LINKED(sce)) {
+          duplicate_flags |= USER_DUP_LINKED_ID;
+        }
+      }
+
       /* Copy Freestyle LineStyle datablocks. */
       LISTBASE_FOREACH (ViewLayer *, view_layer_dst, &sce_copy->view_layers) {
         LISTBASE_FOREACH (
             FreestyleLineSet *, lineset, &view_layer_dst->freestyle_config.linesets) {
-          if (lineset->linestyle) {
-            id_us_min(&lineset->linestyle->id);
-            BKE_id_copy_ex(
-                bmain, (ID *)lineset->linestyle, (ID **)&lineset->linestyle, LIB_ID_COPY_ACTIONS);
-          }
+          BKE_id_copy_for_duplicate(bmain, (ID *)lineset->linestyle, duplicate_flags);
         }
       }
 
       /* Full copy of world (included animations) */
-      if (sce_copy->world) {
-        id_us_min(&sce_copy->world->id);
-        BKE_id_copy_ex(bmain, (ID *)sce_copy->world, (ID **)&sce_copy->world, LIB_ID_COPY_ACTIONS);
-      }
+      BKE_id_copy_for_duplicate(bmain, (ID *)sce->world, duplicate_flags);
 
       /* Full copy of GreasePencil. */
-      if (sce_copy->gpd) {
-        id_us_min(&sce_copy->gpd->id);
-        BKE_id_copy_ex(bmain, (ID *)sce_copy->gpd, (ID **)&sce_copy->gpd, LIB_ID_COPY_ACTIONS);
+      BKE_id_copy_for_duplicate(bmain, (ID *)sce->gpd, duplicate_flags);
+
+      /* Deep-duplicate collections and objects (using preferences' settings for which sub-data to
+       * duplicate along the object itself). */
+      BKE_collection_duplicate(bmain,
+                               NULL,
+                               sce_copy->master_collection,
+                               duplicate_flags,
+                               LIB_ID_DUPLICATE_IS_SUBPROCESS);
+
+      if (!is_subprocess) {
+        /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW.*/
+        BKE_libblock_relink_to_newid(&sce_copy->id);
+
+#ifndef NDEBUG
+        /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those
+         * flags. */
+        ID *id_iter;
+        FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+          BLI_assert((id_iter->tag & LIB_TAG_NEW) == 0);
+        }
+        FOREACH_MAIN_ID_END;
+#endif
+
+        /* Cleanup. */
+        BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
+        BKE_main_id_clear_newpoins(bmain);
+
+        BKE_main_collection_sync(bmain);
       }
     }
     else {
@@ -707,9 +914,6 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
       remove_sequencer_fcurves(sce_copy);
       BKE_sequencer_editing_free(sce_copy, true);
     }
-
-    /* NOTE: part of SCE_COPY_FULL operations
-     * are done outside of blenkernel with ED_object_single_users! */
 
     return sce_copy;
   }
@@ -1097,9 +1301,7 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
 }
 
 /**
- * This function is needed to cope with fractional frames - including two Blender rendering
- * features mblur (motion blur that renders 'subframes' and blurs them together),
- * and fields rendering.
+ * This function is needed to cope with fractional frames, needed for motion blur & physics.
  */
 float BKE_scene_frame_get(const Scene *scene)
 {
@@ -1175,34 +1377,6 @@ int BKE_scene_orientation_slot_get_index(const TransformOrientationSlot *orient_
 }
 
 /** \} */
-
-/* That's like really a bummer, because currently animation data for armatures
- * might want to use pose, and pose might be missing on the object.
- * This happens when changing visible layers, which leads to situations when
- * pose is missing or marked for recalc, animation will change it and then
- * object update will restore the pose.
- *
- * This could be solved by the new dependency graph, but for until then we'll
- * do an extra pass on the objects to ensure it's all fine.
- */
-#define POSE_ANIMATION_WORKAROUND
-
-#ifdef POSE_ANIMATION_WORKAROUND
-static void scene_armature_depsgraph_workaround(Main *bmain, Depsgraph *depsgraph)
-{
-  Object *ob;
-  if (BLI_listbase_is_empty(&bmain->armatures) || !DEG_id_type_updated(depsgraph, ID_OB)) {
-    return;
-  }
-  for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-    if (ob->type == OB_ARMATURE && ob->adt) {
-      if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC)) {
-        BKE_pose_rebuild(bmain, ob, ob->data, true);
-      }
-    }
-  }
-}
-#endif
 
 static bool check_rendered_viewport_visible(Main *bmain)
 {
@@ -1388,9 +1562,6 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph, Main *bmain)
     BKE_image_editors_update_frame(bmain, scene->r.cfra);
     BKE_sound_set_cfra(scene->r.cfra);
     DEG_graph_relations_update(depsgraph, bmain, scene, view_layer);
-#ifdef POSE_ANIMATION_WORKAROUND
-    scene_armature_depsgraph_workaround(bmain, depsgraph);
-#endif
     /* Update all objects: drivers, matrices, displists, etc. flags set
      * by depgraph or manual, no layer check here, gets correct flushed.
      *
@@ -2116,7 +2287,7 @@ static Depsgraph **scene_get_depsgraph_p(Main *bmain,
       if (allocate_depsgraph) {
         *depsgraph_ptr = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_VIEWPORT);
         /* TODO(sergey): Would be cool to avoid string format print,
-         * but is a bit tricky because we can't know in advance  whether
+         * but is a bit tricky because we can't know in advance whether
          * we will ever enable debug messages for this depsgraph.
          */
         char name[1024];
@@ -2148,7 +2319,8 @@ static char *scene_undo_depsgraph_gen_key(Scene *scene, ViewLayer *view_layer, c
 
   size_t key_full_offset = BLI_strncpy_rlen(key_full, scene->id.name, MAX_ID_NAME);
   if (scene->id.lib != NULL) {
-    key_full_offset += BLI_strncpy_rlen(key_full + key_full_offset, scene->id.lib->name, FILE_MAX);
+    key_full_offset += BLI_strncpy_rlen(
+        key_full + key_full_offset, scene->id.lib->filepath, FILE_MAX);
   }
   key_full_offset += BLI_strncpy_rlen(key_full + key_full_offset, view_layer->name, MAX_NAME);
   BLI_assert(key_full_offset < MAX_ID_NAME + FILE_MAX + MAX_NAME);
@@ -2235,6 +2407,10 @@ void BKE_scene_transform_orientation_remove(Scene *scene, TransformOrientation *
       /* could also use orientation_index-- */
       orient_slot->type = V3D_ORIENT_GLOBAL;
       orient_slot->index_custom = -1;
+    }
+    else if (orient_slot->index_custom > orientation_index) {
+      BLI_assert(orient_slot->type == V3D_ORIENT_CUSTOM);
+      orient_slot->index_custom--;
     }
   }
 

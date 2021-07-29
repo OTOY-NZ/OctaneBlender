@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BKE_MESH_H__
-#define __BKE_MESH_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -84,12 +83,6 @@ struct Mesh *BKE_mesh_from_bmesh_nomain(struct BMesh *bm,
 struct Mesh *BKE_mesh_from_bmesh_for_eval_nomain(struct BMesh *bm,
                                                  const struct CustomData_MeshMasks *cd_mask_extra,
                                                  const struct Mesh *me_settings);
-
-struct Mesh *BKE_mesh_from_editmesh_with_coords_thin_wrap(
-    struct BMEditMesh *em,
-    const struct CustomData_MeshMasks *cd_mask_extra,
-    float (*vertexCos)[3],
-    const struct Mesh *me_settings);
 
 int poly_find_loop_from_vert(const struct MPoly *poly, const struct MLoop *loopstart, uint vert);
 int poly_get_adj_loops_from_vert(const struct MPoly *poly,
@@ -237,7 +230,7 @@ void BKE_mesh_nomain_to_meshkey(struct Mesh *mesh_src, struct Mesh *mesh_dst, st
 /* vertex level transformations & checks (no derived mesh) */
 
 bool BKE_mesh_minmax(const struct Mesh *me, float r_min[3], float r_max[3]);
-void BKE_mesh_transform(struct Mesh *me, float mat[4][4], bool do_keys);
+void BKE_mesh_transform(struct Mesh *me, const float mat[4][4], bool do_keys);
 void BKE_mesh_translate(struct Mesh *me, const float offset[3], const bool do_keys);
 
 void BKE_mesh_ensure_navmesh(struct Mesh *me);
@@ -490,6 +483,7 @@ void BKE_mesh_poly_edgebitmap_insert(unsigned int *edge_bitmap,
                                      const struct MLoop *mloop);
 
 bool BKE_mesh_center_median(const struct Mesh *me, float r_cent[3]);
+bool BKE_mesh_center_median_from_polys(const struct Mesh *me, float r_cent[3]);
 bool BKE_mesh_center_bounds(const struct Mesh *me, float r_cent[3]);
 bool BKE_mesh_center_of_surface(const struct Mesh *me, float r_cent[3]);
 bool BKE_mesh_center_of_volume(const struct Mesh *me, float r_cent[3]);
@@ -518,13 +512,13 @@ void BKE_mesh_loops_to_mface_corners(struct CustomData *fdata,
 void BKE_mesh_loops_to_tessdata(struct CustomData *fdata,
                                 struct CustomData *ldata,
                                 struct MFace *mface,
-                                int *polyindices,
+                                const int *polyindices,
                                 unsigned int (*loopindices)[4],
                                 const int num_faces);
 void BKE_mesh_tangent_loops_to_tessdata(struct CustomData *fdata,
                                         struct CustomData *ldata,
                                         struct MFace *mface,
-                                        int *polyindices,
+                                        const int *polyindices,
                                         unsigned int (*loopindices)[4],
                                         const int num_faces,
                                         const char *layer_name);
@@ -673,6 +667,10 @@ void BKE_mesh_calc_edges_loose(struct Mesh *mesh);
 void BKE_mesh_calc_edges(struct Mesh *mesh, bool update, const bool select);
 void BKE_mesh_calc_edges_tessface(struct Mesh *mesh);
 
+/* In DerivedMesh.c */
+void BKE_mesh_wrapper_deferred_finalize(struct Mesh *me_eval,
+                                        const CustomData_MeshMasks *final_datamask);
+
 /* **** Depsgraph evaluation **** */
 
 void BKE_mesh_eval_geometry(struct Depsgraph *depsgraph, struct Mesh *mesh);
@@ -708,5 +706,3 @@ BLI_INLINE int BKE_mesh_origindex_mface_mpoly(const int *index_mf_to_mpoly,
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_MESH_H__ */

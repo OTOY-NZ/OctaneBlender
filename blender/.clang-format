@@ -236,6 +236,7 @@ ForEachMacros:
   - LISTBASE_CIRCULAR_FORWARD_BEGIN
   - LISTBASE_FOREACH
   - LISTBASE_FOREACH_BACKWARD
+  - LISTBASE_FOREACH_INDEX
   - LISTBASE_FOREACH_MUTABLE
   - LISTBASE_FOREACH_BACKWARD_MUTABLE
   - MAN_ITER_AXES_BEGIN
@@ -257,6 +258,10 @@ ForEachMacros:
   - SURFACE_QUAD_ITER_BEGIN
   - foreach
   - ED_screen_areas_iter
+  - SLOT_PROBING_BEGIN
+  - SET_SLOT_PROBING_BEGIN
+  - MAP_SLOT_PROBING_BEGIN
+  - VECTOR_SET_SLOT_PROBING_BEGIN
 
 # Use once we bump the minimum version to version 8.
 # # Without this string literals that in-line 'STRINGIFY' behave strangely (a bug?).

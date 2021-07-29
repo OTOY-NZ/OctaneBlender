@@ -36,6 +36,11 @@ if(NOT DEFINED LIBDIR)
   elseif(EXISTS ${LIBDIR_CENTOS7_ABI})
     set(LIBDIR ${LIBDIR_CENTOS7_ABI})
     set(WITH_CXX11_ABI OFF)
+
+    if(CMAKE_COMPILER_IS_GNUCC AND
+       CMAKE_C_COMPILER_VERSION VERSION_LESS 9.3)
+      message(FATAL_ERROR "GCC version must be at least 9.3 for precompiled libraries, found ${CMAKE_C_COMPILER_VERSION}")
+    endif()
   endif()
 
   # Avoid namespace pollustion.
@@ -266,14 +271,8 @@ endif()
 if(WITH_ALEMBIC)
   find_package_wrapper(Alembic)
 
-  if(WITH_ALEMBIC_HDF5)
-    set(HDF5_ROOT_DIR ${LIBDIR}/hdf5)
-    find_package_wrapper(HDF5)
-  endif()
-
-  if(NOT ALEMBIC_FOUND OR (WITH_ALEMBIC_HDF5 AND NOT HDF5_FOUND))
+  if(NOT ALEMBIC_FOUND)
     set(WITH_ALEMBIC OFF)
-    set(WITH_ALEMBIC_HDF5 OFF)
   endif()
 endif()
 
@@ -506,7 +505,27 @@ if(WITH_SYSTEM_AUDASPACE)
   endif()
 endif()
 
-if(WITH_X11)
+if(WITH_GHOST_WAYLAND)
+  find_package(PkgConfig)
+  pkg_check_modules(wayland-client REQUIRED wayland-client>=1.12)
+  pkg_check_modules(wayland-egl REQUIRED wayland-egl)
+  pkg_check_modules(wayland-scanner REQUIRED wayland-scanner)
+  pkg_check_modules(xkbcommon REQUIRED xkbcommon)
+  pkg_check_modules(wayland-cursor REQUIRED wayland-cursor)
+
+  set(WITH_GL_EGL ON)
+
+  if(WITH_GHOST_WAYLAND)
+    list(APPEND PLATFORM_LINKLIBS
+      ${wayland-client_LIBRARIES}
+      ${wayland-egl_LIBRARIES}
+      ${xkbcommon_LIBRARIES}
+      ${wayland-cursor_LIBRARIES}
+    )
+  endif()
+endif()
+
+if(WITH_GHOST_X11)
   find_package(X11 REQUIRED)
 
   find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
@@ -573,6 +592,19 @@ if(CMAKE_COMPILER_IS_GNUCC)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
     else()
       message(STATUS "GNU gold linker isn't available, using the default system linker.")
+    endif()
+    unset(LD_VERSION)
+  endif()
+
+  if(WITH_LINKER_LLD)
+    execute_process(
+      COMMAND ${CMAKE_C_COMPILER} -fuse-ld=lld -Wl,--version
+      ERROR_QUIET OUTPUT_VARIABLE LD_VERSION)
+    if("${LD_VERSION}" MATCHES "LLD")
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=lld")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld")
+    else()
+      message(STATUS "LLD linker isn't available, using the default system linker.")
     endif()
     unset(LD_VERSION)
   endif()

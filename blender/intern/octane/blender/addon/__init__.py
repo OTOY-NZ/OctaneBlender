@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 21.15)",
+    "name": "OctaneRender Engine (v. 22.0)",
     "author": "OTOY Inc.",
     "blender": (2, 82, 0),
     "location": "Info header, render engine menu",
@@ -99,7 +99,7 @@ class OctaneRender(bpy.types.RenderEngine):
     def render(self, depsgraph):        
         engine.render(self, depsgraph)
 
-    def bake(self, depsgraph, obj, pass_type, pass_filter, object_id, pixel_array, num_pixels, depth, result):
+    def bake(self, depsgraph, obj, pass_type, pass_filter, width, height):
         pass
 
     # viewport render

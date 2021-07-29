@@ -21,13 +21,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-enum DenoiserType {
-  DENOISER_NONE = 0,
-  DENOISER_OPTIX = 1,
-
-  DENOISER_NUM
-};
-
 enum ComputeDevice {
   COMPUTE_DEVICE_CPU = 0,
   COMPUTE_DEVICE_CUDA = 1,
@@ -113,34 +106,10 @@ DeviceInfo blender_device_info(BL::Preferences &b_preferences, BL::Scene &b_scen
         device = Device::get_multi_device(used_devices, threads, background);
       }
       /* Else keep using the CPU device that was set before. */
-    }
-  }
 
-  /* Ensure there is an OptiX device when using the OptiX denoiser. */
-  bool use_optix_denoising = get_enum(cscene, "preview_denoising", DENOISER_NUM, DENOISER_NONE) ==
-                                 DENOISER_OPTIX &&
-                             !background;
-  BL::Scene::view_layers_iterator b_view_layer;
-  for (b_scene.view_layers.begin(b_view_layer); b_view_layer != b_scene.view_layers.end();
-       ++b_view_layer) {
-    PointerRNA crl = RNA_pointer_get(&b_view_layer->ptr, "cycles");
-    if (get_boolean(crl, "use_optix_denoising")) {
-      use_optix_denoising = true;
-    }
-  }
-
-  if (use_optix_denoising && device.type != DEVICE_OPTIX) {
-    vector<DeviceInfo> optix_devices = Device::available_devices(DEVICE_MASK_OPTIX);
-    if (!optix_devices.empty()) {
-      /* Convert to a special multi device with separate denoising devices. */
-      if (device.multi_devices.empty()) {
-        device.multi_devices.push_back(device);
+      if (!get_boolean(cpreferences, "peer_memory")) {
+        device.has_peer_memory = false;
       }
-
-      /* Simply use the first available OptiX device. */
-      const DeviceInfo optix_device = optix_devices.front();
-      device.id += optix_device.id; /* Uniquely identify this special multi device. */
-      device.denoising_devices.push_back(optix_device);
     }
   }
 

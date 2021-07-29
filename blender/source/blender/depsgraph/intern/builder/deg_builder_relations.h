@@ -69,6 +69,7 @@ struct Object;
 struct ParticleSettings;
 struct ParticleSystem;
 struct Scene;
+struct Simulation;
 struct Speaker;
 struct Tex;
 struct ViewLayer;
@@ -83,7 +84,8 @@ struct bSound;
 
 struct PropertyRNA;
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 struct ComponentNode;
 struct DepsNodeHandle;
@@ -209,10 +211,10 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_collection(LayerCollection *from_layer_collection,
                                 Object *object,
                                 Collection *collection);
-  virtual void build_object(Base *base, Object *object);
+  virtual void build_object(Object *object);
   virtual void build_object_proxy_from(Object *object);
   virtual void build_object_proxy_group(Object *object);
-  virtual void build_object_flags(Base *base, Object *object);
+  virtual void build_object_from_layer_relations(Object *object);
   virtual void build_object_data(Object *object);
   virtual void build_object_data_camera(Object *object);
   virtual void build_object_data_geometry(Object *object);
@@ -286,6 +288,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_lightprobe(LightProbe *probe);
   virtual void build_speaker(Speaker *speaker);
   virtual void build_sound(bSound *sound);
+  virtual void build_simulation(Simulation *simulation);
   virtual void build_scene_sequencer(Scene *scene);
   virtual void build_scene_audio(Scene *scene);
   virtual void build_scene_speakers(Scene *scene, ViewLayer *view_layer);
@@ -383,6 +386,7 @@ struct DepsNodeHandle {
   const char *default_name;
 };
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender
 
 #include "intern/builder/deg_builder_relations_impl.h"

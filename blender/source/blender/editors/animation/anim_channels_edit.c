@@ -138,7 +138,8 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSMCLIP:
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
-      case ANIMTYPE_DSVOLUME: {
+      case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSSIMULATION: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
           ACHANNEL_SET_FLAG(ale->adt, ACHANNEL_SETFLAG_CLEAR, ADT_UI_ACTIVE);
@@ -194,7 +195,8 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSMCLIP:
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
-      case ANIMTYPE_DSVOLUME: {
+      case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSSIMULATION: {
         /* need to verify that this data is valid for now */
         if (ale && ale->adt) {
           ale->adt->flag |= ADT_UI_ACTIVE;
@@ -332,7 +334,8 @@ void ANIM_deselect_anim_channels(
         case ANIMTYPE_DSMCLIP:
         case ANIMTYPE_DSHAIR:
         case ANIMTYPE_DSPOINTCLOUD:
-        case ANIMTYPE_DSVOLUME: {
+        case ANIMTYPE_DSVOLUME:
+        case ANIMTYPE_DSSIMULATION: {
           if ((ale->adt) && (ale->adt->flag & ADT_UI_SELECTED)) {
             sel = ACHANNEL_SETFLAG_CLEAR;
           }
@@ -428,7 +431,8 @@ void ANIM_deselect_anim_channels(
       case ANIMTYPE_DSMCLIP:
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
-      case ANIMTYPE_DSVOLUME: {
+      case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSSIMULATION: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
           ACHANNEL_SET_FLAG(ale->adt, sel, ADT_UI_SELECTED);
@@ -501,9 +505,9 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
     printf("ERROR: no channel matching the one changed was found\n");
     return;
   }
-  else {
-    const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale_setting);
 
+  {
+    const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale_setting);
     if (acf == NULL) {
       printf("ERROR: no channel info for the changed channel\n");
       return;
@@ -567,9 +571,7 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
            * finished, so skip until we get to the parent of this level
            */
         }
-        else {
-          continue;
-        }
+        continue;
       }
     }
   }
@@ -667,7 +669,7 @@ void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, AnimData *adt, FCurve *f
   }
 
   /* free the F-Curve itself */
-  free_fcurve(fcu);
+  BKE_fcurve_free(fcu);
 }
 
 /* If the action has no F-Curves, unlink it from AnimData if it did not
@@ -1802,7 +1804,7 @@ static int animchannels_delete_exec(bContext *C, wmOperator *UNUSED(op))
 
           /* remove from group and action, then free */
           action_groups_remove_channel(adt->action, fcu);
-          free_fcurve(fcu);
+          BKE_fcurve_free(fcu);
         }
 
         /* free the group itself */
@@ -1856,7 +1858,7 @@ static int animchannels_delete_exec(bContext *C, wmOperator *UNUSED(op))
 
         /* unlink and free the F-Curve */
         BLI_remlink(&strip->fcurves, fcu);
-        free_fcurve(fcu);
+        BKE_fcurve_free(fcu);
         tag_update_animation_element(ale);
         break;
       }
@@ -2310,7 +2312,7 @@ static int animchannels_clean_empty_exec(bContext *C, wmOperator *UNUSED(op))
           nla_empty = false;
           break;
         }
-        else if (nlt->strips.first == NULL) {
+        if (nlt->strips.first == NULL) {
           /* this track is empty, but another one may still have stuff in it, so can't break yet */
           nla_empty = true;
         }
@@ -2808,10 +2810,9 @@ static int animchannels_rename_invoke(bContext *C, wmOperator *UNUSED(op), const
   if (rename_anim_channels(&ac, channel_index)) {
     return OPERATOR_FINISHED;
   }
-  else {
-    /* allow event to be handled by selectall operator */
-    return OPERATOR_PASS_THROUGH;
-  }
+
+  /* allow event to be handled by selectall operator */
+  return OPERATOR_PASS_THROUGH;
 }
 
 static void ANIM_OT_channels_rename(wmOperatorType *ot)
@@ -2965,7 +2966,8 @@ static int mouse_anim_channels(bContext *C, bAnimContext *ac, int channel_index,
     case ANIMTYPE_DSMCLIP:
     case ANIMTYPE_DSHAIR:
     case ANIMTYPE_DSPOINTCLOUD:
-    case ANIMTYPE_DSVOLUME: {
+    case ANIMTYPE_DSVOLUME:
+    case ANIMTYPE_DSSIMULATION: {
       /* sanity checking... */
       if (ale->adt) {
         /* select/deselect */
@@ -3367,10 +3369,9 @@ static int animchannels_channel_select_keys_invoke(bContext *C,
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, NULL);
     return OPERATOR_FINISHED;
   }
-  else {
-    /* allow event to be handled by selectall operator */
-    return OPERATOR_PASS_THROUGH;
-  }
+
+  /* allow event to be handled by selectall operator */
+  return OPERATOR_PASS_THROUGH;
 }
 
 static void ANIM_OT_channel_select_keys(wmOperatorType *ot)

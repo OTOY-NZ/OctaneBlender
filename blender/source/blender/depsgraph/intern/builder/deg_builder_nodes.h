@@ -37,7 +37,6 @@ struct Collection;
 struct FCurve;
 struct FreestyleLineSet;
 struct FreestyleLineStyle;
-struct GHash;
 struct ID;
 struct IDProperty;
 struct Image;
@@ -53,6 +52,7 @@ struct MovieClip;
 struct Object;
 struct ParticleSettings;
 struct Scene;
+struct Simulation;
 struct Speaker;
 struct Tex;
 struct World;
@@ -64,7 +64,8 @@ struct bNodeTree;
 struct bPoseChannel;
 struct bSound;
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 struct ComponentNode;
 struct Depsgraph;
@@ -168,6 +169,9 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_object_proxy_from(Object *object, bool is_object_visible);
   virtual void build_object_proxy_group(Object *object, bool is_object_visible);
   virtual void build_object_instance_collection(Object *object, bool is_object_visible);
+  virtual void build_object_from_layer(int base_index,
+                                       Object *object,
+                                       eDepsNode_LinkedState_Type linked_state);
   virtual void build_object_flags(int base_index,
                                   Object *object,
                                   eDepsNode_LinkedState_Type linked_state);
@@ -221,6 +225,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_lightprobe(LightProbe *probe);
   virtual void build_speaker(Speaker *speaker);
   virtual void build_sound(bSound *sound);
+  virtual void build_simulation(Simulation *simulation);
   virtual void build_scene_sequencer(Scene *scene);
   virtual void build_scene_audio(Scene *scene);
   virtual void build_scene_speakers(Scene *scene, ViewLayer *view_layer);
@@ -250,7 +255,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
     string name;
     int name_tag;
   };
-  vector<SavedEntryTag> saved_entry_tags_;
+  Vector<SavedEntryTag> saved_entry_tags_;
 
   struct BuilderWalkUserData {
     DepsgraphNodeBuilder *builder;
@@ -279,11 +284,12 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   bool is_parent_collection_visible_;
 
   /* Indexed by original ID, values are IDInfo. */
-  GHash *id_info_hash_;
+  Map<const ID *, IDInfo *> id_info_hash_;
 
   /* Set of IDs which were already build. Makes it easier to keep track of
    * what was already built and what was not. */
   BuilderMap built_map_;
 };
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

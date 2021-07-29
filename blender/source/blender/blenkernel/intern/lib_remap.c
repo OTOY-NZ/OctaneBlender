@@ -334,7 +334,7 @@ static void libblock_remap_data_postprocess_obdata_relink(Main *bmain, Object *o
       default:
         break;
     }
-    test_object_modifiers(ob);
+    BKE_modifiers_test_object(ob);
     BKE_object_materials_test(bmain, ob, new_id);
   }
 }
@@ -666,9 +666,10 @@ static int id_relink_to_newid_looper(LibraryIDLinkCallbackData *cb_data)
     /* See: NEW_ID macro */
     if (id->newid) {
       BKE_library_update_ID_link_user(id->newid, id, cb_flag);
-      *id_pointer = id->newid;
+      id = id->newid;
+      *id_pointer = id;
     }
-    else if (id->tag & LIB_TAG_NEW) {
+    if (id->tag & LIB_TAG_NEW) {
       id->tag &= ~LIB_TAG_NEW;
       BKE_libblock_relink_to_newid(id);
     }

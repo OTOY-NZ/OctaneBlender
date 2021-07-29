@@ -25,6 +25,7 @@
 
 #include "DNA_defaults.h"
 #include "DNA_key_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -47,10 +48,12 @@
 #include "BKE_idtype.h"
 #include "BKE_key.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_mesh_wrapper.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_object.h"
@@ -92,7 +95,15 @@ static void mesh_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int 
     /* This is a direct copy of a main mesh, so for now it has the same topology. */
     mesh_dst->runtime.deformed_only = true;
   }
-  /* XXX WHAT? Why? Comment, please! And pretty sure this is not valid for regular Mesh copying? */
+  /* This option is set for run-time meshes that have been copied from the current objects mode.
+   * Currently this is used for edit-mesh although it could be used for sculpt or other
+   * kinds of data specific to an objects mode.
+   *
+   * The flag signals that the mesh hasn't been modified from the data that generated it,
+   * allowing us to use the object-mode data for drawing.
+   *
+   * While this could be the callers responsibility, keep here since it's
+   * highly unlikely we want to create a duplicate and not use it for drawing. */
   mesh_dst->runtime.is_original = false;
 
   /* Only do tessface if we have no polys. */
@@ -142,6 +153,16 @@ static void mesh_free_data(ID *id)
   MEM_SAFE_FREE(mesh->mat);
 }
 
+static void mesh_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  Mesh *mesh = (Mesh *)id;
+  BKE_LIB_FOREACHID_PROCESS(data, mesh->texcomesh, IDWALK_CB_NEVER_SELF);
+  BKE_LIB_FOREACHID_PROCESS(data, mesh->key, IDWALK_CB_USER);
+  for (int i = 0; i < mesh->totcol; i++) {
+    BKE_LIB_FOREACHID_PROCESS(data, mesh->mat[i], IDWALK_CB_USER);
+  }
+}
+
 IDTypeInfo IDType_ID_ME = {
     .id_code = ID_ME,
     .id_filter = FILTER_ID_ME,
@@ -156,6 +177,7 @@ IDTypeInfo IDType_ID_ME = {
     .copy_data = mesh_copy_data,
     .free_data = mesh_free_data,
     .make_local = NULL,
+    .foreach_id = mesh_foreach_id,
 };
 
 enum {
@@ -862,26 +884,6 @@ Mesh *BKE_mesh_from_bmesh_for_eval_nomain(BMesh *bm,
   return mesh;
 }
 
-/**
- * TODO(campbell): support mesh with only an edit-mesh which is lazy initialized.
- */
-Mesh *BKE_mesh_from_editmesh_with_coords_thin_wrap(BMEditMesh *em,
-                                                   const CustomData_MeshMasks *cd_mask_extra,
-                                                   float (*vertexCos)[3],
-                                                   const Mesh *me_settings)
-{
-  Mesh *me = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, cd_mask_extra, me_settings);
-  /* Use editmesh directly where possible. */
-  me->runtime.is_original = true;
-  if (vertexCos) {
-    /* We will own this array in the future. */
-    BKE_mesh_vert_coords_apply(me, vertexCos);
-    MEM_freeN(vertexCos);
-    me->runtime.is_original = false;
-  }
-  return me;
-}
-
 BoundBox *BKE_mesh_boundbox_get(Object *ob)
 {
   /* This is Object-level data access,
@@ -891,7 +893,7 @@ BoundBox *BKE_mesh_boundbox_get(Object *ob)
     float min[3], max[3];
 
     INIT_MINMAX(min, max);
-    if (!BKE_mesh_minmax(me, min, max)) {
+    if (!BKE_mesh_wrapper_minmax(me, min, max)) {
       min[0] = min[1] = min[2] = -1.0f;
       max[0] = max[1] = max[2] = 1.0f;
     }
@@ -912,7 +914,7 @@ void BKE_mesh_texspace_calc(Mesh *me)
     float min[3], max[3];
 
     INIT_MINMAX(min, max);
-    if (!BKE_mesh_minmax(me, min, max)) {
+    if (!BKE_mesh_wrapper_minmax(me, min, max)) {
       min[0] = min[1] = min[2] = -1.0f;
       max[0] = max[1] = max[2] = 1.0f;
     }
@@ -1137,7 +1139,7 @@ void BKE_mesh_assign_object(Main *bmain, Object *ob, Mesh *me)
 
   BKE_object_materials_test(bmain, ob, (ID *)me);
 
-  test_object_modifiers(ob);
+  BKE_modifiers_test_object(ob);
 }
 
 void BKE_mesh_material_index_remove(Mesh *me, short index)
@@ -1320,7 +1322,7 @@ bool BKE_mesh_minmax(const Mesh *me, float r_min[3], float r_max[3])
   return (me->totvert != 0);
 }
 
-void BKE_mesh_transform(Mesh *me, float mat[4][4], bool do_keys)
+void BKE_mesh_transform(Mesh *me, const float mat[4][4], bool do_keys)
 {
   int i;
   MVert *mvert = me->mvert;

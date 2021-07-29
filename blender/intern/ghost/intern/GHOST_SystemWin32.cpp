@@ -282,7 +282,7 @@ void GHOST_SystemWin32::getAllDisplayDimensions(GHOST_TUns32 &width, GHOST_TUns3
   height = ::GetSystemMetrics(SM_CYVIRTUALSCREEN);
 }
 
-GHOST_IWindow *GHOST_SystemWin32::createWindow(const STR_String &title,
+GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
                                                GHOST_TInt32 left,
                                                GHOST_TInt32 top,
                                                GHOST_TUns32 width,
@@ -1143,10 +1143,16 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     BYTE state[256] = {0};
     int r;
     GetKeyboardState((PBYTE)state);
+    bool ctrl_pressed = state[VK_CONTROL] & 0x80;
+    bool alt_pressed = state[VK_MENU] & 0x80;
 
+    /* No text with control key pressed (Alt can be used to insert special characters though!). */
+    if (ctrl_pressed && !alt_pressed) {
+      utf8_char[0] = '\0';
+    }
     // Don't call ToUnicodeEx on dead keys as it clears the buffer and so won't allow diacritical
     // composition.
-    if (MapVirtualKeyW(vk, 2) != 0) {
+    else if (MapVirtualKeyW(vk, 2) != 0) {
       // todo: ToUnicodeEx can respond with up to 4 utf16 chars (only 2 here).
       // Could be up to 24 utf8 bytes.
       if ((r = ToUnicodeEx(

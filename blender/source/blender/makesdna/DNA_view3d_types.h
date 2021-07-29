@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_VIEW3D_TYPES_H__
-#define __DNA_VIEW3D_TYPES_H__
+#pragma once
 
 struct BoundBox;
 struct Object;
@@ -229,8 +228,19 @@ typedef struct View3DOverlay {
 
   /** Factor for mixing vertex paint with original color */
   float gpencil_vertex_paint_opacity;
-  char _pad4[4];
+  /** Handles display type for curves. */
+  int handle_display;
 } View3DOverlay;
+
+/* View3DOverlay->handle_display */
+typedef enum eHandleDisplay {
+  /* Display only selected points. */
+  CURVE_HANDLE_SELECTED = 0,
+  /* Display all handles. */
+  CURVE_HANDLE_ALL = 1,
+  /* No display handles. */
+  CURVE_HANDLE_NONE = 2,
+} eHandleDisplay;
 
 typedef struct View3D_Runtime {
   /** Nkey panel stores stuff here. */
@@ -451,6 +461,7 @@ enum {
 #define V3D_GP_FADE_NOACTIVE_GPENCIL (1 << 6) /* Fade other GPencil objects */
 #define V3D_GP_SHOW_STROKE_DIRECTION (1 << 7) /* Show Strokes Directions */
 #define V3D_GP_SHOW_MATERIAL_NAME (1 << 8)    /* Show Material names */
+#define V3D_GP_SHOW_GRID_XRAY (1 << 9)        /* Show Canvas Grid on Top */
 
 /** #View3DShading.flag */
 enum {
@@ -490,6 +501,7 @@ enum {
   V3D_OVERLAY_HIDE_BONES = (1 << 8),
   V3D_OVERLAY_HIDE_OBJECT_XTRAS = (1 << 9),
   V3D_OVERLAY_HIDE_OBJECT_ORIGINS = (1 << 10),
+  V3D_OVERLAY_STATS = (1 << 11),
 };
 
 /** #View3DOverlay.edit_flag */
@@ -521,7 +533,9 @@ enum {
   V3D_OVERLAY_EDIT_FACE_AREA = (1 << 18),
   V3D_OVERLAY_EDIT_INDICES = (1 << 19),
 
-  V3D_OVERLAY_EDIT_CU_HANDLES = (1 << 20),
+  /* Deprecated. */
+  /* V3D_OVERLAY_EDIT_CU_HANDLES = (1 << 20),  */
+
   V3D_OVERLAY_EDIT_CU_NORMALS = (1 << 21),
 };
 
@@ -615,5 +629,3 @@ enum {
 /** #BKE_screen_view3d_zoom_to_fac() values above */
 #define RV3D_CAMZOOM_MIN_FACTOR 0.1657359312880714853f
 #define RV3D_CAMZOOM_MAX_FACTOR 44.9852813742385702928f
-
-#endif

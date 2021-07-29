@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2019 Blender Foundation.
@@ -145,21 +145,23 @@ static void wm_usd_export_draw(bContext *UNUSED(C), wmOperator *op)
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, true);
+  uiLayout *box = uiLayoutBox(layout);
+
+  col = uiLayoutColumn(box, true);
   uiItemR(col, ptr, "selected_objects_only", 0, NULL, ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
+  col = uiLayoutColumn(box, true);
   uiItemR(col, ptr, "export_animation", 0, NULL, ICON_NONE);
   uiItemR(col, ptr, "export_hair", 0, NULL, ICON_NONE);
   uiItemR(col, ptr, "export_uvmaps", 0, NULL, ICON_NONE);
   uiItemR(col, ptr, "export_normals", 0, NULL, ICON_NONE);
   uiItemR(col, ptr, "export_materials", 0, NULL, ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
+  col = uiLayoutColumn(box, true);
   uiItemR(col, ptr, "evaluation_mode", 0, NULL, ICON_NONE);
 
-  uiLayout *box = uiLayoutBox(layout);
-  uiItemL(box, IFACE_("Experimental:"), ICON_NONE);
+  box = uiLayoutBox(layout);
+  uiItemL(box, IFACE_("Experimental"), ICON_NONE);
   uiItemR(box, ptr, "use_instancing", 0, NULL, ICON_NONE);
 }
 

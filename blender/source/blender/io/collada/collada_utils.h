@@ -18,8 +18,7 @@
  * \ingroup collada
  */
 
-#ifndef __COLLADA_UTILS_H__
-#define __COLLADA_UTILS_H__
+#pragma once
 
 #include "COLLADAFWColorOrTexture.h"
 #include "COLLADAFWFloatOrDoubleArray.h"
@@ -33,7 +32,6 @@
 #include <set>
 #include <vector>
 
-extern "C" {
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
@@ -57,7 +55,6 @@ extern "C" {
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
-}
 
 #include "DEG_depsgraph_query.h"
 
@@ -345,7 +342,7 @@ class BoneExtended {
   bool has_roll();
   float get_roll();
 
-  void set_tail(float vec[]);
+  void set_tail(const float vec[]);
   float *get_tail();
   bool has_tail();
 
@@ -395,5 +392,3 @@ COLLADASW::ColorOrTexture bc_get_cot_from_shader(bNode *shader,
 
 COLLADASW::ColorOrTexture bc_get_cot(float r, float g, float b, float a);
 COLLADASW::ColorOrTexture bc_get_cot(Color col, bool with_alpha = true);
-
-#endif

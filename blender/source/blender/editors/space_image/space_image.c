@@ -75,11 +75,10 @@
 #include "GPU_batch_presets.h"
 #include "GPU_framebuffer.h"
 #include "GPU_viewport.h"
-#include "image_intern.h"
 
-/* TODO(fclem) remove bad level calls */
-#include "../draw/DRW_engine.h"
-#include "wm_draw.h"
+#include "DRW_engine_types.h"
+
+#include "image_intern.h"
 
 /**************************** common state *****************************/
 
@@ -127,6 +126,7 @@ static SpaceLink *image_new(const ScrArea *UNUSED(area), const Scene *UNUSED(sce
   simage->zoom = 1.0f;
   simage->lock = true;
   simage->flag = SI_SHOW_GPENCIL | SI_USE_ALPHA | SI_COORDFLOATS;
+  simage->uv_opacity = 1.0f;
 
   BKE_imageuser_default(&simage->iuser);
   simage->iuser.flag = IMA_SHOW_STEREO | IMA_ANIM_ALWAYS;
@@ -368,9 +368,10 @@ static void image_listener(wmWindow *win, ScrArea *area, wmNotifier *wmn, Scene 
       }
       break;
     case NC_MASK: {
-      ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-      Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
-      if (ED_space_image_check_show_maskedit(sima, obedit)) {
+      // Scene *scene = wmn->window->screen->scene;
+      /* ideally would check for: ED_space_image_check_show_maskedit(scene, sima)
+       * but we cant get the scene */
+      if (sima->mode == SI_MODE_MASK) {
         switch (wmn->data) {
           case ND_SELECT:
             ED_area_tag_redraw(area);
@@ -641,17 +642,18 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   // View2DScrollers *scrollers;
   float col[3];
 
-  /* XXX This is in order to draw UI batches with the DRW
-   * old context since we now use it for drawing the entire area. */
-  gpu_batch_presets_reset();
+  GPU_batch_presets_reset();
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
+  GPUFrameBuffer *framebuffer_default, *framebuffer_overlay;
 
-  GPUViewport *viewport = region->draw_buffer->viewport;
-  DefaultFramebufferList *fbl = GPU_viewport_framebuffer_list_get(viewport);
-  GPU_framebuffer_bind(fbl->default_fb);
+  framebuffer_default = GPU_viewport_framebuffer_default_get(viewport);
+  framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
+
+  GPU_framebuffer_bind(framebuffer_default);
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
   GPU_clear(GPU_COLOR_BIT);
 
-  GPU_framebuffer_bind(fbl->overlay_fb);
+  GPU_framebuffer_bind(framebuffer_overlay);
 
   /* XXX not supported yet, disabling for now */
   scene->r.scemode &= ~R_COMP_CROP;

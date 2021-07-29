@@ -20,8 +20,11 @@
  * \ingroup render
  */
 
-#ifndef __RE_SHADER_EXT_H__
-#define __RE_SHADER_EXT_H__
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is for texture exports                        */
@@ -75,4 +78,6 @@ int multitex_nodes(struct Tex *tex,
                    struct MTex *mtex,
                    struct ImagePool *pool);
 
-#endif /* __RE_SHADER_EXT_H__ */
+#ifdef __cplusplus
+}
+#endif

@@ -150,8 +150,8 @@ void ED_image_draw_info(Scene *scene,
                         const uchar cp[4],
                         const float fp[4],
                         const float linearcol[4],
-                        int *zp,
-                        float *zpf)
+                        const int *zp,
+                        const float *zpf)
 {
   rcti color_rect;
   char str[256];
@@ -463,7 +463,7 @@ void ED_image_draw_info(Scene *scene,
 
 /* image drawing */
 static void sima_draw_zbuf_pixels(
-    float x1, float y1, int rectx, int recty, int *rect, float zoomx, float zoomy)
+    float x1, float y1, int rectx, int recty, const int *rect, float zoomx, float zoomy)
 {
   float red[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 
@@ -476,7 +476,7 @@ static void sima_draw_zbuf_pixels(
 
   IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR);
   GPU_shader_uniform_vector(
-      state.shader, GPU_shader_get_uniform_ensure(state.shader, "shuffle"), 4, 1, red);
+      state.shader, GPU_shader_get_uniform(state.shader, "shuffle"), 4, 1, red);
 
   immDrawPixelsTex(
       &state, x1, y1, rectx, recty, GL_RED, GL_INT, GL_NEAREST, recti, zoomx, zoomy, NULL);
@@ -489,7 +489,7 @@ static void sima_draw_zbuffloat_pixels(Scene *scene,
                                        float y1,
                                        int rectx,
                                        int recty,
-                                       float *rect_float,
+                                       const float *rect_float,
                                        float zoomx,
                                        float zoomy)
 {
@@ -524,7 +524,7 @@ static void sima_draw_zbuffloat_pixels(Scene *scene,
 
   IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR);
   GPU_shader_uniform_vector(
-      state.shader, GPU_shader_get_uniform_ensure(state.shader, "shuffle"), 4, 1, red);
+      state.shader, GPU_shader_get_uniform(state.shader, "shuffle"), 4, 1, red);
 
   immDrawPixelsTex(
       &state, x1, y1, rectx, recty, GL_RED, GL_FLOAT, GL_NEAREST, rectf, zoomx, zoomy, NULL);
@@ -637,7 +637,7 @@ static void draw_image_buffer(const bContext *C,
 
       IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR);
       GPU_shader_uniform_vector(
-          state.shader, GPU_shader_get_uniform_ensure(state.shader, "shuffle"), 4, 1, shuffle);
+          state.shader, GPU_shader_get_uniform(state.shader, "shuffle"), 4, 1, shuffle);
 
       IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
       display_buffer = IMB_display_buffer_acquire(

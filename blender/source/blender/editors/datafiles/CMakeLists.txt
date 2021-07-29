@@ -336,7 +336,7 @@ set(ICON_NAMES
   force_boid
   force_turbulence
   force_drag
-  force_smokeflow
+  force_fluidflow
   image_plane
   image_background
   image_reference
@@ -713,6 +713,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.mesh.bisect
   ops.mesh.dupli_extrude_cursor
   ops.mesh.extrude_faces_move
+  ops.mesh.extrude_manifold
   ops.mesh.extrude_region_move
   ops.mesh.extrude_region_shrink_fatten
   ops.mesh.inset
@@ -743,6 +744,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.pose.relax
   ops.sculpt.border_hide
   ops.sculpt.border_mask
+  ops.sculpt.cloth_filter
   ops.sculpt.lasso_mask
   ops.sculpt.mesh_filter
   ops.sequencer.blade

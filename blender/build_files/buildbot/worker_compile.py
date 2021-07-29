@@ -35,7 +35,7 @@ def get_cmake_options(builder):
         options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=x86_64')
         options.append('-DCMAKE_OSX_DEPLOYMENT_TARGET=10.9')
     elif builder.platform == 'win':
-        options.extend(['-G', 'Visual Studio 15 2017 Win64'])
+        options.extend(['-G', 'Visual Studio 16 2019', '-A', 'x64'])
         if builder.codesign:
             options.extend(['-DPOSTINSTALL_SCRIPT:PATH=' + codesign_script])
     elif builder.platform == 'linux':

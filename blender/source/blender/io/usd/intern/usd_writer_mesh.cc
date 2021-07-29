@@ -23,7 +23,6 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 
-extern "C" {
 #include "BLI_assert.h"
 #include "BLI_math_vector.h"
 
@@ -42,9 +41,10 @@ extern "C" {
 #include "DNA_modifier_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_particle_types.h"
-}
 
-namespace USD {
+namespace blender {
+namespace io {
+namespace usd {
 
 USDGenericMeshWriter::USDGenericMeshWriter(const USDExporterContext &ctx) : USDAbstractWriter(ctx)
 {
@@ -81,7 +81,7 @@ void USDGenericMeshWriter::do_write(HierarchyContext &context)
   bool needsfree = false;
   Mesh *mesh = get_export_mesh(object_eval, needsfree);
 
-  if (mesh == NULL) {
+  if (mesh == nullptr) {
     return;
   }
 
@@ -102,7 +102,7 @@ void USDGenericMeshWriter::do_write(HierarchyContext &context)
 
 void USDGenericMeshWriter::free_export_mesh(Mesh *mesh)
 {
-  BKE_id_free(NULL, mesh);
+  BKE_id_free(nullptr, mesh);
 }
 
 struct USDMeshData {
@@ -337,14 +337,15 @@ void USDGenericMeshWriter::assign_materials(const HierarchyContext &context,
    * which is why we always bind the first material to the entire mesh. See
    * https://github.com/PixarAnimationStudios/USD/issues/542 for more info. */
   bool mesh_material_bound = false;
-  for (short mat_num = 0; mat_num < context.object->totcol; mat_num++) {
+  pxr::UsdShadeMaterialBindingAPI material_binding_api(usd_mesh.GetPrim());
+  for (int mat_num = 0; mat_num < context.object->totcol; mat_num++) {
     Material *material = BKE_object_material_get(context.object, mat_num + 1);
     if (material == nullptr) {
       continue;
     }
 
     pxr::UsdShadeMaterial usd_material = ensure_usd_material(material);
-    usd_material.Bind(usd_mesh.GetPrim());
+    material_binding_api.Bind(usd_material);
 
     /* USD seems to support neither per-material nor per-face-group double-sidedness, so we just
      * use the flag from the first non-empty material slot. */
@@ -380,9 +381,9 @@ void USDGenericMeshWriter::assign_materials(const HierarchyContext &context,
     pxr::UsdShadeMaterial usd_material = ensure_usd_material(material);
     pxr::TfToken material_name = usd_material.GetPath().GetNameToken();
 
-    pxr::UsdShadeMaterialBindingAPI api = pxr::UsdShadeMaterialBindingAPI(usd_mesh);
-    pxr::UsdGeomSubset usd_face_subset = api.CreateMaterialBindSubset(material_name, face_indices);
-    usd_material.Bind(usd_face_subset.GetPrim());
+    pxr::UsdGeomSubset usd_face_subset = material_binding_api.CreateMaterialBindSubset(
+        material_name, face_indices);
+    pxr::UsdShadeMaterialBindingAPI(usd_face_subset.GetPrim()).Bind(usd_material);
   }
 }
 
@@ -441,7 +442,7 @@ void USDGenericMeshWriter::write_surface_velocity(Object *object,
   /* Only velocities from the fluid simulation are exported. This is the most important case,
    * though, as the baked mesh changes topology all the time, and thus computing the velocities
    * at import time in a post-processing step is hard. */
-  ModifierData *md = modifiers_findByType(object, eModifierType_Fluidsim);
+  ModifierData *md = BKE_modifiers_findby_type(object, eModifierType_Fluidsim);
   if (md == nullptr) {
     return;
   }
@@ -450,7 +451,7 @@ void USDGenericMeshWriter::write_surface_velocity(Object *object,
   const bool use_render = (DEG_get_mode(usd_export_context_.depsgraph) == DAG_EVAL_RENDER);
   const ModifierMode required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
   const Scene *scene = DEG_get_evaluated_scene(usd_export_context_.depsgraph);
-  if (!modifier_isEnabled(scene, md, required_mode)) {
+  if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
     return;
   }
   FluidsimModifierData *fsmd = reinterpret_cast<FluidsimModifierData *>(md);
@@ -485,4 +486,6 @@ Mesh *USDMeshWriter::get_export_mesh(Object *object_eval, bool & /*r_needsfree*/
   return BKE_object_get_evaluated_mesh(object_eval);
 }
 
-}  // namespace USD
+}  // namespace usd
+}  // namespace io
+}  // namespace blender

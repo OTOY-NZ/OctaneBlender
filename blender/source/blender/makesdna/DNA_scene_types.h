@@ -21,17 +21,12 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_SCENE_TYPES_H__
-#define __DNA_SCENE_TYPES_H__
+#pragma once
 
 #include "DNA_defs.h"
 
 /* XXX, temp feature - campbell */
 #define DURIAN_CAMERA_SWITCH
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
@@ -45,6 +40,10 @@ extern "C" {
 #include "DNA_userdef_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct AnimData;
 struct Brush;
@@ -99,19 +98,19 @@ typedef struct AviCodecData {
 } AviCodecData;
 
 typedef enum eFFMpegPreset {
-  FFM_PRESET_NONE,
+  FFM_PRESET_NONE = 0,
 
 #ifdef DNA_DEPRECATED_ALLOW
   /* Previously used by h.264 to control encoding speed vs. file size. */
-  FFM_PRESET_ULTRAFAST, /* DEPRECATED */
-  FFM_PRESET_SUPERFAST, /* DEPRECATED */
-  FFM_PRESET_VERYFAST,  /* DEPRECATED */
-  FFM_PRESET_FASTER,    /* DEPRECATED */
-  FFM_PRESET_FAST,      /* DEPRECATED */
-  FFM_PRESET_MEDIUM,    /* DEPRECATED */
-  FFM_PRESET_SLOW,      /* DEPRECATED */
-  FFM_PRESET_SLOWER,    /* DEPRECATED */
-  FFM_PRESET_VERYSLOW,  /* DEPRECATED */
+  FFM_PRESET_ULTRAFAST = 1, /* DEPRECATED */
+  FFM_PRESET_SUPERFAST = 2, /* DEPRECATED */
+  FFM_PRESET_VERYFAST = 3,  /* DEPRECATED */
+  FFM_PRESET_FASTER = 4,    /* DEPRECATED */
+  FFM_PRESET_FAST = 5,      /* DEPRECATED */
+  FFM_PRESET_MEDIUM = 6,    /* DEPRECATED */
+  FFM_PRESET_SLOW = 7,      /* DEPRECATED */
+  FFM_PRESET_SLOWER = 8,    /* DEPRECATED */
+  FFM_PRESET_VERYSLOW = 9,  /* DEPRECATED */
 #endif
 
   /* Used by WEBM/VP9 and h.264 to control encoding speed vs. file size.
@@ -121,9 +120,9 @@ typedef enum eFFMpegPreset {
   /** the default and recommended for most applications */
   FFM_PRESET_GOOD = 10,
   /** recommended if you have lots of time and want the best compression efficiency */
-  FFM_PRESET_BEST,
+  FFM_PRESET_BEST = 11,
   /** recommended for live / fast encoding */
-  FFM_PRESET_REALTIME,
+  FFM_PRESET_REALTIME = 12,
 } eFFMpegPreset;
 
 /* Mapping from easily-understandable descriptions to CRF values.
@@ -563,13 +562,14 @@ typedef struct BakeData {
   short margin, flag;
 
   float cage_extrusion;
+  float max_ray_distance;
   int pass_filter;
 
   char normal_swizzle[3];
   char normal_space;
 
   char save_mode;
-  char _pad[3];
+  char _pad[7];
 
   struct Object *cage_object;
 } BakeData;
@@ -918,8 +918,6 @@ typedef struct ImagePaintSettings {
   /** Mode used for texture painting. */
   int mode;
 
-  /** Wm handle. */
-  void *paintcursor;
   /** Workaround until we support true layer masks. */
   struct Image *stencil;
   /** Clone layer for image mode for projective texture painting. */
@@ -1602,7 +1600,6 @@ typedef struct SceneEEVEE {
   float gi_irradiance_smoothing;
   float gi_glossy_clamp;
   float gi_filter_quality;
-  char _pad[4];
 
   float gi_cubemap_draw_size;
   float gi_irradiance_draw_size;
@@ -1640,8 +1637,11 @@ typedef struct SceneEEVEE {
   float bloom_radius;
   float bloom_clamp;
 
-  int motion_blur_samples;
+  int motion_blur_samples DNA_DEPRECATED;
+  int motion_blur_max;
+  int motion_blur_steps;
   float motion_blur_shutter;
+  float motion_blur_depth_scale;
 
   int shadow_method DNA_DEPRECATED;
   int shadow_cube_size;
@@ -2185,7 +2185,7 @@ typedef enum eSculptFlags {
 
   SCULPT_FLAG_UNUSED_6 = (1 << 6), /* cleared */
 
-  SCULPT_USE_OPENMP = (1 << 7),
+  SCULPT_FLAG_UNUSED_7 = (1 << 7), /* cleared */
   SCULPT_ONLY_DEFORM = (1 << 8),
   // SCULPT_SHOW_DIFFUSE = (1 << 9), // deprecated
 
@@ -2212,14 +2212,14 @@ typedef enum eSculptFlags {
 
 /* ImagePaintSettings.mode */
 typedef enum eImagePaintMode {
-  IMAGEPAINT_MODE_MATERIAL, /* detect texture paint slots from the material */
-  IMAGEPAINT_MODE_IMAGE,    /* select texture paint image directly */
+  IMAGEPAINT_MODE_MATERIAL = 0, /* detect texture paint slots from the material */
+  IMAGEPAINT_MODE_IMAGE = 1,    /* select texture paint image directly */
 } eImagePaintMode;
 
 /* ImagePaintSettings.interp */
 enum {
   IMAGEPAINT_INTERP_LINEAR = 0,
-  IMAGEPAINT_INTERP_CLOSEST,
+  IMAGEPAINT_INTERP_CLOSEST = 1,
 };
 
 /* ImagePaintSettings.flag */
@@ -2246,10 +2246,14 @@ enum {
 #define UVCALC_FILLHOLES (1 << 0)
 /** would call this UVCALC_ASPECT_CORRECT, except it should be default with old file */
 #define UVCALC_NO_ASPECT_CORRECT (1 << 1)
-/** adjust UV's while transforming to avoid distortion */
-#define UVCALC_TRANSFORM_CORRECT (1 << 2)
+/** Adjust UV's while transforming with Vert or Edge Slide. */
+#define UVCALC_TRANSFORM_CORRECT_SLIDE (1 << 2)
 /** Use mesh data after subsurf to compute UVs*/
 #define UVCALC_USESUBSURF (1 << 3)
+/** adjust UV's while transforming to avoid distortion */
+#define UVCALC_TRANSFORM_CORRECT (1 << 4)
+/** Keep equal values merged while correcting custom-data. */
+#define UVCALC_TRANSFORM_CORRECT_KEEP_CONNECTED (1 << 5)
 
 /* ToolSettings.uv_flag */
 #define UV_SYNC_SELECTION 1
@@ -2319,17 +2323,17 @@ typedef enum eGPencil_Selectmode_types {
 /* ToolSettings.gpencil_guide_types */
 typedef enum eGPencil_GuideTypes {
   GP_GUIDE_CIRCULAR = 0,
-  GP_GUIDE_RADIAL,
-  GP_GUIDE_PARALLEL,
-  GP_GUIDE_GRID,
-  GP_GUIDE_ISO,
+  GP_GUIDE_RADIAL = 1,
+  GP_GUIDE_PARALLEL = 2,
+  GP_GUIDE_GRID = 3,
+  GP_GUIDE_ISO = 4,
 } eGPencil_GuideTypes;
 
 /* ToolSettings.gpencil_guide_references */
 typedef enum eGPencil_Guide_Reference {
   GP_GUIDE_REF_CURSOR = 0,
-  GP_GUIDE_REF_CUSTOM,
-  GP_GUIDE_REF_OBJECT,
+  GP_GUIDE_REF_CUSTOM = 1,
+  GP_GUIDE_REF_OBJECT = 2,
 } eGPencil_Guide_Reference;
 
 /* ToolSettings.particle flag */
@@ -2695,5 +2699,3 @@ typedef enum OctaneScenePassType {
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __DNA_SCENE_TYPES_H__ */

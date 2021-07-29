@@ -197,10 +197,13 @@ static void blo_update_defaults_screen(bScreen *screen,
       v3d->gp_flag |= V3D_GP_SHOW_EDIT_LINES;
       /* Remove dither pattern in wireframe mode. */
       v3d->shading.xray_alpha_wire = 0.0f;
+      v3d->clip_start = 0.01f;
       /* Skip startups that use the viewport color by default. */
       if (v3d->shading.background_type != V3D_SHADING_BACKGROUND_VIEWPORT) {
         copy_v3_fl(v3d->shading.background_color, 0.05f);
       }
+      /* Disable Curve Normals. */
+      v3d->overlay.edit_flag &= ~V3D_OVERLAY_EDIT_CU_NORMALS;
     }
     else if (area->spacetype == SPACE_CLIP) {
       SpaceClip *sclip = area->spacedata.first;
@@ -248,8 +251,7 @@ static void blo_update_defaults_screen(bScreen *screen,
 
 void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_template)
 {
-  ListBase *layouts = BKE_workspace_layouts_get(workspace);
-  LISTBASE_FOREACH (WorkSpaceLayout *, layout, layouts) {
+  LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
     if (layout->screen) {
       blo_update_defaults_screen(layout->screen, app_template, workspace->id.name + 2);
     }
@@ -268,7 +270,7 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
 
     /* For Sculpting template. */
     if (STREQ(workspace->id.name + 2, "Sculpting")) {
-      LISTBASE_FOREACH (WorkSpaceLayout *, layout, layouts) {
+      LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
         bScreen *screen = layout->screen;
         if (screen) {
           LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -295,7 +297,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
-    ntreeFreeNestedTree(scene->nodetree);
+    ntreeFreeEmbeddedTree(scene->nodetree);
     MEM_freeN(scene->nodetree);
     scene->nodetree = NULL;
     scene->use_nodes = false;
@@ -313,7 +315,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
   copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
 
-  /* Change default cubemap quality. */
+  /* Change default cube-map quality. */
   scene->eevee.gi_filter_quality = 3.0f;
 
   /* Enable Soft Shadows by default. */
@@ -489,8 +491,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
   LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
-        WorkSpaceLayout *layout = BKE_workspace_hook_layout_for_workspace_get(win->workspace_hook,
-                                                                              workspace);
+        WorkSpaceLayout *layout = BKE_workspace_active_layout_for_workspace_get(
+            win->workspace_hook, workspace);
         /* Name all screens by their workspaces (avoids 'Default.###' names). */
         /* Default only has one window. */
         if (layout->screen) {
@@ -678,6 +680,22 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
       id_us_min(&brush->id);
       brush->sculpt_tool = SCULPT_TOOL_SLIDE_RELAX;
+    }
+
+    brush_name = "Paint";
+    brush = BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2);
+    if (!brush) {
+      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
+      id_us_min(&brush->id);
+      brush->sculpt_tool = SCULPT_TOOL_PAINT;
+    }
+
+    brush_name = "Smear";
+    brush = BLI_findstring(&bmain->brushes, brush_name, offsetof(ID, name) + 2);
+    if (!brush) {
+      brush = BKE_brush_add(bmain, brush_name, OB_MODE_SCULPT);
+      id_us_min(&brush->id);
+      brush->sculpt_tool = SCULPT_TOOL_SMEAR;
     }
 
     brush_name = "Simplify";

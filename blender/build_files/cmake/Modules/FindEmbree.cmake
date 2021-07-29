@@ -14,12 +14,8 @@
 #=============================================================================
 # Copyright 2018 Blender Foundation.
 #
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
+# Distributed under the OSI-approved BSD 3-Clause License,
+# see accompanying file BSD-3-Clause-license.txt for details.
 #=============================================================================
 
 # If EMBREE_ROOT_DIR was defined in the environment, use it.
@@ -44,9 +40,9 @@ FIND_PATH(EMBREE_INCLUDE_DIR
 
 SET(_embree_FIND_COMPONENTS
   embree3
+  embree_sse42
   embree_avx
   embree_avx2
-  embree_sse42
   lexers
   math
   simd
@@ -82,7 +78,7 @@ FIND_LIBRARY(EMBREE_LIBRARY
 # handle the QUIETLY and REQUIRED arguments and set EMBREE_FOUND to TRUE if
 # all listed variables are TRUE
 INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(EMBREE DEFAULT_MSG
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(Embree DEFAULT_MSG
     _embree_LIBRARIES EMBREE_INCLUDE_DIR)
 
 IF(EMBREE_FOUND)

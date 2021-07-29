@@ -805,7 +805,7 @@ static ModifierData *curve_get_tessellate_point(Scene *scene,
                                                 const bool editmode)
 {
   VirtualModifierData virtualModifierData;
-  ModifierData *md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
   ModifierData *pretessellatePoint;
   int required_mode;
 
@@ -822,9 +822,9 @@ static ModifierData *curve_get_tessellate_point(Scene *scene,
 
   pretessellatePoint = NULL;
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
-    if (!modifier_isEnabled(scene, md, required_mode)) {
+    if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;
     }
     if (mti->type == eModifierTypeType_Constructive) {
@@ -853,31 +853,31 @@ static bool curve_calc_modifiers_pre(
     Depsgraph *depsgraph, Scene *scene, Object *ob, ListBase *nurb, const bool for_render)
 {
   VirtualModifierData virtualModifierData;
-  ModifierData *md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
   ModifierData *pretessellatePoint;
   Curve *cu = ob->data;
   int numElems = 0, numVerts = 0;
   const bool editmode = (!for_render && (cu->editnurb || cu->editfont));
-  ModifierApplyFlag app_flag = 0;
+  ModifierApplyFlag apply_flag = 0;
   float(*deformedVerts)[3] = NULL;
   float *keyVerts = NULL;
   int required_mode;
   bool modified = false;
 
-  modifiers_clearErrors(ob);
+  BKE_modifiers_clear_errors(ob);
 
   if (editmode) {
-    app_flag |= MOD_APPLY_USECACHE;
+    apply_flag |= MOD_APPLY_USECACHE;
   }
   if (for_render) {
-    app_flag |= MOD_APPLY_RENDER;
+    apply_flag |= MOD_APPLY_RENDER;
     required_mode = eModifierMode_Render;
   }
   else {
     required_mode = eModifierMode_Realtime;
   }
 
-  const ModifierEvalContext mectx = {depsgraph, ob, app_flag};
+  const ModifierEvalContext mectx = {depsgraph, ob, apply_flag};
 
   pretessellatePoint = curve_get_tessellate_point(scene, ob, for_render, editmode);
 
@@ -901,9 +901,9 @@ static bool curve_calc_modifiers_pre(
 
   if (pretessellatePoint) {
     for (; md; md = md->next) {
-      const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+      const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
-      if (!modifier_isEnabled(scene, md, required_mode)) {
+      if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
         continue;
       }
       if (mti->type != eModifierTypeType_OnlyDeform) {
@@ -982,7 +982,7 @@ static void curve_calc_modifiers_post(Depsgraph *depsgraph,
                                       const bool force_mesh_conversion)
 {
   VirtualModifierData virtualModifierData;
-  ModifierData *md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
   ModifierData *pretessellatePoint;
   Curve *cu = ob->data;
   int required_mode = 0, totvert = 0;
@@ -990,10 +990,10 @@ static void curve_calc_modifiers_post(Depsgraph *depsgraph,
   Mesh *modified = NULL, *mesh_applied;
   float(*vertCos)[3] = NULL;
   int useCache = !for_render;
-  ModifierApplyFlag app_flag = 0;
+  ModifierApplyFlag apply_flag = 0;
 
   if (for_render) {
-    app_flag |= MOD_APPLY_RENDER;
+    apply_flag |= MOD_APPLY_RENDER;
     required_mode = eModifierMode_Render;
   }
   else {
@@ -1001,9 +1001,9 @@ static void curve_calc_modifiers_post(Depsgraph *depsgraph,
   }
 
   const ModifierEvalContext mectx_deform = {
-      depsgraph, ob, editmode ? app_flag | MOD_APPLY_USECACHE : app_flag};
+      depsgraph, ob, editmode ? apply_flag | MOD_APPLY_USECACHE : apply_flag};
   const ModifierEvalContext mectx_apply = {
-      depsgraph, ob, useCache ? app_flag | MOD_APPLY_USECACHE : app_flag};
+      depsgraph, ob, useCache ? apply_flag | MOD_APPLY_USECACHE : apply_flag};
 
   pretessellatePoint = curve_get_tessellate_point(scene, ob, for_render, editmode);
 
@@ -1020,9 +1020,9 @@ static void curve_calc_modifiers_post(Depsgraph *depsgraph,
   }
 
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
-    if (!modifier_isEnabled(scene, md, required_mode)) {
+    if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;
     }
 
@@ -1100,7 +1100,7 @@ static void curve_calc_modifiers_post(Depsgraph *depsgraph,
       if (need_normal) {
         BKE_mesh_ensure_normals(modified);
       }
-      mesh_applied = mti->applyModifier(md, &mectx_apply, modified);
+      mesh_applied = mti->modifyMesh(md, &mectx_apply, modified);
 
       if (mesh_applied) {
         /* Modifier returned a new derived mesh */

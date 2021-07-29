@@ -18,8 +18,7 @@
  * \ingroup collada
  */
 
-#ifndef __MATERIALEXPORTER_H__
-#define __MATERIALEXPORTER_H__
+#pragma once
 
 #include <string>
 #include <vector>
@@ -27,12 +26,11 @@
 #include "COLLADASWLibraryMaterials.h"
 #include "COLLADASWStreamWriter.h"
 
-extern "C" {
 #include "BKE_material.h"
+
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-}
 
 #include "ExportSettings.h"
 #include "GeometryExporter.h"
@@ -94,5 +92,3 @@ struct MaterialFunctor {
     gf.forEachMeshObjectInExportSet<ForEachMaterialFunctor<Functor>>(sce, matfunc, export_set);
   }
 };
-
-#endif

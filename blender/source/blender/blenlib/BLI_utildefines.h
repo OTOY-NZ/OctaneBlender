@@ -24,10 +24,6 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* avoid many includes for now */
 #include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h"
@@ -38,6 +34,10 @@ extern "C" {
 
 /* include after _VA_NARGS macro */
 #include "BLI_compiler_typecheck.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Min/Max Macros
@@ -627,11 +627,11 @@ extern bool BLI_memory_is_zero(const void *arr, const size_t arr_size);
 /** \name String Macros
  * \{ */
 
-/* Macro to convert a value to string in the preprocessor
- * STRINGIFY_ARG: gives the argument as a string
- * STRINGIFY_APPEND: appends any argument 'b' onto the string argument 'a',
- *   used by STRINGIFY because some preprocessors warn about zero arguments
- * STRINGIFY: gives the argument's value as a string */
+/* Macro to convert a value to string in the pre-processor:
+ * - `STRINGIFY_ARG`: gives the argument as a string
+ * - `STRINGIFY_APPEND`: appends any argument 'b' onto the string argument 'a',
+ *   used by `STRINGIFY` because some preprocessors warn about zero arguments
+ * - `STRINGIFY`: gives the argument's value as a string. */
 #define STRINGIFY_ARG(x) "" #x
 #define STRINGIFY_APPEND(a, b) "" a #b
 #define STRINGIFY(x) STRINGIFY_APPEND("", x)

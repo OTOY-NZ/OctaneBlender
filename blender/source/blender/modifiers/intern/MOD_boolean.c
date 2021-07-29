@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
@@ -31,17 +31,29 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 
+#include "BLT_translation.h"
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_screen_types.h"
 
+#include "BKE_context.h"
 #include "BKE_global.h" /* only to check G.debug */
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_wrapper.h"
 #include "BKE_modifier.h"
+#include "BKE_screen.h"
 
+#include "UI_interface.h"
+#include "UI_resources.h"
+
+#include "RNA_access.h"
+
+#include "MOD_ui_common.h"
 #include "MOD_util.h"
 
 #include "DEG_depsgraph_query.h"
@@ -153,7 +165,7 @@ static int bm_face_isect_pair(BMFace *f, void *UNUSED(user_data))
   return BM_elem_flag_test(f, BM_FACE_TAG) ? 1 : 0;
 }
 
-static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
+static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   BooleanModifierData *bmd = (BooleanModifierData *)md;
   Mesh *result = mesh;
@@ -168,6 +180,10 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
   mesh_other = BKE_modifier_get_evaluated_mesh_from_evaluated_object(other, false);
   if (mesh_other) {
     Object *object = ctx->object;
+
+    /* XXX This is utterly non-optimal, we may go from a bmesh to a mesh back to a bmesh!
+     * But for 2.90 better not try to be smart here. */
+    BKE_mesh_wrapper_ensure_mdata(mesh_other);
 
     /* when one of objects is empty (has got no faces) we could speed up
      * calculation a bit returning one of objects' derived meshes (or empty one)
@@ -330,7 +346,7 @@ static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mes
     /* if new mesh returned, return it; otherwise there was
      * an error, so delete the modifier object */
     if (result == NULL) {
-      modifier_setError(md, "Cannot execute boolean operation");
+      BKE_modifier_set_error(md, "Cannot execute boolean operation");
     }
   }
 
@@ -346,6 +362,33 @@ static void requiredDataMask(Object *UNUSED(ob),
   r_cddata_masks->fmask |= CD_MASK_MTFACE;
 }
 
+static void panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA ptr;
+  modifier_panel_get_property_pointers(C, panel, NULL, &ptr);
+
+  uiItemR(layout, &ptr, "operation", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+
+  uiLayoutSetPropSep(layout, true);
+
+  uiItemR(layout, &ptr, "object", 0, NULL, ICON_NONE);
+  uiItemR(layout, &ptr, "double_threshold", 0, NULL, ICON_NONE);
+
+  if (G.debug) {
+    uiLayout *col = uiLayoutColumn(layout, true);
+    uiItemR(col, &ptr, "debug_options", 0, NULL, ICON_NONE);
+  }
+
+  modifier_panel_end(layout, &ptr);
+}
+
+static void panelRegister(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, eModifierType_Boolean, panel_draw);
+}
+
 ModifierTypeInfo modifierType_Boolean = {
     /* name */ "Boolean",
     /* structName */ "BooleanModifierData",
@@ -353,13 +396,16 @@ ModifierTypeInfo modifierType_Boolean = {
     /* type */ eModifierTypeType_Nonconstructive,
     /* flags */ eModifierTypeFlag_AcceptsMesh,
 
-    /* copyData */ modifier_copyData_generic,
+    /* copyData */ BKE_modifier_copydata_generic,
 
     /* deformVerts */ NULL,
     /* deformMatrices */ NULL,
     /* deformVertsEM */ NULL,
     /* deformMatricesEM */ NULL,
-    /* applyModifier */ applyModifier,
+    /* modifyMesh */ modifyMesh,
+    /* modifyHair */ NULL,
+    /* modifyPointCloud */ NULL,
+    /* modifyVolume */ NULL,
 
     /* initData */ initData,
     /* requiredDataMask */ requiredDataMask,
@@ -372,4 +418,7 @@ ModifierTypeInfo modifierType_Boolean = {
     /* foreachIDLink */ NULL,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
+    /* panelRegister */ panelRegister,
+    /* blendWrite */ NULL,
+    /* blendRead */ NULL,
 };

@@ -75,6 +75,7 @@
 #include "BKE_curveprofile.h"
 #include "BKE_customdata.h"
 #include "BKE_fcurve.h"
+#include "BKE_fcurve_driver.h"
 #include "BKE_freestyle.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
@@ -256,7 +257,7 @@ static void do_version_workspaces_after_lib_link(Main *bmain)
       win->workspace_hook = BKE_workspace_instance_hook_create(bmain);
 
       BKE_workspace_active_set(win->workspace_hook, workspace);
-      BKE_workspace_hook_layout_for_workspace_set(win->workspace_hook, workspace, layout);
+      BKE_workspace_active_layout_set(win->workspace_hook, workspace, layout);
 
       /* Move scene and view layer to window. */
       Scene *scene = screen->scene;
@@ -758,7 +759,7 @@ static void do_version_bbone_scale_fcurve_fix(ListBase *curves, FCurve *fcu)
   /* Update F-Curve's path. */
   if (replace_bbone_scale_rnapath(&fcu->rna_path)) {
     /* If matched, duplicate the curve and tweak name. */
-    FCurve *second = copy_fcurve(fcu);
+    FCurve *second = BKE_fcurve_copy(fcu);
 
     second->rna_path[strlen(second->rna_path) - 1] = 'y';
 
@@ -2901,8 +2902,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
             v3d->overlay.edit_flag |= V3D_OVERLAY_EDIT_FACES | V3D_OVERLAY_EDIT_SEAMS |
                                       V3D_OVERLAY_EDIT_SHARP | V3D_OVERLAY_EDIT_FREESTYLE_EDGE |
                                       V3D_OVERLAY_EDIT_FREESTYLE_FACE | V3D_OVERLAY_EDIT_EDGES |
-                                      V3D_OVERLAY_EDIT_CREASES | V3D_OVERLAY_EDIT_BWEIGHTS |
-                                      V3D_OVERLAY_EDIT_CU_HANDLES | V3D_OVERLAY_EDIT_CU_NORMALS;
+                                      V3D_OVERLAY_EDIT_CREASES | V3D_OVERLAY_EDIT_BWEIGHTS;
           }
         }
       }
@@ -3474,7 +3474,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
     for (Mesh *me = bmain->meshes.first; me; me = me->id.next) {
       me->flag &= ~(ME_FLAG_UNUSED_0 | ME_FLAG_UNUSED_1 | ME_FLAG_UNUSED_3 | ME_FLAG_UNUSED_4 |
-                    ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 | ME_FLAG_UNUSED_8);
+                    ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 | ME_REMESH_REPROJECT_VERTEX_COLORS);
     }
 
     for (Material *mat = bmain->materials.first; mat; mat = mat->id.next) {
@@ -4634,8 +4634,6 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
             brush->gpencil_weight_tool = brush->gpencil_settings->brush_type;
           }
         }
-
-        BKE_paint_toolslots_init_from_main(bmain);
       }
 
       LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
@@ -5053,16 +5051,6 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
-  }
-
-  /** Repair files from duplicate brushes added to blend files, see: T76738. */
-  if (!MAIN_VERSION_ATLEAST(bmain, 283, 17) ||
-      ((bmain->versionfile == 290) && !MAIN_VERSION_ATLEAST(bmain, 290, 2))) {
-    short id_codes[] = {ID_BR, ID_PAL};
-    for (int i = 0; i < ARRAY_SIZE(id_codes); i++) {
-      ListBase *lb = which_libbase(bmain, id_codes[i]);
-      BKE_main_id_repair_duplicate_names_listbase(lb);
-    }
 
     /* Set Brush default color for grease pencil. */
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
@@ -5071,14 +5059,6 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
         brush->rgb[1] = 1.0f;
         brush->rgb[2] = 0.498f;
       }
-    }
-  }
-
-  if (!MAIN_VERSION_ATLEAST(bmain, 283, 20)) {
-    for (wmWindowManager *wm = bmain->wm.first; wm; wm = wm->id.next) {
-      /* Don't rotate light with the viewer by default, make it fixed. Shading settings can't be
-       * edited and this flag should always be set. So we can always execute this. */
-      wm->xr.session_settings.shading.flag |= V3D_SHADING_WORLD_ORIENTATION;
     }
   }
 

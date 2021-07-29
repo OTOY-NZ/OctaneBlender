@@ -21,14 +21,9 @@
  * \ingroup editorui
  */
 
-#ifndef __UI_RESOURCES_H__
-#define __UI_RESOURCES_H__
+#pragma once
 
 #include "BLI_sys_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Define icon enum. */
 #define DEF_ICON(name) ICON_##name,
@@ -46,6 +41,10 @@ typedef enum {
 
 /* use to denote intentionally unset theme color */
 #define TH_UNDEFINED -1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum ThemeColorID {
   TH_REDALERT,
@@ -340,9 +339,6 @@ typedef enum ThemeColorID {
   TH_INFO_OPERATOR,
   TH_INFO_OPERATOR_TEXT,
   TH_VIEW_OVERLAY,
-  TH_INFO_REPORT_ERROR,
-  TH_INFO_REPORT_WARNING,
-  TH_INFO_REPORT_INFO,
 
   TH_V3D_CLIPPING_BORDER,
 
@@ -461,5 +457,3 @@ void UI_make_axis_color(const unsigned char *src_col, unsigned char *dst_col, co
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __UI_RESOURCES_H__ */

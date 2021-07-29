@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_BRUSH_TYPES_H__
-#define __DNA_BRUSH_TYPES_H__
+#pragma once
 
 #include "DNA_ID.h"
 #include "DNA_curve_types.h"
@@ -75,7 +74,7 @@ typedef struct BrushGpencilSettings {
   short fill_leak;
   /** Fill zoom factor */
   short fill_factor;
-  char _pad1[4];
+  int flag2;
 
   /** Number of simplify steps. */
   int fill_simplylvl;
@@ -118,11 +117,24 @@ typedef struct BrushGpencilSettings {
   int sculpt_mode_flag;
   /** Preset type (used to reset brushes - internal). */
   short preset_type;
-  char _pad3[6];
+  char _pad3[2];
+
+  /** Randomness for Hue. */
+  float random_hue;
+  /** Randomness for Saturation. */
+  float random_saturation;
+  /** Randomness for Value. */
+  float random_value;
 
   struct CurveMapping *curve_sensitivity;
   struct CurveMapping *curve_strength;
   struct CurveMapping *curve_jitter;
+  struct CurveMapping *curve_rand_pressure;
+  struct CurveMapping *curve_rand_strength;
+  struct CurveMapping *curve_rand_uv;
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
 
   /* optional link of material to replace default in context */
   /** Material. */
@@ -177,7 +189,7 @@ typedef enum eGPDbrush_Flag {
   /* brush use pressure */
   GP_BRUSH_USE_PRESSURE = (1 << 0),
   /* brush use pressure for alpha factor */
-  GP_BRUSH_USE_STENGTH_PRESSURE = (1 << 1),
+  GP_BRUSH_USE_STRENGTH_PRESSURE = (1 << 1),
   /* brush use pressure for alpha factor */
   GP_BRUSH_USE_JITTER_PRESSURE = (1 << 2),
   /* fill hide transparent */
@@ -203,6 +215,33 @@ typedef enum eGPDbrush_Flag {
   /* Post process trim stroke */
   GP_BRUSH_TRIM_STROKE = (1 << 16),
 } eGPDbrush_Flag;
+
+typedef enum eGPDbrush_Flag2 {
+  /* Brush use random Hue at stroke level */
+  GP_BRUSH_USE_HUE_AT_STROKE = (1 << 0),
+  /* Brush use random Saturation at stroke level */
+  GP_BRUSH_USE_SAT_AT_STROKE = (1 << 1),
+  /* Brush use random Value at stroke level */
+  GP_BRUSH_USE_VAL_AT_STROKE = (1 << 2),
+  /* Brush use random Pressure at stroke level */
+  GP_BRUSH_USE_PRESS_AT_STROKE = (1 << 3),
+  /* Brush use random Strength at stroke level */
+  GP_BRUSH_USE_STRENGTH_AT_STROKE = (1 << 4),
+  /* Brush use random UV at stroke level */
+  GP_BRUSH_USE_UV_AT_STROKE = (1 << 5),
+  /* Brush use Hue random pressure */
+  GP_BRUSH_USE_HUE_RAND_PRESS = (1 << 6),
+  /* Brush use Saturation random pressure */
+  GP_BRUSH_USE_SAT_RAND_PRESS = (1 << 7),
+  /* Brush use Value random pressure */
+  GP_BRUSH_USE_VAL_RAND_PRESS = (1 << 8),
+  /* Brush use Pressure random pressure */
+  GP_BRUSH_USE_PRESSURE_RAND_PRESS = (1 << 9),
+  /* Brush use Strength random pressure */
+  GP_BRUSH_USE_STRENGTH_RAND_PRESS = (1 << 10),
+  /* Brush use UV random pressure */
+  GP_BRUSH_USE_UV_RAND_PRESS = (1 << 11),
+} eGPDbrush_Flag2;
 
 /* BrushGpencilSettings->gp_fill_draw_mode */
 typedef enum eGP_FillDrawModes {
@@ -291,10 +330,29 @@ typedef enum eBrushClothForceFalloffType {
   BRUSH_CLOTH_FORCE_FALLOFF_PLANE = 1,
 } eBrushClothForceFalloffType;
 
+typedef enum eBrushPoseDeformType {
+  BRUSH_POSE_DEFORM_ROTATE_TWIST = 0,
+  BRUSH_POSE_DEFORM_SCALE_TRASLATE = 1,
+  BRUSH_POSE_DEFORM_SQUASH_STRETCH = 2,
+} eBrushPoseDeformType;
+
 typedef enum eBrushPoseOriginType {
   BRUSH_POSE_ORIGIN_TOPOLOGY = 0,
   BRUSH_POSE_ORIGIN_FACE_SETS = 1,
+  BRUSH_POSE_ORIGIN_FACE_SETS_FK = 2,
 } eBrushPoseOriginType;
+
+typedef enum eBrushSmearDeformType {
+  BRUSH_SMEAR_DEFORM_DRAG = 0,
+  BRUSH_SMEAR_DEFORM_PINCH = 1,
+  BRUSH_SMEAR_DEFORM_EXPAND = 2,
+} eBrushSmearDeformType;
+
+typedef enum eBrushSlideDeformType {
+  BRUSH_SLIDE_DEFORM_DRAG = 0,
+  BRUSH_SLIDE_DEFORM_PINCH = 1,
+  BRUSH_SLIDE_DEFORM_EXPAND = 2,
+} eBrushSlideDeformType;
 
 /* Gpencilsettings.Vertex_mode */
 typedef enum eGp_Vertex_Mode {
@@ -334,6 +392,19 @@ typedef enum eAutomasking_flag {
   BRUSH_AUTOMASKING_BOUNDARY_EDGES = (1 << 2),
   BRUSH_AUTOMASKING_BOUNDARY_FACE_SETS = (1 << 3),
 } eAutomasking_flag;
+
+typedef enum ePaintBrush_flag {
+  BRUSH_PAINT_HARDNESS_PRESSURE = (1 << 0),
+  BRUSH_PAINT_HARDNESS_PRESSURE_INVERT = (1 << 1),
+  BRUSH_PAINT_FLOW_PRESSURE = (1 << 2),
+  BRUSH_PAINT_FLOW_PRESSURE_INVERT = (1 << 3),
+  BRUSH_PAINT_WET_MIX_PRESSURE = (1 << 4),
+  BRUSH_PAINT_WET_MIX_PRESSURE_INVERT = (1 << 5),
+  BRUSH_PAINT_WET_PERSISTENCE_PRESSURE = (1 << 6),
+  BRUSH_PAINT_WET_PERSISTENCE_PRESSURE_INVERT = (1 << 7),
+  BRUSH_PAINT_DENSITY_PRESSURE = (1 << 8),
+  BRUSH_PAINT_DENSITY_PRESSURE_INVERT = (1 << 9),
+} ePaintBrush_flag;
 
 typedef struct Brush {
   ID id;
@@ -392,6 +463,22 @@ typedef struct Brush {
   float rgb[3];
   /** Opacity. */
   float alpha;
+  /** Hardness */
+  float hardness;
+  /** Flow */
+  float flow;
+  /** Wet Mix */
+  float wet_mix;
+  float wet_persistence;
+  /** Density */
+  float density;
+  int paint_flags;
+
+  /** Tip Shape */
+  /* Factor that controls the shape of the brush tip by rounding the corners of a square. */
+  /* 0.0 value produces a square, 1.0 produces a circle. */
+  float tip_roundness;
+  float tip_scale_x;
 
   /** Background color. */
   float secondary_rgb[3];
@@ -456,20 +543,19 @@ typedef struct Brush {
   float texture_sample_bias;
 
   int curve_preset;
-  float hardness;
+
+  /* Maximun distance to search fake neighbors from a vertex. */
+  float disconnected_distance_max;
 
   /* automasking */
   int automasking_flags;
   int automasking_boundary_edges_propagation_steps;
 
-  /* Factor that controls the shape of the brush tip by rounding the corners of a square. */
-  /* 0.0 value produces a square, 1.0 produces a circle. */
-  float tip_roundness;
-
   int elastic_deform_type;
   float elastic_deform_volume_preservation;
 
   /* pose */
+  int pose_deform_type;
   float pose_offset;
   int pose_smooth_iterations;
   int pose_ik_segments;
@@ -493,6 +579,12 @@ typedef struct Brush {
 
   /* multiplane scrape */
   float multiplane_scrape_angle;
+
+  /* smear */
+  int smear_deform_type;
+
+  /* slide/relax */
+  int slide_deform_type;
 
   /* overlay */
   int texture_overlay_alpha;
@@ -622,6 +714,7 @@ typedef enum eBrushFlags2 {
   BRUSH_MULTIPLANE_SCRAPE_DYNAMIC = (1 << 0),
   BRUSH_MULTIPLANE_SCRAPE_PLANES_PREVIEW = (1 << 1),
   BRUSH_POSE_IK_ANCHORED = (1 << 2),
+  BRUSH_USE_CONNECTED_ONLY = (1 << 3),
 } eBrushFlags2;
 
 typedef enum {
@@ -672,6 +765,8 @@ typedef enum eBrushSculptTool {
   SCULPT_TOOL_CLAY_THUMB = 25,
   SCULPT_TOOL_CLOTH = 26,
   SCULPT_TOOL_DRAW_FACE_SETS = 27,
+  SCULPT_TOOL_PAINT = 28,
+  SCULPT_TOOL_SMEAR = 29,
 } eBrushSculptTool;
 
 /* Brush.uv_sculpt_tool */
@@ -714,6 +809,8 @@ typedef enum eBrushUVSculptTool {
         SCULPT_TOOL_ELASTIC_DEFORM, \
         SCULPT_TOOL_POSE, \
         SCULPT_TOOL_DRAW_FACE_SETS, \
+        SCULPT_TOOL_PAINT, \
+        SCULPT_TOOL_SMEAR, \
 \
         /* These brushes could handle dynamic topology, \ \
          * but user feedback indicates it's better not to */ \
@@ -805,8 +902,8 @@ typedef enum {
 
 /* blur kernel types, Brush.blur_mode */
 typedef enum eBlurKernelType {
-  KERNEL_GAUSSIAN,
-  KERNEL_BOX,
+  KERNEL_GAUSSIAN = 0,
+  KERNEL_BOX = 1,
 } eBlurKernelType;
 
 /* Brush.falloff_shape */
@@ -817,5 +914,3 @@ enum {
 
 #define MAX_BRUSH_PIXEL_RADIUS 500
 #define GP_MAX_BRUSH_PIXEL_RADIUS 1000
-
-#endif /* __DNA_BRUSH_TYPES_H__ */

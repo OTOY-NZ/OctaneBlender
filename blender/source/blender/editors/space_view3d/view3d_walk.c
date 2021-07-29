@@ -16,6 +16,11 @@
 
 /** \file
  * \ingroup spview3d
+ *
+ * Interactive walk navigation modal operator
+ * (similar to walking around in a first person game).
+ *
+ * \note Similar logic to `view3d_fly.c` changes here may apply there too.
  */
 
 /* defines VIEW3D_OT_navigate - walk modal operator */
@@ -64,6 +69,10 @@
 
 /* ensure the target position is one we can reach, see: T45771 */
 #define USE_PIXELSIZE_NATIVE_SUPPORT
+
+/* -------------------------------------------------------------------- */
+/** \name Modal Key-map
+ * \{ */
 
 /* NOTE: these defines are saved in keymap files,
  * do not change values but just add new ones */
@@ -172,6 +181,12 @@ void walk_modal_keymap(wmKeyConfig *keyconf)
   /* assign map to operators */
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_walk");
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Internal Walk Structs
+ * \{ */
 
 typedef struct WalkTeleport {
   eWalkTeleportState state;
@@ -283,6 +298,12 @@ typedef struct WalkInfo {
 
 } WalkInfo;
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Internal Walk Drawing
+ * \{ */
+
 /* prototypes */
 #ifdef WITH_INPUT_NDOF
 static void walkApply_ndof(bContext *C, WalkInfo *walk, bool is_confirm);
@@ -340,6 +361,12 @@ static void drawWalkPixel(const struct bContext *UNUSED(C), ARegion *region, voi
   immUnbindProgram();
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Internal Walk Logic
+ * \{ */
+
 static void walk_navigation_mode_set(WalkInfo *walk, eWalkMethod mode)
 {
   if (mode == WALK_MODE_FREE) {
@@ -374,16 +401,19 @@ static bool walk_floor_distance_get(RegionView3D *rv3d,
   mul_v3_v3fl(dvec_tmp, dvec, walk->grid);
   add_v3_v3(ray_start, dvec_tmp);
 
-  ret = ED_transform_snap_object_project_ray(walk->snap_context,
-                                             walk->depsgraph,
-                                             &(const struct SnapObjectParams){
-                                                 .snap_select = SNAP_ALL,
-                                             },
-                                             ray_start,
-                                             ray_normal,
-                                             r_distance,
-                                             r_location,
-                                             r_normal_dummy);
+  ret = ED_transform_snap_object_project_ray(
+      walk->snap_context,
+      walk->depsgraph,
+      &(const struct SnapObjectParams){
+          .snap_select = SNAP_ALL,
+          /* Avoid having to convert the edit-mesh to a regular mesh. */
+          .use_object_edit_cage = true,
+      },
+      ray_start,
+      ray_normal,
+      r_distance,
+      r_location,
+      r_normal_dummy);
 
   /* artificially scale the distance to the scene size */
   *r_distance /= walk->grid;
@@ -449,7 +479,6 @@ static float userdef_speed = -1.f;
 static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  Main *bmain = CTX_data_main(C);
   wmWindow *win = CTX_wm_window(C);
 
   walk->rv3d = CTX_wm_region_view3d(C);
@@ -553,7 +582,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
   walk->rv3d->rflag |= RV3D_NAVIGATING;
 
   walk->snap_context = ED_transform_snap_object_context_create_view3d(
-      bmain, walk->scene, 0, walk->region, walk->v3d);
+      walk->scene, 0, walk->region, walk->v3d);
 
   walk->v3d_camera_control = ED_view3d_cameracontrol_acquire(
       walk->depsgraph,
@@ -596,7 +625,7 @@ static int walkEnd(bContext *C, WalkInfo *walk)
   if (walk->state == WALK_RUNNING) {
     return OPERATOR_RUNNING_MODAL;
   }
-  else if (walk->state == WALK_CONFIRM) {
+  if (walk->state == WALK_CONFIRM) {
     /* Needed for auto_keyframe. */
 #ifdef WITH_INPUT_NDOF
     if (walk->ndof) {
@@ -1271,19 +1300,6 @@ static int walkApply(bContext *C, WalkInfo *walk, bool is_confirm)
         sub_v3_v3v3(dvec, cur_loc, new_loc);
       }
 
-      if (rv3d->persp == RV3D_CAMOB) {
-        Object *lock_ob = ED_view3d_cameracontrol_object_get(walk->v3d_camera_control);
-        if (lock_ob->protectflag & OB_LOCK_LOCX) {
-          dvec[0] = 0.0f;
-        }
-        if (lock_ob->protectflag & OB_LOCK_LOCY) {
-          dvec[1] = 0.0f;
-        }
-        if (lock_ob->protectflag & OB_LOCK_LOCZ) {
-          dvec[2] = 0.0f;
-        }
-      }
-
       /* scale the movement to the scene size */
       mul_v3_v3fl(dvec_tmp, dvec, walk->grid);
       add_v3_v3(rv3d->ofs, dvec_tmp);
@@ -1341,7 +1357,12 @@ static void walkApply_ndof(bContext *C, WalkInfo *walk, bool is_confirm)
 }
 #endif /* WITH_INPUT_NDOF */
 
-/****** walk operator ******/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Walk Operator
+ * \{ */
+
 static int walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -1436,3 +1457,5 @@ void VIEW3D_OT_walk(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_BLOCKING;
 }
+
+/** \} */

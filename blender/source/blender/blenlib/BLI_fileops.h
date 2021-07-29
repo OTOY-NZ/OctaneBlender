@@ -22,16 +22,11 @@
  * \brief File and directory operations.
  * */
 
-#ifndef __BLI_FILEOPS_H__
-#define __BLI_FILEOPS_H__
+#pragma once
 
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* for size_t (needed on windows) */
 #include <stddef.h>
@@ -40,6 +35,10 @@ extern "C" {
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef PATH_MAX
 #  define PATH_MAX 4096
@@ -189,5 +188,3 @@ void BLI_get_short_name(char short_name[256], const char *filename);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BLI_FILEOPS_H__ */

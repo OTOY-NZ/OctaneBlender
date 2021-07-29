@@ -1013,15 +1013,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_INFO_OPERATOR_TEXT:
           cp = ts->info_operator_text;
           break;
-        case TH_INFO_REPORT_ERROR:
-          cp = ts->info_report_error;
-          break;
-        case TH_INFO_REPORT_WARNING:
-          cp = ts->info_report_warning;
-          break;
-        case TH_INFO_REPORT_INFO:
-          cp = ts->info_report_info;
-          break;
         case TH_V3D_CLIPPING_BORDER:
           cp = ts->clipping_border_3d;
           break;
@@ -1417,7 +1408,7 @@ bool UI_GetIconThemeColor4ubv(int colorid, uchar col[4])
   if (colorid == 0) {
     return false;
   }
-  else if (colorid == TH_ICON_FUND) {
+  if (colorid == TH_ICON_FUND) {
     /* Always color development fund icon. */
   }
   else if (!((theme_spacetype == SPACE_OUTLINER && theme_regionid == RGN_TYPE_WINDOW) ||
@@ -1480,7 +1471,7 @@ void UI_ThemeClearColor(int colorid)
   float col[3];
 
   UI_GetThemeColor3fv(colorid, col);
-  GPU_clear_color(col[0], col[1], col[2], 0.0f);
+  GPU_clear_color(col[0], col[1], col[2], 1.0f);
 }
 
 void UI_ThemeClearColorAlpha(int colorid, float alpha)

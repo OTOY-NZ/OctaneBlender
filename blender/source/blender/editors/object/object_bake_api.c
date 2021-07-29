@@ -96,6 +96,7 @@ typedef struct BakeAPIRender {
   bool is_cage;
 
   float cage_extrusion;
+  float max_ray_distance;
   int normal_space;
   eBakeNormalSwizzle normal_swizzle[3];
 
@@ -433,14 +434,12 @@ static bool bake_object_check(ViewLayer *view_layer, Object *ob, ReportList *rep
     BKE_reportf(reports, RPT_ERROR, "Object \"%s\" is not a mesh", ob->id.name + 2);
     return false;
   }
-  else {
-    Mesh *me = (Mesh *)ob->data;
 
-    if (CustomData_get_active_layer_index(&me->ldata, CD_MLOOPUV) == -1) {
-      BKE_reportf(
-          reports, RPT_ERROR, "No active UV layer found in the object \"%s\"", ob->id.name + 2);
-      return false;
-    }
+  Mesh *me = (Mesh *)ob->data;
+  if (CustomData_get_active_layer_index(&me->ldata, CD_MLOOPUV) == -1) {
+    BKE_reportf(
+        reports, RPT_ERROR, "No active UV layer found in the object \"%s\"", ob->id.name + 2);
+    return false;
   }
 
   for (i = 0; i < ob->totcol; i++) {
@@ -541,14 +540,11 @@ static bool bake_pass_filter_check(eScenePassType pass_type,
 
         return false;
       }
-      else {
-        BKE_report(reports,
-                   RPT_ERROR,
-                   "Combined bake pass requires Emit, or a light pass with "
-                   "Direct or Indirect contributions enabled");
-        return false;
-      }
-      break;
+      BKE_report(reports,
+                 RPT_ERROR,
+                 "Combined bake pass requires Emit, or a light pass with "
+                 "Direct or Indirect contributions enabled");
+      return false;
     case SCE_PASS_DIFFUSE_COLOR:
     case SCE_PASS_GLOSSY_COLOR:
     case SCE_PASS_TRANSM_COLOR:
@@ -737,6 +733,7 @@ static int bake(Render *re,
                 const bool is_selected_to_active,
                 const bool is_cage,
                 const float cage_extrusion,
+                const float max_ray_distance,
                 const int normal_space,
                 const eBakeNormalSwizzle normal_swizzle[],
                 const char *custom_cage,
@@ -895,7 +892,7 @@ static int bake(Render *re,
   /* for multires bake, use linear UV subdivision to match low res UVs */
   if (pass_type == SCE_PASS_NORMAL && normal_space == R_BAKE_SPACE_TANGENT &&
       !is_selected_to_active) {
-    mmd_low = (MultiresModifierData *)modifiers_findByType(ob_low, eModifierType_Multires);
+    mmd_low = (MultiresModifierData *)BKE_modifiers_findby_type(ob_low, eModifierType_Multires);
     if (mmd_low) {
       mmd_flags_low = mmd_low->flags;
       mmd_low->uv_smooth = SUBSURF_UV_SMOOTH_NONE;
@@ -945,7 +942,7 @@ static int bake(Render *re,
 
         if (md->type == eModifierType_EdgeSplit) {
           BLI_remlink(&ob_low_eval->modifiers, md);
-          modifier_free(md);
+          BKE_modifier_free(md);
           is_changed = true;
         }
         md = md_next;
@@ -1010,6 +1007,7 @@ static int bake(Render *re,
                                               num_pixels,
                                               ob_cage != NULL,
                                               cage_extrusion,
+                                              max_ray_distance,
                                               ob_low_eval->obmat,
                                               (ob_cage ? ob_cage->obmat : ob_low_eval->obmat),
                                               me_cage)) {
@@ -1024,7 +1022,7 @@ static int bake(Render *re,
                           highpoly[i].ob,
                           i,
                           pixel_array_high,
-                          num_pixels,
+                          &bake_images,
                           depth,
                           pass_type,
                           pass_filter,
@@ -1046,7 +1044,7 @@ static int bake(Render *re,
                           ob_low_eval,
                           0,
                           pixel_array_low,
-                          num_pixels,
+                          &bake_images,
                           depth,
                           pass_type,
                           pass_filter,
@@ -1068,10 +1066,7 @@ static int bake(Render *re,
             (normal_swizzle[2] == R_BAKE_POSZ)) {
           break;
         }
-        else {
-          RE_bake_normal_world_to_world(
-              pixel_array_low, num_pixels, depth, result, normal_swizzle);
-        }
+        RE_bake_normal_world_to_world(pixel_array_low, num_pixels, depth, result, normal_swizzle);
         break;
       }
       case R_BAKE_SPACE_OBJECT: {
@@ -1096,7 +1091,7 @@ static int bake(Render *re,
           int mode;
 
           BKE_object_eval_reset(ob_low_eval);
-          md = modifiers_findByType(ob_low_eval, eModifierType_Multires);
+          md = BKE_modifiers_findby_type(ob_low_eval, eModifierType_Multires);
 
           if (md) {
             mode = md->mode;
@@ -1305,6 +1300,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
   bkr->is_selected_to_active = RNA_boolean_get(op->ptr, "use_selected_to_active");
   bkr->is_cage = RNA_boolean_get(op->ptr, "use_cage");
   bkr->cage_extrusion = RNA_float_get(op->ptr, "cage_extrusion");
+  bkr->max_ray_distance = RNA_float_get(op->ptr, "max_ray_distance");
 
   bkr->normal_space = RNA_enum_get(op->ptr, "normal_space");
   bkr->normal_swizzle[0] = RNA_enum_get(op->ptr, "normal_r");
@@ -1394,6 +1390,7 @@ static int bake_exec(bContext *C, wmOperator *op)
                   true,
                   bkr.is_cage,
                   bkr.cage_extrusion,
+                  bkr.max_ray_distance,
                   bkr.normal_space,
                   bkr.normal_swizzle,
                   bkr.custom_cage,
@@ -1426,6 +1423,7 @@ static int bake_exec(bContext *C, wmOperator *op)
                     false,
                     bkr.is_cage,
                     bkr.cage_extrusion,
+                    bkr.max_ray_distance,
                     bkr.normal_space,
                     bkr.normal_swizzle,
                     bkr.custom_cage,
@@ -1495,6 +1493,7 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *do_update, floa
                        true,
                        bkr->is_cage,
                        bkr->cage_extrusion,
+                       bkr->max_ray_distance,
                        bkr->normal_space,
                        bkr->normal_swizzle,
                        bkr->custom_cage,
@@ -1527,6 +1526,7 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *do_update, floa
                          false,
                          bkr->is_cage,
                          bkr->cage_extrusion,
+                         bkr->max_ray_distance,
                          bkr->normal_space,
                          bkr->normal_swizzle,
                          bkr->custom_cage,
@@ -1586,6 +1586,11 @@ static void bake_set_props(wmOperator *op, Scene *scene)
     RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_TO_ACTIVE) != 0);
   }
 
+  prop = RNA_struct_find_property(op->ptr, "max_ray_distance");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    RNA_property_float_set(op->ptr, prop, bake->max_ray_distance);
+  }
+
   prop = RNA_struct_find_property(op->ptr, "cage_extrusion");
   if (!RNA_property_is_set(op->ptr, prop)) {
     RNA_property_float_set(op->ptr, prop, bake->cage_extrusion);
@@ -1593,9 +1598,8 @@ static void bake_set_props(wmOperator *op, Scene *scene)
 
   prop = RNA_struct_find_property(op->ptr, "cage_object");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    if (bake->cage_object) {
-      RNA_property_string_set(op->ptr, prop, bake->cage_object->id.name + 2);
-    }
+    RNA_property_string_set(
+        op->ptr, prop, (bake->cage_object) ? bake->cage_object->id.name + 2 : "");
   }
 
   prop = RNA_struct_find_property(op->ptr, "normal_space");
@@ -1766,12 +1770,23 @@ void OBJECT_OT_bake(wmOperatorType *ot)
                   "Selected to Active",
                   "Bake shading on the surface of selected objects to the active object");
   RNA_def_float(ot->srna,
+                "max_ray_distance",
+                0.0f,
+                0.0f,
+                FLT_MAX,
+                "Max Ray Distance",
+                "The maximum ray distance for matching points between the active and selected "
+                "objects. If zero, there is no limit",
+                0.0f,
+                1.0f);
+  RNA_def_float(ot->srna,
                 "cage_extrusion",
                 0.0f,
                 0.0f,
                 FLT_MAX,
                 "Cage Extrusion",
-                "Distance to use for the inward ray cast when using selected to active",
+                "Inflate the active object by the specified distance for baking. This helps "
+                "matching to points nearer to the outside of the selected object meshes",
                 0.0f,
                 1.0f);
   RNA_def_string(ot->srna,

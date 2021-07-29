@@ -1271,7 +1271,7 @@ ID *WM_operator_drop_load_path(struct bContext *C, wmOperator *op, const short i
     if (is_relative_path) {
       if (exists == false) {
         if (idcode == ID_IM) {
-          BLI_path_rel(((Image *)id)->name, BKE_main_blendfile_path(bmain));
+          BLI_path_rel(((Image *)id)->filepath, BKE_main_blendfile_path(bmain));
         }
         else {
           BLI_assert(0);
@@ -1351,17 +1351,8 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *region, void *arg_op)
   }
 
   uiLayout *col = uiLayoutColumn(layout, false);
-
-  if (op->type->flag & OPTYPE_MACRO) {
-    for (op = op->macro.first; op; op = op->next) {
-      uiTemplateOperatorPropertyButs(
-          C, col, op, UI_BUT_LABEL_ALIGN_NONE, UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
-    }
-  }
-  else {
-    uiTemplateOperatorPropertyButs(
-        C, col, op, UI_BUT_LABEL_ALIGN_NONE, UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
-  }
+  uiTemplateOperatorPropertyButs(
+      C, col, op, UI_BUT_LABEL_ALIGN_NONE, UI_TEMPLATE_OP_PROPS_SHOW_TITLE);
 
   UI_block_bounds_set_popup(block, 6 * U.dpi_fac, NULL);
 
@@ -1796,13 +1787,12 @@ static int wm_search_menu_invoke(bContext *C, wmOperator *op, const wmEvent *eve
     }
   }
 
-  PropertyRNA *prop = op->type->prop;
   int search_type;
-  if (RNA_property_is_set(op->ptr, prop)) {
-    search_type = RNA_property_enum_get(op->ptr, prop);
+  if (STREQ(op->type->idname, "WM_OT_search_menu")) {
+    search_type = SEARCH_TYPE_MENU;
   }
   else {
-    search_type = U.experimental.use_menu_search ? SEARCH_TYPE_MENU : SEARCH_TYPE_OPERATOR;
+    search_type = SEARCH_TYPE_OPERATOR;
   }
 
   static struct SearchPopupInit_Data data;
@@ -1811,7 +1801,7 @@ static int wm_search_menu_invoke(bContext *C, wmOperator *op, const wmEvent *eve
       .size = {UI_searchbox_size_x() * 2, UI_searchbox_size_y()},
   };
 
-  UI_popup_block_invoke(C, wm_block_search_menu, &data, NULL);
+  UI_popup_block_invoke_ex(C, wm_block_search_menu, &data, NULL, false);
 
   return OPERATOR_INTERFACE;
 }
@@ -1820,20 +1810,22 @@ static void WM_OT_search_menu(wmOperatorType *ot)
 {
   ot->name = "Search Menu";
   ot->idname = "WM_OT_search_menu";
-  ot->description = "Pop-up a search menu over all available operators in current context";
+  ot->description = "Pop-up a search over all menus in the current context";
 
   ot->invoke = wm_search_menu_invoke;
   ot->exec = wm_search_menu_exec;
   ot->poll = WM_operator_winactive;
+}
 
-  static const EnumPropertyItem search_type_items[] = {
-      {SEARCH_TYPE_OPERATOR, "OPERATOR", 0, "Operator", "Search all operators"},
-      {SEARCH_TYPE_MENU, "MENU", 0, "Menu", "Search active menu items"},
-      {0, NULL, 0, NULL, NULL},
-  };
+static void WM_OT_search_operator(wmOperatorType *ot)
+{
+  ot->name = "Search Operator";
+  ot->idname = "WM_OT_search_operator";
+  ot->description = "Pop-up a search over all available operators in current context";
 
-  /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "type", search_type_items, SEARCH_TYPE_OPERATOR, "Type", "");
+  ot->invoke = wm_search_menu_invoke;
+  ot->exec = wm_search_menu_exec;
+  ot->poll = WM_operator_winactive;
 }
 
 static int wm_call_menu_exec(bContext *C, wmOperator *op)
@@ -2085,13 +2077,14 @@ static void WM_OT_console_toggle(wmOperatorType *ot)
  *
  * \{ */
 
-wmPaintCursor *WM_paint_cursor_activate(wmWindowManager *wm,
-                                        short space_type,
+wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
                                         bool (*poll)(bContext *C),
                                         wmPaintCursorDraw draw,
                                         void *customdata)
 {
+  wmWindowManager *wm = G_MAIN->wm.first;
+
   wmPaintCursor *pc = MEM_callocN(sizeof(wmPaintCursor), "paint cursor");
 
   BLI_addtail(&wm->paintcursors, pc);
@@ -2106,11 +2099,10 @@ wmPaintCursor *WM_paint_cursor_activate(wmWindowManager *wm,
   return pc;
 }
 
-bool WM_paint_cursor_end(wmWindowManager *wm, wmPaintCursor *handle)
+bool WM_paint_cursor_end(wmPaintCursor *handle)
 {
-  wmPaintCursor *pc;
-
-  for (pc = wm->paintcursors.first; pc; pc = pc->next) {
+  wmWindowManager *wm = G_MAIN->wm.first;
+  for (wmPaintCursor *pc = wm->paintcursors.first; pc; pc = pc->next) {
     if (pc == (wmPaintCursor *)handle) {
       BLI_remlink(&wm->paintcursors, pc);
       MEM_freeN(pc);
@@ -2146,7 +2138,7 @@ typedef struct {
   int slow_mouse[2];
   bool slow_mode;
   Dial *dial;
-  unsigned int gltex;
+  GPUTexture *texture;
   ListBase orig_paintcursors;
   bool use_secondary_tex;
   void *cursor;
@@ -2250,11 +2242,15 @@ static void radial_control_set_tex(RadialControl *rc)
                rc->image_id_ptr.data,
                rc->use_secondary_tex,
                !ELEM(rc->subtype, PROP_NONE, PROP_PIXEL, PROP_DISTANCE)))) {
-        glGenTextures(1, &rc->gltex);
-        glBindTexture(GL_TEXTURE_2D, rc->gltex);
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_R8, ibuf->x, ibuf->y, 0, GL_RED, GL_FLOAT, ibuf->rect_float);
-        glBindTexture(GL_TEXTURE_2D, 0);
+
+        rc->texture = GPU_texture_create_nD(
+            ibuf->x, ibuf->y, 0, 2, ibuf->rect_float, GPU_R8, GPU_DATA_FLOAT, 0, false, NULL);
+        GPU_texture_filter_mode(rc->texture, true);
+
+        GPU_texture_bind(rc->texture, 0);
+        GPU_texture_swizzle_set(rc->texture, "111r");
+        GPU_texture_unbind(rc->texture);
+
         MEM_freeN(ibuf->rect_float);
         MEM_freeN(ibuf);
       }
@@ -2290,18 +2286,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  if (rc->gltex) {
-
+  if (rc->texture) {
     uint texCoord = GPU_vertformat_attr_add(format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, rc->gltex);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    GLint swizzleMask[] = {GL_ZERO, GL_ZERO, GL_ZERO, GL_RED};
-    glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
 
     /* set up rotation if available */
     if (rc->rot_prop) {
@@ -2310,10 +2296,10 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
       GPU_matrix_rotate_2d(RAD2DEGF(rot));
     }
 
-    immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_MASK_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
 
     immUniformColor3fvAlpha(col, alpha);
-    immUniform1i("image", 0);
+    immBindTexture("image", rc->texture);
 
     /* draw textured quad */
     immBegin(GPU_PRIM_TRI_FAN, 4);
@@ -2331,6 +2317,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
     immVertex2f(pos, -radius, radius);
 
     immEnd();
+
+    GPU_texture_unbind(rc->texture);
 
     /* undo rotation */
     if (rc->rot_prop) {
@@ -2756,7 +2744,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
   rc->num_input.idx_max = 0;
   rc->num_input.val_flag[0] |= NUM_NO_NEGATIVE;
   rc->num_input.unit_sys = USER_UNIT_NONE;
-  rc->num_input.unit_type[0] = B_UNIT_LENGTH;
+  rc->num_input.unit_type[0] = RNA_SUBTYPE_UNIT_VALUE(RNA_property_unit(rc->prop));
 
   /* get subtype of property */
   rc->subtype = RNA_property_subtype(rc->prop);
@@ -2785,7 +2773,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 
   /* add radial control paint cursor */
   rc->cursor = WM_paint_cursor_activate(
-      wm, SPACE_TYPE_ANY, RGN_TYPE_ANY, op->type->poll, radial_control_paint_cursor, rc);
+      SPACE_TYPE_ANY, RGN_TYPE_ANY, op->type->poll, radial_control_paint_cursor, rc);
 
   WM_event_add_modal_handler(C, op);
 
@@ -2819,7 +2807,7 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
 
   ED_area_status_text(area, NULL);
 
-  WM_paint_cursor_end(wm, rc->cursor);
+  WM_paint_cursor_end(rc->cursor);
 
   /* restore original paint cursors */
   wm->paintcursors = rc->orig_paintcursors;
@@ -2829,7 +2817,9 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
    * new value is displayed in sliders/numfields */
   WM_event_add_notifier(C, NC_WINDOW, NULL);
 
-  glDeleteTextures(1, &rc->gltex);
+  if (rc->texture != NULL) {
+    GPU_texture_free(rc->texture);
+  }
 
   MEM_freeN(rc);
 }
@@ -2855,7 +2845,6 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
     applyNumInput(&rc->num_input, &numValue);
 
     if (rc->subtype == PROP_ANGLE) {
-      numValue = DEG2RADF(numValue);
       numValue = fmod(numValue, 2.0f * (float)M_PI);
       if (numValue < 0.0f) {
         numValue += 2.0f * (float)M_PI;
@@ -3020,7 +3009,6 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
       applyNumInput(&rc->num_input, &numValue);
 
       if (rc->subtype == PROP_ANGLE) {
-        numValue = DEG2RADF(numValue);
         numValue = fmod(numValue, 2.0f * (float)M_PI);
         if (numValue < 0.0f) {
           numValue += 2.0f * (float)M_PI;
@@ -3805,8 +3793,6 @@ void wm_operatortypes_register(void)
   WM_operatortype_append(WM_OT_save_userpref);
   WM_operatortype_append(WM_OT_read_userpref);
   WM_operatortype_append(WM_OT_read_factory_userpref);
-  WM_operatortype_append(WM_OT_userpref_autoexec_path_add);
-  WM_operatortype_append(WM_OT_userpref_autoexec_path_remove);
   WM_operatortype_append(WM_OT_window_fullscreen_toggle);
   WM_operatortype_append(WM_OT_quit_blender);
   WM_operatortype_append(WM_OT_open_mainfile);
@@ -3824,7 +3810,9 @@ void wm_operatortypes_register(void)
   WM_operatortype_append(WM_OT_debug_menu);
   WM_operatortype_append(WM_OT_operator_defaults);
   WM_operatortype_append(WM_OT_splash);
+  WM_operatortype_append(WM_OT_splash_about);
   WM_operatortype_append(WM_OT_search_menu);
+  WM_operatortype_append(WM_OT_search_operator);
   WM_operatortype_append(WM_OT_call_menu);
   WM_operatortype_append(WM_OT_call_menu_pie);
   WM_operatortype_append(WM_OT_call_panel);

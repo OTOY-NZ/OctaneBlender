@@ -649,6 +649,8 @@ static const char *attr_prefix_get(CustomDataType type)
       return "t";
     case CD_MCOL:
       return "c";
+    case CD_PROP_COLOR:
+      return "c";
     case CD_AUTO_FROM_NAME:
       return "a";
     default:
@@ -1160,7 +1162,7 @@ static int count_active_texture_sampler(GPUShader *shader, char *source)
       if (*code != '\0') {
         char sampler_name[64];
         code = gpu_str_skip_token(code, sampler_name, sizeof(sampler_name));
-        int id = GPU_shader_get_uniform_ensure(shader, sampler_name);
+        int id = GPU_shader_get_uniform(shader, sampler_name);
 
         if (id == -1) {
           continue;
@@ -1226,20 +1228,8 @@ bool GPU_pass_compile(GPUPass *pass, const char *shname)
         shader = NULL;
       }
     }
-    else if (!BLI_thread_is_main() && GPU_context_local_shaders_workaround()) {
-      pass->binary.content = GPU_shader_get_binary(
-          shader, &pass->binary.format, &pass->binary.len);
-      GPU_shader_free(shader);
-      shader = NULL;
-    }
-
     pass->shader = shader;
     pass->compiled = true;
-  }
-  else if (pass->binary.content && BLI_thread_is_main()) {
-    pass->shader = GPU_shader_load_from_binary(
-        pass->binary.content, pass->binary.format, pass->binary.len, shname);
-    MEM_SAFE_FREE(pass->binary.content);
   }
 
   return success;
@@ -1261,9 +1251,6 @@ static void gpu_pass_free(GPUPass *pass)
   MEM_SAFE_FREE(pass->geometrycode);
   MEM_SAFE_FREE(pass->vertexcode);
   MEM_SAFE_FREE(pass->defines);
-  if (pass->binary.content) {
-    MEM_freeN(pass->binary.content);
-  }
   MEM_freeN(pass);
 }
 

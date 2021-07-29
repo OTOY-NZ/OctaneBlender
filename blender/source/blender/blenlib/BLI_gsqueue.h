@@ -17,12 +17,13 @@
  * All rights reserved.
  */
 
-#ifndef __BLI_GSQUEUE_H__
-#define __BLI_GSQUEUE_H__
+#pragma once
 
 /** \file
  * \ingroup bli
  */
+
+#include "BLI_utildefines.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,5 +41,3 @@ void BLI_gsqueue_free(GSQueue *gq);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BLI_GSQUEUE_H__ */

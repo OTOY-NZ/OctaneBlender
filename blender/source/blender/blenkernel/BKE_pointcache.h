@@ -10,15 +10,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
  */
 
-#ifndef __BKE_POINTCACHE_H__
-#define __BKE_POINTCACHE_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -28,6 +27,7 @@
 #include "DNA_boid_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_object_force_types.h"
+#include "DNA_pointcache_types.h"
 #include <stdio.h> /* for FILE */
 
 #ifdef __cplusplus
@@ -64,6 +64,7 @@ extern "C" {
 #define PTCACHE_TYPE_SMOKE_HIGHRES 4
 #define PTCACHE_TYPE_DYNAMICPAINT 5
 #define PTCACHE_TYPE_RIGIDBODY 6
+#define PTCACHE_TYPE_SIM_PARTICLES 7
 
 /* high bits reserved for flags that need to be stored in file */
 #define PTCACHE_TYPEFLAG_COMPRESS (1 << 16)
@@ -128,7 +129,7 @@ typedef struct PTCacheID {
   struct PTCacheID *next, *prev;
 
   struct Scene *scene;
-  struct Object *ob;
+  struct ID *owner_id;
   void *calldata;
   unsigned int type, file_type;
   unsigned int stack_index;
@@ -143,7 +144,7 @@ typedef struct PTCacheID {
   /* copies point data to cache data */
   int (*write_point)(int index, void *calldata, void **data, int cfra);
   /* copies cache cata to point data */
-  void (*read_point)(int index, void *calldata, void **data, float cfra, float *old_data);
+  void (*read_point)(int index, void *calldata, void **data, float cfra, const float *old_data);
   /* interpolated between previously read point data and cache data */
   void (*interpolate_point)(int index,
                             void *calldata,
@@ -151,7 +152,7 @@ typedef struct PTCacheID {
                             float cfra,
                             float cfra1,
                             float cfra2,
-                            float *old_data);
+                            const float *old_data);
 
   /* copies point data to cache data */
   int (*write_stream)(PTCacheFile *pf, void *calldata);
@@ -287,7 +288,7 @@ void BKE_ptcache_make_particle_key(struct ParticleKey *key, int index, void **da
 void BKE_ptcache_id_from_softbody(PTCacheID *pid, struct Object *ob, struct SoftBody *sb);
 void BKE_ptcache_id_from_particles(PTCacheID *pid, struct Object *ob, struct ParticleSystem *psys);
 void BKE_ptcache_id_from_cloth(PTCacheID *pid, struct Object *ob, struct ClothModifierData *clmd);
-void BKE_ptcache_id_from_smoke(PTCacheID *pid, struct Object *ob, struct FluidModifierData *mmd);
+void BKE_ptcache_id_from_smoke(PTCacheID *pid, struct Object *ob, struct FluidModifierData *fmd);
 void BKE_ptcache_id_from_dynamicpaint(PTCacheID *pid,
                                       struct Object *ob,
                                       struct DynamicPaintSurface *surface);
@@ -384,6 +385,4 @@ void BKE_ptcache_invalidate(struct PointCache *cache);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

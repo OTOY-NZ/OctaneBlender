@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_IMAGE_TYPES_H__
-#define __DNA_IMAGE_TYPES_H__
+#pragma once
 
 #include "DNA_ID.h"
 #include "DNA_color_types.h" /* for color management */
@@ -129,7 +128,7 @@ typedef struct Image {
   ID id;
 
   /** File path, 1024 = FILE_MAX. */
-  char name[1024];
+  char filepath[1024];
 
   /** Not written in file. */
   struct MovieCache *cache;
@@ -265,5 +264,3 @@ enum {
   IMA_ALPHA_CHANNEL_PACKED = 2,
   IMA_ALPHA_IGNORE = 3,
 };
-
-#endif

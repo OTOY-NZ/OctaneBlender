@@ -15,18 +15,18 @@
  *
  * */
 
-#ifndef __BLI_MATH_BITS_H__
-#define __BLI_MATH_BITS_H__
+#pragma once
 
 /** \file
  * \ingroup bli
  */
 
+#include "BLI_math_inline.h"
+#include "BLI_utildefines.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_math_inline.h"
 
 /* Search the value from LSB to MSB for a set bit. Returns index of this bit. */
 MINLINE int bitscan_forward_i(int a);
@@ -67,5 +67,3 @@ MINLINE float xor_fl(float x, int y);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BLI_MATH_BITS_H__ */

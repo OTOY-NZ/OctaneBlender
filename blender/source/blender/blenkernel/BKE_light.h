@@ -17,18 +17,18 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_LIGHT_H__
-#define __BKE_LIGHT_H__
+#pragma once
 
 /** \file
  * \ingroup bke
  * \brief General operations, lookup, etc. for blender lights.
  */
+
+#include "BLI_compiler_attrs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_compiler_attrs.h"
 
 struct Depsgraph;
 struct Light;
@@ -42,6 +42,4 @@ void BKE_light_eval(struct Depsgraph *depsgraph, struct Light *la);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

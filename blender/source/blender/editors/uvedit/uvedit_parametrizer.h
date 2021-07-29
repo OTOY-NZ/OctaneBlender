@@ -14,18 +14,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __UVEDIT_PARAMETRIZER_H__
-#define __UVEDIT_PARAMETRIZER_H__
+#pragma once
 
 /** \file
  * \ingroup eduv
  */
 
+#include "BLI_sys_types.h"  // for intptr_t support
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_sys_types.h"  // for intptr_t support
 
 typedef void ParamHandle;  /* handle to a set of charts */
 typedef intptr_t ParamKey; /* (hash) key for identifying verts and faces */
@@ -109,5 +108,3 @@ void param_flush_restore(ParamHandle *handle);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /*__UVEDIT_PARAMETRIZER_H__*/

@@ -263,7 +263,7 @@ void ED_armature_pose_select_in_wpaint_mode(ViewLayer *view_layer, Base *base_se
   Object *ob_active = OBACT(view_layer);
   BLI_assert(ob_active && (ob_active->mode & OB_MODE_WEIGHT_PAINT));
   VirtualModifierData virtualModifierData;
-  ModifierData *md = modifiers_getVirtualModifierList(ob_active, &virtualModifierData);
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob_active, &virtualModifierData);
   for (; md; md = md->next) {
     if (md->type == eModifierType_Armature) {
       ArmatureModifierData *amd = (ArmatureModifierData *)md;
@@ -1016,7 +1016,7 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool ex
     BKE_report(reports, RPT_ERROR, "No active Keying Set to use");
     return false;
   }
-  else if (ANIM_validate_keyingset(C, NULL, ks) != 0) {
+  if (ANIM_validate_keyingset(C, NULL, ks) != 0) {
     if (ks->paths.first == NULL) {
       if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
         BKE_report(reports,
@@ -1129,9 +1129,7 @@ static int pose_select_grouped_exec(bContext *C, wmOperator *op)
 
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void POSE_OT_select_grouped(wmOperatorType *ot)

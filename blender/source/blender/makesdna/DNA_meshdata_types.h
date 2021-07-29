@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_MESHDATA_TYPES_H__
-#define __DNA_MESHDATA_TYPES_H__
+#pragma once
 
 #include "DNA_customdata_types.h"
 #include "DNA_listBase.h"
@@ -344,6 +343,10 @@ typedef struct MLoopCol {
   unsigned char r, g, b, a;
 } MLoopCol;
 
+typedef struct MPropCol {
+  float color[4];
+} MPropCol;
+
 /** Multi-Resolution loop data. */
 typedef struct MDisps {
   /* Strange bug in SDNA: if disps pointer comes first, it fails to see totdisp */
@@ -566,5 +569,3 @@ typedef struct Multires {
 /* End multi-res structs. */
 
 /** \} */
-
-#endif /* __DNA_MESHDATA_TYPES_H__ */

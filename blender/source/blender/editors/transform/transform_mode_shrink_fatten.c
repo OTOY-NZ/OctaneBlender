@@ -54,13 +54,13 @@ static void applyShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
   char str[UI_MAX_DRAW_STR];
   size_t ofs = 0;
 
-  distance = -t->values[0];
+  distance = t->values[0];
 
   snapGridIncrement(t, &distance);
 
   applyNumInput(&t->num, &distance);
 
-  t->values_final[0] = -distance;
+  t->values_final[0] = distance;
 
   /* header print for NumInput */
   ofs += BLI_strncpy_rlen(str + ofs, TIP_("Shrink/Fatten:"), sizeof(str) - ofs);
@@ -95,10 +95,6 @@ static void applyShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
     TransData *td = tc->data;
     for (i = 0; i < tc->data_len; i++, td++) {
       float tdistance; /* temp dist */
-      if (td->flag & TD_NOACTION) {
-        break;
-      }
-
       if (td->flag & TD_SKIP) {
         continue;
       }

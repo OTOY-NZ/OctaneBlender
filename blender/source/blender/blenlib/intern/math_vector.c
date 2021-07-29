@@ -307,7 +307,7 @@ void mid_v3_v3_array(float r[3], const float (*vec_arr)[3], const uint nbr)
 
 /**
  * Specialized function for calculating normals.
- * fastpath for:
+ * Fast-path for:
  *
  * \code{.c}
  * add_v3_v3v3(r, a, b);
@@ -947,6 +947,35 @@ void print_vn(const char *str, const float v[], const int n)
     printf(" %.8f", v[i++]);
   }
   printf("\n");
+}
+
+void minmax_v4v4_v4(float min[4], float max[4], const float vec[4])
+{
+  if (min[0] > vec[0]) {
+    min[0] = vec[0];
+  }
+  if (min[1] > vec[1]) {
+    min[1] = vec[1];
+  }
+  if (min[2] > vec[2]) {
+    min[2] = vec[2];
+  }
+  if (min[3] > vec[3]) {
+    min[3] = vec[3];
+  }
+
+  if (max[0] < vec[0]) {
+    max[0] = vec[0];
+  }
+  if (max[1] < vec[1]) {
+    max[1] = vec[1];
+  }
+  if (max[2] < vec[2]) {
+    max[2] = vec[2];
+  }
+  if (max[3] < vec[3]) {
+    max[3] = vec[3];
+  }
 }
 
 void minmax_v3v3_v3(float min[3], float max[3], const float vec[3])

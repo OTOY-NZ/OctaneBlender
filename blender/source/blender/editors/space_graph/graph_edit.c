@@ -126,7 +126,8 @@ void get_graph_keyframe_extents(bAnimContext *ac,
       float unitFac, offset;
 
       /* get range */
-      if (calc_fcurve_bounds(fcu, &txmin, &txmax, &tymin, &tymax, do_sel_only, include_handles)) {
+      if (BKE_fcurve_calc_bounds(
+              fcu, &txmin, &txmax, &tymin, &tymax, do_sel_only, include_handles)) {
         short mapping_flag = ANIM_get_normalization_flags(ac);
 
         /* apply NLA scaling */
@@ -232,9 +233,8 @@ static int graphkeys_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
   if (ac.scene == NULL) {
     return OPERATOR_CANCELLED;
   }
-  else {
-    scene = ac.scene;
-  }
+
+  scene = ac.scene;
 
   /* set the range directly */
   get_graph_keyframe_extents(&ac, &min, &max, NULL, NULL, false, false);
@@ -328,7 +328,7 @@ static int graphkeys_view_selected_exec(bContext *C, wmOperator *op)
 void GRAPH_OT_view_all(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "View All";
+  ot->name = "Frame All";
   ot->idname = "GRAPH_OT_view_all";
   ot->description = "Reset viewable area to show full keyframe range";
 
@@ -385,7 +385,7 @@ void GRAPH_OT_view_frame(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Go to Current Frame";
   ot->idname = "GRAPH_OT_view_frame";
-  ot->description = "Move the view to the playhead";
+  ot->description = "Move the view to the current frame";
 
   /* api callbacks */
   ot->exec = graphkeys_view_frame_exec;
@@ -409,7 +409,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
   int filter;
 
   /* free existing ghost curves */
-  free_fcurves(&sipo->runtime.ghost_curves);
+  BKE_fcurves_free(&sipo->runtime.ghost_curves);
 
   /* sanity check */
   if (start >= end) {
@@ -425,7 +425,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
   /* loop through filtered data and add keys between selected keyframes on every frame  */
   for (ale = anim_data.first; ale; ale = ale->next) {
     FCurve *fcu = (FCurve *)ale->key_data;
-    FCurve *gcu = MEM_callocN(sizeof(FCurve), "Ghost FCurve");
+    FCurve *gcu = BKE_fcurve_create();
     AnimData *adt = ANIM_nla_mapping_get(ac, ale);
     ChannelDriver *driver = fcu->driver;
     FPoint *fpt;
@@ -536,7 +536,7 @@ static int graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator *UNUSED(op))
     return OPERATOR_CANCELLED;
   }
   /* free ghost curves */
-  free_fcurves(&sipo->runtime.ghost_curves);
+  BKE_fcurves_free(&sipo->runtime.ghost_curves);
 
   /* update this editor only */
   ED_area_tag_redraw(CTX_wm_area(C));
@@ -681,9 +681,10 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
     }
   }
   else {
+    const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
+        ac->depsgraph, (float)CFRA);
     for (ale = anim_data.first; ale; ale = ale->next) {
       FCurve *fcu = (FCurve *)ale->key_data;
-      float cfra = (float)CFRA;
 
       /* Read value from property the F-Curve represents, or from the curve only?
        *
@@ -705,7 +706,7 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
                         ((fcu->grp) ? (fcu->grp->name) : (NULL)),
                         fcu->rna_path,
                         fcu->array_index,
-                        cfra,
+                        &anim_eval_context,
                         ts->keyframe_type,
                         &nla_cache,
                         flag);
@@ -714,6 +715,7 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
         AnimData *adt = ANIM_nla_mapping_get(ac, ale);
 
         /* adjust current frame for NLA-mapping */
+        float cfra = (float)CFRA;
         if ((sipo) && (sipo->mode == SIPO_MODE_DRIVERS)) {
           cfra = sipo->cursorTime;
         }
@@ -806,7 +808,7 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
   /* when there are F-Modifiers on the curve, only allow adding
    * keyframes if these will be visible after doing so...
    */
-  if (fcurve_is_keyframable(fcu)) {
+  if (BKE_fcurve_is_keyframable(fcu)) {
     ListBase anim_data;
     ToolSettings *ts = ac.scene->toolsettings;
 
@@ -1630,11 +1632,10 @@ static int graphkeys_decimate_modal(bContext *C, wmOperator *op, const wmEvent *
         graphkeys_decimate_modal_update(C, op);
         break;
       }
-      else {
-        /* unhandled event - maybe it was some view manip? */
-        /* allow to pass through */
-        return OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH;
-      }
+
+      /* unhandled event - maybe it was some view manip? */
+      /* allow to pass through */
+      return OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH;
     }
   }
 
@@ -1693,7 +1694,7 @@ static bool graphkeys_decimate_poll_property(const bContext *UNUSED(C),
     if (STREQ(prop_id, "remove_ratio") && mode != DECIM_RATIO) {
       return false;
     }
-    else if (STREQ(prop_id, "remove_error_margin") && mode != DECIM_ERROR) {
+    if (STREQ(prop_id, "remove_error_margin") && mode != DECIM_ERROR) {
       return false;
     }
   }
@@ -2576,7 +2577,7 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
     if (strstr(fcu->rna_path, "rotation_euler") == NULL) {
       continue;
     }
-    else if (ELEM(fcu->array_index, 0, 1, 2) == 0) {
+    if (ELEM(fcu->array_index, 0, 1, 2) == 0) {
       BKE_reportf(op->reports,
                   RPT_WARNING,
                   "Euler Rotation F-Curve has invalid index (ID='%s', Path='%s', Index=%d)",
@@ -2688,23 +2689,22 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
         "and that F-Curves for these are in consecutive XYZ order and selected");
     return OPERATOR_CANCELLED;
   }
-  else {
-    if (failed) {
-      BKE_report(
-          op->reports,
-          RPT_ERROR,
-          "Some Euler Rotations could not be corrected due to missing/unselected/out-of-order "
-          "F-Curves, "
-          "ensure each rotation has keys for all components, and that F-Curves for these are in "
-          "consecutive XYZ order and selected");
-    }
 
-    /* set notifier that keyframes have changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
-
-    /* done at last */
-    return OPERATOR_FINISHED;
+  if (failed) {
+    BKE_report(
+        op->reports,
+        RPT_ERROR,
+        "Some Euler Rotations could not be corrected due to missing/unselected/out-of-order "
+        "F-Curves, "
+        "ensure each rotation has keys for all components, and that F-Curves for these are in "
+        "consecutive XYZ order and selected");
   }
+
+  /* set notifier that keyframes have changed */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+
+  /* done at last */
+  return OPERATOR_FINISHED;
 }
 
 void GRAPH_OT_euler_filter(wmOperatorType *ot)
@@ -3346,9 +3346,7 @@ static int graph_fmodifier_copy_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No F-Modifiers available to be copied");
     return OPERATOR_CANCELLED;
   }
-  else {
-    return OPERATOR_FINISHED;
-  }
+  return OPERATOR_FINISHED;
 }
 
 void GRAPH_OT_fmodifier_copy(wmOperatorType *ot)
@@ -3433,10 +3431,9 @@ static int graph_fmodifier_paste_exec(bContext *C, wmOperator *op)
 
     return OPERATOR_FINISHED;
   }
-  else {
-    BKE_report(op->reports, RPT_ERROR, "No F-Modifiers to paste");
-    return OPERATOR_CANCELLED;
-  }
+
+  BKE_report(op->reports, RPT_ERROR, "No F-Modifiers to paste");
+  return OPERATOR_CANCELLED;
 }
 
 void GRAPH_OT_fmodifier_paste(wmOperatorType *ot)
@@ -3486,9 +3483,7 @@ static int graph_driver_vars_copy_exec(bContext *C, wmOperator *op)
   if (ok) {
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void GRAPH_OT_driver_variables_copy(wmOperatorType *ot)
@@ -3532,9 +3527,7 @@ static int graph_driver_vars_paste_exec(bContext *C, wmOperator *op)
 
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void GRAPH_OT_driver_variables_paste(wmOperatorType *ot)

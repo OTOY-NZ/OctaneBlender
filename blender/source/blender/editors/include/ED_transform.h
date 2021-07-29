@@ -21,8 +21,7 @@
  * \ingroup editors
  */
 
-#ifndef __ED_TRANSFORM_H__
-#define __ED_TRANSFORM_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,7 +96,6 @@ enum TfmMode {
 #define CTX_OBMODE_XFORM_OBDATA (1 << 11)
 /** Transform object parents without moving their children. */
 #define CTX_OBMODE_XFORM_SKIP_CHILDREN (1 << 12)
-#define CTX_SCULPT (1 << 13)
 
 /* Standalone call to get the transformation center corresponding to the current situation
  * returns 1 if successful, 0 otherwise (usually means there's no selection)
@@ -157,8 +155,23 @@ int BIF_countTransformOrientation(const struct bContext *C);
 #define P_GPENCIL_EDIT (1 << 13)
 #define P_CURSOR_EDIT (1 << 14)
 #define P_CLNOR_INVALIDATE (1 << 15)
+/* For properties performed when confirming the transformation. */
+#define P_POST_TRANSFORM (1 << 19)
 
 void Transform_Properties(struct wmOperatorType *ot, int flags);
+
+/* *** transform_orientations.c *** */
+void ED_transform_calc_orientation_from_type(const struct bContext *C, float r_mat[3][3]);
+short ED_transform_calc_orientation_from_type_ex(const struct bContext *C,
+                                                 float r_mat[3][3],
+                                                 /* extra args */
+                                                 struct Scene *scene,
+                                                 struct RegionView3D *rv3d,
+                                                 struct Object *ob,
+                                                 struct Object *obedit,
+                                                 const short orientation_type,
+                                                 int orientation_index_custom,
+                                                 const int pivot_point);
 
 /* transform gizmos */
 
@@ -177,18 +190,6 @@ void ED_widgetgroup_gizmo2d_resize_callbacks_set(struct wmGizmoGroupType *gzgt);
 void ED_widgetgroup_gizmo2d_rotate_callbacks_set(struct wmGizmoGroupType *gzgt);
 
 #define SNAP_INCREMENTAL_ANGLE DEG2RAD(5.0)
-
-void ED_transform_calc_orientation_from_type(const struct bContext *C, float r_mat[3][3]);
-void ED_transform_calc_orientation_from_type_ex(const struct bContext *C,
-                                                float r_mat[3][3],
-                                                /* extra args */
-                                                struct Scene *scene,
-                                                struct RegionView3D *rv3d,
-                                                struct Object *ob,
-                                                struct Object *obedit,
-                                                const short orientation_type,
-                                                int orientation_index_custom,
-                                                const int pivot_point);
 
 struct TransformBounds {
   float center[3];      /* Center for transform widget. */
@@ -213,5 +214,3 @@ int ED_transform_calc_gizmo_stats(const struct bContext *C,
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __ED_TRANSFORM_H__ */

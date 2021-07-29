@@ -25,9 +25,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_map.h"
-
-extern "C" {
 #include "RNA_access.h"
 #include "RNA_types.h"
 
@@ -66,7 +63,6 @@ extern "C" {
 #include "RE_pipeline.h"
 
 #include "render_types.h"
-}
 
 #include <limits.h>
 

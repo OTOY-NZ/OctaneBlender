@@ -19,6 +19,7 @@
  */
 
 #include "abc_reader_mesh.h"
+#include "abc_axis_conversion.h"
 #include "abc_reader_transform.h"
 #include "abc_util.h"
 
@@ -26,12 +27,12 @@
 
 #include "MEM_guardedalloc.h"
 
-extern "C" {
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
+#include "BLI_compiler_compat.h"
 #include "BLI_math_geom.h"
 
 #include "BKE_main.h"
@@ -39,7 +40,6 @@ extern "C" {
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
-}
 
 using Alembic::Abc::Int32ArraySamplePtr;
 using Alembic::Abc::P3fArraySamplePtr;
@@ -59,6 +59,10 @@ using Alembic::AbcGeom::N3fArraySample;
 using Alembic::AbcGeom::N3fArraySamplePtr;
 using Alembic::AbcGeom::UInt32ArraySamplePtr;
 using Alembic::AbcGeom::V2fArraySamplePtr;
+
+namespace blender {
+namespace io {
+namespace alembic {
 
 /* NOTE: Alembic's polygon winding order is clockwise, to match with Renderman. */
 
@@ -100,7 +104,7 @@ static void assign_materials(Main *bmain,
 
     for (; it != mat_index_map.end(); ++it) {
       std::string mat_name = it->first;
-      mat_iter = mat_map.find(mat_name.c_str());
+      mat_iter = mat_map.find(mat_name);
 
       Material *assigned_mat;
 
@@ -340,7 +344,7 @@ static void process_normals(CDStreamConfig &config,
   }
 }
 
-ABC_INLINE void read_uvs_params(CDStreamConfig &config,
+BLI_INLINE void read_uvs_params(CDStreamConfig &config,
                                 AbcMeshData &abc_data,
                                 const IV2fGeomParam &uv,
                                 const ISampleSelector &selector)
@@ -715,7 +719,7 @@ void AbcMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const ISampleSel
 
 /* ************************************************************************** */
 
-ABC_INLINE MEdge *find_edge(MEdge *edges, int totedge, int v1, int v2)
+BLI_INLINE MEdge *find_edge(MEdge *edges, int totedge, int v1, int v2)
 {
   for (int i = 0, e = totedge; i < e; i++) {
     MEdge &edge = edges[i];
@@ -931,3 +935,7 @@ Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,
 
   return config.mesh;
 }
+
+}  // namespace alembic
+}  // namespace io
+}  // namespace blender

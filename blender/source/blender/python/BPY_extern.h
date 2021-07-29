@@ -18,9 +18,9 @@
  * \ingroup python
  */
 
-#ifndef __BPY_EXTERN_H__
-#define __BPY_EXTERN_H__
+#pragma once
 
+struct AnimationEvalContext;
 struct ChannelDriver; /* DNA_anim_types.h */
 struct ID;            /* DNA_ID.h */
 struct ListBase;      /* DNA_listBase.h */
@@ -35,11 +35,11 @@ struct bContext;
 struct bContextDataResult;
 struct bPythonConstraint; /* DNA_constraint_types.h */
 
+#include "BLI_utildefines.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_utildefines.h"
 
 void BPY_pyconstraint_exec(struct bPythonConstraint *con,
                            struct bConstraintOb *cob,
@@ -54,6 +54,7 @@ void BPY_python_start(int argc, const char **argv);
 void BPY_python_end(void);
 void BPY_python_reset(struct bContext *C);
 void BPY_python_use_system_env(void);
+void BPY_python_backtrace(/* FILE */ void *file);
 
 /* global interpreter lock */
 
@@ -117,7 +118,7 @@ void BPY_driver_reset(void);
 float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
                       struct ChannelDriver *driver,
                       struct ChannelDriver *driver_orig,
-                      const float evaltime);
+                      const struct AnimationEvalContext *anim_eval_context);
 
 void BPY_DECREF(void *pyob_ptr); /* Py_DECREF() */
 void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr);
@@ -139,5 +140,3 @@ const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *ms
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-
-#endif /* __BPY_EXTERN_H__ */

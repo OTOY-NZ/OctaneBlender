@@ -36,6 +36,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_constraint_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -58,6 +59,7 @@
 #include "BKE_idtype.h"
 #include "BKE_image.h" /* openanim */
 #include "BKE_lib_id.h"
+#include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_movieclip.h"
 #include "BKE_node.h"
@@ -106,6 +108,44 @@ static void movie_clip_free_data(ID *id)
   BKE_tracking_free(&movie_clip->tracking);
 }
 
+static void movie_clip_foreach_id(ID *id, LibraryForeachIDData *data)
+{
+  MovieClip *movie_clip = (MovieClip *)id;
+  MovieTracking *tracking = &movie_clip->tracking;
+
+  BKE_LIB_FOREACHID_PROCESS(data, movie_clip->gpd, IDWALK_CB_USER);
+
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking->tracks) {
+    BKE_LIB_FOREACHID_PROCESS(data, track->gpd, IDWALK_CB_USER);
+  }
+  LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
+    LISTBASE_FOREACH (MovieTrackingTrack *, track, &object->tracks) {
+      BKE_LIB_FOREACHID_PROCESS(data, track->gpd, IDWALK_CB_USER);
+    }
+  }
+
+  LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, &tracking->plane_tracks) {
+    BKE_LIB_FOREACHID_PROCESS(data, plane_track->image, IDWALK_CB_USER);
+  }
+}
+
+static void movie_clip_foreach_cache(ID *id,
+                                     IDTypeForeachCacheFunctionCallback function_callback,
+                                     void *user_data)
+{
+  MovieClip *movie_clip = (MovieClip *)id;
+  IDCacheKey key = {
+      .id_session_uuid = id->session_uuid,
+      .offset_in_ID = offsetof(MovieClip, cache),
+      .cache_v = movie_clip->cache,
+  };
+  function_callback(id, &key, (void **)&movie_clip->cache, 0, user_data);
+
+  key.offset_in_ID = offsetof(MovieClip, tracking.camera.intrinsics);
+  key.cache_v = movie_clip->tracking.camera.intrinsics;
+  function_callback(id, &key, (void **)&movie_clip->tracking.camera.intrinsics, 0, user_data);
+}
+
 IDTypeInfo IDType_ID_MC = {
     .id_code = ID_MC,
     .id_filter = FILTER_ID_MC,
@@ -120,6 +160,8 @@ IDTypeInfo IDType_ID_MC = {
     .copy_data = movie_clip_copy_data,
     .free_data = movie_clip_free_data,
     .make_local = NULL,
+    .foreach_id = movie_clip_foreach_id,
+    .foreach_cache = movie_clip_foreach_cache,
 };
 
 /*********************** movieclip buffer loaders *************************/
@@ -196,19 +238,19 @@ static void get_sequence_fname(const MovieClip *clip, const int framenr, char *n
   char head[FILE_MAX], tail[FILE_MAX];
   int offset;
 
-  BLI_strncpy(name, clip->name, sizeof(clip->name));
+  BLI_strncpy(name, clip->filepath, sizeof(clip->filepath));
   BLI_path_sequence_decode(name, head, tail, &numlen);
 
   /* Movie-clips always points to first image from sequence, auto-guess offset for now.
    * Could be something smarter in the future. */
-  offset = sequence_guess_offset(clip->name, strlen(head), numlen);
+  offset = sequence_guess_offset(clip->filepath, strlen(head), numlen);
 
   if (numlen) {
     BLI_path_sequence_encode(
         name, head, tail, numlen, offset + framenr - clip->start_frame + clip->frame_offset);
   }
   else {
-    BLI_strncpy(name, clip->name, sizeof(clip->name));
+    BLI_strncpy(name, clip->filepath, sizeof(clip->filepath));
   }
 
   BLI_path_abs(name, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
@@ -222,7 +264,7 @@ static void get_proxy_fname(
   char dir[FILE_MAX], clipdir[FILE_MAX], clipfile[FILE_MAX];
   int proxynr = framenr - clip->start_frame + 1 + clip->frame_offset;
 
-  BLI_split_dirfile(clip->name, clipdir, clipfile, FILE_MAX, FILE_MAX);
+  BLI_split_dirfile(clip->filepath, clipdir, clipfile, FILE_MAX, FILE_MAX);
 
   if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {
     BLI_strncpy(dir, clip->proxy.dir, sizeof(dir));
@@ -371,7 +413,7 @@ static void movieclip_open_anim_file(MovieClip *clip)
   char str[FILE_MAX];
 
   if (!clip->anim) {
-    BLI_strncpy(str, clip->name, FILE_MAX);
+    BLI_strncpy(str, clip->filepath, FILE_MAX);
     BLI_path_abs(str, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
 
     /* FIXME: make several stream accessible in image editor, too */
@@ -421,7 +463,7 @@ static void movieclip_calc_length(MovieClip *clip)
     unsigned short numlen;
     char name[FILE_MAX], head[FILE_MAX], tail[FILE_MAX];
 
-    BLI_path_sequence_decode(clip->name, head, tail, &numlen);
+    BLI_path_sequence_decode(clip->filepath, head, tail, &numlen);
 
     if (numlen == 0) {
       /* there's no number group in file name, assume it's single framed sequence */
@@ -460,6 +502,7 @@ typedef struct MovieClipCache {
     float principal[2];
     float polynomial_k[3];
     float division_k[2];
+    float nuke_k[2];
     short distortion_model;
     bool undistortion_used;
 
@@ -506,10 +549,10 @@ static int user_frame_to_cache_frame(MovieClip *clip, int framenr)
       unsigned short numlen;
       char head[FILE_MAX], tail[FILE_MAX];
 
-      BLI_path_sequence_decode(clip->name, head, tail, &numlen);
+      BLI_path_sequence_decode(clip->filepath, head, tail, &numlen);
 
       /* see comment in get_sequence_fname */
-      clip->cache->sequence_offset = sequence_guess_offset(clip->name, strlen(head), numlen);
+      clip->cache->sequence_offset = sequence_guess_offset(clip->filepath, strlen(head), numlen);
     }
 
     index += clip->cache->sequence_offset;
@@ -649,7 +692,7 @@ static bool put_imbuf_cache(
     clip->cache->sequence_offset = -1;
     if (clip->source == MCLIP_SRC_SEQUENCE) {
       unsigned short numlen;
-      BLI_path_sequence_decode(clip->name, NULL, NULL, &numlen);
+      BLI_path_sequence_decode(clip->filepath, NULL, NULL, &numlen);
       clip->cache->is_still_sequence = (numlen == 0);
     }
   }
@@ -733,7 +776,7 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   ImBuf *ibuf;
   char name[FILE_MAX];
 
-  BLI_strncpy(name, clip->name, sizeof(name));
+  BLI_strncpy(name, clip->filepath, sizeof(name));
   BLI_path_abs(name, BKE_main_blendfile_path(bmain));
 
   ibuf = IMB_testiffname(name, IB_rect | IB_multilayer);
@@ -770,7 +813,7 @@ MovieClip *BKE_movieclip_file_add(Main *bmain, const char *name)
 
   /* create a short library name */
   clip = movieclip_alloc(bmain, BLI_path_basename(name));
-  BLI_strncpy(clip->name, name, sizeof(clip->name));
+  BLI_strncpy(clip->filepath, name, sizeof(clip->filepath));
 
   detect_clip_source(bmain, clip);
 
@@ -796,7 +839,7 @@ MovieClip *BKE_movieclip_file_add_exists_ex(Main *bmain, const char *filepath, b
 
   /* first search an identical filepath */
   for (clip = bmain->movieclips.first; clip; clip = clip->id.next) {
-    BLI_strncpy(strtest, clip->name, sizeof(clip->name));
+    BLI_strncpy(strtest, clip->filepath, sizeof(clip->filepath));
     BLI_path_abs(strtest, ID_BLEND_PATH(bmain, &clip->id));
 
     if (BLI_path_cmp(strtest, str) == 0) {
@@ -908,6 +951,9 @@ static bool check_undistortion_cache_flags(const MovieClip *clip)
   if (!equals_v2v2(&camera->division_k1, cache->postprocessed.division_k)) {
     return false;
   }
+  if (!equals_v2v2(&camera->nuke_k1, cache->postprocessed.nuke_k)) {
+    return false;
+  }
 
   return true;
 }
@@ -1010,6 +1056,7 @@ static void put_postprocessed_frame_to_cache(
     copy_v2_v2(cache->postprocessed.principal, camera->principal);
     copy_v3_v3(cache->postprocessed.polynomial_k, &camera->k1);
     copy_v2_v2(cache->postprocessed.division_k, &camera->division_k1);
+    copy_v2_v2(cache->postprocessed.nuke_k, &camera->nuke_k1);
     cache->postprocessed.undistortion_used = true;
   }
   else {
@@ -1512,7 +1559,8 @@ void BKE_movieclip_update_scopes(MovieClip *clip, MovieClipUser *user, MovieClip
             undist_marker.pos[0] *= width;
             undist_marker.pos[1] *= height * aspy;
 
-            BKE_tracking_undistort_v2(&clip->tracking, undist_marker.pos, undist_marker.pos);
+            BKE_tracking_undistort_v2(
+                &clip->tracking, width, height, undist_marker.pos, undist_marker.pos);
 
             undist_marker.pos[0] /= width;
             undist_marker.pos[1] /= height * aspy;
@@ -1709,7 +1757,7 @@ void BKE_movieclip_filename_for_frame(MovieClip *clip, MovieClipUser *user, char
     }
   }
   else {
-    BLI_strncpy(name, clip->name, FILE_MAX);
+    BLI_strncpy(name, clip->filepath, FILE_MAX);
     BLI_path_abs(name, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
   }
 }

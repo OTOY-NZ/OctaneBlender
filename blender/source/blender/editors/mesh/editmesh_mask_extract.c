@@ -66,9 +66,7 @@ static bool paint_mask_extract_poll(bContext *C)
       CTX_wm_operator_poll_msg_set(C, "The mask can not be extracted with dyntopo activated");
       return false;
     }
-    else {
-      return ED_operator_object_active_editable_mesh(C);
-    }
+    return ED_operator_object_active_editable_mesh(C);
   }
   return false;
 }
@@ -224,7 +222,7 @@ static int paint_mask_extract_exec(bContext *C, wmOperator *op)
   if (RNA_boolean_get(op->ptr, "add_solidify")) {
     ED_object_modifier_add(
         op->reports, bmain, scene, new_ob, "mask_extract_solidify", eModifierType_Solidify);
-    SolidifyModifierData *sfmd = (SolidifyModifierData *)modifiers_findByName(
+    SolidifyModifierData *sfmd = (SolidifyModifierData *)BKE_modifiers_findby_name(
         new_ob, "mask_extract_solidify");
     if (sfmd) {
       sfmd->offset = -0.05f;

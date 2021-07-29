@@ -36,6 +36,7 @@
 #include "ED_keyframing.h"
 
 #include "BKE_anim_data.h"
+#include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
@@ -332,7 +333,20 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
                                   &options) == -1) {
     return NULL;
   }
-  else if (self->ptr.type == &RNA_NlaStrip) {
+
+  /* This assumes that keyframes are only added on original data & using the active depsgraph. If
+   * it turns out to be necessary for some reason to insert keyframes on evaluated objects, we can
+   * revisit this and add an explicit `depsgraph` keyword argument to the function call.
+   *
+   * It is unlikely that driver code (which is the reason this depsgraph pointer is obtained) will
+   * be executed from this function call, as this only happens when `options` has
+   * `INSERTKEY_DRIVER`, which is not exposed to Python. */
+  bContext *C = BPy_GetContext();
+  struct Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
+                                                                                    cfra);
+
+  if (self->ptr.type == &RNA_NlaStrip) {
     /* Handle special properties for NLA Strips, whose F-Curves are stored on the
      * strips themselves. These are stored separately or else the properties will
      * not have any effect.
@@ -354,9 +368,9 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
 
     if (prop) {
       NlaStrip *strip = ptr.data;
-      FCurve *fcu = list_find_fcurve(&strip->fcurves, RNA_property_identifier(prop), index);
-
-      result = insert_keyframe_direct(&reports, ptr, prop, fcu, cfra, keytype, NULL, options);
+      FCurve *fcu = BKE_fcurve_find(&strip->fcurves, RNA_property_identifier(prop), index);
+      result = insert_keyframe_direct(
+          &reports, ptr, prop, fcu, &anim_eval_context, keytype, NULL, options);
     }
     else {
       BKE_reportf(&reports, RPT_ERROR, "Could not resolve path (%s)", path_full);
@@ -384,7 +398,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
                               group_name,
                               path_full,
                               index,
-                              cfra,
+                              &anim_eval_context,
                               keytype,
                               NULL,
                               options) != 0);
@@ -415,7 +429,7 @@ char pyrna_struct_keyframe_delete_doc[] =
     "   :arg group: The name of the group the F-Curve should be added to if it doesn't exist "
     "yet.\n"
     "   :type group: str\n"
-    "   :return: Success of keyframe deleation.\n"
+    "   :return: Success of keyframe deletion.\n"
     "   :rtype: boolean\n";
 PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyObject *kw)
 {
@@ -462,7 +476,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
     if (prop) {
       ID *id = ptr.owner_id;
       NlaStrip *strip = ptr.data;
-      FCurve *fcu = list_find_fcurve(&strip->fcurves, RNA_property_identifier(prop), index);
+      FCurve *fcu = BKE_fcurve_find(&strip->fcurves, RNA_property_identifier(prop), index);
 
       /* NOTE: This should be true, or else we wouldn't be able to get here. */
       BLI_assert(fcu != NULL);
@@ -577,13 +591,13 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
       if (index == -1) { /* all, use a list */
         int i = 0;
         ret = PyList_New(0);
-        while ((fcu = list_find_fcurve(&adt->drivers, path_full, i++))) {
+        while ((fcu = BKE_fcurve_find(&adt->drivers, path_full, i++))) {
           RNA_pointer_create(id, &RNA_FCurve, fcu, &tptr);
           PyList_APPEND(ret, pyrna_struct_CreatePyObject(&tptr));
         }
       }
       else {
-        fcu = list_find_fcurve(&adt->drivers, path_full, index);
+        fcu = BKE_fcurve_find(&adt->drivers, path_full, index);
         RNA_pointer_create(id, &RNA_FCurve, fcu, &tptr);
         ret = pyrna_struct_CreatePyObject(&tptr);
       }

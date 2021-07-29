@@ -43,6 +43,7 @@
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_remap.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_mesh_wrapper.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_object_deform.h"
@@ -562,7 +563,7 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(ListBase *r_map
                                                                  CustomData *cd_dst,
                                                                  const bool use_dupref_dst,
                                                                  const int tolayers,
-                                                                 bool *use_layers_src,
+                                                                 const bool *use_layers_src,
                                                                  const int num_layers_src,
                                                                  cd_datatransfer_interp interp,
                                                                  void *interp_data)
@@ -1467,6 +1468,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
   if (!me_src) {
     return changed;
   }
+  BKE_mesh_wrapper_ensure_mdata(me_src);
 
   if (auto_transform) {
     if (space_transform == NULL) {
@@ -1573,7 +1575,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                                space_transform)) {
         CustomDataTransferLayerMap *lay_mapit;
 
-        changed = (lay_map.first != NULL);
+        changed |= (lay_map.first != NULL);
 
         for (lay_mapit = lay_map.first; lay_mapit; lay_mapit = lay_mapit->next) {
           CustomData_data_transfer(&geom_map[VDATA], lay_mapit);
@@ -1651,7 +1653,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                                space_transform)) {
         CustomDataTransferLayerMap *lay_mapit;
 
-        changed = (lay_map.first != NULL);
+        changed |= (lay_map.first != NULL);
 
         for (lay_mapit = lay_map.first; lay_mapit; lay_mapit = lay_mapit->next) {
           CustomData_data_transfer(&geom_map[EDATA], lay_mapit);
@@ -1747,7 +1749,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                                space_transform)) {
         CustomDataTransferLayerMap *lay_mapit;
 
-        changed = (lay_map.first != NULL);
+        changed |= (lay_map.first != NULL);
 
         for (lay_mapit = lay_map.first; lay_mapit; lay_mapit = lay_mapit->next) {
           CustomData_data_transfer(&geom_map[LDATA], lay_mapit);
@@ -1838,7 +1840,7 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                                space_transform)) {
         CustomDataTransferLayerMap *lay_mapit;
 
-        changed = (lay_map.first != NULL);
+        changed |= (lay_map.first != NULL);
 
         for (lay_mapit = lay_map.first; lay_mapit; lay_mapit = lay_mapit->next) {
           CustomData_data_transfer(&geom_map[PDATA], lay_mapit);

@@ -125,12 +125,15 @@ static bNodeSocket *group_verify_socket(
   bNodeSocket *sock;
 
   for (sock = verify_lb->first; sock; sock = sock->next) {
-    if (STREQ(sock->identifier, iosock->identifier)) {
+    if (sock->typeinfo == iosock->typeinfo && STREQ(sock->identifier, iosock->identifier)) {
       break;
     }
   }
   if (sock) {
     strcpy(sock->name, iosock->name);
+
+    const int mask = SOCK_HIDE_VALUE;
+    sock->flag = (sock->flag & ~mask) | (iosock->flag & mask);
 
     if (iosock->typeinfo->interface_verify_socket) {
       iosock->typeinfo->interface_verify_socket(ntree, iosock, gnode, sock, "interface");

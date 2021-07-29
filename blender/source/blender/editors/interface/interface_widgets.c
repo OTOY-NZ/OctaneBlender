@@ -41,6 +41,8 @@
 
 #include "BLF_api.h"
 
+#include "ED_node.h"
+
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 
@@ -392,35 +394,14 @@ static const uint g_shape_preset_hold_action_face[2][3] = {{2, 0, 1}, {3, 5, 4}}
  *
  * \{ */
 
-/* offset in triavec[] in shader per type */
-static const int tria_ofs[ROUNDBOX_TRIA_MAX] = {
-    [ROUNDBOX_TRIA_NONE] = 0,
-    [ROUNDBOX_TRIA_ARROWS] = 0,
-    [ROUNDBOX_TRIA_SCROLL] = 12,
-    [ROUNDBOX_TRIA_MENU] = 28,
-    [ROUNDBOX_TRIA_CHECK] = 34,
-    [ROUNDBOX_TRIA_HOLD_ACTION_ARROW] = 40,
-};
-static const int tria_vcount[ROUNDBOX_TRIA_MAX] = {
-    [ROUNDBOX_TRIA_NONE] = 0,
-    [ROUNDBOX_TRIA_ARROWS] = 6,
-    [ROUNDBOX_TRIA_SCROLL] = 16,
-    [ROUNDBOX_TRIA_MENU] = 6,
-    [ROUNDBOX_TRIA_CHECK] = 6,
-    [ROUNDBOX_TRIA_HOLD_ACTION_ARROW] = 3,
-};
-
 static struct {
-  GPUBatch *roundbox_widget[ROUNDBOX_TRIA_MAX];
-
-  GPUBatch *roundbox_simple;
-  GPUBatch *roundbox_simple_aa;
-  GPUBatch *roundbox_simple_outline;
+  GPUBatch *roundbox_widget;
   GPUBatch *roundbox_shadow;
 
+  /* TODO remove */
   GPUVertFormat format;
   uint vflag_id;
-} g_ui_batch_cache = {{0}};
+} g_ui_batch_cache = {0};
 
 static GPUVertFormat *vflag_format(void)
 {
@@ -435,7 +416,7 @@ static GPUVertFormat *vflag_format(void)
 #define INNER 0
 #define OUTLINE 1
 #define EMBOSS 2
-#define NO_AA WIDGET_AA_JITTER
+#define NO_AA 0
 
 static void set_roundbox_vertex_data(GPUVertBufRaw *vflag_step, uint32_t d)
 {
@@ -461,176 +442,30 @@ static uint32_t set_roundbox_vertex(GPUVertBufRaw *vflag_step,
   return *data;
 }
 
-static uint32_t set_tria_vertex(
-    GPUVertBufRaw *vflag_step, int tria_type, int tria_v, int tria_id, int jit_v)
+GPUBatch *ui_batch_roundbox_widget_get(void)
 {
-  uint32_t *data = GPU_vertbuf_raw_step(vflag_step);
-  if (ELEM(tria_type, ROUNDBOX_TRIA_ARROWS)) {
-    tria_v += tria_id * tria_vcount[ROUNDBOX_TRIA_ARROWS];
-  }
-  *data = tria_ofs[tria_type] + tria_v;
-  *data |= jit_v << 6;
-  *data |= (tria_id == 0) ? (1 << 10) : 0; /* is first tria */
-  *data |= 1 << 14;                        /* is tria vert */
-  return *data;
-}
-
-static void roundbox_batch_add_tria(GPUVertBufRaw *vflag_step, int tria, uint32_t last_data)
-{
-  const int tria_num =
-      ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW, ROUNDBOX_TRIA_MENU) ? 1 : 2;
-  /* for each tria */
-  for (int t = 0; t < tria_num; t++) {
-    for (int j = 0; j < WIDGET_AA_JITTER; j++) {
-      /* restart */
-      set_roundbox_vertex_data(vflag_step, last_data);
-      set_tria_vertex(vflag_step, tria, 0, t, j);
-      for (int v = 0; v < tria_vcount[tria]; v++) {
-        last_data = set_tria_vertex(vflag_step, tria, v, t, j);
-      }
-    }
-  }
-}
-
-GPUBatch *ui_batch_roundbox_widget_get(int tria)
-{
-  if (g_ui_batch_cache.roundbox_widget[tria] == NULL) {
-    uint32_t last_data;
-    GPUVertBufRaw vflag_step;
+  if (g_ui_batch_cache.roundbox_widget == NULL) {
     GPUVertBuf *vbo = GPU_vertbuf_create_with_format(vflag_format());
-    int vcount = WIDGET_SIZE_MAX;                                 /* inner */
-    vcount += 2;                                                  /* restart */
-    vcount += ((WIDGET_SIZE_MAX + 1) * 2) * WIDGET_AA_JITTER;     /* outline (edges) */
-    vcount += 2;                                                  /* restart */
-    vcount += ((WIDGET_CURVE_RESOLU * 2) * 2) * WIDGET_AA_JITTER; /* emboss */
-    if (tria) {
-      vcount += (tria_vcount[tria] + 2) * WIDGET_AA_JITTER; /* tria1 */
-      if (!ELEM(tria, ROUNDBOX_TRIA_CHECK, ROUNDBOX_TRIA_HOLD_ACTION_ARROW, ROUNDBOX_TRIA_MENU)) {
-        vcount += (tria_vcount[tria] + 2) * WIDGET_AA_JITTER; /* tria2 */
-      }
-    }
-    GPU_vertbuf_data_alloc(vbo, vcount);
-    GPU_vertbuf_attr_get_raw_data(vbo, g_ui_batch_cache.vflag_id, &vflag_step);
-    /* Inner */
-    for (int c1 = 0, c2 = 3; c1 < 2; c1++, c2--) {
-      for (int a1 = 0, a2 = WIDGET_CURVE_RESOLU - 1; a2 >= 0; a1++, a2--) {
-        last_data = set_roundbox_vertex(&vflag_step, c1, a1, NO_AA, true, false, INNER);
-        last_data = set_roundbox_vertex(&vflag_step, c2, a2, NO_AA, true, false, INNER);
-      }
-    }
-    /* restart */
-    set_roundbox_vertex_data(&vflag_step, last_data);
-    set_roundbox_vertex(&vflag_step, 0, 0, 0, true, false, OUTLINE);
-    /* Outlines */
-    for (int j = 0; j < WIDGET_AA_JITTER; j++) {
-      for (int c = 0; c < 4; c++) {
-        for (int a = 0; a < WIDGET_CURVE_RESOLU; a++) {
-          set_roundbox_vertex(&vflag_step, c, a, j, true, false, OUTLINE);
-          set_roundbox_vertex(&vflag_step, c, a, j, false, false, OUTLINE);
-        }
-      }
-      /* Close the loop. */
-      set_roundbox_vertex(&vflag_step, 0, 0, j, true, false, OUTLINE);
-      last_data = set_roundbox_vertex(&vflag_step, 0, 0, j, false, false, OUTLINE);
-    }
-    /* restart */
-    set_roundbox_vertex_data(&vflag_step, last_data);
-    set_roundbox_vertex(&vflag_step, 0, 0, 0, false, false, EMBOSS);
-    /* Emboss */
-    /* go back and forth : avoid degenerate triangle (but beware of backface cull) */
-    bool rev = false;
-    for (int j = 0; j < WIDGET_AA_JITTER; j++, rev = !rev) {
-      for (int c = (rev) ? 1 : 0; (rev) ? c >= 0 : c < 2; (rev) ? c-- : c++) {
-        int sta = (rev) ? WIDGET_CURVE_RESOLU - 1 : 0;
-        int end = WIDGET_CURVE_RESOLU;
-        for (int a = sta; (rev) ? a >= 0 : a < end; (rev) ? a-- : a++) {
-          set_roundbox_vertex(&vflag_step, c, a, j, false, false, EMBOSS);
-          last_data = set_roundbox_vertex(&vflag_step, c, a, j, false, true, EMBOSS);
-        }
-      }
-    }
-    if (tria) {
-      roundbox_batch_add_tria(&vflag_step, tria, last_data);
-    }
-    g_ui_batch_cache.roundbox_widget[tria] = GPU_batch_create_ex(
-        GPU_PRIM_TRI_STRIP, vbo, NULL, GPU_BATCH_OWNS_VBO);
-    gpu_batch_presets_register(g_ui_batch_cache.roundbox_widget[tria]);
+
+    GPU_vertbuf_data_alloc(vbo, 12);
+
+    GPUIndexBufBuilder ibuf;
+    GPU_indexbuf_init(&ibuf, GPU_PRIM_TRIS, 6, 12);
+    /* Widget */
+    GPU_indexbuf_add_tri_verts(&ibuf, 0, 1, 2);
+    GPU_indexbuf_add_tri_verts(&ibuf, 2, 1, 3);
+    /* Trias */
+    GPU_indexbuf_add_tri_verts(&ibuf, 4, 5, 6);
+    GPU_indexbuf_add_tri_verts(&ibuf, 6, 5, 7);
+
+    GPU_indexbuf_add_tri_verts(&ibuf, 8, 9, 10);
+    GPU_indexbuf_add_tri_verts(&ibuf, 10, 9, 11);
+
+    g_ui_batch_cache.roundbox_widget = GPU_batch_create_ex(
+        GPU_PRIM_TRIS, vbo, GPU_indexbuf_build(&ibuf), GPU_BATCH_OWNS_INDEX | GPU_BATCH_OWNS_VBO);
+    gpu_batch_presets_register(g_ui_batch_cache.roundbox_widget);
   }
-  return g_ui_batch_cache.roundbox_widget[tria];
-}
-
-GPUBatch *ui_batch_roundbox_get(bool filled, bool antialiased)
-{
-  GPUBatch **batch = NULL;
-
-  if (filled) {
-    if (antialiased) {
-      batch = &g_ui_batch_cache.roundbox_simple_aa;
-    }
-    else {
-      batch = &g_ui_batch_cache.roundbox_simple;
-    }
-  }
-  else {
-    if (antialiased) {
-      BLI_assert(0); /* Use GL_LINE_SMOOTH instead!!: */
-    }
-    else {
-      batch = &g_ui_batch_cache.roundbox_simple_outline;
-    }
-  }
-
-  if (*batch == NULL) {
-    uint32_t last_data;
-    GPUVertBufRaw vflag_step;
-    GPUVertBuf *vbo = GPU_vertbuf_create_with_format(vflag_format());
-    int vcount = WIDGET_SIZE_MAX;
-    vcount += (filled) ? 2 : 0;
-    vcount *= (antialiased) ? WIDGET_AA_JITTER : 1;
-    GPU_vertbuf_data_alloc(vbo, vcount);
-    GPU_vertbuf_attr_get_raw_data(vbo, g_ui_batch_cache.vflag_id, &vflag_step);
-
-    if (filled) {
-      for (int j = 0; j < WIDGET_AA_JITTER; j++) {
-        if (!antialiased) {
-          j = NO_AA;
-        }
-        /* restart */
-        set_roundbox_vertex(&vflag_step, 0, 0, j, true, false, INNER);
-        for (int c1 = 0, c2 = 3; c1 < 2; c1++, c2--) {
-          for (int a1 = 0, a2 = WIDGET_CURVE_RESOLU - 1; a2 >= 0; a1++, a2--) {
-            last_data = set_roundbox_vertex(&vflag_step, c1, a1, j, true, false, INNER);
-            last_data = set_roundbox_vertex(&vflag_step, c2, a2, j, true, false, INNER);
-          }
-        }
-        /* restart */
-        set_roundbox_vertex_data(&vflag_step, last_data);
-        if (!antialiased) {
-          break;
-        }
-      }
-      *batch = GPU_batch_create_ex(GPU_PRIM_TRI_STRIP, vbo, NULL, GPU_BATCH_OWNS_VBO);
-    }
-    else {
-      for (int j = 0; j < WIDGET_AA_JITTER; j++) {
-        if (!antialiased) {
-          j = NO_AA;
-        }
-        for (int c = 0; c < 4; c++) {
-          for (int a = 0; a < WIDGET_CURVE_RESOLU; a++) {
-            set_roundbox_vertex(&vflag_step, c, a, j, true, false, INNER);
-          }
-        }
-        if (!antialiased) {
-          break;
-        }
-      }
-      *batch = GPU_batch_create_ex(GPU_PRIM_LINE_LOOP, vbo, NULL, GPU_BATCH_OWNS_VBO);
-    }
-
-    gpu_batch_presets_register(*batch);
-  }
-  return *batch;
+  return g_ui_batch_cache.roundbox_widget;
 }
 
 GPUBatch *ui_batch_roundbox_shadow_get(void)
@@ -1313,14 +1148,13 @@ static void widgetbase_set_uniform_colors_ubv(uiWidgetBase *wtb,
 
 /* keep in sync with shader */
 #define MAX_WIDGET_BASE_BATCH 6
-#define MAX_WIDGET_PARAMETERS 11
+#define MAX_WIDGET_PARAMETERS 12
 
 static struct {
-  GPUBatch *batch; /* Batch type */
   uiWidgetBaseParameters params[MAX_WIDGET_BASE_BATCH];
   int count;
   bool enabled;
-} g_widget_base_batch = {0};
+} g_widget_base_batch = {{{{0}}}};
 
 void UI_widgetbase_draw_cache_flush(void)
 {
@@ -1331,7 +1165,7 @@ void UI_widgetbase_draw_cache_flush(void)
     return;
   }
 
-  GPUBatch *batch = g_widget_base_batch.batch;
+  GPUBatch *batch = ui_batch_roundbox_widget_get();
   if (g_widget_base_batch.count == 1) {
     /* draw single */
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
@@ -1395,31 +1229,15 @@ static bool draw_widgetbase_batch_skip_draw_cache(void)
   return false;
 }
 
-static void draw_widgetbase_batch(GPUBatch *batch, uiWidgetBase *wtb)
+static void draw_widgetbase_batch(uiWidgetBase *wtb)
 {
+  wtb->uniform_params.tria_type = wtb->tria1.type;
   wtb->uniform_params.tria1_size = wtb->tria1.size;
   wtb->uniform_params.tria2_size = wtb->tria2.size;
   copy_v2_v2(wtb->uniform_params.tria1_center, wtb->tria1.center);
   copy_v2_v2(wtb->uniform_params.tria2_center, wtb->tria2.center);
 
   if (g_widget_base_batch.enabled && !draw_widgetbase_batch_skip_draw_cache()) {
-    if (g_widget_base_batch.batch == NULL) {
-      g_widget_base_batch.batch = ui_batch_roundbox_widget_get(ROUNDBOX_TRIA_ARROWS);
-    }
-
-    /* draw multi */
-    if (batch != g_ui_batch_cache.roundbox_widget[ROUNDBOX_TRIA_NONE] &&
-        batch != g_widget_base_batch.batch) {
-      /* issue previous calls before changing batch type. */
-      UI_widgetbase_draw_cache_flush();
-      g_widget_base_batch.batch = batch;
-    }
-
-    /* No need to change batch if tria is not visible. Just scale it to 0. */
-    if (batch == g_ui_batch_cache.roundbox_widget[ROUNDBOX_TRIA_NONE]) {
-      wtb->uniform_params.tria1_size = wtb->uniform_params.tria2_size = 0;
-    }
-
     g_widget_base_batch.params[g_widget_base_batch.count] = wtb->uniform_params;
     g_widget_base_batch.count++;
 
@@ -1431,6 +1249,7 @@ static void draw_widgetbase_batch(GPUBatch *batch, uiWidgetBase *wtb)
     const float checker_params[3] = {
         UI_ALPHA_CHECKER_DARK / 255.0f, UI_ALPHA_CHECKER_LIGHT / 255.0f, 8.0f};
     /* draw single */
+    GPUBatch *batch = ui_batch_roundbox_widget_get();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
         batch, "parameters", MAX_WIDGET_PARAMETERS, (float *)&wtb->uniform_params);
@@ -1453,8 +1272,6 @@ static void widgetbase_draw_ex(uiWidgetBase *wtb,
     show_alpha_checkers = false;
   }
 
-  GPU_blend(true);
-
   /* backdrop non AA */
   if (wtb->draw_inner) {
     if (wcol->shaded == 0) {
@@ -1474,7 +1291,7 @@ static void widgetbase_draw_ex(uiWidgetBase *wtb,
     outline_col[0] = wcol->outline[0];
     outline_col[1] = wcol->outline[1];
     outline_col[2] = wcol->outline[2];
-    outline_col[3] = wcol->outline[3] / WIDGET_AA_JITTER;
+    outline_col[3] = wcol->outline[3];
 
     /* emboss bottom shadow */
     if (wtb->draw_emboss) {
@@ -1486,7 +1303,7 @@ static void widgetbase_draw_ex(uiWidgetBase *wtb,
     tria_col[0] = wcol->item[0];
     tria_col[1] = wcol->item[1];
     tria_col[2] = wcol->item[2];
-    tria_col[3] = (uchar)((float)wcol->item[3] / WIDGET_AA_JITTER);
+    tria_col[3] = wcol->item[3];
   }
 
   /* Draw everything in one drawcall */
@@ -1495,11 +1312,10 @@ static void widgetbase_draw_ex(uiWidgetBase *wtb,
     widgetbase_set_uniform_colors_ubv(
         wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col, show_alpha_checkers);
 
-    GPUBatch *roundbox_batch = ui_batch_roundbox_widget_get(wtb->tria1.type);
-    draw_widgetbase_batch(roundbox_batch, wtb);
+    GPU_blend(true);
+    draw_widgetbase_batch(wtb);
+    GPU_blend(false);
   }
-
-  GPU_blend(false);
 }
 
 static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
@@ -1585,7 +1401,7 @@ static void widget_draw_icon(
     }
   }
   else if (ELEM(but->type, UI_BTYPE_BUT)) {
-    if (but->flag & UI_BUT_DISABLED) {
+    if (but->flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
       alpha *= 0.5f;
     }
   }
@@ -1720,7 +1536,7 @@ static void ui_text_clip_right_ex(const uiFontStyle *fstyle,
     l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, &tmp);
     memcpy(str + l_end, sep, sep_len + 1); /* +1 for trailing '\0'. */
     if (r_final_len) {
-      *r_final_len = (size_t)(l_end + sep_len);
+      *r_final_len = (size_t)(l_end) + sep_len;
     }
   }
 }
@@ -2113,15 +1929,18 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 #endif /* WITH_INPUT_IME */
 
 static bool widget_draw_text_underline_calc_center_x(const char *UNUSED(str),
-                                                     const size_t str_ofs,
-                                                     const rcti *glyph_bounds,
-                                                     const int glyph_advance_x,
+                                                     const size_t str_step_ofs,
+                                                     const rcti *glyph_step_bounds,
+                                                     const int UNUSED(glyph_advance_x),
+                                                     const rctf *glyph_bounds,
+                                                     const int glyph_bearing[2],
                                                      void *user_data)
 {
   /* The index of the character to get, set to the x-position. */
   int *ul_data = user_data;
-  if (ul_data[0] == (int)str_ofs) {
-    ul_data[1] = glyph_bounds->xmin + (glyph_advance_x / 2);
+  if (ul_data[0] == (int)str_step_ofs) {
+    ul_data[1] = glyph_step_bounds->xmin + glyph_bearing[0] +
+                 (BLI_rctf_size_x(glyph_bounds) / 2.0f);
     /* Early exit. */
     return false;
   }
@@ -2439,6 +2258,30 @@ static void widget_draw_extra_icons(const uiWidgetColors *wcol,
   }
 }
 
+static void widget_draw_node_link_socket(const uiWidgetColors *wcol,
+                                         const rcti *rect,
+                                         uiBut *but,
+                                         float alpha)
+{
+  /* Node socket pointer can be passed as custom_data, see UI_but_node_link_set(). */
+  if (but->custom_data) {
+    const float scale = 0.9f / but->block->aspect;
+
+    float col[4];
+    rgba_uchar_to_float(col, but->col);
+    col[3] *= alpha;
+
+    GPU_blend(true);
+    UI_widgetbase_draw_cache_flush();
+    GPU_blend(false);
+
+    ED_node_socket_draw(but->custom_data, rect, col, scale);
+  }
+  else {
+    widget_draw_icon(but, ICON_LAYER_USED, alpha, rect, wcol->text);
+  }
+}
+
 /* draws text and icons for buttons */
 static void widget_draw_text_icon(const uiFontStyle *fstyle,
                                   const uiWidgetColors *wcol,
@@ -2448,15 +2291,27 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   const bool show_menu_icon = ui_but_draw_menu_icon(but);
   float alpha = (float)wcol->text[3] / 255.0f;
   char password_str[UI_MAX_DRAW_STR];
+  bool no_text_padding = but->drawflag & UI_BUT_NO_TEXT_PADDING;
 
   ui_but_text_password_hide(password_str, but, false);
 
   /* check for button text label */
   if (ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_POPOVER) && (but->flag & UI_BUT_NODE_LINK)) {
     rcti temp = *rect;
-    temp.xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
-    widget_draw_icon(but, ICON_LAYER_USED, alpha, &temp, wcol->text);
-    rect->xmax = temp.xmin;
+    const int size = BLI_rcti_size_y(rect) + 1; /* Not the icon size! */
+
+    if (but->drawflag & UI_BUT_ICON_LEFT) {
+      temp.xmax = rect->xmin + size;
+      rect->xmin = temp.xmax;
+      /* Further padding looks off. */
+      no_text_padding = true;
+    }
+    else {
+      temp.xmin = rect->xmax - size;
+      rect->xmax = temp.xmin;
+    }
+
+    widget_draw_node_link_socket(wcol, &temp, but, alpha);
   }
 
   /* If there's an icon too (made with uiDefIconTextBut) then draw the icon
@@ -2541,28 +2396,30 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     rect->xmin += icon_size + icon_padding;
   }
 
-  int text_padding = (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
-  if (but->editstr) {
-    rect->xmin += text_padding;
-  }
-  else if (but->flag & UI_BUT_DRAG_MULTI) {
-    bool text_is_edited = ui_but_drag_multi_edit_get(but) != NULL;
-    if (text_is_edited) {
+  if (!no_text_padding) {
+    int text_padding = (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+    if (but->editstr) {
       rect->xmin += text_padding;
     }
-  }
-  else if (but->drawflag & UI_BUT_TEXT_LEFT) {
-
-    /* Reduce the left padding for labels without an icon. */
-    if ((but->type == UI_BTYPE_LABEL) && !(but->flag & UI_HAS_ICON) &&
-        !ui_block_is_menu(but->block)) {
-      text_padding /= 2;
+    else if (but->flag & UI_BUT_DRAG_MULTI) {
+      bool text_is_edited = ui_but_drag_multi_edit_get(but) != NULL;
+      if (text_is_edited || (but->drawflag & UI_BUT_TEXT_LEFT)) {
+        rect->xmin += text_padding;
+      }
     }
+    else if (but->drawflag & UI_BUT_TEXT_LEFT) {
 
-    rect->xmin += text_padding;
-  }
-  else if (but->drawflag & UI_BUT_TEXT_RIGHT) {
-    rect->xmax -= text_padding;
+      /* Reduce the left padding for labels without an icon. */
+      if ((but->type == UI_BTYPE_LABEL) && !(but->flag & UI_HAS_ICON) &&
+          !ui_block_is_menu(but->block)) {
+        text_padding /= 2;
+      }
+
+      rect->xmin += text_padding;
+    }
+    else if (but->drawflag & UI_BUT_TEXT_RIGHT) {
+      rect->xmax -= text_padding;
+    }
   }
 
   /* Menu contains sub-menu items with triangle icon on their right. Shortcut
@@ -2765,18 +2622,19 @@ static void widget_state_numslider(uiWidgetType *wt, int state, int drawflag)
 /* labels use theme colors for text */
 static void widget_state_option_menu(uiWidgetType *wt, int state, int drawflag)
 {
-  bTheme *btheme = UI_GetTheme(); /* XXX */
+  const bTheme *btheme = UI_GetTheme();
 
-  /* call this for option button */
+  const uiWidgetColors *old_wcol = wt->wcol_theme;
+  uiWidgetColors wcol_menu_option = *wt->wcol_theme;
+
+  /* Override the checkbox theme colors to use the menu-back text colors. */
+  copy_v3_v3_uchar(wcol_menu_option.text, btheme->tui.wcol_menu_back.text);
+  copy_v3_v3_uchar(wcol_menu_option.text_sel, btheme->tui.wcol_menu_back.text_sel);
+  wt->wcol_theme = &wcol_menu_option;
+
   widget_state(wt, state, drawflag);
 
-  /* if not selected we get theme from menu back */
-  if (state & UI_SELECT) {
-    copy_v3_v3_uchar(wt->wcol.text, btheme->tui.wcol_menu_back.text_sel);
-  }
-  else {
-    copy_v3_v3_uchar(wt->wcol.text, btheme->tui.wcol_menu_back.text);
-  }
+  wt->wcol_theme = old_wcol;
 }
 
 static void widget_state_nothing(uiWidgetType *wt, int UNUSED(state), int UNUSED(drawflag))
@@ -4166,10 +4024,10 @@ static void widget_optionbut(uiWidgetColors *wcol,
 
   /* smaller */
   delta = 1 + BLI_rcti_size_y(&recttemp) / 8;
-  recttemp.xmin += delta;
-  recttemp.ymin += delta;
-  recttemp.xmax -= delta;
-  recttemp.ymax -= delta;
+  BLI_rcti_resize(
+      &recttemp, BLI_rcti_size_x(&recttemp) - delta * 2, BLI_rcti_size_y(&recttemp) - delta * 2);
+  /* Keep one edge in place. */
+  BLI_rcti_translate(&recttemp, text_before_widget ? delta : -delta, 0);
 
   rad = wcol->roundness * BLI_rcti_size_y(&recttemp);
   round_box_edges(&wtb, UI_CNR_ALL, &recttemp, rad);
@@ -4181,13 +4039,13 @@ static void widget_optionbut(uiWidgetColors *wcol,
 
   widgetbase_draw(&wtb, wcol);
 
-  /* text space */
-  const float offset = BLI_rcti_size_y(rect) * 0.7 + delta;
+  /* Text space - factor is really just eyeballed. */
+  const float offset = delta * 0.9;
   if (text_before_widget) {
-    rect->xmax -= offset;
+    rect->xmax = recttemp.xmin - offset;
   }
   else {
-    rect->xmin += offset;
+    rect->xmin = recttemp.xmax + offset;
   }
 }
 
@@ -4243,7 +4101,7 @@ static void widget_box(
   copy_v3_v3_uchar(old_col, wcol->inner);
 
   /* abuse but->hsv - if it's non-zero, use this color as the box's background */
-  if (but->col[3]) {
+  if (but != NULL && but->col[3]) {
     wcol->inner[0] = but->col[0];
     wcol->inner[1] = but->col[1];
     wcol->inner[2] = but->col[2];
@@ -4744,9 +4602,14 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
       case UI_BTYPE_CHECKBOX_N:
         if (!(but->flag & UI_HAS_ICON)) {
           wt = widget_type(UI_WTYPE_CHECKBOX);
+
           if ((but->drawflag & (UI_BUT_TEXT_LEFT | UI_BUT_TEXT_RIGHT)) == 0) {
             but->drawflag |= UI_BUT_TEXT_LEFT;
           }
+          /* #widget_optionbut() carefully sets the text rectangle for fine tuned paddings. If the
+           * text drawing were to add its own padding, DPI and zoom factor would be applied twice
+           * in the final padding, so it's difficult to control it. */
+          but->drawflag |= UI_BUT_NO_TEXT_PADDING;
         }
         else {
           wt = widget_type(UI_WTYPE_TOGGLE);
@@ -4991,6 +4854,30 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
   }
 
   ui_draw_clip_tri(block, rect, wt);
+}
+
+/**
+ * Uses the widget base drawing and colors from from the box widget, but ensures an opaque
+ * inner color.
+ */
+void ui_draw_box_opaque(rcti *rect, int roundboxalign)
+{
+  uiWidgetType *wt = widget_type(UI_WTYPE_BOX);
+
+  /* Alpha blend with the region's background color to force an opaque background. */
+  uiWidgetColors *wcol = &wt->wcol;
+  wt->state(wt, 0, 0);
+  float background[4];
+  UI_GetThemeColor4fv(TH_BACK, background);
+  float new_inner[4];
+  rgba_uchar_to_float(new_inner, wcol->inner);
+  new_inner[0] = (new_inner[0] * new_inner[3]) + (background[0] * (1.0f - new_inner[3]));
+  new_inner[1] = (new_inner[1] * new_inner[3]) + (background[1] * (1.0f - new_inner[3]));
+  new_inner[2] = (new_inner[2] * new_inner[3]) + (background[2] * (1.0f - new_inner[3]));
+  new_inner[3] = 1.0f;
+  rgba_float_to_uchar(wcol->inner, new_inner);
+
+  wt->custom(NULL, wcol, rect, 0, roundboxalign);
 }
 
 /**
@@ -5300,15 +5187,23 @@ void ui_draw_tooltip_background(const uiStyle *UNUSED(style), uiBlock *UNUSED(bl
   wt->draw(&wt->wcol, rect, 0, 0);
 }
 
-/* helper call to draw a menu item without button */
-/* state: UI_ACTIVE or 0 */
+/**
+ * Helper call to draw a menu item without a button.
+ *
+ * \param state: The state of the button,
+ * typically #UI_ACTIVE, #UI_BUT_DISABLED, #UI_BUT_INACTIVE.
+ * \param use_sep: When true, characters after the last #UI_SEP_CHAR are right aligned,
+ * use for displaying key shortcuts.
+ * \param r_xmax: The right hand position of the text, this takes into the icon,
+ * padding and text clipping when there is not enough room to display the full text.
+ */
 void ui_draw_menu_item(const uiFontStyle *fstyle,
                        rcti *rect,
                        const char *name,
                        int iconid,
                        int state,
                        bool use_sep,
-                       int *r_name_width)
+                       int *r_xmax)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
   rcti _rect = *rect;
@@ -5371,23 +5266,8 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                          &xofs,
                          &yofs,
                          &info);
-    if (r_name_width != NULL) {
-      *r_name_width = xofs + info.width;
-    }
-  }
-
-  /* part text right aligned */
-  if (use_sep) {
-    if (cpoin) {
-      rect->xmax = _rect.xmax - 5;
-      UI_fontstyle_draw(fstyle,
-                        rect,
-                        cpoin + 1,
-                        wt->wcol.text,
-                        &(struct uiFontStyleDraw_Params){
-                            .align = UI_STYLE_TEXT_RIGHT,
-                        });
-      *cpoin = UI_SEP_CHAR;
+    if (r_xmax != NULL) {
+      *r_xmax = xofs + info.width;
     }
   }
 
@@ -5406,6 +5286,24 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
     /* XXX scale weak get from fstyle? */
     UI_icon_draw_ex(xs, ys, iconid, aspect, 1.0f, 0.0f, wt->wcol.text, false);
     GPU_blend(false);
+  }
+
+  /* part text right aligned */
+  if (use_sep) {
+    if (cpoin) {
+      /* Set inactive state for grayed out text. */
+      wt->state(wt, state | UI_BUT_INACTIVE, 0);
+
+      rect->xmax = _rect.xmax - 5;
+      UI_fontstyle_draw(fstyle,
+                        rect,
+                        cpoin + 1,
+                        wt->wcol.text,
+                        &(struct uiFontStyleDraw_Params){
+                            .align = UI_STYLE_TEXT_RIGHT,
+                        });
+      *cpoin = UI_SEP_CHAR;
+    }
   }
 }
 

@@ -21,8 +21,7 @@
  * \ingroup nodes
  */
 
-#ifndef __NODE_UTIL_H__
-#define __NODE_UTIL_H__
+#pragma once
 
 #include "DNA_listBase.h"
 
@@ -37,6 +36,10 @@
 #include "GPU_material.h" /* For Shader muting GPU code... */
 
 #include "RNA_access.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct bNode;
 struct bNodeTree;
@@ -120,4 +123,6 @@ void node_octane_displacement_tex_conversion_verify(bNodeTree *ntree, bNode *nod
 void node_octane_medium_init(bNodeTree *ntree, bNode *node);
 void node_octane_medium_update(bNodeTree *ntree, bNode *node);
 
+#ifdef __cplusplus
+}
 #endif

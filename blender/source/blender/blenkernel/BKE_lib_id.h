@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BKE_LIB_ID_H__
-#define __BKE_LIB_ID_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -46,11 +45,11 @@
  * specific cases requiring advanced (and potentially dangerous) handling.
  */
 
+#include "BLI_compiler_attrs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_compiler_attrs.h"
 
 struct GHash;
 struct ID;
@@ -144,6 +143,16 @@ struct ID *BKE_libblock_find_name(struct Main *bmain,
                                   const short type,
                                   const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
+/**
+ * Duplicate (a.k.a. deep copy) common processing options.
+ * See also eDupli_ID_Flags for options controlling what kind of IDs to duplicate.
+ */
+typedef enum eLibIDDuplicateFlags {
+  /** This call to a duplicate function is part of another call for some parent ID.
+   * Therefore, this sub-process should not clear `newid` pointers, nor handle remapping itself. */
+  LIB_ID_DUPLICATE_IS_SUBPROCESS = 1 << 0,
+} eLibIDDuplicateFlags;
+
 /* lib_remap.c (keep here since they're general functions) */
 /**
  * New freeing logic options.
@@ -217,6 +226,9 @@ bool id_single_user(struct bContext *C,
 bool BKE_id_copy_is_allowed(const struct ID *id);
 bool BKE_id_copy(struct Main *bmain, const struct ID *id, struct ID **newid);
 bool BKE_id_copy_ex(struct Main *bmain, const struct ID *id, struct ID **r_newid, const int flag);
+struct ID *BKE_id_copy_for_duplicate(struct Main *bmain,
+                                     struct ID *id,
+                                     const uint duplicate_flags);
 
 void BKE_lib_id_swap(struct Main *bmain, struct ID *id_a, struct ID *id_b);
 void BKE_lib_id_swap_full(struct Main *bmain, struct ID *id_a, struct ID *id_b);
@@ -250,8 +262,12 @@ void BKE_main_id_repair_duplicate_names_listbase(struct ListBase *lb);
 
 #define MAX_ID_FULL_NAME (64 + 64 + 3 + 1)         /* 64 is MAX_ID_NAME - 2 */
 #define MAX_ID_FULL_NAME_UI (MAX_ID_FULL_NAME + 3) /* Adds 'keycode' two letters at beginning. */
-void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const struct ID *id);
-void BKE_id_full_name_ui_prefix_get(char name[MAX_ID_FULL_NAME_UI], const struct ID *id);
+void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const struct ID *id, char separator_str);
+void BKE_id_full_name_ui_prefix_get(char name[MAX_ID_FULL_NAME_UI],
+                                    const struct ID *id,
+                                    const bool add_lib_hint,
+                                    char separator_char,
+                                    int *r_prefix_len);
 
 char *BKE_id_to_unique_string_key(const struct ID *id);
 
@@ -274,5 +290,3 @@ void BKE_id_reorder(const struct ListBase *lb, struct ID *id, struct ID *relativ
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_LIB_ID_H__ */

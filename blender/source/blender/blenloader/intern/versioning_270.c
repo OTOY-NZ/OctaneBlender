@@ -43,6 +43,7 @@
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_pointcache_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sdna_types.h"
@@ -55,7 +56,7 @@
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
 #include "BKE_colortools.h"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve_driver.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
 #include "BKE_modifier.h"
@@ -841,7 +842,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
     for (ob = bmain->objects.first; ob != NULL; ob = ob->id.next) {
       ModifierData *md;
       for (md = ob->modifiers.last; md != NULL; md = md->prev) {
-        if (modifier_unique_name(&ob->modifiers, md)) {
+        if (BKE_modifier_unique_name(&ob->modifiers, md)) {
           printf(
               "Warning: Object '%s' had several modifiers with the "
               "same name, renamed one of them to '%s'.\n",
@@ -980,7 +981,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
         BLI_addtail(&ima->packedfiles, imapf);
 
         imapf->packedfile = ima->packedfile;
-        BLI_strncpy(imapf->filepath, ima->name, FILE_MAX);
+        BLI_strncpy(imapf->filepath, ima->filepath, FILE_MAX);
         ima->packedfile = NULL;
       }
     }
@@ -1469,11 +1470,11 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
         for (md = ob->modifiers.first; md; md = md->next) {
           if (md->type == eModifierType_Fluid) {
-            FluidModifierData *mmd = (FluidModifierData *)md;
-            if (mmd->domain) {
-              mmd->domain->slice_per_voxel = 5.0f;
-              mmd->domain->slice_depth = 0.5f;
-              mmd->domain->display_thickness = 1.0f;
+            FluidModifierData *fmd = (FluidModifierData *)md;
+            if (fmd->domain) {
+              fmd->domain->slice_per_voxel = 5.0f;
+              fmd->domain->slice_depth = 0.5f;
+              fmd->domain->display_thickness = 1.0f;
             }
           }
         }
@@ -1639,9 +1640,9 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
         for (md = ob->modifiers.first; md; md = md->next) {
           if (md->type == eModifierType_Fluid) {
-            FluidModifierData *mmd = (FluidModifierData *)md;
-            if (mmd->domain) {
-              mmd->domain->clipping = 1e-3f;
+            FluidModifierData *fmd = (FluidModifierData *)md;
+            if (fmd->domain) {
+              fmd->domain->clipping = 1e-3f;
             }
           }
         }

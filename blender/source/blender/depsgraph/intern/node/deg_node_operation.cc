@@ -25,7 +25,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
 #include "intern/depsgraph.h"
@@ -33,7 +32,8 @@
 #include "intern/node/deg_node_factory.h"
 #include "intern/node/deg_node_id.h"
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 const char *operationCodeAsString(OperationCode opcode)
 {
@@ -66,8 +66,12 @@ const char *operationCodeAsString(OperationCode opcode)
     case OperationCode::AUDIO_VOLUME:
       return "AUDIO_VOLUME";
     /* Object related. */
+    case OperationCode::OBJECT_FROM_LAYER_ENTRY:
+      return "OBJECT_FROM_LAYER_ENTRY";
     case OperationCode::OBJECT_BASE_FLAGS:
       return "OBJECT_BASE_FLAGS";
+    case OperationCode::OBJECT_FROM_LAYER_EXIT:
+      return "OBJECT_FROM_LAYER_EXIT";
     case OperationCode::DIMENSIONS:
       return "DIMENSIONS";
     /* Transform. */
@@ -199,6 +203,8 @@ const char *operationCodeAsString(OperationCode opcode)
     /* instancing/duplication. */
     case OperationCode::DUPLI:
       return "DUPLI";
+    case OperationCode::SIMULATION_EVAL:
+      return "SIMULATION_EVAL";
   }
   BLI_assert(!"Unhandled operation code, should never happen.");
   return "UNKNOWN";
@@ -267,4 +273,5 @@ void deg_register_operation_depsnodes()
   register_node_typeinfo(&DNTI_OPERATION);
 }
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

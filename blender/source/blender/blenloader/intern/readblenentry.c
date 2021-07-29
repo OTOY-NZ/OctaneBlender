@@ -56,7 +56,7 @@
 #endif
 
 /* local prototypes --------------------- */
-void BLO_blendhandle_print_sizes(BlendHandle *, void *);
+void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp);
 
 /* Access routines used by filesel. */
 
@@ -390,78 +390,20 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
       blo_make_old_idmap_from_main(fd, old_mainlist.first);
     }
 
-    /* makes lookup of existing images in old main */
-    blo_make_image_pointer_map(fd, oldmain);
-
-    /* makes lookup of existing light caches in old main */
-    blo_make_scene_pointer_map(fd, oldmain);
-
-    /* makes lookup of existing video clips in old main */
-    blo_make_movieclip_pointer_map(fd, oldmain);
-
-    /* make lookups of existing sound data in old main */
-    blo_make_sound_pointer_map(fd, oldmain);
-
-    /* make lookups of existing volume data in old main */
-    blo_make_volume_pointer_map(fd, oldmain);
-
     /* removed packed data from this trick - it's internal data that needs saves */
+
+    /* Store all existing ID caches pointers into a mapping, to allow restoring them into newly
+     * read IDs whenever possible. */
+    blo_cache_storage_init(fd, oldmain);
 
     bfd = blo_read_file_internal(fd, filename);
 
-    /* ensures relinked light caches are not freed */
-    blo_end_scene_pointer_map(fd, oldmain);
-
-    /* ensures relinked images are not freed */
-    blo_end_image_pointer_map(fd, oldmain);
-
-    /* ensures relinked movie clips are not freed */
-    blo_end_movieclip_pointer_map(fd, oldmain);
-
-    /* ensures relinked sounds are not freed */
-    blo_end_sound_pointer_map(fd, oldmain);
-
-    /* ensures relinked volumes are not freed */
-    blo_end_volume_pointer_map(fd, oldmain);
+    /* Ensure relinked caches are not freed together with their old IDs. */
+    blo_cache_storage_old_bmain_clear(fd, oldmain);
 
     /* Still in-use libraries have already been moved from oldmain to new mainlist,
      * but oldmain itself shall *never* be 'transferred' to new mainlist! */
     BLI_assert(old_mainlist.first == oldmain);
-
-    if (bfd && old_mainlist.first != old_mainlist.last) {
-      /* Even though directly used libs have been already moved to new main,
-       * indirect ones have not.
-       * This is a bit annoying, but we have no choice but to keep them all for now -
-       * means some now unused data may remain in memory, but think we'll have to live with it. */
-      Main *libmain, *libmain_next;
-      Main *newmain = bfd->main;
-      ListBase new_mainlist = {newmain, newmain};
-
-      for (libmain = oldmain->next; libmain; libmain = libmain_next) {
-        libmain_next = libmain->next;
-        /* Note that LIB_INDIRECT does not work with libraries themselves, so we use non-NULL
-         * parent to detect indirect-linked ones. */
-        if (libmain->curlib && (libmain->curlib->parent != NULL)) {
-          BLI_remlink(&old_mainlist, libmain);
-          BLI_addtail(&new_mainlist, libmain);
-        }
-        else {
-#ifdef PRINT_DEBUG
-          printf("Dropped Main for lib: %s\n", libmain->curlib->id.name);
-#endif
-        }
-      }
-      /* In any case, we need to move all lib data-blocks themselves - those are
-       * 'first level data', getting rid of them would imply updating spaces & co
-       * to prevent invalid pointers access. */
-      BLI_movelisttolist(&newmain->libraries, &oldmain->libraries);
-
-      blo_join_main(&new_mainlist);
-    }
-
-#if 0
-    printf("Remaining mains/libs in oldmain: %d\n", BLI_listbase_count(&fd->old_mainlist) - 1);
-#endif
 
     /* That way, libs (aka mains) we did not reuse in new undone/redone state
      * will be cleared together with oldmain... */

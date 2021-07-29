@@ -209,6 +209,11 @@ GPUPass *GPU_material_get_pass(GPUMaterial *material)
   return material->pass;
 }
 
+GPUShader *GPU_material_get_shader(GPUMaterial *material)
+{
+  return material->pass ? GPU_pass_shader_get(material->pass) : NULL;
+}
+
 /* Return can be NULL if it's a world material. */
 Material *GPU_material_get_material(GPUMaterial *material)
 {
@@ -492,8 +497,8 @@ static void compute_sss_translucence_kernel(const GPUSssKernelData *kd,
 
 void GPU_material_sss_profile_create(GPUMaterial *material,
                                      float radii[3],
-                                     short *falloff_type,
-                                     float *sharpness)
+                                     const short *falloff_type,
+                                     const float *sharpness)
 {
   copy_v3_v3(material->sss_radii, radii);
   material->sss_falloff = (falloff_type) ? *falloff_type : 0.0;
@@ -661,6 +666,9 @@ GPUMaterial *GPU_material_from_nodetree(Scene *scene,
 
   /* Caller must re-use materials. */
   BLI_assert(GPU_material_from_nodetree_find(gpumaterials, engine_type, options) == NULL);
+
+  /* HACK: Eevee assume this to create Ghash keys. */
+  BLI_assert(sizeof(GPUPass) > 16);
 
   /* allocate material */
   GPUMaterial *mat = MEM_callocN(sizeof(GPUMaterial), "GPUMaterial");

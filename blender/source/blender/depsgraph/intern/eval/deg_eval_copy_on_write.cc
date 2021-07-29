@@ -53,7 +53,6 @@
 
 #include "MEM_guardedalloc.h"
 
-extern "C" {
 #include "DNA_ID.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -64,6 +63,7 @@ extern "C" {
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_simulation_types.h"
 #include "DNA_sound_types.h"
 
 #include "DRW_engine.h"
@@ -92,7 +92,6 @@ extern "C" {
 #include "BKE_pointcache.h"
 #include "BKE_sequencer.h"
 #include "BKE_sound.h"
-}
 
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_nodes.h"
@@ -101,7 +100,8 @@ extern "C" {
 #include "intern/node/deg_node.h"
 #include "intern/node/deg_node_id.h"
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 #define DEBUG_PRINT \
   if (G.debug & G_DEBUG_DEPSGRAPH_EVAL) \
@@ -283,6 +283,14 @@ bool id_copy_inplace_no_main(const ID *id, ID *newid)
 {
   const ID *id_for_copy = id;
 
+  if (G.debug & G_DEBUG_DEPSGRAPH_UUID) {
+    const ID_Type id_type = GS(id_for_copy->name);
+    if (id_type == ID_OB) {
+      const Object *object = reinterpret_cast<const Object *>(id_for_copy);
+      BKE_pose_check_uuids_unique_and_report(object->pose);
+    }
+  }
+
 #ifdef NESTED_ID_NASTY_WORKAROUND
   NestedIDHackTempStorage id_hack_storage;
   id_for_copy = nested_id_hack_get_discarded_pointers(&id_hack_storage, id);
@@ -305,6 +313,10 @@ bool id_copy_inplace_no_main(const ID *id, ID *newid)
 bool scene_copy_inplace_no_main(const Scene *scene, Scene *new_scene)
 {
   const ID *id_for_copy = &scene->id;
+
+  if (G.debug & G_DEBUG_DEPSGRAPH_UUID) {
+    BKE_sequencer_check_uuids_unique_and_report(scene);
+  }
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
   NestedIDHackTempStorage id_hack_storage;
@@ -476,27 +488,8 @@ void scene_setup_view_layers_after_remap(const Depsgraph *depsgraph,
    * Still not an excuse to have those. */
 }
 
-void update_sequence_orig_pointers(const ListBase *sequences_orig, ListBase *sequences_cow)
-{
-  Sequence *sequence_orig = reinterpret_cast<Sequence *>(sequences_orig->first);
-  Sequence *sequence_cow = reinterpret_cast<Sequence *>(sequences_cow->first);
-  while (sequence_orig != nullptr) {
-    update_sequence_orig_pointers(&sequence_orig->seqbase, &sequence_cow->seqbase);
-    sequence_cow->orig_sequence = sequence_orig;
-    sequence_cow = sequence_cow->next;
-    sequence_orig = sequence_orig->next;
-  }
-}
-
-void update_scene_orig_pointers(const Scene *scene_orig, Scene *scene_cow)
-{
-  if (scene_orig->ed != nullptr) {
-    update_sequence_orig_pointers(&scene_orig->ed->seqbase, &scene_cow->ed->seqbase);
-  }
-}
-
 /* Check whether given ID is expanded or still a shallow copy. */
-BLI_INLINE bool check_datablock_expanded(const ID *id_cow)
+inline bool check_datablock_expanded(const ID *id_cow)
 {
   return (id_cow->name[0] != '\0');
 }
@@ -807,7 +800,6 @@ void update_id_after_copy(const Depsgraph *depsgraph,
       scene_cow->toolsettings = scene_orig->toolsettings;
       scene_cow->eevee.light_cache_data = scene_orig->eevee.light_cache_data;
       scene_setup_view_layers_after_remap(depsgraph, id_node, reinterpret_cast<Scene *>(id_cow));
-      update_scene_orig_pointers(scene_orig, scene_cow);
       break;
     }
     default:
@@ -933,7 +925,7 @@ ID *deg_expand_copy_on_write_datablock(const Depsgraph *depsgraph,
                                        DepsgraphNodeBuilder *node_builder,
                                        bool create_placeholders)
 {
-  DEG::IDNode *id_node = depsgraph->find_id_node(id_orig);
+  IDNode *id_node = depsgraph->find_id_node(id_orig);
   BLI_assert(id_node != nullptr);
   return deg_expand_copy_on_write_datablock(depsgraph, id_node, node_builder, create_placeholders);
 }
@@ -957,7 +949,7 @@ ID *deg_update_copy_on_write_datablock(const Depsgraph *depsgraph, const IDNode 
 /* NOTE: Depsgraph is supposed to have ID node already. */
 ID *deg_update_copy_on_write_datablock(const Depsgraph *depsgraph, ID *id_orig)
 {
-  DEG::IDNode *id_node = depsgraph->find_id_node(id_orig);
+  IDNode *id_node = depsgraph->find_id_node(id_orig);
   BLI_assert(id_node != nullptr);
   return deg_update_copy_on_write_datablock(depsgraph, id_node);
 }
@@ -1077,7 +1069,7 @@ void deg_free_copy_on_write_datablock(ID *id_cow)
 
 void deg_evaluate_copy_on_write(struct ::Depsgraph *graph, const IDNode *id_node)
 {
-  const DEG::Depsgraph *depsgraph = reinterpret_cast<const DEG::Depsgraph *>(graph);
+  const Depsgraph *depsgraph = reinterpret_cast<const Depsgraph *>(graph);
   DEG_debug_print_eval(graph, __func__, id_node->id_orig->name, id_node->id_cow);
   if (id_node->id_orig == &depsgraph->scene->id) {
     /* NOTE: This is handled by eval_ctx setup routines, which
@@ -1125,4 +1117,5 @@ bool deg_copy_on_write_is_needed(const ID_Type id_type)
   return ID_TYPE_IS_COW(id_type);
 }
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

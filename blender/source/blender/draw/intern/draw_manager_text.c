@@ -38,6 +38,7 @@
 #include "DNA_view3d_types.h"
 
 #include "GPU_matrix.h"
+#include "GPU_state.h"
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
@@ -149,8 +150,9 @@ void DRW_text_cache_draw(DRWTextStore *dt, ARegion *region, struct View3D *v3d)
   if (tot) {
     int col_pack_prev = 0;
 
+    /* Disable clipping for text */
     if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
-      ED_view3d_clipping_disable();
+      GPU_clip_distances(0);
     }
 
     float original_proj[4][4];
@@ -188,7 +190,7 @@ void DRW_text_cache_draw(DRWTextStore *dt, ARegion *region, struct View3D *v3d)
     GPU_matrix_projection_set(original_proj);
 
     if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
-      ED_view3d_clipping_enable();
+      GPU_clip_distances(6);
     }
   }
 }
@@ -395,16 +397,19 @@ void DRW_text_edit_mesh_measure_stats(ARegion *region,
 
     UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEAREA, col);
 
-    int i, n, numtri;
+    int i, n;
     BMFace *f = NULL;
+    /* Alternative to using `poly_to_tri_count(i, BM_elem_index_get(f->l_first))`
+     * without having to add an extra loop. */
+    int looptri_index = 0;
     BM_ITER_MESH_INDEX (f, &iter, em->bm, BM_FACES_OF_MESH, i) {
+      const int f_looptri_len = f->len - 2;
       if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
         n = 0;
-        numtri = f->len - 2;
         area = 0;
         zero_v3(vmid);
-        BMLoop *(*l)[3] = &em->looptris[poly_to_tri_count(i, BM_elem_index_get(f->l_first))];
-        for (int j = 0; j < numtri; j++) {
+        BMLoop *(*l)[3] = &em->looptris[looptri_index];
+        for (int j = 0; j < f_looptri_len; j++) {
 
           if (use_coords) {
             copy_v3_v3(v1, vert_coords[BM_elem_index_get(l[j][0]->v)]);
@@ -449,6 +454,7 @@ void DRW_text_edit_mesh_measure_stats(ARegion *region,
 
         DRW_text_cache_add(dt, vmid, numstr, numstr_len, 0, 0, txt_flag, col);
       }
+      looptri_index += f_looptri_len;
     }
   }
 

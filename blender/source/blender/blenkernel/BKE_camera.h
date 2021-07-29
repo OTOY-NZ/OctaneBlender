@@ -17,12 +17,11 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_CAMERA_H__
-#define __BKE_CAMERA_H__
+#pragma once
 
 /** \file
  * \ingroup bke
- * \brief Camera datablock and utility functions.
+ * \brief Camera data-block and utility functions.
  */
 #ifdef __cplusplus
 extern "C" {
@@ -166,6 +165,4 @@ void BKE_camera_background_image_clear(struct Camera *cam);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

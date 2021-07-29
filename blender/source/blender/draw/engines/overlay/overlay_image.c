@@ -61,11 +61,11 @@ void OVERLAY_image_cache_init(OVERLAY_Data *vedata)
   state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS;
   DRW_PASS_CREATE(psl->image_empties_ps, state | pd->clipping_state);
 
-  state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA;
+  state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA_PREMUL;
   DRW_PASS_CREATE(psl->image_empties_back_ps, state | pd->clipping_state);
   DRW_PASS_CREATE(psl->image_empties_blend_ps, state | pd->clipping_state);
 
-  state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA;
+  state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA_PREMUL;
   DRW_PASS_CREATE(psl->image_empties_front_ps, state);
   DRW_PASS_CREATE(psl->image_foreground_ps, state);
 }
@@ -342,7 +342,7 @@ void OVERLAY_image_camera_cache_populate(OVERLAY_Data *vedata, Object *ob)
       mul_m4_m4m4(mat, modelmat, mat);
       const bool is_foreground = (bgpic->flag & CAM_BGIMG_FLAG_FOREGROUND) != 0;
 
-      float color_premult_alpha[4] = {bgpic->alpha, bgpic->alpha, bgpic->alpha, bgpic->alpha};
+      float color_premult_alpha[4] = {1.0f, 1.0f, 1.0f, bgpic->alpha};
 
       DRWPass *pass = is_foreground ? psl->image_foreground_ps : psl->image_background_ps;
 
@@ -405,7 +405,7 @@ void OVERLAY_image_empty_cache_populate(OVERLAY_Data *vedata, Object *ob)
   /* Use the actual depth if we are doing depth tests to determine the distance to the object */
   char depth_mode = DRW_state_is_depth() ? OB_EMPTY_IMAGE_DEPTH_DEFAULT : ob->empty_image_depth;
   DRWPass *pass = NULL;
-  if ((ob->dtx & OB_DRAWXRAY) != 0) {
+  if ((ob->dtx & OB_DRAW_IN_FRONT) != 0) {
     /* Object In Front overrides image empty depth mode. */
     pass = psl->image_empties_front_ps;
   }

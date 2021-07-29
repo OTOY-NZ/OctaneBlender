@@ -21,8 +21,7 @@
  * \ingroup editors
  */
 
-#ifndef __ED_SCREEN_H__
-#define __ED_SCREEN_H__
+#pragma once
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -188,11 +187,7 @@ void ED_area_newspace(struct bContext *C, ScrArea *area, int type, const bool sk
 void ED_area_prevspace(struct bContext *C, ScrArea *area);
 void ED_area_swapspace(struct bContext *C, ScrArea *sa1, ScrArea *sa2);
 int ED_area_headersize(void);
-int ED_area_header_alignment_or_fallback(const ScrArea *area, int fallback);
-int ED_area_header_alignment(const ScrArea *area);
 int ED_area_footersize(void);
-int ED_area_footer_alignment_or_fallback(const ScrArea *area, int fallback);
-int ED_area_footer_alignment(const ScrArea *area);
 int ED_area_global_size_y(const ScrArea *area);
 int ED_area_global_min_size_y(const ScrArea *area);
 int ED_area_global_max_size_y(const ScrArea *area);
@@ -349,6 +344,7 @@ bool ED_operator_console_active(struct bContext *C);
 bool ED_operator_object_active(struct bContext *C);
 bool ED_operator_object_active_editable_ex(struct bContext *C, const Object *ob);
 bool ED_operator_object_active_editable(struct bContext *C);
+bool ED_operator_object_active_local_editable(struct bContext *C);
 bool ED_operator_object_active_editable_mesh(struct bContext *C);
 bool ED_operator_object_active_editable_font(struct bContext *C);
 bool ED_operator_editable_mesh(struct bContext *C);
@@ -476,5 +472,3 @@ enum {
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __ED_SCREEN_H__ */

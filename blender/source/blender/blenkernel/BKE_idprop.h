@@ -14,8 +14,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BKE_IDPROP_H__
-#define __BKE_IDPROP_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -110,9 +109,9 @@ bool IDP_InsertToGroup(struct IDProperty *group,
 void IDP_RemoveFromGroup(struct IDProperty *group, struct IDProperty *prop) ATTR_NONNULL();
 void IDP_FreeFromGroup(struct IDProperty *group, struct IDProperty *prop) ATTR_NONNULL();
 
-IDProperty *IDP_GetPropertyFromGroup(struct IDProperty *prop,
+IDProperty *IDP_GetPropertyFromGroup(const struct IDProperty *prop,
                                      const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-IDProperty *IDP_GetPropertyTypeFromGroup(struct IDProperty *prop,
+IDProperty *IDP_GetPropertyTypeFromGroup(const struct IDProperty *prop,
                                          const char *name,
                                          const char type) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
@@ -200,5 +199,3 @@ void IDP_print(const struct IDProperty *prop);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_IDPROP_H__ */

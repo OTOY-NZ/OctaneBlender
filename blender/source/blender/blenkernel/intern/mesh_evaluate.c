@@ -46,6 +46,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_customdata.h"
+#include "BKE_editmesh_cache.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_multires.h"
@@ -396,6 +397,21 @@ void BKE_mesh_ensure_normals(Mesh *mesh)
  */
 void BKE_mesh_ensure_normals_for_display(Mesh *mesh)
 {
+  switch ((eMeshWrapperType)mesh->runtime.wrapper_type) {
+    case ME_WRAPPER_TYPE_MDATA:
+      /* Run code below. */
+      break;
+    case ME_WRAPPER_TYPE_BMESH: {
+      struct BMEditMesh *em = mesh->edit_mesh;
+      EditMeshData *emd = mesh->runtime.edit_data;
+      if (emd->vertexCos) {
+        BKE_editmesh_cache_ensure_vert_normals(em, emd);
+        BKE_editmesh_cache_ensure_poly_normals(em, emd);
+      }
+      return;
+    }
+  }
+
   float(*poly_nors)[3] = CustomData_get_layer(&mesh->pdata, CD_NORMAL);
   const bool do_vert_normals = (mesh->runtime.cd_dirty_vert & CD_MASK_NORMAL) != 0;
   const bool do_poly_normals = (mesh->runtime.cd_dirty_poly & CD_MASK_NORMAL || poly_nors == NULL);
@@ -1300,9 +1316,9 @@ static void loop_split_worker_do(LoopSplitTaskDataCommon *common_data,
   }
 }
 
-static void loop_split_worker(TaskPool *__restrict pool, void *taskdata, int UNUSED(threadid))
+static void loop_split_worker(TaskPool *__restrict pool, void *taskdata)
 {
-  LoopSplitTaskDataCommon *common_data = BLI_task_pool_userdata(pool);
+  LoopSplitTaskDataCommon *common_data = BLI_task_pool_user_data(pool);
   LoopSplitTaskData *data = taskdata;
 
   /* Temp edge vectors stack, only used when computing lnor spacearr. */
@@ -1704,11 +1720,7 @@ void BKE_mesh_normals_loop_split(const MVert *mverts,
     loop_split_generator(NULL, &common_data);
   }
   else {
-    TaskScheduler *task_scheduler;
-    TaskPool *task_pool;
-
-    task_scheduler = BLI_task_scheduler_get();
-    task_pool = BLI_task_pool_create(task_scheduler, &common_data, TASK_PRIORITY_HIGH);
+    TaskPool *task_pool = BLI_task_pool_create(&common_data, TASK_PRIORITY_HIGH);
 
     loop_split_generator(task_pool, &common_data);
 
@@ -2100,7 +2112,7 @@ void BKE_mesh_set_custom_normals(Mesh *mesh, float (*r_custom_loopnors)[3])
  * Higher level functions hiding most of the code needed around call to
  * #BKE_mesh_normals_loop_custom_from_vertices_set().
  *
- * \param r_custom_loopnors: is not const, since code will replace zero_v3 normals there
+ * \param r_custom_vertnors: is not const, since code will replace zero_v3 normals there
  * with automatically computed vectors.
  */
 void BKE_mesh_set_custom_normals_from_vertices(Mesh *mesh, float (*r_custom_vertnors)[3])
@@ -2374,10 +2386,10 @@ float BKE_mesh_calc_poly_uv_area(const MPoly *mpoly, const MLoopUV *uv_array)
  * - The resulting volume will only be correct if the mesh is manifold and has consistent
  *   face winding (non-contiguous face normals or holes in the mesh surface).
  */
-static float mesh_calc_poly_volume_centroid(const MPoly *mpoly,
-                                            const MLoop *loopstart,
-                                            const MVert *mvarray,
-                                            float r_cent[3])
+static float UNUSED_FUNCTION(mesh_calc_poly_volume_centroid)(const MPoly *mpoly,
+                                                             const MLoop *loopstart,
+                                                             const MVert *mvarray,
+                                                             float r_cent[3])
 {
   const float *v_pivot, *v_step1;
   float total_volume = 0.0f;
@@ -2408,6 +2420,36 @@ static float mesh_calc_poly_volume_centroid(const MPoly *mpoly,
     v_step1 = v_step2;
   }
 
+  return total_volume;
+}
+
+/**
+ * A version of mesh_calc_poly_volume_centroid that takes an initial reference center,
+ * use this to increase numeric stability as the quality of the result becomes
+ * very low quality as the value moves away from 0.0, see: T65986.
+ */
+static float mesh_calc_poly_volume_centroid_with_reference_center(const MPoly *mpoly,
+                                                                  const MLoop *loopstart,
+                                                                  const MVert *mvarray,
+                                                                  const float reference_center[3],
+                                                                  float r_cent[3])
+{
+  /* See: mesh_calc_poly_volume_centroid for comments. */
+  float v_pivot[3], v_step1[3];
+  float total_volume = 0.0f;
+  zero_v3(r_cent);
+  sub_v3_v3v3(v_pivot, mvarray[loopstart[0].v].co, reference_center);
+  sub_v3_v3v3(v_step1, mvarray[loopstart[1].v].co, reference_center);
+  for (int i = 2; i < mpoly->totloop; i++) {
+    float v_step2[3];
+    sub_v3_v3v3(v_step2, mvarray[loopstart[i].v].co, reference_center);
+    const float tetra_volume = volume_tri_tetrahedron_signed_v3_6x(v_pivot, v_step1, v_step2);
+    total_volume += tetra_volume;
+    for (uint j = 0; j < 3; j++) {
+      r_cent[j] += tetra_volume * (v_pivot[j] + v_step1[j] + v_step2[j]);
+    }
+    copy_v3_v3(v_step1, v_step2);
+  }
   return total_volume;
 }
 
@@ -2524,8 +2566,33 @@ bool BKE_mesh_center_median(const Mesh *me, float r_cent[3])
   if (me->totvert) {
     mul_v3_fl(r_cent, 1.0f / (float)me->totvert);
   }
-
   return (me->totvert != 0);
+}
+
+/**
+ * Calculate the center from polygons,
+ * use when we want to ignore vertex locations that don't have connected faces.
+ */
+bool BKE_mesh_center_median_from_polys(const Mesh *me, float r_cent[3])
+{
+  int i = me->totpoly;
+  int tot = 0;
+  const MPoly *mpoly = me->mpoly;
+  const MLoop *mloop = me->mloop;
+  const MVert *mvert = me->mvert;
+  zero_v3(r_cent);
+  for (mpoly = me->mpoly; i--; mpoly++) {
+    int loopend = mpoly->loopstart + mpoly->totloop;
+    for (int j = mpoly->loopstart; j < loopend; j++) {
+      add_v3_v3(r_cent, mvert[mloop[j].v].co);
+    }
+    tot += mpoly->totloop;
+  }
+  /* otherwise we get NAN for 0 verts */
+  if (me->totpoly) {
+    mul_v3_fl(r_cent, 1.0f / (float)tot);
+  }
+  return (me->totpoly != 0);
 }
 
 bool BKE_mesh_center_bounds(const Mesh *me, float r_cent[3])
@@ -2583,12 +2650,16 @@ bool BKE_mesh_center_of_volume(const Mesh *me, float r_cent[3])
   float total_volume = 0.0f;
   float poly_cent[3];
 
+  /* Use an initial center to avoid numeric instability of geometry far away from the center. */
+  float init_cent[3];
+  const bool init_cent_result = BKE_mesh_center_median_from_polys(me, init_cent);
+
   zero_v3(r_cent);
 
   /* calculate a weighted average of polyhedron centroids */
   for (mpoly = me->mpoly; i--; mpoly++) {
-    poly_volume = mesh_calc_poly_volume_centroid(
-        mpoly, me->mloop + mpoly->loopstart, me->mvert, poly_cent);
+    poly_volume = mesh_calc_poly_volume_centroid_with_reference_center(
+        mpoly, me->mloop + mpoly->loopstart, me->mvert, init_cent, poly_cent);
 
     /* poly_cent is already volume-weighted, so no need to multiply by the volume */
     add_v3_v3(r_cent, poly_cent);
@@ -2604,9 +2675,10 @@ bool BKE_mesh_center_of_volume(const Mesh *me, float r_cent[3])
 
   /* this can happen for non-manifold objects, fallback to median */
   if (UNLIKELY(!is_finite_v3(r_cent))) {
-    return BKE_mesh_center_median(me, r_cent);
+    copy_v3_v3(r_cent, init_cent);
+    return init_cent_result;
   }
-
+  add_v3_v3(r_cent, init_cent);
   return (me->totpoly != 0);
 }
 
@@ -2816,7 +2888,7 @@ void BKE_mesh_loops_to_mface_corners(
 void BKE_mesh_loops_to_tessdata(CustomData *fdata,
                                 CustomData *ldata,
                                 MFace *mface,
-                                int *polyindices,
+                                const int *polyindices,
                                 unsigned int (*loopindices)[4],
                                 const int num_faces)
 {
@@ -2909,7 +2981,7 @@ void BKE_mesh_loops_to_tessdata(CustomData *fdata,
 void BKE_mesh_tangent_loops_to_tessdata(CustomData *fdata,
                                         CustomData *ldata,
                                         MFace *mface,
-                                        int *polyindices,
+                                        const int *polyindices,
                                         unsigned int (*loopindices)[4],
                                         const int num_faces,
                                         const char *layer_name)

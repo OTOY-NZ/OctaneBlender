@@ -22,15 +22,15 @@
 #include <pxr/base/gf/matrix4f.h>
 #include <pxr/usd/usdGeom/xform.h>
 
-extern "C" {
 #include "BKE_object.h"
 
 #include "BLI_math_matrix.h"
 
 #include "DNA_layer_types.h"
-}
 
-namespace USD {
+namespace blender {
+namespace io {
+namespace usd {
 
 USDTransformWriter::USDTransformWriter(const USDExporterContext &ctx) : USDAbstractWriter(ctx)
 {
@@ -52,13 +52,18 @@ void USDTransformWriter::do_write(HierarchyContext &context)
 
 bool USDTransformWriter::check_is_animated(const HierarchyContext &context) const
 {
-  if (context.duplicator != NULL) {
+  if (context.duplicator != nullptr) {
     /* This object is being duplicated, so could be emitted by a particle system and thus
      * influenced by forces. TODO(Sybren): Make this more strict. Probably better to get from the
      * depsgraph whether this object instance has a time source. */
     return true;
   }
+  if (check_has_physics(context)) {
+    return true;
+  }
   return BKE_object_moves_in_time(context.object, context.animation_check_include_parent);
 }
 
-}  // namespace USD
+}  // namespace usd
+}  // namespace io
+}  // namespace blender

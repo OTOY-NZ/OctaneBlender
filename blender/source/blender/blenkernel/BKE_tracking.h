@@ -17,8 +17,7 @@
  * All rights reserved.
  */
 
-#ifndef __BKE_TRACKING_H__
-#define __BKE_TRACKING_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -261,8 +260,16 @@ void BKE_tracking_distortion_undistort_v2(struct MovieDistortion *distortion,
                                           float r_co[2]);
 void BKE_tracking_distortion_free(struct MovieDistortion *distortion);
 
-void BKE_tracking_distort_v2(struct MovieTracking *tracking, const float co[2], float r_co[2]);
-void BKE_tracking_undistort_v2(struct MovieTracking *tracking, const float co[2], float r_co[2]);
+void BKE_tracking_distort_v2(struct MovieTracking *tracking,
+                             int image_width,
+                             int image_height,
+                             const float co[2],
+                             float r_co[2]);
+void BKE_tracking_undistort_v2(struct MovieTracking *tracking,
+                               int image_width,
+                               int image_height,
+                               const float co[2],
+                               float r_co[2]);
 
 struct ImBuf *BKE_tracking_undistort_frame(struct MovieTracking *tracking,
                                            struct ImBuf *ibuf,
@@ -276,6 +283,8 @@ struct ImBuf *BKE_tracking_distort_frame(struct MovieTracking *tracking,
                                          float overscan);
 
 void BKE_tracking_max_distortion_delta_across_bound(struct MovieTracking *tracking,
+                                                    int image_width,
+                                                    int image_height,
                                                     struct rcti *rect,
                                                     bool undistort,
                                                     float delta[2]);
@@ -482,6 +491,4 @@ void BKE_tracking_get_rna_path_prefix_for_plane_track(
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

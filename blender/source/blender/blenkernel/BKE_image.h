@@ -16,18 +16,17 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  */
-#ifndef __BKE_IMAGE_H__
-#define __BKE_IMAGE_H__
+#pragma once
 
 /** \file
  * \ingroup bke
  */
 
+#include "BLI_utildefines.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_utildefines.h"
 
 struct Depsgraph;
 struct ID;
@@ -318,7 +317,7 @@ bool BKE_image_fill_tile(struct Image *ima,
                          bool is_float);
 
 struct ImageTile *BKE_image_get_tile(struct Image *ima, int tile_number);
-struct ImageTile *BKE_image_get_tile_from_iuser(struct Image *ima, struct ImageUser *iuser);
+struct ImageTile *BKE_image_get_tile_from_iuser(struct Image *ima, const struct ImageUser *iuser);
 
 int BKE_image_get_tile_from_pos(struct Image *ima,
                                 const float uv[2],
@@ -369,6 +368,4 @@ bool BKE_image_clear_renderslot(struct Image *ima, struct ImageUser *iuser, int 
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

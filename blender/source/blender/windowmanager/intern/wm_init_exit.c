@@ -44,6 +44,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_timer.h"
 #include "BLI_utildefines.h"
@@ -124,18 +125,14 @@
 #include "GPU_material.h"
 
 #include "BKE_sound.h"
+#include "BKE_subdiv.h"
+
 #include "COM_compositor.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
 #include "DRW_engine.h"
-
-#ifdef WITH_OPENSUBDIV
-#  include "BKE_subsurf.h"
-#endif
-
-#include "../../../../intern/octane/blender/OCT_api.h"
 
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_OPERATORS, "wm.operator");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_HANDLERS, "wm.handler");
@@ -190,17 +187,16 @@ void WM_init_opengl(Main *bmain)
   GPU_init();
   GPU_set_mipmap(bmain, true);
   GPU_set_linear_mipmap(true);
-  GPU_set_anisotropic(bmain, U.anisotropic_filter);
+  GPU_set_anisotropic(U.anisotropic_filter);
 
   GPU_pass_cache_init();
 
-#ifdef WITH_OPENSUBDIV
-  BKE_subsurf_osd_init();
-#endif
+  BKE_subdiv_init();
+
   opengl_is_init = true;
 }
 
-static void sound_jack_sync_callback(Main *bmain, int mode, float time)
+static void sound_jack_sync_callback(Main *bmain, int mode, double time)
 {
   /* Ugly: Blender doesn't like it when the animation is played back during rendering. */
   if (G.is_rendering) {
@@ -355,7 +351,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   BKE_material_copybuf_clear();
   ED_render_clear_mtex_copybuf();
 
-  // glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+  // GPU_blend_set_func(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
   wm_history_file_read();
 
@@ -481,7 +477,6 @@ void wm_exit_schedule_delayed(const bContext *C)
  */
 void WM_exit_ex(bContext *C, const bool do_python)
 {
-  OCT_Rlease_API();
   wmWindowManager *wm = C ? CTX_wm_manager(C) : NULL;
 
   /* first wrap up running stuff, we assume only the active WM is running */
@@ -499,13 +494,15 @@ void WM_exit_ex(bContext *C, const bool do_python)
         Main *bmain = CTX_data_main(C);
         char filename[FILE_MAX];
         bool has_edited;
-        int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_HISTORY);
+        const int fileflags = G.fileflags & ~G_FILE_COMPRESS;
 
         BLI_join_dirfile(filename, sizeof(filename), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
         has_edited = ED_editors_flush_edits(bmain);
 
-        if ((has_edited && BLO_write_file(bmain, filename, fileflags, NULL, NULL)) ||
+        if ((has_edited &&
+             BLO_write_file(
+                 bmain, filename, fileflags, &(const struct BlendFileWriteParams){0}, NULL)) ||
             (undo_memfile && BLO_memfile_write_file(undo_memfile, filename))) {
           printf("Saved session recovery to '%s'\n", filename);
         }
@@ -578,11 +575,9 @@ void WM_exit_ex(bContext *C, const bool do_python)
   COM_deinitialize();
 #endif
 
-  if (opengl_is_init) {
-#ifdef WITH_OPENSUBDIV
-    BKE_subsurf_osd_cleanup();
-#endif
+  BKE_subdiv_exit();
 
+  if (opengl_is_init) {
     GPU_free_unused_buffers();
   }
 
@@ -651,6 +646,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
   DNA_sdna_current_free();
 
   BLI_threadapi_exit();
+  BLI_task_scheduler_exit();
 
   /* No need to call this early, rather do it late so that other
    * pieces of Blender using sound may exit cleanly, see also T50676. */
@@ -660,13 +656,6 @@ void WM_exit_ex(bContext *C, const bool do_python)
 
   BKE_blender_atexit();
 
-  if (MEM_get_memory_blocks_in_use() != 0) {
-    size_t mem_in_use = MEM_get_memory_in_use() + MEM_get_memory_in_use();
-    printf("Error: Not freed memory blocks: %u, total unfreed memory %f MB\n",
-           MEM_get_memory_blocks_in_use(),
-           (double)mem_in_use / 1024 / 1024);
-    MEM_printmemlist();
-  }
   wm_autosave_delete();
 
   BKE_tempdir_session_purge();

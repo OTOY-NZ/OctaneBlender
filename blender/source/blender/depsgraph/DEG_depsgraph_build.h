@@ -23,8 +23,7 @@
  * Public API for Depsgraph
  */
 
-#ifndef __DEG_DEPSGRAPH_BUILD_H__
-#define __DEG_DEPSGRAPH_BUILD_H__
+#pragma once
 
 /* ************************************************* */
 
@@ -39,14 +38,15 @@ struct ID;
 struct Main;
 struct Object;
 struct Scene;
+struct Simulation;
 struct ViewLayer;
 struct bNodeTree;
+
+#include "BLI_sys_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_sys_types.h"
 
 /* Graph Building -------------------------------- */
 
@@ -153,6 +153,9 @@ void DEG_add_object_relation(struct DepsNodeHandle *node_handle,
                              struct Object *object,
                              eDepsObjectComponentType component,
                              const char *description);
+void DEG_add_simulation_relation(struct DepsNodeHandle *node_handle,
+                                 struct Simulation *simulation,
+                                 const char *description);
 void DEG_add_bone_relation(struct DepsNodeHandle *handle,
                            struct Object *object,
                            const char *bone_name,
@@ -197,5 +200,3 @@ struct Depsgraph *DEG_get_graph_from_handle(struct DepsNodeHandle *node_handle);
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-
-#endif /* __DEG_DEPSGRAPH_BUILD_H__ */

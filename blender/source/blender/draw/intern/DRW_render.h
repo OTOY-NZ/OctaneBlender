@@ -22,8 +22,7 @@
 
 /* This is the Render Functions used by Realtime engines to draw with OpenGL */
 
-#ifndef __DRW_RENDER_H__
-#define __DRW_RENDER_H__
+#pragma once
 
 #include "DRW_engine_types.h"
 
@@ -204,16 +203,21 @@ struct GPUShader *DRW_shader_create(const char *vert,
                                     const char *defines);
 struct GPUShader *DRW_shader_create_with_lib(
     const char *vert, const char *geom, const char *frag, const char *lib, const char *defines);
+struct GPUShader *DRW_shader_create_with_shaderlib(const char *vert,
+                                                   const char *geom,
+                                                   const char *frag,
+                                                   const DRWShaderLibrary *lib,
+                                                   const char *defines);
 struct GPUShader *DRW_shader_create_with_transform_feedback(const char *vert,
                                                             const char *geom,
                                                             const char *defines,
                                                             const eGPUShaderTFBType prim_type,
                                                             const char **varying_names,
                                                             const int varying_count);
-struct GPUShader *DRW_shader_create_2d(const char *frag, const char *defines);
-struct GPUShader *DRW_shader_create_3d(const char *frag, const char *defines);
 struct GPUShader *DRW_shader_create_fullscreen(const char *frag, const char *defines);
-struct GPUShader *DRW_shader_create_3d_depth_only(eGPUShaderConfig slot);
+struct GPUShader *DRW_shader_create_fullscreen_with_shaderlib(const char *frag,
+                                                              const DRWShaderLibrary *lib,
+                                                              const char *defines);
 struct GPUMaterial *DRW_shader_find_from_world(struct World *wo,
                                                const void *engine_type,
                                                const int options,
@@ -224,6 +228,7 @@ struct GPUMaterial *DRW_shader_find_from_material(struct Material *ma,
                                                   bool deferred);
 struct GPUMaterial *DRW_shader_create_from_world(struct Scene *scene,
                                                  struct World *wo,
+                                                 struct bNodeTree *ntree,
                                                  const void *engine_type,
                                                  const int options,
                                                  const bool is_volume_shader,
@@ -234,6 +239,7 @@ struct GPUMaterial *DRW_shader_create_from_world(struct Scene *scene,
                                                  bool deferred);
 struct GPUMaterial *DRW_shader_create_from_material(struct Scene *scene,
                                                     struct Material *ma,
+                                                    struct bNodeTree *ntree,
                                                     const void *engine_type,
                                                     const int options,
                                                     const bool is_volume_shader,
@@ -258,7 +264,8 @@ void DRW_shader_library_add_file(DRWShaderLibrary *lib, char *lib_code, const ch
 #define DRW_SHADER_LIB_ADD(lib, lib_name) \
   DRW_shader_library_add_file(lib, datatoc_##lib_name##_glsl, STRINGIFY(lib_name) ".glsl")
 
-char *DRW_shader_library_create_shader_string(DRWShaderLibrary *lib, char *shader_code);
+char *DRW_shader_library_create_shader_string(const DRWShaderLibrary *lib,
+                                              const char *shader_code);
 
 void DRW_shader_library_free(DRWShaderLibrary *lib);
 #define DRW_SHADER_LIB_FREE_SAFE(lib) \
@@ -365,6 +372,8 @@ DRWShadingGroup *DRW_shgroup_transform_feedback_create(struct GPUShader *shader,
                                                        DRWPass *pass,
                                                        struct GPUVertBuf *tf_target);
 
+void DRW_shgroup_add_material_resources(DRWShadingGroup *grp, struct GPUMaterial *material);
+
 /* return final visibility */
 typedef bool(DRWCallVisibilityFn)(bool vis_in, void *user_data);
 
@@ -457,21 +466,26 @@ void DRW_shgroup_clear_framebuffer(DRWShadingGroup *shgroup,
                                    float depth,
                                    uchar stencil);
 
+void DRW_shgroup_uniform_texture_ex(DRWShadingGroup *shgroup,
+                                    const char *name,
+                                    const struct GPUTexture *tex,
+                                    eGPUSamplerState sampler_state);
+void DRW_shgroup_uniform_texture_ref_ex(DRWShadingGroup *shgroup,
+                                        const char *name,
+                                        GPUTexture **tex,
+                                        eGPUSamplerState sampler_state);
 void DRW_shgroup_uniform_texture(DRWShadingGroup *shgroup,
                                  const char *name,
                                  const struct GPUTexture *tex);
-void DRW_shgroup_uniform_texture_persistent(DRWShadingGroup *shgroup,
-                                            const char *name,
-                                            const struct GPUTexture *tex);
-void DRW_shgroup_uniform_block(DRWShadingGroup *shgroup,
-                               const char *name,
-                               const struct GPUUniformBuffer *ubo);
-void DRW_shgroup_uniform_block_persistent(DRWShadingGroup *shgroup,
-                                          const char *name,
-                                          const struct GPUUniformBuffer *ubo);
 void DRW_shgroup_uniform_texture_ref(DRWShadingGroup *shgroup,
                                      const char *name,
                                      struct GPUTexture **tex);
+void DRW_shgroup_uniform_block(DRWShadingGroup *shgroup,
+                               const char *name,
+                               const struct GPUUniformBuffer *ubo);
+void DRW_shgroup_uniform_block_ref(DRWShadingGroup *shgroup,
+                                   const char *name,
+                                   struct GPUUniformBuffer **ubo);
 void DRW_shgroup_uniform_float(DRWShadingGroup *shgroup,
                                const char *name,
                                const float *value,
@@ -521,11 +535,17 @@ void DRW_shgroup_uniform_float_copy(DRWShadingGroup *shgroup, const char *name, 
 void DRW_shgroup_uniform_vec2_copy(DRWShadingGroup *shgroup, const char *name, const float *value);
 void DRW_shgroup_uniform_vec3_copy(DRWShadingGroup *shgroup, const char *name, const float *value);
 void DRW_shgroup_uniform_vec4_copy(DRWShadingGroup *shgroup, const char *name, const float *value);
+void DRW_shgroup_uniform_vec4_array_copy(DRWShadingGroup *shgroup,
+                                         const char *name,
+                                         const float (*value)[4],
+                                         int arraysize);
 
 bool DRW_shgroup_is_empty(DRWShadingGroup *shgroup);
 
 /* Passes */
 DRWPass *DRW_pass_create(const char *name, DRWState state);
+DRWPass *DRW_pass_create_instance(const char *name, DRWPass *original, DRWState state);
+void DRW_pass_link(DRWPass *first, DRWPass *second);
 /* TODO Replace with passes inheritance. */
 void DRW_pass_state_set(DRWPass *pass, DRWState state);
 void DRW_pass_state_add(DRWPass *pass, DRWState state);
@@ -539,6 +559,8 @@ void DRW_pass_sort_shgroup_reverse(DRWPass *pass);
 bool DRW_pass_is_empty(DRWPass *pass);
 
 #define DRW_PASS_CREATE(pass, state) (pass = DRW_pass_create(#pass, state))
+#define DRW_PASS_INSTANCE_CREATE(pass, original, state) \
+  (pass = DRW_pass_create_instance(#pass, (original), state))
 
 /* Views */
 DRWView *DRW_view_create(const float viewmat[4][4],
@@ -559,7 +581,7 @@ void DRW_view_update_sub(DRWView *view, const float viewmat[4][4], const float w
 
 const DRWView *DRW_view_default_get(void);
 void DRW_view_default_set(DRWView *view);
-
+void DRW_view_reset(void);
 void DRW_view_set_active(DRWView *view);
 
 void DRW_view_clip_planes_set(DRWView *view, float (*planes)[4], int plane_len);
@@ -609,12 +631,18 @@ void DRW_render_object_iter(void *vedata,
                                              struct RenderEngine *engine,
                                              struct Depsgraph *depsgraph));
 void DRW_render_instance_buffer_finish(void);
-void DRW_render_viewport_size_set(int size[2]);
+void DRW_render_set_time(struct RenderEngine *engine,
+                         struct Depsgraph *depsgraph,
+                         int frame,
+                         float subframe);
+void DRW_render_viewport_size_set(const int size[2]);
 
 void DRW_custom_pipeline(DrawEngineType *draw_engine_type,
                          struct Depsgraph *depsgraph,
                          void (*callback)(void *vedata, void *user_data),
                          void *user_data);
+
+void DRW_cache_restart(void);
 
 /* ViewLayers */
 void *DRW_view_layer_engine_data_get(DrawEngineType *engine_type);
@@ -692,6 +720,8 @@ typedef struct DRWContextState {
 
   struct Depsgraph *depsgraph;
 
+  struct TaskGraph *task_graph;
+
   eObjectMode object_mode;
 
   eGPUShaderConfig sh_cfg;
@@ -709,5 +739,3 @@ typedef struct DRWContextState {
 } DRWContextState;
 
 const DRWContextState *DRW_context_state_get(void);
-
-#endif /* __DRW_RENDER_H__ */

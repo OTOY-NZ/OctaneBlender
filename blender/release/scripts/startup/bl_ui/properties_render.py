@@ -173,8 +173,10 @@ class RENDER_PT_eevee_motion_blur(RenderButtonsPanel, Panel):
 
         layout.active = props.use_motion_blur
         col = layout.column()
-        col.prop(props, "motion_blur_samples")
         col.prop(props, "motion_blur_shutter")
+        col.prop(props, "motion_blur_depth_scale")
+        col.prop(props, "motion_blur_max")
+        col.prop(props, "motion_blur_steps", text="Steps")
 
 
 class RENDER_PT_eevee_depth_of_field(RenderButtonsPanel, Panel):
@@ -475,33 +477,21 @@ class RENDER_PT_eevee_film(RenderButtonsPanel, Panel):
 
         scene = context.scene
         rd = scene.render
+        props = scene.eevee
 
         col = layout.column()
         col.prop(rd, "filter_size")
         col.prop(rd, "film_transparent", text="Transparent")
 
-
-class RENDER_PT_eevee_film_overscan(RenderButtonsPanel, Panel):
-    bl_label = "Overscan"
-    bl_parent_id = "RENDER_PT_eevee_film"
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE'}
-
-    def draw_header(self, context):
-
-        scene = context.scene
-        props = scene.eevee
-
-        self.layout.prop(props, "use_overscan", text="")
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        scene = context.scene
-        props = scene.eevee
-
-        layout.active = props.use_overscan
-        layout.prop(props, "overscan_size", text="Size")
+        col = layout.column(align=False, heading="Overscan")
+        col.use_property_decorate = False
+        row = col.row(align=True)
+        sub = row.row(align=True)
+        sub.prop(props, "use_overscan", text="")
+        sub = sub.row(align=True)
+        sub.active = props.use_overscan
+        sub.prop(props, "overscan_size", text="")
+        row.prop_decorator(props, "overscan_size")
 
 
 class RENDER_PT_eevee_hair(RenderButtonsPanel, Panel):
@@ -546,6 +536,7 @@ class RENDER_PT_eevee_performance(RenderButtonsPanel, Panel):
 class RENDER_PT_gpencil(RenderButtonsPanel, Panel):
     bl_label = "Grease Pencil"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 10
 
     @classmethod
     def poll(cls, context):
@@ -716,7 +707,7 @@ classes = (
     RENDER_PT_eevee_indirect_lighting,
     RENDER_PT_eevee_indirect_lighting_display,
     RENDER_PT_eevee_film,
-    RENDER_PT_eevee_film_overscan,
+
     RENDER_PT_gpencil,
     RENDER_PT_opengl_sampling,
     RENDER_PT_opengl_lighting,

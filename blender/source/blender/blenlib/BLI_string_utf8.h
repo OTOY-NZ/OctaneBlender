@@ -14,19 +14,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BLI_STRING_UTF8_H__
-#define __BLI_STRING_UTF8_H__
+#pragma once
 
 /** \file
  * \ingroup bli
  */
 
+#include "BLI_compiler_attrs.h"
+#include "BLI_sys_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_compiler_attrs.h"
-#include "BLI_sys_types.h"
 
 char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t maxncpy)
     ATTR_NONNULL();
@@ -114,6 +113,4 @@ int BLI_str_utf8_offset_from_column(const char *str, int column);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

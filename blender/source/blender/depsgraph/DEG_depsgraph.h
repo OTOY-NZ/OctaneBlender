@@ -43,8 +43,7 @@
  * - These are used in all depsgraph code and by all callers of Depsgraph API...
  */
 
-#ifndef __DEG_DEPSGRAPH_H__
-#define __DEG_DEPSGRAPH_H__
+#pragma once
 
 #include "DNA_ID.h"
 
@@ -184,7 +183,7 @@ void DEG_editors_set_update_cb(DEG_EditorUpdateIDCb id_func, DEG_EditorUpdateSce
 
 /* Evaluation  ----------------------------------- */
 
-bool DEG_is_evaluating(struct Depsgraph *depsgraph);
+bool DEG_is_evaluating(const struct Depsgraph *depsgraph);
 
 bool DEG_is_active(const struct Depsgraph *depsgraph);
 void DEG_make_active(struct Depsgraph *depsgraph);
@@ -233,5 +232,3 @@ void DEG_debug_print_eval_time(struct Depsgraph *depsgraph,
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-
-#endif /* __DEG_DEPSGRAPH_H__ */

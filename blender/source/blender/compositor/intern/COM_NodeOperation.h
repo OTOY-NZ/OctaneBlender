@@ -16,18 +16,15 @@
  * Copyright 2011, Blender Foundation.
  */
 
-#ifndef __COM_NODEOPERATION_H__
-#define __COM_NODEOPERATION_H__
+#pragma once
 
 #include <list>
 #include <sstream>
 #include <string>
 
-extern "C" {
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_threads.h"
-}
 
 #include "COM_MemoryBuffer.h"
 #include "COM_MemoryProxy.h"
@@ -169,7 +166,7 @@ class NodeOperation : public SocketReader {
    * the ExecutionSystem.
    *
    * \see ExecutionSystem
-   * \group check
+   * \ingroup check
    * \param rendering: [true false]
    *  true: rendering
    *  false: editing
@@ -523,5 +520,3 @@ class NodeOperationOutput {
   MEM_CXX_CLASS_ALLOC_FUNCS("COM:NodeOperation")
 #endif
 };
-
-#endif

@@ -81,10 +81,7 @@ extern char datatoc_gpu_shader_image_overlays_stereo_merge_frag_glsl[];
 extern char datatoc_gpu_shader_image_color_frag_glsl[];
 extern char datatoc_gpu_shader_image_desaturate_frag_glsl[];
 extern char datatoc_gpu_shader_image_varying_color_frag_glsl[];
-extern char datatoc_gpu_shader_image_alpha_color_frag_glsl[];
 extern char datatoc_gpu_shader_image_shuffle_color_frag_glsl[];
-extern char datatoc_gpu_shader_image_mask_uniform_color_frag_glsl[];
-extern char datatoc_gpu_shader_image_modulate_alpha_frag_glsl[];
 extern char datatoc_gpu_shader_3D_vert_glsl[];
 extern char datatoc_gpu_shader_3D_normal_vert_glsl[];
 extern char datatoc_gpu_shader_3D_flat_color_vert_glsl[];
@@ -117,6 +114,7 @@ extern char datatoc_gpu_shader_2D_point_uniform_size_varying_color_outline_aa_ve
 extern char datatoc_gpu_shader_2D_edituvs_points_vert_glsl[];
 extern char datatoc_gpu_shader_2D_edituvs_facedots_vert_glsl[];
 extern char datatoc_gpu_shader_2D_edituvs_edges_vert_glsl[];
+extern char datatoc_gpu_shader_2D_edituvs_edges_frag_glsl[];
 extern char datatoc_gpu_shader_2D_edituvs_faces_vert_glsl[];
 extern char datatoc_gpu_shader_2D_edituvs_stretch_vert_glsl[];
 
@@ -282,8 +280,6 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH])
   else {
     strcat(defines, "#define DFDY_SIGN -1.0\n");
   }
-
-  return;
 }
 
 GPUShader *GPU_shader_create(const char *vertexcode,
@@ -332,6 +328,8 @@ GPUShader *GPU_shader_load_from_binary(const char *binary,
   glGetProgramiv(program, GL_LINK_STATUS, &success);
 
   if (success) {
+    glUseProgram(program);
+
     GPUShader *shader = MEM_callocN(sizeof(*shader), __func__);
     shader->interface = GPU_shaderinterface_create(program);
     shader->program = program;
@@ -453,7 +451,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
     int num_source = 0;
 
     source[num_source++] = gpu_shader_version();
-    source[num_source++] = "#define GPU_VERTEX_SHADER\n";
+    source[num_source++] =
+        "#define GPU_VERTEX_SHADER\n"
+        "#define IN_OUT out\n";
     source[num_source++] = standard_extensions;
     source[num_source++] = standard_defines;
 
@@ -484,7 +484,9 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
     int num_source = 0;
 
     source[num_source++] = gpu_shader_version();
-    source[num_source++] = "#define GPU_FRAGMENT_SHADER\n";
+    source[num_source++] =
+        "#define GPU_FRAGMENT_SHADER\n"
+        "#define IN_OUT in\n";
     source[num_source++] = standard_extensions;
     source[num_source++] = standard_defines;
 
@@ -573,6 +575,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
     return NULL;
   }
 
+  glUseProgram(shader->program);
   shader->interface = GPU_shaderinterface_create(shader->program);
 
   return shader;
@@ -727,21 +730,19 @@ int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
   BLI_assert(shader && shader->program);
   const GPUShaderInput *uniform = GPU_shaderinterface_uniform(shader->interface, name);
-  return uniform ? uniform->location : -2;
-}
-
-int GPU_shader_get_uniform_ensure(GPUShader *shader, const char *name)
-{
-  BLI_assert(shader && shader->program);
-  const GPUShaderInput *uniform = GPU_shaderinterface_uniform_ensure(shader->interface, name);
   return uniform ? uniform->location : -1;
 }
 
 int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin)
 {
   BLI_assert(shader && shader->program);
-  const GPUShaderInput *uniform = GPU_shaderinterface_uniform_builtin(shader->interface, builtin);
-  return uniform ? uniform->location : -1;
+  return GPU_shaderinterface_uniform_builtin(shader->interface, builtin);
+}
+
+int GPU_shader_get_builtin_block(GPUShader *shader, int builtin)
+{
+  BLI_assert(shader && shader->program);
+  return GPU_shaderinterface_block_builtin(shader->interface, builtin);
 }
 
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name)
@@ -749,6 +750,20 @@ int GPU_shader_get_uniform_block(GPUShader *shader, const char *name)
   BLI_assert(shader && shader->program);
   const GPUShaderInput *ubo = GPU_shaderinterface_ubo(shader->interface, name);
   return ubo ? ubo->location : -1;
+}
+
+int GPU_shader_get_uniform_block_binding(GPUShader *shader, const char *name)
+{
+  BLI_assert(shader && shader->program);
+  const GPUShaderInput *ubo = GPU_shaderinterface_ubo(shader->interface, name);
+  return ubo ? ubo->binding : -1;
+}
+
+int GPU_shader_get_texture_binding(GPUShader *shader, const char *name)
+{
+  BLI_assert(shader && shader->program);
+  const GPUShaderInput *tex = GPU_shaderinterface_uniform(shader->interface, name);
+  return tex ? tex->binding : -1;
 }
 
 void *GPU_shader_get_interface(GPUShader *shader)
@@ -838,40 +853,11 @@ void GPU_shader_uniform_int(GPUShader *UNUSED(shader), int location, int value)
   glUniform1i(location, value);
 }
 
-void GPU_shader_uniform_buffer(GPUShader *shader, int location, GPUUniformBuffer *ubo)
-{
-  int bindpoint = GPU_uniformbuffer_bindpoint(ubo);
-
-  if (location == -1) {
-    return;
-  }
-
-  glUniformBlockBinding(shader->program, location, bindpoint);
-}
-
-void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUTexture *tex)
-{
-  int number = GPU_texture_bound_number(tex);
-
-  if (number == -1) {
-    fprintf(stderr, "Texture is not bound.\n");
-    BLI_assert(0);
-    return;
-  }
-
-  if (location == -1) {
-    return;
-  }
-
-  glUniform1i(location, number);
-}
-
 void GPU_shader_set_srgb_uniform(const GPUShaderInterface *interface)
 {
-  const GPUShaderInput *srgb_uniform = GPU_shaderinterface_uniform_builtin(
-      interface, GPU_UNIFORM_SRGB_TRANSFORM);
-  if (srgb_uniform) {
-    glUniform1i(srgb_uniform->location, g_shader_builtin_srgb_transform);
+  int32_t loc = GPU_shaderinterface_uniform_builtin(interface, GPU_UNIFORM_SRGB_TRANSFORM);
+  if (loc != -1) {
+    glUniform1i(loc, g_shader_builtin_srgb_transform);
   }
 }
 
@@ -921,16 +907,6 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
             .frag = datatoc_gpu_shader_simple_lighting_frag_glsl,
         },
 
-    [GPU_SHADER_2D_IMAGE_MASK_UNIFORM_COLOR] =
-        {
-            .vert = datatoc_gpu_shader_3D_image_vert_glsl,
-            .frag = datatoc_gpu_shader_image_mask_uniform_color_frag_glsl,
-        },
-    [GPU_SHADER_3D_IMAGE_MODULATE_ALPHA] =
-        {
-            .vert = datatoc_gpu_shader_3D_image_vert_glsl,
-            .frag = datatoc_gpu_shader_image_modulate_alpha_frag_glsl,
-        },
     [GPU_SHADER_2D_CHECKER] =
         {
             .vert = datatoc_gpu_shader_2D_vert_glsl,
@@ -982,11 +958,6 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
         {
             .vert = datatoc_gpu_shader_2D_image_vert_glsl,
             .frag = datatoc_gpu_shader_image_desaturate_frag_glsl,
-        },
-    [GPU_SHADER_2D_IMAGE_ALPHA_COLOR] =
-        {
-            .vert = datatoc_gpu_shader_2D_image_vert_glsl,
-            .frag = datatoc_gpu_shader_image_alpha_color_frag_glsl,
         },
     [GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR] =
         {
@@ -1186,12 +1157,12 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
     [GPU_SHADER_2D_UV_EDGES] =
         {
             .vert = datatoc_gpu_shader_2D_edituvs_edges_vert_glsl,
-            .frag = datatoc_gpu_shader_flat_color_frag_glsl,
+            .frag = datatoc_gpu_shader_2D_edituvs_edges_frag_glsl,
         },
     [GPU_SHADER_2D_UV_EDGES_SMOOTH] =
         {
             .vert = datatoc_gpu_shader_2D_edituvs_edges_vert_glsl,
-            .frag = datatoc_gpu_shader_2D_smooth_color_frag_glsl,
+            .frag = datatoc_gpu_shader_2D_edituvs_edges_frag_glsl,
             .defs = "#define SMOOTH_COLOR\n",
         },
     [GPU_SHADER_2D_UV_FACES] =

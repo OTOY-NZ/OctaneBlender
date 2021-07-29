@@ -16,8 +16,7 @@
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
  */
-#ifndef __WM_API_H__
-#define __WM_API_H__
+#pragma once
 
 /** \file
  * \ingroup wm
@@ -105,6 +104,17 @@ void WM_check(struct bContext *C);
 void WM_reinit_gizmomap_all(struct Main *bmain);
 
 void WM_script_tag_reload(void);
+
+bool WM_window_find_under_cursor(const wmWindowManager *wm,
+                                 const wmWindow *win_ignore,
+                                 const wmWindow *win,
+                                 const int mval[2],
+                                 wmWindow **r_win,
+                                 int r_mval[2]);
+void WM_window_pixel_sample_read(const wmWindowManager *wm,
+                                 const wmWindow *win,
+                                 const int pos[2],
+                                 float r_col[3]);
 
 uint *WM_window_pixels_read(struct wmWindowManager *wm, struct wmWindow *win, int r_size[2]);
 
@@ -198,14 +208,13 @@ void WM_cursor_grab_disable(struct wmWindow *win, const int mouse_ungrab_xy[2]);
 void WM_cursor_time(struct wmWindow *win, int nr);
 
 struct wmPaintCursor *WM_paint_cursor_activate(
-    struct wmWindowManager *wm,
     short space_type,
     short region_type,
     bool (*poll)(struct bContext *C),
     void (*draw)(struct bContext *C, int, int, void *customdata),
     void *customdata);
 
-bool WM_paint_cursor_end(struct wmWindowManager *wm, struct wmPaintCursor *handle);
+bool WM_paint_cursor_end(struct wmPaintCursor *handle);
 void WM_paint_cursor_tag_redraw(struct wmWindow *win, struct ARegion *region);
 
 void WM_cursor_warp(struct wmWindow *win, int x, int y);
@@ -583,6 +592,7 @@ void WM_uilisttype_free(void);
 /* wm_menu_type.c */
 void WM_menutype_init(void);
 struct MenuType *WM_menutype_find(const char *idname, bool quiet);
+void WM_menutype_iter(struct GHashIterator *ghi);
 bool WM_menutype_add(struct MenuType *mt);
 void WM_menutype_freelink(struct MenuType *mt);
 void WM_menutype_free(void);
@@ -618,7 +628,7 @@ int WM_gesture_lasso_modal(struct bContext *C, struct wmOperator *op, const stru
 void WM_gesture_lasso_cancel(struct bContext *C, struct wmOperator *op);
 const int (*WM_gesture_lasso_path_to_array(struct bContext *C,
                                            struct wmOperator *op,
-                                           int *mcords_tot))[2];
+                                           int *mcoords_len))[2];
 int WM_gesture_straightline_invoke(struct bContext *C,
                                    struct wmOperator *op,
                                    const struct wmEvent *event);
@@ -733,8 +743,13 @@ void *WM_jobs_customdata_get(struct wmJob *);
 void WM_jobs_customdata_set(struct wmJob *, void *customdata, void (*free)(void *));
 void WM_jobs_timer(struct wmJob *, double timestep, unsigned int note, unsigned int endnote);
 void WM_jobs_delay_start(struct wmJob *, double delay_time);
+
+typedef void (*wm_jobs_start_callback)(void *custom_data,
+                                       short *stop,
+                                       short *do_update,
+                                       float *progress);
 void WM_jobs_callbacks(struct wmJob *,
-                       void (*startjob)(void *, short *, short *, float *),
+                       wm_jobs_start_callback startjob,
                        void (*initjob)(void *),
                        void (*update)(void *),
                        void (*endjob)(void *));
@@ -877,6 +892,7 @@ bool WM_region_use_viewport(struct ScrArea *area, struct ARegion *region);
 bool WM_xr_session_exists(const wmXrData *xr);
 bool WM_xr_session_is_ready(const wmXrData *xr);
 struct wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
+void WM_xr_session_base_pose_reset(wmXrData *xr);
 bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_rotation[4]);
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
@@ -887,5 +903,3 @@ bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __WM_API_H__ */

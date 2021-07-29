@@ -18,8 +18,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_MODIFIER_TYPES_H__
-#define __DNA_MODIFIER_TYPES_H__
+#pragma once
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -94,6 +93,7 @@ typedef enum ModifierType {
   eModifierType_WeightedNormal = 54,
   eModifierType_Weld = 55,
   eModifierType_Fluid = 56,
+  eModifierType_Simulation = 57,
   NUM_MODIFIER_TYPES,
 } ModifierType;
 
@@ -102,7 +102,8 @@ typedef enum ModifierMode {
   eModifierMode_Render = (1 << 1),
   eModifierMode_Editmode = (1 << 2),
   eModifierMode_OnCage = (1 << 3),
-  eModifierMode_Expanded = (1 << 4),
+  /* Old modifier box expansion, just for versioning. */
+  eModifierMode_Expanded_DEPRECATED = (1 << 4),
   eModifierMode_Virtual = (1 << 5),
   eModifierMode_ApplyOnSpline = (1 << 6),
   eModifierMode_DisableTemporary = (1u << 31),
@@ -114,7 +115,8 @@ typedef struct ModifierData {
   int type, mode;
   int stackindex;
   short flag;
-  char _pad[2];
+  /* An "expand" bit for each of the modifier's (sub)panels. */
+  short ui_expand_flag;
   /** MAX_NAME. */
   char name[64];
 
@@ -152,6 +154,7 @@ typedef enum {
   /* DEPRECATED, ONLY USED FOR DO-VERSIONS */
   eSubsurfModifierFlag_SubsurfUv_DEPRECATED = (1 << 3),
   eSubsurfModifierFlag_UseCrease = (1 << 4),
+  eSubsurfModifierFlag_UseCustomNormals = (1 << 5),
 } SubsurfModifierFlag;
 
 typedef enum {
@@ -391,6 +394,8 @@ typedef struct BevelModifierData {
   short flags;
   /** Used to interpret the bevel value. */
   short val_flags;
+  /** For the type and how we build the bevel's profile. */
+  short profile_type;
   /** Flags to tell the tool how to limit the bevel. */
   short lim_flags;
   /** Flags to direct how edge weights are applied to verts. */
@@ -404,6 +409,9 @@ typedef struct BevelModifierData {
   short miter_outer;
   /** The method to use for creating >2-way intersections */
   short vmesh_method;
+  /** Whether to affect vertices or edges. */
+  char affect_type;
+  char _pad;
   /** Controls profile shape (0->1, .5 is round). */
   float profile;
   /** if the MOD_BEVEL_ANGLE is set,
@@ -414,6 +422,7 @@ typedef struct BevelModifierData {
    * this will be the name of the vert group, MAX_VGROUP_NAME */
   char defgrp_name[64];
 
+  char _pad1[4];
   /** Curve info for the custom profile */
   struct CurveProfile *custom_profile;
 
@@ -421,17 +430,22 @@ typedef struct BevelModifierData {
 
 /* BevelModifierData->flags and BevelModifierData->lim_flags */
 enum {
-  MOD_BEVEL_VERT = (1 << 1),
+#ifdef DNA_DEPRECATED_ALLOW
+  MOD_BEVEL_VERT_DEPRECATED = (1 << 1),
+#endif
   MOD_BEVEL_INVERT_VGROUP = (1 << 2),
   MOD_BEVEL_ANGLE = (1 << 3),
   MOD_BEVEL_WEIGHT = (1 << 4),
   MOD_BEVEL_VGROUP = (1 << 5),
-  MOD_BEVEL_CUSTOM_PROFILE = (1 << 7),
-  /* MOD_BEVEL_SAMPLE_STRAIGHT = (1 << 8), */ /* UNUSED */
-  /*  unused                  = (1 << 9), */
-  /*  unused                  = (1 << 10), */
-  /*  unused                  = (1 << 11), */
-  /*  unused                  = (1 << 12), */
+/* unused                  = (1 << 6), */
+#ifdef DNA_DEPRECATED_ALLOW
+  MOD_BEVEL_CUSTOM_PROFILE_DEPRECATED = (1 << 7),
+#endif
+  /* unused                  = (1 << 8), */
+  /* unused                  = (1 << 9), */
+  /* unused                  = (1 << 10), */
+  /* unused                  = (1 << 11), */
+  /* unused                  = (1 << 12), */
   MOD_BEVEL_OVERLAP_OK = (1 << 13),
   MOD_BEVEL_EVEN_WIDTHS = (1 << 14),
   MOD_BEVEL_HARDEN_NORMALS = (1 << 15),
@@ -443,6 +457,13 @@ enum {
   MOD_BEVEL_AMT_WIDTH = 1,
   MOD_BEVEL_AMT_DEPTH = 2,
   MOD_BEVEL_AMT_PERCENT = 3,
+  MOD_BEVEL_AMT_ABSOLUTE = 4,
+};
+
+/* BevelModifierData->profile_type */
+enum {
+  MOD_BEVEL_PROFILE_SUPERELLIPSE = 0,
+  MOD_BEVEL_PROFILE_CUSTOM = 1,
 };
 
 /* BevelModifierData->edge_flags */
@@ -453,23 +474,29 @@ enum {
 
 /* BevelModifierData->face_str_mode */
 enum {
-  MOD_BEVEL_FACE_STRENGTH_NONE,
-  MOD_BEVEL_FACE_STRENGTH_NEW,
-  MOD_BEVEL_FACE_STRENGTH_AFFECTED,
-  MOD_BEVEL_FACE_STRENGTH_ALL,
+  MOD_BEVEL_FACE_STRENGTH_NONE = 0,
+  MOD_BEVEL_FACE_STRENGTH_NEW = 1,
+  MOD_BEVEL_FACE_STRENGTH_AFFECTED = 2,
+  MOD_BEVEL_FACE_STRENGTH_ALL = 3,
 };
 
 /* BevelModifier->miter_inner and ->miter_outer */
 enum {
-  MOD_BEVEL_MITER_SHARP,
-  MOD_BEVEL_MITER_PATCH,
-  MOD_BEVEL_MITER_ARC,
+  MOD_BEVEL_MITER_SHARP = 0,
+  MOD_BEVEL_MITER_PATCH = 1,
+  MOD_BEVEL_MITER_ARC = 2,
 };
 
 /* BevelModifier->vmesh_method */
 enum {
-  MOD_BEVEL_VMESH_ADJ,
-  MOD_BEVEL_VMESH_CUTOFF,
+  MOD_BEVEL_VMESH_ADJ = 0,
+  MOD_BEVEL_VMESH_CUTOFF = 1,
+};
+
+/* BevelModifier->affect_type */
+enum {
+  MOD_BEVEL_AFFECT_VERTICES = 0,
+  MOD_BEVEL_AFFECT_EDGES = 1,
 };
 
 typedef struct FluidModifierData {
@@ -595,10 +622,10 @@ enum {
 };
 
 enum {
-  MOD_DECIM_MODE_COLLAPSE,
-  MOD_DECIM_MODE_UNSUBDIV,
+  MOD_DECIM_MODE_COLLAPSE = 0,
+  MOD_DECIM_MODE_UNSUBDIV = 1,
   /** called planar in the UI */
-  MOD_DECIM_MODE_DISSOLVE,
+  MOD_DECIM_MODE_DISSOLVE = 2,
 };
 
 typedef struct SmoothModifierData {
@@ -690,12 +717,12 @@ enum {
 typedef struct ArmatureModifierData {
   ModifierData modifier;
 
-  /** Deformflag replaces armature->deformflag. */
+  /** #eArmature_DeformFlag use instead of #bArmature.deformflag. */
   short deformflag, multi;
   char _pad2[4];
   struct Object *object;
-  /** Stored input of previous modifier, for vertexgroup blending. */
-  float *prevCos;
+  /** Stored input of previous modifier, for vertex-group blending. */
+  float (*vert_coords_prev)[3];
   /** MAX_VGROUP_NAME. */
   char defgrp_name[64];
 } ArmatureModifierData;
@@ -999,6 +1026,7 @@ typedef enum {
   /* DEPRECATED, only used for versioning. */
   eMultiresModifierFlag_PlainUv_DEPRECATED = (1 << 1),
   eMultiresModifierFlag_UseCrease = (1 << 2),
+  eMultiresModifierFlag_UseCustomNormals = (1 << 3),
 } MultiresModifierFlag;
 
 /* DEPRECATED, only used for versioning. */
@@ -1285,6 +1313,7 @@ typedef struct OceanModifierData {
   char cachepath[1024];
   /** MAX_CUSTOMDATA_LAYER_NAME. */
   char foamlayername[64];
+  char spraylayername[64];
   char cached;
   char geometry_mode;
 
@@ -1319,6 +1348,8 @@ enum {
 enum {
   MOD_OCEAN_GENERATE_FOAM = (1 << 0),
   MOD_OCEAN_GENERATE_NORMALS = (1 << 1),
+  MOD_OCEAN_GENERATE_SPRAY = (1 << 2),
+  MOD_OCEAN_INVERT_SPRAY = (1 << 3),
 };
 
 typedef struct WarpModifierData {
@@ -1415,7 +1446,7 @@ typedef struct WeightVGEditModifierData {
 
 /* WeightVGEdit flags. */
 enum {
-  /* (1 << 0) is free for future use! */
+  MOD_WVG_EDIT_WEIGHTS_NORMALIZE = (1 << 0),
   MOD_WVG_INVERT_FALLOFF = (1 << 1),
   MOD_WVG_EDIT_INVERT_VGROUP_MASK = (1 << 2),
   /** Add vertices with higher weight than threshold to vgroup. */
@@ -1503,6 +1534,9 @@ enum {
 /* WeightVGMix->flag */
 enum {
   MOD_WVG_MIX_INVERT_VGROUP_MASK = (1 << 0),
+  MOD_WVG_MIX_WEIGHTS_NORMALIZE = (1 << 1),
+  MOD_WVG_MIX_INVERT_VGROUP_A = (1 << 2),
+  MOD_WVG_MIX_INVERT_VGROUP_B = (1 << 3),
 };
 
 typedef struct WeightVGProximityModifierData {
@@ -1565,6 +1599,7 @@ enum {
   MOD_WVG_PROXIMITY_GEOM_FACES = (1 << 2),
   MOD_WVG_PROXIMITY_INVERT_VGROUP_MASK = (1 << 3),
   MOD_WVG_PROXIMITY_INVERT_FALLOFF = (1 << 4),
+  MOD_WVG_PROXIMITY_WEIGHTS_NORMALIZE = (1 << 3),
 };
 
 /* Defines common to all WeightVG modifiers. */
@@ -1695,15 +1730,15 @@ enum {
 /* Triangulate methods - NGons */
 enum {
   MOD_TRIANGULATE_NGON_BEAUTY = 0,
-  MOD_TRIANGULATE_NGON_EARCLIP,
+  MOD_TRIANGULATE_NGON_EARCLIP = 1,
 };
 
 /* Triangulate methods - Quads */
 enum {
   MOD_TRIANGULATE_QUAD_BEAUTY = 0,
-  MOD_TRIANGULATE_QUAD_FIXED,
-  MOD_TRIANGULATE_QUAD_ALTERNATE,
-  MOD_TRIANGULATE_QUAD_SHORTEDGE,
+  MOD_TRIANGULATE_QUAD_FIXED = 1,
+  MOD_TRIANGULATE_QUAD_ALTERNATE = 2,
+  MOD_TRIANGULATE_QUAD_SHORTEDGE = 3,
 };
 
 typedef struct LaplacianSmoothModifierData {
@@ -2118,8 +2153,13 @@ enum {
 #define MOD_MESHSEQ_READ_ALL \
   (MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV | MOD_MESHSEQ_READ_COLOR)
 
+typedef struct SimulationModifierData {
+  ModifierData modifier;
+
+  struct Simulation *simulation;
+  char *data_path;
+} SimulationModifierData;
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __DNA_MODIFIER_TYPES_H__ */

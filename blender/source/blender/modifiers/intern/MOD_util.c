@@ -43,6 +43,7 @@
 #include "BKE_lattice.h"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_wrapper.h"
 #include "BKE_object.h"
 
 #include "BKE_modifier.h"
@@ -168,12 +169,12 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
   }
 }
 
-void MOD_previous_vcos_store(ModifierData *md, float (*vertexCos)[3])
+void MOD_previous_vcos_store(ModifierData *md, const float (*vert_coords)[3])
 {
   while ((md = md->next) && md->type == eModifierType_Armature) {
     ArmatureModifierData *amd = (ArmatureModifierData *)md;
-    if (amd->multi && amd->prevCos == NULL) {
-      amd->prevCos = MEM_dupallocN(vertexCos);
+    if (amd->multi && amd->vert_coords_prev == NULL) {
+      amd->vert_coords_prev = MEM_dupallocN(vert_coords);
     }
     else {
       break;
@@ -186,7 +187,7 @@ void MOD_previous_vcos_store(ModifierData *md, float (*vertexCos)[3])
 Mesh *MOD_deform_mesh_eval_get(Object *ob,
                                struct BMEditMesh *em,
                                Mesh *mesh,
-                               float (*vertexCos)[3],
+                               const float (*vertexCos)[3],
                                const int num_verts,
                                const bool use_normals,
                                const bool use_orco)
@@ -196,7 +197,7 @@ Mesh *MOD_deform_mesh_eval_get(Object *ob,
   }
   else if (ob->type == OB_MESH) {
     if (em) {
-      mesh = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, NULL, ob->data);
+      mesh = BKE_mesh_wrapper_from_editmesh_with_coords(em, NULL, vertexCos, ob->data);
     }
     else {
       /* TODO(sybren): after modifier conversion of DM to Mesh is done, check whether
@@ -209,9 +210,12 @@ Mesh *MOD_deform_mesh_eval_get(Object *ob,
       mesh->runtime.deformed_only = 1;
     }
 
+    if (em != NULL) {
+      /* pass */
+    }
     /* TODO(sybren): after modifier conversion of DM to Mesh is done, check whether
      * we really need vertexCos here. */
-    if (vertexCos) {
+    else if (vertexCos) {
       BKE_mesh_vert_coords_apply(mesh, vertexCos);
       mesh->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
     }
@@ -241,7 +245,9 @@ Mesh *MOD_deform_mesh_eval_get(Object *ob,
     }
   }
 
-  BLI_assert(mesh == NULL || mesh->totvert == num_verts);
+  if (mesh && mesh->runtime.wrapper_type == ME_WRAPPER_TYPE_MDATA) {
+    BLI_assert(mesh->totvert == num_verts);
+  }
 
   return mesh;
 }
@@ -337,5 +343,6 @@ void modifier_type_init(ModifierTypeInfo *types[])
   INIT_TYPE(MeshSequenceCache);
   INIT_TYPE(SurfaceDeform);
   INIT_TYPE(WeightedNormal);
+  INIT_TYPE(Simulation);
 #undef INIT_TYPE
 }

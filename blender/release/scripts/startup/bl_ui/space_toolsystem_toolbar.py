@@ -50,11 +50,14 @@ def generate_from_enum_ex(
         attr,
         cursor='DEFAULT',
         tooldef_keywords={},
+        exclude_filter = {}
 ):
     tool_defs = []
     for enum in type.bl_rna.properties[attr].enum_items_static:
         name = enum.name
         idname = enum.identifier
+        if idname in exclude_filter:
+            continue
         tool_defs.append(
             ToolDef.from_dict(
                 dict(
@@ -124,12 +127,12 @@ class _defs_view3d_generic:
                 kmi_remove = None
             return tip_(
                 "Measure distance and angles.\n"
-                "\u2022 {} anywhere for new measurement.\n"
+                "\u2022 %s anywhere for new measurement.\n"
                 "\u2022 Drag ruler segment to measure an angle.\n"
-                "\u2022 {} to remove the active ruler.\n"
+                "\u2022 %s to remove the active ruler.\n"
                 "\u2022 Ctrl while dragging to snap.\n"
                 "\u2022 Shift while dragging to measure surface thickness"
-            ).format(
+            ) % (
                 kmi_to_string_or_none(kmi_add),
                 kmi_to_string_or_none(kmi_remove),
             )
@@ -147,6 +150,8 @@ class _defs_annotate:
 
     def draw_settings_common(context, layout, tool):
         gpd = context.annotation_data
+        region_type = context.region.type
+
         if gpd is not None:
             if gpd.layers.active_note is not None:
                 text = gpd.layers.active_note
@@ -159,17 +164,24 @@ class _defs_annotate:
             gpl = context.active_annotation_layer
             if gpl is not None:
                 layout.label(text="Annotation:")
-                sub = layout.row(align=True)
-                sub.ui_units_x = 8
+                if context.space_data.type == 'VIEW_3D':
+                    if region_type == 'TOOL_HEADER':
+                        sub = layout.split(align=True, factor=0.5)
+                        sub.ui_units_x = 6.5
+                        sub.prop(gpl, "color", text="")
+                    else:
+                        sub = layout.row(align=True)
+                        sub.prop(gpl, "color", text="")
+                    sub.popover(
+                        panel="TOPBAR_PT_annotation_layers",
+                        text=text,
+                    )
+                else:
+                    layout.prop(gpl, "color", text="")
 
-                sub.prop(gpl, "color", text="")
-                sub.popover(
-                    panel="TOPBAR_PT_annotation_layers",
-                    text=text,
-                )
-
-        tool_settings = context.tool_settings
         space_type = tool.space_type
+        tool_settings = context.tool_settings
+
         if space_type == 'VIEW_3D':
             layout.separator()
 
@@ -179,6 +191,29 @@ class _defs_annotate:
                 row.prop(tool_settings.gpencil_sculpt, "lockaxis")
             elif tool_settings.gpencil_stroke_placement_view3d in {'SURFACE', 'STROKE'}:
                 row.prop(tool_settings, "use_gpencil_stroke_endpoints")
+
+        if tool.idname == "builtin.annotate_line":
+            layout.separator()
+
+            props = tool.operator_properties("gpencil.annotate")
+            if region_type == 'TOOL_HEADER':
+                row = layout.row()
+                row.ui_units_x = 15
+                row.prop(props, "arrowstyle_start", text="Start")
+                row.separator()
+                row.prop(props, "arrowstyle_end", text="End")
+            else:
+                col = layout.row().column(align=True)
+                col.prop(props, "arrowstyle_start", text="Style Start")
+                col.prop(props, "arrowstyle_end", text="End")
+        elif tool.idname == "builtin.annotate" and region_type != 'TOOL_HEADER':
+            layout.separator()
+            props = tool.operator_properties("gpencil.annotate")
+            layout.prop(props, "use_stabilizer", text="Stabilize Stroke")
+            col = layout.column(align=False)
+            col.active = props.use_stabilizer
+            col.prop(props, "stabilizer_radius", text="Radius", slider=True)
+            col.prop(props, "stabilizer_factor", text="Factor", slider=True)
 
     @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
     def scribble(*, draw_settings):
@@ -404,9 +439,128 @@ class _defs_view3d_select:
         )
 
 
+class _defs_view3d_add:
+
+    # Layout tweaks here would be good to avoid,
+    # this shows limits in layout engine, as buttons are using a lot of space.
+    @staticmethod
+    def draw_settings_interactive_add(layout, tool):
+        props = tool.operator_properties("view3d.interactive_add")
+        row = layout.row()
+        row.scale_x = 0.8
+        row.label(text="Depth:")
+        row = layout.row()
+        row.scale_x = 0.9
+        row.prop(props, "plane_depth", text="")
+        row = layout.row()
+        row.prop(props, "plane_axis", text="")
+        row = layout.row()
+        row.scale_x = 0.8
+        row.label(text="Orientation:")
+        row = layout.row()
+        row.prop(props, "plane_orientation", text="")
+        row = layout.row()
+        row.scale_x = 0.7
+        row.prop(props, "plane_origin")
+
+    @ToolDef.from_fn
+    def cube_add():
+        def draw_settings(_context, layout, tool):
+            _defs_view3d_add.draw_settings_interactive_add(layout, tool)
+        return dict(
+            idname="builtin.primitive_cube_add",
+            label="Add Cube",
+            icon="ops.mesh.primitive_cube_add_gizmo",
+            description=(
+                "Add cube to mesh interactively"
+            ),
+            widget="VIEW3D_GGT_placement",
+            keymap="3D View Tool: Object, Add Primitive",
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def cone_add():
+        def draw_settings(_context, layout, tool):
+            _defs_view3d_add.draw_settings_interactive_add(layout, tool)
+
+            props = tool.operator_properties("mesh.primitive_cone_add")
+            layout.prop(props, "vertices")
+            layout.prop(props, "end_fill_type")
+        return dict(
+            idname="builtin.primitive_cone_add",
+            label="Add Cone",
+            icon="ops.mesh.primitive_cone_add_gizmo",
+            description=(
+                "Add cone to mesh interactively"
+            ),
+            widget="VIEW3D_GGT_placement",
+            keymap="3D View Tool: Object, Add Primitive",
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def cylinder_add():
+        def draw_settings(_context, layout, tool):
+            _defs_view3d_add.draw_settings_interactive_add(layout, tool)
+
+            props = tool.operator_properties("mesh.primitive_cylinder_add")
+            layout.prop(props, "vertices")
+            layout.prop(props, "end_fill_type")
+        return dict(
+            idname="builtin.primitive_cylinder_add",
+            label="Add Cylinder",
+            icon="ops.mesh.primitive_cylinder_add_gizmo",
+            description=(
+                "Add cylinder to mesh interactively"
+            ),
+            widget="VIEW3D_GGT_placement",
+            keymap="3D View Tool: Object, Add Primitive",
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def uv_sphere_add():
+        def draw_settings(_context, layout, tool):
+            _defs_view3d_add.draw_settings_interactive_add(layout, tool)
+
+            props = tool.operator_properties("mesh.primitive_uv_sphere_add")
+            layout.prop(props, "segments")
+            layout.prop(props, "ring_count")
+        return dict(
+            idname="builtin.primitive_uv_sphere_add",
+            label="Add UV Sphere",
+            icon="ops.mesh.primitive_sphere_add_gizmo",
+            description=(
+                "Add cylinder to mesh interactively"
+            ),
+            widget="VIEW3D_GGT_placement",
+            keymap="3D View Tool: Object, Add Primitive",
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def ico_sphere_add():
+        def draw_settings(_context, layout, tool):
+            _defs_view3d_add.draw_settings_interactive_add(layout, tool)
+
+            props = tool.operator_properties("mesh.primitive_ico_sphere_add")
+            layout.prop(props, "subdivisions")
+        return dict(
+            idname="builtin.primitive_ico_sphere_add",
+            label="Add Ico Sphere",
+            icon="ops.mesh.primitive_sphere_add_gizmo",
+            description=(
+                "Add cylinder to mesh interactively"
+            ),
+            widget="VIEW3D_GGT_placement",
+            keymap="3D View Tool: Object, Add Primitive",
+            draw_settings=draw_settings,
+        )
+
+
 # -----------------------------------------------------------------------------
 # Object Modes (named based on context.mode)
-
 
 class _defs_edit_armature:
 
@@ -464,19 +618,6 @@ class _defs_edit_armature:
 
 
 class _defs_edit_mesh:
-
-    @ToolDef.from_fn
-    def cube_add():
-        return dict(
-            idname="builtin.add_cube",
-            label="Add Cube",
-            icon="ops.mesh.primitive_cube_add_gizmo",
-            description=(
-                "Add cube to mesh interactively"
-            ),
-            widget=None,
-            keymap=(),
-        )
 
     @ToolDef.from_fn
     def rip_region():
@@ -605,39 +746,66 @@ class _defs_edit_mesh:
     def bevel():
         def draw_settings(context, layout, tool, *, extra=False):
             props = tool.operator_properties("mesh.bevel")
-            region_type = context.region.type
+
+            region_is_header = context.region.type == 'TOOL_HEADER'
+
+            edge_bevel = props.affect == 'EDGES'
 
             if not extra:
-                if region_type == 'TOOL_HEADER':
+                if region_is_header:
                     layout.prop(props, "offset_type", text="")
                 else:
+                    layout.row().prop(props, "affect", expand=True)
+                    layout.separator()
                     layout.prop(props, "offset_type")
 
                 layout.prop(props, "segments")
-                layout.prop(props, "profile", slider=True)
 
-                if region_type == 'TOOL_HEADER':
+                if region_is_header:
+                    layout.prop(props, "affect", text="")
+
+                layout.prop(props, "profile", text="Shape", slider=True)
+
+                if region_is_header:
                     layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
                 else:
                     extra = True
 
-            if extra or region_type != 'TOOL_HEADER':
-                layout.prop(props, "vertex_only")
-                layout.prop(props, "clamp_overlap")
-                layout.prop(props, "loop_slide")
-                layout.prop(props, "mark_seam")
-                layout.prop(props, "mark_sharp")
-                layout.prop(props, "harden_normals")
+            if extra:
+                layout.use_property_split = True
+                layout.use_property_decorate = False
 
                 layout.prop(props, "material")
 
-                layout.prop(props, "miter_outer", text="Outer Miter")
-                layout.prop(props, "miter_inner", text="Inner Miter")
-                if props.miter_inner == 'ARC':
-                    layout.prop(props, "spread")
+                col = layout.column()
+                col.prop(props, "harden_normals")
+                col.prop(props, "clamp_overlap")
+                col.prop(props, "loop_slide")
 
-                layout.prop(props, "use_custom_profile")
-                if props.use_custom_profile:
+                col = layout.column(heading="Mark")
+                col.active = edge_bevel
+                col.prop(props, "mark_seam", text="Seam")
+                col.prop(props, "mark_sharp", text="Sharp")
+
+
+                col = layout.column()
+                col.active = edge_bevel
+                col.prop(props, "miter_outer", text="Miter Outer")
+                col.prop(props, "miter_inner", text="Inner")
+                if props.miter_inner == 'ARC':
+                    col.prop(props, "spread")
+
+                layout.separator()
+
+                col = layout.column()
+                col.active = edge_bevel
+                col.prop(props, "vmesh_method", text="Intersections")
+
+                layout.prop(props, "face_strength_mode", text="Face Strength")
+
+                layout.prop(props, "profile_type")
+
+                if props.profile_type == 'CUSTOM':
                     tool_settings = context.tool_settings
                     layout.template_curveprofile(tool_settings, "custom_bevel_profile_preset")
 
@@ -665,6 +833,19 @@ class _defs_edit_mesh:
             operator="view3d.edit_mesh_extrude_move_normal",
             keymap=(),
             draw_settings=_template_widget.VIEW3D_GGT_xform_extrude.draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def extrude_manifold():
+        return dict(
+            idname="builtin.extrude_manifold",
+            label="Extrude Manifold",
+            description=(
+                "Extrude, dissolves edges whose faces form a flat surface and intersect new edges"
+            ),
+            icon="ops.mesh.extrude_manifold",
+            widget="VIEW3D_GGT_tool_generic_handle_normal",
+            keymap=(),
         )
 
     @ToolDef.from_fn
@@ -842,23 +1023,60 @@ class _defs_edit_curve:
 
     @ToolDef.from_fn
     def draw():
-        def draw_settings(context, layout, _tool):
+        def draw_settings(context, layout, tool, *, extra=False):
             # Tool settings initialize operator options.
             tool_settings = context.tool_settings
             cps = tool_settings.curve_paint_settings
+            region_type = context.region.type
 
-            col = layout.column()
+            if region_type == 'TOOL_HEADER':
+                if not extra:
+                    layout.prop(cps, "curve_type", text="")
+                    layout.prop(cps, "depth_mode", expand=True)
+                    layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
+                    return
 
-            col.prop(cps, "curve_type")
+            layout.use_property_split = True
+            layout.use_property_decorate = False
 
+            if region_type != 'TOOL_HEADER':
+                layout.prop(cps, "curve_type")
+                layout.separator()
             if cps.curve_type == 'BEZIER':
-                col.prop(cps, "error_threshold")
-                col.prop(cps, "fit_method")
-                col.prop(cps, "use_corners_detect")
+                layout.prop(cps, "fit_method")
+                layout.prop(cps, "error_threshold")
+                if region_type != 'TOOL_HEADER':
+                    row = layout.row(heading="Detect Corners", align=True)
+                else:
+                    row = layout.row(heading="Corners", align=True)
+                row.prop(cps, "use_corners_detect", text="")
+                sub = row.row(align=True)
+                sub.active = cps.use_corners_detect
+                sub.prop(cps, "corner_angle", text="")
+                layout.separator()
 
-                col = layout.row()
-                col.active = cps.use_corners_detect
-                col.prop(cps, "corner_angle")
+            col = layout.column(align=True)
+            col.prop(cps, "radius_taper_start", text="Taper Start", slider=True)
+            col.prop(cps, "radius_taper_end", text="End", slider=True)
+            col = layout.column(align=True)
+            col.prop(cps, "radius_min", text="Radius Min")
+            col.prop(cps, "radius_max", text="Max")
+            col.prop(cps, "use_pressure_radius")
+
+            if region_type != 'TOOL_HEADER' or cps.depth_mode == 'SURFACE':
+                layout.separator()
+
+            if region_type != 'TOOL_HEADER':
+                row = layout.row()
+                row.prop(cps, "depth_mode", expand=True)
+            if cps.depth_mode == 'SURFACE':
+                col = layout.column()
+                col.prop(cps, "surface_offset")
+                col.prop(cps, "use_offset_absolute")
+                col.prop(cps, "use_stroke_endpoints")
+                if cps.use_stroke_endpoints:
+                    colsub = layout.column(align=True)
+                    colsub.prop(cps, "surface_plane")
 
         return dict(
             idname="builtin.draw",
@@ -982,12 +1200,18 @@ class _defs_sculpt:
 
     @staticmethod
     def generate_from_brushes(context):
+        if bpy.context.preferences.experimental.use_sculpt_vertex_colors:
+            exclude_filter = {}
+        else:
+            exclude_filter = {'PAINT', 'SMEAR'}
+
         return generate_from_enum_ex(
             context,
             idname_prefix="builtin_brush.",
             icon_prefix="brush.sculpt.",
             type=bpy.types.Brush,
             attr="sculpt_tool",
+            exclude_filter = exclude_filter,
         )
 
     @ToolDef.from_fn
@@ -1028,16 +1252,71 @@ class _defs_sculpt:
             layout.prop(props, "strength")
             layout.prop(props, "deform_axis")
             layout.prop(props, "use_face_sets")
-            if (props.type == "SURFACE_SMOOTH"):
+            if props.type == 'SURFACE_SMOOTH':
                 layout.prop(props, "surface_smooth_shape_preservation", expand=False)
                 layout.prop(props, "surface_smooth_current_vertex", expand=False)
-            if (props.type == "SHARPEN"):
+            elif props.type == 'SHARPEN':
                 layout.prop(props, "sharpen_smooth_ratio", expand=False)
 
         return dict(
             idname="builtin.mesh_filter",
             label="Mesh Filter",
             icon="ops.sculpt.mesh_filter",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def cloth_filter():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sculpt.cloth_filter")
+            layout.prop(props, "type", expand=False)
+            layout.prop(props, "strength")
+            layout.prop(props, "cloth_mass")
+            layout.prop(props, "cloth_damping")
+            layout.prop(props, "use_face_sets")
+
+        return dict(
+            idname="builtin.cloth_filter",
+            label="Cloth Filter",
+            icon="ops.sculpt.cloth_filter",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def color_filter():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sculpt.color_filter")
+            layout.prop(props, "type", expand=False)
+            if props.type == 'FILL':
+                layout.prop(props, "fill_color", expand=False)
+            layout.prop(props, "strength")
+
+        return dict(
+            idname="builtin.color_filter",
+            label="Color Filter",
+            icon="ops.sculpt.color_filter",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def mask_by_color():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sculpt.mask_by_color")
+            layout.prop(props, "threshold")
+            layout.prop(props, "contiguous")
+            layout.prop(props, "invert")
+            layout.prop(props, "preserve_previous_mask")
+
+        return dict(
+            idname="builtin.mask_by_color",
+            label="Mask By Color",
+            icon="ops.sculpt.mask_by_color",
             widget=None,
             keymap=(),
             draw_settings=draw_settings,
@@ -1325,6 +1604,20 @@ class _defs_image_uv_select:
             keymap=(),
             draw_settings=draw_settings,
             draw_cursor=draw_cursor,
+        )
+
+
+class _defs_image_uv_edit:
+
+    @ToolDef.from_fn
+    def rip_region():
+        return dict(
+            idname="builtin.rip_region",
+            label="Rip Region",
+            icon="ops.mesh.rip",
+            # TODO: generic operator (UV version of `VIEW3D_GGT_tool_generic_handle_free`).
+            widget=None,
+            keymap=(),
         )
 
 
@@ -1922,6 +2215,8 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             *_tools_annotate,
             None,
+            _defs_image_uv_edit.rip_region,
+            None,
             lambda context: (
                 _defs_image_uv_sculpt.generate_from_brushes(context)
                 if _defs_image_generic.poll_uvedit(context)
@@ -2063,6 +2358,14 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         ),
     )
 
+    _tools_view3d_add = (
+        _defs_view3d_add.cube_add,
+        _defs_view3d_add.cone_add,
+        _defs_view3d_add.cylinder_add,
+        _defs_view3d_add.uv_sphere_add,
+        _defs_view3d_add.ico_sphere_add,
+    )
+
     _tools_default = (
         *_tools_select,
         _defs_view3d_generic.cursor,
@@ -2081,6 +2384,10 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         ],
         'OBJECT': [
             *_tools_default,
+
+            # Disable for 2.90 release.
+            # None,
+            # _tools_view3d_add,
         ],
         'POSE': [
             *_tools_default,
@@ -2108,9 +2415,13 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
         ],
         'EDIT_MESH': [
             *_tools_default,
+            # Disable for 2.90 release.
+            # None,
+            # _tools_view3d_add,
             None,
             (
                 _defs_edit_mesh.extrude,
+                _defs_edit_mesh.extrude_manifold,
                 _defs_edit_mesh.extrude_normals,
                 _defs_edit_mesh.extrude_individual,
                 _defs_edit_mesh.extrude_cursor,
@@ -2203,6 +2514,22 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_sculpt.hide_border,
             None,
             _defs_sculpt.mesh_filter,
+            _defs_sculpt.cloth_filter,
+            lambda context: (
+                (_defs_sculpt.color_filter,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_sculpt_vertex_colors)
+                else ()
+            ),
+            None,
+            lambda context: (
+                (_defs_sculpt.mask_by_color,)
+                if context is None or (
+                        context.preferences.view.show_developer_ui and
+                        context.preferences.experimental.use_sculpt_vertex_colors)
+                else ()
+            ),
             None,
             _defs_transform.translate,
             _defs_transform.rotate,

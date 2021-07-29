@@ -30,7 +30,6 @@
 
 #include "MEM_guardedalloc.h"
 
-extern "C" {
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_customdata_types.h"
@@ -75,7 +74,6 @@ extern "C" {
 #if 0
 #  include "NOD_common.h"
 #endif
-}
 
 #include "BlenderContext.h"
 #include "ExportSettings.h"
@@ -530,9 +528,7 @@ BoneExtensionManager::~BoneExtensionManager()
     for (BoneExtensionMap::iterator ext_it = extended_bones->begin();
          ext_it != extended_bones->end();
          ++ext_it) {
-      if (ext_it->second != NULL) {
-        delete ext_it->second;
-      }
+      delete ext_it->second;
     }
     extended_bones->clear();
     delete extended_bones;
@@ -607,7 +603,7 @@ float BoneExtended::get_roll()
   return this->roll;
 }
 
-void BoneExtended::set_tail(float vec[])
+void BoneExtended::set_tail(const float vec[])
 {
   this->tail[0] = vec[0];
   this->tail[1] = vec[1];

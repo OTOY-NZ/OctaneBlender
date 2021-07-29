@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
@@ -300,7 +300,7 @@ static void layerInterp_mdeformvert(const void **sources,
 
   /* now we know how many unique deform weights there are, so realloc */
   if (dvert->dw && (dvert->totweight == totweight)) {
-    /* pass (fastpath if we don't need to realloc) */
+    /* pass (fast-path if we don't need to realloc). */
   }
   else {
     if (dvert->dw) {
@@ -858,7 +858,6 @@ static void layerDoMinMax_mloopcol(const void *data, void *vmin, void *vmax)
   if (m->a < min->a) {
     min->a = m->a;
   }
-
   if (m->r > max->r) {
     max->r = m->r;
   }
@@ -1339,6 +1338,228 @@ static void layerDefault_fmap(void *data, int count)
   }
 }
 
+static void layerCopyValue_propcol(const void *source,
+                                   void *dest,
+                                   const int mixmode,
+                                   const float mixfactor)
+{
+  const MPropCol *m1 = source;
+  MPropCol *m2 = dest;
+  float tmp_col[4];
+
+  if (ELEM(mixmode,
+           CDT_MIX_NOMIX,
+           CDT_MIX_REPLACE_ABOVE_THRESHOLD,
+           CDT_MIX_REPLACE_BELOW_THRESHOLD)) {
+    /* Modes that do a full copy or nothing. */
+    if (ELEM(mixmode, CDT_MIX_REPLACE_ABOVE_THRESHOLD, CDT_MIX_REPLACE_BELOW_THRESHOLD)) {
+      /* TODO: Check for a real valid way to get 'factor' value of our dest color? */
+      const float f = (m2->color[0] + m2->color[1] + m2->color[2]) / 3.0f;
+      if (mixmode == CDT_MIX_REPLACE_ABOVE_THRESHOLD && f < mixfactor) {
+        return; /* Do Nothing! */
+      }
+      else if (mixmode == CDT_MIX_REPLACE_BELOW_THRESHOLD && f > mixfactor) {
+        return; /* Do Nothing! */
+      }
+    }
+    copy_v3_v3(m2->color, m1->color);
+  }
+  else { /* Modes that support 'real' mix factor. */
+    if (mixmode == CDT_MIX_MIX) {
+      blend_color_mix_float(tmp_col, m2->color, m1->color);
+    }
+    else if (mixmode == CDT_MIX_ADD) {
+      blend_color_add_float(tmp_col, m2->color, m1->color);
+    }
+    else if (mixmode == CDT_MIX_SUB) {
+      blend_color_sub_float(tmp_col, m2->color, m1->color);
+    }
+    else if (mixmode == CDT_MIX_MUL) {
+      blend_color_mul_float(tmp_col, m2->color, m1->color);
+    }
+    else {
+      memcpy(tmp_col, m1->color, sizeof(tmp_col));
+    }
+    blend_color_interpolate_float(m2->color, m2->color, tmp_col, mixfactor);
+
+    copy_v3_v3(m2->color, m1->color);
+  }
+  m2->color[3] = m1->color[3];
+}
+
+static bool layerEqual_propcol(const void *data1, const void *data2)
+{
+  const MPropCol *m1 = data1, *m2 = data2;
+  float tot = 0;
+
+  for (int i = 0; i < 4; i++) {
+    float c = (m1->color[i] - m2->color[i]);
+    tot += c * c;
+  }
+
+  return tot < 0.001f;
+}
+
+static void layerMultiply_propcol(void *data, float fac)
+{
+  MPropCol *m = data;
+  mul_v4_fl(m->color, fac);
+}
+
+static void layerAdd_propcol(void *data1, const void *data2)
+{
+  MPropCol *m = data1;
+  const MPropCol *m2 = data2;
+  add_v4_v4(m->color, m2->color);
+}
+
+static void layerDoMinMax_propcol(const void *data, void *vmin, void *vmax)
+{
+  const MPropCol *m = data;
+  MPropCol *min = vmin, *max = vmax;
+  minmax_v4v4_v4(min->color, max->color, m->color);
+}
+
+static void layerInitMinMax_propcol(void *vmin, void *vmax)
+{
+  MPropCol *min = vmin, *max = vmax;
+
+  copy_v4_fl(min->color, FLT_MAX);
+  copy_v4_fl(max->color, FLT_MIN);
+}
+
+static void layerDefault_propcol(void *data, int count)
+{
+  /* Default to white, full alpha. */
+  MPropCol default_propcol = {{1.0f, 1.0f, 1.0f, 1.0f}};
+  MPropCol *pcol = (MPropCol *)data;
+  int i;
+  for (i = 0; i < count; i++) {
+    copy_v4_v4(pcol[i].color, default_propcol.color);
+  }
+}
+
+static void layerInterp_propcol(
+    const void **sources, const float *weights, const float *sub_weights, int count, void *dest)
+{
+  MPropCol *mc = dest;
+  float col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  const float *sub_weight = sub_weights;
+  for (int i = 0; i < count; i++) {
+    float weight = weights ? weights[i] : 1.0f;
+    const MPropCol *src = sources[i];
+    if (sub_weights) {
+      madd_v4_v4fl(col, src->color, (*sub_weight) * weight);
+      sub_weight++;
+    }
+    else {
+      madd_v4_v4fl(col, src->color, weight);
+    }
+  }
+  copy_v4_v4(mc->color, col);
+}
+
+static int layerMaxNum_propcol(void)
+{
+  return MAX_MCOL;
+}
+
+static void layerInterp_propfloat3(
+    const void **sources, const float *weights, const float *sub_weights, int count, void *dest)
+{
+  vec3f result = {0.0f, 0.0f, 0.0f};
+  for (int i = 0; i < count; i++) {
+    float weight = weights ? weights[i] : 1.0f;
+    const vec3f *src = sources[i];
+    if (sub_weights) {
+      madd_v3_v3fl(&result.x, &src->x, sub_weights[i] * weight);
+    }
+    else {
+      madd_v3_v3fl(&result.x, &src->x, weight);
+    }
+  }
+  copy_v3_v3((float *)dest, &result.x);
+}
+
+static void layerMultiply_propfloat3(void *data, float fac)
+{
+  vec3f *vec = data;
+  vec->x *= fac;
+  vec->y *= fac;
+  vec->z *= fac;
+}
+
+static void layerAdd_propfloat3(void *data1, const void *data2)
+{
+  vec3f *vec1 = data1;
+  const vec3f *vec2 = data2;
+  vec1->x += vec2->x;
+  vec1->y += vec2->y;
+  vec1->z += vec2->z;
+}
+
+static bool layerValidate_propfloat3(void *data, const uint totitems, const bool do_fixes)
+{
+  float *values = data;
+  bool has_errors = false;
+  for (int i = 0; i < totitems * 3; i++) {
+    if (!isfinite(values[i])) {
+      if (do_fixes) {
+        values[i] = 0.0f;
+      }
+      has_errors = true;
+    }
+  }
+  return has_errors;
+}
+
+static void layerInterp_propfloat2(
+    const void **sources, const float *weights, const float *sub_weights, int count, void *dest)
+{
+  vec2f result = {0.0f, 0.0f};
+  for (int i = 0; i < count; i++) {
+    float weight = weights ? weights[i] : 1.0f;
+    const vec2f *src = sources[i];
+    if (sub_weights) {
+      madd_v2_v2fl(&result.x, &src->x, sub_weights[i] * weight);
+    }
+    else {
+      madd_v2_v2fl(&result.x, &src->x, weight);
+    }
+  }
+  copy_v2_v2((float *)dest, &result.x);
+}
+
+static void layerMultiply_propfloat2(void *data, float fac)
+{
+  vec2f *vec = data;
+  vec->x *= fac;
+  vec->y *= fac;
+}
+
+static void layerAdd_propfloat2(void *data1, const void *data2)
+{
+  vec2f *vec1 = data1;
+  const vec2f *vec2 = data2;
+  vec1->x += vec2->x;
+  vec1->y += vec2->y;
+}
+
+static bool layerValidate_propfloat2(void *data, const uint totitems, const bool do_fixes)
+{
+  float *values = data;
+  bool has_errors = false;
+  for (int i = 0; i < totitems * 2; i++) {
+    if (!isfinite(values[i])) {
+      if (do_fixes) {
+        values[i] = 0.0f;
+      }
+      has_errors = true;
+    }
+  }
+  return has_errors;
+}
+
 static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
     /* 0: CD_MVERT */
     {sizeof(MVert), "MVert", 1, NULL, NULL, NULL, NULL, NULL, NULL},
@@ -1423,7 +1644,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
      layerCopyValue_normal},
     /* 9: CD_FACEMAP */
     {sizeof(int), "", 0, NULL, NULL, NULL, NULL, NULL, layerDefault_fmap, NULL},
-    /* 10: CD_PROP_FLT */
+    /* 10: CD_PROP_FLOAT */
     {sizeof(MFloatProperty),
      "MFloatProperty",
      1,
@@ -1434,9 +1655,9 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
      NULL,
      NULL,
      layerValidate_propFloat},
-    /* 11: CD_PROP_INT */
+    /* 11: CD_PROP_INT32 */
     {sizeof(MIntProperty), "MIntProperty", 1, N_("Int"), layerCopy_propInt, NULL, NULL, NULL},
-    /* 12: CD_PROP_STR */
+    /* 12: CD_PROP_STRING */
     {sizeof(MStringProperty),
      "MStringProperty",
      1,
@@ -1652,8 +1873,59 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
     {sizeof(float), "MFloatProperty", 1, NULL, NULL, NULL, NULL, NULL, NULL},
     /* 45: CD_HAIRCURVE */
     {sizeof(HairCurve), "HairCurve", 1, NULL, NULL, NULL, NULL, NULL, NULL},
-    /* 46: CD_HAIR_MAPPING */
+    /* 46: CD_HAIRMAPPING */
     {sizeof(HairMapping), "HairMapping", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+    /* 47: CD_PROP_COLOR */
+    {sizeof(MPropCol),
+     "MPropCol",
+     1,
+     N_("Color"),
+     NULL,
+     NULL,
+     layerInterp_propcol,
+     NULL,
+     layerDefault_propcol,
+     NULL,
+     layerEqual_propcol,
+     layerMultiply_propcol,
+     layerInitMinMax_propcol,
+     layerAdd_propcol,
+     layerDoMinMax_propcol,
+     layerCopyValue_propcol,
+     NULL,
+     NULL,
+     NULL,
+     layerMaxNum_propcol},
+    /* 48: CD_PROP_FLOAT3 */
+    {sizeof(float[3]),
+     "vec3f",
+     1,
+     N_("Float3"),
+     NULL,
+     NULL,
+     layerInterp_propfloat3,
+     NULL,
+     NULL,
+     layerValidate_propfloat3,
+     NULL,
+     layerMultiply_propfloat3,
+     NULL,
+     layerAdd_propfloat3},
+    /* 49: CD_PROP_FLOAT2 */
+    {sizeof(float[2]),
+     "vec2f",
+     1,
+     N_("Float2"),
+     NULL,
+     NULL,
+     layerInterp_propfloat2,
+     NULL,
+     NULL,
+     layerValidate_propfloat2,
+     NULL,
+     layerMultiply_propfloat2,
+     NULL,
+     layerAdd_propfloat2},
 };
 
 static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
@@ -1706,6 +1978,9 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
     "CDHairCurve",
     "CDHairMapping",
     "CDPoint",
+    "CDPropCol",
+    "CDPropFloat3",
+    "CDPropFloat2",
 };
 
 const CustomData_MeshMasks CD_MASK_BAREMESH = {
@@ -1724,7 +1999,7 @@ const CustomData_MeshMasks CD_MASK_BAREMESH_ORIGINDEX = {
 };
 const CustomData_MeshMasks CD_MASK_MESH = {
     .vmask = (CD_MASK_MVERT | CD_MASK_MDEFORMVERT | CD_MASK_MVERT_SKIN | CD_MASK_PAINT_MASK |
-              CD_MASK_GENERIC_DATA),
+              CD_MASK_GENERIC_DATA | CD_MASK_PROP_COLOR),
     .emask = (CD_MASK_MEDGE | CD_MASK_FREESTYLE_EDGE | CD_MASK_GENERIC_DATA),
     .fmask = 0,
     .lmask = (CD_MASK_MLOOP | CD_MASK_MDISPS | CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL |
@@ -1734,7 +2009,7 @@ const CustomData_MeshMasks CD_MASK_MESH = {
 };
 const CustomData_MeshMasks CD_MASK_EDITMESH = {
     .vmask = (CD_MASK_MDEFORMVERT | CD_MASK_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_SHAPEKEY |
-              CD_MASK_SHAPE_KEYINDEX | CD_MASK_GENERIC_DATA),
+              CD_MASK_SHAPE_KEYINDEX | CD_MASK_GENERIC_DATA | CD_MASK_PROP_COLOR),
     .emask = (CD_MASK_GENERIC_DATA),
     .fmask = 0,
     .lmask = (CD_MASK_MDISPS | CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_CUSTOMLOOPNORMAL |
@@ -1743,7 +2018,7 @@ const CustomData_MeshMasks CD_MASK_EDITMESH = {
 };
 const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
     .vmask = (CD_MASK_ORIGINDEX | CD_MASK_MDEFORMVERT | CD_MASK_SHAPEKEY | CD_MASK_MVERT_SKIN |
-              CD_MASK_ORCO | CD_MASK_CLOTH_ORCO | CD_MASK_GENERIC_DATA),
+              CD_MASK_ORCO | CD_MASK_CLOTH_ORCO | CD_MASK_GENERIC_DATA | CD_MASK_PROP_COLOR),
     .emask = (CD_MASK_ORIGINDEX | CD_MASK_FREESTYLE_EDGE | CD_MASK_GENERIC_DATA),
     .fmask = (CD_MASK_ORIGINDEX | CD_MASK_ORIGSPACE | CD_MASK_PREVIEW_MCOL | CD_MASK_TANGENT),
     .lmask = (CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_CUSTOMLOOPNORMAL |
@@ -1754,7 +2029,8 @@ const CustomData_MeshMasks CD_MASK_DERIVEDMESH = {
 };
 const CustomData_MeshMasks CD_MASK_BMESH = {
     .vmask = (CD_MASK_MDEFORMVERT | CD_MASK_BWEIGHT | CD_MASK_MVERT_SKIN | CD_MASK_SHAPEKEY |
-              CD_MASK_SHAPE_KEYINDEX | CD_MASK_PAINT_MASK | CD_MASK_GENERIC_DATA),
+              CD_MASK_SHAPE_KEYINDEX | CD_MASK_PAINT_MASK | CD_MASK_GENERIC_DATA |
+              CD_MASK_PROP_COLOR),
     .emask = (CD_MASK_BWEIGHT | CD_MASK_CREASE | CD_MASK_FREESTYLE_EDGE | CD_MASK_GENERIC_DATA),
     .fmask = 0,
     .lmask = (CD_MASK_MDISPS | CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_CUSTOMLOOPNORMAL |
@@ -1778,7 +2054,7 @@ const CustomData_MeshMasks CD_MASK_EVERYTHING = {
     .vmask = (CD_MASK_MVERT | CD_MASK_BM_ELEM_PYPTR | CD_MASK_ORIGINDEX | CD_MASK_NORMAL |
               CD_MASK_MDEFORMVERT | CD_MASK_BWEIGHT | CD_MASK_MVERT_SKIN | CD_MASK_ORCO |
               CD_MASK_CLOTH_ORCO | CD_MASK_SHAPEKEY | CD_MASK_SHAPE_KEYINDEX | CD_MASK_PAINT_MASK |
-              CD_MASK_GENERIC_DATA),
+              CD_MASK_GENERIC_DATA | CD_MASK_PROP_COLOR),
     .emask = (CD_MASK_MEDGE | CD_MASK_BM_ELEM_PYPTR | CD_MASK_ORIGINDEX | CD_MASK_BWEIGHT |
               CD_MASK_CREASE | CD_MASK_FREESTYLE_EDGE | CD_MASK_GENERIC_DATA),
     .fmask = (CD_MASK_MFACE | CD_MASK_ORIGINDEX | CD_MASK_NORMAL | CD_MASK_MTFACE | CD_MASK_MCOL |
@@ -4142,7 +4418,7 @@ int CustomData_layertype_layers_max(const int type)
 
 static bool CustomData_is_property_layer(int type)
 {
-  if ((type == CD_PROP_FLT) || (type == CD_PROP_INT) || (type == CD_PROP_STR)) {
+  if ((type == CD_PROP_FLOAT) || (type == CD_PROP_INT32) || (type == CD_PROP_STRING)) {
     return true;
   }
   return false;
@@ -4291,6 +4567,32 @@ bool CustomData_layer_validate(CustomDataLayer *layer, const uint totitems, cons
   }
 
   return false;
+}
+
+void CustomData_layers__print(CustomData *data)
+{
+  int i;
+  const CustomDataLayer *layer;
+
+  printf("{\n");
+
+  for (i = 0, layer = data->layers; i < data->totlayer; i++, layer++) {
+
+    const char *name = CustomData_layertype_name(layer->type);
+    const int size = CustomData_sizeof(layer->type);
+    const char *structname;
+    int structnum;
+    CustomData_file_write_info(layer->type, &structname, &structnum);
+    printf("        dict(name='%s', struct='%s', type=%d, ptr='%p', elem=%d, length=%d),\n",
+           name,
+           structname,
+           layer->type,
+           (const void *)layer->data,
+           size,
+           (int)(MEM_allocN_len(layer->data) / size));
+  }
+
+  printf("}\n");
 }
 
 /****************************** External Files *******************************/

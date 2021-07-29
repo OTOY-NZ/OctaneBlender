@@ -21,8 +21,7 @@
  * \ingroup edscr
  */
 
-#ifndef __SCREEN_INTERN_H__
-#define __SCREEN_INTERN_H__
+#pragma once
 
 struct Main;
 struct bContext;
@@ -34,6 +33,11 @@ struct bContextDataResult;
 #define AZONESPOTH (0.6f * U.widget_unit)   /* height of corner azone */
 #define AZONEFADEIN (5.0f * U.widget_unit)  /* when azone is totally visible */
 #define AZONEFADEOUT (6.5f * U.widget_unit) /* when we start seeing the azone */
+
+#define AREAJOINTOLERANCE (1.0f * U.widget_unit) /* Edges must be close to allow joining. */
+
+/* Expanded interaction influence of area borders. */
+#define BORDERPADDING (U.dpi_fac + U.pixelsize)
 
 /* area.c */
 void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free);
@@ -92,5 +96,3 @@ void SCREEN_OT_screenshot(struct wmOperatorType *ot);
 
 /* workspace_layout_edit.c */
 bool workspace_layout_set_poll(const struct WorkSpaceLayout *layout);
-
-#endif /* __SCREEN_INTERN_H__ */

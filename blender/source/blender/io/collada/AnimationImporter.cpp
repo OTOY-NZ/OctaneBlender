@@ -52,12 +52,12 @@
 template<class T> static const char *bc_get_joint_name(T *node)
 {
   const std::string &id = node->getName();
-  return id.size() ? id.c_str() : node->getOriginalId().c_str();
+  return id.empty() ? node->getOriginalId().c_str() : id.c_str();
 }
 
 FCurve *AnimationImporter::create_fcurve(int array_index, const char *rna_path)
 {
-  FCurve *fcu = (FCurve *)MEM_callocN(sizeof(FCurve), "FCurve");
+  FCurve *fcu = BKE_fcurve_create();
   fcu->flag = (FCURVE_VISIBLE | FCURVE_AUTO_HANDLES | FCURVE_SELECTED);
   fcu->rna_path = BLI_strdupn(rna_path, strlen(rna_path));
   fcu->array_index = array_index;
@@ -100,7 +100,7 @@ void AnimationImporter::animation_to_fcurves(COLLADAFW::AnimationCurve *curve)
     case 16: /* matrix */
     {
       for (i = 0; i < dim; i++) {
-        FCurve *fcu = (FCurve *)MEM_callocN(sizeof(FCurve), "FCurve");
+        FCurve *fcu = BKE_fcurve_create();
 
         fcu->flag = (FCURVE_VISIBLE | FCURVE_AUTO_HANDLES | FCURVE_SELECTED);
         fcu->array_index = 0;
@@ -274,10 +274,10 @@ AnimationImporter::~AnimationImporter()
   /* free unused FCurves */
   for (std::vector<FCurve *>::iterator it = unused_curves.begin(); it != unused_curves.end();
        it++) {
-    free_fcurve(*it);
+    BKE_fcurve_free(*it);
   }
 
-  if (unused_curves.size()) {
+  if (!unused_curves.empty()) {
     fprintf(stderr, "removed %d unused curves\n", (int)unused_curves.size());
   }
 }
@@ -306,7 +306,7 @@ bool AnimationImporter::write_animation(const COLLADAFW::Animation *anim)
           animation_to_fcurves(curve);
           break;
         default:
-          /* TODO there're also CARDINAL, HERMITE, BSPLINE and STEP types */
+          /* TODO there are also CARDINAL, HERMITE, BSPLINE and STEP types. */
           fprintf(stderr,
                   "CARDINAL, HERMITE and BSPLINE anim interpolation types not supported yet.\n");
           break;
@@ -344,9 +344,11 @@ bool AnimationImporter::write_animation_list(const COLLADAFW::AnimationList *ani
   return true;
 }
 
-/* \todo refactor read_node_transform to not automatically apply anything,
+/**
+ * \todo refactor read_node_transform to not automatically apply anything,
  * but rather return the transform matrix, so caller can do with it what is
- * necessary. Same for \ref get_node_mat */
+ * necessary. Same for \ref get_node_mat
+ */
 void AnimationImporter::read_node_transform(COLLADAFW::Node *node, Object *ob)
 {
   float mat[4][4];
@@ -442,7 +444,7 @@ virtual void AnimationImporter::change_eul_to_quat(Object *ob, bAction *act)
       }
 
       action_groups_remove_channel(act, eulcu[i]);
-      free_fcurve(eulcu[i]);
+      BKE_fcurve_free(eulcu[i]);
     }
 
     chan->rotmode = ROT_MODE_QUAT;
@@ -736,7 +738,7 @@ void AnimationImporter::Assign_float_animations(const COLLADAFW::UniqueId &listi
           /* NOTE: Do NOT convert if imported file was made by blender <= 2.69.10
            * Reason: old blender versions stored spot_size in radians (was a bug)
            */
-          if (this->import_from_version == "" ||
+          if (this->import_from_version.empty() ||
               BLI_strcasecmp_natural(this->import_from_version.c_str(), "2.69.10") != -1) {
             fcurve_deg_to_rad(fcu);
           }
@@ -876,7 +878,7 @@ void AnimationImporter::apply_matrix_curves(Object *ob,
     newcu[i]->totvert = frames.size();
   }
 
-  if (frames.size() == 0) {
+  if (frames.empty()) {
     return;
   }
 
@@ -965,8 +967,6 @@ void AnimationImporter::apply_matrix_curves(Object *ob,
   else {
     ob->rotmode = ROT_MODE_QUAT;
   }
-
-  return;
 }
 
 /*
@@ -1331,7 +1331,7 @@ void AnimationImporter::add_bone_animation_sampled(Object *ob,
     newcu[i]->totvert = frames.size();
   }
 
-  if (frames.size() == 0) {
+  if (frames.empty()) {
     return;
   }
 
@@ -1639,7 +1639,7 @@ Object *AnimationImporter::translate_animation_OLD(
   job = get_joint_object(root, node, par_job);
 #endif
 
-  if (frames.size() == 0) {
+  if (frames.empty()) {
     return job;
   }
 
@@ -1874,7 +1874,7 @@ void AnimationImporter::evaluate_transform_at_frame(float mat[4][4],
 
     unit_m4(m);
 
-    std::string nodename = node->getName().size() ? node->getName() : node->getOriginalId();
+    std::string nodename = node->getName().empty() ? node->getOriginalId() : node->getName();
     if (!evaluate_animation(tm, m, fra, nodename.c_str())) {
       switch (type) {
         case COLLADAFW::Transformation::ROTATE:

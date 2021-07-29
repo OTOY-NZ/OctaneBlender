@@ -1,4 +1,4 @@
-﻿/*
+/*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -387,6 +387,18 @@ void wm_event_do_refresh_wm_and_depsgraph(bContext *C)
   CTX_wm_window_set(C, NULL);
 }
 
+static void wm_event_execute_timers(bContext *C)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+
+  /* Set the first window as context, so that there is some minimal context. This avoids crashes
+   * when calling code that assumes that there is always a window in the context (which many
+   * operators do). */
+  CTX_wm_window_set(C, wm->windows.first);
+  BLI_timer_execute();
+  CTX_wm_window_set(C, NULL);
+}
+
 /* called in mainloop */
 void wm_event_do_notifiers(bContext *C)
 {
@@ -398,7 +410,7 @@ void wm_event_do_notifiers(bContext *C)
     return;
   }
 
-  BLI_timer_execute();
+  wm_event_execute_timers(C);
 
   /* disable? - keep for now since its used for window level notifiers. */
 #if 1
@@ -591,7 +603,7 @@ static int wm_handler_ui_call(bContext *C,
     return WM_HANDLER_CONTINUE;
   }
 
-  /* UI is quite aggressive with swallowing events, like scrollwheel */
+  /* UI is quite aggressive with swallowing events, like scroll-wheel. */
   /* I realize this is not extremely nice code... when UI gets keymaps it can be maybe smarter */
   if (do_wheel_ui == false) {
     if (is_wheel) {
@@ -608,7 +620,7 @@ static int wm_handler_ui_call(bContext *C,
     return WM_UI_HANDLER_CONTINUE;
   }
 
-  /* we set context to where ui handler came from */
+  /* We set context to where UI handler came from. */
   if (handler->context.area) {
     CTX_wm_area_set(C, handler->context.area);
   }
@@ -810,7 +822,7 @@ bool WM_operator_check_ui_empty(wmOperatorType *ot)
     return true;
   }
 
-  /* Assume a ui callback will draw something. */
+  /* Assume a UI callback will draw something. */
   if (ot->ui) {
     return false;
   }
@@ -1351,8 +1363,7 @@ static int wm_operator_invoke(bContext *C,
           ScrArea *area = CTX_wm_area(C);
 
           /* Wrap only in X for header. */
-          if (region &&
-              ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER, RGN_TYPE_FOOTER)) {
+          if (region && RGN_TYPE_IS_HEADER_ANY(region->regiontype)) {
             wrap = WM_CURSOR_WRAP_X;
           }
 
@@ -2590,7 +2601,7 @@ static int wm_handlers_do_gizmo_handler(bContext *C,
 
     if (wm_gizmomap_highlight_set(gzmap, C, gz, part)) {
       if (gz != NULL) {
-        if (U.flag & USER_TOOLTIPS) {
+        if ((U.flag & USER_TOOLTIPS) && (gz->flag & WM_GIZMO_NO_TOOLTIP) == 0) {
           WM_tooltip_timer_init(C, CTX_wm_window(C), area, region, WM_gizmomap_tooltip_init);
         }
       }
@@ -2602,7 +2613,7 @@ static int wm_handlers_do_gizmo_handler(bContext *C,
 
   if (handle_keymap) {
     /* Handle highlight gizmo. */
-    if (gz != NULL) {
+    if ((gz != NULL) && (gz->flag & WM_GIZMO_HIDDEN_KEYMAP) == 0) {
       bool keymap_poll = false;
       wmGizmoGroup *gzgroup = gz->parent_gzgroup;
       wmKeyMap *keymap = WM_keymap_active(wm, gz->keymap ? gz->keymap : gzgroup->type->keymap);
@@ -2707,7 +2718,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
        handler_base = handler_base_next) {
     handler_base_next = handler_base->next;
 
-    /* during this loop, ui handlers for nested menus can tag multiple handlers free */
+    /* During this loop, UI handlers for nested menus can tag multiple handlers free. */
     if (handler_base->flag & WM_HANDLER_DO_FREE) {
       /* pass */
     }
@@ -2829,7 +2840,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 
     /* XXX code this for all modal ops, and ensure free only happens here */
 
-    /* modal ui handler can be tagged to be freed */
+    /* Modal UI handler can be tagged to be freed. */
     if (BLI_findindex(handlers, handler_base) !=
         -1) { /* could be freed already by regular modal ops */
       if (handler_base->flag & WM_HANDLER_DO_FREE) {
@@ -3222,9 +3233,9 @@ void wm_event_do_handlers(bContext *C)
           }
 
           if (is_playing_sound == 0) {
-            const float time = BKE_sound_sync_scene(scene_eval);
+            const double time = BKE_sound_sync_scene(scene_eval);
             if (isfinite(time)) {
-              int ncfra = time * (float)FPS + 0.5f;
+              int ncfra = time * FPS + 0.5;
               if (ncfra != scene->r.cfra) {
                 scene->r.cfra = ncfra;
                 ED_update_for_newframe(CTX_data_main(C), depsgraph);
@@ -3470,19 +3481,13 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   const bool is_temp_screen = WM_window_is_temp_screen(win);
-  const bool opens_window = (U.filebrowser_display_type == USER_TEMP_SPACE_DISPLAY_WINDOW);
-  /* Don't add the file handler to the temporary window if one is opened, or else it owns the
-   * handlers for itself, causing dangling pointers once it's destructed through a handler. It has
-   * a parent which should hold the handlers itself. */
-  ListBase *modalhandlers = (is_temp_screen && opens_window) ? &win->parent->modalhandlers :
-                                                               &win->modalhandlers;
 
   /* Close any popups, like when opening a file browser from the splash. */
-  UI_popup_handlers_remove_all(C, modalhandlers);
+  UI_popup_handlers_remove_all(C, &win->modalhandlers);
 
   if (!is_temp_screen) {
     /* only allow 1 file selector open per window */
-    LISTBASE_FOREACH_MUTABLE (wmEventHandler *, handler_base, modalhandlers) {
+    LISTBASE_FOREACH_MUTABLE (wmEventHandler *, handler_base, &win->modalhandlers) {
       if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
         if (handler->is_fileselect == false) {
@@ -3523,7 +3528,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   handler->context.area = CTX_wm_area(C);
   handler->context.region = CTX_wm_region(C);
 
-  BLI_addhead(modalhandlers, handler);
+  BLI_addhead(&win->modalhandlers, handler);
 
   /* check props once before invoking if check is available
    * ensures initial properties are valid */
@@ -4260,7 +4265,7 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
 /* imperfect but probably usable... draw/enable drags to other windows */
 static wmWindow *wm_event_cursor_other_windows(wmWindowManager *wm, wmWindow *win, wmEvent *event)
 {
-  int mx = event->x, my = event->y;
+  int mval[2] = {event->x, event->y};
 
   if (wm->windows.first == wm->windows.last) {
     return NULL;
@@ -4269,7 +4274,8 @@ static wmWindow *wm_event_cursor_other_windows(wmWindowManager *wm, wmWindow *wi
   /* in order to use window size and mouse position (pixels), we have to use a WM function */
 
   /* check if outside, include top window bar... */
-  if (mx < 0 || my < 0 || mx > WM_window_pixels_x(win) || my > WM_window_pixels_y(win) + 30) {
+  if (mval[0] < 0 || mval[1] < 0 || mval[0] > WM_window_pixels_x(win) ||
+      mval[1] > WM_window_pixels_y(win) + 30) {
     wmWindow *owin;
     wmEventHandler *handler;
 
@@ -4282,25 +4288,10 @@ static wmWindow *wm_event_cursor_other_windows(wmWindowManager *wm, wmWindow *wi
       }
     }
 
-    /* to desktop space */
-    mx += (int)(U.pixelsize * win->posx);
-    my += (int)(U.pixelsize * win->posy);
-
-    /* check other windows to see if it has mouse inside */
-    for (owin = wm->windows.first; owin; owin = owin->next) {
-
-      if (owin != win) {
-        int posx = (int)(U.pixelsize * owin->posx);
-        int posy = (int)(U.pixelsize * owin->posy);
-
-        if (mx - posx >= 0 && owin->posy >= 0 && mx - posx <= WM_window_pixels_x(owin) &&
-            my - posy <= WM_window_pixels_y(owin)) {
-          event->x = mx - (int)(U.pixelsize * owin->posx);
-          event->y = my - (int)(U.pixelsize * owin->posy);
-
-          return owin;
-        }
-      }
+    if (WM_window_find_under_cursor(wm, win, win, mval, &owin, mval)) {
+      event->x = mval[0];
+      event->y = mval[1];
+      return owin;
     }
   }
   return NULL;
@@ -4854,7 +4845,7 @@ wmKeyMapItem *WM_event_match_keymap_item_from_handlers(bContext *C,
                                                        const wmEvent *event)
 {
   LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
-    /* during this loop, ui handlers for nested menus can tag multiple handlers free */
+    /* During this loop, UI handlers for nested menus can tag multiple handlers free. */
     if (handler_base->flag & WM_HANDLER_DO_FREE) {
       /* pass */
     }

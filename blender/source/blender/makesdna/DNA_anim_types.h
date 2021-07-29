@@ -21,17 +21,16 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_ANIM_TYPES_H__
-#define __DNA_ANIM_TYPES_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 #include "DNA_ID.h"
 #include "DNA_action_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_listBase.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ************************************************ */
 /* F-Curve DataTypes */
@@ -1141,5 +1140,3 @@ typedef struct IdAdtTemplate {
 #ifdef __cplusplus
 };
 #endif
-
-#endif /* __DNA_ANIM_TYPES_H__ */

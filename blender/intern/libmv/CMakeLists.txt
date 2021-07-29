@@ -150,6 +150,7 @@ if(WITH_LIBMV)
     libmv/autotrack/tracks.h
     libmv/base/aligned_malloc.h
     libmv/base/id_generator.h
+    libmv/base/map.h
     libmv/base/scoped_ptr.h
     libmv/base/vector.h
     libmv/base/vector_utils.h
@@ -211,6 +212,8 @@ if(WITH_LIBMV)
 
 
   if(WITH_GTESTS)
+    include(GTestTesting)
+
     blender_add_lib(libmv_test_dataset "./libmv/multiview/test_data_sets.cc" "" "" "")
 
     BLENDER_SRC_GTEST("libmv_predict_tracks" "./libmv/autotrack/predict_tracks_test.cc" "libmv_test_dataset;bf_intern_libmv;extern_ceres")

@@ -63,7 +63,7 @@ void OVERLAY_paint_init(OVERLAY_Data *vedata)
   const DRWContextState *draw_ctx = DRW_context_state_get();
 
   pd->painting.in_front = pd->use_in_front && draw_ctx->obact &&
-                          (draw_ctx->obact->dtx & OB_DRAWXRAY);
+                          (draw_ctx->obact->dtx & OB_DRAW_IN_FRONT);
   pd->painting.alpha_blending = paint_object_is_rendered_transparent(draw_ctx->v3d,
                                                                      draw_ctx->obact);
 }
@@ -254,11 +254,18 @@ void OVERLAY_paint_draw(OVERLAY_Data *vedata)
   OVERLAY_PrivateData *pd = stl->pd;
 
   OVERLAY_PassList *psl = vedata->psl;
+  OVERLAY_FramebufferList *fbl = vedata->fbl;
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
   if (DRW_state_is_fbo()) {
-    /* Paint overlay needs final color because of multiply blend mode. */
-    GPU_framebuffer_bind(pd->painting.in_front ? dfbl->in_front_fb : dfbl->default_fb);
+    if (pd->painting.alpha_blending) {
+      GPU_framebuffer_bind(pd->painting.in_front ? fbl->overlay_in_front_fb :
+                                                   fbl->overlay_default_fb);
+    }
+    else {
+      /* Paint overlay needs final color because of multiply blend mode. */
+      GPU_framebuffer_bind(pd->painting.in_front ? dfbl->in_front_fb : dfbl->default_fb);
+    }
   }
 
   if (psl->paint_depth_ps) {

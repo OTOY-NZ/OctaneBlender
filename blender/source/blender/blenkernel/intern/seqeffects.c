@@ -61,6 +61,8 @@
 
 #include "BLF_api.h"
 
+static struct SeqEffectHandle get_sequence_effect_impl(int seq_type);
+
 static void slice_get_byte_buffers(const SeqRenderData *context,
                                    const ImBuf *ibuf1,
                                    const ImBuf *ibuf2,
@@ -2666,7 +2668,7 @@ static void RVAddBitmaps_float(float *a, float *b, float *c, int width, int heig
 }
 
 static void RVIsolateHighlights_float(
-    float *in, float *out, int width, int height, float threshold, float boost, float clamp)
+    const float *in, float *out, int width, int height, float threshold, float boost, float clamp)
 {
   int x, y, index;
   float intensity;
@@ -2808,7 +2810,7 @@ static ImBuf *do_glow_effect(const SeqRenderData *context,
                          context->rectx,
                          context->recty,
                          ibuf1->rect_float,
-                         ibuf2->rect_float,
+                         NULL,
                          out->rect_float);
   }
   else {
@@ -2819,7 +2821,7 @@ static ImBuf *do_glow_effect(const SeqRenderData *context,
                         context->rectx,
                         context->recty,
                         (unsigned char *)ibuf1->rect,
-                        (unsigned char *)ibuf2->rect,
+                        NULL,
                         (unsigned char *)out->rect);
   }
 
@@ -3118,7 +3120,7 @@ static void copy_speed_effect(Sequence *dst, Sequence *src, const int UNUSED(fla
 
 static int early_out_speed(Sequence *UNUSED(seq), float UNUSED(facf0), float UNUSED(facf1))
 {
-  return EARLY_USE_INPUT_1;
+  return EARLY_DO_EFFECT;
 }
 
 static void store_icu_yrange_speed(Sequence *seq, short UNUSED(adrcode), float *ymin, float *ymax)
@@ -3248,36 +3250,60 @@ void BKE_sequence_effect_speed_rebuild_map(Scene *scene, Sequence *seq, bool for
   }
 }
 
+/* Override cfra when rendering speed effect input. */
+float BKE_sequencer_speed_effect_target_frame_get(const SeqRenderData *context,
+                                                  Sequence *seq,
+                                                  float cfra,
+                                                  int input)
+{
+  int nr = BKE_sequencer_give_stripelem_index(seq, cfra);
+  SpeedControlVars *s = (SpeedControlVars *)seq->effectdata;
+  BKE_sequence_effect_speed_rebuild_map(context->scene, seq, false);
+
+  /* No interpolation. */
+  if ((s->flags & SEQ_SPEED_USE_INTERPOLATION) == 0) {
+    return seq->start + s->frameMap[nr];
+  }
+
+  /* We need to provide current and next image for interpolation. */
+  if (input == 0) { /* Current frame. */
+    return floor(seq->start + s->frameMap[nr]);
+  }
+  else { /* Next frame. */
+    return ceil(seq->start + s->frameMap[nr]);
+  }
+}
+
+static float speed_effect_interpolation_ratio_get(SpeedControlVars *s, Sequence *seq, float cfra)
+{
+  int nr = BKE_sequencer_give_stripelem_index(seq, cfra);
+  return s->frameMap[nr] - floor(s->frameMap[nr]);
+}
+
 static ImBuf *do_speed_effect(const SeqRenderData *context,
-                              Sequence *UNUSED(seq),
-                              float UNUSED(cfra),
+                              Sequence *seq,
+                              float cfra,
                               float facf0,
                               float facf1,
                               ImBuf *ibuf1,
                               ImBuf *ibuf2,
                               ImBuf *ibuf3)
 {
-  ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
+  SpeedControlVars *s = (SpeedControlVars *)seq->effectdata;
+  struct SeqEffectHandle cross_effect = get_sequence_effect_impl(SEQ_TYPE_CROSS);
+  ImBuf *out;
 
-  if (out->rect_float) {
-    do_cross_effect_float(facf0,
-                          facf1,
-                          context->rectx,
-                          context->recty,
-                          ibuf1->rect_float,
-                          ibuf2->rect_float,
-                          out->rect_float);
+  if (s->flags & SEQ_SPEED_USE_INTERPOLATION) {
+    out = prepare_effect_imbufs(context, ibuf1, ibuf2, ibuf3);
+    facf0 = facf1 = speed_effect_interpolation_ratio_get(s, seq, cfra);
+    /* Current frame is ibuf1, next frame is ibuf2. */
+    out = BKE_sequencer_effect_execute_threaded(
+        &cross_effect, context, NULL, cfra, facf0, facf1, ibuf1, ibuf2, ibuf3);
+    return out;
   }
-  else {
-    do_cross_effect_byte(facf0,
-                         facf1,
-                         context->rectx,
-                         context->recty,
-                         (unsigned char *)ibuf1->rect,
-                         (unsigned char *)ibuf2->rect,
-                         (unsigned char *)out->rect);
-  }
-  return out;
+
+  /* No interpolation. */
+  return IMB_dupImBuf(ibuf1);
 }
 
 /*********************** overdrop *************************/
@@ -3397,7 +3423,7 @@ static void do_gaussian_blur_effect_byte_x(Sequence *seq,
                                            int y,
                                            int frame_width,
                                            int UNUSED(frame_height),
-                                           unsigned char *rect,
+                                           const unsigned char *rect,
                                            unsigned char *out)
 {
 #define INDEX(_x, _y) (((_y) * (x) + (_x)) * 4)
@@ -3447,7 +3473,7 @@ static void do_gaussian_blur_effect_byte_y(Sequence *seq,
                                            int y,
                                            int UNUSED(frame_width),
                                            int frame_height,
-                                           unsigned char *rect,
+                                           const unsigned char *rect,
                                            unsigned char *out)
 {
 #define INDEX(_x, _y) (((_y) * (x) + (_x)) * 4)
@@ -3795,7 +3821,7 @@ void BKE_sequencer_text_font_load(TextVars *data, const bool do_id_user)
     }
 
     char path[FILE_MAX];
-    STRNCPY(path, data->text_font->name);
+    STRNCPY(path, data->text_font->filepath);
     BLI_assert(BLI_thread_is_main());
     BLI_path_abs(path, ID_BLEND_PATH_FROM_GLOBAL(&data->text_font->id));
 
@@ -3869,7 +3895,7 @@ static ImBuf *do_text_effect(const SeqRenderData *context,
     data->text_blf_id = -1;
 
     if (data->text_font) {
-      data->text_blf_id = BLF_load(data->text_font->name);
+      data->text_blf_id = BLF_load(data->text_font->filepath);
     }
   }
 

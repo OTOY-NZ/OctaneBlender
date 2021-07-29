@@ -21,8 +21,7 @@
  * \ingroup editorui
  */
 
-#ifndef __BIF_GLUTIL_H__
-#define __BIF_GLUTIL_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -172,17 +171,8 @@ void ED_draw_imbuf_ctx_clipping(const struct bContext *C,
 
 int ED_draw_imbuf_method(struct ImBuf *ibuf);
 
-/* OpenGL drawing utility functions. Do not use these in new code, these
- * are intended to be moved or removed in the future. */
-
-/* own working polygon offset */
-float bglPolygonOffsetCalc(const float winmat[16], float viewdist, float dist);
-void bglPolygonOffset(float viewdist, float dist);
-
 void immDrawBorderCorners(unsigned int pos, const struct rcti *border, float zoomx, float zoomy);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BIF_GLUTIL_H__ */

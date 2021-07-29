@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_USERDEF_TYPES_H__
-#define __DNA_USERDEF_TYPES_H__
+#pragma once
 
 #include "DNA_listBase.h"
 #include "DNA_texture_types.h" /* ColorBand */
@@ -422,8 +421,6 @@ typedef struct ThemeSpace {
   unsigned char info_debug[4], info_debug_text[4];
   unsigned char info_property[4], info_property_text[4];
   unsigned char info_operator[4], info_operator_text[4];
-  unsigned char info_report_error[4], info_report_warning[4], info_report_info[4];
-  char _pad[4];
 
   unsigned char paint_curve_pivot[4];
   unsigned char paint_curve_handle[4];
@@ -621,9 +618,12 @@ typedef struct UserDef_FileSpaceData {
 
 typedef struct UserDef_Experimental {
   char use_undo_legacy;
-  char use_menu_search;
+  char use_new_particle_system;
+  char use_new_hair_type;
+  char use_cycles_debug;
+  char use_sculpt_vertex_colors;
   /** `makesdna` does not allow empty structs. */
-  char _pad0[6];
+  char _pad[3];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -660,9 +660,9 @@ typedef struct UserDef {
   char anim_player[1024];
   int anim_player_preset;
 
-  /** Minimum spacing between gridlines in View2D grids. */
+  /** Minimum spacing between grid-lines in View2D grids. */
   short v2d_min_gridsize;
-  /** #eTimecodeStyles, style of timecode display. */
+  /** #eTimecodeStyles, style of time-code display. */
   short timecode_style;
 
   short versions;
@@ -689,21 +689,22 @@ typedef struct UserDef {
   int audioformat;
   int audiochannels;
 
-  /** Setting for UI scale. */
+  /** Setting for UI scale (fractional), before screen DPI has been applied. */
   float ui_scale;
   /** Setting for UI line width. */
   int ui_line_width;
-  /** Runtime, full DPI divided by pixelsize. */
+  /** Runtime, full DPI divided by `pixelsize`. */
   int dpi;
-  /** Runtime, multiplier to scale UI elements based on DPI. */
+  /** Runtime, multiplier to scale UI elements based on DPI (fractional). */
   float dpi_fac;
+  /** Runtime, `1.0 / dpi_fac` */
   float inv_dpi_fac;
-  /** Runtime, line width and point size based on DPI. */
+  /** Runtime, calculated from line-width and point-size based on DPI (rounded to int). */
   float pixelsize;
   /** Deprecated, for forward compatibility. */
   int virtual_pixel;
 
-  /** Console scrollback limit. */
+  /** Console scroll-back limit. */
   int scrollback;
   /** Node insert offset (aka auto-offset) margin, but might be useful for later stuff as well. */
   char node_margin;
@@ -876,8 +877,12 @@ typedef struct UserDef {
   int sequencer_disk_cache_compression; /* eUserpref_DiskCacheCompression */
   int sequencer_disk_cache_size_limit;
   short sequencer_disk_cache_flag;
-
   char _pad5[2];
+
+  float collection_instance_empty_size;
+  char _pad10[3];
+
+  char statusbar_flag; /* eUserpref_StatusBar_Flag */
 
   struct WalkNavigation walk_navigation;
 
@@ -1076,6 +1081,14 @@ typedef enum eUserpref_APP_Flag {
   USER_APP_LOCK_UI_LAYOUT = (1 << 0),
 } eUserpref_APP_Flag;
 
+/** #UserDef.statusbar_flag */
+typedef enum eUserpref_StatusBar_Flag {
+  STATUSBAR_SHOW_MEMORY = (1 << 0),
+  STATUSBAR_SHOW_VRAM = (1 << 1),
+  STATUSBAR_SHOW_STATS = (1 << 2),
+  STATUSBAR_SHOW_VERSION = (1 << 3),
+} eUserpref_StatusBar_Flag;
+
 /**
  * Auto-Keying mode.
  * #UserDef.autokey_mode
@@ -1151,6 +1164,15 @@ typedef enum eDupli_ID_Flags {
   USER_DUP_HAIR = (1 << 14),
   USER_DUP_POINTCLOUD = (1 << 15),
   USER_DUP_VOLUME = (1 << 16),
+
+  USER_DUP_OBDATA = (~0) & ((1 << 24) - 1),
+
+  /* Those are not exposed as user preferences, only used internaly. */
+  USER_DUP_OBJECT = (1 << 24),
+  /* USER_DUP_COLLECTION = (1 << 25), */ /* UNUSED, keep because we may implement. */
+
+  /* Duplicate (and hence make local) linked data. */
+  USER_DUP_LINKED_ID = (1 << 30),
 } eDupli_ID_Flags;
 
 /**
@@ -1190,7 +1212,7 @@ typedef enum eColorPicker_Types {
 } eColorPicker_Types;
 
 /**
- * Timecode display styles
+ * Time-code display styles.
  * #UserDef.timecode_style
  */
 typedef enum eTimecodeStyles {
@@ -1292,8 +1314,8 @@ typedef enum eUserpref_RenderDisplayType {
 } eUserpref_RenderDisplayType;
 
 typedef enum eUserpref_TempSpaceDisplayType {
-  USER_TEMP_SPACE_DISPLAY_FULLSCREEN,
-  USER_TEMP_SPACE_DISPLAY_WINDOW,
+  USER_TEMP_SPACE_DISPLAY_FULLSCREEN = 0,
+  USER_TEMP_SPACE_DISPLAY_WINDOW = 1,
 } eUserpref_TempSpaceDisplayType;
 
 typedef enum eUserpref_EmulateMMBMod {
@@ -1316,6 +1338,4 @@ enum {
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

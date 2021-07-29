@@ -150,7 +150,6 @@ void DRW_gpencil_batch_cache_free(bGPdata *gpd)
   gpencil_batch_cache_clear(gpd->runtime.gpencil_cache);
   MEM_SAFE_FREE(gpd->runtime.gpencil_cache);
   gpd->flag |= GP_DATA_CACHE_IS_DIRTY;
-  return;
 }
 
 /** \} */
@@ -273,7 +272,7 @@ static void gpencil_buffer_add_point(gpStrokeVert *verts,
                                      int v,
                                      bool is_endpoint)
 {
-  /* Note: we use the sign of stength and thickness to pass cap flag. */
+  /* Note: we use the sign of strength and thickness to pass cap flag. */
   const bool round_cap0 = (gps->caps[0] == GP_STROKE_CAP_ROUND);
   const bool round_cap1 = (gps->caps[1] == GP_STROKE_CAP_ROUND);
   gpStrokeVert *vert = &verts[v];
@@ -349,10 +348,10 @@ static void gpencil_stroke_iter_cb(bGPDlayer *UNUSED(gpl),
   }
 }
 
-static void gp_object_verts_count_cb(bGPDlayer *UNUSED(gpl),
-                                     bGPDframe *UNUSED(gpf),
-                                     bGPDstroke *gps,
-                                     void *thunk)
+static void gpencil_object_verts_count_cb(bGPDlayer *UNUSED(gpl),
+                                          bGPDframe *UNUSED(gpf),
+                                          bGPDstroke *gps,
+                                          void *thunk)
 {
   gpIterData *iter = (gpIterData *)thunk;
 
@@ -387,7 +386,7 @@ static void gpencil_batches_ensure(Object *ob, GpencilBatchCache *cache, int cfr
         .tri_len = 0,
     };
     BKE_gpencil_visible_stroke_iter(
-        NULL, ob, NULL, gp_object_verts_count_cb, &iter, do_onion, cfra);
+        NULL, ob, NULL, gpencil_object_verts_count_cb, &iter, do_onion, cfra);
 
     /* Create VBOs. */
     GPUVertFormat *format = gpencil_stroke_format();
@@ -441,10 +440,10 @@ GPUBatch *DRW_cache_gpencil_fills_get(Object *ob, int cfra)
   return cache->fill_batch;
 }
 
-static void gp_lines_indices_cb(bGPDlayer *UNUSED(gpl),
-                                bGPDframe *UNUSED(gpf),
-                                bGPDstroke *gps,
-                                void *thunk)
+static void gpencil_lines_indices_cb(bGPDlayer *UNUSED(gpl),
+                                     bGPDframe *UNUSED(gpf),
+                                     bGPDstroke *gps,
+                                     void *thunk)
 {
   gpIterData *iter = (gpIterData *)thunk;
   int pts_len = gps->totpoints + gpencil_stroke_is_cyclic(gps);
@@ -477,7 +476,8 @@ GPUBatch *DRW_cache_gpencil_face_wireframe_get(Object *ob)
 
     /* IMPORTANT: Keep in sync with gpencil_edit_batches_ensure() */
     bool do_onion = true;
-    BKE_gpencil_visible_stroke_iter(NULL, ob, NULL, gp_lines_indices_cb, &iter, do_onion, cfra);
+    BKE_gpencil_visible_stroke_iter(
+        NULL, ob, NULL, gpencil_lines_indices_cb, &iter, do_onion, cfra);
 
     GPUIndexBuf *ibo = GPU_indexbuf_build(&iter.ibo);
 
@@ -546,7 +546,7 @@ static void gpencil_sbuffer_stroke_ensure(bGPdata *gpd, bool do_stroke, bool do_
       ED_gpencil_tpoint_to_point(region, origin, &tpoints[i], &gps->points[i]);
       mul_m4_v3(ob->imat, &gps->points[i].x);
       bGPDspoint *pt = &gps->points[i];
-      copy_v4_v4(pt->vert_color, gpd->runtime.vert_color);
+      copy_v4_v4(pt->vert_color, tpoints[i].vert_color);
     }
     /* Calc uv data along the stroke. */
     BKE_gpencil_stroke_uv_update(gps);

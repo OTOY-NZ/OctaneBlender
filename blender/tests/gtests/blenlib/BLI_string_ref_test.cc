@@ -1,10 +1,11 @@
-#include "BLI_string_ref.h"
-#include "BLI_vector.h"
+/* Apache License, Version 2.0 */
+
+#include "BLI_strict_flags.h"
+#include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 #include "testing/testing.h"
 
-using BLI::StringRef;
-using BLI::StringRefNull;
-using BLI::Vector;
+namespace blender {
 
 TEST(string_ref_null, DefaultConstructor)
 {
@@ -33,6 +34,30 @@ TEST(string_ref, DefaultConstructor)
 {
   StringRef ref;
   EXPECT_EQ(ref.size(), 0);
+}
+
+TEST(string_ref, StartEndConstructor)
+{
+  const char *text = "hello world";
+  StringRef ref(text, text + 5);
+  EXPECT_EQ(ref.size(), 5);
+  EXPECT_TRUE(ref == "hello");
+  EXPECT_FALSE(ref == "hello ");
+}
+
+TEST(string_ref, StartEndConstructorNullptr)
+{
+  StringRef ref(nullptr, nullptr);
+  EXPECT_EQ(ref.size(), 0);
+  EXPECT_TRUE(ref == "");
+}
+
+TEST(string_ref, StartEndConstructorSame)
+{
+  const char *text = "hello world";
+  StringRef ref(text, text);
+  EXPECT_EQ(ref.size(), 0);
+  EXPECT_TRUE(ref == "");
 }
 
 TEST(string_ref, CStringConstructor)
@@ -237,3 +262,16 @@ TEST(string_ref, Substr)
   EXPECT_EQ(ref.substr(3, 4), "lo w");
   EXPECT_EQ(ref.substr(6, 5), "world");
 }
+
+TEST(string_ref, Copy)
+{
+  StringRef ref("hello");
+  char dst[10];
+  memset(dst, 0xFF, 10);
+  ref.copy(dst);
+  EXPECT_EQ(dst[5], '\0');
+  EXPECT_EQ(dst[6], 0xFF);
+  EXPECT_EQ(ref, dst);
+}
+
+}  // namespace blender

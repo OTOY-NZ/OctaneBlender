@@ -21,8 +21,10 @@
  * \ingroup gpu
  */
 
-#ifndef __GPU_DRAW_H__
-#define __GPU_DRAW_H__
+#pragma once
+
+#include "BLI_utildefines.h"
+#include "DNA_object_enums.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,17 +36,7 @@ struct Image;
 struct ImageUser;
 struct Main;
 
-#include "BLI_utildefines.h"
-#include "DNA_object_enums.h"
-
 /* OpenGL drawing functions related to shading. */
-
-/* Initialize
- * - sets the default Blender opengl state, if in doubt, check
- *   the contents of this function
- * - this is called when starting Blender, for opengl rendering. */
-
-void GPU_state_init(void);
 
 /* Mipmap settings
  * - these will free textures on changes */
@@ -57,7 +49,7 @@ void GPU_paint_set_mipmap(struct Main *bmain, bool mipmap);
 
 /* Anisotropic filtering settings
  * - these will free textures on changes */
-void GPU_set_anisotropic(struct Main *bmain, float value);
+void GPU_set_anisotropic(float value);
 float GPU_get_anisotropic(void);
 
 /* Image updates and free
@@ -86,17 +78,15 @@ void GPU_free_images_anim(struct Main *bmain);
 void GPU_free_images_old(struct Main *bmain);
 
 /* gpu_draw_smoke.c  */
-void GPU_free_smoke(struct FluidModifierData *mmd);
-void GPU_free_smoke_velocity(struct FluidModifierData *mmd);
-void GPU_create_smoke(struct FluidModifierData *mmd, int highres);
-void GPU_create_smoke_coba_field(struct FluidModifierData *mmd);
-void GPU_create_smoke_velocity(struct FluidModifierData *mmd);
+void GPU_free_smoke(struct FluidModifierData *fmd);
+void GPU_free_smoke_velocity(struct FluidModifierData *fmd);
+void GPU_create_smoke(struct FluidModifierData *fmd, int highres);
+void GPU_create_smoke_coba_field(struct FluidModifierData *fmd);
+void GPU_create_smoke_velocity(struct FluidModifierData *fmd);
 
 /* Delayed free of OpenGL buffers by main thread */
 void GPU_free_unused_buffers(void);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

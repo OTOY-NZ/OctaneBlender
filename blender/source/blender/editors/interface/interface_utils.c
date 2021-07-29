@@ -22,6 +22,7 @@
  */
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,12 +45,25 @@
 #include "RNA_access.h"
 
 #include "UI_interface.h"
+#include "UI_interface_icons.h"
 #include "UI_resources.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "interface_intern.h"
+
+bool ui_str_has_word_prefix(const char *haystack, const char *needle, size_t needle_len)
+{
+  const char *match = BLI_strncasestr(haystack, needle, needle_len);
+  if (match) {
+    if ((match == haystack) || (*(match - 1) == ' ') || ispunct(*(match - 1))) {
+      return true;
+    }
+    return ui_str_has_word_prefix(match + 1, needle, needle_len);
+  }
+  return false;
+}
 
 /*************************** RNA Utilities ******************************/
 
@@ -294,7 +308,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
                                      const bool compact)
 {
   eAutoPropButsReturn return_info = UI_PROP_BUTS_NONE_ADDED;
-  uiLayout *split, *col;
+  uiLayout *col;
   const char *name;
 
   RNA_STRUCT_BEGIN (ptr, prop) {
@@ -325,18 +339,10 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
         }
         else {
           BLI_assert(label_align == UI_BUT_LABEL_ALIGN_SPLIT_COLUMN);
-          split = uiLayoutSplit(layout, 0.5f, false);
-
-          col = uiLayoutColumn(split, false);
-          uiItemL(col, (is_boolean) ? "" : name, ICON_NONE);
-          col = uiLayoutColumn(split, false);
+          col = uiLayoutColumn(layout, true);
+          /* Let uiItemFullR() create the split layout. */
+          uiLayoutSetPropSep(col, true);
         }
-
-        /* May need to add more cases here.
-         * don't override enum flag names */
-
-        /* name is shown above, empty name for button below */
-        name = (flag & PROP_ENUM_FLAG || is_boolean) ? NULL : "";
 
         break;
       }
@@ -375,6 +381,9 @@ typedef struct CollItemSearch {
   char *name;
   int index;
   int iconid;
+  bool is_id;
+  int name_prefix_offset;
+  uint has_sep_char : 1;
 } CollItemSearch;
 
 static int sort_search_items_list(const void *a, const void *b)
@@ -385,18 +394,17 @@ static int sort_search_items_list(const void *a, const void *b)
   if (BLI_strcasecmp(cis1->name, cis2->name) > 0) {
     return 1;
   }
-  else {
-    return 0;
-  }
+  return 0;
 }
 
-void ui_rna_collection_search_cb(const struct bContext *C,
-                                 void *arg,
-                                 const char *str,
-                                 uiSearchItems *items)
+void ui_rna_collection_search_update_fn(const struct bContext *C,
+                                        void *arg,
+                                        const char *str,
+                                        uiSearchItems *items)
 {
   uiRNACollectionSearch *data = arg;
-  int i = 0, iconid = 0, flag = RNA_property_flag(data->target_prop);
+  const int flag = RNA_property_flag(data->target_prop);
+  int i = 0;
   ListBase *items_list = MEM_callocN(sizeof(ListBase), "items_list");
   CollItemSearch *cis;
   const bool is_ptr_target = (RNA_property_type(data->target_prop) == PROP_POINTER);
@@ -407,6 +415,7 @@ void ui_rna_collection_search_cb(const struct bContext *C,
   const bool skip_filter = data->search_but && !data->search_but->changed;
   char name_buf[UI_MAX_DRAW_STR];
   char *name;
+  bool has_id_icon = false;
 
   /* build a temporary list of relevant items first */
   RNA_PROP_BEGIN (&data->search_ptr, itemptr, data->search_prop) {
@@ -424,18 +433,28 @@ void ui_rna_collection_search_cb(const struct bContext *C,
       }
     }
 
-    iconid = 0;
-    if (itemptr.type && RNA_struct_is_ID(itemptr.type)) {
+    int name_prefix_offset = 0;
+    int iconid = ICON_NONE;
+    bool has_sep_char = false;
+    bool is_id = itemptr.type && RNA_struct_is_ID(itemptr.type);
+
+    if (is_id) {
       iconid = ui_id_icon_get(C, itemptr.data, false);
+      if (!ELEM(iconid, 0, ICON_BLANK1)) {
+        has_id_icon = true;
+      }
 
       if (requires_exact_data_name) {
         name = RNA_struct_name_get_alloc(&itemptr, name_buf, sizeof(name_buf), NULL);
       }
       else {
-        BKE_id_full_name_ui_prefix_get(name_buf, itemptr.data);
+        const ID *id = itemptr.data;
+        BKE_id_full_name_ui_prefix_get(
+            name_buf, itemptr.data, true, UI_SEP_CHAR, &name_prefix_offset);
         BLI_STATIC_ASSERT(sizeof(name_buf) >= MAX_ID_FULL_NAME_UI,
                           "Name string buffer should be big enough to hold full UI ID name");
         name = name_buf;
+        has_sep_char = (id->lib != NULL);
       }
     }
     else {
@@ -443,12 +462,15 @@ void ui_rna_collection_search_cb(const struct bContext *C,
     }
 
     if (name) {
-      if (skip_filter || BLI_strcasestr(name, str)) {
+      if (skip_filter || BLI_strcasestr(name + name_prefix_offset, str)) {
         cis = MEM_callocN(sizeof(CollItemSearch), "CollectionItemSearch");
         cis->data = itemptr.data;
         cis->name = BLI_strdup(name);
         cis->index = i;
         cis->iconid = iconid;
+        cis->is_id = is_id;
+        cis->name_prefix_offset = name_prefix_offset;
+        cis->has_sep_char = has_sep_char;
         BLI_addtail(items_list, cis);
       }
       if (name != name_buf) {
@@ -464,7 +486,24 @@ void ui_rna_collection_search_cb(const struct bContext *C,
 
   /* add search items from temporary list */
   for (cis = items_list->first; cis; cis = cis->next) {
-    if (!UI_search_item_add(items, cis->name, cis->data, cis->iconid, 0)) {
+    /* If no item has an own icon to display, libraries can use the library icons rather than the
+     * name prefix for showing the library status. */
+    int name_prefix_offset = cis->name_prefix_offset;
+    if (!has_id_icon && cis->is_id && !requires_exact_data_name) {
+      cis->iconid = UI_library_icon_get(cis->data);
+      /* No need to re-allocate, string should be shorter than before (lib status prefix is
+       * removed). */
+      BKE_id_full_name_ui_prefix_get(name_buf, cis->data, false, UI_SEP_CHAR, &name_prefix_offset);
+      BLI_assert(strlen(name_buf) <= MEM_allocN_len(cis->name));
+      strcpy(cis->name, name_buf);
+    }
+
+    if (!UI_search_item_add(items,
+                            cis->name,
+                            cis->data,
+                            cis->iconid,
+                            cis->has_sep_char ? UI_BUT_HAS_SEP_CHAR : 0,
+                            name_prefix_offset)) {
       break;
     }
   }
@@ -496,9 +535,7 @@ int UI_icon_from_id(ID *id)
     if (ob->type == OB_EMPTY) {
       return ICON_EMPTY_DATA;
     }
-    else {
-      return UI_icon_from_id(ob->data);
-    }
+    return UI_icon_from_id(ob->data);
   }
 
   /* otherwise get it through RNA, creating the pointer
@@ -514,15 +551,13 @@ int UI_icon_from_report_type(int type)
   if (type & RPT_ERROR_ALL) {
     return ICON_ERROR;
   }
-  else if (type & RPT_WARNING_ALL) {
+  if (type & RPT_WARNING_ALL) {
     return ICON_ERROR;
   }
-  else if (type & RPT_INFO_ALL) {
+  if (type & RPT_INFO_ALL) {
     return ICON_INFO;
   }
-  else {
-    return ICON_NONE;
-  }
+  return ICON_NONE;
 }
 
 /********************************** Misc **************************************/
@@ -593,7 +628,7 @@ bool UI_but_online_manual_id(const uiBut *but, char *r_str, size_t maxlength)
                  RNA_property_identifier(but->rnaprop));
     return true;
   }
-  else if (but->optype) {
+  if (but->optype) {
     WM_operator_py_idname(r_str, but->optype->idname);
     return true;
   }

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) Blender Foundation, 2002-2009
@@ -228,8 +228,6 @@ static void HC_relaxation_iteration_uv(BMEditMesh *em,
   }
 
   MEM_freeN(tmp_uvdata);
-
-  return;
 }
 
 static void laplacian_relaxation_iteration_uv(BMEditMesh *em,
@@ -302,8 +300,6 @@ static void laplacian_relaxation_iteration_uv(BMEditMesh *em,
   }
 
   MEM_freeN(tmp_uvdata);
-
-  return;
 }
 
 static void uv_sculpt_stroke_apply(bContext *C,

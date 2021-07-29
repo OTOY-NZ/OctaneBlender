@@ -2498,7 +2498,7 @@ static int pyrna_prop_collection_subscript_str_lib_pair_ptr(BPy_PropertyRNA *sel
     else if (PyUnicode_Check(keylib)) {
       Main *bmain = self->ptr.data;
       const char *keylib_str = _PyUnicode_AsString(keylib);
-      lib = BLI_findstring(&bmain->libraries, keylib_str, offsetof(Library, name));
+      lib = BLI_findstring(&bmain->libraries, keylib_str, offsetof(Library, filepath));
       if (lib == NULL) {
         if (err_not_found) {
           PyErr_Format(PyExc_KeyError,
@@ -7660,8 +7660,8 @@ void BPY_update_rna_module(void)
 }
 
 #if 0
-/* This is a way we can access docstrings for RNA types
- * without having the datatypes in blender */
+/* This is a way we can access doc-strings for RNA types
+ * without having the data-types in Blender. */
 PyObject *BPY_rna_doc(void)
 {
   PointerRNA ptr;
@@ -9040,32 +9040,41 @@ void pyrna_struct_type_extend_capi(struct StructRNA *srna,
                                    struct PyMethodDef *method,
                                    struct PyGetSetDef *getset)
 {
-  PyObject *cls = pyrna_srna_Subtype(srna);
+  /* See 'add_methods' in Python's 'typeobject.c'. */
+  PyTypeObject *type = (PyTypeObject *)pyrna_srna_Subtype(srna);
+  PyObject *dict = type->tp_dict;
   if (method != NULL) {
     for (; method->ml_name != NULL; method++) {
-      PyObject *func = PyCFunction_New(method, NULL);
-      PyObject *args = PyTuple_New(1);
-      PyTuple_SET_ITEM(args, 0, func);
-      PyObject *classmethod = PyObject_CallObject((PyObject *)&PyClassMethod_Type, args);
+      PyObject *py_method;
 
-      PyObject_SetAttrString(cls, method->ml_name, classmethod);
+      if (method->ml_flags & METH_CLASS) {
+        PyObject *cfunc = PyCFunction_New(method, (PyObject *)type);
+        py_method = PyClassMethod_New(cfunc);
+        Py_DECREF(cfunc);
+      }
+      else {
+        /* Currently only static and class methods are used. */
+        BLI_assert(method->ml_flags & METH_STATIC);
+        py_method = PyCFunction_New(method, NULL);
+      }
 
-      Py_DECREF(classmethod);
-      Py_DECREF(args); /* Clears 'func' too. */
+      int err = PyDict_SetItemString(dict, method->ml_name, py_method);
+      Py_DECREF(py_method);
+      BLI_assert(!(err < 0));
+      UNUSED_VARS_NDEBUG(err);
     }
   }
 
   if (getset != NULL) {
-    PyObject *dict = ((PyTypeObject *)cls)->tp_dict;
     for (; getset->name != NULL; getset++) {
-      PyObject *descr = PyDescr_NewGetSet((PyTypeObject *)cls, getset);
+      PyObject *descr = PyDescr_NewGetSet(type, getset);
       /* Ensure we're not overwriting anything that already exists. */
       BLI_assert(PyDict_GetItem(dict, PyDescr_NAME(descr)) == NULL);
       PyDict_SetItem(dict, PyDescr_NAME(descr), descr);
       Py_DECREF(descr);
     }
   }
-  Py_DECREF(cls);
+  Py_DECREF(type);
 }
 
 /* Access to 'owner_id' internal global. */

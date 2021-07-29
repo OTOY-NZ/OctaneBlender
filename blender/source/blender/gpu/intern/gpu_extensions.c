@@ -71,7 +71,7 @@ static struct GPUGlobal {
   int samples_color_texture_max;
   float line_width_range[2];
   /* workaround for different calculation of dfdy factors on GPUs. Some GPUs/drivers
-   * calculate dfdy in shader differently when drawing to an offscreen buffer. First
+   * calculate dfdy in shader differently when drawing to an off-screen buffer. First
    * number is factor on screen and second is off-screen */
   float dfdyfactors[2];
   float max_anisotropy;
@@ -84,9 +84,9 @@ static struct GPUGlobal {
    * GL_TEXTURE_MAX_LEVEL is higher than the target mip.
    * We need a workaround in this cases. */
   bool mip_render_workaround;
-  /* There is an issue with the glBlitFramebuffer on MacOS with radeon pro graphics.
-   * Blitting depth with GL_DEPTH24_STENCIL8 is buggy so the workaround is to use
-   * GPU_DEPTH32F_STENCIL8. Then Blitting depth will work but blitting stencil will
+  /* There is an issue with the #glBlitFramebuffer on MacOS with radeon pro graphics.
+   * Blitting depth with#GL_DEPTH24_STENCIL8 is buggy so the workaround is to use
+   * #GPU_DEPTH32F_STENCIL8. Then Blitting depth will work but blitting stencil will
    * still be broken. */
   bool depth_blitting_workaround;
   /* Crappy driver don't know how to map framebuffer slot to output vars...
@@ -95,8 +95,8 @@ static struct GPUGlobal {
   bool broken_amd_driver;
   /* Some crappy Intel drivers don't work well with shaders created in different
    * rendering contexts. */
-  bool context_local_shaders_workaround;
-  /* Intel drivers exhibit artifacts when using glCopyImageSubData & workbench antialiasing.
+  bool use_main_context_workaround;
+  /* Intel drivers exhibit artifacts when using #glCopyImageSubData & workbench anti-aliasing.
    * (see T76273) */
   bool texture_copy_workaround;
 } GG = {1, 0};
@@ -222,9 +222,9 @@ bool GPU_unused_fb_slot_workaround(void)
   return GG.unused_fb_slot_workaround;
 }
 
-bool GPU_context_local_shaders_workaround(void)
+bool GPU_use_main_context_workaround(void)
 {
-  return GG.context_local_shaders_workaround;
+  return GG.use_main_context_workaround;
 }
 
 bool GPU_texture_copy_workaround(void)
@@ -339,18 +339,16 @@ void gpu_extensions_init(void)
     GG.depth_blitting_workaround = true;
     GG.unused_fb_slot_workaround = true;
     GG.texture_copy_workaround = true;
-    GG.context_local_shaders_workaround = GLEW_ARB_get_program_binary;
   }
 
-  /* Special fix for theses specific GPUs. Without thoses workaround, blender crashes on strartup.
-   * (see T72098) */
+  /* Special fix for theses specific GPUs.
+   * Without this workaround, blender crashes on startup. (see T72098) */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_OFFICIAL) &&
       (strstr(renderer, "HD Graphics 620") || strstr(renderer, "HD Graphics 630"))) {
     GG.mip_render_workaround = true;
-    GG.context_local_shaders_workaround = GLEW_ARB_get_program_binary;
   }
 
-  /* Intel Ivy Bridge GPU's seems to have buggy cubemap array support. (see T75943) */
+  /* Intel Ivy Bridge GPU's seems to have buggy cube-map array support. (see T75943) */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_OFFICIAL) &&
       (strstr(renderer, "HD Graphics 4000") || strstr(renderer, "HD Graphics 4400") ||
        strstr(renderer, "HD Graphics 2500"))) {
@@ -383,12 +381,12 @@ void gpu_extensions_init(void)
       /* Maybe not all of these drivers have problems with `GLEW_ARB_base_instance`.
        * But it's hard to test each case. */
       GG.glew_arb_base_instance_is_supported = false;
-      GG.context_local_shaders_workaround = true;
+      GG.use_main_context_workaround = true;
     }
 
     if (strstr(version, "Build 20.19.15.4285")) {
       /* Somehow fixes armature display issues (see T69743). */
-      GG.context_local_shaders_workaround = true;
+      GG.use_main_context_workaround = true;
     }
   }
   else if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) &&
@@ -400,17 +398,19 @@ void gpu_extensions_init(void)
   }
 
   GPU_invalid_tex_init();
+  GPU_samplers_init();
 }
 
 void gpu_extensions_exit(void)
 {
   GPU_invalid_tex_free();
+  GPU_samplers_free();
 }
 
 bool GPU_mem_stats_supported(void)
 {
 #ifndef GPU_STANDALONE
-  return (GLEW_NVX_gpu_memory_info || GLEW_ATI_meminfo) && (G.debug & G_DEBUG_GPU_MEM);
+  return (GLEW_NVX_gpu_memory_info || GLEW_ATI_meminfo);
 #else
   return false;
 #endif
@@ -437,4 +437,12 @@ void GPU_mem_stats_get(int *totalmem, int *freemem)
     *totalmem = 0;
     *freemem = 0;
   }
+}
+
+/* Return support for the active context + window. */
+bool GPU_stereo_quadbuffer_support(void)
+{
+  GLboolean stereo = GL_FALSE;
+  glGetBooleanv(GL_STEREO, &stereo);
+  return stereo == GL_TRUE;
 }

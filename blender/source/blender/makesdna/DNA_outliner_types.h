@@ -21,8 +21,7 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_OUTLINER_TYPES_H__
-#define __DNA_OUTLINER_TYPES_H__
+#pragma once
 
 #include "DNA_defs.h"
 
@@ -62,8 +61,7 @@ enum {
   TSE_DRAG_AFTER = (1 << 8),
   /* Needed because outliner-only elements can be active */
   TSE_ACTIVE = (1 << 9),
-  /* Needed because walk selection should not activate */
-  TSE_ACTIVE_WALK = (1 << 10),
+  /* TSE_ACTIVE_WALK = (1 << 10), */ /* Unused */
   TSE_DRAG_ANY = (TSE_DRAG_INTO | TSE_DRAG_BEFORE | TSE_DRAG_AFTER),
 };
 
@@ -128,5 +126,3 @@ enum {
          TSE_KEYMAP_ITEM, \
          TSE_ID_BASE, \
          TSE_GP_LAYER))
-
-#endif

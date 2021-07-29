@@ -21,17 +21,16 @@
  * \ingroup gpu
  */
 
-#ifndef __GPU_SHADER_H__
-#define __GPU_SHADER_H__
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct GPUShader GPUShader;
+struct GPUShaderInterface;
 struct GPUTexture;
 struct GPUUniformBuffer;
-struct GPUShaderInterface;
 
 /* GPU Shader
  * - only for fragment shaders now
@@ -92,16 +91,18 @@ void *GPU_shader_get_interface(GPUShader *shader);
 void GPU_shader_set_srgb_uniform(const struct GPUShaderInterface *interface);
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
-int GPU_shader_get_uniform_ensure(GPUShader *shader, const char *name);
 int GPU_shader_get_builtin_uniform(GPUShader *shader, int builtin);
+int GPU_shader_get_builtin_block(GPUShader *shader, int builtin);
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name);
+
+int GPU_shader_get_uniform_block_binding(GPUShader *shader, const char *name);
+int GPU_shader_get_texture_binding(GPUShader *shader, const char *name);
+
 void GPU_shader_uniform_vector(
     GPUShader *shader, int location, int length, int arraysize, const float *value);
 void GPU_shader_uniform_vector_int(
     GPUShader *shader, int location, int length, int arraysize, const int *value);
 
-void GPU_shader_uniform_buffer(GPUShader *shader, int location, struct GPUUniformBuffer *ubo);
-void GPU_shader_uniform_texture(GPUShader *shader, int location, struct GPUTexture *tex);
 void GPU_shader_uniform_float(GPUShader *shader, int location, float value);
 void GPU_shader_uniform_int(GPUShader *shader, int location, int value);
 
@@ -142,8 +143,6 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_2D_IMAGE,
   GPU_SHADER_2D_IMAGE_COLOR,
   GPU_SHADER_2D_IMAGE_DESATURATE_COLOR,
-  GPU_SHADER_2D_IMAGE_ALPHA_COLOR,
-  GPU_SHADER_2D_IMAGE_ALPHA,
   GPU_SHADER_2D_IMAGE_RECT_COLOR,
   GPU_SHADER_2D_IMAGE_MULTI_RECT_COLOR,
   GPU_SHADER_2D_CHECKER,
@@ -207,16 +206,6 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE,
   GPU_SHADER_2D_IMAGE_OVERLAYS_STEREO_MERGE,
   GPU_SHADER_2D_IMAGE_SHUFFLE_COLOR,
-  GPU_SHADER_2D_IMAGE_MASK_UNIFORM_COLOR,
-  /**
-   * Draw texture with alpha. Take a 3D position and a 2D texture coordinate for each vertex.
-   *
-   * \param alpha: uniform float
-   * \param image: uniform sampler2D
-   * \param texCoord: in vec2
-   * \param pos: in vec3
-   */
-  GPU_SHADER_3D_IMAGE_MODULATE_ALPHA,
   /* points */
   /**
    * Draw round points with a hardcoded size.
@@ -382,5 +371,3 @@ void GPU_shader_free_builtin_shaders(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __GPU_SHADER_H__ */

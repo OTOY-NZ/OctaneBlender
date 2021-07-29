@@ -503,10 +503,8 @@ static void studiolight_create_equirect_radiance_gputexture(StudioLight *sl)
     sl->equirect_radiance_gputexture = GPU_texture_create_2d(
         ibuf->x, ibuf->y, GPU_RGBA16F, ibuf->rect_float, NULL);
     GPUTexture *tex = sl->equirect_radiance_gputexture;
-    GPU_texture_bind(tex, 0);
     GPU_texture_filter_mode(tex, true);
     GPU_texture_wrap_mode(tex, true, true);
-    GPU_texture_unbind(tex);
   }
   sl->flag |= STUDIOLIGHT_EQUIRECT_RADIANCE_GPUTEXTURE;
 }
@@ -567,10 +565,8 @@ static void studiolight_create_equirect_irradiance_gputexture(StudioLight *sl)
     sl->equirect_irradiance_gputexture = GPU_texture_create_2d(
         ibuf->x, ibuf->y, GPU_RGBA16F, ibuf->rect_float, NULL);
     GPUTexture *tex = sl->equirect_irradiance_gputexture;
-    GPU_texture_bind(tex, 0);
     GPU_texture_filter_mode(tex, true);
     GPU_texture_wrap_mode(tex, true, true);
-    GPU_texture_unbind(tex);
   }
   sl->flag |= STUDIOLIGHT_EQUIRECT_IRRADIANCE_GPUTEXTURE;
 }
@@ -879,7 +875,6 @@ BLI_INLINE void studiolight_spherical_harmonics_eval(StudioLight *sl,
     color[i] = studiolight_spherical_harmonics_geomerics_eval(
         normal, sh[0][i], sh[1][i], sh[2][i], sh[3][i]);
   }
-  return;
 #else
   /* L0 */
   mul_v3_v3fl(color, sl->spherical_harmonics_coefs[0], 0.282095f);
@@ -1430,9 +1425,9 @@ void BKE_studiolight_init(void)
 
   BLI_addtail(&studiolights, sl);
 
-  /* go over the preset folder and add a studiolight for every image with its path */
-  /* for portable installs (where USER and SYSTEM paths are the same),
-   * only go over LOCAL datafiles once */
+  /* Go over the preset folder and add a studio-light for every image with its path. */
+  /* For portable installs (where USER and SYSTEM paths are the same),
+   * only go over LOCAL data-files once. */
   /* Also reserve icon space for it. */
   if (!BKE_appdir_app_is_portable_install()) {
     studiolight_add_files_from_datafolder(BLENDER_USER_DATAFILES,

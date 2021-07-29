@@ -331,52 +331,51 @@ static int select_exec(bContext *C, wmOperator *op)
 
     return OPERATOR_FINISHED;
   }
-  else {
-    MaskSplinePointUW *uw;
 
-    if (ED_mask_feather_find_nearest(
-            C, mask, co, threshold, &mask_layer, &spline, &point, &uw, NULL)) {
+  MaskSplinePointUW *uw;
 
-      if (extend) {
-        mask_layer->act_spline = spline;
-        mask_layer->act_point = point;
+  if (ED_mask_feather_find_nearest(
+          C, mask, co, threshold, &mask_layer, &spline, &point, &uw, NULL)) {
 
-        if (uw) {
+    if (extend) {
+      mask_layer->act_spline = spline;
+      mask_layer->act_point = point;
+
+      if (uw) {
+        uw->flag |= SELECT;
+      }
+    }
+    else if (deselect) {
+      if (uw) {
+        uw->flag &= ~SELECT;
+      }
+    }
+    else {
+      mask_layer->act_spline = spline;
+      mask_layer->act_point = point;
+
+      if (uw) {
+        if (!(uw->flag & SELECT)) {
           uw->flag |= SELECT;
         }
-      }
-      else if (deselect) {
-        if (uw) {
+        else if (toggle) {
           uw->flag &= ~SELECT;
         }
       }
-      else {
-        mask_layer->act_spline = spline;
-        mask_layer->act_point = point;
-
-        if (uw) {
-          if (!(uw->flag & SELECT)) {
-            uw->flag |= SELECT;
-          }
-          else if (toggle) {
-            uw->flag &= ~SELECT;
-          }
-        }
-      }
-
-      ED_mask_select_flush_all(mask);
-
-      DEG_id_tag_update(&mask->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
-
-      return OPERATOR_FINISHED;
     }
-    else if (deselect_all) {
-      /* For clip editor tracks, leave deselect all to clip editor. */
-      if (!ED_clip_can_select(C)) {
-        ED_mask_deselect_all(C);
-        return OPERATOR_FINISHED;
-      }
+
+    ED_mask_select_flush_all(mask);
+
+    DEG_id_tag_update(&mask->id, ID_RECALC_SELECT);
+    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+
+    return OPERATOR_FINISHED;
+  }
+  if (deselect_all) {
+    /* For clip editor tracks, leave deselect all to clip editor. */
+    if (!ED_clip_can_select(C)) {
+      ED_mask_deselect_all(C);
+      return OPERATOR_FINISHED;
     }
   }
 
@@ -521,8 +520,8 @@ void MASK_OT_select_box(wmOperatorType *ot)
  * \{ */
 
 static bool do_lasso_select_mask(bContext *C,
-                                 const int mcords[][2],
-                                 short moves,
+                                 const int mcoords[][2],
+                                 const int mcoords_len,
                                  const eSelectOp sel_op)
 {
   ScrArea *area = CTX_wm_area(C);
@@ -540,7 +539,7 @@ static bool do_lasso_select_mask(bContext *C,
   }
 
   /* get rectangle from operator */
-  BLI_lasso_boundbox(&rect, mcords, moves);
+  BLI_lasso_boundbox(&rect, mcoords, mcoords_len);
 
   /* do actual selection */
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
@@ -573,7 +572,7 @@ static bool do_lasso_select_mask(bContext *C,
                                    &screen_co[1]);
 
         if (BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
-            BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], INT_MAX)) {
+            BLI_lasso_is_point_inside(mcoords, mcoords_len, screen_co[0], screen_co[1], INT_MAX)) {
           BKE_mask_point_select_set(point, select);
           BKE_mask_point_select_set_handle(point, MASK_WHICH_HANDLE_BOTH, select);
           changed = true;
@@ -594,14 +593,14 @@ static bool do_lasso_select_mask(bContext *C,
 
 static int clip_lasso_select_exec(bContext *C, wmOperator *op)
 {
-  int mcords_tot;
-  const int(*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
+  int mcoords_len;
+  const int(*mcoords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcoords_len);
 
-  if (mcords) {
+  if (mcoords) {
     const eSelectOp sel_op = RNA_enum_get(op->ptr, "mode");
-    do_lasso_select_mask(C, mcords, mcords_tot, sel_op);
+    do_lasso_select_mask(C, mcoords, mcoords_len, sel_op);
 
-    MEM_freeN((void *)mcords);
+    MEM_freeN((void *)mcoords);
 
     return OPERATOR_FINISHED;
   }

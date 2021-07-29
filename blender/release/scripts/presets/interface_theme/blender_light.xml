@@ -724,7 +724,7 @@
         freestyle_face_mark="#7fff7f33"
         face_back="#00000000"
         face_front="#00000000"
-        editmesh_active="#ffffff80"
+        editmesh_active="#ffffff40"
         wire_edit="#c0c0c0"
         edge_select="#ff8500"
         scope_back="#727272ff"
@@ -1052,9 +1052,6 @@
         info_property_text="#ffffff"
         info_operator="#3ace87ff"
         info_operator_text="#ffffff"
-        info_report_error="#990000"
-        info_report_warning="#b36a00"
-        info_report_info="#6080ff"
         >
         <space>
           <ThemeSpaceGeneric

@@ -22,8 +22,7 @@
  * \brief Object is a sort of wrapper for general info.
  */
 
-#ifndef __DNA_OBJECT_TYPES_H__
-#define __DNA_OBJECT_TYPES_H__
+#pragma once
 
 #include "DNA_object_enums.h"
 
@@ -462,6 +461,7 @@ enum {
 
   OB_VOLUME = 29,
 
+  /* Keep last. */
   OB_TYPE_MAX,
 };
 
@@ -494,19 +494,19 @@ enum {
         ID_VO))
 
 #define OB_DATA_SUPPORT_ID_CASE \
-ID_ME: \
-case ID_CU: \
-case ID_MB: \
-case ID_LA: \
-case ID_SPK: \
-case ID_LP: \
-case ID_CA: \
-case ID_LT: \
-case ID_GD: \
-case ID_AR: \
-case ID_HA: \
-case ID_PT: \
-case ID_VO
+  ID_ME: \
+  case ID_CU: \
+  case ID_MB: \
+  case ID_LA: \
+  case ID_SPK: \
+  case ID_LP: \
+  case ID_CA: \
+  case ID_LT: \
+  case ID_GD: \
+  case ID_AR: \
+  case ID_HA: \
+  case ID_PT: \
+  case ID_VO
 
 /* partype: first 4 bits: type */
 enum {
@@ -563,7 +563,7 @@ enum {
   /* for solid+wire display */
   OB_DRAWWIRE = 1 << 5,
   /* for overdraw s*/
-  OB_DRAWXRAY = 1 << 6,
+  OB_DRAW_IN_FRONT = 1 << 6,
   /* enable transparent draw */
   OB_DRAWTRANSP = 1 << 7,
   OB_DRAW_ALL_EDGES = 1 << 8, /* only for meshes currently */
@@ -713,6 +713,4 @@ enum {
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

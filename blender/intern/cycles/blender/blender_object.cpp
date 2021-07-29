@@ -59,7 +59,7 @@ bool BlenderSync::BKE_object_is_modified(BL::Object &b_ob)
   return false;
 }
 
-bool BlenderSync::object_is_mesh(BL::Object &b_ob)
+bool BlenderSync::object_is_geometry(BL::Object &b_ob)
 {
   BL::ID b_ob_data = b_ob.data();
 
@@ -69,11 +69,7 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
 
   BL::Object::type_enum type = b_ob.type();
 
-#ifdef WITH_NEW_OBJECT_TYPES
   if (type == BL::Object::type_VOLUME || type == BL::Object::type_HAIR) {
-#else
-  if (type == BL::Object::type_VOLUME) {
-#endif
     /* Will be exported attached to mesh. */
     return true;
   }
@@ -147,7 +143,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
 
   /* only interested in object that we can create meshes from */
-  if (!object_is_mesh(b_ob)) {
+  if (!object_is_geometry(b_ob)) {
     return NULL;
   }
 
@@ -235,6 +231,12 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   bool is_shadow_catcher = get_boolean(cobject, "is_shadow_catcher");
   if (is_shadow_catcher != object->is_shadow_catcher) {
     object->is_shadow_catcher = is_shadow_catcher;
+    object_updated = true;
+  }
+
+  float shadow_terminator_offset = get_float(cobject, "shadow_terminator_offset");
+  if (shadow_terminator_offset != object->shadow_terminator_offset) {
+    object->shadow_terminator_offset = shadow_terminator_offset;
     object_updated = true;
   }
 

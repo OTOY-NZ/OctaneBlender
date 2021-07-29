@@ -108,7 +108,7 @@ static bool weight_from_bones_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
 
-  return (ob && (ob->mode & OB_MODE_WEIGHT_PAINT) && modifiers_isDeformedByArmature(ob));
+  return (ob && (ob->mode & OB_MODE_WEIGHT_PAINT) && BKE_modifiers_is_deformed_by_armature(ob));
 }
 
 static int weight_from_bones_exec(bContext *C, wmOperator *op)
@@ -116,7 +116,7 @@ static int weight_from_bones_exec(bContext *C, wmOperator *op)
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Object *ob = CTX_data_active_object(C);
-  Object *armob = modifiers_isDeformedByArmature(ob);
+  Object *armob = BKE_modifiers_is_deformed_by_armature(ob);
   Mesh *me = ob->data;
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -272,9 +272,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void PAINT_OT_weight_sample(wmOperatorType *ot)
@@ -541,9 +539,7 @@ static int weight_paint_set_exec(bContext *C, wmOperator *op)
     ED_region_tag_redraw(CTX_wm_region(C)); /* XXX - should redraw all 3D views */
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void PAINT_OT_weight_set(wmOperatorType *ot)

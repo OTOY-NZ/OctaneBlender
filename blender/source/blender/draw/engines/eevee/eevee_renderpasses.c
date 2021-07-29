@@ -136,24 +136,13 @@ void EEVEE_renderpasses_output_init(EEVEE_ViewLayerData *sldata,
 {
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_TextureList *txl = vedata->txl;
-  EEVEE_PassList *psl = vedata->psl;
   EEVEE_StorageList *stl = vedata->stl;
   EEVEE_EffectsInfo *effects = stl->effects;
   EEVEE_PrivateData *g_data = stl->g_data;
-  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
   const bool needs_post_processing = (g_data->render_passes &
                                       EEVEE_RENDERPASSES_WITH_POST_PROCESSING) > 0;
   if (needs_post_processing) {
-    if (e_data.postprocess_sh == NULL) {
-      char *frag_str = BLI_string_joinN(datatoc_common_view_lib_glsl,
-                                        datatoc_common_uniforms_lib_glsl,
-                                        datatoc_bsdf_common_lib_glsl,
-                                        datatoc_renderpass_postprocess_frag_glsl);
-      e_data.postprocess_sh = DRW_shader_create_fullscreen(frag_str, NULL);
-      MEM_freeN(frag_str);
-    }
-
     /* Create FrameBuffer. */
 
     /* Should be enough to store the data needs for a single pass.
@@ -188,35 +177,56 @@ void EEVEE_renderpasses_output_init(EEVEE_ViewLayerData *sldata,
       EEVEE_volumes_output_init(sldata, vedata, tot_samples);
     }
 
-    /* Create Pass. */
-    DRW_PASS_CREATE(psl->renderpass_pass, DRW_STATE_WRITE_COLOR);
-    DRWShadingGroup *grp = DRW_shgroup_create(e_data.postprocess_sh, psl->renderpass_pass);
     /* We set a default texture as not all post processes uses the inputBuffer. */
     g_data->renderpass_input = txl->color;
     g_data->renderpass_col_input = txl->color;
     g_data->renderpass_light_input = txl->color;
+  }
+  else {
+    /* Free unneeded memory */
+    DRW_TEXTURE_FREE_SAFE(txl->renderpass);
+    GPU_FRAMEBUFFER_FREE_SAFE(fbl->renderpass_fb);
+  }
+}
+
+void EEVEE_renderpasses_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
+{
+  EEVEE_PassList *psl = vedata->psl;
+  EEVEE_PrivateData *g_data = vedata->stl->g_data;
+  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+
+  const bool needs_post_processing = (g_data->render_passes &
+                                      EEVEE_RENDERPASSES_WITH_POST_PROCESSING) > 0;
+  if (needs_post_processing) {
+    if (e_data.postprocess_sh == NULL) {
+      char *frag_str = BLI_string_joinN(datatoc_common_view_lib_glsl,
+                                        datatoc_common_uniforms_lib_glsl,
+                                        datatoc_bsdf_common_lib_glsl,
+                                        datatoc_renderpass_postprocess_frag_glsl);
+      e_data.postprocess_sh = DRW_shader_create_fullscreen(frag_str, NULL);
+      MEM_freeN(frag_str);
+    }
+
+    DRW_PASS_CREATE(psl->renderpass_pass, DRW_STATE_WRITE_COLOR);
+    DRWShadingGroup *grp = DRW_shgroup_create(e_data.postprocess_sh, psl->renderpass_pass);
     DRW_shgroup_uniform_texture_ref(grp, "inputBuffer", &g_data->renderpass_input);
     DRW_shgroup_uniform_texture_ref(grp, "inputColorBuffer", &g_data->renderpass_col_input);
     DRW_shgroup_uniform_texture_ref(
         grp, "inputSecondLightBuffer", &g_data->renderpass_light_input);
     DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);
-    DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
-    DRW_shgroup_uniform_block(
-        grp, "renderpass_block", EEVEE_material_default_render_pass_ubo_get(sldata));
+    DRW_shgroup_uniform_block_ref(grp, "common_block", &sldata->common_ubo);
+    DRW_shgroup_uniform_block_ref(grp, "renderpass_block", &sldata->renderpass_ubo.combined);
     DRW_shgroup_uniform_int(grp, "currentSample", &g_data->renderpass_current_sample, 1);
     DRW_shgroup_uniform_int(grp, "renderpassType", &g_data->renderpass_type, 1);
     DRW_shgroup_uniform_int(grp, "postProcessType", &g_data->renderpass_postprocess, 1);
     DRW_shgroup_call(grp, DRW_cache_fullscreen_quad_get(), NULL);
   }
   else {
-    /* Free unneeded memory */
-    DRW_TEXTURE_FREE_SAFE(txl->renderpass);
-    GPU_FRAMEBUFFER_FREE_SAFE(fbl->renderpass_fb);
     psl->renderpass_pass = NULL;
   }
 }
 
-/* Postprocess data to construct a specific renderpass
+/* Post-process data to construct a specific render-pass
  *
  * This method will create a shading group to perform the post-processing for the given
  * `renderpass_type`. The post-processing will be done and the result will be stored in the
@@ -224,8 +234,8 @@ void EEVEE_renderpasses_output_init(EEVEE_ViewLayerData *sldata,
  *
  * Only invoke this function for passes that need post-processing.
  *
- * After invoking this function the active framebuffer is set to `vedata->fbl->renderpass_fb`. */
-void EEVEE_renderpasses_postprocess(EEVEE_ViewLayerData *sldata,
+ * After invoking this function the active frame-buffer is set to `vedata->fbl->renderpass_fb`. */
+void EEVEE_renderpasses_postprocess(EEVEE_ViewLayerData *UNUSED(sldata),
                                     EEVEE_Data *vedata,
                                     eViewLayerEEVEEPassType renderpass_type)
 {
@@ -276,22 +286,30 @@ void EEVEE_renderpasses_postprocess(EEVEE_ViewLayerData *sldata,
       g_data->renderpass_input = txl->shadow_accum;
       break;
     }
-    case EEVEE_RENDER_PASS_DIFFUSE_COLOR:
-    case EEVEE_RENDER_PASS_SPECULAR_COLOR:
-    case EEVEE_RENDER_PASS_ENVIRONMENT:
+    case EEVEE_RENDER_PASS_DIFFUSE_COLOR: {
+      g_data->renderpass_postprocess = PASS_POST_ACCUMULATED_COLOR;
+      g_data->renderpass_input = txl->diff_color_accum;
+      break;
+    }
+    case EEVEE_RENDER_PASS_SPECULAR_COLOR: {
+      g_data->renderpass_postprocess = PASS_POST_ACCUMULATED_COLOR;
+      g_data->renderpass_input = txl->spec_color_accum;
+      break;
+    }
+    case EEVEE_RENDER_PASS_ENVIRONMENT: {
+      g_data->renderpass_postprocess = PASS_POST_ACCUMULATED_COLOR;
+      g_data->renderpass_input = txl->env_accum;
+      break;
+    }
     case EEVEE_RENDER_PASS_EMIT: {
       g_data->renderpass_postprocess = PASS_POST_ACCUMULATED_COLOR;
-      int renderpass_index = EEVEE_material_output_pass_index_get(sldata, vedata, renderpass_type);
-      g_data->renderpass_input = txl->material_accum[renderpass_index];
+      g_data->renderpass_input = txl->emit_accum;
       break;
     }
     case EEVEE_RENDER_PASS_SPECULAR_LIGHT: {
       g_data->renderpass_postprocess = PASS_POST_ACCUMULATED_LIGHT;
-      int renderpass_index = EEVEE_material_output_pass_index_get(sldata, vedata, renderpass_type);
-      int renderpass_index_color = EEVEE_material_output_color_pass_index_get(
-          sldata, vedata, renderpass_type);
-      g_data->renderpass_input = txl->material_accum[renderpass_index];
-      g_data->renderpass_col_input = txl->material_accum[renderpass_index_color];
+      g_data->renderpass_input = txl->spec_light_accum;
+      g_data->renderpass_col_input = txl->spec_color_accum;
       if ((stl->effects->enabled_effects & EFFECT_SSR) != 0) {
         g_data->renderpass_postprocess = PASS_POST_TWO_LIGHT_BUFFERS;
         g_data->renderpass_light_input = txl->ssr_accum;
@@ -303,11 +321,8 @@ void EEVEE_renderpasses_postprocess(EEVEE_ViewLayerData *sldata,
     }
     case EEVEE_RENDER_PASS_DIFFUSE_LIGHT: {
       g_data->renderpass_postprocess = PASS_POST_ACCUMULATED_LIGHT;
-      int renderpass_index = EEVEE_material_output_pass_index_get(sldata, vedata, renderpass_type);
-      int renderpass_index_color = EEVEE_material_output_color_pass_index_get(
-          sldata, vedata, renderpass_type);
-      g_data->renderpass_input = txl->material_accum[renderpass_index];
-      g_data->renderpass_col_input = txl->material_accum[renderpass_index_color];
+      g_data->renderpass_input = txl->diff_light_accum;
+      g_data->renderpass_col_input = txl->diff_color_accum;
       if ((stl->effects->enabled_effects & EFFECT_SSS) != 0) {
         g_data->renderpass_postprocess = PASS_POST_TWO_LIGHT_BUFFERS;
         g_data->renderpass_light_input = txl->sss_accum;
@@ -342,10 +357,6 @@ void EEVEE_renderpasses_output_accumulate(EEVEE_ViewLayerData *sldata,
   if (!post_effect) {
     if ((render_pass & EEVEE_RENDER_PASS_MIST) != 0) {
       EEVEE_mist_output_accumulate(sldata, vedata);
-    }
-    if ((render_pass & EEVEE_RENDER_PASS_DIFFUSE_LIGHT) != 0 &&
-        (effects->enabled_effects & EFFECT_SSS) != 0) {
-      EEVEE_subsurface_output_accumulate(sldata, vedata);
     }
     if ((render_pass & EEVEE_RENDER_PASS_AO) != 0) {
       EEVEE_occlusion_output_accumulate(sldata, vedata);

@@ -248,7 +248,7 @@ void swap_m4m4(float m1[4][4], float m2[4][4])
   }
 }
 
-void shuffle_m4(float R[4][4], int index[4])
+void shuffle_m4(float R[4][4], const int index[4])
 {
   zero_m4(R);
   for (int k = 0; k < 4; k++) {
@@ -2388,6 +2388,22 @@ void interp_m3_m3m3(float R[3][3], const float A[3][3], const float B[3][3], con
   mat3_polar_decompose(A, U_A, P_A);
   mat3_polar_decompose(B, U_B, P_B);
 
+  /* Quaternions cannot represent an axis flip. If such a singularity is detected, choose a
+   * different decomposition of the matrix that still satisfies A = U_A * P_A but which has a
+   * positive determinant and thus no axis flips. This resolves T77154.
+   *
+   * Note that a flip of two axes is just a rotation of 180 degrees around the third axis, and
+   * three flipped axes are just an 180 degree rotation + a single axis flip. It is thus sufficient
+   * to solve this problem for single axis flips. */
+  if (determinant_m3_array(U_A) < 0) {
+    mul_m3_fl(U_A, -1.0f);
+    mul_m3_fl(P_A, -1.0f);
+  }
+  if (determinant_m3_array(U_B) < 0) {
+    mul_m3_fl(U_B, -1.0f);
+    mul_m3_fl(P_B, -1.0f);
+  }
+
   mat3_to_quat(quat_A, U_A);
   mat3_to_quat(quat_B, U_B);
   interp_qt_qtqt(quat, quat_A, quat_B, t);
@@ -3101,115 +3117,6 @@ void invert_m4_m4_safe(float Ainv[4][4], const float A[4][4])
     }
   }
 }
-
-/* -------------------------------------------------------------------- */
-/** \name Invert (Safe Orthographic)
- *
- * Invert the matrix, filling in zeroed axes using the valid ones where possible.
- *
- * Unlike #invert_m4_m4_safe set degenerate axis unit length instead of adding a small value,
- * which has the results in:
- *
- * - Scaling by a large value on the resulting matrix.
- * - Changing axis which aren't degenerate.
- *
- * \note We could support passing in a length value if there is a good use-case
- * where we want to specify the length of the degenerate axes.
- * \{ */
-
-/**
- * Return true if invert should be attempted again.
- *
- * \note Takes an array of points to be usable from 3x3 and 4x4 matrices.
- */
-static bool invert_m3_m3_safe_ortho_prepare(float *mat[3])
-{
-  enum { X = 1 << 0, Y = 1 << 1, Z = 1 << 2 };
-  int flag = 0;
-  for (int i = 0; i < 3; i++) {
-    flag |= (len_squared_v3(mat[i]) == 0.0f) ? (1 << i) : 0;
-  }
-
-  /* Either all or none are zero, either way we can't properly resolve this
-   * since we need to fill invalid axes from valid ones. */
-  if (ELEM(flag, 0, X | Y | Z)) {
-    return false;
-  }
-
-  switch (flag) {
-    case X | Y: {
-      ortho_v3_v3(mat[1], mat[2]);
-      ATTR_FALLTHROUGH;
-    }
-    case X: {
-      cross_v3_v3v3(mat[0], mat[1], mat[2]);
-      break;
-    }
-
-    case Y | Z: {
-      ortho_v3_v3(mat[2], mat[0]);
-      ATTR_FALLTHROUGH;
-    }
-    case Y: {
-      cross_v3_v3v3(mat[1], mat[0], mat[2]);
-      break;
-    }
-
-    case Z | X: {
-      ortho_v3_v3(mat[0], mat[1]);
-      ATTR_FALLTHROUGH;
-    }
-    case Z: {
-      cross_v3_v3v3(mat[2], mat[0], mat[1]);
-      break;
-    }
-    default: {
-      BLI_assert(0); /* Unreachable! */
-    }
-  }
-
-  for (int i = 0; i < 3; i++) {
-    if (flag & (1 << i)) {
-      if (UNLIKELY(normalize_v3(mat[i]) == 0.0f)) {
-        mat[i][i] = 1.0f;
-      }
-    }
-  }
-
-  return true;
-}
-
-/**
- * A safe version of invert that uses valid axes, calculating the zero'd axis
- * based on the non-zero ones.
- *
- * This works well for transformation matrices, when a single axis is zerod.
- */
-void invert_m4_m4_safe_ortho(float Ainv[4][4], const float A[4][4])
-{
-  if (UNLIKELY(!invert_m4_m4(Ainv, A))) {
-    float Atemp[4][4];
-    copy_m4_m4(Atemp, A);
-    if (UNLIKELY(!(invert_m3_m3_safe_ortho_prepare((float *[3]){UNPACK3(Atemp)}) &&
-                   invert_m4_m4(Ainv, Atemp)))) {
-      unit_m4(Ainv);
-    }
-  }
-}
-
-void invert_m3_m3_safe_ortho(float Ainv[3][3], const float A[3][3])
-{
-  if (UNLIKELY(!invert_m3_m3(Ainv, A))) {
-    float Atemp[3][3];
-    copy_m3_m3(Atemp, A);
-    if (UNLIKELY(!(invert_m3_m3_safe_ortho_prepare((float *[3]){UNPACK3(Atemp)}) &&
-                   invert_m3_m3(Ainv, Atemp)))) {
-      unit_m3(Ainv);
-    }
-  }
-}
-
-/** \} */
 
 /**
  * #SpaceTransform struct encapsulates all needed data to convert between two coordinate spaces

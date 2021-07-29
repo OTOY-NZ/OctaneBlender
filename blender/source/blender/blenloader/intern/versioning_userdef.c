@@ -38,6 +38,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BKE_addon.h"
+#include "BKE_blender_version.h"
 #include "BKE_colorband.h"
 #include "BKE_idprop.h"
 #include "BKE_keyconfig.h"
@@ -214,12 +215,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.transparent_checker_primary);
     FROM_DEFAULT_V4_UCHAR(tui.transparent_checker_secondary);
     btheme->tui.transparent_checker_size = U_theme_default.tui.transparent_checker_size;
-  }
-
-  if (!USER_VERSION_ATLEAST(283, 18)) {
-    FROM_DEFAULT_V4_UCHAR(space_info.info_report_error);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_report_warning);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_report_info);
   }
 
   /**
@@ -759,6 +754,16 @@ void BLO_version_defaults_userpref_blend(Main *bmain, UserDef *userdef)
     userdef->transopts &= ~USER_DOTRANSLATE_DEPRECATED;
   }
 
+  if (!USER_VERSION_ATLEAST(290, 7)) {
+    userdef->statusbar_flag = STATUSBAR_SHOW_VERSION;
+  }
+
+  if (!USER_VERSION_ATLEAST(290, 8)) {
+    if (userdef->collection_instance_empty_size == 0) {
+      userdef->collection_instance_empty_size = 1.0f;
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -780,6 +785,25 @@ void BLO_version_defaults_userpref_blend(Main *bmain, UserDef *userdef)
     do_versions_theme(userdef, btheme);
   }
 #undef USER_VERSION_ATLEAST
+}
+
+void BLO_sanitize_experimental_features_userpref_blend(UserDef *userdef)
+{
+  /* User preference experimental settings are only supported in alpha builds.
+   * This prevents users corrupting data and relying on API that may change.
+   *
+   * If user preferences are saved this will be stored in disk as expected.
+   * This only starts to take effect when there is a release branch (on beta).
+   *
+   * At that time master already has its version bumped so its user preferences
+   * are not touched by these settings. */
+
+  if (BKE_blender_version_is_alpha()) {
+    return;
+  }
+  userdef->experimental.use_new_particle_system = false;
+  userdef->experimental.use_new_hair_type = false;
+  userdef->experimental.use_sculpt_vertex_colors = false;
 }
 
 #undef USER_LMOUSESELECT

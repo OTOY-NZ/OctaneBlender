@@ -25,14 +25,12 @@
 
 #include "COLLADAFWUniqueId.h"
 
-extern "C" {
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_object.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "ED_armature.h"
-}
 
 #include "DEG_depsgraph.h"
 
@@ -43,7 +41,7 @@ extern "C" {
 template<class T> static const char *bc_get_joint_name(T *node)
 {
   const std::string &id = node->getName();
-  return id.size() ? id.c_str() : node->getOriginalId().c_str();
+  return id.empty() ? node->getOriginalId().c_str() : id.c_str();
 }
 
 ArmatureImporter::ArmatureImporter(UnitConverter *conv,
@@ -335,7 +333,7 @@ void ArmatureImporter::connect_bone_chains(bArmature *armature, Bone *parentbone
       /*
        * It is possible that the child's head is located on the parents head.
        * When this happens, then moving the parent's tail to the child's head
-       * would result in a zero sized bone and Blender would  silently remove the bone.
+       * would result in a zero sized bone and Blender would silently remove the bone.
        * So we move the tail only when the resulting bone has a minimum length:
        */
 
@@ -608,7 +606,7 @@ Object *ArmatureImporter::create_armature_bones(Main *bmain, SkinInfo &skin)
     }
   }
 
-  if (!shared && this->joint_parent_map.size() > 0) {
+  if (!shared && !this->joint_parent_map.empty()) {
     /* All armatures have been created while creating the Node tree.
      * The Collada exporter currently does not create a
      * strict relationship between geometries and armatures
@@ -971,8 +969,8 @@ void ArmatureImporter::make_shape_keys(bContext *C)
 
       /* insert other shape keys */
       for (int i = 0; i < morphTargetIds.getCount(); i++) {
-        /* better to have a separate map of morph objects,
-         * This'll do for now since only mesh morphing is imported */
+        /* Better to have a separate map of morph objects,
+         * This will do for now since only mesh morphing is imported. */
 
         Mesh *me = this->mesh_importer->get_mesh_by_geom_uid(morphTargetIds[i]);
 

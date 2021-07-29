@@ -36,38 +36,12 @@
 #include "MEM_guardedalloc.h"
 
 /* all types are needed here, in order to do memory operations */
+#include "DNA_ID.h"
 #include "DNA_anim_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_brush_types.h"
-#include "DNA_cachefile_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_collection_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_hair_types.h"
-#include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
-#include "DNA_lattice_types.h"
-#include "DNA_light_types.h"
-#include "DNA_lightprobe_types.h"
-#include "DNA_linestyle_types.h"
-#include "DNA_mask_types.h"
-#include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meta_types.h"
-#include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
-#include "DNA_pointcloud_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_speaker_types.h"
-#include "DNA_text_types.h"
-#include "DNA_vfont_types.h"
-#include "DNA_volume_types.h"
-#include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
-#include "DNA_world_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -80,50 +54,22 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_armature.h"
 #include "BKE_bpath.h"
-#include "BKE_brush.h"
-#include "BKE_cachefile.h"
-#include "BKE_camera.h"
-#include "BKE_collection.h"
 #include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
-#include "BKE_hair.h"
 #include "BKE_idprop.h"
 #include "BKE_idtype.h"
-#include "BKE_image.h"
 #include "BKE_key.h"
-#include "BKE_lattice.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_override.h"
 #include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
-#include "BKE_light.h"
-#include "BKE_lightprobe.h"
-#include "BKE_linestyle.h"
 #include "BKE_main.h"
-#include "BKE_mask.h"
-#include "BKE_material.h"
-#include "BKE_mball.h"
-#include "BKE_mesh.h"
-#include "BKE_movieclip.h"
 #include "BKE_node.h"
-#include "BKE_object.h"
-#include "BKE_paint.h"
-#include "BKE_particle.h"
-#include "BKE_pointcloud.h"
 #include "BKE_rigidbody.h"
-#include "BKE_scene.h"
-#include "BKE_sound.h"
-#include "BKE_speaker.h"
-#include "BKE_text.h"
-#include "BKE_texture.h"
-#include "BKE_volume.h"
-#include "BKE_world.h"
 
 #include "DEG_depsgraph.h"
 
@@ -168,7 +114,7 @@ IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
  * Also note that the id _must_ have a library - campbell */
 static void lib_id_library_local_paths(Main *bmain, Library *lib, ID *id)
 {
-  const char *bpath_user_data[2] = {BKE_main_blendfile_path(bmain), lib->filepath};
+  const char *bpath_user_data[2] = {BKE_main_blendfile_path(bmain), lib->filepath_abs};
 
   BKE_bpath_traverse_id(bmain,
                         id,
@@ -181,7 +127,7 @@ static int lib_id_clear_library_data_users_update_cb(LibraryIDLinkCallbackData *
 {
   ID *id = cb_data->user_data;
   if (*cb_data->id_pointer == id) {
-    DEG_id_tag_update(cb_data->id_owner, ID_RECALC_TAG_FOR_UNDO);
+    DEG_id_tag_update_ex(cb_data->bmain, cb_data->id_owner, ID_RECALC_TAG_FOR_UNDO);
     return IDWALK_RET_STOP_ITER;
   }
   return IDWALK_RET_NOP;
@@ -214,7 +160,7 @@ static void lib_id_clear_library_data_ex(Main *bmain, ID *id)
   BKE_lib_libblock_session_uuid_renew(id);
 
   /* We need to tag this IDs and all of its users, conceptually new local ID and original linked
-   * ones are two completely different data-blocks that were virtually remaped, even though in
+   * ones are two completely different data-blocks that were virtually remapped, even though in
    * reality they remain the same data. For undo this info is critical now. */
   DEG_id_tag_update_ex(bmain, id, ID_RECALC_COPY_ON_WRITE);
   ID *id_iter;
@@ -279,7 +225,7 @@ void id_us_ensure_real(ID *id)
         CLOG_ERROR(&LOG,
                    "ID user count error: %s (from '%s')",
                    id->name,
-                   id->lib ? id->lib->filepath : "[Main]");
+                   id->lib ? id->lib->filepath_abs : "[Main]");
         BLI_assert(0);
       }
       id->us = limit + 1;
@@ -337,7 +283,7 @@ void id_us_min(ID *id)
       CLOG_ERROR(&LOG,
                  "ID user decrement error: %s (from '%s'): %d <= %d",
                  id->name,
-                 id->lib ? id->lib->filepath : "[Main]",
+                 id->lib ? id->lib->filepath_abs : "[Main]",
                  id->us,
                  limit);
       if (GS(id->name) != ID_IP) {
@@ -385,7 +331,7 @@ void BKE_id_clear_newpoin(ID *id)
 
 static int lib_id_expand_local_cb(LibraryIDLinkCallbackData *cb_data)
 {
-  Main *bmain = cb_data->user_data;
+  Main *bmain = cb_data->bmain;
   ID *id_self = cb_data->id_self;
   ID **id_pointer = cb_data->id_pointer;
   int const cb_flag = cb_data->cb_flag;
@@ -503,9 +449,9 @@ void BKE_lib_id_make_local_generic(Main *bmain, ID *id, const int flags)
 /**
  * Calls the appropriate make_local method for the block, unless test is set.
  *
- * \note Always set ID->newid pointer in case it gets duplicated...
+ * \note Always set #ID.newid pointer in case it gets duplicated.
  *
- * \param lib_local: Special flag used when making a whole library's content local,
+ * \param flags: Special flag used when making a whole library's content local,
  * it needs specific handling.
  *
  * \return true if the block can be made local.
@@ -665,6 +611,47 @@ bool BKE_id_copy(Main *bmain, const ID *id, ID **newid)
 }
 
 /**
+ * Invokes the appropriate copy method for the block and returns the result in
+ * newid, unless test. Returns true if the block can be copied.
+ */
+ID *BKE_id_copy_for_duplicate(Main *bmain, ID *id, const eDupli_ID_Flags duplicate_flags)
+{
+  if (id == NULL) {
+    return id;
+  }
+  if (id->newid == NULL) {
+    const bool do_linked_id = (duplicate_flags & USER_DUP_LINKED_ID) != 0;
+    if (!(do_linked_id || !ID_IS_LINKED(id))) {
+      return id;
+    }
+
+    ID *id_new;
+    BKE_id_copy(bmain, id, &id_new);
+    /* Copying add one user by default, need to get rid of that one. */
+    id_us_min(id_new);
+    ID_NEW_SET(id, id_new);
+
+    /* Shape keys are always copied with their owner ID, by default. */
+    ID *key_new = (ID *)BKE_key_from_id(id_new);
+    ID *key = (ID *)BKE_key_from_id(id);
+    if (key != NULL) {
+      ID_NEW_SET(key, key_new);
+    }
+
+    /* Note: embedded data (root nodetrees and master collections) should never be referenced by
+     * anything else, so we do not need to set their newid pointer and flag. */
+
+    BKE_animdata_duplicate_id_action(bmain, id_new, duplicate_flags);
+    if (key_new != NULL) {
+      BKE_animdata_duplicate_id_action(bmain, key_new, duplicate_flags);
+    }
+    /* Note that actions of embedded data (root nodetrees and master collections) are handled
+     * by `BKE_animdata_duplicate_id_action` as well. */
+  }
+  return id->newid;
+}
+
+/**
  * Does a mere memory swap over the whole IDs data (including type-specific memory).
  * \note Most internal ID data itself is not swapped (only IDProperties are).
  */
@@ -693,6 +680,9 @@ static void id_swap(Main *bmain, ID *id_a, ID *id_b, const bool do_full_id)
     /* Exception: IDProperties. */
     id_a->properties = id_b_back.properties;
     id_b->properties = id_a_back.properties;
+    /* Exception: recalc flags. */
+    id_a->recalc = id_b_back.recalc;
+    id_b->recalc = id_a_back.recalc;
   }
 
   if (bmain != NULL) {
@@ -706,7 +696,7 @@ static void id_swap(Main *bmain, ID *id_a, ID *id_b, const bool do_full_id)
  * Does a mere memory swap over the whole IDs data (including type-specific memory).
  * \note Most internal ID data itself is not swapped (only IDProperties are).
  *
- * \param bmain May be NULL, in which case there will be no remapping of internal pointers to
+ * \param bmain: May be NULL, in which case there will be no remapping of internal pointers to
  * itself.
  */
 void BKE_lib_id_swap(Main *bmain, ID *id_a, ID *id_b)
@@ -718,7 +708,7 @@ void BKE_lib_id_swap(Main *bmain, ID *id_a, ID *id_b)
  * Does a mere memory swap over the whole IDs data (including type-specific memory).
  * \note All internal ID data itself is also swapped.
  *
- * \param bmain May be NULL, in which case there will be no remapping of internal pointers to
+ * \param bmain: May be NULL, in which case there will be no remapping of internal pointers to
  * itself.
  */
 void BKE_lib_id_swap_full(Main *bmain, ID *id_a, ID *id_b)
@@ -1238,14 +1228,13 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int ori
     new_id->properties = IDP_CopyProperty_ex(id->properties, copy_data_flag);
   }
 
-  /* XXX Again... We need a way to control what we copy in a much more refined way.
-   * We cannot always copy this, some internal copying will die on it! */
-  /* For now, upper level code will have to do that itself when required. */
-#if 0
-  if (id->override != NULL) {
-    BKE_override_copy(new_id, id);
+  /* We may need our own flag to control that at some point, but for now 'no main' one should be
+   * good enough. */
+  if ((orig_flag & LIB_ID_CREATE_NO_MAIN) == 0 && ID_IS_OVERRIDE_LIBRARY(id)) {
+    /* We do not want to copy existing override rules here, as they would break the proper
+     * remapping between IDs. Proper overrides rules will be re-generated anyway. */
+    BKE_lib_override_library_copy(new_id, id, false);
   }
-#endif
 
   if (id_can_have_animdata(new_id)) {
     IdAdtTemplate *iat = (IdAdtTemplate *)new_id;
@@ -1301,7 +1290,7 @@ ID *BKE_libblock_find_name(struct Main *bmain, const short type, const char *nam
  *
  * \note All other IDs beside given one are assumed already properly sorted in the list.
  *
- * \param id_sorting_hint Ignored if NULL. Otherwise, used to check if we can insert \a id
+ * \param id_sorting_hint: Ignored if NULL. Otherwise, used to check if we can insert \a id
  * immediately before or after that pointer. It must always be into given \a lb list.
  */
 void id_sort_by_name(ListBase *lb, ID *id, ID *id_sorting_hint)
@@ -1779,7 +1768,7 @@ static void library_make_local_copying_check(ID *id,
       continue;
     }
 
-    /* Shapekeys are considered 'private' to their owner ID here, and never tagged
+    /* Shape-keys are considered 'private' to their owner ID here, and never tagged
      * (since they cannot be linked), so we have to switch effective parent to their owner.
      */
     if (GS(par_id->name) == ID_KE) {
@@ -2153,9 +2142,11 @@ void BKE_libblock_rename(Main *bmain, ID *id, const char *name)
  * \note Result is unique to a given ID type in a given Main database.
  *
  * \param name: An allocated string of minimal length #MAX_ID_FULL_NAME,
- * will be filled with generated string.
+ *              will be filled with generated string.
+ * \param separator_char: Character to use for separating name and library name. Can be 0 to use
+ *                        default (' ').
  */
-void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const ID *id)
+void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const ID *id, char separator_char)
 {
   strcpy(name, id->name + 2);
 
@@ -2163,7 +2154,7 @@ void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const ID *id)
     const size_t idname_len = strlen(id->name + 2);
     const size_t libname_len = strlen(id->lib->id.name + 2);
 
-    name[idname_len] = ' ';
+    name[idname_len] = separator_char ? separator_char : ' ';
     name[idname_len + 1] = '[';
     strcpy(name + idname_len + 2, id->lib->id.name + 2);
     name[idname_len + 2 + libname_len] = ']';
@@ -2173,21 +2164,36 @@ void BKE_id_full_name_get(char name[MAX_ID_FULL_NAME], const ID *id)
 
 /**
  * Generate full name of the data-block (without ID code, but with library if any),
- * with a 3-character prefix prepended indicating whether it comes from a library,
+ * with a 2 to 3 character prefix prepended indicating whether it comes from a library,
  * is overriding, has a fake or no user, etc.
  *
  * \note Result is unique to a given ID type in a given Main database.
  *
  * \param name: An allocated string of minimal length #MAX_ID_FULL_NAME_UI,
- * will be filled with generated string.
+ *              will be filled with generated string.
+ * \param separator_char: Character to use for separating name and library name. Can be 0 to use
+ *                        default (' ').
+ * \param r_prefix_len: The length of the prefix added.
  */
-void BKE_id_full_name_ui_prefix_get(char name[MAX_ID_FULL_NAME_UI], const ID *id)
+void BKE_id_full_name_ui_prefix_get(char name[MAX_ID_FULL_NAME_UI],
+                                    const ID *id,
+                                    const bool add_lib_hint,
+                                    char separator_char,
+                                    int *r_prefix_len)
 {
-  name[0] = id->lib ? (ID_MISSING(id) ? 'M' : 'L') : ID_IS_OVERRIDE_LIBRARY(id) ? 'O' : ' ';
-  name[1] = (id->flag & LIB_FAKEUSER) ? 'F' : ((id->us == 0) ? '0' : ' ');
-  name[2] = ' ';
+  int i = 0;
 
-  BKE_id_full_name_get(name + 3, id);
+  if (add_lib_hint) {
+    name[i++] = id->lib ? (ID_MISSING(id) ? 'M' : 'L') : ID_IS_OVERRIDE_LIBRARY(id) ? 'O' : ' ';
+  }
+  name[i++] = (id->flag & LIB_FAKEUSER) ? 'F' : ((id->us == 0) ? '0' : ' ');
+  name[i++] = ' ';
+
+  BKE_id_full_name_get(name + i, id, separator_char);
+
+  if (r_prefix_len) {
+    *r_prefix_len = i;
+  }
 }
 
 /**

@@ -18,8 +18,7 @@
  * \ingroup GHOST
  */
 
-#ifndef __GHOST_XRCONTEXT_H__
-#define __GHOST_XRCONTEXT_H__
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -134,5 +133,3 @@ class GHOST_XrContext : public GHOST_IXrContext {
   GHOST_TXrGraphicsBinding determineGraphicsBindingTypeToUse(
       const std::vector<GHOST_TXrGraphicsBinding> &enabled_types);
 };
-
-#endif  // __GHOST_XRCONTEXT_H__

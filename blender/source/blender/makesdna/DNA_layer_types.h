@@ -18,15 +18,14 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_LAYER_TYPES_H__
-#define __DNA_LAYER_TYPES_H__
+#pragma once
+
+#include "DNA_freestyle_types.h"
+#include "DNA_listBase.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "DNA_freestyle_types.h"
-#include "DNA_listBase.h"
 
 /**
  * Render-passes for EEVEE.
@@ -224,5 +223,3 @@ typedef struct SceneCollection {
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __DNA_LAYER_TYPES_H__ */

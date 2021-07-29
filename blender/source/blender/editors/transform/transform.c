@@ -45,7 +45,6 @@
 #include "ED_keyframing.h"
 #include "ED_node.h"
 #include "ED_screen.h"
-#include "ED_sculpt.h"
 #include "ED_space_api.h"
 
 #include "WM_api.h"
@@ -527,8 +526,11 @@ static void viewRedrawPost(bContext *C, TransInfo *t)
     }
 
     /* redraw UV editor */
-    if (ELEM(t->mode, TFM_VERT_SLIDE, TFM_EDGE_SLIDE) &&
-        (t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT)) {
+    const char uvcalc_correct_flag = ELEM(t->mode, TFM_VERT_SLIDE, TFM_EDGE_SLIDE) ?
+                                         UVCALC_TRANSFORM_CORRECT_SLIDE :
+                                         UVCALC_TRANSFORM_CORRECT;
+
+    if ((t->data_type == TC_MESH_VERTS) && (t->settings->uvcalc_flag & uvcalc_correct_flag)) {
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, NULL);
     }
 
@@ -671,10 +673,10 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
       if (t->spacetype != SPACE_VIEW3D) {
         return false;
       }
-      else if ((t->tsnap.mode & ~(SCE_SNAP_MODE_INCREMENT | SCE_SNAP_MODE_GRID)) == 0) {
+      if ((t->tsnap.mode & ~(SCE_SNAP_MODE_INCREMENT | SCE_SNAP_MODE_GRID)) == 0) {
         return false;
       }
-      else if (!validSnap(t)) {
+      if (!validSnap(t)) {
         return false;
       }
       break;
@@ -779,9 +781,10 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cmode, bool is_plane)
+static void transform_event_xyz_constraint(TransInfo *t, short key_type, bool is_plane)
 {
   if (!(t->flag & T_NO_CONSTRAINT)) {
+    char cmode = constraintModeToChar(t);
     int constraint_axis, constraint_plane;
     const bool edit_2d = (t->flag & T_2D_EDIT) != 0;
     const char *msg1 = "", *msg2 = "", *msg3 = "";
@@ -825,34 +828,22 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
       }
     }
     else if (!edit_2d) {
-      if (cmode != axis) {
-        /* First press, constraint to an axis. */
-        t->orientation.index = 0;
-        const short *orientation_ptr = t->orientation.types[t->orientation.index];
-        const short orientation = orientation_ptr ? *orientation_ptr : V3D_ORIENT_GLOBAL;
+      if (t->orient_curr == 0 || ELEM(cmode, '\0', axis)) {
+        /* Successive presses on existing axis, cycle orientation modes. */
+        t->orient_curr = (short)((t->orient_curr + 1) % (int)ARRAY_SIZE(t->orient));
+        transform_orientations_current_set(t, t->orient_curr);
+      }
+
+      if (t->orient_curr == 0) {
+        stopConstraint(t);
+      }
+      else {
+        const short orientation = t->orient[t->orient_curr].type;
         if (is_plane == false) {
           setUserConstraint(t, orientation, constraint_axis, msg2);
         }
         else {
           setUserConstraint(t, orientation, constraint_plane, msg3);
-        }
-      }
-      else {
-        /* Successive presses on existing axis, cycle orientation modes. */
-        t->orientation.index = (t->orientation.index + 1) % ARRAY_SIZE(t->orientation.types);
-
-        if (t->orientation.index == 0) {
-          stopConstraint(t);
-        }
-        else {
-          const short *orientation_ptr = t->orientation.types[t->orientation.index];
-          const short orientation = orientation_ptr ? *orientation_ptr : V3D_ORIENT_GLOBAL;
-          if (is_plane == false) {
-            setUserConstraint(t, orientation, constraint_axis, msg2);
-          }
-          else {
-            setUserConstraint(t, orientation, constraint_plane, msg3);
-          }
         }
       }
     }
@@ -862,7 +853,6 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
 
 int transformEvent(TransInfo *t, const wmEvent *event)
 {
-  char cmode = constraintModeToChar(t);
   bool handled = false;
   const int modifiers_prev = t->modifiers;
   const int mode_prev = t->mode;
@@ -909,12 +899,46 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         break;
       case TFM_MODAL_TRANSLATE:
         /* only switch when... */
-        if (ELEM(t->mode,
-                 TFM_ROTATION,
-                 TFM_RESIZE,
-                 TFM_TRACKBALL,
-                 TFM_EDGE_SLIDE,
-                 TFM_VERT_SLIDE)) {
+        if (t->mode == TFM_TRANSLATION) {
+          if ((t->obedit_type == OB_MESH) && (t->spacetype == SPACE_VIEW3D)) {
+            restoreTransObjects(t);
+            resetTransModal(t);
+            resetTransRestrictions(t);
+
+            /* first try edge slide */
+            transform_mode_init(t, NULL, TFM_EDGE_SLIDE);
+            /* if that fails, do vertex slide */
+            if (t->state == TRANS_CANCEL) {
+              resetTransModal(t);
+              t->state = TRANS_STARTING;
+              transform_mode_init(t, NULL, TFM_VERT_SLIDE);
+            }
+            /* vert slide can fail on unconnected vertices (rare but possible) */
+            if (t->state == TRANS_CANCEL) {
+              resetTransModal(t);
+              t->state = TRANS_STARTING;
+              restoreTransObjects(t);
+              resetTransRestrictions(t);
+              transform_mode_init(t, NULL, TFM_TRANSLATION);
+            }
+            initSnapping(t, NULL);  // need to reinit after mode change
+            t->redraw |= TREDRAW_HARD;
+            handled = true;
+          }
+          else if (t->options & (CTX_MOVIECLIP | CTX_MASK)) {
+            restoreTransObjects(t);
+
+            t->flag ^= T_ALT_TRANSFORM;
+            t->redraw |= TREDRAW_HARD;
+            handled = true;
+          }
+        }
+        else if (t->mode == TFM_SEQ_SLIDE) {
+          t->flag ^= T_ALT_TRANSFORM;
+          t->redraw |= TREDRAW_HARD;
+          handled = true;
+        }
+        else if (transform_mode_is_changeable(t->mode)) {
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
@@ -923,60 +947,11 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           t->redraw |= TREDRAW_HARD;
           handled = true;
         }
-        else if (t->mode == TFM_SEQ_SLIDE) {
-          t->flag ^= T_ALT_TRANSFORM;
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        else {
-          if (t->obedit_type == OB_MESH) {
-            if ((t->mode == TFM_TRANSLATION) && (t->spacetype == SPACE_VIEW3D)) {
-              restoreTransObjects(t);
-              resetTransModal(t);
-              resetTransRestrictions(t);
-
-              /* first try edge slide */
-              transform_mode_init(t, NULL, TFM_EDGE_SLIDE);
-              /* if that fails, do vertex slide */
-              if (t->state == TRANS_CANCEL) {
-                resetTransModal(t);
-                t->state = TRANS_STARTING;
-                transform_mode_init(t, NULL, TFM_VERT_SLIDE);
-              }
-              /* vert slide can fail on unconnected vertices (rare but possible) */
-              if (t->state == TRANS_CANCEL) {
-                resetTransModal(t);
-                t->state = TRANS_STARTING;
-                restoreTransObjects(t);
-                resetTransRestrictions(t);
-                transform_mode_init(t, NULL, TFM_TRANSLATION);
-              }
-              initSnapping(t, NULL);  // need to reinit after mode change
-              t->redraw |= TREDRAW_HARD;
-              handled = true;
-            }
-          }
-          else if (t->options & (CTX_MOVIECLIP | CTX_MASK)) {
-            if (t->mode == TFM_TRANSLATION) {
-              restoreTransObjects(t);
-
-              t->flag ^= T_ALT_TRANSFORM;
-              t->redraw |= TREDRAW_HARD;
-              handled = true;
-            }
-          }
-        }
         break;
       case TFM_MODAL_ROTATE:
         /* only switch when... */
         if (!(t->options & CTX_TEXTURE) && !(t->options & (CTX_MOVIECLIP | CTX_MASK))) {
-          if (ELEM(t->mode,
-                   TFM_ROTATION,
-                   TFM_RESIZE,
-                   TFM_TRACKBALL,
-                   TFM_TRANSLATION,
-                   TFM_EDGE_SLIDE,
-                   TFM_VERT_SLIDE)) {
+          if (transform_mode_is_changeable(t->mode)) {
             restoreTransObjects(t);
             resetTransModal(t);
             resetTransRestrictions(t);
@@ -995,15 +970,23 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         break;
       case TFM_MODAL_RESIZE:
         /* only switch when... */
-        if (ELEM(t->mode,
-                 TFM_ROTATION,
-                 TFM_TRANSLATION,
-                 TFM_TRACKBALL,
-                 TFM_EDGE_SLIDE,
-                 TFM_VERT_SLIDE)) {
+        if (t->mode == TFM_RESIZE) {
+          if (t->options & CTX_MOVIECLIP) {
+            restoreTransObjects(t);
 
+            t->flag ^= T_ALT_TRANSFORM;
+            t->redraw |= TREDRAW_HARD;
+            handled = true;
+          }
+        }
+        else if (t->mode == TFM_SHRINKFATTEN) {
+          t->flag ^= T_ALT_TRANSFORM;
+          t->redraw |= TREDRAW_HARD;
+          handled = true;
+        }
+        else if (transform_mode_is_changeable(t->mode)) {
           /* Scale isn't normally very useful after extrude along normals, see T39756 */
-          if ((t->con.mode & CON_APPLY) && (t->con.orientation == V3D_ORIENT_NORMAL)) {
+          if ((t->con.mode & CON_APPLY) && (t->orient[t->orient_curr].type == V3D_ORIENT_NORMAL)) {
             stopConstraint(t);
           }
 
@@ -1014,20 +997,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           initSnapping(t, NULL);  // need to reinit after mode change
           t->redraw |= TREDRAW_HARD;
           handled = true;
-        }
-        else if (t->mode == TFM_SHRINKFATTEN) {
-          t->flag ^= T_ALT_TRANSFORM;
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        else if (t->mode == TFM_RESIZE) {
-          if (t->options & CTX_MOVIECLIP) {
-            restoreTransObjects(t);
-
-            t->flag ^= T_ALT_TRANSFORM;
-            t->redraw |= TREDRAW_HARD;
-            handled = true;
-          }
         }
         break;
 
@@ -1048,42 +1017,42 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         break;
       case TFM_MODAL_AXIS_X:
         if (!(t->flag & T_NO_CONSTRAINT)) {
-          transform_event_xyz_constraint(t, EVT_XKEY, cmode, false);
+          transform_event_xyz_constraint(t, EVT_XKEY, false);
           t->redraw |= TREDRAW_HARD;
           handled = true;
         }
         break;
       case TFM_MODAL_AXIS_Y:
         if ((t->flag & T_NO_CONSTRAINT) == 0) {
-          transform_event_xyz_constraint(t, EVT_YKEY, cmode, false);
+          transform_event_xyz_constraint(t, EVT_YKEY, false);
           t->redraw |= TREDRAW_HARD;
           handled = true;
         }
         break;
       case TFM_MODAL_AXIS_Z:
         if ((t->flag & (T_NO_CONSTRAINT)) == 0) {
-          transform_event_xyz_constraint(t, EVT_ZKEY, cmode, false);
+          transform_event_xyz_constraint(t, EVT_ZKEY, false);
           t->redraw |= TREDRAW_HARD;
           handled = true;
         }
         break;
       case TFM_MODAL_PLANE_X:
         if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-          transform_event_xyz_constraint(t, EVT_XKEY, cmode, true);
+          transform_event_xyz_constraint(t, EVT_XKEY, true);
           t->redraw |= TREDRAW_HARD;
           handled = true;
         }
         break;
       case TFM_MODAL_PLANE_Y:
         if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-          transform_event_xyz_constraint(t, EVT_YKEY, cmode, true);
+          transform_event_xyz_constraint(t, EVT_YKEY, true);
           t->redraw |= TREDRAW_HARD;
           handled = true;
         }
         break;
       case TFM_MODAL_PLANE_Z:
         if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-          transform_event_xyz_constraint(t, EVT_ZKEY, cmode, true);
+          transform_event_xyz_constraint(t, EVT_ZKEY, true);
           t->redraw |= TREDRAW_HARD;
           handled = true;
         }
@@ -1229,17 +1198,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
               stopConstraint(t);
             }
             else {
-              if (event->shift) {
-                /* bit hackish... but it prevents mmb select to print the
-                 * orientation from menu */
-                float mati[3][3];
-                strcpy(t->spacename, "global");
-                unit_m3(mati);
-                initSelectConstraint(t, mati);
-              }
-              else {
-                initSelectConstraint(t, t->spacemtx);
-              }
+              initSelectConstraint(t);
               postSelectConstraint(t);
             }
           }
@@ -1252,7 +1211,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           break;
         }
         /* only switch when... */
-        if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
+        if (t->mode != TFM_TRANSLATION && transform_mode_is_changeable(t->mode)) {
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
@@ -1267,7 +1226,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           break;
         }
         /* only switch when... */
-        if (ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL)) {
+        if (t->mode != TFM_RESIZE && transform_mode_is_changeable(t->mode)) {
           restoreTransObjects(t);
           resetTransModal(t);
           resetTransRestrictions(t);
@@ -1283,7 +1242,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         }
         /* only switch when... */
         if (!(t->options & CTX_TEXTURE)) {
-          if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION)) {
+          if (transform_mode_is_changeable(t->mode)) {
             restoreTransObjects(t);
             resetTransModal(t);
             resetTransRestrictions(t);
@@ -1458,9 +1417,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
   if (handled || t->redraw) {
     return 0;
   }
-  else {
-    return OPERATOR_PASS_THROUGH;
-  }
+  return OPERATOR_PASS_THROUGH;
 }
 
 bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
@@ -1635,8 +1592,26 @@ static void drawTransformPixel(const struct bContext *C, ARegion *region, void *
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 {
   ToolSettings *ts = CTX_data_tool_settings(C);
-  int proportional = 0;
   PropertyRNA *prop;
+
+  if (!(t->con.mode & CON_APPLY) && (t->flag & T_MODAL) &&
+      ELEM(t->mode, TFM_TRANSLATION, TFM_RESIZE)) {
+    /* When redoing these modes the first time, it's more convenient to save
+     * in the Global orientation. */
+    if (t->mode == TFM_TRANSLATION) {
+      mul_m3_v3(t->spacemtx, t->values_final);
+    }
+    else {
+      float tmat[3][3], sizemat[3][3];
+      size_to_mat3(sizemat, t->values_final);
+      mul_m3_m3m3(tmat, t->spacemtx, sizemat);
+      mat3_to_size(t->values_final, tmat);
+    }
+
+    BLI_assert(t->orient_curr == 0);
+    unit_m3(t->spacemtx);
+    t->orient[0].type = V3D_ORIENT_GLOBAL;
+  }
 
   // Save back mode in case we're in the generic operator
   if ((prop = RNA_struct_find_property(op->ptr, "mode"))) {
@@ -1652,15 +1627,17 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
     }
   }
 
+  bool use_prop_edit = false;
+  int prop_edit_flag = 0;
   if (t->flag & T_PROP_EDIT_ALL) {
     if (t->flag & T_PROP_EDIT) {
-      proportional |= PROP_EDIT_USE;
+      use_prop_edit = true;
     }
     if (t->flag & T_PROP_CONNECTED) {
-      proportional |= PROP_EDIT_CONNECTED;
+      prop_edit_flag |= PROP_EDIT_CONNECTED;
     }
     if (t->flag & T_PROP_PROJECTED) {
-      proportional |= PROP_EDIT_PROJECTED;
+      prop_edit_flag |= PROP_EDIT_PROJECTED;
     }
   }
 
@@ -1672,20 +1649,27 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
     if (!(t->options & CTX_NO_PET)) {
       if ((prop = RNA_struct_find_property(op->ptr, "use_proportional_edit")) &&
           !RNA_property_is_set(op->ptr, prop)) {
+        const Object *obact = OBACT(t->view_layer);
+
         if (t->spacetype == SPACE_GRAPH) {
-          ts->proportional_fcurve = proportional;
+          ts->proportional_fcurve = use_prop_edit;
         }
         else if (t->spacetype == SPACE_ACTION) {
-          ts->proportional_action = proportional;
-        }
-        else if (t->obedit_type != -1) {
-          ts->proportional_edit = proportional;
+          ts->proportional_action = use_prop_edit;
         }
         else if (t->options & CTX_MASK) {
-          ts->proportional_mask = proportional != 0;
+          ts->proportional_mask = use_prop_edit;
         }
-        else if ((t->options & CTX_CURSOR) == 0) {
-          ts->proportional_objects = proportional != 0;
+        else if (obact && obact->mode == OB_MODE_OBJECT) {
+          ts->proportional_objects = use_prop_edit;
+        }
+        else {
+          if (use_prop_edit) {
+            ts->proportional_edit |= PROP_EDIT_USE;
+          }
+          else {
+            ts->proportional_edit &= ~PROP_EDIT_USE;
+          }
         }
       }
 
@@ -1698,18 +1682,6 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
       if ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
           !RNA_property_is_set(op->ptr, prop)) {
         ts->prop_mode = t->prop_mode;
-      }
-    }
-
-    if (t->spacetype == SPACE_VIEW3D) {
-      if ((prop = RNA_struct_find_property(op->ptr, "orient_type")) &&
-          !RNA_property_is_set(op->ptr, prop) &&
-          (t->orientation.user != V3D_ORIENT_CUSTOM_MATRIX)) {
-        TransformOrientationSlot *orient_slot = &t->scene->orientation_slots[SCE_ORIENT_DEFAULT];
-        orient_slot->type = t->orientation.user;
-        BLI_assert(((orient_slot->index_custom == -1) && (t->orientation.custom == NULL)) ||
-                   (BKE_scene_transform_orientation_get_index(t->scene, t->orientation.custom) ==
-                    orient_slot->index_custom));
       }
     }
   }
@@ -1730,43 +1702,15 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
   }
 
   if ((prop = RNA_struct_find_property(op->ptr, "use_proportional_edit"))) {
-    RNA_property_boolean_set(op->ptr, prop, proportional & PROP_EDIT_USE);
-    RNA_boolean_set(op->ptr, "use_proportional_connected", proportional & PROP_EDIT_CONNECTED);
-    RNA_boolean_set(op->ptr, "use_proportional_projected", proportional & PROP_EDIT_PROJECTED);
+    RNA_property_boolean_set(op->ptr, prop, use_prop_edit);
+    RNA_boolean_set(op->ptr, "use_proportional_connected", prop_edit_flag & PROP_EDIT_CONNECTED);
+    RNA_boolean_set(op->ptr, "use_proportional_projected", prop_edit_flag & PROP_EDIT_PROJECTED);
     RNA_enum_set(op->ptr, "proportional_edit_falloff", t->prop_mode);
     RNA_float_set(op->ptr, "proportional_size", t->prop_size);
   }
 
   if ((prop = RNA_struct_find_property(op->ptr, "mirror"))) {
     RNA_property_boolean_set(op->ptr, prop, (t->flag & T_NO_MIRROR) == 0);
-  }
-
-  /* Orientation used for redo. */
-  const bool use_orient_axis = (t->orient_matrix_is_set &&
-                                (RNA_struct_find_property(op->ptr, "orient_axis") != NULL));
-  short orientation;
-  if (t->con.mode & CON_APPLY) {
-    orientation = t->con.orientation;
-    if (orientation == V3D_ORIENT_CUSTOM) {
-      const int orientation_index_custom = BKE_scene_transform_orientation_get_index(
-          t->scene, t->orientation.custom);
-      /* Maybe we need a t->con.custom_orientation?
-       * Seems like it would always match t->orientation.custom. */
-      orientation = V3D_ORIENT_CUSTOM + orientation_index_custom;
-      BLI_assert(orientation >= V3D_ORIENT_CUSTOM);
-    }
-  }
-  else if ((t->orientation.user == V3D_ORIENT_CUSTOM_MATRIX) &&
-           (prop = RNA_struct_find_property(op->ptr, "orient_matrix_type"))) {
-    orientation = RNA_property_enum_get(op->ptr, prop);
-  }
-  else if (use_orient_axis) {
-    /* We're not using an orientation, use the fallback. */
-    orientation = t->orientation.unset;
-  }
-  else {
-    orientation = V3D_ORIENT_GLOBAL;
-    unit_m3(t->spacemtx);
   }
 
   if ((prop = RNA_struct_find_property(op->ptr, "orient_axis"))) {
@@ -1788,56 +1732,41 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
     }
   }
 
-  if ((prop = RNA_struct_find_property(op->ptr, "orient_matrix"))) {
-    if (t->flag & T_MODAL) {
-      if (orientation != V3D_ORIENT_CUSTOM_MATRIX) {
-        if (t->flag & T_MODAL) {
-          RNA_enum_set(op->ptr, "orient_matrix_type", orientation);
-        }
-      }
-      if (t->con.mode & CON_APPLY) {
-        RNA_float_set_array(op->ptr, "orient_matrix", &t->con.mtx[0][0]);
-      }
-      else if (use_orient_axis) {
-        RNA_float_set_array(op->ptr, "orient_matrix", &t->orient_matrix[0][0]);
-      }
-      else {
-        RNA_float_set_array(op->ptr, "orient_matrix", &t->spacemtx[0][0]);
-      }
-    }
-  }
-
   if ((prop = RNA_struct_find_property(op->ptr, "orient_type"))) {
-    /* constraint orientation can be global, even if user selects something else
-     * so use the orientation in the constraint if set */
+    short orient_type_set, orient_type_curr;
+    orient_type_set = RNA_property_is_set(op->ptr, prop) ? RNA_property_enum_get(op->ptr, prop) :
+                                                           -1;
+    orient_type_curr = t->orient[t->orient_curr].type;
 
-    /* Use 'orient_matrix' instead. */
-    if (t->flag & T_MODAL) {
-      if (orientation != V3D_ORIENT_CUSTOM_MATRIX) {
-        RNA_property_enum_set(op->ptr, prop, orientation);
-      }
+    if (!ELEM(orient_type_curr, orient_type_set, V3D_ORIENT_CUSTOM_MATRIX)) {
+      RNA_property_enum_set(op->ptr, prop, orient_type_curr);
+      orient_type_set = orient_type_curr;
+    }
+
+    if (((prop = RNA_struct_find_property(op->ptr, "orient_matrix_type")) &&
+         !RNA_property_is_set(op->ptr, prop))) {
+      /* Set the first time to register on redo. */
+      RNA_property_enum_set(op->ptr, prop, orient_type_set);
+      RNA_float_set_array(op->ptr, "orient_matrix", &t->spacemtx[0][0]);
     }
   }
 
   if ((prop = RNA_struct_find_property(op->ptr, "constraint_axis"))) {
     bool constraint_axis[3] = {false, false, false};
-    if (t->flag & T_MODAL) {
-      /* Only set if needed, so we can hide in the UI when nothing is set.
-       * See 'transform_poll_property'. */
-      if (t->con.mode & CON_APPLY) {
-        if (t->con.mode & CON_AXIS0) {
-          constraint_axis[0] = true;
-        }
-        if (t->con.mode & CON_AXIS1) {
-          constraint_axis[1] = true;
-        }
-        if (t->con.mode & CON_AXIS2) {
-          constraint_axis[2] = true;
-        }
+    if (t->con.mode & CON_APPLY) {
+      if (t->con.mode & CON_AXIS0) {
+        constraint_axis[0] = true;
       }
-      if (ELEM(true, UNPACK3(constraint_axis))) {
-        RNA_property_boolean_set_array(op->ptr, prop, constraint_axis);
+      if (t->con.mode & CON_AXIS1) {
+        constraint_axis[1] = true;
       }
+      if (t->con.mode & CON_AXIS2) {
+        constraint_axis[2] = true;
+      }
+      RNA_property_boolean_set_array(op->ptr, prop, constraint_axis);
+    }
+    else {
+      RNA_property_unset(op->ptr, prop);
     }
   }
 
@@ -1854,13 +1783,9 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
     }
   }
 
-  if ((t->options & CTX_SCULPT) && !(t->options & CTX_PAINT_CURVE)) {
-    ED_sculpt_end_transform(C);
-  }
-
   if ((prop = RNA_struct_find_property(op->ptr, "correct_uv"))) {
     RNA_property_boolean_set(
-        op->ptr, prop, (t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT) != 0);
+        op->ptr, prop, (t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT_SLIDE) != 0);
   }
 }
 
@@ -1911,6 +1836,8 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   int options = 0;
   PropertyRNA *prop;
 
+  mode = transform_mode_really_used(C, mode);
+
   t->context = C;
 
   /* added initialize, for external calls to set stuff in TransInfo, like undo string */
@@ -1938,13 +1865,6 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     }
   }
 
-  if (CTX_wm_view3d(C) != NULL) {
-    Object *ob = CTX_data_active_object(C);
-    if (ob && ob->mode == OB_MODE_SCULPT && ob->sculpt) {
-      options |= CTX_SCULPT;
-    }
-  }
-
   t->options = options;
 
   t->mode = mode;
@@ -1963,7 +1883,10 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   unit_m3(t->spacemtx);
 
   initTransInfo(C, t, op, event);
-  initTransformOrientation(C, t);
+
+  /* Use the custom orientation when it is set. */
+  short orient_index = t->orient[0].type == V3D_ORIENT_CUSTOM_MATRIX ? 0 : t->orient_curr;
+  transform_orientations_current_set(t, orient_index);
 
   if (t->spacetype == SPACE_VIEW3D) {
     t->draw_handle_apply = ED_region_draw_cb_activate(
@@ -1972,73 +1895,66 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
     t->draw_handle_pixel = ED_region_draw_cb_activate(
         t->region->type, drawTransformPixel, t, REGION_DRAW_POST_PIXEL);
-    t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C),
-                                                     SPACE_TYPE_ANY,
-                                                     RGN_TYPE_ANY,
-                                                     transform_draw_cursor_poll,
-                                                     transform_draw_cursor_draw,
-                                                     t);
+    t->draw_handle_cursor = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, transform_draw_cursor_poll, transform_draw_cursor_draw, t);
   }
   else if (t->spacetype == SPACE_IMAGE) {
     t->draw_handle_view = ED_region_draw_cb_activate(
         t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
-    t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C),
-                                                     SPACE_TYPE_ANY,
-                                                     RGN_TYPE_ANY,
-                                                     transform_draw_cursor_poll,
-                                                     transform_draw_cursor_draw,
-                                                     t);
+    t->draw_handle_cursor = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, transform_draw_cursor_poll, transform_draw_cursor_draw, t);
   }
   else if (t->spacetype == SPACE_CLIP) {
     t->draw_handle_view = ED_region_draw_cb_activate(
         t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
-    t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C),
-                                                     SPACE_TYPE_ANY,
-                                                     RGN_TYPE_ANY,
-                                                     transform_draw_cursor_poll,
-                                                     transform_draw_cursor_draw,
-                                                     t);
+    t->draw_handle_cursor = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, transform_draw_cursor_poll, transform_draw_cursor_draw, t);
   }
   else if (t->spacetype == SPACE_NODE) {
     t->draw_handle_view = ED_region_draw_cb_activate(
         t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
-    t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C),
-                                                     SPACE_TYPE_ANY,
-                                                     RGN_TYPE_ANY,
-                                                     transform_draw_cursor_poll,
-                                                     transform_draw_cursor_draw,
-                                                     t);
+    t->draw_handle_cursor = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, transform_draw_cursor_poll, transform_draw_cursor_draw, t);
   }
   else if (t->spacetype == SPACE_GRAPH) {
     t->draw_handle_view = ED_region_draw_cb_activate(
         t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
-    t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C),
-                                                     SPACE_TYPE_ANY,
-                                                     RGN_TYPE_ANY,
-                                                     transform_draw_cursor_poll,
-                                                     transform_draw_cursor_draw,
-                                                     t);
+    t->draw_handle_cursor = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, transform_draw_cursor_poll, transform_draw_cursor_draw, t);
   }
   else if (t->spacetype == SPACE_ACTION) {
     t->draw_handle_view = ED_region_draw_cb_activate(
         t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
-    t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C),
-                                                     SPACE_TYPE_ANY,
-                                                     RGN_TYPE_ANY,
-                                                     transform_draw_cursor_poll,
-                                                     transform_draw_cursor_draw,
-                                                     t);
+    t->draw_handle_cursor = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, transform_draw_cursor_poll, transform_draw_cursor_draw, t);
   }
 
   createTransData(C, t);  // make TransData structs from selection
 
-  if ((t->options & CTX_SCULPT) && !(t->options & CTX_PAINT_CURVE)) {
-    ED_sculpt_init_transform(C);
-  }
-
   if (t->data_len_all == 0) {
     postTrans(C, t);
     return 0;
+  }
+
+  /* When proportional editing is enabled, data_len_all can be non zero when
+   * nothing is selected, if this is the case we can end the transform early.
+   *
+   * By definition transform-data has selected items in beginning,
+   * so only the first item in each container needs to be checked
+   * when looking  for the presence of selected data. */
+  if (t->flag & T_PROP_EDIT) {
+    bool has_selected_any = false;
+    FOREACH_TRANS_DATA_CONTAINER (t, tc) {
+      if (tc->data->flag & TD_SELECTED) {
+        has_selected_any = true;
+        break;
+      }
+    }
+
+    if (!has_selected_any) {
+      postTrans(C, t);
+      return 0;
+    }
   }
 
   if (event) {
@@ -2088,33 +2004,6 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   calculatePropRatio(t);
   calculateCenter(t);
 
-  /* Overwrite initial values if operator supplied a non-null vector.
-   *
-   * Run before init functions so 'values_modal_offset' can be applied on mouse input.
-   */
-  BLI_assert(is_zero_v4(t->values_modal_offset));
-  if ((prop = RNA_struct_find_property(op->ptr, "value")) && RNA_property_is_set(op->ptr, prop)) {
-    float values[4] = {0}; /* in case value isn't length 4, avoid uninitialized memory  */
-
-    if (RNA_property_array_check(prop)) {
-      RNA_float_get_array(op->ptr, "value", values);
-    }
-    else {
-      values[0] = RNA_float_get(op->ptr, "value");
-    }
-
-    copy_v4_v4(t->values, values);
-
-    if (t->flag & T_MODAL) {
-      copy_v4_v4(t->values_modal_offset, values);
-      t->redraw = TREDRAW_HARD;
-    }
-    else {
-      copy_v4_v4(t->values, values);
-      t->flag |= T_INPUT_IS_VALUES_FINAL;
-    }
-  }
-
   if (event) {
     /* Initialize accurate transform to settings requested by keymap. */
     bool use_accurate = false;
@@ -2145,38 +2034,8 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   }
 
   /* Constraint init from operator */
-  if ((t->flag & T_MODAL) ||
-      /* For mirror operator the constraint axes are effectively the values. */
-      (RNA_struct_find_property(op->ptr, "value") == NULL)) {
-    if ((prop = RNA_struct_find_property(op->ptr, "constraint_axis")) &&
-        RNA_property_is_set(op->ptr, prop)) {
-      bool constraint_axis[3];
-
-      RNA_property_boolean_get_array(op->ptr, prop, constraint_axis);
-
-      if (constraint_axis[0] || constraint_axis[1] || constraint_axis[2]) {
-        t->con.mode |= CON_APPLY;
-
-        if (constraint_axis[0]) {
-          t->con.mode |= CON_AXIS0;
-        }
-        if (constraint_axis[1]) {
-          t->con.mode |= CON_AXIS1;
-        }
-        if (constraint_axis[2]) {
-          t->con.mode |= CON_AXIS2;
-        }
-
-        setUserConstraint(t, t->orientation.user, t->con.mode, "%s");
-      }
-    }
-  }
-  else {
-    /* So we can adjust in non global orientation. */
-    if (t->orientation.user != V3D_ORIENT_GLOBAL) {
-      t->con.mode |= CON_APPLY | CON_AXIS0 | CON_AXIS1 | CON_AXIS2;
-      setUserConstraint(t, t->orientation.user, t->con.mode, "%s");
-    }
+  if (t->con.mode & CON_APPLY) {
+    setUserConstraint(t, t->orient[t->orient_curr].type, t->con.mode, "%s");
   }
 
   /* Don't write into the values when non-modal because they are already set from operator redo
@@ -2269,14 +2128,6 @@ int transformEnd(bContext *C, TransInfo *t)
   if (t->state != TRANS_STARTING && t->state != TRANS_RUNNING) {
     /* handle restoring objects */
     if (t->state == TRANS_CANCEL) {
-      /* exception, edge slide transformed UVs too */
-      if (t->mode == TFM_EDGE_SLIDE) {
-        doEdgeSlide(t, 0.0f);
-      }
-      else if (t->mode == TFM_VERT_SLIDE) {
-        doVertSlide(t, 0.0f);
-      }
-
       exit_code = OPERATOR_CANCELLED;
       restoreTransObjects(t);  // calls recalcData()
     }

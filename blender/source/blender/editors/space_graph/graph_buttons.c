@@ -42,6 +42,7 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
+#include "BKE_fcurve_driver.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_screen.h"
@@ -422,8 +423,25 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
     col = uiLayoutColumn(layout, true);
     /* keyframe itself */
     {
+      uiItemL_respect_property_split(col, IFACE_("Key Frame"), ICON_NONE);
+      but = uiDefButR(block,
+                      UI_BTYPE_NUM,
+                      B_REDR,
+                      "",
+                      0,
+                      0,
+                      but_max_width,
+                      UI_UNIT_Y,
+                      &bezt_ptr,
+                      "co",
+                      0,
+                      0,
+                      0,
+                      -1,
+                      -1,
+                      NULL);
 
-      uiItemL_respect_property_split(col, IFACE_("Key Value"), ICON_NONE);
+      uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
       but = uiDefButR(block,
                       UI_BTYPE_NUM,
                       B_REDR,
@@ -443,23 +461,6 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       UI_but_func_set(but, graphedit_activekey_update_cb, fcu, bezt);
       UI_but_unit_type_set(but, unit);
 
-      uiItemL_respect_property_split(col, IFACE_("Frame"), ICON_NONE);
-      but = uiDefButR(block,
-                      UI_BTYPE_NUM,
-                      B_REDR,
-                      "",
-                      0,
-                      0,
-                      but_max_width,
-                      UI_UNIT_Y,
-                      &bezt_ptr,
-                      "co",
-                      0,
-                      0,
-                      0,
-                      -1,
-                      -1,
-                      NULL);
       UI_but_func_set(but, graphedit_activekey_update_cb, fcu, bezt);
     }
 
@@ -467,47 +468,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
     if ((prevbezt) && (prevbezt->ipo == BEZT_IPO_BEZ)) {
 
       col = uiLayoutColumn(layout, true);
-
-      uiItemL_respect_property_split(col, IFACE_("Left Handle X"), ICON_NONE);
-      but = uiDefButR(block,
-                      UI_BTYPE_NUM,
-                      B_REDR,
-                      "",
-                      0,
-                      0,
-                      but_max_width,
-                      UI_UNIT_Y,
-                      &bezt_ptr,
-                      "handle_left",
-                      0,
-                      0,
-                      0,
-                      -1,
-                      -1,
-                      NULL);
-      UI_but_func_set(but, graphedit_activekey_left_handle_coord_cb, fcu, bezt);
-
-      uiItemL_respect_property_split(col, IFACE_("Y"), ICON_NONE);
-      but = uiDefButR(block,
-                      UI_BTYPE_NUM,
-                      B_REDR,
-                      "",
-                      0,
-                      0,
-                      but_max_width,
-                      UI_UNIT_Y,
-                      &bezt_ptr,
-                      "handle_left",
-                      1,
-                      0,
-                      0,
-                      -1,
-                      -1,
-                      NULL);
-      UI_but_func_set(but, graphedit_activekey_left_handle_coord_cb, fcu, bezt);
-      UI_but_unit_type_set(but, unit);
-
-      uiItemL_respect_property_split(col, IFACE_("Type"), ICON_NONE);
+      uiItemL_respect_property_split(col, IFACE_("Left Handle Type"), ICON_NONE);
       but = uiDefButR(block,
                       UI_BTYPE_MENU,
                       B_REDR,
@@ -525,6 +486,45 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       -1,
                       "Type of left handle");
       UI_but_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
+
+      uiItemL_respect_property_split(col, IFACE_("Frame"), ICON_NONE);
+      but = uiDefButR(block,
+                      UI_BTYPE_NUM,
+                      B_REDR,
+                      "",
+                      0,
+                      0,
+                      but_max_width,
+                      UI_UNIT_Y,
+                      &bezt_ptr,
+                      "handle_left",
+                      0,
+                      0,
+                      0,
+                      -1,
+                      -1,
+                      NULL);
+      UI_but_func_set(but, graphedit_activekey_left_handle_coord_cb, fcu, bezt);
+
+      uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
+      but = uiDefButR(block,
+                      UI_BTYPE_NUM,
+                      B_REDR,
+                      "",
+                      0,
+                      0,
+                      but_max_width,
+                      UI_UNIT_Y,
+                      &bezt_ptr,
+                      "handle_left",
+                      1,
+                      0,
+                      0,
+                      -1,
+                      -1,
+                      NULL);
+      UI_but_func_set(but, graphedit_activekey_left_handle_coord_cb, fcu, bezt);
+      UI_but_unit_type_set(but, unit);
     }
 
     /* next handle - only if current is Bezier interpolation */
@@ -532,7 +532,26 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       /* NOTE: special update callbacks are needed on the coords here due to T39911 */
 
       col = uiLayoutColumn(layout, true);
-      uiItemL_respect_property_split(col, IFACE_("Right Handle X"), ICON_NONE);
+      uiItemL_respect_property_split(col, IFACE_("Right Handle Type"), ICON_NONE);
+      but = uiDefButR(block,
+                      UI_BTYPE_MENU,
+                      B_REDR,
+                      NULL,
+                      0,
+                      0,
+                      but_max_width,
+                      UI_UNIT_Y,
+                      &bezt_ptr,
+                      "handle_right_type",
+                      0,
+                      0,
+                      0,
+                      -1,
+                      -1,
+                      "Type of right handle");
+      UI_but_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
+
+      uiItemL_respect_property_split(col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,
                       UI_BTYPE_NUM,
                       B_REDR,
@@ -551,7 +570,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       NULL);
       UI_but_func_set(but, graphedit_activekey_right_handle_coord_cb, fcu, bezt);
 
-      uiItemL_respect_property_split(col, IFACE_("Y"), ICON_NONE);
+      uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
       but = uiDefButR(block,
                       UI_BTYPE_NUM,
                       B_REDR,
@@ -570,25 +589,6 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       NULL);
       UI_but_func_set(but, graphedit_activekey_right_handle_coord_cb, fcu, bezt);
       UI_but_unit_type_set(but, unit);
-
-      uiItemL_respect_property_split(col, IFACE_("Type"), ICON_NONE);
-      but = uiDefButR(block,
-                      UI_BTYPE_MENU,
-                      B_REDR,
-                      NULL,
-                      0,
-                      0,
-                      but_max_width,
-                      UI_UNIT_Y,
-                      &bezt_ptr,
-                      "handle_right_type",
-                      0,
-                      0,
-                      0,
-                      -1,
-                      -1,
-                      "Type of right handle");
-      UI_but_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
     }
   }
   else {
@@ -1284,7 +1284,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
     FCurve *fcu;
     bool driven, special;
 
-    fcu = rna_get_fcurve_context_ui(
+    fcu = BKE_fcurve_find_by_rna_context_ui(
         (bContext *)C, &ptr, prop, index, NULL, NULL, &driven, &special);
 
     /* Hack: Force all buttons in this panel to be able to know the driver button
@@ -1420,7 +1420,7 @@ void graph_buttons_register(ARegionType *art)
   pt->poll = graph_panel_drivers_poll;
   BLI_addtail(&art->paneltypes, pt);
 
-  pt = MEM_callocN(sizeof(PanelType), "spacetype graph panel drivers pover");
+  pt = MEM_callocN(sizeof(PanelType), "spacetype graph panel drivers popover");
   strcpy(pt->idname, "GRAPH_PT_drivers_popover");
   strcpy(pt->label, N_("Add/Edit Driver"));
   strcpy(pt->category, "Drivers");

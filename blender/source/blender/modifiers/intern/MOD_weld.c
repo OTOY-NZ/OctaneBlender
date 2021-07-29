@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
@@ -35,19 +35,30 @@
 #include "BLI_kdopbvh.h"
 #include "BLI_math.h"
 
+#include "BLT_translation.h"
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_screen_types.h"
 
 #include "BKE_bvhutils.h"
+#include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
+#include "BKE_screen.h"
+
+#include "UI_interface.h"
+#include "UI_resources.h"
+
+#include "RNA_access.h"
 
 #include "DEG_depsgraph.h"
 
 #include "MOD_modifiertypes.h"
+#include "MOD_ui_common.h"
 
 //#define USE_WELD_DEBUG
 //#define USE_WELD_NORMALS
@@ -1677,8 +1688,18 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
   /* Get overlap map. */
   /* TODO: For a better performanse use KD-Tree. */
   struct BVHTreeFromMesh treedata;
-  BVHTree *bvhtree = bvhtree_from_mesh_verts_ex(
-      &treedata, mvert, totvert, false, v_mask, v_mask_act, wmd->merge_dist / 2, 2, 6, 0, NULL);
+  BVHTree *bvhtree = bvhtree_from_mesh_verts_ex(&treedata,
+                                                mvert,
+                                                totvert,
+                                                false,
+                                                v_mask,
+                                                v_mask_act,
+                                                wmd->merge_dist / 2,
+                                                2,
+                                                6,
+                                                0,
+                                                NULL,
+                                                NULL);
 
   if (v_mask) {
     MEM_freeN(v_mask);
@@ -1902,7 +1923,7 @@ static Mesh *weldModifier_doWeld(WeldModifierData *wmd, const ModifierEvalContex
   return result;
 }
 
-static Mesh *applyModifier(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
+static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   WeldModifierData *wmd = (WeldModifierData *)md;
   return weldModifier_doWeld(wmd, ctx, mesh);
@@ -1929,6 +1950,28 @@ static void requiredDataMask(Object *UNUSED(ob),
   }
 }
 
+static void panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA ptr;
+  PointerRNA ob_ptr;
+  modifier_panel_get_property_pointers(C, panel, &ob_ptr, &ptr);
+
+  uiLayoutSetPropSep(layout, true);
+
+  uiItemR(layout, &ptr, "merge_threshold", 0, IFACE_("Distance"), ICON_NONE);
+  uiItemR(layout, &ptr, "max_interactions", 0, NULL, ICON_NONE);
+  modifier_vgroup_ui(layout, &ptr, &ob_ptr, "vertex_group", "invert_vertex_group", NULL);
+
+  modifier_panel_end(layout, &ptr);
+}
+
+static void panelRegister(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, eModifierType_Weld, panel_draw);
+}
+
 ModifierTypeInfo modifierType_Weld = {
     /* name */ "Weld",
     /* structName */ "WeldModifierData",
@@ -1938,13 +1981,16 @@ ModifierTypeInfo modifierType_Weld = {
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs,
 
-    /* copyData */ modifier_copyData_generic,
+    /* copyData */ BKE_modifier_copydata_generic,
 
     /* deformVerts */ NULL,
     /* deformMatrices */ NULL,
     /* deformVertsEM */ NULL,
     /* deformMatricesEM */ NULL,
-    /* applyModifier */ applyModifier,
+    /* modifyMesh */ modifyMesh,
+    /* modifyHair */ NULL,
+    /* modifyPointCloud */ NULL,
+    /* modifyVolume */ NULL,
 
     /* initData */ initData,
     /* requiredDataMask */ requiredDataMask,
@@ -1957,6 +2003,9 @@ ModifierTypeInfo modifierType_Weld = {
     /* foreachIDLink */ NULL,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
+    /* panelRegister */ panelRegister,
+    /* blendWrite */ NULL,
+    /* blendRead */ NULL,
 };
 
 /** \} */

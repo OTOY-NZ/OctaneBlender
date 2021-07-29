@@ -24,13 +24,17 @@
 #pragma once
 
 #include "DNA_object_types.h"
+#include "DNA_session_uuid_types.h"
+
+#include "BLI_session_uuid.h"
 
 #include "intern/eval/deg_eval_runtime_backup_modifier.h"
 #include "intern/eval/deg_eval_runtime_backup_pose.h"
 
 struct Object;
 
-namespace DEG {
+namespace blender {
+namespace deg {
 
 class ObjectRuntimeBackup {
  public:
@@ -53,7 +57,8 @@ class ObjectRuntimeBackup {
   short base_flag;
   unsigned short base_local_view_bits;
   ModifierRuntimeDataBackup modifier_runtime_data;
-  PoseChannelRuntimeDataBackup pose_channel_runtime_data;
+  Map<SessionUUID, bPoseChannel_Runtime> pose_channel_runtime_data;
 };
 
-}  // namespace DEG
+}  // namespace deg
+}  // namespace blender

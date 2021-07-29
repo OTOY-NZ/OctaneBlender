@@ -18,8 +18,7 @@
  * \ingroup GHOST
  */
 
-#ifndef __GHOST_IXRGRAPHICSBINDING_H__
-#define __GHOST_IXRGRAPHICSBINDING_H__
+#pragma once
 
 #include <memory>
 #include <string>
@@ -33,7 +32,7 @@ class GHOST_IXrGraphicsBinding {
 
  public:
   union {
-#if defined(WITH_X11)
+#if defined(WITH_GHOST_X11)
     XrGraphicsBindingOpenGLXlibKHR glx;
 #elif defined(WIN32)
     XrGraphicsBindingOpenGLWin32KHR wgl;
@@ -71,5 +70,3 @@ class GHOST_IXrGraphicsBinding {
 
 std::unique_ptr<GHOST_IXrGraphicsBinding> GHOST_XrGraphicsBindingCreateFromType(
     GHOST_TXrGraphicsBinding type, GHOST_Context *ghost_ctx);
-
-#endif /* __GHOST_IXRGRAPHICSBINDING_H__ */

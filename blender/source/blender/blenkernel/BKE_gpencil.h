@@ -17,8 +17,7 @@
  * This is a new part of Blender
  */
 
-#ifndef __BKE_GPENCIL_H__
-#define __BKE_GPENCIL_H__
+#pragma once
 
 /** \file
  * \ingroup bke
@@ -96,6 +95,7 @@ void BKE_gpencil_free_layers(struct ListBase *list);
 void BKE_gpencil_free(struct bGPdata *gpd, bool free_all);
 void BKE_gpencil_eval_delete(struct bGPdata *gpd_eval);
 void BKE_gpencil_free_layer_masks(struct bGPDlayer *gpl);
+void BKE_gpencil_tag(struct bGPdata *gpd);
 
 void BKE_gpencil_batch_cache_dirty_tag(struct bGPdata *gpd);
 void BKE_gpencil_batch_cache_free(struct bGPdata *gpd);
@@ -279,5 +279,3 @@ void BKE_gpencil_update_layer_parent(const struct Depsgraph *depsgraph, struct O
 #ifdef __cplusplus
 }
 #endif
-
-#endif /*  __BKE_GPENCIL_H__ */

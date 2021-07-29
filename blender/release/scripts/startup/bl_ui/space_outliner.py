@@ -107,6 +107,14 @@ class OUTLINER_MT_editor_menus(Menu):
 class OUTLINER_MT_context_menu(Menu):
     bl_label = "Outliner Context Menu"
 
+    @staticmethod
+    def draw_common_operators(layout):
+        layout.menu("OUTLINER_MT_context_menu_view")
+
+        layout.separator()
+
+        layout.menu("INFO_MT_area")
+
     def draw(self, context):
         space = context.space_data
 
@@ -116,11 +124,7 @@ class OUTLINER_MT_context_menu(Menu):
             OUTLINER_MT_collection_new.draw_without_context_menu(context, layout)
             layout.separator()
 
-        layout.menu("OUTLINER_MT_context_menu_view")
-
-        layout.separator()
-
-        layout.menu("INFO_MT_area")
+        OUTLINER_MT_context_menu.draw_common_operators(layout)
 
 
 class OUTLINER_MT_context_menu_view(Menu):
@@ -212,8 +216,8 @@ class OUTLINER_MT_collection(Menu):
 
         layout.separator()
 
-        layout.operator("outliner.collection_delete", text="Delete", icon='X').hierarchy = False
-        layout.operator("outliner.collection_delete", text="Delete Hierarchy").hierarchy = True
+        layout.operator("outliner.delete", text="Delete", icon='X')
+        layout.operator("outliner.delete", text="Delete Hierarchy").hierarchy = True
 
         layout.separator()
 
@@ -242,7 +246,7 @@ class OUTLINER_MT_collection(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw(self, context)
+        OUTLINER_MT_context_menu.draw_common_operators(layout)
 
 
 class OUTLINER_MT_collection_new(Menu):
@@ -250,7 +254,7 @@ class OUTLINER_MT_collection_new(Menu):
 
     @staticmethod
     def draw_without_context_menu(context, layout):
-        layout.operator("outliner.collection_new", text="New Collection").nested = False
+        layout.operator("outliner.collection_new", text="New Collection").nested = True
         layout.operator("outliner.id_paste", text="Paste Data-Blocks", icon='PASTEDOWN')
 
     def draw(self, context):
@@ -260,7 +264,7 @@ class OUTLINER_MT_collection_new(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw(self, context)
+        OUTLINER_MT_context_menu.draw_common_operators(layout)
 
 
 class OUTLINER_MT_object(Menu):
@@ -278,10 +282,8 @@ class OUTLINER_MT_object(Menu):
 
         layout.separator()
 
-        layout.operator("outliner.object_operation", text="Delete", icon='X').type = 'DELETE'
-
-        if space.display_mode == 'VIEW_LAYER' and not space.use_filter_collection:
-            layout.operator("outliner.object_operation", text="Delete Hierarchy").type = 'DELETE_HIERARCHY'
+        layout.operator("outliner.delete", text="Delete", icon='X')
+        layout.operator("outliner.delete", text="Delete Hierarchy").hierarchy = True
 
         layout.separator()
 
@@ -305,11 +307,15 @@ class OUTLINER_MT_object(Menu):
             layout.operator("outliner.id_operation", text="Unlink").type = 'UNLINK'
             layout.separator()
 
+        layout.operator("outliner.collection_new", text="New Collection").nested = True
+
+        layout.separator()
+
         layout.operator_menu_enum("outliner.id_operation", "type", text="ID Data")
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw(self, context)
+        OUTLINER_MT_context_menu.draw_common_operators(layout)
 
 
 class OUTLINER_PT_filter(Panel):

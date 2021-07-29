@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
@@ -22,17 +22,16 @@
  * \brief CustomData interface, see also DNA_customdata_types.h.
  */
 
-#ifndef __BKE_CUSTOMDATA_H__
-#define __BKE_CUSTOMDATA_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_customdata_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct BMesh;
 struct CustomData;
@@ -455,6 +454,7 @@ bool CustomData_from_bmeshpoly_test(CustomData *fdata, CustomData *ldata, bool f
 bool CustomData_layer_validate(struct CustomDataLayer *layer,
                                const uint totitems,
                                const bool do_fixes);
+void CustomData_layers__print(struct CustomData *data);
 
 /* External file storage */
 
@@ -573,6 +573,4 @@ void CustomData_data_transfer(const struct MeshPairRemap *me_remap,
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

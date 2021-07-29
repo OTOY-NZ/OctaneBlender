@@ -19,12 +19,12 @@
  */
 
 #include "abc_reader_nurbs.h"
+#include "abc_axis_conversion.h"
 #include "abc_reader_transform.h"
 #include "abc_util.h"
 
 #include "MEM_guardedalloc.h"
 
-extern "C" {
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 
@@ -33,7 +33,6 @@ extern "C" {
 
 #include "BKE_curve.h"
 #include "BKE_object.h"
-}
 
 using Alembic::AbcGeom::FloatArraySamplePtr;
 using Alembic::AbcGeom::kWrapExisting;
@@ -44,6 +43,10 @@ using Alembic::AbcGeom::ICompoundProperty;
 using Alembic::AbcGeom::INuPatch;
 using Alembic::AbcGeom::INuPatchSchema;
 using Alembic::AbcGeom::IObject;
+
+namespace blender {
+namespace io {
+namespace alembic {
 
 AbcNurbsReader::AbcNurbsReader(const IObject &object, ImportSettings &settings)
     : AbcObjectReader(object, settings)
@@ -72,7 +75,7 @@ bool AbcNurbsReader::valid() const
 
 static bool set_knots(const FloatArraySamplePtr &knots, float *&nu_knots)
 {
-  if (!knots || knots->size() == 0) {
+  if (!knots || knots->size() < 2) {
     return false;
   }
 
@@ -223,3 +226,7 @@ void AbcNurbsReader::getNurbsPatches(const IObject &obj)
     getNurbsPatches(child);
   }
 }
+
+}  // namespace alembic
+}  // namespace io
+}  // namespace blender

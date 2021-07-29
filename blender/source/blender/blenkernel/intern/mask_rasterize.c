@@ -769,8 +769,8 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
 
             BLI_assert(tot_diff_feather_points == tot_diff_point);
 
-            /* note: only added for convenience, we don't infact use these to scanfill,
-             * only to create feather faces after scanfill */
+            /* Note: only added for convenience, we don't in fact use these to scan-fill,
+             * only to create feather faces after scan-fill. */
             for (j = 0; j < tot_diff_feather_points; j++) {
               copy_v2_v2(co_feather, diff_feather_points[j]);
               sf_vert = BLI_scanfill_vert_add(&sf_ctx, co_feather);
@@ -1256,7 +1256,7 @@ static float maskrasterize_layer_z_depth_quad(
   return w[2] + w[3]; /* we can make this assumption for small speedup */
 }
 
-static float maskrasterize_layer_isect(unsigned int *face,
+static float maskrasterize_layer_isect(const unsigned int *face,
                                        float (*cos)[3],
                                        const float dist_orig,
                                        const float xy[2])
@@ -1489,6 +1489,8 @@ static void maskrasterize_buffer_cb(void *__restrict userdata,
 void BKE_maskrasterize_buffer(MaskRasterHandle *mr_handle,
                               const unsigned int width,
                               const unsigned int height,
+                              /* Cannot be const, because it is assigned to non-const variable.
+                               * NOLINTNEXTLINE: readability-non-const-parameter. */
                               float *buffer)
 {
   const float x_inv = 1.0f / (float)width;

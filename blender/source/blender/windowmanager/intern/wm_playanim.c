@@ -58,6 +58,7 @@
 #include "BIF_glutil.h"
 
 #include "GPU_context.h"
+#include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_init_exit.h"
@@ -309,15 +310,22 @@ static void playanim_toscreen(
   CLAMP(offs_x, 0.0f, 1.0f);
   CLAMP(offs_y, 0.0f, 1.0f);
 
-  glClearColor(0.1, 0.1, 0.1, 0.0);
-  glClear(GL_COLOR_BUFFER_BIT);
+  GPU_clear_color(0.1, 0.1, 0.1, 0.0);
+  GPU_clear(GPU_COLOR_BIT);
 
   /* checkerboard for case alpha */
   if (ibuf->planes == 32) {
     GPU_blend(true);
-    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    GPU_blend_set_func_separate(
+        GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
-    imm_draw_box_checker_2d(offs_x, offs_y, offs_x + span_x, offs_y + span_y);
+    imm_draw_box_checker_2d_ex(offs_x,
+                               offs_y,
+                               offs_x + span_x,
+                               offs_y + span_y,
+                               (const float[4]){0.15, 0.15, 0.15, 1.0},
+                               (const float[4]){0.20, 0.20, 0.20, 1.0},
+                               8);
   }
 
   IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
@@ -536,7 +544,6 @@ static void build_pict_list_ex(
       totframes--;
     }
   }
-  return;
 }
 
 static void build_pict_list(PlayState *ps, const char *first, int totframes, int fstep, int fontid)
@@ -1053,8 +1060,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
       /* zoom always show entire image */
       ps->zoom = MIN2(zoomx, zoomy);
 
-      glViewport(0, 0, ps->win_x, ps->win_y);
-      glScissor(0, 0, ps->win_x, ps->win_y);
+      GPU_viewport(0, 0, ps->win_x, ps->win_y);
+      GPU_scissor(0, 0, ps->win_x, ps->win_y);
 
       playanim_gl_matrix();
 
@@ -1310,13 +1317,13 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
     maxwiny = ibuf->y * (1 + (maxwiny / ibuf->y));
   }
 
-  glClearColor(0.1, 0.1, 0.1, 0.0);
-  glClear(GL_COLOR_BUFFER_BIT);
+  GPU_clear_color(0.1, 0.1, 0.1, 0.0);
+  GPU_clear(GPU_COLOR_BIT);
 
   int win_x, win_y;
   playanim_window_get_size(&win_x, &win_y);
-  glViewport(0, 0, win_x, win_y);
-  glScissor(0, 0, win_x, win_y);
+  GPU_viewport(0, 0, win_x, win_y);
+  GPU_scissor(0, 0, win_x, win_y);
   playanim_gl_matrix();
 
   GHOST_SwapWindowBuffers(g_WS.ghost_window);

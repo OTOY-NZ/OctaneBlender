@@ -60,6 +60,7 @@
 #include "BKE_action.h"
 #include "BKE_anim_data.h"
 #include "BKE_fcurve.h"
+#include "BKE_fcurve_driver.h"
 #include "BKE_global.h"
 #include "BKE_idtype.h"
 #include "BKE_ipo.h"
@@ -122,6 +123,7 @@ IDTypeInfo IDType_ID_IP = {
     .copy_data = NULL,
     .free_data = ipo_free_data,
     .make_local = NULL,
+    .foreach_id = NULL,
 };
 
 /* *************************************************** */
@@ -1339,7 +1341,7 @@ static void icu_to_fcurves(ID *id,
   int totbits;
 
   /* allocate memory for a new F-Curve */
-  fcu = MEM_callocN(sizeof(FCurve), "FCurve");
+  fcu = BKE_fcurve_create();
 
   /* convert driver */
   if (icu->driver) {
@@ -1418,7 +1420,7 @@ static void icu_to_fcurves(ID *id,
 
       /* make a copy of existing base-data if not the last curve */
       if (b < (totbits - 1)) {
-        fcurve = copy_fcurve(fcu);
+        fcurve = BKE_fcurve_copy(fcu);
       }
       else {
         fcurve = fcu;
@@ -2394,7 +2396,7 @@ void do_versions_ipos_to_animato(Main *bmain)
   }
 
   /* free unused drivers from actions + ipos */
-  free_fcurves(&drivers);
+  BKE_fcurves_free(&drivers);
 
   if (G.debug & G_DEBUG) {
     printf("INFO: Animato convert done\n");

@@ -21,16 +21,15 @@
  * \ingroup DNA
  */
 
-#ifndef __DNA_MOVIECLIP_TYPES_H__
-#define __DNA_MOVIECLIP_TYPES_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 #include "DNA_ID.h"
 #include "DNA_color_types.h" /* for color management */
 #include "DNA_tracking_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct AnimData;
 struct ImBuf;
@@ -78,7 +77,7 @@ typedef struct MovieClip {
   struct AnimData *adt;
 
   /** File path, 1024 = FILE_MAX. */
-  char name[1024];
+  char filepath[1024];
 
   /** Sequence or movie. */
   int source;
@@ -207,6 +206,4 @@ enum {
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif
