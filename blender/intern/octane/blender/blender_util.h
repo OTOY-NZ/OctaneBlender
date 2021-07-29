@@ -48,6 +48,7 @@ void BKE_image_user_frame_calc(void *ima, void *iuser, int cfra);
 void BKE_image_user_file_path(void *iuser, void *ima, char *path);
 unsigned char *BKE_image_get_pixels_for_frame(void *image, int frame);
 float *BKE_image_get_float_pixels_for_frame(void *image, int frame);
+struct Image *BKE_image_load_exists(struct Main *bmain, const char *filepath);
 }
 
 OCT_NAMESPACE_BEGIN
@@ -661,7 +662,7 @@ template<typename K, typename T> class id_map {
 
   T *find(const BL::ID &id)
   {
-    return find(id.ptr.id.data);
+    return find(id.ptr.owner_id);
   }
 
   T *find(const K &key)
@@ -679,6 +680,11 @@ template<typename K, typename T> class id_map {
     b_recalc.insert(id.ptr.data);
   }
 
+  void set_recalc(void *id_ptr)
+  {
+    b_recalc.insert(id_ptr);
+  }
+
   bool has_recalc()
   {
     return !(b_recalc.empty());
@@ -691,7 +697,7 @@ template<typename K, typename T> class id_map {
 
   bool sync(T **r_data, const BL::ID &id)
   {
-    return sync(r_data, id, id, id.ptr.id.data);
+    return sync(r_data, id, id, id.ptr.owner_id);
   }
 
   bool sync(T **r_data, const BL::ID &id, const BL::ID &parent, const K &key)
@@ -772,6 +778,11 @@ template<typename K, typename T> class id_map {
     b_map = new_map;
 
     return deleted;
+  }
+
+  const map<K, T *> &key_to_scene_data()
+  {
+    return b_map;
   }
 
  protected:
@@ -887,6 +898,71 @@ static inline void set_int4(PointerRNA &ptr, const char *name, int4 value)
   RNA_int_set_array(&ptr, name, &value.x);
 }
 
+static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
+                                    PointerRNA &ptr,
+                                    bool is_socket = false)
+{
+  if (!base_dto_ptr || !ptr.data)
+    return false;
+
+  int4 i;
+  float4 f;
+  const char *name = ((is_socket && base_dto_ptr->type != OctaneDataTransferObject::DTO_ENUM) ?
+                          "default_value" :
+                          base_dto_ptr->sName.c_str());
+  switch (base_dto_ptr->type) {
+    case OctaneDataTransferObject::DTO_ENUM:
+      set_enum(ptr, name, ((::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr)->iVal);
+      break;
+    case OctaneDataTransferObject::DTO_BOOL:
+      set_boolean(ptr, name, ((::OctaneDataTransferObject::OctaneDTOBool *)base_dto_ptr)->bVal);
+      break;
+    case OctaneDataTransferObject::DTO_INT:
+      set_int(ptr, name, ((::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr)->iVal);
+      break;
+    case OctaneDataTransferObject::DTO_INT_2:
+      i.x = ((::OctaneDataTransferObject::OctaneDTOInt2 *)base_dto_ptr)->iVal.x;
+      i.y = ((::OctaneDataTransferObject::OctaneDTOInt2 *)base_dto_ptr)->iVal.y;
+      set_int4(ptr, name, i);
+      break;
+    case OctaneDataTransferObject::DTO_INT_3:
+      i.x = ((::OctaneDataTransferObject::OctaneDTOInt3 *)base_dto_ptr)->iVal.x;
+      i.y = ((::OctaneDataTransferObject::OctaneDTOInt3 *)base_dto_ptr)->iVal.y;
+      i.z = ((::OctaneDataTransferObject::OctaneDTOInt3 *)base_dto_ptr)->iVal.z;
+      set_int4(ptr, name, i);
+      break;
+    case OctaneDataTransferObject::DTO_FLOAT:
+      set_float(ptr, name, ((::OctaneDataTransferObject::OctaneDTOFloat *)base_dto_ptr)->fVal);
+      break;
+    case OctaneDataTransferObject::DTO_FLOAT_2:
+      f.x = ((::OctaneDataTransferObject::OctaneDTOFloat2 *)base_dto_ptr)->fVal.x;
+      f.y = ((::OctaneDataTransferObject::OctaneDTOFloat2 *)base_dto_ptr)->fVal.y;
+      f.z = f.w = 1.f;
+      set_float4(ptr, name, f);
+      break;
+    case OctaneDataTransferObject::DTO_FLOAT_3:
+      f.x = ((::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr)->fVal.x;
+      f.y = ((::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr)->fVal.y;
+      f.z = ((::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr)->fVal.z;
+      f.w = 1.f;
+      set_float4(ptr, name, f);
+      break;
+    case OctaneDataTransferObject::DTO_STR:
+      set_string(ptr, name, ((::OctaneDataTransferObject::OctaneDTOString *)base_dto_ptr)->sVal);
+      break;
+    case OctaneDataTransferObject::DTO_RGB:
+      f.x = ((::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr)->fVal.x;
+      f.y = ((::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr)->fVal.y;
+      f.z = ((::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr)->fVal.z;
+      f.w = 1.f;
+      set_float4(ptr, name, f);
+      break;
+    default:
+      break;
+  }
+  return true;
+}
+
 static inline bool set_octane_data_transfer_object(
     ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
     PointerRNA &ptr,
@@ -947,17 +1023,17 @@ static inline bool set_octane_data_transfer_object(
   return true;
 }
 
-struct OctaneDataTransferObjectVisitor {
-  template<class FieldData> void operator()(FieldData f)
+struct OctaneDataTransferObjectVisitor : BaseVisitor {
+
+  void handle(const std::string &name, ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr)
   {
-    std::string member_name = f.name();
-    ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr = &f.get();
     if (base_dto_ptr && base_dto_ptr->sName.size()) {
       if (!base_dto_ptr->bUseSocket) {
         set_octane_data_transfer_object(base_dto_ptr, target, false);
       }
     }
   }
+
   PointerRNA &target;
   OctaneDataTransferObjectVisitor(PointerRNA &target) : target(target)
   {

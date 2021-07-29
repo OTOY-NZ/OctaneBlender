@@ -6,8 +6,6 @@
 namespace OctaneDataTransferObject {
 
 	struct OctaneRotationTransform : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_ROTATION_TRANSFORM;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iOrder,
@@ -17,15 +15,15 @@ namespace OctaneDataTransferObject {
 		OctaneRotationTransform() :
 			iOrder("rotation_order", false),
 			fRotation("Rotation"),
-			OctaneNodeBase(Octane::NT_TRANSFORM_ROTATION)
+			OctaneNodeBase(Octane::NT_TRANSFORM_ROTATION, "ShaderNodeOctRotateTransform")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iOrder, fRotation, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneScaleTransform : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_SCALE_TRANSFORM;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOFloat3)	fScale
@@ -33,15 +31,15 @@ namespace OctaneDataTransferObject {
 
 		OctaneScaleTransform() :
 			fScale("Scale"),
-			OctaneNodeBase(Octane::NT_TRANSFORM_SCALE)
+			OctaneNodeBase(Octane::NT_TRANSFORM_SCALE, "ShaderNodeOctScaleTransform")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fScale, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneValueTransform : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_VALUE_TRANSFORM;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iOrder,
@@ -55,15 +53,15 @@ namespace OctaneDataTransferObject {
 			fRotation("Rotation"),
 			fScale("Scale"),
 			fTranslation("Translation"),
-			OctaneNodeBase(Octane::NT_TRANSFORM_VALUE)
+			OctaneNodeBase(Octane::NT_TRANSFORM_VALUE, "ShaderNodeOctFullTransform")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iOrder, fRotation, fScale, fTranslation, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct Octane2DTransform : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_2D_TRANSFORM;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOFloat2)	fRotation,
@@ -75,15 +73,15 @@ namespace OctaneDataTransferObject {
 			fRotation("Rotation"),
 			fScale("Scale"),
 			fTranslation("Translation"),
-			OctaneNodeBase(Octane::NT_TRANSFORM_2D)
+			OctaneNodeBase(Octane::NT_TRANSFORM_2D, "ShaderNodeOct2DTransform")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fRotation, fScale, fTranslation, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct Octane3DTransform : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_3D_TRANSFORM;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iOrder,
@@ -97,9 +95,11 @@ namespace OctaneDataTransferObject {
 			fRotation("Rotation"),
 			fScale("Scale"),
 			fTranslation("Translation"),
-			OctaneNodeBase(Octane::NT_TRANSFORM_3D)
+			OctaneNodeBase(Octane::NT_TRANSFORM_3D, "ShaderNodeOct3DTransform")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iOrder, fRotation, fScale, fTranslation, MSGPACK_BASE(OctaneNodeBase));
 	};
 

@@ -823,7 +823,7 @@ typedef struct ObstaclesFromDMData {
 
 static void obstacles_from_mesh_task_cb(void *__restrict userdata,
                                         const int z,
-                                        const ParallelRangeTLS *__restrict UNUSED(tls))
+                                        const TaskParallelTLS *__restrict UNUSED(tls))
 {
   ObstaclesFromDMData *data = userdata;
   SmokeDomainSettings *sds = data->sds;
@@ -978,7 +978,7 @@ static void obstacles_from_mesh(Object *coll_ob,
           .velocityZ = velocityZ,
           .num_obstacles = num_obstacles,
       };
-      ParallelRangeSettings settings;
+      TaskParallelSettings settings;
       BLI_parallel_range_settings_defaults(&settings);
       settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
       BLI_task_parallel_range(
@@ -1332,7 +1332,7 @@ typedef struct EmitFromParticlesData {
 
 static void emit_from_particles_task_cb(void *__restrict userdata,
                                         const int z,
-                                        const ParallelRangeTLS *__restrict UNUSED(tls))
+                                        const TaskParallelTLS *__restrict UNUSED(tls))
 {
   EmitFromParticlesData *data = userdata;
   SmokeFlowSettings *sfs = data->sfs;
@@ -1432,13 +1432,13 @@ static void emit_from_particles(Object *flow_ob,
 
     /* prepare curvemapping tables */
     if ((psys->part->child_flag & PART_CHILD_USE_CLUMP_CURVE) && psys->part->clumpcurve) {
-      curvemapping_changed_all(psys->part->clumpcurve);
+      BKE_curvemapping_changed_all(psys->part->clumpcurve);
     }
     if ((psys->part->child_flag & PART_CHILD_USE_ROUGH_CURVE) && psys->part->roughcurve) {
-      curvemapping_changed_all(psys->part->roughcurve);
+      BKE_curvemapping_changed_all(psys->part->roughcurve);
     }
     if ((psys->part->child_flag & PART_CHILD_USE_TWIST_CURVE) && psys->part->twistcurve) {
-      curvemapping_changed_all(psys->part->twistcurve);
+      BKE_curvemapping_changed_all(psys->part->twistcurve);
     }
 
     /* initialize particle cache */
@@ -1482,7 +1482,8 @@ static void emit_from_particles(Object *flow_ob,
         }
       }
 
-      state.time = DEG_get_ctime(depsgraph); /* use depsgraph time */
+      /* DEG_get_ctime(depsgraph) does not give subframe time */
+      state.time = BKE_scene_frame_get(scene);
       if (psys_get_particle_state(&sim, p, &state, 0) == 0) {
         continue;
       }
@@ -1571,7 +1572,7 @@ static void emit_from_particles(Object *flow_ob,
           .hr_smooth = hr_smooth,
       };
 
-      ParallelRangeSettings settings;
+      TaskParallelSettings settings;
       BLI_parallel_range_settings_defaults(&settings);
       settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
       BLI_task_parallel_range(min[2], max[2], &data, emit_from_particles_task_cb, &settings);
@@ -1774,7 +1775,7 @@ typedef struct EmitFromDMData {
 
 static void emit_from_mesh_task_cb(void *__restrict userdata,
                                    const int z,
-                                   const ParallelRangeTLS *__restrict UNUSED(tls))
+                                   const TaskParallelTLS *__restrict UNUSED(tls))
 {
   EmitFromDMData *data = userdata;
   EmissionMap *em = data->em;
@@ -1979,7 +1980,7 @@ static void emit_from_mesh(
           .res = res,
       };
 
-      ParallelRangeSettings settings;
+      TaskParallelSettings settings;
       BLI_parallel_range_settings_defaults(&settings);
       settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
       BLI_task_parallel_range(min[2], max[2], &data, emit_from_mesh_task_cb, &settings);
@@ -2531,17 +2532,13 @@ static void update_flowsfluids(
       }
       /* sample subframes */
       else {
-#  if 0
         int scene_frame = (int)DEG_get_ctime(depsgraph);
-#  endif
         // float scene_subframe = scene->r.subframe;  // UNUSED
         int subframe;
         for (subframe = 0; subframe <= subframes; subframe++) {
           EmissionMap em_temp = {NULL};
           float sample_size = 1.0f / (float)(subframes + 1);
-#  if 0
           float prev_frame_pos = sample_size * (float)(subframe + 1);
-#  endif
           float sdt = dt * sample_size;
           int hires_multiplier = 1;
 
@@ -2549,8 +2546,6 @@ static void update_flowsfluids(
             hires_multiplier = sds->amplify + 1;
           }
 
-          /* TODO: setting the scene frame no longer works with the new depsgraph. */
-#  if 0
           /* set scene frame to match previous frame + subframe
            * or use current frame for last sample */
           if (subframe < subframes) {
@@ -2561,7 +2556,17 @@ static void update_flowsfluids(
             scene->r.cfra = scene_frame;
             scene->r.subframe = 0.0f;
           }
-#  endif
+
+          /* update flow object frame */
+          BLI_mutex_lock(&object_update_lock);
+          BKE_object_modifier_update_subframe(depsgraph,
+                                              scene,
+                                              collob,
+                                              true,
+                                              5,
+                                              BKE_scene_frame_get(scene),
+                                              eModifierType_Smoke);
+          BLI_mutex_unlock(&object_update_lock);
 
           if (sfs->source == MOD_SMOKE_FLOW_SOURCE_PARTICLES) {
             /* emit_from_particles() updates timestep internally */
@@ -2571,12 +2576,6 @@ static void update_flowsfluids(
             }
           }
           else { /* MOD_SMOKE_FLOW_SOURCE_MESH */
-            /* update flow object frame */
-            BLI_mutex_lock(&object_update_lock);
-            BKE_object_modifier_update_subframe(
-                depsgraph, scene, collob, true, 5, DEG_get_ctime(depsgraph), eModifierType_Smoke);
-            BLI_mutex_unlock(&object_update_lock);
-
             /* apply flow */
             emit_from_mesh(collob, sds, sfs, &em_temp, sdt);
           }
@@ -2897,7 +2896,7 @@ typedef struct UpdateEffectorsData {
 
 static void update_effectors_task_cb(void *__restrict userdata,
                                      const int x,
-                                     const ParallelRangeTLS *__restrict UNUSED(tls))
+                                     const TaskParallelTLS *__restrict UNUSED(tls))
 {
   UpdateEffectorsData *data = userdata;
   SmokeDomainSettings *sds = data->sds;
@@ -2971,7 +2970,7 @@ static void update_effectors(
     data.velocity_z = smoke_get_velocity_z(sds->fluid);
     data.obstacle = smoke_get_obstacle(sds->fluid);
 
-    ParallelRangeSettings settings;
+    TaskParallelSettings settings;
     BLI_parallel_range_settings_defaults(&settings);
     settings.scheduling_mode = TASK_SCHEDULING_DYNAMIC;
     BLI_task_parallel_range(0, sds->res[0], &data, update_effectors_task_cb, &settings);
@@ -3356,14 +3355,16 @@ struct Mesh *smokeModifier_do(
   if (smd->type & MOD_SMOKE_TYPE_DOMAIN && smd->domain &&
       smd->domain->flags & MOD_SMOKE_ADAPTIVE_DOMAIN && smd->domain->base_res[0]) {
     result = createDomainGeometry(smd->domain, ob);
+    BKE_mesh_copy_settings(result, me);
   }
   else {
     result = BKE_mesh_copy_for_eval(me, false);
   }
-  /* XXX This is really not a nice hack, but until root of the problem is understood,
-   * this should be an acceptable workaround I think.
-   * See T58492 for details on the issue. */
-  result->texflag |= ME_AUTOSPACE;
+
+  /* Smoke simulation needs a texture space relative to the adaptive domain bounds, not the
+   * original mesh. So recompute it at this point in the modifier stack. See T58492. */
+  BKE_mesh_texspace_calc(result);
+
   return result;
 }
 
@@ -3527,7 +3528,7 @@ static void smoke_calc_transparency(SmokeDomainSettings *sds, ViewLayer *view_la
 
         // get starting cell (light pos)
         if (BLI_bvhtree_bb_raycast(bv, light, voxelCenter, pos) > FLT_EPSILON) {
-          // we're ouside -> use point on side of domain
+          // we're outside -> use point on side of domain
           cell[0] = (int)floor(pos[0]);
           cell[1] = (int)floor(pos[1]);
           cell[2] = (int)floor(pos[2]);

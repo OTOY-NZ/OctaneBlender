@@ -120,7 +120,7 @@ class BlenderSession {
                              BL::BlendData &b_data,
                              BL::Material &b_material);
   static bool heart_beat(std::string server_address);
-  static bool get_octanedb(BL::Scene &b_scene, bContext *context, std::string server_address);
+  static bool get_octanedb(bContext *context, std::string server_address);
 
   Session *session;
   Scene *scene;
@@ -148,7 +148,7 @@ class BlenderSession {
   string b_rlay_name;
   string b_rview_name;
 
-  ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type;
+  ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type;
   string export_path;
   bool no_progress_update;
 
@@ -209,17 +209,6 @@ struct OctaneExportJobData {
   short *do_update;
   float *progress;
 };  // struct OctaneExportJobData
-
-struct GetOctaneDBJobData {
-  bContext *context;
-  std::mutex *mutex;
-  char server_address[256];
-
-  bool was_canceled;
-  short *stop;
-  short *do_update;
-  float *progress;
-};  // struct OctaneDBJobData
 
 OCT_NAMESPACE_END
 

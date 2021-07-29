@@ -39,7 +39,6 @@
 namespace OctaneDataTransferObject {
 
 	struct OctaneMeshData : public OctaneNodeBase {
-		const static PacketType packetType = NONE;
 		bool					bUpdate;
 		int						iSamplesNum;
 		std::vector<float_3>	f3Points;		
@@ -65,7 +64,7 @@ namespace OctaneDataTransferObject {
 		std::vector<std::vector<float_3>>	f3VertexColors;	
 		std::map<float, std::vector<float_3>>	oMotionf3Points;
 		std::map<std::string, std::pair<uint32_t, uint32_t>>	oArrayInfo;
-		OctaneMeshData() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneMeshData() : OctaneNodeBase(Octane::ENT_MESH_DATA, "OctaneMeshData") {}
 		void Clear() 
 		{ 
 			bUpdate = false;
@@ -109,7 +108,7 @@ namespace OctaneDataTransferObject {
 		std::vector<int32_t>		iOpenSubdCreasesIndices;
 		std::vector<float>			fOpenSubdCreasesSharpnesses;
 		std::map<std::string, std::pair<uint32_t, uint32_t>>	oArrayInfo;
-		OctaneMeshOpenSubdivision() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneMeshOpenSubdivision() : OctaneNodeBase(Octane::ENT_MESH_SUBD_DATA, "OctaneMeshOpenSubdivision") {}
 		void Clear() 
 		{
 			bUpdate = false;
@@ -153,7 +152,7 @@ namespace OctaneDataTransferObject {
 			fScaleY("baking_uv_transform_sy", false),
 			fTranslationX("baking_uv_transform_tx", false),
 			fTranslationY("baking_uv_transform_ty", false),
-			OctaneNodeBase(Octane::NT_OBJECTLAYER) 
+			OctaneNodeBase(Octane::NT_OBJECTLAYER, "OctaneObjectLayer") 
 		{
 		}
 		MSGPACK_DEFINE(iRenderLayerID, fGeneralVisibility, bCameraVisibility, bShadowVisibility, iRandomColorSeed, iLightPassMask, i3Color,
@@ -175,7 +174,7 @@ namespace OctaneDataTransferObject {
 		OctaneMeshData				oMeshData;
 		OctaneMeshOpenSubdivision	oMeshOpenSubdivision;
 		OctaneObjectLayer			oObjectLayer;
-		OctaneMesh() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneMesh() : OctaneNodeBase(Octane::ENT_MESH, "OctaneMesh") {}
 		void Clear()
 		{
 			iCurrentActiveUVSetIdx = 0;
@@ -201,7 +200,7 @@ namespace OctaneDataTransferObject {
 		OctaneMesh					oGlobalMesh;
 		int32_t*					iData;
 		float*						fData;
-		OctaneMeshes() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneMeshes() : OctaneNodeBase(Octane::ENT_MESHES, "OctaneMeshes") {}
 		MSGPACK_DEFINE(bGlobal, sGlobalMeshName, sGlobalLayerName, iCurrentFrameIdx, iTotalFrameIdx, oMeshes, oGlobalMesh);
 	};
 
@@ -209,7 +208,7 @@ namespace OctaneDataTransferObject {
 		const static PacketType packetType = GET_GEO_NODES;
 		int32_t						iMeshNodeType;
 		std::set<std::string>		sMeshNames;
-		OctaneGeoNodes() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneGeoNodes() : OctaneNodeBase(Octane::ENT_GEO_NODES, "OctaneGeoNodes") {}
 		MSGPACK_DEFINE(iMeshNodeType, sMeshNames);
 	};
 
@@ -225,7 +224,7 @@ namespace OctaneDataTransferObject {
 		bool						bUseObjectLayer;
 		OctaneObjectLayer			oObjectLayer;		
 		std::map<std::string, std::pair<uint32_t, uint32_t>>	oArrayInfo;
-		OctaneObject() : OctaneNodeBase(Octane::NT_UNKNOWN) { iInstanceSize = 1; }
+		OctaneObject() : OctaneNodeBase(Octane::ENT_OBJECT, "OctaneObject") { iInstanceSize = 1; }
 		MSGPACK_DEFINE(sObjectName, sMeshName, iInstanceSize, bMovable, bUseObjectLayer, iSamplesNum, oObjectLayer, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
@@ -240,7 +239,7 @@ namespace OctaneDataTransferObject {
 		std::unordered_map<std::string, std::vector<float>> fMatrixMap;
 		int32_t*					iData;
 		float*						fData;
-		OctaneObjects() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneObjects() : OctaneNodeBase(Octane::ENT_OBJECTS, "OctaneObjects") {}
 		MSGPACK_DEFINE(bGlobal, iCurrentFrameIdx, iTotalFrameIdx, oObjects, MSGPACK_BASE(OctaneNodeBase));
 	};
 
@@ -255,7 +254,7 @@ namespace OctaneDataTransferObject {
 		std::string					sLightMeshName;
 		std::string					sLightMatMapName;
 		OctaneObject				oObject;
-		OctaneLight() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneLight() : OctaneNodeBase(Octane::ENT_LIGHT, "OctaneLight") {}
 		MSGPACK_DEFINE(sLightName, sShaderName, iLightNodeType, f3Direction, sLightObjectPath, sLightMeshName, sLightMatMapName, oObject, MSGPACK_BASE(OctaneNodeBase));
 	};
 }

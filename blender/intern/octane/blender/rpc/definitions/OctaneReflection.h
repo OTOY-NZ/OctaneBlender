@@ -85,7 +85,7 @@ struct field_visitor
 	template<class C, class Visitor, class T>
 	void operator()(C& c, Visitor v, T)
 	{
-		v(reflector::get_field_data<T::value>(c));
+		v.visit(reflector::get_field_data<T::value>(c));
 	}
 };
 
@@ -95,6 +95,35 @@ void visit_each(C & c, Visitor v)
 	typedef boost::mpl::range_c<int, 0, reflector::fields<C>::n> range;
 	boost::mpl::for_each<range>(boost::bind<void>(field_visitor(), boost::ref(c), v, _1));
 }
+
+struct field_data_visitor
+{
+	template<class C, class Visitor, class T>
+	void operator()(C& c, Visitor* pV, T)
+	{
+		pV->visit(reflector::get_field_data<T::value>(c));
+	}
+};
+
+template<class C, class Visitor>
+void visit_each_field_data(C & c, Visitor* pV)
+{
+	typedef boost::mpl::range_c<int, 0, reflector::fields<C>::n> range;
+	boost::mpl::for_each<range>(boost::bind<void>(field_data_visitor(), boost::ref(c), pV, _1));
+}
+
+struct BaseVisitor
+{
+	template<class FieldData>
+	void visit(FieldData f)
+	{
+		std::string member_name = f.name();
+		::OctaneDataTransferObject::OctaneDTOBase* base_dto_ptr = &f.get();
+		this->handle(member_name, base_dto_ptr);
+	}
+
+	virtual void handle(const std::string &name, ::OctaneDataTransferObject::OctaneDTOBase* pData) {}
+};
 
 struct PrintVisitor
 {

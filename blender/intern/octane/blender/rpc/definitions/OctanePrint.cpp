@@ -76,16 +76,5 @@ namespace OctaneDataTransferObject {
 		out << static_cast<const OctaneDTOBase&>(obj);
 		return out;
 	}
-
-	std::ostream& operator<< (std::ostream& out, const OctaneNodeBase& obj){		
-		out << "[" << obj.sName.c_str() << "]: " << "[" << obj.nodeType << "]" << std::endl;
-		return out;
-	}
-
-	std::ostream& operator<< (std::ostream& out, const OctaneLightDirection& obj){
-		out << static_cast<const OctaneNodeBase&>(obj);
-		print_fields(obj, out);
-		return out;
-	}
 }
 // clang-format on

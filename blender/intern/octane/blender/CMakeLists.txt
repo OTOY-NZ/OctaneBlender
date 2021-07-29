@@ -7,7 +7,8 @@ set(INC
 	../../../source/blender/makesdna
 	../../../source/blender/makesrna
 	../../../source/blender/blenlib
-  ../../../source/blender/blenkernel
+	../../../source/blender/blentranslation  
+	../../../source/blender/blenkernel
   ../../../source/blender/depsgraph
   ../../../source/blender/windowmanager
   ../../../source/blender/render/intern/include
@@ -29,19 +30,29 @@ set(SRC
 	blender_object.cpp
 	blender_mesh.cpp
 	blender_shader.cpp
-  blender_hair.cpp
+	blender_hair.cpp
+	blender_octanedb.cpp
 
+	blender_octanedb.h
 	blender_sync.h
 	blender_session.h
 	blender_util.h
 	OCT_api.h
 	
-	./server/OctaneClient.h
+	./server/octane_client.h
+	./server/octane_data_type.h
+	./server/octane_network_const.h
+	./server/octane_network.h
+	./server/octane_network.cpp
+	./server/octane_client.cpp
+
 	./rpc/definitions/OctaneNode.h
 	./rpc/definitions/OctaneTransform.h
 	./rpc/definitions/OctaneProjection.h
 	./rpc/definitions/OctanePinInfo.h
 	./rpc/definitions/OctaneMesh.h
+	./rpc/definitions/OctaneNodeFactory.h
+	./rpc/definitions/OctaneNodeFactory.cpp
 )
 
 set(LIB

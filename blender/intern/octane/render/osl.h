@@ -17,6 +17,7 @@
 #ifndef __OSL_H__
 #define __OSL_H__
 
+#include "blender/rpc/definitions/OctaneNode.h"
 #include "blender/rpc/definitions/OctanePinInfo.h"
 #include <unordered_map>
 

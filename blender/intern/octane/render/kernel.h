@@ -21,7 +21,7 @@
 
 #include "util/util_types.h"
 
-#include "blender/server/OctaneClient.h"
+#include "blender/server/octane_client.h"
 
 OCT_NAMESPACE_BEGIN
 

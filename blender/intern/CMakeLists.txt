@@ -77,6 +77,11 @@ if(WITH_OPENVDB)
   add_subdirectory(openvdb)
 endif()
 
+if(WITH_QUADRIFLOW)
+  add_subdirectory(quadriflow)
+endif()
+
+
 if(WITH_OCTANE)
 	add_subdirectory(octane)
 endif()

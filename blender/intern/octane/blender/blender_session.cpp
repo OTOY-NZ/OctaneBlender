@@ -51,7 +51,8 @@ extern "C" {
 #include "render/graph.h"
 #include "render/shader.h"
 #include "render/osl.h"
-#include "blender/server/OctaneClient.h"
+#include "blender/server/octane_client.h"
+#include "blender/blender_octanedb.h"
 
 #include "util/util_progress.h"
 #include "util/util_time.h"
@@ -91,9 +92,8 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
   last_redraw_time = 0.0;
   last_status_time = 0.0;
 
-  this->export_type =
-      static_cast<::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum>(
-          export_type);
+  this->export_type = static_cast<::OctaneEngine::SceneExportTypes::SceneExportTypesEnum>(
+      export_type);
 
   sync_mutex.unlock();
 }
@@ -129,9 +129,8 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
   last_redraw_time = 0.0;
   last_status_time = 0.0;
 
-  this->export_type =
-      static_cast<::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum>(
-          export_type);
+  this->export_type = static_cast<::OctaneEngine::SceneExportTypes::SceneExportTypesEnum>(
+      export_type);
 
   sync_mutex.unlock();
 }
@@ -171,8 +170,7 @@ void BlenderSession::create_session()
   session->set_pause(session_pause);
   PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
   this->server_address = G.octane_server_address;
-  BlenderSession::connect_to_server(
-      this->server_address, ::OctaneEngine::RENDER_SERVER_PORT, session->server);
+  BlenderSession::connect_to_server(this->server_address, RENDER_SERVER_PORT, session->server);
 
   /* create scene */
   scene = new Scene(session,
@@ -266,7 +264,7 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
       b_render, b_null_space_view3d, b_null_region_view3d, scene->camera, width, height);
 
   if (b_scene.frame_current() == b_scene.frame_start() ||
-      export_type == ::OctaneEngine::OctaneClient::SceneExportTypes::NONE) {
+      export_type == ::OctaneEngine::SceneExportTypes::NONE) {
     session->reset(buffer_params, session_params.samples);
   }
 
@@ -444,7 +442,7 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
 
   SessionParams session_params = BlenderSync::get_session_params(
       b_engine, b_userpref, b_scene, background, width, height, export_type);
-  if (session_params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE) {
+  if (session_params.export_type != ::OctaneEngine::SceneExportTypes::NONE) {
     BL::Object b_camera_override(b_engine.camera_override());
     sync->sync_data(
         b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
@@ -454,7 +452,7 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
     session->server->startRender(!background,
                                  width,
                                  height,
-                                 ::OctaneEngine::OctaneClient::IMAGE_8BIT,
+                                 ::OctaneEngine::IMAGE_8BIT,
                                  session_params.out_of_core_enabled,
                                  session_params.out_of_core_mem_limit,
                                  session_params.out_of_core_gpu_headroom,
@@ -591,10 +589,10 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
   session->server->downloadImageBuffer(
       session->params.image_stat,
       session->params.interactive ?
-          ::OctaneEngine::OctaneClient::IMAGE_8BIT :
+          ::OctaneEngine::IMAGE_8BIT :
           (session->params.hdr_tonemapped && session->params.hdr_tonemap_prefer ?
-               ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED :
-               ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
+               ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
+               ::OctaneEngine::IMAGE_FLOAT),
       cur_pass_type);
 
   if (session->server->getCopyImgBufferFloat(
@@ -629,10 +627,10 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       if (!session->server->downloadImageBuffer(
               session->params.image_stat,
               session->params.interactive ?
-                  ::OctaneEngine::OctaneClient::IMAGE_8BIT :
+                  ::OctaneEngine::IMAGE_8BIT :
                   (session->params.hdr_tonemapped && session->params.hdr_tonemap_prefer ?
-                       ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED :
-                       ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
+                       ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
+                       ::OctaneEngine::IMAGE_FLOAT),
               pass_type)) {
         float *pixels = new float[buf_size];
         memset(pixels, 0, sizeof(float) * buf_size);
@@ -781,15 +779,14 @@ bool BlenderSession::connect_to_server(std::string server_address,
   bool ret = true;
   if (server) {
     if (!server->connectToServer(server_address.c_str(), server_port)) {
-      if (server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED)
+      if (server->getFailReason() == ::OctaneEngine::FailReasons::NOT_ACTIVATED)
         fprintf(stdout, "Octane: current server activation state is: not activated.\n");
       else {
-        if (server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION) {
+        if (server->getFailReason() == ::OctaneEngine::FailReasons::NO_CONNECTION) {
           fprintf(stderr, "Octane: can't connect to Octane server.\n");
           ret = false;
         }
-        else if (server->getFailReason() ==
-                 ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION) {
+        else if (server->getFailReason() == ::OctaneEngine::FailReasons::WRONG_VERSION) {
           fprintf(stderr, "Octane: wrong version of Octane server.\n");
           ret = false;
         }
@@ -814,8 +811,7 @@ bool BlenderSession::command_to_octane(std::string server_address,
                                        const std::vector<std::string> &sParams)
 {
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(
-      server_address, ::OctaneEngine::RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
   if (ret && !server->commandToOctane(cmd_type, iParams, fParams, sParams)) {
     ret = false;
   }
@@ -827,8 +823,7 @@ bool BlenderSession::activate_license(bool activate)
 {
   std::string server_address = G.octane_server_address;
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(
-      server_address, ::OctaneEngine::RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
   if (ret) {
     if (!activate) {
       server->ReleaseOctaneApi();
@@ -846,34 +841,19 @@ bool BlenderSession::osl_compile(const std::string server_address,
                                  std::string &info)
 {
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(
-      server_address, ::OctaneEngine::RENDER_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
   OctaneDataTransferObject::OSLNodeInfo oslNodeInfo;
   if (ret) {
     BL::ShaderNode b_node(node_ptr);
-    if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctOSLTex)) {
-      ret = server->compileOSL<OctaneDataTransferObject::OctaneOSLTexture>(
-          osl_identifier, osl_path, osl_code, oslNodeInfo);
-    }
-    else if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctOSLCamera)) {
-      ret = server->compileOSL<OctaneDataTransferObject::OctaneOSLCamera>(
-          osl_identifier, osl_path, osl_code, oslNodeInfo);
-    }
-    else if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctOSLBakingCamera)) {
-      ret = server->compileOSL<OctaneDataTransferObject::OctaneOSLBakingCamera>(
-          osl_identifier, osl_path, osl_code, oslNodeInfo);
-    }
-    else if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctOSLProjection)) {
-      ret = server->compileOSL<OctaneDataTransferObject::OctaneOSLProjection>(
-          osl_identifier, osl_path, osl_code, oslNodeInfo);
-    }
-    else if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctVectron)) {
-      ret = server->compileOSL<OctaneDataTransferObject::OctaneVectron>(
-          osl_identifier, osl_path, osl_code, oslNodeInfo);
-    }
-    else {
-      ret = false;
-    }
+    OctaneDataTransferObject::OctaneNodeBase *cur_node =
+        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(b_node.bl_idname());
+    OctaneDataTransferObject::OctaneOSLNodeBase *cur_osl_node =
+        (OctaneDataTransferObject::OctaneOSLNodeBase *)cur_node;
+    cur_osl_node->sName = osl_identifier;
+    cur_osl_node->sFilePath = osl_path;
+    cur_osl_node->sShaderCode = osl_code;
+    ret = server->compileOSL(cur_osl_node, oslNodeInfo);
+    delete cur_node;
     if (ret) {
       OSLManager::Instance().record_osl(osl_identifier, oslNodeInfo);
       info = oslNodeInfo.mCompileInfo;
@@ -990,7 +970,7 @@ bool BlenderSession::export_scene(BL::Scene &b_scene,
   ::ViewLayer *m_viewlayer = CTX_data_view_layer(context);
   // Create depsgraph
   PointerRNA depsgraphptr;
-  ::Depsgraph *m_depsgraph = DEG_graph_new(m_scene, m_viewlayer, DAG_EVAL_RENDER);
+  ::Depsgraph *m_depsgraph = DEG_graph_new(m_main, m_scene, m_viewlayer, DAG_EVAL_RENDER);
   RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph, &depsgraphptr);
   BL::Depsgraph b_depsgraph(depsgraphptr);
   // Create engine
@@ -1067,7 +1047,7 @@ bool BlenderSession::export_localdb(BL::Scene &b_scene,
   ::ViewLayer *m_viewlayer = CTX_data_view_layer(context);
   // Create depsgraph
   PointerRNA depsgraphptr;
-  ::Depsgraph *m_depsgraph = DEG_graph_new(m_scene, m_viewlayer, DAG_EVAL_RENDER);
+  ::Depsgraph *m_depsgraph = DEG_graph_new(m_main, m_scene, m_viewlayer, DAG_EVAL_RENDER);
   RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph, &depsgraphptr);
   BL::Depsgraph b_depsgraph(depsgraphptr);
   // Create engine
@@ -1147,11 +1127,11 @@ bool BlenderSession::heart_beat(std::string server_address)
   if (!heart_beat_server) {
     heart_beat_server = new ::OctaneEngine::OctaneClient();
     ret = BlenderSession::connect_to_server(
-        server_address, ::OctaneEngine::HEART_BEAT_SERVER_PORT, heart_beat_server);
+        server_address, HEART_BEAT_SERVER_PORT, heart_beat_server);
   }
   if (heart_beat_server->getServerAdress() != server_address) {
     ret = BlenderSession::connect_to_server(
-        server_address, ::OctaneEngine::HEART_BEAT_SERVER_PORT, heart_beat_server);
+        server_address, HEART_BEAT_SERVER_PORT, heart_beat_server);
   }
   if (!ret) {
     delete heart_beat_server;
@@ -1171,25 +1151,34 @@ static void get_octanedb_startjob(void *customdata, short *stop, short *do_updat
 
   *progress = 0.0f;
   ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
-  bool ret = BlenderSession::connect_to_server(
-      data->server_address, ::OctaneEngine::OCTANEDB_SERVER_PORT, server);
+  bool ret = BlenderSession::connect_to_server(data->server_address, OCTANEDB_SERVER_PORT, server);
   if (!ret) {
     WM_report(RPT_ERROR, "Fail to connect to OctaneDB!");
     return;
   }
 
   *progress = 0.5f;
-  WM_report(RPT_INFO, "Connect to LiveDB successfully! Click import to start download!");
+  WM_report(RPT_INFO, "Connect to OctaneDB successfully! Click import to start download!");
 
   bool is_close = false;
   std::vector<int> iParams;
   std::vector<float> fParams;
   std::vector<std::string> sParams;
+  sParams.emplace_back(std::string(G.octane_localdb_path));
   server->commandToOctane(OctaneDataTransferObject::SHOW_LIVEDB, iParams, fParams, sParams);
   while (!is_close) {
     OctaneDataTransferObject::OctaneDBNodes nodes;
     server->downloadOctaneDB(nodes);
     is_close = nodes.bClose;
+    if (!is_close) {
+      BlenderOctaneDb::generate_blender_material_from_octanedb(
+          nodes.sName, nodes.octaneDBNodes, *data);
+      for (auto pNode : nodes.octaneDBNodes) {
+        delete pNode;
+      }
+      std::string msg = "Material " + nodes.sName + "is downloaded!";
+      WM_report(RPT_INFO, msg.c_str());
+    }
   }
 
   server->disconnectFromServer();
@@ -1207,9 +1196,7 @@ static void get_octanedb_endjob(void *customdata)
   return;
 }
 
-bool BlenderSession::get_octanedb(BL::Scene &b_scene,
-                                  bContext *context,
-                                  std::string server_address)
+bool BlenderSession::get_octanedb(bContext *context, std::string server_address)
 {
   static std::mutex lock;
   bool ret = false;
@@ -1224,9 +1211,10 @@ bool BlenderSession::get_octanedb(BL::Scene &b_scene,
   job->mutex = &lock;
   strcpy(job->server_address, server_address.c_str());
   job->was_canceled = false;
+  ::Scene *scene = CTX_data_scene(context);
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(context),
                               CTX_wm_window(context),
-                              (::Scene *)b_scene.ptr.data,
+                              scene,
                               "Octane DB Download",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_RENDER);

@@ -202,7 +202,7 @@ def object_octane_eevee_cycles_shader_nodes_poll(context):
 
 shader_node_categories = [
     # Shader Nodes (Cycles and Eevee)
-    ShaderNodeCategoryWithOctane("SH_NEW_INPUT", "Input", items=[
+    ShaderNodeCategory("SH_NEW_INPUT", "Input", items=[
         NodeItem("ShaderNodeTexCoord", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeAttribute", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeLightPath", poll=eevee_cycles_shader_nodes_poll),
@@ -217,9 +217,11 @@ shader_node_categories = [
         NodeItem("ShaderNodeAmbientOcclusion", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeObjectInfo", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeHairInfo", poll=eevee_cycles_shader_nodes_poll),
+        NodeItem("ShaderNodeVolumeInfo", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeParticleInfo", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeCameraData", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeUVMap", poll=eevee_cycles_shader_nodes_poll),
+        NodeItem("ShaderNodeVertexColor", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll),
         NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
     ]),
@@ -247,7 +249,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeEmission", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeBsdfHair", poll=object_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeBackground", poll=world_shader_nodes_poll),
-        NodeItem("ShaderNodeHoldout", poll=object_cycles_shader_nodes_poll),
+        NodeItem("ShaderNodeHoldout", poll=object_eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeAbsorption", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeScatter", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVolumePrincipled"),
@@ -268,6 +270,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTexBrick"),
         NodeItem("ShaderNodeTexPointDensity"),
         NodeItem("ShaderNodeTexIES"),
+        NodeItem("ShaderNodeTexWhiteNoise"),
     ]),
     ShaderNodeCategory("SH_NEW_OP_COLOR", "Color", items=[
         NodeItem("ShaderNodeMixRGB"),
@@ -289,6 +292,8 @@ shader_node_categories = [
         NodeItem("ShaderNodeVectorTransform"),
     ]),
     ShaderNodeCategory("SH_NEW_CONVERTOR", "Converter", items=[
+        NodeItem("ShaderNodeMapRange"),
+        NodeItem("ShaderNodeClamp"),
         NodeItem("ShaderNodeMath"),
         NodeItem("ShaderNodeValToRGB"),
         NodeItem("ShaderNodeRGBToBW"),
@@ -381,6 +386,7 @@ compositor_node_categories = [
         NodeItem("CompositorNodeDBlur"),
         NodeItem("CompositorNodePixelate"),
         NodeItem("CompositorNodeSunBeams"),
+        NodeItem("CompositorNodeDenoise"),
     ]),
     CompositorNodeCategory("CMP_OP_VECTOR", "Vector", items=[
         NodeItem("CompositorNodeNormal"),

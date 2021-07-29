@@ -76,6 +76,7 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
+#include "ED_fileselect.h"
 #include "ED_screen.h"
 #include "ED_object.h"
 #include "ED_render.h"
@@ -104,6 +105,24 @@ void UI_template_fix_linking(void)
 {
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Header Template
+ * \{ */
+
+void uiTemplateHeader(uiLayout *layout, bContext *C)
+{
+  uiBlock *block;
+
+  block = uiLayoutAbsoluteBlock(layout);
+  ED_area_header_switchbutton(C, block, 0);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Search Menu Helpers
+ * \{ */
+
 /**
  * Add a block button for the search menu for templateID and templateSearch.
  */
@@ -121,7 +140,7 @@ static void template_add_button_search_menu(const bContext *C,
 {
   PointerRNA active_ptr = RNA_property_pointer_get(ptr, prop);
   ID *id = (active_ptr.data && RNA_struct_is_ID(active_ptr.type)) ? active_ptr.data : NULL;
-  const ID *idfrom = ptr->id.data;
+  const ID *idfrom = ptr->owner_id;
   const StructRNA *type = active_ptr.type ? active_ptr.type : RNA_property_pointer_type(ptr, prop);
   uiBut *but;
 
@@ -264,17 +283,11 @@ static uiBlock *template_common_search_menu(const bContext *C,
   return block;
 }
 
-/********************** Header Template *************************/
+/** \} */
 
-void uiTemplateHeader(uiLayout *layout, bContext *C)
-{
-  uiBlock *block;
-
-  block = uiLayoutAbsoluteBlock(layout);
-  ED_area_header_switchbutton(C, block, 0);
-}
-
-/********************** Search Callbacks *************************/
+/* -------------------------------------------------------------------- */
+/** \name Search Callbacks
+ * \{ */
 
 typedef struct TemplateID {
   PointerRNA ptr;
@@ -310,7 +323,7 @@ static bool id_search_add(const bContext *C,
                           uiSearchItems *items,
                           ID *id)
 {
-  ID *id_from = template_ui->ptr.id.data;
+  ID *id_from = template_ui->ptr.owner_id;
 
   if (!((flag & PROP_ID_SELF_CHECK) && id == id_from)) {
 
@@ -401,7 +414,7 @@ static void id_search_cb_objects_from_scene(const bContext *C,
   TemplateID *template_ui = (TemplateID *)arg_template;
   ListBase *lb = template_ui->idlb;
   Scene *scene = NULL;
-  ID *id_from = template_ui->ptr.id.data;
+  ID *id_from = template_ui->ptr.owner_id;
 
   if (id_from && GS(id_from->name) == ID_SCE) {
     scene = (Scene *)id_from;
@@ -450,7 +463,12 @@ static uiBlock *id_search_menu(bContext *C, ARegion *ar, void *arg_litem)
                                      template_ui.scale);
 }
 
-/************************ ID Template ***************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name ID Template
+ * \{ */
+
 /* This is for browsing and editing the ID-blocks used */
 
 /* for new/open operators */
@@ -516,12 +534,15 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       if (id) {
         Main *bmain = CTX_data_main(C);
         if (BKE_override_library_is_enabled() && CTX_wm_window(C)->eventstate->shift) {
-          ID *override_id = BKE_override_library_create_from_id(bmain, id);
-          if (override_id != NULL) {
-            BKE_main_id_clear_newpoins(bmain);
+          if (ID_IS_OVERRIDABLE_LIBRARY(id)) {
+            /* Only remap that specific ID usage to overriding local data-block. */
+            ID *override_id = BKE_override_library_create_from_id(bmain, id, false);
+            if (override_id != NULL) {
+              BKE_main_id_clear_newpoins(bmain);
 
-            /* Assign new pointer, takes care of updates/notifiers */
-            RNA_id_pointer_create(override_id, &idptr);
+              /* Assign new pointer, takes care of updates/notifiers */
+              RNA_id_pointer_create(override_id, &idptr);
+            }
           }
         }
         else {
@@ -538,7 +559,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       break;
     case UI_ID_OVERRIDE:
       if (id && id->override_library) {
-        BKE_override_library_free(&id->override_library);
+        BKE_override_library_free(&id->override_library, true);
         /* reassign to get get proper updates/notifiers */
         idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
         RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, NULL);
@@ -667,7 +688,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
                                       const bool use_tab_but,
                                       int but_height)
 {
-  ID *idfrom = template_ui->ptr.id.data;
+  ID *idfrom = template_ui->ptr.owner_id;
   uiBut *but;
   const int w = id ? UI_UNIT_X : id_open ? UI_UNIT_X * 3 : UI_UNIT_X * 6;
   const int but_type = use_tab_but ? UI_BTYPE_TAB : UI_BTYPE_BUT;
@@ -769,7 +790,7 @@ static void template_ID(bContext *C,
 
   idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
   id = idptr.data;
-  idfrom = template_ui->ptr.id.data;
+  idfrom = template_ui->ptr.owner_id;
   // lb = template_ui->idlb;
 
   block = uiLayoutGetBlock(layout);
@@ -1364,7 +1385,11 @@ void uiTemplateIDTabs(uiLayout *layout,
                  false);
 }
 
-/************************ ID Chooser Template ***************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name ID Chooser Template
+ * \{ */
 
 /**
  * This is for selecting the type of ID-block to use,
@@ -1437,7 +1462,11 @@ void uiTemplateAnyID(uiLayout *layout,
   uiItemFullR(sub, ptr, propID, 0, 0, 0, "", ICON_NONE);
 }
 
-/********************* Search Template ********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Search Template
+ * \{ */
 
 typedef struct TemplateSearch {
   uiRNACollectionSearch search_data;
@@ -1683,7 +1712,11 @@ void uiTemplateSearchPreview(uiLayout *layout,
   }
 }
 
-/********************* RNA Path Builder Template ********************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name RNA Path Builder Template
+ * \{ */
 
 /* ---------- */
 
@@ -1720,7 +1753,11 @@ void uiTemplatePathBuilder(uiLayout *layout,
    * searching of nested properties to 'build' the path */
 }
 
-/************************ Modifier Template *************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Modifier Template
+ * \{ */
 
 #define ERROR_LIBDATA_MESSAGE TIP_("Can't edit external library data")
 
@@ -2037,7 +2074,7 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr)
     return NULL;
   }
 
-  ob = ptr->id.data;
+  ob = (Object *)ptr->owner_id;
   md = ptr->data;
 
   if (!ob || !(GS(ob->id.name) == ID_OB)) {
@@ -2065,7 +2102,11 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr)
   return NULL;
 }
 
-/************************ Grease Pencil Modifier Template *************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Grease Pencil Modifier Template
+ * \{ */
 
 static uiLayout *gpencil_draw_modifier(uiLayout *layout, Object *ob, GpencilModifierData *md)
 {
@@ -2179,7 +2220,7 @@ uiLayout *uiTemplateGpencilModifier(uiLayout *layout, bContext *UNUSED(C), Point
     return NULL;
   }
 
-  ob = ptr->id.data;
+  ob = (Object *)ptr->owner_id;
   md = ptr->data;
 
   if (!ob || !(GS(ob->id.name) == ID_OB)) {
@@ -2200,7 +2241,11 @@ uiLayout *uiTemplateGpencilModifier(uiLayout *layout, bContext *UNUSED(C), Point
   return NULL;
 }
 
-/************************ Shader FX Template *************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Grease Pencil Shader FX Template
+ * \{ */
 
 static uiLayout *gpencil_draw_shaderfx(uiLayout *layout, Object *ob, ShaderFxData *md)
 {
@@ -2297,7 +2342,7 @@ uiLayout *uiTemplateShaderFx(uiLayout *layout, bContext *UNUSED(C), PointerRNA *
     return NULL;
   }
 
-  ob = ptr->id.data;
+  ob = (Object *)ptr->owner_id;
   fx = ptr->data;
 
   if (!ob || !(GS(ob->id.name) == ID_OB)) {
@@ -2318,7 +2363,11 @@ uiLayout *uiTemplateShaderFx(uiLayout *layout, bContext *UNUSED(C), PointerRNA *
   return NULL;
 }
 
-/************************ Redo Buttons Template *************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Operator Redo Buttons Template
+ * \{ */
 
 static void template_operator_redo_property_buts_draw(
     const bContext *C, wmOperator *op, uiLayout *layout, int layout_flags, bool *r_has_advanced)
@@ -2384,7 +2433,11 @@ void uiTemplateOperatorRedoProperties(uiLayout *layout, const bContext *C)
   }
 }
 
-/************************ Constraint Template *************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Constraint Template
+ * \{ */
 
 static void constraint_active_func(bContext *UNUSED(C), void *ob_v, void *con_v)
 {
@@ -2523,7 +2576,7 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 
     /* enabled */
     UI_block_emboss_set(block, UI_EMBOSS_NONE);
-    uiItemR(row, &ptr, "mute", 0, "", (con->flag & CONSTRAINT_OFF) ? ICON_HIDE_ON : ICON_HIDE_OFF);
+    uiItemR(row, &ptr, "mute", 0, "", 0);
     UI_block_emboss_set(block, UI_EMBOSS);
 
     uiLayoutSetOperatorContext(row, WM_OP_INVOKE_DEFAULT);
@@ -2579,7 +2632,7 @@ uiLayout *uiTemplateConstraint(uiLayout *layout, PointerRNA *ptr)
     return NULL;
   }
 
-  ob = ptr->id.data;
+  ob = (Object *)ptr->owner_id;
   con = ptr->data;
 
   if (!ob || !(GS(ob->id.name) == ID_OB)) {
@@ -2600,7 +2653,11 @@ uiLayout *uiTemplateConstraint(uiLayout *layout, PointerRNA *ptr)
   return draw_constraint(layout, ob, con);
 }
 
-/************************* Preview Template ***************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Preview Template
+ * \{ */
 
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
@@ -2862,7 +2919,11 @@ void uiTemplatePreview(uiLayout *layout,
   }
 }
 
-/********************** ColorRamp Template **************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name ColorRamp Template
+ * \{ */
 
 typedef struct RNAUpdateCb {
   PointerRNA ptr;
@@ -3099,7 +3160,7 @@ static void colorband_buttons_layout(uiLayout *layout,
   float ys = butr->ymin;
   PointerRNA ptr;
 
-  RNA_pointer_create(cb->ptr.id.data, &RNA_ColorRamp, coba, &ptr);
+  RNA_pointer_create(cb->ptr.owner_id, &RNA_ColorRamp, coba, &ptr);
 
   split = uiLayoutSplit(layout, 0.4f, false);
 
@@ -3196,7 +3257,7 @@ static void colorband_buttons_layout(uiLayout *layout,
   if (coba->tot) {
     CBData *cbd = coba->data + coba->cur;
 
-    RNA_pointer_create(cb->ptr.id.data, &RNA_ColorRampElement, cbd, &ptr);
+    RNA_pointer_create(cb->ptr.owner_id, &RNA_ColorRampElement, cbd, &ptr);
 
     if (!expand) {
       split = uiLayoutSplit(layout, 0.3f, false);
@@ -3213,7 +3274,7 @@ static void colorband_buttons_layout(uiLayout *layout,
                 &coba->cur,
                 0.0,
                 (float)(MAX2(0, coba->tot - 1)),
-                0,
+                1,
                 0,
                 TIP_("Choose active color stop"));
       row = uiLayoutRow(split, false);
@@ -3243,7 +3304,7 @@ static void colorband_buttons_layout(uiLayout *layout,
                 &coba->cur,
                 0.0,
                 (float)(MAX2(0, coba->tot - 1)),
-                0,
+                1,
                 0,
                 TIP_("Choose active color stop"));
       row = uiLayoutRow(subsplit, false);
@@ -3290,7 +3351,7 @@ void uiTemplateColorRamp(
 
   block = uiLayoutAbsoluteBlock(layout);
 
-  id = cptr.id.data;
+  id = cptr.owner_id;
   UI_block_lock_set(block, (id && ID_IS_LINKED(id)), ERROR_LIBDATA_MESSAGE);
 
   colorband_buttons_layout(layout, block, cptr.data, &rect, cb, expand, use_octane_format);
@@ -3300,7 +3361,12 @@ void uiTemplateColorRamp(
   MEM_freeN(cb);
 }
 
-/********************* Icon Template ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Icon Template
+ * \{ */
+
 /**
  * \param icon_scale: Scale of the icon, 1x == button height.
  */
@@ -3327,7 +3393,12 @@ void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale)
   ui_def_but_icon(but, icon_value, UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
 }
 
-/********************* Icon viewer Template ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Icon viewer Template
+ * \{ */
+
 typedef struct IconViewMenuArgs {
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -3487,7 +3558,11 @@ void uiTemplateIconView(uiLayout *layout,
   }
 }
 
-/********************* Histogram Template ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Histogram Template
+ * \{ */
 
 void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname)
 {
@@ -3537,7 +3612,11 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname
                 "");
 }
 
-/********************* Waveform Template ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Waveform Template
+ * \{ */
 
 void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
 {
@@ -3599,7 +3678,11 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
                 "");
 }
 
-/********************* Vectorscope Template ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Vector-Scope Template
+ * \{ */
 
 void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propname)
 {
@@ -3661,7 +3744,11 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propna
                 "");
 }
 
-/********************* CurveMapping Template ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name CurveMapping Template
+ * \{ */
 
 static void curvemap_buttons_zoom_in(bContext *C, void *cumap_v, void *UNUSED(arg))
 {
@@ -3730,15 +3817,15 @@ static void curvemap_buttons_setclip(bContext *UNUSED(C), void *cumap_v, void *U
 {
   CurveMapping *cumap = cumap_v;
 
-  curvemapping_changed(cumap, false);
+  BKE_curvemapping_changed(cumap, false);
 }
 
 static void curvemap_buttons_delete(bContext *C, void *cb_v, void *cumap_v)
 {
   CurveMapping *cumap = cumap_v;
 
-  curvemap_remove(cumap->cm + cumap->cur, SELECT);
-  curvemapping_changed(cumap, false);
+  BKE_curvemap_remove(cumap->cm + cumap->cur, SELECT);
+  BKE_curvemapping_changed(cumap, false);
 
   rna_update_cb(C, cb_v, NULL);
 }
@@ -3752,12 +3839,11 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *ar, void *cumap_v)
   float width = 8 * UI_UNIT_X;
 
   block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
-
-  /* use this for a fake extra empty space around the buttons */
-  uiDefBut(block, UI_BTYPE_LABEL, 0, "", -4, 16, width + 8, 6 * UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+  UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   bt = uiDefButBitI(block,
-                    UI_BTYPE_TOGGLE,
+                    UI_BTYPE_CHECKBOX,
                     CUMA_DO_CLIP,
                     1,
                     IFACE_("Use Clipping"),
@@ -3777,7 +3863,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *ar, void *cumap_v)
   uiDefButF(block,
             UI_BTYPE_NUM,
             0,
-            IFACE_("Min X "),
+            IFACE_("Min X:"),
             0,
             4 * UI_UNIT_Y,
             width,
@@ -3791,7 +3877,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *ar, void *cumap_v)
   uiDefButF(block,
             UI_BTYPE_NUM,
             0,
-            IFACE_("Min Y "),
+            IFACE_("Min Y:"),
             0,
             3 * UI_UNIT_Y,
             width,
@@ -3805,7 +3891,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *ar, void *cumap_v)
   uiDefButF(block,
             UI_BTYPE_NUM,
             0,
-            IFACE_("Max X "),
+            IFACE_("Max X:"),
             0,
             2 * UI_UNIT_Y,
             width,
@@ -3819,7 +3905,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *ar, void *cumap_v)
   uiDefButF(block,
             UI_BTYPE_NUM,
             0,
-            IFACE_("Max Y "),
+            IFACE_("Max Y:"),
             0,
             UI_UNIT_Y,
             width,
@@ -3831,12 +3917,13 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *ar, void *cumap_v)
             2,
             "");
 
-  UI_block_direction_set(block, UI_DIR_RIGHT);
+  UI_block_bounds_set_normal(block, 0.3f * U.widget_unit);
+  UI_block_direction_set(block, UI_DIR_DOWN);
 
   return block;
 }
 
-/* only for curvemap_tools_dofunc */
+/* only for BKE_curvemap_tools_dofunc */
 enum {
   UICURVE_FUNC_RESET_NEG,
   UICURVE_FUNC_RESET_POS,
@@ -3856,35 +3943,35 @@ static void curvemap_tools_dofunc(bContext *C, void *cumap_v, int event)
   switch (event) {
     case UICURVE_FUNC_RESET_NEG:
     case UICURVE_FUNC_RESET_POS: /* reset */
-      curvemap_reset(cuma,
-                     &cumap->clipr,
-                     cumap->preset,
-                     (event == UICURVE_FUNC_RESET_NEG) ? CURVEMAP_SLOPE_NEGATIVE :
-                                                         CURVEMAP_SLOPE_POSITIVE);
-      curvemapping_changed(cumap, false);
+      BKE_curvemap_reset(cuma,
+                         &cumap->clipr,
+                         cumap->preset,
+                         (event == UICURVE_FUNC_RESET_NEG) ? CURVEMAP_SLOPE_NEGATIVE :
+                                                             CURVEMAP_SLOPE_POSITIVE);
+      BKE_curvemapping_changed(cumap, false);
       break;
     case UICURVE_FUNC_RESET_VIEW:
       cumap->curr = cumap->clipr;
       break;
     case UICURVE_FUNC_HANDLE_VECTOR: /* set vector */
-      curvemap_handle_set(cuma, HD_VECT);
-      curvemapping_changed(cumap, false);
+      BKE_curvemap_handle_set(cuma, HD_VECT);
+      BKE_curvemapping_changed(cumap, false);
       break;
     case UICURVE_FUNC_HANDLE_AUTO: /* set auto */
-      curvemap_handle_set(cuma, HD_AUTO);
-      curvemapping_changed(cumap, false);
+      BKE_curvemap_handle_set(cuma, HD_AUTO);
+      BKE_curvemapping_changed(cumap, false);
       break;
     case UICURVE_FUNC_HANDLE_AUTO_ANIM: /* set auto-clamped */
-      curvemap_handle_set(cuma, HD_AUTO_ANIM);
-      curvemapping_changed(cumap, false);
+      BKE_curvemap_handle_set(cuma, HD_AUTO_ANIM);
+      BKE_curvemapping_changed(cumap, false);
       break;
     case UICURVE_FUNC_EXTEND_HOZ: /* extend horiz */
       cuma->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
-      curvemapping_changed(cumap, false);
+      BKE_curvemapping_changed(cumap, false);
       break;
     case UICURVE_FUNC_EXTEND_EXP: /* extend extrapolate */
       cuma->flag |= CUMA_EXTEND_EXTRAPOLATE;
-      curvemapping_changed(cumap, false);
+      BKE_curvemapping_changed(cumap, false);
       break;
   }
   ED_undo_push(C, "CurveMap tools");
@@ -4048,7 +4135,7 @@ static void curvemap_buttons_redraw(bContext *C, void *UNUSED(arg1), void *UNUSE
 static void curvemap_buttons_update(bContext *C, void *arg1_v, void *cumap_v)
 {
   CurveMapping *cumap = cumap_v;
-  curvemapping_changed(cumap, true);
+  BKE_curvemapping_changed(cumap, true);
   rna_update_cb(C, arg1_v, NULL);
 }
 
@@ -4059,20 +4146,23 @@ static void curvemap_buttons_reset(bContext *C, void *cb_v, void *cumap_v)
 
   cumap->preset = CURVE_PRESET_LINE;
   for (a = 0; a < CM_TOT; a++) {
-    curvemap_reset(cumap->cm + a, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_POSITIVE);
+    BKE_curvemap_reset(cumap->cm + a, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_POSITIVE);
   }
 
   cumap->black[0] = cumap->black[1] = cumap->black[2] = 0.0f;
   cumap->white[0] = cumap->white[1] = cumap->white[2] = 1.0f;
-  curvemapping_set_black_white(cumap, NULL, NULL);
+  BKE_curvemapping_set_black_white(cumap, NULL, NULL);
 
-  curvemapping_changed(cumap, false);
+  BKE_curvemapping_changed(cumap, false);
 
   rna_update_cb(C, cb_v, NULL);
 }
 
-/* still unsure how this call evolves...
- * we use labeltype for defining what curve-channels to show */
+/**
+ * \note Still unsure how this call evolves.
+ *
+ * \param labeltype: Used for defining which curve-channels to show.
+ */
 static void curvemap_buttons_layout(uiLayout *layout,
                                     PointerRNA *ptr,
                                     char labeltype,
@@ -4409,7 +4499,7 @@ void uiTemplateCurveMapping(uiLayout *layout,
   cb->ptr = *ptr;
   cb->prop = prop;
 
-  id = cptr.id.data;
+  id = cptr.owner_id;
   UI_block_lock_set(block, (id && ID_IS_LINKED(id)), ERROR_LIBDATA_MESSAGE);
 
   curvemap_buttons_layout(layout, &cptr, type, levels, brush, neg_slope, tone, cb);
@@ -4419,7 +4509,11 @@ void uiTemplateCurveMapping(uiLayout *layout,
   MEM_freeN(cb);
 }
 
-/********************* ColorPicker Template ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name ColorPicker Template
+ * \{ */
 
 #define WHEEL_SIZE (5 * U.widget_unit)
 
@@ -4766,7 +4860,11 @@ void uiTemplateCryptoPicker(uiLayout *layout, PointerRNA *ptr, const char *propn
   RNA_boolean_set(opptr, "use_accumulate", false);
 }
 
-/********************* Layer Buttons Template ************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Layer Buttons Template
+ * \{ */
 
 static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 {
@@ -4780,7 +4878,7 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 
     /* Normally clicking only selects one layer */
     RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, cur, true);
-    for (i = 0; i < tot; ++i) {
+    for (i = 0; i < tot; i++) {
       if (i != cur) {
         RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, i, false);
       }
@@ -4871,7 +4969,12 @@ void uiTemplateLayers(uiLayout *layout,
   }
 }
 
-/************************* List Template **************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name List Template
+ * \{ */
+
 static void uilist_draw_item_default(struct uiList *ui_list,
                                      struct bContext *UNUSED(C),
                                      struct uiLayout *layout,
@@ -5756,7 +5859,11 @@ void uiTemplateList(uiLayout *layout,
   }
 }
 
-/************************* Operator Search Template **************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Operator Search Template
+ * \{ */
 
 static void operator_call_cb(bContext *C, void *UNUSED(arg1), void *arg2)
 {
@@ -5861,7 +5968,11 @@ void uiTemplateOperatorSearch(uiLayout *layout)
   UI_but_func_operator_search(but);
 }
 
-/************************* Operator Redo Properties Template **************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Operator Redo Properties Template
+ * \{ */
 
 #ifdef USE_OP_RESET_BUT
 static void ui_layout_operator_buts__reset_cb(bContext *UNUSED(C),
@@ -5965,6 +6076,7 @@ eAutoPropButsReturn uiTemplateOperatorPropertyButs(const bContext *C,
     RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
 
     uiLayoutSetPropSep(layout, true);
+    uiLayoutSetPropDecorate(layout, false);
 
     /* main draw call */
     return_info = uiDefAutoButsRNA(
@@ -6037,7 +6149,11 @@ eAutoPropButsReturn uiTemplateOperatorPropertyButs(const bContext *C,
   return return_info;
 }
 
-/************************* Running Jobs Template **************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Running Jobs Template
+ * \{ */
 
 #define B_STOPRENDER 1
 #define B_STOPCAST 2
@@ -6064,13 +6180,13 @@ static void do_running_jobs(bContext *C, void *UNUSED(arg), int event)
       WM_jobs_stop(CTX_wm_manager(C), CTX_data_scene(C), NULL);
       break;
     case B_STOPSEQ:
-      WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
+      WM_jobs_stop(CTX_wm_manager(C), CTX_data_scene(C), NULL);
       break;
     case B_STOPCLIP:
-      WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
+      WM_jobs_stop(CTX_wm_manager(C), CTX_data_scene(C), NULL);
       break;
     case B_STOPFILE:
-      WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
+      WM_jobs_stop(CTX_wm_manager(C), CTX_data_scene(C), NULL);
       break;
     case B_STOPOTHER:
       G.is_break = true;
@@ -6123,80 +6239,96 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 
   UI_block_func_handle_set(block, do_running_jobs, NULL);
 
-  if (sa->spacetype == SPACE_SEQ) {
-    if (WM_jobs_test(wm, sa, WM_JOB_TYPE_ANY)) {
-      owner = sa;
+  Scene *scene;
+  /* another scene can be rendering too, for example via compositor */
+  for (scene = CTX_data_main(C)->scenes.first; scene; scene = scene->id.next) {
+    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
+      handle_event = B_STOPOTHER;
+      icon = ICON_NONE;
+      owner = scene;
     }
-    handle_event = B_STOPSEQ;
-    icon = ICON_SEQUENCE;
-  }
-  else if (sa->spacetype == SPACE_CLIP) {
-    if (WM_jobs_test(wm, sa, WM_JOB_TYPE_ANY)) {
-      owner = sa;
+    else {
+      continue;
     }
-    handle_event = B_STOPCLIP;
-    icon = ICON_TRACKER;
-  }
-  else if (sa->spacetype == SPACE_FILE) {
-    if (WM_jobs_test(wm, sa, WM_JOB_TYPE_FILESEL_READDIR)) {
-      owner = sa;
+
+    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_SEQ_BUILD_PROXY)) {
+      handle_event = B_STOPSEQ;
+      icon = ICON_SEQUENCE;
+      owner = scene;
+      break;
     }
-    handle_event = B_STOPFILE;
-    icon = ICON_FILEBROWSER;
-  }
-  else {
-    Scene *scene;
-    /* another scene can be rendering too, for example via compositor */
-    for (scene = CTX_data_main(C)->scenes.first; scene; scene = scene->id.next) {
-      if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER)) {
-        handle_event = B_STOPRENDER;
-        icon = ICON_SCENE;
-        break;
-      }
-      else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE)) {
-        handle_event = B_STOPCOMPO;
-        icon = ICON_RENDERLAYERS;
-        break;
-      }
-      else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE) ||
-               WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE)) {
-        /* Skip bake jobs in compositor to avoid compo header displaying
-         * progress bar which is not being updated (bake jobs only need
-         * to update NC_IMAGE context.
-         */
-        if (sa->spacetype != SPACE_NODE) {
-          handle_event = B_STOPOTHER;
-          icon = ICON_IMAGE;
-          break;
-        }
-      }
-      else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_DPAINT_BAKE)) {
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_SEQ_BUILD_PREVIEW)) {
+      handle_event = B_STOPSEQ;
+      icon = ICON_SEQUENCE;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_BUILD_PROXY)) {
+      handle_event = B_STOPCLIP;
+      icon = ICON_TRACKER;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_PREFETCH)) {
+      handle_event = B_STOPCLIP;
+      icon = ICON_TRACKER;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_TRACK_MARKERS)) {
+      handle_event = B_STOPCLIP;
+      icon = ICON_TRACKER;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
+      handle_event = B_STOPCLIP;
+      icon = ICON_TRACKER;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_FILESEL_READDIR)) {
+      handle_event = B_STOPFILE;
+      icon = ICON_FILEBROWSER;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER)) {
+      handle_event = B_STOPRENDER;
+      icon = ICON_SCENE;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE)) {
+      handle_event = B_STOPCOMPO;
+      icon = ICON_RENDERLAYERS;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE) ||
+             WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE)) {
+      /* Skip bake jobs in compositor to avoid compo header displaying
+       * progress bar which is not being updated (bake jobs only need
+       * to update NC_IMAGE context.
+       */
+      if (sa->spacetype != SPACE_NODE) {
         handle_event = B_STOPOTHER;
-        icon = ICON_MOD_DYNAMICPAINT;
-        break;
-      }
-      else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_POINTCACHE)) {
-        handle_event = B_STOPOTHER;
-        icon = ICON_PHYSICS;
-        break;
-      }
-      else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
-        handle_event = B_STOPOTHER;
-        icon = ICON_MOD_FLUIDSIM;
-        break;
-      }
-      else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_SIM_OCEAN)) {
-        handle_event = B_STOPOTHER;
-        icon = ICON_MOD_OCEAN;
-        break;
-      }
-      else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
-        handle_event = B_STOPOTHER;
-        icon = ICON_NONE;
+        icon = ICON_IMAGE;
         break;
       }
     }
-    owner = scene;
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_DPAINT_BAKE)) {
+      handle_event = B_STOPOTHER;
+      icon = ICON_MOD_DYNAMICPAINT;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_POINTCACHE)) {
+      handle_event = B_STOPOTHER;
+      icon = ICON_PHYSICS;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
+      handle_event = B_STOPOTHER;
+      icon = ICON_MOD_FLUIDSIM;
+      break;
+    }
+    else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_SIM_OCEAN)) {
+      handle_event = B_STOPOTHER;
+      icon = ICON_MOD_OCEAN;
+      break;
+    }
   }
 
   if (owner) {
@@ -6296,7 +6428,11 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
   }
 }
 
-/************************* Reports for Last Operator Template **************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Reports for Last Operator Template
+ * \{ */
 
 void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 {
@@ -6366,7 +6502,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
   if (reports->list.first != reports->list.last) {
     uiDefIconButO(block,
                   UI_BTYPE_BUT,
-                  "UI_OT_reports_to_textblock",
+                  "SCREEN_OT_info_log_show",
                   WM_OP_INVOKE_REGION_WIN,
                   icon,
                   2,
@@ -6380,22 +6516,17 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
         block, UI_BTYPE_LABEL, 0, icon, 2, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "");
   }
 
-  UI_block_emboss_set(block, UI_EMBOSS);
-
-  uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
-           report->message,
-           UI_UNIT_X + 5,
-           0,
-           UI_UNIT_X + width,
-           UI_UNIT_Y,
-           NULL,
-           0.0f,
-           0.0f,
-           0,
-           0,
-           "");
+  but = uiDefButO(block,
+                  UI_BTYPE_BUT,
+                  "SCREEN_OT_info_log_show",
+                  WM_OP_INVOKE_REGION_WIN,
+                  report->message,
+                  UI_UNIT_X + 5,
+                  0,
+                  UI_UNIT_X + width,
+                  UI_UNIT_Y,
+                  "Show in Info Log");
+  rgba_float_to_uchar(but->col, rti->col);
 }
 
 void uiTemplateInputStatus(uiLayout *layout, struct bContext *C)
@@ -6437,7 +6568,11 @@ void uiTemplateInputStatus(uiLayout *layout, struct bContext *C)
   }
 }
 
-/********************************* Keymap *************************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Keymap Template
+ * \{ */
 
 static void keymap_item_modified(bContext *UNUSED(C), void *kmi_p, void *UNUSED(unused))
 {
@@ -6526,7 +6661,11 @@ void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr)
   }
 }
 
-/********************************* Color management *************************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Color Management Template
+ * \{ */
 
 void uiTemplateColorspaceSettings(uiLayout *layout, PointerRNA *ptr, const char *propname)
 {
@@ -6586,7 +6725,11 @@ void uiTemplateColormanagedViewSettings(uiLayout *layout,
   }
 }
 
-/********************************* Component Menu *************************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Component Menu
+ * \{ */
 
 typedef struct ComponentMenuArgs {
   PointerRNA ptr;
@@ -6615,7 +6758,7 @@ static uiBlock *component_menu(bContext *C, ARegion *ar, void *args_v)
 
   uiItemR(layout, &args->ptr, args->propname, UI_ITEM_R_EXPAND, "", ICON_NONE);
 
-  UI_block_bounds_set_normal(block, 6);
+  UI_block_bounds_set_normal(block, 0.3f * U.widget_unit);
   UI_block_direction_set(block, UI_DIR_DOWN);
 
   return block;
@@ -6644,7 +6787,11 @@ void uiTemplateComponentMenu(uiLayout *layout,
   UI_block_align_end(block);
 }
 
-/************************* Node Socket Icon **************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Node Socket Icon Template
+ * \{ */
 
 void uiTemplateNodeSocket(uiLayout *layout, bContext *UNUSED(C), float *color)
 {
@@ -6665,7 +6812,11 @@ void uiTemplateNodeSocket(uiLayout *layout, bContext *UNUSED(C), float *color)
   UI_block_align_end(block);
 }
 
-/********************************* Cache File *********************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cache File Template
+ * \{ */
 
 void uiTemplateCacheFile(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname)
 {
@@ -6745,7 +6896,11 @@ void uiTemplateCacheFile(uiLayout *layout, bContext *C, PointerRNA *ptr, const c
 #endif
 }
 
-/******************************* Recent Files *******************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Recent Files Template
+ * \{ */
 
 int uiTemplateRecentFiles(uiLayout *layout, int rows)
 {
@@ -6769,3 +6924,19 @@ int uiTemplateRecentFiles(uiLayout *layout, int rows)
 
   return i;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name FileSelectParams Path Button Template
+ * \{ */
+
+void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *params)
+{
+  bScreen *screen = CTX_wm_screen(C);
+  SpaceFile *sfile = CTX_wm_space_file(C);
+
+  ED_file_path_button(screen, sfile, params, uiLayoutGetBlock(layout));
+}
+
+/** \} */

@@ -26,7 +26,7 @@
 #include "util/util_progress.h"
 #include "util/util_thread.h"
 
-#include "blender/server/OctaneClient.h"
+#include "blender/server/octane_client.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -47,7 +47,7 @@ class SessionParams {
 
   int samples;
   ::OctaneEngine::OctaneClient::RenderStatistics image_stat;
-  ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type;
+  ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type;
 
   AnimationMode anim_mode;
   int width;
@@ -78,7 +78,7 @@ class SessionParams {
     hdr_tonemapped = false;
     hdr_tonemap_prefer = true;
     render_priority = 0;
-    export_type = ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
+    export_type = ::OctaneEngine::SceneExportTypes::NONE;
 
     out_of_core_enabled = false;
     out_of_core_mem_limit = 4096;
@@ -136,13 +136,6 @@ class Session {
                               uint32_t total_frames,
                               bool scene_locked = false,
                               bool force_update = false);
-
-  // osl
-  bool osl_compile(const string &identifier,
-                   const string &node_type,
-                   const string &osl_path,
-                   const string &osl_code,
-                   OctaneDataTransferObject::OSLNodeInfo &oslNodeInfo);
 
  protected:
   void run();

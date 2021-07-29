@@ -112,8 +112,8 @@ class BlenderSync {
       bool background,
       int width,
       int height,
-      ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type =
-          ::OctaneEngine::OctaneClient::SceneExportTypes::NONE);
+      ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type =
+          ::OctaneEngine::SceneExportTypes::NONE);
   static bool get_session_pause(BL::Scene &b_scene, bool background);
   static BufferParams get_buffer_params(BL::RenderSettings &b_render,
                                         BL::SpaceView3D &b_v3d,

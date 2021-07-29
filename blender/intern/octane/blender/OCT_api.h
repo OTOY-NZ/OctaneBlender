@@ -26,6 +26,7 @@ extern "C" {
 // Create python module _octane used by addon
 void *OCT_python_module_init(void);
 void OCT_Rlease_API(void);
+void OCT_get_octanedb(void *C);
 
 #ifdef __cplusplus
 }

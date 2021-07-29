@@ -34,7 +34,7 @@ Passes::~Passes()
 void Passes::server_update(::OctaneEngine::OctaneClient *server, Scene *scene, bool interactive)
 {
   if (need_update) {
-    server->uploadOctaneNode((OctaneDataTransferObject::OctaneRenderPasses *)oct_node);
+    server->uploadOctaneNode(oct_node);
     need_update = false;
   }
 }

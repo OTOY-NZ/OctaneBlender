@@ -179,10 +179,10 @@ void Session::run_render()
                             params.width,
                             params.height,
                             params.interactive ?
-                                ::OctaneEngine::OctaneClient::IMAGE_8BIT :
+                                ::OctaneEngine::IMAGE_8BIT :
                                 (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
-                                     ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED :
-                                     ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
+                                     ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
+                                     ::OctaneEngine::IMAGE_FLOAT),
                             params.out_of_core_enabled,
                             params.out_of_core_mem_limit,
                             params.out_of_core_gpu_headroom,
@@ -380,11 +380,11 @@ void Session::set_server_address(const std::string &address)
     fprintf(stderr, "Octane: no server address set.\n");
   else {
     if (!server->connectToServer(this->address.c_str())) {
-      if (server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED)
+      if (server->getFailReason() == ::OctaneEngine::FailReasons::NOT_ACTIVATED)
         fprintf(stdout, "Octane: current server activation state is: not activated.\n");
-      else if (server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION)
+      else if (server->getFailReason() == ::OctaneEngine::FailReasons::NO_CONNECTION)
         fprintf(stderr, "Octane: can't connect to Octane server.\n");
-      else if (server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION)
+      else if (server->getFailReason() == ::OctaneEngine::FailReasons::WRONG_VERSION)
         fprintf(stderr, "Octane: wrong version of Octane server.\n");
       else
         fprintf(stderr, "Octane: can't connect to Octane server.\n");
@@ -417,8 +417,8 @@ void Session::update_scene_to_server(uint32_t frame_idx,
   }
 
   // Update scene
-  if (params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE ||
-      scene->need_update() || force_update) {
+  if (params.export_type != ::OctaneEngine::SceneExportTypes::NONE || scene->need_update() ||
+      force_update) {
     progress.set_status("Updating Scene");
     params.image_stat.uiCurSamples = 0;
     params.image_stat.uiCurDenoiseSamples = 0;
@@ -563,17 +563,17 @@ void Session::update_status_time(bool show_pause, bool show_done)
   }
   else {
     switch (server->getFailReason()) {
-      case ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION:
+      case ::OctaneEngine::FailReasons::NO_CONNECTION:
         status = "Not connected";
         substatus = string("No Render-server at address \"") +
                     server->getServerInfo().sNetAddress + "\"";
         break;
-      case ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION:
+      case ::OctaneEngine::FailReasons::WRONG_VERSION:
         status = "Wrong version";
         substatus = string("Wrong Render-server version at address \"") +
                     server->getServerInfo().sNetAddress + "\"";
         break;
-      case ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED:
+      case ::OctaneEngine::FailReasons::NOT_ACTIVATED:
         status = "Not activated";
         substatus = string("Render-server at address \"") + server->getServerInfo().sNetAddress +
                     "\" is not activated";
@@ -601,10 +601,10 @@ void Session::update_render_buffer()
   if (params.interactive &&
       !server->downloadImageBuffer(params.image_stat,
                                    params.interactive ?
-                                       ::OctaneEngine::OctaneClient::IMAGE_8BIT :
+                                       ::OctaneEngine::IMAGE_8BIT :
                                        (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
-                                            ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED :
-                                            ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
+                                            ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
+                                            ::OctaneEngine::IMAGE_FLOAT),
                                    passId)) {
     if (progress.get_cancel())
       return;
@@ -612,10 +612,10 @@ void Session::update_render_buffer()
       update_img_sample();
     server->downloadImageBuffer(params.image_stat,
                                 params.interactive ?
-                                    ::OctaneEngine::OctaneClient::IMAGE_8BIT :
+                                    ::OctaneEngine::IMAGE_8BIT :
                                     (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
-                                         ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED :
-                                         ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
+                                         ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
+                                         ::OctaneEngine::IMAGE_FLOAT),
                                 passId);
   }
   if (progress.get_cancel())
@@ -637,35 +637,5 @@ void Session::update_img_sample()
   }
   update_status_time();
 }  // update_img_sample()
-
-bool Session::osl_compile(const string &identifier,
-                          const string &node_type,
-                          const string &osl_path,
-                          const string &osl_code,
-                          OctaneDataTransferObject::OSLNodeInfo &oslNodeInfo)
-{
-  if (node_type == "OSLTexture") {
-    return server->compileOSL<OctaneDataTransferObject::OctaneOSLTexture>(
-        identifier, osl_path, osl_code, oslNodeInfo);
-  }
-  else if (node_type == "OSLCamera") {
-    return server->compileOSL<OctaneDataTransferObject::OctaneOSLCamera>(
-        identifier, osl_path, osl_code, oslNodeInfo);
-  }
-  else if (node_type == "OSLBakingCamera") {
-    return server->compileOSL<OctaneDataTransferObject::OctaneOSLBakingCamera>(
-        identifier, osl_path, osl_code, oslNodeInfo);
-  }
-  else if (node_type == "OSLProjection") {
-    return server->compileOSL<OctaneDataTransferObject::OctaneOSLProjection>(
-        identifier, osl_path, osl_code, oslNodeInfo);
-  }
-  else if (node_type == "Vectron") {
-    return server->compileOSL<OctaneDataTransferObject::OctaneVectron>(
-        identifier, osl_path, osl_code, oslNodeInfo);
-  }
-  return server->compileOSL<OctaneDataTransferObject::OctaneOSLTexture>(
-      identifier, osl_path, osl_code, oslNodeInfo);
-}  // compile
 
 OCT_NAMESPACE_END

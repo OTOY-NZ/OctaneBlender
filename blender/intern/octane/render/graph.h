@@ -27,7 +27,7 @@
 #include "util/util_types.h"
 #include "util/util_vector.h"
 
-#include "blender/server/OctaneClient.h"
+#include "blender/server/octane_client.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -106,7 +106,7 @@ class ShaderNode {
   virtual void load_to_server(::OctaneEngine::OctaneClient *server)
   {
     if (oct_node)
-      server->uploadNode(oct_node);
+      server->uploadOctaneNode(oct_node);
   }
   virtual void delete_from_server(::OctaneEngine::OctaneClient *server)
   {

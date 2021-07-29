@@ -24,7 +24,7 @@
 #include "util/util_string.h"
 #include "util/util_types.h"
 
-#include "blender/server/OctaneClient.h"
+#include "blender/server/octane_client.h"
 
 namespace OctaneEngine {
 class OctaneClient;

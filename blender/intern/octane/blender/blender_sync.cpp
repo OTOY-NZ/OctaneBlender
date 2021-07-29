@@ -249,7 +249,7 @@ SessionParams BlenderSync::get_session_params(
     bool background,
     int width,
     int height,
-    ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type)
+    ::OctaneEngine::SceneExportTypes::SceneExportTypesEnum export_type)
 {
   SessionParams params;
 
@@ -279,14 +279,13 @@ SessionParams BlenderSync::get_session_params(
   }
 
   params.anim_mode = static_cast<AnimationMode>(RNA_enum_get(&oct_scene, "anim_mode"));
-  params.export_type = params.interactive ? ::OctaneEngine::OctaneClient::SceneExportTypes::NONE :
-                                            export_type;
+  params.export_type = params.interactive ? ::OctaneEngine::SceneExportTypes::NONE : export_type;
 
   params.deep_image = get_boolean(oct_scene, "deep_image");
   params.export_with_object_layers = get_boolean(oct_scene, "export_with_object_layers");
   params.use_passes = get_boolean(oct_scene, "use_passes");
   params.meshes_type = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
-  if (params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE &&
+  if (params.export_type != ::OctaneEngine::SceneExportTypes::NONE &&
       params.meshes_type == Mesh::GLOBAL)
     params.meshes_type = Mesh::RESHAPABLE_PROXY;
   params.use_viewport_hide = get_boolean(oct_scene, "viewport_hide");

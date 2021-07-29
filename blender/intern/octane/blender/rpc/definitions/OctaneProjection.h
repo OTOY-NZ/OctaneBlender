@@ -6,8 +6,6 @@
 namespace OctaneDataTransferObject {
 
 	struct OctaneXYZProjection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_PROJECTION_XYZ;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iCoordinateSpace,
@@ -17,15 +15,15 @@ namespace OctaneDataTransferObject {
 		OctaneXYZProjection() :
 			iCoordinateSpace("coordinate_space_mode", false),
 			sTransform("XYZ Transformation"),
-			OctaneNodeBase(Octane::NT_PROJ_LINEAR)
+			OctaneNodeBase(Octane::NT_PROJ_LINEAR, "ShaderNodeOctXYZProjection")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iCoordinateSpace, sTransform, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneBoxProjection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_PROJECTION_BOX;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iCoordinateSpace,
@@ -35,15 +33,15 @@ namespace OctaneDataTransferObject {
 		OctaneBoxProjection() :
 			iCoordinateSpace("coordinate_space_mode", false),
 			sTransform("Box Transformation"),
-			OctaneNodeBase(Octane::NT_PROJ_BOX)
+			OctaneNodeBase(Octane::NT_PROJ_BOX, "ShaderNodeOctBoxProjection")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iCoordinateSpace, sTransform, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneCylindricalProjection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_PROJECTION_CYL;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iCoordinateSpace,
@@ -53,15 +51,15 @@ namespace OctaneDataTransferObject {
 		OctaneCylindricalProjection() :
 			iCoordinateSpace("coordinate_space_mode", false),
 			sTransform("Cylinder Transformation"),
-			OctaneNodeBase(Octane::NT_PROJ_CYLINDRICAL)
+			OctaneNodeBase(Octane::NT_PROJ_CYLINDRICAL, "ShaderNodeOctCylProjection")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iCoordinateSpace, sTransform, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctanePerspectiveProjection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_PROJECTION_PERSP;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iCoordinateSpace,
@@ -71,15 +69,15 @@ namespace OctaneDataTransferObject {
 		OctanePerspectiveProjection() :
 			iCoordinateSpace("coordinate_space_mode", false),
 			sTransform("Plane Transformation"),
-			OctaneNodeBase(Octane::NT_PROJ_PERSPECTIVE)
+			OctaneNodeBase(Octane::NT_PROJ_PERSPECTIVE, "ShaderNodeOctPerspProjection")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iCoordinateSpace, sTransform, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneSphericalProjection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_PROJECTION_SPHERICAL;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iCoordinateSpace,
@@ -89,15 +87,15 @@ namespace OctaneDataTransferObject {
 		OctaneSphericalProjection() :
 			iCoordinateSpace("coordinate_space_mode", false),
 			sTransform("Sphere Transformation"),
-			OctaneNodeBase(Octane::NT_PROJ_SPHERICAL)
+			OctaneNodeBase(Octane::NT_PROJ_SPHERICAL, "ShaderNodeOctSphericalProjection")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iCoordinateSpace, sTransform, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMeshProjection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_PROJECTION_UVW;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOInt)		iUVSet
@@ -105,39 +103,41 @@ namespace OctaneDataTransferObject {
 
 		OctaneMeshProjection() :
 			iUVSet("UV set"),
-			OctaneNodeBase(Octane::NT_PROJ_UVW)
+			OctaneNodeBase(Octane::NT_PROJ_UVW, "ShaderNodeOctUVWProjection")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iUVSet, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneTriplanarProjection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_PROJECTION_TRIPLANAR;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOInt)		iPlaceHolder
 		)
 
 		OctaneTriplanarProjection() :
-			OctaneNodeBase(Octane::NT_PROJ_TRIPLANAR)
+			OctaneNodeBase(Octane::NT_PROJ_TRIPLANAR, "ShaderNodeOctTriplanarProjection")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iPlaceHolder, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneOSLUVProjection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_PROJECTION_OSL_UV;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOInt)		iPlaceHolder
 		)
 
 		OctaneOSLUVProjection() :
-			OctaneNodeBase(Octane::NT_PROJ_OSL_UV)
+			OctaneNodeBase(Octane::NT_PROJ_OSL_UV, "ShaderNodeOctOSLUVProjection")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iPlaceHolder, MSGPACK_BASE(OctaneNodeBase));
 	};
 }

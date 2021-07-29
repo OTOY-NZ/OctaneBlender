@@ -372,14 +372,6 @@ namespace OctaneDataTransferObject {
 		void push_back(ApiNodePinInfo& pinInfo) { mPinInfos.push_back(pinInfo); }
 		MSGPACK_DEFINE(mPinInfos);
 	};
-
-	struct OSLNodeInfo
-	{		
-		Octane::CompilationResult mCompileResult;
-		std::string mCompileInfo;
-		OSLNodePinInfo mPinInfo;		
-		MSGPACK_DEFINE(mCompileResult, mCompileInfo, mPinInfo);
-	};
 }
 #endif
 // clang-format on

@@ -90,7 +90,7 @@ void LightManager::server_update(::OctaneEngine::OctaneClient *server,
     if (light->need_update && light->enable) {
       updated_light_names.insert(light->name);
       if (light->need_light_object_update) {
-        server->uploadOctaneNode((OctaneDataTransferObject::OctaneLight *)(&light->light));
+        server->uploadLight((OctaneDataTransferObject::OctaneLight *)(&light->light));
         light->need_light_object_update = false;
       }
     }

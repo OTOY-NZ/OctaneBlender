@@ -26,58 +26,84 @@ namespace OctaneDataTransferObject {
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	struct OctaneNodeBase {
 		std::string sName;
-		Octane::NodeType nodeType;
-		const static PacketType packetType;
+		int octaneType;
+		std::string pluginType;
+		static const PacketType packetType = NONE;
+		void* arrayData;
+		uint64_t arraySize;
+		uint8_t responseNodeNum;
 
-		OctaneNodeBase(Octane::NodeType _nodeType) : nodeType(_nodeType) {}
+		OctaneNodeBase(int octaneType, std::string pluginType, uint64_t arraySize = 0, uint8_t responseNodeNum = 0) : octaneType(octaneType), pluginType(pluginType), arraySize(arraySize), responseNodeNum(responseNodeNum) {}
 		virtual ~OctaneNodeBase() {}		
 		virtual void PackAttributes() {}
 		virtual void UnpackAttributes() {}
-		friend std::ostream& operator<< (std::ostream& out, const OctaneNodeBase& obj);
-		MSGPACK_DEFINE(sName, nodeType);		
+		virtual void VisitEach(BaseVisitor* pVisitor) {}
+		virtual void UpdateOctaneDBNode(void* data) {}
+#ifdef OCTANE_SERVER
+		virtual bool PreUpdateNode(Octane::ApiNode* pApiNode) { return false; }
+		virtual bool PostUpdateNode(Octane::ApiNode* pApiNode) { return false; }
+		virtual void GenerateResponseNodes(Octane::ApiNode* pApiNode, std::vector<OctaneNodeBase*>& nodes) {}
+#endif // !OCTANE_SERVER
+		virtual void Serialize(msgpack::sbuffer& buf) {}
+		virtual void Deserialize(msgpack::object& obj) {}
+		MSGPACK_DEFINE(sName, arraySize);
 	}; //struct OctaneNodeBase
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// LIGHTS
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	struct OctaneLightDirection : public OctaneNodeBase {
-		const static PacketType packetType = NONE;
+	typedef std::vector<OctaneNodeBase *> OctaneNodeResponse;
 
-		REFLECTABLE
-		(		
-		(OctaneDTOFloat)	fLatitude,
-		(OctaneDTOFloat)	fLongtitude,
-		(OctaneDTOFloat)	fLocalTime,
-		(OctaneDTOInt)		iMonth,
-		(OctaneDTOInt)		iDay,
-		(OctaneDTOInt)		iGMTOffset,
-		(OctaneDTOBool)		bEnableSunDir,
-		(OctaneDTOFloat3)	f3Direction
-		)
-		OctaneLightDirection() :
-			OctaneNodeBase(Octane::NT_UNKNOWN)
-		{
-		}
-		friend std::ostream& operator<< (std::ostream& out, const OctaneLightDirection& obj);
-		MSGPACK_DEFINE(fLatitude, fLongtitude, fLocalTime, iMonth, iDay, iGMTOffset, bEnableSunDir, f3Direction, MSGPACK_BASE(OctaneNodeBase));
-	}; //struct OctaneLightDirection
+#ifndef OCTANE_NODE_SERIALIZARION_FUNCTIONS
+#define OCTANE_NODE_SERIALIZARION_FUNCTIONS \
+	virtual void Serialize(msgpack::sbuffer& buf) { msgpack::pack(buf, *(this)); } \
+	virtual void Deserialize(msgpack::object& obj) { obj.convert(*(this)); }
+#endif // !OCTANE_NODE_SERIALIZARION_FUNCTIONS
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// ENVIRONMENTS
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifndef OCTANE_NODE_VISIT_FUNCTIONS
+#define OCTANE_NODE_VISIT_FUNCTIONS \
+	virtual void VisitEach(BaseVisitor* pVisitor) { visit_each_field_data(*(this), pVisitor); }
+#endif // !OCTANE_NODE_VISIT_FUNCTIONS
+
+#ifndef OCTANE_NODE_OCTANEDB_FUNCTIONS
+#define OCTANE_NODE_OCTANEDB_FUNCTIONS \
+	virtual void UpdateOctaneDBNode(void* data);
+#endif // !OCTANE_NODE_OCTANEDB_FUNCTIONS
+
+#ifndef OCTANE_NODE_PRE_UPDATE_FUNCTIONS
+#ifdef OCTANE_SERVER
+#define OCTANE_NODE_PRE_UPDATE_FUNCTIONS \
+	virtual bool PreUpdateNode(Octane::ApiNode* pApiNode);
+#else
+#define OCTANE_NODE_PRE_UPDATE_FUNCTIONS
+#endif
+#endif
+
+#ifndef OCTANE_NODE_POST_UPDATE_FUNCTIONS
+#ifdef OCTANE_SERVER
+#define OCTANE_NODE_POST_UPDATE_FUNCTIONS \
+	virtual bool PostUpdateNode(Octane::ApiNode* pApiNode);
+#else
+#define OCTANE_NODE_POST_UPDATE_FUNCTIONS
+#endif
+#endif
+
+#ifndef OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
+#ifdef OCTANE_SERVER
+#define OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS \
+	virtual void GenerateResponseNodes(Octane::ApiNode* pApiNode, std::vector<OctaneNodeBase*>& nodes);
+#else
+#define OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
+#endif
+#endif
 	struct OctaneEnvironment : public OctaneNodeBase {
-		const static PacketType packetType = NONE;
 		bool	bUsed;
-		OctaneEnvironment(Octane::NodeType _nodeType) : 
-			bUsed(true),
-			OctaneNodeBase(_nodeType)
+		OctaneEnvironment(int octaneType, std::string pluginType) :
+			bUsed(true), OctaneNodeBase(octaneType, pluginType)
 		{
 		}
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		MSGPACK_DEFINE(bUsed, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneEnvironment
 
 	struct OctaneTextureEnvironment : public OctaneEnvironment{
-		const static PacketType packetType = LOAD_TEXTURE_ENVIRONMENT;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fTexture,
@@ -99,14 +125,15 @@ namespace OctaneDataTransferObject {
 			bVisableEnvBackplate("Visable env Backplate"),
 			bVisableReflections("Visable env Reflections"),
 			bVisableRefractions("Visable env Refractions"),
-			OctaneEnvironment(Octane::NT_ENV_TEXTURE)
+			OctaneEnvironment(Octane::NT_ENV_TEXTURE, "ShaderNodeOctTextureEnvironment")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture, fPower, bImportanceSampling, tMedium, fMediumRadius, bVisableEnvBackplate, bVisableReflections, bVisableRefractions, MSGPACK_BASE(OctaneEnvironment));
 	};
 
 	struct OctaneDaylightEnvironment : public OctaneEnvironment{
-		const static PacketType packetType = LOAD_DAYLIGHT_ENVIRONMENT;
 		REFLECTABLE
 		(
 		(OctaneDTOFloat3)	f3SunDirection,
@@ -129,7 +156,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOBool)		bVisableRefractions
 		)
 
-
 		OctaneDaylightEnvironment() :
 			f3SunDirection("Sun direction"),
 			fSkyTurbidity("Sky turbidity"),
@@ -149,16 +175,17 @@ namespace OctaneDataTransferObject {
 			bVisableEnvBackplate("Visable env Backplate"),
 			bVisableReflections("Visable env Reflections"),
 			bVisableRefractions("Visable env Refractions"),
-			OctaneEnvironment(Octane::NT_ENV_DAYLIGHT)
+			OctaneEnvironment(Octane::NT_ENV_DAYLIGHT, "ShaderNodeOctDaylightEnvironment")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(f3SunDirection, fSkyTurbidity, fPower, fNorthOffset, iDaylightModel,
 			fSkyColor, fSunsetColor, fSunSize, fGroundColor, fGroundStartAngle, fGroundBlendAngle, tSkyTexture,
 			bImportanceSampling, tMedium, fMediumRadius, bVisableEnvBackplate, bVisableReflections, bVisableRefractions, MSGPACK_BASE(OctaneEnvironment));
 	};
 
 	struct OctanePlanetaryEnvironment : public OctaneEnvironment{
-		const static PacketType packetType = LOAD_PLANETARY_ENVIRONMENT;
 		REFLECTABLE
 		(
 		(OctaneDTOFloat3)	f3SunDirection,
@@ -206,16 +233,17 @@ namespace OctaneDataTransferObject {
 			bVisableEnvBackplate("Visable env Backplate"),
 			bVisableReflections("Visable env Reflections"),
 			bVisableRefractions("Visable env Refractions"),
-			OctaneEnvironment(Octane::NT_ENV_PLANETARY)
+			OctaneEnvironment(Octane::NT_ENV_PLANETARY, "ShaderNodeOctPlanetaryEnvironment")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(f3SunDirection, fSkyTurbidity, fPower, fNorthOffset,
 			fSunSize, fAltitude, fAltitude, tStarField,
 			bImportanceSampling, tMedium, fMediumRadius,
 			fLatitude, fLongtitude, fGroundAlbedo, tGroundReflection, tGroundGlossiness, fGroundEmission, tGroundNormalMap, tGroundElevation,
 			bVisableEnvBackplate, bVisableReflections, bVisableRefractions, MSGPACK_BASE(OctaneEnvironment));
 	};
-
 
 	struct OctaneRenderPasses : public OctaneNodeBase {
 		const static PacketType packetType = LOAD_RENDER_PASSES;
@@ -263,7 +291,7 @@ namespace OctaneDataTransferObject {
 			fMaxSpeed("info_pass_max_speed"),
 			fAODistance("info_pass_ao_distance"),
 			bAOAlphaShadows("info_pass_alpha_shadows"),
-			OctaneNodeBase(Octane::NT_RENDER_PASSES)
+			OctaneNodeBase(Octane::NT_RENDER_PASSES, "OctaneRenderPasses")
 		{
 			sName = "RenderPasses";
 		}
@@ -294,6 +322,9 @@ namespace OctaneDataTransferObject {
 				&& iMaterialPasses.iVal == other.iMaterialPasses.iVal;
 		}
 
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		MSGPACK_DEFINE(bUsePasses, iPreviewPass, bIncludeEnvironment, iCryptomatteBins, iCryptomatteSeedFactor,
 			iMaxInfoSample, iSamplingMode, bBumpAndNormalMapping, fOpacityThreshold, fZDepthMax, fUVMax, iUVCoordinateSelection,
 			fMaxSpeed, fAODistance, bAOAlphaShadows,
@@ -305,15 +336,29 @@ namespace OctaneDataTransferObject {
 	// BASIC INFO NODE
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	struct OctaneCommand : public OctaneNodeBase {
-		const static PacketType packetType = COMMAND;
 		int							iCommandType;
 		std::vector<int>			iParams;
 		std::vector<float>			fParams;
 		std::vector<std::string>	sParams;
-		OctaneCommand() : iCommandType(iCommandType), OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneCommand() : iCommandType(iCommandType), OctaneNodeBase(Octane::ENT_COMMAND, "OctaneCommand") { sName = "OctaneCommand"; }
 		OctaneCommand(int cmdType, const std::vector<int>& iParams, const std::vector<float>& fParams, const std::vector<std::string>& sParams) :
-			iCommandType(cmdType), iParams(iParams), fParams(fParams), sParams(sParams), OctaneNodeBase(Octane::NT_UNKNOWN) {}
+			iCommandType(cmdType), iParams(iParams), fParams(fParams), sParams(sParams), OctaneNodeBase(Octane::ENT_COMMAND, "OctaneCommand") {
+			sName = "OctaneCommand";
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		MSGPACK_DEFINE(iCommandType, iParams, fParams, sParams, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneDBNodes : public OctaneNodeBase {
+		bool bClose;
+		uint32_t iNodesNum;
+		std::vector<OctaneNodeBase*> octaneDBNodes;
+		OctaneDBNodes() : bClose(true), iNodesNum(0), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
+		OctaneDBNodes(bool bClose, uint32_t iNodesNum) : bClose(bClose), iNodesNum(iNodesNum), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		MSGPACK_DEFINE(bClose, iNodesNum, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -321,7 +366,6 @@ namespace OctaneDataTransferObject {
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/// The structure holding a diffuse material data that is going to be uploaded to the Octane server.
 	struct OctaneDiffuseMaterial : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_DIFFUSE_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fDiffuse,
@@ -353,14 +397,15 @@ namespace OctaneDataTransferObject {
 			tEmission("Emission"),
 			bShadowCatcher("Shadow catcher"),
 			tMaterialLayer("Material layer"),
-			OctaneNodeBase(Octane::NT_MAT_DIFFUSE)
+			OctaneNodeBase(Octane::NT_MAT_DIFFUSE, "ShaderNodeOctDiffuseMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fDiffuse, fRoughness, sBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, fTransmission, tMedium, tEmission, bShadowCatcher, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneDiffuseMaterial
 
 	struct OctaneMixMaterial : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_MIX_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fAmount,
@@ -374,14 +419,15 @@ namespace OctaneDataTransferObject {
 			tMaterial1("Material1"),
 			tMaterial2("Material2"),
 			tDisplacement("Displacement"),
-			OctaneNodeBase(Octane::NT_MAT_MIX)
+			OctaneNodeBase(Octane::NT_MAT_MIX, "ShaderNodeOctMixMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fAmount, tMaterial1, tMaterial2, tDisplacement, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneMixMaterial
 
 	struct OctanePortalMaterial : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_PORTAL_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTOBool)		bEnabled
@@ -389,14 +435,15 @@ namespace OctaneDataTransferObject {
 
 		OctanePortalMaterial() :
 			bEnabled("Enabled"),
-			OctaneNodeBase(Octane::NT_MAT_PORTAL)
+			OctaneNodeBase(Octane::NT_MAT_PORTAL, "ShaderNodeOctPortalMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(bEnabled, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctanePortalMaterial
 
 	struct OctaneGlossyMaterial : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_GLOSSY_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fDiffuse,
@@ -438,14 +485,15 @@ namespace OctaneDataTransferObject {
 			fFilmWidth("Film Width"),
 			fFilmIndex("Film Index"),
 			tMaterialLayer("Material layer"),
-			OctaneNodeBase(Octane::NT_MAT_GLOSSY)
+			OctaneNodeBase(Octane::NT_MAT_GLOSSY, "ShaderNodeOctGlossyMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fDiffuse, fSpecular, iBRDFModel, fRoughness, fAnisotropy, fRotation, fSheen, fSheenRoughness, fIndexOfReflection, sBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneGlossyMaterial
 
 	struct OctaneSpecularMaterial : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_SPECULAR_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fReflection,
@@ -493,14 +541,15 @@ namespace OctaneDataTransferObject {
 			fFilmWidth("Film Width"),
 			fFilmIndex("Film Index"),
 			tMaterialLayer("Material layer"),
-			OctaneNodeBase(Octane::NT_MAT_SPECULAR)
+			OctaneNodeBase(Octane::NT_MAT_SPECULAR, "ShaderNodeOctSpecularMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fReflection, fTransmission, iBRDFModel, fRoughness, fAnisotropy, fRotation, fIndexOfReflection, fDispersionCoef, sBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, tMedium, bFakeShadows, bAffectAplha, bThinWall, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneSpecularMaterial
 
 	struct OctaneToonMaterial : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_TOON_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fDiffuse,
@@ -534,14 +583,15 @@ namespace OctaneDataTransferObject {
 			fOpacity("Opacity"),
 			bSmooth("Smooth"),
 			fRoundedEdgeRadius("Rounded Edge Radius"),
-			OctaneNodeBase(Octane::NT_MAT_TOON)
+			OctaneNodeBase(Octane::NT_MAT_TOON, "ShaderNodeOctToonMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fDiffuse, fSpecular, fRoughness, iToonLightMode, tToonDiffuseRamp, tToonSpecularRamp, tBump, tNormal, tDisplacement, fOutlineColor, fOutlineThickness, fOpacity, bSmooth, fRoundedEdgeRadius, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneToonMaterial
 
 	struct OctaneMetalMaterial : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_MATEL_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTOShader)	tDiffuse,
@@ -591,14 +641,15 @@ namespace OctaneDataTransferObject {
 			fFilmWidth("Film Width"),
 			fFilmIndex("Film Index"),
 			tMaterialLayer("Material layer"),
-			OctaneNodeBase(Octane::NT_MAT_METAL)
+			OctaneNodeBase(Octane::NT_MAT_METAL, "ShaderNodeOctMetalMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(tDiffuse, fSpecular, tSpecularMap, iBRDFModel, fRoughness, fAnisotropy, fRotation, fSheen, fSheenRoughness, iIORModel, fIndexOfReflection, fIndexOfReflectionGreen, fIndexOfReflectionBlue, tBump, tNormal, tDisplacement, fOpacity, bSmooth, fRoundedEdgeRadius, fFilmWidth, fFilmIndex, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneMetalMaterial
 
 	struct OctaneUniversalIOR : public OctaneNodeBase {
-        const static PacketType packetType = NONE;
         REFLECTABLE
         (
 		(OctaneDTOFloat)	fBaseIOR,
@@ -609,12 +660,13 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat2)	fIORBlue
         )
 
-		OctaneUniversalIOR() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneUniversalIOR() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fBaseIOR, tBaseIORMap, iIORModel, fIOR, fIORGreen, fIORBlue, MSGPACK_BASE(OctaneNodeBase));
     };
 
 	struct OctaneUniversalCoating : public OctaneNodeBase {
-		const static PacketType packetType = NONE;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fCoating,
@@ -624,12 +676,13 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tCoatingNormal
 		)
 
-		OctaneUniversalCoating() : OctaneNodeBase(Octane::NT_UNKNOWN) {}
+		OctaneUniversalCoating() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fCoating, fCoatingRoughness, fCoatingIOR, tCoatingBump, tCoatingNormal, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneUniversalMaterial : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_UNIVERSAL_MATERIAL;
 		REFLECTABLE
 		(				
 		//Base Layer
@@ -734,7 +787,7 @@ namespace OctaneDataTransferObject {
 			tEmission("Emission"),
 			bShadowCatcher("Shadow catcher"),
 			tMaterialLayer("Material layer"),
-			OctaneNodeBase(Octane::NT_MAT_UNIVERSAL)
+			OctaneNodeBase(Octane::NT_MAT_UNIVERSAL, "ShaderNodeOctUniversalMat")
 		{
 		}
 
@@ -767,6 +820,8 @@ namespace OctaneDataTransferObject {
 			tCoatingNormal = oOctaneUniversalCoating.tCoatingNormal;
 		}
 
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTransmission, iTransmissionType, fAlbedoColor, fMetallic, iBRDFModel, fSpecular, fRoughness, fAnisotropy, fRotation,
 			oOctaneUniversalIOR, 
 			oOctaneUniversalCoating,
@@ -775,7 +830,6 @@ namespace OctaneDataTransferObject {
 	}; //struct OctaneUniversalMaterial
 
 	struct OctaneShadowCatcherMaterial : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_SHADOW_CATCHER_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTOBool)		bEnabled
@@ -783,14 +837,15 @@ namespace OctaneDataTransferObject {
 
 		OctaneShadowCatcherMaterial() :
 			bEnabled("Enabled"),
-			OctaneNodeBase(Octane::NT_MAT_SHADOW_CATCHER)
+			OctaneNodeBase(Octane::NT_MAT_SHADOW_CATCHER, "ShaderNodeOctShadowCatcherMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(bEnabled, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneShadowCatcherMaterial
 
 	struct OctaneLayeredMaterial : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_LAYERED_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTOShader)		tBaseMaterial
@@ -799,14 +854,17 @@ namespace OctaneDataTransferObject {
 
 		OctaneLayeredMaterial() :
 			tBaseMaterial("Base Material"),
-			OctaneNodeBase(Octane::NT_MAT_LAYER)
+			OctaneNodeBase(Octane::NT_MAT_LAYER, "ShaderNodeOctLayeredMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
 		MSGPACK_DEFINE(tBaseMaterial, sLayers, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneLayeredMaterial
 
 	struct OctaneCompositeMaterial : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_COMPOSITE_MATERIAL;
 		REFLECTABLE
 		(
 		(OctaneDTOShader)		tDisplacement
@@ -814,16 +872,19 @@ namespace OctaneDataTransferObject {
 		std::vector<std::string>	sMaterials;
 		std::vector<std::string>	sMasks;
 
-			OctaneCompositeMaterial() :
+		OctaneCompositeMaterial() :
 			tDisplacement("Displacement"),
-			OctaneNodeBase(Octane::NT_MAT_COMPOSITE)
+			OctaneNodeBase(Octane::NT_MAT_COMPOSITE, "ShaderNodeOctCompositeMat")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
 		MSGPACK_DEFINE(tDisplacement, sMaterials, sMasks, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneCompositeMaterial
 
 	struct OctaneGroupLayer : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_GROUP_LAYER;
 		REFLECTABLE
 		(		
 		(OctaneDTOInt)		iPlaceHolder
@@ -831,14 +892,17 @@ namespace OctaneDataTransferObject {
 		std::vector<std::string>	sLayers;
 
 		OctaneGroupLayer() :
-			OctaneNodeBase(Octane::NT_MAT_LAYER_GROUP)
+			OctaneNodeBase(Octane::NT_MAT_LAYER_GROUP, "ShaderNodeOctGroupLayer")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
 		MSGPACK_DEFINE(sLayers, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneGroupLayer
 
 	struct OctaneDiffuseLayer : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_DIFFUSE_LAYER;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fDiffuse,
@@ -858,14 +922,15 @@ namespace OctaneDataTransferObject {
 			sBump("Bump"),
 			tNormal("Normal"),
 			fLayerOpacity("Layer opacity"),
-			OctaneNodeBase(Octane::NT_MAT_DIFFUSE_LAYER)
+			OctaneNodeBase(Octane::NT_MAT_DIFFUSE_LAYER, "ShaderNodeOctDiffuseLayer")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fDiffuse, fTransmission, iBRDFModel, fRoughness, sBump, tNormal, fLayerOpacity, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneDiffuseLayer
 
 	struct OctaneMetallicLayer : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_METALLIC_LAYER;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fSpecular,
@@ -899,9 +964,11 @@ namespace OctaneDataTransferObject {
 			tBump("Bump"),
 			tNormal("Normal"),
 			fLayerOpacity("Layer opacity"),
-			OctaneNodeBase(Octane::NT_MAT_METALLIC_LAYER)
+			OctaneNodeBase(Octane::NT_MAT_METALLIC_LAYER, "ShaderNodeOctMetallicLayer")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fSpecular, iBRDFModel, 
 			fRoughness, fAnisotropy, fRotation, 
 			iIORModel, fIndexOfReflection, fIndexOfReflectionGreen, fIndexOfReflectionBlue,
@@ -911,7 +978,6 @@ namespace OctaneDataTransferObject {
 	}; //struct OctaneMetallicLayer
 
 	struct OctaneSheenLayer : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_SHEEN_LAYER;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fSheen,
@@ -929,14 +995,15 @@ namespace OctaneDataTransferObject {
 			tBump("Bump"),
 			tNormal("Normal"),
 			fLayerOpacity("Layer opacity"),
-			OctaneNodeBase(Octane::NT_MAT_SHEEN_LAYER)
+			OctaneNodeBase(Octane::NT_MAT_SHEEN_LAYER, "ShaderNodeOctSheenLayer")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fSheen, fRoughness, fAffectRoughness, tBump, tNormal, fLayerOpacity, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneSheenLayer
 
 	struct OctaneSpecularLayer : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_SPECULAR_LAYER;
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fSpecular,
@@ -974,9 +1041,11 @@ namespace OctaneDataTransferObject {
 			tNormal("Normal"),
 			fDispersionCoef("Dispersion Coef."),
 			fLayerOpacity("Layer opacity"),
-			OctaneNodeBase(Octane::NT_MAT_SPECULAR_LAYER)
+			OctaneNodeBase(Octane::NT_MAT_SPECULAR_LAYER, "ShaderNodeOctSpecularLayer")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fSpecular, fTransmission, iBRDFModel,
 			fRoughness, fAffectRoughness, fAnisotropy, fRotation,
 			fIOR, tIORMap,
@@ -991,8 +1060,6 @@ namespace OctaneDataTransferObject {
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/// The structure holding a greycolor texture data that is going to be uploaded to the Octane server.
 	struct OctaneGrayscaleColorTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_GRAYSCALE_COLOR_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fValue
@@ -1001,16 +1068,16 @@ namespace OctaneDataTransferObject {
 
 		OctaneGrayscaleColorTexture() :
 			fValue("Value"),
-			OctaneNodeBase(Octane::NT_TEX_FLOAT)
+			OctaneNodeBase(Octane::NT_TEX_FLOAT, "ShaderNodeOctFloatTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fValue, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	/// The structure holding a RGB spectrum texture data that is going to be uploaded to the Octane server.
 	struct OctaneRGBSpectrumTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_RGB_SPECTRUM_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTORGB)	fColor
@@ -1019,16 +1086,16 @@ namespace OctaneDataTransferObject {
 
 		OctaneRGBSpectrumTexture() :
 			fColor("Color"),
-			OctaneNodeBase(Octane::NT_TEX_RGB)
+			OctaneNodeBase(Octane::NT_TEX_RGB, "ShaderNodeOctRGBSpectrumTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fColor, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	/// The structure holding a gaussian spectrum texture data that is going to be uploaded to the Octane server.
 	struct OctaneGaussianSpectrumTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_GAUSSIAN_SPECTRUM_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fWaveLength,
@@ -1037,21 +1104,20 @@ namespace OctaneDataTransferObject {
 
 		)
 
-
 		OctaneGaussianSpectrumTexture() :
 			fWaveLength("Wave Length"),
 			fWidth("Width"),
 			fPower("Power"),
-			OctaneNodeBase(Octane::NT_TEX_GAUSSIANSPECTRUM)
+			OctaneNodeBase(Octane::NT_TEX_GAUSSIANSPECTRUM, "ShaderNodeOctGaussSpectrumTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fWaveLength, fWidth, fPower, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	/// The structure holding a checks texture data that is going to be uploaded to the Octane server.
 	struct OctaneChecksTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_CHECKS_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOShader)	sTransform,
@@ -1059,19 +1125,18 @@ namespace OctaneDataTransferObject {
 
 		)
 
-
 		OctaneChecksTexture() :
 			sTransform("Transform"),
 			sProjection("Projection"),
-			OctaneNodeBase(Octane::NT_TEX_CHECKS)
+			OctaneNodeBase(Octane::NT_TEX_CHECKS, "ShaderNodeOctChecksTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(sTransform, sProjection, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMarbleTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_MARBLE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fPower,
@@ -1092,15 +1157,15 @@ namespace OctaneDataTransferObject {
 			fVariance("Variance"),
 			sTransform("Transform"),
 			sProjection("Projection"),
-			OctaneNodeBase(Octane::NT_TEX_MARBLE)
+			OctaneNodeBase(Octane::NT_TEX_MARBLE, "ShaderNodeOctMarbleTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fPower, fOffset, iOctaves, fOmega, fVariance, sTransform, sProjection, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneRidgedFractalTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_RIDGED_FRACTAL_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fPower,
@@ -1112,7 +1177,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	sProjection
 		)
 
-
 		OctaneRidgedFractalTexture() :
 			fPower("Power"),
 			fRidgeHeight("Offset"),
@@ -1121,15 +1185,15 @@ namespace OctaneDataTransferObject {
 			fLacunarity("Lacunarity"),
 			sTransform("Transform"),
 			sProjection("Projection"),
-			OctaneNodeBase(Octane::NT_TEX_RGFRACTAL)
+			OctaneNodeBase(Octane::NT_TEX_RGFRACTAL, "ShaderNodeOctRidgedFractalTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fPower, fRidgeHeight, iOctaves, fOmega, fLacunarity, sTransform, sProjection, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneSawWaveTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_SAW_WAVE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fOffset,
@@ -1142,36 +1206,35 @@ namespace OctaneDataTransferObject {
 			fOffset("Offset"),
 			sTransform("Transform"),
 			sProjection("Projection"),
-			OctaneNodeBase(Octane::NT_TEX_SAWWAVE)
+			OctaneNodeBase(Octane::NT_TEX_SAWWAVE, "ShaderNodeOctSawWaveTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fOffset, sTransform, sProjection, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneSineWaveTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_SINE_WAVE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fOffset,
 		(OctaneDTOShader)	sTransform,
 		(OctaneDTOShader)	sProjection
 		)
-
 
 		OctaneSineWaveTexture() :
 			fOffset("Offset"),
 			sTransform("Transform"),
 			sProjection("Projection"),
-			OctaneNodeBase(Octane::NT_TEX_SINEWAVE)
+			OctaneNodeBase(Octane::NT_TEX_SINEWAVE, "ShaderNodeOctSineWaveTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fOffset, sTransform, sProjection, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneTriangleWaveTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_TRIANGLE_WAVE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fOffset,
@@ -1179,20 +1242,19 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	sProjection
 		)
 
-
 		OctaneTriangleWaveTexture() :
 			fOffset("Offset"),
 			sTransform("Transform"),
 			sProjection("Projection"),
-			OctaneNodeBase(Octane::NT_TEX_TRIANGLEWAVE)
+			OctaneNodeBase(Octane::NT_TEX_TRIANGLEWAVE, "ShaderNodeOctTriWaveTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fOffset, sTransform, sProjection, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneTurbulenceTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_TURBULENCE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fPower,
@@ -1206,7 +1268,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	sProjection
 		)
 
-
 		OctaneTurbulenceTexture() :
 			fPower("Power"),
 			fOffset("Offset"),
@@ -1217,15 +1278,15 @@ namespace OctaneDataTransferObject {
 			bInvert("Invert"),
 			sTransform("Transform"),
 			sProjection("Projection"),
-			OctaneNodeBase(Octane::NT_TEX_TURBULENCE)
+			OctaneNodeBase(Octane::NT_TEX_TURBULENCE, "ShaderNodeOctTurbulenceTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fPower, fOffset, iOctaves, fOmega, fGamma, bTurbulence, bInvert, sTransform, sProjection, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneNoiseTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_NOISE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOEnum)		iNoiseType,
@@ -1238,7 +1299,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fContrast
 		)
 
-
 		OctaneNoiseTexture() :
 			iNoiseType("noise_type", false),
 			iOctaves("Octaves"),
@@ -1248,15 +1308,15 @@ namespace OctaneDataTransferObject {
 			bInvert("Invert"),
 			fGamma("Gamma"),
 			fContrast("Contrast"),
-			OctaneNodeBase(Octane::NT_TEX_NOISE)
+			OctaneNodeBase(Octane::NT_TEX_NOISE, "ShaderNodeOctNoiseTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iNoiseType, iOctaves, fOmega, sTransform, sProjection, bInvert, fGamma, fContrast, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneClampTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_CLAMP_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture,
@@ -1264,20 +1324,19 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fMax
 		)
 
-
 		OctaneClampTexture() :
 			fTexture("Input"),
 			fMin("Min"),
 			fMax("Max"),
-			OctaneNodeBase(Octane::NT_TEX_CLAMP)
+			OctaneNodeBase(Octane::NT_TEX_CLAMP, "ShaderNodeOctClampTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture, fMin, fMax, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneCosineMixTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_COSINE_MIX_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fAmount,
@@ -1290,32 +1349,31 @@ namespace OctaneDataTransferObject {
 			fAmount("Amount"),
 			fTexture1("Texture1"),
 			fTexture2("Texture2"),
-			OctaneNodeBase(Octane::NT_TEX_COSINEMIX)
+			OctaneNodeBase(Octane::NT_TEX_COSINEMIX, "ShaderNodeOctCosineMixTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fAmount, fTexture1, fTexture2, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneInvertTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_INVERT_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOShader)	sTexture
 		)
 
-
 		OctaneInvertTexture() :
 			sTexture("Texture"),
-			OctaneNodeBase(Octane::NT_TEX_INVERT)
+			OctaneNodeBase(Octane::NT_TEX_INVERT, "ShaderNodeOctInvertTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(sTexture, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMixTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_MIX_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fAmount,
@@ -1323,77 +1381,73 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fTexture2
 		)
 
-
 		OctaneMixTexture() :
 			fAmount("Amount"),
 			fTexture1("Texture1"),
 			fTexture2("Texture2"),
-			OctaneNodeBase(Octane::NT_TEX_MIX)
+			OctaneNodeBase(Octane::NT_TEX_MIX, "ShaderNodeOctMixTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fAmount, fTexture1, fTexture2, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMultiplyTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_MULTIPLY_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture1,
 		(OctaneDTOFloat)	fTexture2
 		)
-
 
 		OctaneMultiplyTexture() :
 			fTexture1("Texture1"),
 			fTexture2("Texture2"),
-			OctaneNodeBase(Octane::NT_TEX_MULTIPLY)
+			OctaneNodeBase(Octane::NT_TEX_MULTIPLY, "ShaderNodeOctMultiplyTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture1, fTexture2, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneAddTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_ADD_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture1,
 		(OctaneDTOFloat)	fTexture2
 		)
-
 
 		OctaneAddTexture() :
 			fTexture1("Texture1"),
 			fTexture2("Texture2"),
-			OctaneNodeBase(Octane::NT_TEX_ADD)
+			OctaneNodeBase(Octane::NT_TEX_ADD, "ShaderNodeOctAddTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture1, fTexture2, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneSubtractTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_SUBTRACT_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture1,
 		(OctaneDTOFloat)	fTexture2
 		)
 
-
 		OctaneSubtractTexture() :
 			fTexture1("Texture1"),
 			fTexture2("Texture2"),
-			OctaneNodeBase(Octane::NT_TEX_SUBTRACT)
+			OctaneNodeBase(Octane::NT_TEX_SUBTRACT, "ShaderNodeOctSubtractTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture1, fTexture2, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneCompareTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_COMPARE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture1,
@@ -1402,21 +1456,20 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fTexture4
 		)
 
-
 		OctaneCompareTexture() :
 			fTexture1("Texture1"),
 			fTexture2("Texture2"),
 			fTexture3("Texture3"),
 			fTexture4("Texture4"),
-			OctaneNodeBase(Octane::NT_TEX_COMPARE)
+			OctaneNodeBase(Octane::NT_TEX_COMPARE, "ShaderNodeOctCompareTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture1, fTexture2, fTexture3, fTexture4, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneTriplanarTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_TRIPLANAR_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fBlendAngle,
@@ -1430,7 +1483,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTORGB)		f3NegativeZTexture		
 		)
 
-
 		OctaneTriplanarTexture() :
 			fBlendAngle("Blend angle"),
 			iCoordinateSpace("coordinate_space_mode", false),
@@ -1441,15 +1493,15 @@ namespace OctaneDataTransferObject {
 			f3NegativeYTexture("Negative Y axis"),
 			f3PositiveZTexture("Positive Z axis"),
 			f3NegativeZTexture("Negative Z axis"),
-			OctaneNodeBase(Octane::NT_TEX_TRIPLANAR)
+			OctaneNodeBase(Octane::NT_TEX_TRIPLANAR, "ShaderNodeOctTriplanarTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fBlendAngle, iCoordinateSpace, sTransform, f3PositiveXTexture, f3NegativeXTexture, f3PositiveYTexture, f3NegativeYTexture, f3PositiveZTexture, f3NegativeZTexture, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneFalloffTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_FALLOFF_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOEnum)		iFalloffMode,
@@ -1459,22 +1511,21 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat3)	f3Direction
 		)
 
-
 		OctaneFalloffTexture() :
 			iFalloffMode("falloff_map_mode", false),
 			fNormal("Normal"),
 			fGrazing("Grazing"),
 			fFalloff("Falloff Skew Factor"),
 			f3Direction("Falloff direction"),
-			OctaneNodeBase(Octane::NT_TEX_FALLOFF)
+			OctaneNodeBase(Octane::NT_TEX_FALLOFF, "ShaderNodeOctFalloffTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iFalloffMode, fNormal, fGrazing, fFalloff, f3Direction, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneColorCorrectTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_COLOR_CORRECT_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture,
@@ -1486,7 +1537,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fContrast
 		)
 
-
 		OctaneColorCorrectTexture() :
 			fTexture("Texture"),
 			fBrightness("Brightness"),
@@ -1495,9 +1545,11 @@ namespace OctaneDataTransferObject {
 			fSaturation("Saturation"),
 			fGamma("Gamma"),
 			fContrast("Contrast"),
-			OctaneNodeBase(Octane::NT_TEX_COLORCORRECTION)
+			OctaneNodeBase(Octane::NT_TEX_COLORCORRECTION, "ShaderNodeOctColorCorrectTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture, fBrightness, bInvert, fHue, fSaturation, fGamma, fContrast, MSGPACK_BASE(OctaneNodeBase));
 	};
 
@@ -1516,7 +1568,7 @@ namespace OctaneDataTransferObject {
 		uint8_t*			pIData;
 
 		OctaneImageData() :
-			OctaneNodeBase(Octane::NT_UNKNOWN)
+			OctaneNodeBase(Octane::ENT_IMAGE_DATA, "OctaneImageData")
 		{
 		}
 
@@ -1527,11 +1579,46 @@ namespace OctaneDataTransferObject {
 			iImageData.clear();
 			sFilePath = "";
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		MSGPACK_DEFINE(iHDRDepthType, sFilePath, bReload, iWidth, iHeight, iChannelNum, fDataLength, iDataLength, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
-	struct OctaneImageTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_IMAGE_TEXTURE;
+	struct OctaneBaseImageNode : public OctaneNodeBase {
+		OctaneImageData		oImageData;
+		OctaneBaseImageNode(int octaneType, std::string pluginType) : OctaneNodeBase(octaneType, pluginType) {}
+
+		void PackAttributes() {
+			if (oImageData.fDataLength > 0) {
+				this->arrayData = (void*)oImageData.pFData;
+				this->arraySize = sizeof(float) * oImageData.fDataLength;
+			}
+			else if (oImageData.iDataLength > 0) {
+				this->arrayData = (void*)oImageData.pIData;
+				this->arraySize = sizeof(uint8_t) * oImageData.iDataLength;
+			}
+			else {
+				this->arrayData = NULL;
+				this->arraySize = 0;
+			}
+		}
+
+		void UnpackAttributes() {
+			oImageData.pFData = NULL;
+			oImageData.pIData = NULL;
+			if (oImageData.fDataLength > 0) {
+				oImageData.pFData = (float*)this->arrayData;
+			}
+			else if (oImageData.iDataLength > 0) {
+				oImageData.pIData = (uint8_t*)this->arrayData;
+			}
+		}
+
+		OCTANE_NODE_PRE_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(oImageData, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneImageTexture : public OctaneBaseImageNode {
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fPower,
@@ -1542,7 +1629,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tProjection,
 		(OctaneDTOEnum)		iBorderMode
 		)
-		OctaneImageData		oImageData;
 
 		OctaneImageTexture() :
 			fPower("Power"),
@@ -1552,14 +1638,15 @@ namespace OctaneDataTransferObject {
 			tTransform("Transform"),
 			tProjection("Projection"),
 			iBorderMode("border_mode", false),
-			OctaneNodeBase(Octane::NT_TEX_IMAGE)
+			OctaneBaseImageNode(Octane::NT_TEX_IMAGE, "ShaderNodeOctImageTex")
 		{
 		}
-		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, oImageData, MSGPACK_BASE(OctaneNodeBase));
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, MSGPACK_BASE(OctaneBaseImageNode));
 	}; 
 
 	struct OctaneImageTileTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_IMAGE_TILE_TEXTURE;
 		REFLECTABLE
 		(
 		(OctaneDTOEnum)		iHDRDepthType,
@@ -1591,48 +1678,48 @@ namespace OctaneDataTransferObject {
 			tTransform("Transform"),
 			tProjection("Projection"),
 			fEmptyTileColor("Empty tile color"),
-			OctaneNodeBase(Octane::NT_TEX_IMAGE_TILES)
+			OctaneNodeBase(Octane::NT_TEX_IMAGE_TILES, "ShaderNodeOctImageTileTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_PRE_UPDATE_FUNCTIONS
 		MSGPACK_DEFINE(iHDRDepthType, iGridSizeX, iGridSizeY, iStart, iDigits, fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, fEmptyTileColor, iGridSize, sFiles, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneImageTileTexture
 
 	struct OctaneFloatVertexAttributeTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_FLOAT_VERTEXATTRIBUTE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOString)	sSetName
 		)
 
-
 		OctaneFloatVertexAttributeTexture() :
 			sSetName("Name"),
-			OctaneNodeBase(Octane::NT_TEX_FLOAT_VERTEXATTRIBUTE)
+			OctaneNodeBase(Octane::NT_TEX_FLOAT_VERTEXATTRIBUTE, "ShaderNodeOctFloatVertexTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(sSetName, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneColorVertexAttributeTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_COLOUR_VERTEXATTRIBUTE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOString)	sSetName
 		)
 
-
 		OctaneColorVertexAttributeTexture() :
 			sSetName("Name"),
-			OctaneNodeBase(Octane::NT_TEX_COLOUR_VERTEXATTRIBUTE)
+			OctaneNodeBase(Octane::NT_TEX_COLOUR_VERTEXATTRIBUTE, "ShaderNodeOctColorVertexTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(sSetName, MSGPACK_BASE(OctaneNodeBase));
 	};
 
-	struct OctaneInstanceColorTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_INSTANCE_COLOR_TEXTURE;
+	struct OctaneInstanceColorTexture : public OctaneBaseImageNode {
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fPower,
@@ -1640,59 +1727,72 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOBool)		bInvert,
 		(OctaneDTOBool)		bLinearSpaceInvert
 		)
-		OctaneImageData		oImageData;
 
 		OctaneInstanceColorTexture() :
 			fPower("Power"),
 			fGamma("Gamma"),
 			bInvert("Invert"),
 			bLinearSpaceInvert("Linear space invert"),
-			OctaneNodeBase(Octane::NT_TEX_INSTANCE_COLOR)
+			OctaneBaseImageNode(Octane::NT_TEX_INSTANCE_COLOR, "ShaderNodeOctInstanceColorTex")
 		{
 		}
-		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, oImageData, MSGPACK_BASE(OctaneNodeBase));
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, MSGPACK_BASE(OctaneBaseImageNode));
 	}; 
+
+	struct OSLNodeInfo : public OctaneNodeBase
+	{
+		Octane::CompilationResult mCompileResult;
+		std::string mCompileInfo;
+		OSLNodePinInfo mPinInfo;
+		OSLNodeInfo() : OctaneNodeBase(Octane::ENT_OSL_NODE_INFO, "OSLNodeInfo") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		MSGPACK_DEFINE(mCompileResult, mCompileInfo, mPinInfo, MSGPACK_BASE(OctaneNodeBase));
+	};
 
 	/// The structure holding a osl node data that is going to be uploaded to the Octane server.
 	struct OctaneOSLNodeBase : public OctaneNodeBase {
 		std::string     sShaderCode;
 		std::string		sFilePath;
 		OSLNodeInfo		oOSLNodeInfo;		
-		OctaneOSLNodeBase(Octane::NodeType _nodeType) : OctaneNodeBase(_nodeType) {}
+		OctaneOSLNodeBase(int octaneType, std::string pluginType) : OctaneNodeBase(octaneType, pluginType, 0, 1) {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
 		MSGPACK_DEFINE(sShaderCode, sFilePath, oOSLNodeInfo, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneOSLNodeBase
 
-	struct OctaneOSLTexture : public OctaneOSLNodeBase {	
-		const static PacketType packetType = LOAD_OSL_TEXTURE;
-		OctaneOSLTexture() : OctaneOSLNodeBase(Octane::NT_TEX_OSL) {}
+	struct OctaneOSLTexture : public OctaneOSLNodeBase {
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OctaneOSLTexture() : OctaneOSLNodeBase(Octane::NT_TEX_OSL, "ShaderNodeOctOSLTex") {}
 	};
 
 	struct OctaneOSLProjection : public OctaneOSLNodeBase {
-		const static PacketType packetType = LOAD_OSL_PROJECTION;
-		OctaneOSLProjection() : OctaneOSLNodeBase(Octane::NT_PROJ_OSL) {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OctaneOSLProjection() : OctaneOSLNodeBase(Octane::NT_PROJ_OSL, "ShaderNodeOctOSLProjection") {}
 	};
 
 	struct OctaneOSLCamera : public OctaneOSLNodeBase {		
-		const static PacketType packetType = LOAD_OSL_CAMERA;
-		OctaneOSLCamera() : OctaneOSLNodeBase(Octane::NT_CAM_OSL) {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OctaneOSLCamera() : OctaneOSLNodeBase(Octane::NT_CAM_OSL, "ShaderNodeOctOSLCamera") {}
 	};
 
 	struct OctaneOSLBakingCamera : public OctaneOSLNodeBase {
-		const static PacketType packetType = LOAD_OSL_BAKING_CAMERA;
-		OctaneOSLBakingCamera() : OctaneOSLNodeBase(Octane::NT_CAM_OSL_BAKING) {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OctaneOSLBakingCamera() : OctaneOSLNodeBase(Octane::NT_CAM_OSL_BAKING, "ShaderNodeOctOSLBakingCamera") {}
 	};
 
 	struct OctaneVectron : public OctaneOSLNodeBase {
-		const static PacketType packetType = LOAD_OSL_GEO;
 		std::string     sMaterialName;
 		std::string		sVectronNodeName;
 
-		OctaneVectron() : OctaneOSLNodeBase(Octane::NT_GEO_OSL) {}
+		OctaneVectron() : OctaneOSLNodeBase(Octane::NT_GEO_OSL, "ShaderNodeOctVectron") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		MSGPACK_DEFINE(sMaterialName, sVectronNodeName, MSGPACK_BASE(OctaneOSLNodeBase));
 	};
 
-	struct OctaneFloatImageTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_FLOAT_IMAGE_TEXTURE;
+	struct OctaneFloatImageTexture : public OctaneBaseImageNode {
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fPower,
@@ -1703,7 +1803,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tProjection,
 		(OctaneDTOEnum)		iBorderMode
 		)
-		OctaneImageData		oImageData;
 
 		OctaneFloatImageTexture() :
 			fPower("Power"),
@@ -1713,14 +1812,15 @@ namespace OctaneDataTransferObject {
 			tTransform("Transform"),
 			tProjection("Projection"),
 			iBorderMode("border_mode", false),
-			OctaneNodeBase(Octane::NT_TEX_FLOATIMAGE)
+			OctaneBaseImageNode(Octane::NT_TEX_FLOATIMAGE, "ShaderNodeOctFloatImageTex")
 		{
 		}
-		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, oImageData, MSGPACK_BASE(OctaneNodeBase));
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, MSGPACK_BASE(OctaneBaseImageNode));
 	}; 
 
-	struct OctaneAlphaImageTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_ALPHA_IMAGE_TEXTURE;
+	struct OctaneAlphaImageTexture : public OctaneBaseImageNode {
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fPower,
@@ -1731,7 +1831,6 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tProjection,
 		(OctaneDTOEnum)		iBorderMode
 		)
-		OctaneImageData		oImageData;
 
 		OctaneAlphaImageTexture() :
 			fPower("Power"),
@@ -1741,15 +1840,15 @@ namespace OctaneDataTransferObject {
 			tTransform("Transform"),
 			tProjection("Projection"),
 			iBorderMode("border_mode", false),
-			OctaneNodeBase(Octane::NT_TEX_ALPHAIMAGE)
+			OctaneBaseImageNode(Octane::NT_TEX_ALPHAIMAGE, "ShaderNodeOctAlphaImageTex")
 		{
 		}
-		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, oImageData, MSGPACK_BASE(OctaneNodeBase));
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fPower, fGamma, bInvert, bLinearSpaceInvert, tTransform, tProjection, iBorderMode, MSGPACK_BASE(OctaneBaseImageNode));
 	}; 
 
 	struct OctaneDirtTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_DIRT_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fStrength,
@@ -1759,110 +1858,115 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOBool)		bInvert
 		)
 
-
 		OctaneDirtTexture() :
 			fStrength("Strength"),
 			fDetails("Details"),
 			fRadius("Radius"),
 			fTolerance("Tolerance"),
 			bInvert("Invert Normal"),
-			OctaneNodeBase(Octane::NT_TEX_DIRT)
+			OctaneNodeBase(Octane::NT_TEX_DIRT, "ShaderNodeOctDirtTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fStrength, fDetails, fRadius, fTolerance, bInvert, MSGPACK_BASE(OctaneNodeBase));
 	};
 
-	struct OctaneGradientTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_GRADIENT_TEXTURE;
+	struct OctaneBaseRampNode : public OctaneNodeBase {
+		std::vector<float>  fPosData;
+		std::vector<float>  fColorData;
+		OctaneBaseRampNode(int octaneType, std::string pluginType) : OctaneNodeBase(octaneType, pluginType) {}
 
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(fPosData, fColorData, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneGradientTexture : public OctaneBaseRampNode {
 		REFLECTABLE
 		(
 		(OctaneDTOShader)	sTexture,
 		(OctaneDTOEnum)		iInterpolationType
 		)
-		std::vector<float>  fPosData;
-		std::vector<float>  fColorData;
 
 		OctaneGradientTexture() :
 			sTexture("Texture"),
-			OctaneNodeBase(Octane::NT_TEX_GRADIENT)
+			OctaneBaseRampNode(Octane::NT_TEX_GRADIENT, "ShaderNodeOctGradientTex")
 		{
 		}
-		MSGPACK_DEFINE(sTexture, iInterpolationType, fPosData, fColorData, MSGPACK_BASE(OctaneNodeBase));
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(sTexture, iInterpolationType, MSGPACK_BASE(OctaneBaseRampNode));
 	};
 
-	struct OctaneToonRampTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_TOON_RAMP_TEXTURE;
-
+	struct OctaneToonRampTexture : public OctaneBaseRampNode {
 		REFLECTABLE
 		(
 		(OctaneDTOEnum)		iInterpolationType
 		)
-		std::vector<float>  fPosData;
-		std::vector<float>  fColorData;
 
 		OctaneToonRampTexture() :
-			OctaneNodeBase(Octane::NT_TOON_RAMP)
+		OctaneBaseRampNode(Octane::NT_TOON_RAMP, "ShaderNodeOctToonRampTex")
 		{
 		}
-		MSGPACK_DEFINE(iInterpolationType, fPosData, fColorData, MSGPACK_BASE(OctaneNodeBase));
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(iInterpolationType, MSGPACK_BASE(OctaneBaseRampNode));
 	};
 
-	struct OctaneVolumeRampTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_VOLUMERAMP_TEXTURE;
-
+	struct OctaneVolumeRampTexture : public OctaneBaseRampNode {
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fMaxGridValue,
 		(OctaneDTOEnum)		iInterpolationType
 		)
-		std::vector<float>  fPosData;
-		std::vector<float>  fColorData;
 
 		OctaneVolumeRampTexture() :
 			fMaxGridValue("Max grid val."),
-			OctaneNodeBase(Octane::NT_VOLUME_RAMP)
+			OctaneBaseRampNode(Octane::NT_VOLUME_RAMP, "ShaderNodeOctVolumeRampTex")
 		{
 		}
-		MSGPACK_DEFINE(fMaxGridValue, iInterpolationType, fPosData, fColorData, MSGPACK_BASE(OctaneNodeBase));
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(fMaxGridValue, iInterpolationType, MSGPACK_BASE(OctaneBaseRampNode));
 	};
 
 	struct OctaneRandomColorTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_RANDOM_COLOR_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOInt)		iSeed
 		)
 
-
 		OctaneRandomColorTexture() :
 			iSeed("Random Seed"),
-			OctaneNodeBase(Octane::NT_TEX_RANDOMCOLOR)
+			OctaneNodeBase(Octane::NT_TEX_RANDOMCOLOR, "ShaderNodeOctRandomColorTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iSeed, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctanePolygonSideTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_POLYGON_SIDE_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOBool)		bInvert
 		)
 
-
 		OctanePolygonSideTexture() :
 			bInvert("Invert"),
-			OctaneNodeBase(Octane::NT_TEX_SIDE)
+			OctaneNodeBase(Octane::NT_TEX_SIDE, "ShaderNodeOctPolygonSideTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(bInvert, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneDisplacementTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_DISPLACEMENT_TEXTURE;
 		REFLECTABLE
 		(
 		(OctaneDTOShader)	tTexture,
@@ -1882,14 +1986,15 @@ namespace OctaneDataTransferObject {
 			iDisplacementDirectionType("displacement_surface", false),
 			iFilterType("displacement_filter", false),
 			iFilterRadius("Filter radius"),
-			OctaneNodeBase(Octane::NT_DISPLACEMENT)
+			OctaneNodeBase(Octane::NT_DISPLACEMENT, "ShaderNodeOctDisplacementTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(tTexture, fMidLevel, iDetailsLevel, fMidLevel, fHeight, iDisplacementDirectionType, iFilterType, iFilterRadius, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneDisplacementTexture
 
 	struct OctaneVertexDisplacementTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_VERTEX_DISPLACEMENT_TEXTURE;
 		REFLECTABLE
 		(
 		(OctaneDTOShader)	tTexture,
@@ -1909,14 +2014,15 @@ namespace OctaneDataTransferObject {
 			iVertexSpace("vertex_space", false),
 			bAutoBumpMap("Auto bump map"),
 			iSubdivisionLevel("Subdivision level"),
-			OctaneNodeBase(Octane::NT_VERTEX_DISPLACEMENT)
+			OctaneNodeBase(Octane::NT_VERTEX_DISPLACEMENT, "ShaderNodeOctVertexDisplacementTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(tTexture, fHeight, fMidLevel, iMapType, iVertexSpace, bAutoBumpMap, iSubdivisionLevel, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneVertexDisplacementTexture
 
 	struct OctaneVertexDisplacementMixer : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_VERTEX_DISPLACEMENT_MIXER_TEXTURE;
 		REFLECTABLE
 		(		
 		(OctaneDTOInt)		iPlaceHolder
@@ -1926,15 +2032,17 @@ namespace OctaneDataTransferObject {
 		std::vector<float>			fWeights;
 
 		OctaneVertexDisplacementMixer() :
-			OctaneNodeBase(Octane::NT_VERTEX_DISPLACEMENT_MIXER)
+			OctaneNodeBase(Octane::NT_VERTEX_DISPLACEMENT_MIXER, "ShaderNodeOctVertexDisplacementMixerTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
 		MSGPACK_DEFINE(sDisplacements, sWeightLinks, fWeights, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneVertexDisplacementMixer
 
-
 	struct OctaneBakingTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_BAKING_TEXTURE;
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture,
@@ -1967,7 +2075,7 @@ namespace OctaneDataTransferObject {
 			tTransform("Transform"),
 			tProjection("Projection"),
 			iBorderMode("border_mode", false),
-			OctaneNodeBase(Octane::NT_TEX_BAKED_IMAGE)
+			OctaneNodeBase(Octane::NT_TEX_BAKED_IMAGE, "ShaderNodeOctBakingTex")
 		{
 		}
 
@@ -1976,65 +2084,63 @@ namespace OctaneDataTransferObject {
 			iResolution.iVal.y = iResolutionY.iVal;
 		}
 
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture, bEnableBaking, iResolution, iResolutionX, iResolutionY, iSamplePerPixel, iTextureType, bRGBBaking, fPower, fGamma, bInvert, tTransform, tProjection, iBorderMode, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
 	struct OctaneUVWTransformTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_UVW_TRANSFORM_TEXTURE;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture,
 		(OctaneDTOShader)	sTransform	
 		)
 
-
 		OctaneUVWTransformTexture() :
 			fTexture("Texture"),
 			sTransform("Transform"),
-			OctaneNodeBase(Octane::NT_TEX_UVW_TRANSFORM)
+			OctaneNodeBase(Octane::NT_TEX_UVW_TRANSFORM, "ShaderNodeOctUVWTransformTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture, sTransform, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneInstaceRangeTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_INSTANCE_RANGE_TEXTURE;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOInt)		iMaximumID,
 		(OctaneDTOBool)		bInvert
 		)
 
-
 		OctaneInstaceRangeTexture() :
 			iMaximumID("Maximum ID"),
 			bInvert("Invert"),
-			OctaneNodeBase(Octane::NT_TEX_INSTANCE_RANGE)
+			OctaneNodeBase(Octane::NT_TEX_INSTANCE_RANGE, "ShaderNodeOctInstanceRangeTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iMaximumID, bInvert, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneWTexture : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_W_TEXTURE;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOInt)		iPlaceHolder
 		)
 
-
 		OctaneWTexture() :
-			OctaneNodeBase(Octane::NT_TEX_W)
+			OctaneNodeBase(Octane::NT_TEX_W, "ShaderNodeOctWTex")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iPlaceHolder, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneBlackBodyEmission : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_BLACKBODY_EMISSION;
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTextureOrEff,
@@ -2068,14 +2174,15 @@ namespace OctaneDataTransferObject {
 			bVisibleOnSpecular("Visible on specular"),
 			bTransparentEmission("Transparent emission"),
 			bCastShadow("Cast shadows"),
-			OctaneNodeBase(Octane::NT_EMIS_BLACKBODY)
+			OctaneNodeBase(Octane::NT_EMIS_BLACKBODY, "ShaderNodeOctBlackBodyEmission")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTextureOrEff, fPower, bSurfaceBrightness, bKeepInstancePower, bDoubeSided, fTemperature, bNormalized, fDistribution, fSampleRate, iLightPassID, bVisibleOnDiffuse, bVisibleOnSpecular, bTransparentEmission, bCastShadow, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneBlackBodyEmission
 
 	struct OctaneTextureEmission : public OctaneNodeBase{
-		const static PacketType packetType = LOAD_TEXTURE_EMISSION;
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fTexture,
@@ -2105,15 +2212,15 @@ namespace OctaneDataTransferObject {
 			bVisibleOnSpecular("Visible on specular"),
 			bTransparentEmission("Transparent emission"),
 			bCastShadow("Cast shadows"),
-			OctaneNodeBase(Octane::NT_EMIS_TEXTURE)
+			OctaneNodeBase(Octane::NT_EMIS_TEXTURE, "ShaderNodeOctTextureEmission")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture, fPower, bSurfaceBrightness, bKeepInstancePower, bDoubeSided, fDistribution, fSampleRate, iLightPassID, bVisibleOnDiffuse, bVisibleOnSpecular, bTransparentEmission, bCastShadow, MSGPACK_BASE(OctaneNodeBase));
-	}; //struct OctaneBlackBodyEmission
+	}; //struct OctaneTextureEmission
 
 	struct OctaneToonPointLight : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_TOON_POINT_LIGHT;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)		fTexture,
@@ -2127,15 +2234,15 @@ namespace OctaneDataTransferObject {
 			fPower("Power"),
 			iLightPassID("Light pass ID"),
 			bCastShadow("Cast shadows"),
-			OctaneNodeBase(Octane::NT_TOON_POINT_LIGHT)
+			OctaneNodeBase(Octane::NT_TOON_POINT_LIGHT, "ShaderNodeOctToonPointLight")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture, fPower, iLightPassID, bCastShadow, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
 	struct OctaneToonDirectionalLight : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_TOON_DIRECTIONAL_LIGHT;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)		fTexture,
@@ -2153,15 +2260,15 @@ namespace OctaneDataTransferObject {
 			fPower("Power"),
 			iLightPassID("Light pass ID"),
 			bCastShadow("Cast shadows"),
-			OctaneNodeBase(Octane::NT_TOON_DIRECTIONAL_LIGHT)
+			OctaneNodeBase(Octane::NT_TOON_DIRECTIONAL_LIGHT, "ShaderNodeOctToonDirectionLight")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fTexture, f3SunDirection, fPower, iLightPassID, bCastShadow, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
 	struct OctaneSchlick : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_SCHLICK;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat)	fScatteringDirection
@@ -2169,15 +2276,15 @@ namespace OctaneDataTransferObject {
 
 		OctaneSchlick() :
 			fScatteringDirection("Scattering direction"),
-			OctaneNodeBase(Octane::NT_PHASE_SCHLICK)
+			OctaneNodeBase(Octane::NT_PHASE_SCHLICK, "ShaderNodeOctSchlick")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fScatteringDirection, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneAbsorptionMedium : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_ABSORPTION_MEDIUM;
-
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fAbsorption,
@@ -2191,15 +2298,15 @@ namespace OctaneDataTransferObject {
 			bInvertAbsorption("Invert abs."),
 			fDensity("Density"),
 			fVolumeStepLength("Vol. step length"),
-			OctaneNodeBase(Octane::NT_MED_ABSORPTION)
+			OctaneNodeBase(Octane::NT_MED_ABSORPTION, "ShaderNodeOctAbsorptionMedium")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fAbsorption, bInvertAbsorption, fDensity, fVolumeStepLength, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneScatteringMedium : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_SCATTERING_MEDIUM;
-
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fAbsorption,
@@ -2219,15 +2326,15 @@ namespace OctaneDataTransferObject {
 			fScattering("Scattering Tex"),
 			fPhase("Phase"),
 			sEmission("Emission"),
-			OctaneNodeBase(Octane::NT_MED_SCATTERING)
+			OctaneNodeBase(Octane::NT_MED_SCATTERING, "ShaderNodeOctScatteringMedium")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fAbsorption, bInvertAbsorption, fDensity, fVolumeStepLength, fScattering, fPhase, sEmission, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
 	struct OctaneVolumeMedium : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_VOLUME_MEDIUM;
-
 		REFLECTABLE
 		(
 		(OctaneDTORGB)		fAbsorption,
@@ -2253,9 +2360,11 @@ namespace OctaneDataTransferObject {
 			fPhase("Phase"),
 			sEmission("Emission"),
 			sEmissionRamp("Emiss. ramp"),
-			OctaneNodeBase(Octane::NT_MED_VOLUME)
+			OctaneNodeBase(Octane::NT_MED_VOLUME, "ShaderNodeOctVolumeMedium")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fAbsorption, sAbsorptionRamp, bInvertAbsorption, fDensity, fVolumeStepLength, fScattering, sScatteringRamp, fPhase, sEmission, sEmissionRamp, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
@@ -2297,7 +2406,7 @@ namespace OctaneDataTransferObject {
 		int32_t iLayerNumber;
 		int32_t iBakingGroupId;
 
-		OctaneVolume() : OctaneNodeBase(Octane::NT_GEO_VOLUME) {}
+		OctaneVolume() : OctaneNodeBase(Octane::NT_GEO_VOLUME, "OctaneVolume") {}
 	}; //struct OctaneVolume
 
 
@@ -2305,42 +2414,38 @@ namespace OctaneDataTransferObject {
 	// VALUES
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	struct OctaneFloatValue : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_VALUE_FLOAT;
-
 		REFLECTABLE
 		(
 		(OctaneDTOFloat3)	f3Value
 		)
 
-
 		OctaneFloatValue() :
 			f3Value("Value"),
-			OctaneNodeBase(Octane::NT_FLOAT)
+			OctaneNodeBase(Octane::NT_FLOAT, "ShaderNodeOctFloatValue")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(f3Value, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneIntValue : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_VALUE_INT;
-
 		REFLECTABLE
 		(
 		(OctaneDTOInt)		iValue
 		)
 
-
 		OctaneIntValue() :
 			iValue("Value"),
-			OctaneNodeBase(Octane::NT_INT)
+			OctaneNodeBase(Octane::NT_INT, "ShaderNodeOctIntValue")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iValue, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneSunDirection : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_VALUE_SUN_DIRECTION;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOFloat)	fLatitude,
@@ -2358,15 +2463,15 @@ namespace OctaneDataTransferObject {
 			iDay("Day"),
 			fLocalTime("Local time"),
 			iGMTOffset("GMT offset"),
-			OctaneNodeBase(Octane::NT_SUN_DIRECTION)
+			OctaneNodeBase(Octane::NT_SUN_DIRECTION, "ShaderNodeOctSunDirectionValue")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fLatitude, fLongtitude, iMonth, iDay, fLocalTime, iGMTOffset, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneSunDirection
 
 	struct OctaneRoundEdges : public OctaneNodeBase {
-		const static PacketType packetType = LOAD_ROUND_EDGES;
-
 		REFLECTABLE
 		(		
 		(OctaneDTOEnum)		iMode,
@@ -2375,22 +2480,17 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOBool)		bConsiderOtherObjects
 		)
 
-
 		OctaneRoundEdges() :
 			iMode("round_edges_mode", false),
 			fRadius("Radius"),
 			fRoundness("Roundness"),
 			bConsiderOtherObjects("Consider other objects"),
-			OctaneNodeBase(Octane::NT_ROUND_EDGES)
+			OctaneNodeBase(Octane::NT_ROUND_EDGES, "ShaderNodeOctRoundEdges")
 		{
 		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iMode, fRadius, fRoundness, bConsiderOtherObjects, MSGPACK_BASE(OctaneNodeBase));
-	};
-
-	struct OctaneDBNodes {
-    bool bClose;
-
-		MSGPACK_DEFINE(bClose);
 	};
 }
 

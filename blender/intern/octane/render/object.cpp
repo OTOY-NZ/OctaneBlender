@@ -133,6 +133,7 @@ void ObjectManager::server_update(::OctaneEngine::OctaneClient *server,
   for (auto object : scene->objects) {
     if (object->need_update && !object->is_global_mesh_type()) {
       updated_object_names.insert(object->name);
+      // object->need_update = false;
     }
   }
   scene->generate_updated_octane_objects_data(updated_object_names, octane_objects, false);

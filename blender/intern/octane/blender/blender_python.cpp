@@ -643,7 +643,7 @@ static PyObject *get_octanedb_func(PyObject *self, PyObject *args)
     BL::Scene b_scene(sceneptr);
     bContext *context = (bContext *)PyLong_AsVoidPtr(pycontext);
     Py_BEGIN_ALLOW_THREADS;
-    BlenderSession::get_octanedb(b_scene, context, G.octane_server_address);
+    BlenderSession::get_octanedb(context, G.octane_server_address);
     Py_END_ALLOW_THREADS;
   }
   Py_RETURN_NONE;
@@ -750,4 +750,9 @@ void OCT_Rlease_API()
   if (G.release_octane_license_after_exiting) {
     oct::BlenderSession::activate_license(false);
   }
+}
+
+void OCT_get_octanedb(void *C)
+{
+  oct::BlenderSession::get_octanedb((bContext *)C, G.octane_server_address);
 }
