@@ -81,6 +81,8 @@ typedef int32_t ssize_t;
 typedef uint64_t device_ptr;
 #endif /* __KERNEL_GPU__ */
 
+enum MeshType { GLOBAL, SCATTER, MOVABLE_PROXY, RESHAPABLE_PROXY, AS_IS, AUTO = AS_IS };
+
 otc_device_inline size_t align_up(size_t offset, size_t alignment)
 {
   return (offset + alignment - 1) & ~(alignment - 1);

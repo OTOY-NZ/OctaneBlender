@@ -95,7 +95,20 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, 0, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, 0, N_("OutMat")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {
+    {SOCK_SHADER, 0, N_("OutMatLayer")},
+    {SOCK_SHADER,
+     0,
+     N_("OutMat"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
+    {-1, 0, ""}};
 
 void register_node_type_sh_oct_diffuse_layer(void)
 {

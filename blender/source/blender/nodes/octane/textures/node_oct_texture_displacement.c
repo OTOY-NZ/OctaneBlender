@@ -119,7 +119,20 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, 0, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {
+    {SOCK_SHADER, 0, N_("OutDisplacement")},
+    {SOCK_RGBA,
+     0,
+     N_("OutTex"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
+    {-1, 0, ""}};
 
 static void node_type_tex_oct_displacement_init(bNodeTree *ntree, bNode *node)
 {

@@ -495,7 +495,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
       strength = 1.0f;
 
       if (STREQ(engine_id, RE_engine_id_OCTANE)) {
-        if (la->type == LA_AREA) {
+        if (la->type == LA_AREA || la->type == LA_SPHERE) {
           shader_type = SH_NODE_OCT_DIFFUSE_MAT;
         }
         else if (la->type == LA_SUN) {
@@ -522,7 +522,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
   in->locy = 300.0f;
 
   if (output_type == SH_NODE_OUTPUT_LIGHT && shader_type == SH_NODE_OCT_DIFFUSE_MAT) {
-    bNode *in_emission = nodeAddStaticNode(C, ntree, SH_NODE_OCT_BBODY_EMI);
+    bNode *in_emission = nodeAddStaticNode(C, ntree, SH_NODE_OCT_TEXTURE_EMI);
     in_emission->locx = -300.0f;
     in_emission->locy = 300.0f;
     in_emission->outputs.first;
@@ -2120,7 +2120,7 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator *UNUSED(op))
       /* No ID refcounting, this node is virtual,
        * detached from any actual Blender data currently. */
       bNode *new_node = BKE_node_copy_store_new_pointers(
-          NULL, node, LIB_ID_CREATE_NO_USER_REFCOUNT);
+          NULL, node, LIB_ID_CREATE_NO_USER_REFCOUNT | LIB_ID_CREATE_NO_MAIN);
       BKE_node_clipboard_add_node(new_node);
     }
   }

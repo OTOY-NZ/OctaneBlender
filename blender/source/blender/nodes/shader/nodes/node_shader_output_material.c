@@ -42,29 +42,38 @@ static bNodeSocketTemplate sh_node_output_material_in[] = {
 
 static void node_oct_init_output_material(bNodeTree *ntree, bNode *node)
 {
-  bool is_octane_scene = false;
   for (Scene *sce = G_MAIN->scenes.first; sce; sce = sce->id.next) {
     if (BKE_scene_uses_octane(sce)) {
-      is_octane_scene = true;
+      node->custom1 = SHD_OUTPUT_OCTANE;
       break;
     }
   }
+}
+
+static void node_oct_update_output_material(bNodeTree *ntree, bNode *node)
+{
+  bool is_all_targets = node->custom1 == SHD_OUTPUT_ALL;
+  bool is_octane_target = node->custom1 == SHD_OUTPUT_OCTANE;
   bNodeSocket *sock;
-#define SOCKET_LIST_LEN 1
-  char *socket_names[SOCKET_LIST_LEN] = {"Displacement"};
+#define OCTANE_INCOMPATIBLE_SOCKET_LIST_LEN 1
+  char *socket_names[OCTANE_INCOMPATIBLE_SOCKET_LIST_LEN] = {"Displacement"};
   for (sock = node->inputs.first; sock; sock = sock->next) {
-    for (int i = 0; i < SOCKET_LIST_LEN; ++i) {
+    bool is_octane_incompatible_socket = false;
+    for (int i = 0; i < OCTANE_INCOMPATIBLE_SOCKET_LIST_LEN; ++i) {
       if (STREQ(sock->name, socket_names[i])) {
-        if (!is_octane_scene) {
-          sock->flag &= ~SOCK_UNAVAIL;
-        }
-        else {
-          sock->flag |= SOCK_UNAVAIL;
-        }
+        is_octane_incompatible_socket = true;
+        break;
       }
     }
+    bool hide = !is_all_targets & (is_octane_incompatible_socket && is_octane_target);
+    if (hide) {
+      sock->flag |= ~SOCK_UNAVAIL;
+    }
+    else {
+      sock->flag &= SOCK_UNAVAIL;
+    }
   }
-#undef SOCKET_LIST_LEN
+#undef OCTANE_SOCKET_LIST_LEN
 }
 
 static int node_shader_gpu_output_material(GPUMaterial *mat,
@@ -91,6 +100,7 @@ void register_node_type_sh_output_material(void)
   node_type_init(&ntype, node_oct_init_output_material);
   node_type_storage(&ntype, "", NULL, NULL);
   node_type_gpu(&ntype, node_shader_gpu_output_material);
+  node_type_update(&ntype, node_oct_update_output_material);
 
   /* Do not allow muting output node. */
   node_type_internal_links(&ntype, NULL);

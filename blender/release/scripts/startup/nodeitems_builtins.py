@@ -183,6 +183,11 @@ def object_cycles_shader_nodes_poll(context):
             cycles_shader_nodes_poll(context))
 
 
+def cycles_aov_node_poll(context):
+    return (object_cycles_shader_nodes_poll(context) or
+            world_shader_nodes_poll(context))
+
+
 def object_eevee_shader_nodes_poll(context):
     return (object_shader_nodes_poll(context) and
             eevee_shader_nodes_poll(context))
@@ -202,7 +207,7 @@ def object_octane_eevee_cycles_shader_nodes_poll(context):
 
 shader_node_categories = [
     # Shader Nodes (Cycles and Eevee)
-    ShaderNodeCategory("SH_NEW_INPUT", "Input", items=[
+    ShaderNodeCategoryWithOctane("SH_NEW_INPUT", "Input", items=[
         NodeItem("ShaderNodeTexCoord", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeAttribute", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeLightPath", poll=eevee_cycles_shader_nodes_poll),
@@ -219,15 +224,17 @@ shader_node_categories = [
         NodeItem("ShaderNodeHairInfo", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeInfo", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeParticleInfo", poll=eevee_cycles_shader_nodes_poll),
-        NodeItem("ShaderNodeCameraData", poll=eevee_cycles_shader_nodes_poll),
+        NodeItem("ShaderNodeCameraData", poll=octane_eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeUVMap", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeVertexColor", poll=eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll),
+        NodeItem("ShaderNodeOctObjectData", poll=octane_shader_nodes_poll),
         NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
     ]),
     ShaderNodeCategoryWithOctane("SH_NEW_OUTPUT", "Output", items=[
         NodeItem("ShaderNodeOutputMaterial", poll=object_octane_eevee_cycles_shader_nodes_poll),
         NodeItem("ShaderNodeOutputLight", poll=object_cycles_shader_nodes_poll),
+        NodeItem("ShaderNodeOutputAOV", poll=cycles_aov_node_poll),
         NodeItem("ShaderNodeOutputWorld", poll=world_shader_nodes_poll),
         NodeItem("ShaderNodeOutputLineStyle", poll=line_style_shader_nodes_poll),
         NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),

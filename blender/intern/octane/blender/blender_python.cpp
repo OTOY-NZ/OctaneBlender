@@ -103,14 +103,25 @@ static PyObject *exit_func(PyObject * /*self*/, PyObject * /*args*/)
 
 static PyObject *create_func(PyObject * /*self*/, PyObject *args)
 {
-  PyObject *pyengine, *pypreferences, *pydata, *pyregion, *pyv3d, *pyrv3d;
+  PyObject *pyengine, *pypreferences, *pydata, *pyscreen, *pyregion, *pyv3d, *pyrv3d;
+  PyObject *py_resource_list = NULL;
 
-  if (!PyArg_ParseTuple(
-          args, "OOOOOO", &pyengine, &pypreferences, &pydata, &pyregion, &pyv3d, &pyrv3d)) {
+  if (!PyArg_ParseTuple(args,
+                        "OOOOOOOO",
+                        &pyengine,
+                        &pypreferences,
+                        &pydata,
+                        &pyscreen,
+						&pyregion,
+                        &pyv3d,
+                        &pyrv3d,
+                        &py_resource_list)) {
     return NULL;
   }
 
   /* RNA */
+  ID *bScreen = (ID *)PyLong_AsVoidPtr(pyscreen);
+
   PointerRNA engineptr;
   RNA_pointer_create(NULL, &RNA_RenderEngine, (void *)PyLong_AsVoidPtr(pyengine), &engineptr);
   BL::RenderEngine engine(engineptr);
@@ -125,18 +136,29 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
   BL::BlendData data(dataptr);
 
   PointerRNA regionptr;
-  RNA_pointer_create(NULL, &RNA_Region, pylong_as_voidptr_typesafe(pyregion), &regionptr);
+  RNA_pointer_create(bScreen, &RNA_Region, pylong_as_voidptr_typesafe(pyregion), &regionptr);
   BL::Region region(regionptr);
 
   PointerRNA v3dptr;
-  RNA_pointer_create(NULL, &RNA_SpaceView3D, pylong_as_voidptr_typesafe(pyv3d), &v3dptr);
+  RNA_pointer_create(bScreen, &RNA_SpaceView3D, pylong_as_voidptr_typesafe(pyv3d), &v3dptr);
   BL::SpaceView3D v3d(v3dptr);
 
   PointerRNA rv3dptr;
-  RNA_pointer_create(NULL, &RNA_RegionView3D, pylong_as_voidptr_typesafe(pyrv3d), &rv3dptr);
+  RNA_pointer_create(bScreen, &RNA_RegionView3D, pylong_as_voidptr_typesafe(pyrv3d), &rv3dptr);
   BL::RegionView3D rv3d(rv3dptr);
 
   std::string export_path("");
+
+  std::unordered_set<std::string> dirty_resources;
+  if (py_resource_list && PyList_Size(py_resource_list)) {
+    for (int i = 0; i < PyList_Size(py_resource_list); ++i) {
+        PyObject *obj = PyList_GetItem(py_resource_list, i);
+      PyObject *strObj = PyUnicode_AsUTF8String(obj);
+      std::string str = std::string(PyBytes_AsString(strObj));
+      Py_DECREF(strObj);
+      dirty_resources.insert(str);
+    }
+  }
 
   /* create session */
   BlenderSession *session;
@@ -154,12 +176,13 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
                                  width,
                                  height,
                                  BlenderSession::ExportType::NONE,
-                                 export_path);
+                                 export_path,
+                                 dirty_resources);
   }
   else {
     /* offline session or preview render */
     session = new BlenderSession(
-        engine, preferences, data, BlenderSession::ExportType::NONE, export_path);
+        engine, preferences, data, BlenderSession::ExportType::NONE, export_path, dirty_resources);
   }
 
   return PyLong_FromVoidPtr(session);
@@ -427,7 +450,7 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
             data_type = BL::NodeSocket::type_VECTOR;
             default_float4[0] = pinInfo.mFloatInfo.mDefaultValue.x;
             default_float4[1] = pinInfo.mFloatInfo.mDefaultValue.y;
-            default_float4[2] = pinInfo.mFloatInfo.mDefaultValue.z;
+            default_float4[2] = pinInfo.mFloatInfo.mDimCount > 2 ? pinInfo.mFloatInfo.mDefaultValue.z : 0.f;
           }
           else {
             socket_type = "NodeSocketFloat";
@@ -664,6 +687,21 @@ static PyObject *update_octane_localdb_func(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+static PyObject *update_octane_texture_cache_func(PyObject *self, PyObject *args)
+{
+  PyObject *path;
+  if (!PyArg_ParseTuple(args, "O", &path)) {
+    return PyBool_FromLong(0);
+  }
+
+  PyObject *path_coerce = NULL;
+  std::string cur_path = PyC_UnicodeAsByte(path, &path_coerce);
+  Py_XDECREF(path_coerce);
+
+  std::strcpy(G.octane_texture_cache_path, cur_path.c_str());
+  Py_RETURN_NONE;
+}
+
 static PyObject *set_octane_params_func(PyObject *self, PyObject *args)
 {
   int octane_default_mat_type = 0;
@@ -700,6 +738,47 @@ static PyObject *activate_func(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+static PyObject *update_vdb_info_func(PyObject *self, PyObject *args)
+{
+  std::vector<std::string> float_grid_ids;
+  std::vector<std::string> vector_grid_ids;
+  PyObject *pydata, *pyscene, *pyobject;
+  if (PyArg_ParseTuple(args, "OOO", &pyobject, &pydata, &pyscene)) {
+
+	PointerRNA dataptr;
+    RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+    BL::BlendData b_data(dataptr);
+
+	PointerRNA sceneptr;
+    RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
+    BL::Scene b_scene(sceneptr);
+
+	PointerRNA objectptr;
+    RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyobject), &objectptr);
+    BL::Object b_object(objectptr);
+    BL::ID b_ob_data = b_object.data();
+	PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+
+    Py_BEGIN_ALLOW_THREADS;
+    BlenderSession::resolve_octane_vdb_info(
+        G.octane_server_address, oct_mesh, b_data, b_scene, float_grid_ids, vector_grid_ids);
+    Py_END_ALLOW_THREADS;
+  }
+  PyObject *rets = PyTuple_New(2);
+  PyObject *float_grid_return_values = PyTuple_New(float_grid_ids.size());
+  for (int i = 0; i < float_grid_ids.size(); ++i) {
+    PyTuple_SET_ITEM(float_grid_return_values, i, PyUnicode_FromString(float_grid_ids[i].c_str()));
+  }
+  PyObject *vector_grid_return_values = PyTuple_New(vector_grid_ids.size());
+  for (int i = 0; i < vector_grid_ids.size(); ++i) {
+    PyTuple_SET_ITEM(
+        vector_grid_return_values, i, PyUnicode_FromString(vector_grid_ids[i].c_str()));
+  }
+  PyTuple_SET_ITEM(rets, 0, float_grid_return_values);
+  PyTuple_SET_ITEM(rets, 1, vector_grid_return_values);
+  return rets;
+}
+
 static PyMethodDef methods[] = {
     {"init", init_func, METH_VARARGS, ""},
     {"exit", exit_func, METH_VARARGS, ""},
@@ -711,6 +790,7 @@ static PyMethodDef methods[] = {
     {"sync", sync_func, METH_VARARGS, ""},
     {"reset", reset_func, METH_VARARGS, ""},
     {"update_octane_localdb", update_octane_localdb_func, METH_VARARGS, ""},
+    {"update_octane_texture_cache", update_octane_texture_cache_func, METH_VARARGS, ""},
     {"update_octane_server_address", update_octane_server_address_func, METH_VARARGS, ""},
     {"activate", activate_func, METH_VARARGS, ""},
     {"command_to_octane", command_to_octane_func, METH_VARARGS, ""},
@@ -721,6 +801,7 @@ static PyMethodDef methods[] = {
     {"heart_beat", heart_beat_func, METH_VARARGS, ""},
     {"get_octanedb", get_octanedb_func, METH_VARARGS, ""},
     {"set_octane_params", set_octane_params_func, METH_VARARGS, ""},
+    {"update_vdb_info", update_vdb_info_func, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL},
 };
 

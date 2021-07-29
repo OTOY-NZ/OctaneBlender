@@ -72,6 +72,8 @@ static StructRNA *rna_Light_refine(struct PointerRNA *ptr)
       return &RNA_AreaLight;
     case LA_MESH:
       return &RNA_MeshLight;
+    case LA_SPHERE:
+      return &RNA_SphereLight;
     default:
       return &RNA_Light;
   }
@@ -112,6 +114,7 @@ const EnumPropertyItem rna_enum_light_type_items[] = {
     {LA_SPOT, "SPOT", 0, "Spot", "Directional cone light source"},
     {LA_AREA, "AREA", 0, "Area", "Directional area light source"},
     {LA_MESH, "MESH", 0, "Mesh", "Mesh light source"},
+    {LA_SPHERE, "SPHERE", 0, "Sphere", "Octane sphere light source"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -523,6 +526,25 @@ static void rna_def_mesh_light(BlenderRNA *brna)
   rna_def_light_shadow(srna, true);
 }
 
+static void rna_def_sphere_light(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "SphereLight", "Light");
+  RNA_def_struct_sdna(srna, "Light");
+  RNA_def_struct_ui_text(srna, "Sphere Light", "Octane sphere Light");
+  RNA_def_struct_ui_icon(srna, ICON_LIGHT_POINT);
+
+  PropertyRNA *prop;
+  prop = RNA_def_property(srna, "sphere_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, NULL, "area_size");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0, 10000, 0.1, 3);
+  RNA_def_property_ui_text(
+  prop, "Radius", "Sphere radius");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+}
+
 void RNA_def_light(BlenderRNA *brna)
 {
   rna_def_light(brna);
@@ -531,6 +553,7 @@ void RNA_def_light(BlenderRNA *brna)
   rna_def_spot_light(brna);
   rna_def_sun_light(brna);
   rna_def_mesh_light(brna);
+  rna_def_sphere_light(brna);
 }
 
 #endif

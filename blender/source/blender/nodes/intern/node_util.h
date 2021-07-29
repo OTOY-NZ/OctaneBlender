@@ -114,4 +114,7 @@ void node_octane_falloff_tex_conversion_update(bNodeTree *ntree, bNode *node);
 void node_octane_falloff_tex_conversion_verify(bNodeTree *ntree, bNode *node, struct ID *id);
 void node_octane_displacement_tex_conversion_update(bNodeTree *ntree, bNode *node);
 void node_octane_displacement_tex_conversion_verify(bNodeTree *ntree, bNode *node, struct ID *id);
+void node_octane_medium_init(bNodeTree *ntree, bNode *node);
+void node_octane_medium_update(bNodeTree *ntree, bNode *node);
+
 #endif

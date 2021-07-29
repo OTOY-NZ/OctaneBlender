@@ -30,6 +30,8 @@
 #include "util/util_transform.h"
 #include "util/util_vector.h"
 
+#include "server/octane_manager.h"
+
 OCT_NAMESPACE_BEGIN
 
 class Camera;
@@ -49,6 +51,7 @@ class BlenderSync {
               BL::Scene &b_scene,
               Scene *scene,
               bool preview,
+              bool is_export_mode,
               Progress &progress);
   ~BlenderSync();
 
@@ -71,9 +74,10 @@ class BlenderSync {
                    const char *viewname);
   void sync_view_layer(BL::SpaceView3D &b_v3d, BL::ViewLayer &b_view_layer);
   void sync_view(BL::SpaceView3D &b_v3d, BL::RegionView3D &b_rv3d, int width, int height);
-  void sync_objects(BL::Depsgraph &b_depsgraph, float motion_time = 0.0f);
+  void sync_objects(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d, float motion_time = 0.0f);
   void sync_motion(BL::RenderSettings &b_render,
                    BL::Depsgraph &b_depsgraph,
+                   BL::SpaceView3D &b_v3d,
                    BL::Object &b_override,
                    int width,
                    int height,
@@ -103,6 +107,29 @@ class BlenderSync {
     env_textures_in_use.clear();
   }
 
+  void sync_resource_to_octane_manager(std::string name, OctaneResourceType type);
+  void unsync_resource_to_octane_manager(std::string name, OctaneResourceType type);
+  bool is_resource_synced_in_octane_manager(std::string name, OctaneResourceType type);
+  void tag_resharpable_candidate(std::string name);
+  void untag_resharpable_candidate(std::string name);
+  bool is_resharpable_candidate(std::string name);
+  void tag_movable_candidate(std::string name);
+  void untag_movable_candidate(std::string name);
+  bool is_movable_candidate(std::string name);
+  void reset_octane_manager();
+  MeshType resolve_mesh_type(std::string name, int blender_object_type, MeshType mesh_type);
+  MeshType resolve_mesh_type_with_mesh_data(MeshType mesh_type,
+                                            std::string name,
+                                            int blender_object_type,
+                                            PointerRNA &oct_mesh,
+                                            Mesh *octane_mesh);
+  bool is_octane_geometry_required(std::string name,
+                                   int blender_object_type,
+                                   PointerRNA &oct_mesh,
+                                   Mesh *octane_mesh,
+                                   MeshType mesh_type);
+  bool is_octane_object_required(std::string name, int blender_object_type, MeshType mesh_type);
+
   /* get parameters */
   static SceneParams get_scene_params(BL::Scene &b_scene, bool background);
   static SessionParams get_session_params(
@@ -124,6 +151,8 @@ class BlenderSync {
   static std::string get_env_texture_name(PointerRNA *env,
                                           const std::string &env_texture_ptr_name);
   static ::Octane::RenderPassId get_pass_type(BL::RenderPass &b_pass);
+  void set_resource_cache(std::map<std::string, int> &resource_cache_data,
+                          std::unordered_set<std::string> &dirty_resources);
 
   Object *sync_object(BL::Depsgraph &b_depsgraph,
                       BL::ViewLayer &b_view_layer,
@@ -138,7 +167,8 @@ class BlenderSync {
                   bool object_updated,
                   bool show_self,
                   bool show_particles,
-                  OctaneDataTransferObject::OctaneObjectLayer &object_layer);
+                  OctaneDataTransferObject::OctaneObjectLayer &object_layer,
+                  MeshType mesh_type);
   void sync_light(BL::Object &b_parent,
                   int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
                   BL::Object &b_ob,
@@ -146,6 +176,7 @@ class BlenderSync {
                   int random_id,
                   Transform &tfm,
                   bool *use_portal,
+                  bool force_update_transform,
                   OctaneDataTransferObject::OctaneObjectLayer &object_layer);
   void sync_shaders(BL::Depsgraph &b_depsgraph);
   void sync_material(BL::Material b_material, Shader *shader);
@@ -187,6 +218,8 @@ class BlenderSync {
   bool force_update_all;
   int last_animation_frame;
 
+  bool is_export_mode;
+
   bool motion_blur;
   int motion_blur_frame_start_offset;
   int motion_blur_frame_end_offset;
@@ -221,6 +254,8 @@ class BlenderSync {
   Progress &progress;
 
   set<std::string> env_textures_in_use;
+  std::map<std::string, int> resource_cache_data;
+  std::unordered_set<std::string> dirty_resources;
 };
 
 OCT_NAMESPACE_END

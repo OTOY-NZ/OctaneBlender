@@ -26,7 +26,7 @@ class BlenderOctaneDb {
  public:
   static bool generate_blender_material_from_octanedb(
       std::string name,
-      std::vector<OctaneDataTransferObject::OctaneNodeBase *> &octaneNodes,
+      OctaneDataTransferObject::OctaneDBNodes &dbNodes,
       GetOctaneDBJobData &jobData);
 };
 

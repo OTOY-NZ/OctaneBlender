@@ -5,10 +5,10 @@
 #include <vector>
 
 #ifndef OCTANE_SERVER_MAJOR_VERSION
-#  define OCTANE_SERVER_MAJOR_VERSION "20"
+#  define OCTANE_SERVER_MAJOR_VERSION "21"
 #endif
 #ifndef OCTANE_SERVER_MINOR_VERSION
-#  define OCTANE_SERVER_MINOR_VERSION "6"
+#  define OCTANE_SERVER_MINOR_VERSION "7"
 #endif
 
 #ifdef OCTANE_SERVER
@@ -101,12 +101,15 @@ namespace Octane {
 		NODE_TYPE(NT_KERN_MATPREVIEW            ,  69)
 		NODE_TYPE(NT_KERN_PATHTRACING           ,  25)
 		NODE_TYPE(NT_KERN_PMC                   ,  23)
+		NODE_TYPE(NT_LIGHT_QUAD                 , 148)
+		NODE_TYPE(NT_LIGHT_SPHERE               , 149)
 		NODE_TYPE(NT_LOCAL_APP_PREFS            ,  55)
 		NODE_TYPE(NT_LUT_CUSTOM                 , 103)
 		NODE_TYPE(NT_MAT_COMPOSITE              , 138)
 		NODE_TYPE(NT_MAT_DIFFUSE                ,  17)
 		NODE_TYPE(NT_MAT_DIFFUSE_LAYER          , 140)
 		NODE_TYPE(NT_MAT_GLOSSY                 ,  16)
+		NODE_TYPE(NT_MAT_HAIR                   , 147)
 		NODE_TYPE(NT_MAT_LAYER                  , 143)
 		NODE_TYPE(NT_MAT_LAYER_GROUP            , 144)
 		NODE_TYPE(NT_MAT_SHADOW_CATCHER         , 145)
@@ -123,6 +126,7 @@ namespace Octane {
 		NODE_TYPE(NT_MAT_UNIVERSAL              , 130)
 		NODE_TYPE(NT_MED_ABSORPTION             ,  58)
 		NODE_TYPE(NT_MED_SCATTERING             ,  59)
+		NODE_TYPE(NT_MED_RANDOMWALK             , 146)
 		NODE_TYPE(NT_MED_VOLUME                 ,  98)
 		NODE_TYPE(NT_OBJECTLAYER                ,  65)
 		NODE_TYPE(NT_OBJECTLAYER_MAP            ,  64)
@@ -528,6 +532,7 @@ namespace Octane {
 		ENT_IMAGE_DATA,
 		ENT_MESH_DATA,
 		ENT_MESH_SUBD_DATA,
+		ENT_MESH_SPHERE_ATTRIBUTE,
 		ENT_MESH,
 		ENT_MESHES,
 		ENT_GEO_NODES,
@@ -536,6 +541,10 @@ namespace Octane {
 		ENT_LIGHT,
 		ENT_OSL_NODE_INFO,
 		ENT_OCTANEDB_NODE,
+		ENT_VDB_INFO,
+		ENT_SAVE_IMAGES,		
+		ENT_CAMERA_DATA,
+		ENT_ENGINE_DATA
 	};
 }
 
@@ -931,7 +940,6 @@ namespace OctaneDataTransferObject {
 		DEL_GLOBAL_MESH,
 		DEL_LOCAL_MESH,
 		LOAD_VOLUME,
-		LOAD_VOLUME_DATA,
 		DEL_VOLUME,
 		LOAD_GEO_MAT,
 		DEL_GEO_MAT,

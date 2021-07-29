@@ -62,6 +62,7 @@ class Object {
   float3 dupli_generated;
   float2 dupli_uv;
 
+  MeshType object_mesh_type;
   int particle_id;
   bool is_instance;
   bool need_update;

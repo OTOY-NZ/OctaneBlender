@@ -50,6 +50,20 @@ def values_clamp(val, minv, maxv):
         return max(minv, min(maxv, val))
 
 
+class OctaneDummyImage(object):
+    def __init__(self):
+        super(OctaneDummyImage, self).__init__()
+        self.image = None
+        self.texcoords = None
+        self.translation = None
+        self.scale = None
+
+
+def is_octane_engine():
+    import bpy
+    return bpy.context.engine == 'octane'
+
+
 class ShaderWrapper():
     """
     Base class with minimal common ground for all types of shader interfaces we may want/need to implement.
@@ -175,15 +189,10 @@ class PrincipledBSDFWrapper(ShaderWrapper):
 
 
     def update(self):
-        import bpy
-        if bpy.context.engine == 'octane':
+        if is_octane_engine():
             self.node_principled_bsdf = None
             return       
         super(PrincipledBSDFWrapper, self).update()
-
-        import bpy
-        if bpy.context.engine == 'octane':
-            return
 
         if not self.use_nodes:
             return
@@ -292,6 +301,8 @@ class PrincipledBSDFWrapper(ShaderWrapper):
 
 
     def base_color_texture_get(self):
+        if is_octane_engine():                
+            return OctaneDummyImage()        
         if not self.use_nodes or self.node_principled_bsdf is None:
             return None
         return ShaderImageTextureWrapper(
@@ -337,6 +348,8 @@ class PrincipledBSDFWrapper(ShaderWrapper):
 
     # Will only be used as gray-scale one...
     def specular_texture_get(self):
+        if is_octane_engine():                
+            return OctaneDummyImage()        
         if not self.use_nodes or self.node_principled_bsdf is None:
             print("NO NODES!")
             return None

@@ -33,9 +33,9 @@ def osl_compile(node, identifier, osl_path, osl_code, report):
     if ok:
         report({'INFO'}, "OSL shader compilation succeeded")
     else:
-        report({'ERROR'}, compile_msg)
+        report({'ERROR'}, "OSL script compilation error: %s" % compile_msg)
 
-    return ok
+    return ok, compile_msg
 
 
 def update_script_node(node, report):
@@ -49,6 +49,7 @@ def update_script_node(node, report):
 
     ok = False
     identifier = ''
+    compile_msg = ''
 
     if node.mode == 'EXTERNAL':
         # compile external script file
@@ -57,7 +58,7 @@ def update_script_node(node, report):
         if len(script_path):
             # compile .osl file
             identifier = resolve_identifier(script_path)
-            ok = osl_compile(node, identifier, script_path, "", report)
+            ok, compile_msg = osl_compile(node, identifier, script_path, "", report)
         else:
             # unknown
             report({'ERROR'}, "No valid osl file, nothing to compile")
@@ -68,7 +69,7 @@ def update_script_node(node, report):
 
         if script.is_in_memory or script.is_dirty or script.is_modified or not os.path.exists(osl_path):
             identifier = resolve_identifier(script.name)
-            ok = osl_compile(node, identifier, "", script.as_string(), report) 
+            ok, compile_msg = osl_compile(node, identifier, "", script.as_string(), report) 
         else:
             # compile text datablock from disk directly
             try:
@@ -76,7 +77,7 @@ def update_script_node(node, report):
                 osl_code = osl_file.read()
                 osl_file.close()          
                 identifier = resolve_identifier(script.name)
-                ok = osl_compile(node, identifier, "", osl_code, report)
+                ok, compile_msg = osl_compile(node, identifier, "", osl_code, report)
             except:
                 report({'ERROR'}, "No valid osl file, nothing to compile")             
     else:
@@ -87,8 +88,11 @@ def update_script_node(node, report):
         # now update node with new sockets
         data = bpy.data.as_pointer()
         ok = _octane.osl_update_node(data, identifier, node.id_data.as_pointer(), node.as_pointer())
+        # trick to trigger node update
+        node.width = node.width
 
     if not ok:
-        report({'ERROR'}, "OSL script compilation failed, see console for errors")
+        report({'ERROR'}, "OSL script compilation failed, see console for errors")     
+        report({'ERROR'}, compile_msg)   
 
     return ok

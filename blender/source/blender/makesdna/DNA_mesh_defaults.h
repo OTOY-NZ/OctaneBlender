@@ -35,7 +35,7 @@
     .texflag = ME_AUTOSPACE, \
     .remesh_voxel_size = 0.1f, \
     .remesh_voxel_adaptivity = 0.0f, \
-    .flag = ME_REMESH_FIX_POLES | ME_REMESH_REPROJECT_VOLUME, \
+    .flag = ME_REMESH_FIX_POLES | ME_REMESH_REPROJECT_VOLUME | ME_AUTOSMOOTH, \
   }
 
 /** \} */

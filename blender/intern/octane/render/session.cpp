@@ -175,18 +175,19 @@ void Session::run_render()
         update_scene_to_server(frame_idx, total_frames);
 
       if (!bStarted) {
-        server->startRender(params.interactive,
-                            params.width,
-                            params.height,
-                            params.interactive ?
-                                ::OctaneEngine::IMAGE_8BIT :
-                                (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
-                                     ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
-                                     ::OctaneEngine::IMAGE_FLOAT),
-                            params.out_of_core_enabled,
-                            params.out_of_core_mem_limit,
-                            params.out_of_core_gpu_headroom,
-                            params.render_priority);  // FIXME: Perhaps the wrong place for it...
+        server->startRender(
+            params.interactive,
+            params.width,
+            params.height,
+            params.interactive ? ::OctaneEngine::IMAGE_8BIT :
+                                 (params.hdr_tonemapped && params.hdr_tonemap_prefer ?
+                                      ::OctaneEngine::IMAGE_FLOAT_TONEMAPPED :
+                                      ::OctaneEngine::IMAGE_FLOAT),
+            params.out_of_core_enabled,
+            params.out_of_core_mem_limit,
+            params.out_of_core_gpu_headroom,
+            params.render_priority,
+            params.resource_cache_type);  // FIXME: Perhaps the wrong place for it...
         bStarted = true;
       }
 
@@ -305,7 +306,8 @@ void Session::reset(BufferParams &buffer_params, int samples)
   reset_time = time_dt();
 
   reset_parameters(buffer_params);
-  server->reset(params.export_type,
+  server->reset(params.interactive,
+                params.export_type,
                 samples,
                 params.fps,
                 params.deep_image,
@@ -361,6 +363,11 @@ void Session::set_pause(bool pause_)
   if (notify)
     pause_cond.notify_all();
 }  // set_pause()
+
+bool Session::is_export_mode()
+{
+  return params.export_type != ::OctaneEngine::SceneExportTypes::NONE;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Wait for render thread finish...

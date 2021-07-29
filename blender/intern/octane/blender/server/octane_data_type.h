@@ -163,7 +163,10 @@ struct Camera {
   CameraType type;
 
   bool bUseRegion;
+  bool bUseBlenderCamera;
   uint32_4 ui4Region;
+  uint32_2 ui2BlenderCameraDemension;
+  float_2 f2BlenderCameraCenter;
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Camera
@@ -271,7 +274,11 @@ struct Camera {
     return (
         type != otherCam.type
 
-        || bUseRegion != otherCam.bUseRegion || ui4Region != otherCam.ui4Region ||
+        || bUseRegion != otherCam.bUseRegion ||
+        bUseBlenderCamera != otherCam.bUseBlenderCamera || 
+        ui4Region != otherCam.ui4Region ||
+        ui2BlenderCameraDemension != otherCam.ui2BlenderCameraDemension ||
+        f2BlenderCameraCenter != otherCam.f2BlenderCameraCenter ||
         f3EyePoint != otherCam.f3EyePoint || f3LookAt != otherCam.f3LookAt ||
         f3UpVector != otherCam.f3UpVector || fFOV != otherCam.fFOV || fFOVx != otherCam.fFOVx ||
         fFOVy != otherCam.fFOVy || oMotionParams != otherCam.oMotionParams ||
@@ -333,8 +340,10 @@ struct Camera {
         type == otherCam.type
 
         && bUseRegion == otherCam.bUseRegion && ui4Region == otherCam.ui4Region
-
-        && f3EyePoint == otherCam.f3EyePoint && f3LookAt == otherCam.f3LookAt &&
+        && bUseBlenderCamera == otherCam.bUseBlenderCamera &&
+        ui2BlenderCameraDemension == otherCam.ui2BlenderCameraDemension &&
+        f2BlenderCameraCenter == otherCam.f2BlenderCameraCenter &&
+        f3EyePoint == otherCam.f3EyePoint && f3LookAt == otherCam.f3LookAt &&
         f3UpVector == otherCam.f3UpVector && fFOV == otherCam.fFOV && fFOVx == otherCam.fFOVx &&
         fFOVy == otherCam.fFOVy && oMotionParams == otherCam.oMotionParams &&
         bUseFstopValue == otherCam.bUseFstopValue && fAperture == otherCam.fAperture &&
@@ -403,8 +412,14 @@ struct Camera {
 
     if (bUseRegion != otherCam.bUseRegion)
       bUseRegion = otherCam.bUseRegion;
+    if (bUseBlenderCamera != otherCam.bUseBlenderCamera)
+      bUseBlenderCamera = otherCam.bUseBlenderCamera;
     if (ui4Region != otherCam.ui4Region)
       ui4Region = otherCam.ui4Region;
+    if (ui2BlenderCameraDemension != otherCam.ui2BlenderCameraDemension)
+      ui2BlenderCameraDemension = otherCam.ui2BlenderCameraDemension;
+    if (f2BlenderCameraCenter != otherCam.f2BlenderCameraCenter)
+      f2BlenderCameraCenter = otherCam.f2BlenderCameraCenter;
 
     if (f3EyePoint != otherCam.f3EyePoint)
       f3EyePoint = otherCam.f3EyePoint;
@@ -1231,6 +1246,8 @@ struct Kernel {
 
   float_3 f3ToonShadowAmbient;
 
+  int32_t iSubsampleMode;
+
   inline Kernel() : type(NONE)
   {
   }
@@ -1283,6 +1300,7 @@ struct Kernel {
         && iDiffuseDepth == otherKernel.iDiffuseDepth &&
         iGlossyDepth == otherKernel.iGlossyDepth && iSpecularDepth == otherKernel.iSpecularDepth &&
         GIMode == otherKernel.GIMode && iClayMode == otherKernel.iClayMode &&
+        iSubsampleMode == otherKernel.iSubsampleMode &&
         sAoTexture == otherKernel.sAoTexture
 
         && fExploration == otherKernel.fExploration &&
@@ -1402,6 +1420,8 @@ struct Kernel {
       GIMode = otherKernel.GIMode;
     if (iClayMode != otherKernel.iClayMode)
       iClayMode = otherKernel.iClayMode;
+    if (iSubsampleMode != otherKernel.iSubsampleMode)
+      iSubsampleMode = otherKernel.iSubsampleMode;
     if (sAoTexture != otherKernel.sAoTexture)
       sAoTexture = otherKernel.sAoTexture;
 

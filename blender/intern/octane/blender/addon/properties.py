@@ -175,11 +175,11 @@ anim_modes = (
     )
 
 gi_modes = (
-    ('0', "None", ""),
-    ('1', "Ambient", ""),
-    ('2', "Sample environment", ""),
-    ('3', "Ambient occlusion", ""),
-    ('4', "Diffuse", ""),
+    ('0', "None", "", 0),
+    # ('1', "Ambient", ""),
+    # ('2', "Sample environment", ""),
+    ('3', "Ambient occlusion", "", 3),
+    ('4', "Diffuse", "", 4),
     )
 
 info_channel_types = (
@@ -352,6 +352,14 @@ mesh_types = (
     ('2', "Movable proxy", ""),
     ('3', "Reshapable proxy", ""),
     )
+
+object_mesh_types = (    
+    ('Global', "Global", "", 0),
+    ('Scatter', "Scatter", "", 1),
+    ('Movable proxy', "Movable proxy", "", 2),
+    ('Reshapable proxy', "Reshapable proxy", "", 3),
+    ('Auto', "Auto(Experimental)", "", 4),
+)
 
 meshes_render_types = (
     ('0', "Global", ""),
@@ -576,10 +584,51 @@ cryptomatte_pass_channel_modes = (
     ('10', "10", "", 10),        
 )
 
-up_sample_modes = (
+sub_sample_modes = (
     ('No subsampling', "No subsampling", "", 1),
+    ('2x2 subsampling', "2x2 subsampling", "", 2),
+    ('4x4 subsampling', "4x4 subsampling", "", 4),    
+)
+
+up_sample_modes = (
+    ('No upsampling', "No upsampling", "", 1),
     ('2x2 upsampling', "2x2 upsampling", "", 2),
     ('4x4 upsampling', "4x4 upsampling", "", 4),    
+)
+
+# The various units we support during the geometry import. It's basically the unit used during the export of the geometry
+geometry_import_scale = (
+    ('millmeters', "millmeters", "", 1),
+    ('centimeters', "centimeters", "", 2),
+    ('decimeters', "decimeters", "", 3),
+    ('meters', "meters", "", 4),
+    ('decameters', "decamters", "", 5),
+    ('hectometers', "hectometers", "", 6),
+    ('kilometers', "kilometers", "", 7),
+    ('inches', "inches", "", 8),
+    ('feet', "feet", "", 9),
+    ('yards', "yards", "", 10),
+    ('furlongs', "furlongs", "", 11),
+    ('miles', "miles", "", 12),
+    ('DAZ Studio unit', "DAZ Studio unit", "", 13),
+    ('Poser Native Unit', "Poser Native Unit", "", 14),
+)
+
+vdb_velocity_grid_types = (
+    ('Vector grid', "Use vector grid", "", 0),
+    ('Component grid', "Use component grid", "", 1),    
+)
+
+resource_cache_types = (
+    ('None', "None", "Disable resource cache system", 0),
+    ('Texture Only', "Texture Only", "Only cache the textures in RAM", 1),    
+    ('Geometry Only', "Geometry Only", "Only cache the geometries in RAM", 2),
+    ('All', "All", "Cache the textures and geometries in RAM", 127),        
+)
+
+dirty_resource_detection_strategy_types = (
+    ('Edit Mode', "Edit Mode", "A mesh will be marked as dirty and reloaded once the edit mode is on", 0),
+    ('Select', "Select", "A mesh will be marked as dirty and reloaded once it is selected", 1),
 )
 
 
@@ -601,21 +650,39 @@ def sync_baking_transform(self, context):
             oct_cam.baking_uvw_rotation_order = transform.rotation_order
 
 
-def update_octane_localdb_path():
-    import _octane
-    import os
-    octane_localdb_path = ""
+def format_octane_path(cur_path):
+    import os    
+    octane_path = ""
     try:
-        cur_path = str(bpy.context.preferences.addons[__package__].preferences.octane_localdb_path)
         if len(cur_path):
             cur_path = str(bpy.path.abspath(cur_path))            
             if not cur_path.endswith(os.sep):
                 cur_path += os.sep            
-        octane_localdb_path = cur_path                          
+        octane_path = cur_path                          
+    except:
+        pass  
+    return octane_path  
+
+
+def update_octane_localdb_path():
+    import _octane    
+    octane_localdb_path = ""
+    try:
+        octane_localdb_path = format_octane_path(str(bpy.context.preferences.addons[__package__].preferences.octane_localdb_path))                        
     except:
         pass
     _octane.update_octane_localdb(octane_localdb_path)   
 
+
+def update_octane_texture_cache_path():
+    import _octane    
+    octane_texture_cache_path = ""
+    try:
+        octane_texture_cache_path = format_octane_path(str(bpy.context.preferences.addons[__package__].preferences.octane_texture_cache_path))                        
+    except:
+        pass
+    _octane.update_octane_texture_cache(octane_texture_cache_path)      
+    
 
 def update_octane_server_address():
     import _octane
@@ -640,12 +707,14 @@ def update_octane_params():
     _octane.set_octane_params(default_material_id)      
 
 
-def update_octane_vdb_helper(cls):
+def update_octane_vdb_info(cls, context):
     cls.octane_vdb_helper = cls.is_octane_vdb and 'F$' in cls.imported_openvdb_file_path
+    cls.octane_vdb_info.update(context)
 
 
 def update_octane_data():
     update_octane_localdb_path()
+    update_octane_texture_cache_path()
     update_octane_server_address()
     update_octane_params()
 
@@ -839,6 +908,29 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
                         self.osl_geo_nodes[-1].name = node.name
 
 
+class OctaneVDBGridID(bpy.types.PropertyGroup):    
+    name: StringProperty(name="Octane VDB Grid ID")  
+
+class OctaneVDBInfo(bpy.types.PropertyGroup):
+    vdb_vector_grid_id_container: CollectionProperty(type=OctaneVDBGridID)
+    vdb_float_grid_id_container: CollectionProperty(type=OctaneVDBGridID)
+
+    def update(self, context):
+        print('Update Octane VDB Info')
+        import _octane         
+        def set_container(container, items):
+            for i in range(0, len(container)):
+                container.remove(0)
+            for item in items:
+                container.add()
+                container[-1].name = item            
+        scene = context.scene
+        cur_obj = context.object        
+        vdb_float_grid_ids, vdb_vector_grid_ids = _octane.update_vdb_info(cur_obj.as_pointer(), context.blend_data.as_pointer(), scene.as_pointer()) 
+        set_container(self.vdb_float_grid_id_container, vdb_float_grid_ids)
+        set_container(self.vdb_vector_grid_id_container, vdb_vector_grid_ids)               
+
+
 class OctaneOSLCameraNode(bpy.types.PropertyGroup):    
 
     name: StringProperty(
@@ -891,10 +983,10 @@ class OctaneOSLCameraNodeCollection(bpy.types.PropertyGroup):
 
 class OctaneAIUpSamplertSettings(bpy.types.PropertyGroup):
     sample_mode: EnumProperty(
-        name="Sampling mode",
-        description="The sub/up-sample mode that should be used for rendering",
+        name="Upsampling mode",
+        description="The up-sample mode that should be used for rendering",
         items=up_sample_modes,
-        default='No subsampling',
+        default='No upsampling',
     )
     enable_ai_up_sampling: BoolProperty(
         name="Enable AI up-sampling",
@@ -979,8 +1071,14 @@ class OctanePreferences(bpy.types.AddonPreferences):
                 name="Octane LocalDB Path",
                 description="Customize octane localDB path. Leave empty to use default settings",
                 default='',
-                subtype='FILE_PATH',
-            )   
+                subtype='DIR_PATH',
+            ) 
+    octane_texture_cache_path: StringProperty(
+                name="Octane Texture Cache Folder",
+                description="Customize octane texture cache folder. Leave empty to use default settings",
+                default='',
+                subtype='DIR_PATH',
+            )                
     enable_relese_octane_license_when_exiting: BoolProperty(
                 name="Release Octane License After Exiting",
                 description="Release Octane license after exiting blender",
@@ -998,6 +1096,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
         layout.row().prop(self, "octane_server_address", expand=False) 
         layout.row().prop(self, "enable_relese_octane_license_when_exiting", expand=False)   
         layout.row().prop(self, "octane_localdb_path", expand=False)               
+        layout.row().prop(self, "octane_texture_cache_path", expand=False)   
         layout.row().prop(self, "default_material_id", expand=False)
         layout.row().prop(self, "default_texture_node_layout_id", expand=False)     
         # layout.row().prop(self, "enable_empty_gpus_automatically", expand=False)
@@ -1029,7 +1128,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         name="Use Opt. Mesh Generation Mode in Preview",
         description="[PREVIEW MODE] Do not regenerate & upload meshes(except reshapble ones) which are already cached",
         default=False,
-    )        
+    )          
 # ################################################################################################
 # OCTANE RENDER PASSES
 # ################################################################################################
@@ -1243,7 +1342,19 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             description="Override all meshes type by this type during rendering",
             items=meshes_render_types,
             default='4',
+            )    
+    resource_cache_type: EnumProperty(
+            name="Resource Cache System",
+            description="Cache the textures and geometries in RAM so to make the viewport rendering initialization faster",
+            items=resource_cache_types,
+            default='All',
             )
+    dirty_resource_detection_strategy_type: EnumProperty(
+            name="Dirty Resource Detection Strategy",
+            description="The strategy used in detecting whether a mesh is dirty so a reloading is required",
+            items=dirty_resource_detection_strategy_types,
+            default='Edit Mode',
+            )    
     priority_mode: EnumProperty(
             name="Render Priority",
             description="Render priority that should be used for rendering",
@@ -1574,6 +1685,12 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             items=clay_modes,
             default='None',
             )        
+    subsample_mode: EnumProperty(
+            name="Subsample Mode",
+            description="The subsampe mode should be used in rendering",
+            items=sub_sample_modes,
+            default='No subsampling',
+            )          
     gi_clamp: FloatProperty(
             name="GI clamp",
             description="GI clamp reducing fireflies",
@@ -3256,12 +3373,46 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             description="Indicate the instance id this mesh used",
             min=-1, max=65535,
             default=-1,                
-            )                                      
+            )   
     infinite_plane: BoolProperty(
             name="Infinite plane",
             description="Convert this mesh to infinite plane when rendering",
             default=False,
+            )                                               
+    enable_octane_sphere_attribute: BoolProperty(
+            name="Enable Octane Sphere Attribute",
+            description="Use color and float attributes with sphere primitives which adds on top of the current attribute support for triangles",
+            default=False,
             )
+    octane_sphere_radius: FloatProperty(
+            name="Octane Sphere Radius",
+            description="The radius of the sphere primitive",
+            min=0.0, max=1000000.0, soft_max=1000000.0,
+            default=0.1,
+            )   
+    use_randomized_radius: BoolProperty(
+            name="Use Randomized Radius",
+            description="Enable to use the randomized radiuses",
+            default=False,
+            )    
+    octane_sphere_randomized_radius_seed: IntProperty(
+            name="Random Seed",
+            description="The random seed that used for radiuses",
+            min=1, max=65535,
+            default=1,   
+            )      
+    octane_sphere_randomized_radius_min: FloatProperty(
+            name="Min Radius",
+            description="The min randomized radius of the sphere primitive",
+            min=0.0, max=1000000.0, soft_max=1000000.0,
+            default=0.1,
+            )                
+    octane_sphere_randomized_radius_max: FloatProperty(
+            name="Max Radius",
+            description="The max randomized radius of the sphere primitive",
+            min=0.0, max=1000000.0, soft_max=1000000.0,
+            default=0.1,
+            )                    
     tessface_in_preview: BoolProperty(
             name="TessFace in Preview",
             description="Enable tessfaces(if available) in interactive rendering mode",
@@ -3379,22 +3530,36 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             name="Pass 8",
             description="Pass 8",
             default=True,
-            )                
+            )
+
+    resource_dirty_tag: BoolProperty(
+            default=False,
+            )
 
     octane_vdb_helper: BoolProperty(
             default=False,
+            )
+    octane_vdb_info: PointerProperty(
+            name="Octane VDB Info Container",
+            description="",
+            type=OctaneVDBInfo,        
             )
     is_octane_vdb: BoolProperty(
             name="Used as Octane VDB",
             description="Will use the imported OpenVDB file as source",
             default=False,
-            update= lambda cls, context : update_octane_vdb_helper(cls),
+            update= lambda cls, context : update_octane_vdb_info(cls, context),
             )
+    vdb_sdf: BoolProperty(
+            name="SDF",
+            description="SDF",
+            default=False,
+            )    
     imported_openvdb_file_path: StringProperty(
             name="OpenVDB File",
             description="Import the OpenVDB file. Use '$F$' to label the frame parts in vdb file path. E.g. $F$. => (0, 1, ... 100 ...). E.g. $4F$. => (0000, 0001, ... 0100 ...)",
             default='',
-            update= lambda cls, context : update_octane_vdb_helper(cls),
+            update= lambda cls, context : update_octane_vdb_info(cls, context),
             subtype='FILE_PATH',
             )     
     openvdb_frame_speed_mutiplier: FloatProperty(
@@ -3426,6 +3591,12 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             min=0.0,
             default=0.04,
             )
+    vdb_import_scale: EnumProperty(
+        name="Import scale",
+        description="The various units we support during the geometry import. It's basically the unit used during the export of the geometry",
+        items=geometry_import_scale,
+        default='meters',
+    )    
     vdb_abs_scale: FloatProperty(
             name="Absorption scale",
             description="This scalar value scales the grid value used for absorption",
@@ -3450,11 +3621,83 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             min=0.0,
             default=1.0,
             )
-    vdb_sdf: BoolProperty(
-            name="SDF",
-            description="SDF",
-            default=False,
-            )
+    vdb_motion_blur_enabled: BoolProperty(
+            name="Motion blur enabled",
+            description="If TRUE, then any motion blur grids will be ignored",
+            default=True,
+            )    
+    vdb_velocity_grid_type: EnumProperty(
+        name="Velocity Grid Type",
+        description="The grid used for motion blur. A single vec3s type grid or a component grid",
+        items=vdb_velocity_grid_types,
+        default='Vector grid',
+    )    
+    vdb_absorption_grid_id: StringProperty(
+        name="Absorption grid",
+        description="Name of the grid in a VDB to load for absorption",
+        default="",
+        maxlen=512,
+    )  
+    vdb_scattering_grid_id: StringProperty(
+        name="Scattering grid",
+        description="Name of the grid in a VDB to load for scattering",
+        default="",
+        maxlen=512,
+    )  
+    vdb_emission_grid_id: StringProperty(
+        name="Emission grid",
+        description="Name of the grid in a VDB to load for providing temperature information",
+        default="",
+        maxlen=512,
+    )              
+    vdb_vector_grid_id: StringProperty(
+        name="Vector grid",
+        description="Name of a vec3s type grid in the VDB to load for motion blur",
+        default="",
+        maxlen=512,
+    )  
+    vdb_x_components_grid_id: StringProperty(
+        name="X Component grids",
+        description="Name of a float grid in the VDB to use for the x-component of motion blur vectors",
+        default="",
+        maxlen=512,
+    )   
+    vdb_y_components_grid_id: StringProperty(
+        name="Y Component grids",
+        description="Name of a float grid in the VDB to use for the y-component of motion blur vectors",
+        default="",
+        maxlen=512,
+    ) 
+    vdb_z_components_grid_id: StringProperty(
+        name="Z Component grids",
+        description="Name of a float grid in the VDB to use for the z-component of motion blur vectors",
+        default="",
+        maxlen=512,
+    )               
+    enable_octane_offset_transform: BoolProperty(
+        name="Octane Offset Transform enabled",
+        description="If TRUE, then an offset transform will be applied(it would be useful in external VDB and Orbx transform adjustment)",
+        default=False,
+    ) 
+    octane_offset_translation: FloatVectorProperty(
+        name="Translation",                                
+        subtype='TRANSLATION',
+    )      
+    octane_offset_rotation: FloatVectorProperty(
+        name="Rotation",                             
+        subtype='EULER',
+    )    
+    octane_offset_scale: FloatVectorProperty(
+        name="Scale",                             
+        subtype='XYZ',
+        default=(1, 1, 1)
+    )   
+    octane_offset_rotation_order: EnumProperty(
+        name="Rotation order",
+        items=rotation_orders,
+        default='2',
+    )      
+
     hair_interpolation: EnumProperty(
             name="Hair W interpolation",
             description="Specifies the hair interpolation type. If \"Use hair Ws\" is chosen - you need to explicitly set the hairs root/tip W coordinates in Octane's part of particle settings",
@@ -3491,7 +3734,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             description="Import the Orbx file",
             default='',
             subtype='FILE_PATH',
-            )             
+            )     
 
     @classmethod
     def register(cls):
@@ -3827,7 +4070,12 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         name="Shadow Visibility",
         description="",
         default=True
-    )    
+    )
+    dirt_visibility: BoolProperty(
+        name="Dirt Visibility",
+        description="",
+        default=True
+    )            
     random_color_seed: IntProperty(
         name="Random color seed",
         description="Random color seed",
@@ -3943,6 +4191,12 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         min=1, soft_max=8,
         default=1,
     )   
+    object_mesh_type: EnumProperty(
+        name="Object Type",
+        description="Used for rendering speed optimization, see the manual",
+        items=object_mesh_types,
+        default='Auto',
+    )    
 
     @classmethod
     def register(cls):
@@ -4011,6 +4265,8 @@ classes = (
     OctaneBakingLayerTransformCollection,
 	OctaneGeoNode,
 	OctaneGeoNodeCollection,
+    OctaneVDBGridID,
+    OctaneVDBInfo,
 	OctaneOSLCameraNode,
 	OctaneOSLCameraNodeCollection,
     OctaneRenderSettings,

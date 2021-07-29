@@ -38,6 +38,16 @@
 
 namespace OctaneDataTransferObject {
 
+	struct OctaneSphereAttributeData : public OctaneNodeBase {
+		bool	bEnable;
+		float	fRadius;
+		int		iRandomSeed;
+		float	fMinRandomizedRadius;
+		float	fMaxRandomizedRadius;
+		OctaneSphereAttributeData() : OctaneNodeBase(Octane::ENT_MESH_SPHERE_ATTRIBUTE, "OctaneMeshSphereAttribute") {}
+		MSGPACK_DEFINE(bEnable, fRadius, iRandomSeed, fMinRandomizedRadius, fMaxRandomizedRadius, MSGPACK_BASE(OctaneNodeBase));
+	};
+
 	struct OctaneMeshData : public OctaneNodeBase {
 		bool					bUpdate;
 		int						iSamplesNum;
@@ -63,6 +73,7 @@ namespace OctaneDataTransferObject {
 		std::vector<std::string>	sVertexColorNames;
 		std::vector<std::vector<float_3>>	f3VertexColors;	
 		std::map<float, std::vector<float_3>>	oMotionf3Points;
+		OctaneSphereAttributeData	oMeshSphereAttribute;
 		std::map<std::string, std::pair<uint32_t, uint32_t>>	oArrayInfo;
 		OctaneMeshData() : OctaneNodeBase(Octane::ENT_MESH_DATA, "OctaneMeshData") {}
 		void Clear() 
@@ -95,7 +106,7 @@ namespace OctaneDataTransferObject {
 			oMotionf3Points.clear();
 			oArrayInfo.clear();
 		}
-		MSGPACK_DEFINE(bUpdate, iSamplesNum, sVertexFloatNames, sVertexColorNames, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(bUpdate, iSamplesNum, sVertexFloatNames, sVertexColorNames, oMeshSphereAttribute, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMeshOpenSubdivision : public OctaneNodeBase {
@@ -126,6 +137,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fGeneralVisibility,
 		(OctaneDTOBool)		bCameraVisibility,
 		(OctaneDTOBool)		bShadowVisibility,
+		(OctaneDTOBool)		bDirtVisibility,
 		(OctaneDTOInt)		iRandomColorSeed,
 		(OctaneDTOFloat3)	f3Color,
 		(OctaneDTOInt)		iBakingGroupId,
@@ -144,6 +156,7 @@ namespace OctaneDataTransferObject {
 			fGeneralVisibility("general_visibility", false),
 			bCameraVisibility("camera_visibility", false),
 			bShadowVisibility("shadow_visibility", false),
+			bDirtVisibility("dirt_visibility", false),
 			iRandomColorSeed("random_color_seed", false),
 			f3Color("color", false),
 			iBakingGroupId("baking_group_id", false),
@@ -155,7 +168,7 @@ namespace OctaneDataTransferObject {
 			OctaneNodeBase(Octane::NT_OBJECTLAYER, "OctaneObjectLayer") 
 		{
 		}
-		MSGPACK_DEFINE(iRenderLayerID, fGeneralVisibility, bCameraVisibility, bShadowVisibility, iRandomColorSeed, iLightPassMask, i3Color,
+		MSGPACK_DEFINE(iRenderLayerID, fGeneralVisibility, bCameraVisibility, bShadowVisibility, bDirtVisibility, iRandomColorSeed, iLightPassMask, i3Color,
 			iBakingGroupId, oBakingTransform, MSGPACK_BASE(OctaneNodeBase));
 	};
 
@@ -213,6 +226,10 @@ namespace OctaneDataTransferObject {
 	};
 
 	struct OctaneObject : public OctaneNodeBase {
+		const static int NO_OBJECT_LAYER = 0;
+		const static int WITH_OBJECT_LAYER = 1;
+		const static int WITH_OBJECT_LAYER_FOR_ORBX_PROXY = 2;
+
 		std::string					sObjectName;
 		std::string					sMeshName;
 		int32_t						iInstanceSize;
@@ -221,11 +238,17 @@ namespace OctaneDataTransferObject {
 		int32_t						iSamplesNum;
 		int32_t						iInstanceId;
 		bool						bMovable;
-		bool						bUseObjectLayer;
+		int8_t						iUseObjectLayer;
 		OctaneObjectLayer			oObjectLayer;		
 		std::map<std::string, std::pair<uint32_t, uint32_t>>	oArrayInfo;
-		OctaneObject() : OctaneNodeBase(Octane::ENT_OBJECT, "OctaneObject") { iInstanceSize = 1; }
-		MSGPACK_DEFINE(sObjectName, sMeshName, iInstanceSize, bMovable, bUseObjectLayer, iSamplesNum, oObjectLayer, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
+		OctaneObject() : OctaneNodeBase(Octane::ENT_OBJECT, "OctaneObject")
+    {
+      iInstanceSize = 1;
+      iInstanceId = 0;
+      iSamplesNum = 1;
+      iUseObjectLayer = NO_OBJECT_LAYER;
+    }
+		MSGPACK_DEFINE(sObjectName, sMeshName, iInstanceSize, bMovable, iUseObjectLayer, iSamplesNum, oObjectLayer, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneObjects : public OctaneNodeBase {
@@ -249,13 +272,96 @@ namespace OctaneDataTransferObject {
 		std::string					sLightName;
 		std::string					sShaderName;
 		int32_t						iLightNodeType;
+		float						fRadius;
+		float						fSizeX;
+		float						fSizeY;
 		float_3						f3Direction;		
 		std::string					sLightObjectPath;
 		std::string					sLightMeshName;
 		std::string					sLightMatMapName;
 		OctaneObject				oObject;
 		OctaneLight() : OctaneNodeBase(Octane::ENT_LIGHT, "OctaneLight") {}
-		MSGPACK_DEFINE(sLightName, sShaderName, iLightNodeType, f3Direction, sLightObjectPath, sLightMeshName, sLightMatMapName, oObject, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(sLightName, sShaderName, iLightNodeType, fRadius, fSizeX, fSizeY, f3Direction, sLightObjectPath, sLightMeshName, sLightMatMapName, oObject, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneVolume : public OctaneNodeBase {
+		const static PacketType packetType = LOAD_VOLUME;
+
+		REFLECTABLE
+		(	
+		(OctaneDTOBool)		bSDF,
+		(OctaneDTOFloat)	fISO,
+		(OctaneDTOEnum)		iImportScale,
+		(OctaneDTOFloat)	fAbsorptionScale,
+		(OctaneDTOString)	sAbsorptionGridId,
+		(OctaneDTOFloat)	fEmissionScale,
+		(OctaneDTOString)	sEmissionGridId,
+		(OctaneDTOFloat)	fScatterScale,
+		(OctaneDTOString)	sScatterGridId,
+		(OctaneDTOBool)		bMotionBlurEnabled,
+		(OctaneDTOEnum)		iVelocityGridType,
+		(OctaneDTOFloat)	fVelocityScale,	
+		(OctaneDTOString)	sVelocityGridId,
+		(OctaneDTOString)	sXComponentGridId,
+		(OctaneDTOString)	sYComponentGridId,
+		(OctaneDTOString)	sZComponentGridId
+		)
+
+		std::string			sVolumePath;
+		MatrixF				oMatrix;
+		std::string			sShaderName;
+		float_3				f3Resolution;
+		int32_t				iAbsorptionOffset;
+		int32_t				iEmissionOffset;
+		int32_t				iScatterOffset;
+		int32_t				iVelocityOffsetX;
+		int32_t				iVelocityOffsetY;
+		int32_t				iVelocityOffsetZ;
+		std::vector<float>	fRegularGridData;
+		OctaneVolume() : 
+			bSDF("vdb_sdf", false),
+			fISO("vdb_iso", false),
+			iImportScale("vdb_import_scale", false),
+			fAbsorptionScale("vdb_abs_scale", false),
+			sAbsorptionGridId("vdb_absorption_grid_id", false),
+			fEmissionScale("vdb_emiss_scale", false),
+			sEmissionGridId("vdb_emission_grid_id", false),
+			fScatterScale("vdb_scatter_scale", false),
+			sScatterGridId("vdb_scattering_grid_id", false),
+			bMotionBlurEnabled("vdb_motion_blur_enabled", false),
+			iVelocityGridType("vdb_velocity_grid_type", false),
+			fVelocityScale("vdb_vel_scale", false),
+			sVelocityGridId("vdb_vector_grid_id", false),
+			sXComponentGridId("vdb_x_components_grid_id", false),
+			sYComponentGridId("vdb_y_components_grid_id", false),
+			sZComponentGridId("vdb_z_components_grid_id", false),
+			iAbsorptionOffset(0),
+			iEmissionOffset(0),
+			iScatterOffset(0),
+			iVelocityOffsetX(-1),
+			iVelocityOffsetY(-1),
+			iVelocityOffsetZ(-1),
+			OctaneNodeBase(Octane::NT_GEO_VOLUME, "OctaneVolume") {}
+		void Clear()
+		{
+			fRegularGridData.clear();
+		}
+
+		MSGPACK_DEFINE(bSDF, fISO, iImportScale, fAbsorptionScale, sAbsorptionGridId, fEmissionScale, sEmissionGridId, fScatterScale, sScatterGridId,
+			bMotionBlurEnabled, iVelocityGridType, fVelocityScale, sVelocityGridId, sXComponentGridId, sYComponentGridId, sZComponentGridId,
+			sVolumePath, oMatrix, sShaderName, f3Resolution, iAbsorptionOffset, iEmissionOffset, iScatterOffset, iVelocityOffsetX, iVelocityOffsetY, iVelocityOffsetZ,
+			MSGPACK_BASE(OctaneNodeBase));
+	}; 
+
+	struct OctaneVolumeInfo : public OctaneNodeBase {
+		std::string					sVolumePath;
+		std::vector<std::string>	sFloatGridNames;
+		std::vector<std::string>	sVectorGridNames;
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
+		OctaneVolumeInfo() : OctaneNodeBase(Octane::ENT_VDB_INFO, "VDBInfo", 0, 1) {}
+		MSGPACK_DEFINE(sVolumePath, sFloatGridNames, sVectorGridNames, MSGPACK_BASE(OctaneNodeBase));
 	};
 }
 

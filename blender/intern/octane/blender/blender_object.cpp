@@ -93,6 +93,56 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
 
 /* Light */
 
+static void update_light_transform(Light *light, BL::Light &b_light, Transform &tfm)
+{
+  if (!light) {
+    return;
+  }
+  switch (b_light.type()) {
+    case BL::Light::type_POINT:
+    case BL::Light::type_SPHERE:
+    case BL::Light::type_SUN:
+    case BL::Light::type_MESH: {
+      light->update_transform(tfm);
+      break;
+    }
+    case BL::Light::type_AREA: {
+      BL::AreaLight b_area_light(b_light);
+      float sizeu = b_area_light.size();
+      float sizev = sizeu;
+      bool use_octane_quad_light = false;
+      switch (b_area_light.shape()) {
+        case BL::AreaLight::shape_SQUARE:
+          use_octane_quad_light = true;
+          break;
+        case BL::AreaLight::shape_RECTANGLE:
+          use_octane_quad_light = true;
+          sizev = b_area_light.size_y();
+          break;
+        case BL::AreaLight::shape_DISK:
+          break;
+        case BL::AreaLight::shape_ELLIPSE:
+          sizev = b_area_light.size_y();
+          break;
+      }
+      if (use_octane_quad_light) {
+        float3 dir = transform_get_column(&tfm, 2);
+        dir *= -1;
+        transform_set_column(&tfm, 2, dir);
+        light->update_transform(tfm);
+      }
+      else {
+        Transform light_tfm(tfm * transform_scale(sizeu, sizev, 1));
+        light->update_transform(light_tfm);
+      }
+    }
+    case BL::Light::type_SPOT:
+    default: {
+      break;
+    }
+  }
+}
+
 void BlenderSync::sync_light(BL::Object &b_parent,
                              int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
                              BL::Object &b_ob,
@@ -100,17 +150,26 @@ void BlenderSync::sync_light(BL::Object &b_parent,
                              int random_id,
                              Transform &tfm,
                              bool *use_portal,
+                             bool force_update_transform,
                              OctaneDataTransferObject::OctaneObjectLayer &object_layer)
 {
   /* test if we need to sync */
   Light *light;
   ObjectKey key(b_parent, persistent_id, b_ob_instance);
 
-  if (!light_map.sync(&light, b_ob, b_parent, key)) {
-    return;
-  }
+  bool is_updated = light_map.sync(&light, b_ob, b_parent, key);
+  bool is_transform_updated = false;
 
   BL::Light b_light(b_ob.data());
+
+  if (force_update_transform) {
+    update_light_transform(light, b_light, tfm);
+    is_transform_updated = true;
+  }
+
+  if (!is_updated) {
+    return;
+  }
 
 #define CHECK_LIGHT_OBJECT_UPDATE(OLD, NEW) \
   { \
@@ -123,11 +182,12 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   BL::ID b_ob_data(b_ob.data());
   light->name = resolve_octane_name(b_ob_data, "", LIGHT_TAG);
   light->light.sLightName = light->name;
+  std::string current_light_mesh_name = light->light.sLightName + MESH_TAG;
   std::string current_material_map_name = light->light.sLightName + OBJECT_MATERIAL_MAP_TAG;
   CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightMatMapName, current_material_map_name);
   light->light.oObject.oObjectLayer = object_layer;
   light->light.oObject.bMovable = false;
-  light->light.oObject.bUseObjectLayer = true;
+  light->light.oObject.iUseObjectLayer = OctaneDataTransferObject::OctaneObject::WITH_OBJECT_LAYER;
   light->light.oObject.sObjectName = light->light.sLightName;
   if (persistent_id) {
     light->light.oObject.iInstanceId = *persistent_id;
@@ -155,9 +215,21 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       light->light.iLightNodeType = Octane::NT_TOON_POINT_LIGHT;
       light->light.sLightMeshName = "";
       light->light.oObject.sMeshName = light->light.sShaderName;
-      light->light.oObject.bUseObjectLayer = false;
-      light->update_transform(tfm);
+      light->light.oObject.iUseObjectLayer =
+          OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
       light->need_light_object_update = true;
+      light->enable = true;
+      break;
+    }
+    case BL::Light::type_SPHERE: {
+      BL::SphereLight b_sphere_light(b_light);
+      light->light.iLightNodeType = Octane::NT_LIGHT_SPHERE;
+      light->light.sLightMeshName = current_light_mesh_name;
+      light->light.oObject.sMeshName = current_light_mesh_name;
+      light->light.oObject.iUseObjectLayer =
+          OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
+      light->need_light_object_update = true;
+      light->light.fRadius = b_sphere_light.sphere_radius();
       light->enable = true;
       break;
     }
@@ -176,9 +248,9 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       light->light.iLightNodeType = Octane::NT_TOON_DIRECTIONAL_LIGHT;
       light->light.sLightMeshName = "";
       light->light.oObject.sMeshName = light->light.sShaderName;
-      light->light.oObject.bUseObjectLayer = false;
+      light->light.oObject.iUseObjectLayer =
+          OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
       light->need_light_object_update = true;
-      light->update_transform(tfm);
       light->enable = true;
       break;
     }
@@ -188,19 +260,14 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       float sizeu = b_area_light.size();
       float sizev = sizeu;
       std::string sub_object_path = "libraries/objects/";
+      bool use_octane_quad_light = false;
       switch (b_area_light.shape()) {
         case BL::AreaLight::shape_SQUARE:
-          sub_object_path += "Square.obj";
-          // The square object we use in octane is twice larger than blender's settings
-          sizeu /= 2;
-          sizev /= 2;
+          use_octane_quad_light = true;
           break;
         case BL::AreaLight::shape_RECTANGLE:
-          sub_object_path += "Square.obj";
+          use_octane_quad_light = true;
           sizev = b_area_light.size_y();
-          // The square object we use in octane is twice larger than blender's settings
-          sizeu /= 2;
-          sizev /= 2;
           break;
         case BL::AreaLight::shape_DISK:
           sub_object_path += "Circle.obj";
@@ -210,15 +277,27 @@ void BlenderSync::sync_light(BL::Object &b_parent,
           sizev = b_area_light.size_y();
           break;
       }
-      std::string object_path = path_get(sub_object_path);
-      std::string current_light_object_path = blender_absolute_path(b_data, b_scene, object_path);
-      std::string current_light_mesh_name = light->light.sLightName + MESH_TAG;
-      CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightObjectPath, current_light_object_path);
-      CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightMeshName, current_light_mesh_name);
-      light->light.oObject.sMeshName = light->light.sLightMatMapName;
-      Transform light_tfm(tfm * transform_scale(sizeu, sizev, 1));
-      light->update_transform(light_tfm);
-      light->enable = true;
+      if (use_octane_quad_light) {
+        BL::SphereLight b_sphere_light(b_light);
+        light->light.iLightNodeType = Octane::NT_LIGHT_QUAD;
+        light->light.sLightMeshName = current_light_mesh_name;
+        light->light.oObject.sMeshName = current_light_mesh_name;
+        light->light.oObject.iUseObjectLayer =
+            OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
+        light->need_light_object_update = true;
+        light->light.fSizeX = sizeu;
+        light->light.fSizeY = sizev;
+        light->enable = true;
+      }
+      else {
+        std::string object_path = path_get(sub_object_path);
+        std::string current_light_object_path = blender_absolute_path(
+            b_data, b_scene, object_path);
+        CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightObjectPath, current_light_object_path);
+        CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightMeshName, current_light_mesh_name);
+        light->light.oObject.sMeshName = light->light.sLightMatMapName;
+        light->enable = true;
+      }
       break;
     }
     case BL::Light::type_MESH: {
@@ -247,10 +326,13 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightObjectPath, current_light_object_path);
       CHECK_LIGHT_OBJECT_UPDATE(light->light.sLightMeshName, current_light_mesh_name);
       light->light.oObject.sMeshName = light->light.sLightMatMapName;
-      light->update_transform(tfm);
       light->enable = true;
       break;
     }
+  }
+
+  if (!is_transform_updated) {
+    update_light_transform(light, b_light, tfm);
   }
 
   /* tag */
@@ -294,6 +376,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   OctaneDataTransferObject::OctaneObjectLayer object_layer;
   PointerRNA octane_object = RNA_pointer_get(&b_ob.ptr, "octane");
   resolve_object_layer(octane_object, object_layer);
+  MeshType mesh_type = static_cast<MeshType>(RNA_enum_get(&octane_object, "object_mesh_type"));
 
   /* light is handled separately */
   if (!motion && object_is_light(b_ob)) {
@@ -311,6 +394,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                  is_instance ? b_instance.random_id() : 0,
                  octane_tfm,
                  use_portal,
+                 mesh_type == MeshType::MOVABLE_PROXY,
                  object_layer);
     }
 
@@ -330,6 +414,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     object = object_map.find(key);
     if (object) {
       if (object->motion_blur_times.find(motion_time) != object->motion_blur_times.end()) {
+        if (object->mesh && object->mesh->enable_offset_transform) {
+          octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
+        }
         object->update_motion_blur_transforms(motion_time, octane_tfm);
         if (object->mesh) {
           sync_mesh_motion(b_depsgraph, b_ob, object, motion_time);
@@ -339,17 +426,35 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     }
   }
 
+  std::string object_name = parent_name + b_ob.name() + instance_tag + OBJECT_TAG;
+
   /* test if we need to sync */
-  bool object_updated = false;
-
-  if (object_map.sync(&object, b_ob, b_parent, key))
-    object_updated = true;
-
+  // This would not work for particles(return false even particles updating)
+  bool is_object_data_updated = object_map.sync(&object, b_ob, b_parent, key);
+  bool need_update = preview ? is_object_data_updated :
+                               is_octane_object_required(object_name, b_ob.type(), mesh_type);
+  if (mesh_type == MeshType::AUTO) {
+    if (!is_instance) {
+      tag_movable_candidate(object_name);
+    }
+  }
   object->scene = scene;
   object->is_instance = is_instance;
+  object->object_mesh_type = mesh_type;
+
   /* mesh sync */
-  object->mesh = sync_mesh(
-      b_depsgraph, b_ob, b_ob_instance, object_updated, show_self, show_particles, object_layer);
+  object->mesh = sync_mesh(b_depsgraph,
+                           b_ob,
+                           b_ob_instance,
+                           need_update,
+                           show_self,
+                           show_particles,
+                           object_layer,
+                           mesh_type);
+
+  if (object->mesh && object->mesh->enable_offset_transform) {
+    octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
+  }
 
   /* object sync
    * transform comparison should not be needed, but duplis don't work perfect
@@ -358,13 +463,17 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       (object->mesh->octane_mesh.sOrbxPath.length() || object->mesh->octane_mesh.bInfinitePlane)) {
     octane_tfm = octane_tfm * OCTANE_OBJECT_ROTATION_MATRIX;
   }
-  if (object_updated || (object->mesh && object->mesh->need_update) ||
-      octane_tfm != object->transform) {
-    std::string obj_name = b_ob.name();
-    // object->name = resolve_octane_name(b_ob.data(), OBJECT_TAG);
-    object->name = parent_name + b_ob.name() + instance_tag + OBJECT_TAG;
-    object->pass_id = b_ob.pass_index();
 
+  if (preview && octane_tfm != object->transform) {
+    need_update = true;
+  }
+
+  object->need_update |= need_update;
+
+  if (need_update || (object->mesh && object->mesh->need_update)) {
+    std::string obj_name = b_ob.name();
+    object->name = object_name;
+    object->pass_id = b_ob.pass_index();
     object->octane_object.sObjectName = object->name;
     if (object->mesh->octane_mesh.sScriptGeoName.size()) {
       object->octane_object.sMeshName = object->mesh->octane_mesh.sScriptGeoName;
@@ -373,8 +482,14 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       object->octane_object.sMeshName = object->mesh->name;
     }
     object->octane_object.oObjectLayer = object_layer;
+    if (!show_self) {
+      object->octane_object.oObjectLayer.fGeneralVisibility = 0.f;
+	}
     object->octane_object.bMovable = false;
-    object->octane_object.bUseObjectLayer = object->mesh->octane_mesh.sOrbxPath.length() == 0;
+    object->octane_object.iUseObjectLayer =
+        object->mesh->octane_mesh.sOrbxPath.length() == 0 ?
+            OctaneDataTransferObject::OctaneObject::WITH_OBJECT_LAYER :
+            OctaneDataTransferObject::OctaneObject::WITH_OBJECT_LAYER_FOR_ORBX_PROXY;
     if (persistent_id) {
       object->octane_object.iInstanceId = *persistent_id;
     }
@@ -386,7 +501,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
 
     // if need motion blur
     object->octane_object.iSamplesNum = 1;
-    if (motion_blur) {
+    if (motion_blur && !is_export_mode) {
       int motion_steps = object_motion_steps(b_parent, b_ob);
       if (motion_steps) {
         set<float> candidate_motion_times;
@@ -424,7 +539,6 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       object->dupli_uv = make_float2(0.0f, 0.0f);
       object->random_id = hash_int_2d(hash_string(object->name.c_str()), 0);
     }
-
     object->tag_update(scene);
   }
 
@@ -441,7 +555,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
 
 /* Object Loop */
 
-void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph, float motion_time)
+void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
+                               BL::SpaceView3D &b_v3d,
+                               float motion_time)
 {
   /* layer data */
   bool motion = motion_time != 0.0f;
@@ -476,8 +592,9 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph, float motion_time)
     /* test if object needs to be hidden */
     const bool show_self = b_instance.show_self();
     const bool show_particles = b_instance.show_particles();
+    const bool show_in_viewport = !b_v3d || b_ob.visible_in_viewport_get(b_v3d);
 
-    if (show_self || show_particles) {
+    if (show_in_viewport && (show_self || show_particles)) {
       /* object itself */
       sync_object(b_depsgraph,
                   b_view_layer,
@@ -512,12 +629,13 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph, float motion_time)
 
 void BlenderSync::sync_motion(BL::RenderSettings &b_render,
                               BL::Depsgraph &b_depsgraph,
+                              BL::SpaceView3D &b_v3d,
                               BL::Object &b_override,
                               int width,
                               int height,
                               void **python_thread_state)
 {
-  if (!b_render.use_motion_blur())
+  if (is_export_mode || !b_render.use_motion_blur())
     return;
 
   /* get camera object here to deal with camera switch */
@@ -550,7 +668,7 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
     sync_camera_motion(b_render, b_cam, width, height, relative_time);
 
     /* sync object */
-    sync_objects(b_depsgraph, relative_time);
+    sync_objects(b_depsgraph, b_v3d, relative_time);
   }
 
   /* we need to set the python thread state again because this

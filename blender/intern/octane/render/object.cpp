@@ -45,9 +45,10 @@ Object::Object()
   pass_id = 0;
   particle_id = 0;
 
+  object_mesh_type = MeshType::AUTO;
   is_instance = false;
   use_holdout = false;
-  need_update = true;
+  need_update = false;
 }  // Object()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -59,24 +60,21 @@ Object::~Object()
     if (scene->object_manager && !is_global_mesh_type()) {
       scene->object_manager->removed_object_names.insert(name);
     }
+    if (scene->mesh_manager && is_global_mesh_type()) {
+      scene->mesh_manager->tag_global_update();
+	}
   }
 }  //~Object()
 
 bool Object::is_global_mesh_type()
 {
-  if (mesh) {
-    return mesh->is_global_mesh_type(scene);
-  }
-  return false;
+  return scene->meshes_type == MeshType::GLOBAL || object_mesh_type == MeshType::GLOBAL;
 }
 
 void Object::tag_update(Scene *scene)
 {
-  if (mesh && is_global_mesh_type()) {
-    if (!mesh->need_update)
-      mesh->need_update = true;
-    if (!scene->mesh_manager->need_update)
-      scene->mesh_manager->need_update = true;
+  if (is_global_mesh_type()) {
+    scene->mesh_manager->tag_global_update();
   }
   need_update = true;
   scene->object_manager->need_update = true;

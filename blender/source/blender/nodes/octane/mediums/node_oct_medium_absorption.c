@@ -50,6 +50,39 @@ static bNodeSocketTemplate sh_node_in[] = {
      10000.0f,
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
+    {SOCK_FLOAT,
+     1,
+     N_("Vol. shadow ray step length"),
+     4.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.001f,
+     10000.0f,
+     PROP_NONE,
+     SOCK_NO_INTERNAL_LINK},
+    {SOCK_BOOLEAN,
+     1,
+     N_("Lock step length pins"),
+     1.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     PROP_NONE,
+     SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
+    {SOCK_SHADER,
+     1,
+     N_("Sample position displacement"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     PROP_NONE,
+     SOCK_NO_INTERNAL_LINK},
     {SOCK_RGBA,
      1,
      N_("Absorption Tex"),
@@ -97,7 +130,20 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, 0, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {
+    {SOCK_SHADER, 0, N_("OutMedium")},
+    {SOCK_SHADER,
+     0,
+     N_("OutTex"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
+    {-1, 0, ""}};
 
 void register_node_type_medium_oct_absorption(void)
 {
@@ -108,8 +154,9 @@ void register_node_type_medium_oct_absorption(void)
         &ntype, SH_NODE_OCT_ABSORP_MED, "Absorption Medium", NODE_CLASS_OCT_MEDIUM, NODE_OPTIONS);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, 0);
+  node_type_init(&ntype, node_octane_medium_init);
   node_type_exec(&ntype, 0, 0, 0);
+  node_type_update(&ntype, node_octane_medium_update);
   ntype.update_internal_links = node_update_internal_links_default;
 
   nodeRegisterType(&ntype);

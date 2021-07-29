@@ -43,8 +43,10 @@ set(SRC
 	./server/octane_data_type.h
 	./server/octane_network_const.h
 	./server/octane_network.h
+  ./server/octane_manager.h
 	./server/octane_network.cpp
 	./server/octane_client.cpp
+  ./server/octane_manager.cpp
 
 	./rpc/definitions/OctaneNode.h
 	./rpc/definitions/OctaneTransform.h
@@ -90,6 +92,10 @@ set(OBJECT_LIBRARY
 	addon/libraries/objects/Square.obj	
 )
 
+set(ORBX_LIBRARY
+	addon/libraries/orbx/CameraData.orbx
+)
+
 add_definitions(${GL_DEFINITIONS} ${BOOST_DEFINITIONS})
 
 if(WIN32)
@@ -107,3 +113,4 @@ add_dependencies(bf_intern_octane bf_rna)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_FILES}" ${OCTANE_INSTALL_PATH})
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${OBJECT_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/objects)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ORBX_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/orbx)

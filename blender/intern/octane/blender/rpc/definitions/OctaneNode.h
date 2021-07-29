@@ -7,6 +7,7 @@
 
 #define ENVIRONMENT_NODE_NAME "Environment"
 #define VISIBLE_ENVIRONMENT_NODE_NAME "VisibleEnvironment"
+#define OCTANE_STATIC_FRONT_PROJECTION "OCTANE_STATIC_FRONT_PROJECTION"
 
 namespace OctaneDataTransferObject {
 
@@ -18,7 +19,27 @@ namespace OctaneDataTransferObject {
 		SHOW_DEVICE_SETTINGS = 5,
 		SHOW_LIVEDB = 6,
 		SHOW_ACTIVATION = 7,
-		SAVE_OCTANDB = 8
+		SAVE_OCTANDB = 8,
+		SHOW_OCTANE_VIEWPORT = 9,
+		CLEAR_RESOURCE_CACHE_SYSTEM = 10,
+	};
+
+	enum EngineDataType {
+		RESOURCE_CACHE_DATA = 0,
+	};
+
+	enum ResourceCacheSystemType {
+		DISABLE_CACHE_SYSTEM = 0,
+		TEXTURE_ONLY = 1,
+		GEOMETRY_ONLY = 2,
+		ALL_RESOURCE_APPLICABLE = 127
+	};
+
+	enum NodeResourceType {
+		LIGHT = 0,
+		HEAVY = 1,
+		TEXTURE = 1,
+		GEOMETRY = 2
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,6 +212,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat3)	f3SunDirection,
 		(OctaneDTOFloat)	fSkyTurbidity,
 		(OctaneDTOFloat)	fPower,
+		(OctaneDTOFloat)	fSunIntensity,
 		(OctaneDTOFloat)	fNorthOffset,
 		(OctaneDTOFloat)	fSunSize,
 		(OctaneDTOFloat)	fAltitude,
@@ -215,6 +237,7 @@ namespace OctaneDataTransferObject {
 			f3SunDirection("Sun direction"),
 			fSkyTurbidity("Sky turbidity"),
 			fPower("Power"),
+			fSunIntensity("Sun intensity"),
 			fNorthOffset("North offset"),
 			fSunSize("Sun size"),
 			fAltitude("Altitude"),
@@ -238,7 +261,7 @@ namespace OctaneDataTransferObject {
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(f3SunDirection, fSkyTurbidity, fPower, fNorthOffset,
+		MSGPACK_DEFINE(f3SunDirection, fSkyTurbidity, fPower, fSunIntensity, fNorthOffset,
 			fSunSize, fAltitude, fAltitude, tStarField,
 			bImportanceSampling, tMedium, fMediumRadius,
 			fLatitude, fLongtitude, fGroundAlbedo, tGroundReflection, tGroundGlossiness, fGroundEmission, tGroundNormalMap, tGroundElevation,
@@ -352,13 +375,72 @@ namespace OctaneDataTransferObject {
 
 	struct OctaneDBNodes : public OctaneNodeBase {
 		bool bClose;
+		bool isMaterialType;
 		uint32_t iNodesNum;
 		std::vector<OctaneNodeBase*> octaneDBNodes;
-		OctaneDBNodes() : bClose(true), iNodesNum(0), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
-		OctaneDBNodes(bool bClose, uint32_t iNodesNum) : bClose(bClose), iNodesNum(iNodesNum), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
+		OctaneDBNodes() : bClose(true), isMaterialType(true), iNodesNum(0), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
+		OctaneDBNodes(bool bClose, uint32_t iNodesNum) : bClose(bClose), isMaterialType(true), iNodesNum(iNodesNum), OctaneNodeBase(Octane::ENT_OCTANEDB_NODE, "OctaneDBNodes") {}
 
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
-		MSGPACK_DEFINE(bClose, iNodesNum, MSGPACK_BASE(OctaneNodeBase));
+			MSGPACK_DEFINE(bClose, isMaterialType, iNodesNum, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneSaveImage : public OctaneNodeBase {
+		std::string					sPath;
+		std::string					sFileName;
+		std::string					sOctaneTag;
+		std::vector<std::string>	sPassNames;
+		std::vector<int>			iPasses;
+		bool						bMultiLayers;
+		int							iImageType;
+		int							iExrCompressionType;
+		OctaneSaveImage() : OctaneNodeBase(Octane::ENT_SAVE_IMAGES, "OctaneSaveImage") {}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		MSGPACK_DEFINE(sPath, sFileName, sOctaneTag, sPassNames, iPasses, bMultiLayers, iImageType, iExrCompressionType, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneCameraData : public OctaneNodeBase {
+		REFLECTABLE
+		(		
+		(OctaneDTOFloat)	fMaxZDepth,
+		(OctaneDTOFloat)	fMaxDistance,
+		(OctaneDTOBool)		bEnvironmentProjection,
+		(OctaneDTOBool)		bKeepFrontProjection
+		)
+
+		std::string sViewVectorNodeName;
+		std::string sViewZDepthName;
+		std::string sViewDistanceName;
+		std::string sFrontProjectionName;
+		std::string sCameraDataOrbxPath;
+
+		OctaneCameraData() :
+			fMaxZDepth("Max Z-Depth"),
+			fMaxDistance("Max Distance"),
+			bKeepFrontProjection("Keep Front Projection"),
+			OctaneNodeBase(Octane::ENT_CAMERA_DATA, "ShaderNodeCameraData")
+		{
+		  sViewVectorNodeName = "";
+		  sViewZDepthName = "";
+		  sViewDistanceName = "";
+		  sFrontProjectionName = "";
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		MSGPACK_DEFINE(fMaxZDepth, fMaxDistance, bEnvironmentProjection, bKeepFrontProjection, sViewVectorNodeName, sViewZDepthName, sViewDistanceName, sFrontProjectionName, sCameraDataOrbxPath, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneEngineData : public OctaneNodeBase {		
+		int iType;	
+		std::map<std::string, int> oResourceCacheData;
+		OctaneEngineData() : OctaneNodeBase(Octane::ENT_ENGINE_DATA, "OctaneEngineData", 0, 1) { iType = RESOURCE_CACHE_DATA; }
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
+		MSGPACK_DEFINE(iType, oResourceCacheData, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -832,17 +914,19 @@ namespace OctaneDataTransferObject {
 	struct OctaneShadowCatcherMaterial : public OctaneNodeBase{
 		REFLECTABLE
 		(
-		(OctaneDTOBool)		bEnabled
+		(OctaneDTOBool)		bEnabled,
+		(OctaneDTOFloat)	fOpacity
 		)
 
-		OctaneShadowCatcherMaterial() :
+		OctaneShadowCatcherMaterial() :			
 			bEnabled("Enabled"),
+			fOpacity("Opacity"),
 			OctaneNodeBase(Octane::NT_MAT_SHADOW_CATCHER, "ShaderNodeOctShadowCatcherMat")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(bEnabled, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(bEnabled, fOpacity, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneShadowCatcherMaterial
 
 	struct OctaneLayeredMaterial : public OctaneNodeBase{
@@ -883,6 +967,53 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_OCTANEDB_FUNCTIONS
 		MSGPACK_DEFINE(tDisplacement, sMaterials, sMasks, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneCompositeMaterial
+
+	struct OctaneHairMaterial : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTORGB)		fAlbedo,
+		(OctaneDTORGB)		fSpecular,
+		(OctaneDTOFloat)	fMelanin,
+		(OctaneDTOFloat)	fPheomelanin,
+		(OctaneDTOEnum)		iMode,
+		(OctaneDTOFloat)	fIndexOfRefraction,	
+		(OctaneDTOFloat)	fLongitudinalRoughness,
+		(OctaneDTOFloat)	fAzimuthalRoughness,
+		(OctaneDTOFloat)	fOffset,
+		(OctaneDTOFloat)	fRandomnessFrequency,
+		(OctaneDTOFloat2)	fRandomnessOffset,
+		(OctaneDTOFloat)	fRandomnessIntensity,
+		(OctaneDTORGB)		fRandomnessAlbedo,
+		(OctaneDTOFloat)	fOpacity,
+		(OctaneDTOShader)	tEmission,
+		(OctaneDTOShader)	tMaterialLayer	
+		)
+
+		OctaneHairMaterial() :
+			fAlbedo("Albedo"),
+			fSpecular("Specular"),
+			fMelanin("Melanin"),
+			fPheomelanin("Pheomelanin"),
+			iMode("mode", false),
+			fIndexOfRefraction("Index of refraction"),
+			fLongitudinalRoughness("Longitudinal Roughness"),
+			fAzimuthalRoughness("Azimuthal Roughness"),
+			fOffset("Offset"),
+			fRandomnessFrequency("Randomness Frequency"),
+			fRandomnessOffset("Randomness Offset"),
+			fRandomnessIntensity("Randomness Intensity"),
+			fRandomnessAlbedo("Random Albedo"),
+			fOpacity("Opacity"),
+			tEmission("Emission"),
+			tMaterialLayer("Material layer"),
+			OctaneNodeBase(Octane::NT_MAT_HAIR, "ShaderNodeOctHairMat")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fAlbedo, fSpecular, fMelanin, fPheomelanin, iMode, fIndexOfRefraction, fLongitudinalRoughness, fAzimuthalRoughness, fOffset,
+			fRandomnessFrequency, fRandomnessOffset, fRandomnessIntensity, fRandomnessAlbedo, fOpacity, tEmission, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneHairMaterial
 
 	struct OctaneGroupLayer : public OctaneNodeBase{
 		REFLECTABLE
@@ -1450,23 +1581,23 @@ namespace OctaneDataTransferObject {
 	struct OctaneCompareTexture : public OctaneNodeBase {
 		REFLECTABLE
 		(
-		(OctaneDTOFloat)	fTexture1,
-		(OctaneDTOFloat)	fTexture2,
-		(OctaneDTOFloat)	fTexture3,
-		(OctaneDTOFloat)	fTexture4
+		(OctaneDTOFloat)	fInputA,
+		(OctaneDTOFloat)	fInputB,
+		(OctaneDTOFloat)	fASmallerThanB,
+		(OctaneDTOFloat)	fAEqOrLargerThanB
 		)
 
 		OctaneCompareTexture() :
-			fTexture1("Texture1"),
-			fTexture2("Texture2"),
-			fTexture3("Texture3"),
-			fTexture4("Texture4"),
+			fInputA("InputA"),
+			fInputB("InputB"),
+			fASmallerThanB("If A < B"),
+			fAEqOrLargerThanB("If A >= B"),
 			OctaneNodeBase(Octane::NT_TEX_COMPARE, "ShaderNodeOctCompareTex")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fTexture1, fTexture2, fTexture3, fTexture4, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fInputA, fInputB, fASmallerThanB, fAEqOrLargerThanB, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneTriplanarTexture : public OctaneNodeBase {
@@ -1758,6 +1889,7 @@ namespace OctaneDataTransferObject {
 		OSLNodeInfo		oOSLNodeInfo;		
 		OctaneOSLNodeBase(int octaneType, std::string pluginType) : OctaneNodeBase(octaneType, pluginType, 0, 1) {}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
 		MSGPACK_DEFINE(sShaderCode, sFilePath, oOSLNodeInfo, MSGPACK_BASE(OctaneNodeBase));
@@ -1851,35 +1983,49 @@ namespace OctaneDataTransferObject {
 	struct OctaneDirtTexture : public OctaneNodeBase {
 		REFLECTABLE
 		(
+		(OctaneDTOEnum)		iBiasCoordinateSpaceType,
+		(OctaneDTOEnum)		iIncludeObjectMode,
 		(OctaneDTOFloat)	fStrength,
 		(OctaneDTOFloat)	fDetails,
 		(OctaneDTOFloat)	fRadius,
+		(OctaneDTOFloat)	fRadiusMap,
 		(OctaneDTOFloat)	fTolerance,
+		(OctaneDTOFloat)	fSpread,
+		(OctaneDTOFloat)	fDistribution,
+		(OctaneDTOFloat3)	fBias,
 		(OctaneDTOBool)		bInvert
 		)
 
 		OctaneDirtTexture() :
+			iBiasCoordinateSpaceType("bias_coordinate_space_type", false),
+			iIncludeObjectMode("include_object_mode", false),
 			fStrength("Strength"),
 			fDetails("Details"),
 			fRadius("Radius"),
+			fRadiusMap("Radius map"),
 			fTolerance("Tolerance"),
+			fSpread("Spread"),
+			fDistribution("Distribution"),
+			fBias("Bias"),
 			bInvert("Invert Normal"),
 			OctaneNodeBase(Octane::NT_TEX_DIRT, "ShaderNodeOctDirtTex")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fStrength, fDetails, fRadius, fTolerance, bInvert, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(iBiasCoordinateSpaceType, iIncludeObjectMode, fStrength, fDetails, fRadius, fRadiusMap, fTolerance, fSpread, fDistribution, fBias, bInvert, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneBaseRampNode : public OctaneNodeBase {
 		std::vector<float>  fPosData;
 		std::vector<float>  fColorData;
+    std::vector<std::string> sTextureData;
+    std::vector<std::string> sPositionData;
 		OctaneBaseRampNode(int octaneType, std::string pluginType) : OctaneNodeBase(octaneType, pluginType) {}
 
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		OCTANE_NODE_OCTANEDB_FUNCTIONS
-		MSGPACK_DEFINE(fPosData, fColorData, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fPosData, fColorData, sTextureData, sPositionData, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneGradientTexture : public OctaneBaseRampNode {
@@ -2290,7 +2436,11 @@ namespace OctaneDataTransferObject {
 		(OctaneDTORGB)		fAbsorption,
 		(OctaneDTOBool)		bInvertAbsorption,
 		(OctaneDTOFloat)	fDensity,
-		(OctaneDTOFloat)	fVolumeStepLength
+		(OctaneDTOFloat)	fVolumeStepLength,
+		(OctaneDTOFloat)	fVolumeShadowRayStepLength,
+		(OctaneDTOEnum)		iLockStepLengthMode,
+		(OctaneDTOBool)		bLockStepLengthPin,
+		(OctaneDTOShader)	sSamplePositionDisplacement
 		)
 
 		OctaneAbsorptionMedium() :
@@ -2298,12 +2448,28 @@ namespace OctaneDataTransferObject {
 			bInvertAbsorption("Invert abs."),
 			fDensity("Density"),
 			fVolumeStepLength("Vol. step length"),
+			fVolumeShadowRayStepLength("Vol. shadow ray step length"),
+			iLockStepLengthMode("lock_step_length_mode", false),
+			bLockStepLengthPin("Lock step length pins"),
+			sSamplePositionDisplacement("Sample position displacement"),
 			OctaneNodeBase(Octane::NT_MED_ABSORPTION, "ShaderNodeOctAbsorptionMedium")
 		{
 		}
+
+		void PackAttributes() {
+#ifdef OCTANE_SERVER
+			iLockStepLengthMode.iVal = bLockStepLengthPin.bVal ? 1 : 0;
+#else
+			bLockStepLengthPin.bVal = iLockStepLengthMode.iVal > 0;
+			bLockStepLengthPin.bUseLinked = false;
+			if (bLockStepLengthPin.bVal) {
+				fVolumeShadowRayStepLength.fVal = fVolumeStepLength.fVal;
+			}
+#endif
+		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fAbsorption, bInvertAbsorption, fDensity, fVolumeStepLength, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fAbsorption, bInvertAbsorption, fDensity, fVolumeStepLength, fVolumeShadowRayStepLength, bLockStepLengthPin, iLockStepLengthMode, sSamplePositionDisplacement, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneScatteringMedium : public OctaneNodeBase {
@@ -2315,7 +2481,11 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fVolumeStepLength,
 		(OctaneDTORGB)		fScattering,
 		(OctaneDTOFloat)	fPhase,
-		(OctaneDTOShader)	sEmission
+		(OctaneDTOShader)	sEmission,
+		(OctaneDTOFloat)	fVolumeShadowRayStepLength,
+		(OctaneDTOEnum)		iLockStepLengthMode,
+		(OctaneDTOBool)		bLockStepLengthPin,
+		(OctaneDTOShader)	sSamplePositionDisplacement
 		)
 
 		OctaneScatteringMedium() :
@@ -2326,12 +2496,28 @@ namespace OctaneDataTransferObject {
 			fScattering("Scattering Tex"),
 			fPhase("Phase"),
 			sEmission("Emission"),
+			fVolumeShadowRayStepLength("Vol. shadow ray step length"),
+			iLockStepLengthMode("lock_step_length_mode", false),
+			bLockStepLengthPin("Lock step length pins"),
+			sSamplePositionDisplacement("Sample position displacement"),
 			OctaneNodeBase(Octane::NT_MED_SCATTERING, "ShaderNodeOctScatteringMedium")
 		{
 		}
+
+		void PackAttributes() {
+#ifdef OCTANE_SERVER
+			iLockStepLengthMode.iVal = bLockStepLengthPin.bVal ? 1 : 0;
+#else
+			bLockStepLengthPin.bVal = iLockStepLengthMode.iVal > 0;
+			bLockStepLengthPin.bUseLinked = false;
+			if (bLockStepLengthPin.bVal) {
+				fVolumeShadowRayStepLength.fVal = fVolumeStepLength.fVal;
+			}
+#endif
+		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fAbsorption, bInvertAbsorption, fDensity, fVolumeStepLength, fScattering, fPhase, sEmission, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fAbsorption, bInvertAbsorption, fDensity, fVolumeStepLength, fScattering, fPhase, sEmission, fVolumeShadowRayStepLength, iLockStepLengthMode, bLockStepLengthPin, sSamplePositionDisplacement, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
 	struct OctaneVolumeMedium : public OctaneNodeBase {
@@ -2346,7 +2532,11 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	sScatteringRamp,
 		(OctaneDTOFloat)	fPhase,
 		(OctaneDTOShader)	sEmission,
-		(OctaneDTOShader)	sEmissionRamp
+		(OctaneDTOShader)	sEmissionRamp,
+		(OctaneDTOFloat)	fVolumeShadowRayStepLength,
+		(OctaneDTOEnum)		iLockStepLengthMode,
+		(OctaneDTOBool)		bLockStepLengthPin,
+		(OctaneDTOShader)	sSamplePositionDisplacement
 		)
 
 		OctaneVolumeMedium() :
@@ -2360,55 +2550,73 @@ namespace OctaneDataTransferObject {
 			fPhase("Phase"),
 			sEmission("Emission"),
 			sEmissionRamp("Emiss. ramp"),
+			fVolumeShadowRayStepLength("Vol. shadow ray step length"),
+			iLockStepLengthMode("lock_step_length_mode", false),
+			bLockStepLengthPin("Lock step length pins"),
+			sSamplePositionDisplacement("Sample position displacement"),
 			OctaneNodeBase(Octane::NT_MED_VOLUME, "ShaderNodeOctVolumeMedium")
 		{
 		}
+
+		void PackAttributes() {
+#ifdef OCTANE_SERVER
+			iLockStepLengthMode.iVal = bLockStepLengthPin.bVal ? 1 : 0;
+#else
+			bLockStepLengthPin.bVal = iLockStepLengthMode.iVal > 0;
+			bLockStepLengthPin.bUseLinked = false;
+			if (bLockStepLengthPin.bVal) {
+				fVolumeShadowRayStepLength.fVal = fVolumeStepLength.fVal;
+			}
+#endif
+		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fAbsorption, sAbsorptionRamp, bInvertAbsorption, fDensity, fVolumeStepLength, fScattering, sScatteringRamp, fPhase, sEmission, sEmissionRamp, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(fAbsorption, sAbsorptionRamp, bInvertAbsorption, fDensity, fVolumeStepLength, fScattering, sScatteringRamp, fPhase, sEmission, sEmissionRamp, fVolumeShadowRayStepLength, bLockStepLengthPin, iLockStepLengthMode, sSamplePositionDisplacement, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// VOLUME
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/// The structure holding an OpenVDB volume data that is going to be uploaded to the Octane server.
-	struct OctaneVolume : public OctaneNodeBase {
-		std::string  sFileName;
-		float   *pfRegularGrid;
-		int32_t iGridSize;
-		MatrixF gridMatrix;
-		float_3 f3Resolution;
-		float   fISO;
-		std::string  sMedium;
-		int32_t iAbsorptionOffset;
-		float   fAbsorptionScale;
-		int32_t iEmissionOffset;
-		float   fEmissionScale;
-		int32_t iScatterOffset;
-		float   fScatterScale;
-		int32_t iVelocityOffsetX;
-		int32_t iVelocityOffsetY;
-		int32_t iVelocityOffsetZ;
-		float   fVelocityScale;
-		bool	bSDF;
-		std::string  sAbsorptionId;
-		std::string  sEmissionId;
-		std::string  sScatterId;
-		std::string  sVelocityId;
-		std::string  sVelocityIdX;
-		std::string  sVelocityIdY;
-		std::string  sVelocityIdZ;
+	struct OctaneRandomWalkMedium : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOFloat)	fDensity,
+		(OctaneDTOFloat)	fVolumeStepLength,
+		(OctaneDTOFloat)	fVolumeShadowRayStepLength,
+		(OctaneDTOEnum)		iLockStepLengthMode,
+		(OctaneDTOBool)		bLockStepLengthPin,
+		(OctaneDTOShader)	sSamplePositionDisplacement,
+		(OctaneDTORGB)		fAlbedo,
+		(OctaneDTORGB)		fRadius,
+		(OctaneDTOFloat)	fBias
+		)
 
-		float   fGenVisibility;
-		bool    bCamVisibility;
-		bool    bShadowVisibility;
-		int32_t iRandomColorSeed;
-		int32_t iLayerNumber;
-		int32_t iBakingGroupId;
+		OctaneRandomWalkMedium() :
+			fDensity("Density"),
+			fVolumeStepLength("Vol. step length"),
+			fVolumeShadowRayStepLength("Vol. shadow ray step length"),
+			iLockStepLengthMode("lock_step_length_mode", false),
+			bLockStepLengthPin("Lock step length pins"),
+			sSamplePositionDisplacement("Sample position displacement"),
+			fAlbedo("Albedo"),
+			fRadius("Radius"),
+			fBias("Bias"),
+			OctaneNodeBase(Octane::NT_MED_RANDOMWALK, "ShaderNodeOctRandomWalkMedium")
+		{
+		}
 
-		OctaneVolume() : OctaneNodeBase(Octane::NT_GEO_VOLUME, "OctaneVolume") {}
-	}; //struct OctaneVolume
-
+		void PackAttributes() {
+#ifdef OCTANE_SERVER
+			iLockStepLengthMode.iVal = bLockStepLengthPin.bVal ? 1 : 0;
+#else
+			bLockStepLengthPin.bVal = iLockStepLengthMode.iVal > 0;
+			bLockStepLengthPin.bUseLinked = false;
+			if (bLockStepLengthPin.bVal) {
+				fVolumeShadowRayStepLength.fVal = fVolumeStepLength.fVal;
+			}
+#endif
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fDensity, fVolumeStepLength, fVolumeShadowRayStepLength, bLockStepLengthPin, iLockStepLengthMode, sSamplePositionDisplacement, fAlbedo, fRadius, fBias, MSGPACK_BASE(OctaneNodeBase));
+	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// VALUES
@@ -2477,6 +2685,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOEnum)		iMode,
 		(OctaneDTOFloat)	fRadius,
 		(OctaneDTOFloat)	fRoundness,
+		(OctaneDTOInt)		iSample,
 		(OctaneDTOBool)		bConsiderOtherObjects
 		)
 
@@ -2484,13 +2693,14 @@ namespace OctaneDataTransferObject {
 			iMode("round_edges_mode", false),
 			fRadius("Radius"),
 			fRoundness("Roundness"),
+			iSample("Samples"),
 			bConsiderOtherObjects("Consider other objects"),
 			OctaneNodeBase(Octane::NT_ROUND_EDGES, "ShaderNodeOctRoundEdges")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(iMode, fRadius, fRoundness, bConsiderOtherObjects, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(iMode, fRadius, fRoundness, iSample, bConsiderOtherObjects, MSGPACK_BASE(OctaneNodeBase));
 	};
 }
 

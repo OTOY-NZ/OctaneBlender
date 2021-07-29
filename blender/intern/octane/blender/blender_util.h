@@ -18,7 +18,7 @@
 #define __BLENDER_UTIL_H__
 
 #include "render/mesh.h"
-
+#include "render/osl.h"
 #include "MEM_guardedalloc.h"
 #include "RNA_types.h"
 #include "RNA_access.h"
@@ -44,10 +44,12 @@ void BLI_join_dirfile(char *__restrict string,
                       const size_t maxlen,
                       const char *__restrict dir,
                       const char *__restrict file);
+bool BLI_path_frame(char *path, int frame, int digits);
+const char *BLI_path_extension(const char *filepath);
 void BKE_image_user_frame_calc(void *ima, void *iuser, int cfra);
 void BKE_image_user_file_path(void *iuser, void *ima, char *path);
-unsigned char *BKE_image_get_pixels_for_frame(void *image, int frame);
-float *BKE_image_get_float_pixels_for_frame(void *image, int frame);
+unsigned char *BKE_image_get_pixels_for_frame(void *image, int frame, int tile);
+float *BKE_image_get_float_pixels_for_frame(void *image, int frame, int tile);
 struct Image *BKE_image_load_exists(struct Main *bmain, const char *filepath);
 }
 
@@ -173,7 +175,7 @@ static inline void curvemapping_to_array(BL::CurveMapping &cumap, array<float> &
   data.resize(size);
   for (int i = 0; i < size; i++) {
     float t = (float)i / (float)(size - 1);
-    data[i] = curve.evaluate(t);
+    data[i] = cumap.evaluate(curve, t);
   }
 }
 
@@ -211,15 +213,16 @@ static inline void curvemapping_color_to_array(BL::CurveMapping &cumap,
     BL::CurveMap mapI = cumap.curves[3];
     for (int i = 0; i < size; i++) {
       const float t = min_x + (float)i / (float)(size - 1) * range_x;
-      data[i] = make_float3(mapR.evaluate(mapI.evaluate(t)),
-                            mapG.evaluate(mapI.evaluate(t)),
-                            mapB.evaluate(mapI.evaluate(t)));
+      data[i] = make_float3(cumap.evaluate(mapR, cumap.evaluate(mapI, t)),
+                            cumap.evaluate(mapG, cumap.evaluate(mapI, t)),
+                            cumap.evaluate(mapB, cumap.evaluate(mapI, t)));
     }
   }
   else {
     for (int i = 0; i < size; i++) {
       float t = min_x + (float)i / (float)(size - 1) * range_x;
-      data[i] = make_float3(mapR.evaluate(t), mapG.evaluate(t), mapB.evaluate(t));
+      data[i] = make_float3(
+          cumap.evaluate(mapR, t), cumap.evaluate(mapG, t), cumap.evaluate(mapB, t));
     }
   }
 }
@@ -244,12 +247,21 @@ static inline int render_resolution_y(BL::RenderSettings &b_render)
   return b_render.resolution_y() * b_render.resolution_percentage() / 100;
 }
 
-static inline string image_user_file_path(BL::ImageUser &iuser, BL::Image &ima, int cfra)
+static inline string image_user_file_path(BL::ImageUser &iuser,
+                                          BL::Image &ima,
+                                          int cfra,
+                                          bool load_tiled)
 {
   char filepath[1024];
+  iuser.tile(0);
   BKE_image_user_frame_calc(NULL, iuser.ptr.data, cfra);
   BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
-  return string(filepath);
+
+  string filepath_str = string(filepath);
+  if (load_tiled && ima.source() == BL::Image::source_TILED) {
+    string_replace(filepath_str, "1001", "<UDIM>");
+  }
+  return filepath_str;
 }
 
 static inline int image_user_frame_number(BL::ImageUser &iuser, int cfra)
@@ -258,14 +270,14 @@ static inline int image_user_frame_number(BL::ImageUser &iuser, int cfra)
   return iuser.frame_current();
 }
 
-static inline unsigned char *image_get_pixels_for_frame(BL::Image &image, int frame)
+static inline unsigned char *image_get_pixels_for_frame(BL::Image &image, int frame, int tile)
 {
-  return BKE_image_get_pixels_for_frame(image.ptr.data, frame);
+  return BKE_image_get_pixels_for_frame(image.ptr.data, frame, tile);
 }
 
-static inline float *image_get_float_pixels_for_frame(BL::Image &image, int frame)
+static inline float *image_get_float_pixels_for_frame(BL::Image &image, int frame, int tile)
 {
-  return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame);
+  return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame, tile);
 }
 
 static inline void render_add_metadata(BL::RenderResult &b_rr, string name, string value)
@@ -509,6 +521,24 @@ static inline string blender_absolute_path(BL::BlendData &b_data, BL::ID &b_id, 
   return path;
 }
 
+static inline string blender_path_frame(const string &path, int frame, int digits)
+{
+  char converted_path[1024];
+  strcpy(converted_path, path.c_str());
+  BLI_path_frame(converted_path, frame, digits);
+  return string(converted_path);
+}
+
+static inline string blender_path_extension(const string &path)
+{
+  const char *extension = BLI_path_extension(path.c_str());
+  string result;
+  if (extension) {
+    result = string(result);
+  }
+  return result;
+}
+
 static inline string get_text_datablock_content(const PointerRNA &ptr)
 {
   if (ptr.data == NULL) {
@@ -590,37 +620,20 @@ static inline bool object_use_deform_motion(BL::Object &b_parent, BL::Object &b_
   return use_deform_motion;
 }
 
-static inline BL::SmokeDomainSettings object_smoke_domain_find(BL::Object &b_ob)
+static inline BL::FluidDomainSettings object_fluid_domain_find(BL::Object &b_ob)
 {
   BL::Object::modifiers_iterator b_mod;
 
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
-    if (b_mod->is_a(&RNA_SmokeModifier)) {
-      BL::SmokeModifier b_smd(*b_mod);
+    if (b_mod->is_a(&RNA_FluidModifier)) {
+      BL::FluidModifier b_mmd(*b_mod);
 
-      if (b_smd.smoke_type() == BL::SmokeModifier::smoke_type_DOMAIN)
-        return b_smd.domain_settings();
+      if (b_mmd.fluid_type() == BL::FluidModifier::fluid_type_DOMAIN)
+        return b_mmd.domain_settings();
     }
   }
 
-  return BL::SmokeDomainSettings(PointerRNA_NULL);
-}
-
-static inline BL::DomainFluidSettings object_fluid_domain_find(BL::Object b_ob)
-{
-  BL::Object::modifiers_iterator b_mod;
-
-  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
-    if (b_mod->is_a(&RNA_FluidSimulationModifier)) {
-      BL::FluidSimulationModifier b_fmd(*b_mod);
-      BL::FluidSettings fss = b_fmd.settings();
-
-      if (fss.type() == BL::FluidSettings::type_DOMAIN)
-        return (BL::DomainFluidSettings)b_fmd.settings();
-    }
-  }
-
-  return BL::DomainFluidSettings(PointerRNA_NULL);
+  return BL::FluidDomainSettings(PointerRNA_NULL);
 }
 
 static inline Mesh::SubdivisionType object_subdivision_type(BL::Object &b_ob,
@@ -1089,6 +1102,12 @@ static void resolve_object_layer(PointerRNA &octane_object,
   object_layer.oBakingTransform.fTranslation.fVal.z = 0;
 }
 
+static void resolve_volume_attributes(PointerRNA &octane_volume,
+                                      OctaneDataTransferObject::OctaneVolume &object_volume)
+{
+  visit_each(object_volume, OctaneDataTransferObjectVisitor(octane_volume));
+}
+
 static std::string resolve_octane_name(BL::ID &b_ob_data,
                                        std::string modifier_object_tag,
                                        std::string tag)
@@ -1112,6 +1131,226 @@ static inline std::string join_dir_file(std::string dir, std::string file)
   char path[256];
   BLI_join_dirfile(path, sizeof(path), dir.c_str(), file.c_str());
   return std::string(path);
+}
+
+static std::string resolve_octane_vdb_path(PointerRNA &oct_mesh,
+                                           BL::BlendData &b_data,
+                                           BL::Scene &b_scene)
+{
+  int start_playing_at = RNA_int_get(&oct_mesh, "openvdb_frame_start_playing_at");
+  int current_frame = b_scene.frame_current();
+  int current_frame_for_vdb = std::max(0, current_frame - start_playing_at);
+  int start_frame = RNA_int_get(&oct_mesh, "openvdb_frame_start");
+  int end_frame = RNA_int_get(&oct_mesh, "openvdb_frame_end");
+  float openvdb_frame_speed_mutiplier = RNA_float_get(&oct_mesh, "openvdb_frame_speed_mutiplier");
+  char vdbFilePath[512];
+  RNA_string_get(&oct_mesh, "imported_openvdb_file_path", vdbFilePath);
+  std::string vdbFileStr(vdbFilePath);
+  std::size_t pos = vdbFileStr.find("F$");
+  if (pos != std::string::npos) {
+    int target_frame = std::min(
+        int(start_frame + current_frame_for_vdb * openvdb_frame_speed_mutiplier), end_frame);
+    if (vdbFileStr.find("$F$") != std::string::npos) {
+      vdbFileStr = vdbFileStr.substr(0, pos - 1) + std::to_string(target_frame) +
+                   vdbFileStr.substr(pos + 2);
+    }
+    else {
+      std::string format_tmp = "%0";
+      format_tmp += vdbFileStr[pos - 1];
+      format_tmp += "d";
+      char buffer[256];
+      sprintf(buffer, format_tmp.c_str(), target_frame);
+      vdbFileStr = vdbFileStr.substr(0, pos - 2) + std::string(buffer) +
+                   vdbFileStr.substr(pos + 2);
+    }
+  }
+  return blender_absolute_path(b_data, b_scene, vdbFileStr);
+}
+
+static bool osl_node_configuration(Main *main,
+                                   BL::ShaderNode &b_node,
+                                   OctaneDataTransferObject::OSLNodeInfo &oslNodeInfo)
+{
+  /* add new sockets from parameters */
+  set<void *> used_sockets;
+  for (int i = 0; i < oslNodeInfo.mPinInfo.size(); ++i) {
+    /* determine socket type */
+    string socket_type;
+    BL::NodeSocket::type_enum data_type = BL::NodeSocket::type_VALUE;
+    float4 default_float4 = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+    float default_float = 0.0f;
+    int default_int = 0;
+    int default_enum = 0;
+    bool default_bool = false;
+    string default_string = "";
+
+    const OctaneDataTransferObject::ApiNodePinInfo &pinInfo = oslNodeInfo.mPinInfo.get_param(i);
+    string socket_name = pinInfo.mLabelName;
+    string identifier = pinInfo.mName;
+
+    switch (pinInfo.mType) {
+      case Octane::PT_TRANSFORM:
+      case Octane::PT_PROJECTION:
+        socket_type = "NodeSocketShader";
+        data_type = BL::NodeSocket::type_SHADER;
+        break;
+      case Octane::PT_TEXTURE:
+        socket_type = "NodeSocketFloat";
+        data_type = BL::NodeSocket::type_VALUE;
+        default_float = pinInfo.mFloatInfo.mDefaultValue.x;
+        break;
+      case Octane::PT_STRING:
+        socket_type = "NodeSocketString";
+        data_type = BL::NodeSocket::type_STRING;
+        default_string = pinInfo.mStringInfo.mDefaultValue;
+        break;
+      case Octane::PT_BOOL:
+        socket_type = "NodeSocketBool";
+        data_type = BL::NodeSocket::type_BOOLEAN;
+        default_bool = pinInfo.mBoolInfo.mDefaultValue;
+        break;
+      case Octane::PT_ENUM:
+        socket_type = "NodeSocketInt";
+        data_type = BL::NodeSocket::type_INT;
+        default_enum = pinInfo.mEnumInfo.mDefaultValue;
+        break;
+      case Octane::PT_FLOAT:
+        if (pinInfo.mFloatInfo.mIsColor) {
+          socket_type = "NodeSocketColor";
+          data_type = BL::NodeSocket::type_RGBA;
+          default_float4[0] = pinInfo.mFloatInfo.mDefaultValue.x;
+          default_float4[1] = pinInfo.mFloatInfo.mDefaultValue.y;
+          default_float4[2] = pinInfo.mFloatInfo.mDefaultValue.z;
+        }
+        else if (pinInfo.mFloatInfo.mDimCount > 1) {
+          socket_type = "NodeSocketVector";
+          data_type = BL::NodeSocket::type_VECTOR;
+          default_float4[0] = pinInfo.mFloatInfo.mDefaultValue.x;
+          default_float4[1] = pinInfo.mFloatInfo.mDefaultValue.y;
+          default_float4[2] = pinInfo.mFloatInfo.mDefaultValue.z;
+        }
+        else {
+          socket_type = "NodeSocketFloat";
+          data_type = BL::NodeSocket::type_VALUE;
+          default_float = pinInfo.mFloatInfo.mDefaultValue.x;
+        }
+        break;
+      case Octane::PT_INT:
+        if (pinInfo.mIntInfo.mIsColor) {
+          socket_type = "NodeSocketColor";
+          data_type = BL::NodeSocket::type_RGBA;
+          default_float4[0] = pinInfo.mIntInfo.mDefaultValue.x;
+          default_float4[1] = pinInfo.mIntInfo.mDefaultValue.y;
+          default_float4[2] = pinInfo.mIntInfo.mDefaultValue.z;
+        }
+        else if (pinInfo.mIntInfo.mDimCount > 1) {
+          socket_type = "NodeSocketVector";
+          data_type = BL::NodeSocket::type_VECTOR;
+          default_float4[0] = pinInfo.mIntInfo.mDefaultValue.x;
+          default_float4[1] = pinInfo.mIntInfo.mDefaultValue.y;
+          default_float4[2] = pinInfo.mIntInfo.mDefaultValue.z;
+        }
+        else {
+          socket_type = "NodeSocketInt";
+          data_type = BL::NodeSocket::type_INT;
+          default_int = pinInfo.mIntInfo.mDefaultValue.x;
+        }
+        break;
+      default:
+        continue;
+    }
+    /* find socket socket */
+    BL::NodeSocket b_sock(PointerRNA_NULL);
+    if (pinInfo.mIsOutput) {
+      b_sock = b_node.outputs[socket_name];
+      // LEGACY ISSUES
+      // Before 16.3.2, blender uses mName as socket name.
+      // After 16.3.2, blender uses mLabelName as socket name.
+      // To solve the backward compatibility issue, server send both
+      // therefore, client can solve backward compatibility issues
+      if (!b_sock) {
+        b_sock = b_node.outputs[identifier];
+        if (b_sock && socket_name.size() > 0) {
+          b_sock.name(socket_name);
+        }
+      }
+      /* remove if type no longer matches */
+      if (b_sock && b_sock.bl_idname() != socket_type) {
+        b_node.outputs.remove(main, b_sock);
+        b_sock = BL::NodeSocket(PointerRNA_NULL);
+      }
+    }
+    else {
+      b_sock = b_node.inputs[socket_name];
+      if (!b_sock) {
+        b_sock = b_node.inputs[identifier];
+        if (b_sock && socket_name.size() > 0) {
+          b_sock.name(socket_name);
+        }
+      }
+      /* remove if type no longer matches */
+      if (b_sock && b_sock.bl_idname() != socket_type) {
+        b_node.inputs.remove(main, b_sock);
+        b_sock = BL::NodeSocket(PointerRNA_NULL);
+      }
+    }
+
+    if (!b_sock) {
+      /* create new socket */
+      if (pinInfo.mIsOutput)
+        b_sock = b_node.outputs.create(
+            main, socket_type.c_str(), socket_name.c_str(), identifier.c_str());
+      else
+        b_sock = b_node.inputs.create(
+            main, socket_type.c_str(), socket_name.c_str(), identifier.c_str());
+
+      /* set default value */
+      if (data_type == BL::NodeSocket::type_VALUE) {
+        set_float(b_sock.ptr, "default_value", default_float);
+      }
+      else if (data_type == BL::NodeSocket::type_INT) {
+        set_int(b_sock.ptr, "default_value", default_int);
+      }
+      else if (data_type == BL::NodeSocket::type_RGBA) {
+        set_float4(b_sock.ptr, "default_value", default_float4);
+      }
+      else if (data_type == BL::NodeSocket::type_VECTOR) {
+        set_float3(b_sock.ptr, "default_value", float4_to_float3(default_float4));
+      }
+      else if (data_type == BL::NodeSocket::type_STRING) {
+        set_string(b_sock.ptr, "default_value", default_string);
+      }
+    }
+
+    used_sockets.insert(b_sock.ptr.data);
+  }
+
+  /* remove unused parameters */
+  bool removed;
+
+  do {
+    BL::Node::inputs_iterator b_input;
+    BL::Node::outputs_iterator b_output;
+
+    removed = false;
+
+    for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+      if (used_sockets.find(b_input->ptr.data) == used_sockets.end()) {
+        b_node.inputs.remove(main, *b_input);
+        removed = true;
+        break;
+      }
+    }
+
+  } while (removed);
+
+  return true;
+}
+
+static bool is_vdb_format(int format)
+{
+  // FLUID_DOMAIN_FILE_OPENVDB = (1 << 1)
+  return format == (1 << 1);
 }
 
 OCT_NAMESPACE_END

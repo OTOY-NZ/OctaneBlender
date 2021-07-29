@@ -381,7 +381,20 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, 0, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, 0, N_("OutMat")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {
+    {SOCK_SHADER, 0, N_("OutDisplacement")},
+    {SOCK_RGBA,
+     0,
+     N_("OutMat"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
+    {-1, 0, ""}};
 
 static void node_type_oct_vertex_displacement_mixer_init(bNodeTree *ntree, bNode *node)
 {

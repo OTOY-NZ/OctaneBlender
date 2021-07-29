@@ -22,6 +22,9 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneRenderPasses);
 		OCTANE_NODE_CREATOR(OctaneCommand);
 		OCTANE_NODE_CREATOR(OctaneDBNodes);
+		OCTANE_NODE_CREATOR(OctaneSaveImage);
+		OCTANE_NODE_CREATOR(OctaneCameraData);
+		OCTANE_NODE_CREATOR(OctaneEngineData);
 
 		OCTANE_NODE_CREATOR(OctaneDiffuseMaterial);
 		OCTANE_NODE_CREATOR(OctaneMixMaterial);
@@ -34,6 +37,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneShadowCatcherMaterial);
 		OCTANE_NODE_CREATOR(OctaneLayeredMaterial);
 		OCTANE_NODE_CREATOR(OctaneCompositeMaterial);
+		OCTANE_NODE_CREATOR(OctaneHairMaterial);
 		OCTANE_NODE_CREATOR(OctaneGroupLayer);
 		OCTANE_NODE_CREATOR(OctaneDiffuseLayer);
 		OCTANE_NODE_CREATOR(OctaneMetallicLayer);
@@ -97,7 +101,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneAbsorptionMedium);
 		OCTANE_NODE_CREATOR(OctaneScatteringMedium);
 		OCTANE_NODE_CREATOR(OctaneVolumeMedium);
-		OCTANE_NODE_CREATOR(OctaneVolume);
+		OCTANE_NODE_CREATOR(OctaneRandomWalkMedium);
 
 		OCTANE_NODE_CREATOR(OctaneFloatValue);
 		OCTANE_NODE_CREATOR(OctaneIntValue);
@@ -118,6 +122,9 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneValueTransform);
 		OCTANE_NODE_CREATOR(Octane2DTransform);
 		OCTANE_NODE_CREATOR(Octane3DTransform);
+
+		OCTANE_NODE_CREATOR(OctaneVolume);
+		OCTANE_NODE_CREATOR(OctaneVolumeInfo);
 #undef OCTANE_NODE_CREATOR
 	};
 
@@ -138,6 +145,25 @@ namespace OctaneDataTransferObject {
 			node = creatorsMap[octaneType]();
 		}
 		return node;
+	}
+
+	NodeResourceType OctaneNodeFactory::GetNodeResourceType(const std::string &pluginType) {
+		return GetNodeResourceType(GetOctaneNodeType(pluginType));
+	}
+
+	NodeResourceType OctaneNodeFactory::GetNodeResourceType(int octaneType) {
+		switch (octaneType) {
+		case Octane::NT_TEX_IMAGE:
+		case Octane::NT_TEX_IMAGE_TILES:
+		case Octane::NT_TEX_ALPHAIMAGE:
+		case Octane::NT_TEX_FLOATIMAGE:
+		case Octane::NT_TEX_BAKED_IMAGE:
+			return NodeResourceType::TEXTURE;
+		case Octane::NT_GEO_MESH:
+			return NodeResourceType::GEOMETRY;
+		default:
+			return NodeResourceType::LIGHT;
+		}
 	}
 }
 

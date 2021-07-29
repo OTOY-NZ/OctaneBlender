@@ -1011,6 +1011,10 @@ typedef struct NodeShaderTexIES {
   char filepath[1024];
 } NodeShaderTexIES;
 
+typedef struct NodeShaderOutputAOV {
+  char name[64];
+} NodeShaderOutputAOV;
+
 typedef struct NodeSunBeams {
   float source[2];
 
@@ -1216,6 +1220,22 @@ enum {
   NODE_MATH_CEIL = 21,
   NODE_MATH_FRACTION = 22,
   NODE_MATH_SQRT = 23,
+  NODE_MATH_INV_SQRT = 24,
+  NODE_MATH_SIGN = 25,
+  NODE_MATH_EXPONENT = 26,
+  NODE_MATH_RADIANS = 27,
+  NODE_MATH_DEGREES = 28,
+  NODE_MATH_SINH = 29,
+  NODE_MATH_COSH = 30,
+  NODE_MATH_TANH = 31,
+  NODE_MATH_TRUNC = 32,
+  NODE_MATH_SNAP = 33,
+  NODE_MATH_WRAP = 34,
+  NODE_MATH_COMPARE = 35,
+  NODE_MATH_MULTIPLY_ADD = 36,
+  NODE_MATH_PINGPONG = 37,
+  NODE_MATH_SMOOTH_MIN = 38,
+  NODE_MATH_SMOOTH_MAX = 39,
 };
 
 /* Vector Math node operations. */
@@ -1245,13 +1265,27 @@ enum {
   NODE_VECTOR_MATH_MAXIMUM = 19,
 };
 
+/* Clamp node types. */
+enum {
+  NODE_CLAMP_MINMAX = 0,
+  NODE_CLAMP_RANGE = 1,
+};
+
+/* Map range node types. */
+enum {
+  NODE_MAP_RANGE_LINEAR = 0,
+  NODE_MAP_RANGE_STEPPED = 1,
+  NODE_MAP_RANGE_SMOOTHSTEP = 2,
+  NODE_MAP_RANGE_SMOOTHERSTEP = 3,
+};
+
 /* mix rgb node flags */
 #define SHD_MIXRGB_USE_ALPHA 1
 #define SHD_MIXRGB_CLAMP 2
 
 /* subsurface */
 enum {
-#ifdef DNA_DEPRECATED
+#ifdef DNA_DEPRECATED_ALLOW
   SHD_SUBSURFACE_COMPATIBLE = 0,  // Deprecated
 #endif
   SHD_SUBSURFACE_CUBIC = 1,
@@ -1410,9 +1444,10 @@ typedef enum NodeShaderOutputTarget {
 #define OCT_HDR_TONEMAP_LINEAR 2
 
 /* The different models we support in the daylight environment node. */
-#define OCT_DAYLIGHTMODEL_OLD 0
+#define OCT_DAYLIGHTMODEL_OLD 0 //DAYLIGHTMODEL_PREETHAM
 #define OCT_DAYLIGHTMODEL_NEW 1
 #define OCT_DAYLIGHTMODEL_NISHITA 2
+#define OCT_DAYLIGHTMODEL_HOSEK 3
 
 /* The light direction mode */
 #define OCT_USE_LIGHT_OBJECT_DIRECTION 0
@@ -1501,5 +1536,18 @@ enum InfoChannelType {
 #define OCT_DISPLACEMENT_TEXTURE_SPACE_OBJECT 0
 /// Texture data is in tangent space
 #define OCT_DISPLACEMENT_TEXTURE_SPACE_TANGENT 1
+
+#define OCT_POSITION_GLOBAL 1
+#define OCT_POSITION_OBJECT 3
+#define OCT_POSITION_NORMAL 4
+
+#define OCT_DIRT_INCLUDE_ALL 0
+#define OCT_DIRT_INCLUDE_SELF 1
+#define OCT_DIRT_INCLUDE_OTHERS 2
+
+/// Base color is set by albedo
+#define OCT_HAIR_MATERIAL_BASE_COLOR_ALBEDO 0
+/// There is no base color
+#define OCT_HAIR_MATERIAL_BASE_COLOR_MELANIN_PLUS_PHEOMELANIN 1
 
 #endif

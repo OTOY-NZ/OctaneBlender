@@ -24,6 +24,7 @@
 #include "util/util_types.h"
 
 #include "blender/server/octane_client.h"
+#include "util/util_transform.h"
 #include <unordered_map>
 
 namespace OctaneEngine {
@@ -47,8 +48,6 @@ class Mesh {
  public:
   enum WindingOrder { CLOCKWISE, COUNTERCLOCKWISE };
 
-  enum MeshType { GLOBAL, SCATTER, MOVABLE_PROXY, RESHAPABLE_PROXY, AS_IS };
-
   enum SubdivisionType {
     SUBDIVISION_NONE,
     SUBDIVISION_LINEAR,
@@ -61,44 +60,33 @@ class Mesh {
   ~Mesh();
 
   void clear();
-  bool is_global_mesh_type(Scene *scene);
+  bool is_subdivision();
+  bool is_volume();
+  bool is_global_mesh_type(Scene *scene);  
   void tag_update(Scene *scene);
+
+  static std::string generate_shader_tag(std::vector<Shader *> &shaders);
 
   std::string name;
   std::string nice_name;
   MeshType mesh_type;
 
   OctaneDataTransferObject::OctaneMesh octane_mesh;
+  OctaneDataTransferObject::OctaneVolume octane_volume;
 
   bool empty;
 
   bool is_octane_volume;
-  std::string vdb_file_path;
   int last_vdb_frame;
 
   bool is_scatter_group_source;
   int32_t scatter_group_id;
   int32_t scatter_instance_id;
 
-  float *vdb_regular_grid;
-  int32_t vdb_grid_size;
-
-  float3 vdb_resolution;
-  float vdb_iso;
-  int32_t vdb_absorption_offset;
-  float vdb_absorption_scale;
-  int32_t vdb_emission_offset;
-  float vdb_emission_scale;
-  int32_t vdb_scatter_offset;
-  float vdb_scatter_scale;
-  int32_t vdb_velocity_x_offset;
-  int32_t vdb_velocity_y_offset;
-  int32_t vdb_velocity_z_offset;
-  float vdb_velocity_scale;
-  bool vdb_sdf;
-  ::OctaneEngine::MatrixF vdb_grid_matrix;
-
   std::vector<Shader *> used_shaders;
+  std::string shaders_tag;
+  bool enable_offset_transform;
+  Transform offset_transform;
 
   bool final_visibility;
   bool need_update;
@@ -177,7 +165,6 @@ class MeshManager {
   bool need_update;
   bool need_global_update;
   std::unordered_map<int, std::string> m_scatter_groups;
-  ScatterHelper m_scatter_helper;
 };  // MeshManager
 
 OCT_NAMESPACE_END

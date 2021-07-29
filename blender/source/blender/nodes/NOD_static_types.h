@@ -51,7 +51,7 @@ DefNode(ShaderNode,     SH_NODE_CURVE_VEC,       def_vector_curve,       "CURVE_
 DefNode(ShaderNode,     SH_NODE_CURVE_RGB,       def_rgb_curve,          "CURVE_RGB",      RGBCurve,         "RGB Curves",        ""              )
 DefNode(ShaderNode,     SH_NODE_CAMERA,          0,                      "CAMERA",         CameraData,       "Camera Data",       ""              )
 DefNode(ShaderNode,     SH_NODE_MAP_RANGE,       def_map_range,          "MAP_RANGE",      MapRange,         "Map Range",         ""              )
-DefNode(ShaderNode,     SH_NODE_CLAMP,           0,                      "CLAMP",          Clamp,            "Clamp",             ""              )
+DefNode(ShaderNode,     SH_NODE_CLAMP,           def_clamp,              "CLAMP",          Clamp,            "Clamp",             ""              )
 DefNode(ShaderNode,     SH_NODE_MATH,            def_math,               "MATH",           Math,             "Math",              ""              )
 DefNode(ShaderNode,     SH_NODE_VECTOR_MATH,     def_vector_math,        "VECT_MATH",      VectorMath,       "Vector Math",       ""              )
 DefNode(ShaderNode,     SH_NODE_SQUEEZE,         0,                      "SQUEEZE",        Squeeze,          "Squeeze Value",     ""              )
@@ -130,6 +130,7 @@ DefNode(ShaderNode,     SH_NODE_DISPLACEMENT,       def_sh_displacement,    "DIS
 DefNode(ShaderNode,     SH_NODE_VECTOR_DISPLACEMENT,def_sh_vector_displacement,"VECTOR_DISPLACEMENT",VectorDisplacement,"Vector Displacement",""  )
 DefNode(ShaderNode,     SH_NODE_TEX_IES,            def_sh_tex_ies,         "TEX_IES",            TexIES,           "IES Texture",       ""       )
 DefNode(ShaderNode,     SH_NODE_TEX_WHITE_NOISE,    def_sh_tex_white_noise, "TEX_WHITE_NOISE",    TexWhiteNoise,    "White Noise",       ""       )
+DefNode(ShaderNode,     SH_NODE_OUTPUT_AOV,         def_sh_output_aov,      "OUTPUT_AOV",         OutputAOV,        "AOV Output",        ""       )
 
 DefNode(CompositorNode, CMP_NODE_VIEWER,         def_cmp_viewer,         "VIEWER",         Viewer,           "Viewer",            ""              )
 DefNode(CompositorNode, CMP_NODE_RGB,            0,                      "RGB",            RGB,              "RGB",               ""              )
@@ -267,6 +268,7 @@ DefNode( ShaderNode,	 SH_NODE_OCT_UNIVERSAL_MAT,			def_oct_universal,		"OCT_UNIV
 DefNode( ShaderNode,   SH_NODE_OCT_SHADOW_CATCHER_MAT,     0,              "OCT_SHADOW_CATCHER_MAT", OctShadowCatcherMat, "ShadowCatcher Material",""   );
 DefNode( ShaderNode,   SH_NODE_OCT_LAYERED_MAT,     def_oct_layered_mat,	 "OCT_LAYERED_MAT",		OctLayeredMat,	"Layered Material",""   );
 DefNode( ShaderNode,   SH_NODE_OCT_COMPOSITE_MAT,   def_oct_composite_mat, "OCT_COMPOSITE_MAT",	OctCompositeMat,	"Composite Material",""   );
+DefNode( ShaderNode,	 SH_NODE_OCT_HAIR_MAT,				def_oct_hair,			"OCT_HAIR_MAT",			OctHairMat,			"Hair Material",		"");
 
 DefNode( ShaderNode,   SH_NODE_OCT_GROUP_LAYER,   def_oct_group_layer,	"OCT_GROUP_LAYER",		OctGroupLayer,	"Group Layer",""   );
 DefNode( ShaderNode,   SH_NODE_OCT_DIFFUSE_LAYER, def_oct_diffuse_layer,	"OCT_DIFFUSE_LAYER",	OctDiffuseLayer, "Diffuse Layer",""   );
@@ -303,7 +305,7 @@ DefNode( ShaderNode, SH_NODE_OCT_FALLOFF_TEX, def_oct_falloff_map_tex, "OCT_FALL
 DefNode( ShaderNode, SH_NODE_OCT_COLOR_CORRECT_TEX, 0, "OCT_CCORRECT_TEX", OctColorCorrectTex, "Color Correct Tex", "");
 
 
-DefNode( ShaderNode, SH_NODE_OCT_DIRT_TEX, 0, "OCT_DIRT_TEX", OctDirtTex, "Dirt Tex", "");
+DefNode( ShaderNode, SH_NODE_OCT_DIRT_TEX, def_oct_texture_dirt, "OCT_DIRT_TEX", OctDirtTex, "Dirt Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_GRADIENT_TEX, def_oct_colorramp, "OCT_GRADIENT_TEX", OctGradientTex, "Gradient Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_RANDOM_COLOR_TEX, 0, "OCT_RANDOM_COLOR_TEX", OctRandomColorTex, "Random Color Tex", "");
 DefNode( ShaderNode, SH_NODE_OCT_DISPLACEMENT_TEX, def_oct_displacement_tex, "OCT_DISPLACEMENT_TEX", OctDisplacementTex, "Texture Displacement", "");
@@ -334,9 +336,10 @@ DefNode( ShaderNode, SH_NODE_OCT_FULL_TRN, def_oct_rotation_order, "OCT_FULL_TRN
 DefNode( ShaderNode, SH_NODE_OCT_2D_TRN, 0, "OCT_2D_TRN", Oct2DTransform, "2D Transform", "");
 DefNode( ShaderNode, SH_NODE_OCT_3D_TRN, def_oct_rotation_order, "OCT_3D_TRN", Oct3DTransform, "3D Transform", "");
 
-DefNode( ShaderNode, SH_NODE_OCT_ABSORP_MED, 0, "OCT_ABSORP_MED", OctAbsorptionMedium, "Absorption Medium", "");
-DefNode( ShaderNode, SH_NODE_OCT_SCATTER_MED, 0, "OCT_SCATTER_MED", OctScatteringMedium, "Scatter Medium", "");
-DefNode( ShaderNode, SH_NODE_OCT_VOLUME_MED, 0, "OCT_VOLUME_MED", OctVolumeMedium, "Volume Medium", "");
+DefNode( ShaderNode, SH_NODE_OCT_ABSORP_MED, def_oct_medium, "OCT_ABSORP_MED", OctAbsorptionMedium, "Absorption Medium", "");
+DefNode( ShaderNode, SH_NODE_OCT_SCATTER_MED, def_oct_medium, "OCT_SCATTER_MED", OctScatteringMedium, "Scatter Medium", "");
+DefNode( ShaderNode, SH_NODE_OCT_VOLUME_MED, def_oct_medium, "OCT_VOLUME_MED", OctVolumeMedium, "Volume Medium", "");
+DefNode( ShaderNode, SH_NODE_OCT_RANDOMWALK_MED, def_oct_medium, "OCT_RANDOMWALK_MED", OctRandomWalkMedium, "RandomWalk Medium", "");
 
 DefNode( ShaderNode, SH_NODE_OCT_PROJECTION_XYZ, def_oct_coordinate_space_mode, "OCT_XYZ_PROJ", OctXYZProjection, "XYZ Projection", "");
 DefNode( ShaderNode, SH_NODE_OCT_PROJECTION_BOX, def_oct_coordinate_space_mode, "OCT_BOX_PROJ", OctBoxProjection, "Box Projection", "");
@@ -359,6 +362,8 @@ DefNode( ShaderNode, SH_NODE_OCT_OSL_BAKING_CAMERA, def_sh_script, "OCT_OSL_BAKI
 DefNode( ShaderNode, SH_NODE_OCT_VECTRON, def_sh_script, "OCT_VECTRON", OctVectron, "Vectron", "");
 
 DefNode( ShaderNode, SH_NODE_OCT_ROUNDEDGES, def_oct_round_edges, "OCT_ROUND_EDGES", OctRoundEdges, "Round Edges", "");
+
+DefNode( ShaderNode, SH_NODE_OCT_OBJECT_DATA, def_oct_object_data, "OCT_OBJECT_DATA", OctObjectData, "Octane Object Data", "");
 
 DefNode( ShaderNode, SH_NODE_OCT_TEXTURE_ENVIRONMENT, 0, "OCT_TEXTURE_ENVIRONMENT", OctTextureEnvironment, "Texture Environment", "");
 DefNode( ShaderNode, SH_NODE_OCT_DAYLIGHT_ENVIRONMENT, def_oct_daylight_environment, "OCT_DAYLIGHT_ENVIRONMENT", OctDaylightEnvironment, "Daylight Environment", "");

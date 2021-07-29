@@ -19,14 +19,14 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 20.6)",
+    "name": "OctaneRender Engine (v. 21.7)",
     "author": "OTOY Inc.",
-    "blender": (2, 80, 0),
+    "blender": (2, 82, 0),
     "location": "Info header, render engine menu",
     "description": "OctaneRender Engine integration",
     "warning": "",
     "wiki_url": "https://docs.otoy.com/#60Octane%20for%20Blender",
-    "tracker_url": "",
+    "tracker_url": "https://render.otoy.com/forum/viewforum.php?f=114",
     "support": 'OFFICIAL',
     "category": "Render"}
 
@@ -176,6 +176,8 @@ def register():
         register_class(cls)
 
     bpy.app.handlers.version_update.append(version_update.do_versions)
+    bpy.app.handlers.load_post.append(operators.clear_resource_cache_system)
+    bpy.app.handlers.depsgraph_update_post.append(operators.update_resource_cache_tag)
 
 
 def unregister():
@@ -187,6 +189,8 @@ def unregister():
     import atexit
 
     bpy.app.handlers.version_update.remove(version_update.do_versions)
+    bpy.app.handlers.load_post.remove(operators.clear_resource_cache_system)
+    bpy.app.handlers.depsgraph_update_post.remove(operators.update_resource_cache_tag)
 
     ui.unregister()
     operators.unregister()

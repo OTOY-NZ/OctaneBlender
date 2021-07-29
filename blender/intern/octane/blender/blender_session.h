@@ -48,7 +48,8 @@ class BlenderSession {
                  BL::Preferences &b_userpref,
                  BL::BlendData &b_data,
                  BlenderSession::ExportType export_type,
-                 std::string &export_path);
+                 std::string &export_path,
+                 std::unordered_set<std::string> &dirty_resources);
 
   BlenderSession(BL::RenderEngine &b_engine,
                  BL::Preferences &b_userpref,
@@ -58,7 +59,8 @@ class BlenderSession {
                  int width,
                  int height,
                  BlenderSession::ExportType export_type,
-                 std::string &export_path);
+                 std::string &export_path,
+                 std::unordered_set<std::string> &dirty_resources);
 
   ~BlenderSession();
 
@@ -121,6 +123,12 @@ class BlenderSession {
                              BL::Material &b_material);
   static bool heart_beat(std::string server_address);
   static bool get_octanedb(bContext *context, std::string server_address);
+  static bool resolve_octane_vdb_info(const std::string server_address,
+                                      PointerRNA &oct_mesh,
+                                      BL::BlendData &b_data,
+                                      BL::Scene &b_scene,
+                                      std::vector<std::string> &float_grid_ids,
+                                      std::vector<std::string> &vector_grid_ids);
 
   Session *session;
   Scene *scene;
@@ -162,6 +170,8 @@ class BlenderSession {
 
   bool background;
   int width, height;
+
+  std::unordered_set<std::string> dirty_resources;
 
   void *python_thread_state;
   static ::OctaneEngine::OctaneClient *heart_beat_server;

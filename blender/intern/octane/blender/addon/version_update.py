@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='20.4'
+OCTANE_BLENDER_VERSION='21.4'
 
 import bpy
 import math
@@ -101,16 +101,17 @@ def find_node_to_target_input(node_tree, node, input_name):
 def check_compatibility_octane_node_tree_helper(file_version, update_version, node_handler_map):
     if not check_update(file_version, update_version):
         return   
-    for mat in bpy.data.materials:
-        if not getattr(mat, 'node_tree', None):
-            continue        
-        for node in mat.node_tree.nodes:
-            if node.type in node_handler_map:
-                for func in node_handler_map[node.type]:
-                    func(mat.node_tree, node)
+    for collection in [bpy.data.lights, bpy.data.worlds, bpy.data.materials]:
+        for item in collection:
+            if not getattr(item, 'node_tree', None):
+                continue        
+            for node in item.node_tree.nodes:
+                if node.type in node_handler_map:
+                    for func in node_handler_map[node.type]:
+                        func(item.node_tree, node)                   
 
 
-def node_socket_update(node_tree, node, previous_name, current_name):
+def node_input_socket_update(node_tree, node, previous_name, current_name):
     try:        
         links = node_tree.links
         src_input = node.inputs[previous_name]
@@ -124,6 +125,26 @@ def node_socket_update(node_tree, node, previous_name, current_name):
             target_input.default_value[3] = src_input.default_value
         for src_link in src_input.links:
             links.new(src_link.from_socket, target_input)
+    except Exception as e:
+        pass
+
+
+def node_output_socket_update(node_tree, node, previous_name, current_name):
+    try:        
+        src_output = node.outputs[previous_name]
+        target_output = node.outputs[current_name]
+        links_to_remove = []
+        links_to_add = []
+        for src_link in src_output.links:
+            links_to_add.append((target_output, src_link.to_socket))        
+            links_to_remove.append((src_link.from_socket, src_link.to_socket))    
+        for (from_socket, to_socket) in links_to_remove:
+            for link in node_tree.links:
+                if link.from_socket == from_socket and link.to_socket == to_socket:
+                    node_tree.links.remove(link)
+                    break
+        for (from_socket, to_socket) in links_to_add:
+            node_tree.links.new(from_socket, to_socket)
     except Exception as e:
         pass
 
@@ -403,6 +424,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_17_5(file_version)
     check_compatibility_octane_node_tree_20_1(file_version)
     check_compatibility_octane_node_tree_20_4(file_version)
+    check_compatibility_octane_node_tree_21_4(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -428,19 +450,19 @@ def check_compatibility_octane_node_tree_17_5(file_version):
 def check_compatibility_octane_node_tree_20_1(file_version):
     node_handler_map = {
         'OCT_ABSORP_MED': (
-            functools.partial(node_socket_update, previous_name='Scale', current_name='Density'),
-            functools.partial(node_socket_update, previous_name='Absorption', current_name='Absorption Tex'),
+            functools.partial(node_input_socket_update, previous_name='Scale', current_name='Density'),
+            functools.partial(node_input_socket_update, previous_name='Absorption', current_name='Absorption Tex'),
         ),
         'OCT_SCATTER_MED': (
-            functools.partial(node_socket_update, previous_name='Scale', current_name='Density'),
-            functools.partial(node_socket_update, previous_name='Absorption', current_name='Absorption Tex'),
-            functools.partial(node_socket_update, previous_name='Scattering', current_name='Scattering Tex'),
+            functools.partial(node_input_socket_update, previous_name='Scale', current_name='Density'),
+            functools.partial(node_input_socket_update, previous_name='Absorption', current_name='Absorption Tex'),
+            functools.partial(node_input_socket_update, previous_name='Scattering', current_name='Scattering Tex'),
         ),
         'OCT_VOLUME_MED': (
-            functools.partial(node_socket_update, previous_name='Scale', current_name='Density'),
-            functools.partial(node_socket_update, previous_name='Step len.', current_name='Vol. step length'),
-            functools.partial(node_socket_update, previous_name='Absorption', current_name='Absorption Tex'),
-            functools.partial(node_socket_update, previous_name='Scattering', current_name='Scattering Tex'),        
+            functools.partial(node_input_socket_update, previous_name='Scale', current_name='Density'),
+            functools.partial(node_input_socket_update, previous_name='Step len.', current_name='Vol. step length'),
+            functools.partial(node_input_socket_update, previous_name='Absorption', current_name='Absorption Tex'),
+            functools.partial(node_input_socket_update, previous_name='Scattering', current_name='Scattering Tex'),        
         ),
     }
     check_compatibility_octane_node_tree_helper(file_version, '20.1', node_handler_map)
@@ -448,10 +470,40 @@ def check_compatibility_octane_node_tree_20_1(file_version):
 def check_compatibility_octane_node_tree_20_4(file_version):
     node_handler_map = {
         'OCT_DIFFUSE_MAT': (
-            functools.partial(node_socket_update, previous_name='Matte', current_name='Shadow catcher'),
+            functools.partial(node_input_socket_update, previous_name='Matte', current_name='Shadow catcher'),
         ),
     }
     check_compatibility_octane_node_tree_helper(file_version, '20.4', node_handler_map)
+
+def check_compatibility_octane_node_tree_21_4(file_version):
+    node_handler_map = {
+        'OCT_COMPARE_TEX': (
+            functools.partial(node_input_socket_update, previous_name='Texture1', current_name='InputA'),
+            functools.partial(node_input_socket_update, previous_name='Texture2', current_name='InputB'),
+            functools.partial(node_input_socket_update, previous_name='Texture3', current_name='If A < B'),
+            functools.partial(node_input_socket_update, previous_name='Texture4', current_name='If A >= B'),
+        ),
+    }
+    output_nodes_data = {
+        ('OutTex', 'OutProjection'): ('OCT_XYZ_PROJ', 'OCT_BOX_PROJ', 'OCT_CYL_PROJ', 'OCT_PERSP_PROJ', 'OCT_SPHERICAL_PROJ', 'OCT_UVW_PROJ', 'OCT_TRIPLANAR_PROJ', 'OCT_OSL_UV_PROJ', 'OCT_OSL_PROJ'),
+        ('OutTex', 'OutTransform'): ('OCT_SCALE_TRN', 'OCT_ROTATE_TRN', 'OCT_FULL_TRN', 'OCT_2D_TRN', 'OCT_3D_TRN'),
+        ('OutTex', 'OutMedium'): ('OCT_ABSORP_MED', 'OCT_SCATTER_MED', 'OCT_VOLUME_MED', 'OCT_RANDOMWALK_MED', ),
+        ('OutTex', 'OutRoundEdge'): ('OCT_ROUND_EDGES', ),
+        ('OutMat', 'OutMatLayer'): ('OCT_GROUP_LAYER', 'OCT_DIFFUSE_LAYER', 'OCT_METALLIC_LAYER', 'OCT_SHEEN_LAYER', 'OCT_SPECULAR_LAYER'),
+        ('OutMat', 'OutDisplacement'): ('OCT_VERTEX_DISPLACEMENT_MIXER_TEX', ),
+        ('OutTex', 'OutDisplacement'): ('OCT_VERTEX_DISPLACEMENT_TEX', 'OCT_DISPLACEMENT_TEX', ),
+        ('OutTex', 'OutEmission'): ('OCT_BBODY_EMI', 'OCT_TEXT_EMI', ),
+        ('OutTex', 'OutLight'): ('OCT_TOON_DIRECTION_LIGHT', 'OCT_TOON_POINT_LIGHT', ),
+        ('OutTex', 'OutCamera'): ('OCT_OSL_CAMERA', 'OCT_OSL_BAKING_CAMERA', ),
+        ('OutTex', 'OutVectron'): ('OCT_VECTRON', ),
+        ('OutTex', 'OutValue'): ('OCT_FLOAT_VAL', 'OCT_INT_VAL', 'OCT_SUN_DIRECTION' ),
+    }
+    for (old_name, new_name), nodes in output_nodes_data.items():
+        for node in nodes:
+            if node not in node_handler_map:
+                node_handler_map[node] = []
+            node_handler_map[node].append(functools.partial(node_output_socket_update, previous_name=old_name, current_name=new_name))                
+    check_compatibility_octane_node_tree_helper(file_version, '21.4', node_handler_map)    
 
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:

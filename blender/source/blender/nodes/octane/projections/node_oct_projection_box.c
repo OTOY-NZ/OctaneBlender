@@ -53,7 +53,20 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, 0, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {
+    {SOCK_SHADER, 0, N_("OutProjection")},
+    {SOCK_SHADER,
+     0,
+     N_("OutTex"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
+    {-1, 0, ""}};
 
 static void node_projection_oct_box_init(bNodeTree *ntree, bNode *node)
 {
@@ -75,8 +88,7 @@ void register_node_type_projection_oct_box(void)
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_projection_oct_box_init);
   node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(
-      &ntype, node_octane_projection_conversion_update);
+  node_type_update(&ntype, node_octane_projection_conversion_update);
   ntype.update_internal_links = node_update_internal_links_default;
 
   nodeRegisterType(&ntype);

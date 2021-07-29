@@ -115,6 +115,7 @@ typedef struct Light {
 /* #define LA_HEMI          3 */ /* not used anymore */
 #define LA_AREA 4
 #define LA_MESH 10
+#define LA_SPHERE 11
 
 /* mode */
 #define LA_SHADOW (1 << 0)

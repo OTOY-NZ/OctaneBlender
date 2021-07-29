@@ -364,6 +364,9 @@ static void ui_node_link_items(NodeLinkArg *arg,
     int i;
 
     for (stemp = socket_templates; stemp && stemp->type != -1; stemp++) {
+      if (stemp->flag & (SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED)) {
+        continue;
+      }
       totitems++;
     }
 
@@ -372,6 +375,9 @@ static void ui_node_link_items(NodeLinkArg *arg,
 
       i = 0;
       for (stemp = socket_templates; stemp && stemp->type != -1; stemp++, i++) {
+        if (stemp->flag & (SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED)) {
+          continue;
+        }
         NodeLinkItem *item = &items[i];
 
         item->socket_index = i;
@@ -435,6 +441,126 @@ static void ui_node_sock_name(bNodeTree *ntree, bNodeSocket *sock, char name[UI_
 static int ui_compatible_sockets(int typeA, int typeB)
 {
   return (typeA == typeB);
+}
+
+typedef enum {
+  OCTANE_NONE = 0,
+  OCTANE_TEXTURE,
+  OCTANE_TEXTURE_AND_VALUE,
+  OCTANE_MATERIAL,
+  OCTANE_MATERIAL_LAYER,
+  OCTANE_PROJECTION,
+  OCTANE_TRANSFORM,
+  OCTANE_DISPLACEMENT,
+  OCTANE_EMISSION,
+  OCTANE_ROUND_EDGE,
+  OCTANE_MEDIUM,
+  OCTANE_ENVIRONMENT
+} OctaneSocketType;
+
+static int resolve_octane_socket_type(bool use_octane, const char *socket_name, int type)
+{
+  if (use_octane) {
+    if (STREQ(socket_name, "Projection")) {
+      return OCTANE_PROJECTION;
+    }
+    else if (STREQ(socket_name, "Transform")) {
+      return OCTANE_TRANSFORM;
+    }
+    else if (STREQ(socket_name, "Displacement")) {
+      return OCTANE_DISPLACEMENT;
+    }
+    else if (STREQ(socket_name, "Edges rounding")) {
+      return OCTANE_ROUND_EDGE;
+    }
+    else if (STREQ(socket_name, "Emission")) {
+      return OCTANE_EMISSION;
+    }
+    else if (STREQ(socket_name, "Medium") || STREQ(socket_name, "Volume")) {
+      return OCTANE_MEDIUM;
+    }
+    else if (STREQ(socket_name, "Octane Environment") ||
+             STREQ(socket_name, "Octane VisibleEnvironment")) {
+      return OCTANE_ENVIRONMENT;
+    }
+    else if (STREQ(socket_name, "Material layer") || STRPREFIX(socket_name, "Layer ")) {
+      return OCTANE_MATERIAL_LAYER;
+    }
+    else if (STREQ(socket_name, "Surface") || STRPREFIX(socket_name, "Material")) {
+      return OCTANE_MATERIAL;
+    }
+    else if (type == SOCK_SHADER || type == SOCK_RGBA) {
+      return OCTANE_TEXTURE;
+    }
+    else if (type == SOCK_FLOAT || type == SOCK_VECTOR) {
+      if (STREQ(socket_name, "Roughness") || STREQ(socket_name, "Specular") ||
+          STREQ(socket_name, "Opacity") || STREQ(socket_name, "Rotation") ||
+          STREQ(socket_name, "Transmission") || STREQ(socket_name, "Power")) {
+        return OCTANE_TEXTURE;
+      }
+      else {
+        return OCTANE_TEXTURE_AND_VALUE;
+      }
+    }
+    else {
+      return OCTANE_NONE;
+    }
+  }
+  return OCTANE_NONE;
+}
+
+static int octane_ui_compatible_sockets(bool use_octane,
+                                        const char *socketA,
+                                        int typeA,
+                                        int octane_socket_type,
+                                        const char *socketB,
+                                        int typeB)
+{
+  int result = 0;
+  if (use_octane) {
+    switch (octane_socket_type) {
+      case OCTANE_TEXTURE:
+        result = STREQ(socketA, "OutTex");
+        break;
+      case OCTANE_TEXTURE_AND_VALUE:
+        result = STREQ(socketA, "OutTex") || STREQ(socketA, "OutValue");
+        break;
+      case OCTANE_MATERIAL:
+        result = STREQ(socketA, "OutMat");
+        break;
+      case OCTANE_MATERIAL_LAYER:
+        result = STREQ(socketA, "OutMatLayer");
+        break;
+      case OCTANE_ENVIRONMENT:
+        result = STREQ(socketA, "OutEnv");
+        break;
+      case OCTANE_MEDIUM:
+        result = STREQ(socketA, "OutMedium");
+        break;
+      case OCTANE_EMISSION:
+        result = STREQ(socketA, "OutEmission");
+        break;
+      case OCTANE_ROUND_EDGE:
+        result = STREQ(socketA, "OutRoundEdge");
+        break;
+      case OCTANE_DISPLACEMENT:
+        result = STREQ(socketA, "OutDisplacement");
+        break;
+      case OCTANE_TRANSFORM:
+        result = STREQ(socketA, "OutTransform");
+        break;
+      case OCTANE_PROJECTION:
+        result = STREQ(socketA, "OutProjection");
+        break;
+      default:
+        result = ui_compatible_sockets(typeA, typeB);
+        break;
+    }
+  }
+  else {
+    result = ui_compatible_sockets(typeA, typeB);
+  }
+  return result;
 }
 
 static int ui_node_item_name_compare(const void *a, const void *b)
@@ -506,6 +632,8 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   qsort(
       sorted_ntypes, BLI_array_len(sorted_ntypes), sizeof(bNodeType *), ui_node_item_name_compare);
 
+  int octane_socket_type = resolve_octane_socket_type(is_octane_engine, sock->name, sock->type);
+
   /* generate UI */
   for (int j = 0; j < BLI_array_len(sorted_ntypes); j++) {
     bNodeType *ntype = sorted_ntypes[j];
@@ -521,13 +649,23 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
     ui_node_link_items(arg, SOCK_OUT, &items, &totitems);
 
     for (i = 0; i < totitems; i++) {
-      if (ui_compatible_sockets(items[i].socket_type, sock->type)) {
+      if (octane_ui_compatible_sockets(is_octane_engine,
+                                       items[i].socket_name,
+                                       items[i].socket_type,
+                                       octane_socket_type,
+                                       sock->name,
+                                       sock->type)) {
         num++;
       }
     }
 
     for (i = 0; i < totitems; i++) {
-      if (!ui_compatible_sockets(items[i].socket_type, sock->type)) {
+      if (!octane_ui_compatible_sockets(is_octane_engine,
+                                        items[i].socket_name,
+                                        items[i].socket_type,
+                                        octane_socket_type,
+                                        sock->name,
+                                        sock->type)) {
         continue;
       }
 

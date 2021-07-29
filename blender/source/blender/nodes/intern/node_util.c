@@ -745,3 +745,25 @@ void node_octane_displacement_tex_conversion_update(bNodeTree *ntree, bNode *nod
 {
   node_octane_displacement_tex_conversion_verify(ntree, node, (ID *)ntree);
 }
+
+void node_octane_medium_init(bNodeTree *ntree, bNode *node)
+{
+  // Use "Lock mode" as default
+  node->oct_custom1 = 1;
+} 
+
+void node_octane_medium_update(bNodeTree *ntree, bNode *node)
+{
+  bNodeSocket *sock;
+  bool is_lock_step_length_pins = node->oct_custom1;
+  for (sock = node->inputs.first; sock; sock = sock->next) {
+    if (STREQ(sock->name, "Vol. shadow ray step length")) {
+      if (!is_lock_step_length_pins) {
+        sock->flag &= ~SOCK_UNAVAIL;
+      }
+      else {
+        sock->flag |= SOCK_UNAVAIL;
+      }
+    }
+  }
+}

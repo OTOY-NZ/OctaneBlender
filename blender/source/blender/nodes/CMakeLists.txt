@@ -173,6 +173,7 @@ set(SRC
   shader/nodes/node_shader_normal.c
   shader/nodes/node_shader_normal_map.c
   shader/nodes/node_shader_object_info.c
+  shader/nodes/node_shader_output_aov.c
   shader/nodes/node_shader_output_light.c
   shader/nodes/node_shader_output_linestyle.c
   shader/nodes/node_shader_output_material.c
@@ -264,6 +265,7 @@ set(SRC
   octane/materials/node_oct_shader_shadow_catcher_mat.c
   octane/materials/node_oct_shader_layered_mat.c
   octane/materials/node_oct_shader_composite_mat.c
+  octane/materials/node_oct_shader_hair_mat.c
   octane/layers/node_oct_shader_group_layer.c
   octane/layers/node_oct_shader_diffuse_layer.c
   octane/layers/node_oct_shader_metallic_layer.c
@@ -272,6 +274,7 @@ set(SRC
   octane/mediums/node_oct_medium_absorption.c
   octane/mediums/node_oct_medium_scattering.c
   octane/mediums/node_oct_medium_volume.c
+  octane/mediums/node_oct_medium_randomwalk.c
   octane/projections/node_oct_projection_box.c
   octane/projections/node_oct_projection_cyl.c
   octane/projections/node_oct_projection_osl.c
@@ -340,6 +343,7 @@ set(SRC
   octane/environment/node_oct_environment_daylight.c
   octane/environment/node_oct_environment_planetary.c
   octane/roundedges/node_oct_roundedges_roundedges.c
+  octane/inputs/node_oct_shader_object_data.c
 
   composite/node_composite_util.h
   shader/node_shader_util.h
@@ -365,6 +369,10 @@ if(WITH_PYTHON)
   )
   list(APPEND INC_SYS
     ${PYTHON_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${PYTHON_LINKFLAGS}
+    ${PYTHON_LIBRARIES}
   )
   add_definitions(-DWITH_PYTHON)
 endif()

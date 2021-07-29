@@ -17,6 +17,7 @@
  */
 #include "render/mesh.h"
 #include "render/scene.h"
+#include "render/graph.h"
 
 #include "blender_sync.h"
 #include "blender_util.h"
@@ -24,6 +25,37 @@
 #include "RNA_blender_cpp.h"
 
 OCT_NAMESPACE_BEGIN
+
+static std::string resolve_octane_geometry_node(PointerRNA &oct_mesh)
+{
+  std::string sScriptGeoName;
+  PointerRNA octane_geo_node_collections = RNA_pointer_get(&oct_mesh,
+                                                           "octane_geo_node_collections");
+  char scriptGeoMaterialName[512];
+  char scriptGeoNodeName[512];
+  RNA_string_get(&octane_geo_node_collections, "node_graph_tree", scriptGeoMaterialName);
+  RNA_string_get(&octane_geo_node_collections, "osl_geo_node", scriptGeoNodeName);
+  std::string scriptGeoMaterialNameStr(scriptGeoMaterialName);
+  std::string scriptGeoNodeNameStr(scriptGeoNodeName);
+  if (scriptGeoMaterialNameStr.size() && scriptGeoNodeNameStr.size()) {
+    sScriptGeoName = scriptGeoMaterialNameStr + "_" + scriptGeoNodeNameStr;
+  }
+  return sScriptGeoName;
+}
+
+static std::string resolve_orbx_proxy_path(PointerRNA &oct_mesh,
+                                           BL::BlendData &b_data,
+                                           BL::Scene &b_scene)
+{
+  std::string sOrbxPath;
+  char orbxFilePath[512];
+  RNA_string_get(&oct_mesh, "imported_orbx_file_path", orbxFilePath);
+  std::string orbxFilePathStr(orbxFilePath);
+  if (orbxFilePathStr.size()) {
+    sOrbxPath = blender_absolute_path(b_data, b_scene, orbxFilePath);
+  }
+  return sOrbxPath;
+}
 
 static void add_face(Mesh *mesh,
                      Mesh::WindingOrder winding_order,
@@ -298,8 +330,11 @@ static void create_subd_mesh(Scene *scene,
                              const std::vector<Shader *> &used_shaders,
                              Mesh::WindingOrder winding_order)
 {
-  BL::SubsurfModifier subsurf_mod(b_ob.modifiers[b_ob.modifiers.length() - 1]);
-  bool subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;
+  bool subdivide_uvs = false;
+  if (b_ob.modifiers.length()) {
+    BL::SubsurfModifier subsurf_mod(b_ob.modifiers[b_ob.modifiers.length() - 1]);
+    subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;
+  }
 
   create_mesh(scene, b_ob, mesh, b_mesh, used_shaders, winding_order, true, subdivide_uvs);
 
@@ -339,7 +374,7 @@ static void create_subd_mesh(Scene *scene,
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Fill Octane mesh object with OpenVDB data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain,
+static void create_openvdb_volume(BL::FluidDomainSettings &b_domain,
                                   Scene *scene,
                                   BL::Object b_ob,
                                   Mesh *mesh,
@@ -348,36 +383,35 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain,
                                   const std::vector<Shader *> &used_shaders)
 {
   BL::Array<int, 3> res = b_domain.domain_resolution();
-  int length, amplify = (b_domain.use_high_resolution()) ? b_domain.amplify() + 1 : 1;
+  int length, amplify = (b_domain.use_noise()) ? b_domain.noise_scale() : 1;
 
-  int width = mesh->vdb_resolution.x = res[0] * amplify;
-  int height = mesh->vdb_resolution.y = res[1] * amplify;
-  int depth = mesh->vdb_resolution.z = res[2] * amplify;
+  int width = mesh->octane_volume.f3Resolution.x = res[0] * amplify;
+  int height = mesh->octane_volume.f3Resolution.y = res[1] * amplify;
+  int depth = mesh->octane_volume.f3Resolution.z = res[2] * amplify;
   int32_t num_pixels = width * height * depth;
 
   if (num_pixels) {
-    mesh->mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(oct_mesh, "mesh_type"));
-    if (mesh->mesh_type == Mesh::GLOBAL)
-      mesh->mesh_type = Mesh::SCATTER;
+    if (mesh->mesh_type == MeshType::GLOBAL)
+      mesh->mesh_type = MeshType::SCATTER;
 
-    float *dencity = new float[num_pixels];
+    float *density = new float[num_pixels];
     float *flame = new float[num_pixels];
     // float *color = new float[num_pixels * 4];
 
     int grid_offset = 0;
 
-    SmokeDomainSettings_density_grid_get_length(&b_domain.ptr, &length);
+    FluidDomainSettings_density_grid_get_length(&b_domain.ptr, &length);
     if (length == num_pixels) {
-      SmokeDomainSettings_density_grid_get(&b_domain.ptr, (float *)dencity);
-      mesh->vdb_absorption_offset = grid_offset++;
-      mesh->vdb_scatter_offset = mesh->vdb_absorption_offset;
+      FluidDomainSettings_density_grid_get(&b_domain.ptr, (float *)density);
+      mesh->octane_volume.iAbsorptionOffset = grid_offset++;
+      mesh->octane_volume.iScatterOffset = mesh->octane_volume.iAbsorptionOffset;
     }
     /* this is in range 0..1, and interpreted by the OpenGL smoke viewer
      * as 1500..3000 K with the first part faded to zero density */
-    SmokeDomainSettings_flame_grid_get_length(&b_domain.ptr, &length);
+    FluidDomainSettings_flame_grid_get_length(&b_domain.ptr, &length);
     if (length == num_pixels) {
-      SmokeDomainSettings_flame_grid_get(&b_domain.ptr, (float *)flame);
-      mesh->vdb_emission_offset = grid_offset++;
+      FluidDomainSettings_flame_grid_get(&b_domain.ptr, (float *)flame);
+      mesh->octane_volume.iEmissionOffset = grid_offset++;
     }
     /* the RGB is "premultiplied" by density for better interpolation results */
     // SmokeDomainSettings_color_grid_get_length(&b_domain.ptr, &length);
@@ -387,18 +421,10 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain,
     //}
 
     if (grid_offset > 0) {
-      mesh->vdb_iso = RNA_float_get(oct_mesh, "vdb_iso");
-      mesh->vdb_absorption_scale = RNA_float_get(oct_mesh, "vdb_abs_scale");
-      mesh->vdb_emission_scale = RNA_float_get(oct_mesh, "vdb_emiss_scale");
-      mesh->vdb_scatter_scale = RNA_float_get(oct_mesh, "vdb_scatter_scale");
-      mesh->vdb_velocity_scale = RNA_float_get(oct_mesh, "vdb_vel_scale");
-      mesh->vdb_sdf = RNA_boolean_get(oct_mesh, "vdb_sdf");
-
-      mesh->vdb_regular_grid = new float[num_pixels * grid_offset];
-      mesh->vdb_grid_size = num_pixels * grid_offset;
-      mesh->vdb_resolution.x = width;
-      mesh->vdb_resolution.y = height;
-      mesh->vdb_resolution.z = depth;
+      mesh->octane_volume.fRegularGridData.resize(num_pixels * grid_offset);
+      mesh->octane_volume.f3Resolution.x = width;
+      mesh->octane_volume.f3Resolution.y = height;
+      mesh->octane_volume.f3Resolution.z = depth;
 
       float3 max_bound{-FLT_MAX, -FLT_MAX, -FLT_MAX}, min_bound{FLT_MAX, FLT_MAX, FLT_MAX};
       if (b_mesh.vertices.length() > 0) {
@@ -419,30 +445,32 @@ static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain,
             max_bound.z = point.z;
         }
 
-        mesh->vdb_grid_matrix.m[0] = {
+        mesh->octane_volume.oMatrix.m[0] = {
             (max_bound.x - min_bound.x) / width, 0.0f, 0.0f, min_bound.x};
-        mesh->vdb_grid_matrix.m[1] = {
+        mesh->octane_volume.oMatrix.m[1] = {
             0.0f, (max_bound.y - min_bound.y) / height, 0.0f, min_bound.y};
-        mesh->vdb_grid_matrix.m[2] = {
+        mesh->octane_volume.oMatrix.m[2] = {
             0.0f, 0.0f, (max_bound.z - min_bound.z) / depth, min_bound.z};
       }
       else {
-        mesh->vdb_grid_matrix.m[0] = {0.0f, 0.0f, 0.0f, 0.0f};
-        mesh->vdb_grid_matrix.m[1] = {0.0f, 0.0f, 0.0f, 0.0f};
-        mesh->vdb_grid_matrix.m[2] = {0.0f, 0.0f, 0.0f, 0.0f};
+        mesh->octane_volume.oMatrix.m[0] = {0.0f, 0.0f, 0.0f, 0.0f};
+        mesh->octane_volume.oMatrix.m[1] = {0.0f, 0.0f, 0.0f, 0.0f};
+        mesh->octane_volume.oMatrix.m[2] = {0.0f, 0.0f, 0.0f, 0.0f};
       }
 
       for (int i = 0; i < num_pixels; ++i) {
         register int index = i * grid_offset;
-        if (mesh->vdb_absorption_offset >= 0)
-          mesh->vdb_regular_grid[index + mesh->vdb_absorption_offset] = dencity[i];
+        if (mesh->octane_volume.iAbsorptionOffset >= 0)
+          mesh->octane_volume.fRegularGridData[index + mesh->octane_volume.iAbsorptionOffset] =
+              density[i];
         // if(mesh->vdb_scatter_offset >= 0)       mesh->vdb_regular_grid[index +
         // mesh->vdb_scatter_offset]    = dencity[i];
-        if (mesh->vdb_emission_offset >= 0)
-          mesh->vdb_regular_grid[index + mesh->vdb_emission_offset] = flame[i];
+        if (mesh->octane_volume.iEmissionOffset >= 0)
+          mesh->octane_volume.fRegularGridData[index + mesh->octane_volume.iEmissionOffset] =
+              flame[i];
       }
     }
-    delete[] dencity;
+    delete[] density;
     delete[] flame;
     // delete[] color;
   }
@@ -459,7 +487,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                              bool object_updated,
                              bool show_self,
                              bool show_particles,
-                             OctaneDataTransferObject::OctaneObjectLayer &object_layer)
+                             OctaneDataTransferObject::OctaneObjectLayer &object_layer,
+                             MeshType mesh_type)
 {
   BL::ID b_ob_data = b_ob.data();
   BL::ID key = (BKE_object_is_modified(b_ob)) ? b_ob_instance : b_ob_data;
@@ -486,45 +515,109 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       used_shaders.push_back(scene->default_surface);
   }
 
+  bool use_octane_vertex_displacement_subdvision = false;
+  for (auto used_shader : used_shaders) {
+    if (used_shader->graph && used_shader->graph->need_subdivision) {
+      use_octane_vertex_displacement_subdvision = true;
+    }
+  }
+
   Mesh *octane_mesh;
   PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
-  Mesh::MeshType mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_mesh, "mesh_type"));
 
-  std::string mesh_name = resolve_octane_name(
-      b_ob_data, BKE_object_is_modified(b_ob) ? b_ob.name() : "", MESH_TAG);
+  bool is_modified = BKE_object_is_modified(b_ob);
+  std::string mesh_name = resolve_octane_name(b_ob_data, is_modified ? b_ob.name() : "", MESH_TAG);
 
-  bool is_mesh_data_cached = false;
-  bool octane_enable_mesh_upload_opt = false;
-  bool is_mesh_data_updated = !octane_enable_mesh_upload_opt || !is_mesh_data_cached;
-
-  bool is_recalculated = mesh_map.sync(&octane_mesh, key);
-
-  if (is_recalculated &&
-      (scene->meshes_type == Mesh::RESHAPABLE_PROXY || mesh_type == Mesh::RESHAPABLE_PROXY)) {
-    is_mesh_data_updated = true;
-  }
-
-  bool octane_vdb_force_update_flag = RNA_boolean_get(&oct_mesh, "octane_vdb_helper") &&
-                                      octane_mesh &&
-                                      octane_mesh->last_vdb_frame != b_scene.frame_current();
-
-  if (!octane_vdb_force_update_flag && !is_recalculated) {
-    return octane_mesh;
-  }
-
-  if (mesh_synced.find(octane_mesh) != mesh_synced.end())
-    return octane_mesh;
-  mesh_synced.insert(octane_mesh);
-
-  octane_mesh->clear();
-  octane_mesh->used_shaders = used_shaders;
+  bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
+  bool is_mesh_shader_data_updated = octane_mesh->shaders_tag != Mesh::generate_shader_tag(used_shaders);
 
   octane_mesh->nice_name = mesh_name;
   octane_mesh->name = mesh_name;
   octane_mesh->octane_mesh.sMeshName = mesh_name;
-  octane_mesh->mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_mesh, "mesh_type"));
-  octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable = RNA_boolean_get(
-      &oct_mesh, "open_subd_enable");
+  // The mesh can be shared among objects with different mesh_type, so we only upgrade mesh_type
+  // here. E.g. a mesh is shared by two objects: one is SCATTER type and the other is RESHARPABLE.
+  // The final mesh type of the mesh will be RESHARPABLE.
+  if (octane_mesh->mesh_type == MeshType::AUTO || mesh_type >= octane_mesh->mesh_type) {
+    octane_mesh->mesh_type = mesh_type;
+  }
+  octane_mesh->octane_mesh.bInfinitePlane = RNA_boolean_get(&oct_mesh, "infinite_plane");
+  octane_mesh->octane_mesh.sScriptGeoName = resolve_octane_geometry_node(oct_mesh);
+  octane_mesh->octane_mesh.sOrbxPath = resolve_orbx_proxy_path(oct_mesh, b_data, b_scene);
+  octane_mesh->octane_mesh.bReshapeable = resolve_mesh_type(
+                                              mesh_name, b_ob.type(), octane_mesh->mesh_type) ==
+                                          MeshType::RESHAPABLE_PROXY;
+
+  bool octane_vdb_force_update_flag = RNA_boolean_get(&oct_mesh, "octane_vdb_helper") &&
+                                      octane_mesh &&
+                                      octane_mesh->last_vdb_frame != b_scene.frame_current();
+  bool octane_subdivision_need_update = use_octane_vertex_displacement_subdvision &&
+                                        !octane_mesh->is_subdivision();
+  bool need_update = preview ? (is_mesh_data_updated ||
+                                is_mesh_shader_data_updated ||
+								octane_vdb_force_update_flag ||
+                                octane_subdivision_need_update) :
+                               is_octane_geometry_required(
+                                   mesh_name, b_ob.type(), oct_mesh, octane_mesh, mesh_type);
+  bool need_recreate_mesh = false;
+  if (preview) {
+    bool is_synced = is_resource_synced_in_octane_manager(mesh_name, OctaneResourceType::GEOMETRY);
+    if (is_synced) {
+      if (b_ob.mode() == b_ob.mode_EDIT || is_mesh_shader_data_updated || is_modified) {
+        need_recreate_mesh = need_update;
+      }
+      else {
+        need_recreate_mesh = is_octane_geometry_required(
+            mesh_name, b_ob.type(), oct_mesh, octane_mesh, mesh_type);
+      }
+    }
+    else {
+      bool is_resource_dirty = dirty_resources.find(b_ob_data.name()) != dirty_resources.end();
+      bool is_mesh_cached = !is_resource_dirty && !octane_mesh->octane_mesh.bReshapeable &&
+                            resource_cache_data.find(mesh_name) != resource_cache_data.end() &&
+                            resource_cache_data[mesh_name] == OctaneDataTransferObject::GEOMETRY;
+      if (is_mesh_cached) {
+        sync_resource_to_octane_manager(mesh_name, OctaneResourceType::GEOMETRY);
+        need_recreate_mesh = false;
+      }
+      else {
+        need_recreate_mesh = is_octane_geometry_required(
+            mesh_name, b_ob.type(), oct_mesh, octane_mesh, mesh_type);
+      }
+    }
+  }
+  else {
+    need_recreate_mesh = need_update;
+  }
+
+  octane_mesh->need_update |= need_update;
+
+  if (!need_update) {
+    return octane_mesh;
+  }
+
+  if (mesh_synced.find(octane_mesh) != mesh_synced.end()) {
+    return octane_mesh;
+  }
+  mesh_synced.insert(octane_mesh);
+
+  octane_mesh->clear();
+  octane_mesh->used_shaders = used_shaders;
+  octane_mesh->shaders_tag = Mesh::generate_shader_tag(used_shaders);
+
+  octane_mesh->enable_offset_transform = RNA_boolean_get(&oct_mesh,
+                                                         "enable_octane_offset_transform");
+  if (octane_mesh->enable_offset_transform) {
+    float3 translate, euler, scale;
+    int mode = RNA_enum_get(&oct_mesh, "octane_offset_rotation_order");
+    RNA_float_get_array(
+        &oct_mesh, "octane_offset_translation", reinterpret_cast<float *>(&translate));
+    RNA_float_get_array(&oct_mesh, "octane_offset_rotation", reinterpret_cast<float *>(&euler));
+    RNA_float_get_array(&oct_mesh, "octane_offset_scale", reinterpret_cast<float *>(&scale));
+    octane_mesh->offset_transform = make_transform(translate, euler, mode, scale);
+  }
+
+  octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable =
+      RNA_boolean_get(&oct_mesh, "open_subd_enable") || use_octane_vertex_displacement_subdvision;
   octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = RNA_enum_get(&oct_mesh,
                                                                                "open_subd_scheme");
   octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = RNA_int_get(&oct_mesh,
@@ -547,81 +640,36 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   octane_mesh->octane_mesh.iHairInterpolations = RNA_enum_get(&oct_mesh, "hair_interpolation");
   octane_mesh->final_visibility = !(preview ? b_ob.hide_viewport() : b_ob.hide_render());
 
-  PointerRNA octane_geo_node_collections = RNA_pointer_get(&oct_mesh,
-                                                           "octane_geo_node_collections");
-  char scriptGeoMaterialName[512];
-  char scriptGeoNodeName[512];
-  RNA_string_get(&octane_geo_node_collections, "node_graph_tree", scriptGeoMaterialName);
-  RNA_string_get(&octane_geo_node_collections, "osl_geo_node", scriptGeoNodeName);
-  std::string scriptGeoMaterialNameStr(scriptGeoMaterialName);
-  std::string scriptGeoNodeNameStr(scriptGeoNodeName);
-  if (scriptGeoMaterialNameStr.size() && scriptGeoNodeNameStr.size()) {
-    octane_mesh->octane_mesh.sScriptGeoName = scriptGeoMaterialNameStr + "_" +
-                                              scriptGeoNodeNameStr;
-  }
-  else {
-    octane_mesh->octane_mesh.sScriptGeoName = "";
-  }
-
-  char orbxFilePath[512];
-  RNA_string_get(&oct_mesh, "imported_orbx_file_path", orbxFilePath);
-  std::string orbxFilePathStr(orbxFilePath);
-  if (orbxFilePathStr.size()) {
-    octane_mesh->octane_mesh.sOrbxPath = blender_absolute_path(b_data, b_scene, orbxFilePath);
-  }
-  else {
-    octane_mesh->octane_mesh.sOrbxPath = "";
-  }
+  octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = RNA_boolean_get(
+      &oct_mesh, "enable_octane_sphere_attribute");
+  octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = RNA_float_get(
+      &oct_mesh, "octane_sphere_radius");
+  bool use_randomized_radius = RNA_boolean_get(&oct_mesh, "use_randomized_radius");
+  octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed =
+      use_randomized_radius ? RNA_int_get(&oct_mesh, "octane_sphere_randomized_radius_seed") : -1;
+  octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = RNA_float_get(
+      &oct_mesh, "octane_sphere_randomized_radius_min");
+  octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = RNA_float_get(
+      &oct_mesh, "octane_sphere_randomized_radius_max");
 
   bool is_octane_vdb = RNA_boolean_get(&oct_mesh, "is_octane_vdb");
   octane_mesh->is_octane_volume = is_octane_vdb;
   if (is_octane_vdb) {
     int current_frame = b_scene.frame_current();
     octane_mesh->last_vdb_frame = current_frame;
-    int start_playing_at = RNA_int_get(&oct_mesh, "openvdb_frame_start_playing_at");
-    int current_frame_for_vdb = std::max(0, current_frame - start_playing_at);
-    int start_frame = RNA_int_get(&oct_mesh, "openvdb_frame_start");
-    int end_frame = RNA_int_get(&oct_mesh, "openvdb_frame_end");
-    float openvdb_frame_speed_mutiplier = RNA_float_get(&oct_mesh,
-                                                        "openvdb_frame_speed_mutiplier");
-    char vdbFilePath[512];
-    RNA_string_get(&oct_mesh, "imported_openvdb_file_path", vdbFilePath);
-    std::string vdbFileStr(vdbFilePath);
-    std::size_t pos = vdbFileStr.find("F$");
-    if (pos != std::string::npos) {
-      int target_frame = std::min(
-          int(start_frame + current_frame_for_vdb * openvdb_frame_speed_mutiplier), end_frame);
-      if (vdbFileStr.find("$F$") != std::string::npos) {
-        vdbFileStr = vdbFileStr.substr(0, pos - 1) + std::to_string(target_frame) +
-                     vdbFileStr.substr(pos + 2);
-      }
-      else {
-        std::string format_tmp = "%0";
-        format_tmp += vdbFileStr[pos - 1];
-        format_tmp += "d";
-        char buffer[256];
-        sprintf(buffer, format_tmp.c_str(), target_frame);
-        vdbFileStr = vdbFileStr.substr(0, pos - 2) + std::string(buffer) +
-                     vdbFileStr.substr(pos + 2);
-      }
-    }
-    octane_mesh->vdb_file_path = blender_absolute_path(b_data, b_scene, vdbFileStr);
-    octane_mesh->vdb_iso = RNA_float_get(&oct_mesh, "vdb_iso");
-    octane_mesh->vdb_absorption_scale = RNA_float_get(&oct_mesh, "vdb_abs_scale");
-    octane_mesh->vdb_emission_scale = RNA_float_get(&oct_mesh, "vdb_emiss_scale");
-    octane_mesh->vdb_scatter_scale = RNA_float_get(&oct_mesh, "vdb_scatter_scale");
-    octane_mesh->vdb_velocity_scale = RNA_float_get(&oct_mesh, "vdb_vel_scale");
-    octane_mesh->vdb_sdf = RNA_boolean_get(&oct_mesh, "vdb_sdf");
+    octane_mesh->octane_volume.sVolumePath = resolve_octane_vdb_path(oct_mesh, b_data, b_scene);
+    resolve_volume_attributes(oct_mesh, octane_mesh->octane_volume);
   }
 
   if (octane_mesh) {
     octane_mesh->subdivision_type = object_subdivision_type(b_ob, preview, true);
   }
 
-  bool use_octane_subdivision = octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable &&
-                                octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel > 0;
+  bool use_octane_subdivision = use_octane_vertex_displacement_subdvision ||
+                                (octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable &&
+                                 octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel > 0);
 
-  if (is_mesh_data_updated) {
+  if (need_recreate_mesh) {
 
     BL::Mesh b_mesh = object_to_mesh(b_data,
                                      b_ob,
@@ -632,15 +680,19 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                                    Mesh::SUBDIVISION_NONE);
 
     if (b_mesh) {
-      BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
-      bool is_openvdb = b_domain && b_domain.cache_file_format() ==
-                                        BL::SmokeDomainSettings::cache_file_format_OPENVDB;
+      BL::FluidDomainSettings b_domain = object_fluid_domain_find(b_ob);
+      BL::FluidDomainSettings::cache_data_format_NONE;
+      bool is_openvdb = b_domain && is_vdb_format(int(b_domain.cache_data_format()));
       if (!is_openvdb || is_octane_vdb) {
         Mesh::WindingOrder winding_order = static_cast<Mesh::WindingOrder>(
             RNA_enum_get(&oct_mesh, "winding_order"));
 
         if (use_octane_subdivision || octane_mesh->subdivision_type != Mesh::SUBDIVISION_NONE) {
-          if (octane_mesh->subdivision_type == Mesh::SUBDIVISION_NONE) {
+          if (use_octane_vertex_displacement_subdvision) {
+            create_subd_mesh(
+                scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
+          }
+          else if (octane_mesh->subdivision_type == Mesh::SUBDIVISION_NONE) {
             create_mesh(scene,
                         b_ob,
                         octane_mesh,
@@ -664,6 +716,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       else {
         create_openvdb_volume(
             b_domain, scene, b_ob, octane_mesh, b_mesh, &oct_mesh, octane_mesh->used_shaders);
+        resolve_volume_attributes(oct_mesh, octane_mesh->octane_volume);
+        tag_resharpable_candidate(mesh_name);
       }
     }
     else
@@ -709,7 +763,7 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
   BL::Mesh b_mesh(PointerRNA_NULL);
 
   /* fluid motion is exported immediate with mesh, skip here */
-  BL::DomainFluidSettings b_fluid_domain = object_fluid_domain_find(b_ob);
+  BL::FluidDomainSettings b_fluid_domain = object_fluid_domain_find(b_ob);
   if (b_fluid_domain)
     return;
 

@@ -153,7 +153,7 @@ static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_BOOLEAN,
      1,
      N_("Smooth"),
-     0.0f,
+     1.0f,
      0.0f,
      0.0f,
      0.0f,

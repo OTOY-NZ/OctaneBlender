@@ -66,7 +66,20 @@ static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_INT, 1, N_("GMT offset"), 12, 0, 0, 0, -12, 12, PROP_NONE, SOCK_NO_INTERNAL_LINK},
     {-1, 0, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_VECTOR, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {
+    {SOCK_VECTOR, 0, N_("OutValue")},
+    {SOCK_VECTOR,
+     0,
+     N_("OutTex"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
+    {-1, 0, ""}};
 
 void register_node_type_val_oct_sun_direction(void)
 {

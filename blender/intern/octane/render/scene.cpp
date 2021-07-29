@@ -249,7 +249,10 @@ void Scene::generate_updated_octane_objects_data(
       // Set and upload empty object to make it removed in the server
       OctaneDataTransferObject::OctaneObject object;
       object.sObjectName = name;
-      object.iInstanceSize = 0;
+      object.iInstanceSize = 0;	 
+      object.iInstanceId = 0;
+      object.iSamplesNum = 1;
+      object.iUseObjectLayer = OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;
       octane_objects.oObjects.emplace_back(object);
     }
   }

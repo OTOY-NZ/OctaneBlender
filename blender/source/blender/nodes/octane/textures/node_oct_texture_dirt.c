@@ -41,11 +41,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                            {SOCK_FLOAT,
                                             1,
                                             N_("Details"),
-                                            1.0f,
                                             0.0f,
                                             0.0f,
                                             0.0f,
-                                            1.0f,
+                                            0.0f,
+                                            0.0f,
                                             100.0f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
@@ -56,8 +56,19 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             0.0f,
                                             0.0f,
                                             0.0f,
-                                            0.001f,
+                                            0.00001f,
                                             100000.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            1,
+                                            N_("Radius map"),
+                                            1.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.f,
+                                            1.f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
@@ -70,6 +81,39 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             0.0f,
                                             0.3f,
                                             PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            1,
+                                            N_("Spread"),
+                                            1.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            1.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            1,
+                                            N_("Distribution"),
+                                            1.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            1.0f,
+                                            100.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_VECTOR,
+                                            1,
+                                            N_("Bias"),
+                                            0.0f,
+                                            0.0f,
+                                            1.0f,
+                                            0.0f,
+                                            -1.0f,
+                                            1.0f,
+                                            PROP_XYZ,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_BOOLEAN,
                                             1,
@@ -86,6 +130,12 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
 
 static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
 
+static void node_type_tex_oct_dirt_init(bNodeTree *ntree, bNode *node)
+{
+  node->oct_custom1 = OCT_POSITION_NORMAL;
+  node->oct_custom2 = OCT_DIRT_INCLUDE_ALL;
+} 
+
 void register_node_type_tex_oct_dirt(void)
 {
   static bNodeType ntype;
@@ -94,7 +144,7 @@ void register_node_type_tex_oct_dirt(void)
     node_type_base(&ntype, SH_NODE_OCT_DIRT_TEX, "Dirt Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, 0);
+  node_type_init(&ntype, node_type_tex_oct_dirt_init);
   node_type_exec(&ntype, 0, 0, 0);
   ntype.update_internal_links = node_update_internal_links_default;
 

@@ -417,6 +417,110 @@ const EnumPropertyItem rna_enum_image_color_depth_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
+const EnumPropertyItem rna_enum_octane_image_save_mode_items[] = {
+    {OCT_IMAGE_SAVE_MODE_SEPARATE,
+     "SEPARATE_IMAGE_FILES",
+     0,
+     "Export separate image files",
+     "Export separate image files"},
+    {OCT_IMAGE_SAVE_MODE_MULTILAYER,
+     "MULTILAYER_EXR",
+     0,
+     "Export multilayer EXR",
+     "Export multilayer EXR"},
+    {0, NULL, 0, NULL, NULL},
+};
+
+const EnumPropertyItem rna_enum_octane_image_save_type_items[] = {
+    {OCT_IMAGE_SAVE_TYPE_PNG_8_TONEMAPPED,
+     "PNG8_TONEMAPPED",
+     0,
+     "PNG(8-bit, tonemapped)",
+     "PNG(8-bit, tonemapped)"},
+    {OCT_IMAGE_SAVE_TYPE_PNG_16_TONEMAPPED,
+     "PNG16_TONEMAPPED",
+     0,
+     "PNG(16-bit, tonemapped)",
+     "PNG(16-bit, tonemapped)"},
+    {OCT_IMAGE_SAVE_TYPE_EXR_32_LINEAR,
+     "EXR32_LINEAR",
+     0,
+     "EXR(32-bit, linear)",
+     "EXR(32-bit, linear)"},
+    {OCT_IMAGE_SAVE_TYPE_EXR_32_TONEMAPPED,
+     "EXR32_TONEMAPPED",
+     0,
+     "EXR(32-bit, tonemapped)",
+     "EXR(32-bit, tonemapped)"},
+    {OCT_IMAGE_SAVE_TYPE_EXR_16_LINEAR,
+     "EXR16_LINEAR",
+     0,
+     "EXR(16-bit, linear)",
+     "EXR(16-bit, linear)"},
+    {OCT_IMAGE_SAVE_TYPE_EXR_16_TONEMAPPED,
+     "EXR16_TONEMAPPED",
+     0,
+     "EXR(16-bit, tonemapped)",
+     "EXR(16-bit, tonemapped)"},
+    {OCT_IMAGE_SAVE_TYPE_EXR_ACES,
+     "EXR_ACES",
+     0,
+     "EXR(ACES)",
+     "ACES image container format, which is a 16-bit linear EXR in the ACES2065-1 color space "
+     "with no compression and some additional metadata"},
+    {0, NULL, 0, NULL, NULL},
+};
+
+const EnumPropertyItem rna_enum_octane_image_compression_type_items[] = {
+    {OCT_EXR_COMPRESSION_NO_COMPRESSION, "UNCOMPRESSED", 0, "Uncompressed", "no compression"},
+    {OCT_EXR_COMPRESSION_RLE,
+     "RLE_LOSSLESS",
+     0,
+     "RLE(lossless)",
+     "run length encoding (lossless)"},
+    {OCT_EXR_COMPRESSION_ZIPS,
+     "ZIPS_LOSSLESS",
+     0,
+     "ZIPS(lossless)",
+     "zlib compression, one scan line at a time (lossless)"},
+    {OCT_EXR_COMPRESSION_ZIP,
+     "ZIP_LOSSLESS",
+     0,
+     "ZIP(lossless)",
+     "zlib compression in blocks of 16 scan lines (lossless)"},
+    {OCT_EXR_COMPRESSION_PIZ,
+     "PIZ_LOSSLESS",
+     0,
+     "PIZ(lossless)",
+     "piz-based wavelet compression (lossless)"},
+    {OCT_EXR_COMPRESSION_PXR24,
+     "PXR24_LOSSY",
+     0,
+     "PXR24(lossy)",
+     "lossy 24-bit float compression (lossy)"},
+    {OCT_EXR_COMPRESSION_B44,
+     "B44_LOSSY",
+     0,
+     "B44(lossy)",
+     "lossy 4-by-4 pixel block compression (lossy)"},
+    {OCT_EXR_COMPRESSION_B44A,
+     "B44A_LOSSY",
+     0,
+     "B44A(lossy)",
+     "lossy 4-by-4 pixel block compression (lossy)"},
+    {OCT_EXR_COMPRESSION_DWAA,
+     "DWAA_LOSSY",
+     0,
+     "DWAA(lossy)",
+     "lossy DCT based compression in blocks of 32 scanlines"},
+    {OCT_EXR_COMPRESSION_DWAB,
+     "DWAB_LOSSY",
+     0,
+     "DWAB(lossy)",
+     "lossy DCT based compression in blocks of 256 scanlines"},
+    {0, NULL, 0, NULL, NULL},
+};
+
 const EnumPropertyItem rna_enum_normal_space_items[] = {
     {R_BAKE_SPACE_OBJECT, "OBJECT", 0, "Object", "Bake the normals in object space"},
     {R_BAKE_SPACE_TANGENT, "TANGENT", 0, "Tangent", "Bake the normals in tangent space"},
@@ -1385,6 +1489,38 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContex
     *r_free = true;
 
     return item;
+  }
+}
+
+static const EnumPropertyItem *rna_OctaneExportSettings_file_type_itemf(bContext *UNUSED(C),
+                                                                        PointerRNA *ptr,
+                                                                        PropertyRNA *UNUSED(prop),
+                                                                        bool *r_free)
+{
+  ImageFormatData *imf = (ImageFormatData *)ptr->data;
+  if (imf == NULL) {
+    return rna_enum_octane_image_save_type_items;
+  }
+  else {
+    if (imf->octane_save_mode == OCT_IMAGE_SAVE_MODE_SEPARATE) {
+      return rna_enum_octane_image_save_type_items;
+    }
+    else {
+      int totitem = 0;
+      EnumPropertyItem *item = NULL;
+
+#define OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_START 2
+#define OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_END 6
+      for (int i = OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_START; i <= OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_END;
+           ++i) {
+        RNA_enum_item_add(&item, &totitem, &rna_enum_octane_image_save_type_items[i]);
+      }
+#undef OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_START
+#undef OCT_IMAGE_SAVE_TYPE_EXR_OFFSET_END
+      RNA_enum_item_end(&item, &totitem);
+      *r_free = true;
+      return item;
+    }
   }
 }
 
@@ -2684,7 +2820,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   PropertyRNA *prop;
 
   /* the construction of this enum is quite special - everything is stored as bitflags,
-   * with 1st position only for for on/off (and exposed as boolean), while others are mutually
+   * with 1st position only for on/off (and exposed as boolean), while others are mutually
    * exclusive options but which will only have any effect when autokey is enabled
    */
   static const EnumPropertyItem auto_key_items[] = {
@@ -2867,6 +3003,17 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Lock Object Modes", "Restrict select to the current mode");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
+  static const EnumPropertyItem workspace_tool_items[] = {
+      {SCE_WORKSPACE_TOOL_DEFAULT, "DEFAULT", 0, "Active Tool", ""},
+      {SCE_WORKSPACE_TOOL_FALLBACK, "FALLBACK", 0, "Select", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  prop = RNA_def_property(srna, "workspace_tool_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "workspace_tool_type");
+  RNA_def_property_enum_items(prop, workspace_tool_items);
+  RNA_def_property_ui_text(prop, "Drag", "Action when dragging in the viewport");
+
   /* Transform */
   prop = RNA_def_property(srna, "use_proportional_edit", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "proportional_edit", PROP_EDIT_USE);
@@ -3033,6 +3180,11 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Project Individual Elements",
                            "Project individual elements on the surface of other objects");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
+  prop = RNA_def_property(srna, "use_snap_backface_culling", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP_BACKFACE_CULLING);
+  RNA_def_property_ui_text(prop, "Backface Culling", "Exclude back facing geometry from snapping");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
   prop = RNA_def_property(srna, "use_snap_self", PROP_BOOLEAN, PROP_NONE);
@@ -3302,6 +3454,12 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_struct_type(prop, "MeshStatVis");
   RNA_def_property_ui_text(prop, "Mesh Statistics Visualization", NULL);
+
+  /* CurveProfile */
+  prop = RNA_def_property(srna, "custom_bevel_profile_preset", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "custom_bevel_profile_preset");
+  RNA_def_property_struct_type(prop, "CurveProfile");
+  RNA_def_property_ui_text(prop, "Curve Profile Widget", "Used for defining a profile's path");
 }
 
 static void rna_def_unified_paint_settings(BlenderRNA *brna)
@@ -3399,17 +3557,6 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "secondary_rgb");
   RNA_def_property_ui_text(prop, "Secondary Color", "");
   RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
-
-  prop = RNA_def_property(srna, "use_pressure_size", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", UNIFIED_PAINT_BRUSH_SIZE_PRESSURE);
-  RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
-  RNA_def_property_ui_text(prop, "Size Pressure", "Enable tablet pressure sensitivity for size");
-
-  prop = RNA_def_property(srna, "use_pressure_strength", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", UNIFIED_PAINT_BRUSH_ALPHA_PRESSURE);
-  RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
-  RNA_def_property_ui_text(
-      prop, "Strength Pressure", "Enable tablet pressure sensitivity for strength");
 
   prop = RNA_def_property(srna, "use_locked_size", PROP_ENUM, PROP_NONE); /* as an enum */
   RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
@@ -5625,6 +5772,35 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Color Depth", "Bit depth per channel");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
+  prop = RNA_def_property(srna, "octane_save_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "octane_save_mode");
+  RNA_def_property_enum_items(prop, rna_enum_octane_image_save_mode_items);
+  RNA_def_property_enum_funcs(prop, NULL, NULL, NULL);
+  RNA_def_property_ui_text(
+      prop, "Octane Export Mode", "Export image as separate files or multilayer EXR");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "octane_file_format", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "octane_file_format");
+  RNA_def_property_enum_items(prop, rna_enum_octane_image_save_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_OctaneExportSettings_file_type_itemf");
+  RNA_def_property_enum_default(prop, OCT_IMAGE_SAVE_TYPE_EXR_32_LINEAR);
+  RNA_def_property_ui_text(prop, "File Type", "Export image file type");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "octane_exr_compression_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "octane_exr_compression_type");
+  RNA_def_property_enum_items(prop, rna_enum_octane_image_compression_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, NULL, NULL);
+  RNA_def_property_enum_default(prop, OCT_EXR_COMPRESSION_ZIP);
+  RNA_def_property_ui_text(prop, "EXR Compression", "EXR compression type");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "octane_export_tag", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "octane_export_tag");
+  RNA_def_property_ui_text(prop, "Octane Tag", "Octane export tag. If given, this name will be concatenated to the file name as postfix(to distinguish the Blender outputs and Octane export outputs)");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
   /* was 'file_quality' */
   prop = RNA_def_property(srna, "quality", PROP_INT, PROP_PERCENTAGE);
   RNA_def_property_int_sdna(prop, NULL, "quality");
@@ -6351,7 +6527,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_overwrite", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "mode", R_NO_OVERWRITE);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Overwrite", "Overwrite existing files while rendering");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
@@ -6446,6 +6621,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "Cache Result",
                            "Save render cache to EXR files (useful for heavy compositing, "
                            "Note: affects indirectly rendered scenes)");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  /* Octane export */
+  prop = RNA_def_property(srna, "use_octane_export", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_octane_export", SELECT);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Use Octane Export", "Use Octane to save render passes to PNG or EXR files");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   /* Bake */
@@ -6783,33 +6966,35 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_view_fill", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_FILL);
-  RNA_def_property_ui_text(prop, "Disable Fill", "Disable fill strokes in the viewport");
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_FILL);
+  RNA_def_property_ui_text(prop, "Fill", "Display fill strokes in the viewport");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_remove_lines", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_REMOVE_FILL_LINE);
-  RNA_def_property_ui_text(prop, "Disable Lines", "Disable external lines of fill strokes");
+  RNA_def_property_boolean_negative_sdna(
+      prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_REMOVE_FILL_LINE);
+  RNA_def_property_ui_text(prop, "Disable Lines", "Display external lines of fill strokes");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_view_modifier", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_MODIFIER);
-  RNA_def_property_ui_text(prop, "Disable Modifiers", "Do not apply modifiers in the viewport");
+  RNA_def_property_boolean_negative_sdna(
+      prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_MODIFIER);
+  RNA_def_property_ui_text(prop, "Disable Modifiers", "Display modifiers in the viewport");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_shader_fx", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_FX);
-  RNA_def_property_ui_text(prop, "Simplify Shaders", "Do not apply shader fx");
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_FX);
+  RNA_def_property_ui_text(prop, "Simplify Shaders", "Display Shader FX");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_blend", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_BLEND);
-  RNA_def_property_ui_text(prop, "Layers Blending", "Do not display blend layers");
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_BLEND);
+  RNA_def_property_ui_text(prop, "Layers Blending", "Display blend layers");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   prop = RNA_def_property(srna, "simplify_gpencil_tint", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_TINT);
-  RNA_def_property_ui_text(prop, "Layers Tinting", "Do not display layer tint");
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "simplify_gpencil", SIMPLIFY_GPENCIL_TINT);
+  RNA_def_property_ui_text(prop, "Layers Tinting", "Display layer tint");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
   /* persistent data */

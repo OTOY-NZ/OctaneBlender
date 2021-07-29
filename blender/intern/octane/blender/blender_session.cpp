@@ -69,7 +69,8 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
                                BL::Preferences &b_userpref,
                                BL::BlendData &b_data,
                                BlenderSession::ExportType export_type,
-                               std::string &export_path)
+                               std::string &export_path,
+                               std::unordered_set<std::string> &dirty_resources)
     : session(NULL),
       sync(NULL),
       b_engine(b_engine),
@@ -86,6 +87,8 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
       export_path(export_path)
 {
   sync_mutex.lock();
+
+  this->dirty_resources = dirty_resources;
 
   /* offline render */
   background = true;
@@ -106,7 +109,8 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
                                int width,
                                int height,
                                BlenderSession::ExportType export_type,
-                               std::string &export_path)
+                               std::string &export_path,
+                               std::unordered_set<std::string> &dirty_resources)
     : session(NULL),
       sync(NULL),
       b_engine(b_engine),
@@ -123,6 +127,8 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
       export_path(export_path)
 {
   sync_mutex.lock();
+
+  this->dirty_resources = dirty_resources;
 
   /* 3d view render */
   background = false;
@@ -188,8 +194,15 @@ void BlenderSession::create_session()
    * of multiple layers, or perhaps move syncing further down in the pipeline.
    */
   /* create sync */
-  sync = new BlenderSync(
-      b_engine, b_userpref, b_data, b_scene, scene, !background, session->progress);
+  sync = new BlenderSync(b_engine,
+                         b_userpref,
+                         b_data,
+                         b_scene,
+                         scene,
+                         !background,
+                         session->is_export_mode(),
+                         session->progress);
+
   BL::Object b_camera_override(b_engine.camera_override());
   if (b_v3d) {
     sync->sync_view(b_v3d, b_rv3d, width, height);
@@ -201,7 +214,28 @@ void BlenderSession::create_session()
   /* set buffer parameters */
   BufferParams buffer_params = BlenderSync::get_buffer_params(
       b_render, b_v3d, b_rv3d, scene->camera, width, height);
-  session->reset(buffer_params, session_params.samples);
+  if (b_scene.frame_current() == b_scene.frame_start() ||
+      (export_type == ::OctaneEngine::SceneExportTypes::NONE && !b_engine.is_animation())) {
+    OctaneManager::getInstance().Reset();
+    session->reset(buffer_params, session_params.samples);
+  }
+
+  if (session->server) {
+    OctaneDataTransferObject::OctaneNodeBase *cur_node =
+        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
+            Octane::ENT_ENGINE_DATA);
+    std::vector<OctaneDataTransferObject::OctaneNodeBase *> response;
+    session->server->uploadOctaneNode(cur_node, &response);
+    if (response.size() == 1) {
+      OctaneDataTransferObject::OctaneEngineData *engine_data_node =
+          (OctaneDataTransferObject::OctaneEngineData *)(response[0]);
+      sync->set_resource_cache(engine_data_node->oResourceCacheData, dirty_resources);    
+	}
+    delete cur_node;
+    for (auto pResponseNode : response) {
+      delete pResponseNode;
+    }
+  }
 }
 
 void BlenderSession::free_session()
@@ -255,8 +289,14 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
    * See note on create_session().
    */
   /* sync object should be re-created */
-  sync = new BlenderSync(
-      b_engine, b_userpref, b_data, b_scene, scene, !background, session->progress);
+  sync = new BlenderSync(b_engine,
+                         b_userpref,
+                         b_data,
+                         b_scene,
+                         scene,
+                         !background,
+                         session->is_export_mode(),
+                         session->progress);
 
   BL::SpaceView3D b_null_space_view3d(PointerRNA_NULL);
   BL::RegionView3D b_null_region_view3d(PointerRNA_NULL);
@@ -264,7 +304,8 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
       b_render, b_null_space_view3d, b_null_region_view3d, scene->camera, width, height);
 
   if (b_scene.frame_current() == b_scene.frame_start() ||
-      export_type == ::OctaneEngine::SceneExportTypes::NONE) {
+      (export_type == ::OctaneEngine::SceneExportTypes::NONE && !b_engine.is_animation())) {
+    OctaneManager::getInstance().Reset();
     session->reset(buffer_params, session_params.samples);
   }
 
@@ -321,8 +362,17 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
   b_depsgraph = b_depsgraph_;
 
   BL::Object b_camera_override(b_engine.camera_override());
-  sync->sync_data(
-      b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
+
+  bool is_navigation_mode = false;
+  if (b_rv3d) {
+    RegionView3D *rv3d = (RegionView3D *)(b_rv3d.ptr.data); 
+	is_navigation_mode = rv3d && rv3d->rflag & RV3D_NAVIGATING;
+  }
+  
+  if (!is_navigation_mode) {
+    sync->sync_data(b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
+  }
+
 
   if (b_rv3d)
     sync->sync_view(b_v3d, b_rv3d, width, height);
@@ -456,7 +506,8 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
                                  session_params.out_of_core_enabled,
                                  session_params.out_of_core_mem_limit,
                                  session_params.out_of_core_gpu_headroom,
-                                 session_params.render_priority);
+                                 session_params.render_priority,
+                                 session_params.resource_cache_type);
 
     if (b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
       session->progress.set_status("Transferring scene file...");
@@ -610,7 +661,10 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
     b_combined_pass.rect(pixels);
   }
 
+  ::OctaneDataTransferObject::OctaneSaveImage saveImage;
+
   if (!do_update_only) {
+    bool include_cryptomatte = false;
     BL::RenderLayer::passes_iterator b_iter;
     for (b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter) {
       BL::RenderPass b_pass(*b_iter);
@@ -622,8 +676,14 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
         break;
 
       ::Octane::RenderPassId pass_type = BlenderSync::get_pass_type(b_pass);
-      if (pass_type == ::Octane::RenderPassId::RENDER_PASS_BEAUTY)
-        continue;
+      saveImage.iPasses.emplace_back(pass_type);
+      saveImage.sPassNames.emplace_back(b_pass.name());
+      if (pass_type >= ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_OFFSET) {
+        include_cryptomatte = true;
+      }
+
+      // if (pass_type == ::Octane::RenderPassId::RENDER_PASS_BEAUTY)
+      //  continue;
       if (!session->server->downloadImageBuffer(
               session->params.image_stat,
               session->params.interactive ?
@@ -652,6 +712,27 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
                    height)))
         b_pass.rect(pixels);
       delete[] pixels;
+    }
+
+    bool use_octane_export = b_scene.render().use_octane_export();
+
+    if (use_octane_export) {
+      saveImage.bMultiLayers = b_scene.render().image_settings().octane_save_mode() ==
+                               OCT_IMAGE_SAVE_MODE_MULTILAYER;
+      saveImage.iImageType = b_scene.render().image_settings().octane_file_format();
+      saveImage.iExrCompressionType =
+          b_scene.render().image_settings().octane_exr_compression_type();
+      string raw_export_file_path = blender_absolute_path(
+          b_data, b_scene, b_scene.render().filepath().c_str());
+      saveImage.sPath = blender_path_frame(raw_export_file_path, b_scene.frame_current(), 4);
+      string raw_file_name = path_filename(saveImage.sPath);
+      size_t suffix_idx = raw_file_name.rfind(".");
+      if (raw_file_name.rfind(".") != -1) {
+        raw_file_name = raw_file_name.substr(0, suffix_idx);
+      }
+      saveImage.sFileName = raw_file_name;
+      saveImage.sOctaneTag = b_scene.render().image_settings().octane_export_tag();
+      session->server->uploadOctaneNode(&saveImage, NULL);
     }
   }
 
@@ -856,8 +937,8 @@ bool BlenderSession::osl_compile(const std::string server_address,
     delete cur_node;
     if (ret) {
       OSLManager::Instance().record_osl(osl_identifier, oslNodeInfo);
-      info = oslNodeInfo.mCompileInfo;
     }
+    info = oslNodeInfo.mCompileInfo;
   }
   else {
     info = "Cannot connect to the OctaneServer.";
@@ -866,6 +947,44 @@ bool BlenderSession::osl_compile(const std::string server_address,
     delete server;
   }
 
+  return ret;
+}
+
+bool BlenderSession::resolve_octane_vdb_info(const std::string server_address,
+                                             PointerRNA &oct_mesh,
+                                             BL::BlendData &b_data,
+                                             BL::Scene &b_scene,
+                                             std::vector<std::string> &float_grid_ids,
+                                             std::vector<std::string> &vector_grid_ids)
+{
+  std::string vdb_file_path = resolve_octane_vdb_path(oct_mesh, b_data, b_scene);
+  if (!vdb_file_path.length()) {
+    return true;
+  }
+  ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
+  bool ret = BlenderSession::connect_to_server(server_address, RENDER_SERVER_PORT, server);
+  if (ret) {
+    OctaneDataTransferObject::OctaneNodeBase *cur_node =
+        OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(Octane::ENT_VDB_INFO);
+    OctaneDataTransferObject::OctaneVolumeInfo *cur_vol_node =
+        (OctaneDataTransferObject::OctaneVolumeInfo *)cur_node;
+    cur_vol_node->sVolumePath = vdb_file_path;
+    std::vector<OctaneDataTransferObject::OctaneNodeBase *> response;
+    server->uploadOctaneNode(cur_vol_node, &response);
+    if (response.size() == 1) {
+      OctaneDataTransferObject::OctaneVolumeInfo *pVolInfo =
+          (OctaneDataTransferObject::OctaneVolumeInfo *)(response[0]);
+      float_grid_ids = pVolInfo->sFloatGridNames;
+      vector_grid_ids = pVolInfo->sVectorGridNames;    
+	}
+    delete cur_node;
+    for (auto pResponseNode : response) {
+      delete pResponseNode;
+    }
+  }
+  if (server) {
+    delete server;
+  }
   return ret;
 }
 
@@ -891,8 +1010,13 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
   G.is_break = false;
   BKE_spacedata_draw_locks(true);
   std::string export_path(data->export_path);
-  BlenderSession *session = new BlenderSession(
-      data->b_engine, data->b_userpref, data->b_data, data->export_type, export_path);
+  std::unordered_set<std::string> dirty_resources;
+  BlenderSession *session = new BlenderSession(data->b_engine,
+                                               data->b_userpref,
+                                               data->b_data,
+                                               data->export_type,
+                                               export_path,
+                                               dirty_resources);
 
   if (!G.is_break) {
     for (int f = first_frame; f <= last_frame; ++f) {
@@ -1076,12 +1200,13 @@ bool BlenderSession::export_localdb(BL::Scene &b_scene,
   RNA_pointer_create(NULL, &RNA_RenderEngine, engine, &engineptr);
   BL::RenderEngine b_engine(engineptr);
   std::string empty("");
+  std::unordered_set<std::string> dirty_resources;
 
   DEG_graph_build_from_view_layer(m_depsgraph, m_main, m_scene, m_viewlayer);
   BKE_scene_graph_update_tagged(m_depsgraph, m_main);
 
   BlenderSession *session = new BlenderSession(
-      b_engine, b_userpref, b_data, BlenderSession::NONE, empty);
+      b_engine, b_userpref, b_data, BlenderSession::NONE, empty, dirty_resources);
 
   if (session) {
     session->reset_session(b_data, b_depsgraph);
@@ -1165,14 +1290,14 @@ static void get_octanedb_startjob(void *customdata, short *stop, short *do_updat
   std::vector<float> fParams;
   std::vector<std::string> sParams;
   sParams.emplace_back(std::string(G.octane_localdb_path));
+  sParams.emplace_back(std::string(G.octane_texture_cache_path));
   server->commandToOctane(OctaneDataTransferObject::SHOW_LIVEDB, iParams, fParams, sParams);
   while (!is_close) {
     OctaneDataTransferObject::OctaneDBNodes nodes;
     server->downloadOctaneDB(nodes);
     is_close = nodes.bClose;
     if (!is_close) {
-      BlenderOctaneDb::generate_blender_material_from_octanedb(
-          nodes.sName, nodes.octaneDBNodes, *data);
+      BlenderOctaneDb::generate_blender_material_from_octanedb(nodes.sName, nodes, *data);
       for (auto pNode : nodes.octaneDBNodes) {
         delete pNode;
       }

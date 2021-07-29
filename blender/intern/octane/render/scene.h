@@ -123,7 +123,7 @@ class Scene {
   ::OctaneEngine::OctaneClient *server;
   bool first_frame;
   AnimationMode anim_mode;
-  Mesh::MeshType meshes_type;
+  MeshType meshes_type;
   bool use_viewport_hide;
 
   // Mutex must be locked manually by callers

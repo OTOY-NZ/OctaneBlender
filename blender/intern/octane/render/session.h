@@ -56,7 +56,7 @@ class SessionParams {
   bool hdr_tonemapped;
   bool hdr_tonemap_prefer;
   bool use_viewport_hide;
-  Mesh::MeshType meshes_type;
+  MeshType meshes_type;
   float fps;
   bool deep_image;
   bool export_with_object_layers;
@@ -65,19 +65,21 @@ class SessionParams {
   int32_t out_of_core_mem_limit;
   int32_t out_of_core_gpu_headroom;
   int32_t render_priority;
+  int32_t resource_cache_type;
 
   SessionParams()
   {
     interactive = true;
     output_path = "";
     use_passes = false;
-    meshes_type = Mesh::AS_IS;
+    meshes_type = MeshType::AS_IS;
     samples = INT_MAX;
     anim_mode = FULL;
     fps = 24.0f;
     hdr_tonemapped = false;
     hdr_tonemap_prefer = true;
     render_priority = 0;
+    resource_cache_type = ::OctaneDataTransferObject::DISABLE_CACHE_SYSTEM;
     export_type = ::OctaneEngine::SceneExportTypes::NONE;
 
     out_of_core_enabled = false;
@@ -97,7 +99,9 @@ class SessionParams {
              out_of_core_gpu_headroom == params.out_of_core_gpu_headroom &&
              hdr_tonemapped == params.hdr_tonemapped &&
              hdr_tonemap_prefer == params.hdr_tonemap_prefer &&
-             render_priority == params.render_priority && width == width && height == height);
+             render_priority == params.render_priority &&
+             resource_cache_type == params.resource_cache_type && width == width &&
+             height == height);
   }
 };  // SessionParams
 
@@ -117,6 +121,8 @@ class Session {
 
   Session(const SessionParams &params, const char *_out_path, const char *_cache_path);
   ~Session();
+
+  bool is_export_mode();
 
   void wait();
 

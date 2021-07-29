@@ -445,17 +445,31 @@ class OCTANE_RENDER_PT_server(OctaneButtonsPanel, Panel):
         oct_scene = scene.octane
 
         box = layout.box()
+        box.label(text="Octane Resource Cache")
+        sub = box.row()
+        sub.active = not engine.IS_RENDERING
+        sub.prop(oct_scene, "resource_cache_type")
+        sub = box.row()
+        sub.prop(oct_scene, "dirty_resource_detection_strategy_type")
+        sub.operator("octane.clear_resource_cache", text="Clear")
+
+        box = layout.box()
         box.label(text="Octane Settings:")
         sub = box.row()
         sub.prop(oct_scene, "priority_mode")        
         sub = box.row()
-        sub.prop(oct_scene, "prefer_tonemap")               
+        sub.prop(oct_scene, "prefer_tonemap")     
         sub = box.row()
-        # sub.operator("octane.open_octanedb", text="Open OctaneDB")        
-        # sub = box.row()
+        sub.active = not engine.IS_RENDERING
+        sub.prop(oct_scene, "meshes_type")            
+        sub = box.row()
+        sub.prop(oct_scene, "subsample_mode")                
+        sub = box.row()
         sub.operator("octane.show_octane_node_graph", text="Show Octane Node Graph")
         sub = box.row()
         sub.operator("octane.show_octane_log", text="Show Octane Log")
+        sub = box.row()
+        sub.operator("octane.show_octane_viewport", text="Show Octane Viewport")
         sub = box.row()
         sub.operator("octane.stop_render", text="Stop Render")
         sub = box.row()
@@ -813,7 +827,7 @@ class OCTANE_CAMERA_PT_imager(OctaneButtonsPanel, Panel):
 
 
 class OCTANE_CAMERA_PT_post(OctaneButtonsPanel, Panel):
-    bl_label = "Octane postprocessor"
+    bl_label = "Octane Post Processing"
     bl_context = "data"
 
     @classmethod
@@ -868,9 +882,9 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
             cdata = mball.octane
 
 
-        sub = layout.row(align=True)
-        sub.prop(cdata, "mesh_type")
-        sub.operator("octane.set_meshes_type", text="")
+        # sub = layout.row(align=True)
+        # sub.prop(cdata, "mesh_type")
+        # sub.operator("octane.set_meshes_type", text="")
         
         sub = layout.row(align=True)
         sub.prop(cdata, "force_load_vertex_normals")
@@ -924,6 +938,21 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
             sub.prop(cdata, "auto_smooth_angle")
 
         box = layout.box()
+        box.label(text="Sphere Attributes:")
+        sub = box.row(align=True)
+        sub.prop(cdata, "enable_octane_sphere_attribute")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_sphere_radius") 
+        sub = box.row(align=True)
+        sub.prop(cdata, "use_randomized_radius")
+        if cdata.use_randomized_radius:
+            sub = box.row(align=True)
+            sub.prop(cdata, "octane_sphere_randomized_radius_seed")
+            sub = box.row(align=True)
+            sub.prop(cdata, "octane_sphere_randomized_radius_min")
+            sub.prop(cdata, "octane_sphere_randomized_radius_max")
+
+        box = layout.box()
         box.label(text="OpenSubDiv:")
         sub = box.row(align=True)
         sub.prop(cdata, "open_subd_enable", text="Enable")
@@ -935,19 +964,13 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub.prop(cdata, "open_subd_level")
         sub.prop(cdata, "open_subd_sharpness")
 
-        # box = layout.box()
-        # box.label(text="Visibility:")
-        # sub = box.column(align=True)
-        # sub.prop(cdata, "vis_general")
-        # sub.prop(cdata, "vis_cam")
-        # sub.prop(cdata, "vis_shadow")
-
         box = layout.box()
         box.label(text="Volume properties:")
         sub = box.column(align=True)     
         sub.prop(cdata, "is_octane_vdb")
         sub.prop(cdata, "vdb_sdf")
         sub.prop(cdata, "imported_openvdb_file_path")
+        sub.prop(cdata, "vdb_import_scale")
         sub = box.row(align=True)
         sub.prop(cdata, "openvdb_frame_start")
         sub.prop(cdata, "openvdb_frame_end")   
@@ -957,9 +980,21 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub = box.column(align=True)
         sub.prop(cdata, "vdb_iso")
         sub.prop(cdata, "vdb_abs_scale")
-        sub.prop(cdata, "vdb_emiss_scale")
-        sub.prop(cdata, "vdb_scatter_scale")
+        sub.prop(cdata, "vdb_emiss_scale")        
+        sub.prop(cdata, "vdb_scatter_scale")             
+        sub.prop_search(cdata, "vdb_absorption_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
+        sub.prop_search(cdata, "vdb_emission_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+        sub.prop_search(cdata, "vdb_scattering_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+        sub = box.column(align=True)
+        sub.prop(cdata, "vdb_motion_blur_enabled")
+        sub.prop(cdata, "vdb_velocity_grid_type")
         sub.prop(cdata, "vdb_vel_scale")
+        if cdata.vdb_velocity_grid_type == 'Vector grid':
+            sub.prop_search(cdata, "vdb_vector_grid_id", cdata.octane_vdb_info, "vdb_vector_grid_id_container")            
+        else:
+            sub.prop_search(cdata, "vdb_x_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")        
+            sub.prop_search(cdata, "vdb_y_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")
+            sub.prop_search(cdata, "vdb_z_components_grid_id", cdata.octane_vdb_info, "vdb_float_grid_id_container")            
 
         box = layout.box()
         box.label(text="Octane Geometric Node:")        
@@ -975,6 +1010,19 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         box.label(text="Orbx properties:")   
         sub = box.column(align=True)     
         sub.prop(cdata, "imported_orbx_file_path")
+
+        box = layout.box()
+        box.label(text="Octane Offset Transform:")        
+        sub = box.row(align=True)
+        sub.prop(cdata, "enable_octane_offset_transform")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_offset_translation")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_offset_rotation_order")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_offset_rotation")
+        sub = box.row(align=True)
+        sub.prop(cdata, "octane_offset_scale")
 
 
 class OCTANE_RENDER_PT_HairSettings(OctaneButtonsPanel, Panel):
@@ -1626,7 +1674,7 @@ class OCTANE_LIGHT_PT_light(OctaneButtonsPanel, Panel):
 
         if light.type == 'POINT':
             layout.label(text="Used as Toon Point Light.")           
-            return              
+            return                         
 
         if light.type == 'AREA':
             col.prop(light, "shape", text="Shape")
@@ -1645,6 +1693,10 @@ class OCTANE_LIGHT_PT_light(OctaneButtonsPanel, Panel):
             col.prop(oct_light, "external_mesh_file")
             return                                
 
+        if light.type == 'SPHERE':
+            col.prop(light, "sphere_radius", text="Radius")       
+            return              
+
 
 class OCTANE_LIGHT_PT_nodes(OctaneButtonsPanel, Panel):
     bl_label = "Nodes"
@@ -1652,7 +1704,7 @@ class OCTANE_LIGHT_PT_nodes(OctaneButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.light and context.light.type in ('POINT', 'SUN', 'AREA', 'MESH') and \
+        return context.light and context.light.type in ('POINT', 'SUN', 'AREA', 'MESH', 'SPHERE') and \
             OctaneButtonsPanel.poll(context)
 
     def draw(self, context):
@@ -1674,7 +1726,15 @@ class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):
                         (ob.instance_type == 'COLLECTION' and ob.instance_collection)))
 
     def draw(self, context):
-        pass
+        layout = self.layout        
+        scene = context.scene
+        ob = context.object
+        octane_object = ob.octane
+        
+        if ob and ob.type not in ('FONT',):
+            sub = layout.row(align=True)
+            sub.active = not engine.IS_RENDERING
+            sub.prop(octane_object, "object_mesh_type")
 
 
 class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
@@ -1696,6 +1756,7 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         sub = layout.row(align=True)        
         sub.prop(octane_object, "camera_visibility")
         sub.prop(octane_object, "shadow_visibility")
+        sub.prop(octane_object, "dirt_visibility")
 
         split = layout.split(factor=0.15)
         split.use_property_split = False
@@ -1783,6 +1844,26 @@ class OCTANE_OBJECT_PT_motion_blur(OctaneButtonsPanel, Panel):
         row.prop(ob.octane, "motion_steps", text="Steps")
 
 
+class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
+    bl_label = "Octane Output"
+    bl_context = "output"
+    bl_parent_id = "RENDER_PT_output"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        layout = self.layout
+        rd = context.scene.render
+        layout.active = rd.use_octane_export
+        layout.prop(rd, "use_octane_export", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        rd = context.scene.render
+        image_settings = rd.image_settings
+
+        layout.template_octane_export_settings(image_settings)
+
+
 def get_panels():
     exclude_panels = {
         "DATA_PT_light",
@@ -1810,6 +1891,8 @@ classes = (
     OCTANE_RENDER_PT_server,
     OCTANE_RENDER_PT_out_of_core,
     OCTANE_RENDER_PT_motion_blur,
+
+    OCTANE_RENDER_PT_output,
 
     VIEW3D_PT_octimager,
     VIEW3D_PT_Octane_Postprocessing,

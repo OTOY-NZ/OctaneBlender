@@ -446,6 +446,7 @@ bool OctaneClient::downloadOctaneDB(OctaneDataTransferObject::OctaneDBNodes &nod
       (OctaneDataTransferObject::OctaneDBNodes *)RPCMsgPackObj::receiveOctaneNode(m_Socket);
   nodes.sName = pOctaneDBNodes->sName;
   nodes.bClose = pOctaneDBNodes->bClose;
+  nodes.isMaterialType = pOctaneDBNodes->isMaterialType;
   nodes.iNodesNum = pOctaneDBNodes->iNodesNum;
   for (int i = 0; i < pOctaneDBNodes->iNodesNum; ++i) {
     OctaneDataTransferObject::OctaneNodeBase *pResponseNode = RPCMsgPackObj::receiveOctaneNode(
@@ -503,7 +504,8 @@ bool OctaneClient::activate(string const &sStandLogin,
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void OctaneClient::reset(SceneExportTypes::SceneExportTypesEnum exportSceneType,
+void OctaneClient::reset(bool bInteractive,
+                         SceneExportTypes::SceneExportTypesEnum exportSceneType,
                          float fFrameTimeSampling,
                          float fFps,
                          bool bDeepImage,
@@ -522,10 +524,11 @@ void OctaneClient::reset(SceneExportTypes::SceneExportTypesEnum exportSceneType,
                               bExportWithObjectLayers;
 
   RPCSend snd(m_Socket,
-              sizeof(float) * 2 + sizeof(uint32_t) * 3 + (m_sOutPath.size() + 2) +
+              sizeof(float) * 2 + sizeof(uint32_t) * 4 + (m_sOutPath.size() + 2) +
                   (m_sCachePath.size() + 2),
               OctaneDataTransferObject::RESET);
-  snd << fFrameTimeSampling << fFps << m_ExportSceneType << bDeepImage << m_bExportWithObjectLayers
+  snd << bInteractive << fFrameTimeSampling << fFps << m_ExportSceneType << bDeepImage
+      << m_bExportWithObjectLayers
       << m_sOutPath.c_str() << m_sCachePath.c_str();
 
   snd.write();
@@ -618,7 +621,8 @@ void OctaneClient::startRender(bool bInteractive,
                                bool bOutOfCoreEnabled,
                                int32_t iOutOfCoreMemLimit,
                                int32_t iOutOfCoreGPUHeadroom,
-                               int32_t iRenderPriority)
+                               int32_t iRenderPriority,
+                               int32_t iResourceCacheType)
 {
   if (m_bRenderStarted)
     m_bRenderStarted = false;
@@ -629,12 +633,12 @@ void OctaneClient::startRender(bool bInteractive,
   LOCK_MUTEX(m_SocketMutex);
 
   RPCSend snd(m_Socket,
-              sizeof(int32_t) * 6 + sizeof(uint32_t) * 2 + (m_sOutPath.size() + 2) +
+              sizeof(int32_t) * 7 + sizeof(uint32_t) * 2 + (m_sOutPath.size() + 2) +
                   m_sCachePath.size() + 2,
               OctaneDataTransferObject::START);
   snd << bInteractive << bOutOfCoreEnabled << iOutOfCoreMemLimit << iOutOfCoreGPUHeadroom
-      << iRenderPriority << iWidth << iHeigth << imgType << m_sOutPath.c_str()
-      << m_sCachePath.c_str();
+      << iRenderPriority << iResourceCacheType << iWidth << iHeigth << imgType
+      << m_sOutPath.c_str() << m_sCachePath.c_str();
   snd.write();
 
   RPCReceive rcv(m_Socket);
@@ -1042,7 +1046,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
   switch (pKernel->type) {
     case Kernel::DIRECT_LIGHT: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 14 + sizeof(int32_t) * 32 + pKernel->sAoTexture.length() +
+                  sizeof(float) * 14 + sizeof(int32_t) * 33 + pKernel->sAoTexture.length() +
                       sizeof(float_3) + 2,
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
@@ -1061,13 +1065,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->iMaxTileSamples << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
           << pKernel->adaptiveGroupPixels << pKernel->mbAlignment << pKernel->bLayersEnable
           << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
-          << pKernel->iClayMode << pKernel->iMaxSubdivisionLevel << pKernel->f3ToonShadowAmbient
-          << pKernel->sAoTexture;
+          << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->f3ToonShadowAmbient << pKernel->sAoTexture;
       snd.write();
     } break;
     case Kernel::PATH_TRACE: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 15 + sizeof(int32_t) * 31 + sizeof(float_3),
+                  sizeof(float) * 15 + sizeof(int32_t) * 32 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
@@ -1086,12 +1090,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->iMaxDepthSamples << pKernel->iAdaptiveMinSamples
           << pKernel->adaptiveGroupPixels << pKernel->mbAlignment << pKernel->bLayersEnable
           << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
-          << pKernel->iClayMode << pKernel->iMaxSubdivisionLevel << pKernel->f3ToonShadowAmbient;
+          << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->f3ToonShadowAmbient;
       snd.write();
     } break;
     case Kernel::PMC: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 12 + sizeof(int32_t) * 25 + sizeof(float_3),
+                  sizeof(float) * 12 + sizeof(int32_t) * 26 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
@@ -1106,12 +1111,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->iMaxRejects << pKernel->iParallelism << pKernel->iWorkChunkSize
           << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
           << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
-          << pKernel->iMaxSubdivisionLevel << pKernel->f3ToonShadowAmbient;
+          << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->f3ToonShadowAmbient;
       snd.write();
     } break;
     case Kernel::INFO_CHANNEL: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 11 + sizeof(int32_t) * 18 + sizeof(float_3),
+                  sizeof(float) * 11 + sizeof(int32_t) * 19 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->infoChannelType << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
@@ -1122,18 +1128,20 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->iMaxSamples << pKernel->iParallelSamples << pKernel->iMaxTileSamples
           << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
           << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
-          << pKernel->iMaxSubdivisionLevel << pKernel->f3ToonShadowAmbient;
+          << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->f3ToonShadowAmbient;
       snd.write();
     } break;
     default: {
       RPCSend snd(m_Socket,
-                  sizeof(int32_t) * 8 + sizeof(float) * 4 + sizeof(float_3),
+                  sizeof(int32_t) * 9 + sizeof(float) * 4 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
       snd << defType << pKernel->mbAlignment << pKernel->fCurrentTime << pKernel->fShutterTime
           << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->bLayersEnable
           << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
-          << pKernel->iClayMode << pKernel->iMaxSubdivisionLevel << pKernel->f3ToonShadowAmbient;
+          << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->f3ToonShadowAmbient;
       snd.write();
     } break;
   }
@@ -1165,14 +1173,17 @@ void OctaneClient::uploadRenderRegion(Camera *pCamera, bool bInteractive)
   LOCK_MUTEX(m_SocketMutex);
 
   {
-    RPCSend snd(m_Socket, sizeof(uint32_t) * 5, OctaneDataTransferObject::LOAD_RENDER_REGION);
+    RPCSend snd(m_Socket, sizeof(uint32_t) * 8 + sizeof(float) * 2, OctaneDataTransferObject::LOAD_RENDER_REGION);
     if (pCamera->bUseRegion)
       snd << pCamera->ui4Region.x << pCamera->ui4Region.y << pCamera->ui4Region.z
-          << pCamera->ui4Region.w << bInteractive;
+          << pCamera->ui4Region.w;
     else {
       uint32_t tmp = 0;
       snd << tmp << tmp << tmp << tmp;
     }
+    snd << pCamera->ui2BlenderCameraDemension.x << pCamera->ui2BlenderCameraDemension.y
+        << pCamera->f2BlenderCameraCenter.x << pCamera->f2BlenderCameraCenter.y
+        << pCamera->bUseBlenderCamera << bInteractive;  
     snd.write();
   }
 
@@ -1805,102 +1816,28 @@ void OctaneClient::uploadVolume(OctaneDataTransferObject::OctaneVolume *pNode)
   if (m_Socket < 0 || m_cBlockUpdates)
     return;
 
-  if (pNode->sFileName.size() == 0 && pNode->pfRegularGrid) {
-    uint64_t size = sizeof(int32_t) * 12 + sizeof(float) * 9 + sizeof(float) * pNode->iGridSize +
-                    sizeof(float) * 12 + pNode->sMedium.length() + 2;
+  LOCK_MUTEX(m_SocketMutex);
 
-    LOCK_MUTEX(m_SocketMutex);
+  pNode->arraySize = pNode->fRegularGridData.size() * sizeof(float);
+  pNode->arrayData = pNode->fRegularGridData.size() ? (void *)pNode->fRegularGridData.data() :
+                                                      NULL;
 
-    {
-      RPCSend snd(
-          m_Socket, size, OctaneDataTransferObject::LOAD_VOLUME_DATA, pNode->sName.c_str());
-      snd << pNode->fGenVisibility << pNode->iLayerNumber << pNode->iBakingGroupId
-          << pNode->iRandomColorSeed << pNode->bShadowVisibility << pNode->bCamVisibility
-          << pNode->iGridSize << pNode->iAbsorptionOffset << pNode->iEmissionOffset
-          << pNode->iScatterOffset << pNode->iVelocityOffsetX << pNode->iVelocityOffsetY
-          << pNode->iVelocityOffsetZ << pNode->f3Resolution << pNode->fISO
-          << pNode->fAbsorptionScale << pNode->fEmissionScale << pNode->fScatterScale
-          << pNode->fVelocityScale;
-      snd.writeBuffer(pNode->pfRegularGrid, pNode->iGridSize * sizeof(float));
-      snd.writeBuffer(&pNode->gridMatrix, 12 * sizeof(float));
-      snd << pNode->sMedium.c_str();
-      snd.write();
-    }
-
-    RPCReceive rcv(m_Socket);
-    if (rcv.m_PacketType != OctaneDataTransferObject::LOAD_VOLUME_DATA) {
-      rcv >> m_sErrorMsg;
-      fprintf(stderr, "Octane: ERROR loading volume.");
-      if (m_sErrorMsg.length() > 0)
-        fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
-      else
-        fprintf(stderr, "\n");
-    }
-
-    UNLOCK_MUTEX(m_SocketMutex);
+  msgpack::sbuffer sbuf;
+  msgpack::pack(sbuf, *pNode);
+  RPCSend snd(m_Socket,
+              sizeof(uint32_t) + sbuf.size() + pNode->arraySize,
+              OctaneDataTransferObject::LOAD_VOLUME,
+              pNode->sName.c_str());
+  snd << static_cast<uint32_t>(sbuf.size());
+  snd.writeBuffer(sbuf.data(), sbuf.size());
+  if (pNode->arraySize) {
+    snd.writeBuffer(pNode->arrayData, pNode->arraySize);
   }
-  else {
-    uint64_t mod_time = getFileTime(pNode->sFileName);
-    string file_name = getFileName(pNode->sFileName);
+  snd.write();
 
-    uint64_t size = sizeof(uint64_t) + sizeof(float) * 5 + sizeof(int32_t) * 6 +
-                    file_name.length() + 2 + pNode->sMedium.length() + 2 +
-                    pNode->sAbsorptionId.length() + 2 + pNode->sEmissionId.length() + 2 +
-                    pNode->sScatterId.length() + 2 + pNode->sVelocityId.length() + 2 +
-                    pNode->sVelocityIdX.length() + 2 + pNode->sVelocityIdY.length() + 2 +
-                    pNode->sVelocityIdZ.length() + 2;
+  checkResponsePacket(OctaneDataTransferObject::LOAD_VOLUME);
 
-    LOCK_MUTEX(m_SocketMutex);
-
-    {
-      RPCSend snd(m_Socket, size, OctaneDataTransferObject::LOAD_VOLUME, pNode->sName.c_str());
-      snd << mod_time << pNode->fGenVisibility << pNode->iLayerNumber << pNode->iBakingGroupId
-          << pNode->iRandomColorSeed << pNode->bShadowVisibility << pNode->bCamVisibility
-          << pNode->bSDF << pNode->fISO << pNode->fAbsorptionScale << pNode->fEmissionScale
-          << pNode->fScatterScale << pNode->fVelocityScale << file_name.c_str()
-          << pNode->sMedium.c_str() << pNode->sAbsorptionId.c_str() << pNode->sEmissionId.c_str()
-          << pNode->sScatterId.c_str() << pNode->sVelocityId.c_str() << pNode->sVelocityIdX.c_str()
-          << pNode->sVelocityIdY.c_str() << pNode->sVelocityIdZ.c_str();
-      snd.write();
-    }
-
-    bool file_is_needed;
-    {
-      RPCReceive rcv(m_Socket);
-      if (rcv.m_PacketType != OctaneDataTransferObject::LOAD_VOLUME)
-        file_is_needed = true;
-      else
-        file_is_needed = false;
-    }
-
-    if (file_is_needed && uploadFile(pNode->sFileName, file_name)) {
-      {
-        RPCSend snd(m_Socket, size, OctaneDataTransferObject::LOAD_VOLUME, pNode->sName.c_str());
-        snd << mod_time << pNode->fGenVisibility << pNode->iLayerNumber << pNode->iBakingGroupId
-            << pNode->iRandomColorSeed << pNode->bShadowVisibility << pNode->bCamVisibility
-            << pNode->fISO << pNode->fAbsorptionScale << pNode->fEmissionScale
-            << pNode->fScatterScale << pNode->fVelocityScale << pNode->bSDF << file_name.c_str()
-            << pNode->sMedium.c_str() << pNode->sAbsorptionId.c_str() << pNode->sEmissionId.c_str()
-            << pNode->sScatterId.c_str() << pNode->sVelocityId.c_str()
-            << pNode->sVelocityIdX.c_str() << pNode->sVelocityIdY.c_str()
-            << pNode->sVelocityIdZ.c_str();
-        snd.write();
-      }
-      {
-        RPCReceive rcv(m_Socket);
-        if (rcv.m_PacketType != OctaneDataTransferObject::LOAD_VOLUME) {
-          rcv >> m_sErrorMsg;
-          fprintf(stderr, "Octane: ERROR loading volume.");
-          if (m_sErrorMsg.length() > 0)
-            fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
-          else
-            fprintf(stderr, "\n");
-        }
-      }
-    }
-
-    UNLOCK_MUTEX(m_SocketMutex);
-  }
+  UNLOCK_MUTEX(m_SocketMutex);
 }  // uploadVolume()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2450,6 +2387,7 @@ bool OctaneClient::getImgBuffer8bit(int &iComponentsCnt,
         return false;
     }
     
+
 
 
 
@@ -3578,9 +3516,9 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
 
       if (imgType == IMAGE_8BIT) {
         size_t stSrcStringSize = uiRegW * renderStat.iComponentsCnt;
-        size_t stDstStringSize = ((uiRegW * renderStat.iComponentsCnt) / 4 +
-                                  ((uiRegW * renderStat.iComponentsCnt) % 4 ? 1 : 0)) *
-                                 4;
+        size_t stDstStringSize = ((uiRegW * renderStat.iComponentsCnt) / renderStat.iComponentsCnt +
+             ((uiRegW * renderStat.iComponentsCnt) % renderStat.iComponentsCnt ? 1 : 0)) *
+            renderStat.iComponentsCnt;
         size_t stDstLen = stDstStringSize * uiRegH;
 
         if (!m_pucImageBuf || m_stImgBufLen != stDstLen) {

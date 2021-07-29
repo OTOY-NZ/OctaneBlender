@@ -49,6 +49,17 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             1.0f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_INT,
+                                            1,
+                                            N_("Samples"),
+                                            8.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            4.0f,
+                                            16.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
                                            {SOCK_BOOLEAN,
                                             1,
                                             N_("Consider other objects"),
@@ -62,11 +73,24 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, 0, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_VECTOR, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {
+    {SOCK_SHADER, 0, N_("OutRoundEdge")},
+    {SOCK_SHADER,
+     0,
+     N_("OutTex"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
+    {-1, 0, ""}};
 
 static void node_roundedges_oct_roundedges_init(bNodeTree *ntree, bNode *node)
 {
-  node->custom1 = OCT_ROUND_EDGES_MODE_FAST;
+  node->custom1 = OCT_ROUND_EDGES_MODE_ACCURATE;
 } /* node_roundedges_oct_roundedges_init() */
 
 void register_node_type_roundedges_oct_roundedges(void)

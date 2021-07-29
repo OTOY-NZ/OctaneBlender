@@ -5,6 +5,7 @@
 #include "OctaneNode.h"
 #include "OctaneProjection.h"
 #include "OctaneTransform.h"
+#include "OctaneMesh.h"
 
 namespace OctaneDataTransferObject {
 	typedef std::unordered_map<int, OctaneNodeBase*(*)()> OctaneNodeBaseCreatorMap;
@@ -22,6 +23,8 @@ namespace OctaneDataTransferObject {
 		int GetOctaneNodeType(const std::string &pluginType);
 		OctaneNodeBase* CreateOctaneNode(const std::string &pluginType);
 		OctaneNodeBase* CreateOctaneNode(int octaneType);
+		NodeResourceType GetNodeResourceType(const std::string &pluginType);
+		NodeResourceType GetNodeResourceType(int octaneType);
 	};
 
 	static OctaneNodeFactory GlobalOctaneNodeFactory;

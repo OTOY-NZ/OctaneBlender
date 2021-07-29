@@ -120,6 +120,7 @@ void register_node_type_sh_output_material(void);
 void register_node_type_sh_output_eevee_material(void);
 void register_node_type_sh_output_world(void);
 void register_node_type_sh_output_linestyle(void);
+void register_node_type_sh_output_aov(void);
 
 void register_node_type_sh_tex_image(void);
 void register_node_type_sh_tex_environment(void);
@@ -148,6 +149,7 @@ void register_node_type_sh_oct_universal_mat(void);
 void register_node_type_sh_oct_shadow_catcher_mat(void);
 void register_node_type_sh_oct_layered_mat(void);
 void register_node_type_sh_oct_composite_mat(void);
+void register_node_type_sh_oct_hair_mat(void);
 
 void register_node_type_sh_oct_group_layer(void);
 void register_node_type_sh_oct_diffuse_layer(void);
@@ -170,6 +172,7 @@ void register_node_type_transform_oct_3d(void);
 void register_node_type_medium_oct_absorption(void);
 void register_node_type_medium_oct_scattering(void);
 void register_node_type_medium_oct_volume(void);
+void register_node_type_medium_oct_randomwalk(void);
 
 void register_node_type_tex_oct_float(void);
 void register_node_type_tex_oct_rgb_spectrum(void);
@@ -236,6 +239,8 @@ void register_node_type_baking_camera_oct_osl_camera(void);
 void register_node_type_oct_vectron(void);
 
 void register_node_type_roundedges_oct_roundedges(void);
+
+void register_node_type_oct_object_data(void);
 
 void register_node_type_environment_oct_texture(void);
 void register_node_type_environment_oct_daylight(void);

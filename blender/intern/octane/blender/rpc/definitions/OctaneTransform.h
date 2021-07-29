@@ -48,6 +48,9 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat3)	fTranslation
 		)
 
+		MatrixF oMatrix;
+		bool	bUseMatrix;
+
 		OctaneValueTransform() :
 			iOrder("rotation_order", false),
 			fRotation("Rotation"),
@@ -55,10 +58,12 @@ namespace OctaneDataTransferObject {
 			fTranslation("Translation"),
 			OctaneNodeBase(Octane::NT_TRANSFORM_VALUE, "ShaderNodeOctFullTransform")
 		{
+			bUseMatrix = false;
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(iOrder, fRotation, fScale, fTranslation, MSGPACK_BASE(OctaneNodeBase));
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		MSGPACK_DEFINE(iOrder, fRotation, fScale, fTranslation, oMatrix, bUseMatrix, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct Octane2DTransform : public OctaneNodeBase {

@@ -445,6 +445,12 @@ static void blender_camera_sync(Camera *cam,
   cam->oct_node.ui4Region.z = (uint32_t)(cam->border.right * (float)width);
   cam->oct_node.ui4Region.w = (uint32_t)((1.0f - cam->border.bottom) * (float)height);
 
+  cam->oct_node.bUseBlenderCamera = camera_from_object;
+  cam->oct_node.ui2BlenderCameraDemension.x = (uint32_t)(width * (cam->viewport_camera_border.right - cam->viewport_camera_border.left));
+  cam->oct_node.ui2BlenderCameraDemension.y = (uint32_t)(height * (cam->viewport_camera_border.top - cam->viewport_camera_border.bottom));
+  cam->oct_node.f2BlenderCameraCenter.x = (cam->viewport_camera_border.right + cam->viewport_camera_border.left) / 2;
+  cam->oct_node.f2BlenderCameraCenter.y = (cam->viewport_camera_border.top + cam->viewport_camera_border.bottom) / 2;
+
   ::OctaneEngine::CameraMotionParam &motionParams = cam->oct_node.oMotionParams.motions[0];
   motionParams.f3EyePoint = cam->oct_node.f3EyePoint;
   motionParams.f3LookAt = cam->oct_node.f3LookAt;

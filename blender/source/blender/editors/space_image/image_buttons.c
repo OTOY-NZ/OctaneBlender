@@ -813,7 +813,8 @@ void uiTemplateImage(uiLayout *layout,
                  "IMAGE_OT_open",
                  NULL,
                  UI_TEMPLATE_ID_FILTER_ALL,
-                 false);
+                 false,
+                 NULL);
 
     if (ima != NULL) {
       uiItemS(layout);
@@ -854,7 +855,7 @@ void uiTemplateImage(uiLayout *layout,
 
   /* Disable editing if image was modified, to avoid losing changes. */
   const bool is_dirty = BKE_image_is_dirty(ima);
-  if (is_dirty) {
+  if (is_dirty && CTX_wm_space_image(C)) {
     uiLayout *row = uiLayoutRow(layout, true);
     uiItemO(row, IFACE_("Save"), ICON_NONE, "image.save");
     uiItemO(row, IFACE_("Discard"), ICON_NONE, "image.reload");
@@ -1083,6 +1084,22 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
     uiItemR(col, &display_settings_ptr, "display_device", 0, NULL, ICON_NONE);
 
     uiTemplateColormanagedViewSettings(col, NULL, imfptr, "view_settings");
+  }
+}
+
+void uiTemplateOctaneExportSettings(uiLayout *layout, struct PointerRNA *imfptr)
+{
+  ImageFormatData *imf = imfptr->data;
+  ID *id = imfptr->owner_id;
+  PropertyRNA *prop;
+  uiLayout *col;
+  col = uiLayoutColumn(layout, false);
+  uiItemR(col, imfptr, "octane_export_tag", 0, NULL, ICON_NONE);
+  uiItemR(col, imfptr, "octane_save_mode", 0, NULL, ICON_NONE);
+  uiItemR(col, imfptr, "octane_file_format", 0, NULL, ICON_NONE);
+  if (imf->octane_file_format != OCT_IMAGE_SAVE_TYPE_PNG_8_TONEMAPPED &&
+      imf->octane_file_format != OCT_IMAGE_SAVE_TYPE_PNG_16_TONEMAPPED) {
+    uiItemR(col, imfptr, "octane_exr_compression_type", 0, NULL, ICON_NONE);
   }
 }
 

@@ -49,6 +49,12 @@ enum ShaderSocketType {
   SHADER_SOCKET_SHADER
 };  // ShaderSocketType
 
+enum ShaderGraphType {
+  SHADER_GRAPH_MATERIAL = 0,
+  SHADER_GRAPH_LIGHT = 1,
+  SHADER_GRAPH_ENVIRONMENT = 2
+};
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Input
 // Input socket for a shader node. May be linked to an output or not. If not
@@ -131,7 +137,16 @@ class ShaderNode {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class ShaderGraph {
  public:
-  ShaderGraph();
+  ShaderGraph()
+  {
+    type = SHADER_GRAPH_MATERIAL;
+    need_subdivision = false;
+  };
+  ShaderGraph(ShaderGraphType graphType)
+  {
+    type = graphType;
+    need_subdivision = false;
+  };
   ~ShaderGraph();
 
   ShaderNode *add(ShaderNode *node);
@@ -139,6 +154,8 @@ class ShaderGraph {
 
   list<ShaderNode *> nodes;
 
+  ShaderGraphType type;
+  bool need_subdivision;
  protected:
 };  // ShaderGraph
 

@@ -107,6 +107,7 @@ typedef struct Global {
   char octane_server_address[1024];
   bool release_octane_license_after_exiting;
   char octane_localdb_path[1024];
+  char octane_texture_cache_path[1024];
 
   int octane_default_mat_type;
 } Global;
@@ -160,11 +161,14 @@ enum {
   G_DEBUG_IO = (1 << 17),                    /* IO Debugging (for Collada, ...)*/
   G_DEBUG_GPU_SHADERS = (1 << 18),           /* GLSL shaders */
   G_DEBUG_GPU_FORCE_WORKAROUNDS = (1 << 19), /* force gpu workarounds bypassing detections. */
+
+  G_DEBUG_GHOST = (1 << 20), /* Debug GHOST module. */
 };
 
 #define G_DEBUG_ALL \
   (G_DEBUG | G_DEBUG_FFMPEG | G_DEBUG_PYTHON | G_DEBUG_EVENTS | G_DEBUG_WM | G_DEBUG_JOBS | \
-   G_DEBUG_FREESTYLE | G_DEBUG_DEPSGRAPH | G_DEBUG_GPU_MEM | G_DEBUG_IO | G_DEBUG_GPU_SHADERS)
+   G_DEBUG_FREESTYLE | G_DEBUG_DEPSGRAPH | G_DEBUG_GPU_MEM | G_DEBUG_IO | G_DEBUG_GPU_SHADERS | \
+   G_DEBUG_GHOST)
 
 /** #Global.fileflags */
 enum {

@@ -20,6 +20,8 @@
 
 import bpy
 
+IS_RENDERING = False
+
 def heart_beat():
     print('OctaneBlender Engine Heart Beat')
     import _octane
@@ -43,7 +45,7 @@ def exit():
     print("OctaneBlender Engine Exit")    
     import _octane
 
-    _octane.exit()
+    _octane.exit()  
     # try:
     #     bpy.app.timers.unregister(heart_beat)
     # except:
@@ -53,20 +55,30 @@ def exit():
 
 def create(engine, data, region=None, v3d=None, rv3d=None):
     print("OctaneBlender Engine Create")
+
+    global IS_RENDERING
+    IS_RENDERING = True
+
     import _octane
     import bpy
-
     data = data.as_pointer()
     prefs = bpy.context.preferences.as_pointer()
+    screen = 0
+
+    from . import operators
+    dirty_resources = operators.get_dirty_resources();
+
     if region:
+        screen = region.id_data.as_pointer()
         region = region.as_pointer()
     if v3d:
+        screen = screen or v3d.id_data.as_pointer()
         v3d = v3d.as_pointer()
     if rv3d:
+        screen = screen or rv3d.id_data.as_pointer()
         rv3d = rv3d.as_pointer()
-
     engine.session = _octane.create(
-            engine.as_pointer(), prefs, data, region, v3d, rv3d)
+            engine.as_pointer(), prefs, data, screen, region, v3d, rv3d, dirty_resources)
 
 
 def free(engine):
@@ -76,6 +88,12 @@ def free(engine):
             import _octane
             _octane.free(engine.session)
         del engine.session    
+
+    from . import operators
+    operators.set_all_mesh_resource_cache_tags(False)
+
+    global IS_RENDERING
+    IS_RENDERING = False    
 
 
 def render(engine, depsgraph):

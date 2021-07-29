@@ -235,9 +235,53 @@ otc_device_inline Transform transform_euler(float3 euler)
          transform_rotate(euler.x, make_float3(1.0f, 0.0f, 0.0f));
 }
 
+otc_device_inline Transform transform_euler(float3 euler, int mode)
+{
+  //rotation_orders = (('0', "XYZ", ""),
+  //                   ('1', "XZY", ""),
+  //                   ('2', "YXZ", ""),
+  //                   ('3', "YZX", ""),
+  //                   ('4', "ZXY", ""),
+  //                   ('5', "ZYX", ""), )
+  switch (mode) {
+    case 0:
+      return transform_rotate(euler.z, make_float3(0.0f, 0.0f, 1.0f)) *
+             transform_rotate(euler.y, make_float3(0.0f, 1.0f, 0.0f)) *
+             transform_rotate(euler.x, make_float3(1.0f, 0.0f, 0.0f));
+    case 1:
+      return transform_rotate(euler.y, make_float3(0.0f, 1.0f, 0.0f)) *
+             transform_rotate(euler.z, make_float3(0.0f, 0.0f, 1.0f)) *
+             transform_rotate(euler.x, make_float3(1.0f, 0.0f, 0.0f));
+    case 2:
+      return transform_rotate(euler.z, make_float3(0.0f, 0.0f, 1.0f)) *
+             transform_rotate(euler.x, make_float3(1.0f, 0.0f, 0.0f)) *
+             transform_rotate(euler.y, make_float3(0.0f, 1.0f, 0.0f));
+    case 3:
+      return transform_rotate(euler.x, make_float3(1.0f, 0.0f, 0.0f)) *
+             transform_rotate(euler.z, make_float3(0.0f, 0.0f, 1.0f)) *
+             transform_rotate(euler.y, make_float3(0.0f, 1.0f, 0.0f));
+    case 4:
+      return transform_rotate(euler.y, make_float3(0.0f, 1.0f, 0.0f)) *
+             transform_rotate(euler.x, make_float3(1.0f, 0.0f, 0.0f)) *
+             transform_rotate(euler.z, make_float3(0.0f, 0.0f, 1.0f));
+    case 5:
+      return transform_rotate(euler.x, make_float3(1.0f, 0.0f, 0.0f)) *
+             transform_rotate(euler.y, make_float3(0.0f, 1.0f, 0.0f)) *
+             transform_rotate(euler.z, make_float3(0.0f, 0.0f, 1.0f));
+  }
+  return transform_rotate(euler.z, make_float3(0.0f, 0.0f, 1.0f)) *
+         transform_rotate(euler.y, make_float3(0.0f, 1.0f, 0.0f)) *
+         transform_rotate(euler.x, make_float3(1.0f, 0.0f, 0.0f));
+}
+
 otc_device_inline Transform transform_identity()
 {
   return transform_scale(1.0f, 1.0f, 1.0f);
+}
+
+otc_device_inline Transform make_transform(float3 translate, float3 euler, int mode, float3 scale)
+{
+  return transform_translate(translate) * transform_euler(euler, mode) * transform_scale(scale);
 }
 
 otc_device_inline bool operator==(const Transform &A, const Transform &B)

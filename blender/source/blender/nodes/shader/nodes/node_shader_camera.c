@@ -24,10 +24,49 @@
 #include "node_shader_util.h"
 
 /* **************** CAMERA INFO  ******************** */
+static bNodeSocketTemplate sh_node_camera_in[] = {{SOCK_FLOAT,
+                                                   1,
+                                                   N_("Max Z-Depth"),
+                                                   10.f,
+                                                   0.0f,
+                                                   0.0f,
+                                                   0.0f,
+                                                   0.0010f,
+                                                   100000.0f,
+                                                   PROP_NONE,
+                                                   SOCK_NO_INTERNAL_LINK},
+                                                  {SOCK_FLOAT,
+                                                   1,
+                                                   N_("Max Distance"),
+                                                   100.f,
+                                                   0.0f,
+                                                   0.0f,
+                                                   0.0f,
+                                                   0.0010f,
+                                                   100000.0f,
+                                                   PROP_NONE,
+                                                   SOCK_NO_INTERNAL_LINK},
+                                                  {SOCK_BOOLEAN,
+                                                   1,
+                                                   N_("Keep Front Projection"),
+                                                   1.0f,
+                                                   0.0f,
+                                                   0.0f,
+                                                   0.0f,
+                                                   0.0f,
+                                                   1.0f,
+                                                   PROP_NONE,
+                                                   SOCK_NO_INTERNAL_LINK},
+                                                  {-1, 0, ""}};
+
 static bNodeSocketTemplate sh_node_camera_out[] = {
     {SOCK_VECTOR, 0, N_("View Vector")},
     {SOCK_FLOAT, 0, N_("View Z Depth")},
     {SOCK_FLOAT, 0, N_("View Distance")},
+    {SOCK_VECTOR, 0, N_("Octane View Vector")},
+    {SOCK_VECTOR, 0, N_("Octane View Z Depth")},
+    {SOCK_VECTOR, 0, N_("Octane View Distance")},
+    {SOCK_SHADER, 0, N_("Octane Front Projection")},
     {-1, 0, ""},
 };
 
@@ -49,7 +88,7 @@ void register_node_type_sh_camera(void)
   static bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_CAMERA, "Camera Data", NODE_CLASS_INPUT, 0);
-  node_type_socket_templates(&ntype, NULL, sh_node_camera_out);
+  node_type_socket_templates(&ntype, sh_node_camera_in, sh_node_camera_out);
   node_type_storage(&ntype, "", NULL, NULL);
   node_type_gpu(&ntype, gpu_shader_camera);
 

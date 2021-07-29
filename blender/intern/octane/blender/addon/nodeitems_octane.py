@@ -67,6 +67,7 @@ OCT_SHADERS = (
     NodeItem("ShaderNodeOctUniversalMat"),
     NodeItem("ShaderNodeOctLayeredMat"),   
     NodeItem("ShaderNodeOctCompositeMat"), 
+    NodeItem("ShaderNodeOctHairMat"), 
 )
 
 OCT_LAYERS = (
@@ -194,6 +195,7 @@ OCT_MEDIUMS = (
     NodeItem("ShaderNodeOctAbsorptionMedium"),
     NodeItem("ShaderNodeOctScatteringMedium"),
     NodeItem("ShaderNodeOctVolumeMedium"),
+    NodeItem("ShaderNodeOctRandomWalkMedium"),
 )
 
 OCT_TRANSFORMS = (

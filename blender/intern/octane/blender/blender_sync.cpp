@@ -45,6 +45,7 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
                          BL::Scene &b_scene,
                          Scene *scene,
                          bool preview,
+                         bool is_export_mode,
                          Progress &progress)
     : b_engine(b_engine),
       b_userpref(b_userpref),
@@ -59,6 +60,7 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
       world_recalc(false),
       scene(scene),
       preview(preview),
+      is_export_mode(is_export_mode),
       progress(progress),
       force_update_all(false),
       last_animation_frame(0),
@@ -158,7 +160,8 @@ void BlenderSync::sync_render_passes(BL::ViewLayer &b_view_layer)
 
   PointerRNA oct = RNA_pointer_get(&b_view_layer.ptr, "octane");
   passes->oct_node->bUsePasses = get_boolean(oct, "use_passes");
-  passes->oct_node->iPreviewPass = get_enum(oct, "current_preview_pass_type");
+  passes->oct_node->iPreviewPass = preview ? get_enum(oct, "current_preview_pass_type") :
+                                             ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
   passes->oct_node->bIncludeEnvironment = get_boolean(oct, "pass_pp_env");
   passes->oct_node->iCryptomatteBins = get_enum(oct, "cryptomatte_pass_channels");
   passes->oct_node->iCryptomatteSeedFactor = get_int(oct, "cryptomatte_seed_factor");
@@ -222,9 +225,9 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
 
   mesh_synced.clear(); /* use for objects and motion sync */
 
-  sync_objects(b_depsgraph, 0.f);
+  sync_objects(b_depsgraph, b_v3d, 0.f);
 
-  sync_motion(b_render, b_depsgraph, b_override, width, height, python_thread_state);
+  sync_motion(b_render, b_depsgraph, b_v3d, b_override, width, height, python_thread_state);
 
   mesh_synced.clear();
 
@@ -284,10 +287,10 @@ SessionParams BlenderSync::get_session_params(
   params.deep_image = get_boolean(oct_scene, "deep_image");
   params.export_with_object_layers = get_boolean(oct_scene, "export_with_object_layers");
   params.use_passes = get_boolean(oct_scene, "use_passes");
-  params.meshes_type = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
+  params.meshes_type = static_cast<MeshType>(RNA_enum_get(&oct_scene, "meshes_type"));
   if (params.export_type != ::OctaneEngine::SceneExportTypes::NONE &&
-      params.meshes_type == Mesh::GLOBAL)
-    params.meshes_type = Mesh::RESHAPABLE_PROXY;
+      params.meshes_type == MeshType::GLOBAL)
+    params.meshes_type = MeshType::RESHAPABLE_PROXY;
   params.use_viewport_hide = get_boolean(oct_scene, "viewport_hide");
 
   params.fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
@@ -296,6 +299,7 @@ SessionParams BlenderSync::get_session_params(
   bool hdr_tonemap_render_enable = get_boolean(oct_scene, "hdr_tonemap_render_enable");
   params.hdr_tonemap_prefer = get_boolean(oct_scene, "prefer_tonemap");
   params.render_priority = RNA_enum_get(&oct_scene, "priority_mode");
+  params.resource_cache_type = RNA_enum_get(&oct_scene, "resource_cache_type");
   bool use_preview_setting_for_camera_imager = get_boolean(
                                                    oct_scene,
                                                    "use_preview_setting_for_camera_imager") &&
@@ -332,7 +336,7 @@ void BlenderSync::sync_kernel()
 
   BL::RenderSettings r = b_scene.render();
   float fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
-  this->motion_blur = r.use_motion_blur();
+  this->motion_blur = r.use_motion_blur() && !preview;
 
   if (r.use_motion_blur()) {
     float shuttertime = r.motion_blur_shutter();
@@ -423,6 +427,7 @@ void BlenderSync::sync_kernel()
   kernel->oct_node->GIMode = static_cast<::OctaneEngine::Kernel::DirectLightMode>(
       RNA_enum_get(&oct_scene, "gi_mode"));
   kernel->oct_node->iClayMode = (RNA_enum_get(&oct_scene, "clay_mode"));
+  kernel->oct_node->iSubsampleMode = (RNA_enum_get(&oct_scene, "subsample_mode"));
   kernel->oct_node->iDiffuseDepth = get_int(oct_scene, "diffuse_depth");
   kernel->oct_node->sAoTexture = get_string(oct_scene, "ao_texture");
 
@@ -644,6 +649,138 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   MAP_PASS("Shadow", ::Octane::RenderPassId::RENDER_PASS_SHADOW);
 #undef MAP_PASS
   return ::Octane::RenderPassId::PASS_NONE;
+}
+
+void BlenderSync::sync_resource_to_octane_manager(std::string name, OctaneResourceType type)
+{
+  OctaneManager::getInstance().SyncedResource(name, type);
+}
+
+void BlenderSync::unsync_resource_to_octane_manager(std::string name, OctaneResourceType type)
+{
+  OctaneManager::getInstance().UnsyncedResource(name, type);
+}
+
+bool BlenderSync::is_resource_synced_in_octane_manager(std::string name, OctaneResourceType type)
+{
+  return OctaneManager::getInstance().IsResourceSynced(name, type);
+}
+
+void BlenderSync::tag_resharpable_candidate(std::string name)
+{
+  return OctaneManager::getInstance().TagResharpableCandidate(name);
+}
+
+void BlenderSync::untag_resharpable_candidate(std::string name)
+{
+  return OctaneManager::getInstance().UntagResharpableCandidate(name);
+}
+
+bool BlenderSync::is_resharpable_candidate(std::string name)
+{
+  return OctaneManager::getInstance().IsResharpableCandidate(name);
+}
+
+void BlenderSync::tag_movable_candidate(std::string name)
+{
+  return OctaneManager::getInstance().TagMovableCandidate(name);
+}
+
+void BlenderSync::untag_movable_candidate(std::string name)
+{
+  return OctaneManager::getInstance().UntagMovableCandidate(name);
+}
+
+bool BlenderSync::is_movable_candidate(std::string name)
+{
+  return OctaneManager::getInstance().IsMovableCandidate(name);
+}
+
+void BlenderSync::reset_octane_manager()
+{
+  OctaneManager::getInstance().Reset();
+}
+
+MeshType BlenderSync::resolve_mesh_type(std::string name,
+                                        int blender_object_type,
+                                        MeshType mesh_type)
+{
+  MeshType final_mesh_type = mesh_type;
+  if (scene && scene->meshes_type != MeshType::AS_IS) {
+    final_mesh_type = scene->meshes_type;
+  }
+  if (final_mesh_type == MeshType::AUTO) {
+    if (blender_object_type == BL::Object::type_META || is_resharpable_candidate(name)) {
+      final_mesh_type = MeshType::RESHAPABLE_PROXY;
+    }
+    else if (is_movable_candidate(name)) {
+      final_mesh_type = MeshType::MOVABLE_PROXY;
+    }
+    else {
+      final_mesh_type = MeshType::SCATTER;
+    }
+  }
+  return final_mesh_type;
+}
+
+MeshType BlenderSync::resolve_mesh_type_with_mesh_data(MeshType mesh_type,
+                                                       std::string name,
+                                                       int blender_object_type,
+                                                       PointerRNA &oct_mesh,
+                                                       Mesh *octane_mesh)
+{
+  MeshType final_mesh_type = resolve_mesh_type(name, blender_object_type, mesh_type);
+  if (final_mesh_type == MeshType::AUTO) {
+    bool octane_vdb_force_update_flag = RNA_boolean_get(&oct_mesh, "octane_vdb_helper") &&
+                                        octane_mesh &&
+                                        octane_mesh->last_vdb_frame != b_scene.frame_current();
+    if (octane_vdb_force_update_flag) {
+      final_mesh_type = MeshType::RESHAPABLE_PROXY;
+    }
+  }
+  return final_mesh_type;
+}
+
+bool BlenderSync::is_octane_geometry_required(std::string name,
+                                              int blender_object_type,
+                                              PointerRNA &oct_mesh,
+                                              Mesh *octane_mesh,
+                                              MeshType mesh_type)
+{
+  bool is_synced = is_resource_synced_in_octane_manager(name, OctaneResourceType::GEOMETRY);
+  if (!is_synced) {
+    sync_resource_to_octane_manager(name, OctaneResourceType::GEOMETRY);
+    return true;
+  }
+  MeshType final_mesh_type = resolve_mesh_type_with_mesh_data(
+      mesh_type, name, blender_object_type, oct_mesh, octane_mesh);
+  if (final_mesh_type == MeshType::RESHAPABLE_PROXY) {
+    return true;
+  }
+  return false;
+}
+
+bool BlenderSync::is_octane_object_required(std::string name,
+                                            int blender_object_type,
+                                            MeshType mesh_type)
+{
+  bool is_synced = is_resource_synced_in_octane_manager(name, OctaneResourceType::OBJECT);
+  if (!is_synced) {
+    sync_resource_to_octane_manager(name, OctaneResourceType::OBJECT);
+    return true;
+  }
+  MeshType final_mesh_type = resolve_mesh_type(name, blender_object_type, mesh_type);
+  if (final_mesh_type == MeshType::MOVABLE_PROXY) {
+    return true;
+  }
+  return false;
+}
+
+void BlenderSync::set_resource_cache(std::map<std::string, int> &resource_cache_data,
+                                     std::unordered_set<std::string> &dirty_resources)
+{
+  this->resource_cache_data = resource_cache_data;
+  this->dirty_resources = dirty_resources;
 }
 
 OCT_NAMESPACE_END

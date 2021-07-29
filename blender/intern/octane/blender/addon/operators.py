@@ -18,6 +18,7 @@
 
 import os
 import bpy
+from bpy.app.handlers import persistent
 from bpy.types import Operator
 from bpy.props import StringProperty
 from . import converters
@@ -31,12 +32,64 @@ COMMAND_TYPES = {
 	'SHOW_OCTANEDB': 6,	
 	'ACTIVATE': 7,
     'SAVE_OCTANEDB': 8,
+    'SHOW_OCTANE_VIEWPORT': 9,
+    'CLEAR_RESOURCE_CACHE_SYSTEM': 10,
 }
 
 EXPORT_TYPES = {    
     'ALEMBIC': 1,
     'ORBX': 2,    
 }
+
+
+def set_mesh_resource_cache_tag(obj, is_dirty):    
+    if obj and obj.type in ('MESH', ):
+        cur_octane_mesh_data = getattr(obj.data, 'octane', None)
+        if cur_octane_mesh_data:
+            if hasattr(cur_octane_mesh_data, 'resource_dirty_tag'):            
+                cur_octane_mesh_data.resource_dirty_tag = is_dirty
+
+def get_dirty_resources():
+    resources = []
+    for obj in bpy.data.objects:
+        if obj and obj.type in ('MESH', ):
+            cur_octane_mesh_data = getattr(obj.data, 'octane', None)
+            if cur_octane_mesh_data:
+                if getattr(cur_octane_mesh_data, 'resource_dirty_tag', False):     
+                    resources.append(obj.data.name)    
+    return resources                       
+
+def set_all_mesh_resource_cache_tags(is_dirty):
+    for obj in bpy.data.objects:
+        set_mesh_resource_cache_tag(obj, is_dirty) 
+
+@persistent
+def clear_resource_cache_system(self):
+    import _octane
+    from . import engine
+    scene = bpy.context.scene
+    oct_scene = scene.octane        
+    if not engine.IS_RENDERING:
+        print("Clear Octane Resource Cache System")
+        # set_all_mesh_resource_cache_tags(True)
+        _octane.command_to_octane(COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
+
+@persistent
+def update_resource_cache_tag(scene):
+    obj = None
+    try:
+        obj = bpy.context.view_layer.objects.active
+    except:
+        pass
+    from . import engine
+    if obj and not engine.IS_RENDERING:
+        scene = bpy.context.scene
+        oct_scene = scene.octane
+        if oct_scene.dirty_resource_detection_strategy_type == 'Edit Mode':
+            if obj.mode == 'EDIT':
+                set_mesh_resource_cache_tag(obj, True)
+        else:
+            set_mesh_resource_cache_tag(obj, True)
 
 class OCTANE_OT_use_shading_nodes(Operator):
     """Enable nodes on a material, world or light"""
@@ -81,6 +134,12 @@ class OCTANE_OT_ShowOctaneNodeGraph(OCTANE_OT_BaseCommand):
     bl_label = "Show Octane Node Graph"
     command_type = COMMAND_TYPES['SHOW_NODEGRAPH']
 
+class OCTANE_OT_ShowOctaneViewport(OCTANE_OT_BaseCommand):
+    """Show Octane Viewport(Suggest VIEW Mode Only. Camera navigation in the viewport would not synchronize to Blender viewport.)"""
+    bl_idname = "octane.show_octane_viewport"
+    bl_label = "Show Octane Viewport"
+    command_type = COMMAND_TYPES['SHOW_OCTANE_VIEWPORT']
+
 class OCTANE_OT_ShowOctaneNetworkPreference(OCTANE_OT_BaseCommand):
     """Show Octane Network Preference"""
     bl_idname = "octane.show_octane_network_preference"
@@ -110,6 +169,21 @@ class OCTANE_OT_ActivateOctane(OCTANE_OT_BaseCommand):
     bl_idname = "octane.activate"
     bl_label = "Open activation state dialog on OctaneServer"
     command_type = COMMAND_TYPES['ACTIVATE']
+
+
+class OCTANE_OT_ClearResourceCache(OCTANE_OT_BaseCommand):
+    """Clear the Resource Cache"""
+    bl_idname = "octane.clear_resource_cache"
+    bl_label = "Clear"
+    command_type = COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM']
+
+    @classmethod
+    def poll(cls, context):        
+        return True
+
+    def execute(self, context):     
+        clear_resource_cache_system(self)        
+        return {'FINISHED'}     
 
 
 class OCTANE_OT_ShowOctaneDB(OCTANE_OT_BaseCommand):
@@ -240,7 +314,8 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
             if len(cur_obj.material_slots) < 1:                    
                 cur_obj.data.materials.append(converted_material)
             else:                    
-                cur_obj.material_slots[cur_obj.active_material_index].material = converted_material              
+                cur_obj.material_slots[cur_obj.active_material_index].material = converted_material  
+            converters.convert_all_related_material(cur_material, converted_material)            
         return {'FINISHED'} 
 
 class OCTANE_OT_BaseExport(Operator):
@@ -286,10 +361,12 @@ class OCTANE_OT_AlembicExport(OCTANE_OT_BaseExport):
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
     filename: StringProperty(subtype='FILE_NAME')   
 
+
 classes = (
     OCTANE_OT_use_shading_nodes,
 
     OCTANE_OT_ShowOctaneNodeGraph,
+    OCTANE_OT_ShowOctaneViewport,
     OCTANE_OT_ShowOctaneNetworkPreference,
     OCTANE_OT_StopRender,
     OCTANE_OT_ShowOctaneLog,
@@ -297,6 +374,7 @@ classes = (
     OCTANE_OT_ActivateOctane,
     OCTANE_OT_ShowOctaneDB,
     OCTANE_OT_SaveOctaneDB,
+    OCTANE_OT_ClearResourceCache,
 
     OCTANE_OT_UpdateOctaneGeoNodeCollections,
     OCTANE_OT_UpdateOSLCameraNodeCollections,

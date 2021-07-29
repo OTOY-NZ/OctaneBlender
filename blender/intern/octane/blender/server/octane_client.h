@@ -183,7 +183,8 @@ class OctaneClient {
   /// @param [in] fFrameTimeSampling - Time sampling of the frames (for the animation and motion
   /// blur).
   /// @param [in] fFps - Frames per second value.
-  void reset(SceneExportTypes::SceneExportTypesEnum exportSceneType,
+  void reset(bool bInteractive,
+             SceneExportTypes::SceneExportTypesEnum exportSceneType,
              float fFrameTimeSampling,
              float fFps,
              bool bDeepImage,
@@ -212,7 +213,8 @@ class OctaneClient {
                    bool bOutOfCoreEnabled,
                    int32_t iOutOfCoreMemLimit,
                    int32_t iOutOfCoreGPUHeadroom,
-                   int32_t iRenderPriority);
+                   int32_t iRenderPriority,
+                   int32_t iResourceCacheType);
   /// Stop the render process on the server.
   /// Mostly needed to close the animation export sequence on the server.
   /// @param [in] fFPS - Frames per second value.

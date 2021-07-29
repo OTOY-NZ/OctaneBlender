@@ -38,6 +38,17 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
                                             0.0f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            1,
+                                            N_("Opacity"),
+                                            1.0f,
+                                            1.0f,
+                                            1.0f,
+                                            1.0f,
+                                            0.0f,
+                                            1.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
                                            {-1, 0, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, 0, N_("OutMat")}, {-1, 0, ""}};
