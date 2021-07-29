@@ -935,12 +935,18 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   octane_mesh->is_scatter_group_source = RNA_boolean_get(&oct_mesh, "is_scatter_group_source");
   octane_mesh->scatter_group_id = RNA_int_get(&oct_mesh, "scatter_group_id");
   octane_mesh->scatter_instance_id = RNA_int_get(&oct_mesh, "scatter_instance_id");
-  if (RNA_boolean_get(&oct_mesh, "use_auto_smooth") &&
-      !RNA_boolean_get(&oct_mesh, "force_load_vertex_normals"))
-    octane_mesh->octane_mesh.fMaxSmoothAngle = RNA_float_get(&oct_mesh, "auto_smooth_angle") /
-                                               M_PI * 180;
-  else
+  if (b_ob.type() == BL::Object::type_MESH) {
+    BL::Mesh b_mesh = BL::Mesh(b_ob.data());
+    if (b_mesh.use_auto_smooth() || RNA_boolean_get(&oct_mesh, "force_load_vertex_normals")) {
+      octane_mesh->octane_mesh.fMaxSmoothAngle = b_mesh.auto_smooth_angle() / M_PI * 180;
+    } 
+    else {
+      octane_mesh->octane_mesh.fMaxSmoothAngle = -1.0f;
+    }
+  }
+  else {
     octane_mesh->octane_mesh.fMaxSmoothAngle = -1.0f;
+  }
   octane_mesh->octane_mesh.iHairInterpolations = RNA_enum_get(&oct_mesh, "hair_interpolation");
   octane_mesh->final_visibility = !(preview ? b_ob.hide_viewport() : b_ob.hide_render());
 
@@ -978,7 +984,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   }
 
   if (octane_mesh) {
-    octane_mesh->subdivision_type = object_subdivision_type(b_ob, preview, true);
+    octane_mesh->subdivision_type = object_subdivision_type(b_ob, preview, false);
   }
 
   bool use_octane_subdivision = use_octane_vertex_displacement_subdvision ||
