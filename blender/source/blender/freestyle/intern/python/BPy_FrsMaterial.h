@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,12 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file source/blender/freestyle/intern/python/BPy_FrsMaterial.h
- *  \ingroup freestyle
+/** \file
+ * \ingroup freestyle
  */
 
 #ifndef __FREESTYLE_PYTHON_FRSMATERIAL_H__
@@ -41,12 +37,12 @@ extern "C" {
 
 extern PyTypeObject FrsMaterial_Type;
 
-#define BPy_FrsMaterial_Check(v) (PyObject_IsInstance((PyObject *)v, (PyObject *)&FrsMaterial_Type))
+#define BPy_FrsMaterial_Check(v) \
+  (PyObject_IsInstance((PyObject *)v, (PyObject *)&FrsMaterial_Type))
 
 /*---------------------------Python BPy_FrsMaterial structure definition----------*/
 typedef struct {
-	PyObject_HEAD
-	FrsMaterial *m;
+  PyObject_HEAD FrsMaterial *m;
 } BPy_FrsMaterial;
 
 /*---------------------------Python BPy_FrsMaterial visible prototypes-----------*/
@@ -59,6 +55,5 @@ void FrsMaterial_mathutils_register_callback();
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif /* __FREESTYLE_PYTHON_FRSMATERIAL_H__ */

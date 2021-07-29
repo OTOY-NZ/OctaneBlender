@@ -17,9 +17,9 @@
 #ifndef __BACKGROUND_H__
 #define __BACKGROUND_H__
 
-#include "node.h"
+#include "graph/node.h"
 
-#include "util_types.h"
+#include "util/util_types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -29,32 +29,34 @@ class Scene;
 class Shader;
 
 class Background : public Node {
-public:
-	NODE_DECLARE;
+ public:
+  NODE_DECLARE
 
-	float ao_factor;
-	float ao_distance;
+  float ao_factor;
+  float ao_distance;
 
-	bool use_shader;
-	bool use_ao;
+  bool use_shader;
+  bool use_ao;
 
-	uint visibility;
-	Shader *shader;
+  uint visibility;
+  Shader *shader;
 
-	bool transparent;
-	bool need_update;
+  bool transparent;
+  bool transparent_glass;
+  float transparent_roughness_threshold;
 
-	Background();
-	~Background();
+  bool need_update;
 
-	void device_update(Device *device, DeviceScene *dscene, Scene *scene);
-	void device_free(Device *device, DeviceScene *dscene);
+  Background();
+  ~Background();
 
-	bool modified(const Background& background);
-	void tag_update(Scene *scene);
+  void device_update(Device *device, DeviceScene *dscene, Scene *scene);
+  void device_free(Device *device, DeviceScene *dscene);
+
+  bool modified(const Background &background);
+  void tag_update(Scene *scene);
 };
 
 CCL_NAMESPACE_END
 
 #endif /* __BACKGROUND_H__ */
-

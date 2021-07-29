@@ -17,30 +17,40 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # <pep8 compliant>
-import bpy
-from bpy.types import Header
+from bpy.types import Header, Panel
 
 
 class PROPERTIES_HT_header(Header):
     bl_space_type = 'PROPERTIES'
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.template_header()
+
+
+class PROPERTIES_PT_navigation_bar(Panel):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'NAVIGATION_BAR'
+    bl_label = "Navigation Bar"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
 
         view = context.space_data
 
-        row = layout.row()
-        row.template_header()
-        row.prop(view, "context", expand=True, icon_only=True)
+        layout.scale_x = 1.4
+        layout.scale_y = 1.4
+        layout.prop_tabs_enum(view, "context", icon_only=True)
 
 
-def register():
-    bpy.utils.register_module(__name__)
+classes = (
+    PROPERTIES_HT_header,
+    PROPERTIES_PT_navigation_bar,
+)
 
-
-def unregister():
-    bpy.utils.unregister_module(__name__)
-
-
-if __name__ == "__main__":
-    register()
+if __name__ == "__main__":  # only for live edit.
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)

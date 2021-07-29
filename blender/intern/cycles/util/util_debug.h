@@ -20,7 +20,7 @@
 #include <cassert>
 #include <iostream>
 
-#include "util_static_assert.h"
+#include "bvh/bvh_params.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -29,127 +29,166 @@ CCL_NAMESPACE_BEGIN
  * the interface.
  */
 class DebugFlags {
-public:
-	/* Descriptor of CPU feature-set to be used. */
-	struct CPU {
-		CPU();
+ public:
+  /* Use static BVH in viewport, to match final render exactly. */
+  bool viewport_static_bvh;
 
-		/* Reset flags to their defaults. */
-		void reset();
+  /* Descriptor of CPU feature-set to be used. */
+  struct CPU {
+    CPU();
 
-		/* Flags describing which instructions sets are allowed for use. */
-		bool avx2;
-		bool avx;
-		bool sse41;
-		bool sse3;
-		bool sse2;
+    /* Reset flags to their defaults. */
+    void reset();
 
-		/* Whether QBVH usage is allowed or not. */
-		bool qbvh;
-	};
+    /* Flags describing which instructions sets are allowed for use. */
+    bool avx2;
+    bool avx;
+    bool sse41;
+    bool sse3;
+    bool sse2;
 
-	/* Descriptor of CUDA feature-set to be used. */
-	struct CUDA {
-		CUDA();
+    /* Check functions to see whether instructions up to the given one
+     * are allowed for use.
+     */
+    bool has_avx2()
+    {
+      return has_avx() && avx2;
+    }
+    bool has_avx()
+    {
+      return has_sse41() && avx;
+    }
+    bool has_sse41()
+    {
+      return has_sse3() && sse41;
+    }
+    bool has_sse3()
+    {
+      return has_sse2() && sse3;
+    }
+    bool has_sse2()
+    {
+      return sse2;
+    }
 
-		/* Reset flags to their defaults. */
-		void reset();
+    /* Requested BVH size.
+     *
+     * Rendering will use widest possible BVH which is below or equal
+     * this one.
+     */
+    BVHLayout bvh_layout;
 
-		/* Whether adaptive feature based runtime compile is enabled or not.
-		 * Requires the CUDA Toolkit and only works on Linux atm. */
-		bool adaptive_compile;
-	};
+    /* Whether split kernel is used */
+    bool split_kernel;
+  };
 
-	/* Descriptor of OpenCL feature-set to be used. */
-	struct OpenCL {
-		OpenCL();
+  /* Descriptor of CUDA feature-set to be used. */
+  struct CUDA {
+    CUDA();
 
-		/* Reset flags to their defaults. */
-		void reset();
+    /* Reset flags to their defaults. */
+    void reset();
 
-		/* Available device types.
-		 * Only gives a hint which devices to let user to choose from, does not
-		 * try to use any sort of optimal device or so.
-		 */
-		enum DeviceType {
-			/* None of OpenCL devices will be used. */
-			DEVICE_NONE,
-			/* All OpenCL devices will be used. */
-			DEVICE_ALL,
-			/* Default system OpenCL device will be used.  */
-			DEVICE_DEFAULT,
-			/* Host processor will be used. */
-			DEVICE_CPU,
-			/* GPU devices will be used. */
-			DEVICE_GPU,
-			/* Dedicated OpenCL accelerator device will be used. */
-			DEVICE_ACCELERATOR,
-		};
+    /* Whether adaptive feature based runtime compile is enabled or not.
+     * Requires the CUDA Toolkit and only works on Linux atm. */
+    bool adaptive_compile;
 
-		/* Available kernel types. */
-		enum KernelType {
-			/* Do automated guess which kernel to use, based on the officially
-			 * supported GPUs and such.
-			 */
-			KERNEL_DEFAULT,
-			/* Force mega kernel to be used. */
-			KERNEL_MEGA,
-			/* Force split kernel to be used. */
-			KERNEL_SPLIT,
-		};
+    /* Whether split kernel is used */
+    bool split_kernel;
+  };
 
-		/* Requested device type. */
-		DeviceType device_type;
+  /* Descriptor of OpenCL feature-set to be used. */
+  struct OpenCL {
+    OpenCL();
 
-		/* Requested kernel type. */
-		KernelType kernel_type;
+    /* Reset flags to their defaults. */
+    void reset();
 
-		/* Use debug version of the kernel. */
-		bool debug;
-	};
+    /* Available device types.
+     * Only gives a hint which devices to let user to choose from, does not
+     * try to use any sort of optimal device or so.
+     */
+    enum DeviceType {
+      /* None of OpenCL devices will be used. */
+      DEVICE_NONE,
+      /* All OpenCL devices will be used. */
+      DEVICE_ALL,
+      /* Default system OpenCL device will be used.  */
+      DEVICE_DEFAULT,
+      /* Host processor will be used. */
+      DEVICE_CPU,
+      /* GPU devices will be used. */
+      DEVICE_GPU,
+      /* Dedicated OpenCL accelerator device will be used. */
+      DEVICE_ACCELERATOR,
+    };
 
-	/* Get instance of debug flags registry. */
-	static DebugFlags& get()
-	{
-		static DebugFlags instance;
-		return instance;
-	}
+    /* Available kernel types. */
+    enum KernelType {
+      /* Do automated guess which kernel to use, based on the officially
+       * supported GPUs and such.
+       */
+      KERNEL_DEFAULT,
+      /* Force mega kernel to be used. */
+      KERNEL_MEGA,
+      /* Force split kernel to be used. */
+      KERNEL_SPLIT,
+    };
 
-	/* Reset flags to their defaults. */
-	void reset();
+    /* Requested device type. */
+    DeviceType device_type;
 
-	/* Requested CPU flags. */
-	CPU cpu;
+    /* Use debug version of the kernel. */
+    bool debug;
 
-	/* Requested CUDA flags. */
-	CUDA cuda;
+    /* TODO(mai): Currently this is only for OpenCL, but we should have it implemented for all
+     * devices. */
+    /* Artificial memory limit in bytes (0 if disabled). */
+    size_t mem_limit;
+  };
 
-	/* Requested OpenCL flags. */
-	OpenCL opencl;
+  /* Get instance of debug flags registry. */
+  static DebugFlags &get()
+  {
+    static DebugFlags instance;
+    return instance;
+  }
 
-private:
-	DebugFlags();
+  /* Reset flags to their defaults. */
+  void reset();
+
+  /* Requested CPU flags. */
+  CPU cpu;
+
+  /* Requested CUDA flags. */
+  CUDA cuda;
+
+  /* Requested OpenCL flags. */
+  OpenCL opencl;
+
+ private:
+  DebugFlags();
 
 #if (__cplusplus > 199711L)
-public:
-	explicit DebugFlags(DebugFlags const& /*other*/)     = delete;
-	void operator=(DebugFlags const& /*other*/) = delete;
+ public:
+  explicit DebugFlags(DebugFlags const & /*other*/) = delete;
+  void operator=(DebugFlags const & /*other*/) = delete;
 #else
-private:
-	explicit DebugFlags(DebugFlags const& /*other*/);
-	void operator=(DebugFlags const& /*other*/);
+ private:
+  explicit DebugFlags(DebugFlags const & /*other*/);
+  void operator=(DebugFlags const & /*other*/);
 #endif
 };
 
-typedef DebugFlags& DebugFlagsRef;
-typedef const DebugFlags& DebugFlagsConstRef;
+typedef DebugFlags &DebugFlagsRef;
+typedef const DebugFlags &DebugFlagsConstRef;
 
-inline DebugFlags& DebugFlags() {
+inline DebugFlags &DebugFlags()
+{
   return DebugFlags::get();
 }
 
-std::ostream& operator <<(std::ostream &os,
-                          DebugFlagsConstRef debug_flags);
+std::ostream &operator<<(std::ostream &os, DebugFlagsConstRef debug_flags);
 
 CCL_NAMESPACE_END
 

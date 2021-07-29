@@ -17,49 +17,62 @@
 #ifndef __UTIL_HASH_H__
 #define __UTIL_HASH_H__
 
-#include "util_types.h"
+#include "util/util_types.h"
 
 CCL_NAMESPACE_BEGIN
 
-static inline uint hash_int_2d(uint kx, uint ky)
+ccl_device_inline uint hash_int_2d(uint kx, uint ky)
 {
-#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+#define rot(x, k) (((x) << (k)) | ((x) >> (32 - (k))))
 
-	uint a, b, c;
+  uint a, b, c;
 
-	a = b = c = 0xdeadbeef + (2 << 2) + 13;
-	a += kx;
-	b += ky;
+  a = b = c = 0xdeadbeef + (2 << 2) + 13;
+  a += kx;
+  b += ky;
 
-	c ^= b; c -= rot(b,14);
-	a ^= c; a -= rot(c,11);
-	b ^= a; b -= rot(a,25);
-	c ^= b; c -= rot(b,16);
-	a ^= c; a -= rot(c,4);
-	b ^= a; b -= rot(a,14);
-	c ^= b; c -= rot(b,24);
+  c ^= b;
+  c -= rot(b, 14);
+  a ^= c;
+  a -= rot(c, 11);
+  b ^= a;
+  b -= rot(a, 25);
+  c ^= b;
+  c -= rot(b, 16);
+  a ^= c;
+  a -= rot(c, 4);
+  b ^= a;
+  b -= rot(a, 14);
+  c ^= b;
+  c -= rot(b, 24);
 
-	return c;
+  return c;
 
 #undef rot
 }
 
-static inline uint hash_int(uint k)
+ccl_device_inline uint hash_int(uint k)
 {
-	return hash_int_2d(k, 0);
+  return hash_int_2d(k, 0);
 }
 
+#ifndef __KERNEL_GPU__
 static inline uint hash_string(const char *str)
 {
-	uint i = 0, c;
+  uint i = 0, c;
 
-	while((c = *str++))
-		i = i * 37 + c;
+  while ((c = *str++))
+    i = i * 37 + c;
 
-	return i;
+  return i;
+}
+#endif
+
+ccl_device_inline float hash_int_01(uint k)
+{
+  return (float)hash_int(k) * (1.0f / (float)0xFFFFFFFF);
 }
 
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_HASH_H__ */
-

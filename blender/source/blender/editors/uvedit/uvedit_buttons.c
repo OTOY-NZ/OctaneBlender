@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,14 +15,10 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation, 2002-2009
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/uvedit/uvedit_buttons.c
- *  \ingroup eduv
+/** \file
+ * \ingroup eduv
  */
 
 #include <string.h>
@@ -49,6 +43,8 @@
 #include "BKE_screen.h"
 #include "BKE_editmesh.h"
 
+#include "DEG_depsgraph.h"
+
 #include "ED_image.h"
 #include "ED_uvedit.h"
 
@@ -57,68 +53,65 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#define B_UVEDIT_VERTEX     3
+#define B_UVEDIT_VERTEX 3
 
 /* UV Utilities */
 
-static int uvedit_center(Scene *scene, BMEditMesh *em, Image *ima, float center[2])
+static int uvedit_center(Scene *scene, Object *obedit, BMEditMesh *em, Image *ima, float center[2])
 {
-	BMFace *f;
-	BMLoop *l;
-	BMIter iter, liter;
-	MTexPoly *tf;
-	MLoopUV *luv;
-	int tot = 0;
+  BMFace *f;
+  BMLoop *l;
+  BMIter iter, liter;
+  MLoopUV *luv;
+  int tot = 0;
 
-	const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
-	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
-	
-	zero_v2(center);
-	BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
-		tf = BM_ELEM_CD_GET_VOID_P(f, cd_poly_tex_offset);
-		if (!uvedit_face_visible_test(scene, ima, f, tf))
-			continue;
+  const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 
-		BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-			if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
-				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-				add_v2_v2(center, luv->uv);
-				tot++;
-			}
-		}
-	}
+  zero_v2(center);
+  BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+    if (!uvedit_face_visible_test(scene, obedit, ima, f)) {
+      continue;
+    }
 
-	if (tot > 0) {
-		center[0] /= tot;
-		center[1] /= tot;
-	}
+    BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+      if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
+        luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
+        add_v2_v2(center, luv->uv);
+        tot++;
+      }
+    }
+  }
 
-	return tot;
+  if (tot > 0) {
+    center[0] /= tot;
+    center[1] /= tot;
+  }
+
+  return tot;
 }
 
-static void uvedit_translate(Scene *scene, BMEditMesh *em, Image *ima, float delta[2])
+static void uvedit_translate(
+    Scene *scene, Object *obedit, BMEditMesh *em, Image *ima, float delta[2])
 {
-	BMFace *f;
-	BMLoop *l;
-	BMIter iter, liter;
-	MLoopUV *luv;
-	MTexPoly *tf;
+  BMFace *f;
+  BMLoop *l;
+  BMIter iter, liter;
+  MLoopUV *luv;
 
-	const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
-	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
-	
-	BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
-		tf = BM_ELEM_CD_GET_VOID_P(f, cd_poly_tex_offset);
-		if (!uvedit_face_visible_test(scene, ima, f, tf))
-			continue;
+  const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 
-		BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-			if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
-				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-				add_v2_v2(luv->uv, delta);
-			}
-		}
-	}
+  BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+    if (!uvedit_face_visible_test(scene, obedit, ima, f)) {
+      continue;
+    }
+
+    BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+      if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
+        luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
+        add_v2_v2(luv->uv, delta);
+      }
+    }
+  }
 }
 
 /* Button Functions, using an evil static variable */
@@ -127,118 +120,147 @@ static float uvedit_old_center[2];
 
 static void uvedit_vertex_buttons(const bContext *C, uiBlock *block)
 {
-	SpaceImage *sima = CTX_wm_space_image(C);
-	Scene *scene = CTX_data_scene(C);
-	Object *obedit = CTX_data_edit_object(C);
-	Image *ima = sima->image;
-	BMEditMesh *em;
-	float center[2];
-	int imx, imy, step, digits;
-	float width = 8 * UI_UNIT_X;
+  SpaceImage *sima = CTX_wm_space_image(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obedit = CTX_data_edit_object(C);
+  Image *ima = sima->image;
+  BMEditMesh *em;
+  float center[2];
+  int imx, imy, step, digits;
+  float width = 8 * UI_UNIT_X;
 
-	ED_space_image_get_size(sima, &imx, &imy);
-	
-	em = BKE_editmesh_from_object(obedit);
+  ED_space_image_get_size(sima, &imx, &imy);
 
-	if (uvedit_center(scene, em, ima, center)) {
-		float range_xy[2][2] = {
-		    {-10.0f, 10.0f},
-		    {-10.0f, 10.0f},
-		};
+  em = BKE_editmesh_from_object(obedit);
 
-		copy_v2_v2(uvedit_old_center, center);
+  if (uvedit_center(scene, obedit, em, ima, center)) {
+    float range_xy[2][2] = {
+        {-10.0f, 10.0f},
+        {-10.0f, 10.0f},
+    };
 
-		/* expand UI range by center */
-		CLAMP_MAX(range_xy[0][0], uvedit_old_center[0]);
-		CLAMP_MIN(range_xy[0][1], uvedit_old_center[0]);
-		CLAMP_MAX(range_xy[1][0], uvedit_old_center[1]);
-		CLAMP_MIN(range_xy[1][1], uvedit_old_center[1]);
+    copy_v2_v2(uvedit_old_center, center);
 
-		if (!(sima->flag & SI_COORDFLOATS)) {
-			uvedit_old_center[0] *= imx;
-			uvedit_old_center[1] *= imy;
+    /* expand UI range by center */
+    CLAMP_MAX(range_xy[0][0], uvedit_old_center[0]);
+    CLAMP_MIN(range_xy[0][1], uvedit_old_center[0]);
+    CLAMP_MAX(range_xy[1][0], uvedit_old_center[1]);
+    CLAMP_MIN(range_xy[1][1], uvedit_old_center[1]);
 
-			mul_v2_fl(range_xy[0], imx);
-			mul_v2_fl(range_xy[1], imy);
-		}
+    if (!(sima->flag & SI_COORDFLOATS)) {
+      uvedit_old_center[0] *= imx;
+      uvedit_old_center[1] *= imy;
 
-		if (sima->flag & SI_COORDFLOATS) {
-			step = 1;
-			digits = 3;
-		}
-		else {
-			step = 100;
-			digits = 2;
-		}
-		
-		UI_block_align_begin(block);
-		uiDefButF(block, UI_BTYPE_NUM, B_UVEDIT_VERTEX, IFACE_("X:"), 0, 0, width, UI_UNIT_Y, &uvedit_old_center[0],
-		          UNPACK2(range_xy[0]), step, digits, "");
-		uiDefButF(block, UI_BTYPE_NUM, B_UVEDIT_VERTEX, IFACE_("Y:"), width, 0, width, UI_UNIT_Y, &uvedit_old_center[1],
-		          UNPACK2(range_xy[1]), step, digits, "");
-		UI_block_align_end(block);
-	}
+      mul_v2_fl(range_xy[0], imx);
+      mul_v2_fl(range_xy[1], imy);
+    }
+
+    if (sima->flag & SI_COORDFLOATS) {
+      step = 1;
+      digits = 3;
+    }
+    else {
+      step = 100;
+      digits = 2;
+    }
+
+    UI_block_align_begin(block);
+    uiDefButF(block,
+              UI_BTYPE_NUM,
+              B_UVEDIT_VERTEX,
+              IFACE_("X:"),
+              0,
+              0,
+              width,
+              UI_UNIT_Y,
+              &uvedit_old_center[0],
+              UNPACK2(range_xy[0]),
+              step,
+              digits,
+              "");
+    uiDefButF(block,
+              UI_BTYPE_NUM,
+              B_UVEDIT_VERTEX,
+              IFACE_("Y:"),
+              width,
+              0,
+              width,
+              UI_UNIT_Y,
+              &uvedit_old_center[1],
+              UNPACK2(range_xy[1]),
+              step,
+              digits,
+              "");
+    UI_block_align_end(block);
+  }
 }
 
 static void do_uvedit_vertex(bContext *C, void *UNUSED(arg), int event)
 {
-	SpaceImage *sima = CTX_wm_space_image(C);
-	Scene *scene = CTX_data_scene(C);
-	Object *obedit = CTX_data_edit_object(C);
-	Image *ima = sima->image;
-	BMEditMesh *em;
-	float center[2], delta[2];
-	int imx, imy;
+  SpaceImage *sima = CTX_wm_space_image(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obedit = CTX_data_edit_object(C);
+  Image *ima = sima->image;
+  BMEditMesh *em;
+  float center[2], delta[2];
+  int imx, imy;
 
-	if (event != B_UVEDIT_VERTEX)
-		return;
+  if (event != B_UVEDIT_VERTEX) {
+    return;
+  }
 
-	em = BKE_editmesh_from_object(obedit);
+  em = BKE_editmesh_from_object(obedit);
 
-	ED_space_image_get_size(sima, &imx, &imy);
-	uvedit_center(scene, em, ima, center);
+  ED_space_image_get_size(sima, &imx, &imy);
+  uvedit_center(scene, obedit, em, ima, center);
 
-	if (sima->flag & SI_COORDFLOATS) {
-		delta[0] = uvedit_old_center[0] - center[0];
-		delta[1] = uvedit_old_center[1] - center[1];
-	}
-	else {
-		delta[0] = uvedit_old_center[0] / imx - center[0];
-		delta[1] = uvedit_old_center[1] / imy - center[1];
-	}
+  if (sima->flag & SI_COORDFLOATS) {
+    delta[0] = uvedit_old_center[0] - center[0];
+    delta[1] = uvedit_old_center[1] - center[1];
+  }
+  else {
+    delta[0] = uvedit_old_center[0] / imx - center[0];
+    delta[1] = uvedit_old_center[1] / imy - center[1];
+  }
 
-	uvedit_translate(scene, em, ima, delta);
+  uvedit_translate(scene, obedit, em, ima, delta);
 
-	WM_event_add_notifier(C, NC_IMAGE, sima->image);
+  WM_event_add_notifier(C, NC_IMAGE, sima->image);
+  DEG_id_tag_update((ID *)obedit->data, ID_RECALC_GEOMETRY);
 }
 
 /* Panels */
 
-static int image_panel_uv_poll(const bContext *C, PanelType *UNUSED(pt))
+static bool image_panel_uv_poll(const bContext *C, PanelType *UNUSED(pt))
 {
-	Object *obedit = CTX_data_edit_object(C);
-	return ED_uvedit_test(obedit);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  if (sima->mode != SI_MODE_UV) {
+    return false;
+  }
+  Object *obedit = CTX_data_edit_object(C);
+  return ED_uvedit_test(obedit);
 }
 
 static void image_panel_uv(const bContext *C, Panel *pa)
 {
-	uiBlock *block;
-	
-	block = uiLayoutAbsoluteBlock(pa->layout);
-	UI_block_func_handle_set(block, do_uvedit_vertex, NULL);
+  uiBlock *block;
 
-	uvedit_vertex_buttons(C, block);
-}	
+  block = uiLayoutAbsoluteBlock(pa->layout);
+  UI_block_func_handle_set(block, do_uvedit_vertex, NULL);
+
+  uvedit_vertex_buttons(C, block);
+}
 
 void ED_uvedit_buttons_register(ARegionType *art)
 {
-	PanelType *pt;
+  PanelType *pt;
 
-	pt = MEM_callocN(sizeof(PanelType), "spacetype image panel uv");
-	strcpy(pt->idname, "IMAGE_PT_uv");
-	strcpy(pt->label, N_("UV Vertex"));  /* XXX C panels are not available through RNA (bpy.types)! */
-	pt->draw = image_panel_uv;
-	pt->poll = image_panel_uv_poll;
-	BLI_addtail(&art->paneltypes, pt);
+  pt = MEM_callocN(sizeof(PanelType), "spacetype image panel uv");
+  strcpy(pt->idname, "IMAGE_PT_uv");
+  strcpy(pt->label, N_("UV Vertex")); /* XXX C panels unavailable through RNA bpy.types! */
+  /* Could be 'Item' matching 3D view, avoid new tab for two buttons. */
+  strcpy(pt->category, "Image");
+  pt->draw = image_panel_uv;
+  pt->poll = image_panel_uv_poll;
+  BLI_addtail(&art->paneltypes, pt);
 }
-

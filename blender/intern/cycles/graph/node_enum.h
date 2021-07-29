@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include "util_map.h"
-#include "util_param.h"
+#include "util/util_map.h"
+#include "util/util_param.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -26,23 +26,50 @@ CCL_NAMESPACE_BEGIN
  * Utility class for enum values. */
 
 struct NodeEnum {
-	bool empty() const { return left.empty(); }
-	void insert(const char *x, int y) {
-		left[ustring(x)] = y;
-		right[y] = ustring(x);
-	}
+  bool empty() const
+  {
+    return left.empty();
+  }
+  void insert(const char *x, int y)
+  {
+    left[ustring(x)] = y;
+    right[y] = ustring(x);
+  }
 
-	bool exists(ustring x) const { return left.find(x) != left.end(); }
-	bool exists(int y) const { return right.find(y) != right.end(); }
+  bool exists(ustring x) const
+  {
+    return left.find(x) != left.end();
+  }
+  bool exists(int y) const
+  {
+    return right.find(y) != right.end();
+  }
 
-	int operator[](const char *x) const { return left.find(ustring(x))->second; }
-	int operator[](ustring x) const { return left.find(x)->second; }
-	ustring operator[](int y) const { return right.find(y)->second; }
+  int operator[](const char *x) const
+  {
+    return left.find(ustring(x))->second;
+  }
+  int operator[](ustring x) const
+  {
+    return left.find(x)->second;
+  }
+  ustring operator[](int y) const
+  {
+    return right.find(y)->second;
+  }
 
-private:
-	unordered_map<ustring, int, ustringHash> left;
-	unordered_map<int, ustring> right;
+  unordered_map<ustring, int, ustringHash>::const_iterator begin() const
+  {
+    return left.begin();
+  }
+  unordered_map<ustring, int, ustringHash>::const_iterator end() const
+  {
+    return left.end();
+  }
+
+ private:
+  unordered_map<ustring, int, ustringHash> left;
+  unordered_map<int, ustring> right;
 };
 
 CCL_NAMESPACE_END
-

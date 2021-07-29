@@ -16,37 +16,36 @@
 #
 # The Original Code is Copyright (C) 2014, Blender Foundation
 # All rights reserved.
-#
-# The Original Code is: all of this file.
-#
-# Contributor(s): Lukas Toenne
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	intern
-	../blenlib
-	../blenkernel
-	../imbuf
-	../makesdna
-	../../../intern/guardedalloc
+  .
+  intern
+  ../blenkernel
+  ../blenlib
+  ../depsgraph
+  ../imbuf
+  ../makesdna
+  ../../../intern/guardedalloc
 )
 
 set(INC_SYS
-	${EIGEN3_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 set(SRC
-	intern/BPH_mass_spring.cpp
-	intern/ConstrainedConjugateGradient.h
-	intern/hair_volume.cpp
-	intern/implicit.h
-	intern/implicit_blender.c
-	intern/implicit_eigen.cpp
-	intern/eigen_utils.h
+  intern/BPH_mass_spring.cpp
+  intern/ConstrainedConjugateGradient.h
+  intern/eigen_utils.h
+  intern/hair_volume.cpp
+  intern/implicit.h
+  intern/implicit_blender.c
+  intern/implicit_eigen.cpp
 
-	BPH_mass_spring.h
+  BPH_mass_spring.h
 )
 
-blender_add_lib(bf_physics "${SRC}" "${INC}" "${INC_SYS}")
+set(LIB
+)
+
+blender_add_lib(bf_physics "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

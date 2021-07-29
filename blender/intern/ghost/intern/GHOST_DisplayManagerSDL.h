@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,14 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_DisplayManagerSDL.h
- *  \ingroup GHOST
+/** \file
+ * \ingroup GHOST
  * Declaration of GHOST_DisplayManagerSDL class.
  */
 
@@ -31,7 +25,7 @@
 #include "GHOST_DisplayManager.h"
 
 extern "C" {
-	#include "SDL.h"
+#include "SDL.h"
 }
 
 #if !SDL_VERSION_ATLEAST(2, 0, 0)
@@ -40,37 +34,29 @@ extern "C" {
 
 class GHOST_SystemSDL;
 
-class GHOST_DisplayManagerSDL : public GHOST_DisplayManager
-{
-public:
-	GHOST_DisplayManagerSDL(GHOST_SystemSDL *system);
+class GHOST_DisplayManagerSDL : public GHOST_DisplayManager {
+ public:
+  GHOST_DisplayManagerSDL(GHOST_SystemSDL *system);
 
-	GHOST_TSuccess
-	getNumDisplays(GHOST_TUns8& numDisplays) const;
+  GHOST_TSuccess getNumDisplays(GHOST_TUns8 &numDisplays) const;
 
-	GHOST_TSuccess
-	getNumDisplaySettings(GHOST_TUns8 display,
-	                      GHOST_TInt32& numSettings) const;
+  GHOST_TSuccess getNumDisplaySettings(GHOST_TUns8 display, GHOST_TInt32 &numSettings) const;
 
-	GHOST_TSuccess
-	getDisplaySetting(GHOST_TUns8 display,
-	                  GHOST_TInt32 index,
-	                  GHOST_DisplaySetting& setting) const;
+  GHOST_TSuccess getDisplaySetting(GHOST_TUns8 display,
+                                   GHOST_TInt32 index,
+                                   GHOST_DisplaySetting &setting) const;
 
-	GHOST_TSuccess
-	getCurrentDisplaySetting(GHOST_TUns8 display,
-	                         GHOST_DisplaySetting& setting) const;
+  GHOST_TSuccess getCurrentDisplaySetting(GHOST_TUns8 display,
+                                          GHOST_DisplaySetting &setting) const;
 
-	GHOST_TSuccess
-	getCurrentDisplayModeSDL(SDL_DisplayMode &mode) const;
+  GHOST_TSuccess getCurrentDisplayModeSDL(SDL_DisplayMode &mode) const;
 
-	GHOST_TSuccess
-	setCurrentDisplaySetting(GHOST_TUns8 display,
-	                         const GHOST_DisplaySetting& setting);
+  GHOST_TSuccess setCurrentDisplaySetting(GHOST_TUns8 display,
+                                          const GHOST_DisplaySetting &setting);
 
-private:
-	GHOST_SystemSDL *m_system;
-	SDL_DisplayMode m_mode;
+ private:
+  GHOST_SystemSDL *m_system;
+  SDL_DisplayMode m_mode;
 };
 
 #endif /* __GHOST_DISPLAYMANAGERSDL_H__ */

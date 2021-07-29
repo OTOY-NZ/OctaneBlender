@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,101 +12,120 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Esteban Tovagliari, Cedric Paille, Kevin Dietrich
- *
- * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file
+ * \ingroup balembic
  */
 
 #ifndef __ABC_EXPORTER_H__
 #define __ABC_EXPORTER_H__
 
 #include <Alembic/Abc/All.h>
-#include <fstream>
 #include <map>
 #include <set>
 #include <vector>
 
+#include "abc_util.h"
+
 class AbcObjectWriter;
 class AbcTransformWriter;
+class ArchiveWriter;
 
-struct EvaluationContext;
+struct Base;
+struct Depsgraph;
 struct Main;
 struct Object;
 struct Scene;
+struct ViewLayer;
 
 struct ExportSettings {
-	ExportSettings();
+  ExportSettings();
 
-	Scene *scene;
+  Scene *scene;
+  /** Scene layer to export; all its objects will be exported, unless selected_only=true. */
+  ViewLayer *view_layer;
+  Depsgraph *depsgraph;
+  SimpleLogger logger;
 
-	bool selected_only;
-	bool visible_layers_only;
-	bool renderable_only;
+  bool selected_only;
+  bool visible_layers_only;
+  bool renderable_only;
 
-	double frame_start, frame_end;
-	double frame_step_xform;
-	double frame_step_shape;
-	double shutter_open;
-	double shutter_close;
-	float global_scale;
+  double frame_start, frame_end;
+  double frame_samples_xform;
+  double frame_samples_shape;
+  double shutter_open;
+  double shutter_close;
+  float global_scale;
 
-	bool flatten_hierarchy;
+  bool flatten_hierarchy;
 
-	bool export_normals;
-	bool export_uvs;
-	bool export_vcols;
-	bool export_face_sets;
-	bool export_vweigths;
+  bool export_normals;
+  bool export_uvs;
+  bool export_vcols;
+  bool export_face_sets;
+  bool export_vweigths;
+  bool export_hair;
+  bool export_particles;
 
-	bool apply_subdiv;
-	bool use_subdiv_schema;
-	bool export_child_hairs;
-	bool export_ogawa;
-	bool pack_uv;
+  bool apply_subdiv;
+  bool curves_as_mesh;
+  bool use_subdiv_schema;
+  bool export_child_hairs;
+  bool export_ogawa;
+  bool pack_uv;
+  bool triangulate;
 
-	bool do_convert_axis;
-	float convert_matrix[3][3];
+  int quad_method;
+  int ngon_method;
+
+  bool do_convert_axis;
+  float convert_matrix[3][3];
 };
 
 class AbcExporter {
-	ExportSettings &m_settings;
+  Main *m_bmain;
+  ExportSettings &m_settings;
 
-	const char *m_filename;
+  const char *m_filename;
 
-	std::ofstream m_out_file;
-	Alembic::Abc::OArchive m_archive;
-	unsigned int m_trans_sampling_index, m_shape_sampling_index;
+  unsigned int m_trans_sampling_index, m_shape_sampling_index;
 
-	Scene *m_scene;
+  ArchiveWriter *m_writer;
 
-	std::map<std::string, AbcTransformWriter *> m_xforms;
-	std::vector<AbcObjectWriter *> m_shapes;
+  /* mapping from name to transform writer */
+  typedef std::map<std::string, AbcTransformWriter *> m_xforms_type;
+  m_xforms_type m_xforms;
 
-public:
-	AbcExporter(Scene *scene, const char *filename, ExportSettings &settings);
-	~AbcExporter();
+  std::vector<AbcObjectWriter *> m_shapes;
 
-	void operator()(Main *bmain, float &progress, bool &was_canceled);
+ public:
+  AbcExporter(Main *bmain, const char *filename, ExportSettings &settings);
+  ~AbcExporter();
 
-private:
-	void getShutterSamples(double step, bool time_relative, std::vector<double> &samples);
+  void operator()(float &progress, bool &was_canceled);
 
-	Alembic::Abc::TimeSamplingPtr createTimeSampling(double step);
+ protected:
+  void getShutterSamples(unsigned int nr_of_samples,
+                         bool time_relative,
+                         std::vector<double> &samples);
+  void getFrameSet(unsigned int nr_of_samples, std::set<double> &frames);
 
-	void getFrameSet(double step, std::set<double> &frames);
+ private:
+  Alembic::Abc::TimeSamplingPtr createTimeSampling(double step);
 
-	void createTransformWritersHierarchy(EvaluationContext *eval_ctx);
-	void createTransformWritersFlat();
-	void createTransformWriter(Object *ob,  Object *parent, Object *dupliObParent);
-	void exploreTransform(EvaluationContext *eval_ctx, Object *ob, Object *parent, Object *dupliObParent = NULL);
-	void exploreObject(EvaluationContext *eval_ctx, Object *ob, Object *dupliObParent);
-	void createShapeWriters(EvaluationContext *eval_ctx);
-	void createShapeWriter(Object *ob, Object *dupliObParent);
+  void createTransformWritersHierarchy();
+  AbcTransformWriter *createTransformWriter(Object *ob, Object *parent, Object *dupliObParent);
+  void exploreTransform(Base *base, Object *object, Object *parent, Object *dupliObParent);
+  void exploreObject(Base *base, Object *object, Object *dupliObParent);
+  void createShapeWriters();
+  void createShapeWriter(Object *ob, Object *dupliObParent);
+  void createParticleSystemsWriters(Object *ob, AbcTransformWriter *xform);
 
-	AbcTransformWriter *getXForm(const std::string &name);
+  AbcTransformWriter *getXForm(const std::string &name);
 
-	void setCurrentFrame(Main *bmain, double t);
+  void setCurrentFrame(Main *bmain, double t);
 };
 
-#endif  /* __ABC_EXPORTER_H__ */
+#endif /* __ABC_EXPORTER_H__ */

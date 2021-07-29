@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,52 +15,48 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/nodes/composite/nodes/node_composite_movieclip.c
- *  \ingroup cmpnodes
+/** \file
+ * \ingroup cmpnodes
  */
 
 #include "node_composite_util.h"
 
 #include "BKE_context.h"
+#include "BKE_library.h"
 
 static bNodeSocketTemplate cmp_node_movieclip_out[] = {
-	{	SOCK_RGBA,		0,	N_("Image")},
-	{	SOCK_FLOAT,		0,	N_("Alpha")},
-	{	SOCK_FLOAT,		1,	N_("Offset X")},
-	{	SOCK_FLOAT,		1,	N_("Offset Y")},
-	{	SOCK_FLOAT,		1,	N_("Scale")},
-	{	SOCK_FLOAT,		1,	N_("Angle")},
-	{	-1, 0, ""	}
+    {SOCK_RGBA, 0, N_("Image")},
+    {SOCK_FLOAT, 0, N_("Alpha")},
+    {SOCK_FLOAT, 1, N_("Offset X")},
+    {SOCK_FLOAT, 1, N_("Offset Y")},
+    {SOCK_FLOAT, 1, N_("Scale")},
+    {SOCK_FLOAT, 1, N_("Angle")},
+    {-1, 0, ""},
 };
 
 static void init(const bContext *C, PointerRNA *ptr)
 {
-	bNode *node = ptr->data;
-	Scene *scene = CTX_data_scene(C);
-	MovieClipUser *user = MEM_callocN(sizeof(MovieClipUser), "node movie clip user");
+  bNode *node = ptr->data;
+  Scene *scene = CTX_data_scene(C);
+  MovieClipUser *user = MEM_callocN(sizeof(MovieClipUser), "node movie clip user");
 
-	node->id = (ID *)scene->clip;
-	node->storage = user;
-	user->framenr = 1;
+  node->id = (ID *)scene->clip;
+  id_us_plus(node->id);
+  node->storage = user;
+  user->framenr = 1;
 }
 
 void register_node_type_cmp_movieclip(void)
 {
-	static bNodeType ntype;
+  static bNodeType ntype;
 
-	cmp_node_type_base(&ntype, CMP_NODE_MOVIECLIP, "Movie Clip", NODE_CLASS_INPUT, NODE_PREVIEW);
-	node_type_socket_templates(&ntype, NULL, cmp_node_movieclip_out);
-	ntype.initfunc_api = init;
-	node_type_storage(&ntype, "MovieClipUser", node_free_standard_storage, node_copy_standard_storage);
+  cmp_node_type_base(&ntype, CMP_NODE_MOVIECLIP, "Movie Clip", NODE_CLASS_INPUT, NODE_PREVIEW);
+  node_type_socket_templates(&ntype, NULL, cmp_node_movieclip_out);
+  ntype.initfunc_api = init;
+  node_type_storage(
+      &ntype, "MovieClipUser", node_free_standard_storage, node_copy_standard_storage);
 
-	nodeRegisterType(&ntype);
+  nodeRegisterType(&ntype);
 }

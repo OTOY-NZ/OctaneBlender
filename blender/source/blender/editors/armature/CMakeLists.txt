@@ -13,62 +13,60 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# Contributor(s): Jacques Beaurain.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	../include
-	../../blenkernel
-	../../blenlib
-	../../blentranslation
-	../../gpu
-	../../makesdna
-	../../makesrna
-	../../windowmanager
-	../../../../intern/guardedalloc
-	../../../../intern/eigen
-	../../../../intern/glew-mx
+  ../include
+  ../../blenkernel
+  ../../blenlib
+  ../../blentranslation
+  ../../depsgraph
+  ../../gpu
+  ../../makesdna
+  ../../makesrna
+  ../../windowmanager
+  ../../../../intern/clog
+  ../../../../intern/eigen
+  ../../../../intern/glew-mx
+  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
-	${GLEW_INCLUDE_PATH}
+  ${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
-	armature_add.c
-	armature_edit.c
-	armature_naming.c
-	armature_ops.c
-	armature_relations.c
-	armature_select.c
-	armature_skinning.c
-	armature_utils.c
-	editarmature_generate.c
-	editarmature_retarget.c
-	editarmature_sketch.c
-	meshlaplacian.c
-	pose_edit.c
-	pose_lib.c
-	pose_group.c
-	pose_select.c
-	pose_slide.c
-	pose_transform.c
-	pose_utils.c
-	reeb.c
+  armature_add.c
+  armature_edit.c
+  armature_naming.c
+  armature_ops.c
+  armature_relations.c
+  armature_select.c
+  armature_skinning.c
+  armature_utils.c
+  editarmature_undo.c
+  meshlaplacian.c
+  pose_edit.c
+  pose_group.c
+  pose_lib.c
+  pose_select.c
+  pose_slide.c
+  pose_transform.c
+  pose_utils.c
 
-	BIF_generate.h
-	BIF_retarget.h
-	armature_intern.h
-	meshlaplacian.h
-	reeb.h
+  armature_intern.h
+  meshlaplacian.h
+)
+
+set(LIB
+  bf_blenkernel
+  bf_blenlib
 )
 
 if(WITH_INTERNATIONAL)
-	add_definitions(-DWITH_INTERNATIONAL)
+  add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_armature "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_armature "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

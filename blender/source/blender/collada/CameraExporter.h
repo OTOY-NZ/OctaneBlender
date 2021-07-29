@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,15 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov, Jan Diederich, Tod Liverseed,
- *                 Nathan Letwory
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file CameraExporter.h
- *  \ingroup collada
+/** \file
+ * \ingroup collada
  */
 
 #ifndef __CAMERAEXPORTER_H__
@@ -39,15 +32,15 @@ extern "C" {
 #include "ExportSettings.h"
 #include "DNA_camera_types.h"
 
-class CamerasExporter: COLLADASW::LibraryCameras
-{
-public:
-	CamerasExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
-	void exportCameras(Scene *sce);
-	void operator()(Object *ob, Scene *sce);
-private:
-	bool exportBlenderProfile(COLLADASW::Camera &cla,Camera *cam);
-	const ExportSettings *export_settings;
+class CamerasExporter : COLLADASW::LibraryCameras {
+ public:
+  CamerasExporter(COLLADASW::StreamWriter *sw, BCExportSettings &export_settings);
+  void exportCameras(Scene *sce);
+  void operator()(Object *ob, Scene *sce);
+
+ private:
+  bool exportBlenderProfile(COLLADASW::Camera &cla, Camera *cam);
+  BCExportSettings &export_settings;
 };
 
 #endif

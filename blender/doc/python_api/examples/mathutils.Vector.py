@@ -32,11 +32,10 @@ vec_a <= vec_b
 # Math can be performed on Vector classes
 vec_a + vec_b
 vec_a - vec_b
-vec_a * vec_b
+vec_a @ vec_b
 vec_a * 10.0
-matrix * vec_a
-quat * vec_a
-vec_a * vec_b
+matrix @ vec_a
+quat @ vec_a
 -vec_a
 
 
@@ -49,7 +48,7 @@ vec2d[:] = vec3d[:2]
 
 
 # Vectors support 'swizzle' operations
-# See http://en.wikipedia.org/wiki/Swizzling_(computer_graphics)
+# See https://en.wikipedia.org/wiki/Swizzling_(computer_graphics)
 vec.xyz = vec.zyx
 vec.xy = vec4d.zw
 vec.xyz = vec4d.wzz

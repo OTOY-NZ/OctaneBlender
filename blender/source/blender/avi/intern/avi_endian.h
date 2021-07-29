@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,16 +15,10 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/avi/intern/avi_endian.h
- *  \ingroup avi
+/** \file
+ * \ingroup avi
  *
  * This is external code.
  */
@@ -34,15 +26,15 @@
 #ifndef __AVI_ENDIAN_H__
 #define __AVI_ENDIAN_H__
 
-#define AVI_RAW      0
-#define AVI_CHUNK    1
-#define AVI_LIST     2
-#define AVI_MAINH    3
-#define AVI_STREAMH  4
-#define AVI_BITMAPH  5
-#define AVI_INDEXE   6
-#define AVI_MJPEGU   7
+#define AVI_RAW 0
+#define AVI_CHUNK 1
+#define AVI_LIST 2
+#define AVI_MAINH 3
+#define AVI_STREAMH 4
+#define AVI_BITMAPH 5
+#define AVI_INDEXE 6
+#define AVI_MJPEGU 7
 
 void awrite(AviMovie *movie, void *datain, int block, int size, FILE *fp, int type);
 
-#endif  /* __AVI_ENDIAN_H__ */
+#endif /* __AVI_ENDIAN_H__ */

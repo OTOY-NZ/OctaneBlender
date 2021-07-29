@@ -19,26 +19,22 @@ def main(context, event):
     def visible_objects_and_duplis():
         """Loop over (object, matrix) pairs (mesh only)"""
 
-        for obj in context.visible_objects:
-            if obj.type == 'MESH':
+        depsgraph = context.evaluated_depsgraph_get()
+        for dup in depsgraph.object_instances:
+            if dup.is_instance:  # Real dupli instance
+                obj = dup.instance_object
+                yield (obj, dup.matrix_world.copy())
+            else:  # Usual object
+                obj = dup.object
                 yield (obj, obj.matrix_world.copy())
-
-            if obj.dupli_type != 'NONE':
-                obj.dupli_list_create(scene)
-                for dob in obj.dupli_list:
-                    obj_dupli = dob.object
-                    if obj_dupli.type == 'MESH':
-                        yield (obj_dupli, dob.matrix.copy())
-
-            obj.dupli_list_clear()
 
     def obj_ray_cast(obj, matrix):
         """Wrapper for ray casting that moves the ray into object space"""
 
         # get the ray relative to the object
         matrix_inv = matrix.inverted()
-        ray_origin_obj = matrix_inv * ray_origin
-        ray_target_obj = matrix_inv * ray_target
+        ray_origin_obj = matrix_inv @ ray_origin
+        ray_target_obj = matrix_inv @ ray_target
         ray_direction_obj = ray_target_obj - ray_origin_obj
 
         # cast the ray
@@ -57,8 +53,8 @@ def main(context, event):
         if obj.type == 'MESH':
             hit, normal, face_index = obj_ray_cast(obj, matrix)
             if hit is not None:
-                hit_world = matrix * hit
-                scene.cursor_location = hit_world
+                hit_world = matrix @ hit
+                scene.cursor.location = hit_world
                 length_squared = (hit_world - ray_origin).length_squared
                 if best_obj is None or length_squared < best_length_squared:
                     best_length_squared = length_squared
@@ -67,8 +63,11 @@ def main(context, event):
     # now we have the object under the mouse cursor,
     # we could do lots of stuff but for the example just select.
     if best_obj is not None:
-        best_obj.select = True
-        context.scene.objects.active = best_obj
+        # for selection etc. we need the original object,
+        # evaluated objects are not in viewlayer
+        best_original = best_obj.original
+        best_original.select_set(True)
+        context.view_layer.objects.active = best_original
 
 
 class ViewOperatorRayCast(bpy.types.Operator):

@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,9 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
 #include "COM_RotateNode.h"
@@ -28,23 +24,24 @@
 
 RotateNode::RotateNode(bNode *editorNode) : Node(editorNode)
 {
-	/* pass */
+  /* pass */
 }
 
-void RotateNode::convertToOperations(NodeConverter &converter, const CompositorContext &/*context*/) const
+void RotateNode::convertToOperations(NodeConverter &converter,
+                                     const CompositorContext & /*context*/) const
 {
-	NodeInput *inputSocket = this->getInputSocket(0);
-	NodeInput *inputDegreeSocket = this->getInputSocket(1);
-	NodeOutput *outputSocket = this->getOutputSocket(0);
-	RotateOperation *operation = new RotateOperation();
-	SetSamplerOperation *sampler = new SetSamplerOperation();
-	sampler->setSampler((PixelSampler)this->getbNode()->custom1);
-	
-	converter.addOperation(sampler);
-	converter.addOperation(operation);
-	
-	converter.addLink(sampler->getOutputSocket(), operation->getInputSocket(0));
-	converter.mapInputSocket(inputSocket, sampler->getInputSocket(0));
-	converter.mapInputSocket(inputDegreeSocket, operation->getInputSocket(1));
-	converter.mapOutputSocket(outputSocket, operation->getOutputSocket(0));
+  NodeInput *inputSocket = this->getInputSocket(0);
+  NodeInput *inputDegreeSocket = this->getInputSocket(1);
+  NodeOutput *outputSocket = this->getOutputSocket(0);
+  RotateOperation *operation = new RotateOperation();
+  SetSamplerOperation *sampler = new SetSamplerOperation();
+  sampler->setSampler((PixelSampler)this->getbNode()->custom1);
+
+  converter.addOperation(sampler);
+  converter.addOperation(operation);
+
+  converter.addLink(sampler->getOutputSocket(), operation->getInputSocket(0));
+  converter.mapInputSocket(inputSocket, sampler->getInputSocket(0));
+  converter.mapInputSocket(inputDegreeSocket, operation->getInputSocket(1));
+  converter.mapOutputSocket(outputSocket, operation->getOutputSocket(0));
 }

@@ -16,15 +16,10 @@
 #
 # The Original Code is Copyright (C) 2013, Blender Foundation
 # All rights reserved.
-#
-# The Original Code is: all of this file.
-#
-# Contributor(s): none yet.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
+  .
 )
 
 set(INC_SYS
@@ -32,9 +27,12 @@ set(INC_SYS
 )
 
 set(SRC
-	wcwidth.c
+  wcwidth.c
 
-	wcwidth.h
+  wcwidth.h
 )
 
-blender_add_lib(extern_wcwidth "${SRC}" "${INC}" "${INC_SYS}")
+set(LIB
+)
+
+blender_add_lib(extern_wcwidth "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

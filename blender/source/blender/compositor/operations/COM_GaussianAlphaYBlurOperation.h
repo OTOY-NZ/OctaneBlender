@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,50 +13,56 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
- *		Campbell Barton
+ * Copyright 2011, Blender Foundation.
  */
 
-#ifndef _COM_GaussianAlphaYBlurOperation_h
-#define _COM_GaussianAlphaYBlurOperation_h
+#ifndef __COM_GAUSSIANALPHAYBLUROPERATION_H__
+#define __COM_GAUSSIANALPHAYBLUROPERATION_H__
 #include "COM_NodeOperation.h"
 #include "COM_BlurBaseOperation.h"
 
 class GaussianAlphaYBlurOperation : public BlurBaseOperation {
-private:
-	float *m_gausstab;
-	float *m_distbuf_inv;
-	bool m_do_subtract;
-	int m_falloff;
-	int m_filtersize;
-	void updateGauss();
-public:
-	GaussianAlphaYBlurOperation();
-	
-	/**
-	 * the inner loop of this program
-	 */
-	void executePixel(float output[4], int x, int y, void *data);
-	
-	/**
-	 * @brief initialize the execution
-	 */
-	void initExecution();
+ private:
+  float *m_gausstab;
+  float *m_distbuf_inv;
+  bool m_do_subtract;
+  int m_falloff;
+  int m_filtersize;
+  void updateGauss();
 
-	/**
-	 * Deinitialize the execution
-	 */
-	void deinitExecution();
-	
-	void *initializeTileData(rcti *rect);
-	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+ public:
+  GaussianAlphaYBlurOperation();
 
-	/**
-	 * Set subtract for Dilate/Erode functionality
-	 */
-	void setSubtract(bool subtract) { this->m_do_subtract = subtract; }
-	void setFalloff(int falloff) { this->m_falloff = falloff; }
+  /**
+   * the inner loop of this program
+   */
+  void executePixel(float output[4], int x, int y, void *data);
+
+  /**
+   * \brief initialize the execution
+   */
+  void initExecution();
+
+  /**
+   * Deinitialize the execution
+   */
+  void deinitExecution();
+
+  void *initializeTileData(rcti *rect);
+  bool determineDependingAreaOfInterest(rcti *input,
+                                        ReadBufferOperation *readOperation,
+                                        rcti *output);
+
+  /**
+   * Set subtract for Dilate/Erode functionality
+   */
+  void setSubtract(bool subtract)
+  {
+    this->m_do_subtract = subtract;
+  }
+  void setFalloff(int falloff)
+  {
+    this->m_falloff = falloff;
+  }
 };
 #endif

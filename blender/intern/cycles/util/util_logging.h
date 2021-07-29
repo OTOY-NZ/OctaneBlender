@@ -18,41 +18,51 @@
 #define __UTIL_LOGGING_H__
 
 #if defined(WITH_CYCLES_LOGGING) && !defined(__KERNEL_GPU__)
+#  include <gflags/gflags.h>
 #  include <glog/logging.h>
-#else
-#  include <iostream>
 #endif
+
+#include <iostream>
 
 CCL_NAMESPACE_BEGIN
 
 #if !defined(WITH_CYCLES_LOGGING) || defined(__KERNEL_GPU__)
-class StubStream : public std::ostream {
+class StubStream {
  public:
-	StubStream() : std::ostream(NULL) { }
+  template<class T> StubStream &operator<<(const T &)
+  {
+    return *this;
+  }
 };
 
 class LogMessageVoidify {
-public:
-	LogMessageVoidify() { }
-	void operator&(::std::ostream&) { }
+ public:
+  LogMessageVoidify()
+  {
+  }
+  void operator&(StubStream &)
+  {
+  }
 };
 
-#  define LOG_SUPPRESS() (true) ? (void) 0 : LogMessageVoidify() & StubStream()
+#  define LOG_SUPPRESS() (true) ? ((void)0) : LogMessageVoidify() & StubStream()
 #  define LOG(severity) LOG_SUPPRESS()
 #  define VLOG(severity) LOG_SUPPRESS()
-
 #endif
 
-#define VLOG_ONCE(level, flag) if(!flag) flag = true, VLOG(level)
+#define VLOG_ONCE(level, flag) \
+  if (!flag) \
+  flag = true, VLOG(level)
 
+struct int2;
 struct float3;
 
 void util_logging_init(const char *argv0);
-void util_logging_start(void);
+void util_logging_start();
 void util_logging_verbosity_set(int verbosity);
 
-std::ostream& operator <<(std::ostream &os,
-                          const float3 &value);
+std::ostream &operator<<(std::ostream &os, const int2 &value);
+std::ostream &operator<<(std::ostream &os, const float3 &value);
 
 CCL_NAMESPACE_END
 

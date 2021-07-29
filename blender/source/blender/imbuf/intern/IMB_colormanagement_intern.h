@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,70 +15,72 @@
  *
  * The Original Code is Copyright (C) 2012 by Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Xavier Thomas,
- *                 Lukas Toenne,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 #ifndef __IMB_COLORMANAGEMENT_INTERN_H__
 #define __IMB_COLORMANAGEMENT_INTERN_H__
 
-/** \file IMB_colormanagement_intern.h
- *  \ingroup imbuf
+/** \file
+ * \ingroup imbuf
  */
 
 #include "DNA_listBase.h"
 #include "BLI_sys_types.h"
 
-struct OCIO_ConstProcessorRcPtr;
 struct ImBuf;
+struct OCIO_ConstProcessorRcPtr;
 
 extern float imbuf_luma_coefficients[3];
+extern float imbuf_xyz_to_rgb[3][3];
+extern float imbuf_rgb_to_xyz[3][3];
 
-#define MAX_COLORSPACE_NAME          64
-#define MAX_COLORSPACE_DESCRIPTION  512
+#define MAX_COLORSPACE_NAME 64
+#define MAX_COLORSPACE_DESCRIPTION 512
 
 typedef struct ColorSpace {
-	struct ColorSpace *next, *prev;
-	int index;
-	char name[MAX_COLORSPACE_NAME];
-	char description[MAX_COLORSPACE_DESCRIPTION];
+  struct ColorSpace *next, *prev;
+  int index;
+  char name[MAX_COLORSPACE_NAME];
+  char description[MAX_COLORSPACE_DESCRIPTION];
 
-	struct OCIO_ConstProcessorRcPtr *to_scene_linear;
-	struct OCIO_ConstProcessorRcPtr *from_scene_linear;
+  struct OCIO_ConstProcessorRcPtr *to_scene_linear;
+  struct OCIO_ConstProcessorRcPtr *from_scene_linear;
 
-	bool is_invertible;
-	bool is_data;
+  bool is_invertible;
+  bool is_data;
+
+  /* Additional info computed only when needed since it's not cheap. */
+  struct {
+    bool cached;
+    bool is_srgb;
+    bool is_scene_linear;
+  } info;
 } ColorSpace;
 
 typedef struct ColorManagedDisplay {
-	struct ColorManagedDisplay *next, *prev;
-	int index;
-	char name[MAX_COLORSPACE_NAME];
-	ListBase views;  /* LinkData.data -> ColorManagedView */
+  struct ColorManagedDisplay *next, *prev;
+  int index;
+  char name[MAX_COLORSPACE_NAME];
+  ListBase views; /* LinkData.data -> ColorManagedView */
 
-	struct OCIO_ConstProcessorRcPtr *to_scene_linear;
-	struct OCIO_ConstProcessorRcPtr *from_scene_linear;
+  struct OCIO_ConstProcessorRcPtr *to_scene_linear;
+  struct OCIO_ConstProcessorRcPtr *from_scene_linear;
 } ColorManagedDisplay;
 
 typedef struct ColorManagedView {
-	struct ColorManagedView *next, *prev;
-	int index;
-	char name[MAX_COLORSPACE_NAME];
+  struct ColorManagedView *next, *prev;
+  int index;
+  char name[MAX_COLORSPACE_NAME];
 } ColorManagedView;
 
 typedef struct ColorManagedLook {
-	struct ColorManagedLook *next, *prev;
-	int index;
-	char name[MAX_COLORSPACE_NAME];
-	char process_space[MAX_COLORSPACE_NAME];
-	bool is_noop;
+  struct ColorManagedLook *next, *prev;
+  int index;
+  char name[MAX_COLORSPACE_NAME];
+  char ui_name[MAX_COLORSPACE_NAME];
+  char view[MAX_COLORSPACE_NAME];
+  char process_space[MAX_COLORSPACE_NAME];
+  bool is_noop;
 } ColorManagedLook;
 
 /* ** Initialization / De-initialization ** */
@@ -101,13 +101,20 @@ struct ColorManagedView *colormanage_view_get_default(const ColorManagedDisplay 
 struct ColorManagedView *colormanage_view_add(const char *name);
 struct ColorManagedView *colormanage_view_get_indexed(int index);
 struct ColorManagedView *colormanage_view_get_named(const char *name);
+struct ColorManagedView *colormanage_view_get_named_for_display(const char *display_name,
+                                                                const char *name);
 
-struct ColorSpace *colormanage_colorspace_add(const char *name, const char *description, bool is_invertible, bool is_data);
+struct ColorSpace *colormanage_colorspace_add(const char *name,
+                                              const char *description,
+                                              bool is_invertible,
+                                              bool is_data);
 struct ColorSpace *colormanage_colorspace_get_named(const char *name);
 struct ColorSpace *colormanage_colorspace_get_roled(int role);
 struct ColorSpace *colormanage_colorspace_get_indexed(int index);
 
-struct ColorManagedLook *colormanage_look_add(const char *name, const char *process_space, bool is_noop);
+struct ColorManagedLook *colormanage_look_add(const char *name,
+                                              const char *process_space,
+                                              bool is_noop);
 struct ColorManagedLook *colormanage_look_get_named(const char *name);
 struct ColorManagedLook *colormanage_look_get_indexed(int index);
 
@@ -116,4 +123,4 @@ void colorspace_set_default_role(char *colorspace, int size, int role);
 void colormanage_imbuf_set_default_spaces(struct ImBuf *ibuf);
 void colormanage_imbuf_make_linear(struct ImBuf *ibuf, const char *from_colorspace);
 
-#endif  /* __IMB_COLORMANAGEMENT_INTERN_H__ */
+#endif /* __IMB_COLORMANAGEMENT_INTERN_H__ */

@@ -1,10 +1,8 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,18 +15,11 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/nodes/composite/node_composite_util.h
- *  \ingroup nodes
+/** \file
+ * \ingroup nodes
  */
-
 
 #ifndef __NODE_COMPOSITE_UTIL_H__
 #define __NODE_COMPOSITE_UTIL_H__
@@ -42,6 +33,7 @@
 
 #include "BLT_translation.h"
 
+#include "BKE_colorband.h"
 #include "BKE_colortools.h"
 #include "BKE_image.h"
 #include "BKE_texture.h"
@@ -57,11 +49,11 @@
 /* only for forward declarations */
 #include "NOD_composite.h"
 
-#define CMP_SCALE_MAX	12000
+#define CMP_SCALE_MAX 12000
 
-int cmp_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
+bool cmp_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
 void cmp_node_update_default(struct bNodeTree *UNUSED(ntree), struct bNode *node);
-void cmp_node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
+void cmp_node_type_base(
+    struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
 
-#endif  /* __NODE_COMPOSITE_UTIL_H__ */
-
+#endif /* __NODE_COMPOSITE_UTIL_H__ */

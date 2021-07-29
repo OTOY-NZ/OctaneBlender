@@ -40,6 +40,7 @@ class AddPresetKernel(AddPresetBase, Operator):
         "octane.max_preview_samples",
 
         "octane.gi_mode",
+        "octane.clay_mode",
         "octane.ao_texture",
         "octane.info_channel_type",
         "octane.parallel_samples",
@@ -51,12 +52,14 @@ class AddPresetKernel(AddPresetBase, Operator):
         "octane.sampling_mode",
         "octane.max_diffuse_depth",
         "octane.max_glossy_depth",
+        "octane.max_scatter_depth",
         "octane.caustic_blur",
         "octane.gi_clamp",
         "octane.alpha_channel",
         "octane.wf_bkface_hl",
         "octane.ao_alpha_shadows",
         "octane.minimize_net_traffic",
+        "octane.emulate_old_volume_behavior",
         "octane.specular_depth",
         "octane.glossy_depth",
         "octane.diffuse_depth",
@@ -75,6 +78,10 @@ class AddPresetKernel(AddPresetBase, Operator):
         "octane.deep_image",
         "octane.path_term_power",
         "octane.keep_environment",
+        "octane.irradiance_mode",
+        "octane.ai_light_enable",
+        "octane.ai_light_update",
+        "octane.ai_light_strength",
         "octane.alpha_shadows",
         "octane.bump_normal_mapping",
     ]
@@ -169,9 +176,9 @@ class AddPresetImager(AddPresetBase, Operator):
     ]
 
     preset_values = [
+        "octane.camera_imager_order",
         "octane.response_type",
         "octane.white_balance",
-
         "octane.exposure",
         "octane.gamma",
         "octane.vignetting",
@@ -179,11 +186,14 @@ class AddPresetImager(AddPresetBase, Operator):
         "octane.white_saturation",
         "octane.hot_pix",
         "octane.min_display_samples",
+        "octane.highlight_compression",
+        "octane.max_tonemap_interval",
         "octane.dithering",
         "octane.premultiplied_alpha",
-        "octane.neutral_response",
-        "octane.max_tonemap_interval",
-        "octane.disable_partial_alpha"
+        "octane.neutral_response",        
+        "octane.disable_partial_alpha",
+        "octane.custom_lut",
+        "octane.lut_strength"
     ]
 
     preset_subdir = "octane/imager_presets"
@@ -199,34 +209,45 @@ class AddPreset3dImager(AddPresetBase, Operator):
     ]
 
     preset_values = [
+        "octane.camera_imager_order",
         "octane.response_type",
         "octane.white_balance",
-
-        "octane.exposure",
-        "octane.fstop",
-        "octane.iso",
+        "octane.exposure",        
         "octane.gamma",
         "octane.vignetting",
         "octane.saturation",
         "octane.white_saturation",
         "octane.hot_pix",
         "octane.min_display_samples",
+        "octane.highlight_compression",
+        "octane.max_tonemap_interval",
         "octane.dithering",
         "octane.premultiplied_alpha",
-        "octane.neutral_response",
-        "octane.max_tonemap_interval",
+        "octane.neutral_response",        
         "octane.disable_partial_alpha"
+        "octane.custom_lut",
+        "octane.lut_strength"        
     ]
 
     preset_subdir = "octane/3dimager_presets"
 
 
+classes = (
+    AddPresetKernel,
+    AddPresetEnvironment,
+    AddPresetVisEnvironment,
+    AddPresetImager,
+    AddPreset3dImager,
+)
+
+
 def register():
-    pass
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
 
 
 def unregister():
-    pass
-
-if __name__ == "__main__":
-    register()
+    from bpy.utils import unregister_class
+    for cls in classes:
+        unregister_class(cls)

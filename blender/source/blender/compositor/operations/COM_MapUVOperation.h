@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,54 +13,57 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor:
- *		Dalai Felinto
+ * Copyright 2011, Blender Foundation.
  */
 
-#ifndef _COM_MapUVOperation_h
-#define _COM_MapUVOperation_h
+#ifndef __COM_MAPUVOPERATION_H__
+#define __COM_MAPUVOPERATION_H__
 #include "COM_NodeOperation.h"
 
-
 class MapUVOperation : public NodeOperation {
-private:
-	/**
-	 * Cached reference to the inputProgram
-	 */
-	SocketReader *m_inputUVProgram;
-	SocketReader *m_inputColorProgram;
+ private:
+  /**
+   * Cached reference to the inputProgram
+   */
+  SocketReader *m_inputUVProgram;
+  SocketReader *m_inputColorProgram;
 
-	float m_alpha;
-	
-public:
-	MapUVOperation();
+  float m_alpha;
 
-	/**
-	 * we need a 3x3 differential filter for UV Input and full buffer for the image
-	 */
-	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+ public:
+  MapUVOperation();
 
-	/**
-	 * the inner loop of this program
-	 */
-	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+  /**
+   * we need a 3x3 differential filter for UV Input and full buffer for the image
+   */
+  bool determineDependingAreaOfInterest(rcti *input,
+                                        ReadBufferOperation *readOperation,
+                                        rcti *output);
 
-	void pixelTransform(const float xy[2], float r_uv[2], float r_deriv[2][2], float &r_alpha);
+  /**
+   * the inner loop of this program
+   */
+  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 
-	/**
-	 * Initialize the execution
-	 */
-	void initExecution();
-	
-	/**
-	 * Deinitialize the execution
-	 */
-	void deinitExecution();
+  void pixelTransform(const float xy[2], float r_uv[2], float r_deriv[2][2], float &r_alpha);
 
-	void setAlpha(float alpha) { this->m_alpha = alpha; }
+  /**
+   * Initialize the execution
+   */
+  void initExecution();
 
-private:
-	bool read_uv(float x, float y, float &r_u, float &r_v, float &r_alpha);
+  /**
+   * Deinitialize the execution
+   */
+  void deinitExecution();
+
+  void setAlpha(float alpha)
+  {
+    this->m_alpha = alpha;
+  }
+
+ private:
+  bool read_uv(float x, float y, float &r_u, float &r_v, float &r_alpha);
 };
 
 #endif

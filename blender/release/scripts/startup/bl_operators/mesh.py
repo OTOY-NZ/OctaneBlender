@@ -21,45 +21,42 @@
 import bpy
 from bpy.types import Operator
 
-from bpy.props import EnumProperty, IntProperty
+from bpy.props import (
+    EnumProperty,
+    IntProperty,
+)
 
 
 class MeshMirrorUV(Operator):
     """Copy mirror UV coordinates on the X axis based on a mirrored mesh"""
     bl_idname = "mesh.faces_mirror_uv"
-    bl_label = "Copy Mirrored UV coords"
+    bl_label = "Copy Mirrored UV Coords"
     bl_options = {'REGISTER', 'UNDO'}
 
-    direction = EnumProperty(
-            name="Axis Direction",
-            items=(('POSITIVE', "Positive", ""),
-                   ('NEGATIVE', "Negative", "")),
-            )
+    direction: EnumProperty(
+        name="Axis Direction",
+        items=(
+            ('POSITIVE', "Positive", ""),
+            ('NEGATIVE', "Negative", ""),
+        ),
+    )
 
-    precision = IntProperty(
-            name="Precision",
-            description=("Tolerance for finding vertex duplicates"),
-            min=1, max=16,
-            soft_min=1, soft_max=16,
-            default=3,
-            )
+    precision: IntProperty(
+        name="Precision",
+        description=("Tolerance for finding vertex duplicates"),
+        min=1, max=16,
+        soft_min=1, soft_max=16,
+        default=3,
+    )
 
-    @classmethod
-    def poll(cls, context):
-        obj = context.active_object
-        return (obj and obj.type == 'MESH' and obj.data.uv_textures.active)
-
-    def execute(self, context):
-        DIR = (self.direction == 'NEGATIVE')
+    # Returns has_active_UV_layer, double_warn.
+    def do_mesh_mirror_UV(self, mesh, DIR):
         precision = self.precision
         double_warn = 0
 
-        ob = context.active_object
-        is_editmode = (ob.mode == 'EDIT')
-        if is_editmode:
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-
-        mesh = ob.data
+        if not mesh.uv_layers.active:
+            # has_active_UV_layer, double_warn
+            return False, 0
 
         # mirror lookups
         mirror_gt = {}
@@ -139,13 +136,68 @@ class MeshMirrorUV(Operator):
                     k_map = v1.index(v2[k])
                     uv1[k].xy = - (uv2[k_map].x - 0.5) + 0.5, uv2[k_map].y
 
+        # has_active_UV_layer, double_warn
+        return True, double_warn
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.view_layer.objects.active
+        return (obj and obj.type == 'MESH')
+
+    def execute(self, context):
+        DIR = (self.direction == 'NEGATIVE')
+
+        total_no_active_UV = 0
+        total_duplicates = 0
+        meshes_with_duplicates = 0
+
+        ob = context.view_layer.objects.active
+        is_editmode = (ob.mode == 'EDIT')
+        if is_editmode:
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+        meshes = [ob.data for ob in context.view_layer.objects.selected
+                  if ob.type == 'MESH' and ob.data.library is None]
+
+        for mesh in meshes:
+            mesh.tag = False
+
+        for mesh in meshes:
+            if mesh.tag:
+                continue
+
+            mesh.tag = True
+
+            has_active_UV_layer, double_warn = self.do_mesh_mirror_UV(mesh, DIR)
+
+            if not has_active_UV_layer:
+                total_no_active_UV = total_no_active_UV + 1
+
+            elif double_warn:
+                total_duplicates += double_warn
+                meshes_with_duplicates = meshes_with_duplicates + 1
+
         if is_editmode:
             bpy.ops.object.mode_set(mode='EDIT', toggle=False)
 
-        if double_warn:
-            self.report({'WARNING'},
-                        "%d duplicates found, mirror may be incomplete" %
-                        double_warn)
+        if total_duplicates and total_no_active_UV:
+            self.report({'WARNING'}, "%d %s with no active UV layer. "
+                        "%d duplicates found in %d %s, mirror may be incomplete."
+                        % (total_no_active_UV,
+                           "mesh" if total_no_active_UV == 1 else "meshes",
+                           total_duplicates,
+                           meshes_with_duplicates,
+                           "mesh" if meshes_with_duplicates == 1 else "meshes"))
+        elif total_no_active_UV:
+            self.report({'WARNING'}, "%d %s with no active UV layer."
+                        % (total_no_active_UV,
+                           "mesh" if total_no_active_UV == 1 else "meshes"))
+        elif total_duplicates:
+            self.report({'WARNING'}, "%d duplicates found in %d %s,"
+                        " mirror may be incomplete."
+                        % (total_duplicates,
+                           meshes_with_duplicates,
+                           "mesh" if meshes_with_duplicates == 1 else "meshes"))
 
         return {'FINISHED'}
 
@@ -176,7 +228,7 @@ class MeshSelectNext(Operator):
 
 
 class MeshSelectPrev(Operator):
-    """Select the next element (using selection order)"""
+    """Select the previous element (using selection order)"""
     bl_idname = "mesh.select_prev_item"
     bl_label = "Select Previous Element"
     bl_options = {'REGISTER', 'UNDO'}
@@ -198,3 +250,10 @@ class MeshSelectPrev(Operator):
             bmesh.update_edit_mesh(me, False)
 
         return {'FINISHED'}
+
+
+classes = (
+    MeshMirrorUV,
+    MeshSelectNext,
+    MeshSelectPrev,
+)

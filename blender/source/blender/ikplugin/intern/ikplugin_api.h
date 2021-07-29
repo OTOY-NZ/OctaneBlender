@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,19 +15,12 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Original author: Benoit Bolsee
- * Contributor(s): 
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/ikplugin/intern/ikplugin_api.h
- *  \ingroup ikplugin
+/** \file
+ * \ingroup ikplugin
  */
-
 
 #ifndef __IKPLUGIN_API_H__
 #define __IKPLUGIN_API_H__
@@ -38,19 +29,26 @@
 extern "C" {
 #endif
 
+struct Depsgraph;
 struct Object;
-struct bPoseChannel;
 struct Scene;
-
+struct bPoseChannel;
 
 struct IKPlugin {
-	void (*initialize_tree_func)(struct Scene *scene, struct Object *ob, float ctime);
-	void (*execute_tree_func)(struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan, float ctime);
-	void (*release_tree_func)(struct Scene *scene, struct Object *ob, float ctime);
-	void (*remove_armature_func)(struct bPose *pose);
-	void (*clear_cache)(struct bPose *pose);
-	void (*update_param)(struct bPose *pose);
-	void (*test_constraint)(struct Object *ob, struct bConstraint *cons);
+  void (*initialize_tree_func)(struct Depsgraph *depsgraph,
+                               struct Scene *scene,
+                               struct Object *ob,
+                               float ctime);
+  void (*execute_tree_func)(struct Depsgraph *depsgraph,
+                            struct Scene *scene,
+                            struct Object *ob,
+                            struct bPoseChannel *pchan,
+                            float ctime);
+  void (*release_tree_func)(struct Scene *scene, struct Object *ob, float ctime);
+  void (*remove_armature_func)(struct bPose *pose);
+  void (*clear_cache)(struct bPose *pose);
+  void (*update_param)(struct bPose *pose);
+  void (*test_constraint)(struct Object *ob, struct bConstraint *cons);
 };
 
 typedef struct IKPlugin IKPlugin;
@@ -59,4 +57,4 @@ typedef struct IKPlugin IKPlugin;
 }
 #endif
 
-#endif  /* __IKPLUGIN_API_H__ */
+#endif /* __IKPLUGIN_API_H__ */

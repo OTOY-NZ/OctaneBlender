@@ -101,17 +101,14 @@ if builder.find('cmake') != -1:
         platform = builder.split('_')[0]
         if platform == 'mac':
             # Special exception for OSX
-            platform = 'OSX-10.6-'
-            if builder.endswith('x86_64_10_6_cmake'):
+            platform = 'OSX-10.9-'
+            if builder.endswith('x86_64_10_9_cmake'):
                 platform += 'x86_64'
-            elif builder.endswith('i386_10_6_cmake'):
-                platform += 'i386'
-            elif builder.endswith('ppc_10_6_cmake'):
-                platform += 'ppc'
         if builder.endswith('vc2015'):
             platform += "-vc14"
         builderified_name = 'blender-{}-{}-{}'.format(blender_full_version, git_hash, platform)
-        if branch != '':
+        # NOTE: Blender 2.7 is already respected by blender_full_version.
+        if branch != '' and branch != 'blender2.7':
             builderified_name = branch + "-" + builderified_name
 
         os.rename(result_file, "{}.zip".format(builderified_name))
@@ -129,7 +126,6 @@ if builder.find('cmake') != -1:
 
     elif builder.startswith('linux_'):
         blender = os.path.join(install_dir, 'blender')
-        blenderplayer = os.path.join(install_dir, 'blenderplayer')
 
         buildinfo_h = os.path.join(build_dir, "source", "creator", "buildinfo.h")
         blender_h = os.path.join(blender_dir, "source", "blender", "blenkernel", "BKE_blender_version.h")
@@ -139,24 +135,28 @@ if builder.find('cmake') != -1:
         blender_version = "%d.%d" % (blender_version // 100, blender_version % 100)
         blender_hash = parse_header_file(buildinfo_h, 'BUILD_HASH')[1:-1]
         blender_glibc = builder.split('_')[1]
+        command_prefix = []
+        bits = 64
+        blender_arch = 'x86_64'
 
-        if builder.endswith('x86_64_cmake'):
-            chroot_name = 'buildbot_squeeze_x86_64'
-            bits = 64
-            blender_arch = 'x86_64'
-        elif builder.endswith('i686_cmake'):
-            chroot_name = 'buildbot_squeeze_i686'
-            bits = 32
-            blender_arch = 'i686'
+        if blender_glibc == 'glibc224':
+            if builder.endswith('x86_64_cmake'):
+                chroot_name = 'buildbot_stretch_x86_64'
+            elif builder.endswith('i686_cmake'):
+                chroot_name = 'buildbot_stretch_i686'
+                bits = 32
+                blender_arch = 'i686'
+            command_prefix = ['schroot', '-c', chroot_name, '--']
+        elif blender_glibc == 'glibc217':
+            command_prefix = ['scl', 'enable', 'devtoolset-6', '--']
 
         # Strip all unused symbols from the binaries
         print("Stripping binaries...")
-        chroot_prefix = ['schroot', '-c', chroot_name, '--']
-        subprocess.call(chroot_prefix + ['strip', '--strip-all', blender, blenderplayer])
+        subprocess.call(command_prefix + ['strip', '--strip-all', blender])
 
         print("Stripping python...")
         py_target = os.path.join(install_dir, blender_version)
-        subprocess.call(chroot_prefix + ['find', py_target, '-iname', '*.so', '-exec', 'strip', '-s', '{}', ';'])
+        subprocess.call(command_prefix + ['find', py_target, '-iname', '*.so', '-exec', 'strip', '-s', '{}', ';'])
 
         # Copy all specific files which are too specific to be copied by
         # the CMake rules themselves
@@ -177,7 +177,8 @@ if builder.find('cmake') != -1:
                                                       blender_hash,
                                                       blender_glibc,
                                                       blender_arch)
-        if branch != '':
+        # NOTE: Blender 2.7 is already respected by blender_full_version.
+        if branch != '' and branch != 'blender2.7':
             package_name = branch + "-" + package_name
 
         upload_filename = package_name + ".tar.bz2"

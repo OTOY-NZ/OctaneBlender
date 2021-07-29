@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,27 +13,28 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
 #include "COM_SwitchNode.h"
 
 SwitchNode::SwitchNode(bNode *editorNode) : Node(editorNode)
 {
-	/* pass */
+  /* pass */
 }
 
-void SwitchNode::convertToOperations(NodeConverter &converter, const CompositorContext &/*context*/) const
+void SwitchNode::convertToOperations(NodeConverter &converter,
+                                     const CompositorContext & /*context*/) const
 {
-	bool condition = this->getbNode()->custom1;
-	
-	NodeOperationOutput *result;
-	if (!condition)
-		result = converter.addInputProxy(getInputSocket(0), false);
-	else
-		result = converter.addInputProxy(getInputSocket(1), false);
-	
-	converter.mapOutputSocket(getOutputSocket(0), result);
+  bool condition = this->getbNode()->custom1;
+
+  NodeOperationOutput *result;
+  if (!condition) {
+    result = converter.addInputProxy(getInputSocket(0), false);
+  }
+  else {
+    result = converter.addInputProxy(getInputSocket(1), false);
+  }
+
+  converter.mapOutputSocket(getOutputSocket(0), result);
 }

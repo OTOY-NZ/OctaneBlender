@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,16 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributors: Amorilia (amorilia@users.sourceforge.net)
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/imbuf/intern/dds/Color.h
- *  \ingroup imbdds
+/** \file
+ * \ingroup imbdds
  */
-
 
 /*
  * This file is based on a similar file from the NVIDIA texture tools
@@ -38,62 +31,90 @@
 #define __COLOR_H__
 
 /// 32 bit color stored as BGRA.
-class Color32
-{
-public:
-	Color32() { }
-	Color32(const Color32 & c) : u(c.u) { }
-	Color32(unsigned char R, unsigned char G, unsigned char B) { setRGBA(R, G, B, 0xFF); }
-	Color32(unsigned char R, unsigned char G, unsigned char B, unsigned char A) { setRGBA( R, G, B, A); }
-	//Color32(unsigned char c[4]) { setRGBA(c[0], c[1], c[2], c[3]); }
-	//Color32(float R, float G, float B) { setRGBA(uint(R*255), uint(G*255), uint(B*255), 0xFF); }
-	//Color32(float R, float G, float B, float A) { setRGBA(uint(R*255), uint(G*255), uint(B*255), uint(A*255)); }
-	Color32(unsigned int U) : u(U) { }
+class Color32 {
+ public:
+  Color32()
+  {
+  }
+  Color32(const Color32 &c) : u(c.u)
+  {
+  }
+  Color32(unsigned char R, unsigned char G, unsigned char B)
+  {
+    setRGBA(R, G, B, 0xFF);
+  }
+  Color32(unsigned char R, unsigned char G, unsigned char B, unsigned char A)
+  {
+    setRGBA(R, G, B, A);
+  }
+#if 0
+  Color32(unsigned char c[4])
+  {
+    setRGBA(c[0], c[1], c[2], c[3]);
+  }
+  Color32(float R, float G, float B)
+  {
+    setRGBA(uint(R * 255), uint(G * 255), uint(B * 255), 0xFF);
+  }
+  Color32(float R, float G, float B, float A)
+  {
+    setRGBA(uint(R * 255), uint(G * 255), uint(B * 255), uint(A * 255));
+  }
+#endif
+  Color32(unsigned int U) : u(U)
+  {
+  }
 
-	void setRGBA(unsigned char R, unsigned char G, unsigned char B, unsigned char A)
-	{
-		r = R;
-		g = G;
-		b = B;
-		a = A;
-	}
+  void setRGBA(unsigned char R, unsigned char G, unsigned char B, unsigned char A)
+  {
+    r = R;
+    g = G;
+    b = B;
+    a = A;
+  }
 
-	void setBGRA(unsigned char B, unsigned char G, unsigned char R, unsigned char A = 0xFF)
-	{
-		r = R;
-		g = G;
-		b = B;
-		a = A;
-	}
+  void setBGRA(unsigned char B, unsigned char G, unsigned char R, unsigned char A = 0xFF)
+  {
+    r = R;
+    g = G;
+    b = B;
+    a = A;
+  }
 
-	operator unsigned int () const {
-		return u;
-	}
-	
-	union {
-		struct {
-			unsigned char b, g, r, a;
-		};
-		unsigned int u;
-	};
+  operator unsigned int() const
+  {
+    return u;
+  }
+
+  union {
+    struct {
+      unsigned char b, g, r, a;
+    };
+    unsigned int u;
+  };
 };
 
 /// 16 bit 565 BGR color.
-class Color16
-{
-public:
-	Color16() { }
-	Color16(const Color16 & c) : u(c.u) { }
-	explicit Color16(unsigned short U) : u(U) { }
-	
-	union {
-		struct {
-			unsigned short b : 5;
-			unsigned short g : 6;
-			unsigned short r : 5;
-		};
-		unsigned short u;
-	};
+class Color16 {
+ public:
+  Color16()
+  {
+  }
+  Color16(const Color16 &c) : u(c.u)
+  {
+  }
+  explicit Color16(unsigned short U) : u(U)
+  {
+  }
+
+  union {
+    struct {
+      unsigned short b : 5;
+      unsigned short g : 6;
+      unsigned short r : 5;
+    };
+    unsigned short u;
+  };
 };
 
-#endif  /* __COLOR_H__ */
+#endif /* __COLOR_H__ */

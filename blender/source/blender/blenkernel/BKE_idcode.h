@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,39 +15,28 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_IDCODE_H__
 #define __BKE_IDCODE_H__
 
-/** \file BKE_idcode.h
- *  \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 const char *BKE_idcode_to_name(short idcode);
 const char *BKE_idcode_to_name_plural(short idcode);
 const char *BKE_idcode_to_translation_context(short idcode);
-short       BKE_idcode_from_name(const char *name);
-bool        BKE_idcode_is_linkable(short idcode);
-bool        BKE_idcode_is_valid(short idcode);
+short BKE_idcode_from_name(const char *name);
+bool BKE_idcode_is_linkable(short idcode);
+bool BKE_idcode_is_valid(short idcode);
 
-int         BKE_idcode_to_idfilter(const short idcode);
-short       BKE_idcode_from_idfilter(const int idfilter);
+int BKE_idcode_to_idfilter(const short idcode);
+short BKE_idcode_from_idfilter(const int idfilter);
 
 int BKE_idcode_to_index(const short idcode);
+short BKE_idcode_from_index(const int index);
 
-/**
- * Return an ID code and steps the index forward 1.
- *
- * \param index start as 0.
- * \return the code, 0 when all codes have been returned.
- */
 short BKE_idcode_iter_step(int *index);
 
 #endif

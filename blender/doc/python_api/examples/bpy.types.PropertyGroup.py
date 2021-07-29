@@ -13,7 +13,7 @@ be animated, accessed from the user interface and from python.
    definitions are not, this means whenever you load blender the class needs
    to be registered too.
 
-   This is best done by creating an addon which loads on startup and registers
+   This is best done by creating an add-on which loads on startup and registers
    your properties.
 
 .. note::
@@ -28,8 +28,9 @@ import bpy
 
 
 class MyPropertyGroup(bpy.types.PropertyGroup):
-    custom_1 = bpy.props.FloatProperty(name="My Float")
-    custom_2 = bpy.props.IntProperty(name="My Int")
+    custom_1: bpy.props.FloatProperty(name="My Float")
+    custom_2: bpy.props.IntProperty(name="My Int")
+
 
 bpy.utils.register_class(MyPropertyGroup)
 

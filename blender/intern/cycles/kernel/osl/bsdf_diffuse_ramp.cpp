@@ -5,7 +5,7 @@
  * All Rights Reserved.
  *
  * Modifications Copyright 2011, Blender Foundation.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -34,52 +34,50 @@
 
 #include <OSL/genclosure.h>
 
-#include "kernel_compat_cpu.h"
-#include "osl_closures.h"
+#include "kernel/kernel_compat_cpu.h"
+#include "kernel/osl/osl_closures.h"
 
-#include "kernel_types.h"
-#include "kernel_montecarlo.h"
-#include "closure/alloc.h"
-#include "closure/bsdf_diffuse_ramp.h"
+#include "kernel/kernel_types.h"
+#include "kernel/kernel_montecarlo.h"
+#include "kernel/closure/alloc.h"
+#include "kernel/closure/bsdf_diffuse_ramp.h"
 
 CCL_NAMESPACE_BEGIN
 
 using namespace OSL;
 
 class DiffuseRampClosure : public CBSDFClosure {
-public:
-	DiffuseRampBsdf params;
-	Color3 colors[8];
+ public:
+  DiffuseRampBsdf params;
+  Color3 colors[8];
 
-	void setup(ShaderData *sd, int /* path_flag */, float3 weight)
-	{
-	    DiffuseRampBsdf *bsdf = (DiffuseRampBsdf*)bsdf_alloc_osl(sd, sizeof(DiffuseRampBsdf), weight, &params);
+  void setup(ShaderData *sd, int /* path_flag */, float3 weight)
+  {
+    DiffuseRampBsdf *bsdf = (DiffuseRampBsdf *)bsdf_alloc_osl(
+        sd, sizeof(DiffuseRampBsdf), weight, &params);
 
-		if(bsdf) {
-			bsdf->colors = (float3*)closure_alloc_extra(sd, sizeof(float3)*8);
+    if (bsdf) {
+      bsdf->colors = (float3 *)closure_alloc_extra(sd, sizeof(float3) * 8);
 
-			if(bsdf->colors) {
-				for(int i = 0; i < 8; i++)
-					bsdf->colors[i] = TO_FLOAT3(colors[i]);
+      if (bsdf->colors) {
+        for (int i = 0; i < 8; i++)
+          bsdf->colors[i] = TO_FLOAT3(colors[i]);
 
-				sd->flag |= bsdf_diffuse_ramp_setup(bsdf);
-			}
-		}
-	}
+        sd->flag |= bsdf_diffuse_ramp_setup(bsdf);
+      }
+    }
+  }
 };
 
 ClosureParam *closure_bsdf_diffuse_ramp_params()
 {
-	static ClosureParam params[] = {
-		CLOSURE_FLOAT3_PARAM(DiffuseRampClosure, params.N),
-		CLOSURE_COLOR_ARRAY_PARAM(DiffuseRampClosure, colors, 8),
-		CLOSURE_STRING_KEYPARAM(DiffuseRampClosure, label, "label"),
-		CLOSURE_FINISH_PARAM(DiffuseRampClosure)
-	};
-	return params;
+  static ClosureParam params[] = {CLOSURE_FLOAT3_PARAM(DiffuseRampClosure, params.N),
+                                  CLOSURE_COLOR_ARRAY_PARAM(DiffuseRampClosure, colors, 8),
+                                  CLOSURE_STRING_KEYPARAM(DiffuseRampClosure, label, "label"),
+                                  CLOSURE_FINISH_PARAM(DiffuseRampClosure)};
+  return params;
 }
 
 CCLOSURE_PREPARE(closure_bsdf_diffuse_ramp_prepare, DiffuseRampClosure)
 
 CCL_NAMESPACE_END
-

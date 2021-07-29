@@ -21,9 +21,9 @@
 import bpy
 from bpy.types import Operator
 from bpy.props import (
-        BoolProperty,
-        StringProperty,
-        )
+    BoolProperty,
+    StringProperty,
+)
 
 
 def _lang_module_get(sc):
@@ -37,9 +37,9 @@ class ConsoleExec(Operator):
     bl_idname = "console.execute"
     bl_label = "Console Execute"
 
-    interactive = BoolProperty(
-            options={'SKIP_SAVE'},
-            )
+    interactive: BoolProperty(
+        options={'SKIP_SAVE'},
+    )
 
     @classmethod
     def poll(cls, context):
@@ -61,7 +61,7 @@ class ConsoleExec(Operator):
 
 class ConsoleAutocomplete(Operator):
     """Evaluate the namespace up until the cursor and give a list of """ \
-    """options or complete the name if there is only one"""
+        """options or complete the name if there is only one"""
     bl_idname = "console.autocomplete"
     bl_label = "Console Autocomplete"
 
@@ -137,10 +137,10 @@ class ConsoleLanguage(Operator):
     bl_idname = "console.language"
     bl_label = "Console Language"
 
-    language = StringProperty(
-            name="Language",
-            maxlen=32,
-            )
+    language: StringProperty(
+        name="Language",
+        maxlen=32,
+    )
 
     @classmethod
     def poll(cls, context):
@@ -159,3 +159,12 @@ class ConsoleLanguage(Operator):
                                        remove_duplicates=True)
 
         return {'FINISHED'}
+
+
+classes = (
+    ConsoleAutocomplete,
+    ConsoleBanner,
+    ConsoleCopyAsScript,
+    ConsoleExec,
+    ConsoleLanguage,
+)

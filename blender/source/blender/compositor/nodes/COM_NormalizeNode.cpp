@@ -1,6 +1,4 @@
 /*
- * Copyright 2012, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,8 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor:
- *		Dalai Felinto
+ * Copyright 2012, Blender Foundation.
  */
 
 #include "COM_NormalizeNode.h"
@@ -25,14 +22,15 @@
 
 NormalizeNode::NormalizeNode(bNode *editorNode) : Node(editorNode)
 {
-	/* pass */
+  /* pass */
 }
 
-void NormalizeNode::convertToOperations(NodeConverter &converter, const CompositorContext &/*context*/) const
+void NormalizeNode::convertToOperations(NodeConverter &converter,
+                                        const CompositorContext & /*context*/) const
 {
-	NormalizeOperation *operation = new NormalizeOperation();
-	converter.addOperation(operation);
+  NormalizeOperation *operation = new NormalizeOperation();
+  converter.addOperation(operation);
 
-	converter.mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
-	converter.mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
+  converter.mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+  converter.mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 }

@@ -1,10 +1,8 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,18 +15,11 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Austin Benesh. Ton Roosendaal.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/imbuf/intern/metadata.c
- *  \ingroup imbuf
+/** \file
+ * \ingroup imbuf
  */
-
 
 #include <stdlib.h>
 #include <string.h>
@@ -45,95 +36,80 @@
 
 #include "IMB_metadata.h"
 
+#define METADATA_MAX_VALUE_LENGTH 1024
 
-
-void IMB_metadata_free(struct ImBuf *img)
+void IMB_metadata_ensure(struct IDProperty **metadata)
 {
-	if (!img)
-		return;
-	if (!img->metadata) {
-		return;
-	}
+  if (*metadata != NULL) {
+    return;
+  }
 
-	IDP_FreeProperty(img->metadata);
-	MEM_freeN(img->metadata);
+  IDPropertyTemplate val;
+  *metadata = IDP_New(IDP_GROUP, &val, "metadata");
 }
 
-bool IMB_metadata_get_field(struct ImBuf *img, const char *key, char *field, const size_t len)
+void IMB_metadata_free(struct IDProperty *metadata)
 {
-	IDProperty *prop;
+  if (metadata == NULL) {
+    return;
+  }
 
-	bool retval = false;
+  IDP_FreeProperty(metadata);
+}
 
-	if (!img)
-		return false;
-	if (!img->metadata)
-		return false;
+bool IMB_metadata_get_field(struct IDProperty *metadata,
+                            const char *key,
+                            char *field,
+                            const size_t len)
+{
+  IDProperty *prop;
 
-	prop = IDP_GetPropertyFromGroup(img->metadata, key);
+  if (metadata == NULL) {
+    return false;
+  }
 
-	if (prop && prop->type == IDP_STRING) {
-		BLI_strncpy(field, IDP_String(prop), len);
-		retval = true;
-	}
-	return retval;
+  prop = IDP_GetPropertyFromGroup(metadata, key);
+
+  if (prop && prop->type == IDP_STRING) {
+    BLI_strncpy(field, IDP_String(prop), len);
+    return true;
+  }
+  return false;
 }
 
 void IMB_metadata_copy(struct ImBuf *dimb, struct ImBuf *simb)
 {
-	if (simb->metadata) {
-		dimb->metadata = IDP_CopyProperty(simb->metadata);
-	}
+  BLI_assert(dimb != simb);
+  if (simb->metadata) {
+    IMB_metadata_free(dimb->metadata);
+    dimb->metadata = IDP_CopyProperty(simb->metadata);
+  }
 }
 
-bool IMB_metadata_add_field(struct ImBuf *img, const char *key, const char *value)
+void IMB_metadata_set_field(struct IDProperty *metadata, const char *key, const char *value)
 {
-	IDProperty *prop;
+  BLI_assert(metadata);
+  IDProperty *prop = IDP_GetPropertyFromGroup(metadata, key);
 
-	if (!img)
-		return false;
+  if (prop != NULL && prop->type != IDP_STRING) {
+    IDP_FreeFromGroup(metadata, prop);
+    prop = NULL;
+  }
 
-	if (!img->metadata) {
-		IDPropertyTemplate val;
-		img->metadata = IDP_New(IDP_GROUP, &val, "metadata");
-	}
+  if (prop == NULL) {
+    prop = IDP_NewString(value, key, METADATA_MAX_VALUE_LENGTH);
+    IDP_AddToGroup(metadata, prop);
+  }
 
-	prop = IDP_NewString(value, key, 512);
-	return IDP_AddToGroup(img->metadata, prop);
+  IDP_AssignString(prop, value, METADATA_MAX_VALUE_LENGTH);
 }
 
-bool IMB_metadata_del_field(struct ImBuf *img, const char *key)
+void IMB_metadata_foreach(struct ImBuf *ibuf, IMBMetadataForeachCb callback, void *userdata)
 {
-	IDProperty *prop;
-
-	if ((!img) || (!img->metadata))
-		return false;
-
-	prop = IDP_GetPropertyFromGroup(img->metadata, key);
-
-	if (prop) {
-		IDP_FreeFromGroup(img->metadata, prop);
-	}
-	return false;
-}
-
-bool IMB_metadata_change_field(struct ImBuf *img, const char *key, const char *field)
-{
-	IDProperty *prop;
-
-	if (!img)
-		return false;
-
-	prop = (img->metadata) ? IDP_GetPropertyFromGroup(img->metadata, key) : NULL;
-
-	if (!prop) {
-		return (IMB_metadata_add_field(img, key, field));
-	}
-	else if (prop->type == IDP_STRING) {
-		IDP_AssignString(prop, field, 1024);
-		return true;
-	}
-	else {
-		return false;
-	}
+  if (ibuf->metadata == NULL) {
+    return;
+  }
+  for (IDProperty *prop = ibuf->metadata->data.group.first; prop != NULL; prop = prop->next) {
+    callback(prop->name, IDP_String(prop), userdata);
+  }
 }

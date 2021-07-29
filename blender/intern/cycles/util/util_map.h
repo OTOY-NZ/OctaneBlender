@@ -18,40 +18,21 @@
 #define __UTIL_MAP_H__
 
 #include <map>
-
-#if defined(CYCLES_TR1_UNORDERED_MAP)
-#  include <tr1/unordered_map>
-#endif
-
-#if defined(CYCLES_STD_UNORDERED_MAP) || defined(CYCLES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
-#  include <unordered_map>
-#endif
-
-#if !defined(CYCLES_NO_UNORDERED_MAP) && !defined(CYCLES_TR1_UNORDERED_MAP) && \
-	!defined(CYCLES_STD_UNORDERED_MAP) && !defined(CYCLES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)  // NOLINT
-#  error One of: CYCLES_NO_UNORDERED_MAP, CYCLES_TR1_UNORDERED_MAP,\
- CYCLES_STD_UNORDERED_MAP, CYCLES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE must be defined!  // NOLINT
-#endif
-
+#include <unordered_map>
 
 CCL_NAMESPACE_BEGIN
 
 using std::map;
 using std::pair;
-
-#if defined(CYCLES_NO_UNORDERED_MAP)
-typedef std::map unordered_map;
-#endif
-
-#if defined(CYCLES_TR1_UNORDERED_MAP) || defined(CYCLES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
-using std::tr1::unordered_map;
-#endif
-
-#if defined(CYCLES_STD_UNORDERED_MAP)
 using std::unordered_map;
-#endif
+
+template<typename T> static void map_free_memory(T &data)
+{
+  /* Use swap() trick to actually free all internal memory. */
+  T empty_data;
+  data.swap(empty_data);
+}
 
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_MAP_H__ */
-

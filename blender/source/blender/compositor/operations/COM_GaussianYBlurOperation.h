@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,52 +13,56 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
-#ifndef _COM_GaussianYBlurOperation_h
-#define _COM_GaussianYBlurOperation_h
+#ifndef __COM_GAUSSIANYBLUROPERATION_H__
+#define __COM_GAUSSIANYBLUROPERATION_H__
 #include "COM_NodeOperation.h"
 #include "COM_BlurBaseOperation.h"
 
 class GaussianYBlurOperation : public BlurBaseOperation {
-private:
-	float *m_gausstab;
+ private:
+  float *m_gausstab;
 #ifdef __SSE2__
-	__m128 *m_gausstab_sse;
+  __m128 *m_gausstab_sse;
 #endif
-	int m_filtersize;
-	void updateGauss();
-public:
-	GaussianYBlurOperation();
-	
-	/**
-	 * the inner loop of this program
-	 */
-	void executePixel(float output[4], int x, int y, void *data);
+  int m_filtersize;
+  void updateGauss();
 
-	void executeOpenCL(OpenCLDevice *device,
-	                   MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer,
-	                   MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp,
-	                   list<cl_kernel> *clKernelsToCleanUp);
+ public:
+  GaussianYBlurOperation();
 
-	/**
-	 * @brief initialize the execution
-	 */
-	void initExecution();
+  /**
+   * the inner loop of this program
+   */
+  void executePixel(float output[4], int x, int y, void *data);
 
-	/**
-	 * Deinitialize the execution
-	 */
-	void deinitExecution();
-	
-	void *initializeTileData(rcti *rect);
-	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+  void executeOpenCL(OpenCLDevice *device,
+                     MemoryBuffer *outputMemoryBuffer,
+                     cl_mem clOutputBuffer,
+                     MemoryBuffer **inputMemoryBuffers,
+                     list<cl_mem> *clMemToCleanUp,
+                     list<cl_kernel> *clKernelsToCleanUp);
 
-	void checkOpenCL() {
-		this->setOpenCL(m_data.sizex >= 128);
-	}
+  /**
+   * \brief initialize the execution
+   */
+  void initExecution();
+
+  /**
+   * Deinitialize the execution
+   */
+  void deinitExecution();
+
+  void *initializeTileData(rcti *rect);
+  bool determineDependingAreaOfInterest(rcti *input,
+                                        ReadBufferOperation *readOperation,
+                                        rcti *output);
+
+  void checkOpenCL()
+  {
+    this->setOpenCL(m_data.sizex >= 128);
+  }
 };
 #endif

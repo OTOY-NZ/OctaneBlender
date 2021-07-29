@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,14 +13,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
-
-#ifndef _COM_ImageOperation_h
-#define _COM_ImageOperation_h
+#ifndef __COM_MOVIECLIPOPERATION_H__
+#define __COM_MOVIECLIPOPERATION_H__
 
 #include "COM_NodeOperation.h"
 #include "DNA_movieclip_types.h"
@@ -33,42 +28,54 @@
  * Base class for movie clip
  */
 class MovieClipBaseOperation : public NodeOperation {
-protected:
-	MovieClip *m_movieClip;
-	MovieClipUser *m_movieClipUser;
-	ImBuf *m_movieClipBuffer;
-	int m_movieClipheight;
-	int m_movieClipwidth;
-	int m_framenumber;
-	bool m_cacheFrame;
-	
-	/**
-	 * Determine the output resolution. The resolution is retrieved from the Renderer
-	 */
-	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
+ protected:
+  MovieClip *m_movieClip;
+  MovieClipUser *m_movieClipUser;
+  ImBuf *m_movieClipBuffer;
+  int m_movieClipheight;
+  int m_movieClipwidth;
+  int m_framenumber;
+  bool m_cacheFrame;
 
-public:
-	MovieClipBaseOperation();
-	
-	void initExecution();
-	void deinitExecution();
-	void setMovieClip(MovieClip *image) { this->m_movieClip = image; }
-	void setMovieClipUser(MovieClipUser *imageuser) { this->m_movieClipUser = imageuser; }
-	void setCacheFrame(bool value) { this->m_cacheFrame = value; }
+  /**
+   * Determine the output resolution. The resolution is retrieved from the Renderer
+   */
+  void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
 
-	void setFramenumber(int framenumber) { this->m_framenumber = framenumber; }
-	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+ public:
+  MovieClipBaseOperation();
+
+  void initExecution();
+  void deinitExecution();
+  void setMovieClip(MovieClip *image)
+  {
+    this->m_movieClip = image;
+  }
+  void setMovieClipUser(MovieClipUser *imageuser)
+  {
+    this->m_movieClipUser = imageuser;
+  }
+  void setCacheFrame(bool value)
+  {
+    this->m_cacheFrame = value;
+  }
+
+  void setFramenumber(int framenumber)
+  {
+    this->m_framenumber = framenumber;
+  }
+  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 
 class MovieClipOperation : public MovieClipBaseOperation {
-public:
-	MovieClipOperation();
+ public:
+  MovieClipOperation();
 };
 
 class MovieClipAlphaOperation : public MovieClipBaseOperation {
-public:
-	MovieClipAlphaOperation();
-	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+ public:
+  MovieClipAlphaOperation();
+  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 
 #endif

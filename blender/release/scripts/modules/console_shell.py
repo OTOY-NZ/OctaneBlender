@@ -40,10 +40,11 @@ def shell_run(text):
 
     add_scrollback(output, style)
 
+
 PROMPT = "$ "
 
 
-def execute(context, is_interactive):
+def execute(context, _is_interactive):
     sc = context.space_data
 
     try:
@@ -63,8 +64,8 @@ def execute(context, is_interactive):
     return {'FINISHED'}
 
 
-def autocomplete(context):
-    #~ sc = context.space_data
+def autocomplete(_context):
+    # sc = context.space_data
     # TODO
     return {'CANCELLED'}
 

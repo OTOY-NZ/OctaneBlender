@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,14 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Nathan Letwory.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/collada/ErrorHandler.cpp
- *  \ingroup collada
+/** \file
+ * \ingroup collada
  */
 #include "ErrorHandler.h"
 #include <iostream>
@@ -49,49 +43,71 @@ ErrorHandler::~ErrorHandler()
 //--------------------------------------------------------------------
 bool ErrorHandler::handleError(const COLLADASaxFWL::IError *error)
 {
-	bool isError = true;
-	
-	if (error->getErrorClass() == COLLADASaxFWL::IError::ERROR_SAXPARSER) {
-		COLLADASaxFWL::SaxParserError *saxParserError = (COLLADASaxFWL::SaxParserError *) error;
-		const GeneratedSaxParser::ParserError& parserError = saxParserError->getError();
+  /* This method must return false when Collada should continue.
+   * See https://github.com/KhronosGroup/OpenCOLLADA/issues/442
+   */
+  bool isError = true;
+  std::string error_context;
+  std::string error_message;
 
-		// Workaround to avoid wrong error
-		if (parserError.getErrorType() == GeneratedSaxParser::ParserError::ERROR_VALIDATION_MIN_OCCURS_UNMATCHED) {
-			if (STREQ(parserError.getElement(), "effect")) {
-				isError = false;
-			}
-		}
-		if (parserError.getErrorType() == GeneratedSaxParser::ParserError::ERROR_VALIDATION_SEQUENCE_PREVIOUS_SIBLING_NOT_PRESENT) {
-			if (!(STREQ(parserError.getElement(), "extra") &&
-			      STREQ(parserError.getAdditionalText().c_str(), "sibling: fx_profile_abstract")))
-			{
-				isError = false;
-			}
-		}
+  if (error->getErrorClass() == COLLADASaxFWL::IError::ERROR_SAXPARSER) {
+    error_context = "Schema validation";
 
-		if (parserError.getErrorType() == GeneratedSaxParser::ParserError::ERROR_COULD_NOT_OPEN_FILE) {
-			std::cout << "Couldn't open file" << std::endl;
-		}
+    COLLADASaxFWL::SaxParserError *saxParserError = (COLLADASaxFWL::SaxParserError *)error;
+    const GeneratedSaxParser::ParserError &parserError = saxParserError->getError();
+    error_message = parserError.getErrorMessage();
 
-		std::cout << "Schema validation error: " << parserError.getErrorMessage() << std::endl;
-	}
-	else if (error->getErrorClass() == COLLADASaxFWL::IError::ERROR_SAXFWL) {
-		COLLADASaxFWL::SaxFWLError *saxFWLError = (COLLADASaxFWL::SaxFWLError *) error;
-		/*
-		 * Accept non critical errors as warnings (i.e. texture not found)
-		 * This makes the importer more graceful, so it now imports what makes sense.
-		 */
-		if (saxFWLError->getSeverity() == COLLADASaxFWL::IError::SEVERITY_ERROR_NONCRITICAL) {
-			isError = false;
-		}
+    if (parserError.getErrorType() ==
+        GeneratedSaxParser::ParserError::ERROR_VALIDATION_MIN_OCCURS_UNMATCHED) {
+      if (STREQ(parserError.getElement(), "effect")) {
+        isError = false;
+      }
+    }
 
-		std::cout << "Sax FWL Error: " << saxFWLError->getErrorMessage() << std::endl;
-	}
-	else {
-		std::cout << "opencollada error: " << error->getFullErrorMessage() << std::endl;
-	}
+    else if (parserError.getErrorType() ==
+             GeneratedSaxParser::ParserError::
+                 ERROR_VALIDATION_SEQUENCE_PREVIOUS_SIBLING_NOT_PRESENT) {
+      if (!(STREQ(parserError.getElement(), "extra") &&
+            STREQ(parserError.getAdditionalText().c_str(), "sibling: fx_profile_abstract"))) {
+        isError = false;
+      }
+    }
 
-	mError |= isError;
+    else if (parserError.getErrorType() ==
+             GeneratedSaxParser::ParserError::ERROR_COULD_NOT_OPEN_FILE) {
+      isError = true;
+      error_context = "File access";
+    }
 
-	return false; // let OpenCollada decide when to abort
+    else {
+      isError = (parserError.getSeverity() !=
+                 GeneratedSaxParser::ParserError::Severity::SEVERITY_ERROR_NONCRITICAL);
+    }
+  }
+  else if (error->getErrorClass() == COLLADASaxFWL::IError::ERROR_SAXFWL) {
+    error_context = "Sax FWL";
+    COLLADASaxFWL::SaxFWLError *saxFWLError = (COLLADASaxFWL::SaxFWLError *)error;
+    error_message = saxFWLError->getErrorMessage();
+
+    /*
+     * Accept non critical errors as warnings (i.e. texture not found)
+     * This makes the importer more graceful, so it now imports what makes sense.
+     */
+
+    isError = (saxFWLError->getSeverity() != COLLADASaxFWL::IError::SEVERITY_ERROR_NONCRITICAL);
+  }
+  else {
+    error_context = "OpenCollada";
+    error_message = error->getFullErrorMessage();
+    isError = true;
+  }
+
+  std::string severity = (isError) ? "Error" : "Warning";
+  std::cout << error_context << " (" << severity << "): " << error_message << std::endl;
+  if (isError) {
+    std::cout << "The Collada import has been forced to stop." << std::endl;
+    std::cout << "Please fix the reported error and then try again.";
+    mError = true;
+  }
+  return isError;
 }

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,14 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file DocumentImporter.h
- *  \ingroup collada
+/** \file
+ * \ingroup collada
  */
 
 #ifndef __DOCUMENTIMPORTER_H__
@@ -38,7 +32,6 @@
 #include "COLLADAFWSkinController.h"
 #include "COLLADAFWEffectCommon.h"
 
-
 #include "BKE_object.h"
 #include "BKE_constraint.h"
 
@@ -49,129 +42,131 @@
 #include "MeshImporter.h"
 #include "ImportSettings.h"
 
-
-
 struct bContext;
 
 /** Importer class. */
-class DocumentImporter : COLLADAFW::IWriter
-{
-public:
-	//! Enumeration to denote the stage of import
-	enum ImportStage {
-		General,		//!< First pass to collect all data except controller
-		Controller,		//!< Second pass to collect controller data
-	};
-	/** Constructor */
-	DocumentImporter(bContext *C, const ImportSettings *import_settings);
+class DocumentImporter : COLLADAFW::IWriter {
+ public:
+  //! Enumeration to denote the stage of import
+  enum ImportStage {
+    Fetching_Scene_data,      /* First pass to collect all data except controller */
+    Fetching_Controller_data, /* Second pass to collect controller data */
+  };
+  /** Constructor */
+  DocumentImporter(bContext *C, const ImportSettings *import_settings);
 
-	/** Destructor */
-	~DocumentImporter();
+  /** Destructor */
+  ~DocumentImporter();
 
-	/** Function called by blender UI */
-	bool import();
+  /** Function called by blender UI */
+  bool import();
 
-	/** these should not be here */
-	Object* create_camera_object(COLLADAFW::InstanceCamera*, Scene*);
-	Object* create_lamp_object(COLLADAFW::InstanceLight*, Scene*);
-	Object* create_instance_node(Object*, COLLADAFW::Node*, COLLADAFW::Node*, Scene*, bool);
-	void create_constraints(ExtraTags *et, Object *ob);
-	std::vector<Object *> *write_node(COLLADAFW::Node*, COLLADAFW::Node*, Scene*, Object*, bool);
-	MTex* create_texture(COLLADAFW::EffectCommon*, COLLADAFW::Texture&, Material*, int, TexIndexTextureArrayMap&);
-	void write_profile_COMMON(COLLADAFW::EffectCommon*, Material*);
-	
-	void translate_anim_recursive(COLLADAFW::Node*, COLLADAFW::Node*, Object*);
+  /** these should not be here */
+  Object *create_camera_object(COLLADAFW::InstanceCamera *, Scene *);
+  Object *create_light_object(COLLADAFW::InstanceLight *, Scene *);
+  Object *create_instance_node(Object *, COLLADAFW::Node *, COLLADAFW::Node *, Scene *, bool);
+  void create_constraints(ExtraTags *et, Object *ob);
+  std::vector<Object *> *write_node(COLLADAFW::Node *, COLLADAFW::Node *, Scene *, Object *, bool);
+  void write_profile_COMMON(COLLADAFW::EffectCommon *, Material *);
 
-	/**
-	 * This method will be called if an error in the loading process occurred and the loader cannot
-	 * continue to load. The writer should undo all operations that have been performed.
-	 * \param errorMessage A message containing informations about the error that occurred.
-	 */
-	void cancel(const COLLADAFW::String& errorMessage);
+  void translate_anim_recursive(COLLADAFW::Node *, COLLADAFW::Node *, Object *);
 
-	/** This is the method called. The writer hast to prepare to receive data.*/
-	void start();
+  /**
+   * This method will be called if an error in the loading process occurred and the loader cannot
+   * continue to load. The writer should undo all operations that have been performed.
+   * \param errorMessage: A message containing information about the error that occurred.
+   */
+  void cancel(const COLLADAFW::String &errorMessage);
 
-	/** This method is called after the last write* method. No other methods will be called after this.*/
-	void finish();
+  /** This is the method called. The writer hast to prepare to receive data.*/
+  void start();
 
-	bool writeGlobalAsset(const COLLADAFW::FileInfo*);
-	std::string get_import_version(const COLLADAFW::FileInfo *asset);
+  /** This method is called after the last write* method. No other methods will be called after
+   * this.*/
+  void finish();
 
-	bool writeScene(const COLLADAFW::Scene*);
+  bool writeGlobalAsset(const COLLADAFW::FileInfo *);
+  std::string get_import_version(const COLLADAFW::FileInfo *asset);
 
-	bool writeVisualScene(const COLLADAFW::VisualScene*);
+  bool writeScene(const COLLADAFW::Scene *);
 
-	bool writeLibraryNodes(const COLLADAFW::LibraryNodes*);
+  bool writeVisualScene(const COLLADAFW::VisualScene *);
 
-	bool writeAnimation(const COLLADAFW::Animation*);
+  bool writeLibraryNodes(const COLLADAFW::LibraryNodes *);
 
-	bool writeAnimationList(const COLLADAFW::AnimationList*);
+  bool writeAnimation(const COLLADAFW::Animation *);
 
-	bool writeGeometry(const COLLADAFW::Geometry*);
+  bool writeAnimationList(const COLLADAFW::AnimationList *);
 
-	bool writeMaterial(const COLLADAFW::Material*);
+#if WITH_OPENCOLLADA_ANIMATION_CLIP
+  // Please enable this when building with Collada 1.6.65 or newer (also in DocumentImporter.cpp)
+  bool writeAnimationClip(const COLLADAFW::AnimationClip *animationClip);
+#endif
 
-	bool writeEffect(const COLLADAFW::Effect*);
+  bool writeGeometry(const COLLADAFW::Geometry *);
 
-	bool writeCamera(const COLLADAFW::Camera*);
+  bool writeMaterial(const COLLADAFW::Material *);
 
-	bool writeImage(const COLLADAFW::Image*);
+  bool writeEffect(const COLLADAFW::Effect *);
 
-	bool writeLight(const COLLADAFW::Light*);
+  bool writeCamera(const COLLADAFW::Camera *);
 
-	bool writeSkinControllerData(const COLLADAFW::SkinControllerData*);
+  bool writeImage(const COLLADAFW::Image *);
 
-	bool writeController(const COLLADAFW::Controller*);
+  bool writeLight(const COLLADAFW::Light *);
 
-	bool writeFormulas(const COLLADAFW::Formulas*);
+  bool writeSkinControllerData(const COLLADAFW::SkinControllerData *);
 
-	bool writeKinematicsScene(const COLLADAFW::KinematicsScene*);
+  bool writeController(const COLLADAFW::Controller *);
 
-	/** Add element and data for UniqueId */
-	bool addExtraTags(const COLLADAFW::UniqueId &uid, ExtraTags *extra_tags);
-	/** Get an extisting ExtraTags for uid */
-	ExtraTags* getExtraTags(const COLLADAFW::UniqueId &uid);
+  bool writeFormulas(const COLLADAFW::Formulas *);
 
-	bool is_armature(COLLADAFW::Node * node);
+  bool writeKinematicsScene(const COLLADAFW::KinematicsScene *);
 
+  /** Add element and data for UniqueId */
+  bool addExtraTags(const COLLADAFW::UniqueId &uid, ExtraTags *extra_tags);
+  /** Get an extisting ExtraTags for uid */
+  ExtraTags *getExtraTags(const COLLADAFW::UniqueId &uid);
 
+  bool is_armature(COLLADAFW::Node *node);
 
-private:
-	const ImportSettings *import_settings;
+ private:
+  const ImportSettings *import_settings;
 
-	/** Current import stage we're in. */
-	ImportStage mImportStage;
+  /** Current import stage we're in. */
+  ImportStage mImportStage;
 
-	bContext *mContext;
+  bContext *mContext;
+  ViewLayer *view_layer;
 
-	UnitConverter unit_converter;
-	ArmatureImporter armature_importer;
-	MeshImporter mesh_importer;
-	AnimationImporter anim_importer;
-	
-	/** TagsMap typedef for uid_tags_map. */
-	typedef std::map<std::string, ExtraTags*> TagsMap;
-	/** Tags map of unique id as a string and ExtraTags instance. */
-	TagsMap uid_tags_map;
+  UnitConverter unit_converter;
+  ArmatureImporter armature_importer;
+  MeshImporter mesh_importer;
+  AnimationImporter anim_importer;
 
-	std::map<COLLADAFW::UniqueId, Image*> uid_image_map;
-	std::map<COLLADAFW::UniqueId, Material*> uid_material_map;
-	std::map<COLLADAFW::UniqueId, Material*> uid_effect_map;
-	std::map<COLLADAFW::UniqueId, Camera*> uid_camera_map;
-	std::map<COLLADAFW::UniqueId, Lamp*> uid_lamp_map;
-	std::map<Material*, TexIndexTextureArrayMap> material_texture_mapping_map;
-	std::multimap<COLLADAFW::UniqueId, Object*> object_map;
-	std::map<COLLADAFW::UniqueId, COLLADAFW::Node*> node_map;
-	std::vector<const COLLADAFW::VisualScene*> vscenes;
-	std::vector<Object*> libnode_ob;
-	
-	std::map<COLLADAFW::UniqueId, COLLADAFW::Node*> root_map; // find root joint by child joint uid, for bone tree evaluation during resampling
-	std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map;
+  /** TagsMap typedef for uid_tags_map. */
+  typedef std::map<std::string, ExtraTags *> TagsMap;
+  /** Tags map of unique id as a string and ExtraTags instance. */
+  TagsMap uid_tags_map;
 
-	std::string import_from_version;
+  UidImageMap uid_image_map;
+  std::map<COLLADAFW::UniqueId, Material *> uid_material_map;
+  std::map<COLLADAFW::UniqueId, Material *> uid_effect_map;
+  std::map<COLLADAFW::UniqueId, Camera *> uid_camera_map;
+  std::map<COLLADAFW::UniqueId, Light *> uid_light_map;
+  std::map<Material *, TexIndexTextureArrayMap> material_texture_mapping_map;
+  std::multimap<COLLADAFW::UniqueId, Object *> object_map;
+  std::map<COLLADAFW::UniqueId, COLLADAFW::Node *> node_map;
+  std::vector<const COLLADAFW::VisualScene *> vscenes;
+  std::vector<Object *> libnode_ob;
 
-	void report_unknown_reference(const COLLADAFW::Node &node, const std::string object_type);
+  std::map<COLLADAFW::UniqueId, COLLADAFW::Node *>
+      root_map;  // find root joint by child joint uid, for bone tree evaluation during resampling
+  std::map<COLLADAFW::UniqueId, const COLLADAFW::Object *> FW_object_map;
+
+  std::string import_from_version;
+
+  void report_unknown_reference(const COLLADAFW::Node &node, const std::string object_type);
 };
 
 #endif

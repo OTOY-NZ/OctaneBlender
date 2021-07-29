@@ -13,19 +13,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# Contributor(s): Jacques Beaurain.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	../include
-	../../blenkernel
-	../../blenlib
-	../../makesdna
-	../../makesrna
-	../../windowmanager
-	../../../../intern/guardedalloc
+  ../include
+  ../../blenkernel
+  ../../blenlib
+  ../../depsgraph
+  ../../makesdna
+  ../../makesrna
+  ../../windowmanager
+  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -33,25 +31,32 @@ set(INC_SYS
 )
 
 set(SRC
-	sound_ops.c
+  sound_ops.c
 
-	sound_intern.h
+  sound_intern.h
+)
+
+set(LIB
+  bf_blenkernel
+  bf_blenlib
 )
 
 if(WITH_AUDASPACE)
-	add_definitions(${AUDASPACE_DEFINITIONS})
-
-	list(APPEND INC_SYS
-		${AUDASPACE_C_INCLUDE_DIRS}
-	)
+  list(APPEND INC_SYS
+    ${AUDASPACE_C_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    bf_intern_audaspace
+  )
+  add_definitions(-DWITH_AUDASPACE)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-	add_definitions(-DWITH_FFMPEG)
+  add_definitions(-DWITH_FFMPEG)
 endif()
 
 if(WITH_CODEC_SNDFILE)
-	add_definitions(-DWITH_SNDFILE)
+  add_definitions(-DWITH_SNDFILE)
 endif()
 
-blender_add_lib(bf_editor_sound "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_sound "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

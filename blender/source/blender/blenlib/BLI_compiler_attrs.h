@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,20 +15,13 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Campbell Barton
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BLI_COMPILER_ATTRS_H__
 #define __BLI_COMPILER_ATTRS_H__
 
-/** \file BLI_compiler_attrs.h
- *  \ingroup bli
+/** \file
+ * \ingroup bli
  */
 
 /* hint to make sure function result is actually used */
@@ -45,13 +36,13 @@
  * arguments would be expected to be non-null
  */
 #ifdef __GNUC__
-#  define ATTR_NONNULL(args ...) __attribute__((nonnull(args)))
+#  define ATTR_NONNULL(args...) __attribute__((nonnull(args)))
 #else
 #  define ATTR_NONNULL(...)
 #endif
 
 /* never returns NULL */
-#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 409  /* gcc4.9+ only */
+#if (__GNUC__ * 100 + __GNUC_MINOR__) >= 409 /* gcc4.9+ only */
 #  define ATTR_RETURNS_NONNULL __attribute__((returns_nonnull))
 #else
 #  define ATTR_RETURNS_NONNULL
@@ -73,7 +64,7 @@
 
 /* the function return value points to memory (2 args for 'size * tot') */
 #if (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 403))
-#  define ATTR_ALLOC_SIZE(args ...) __attribute__((alloc_size(args)))
+#  define ATTR_ALLOC_SIZE(args...) __attribute__((alloc_size(args)))
 #else
 #  define ATTR_ALLOC_SIZE(...)
 #endif
@@ -87,9 +78,26 @@
 
 /* hint to compiler that function uses printf-style format string */
 #ifdef __GNUC__
-#  define ATTR_PRINTF_FORMAT(format_param, dots_param) __attribute__((format(printf, format_param, dots_param)))
+#  define ATTR_PRINTF_FORMAT(format_param, dots_param) \
+    __attribute__((format(printf, format_param, dots_param)))
 #else
 #  define ATTR_PRINTF_FORMAT(format_param, dots_param)
 #endif
 
-#endif  /* __BLI_COMPILER_ATTRS_H__ */
+/* Use to suppress '-Wimplicit-fallthrough' (in place of 'break'). */
+#ifndef ATTR_FALLTHROUGH
+#  if defined(__GNUC__) && (__GNUC__ >= 7) /* gcc7.0+ only */
+#    define ATTR_FALLTHROUGH __attribute__((fallthrough))
+#  else
+#    define ATTR_FALLTHROUGH ((void)0)
+#  endif
+#endif
+
+/* Declare the memory alignment in Bytes. */
+#if defined(_WIN32) && !defined(FREE_WINDOWS)
+#  define ATTR_ALIGN(x) __declspec(align(x))
+#else
+#  define ATTR_ALIGN(x) __attribute__((aligned(x)))
+#endif
+
+#endif /* __BLI_COMPILER_ATTRS_H__ */

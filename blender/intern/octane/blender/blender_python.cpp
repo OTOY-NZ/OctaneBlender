@@ -15,665 +15,739 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#include "BKE_global.h"
 
 #include <Python.h>
+#include "blender/OCT_api.h"
 
-#include "OCT_api.h"
+#include "blender/blender_session.h"
 
-#include "OctaneClient.h"
-#include "blender_sync.h"
-#include "blender_session.h"
+#include "util/util_debug.h"
+#include "util/util_foreach.h"
+#include "util/util_md5.h"
+#include "util/util_opengl.h"
+#include "util/util_path.h"
+#include "util/util_string.h"
+#include "util/util_types.h"
 
-#include "util_opengl.h"
-#include "util_path.h"
-
-#include <atomic>
-#include <string>
-
-#include "BKE_scene.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BLI_utildefines.h"
-#include "BKE_context.h"
-#include "RE_pipeline.h"
-#include "BLI_fileops.h"
-#include "render_types.h"
-
-#include "WM_types.h"
-#include "WM_api.h"
+#include "render/osl.h"
 
 OCT_NAMESPACE_BEGIN
 
-static std::atomic_flag export_busy = ATOMIC_FLAG_INIT;
+void *pylong_as_voidptr_typesafe(PyObject *object)
+{
+  if (object == Py_None)
+    return NULL;
+  return PyLong_AsVoidPtr(object);
+}
 
-struct OctExportJobData {
-    BL::RenderEngine    b_engine;
-    BL::Scene           b_scene;
-    BL::BlendData       b_data;
-    BL::UserPreferences b_userpref;
+void python_thread_state_save(void **python_thread_state)
+{
+  *python_thread_state = (void *)PyEval_SaveThread();
+}
 
-    bContext            *cont;
-    wmTimer             *timer;
-    int                 export_type;
-    
-    char                filename[1024];
+void python_thread_state_restore(void **python_thread_state)
+{
+  PyEval_RestoreThread((PyThreadState *)*python_thread_state);
+  *python_thread_state = NULL;
+}
 
-    short *stop;
-    short *do_update;
-    float *progress;
-
-    bool was_canceled;
-}; //struct OctExportJobData
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce) {
-    const char *result = _PyUnicode_AsString(py_str);
-    if(result) {
-        // 99% of the time this is enough but we better support non unicode chars since blender doesnt limit this.
-        return result;
+static const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
+{
+  const char *result = _PyUnicode_AsString(py_str);
+  if (result) {
+    /* 99% of the time this is enough but we better support non unicode
+     * chars since blender doesnt limit this.
+     */
+    return result;
+  }
+  else {
+    PyErr_Clear();
+    if (PyBytes_Check(py_str)) {
+      return PyBytes_AS_STRING(py_str);
+    }
+    else if ((*coerce = PyUnicode_EncodeFSDefault(py_str))) {
+      return PyBytes_AS_STRING(*coerce);
     }
     else {
-        PyErr_Clear();
-        if(PyBytes_Check(py_str)) {
-            return PyBytes_AS_STRING(py_str);
+      /* Clear the error, so Cycles can be at leadt used without
+       * GPU and OSL support,
+       */
+      PyErr_Clear();
+      return "";
+    }
+  }
+}
+
+static PyObject *init_func(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *path, *user_path;
+
+  if (!PyArg_ParseTuple(args, "OO", &path, &user_path)) {
+    return NULL;
+  }
+
+  PyObject *path_coerce = NULL, *user_path_coerce = NULL;
+  path_init(PyC_UnicodeAsByte(path, &path_coerce),
+            PyC_UnicodeAsByte(user_path, &user_path_coerce));
+  Py_XDECREF(path_coerce);
+  Py_XDECREF(user_path_coerce);
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *exit_func(PyObject * /*self*/, PyObject * /*args*/)
+{
+  Py_RETURN_NONE;
+}
+
+static PyObject *create_func(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *pyengine, *pypreferences, *pydata, *pyregion, *pyv3d, *pyrv3d;
+
+  if (!PyArg_ParseTuple(
+          args, "OOOOOO", &pyengine, &pypreferences, &pydata, &pyregion, &pyv3d, &pyrv3d)) {
+    return NULL;
+  }
+
+  /* RNA */
+  PointerRNA engineptr;
+  RNA_pointer_create(NULL, &RNA_RenderEngine, (void *)PyLong_AsVoidPtr(pyengine), &engineptr);
+  BL::RenderEngine engine(engineptr);
+
+  PointerRNA preferencesptr;
+  RNA_pointer_create(
+      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences), &preferencesptr);
+  BL::Preferences preferences(preferencesptr);
+
+  PointerRNA dataptr;
+  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  BL::BlendData data(dataptr);
+
+  PointerRNA regionptr;
+  RNA_pointer_create(NULL, &RNA_Region, pylong_as_voidptr_typesafe(pyregion), &regionptr);
+  BL::Region region(regionptr);
+
+  PointerRNA v3dptr;
+  RNA_pointer_create(NULL, &RNA_SpaceView3D, pylong_as_voidptr_typesafe(pyv3d), &v3dptr);
+  BL::SpaceView3D v3d(v3dptr);
+
+  PointerRNA rv3dptr;
+  RNA_pointer_create(NULL, &RNA_RegionView3D, pylong_as_voidptr_typesafe(pyrv3d), &rv3dptr);
+  BL::RegionView3D rv3d(rv3dptr);
+
+  std::string export_path("");
+
+  /* create session */
+  BlenderSession *session;
+
+  if (rv3d) {
+    /* interactive viewport session */
+    int width = region.width();
+    int height = region.height();
+
+    session = new BlenderSession(engine,
+                                 preferences,
+                                 data,
+                                 v3d,
+                                 rv3d,
+                                 width,
+                                 height,
+                                 BlenderSession::ExportType::NONE,
+                                 export_path);
+  }
+  else {
+    /* offline session or preview render */
+    session = new BlenderSession(
+        engine, preferences, data, BlenderSession::ExportType::NONE, export_path);
+  }
+
+  return PyLong_FromVoidPtr(session);
+}
+
+static PyObject *free_func(PyObject * /*self*/, PyObject *value)
+{
+  delete (BlenderSession *)PyLong_AsVoidPtr(value);
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *render_func(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *pysession, *pydepsgraph;
+
+  if (!PyArg_ParseTuple(args, "OO", &pysession, &pydepsgraph))
+    return NULL;
+
+  BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
+
+  PointerRNA depsgraphptr;
+  RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+  BL::Depsgraph b_depsgraph(depsgraphptr);
+
+  python_thread_state_save(&session->python_thread_state);
+
+  session->render(b_depsgraph);
+
+  python_thread_state_restore(&session->python_thread_state);
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *draw_func(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *pysession, *pygraph, *pyv3d, *pyrv3d;
+
+  if (!PyArg_ParseTuple(args, "OOOO", &pysession, &pygraph, &pyv3d, &pyrv3d))
+    return NULL;
+
+  BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
+
+  if (PyLong_AsVoidPtr(pyrv3d)) {
+    /* 3d view drawing */
+    int viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    session->draw(viewport[2], viewport[3]);
+  }
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *sync_func(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *pysession, *pydepsgraph;
+
+  if (!PyArg_ParseTuple(args, "OO", &pysession, &pydepsgraph))
+    return NULL;
+
+  BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
+
+  PointerRNA depsgraphptr;
+  RNA_pointer_create(NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+  BL::Depsgraph b_depsgraph(depsgraphptr);
+
+  python_thread_state_save(&session->python_thread_state);
+
+  session->synchronize(b_depsgraph);
+
+  python_thread_state_restore(&session->python_thread_state);
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *reset_func(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *pysession, *pydata, *pydepsgraph;
+
+  if (!PyArg_ParseTuple(args, "OOO", &pysession, &pydata, &pydepsgraph))
+    return NULL;
+
+  BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
+
+  PointerRNA dataptr;
+  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  BL::BlendData b_data(dataptr);
+
+  PointerRNA depsgraphptr;
+  RNA_pointer_create(NULL, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph), &depsgraphptr);
+  BL::Depsgraph b_depsgraph(depsgraphptr);
+
+  python_thread_state_save(&session->python_thread_state);
+
+  session->reset_session(b_data, b_depsgraph);
+
+  python_thread_state_restore(&session->python_thread_state);
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *command_to_octane_func(PyObject *self, PyObject *args)
+{
+  int octane_cmd_type = 0;
+  PyObject *py_int_list = NULL, *py_float_list = NULL, *py_str_list = NULL;
+  if (PyArg_ParseTuple(args,
+                       "i|O!O!O!",
+                       &octane_cmd_type,
+                       &PyList_Type,
+                       &py_int_list,
+                       &PyList_Type,
+                       &py_float_list,
+                       &PyList_Type,
+                       &py_str_list)) {
+    std::vector<int> int_params;
+    std::vector<float> float_params;
+    std::vector<std::string> str_params;
+    if (py_int_list && PyList_Size(py_int_list)) {
+      for (int i = 0; i < PyList_Size(py_int_list); ++i) {
+        PyObject *obj = PyList_GetItem(py_int_list, i);
+        if (PyLong_Check(obj)) {
+          int_params.emplace_back(PyLong_AsLong(obj));
         }
-        else if((*coerce = PyUnicode_EncodeFSDefault(py_str))) {
-            return PyBytes_AS_STRING(*coerce);
+      }
+    }
+    if (py_float_list && PyList_Size(py_float_list)) {
+      for (int i = 0; i < PyList_Size(py_float_list); ++i) {
+        PyObject *obj = PyList_GetItem(py_float_list, i);
+        if (PyFloat_Check(obj)) {
+          float_params.emplace_back(PyFloat_AsDouble(obj));
         }
-        else {
-            // Clear the error, so Cycles can be at leadt used without GPU and OSL support
-            PyErr_Clear();
-            return "";
-        }
+      }
     }
-} //PyC_UnicodeAsByte()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void export_startjob(void *customdata, short *stop, short *do_update, float *progress) {
-    OctExportJobData *data = static_cast<OctExportJobData *>(customdata);
-
-    data->stop = stop;
-    data->do_update = do_update;
-    data->progress = progress;
-
-    data->b_engine.update_progress(0.0000001f);
-
-    // XXX annoying hack: needed to prevent data corruption when changing
-    // scene frame in separate threads
-    G.is_rendering = true;
-    BKE_spacedata_draw_locks(true);
-
-    G.is_break = false;
-
-    int cur_frame = data->b_scene.frame_current();
-    int first_frame = data->b_scene.frame_start();
-    int last_frame = data->b_scene.frame_end();
-
-    ::Scene *m_scene = (::Scene*)data->b_scene.ptr.data;
-    if(!G.is_break) {
-        m_scene->r.cfra = first_frame;
-        m_scene->r.subframe = first_frame - m_scene->r.cfra;
-        BKE_scene_update_for_newframe(CTX_data_main(data->cont)->eval_ctx, CTX_data_main(data->cont), m_scene, m_scene->lay);
-        BKE_scene_camera_switch_update(m_scene);
-
-        // Create session
-        std::string export_path(data->filename);
-        BlenderSession *session = newnt BlenderSession(data->b_engine, data->b_userpref, data->b_data, data->b_scene, (::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum)data->export_type, export_path);
-
-        if(session) {
-            if(first_frame != last_frame) data->b_engine.update_progress(0.5f / (last_frame - first_frame + 1));
-
-            for(int f = first_frame; f <= last_frame; ++f) {
-                if(G.is_break) {
-                    data->was_canceled = true;
-                    break;
-                }
-
-                if(f > first_frame) {
-                    m_scene->r.cfra = f;
-                    m_scene->r.subframe = f - m_scene->r.cfra;
-                    BKE_scene_update_for_newframe(CTX_data_main(data->cont)->eval_ctx, CTX_data_main(data->cont), m_scene, m_scene->lay);
-                    BKE_scene_camera_switch_update(m_scene);
-
-                    data->b_engine.update_progress(((float)(f - first_frame + 1) - 0.5f) / (last_frame - first_frame + 1));
-                }
-
-                if(G.is_break) {
-                    data->was_canceled = true;
-                    break;
-                }
-
-                session->sync->sync_recalc();
-                session->render();
-
-                if(f != last_frame) data->b_engine.update_progress((float)(f - first_frame + 1) / (last_frame - first_frame + 1));
-            }
-            delete session;
-        }
-        else fprintf(stderr, "Octane: ERROR creating session\n");
+    if (py_str_list && PyList_Size(py_str_list)) {
+      for (int i = 0; i < PyList_Size(py_str_list); ++i) {
+        PyObject *obj = PyList_GetItem(py_str_list, i);
+        PyObject *strObj = PyUnicode_AsUTF8String(obj);
+        std::string str = std::string(PyBytes_AsString(strObj));
+        Py_DECREF(strObj);
+        str_params.emplace_back(str);
+      }
     }
-    else data->was_canceled = true;
+    Py_BEGIN_ALLOW_THREADS;
+    BlenderSession::command_to_octane(
+        G.octane_server_address, octane_cmd_type, int_params, float_params, str_params);
+    Py_END_ALLOW_THREADS;
+  }
+  Py_RETURN_NONE;
+}
 
-    if(cur_frame != data->b_scene.frame_current()) {
-        m_scene->r.cfra = cur_frame;
-        m_scene->r.subframe = cur_frame - m_scene->r.cfra;
-        BKE_scene_update_for_newframe(CTX_data_main(data->cont)->eval_ctx, CTX_data_main(data->cont), m_scene, m_scene->lay);
-        BKE_scene_camera_switch_update(m_scene);
-    }
-} //export_startjob()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void export_endjob(void *customdata) {
-    OctExportJobData *data = static_cast<OctExportJobData *>(customdata);
-
-    // Delete produced file
-    if(data->was_canceled) {
-        if(data->export_type == ::OctaneEngine::OctaneClient::SceneExportTypes::ORBX)
-            strcat(data->filename, ".orbx");
-        else
-            strcat(data->filename, ".abc");
-
-        if(BLI_exists(data->filename)) BLI_delete(data->filename, false, false);
-    }
-    else data->b_engine.update_progress(1.0f);
-
-    G.is_rendering = false;
-    BKE_spacedata_draw_locks(false);
-
-    if(data->timer) WM_event_timer_sleep(CTX_wm_manager(data->cont), CTX_wm_window(data->cont), data->timer, false);
-    export_busy.clear(std::memory_order_release);
-} //export_endjob()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void render_progress_update(void *rjv, float progress) {
-    OctExportJobData *rj = (OctExportJobData*)rjv;
-    
-    if (rj->progress && *rj->progress != progress) {
-        *rj->progress = progress;
-        // make jobs timer to send notifier
-        *(rj->do_update) = true;
-    }
-} //render_progress_update()
-
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// INIT
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *init_func(PyObject *self, PyObject *args) {
-    const char *path, *user_path;
-    if(!PyArg_ParseTuple(args, "ss", &path, &user_path)) return NULL;
-    
-    path_init(path, user_path);
-
-    Py_RETURN_NONE;
-} //init_func()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Check if export is finished
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *export_ready_func(PyObject *self, PyObject *args) {
-    if(export_busy.test_and_set(std::memory_order_acquire)) return PyBool_FromLong(0);
-    else {
-        export_busy.clear(std::memory_order_release);
-        return PyBool_FromLong(1);
-    }
-} //export_ready_func()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Start the export job
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *export_func(PyObject *self, PyObject *args) {
-    if(export_busy.test_and_set(std::memory_order_acquire)) return PyBool_FromLong(0);
-
-    PyObject *pyscene, *pycontext, *pytimer, *pyuserpref, *pydata, *path;
-    int export_type;
-
-    if(!PyArg_ParseTuple(args, "OOOOOiO", &pyscene, &pycontext, &pytimer, &pyuserpref, &pydata, &export_type, &path)) {
-        export_busy.clear(std::memory_order_release);
-        return PyBool_FromLong(0);
-    }
-
-    if(export_type == ::OctaneEngine::OctaneClient::SceneExportTypes::NONE) {
-        fprintf(stderr, "Octane: export ERROR: export type is not set\n");
-        export_busy.clear(std::memory_order_release);
-        return PyBool_FromLong(0);
-    }
-
+static PyObject *osl_compile_func(PyObject *self, PyObject *args)
+{
+  PyObject *rets = PyTuple_New(2);
+  std::string info;
+  PyObject *py_osl_identifier = NULL, *pynodegroup = NULL, *pynode = NULL, *py_osl_path = NULL,
+           *py_osl_code = NULL;
+  if (PyArg_ParseTuple(
+          args, "OOOOO", &py_osl_identifier, &pynodegroup, &pynode, &py_osl_path, &py_osl_code)) {
+    /* RNA */
+    PointerRNA nodeptr;
+    RNA_pointer_create((ID *)PyLong_AsVoidPtr(pynodegroup),
+                       &RNA_ShaderNode,
+                       (void *)PyLong_AsVoidPtr(pynode),
+                       &nodeptr);
     PyObject *path_coerce = NULL;
-    std::string cur_path = PyC_UnicodeAsByte(path, &path_coerce);
+    std::string osl_identifier = PyC_UnicodeAsByte(py_osl_identifier, &path_coerce);
+    std::string osl_path = PyC_UnicodeAsByte(py_osl_path, &path_coerce);
+    std::string osl_code = PyC_UnicodeAsByte(py_osl_code, &path_coerce);
     Py_XDECREF(path_coerce);
-
-    bContext *cont = (bContext*)PyLong_AsVoidPtr(pycontext);
-    wmTimer *timer = (wmTimer*)PyLong_AsVoidPtr(pytimer);
-
-    if(timer) WM_event_timer_sleep(CTX_wm_manager(cont), CTX_wm_window(cont), timer, true);
-
-    PointerRNA sceneptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
-    BL::Scene b_scene(sceneptr);
-
-    if(b_scene.frame_start() > b_scene.frame_end()) {
-        fprintf(stderr, "Octane: export ERROR: the start frame is behind the end frame\n");
-        export_busy.clear(std::memory_order_release);
-        return PyBool_FromLong(0);
-    }
-
-    PointerRNA userprefptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyuserpref), &userprefptr);
-    BL::UserPreferences b_userpref(userprefptr);
-
-    PointerRNA dataptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pydata), &dataptr);
-    BL::BlendData b_data(dataptr);
-
-    // Create engine
-    PointerRNA engineptr;
-    BL::RenderSettings rs = b_scene.render();
-
-    Render *re = RE_NewRender(b_scene.name().c_str());
-    re->main    = G.main;
-    re->scene   = (::Scene*)b_scene.ptr.data;
-    re->lay     = re->scene->lay;
-    //re->r.scemode = (resc->r.scemode & ~R_EXR_CACHE_FILE) | (re->r.scemode & R_EXR_CACHE_FILE);
-    re->scene_color_manage = BKE_scene_check_color_management_enabled(re->scene);
-    //RE_SetReports(re, op->reports);
-
-    RenderEngineType *type = RE_engines_find("octane");
-    RenderEngine *engine = RE_engine_create(type);
-    engine->re              = re;
-    engine->flag            |= RE_ENGINE_RENDERING | RE_ENGINE_ANIMATION;
-    engine->camera_override = nullptr;
-    engine->layer_override  = 0;
-    engine->resolution_x    = rs.resolution_x() * rs.resolution_percentage() / 100;
-    engine->resolution_y    = rs.resolution_y() * rs.resolution_percentage() / 100;
-    //engine->tile_x = re->partx;
-    //engine->tile_y = re->party;
-
-    RNA_pointer_create(NULL, &RNA_RenderEngine, engine, &engineptr);
-    BL::RenderEngine b_engine(engineptr);
-
-    // Setup job data
-    OctExportJobData *data = static_cast<OctExportJobData*>(MEM_mallocN(sizeof(OctExportJobData), "OctExportJobData"));
-    data->was_canceled  = false;
-    data->b_engine      = b_engine;
-    data->b_scene       = b_scene;
-    data->cont          = cont;
-    data->timer         = timer;
-    data->b_userpref    = b_userpref;
-    data->b_data        = b_data;
-    data->export_type   = export_type;
-    strcpy(data->filename, cur_path.c_str());
-
-    Py_BEGIN_ALLOW_THREADS
-        
-    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(cont), CTX_wm_window(cont), (::Scene*)b_scene.ptr.data, export_type == ::OctaneEngine::OctaneClient::SceneExportTypes::ORBX ? "Octane ORBX export" : "Octane alembic export", WM_JOB_PROGRESS, WM_JOB_TYPE_RENDER);
-    WM_jobs_customdata_set(wm_job, data, MEM_freeN);
-    WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
-    WM_jobs_callbacks(wm_job, export_startjob, NULL, NULL, export_endjob);
-    RE_progress_cb(re, data, render_progress_update);
-    WM_jobs_start(CTX_wm_manager(cont), wm_job);
-
-    Py_END_ALLOW_THREADS
-
-    return PyBool_FromLong(1);
-} //export_func()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *create_func(PyObject *self, PyObject *args) {
-    PyObject *pyengine, *pyuserpref, *pydata, *pyscene, *pyregion, *pyv3d, *pyrv3d;
-
-    if(!PyArg_ParseTuple(args, "OOOOOOO", &pyengine, &pyuserpref, &pydata, &pyscene, &pyregion, &pyv3d, &pyrv3d))
-        return NULL;
-
-    PointerRNA userprefptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyuserpref), &userprefptr);
-    BL::UserPreferences userpref(userprefptr);
-
-    PointerRNA dataptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pydata), &dataptr);
-    BL::BlendData data(dataptr);
-
-    PointerRNA sceneptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
-    BL::Scene scene(sceneptr);
-
-    PointerRNA regionptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyregion), &regionptr);
-    BL::Region region(regionptr);
-
-    PointerRNA v3dptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyv3d), &v3dptr);
-    BL::SpaceView3D v3d(v3dptr);
-
-    PointerRNA rv3dptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyrv3d), &rv3dptr);
-    BL::RegionView3D rv3d(rv3dptr);
-
-    PointerRNA engineptr;
-    RNA_pointer_create(NULL, &RNA_RenderEngine, (void*)PyLong_AsVoidPtr(pyengine), &engineptr);
-    BL::RenderEngine b_engine(engineptr);
-
-    // Create session
-    BlenderSession *session;
-
-    Py_BEGIN_ALLOW_THREADS
-
-    std::string export_path("");
-    if(rv3d) {
-        // Interactive session
-        int width   = region.width();
-        int height  = region.height();
-
-        session = new BlenderSession(b_engine, userpref, data, scene, ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum::NONE, export_path, v3d, rv3d, width, height);
+    Py_BEGIN_ALLOW_THREADS;
+    if (BlenderSession::osl_compile(
+            G.octane_server_address, osl_identifier, nodeptr, osl_path, osl_code, info)) {
+      PyTuple_SET_ITEM(rets, 0, Py_True);
     }
     else {
-        // Offline session
-        session = new BlenderSession(b_engine, userpref, data, scene, ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum::NONE, export_path);
+      PyTuple_SET_ITEM(rets, 0, Py_False);
+    }
+    Py_END_ALLOW_THREADS;
+  }
+  else {
+    PyTuple_SET_ITEM(rets, 0, Py_False);
+  }
+  PyTuple_SET_ITEM(rets, 1, PyUnicode_FromString(info.c_str()));
+  return rets;
+}
+
+static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *pydata = NULL, *py_osl_identifier = NULL, *pynodegroup = NULL, *pynode = NULL;
+  const char *osl_filepath = NULL;
+  if (!PyArg_ParseTuple(args, "OOOO", &pydata, &py_osl_identifier, &pynodegroup, &pynode))
+    return NULL;
+
+  /* RNA */
+  PointerRNA dataptr;
+  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  BL::BlendData b_data(dataptr);
+
+  PyObject *path_coerce = NULL;
+  std::string osl_identifier = PyC_UnicodeAsByte(py_osl_identifier, &path_coerce);
+  Py_XDECREF(path_coerce);
+  /* RNA */
+  PointerRNA nodeptr;
+  RNA_pointer_create((ID *)PyLong_AsVoidPtr(pynodegroup),
+                     &RNA_ShaderNode,
+                     (void *)PyLong_AsVoidPtr(pynode),
+                     &nodeptr);
+  BL::ShaderNode b_node(nodeptr);
+  OctaneDataTransferObject::OSLNodeInfo oslNodeInfo;
+  if (OSLManager::Instance().query_osl(osl_identifier, oslNodeInfo)) {
+    /* add new sockets from parameters */
+    set<void *> used_sockets;
+    for (int i = 0; i < oslNodeInfo.mPinInfo.size(); ++i) {
+      /* determine socket type */
+      string socket_type;
+      BL::NodeSocket::type_enum data_type = BL::NodeSocket::type_VALUE;
+      float4 default_float4 = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+      float default_float = 0.0f;
+      int default_int = 0;
+      int default_enum = 0;
+      bool default_bool = false;
+      string default_string = "";
+
+      const OctaneDataTransferObject::ApiNodePinInfo &pinInfo = oslNodeInfo.mPinInfo.get_param(i);
+      string socket_name = pinInfo.mLabelName;
+      string identifier = pinInfo.mName;
+
+      switch (pinInfo.mType) {
+        case Octane::PT_TRANSFORM:
+        case Octane::PT_PROJECTION:
+          socket_type = "NodeSocketShader";
+          data_type = BL::NodeSocket::type_SHADER;
+          break;
+        case Octane::PT_TEXTURE:
+          socket_type = "NodeSocketFloat";
+          data_type = BL::NodeSocket::type_VALUE;
+          default_float = pinInfo.mFloatInfo.mDefaultValue.x;
+          break;
+        case Octane::PT_STRING:
+          socket_type = "NodeSocketString";
+          data_type = BL::NodeSocket::type_STRING;
+          default_string = pinInfo.mStringInfo.mDefaultValue;
+          break;
+        case Octane::PT_BOOL:
+          socket_type = "NodeSocketBool";
+          data_type = BL::NodeSocket::type_BOOLEAN;
+          default_bool = pinInfo.mBoolInfo.mDefaultValue;
+          break;
+        case Octane::PT_ENUM:
+          socket_type = "NodeSocketInt";
+          data_type = BL::NodeSocket::type_INT;
+          default_enum = pinInfo.mEnumInfo.mDefaultValue;
+          break;
+        case Octane::PT_FLOAT:
+          if (pinInfo.mFloatInfo.mIsColor) {
+            socket_type = "NodeSocketColor";
+            data_type = BL::NodeSocket::type_RGBA;
+            default_float4[0] = pinInfo.mFloatInfo.mDefaultValue.x;
+            default_float4[1] = pinInfo.mFloatInfo.mDefaultValue.y;
+            default_float4[2] = pinInfo.mFloatInfo.mDefaultValue.z;
+          }
+          else if (pinInfo.mFloatInfo.mDimCount > 1) {
+            socket_type = "NodeSocketVector";
+            data_type = BL::NodeSocket::type_VECTOR;
+            default_float4[0] = pinInfo.mFloatInfo.mDefaultValue.x;
+            default_float4[1] = pinInfo.mFloatInfo.mDefaultValue.y;
+            default_float4[2] = pinInfo.mFloatInfo.mDefaultValue.z;
+          }
+          else {
+            socket_type = "NodeSocketFloat";
+            data_type = BL::NodeSocket::type_VALUE;
+            default_float = pinInfo.mFloatInfo.mDefaultValue.x;
+          }
+          break;
+        case Octane::PT_INT:
+          if (pinInfo.mIntInfo.mIsColor) {
+            socket_type = "NodeSocketColor";
+            data_type = BL::NodeSocket::type_RGBA;
+            default_float4[0] = pinInfo.mIntInfo.mDefaultValue.x;
+            default_float4[1] = pinInfo.mIntInfo.mDefaultValue.y;
+            default_float4[2] = pinInfo.mIntInfo.mDefaultValue.z;
+          }
+          else if (pinInfo.mIntInfo.mDimCount > 1) {
+            socket_type = "NodeSocketVector";
+            data_type = BL::NodeSocket::type_VECTOR;
+            default_float4[0] = pinInfo.mIntInfo.mDefaultValue.x;
+            default_float4[1] = pinInfo.mIntInfo.mDefaultValue.y;
+            default_float4[2] = pinInfo.mIntInfo.mDefaultValue.z;
+          }
+          else {
+            socket_type = "NodeSocketInt";
+            data_type = BL::NodeSocket::type_INT;
+            default_int = pinInfo.mIntInfo.mDefaultValue.x;
+          }
+          break;
+        default:
+          continue;
+      }
+      /* find socket socket */
+      BL::NodeSocket b_sock(PointerRNA_NULL);
+      if (pinInfo.mIsOutput) {
+        b_sock = b_node.outputs[socket_name];
+        // LEGACY ISSUES
+        // Before 16.3.2, blender uses mName as socket name.
+        // After 16.3.2, blender uses mLabelName as socket name.
+        // To solve the backward compatibility issue, server send both
+        // therefore, client can solve backward compatibility issues
+        if (!b_sock) {
+          b_sock = b_node.outputs[identifier];
+          if (b_sock && socket_name.size() > 0) {
+            b_sock.name(socket_name);
+          }
+        }
+        /* remove if type no longer matches */
+        if (b_sock && b_sock.bl_idname() != socket_type) {
+          b_node.outputs.remove(b_data, b_sock);
+          b_sock = BL::NodeSocket(PointerRNA_NULL);
+        }
+      }
+      else {
+        b_sock = b_node.inputs[socket_name];
+        if (!b_sock) {
+          b_sock = b_node.inputs[identifier];
+          if (b_sock && socket_name.size() > 0) {
+            b_sock.name(socket_name);
+          }
+        }
+        /* remove if type no longer matches */
+        if (b_sock && b_sock.bl_idname() != socket_type) {
+          b_node.inputs.remove(b_data, b_sock);
+          b_sock = BL::NodeSocket(PointerRNA_NULL);
+        }
+      }
+
+      if (!b_sock) {
+        /* create new socket */
+        if (pinInfo.mIsOutput)
+          b_sock = b_node.outputs.create(
+              b_data, socket_type.c_str(), socket_name.c_str(), identifier.c_str());
+        else
+          b_sock = b_node.inputs.create(
+              b_data, socket_type.c_str(), socket_name.c_str(), identifier.c_str());
+
+        /* set default value */
+        if (data_type == BL::NodeSocket::type_VALUE) {
+          set_float(b_sock.ptr, "default_value", default_float);
+        }
+        else if (data_type == BL::NodeSocket::type_INT) {
+          set_int(b_sock.ptr, "default_value", default_int);
+        }
+        else if (data_type == BL::NodeSocket::type_RGBA) {
+          set_float4(b_sock.ptr, "default_value", default_float4);
+        }
+        else if (data_type == BL::NodeSocket::type_VECTOR) {
+          set_float3(b_sock.ptr, "default_value", float4_to_float3(default_float4));
+        }
+        else if (data_type == BL::NodeSocket::type_STRING) {
+          set_string(b_sock.ptr, "default_value", default_string);
+        }
+      }
+
+      used_sockets.insert(b_sock.ptr.data);
     }
 
-    Py_END_ALLOW_THREADS
+    /* remove unused parameters */
+    bool removed;
 
-    return PyLong_FromVoidPtr(session);
-} //create_func()
+    do {
+      BL::Node::inputs_iterator b_input;
+      BL::Node::outputs_iterator b_output;
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *free_func(PyObject *self, PyObject *value) {
-    BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
-    if(session) delete session;
+      removed = false;
 
-    Py_RETURN_NONE;
-} //free_func()
+      for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+        if (used_sockets.find(b_input->ptr.data) == used_sockets.end()) {
+          b_node.inputs.remove(b_data, *b_input);
+          removed = true;
+          break;
+        }
+      }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *render_func(PyObject *self, PyObject *value) {
-    Py_BEGIN_ALLOW_THREADS
+    } while (removed);
 
-    BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
-    if(session) session->render();
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
 
-    Py_END_ALLOW_THREADS
+static PyObject *export_func(PyObject * /*self*/, PyObject *args)
+{
+  int octane_export_type;
+  PyObject *pyscene, *pycontext, *pypreferences, *pydata, *py_path;
 
-    Py_RETURN_NONE;
-} //render_func()
+  if (!PyArg_ParseTuple(args,
+                        "OOOOOi",
+                        &pyscene,
+                        &pycontext,
+                        &pypreferences,
+                        &pydata,
+                        &py_path,
+                        &octane_export_type)) {
+    return NULL;
+  }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *draw_func(PyObject *self, PyObject *args) {
-    PyObject *pysession, *pyv3d, *pyrv3d;
+  PointerRNA sceneptr;
+  RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
+  BL::Scene b_scene(sceneptr);
 
-    if(!PyArg_ParseTuple(args, "OOO", &pysession, &pyv3d, &pyrv3d)) return NULL;
-    
-    BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(pysession);
+  bContext *context = (bContext *)PyLong_AsVoidPtr(pycontext);
 
-    if(session && PyLong_AsVoidPtr(pyrv3d)) {
-        // 3d view drawing 
-        int viewport[4];
-        glGetIntegerv(GL_VIEWPORT, viewport);
+  PointerRNA preferencesptr;
+  RNA_pointer_create(
+      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences), &preferencesptr);
+  BL::Preferences preferences(preferencesptr);
 
-        session->draw(viewport[2], viewport[3]);
-    }
+  PointerRNA dataptr;
+  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  BL::BlendData data(dataptr);
 
-    Py_RETURN_NONE;
-} //draw_func()
+  PyObject *path_coerce = NULL;
+  std::string path = PyC_UnicodeAsByte(py_path, &path_coerce);
+  Py_XDECREF(path_coerce);
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *reset_func(PyObject *self, PyObject *args) {
-    PyObject *pysession, *pydata, *pyscene;
+  Py_BEGIN_ALLOW_THREADS;
+  BlenderSession::export_scene(b_scene,
+                               context,
+                               preferences,
+                               data,
+                               path,
+                               static_cast<BlenderSession::ExportType>(octane_export_type));
+  Py_END_ALLOW_THREADS;
+  Py_RETURN_NONE;
+}
 
-    //BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
-    if(!PyArg_ParseTuple(args, "OOO", &pysession, &pydata, &pyscene))
-        return NULL;
+static PyObject *export_localdb_func(PyObject * /*self*/, PyObject *args)
+{
+  PyObject *pyscene, *pycontext, *pypreferences, *pydata, *pymaterial;
 
-    BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(pysession);
+  if (!PyArg_ParseTuple(
+          args, "OOOOO", &pyscene, &pycontext, &pypreferences, &pydata, &pymaterial)) {
+    return NULL;
+  }
 
-    PointerRNA dataptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pydata), &dataptr);
-    BL::BlendData b_data(dataptr);
+  PointerRNA sceneptr;
+  RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
+  BL::Scene b_scene(sceneptr);
 
+  bContext *context = (bContext *)PyLong_AsVoidPtr(pycontext);
+
+  PointerRNA preferencesptr;
+  RNA_pointer_create(
+      NULL, &RNA_Preferences, (void *)PyLong_AsVoidPtr(pypreferences), &preferencesptr);
+  BL::Preferences preferences(preferencesptr);
+
+  PointerRNA dataptr;
+  RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata), &dataptr);
+  BL::BlendData data(dataptr);
+
+  PointerRNA matptr;
+  RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pymaterial), &matptr);
+  BL::Material material(matptr);
+
+  Py_BEGIN_ALLOW_THREADS;
+  BlenderSession::export_localdb(b_scene, context, preferences, data, material);
+  Py_END_ALLOW_THREADS;
+  Py_RETURN_NONE;
+}
+
+static PyObject *heart_beat_func(PyObject *self, PyObject *args)
+{
+  Py_RETURN_NONE;
+}
+
+static PyObject *get_octanedb_func(PyObject *self, PyObject *args)
+{
+  PyObject *pyscene = NULL, *pycontext = NULL;
+  if (PyArg_ParseTuple(args, "OO", &pyscene, &pycontext)) {
     PointerRNA sceneptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
+    RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene), &sceneptr);
     BL::Scene b_scene(sceneptr);
+    bContext *context = (bContext *)PyLong_AsVoidPtr(pycontext);
+    Py_BEGIN_ALLOW_THREADS;
+    BlenderSession::get_octanedb(b_scene, context, G.octane_server_address);
+    Py_END_ALLOW_THREADS;
+  }
+  Py_RETURN_NONE;
+}
 
-    Py_BEGIN_ALLOW_THREADS
+static PyObject *update_octane_localdb_func(PyObject *self, PyObject *args)
+{
+  PyObject *path;
+  if (!PyArg_ParseTuple(args, "O", &path)) {
+    return PyBool_FromLong(0);
+  }
 
-    if(session) {
-        session->reset_session(b_data, b_scene);
-        delete session;
-    }
+  PyObject *path_coerce = NULL;
+  std::string cur_path = PyC_UnicodeAsByte(path, &path_coerce);
+  Py_XDECREF(path_coerce);
 
-    Py_END_ALLOW_THREADS
+  std::strcpy(G.octane_localdb_path, cur_path.c_str());
+  Py_RETURN_NONE;
+}
 
-    Py_RETURN_NONE;
-} //reset_func()
+static PyObject *set_octane_params_func(PyObject *self, PyObject *args)
+{
+  int octane_default_mat_type = 0;
+  if (PyArg_ParseTuple(args, "i", &octane_default_mat_type)) {
+    G.octane_default_mat_type = octane_default_mat_type;
+  }
+  Py_RETURN_NONE;
+}
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *reload_func(PyObject *self, PyObject *value) {
-    BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
+static PyObject *update_octane_server_address_func(PyObject *self, PyObject *args)
+{
+  PyObject *address;
+  int release_octane_license_after_exiting;
+  if (!PyArg_ParseTuple(args, "Oi", &address, &release_octane_license_after_exiting)) {
+    return PyBool_FromLong(0);
+  }
 
-    Py_BEGIN_ALLOW_THREADS
+  PyObject *path_coerce = NULL;
+  std::string cur_addr = PyC_UnicodeAsByte(address, &path_coerce);
+  Py_XDECREF(path_coerce);
 
-    if(session) session->reload_session();
+  std::strcpy(G.octane_server_address, cur_addr.c_str());
+  G.release_octane_license_after_exiting = release_octane_license_after_exiting;
+  Py_RETURN_NONE;
+}
 
-    Py_END_ALLOW_THREADS
+static PyObject *activate_func(PyObject *self, PyObject *args)
+{
+  int activate;
+  if (!PyArg_ParseTuple(args, "i", &activate)) {
+    return PyBool_FromLong(0);
+  }
+  BlenderSession::activate_license(activate);
+  Py_RETURN_NONE;
+}
 
-    Py_RETURN_NONE;
-} //reload_func()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *sync_func(PyObject *self, PyObject *value) {
-    Py_BEGIN_ALLOW_THREADS
-
-    BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
-    if(session) session->synchronize();
-
-    Py_END_ALLOW_THREADS
-
-    Py_RETURN_NONE;
-} //sync_func()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *octane_devices_func(PyObject */*self*/, PyObject *args) {
-    static std::string sCurrentServerAddress;
-    static ::OctaneEngine::OctaneClient::RenderServerInfo serverInfo;
-
-    PyObject *ret;
-
-    PyObject *pyscene;
-    if(!PyArg_ParseTuple(args, "O", &pyscene)) {
-        ret = PyTuple_New(0);
-        return ret;
-    }
-
-    PointerRNA sceneptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
-    BL::Scene b_scene(sceneptr);
-
-    if(b_scene) {
-        PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
-        string server_addr = get_string(oct_scene, "server_address");
-        if(server_addr != sCurrentServerAddress) {
-            sCurrentServerAddress = server_addr;
-
-            if(!server_addr.length()) {
-                ret = PyTuple_New(0);
-                serverInfo.gpuNames.clear();
-            }
-            else {
-                ::OctaneEngine::OctaneClient *server = newnt ::OctaneEngine::OctaneClient;
-                if(server) {
-                    if(!server->connectToServer(server_addr.c_str())) {
-                        ret = PyTuple_New(0);
-                        serverInfo.gpuNames.clear();
-                    }
-                    else {
-                        serverInfo = server->getServerInfo();
-                        size_t num_gpus = serverInfo.gpuNames.size();
-                        ret = PyTuple_New(num_gpus);
-                        if(num_gpus) {
-                            std::string *cur_name = &serverInfo.gpuNames[0];
-                            for(size_t i = 0; i < num_gpus; ++i) PyTuple_SET_ITEM(ret, i, PyUnicode_FromString(cur_name[i].c_str()));
-                        }
-                    }
-                    delete server;
-                }
-                else {
-                    ret = PyTuple_New(0);
-                    serverInfo.gpuNames.clear();
-                }
-            }
-        }
-        else {
-            size_t num_gpus = serverInfo.gpuNames.size();
-            ret = PyTuple_New(num_gpus);
-            if(num_gpus) {
-                std::string *cur_name = &serverInfo.gpuNames[0];
-                for(size_t i = 0; i < num_gpus; ++i) PyTuple_SET_ITEM(ret, i, PyUnicode_FromString(cur_name[i].c_str()));
-            }
-        }
-    }
-    else ret = PyTuple_New(0);
-
-    return ret;
-} //octane_devices_func()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static bool object_is_mesh(BL::Object &b_ob) {
-    BL::ID b_ob_data = b_ob.data();
-
-    return (b_ob_data && (b_ob_data.is_a(&RNA_Mesh)
-            || b_ob_data.is_a(&RNA_Curve)
-            || b_ob_data.is_a(&RNA_MetaBall)));
-} //object_is_mesh()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *set_meshes_type_func(PyObject *self, PyObject *args) {
-    PyObject *pydata, *pytype;
-
-    if(!PyArg_ParseTuple(args, "OO", &pydata, &pytype)) return NULL;
-
-    PointerRNA dataptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pydata), &dataptr);
-    BL::BlendData b_data(dataptr);
-
-    long int type = PyLong_AsLong(pytype);
-
-    Py_BEGIN_ALLOW_THREADS
-
-    BL::BlendData::objects_iterator b_ob;
-    for(b_data.objects.begin(b_ob); b_ob != b_data.objects.end(); ++b_ob) {
-        BL::Object cur_object(*b_ob);
-        if(object_is_mesh(cur_object)) {
-            if(cur_object.select()) {
-                BL::Mesh cur_mesh(cur_object.data());
-                PointerRNA oct_mesh = RNA_pointer_get(&cur_mesh.ptr, "octane");
-                RNA_enum_set(&oct_mesh, "mesh_type", type);
-            }
-        }
-        //else if(object_is_light(*b_ob)) {
-        //}
-    }
-
-    Py_END_ALLOW_THREADS
-
-    Py_RETURN_NONE;
-} //set_meshes_type_func()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static PyObject *activate_func(PyObject *self, PyObject *args) {
-    PyObject *pyscene;
-
-    if(!PyArg_ParseTuple(args, "O", &pyscene))
-        return PyBool_FromLong(0);
-
-    // RNA
-    PointerRNA sceneptr;
-    RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
-    BL::Scene scene(sceneptr);
-
-    bool ret;
-
-    Py_BEGIN_ALLOW_THREADS
-
-    ret = BlenderSession::activate(scene);
-
-    Py_END_ALLOW_THREADS
-
-    return PyBool_FromLong(ret ? 1 : 0);
-} //activate_func()
-
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static PyMethodDef methods[] = {
-    {"init",                init_func,              METH_VARARGS,   ""},
-    {"create",              create_func,            METH_VARARGS,   ""},
-    {"export_ready",        export_ready_func,      METH_NOARGS,    ""},
-    {"export",              export_func,            METH_VARARGS,   ""},
-    {"free",                free_func,              METH_O,         ""},
-    {"render",              render_func,            METH_O,         ""},
-    {"draw",                draw_func,              METH_VARARGS,   ""},
-    {"sync",                sync_func,              METH_O,         ""},
-    {"reset",               reset_func,             METH_VARARGS,   ""},
-    {"reload",              reload_func,            METH_O,         ""},
-    {"octane_devices",      octane_devices_func,    METH_VARARGS,   ""},
-    {"set_meshes_type",     set_meshes_type_func,   METH_VARARGS,   ""},
-    {"activate",            activate_func,          METH_VARARGS,   ""},
+    {"init", init_func, METH_VARARGS, ""},
+    {"exit", exit_func, METH_VARARGS, ""},
+    {"create", create_func, METH_VARARGS, ""},
+    {"free", free_func, METH_O, ""},
+    {"render", render_func, METH_VARARGS, ""},
+    //{"bake", bake_func, METH_VARARGS, ""},
+    {"draw", draw_func, METH_VARARGS, ""},
+    {"sync", sync_func, METH_VARARGS, ""},
+    {"reset", reset_func, METH_VARARGS, ""},
+    {"update_octane_localdb", update_octane_localdb_func, METH_VARARGS, ""},
+    {"update_octane_server_address", update_octane_server_address_func, METH_VARARGS, ""},
+    {"activate", activate_func, METH_VARARGS, ""},
+    {"command_to_octane", command_to_octane_func, METH_VARARGS, ""},
+    {"osl_compile", osl_compile_func, METH_VARARGS, ""},
+    {"osl_update_node", osl_update_node_func, METH_VARARGS, ""},
+    {"export", export_func, METH_VARARGS, ""},
+    {"export_localdb", export_localdb_func, METH_VARARGS, ""},
+    {"heart_beat", heart_beat_func, METH_VARARGS, ""},
+    {"get_octanedb", get_octanedb_func, METH_VARARGS, ""},
+    {"set_octane_params", set_octane_params_func, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL},
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
+//
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static struct PyModuleDef module = {
-    PyModuleDef_HEAD_INIT,
-    "_octane",
-    "Blender OctaneRender integration",
-    -1,
-    methods,
-    NULL, NULL, NULL, NULL
-};
-
+static struct PyModuleDef module = {PyModuleDef_HEAD_INIT,
+                                    "_octane",
+                                    "Blender OctaneRender integration",
+                                    -1,
+                                    methods,
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    NULL};
 
 OCT_NAMESPACE_END
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void *OCT_python_module_init() {
-    PyObject *mod = PyModule_Create(&oct::module);
-    return (void*)mod;
+void *OCT_python_module_init()
+{
+  PyObject *mod = PyModule_Create(&oct::module);
+  return (void *)mod;
 }
 
+void OCT_Rlease_API()
+{
+  if (G.release_octane_license_after_exiting) {
+    oct::BlenderSession::activate_license(false);
+  }
+}

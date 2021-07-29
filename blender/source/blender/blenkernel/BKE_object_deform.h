@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,16 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BKE_OBJECT_DEFORM_H__
 #define __BKE_OBJECT_DEFORM_H__
 
-/** \file BKE_object_deform.h
+/** \file
  * \ingroup bke
  * \brief Functions for dealing with objects and deform verts,
  *        used by painting and tools.
@@ -33,9 +27,9 @@
 extern "C" {
 #endif
 
-struct Object;
 struct ID;
 struct MDeformVert;
+struct Object;
 struct bDeformGroup;
 
 /* General vgroup operations */
@@ -45,42 +39,51 @@ bool BKE_object_defgroup_array_get(struct ID *id, struct MDeformVert **dvert_arr
 
 struct bDeformGroup *BKE_object_defgroup_add(struct Object *ob);
 struct bDeformGroup *BKE_object_defgroup_add_name(struct Object *ob, const char *name);
-struct MDeformVert  *BKE_object_defgroup_data_create(struct ID *id);
+struct MDeformVert *BKE_object_defgroup_data_create(struct ID *id);
 
-bool BKE_object_defgroup_clear(struct Object *ob, struct bDeformGroup *dg, const bool use_selection);
+bool BKE_object_defgroup_clear(struct Object *ob,
+                               struct bDeformGroup *dg,
+                               const bool use_selection);
 bool BKE_object_defgroup_clear_all(struct Object *ob, const bool use_selection);
 
 void BKE_object_defgroup_remove(struct Object *ob, struct bDeformGroup *defgroup);
+void BKE_object_defgroup_remove_all_ex(struct Object *ob, bool only_unlocked);
 void BKE_object_defgroup_remove_all(struct Object *ob);
 
+int *BKE_object_defgroup_index_map_create(struct Object *ob_src,
+                                          struct Object *ob_dst,
+                                          int *r_map_len);
+void BKE_object_defgroup_index_map_apply(struct MDeformVert *dvert,
+                                         int dvert_len,
+                                         const int *map,
+                                         int map_len);
 
 /* Select helpers */
 enum eVGroupSelect;
-bool *BKE_object_defgroup_subset_from_select_type(
-        struct Object *ob, enum eVGroupSelect subset_type, int *r_defgroup_tot, int *r_subset_count);
-void BKE_object_defgroup_subset_to_index_array(
-        const bool *defgroup_validmap, const int defgroup_tot, int *r_defgroup_subset_map);
-
+bool *BKE_object_defgroup_subset_from_select_type(struct Object *ob,
+                                                  enum eVGroupSelect subset_type,
+                                                  int *r_defgroup_tot,
+                                                  int *r_subset_count);
+void BKE_object_defgroup_subset_to_index_array(const bool *defgroup_validmap,
+                                               const int defgroup_tot,
+                                               int *r_defgroup_subset_map);
 
 /* ********** */
 
 bool *BKE_object_defgroup_lock_flags_get(struct Object *ob, const int defbase_tot);
 bool *BKE_object_defgroup_validmap_get(struct Object *ob, const int defbase_tot);
-bool *BKE_object_defgroup_selected_get(struct Object *ob, int defbase_tot, int *r_dg_flags_sel_tot);
+bool *BKE_object_defgroup_selected_get(struct Object *ob,
+                                       int defbase_tot,
+                                       int *r_dg_flags_sel_tot);
 
-void BKE_object_defgroup_mirror_selection(
-        struct Object *ob, int defbase_tot, const bool *selection,
-        bool *dg_flags_sel, int *r_dg_flags_sel_tot);
+void BKE_object_defgroup_mirror_selection(struct Object *ob,
+                                          int defbase_tot,
+                                          const bool *selection,
+                                          bool *dg_flags_sel,
+                                          int *r_dg_flags_sel_tot);
 
 #ifdef __cplusplus
 }
 #endif
 
-/* Select helpers */
-bool *BKE_objdef_vgroup_subset_from_select_type(
-        struct Object *ob, enum eVGroupSelect subset_type, int *r_vgroup_tot, int *r_subset_count);
-void BKE_objdef_vgroup_subset_to_index_array(
-        const bool *vgroup_validmap, const int vgroup_tot, int *r_vgroup_subset_map);
-
-
-#endif  /* __BKE_OBJECT_DEFORM_H__ */
+#endif /* __BKE_OBJECT_DEFORM_H__ */

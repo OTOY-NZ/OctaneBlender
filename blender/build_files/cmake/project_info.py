@@ -16,8 +16,6 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# Contributor(s): Campbell Barton, M.G. Kishalmi
-#
 # ***** END GPL LICENSE BLOCK *****
 
 # <pep8 compliant>
@@ -27,6 +25,9 @@ Module for accessing project file data for Blender.
 
 Before use, call init(cmake_build_dir).
 """
+
+# TODO: Use CMAKE_EXPORT_COMPILE_COMMANDS (compile_commands.json)
+# Instead of Eclipse project format.
 
 __all__ = (
     "SIMPLE_PROJECTFILE",
@@ -45,14 +46,22 @@ __all__ = (
 
 
 import sys
-if not sys.version.startswith("3"):
+if sys.version_info.major < 3:
     print("\nPython3.x needed, found %s.\nAborting!\n" %
           sys.version.partition(" ")[0])
     sys.exit(1)
 
 
+import subprocess
 import os
-from os.path import join, dirname, normpath, abspath, splitext, exists
+from os.path import (
+    abspath,
+    dirname,
+    exists,
+    join,
+    normpath,
+    splitext,
+)
 
 SOURCE_DIR = join(dirname(__file__), "..", "..")
 SOURCE_DIR = normpath(SOURCE_DIR)
@@ -84,10 +93,8 @@ def init(cmake_path):
 
 def source_list(path, filename_check=None):
     for dirpath, dirnames, filenames in os.walk(path):
-
-        # skip '.svn'
-        if dirpath.startswith("."):
-            continue
+        # skip '.git'
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
 
         for filename in filenames:
             filepath = join(dirpath, filename)
@@ -145,16 +152,16 @@ def cmake_advanced_info():
     def create_eclipse_project():
         print("CMAKE_DIR %r" % CMAKE_DIR)
         if sys.platform == "win32":
-            cmd = 'cmake "%s" -G"Eclipse CDT4 - MinGW Makefiles"' % CMAKE_DIR
+            raise Exception("Error: win32 is not supported")
         else:
             if make_exe_basename.startswith(("make", "gmake")):
-                cmd = 'cmake "%s" -G"Eclipse CDT4 - Unix Makefiles"' % CMAKE_DIR
+                cmd = ("cmake", CMAKE_DIR, "-GEclipse CDT4 - Unix Makefiles")
             elif make_exe_basename.startswith("ninja"):
-                cmd = 'cmake "%s" -G"Eclipse CDT4 - Ninja"' % CMAKE_DIR
+                cmd = ("cmake", CMAKE_DIR, "-GEclipse CDT4 - Ninja")
             else:
                 raise Exception("Unknown make program %r" % make_exe)
 
-        os.system(cmd)
+        subprocess.check_call(cmd)
         return join(CMAKE_DIR, ".cproject")
 
     includes = []

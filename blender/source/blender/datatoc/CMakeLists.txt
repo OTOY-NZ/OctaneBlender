@@ -13,16 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# Contributor(s): Campbell Barton.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 
 # -----------------------------------------------------------------------------
 # Build datatoc executable
 set(SRC
-	datatoc.c
+  datatoc.c
 )
 
 # SRC_DNA_INC is defined in the parent dir
@@ -33,32 +30,36 @@ add_executable(datatoc ${SRC})
 # Build datatoc_icon executable
 
 if(NOT WITH_HEADLESS)
-	set(SRC
-		datatoc_icon.c
-	)
 
-	if(WIN32)
-		include_directories(
-			../blenlib
-			../../../intern/utfconv
-		)
+  set(SRC
+    datatoc_icon.c
+  )
+  setup_platform_linker_flags()
+  if(WIN32)
+    include_directories(
+      ../blenlib
+      ../../../intern/utfconv
+    )
 
-		# for winstuff_dir.c
-		add_definitions(-DUSE_STANDALONE)
+    # for winstuff_dir.c
+    add_definitions(-DUSE_STANDALONE)
 
-		list(APPEND SRC
-			../blenlib/intern/winstuff_dir.c
-			../../../intern/utfconv/utfconv.c
-		)
+    list(APPEND SRC
+      ../blenlib/intern/winstuff_dir.c
+      ../../../intern/utfconv/utfconv.c
+    )
 
-		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PLATFORM_LINKFLAGS}")
-		set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${PLATFORM_LINKFLAGS_DEBUG}")
-	endif()
+  endif()
 
-	include_directories(${PNG_INCLUDE_DIRS})
-	link_directories(${PNG_LIBPATH} ${ZLIB_LIBPATH})
+  include_directories(${PNG_INCLUDE_DIRS})
+  link_directories(${PNG_LIBPATH} ${ZLIB_LIBPATH})
 
-	add_executable(datatoc_icon ${SRC})
+  add_executable(datatoc_icon ${SRC})
 
-	target_link_libraries(datatoc_icon ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
+  target_link_libraries(datatoc_icon ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
+  # PNG library uses pow() and floow(), so seems -lm is required for proper
+  # workign binary.
+  if(UNIX AND NOT APPLE)
+    target_link_libraries(datatoc_icon m)
+  endif()
 endif()

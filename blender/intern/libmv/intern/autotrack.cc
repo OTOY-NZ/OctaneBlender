@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #include "intern/autotrack.h"
@@ -80,6 +73,21 @@ void libmv_autoTrackAddMarker(libmv_AutoTrack* libmv_autotrack,
   Marker marker;
   libmv_apiMarkerToMarker(*libmv_marker, &marker);
   ((AutoTrack*) libmv_autotrack)->AddMarker(marker);
+}
+
+void libmv_autoTrackSetMarkers(libmv_AutoTrack* libmv_autotrack,
+                               const libmv_Marker* libmv_marker,
+                               size_t num_markers) {
+  if (num_markers == 0) {
+    // Early output.
+    return;
+  }
+  libmv::vector<Marker> markers;
+  markers.resize(num_markers);
+  for (size_t i = 0; i < num_markers; ++i) {
+    libmv_apiMarkerToMarker(libmv_marker[i], &markers[i]);
+  }
+  ((AutoTrack*) libmv_autotrack)->SetMarkers(&markers);
 }
 
 int libmv_autoTrackGetMarker(libmv_AutoTrack* libmv_autotrack,

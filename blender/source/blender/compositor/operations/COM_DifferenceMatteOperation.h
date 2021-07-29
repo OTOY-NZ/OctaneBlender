@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,39 +13,40 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
-#ifndef _COM_DifferenceMatteOperation_h
-#define _COM_DifferenceMatteOperation_h
+#ifndef __COM_DIFFERENCEMATTEOPERATION_H__
+#define __COM_DIFFERENCEMATTEOPERATION_H__
 #include "COM_MixOperation.h"
-
 
 /**
  * this program converts an input color to an output value.
  * it assumes we are in sRGB color space.
  */
 class DifferenceMatteOperation : public NodeOperation {
-private:
-	NodeChroma *m_settings;
-	SocketReader *m_inputImage1Program;
-	SocketReader *m_inputImage2Program;
-public:
-	/**
-	 * Default constructor
-	 */
-	DifferenceMatteOperation();
-	
-	/**
-	 * the inner loop of this program
-	 */
-	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	
-	void initExecution();
-	void deinitExecution();
-	
-	void setSettings(NodeChroma *nodeChroma) { this->m_settings = nodeChroma; }
+ private:
+  NodeChroma *m_settings;
+  SocketReader *m_inputImage1Program;
+  SocketReader *m_inputImage2Program;
+
+ public:
+  /**
+   * Default constructor
+   */
+  DifferenceMatteOperation();
+
+  /**
+   * the inner loop of this program
+   */
+  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+
+  void initExecution();
+  void deinitExecution();
+
+  void setSettings(NodeChroma *nodeChroma)
+  {
+    this->m_settings = nodeChroma;
+  }
 };
 #endif

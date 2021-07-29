@@ -19,15 +19,17 @@
 
 /* CPU Kernel Interface */
 
-#include "util_types.h"
+#include "util/util_types.h"
+#include "kernel/kernel_types.h"
 
 CCL_NAMESPACE_BEGIN
 
-#define KERNEL_NAME_JOIN(x, y, z) x ## _ ## y ## _ ## z
-#define KERNEL_NAME_EVAL(arch, name)  KERNEL_NAME_JOIN(kernel, arch, name)
+#define KERNEL_NAME_JOIN(x, y, z) x##_##y##_##z
+#define KERNEL_NAME_EVAL(arch, name) KERNEL_NAME_JOIN(kernel, arch, name)
 #define KERNEL_FUNCTION_FULL_NAME(name) KERNEL_NAME_EVAL(KERNEL_ARCH, name)
 
 struct KernelGlobals;
+struct KernelData;
 
 KernelGlobals *kernel_globals_create();
 void kernel_globals_free(KernelGlobals *kg);
@@ -36,44 +38,26 @@ void *kernel_osl_memory(KernelGlobals *kg);
 bool kernel_osl_use(KernelGlobals *kg);
 
 void kernel_const_copy(KernelGlobals *kg, const char *name, void *host, size_t size);
-void kernel_tex_copy(KernelGlobals *kg,
-                     const char *name,
-                     device_ptr mem,
-                     size_t width,
-                     size_t height,
-                     size_t depth,
-                     InterpolationType interpolation=INTERPOLATION_LINEAR,
-                     ExtensionType extension = EXTENSION_REPEAT);
+void kernel_tex_copy(KernelGlobals *kg, const char *name, void *mem, size_t size);
 
 #define KERNEL_ARCH cpu
-#include "kernels/cpu/kernel_cpu.h"
+#include "kernel/kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-#  define KERNEL_ARCH cpu_sse2
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_SSE2 */
+#define KERNEL_ARCH cpu_sse2
+#include "kernel/kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-#  define KERNEL_ARCH cpu_sse3
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_SSE2 */
+#define KERNEL_ARCH cpu_sse3
+#include "kernel/kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
-#  define KERNEL_ARCH cpu_sse41
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_SSE41 */
+#define KERNEL_ARCH cpu_sse41
+#include "kernel/kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-#  define KERNEL_ARCH cpu_avx
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_AVX */
+#define KERNEL_ARCH cpu_avx
+#include "kernel/kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-#  define KERNEL_ARCH cpu_avx2
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_AVX2 */
+#define KERNEL_ARCH cpu_avx2
+#include "kernel/kernels/cpu/kernel_cpu.h"
 
 CCL_NAMESPACE_END
 
 #endif /* __KERNEL_H__ */
-

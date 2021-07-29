@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,29 +13,34 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
-#ifndef _COM_SplitOperation_h
-#define _COM_SplitOperation_h
+#ifndef __COM_SPLITOPERATION_H__
+#define __COM_SPLITOPERATION_H__
 #include "COM_NodeOperation.h"
 
 class SplitOperation : public NodeOperation {
-private:
-	SocketReader *m_image1Input;
-	SocketReader *m_image2Input;
+ private:
+  SocketReader *m_image1Input;
+  SocketReader *m_image2Input;
 
-	float m_splitPercentage;
-	bool m_xSplit;
-public:
-	SplitOperation();
-	void initExecution();
-	void deinitExecution();
-	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
-	void setSplitPercentage(float splitPercentage) { this->m_splitPercentage = splitPercentage; }
-	void setXSplit(bool xsplit) { this->m_xSplit = xsplit; }
+  float m_splitPercentage;
+  bool m_xSplit;
+
+ public:
+  SplitOperation();
+  void initExecution();
+  void deinitExecution();
+  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+  void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
+  void setSplitPercentage(float splitPercentage)
+  {
+    this->m_splitPercentage = splitPercentage;
+  }
+  void setXSplit(bool xsplit)
+  {
+    this->m_xSplit = xsplit;
+  }
 };
 #endif

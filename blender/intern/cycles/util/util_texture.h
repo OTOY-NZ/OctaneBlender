@@ -20,69 +20,84 @@
 CCL_NAMESPACE_BEGIN
 
 /* Texture limits on devices. */
-
-/* CPU */
-#define TEX_NUM_FLOAT4_CPU		1024
-#define TEX_NUM_BYTE4_CPU		1024
-#define TEX_NUM_HALF4_CPU		1024
-#define TEX_NUM_FLOAT_CPU		1024
-#define TEX_NUM_BYTE_CPU		1024
-#define TEX_NUM_HALF_CPU		1024
-#define TEX_START_FLOAT4_CPU	0
-#define TEX_START_BYTE4_CPU		TEX_NUM_FLOAT4_CPU
-#define TEX_START_HALF4_CPU		(TEX_NUM_FLOAT4_CPU + TEX_NUM_BYTE4_CPU)
-#define TEX_START_FLOAT_CPU		(TEX_NUM_FLOAT4_CPU + TEX_NUM_BYTE4_CPU + TEX_NUM_HALF4_CPU)
-#define TEX_START_BYTE_CPU		(TEX_NUM_FLOAT4_CPU + TEX_NUM_BYTE4_CPU + TEX_NUM_HALF4_CPU + TEX_NUM_FLOAT_CPU)
-#define TEX_START_HALF_CPU		(TEX_NUM_FLOAT4_CPU + TEX_NUM_BYTE4_CPU + TEX_NUM_HALF4_CPU + TEX_NUM_FLOAT_CPU + TEX_NUM_BYTE_CPU)
-
-/* CUDA (Geforce 4xx and 5xx) */
-#define TEX_NUM_FLOAT4_CUDA		5
-#define TEX_NUM_BYTE4_CUDA		85
-#define TEX_NUM_HALF4_CUDA		0
-#define TEX_NUM_FLOAT_CUDA		0
-#define TEX_NUM_BYTE_CUDA		0
-#define TEX_NUM_HALF_CUDA		0
-#define TEX_START_FLOAT4_CUDA	0
-#define TEX_START_BYTE4_CUDA	TEX_NUM_FLOAT4_CUDA
-#define TEX_START_HALF4_CUDA	(TEX_NUM_FLOAT4_CUDA + TEX_NUM_BYTE4_CUDA)
-#define TEX_START_FLOAT_CUDA	(TEX_NUM_FLOAT4_CUDA + TEX_NUM_BYTE4_CUDA + TEX_NUM_HALF4_CUDA)
-#define TEX_START_BYTE_CUDA		(TEX_NUM_FLOAT4_CUDA + TEX_NUM_BYTE4_CUDA + TEX_NUM_HALF4_CUDA + TEX_NUM_FLOAT_CUDA)
-#define TEX_START_HALF_CUDA		(TEX_NUM_FLOAT4_CUDA + TEX_NUM_BYTE4_CUDA + TEX_NUM_HALF4_CUDA + TEX_NUM_FLOAT_CUDA + TEX_NUM_BYTE_CUDA)
-
-/* CUDA (Kepler, Geforce 6xx and above) */
-#define TEX_NUM_FLOAT4_CUDA_KEPLER		1024
-#define TEX_NUM_BYTE4_CUDA_KEPLER		1024
-#define TEX_NUM_HALF4_CUDA_KEPLER		1024
-#define TEX_NUM_FLOAT_CUDA_KEPLER		1024
-#define TEX_NUM_BYTE_CUDA_KEPLER		1024
-#define TEX_NUM_HALF_CUDA_KEPLER		1024
-#define TEX_START_FLOAT4_CUDA_KEPLER	0
-#define TEX_START_BYTE4_CUDA_KEPLER		TEX_NUM_FLOAT4_CUDA_KEPLER
-#define TEX_START_HALF4_CUDA_KEPLER		(TEX_NUM_FLOAT4_CUDA_KEPLER + TEX_NUM_BYTE4_CUDA_KEPLER)
-#define TEX_START_FLOAT_CUDA_KEPLER		(TEX_NUM_FLOAT4_CUDA_KEPLER + TEX_NUM_BYTE4_CUDA_KEPLER + TEX_NUM_HALF4_CUDA_KEPLER)
-#define TEX_START_BYTE_CUDA_KEPLER		(TEX_NUM_FLOAT4_CUDA_KEPLER + TEX_NUM_BYTE4_CUDA_KEPLER + TEX_NUM_HALF4_CUDA_KEPLER + TEX_NUM_FLOAT_CUDA_KEPLER)
-#define TEX_START_HALF_CUDA_KEPLER		(TEX_NUM_FLOAT4_CUDA_KEPLER + TEX_NUM_BYTE4_CUDA_KEPLER + TEX_NUM_HALF4_CUDA_KEPLER + TEX_NUM_FLOAT_CUDA_KEPLER + TEX_NUM_BYTE_CUDA_KEPLER)
-
-/* OpenCL */
-#define TEX_NUM_FLOAT4_OPENCL	1024
-#define TEX_NUM_BYTE4_OPENCL	1024
-#define TEX_NUM_HALF4_OPENCL	0
-#define TEX_NUM_FLOAT_OPENCL	1024
-#define TEX_NUM_BYTE_OPENCL		1024
-#define TEX_NUM_HALF_OPENCL		0
-#define TEX_START_FLOAT4_OPENCL	0
-#define TEX_START_BYTE4_OPENCL	TEX_NUM_FLOAT4_OPENCL
-#define TEX_START_HALF4_OPENCL	(TEX_NUM_FLOAT4_OPENCL + TEX_NUM_BYTE4_OPENCL)
-#define TEX_START_FLOAT_OPENCL	(TEX_NUM_FLOAT4_OPENCL + TEX_NUM_BYTE4_OPENCL + TEX_NUM_HALF4_OPENCL)
-#define TEX_START_BYTE_OPENCL	(TEX_NUM_FLOAT4_OPENCL + TEX_NUM_BYTE4_OPENCL + TEX_NUM_HALF4_OPENCL + TEX_NUM_FLOAT_OPENCL)
-#define TEX_START_HALF_OPENCL	(TEX_NUM_FLOAT4_OPENCL + TEX_NUM_BYTE4_OPENCL + TEX_NUM_HALF4_OPENCL + TEX_NUM_FLOAT_OPENCL + TEX_NUM_BYTE_OPENCL)
-
+#define TEX_NUM_MAX (INT_MAX >> 4)
 
 /* Color to use when textures are not found. */
 #define TEX_IMAGE_MISSING_R 1
 #define TEX_IMAGE_MISSING_G 0
 #define TEX_IMAGE_MISSING_B 1
 #define TEX_IMAGE_MISSING_A 1
+
+/* Texture type. */
+#define kernel_tex_type(tex) (tex & IMAGE_DATA_TYPE_MASK)
+
+/* Interpolation types for textures
+ * cuda also use texture space to store other objects */
+typedef enum InterpolationType {
+  INTERPOLATION_NONE = -1,
+  INTERPOLATION_LINEAR = 0,
+  INTERPOLATION_CLOSEST = 1,
+  INTERPOLATION_CUBIC = 2,
+  INTERPOLATION_SMART = 3,
+
+  INTERPOLATION_NUM_TYPES,
+} InterpolationType;
+
+/* Texture types
+ * Since we store the type in the lower bits of a flat index,
+ * the shift and bit mask constant below need to be kept in sync. */
+typedef enum ImageDataType {
+  IMAGE_DATA_TYPE_FLOAT4 = 0,
+  IMAGE_DATA_TYPE_BYTE4 = 1,
+  IMAGE_DATA_TYPE_HALF4 = 2,
+  IMAGE_DATA_TYPE_FLOAT = 3,
+  IMAGE_DATA_TYPE_BYTE = 4,
+  IMAGE_DATA_TYPE_HALF = 5,
+  IMAGE_DATA_TYPE_USHORT4 = 6,
+  IMAGE_DATA_TYPE_USHORT = 7,
+
+  IMAGE_DATA_NUM_TYPES
+} ImageDataType;
+
+/* Alpha types
+ * How to treat alpha in images. */
+typedef enum ImageAlphaType {
+  IMAGE_ALPHA_UNASSOCIATED = 0,
+  IMAGE_ALPHA_ASSOCIATED = 1,
+  IMAGE_ALPHA_CHANNEL_PACKED = 2,
+  IMAGE_ALPHA_IGNORE = 3,
+  IMAGE_ALPHA_AUTO = 4,
+
+  IMAGE_ALPHA_NUM_TYPES,
+} ImageAlphaType;
+
+#define IMAGE_DATA_TYPE_SHIFT 3
+#define IMAGE_DATA_TYPE_MASK 0x7
+
+/* Extension types for textures.
+ *
+ * Defines how the image is extrapolated past its original bounds. */
+typedef enum ExtensionType {
+  /* Cause the image to repeat horizontally and vertically. */
+  EXTENSION_REPEAT = 0,
+  /* Extend by repeating edge pixels of the image. */
+  EXTENSION_EXTEND = 1,
+  /* Clip to image size and set exterior pixels as transparent. */
+  EXTENSION_CLIP = 2,
+
+  EXTENSION_NUM_TYPES,
+} ExtensionType;
+
+typedef struct TextureInfo {
+  /* Pointer, offset or texture depending on device. */
+  uint64_t data;
+  /* Buffer number for OpenCL. */
+  uint cl_buffer;
+  /* Interpolation and extension type. */
+  uint interpolation, extension;
+  /* Dimensions. */
+  uint width, height, depth;
+} TextureInfo;
 
 CCL_NAMESPACE_END
 

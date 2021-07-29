@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,29 +13,30 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
 #include "COM_SetSamplerOperation.h"
 
 SetSamplerOperation::SetSamplerOperation() : NodeOperation()
 {
-	this->addInputSocket(COM_DT_COLOR);
-	this->addOutputSocket(COM_DT_COLOR);
+  this->addInputSocket(COM_DT_COLOR);
+  this->addOutputSocket(COM_DT_COLOR);
 }
 
 void SetSamplerOperation::initExecution()
 {
-	this->m_reader = this->getInputSocketReader(0);
+  this->m_reader = this->getInputSocketReader(0);
 }
 void SetSamplerOperation::deinitExecution()
 {
-	this->m_reader = NULL;
+  this->m_reader = NULL;
 }
 
-void SetSamplerOperation::executePixelSampled(float output[4], float x, float y, PixelSampler /*sampler*/)
+void SetSamplerOperation::executePixelSampled(float output[4],
+                                              float x,
+                                              float y,
+                                              PixelSampler /*sampler*/)
 {
-	this->m_reader->readSampled(output, x, y, this->m_sampler);
+  this->m_reader->readSampled(output, x, y, this->m_sampler);
 }

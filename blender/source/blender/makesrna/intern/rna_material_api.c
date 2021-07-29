@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,10 @@
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/makesrna/intern/rna_material_api.c
- *  \ingroup RNA
+/** \file
+ * \ingroup RNA
  */
 
 #include <stdlib.h>
@@ -37,7 +30,7 @@
 
 #include "DNA_material_types.h"
 
-#include "rna_internal.h"  /* own include */
+#include "rna_internal.h" /* own include */
 
 #ifdef RNA_RUNTIME
 
@@ -45,9 +38,8 @@
 
 void RNA_api_material(StructRNA *UNUSED(srna))
 {
-	/* FunctionRNA *func; */
-	/* PropertyRNA *parm; */
+  /* FunctionRNA *func; */
+  /* PropertyRNA *parm; */
 }
 
 #endif
-

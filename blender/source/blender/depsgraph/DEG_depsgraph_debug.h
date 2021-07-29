@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,10 @@
  *
  * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Lukas Toenne
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/DEG_depsgraph_debug.h
- *  \ingroup depsgraph
+/** \file
+ * \ingroup depsgraph
  *
  * Public API for Querying and Filtering Depsgraph
  */
@@ -39,45 +32,23 @@
 extern "C" {
 #endif
 
-struct GHash;
-struct ID;
-
 struct Depsgraph;
-
-/* ************************************************ */
-/* Statistics */
-
-typedef struct DepsgraphStatsTimes {
-	float duration_last;
-} DepsgraphStatsTimes;
-
-typedef struct DepsgraphStatsComponent {
-	struct DepsgraphStatsComponent *next, *prev;
-	
-	char name[64];
-	DepsgraphStatsTimes times;
-} DepsgraphStatsComponent;
-
-typedef struct DepsgraphStatsID {
-	struct ID *id;
-	
-	DepsgraphStatsTimes times;
-	ListBase components;
-} DepsgraphStatsID;
-
-typedef struct DepsgraphStats {
-	struct GHash *id_stats;
-} DepsgraphStats;
-
-struct DepsgraphStats *DEG_stats(void);
-
-void DEG_stats_verify(void);
-
-struct DepsgraphStatsID *DEG_stats_id(struct ID *id);
+struct Scene;
+struct ViewLayer;
 
 /* ------------------------------------------------ */
 
-void DEG_stats_simple(const struct Depsgraph *graph, 
+/* NOTE: Those flags are same bitmask as G.debug_flags */
+
+void DEG_debug_flags_set(struct Depsgraph *depsgraph, int flags);
+int DEG_debug_flags_get(const struct Depsgraph *depsgraph);
+
+void DEG_debug_name_set(struct Depsgraph *depsgraph, const char *name);
+const char *DEG_debug_name_get(struct Depsgraph *depsgraph);
+
+/* ------------------------------------------------ */
+
+void DEG_stats_simple(const struct Depsgraph *graph,
                       size_t *r_outer,
                       size_t *r_operations,
                       size_t *r_relations);
@@ -85,18 +56,23 @@ void DEG_stats_simple(const struct Depsgraph *graph,
 /* ************************************************ */
 /* Diagram-Based Graph Debugging */
 
-void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream, const char *label, bool show_eval);
+void DEG_debug_relations_graphviz(const struct Depsgraph *graph, FILE *stream, const char *label);
+
+void DEG_debug_stats_gnuplot(const struct Depsgraph *graph,
+                             FILE *stream,
+                             const char *label,
+                             const char *output_filename);
 
 /* ************************************************ */
 
 /* Compare two dependency graphs. */
-bool DEG_debug_compare(const struct Depsgraph *graph1,
-                       const struct Depsgraph *graph2);
+bool DEG_debug_compare(const struct Depsgraph *graph1, const struct Depsgraph *graph2);
 
-/* Check that dependnecies in the graph are really up to date. */
-bool DEG_debug_scene_relations_validate(struct Main *bmain,
-                                        struct Scene *scene);
-
+/* Check that dependencies in the graph are really up to date. */
+bool DEG_debug_graph_relations_validate(struct Depsgraph *graph,
+                                        struct Main *bmain,
+                                        struct Scene *scene,
+                                        struct ViewLayer *view_layer);
 
 /* Perform consistency check on the graph. */
 bool DEG_debug_consistency_check(struct Depsgraph *graph);
@@ -105,4 +81,4 @@ bool DEG_debug_consistency_check(struct Depsgraph *graph);
 } /* extern "C" */
 #endif
 
-#endif  /* __DEG_DEPSGRAPH_DEBUG_H__ */
+#endif /* __DEG_DEPSGRAPH_DEBUG_H__ */

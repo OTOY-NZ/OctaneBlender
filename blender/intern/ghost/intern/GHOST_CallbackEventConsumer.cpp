@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,23 +15,14 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_CallbackEventConsumer.cpp
- *  \ingroup GHOST
+/** \file
+ * \ingroup GHOST
  */
-
 
 /**
  * Copyright (C) 2001 NaN Technologies B.V.
- * \author	Maarten Gribnau
- * \date	October 25, 2001
  */
 
 #include "GHOST_Debug.h"
@@ -43,12 +32,11 @@
 GHOST_CallbackEventConsumer::GHOST_CallbackEventConsumer(GHOST_EventCallbackProcPtr eventCallback,
                                                          GHOST_TUserDataPtr userData)
 {
-	m_eventCallback = eventCallback;
-	m_userData = userData;
+  m_eventCallback = eventCallback;
+  m_userData = userData;
 }
-
 
 bool GHOST_CallbackEventConsumer::processEvent(GHOST_IEvent *event)
 {
-	return m_eventCallback((GHOST_EventHandle)event, m_userData) != 0;
+  return m_eventCallback((GHOST_EventHandle)event, m_userData) != 0;
 }

@@ -15,481 +15,722 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-
-#include "mesh.h"
-#include "scene.h"
+#include "render/mesh.h"
+#include "render/scene.h"
 
 #include "blender_sync.h"
 #include "blender_util.h"
 
-#ifdef WIN32
-#   include "BLI_winstuff.h"
-#endif
-
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_depsgraph.h"
-
 #include "RNA_blender_cpp.h"
-#include "BKE_modifier.h"
 
 OCT_NAMESPACE_BEGIN
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Fill Octane mesh object with data
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void create_mesh(Scene *scene, BL::Object b_ob, Mesh *mesh, BL::Mesh b_mesh, PointerRNA* oct_mesh, const vector<uint>& used_shaders) {
-    int vert_cnt    = b_mesh.vertices.length();
-    int faces_cnt   = b_mesh.tessfaces.length();
-
-    if(vert_cnt <= 0 || faces_cnt <= 0) {
-        if(!mesh->empty) mesh->empty = true;
-        fprintf(stderr, "Octane: The mesh \"%s\" is empty\n", b_ob.data().name().c_str());
-        return;
-    }
-    else if(mesh->empty) mesh->empty = false;
-
-    mesh->points.resize(vert_cnt);
-    mesh->normals.resize(vert_cnt);
-    float3 *p_points    = &mesh->points[0];
-    float3 *p_normals   = &mesh->normals[0];
-
-	// Create vertices
-    unsigned long vert_idx = 0;
-	BL::Mesh::vertices_iterator v;
-	for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v, ++vert_idx) {
-        p_points[vert_idx]  = get_float3(v->co());
-        p_normals[vert_idx] = get_float3(v->normal());
-	}
-
-    // Check if UVs are present in this mesh
-    int uvs_cnt = 0;
-    BL::Mesh::tessface_uv_textures_iterator l;
-    BL::MeshTextureFaceLayer::data_iterator t;
-    for(b_mesh.tessface_uv_textures.begin(l); l != b_mesh.tessface_uv_textures.end(); ++l) {
-        if(!l->active_render()) continue;
-        for(l->data.begin(t); t != l->data.end(); ++t) {
-            ++uvs_cnt;
-        }
-    }
-
-    // Create faces
-	int         i = 0, k = 0, facesCnt = 0;
-    mesh->points_indices.resize(b_mesh.tessfaces.length() * 4);
-    mesh->uv_indices.resize(b_mesh.tessfaces.length() * 4);
-    mesh->vert_per_poly.resize(b_mesh.tessfaces.length());
-    mesh->poly_mat_index.resize(b_mesh.tessfaces.length());
-    mesh->poly_obj_index.resize(b_mesh.tessfaces.length());
-    int *points_indices = &mesh->points_indices[0];
-    int *uv_indices     = &mesh->uv_indices[0];
-    int *vert_per_poly  = &mesh->vert_per_poly[0];
-    int *poly_mat_index = &mesh->poly_mat_index[0];
-    int *poly_obj_index = &mesh->poly_obj_index[0];
-
-    Mesh::WindingOrder winding_order = static_cast<Mesh::WindingOrder>(RNA_enum_get(oct_mesh, "winding_order"));
-    if(winding_order == Mesh::CLOCKWISE) {
-        BL::Mesh::tessfaces_iterator f;
-	    for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f, ++k) {
-		    int4    vi      = get_int4(f->vertices_raw());
-		    int     n       = (vi[3] == 0) ? 3 : 4;
-		    int     mi      = clamp(f->material_index(), 0, used_shaders.size()-1);
-		    bool    smooth  = f->use_smooth();
-            facesCnt        += n;
-
-	        if(n == 4) {
-                points_indices[i]       = vi[0];
-                points_indices[i + 1]   = vi[1];
-                points_indices[i + 2]   = vi[2];
-                points_indices[i + 3]   = vi[3];
-
-                if(uvs_cnt > 0) {
-                    uv_indices[i]       = i;
-                    uv_indices[i + 1]   = i + 1;
-                    uv_indices[i + 2]   = i + 2;
-                    uv_indices[i + 3]   = i + 3;
-                }
-                else {
-                    uv_indices[i]       = 0;
-                    uv_indices[i + 1]   = 0;
-                    uv_indices[i + 2]   = 0;
-                    uv_indices[i + 3]   = 0;
-                }
-                i += 4;
-                vert_per_poly[k]    = n;
-                poly_mat_index[k]   = mi;
-            } //if(n == 4)
-            else {
-                points_indices[i]       = vi[0];
-                points_indices[i + 1]   = vi[1];
-                points_indices[i + 2]   = vi[2];
-
-                if(uvs_cnt > 0) {
-                    uv_indices[i]       = i;
-                    uv_indices[i + 1]   = i + 1;
-                    uv_indices[i + 2]   = i + 2;
-                }
-                else {
-                    uv_indices[i]       = 0;
-                    uv_indices[i + 1]   = 0;
-                    uv_indices[i + 2]   = 0;
-                }
-                vert_per_poly[k]    = 3;
-                poly_mat_index[k]   = mi;
-                i += 3;
-            } //if(n == 4), else
-            poly_obj_index[k] = 0;
-	    } //for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f)
+static void add_face(Mesh *mesh,
+                     Mesh::WindingOrder winding_order,
+                     const vector<int> &vi,
+                     int material_idx,
+                     bool with_uv)
+{
+  int current_index = mesh->octane_mesh.oMeshData.iPointIndices.size();
+  for (int i = 0, j = vi.size() - 1; i < vi.size(); ++i, --j) {
+    if (winding_order == Mesh::CLOCKWISE) {
+      mesh->octane_mesh.oMeshData.iPointIndices.push_back(vi[i]);
     }
     else {
-        BL::Mesh::tessfaces_iterator f;
-	    for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f, ++k) {
-		    int4    vi      = get_int4(f->vertices_raw());
-		    int     n       = (vi[3] == 0) ? 3 : 4;
-		    int     mi      = clamp(f->material_index(), 0, used_shaders.size()-1);
-		    bool    smooth  = f->use_smooth();
-            facesCnt        += n;
-
-	        if(n == 4) {
-                points_indices[i]       = vi[3];
-                points_indices[i + 1]   = vi[2];
-                points_indices[i + 2]   = vi[1];
-                points_indices[i + 3]   = vi[0];
-
-                if(uvs_cnt > 0) {
-                    uv_indices[i]       = i + 3;
-                    uv_indices[i + 1]   = i + 2;
-                    uv_indices[i + 2]   = i + 1;
-                    uv_indices[i + 3]   = i;
-                }
-                else {
-                    uv_indices[i]       = 0;
-                    uv_indices[i + 1]   = 0;
-                    uv_indices[i + 2]   = 0;
-                    uv_indices[i + 3]   = 0;
-                }
-                i += 4;
-                vert_per_poly[k]    = n;
-                poly_mat_index[k]   = mi;
-            } //if(n == 4)
-            else {
-                points_indices[i]       = vi[2];
-                points_indices[i + 1]   = vi[1];
-                points_indices[i + 2]   = vi[0];
-
-                if(uvs_cnt > 0) {
-                    uv_indices[i]       = i + 2;
-                    uv_indices[i + 1]   = i + 1;
-                    uv_indices[i + 2]   = i;
-                }
-                else {
-                    uv_indices[i]       = 0;
-                    uv_indices[i + 1]   = 0;
-                    uv_indices[i + 2]   = 0;
-                }
-                vert_per_poly[k]    = 3;
-                poly_mat_index[k]   = mi;
-                i += 3;
-            } //if(n == 4), else
-            poly_obj_index[k] = 0;
-	    } //for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f)
+      mesh->octane_mesh.oMeshData.iPointIndices.push_back(vi[j]);
     }
-    mesh->points_indices.resize(i);
-    mesh->uv_indices.resize(i);
+    if (with_uv) {
+      if (winding_order == Mesh::CLOCKWISE) {
+        mesh->octane_mesh.oMeshData.iUVIndices.push_back(current_index + i);
+      }
+      else {
+        mesh->octane_mesh.oMeshData.iUVIndices.push_back(current_index + j);
+      }
+    }
+  }
+  mesh->octane_mesh.oMeshData.iVertexPerPoly.push_back(vi.size());
+  mesh->octane_mesh.oMeshData.iPolyMaterialIndex.push_back(material_idx);
+  mesh->octane_mesh.oMeshData.iPolyObjectIndex.push_back(0);
+}
 
-    if(uvs_cnt <= 0) mesh->uvs.push_back(make_float3(0, 0, 0));
+static void create_mesh(Scene *scene,
+                        BL::Object &b_ob,
+                        Mesh *mesh,
+                        BL::Mesh &b_mesh,
+                        const std::vector<Shader *> &used_shaders,
+                        Mesh::WindingOrder winding_order,
+                        bool subdivision = false,
+                        bool subdivide_uvs = true)
+{
+  mesh->octane_mesh.oMeshData.bUpdate = true;
+  /* count vertices and faces */
+  int numverts = b_mesh.vertices.length();
+  int numfaces = (!subdivision) ? b_mesh.loop_triangles.length() : b_mesh.polygons.length();
+  int numtris = 0;
+  int numcorners = 0;
+  int numngons = 0;
+  bool use_loop_normals = b_mesh.use_auto_smooth() &&
+                          (mesh->subdivision_type != Mesh::SUBDIVISION_CATMULL_CLARK);
+  bool use_uv = numfaces != 0 && b_mesh.uv_layers.length() != 0;
+
+  if (numverts == 0 || numfaces == 0) {
+    if (!mesh->empty)
+      mesh->empty = true;
+    fprintf(stderr, "Octane: The mesh \"%s\" is empty\n", b_ob.data().name().c_str());
+    return;
+  }
+
+  if (!subdivision) {
+    numtris = numfaces;
+  }
+  else {
+    BL::Mesh::polygons_iterator p;
+    for (b_mesh.polygons.begin(p); p != b_mesh.polygons.end(); ++p) {
+      numngons += (p->loop_total() == 4) ? 0 : 1;
+      numcorners += p->loop_total();
+    }
+  }
+
+  mesh->empty = false;
+  mesh->octane_mesh.oMeshOpenSubdivision.bUpdate = true;
+  mesh->octane_mesh.oMeshData.iSamplesNum = 1;
+  mesh->octane_mesh.oMeshData.f3Points.reserve(numverts);
+  mesh->octane_mesh.oMeshData.f3Normals.reserve(numverts);
+  mesh->octane_mesh.oMeshData.iVertexPerPoly.reserve(numfaces);
+  mesh->octane_mesh.oMeshData.iPolyMaterialIndex.reserve(numfaces);
+  mesh->octane_mesh.oMeshData.iPolyObjectIndex.reserve(numfaces);
+
+  int max_numindices = numfaces * 4;
+  mesh->octane_mesh.oMeshData.iPointIndices.reserve(max_numindices);
+  mesh->octane_mesh.oMeshData.iUVIndices.reserve(max_numindices);
+
+  /* create vertex coordinates and normals */
+  BL::Mesh::vertices_iterator v;
+  for (b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v) {
+    mesh->octane_mesh.oMeshData.f3Points.push_back(get_octane_float3(v->co()));
+    mesh->octane_mesh.oMeshData.f3Normals.push_back(get_octane_float3(v->normal()));
+  }
+  mesh->octane_mesh.oMeshData.oMotionf3Points[0] = mesh->octane_mesh.oMeshData.f3Points;
+
+  /* create faces */
+  if (!subdivision) {
+    BL::Mesh::loop_triangles_iterator t;
+    vector<int> vi3;
+    vi3.resize(3);
+
+    for (b_mesh.loop_triangles.begin(t); t != b_mesh.loop_triangles.end(); ++t) {
+      BL::MeshPolygon p = b_mesh.polygons[t->polygon_index()];
+      int3 vi = get_int3(t->vertices());
+      for (int i = 0; i < 3; ++i) {
+        vi3[i] = vi[i];
+      }
+
+      int shader = clamp(p.material_index(), 0, used_shaders.size() - 1);
+      bool smooth = p.use_smooth() || use_loop_normals;
+
+      if (use_loop_normals) {
+        BL::Array<float, 9> loop_normals = t->split_normals();
+        for (int i = 0; i < 3; i++) {
+          mesh->octane_mesh.oMeshData.f3Normals[vi[i]] = OctaneDataTransferObject::float_3(
+              loop_normals[i * 3], loop_normals[i * 3 + 1], loop_normals[i * 3 + 2]);
+        }
+      }
+
+      /* Create triangles.
+       *
+       * NOTE: Autosmooth is already taken care about.
+       */
+      add_face(mesh, winding_order, vi3, shader, use_uv);
+    }
+  }
+  else {
+    BL::Mesh::polygons_iterator p;
+    vector<int> vi;
+
+    for (b_mesh.polygons.begin(p); p != b_mesh.polygons.end(); ++p) {
+      int n = p->loop_total();
+      int shader = clamp(p->material_index(), 0, used_shaders.size() - 1);
+      bool smooth = p->use_smooth() || use_loop_normals;
+
+      vi.resize(n);
+      for (int i = 0; i < n; i++) {
+        /* NOTE: Autosmooth is already taken care about. */
+        vi[i] = b_mesh.loops[p->loop_start() + i].vertex_index();
+      }
+
+      /* create subd faces */
+      add_face(mesh, winding_order, vi, shader, use_uv);
+    }
+  }
+
+  mesh->octane_mesh.oMeshData.iNormalIndices = mesh->octane_mesh.oMeshData.iPointIndices;
+
+  /* create uvs */
+  unsigned long numindices = mesh->octane_mesh.oMeshData.iPointIndices.size();
+  mesh->octane_mesh.iCurrentActiveUVSetIdx = 0;
+  mesh->octane_mesh.oMeshData.f3CandidateUVs.resize(MAX_OCTANE_UV_SETS);
+  mesh->octane_mesh.oMeshData.iCandidateUVIndices.resize(MAX_OCTANE_UV_SETS);
+
+  if (use_uv) {
+    int candidate_uv_set_idx = 0;
+    BL::Mesh::uv_layers_iterator l;
+    for (b_mesh.uv_layers.begin(l); l != b_mesh.uv_layers.end(); ++l) {
+      if (candidate_uv_set_idx >= MAX_OCTANE_UV_SETS) {
+        break;
+      }
+
+      std::vector<OctaneDataTransferObject::float_3> &f3CandidateUV =
+          mesh->octane_mesh.oMeshData.f3CandidateUVs[candidate_uv_set_idx];
+      f3CandidateUV.clear();
+      f3CandidateUV.reserve(max_numindices);
+      if (!subdivision) {
+        BL::Mesh::loop_triangles_iterator t;
+        for (b_mesh.loop_triangles.begin(t); t != b_mesh.loop_triangles.end(); ++t) {
+          int3 li = get_int3(t->loops());
+          for (int j = 0; j < 3; ++j) {
+            f3CandidateUV.push_back(get_octane_float3(l->data[li[j]].uv()));
+          }
+        }
+      }
+      else {
+        BL::Mesh::polygons_iterator p;
+        for (b_mesh.polygons.begin(p); p != b_mesh.polygons.end(); ++p) {
+          int n = p->loop_total();
+          for (int j = 0; j < n; j++) {
+            f3CandidateUV.push_back(get_octane_float3(l->data[p->loop_start() + j].uv()));
+          }
+        }
+      }
+
+      if (l->active_render()) {
+        mesh->octane_mesh.iCurrentActiveUVSetIdx = candidate_uv_set_idx;
+        mesh->octane_mesh.oMeshData.f3UVs = f3CandidateUV;
+      }
+      mesh->octane_mesh.oMeshData.iCandidateUVIndices[candidate_uv_set_idx] =
+          mesh->octane_mesh.oMeshData.iUVIndices;
+      ++candidate_uv_set_idx;
+    }
+  }
+  else {
+    mesh->octane_mesh.oMeshData.f3UVs.push_back(OctaneDataTransferObject::float_3(0, 0, 0));
+    mesh->octane_mesh.oMeshData.iUVIndices = std::vector<int32_t>(numindices, 0);
+    for (int uv_set_idx = 0; uv_set_idx < MAX_OCTANE_UV_SETS; ++uv_set_idx) {
+      mesh->octane_mesh.oMeshData.f3CandidateUVs[uv_set_idx].push_back(
+          OctaneDataTransferObject::float_3(0, 0, 0));
+      mesh->octane_mesh.oMeshData.iCandidateUVIndices[uv_set_idx] = std::vector<int32_t>(
+          numindices, 0);
+    }
+  }
+
+  /* create vertex float data */
+  int vertex_float_count = std::min(MAX_OCTANE_FLOAT_VERTEX_SETS, b_ob.vertex_groups.length());
+  std::unordered_map<int, int> vertex_group_index_map;
+  mesh->octane_mesh.oMeshData.fVertexFloats.clear();
+  for (int vertex_group_idx = 0; vertex_group_idx < vertex_float_count; ++vertex_group_idx) {
+    mesh->octane_mesh.oMeshData.sVertexFloatNames.emplace_back(
+        b_ob.vertex_groups[vertex_group_idx].name());
+    mesh->octane_mesh.oMeshData.fVertexFloats.emplace_back(std::vector<float>());
+    mesh->octane_mesh.oMeshData.fVertexFloats[vertex_group_idx].resize(numverts, 0);
+    vertex_group_index_map[b_ob.vertex_groups[vertex_group_idx].index()] = vertex_group_idx;
+  }
+  unsigned long vert_idx = 0;
+  for (b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v, ++vert_idx) {
+    for (int cur_group_idx = 0; cur_group_idx < v->groups.length(); ++cur_group_idx) {
+      int group_id = v->groups[cur_group_idx].group();
+      float weight = v->groups[cur_group_idx].weight();
+      if (vertex_group_index_map.find(group_id) != vertex_group_index_map.end()) {
+        mesh->octane_mesh.oMeshData.fVertexFloats[vertex_group_index_map[group_id]][vert_idx] =
+            weight;
+      }
+    }
+  }
+
+  /* create vertex color data */
+  int vertex_colors_count = std::min(MAX_OCTANE_COLOR_VERTEX_SETS, b_mesh.vertex_colors.length());
+  int tessface_vertex_colors_count = b_mesh.vertex_colors.length();
+  int inactive_count = MAX_OCTANE_COLOR_VERTEX_SETS - 1;
+  BL::Mesh::vertex_colors_iterator l;
+  for (b_mesh.vertex_colors.begin(l); l != b_mesh.vertex_colors.end(); ++l) {
+    if (inactive_count == 0 && !l->active_render())
+      continue;
+    if (!l->active_render())
+      inactive_count--;
+    mesh->octane_mesh.oMeshData.sVertexColorNames.emplace_back(l->name());
+    mesh->octane_mesh.oMeshData.f3VertexColors.emplace_back(
+        std::vector<OctaneDataTransferObject::float_3>());
+    std::vector<OctaneDataTransferObject::float_3> &colorVertex =
+        mesh->octane_mesh.oMeshData
+            .f3VertexColors[mesh->octane_mesh.oMeshData.f3VertexColors.size() - 1];
+    std::vector<int32_t> &iPointIndices = mesh->octane_mesh.oMeshData.iPointIndices;
+    colorVertex.resize(numverts);
+    size_t currentPointIdx = 0;
+    if (!subdivision) {
+      BL::Mesh::loop_triangles_iterator t;
+      for (b_mesh.loop_triangles.begin(t); t != b_mesh.loop_triangles.end(); ++t) {
+        int3 li = get_int3(t->loops());
+        for (int j = 0, k = 2; j < 3; ++j, --k) {
+          int indices_idx = li[winding_order == Mesh::CLOCKWISE ? j : k];
+          int vertices_idx = iPointIndices[currentPointIdx++];
+          colorVertex[vertices_idx] = get_octane_float3(l->data[indices_idx].color());
+        }
+      }
+    }
     else {
-        mesh->uvs.resize(uvs_cnt * 4);
-        float3 *uvs = &mesh->uvs[0];
-        uvs_cnt = 0;
-        for(b_mesh.tessface_uv_textures.begin(l); l != b_mesh.tessface_uv_textures.end(); ++l) {
-            if(!l->active_render()) continue;
-
-            i = 0;
-            for(l->data.begin(t); t != l->data.end(); ++t, ++i) {
-                uvs[uvs_cnt++] = get_float3(t->uv1());
-                uvs[uvs_cnt++] = get_float3(t->uv2());
-                uvs[uvs_cnt++] = get_float3(t->uv3());
-                if(vert_per_poly[i] == 4) uvs[uvs_cnt++] = get_float3(t->uv4());
-            }
-            break;
+      BL::Mesh::polygons_iterator p;
+      for (b_mesh.polygons.begin(p); p != b_mesh.polygons.end(); ++p) {
+        int n = p->loop_total();
+        for (int j = 0, k = n - 1; j < n; j++, --k) {
+          int indices_idx = p->loop_start() + (winding_order == Mesh::CLOCKWISE ? j : k);
+          int vertices_idx = iPointIndices[currentPointIdx++];
+          colorVertex[vertices_idx] = get_octane_float3(l->data[indices_idx].color());
         }
-        mesh->uvs.resize(uvs_cnt);
+      }
     }
+    if (mesh->octane_mesh.oMeshData.sVertexColorNames.size() >= MAX_OCTANE_COLOR_VERTEX_SETS)
+      break;
+  }
+}
 
-    mesh->mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(oct_mesh, "mesh_type"));
+static void create_subd_mesh(Scene *scene,
+                             BL::Object &b_ob,
+                             Mesh *mesh,
+                             BL::Mesh &b_mesh,
+                             const std::vector<Shader *> &used_shaders,
+                             Mesh::WindingOrder winding_order)
+{
+  BL::SubsurfModifier subsurf_mod(b_ob.modifiers[b_ob.modifiers.length() - 1]);
+  bool subdivide_uvs = subsurf_mod.uv_smooth() != BL::SubsurfModifier::uv_smooth_NONE;
 
-	//// Create generated coordinates.
-    //// TODO: we should actually get the orco coordinates from modifiers, for now we use texspace loc/size which is available in the api.
-	//if(mesh->gen_coords) {
-	//	float3 loc = get_float3(b_mesh.texspace_location());
-	//	float3 size = get_float3(b_mesh.texspace_size());
+  create_mesh(scene, b_ob, mesh, b_mesh, used_shaders, winding_order, true, subdivide_uvs);
 
-	//	if(size.x != 0.0f) size.x = 0.5f/size.x;
-	//	if(size.y != 0.0f) size.y = 0.5f/size.y;
-	//	if(size.z != 0.0f) size.z = 0.5f/size.z;
+  mesh->octane_mesh.oMeshOpenSubdivision.bUpdate = true;
 
-	//	loc = loc*size - make_float3(0.5f, 0.5f, 0.5f);
+  /* export creases */
+  size_t num_creases = 0;
+  BL::Mesh::edges_iterator e;
 
-    //  mesh->points.resize(vert_cnt);
-    //  p_points = &mesh->gen_points[0];
-
-    //	i = 0;
-	//	for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v)
-	//		p_points[i++] = get_float3(v->undeformed_co()) * size - loc;
-	//}
-
-    if(mesh->open_subd_enable) {
-	    size_t num_creases = 0;
-	    BL::Mesh::edges_iterator e;
-
-	    for(b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e) {
-		    if(e->crease() != 0.0f) num_creases++;
-	    }
-
-	    mesh->open_subd_crease_indices.resize(num_creases * 2);
-	    mesh->open_subd_crease_sharpnesses.resize(num_creases);
-
-        if(num_creases) {
-	        int *crease_indices = &mesh->open_subd_crease_indices[0];
-	        float *crease_sharpnesses = &mesh->open_subd_crease_sharpnesses[0];
-
-	        for(b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e) {
-		        if(e->crease() != 0.0f) {
-			        crease_indices[0] = e->vertices()[0];
-			        crease_indices[1] = e->vertices()[1];
-			        *crease_sharpnesses = e->crease();
-
-			        crease_indices += 2;
-                    ++crease_sharpnesses;
-		        }
-	        }
-        }
-
+  for (b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e) {
+    if (e->crease() != 0.0f) {
+      num_creases++;
     }
-} //create_mesh()
+  }
 
+  mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdCreasesIndices.resize(num_creases * 2);
+  mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdCreasesSharpnesses.resize(num_creases);
+
+  if (num_creases) {
+    int *crease_indices = mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdCreasesIndices.data();
+    float *crease_sharpnesses =
+        mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdCreasesSharpnesses.data();
+
+    for (b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e) {
+      if (e->crease() != 0.0f) {
+        crease_indices[0] = e->vertices()[0];
+        crease_indices[1] = e->vertices()[1];
+        *crease_sharpnesses = e->crease();
+
+        crease_indices += 2;
+        ++crease_sharpnesses;
+      }
+    }
+  }
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Fill Octane mesh object with OpenVDB data
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain, Scene *scene, BL::Object b_ob, Mesh *mesh, BL::Mesh b_mesh, PointerRNA* oct_mesh, const vector<uint>& used_shaders) {
-    BL::Array<int, 3> res = b_domain.domain_resolution();
-    int length, amplify = (b_domain.use_high_resolution()) ? b_domain.amplify() + 1 : 1;
+static void create_openvdb_volume(BL::SmokeDomainSettings &b_domain,
+                                  Scene *scene,
+                                  BL::Object b_ob,
+                                  Mesh *mesh,
+                                  BL::Mesh b_mesh,
+                                  PointerRNA *oct_mesh,
+                                  const std::vector<Shader *> &used_shaders)
+{
+  BL::Array<int, 3> res = b_domain.domain_resolution();
+  int length, amplify = (b_domain.use_high_resolution()) ? b_domain.amplify() + 1 : 1;
 
-	int width           = mesh->vdb_resolution.x = res[0] * amplify;
-	int height          = mesh->vdb_resolution.y = res[1] * amplify;
-	int depth           = mesh->vdb_resolution.z = res[2] * amplify;
-	int32_t num_pixels  = width * height * depth;
+  int width = mesh->vdb_resolution.x = res[0] * amplify;
+  int height = mesh->vdb_resolution.y = res[1] * amplify;
+  int depth = mesh->vdb_resolution.z = res[2] * amplify;
+  int32_t num_pixels = width * height * depth;
 
-    if(num_pixels) {
-        mesh->mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(oct_mesh, "mesh_type"));
-        if(mesh->mesh_type == Mesh::GLOBAL) mesh->mesh_type = Mesh::SCATTER;
+  if (num_pixels) {
+    mesh->mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(oct_mesh, "mesh_type"));
+    if (mesh->mesh_type == Mesh::GLOBAL)
+      mesh->mesh_type = Mesh::SCATTER;
 
-        float *dencity = new float[num_pixels];
-        float *flame = new float[num_pixels];
-        //float *color = new float[num_pixels * 4];
+    float *dencity = new float[num_pixels];
+    float *flame = new float[num_pixels];
+    // float *color = new float[num_pixels * 4];
 
-        int grid_offset = 0;
+    int grid_offset = 0;
 
-		SmokeDomainSettings_density_grid_get_length(&b_domain.ptr, &length);
-		if(length == num_pixels) {
-			SmokeDomainSettings_density_grid_get(&b_domain.ptr, (float*)dencity);
-            mesh->vdb_absorption_offset = grid_offset++;
-            mesh->vdb_scatter_offset = mesh->vdb_absorption_offset;
-		}
-		/* this is in range 0..1, and interpreted by the OpenGL smoke viewer
-			* as 1500..3000 K with the first part faded to zero density */
-		SmokeDomainSettings_flame_grid_get_length(&b_domain.ptr, &length);
-		if(length == num_pixels) {
-			SmokeDomainSettings_flame_grid_get(&b_domain.ptr, (float*)flame);
-            mesh->vdb_emission_offset = grid_offset++;
-		}
-		/* the RGB is "premultiplied" by density for better interpolation results */
-        //SmokeDomainSettings_color_grid_get_length(&b_domain.ptr, &length);
-        //if(length == num_pixels * 4) {
-        //    SmokeDomainSettings_color_grid_get(&b_domain.ptr, (float*)color);
-        //    mesh->vdb_emission_offset = grid_offset++;
-        //}
+    SmokeDomainSettings_density_grid_get_length(&b_domain.ptr, &length);
+    if (length == num_pixels) {
+      SmokeDomainSettings_density_grid_get(&b_domain.ptr, (float *)dencity);
+      mesh->vdb_absorption_offset = grid_offset++;
+      mesh->vdb_scatter_offset = mesh->vdb_absorption_offset;
+    }
+    /* this is in range 0..1, and interpreted by the OpenGL smoke viewer
+     * as 1500..3000 K with the first part faded to zero density */
+    SmokeDomainSettings_flame_grid_get_length(&b_domain.ptr, &length);
+    if (length == num_pixels) {
+      SmokeDomainSettings_flame_grid_get(&b_domain.ptr, (float *)flame);
+      mesh->vdb_emission_offset = grid_offset++;
+    }
+    /* the RGB is "premultiplied" by density for better interpolation results */
+    // SmokeDomainSettings_color_grid_get_length(&b_domain.ptr, &length);
+    // if(length == num_pixels * 4) {
+    //    SmokeDomainSettings_color_grid_get(&b_domain.ptr, (float*)color);
+    //    mesh->vdb_emission_offset = grid_offset++;
+    //}
 
-        if(grid_offset > 0) {
-            mesh->vdb_iso               = RNA_float_get(oct_mesh, "vdb_iso");
-            mesh->vdb_absorption_scale  = RNA_float_get(oct_mesh, "vdb_abs_scale");
-            mesh->vdb_emission_scale    = RNA_float_get(oct_mesh, "vdb_emiss_scale");
-            mesh->vdb_scatter_scale     = RNA_float_get(oct_mesh, "vdb_scatter_scale");
-            mesh->vdb_velocity_scale    = RNA_float_get(oct_mesh, "vdb_vel_scale");
+    if (grid_offset > 0) {
+      mesh->vdb_iso = RNA_float_get(oct_mesh, "vdb_iso");
+      mesh->vdb_absorption_scale = RNA_float_get(oct_mesh, "vdb_abs_scale");
+      mesh->vdb_emission_scale = RNA_float_get(oct_mesh, "vdb_emiss_scale");
+      mesh->vdb_scatter_scale = RNA_float_get(oct_mesh, "vdb_scatter_scale");
+      mesh->vdb_velocity_scale = RNA_float_get(oct_mesh, "vdb_vel_scale");
+      mesh->vdb_sdf = RNA_boolean_get(oct_mesh, "vdb_sdf");
 
-            mesh->vdb_regular_grid = new float[num_pixels * grid_offset];
-            mesh->vdb_grid_size     = num_pixels * grid_offset;
-            mesh->vdb_resolution.x  = width;
-            mesh->vdb_resolution.y  = height;
-            mesh->vdb_resolution.z  = depth;
+      mesh->vdb_regular_grid = new float[num_pixels * grid_offset];
+      mesh->vdb_grid_size = num_pixels * grid_offset;
+      mesh->vdb_resolution.x = width;
+      mesh->vdb_resolution.y = height;
+      mesh->vdb_resolution.z = depth;
 
-            float3 max_bound{-FLT_MAX, -FLT_MAX, -FLT_MAX}, min_bound{FLT_MAX, FLT_MAX, FLT_MAX};
-            if(b_mesh.vertices.length() > 0) {
-	            BL::Mesh::vertices_iterator v;
-	            for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v) {
-                    float3 point  = get_float3(v->co());
-                    if(min_bound.x > point.x) min_bound.x = point.x;
-                    if(min_bound.y > point.y) min_bound.y = point.y;
-                    if(min_bound.z > point.z) min_bound.z = point.z;
-                    if(max_bound.x < point.x) max_bound.x = point.x;
-                    if(max_bound.y < point.y) max_bound.y = point.y;
-                    if(max_bound.z < point.z) max_bound.z = point.z;
-	            }
-
-                mesh->vdb_grid_matrix.m[0]   = {(max_bound.x - min_bound.x) / width, 0.0f, 0.0f, min_bound.x};
-                mesh->vdb_grid_matrix.m[1]   = {0.0f, (max_bound.y - min_bound.y) / height, 0.0f, min_bound.y};
-                mesh->vdb_grid_matrix.m[2]   = {0.0f, 0.0f, (max_bound.z - min_bound.z) / depth, min_bound.z};
-            }
-            else {
-                mesh->vdb_grid_matrix.m[0]   = {0.0f, 0.0f, 0.0f, 0.0f};
-                mesh->vdb_grid_matrix.m[1]   = {0.0f, 0.0f, 0.0f, 0.0f};
-                mesh->vdb_grid_matrix.m[2]   = {0.0f, 0.0f, 0.0f, 0.0f};
-            }
-
-            for(int i = 0; i < num_pixels; ++i) {
-                register int index = i * grid_offset;
-                if(mesh->vdb_absorption_offset >= 0)    mesh->vdb_regular_grid[index + mesh->vdb_absorption_offset] = dencity[i];
-                //if(mesh->vdb_scatter_offset >= 0)       mesh->vdb_regular_grid[index + mesh->vdb_scatter_offset]    = dencity[i];
-                if(mesh->vdb_emission_offset >= 0)      mesh->vdb_regular_grid[index + mesh->vdb_emission_offset]   = flame[i];
-            }
+      float3 max_bound{-FLT_MAX, -FLT_MAX, -FLT_MAX}, min_bound{FLT_MAX, FLT_MAX, FLT_MAX};
+      if (b_mesh.vertices.length() > 0) {
+        BL::Mesh::vertices_iterator v;
+        for (b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v) {
+          float3 point = get_float3(v->co());
+          if (min_bound.x > point.x)
+            min_bound.x = point.x;
+          if (min_bound.y > point.y)
+            min_bound.y = point.y;
+          if (min_bound.z > point.z)
+            min_bound.z = point.z;
+          if (max_bound.x < point.x)
+            max_bound.x = point.x;
+          if (max_bound.y < point.y)
+            max_bound.y = point.y;
+          if (max_bound.z < point.z)
+            max_bound.z = point.z;
         }
-        delete[] dencity;
-        delete[] flame;
-        //delete[] color;
+
+        mesh->vdb_grid_matrix.m[0] = {
+            (max_bound.x - min_bound.x) / width, 0.0f, 0.0f, min_bound.x};
+        mesh->vdb_grid_matrix.m[1] = {
+            0.0f, (max_bound.y - min_bound.y) / height, 0.0f, min_bound.y};
+        mesh->vdb_grid_matrix.m[2] = {
+            0.0f, 0.0f, (max_bound.z - min_bound.z) / depth, min_bound.z};
+      }
+      else {
+        mesh->vdb_grid_matrix.m[0] = {0.0f, 0.0f, 0.0f, 0.0f};
+        mesh->vdb_grid_matrix.m[1] = {0.0f, 0.0f, 0.0f, 0.0f};
+        mesh->vdb_grid_matrix.m[2] = {0.0f, 0.0f, 0.0f, 0.0f};
+      }
+
+      for (int i = 0; i < num_pixels; ++i) {
+        register int index = i * grid_offset;
+        if (mesh->vdb_absorption_offset >= 0)
+          mesh->vdb_regular_grid[index + mesh->vdb_absorption_offset] = dencity[i];
+        // if(mesh->vdb_scatter_offset >= 0)       mesh->vdb_regular_grid[index +
+        // mesh->vdb_scatter_offset]    = dencity[i];
+        if (mesh->vdb_emission_offset >= 0)
+          mesh->vdb_regular_grid[index + mesh->vdb_emission_offset] = flame[i];
+      }
+    }
+    delete[] dencity;
+    delete[] flame;
+    // delete[] color;
+  }
+  else {
+    if (!mesh->empty)
+      mesh->empty = true;
+    fprintf(stderr, "Octane: The vdb volume \"%s\" is empty\n", b_ob.data().name().c_str());
+  }
+}  // create_openvdb_volume()
+
+Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
+                             BL::Object &b_ob,
+                             BL::Object &b_ob_instance,
+                             bool object_updated,
+                             bool show_self,
+                             bool show_particles,
+                             OctaneDataTransferObject::OctaneObjectLayer &object_layer)
+{
+  BL::ID b_ob_data = b_ob.data();
+  BL::ID key = (BKE_object_is_modified(b_ob)) ? b_ob_instance : b_ob_data;
+  BL::Material material_override = view_layer.material_override;
+
+  /* find shader indices */
+  std::vector<Shader *> used_shaders;
+
+  BL::Object::material_slots_iterator slot;
+  for (b_ob.material_slots.begin(slot); slot != b_ob.material_slots.end(); ++slot) {
+    if (material_override) {
+      find_shader(material_override, used_shaders, scene->default_surface);
     }
     else {
-        if(!mesh->empty) mesh->empty = true;
-        fprintf(stderr, "Octane: The vdb volume \"%s\" is empty\n", b_ob.data().name().c_str());
+      BL::ID b_material(slot->material());
+      find_shader(b_material, used_shaders, scene->default_surface);
     }
-} //create_openvdb_volume()
+  }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Get object's smoke domain
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BL::SmokeDomainSettings BlenderSync::object_smoke_domain_find(BL::Object &b_ob) {
-	BL::Object::modifiers_iterator b_mod;
+  if (used_shaders.size() == 0) {
+    if (material_override)
+      find_shader(material_override, used_shaders, scene->default_surface);
+    else
+      used_shaders.push_back(scene->default_surface);
+  }
 
-	for(b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
-		if(b_mod->is_a(&RNA_SmokeModifier)) {
-			BL::SmokeModifier b_smd(*b_mod);
+  Mesh *octane_mesh;
+  PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+  Mesh::MeshType mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_mesh, "mesh_type"));
 
-			if(b_smd.smoke_type() == BL::SmokeModifier::smoke_type_DOMAIN)
-				return b_smd.domain_settings();
-		}
-	}
-	
-	return BL::SmokeDomainSettings(PointerRNA_NULL);
-} //object_smoke_domain_find()
+  std::string mesh_name = resolve_octane_name(
+      b_ob_data, BKE_object_is_modified(b_ob) ? b_ob.name() : "", MESH_TAG);
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Sync mesh (fill the Octane mesh data from Blender mesh)
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Mesh *BlenderSync::sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool object_updated, bool hide_tris) {
-	// Test if we can instance or if the object is modified
-	BL::ID b_ob_data = b_ob.data();
-	BL::ID key = (BKE_object_is_modified(b_ob)) ? b_ob : b_ob_data;
-	BL::Material material_override = render_layer.material_override;
+  bool is_mesh_data_cached = false;
+  bool octane_enable_mesh_upload_opt = false;
+  bool is_mesh_data_updated = !octane_enable_mesh_upload_opt || !is_mesh_data_cached;
 
-	// Find shader indices
-	//vector<uint> used_shaders;
-	//BL::Object::material_slots_iterator slot;
-	//for(b_ob.material_slots.begin(slot); slot != b_ob.material_slots.end(); ++slot) {
-	//	if(material_override)
-	//		add_used_shader_index(material_override, used_shaders, scene->default_surface);
-	//	else
-	//		add_used_shader_index(slot->material(), used_shaders, scene->default_surface);
-	//}
-	//if(used_shaders.size() == 0) {
-	//	if(material_override)
-	//		add_used_shader_index(material_override, used_shaders, scene->default_surface);
-	//	else
-	//		used_shaders.push_back(scene->default_surface);
-	//}
-	
-	// Test if we need to sync, end function if not
-	Mesh *octane_mesh;
-	if(!mesh_map.sync(&octane_mesh, key)) {
-        return octane_mesh;
-		// Test if shaders changed, these can be object level so mesh does not get tagged for recalc
-		//if(octane_mesh->used_shaders != used_shaders);
-		//else return octane_mesh;
-	}
+  bool is_recalculated = mesh_map.sync(&octane_mesh, key);
 
-	// Ensure we only sync instanced meshes once
-	if(mesh_synced.find(octane_mesh) != mesh_synced.end()) return octane_mesh;
-	mesh_synced.insert(octane_mesh);
+  if (is_recalculated &&
+      (scene->meshes_type == Mesh::RESHAPABLE_PROXY || mesh_type == Mesh::RESHAPABLE_PROXY)) {
+    is_mesh_data_updated = true;
+  }
 
-	// Recreate the mesh
+  bool octane_vdb_force_update_flag = RNA_boolean_get(&oct_mesh, "octane_vdb_helper") &&
+                                      octane_mesh &&
+                                      octane_mesh->last_vdb_frame != b_scene.frame_current();
 
-	if(interactive)
-		b_ob.update_from_editmode();
+  if (!octane_vdb_force_update_flag && !is_recalculated) {
+    return octane_mesh;
+  }
 
-    // Create derived mesh
-    char tagged_state[256];
-    memcpy(tagged_state, G.main->id_tag_update, 256); //object_to_mesh() tags the scene to synchronize again, so clean the extra refresh-tags produced by object_to_mesh() later
-	BL::Mesh b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !interactive, true);
+  if (mesh_synced.find(octane_mesh) != mesh_synced.end())
+    return octane_mesh;
+  mesh_synced.insert(octane_mesh);
 
-	PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+  octane_mesh->clear();
+  octane_mesh->used_shaders = used_shaders;
 
-	octane_mesh->clear();
-	octane_mesh->used_shaders       = used_shaders;
-	octane_mesh->nice_name          = b_ob_data.name().c_str();
-    if(BKE_object_is_modified(b_ob)) {
-        char szName[128];
-        snprintf(szName, 128, "%s.%s", b_ob.name().c_str(), b_ob_data.name().c_str());
-        octane_mesh->name = szName;
+  octane_mesh->nice_name = mesh_name;
+  octane_mesh->name = mesh_name;
+  octane_mesh->octane_mesh.sMeshName = mesh_name;
+  octane_mesh->mesh_type = static_cast<Mesh::MeshType>(RNA_enum_get(&oct_mesh, "mesh_type"));
+  octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable = RNA_boolean_get(
+      &oct_mesh, "open_subd_enable");
+  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = RNA_enum_get(&oct_mesh,
+                                                                               "open_subd_scheme");
+  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = RNA_int_get(&oct_mesh,
+                                                                             "open_subd_level");
+  octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = RNA_float_get(
+      &oct_mesh, "open_subd_sharpness");
+  octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = RNA_enum_get(
+      &oct_mesh, "open_subd_bound_interp");
+  octane_mesh->octane_mesh.oObjectLayer = object_layer;
+  octane_mesh->octane_mesh.bInfinitePlane = RNA_boolean_get(&oct_mesh, "infinite_plane");
+  octane_mesh->is_scatter_group_source = RNA_boolean_get(&oct_mesh, "is_scatter_group_source");
+  octane_mesh->scatter_group_id = RNA_int_get(&oct_mesh, "scatter_group_id");
+  octane_mesh->scatter_instance_id = RNA_int_get(&oct_mesh, "scatter_instance_id");
+  if (RNA_boolean_get(&oct_mesh, "use_auto_smooth") &&
+      !RNA_boolean_get(&oct_mesh, "force_load_vertex_normals"))
+    octane_mesh->octane_mesh.fMaxSmoothAngle = RNA_float_get(&oct_mesh, "auto_smooth_angle") /
+                                               M_PI * 180;
+  else
+    octane_mesh->octane_mesh.fMaxSmoothAngle = -1.0f;
+  octane_mesh->octane_mesh.iHairInterpolations = RNA_enum_get(&oct_mesh, "hair_interpolation");
+  octane_mesh->final_visibility = !(preview ? b_ob.hide_viewport() : b_ob.hide_render());
+
+  PointerRNA octane_geo_node_collections = RNA_pointer_get(&oct_mesh,
+                                                           "octane_geo_node_collections");
+  char scriptGeoMaterialName[512];
+  char scriptGeoNodeName[512];
+  RNA_string_get(&octane_geo_node_collections, "node_graph_tree", scriptGeoMaterialName);
+  RNA_string_get(&octane_geo_node_collections, "osl_geo_node", scriptGeoNodeName);
+  std::string scriptGeoMaterialNameStr(scriptGeoMaterialName);
+  std::string scriptGeoNodeNameStr(scriptGeoNodeName);
+  if (scriptGeoMaterialNameStr.size() && scriptGeoNodeNameStr.size()) {
+    octane_mesh->octane_mesh.sScriptGeoName = scriptGeoMaterialNameStr + "_" +
+                                              scriptGeoNodeNameStr;
+  }
+  else {
+    octane_mesh->octane_mesh.sScriptGeoName = "";
+  }
+
+  char orbxFilePath[512];
+  RNA_string_get(&oct_mesh, "imported_orbx_file_path", orbxFilePath);
+  std::string orbxFilePathStr(orbxFilePath);
+  if (orbxFilePathStr.size()) {
+    octane_mesh->octane_mesh.sOrbxPath = blender_absolute_path(b_data, b_scene, orbxFilePath);
+  }
+  else {
+    octane_mesh->octane_mesh.sOrbxPath = "";
+  }
+
+  bool is_octane_vdb = RNA_boolean_get(&oct_mesh, "is_octane_vdb");
+  octane_mesh->is_octane_volume = is_octane_vdb;
+  if (is_octane_vdb) {
+    int current_frame = b_scene.frame_current();
+    octane_mesh->last_vdb_frame = current_frame;
+    int start_playing_at = RNA_int_get(&oct_mesh, "openvdb_frame_start_playing_at");
+    int current_frame_for_vdb = std::max(0, current_frame - start_playing_at);
+    int start_frame = RNA_int_get(&oct_mesh, "openvdb_frame_start");
+    int end_frame = RNA_int_get(&oct_mesh, "openvdb_frame_end");
+    float openvdb_frame_speed_mutiplier = RNA_float_get(&oct_mesh,
+                                                        "openvdb_frame_speed_mutiplier");
+    char vdbFilePath[512];
+    RNA_string_get(&oct_mesh, "imported_openvdb_file_path", vdbFilePath);
+    std::string vdbFileStr(vdbFilePath);
+    std::size_t pos = vdbFileStr.find("F$");
+    if (pos != std::string::npos) {
+      int target_frame = std::min(
+          int(start_frame + current_frame_for_vdb * openvdb_frame_speed_mutiplier), end_frame);
+      if (vdbFileStr.find("$F$") != std::string::npos) {
+        vdbFileStr = vdbFileStr.substr(0, pos - 1) + std::to_string(target_frame) +
+                     vdbFileStr.substr(pos + 2);
+      }
+      else {
+        std::string format_tmp = "%0";
+        format_tmp += vdbFileStr[pos - 1];
+        format_tmp += "d";
+        char buffer[256];
+        sprintf(buffer, format_tmp.c_str(), target_frame);
+        vdbFileStr = vdbFileStr.substr(0, pos - 2) + std::string(buffer) +
+                     vdbFileStr.substr(pos + 2);
+      }
+    }
+    octane_mesh->vdb_file_path = blender_absolute_path(b_data, b_scene, vdbFileStr);
+    octane_mesh->vdb_iso = RNA_float_get(&oct_mesh, "vdb_iso");
+    octane_mesh->vdb_absorption_scale = RNA_float_get(&oct_mesh, "vdb_abs_scale");
+    octane_mesh->vdb_emission_scale = RNA_float_get(&oct_mesh, "vdb_emiss_scale");
+    octane_mesh->vdb_scatter_scale = RNA_float_get(&oct_mesh, "vdb_scatter_scale");
+    octane_mesh->vdb_velocity_scale = RNA_float_get(&oct_mesh, "vdb_vel_scale");
+    octane_mesh->vdb_sdf = RNA_boolean_get(&oct_mesh, "vdb_sdf");
+  }
+
+  if (octane_mesh) {
+    octane_mesh->subdivision_type = object_subdivision_type(b_ob, preview, true);
+  }
+
+  bool use_octane_subdivision = octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable &&
+                                octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel > 0;
+
+  if (is_mesh_data_updated) {
+
+    BL::Mesh b_mesh = object_to_mesh(b_data,
+                                     b_ob,
+                                     b_depsgraph,
+                                     true,
+                                     use_octane_subdivision,
+                                     octane_mesh ? octane_mesh->subdivision_type :
+                                                   Mesh::SUBDIVISION_NONE);
+
+    if (b_mesh) {
+      BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
+      bool is_openvdb = b_domain && b_domain.cache_file_format() ==
+                                        BL::SmokeDomainSettings::cache_file_format_OPENVDB;
+      if (!is_openvdb || is_octane_vdb) {
+        Mesh::WindingOrder winding_order = static_cast<Mesh::WindingOrder>(
+            RNA_enum_get(&oct_mesh, "winding_order"));
+
+        if (use_octane_subdivision || octane_mesh->subdivision_type != Mesh::SUBDIVISION_NONE) {
+          if (octane_mesh->subdivision_type == Mesh::SUBDIVISION_NONE) {
+            create_mesh(scene,
+                        b_ob,
+                        octane_mesh,
+                        b_mesh,
+                        octane_mesh->used_shaders,
+                        winding_order,
+                        true,
+                        false);
+          }
+          else {
+            create_subd_mesh(
+                scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
+          }
+        }
+        else {
+          create_mesh(scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
+        }
+        if (!octane_mesh->empty)
+          sync_hair(octane_mesh, b_mesh, b_ob, false);
+      }
+      else {
+        create_openvdb_volume(
+            b_domain, scene, b_ob, octane_mesh, b_mesh, &oct_mesh, octane_mesh->used_shaders);
+      }
     }
     else
-        octane_mesh->name = b_ob_data.name().c_str();
-    octane_mesh->open_subd_enable       = RNA_boolean_get(&oct_mesh, "open_subd_enable");
-    octane_mesh->open_subd_scheme       = RNA_enum_get(&oct_mesh, "open_subd_scheme");
-    octane_mesh->open_subd_level        = RNA_int_get(&oct_mesh, "open_subd_level");
-    octane_mesh->open_subd_sharpness    = RNA_float_get(&oct_mesh, "open_subd_sharpness");
-    octane_mesh->open_subd_bound_interp = RNA_enum_get(&oct_mesh, "open_subd_bound_interp");
-    octane_mesh->vis_general            = RNA_float_get(&oct_mesh, "vis_general");
-    octane_mesh->vis_cam                = RNA_boolean_get(&oct_mesh, "vis_cam");
-    octane_mesh->vis_shadow             = RNA_boolean_get(&oct_mesh, "vis_shadow");
-    octane_mesh->rand_color_seed        = RNA_int_get(&oct_mesh, "rand_color_seed");
-    octane_mesh->layer_number           = RNA_int_get(&oct_mesh, "layer_number");
-    octane_mesh->baking_group_id        = RNA_int_get(&oct_mesh, "baking_group_id");
-	if(!object_is_curve(b_ob)) {
-        if(RNA_boolean_get(&b_ob_data.ptr, "use_auto_smooth"))
-            octane_mesh->max_smooth_angle = RNA_float_get(&b_ob_data.ptr, "auto_smooth_angle") / M_PI * 180;
-        else
-            octane_mesh->max_smooth_angle   = -1.0f;
-    }
-    else {
-        if(RNA_boolean_get(&oct_mesh, "use_auto_smooth"))
-            octane_mesh->max_smooth_angle = RNA_float_get(&oct_mesh, "auto_smooth_angle") / M_PI * 180;
-        else
-            octane_mesh->max_smooth_angle = -1.0f;
-    }
-    octane_mesh->hair_interpolation = RNA_enum_get(&oct_mesh, "hair_interpolation");
+      octane_mesh->empty = true;
+  }
+  else {
+    octane_mesh->octane_mesh.oMeshData.bUpdate = false;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.bUpdate = false;
+  }
 
-	if(b_mesh) {
-        if(!hide_tris) {
-            BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
+  octane_mesh->octane_mesh.iHairWsSize =
+      octane_mesh->octane_mesh.iHairInterpolations ==
+              (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_NONE ?
+          octane_mesh->octane_mesh.oMeshData.f2HairWs.size() :
+          0;
+  octane_mesh->octane_mesh.iHairInterpolations =
+      octane_mesh->octane_mesh.iHairInterpolations ==
+              (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_NONE ?
+          (int32_t)::Octane::HairInterpolationType::HAIR_INTERP_DEFAULT :
+          octane_mesh->octane_mesh.iHairInterpolations;
+  octane_mesh->tag_update(scene);
+  return octane_mesh;
+}
 
-            if(!b_domain || b_domain.cache_file_format() != BL::SmokeDomainSettings::cache_file_format_OPENVDB) {
-                create_mesh(scene, b_ob, octane_mesh, b_mesh, &oct_mesh, octane_mesh->used_shaders);
-                if(!octane_mesh->empty) sync_hair(octane_mesh, b_mesh, b_ob, false);
-            }
-            else create_openvdb_volume(b_domain, scene, b_ob, octane_mesh, b_mesh, &oct_mesh, octane_mesh->used_shaders);
-        }
-        else octane_mesh->empty = true;
+void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
+                                   BL::Object &b_ob,
+                                   Object *object,
+                                   float motion_time)
+{
+  /* ensure we only sync instanced meshes once */
+  Mesh *mesh = object->mesh;
 
-        // Free derived mesh
-		b_data.meshes.remove(b_mesh, false);
+  if (!mesh || mesh->octane_mesh.oMeshData.iSamplesNum <= 1)
+    return;
 
-        memcpy(G.main->id_tag_update, tagged_state, 256);
-	}
-    else octane_mesh->empty = true;
-	
-	octane_mesh->tag_update(scene);
-	return octane_mesh;
-} //sync_mesh()
+  if (mesh_motion_synced.find(mesh) != mesh_motion_synced.end())
+    return;
+
+  mesh_motion_synced.insert(mesh);
+
+  /* skip objects without deforming modifiers. this is not totally reliable,
+   * would need a more extensive check to see which objects are animated */
+  BL::Mesh b_mesh(PointerRNA_NULL);
+
+  /* fluid motion is exported immediate with mesh, skip here */
+  BL::DomainFluidSettings b_fluid_domain = object_fluid_domain_find(b_ob);
+  if (b_fluid_domain)
+    return;
+
+  b_mesh = object_to_mesh(b_data, b_ob, b_depsgraph, false, false, Mesh::SUBDIVISION_NONE);
+
+  if (!b_mesh)
+    return;
+
+  int vert_cnt = b_mesh.vertices.length();
+
+  mesh->octane_mesh.oMeshData.oMotionf3Points[motion_time].resize(vert_cnt);
+  // Create vertices
+  unsigned long vert_idx = 0;
+  BL::Mesh::vertices_iterator v;
+  for (b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v, ++vert_idx) {
+    mesh->octane_mesh.oMeshData.oMotionf3Points[motion_time][vert_idx] =
+        OctaneDataTransferObject::float_3(v->co()[0], v->co()[1], v->co()[2]);
+  }
+
+  /* free derived mesh */
+  free_object_to_mesh(b_data, b_ob, b_mesh);
+}
 
 OCT_NAMESPACE_END
-

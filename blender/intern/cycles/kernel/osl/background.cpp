@@ -5,7 +5,7 @@
  * All Rights Reserved.
  *
  * Modifications Copyright 2011, Blender Foundation.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -34,10 +34,11 @@
 
 #include <OSL/genclosure.h>
 
-#include "osl_closures.h"
+#include "kernel/osl/osl_closures.h"
 
-#include "kernel_compat_cpu.h"
-#include "closure/alloc.h"
+#include "kernel/kernel_compat_cpu.h"
+#include "kernel/closure/alloc.h"
+#include "kernel/closure/emissive.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -50,11 +51,11 @@ using namespace OSL;
 /// only the weight is taking into account
 ///
 class GenericBackgroundClosure : public CClosurePrimitive {
-public:
-	void setup(ShaderData *sd, int /* path_flag */, float3 weight)
-	{
-		closure_alloc(sd, sizeof(ShaderClosure), CLOSURE_BACKGROUND_ID, weight);
-	}
+ public:
+  void setup(ShaderData *sd, int /* path_flag */, float3 weight)
+  {
+    background_setup(sd, weight);
+  }
 };
 
 /// Holdout closure
@@ -65,60 +66,30 @@ public:
 /// used
 ///
 class HoldoutClosure : CClosurePrimitive {
-public:
-	void setup(ShaderData *sd, int /* path_flag */, float3 weight)
-	{
-		closure_alloc(sd, sizeof(ShaderClosure), CLOSURE_HOLDOUT_ID, weight);
-		sd->flag |= SD_HOLDOUT;
-	}
-};
-
-/// ambient occlusion closure
-///
-/// We only have a ambient occlusion closure for the shaders
-/// to return a color in ambient occlusion shaders. No methods,
-/// only the weight is taking into account
-///
-class AmbientOcclusionClosure : public CClosurePrimitive {
-public:
-	void setup(ShaderData *sd, int /* path_flag */, float3 weight)
-	{
-		closure_alloc(sd, sizeof(ShaderClosure), CLOSURE_AMBIENT_OCCLUSION_ID, weight);
-		sd->flag |= SD_AO;
-	}
+ public:
+  void setup(ShaderData *sd, int /* path_flag */, float3 weight)
+  {
+    closure_alloc(sd, sizeof(ShaderClosure), CLOSURE_HOLDOUT_ID, weight);
+    sd->flag |= SD_HOLDOUT;
+  }
 };
 
 ClosureParam *closure_background_params()
 {
-	static ClosureParam params[] = {
-		CLOSURE_STRING_KEYPARAM(GenericBackgroundClosure, label, "label"),
-		CLOSURE_FINISH_PARAM(GenericBackgroundClosure)
-	};
-	return params;
+  static ClosureParam params[] = {
+      CLOSURE_STRING_KEYPARAM(GenericBackgroundClosure, label, "label"),
+      CLOSURE_FINISH_PARAM(GenericBackgroundClosure)};
+  return params;
 }
 
 CCLOSURE_PREPARE(closure_background_prepare, GenericBackgroundClosure)
 
 ClosureParam *closure_holdout_params()
 {
-	static ClosureParam params[] = {
-		CLOSURE_FINISH_PARAM(HoldoutClosure)
-	};
-	return params;
+  static ClosureParam params[] = {CLOSURE_FINISH_PARAM(HoldoutClosure)};
+  return params;
 }
 
 CCLOSURE_PREPARE(closure_holdout_prepare, HoldoutClosure)
 
-ClosureParam *closure_ambient_occlusion_params()
-{
-	static ClosureParam params[] = {
-		CLOSURE_STRING_KEYPARAM(AmbientOcclusionClosure, label, "label"),
-		CLOSURE_FINISH_PARAM(AmbientOcclusionClosure)
-	};
-	return params;
-}
-
-CCLOSURE_PREPARE(closure_ambient_occlusion_prepare, AmbientOcclusionClosure)
-
 CCL_NAMESPACE_END
-

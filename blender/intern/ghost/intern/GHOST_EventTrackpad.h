@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,17 +15,10 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s):  James Deery		11/2009
- *					Damien Plisson	12/2009
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_EventTrackpad.h
- *  \ingroup GHOST
+/** \file
+ * \ingroup GHOST
  * Declaration of GHOST_EventTrackpad class.
  */
 
@@ -39,37 +30,36 @@
 /**
  * Trackpad (scroll, magnify, rotate, ...) event.
  */
-class GHOST_EventTrackpad : public GHOST_Event
-{
-public:
-	/**
-	 * Constructor.
-	 * \param msec		The time this event was generated.
-	 * \param window: The window of this event.
-	 * \param subtype	The subtype of the event.
-	 * \param x			The x-delta of the pan event.
-	 * \param y			The y-delta of the pan event.
-	 */
-	GHOST_EventTrackpad(GHOST_TUns64 msec,
-	                    GHOST_IWindow *window,
-	                    GHOST_TTrackpadEventSubTypes subtype,
-	                    GHOST_TInt32 x, GHOST_TInt32 y,
-	                    GHOST_TInt32 deltaX, GHOST_TInt32 deltaY)
-		: GHOST_Event(msec, GHOST_kEventTrackpad, window)
-	{
-		m_trackpadEventData.subtype = subtype;
-		m_trackpadEventData.x = x;
-		m_trackpadEventData.y = y;
-		m_trackpadEventData.deltaX = deltaX;
-		m_trackpadEventData.deltaY = deltaY;
-		m_data = &m_trackpadEventData;
-	}
+class GHOST_EventTrackpad : public GHOST_Event {
+ public:
+  /**
+   * Constructor.
+   * \param msec      The time this event was generated.
+   * \param window: The window of this event.
+   * \param subtype   The subtype of the event.
+   * \param x         The x-delta of the pan event.
+   * \param y         The y-delta of the pan event.
+   */
+  GHOST_EventTrackpad(GHOST_TUns64 msec,
+                      GHOST_IWindow *window,
+                      GHOST_TTrackpadEventSubTypes subtype,
+                      GHOST_TInt32 x,
+                      GHOST_TInt32 y,
+                      GHOST_TInt32 deltaX,
+                      GHOST_TInt32 deltaY)
+      : GHOST_Event(msec, GHOST_kEventTrackpad, window)
+  {
+    m_trackpadEventData.subtype = subtype;
+    m_trackpadEventData.x = x;
+    m_trackpadEventData.y = y;
+    m_trackpadEventData.deltaX = deltaX;
+    m_trackpadEventData.deltaY = deltaY;
+    m_data = &m_trackpadEventData;
+  }
 
-protected:
-	/** The mouse pan data */
-	GHOST_TEventTrackpadData m_trackpadEventData;
+ protected:
+  /** The mouse pan data */
+  GHOST_TEventTrackpadData m_trackpadEventData;
 };
 
-
-#endif // _GHOST_EVENT_PAN_H_
-
+#endif  // _GHOST_EVENT_PAN_H_

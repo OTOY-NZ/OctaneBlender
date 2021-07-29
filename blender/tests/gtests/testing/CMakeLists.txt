@@ -16,38 +16,26 @@
 #
 # The Original Code is Copyright (C) 2014, Blender Foundation
 # All rights reserved.
-#
-# Contributor(s): Sergey Sharybin
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	..
-	../../../extern/gflags/src
-	../../../extern/gtest/include
+  .
+  ..
+  ${GLOG_INCLUDE_DIRS}
+  ${GFLAGS_INCLUDE_DIRS}
+  ../../../extern/gtest/include
 )
-
-if(WIN32)
-	list(APPEND INC
-		../../../extern/glog/src/windows
-	)
-else()
-	list(APPEND INC
-		../../../extern/glog/src
-	)
-endif()
 
 set(INC_SYS
 )
 
 set(SRC
-	testing_main.cc
+  testing_main.cc
 
-	testing.h
+  testing.h
 )
 
-add_definitions(${GFLAGS_DEFINES})
-add_definitions(${GLOG_DEFINES})
+set(LIB
+)
 
-blender_add_lib(bf_testing_main "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_testing_main "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

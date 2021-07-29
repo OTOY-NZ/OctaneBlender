@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,37 +12,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BLI_ARRAY_STORE_UTILS_H__
 #define __BLI_ARRAY_STORE_UTILS_H__
 
-/** \file BLI_array_store_utils.h
- *  \ingroup bli
+/** \file
+ * \ingroup bli
  */
 
 struct BArrayStore;
 
 struct BArrayStore_AtSize {
-	struct BArrayStore **stride_table;
-	int                  stride_table_len;
+  struct BArrayStore **stride_table;
+  int stride_table_len;
 };
 
-BArrayStore *BLI_array_store_at_size_ensure(
-        struct BArrayStore_AtSize *bs_stride,
-        const int stride, const int chunk_size);
+BArrayStore *BLI_array_store_at_size_ensure(struct BArrayStore_AtSize *bs_stride,
+                                            const int stride,
+                                            const int chunk_size);
 
-BArrayStore *BLI_array_store_at_size_get(
-        struct BArrayStore_AtSize *bs_stride,
-        const int stride);
+BArrayStore *BLI_array_store_at_size_get(struct BArrayStore_AtSize *bs_stride, const int stride);
 
-void BLI_array_store_at_size_clear(
-        struct BArrayStore_AtSize *bs_stride);
+void BLI_array_store_at_size_clear(struct BArrayStore_AtSize *bs_stride);
 
-void BLI_array_store_at_size_calc_memory_usage(
-        struct BArrayStore_AtSize *bs_stride,
-        size_t *r_size_expanded, size_t *r_size_compacted);
+void BLI_array_store_at_size_calc_memory_usage(struct BArrayStore_AtSize *bs_stride,
+                                               size_t *r_size_expanded,
+                                               size_t *r_size_compacted);
 
-#endif  /* __BLI_ARRAY_STORE_UTILS_H__ */
+#endif /* __BLI_ARRAY_STORE_UTILS_H__ */

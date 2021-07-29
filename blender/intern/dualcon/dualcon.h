@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Nicholas Bishop
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __DUALCON_H__
@@ -35,24 +29,22 @@ typedef float (*DualConCo)[3];
 
 typedef unsigned int (*DualConTri)[3];
 
-typedef unsigned int (*DualConLoop);
-
-struct DerivedMesh;
+typedef unsigned int(*DualConLoop);
 
 typedef struct DualConInput {
-	DualConLoop mloop;
+  DualConLoop mloop;
 
-	DualConCo co;
-	int co_stride;
-	int totco;
+  DualConCo co;
+  int co_stride;
+  int totco;
 
-	DualConTri looptri;
-	int tri_stride;
-	int tottri;
+  DualConTri looptri;
+  int tri_stride;
+  int tottri;
 
-	int loop_stride;
+  int loop_stride;
 
-	float min[3], max[3];
+  float min[3], max[3];
 } DualConInput;
 
 /* callback for allocating memory for output */
@@ -63,16 +55,16 @@ typedef void (*DualConAddVert)(void *output, const float co[3]);
 typedef void (*DualConAddQuad)(void *output, const int vert_indices[4]);
 
 typedef enum {
-	DUALCON_FLOOD_FILL = 1,
+  DUALCON_FLOOD_FILL = 1,
 } DualConFlags;
 
 typedef enum {
-	/* blocky */
-	DUALCON_CENTROID,
-	/* smooth */
-	DUALCON_MASS_POINT,
-	/* keeps sharp edges */
-	DUALCON_SHARP_FEATURES,
+  /* blocky */
+  DUALCON_CENTROID,
+  /* smooth */
+  DUALCON_MASS_POINT,
+  /* keeps sharp edges */
+  DUALCON_SHARP_FEATURES,
 } DualConMode;
 
 /* Usage:

@@ -31,7 +31,6 @@
 import math
 
 USE_QUICK_RENDER = False
-IS_BMESH = hasattr(__import__("bpy").types, "LoopColors")
 
 # -----------------------------------------------------------------------------
 # utility functions
@@ -39,12 +38,12 @@ IS_BMESH = hasattr(__import__("bpy").types, "LoopColors")
 
 def render_gl(context, filepath, shade):
 
-    def ctx_viewport_shade(context, shade):
+    def ctx_shading_type(context, shade):
         for area in context.window.screen.areas:
             if area.type == 'VIEW_3D':
                 space = area.spaces.active
                 # rv3d = space.region_3d
-                space.viewport_shade = shade
+                space.shading.type = shade
 
     import bpy
     scene = context.scene
@@ -60,13 +59,13 @@ def render_gl(context, filepath, shade):
     render.resolution_x = 512
     render.resolution_y = 512
 
-    ctx_viewport_shade(context, shade)
+    ctx_shading_type(context, shade)
 
-    #~ # stop to inspect!
-    #~ if filepath == "test_cube_shell_solidify_subsurf_wp_wire":
-        #~ assert(0)
-    #~ else:
-        #~ return
+    # stop to inspect!
+    # if filepath == "test_cube_shell_solidify_subsurf_wp_wire":
+    #     assert(0)
+    # else:
+    #     return
 
     bpy.ops.render.opengl(write_still=True,
                           view_context=True)
@@ -128,7 +127,7 @@ def ctx_clear_scene():  # copied from batch_import.py
     # remove obdata, for now only worry about the startup scene
     for bpy_data_iter in (bpy.data.objects,
                           bpy.data.meshes,
-                          bpy.data.lamps,
+                          bpy.data.lights,
                           bpy.data.cameras,
                           ):
 
@@ -203,13 +202,8 @@ def defaults_object(obj):
 
         mesh.show_normal_vertex = True
 
-        # lame!
-        if IS_BMESH:
-            for poly in mesh.polygons:
-                poly.use_smooth = True
-        else:
-            for face in mesh.faces:
-                face.use_smooth = True
+        for poly in mesh.polygons:
+            poly.use_smooth = True
 
 
 def defaults_modifier(mod):
@@ -220,16 +214,15 @@ def defaults_modifier(mod):
 # -----------------------------------------------------------------------------
 # models (utils)
 
+def mesh_bmesh_poly_elems(poly, elems):
+    vert_start = poly.loop_start
+    vert_total = poly.loop_total
+    return elems[vert_start:vert_start + vert_total]
 
-if IS_BMESH:
-    def mesh_bmesh_poly_elems(poly, elems):
-        vert_start = poly.loop_start
-        vert_total = poly.loop_total
-        return elems[vert_start:vert_start + vert_total]
 
-    def mesh_bmesh_poly_vertices(poly):
-        return [loop.vertex_index
-                for loop in mesh_bmesh_poly_elems(poly, poly.id_data.loops)]
+def mesh_bmesh_poly_vertices(poly):
+    return [loop.vertex_index
+            for loop in mesh_bmesh_poly_elems(poly, poly.id_data.loops)]
 
 
 def mesh_bounds(mesh):
@@ -256,23 +249,16 @@ def mesh_uv_add(obj):
            (1.0, 1.0),
            (1.0, 0.0))
 
-    uv_lay = obj.data.uv_textures.new()
+    uv_lay = obj.data.uv_layers.new()
 
-    if IS_BMESH:
-        # XXX, odd that we need to do this. until UV's and texface
-        # are separated we will need to keep it
-        uv_loops = obj.data.uv_layers[-1]
-        uv_list = uv_loops.data[:]
-        for poly in obj.data.polygons:
-            poly_uvs = mesh_bmesh_poly_elems(poly, uv_list)
-            for i, c in enumerate(poly_uvs):
-                c.uv = uvs[i % 4]
-    else:
-        for uv in uv_lay.data:
-            uv.uv1 = uvs[0]
-            uv.uv2 = uvs[1]
-            uv.uv3 = uvs[2]
-            uv.uv4 = uvs[3]
+    # XXX, odd that we need to do this. until UV's and texface
+    # are separated we will need to keep it
+    uv_loops = obj.data.uv_layers[-1]
+    uv_list = uv_loops.data[:]
+    for poly in obj.data.polygons:
+        poly_uvs = mesh_bmesh_poly_elems(poly, uv_list)
+        for i, c in enumerate(poly_uvs):
+            c.uv = uvs[i % 4]
 
     return uv_lay
 
@@ -296,21 +282,12 @@ def mesh_vcol_add(obj, mode=0):
 
     mesh = obj.data
 
-    if IS_BMESH:
-        col_list = vcol_lay.data[:]
-        for poly in mesh.polygons:
-            face_verts = mesh_bmesh_poly_vertices(poly)
-            poly_cols = mesh_bmesh_poly_elems(poly, col_list)
-            for i, c in enumerate(poly_cols):
-                c.color = colors_get(face_verts[i])
-    else:
-        for i, col in enumerate(vcol_lay.data):
-            face_verts = mesh.faces[i].vertices
-            col.color1 = colors_get(face_verts[0])
-            col.color2 = colors_get(face_verts[1])
-            col.color3 = colors_get(face_verts[2])
-            if len(face_verts) == 4:
-                col.color4 = colors_get(face_verts[3])
+    col_list = vcol_lay.data[:]
+    for poly in mesh.polygons:
+        face_verts = mesh_bmesh_poly_vertices(poly)
+        poly_cols = mesh_bmesh_poly_elems(poly, col_list)
+        for i, c in enumerate(poly_cols):
+            c.color = colors_get(face_verts[i])
 
     return vcol_lay
 
@@ -393,7 +370,7 @@ def modifier_armature_add(scene, obj):
     scene.objects.active = obj
 
     # display options
-    obj_arm.show_x_ray = True
+    obj_arm.show_in_front = True
     arm_data.draw_type = 'STICK'
 
     # apply to modifier
@@ -448,7 +425,7 @@ def modifier_hook_add(scene, obj, use_vgroup=True):
 
     obj_hook = mod.object
     obj_hook.rotation_euler = 0, math.radians(45), 0
-    obj_hook.show_x_ray = True
+    obj_hook.show_in_front = True
 
     if use_vgroup:
         mod.vertex_group = obj.vertex_groups[0].name
@@ -470,10 +447,7 @@ def modifier_build_add(scene, obj):
     defaults_modifier(mod)
 
     # ensure we display some faces
-    if IS_BMESH:
-        totface = len(obj.data.polygons)
-    else:
-        totface = len(obj.data.faces)
+    totface = len(obj.data.polygons)
 
     mod.frame_start = totface // 2
     mod.frame_duration = totface
@@ -532,7 +506,7 @@ cube_like_vertices = (
     (-1, 1, 3),
     (0, 1, 3),
     (0, 0, 3),
-    )
+)
 
 
 cube_like_faces = (
@@ -574,7 +548,7 @@ cube_like_faces = (
     (31, 30, 36, 33),
     (32, 31, 33, 34),
     (35, 34, 33, 36),
-    )
+)
 
 
 # useful since its a shell for solidify and it can be mirrored
@@ -591,7 +565,7 @@ cube_shell_vertices = (
     (0, -1, 0),
     (0, 0, -1),
     (0, 1, -1),
-    )
+)
 
 
 cube_shell_face = (
@@ -604,11 +578,11 @@ cube_shell_face = (
     (6, 5, 11),
     (7, 4, 9, 8),
     (10, 7, 6, 11),
-    )
+)
 
 
 def make_cube(scene):
-    bpy.ops.mesh.primitive_cube_add(view_align=False,
+    bpy.ops.mesh.primitive_cube_add(align='WORLD',
                                     enter_editmode=False,
                                     location=(0, 0, 0),
                                     rotation=(0, 0, 0),
@@ -678,7 +652,7 @@ def make_cube_shell_extra(scene):
 
 
 def make_monkey(scene):
-    bpy.ops.mesh.primitive_monkey_add(view_align=False,
+    bpy.ops.mesh.primitive_monkey_add(align='WORLD',
                                       enter_editmode=False,
                                       location=(0, 0, 0),
                                       rotation=(0, 0, 0),
@@ -705,59 +679,77 @@ def make_monkey_extra(scene):
 
 global_tests = []
 
-global_tests.append(("none",
-    (),
-    ))
-
+global_tests.append(
+    ("none",
+     (),
+     )
+)
 # single
-global_tests.append(("subsurf_single",
-    ((modifier_subsurf_add, dict(levels=2)), ),
-    ))
+global_tests.append(
+    ("subsurf_single",
+     ((modifier_subsurf_add, dict(levels=2)), ),
+     )
+)
 
+global_tests.append(
+    ("armature_single",
+     ((modifier_armature_add, dict()), ),
+     )
+)
 
-global_tests.append(("armature_single",
-    ((modifier_armature_add, dict()), ),
-    ))
+global_tests.append(
+    ("mirror_single",
+     ((modifier_mirror_add, dict()), ),
+     )
+)
 
+global_tests.append(
+    ("hook_single",
+     ((modifier_hook_add, dict()), ),
+     )
+)
 
-global_tests.append(("mirror_single",
-    ((modifier_mirror_add, dict()), ),
-    ))
+global_tests.append(
+    ("decimate_single",
+     ((modifier_decimate_add, dict()), ),
+     )
+)
 
-global_tests.append(("hook_single",
-    ((modifier_hook_add, dict()), ),
-    ))
+global_tests.append(
+    ("build_single",
+     ((modifier_build_add, dict()), ),
+     )
+)
 
-global_tests.append(("decimate_single",
-    ((modifier_decimate_add, dict()), ),
-    ))
-
-global_tests.append(("build_single",
-    ((modifier_build_add, dict()), ),
-    ))
-
-global_tests.append(("mask_single",
-    ((modifier_mask_add, dict()), ),
-    ))
+global_tests.append(
+    ("mask_single",
+     ((modifier_mask_add, dict()), ),
+     )
+)
 
 
 # combinations
-global_tests.append(("mirror_subsurf",
-    ((modifier_mirror_add, dict()),
-     (modifier_subsurf_add, dict(levels=2))),
-    ))
+global_tests.append(
+    ("mirror_subsurf",
+     ((modifier_mirror_add, dict()),
+      (modifier_subsurf_add, dict(levels=2))),
+     )
+)
 
-global_tests.append(("solidify_subsurf",
-    ((modifier_solidify_add, dict()),
-     (modifier_subsurf_add, dict(levels=2))),
-    ))
+global_tests.append(
+    ("solidify_subsurf",
+     ((modifier_solidify_add, dict()),
+      (modifier_subsurf_add, dict(levels=2))),
+     )
+)
 
 
-def apply_test(test, scene, obj,
-               render_func=None,
-               render_args=None,
-               render_kwargs=None,
-               ):
+def apply_test(
+        test, scene, obj,
+        render_func=None,
+        render_args=None,
+        render_kwargs=None,
+):
 
     test_name, test_funcs = test
 
@@ -783,10 +775,12 @@ def test_cube(context, test):
     obj = make_cube_extra(scene)
     ctx_camera_setup(context, location=(3, 3, 3))
 
-    apply_test(test, scene, obj,
-               render_func=render_gl_all_modes,
-               render_args=(context, obj),
-               render_kwargs=dict(filepath=whoami()))
+    apply_test(
+        test, scene, obj,
+        render_func=render_gl_all_modes,
+        render_args=(context, obj),
+        render_kwargs=dict(filepath=whoami())
+    )
 
 
 def test_cube_like(context, test):
@@ -794,10 +788,12 @@ def test_cube_like(context, test):
     obj = make_cube_like_extra(scene)
     ctx_camera_setup(context, location=(5, 5, 5))
 
-    apply_test(test, scene, obj,
-               render_func=render_gl_all_modes,
-               render_args=(context, obj),
-               render_kwargs=dict(filepath=whoami()))
+    apply_test(
+        test, scene, obj,
+        render_func=render_gl_all_modes,
+        render_args=(context, obj),
+        render_kwargs=dict(filepath=whoami())
+    )
 
 
 def test_cube_shell(context, test):
@@ -805,10 +801,12 @@ def test_cube_shell(context, test):
     obj = make_cube_shell_extra(scene)
     ctx_camera_setup(context, location=(4, 4, 4))
 
-    apply_test(test, scene, obj,
-               render_func=render_gl_all_modes,
-               render_args=(context, obj),
-               render_kwargs=dict(filepath=whoami()))
+    apply_test(
+        test, scene, obj,
+        render_func=render_gl_all_modes,
+        render_args=(context, obj),
+        render_kwargs=dict(filepath=whoami())
+    )
 
 
 # -----------------------------------------------------------------------------

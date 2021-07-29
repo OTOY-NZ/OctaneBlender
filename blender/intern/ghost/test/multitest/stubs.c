@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,12 +15,6 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #include <stdlib.h>
@@ -32,5 +24,10 @@
 
 struct ImBuf;
 
-void IMB_freeImBuf(struct ImBuf *UNUSED(ibuf)) {}
-void IMB_colormanagement_display_to_scene_linear_v3(float UNUSED(pixel[3]), struct ColorManagedDisplay *UNUSED(display)) {}
+void IMB_freeImBuf(struct ImBuf *UNUSED(ibuf))
+{
+}
+void IMB_colormanagement_display_to_scene_linear_v3(float UNUSED(pixel[3]),
+                                                    struct ColorManagedDisplay *UNUSED(display))
+{
+}

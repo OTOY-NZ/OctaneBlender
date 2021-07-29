@@ -16,15 +16,10 @@
 #
 # The Original Code is Copyright (C) 2006, Blender Foundation
 # All rights reserved.
-#
-# The Original Code is: all of this file.
-#
-# Contributor(s): Jacques Beaurain.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
+  .
 )
 
 set(INC_SYS
@@ -32,10 +27,12 @@ set(INC_SYS
 )
 
 set(SRC
-	intern/STR_String.cpp
+  intern/STR_String.cpp
 
-	STR_HashedString.h
-	STR_String.h
+  STR_String.h
 )
 
-blender_add_lib(bf_intern_string "${SRC}" "${INC}" "${INC_SYS}")
+set(LIB
+)
+
+blender_add_lib(bf_intern_string "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

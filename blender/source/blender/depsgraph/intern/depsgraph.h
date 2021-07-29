@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,10 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/depsgraph.h
- *  \ingroup depsgraph
+/** \file
+ * \ingroup depsgraph
  *
  * Datatypes for internal use in the Depsgraph
  *
@@ -36,58 +29,68 @@
 
 #pragma once
 
-#include "BLI_threads.h"  /* for SpinLock */
+#include <stdlib.h>
 
-#include "intern/depsgraph_types.h"
+#include "DNA_ID.h" /* for ID_Type */
 
-struct ID;
+#include "BKE_main.h" /* for MAX_LIBARRAY */
+
+#include "BLI_threads.h" /* for SpinLock */
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_physics.h"
+
+#include "intern/depsgraph_type.h"
+
 struct GHash;
 struct GSet;
-struct PointerRNA;
-struct PropertyRNA;
+struct ID;
+struct Main;
+struct Scene;
+struct ViewLayer;
 
 namespace DEG {
 
-struct DepsNode;
-struct RootDepsNode;
-struct TimeSourceDepsNode;
-struct IDDepsNode;
-struct SubgraphDepsNode;
-struct ComponentDepsNode;
-struct OperationDepsNode;
+struct ComponentNode;
+struct IDNode;
+struct Node;
+struct OperationNode;
+struct TimeSourceNode;
 
 /* *************************** */
 /* Relationships Between Nodes */
 
-/* Settings/Tags on Relationship */
-typedef enum eDepsRelation_Flag {
-	/* "touched" tag is used when filtering, to know which to collect */
-	DEPSREL_FLAG_TEMP_TAG   = (1 << 0),
-
-	/* "cyclic" link - when detecting cycles, this relationship was the one
-	 * which triggers a cyclic relationship to exist in the graph
-	 */
-	DEPSREL_FLAG_CYCLIC     = (1 << 1),
-} eDepsRelation_Flag;
+/* Settings/Tags on Relationship.
+ * NOTE: Is a bitmask, allowing accumulation. */
+enum RelationFlag {
+  /* "cyclic" link - when detecting cycles, this relationship was the one
+   * which triggers a cyclic relationship to exist in the graph. */
+  RELATION_FLAG_CYCLIC = (1 << 0),
+  /* Update flush will not go through this relation. */
+  RELATION_FLAG_NO_FLUSH = (1 << 1),
+  /* Only flush along the relation is update comes from a node which was
+   * affected by user input. */
+  RELATION_FLAG_FLUSH_USER_EDIT_ONLY = (1 << 2),
+  /* The relation can not be killed by the cyclic dependencies solver. */
+  RELATION_FLAG_GODMODE = (1 << 4),
+  /* Relation will check existance before being added. */
+  RELATION_CHECK_BEFORE_ADD = (1 << 5),
+};
 
 /* B depends on A (A -> B) */
-struct DepsRelation {
-	/* the nodes in the relationship (since this is shared between the nodes) */
-	DepsNode *from;               /* A */
-	DepsNode *to;                 /* B */
+struct Relation {
+  Relation(Node *from, Node *to, const char *description);
+  ~Relation();
 
-	/* relationship attributes */
-	const char *name;             /* label for debugging */
+  void unlink();
 
-	eDepsRelation_Type type;      /* type */
-	int flag;                     /* (eDepsRelation_Flag) */
+  /* the nodes in the relationship (since this is shared between the nodes) */
+  Node *from; /* A */
+  Node *to;   /* B */
 
-	DepsRelation(DepsNode *from,
-	             DepsNode *to,
-	             eDepsRelation_Type type,
-	             const char *description);
-
-	~DepsRelation();
+  /* relationship attributes */
+  const char *name; /* label for debugging */
+  int flag;         /* Bitmask of RelationFlag) */
 };
 
 /* ********* */
@@ -95,105 +98,114 @@ struct DepsRelation {
 
 /* Dependency Graph object */
 struct Depsgraph {
-	typedef vector<OperationDepsNode *> OperationNodes;
+  // TODO(sergey): Go away from C++ container and use some native BLI.
+  typedef vector<OperationNode *> OperationNodes;
+  typedef vector<IDNode *> IDDepsNodes;
 
-	Depsgraph();
-	~Depsgraph();
+  Depsgraph(Scene *scene, ViewLayer *view_layer, eEvaluationMode mode);
+  ~Depsgraph();
 
-	/**
-	 * Find node which matches the specified description.
-	 *
-	 * \param id: ID block that is associated with this
-	 * \param subdata: identifier used for sub-ID data (e.g. bone)
-	 * \param type: type of node we're dealing with
-	 * \param name: custom identifier assigned to node
-	 *
-	 * \return A node matching the required characteristics if it exists
-	 * or NULL if no such node exists in the graph.
-	 */
-	DepsNode *find_node(const ID *id,
-	                    eDepsNode_Type type,
-	                    const string &subdata,
-	                    const string &name);
+  TimeSourceNode *add_time_source();
+  TimeSourceNode *find_time_source() const;
 
-	/**
-	 * Convenience wrapper to find node given just pointer + property.
-	 *
-	 * \param ptr: pointer to the data that node will represent
-	 * \param prop: optional property affected - providing this effectively results in inner nodes being returned
-	 *
-	 * \return A node matching the required characteristics if it exists
-	 * or NULL if no such node exists in the graph
-	 */
-	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop) const;
+  IDNode *find_id_node(const ID *id) const;
+  IDNode *add_id_node(ID *id, ID *id_cow_hint = NULL);
+  void clear_id_nodes();
+  void clear_id_nodes_conditional(const std::function<bool(ID_Type id_type)> &filter);
 
-	RootDepsNode *add_root_node();
+  /* Add new relationship between two nodes. */
+  Relation *add_new_relation(Node *from, Node *to, const char *description, int flags = 0);
 
-	TimeSourceDepsNode *find_time_source(const ID *id = NULL) const;
+  /* Check whether two nodes are connected by relation with given
+   * description. Description might be NULL to check ANY relation between
+   * given nodes. */
+  Relation *check_nodes_connected(const Node *from, const Node *to, const char *description);
 
-	SubgraphDepsNode *add_subgraph_node(const ID *id);
-	void remove_subgraph_node(SubgraphDepsNode *subgraph_node);
-	void clear_subgraph_nodes();
+  /* Tag a specific node as needing updates. */
+  void add_entry_tag(OperationNode *node);
 
-	IDDepsNode *find_id_node(const ID *id) const;
-	IDDepsNode *add_id_node(ID *id, const string &name = "");
-	void remove_id_node(const ID *id);
-	void clear_id_nodes();
+  /* Clear storage used by all nodes. */
+  void clear_all_nodes();
 
-	/* Add new relationship between two nodes. */
-	DepsRelation *add_new_relation(OperationDepsNode *from,
-	                               OperationDepsNode *to,
-	                               eDepsRelation_Type type,
-	                               const char *description);
+  /* Copy-on-Write Functionality ........ */
 
-	DepsRelation *add_new_relation(DepsNode *from,
-	                               DepsNode *to,
-	                               eDepsRelation_Type type,
-	                               const char *description);
+  /* For given original ID get ID which is created by CoW system. */
+  ID *get_cow_id(const ID *id_orig) const;
 
-	/* Tag a specific node as needing updates. */
-	void add_entry_tag(OperationDepsNode *node);
+  /* Core Graph Functionality ........... */
 
-	/* Clear storage used by all nodes. */
-	void clear_all_nodes();
+  /* <ID : IDNode> mapping from ID blocks to nodes representing these
+   * blocks, used for quick lookups. */
+  GHash *id_hash;
 
-	/* Core Graph Functionality ........... */
+  /* Ordered list of ID nodes, order matches ID allocation order.
+   * Used for faster iteration, especially for areas which are critical to
+   * keep exact order of iteration. */
+  IDDepsNodes id_nodes;
 
-	/* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks
-	 * (for quick lookups). */
-	GHash *id_hash;
+  /* Top-level time source node. */
+  TimeSourceNode *time_source;
 
-	/* "root" node - the one where all evaluation enters from. */
-	RootDepsNode *root_node;
+  /* Indicates whether relations needs to be updated. */
+  bool need_update;
 
-	/* Subgraphs referenced in tree. */
-	GSet *subgraphs;
+  /* Indicates which ID types were updated. */
+  char id_type_updated[MAX_LIBARRAY];
 
-	/* Indicates whether relations needs to be updated. */
-	bool need_update;
+  /* Indicates type of IDs present in the depsgraph. */
+  char id_type_exist[MAX_LIBARRAY];
 
-	/* Quick-Access Temp Data ............. */
+  /* Quick-Access Temp Data ............. */
 
-	/* Nodes which have been tagged as "directly modified". */
-	GSet *entry_tags;
+  /* Nodes which have been tagged as "directly modified". */
+  GSet *entry_tags;
 
-	/* Convenience Data ................... */
+  /* Convenience Data ................... */
 
-	/* XXX: should be collected after building (if actually needed?) */
-	/* All operation nodes, sorted in order of single-thread traversal order. */
-	OperationNodes operations;
+  /* XXX: should be collected after building (if actually needed?) */
+  /* All operation nodes, sorted in order of single-thread traversal order. */
+  OperationNodes operations;
 
-	/* Spin lock for threading-critical operations.
-	 * Mainly used by graph evaluation.
-	 */
-	SpinLock lock;
+  /* Spin lock for threading-critical operations.
+   * Mainly used by graph evaluation. */
+  SpinLock lock;
 
-	/* Layers Visibility .................. */
+  /* Scene, layer, mode this dependency graph is built for. */
+  Scene *scene;
+  ViewLayer *view_layer;
+  eEvaluationMode mode;
 
-	/* Visible layers bitfield, used for skipping invisible objects updates. */
-	unsigned int layers;
+  /* Time at which dependency graph is being or was last evaluated. */
+  float ctime;
 
-	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
+  /* Evaluated version of datablocks we access a lot.
+   * Stored here to save us form doing hash lookup. */
+  Scene *scene_cow;
+
+  /* Active dependency graph is a dependency graph which is used by the
+   * currently active window. When dependency graph is active, it is allowed
+   * for evaluation functions to write animation f-curve result, drivers
+   * result and other selective things (object matrix?) to original object.
+   *
+   * This way we simplify operators, which don't need to worry about where
+   * to read stuff from. */
+  bool is_active;
+
+  /* NOTE: Corresponds to G_DEBUG_DEPSGRAPH_* flags. */
+  int debug_flags;
+  string debug_name;
+
+  bool debug_is_evaluating;
+
+  /* Is set to truth for dependency graph which are used for post-processing (compositor and
+   * sequencer).
+   * Such dependency graph needs all view layers (so render pipeline can access names), but it
+   * does not need any bases. */
+  bool is_render_pipeline_depsgraph;
+
+  /* Cached list of colliders/effectors for collections and the scene
+   * created along with relations, for fast lookup during evaluation. */
+  GHash *physics_relations[DEG_PHYSICS_RELATIONS_NUM];
 };
 
 }  // namespace DEG

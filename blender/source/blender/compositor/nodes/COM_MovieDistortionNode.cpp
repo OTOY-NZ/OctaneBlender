@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,9 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
 #include "COM_MovieDistortionNode.h"
@@ -28,22 +24,23 @@
 
 MovieDistortionNode::MovieDistortionNode(bNode *editorNode) : Node(editorNode)
 {
-	/* pass */
+  /* pass */
 }
 
-void MovieDistortionNode::convertToOperations(NodeConverter &converter, const CompositorContext &context) const
+void MovieDistortionNode::convertToOperations(NodeConverter &converter,
+                                              const CompositorContext &context) const
 {
-	bNode *bnode = this->getbNode();
-	MovieClip *clip = (MovieClip *)bnode->id;
-	
-	NodeInput *inputSocket = this->getInputSocket(0);
-	NodeOutput *outputSocket = this->getOutputSocket(0);
-	
-	MovieDistortionOperation *operation = new MovieDistortionOperation(bnode->custom1 == 1);
-	operation->setMovieClip(clip);
-	operation->setFramenumber(context.getFramenumber());
-	converter.addOperation(operation);
+  bNode *bnode = this->getbNode();
+  MovieClip *clip = (MovieClip *)bnode->id;
 
-	converter.mapInputSocket(inputSocket, operation->getInputSocket(0));
-	converter.mapOutputSocket(outputSocket, operation->getOutputSocket(0));
+  NodeInput *inputSocket = this->getInputSocket(0);
+  NodeOutput *outputSocket = this->getOutputSocket(0);
+
+  MovieDistortionOperation *operation = new MovieDistortionOperation(bnode->custom1 == 1);
+  operation->setMovieClip(clip);
+  operation->setFramenumber(context.getFramenumber());
+  converter.addOperation(operation);
+
+  converter.mapInputSocket(inputSocket, operation->getInputSocket(0));
+  converter.mapOutputSocket(outputSocket, operation->getOutputSocket(0));
 }

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,57 +12,54 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __FREESTYLE_INTERPRETER_H__
 #define __FREESTYLE_INTERPRETER_H__
 
-/** \file blender/freestyle/intern/system/Interpreter.h
- *  \ingroup freestyle
- *  \brief Base Class of all script interpreters
- *  \author Emmanuel Turquin
- *  \date 17/04/2003
+/** \file
+ * \ingroup freestyle
+ * \brief Base Class of all script interpreters
  */
 
 #include <string>
 
 #ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
+#  include "MEM_guardedalloc.h"
 #endif
 
 using namespace std;
 
 namespace Freestyle {
 
-class Interpreter
-{
-public:
-	Interpreter()
-	{
-		_language = "Unknown";
-	}
+class Interpreter {
+ public:
+  Interpreter()
+  {
+    _language = "Unknown";
+  }
 
-	virtual ~Interpreter() {}
+  virtual ~Interpreter()
+  {
+  }
 
-	virtual int interpretFile(const string& filename) = 0;
+  virtual int interpretFile(const string &filename) = 0;
 
-	virtual string getLanguage() const
-	{
-		return _language;
-	}
+  virtual string getLanguage() const
+  {
+    return _language;
+  }
 
-	virtual void reset() = 0;
+  virtual void reset() = 0;
 
-protected:
-	string _language;
+ protected:
+  string _language;
 
 #ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Interpreter")
+  MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Interpreter")
 #endif
 };
 
 } /* namespace Freestyle */
 
-#endif // __FREESTYLE_INTERPRETER_H__
+#endif  // __FREESTYLE_INTERPRETER_H__

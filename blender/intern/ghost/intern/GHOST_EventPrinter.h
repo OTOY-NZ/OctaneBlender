@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,16 +15,10 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_EventPrinter.h
- *  \ingroup GHOST
+/** \file
+ * \ingroup GHOST
  * Declaration of GHOST_EventPrinter class.
  */
 
@@ -41,24 +33,22 @@
  * An Event consumer that prints all the events to standard out.
  * Really useful when debugging.
  */
-class GHOST_EventPrinter : public GHOST_IEventConsumer
-{
-public:
-	/**
-	 * Prints all the events received to std out.
-	 * \param event	The event that can be handled or not.
-	 * \return Indication as to whether the event was handled.
-	 */
-	bool processEvent(GHOST_IEvent *event);
+class GHOST_EventPrinter : public GHOST_IEventConsumer {
+ public:
+  /**
+   * Prints all the events received to std out.
+   * \param event The event that can be handled or not.
+   * \return Indication as to whether the event was handled.
+   */
+  bool processEvent(GHOST_IEvent *event);
 
-protected:
-	/**
-	 * Converts GHOST key code to a readable string.
-	 * \param key The GHOST key code to convert.
-	 * \param str The GHOST key code converted to a readable string.
-	 */
-	void getKeyString(GHOST_TKey key, char str[32]) const;
+ protected:
+  /**
+   * Converts GHOST key code to a readable string.
+   * \param key The GHOST key code to convert.
+   * \param str The GHOST key code converted to a readable string.
+   */
+  void getKeyString(GHOST_TKey key, char str[32]) const;
 };
 
-#endif // __GHOST_EVENTPRINTER_H__
-
+#endif  // __GHOST_EVENTPRINTER_H__

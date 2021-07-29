@@ -113,7 +113,7 @@ def api_dump():
             )
         del props
 
-        # python props, tricky since we dont know much about them.
+        # python props, tricky since we don't know much about them.
         for prop_id, attr in struct_info.get_py_properties():
 
             dump_class[prop_id] = (
@@ -156,7 +156,8 @@ def api_dump():
         for func_id, attr in funcs:
             # arg_str = inspect.formatargspec(*inspect.getargspec(py_func))
 
-            func_args_ids = tuple(inspect.getargspec(attr).args)
+            sig = inspect.signature(attr)
+            func_args_ids = [k for k, v in sig.parameters.items()]
 
             dump_class[func_id] = (
                 "func_py",                  # basic_type
@@ -175,7 +176,7 @@ def api_dump():
     import pprint
 
     filename = api_dunp_fname()
-    filehandle = open(filename, 'w')
+    filehandle = open(filename, 'w', encoding='utf-8')
     tot = filehandle.write(pprint.pformat(dump, width=1))
     filehandle.close()
     print("%s, %d bytes written" % (filename, tot))
@@ -199,11 +200,11 @@ def compare_props(a, b, fuzz=0.75):
 
 def api_changelog(api_from, api_to, api_out):
 
-    file_handle = open(api_from, 'r')
+    file_handle = open(api_from, 'r', encoding='utf-8')
     dict_from = eval(file_handle.read())
     file_handle.close()
 
-    file_handle = open(api_to, 'r')
+    file_handle = open(api_to, 'r', encoding='utf-8')
     dict_to = eval(file_handle.read())
     file_handle.close()
 
@@ -266,7 +267,7 @@ def api_changelog(api_from, api_to, api_out):
 
     # also document function argument changes
 
-    fout = open(api_out, 'w')
+    fout = open(api_out, 'w', encoding='utf-8')
     fw = fout.write
     # print(api_changes)
 
@@ -289,7 +290,7 @@ def api_changelog(api_from, api_to, api_out):
         if props_old:
             write_title("Removed", "^")
             for prop_id in props_old:
-                fw("* **%s**\n" % prop_id)  # cant link to remvoed docs
+                fw("* **%s**\n" % prop_id)  # can't link to removed docs
             fw("\n")
 
         if props_moved:
@@ -351,7 +352,7 @@ def main():
         "--api_out", dest="api_out", metavar='FILE',
         help="Output sphinx changelog")
 
-    args = parser.parse_args(argv)  # In this example we wont use the args
+    args = parser.parse_args(argv)  # In this example we won't use the args
 
     if not argv:
         print("No args given!")

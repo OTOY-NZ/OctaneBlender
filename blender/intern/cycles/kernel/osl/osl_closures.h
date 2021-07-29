@@ -5,7 +5,7 @@
  * All Rights Reserved.
  *
  * Modifications Copyright 2011, Blender Foundation.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -33,8 +33,8 @@
 #ifndef __OSL_CLOSURES_H__
 #define __OSL_CLOSURES_H__
 
-#include "util_types.h"
-#include "kernel_types.h"
+#include "util/util_types.h"
+#include "kernel/kernel_types.h"
 
 #include <OSL/oslclosure.h>
 #include <OSL/oslexec.h>
@@ -45,42 +45,63 @@ CCL_NAMESPACE_BEGIN
 OSL::ClosureParam *closure_emission_params();
 OSL::ClosureParam *closure_background_params();
 OSL::ClosureParam *closure_holdout_params();
-OSL::ClosureParam *closure_ambient_occlusion_params();
 OSL::ClosureParam *closure_bsdf_diffuse_ramp_params();
 OSL::ClosureParam *closure_bsdf_phong_ramp_params();
-OSL::ClosureParam *closure_bssrdf_cubic_params();
-OSL::ClosureParam *closure_bssrdf_gaussian_params();
-OSL::ClosureParam *closure_bssrdf_burley_params();
-OSL::ClosureParam *closure_henyey_greenstein_volume_params();
+OSL::ClosureParam *closure_bsdf_transparent_params();
+OSL::ClosureParam *closure_bssrdf_params();
+OSL::ClosureParam *closure_absorption_params();
+OSL::ClosureParam *closure_henyey_greenstein_params();
 OSL::ClosureParam *closure_bsdf_microfacet_multi_ggx_params();
 OSL::ClosureParam *closure_bsdf_microfacet_multi_ggx_glass_params();
 OSL::ClosureParam *closure_bsdf_microfacet_multi_ggx_aniso_params();
+OSL::ClosureParam *closure_bsdf_microfacet_ggx_fresnel_params();
+OSL::ClosureParam *closure_bsdf_microfacet_ggx_aniso_fresnel_params();
+OSL::ClosureParam *closure_bsdf_microfacet_multi_ggx_fresnel_params();
+OSL::ClosureParam *closure_bsdf_microfacet_multi_ggx_glass_fresnel_params();
+OSL::ClosureParam *closure_bsdf_microfacet_multi_ggx_aniso_fresnel_params();
+OSL::ClosureParam *closure_bsdf_principled_clearcoat_params();
 
 void closure_emission_prepare(OSL::RendererServices *, int id, void *data);
 void closure_background_prepare(OSL::RendererServices *, int id, void *data);
 void closure_holdout_prepare(OSL::RendererServices *, int id, void *data);
-void closure_ambient_occlusion_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bsdf_diffuse_ramp_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bsdf_phong_ramp_prepare(OSL::RendererServices *, int id, void *data);
-void closure_bssrdf_cubic_prepare(OSL::RendererServices *, int id, void *data);
-void closure_bssrdf_gaussian_prepare(OSL::RendererServices *, int id, void *data);
-void closure_bssrdf_burley_prepare(OSL::RendererServices *, int id, void *data);
-void closure_henyey_greenstein_volume_prepare(OSL::RendererServices *, int id, void *data);
+void closure_bsdf_transparent_prepare(OSL::RendererServices *, int id, void *data);
+void closure_bssrdf_prepare(OSL::RendererServices *, int id, void *data);
+void closure_absorption_prepare(OSL::RendererServices *, int id, void *data);
+void closure_henyey_greenstein_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bsdf_microfacet_multi_ggx_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bsdf_microfacet_multi_ggx_glass_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bsdf_microfacet_multi_ggx_aniso_prepare(OSL::RendererServices *, int id, void *data);
+void closure_bsdf_microfacet_ggx_fresnel_prepare(OSL::RendererServices *, int id, void *data);
+void closure_bsdf_microfacet_ggx_aniso_fresnel_prepare(OSL::RendererServices *,
+                                                       int id,
+                                                       void *data);
+void closure_bsdf_microfacet_multi_ggx_fresnel_prepare(OSL::RendererServices *,
+                                                       int id,
+                                                       void *data);
+void closure_bsdf_microfacet_multi_ggx_glass_fresnel_prepare(OSL::RendererServices *,
+                                                             int id,
+                                                             void *data);
+void closure_bsdf_microfacet_multi_ggx_aniso_fresnel_prepare(OSL::RendererServices *,
+                                                             int id,
+                                                             void *data);
+void closure_bsdf_principled_clearcoat_prepare(OSL::RendererServices *, int id, void *data);
+void closure_bsdf_principled_hair_prepare(OSL::RendererServices *, int id, void *data);
 
-#define CCLOSURE_PREPARE(name, classname)          \
-void name(RendererServices *, int id, void *data) \
-{                                                 \
-	memset(data, 0, sizeof(classname));           \
-	new (data) classname();                       \
-}
+#define CCLOSURE_PREPARE(name, classname) \
+  void name(RendererServices *, int id, void *data) \
+  { \
+    memset(data, 0, sizeof(classname)); \
+    new (data) classname(); \
+  }
 
 #define CCLOSURE_PREPARE_STATIC(name, classname) static CCLOSURE_PREPARE(name, classname)
 
 #define CLOSURE_FLOAT3_PARAM(st, fld) \
-	{ TypeDesc::TypeVector, (int)reckless_offsetof(st, fld), NULL, sizeof(OSL::Vec3) }
+  { \
+    TypeDesc::TypeVector, (int)reckless_offsetof(st, fld), NULL, sizeof(OSL::Vec3) \
+  }
 
 #define TO_VEC3(v) OSL::Vec3(v.x, v.y, v.z)
 #define TO_COLOR3(v) OSL::Color3(v.x, v.y, v.z)
@@ -89,81 +110,50 @@ void name(RendererServices *, int id, void *data) \
 /* Closure */
 
 class CClosurePrimitive {
-public:
-	virtual void setup(ShaderData *sd, int path_flag, float3 weight) = 0;
+ public:
+  virtual void setup(ShaderData *sd, int path_flag, float3 weight) = 0;
 
-	OSL::ustring label;
+  OSL::ustring label;
 };
 
 /* BSDF */
 
 class CBSDFClosure : public CClosurePrimitive {
-public:
-	bool skip(const ShaderData *sd, int path_flag, int scattering);
+ public:
+  bool skip(const ShaderData *sd, int path_flag, int scattering);
 };
 
 #define BSDF_CLOSURE_CLASS_BEGIN(Upper, lower, structname, TYPE) \
 \
-class Upper##Closure : public CBSDFClosure { \
-public: \
-	structname params; \
-	float3 unused; \
+  class Upper##Closure : public CBSDFClosure { \
+   public: \
+    structname params; \
+    float3 unused; \
 \
-	void setup(ShaderData *sd, int path_flag, float3 weight) \
-	{ \
-	    if(!skip(sd, path_flag, TYPE)) { \
-			structname *bsdf = (structname*)bsdf_alloc_osl(sd, sizeof(structname), weight, &params); \
-			sd->flag |= (bsdf) ? bsdf_##lower##_setup(bsdf) : 0; \
-		} \
-	} \
-}; \
+    void setup(ShaderData *sd, int path_flag, float3 weight) \
+    { \
+      if (!skip(sd, path_flag, TYPE)) { \
+        structname *bsdf = (structname *)bsdf_alloc_osl(sd, sizeof(structname), weight, &params); \
+        sd->flag |= (bsdf) ? bsdf_##lower##_setup(bsdf) : 0; \
+      } \
+    } \
+  }; \
 \
-static ClosureParam *bsdf_##lower##_params() \
-{ \
-	static ClosureParam params[] = {
+  static ClosureParam *bsdf_##lower##_params() \
+  { \
+    static ClosureParam params[] = {
 
 /* parameters */
 
 #define BSDF_CLOSURE_CLASS_END(Upper, lower) \
-		CLOSURE_STRING_KEYPARAM(Upper##Closure, label, "label"), \
-		CLOSURE_FINISH_PARAM(Upper##Closure) \
-	}; \
-	return params; \
-} \
+  CLOSURE_STRING_KEYPARAM(Upper##Closure, label, "label"), CLOSURE_FINISH_PARAM(Upper##Closure) \
+  } \
+  ; \
+  return params; \
+  } \
 \
-CCLOSURE_PREPARE_STATIC(bsdf_##lower##_prepare, Upper##Closure)
-
-/* Volume */
-
-#define VOLUME_CLOSURE_CLASS_BEGIN(Upper, lower, structname, TYPE) \
-\
-class Upper##Closure : public CBSDFClosure { \
-public: \
-	structname params; \
-\
-	void setup(ShaderData *sd, int path_flag, float3 weight) \
-	{ \
-	    structname *volume = (structname*)bsdf_alloc_osl(sd, sizeof(structname), weight, &params); \
-		sd->flag |= (volume) ? volume_##lower##_setup(volume) : 0; \
-	} \
-}; \
-\
-static ClosureParam *volume_##lower##_params() \
-{ \
-	static ClosureParam params[] = {
-
-/* parameters */
-
-#define VOLUME_CLOSURE_CLASS_END(Upper, lower) \
-		CLOSURE_STRING_KEYPARAM(Upper##Closure, label, "label"), \
-		CLOSURE_FINISH_PARAM(Upper##Closure) \
-	}; \
-	return params; \
-} \
-\
-CCLOSURE_PREPARE_STATIC(volume_##lower##_prepare, Upper##Closure)
+  CCLOSURE_PREPARE_STATIC(bsdf_##lower##_prepare, Upper##Closure)
 
 CCL_NAMESPACE_END
 
 #endif /* __OSL_CLOSURES_H__ */
-

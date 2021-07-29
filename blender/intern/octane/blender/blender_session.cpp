@@ -15,26 +15,46 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#include <stdio.h>
 
-#include "blender_session.h"
-
-#include "environment.h"
-#include "camera.h"
-#include "OctaneClient.h"
-#include "render/scene.h"
-#include "session.h"
-
-#include "util_progress.h"
-#include "util_time.h"
-
-#include "blender_sync.h"
-#include "blender_util.h"
-
-#include "DNA_scene_types.h"
+extern "C" {
 #include "BKE_scene.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
-#include "BLI_utildefines.h"
+#include "BKE_context.h"
+#include "BKE_node.h"
+/* SpaceType struct has a member called 'new' which obviously conflicts with C++
+ * so temporarily redefining the new keyword to make it compile. */
+#define new extern_new
+#include "BKE_screen.h"
+#undef new
+
+#include "BLI_listbase.h"
+#include "BLI_fileops.h"
+
+#include "RE_pipeline.h"
+#include "RE_engine.h"
+#include "render_types.h"
+#include "renderpipeline.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
+
+#include "WM_api.h"
+}
+
+#include "blender/blender_session.h"
+#include "render/environment.h"
+#include "render/camera.h"
+#include "render/scene.h"
+#include "render/session.h"
+#include "render/graph.h"
+#include "render/shader.h"
+#include "render/osl.h"
+#include "blender/server/OctaneClient.h"
+
+#include "util/util_progress.h"
+#include "util/util_time.h"
 
 #include <thread>
 #include <chrono>
@@ -42,1110 +62,1184 @@
 
 OCT_NAMESPACE_BEGIN
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Non-Interactive render session constructor
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_,
-                               ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type_, std::string &export_path_)
-                                : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), export_type(export_type_),
-                                export_path(export_path_), b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL) {
-    sync_mutex.lock();
+::OctaneEngine::OctaneClient *BlenderSession::heart_beat_server = NULL;
 
-    no_progress_update = export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
+BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
+                               BL::Preferences &b_userpref,
+                               BL::BlendData &b_data,
+                               BlenderSession::ExportType export_type,
+                               std::string &export_path)
+    : session(NULL),
+      sync(NULL),
+      b_engine(b_engine),
+      b_userpref(b_userpref),
+      b_data(b_data),
+      b_render(b_engine.render()),
+      b_depsgraph(PointerRNA_NULL),
+      b_scene(PointerRNA_NULL),
+      b_v3d(PointerRNA_NULL),
+      b_rv3d(PointerRNA_NULL),
+      width(0),
+      height(0),
+      python_thread_state(NULL),
+      export_path(export_path)
+{
+  sync_mutex.lock();
 
-    for(int i=0; i < Passes::NUM_PASSES; ++i) {
-        if(pass_buffers[i]) pass_buffers[i] = 0;
-    }
-    for(int i=0; i < Passes::NUM_PASSES; ++i) {
-        if(mb_pass_buffers[i]) mb_pass_buffers[i] = 0;
-    }
-    // Offline render
-    width   = b_engine.resolution_x();
-    height  = b_engine.resolution_y();
+  /* offline render */
+  background = true;
+  last_redraw_time = 0.0;
+  last_status_time = 0.0;
 
-    interactive         = false;
-    last_redraw_time    = 0.0f;
+  this->export_type =
+      static_cast<::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum>(
+          export_type);
 
-    create_session();
+  sync_mutex.unlock();
+}
 
-    sync_mutex.unlock();
-} //BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_)
+BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
+                               BL::Preferences &b_userpref,
+                               BL::BlendData &b_data,
+                               BL::SpaceView3D &b_v3d,
+                               BL::RegionView3D &b_rv3d,
+                               int width,
+                               int height,
+                               BlenderSession::ExportType export_type,
+                               std::string &export_path)
+    : session(NULL),
+      sync(NULL),
+      b_engine(b_engine),
+      b_userpref(b_userpref),
+      b_data(b_data),
+      b_render(b_engine.render()),
+      b_depsgraph(PointerRNA_NULL),
+      b_scene(PointerRNA_NULL),
+      b_v3d(b_v3d),
+      b_rv3d(b_rv3d),
+      width(width),
+      height(height),
+      python_thread_state(NULL),
+      export_path(export_path)
+{
+  sync_mutex.lock();
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Interactive render session constructor
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_,
-                               ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type_, std::string &export_path_,
-                               BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
-                                : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_scene(b_scene_), export_type(export_type_),
-                                export_path(export_path_), b_v3d(b_v3d_), b_rv3d(b_rv3d_) {
-    sync_mutex.lock();
+  /* 3d view render */
+  background = false;
+  last_redraw_time = 0.0;
+  last_status_time = 0.0;
 
-    no_progress_update = export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE;
+  this->export_type =
+      static_cast<::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum>(
+          export_type);
 
-    for(int i = 0; i < Passes::NUM_PASSES; ++i) {
-        if(pass_buffers[i]) pass_buffers[i] = 0;
-    }
-    for(int i = 0; i < Passes::NUM_PASSES; ++i) {
-        if(mb_pass_buffers[i]) mb_pass_buffers[i] = 0;
-    }
-    // 3d view render
-    width   = width_;
-    height  = height_;
+  sync_mutex.unlock();
+}
 
-    interactive         = true;
-    last_redraw_time    = 0.0f;
+BlenderSession::~BlenderSession()
+{
+  sync_mutex.lock();
 
-    create_session();
+  free_session();
 
-    if(motion_blur && mb_type == INTERNAL) {
-        bool stop_render;
-        int total_frames;
-        int cur_frame = load_internal_mb_sequence(stop_render, total_frames);
-        session->start("Interactive", false, cur_frame, 0);
-    }
-    else {
-        motion_blur = false;
-        session->start("Interactive", false, 0, 1);
-    }
+  sync_mutex.unlock();
+}
 
-    sync_mutex.unlock();
-} //BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_, BL::BlendData b_data_, BL::Scene b_scene_, BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
+void BlenderSession::create()
+{
+  create_session();
+}
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// DESTRUCTOR
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BlenderSession::~BlenderSession() {
-    sync_mutex.lock();
+void BlenderSession::create_session()
+{
+  SessionParams session_params = BlenderSync::get_session_params(
+      b_engine, b_userpref, b_scene, background, width, height, export_type);
+  SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
+  bool session_pause = BlenderSync::get_session_pause(b_scene, background);
+  std::string cache_path = b_userpref.filepaths().temporary_directory();
 
-    session->set_pause(false);
-    free_session();
+  /* reset status/progress */
+  last_status = "";
+  last_error = "";
+  last_progress = -1.0f;
 
-    sync_mutex.unlock();
-} //~BlenderSession()
+  /* create session */
+  session = new Session(session_params, export_path.c_str(), cache_path.c_str());
+  session->scene = scene;
+  session->progress.set_update_callback(function_bind(&BlenderSession::tag_redraw, this));
+  session->progress.set_cancel_callback(function_bind(&BlenderSession::test_cancel, this));
+  session->set_pause(session_pause);
+  PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+  this->server_address = G.octane_server_address;
+  BlenderSession::connect_to_server(
+      this->server_address, ::OctaneEngine::RENDER_SERVER_PORT, session->server);
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Send the license info to OctaneServer
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool BlenderSession::activate(BL::Scene b_scene) {
-    bool ret = true;
+  /* create scene */
+  scene = new Scene(session,
+                    !background || !b_engine.is_animation() ?
+                        true :
+                        (b_scene.frame_current() == b_scene.frame_start()));
+  scene->name = b_scene.name();
 
-    PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
+  session->scene = scene;
 
-    // Render-server address
-    string server_addr = get_string(oct_scene, "server_address");
-    if(!server_addr.length()) {
-        fprintf(stderr, "Octane: no server address set.\n");
-        return false;
-    }
+  /* There is no single depsgraph to use for the entire render.
+   * So we need to handle this differently.
+   *
+   * We could loop over the final render result render layers in pipeline and keep Cycles unaware
+   * of multiple layers, or perhaps move syncing further down in the pipeline.
+   */
+  /* create sync */
+  sync = new BlenderSync(
+      b_engine, b_userpref, b_data, b_scene, scene, !background, session->progress);
+  BL::Object b_camera_override(b_engine.camera_override());
+  if (b_v3d) {
+    sync->sync_view(b_v3d, b_rv3d, width, height);
+  }
+  else {
+    sync->sync_camera(b_render, b_camera_override, width, height, "");
+  }
 
-    //string login        = get_string(oct_scene, "server_login");
-    //string pass         = get_string(oct_scene, "server_pass");
-    //string stand_login  = get_string(oct_scene, "stand_login");
-    //string stand_pass   = get_string(oct_scene, "stand_pass");
-    //if(stand_login.length() > 0 && stand_pass.length() > 0 && login.length() > 0 && pass.length() > 0) {
-        ::OctaneEngine::OctaneClient *server = newnt ::OctaneEngine::OctaneClient;
-        if(server) {
-            if(!server->connectToServer(server_addr.c_str())) {
-                if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED)
-                    fprintf(stdout, "Octane: current server activation state is: not activated.\n");
-                else {
-                    if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION) {
-                        fprintf(stderr, "Octane: can't connect to Octane server.\n");
-                        ret = false;
-                    }
-                    else if(server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION) {
-                        fprintf(stderr, "Octane: wrong version of Octane server.\n");
-                        ret = false;
-                    }
-                    else {
-                        fprintf(stderr, "Octane: can't connect to Octane server.\n");
-                        ret = false;
-                    }
-                }
-            }
+  /* set buffer parameters */
+  BufferParams buffer_params = BlenderSync::get_buffer_params(
+      b_render, b_v3d, b_rv3d, scene->camera, width, height);
+  session->reset(buffer_params, session_params.samples);
+}
 
-            if(ret && !server->activate("", "", "", "")) {
-                //RNA_string_set(&oct_scene, "stand_login", "");
-                //RNA_string_set(&oct_scene, "stand_pass", "");
-                //RNA_string_set(&oct_scene, "server_login", "");
-                //RNA_string_set(&oct_scene, "server_pass", "");
-                ret = false;
-            }
-            //else fprintf(stdout, "Octane: server activation is completed successfully.\n");
+void BlenderSession::free_session()
+{
+  // if (session && session->server && !background) {
+  //	session->server->clear();
+  //}
 
-            delete server;
-        }
-        else {
-            fprintf(stderr, "Octane: unexpected ERROR during opening server activation state dialog.\n");
-            ret = false;
-        }
-    //}
-    //else {
-    //    fprintf(stderr, "Octane: ERROR: login-password fields must be filled in before activation.\n");
-    //    ret = false;
-    //}
-
-    return ret;
-} //activate()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Create the Blender session and all Octane session data structures
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::create_session() {
-    SessionParams session_params    = BlenderSync::get_session_params(b_userpref, b_scene, export_type, interactive);
-    session_params.width            = width;
-    session_params.height           = height;
-
-    BL::RenderSettings r    = b_scene.render();
-    motion_blur             = r.use_motion_blur();
-    shuttertime             = r.motion_blur_shutter();
-    mb_samples              = r.motion_blur_samples();
-    mb_cur_sample           = 0;
-    mb_sample_in_work       = 0;
-
-    PointerRNA oct_scene    = RNA_pointer_get(&b_scene.ptr, "octane");
-    mb_type                 = static_cast<MotionBlurType>(RNA_enum_get(&oct_scene, "mb_type"));
-    mb_direction            = static_cast<MotionBlurDirection>(RNA_enum_get(&oct_scene, "mb_direction"));
-    mb_frame_time_sampling  = motion_blur && mb_type == INTERNAL ? 1.0f / session_params.fps : -1.0f;
-
-    // Reset status/progress
-    last_status		= "";
-    last_progress	= -1.0f;
-
-    // Create session
-    if(export_path.length())
-        session = new Session(session_params, export_path.c_str());
-    else {
-        string cur_path = blender_absolute_path(b_data, b_scene, b_scene.render().filepath().c_str());
-        cur_path += "/octane_export";
-        session = new Session(session_params, cur_path.c_str());
-    }
-    session->set_blender_session(this);
-    session->set_pause(BlenderSync::get_session_pause_state(b_scene, interactive));
-
-    // Create scene
-    scene = new Scene(session, interactive || !b_engine.is_animation() ? true : (b_scene.frame_current() == b_scene.frame_start()));
-    session->scene = scene;
-
-    scene->server = session->server;
-
-    // Create sync
-    sync = new BlenderSync(b_engine, b_data, b_scene, scene, interactive, session->progress);
-
-    if(b_rv3d)
-        sync->sync_view(b_v3d, b_rv3d, width, height);
-    else
-        sync->sync_camera(b_engine.camera_override(), width, height);
-
-    // Set buffer parameters
-    BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-
-    if(interactive || !b_engine.is_animation() || b_scene.frame_current() == b_scene.frame_start())
-        session->reset(buffer_params, mb_frame_time_sampling, session_params.fps);
-} //create_session()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Free Blender session and all Octane session data structures
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::free_session() {
-    if(session->server && (interactive || !b_engine.is_animation() || b_scene.frame_current() == b_scene.frame_end()))
-        session->server->clear();
-
-    clear_passes_buffers();
+  if (sync)
     delete sync;
-    delete session;
-} //free_session()
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_) {
-    sync_mutex.lock();
+  delete session;
+}
 
-    b_data = b_data_;
-    //b_render = b_engine.render();
-    b_scene = b_scene_;
+void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsgraph)
+{
+  sync_mutex.lock();
 
-    session->set_pause(false);
+  this->b_data = b_data;
+  this->b_depsgraph = b_depsgraph;
+  this->b_scene = b_depsgraph.scene_eval();
 
-    BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-    session->reset(buffer_params, mb_frame_time_sampling, session->params.fps);
+  if (b_v3d) {
+    this->b_render = b_scene.render();
+  }
+  else {
+    this->b_render = b_engine.render();
+    width = render_resolution_x(b_render);
+    height = render_resolution_y(b_render);
+  }
 
+  if (session == NULL) {
+    create();
+  }
+
+  if (b_v3d) {
+    /* NOTE: We need to create session, but all the code from below
+     * will make viewport render to stuck on initialization.
+     */
     sync_mutex.unlock();
-} //reset_session()
+    return;
+  }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Reload the scene
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::reload_session() {
-    sync_mutex.lock();
+  SessionParams session_params = BlenderSync::get_session_params(
+      b_engine, b_userpref, b_scene, background, width, height);
+  session->progress.reset();
 
+  session->set_pause(false);
+
+  /* There is no single depsgraph to use for the entire render.
+   * See note on create_session().
+   */
+  /* sync object should be re-created */
+  sync = new BlenderSync(
+      b_engine, b_userpref, b_data, b_scene, scene, !background, session->progress);
+
+  BL::SpaceView3D b_null_space_view3d(PointerRNA_NULL);
+  BL::RegionView3D b_null_region_view3d(PointerRNA_NULL);
+  BufferParams buffer_params = BlenderSync::get_buffer_params(
+      b_render, b_null_space_view3d, b_null_region_view3d, scene->camera, width, height);
+
+  if (b_scene.frame_current() == b_scene.frame_start() ||
+      export_type == ::OctaneEngine::OctaneClient::SceneExportTypes::NONE) {
+    session->reset(buffer_params, session_params.samples);
+  }
+
+  sync_mutex.unlock();
+}
+
+void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
+{
+  if (!sync_mutex.try_lock())
+    return;
+
+  /* only used for viewport render */
+  if (!b_v3d) {
+    sync_mutex.unlock();
+    return;
+  }
+
+  /* on session/scene parameter changes, we recreate session entirely */
+  SessionParams session_params = BlenderSync::get_session_params(
+      b_engine, b_userpref, b_scene, background, width, height);
+  SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
+  bool session_pause = BlenderSync::get_session_pause(b_scene, background);
+
+  if (session->params.modified(session_params) || scene->params.modified(scene_params)) {
     free_session();
-    last_redraw_time = 0.0f;
     create_session();
-
-    if(motion_blur && mb_type == INTERNAL) {
-        bool stop_render;
-        int total_frames;
-        int cur_frame = load_internal_mb_sequence(stop_render, total_frames);
-        session->start("Interactive", false, cur_frame, 0);
-    }
-    else {
-        if(interactive) {
-            sync->sync_data(b_v3d, b_engine.camera_override());
-            session->start("Interactive", false, 0, 1);
-        }
-    }
-
     sync_mutex.unlock();
-} //reload_session()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Returns: the current frame index inside the sequence
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int BlenderSession::load_internal_mb_sequence(bool &stop_render, int &num_frames, BL::RenderLayer *layer, bool do_sync) {
-    stop_render = false;
-
-    int     cur_frame = b_scene.frame_current();
-    float   frames_cnt = shuttertime / mb_frame_time_sampling;
-    int     first_frame, last_frame;
-
-    if(mb_direction == AFTER) {
-        first_frame = cur_frame;
-        last_frame = static_cast<int>(ceilf(static_cast<float>(cur_frame)+frames_cnt));
-    }
-    else if(mb_direction == BEFORE) {
-        first_frame = static_cast<int>(floorf(static_cast<float>(cur_frame)-frames_cnt));
-        last_frame = cur_frame;
-    }
-    else if(mb_direction == SYMMETRIC) {
-        first_frame = static_cast<int>(floorf(static_cast<float>(cur_frame)-frames_cnt / 2));
-        last_frame = static_cast<int>(ceilf(static_cast<float>(cur_frame)+frames_cnt / 2));
-    }
-    //int start_frame = std::min(b_scene.frame_start(), cur_frame);
-    //int end_frame = std::max(b_scene.frame_end(), cur_frame);
-    //CLAMP(first_frame, start_frame, end_frame);
-    //CLAMP(last_frame, start_frame, end_frame);
-
-    ::Scene *m_scene = (::Scene*)b_scene.ptr.data;
-
-    num_frames = last_frame - first_frame + 1;
-    double last_cfra;
-    int motion = 0;
-    for(int cur_mb_frame = first_frame; cur_mb_frame <= last_frame; ++cur_mb_frame) {
-        //if(cur_mb_frame == cur_frame) continue;
-
-        //b_scene.frame_set(cur_mb_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
-        last_cfra = (double)cur_mb_frame;
-        CLAMP(last_cfra, MINAFRAME, MAXFRAME);
-        //BKE_scene_frame_set((::Scene *)b_scene.ptr.data, last_cfra);
-        //BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
-        //BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-	    m_scene->r.cfra = floor(last_cfra);
-	    m_scene->r.subframe = last_cfra - m_scene->r.cfra;
-	    BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
-        BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-        sync->sync_recalc();
-
-        sync->sync_data(b_v3d, b_engine.camera_override(), layer, motion);
-        if(!do_sync) {
-            if(b_rv3d)
-                sync->sync_view(b_v3d, b_rv3d, width, height);
-            else
-                sync->sync_camera(b_engine.camera_override(), width, height);
-        }
-        session->update_scene_to_server(cur_mb_frame - first_frame, cur_mb_frame == last_frame ? 0 : num_frames, do_sync);
-
-        if(!interactive && session->progress.get_cancel()) {
-            stop_render = true;
-            break;
-        }
-        if(!motion) motion = 1;
-    }
-    //b_scene.frame_set(cur_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
-    double cfra = (double)cur_frame;
-    CLAMP(cfra, MINAFRAME, MAXFRAME);
-    if(last_cfra != cfra) {
-        //BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-        //BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
-        //BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-	    m_scene->r.cfra = floor(cfra);
-	    m_scene->r.subframe = cfra - m_scene->r.cfra;
-	    BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
-        BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-        sync->sync_recalc();
-    }
-
-    return cur_frame - first_frame;
-} //load_internal_mb_sequence()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Get Blender render-pass type translated to Octane pass type
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline ::Octane::RenderPassId BlenderSession::get_octane_pass_type(BL::RenderPass b_pass) {
-    switch(b_pass.type()) {
-        case BL::RenderPass::type_COMBINED:
-            return ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
-
-        case BL::RenderPass::type_EMIT:
-            return ::Octane::RenderPassId::RENDER_PASS_EMIT;
-        case BL::RenderPass::type_ENVIRONMENT:
-            return ::Octane::RenderPassId::RENDER_PASS_ENVIRONMENT;
-        case BL::RenderPass::type_DIFFUSE:
-            return ::Octane::RenderPassId::RENDER_PASS_DIFFUSE;
-        case BL::RenderPass::type_DIFFUSE_DIRECT:
-            return ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_DIRECT;
-        case BL::RenderPass::type_DIFFUSE_INDIRECT:
-            return ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_INDIRECT;
-
-        case BL::RenderPass::type_REFLECTION:
-            if(scene->passes->oct_node->bReflectionDirectPass)
-                return ::Octane::RenderPassId::RENDER_PASS_REFLECTION_DIRECT;
-            else if(scene->passes->oct_node->bReflectionIndirectPass)
-                return ::Octane::RenderPassId::RENDER_PASS_REFLECTION_INDIRECT;
-            else
-                return ::Octane::RenderPassId::RENDER_PASS_LAYER_REFLECTIONS;
-
-        case BL::RenderPass::type_REFRACTION:
-            return ::Octane::RenderPassId::RENDER_PASS_REFRACTION;
-        case BL::RenderPass::type_TRANSMISSION_COLOR:
-            return ::Octane::RenderPassId::RENDER_PASS_TRANSMISSION;
-        case BL::RenderPass::type_SUBSURFACE_COLOR:
-            return ::Octane::RenderPassId::RENDER_PASS_SSS;
-
-        case BL::RenderPass::type_NORMAL:
-            if(scene->passes->oct_node->bGeomNormalsPass)
-                return ::Octane::RenderPassId::RENDER_PASS_GEOMETRIC_NORMAL;
-            else if(scene->passes->oct_node->bShadingNormalsPass)
-                return ::Octane::RenderPassId::RENDER_PASS_SHADING_NORMAL;
-            else
-                return ::Octane::RenderPassId::RENDER_PASS_VERTEX_NORMAL;
-
-        case BL::RenderPass::type_Z:
-            return ::Octane::RenderPassId::RENDER_PASS_Z_DEPTH;
-        case BL::RenderPass::type_MATERIAL_INDEX:
-            return ::Octane::RenderPassId::RENDER_PASS_MATERIAL_ID;
-        case BL::RenderPass::type_UV:
-            return ::Octane::RenderPassId::RENDER_PASS_UV_COORD;
-        case BL::RenderPass::type_OBJECT_INDEX:
-            return ::Octane::RenderPassId::RENDER_PASS_OBJECT_ID;
-        case BL::RenderPass::type_AO:
-            return ::Octane::RenderPassId::RENDER_PASS_AMBIENT_OCCLUSION;
-
-        case BL::RenderPass::type_SHADOW:
-            if(scene->passes->oct_node->bLayerShadowsPass)
-                return ::Octane::RenderPassId::RENDER_PASS_LAYER_SHADOWS;
-            else if(scene->passes->oct_node->bLayerBlackShadowsPass)
-                return ::Octane::RenderPassId::RENDER_PASS_LAYER_BLACK_SHADOWS;
-            else
-                return ::Octane::RenderPassId::RENDER_PASS_LAYER_COLOR_SHADOWS;
-
-        case BL::RenderPass::type_VECTOR:
-        case BL::RenderPass::type_DIFFUSE_COLOR:
-        case BL::RenderPass::type_GLOSSY_COLOR:
-        case BL::RenderPass::type_GLOSSY_INDIRECT:
-        case BL::RenderPass::type_TRANSMISSION_INDIRECT:
-        case BL::RenderPass::type_GLOSSY_DIRECT:
-        case BL::RenderPass::type_TRANSMISSION_DIRECT:
-        case BL::RenderPass::type_COLOR:
-        case BL::RenderPass::type_SPECULAR:
-        case BL::RenderPass::type_MIST:
-            return ::Octane::RenderPassId::PASS_NONE;
-        default:
-            return ::Octane::RenderPassId::PASS_NONE;
-    }
-    return ::Octane::RenderPassId::PASS_NONE;
-} //get_octane_pass_type()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Get Octane render-pass type translated to Blender pass type
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline BL::RenderPass::type_enum BlenderSession::get_blender_pass_type(::Octane::RenderPassId pass) {
-    switch(pass) {
-    case ::Octane::RenderPassId::RENDER_PASS_BEAUTY:
-        return BL::RenderPass::type_COMBINED;
-
-    case ::Octane::RenderPassId::RENDER_PASS_EMIT:
-        return BL::RenderPass::type_EMIT;
-    case ::Octane::RenderPassId::RENDER_PASS_ENVIRONMENT:
-        return BL::RenderPass::type_ENVIRONMENT;
-    case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE:
-        return BL::RenderPass::type_DIFFUSE;
-    case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_DIRECT:
-        return BL::RenderPass::type_DIFFUSE_DIRECT;
-    case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_INDIRECT:
-        return BL::RenderPass::type_DIFFUSE_INDIRECT;
-
-    case ::Octane::RenderPassId::RENDER_PASS_REFLECTION_DIRECT:
-    case ::Octane::RenderPassId::RENDER_PASS_REFLECTION_INDIRECT:
-    case ::Octane::RenderPassId::RENDER_PASS_LAYER_REFLECTIONS:
-        return BL::RenderPass::type_REFLECTION;
-
-    case ::Octane::RenderPassId::RENDER_PASS_REFRACTION:
-        return BL::RenderPass::type_REFRACTION;
-    case ::Octane::RenderPassId::RENDER_PASS_TRANSMISSION:
-        return BL::RenderPass::type_TRANSMISSION_COLOR;
-    case ::Octane::RenderPassId::RENDER_PASS_SSS:
-        return BL::RenderPass::type_SUBSURFACE_COLOR;
-
-    case ::Octane::RenderPassId::RENDER_PASS_GEOMETRIC_NORMAL:
-    case ::Octane::RenderPassId::RENDER_PASS_SHADING_NORMAL:
-    case ::Octane::RenderPassId::RENDER_PASS_VERTEX_NORMAL:
-        return BL::RenderPass::type_NORMAL;
-
-    case ::Octane::RenderPassId::RENDER_PASS_Z_DEPTH:
-        return BL::RenderPass::type_Z;
-    case ::Octane::RenderPassId::RENDER_PASS_MATERIAL_ID:
-        return BL::RenderPass::type_MATERIAL_INDEX;
-    case ::Octane::RenderPassId::RENDER_PASS_UV_COORD:
-        return BL::RenderPass::type_UV;
-    case ::Octane::RenderPassId::RENDER_PASS_OBJECT_ID:
-        return BL::RenderPass::type_OBJECT_INDEX;
-    case ::Octane::RenderPassId::RENDER_PASS_AMBIENT_OCCLUSION:
-        return BL::RenderPass::type_AO;
-
-    case ::Octane::RenderPassId::RENDER_PASS_LAYER_SHADOWS:
-    case ::Octane::RenderPassId::RENDER_PASS_LAYER_BLACK_SHADOWS:
-    case ::Octane::RenderPassId::RENDER_PASS_LAYER_COLOR_SHADOWS:
-        return BL::RenderPass::type_SHADOW;
-
-    default:
-        return BL::RenderPass::type_COMBINED;
-    }
-    return BL::RenderPass::type_COMBINED;
-} //get_blender_pass_type()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Get Blender render-pass type translated to Octane pass type
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline int BlenderSession::get_pass_index(::Octane::RenderPassId pass) {
-    switch(pass) {
-    case ::Octane::RenderPassId::RENDER_PASS_BEAUTY:
-        return 0;
-
-    case ::Octane::RenderPassId::RENDER_PASS_EMIT:
-        return 1;
-    case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_DIRECT:
-        return 2;
-    case ::Octane::RenderPassId::RENDER_PASS_DIFFUSE_INDIRECT:
-        return 3;
-    case ::Octane::RenderPassId::RENDER_PASS_REFLECTION_DIRECT:
-        return 4;
-    case ::Octane::RenderPassId::RENDER_PASS_REFLECTION_INDIRECT:
-        return 5;
-    case ::Octane::RenderPassId::RENDER_PASS_REFRACTION:
-        return 6;
-    case ::Octane::RenderPassId::RENDER_PASS_TRANSMISSION:
-        return 7;
-    case ::Octane::RenderPassId::RENDER_PASS_SSS:
-        return 8;
-    case ::Octane::RenderPassId::RENDER_PASS_POST_PROC:
-        return 9;
-    case ::Octane::RenderPassId::RENDER_PASS_LAYER_SHADOWS:
-        return 10;
-    case ::Octane::RenderPassId::RENDER_PASS_LAYER_BLACK_SHADOWS:
-        return 11;
-    case ::Octane::RenderPassId::RENDER_PASS_LAYER_COLOR_SHADOWS:
-        return 12;
-    case ::Octane::RenderPassId::RENDER_PASS_LAYER_REFLECTIONS:
-        return 13;
-
-    case ::Octane::RenderPassId::RENDER_PASS_GEOMETRIC_NORMAL:
-        return 14;
-    case ::Octane::RenderPassId::RENDER_PASS_SHADING_NORMAL:
-        return 15;
-    case ::Octane::RenderPassId::RENDER_PASS_POSITION:
-        return 16;
-    case ::Octane::RenderPassId::RENDER_PASS_Z_DEPTH:
-        return 17;
-    case ::Octane::RenderPassId::RENDER_PASS_MATERIAL_ID:
-        return 18;
-    case ::Octane::RenderPassId::RENDER_PASS_UV_COORD:
-        return 19;
-    case ::Octane::RenderPassId::RENDER_PASS_TANGENT_U:
-        return 20;
-    case ::Octane::RenderPassId::RENDER_PASS_WIREFRAME:
-        return 21;
-    case ::Octane::RenderPassId::RENDER_PASS_VERTEX_NORMAL:
-        return 22;
-    case ::Octane::RenderPassId::RENDER_PASS_OBJECT_ID:
-        return 23;
-    case ::Octane::RenderPassId::RENDER_PASS_AMBIENT_OCCLUSION:
-        return 24;
-    case ::Octane::RenderPassId::RENDER_PASS_MOTION_VECTOR:
-        return 25;
-    case ::Octane::RenderPassId::RENDER_PASS_RENDER_LAYER_ID:
-        return 26;
-    case ::Octane::RenderPassId::RENDER_PASS_RENDER_LAYER_MASK:
-        return 27;
-    case ::Octane::RenderPassId::RENDER_PASS_ENVIRONMENT:
-        return 28;
-
-    default:
-        return 0;
-    }
-    return 0;
-} //get_pass_index()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static BL::RenderResult begin_render_result(BL::RenderEngine b_engine, int x, int y, int w, int h, const char *layername, const char *viewname) {
-    return b_engine.begin_result(x, y, w, h, layername, viewname);
-} //begin_render_result()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void end_render_result(BL::RenderEngine b_engine, BL::RenderResult b_rr, bool cancel, bool do_merge_results) {
-    b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
-} //end_render_result()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update the rendered image, with or without passes
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::do_write_update_render_img(bool do_update_only) {
-    int x = 0;
-    int y = 0;
-    int w = width;
-    int h = height;
-
-    // Get render result
-    BL::RenderResult b_rr = begin_render_result(b_engine, x, y, w, h, b_rlay_name.c_str(), b_rview_name.c_str());
-
-    // Can happen if the intersected rectangle gives 0 width or height
-    if (!b_rr.ptr.data) return;
-
-    BL::RenderResult::layers_iterator b_single_rlay;
-    b_rr.layers.begin(b_single_rlay);
-    BL::RenderLayer b_rlay = *b_single_rlay;
-
-    if(do_update_only) {
-        // Update only needed
-        update_render_result(b_rr, b_rlay);
-        end_render_result(b_engine, b_rr, true, true);
-    }
-    else {
-        // Write result
-        write_render_result(b_rr, b_rlay);
-        end_render_result(b_engine, b_rr, false, true);
-    }
-} //do_write_update_render_img()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update the rendered image with passes
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::write_render_img() {
-    do_write_update_render_img(false);
-} //write_render_img()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update the rendered image without passes
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::update_render_img() {
-    if (!b_engine.is_preview())
-        do_write_update_render_img(true);
-    else {
-        do_write_update_render_img(false);
-    }
-} //update_render_img()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update render image, with passes if needed
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, bool do_update_only) {
-    int buf_size = width * height * 4;
-    float* pixels = pass_buffers[0];
-    if(!pixels) {
-        pixels = new float[buf_size];
-        pass_buffers[0] = pixels;
-    }
-    float* mb_pixels = mb_pass_buffers[0];
-    if(motion_blur && !mb_pixels) {
-        mb_pixels = new float[buf_size];
-        mb_pass_buffers[0] = mb_pixels;
-    }
-
-    ::Octane::RenderPassId cur_pass_type;
-    if(scene->passes->oct_node->bUsePasses)
-        cur_pass_type = scene->passes->oct_node->curPassType;
-    else
-        cur_pass_type = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
-
-    //if(scene->passes->oct_node->bUsePasses && session->server->currentPassType() != cur_pass_type) {
-        session->server->checkImgBufferFloat(4, pixels, width, height,
-            (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.z - scene->camera->oct_node->ui4Region.x : width), (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.w - scene->camera->oct_node->ui4Region.y : height), false);
-        session->server->downloadImageBuffer(session->params.image_stat, session->params.interactive ? ::OctaneEngine::OctaneClient::IMAGE_8BIT : (session->params.hdr_tonemapped ? ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED : ::OctaneEngine::OctaneClient::IMAGE_FLOAT), cur_pass_type);
-    //}
-
-    if(motion_blur && mb_type == SUBFRAME && mb_cur_sample > 1) {
-        if(!do_update_only) {
-            for(unsigned int k = 0; k < buf_size; ++k)
-                pixels[k] = (pixels[k] * (mb_cur_sample - 1) + mb_pixels[k]) / (float)mb_cur_sample;
-        }
-        else {
-            if(mb_cur_sample > 2 && mb_cur_sample > mb_sample_in_work) {
-                mb_sample_in_work = mb_cur_sample;
-                for(unsigned int k = 0; k < buf_size; ++k)
-                    pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
-            }
-            session->server->getCopyImgBufferFloat(4, mb_pixels, width, height,
-                (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.z - scene->camera->oct_node->ui4Region.x : width), (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.w - scene->camera->oct_node->ui4Region.y : height));
-        }
-        BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
-        b_combined_pass.rect(pixels);
-    }
-    else if(session->server->getCopyImgBufferFloat(4, pixels, width, height,
-            (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.z - scene->camera->oct_node->ui4Region.x : width), (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.w - scene->camera->oct_node->ui4Region.y : height))) {
-        BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
-        b_combined_pass.rect(pixels);
-    }
-
-    if(scene->passes->oct_node->bUsePasses && (!do_update_only || (motion_blur && mb_type == SUBFRAME && session->params.image_stat.uiCurSamples >= session->params.samples))) {
-        // Copy each pass
-        BL::RenderLayer::passes_iterator b_iter;
-        for(b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter) {
-            BL::RenderPass b_pass(*b_iter);
-
-            int components = b_pass.channels();
-            buf_size = width * height * components;
-
-            if(session->progress.get_cancel()) break;
-
-            // Find matching pass type
-            ::Octane::RenderPassId pass_type = get_octane_pass_type(b_pass);
-            if(pass_type == ::Octane::RenderPassId::RENDER_PASS_BEAUTY)
-                continue;
-            else if(pass_type == ::Octane::RenderPassId::PASS_NONE || !session->server->downloadImageBuffer(session->params.image_stat, session->params.interactive ? ::OctaneEngine::OctaneClient::IMAGE_8BIT : (session->params.hdr_tonemapped ? ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED : ::OctaneEngine::OctaneClient::IMAGE_FLOAT), pass_type)) {
-                if(!do_update_only) {
-                    float* pixels  = new float[buf_size];
-                    memset(pixels, 0, sizeof(float) * buf_size);
-                    b_pass.rect(pixels);
-                    delete[] pixels;
-                }
-                continue;
-            }
-            int pass_idx = get_pass_index(pass_type);
-
-            if(session->progress.get_cancel()) break;
-
-            pixels = pass_buffers[pass_idx];
-            if(!pixels) {
-                pixels = new float[buf_size];
-                pass_buffers[pass_idx] = pixels;
-            }
-            mb_pixels = mb_pass_buffers[pass_idx];
-            if(motion_blur && !mb_pixels) {
-                mb_pixels = new float[buf_size];
-                mb_pass_buffers[pass_idx] = mb_pixels;
-            }
-
-            if(motion_blur && mb_type == SUBFRAME && mb_cur_sample > 1) {
-                if(!do_update_only) {
-                    for(unsigned int k = 0; k < buf_size; ++k)
-                        pixels[k] = (pixels[k] * (mb_cur_sample - 1) + mb_pixels[k]) / (float)mb_cur_sample;
-                }
-                else {
-                    if(mb_cur_sample > 2 && mb_cur_sample > mb_sample_in_work) {
-                        mb_sample_in_work = mb_cur_sample;
-                        for(unsigned int k = 0; k < buf_size; ++k)
-                            pixels[k] = (pixels[k] * (mb_cur_sample - 2) + mb_pixels[k]) / (float)(mb_cur_sample - 1);
-                    }
-                    session->server->getCopyImgBufferFloat(components, mb_pixels, width, height,
-                        (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.z - scene->camera->oct_node->ui4Region.x : width), (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.w - scene->camera->oct_node->ui4Region.y : height));
-                }
-                b_pass.rect(pixels);
-            }
-            else {
-                if(session->server->getCopyImgBufferFloat(components, pixels, width, height,
-                    (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.z - scene->camera->oct_node->ui4Region.x : width), (scene->camera->oct_node->bUseRegion ? scene->camera->oct_node->ui4Region.w - scene->camera->oct_node->ui4Region.y : height)))
-                    b_pass.rect(pixels);
-            }
-        } //for(b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter)
-    } //if(scene->passes->use_passes && (!do_update_only || (motion_blur && mb_type == SUBFRAME && session->params.image_stat.cur_samples >= session->params.samples)))
-
-    // Tag result as updated
-    b_engine.update_result(b_rr);
-} //do_write_update_render_result()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update render image with passes
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::write_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay) {
-    do_write_update_render_result(b_rr, b_rlay, false);
-} //write_render_result()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update render image, without passes
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay) {
-    do_write_update_render_result(b_rr, b_rlay, true);
-} //update_render_result()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Clear all passes buffers
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::clear_passes_buffers() {
-    for(int i = 0; i < Passes::NUM_PASSES; ++i) {
-        if(pass_buffers[i]) {
-            delete[] pass_buffers[i];
-            pass_buffers[i] = 0;
-        }
-        if(mb_pass_buffers[i]) {
-            delete[] mb_pass_buffers[i];
-            mb_pass_buffers[i] = 0;
-        }
-    }
-} //clear_passes_buffers()
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "render" python API function
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::render() {
-    // Get buffer parameters
-    SessionParams	session_params	= BlenderSync::get_session_params(b_userpref, b_scene, export_type, interactive);
-    if(session_params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE) {
-        sync->sync_data(b_v3d, b_engine.camera_override());
-        sync->sync_camera(b_engine.camera_override(), width, height);
-
-        session->update_scene_to_server(0, 1);
-        session->server->startRender(interactive, width, height, ::OctaneEngine::OctaneClient::IMAGE_8BIT, session_params.out_of_core_enabled, session_params.out_of_core_mem_limit, session_params.out_of_core_gpu_headroom);
-
-        if(b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
-            session->progress.set_status("Transferring scene file...");
-            session->server->stopRender(session_params.fps);
-        }
-        return;
-    }
-    BufferParams	buffer_params	= BlenderSync::get_display_buffer_params(scene->camera, width, height);
-
-    // Render each layer
-    BL::RenderSettings render = b_scene.render();
-
-    if(motion_blur && mb_type == SUBFRAME && mb_samples > 1)
-        session->params.samples = session->params.samples / mb_samples;
-    if(session->params.samples < 1) session->params.samples = 1;
-
-    bool stop_render = false;
-    BL::RenderSettings::layers_iterator b_layer_iter;
-    BL::RenderResult::views_iterator    b_view_iter;
-    for(render.layers.begin(b_layer_iter); b_layer_iter != render.layers.end(); ++b_layer_iter) {
-        clear_passes_buffers();
-        BL::RenderLayer cur_layer(*b_layer_iter);
-        b_rlay_name = b_layer_iter->name();
-
-        // Temporary render result to find needed passes and views.
-        BL::RenderResult b_rr = begin_render_result(b_engine, 0, 0, 1, 1, b_rlay_name.c_str(), NULL);
-        BL::RenderResult::layers_iterator b_single_rlay;
-        b_rr.layers.begin(b_single_rlay);
-
-        // Layer will be missing if it was disabled in the UI.
-        if(b_single_rlay == b_rr.layers.end()) {
-            end_render_result(b_engine, b_rr, true, false);
-            continue;
-        }
-
-        std::vector<std::string> views;
-        for(b_rr.views.begin(b_view_iter); b_view_iter != b_rr.views.end(); ++b_view_iter) {
-            views.push_back(b_view_iter->name());
-        }
-
-        // Free result without merging.
-        end_render_result(b_engine, b_rr, true, false);
-
-        sync->sync_data(b_v3d, b_engine.camera_override(), &cur_layer);
-        sync->sync_camera(b_engine.camera_override(), width, height);
-
-        for(int i = 0; i < views.size(); ++i) {
-            b_rview_name = views[i];
-
-            // Set the current view.
-            b_engine.active_view_set(b_rview_name.c_str());
-
-            // Render
-            if(motion_blur && mb_type == SUBFRAME && mb_samples > 1) {
-                ::Scene *m_scene = (::Scene*)b_scene.ptr.data;
-
-                mb_sample_in_work = 0;
-                float subframe = 0;
-                int cur_frame = b_scene.frame_current();
-                for(mb_cur_sample = 1; mb_cur_sample <= mb_samples; ++mb_cur_sample) {
-                    session->start("Final render", true, 0, 1);
-                    //session->params.image_stat.uiCurSamples = 0;
-
-                    if(mb_cur_sample < mb_samples) {
-                        subframe += shuttertime / (mb_samples - 1);
-                        if(subframe < 1.0f) {
-                            //b_scene.frame_set(cur_frame, subframe); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
-                            double cfra = (double)cur_frame + (double)subframe;
-                            CLAMP(cfra, MINAFRAME, MAXFRAME);
-                            //BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-                            //BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
-                            //BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-	                        m_scene->r.cfra = floor(cfra);
-	                        m_scene->r.subframe = cfra - m_scene->r.cfra;
-	                        BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
-                            BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-                            sync->sync_recalc();
-                        }
-
-                        sync->sync_data(b_v3d, b_engine.camera_override(), &cur_layer);
-                        sync->sync_camera(b_engine.camera_override(), width, height);
-                    }
-
-                    if(session->progress.get_cancel()) {
-                        stop_render = true;
-                        break;
-                    }
-                }
-                //b_scene.frame_set(cur_frame, 0); //Crashes due to BPy_BEGIN_ALLOW_THREADS-BPy_END_ALLOW_THREADS block in rna_Scene_frame_set()
-                double cfra = (double)cur_frame;
-                CLAMP(cfra, MINAFRAME, MAXFRAME);
-                //BKE_scene_frame_set((::Scene *)b_scene.ptr.data, cfra);
-                //BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, (::Scene *)b_scene.ptr.data, (1 << 20) - 1, true);
-                //BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-	            m_scene->r.cfra = floor(cfra);
-	            m_scene->r.subframe = cfra - m_scene->r.cfra;
-	            BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, m_scene, m_scene->lay);
-                BKE_scene_camera_switch_update((::Scene *)b_scene.ptr.data);
-                sync->sync_recalc();
-            }
-            else if(motion_blur && mb_type == INTERNAL) {
-                int total_frames;
-                int int_frame_idx = load_internal_mb_sequence(stop_render, total_frames, &cur_layer);
-
-                if(!stop_render) {
-                    session->start("Final render", true, int_frame_idx, 0);
-                    //session->params.image_stat.uiCurSamples = 0;
-                }
-            }
-            else {
-                if(motion_blur) motion_blur = false;
-                mb_cur_sample = 0;
-                if(!stop_render) {
-                    session->start("Final render", true, 0, 1);
-                    //session->params.image_stat.uiCurSamples = 0;
-                }
-            }
-
-            write_render_img();
-
-            if(session->progress.get_cancel()) {
-                stop_render = true;
-                break;
-            }
-        }
-    } //for(r.layers.begin(b_iter); b_iter != r.layers.end(); ++b_iter)
-
-    clear_passes_buffers();
-
-    if(stop_render || !b_engine.is_animation() || b_scene.frame_current() >= b_scene.frame_end())
-        session->server->stopRender(session_params.fps);
-} //render()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "sync" python API function
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::synchronize() {
-    if(!sync_mutex.try_lock()) return;
-
-    SessionParams session_params;
-
-    session_params = BlenderSync::get_session_params(b_userpref, b_scene, export_type, interactive);
-    if(session->params.modified(session_params)) {
-        sync_mutex.unlock();
-        reload_session();
-        return;
-    }
-
-    // Increase samples, but never decrease
-    session->set_samples(session_params.samples);
-    session->set_pause(BlenderSync::get_session_pause_state(b_scene, interactive));
-
-    // Copy recalc flags, outside of mutex so we can decide to do the real
-    // synchronization at a later time to not block on running updates
-    sync->sync_recalc();
-
-    // Try to acquire mutex. if we don't want to or can't, come back later
-    if(!session->ready_to_reset() || !session->scene->mutex.try_lock()) {
-        tag_update();
-        sync_mutex.unlock();
-        return;
-    }
-
-    // Data synchronize
-    if(b_rv3d) {
-        if(motion_blur && mb_type == INTERNAL) {
-            bool stop_render;
-            int total_frames;
-            load_internal_mb_sequence(stop_render, total_frames, (BL::RenderLayer*)0, true);
-        }
-        else
-            sync->sync_data(b_v3d, b_engine.camera_override());
-    }
-
-    // Camera synchronize
-    if(b_rv3d)
-        sync->sync_view(b_v3d, b_rv3d, width, height);
-    //else
-    //    sync->sync_camera(b_engine.camera_override(), width, height);
-
-    // Unlock
-    session->scene->mutex.unlock();
-
-    // Reset if needed
-    if(scene->need_reset()) {
-        BufferParams buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-        session->update(buffer_params);
-    }
-
+    return;
+  }
+
+  /* increase samples, but never decrease */
+  session->set_samples(session_params.samples);
+  session->set_pause(session_pause);
+
+  /* copy recalc flags, outside of mutex so we can decide to do the real
+   * synchronization at a later time to not block on running updates */
+  sync->sync_recalc(b_depsgraph_);
+
+  /* don't do synchronization if on pause */
+  if (session_pause) {
+    tag_update();
     sync_mutex.unlock();
-} //synchronize()
+    return;
+  }
+
+  /* try to acquire mutex. if we don't want to or can't, come back later */
+  if (!session->ready_to_reset() || !session->scene->mutex.try_lock()) {
+    tag_update();
+    sync_mutex.unlock();
+    return;
+  }
+
+  /* data and camera synchronize */
+  b_depsgraph = b_depsgraph_;
+
+  BL::Object b_camera_override(b_engine.camera_override());
+  sync->sync_data(
+      b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
+
+  if (b_rv3d)
+    sync->sync_view(b_v3d, b_rv3d, width, height);
+  else
+    sync->sync_camera(b_render, b_camera_override, width, height, "");
+
+  // builtin_images_load();
+
+  /* unlock */
+  session->scene->mutex.unlock();
+
+  /* reset if needed */
+  if (scene->need_reset()) {
+    BufferParams buffer_params = BlenderSync::get_buffer_params(
+        b_render, b_v3d, b_rv3d, scene->camera, width, height);
+    session->update(buffer_params);
+  }
+
+  /* Start rendering thread, if it's not running already. Do this
+   * after all scene data has been synced at least once. */
+  session->start();
+  sync_mutex.unlock();
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "draw" python API function
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool BlenderSession::draw(int w, int h) {
-    BufferParams    buffer_params;
-    bool            reset = false;
+bool BlenderSession::draw(int w, int h)
+{
 
-    // Before drawing, we verify camera and viewport size changes, because
-    // we do not get update callbacks for those, we must detect them here
-    if(session->ready_to_reset()) {
-        // Try to acquire mutex. If we can't, come back later.
-        if(!session->scene->mutex.try_lock())
-            tag_redraw();
-        else {
-            sync->sync_view(b_v3d, b_rv3d, w, h);
-            session->scene->mutex.unlock();
-        }
+  /* pause in redraw in case update is not being called due to final render */
+  session->set_pause(BlenderSync::get_session_pause(b_scene, background));
 
-        // If dimensions changed, reset
-        if(width != w || height != h) {
-            width   = w;
-            height  = h;
-            reset   = true;
-        }
+  bool reset = false;
 
-        // Reset if requested
-        if(reset) {
-            buffer_params = BlenderSync::get_display_buffer_params(scene->camera, w, h);
+  // Before drawing, we verify camera and viewport size changes, because
+  // we do not get update callbacks for those, we must detect them here
+  if (session->ready_to_reset()) {
+    tag_redraw();
 
-            session->update(buffer_params);
-        }
+    // If dimensions changed, reset
+    if (width != w || height != h) {
+      width = w;
+      height = h;
+      reset = true;
     }
 
-    // Update status and progress for 3d view draw
-    if(!no_progress_update) update_status_progress();
-
-    // Draw
-    if(!reset) buffer_params = BlenderSync::get_display_buffer_params(scene->camera, width, height);
-    if(!session->draw(buffer_params)) {
-        session->update(buffer_params);
-        if(!session->draw(buffer_params)) tag_redraw();
-    }
-    return true;
-} //draw()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Get Octane session progress status
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::get_status(string& status, string& substatus) {
-    session->progress.get_status(status, substatus);
-} //get_status()
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Get progress koefficient
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::get_progress(float& progress, double& total_time) {
-    session->progress.get_time(total_time);
-    if(!motion_blur) {
-        if(session->params.samples == 0)
-            progress = 0;
-        else
-            progress = (((float)session->params.samples + (float)session->params.image_stat.uiCurSamples) / (float)session->params.samples);
+    /* try to acquire mutex. if we can't, come back later */
+    if (!session->scene->mutex.try_lock()) {
+      tag_update();
     }
     else {
-        if(session->params.samples * mb_samples == 0)
-            progress = 0;
-        else
-            progress = (((float)session->params.samples * mb_samples + (float)session->params.samples * (mb_sample_in_work - 1) + (float)session->params.image_stat.uiCurSamples) / ((float)session->params.samples * mb_samples));
+      /* update camera from 3d view */
+
+      sync->sync_view(b_v3d, b_rv3d, width, height);
+
+      if (scene->camera->need_update)
+        reset = true;
+
+      session->scene->mutex.unlock();
     }
-} //get_progress()
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update the status and progress on Blender UI
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::update_status_progress() {
-    string  timestatus, status, substatus;
-    float   progress;
-    double  total_time;
-    char    time_str[128];
+    // Reset if requested
+    if (reset) {
+      SessionParams session_params = BlenderSync::get_session_params(
+          b_engine, b_userpref, b_scene, background, width, height);
+      BufferParams buffer_params = BlenderSync::get_buffer_params(
+          b_render, b_v3d, b_rv3d, scene->camera, width, height);
+      bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
-    get_status(status, substatus);
-    get_progress(progress, total_time);
-
-    timestatus = b_scene.name();
-    if(b_rlay_name != "") timestatus += ", " + b_rlay_name;
-    if(b_rview_name != "") timestatus += ", " + b_rview_name;
-    timestatus += " | ";
-
-    BLI_timecode_string_from_time_simple(time_str, 60, total_time);
-    timestatus += "Elapsed: " + string(time_str) + " | ";
-
-    if(substatus.size() > 0)
-        status += " | " + substatus;
-
-    if(status != last_status) {
-        b_engine.update_stats("", (timestatus + status).c_str());
-        //TODO: Add the memory usage statistics here
-        //b_engine.update_memory_stats(mem_used, mem_peak);
-        last_status = status;
+      if (session_pause == false) {
+        session->update(buffer_params);
+      }
     }
-    if(progress > last_progress) {
-        b_engine.update_progress(progress);
-        last_progress = progress;
+  }
+
+  update_status_progress();
+
+  /* draw */
+  BufferParams buffer_params = BlenderSync::get_buffer_params(
+      b_render, b_v3d, b_rv3d, scene->camera, width, height);
+  DeviceDrawParams draw_params;
+
+  draw_params.bind_display_space_shader_cb = function_bind(
+      &BL::RenderEngine::bind_display_space_shader, &b_engine, b_scene);
+  draw_params.unbind_display_space_shader_cb = function_bind(
+      &BL::RenderEngine::unbind_display_space_shader, &b_engine);
+
+  return !session->draw(buffer_params, draw_params);
+}  // draw()
+
+static BL::RenderResult begin_render_result(BL::RenderEngine &b_engine,
+                                            int x,
+                                            int y,
+                                            int w,
+                                            int h,
+                                            const char *layername,
+                                            const char *viewname)
+{
+  return b_engine.begin_result(x, y, w, h, layername, viewname);
+}
+
+static void end_render_result(BL::RenderEngine &b_engine,
+                              BL::RenderResult &b_rr,
+                              bool cancel,
+                              bool highlight,
+                              bool do_merge_results)
+{
+  b_engine.end_result(b_rr, (int)cancel, (int)highlight, (int)do_merge_results);
+}
+
+void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
+{
+  clear_passes_buffers();
+
+  b_depsgraph = b_depsgraph_;
+
+  SessionParams session_params = BlenderSync::get_session_params(
+      b_engine, b_userpref, b_scene, background, width, height, export_type);
+  if (session_params.export_type != ::OctaneEngine::OctaneClient::SceneExportTypes::NONE) {
+    BL::Object b_camera_override(b_engine.camera_override());
+    sync->sync_data(
+        b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
+    sync->sync_camera(b_render, b_camera_override, width, height, b_rview_name.c_str());
+
+    session->update_scene_to_server(0, 1);
+    session->server->startRender(!background,
+                                 width,
+                                 height,
+                                 ::OctaneEngine::OctaneClient::IMAGE_8BIT,
+                                 session_params.out_of_core_enabled,
+                                 session_params.out_of_core_mem_limit,
+                                 session_params.out_of_core_gpu_headroom,
+                                 session_params.render_priority);
+
+    if (b_engine.test_break() || b_scene.frame_current() >= b_scene.frame_end()) {
+      session->progress.set_status("Transferring scene file...");
+      session->server->stopRender(session_params.fps);
     }
-} //update_status_progress()
+    return;
+  }
+  /* set callback to write out render results */
+  session->write_render_cb = function_bind(
+      &BlenderSession::do_write_update_render_img, this, _1, _2);
+
+  /* get buffer parameters */
+  BufferParams buffer_params = BlenderSync::get_buffer_params(
+      b_render, b_v3d, b_rv3d, scene->camera, width, height);
+
+  /* render each layer */
+  BL::ViewLayer b_view_layer = b_depsgraph.view_layer_eval();
+
+  /* temporary render result to find needed passes and views */
+  BL::RenderResult b_rr = begin_render_result(
+      b_engine, 0, 0, 1, 1, b_view_layer.name().c_str(), NULL);
+  BL::RenderResult::layers_iterator b_single_rlay;
+  b_rr.layers.begin(b_single_rlay);
+  BL::RenderLayer b_rlay = *b_single_rlay;
+  b_rlay_name = b_view_layer.name();
+
+  BL::RenderResult::views_iterator b_view_iter;
+
+  int num_views = 0;
+  for (b_rr.views.begin(b_view_iter); b_view_iter != b_rr.views.end(); ++b_view_iter) {
+    num_views++;
+  }
+
+  int view_index = 0;
+  for (b_rr.views.begin(b_view_iter); b_view_iter != b_rr.views.end();
+       ++b_view_iter, ++view_index) {
+    b_rview_name = b_view_iter->name();
+
+    /* set the current view */
+    b_engine.active_view_set(b_rview_name.c_str());
+
+    /* update scene */
+    BL::Object b_camera_override(b_engine.camera_override());
+
+    sync->sync_data(
+        b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
+    // tag camera as updated to fix empty camera issue under multiple viewlayers
+    if (scene->camera) {
+      scene->camera->tag_update();
+    }
+    sync->sync_camera(b_render, b_camera_override, width, height, b_rview_name.c_str());
+    ///* Update session itself. */
+    // session->reset(buffer_params, session_params.samples);
+
+    ///* render */
+    session->start();
+    // session->wait();
+    do_write_update_render_img(false, false);
+  }
+
+  /* free result without merging */
+  end_render_result(b_engine, b_rr, true, true, false);
+
+  session->write_render_cb = function_null;
+}
+
+void BlenderSession::write_render_result(BL::RenderResult &b_rr, BL::RenderLayer &b_rlay)
+{
+  do_write_update_render_result(b_rr, b_rlay, false);
+}
+
+void BlenderSession::update_render_result(BL::RenderResult &b_rr, BL::RenderLayer &b_rlay)
+{
+  do_write_update_render_result(b_rr, b_rlay, true);
+}
+
+void BlenderSession::do_write_update_render_img(bool do_update_only, bool highlight)
+{
+  int x = 0;
+  int y = 0;
+  int w = width;
+  int h = height;
+
+  // Get render result
+  BL::RenderResult b_rr = begin_render_result(
+      b_engine, x, y, w, h, b_rlay_name.c_str(), b_rview_name.c_str());
+
+  // Can happen if the intersected rectangle gives 0 width or height
+  if (!b_rr.ptr.data)
+    return;
+
+  BL::RenderResult::layers_iterator b_single_rlay;
+  b_rr.layers.begin(b_single_rlay);
+  BL::RenderLayer b_rlay = *b_single_rlay;
+
+  if (do_update_only) {
+    // Update only needed
+    update_render_result(b_rr, b_rlay);
+    end_render_result(b_engine, b_rr, true, highlight, true);
+  }
+  else {
+    // Write result
+    write_render_result(b_rr, b_rlay);
+    end_render_result(b_engine, b_rr, false, false, true);
+  }
+}
+
+void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
+                                                   BL::RenderLayer b_rlay,
+                                                   bool do_update_only)
+{
+  int buf_size = width * height * 4;
+  float *pixels = new float[buf_size];
+
+  ::Octane::RenderPassId cur_pass_type = static_cast<Octane::RenderPassId>(
+      (int)scene->passes->oct_node->iPreviewPass);
+
+  session->server->checkImgBufferFloat(
+      4,
+      pixels,
+      width,
+      height,
+      (scene->camera->oct_node.bUseRegion ?
+           scene->camera->oct_node.ui4Region.z - scene->camera->oct_node.ui4Region.x :
+           width),
+      (scene->camera->oct_node.bUseRegion ?
+           scene->camera->oct_node.ui4Region.w - scene->camera->oct_node.ui4Region.y :
+           height),
+      false);
+  session->server->downloadImageBuffer(
+      session->params.image_stat,
+      session->params.interactive ?
+          ::OctaneEngine::OctaneClient::IMAGE_8BIT :
+          (session->params.hdr_tonemapped && session->params.hdr_tonemap_prefer ?
+               ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED :
+               ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
+      cur_pass_type);
+
+  if (session->server->getCopyImgBufferFloat(
+          4,
+          pixels,
+          width,
+          height,
+          (scene->camera->oct_node.bUseRegion ?
+               scene->camera->oct_node.ui4Region.z - scene->camera->oct_node.ui4Region.x :
+               width),
+          (scene->camera->oct_node.bUseRegion ?
+               scene->camera->oct_node.ui4Region.w - scene->camera->oct_node.ui4Region.y :
+               height))) {
+    BL::RenderPass b_combined_pass(b_rlay.passes.find_by_name("Combined", b_rview_name.c_str()));
+    b_combined_pass.rect(pixels);
+  }
+
+  if (!do_update_only) {
+    BL::RenderLayer::passes_iterator b_iter;
+    for (b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter) {
+      BL::RenderPass b_pass(*b_iter);
+
+      int components = b_pass.channels();
+      buf_size = width * height * components;
+
+      if (session->progress.get_cancel())
+        break;
+
+      ::Octane::RenderPassId pass_type = BlenderSync::get_pass_type(b_pass);
+      if (pass_type == ::Octane::RenderPassId::RENDER_PASS_BEAUTY)
+        continue;
+      if (!session->server->downloadImageBuffer(
+              session->params.image_stat,
+              session->params.interactive ?
+                  ::OctaneEngine::OctaneClient::IMAGE_8BIT :
+                  (session->params.hdr_tonemapped && session->params.hdr_tonemap_prefer ?
+                       ::OctaneEngine::OctaneClient::IMAGE_FLOAT_TONEMAPPED :
+                       ::OctaneEngine::OctaneClient::IMAGE_FLOAT),
+              pass_type)) {
+        float *pixels = new float[buf_size];
+        memset(pixels, 0, sizeof(float) * buf_size);
+        b_pass.rect(pixels);
+        delete[] pixels;
+      }
+      float *pixels = new float[buf_size];
+
+      if (session->server->getCopyImgBufferFloat(
+              components,
+              pixels,
+              width,
+              height,
+              (scene->camera->oct_node.bUseRegion ?
+                   scene->camera->oct_node.ui4Region.z - scene->camera->oct_node.ui4Region.x :
+                   width),
+              (scene->camera->oct_node.bUseRegion ?
+                   scene->camera->oct_node.ui4Region.w - scene->camera->oct_node.ui4Region.y :
+                   height)))
+        b_pass.rect(pixels);
+      delete[] pixels;
+    }
+  }
+
+  delete[] pixels;
+  b_engine.update_result(b_rr);
+}  // do_write_update_render_result()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Tag this session needs update later
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::tag_update() {
-    // Tell blender that we want to get another update callback
-    b_engine.tag_update();
-} //tag_update()
+void BlenderSession::tag_update()
+{
+  // Tell blender that we want to get another update callback
+  b_engine.tag_update();
+}  // tag_update()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Tell Blender engine that we want to redraw
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::tag_redraw() {
-    if(!interactive) {
-        // Update stats and progress, only for background here because in 3d view we do it in draw for thread safety reasons
-        if(!no_progress_update) update_status_progress();
+void BlenderSession::tag_redraw()
+{
+  if (background) {
+    /* update stats and progress, only for background here because
+     * in 3d view we do it in draw for thread safety reasons */
+    update_status_progress();
 
-        // Offline render, redraw if timeout passed
-        if(time_dt() - last_redraw_time > 1.0) {
-            b_engine.tag_redraw();
-            last_redraw_time = time_dt();
+    /* offline render, redraw if timeout passed */
+    if (time_dt() - last_redraw_time > 1.0) {
+      b_engine.tag_redraw();
+      last_redraw_time = time_dt();
+    }
+  }
+  else {
+    /* tell blender that we want to redraw */
+    b_engine.tag_redraw();
+  }
+}  // tag_redraw()
+
+void BlenderSession::test_cancel()
+{
+  /* test if we need to cancel rendering */
+  if (background)
+    if (b_engine.test_break())
+      session->progress.set_cancel("Cancelled");
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Update the status and progress on Blender UI
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void BlenderSession::update_status_progress()
+{
+  if (!b_engine) {
+    return;
+  }
+  string timestatus, status, substatus;
+  float progress;
+  double total_time, render_time;
+  char time_str[128];
+
+  get_status(status, substatus);
+  get_progress(progress, total_time, render_time);
+
+  timestatus = b_scene.name();
+  if (b_rlay_name != "")
+    timestatus += ", " + b_rlay_name;
+  if (b_rview_name != "")
+    timestatus += ", " + b_rview_name;
+  timestatus += " | ";
+
+  BLI_timecode_string_from_time_simple(time_str, 60, total_time);
+  timestatus += "Elapsed: " + string(time_str) + " | ";
+
+  if (substatus.size() > 0)
+    status += " | " + substatus;
+
+  if (status != last_status) {
+    b_engine.update_stats("", (timestatus + status).c_str());
+    // TODO: Add the memory usage statistics here
+    // b_engine.update_memory_stats(mem_used, mem_peak);
+    last_status = status;
+  }
+  if (progress > last_progress) {
+    b_engine.update_progress(progress);
+    last_progress = progress;
+  }
+}  // update_status_progress()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get Octane session progress status
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void BlenderSession::get_status(string &status, string &substatus)
+{
+  session->progress.get_status(status, substatus);
+}  // get_status()
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Get progress coefficient
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void BlenderSession::get_progress(float &progress, double &total_time, double &render_time)
+{
+  session->progress.get_time(total_time, render_time);
+  if (!motion_blur) {
+    if (session->params.samples == 0)
+      progress = 0;
+    else
+      progress = (((float)session->params.samples +
+                   (float)session->params.image_stat.uiCurSamples) /
+                  (float)session->params.samples);
+  }
+  else {
+    if (session->params.samples * mb_samples == 0)
+      progress = 0;
+    else
+      progress = (((float)session->params.samples * mb_samples +
+                   (float)session->params.samples * (mb_sample_in_work - 1) +
+                   (float)session->params.image_stat.uiCurSamples) /
+                  ((float)session->params.samples * mb_samples));
+  }
+}  // get_progress()
+
+bool BlenderSession::connect_to_server(std::string server_address,
+                                       int server_port,
+                                       ::OctaneEngine::OctaneClient *server)
+{
+  bool ret = true;
+  if (server) {
+    if (!server->connectToServer(server_address.c_str(), server_port)) {
+      if (server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NOT_ACTIVATED)
+        fprintf(stdout, "Octane: current server activation state is: not activated.\n");
+      else {
+        if (server->getFailReason() == ::OctaneEngine::OctaneClient::FailReasons::NO_CONNECTION) {
+          fprintf(stderr, "Octane: can't connect to Octane server.\n");
+          ret = false;
         }
+        else if (server->getFailReason() ==
+                 ::OctaneEngine::OctaneClient::FailReasons::WRONG_VERSION) {
+          fprintf(stderr, "Octane: wrong version of Octane server.\n");
+          ret = false;
+        }
+        else {
+          fprintf(stderr, "Octane: can't connect to Octane server.\n");
+          ret = false;
+        }
+      }
+    }
+  }
+  else {
+    fprintf(stderr, "Octane: unexpected ERROR during opening server activation state dialog.\n");
+    ret = false;
+  }
+  return ret;
+}
+
+bool BlenderSession::command_to_octane(std::string server_address,
+                                       int cmd_type,
+                                       const std::vector<int> &iParams,
+                                       const std::vector<float> &fParams,
+                                       const std::vector<std::string> &sParams)
+{
+  ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
+  bool ret = BlenderSession::connect_to_server(
+      server_address, ::OctaneEngine::RENDER_SERVER_PORT, server);
+  if (ret && !server->commandToOctane(cmd_type, iParams, fParams, sParams)) {
+    ret = false;
+  }
+  delete server;
+  return ret;
+}
+
+bool BlenderSession::activate_license(bool activate)
+{
+  std::string server_address = G.octane_server_address;
+  ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
+  bool ret = BlenderSession::connect_to_server(
+      server_address, ::OctaneEngine::RENDER_SERVER_PORT, server);
+  if (ret) {
+    if (!activate) {
+      server->ReleaseOctaneApi();
+    }
+  }
+  delete server;
+  return ret;
+}
+
+bool BlenderSession::osl_compile(const std::string server_address,
+                                 const std::string osl_identifier,
+                                 const PointerRNA &node_ptr,
+                                 const std::string &osl_path,
+                                 const std::string &osl_code,
+                                 std::string &info)
+{
+  ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
+  bool ret = BlenderSession::connect_to_server(
+      server_address, ::OctaneEngine::RENDER_SERVER_PORT, server);
+  OctaneDataTransferObject::OSLNodeInfo oslNodeInfo;
+  if (ret) {
+    BL::ShaderNode b_node(node_ptr);
+    if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctOSLTex)) {
+      ret = server->compileOSL<OctaneDataTransferObject::OctaneOSLTexture>(
+          osl_identifier, osl_path, osl_code, oslNodeInfo);
+    }
+    else if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctOSLCamera)) {
+      ret = server->compileOSL<OctaneDataTransferObject::OctaneOSLCamera>(
+          osl_identifier, osl_path, osl_code, oslNodeInfo);
+    }
+    else if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctOSLBakingCamera)) {
+      ret = server->compileOSL<OctaneDataTransferObject::OctaneOSLBakingCamera>(
+          osl_identifier, osl_path, osl_code, oslNodeInfo);
+    }
+    else if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctOSLProjection)) {
+      ret = server->compileOSL<OctaneDataTransferObject::OctaneOSLProjection>(
+          osl_identifier, osl_path, osl_code, oslNodeInfo);
+    }
+    else if (RNA_struct_is_a(node_ptr.type, &RNA_ShaderNodeOctVectron)) {
+      ret = server->compileOSL<OctaneDataTransferObject::OctaneVectron>(
+          osl_identifier, osl_path, osl_code, oslNodeInfo);
     }
     else {
-        // Tell blender that we want to redraw
-        b_engine.tag_redraw();
+      ret = false;
     }
-} //tag_redraw()
+    if (ret) {
+      OSLManager::Instance().record_osl(osl_identifier, oslNodeInfo);
+      info = oslNodeInfo.mCompileInfo;
+    }
+  }
+  else {
+    info = "Cannot connect to the OctaneServer.";
+  }
+  if (server) {
+    delete server;
+  }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Test if we must cancel (from non-interactive render)
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BlenderSession::test_cancel() {
-    // Test if we need to cancel rendering
-    if(!interactive)
-        if(b_engine.test_break()) session->progress.set_cancel("Cancelled");
-} //test_cancel()
+  return ret;
+}
+
+static void export_startjob(void *customdata, short *stop, short *do_update, float *progress)
+{
+  OctaneExportJobData *data = static_cast<OctaneExportJobData *>(customdata);
+
+  data->stop = stop;
+  data->do_update = do_update;
+  data->progress = progress;
+
+  data->b_engine.update_progress(0.01f);
+
+  int cur_frame = data->b_scene.frame_current();
+  int first_frame = data->b_scene.frame_start();
+  int last_frame = data->b_scene.frame_end();
+
+  DEG_graph_build_from_view_layer(
+      data->m_depsgraph, data->m_main, data->m_scene, data->m_viewlayer);
+  BKE_scene_graph_update_tagged(data->m_depsgraph, data->m_main);
+
+  G.is_rendering = true;
+  G.is_break = false;
+  BKE_spacedata_draw_locks(true);
+  std::string export_path(data->export_path);
+  BlenderSession *session = new BlenderSession(
+      data->b_engine, data->b_userpref, data->b_data, data->export_type, export_path);
+
+  if (!G.is_break) {
+    for (int f = first_frame; f <= last_frame; ++f) {
+      if (f >= first_frame) {
+        data->m_scene->r.cfra = f;
+        data->m_scene->r.subframe = f - data->m_scene->r.cfra;
+        BKE_scene_graph_update_for_newframe(data->m_depsgraph, data->m_main);
+
+        session->reset_session(data->b_data, data->b_depsgraph);
+        session->sync->sync_recalc(data->b_depsgraph);
+        session->render(data->b_depsgraph);
+        data->b_engine.update_progress(((float)(f - first_frame + 1) - 0.5f) /
+                                       (last_frame - first_frame + 1));
+      }
+
+      if (G.is_break) {
+        data->was_canceled = true;
+        break;
+      }
+    }
+  }
+  else {
+    data->was_canceled = true;
+  }
+  delete session;
+
+  if (cur_frame != data->b_scene.frame_current()) {
+    data->m_scene->r.cfra = cur_frame;
+    data->m_scene->r.subframe = cur_frame - data->m_scene->r.cfra;
+    BKE_scene_graph_update_for_newframe(data->m_depsgraph, data->m_main);
+  }
+}
+
+static void export_endjob(void *customdata)
+{
+  OctaneExportJobData *data = static_cast<OctaneExportJobData *>(customdata);
+  data->b_engine.update_progress(1.0f);
+
+  BKE_spacedata_draw_locks(false);
+  G.is_rendering = false;
+  DEG_graph_free(data->m_depsgraph);
+  data->export_mutex->unlock();
+
+  if (data->was_canceled) {
+    if (BLI_exists(data->export_path))
+      BLI_delete(data->export_path, false, false);
+  }
+}
+
+static void render_progress_update(void *rjv, float progress)
+{
+  OctaneExportJobData *rj = (OctaneExportJobData *)rjv;
+  if (rj->progress && *rj->progress != progress) {
+    *rj->progress = progress;
+    // make jobs timer to send notifier
+    *(rj->do_update) = true;
+  }
+}
+
+bool BlenderSession::export_scene(BL::Scene &b_scene,
+                                  bContext *context,
+                                  BL::Preferences &b_userpref,
+                                  BL::BlendData &b_data,
+                                  std::string export_path,
+                                  BlenderSession::ExportType export_type)
+{
+  static std::mutex export_mutex;
+  bool result = false;
+  if (!export_mutex.try_lock()) {
+    return result;
+  }
+  // Create context params
+  ::Main *m_main = CTX_data_main(context);
+  ::Scene *m_scene = (::Scene *)b_scene.ptr.data;
+  ::ViewLayer *m_viewlayer = CTX_data_view_layer(context);
+  // Create depsgraph
+  PointerRNA depsgraphptr;
+  ::Depsgraph *m_depsgraph = DEG_graph_new(m_scene, m_viewlayer, DAG_EVAL_RENDER);
+  RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph, &depsgraphptr);
+  BL::Depsgraph b_depsgraph(depsgraphptr);
+  // Create engine
+  PointerRNA engineptr;
+  BL::RenderSettings rs = b_scene.render();
+  // Create render
+  Render *re = RE_NewRender(b_scene.name().c_str());
+  re->main = m_main;
+  re->scene = m_scene;
+  re->camera_override = NULL;
+  render_copy_renderdata(&re->r, &re->scene->r);
+  BLI_freelistN(&re->view_layers);
+  BLI_duplicatelist(&re->view_layers, &re->scene->view_layers);
+  re->rectx = rs.resolution_x() * rs.resolution_percentage() / 100;
+  re->recty = rs.resolution_y() * rs.resolution_percentage() / 100;
+  re->flag |= R_ANIMATION;
+
+  RenderEngineType *type = RE_engines_find("octane");
+  RenderEngine *engine = RE_engine_create(type);
+  engine->re = re;
+  engine->depsgraph = m_depsgraph;
+  engine->flag |= RE_ENGINE_RENDERING | RE_ENGINE_ANIMATION;
+  engine->camera_override = re->camera_override;
+  engine->resolution_x = re->rectx;
+  engine->resolution_y = re->recty;
+  RNA_pointer_create(NULL, &RNA_RenderEngine, engine, &engineptr);
+  BL::RenderEngine b_engine(engineptr);
+
+  OctaneExportJobData *job;
+  job = static_cast<OctaneExportJobData *>(MEM_callocN(sizeof(OctaneExportJobData), "export job"));
+  job->b_data = b_data;
+  job->b_userpref = b_userpref;
+  job->b_scene = b_scene;
+  job->b_engine = b_engine;
+  job->b_depsgraph = b_depsgraph;
+  job->m_main = m_main;
+  job->m_scene = m_scene;
+  job->m_viewlayer = m_viewlayer;
+  job->m_depsgraph = m_depsgraph;
+  job->export_mutex = &export_mutex;
+  job->export_type = export_type;
+  job->was_canceled = false;
+  strcpy(job->export_path, export_path.c_str());
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(context),
+                              CTX_wm_window(context),
+                              (::Scene *)b_scene.ptr.data,
+                              export_type == ExportType::ORBX ? "Octane ORBX export" :
+                                                                "Octane alembic export",
+                              WM_JOB_PROGRESS,
+                              WM_JOB_TYPE_RENDER);
+  WM_jobs_customdata_set(wm_job, job, MEM_freeN);
+  unsigned int note = 4 << 24 | 3 << 16;  // NC_SCENE | ND_FRAME
+  WM_jobs_timer(wm_job, 0.1, note, note);
+  WM_jobs_callbacks(wm_job, export_startjob, NULL, NULL, export_endjob);
+  RE_progress_cb(re, job, render_progress_update);
+  WM_jobs_start(CTX_wm_manager(context), wm_job);
+  return result;
+}
+
+bool BlenderSession::export_localdb(BL::Scene &b_scene,
+                                    bContext *context,
+                                    BL::Preferences &b_userpref,
+                                    BL::BlendData &b_data,
+                                    BL::Material &b_material)
+{
+  static std::mutex export_local_db_mutex;
+  bool result = false;
+  if (!export_local_db_mutex.try_lock()) {
+    return result;
+  }
+  // Create context params
+  ::Main *m_main = CTX_data_main(context);
+  ::Scene *m_scene = (::Scene *)b_scene.ptr.data;
+  ::ViewLayer *m_viewlayer = CTX_data_view_layer(context);
+  // Create depsgraph
+  PointerRNA depsgraphptr;
+  ::Depsgraph *m_depsgraph = DEG_graph_new(m_scene, m_viewlayer, DAG_EVAL_RENDER);
+  RNA_pointer_create(NULL, &RNA_Depsgraph, (ID *)m_depsgraph, &depsgraphptr);
+  BL::Depsgraph b_depsgraph(depsgraphptr);
+  // Create engine
+  PointerRNA engineptr;
+  BL::RenderSettings rs = b_scene.render();
+  // Create render
+  Render *re = RE_NewRender(b_scene.name().c_str());
+  re->main = m_main;
+  re->scene = m_scene;
+  re->camera_override = NULL;
+  render_copy_renderdata(&re->r, &re->scene->r);
+  BLI_freelistN(&re->view_layers);
+  BLI_duplicatelist(&re->view_layers, &re->scene->view_layers);
+  re->rectx = rs.resolution_x() * rs.resolution_percentage() / 100;
+  re->recty = rs.resolution_y() * rs.resolution_percentage() / 100;
+  re->flag |= R_ANIMATION;
+
+  RenderEngineType *type = RE_engines_find("octane");
+  RenderEngine *engine = RE_engine_create(type);
+  engine->re = re;
+  engine->depsgraph = m_depsgraph;
+  engine->flag |= RE_ENGINE_RENDERING | RE_ENGINE_ANIMATION;
+  engine->camera_override = re->camera_override;
+  engine->resolution_x = re->rectx;
+  engine->resolution_y = re->recty;
+  RNA_pointer_create(NULL, &RNA_RenderEngine, engine, &engineptr);
+  BL::RenderEngine b_engine(engineptr);
+  std::string empty("");
+
+  DEG_graph_build_from_view_layer(m_depsgraph, m_main, m_scene, m_viewlayer);
+  BKE_scene_graph_update_tagged(m_depsgraph, m_main);
+
+  BlenderSession *session = new BlenderSession(
+      b_engine, b_userpref, b_data, BlenderSession::NONE, empty);
+
+  if (session) {
+    session->reset_session(b_data, b_depsgraph);
+    session->sync->sync_recalc(b_depsgraph);
+    result = session->export_localdb(b_material);
+    delete session;
+  }
+
+  export_local_db_mutex.unlock();
+  return result;
+}
+
+bool BlenderSession::export_localdb(BL::Material b_material)
+{
+  bool ret = true;
+  std::string material_name = b_material.name();
+  Shader shader;
+  sync->sync_material(b_material, &shader);
+  for (list<ShaderNode *>::iterator it = shader.graph->nodes.begin();
+       it != shader.graph->nodes.end();
+       ++it) {
+    ShaderNode *node = *it;
+    if (node->input("Surface"))
+      continue;
+    node->load_to_server(session->server);
+  }
+  std::vector<int> iParams;
+  std::vector<float> fParams;
+  std::vector<std::string> sParams;
+  sParams.push_back(material_name);
+  command_to_octane(
+      this->server_address, OctaneDataTransferObject::SAVE_OCTANDB, iParams, fParams, sParams);
+  return ret;
+}
+
+bool BlenderSession::heart_beat(std::string server_address)
+{
+  static std::mutex lock;
+  bool ret = false;
+  if (!lock.try_lock()) {
+    return ret;
+  }
+  if (!heart_beat_server) {
+    heart_beat_server = new ::OctaneEngine::OctaneClient();
+    ret = BlenderSession::connect_to_server(
+        server_address, ::OctaneEngine::HEART_BEAT_SERVER_PORT, heart_beat_server);
+  }
+  if (heart_beat_server->getServerAdress() != server_address) {
+    ret = BlenderSession::connect_to_server(
+        server_address, ::OctaneEngine::HEART_BEAT_SERVER_PORT, heart_beat_server);
+  }
+  if (!ret) {
+    delete heart_beat_server;
+    heart_beat_server = NULL;
+  }
+
+  lock.unlock();
+  return ret;
+}
+
+static void get_octanedb_startjob(void *customdata, short *stop, short *do_update, float *progress)
+{
+  GetOctaneDBJobData *data = static_cast<GetOctaneDBJobData *>(customdata);
+  data->stop = stop;
+  data->do_update = do_update;
+  data->progress = progress;
+
+  *progress = 0.0f;
+  ::OctaneEngine::OctaneClient *server = new ::OctaneEngine::OctaneClient;
+  bool ret = BlenderSession::connect_to_server(
+      data->server_address, ::OctaneEngine::OCTANEDB_SERVER_PORT, server);
+  if (!ret) {
+    WM_report(RPT_ERROR, "Fail to connect to OctaneDB!");
+    return;
+  }
+
+  *progress = 0.5f;
+  WM_report(RPT_INFO, "Connect to LiveDB successfully! Click import to start download!");
+
+  bool is_close = false;
+  std::vector<int> iParams;
+  std::vector<float> fParams;
+  std::vector<std::string> sParams;
+  server->commandToOctane(OctaneDataTransferObject::SHOW_LIVEDB, iParams, fParams, sParams);
+  while (!is_close) {
+    OctaneDataTransferObject::OctaneDBNodes nodes;
+    server->downloadOctaneDB(nodes);
+    is_close = nodes.bClose;
+  }
+
+  server->disconnectFromServer();
+  delete server;
+  *do_update = 1;
+  *stop = 0;
+  *progress = 1.0f;
+  return;
+}
+
+static void get_octanedb_endjob(void *customdata)
+{
+  GetOctaneDBJobData *data = static_cast<GetOctaneDBJobData *>(customdata);
+  data->mutex->unlock();
+  return;
+}
+
+bool BlenderSession::get_octanedb(BL::Scene &b_scene,
+                                  bContext *context,
+                                  std::string server_address)
+{
+  static std::mutex lock;
+  bool ret = false;
+  if (!lock.try_lock()) {
+    return ret;
+  }
+
+  GetOctaneDBJobData *job;
+  job = static_cast<GetOctaneDBJobData *>(
+      MEM_callocN(sizeof(OctaneExportJobData), "GetOctanedb Job"));
+  job->context = context;
+  job->mutex = &lock;
+  strcpy(job->server_address, server_address.c_str());
+  job->was_canceled = false;
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(context),
+                              CTX_wm_window(context),
+                              (::Scene *)b_scene.ptr.data,
+                              "Octane DB Download",
+                              WM_JOB_PROGRESS,
+                              WM_JOB_TYPE_RENDER);
+  WM_jobs_customdata_set(wm_job, job, MEM_freeN);
+  unsigned int note = 4 << 24 | 12 << 16;  // NC_SCENE | ND_RENDER_RESULT
+  WM_jobs_timer(wm_job, 0.1, note, 0);
+  WM_jobs_callbacks(wm_job, get_octanedb_startjob, NULL, NULL, get_octanedb_endjob);
+  WM_jobs_start(CTX_wm_manager(context), wm_job);
+  return ret;
+}
+
+void BlenderSession::clear_passes_buffers()
+{
+}
 
 OCT_NAMESPACE_END
-

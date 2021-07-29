@@ -18,37 +18,42 @@ CCL_NAMESPACE_BEGIN
 
 /* Bump Eval Nodes */
 
-ccl_device void svm_node_enter_bump_eval(KernelGlobals *kg, ShaderData *sd, float *stack, uint offset)
+ccl_device void svm_node_enter_bump_eval(KernelGlobals *kg,
+                                         ShaderData *sd,
+                                         float *stack,
+                                         uint offset)
 {
-	/* save state */
-	stack_store_float3(stack, offset+0, ccl_fetch(sd, P));
-	stack_store_float3(stack, offset+3, ccl_fetch(sd, dP).dx);
-	stack_store_float3(stack, offset+6, ccl_fetch(sd, dP).dy);
+  /* save state */
+  stack_store_float3(stack, offset + 0, sd->P);
+  stack_store_float3(stack, offset + 3, sd->dP.dx);
+  stack_store_float3(stack, offset + 6, sd->dP.dy);
 
-	/* set state as if undisplaced */
-	const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_POSITION_UNDISPLACED);
+  /* set state as if undisplaced */
+  const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_POSITION_UNDISPLACED);
 
-	if(desc.offset != ATTR_STD_NOT_FOUND) {
-		float3 P, dPdx, dPdy;
-		P = primitive_attribute_float3(kg, sd, desc, &dPdx, &dPdy);
+  if (desc.offset != ATTR_STD_NOT_FOUND) {
+    float3 P, dPdx, dPdy;
+    P = primitive_surface_attribute_float3(kg, sd, desc, &dPdx, &dPdy);
 
-		object_position_transform(kg, sd, &P);
-		object_dir_transform(kg, sd, &dPdx);
-		object_dir_transform(kg, sd, &dPdy);
+    object_position_transform(kg, sd, &P);
+    object_dir_transform(kg, sd, &dPdx);
+    object_dir_transform(kg, sd, &dPdy);
 
-		ccl_fetch(sd, P) = P;
-		ccl_fetch(sd, dP).dx = dPdx;
-		ccl_fetch(sd, dP).dy = dPdy;
-	}
+    sd->P = P;
+    sd->dP.dx = dPdx;
+    sd->dP.dy = dPdy;
+  }
 }
 
-ccl_device void svm_node_leave_bump_eval(KernelGlobals *kg, ShaderData *sd, float *stack, uint offset)
+ccl_device void svm_node_leave_bump_eval(KernelGlobals *kg,
+                                         ShaderData *sd,
+                                         float *stack,
+                                         uint offset)
 {
-	/* restore state */
-	ccl_fetch(sd, P) = stack_load_float3(stack, offset+0);
-	ccl_fetch(sd, dP).dx = stack_load_float3(stack, offset+3);
-	ccl_fetch(sd, dP).dy = stack_load_float3(stack, offset+6);
+  /* restore state */
+  sd->P = stack_load_float3(stack, offset + 0);
+  sd->dP.dx = stack_load_float3(stack, offset + 3);
+  sd->dP.dy = stack_load_float3(stack, offset + 6);
 }
 
 CCL_NAMESPACE_END
-

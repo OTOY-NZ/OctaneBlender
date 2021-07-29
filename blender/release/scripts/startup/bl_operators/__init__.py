@@ -21,8 +21,7 @@
 # support reloading sub-modules
 if "bpy" in locals():
     from importlib import reload
-    for val in _modules_loaded:
-        reload(val)
+    _modules_loaded[:] = [reload(val) for val in _modules_loaded]
     del reload
 
 _modules = [
@@ -30,26 +29,28 @@ _modules = [
     "anim",
     "clip",
     "console",
+    "constraint",
     "file",
     "image",
     "mask",
     "mesh",
     "node",
-    "object_align",
     "object",
-    "object_randomize_transform",
+    "object_align",
     "object_quick_effects",
+    "object_randomize_transform",
     "presets",
     "rigidbody",
     "screen_play_rendered_anim",
     "sequencer",
+    "userpref",
     "uvcalc_follow_active",
     "uvcalc_lightmap",
     "uvcalc_smart_project",
     "vertexpaint_dirt",
     "view3d",
     "wm",
-    ]
+]
 
 import bpy
 
@@ -63,8 +64,15 @@ del _namespace
 
 
 def register():
-    bpy.utils.register_module(__name__)
+    from bpy.utils import register_class
+    for mod in _modules_loaded:
+        for cls in mod.classes:
+            register_class(cls)
 
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
+    from bpy.utils import unregister_class
+    for mod in reversed(_modules_loaded):
+        for cls in reversed(mod.classes):
+            if cls.is_registered:
+                unregister_class(cls)

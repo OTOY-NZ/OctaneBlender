@@ -1,15 +1,15 @@
-# - Find Jack library
-# Find the native Jack includes and library
+# - Find JACK library
+# Find the native JACK includes and library
 # This module defines
 #  JACK_INCLUDE_DIRS, where to find jack.h, Set when
 #                        JACK_INCLUDE_DIR is found.
-#  JACK_LIBRARIES, libraries to link against to use Jack.
-#  JACK_ROOT_DIR, The base directory to search for Jack.
+#  JACK_LIBRARIES, libraries to link against to use JACK.
+#  JACK_ROOT_DIR, The base directory to search for JACK.
 #                    This can also be an environment variable.
-#  JACK_FOUND, If false, do not try to use Jack.
+#  JACK_FOUND, If false, do not try to use JACK.
 #
 # also defined, but not for general use are
-#  JACK_LIBRARY, where to find the Jack library.
+#  JACK_LIBRARY, where to find the JACK library.
 
 #=============================================================================
 # Copyright 2011 Blender Foundation.
@@ -32,7 +32,6 @@ SET(_jack_SEARCH_DIRS
   /usr/local
   /sw # Fink
   /opt/local # DarwinPorts
-  /opt/csw # Blastwave
 )
 
 FIND_PATH(JACK_INCLUDE_DIR
@@ -53,7 +52,7 @@ FIND_LIBRARY(JACK_LIBRARY
     lib64 lib
   )
 
-# handle the QUIETLY and REQUIRED arguments and set JACK_FOUND to TRUE if 
+# handle the QUIETLY and REQUIRED arguments and set JACK_FOUND to TRUE if
 # all listed variables are TRUE
 INCLUDE(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(Jack DEFAULT_MSG

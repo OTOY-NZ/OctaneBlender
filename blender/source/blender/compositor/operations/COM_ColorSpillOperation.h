@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,13 +13,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor:
- *		Jeroen Bakker
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
-#ifndef _COM_ColorSpillOperation_h
-#define _COM_ColorSpillOperation_h
+#ifndef __COM_COLORSPILLOPERATION_H__
+#define __COM_COLORSPILLOPERATION_H__
 #include "COM_NodeOperation.h"
 
 /**
@@ -29,34 +25,44 @@
  * it assumes we are in sRGB color space.
  */
 class ColorSpillOperation : public NodeOperation {
-protected:
-	NodeColorspill *m_settings;
-	SocketReader *m_inputImageReader;
-	SocketReader *m_inputFacReader;
-	int m_spillChannel;
-	int m_spillMethod;
-	int m_channel2;
-	int m_channel3;
-	float m_rmut, m_gmut, m_bmut;
-public:
-	/**
-	 * Default constructor
-	 */
-	ColorSpillOperation();
+ protected:
+  NodeColorspill *m_settings;
+  SocketReader *m_inputImageReader;
+  SocketReader *m_inputFacReader;
+  int m_spillChannel;
+  int m_spillMethod;
+  int m_channel2;
+  int m_channel3;
+  float m_rmut, m_gmut, m_bmut;
 
-	/**
-	 * the inner loop of this program
-	 */
-	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+ public:
+  /**
+   * Default constructor
+   */
+  ColorSpillOperation();
 
-	void initExecution();
-	void deinitExecution();
+  /**
+   * the inner loop of this program
+   */
+  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 
-	void setSettings(NodeColorspill *nodeColorSpill) { this->m_settings = nodeColorSpill; }
-	void setSpillChannel(int channel) { this->m_spillChannel = channel; }
-	void setSpillMethod(int method) { this->m_spillMethod = method; }
-	
-	float calculateMapValue(float fac, float *input);
+  void initExecution();
+  void deinitExecution();
+
+  void setSettings(NodeColorspill *nodeColorSpill)
+  {
+    this->m_settings = nodeColorSpill;
+  }
+  void setSpillChannel(int channel)
+  {
+    this->m_spillChannel = channel;
+  }
+  void setSpillMethod(int method)
+  {
+    this->m_spillMethod = method;
+  }
+
+  float calculateMapValue(float fac, float *input);
 };
 
 #endif

@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,9 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
 #include "COM_ChunkOrder.h"
@@ -25,27 +21,27 @@
 
 ChunkOrder::ChunkOrder()
 {
-	this->m_distance = 0.0;
-	this->m_number = 0;
-	this->m_x = 0;
-	this->m_y = 0;
+  this->m_distance = 0.0;
+  this->m_number = 0;
+  this->m_x = 0;
+  this->m_y = 0;
 }
 
 void ChunkOrder::determineDistance(ChunkOrderHotspot **hotspots, unsigned int numberOfHotspots)
 {
-	unsigned int index;
-	double distance = FLT_MAX;
-	for (index = 0; index < numberOfHotspots; index++) {
-		ChunkOrderHotspot *hotspot = hotspots[index];
-		double ndistance = hotspot->determineDistance(this->m_x, this->m_y);
-		if (ndistance < distance) {
-			distance = ndistance;
-		}
-	}
-	this->m_distance = distance;
+  unsigned int index;
+  double distance = FLT_MAX;
+  for (index = 0; index < numberOfHotspots; index++) {
+    ChunkOrderHotspot *hotspot = hotspots[index];
+    double ndistance = hotspot->determineDistance(this->m_x, this->m_y);
+    if (ndistance < distance) {
+      distance = ndistance;
+    }
+  }
+  this->m_distance = distance;
 }
 
 bool operator<(const ChunkOrder &a, const ChunkOrder &b)
 {
-	return a.m_distance < b.m_distance;
+  return a.m_distance < b.m_distance;
 }

@@ -1,10 +1,8 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,16 +15,10 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blentranslation/BLT_lang.h
- *  \ingroup blt
+/** \file
+ * \ingroup blt
  */
 
 #ifndef __BLT_LANG_H__
@@ -50,14 +42,17 @@ void BLT_lang_set(const char *);
 /* Get the current locale ([partial] ISO code, e.g. es_ES). */
 const char *BLT_lang_get(void);
 
-/* Get locale's elements (if relevant pointer is not NULL and element actually exists, e.g. if there is no variant,
- * *variant and *language_variant will always be NULL).
+/* Get locale's elements (if relevant pointer is not NULL and element actually exists, e.g.
+ * if there is no variant, *variant and *language_variant will always be NULL).
  * Non-null elements are always MEM_mallocN'ed, it's the caller's responsibility to free them.
  * NOTE: Always available, even in non-WITH_INTERNATIONAL builds.
  */
-void BLT_lang_locale_explode(
-        const char *locale, char **language, char **country, char **variant,
-        char **language_country, char **language_variant);
+void BLT_lang_locale_explode(const char *locale,
+                             char **language,
+                             char **country,
+                             char **variant,
+                             char **language_country,
+                             char **language_variant);
 
 /* Get EnumPropertyItem's for translations menu. */
 struct EnumPropertyItem *BLT_lang_RNA_enum_properties(void);

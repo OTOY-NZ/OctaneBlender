@@ -1,10 +1,8 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,50 +15,85 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #include "../node_shader_util.h"
 
+#include "BKE_scene.h"
+
 /* **************** OUTPUT ******************** */
 
 static bNodeSocketTemplate sh_node_output_material_in[] = {
-	{	SOCK_SHADER, 1, N_("Surface")},
-	{	SOCK_SHADER, 1, N_("Volume")},
-	{	SOCK_FLOAT, 1, N_("Displacement"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},
-	{	-1, 0, ""	}
+    {SOCK_SHADER, 1, N_("Surface")},
+    {SOCK_SHADER, 1, N_("Volume")},
+    {SOCK_VECTOR,
+     1,
+     N_("Displacement"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_HIDE_VALUE},
+    {-1, 0, ""},
 };
 
-static int node_shader_gpu_output_material(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
+static void node_oct_init_output_material(bNodeTree *ntree, bNode *node)
 {
-	GPUNodeLink *outlink;
-
-	GPU_stack_link(mat, "node_output_material", in, out, &outlink);
-	GPU_material_output_link(mat, outlink);
-
-	return true;
+  bool is_octane_scene = false;
+  for (Scene *sce = G_MAIN->scenes.first; sce; sce = sce->id.next) {
+    if (BKE_scene_uses_octane(sce)) {
+      is_octane_scene = true;
+      break;
+    }
+  }
+  bNodeSocket *sock;
+#define SOCKET_LIST_LEN 1
+  char *socket_names[SOCKET_LIST_LEN] = {"Displacement"};
+  for (sock = node->inputs.first; sock; sock = sock->next) {
+    for (int i = 0; i < SOCKET_LIST_LEN; ++i) {
+      if (STREQ(sock->name, socket_names[i])) {
+        if (!is_octane_scene) {
+          sock->flag &= ~SOCK_UNAVAIL;
+        }
+        else {
+          sock->flag |= SOCK_UNAVAIL;
+        }
+      }
+    }
+  }
+#undef SOCKET_LIST_LEN
 }
 
+static int node_shader_gpu_output_material(GPUMaterial *mat,
+                                           bNode *node,
+                                           bNodeExecData *UNUSED(execdata),
+                                           GPUNodeStack *in,
+                                           GPUNodeStack *out)
+{
+  GPUNodeLink *outlink;
+
+  GPU_stack_link(mat, node, "node_output_material", in, out, &outlink);
+  GPU_material_output_link(mat, outlink);
+
+  return true;
+}
 
 /* node type definition */
 void register_node_type_sh_output_material(void)
 {
-	static bNodeType ntype;
+  static bNodeType ntype;
 
-	sh_node_type_base(&ntype, SH_NODE_OUTPUT_MATERIAL, "Material Output", NODE_CLASS_OUTPUT, 0);
-	node_type_compatibility(&ntype, NODE_NEW_SHADING);
-	node_type_socket_templates(&ntype, sh_node_output_material_in, NULL);
-	node_type_init(&ntype, NULL);
-	node_type_storage(&ntype, "", NULL, NULL);
-	node_type_gpu(&ntype, node_shader_gpu_output_material);
+  sh_node_type_base(&ntype, SH_NODE_OUTPUT_MATERIAL, "Material Output", NODE_CLASS_OUTPUT, 0);
+  node_type_socket_templates(&ntype, sh_node_output_material_in, NULL);
+  node_type_init(&ntype, node_oct_init_output_material);
+  node_type_storage(&ntype, "", NULL, NULL);
+  node_type_gpu(&ntype, node_shader_gpu_output_material);
 
-	/* Do not allow muting output node. */
-	node_type_internal_links(&ntype, NULL);
+  /* Do not allow muting output node. */
+  node_type_internal_links(&ntype, NULL);
 
-	nodeRegisterType(&ntype);
+  nodeRegisterType(&ntype);
 }

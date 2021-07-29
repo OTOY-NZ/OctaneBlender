@@ -13,49 +13,52 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# Contributor(s): Campbell Barton
-#
 # ***** END GPL LICENSE BLOCK *****
 
-set(INC 
-	.
-	../../blenlib
-	../../blenkernel
-	../../bmesh
-	../../makesdna
-	../../../../intern/guardedalloc
+set(INC
+  .
+  ../../blenkernel
+  ../../blenlib
+  ../../bmesh
+  ../../depsgraph
+  ../../makesdna
+  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
-	${PYTHON_INCLUDE_DIRS}
+  ${PYTHON_INCLUDE_DIRS}
 )
 
 set(SRC
-	mathutils.c
-	mathutils_Color.c
-	mathutils_Euler.c
-	mathutils_Matrix.c
-	mathutils_Quaternion.c
-	mathutils_Vector.c
-	mathutils_bvhtree.c
-	mathutils_geometry.c
-	mathutils_interpolate.c
-	mathutils_kdtree.c
-	mathutils_noise.c
+  mathutils.c
+  mathutils_Color.c
+  mathutils_Euler.c
+  mathutils_Matrix.c
+  mathutils_Quaternion.c
+  mathutils_Vector.c
+  mathutils_bvhtree.c
+  mathutils_geometry.c
+  mathutils_interpolate.c
+  mathutils_kdtree.c
+  mathutils_noise.c
 
-	mathutils.h
-	mathutils_Color.h
-	mathutils_Euler.h
-	mathutils_Matrix.h
-	mathutils_Quaternion.h
-	mathutils_Vector.h
-	mathutils_bvhtree.h
-	mathutils_geometry.h
-	mathutils_interpolate.h
-	mathutils_kdtree.h
-	mathutils_noise.h
+  mathutils.h
+  mathutils_Color.h
+  mathutils_Euler.h
+  mathutils_Matrix.h
+  mathutils_Quaternion.h
+  mathutils_Vector.h
+  mathutils_bvhtree.h
+  mathutils_geometry.h
+  mathutils_interpolate.h
+  mathutils_kdtree.h
+  mathutils_noise.h
+)
+
+set(LIB
+  bf_blenlib
+  bf_python_ext
 )
 
 
-blender_add_lib(bf_python_mathutils "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_python_mathutils "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

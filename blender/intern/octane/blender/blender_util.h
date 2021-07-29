@@ -1,531 +1,1043 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #ifndef __BLENDER_UTIL_H__
 #define __BLENDER_UTIL_H__
 
+#include "render/mesh.h"
+
 #include "MEM_guardedalloc.h"
 #include "RNA_types.h"
+#include "RNA_access.h"
 #include "RNA_blender_cpp.h"
 
-#include "util_lists.h"
-#include "util_path.h"
-#include "util_transform.h"
-#include "util_types.h"
+#include "util/util_algorithm.h"
+#include "util/util_array.h"
+#include "util/util_map.h"
+#include "util/util_path.h"
+#include "util/util_set.h"
+#include "util/util_transform.h"
+#include "util/util_projection.h"
+#include "util/util_types.h"
+#include "util/util_vector.h"
 
-#include "memleaks_check.h"
-
-// Hacks to hook into Blender API
-// todo: clean this up ...
+/* Hacks to hook into Blender API
+ * todo: clean this up ... */
 
 extern "C" {
-    size_t          BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
-    void            BKE_image_user_frame_calc(void *iuser, int cfra, int fieldnr);
-    void            BKE_image_user_file_path(void *iuser, void *ima, char *path);
-    unsigned char   *BKE_image_get_pixels_for_frame(void *image, int frame);
-    float           *BKE_image_get_float_pixels_for_frame(void *image, int frame);
-
-#   include "RE_engine.h"
-#   include "RE_pipeline.h"
-#   pragma push_macro("new")
-#   define new extern_new
-#   include "BKE_screen.h"
-#   pragma pop_macro("new")
+size_t BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
+void BLI_split_dir_part(const char *string, char *dir, const size_t dirlen);
+void BLI_join_dirfile(char *__restrict string,
+                      const size_t maxlen,
+                      const char *__restrict dir,
+                      const char *__restrict file);
+void BKE_image_user_frame_calc(void *ima, void *iuser, int cfra);
+void BKE_image_user_file_path(void *iuser, void *ima, char *path);
+unsigned char *BKE_image_get_pixels_for_frame(void *image, int frame);
+float *BKE_image_get_float_pixels_for_frame(void *image, int frame);
 }
 
 OCT_NAMESPACE_BEGIN
 
-static inline BL::Mesh object_to_mesh(BL::BlendData data, BL::Object object, BL::Scene scene, bool apply_modifiers, bool render, bool calc_undeformed) {
-    BL::Mesh me = data.meshes.new_from_object(scene, object, apply_modifiers, (render) ? 2 : 1, false, calc_undeformed);
-    if((bool)me) {
-        if(me.use_auto_smooth()) {
-            me.calc_normals_split();
-        }
-        me.calc_tessface(true);
+void python_thread_state_save(void **python_thread_state);
+void python_thread_state_restore(void **python_thread_state);
+
+static inline BL::Mesh object_to_mesh(BL::BlendData & /*data*/,
+                                      BL::Object &object,
+                                      BL::Depsgraph & /*depsgraph*/,
+                                      bool /*calc_undeformed*/,
+                                      bool use_octane_subdivision,
+                                      Mesh::SubdivisionType subdivision_type)
+{
+  bool enable_subdivision = use_octane_subdivision || subdivision_type != Mesh::SUBDIVISION_NONE;
+  /* TODO: make this work with copy-on-write, modifiers are already evaluated. */
+#if 0
+  bool subsurf_mod_show_render = false;
+  bool subsurf_mod_show_viewport = false;
+
+  if (subdivision_type != Mesh::SUBDIVISION_NONE) {
+    BL::Modifier subsurf_mod = object.modifiers[object.modifiers.length() - 1];
+
+    subsurf_mod_show_render = subsurf_mod.show_render();
+    subsurf_mod_show_viewport = subsurf_mod.show_viewport();
+
+    subsurf_mod.show_render(false);
+    subsurf_mod.show_viewport(false);
+  }
+#endif
+
+  BL::Mesh mesh(PointerRNA_NULL);
+  if (object.type() == BL::Object::type_MESH) {
+    /* TODO: calc_undeformed is not used. */
+    mesh = BL::Mesh(object.data());
+
+    /* Make a copy to split faces if we use autosmooth, otherwise not needed.
+     * Also in edit mode do we need to make a copy, to ensure data layers like
+     * UV are not empty. */
+    if (mesh.is_editmode() || (mesh.use_auto_smooth() && !enable_subdivision)) {
+      BL::Depsgraph depsgraph(PointerRNA_NULL);
+      mesh = object.to_mesh(false, depsgraph);
     }
-    return me;
-}
+  }
+  else {
+    BL::Depsgraph depsgraph(PointerRNA_NULL);
+    mesh = object.to_mesh(false, depsgraph);
+  }
 
-static inline void colorramp_to_array(BL::ColorRamp ramp, float4 *data, int size) {
-	for(int i = 0; i < size; i++) {
-		float color[4];
+#if 0
+  if (subdivision_type != Mesh::SUBDIVISION_NONE) {
+    BL::Modifier subsurf_mod = object.modifiers[object.modifiers.length() - 1];
 
-		ramp.evaluate(i/(float)(size-1), color);
-		data[i] = make_float4(color[0], color[1], color[2], color[3]);
-	}
-}
+    subsurf_mod.show_render(subsurf_mod_show_render);
+    subsurf_mod.show_viewport(subsurf_mod_show_viewport);
+  }
+#endif
 
-// Test if modificators are applied to object
-static inline bool BKE_object_is_modified(BL::Object self, BL::Scene scene, bool preview) {
-    return self.is_modified(scene, (preview)? (1<<0): (1<<1))? true: false;
-} //BKE_object_is_modified()
-
-static inline bool BKE_object_is_deform_modified(BL::Object self, BL::Scene scene, bool preview) {
-    return self.is_deform_modified(scene, (preview)? (1<<0): (1<<1))? true: false;
-}
-
-static inline string image_user_file_path(BL::ImageUser iuser, BL::Image ima, int cfra) {
-	char filepath[1024];
-	BKE_image_user_frame_calc(iuser.ptr.data, cfra, 0);
-	BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
-	return string(filepath);
-}
-
-static inline int image_user_frame_number(BL::ImageUser iuser, int cfra) {
-    BKE_image_user_frame_calc(iuser.ptr.data, cfra, 0);
-    return iuser.frame_current();
-}
-
-static inline unsigned char *image_get_pixels_for_frame(BL::Image image, int frame) {
-    return BKE_image_get_pixels_for_frame(image.ptr.data, frame);
-}
-
-static inline float *image_get_float_pixels_for_frame(BL::Image image, int frame) {
-    return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Utilities
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static inline Transform get_transform(BL::Array<float, 16> array) {
-	Transform tfm;
-
-	// We assume both types to be just 16 floats, and transpose because blender
-	// use column major matrix order while we use row major
-	memcpy(&tfm, &array, sizeof(float)*16);
-	tfm = transform_transpose(tfm);
-
-	return tfm;
-}
-
-static inline float2 get_float2(BL::Array<float, 2> array) {
-	return make_float2(array[0], array[1]);
-}
-
-static inline float3 get_float3(BL::Array<float, 2> array) {
-	return make_float3(array[0], array[1], 0.0f);
-}
-
-static inline float3 get_float3(BL::Array<float, 3> array) {
-	return make_float3(array[0], array[1], array[2]);
-}
-
-static inline float3 get_float3(BL::Array<float, 4> array) {
-	return make_float3(array[0], array[1], array[2]);
-}
-
-static inline float4 get_float4(BL::Array<float, 4> array) {
-	return make_float4(array[0], array[1], array[2], array[3]);
-}
-
-static inline int4 get_int4(BL::Array<int, 4> array) {
-	return make_int4(array[0], array[1], array[2], array[3]);
-}
-
-static inline uint get_layer(BL::Array<int, 20> array) {
-	uint layer = 0;
-
-	for(uint i = 0; i < 20; i++)
-		if(array[i])
-			layer |= (1 << i);
-	
-	return layer;
-}
-
-static inline uint get_layer(BL::Array<int, 20> array, BL::Array<int, 8> local_array, bool use_local, bool is_light = false) {
-	uint layer = 0;
-
-	for(uint i = 0; i < 20; i++)
-		if(array[i]) layer |= (1 << i);
-
-	if(is_light) {
-		// Consider lamps on all local view layers
-		for(uint i = 0; i < 8; i++)
-			layer |= (1 << (20+i));
-	}
-	else {
-		for(uint i = 0; i < 8; i++)
-			if(local_array[i])
-				layer |= (1 << (20+i));
-	}
-
-	// We don't have spare bits for localview (normally 20-28) because
-	// PATH_RAY_LAYER_SHIFT uses 20-32. So - check if we have localview and if
-	// so, shift local view bits down to 1-8, since this is done for the view
-	// port only - it should be OK and not conflict with render layers.
-	if(use_local) layer >>= 20;
-
-	return layer;
-}
-
-
-static inline float3 get_float3(PointerRNA& ptr, const char *name) {
-    float3 f;
-    RNA_float_get_array(&ptr, name, &f.x);
-    return f;
-}
-
-static inline void set_float3(PointerRNA& ptr, const char *name, float3 value) {
-    RNA_float_set_array(&ptr, name, &value.x);
-}
-
-static inline float4 get_float4(PointerRNA& ptr, const char *name) {
-    float4 f;
-    RNA_float_get_array(&ptr, name, &f.x);
-    return f;
-}
-
-static inline void set_float4(PointerRNA& ptr, const char *name, float4 value) {
-    RNA_float_set_array(&ptr, name, &value.x);
-}
-
-static inline bool get_boolean(PointerRNA& ptr, const char *name) {
-    return RNA_boolean_get(&ptr, name)? true: false;
-}
-
-static inline void set_boolean(PointerRNA& ptr, const char *name, bool value) {
-    RNA_boolean_set(&ptr, name, (int)value);
-}
-
-static inline float get_float(PointerRNA& ptr, const char *name) {
-    return RNA_float_get(&ptr, name);
-}
-
-static inline void set_float(PointerRNA& ptr, const char *name, float value) {
-    RNA_float_set(&ptr, name, value);
-}
-
-static inline int get_int(PointerRNA& ptr, const char *name) {
-    return RNA_int_get(&ptr, name);
-}
-
-static inline void set_int(PointerRNA& ptr, const char *name, int value) {
-    RNA_int_set(&ptr, name, value);
-}
-
-static inline int get_enum(PointerRNA& ptr, const char *name) {
-    return RNA_enum_get(&ptr, name);
-}
-
-static inline string get_enum_identifier(PointerRNA& ptr, const char *name) {
-    PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
-    const char *identifier = "";
-    int value = RNA_property_enum_get(&ptr, prop);
-
-    RNA_property_enum_identifier(NULL, &ptr, prop, value, &identifier);
-
-    return string(identifier);
-}
-
-static inline void set_enum(PointerRNA& ptr, const char *name, int value) {
-    RNA_enum_set(&ptr, name, value);
-}
-
-static inline void set_enum(PointerRNA& ptr, const char *name, const string &identifier) {
-    RNA_enum_set_identifier(NULL, &ptr, name, identifier.c_str());
-}
-
-static inline string get_string(PointerRNA& ptr, const char *name) {
-    char cstrbuf[1024];
-    char *cstr = RNA_string_get_alloc(&ptr, name, cstrbuf, sizeof(cstrbuf));
-    string str(cstr);
-    if(cstr != cstrbuf) MEM_freeN(cstr);
-
-    return str;
-}
-
-static inline void set_string(PointerRNA& ptr, const char *name, const string &value) {
-    RNA_string_set(&ptr, name, value.c_str());
-}
-
-// Relative Paths
-static inline string blender_absolute_path(BL::BlendData b_data, BL::ID b_id, const string& path) {
-	if(path.size() >= 2 && path[0] == '/' && path[1] == '/') {
-		string dirname;
-		
-		if(b_id.library()) {
-			BL::ID b_library_id(b_id.library());
-			dirname = blender_absolute_path(b_data, b_library_id, b_id.library().filepath());
-		}
-		else dirname = b_data.filepath();
-
-        //path_join(path_dirname(dirname), path.substr(2)); 
-        if(dirname.length() < 512) {
-            char str[1024];
-            ::strcpy(str, dirname.c_str());
-            size_t i;
-            for(i = dirname.length() - 1; i >= 0; --i) {
-                if(str[i] == '.') break;
-            }
-            for(size_t k = i - 1; k >= 0; --k) {
-                if(str[k] == '/' || str[k] == '\\') {
-                    str[k] = 0;
-                    break;
-                }
-            }
-            size_t len = ::strlen(str) - 1;
-            if(len > 0 && (str[len - 1] == '/' || str[len - 1] == '\\')) str[len - 1] = 0;
-            dirname = str;
-            string ending = path.substr(2);
-            dirname += ending[0] == '/' || ending[0] == '\\' ? ending : "/" + ending;
-            return dirname;
-        }
-	    else return path;
+  if ((bool)mesh && !enable_subdivision) {
+    if (mesh.use_auto_smooth()) {
+      mesh.split_faces(false);
     }
-	return path;
+
+    mesh.calc_loop_triangles();
+  }
+
+  return mesh;
 }
 
-// Texture Space
-static inline void mesh_texture_space(BL::Mesh b_mesh, float3& loc, float3& size) {
-    loc = get_float3(b_mesh.texspace_location());
-    size = get_float3(b_mesh.texspace_size());
-
-    if(size.x != 0.0f) size.x = 0.5f/size.x;
-    if(size.y != 0.0f) size.y = 0.5f/size.y;
-    if(size.z != 0.0f) size.z = 0.5f/size.z;
-
-    loc = loc*size - make_float3(0.5f, 0.5f, 0.5f);
+static inline void free_object_to_mesh(BL::BlendData & /*data*/,
+                                       BL::Object &object,
+                                       BL::Mesh &mesh)
+{
+  /* Free mesh if we didn't just use the existing one. */
+  if (object.data().ptr.data != mesh.ptr.data) {
+    object.to_mesh_clear();
+  }
 }
 
-// ID Map
-// Utility class to keep in sync with blender data. Used for objects, meshes, lights and shaders.
+static inline void colorramp_to_array(BL::ColorRamp &ramp,
+                                      array<float3> &ramp_color,
+                                      array<float> &ramp_alpha,
+                                      int size)
+{
+  ramp_color.resize(size);
+  ramp_alpha.resize(size);
+
+  for (int i = 0; i < size; i++) {
+    float color[4];
+
+    ramp.evaluate((float)i / (float)(size - 1), color);
+    ramp_color[i] = make_float3(color[0], color[1], color[2]);
+    ramp_alpha[i] = color[3];
+  }
+}
+
+static inline void curvemap_minmax_curve(/*const*/ BL::CurveMap &curve, float *min_x, float *max_x)
+{
+  *min_x = min(*min_x, curve.points[0].location()[0]);
+  *max_x = max(*max_x, curve.points[curve.points.length() - 1].location()[0]);
+}
+
+static inline void curvemapping_minmax(/*const*/ BL::CurveMapping &cumap,
+                                       bool rgb_curve,
+                                       float *min_x,
+                                       float *max_x)
+{
+  /* const int num_curves = cumap.curves.length(); */ /* Gives linking error so far. */
+  const int num_curves = rgb_curve ? 4 : 3;
+  *min_x = FLT_MAX;
+  *max_x = -FLT_MAX;
+  for (int i = 0; i < num_curves; ++i) {
+    BL::CurveMap map(cumap.curves[i]);
+    curvemap_minmax_curve(map, min_x, max_x);
+  }
+}
+
+static inline void curvemapping_to_array(BL::CurveMapping &cumap, array<float> &data, int size)
+{
+  cumap.update();
+  BL::CurveMap curve = cumap.curves[0];
+  data.resize(size);
+  for (int i = 0; i < size; i++) {
+    float t = (float)i / (float)(size - 1);
+    data[i] = curve.evaluate(t);
+  }
+}
+
+static inline void curvemapping_color_to_array(BL::CurveMapping &cumap,
+                                               array<float3> &data,
+                                               int size,
+                                               bool rgb_curve)
+{
+  float min_x = 0.0f, max_x = 1.0f;
+
+  /* TODO(sergey): There is no easy way to automatically guess what is
+   * the range to be used here for the case when mapping is applied on
+   * top of another mapping (i.e. R curve applied on top of common
+   * one).
+   *
+   * Using largest possible range form all curves works correct for the
+   * cases like vector curves and should be good enough heuristic for
+   * the color curves as well.
+   *
+   * There might be some better estimations here tho.
+   */
+  curvemapping_minmax(cumap, rgb_curve, &min_x, &max_x);
+
+  const float range_x = max_x - min_x;
+
+  cumap.update();
+
+  BL::CurveMap mapR = cumap.curves[0];
+  BL::CurveMap mapG = cumap.curves[1];
+  BL::CurveMap mapB = cumap.curves[2];
+
+  data.resize(size);
+
+  if (rgb_curve) {
+    BL::CurveMap mapI = cumap.curves[3];
+    for (int i = 0; i < size; i++) {
+      const float t = min_x + (float)i / (float)(size - 1) * range_x;
+      data[i] = make_float3(mapR.evaluate(mapI.evaluate(t)),
+                            mapG.evaluate(mapI.evaluate(t)),
+                            mapB.evaluate(mapI.evaluate(t)));
+    }
+  }
+  else {
+    for (int i = 0; i < size; i++) {
+      float t = min_x + (float)i / (float)(size - 1) * range_x;
+      data[i] = make_float3(mapR.evaluate(t), mapG.evaluate(t), mapB.evaluate(t));
+    }
+  }
+}
+
+static inline bool BKE_object_is_modified(BL::Object &self, BL::Scene &scene, bool preview)
+{
+  return self.is_modified(scene, (preview) ? (1 << 0) : (1 << 1)) ? true : false;
+}
+
+static inline bool BKE_object_is_deform_modified(BL::Object &self, BL::Scene &scene, bool preview)
+{
+  return self.is_deform_modified(scene, (preview) ? (1 << 0) : (1 << 1)) ? true : false;
+}
+
+static inline int render_resolution_x(BL::RenderSettings &b_render)
+{
+  return b_render.resolution_x() * b_render.resolution_percentage() / 100;
+}
+
+static inline int render_resolution_y(BL::RenderSettings &b_render)
+{
+  return b_render.resolution_y() * b_render.resolution_percentage() / 100;
+}
+
+static inline string image_user_file_path(BL::ImageUser &iuser, BL::Image &ima, int cfra)
+{
+  char filepath[1024];
+  BKE_image_user_frame_calc(NULL, iuser.ptr.data, cfra);
+  BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
+  return string(filepath);
+}
+
+static inline int image_user_frame_number(BL::ImageUser &iuser, int cfra)
+{
+  BKE_image_user_frame_calc(NULL, iuser.ptr.data, cfra);
+  return iuser.frame_current();
+}
+
+static inline unsigned char *image_get_pixels_for_frame(BL::Image &image, int frame)
+{
+  return BKE_image_get_pixels_for_frame(image.ptr.data, frame);
+}
+
+static inline float *image_get_float_pixels_for_frame(BL::Image &image, int frame)
+{
+  return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame);
+}
+
+static inline void render_add_metadata(BL::RenderResult &b_rr, string name, string value)
+{
+  b_rr.stamp_data_add_field(name.c_str(), value.c_str());
+}
+
+/* Utilities */
+
+static inline Transform get_transform(const BL::Array<float, 16> &array)
+{
+  ProjectionTransform projection;
+
+  /* We assume both types to be just 16 floats, and transpose because blender
+   * use column major matrix order while we use row major. */
+  memcpy((void *)&projection, &array, sizeof(float) * 16);
+  projection = projection_transpose(projection);
+
+  /* Drop last row, matrix is assumed to be affine transform. */
+  return projection_to_transform(projection);
+}
+
+static inline float2 get_float2(const BL::Array<float, 2> &array)
+{
+  return make_float2(array[0], array[1]);
+}
+
+static inline float3 get_float3(const BL::Array<float, 2> &array)
+{
+  return make_float3(array[0], array[1], 0.0f);
+}
+
+static inline float3 get_float3(const BL::Array<float, 3> &array)
+{
+  return make_float3(array[0], array[1], array[2]);
+}
+
+static inline float3 get_float3(const BL::Array<float, 4> &array)
+{
+  return make_float3(array[0], array[1], array[2]);
+}
+
+static inline OctaneDataTransferObject::float_3 get_octane_float3(const BL::Array<float, 2> &array)
+{
+  return OctaneDataTransferObject::float_3(array[0], array[1], 0.0f);
+}
+
+static inline OctaneDataTransferObject::float_3 get_octane_float3(const BL::Array<float, 3> &array)
+{
+  return OctaneDataTransferObject::float_3(array[0], array[1], array[2]);
+}
+
+static inline OctaneDataTransferObject::float_3 get_octane_float3(const BL::Array<float, 4> &array)
+{
+  return OctaneDataTransferObject::float_3(array[0], array[1], array[2]);
+}
+
+static inline float4 get_float4(const BL::Array<float, 4> &array)
+{
+  return make_float4(array[0], array[1], array[2], array[3]);
+}
+
+static inline int3 get_int3(const BL::Array<int, 3> &array)
+{
+  return make_int3(array[0], array[1], array[2]);
+}
+
+static inline int4 get_int4(const BL::Array<int, 4> &array)
+{
+  return make_int4(array[0], array[1], array[2], array[3]);
+}
+
+static inline uint get_layer(const BL::Array<bool, 20> &array)
+{
+  uint layer = 0;
+
+  for (uint i = 0; i < 20; i++)
+    if (array[i])
+      layer |= (1 << i);
+
+  return layer;
+}
+
+static inline uint get_layer(const BL::Array<bool, 20> &array,
+                             const BL::Array<bool, 8> &local_array,
+                             bool is_light = false,
+                             uint view_layers = (1 << 20) - 1)
+{
+  uint layer = 0;
+
+  for (uint i = 0; i < 20; i++)
+    if (array[i])
+      layer |= (1 << i);
+
+  if (is_light) {
+    /* Consider light is visible if it was visible without layer
+     * override, which matches behavior of Blender Internal.
+     */
+    if (layer & view_layers) {
+      for (uint i = 0; i < 8; i++)
+        layer |= (1 << (20 + i));
+    }
+  }
+  else {
+    for (uint i = 0; i < 8; i++)
+      if (local_array[i])
+        layer |= (1 << (20 + i));
+  }
+
+  return layer;
+}
+
+static inline float3 get_float3(PointerRNA &ptr, const char *name)
+{
+  float3 f;
+  RNA_float_get_array(&ptr, name, &f.x);
+  return f;
+}
+
+static inline void set_float3(PointerRNA &ptr, const char *name, float3 value)
+{
+  RNA_float_set_array(&ptr, name, &value.x);
+}
+
+static inline float4 get_float4(PointerRNA &ptr, const char *name)
+{
+  float4 f;
+  RNA_float_get_array(&ptr, name, &f.x);
+  return f;
+}
+
+static inline void set_float4(PointerRNA &ptr, const char *name, float4 value)
+{
+  RNA_float_set_array(&ptr, name, &value.x);
+}
+
+static inline bool get_boolean(PointerRNA &ptr, const char *name)
+{
+  return RNA_boolean_get(&ptr, name) ? true : false;
+}
+
+static inline void set_boolean(PointerRNA &ptr, const char *name, bool value)
+{
+  RNA_boolean_set(&ptr, name, (int)value);
+}
+
+static inline float get_float(PointerRNA &ptr, const char *name)
+{
+  return RNA_float_get(&ptr, name);
+}
+
+static inline void set_float(PointerRNA &ptr, const char *name, float value)
+{
+  RNA_float_set(&ptr, name, value);
+}
+
+static inline int get_int(PointerRNA &ptr, const char *name)
+{
+  return RNA_int_get(&ptr, name);
+}
+
+static inline void set_int(PointerRNA &ptr, const char *name, int value)
+{
+  RNA_int_set(&ptr, name, value);
+}
+
+/* Get a RNA enum value with sanity check: if the RNA value is above num_values
+ * the function will return a fallback default value.
+ *
+ * NOTE: This function assumes that RNA enum values are a continuous sequence
+ * from 0 to num_values-1. Be careful to use it with enums where some values are
+ * deprecated!
+ */
+static inline int get_enum(PointerRNA &ptr,
+                           const char *name,
+                           int num_values = -1,
+                           int default_value = -1)
+{
+  int value = RNA_enum_get(&ptr, name);
+  if (num_values != -1 && value >= num_values) {
+    assert(default_value != -1);
+    value = default_value;
+  }
+  return value;
+}
+
+static inline string get_enum_identifier(PointerRNA &ptr, const char *name)
+{
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
+  const char *identifier = "";
+  int value = RNA_property_enum_get(&ptr, prop);
+
+  RNA_property_enum_identifier(NULL, &ptr, prop, value, &identifier);
+
+  return string(identifier);
+}
+
+static inline void set_enum(PointerRNA &ptr, const char *name, int value)
+{
+  RNA_enum_set(&ptr, name, value);
+}
+
+static inline void set_enum(PointerRNA &ptr, const char *name, const string &identifier)
+{
+  RNA_enum_set_identifier(NULL, &ptr, name, identifier.c_str());
+}
+
+static inline string get_string(PointerRNA &ptr, const char *name)
+{
+  char cstrbuf[1024];
+  char *cstr = RNA_string_get_alloc(&ptr, name, cstrbuf, sizeof(cstrbuf));
+  string str(cstr);
+  if (cstr != cstrbuf)
+    MEM_freeN(cstr);
+
+  return str;
+}
+
+static inline void set_string(PointerRNA &ptr, const char *name, const string &value)
+{
+  RNA_string_set(&ptr, name, value.c_str());
+}
+
+/* Relative Paths */
+
+static inline string blender_absolute_path(BL::BlendData &b_data, BL::ID &b_id, const string &path)
+{
+  if (path.size() >= 2 && path[0] == '/' && path[1] == '/') {
+    string dirname;
+
+    if (b_id.library()) {
+      BL::ID b_library_id(b_id.library());
+      dirname = blender_absolute_path(b_data, b_library_id, b_id.library().filepath());
+    }
+    else
+      dirname = b_data.filepath();
+
+    return path_join(path_dirname(dirname), path.substr(2));
+  }
+
+  return path;
+}
+
+static inline string get_text_datablock_content(const PointerRNA &ptr)
+{
+  if (ptr.data == NULL) {
+    return "";
+  }
+
+  string content;
+  BL::Text::lines_iterator iter;
+  for (iter.begin(ptr); iter; ++iter) {
+    content += iter->body() + "\n";
+  }
+
+  return content;
+}
+
+/* Texture Space */
+
+static inline void mesh_texture_space(BL::Mesh &b_mesh, float3 &loc, float3 &size)
+{
+  loc = get_float3(b_mesh.texspace_location());
+  size = get_float3(b_mesh.texspace_size());
+
+  if (size.x != 0.0f)
+    size.x = 0.5f / size.x;
+  if (size.y != 0.0f)
+    size.y = 0.5f / size.y;
+  if (size.z != 0.0f)
+    size.z = 0.5f / size.z;
+
+  loc = loc * size - make_float3(0.5f, 0.5f, 0.5f);
+}
+
+/* Object motion steps, returns 0 if no motion blur needed. */
+static inline uint object_motion_steps(BL::Object &b_parent, BL::Object &b_ob)
+{
+  /* Get motion enabled and steps from object itself. */
+  PointerRNA octane_object = RNA_pointer_get(&b_ob.ptr, "octane");
+  bool use_motion = get_boolean(octane_object, "use_motion_blur");
+  if (!use_motion) {
+    return 0;
+  }
+
+  uint steps = max(1, get_int(octane_object, "motion_steps"));
+
+  /* Also check parent object, so motion blur and steps can be
+   * controlled by dupligroup duplicator for linked groups. */
+  if (b_parent.ptr.data != b_ob.ptr.data) {
+    PointerRNA parent_octane_object = RNA_pointer_get(&b_parent.ptr, "octane");
+    use_motion &= get_boolean(parent_octane_object, "use_motion_blur");
+
+    if (!use_motion) {
+      return 0;
+    }
+
+    steps = max(steps, get_int(parent_octane_object, "motion_steps"));
+  }
+
+  /* Use uneven number of steps so we get one keyframe at the current frame,
+   * and use 2^(steps - 1) so objects with more/fewer steps still have samples
+   * at the same times, to avoid sampling at many different times. */
+  return (2 << (steps - 1)) + 1;
+}
+
+/* object uses deformation motion blur */
+static inline bool object_use_deform_motion(BL::Object &b_parent, BL::Object &b_ob)
+{
+  PointerRNA octane_object = RNA_pointer_get(&b_ob.ptr, "octane");
+  bool use_deform_motion = get_boolean(octane_object, "use_deform_motion");
+  /* If motion blur is enabled for the object we also check
+   * whether it's enabled for the parent object as well.
+   *
+   * This way we can control motion blur from the dupligroup
+   * duplicator much easier.
+   */
+  if (use_deform_motion && b_parent.ptr.data != b_ob.ptr.data) {
+    PointerRNA parent_octane_object = RNA_pointer_get(&b_parent.ptr, "octane");
+    use_deform_motion &= get_boolean(parent_octane_object, "use_deform_motion");
+  }
+  return use_deform_motion;
+}
+
+static inline BL::SmokeDomainSettings object_smoke_domain_find(BL::Object &b_ob)
+{
+  BL::Object::modifiers_iterator b_mod;
+
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    if (b_mod->is_a(&RNA_SmokeModifier)) {
+      BL::SmokeModifier b_smd(*b_mod);
+
+      if (b_smd.smoke_type() == BL::SmokeModifier::smoke_type_DOMAIN)
+        return b_smd.domain_settings();
+    }
+  }
+
+  return BL::SmokeDomainSettings(PointerRNA_NULL);
+}
+
+static inline BL::DomainFluidSettings object_fluid_domain_find(BL::Object b_ob)
+{
+  BL::Object::modifiers_iterator b_mod;
+
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    if (b_mod->is_a(&RNA_FluidSimulationModifier)) {
+      BL::FluidSimulationModifier b_fmd(*b_mod);
+      BL::FluidSettings fss = b_fmd.settings();
+
+      if (fss.type() == BL::FluidSettings::type_DOMAIN)
+        return (BL::DomainFluidSettings)b_fmd.settings();
+    }
+  }
+
+  return BL::DomainFluidSettings(PointerRNA_NULL);
+}
+
+static inline Mesh::SubdivisionType object_subdivision_type(BL::Object &b_ob,
+                                                            bool preview,
+                                                            bool experimental)
+{
+  PointerRNA obj = RNA_pointer_get(&b_ob.ptr, "octane");
+
+  if (obj.data && b_ob.modifiers.length() > 0 && experimental) {
+    BL::Modifier mod = b_ob.modifiers[b_ob.modifiers.length() - 1];
+    bool enabled = preview ? mod.show_viewport() : mod.show_render();
+
+    if (enabled && mod.type() == BL::Modifier::type_SUBSURF) {
+      BL::SubsurfModifier subsurf(mod);
+
+      if (subsurf.subdivision_type() == BL::SubsurfModifier::subdivision_type_CATMULL_CLARK) {
+        return Mesh::SUBDIVISION_CATMULL_CLARK;
+      }
+      else {
+        return Mesh::SUBDIVISION_LINEAR;
+      }
+    }
+  }
+
+  return Mesh::SUBDIVISION_NONE;
+}
+
+/* ID Map
+ *
+ * Utility class to keep in sync with blender data.
+ * Used for objects, meshes, lights and shaders. */
+
 template<typename K, typename T> class id_map {
-public:
-    id_map(vector<T*> *scene_data_) : scene_data(scene_data_) {}
+ public:
+  id_map(vector<T *> *scene_data_)
+  {
+    scene_data = scene_data_;
+  }
 
-	T *find(BL::ID id) {
-		return find(id.ptr.id.data);
-	}
-	T *find(const K& key) {
-        typename map<K, T*>::const_iterator it = b_map.find(key);
-		if(it != b_map.end()) return it->second;
-		return NULL;
-	}
-	void set_recalc(BL::ID id) {
-		b_recalc.insert(id.ptr.data);
-	}
-	bool has_recalc() {
-		return !(b_recalc.empty());
-	}
-	void pre_sync() {
-		used_set.clear();
-	}
-	//Refresh the data of Octane object (create new if not exists)
-	//Return: true if needs to recalculate
-	bool sync(T **r_data, BL::ID id) {
-		return sync(r_data, id, id, id.ptr.id.data);
-	}
-	//Refresh the data of Octane object (create new if not exists)
-	//Return: true if needs to recalculate
-	bool sync(T **r_data, BL::ID id, BL::ID parent, const K& key) {
-		T *data = find(key);
-		bool recalc;
+  T *find(const BL::ID &id)
+  {
+    return find(id.ptr.id.data);
+  }
 
-		if(!data) {
-			// add data if it didn't exist yet
-			data = new T();
-			scene_data->push_back(data);
-			b_map[key] = data;
-			recalc = true;
-		}
-		else {
-			recalc = (b_recalc.find(id.ptr.data) != b_recalc.end());
-			if(parent.ptr.data)
-				recalc = recalc || (b_recalc.find(parent.ptr.data) != b_recalc.end());
-		}
-
-		used(data);
-
-		*r_data = data;
-		return recalc;
-	}
-    bool is_used(const K& key) {
-        T *data = find(key);
-        return (data) ? used_set.find(data) != used_set.end() : false;
+  T *find(const K &key)
+  {
+    if (b_map.find(key) != b_map.end()) {
+      T *data = b_map[key];
+      return data;
     }
-	void used(T *data) {
-		// Tag data as still in use
-		used_set.insert(data);
-	}
-	void set_default(T *data) {
-		b_map[NULL] = data;
-	}
-	bool post_sync(::OctaneEngine::OctaneClient *server, bool do_delete = true) {
-		// Remove unused data
-		vector<T*> new_scene_data;
-		typename vector<T*>::iterator it;
-		bool deleted = false;
 
-		for(it = scene_data->begin(); it != scene_data->end(); it++) {
-			T *data = *it;
+    return NULL;
+  }
 
-			if(do_delete && used_set.find(data) == used_set.end()) {
-                if(server) server->deleteMesh(false, data->name);
-				delete data;
-				deleted = true;
-			}
-			else
-				new_scene_data.push_back(data);
-		}
+  void set_recalc(const BL::ID &id)
+  {
+    b_recalc.insert(id.ptr.data);
+  }
 
-		*scene_data = new_scene_data;
+  bool has_recalc()
+  {
+    return !(b_recalc.empty());
+  }
 
-		// Update mapping
-		map<K, T*> new_map;
-		typedef pair<const K, T*> TMapPair;
-		typename map<K, T*>::iterator jt;
+  void pre_sync()
+  {
+    used_set.clear();
+  }
 
-		for(jt = b_map.begin(); jt != b_map.end(); jt++) {
-			TMapPair& pair = *jt;
+  bool sync(T **r_data, const BL::ID &id)
+  {
+    return sync(r_data, id, id, id.ptr.id.data);
+  }
 
-			if(used_set.find(pair.second) != used_set.end())
-				new_map[pair.first] = pair.second;
-		}
+  bool sync(T **r_data, const BL::ID &id, const BL::ID &parent, const K &key)
+  {
+    T *data = find(key);
+    bool recalc;
 
-		used_set.clear();
-		b_recalc.clear();
-		b_map = new_map;
+    if (!data) {
+      /* add data if it didn't exist yet */
+      data = new T();
+      scene_data->push_back(data);
+      b_map[key] = data;
+      recalc = true;
+    }
+    else {
+      recalc = (b_recalc.find(id.ptr.data) != b_recalc.end());
+      if (parent.ptr.data)
+        recalc = recalc || (b_recalc.find(parent.ptr.data) != b_recalc.end());
+    }
 
-		return deleted;
-	} //post_sync()
+    used(data);
 
-protected:
-	vector<T*> *scene_data;
-	map<K, T*> b_map;
-	set<T*> used_set;
-	set<void*> b_recalc;
-}; //id_map
+    *r_data = data;
+    return recalc;
+  }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Object Key
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  bool is_used(const K &key)
+  {
+    T *data = find(key);
+    return (data) ? used_set.find(data) != used_set.end() : false;
+  }
+
+  void used(T *data)
+  {
+    /* tag data as still in use */
+    used_set.insert(data);
+  }
+
+  void set_default(T *data)
+  {
+    b_map[NULL] = data;
+  }
+
+  bool post_sync(bool do_delete = true)
+  {
+    /* remove unused data */
+    vector<T *> new_scene_data;
+    typename vector<T *>::iterator it;
+    bool deleted = false;
+
+    for (it = scene_data->begin(); it != scene_data->end(); it++) {
+      T *data = *it;
+
+      if (do_delete && used_set.find(data) == used_set.end()) {
+        delete data;
+        deleted = true;
+      }
+      else
+        new_scene_data.push_back(data);
+    }
+
+    *scene_data = new_scene_data;
+
+    /* update mapping */
+    map<K, T *> new_map;
+    typedef pair<const K, T *> TMapPair;
+    typename map<K, T *>::iterator jt;
+
+    for (jt = b_map.begin(); jt != b_map.end(); jt++) {
+      TMapPair &pair = *jt;
+
+      if (used_set.find(pair.second) != used_set.end())
+        new_map[pair.first] = pair.second;
+    }
+
+    used_set.clear();
+    b_recalc.clear();
+    b_map = new_map;
+
+    return deleted;
+  }
+
+ protected:
+  vector<T *> *scene_data;
+  map<K, T *> b_map;
+  set<T *> used_set;
+  set<void *> b_recalc;
+};
+
+/* Object Key */
+
 enum { OBJECT_PERSISTENT_ID_SIZE = 16 };
 
 struct ObjectKey {
-    void *parent;
-    int id[OBJECT_PERSISTENT_ID_SIZE];
-    void *ob;
+  void *parent;
+  int id[OBJECT_PERSISTENT_ID_SIZE];
+  void *ob;
 
-    ObjectKey(void *parent_, int id_[OBJECT_PERSISTENT_ID_SIZE], void *ob_) : parent(parent_), ob(ob_) {
-        if(id_) memcpy(id, id_, sizeof(id));
-        else memset(id, 0, sizeof(id));
+  ObjectKey(void *parent_, int id_[OBJECT_PERSISTENT_ID_SIZE], void *ob_)
+      : parent(parent_), ob(ob_)
+  {
+    if (id_)
+      memcpy(id, id_, sizeof(id));
+    else
+      memset(id, 0, sizeof(id));
+  }
+
+  bool operator<(const ObjectKey &k) const
+  {
+    if (ob < k.ob) {
+      return true;
+    }
+    else if (ob == k.ob) {
+      if (parent < k.parent)
+        return true;
+      else if (parent == k.parent)
+        return memcmp(id, k.id, sizeof(id)) < 0;
     }
 
-    bool operator<(const ObjectKey& k) const {
-        if(ob < k.ob) {
-            return true;
-        }
-        else if(ob == k.ob) {
-            if(parent < k.parent)
-                return true;
-            else if(parent == k.parent)
-                return memcmp(id, k.id, sizeof(id)) < 0;
-        }
-        return false;
-    }
-}; //ObjectKey
-
-
-/* 2D BoundBox */
-class BoundBox2D {
-public:
-    float left;
-    float right;
-    float bottom;
-    float top;
-
-    BoundBox2D() : left(0.0f), right(1.0f), bottom(0.0f), top(1.0f) {}
-    BoundBox2D(float _left, float _right, float _bottom, float _top) : left(_left), right(_right), bottom(_bottom), top(_top) {}
-
-    bool operator==(const BoundBox2D& other) const {
-        return (left == other.left && right == other.right &&
-            bottom == other.bottom && top == other.top);
-    }
-
-    float width() {
-        return right - left;
-    }
-
-    float height() {
-        return top - bottom;
-    }
-
-    BoundBox2D operator*(float f) const {
-        BoundBox2D result;
-
-        result.left = left*f;
-        result.right = right*f;
-        result.bottom = bottom*f;
-        result.top = top*f;
-
-        return result;
-    }
-
-    BoundBox2D operator/(float f) const {
-        BoundBox2D result;
-
-        result.left = left / f;
-        result.right = right / f;
-        result.bottom = bottom / f;
-        result.top = top / f;
-
-        return result;
-    }
-
-    BoundBox2D subset(const BoundBox2D& other) const {
-        BoundBox2D subset;
-
-        subset.left = left + other.left*(right - left);
-        subset.right = left + other.right*(right - left);
-        subset.bottom = bottom + other.bottom*(top - bottom);
-        subset.top = bottom + other.top*(top - bottom);
-
-        return subset;
-    }
-
-    BoundBox2D make_relative_to(const BoundBox2D& other) const {
-        BoundBox2D result;
-
-        result.left = ((left - other.left) / (other.right - other.left));
-        result.right = ((right - other.left) / (other.right - other.left));
-        result.bottom = ((bottom - other.bottom) / (other.top - other.bottom));
-        result.top = ((top - other.bottom) / (other.top - other.bottom));
-
-        return result;
-    }
-
-    float clamp(float a, float mn, float mx) {
-        return min(max(a, mn), mx);
-    }
-
-    BoundBox2D clamp(float mn = 0.0f, float mx = 1.0f) {
-        BoundBox2D result;
-
-        result.left = clamp(left, mn, mx);
-        result.right = clamp(right, mn, mx);
-        result.bottom = clamp(bottom, mn, mx);
-        result.top = clamp(top, mn, mx);
-
-        return result;
-    }
+    return false;
+  }
 };
+
+/* Particle System Key */
+
+struct ParticleSystemKey {
+  void *ob;
+  int id[OBJECT_PERSISTENT_ID_SIZE];
+
+  ParticleSystemKey(void *ob_, int id_[OBJECT_PERSISTENT_ID_SIZE]) : ob(ob_)
+  {
+    if (id_)
+      memcpy(id, id_, sizeof(id));
+    else
+      memset(id, 0, sizeof(id));
+  }
+
+  bool operator<(const ParticleSystemKey &k) const
+  {
+    /* first id is particle index, we don't compare that */
+    if (ob < k.ob)
+      return true;
+    else if (ob == k.ob)
+      return memcmp(id + 1, k.id + 1, sizeof(int) * (OBJECT_PERSISTENT_ID_SIZE - 1)) < 0;
+
+    return false;
+  }
+};
+
+class EdgeMap {
+ public:
+  EdgeMap()
+  {
+  }
+
+  void clear()
+  {
+    edges_.clear();
+  }
+
+  void insert(int v0, int v1)
+  {
+    get_sorted_verts(v0, v1);
+    edges_.insert(std::pair<int, int>(v0, v1));
+  }
+
+  bool exists(int v0, int v1)
+  {
+    get_sorted_verts(v0, v1);
+    return edges_.find(std::pair<int, int>(v0, v1)) != edges_.end();
+  }
+
+ protected:
+  void get_sorted_verts(int &v0, int &v1)
+  {
+    if (v0 > v1) {
+      swap(v0, v1);
+    }
+  }
+
+  set<std::pair<int, int>> edges_;
+};
+
+static inline int4 get_int4(PointerRNA &ptr, const char *name)
+{
+  int4 i;
+  RNA_int_get_array(&ptr, name, &i.x);
+  return i;
+}
+
+static inline void set_int4(PointerRNA &ptr, const char *name, int4 value)
+{
+  RNA_int_set_array(&ptr, name, &value.x);
+}
+
+static inline bool set_octane_data_transfer_object(
+    ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
+    PointerRNA &ptr,
+    bool is_socket = false)
+{
+  if (!base_dto_ptr || !ptr.data)
+    return false;
+
+  int4 i;
+  float4 f;
+  const char *name = ((is_socket && base_dto_ptr->type != OctaneDataTransferObject::DTO_ENUM) ?
+                          "default_value" :
+                          base_dto_ptr->sName.c_str());
+  switch (base_dto_ptr->type) {
+    case OctaneDataTransferObject::DTO_ENUM:
+      *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_enum(ptr, name);
+      break;
+    case OctaneDataTransferObject::DTO_BOOL:
+      *(::OctaneDataTransferObject::OctaneDTOBool *)base_dto_ptr = get_boolean(ptr, name);
+      break;
+    case OctaneDataTransferObject::DTO_INT:
+      *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_int(ptr, name);
+      break;
+    case OctaneDataTransferObject::DTO_INT_2:
+      i = get_int4(ptr, name);
+      *(::OctaneDataTransferObject::OctaneDTOInt2 *)base_dto_ptr =
+          ::OctaneDataTransferObject::int32_2(i[0], i[1]);
+      break;
+    case OctaneDataTransferObject::DTO_INT_3:
+      i = get_int4(ptr, name);
+      *(::OctaneDataTransferObject::OctaneDTOInt3 *)base_dto_ptr =
+          ::OctaneDataTransferObject::int32_3(i[0], i[1], i[3]);
+      break;
+    case OctaneDataTransferObject::DTO_FLOAT:
+      *(::OctaneDataTransferObject::OctaneDTOFloat *)base_dto_ptr = get_float(ptr, name);
+      break;
+    case OctaneDataTransferObject::DTO_FLOAT_2:
+      f = get_float4(ptr, name);
+      *(::OctaneDataTransferObject::OctaneDTOFloat2 *)base_dto_ptr =
+          ::OctaneDataTransferObject::float_2(f[0], f[1]);
+      break;
+    case OctaneDataTransferObject::DTO_FLOAT_3:
+      f = get_float4(ptr, name);
+      *(::OctaneDataTransferObject::OctaneDTOFloat3 *)base_dto_ptr =
+          ::OctaneDataTransferObject::float_3(f[0], f[1], f[2]);
+      break;
+    case OctaneDataTransferObject::DTO_STR:
+      *(::OctaneDataTransferObject::OctaneDTOString *)base_dto_ptr = get_string(ptr, name);
+      break;
+    case OctaneDataTransferObject::DTO_RGB:
+      f = get_float4(ptr, name);
+      *(::OctaneDataTransferObject::OctaneDTORGB *)base_dto_ptr =
+          ::OctaneDataTransferObject::float_3(f[0], f[1], f[2]);
+      break;
+    default:
+      break;
+  }
+  return true;
+}
+
+struct OctaneDataTransferObjectVisitor {
+  template<class FieldData> void operator()(FieldData f)
+  {
+    std::string member_name = f.name();
+    ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr = &f.get();
+    if (base_dto_ptr && base_dto_ptr->sName.size()) {
+      if (!base_dto_ptr->bUseSocket) {
+        set_octane_data_transfer_object(base_dto_ptr, target, false);
+      }
+    }
+  }
+  PointerRNA &target;
+  OctaneDataTransferObjectVisitor(PointerRNA &target) : target(target)
+  {
+  }
+};
+
+static int32_t get_light_ids_mask(PointerRNA &ptr)
+{
+  int32_t iLightIDsMask = (get_boolean(ptr, "light_id_sunlight") & 1) << 0 |
+                          (get_boolean(ptr, "light_id_env") & 1) << 1 |
+                          (get_boolean(ptr, "light_id_pass_1") & 1) << 2 |
+                          (get_boolean(ptr, "light_id_pass_2") & 1) << 3 |
+                          (get_boolean(ptr, "light_id_pass_3") & 1) << 4 |
+                          (get_boolean(ptr, "light_id_pass_4") & 1) << 5 |
+                          (get_boolean(ptr, "light_id_pass_5") & 1) << 6 |
+                          (get_boolean(ptr, "light_id_pass_6") & 1) << 7 |
+                          (get_boolean(ptr, "light_id_pass_7") & 1) << 8 |
+                          (get_boolean(ptr, "light_id_pass_8") & 1) << 9;
+  return iLightIDsMask;
+}
+
+static int32_t get_light_ids_invert_mask(PointerRNA &ptr)
+{
+  int32_t iLightLinkingInvertMask = (get_boolean(ptr, "light_id_sunlight_invert") & 1) << 0 |
+                                    (get_boolean(ptr, "light_id_env_invert") & 1) << 1 |
+                                    (get_boolean(ptr, "light_id_pass_1_invert") & 1) << 2 |
+                                    (get_boolean(ptr, "light_id_pass_2_invert") & 1) << 3 |
+                                    (get_boolean(ptr, "light_id_pass_3_invert") & 1) << 4 |
+                                    (get_boolean(ptr, "light_id_pass_4_invert") & 1) << 5 |
+                                    (get_boolean(ptr, "light_id_pass_5_invert") & 1) << 6 |
+                                    (get_boolean(ptr, "light_id_pass_6_invert") & 1) << 7 |
+                                    (get_boolean(ptr, "light_id_pass_7_invert") & 1) << 8 |
+                                    (get_boolean(ptr, "light_id_pass_8_invert") & 1) << 9;
+  return iLightLinkingInvertMask;
+}
+
+static void resolve_object_layer(PointerRNA &octane_object,
+                                 OctaneDataTransferObject::OctaneObjectLayer &object_layer)
+{
+  visit_each(object_layer, OctaneDataTransferObjectVisitor(octane_object));
+  object_layer.iLightPassMask = get_light_ids_mask(octane_object);
+  object_layer.i3Color.iVal.x = int(object_layer.f3Color.fVal.x * 255.f);
+  object_layer.i3Color.iVal.y = int(object_layer.f3Color.fVal.y * 255.f);
+  object_layer.i3Color.iVal.z = int(object_layer.f3Color.fVal.z * 255.f);
+  object_layer.oBakingTransform.fRotation.fVal.x = 0;
+  object_layer.oBakingTransform.fRotation.fVal.y = 0;
+  object_layer.oBakingTransform.fRotation.fVal.z = object_layer.fRotationZ.fVal;
+  object_layer.oBakingTransform.fScale.fVal.x = object_layer.fScaleX.fVal;
+  object_layer.oBakingTransform.fScale.fVal.y = object_layer.fScaleY.fVal;
+  object_layer.oBakingTransform.fScale.fVal.z = 0;
+  object_layer.oBakingTransform.fTranslation.fVal.x = object_layer.fTranslationX.fVal;
+  object_layer.oBakingTransform.fTranslation.fVal.y = object_layer.fTranslationY.fVal;
+  object_layer.oBakingTransform.fTranslation.fVal.z = 0;
+}
+
+static std::string resolve_octane_name(BL::ID &b_ob_data,
+                                       std::string modifier_object_tag,
+                                       std::string tag)
+{
+  std::string lib_prefix = b_ob_data.library().ptr.data ? (b_ob_data.library().name() + ".") : "";
+  if (modifier_object_tag.length()) {
+    modifier_object_tag += ".";
+  }
+  return lib_prefix + modifier_object_tag + b_ob_data.name() + tag;
+}
+
+static inline std::string split_dir_part(std::string path)
+{
+  char dir[256];
+  BLI_split_dir_part(path.c_str(), dir, sizeof(dir));
+  return std::string(dir);
+}
+
+static inline std::string join_dir_file(std::string dir, std::string file)
+{
+  char path[256];
+  BLI_join_dirfile(path, sizeof(path), dir.c_str(), file.c_str());
+  return std::string(path);
+}
 
 OCT_NAMESPACE_END
 
 #endif /* __BLENDER_UTIL_H__ */
-

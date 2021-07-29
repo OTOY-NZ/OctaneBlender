@@ -16,35 +16,33 @@
 #
 # The Original Code is Copyright (C) 2006, Blender Foundation
 # All rights reserved.
-#
-# The Original Code is: all of this file.
-#
-# Contributor(s): Jacques Beaurain.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	intern
-	../memutil
+  intern
+  ../memutil
 )
 
 set(INC_SYS
-	${EIGEN3_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 set(SRC
-	intern/IK_QJacobian.cpp
-	intern/IK_QJacobianSolver.cpp
-	intern/IK_QSegment.cpp
-	intern/IK_QTask.cpp
-	intern/IK_Solver.cpp
+  intern/IK_QJacobian.cpp
+  intern/IK_QJacobianSolver.cpp
+  intern/IK_QSegment.cpp
+  intern/IK_QTask.cpp
+  intern/IK_Solver.cpp
 
-	extern/IK_solver.h
-	intern/IK_Math.h
-	intern/IK_QJacobian.h
-	intern/IK_QJacobianSolver.h
-	intern/IK_QSegment.h
-	intern/IK_QTask.h
+  extern/IK_solver.h
+  intern/IK_Math.h
+  intern/IK_QJacobian.h
+  intern/IK_QJacobianSolver.h
+  intern/IK_QSegment.h
+  intern/IK_QTask.h
 )
 
-blender_add_lib(bf_intern_iksolver "${SRC}" "${INC}" "${INC_SYS}")
+set(LIB
+)
+
+blender_add_lib(bf_intern_iksolver "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

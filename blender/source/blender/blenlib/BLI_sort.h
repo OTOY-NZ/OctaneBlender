@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,20 +15,13 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Benoit Bolsee,
- *                 Sergey Sharybin.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BLI_SORT_H__
 #define __BLI_SORT_H__
 
-/** \file BLI_sort.h
- *  \ingroup bli
+/** \file
+ * \ingroup bli
  */
 
 #include <stdlib.h>
@@ -45,8 +36,8 @@ typedef int (*BLI_sort_cmp_t)(const void *a, const void *b, void *ctx);
 
 void BLI_qsort_r(void *a, size_t n, size_t es, BLI_sort_cmp_t cmp, void *thunk)
 #ifdef __GNUC__
-__attribute__((nonnull(1, 5)))
+    __attribute__((nonnull(1, 5)))
 #endif
-;
+    ;
 
-#endif  /* __BLI_SORT_H__ */
+#endif /* __BLI_SORT_H__ */

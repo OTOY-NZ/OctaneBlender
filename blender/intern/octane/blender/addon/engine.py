@@ -20,68 +20,223 @@
 
 import bpy
 
+def heart_beat():
+    print('OctaneBlender Engine Heart Beat')
+    import _octane
+    scene = bpy.context.scene
+    oct_scene = scene.octane   
+    _octane.heart_beat()   
+    return 1
 
 def init():
+    print("OctaneBlender Engine Init")
     import _octane
     import os.path
 
     path = os.path.dirname(__file__)
     user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', '')))
-
     _octane.init(path, user_path)
+    # bpy.app.timers.register(heart_beat)
 
 
-def create(cls, engine, data, scene, region=0, v3d=0, rv3d=0):
+def exit():
+    print("OctaneBlender Engine Exit")    
     import _octane
 
-    userpref = bpy.context.user_preferences.as_pointer()
+    _octane.exit()
+    # try:
+    #     bpy.app.timers.unregister(heart_beat)
+    # except:
+    #     pass
+    
+
+
+def create(engine, data, region=None, v3d=None, rv3d=None):
+    print("OctaneBlender Engine Create")
+    import _octane
+    import bpy
+
+    data = data.as_pointer()
+    prefs = bpy.context.preferences.as_pointer()
     if region:
-        cur_region = region.as_pointer()
-    else:
-        cur_region = 0
+        region = region.as_pointer()
     if v3d:
-        cur_v3d = v3d.as_pointer()
-    else:
-        cur_v3d = 0
+        v3d = v3d.as_pointer()
     if rv3d:
-        cur_rv3d = rv3d.as_pointer()
-    else:
-        cur_rv3d = 0
+        rv3d = rv3d.as_pointer()
 
-    cls.session = _octane.create(engine.as_pointer(), userpref, data.as_pointer(), scene.as_pointer(), cur_region, cur_v3d, cur_rv3d)
-
-
-def free(cls, engine):
-    if cls.session:
-        import _octane
-        _octane.free(cls.session)
-#        del cls.session
-        cls.session = 0
+    engine.session = _octane.create(
+            engine.as_pointer(), prefs, data, region, v3d, rv3d)
 
 
-def render(cls, engine):
+def free(engine):
+    print("OctaneBlender Engine Free")
+    if hasattr(engine, "session"):
+        if engine.session:
+            import _octane
+            _octane.free(engine.session)
+        del engine.session    
+
+
+def render(engine, depsgraph):
+    # print("OctaneBlender Engine Render")
+    if engine.is_preview:
+        return    
     import _octane
-    _octane.render(cls.session)
+    if hasattr(engine, "session"):
+        _octane.render(engine.session, depsgraph.as_pointer())
 
 
-def reset(cls, engine, data, scene):
+def bake(engine, depsgraph, obj, pass_type, pass_filter, object_id, pixel_array, num_pixels, depth, result):
+    # print("OctaneBlender Engine Bake")
     import _octane
-    _octane.reset(cls.session, data.as_pointer(), scene.as_pointer())
-    cls.session = 0
+    session = getattr(engine, "session", None)
+    if session is not None:
+        _octane.bake(engine.session, depsgraph.as_pointer(), obj.as_pointer(), pass_type, pass_filter, object_id, pixel_array.as_pointer(), num_pixels, depth, result.as_pointer())
 
 
-def update(cls, engine, data, scene):
+def reset(engine, data, depsgraph):
+    # print("OctaneBlender Engine Reset")
     import _octane
-    _octane.sync(cls.session)
+    import bpy
+    if engine.is_preview:
+        return  
+    data = data.as_pointer()
+    depsgraph = depsgraph.as_pointer()
+    _octane.reset(engine.session, data, depsgraph)
 
 
-def draw(cls, engine, region, v3d, rv3d):
+def sync(engine, depsgraph, data):
+    # print("OctaneBlender Engine Sync")
     import _octane
+    _octane.sync(engine.session, depsgraph.as_pointer())
+
+
+def draw(engine, depsgraph, region, v3d, rv3d):
+    # print("OctaneBlender Engine Draw")
+    import _octane
+    depsgraph = depsgraph.as_pointer()
+    v3d = v3d.as_pointer()
+    rv3d = rv3d.as_pointer()
 
     # draw render image
-    _octane.draw(cls.session, v3d.as_pointer(), rv3d.as_pointer())
+    _octane.draw(engine.session, depsgraph, v3d, rv3d)
 
 
-def available_devices():
-    import _octane
-    return _octane.octane_devices(bpy.context.scene.as_pointer())
+def register_passes(engine, scene, srl):
+    engine.register_pass(scene, srl, "Combined", 4, "RGBA", 'COLOR')
+
+    PASS_DATA = {
+        # Beauty Passes
+        "use_pass_oct_beauty": "OctBeauty",
+        "use_pass_oct_emitters": "OctEmitters",
+        "use_pass_oct_env": "OctEnv",
+        "use_pass_oct_diff": "OctDiff",
+        "use_pass_oct_diff_dir": "OctDiffDir",
+        "use_pass_oct_diff_indir": "OctDiffIndir",
+        "use_pass_oct_diff_filter": "OctDiffFilter",
+        "use_pass_oct_reflect": "OctReflect",
+        "use_pass_oct_reflect_dir": "OctReflectDir",
+        "use_pass_oct_reflect_indir": "OctReflectIndir",
+        "use_pass_oct_reflect_filter": "OctReflectFilter",
+        "use_pass_oct_refract": "OctRefract",
+        "use_pass_oct_refract_filter": "OctRefractFilter",
+        "use_pass_oct_transm": "OctTransm",
+        "use_pass_oct_transm_filter": "OctTransmFilter",
+        "use_pass_oct_sss": "OctSSS",
+        "use_pass_oct_shadow": "OctShadow",
+        "use_pass_oct_irradiance": "OctIrradiance",
+        "use_pass_oct_light_dir": "OctLightDir",
+        "use_pass_oct_volume": "OctVolume",
+        "use_pass_oct_vol_mask": "OctVolMask",
+        "use_pass_oct_vol_emission": "OctVolEmission",
+        "use_pass_oct_vol_z_front": "OctVolZFront",
+        "use_pass_oct_vol_z_back": "OctVolZBack",
+        "use_pass_oct_noise": "OctNoise",
+        # Denoise Passes
+        "use_pass_oct_denoise_beauty": "OctDenoiserBeauty",
+        "use_pass_oct_denoise_diff_dir": "OctDenoiserDiffDir",
+        "use_pass_oct_denoise_diff_indir": "OctDenoiserDiffIndir",
+        "use_pass_oct_denoise_reflect_dir": "OctDenoiserReflectDir",
+        "use_pass_oct_denoise_reflect_indir": "OctDenoiserReflectIndir",
+        "use_pass_oct_denoise_emission": "OctDenoiserEmission",
+        "use_pass_oct_denoise_remainder": "OctDenoiserRemainder",
+        "use_pass_oct_denoise_vol": "OctDenoiserVolume",
+        "use_pass_oct_denoise_vol_emission": "OctDenoiserVolumeEmission",
+        # Render Postprocess Passes
+        "use_pass_oct_postprocess": "OctPostProcess",
+        # Render Layer Passes
+        "use_pass_oct_layer_shadows": "OctLayerShadows",
+        "use_pass_oct_layer_black_shadow": "OctLayerBlackShadow",
+        "use_pass_oct_layer_reflections": "OctLayerReflections",
+        # Render Lighting Passesx
+        "use_pass_oct_ambient_light": "OctAmbientLight",
+        "use_pass_oct_ambient_light_dir": "OctAmbientLightDir",
+        "use_pass_oct_ambient_light_indir": "OctAmbientLightIndir",
+        "use_pass_oct_sunlight": "OctSunlight",
+        "use_pass_oct_sunlight_dir": "OctSunLightDir",
+        "use_pass_oct_sunlight_indir": "OctSunLightIndir",
+        "use_pass_oct_light_pass_1": "OctLightPass1",
+        "use_pass_oct_light_dir_pass_1": "OctLightDirPass1",
+        "use_pass_oct_light_indir_pass_1": "OctLightIndirPass1",
+        "use_pass_oct_light_pass_2": "OctLightPass2",
+        "use_pass_oct_light_dir_pass_2": "OctLightDirPass2",
+        "use_pass_oct_light_indir_pass_2": "OctLightIndirPass2",
+        "use_pass_oct_light_pass_3": "OctLightPass3",
+        "use_pass_oct_light_dir_pass_3": "OctLightDirPass3",
+        "use_pass_oct_light_indir_pass_3": "OctLightIndirPass3",
+        "use_pass_oct_light_pass_4": "OctLightPass4",
+        "use_pass_oct_light_dir_pass_4": "OctLightDirPass4",
+        "use_pass_oct_light_indir_pass_4": "OctLightIndirPass4",
+        "use_pass_oct_light_pass_5": "OctLightPass5",
+        "use_pass_oct_light_dir_pass_5": "OctLightDirPass5",
+        "use_pass_oct_light_indir_pass_5": "OctLightIndirPass5",
+        "use_pass_oct_light_pass_6": "OctLightPass6",
+        "use_pass_oct_light_dir_pass_6": "OctLightDirPass6",
+        "use_pass_oct_light_indir_pass_6": "OctLightIndirPass6",
+        "use_pass_oct_light_pass_7": "OctLightPass7",
+        "use_pass_oct_light_dir_pass_7": "OctLightDirPass7",
+        "use_pass_oct_light_indir_pass_7": "OctLightIndirPass7",
+        "use_pass_oct_light_pass_8": "OctLightPass8",
+        "use_pass_oct_light_dir_pass_8": "OctLightDirPass8",
+        "use_pass_oct_light_indir_pass_8": "OctLightIndirPass8",
+        # Render Cryptomatte Passes
+        "use_pass_oct_crypto_instance_id": "OctCryptoInstanceID",
+        "use_pass_oct_crypto_mat_node_name": "OctCryptoMatNodeName",
+        "use_pass_oct_crypto_mat_node": "OctCryptoMatNode",
+        "use_pass_oct_crypto_mat_pin_node": "OctCryptoMatPinNode",
+        "use_pass_oct_crypto_obj_node_name": "OctCryptoObjNodeName",
+        "use_pass_oct_crypto_obj_node": "OctCryptoObjNode",
+        "use_pass_oct_crypto_obj_pin_node": "OctCryptoObjPinNode",
+        # Render Info Passes
+        "use_pass_oct_info_geo_normal": "OctGeoNormal",
+        "use_pass_oct_info_smooth_normal": "OctSmoothNormal",
+        "use_pass_oct_info_shading_normal": "OctShadingNormal",
+        "use_pass_oct_info_tangent_normal": "OctTangentNormal",
+        "use_pass_oct_info_z_depth": "OctZDepth",
+        "use_pass_oct_info_position": "OctPosition",
+        "use_pass_oct_info_uv": "OctUV",
+        "use_pass_oct_info_tex_tangent": "OctTexTangent",
+        "use_pass_oct_info_motion_vector": "OctMotionVector",
+        "use_pass_oct_info_mat_id": "OctMatID",
+        "use_pass_oct_info_obj_id": "OctObjID",
+        "use_pass_oct_info_obj_layer_color": "OctObjLayerColor",
+        "use_pass_oct_info_baking_group_id": "OctBakingGroupID",
+        "use_pass_oct_info_light_pass_id": "OctLightPassID",
+        "use_pass_oct_info_render_layer_id": "OctRenderLayerID",
+        "use_pass_oct_info_render_layer_mask": "OctRenderLayerMask",
+        "use_pass_oct_info_wireframe": "OctWireframe",
+        "use_pass_oct_info_ao": "OctAO",
+        # Render Material Passes
+        "use_pass_oct_mat_opacity": "OctOpacity",
+        "use_pass_oct_mat_roughness": "OctRoughness",
+        "use_pass_oct_mat_ior": "OctIOR",
+        "use_pass_oct_mat_diff_filter_info": "OctDiffFilterInfo",
+        "use_pass_oct_mat_reflect_filter_info": "OctReflectFilterInfo",
+        "use_pass_oct_mat_refract_filter_info": "OctRefractFilterInfo",
+        "use_pass_oct_mat_transm_filter_info": "OctTransmFilterInfo",
+    }
+
+    for attribute_name, pass_name in PASS_DATA.items():
+        if getattr(srl, attribute_name, False):
+            engine.register_pass(scene, srl, pass_name, 4, "RGBA", "COLOR")

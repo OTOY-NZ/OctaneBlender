@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,23 +15,17 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/mask/mask_intern.h
- *  \ingroup spclip
+/** \file
+ * \ingroup spclip
  */
 
 #ifndef __MASK_INTERN_H__
 #define __MASK_INTERN_H__
 
-struct bContext;
 struct Mask;
+struct bContext;
 struct wmOperatorType;
 
 /* internal exports only */
@@ -42,7 +34,8 @@ struct wmOperatorType;
 bool ED_mask_find_nearest_diff_point(const struct bContext *C,
                                      struct Mask *mask,
                                      const float normal_co[2],
-                                     int threshold, bool feather,
+                                     int threshold,
+                                     bool feather,
                                      float tangent[2],
                                      const bool use_deform,
                                      const bool use_project,
@@ -59,7 +52,7 @@ void MASK_OT_primitive_square_add(struct wmOperatorType *ot);
 
 /* mask_ops.c */
 struct Mask *ED_mask_new(struct bContext *C, const char *name);
-struct MaskLayer *ED_mask_layer_ensure(struct bContext *C);
+struct MaskLayer *ED_mask_layer_ensure(struct bContext *C, bool *r_added_mask);
 
 void MASK_OT_new(struct wmOperatorType *ot);
 void MASK_OT_layer_new(struct wmOperatorType *ot);
@@ -79,15 +72,24 @@ void MASK_OT_normals_make_consistent(struct wmOperatorType *ot);
 
 void MASK_OT_handle_type_set(struct wmOperatorType *ot);
 
-bool ED_mask_feather_find_nearest(
-        const struct bContext *C, struct Mask *mask, const float normal_co[2], const float threshold,
-        struct MaskLayer **masklay_r, struct MaskSpline **spline_r, struct MaskSplinePoint **point_r,
-        struct MaskSplinePointUW **uw_r, float *score);
+bool ED_mask_feather_find_nearest(const struct bContext *C,
+                                  struct Mask *mask,
+                                  const float normal_co[2],
+                                  const float threshold,
+                                  struct MaskLayer **masklay_r,
+                                  struct MaskSpline **spline_r,
+                                  struct MaskSplinePoint **point_r,
+                                  struct MaskSplinePointUW **uw_r,
+                                  float *score);
 
-struct MaskSplinePoint *ED_mask_point_find_nearest(
-        const struct bContext *C, struct Mask *mask, const float normal_co[2], const float threshold,
-        struct MaskLayer **masklay_r, struct MaskSpline **spline_r, eMaskWhichHandle *which_handle_r,
-        float *score);
+struct MaskSplinePoint *ED_mask_point_find_nearest(const struct bContext *C,
+                                                   struct Mask *mask,
+                                                   const float normal_co[2],
+                                                   const float threshold,
+                                                   struct MaskLayer **masklay_r,
+                                                   struct MaskSpline **spline_r,
+                                                   eMaskWhichHandle *which_handle_r,
+                                                   float *score);
 
 void MASK_OT_layer_move(struct wmOperatorType *ot);
 
@@ -103,7 +105,7 @@ void MASK_OT_parent_clear(struct wmOperatorType *ot);
 void MASK_OT_select(struct wmOperatorType *ot);
 void MASK_OT_select_all(struct wmOperatorType *ot);
 
-void MASK_OT_select_border(struct wmOperatorType *ot);
+void MASK_OT_select_box(struct wmOperatorType *ot);
 void MASK_OT_select_lasso(struct wmOperatorType *ot);
 void MASK_OT_select_circle(struct wmOperatorType *ot);
 void MASK_OT_select_linked_pick(struct wmOperatorType *ot);
@@ -121,8 +123,8 @@ void ED_mask_select_toggle_all(struct Mask *mask, int action);
 void ED_mask_select_flush_all(struct Mask *mask);
 
 /* mask_editor.c */
-int ED_maskedit_poll(struct bContext *C);
-int ED_maskedit_mask_poll(struct bContext *C);
+bool ED_maskedit_poll(struct bContext *C);
+bool ED_maskedit_mask_poll(struct bContext *C);
 
 /* mask_shapekey.c */
 void MASK_OT_shape_key_insert(struct wmOperatorType *ot);

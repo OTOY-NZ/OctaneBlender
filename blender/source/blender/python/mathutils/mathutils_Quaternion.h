@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,24 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Joseph Gilbert
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __MATHUTILS_QUATERNION_H__
 #define __MATHUTILS_QUATERNION_H__
 
-/** \file blender/python/mathutils/mathutils_Quaternion.h
- *  \ingroup pymathutils
+/** \file
+ * \ingroup pymathutils
  */
 
 extern PyTypeObject quaternion_Type;
-#define QuaternionObject_Check(_v) PyObject_TypeCheck((_v), &quaternion_Type)
+
+#define QuaternionObject_Check(v) PyObject_TypeCheck((v), &quaternion_Type)
+#define QuaternionObject_CheckExact(v) (Py_TYPE(v) == &quaternion_Type)
 
 typedef struct {
-	BASE_MATH_MEMBERS(quat);
+  BASE_MATH_MEMBERS(quat);
 } QuaternionObject;
 
 /* struct data contains a pointer to the actual data that the
@@ -40,17 +36,13 @@ typedef struct {
  * blender (stored in blend_data). This is an either/or struct not both */
 
 /* prototypes */
-PyObject *Quaternion_CreatePyObject(
-        const float quat[4],
-        PyTypeObject *base_type
-        ) ATTR_WARN_UNUSED_RESULT;
-PyObject *Quaternion_CreatePyObject_wrap(
-        float quat[4],
-        PyTypeObject *base_type
-        ) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
-PyObject *Quaternion_CreatePyObject_cb(
-        PyObject *cb_user,
-        unsigned char cb_type, unsigned char cb_subtype
-        ) ATTR_WARN_UNUSED_RESULT;
+PyObject *Quaternion_CreatePyObject(const float quat[4],
+                                    PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT;
+PyObject *Quaternion_CreatePyObject_wrap(float quat[4],
+                                         PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(1);
+PyObject *Quaternion_CreatePyObject_cb(PyObject *cb_user,
+                                       unsigned char cb_type,
+                                       unsigned char cb_subtype) ATTR_WARN_UNUSED_RESULT;
 
 #endif /* __MATHUTILS_QUATERNION_H__ */

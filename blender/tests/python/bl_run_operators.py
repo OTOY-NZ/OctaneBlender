@@ -36,7 +36,7 @@ RANDOM_MULTIPLY = 10
 
 STATE = {
     "counter": 0,
-    }
+}
 
 
 op_blacklist = (
@@ -65,6 +65,7 @@ op_blacklist = (
     "wm.blenderplayer_start",
     "wm.recover_auto_save",
     "wm.quit_blender",
+    "wm.window_close",
     "wm.url_open",
     "wm.doc_view",
     "wm.doc_edit",
@@ -80,7 +81,6 @@ op_blacklist = (
     "wm.operator_cheat_sheet",
     "wm.interface_theme_*",
     "wm.previews_ensure",       # slow - but harmless
-    "wm.appconfig_*",           # just annoying - but harmless
     "wm.keyitem_add",           # just annoying - but harmless
     "wm.keyconfig_activate",    # just annoying - but harmless
     "wm.keyconfig_preset_add",  # just annoying - but harmless
@@ -90,7 +90,7 @@ op_blacklist = (
     "wm.keymap_restore",        # another annoying one
     "wm.addon_*",               # harmless, but dont change state
     "console.*",                # just annoying - but harmless
-    )
+)
 
 
 def blend_list(mainpath):
@@ -99,10 +99,8 @@ def blend_list(mainpath):
 
     def file_list(path, filename_check=None):
         for dirpath, dirnames, filenames in os.walk(path):
-
-            # skip '.svn'
-            if dirpath.startswith("."):
-                continue
+            # skip '.git'
+            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
 
             for filename in filenames:
                 filepath = join(dirpath, filename)
@@ -114,6 +112,7 @@ def blend_list(mainpath):
         return (ext in {".blend", })
 
     return list(sorted(file_list(mainpath, is_blend)))
+
 
 if USE_FILES:
     USE_FILES_LS = blend_list(USE_FILES)
@@ -136,13 +135,13 @@ def filter_op_list(operators):
 def reset_blend():
     bpy.ops.wm.read_factory_settings()
     for scene in bpy.data.scenes:
-        # reduce range so any bake action doesnt take too long
+        # reduce range so any bake action doesn't take too long
         scene.frame_start = 1
         scene.frame_end = 5
 
     if USE_RANDOM_SCREEN:
         import random
-        for i in range(random.randint(0, len(bpy.data.screens))):
+        for _ in range(random.randint(0, len(bpy.data.screens))):
             bpy.ops.screen.delete()
         print("Scree IS", bpy.context.screen)
 
@@ -177,7 +176,7 @@ if USE_ATTRSET:
     CLS_BLACKLIST = (
         bpy.types.BrushTextureSlot,
         bpy.types.Brush,
-        )
+    )
     property_typemap = build_property_typemap(CLS_BLACKLIST)
     bpy_struct_type = bpy.types.Struct.__base__
 
@@ -229,7 +228,7 @@ if USE_ATTRSET:
         {0: "", 1: "hello", 2: "test"}, {"": 0, "hello": 1, "test": 2},
         set(), {"", "test", "."}, {None, ..., type},
         range(10), (" " * i for i in range(10)),
-        )
+    )
 
     def attrset_data():
         for attr in dir(bpy.data):
@@ -238,7 +237,7 @@ if USE_ATTRSET:
             seq = getattr(bpy.data, attr)
             if seq.__class__.__name__ == 'bpy_prop_collection':
                 for id_data in seq:
-                    for val, prop, tp in id_walk(id_data, bpy.data):
+                    for val, prop, _tp in id_walk(id_data, bpy.data):
                         # print(id_data)
                         for val_rnd in _random_values:
                             try:
@@ -308,16 +307,7 @@ def run_ops(operators, setup_func=None, reset=True):
 
 # contexts
 def ctx_clear_scene():  # copied from batch_import.py
-    unique_obs = set()
-    for scene in bpy.data.scenes:
-        for obj in scene.objects[:]:
-            scene.objects.unlink(obj)
-            unique_obs.add(obj)
-
-    # remove obdata, for now only worry about the startup scene
-    for bpy_data_iter in (bpy.data.objects, bpy.data.meshes, bpy.data.lamps, bpy.data.cameras):
-        for id_data in bpy_data_iter:
-            bpy_data_iter.remove(id_data)
+    bpy.ops.wm.read_factory_settings(use_empty=True)
 
 
 def ctx_editmode_mesh():
@@ -490,8 +480,9 @@ def main():
 
     print("Finished %r" % __file__)
 
+
 if __name__ == "__main__":
-    #~ for i in range(200):
-        #~ RANDOM_SEED[0] += 1
+    # ~ for i in range(200):
+        # ~ RANDOM_SEED[0] += 1
         #~ main()
     main()

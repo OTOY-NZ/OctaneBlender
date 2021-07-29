@@ -16,16 +16,13 @@
 #
 # The Original Code is Copyright (C) 2014, Blender Foundation
 # All rights reserved.
-#
-# Contributor(s): Sergey Sharybin
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	..
-	../../../intern/guardedalloc
-	../../../source/blender/blenlib
+  .
+  ..
+  ../../../intern/guardedalloc
+  ../../../source/blender/blenlib
 )
 
 include_directories(${INC})
@@ -35,3 +32,4 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${PLATFORM_LIN
 
 
 BLENDER_TEST(guardedalloc_alignment "")
+BLENDER_TEST(guardedalloc_overflow "")

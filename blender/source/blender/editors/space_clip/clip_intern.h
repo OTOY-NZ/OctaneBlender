@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,22 +15,15 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/space_clip/clip_intern.h
- *  \ingroup spclip
+/** \file
+ * \ingroup spclip
  */
 
 #ifndef __CLIP_INTERN_H__
 #define __CLIP_INTERN_H__
 
-struct bContext;
 struct ARegion;
 struct MovieClip;
 struct MovieTrackingMarker;
@@ -40,21 +31,22 @@ struct MovieTrackingTrack;
 struct Scene;
 struct ScrArea;
 struct SpaceClip;
+struct bContext;
 struct wmOperatorType;
 
 /* channel heights */
-#define CHANNEL_FIRST           (-0.8f * U.widget_unit)
-#define CHANNEL_HEIGHT          (0.8f * U.widget_unit)
-#define CHANNEL_HEIGHT_HALF     (0.4f * U.widget_unit)
-#define CHANNEL_SKIP            (0.1f * U.widget_unit)
-#define CHANNEL_STEP            (CHANNEL_HEIGHT + CHANNEL_SKIP)
+#define CHANNEL_FIRST (-UI_TIME_SCRUB_MARGIN_Y - CHANNEL_HEIGHT_HALF - CHANNEL_SKIP)
+#define CHANNEL_HEIGHT (0.8f * U.widget_unit)
+#define CHANNEL_HEIGHT_HALF (0.4f * U.widget_unit)
+#define CHANNEL_SKIP (0.1f * U.widget_unit)
+#define CHANNEL_STEP (CHANNEL_HEIGHT + CHANNEL_SKIP)
 
-#define CHANNEL_PAD             4
+#define CHANNEL_PAD 4
 
 /* extra padding for lengths (to go under scrollers) */
-#define EXTRA_SCROLL_PAD        100.0f
+#define EXTRA_SCROLL_PAD 100.0f
 
-#define STRIP_HEIGHT_HALF       (0.25f * UI_UNIT_Y)
+#define STRIP_HEIGHT_HALF (0.25f * UI_UNIT_Y)
 
 /* internal exports only */
 
@@ -84,7 +76,7 @@ void clip_draw_graph(struct SpaceClip *sc, struct ARegion *ar, struct Scene *sce
 void ED_clip_graph_center_current_frame(struct Scene *scene, struct ARegion *ar);
 
 void CLIP_OT_graph_select(struct wmOperatorType *ot);
-void CLIP_OT_graph_select_border(struct wmOperatorType *ot);
+void CLIP_OT_graph_select_box(struct wmOperatorType *ot);
 void CLIP_OT_graph_select_all_markers(struct wmOperatorType *ot);
 void CLIP_OT_graph_delete_curve(struct wmOperatorType *ot);
 void CLIP_OT_graph_delete_knot(struct wmOperatorType *ot);
@@ -118,35 +110,63 @@ void CLIP_OT_cursor_set(struct wmOperatorType *ot);
 
 /* clip_toolbar.c */
 struct ARegion *ED_clip_has_properties_region(struct ScrArea *sa);
-void CLIP_OT_tools(struct wmOperatorType *ot);
-void CLIP_OT_properties(struct wmOperatorType *ot);
-void ED_clip_tool_props_register(struct ARegionType *art);
 
 /* clip_utils.c */
-void clip_graph_tracking_values_iterate_track(struct SpaceClip *sc, struct MovieTrackingTrack *track, void *userdata,
-                                              void (*func)(void *userdata, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker, int coord, int scene_framenr, float val),
-                                              void (*segment_start)(void *userdata, struct MovieTrackingTrack *track, int coord),
-                                              void (*segment_end)(void *userdata, int coord));
+void clip_graph_tracking_values_iterate_track(
+    struct SpaceClip *sc,
+    struct MovieTrackingTrack *track,
+    void *userdata,
+    void (*func)(void *userdata,
+                 struct MovieTrackingTrack *track,
+                 struct MovieTrackingMarker *marker,
+                 int coord,
+                 int scene_framenr,
+                 float val),
+    void (*segment_start)(
+        void *userdata, struct MovieTrackingTrack *track, int coord, bool is_point),
+    void (*segment_end)(void *userdata, int coord));
 
-void clip_graph_tracking_values_iterate(struct SpaceClip *sc, bool selected_only, bool include_hidden, void *userdata,
-                                        void (*func)(void *userdata, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker, int coord, int scene_framenr, float val),
-                                        void (*segment_start)(void *userdata, struct MovieTrackingTrack *track, int coord),
+void clip_graph_tracking_values_iterate(struct SpaceClip *sc,
+                                        bool selected_only,
+                                        bool include_hidden,
+                                        void *userdata,
+                                        void (*func)(void *userdata,
+                                                     struct MovieTrackingTrack *track,
+                                                     struct MovieTrackingMarker *marker,
+                                                     int coord,
+                                                     int scene_framenr,
+                                                     float val),
+                                        void (*segment_start)(void *userdata,
+                                                              struct MovieTrackingTrack *track,
+                                                              int coord,
+                                                              bool is_point),
                                         void (*segment_end)(void *userdata, int coord));
 
-void clip_graph_tracking_iterate(struct SpaceClip *sc, bool selected_only, bool include_hidden, void *userdata,
+void clip_graph_tracking_iterate(struct SpaceClip *sc,
+                                 bool selected_only,
+                                 bool include_hidden,
+                                 void *userdata,
                                  void (*func)(void *userdata, struct MovieTrackingMarker *marker));
 
-void clip_delete_track(struct bContext *C, struct MovieClip *clip, struct MovieTrackingTrack *track);
-void clip_delete_marker(struct bContext *C, struct MovieClip *clip, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker);
+void clip_delete_track(struct bContext *C,
+                       struct MovieClip *clip,
+                       struct MovieTrackingTrack *track);
+void clip_delete_marker(struct bContext *C,
+                        struct MovieClip *clip,
+                        struct MovieTrackingTrack *track,
+                        struct MovieTrackingMarker *marker);
+
+void clip_delete_plane_track(struct bContext *C,
+                             struct MovieClip *clip,
+                             struct MovieTrackingPlaneTrack *plane_track);
 
 void clip_view_center_to_point(SpaceClip *sc, float x, float y);
 
-void clip_draw_cfra(struct SpaceClip *sc, struct ARegion *ar, struct Scene *scene);
 void clip_draw_sfra_efra(struct View2D *v2d, struct Scene *scene);
 
 /* tracking_ops.c */
-struct MovieTrackingTrack *tracking_marker_check_slide(struct bContext *C, const struct wmEvent *event,
-                                                       int *area_r, int *action_r, int *corner_r);
+struct MovieTrackingTrack *tracking_marker_check_slide(
+    struct bContext *C, const struct wmEvent *event, int *area_r, int *action_r, int *corner_r);
 
 void CLIP_OT_add_marker(struct wmOperatorType *ot);
 void CLIP_OT_add_marker_at_click(struct wmOperatorType *ot);
@@ -209,7 +229,7 @@ void CLIP_OT_keyframe_delete(struct wmOperatorType *ot);
 /* tracking_select.c */
 void CLIP_OT_select(struct wmOperatorType *ot);
 void CLIP_OT_select_all(struct wmOperatorType *ot);
-void CLIP_OT_select_border(struct wmOperatorType *ot);
+void CLIP_OT_select_box(struct wmOperatorType *ot);
 void CLIP_OT_select_lasso(struct wmOperatorType *ot);
 void CLIP_OT_select_circle(struct wmOperatorType *ot);
 void CLIP_OT_select_grouped(struct wmOperatorType *ot);

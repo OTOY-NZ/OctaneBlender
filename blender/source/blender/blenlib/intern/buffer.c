@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,12 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenlib/intern/buffer.c
- *  \ingroup bli
+/** \file
+ * \ingroup bli
  *
  * Primitive generic buffer library.
  *
@@ -56,38 +52,38 @@
 
 static void *buffer_alloc(BLI_Buffer *buffer, const size_t len)
 {
-	return MEM_mallocN(buffer->elem_size * len, "BLI_Buffer.data");
+  return MEM_mallocN(buffer->elem_size * len, "BLI_Buffer.data");
 }
 
 static void *buffer_realloc(BLI_Buffer *buffer, const size_t len)
 {
-	return MEM_reallocN_id(buffer->data, buffer->elem_size * len, "BLI_Buffer.data");
+  return MEM_reallocN_id(buffer->data, buffer->elem_size * len, "BLI_Buffer.data");
 }
 
 void BLI_buffer_resize(BLI_Buffer *buffer, const size_t new_count)
 {
-	if (UNLIKELY(new_count > buffer->alloc_count)) {
-		if (buffer->flag & BLI_BUFFER_USE_STATIC) {
-			void *orig = buffer->data;
+  if (UNLIKELY(new_count > buffer->alloc_count)) {
+    if (buffer->flag & BLI_BUFFER_USE_STATIC) {
+      void *orig = buffer->data;
 
-			buffer->data = buffer_alloc(buffer, new_count);
-			memcpy(buffer->data, orig, buffer->elem_size * buffer->count);
-			buffer->alloc_count = new_count;
-			buffer->flag &= ~BLI_BUFFER_USE_STATIC;
-		}
-		else {
-			if (buffer->alloc_count && (new_count < buffer->alloc_count * 2)) {
-				buffer->alloc_count *= 2;
-			}
-			else {
-				buffer->alloc_count = new_count;
-			}
+      buffer->data = buffer_alloc(buffer, new_count);
+      memcpy(buffer->data, orig, buffer->elem_size * buffer->count);
+      buffer->alloc_count = new_count;
+      buffer->flag &= ~BLI_BUFFER_USE_STATIC;
+    }
+    else {
+      if (buffer->alloc_count && (new_count < buffer->alloc_count * 2)) {
+        buffer->alloc_count *= 2;
+      }
+      else {
+        buffer->alloc_count = new_count;
+      }
 
-			buffer->data = buffer_realloc(buffer, buffer->alloc_count);
-		}
-	}
+      buffer->data = buffer_realloc(buffer, buffer->alloc_count);
+    }
+  }
 
-	buffer->count = new_count;
+  buffer->count = new_count;
 }
 
 /**
@@ -97,34 +93,34 @@ void BLI_buffer_resize(BLI_Buffer *buffer, const size_t new_count)
  */
 void BLI_buffer_reinit(BLI_Buffer *buffer, const size_t new_count)
 {
-	if (UNLIKELY(new_count > buffer->alloc_count)) {
-		if ((buffer->flag & BLI_BUFFER_USE_STATIC) == 0) {
-			if (buffer->data) {
-				MEM_freeN(buffer->data);
-			}
-		}
+  if (UNLIKELY(new_count > buffer->alloc_count)) {
+    if ((buffer->flag & BLI_BUFFER_USE_STATIC) == 0) {
+      if (buffer->data) {
+        MEM_freeN(buffer->data);
+      }
+    }
 
-		if (buffer->alloc_count && (new_count < buffer->alloc_count * 2)) {
-			buffer->alloc_count *= 2;
-		}
-		else {
-			buffer->alloc_count = new_count;
-		}
+    if (buffer->alloc_count && (new_count < buffer->alloc_count * 2)) {
+      buffer->alloc_count *= 2;
+    }
+    else {
+      buffer->alloc_count = new_count;
+    }
 
-		buffer->flag &= ~BLI_BUFFER_USE_STATIC;
-		buffer->data = buffer_alloc(buffer, buffer->alloc_count);
-	}
+    buffer->flag &= ~BLI_BUFFER_USE_STATIC;
+    buffer->data = buffer_alloc(buffer, buffer->alloc_count);
+  }
 
-	buffer->count = new_count;
+  buffer->count = new_count;
 }
 
 /* callers use BLI_buffer_free */
 void _bli_buffer_free(BLI_Buffer *buffer)
 {
-	if ((buffer->flag & BLI_BUFFER_USE_STATIC) == 0) {
-		if (buffer->data) {
-			MEM_freeN(buffer->data);
-		}
-	}
-	memset(buffer, 0, sizeof(*buffer));
+  if ((buffer->flag & BLI_BUFFER_USE_STATIC) == 0) {
+    if (buffer->data) {
+      MEM_freeN(buffer->data);
+    }
+  }
+  memset(buffer, 0, sizeof(*buffer));
 }

@@ -1,114 +1,98 @@
-
 set(INC
-	.
-	./render
-	./server
-	./util
+	./rpc/include
+	..
+	../../glew-mx
 	../../guardedalloc
-	../../../source/blender/render/intern/include
+	../../mikktspace
 	../../../source/blender/makesdna
 	../../../source/blender/makesrna
-	../../../source/blender/blenloader
 	../../../source/blender/blenlib
-	../../../source/blender/blenkernel
-	../../../source/blender/windowmanager
-	../../../source/blender/render/extern/include
+  ../../../source/blender/blenkernel
+  ../../../source/blender/depsgraph
+  ../../../source/blender/windowmanager
+  ../../../source/blender/render/intern/include
+  ../../../source/blender/render/extern/include  
 	${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 
 set(INC_SYS
 	${PYTHON_INCLUDE_DIRS}
-	${GLEW_INCLUDE_PATH}
-	${OPENGL_INCLUDE_DIR}
+	${BOOST_INCLUDE_DIR}
+	${GLEW_INCLUDE_DIR}
 )
 
 set(SRC
-	blender_camera.cpp
-	blender_mesh.cpp
-	blender_hair.cpp
-	blender_object.cpp
 	blender_python.cpp
 	blender_session.cpp
-	blender_shader.cpp
 	blender_sync.cpp
+	blender_camera.cpp
+	blender_object.cpp
+	blender_mesh.cpp
+	blender_shader.cpp
+  blender_hair.cpp
 
-	OCT_api.h
 	blender_sync.h
 	blender_session.h
 	blender_util.h
-	memleaks_check.h
-
+	OCT_api.h
+	
 	./server/OctaneClient.h
-
-	./render/environment.cpp
-	./render/buffers.cpp
-	./render/camera.cpp
-	./render/graph.cpp
-	./render/passes.cpp
-	./render/kernel.cpp
-	./render/light.cpp
-	./render/mesh.cpp
-	./render/object.cpp
-	./render/scene.cpp
-	./render/session.cpp
-	./render/shader.cpp
-
-	./render/environment.h
-	./render/buffers.h
-	./render/camera.h
-	./render/graph.h
-	./render/passes.h
-	./render/kernel.h
-	./render/light.h
-	./render/mesh.h
-	./render/object.h
-	./render/scene.h
-	./render/session.h
-	./render/shader.h
-
-	./util/util_path.cpp
-	./util/util_string.cpp
-	./util/util_time.cpp
-	./util/util_transform.cpp
-	./util/util_progress.cpp
-
-	./util/util_hash.h
-	./util/util_lists.h
-	./util/util_math.h
-	./util/util_opengl.h
-	./util/util_path.h
-	./util/util_progress.h
-	./util/util_string.h
-	./util/util_thread.h
-	./util/util_time.h
-	./util/util_transform.h
-	./util/util_types.h
+	./rpc/definitions/OctaneNode.h
+	./rpc/definitions/OctaneTransform.h
+	./rpc/definitions/OctaneProjection.h
+	./rpc/definitions/OctanePinInfo.h
+	./rpc/definitions/OctaneMesh.h
 )
+
+set(LIB
+  bf_render
+	octane_graph
+	octane_render	
+	octane_util  
+)
+
+if(WITH_OCTANE_LOGGING)
+	list(APPEND LIB
+		extern_glog
+	)
+endif()
 
 set(ADDON_FILES
 	addon/__init__.py
-	addon/engine.py 
-	addon/types.py
+	addon/engine.py
+	addon/operators.py
 	addon/presets.py
 	addon/properties.py
 	addon/ui.py
+	addon/nodeitems_octane.py
+	addon/osl.py
+  addon/version_update.py
+  addon/converters.py
 )
 
 set(STARTUP_FILES
 	addon/nodeitems_octane.py
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
+set(OBJECT_LIBRARY
+	addon/libraries/objects/Circle.obj
+	addon/libraries/objects/Square.obj	
+)
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS} ${BOOST_DEFINITIONS})
 
-blender_add_lib(bf_intern_octane "${SRC}" "${INC}" "${INC_SYS}")
-if(APPLE)
-	target_link_libraries(bf_intern_octane -lc++)
+if(WIN32)
+	add_compile_options(-bigobj)
+endif()
+
+blender_add_lib(bf_intern_octane "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# avoid link failure with clang 3.4 debug
+if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -gline-tables-only")
 endif()
 
 add_dependencies(bf_intern_octane bf_rna)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_FILES}" ${OCTANE_INSTALL_PATH})
-delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${STARTUP_FILES}" ${STARTUP_INSTALL_PATH})
-
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${OBJECT_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/objects)

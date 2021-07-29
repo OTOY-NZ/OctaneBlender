@@ -21,13 +21,12 @@
 # panels get subclassed (not registered directly)
 # menus are referenced `as is`
 
-import bpy
 from bpy.types import Menu, UIList
 
 
 class MASK_UL_layers(UIList):
-    def draw_item(self, context, layout, data, item, icon,
-                  active_data, active_propname, index):
+    def draw_item(self, _context, layout, _data, item, icon,
+                  _active_data, _active_propname, _index):
         # assert(isinstance(item, bpy.types.MaskLayer)
         mask = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -43,8 +42,8 @@ class MASK_UL_layers(UIList):
 
 class MASK_PT_mask:
     # subclasses must define...
-    #~ bl_space_type = 'CLIP_EDITOR'
-    #~ bl_region_type = 'UI'
+    # ~ bl_space_type = 'CLIP_EDITOR'
+    # ~ bl_region_type = 'UI'
     bl_label = "Mask Settings"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -55,6 +54,8 @@ class MASK_PT_mask:
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         sc = context.space_data
         mask = sc.mask
@@ -66,8 +67,8 @@ class MASK_PT_mask:
 
 class MASK_PT_layers:
     # subclasses must define...
-    #~ bl_space_type = 'CLIP_EDITOR'
-    #~ bl_region_type = 'UI'
+    # ~ bl_space_type = 'CLIP_EDITOR'
+    # ~ bl_region_type = 'UI'
     bl_label = "Mask Layers"
 
     @classmethod
@@ -77,6 +78,8 @@ class MASK_PT_layers:
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         sc = context.space_data
         mask = sc.mask
@@ -90,8 +93,8 @@ class MASK_PT_layers:
 
         sub = row.column(align=True)
 
-        sub.operator("mask.layer_new", icon='ZOOMIN', text="")
-        sub.operator("mask.layer_remove", icon='ZOOMOUT', text="")
+        sub.operator("mask.layer_new", icon='ADD', text="")
+        sub.operator("mask.layer_remove", icon='REMOVE', text="")
 
         if active_layer:
             sub.separator()
@@ -107,15 +110,15 @@ class MASK_PT_layers:
             layout.prop(active_layer, "blend")
             layout.prop(active_layer, "falloff")
 
-            row = layout.row(align=True)
-            row.prop(active_layer, "use_fill_overlap", text="Overlap")
-            row.prop(active_layer, "use_fill_holes", text="Holes")
+            col = layout.column()
+            col.prop(active_layer, "use_fill_overlap", text="Overlap")
+            col.prop(active_layer, "use_fill_holes", text="Holes")
 
 
 class MASK_PT_spline:
     # subclasses must define...
-    #~ bl_space_type = 'CLIP_EDITOR'
-    #~ bl_region_type = 'UI'
+    # ~ bl_space_type = 'CLIP_EDITOR'
+    # ~ bl_region_type = 'UI'
     bl_label = "Active Spline"
 
     @classmethod
@@ -130,6 +133,8 @@ class MASK_PT_spline:
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         sc = context.space_data
         mask = sc.mask
@@ -137,19 +142,18 @@ class MASK_PT_spline:
 
         col = layout.column()
         col.prop(spline, "offset_mode")
-        col.prop(spline, "weight_interpolation")
+        col.prop(spline, "weight_interpolation", text="Interpolation")
 
-        row = col.row()
-        row.prop(spline, "use_cyclic")
-        row.prop(spline, "use_fill")
+        col.prop(spline, "use_cyclic")
+        col.prop(spline, "use_fill")
 
         col.prop(spline, "use_self_intersection_check")
 
 
 class MASK_PT_point:
     # subclasses must define...
-    #~ bl_space_type = 'CLIP_EDITOR'
-    #~ bl_region_type = 'UI'
+    # ~ bl_space_type = 'CLIP_EDITOR'
+    # ~ bl_region_type = 'UI'
     bl_label = "Active Point"
 
     @classmethod
@@ -166,6 +170,8 @@ class MASK_PT_point:
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         sc = context.space_data
         mask = sc.mask
@@ -177,7 +183,7 @@ class MASK_PT_point:
         # so do not over-complicate things for now by using single template_ID
         #col.template_any_ID(parent, "id", "id_type", text="")
 
-        col.label("Parent:")
+        col.label(text="Parent:")
         col.prop(parent, "id", text="")
 
         if parent.id_type == 'MOVIECLIP' and parent.id:
@@ -188,23 +194,23 @@ class MASK_PT_point:
             row.prop(parent, "type", expand=True)
 
             col.prop_search(parent, "parent", tracking,
-                            "objects", icon='OBJECT_DATA', text="Object:")
+                            "objects", icon='OBJECT_DATA', text="Object")
 
             tracks_list = "tracks" if parent.type == 'POINT_TRACK' else "plane_tracks"
 
             if parent.parent in tracking.objects:
-                object = tracking.objects[parent.parent]
-                col.prop_search(parent, "sub_parent", object,
-                                tracks_list, icon='ANIM_DATA', text="Track:")
+                ob = tracking.objects[parent.parent]
+                col.prop_search(parent, "sub_parent", ob,
+                                tracks_list, icon='ANIM_DATA', text="Track")
             else:
                 col.prop_search(parent, "sub_parent", tracking,
-                                tracks_list, icon='ANIM_DATA', text="Track:")
+                                tracks_list, icon='ANIM_DATA', text="Track")
 
 
 class MASK_PT_display:
     # subclasses must define...
-    #~ bl_space_type = 'CLIP_EDITOR'
-    #~ bl_region_type = 'UI'
+    # ~ bl_space_type = 'CLIP_EDITOR'
+    # ~ bl_region_type = 'UI'
     bl_label = "Mask Display"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -219,7 +225,7 @@ class MASK_PT_display:
         space_data = context.space_data
         row = layout.row(align=True)
         row.prop(space_data, "show_mask_smooth", text="Smooth")
-        row.prop(space_data, "mask_draw_type", text="")
+        row.prop(space_data, "mask_display_type", text="")
         row = layout.row(align=True)
         row.prop(space_data, "show_mask_overlay", text="Overlay")
         sub = row.row()
@@ -229,18 +235,17 @@ class MASK_PT_display:
 
 class MASK_PT_transforms:
     # subclasses must define...
-    #~ bl_space_type = 'CLIP_EDITOR'
-    #~ bl_region_type = 'TOOLS'
+    # ~ bl_space_type = 'CLIP_EDITOR'
+    # ~ bl_region_type = 'TOOLS'
     bl_label = "Transforms"
     bl_category = "Mask"
-    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
         space_data = context.space_data
         return space_data.mask and space_data.mode == 'MASK'
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         col = layout.column(align=True)
@@ -252,9 +257,6 @@ class MASK_PT_transforms:
 
 
 class MASK_PT_tools:
-    # subclasses must define...
-    #~ bl_space_type = 'CLIP_EDITOR'
-    #~ bl_region_type = 'TOOLS'
     bl_label = "Mask Tools"
     bl_category = "Mask"
 
@@ -263,7 +265,7 @@ class MASK_PT_tools:
         space_data = context.space_data
         return space_data.mask and space_data.mode == 'MASK'
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         col = layout.column(align=True)
@@ -271,7 +273,7 @@ class MASK_PT_tools:
         col.operator("mask.delete")
         col.operator("mask.cyclic_toggle")
         col.operator("mask.switch_direction")
-        col.operator("mask.handle_type_set")
+        col.operator("mask.handle_type_set").type = 'VECTOR'
         col.operator("mask.feather_weight_clear")
 
         col = layout.column(align=True)
@@ -289,30 +291,10 @@ class MASK_PT_tools:
         col.operator("mask.shape_key_rekey", text="Re-Key Shape Points")
 
 
-class MASK_PT_add:
-    # subclasses must define...
-    #~ bl_space_type = 'CLIP_EDITOR'
-    #~ bl_region_type = 'TOOLS'
-    bl_label = "Add"
-    bl_category = "Mask"
-
-    @classmethod
-    def poll(cls, context):
-        space_data = context.space_data
-        return space_data.mode == 'MASK'
-
-    def draw(self, context):
-        layout = self.layout
-
-        col = layout.column(align=True)
-        col.operator("mask.primitive_circle_add", icon='MESH_CIRCLE')
-        col.operator("mask.primitive_square_add", icon='MESH_PLANE')
-
-
 class MASK_MT_mask(Menu):
     bl_label = "Mask"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("mask.delete")
@@ -321,6 +303,7 @@ class MASK_MT_mask(Menu):
         layout.operator("mask.cyclic_toggle")
         layout.operator("mask.switch_direction")
         layout.operator("mask.normals_make_consistent")
+        layout.operator("mask.handle_type_set")
         layout.operator("mask.feather_weight_clear")  # TODO, better place?
 
         layout.separator()
@@ -340,10 +323,10 @@ class MASK_MT_mask(Menu):
 class MASK_MT_visibility(Menu):
     bl_label = "Show/Hide"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
-        layout.operator("mask.hide_view_clear", text="Show Hidden")
+        layout.operator("mask.hide_view_clear")
         layout.operator("mask.hide_view_set", text="Hide Selected").unselected = False
         layout.operator("mask.hide_view_set", text="Hide Unselected").unselected = True
 
@@ -351,7 +334,7 @@ class MASK_MT_visibility(Menu):
 class MASK_MT_transform(Menu):
     bl_label = "Transform"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("transform.translate")
@@ -363,7 +346,7 @@ class MASK_MT_transform(Menu):
 class MASK_MT_animation(Menu):
     bl_label = "Animation"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("mask.shape_key_clear")
@@ -375,10 +358,16 @@ class MASK_MT_animation(Menu):
 class MASK_MT_select(Menu):
     bl_label = "Select"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
-        layout.operator("mask.select_border")
+        layout.operator("mask.select_all", text="All").action = 'SELECT'
+        layout.operator("mask.select_all", text="None").action = 'DESELECT'
+        layout.operator("mask.select_all", text="Invert").action = 'INVERT'
+
+        layout.separator()
+
+        layout.operator("mask.select_box")
         layout.operator("mask.select_circle")
 
         layout.separator()
@@ -388,9 +377,19 @@ class MASK_MT_select(Menu):
 
         layout.separator()
 
-        layout.operator("mask.select_all").action = 'TOGGLE'
-        layout.operator("mask.select_all", text="Inverse").action = 'INVERT'
         layout.operator("mask.select_linked", text="Select Linked")
 
+
+classes = (
+    MASK_UL_layers,
+    MASK_MT_mask,
+    MASK_MT_visibility,
+    MASK_MT_transform,
+    MASK_MT_animation,
+    MASK_MT_select,
+)
+
 if __name__ == "__main__":  # only for live edit.
-    bpy.utils.register_module(__name__)
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)

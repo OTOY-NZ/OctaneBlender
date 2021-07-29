@@ -38,18 +38,15 @@ class CONSOLE_MT_editor_menus(Menu):
     bl_idname = "CONSOLE_MT_editor_menus"
     bl_label = ""
 
-    def draw(self, context):
-        self.draw_menus(self.layout, context)
-
-    @staticmethod
-    def draw_menus(layout, context):
+    def draw(self, _context):
+        layout = self.layout
         layout.menu("CONSOLE_MT_console")
 
 
 class CONSOLE_MT_console(Menu):
     bl_label = "Console"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("console.indent")
@@ -69,15 +66,13 @@ class CONSOLE_MT_console(Menu):
 
         layout.separator()
 
-        layout.operator("screen.area_dupli")
-        layout.operator("screen.screen_full_area")
-        layout.operator("screen.screen_full_area", text="Toggle Fullscreen Area").use_hide_panels = True
+        layout.menu("INFO_MT_area")
 
 
 class CONSOLE_MT_language(Menu):
     bl_label = "Languages..."
 
-    def draw(self, context):
+    def draw(self, _context):
         import sys
 
         layout = self.layout
@@ -102,5 +97,15 @@ def add_scrollback(text, text_type):
         bpy.ops.console.scrollback_append(text=l.expandtabs(4),
                                           type=text_type)
 
+
+classes = (
+    CONSOLE_HT_header,
+    CONSOLE_MT_editor_menus,
+    CONSOLE_MT_console,
+    CONSOLE_MT_language,
+)
+
 if __name__ == "__main__":  # only for live edit.
-    bpy.utils.register_module(__name__)
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)

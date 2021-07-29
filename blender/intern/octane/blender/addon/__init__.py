@@ -19,9 +19,9 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 11.24)",
+    "name": "OctaneRender Engine (v. 20.4)",
     "author": "OTOY Inc.",
-    "blender": (2, 78, 0),
+    "blender": (2, 80, 0),
     "location": "Info header, render engine menu",
     "description": "OctaneRender Engine integration",
     "warning": "",
@@ -30,223 +30,168 @@ bl_info = {
     "support": 'OFFICIAL',
     "category": "Render"}
 
+# Support 'reload' case.
+if "bpy" in locals():
+    import importlib
+    if "engine" in locals():
+        importlib.reload(engine)
+    if "version_update" in locals():
+        importlib.reload(version_update)        
+    if "ui" in locals():
+        importlib.reload(ui)
+    if "operators" in locals():
+        importlib.reload(operators)
+    if "properties" in locals():
+        importlib.reload(properties)
+    if "presets" in locals():
+        importlib.reload(presets)
+
 import bpy
-import os
-from . import types, ui, properties, engine, presets
-from bpy.props import (
-        StringProperty,
-        BoolProperty,
-        FloatProperty,
-        IntProperty,
-        )
+
+from . import (
+    engine,
+    version_update
+)
 
 
-def get_scene_filename():
-    filename = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
-    if filename == '':
-        filename = 'octane_export'
-    return bpy.path.clean_name(filename)
+class OctaneRender(bpy.types.RenderEngine):
+    bl_idname = 'octane'
+    bl_label = "Octane"
+    bl_use_shading_nodes = True
+    bl_use_preview = True
+    bl_use_exclude_layers = True
+    bl_use_save_buffers = True
+    bl_use_spherical_stereo = True
 
-class AbcExporter(bpy.types.Operator):
-    #
-    "Save an animation in Octane alembic format"
-    #
-    bl_idname = "export_anim.octabc"
-    bl_label = "Octane alembic export"
+    def __init__(self):
+        self.session = None
+        self.is_viewport_active = False
 
-    filepath = StringProperty(subtype='FILE_PATH')
-    directory = StringProperty(subtype='DIR_PATH')
-    filename = StringProperty(subtype='FILE_NAME')
-    filter_glob = StringProperty(default="*.abc", options={'HIDDEN'})
+    def __del__(self):        
+        engine.free(self)      
 
-    is_enabled = 0
-    timer = None
-    cur_frame = 0
+    def check_active_status(self):
+        if not self.is_viewport_active:
+            if self.is_other_viewport_rendering_active():
+                self.is_viewport_active = False                
+            else:
+                self.is_viewport_active = True
+        return self.is_viewport_active
 
-    @classmethod
-    def poll(cls, context):
-        return True
+    def is_other_viewport_rendering_active(self):
+        counter = 0
+        for area in bpy.context.screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            for space in area.spaces:
+                if space.type != "VIEW_3D":
+                    continue
+                if space.shading.type == "RENDERED":
+                    counter += 1
+        return counter > 1
 
-    def modal(self, context, event):
-        if event.type == 'TIMER':
-            import _octane
+    # final render
+    def update(self, data, depsgraph):
+        if not self.session:
+            engine.create(self, data)
+        engine.reset(self, data, depsgraph)
 
-            if AbcExporter.is_enabled == 2:
-                AbcExporter.is_enabled = 3
+    def render(self, depsgraph):        
+        engine.render(self, depsgraph)
 
-                userpref = context.user_preferences.as_pointer()
-                filepath = self.directory + os.path.splitext(self.filename)[0]
-                ret = _octane.export(context.scene.as_pointer(), context.as_pointer(), self.timer.as_pointer(), userpref, bpy.data.as_pointer(), 1, filepath)
-                if ret != True:
-                    self.report({'ERROR'}, "Octane export error")
-                    self.cancel(context)
-                    return {'FINISHED'}
+    def bake(self, depsgraph, obj, pass_type, pass_filter, object_id, pixel_array, num_pixels, depth, result):
+        pass
 
-            if _octane.export_ready():
-                self.cancel(context)
-                return {'FINISHED'}
-        else:
-            return {'PASS_THROUGH'}
+    # viewport render
+    def view_update(self, context, depsgraph):
+        if not self.check_active_status():
+            self.report({'ERROR'}, "Viewport shading is active! Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
+            return
+        if not self.session:
+            engine.create(self, context.blend_data,
+                          context.region, context.space_data, context.region_data)
+            self._force_update_all_script_nodes()
 
-        return {'RUNNING_MODAL'}
+        engine.reset(self, context.blend_data, depsgraph)        
+        engine.sync(self, depsgraph, context.blend_data)
 
-    def execute(self, context):
-        if AbcExporter.is_enabled == 1:
-            import _octane
+    def view_draw(self, context, depsgraph):
+        if not self.check_active_status():
+            self.report({'ERROR'}, "Viewport shading is active! Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
+            return
+        engine.draw(self, depsgraph, context.region, context.space_data, context.region_data)
 
-            path = os.path.dirname(__file__)
-            user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', '')))
-            _octane.init(path, user_path)
+    def _update_all_script_nodes(self, obj):
+        if not getattr(obj, 'node_tree', None) or not getattr(obj.node_tree, 'nodes', None):
+            return
+        for node in obj.node_tree.nodes.values():
+            if node.bl_idname == 'ShaderNodeGroup':
+                self._update_all_script_nodes(node)
+            if node.bl_idname in ('ShaderNodeOctOSLTex', 'ShaderNodeOctOSLCamera', 'ShaderNodeOctOSLBakingCamera', 'ShaderNodeOctOSLProjection', 'ShaderNodeOctVectron'):
+                self.update_script_node(node)
 
-            AbcExporter.is_enabled = 2
+    def _force_update_all_script_nodes(self):
+        collections = (bpy.data.materials, bpy.data.textures, )
+        for collection in collections:        
+            for obj in collection.values():
+                self._update_all_script_nodes(obj)
 
-            context.window_manager.modal_handler_add(self)
-            self.timer = context.window_manager.event_timer_add(0.0000001, context.window)
+    def update_script_node(self, node):
+        from . import osl
+        osl.update_script_node(node, self.report)
 
-            return {'RUNNING_MODAL'}
-        else:
-            self.cancel(context)
-            return {'FINISHED'}
-
-    def invoke(self, context, event):
-        if AbcExporter.is_enabled != 0 or OrbxExporter.is_enabled != 0:
-            self.cancel(context)
-            self.report({'ERROR'}, "Octane export is already running!")
-            return {'FINISHED'}
-        else:
-            AbcExporter.is_enabled = 1
-
-            self.filename = get_scene_filename()
-            self.filename = bpy.path.ensure_ext(self.filename, ".abc")
-
-            context.window_manager.fileselect_add(self)
-            return {'RUNNING_MODAL'}
-
-    def cancel(self, context):
-        import _octane
-        if self.timer != None:
-            context.window_manager.event_timer_remove(self.timer)
-            self.timer = None
-
-        AbcExporter.is_enabled = 0
-
-
-class OrbxExporter(bpy.types.Operator):
-    #
-    "Save an animation in Octane ORBX format"
-    #
-    bl_idname = "export_anim.octorbx"
-    bl_label = "Octane ORBX export"
-
-    filepath = StringProperty(subtype='FILE_PATH')
-    directory = StringProperty(subtype='DIR_PATH')
-    filename = StringProperty(subtype='FILE_NAME')
-    filter_glob = StringProperty(default="*.orbx", options={'HIDDEN'})
-
-    is_enabled = 0
-    timer = None
-    cur_frame = 0
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def modal(self, context, event):
-        if event.type == 'TIMER':
-            import _octane
-
-            if OrbxExporter.is_enabled == 2:
-                OrbxExporter.is_enabled = 3
-
-                userpref = context.user_preferences.as_pointer()
-                filepath = self.directory + os.path.splitext(self.filename)[0]
-                ret = _octane.export(context.scene.as_pointer(), context.as_pointer(), self.timer.as_pointer(), userpref, bpy.data.as_pointer(), 2, filepath)
-                if ret != True:
-                    self.report({'ERROR'}, "Octane export error")
-                    self.cancel(context)
-                    return {'FINISHED'}
-
-            if _octane.export_ready():
-                self.cancel(context)
-                return {'FINISHED'}
-        else:
-            return {'PASS_THROUGH'}
-
-        return {'RUNNING_MODAL'}
-
-    def execute(self, context):
-        if OrbxExporter.is_enabled == 1:
-            import _octane
-
-            path = os.path.dirname(__file__)
-            user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', '')))
-            _octane.init(path, user_path)
-
-            OrbxExporter.is_enabled = 2
-
-            context.window_manager.modal_handler_add(self)
-            self.timer = context.window_manager.event_timer_add(0.0000001, context.window)
-
-            return {'RUNNING_MODAL'}
-        else:
-            self.cancel(context)
-            return {'FINISHED'}
-
-    def invoke(self, context, event):
-        if OrbxExporter.is_enabled != 0 or AbcExporter.is_enabled != 0:
-            self.cancel(context)
-            self.report({'ERROR'}, "Octane export is already running!")
-            return {'FINISHED'}
-        else:
-            OrbxExporter.is_enabled = 1
-
-            self.filename = get_scene_filename()
-            self.filename = bpy.path.ensure_ext(self.filename, ".orbx")
-
-            context.window_manager.fileselect_add(self)
-            return {'RUNNING_MODAL'}
-
-    def cancel(self, context):
-        import _octane
-        if self.timer != None:
-            context.window_manager.event_timer_remove(self.timer)
-            self.timer = None
-
-        OrbxExporter.is_enabled = 0
+    def update_render_passes(self, scene, srl):
+        engine.register_passes(self, scene, srl)
 
 
-def menu_func_export_alembic(self, context):
-    self.layout.operator(AbcExporter.bl_idname, text="Octane alembic (.abc)")
+def engine_exit():
+    engine.exit()
 
-def menu_func_export_orbx(self, context):
-    self.layout.operator(OrbxExporter.bl_idname, text="Octane ORBX (.orbx)")
+
+classes = (
+    OctaneRender,
+)
 
 
 def register():
+    from bpy.utils import register_class
     from . import ui
+    from . import operators
     from . import properties
     from . import presets
+    import atexit
+
+    # Make sure we only registered the callback once.
+    atexit.unregister(engine_exit)
+    atexit.register(engine_exit)
 
     engine.init()
 
     properties.register()
     ui.register()
+    operators.register()
     presets.register()
-    bpy.utils.register_module(__name__)
 
-    bpy.types.INFO_MT_file_export.append(menu_func_export_orbx)
-    bpy.types.INFO_MT_file_export.append(menu_func_export_alembic)
+    for cls in classes:
+        register_class(cls)
+
+    bpy.app.handlers.version_update.append(version_update.do_versions)
 
 
 def unregister():
+    from bpy.utils import unregister_class
     from . import ui
+    from . import operators
     from . import properties
     from . import presets
+    import atexit
+
+    bpy.app.handlers.version_update.remove(version_update.do_versions)
 
     ui.unregister()
+    operators.unregister()
     properties.unregister()
     presets.unregister()
-    bpy.utils.unregister_module(__name__)
 
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_orbx)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_alembic)
+    for cls in classes:
+        unregister_class(cls)

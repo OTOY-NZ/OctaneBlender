@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,16 +15,10 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_EventKey.h
- *  \ingroup GHOST
+/** \file
+ * \ingroup GHOST
  * Declaration of GHOST_EventKey class.
  */
 
@@ -37,56 +29,51 @@
 
 /**
  * Key event.
- * \author	Maarten Gribnau
- * \date	May 11, 2001
  */
-class GHOST_EventKey : public GHOST_Event
-{
-public:
-	/**
-	 * Constructor.
-	 * \param msec	The time this event was generated.
-	 * \param type	The type of key event.
-	 * \param key	The key code of the key.
-	 */
-	GHOST_EventKey(GHOST_TUns64 msec,
-	               GHOST_TEventType type,
-	               GHOST_IWindow *window,
-	               GHOST_TKey key)
-		: GHOST_Event(msec, type, window)
-	{
-		m_keyEventData.key = key;
-		m_keyEventData.ascii = '\0';
-		m_keyEventData.utf8_buf[0] = '\0';
-		m_data = &m_keyEventData;
-	}
-	
-	/**
-	 * Constructor.
-	 * \param msec	The time this event was generated.
-	 * \param type	The type of key event.
-	 * \param key	The key code of the key.
-	 * \param ascii The ascii code for the key event.
-	 */
-	GHOST_EventKey(GHOST_TUns64 msec,
-	               GHOST_TEventType type,
-	               GHOST_IWindow *window,
-	               GHOST_TKey key,
-	               char ascii,
-	               const char utf8_buf[6])
-		: GHOST_Event(msec, type, window)
-	{
-		m_keyEventData.key = key;
-		m_keyEventData.ascii = ascii;
-		if (utf8_buf) memcpy(m_keyEventData.utf8_buf, utf8_buf, sizeof(m_keyEventData.utf8_buf));
-		else m_keyEventData.utf8_buf[0] = '\0';
-		m_data = &m_keyEventData;
-	}
-		
-protected:
-	/** The key event data. */
-	GHOST_TEventKeyData m_keyEventData;
+class GHOST_EventKey : public GHOST_Event {
+ public:
+  /**
+   * Constructor.
+   * \param msec  The time this event was generated.
+   * \param type  The type of key event.
+   * \param key   The key code of the key.
+   */
+  GHOST_EventKey(GHOST_TUns64 msec, GHOST_TEventType type, GHOST_IWindow *window, GHOST_TKey key)
+      : GHOST_Event(msec, type, window)
+  {
+    m_keyEventData.key = key;
+    m_keyEventData.ascii = '\0';
+    m_keyEventData.utf8_buf[0] = '\0';
+    m_data = &m_keyEventData;
+  }
+
+  /**
+   * Constructor.
+   * \param msec  The time this event was generated.
+   * \param type  The type of key event.
+   * \param key   The key code of the key.
+   * \param ascii The ascii code for the key event.
+   */
+  GHOST_EventKey(GHOST_TUns64 msec,
+                 GHOST_TEventType type,
+                 GHOST_IWindow *window,
+                 GHOST_TKey key,
+                 char ascii,
+                 const char utf8_buf[6])
+      : GHOST_Event(msec, type, window)
+  {
+    m_keyEventData.key = key;
+    m_keyEventData.ascii = ascii;
+    if (utf8_buf)
+      memcpy(m_keyEventData.utf8_buf, utf8_buf, sizeof(m_keyEventData.utf8_buf));
+    else
+      m_keyEventData.utf8_buf[0] = '\0';
+    m_data = &m_keyEventData;
+  }
+
+ protected:
+  /** The key event data. */
+  GHOST_TEventKeyData m_keyEventData;
 };
 
-#endif // __GHOST_EVENTKEY_H__
-
+#endif  // __GHOST_EVENTKEY_H__

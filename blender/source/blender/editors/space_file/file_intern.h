@@ -1,10 +1,8 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,15 +15,10 @@
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
- *
- * 
- * Contributor(s): Blender Foundation
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/space_file/file_intern.h
- *  \ingroup spfile
+/** \file
+ * \ingroup spfile
  */
 
 #ifndef __FILE_INTERN_H__
@@ -35,6 +28,7 @@
 
 struct ARegion;
 struct ARegionType;
+struct FileSelectParams;
 struct SpaceFile;
 
 /* file_ops.c */
@@ -48,7 +42,7 @@ struct ARegion *file_tools_region(struct ScrArea *sa);
 #define IMASEL_BUTTONS_HEIGHT (UI_UNIT_Y * 2)
 #define IMASEL_BUTTONS_MARGIN (UI_UNIT_Y / 6)
 
-#define SMALL_SIZE_CHECK(_size) ((_size) < 64)  /* Related to FileSelectParams.thumbnail_size. */
+#define SMALL_SIZE_CHECK(_size) ((_size) < 64) /* Related to FileSelectParams.thumbnail_size. */
 
 void file_draw_buttons(const bContext *C, ARegion *ar);
 void file_calc_previews(const bContext *C, ARegion *ar);
@@ -59,21 +53,21 @@ void file_draw_check_cb(bContext *C, void *arg1, void *arg2);
 bool file_draw_check_exists(SpaceFile *sfile);
 
 /* file_ops.h */
-struct wmOperatorType;
 struct wmOperator;
+struct wmOperatorType;
 
 typedef enum WalkSelectDirection {
-	FILE_SELECT_WALK_UP,
-	FILE_SELECT_WALK_DOWN,
-	FILE_SELECT_WALK_LEFT,
-	FILE_SELECT_WALK_RIGHT,
+  FILE_SELECT_WALK_UP,
+  FILE_SELECT_WALK_DOWN,
+  FILE_SELECT_WALK_LEFT,
+  FILE_SELECT_WALK_RIGHT,
 } WalkSelectDirections;
 
 void FILE_OT_highlight(struct wmOperatorType *ot);
 void FILE_OT_select(struct wmOperatorType *ot);
 void FILE_OT_select_walk(struct wmOperatorType *ot);
-void FILE_OT_select_all_toggle(struct wmOperatorType *ot);
-void FILE_OT_select_border(struct wmOperatorType *ot);
+void FILE_OT_select_all(struct wmOperatorType *ot);
+void FILE_OT_select_box(struct wmOperatorType *ot);
 void FILE_OT_select_bookmark(struct wmOperatorType *ot);
 void FILE_OT_bookmark_add(struct wmOperatorType *ot);
 void FILE_OT_bookmark_delete(struct wmOperatorType *ot);
@@ -109,10 +103,12 @@ void file_filename_enter_handle(bContext *C, void *arg_unused, void *arg_but);
 int file_highlight_set(struct SpaceFile *sfile, struct ARegion *ar, int mx, int my);
 
 void file_sfile_filepath_set(struct SpaceFile *sfile, const char *filepath);
-void file_sfile_to_operator_ex(struct wmOperator *op, struct SpaceFile *sfile, char *filepath);
-void file_sfile_to_operator(struct wmOperator *op, struct SpaceFile *sfile);
-void file_operator_to_sfile(struct SpaceFile *sfile, struct wmOperator *op);
-
+void file_sfile_to_operator_ex(bContext *C,
+                               struct wmOperator *op,
+                               struct SpaceFile *sfile,
+                               char *filepath);
+void file_sfile_to_operator(bContext *C, struct wmOperator *op, struct SpaceFile *sfile);
+void file_operator_to_sfile(bContext *C, struct SpaceFile *sfile, struct wmOperator *op);
 
 /* filesel.c */
 void fileselect_file_set(SpaceFile *sfile, const int index);
@@ -123,6 +119,8 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 int autocomplete_directory(struct bContext *C, char *str, void *arg_v);
 int autocomplete_file(struct bContext *C, char *str, void *arg_v);
 
+void file_params_renamefile_activate(struct SpaceFile *sfile, struct FileSelectParams *params);
+
 /* file_panels.c */
 void file_panels_register(struct ARegionType *art);
 
@@ -130,4 +128,3 @@ void file_panels_register(struct ARegionType *art);
 void file_tile_boundbox(const ARegion *ar, FileLayout *layout, const int file, rcti *r_bounds);
 
 #endif /* __FILE_INTERN_H__ */
-

@@ -57,4 +57,8 @@ if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-blender_add_lib(bf_editor_space_mat_livedb "${SRC}" "${INC}" "${INC_SYS}")
+if(WITH_OCTANE)
+	add_definitions(-DWITH_OCTANE)
+endif()
+
+blender_add_lib(bf_editor_space_mat_livedb "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

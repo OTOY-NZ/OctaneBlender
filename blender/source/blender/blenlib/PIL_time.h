@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,48 +15,41 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenlib/PIL_time.h
- *  \ingroup bli
- *  \brief Platform independent time functions.
+/** \file
+ * \ingroup bli
+ * \brief Platform independent time functions.
  */
 
 #ifndef __PIL_TIME_H__
 #define __PIL_TIME_H__
 
 #ifdef __cplusplus
-extern "C" { 
+extern "C" {
 #endif
 
 extern
-/** Return an indication of time, expressed	as
- * seconds since some fixed point. Successive calls
- * are guaranteed to generate values greater than or
- * equal to the last call.
- */
-double  PIL_check_seconds_timer(void);
+    /** Return an indication of time, expressed as
+     * seconds since some fixed point. Successive calls
+     * are guaranteed to generate values greater than or
+     * equal to the last call. */
+    double
+    PIL_check_seconds_timer(void);
 
 extern
-/**
- * int version of #PIL_check_seconds_timer
- */
-long int PIL_check_seconds_timer_i(void);
+    /** `int` version of #PIL_check_seconds_timer. */
+    long int
+    PIL_check_seconds_timer_i(void);
 
 /**
  * Platform-independent sleep function.
- * \param ms Number of milliseconds to sleep
+ * \param ms: Number of milliseconds to sleep
  */
-void    PIL_sleep_ms(int ms);
+void PIL_sleep_ms(int ms);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  /* __PIL_TIME_H__ */
+#endif /* __PIL_TIME_H__ */

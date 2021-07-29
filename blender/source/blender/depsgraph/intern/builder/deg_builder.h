@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,30 +15,43 @@
  *
  * The Original Code is Copyright (C) 2016 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Sergey Sharybin
- * Contributor(s): None Yet
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/builder/deg_builder.h
- *  \ingroup depsgraph
+/** \file
+ * \ingroup depsgraph
  */
 
 #pragma once
 
-#include "intern/depsgraph_types.h"
-
-struct FCurve;
+struct Base;
+struct Main;
+struct Object;
+struct bPoseChannel;
 
 namespace DEG {
 
 struct Depsgraph;
+class DepsgraphBuilderCache;
 
-/* Get unique identifier for FCurves and Drivers */
-string deg_fcurve_id_name(const FCurve *fcu);
+class DepsgraphBuilder {
+ public:
+  bool need_pull_base_into_graph(Base *base);
 
-void deg_graph_build_finalize(struct Depsgraph *graph);
+  bool check_pchan_has_bbone(Object *object, const bPoseChannel *pchan);
+  bool check_pchan_has_bbone_segments(Object *object, const bPoseChannel *pchan);
+  bool check_pchan_has_bbone_segments(Object *object, const char *bone_name);
+
+ protected:
+  /* NOTE: The builder does NOT take ownership over any of those resources. */
+  DepsgraphBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
+
+  /* State which never changes, same for the whole builder time. */
+  Main *bmain_;
+  Depsgraph *graph_;
+  DepsgraphBuilderCache *cache_;
+};
+
+bool deg_check_base_in_depsgraph(const Depsgraph *graph, Base *base);
+void deg_graph_build_finalize(Main *bmain, Depsgraph *graph);
 
 }  // namespace DEG

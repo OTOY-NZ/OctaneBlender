@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,15 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Chingiz Dyussenov, Arystanbek Dyussenov, Jan Diederich, Tod Liverseed,
- *                 Nathan Letwory
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GeometryExporter.h
- *  \ingroup collada
+/** \file
+ * \ingroup collada
  */
 
 #ifndef __GEOMETRYEXPORTER_H__
@@ -43,104 +36,109 @@
 
 #include "ExportSettings.h"
 #include "collada_utils.h"
-
+#include "BlenderContext.h"
 #include "BKE_key.h"
 
-extern Object *bc_get_highest_selected_ancestor_or_self(Object *ob);
+struct Depsgraph;
 
-class Normal
-{
-	public:
-		float x;
-		float y;
-		float z;
+class Normal {
+ public:
+  float x;
+  float y;
+  float z;
 
-		friend bool operator<  (const Normal &, const Normal &);
-
+  friend bool operator<(const Normal &, const Normal &);
 };
 
-bool operator<  (const Normal &, const Normal &);
+bool operator<(const Normal &, const Normal &);
 
+/* TODO: optimize UV sets by making indexed list with duplicates removed */
+class GeometryExporter : COLLADASW::LibraryGeometries {
+  struct Face {
+    unsigned int v1, v2, v3, v4;
+  };
 
-// TODO: optimize UV sets by making indexed list with duplicates removed
-class GeometryExporter : COLLADASW::LibraryGeometries
-{
-	struct Face
-	{
-		unsigned int v1, v2, v3, v4;
-	};
+  Normal n;
 
-	Normal n;
+ public:
+  /* TODO: optimize UV sets by making indexed list with duplicates removed */
+  GeometryExporter(BlenderContext &blender_context,
+                   COLLADASW::StreamWriter *sw,
+                   BCExportSettings &export_settings)
+      : COLLADASW::LibraryGeometries(sw),
+        blender_context(blender_context),
+        export_settings(export_settings)
+  {
+  }
 
-	Scene *mScene;
+  void exportGeom();
 
-public:
-	GeometryExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
+  void operator()(Object *ob);
 
-	void exportGeom(Scene *sce);
+  void createLooseEdgeList(Object *ob, Mesh *me, std::string &geom_id);
 
-	void operator()(Object *ob);
+  /* powerful because it handles both cases when there is material and when there's not */
+  void create_mesh_primitive_list(short material_index,
+                                  bool has_uvs,
+                                  bool has_color,
+                                  Object *ob,
+                                  Mesh *me,
+                                  std::string &geom_id,
+                                  std::vector<BCPolygonNormalsIndices> &norind);
 
-	void createLooseEdgeList(Object *ob,
-						     Mesh   *me,
-						     std::string& geom_id);
+  /* creates <source> for positions */
+  void createVertsSource(std::string geom_id, Mesh *me);
 
-	// powerful because it handles both cases when there is material and when there's not
-	void createPolylist(short material_index,
-						bool has_uvs,
-						bool has_color,
-						Object *ob,
-						Mesh   *me,
-						std::string& geom_id,
-						std::vector<BCPolygonNormalsIndices>& norind);
-	
-	// creates <source> for positions
-	void createVertsSource(std::string geom_id, Mesh *me);
+  void createVertexColorSource(std::string geom_id, Mesh *me);
 
-	void createVertexColorSource(std::string geom_id, Mesh *me);
+  std::string makeTexcoordSourceId(std::string &geom_id, int layer_index, bool is_single_layer);
 
-	std::string makeTexcoordSourceId(std::string& geom_id, int layer_index, bool is_single_layer);
+  /* creates <source> for texcoords */
+  void createTexcoordsSource(std::string geom_id, Mesh *me);
+  void createTesselatedTexcoordsSource(std::string geom_id, Mesh *me);
 
-	//creates <source> for texcoords
-	void createTexcoordsSource(std::string geom_id, Mesh *me);
-	void createTesselatedTexcoordsSource(std::string geom_id, Mesh *me);
+  /* creates <source> for normals */
+  void createNormalsSource(std::string geom_id, Mesh *me, std::vector<Normal> &nor);
 
-	//creates <source> for normals
-	void createNormalsSource(std::string geom_id, Mesh *me, std::vector<Normal>& nor);
+  void create_normals(std::vector<Normal> &nor,
+                      std::vector<BCPolygonNormalsIndices> &ind,
+                      Mesh *me);
 
-	void create_normals(std::vector<Normal> &nor, std::vector<BCPolygonNormalsIndices> &ind, Mesh *me);
-	
-	std::string getIdBySemantics(std::string geom_id, COLLADASW::InputSemantic::Semantics type, std::string other_suffix = "");
-	std::string makeVertexColorSourceId(std::string& geom_id, char *layer_name);
+  std::string getIdBySemantics(std::string geom_id,
+                               COLLADASW::InputSemantic::Semantics type,
+                               std::string other_suffix = "");
+  std::string makeVertexColorSourceId(std::string &geom_id, char *layer_name);
 
-	COLLADASW::URI getUrlBySemantics(std::string geom_id, COLLADASW::InputSemantic::Semantics type, std::string other_suffix = "");
+  COLLADASW::URI getUrlBySemantics(std::string geom_id,
+                                   COLLADASW::InputSemantic::Semantics type,
+                                   std::string other_suffix = "");
 
-	COLLADASW::URI makeUrl(std::string id);
+  COLLADASW::URI makeUrl(std::string id);
 
-	void export_key_mesh(Object *ob, Mesh *me, KeyBlock *kb);
-	
-private:
-	std::set<std::string> exportedGeometry;
-	
-	const ExportSettings *export_settings;
+  void export_key_mesh(Object *ob, Mesh *me, KeyBlock *kb);
 
-	Mesh * get_mesh(Scene *sce, Object *ob, int apply_modifiers);
+ private:
+  std::set<std::string> exportedGeometry;
+  BlenderContext &blender_context;
+  BCExportSettings &export_settings;
+
+  Mesh *get_mesh(Scene *sce, Object *ob, int apply_modifiers);
 };
 
 struct GeometryFunctor {
-	// f should have
-	// void operator()(Object *ob)
-	template<class Functor>
-	void forEachMeshObjectInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
-	{
-		LinkNode *node;
-		for (node=export_set; node; node = node->next) {
-			Object *ob = (Object *)node->link;
-			if (ob->type == OB_MESH) {
-				f(ob);
-			}
-		}
-	}
+  /* f should have
+   * void operator()(Object *ob) */
+  template<class Functor>
+  void forEachMeshObjectInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
+  {
+    LinkNode *node;
+    for (node = export_set; node; node = node->next) {
+      Object *ob = (Object *)node->link;
+      if (ob->type == OB_MESH) {
+        f(ob);
+      }
+    }
+  }
 };
 
 #endif

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef LIBMV_C_API_AUTOTRACK_H_
@@ -57,6 +50,10 @@ int libmv_autoTrackMarker(libmv_AutoTrack* libmv_autotrack,
 
 void libmv_autoTrackAddMarker(libmv_AutoTrack* libmv_autotrack,
                               const libmv_Marker* libmv_marker);
+
+void libmv_autoTrackSetMarkers(libmv_AutoTrack* libmv_autotrack,
+                               const libmv_Marker* libmv_marker,
+                               size_t num_markers);
 
 int libmv_autoTrackGetMarker(libmv_AutoTrack* libmv_autotrack,
                              int clip,

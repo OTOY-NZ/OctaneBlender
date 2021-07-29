@@ -17,7 +17,7 @@
 #ifndef __SOBOL_H__
 #define __SOBOL_H__
 
-#include "util_types.h"
+#include "util/util_types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -29,4 +29,3 @@ void sobol_generate_direction_vectors(uint vectors[][SOBOL_BITS], int dimensions
 CCL_NAMESPACE_END
 
 #endif /* __SOBOL_H__ */
-

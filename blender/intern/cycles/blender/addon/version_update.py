@@ -17,100 +17,9 @@
 # <pep8 compliant>
 
 import bpy
+import math
 
 from bpy.app.handlers import persistent
-
-
-def check_is_new_shading_ntree(node_tree):
-    for node in node_tree.nodes:
-        # If material has any node with ONLY new shading system
-        # compatibility then it's considered a Cycles material
-        # and versioning code would need to perform on it.
-        #
-        # We can not check for whether NEW_SHADING in compatibility
-        # because some nodes could have compatibility with both old
-        # and new shading system and they can't be used for any
-        # decision here.
-        if node.shading_compatibility == {'NEW_SHADING'}:
-            return True
-
-        # If node is only compatible with old shading system
-        # then material can not be Cycles material and we
-        # can stopiterating nodes now.
-        if node.shading_compatibility == {'OLD_SHADING'}:
-            return False
-    return False
-
-
-def check_is_new_shading_material(material):
-    if not material.node_tree:
-        return False
-    return check_is_new_shading_ntree(material.node_tree)
-
-
-def check_is_new_shading_world(world):
-    if not world.node_tree:
-        return False
-    return check_is_new_shading_ntree(world.node_tree)
-
-
-def check_is_new_shading_lamp(lamp):
-    if not lamp.node_tree:
-        return False
-    return check_is_new_shading_ntree(lamp.node_tree)
-
-
-def foreach_notree_node(nodetree, callback, traversed):
-    if nodetree in traversed:
-        return
-    traversed.add(nodetree)
-    for node in nodetree.nodes:
-        callback(node)
-        if node.bl_idname == 'ShaderNodeGroup':
-            foreach_notree_node(node.node_tree, callback, traversed)
-
-
-def foreach_cycles_node(callback):
-    traversed = set()
-    for material in bpy.data.materials:
-        if check_is_new_shading_material(material):
-                foreach_notree_node(material.node_tree,
-                                    callback,
-                                    traversed)
-    for world in bpy.data.worlds:
-        if check_is_new_shading_world(world):
-                foreach_notree_node(world.node_tree,
-                                    callback,
-                                    traversed)
-    for lamp in bpy.data.lamps:
-        if check_is_new_shading_world(lamp):
-                foreach_notree_node(lamp.node_tree,
-                                    callback,
-                                    traversed)
-
-
-def mapping_node_order_flip(node):
-    """
-    Flip euler order of mapping shader node
-    """
-    if node.bl_idname == 'ShaderNodeMapping':
-        rot = node.rotation.copy()
-        rot.order = 'ZYX'
-        quat = rot.to_quaternion()
-        node.rotation = quat.to_euler('XYZ')
-
-
-def vector_curve_node_remap(node):
-    """
-    Remap values of vector curve node from normalized to absolute values
-    """
-    if node.bl_idname == 'ShaderNodeVectorCurve':
-        node.mapping.use_clip = False
-        for curve in node.mapping.curves:
-            for point in curve.points:
-                point.location.x = (point.location.x * 2.0) - 1.0
-                point.location.y = (point.location.y - 0.5) * 2.0
-        node.mapping.update()
 
 
 def custom_bake_remap(scene):
@@ -172,109 +81,177 @@ def custom_bake_remap(scene):
 
 @persistent
 def do_versions(self):
+    if bpy.context.preferences.version <= (2, 78, 1):
+        prop = bpy.context.preferences.addons[__package__].preferences
+        system = bpy.context.preferences.system
+        if not prop.is_property_set("compute_device_type"):
+            # Device might not currently be available so this can fail
+            try:
+                if system.legacy_compute_device_type == 1:
+                    prop.compute_device_type = 'OPENCL'
+                elif system.legacy_compute_device_type == 2:
+                    prop.compute_device_type = 'CUDA'
+                else:
+                    prop.compute_device_type = 'NONE'
+            except:
+                pass
+
+            # Init device list for UI
+            prop.get_devices(prop.compute_device_type)
+
     # We don't modify startup file because it assumes to
     # have all the default values only.
     if not bpy.data.is_saved:
         return
 
-    # Clamp Direct/Indirect separation in 270
-    if bpy.data.version <= (2, 70, 0):
+    # Map of versions used by libraries.
+    library_versions = {}
+    library_versions[bpy.data.version] = [None]
+    for library in bpy.data.libraries:
+        library_versions.setdefault(library.version, []).append(library)
+
+    # Do versioning per library, since they might have different versions.
+    max_need_versioning = (2, 80, 41)
+    for version, libraries in library_versions.items():
+        if version > max_need_versioning:
+            continue
+
+        # Scenes
         for scene in bpy.data.scenes:
-            cscene = scene.cycles
-            sample_clamp = cscene.get("sample_clamp", False)
-            if (sample_clamp and
-                not cscene.is_property_set("sample_clamp_direct") and
-                not cscene.is_property_set("sample_clamp_indirect")):
+            if scene.library not in libraries:
+                continue
 
-                cscene.sample_clamp_direct = sample_clamp
-                cscene.sample_clamp_indirect = sample_clamp
+            # Clamp Direct/Indirect separation in 270
+            if version <= (2, 70, 0):
+                cscene = scene.cycles
+                sample_clamp = cscene.get("sample_clamp", False)
+                if (sample_clamp and
+                    not cscene.is_property_set("sample_clamp_direct") and
+                        not cscene.is_property_set("sample_clamp_indirect")):
+                    cscene.sample_clamp_direct = sample_clamp
+                    cscene.sample_clamp_indirect = sample_clamp
 
-    # Change of Volume Bounces in 271
-    if bpy.data.version <= (2, 71, 0):
-        for scene in bpy.data.scenes:
-            cscene = scene.cycles
-            if not cscene.is_property_set("volume_bounces"):
-                cscene.volume_bounces = 1
+            # Change of Volume Bounces in 271
+            if version <= (2, 71, 0):
+                cscene = scene.cycles
+                if not cscene.is_property_set("volume_bounces"):
+                    cscene.volume_bounces = 1
 
-    # Caustics Reflective/Refractive separation in 272
-    if bpy.data.version <= (2, 72, 0):
-        for scene in bpy.data.scenes:
-            cscene = scene.cycles
-            if (cscene.get("no_caustics", False) and
-                not cscene.is_property_set("caustics_reflective") and
-                not cscene.is_property_set("caustics_refractive")):
+            # Caustics Reflective/Refractive separation in 272
+            if version <= (2, 72, 0):
+                cscene = scene.cycles
+                if (cscene.get("no_caustics", False) and
+                    not cscene.is_property_set("caustics_reflective") and
+                    not cscene.is_property_set("caustics_refractive")):
+                    cscene.caustics_reflective = False
+                    cscene.caustics_refractive = False
 
-                cscene.caustics_reflective = False
-                cscene.caustics_refractive = False
+            # Baking types changed
+            if version <= (2, 76, 6):
+                custom_bake_remap(scene)
 
-    # Euler order was ZYX in previous versions.
-    if bpy.data.version <= (2, 73, 4):
-        foreach_cycles_node(mapping_node_order_flip)
+            # Several default changes for 2.77
+            if version <= (2, 76, 8):
+                cscene = scene.cycles
 
-    if bpy.data.version <= (2, 76, 5):
-        foreach_cycles_node(vector_curve_node_remap)
+                # Samples
+                if not cscene.is_property_set("samples"):
+                    cscene.samples = 10
 
-    # Baking types changed
-    if bpy.data.version <= (2, 76, 6):
-        for scene in bpy.data.scenes:
-            custom_bake_remap(scene)
+                # Preview Samples
+                if not cscene.is_property_set("preview_samples"):
+                    cscene.preview_samples = 10
 
-    # Several default changes for 2.77
-    if bpy.data.version <= (2, 76, 8):
-        for scene in bpy.data.scenes:
-            cscene = scene.cycles
+                # Filter
+                if not cscene.is_property_set("filter_type"):
+                    cscene.pixel_filter_type = 'GAUSSIAN'
 
-            # Samples
-            if not cscene.is_property_set("samples"):
-                cscene.samples = 10
+                # Tile Order
+                if not cscene.is_property_set("tile_order"):
+                    cscene.tile_order = 'CENTER'
 
-            # Preview Samples
-            if not cscene.is_property_set("preview_samples"):
-                cscene.preview_samples = 10
+            if version <= (2, 76, 10):
+                cscene = scene.cycles
+                if cscene.is_property_set("filter_type"):
+                    if not cscene.is_property_set("pixel_filter_type"):
+                        cscene.pixel_filter_type = cscene.filter_type
+                    if cscene.filter_type == 'BLACKMAN_HARRIS':
+                        cscene.filter_type = 'GAUSSIAN'
 
-            # Filter
-            if not cscene.is_property_set("filter_type"):
-                cscene.pixel_filter_type = 'GAUSSIAN'
+            if version <= (2, 78, 2):
+                cscene = scene.cycles
+                if not cscene.is_property_set("light_sampling_threshold"):
+                    cscene.light_sampling_threshold = 0.0
 
-            # Tile Order
-            if not cscene.is_property_set("tile_order"):
-                cscene.tile_order = 'CENTER'
+            if version <= (2, 79, 0):
+                cscene = scene.cycles
+                # Default changes
+                if not cscene.is_property_set("aa_samples"):
+                    cscene.aa_samples = 4
+                if not cscene.is_property_set("preview_aa_samples"):
+                    cscene.preview_aa_samples = 4
+                if not cscene.is_property_set("blur_glossy"):
+                    cscene.blur_glossy = 0.0
+                if not cscene.is_property_set("sample_clamp_indirect"):
+                    cscene.sample_clamp_indirect = 0.0
 
-        for lamp in bpy.data.lamps:
-            clamp = lamp.cycles
+        # Lamps
+        for light in bpy.data.lights:
+            if light.library not in libraries:
+                continue
 
-            # MIS
-            if not clamp.is_property_set("use_multiple_importance_sampling"):
-                clamp.use_multiple_importance_sampling = False
+            if version <= (2, 76, 5):
+                clight = light.cycles
 
-        for mat in bpy.data.materials:
-            cmat = mat.cycles
+                # MIS
+                if not clight.is_property_set("use_multiple_importance_sampling"):
+                    clight.use_multiple_importance_sampling = False
 
-            # Volume Sampling
-            if not cmat.is_property_set("volume_sampling"):
-                cmat.volume_sampling = 'DISTANCE'
-
-    if bpy.data.version <= (2, 76, 9):
+        # Worlds
         for world in bpy.data.worlds:
-            cworld = world.cycles
+            if world.library not in libraries:
+                continue
 
-            # World MIS
-            if not cworld.is_property_set("sample_as_light"):
-                cworld.sample_as_light = False
+            if version <= (2, 76, 9):
+                cworld = world.cycles
 
-            # World MIS Samples
-            if not cworld.is_property_set("samples"):
-                cworld.samples = 4
+                # World MIS Samples
+                if not cworld.is_property_set("samples"):
+                    cworld.samples = 4
 
-            # World MIS Resolution
-            if not cworld.is_property_set("sample_map_resolution"):
-                cworld.sample_map_resolution = 256
+                # World MIS Resolution
+                if not cworld.is_property_set("sample_map_resolution"):
+                    cworld.sample_map_resolution = 256
 
-    if bpy.data.version <= (2, 76, 10):
-        for scene in bpy.data.scenes:
-            cscene = scene.cycles
-            if cscene.is_property_set("filter_type"):
-                if not cscene.is_property_set("pixel_filter_type"):
-                    cscene.pixel_filter_type = cscene.filter_type
-                if cscene.filter_type == 'BLACKMAN_HARRIS':
-                    cscene.filter_type = 'GAUSSIAN'
+            if version <= (2, 79, 4) or \
+               (version >= (2, 80, 0) and version <= (2, 80, 18)):
+                cworld = world.cycles
+                # World MIS
+                if not cworld.is_property_set("sampling_method"):
+                    if cworld.get("sample_as_light", True):
+                        cworld.sampling_method = 'MANUAL'
+                    else:
+                        cworld.sampling_method = 'NONE'
+
+        # Materials
+        for mat in bpy.data.materials:
+            if mat.library not in libraries:
+                continue
+
+            if version <= (2, 76, 5):
+                cmat = mat.cycles
+                # Volume Sampling
+                if not cmat.is_property_set("volume_sampling"):
+                    cmat.volume_sampling = 'DISTANCE'
+
+            if version <= (2, 79, 2):
+                cmat = mat.cycles
+                if not cmat.is_property_set("displacement_method"):
+                    cmat.displacement_method = 'BUMP'
+
+            # Change default to bump again.
+            if version <= (2, 79, 6) or \
+               (version >= (2, 80, 0) and version <= (2, 80, 41)):
+                cmat = mat.cycles
+                if not cmat.is_property_set("displacement_method"):
+                    cmat.displacement_method = 'DISPLACEMENT'

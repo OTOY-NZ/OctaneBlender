@@ -13,40 +13,42 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# Contributor(s): Jacques Beaurain.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	../include
-	../../blenkernel
-	../../blenlib
-	../../blentranslation
-	../../gpu
-	../../makesdna
-	../../makesrna
-	../../windowmanager
-	../../../../intern/guardedalloc
-	../../../../intern/glew-mx
+  ../include
+  ../../blenkernel
+  ../../blenlib
+  ../../blentranslation
+  ../../gpu
+  ../../makesdna
+  ../../makesrna
+  ../../windowmanager
+  ../../../../intern/glew-mx
+  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
-	${GLEW_INCLUDE_PATH}
+  ${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
-	action_buttons.c
-	action_data.c
-	action_draw.c
-	action_edit.c
-	action_ops.c
-	action_select.c
-	space_action.c
+  action_buttons.c
+  action_data.c
+  action_draw.c
+  action_edit.c
+  action_ops.c
+  action_select.c
+  space_action.c
 
-	action_intern.h
+  action_intern.h
+)
+
+set(LIB
+  bf_blenkernel
+  bf_blenlib
 )
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_space_action "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_space_action "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

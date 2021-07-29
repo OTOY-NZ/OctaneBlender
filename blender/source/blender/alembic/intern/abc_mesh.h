@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,10 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Esteban Tovagliari, Cedric Paille, Kevin Dietrich
- *
- * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file
+ * \ingroup balembic
  */
 
 #ifndef __ABC_MESH_H__
@@ -26,127 +24,133 @@
 #include "abc_customdata.h"
 #include "abc_object.h"
 
-struct DerivedMesh;
 struct Mesh;
 struct ModifierData;
 
 /* ************************************************************************** */
 
-class AbcMeshWriter : public AbcObjectWriter {
-	Alembic::AbcGeom::OPolyMeshSchema m_mesh_schema;
-	Alembic::AbcGeom::OPolyMeshSchema::Sample m_mesh_sample;
+/* Writer for Alembic meshes. Does not assume the object is a mesh object. */
+class AbcGenericMeshWriter : public AbcObjectWriter {
+ protected:
+  Alembic::AbcGeom::OPolyMeshSchema m_mesh_schema;
+  Alembic::AbcGeom::OPolyMeshSchema::Sample m_mesh_sample;
 
-	Alembic::AbcGeom::OSubDSchema m_subdiv_schema;
-	Alembic::AbcGeom::OSubDSchema::Sample m_subdiv_sample;
+  Alembic::AbcGeom::OSubDSchema m_subdiv_schema;
+  Alembic::AbcGeom::OSubDSchema::Sample m_subdiv_sample;
 
-	bool m_has_per_face_materials;
-	Alembic::AbcGeom::OFaceSet m_face_set;
-	Alembic::Abc::OArrayProperty m_mat_indices;
+  Alembic::Abc::OArrayProperty m_mat_indices;
 
-	bool m_is_animated;
-	ModifierData *m_subsurf_mod;
+  bool m_is_animated;
+  ModifierData *m_subsurf_mod;
 
-	CDStreamConfig m_custom_data_config;
+  CDStreamConfig m_custom_data_config;
 
-	bool m_is_liquid;
-	bool m_is_subd;
+  bool m_is_liquid;
+  bool m_is_subd;
 
-public:
-	AbcMeshWriter(Scene *scene,
-	              Object *ob,
-	              AbcTransformWriter *parent,
-	              uint32_t time_sampling,
-	              ExportSettings &settings);
+ public:
+  AbcGenericMeshWriter(Object *ob,
+                       AbcTransformWriter *parent,
+                       uint32_t time_sampling,
+                       ExportSettings &settings);
 
-	~AbcMeshWriter();
+  ~AbcGenericMeshWriter();
+  void setIsAnimated(bool is_animated);
 
-private:
-	virtual void do_write();
+ protected:
+  virtual void do_write();
+  virtual bool isAnimated() const;
+  virtual Mesh *getEvaluatedMesh(Scene *scene_eval, Object *ob_eval, bool &r_needsfree) = 0;
+  virtual void freeEvaluatedMesh(struct Mesh *mesh);
 
-	bool isAnimated() const;
+  Mesh *getFinalMesh(bool &r_needsfree);
 
-	void writeMesh(DerivedMesh *dm);
-	void writeSubD(DerivedMesh *dm);
+  void writeMesh(struct Mesh *mesh);
+  void writeSubD(struct Mesh *mesh);
 
-	void getMeshInfo(DerivedMesh *dm, std::vector<float> &points,
-	                 std::vector<int32_t> &facePoints,
-	                 std::vector<int32_t> &faceCounts,
-	                 std::vector<int32_t> &creaseIndices,
-	                 std::vector<int32_t> &creaseLengths,
-	                 std::vector<float> &creaseSharpness);
+  void writeArbGeoParams(struct Mesh *mesh);
+  void getGeoGroups(struct Mesh *mesh, std::map<std::string, std::vector<int32_t>> &geoGroups);
 
-	DerivedMesh *getFinalMesh();
-	void freeMesh(DerivedMesh *dm);
+  /* fluid surfaces support */
+  void getVelocities(struct Mesh *mesh, std::vector<Imath::V3f> &vels);
 
-	void getMaterialIndices(DerivedMesh *dm, std::vector<int32_t> &indices);
+  template<typename Schema> void writeFaceSets(struct Mesh *mesh, Schema &schema);
+};
 
-	void writeArbGeoParams(DerivedMesh *dm);
-	void getGeoGroups(DerivedMesh *dm, std::map<std::string, std::vector<int32_t> > &geoGroups);
-	
-	/* fluid surfaces support */
-	void getVelocities(DerivedMesh *dm, std::vector<Imath::V3f> &vels);
+class AbcMeshWriter : public AbcGenericMeshWriter {
+ public:
+  AbcMeshWriter(Object *ob,
+                AbcTransformWriter *parent,
+                uint32_t time_sampling,
+                ExportSettings &settings);
 
-	template <typename Schema>
-	void writeCommonData(DerivedMesh *dm, Schema &schema);
+  ~AbcMeshWriter();
+
+ protected:
+  virtual Mesh *getEvaluatedMesh(Scene *scene_eval, Object *ob_eval, bool &r_needsfree) override;
 };
 
 /* ************************************************************************** */
 
 class AbcMeshReader : public AbcObjectReader {
-	Alembic::AbcGeom::IPolyMeshSchema m_schema;
+  Alembic::AbcGeom::IPolyMeshSchema m_schema;
 
-	CDStreamConfig m_mesh_data;
+  CDStreamConfig m_mesh_data;
 
-public:
-	AbcMeshReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
+ public:
+  AbcMeshReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
 
-	bool valid() const;
+  bool valid() const;
+  bool accepts_object_type(const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
+                           const Object *const ob,
+                           const char **err_str) const;
+  void readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel);
 
-	void readObjectData(Main *bmain, float time);
+  struct Mesh *read_mesh(struct Mesh *existing_mesh,
+                         const Alembic::Abc::ISampleSelector &sample_sel,
+                         int read_flag,
+                         const char **err_str);
 
-private:
-	void readFaceSetsSample(Main *bmain, Mesh *mesh, size_t poly_start,
-	                        const Alembic::AbcGeom::ISampleSelector &sample_sel);
+ private:
+  void readFaceSetsSample(Main *bmain,
+                          Mesh *mesh,
+                          size_t poly_start,
+                          const Alembic::AbcGeom::ISampleSelector &sample_sel);
+
+  void assign_facesets_to_mpoly(const Alembic::Abc::ISampleSelector &sample_sel,
+                                size_t poly_start,
+                                MPoly *mpoly,
+                                int totpoly,
+                                std::map<std::string, int> &r_mat_map);
 };
-
-void read_mesh_sample(ImportSettings *settings,
-                      const Alembic::AbcGeom::IPolyMeshSchema &schema,
-                      const Alembic::AbcGeom::ISampleSelector &selector,
-                      CDStreamConfig &config,
-                      bool &do_normals);
 
 /* ************************************************************************** */
 
 class AbcSubDReader : public AbcObjectReader {
-	Alembic::AbcGeom::ISubDSchema m_schema;
+  Alembic::AbcGeom::ISubDSchema m_schema;
 
-	CDStreamConfig m_mesh_data;
+  CDStreamConfig m_mesh_data;
 
-public:
-	AbcSubDReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
+ public:
+  AbcSubDReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
 
-	bool valid() const;
-
-	void readObjectData(Main *bmain, float time);
+  bool valid() const;
+  bool accepts_object_type(const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
+                           const Object *const ob,
+                           const char **err_str) const;
+  void readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel);
+  struct Mesh *read_mesh(struct Mesh *existing_mesh,
+                         const Alembic::Abc::ISampleSelector &sample_sel,
+                         int read_flag,
+                         const char **err_str);
 };
 
-void read_subd_sample(ImportSettings *settings,
-                      const Alembic::AbcGeom::ISubDSchema &schema,
-                      const Alembic::AbcGeom::ISampleSelector &selector,
-                      CDStreamConfig &config);
-
 /* ************************************************************************** */
-
-namespace utils {
-
-void mesh_add_verts(struct Mesh *mesh, size_t len);
-
-}
 
 void read_mverts(MVert *mverts,
                  const Alembic::AbcGeom::P3fArraySamplePtr &positions,
                  const Alembic::AbcGeom::N3fArraySamplePtr &normals);
 
-CDStreamConfig create_config(Mesh *mesh);
+CDStreamConfig get_config(struct Mesh *mesh);
 
-#endif  /* __ABC_MESH_H__ */
+#endif /* __ABC_MESH_H__ */

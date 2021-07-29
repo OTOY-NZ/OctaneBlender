@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,45 +15,19 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file DNA_packedFile_types.h
- *  \ingroup DNA
- *  \author nzc
- *  \since 12-oct-2000 nzc
+/** \file
+ * \ingroup DNA
  */
 
 #ifndef __DNA_PACKEDFILE_TYPES_H__
 #define __DNA_PACKEDFILE_TYPES_H__
 
 typedef struct PackedFile {
-	int   size;
-	int   seek;
-	void *data;
+  int size;
+  int seek;
+  void *data;
 } PackedFile;
 
-enum PF_FileStatus {
-	PF_EQUAL = 0,
-	PF_DIFFERS = 1,
-	PF_NOFILE = 2,
-
-	PF_WRITE_ORIGINAL = 3,
-	PF_WRITE_LOCAL = 4,
-	PF_USE_LOCAL = 5,
-	PF_USE_ORIGINAL = 6,
-	PF_KEEP = 7,
-	PF_REMOVE = 8,
-	PF_NOOP = 9,
-
-	PF_ASK = 10
-};
-
 #endif /* PACKEDFILE_TYPES_H */
-
-

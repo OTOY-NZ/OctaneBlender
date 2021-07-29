@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,16 +15,10 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file NOD_shader.h
- *  \ingroup nodes
+/** \file
+ * \ingroup nodes
  */
 
 #ifndef __NOD_SHADER_H__
@@ -36,7 +28,6 @@
 
 extern struct bNodeTreeType *ntreeType_Shader;
 
-
 /* the type definitions array */
 /* ****************** types array for all shaders ****************** */
 
@@ -44,20 +35,16 @@ void register_node_tree_type_sh(void);
 
 void register_node_type_sh_group(void);
 
-void register_node_type_sh_output(void);
-void register_node_type_sh_material(void);
 void register_node_type_sh_camera(void);
-void register_node_type_sh_lamp(void);
 void register_node_type_sh_value(void);
 void register_node_type_sh_rgb(void);
 void register_node_type_sh_mix_rgb(void);
 void register_node_type_sh_valtorgb(void);
 void register_node_type_sh_rgbtobw(void);
-void register_node_type_sh_texture(void);
+void register_node_type_sh_shadertorgb(void);
 void register_node_type_sh_normal(void);
 void register_node_type_sh_gamma(void);
 void register_node_type_sh_brightcontrast(void);
-void register_node_type_sh_geom(void);
 void register_node_type_sh_mapping(void);
 void register_node_type_sh_curve_vec(void);
 void register_node_type_sh_curve_rgb(void);
@@ -65,7 +52,6 @@ void register_node_type_sh_math(void);
 void register_node_type_sh_vect_math(void);
 void register_node_type_sh_squeeze(void);
 void register_node_type_sh_dynamic(void);
-void register_node_type_sh_material_ext(void);
 void register_node_type_sh_invert(void);
 void register_node_type_sh_seprgb(void);
 void register_node_type_sh_combrgb(void);
@@ -78,6 +64,9 @@ void register_node_type_sh_tex_brick(void);
 void register_node_type_sh_tex_pointdensity(void);
 
 void register_node_type_sh_attribute(void);
+void register_node_type_sh_bevel(void);
+void register_node_type_sh_displacement(void);
+void register_node_type_sh_vector_displacement(void);
 void register_node_type_sh_geometry(void);
 void register_node_type_sh_light_path(void);
 void register_node_type_sh_light_falloff(void);
@@ -106,19 +95,25 @@ void register_node_type_sh_bsdf_transparent(void);
 void register_node_type_sh_bsdf_velvet(void);
 void register_node_type_sh_bsdf_toon(void);
 void register_node_type_sh_bsdf_anisotropic(void);
+void register_node_type_sh_bsdf_principled(void);
 void register_node_type_sh_emission(void);
 void register_node_type_sh_holdout(void);
 void register_node_type_sh_volume_absorption(void);
 void register_node_type_sh_volume_scatter(void);
+void register_node_type_sh_volume_principled(void);
 void register_node_type_sh_bsdf_hair(void);
+void register_node_type_sh_bsdf_hair_principled(void);
 void register_node_type_sh_subsurface_scattering(void);
 void register_node_type_sh_mix_shader(void);
 void register_node_type_sh_add_shader(void);
 void register_node_type_sh_uvmap(void);
 void register_node_type_sh_uvalongstroke(void);
+void register_node_type_sh_eevee_metallic(void);
+void register_node_type_sh_eevee_specular(void);
 
-void register_node_type_sh_output_lamp(void);
+void register_node_type_sh_output_light(void);
 void register_node_type_sh_output_material(void);
+void register_node_type_sh_output_eevee_material(void);
 void register_node_type_sh_output_world(void);
 void register_node_type_sh_output_linestyle(void);
 
@@ -133,17 +128,33 @@ void register_node_type_sh_tex_musgrave(void);
 void register_node_type_sh_tex_noise(void);
 void register_node_type_sh_tex_checker(void);
 void register_node_type_sh_bump(void);
+void register_node_type_sh_tex_ies(void);
 
-#ifdef WITH_OCTANE
+void register_node_type_sh_custom_group(bNodeType *ntype);
+
 void register_node_type_sh_oct_diffuse_mat(void);
 void register_node_type_sh_oct_glossy_mat(void);
 void register_node_type_sh_oct_specular_mat(void);
 void register_node_type_sh_oct_mix_mat(void);
 void register_node_type_sh_oct_portal_mat(void);
+void register_node_type_sh_oct_toon_mat(void);
+void register_node_type_sh_oct_metal_mat(void);
+void register_node_type_sh_oct_universal_mat(void);
+void register_node_type_sh_oct_shadow_catcher_mat(void);
+void register_node_type_sh_oct_layered_mat(void);
+void register_node_type_sh_oct_composite_mat(void);
+
+void register_node_type_sh_oct_group_layer(void);
+void register_node_type_sh_oct_diffuse_layer(void);
+void register_node_type_sh_oct_metallic_layer(void);
+void register_node_type_sh_oct_sheen_layer(void);
+void register_node_type_sh_oct_specular_layer(void);
 
 void register_node_type_emission_oct_null(void);
 void register_node_type_emission_oct_black_body(void);
 void register_node_type_emission_oct_texture(void);
+void register_node_type_emission_oct_toon_direction_light(void);
+void register_node_type_emission_oct_toon_point_light(void);
 
 void register_node_type_transform_oct_scale(void);
 void register_node_type_transform_oct_rotation(void);
@@ -170,6 +181,10 @@ void register_node_type_tex_oct_cosine_mix(void);
 void register_node_type_tex_oct_invert(void);
 void register_node_type_tex_oct_mix(void);
 void register_node_type_tex_oct_multiply(void);
+void register_node_type_tex_oct_add(void);
+void register_node_type_tex_oct_subtract(void);
+void register_node_type_tex_oct_compare(void);
+void register_node_type_tex_oct_triplanar(void);
 void register_node_type_tex_oct_falloff(void);
 void register_node_type_tex_oct_colorcorrect(void);
 void register_node_type_tex_oct_image(void);
@@ -181,8 +196,19 @@ void register_node_type_tex_oct_random_color(void);
 void register_node_type_tex_oct_polygon_side(void);
 void register_node_type_tex_oct_noise(void);
 void register_node_type_tex_oct_displacement(void);
+void register_node_type_tex_oct_vertex_displacement(void);
+void register_node_type_tex_oct_vertex_displacement_mixer(void);
 void register_node_type_tex_oct_volume_ramp(void);
 void register_node_type_tex_oct_w(void);
+void register_node_type_tex_oct_baking(void);
+void register_node_type_tex_oct_uvw_transform(void);
+void register_node_type_tex_oct_instance_range(void);
+void register_node_type_tex_oct_instance_color(void);
+void register_node_type_tex_oct_osl_texture(void);
+void register_node_type_tex_oct_toon_ramp(void);
+void register_node_type_tex_oct_image_tile(void);
+void register_node_type_tex_oct_float_vertex(void);
+void register_node_type_tex_oct_color_vertex(void);
 
 void register_node_type_projection_oct_xyz(void);
 void register_node_type_projection_oct_box(void);
@@ -190,11 +216,23 @@ void register_node_type_projection_oct_cyl(void);
 void register_node_type_projection_oct_persp(void);
 void register_node_type_projection_oct_spherical(void);
 void register_node_type_projection_oct_uvw(void);
+void register_node_type_projection_oct_triplanar(void);
+void register_node_type_projection_oct_osl_projection(void);
+void register_node_type_projection_oct_osl_uv(void);
 
 void register_node_type_val_oct_float(void);
 void register_node_type_val_oct_int(void);
-#endif /* WITH_OCTANE */
+void register_node_type_val_oct_sun_direction(void);
+void register_node_type_val_oct_texture_reference(void);
 
+void register_node_type_camera_oct_osl_camera(void);
+void register_node_type_baking_camera_oct_osl_camera(void);
+
+void register_node_type_oct_vectron(void);
+
+void register_node_type_roundedges_oct_roundedges(void);
+
+void register_node_type_environment_oct_texture(void);
+void register_node_type_environment_oct_daylight(void);
+void register_node_type_environment_oct_planetary(void);
 #endif
-
-

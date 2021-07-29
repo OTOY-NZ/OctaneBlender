@@ -16,7 +16,12 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
+if(WITH_OCTANE)
+	add_definitions(-DWITH_OCTANE)
+endif()
+
 add_subdirectory(intern)
 add_subdirectory(generic)
+add_subdirectory(gpu)
 add_subdirectory(mathutils)
 add_subdirectory(bmesh)

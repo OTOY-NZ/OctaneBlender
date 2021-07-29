@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,37 +15,29 @@
  *
  * The Original Code is Copyright (C) 2015 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Lukas Toenne,
- *                 Sergey Sharybin,
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/builder/deg_builder_transitive.cc
- *  \ingroup depsgraph
+/** \file
+ * \ingroup depsgraph
  */
 
 #include "intern/builder/deg_builder_transitive.h"
 
-extern "C" {
 #include "MEM_guardedalloc.h"
-}
 
-#include "intern/nodes/deg_node.h"
-#include "intern/nodes/deg_node_component.h"
-#include "intern/nodes/deg_node_operation.h"
+#include "intern/node/deg_node.h"
+#include "intern/node/deg_node_component.h"
+#include "intern/node/deg_node_operation.h"
 
 #include "intern/depsgraph.h"
-
-#include "util/deg_util_foreach.h"
+#include "intern/debug/deg_debug.h"
 
 namespace DEG {
 
 /* -------------------------------------------------- */
 
 /* Performs a transitive reduction to remove redundant relations.
- * http://en.wikipedia.org/wiki/Transitive_reduction
+ * https://en.wikipedia.org/wiki/Transitive_reduction
  *
  * XXX The current implementation is somewhat naive and has O(V*E) worst case
  * runtime.
@@ -60,62 +50,61 @@ namespace DEG {
  */
 
 enum {
-	OP_VISITED = 1,
-	OP_REACHABLE = 2,
+  OP_VISITED = 1,
+  OP_REACHABLE = 2,
 };
 
-static void deg_graph_tag_paths_recursive(DepsNode *node)
+static void deg_graph_tag_paths_recursive(Node *node)
 {
-	if (node->done & OP_VISITED) {
-		return;
-	}
-	node->done |= OP_VISITED;
-	foreach (DepsRelation *rel, node->inlinks) {
-		deg_graph_tag_paths_recursive(rel->from);
-		/* Do this only in inlinks loop, so the target node does not get
-		 * flagged.
-		 */
-		rel->from->done |= OP_REACHABLE;
-	}
+  if (node->custom_flags & OP_VISITED) {
+    return;
+  }
+  node->custom_flags |= OP_VISITED;
+  for (Relation *rel : node->inlinks) {
+    deg_graph_tag_paths_recursive(rel->from);
+    /* Do this only in inlinks loop, so the target node does not get
+     * flagged. */
+    rel->from->custom_flags |= OP_REACHABLE;
+  }
 }
 
 void deg_graph_transitive_reduction(Depsgraph *graph)
 {
-	foreach (OperationDepsNode *target, graph->operations) {
-		/* Clear tags. */
-		foreach (OperationDepsNode *node, graph->operations) {
-			node->done = 0;
-		}
-
-		/* mark nodes from which we can reach the target
-		 * start with children, so the target node and direct children are not
-		 * flagged.
-		 */
-		target->done |= OP_VISITED;
-		foreach (DepsRelation *rel, target->inlinks) {
-			deg_graph_tag_paths_recursive(rel->from);
-		}
-
-		/* Remove redundant paths to the target. */
-		for (DepsNode::Relations::const_iterator it_rel = target->inlinks.begin();
-		     it_rel != target->inlinks.end();
-		     )
-		{
-			DepsRelation *rel = *it_rel;
-			/* Increment in advance, so we can safely remove the relation. */
-			++it_rel;
-
-			if (rel->from->type == DEPSNODE_TYPE_TIMESOURCE) {
-				/* HACK: time source nodes don't get "done" flag set/cleared. */
-				/* TODO: there will be other types in future, so iterators above
-				 * need modifying.
-				 */
-			}
-			else if (rel->from->done & OP_REACHABLE) {
-				OBJECT_GUARDED_DELETE(rel, DepsRelation);
-			}
-		}
-	}
+  int num_removed_relations = 0;
+  for (OperationNode *target : graph->operations) {
+    /* Clear tags. */
+    for (OperationNode *node : graph->operations) {
+      node->custom_flags = 0;
+    }
+    /* Mark nodes from which we can reach the target
+     * start with children, so the target node and direct children are not
+     * flagged. */
+    target->custom_flags |= OP_VISITED;
+    for (Relation *rel : target->inlinks) {
+      deg_graph_tag_paths_recursive(rel->from);
+    }
+    /* Remove redundant paths to the target. */
+    for (Node::Relations::const_iterator it_rel = target->inlinks.begin();
+         it_rel != target->inlinks.end();) {
+      Relation *rel = *it_rel;
+      if (rel->from->type == NodeType::TIMESOURCE) {
+        /* HACK: time source nodes don't get "custom_flags" flag
+         * set/cleared. */
+        /* TODO: there will be other types in future, so iterators above
+         * need modifying. */
+        ++it_rel;
+      }
+      else if (rel->from->custom_flags & OP_REACHABLE) {
+        rel->unlink();
+        OBJECT_GUARDED_DELETE(rel, Relation);
+        ++num_removed_relations;
+      }
+      else {
+        ++it_rel;
+      }
+    }
+  }
+  DEG_DEBUG_PRINTF((::Depsgraph *)graph, BUILD, "Removed %d relations\n", num_removed_relations);
 }
 
 }  // namespace DEG

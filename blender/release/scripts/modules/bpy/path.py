@@ -28,6 +28,7 @@ __all__ = (
     "basename",
     "clean_name",
     "display_name",
+    "display_name_to_filepath",
     "display_name_from_filepath",
     "ensure_ext",
     "extensions_image",
@@ -182,34 +183,57 @@ def clean_name(name, replace="_"):
 
     trans = maketrans_init()
     return name.translate(trans)
+
+
 clean_name._trans_cache = {}
 
 
 def _clean_utf8(name):
-    name = _os.path.splitext(basename(name))[0]
     if type(name) == bytes:
         return name.decode("utf8", "replace")
     else:
         return name.encode("utf8", "replace").decode("utf8")
 
 
-def display_name(name):
+_display_name_literals = {
+    ":": "_colon_",
+    "+": "_plus_",
+}
+
+
+def display_name(name, *, has_ext=True):
     """
     Creates a display string from name to be used menus and the user interface.
     Capitalize the first letter in all lowercase names,
     mixed case names are kept as is. Intended for use with
     filenames and module names.
     """
-    # string replacements
-    name = name.replace("_colon_", ":")
-    name = name.replace("_plus_", "+")
 
-    name = name.replace("_", " ")
+    if has_ext:
+        name = _os.path.splitext(basename(name))[0]
+
+    # string replacements
+    for disp_value, file_value in _display_name_literals.items():
+        name = name.replace(file_value, disp_value)
+
+    # strip to allow underscore prefix
+    # (when paths can't start with numbers for eg).
+    name = name.replace("_", " ").lstrip(" ")
 
     if name.islower():
         name = name.lower().title()
 
     name = _clean_utf8(name)
+    return name
+
+
+def display_name_to_filepath(name):
+    """
+    Performs the reverse of display_name using literal versions of characters
+    which aren't supported in a filepath.
+    """
+    for disp_value, file_value in _display_name_literals.items():
+        name = name.replace(disp_value, file_value)
     return name
 
 
@@ -219,6 +243,7 @@ def display_name_from_filepath(name):
     ensured to be utf8 compatible.
     """
 
+    name = _os.path.splitext(basename(name))[0]
     name = _clean_utf8(name)
     return name
 
@@ -277,7 +302,7 @@ def resolve_ncase(path):
         if f_iter_nocase:
             return _os.path.join(dirpath, f_iter_nocase) + suffix, True
         else:
-            # cant find the right one, just return the path as is.
+            # can't find the right one, just return the path as is.
             return path, False
 
     ncase_path, found = _ncase_path_found(path)

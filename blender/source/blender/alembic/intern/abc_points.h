@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,9 +15,10 @@
  *
  * The Original Code is Copyright (C) 2016 Kévin Dietrich.
  * All rights reserved.
- *
- * ***** END GPL LICENSE BLOCK *****
- *
+ */
+
+/** \file
+ * \ingroup balembic
  */
 
 #ifndef __ABC_POINTS_H__
@@ -28,43 +27,49 @@
 #include "abc_object.h"
 #include "abc_customdata.h"
 
-class ParticleSystem;
+struct ParticleSystem;
 
 /* ************************************************************************** */
 
 class AbcPointsWriter : public AbcObjectWriter {
-	Alembic::AbcGeom::OPointsSchema m_schema;
-	Alembic::AbcGeom::OPointsSchema::Sample m_sample;
-	ParticleSystem *m_psys;
+  Alembic::AbcGeom::OPointsSchema m_schema;
+  Alembic::AbcGeom::OPointsSchema::Sample m_sample;
+  ParticleSystem *m_psys;
 
-public:
-	AbcPointsWriter(Scene *scene,
-	                Object *ob,
-	                AbcTransformWriter *parent,
-	                uint32_t time_sampling,
-	                ExportSettings &settings,
-	                ParticleSystem *psys);
+ public:
+  AbcPointsWriter(Object *ob,
+                  AbcTransformWriter *parent,
+                  uint32_t time_sampling,
+                  ExportSettings &settings,
+                  ParticleSystem *psys);
 
-	void do_write();
+  void do_write();
 };
 
 /* ************************************************************************** */
 
 class AbcPointsReader : public AbcObjectReader {
-	Alembic::AbcGeom::IPointsSchema m_schema;
-	Alembic::AbcGeom::IPointsSchema::Sample m_sample;
+  Alembic::AbcGeom::IPointsSchema m_schema;
+  Alembic::AbcGeom::IPointsSchema::Sample m_sample;
 
-public:
-	AbcPointsReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
+ public:
+  AbcPointsReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
 
-	bool valid() const;
+  bool valid() const;
+  bool accepts_object_type(const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
+                           const Object *const ob,
+                           const char **err_str) const;
 
-	void readObjectData(Main *bmain, float time);
+  void readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel);
+
+  struct Mesh *read_mesh(struct Mesh *existing_mesh,
+                         const Alembic::Abc::ISampleSelector &sample_sel,
+                         int read_flag,
+                         const char **err_str);
 };
 
 void read_points_sample(const Alembic::AbcGeom::IPointsSchema &schema,
                         const Alembic::AbcGeom::ISampleSelector &selector,
-                        CDStreamConfig &config,
-                        float time);
+                        CDStreamConfig &config);
 
-#endif  /* __ABC_POINTS_H__ */
+#endif /* __ABC_POINTS_H__ */

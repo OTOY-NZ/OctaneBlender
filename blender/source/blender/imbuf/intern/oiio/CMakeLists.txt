@@ -16,22 +16,17 @@
 #
 # The Original Code is Copyright (C) 2013, Blender Foundation
 # All rights reserved.
-#
-# The Original Code is: all of this file.
-#
-# Contributor(s):
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
-	..
-	../..
-	../../../blenkernel
-	../../../blenlib
-	../../../makesdna
-	../../../../../intern/guardedalloc
-	../../../../../intern/utfconv
+  .
+  ..
+  ../..
+  ../../../blenkernel
+  ../../../blenlib
+  ../../../makesdna
+  ../../../../../intern/guardedalloc
+  ../../../../../intern/utfconv
 )
 
 set(INC_SYS
@@ -39,17 +34,25 @@ set(INC_SYS
 )
 
 set(SRC
-	openimageio_api.h
+  openimageio_api.h
 
-	openimageio_api.cpp
+  openimageio_api.cpp
+)
+
+set(LIB
 )
 
 if(WITH_OPENIMAGEIO)
-	list(APPEND INC_SYS
-		${OPENIMAGEIO_INCLUDE_DIRS}
-		${BOOST_INCLUDE_DIR}
-	)
-	add_definitions(-DWITH_OPENIMAGEIO)
+  list(APPEND INC_SYS
+    ${OPENIMAGEIO_INCLUDE_DIRS}
+    ${BOOST_INCLUDE_DIR}
+  )
+  if(WITH_IMAGE_OPENEXR)
+    list(APPEND INC_SYS
+      ${OPENEXR_INCLUDE_DIRS}
+    )
+  endif()
+  add_definitions(-DWITH_OPENIMAGEIO)
 endif()
 
-blender_add_lib(bf_imbuf_openimageio "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_imbuf_openimageio "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

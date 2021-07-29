@@ -17,18 +17,20 @@
 #ifndef __SCENE_H__
 #define __SCENE_H__
 
-#include "image.h"
-#include "shader.h"
+#include "bvh/bvh_params.h"
 
-#include "device_memory.h"
+#include "render/image.h"
+#include "render/shader.h"
 
-#include "util_param.h"
-#include "util_string.h"
-#include "util_system.h"
-#include "util_texture.h"
-#include "util_thread.h"
-#include "util_types.h"
-#include "util_vector.h"
+#include "device/device_memory.h"
+
+#include "util/util_param.h"
+#include "util/util_string.h"
+#include "util/util_system.h"
+#include "util/util_texture.h"
+#include "util/util_thread.h"
+#include "util/util_types.h"
+#include "util/util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -54,189 +56,220 @@ class ShaderManager;
 class Progress;
 class BakeManager;
 class BakeData;
+class RenderStats;
 
 /* Scene Device Data */
 
 class DeviceScene {
-public:
-	/* BVH */
-	device_vector<float4> bvh_nodes;
-	device_vector<float4> bvh_leaf_nodes;
-	device_vector<uint> object_node;
-	device_vector<uint> prim_tri_index;
-	device_vector<float4> prim_tri_verts;
-	device_vector<uint> prim_type;
-	device_vector<uint> prim_visibility;
-	device_vector<uint> prim_index;
-	device_vector<uint> prim_object;
+ public:
+  /* BVH */
+  device_vector<int4> bvh_nodes;
+  device_vector<int4> bvh_leaf_nodes;
+  device_vector<int> object_node;
+  device_vector<uint> prim_tri_index;
+  device_vector<float4> prim_tri_verts;
+  device_vector<int> prim_type;
+  device_vector<uint> prim_visibility;
+  device_vector<int> prim_index;
+  device_vector<int> prim_object;
+  device_vector<float2> prim_time;
 
-	/* mesh */
-	device_vector<uint> tri_shader;
-	device_vector<float4> tri_vnormal;
-	device_vector<uint4> tri_vindex;
-	device_vector<uint> tri_patch;
-	device_vector<float2> tri_patch_uv;
+  /* mesh */
+  device_vector<uint> tri_shader;
+  device_vector<float4> tri_vnormal;
+  device_vector<uint4> tri_vindex;
+  device_vector<uint> tri_patch;
+  device_vector<float2> tri_patch_uv;
 
-	device_vector<float4> curves;
-	device_vector<float4> curve_keys;
+  device_vector<float4> curves;
+  device_vector<float4> curve_keys;
 
-	device_vector<uint> patches;
+  device_vector<uint> patches;
 
-	/* objects */
-	device_vector<float4> objects;
-	device_vector<float4> objects_vector;
+  /* objects */
+  device_vector<KernelObject> objects;
+  device_vector<Transform> object_motion_pass;
+  device_vector<DecomposedTransform> object_motion;
+  device_vector<uint> object_flag;
 
-	/* attributes */
-	device_vector<uint4> attributes_map;
-	device_vector<float> attributes_float;
-	device_vector<float4> attributes_float3;
-	device_vector<uchar4> attributes_uchar4;
+  /* cameras */
+  device_vector<DecomposedTransform> camera_motion;
 
-	/* lights */
-	device_vector<float4> light_distribution;
-	device_vector<float4> light_data;
-	device_vector<float2> light_background_marginal_cdf;
-	device_vector<float2> light_background_conditional_cdf;
+  /* attributes */
+  device_vector<uint4> attributes_map;
+  device_vector<float> attributes_float;
+  device_vector<float2> attributes_float2;
+  device_vector<float4> attributes_float3;
+  device_vector<uchar4> attributes_uchar4;
 
-	/* particles */
-	device_vector<float4> particles;
+  /* lights */
+  device_vector<KernelLightDistribution> light_distribution;
+  device_vector<KernelLight> lights;
+  device_vector<float2> light_background_marginal_cdf;
+  device_vector<float2> light_background_conditional_cdf;
 
-	/* shaders */
-	device_vector<uint4> svm_nodes;
-	device_vector<uint> shader_flag;
-	device_vector<uint> object_flag;
+  /* particles */
+  device_vector<KernelParticle> particles;
 
-	/* lookup tables */
-	device_vector<float> lookup_table;
+  /* shaders */
+  device_vector<int4> svm_nodes;
+  device_vector<KernelShader> shaders;
 
-	/* integrator */
-	device_vector<uint> sobol_directions;
+  /* lookup tables */
+  device_vector<float> lookup_table;
 
-	/* cpu images */
-	device_vector<uchar4> tex_byte4_image[TEX_NUM_BYTE4_CPU];
-	device_vector<float4> tex_float4_image[TEX_NUM_FLOAT4_CPU];
-	device_vector<float> tex_float_image[TEX_NUM_FLOAT_CPU];
-	device_vector<uchar> tex_byte_image[TEX_NUM_BYTE_CPU];
-	device_vector<half4> tex_half4_image[TEX_NUM_HALF4_CPU];
-	device_vector<half> tex_half_image[TEX_NUM_HALF_CPU];
+  /* integrator */
+  device_vector<uint> sobol_directions;
 
-	/* opencl images */
-	device_vector<uchar4> tex_image_byte4_packed;
-	device_vector<float4> tex_image_float4_packed;
-	device_vector<uchar> tex_image_byte_packed;
-	device_vector<float> tex_image_float_packed;
-	device_vector<uint4> tex_image_packed_info;
+  /* ies lights */
+  device_vector<float> ies_lights;
 
-	KernelData data;
+  KernelData data;
+
+  DeviceScene(Device *device);
 };
 
 /* Scene Parameters */
 
 class SceneParams {
-public:
-	ShadingSystem shadingsystem;
-	enum BVHType {
-		BVH_DYNAMIC = 0,
-		BVH_STATIC = 1,
+ public:
+  /* Type of BVH, in terms whether it is supported dynamic updates of meshes
+   * or whether modifying geometry requires full BVH rebuild.
+   */
+  enum BVHType {
+    /* BVH supports dynamic updates of geometry.
+     *
+     * Faster for updating BVH tree when doing modifications in viewport,
+     * but slower for rendering.
+     */
+    BVH_DYNAMIC = 0,
+    /* BVH tree is calculated for specific scene, updates in geometry
+     * requires full tree rebuild.
+     *
+     * Slower to update BVH tree when modifying objects in viewport, also
+     * slower to build final BVH tree but gives best possible render speed.
+     */
+    BVH_STATIC = 1,
 
-		BVH_NUM_TYPES,
-	} bvh_type;
-	bool use_bvh_spatial_split;
-	bool use_bvh_unaligned_nodes;
-	bool use_qbvh;
-	bool persistent_data;
+    BVH_NUM_TYPES,
+  };
 
-	SceneParams()
-	{
-		shadingsystem = SHADINGSYSTEM_SVM;
-		bvh_type = BVH_DYNAMIC;
-		use_bvh_spatial_split = false;
-		use_bvh_unaligned_nodes = true;
-		use_qbvh = false;
-		persistent_data = false;
-	}
+  ShadingSystem shadingsystem;
 
-	bool modified(const SceneParams& params)
-	{ return !(shadingsystem == params.shadingsystem
-		&& bvh_type == params.bvh_type
-		&& use_bvh_spatial_split == params.use_bvh_spatial_split
-		&& use_bvh_unaligned_nodes == params.use_bvh_unaligned_nodes
-		&& use_qbvh == params.use_qbvh
-		&& persistent_data == params.persistent_data); }
+  /* Requested BVH layout.
+   *
+   * If it's not supported by the device, the widest one from supported ones
+   * will be used, but BVH wider than this one will never be used.
+   */
+  BVHLayout bvh_layout;
+
+  BVHType bvh_type;
+  bool use_bvh_spatial_split;
+  bool use_bvh_unaligned_nodes;
+  int num_bvh_time_steps;
+  bool persistent_data;
+  int texture_limit;
+
+  SceneParams()
+  {
+    shadingsystem = SHADINGSYSTEM_SVM;
+    bvh_layout = BVH_LAYOUT_BVH2;
+    bvh_type = BVH_DYNAMIC;
+    use_bvh_spatial_split = false;
+    use_bvh_unaligned_nodes = true;
+    num_bvh_time_steps = 0;
+    persistent_data = false;
+    texture_limit = 0;
+  }
+
+  bool modified(const SceneParams &params)
+  {
+    return !(shadingsystem == params.shadingsystem && bvh_layout == params.bvh_layout &&
+             bvh_type == params.bvh_type &&
+             use_bvh_spatial_split == params.use_bvh_spatial_split &&
+             use_bvh_unaligned_nodes == params.use_bvh_unaligned_nodes &&
+             num_bvh_time_steps == params.num_bvh_time_steps &&
+             persistent_data == params.persistent_data && texture_limit == params.texture_limit);
+  }
 };
 
 /* Scene */
 
 class Scene {
-public:
-	/* data */
-	Camera *camera;
-	LookupTables *lookup_tables;
-	Film *film;
-	Background *background;
-	Integrator *integrator;
+ public:
+  /* Optional name. Is used for logging and reporting. */
+  string name;
 
-	/* data lists */
-	vector<Object*> objects;
-	vector<Mesh*> meshes;
-	vector<Shader*> shaders;
-	vector<Light*> lights;
-	vector<ParticleSystem*> particle_systems;
+  /* data */
+  Camera *camera;
+  Camera *dicing_camera;
+  LookupTables *lookup_tables;
+  Film *film;
+  Background *background;
+  Integrator *integrator;
 
-	/* data managers */
-	ImageManager *image_manager;
-	LightManager *light_manager;
-	ShaderManager *shader_manager;
-	MeshManager *mesh_manager;
-	ObjectManager *object_manager;
-	ParticleSystemManager *particle_system_manager;
-	CurveSystemManager *curve_system_manager;
-	BakeManager *bake_manager;
+  /* data lists */
+  vector<Object *> objects;
+  vector<Mesh *> meshes;
+  vector<Shader *> shaders;
+  vector<Light *> lights;
+  vector<ParticleSystem *> particle_systems;
 
-	/* default shaders */
-	Shader *default_surface;
-	Shader *default_light;
-	Shader *default_background;
-	Shader *default_empty;
+  /* data managers */
+  ImageManager *image_manager;
+  LightManager *light_manager;
+  ShaderManager *shader_manager;
+  MeshManager *mesh_manager;
+  ObjectManager *object_manager;
+  ParticleSystemManager *particle_system_manager;
+  CurveSystemManager *curve_system_manager;
+  BakeManager *bake_manager;
 
-	/* device */
-	Device *device;
-	DeviceScene dscene;
+  /* default shaders */
+  Shader *default_surface;
+  Shader *default_light;
+  Shader *default_background;
+  Shader *default_empty;
 
-	/* parameters */
-	SceneParams params;
+  /* device */
+  Device *device;
+  DeviceScene dscene;
 
-	/* mutex must be locked manually by callers */
-	thread_mutex mutex;
+  /* parameters */
+  SceneParams params;
 
-	Scene(const SceneParams& params, const DeviceInfo& device_info);
-	~Scene();
+  /* mutex must be locked manually by callers */
+  thread_mutex mutex;
 
-	void device_update(Device *device, Progress& progress);
+  Scene(const SceneParams &params, Device *device);
+  ~Scene();
 
-	bool need_global_attribute(AttributeStandard std);
-	void need_global_attributes(AttributeRequestSet& attributes);
+  void device_update(Device *device, Progress &progress);
 
-	enum MotionType { MOTION_NONE = 0, MOTION_PASS, MOTION_BLUR };
-	MotionType need_motion(bool advanced_shading = true);
-	float motion_shutter_time();
+  bool need_global_attribute(AttributeStandard std);
+  void need_global_attributes(AttributeRequestSet &attributes);
 
-	bool need_update();
-	bool need_reset();
+  enum MotionType { MOTION_NONE = 0, MOTION_PASS, MOTION_BLUR };
+  MotionType need_motion();
+  float motion_shutter_time();
 
-	void reset();
-	void device_free();
+  bool need_update();
+  bool need_reset();
 
-protected:
-	/* Check if some heavy data worth logging was updated.
-	 * Mainly used to suppress extra annoying logging.
-	 */
-	bool need_data_update();
+  void reset();
+  void device_free();
 
-	void free_memory(bool final);
+  void collect_statistics(RenderStats *stats);
+
+ protected:
+  /* Check if some heavy data worth logging was updated.
+   * Mainly used to suppress extra annoying logging.
+   */
+  bool need_data_update();
+
+  void free_memory(bool final);
 };
 
 CCL_NAMESPACE_END
 
 #endif /*  __SCENE_H__ */
-

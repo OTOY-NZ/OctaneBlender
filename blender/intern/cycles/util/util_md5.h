@@ -30,32 +30,32 @@
 #ifndef __UTIL_MD5_H__
 #define __UTIL_MD5_H__
 
-#include "util_string.h"
-#include "util_types.h"
+#include "util/util_string.h"
+#include "util/util_types.h"
 
 CCL_NAMESPACE_BEGIN
 
 class MD5Hash {
-public:
-	MD5Hash();
-	~MD5Hash();
+ public:
+  MD5Hash();
+  ~MD5Hash();
 
-	void append(const uint8_t *data, int size);
-	bool append_file(const string& filepath);
-	string get_hex();
+  void append(const uint8_t *data, int size);
+  void append(const string &str);
+  bool append_file(const string &filepath);
+  string get_hex();
 
-protected:
-	void process(const uint8_t *data);
-	void finish(uint8_t digest[16]);
+ protected:
+  void process(const uint8_t *data);
+  void finish(uint8_t digest[16]);
 
-	uint32_t count[2]; /* message length in bits, lsw first */
-	uint32_t abcd[4]; /* digest buffer */
-	uint8_t buf[64]; /* accumulate block */
+  uint32_t count[2]; /* message length in bits, lsw first */
+  uint32_t abcd[4];  /* digest buffer */
+  uint8_t buf[64];   /* accumulate block */
 };
 
-string util_md5_string(const string& str);
+string util_md5_string(const string &str);
 
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_MD5_H__ */
-

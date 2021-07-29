@@ -16,41 +16,40 @@
 #
 # The Original Code is Copyright (C) 2016, Blender Foundation
 # All rights reserved.
-#
-# Contributor(s): Blender Foundation,
-#                 Sergey Sharybin
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	src
-	src/gflags
+  src
+  src/gflags
 )
 
 set(INC_SYS
 )
 
 set(SRC
-	src/gflags.cc
-	src/gflags_completions.cc
-	src/gflags_reporting.cc
+  src/gflags.cc
+  src/gflags_completions.cc
+  src/gflags_reporting.cc
 
-	src/config.h
-	src/gflags/gflags_completions.h
-	src/gflags/gflags_declare.h
-	src/gflags/gflags_gflags.h
-	src/gflags/gflags.h
-	src/mutex.h
-	src/util.h
+  src/gflags/config.h
+  src/gflags/gflags_completions.h
+  src/gflags/gflags_declare.h
+  src/gflags/gflags_gflags.h
+  src/gflags/gflags.h
+  src/mutex.h
+  src/util.h
+)
+
+set(LIB
 )
 
 if(WIN32)
-	list(APPEND SRC
-		src/windows_port.cc
-		src/windows_port.h
-	)
+  list(APPEND SRC
+    src/windows_port.cc
+    src/windows_port.h
+  )
 endif()
 
 add_definitions(${GFLAGS_DEFINES})
 
-blender_add_lib(extern_gflags "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(extern_gflags "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

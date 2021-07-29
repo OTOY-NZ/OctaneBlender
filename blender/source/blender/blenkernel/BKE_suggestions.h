@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,18 +15,12 @@
  *
  * The Original Code is Copyright (C) 2008, Blender Foundation
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 #ifndef __BKE_SUGGESTIONS_H__
 #define __BKE_SUGGESTIONS_H__
 
-/** \file BKE_suggestions.h
- *  \ingroup bke
+/** \file
+ * \ingroup bke
  */
 
 #ifdef __cplusplus
@@ -53,16 +45,16 @@ extern "C" {
 struct Text;
 
 typedef struct SuggItem {
-	struct SuggItem *prev, *next;
-	char type;
-	char name[0];
+  struct SuggItem *prev, *next;
+  char type;
+  char name[0];
 } SuggItem;
 
 typedef struct SuggList {
-	SuggItem *first, *last;
-	SuggItem *firstmatch, *lastmatch;
-	SuggItem *selected;
-	int top;
+  SuggItem *first, *last;
+  SuggItem *firstmatch, *lastmatch;
+  SuggItem *selected;
+  int top;
 } SuggList;
 
 /* Free all text tool memory */

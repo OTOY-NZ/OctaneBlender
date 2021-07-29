@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,14 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_WindowSDL.h
- *  \ingroup GHOST
+/** \file
+ * \ingroup GHOST
  * Declaration of GHOST_WindowSDL class.
  */
 
@@ -34,7 +28,7 @@
 #include <map>
 
 extern "C" {
-	#include "SDL.h"
+#include "SDL.h"
 }
 
 #if !SDL_VERSION_ATLEAST(2, 0, 0)
@@ -44,131 +38,121 @@ extern "C" {
 class STR_String;
 class GHOST_SystemSDL;
 
-class GHOST_WindowSDL : public GHOST_Window
-{
-private:
-	GHOST_SystemSDL  *m_system;
-	bool m_valid_setup;
-	bool m_invalid_window;
+class GHOST_WindowSDL : public GHOST_Window {
+ private:
+  GHOST_SystemSDL *m_system;
+  bool m_valid_setup;
+  bool m_invalid_window;
 
-	SDL_Window       *m_sdl_win;
-	SDL_Cursor       *m_sdl_custom_cursor;
+  SDL_Window *m_sdl_win;
+  SDL_Cursor *m_sdl_custom_cursor;
 
-public:
+ public:
+  const GHOST_TabletData *GetTabletData()
+  {
+    return NULL;
+  }
 
-	const GHOST_TabletData *GetTabletData() {
-		return NULL;
-	}
+  GHOST_WindowSDL(GHOST_SystemSDL *system,
+                  const STR_String &title,
+                  GHOST_TInt32 left,
+                  GHOST_TInt32 top,
+                  GHOST_TUns32 width,
+                  GHOST_TUns32 height,
+                  GHOST_TWindowState state,
+                  const GHOST_TEmbedderWindowID parentWindow,
+                  GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
+                  const bool stereoVisual = false,
+                  const bool exclusive = false);
 
-	GHOST_WindowSDL(GHOST_SystemSDL *system,
-	                const STR_String& title,
-	                GHOST_TInt32 left, GHOST_TInt32 top,
-	                GHOST_TUns32 width, GHOST_TUns32 height,
-	                GHOST_TWindowState state,
-	                const GHOST_TEmbedderWindowID parentWindow,
-	                GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
-	                const bool stereoVisual = false,
-	                const bool exclusive = false,
-	                const GHOST_TUns16 numOfAASamples = 0
-	                );
+  ~GHOST_WindowSDL();
 
-	~GHOST_WindowSDL();
+  /* SDL specific */
+  SDL_Window *getSDLWindow()
+  {
+    return m_sdl_win;
+  }
 
-	/* SDL specific */
-	SDL_Window *
-	getSDLWindow()
-	{
-		return m_sdl_win;
-	}
+  GHOST_TSuccess invalidate(void);
 
+  /**
+   * called by the X11 system implementation when expose events
+   * for the window have been pushed onto the GHOST queue
+   */
 
-	GHOST_TSuccess invalidate(void);
+  void validate()
+  {
+    m_invalid_window = false;
+  }
 
-	/**
-	 * called by the X11 system implementation when expose events
-	 * for the window have been pushed onto the GHOST queue
-	 */
+  bool getValid() const;
 
-	void validate()
-	{
-		m_invalid_window = false;
-	}
+  void getWindowBounds(GHOST_Rect &bounds) const;
+  void getClientBounds(GHOST_Rect &bounds) const;
 
-	bool getValid() const;
+ protected:
+  /**
+   * \param type  The type of rendering context create.
+   * \return Indication of success.
+   */
+  GHOST_Context *newDrawingContext(GHOST_TDrawingContextType type);
 
-	void getWindowBounds(GHOST_Rect& bounds) const;
-	void getClientBounds(GHOST_Rect& bounds) const;
+  GHOST_TSuccess setWindowCursorGrab(GHOST_TGrabCursorMode mode);
 
-protected:
+  GHOST_TSuccess setWindowCursorShape(GHOST_TStandardCursor shape);
 
-	/**
-	 * \param type	The type of rendering context create.
-	 * \return Indication of success.
-	 */
-	GHOST_Context *newDrawingContext(GHOST_TDrawingContextType type);
+  GHOST_TSuccess setWindowCustomCursorShape(GHOST_TUns8 *bitmap,
+                                            GHOST_TUns8 *mask,
+                                            int sizex,
+                                            int sizey,
+                                            int hotX,
+                                            int hotY,
+                                            bool canInvertColor);
 
-	GHOST_TSuccess
-	setWindowCursorGrab(GHOST_TGrabCursorMode mode);
+  GHOST_TSuccess setWindowCursorVisibility(bool visible);
 
-	GHOST_TSuccess
-	setWindowCursorShape(GHOST_TStandardCursor shape);
+  void setTitle(const STR_String &title);
 
-	GHOST_TSuccess
-	setWindowCustomCursorShape(GHOST_TUns8 bitmap[16][2],
-	                           GHOST_TUns8 mask[16][2],
-	                           int hotX, int hotY);
+  void getTitle(STR_String &title) const;
 
-	GHOST_TSuccess
-	setWindowCustomCursorShape(GHOST_TUns8 *bitmap,
-	                           GHOST_TUns8 *mask,
-	                           int sizex, int sizey,
-	                           int hotX, int hotY,
-	                           int fg_color, int bg_color);
+  GHOST_TSuccess setClientWidth(GHOST_TUns32 width);
 
-	GHOST_TSuccess
-	setWindowCursorVisibility(bool visible);
+  GHOST_TSuccess setClientHeight(GHOST_TUns32 height);
 
-	void
-	setTitle(const STR_String& title);
+  GHOST_TSuccess setClientSize(GHOST_TUns32 width, GHOST_TUns32 height);
 
-	void
-	getTitle(STR_String& title) const;
+  void screenToClient(GHOST_TInt32 inX,
+                      GHOST_TInt32 inY,
+                      GHOST_TInt32 &outX,
+                      GHOST_TInt32 &outY) const;
 
-	GHOST_TSuccess
-	setClientWidth(GHOST_TUns32 width);
+  void clientToScreen(GHOST_TInt32 inX,
+                      GHOST_TInt32 inY,
+                      GHOST_TInt32 &outX,
+                      GHOST_TInt32 &outY) const;
 
-	GHOST_TSuccess
-	setClientHeight(GHOST_TUns32 height);
+  GHOST_TSuccess setState(GHOST_TWindowState state);
 
-	GHOST_TSuccess
-	setClientSize(GHOST_TUns32 width,
-	              GHOST_TUns32 height);
+  GHOST_TWindowState getState() const;
 
-	void
-	screenToClient(GHOST_TInt32 inX, GHOST_TInt32 inY,
-	               GHOST_TInt32& outX, GHOST_TInt32& outY) const;
+  GHOST_TSuccess setOrder(GHOST_TWindowOrder order)
+  {
+    // TODO
+    return GHOST_kSuccess;
+  }
 
-	void
-	clientToScreen(GHOST_TInt32 inX, GHOST_TInt32 inY,
-	               GHOST_TInt32& outX, GHOST_TInt32& outY) const;
+  // TODO
+  GHOST_TSuccess beginFullScreen() const
+  {
+    return GHOST_kFailure;
+  }
 
-	GHOST_TSuccess
-	setState(GHOST_TWindowState state);
+  GHOST_TSuccess endFullScreen() const
+  {
+    return GHOST_kFailure;
+  }
 
-	GHOST_TWindowState
-	getState() const;
-
-	GHOST_TSuccess setOrder(GHOST_TWindowOrder order)
-	{
-		// TODO
-		return GHOST_kSuccess;
-	}
-
-	// TODO
-	GHOST_TSuccess beginFullScreen() const { return GHOST_kFailure; }
-
-	GHOST_TSuccess endFullScreen() const { return GHOST_kFailure; }
+  GHOST_TUns16 getDPIHint();
 };
 
-
-#endif // __GHOST_WINDOWSDL_H__
+#endif  // __GHOST_WINDOWSDL_H__

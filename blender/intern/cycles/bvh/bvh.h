@@ -18,13 +18,14 @@
 #ifndef __BVH_H__
 #define __BVH_H__
 
-#include "bvh_params.h"
-
-#include "util_types.h"
-#include "util_vector.h"
+#include "bvh/bvh_params.h"
+#include "util/util_array.h"
+#include "util/util_types.h"
+#include "util/util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
+class Stats;
 class BVHNode;
 struct BVHStackEntry;
 class BVHParams;
@@ -33,154 +34,92 @@ class LeafNode;
 class Object;
 class Progress;
 
-#define BVH_NODE_SIZE	4
-#define BVH_NODE_LEAF_SIZE	1
-#define BVH_QNODE_SIZE	8
-#define BVH_QNODE_LEAF_SIZE	1
-#define BVH_ALIGN		4096
-#define TRI_NODE_SIZE	3
-
-#define BVH_UNALIGNED_NODE_SIZE 7
-#define BVH_UNALIGNED_QNODE_SIZE 14
-
+#define BVH_ALIGN 4096
+#define TRI_NODE_SIZE 3
 /* Packed BVH
  *
  * BVH stored as it will be used for traversal on the rendering device. */
 
 struct PackedBVH {
-	/* BVH nodes storage, one node is 4x int4, and contains two bounding boxes,
-	 * and child, triangle or object indexes depending on the node type */
-	array<int4> nodes;
-	/* BVH leaf nodes storage. */
-	array<int4> leaf_nodes;
-	/* object index to BVH node index mapping for instances */
-	array<int> object_node; 
-	/* Mapping from primitive index to index in triangle array. */
-	array<uint> prim_tri_index;
-	/* Continuous storage of triangle vertices. */
-	array<float4> prim_tri_verts;
-	/* primitive type - triangle or strand */
-	array<int> prim_type;
-	/* visibility visibilitys for primitives */
-	array<uint> prim_visibility;
-	/* mapping from BVH primitive index to true primitive index, as primitives
-	 * may be duplicated due to spatial splits. -1 for instances. */
-	array<int> prim_index;
-	/* mapping from BVH primitive index, to the object id of that primitive. */
-	array<int> prim_object;
+  /* BVH nodes storage, one node is 4x int4, and contains two bounding boxes,
+   * and child, triangle or object indexes depending on the node type */
+  array<int4> nodes;
+  /* BVH leaf nodes storage. */
+  array<int4> leaf_nodes;
+  /* object index to BVH node index mapping for instances */
+  array<int> object_node;
+  /* Mapping from primitive index to index in triangle array. */
+  array<uint> prim_tri_index;
+  /* Continuous storage of triangle vertices. */
+  array<float4> prim_tri_verts;
+  /* primitive type - triangle or strand */
+  array<int> prim_type;
+  /* visibility visibilitys for primitives */
+  array<uint> prim_visibility;
+  /* mapping from BVH primitive index to true primitive index, as primitives
+   * may be duplicated due to spatial splits. -1 for instances. */
+  array<int> prim_index;
+  /* mapping from BVH primitive index, to the object id of that primitive. */
+  array<int> prim_object;
+  /* Time range of BVH primitive. */
+  array<float2> prim_time;
 
-	/* index of the root node. */
-	int root_index;
+  /* index of the root node. */
+  int root_index;
 
-	PackedBVH()
-	{
-		root_index = 0;
-	}
+  PackedBVH()
+  {
+    root_index = 0;
+  }
 };
+
+enum BVH_TYPE { bvh2, bvh4, bvh8 };
 
 /* BVH */
 
-class BVH
-{
-public:
-	PackedBVH pack;
-	BVHParams params;
-	vector<Object*> objects;
+class BVH {
+ public:
+  PackedBVH pack;
+  BVHParams params;
+  vector<Object *> objects;
 
-	static BVH *create(const BVHParams& params, const vector<Object*>& objects);
-	virtual ~BVH() {}
+  static BVH *create(const BVHParams &params, const vector<Object *> &objects);
+  virtual ~BVH()
+  {
+  }
 
-	void build(Progress& progress);
-	void refit(Progress& progress);
+  virtual void build(Progress &progress, Stats *stats = NULL);
+  void refit(Progress &progress);
 
-protected:
-	BVH(const BVHParams& params, const vector<Object*>& objects);
+ protected:
+  BVH(const BVHParams &params, const vector<Object *> &objects);
 
-	/* triangles and strands */
-	void pack_primitives();
-	void pack_triangle(int idx, float4 storage[3]);
+  /* Refit range of primitives. */
+  void refit_primitives(int start, int end, BoundBox &bbox, uint &visibility);
 
-	/* merge instance BVH's */
-	void pack_instances(size_t nodes_size, size_t leaf_nodes_size);
+  /* triangles and strands */
+  void pack_primitives();
+  void pack_triangle(int idx, float4 storage[3]);
 
-	/* for subclasses to implement */
-	virtual void pack_nodes(const BVHNode *root) = 0;
-	virtual void refit_nodes() = 0;
+  /* merge instance BVH's */
+  void pack_instances(size_t nodes_size, size_t leaf_nodes_size);
+
+  /* for subclasses to implement */
+  virtual void pack_nodes(const BVHNode *root) = 0;
+  virtual void refit_nodes() = 0;
+
+  virtual BVHNode *widen_children_nodes(const BVHNode *root) = 0;
 };
 
-/* Regular BVH
- *
- * Typical BVH with each node having two children. */
+/* Pack Utility */
+struct BVHStackEntry {
+  const BVHNode *node;
+  int idx;
 
-class RegularBVH : public BVH {
-protected:
-	/* constructor */
-	friend class BVH;
-	RegularBVH(const BVHParams& params, const vector<Object*>& objects);
-
-	/* pack */
-	void pack_nodes(const BVHNode *root);
-
-	void pack_leaf(const BVHStackEntry& e,
-	               const LeafNode *leaf);
-	void pack_inner(const BVHStackEntry& e,
-	                const BVHStackEntry& e0,
-	                const BVHStackEntry& e1);
-
-	void pack_aligned_inner(const BVHStackEntry& e,
-	                        const BVHStackEntry& e0,
-	                        const BVHStackEntry& e1);
-	void pack_aligned_node(int idx,
-	                       const BoundBox& b0,
-	                       const BoundBox& b1,
-	                       int c0, int c1,
-	                       uint visibility0, uint visibility1);
-
-	void pack_unaligned_inner(const BVHStackEntry& e,
-	                          const BVHStackEntry& e0,
-	                          const BVHStackEntry& e1);
-	void pack_unaligned_node(int idx,
-	                         const Transform& aligned_space0,
-	                         const Transform& aligned_space1,
-	                         const BoundBox& b0,
-	                         const BoundBox& b1,
-	                         int c0, int c1,
-	                         uint visibility0, uint visibility1);
-
-	/* refit */
-	void refit_nodes();
-	void refit_node(int idx, bool leaf, BoundBox& bbox, uint& visibility);
-};
-
-/* QBVH
- *
- * Quad BVH, with each node having four children, to use with SIMD instructions. */
-
-class QBVH : public BVH {
-protected:
-	/* constructor */
-	friend class BVH;
-	QBVH(const BVHParams& params, const vector<Object*>& objects);
-
-	/* pack */
-	void pack_nodes(const BVHNode *root);
-
-	void pack_leaf(const BVHStackEntry& e, const LeafNode *leaf);
-	void pack_inner(const BVHStackEntry& e, const BVHStackEntry *en, int num);
-
-	void pack_aligned_inner(const BVHStackEntry& e,
-	                        const BVHStackEntry *en,
-	                        int num);
-	void pack_unaligned_inner(const BVHStackEntry& e,
-	                          const BVHStackEntry *en,
-	                          int num);
-
-	/* refit */
-	void refit_nodes();
-	void refit_node(int idx, bool leaf, BoundBox& bbox, uint& visibility);
+  BVHStackEntry(const BVHNode *n = 0, int i = 0);
+  int encodeIdx() const;
 };
 
 CCL_NAMESPACE_END
 
 #endif /* __BVH_H__ */
-

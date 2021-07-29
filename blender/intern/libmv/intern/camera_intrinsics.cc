@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #include "intern/camera_intrinsics.h"
@@ -179,7 +172,7 @@ void libmv_cameraIntrinsicsExtractOptions(
         camera_intrinsics_options->polynomial_k2 = polynomial_intrinsics->k2();
         camera_intrinsics_options->polynomial_k3 = polynomial_intrinsics->k3();
         camera_intrinsics_options->polynomial_p1 = polynomial_intrinsics->p1();
-        camera_intrinsics_options->polynomial_p1 = polynomial_intrinsics->p2();
+        camera_intrinsics_options->polynomial_p2 = polynomial_intrinsics->p2();
         break;
       }
 
@@ -195,7 +188,7 @@ void libmv_cameraIntrinsicsExtractOptions(
       }
 
     default:
-      assert(!"Uknown distortion model");
+      assert(!"Unknown distortion model");
   }
 }
 

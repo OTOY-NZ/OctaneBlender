@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,12 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file source/blender/freestyle/intern/python/UnaryFunction0D/UnaryFunction0D_Nature_EdgeNature/BPy_CurveNatureF0D.h
- *  \ingroup freestyle
+/** \file
+ * \ingroup freestyle
  */
 
 #ifndef __FREESTYLE_PYTHON_CURVENATUREF0D_H__
@@ -35,13 +31,13 @@ extern "C" {
 
 extern PyTypeObject CurveNatureF0D_Type;
 
-#define BPy_CurveNatureF0D_Check(v) (PyObject_IsInstance((PyObject *)v, (PyObject *)&CurveNatureF0D_Type))
+#define BPy_CurveNatureF0D_Check(v) \
+  (PyObject_IsInstance((PyObject *)v, (PyObject *)&CurveNatureF0D_Type))
 
 /*---------------------------Python BPy_CurveNatureF0D structure definition----------*/
 typedef struct {
-	BPy_UnaryFunction0DEdgeNature py_uf0D_edgenature;
+  BPy_UnaryFunction0DEdgeNature py_uf0D_edgenature;
 } BPy_CurveNatureF0D;
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,18 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __FREESTYLE_RENDER_MONITOR_H__
 #define __FREESTYLE_RENDER_MONITOR_H__
 
-/** \file blender/freestyle/intern/system/RenderMonitor.h
- *  \ingroup freestyle
- *  \brief Classes defining the basic "Iterator" design pattern
- *  \author Stephane Grabli
- *  \date 18/03/2003
+/** \file
+ * \ingroup freestyle
+ * \brief Classes defining the basic "Iterator" design pattern
  */
 
 extern "C" {
@@ -33,49 +27,51 @@ extern "C" {
 }
 
 #ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
+#  include "MEM_guardedalloc.h"
 #endif
 
 namespace Freestyle {
 
-class RenderMonitor
-{
-public:
-	inline RenderMonitor(Render *re)
-	{
-		_re = re;
-	}
+class RenderMonitor {
+ public:
+  inline RenderMonitor(Render *re)
+  {
+    _re = re;
+  }
 
-	virtual ~RenderMonitor() {}
+  virtual ~RenderMonitor()
+  {
+  }
 
-	inline void setInfo(string info)
-	{
-		if (_re && !info.empty()) {
-			_re->i.infostr = info.c_str();
-			_re->stats_draw(_re->sdh, &_re->i);
-			_re->i.infostr = NULL;
-		}
-	}
+  inline void setInfo(string info)
+  {
+    if (_re && !info.empty()) {
+      _re->i.infostr = info.c_str();
+      _re->stats_draw(_re->sdh, &_re->i);
+      _re->i.infostr = NULL;
+    }
+  }
 
-	inline void progress(float i)
-	{
-		if (_re)
-			_re->progress(_re->prh, i);
-	}
+  inline void progress(float i)
+  {
+    if (_re) {
+      _re->progress(_re->prh, i);
+    }
+  }
 
-	inline bool testBreak()
-	{
-		return _re && _re->test_break(_re->tbh);
-	}
+  inline bool testBreak()
+  {
+    return _re && _re->test_break(_re->tbh);
+  }
 
-protected:
-	Render *_re;
+ protected:
+  Render *_re;
 
 #ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:RenderMonitor")
+  MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:RenderMonitor")
 #endif
 };
 
 } /* namespace Freestyle */
 
-#endif // __FREESTYLE_RENDER_MONITOR_H__
+#endif  // __FREESTYLE_RENDER_MONITOR_H__

@@ -1,6 +1,4 @@
-/**
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
+/*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,37 +15,29 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 typedef struct _ScrollBar ScrollBar;
 
+/***/
 
-	/***/
-	
-ScrollBar*	scrollbar_new				(int inset, int minthumb);
+ScrollBar *scrollbar_new(int inset, int minthumb);
 
-int			scrollbar_is_scrolling		(ScrollBar *sb);
-int			scrollbar_contains_pt		(ScrollBar *sb, int pt[2]);
+int scrollbar_is_scrolling(ScrollBar *sb);
+int scrollbar_contains_pt(ScrollBar *sb, int pt[2]);
 
-void		scrollbar_start_scrolling	(ScrollBar *sb, int yco);
-void		scrollbar_keep_scrolling	(ScrollBar *sb, int yco);
-void		scrollbar_stop_scrolling	(ScrollBar *sb);
+void scrollbar_start_scrolling(ScrollBar *sb, int yco);
+void scrollbar_keep_scrolling(ScrollBar *sb, int yco);
+void scrollbar_stop_scrolling(ScrollBar *sb);
 
-void		scrollbar_set_thumbpct		(ScrollBar *sb, float pct);
-void		scrollbar_set_thumbpos		(ScrollBar *sb, float pos);
-void		scrollbar_set_rect			(ScrollBar *sb, int rect[2][2]);
+void scrollbar_set_thumbpct(ScrollBar *sb, float pct);
+void scrollbar_set_thumbpos(ScrollBar *sb, float pos);
+void scrollbar_set_rect(ScrollBar *sb, int rect[2][2]);
 
-float		scrollbar_get_thumbpct		(ScrollBar *sb);
-float		scrollbar_get_thumbpos		(ScrollBar *sb);
-void		scrollbar_get_rect			(ScrollBar *sb, int rect_r[2][2]);
+float scrollbar_get_thumbpct(ScrollBar *sb);
+float scrollbar_get_thumbpos(ScrollBar *sb);
+void scrollbar_get_rect(ScrollBar *sb, int rect_r[2][2]);
 
-void		scrollbar_get_thumb			(ScrollBar *sb, int thumb_r[2][2]);
+void scrollbar_get_thumb(ScrollBar *sb, int thumb_r[2][2]);
 
-void		scrollbar_free				(ScrollBar *sb);
-
+void scrollbar_free(ScrollBar *sb);

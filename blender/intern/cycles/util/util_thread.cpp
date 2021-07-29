@@ -14,53 +14,59 @@
  * limitations under the License.
  */
 
-#include "util_thread.h"
+#include "util/util_thread.h"
 
-#include "util_system.h"
-#include "util_windows.h"
+#include "util/util_system.h"
+#include "util/util_windows.h"
 
 CCL_NAMESPACE_BEGIN
 
-thread::thread(function<void(void)> run_cb, int group)
-  : run_cb_(run_cb),
-    joined_(false),
-	group_(group)
+thread::thread(function<void()> run_cb, int node) : run_cb_(run_cb), joined_(false), node_(node)
 {
-	pthread_create(&pthread_id_, NULL, run, (void*)this);
+#ifdef __APPLE__
+  /* Set the stack size to 2MB to match Linux. The default 512KB on macOS is
+   * too small for Embree, and consistent stack size also makes things more
+   * predictable in general. */
+  pthread_attr_t attribute;
+  pthread_attr_init(&attribute);
+  pthread_attr_setstacksize(&attribute, 1024 * 1024 * 2);
+  pthread_create(&pthread_id, &attribute, run, (void *)this);
+#else
+  std_thread = std::thread(&thread::run, this);
+#endif
 }
 
 thread::~thread()
 {
-	if(!joined_) {
-		join();
-	}
+  if (!joined_) {
+    join();
+  }
 }
 
 void *thread::run(void *arg)
 {
-	thread *self = (thread*)(arg);
-	if(self->group_ != -1) {
-#ifdef _WIN32
-		HANDLE thread_handle = GetCurrentThread();
-		GROUP_AFFINITY group_affinity = { 0 };
-		int num_threads = system_cpu_group_thread_count(self->group_);
-		group_affinity.Group = self->group_;
-		group_affinity.Mask = (num_threads == 64)
-		                              ? -1
-		                              :  (1ull << num_threads) - 1;
-		if(SetThreadGroupAffinity(thread_handle, &group_affinity, NULL) == 0) {
-			fprintf(stderr, "Error setting thread affinity.\n");
-		}
-#endif
-	}
-	self->run_cb_();
-	return NULL;
+  thread *self = (thread *)(arg);
+  if (self->node_ != -1) {
+    system_cpu_run_thread_on_node(self->node_);
+  }
+  self->run_cb_();
+  return NULL;
 }
 
 bool thread::join()
 {
-	joined_ = true;
-	return pthread_join(pthread_id_, NULL) == 0;
+  joined_ = true;
+#ifdef __APPLE__
+  return pthread_join(pthread_id, NULL) == 0;
+#else
+  try {
+    std_thread.join();
+    return true;
+  }
+  catch (const std::system_error &) {
+    return false;
+  }
+#endif
 }
 
 CCL_NAMESPACE_END

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,16 +15,10 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Lukas Toenne.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file NOD_common.h
- *  \ingroup nodes
+/** \file
+ * \ingroup nodes
  */
 
 #ifndef __NOD_COMMON_H__
@@ -40,15 +32,14 @@ void register_node_type_reroute(void);
 void register_node_type_group_input(void);
 void register_node_type_group_output(void);
 
-
 /* internal functions for editor */
 struct bNodeSocket *node_group_find_input_socket(struct bNode *groupnode, const char *identifier);
 struct bNodeSocket *node_group_find_output_socket(struct bNode *groupnode, const char *identifier);
-void node_group_verify(struct bNodeTree *ntree, struct bNode *node, struct ID *id);
+void node_group_update(struct bNodeTree *ntree, struct bNode *node);
 
 struct bNodeSocket *node_group_input_find_socket(struct bNode *node, const char *identifier);
 struct bNodeSocket *node_group_output_find_socket(struct bNode *node, const char *identifier);
-void node_group_input_verify(struct bNodeTree *ntree, struct bNode *node, struct ID *id);
-void node_group_output_verify(struct bNodeTree *ntree, struct bNode *node, struct ID *id);
+void node_group_input_update(struct bNodeTree *ntree, struct bNode *node);
+void node_group_output_update(struct bNodeTree *ntree, struct bNode *node);
 
-#endif  /* __NOD_COMMON_H__ */
+#endif /* __NOD_COMMON_H__ */

@@ -22,19 +22,13 @@ class ObjectSelectPanel(bpy.types.Panel):
 
     def draw_header(self, context):
         layout = self.layout
-        obj = context.object
-        layout.prop(obj, "select", text="")
+        layout.label(text="My Select Panel")
 
     def draw(self, context):
         layout = self.layout
 
-        obj = context.object
-        row = layout.row()
-        row.prop(obj, "hide_select")
-        row.prop(obj, "hide_render")
-
         box = layout.box()
-        box.label("Selection Tools")
+        box.label(text="Selection Tools")
         box.operator("object.select_all").action = 'TOGGLE'
         row = box.row()
         row.operator("object.select_all").action = 'INVERT'

@@ -16,22 +16,17 @@
 #
 # The Original Code is Copyright (C) 2006, Blender Foundation
 # All rights reserved.
-#
-# The Original Code is: all of this file.
-#
-# Contributor(s): 
-#
 # ***** END GPL LICENSE BLOCK *****
 
-set(INC 
-	.
-	..
-	../..
-	../../../blenkernel
-	../../../blenlib
-	../../../makesdna
-	../../../../../intern/guardedalloc
-	../../../../../intern/utfconv
+set(INC
+  .
+  ..
+  ../..
+  ../../../blenkernel
+  ../../../blenlib
+  ../../../makesdna
+  ../../../../../intern/guardedalloc
+  ../../../../../intern/utfconv
 )
 
 set(INC_SYS
@@ -39,28 +34,31 @@ set(INC_SYS
 )
 
 set(SRC
-	BlockDXT.h
-	Color.h
-	ColorBlock.h
-	Common.h
-	DirectDrawSurface.h
-	FlipDXT.h
-	Image.h
-	PixelFormat.h
-	Stream.h
-	dds_api.h
+  BlockDXT.h
+  Color.h
+  ColorBlock.h
+  Common.h
+  DirectDrawSurface.h
+  FlipDXT.h
+  Image.h
+  PixelFormat.h
+  Stream.h
+  dds_api.h
 
-	BlockDXT.cpp
-	ColorBlock.cpp
-	DirectDrawSurface.cpp
-	FlipDXT.cpp
-	Image.cpp
-	Stream.cpp
-	dds_api.cpp
+  BlockDXT.cpp
+  ColorBlock.cpp
+  DirectDrawSurface.cpp
+  FlipDXT.cpp
+  Image.cpp
+  Stream.cpp
+  dds_api.cpp
+)
+
+set(LIB
 )
 
 if(WITH_IMAGE_DDS)
-	add_definitions(-DWITH_DDS)
+  add_definitions(-DWITH_DDS)
 endif()
 
-blender_add_lib(bf_imbuf_dds "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_imbuf_dds "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

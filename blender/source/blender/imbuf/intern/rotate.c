@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,18 +15,11 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  * rotate.c
- *
  */
 
-/** \file blender/imbuf/intern/rotate.c
- *  \ingroup imbuf
+/** \file
+ * \ingroup imbuf
  */
 
 #include "BLI_utildefines.h"
@@ -41,82 +32,88 @@
 
 void IMB_flipy(struct ImBuf *ibuf)
 {
-	int x, y;
+  int x, y;
 
-	if (ibuf == NULL) return;
+  if (ibuf == NULL) {
+    return;
+  }
 
-	if (ibuf->rect) {
-		unsigned int *top, *bottom, *line;
+  if (ibuf->rect) {
+    unsigned int *top, *bottom, *line;
 
-		x = ibuf->x;
-		y = ibuf->y;
+    x = ibuf->x;
+    y = ibuf->y;
 
-		top = ibuf->rect;
-		bottom = top + ((y - 1) * x);
-		line = MEM_mallocN(x * sizeof(int), "linebuf");
-	
-		y >>= 1;
+    top = ibuf->rect;
+    bottom = top + ((y - 1) * x);
+    line = MEM_mallocN(x * sizeof(int), "linebuf");
 
-		for (; y > 0; y--) {
-			memcpy(line, top, x * sizeof(int));
-			memcpy(top, bottom, x * sizeof(int));
-			memcpy(bottom, line, x * sizeof(int));
-			bottom -= x;
-			top += x;
-		}
+    y >>= 1;
 
-		MEM_freeN(line);
-	}
+    for (; y > 0; y--) {
+      memcpy(line, top, x * sizeof(int));
+      memcpy(top, bottom, x * sizeof(int));
+      memcpy(bottom, line, x * sizeof(int));
+      bottom -= x;
+      top += x;
+    }
 
-	if (ibuf->rect_float) {
-		float *topf = NULL, *bottomf = NULL, *linef = NULL;
+    MEM_freeN(line);
+  }
 
-		x = ibuf->x;
-		y = ibuf->y;
+  if (ibuf->rect_float) {
+    float *topf = NULL, *bottomf = NULL, *linef = NULL;
 
-		topf = ibuf->rect_float;
-		bottomf = topf + 4 * ((y - 1) * x);
-		linef = MEM_mallocN(4 * x * sizeof(float), "linebuff");
+    x = ibuf->x;
+    y = ibuf->y;
 
-		y >>= 1;
+    topf = ibuf->rect_float;
+    bottomf = topf + 4 * ((y - 1) * x);
+    linef = MEM_mallocN(4 * x * sizeof(float), "linebuff");
 
-		for (; y > 0; y--) {
-			memcpy(linef, topf, 4 * x * sizeof(float));
-			memcpy(topf, bottomf, 4 * x * sizeof(float));
-			memcpy(bottomf, linef, 4 * x * sizeof(float));
-			bottomf -= 4 * x;
-			topf += 4 * x;
-		}
+    y >>= 1;
 
-		MEM_freeN(linef);
-	}
+    for (; y > 0; y--) {
+      memcpy(linef, topf, 4 * x * sizeof(float));
+      memcpy(topf, bottomf, 4 * x * sizeof(float));
+      memcpy(bottomf, linef, 4 * x * sizeof(float));
+      bottomf -= 4 * x;
+      topf += 4 * x;
+    }
+
+    MEM_freeN(linef);
+  }
 }
 
 void IMB_flipx(struct ImBuf *ibuf)
 {
-	int x, y, xr, xl, yi;
-	float px_f[4];
-	
-	if (ibuf == NULL) return;
+  int x, y, xr, xl, yi;
+  float px_f[4];
 
-	x = ibuf->x;
-	y = ibuf->y;
+  if (ibuf == NULL) {
+    return;
+  }
 
-	if (ibuf->rect) {
-		for (yi = y - 1; yi >= 0; yi--) {
-			for (xr = x - 1, xl = 0; xr >= xl; xr--, xl++) {
-				SWAP(unsigned int, ibuf->rect[(x * yi) + xr], ibuf->rect[(x * yi) + xl]);
-			}
-		}
-	}
-	
-	if (ibuf->rect_float) {
-		for (yi = y - 1; yi >= 0; yi--) {
-			for (xr = x - 1, xl = 0; xr >= xl; xr--, xl++) {
-				memcpy(&px_f, &ibuf->rect_float[((x * yi) + xr) * 4], 4 * sizeof(float));
-				memcpy(&ibuf->rect_float[((x * yi) + xr) * 4], &ibuf->rect_float[((x * yi) + xl) * 4], 4 * sizeof(float));
-				memcpy(&ibuf->rect_float[((x * yi) + xl) * 4], &px_f, 4 * sizeof(float));
-			}
-		}
-	}
+  x = ibuf->x;
+  y = ibuf->y;
+
+  if (ibuf->rect) {
+    for (yi = y - 1; yi >= 0; yi--) {
+      for (xr = x - 1, xl = 0; xr >= xl; xr--, xl++) {
+        SWAP(unsigned int, ibuf->rect[(x * yi) + xr], ibuf->rect[(x * yi) + xl]);
+      }
+    }
+  }
+
+  if (ibuf->rect_float) {
+    for (yi = y - 1; yi >= 0; yi--) {
+      for (xr = x - 1, xl = 0; xr >= xl; xr--, xl++) {
+        memcpy(&px_f, &ibuf->rect_float[((x * yi) + xr) * 4], 4 * sizeof(float));
+        memcpy(&ibuf->rect_float[((x * yi) + xr) * 4],
+               &ibuf->rect_float[((x * yi) + xl) * 4],
+               4 * sizeof(float));
+        memcpy(&ibuf->rect_float[((x * yi) + xl) * 4], &px_f, 4 * sizeof(float));
+      }
+    }
+  }
 }

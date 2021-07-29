@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,63 +15,57 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_Buttons.cpp
- *  \ingroup GHOST
+/** \file
+ * \ingroup GHOST
  */
-
 
 #include "GHOST_Buttons.h"
 
-
-
 GHOST_Buttons::GHOST_Buttons()
 {
-	clear();
+  clear();
 }
-
 
 bool GHOST_Buttons::get(GHOST_TButtonMask mask) const
 {
-	switch (mask) {
-		case GHOST_kButtonMaskLeft:
-			return m_ButtonLeft;
-		case GHOST_kButtonMaskMiddle:
-			return m_ButtonMiddle;
-		case GHOST_kButtonMaskRight:
-			return m_ButtonRight;
-		default:
-			return false;
-	}
+  switch (mask) {
+    case GHOST_kButtonMaskLeft:
+      return m_ButtonLeft;
+    case GHOST_kButtonMaskMiddle:
+      return m_ButtonMiddle;
+    case GHOST_kButtonMaskRight:
+      return m_ButtonRight;
+    default:
+      return false;
+  }
 }
 
 void GHOST_Buttons::set(GHOST_TButtonMask mask, bool down)
 {
-	switch (mask) {
-		case GHOST_kButtonMaskLeft:
-			m_ButtonLeft = down; break;
-		case GHOST_kButtonMaskMiddle:
-			m_ButtonMiddle = down; break;
-		case GHOST_kButtonMaskRight:
-			m_ButtonRight = down; break;
-		default:
-			break;
-	}
+  switch (mask) {
+    case GHOST_kButtonMaskLeft:
+      m_ButtonLeft = down;
+      break;
+    case GHOST_kButtonMaskMiddle:
+      m_ButtonMiddle = down;
+      break;
+    case GHOST_kButtonMaskRight:
+      m_ButtonRight = down;
+      break;
+    default:
+      break;
+  }
 }
 
 void GHOST_Buttons::clear()
 {
-	m_ButtonLeft = false;
-	m_ButtonMiddle = false;
-	m_ButtonRight = false;
+  m_ButtonLeft = false;
+  m_ButtonMiddle = false;
+  m_ButtonRight = false;
 }
 
-GHOST_Buttons::~GHOST_Buttons() {
+GHOST_Buttons::~GHOST_Buttons()
+{
 }

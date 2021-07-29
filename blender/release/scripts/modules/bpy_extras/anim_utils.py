@@ -20,36 +20,119 @@
 
 __all__ = (
     "bake_action",
-    )
+    "bake_action_objects",
+
+    "bake_action_iter",
+    "bake_action_objects_iter",
+)
 
 import bpy
 
 
-# XXX visual keying is actually always considered as True in this code...
-def bake_action(frame_start,
-                frame_end,
-                frame_step=1,
-                only_selected=False,
-                do_pose=True,
-                do_object=True,
-                do_visual_keying=True,
-                do_constraint_clear=False,
-                do_parents_clear=False,
-                do_clean=False,
-                action=None,
-                ):
-
+def bake_action(
+        obj,
+        *,
+        action, frames,
+        **kwargs
+):
     """
-    Return an image from the file path with options to search multiple paths
-    and return a placeholder if its not found.
+    :arg obj: Object to bake.
+    :type obj: :class:`bpy.types.Object`
+    :arg action: An action to bake the data into, or None for a new action
+       to be created.
+    :type action: :class:`bpy.types.Action` or None
+    :arg frames: Frames to bake.
+    :type frames: iterable of int
 
-    :arg frame_start: First frame to bake.
-    :type frame_start: int
-    :arg frame_end: Last frame to bake.
-    :type frame_end: int
-    :arg frame_step: Frame step.
-    :type frame_step: int
-    :arg only_selected: Only bake selected data.
+    :return: an action or None
+    :rtype: :class:`bpy.types.Action`
+    """
+    if not (kwargs.get("do_pose") or kwargs.get("do_object")):
+        return None
+
+    action, = bake_action_objects(
+        [(obj, action)],
+        frames=frames,
+        **kwargs,
+    )
+    return action
+
+
+def bake_action_objects(
+        object_action_pairs,
+        *,
+        frames,
+        **kwargs
+):
+    """
+    A version of :func:`bake_action_objects_iter` that takes frames and returns the output.
+
+    :arg frames: Frames to bake.
+    :type frames: iterable of int
+
+    :return: A sequence of Action or None types (aligned with `object_action_pairs`)
+    :rtype: sequence of :class:`bpy.types.Action`
+    """
+    iter = bake_action_objects_iter(object_action_pairs, **kwargs)
+    iter.send(None)
+    for frame in frames:
+        iter.send(frame)
+    return iter.send(None)
+
+
+def bake_action_objects_iter(
+        object_action_pairs,
+        **kwargs
+):
+    """
+    An coroutine that bakes actions for multiple objects.
+
+    :arg object_action_pairs: Sequence of object action tuples,
+       action is the destination for the baked data. When None a new action will be created.
+    :type object_action_pairs: Sequence of (:class:`bpy.types.Object`, :class:`bpy.types.Action`)
+    """
+    scene = bpy.context.scene
+    frame_back = scene.frame_current
+    iter_all = tuple(
+        bake_action_iter(obj, action=action, **kwargs)
+        for (obj, action) in object_action_pairs
+    )
+    for iter in iter_all:
+        iter.send(None)
+    while True:
+        frame = yield None
+        if frame is None:
+            break
+        scene.frame_set(frame)
+        bpy.context.view_layer.update()
+        for iter in iter_all:
+            iter.send(frame)
+    scene.frame_set(frame_back)
+    yield tuple(iter.send(None) for iter in iter_all)
+
+
+# XXX visual keying is actually always considered as True in this code...
+def bake_action_iter(
+        obj,
+        *,
+        action,
+        only_selected=False,
+        do_pose=True,
+        do_object=True,
+        do_visual_keying=True,
+        do_constraint_clear=False,
+        do_parents_clear=False,
+        do_clean=False
+):
+    """
+    An coroutine that bakes action for a single object.
+
+    :arg obj: Object to bake.
+    :type obj: :class:`bpy.types.Object`
+    :arg action: An action to bake the data into, or None for a new action
+       to be created.
+    :type action: :class:`bpy.types.Action` or None
+    :arg only_selected: Only bake selected bones.
     :type only_selected: bool
     :arg do_pose: Bake pose channels.
     :type do_pose: bool
@@ -63,26 +146,38 @@ def bake_action(frame_start,
     :type do_parents_clear: bool
     :arg do_clean: Remove redundant keyframes after baking.
     :type do_clean: bool
-    :arg action: An action to bake the data into, or None for a new action
-       to be created.
-    :type action: :class:`bpy.types.Action` or None
 
     :return: an action or None
     :rtype: :class:`bpy.types.Action`
     """
-
     # -------------------------------------------------------------------------
     # Helper Functions and vars
 
+    # Note: BBONE_PROPS is a list so we can preserve the ordering
+    BBONE_PROPS = [
+        'bbone_curveinx', 'bbone_curveoutx',
+        'bbone_curveiny', 'bbone_curveouty',
+        'bbone_rollin', 'bbone_rollout',
+        'bbone_scaleinx', 'bbone_scaleoutx',
+        'bbone_scaleiny', 'bbone_scaleouty',
+        'bbone_easein', 'bbone_easeout'
+    ]
+
     def pose_frame_info(obj):
         matrix = {}
+        bbones = {}
         for name, pbone in obj.pose.bones.items():
             if do_visual_keying:
                 # Get the final transform of the bone in its own local space...
-                matrix[name] = obj.convert_space(pbone, pbone.matrix, 'POSE', 'LOCAL')
+                matrix[name] = obj.convert_space(pose_bone=pbone, matrix=pbone.matrix,
+                                                 from_space='POSE', to_space='LOCAL')
             else:
                 matrix[name] = pbone.matrix_basis.copy()
-        return matrix
+
+            # Bendy Bones
+            if pbone.bone.bbone_segments > 1:
+                bbones[name] = {bb_prop: getattr(pbone, bb_prop) for bb_prop in BBONE_PROPS}
+        return matrix, bbones
 
     if do_parents_clear:
         if do_visual_keying:
@@ -93,7 +188,7 @@ def bake_action(frame_start,
                 parent = obj.parent
                 matrix = obj.matrix_basis
                 if parent:
-                    return parent.matrix_world * matrix
+                    return parent.matrix_world @ matrix
                 else:
                     return matrix.copy()
     else:
@@ -102,7 +197,7 @@ def bake_action(frame_start,
                 parent = obj.parent
                 matrix = obj.matrix_world
                 if parent:
-                    return parent.matrix_world.inverted_safe() * matrix
+                    return parent.matrix_world.inverted_safe() @ matrix
                 else:
                     return matrix.copy()
         else:
@@ -112,34 +207,32 @@ def bake_action(frame_start,
     # -------------------------------------------------------------------------
     # Setup the Context
 
-    # TODO, pass data rather then grabbing from the context!
-    scene = bpy.context.scene
-    obj = bpy.context.object
-    frame_back = scene.frame_current
-
     if obj.pose is None:
         do_pose = False
 
     if not (do_pose or do_object):
-        return None
+        raise Exception("Pose and object baking is disabled, no action needed")
 
     pose_info = []
     obj_info = []
 
     options = {'INSERTKEY_NEEDED'}
 
-    frame_range = range(frame_start, frame_end + 1, frame_step)
-
     # -------------------------------------------------------------------------
     # Collect transformations
 
-    for f in frame_range:
-        scene.frame_set(f)
-        scene.update()
+    while True:
+        # Caller is responsible for setting the frame and updating the scene.
+        frame = yield None
+
+        # Signal we're done!
+        if frame is None:
+            break
+
         if do_pose:
-            pose_info.append(pose_frame_info(obj))
+            pose_info.append((frame, *pose_frame_info(obj)))
         if do_object:
-            obj_info.append(obj_frame_info(obj))
+            obj_info.append((frame, obj_frame_info(obj)))
 
     # -------------------------------------------------------------------------
     # Clean (store initial data)
@@ -178,16 +271,16 @@ def bake_action(frame_start,
             # create compatible eulers
             euler_prev = None
 
-            for (f, matrix) in zip(frame_range, pose_info):
+            for (f, matrix, bbones) in pose_info:
                 pbone.matrix_basis = matrix[name].copy()
 
-                pbone.keyframe_insert("location", -1, f, name, options)
+                pbone.keyframe_insert("location", index=-1, frame=f, group=name, options=options)
 
                 rotation_mode = pbone.rotation_mode
                 if rotation_mode == 'QUATERNION':
-                    pbone.keyframe_insert("rotation_quaternion", -1, f, name, options)
+                    pbone.keyframe_insert("rotation_quaternion", index=-1, frame=f, group=name, options=options)
                 elif rotation_mode == 'AXIS_ANGLE':
-                    pbone.keyframe_insert("rotation_axis_angle", -1, f, name, options)
+                    pbone.keyframe_insert("rotation_axis_angle", index=-1, frame=f, group=name, options=options)
                 else:  # euler, XYZ, ZXY etc
                     if euler_prev is not None:
                         euler = pbone.rotation_euler.copy()
@@ -197,9 +290,17 @@ def bake_action(frame_start,
                         del euler
                     else:
                         euler_prev = pbone.rotation_euler.copy()
-                    pbone.keyframe_insert("rotation_euler", -1, f, name, options)
+                    pbone.keyframe_insert("rotation_euler", index=-1, frame=f, group=name, options=options)
 
-                pbone.keyframe_insert("scale", -1, f, name, options)
+                pbone.keyframe_insert("scale", index=-1, frame=f, group=name, options=options)
+
+                # Bendy Bones
+                if pbone.bone.bbone_segments > 1:
+                    bbone_shape = bbones[name]
+                    for bb_prop in BBONE_PROPS:
+                        # update this property with value from bbone_shape, then key it
+                        setattr(pbone, bb_prop, bbone_shape[bb_prop])
+                        pbone.keyframe_insert(bb_prop, index=-1, frame=f, group=name, options=options)
 
     # object. TODO. multiple objects
     if do_object:
@@ -210,17 +311,17 @@ def bake_action(frame_start,
         # create compatible eulers
         euler_prev = None
 
-        for (f, matrix) in zip(frame_range, obj_info):
+        for (f, matrix) in obj_info:
             name = "Action Bake"  # XXX: placeholder
             obj.matrix_basis = matrix
 
-            obj.keyframe_insert("location", -1, f, name, options)
+            obj.keyframe_insert("location", index=-1, frame=f, group=name, options=options)
 
             rotation_mode = obj.rotation_mode
             if rotation_mode == 'QUATERNION':
-                obj.keyframe_insert("rotation_quaternion", -1, f, name, options)
+                obj.keyframe_insert("rotation_quaternion", index=-1, frame=f, group=name, options=options)
             elif rotation_mode == 'AXIS_ANGLE':
-                obj.keyframe_insert("rotation_axis_angle", -1, f, name, options)
+                obj.keyframe_insert("rotation_axis_angle", index=-1, frame=f, group=name, options=options)
             else:  # euler, XYZ, ZXY etc
                 if euler_prev is not None:
                     euler = obj.rotation_euler.copy()
@@ -230,9 +331,9 @@ def bake_action(frame_start,
                     del euler
                 else:
                     euler_prev = obj.rotation_euler.copy()
-                obj.keyframe_insert("rotation_euler", -1, f, name, options)
+                obj.keyframe_insert("rotation_euler", index=-1, frame=f, group=name, options=options)
 
-            obj.keyframe_insert("scale", -1, f, name, options)
+            obj.keyframe_insert("scale", index=-1, frame=f, group=name, options=options)
 
         if do_parents_clear:
             obj.parent = None
@@ -261,6 +362,4 @@ def bake_action(frame_start,
                 else:
                     i += 1
 
-    scene.frame_set(frame_back)
-
-    return action
+    yield action

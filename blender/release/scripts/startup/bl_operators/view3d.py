@@ -20,11 +20,14 @@
 
 import bpy
 from bpy.types import Operator
-from bpy.props import BoolProperty
+from bpy.props import (
+    BoolProperty,
+    EnumProperty,
+)
 
 
 class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
-    "Extrude individual elements and move"
+    """Extrude each individual face separately along local normals"""
     bl_label = "Extrude Individual and Move"
     bl_idname = "view3d.edit_mesh_extrude_individual_move"
 
@@ -39,13 +42,16 @@ class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
 
         totface = mesh.total_face_sel
         totedge = mesh.total_edge_sel
-        #~ totvert = mesh.total_vert_sel
+        # totvert = mesh.total_vert_sel
 
         if select_mode[2] and totface == 1:
-            bpy.ops.mesh.extrude_region_move('INVOKE_REGION_WIN',
-                    TRANSFORM_OT_translate={
-                        "constraint_orientation": 'NORMAL',
-                        "constraint_axis": (False, False, True)})
+            bpy.ops.mesh.extrude_region_move(
+                'INVOKE_REGION_WIN',
+                TRANSFORM_OT_translate={
+                    "orient_type": 'NORMAL',
+                    "constraint_axis": (False, False, True),
+                }
+            )
         elif select_mode[2] and totface > 1:
             bpy.ops.mesh.extrude_faces_move('INVOKE_REGION_WIN')
         elif select_mode[1] and totedge >= 1:
@@ -57,12 +63,12 @@ class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
         # and cause this one not to be freed. [#24671]
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context, _event):
         return self.execute(context)
 
 
 class VIEW3D_OT_edit_mesh_extrude_move(Operator):
-    "Extrude and move along normals"
+    """Extrude region together along the average normal"""
     bl_label = "Extrude and Move on Normals"
     bl_idname = "view3d.edit_mesh_extrude_move_normal"
 
@@ -77,25 +83,34 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
 
         totface = mesh.total_face_sel
         totedge = mesh.total_edge_sel
-        #~ totvert = mesh.total_vert_sel
+        # totvert = mesh.total_vert_sel
 
         if totface >= 1:
             if use_vert_normals:
-                bpy.ops.mesh.extrude_region_shrink_fatten('INVOKE_REGION_WIN',
-                        TRANSFORM_OT_shrink_fatten={})
+                bpy.ops.mesh.extrude_region_shrink_fatten(
+                    'INVOKE_REGION_WIN',
+                    TRANSFORM_OT_shrink_fatten={},
+                )
             else:
-                bpy.ops.mesh.extrude_region_move('INVOKE_REGION_WIN',
-                        TRANSFORM_OT_translate={
-                            "constraint_orientation": 'NORMAL',
-                            "constraint_axis": (False, False, True)})
+                bpy.ops.mesh.extrude_region_move(
+                    'INVOKE_REGION_WIN',
+                    TRANSFORM_OT_translate={
+                        "orient_type": 'NORMAL',
+                        "constraint_axis": (False, False, True),
+                    },
+                )
 
         elif totedge == 1:
-            bpy.ops.mesh.extrude_region_move('INVOKE_REGION_WIN',
-                    TRANSFORM_OT_translate={
-                        "constraint_orientation": 'NORMAL',
-                        # not a popular choice, too restrictive for retopo.
-                        #~ "constraint_axis": (True, True, False)})
-                        "constraint_axis": (False, False, False)})
+            bpy.ops.mesh.extrude_region_move(
+                'INVOKE_REGION_WIN',
+                TRANSFORM_OT_translate={
+                    # Don't set the constraint axis since users will expect MMB
+                    # to use the user setting, see: T61637
+                    # "orient_type": 'NORMAL',
+                    # Not a popular choice, too restrictive for retopo.
+                    # "constraint_axis": (True, True, False)})
+                    "constraint_axis": (False, False, False),
+                })
         else:
             bpy.ops.mesh.extrude_region_move('INVOKE_REGION_WIN')
 
@@ -106,12 +121,12 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
     def execute(self, context):
         return VIEW3D_OT_edit_mesh_extrude_move.extrude_region(context, False)
 
-    def invoke(self, context, event):
+    def invoke(self, context, _event):
         return self.execute(context)
 
 
 class VIEW3D_OT_edit_mesh_extrude_shrink_fatten(Operator):
-    "Extrude and move along individual normals"
+    """Extrude region together along local normals"""
     bl_label = "Extrude and Move on Individual Normals"
     bl_idname = "view3d.edit_mesh_extrude_move_shrink_fatten"
 
@@ -123,93 +138,58 @@ class VIEW3D_OT_edit_mesh_extrude_shrink_fatten(Operator):
     def execute(self, context):
         return VIEW3D_OT_edit_mesh_extrude_move.extrude_region(context, True)
 
-    def invoke(self, context, event):
+    def invoke(self, context, _event):
         return self.execute(context)
 
 
-class VIEW3D_OT_select_or_deselect_all(Operator):
-    "Select element under the mouse, deselect everything is there's nothing under the mouse"
-    bl_label = "Select or Deselect All"
-    bl_idname = "view3d.select_or_deselect_all"
-    bl_options = {'UNDO'}
+class VIEW3D_OT_transform_gizmo_set(Operator):
+    """Set the current transform gizmo"""
+    bl_label = "Transform Gizmo Set"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_idname = "view3d.transform_gizmo_set"
 
-    extend = BoolProperty(
-            name="Extend",
-            description="Extend selection instead of deselecting everything first",
-            default=False,
-            )
-
-    toggle = BoolProperty(
-            name="Toggle",
-            description="Toggle the selection",
-            default=False,
-            )
-
-    deselect = BoolProperty(
-            name="Deselect",
-            description="Remove from selection",
-            default=False,
-            )
-
-    center = BoolProperty(
-            name="Center",
-            description="Use the object center when selecting, in editmode used to extend object selection",
-            default=False,
-            )
-
-    enumerate = BoolProperty(
-            name="Enumerate",
-            description="List objects under the mouse (object mode only)",
-            default=False,
-            )
-
-    object = BoolProperty(
-            name="Object",
-            description="Use object selection (editmode only)",
-            default=False,
-            )
+    extend: BoolProperty(
+        default=False,
+    )
+    type: EnumProperty(
+        items=(
+            ('TRANSLATE', "Move", ""),
+            ('ROTATE', "Rotate", ""),
+            ('SCALE', "Scale", ""),
+        ),
+        options={'ENUM_FLAG'},
+    )
 
     @classmethod
     def poll(cls, context):
-        active_object = context.active_object
-        if active_object:
-            return active_object.mode in {'EDIT', 'OBJECT', 'POSE'}
-        return True
+        return context.area.type == 'VIEW_3D'
+
+    def execute(self, context):
+        space_data = context.space_data
+        space_data.show_gizmo = True
+        attrs = ("show_gizmo_object_translate", "show_gizmo_object_rotate", "show_gizmo_object_scale")
+        attr_active = tuple(
+            attrs[('TRANSLATE', 'ROTATE', 'SCALE').index(t)]
+            for t in self.type
+        )
+        if self.extend:
+            for attr in attrs:
+                if attr in attr_active:
+                    setattr(space_data, attr, True)
+        else:
+            for attr in attrs:
+                setattr(space_data, attr, attr in attr_active)
+        return {'FINISHED'}
 
     def invoke(self, context, event):
-        x = event.mouse_region_x
-        y = event.mouse_region_y
+        if not self.properties.is_property_set("extend"):
+            self.extend = event.shift
+        return self.execute(context)
 
-        if self.extend is False and self.toggle is False and self.deselect is False:
-            active_object = context.active_object
 
-            if active_object:
-                if active_object.mode == 'EDIT':
-                    if active_object.type == 'MESH':
-                        bpy.ops.mesh.select_all(action='DESELECT')
-                    elif active_object.type == 'CURVE':
-                        bpy.ops.curve.select_all(action='DESELECT')
-                    elif active_object.type == 'SURFACE':
-                        bpy.ops.curve.select_all(action='DESELECT')
-                    elif active_object.type == 'LATTICE':
-                        bpy.ops.lattice.select_all(action='DESELECT')
-                    elif active_object.type == 'META':
-                        bpy.ops.mball.select_all(action='DESELECT')
-                    elif active_object.type == 'ARMATURE':
-                        bpy.ops.armature.select_all(action='DESELECT')
-                elif active_object.mode == 'POSE':
-                    bpy.ops.pose.select_all(action='DESELECT')
-                elif active_object.mode == 'PARTICLE_EDIT':
-                    bpy.ops.particle.select_all(action='DESELECT')
-                else:
-                    bpy.ops.object.select_all(action='DESELECT')
-            else:
-                bpy.ops.object.select_all(action='DESELECT')
-
-        return bpy.ops.view3d.select(extend=self.extend,
-                                     deselect=self.deselect,
-                                     toggle=self.toggle,
-                                     center=self.center,
-                                     enumerate=self.enumerate,
-                                     object=self.object,
-                                     location=(x, y))
+classes = (
+    VIEW3D_OT_edit_mesh_extrude_individual_move,
+    VIEW3D_OT_edit_mesh_extrude_move,
+    VIEW3D_OT_edit_mesh_extrude_shrink_fatten,
+    VIEW3D_OT_transform_gizmo_set,
+)

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2015 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Bastien Montagne
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __EIGEN3_EIGENVALUES_C_API_H__
@@ -31,10 +24,13 @@
 extern "C" {
 #endif
 
-bool EIG_self_adjoint_eigen_solve(const int size, const float *matrix, float *r_eigen_values, float *r_eigen_vectors);
+bool EIG_self_adjoint_eigen_solve(const int size,
+                                  const float *matrix,
+                                  float *r_eigen_values,
+                                  float *r_eigen_vectors);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  /* __EIGEN3_EIGENVALUES_C_API_H__ */
+#endif /* __EIGEN3_EIGENVALUES_C_API_H__ */

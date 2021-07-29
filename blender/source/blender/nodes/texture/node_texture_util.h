@@ -1,10 +1,8 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,18 +15,11 @@
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/nodes/texture/node_texture_util.h
- *  \ingroup nodes
+/** \file
+ * \ingroup nodes
  */
-
 
 #ifndef __NODE_TEXTURE_UTIL_H__
 #define __NODE_TEXTURE_UTIL_H__
@@ -53,6 +44,7 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_colorband.h"
 #include "BKE_colortools.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -60,7 +52,6 @@
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_texture.h"
-#include "BKE_library.h"
 
 #include "node_util.h"
 #include "NOD_texture.h"
@@ -74,56 +65,62 @@
 #include "RE_shader_ext.h"
 
 typedef struct TexCallData {
-	TexResult *target;
-	/* all float[3] */
-	float *co;
-	float *dxt, *dyt;
+  TexResult *target;
+  /* all float[3] */
+  float *co;
+  float *dxt, *dyt;
 
-	int osatex;
-	bool do_preview;
-	bool do_manage;
-	short thread;
-	short which_output;
-	int cfra;
+  int osatex;
+  bool do_preview;
+  bool do_manage;
+  short thread;
+  short which_output;
+  int cfra;
 
-	ShadeInput *shi;
-	MTex *mtex;
+  MTex *mtex;
 } TexCallData;
 
 typedef struct TexParams {
-	float *co;
-	float *dxt, *dyt;
-	const float *previewco;
-	int cfra;
-	int osatex;
+  float *co;
+  float *dxt, *dyt;
+  const float *previewco;
+  int cfra;
+  int osatex;
 
-	/* optional. we don't really want these here, but image
-	 * textures need to do mapping & color correction */
-	ShadeInput *shi;
-	MTex *mtex;
+  /* optional. we don't really want these here, but image
+   * textures need to do mapping & color correction */
+  MTex *mtex;
 } TexParams;
 
-typedef void(*TexFn) (float *out, TexParams *params, bNode *node, bNodeStack **in, short thread);
+typedef void (*TexFn)(float *out, TexParams *params, bNode *node, bNodeStack **in, short thread);
 
 typedef struct TexDelegate {
-	TexCallData *cdata;
-	TexFn fn;
-	bNode *node;
-	bNodePreview *preview;
-	bNodeStack *in[MAX_SOCKET];
-	int type;
+  TexCallData *cdata;
+  TexFn fn;
+  bNode *node;
+  bNodePreview *preview;
+  bNodeStack *in[MAX_SOCKET];
+  int type;
 } TexDelegate;
 
-
-int tex_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
-void tex_node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
+bool tex_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
+void tex_node_type_base(
+    struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
 
 void tex_input_rgba(float *out, bNodeStack *in, TexParams *params, short thread);
 void tex_input_vec(float *out, bNodeStack *in, TexParams *params, short thread);
 float tex_input_value(bNodeStack *in, TexParams *params, short thread);
 
-void tex_output(bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack *out, TexFn texfn, TexCallData *data);
-void tex_do_preview(bNodePreview *preview, const float coord[2], const float col[4], bool do_manage);
+void tex_output(bNode *node,
+                bNodeExecData *execdata,
+                bNodeStack **in,
+                bNodeStack *out,
+                TexFn texfn,
+                TexCallData *data);
+void tex_do_preview(bNodePreview *preview,
+                    const float coord[2],
+                    const float col[4],
+                    bool do_manage);
 
 void params_from_cdata(TexParams *out, TexCallData *in);
 

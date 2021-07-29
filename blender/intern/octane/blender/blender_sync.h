@@ -19,12 +19,16 @@
 #ifndef __BLENDER_SYNC_H__
 #define __BLENDER_SYNC_H__
 
-#include "blender_util.h"
-#include "blender_session.h"
+#include "blender/blender_util.h"
 
+#include "render/scene.h"
+#include "render/session.h"
 #include "render/object.h"
 
-#include "memleaks_check.h"
+#include "util/util_map.h"
+#include "util/util_set.h"
+#include "util/util_transform.h"
+#include "util/util_vector.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -37,271 +41,188 @@ class BlenderSync;
 class BufferParams;
 class SessionParams;
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class objects_map {
-public:
-    objects_map(Scene* scene_, map<std::string, vector<Object*> > *scene_data_) : scene(scene_), scene_data(scene_data_) {}
-
-	Object *find(const ObjectKey& key) {
-        map<ObjectKey, Object*>::const_iterator it = b_map.find(key);
-		if(it != b_map.end()) return it->second;
-		else return NULL;
-	}
-	void set_recalc(BL::ID id) {
-		b_recalc.insert(id.ptr.data);
-	}
-	bool has_recalc() {
-		return !(b_recalc.empty());
-	}
-	void pre_sync() {
-		used_set.clear();
-	}
-	bool sync(Object **r_data, BL::Object b_ob, BL::ID parent, const ObjectKey& key, BlenderSync* sync, vector<uint> &used_shaders, bool hide_tris);
-    bool is_used(const ObjectKey& key) {
-        Object *data = find(key);
-        return (data) ? used_set.find(data) != used_set.end() : false;
-    }
-	void used(Object *data) {
-		// Tag data as still in use
-		used_set.insert(data);
-	}
-	bool post_sync(bool do_delete = true) {
-		// Remove unused data
-        map<std::string, vector<Object*> >::iterator it;
-		vector<Object*>::iterator ob_it;
-		bool deleted = false;
-
-		for(it = scene_data->begin(); it != scene_data->end(); ) {
-            vector<Object*> new_vector;
-            new_vector.reserve(it->second.size());
-    		for(ob_it = it->second.begin(); ob_it != it->second.end(); ++ob_it) {
-			    Object *data = *ob_it;
-
-			    if(do_delete && used_set.find(data) == used_set.end()) {
-				    delete data;
-				    deleted = true;
-			    }
-			    else new_vector.push_back(data);
-            }
-			if(new_vector.empty()) scene_data->erase(it++);
-            else {
-                (*scene_data)[it->first] = new_vector;
-                ++it;
-            }
-		}
-
-		// Update mapping
-		map<ObjectKey, Object*>::iterator jt;
-		for(jt = b_map.begin(); jt != b_map.end(); ) {
-			if(used_set.find(jt->second) == used_set.end()) b_map.erase(jt++);
-            else ++jt;
-		}
-
-		used_set.clear();
-		b_recalc.clear();
-
-		return deleted;
-	} //post_sync()
-
-protected:
-    map<std::string, vector<Object*> > *scene_data;
-	map<ObjectKey, Object*>     b_map;
-	set<Object*>                used_set;
-	set<void*>                  b_recalc;
-    Scene                       *scene;
-}; //objects_map
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class lights_map {
-public:
-    lights_map(Scene* scene_, map<std::string, vector<Object*> > *scene_data_) : scene(scene_), scene_data(scene_data_) {}
-
-	Object *find(const ObjectKey& key) {
-        map<ObjectKey, Object*>::const_iterator it = b_map.find(key);
-		if(it != b_map.end()) return it->second;
-		else return NULL;
-	}
-	void set_recalc(BL::ID id) {
-		b_recalc.insert(id.ptr.data);
-	}
-	bool has_recalc() {
-		return !(b_recalc.empty());
-	}
-	void pre_sync() {
-		used_set.clear();
-	}
-	bool sync(Object **r_data, BL::Object b_ob, BL::ID parent, const ObjectKey& key, BlenderSync* sync, Transform& tfm);
-    bool is_used(const ObjectKey& key) {
-        Object *data = find(key);
-        return (data) ? used_set.find(data) != used_set.end() : false;
-    }
-	void used(Object *data) {
-		// Tag data as still in use
-		used_set.insert(data);
-	}
-	bool post_sync(bool do_delete = true) {
-		// Remove unused data
-        map<std::string, vector<Object*> >::iterator it;
-		vector<Object*>::iterator ob_it;
-		bool deleted = false;
-
-		for(it = scene_data->begin(); it != scene_data->end(); ) {
-            vector<Object*> new_vector;
-            new_vector.reserve(it->second.size());
-    		for(ob_it = it->second.begin(); ob_it != it->second.end(); ++ob_it) {
-			    Object *data = *ob_it;
-
-			    if(do_delete && used_set.find(data) == used_set.end()) {
-				    delete data;
-				    deleted = true;
-			    }
-			    else new_vector.push_back(data);
-            }
-			if(new_vector.empty()) scene_data->erase(it++);
-            else {
-                (*scene_data)[it->first] = new_vector;
-                ++it;
-            }
-		}
-
-		// Update mapping
-		map<ObjectKey, Object*>::iterator jt;
-		for(jt = b_map.begin(); jt != b_map.end(); ) {
-			if(used_set.find(jt->second) == used_set.end()) b_map.erase(jt++);
-            else ++jt;
-		}
-
-		used_set.clear();
-		b_recalc.clear();
-
-		return deleted;
-	} //post_sync()
-
-protected:
-    map<std::string, vector<Object*> > *scene_data;
-	map<ObjectKey, Object*>         b_map;
-	set<Object*>                    used_set;
-	set<void*>                      b_recalc;
-    Scene                           *scene;
-}; //lights_map
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class BlenderSync {
-public:
-	BlenderSync(BL::RenderEngine b_engine_, BL::BlendData b_data, BL::Scene b_scene, Scene *scene_, bool interactive_, Progress &progress_);
-	~BlenderSync();
+ public:
+  BlenderSync(BL::RenderEngine &b_engine,
+              BL::Preferences &b_userpref,
+              BL::BlendData &b_data,
+              BL::Scene &b_scene,
+              Scene *scene,
+              bool preview,
+              Progress &progress);
+  ~BlenderSync();
 
-	bool sync_recalc();
-	// Sync the Blender scene data to Octane
-    void sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, BL::RenderLayer *layer = 0, int motion = 0);
-    void sync_passes(BL::RenderLayer *layer);
-    void sync_kernel();
-    void sync_camera(BL::Object b_override, int width, int height);
-	void sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
-    void get_camera_border(Camera *cam, BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
-    int  get_layer_samples() { return render_layer.samples; }
+  /* sync */
+  void sync_recalc(BL::Depsgraph &b_depsgraph);
+  void sync_data(BL::RenderSettings &b_render,
+                 BL::Depsgraph &b_depsgraph,
+                 BL::SpaceView3D &b_v3d,
+                 BL::Object &b_override,
+                 int width,
+                 int height,
+                 void **python_thread_state);
+  void sync_kernel();
+  void sync_world(BL::Depsgraph &b_depsgraph, bool update_all);
+  void sync_lights(BL::Depsgraph &b_depsgraph, bool update_all);
+  void sync_camera(BL::RenderSettings &b_render,
+                   BL::Object &b_override,
+                   int width,
+                   int height,
+                   const char *viewname);
+  void sync_view_layer(BL::SpaceView3D &b_v3d, BL::ViewLayer &b_view_layer);
+  void sync_view(BL::SpaceView3D &b_v3d, BL::RegionView3D &b_rv3d, int width, int height);
+  void sync_objects(BL::Depsgraph &b_depsgraph, float motion_time = 0.0f);
+  void sync_motion(BL::RenderSettings &b_render,
+                   BL::Depsgraph &b_depsgraph,
+                   BL::Object &b_override,
+                   int width,
+                   int height,
+                   void **python_thread_state);
+  void sync_mesh_motion(BL::Depsgraph &b_depsgraph,
+                        BL::Object &b_ob,
+                        Object *object,
+                        float motion_time);
+  void sync_camera_motion(
+      BL::RenderSettings &b_render, BL::Object &b_ob, int width, int height, float motion_time);
+  void sync_render_passes(BL::ViewLayer &b_view_layer);
+  void update_octane_camera_properties(Camera *cam,
+                                       PointerRNA &oct_camera,
+                                       PointerRNA &oct_view_camera,
+                                       bool view);
 
-    Mesh  *sync_mesh(BL::Object b_ob, vector<uint> &used_shaders, bool object_updated, bool hide_tris);
-	Light *sync_light(BL::Object b_ob, Transform& tfm, bool object_updated);
+  void add_env_texture_in_use(std::string name)
+  {
+    env_textures_in_use.emplace(name);
+  }
+  bool is_env_texture_in_use(std::string name)
+  {
+    return env_textures_in_use.find(name) != env_textures_in_use.end();
+  }
+  void clear_env_texture_in_use()
+  {
+    env_textures_in_use.clear();
+  }
 
-    static BL::SmokeDomainSettings object_smoke_domain_find(BL::Object &b_ob);
+  /* get parameters */
+  static SceneParams get_scene_params(BL::Scene &b_scene, bool background);
+  static SessionParams get_session_params(
+      BL::RenderEngine &b_engine,
+      BL::Preferences &b_userpref,
+      BL::Scene &b_scene,
+      bool background,
+      int width,
+      int height,
+      ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type =
+          ::OctaneEngine::OctaneClient::SceneExportTypes::NONE);
+  static bool get_session_pause(BL::Scene &b_scene, bool background);
+  static BufferParams get_buffer_params(BL::RenderSettings &b_render,
+                                        BL::SpaceView3D &b_v3d,
+                                        BL::RegionView3D &b_rv3d,
+                                        Camera *cam,
+                                        int width,
+                                        int height);
+  static std::string get_env_texture_name(PointerRNA *env,
+                                          const std::string &env_texture_ptr_name);
+  static ::Octane::RenderPassId get_pass_type(BL::RenderPass &b_pass);
 
-	// Get parameters
-	static SessionParams    get_session_params(BL::UserPreferences b_userpref, BL::Scene b_scene, ::OctaneEngine::OctaneClient::SceneExportTypes::SceneExportTypesEnum export_type, bool background);
-	static bool             get_session_pause_state(BL::Scene b_scene, bool background);
-	static void             set_session_pause_state(BL::Scene b_scene, bool state);
-	static BufferParams     get_display_buffer_params(Camera* cam, int width, int height);
+  Object *sync_object(BL::Depsgraph &b_depsgraph,
+                      BL::ViewLayer &b_view_layer,
+                      BL::DepsgraphObjectInstance &b_instance,
+                      float motion_time,
+                      bool show_self,
+                      bool show_particles,
+                      bool *use_portal);
+  Mesh *sync_mesh(BL::Depsgraph &b_depsgraph,
+                  BL::Object &b_ob,
+                  BL::Object &b_ob_instance,
+                  bool object_updated,
+                  bool show_self,
+                  bool show_particles,
+                  OctaneDataTransferObject::OctaneObjectLayer &object_layer);
+  void sync_light(BL::Object &b_parent,
+                  int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
+                  BL::Object &b_ob,
+                  BL::Object &b_ob_instance,
+                  int random_id,
+                  Transform &tfm,
+                  bool *use_portal,
+                  OctaneDataTransferObject::OctaneObjectLayer &object_layer);
+  void sync_shaders(BL::Depsgraph &b_depsgraph);
+  void sync_material(BL::Material b_material, Shader *shader);
+  void sync_materials(BL::Depsgraph &b_depsgraph, bool update_all);
+  void sync_textures(BL::Depsgraph &b_depsgraph, bool update_all);
 
-private:
-	void sync_lamps();
-	void sync_materials();
-	void sync_objects(BL::SpaceView3D b_v3d, int motion = 0);
-	void sync_view();
-	void sync_world();
-	void sync_render_layers(BL::SpaceView3D b_v3d, const char *layer);
-	void sync_shaders();
-    void sync_curve_settings();
-    
-    void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
-    bool fill_mesh_hair_data(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, int uv_num = 0, int vcol_num = 0);
-    void set_resolution(BL::Object *b_ob, BL::Scene *scene, bool render);
+  void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
+  bool fill_mesh_hair_data(
+      Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, int uv_num = 0, int vcol_num = 0);
 
-	void    sync_nodes(Shader *shader, BL::ShaderNodeTree b_ntree);
-    void    sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool object_updated);
-    Object  *sync_object(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::DupliObject b_dupli_ob, Transform& tfm, uint layer_flag, int motion, bool hide_tris);
-    void    sync_light_object(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::Object b_ob, Transform& tfm, BL::DupliObject b_dupli_ob, uint layer_flag);
+  /* Early data free. */
+  void free_data_after_sync(BL::Depsgraph &b_depsgraph);
 
-    bool sync_dupli_particle(BL::Object b_ob, BL::DupliObject b_dup, Object *object);
+  void find_shader(BL::ID &id, std::vector<Shader *> &used_shaders, Shader *default_shader);
+  bool BKE_object_is_modified(BL::Object &b_ob);
+  bool object_is_mesh(BL::Object &b_ob);
+  bool object_is_light(BL::Object &b_ob);
 
-	// Util
-	void add_used_shader_index(BL::ID id, vector<uint>& used_shaders, int default_shader);
-	bool BKE_object_is_modified(BL::Object b_ob);
-	bool object_is_mesh(BL::Object b_ob);
-	bool object_is_curve(BL::Object b_ob);
-	bool object_is_light(BL::Object b_ob);
+ private:
+  /* variables */
+  BL::RenderEngine b_engine;
+  BL::Preferences b_userpref;
+  BL::BlendData b_data;
+  BL::Scene b_scene;
 
-    void load_camera_from_object(Camera* cam, BL::Object b_ob, int width, int height, float2& offset, bool skip_panorama = false);
+  id_map<void *, Shader> shader_map;
+  id_map<ObjectKey, Object> object_map;
+  id_map<void *, Mesh> mesh_map;
+  id_map<ObjectKey, Light> light_map;
+  id_map<ParticleSystemKey, ParticleSystem> particle_system_map;
+  set<Mesh *> mesh_synced;
+  set<Mesh *> mesh_motion_synced;
+  set<float> motion_times;
+  void *world_map;
+  bool world_recalc;
 
-    void get_cam_settings(Camera* cam, PointerRNA &oct_camera, bool view = false);
+  Scene *scene;
+  bool preview;
+  bool force_update_all;
+  int last_animation_frame;
 
-    void load_camera_from_view(Camera* cam, BL::Scene b_scene, BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height, float2& offset, bool skip_panorama = false);
-    void get_camera_sensor_size(Camera* cam, int width, int height, float *sensor_size);
-    void calculate_ortho_scale(Camera* cam, float x_aspect, float y_aspect, float *ortho_scale);
-    void get_camera_ortho_scale(Camera* cam, BL::Camera &b_camera, int width, int height, float *ortho_scale);
-    void get_viewport_ortho_scale(Camera* cam, float view_distance, float lens, int width, int height, float *ortho_scale);
+  bool motion_blur;
+  int motion_blur_frame_start_offset;
+  int motion_blur_frame_end_offset;
 
-	// Variables
-	BL::RenderEngine    b_engine;
-	BL::BlendData       b_data;
-	BL::Scene           b_scene;
+  struct RenderLayerInfo {
+    RenderLayerInfo()
+        : material_override(PointerRNA_NULL),
+          use_background_shader(true),
+          use_background_ao(true),
+          use_surfaces(true),
+          use_hair(true),
+          samples(0),
+          bound_samples(false),
+          use_octane_render_layers(false)
+    {
+    }
 
-	id_map<void*, Shader>   shader_map;
-	objects_map             object_map;
-	id_map<void*, Mesh>     mesh_map;
-	lights_map              light_object_map;
-	id_map<void*, Light>    light_map;
-	set<Mesh*>              mesh_synced;
-	set<Light*>             lights_synced;
-	void                    *world_map;
-	bool                    world_recalc;
+    string name;
+    BL::Material material_override;
+    bool use_background_shader;
+    bool use_background_ao;
+    bool use_surfaces;
+    bool use_hair;
+    int samples;
+    bool bound_samples;
+    bool use_octane_render_layers;
+    bool octane_render_layers_invert;
+    int octane_render_layers_mode;
+    int octane_render_layer_active_id;
+  } view_layer;
 
-	Scene                   *scene;
-	bool                    interactive;
+  Progress &progress;
 
-    // Layer Info structure
-	struct RenderLayerInfo {
-        RenderLayerInfo() :
-		        scene_layer(0), layer(0), holdout_layer(0), exclude_layer(0),
-		        material_override(PointerRNA_NULL),
-		        use_background(true),
-		        use_viewport_visibility(false),
-		        samples(0), bound_samples(false)
-		{}
-
-		string          name;
-		uint            scene_layer;
-		uint            layer;
-		uint            holdout_layer;
-        uint            exclude_layer;
-		BL::Material    material_override;
-		bool            use_background;
-		bool            use_viewport_visibility;
-		bool            use_localview;
-		int             samples;
-        bool            bound_samples;
-	} render_layer;
-
-	Progress &progress;
-}; //BlenderSync
+  set<std::string> env_textures_in_use;
+};
 
 OCT_NAMESPACE_END
 
 #endif /* __BLENDER_SYNC_H__ */
-

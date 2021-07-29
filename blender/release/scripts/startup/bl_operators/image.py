@@ -29,15 +29,15 @@ class EditExternally(Operator):
     bl_label = "Image Edit Externally"
     bl_options = {'REGISTER'}
 
-    filepath = StringProperty(
-            subtype='FILE_PATH',
-            )
+    filepath: StringProperty(
+        subtype='FILE_PATH',
+    )
 
     @staticmethod
     def _editor_guess(context):
         import sys
 
-        image_editor = context.user_preferences.filepaths.image_editor
+        image_editor = context.preferences.filepaths.image_editor
 
         # use image editor in the preferences when available.
         if not image_editor:
@@ -82,14 +82,14 @@ class EditExternally(Operator):
             import traceback
             traceback.print_exc()
             self.report({'ERROR'},
-                        "Image editor not found, "
-                        "please specify in User Preferences > File")
+                        "Image editor could not be launched, ensure that "
+                        "the path in User Preferences > File is valid, and Blender has rights to launch it")
 
             return {'CANCELLED'}
 
         return {'FINISHED'}
 
-    def invoke(self, context, event):
+    def invoke(self, context, _event):
         import os
         sd = context.space_data
         try:
@@ -103,7 +103,7 @@ class EditExternally(Operator):
             return {'CANCELLED'}
 
         if sd.type == 'IMAGE_EDITOR':
-            filepath = image.filepath_from_user(sd.image_user)
+            filepath = image.filepath_from_user(image_user=sd.image_user)
         else:
             filepath = image.filepath
 
@@ -112,39 +112,6 @@ class EditExternally(Operator):
         self.filepath = os.path.normpath(filepath)
         self.execute(context)
 
-        return {'FINISHED'}
-
-
-class SaveDirty(Operator):
-    """Save all modified textures"""
-    bl_idname = "image.save_dirty"
-    bl_label = "Save Dirty"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        unique_paths = set()
-        for image in bpy.data.images:
-            if image.is_dirty:
-                if image.packed_file:
-                    if image.library:
-                        self.report({'WARNING'},
-                                    "Packed library image: %r from library %r"
-                                    " can't be re-packed" %
-                                    (image.name, image.library.filepath))
-                    else:
-                        image.pack(as_png=True)
-                else:
-                    filepath = bpy.path.abspath(image.filepath,
-                                                library=image.library)
-                    if "\\" not in filepath and "/" not in filepath:
-                        self.report({'WARNING'}, "Invalid path: " + filepath)
-                    elif filepath in unique_paths:
-                        self.report({'WARNING'},
-                                    "Path used by more than one image: %r" %
-                                    filepath)
-                    else:
-                        unique_paths.add(filepath)
-                        image.save()
         return {'FINISHED'}
 
 
@@ -189,7 +156,7 @@ class ProjectEdit(Operator):
         if bpy.data.is_saved:
             filepath = "//" + filepath
         else:
-            tmpdir = context.user_preferences.filepaths.temporary_directory
+            tmpdir = context.preferences.filepaths.temporary_directory
             filepath = os.path.join(tmpdir, "project_edit")
 
         obj = context.object
@@ -227,7 +194,7 @@ class ProjectApply(Operator):
     bl_label = "Project Apply"
     bl_options = {'REGISTER'}
 
-    def execute(self, context):
+    def execute(self, _context):
         image_name = ProjectEdit._proj_hack[0]  # TODO, deal with this nicer
 
         try:
@@ -242,3 +209,10 @@ class ProjectApply(Operator):
         bpy.ops.paint.project_image(image=image_name)
 
         return {'FINISHED'}
+
+
+classes = (
+    EditExternally,
+    ProjectApply,
+    ProjectEdit,
+)

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,50 +15,49 @@
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Geoffrey Bantle.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef __BMESH_MESH_CONV_H__
 #define __BMESH_MESH_CONV_H__
 
-/** \file blender/bmesh/intern/bmesh_mesh_conv.h
- *  \ingroup bmesh
+/** \file
+ * \ingroup bmesh
  */
 
+struct CustomData_MeshMasks;
+struct Main;
 struct Mesh;
 
-void BM_mesh_cd_validate(BMesh *bm);
 void BM_mesh_cd_flag_ensure(BMesh *bm, struct Mesh *mesh, const char cd_flag);
 void BM_mesh_cd_flag_apply(BMesh *bm, const char cd_flag);
 char BM_mesh_cd_flag_from_bmesh(BMesh *bm);
 
-
 struct BMeshFromMeshParams {
-	unsigned int calc_face_normal : 1;
-	/* add a vertex CD_SHAPE_KEYINDEX layer */
-	unsigned int add_key_index : 1;
-	/* set vertex coordinates from the shapekey */
-	unsigned int use_shapekey : 1;
-	/* define the active shape key (index + 1) */
-	int active_shapekey;
+  uint calc_face_normal : 1;
+  /* add a vertex CD_SHAPE_KEYINDEX layer */
+  uint add_key_index : 1;
+  /* set vertex coordinates from the shapekey */
+  uint use_shapekey : 1;
+  /* define the active shape key (index + 1) */
+  int active_shapekey;
+  struct CustomData_MeshMasks cd_mask_extra;
 };
-void BM_mesh_bm_from_me(
-        BMesh *bm, struct Mesh *me,
-        const struct BMeshFromMeshParams *params)
-ATTR_NONNULL(1, 3);
+void BM_mesh_bm_from_me(BMesh *bm, const struct Mesh *me, const struct BMeshFromMeshParams *params)
+    ATTR_NONNULL(1, 3);
 
 struct BMeshToMeshParams {
-	unsigned int calc_tessface : 1;
-	int64_t cd_mask_extra;
+  /** Update object hook indices & vertex parents. */
+  uint calc_object_remap : 1;
+  struct CustomData_MeshMasks cd_mask_extra;
 };
-void BM_mesh_bm_to_me(
-        BMesh *bm, struct Mesh *me,
-        const struct BMeshToMeshParams *params)
-ATTR_NONNULL(1, 2, 3);
+void BM_mesh_bm_to_me(struct Main *bmain,
+                      BMesh *bm,
+                      struct Mesh *me,
+                      const struct BMeshToMeshParams *params) ATTR_NONNULL(2, 3, 4);
+
+void BM_mesh_bm_to_me_for_eval(BMesh *bm,
+                               struct Mesh *me,
+                               const struct CustomData_MeshMasks *cd_mask_extra)
+    ATTR_NONNULL(1, 2);
 
 #endif /* __BMESH_MESH_CONV_H__ */

@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,15 +15,10 @@
  *
  * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
- *
- * Original Author: Joshua Leung
- * Contributor(s): Lukas Toenne
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/DEG_depsgraph_build.h
- *  \ingroup depsgraph
+/** \file
+ * \ingroup depsgraph
  *
  * Public API for Depsgraph
  */
@@ -40,37 +33,61 @@ struct Depsgraph;
 
 /* ------------------------------------------------ */
 
-struct Main;
-struct Scene;
-struct Group;
+struct CacheFile;
+struct Collection;
+struct CustomData_MeshMasks;
 struct EffectorWeights;
+struct ID;
+struct Main;
+struct ModifierData;
+struct Object;
+struct Scene;
+struct ViewLayer;
+struct bNodeTree;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "BLI_sys_types.h"
+
 /* Graph Building -------------------------------- */
 
-/* Build depsgraph for the given scene, and dump results in given graph container */
-void DEG_graph_build_from_scene(struct Depsgraph *graph, struct Main *bmain, struct Scene *scene);
+/* Build depsgraph for the given scene, and dump results in given graph container. */
+void DEG_graph_build_from_view_layer(struct Depsgraph *graph,
+                                     struct Main *bmain,
+                                     struct Scene *scene,
+                                     struct ViewLayer *view_layer);
+
+/* Special version of builder which produces dependency graph suitable for the render pipeline.
+ * It will contain sequencer and compositor (if needed) and all their dependencies. */
+void DEG_graph_build_for_render_pipeline(struct Depsgraph *graph,
+                                         struct Main *bmain,
+                                         struct Scene *scene,
+                                         struct ViewLayer *view_layer);
+
+/* Builds minimal dependency graph for compositor preview.
+ *
+ * Note that compositor editor might have pinned node tree, which is different from scene's node
+ * tree.
+ */
+void DEG_graph_build_for_compositor_preview(struct Depsgraph *graph,
+                                            struct Main *bmain,
+                                            struct Scene *scene,
+                                            struct ViewLayer *view_layer,
+                                            struct bNodeTree *nodetree);
 
 /* Tag relations from the given graph for update. */
 void DEG_graph_tag_relations_update(struct Depsgraph *graph);
 
+/* Create or update relations in the specified graph. */
+void DEG_graph_relations_update(struct Depsgraph *graph,
+                                struct Main *bmain,
+                                struct Scene *scene,
+                                struct ViewLayer *view_layer);
+
 /* Tag all relations in the database for update.*/
 void DEG_relations_tag_update(struct Main *bmain);
-
-/* Create new graph if didn't exist yet,
- * or update relations if graph was tagged for update.
- */
-void DEG_scene_relations_update(struct Main *bmain, struct Scene *scene);
-
-/* Rebuild dependency graph only for a given scene. */
-void DEG_scene_relations_rebuild(struct Main *bmain,
-                                 struct Scene *scene);
-
-/* Delete scene graph. */
-void DEG_scene_graph_free(struct Scene *scene);
 
 /* Add Dependencies  ----------------------------- */
 
@@ -81,44 +98,95 @@ void DEG_scene_graph_free(struct Scene *scene);
  */
 struct DepsNodeHandle;
 
-struct CacheFile;
-struct Object;
-
 typedef enum eDepsSceneComponentType {
-	DEG_SCENE_COMP_PARAMETERS,     /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
-	DEG_SCENE_COMP_ANIMATION,      /* Animation Component */                 // XXX: merge in with parameters?
-	DEG_SCENE_COMP_SEQUENCER,      /* Sequencer Component (Scene Only) */
+  /* Parameters Component - Default when nothing else fits
+   * (i.e. just SDNA property setting). */
+  DEG_SCENE_COMP_PARAMETERS,
+  /* Animation Component
+   * TODO(sergey): merge in with parameters?  */
+  DEG_SCENE_COMP_ANIMATION,
+  /* Sequencer Component (Scene Only). */
+  DEG_SCENE_COMP_SEQUENCER,
 } eDepsSceneComponentType;
 
 typedef enum eDepsObjectComponentType {
-	DEG_OB_COMP_PARAMETERS,        /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
-	DEG_OB_COMP_PROXY,             /* Generic "Proxy-Inherit" Component */   // XXX: Also for instancing of subgraphs?
-	DEG_OB_COMP_ANIMATION,         /* Animation Component */                 // XXX: merge in with parameters?
-	DEG_OB_COMP_TRANSFORM,         /* Transform Component (Parenting/Constraints) */
-	DEG_OB_COMP_GEOMETRY,          /* Geometry Component (DerivedMesh/Displist) */
-	
-	/* Evaluation-Related Outer Types (with Subdata) */
-	DEG_OB_COMP_EVAL_POSE,         /* Pose Component - Owner/Container of Bones Eval */
-	DEG_OB_COMP_BONE,              /* Bone Component - Child/Subcomponent of Pose */
-	
-	DEG_OB_COMP_EVAL_PARTICLES,    /* Particle Systems Component */
-	DEG_OB_COMP_SHADING,           /* Material Shading Component */
-	DEG_OB_COMP_CACHE,             /* Cache Component */
+  /* Used in query API, to denote which component caller is interested in. */
+  DEG_OB_COMP_ANY,
+
+  /* Parameters Component - Default when nothing else fits
+   * (i.e. just SDNA property setting). */
+  DEG_OB_COMP_PARAMETERS,
+  /* Generic "Proxy-Inherit" Component.
+   * TODO(sergey): Also for instancing of subgraphs? */
+  DEG_OB_COMP_PROXY,
+  /* Animation Component.
+   *
+   * TODO(sergey): merge in with parameters? */
+  DEG_OB_COMP_ANIMATION,
+  /* Transform Component (Parenting/Constraints) */
+  DEG_OB_COMP_TRANSFORM,
+  /* Geometry Component (Mesh/Displist) */
+  DEG_OB_COMP_GEOMETRY,
+
+  /* Evaluation-Related Outer Types (with Sub-data) */
+
+  /* Pose Component - Owner/Container of Bones Eval */
+  DEG_OB_COMP_EVAL_POSE,
+  /* Bone Component - Child/Sub-component of Pose */
+  DEG_OB_COMP_BONE,
+
+  /* Material Shading Component */
+  DEG_OB_COMP_SHADING,
+  /* Cache Component */
+  DEG_OB_COMP_CACHE,
 } eDepsObjectComponentType;
 
-void DEG_add_scene_relation(struct DepsNodeHandle *node, struct Scene *scene, eDepsSceneComponentType component, const char *description);
-void DEG_add_object_relation(struct DepsNodeHandle *node, struct Object *ob, eDepsObjectComponentType component, const char *description);
-void DEG_add_bone_relation(struct DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsObjectComponentType component, const char *description);
-void DEG_add_object_cache_relation(struct DepsNodeHandle *handle, struct CacheFile *cache_file, eDepsObjectComponentType component, const char *description);
+void DEG_add_scene_relation(struct DepsNodeHandle *node_handle,
+                            struct Scene *scene,
+                            eDepsSceneComponentType component,
+                            const char *description);
+void DEG_add_object_relation(struct DepsNodeHandle *node_handle,
+                             struct Object *object,
+                             eDepsObjectComponentType component,
+                             const char *description);
+void DEG_add_bone_relation(struct DepsNodeHandle *handle,
+                           struct Object *object,
+                           const char *bone_name,
+                           eDepsObjectComponentType component,
+                           const char *description);
+void DEG_add_object_cache_relation(struct DepsNodeHandle *handle,
+                                   struct CacheFile *cache_file,
+                                   eDepsObjectComponentType component,
+                                   const char *description);
+/* Adds relation from DEG_OPCODE_GENERIC_DATABLOCK_UPDATE of a given ID.
+ * Is used for such entities as textures and images. */
+void DEG_add_generic_id_relation(struct DepsNodeHandle *node_handle,
+                                 struct ID *id,
+                                 const char *description);
 
-/* TODO(sergey): Remove once all geometry update is granular. */
-void DEG_add_special_eval_flag(struct Depsgraph *graph, struct ID *id, short flag);
+/* Special function which is used from modifiers' updateDepsgraph() callback
+ * to indicate that the modifier needs to know transformation of the object
+ * which that modifier belongs to.
+ * This function will take care of checking which operation is required to
+ * have transformation for the modifier, taking into account possible simulation
+ * solvers. */
+void DEG_add_modifier_to_transform_relation(struct DepsNodeHandle *node_handle,
+                                            const char *description);
 
-/* Utility functions for physics modifiers */
-typedef bool (*DEG_CollobjFilterFunction)(struct Object *obj, struct ModifierData *md);
+/* Adds relations from the given component of a given object to the given node
+ * handle AND the component to the point cache component of the node's ID. */
+void DEG_add_object_pointcache_relation(struct DepsNodeHandle *node_handle,
+                                        struct Object *object,
+                                        eDepsObjectComponentType component,
+                                        const char *description);
 
-void DEG_add_collision_relations(struct DepsNodeHandle *handle, struct Scene *scene, Object *ob, struct Group *group, int layer, unsigned int modifier_type, DEG_CollobjFilterFunction fn, bool dupli, const char *name);
-void DEG_add_forcefield_relations(struct DepsNodeHandle *handle, struct Scene *scene, Object *ob, struct EffectorWeights *eff, bool add_absorption, int skip_forcefield, const char *name);
+void DEG_add_special_eval_flag(struct DepsNodeHandle *handle, struct ID *id, uint32_t flag);
+void DEG_add_customdata_mask(struct DepsNodeHandle *handle,
+                             struct Object *object,
+                             const struct CustomData_MeshMasks *masks);
+
+struct ID *DEG_get_id_from_handle(struct DepsNodeHandle *node_handle);
+struct Depsgraph *DEG_get_graph_from_handle(struct DepsNodeHandle *node_handle);
 
 /* ************************************************ */
 
@@ -126,4 +194,4 @@ void DEG_add_forcefield_relations(struct DepsNodeHandle *handle, struct Scene *s
 } /* extern "C" */
 #endif
 
-#endif  /* __DEG_DEPSGRAPH_BUILD_H__ */
+#endif /* __DEG_DEPSGRAPH_BUILD_H__ */

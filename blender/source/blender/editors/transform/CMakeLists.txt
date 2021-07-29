@@ -13,55 +13,60 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# Contributor(s): Jacques Beaurain.
-#
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	../include
-	../../blenfont
-	../../blenkernel
-	../../blenlib
-	../../blentranslation
-	../../bmesh
-	../../gpu
-	../../ikplugin
-	../../makesdna
-	../../makesrna
-	../../windowmanager
-	../../depsgraph
-	../../../../intern/guardedalloc
-	../../../../intern/glew-mx
+  ../include
+  ../../blenfont
+  ../../blenkernel
+  ../../blenlib
+  ../../blentranslation
+  ../../bmesh
+  ../../gpu
+  ../../ikplugin
+  ../../makesdna
+  ../../makesrna
+  ../../render/extern/include
+  ../../depsgraph
+  ../../windowmanager
+  ../../../../intern/glew-mx
+  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
-	${GLEW_INCLUDE_PATH}
+  ${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
-	transform.c
-	transform_constraints.c
-	transform_conversions.c
-	transform_generics.c
-	transform_input.c
-	transform_manipulator.c
-	transform_ops.c
-	transform_orientations.c
-	transform_snap.c
-	transform_snap_object.c
+  transform.c
+  transform_constraints.c
+  transform_conversions.c
+  transform_generics.c
+  transform_gizmo_2d.c
+  transform_gizmo_3d.c
+  transform_gizmo_extrude_3d.c
+  transform_input.c
+  transform_ops.c
+  transform_orientations.c
+  transform_snap.c
+  transform_snap_object.c
 
-	transform.h
+  transform.h
+)
+
+set(LIB
+  bf_blenfont
+  bf_blenkernel
+  bf_blenlib
+  bf_bmesh
+  bf_editor_mask
+  bf_gpu
 )
 
 if(WITH_INTERNATIONAL)
-	add_definitions(-DWITH_INTERNATIONAL)
-endif()
-
-if(WITH_LEGACY_DEPSGRAPH)
-	add_definitions(-DWITH_LEGACY_DEPSGRAPH)
+  add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
 add_definitions(${GL_DEFINITIONS})
 
-blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

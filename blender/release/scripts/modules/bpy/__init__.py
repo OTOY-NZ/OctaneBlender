@@ -35,10 +35,20 @@ __all__ = (
 
 
 # internal blender C module
-from _bpy import types, props, app, data, context
+from _bpy import (
+    app,
+    context,
+    data,
+    msgbus,
+    props,
+    types,
+)
 
 # python modules
-from . import utils, path
+from . import (
+    path,
+    utils,
+)
 
 # fake operator module
 from .ops import ops_fake_module as ops
@@ -48,11 +58,11 @@ def main():
     import sys
 
     # Possibly temp. addons path
-    from os.path import join, dirname, normpath
-    sys.path.append(normpath(join(dirname(__file__),
-                                  "..", "..", "addons", "modules")))
-    sys.path.append(join(utils.user_resource('SCRIPTS'),
-                         "addons", "modules"))
+    from os.path import join, dirname
+    sys.path.extend([
+        join(dirname(dirname(dirname(__file__))), "addons", "modules"),
+        join(utils.user_resource('SCRIPTS'), "addons", "modules"),
+    ])
 
     # fake module to allow:
     #   from bpy.types import Panel

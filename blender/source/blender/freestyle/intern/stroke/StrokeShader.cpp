@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,12 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/freestyle/intern/stroke/StrokeShader.cpp
- *  \ingroup freestyle
+/** \file
+ * \ingroup freestyle
  */
 
 #include "StrokeShader.h"
@@ -28,9 +24,9 @@
 
 namespace Freestyle {
 
-int StrokeShader::shade(Stroke& ioStroke) const
+int StrokeShader::shade(Stroke &ioStroke) const
 {
-	return Director_BPy_StrokeShader_shade( const_cast<StrokeShader *>(this), ioStroke);
+  return Director_BPy_StrokeShader_shade(const_cast<StrokeShader *>(this), ioStroke);
 }
 
 } /* namespace Freestyle */

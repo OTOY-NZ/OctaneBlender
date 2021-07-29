@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,11 +15,6 @@
  *
  * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Sergey Sharybin
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
 #ifndef LIBMV_C_API_FRAME_ACCESSOR_H_
@@ -61,10 +54,23 @@ typedef libmv_CacheKey (*libmv_GetImageCallback) (
 
 typedef void (*libmv_ReleaseImageCallback) (libmv_CacheKey cache_key);
 
+typedef libmv_CacheKey (*libmv_GetMaskForTrackCallback) (
+    libmv_FrameAccessorUserData* user_data,
+    int clip,
+    int frame,
+    int track,
+    const libmv_Region* region,
+    float** destination,
+    int* width,
+    int* height);
+typedef void (*libmv_ReleaseMaskCallback) (libmv_CacheKey cache_key);
+
 libmv_FrameAccessor* libmv_FrameAccessorNew(
     libmv_FrameAccessorUserData* user_data,
     libmv_GetImageCallback get_image_callback,
-    libmv_ReleaseImageCallback release_image_callback);
+    libmv_ReleaseImageCallback release_image_callback,
+    libmv_GetMaskForTrackCallback get_mask_for_track_callback,
+    libmv_ReleaseMaskCallback release_mask_callback);
 void libmv_FrameAccessorDestroy(libmv_FrameAccessor* frame_accessor);
 
 int64_t libmv_frameAccessorgetTransformKey(const libmv_FrameTransform *transform);

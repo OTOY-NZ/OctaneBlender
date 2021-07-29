@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,170 +15,114 @@
  *
  * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
- *
- * Contributor(s): Antony Riakiotakis.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_select.c
- *  \ingroup gpu
+/** \file
+ * \ingroup gpu
  *
- * Interface for accessing gpu-related methods for selection. The semantics will be
- * similar to glRenderMode(GL_SELECT) since the goal is to maintain compatibility.
+ * Interface for accessing gpu-related methods for selection. The semantics are
+ * similar to glRenderMode(GL_SELECT) from older OpenGL versions.
  */
+#include <string.h>
+#include <stdlib.h>
+
 #include "GPU_select.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
- 
+
 #include "MEM_guardedalloc.h"
+
+#include "BLI_rect.h"
 
 #include "DNA_userdef_types.h"
 
 #include "BLI_utildefines.h"
 
-/* Ad hoc number of queries to allocate to skip doing many glGenQueries */
-#define ALLOC_QUERIES 200
+#include "gpu_select_private.h"
 
-typedef struct GPUQueryState {
-	/* To ignore selection id calls when not initialized */
-	bool select_is_active;
-	/* Tracks whether a query has been issued so that gpu_load_id can end the previous one */
-	bool query_issued;
-	/* array holding the OpenGL query identifiers */
-	unsigned int *queries;
-	/* array holding the id corresponding to each query */
-	unsigned int *id;
-	/* number of queries in *queries and *id */
-	unsigned int num_of_queries;
-	/* index to the next query to start */
-	unsigned int active_query;
-	/* flag to cache user preference for occlusion based selection */
-	bool use_gpu_select;
-	/* cache on initialization */
-	unsigned int *buffer;
-	/* buffer size (stores number of integers, for actual size multiply by sizeof integer)*/
-	unsigned int bufsize;
-	/* mode of operation */
-	char mode;
-	unsigned int index;
-	int oldhits;
-} GPUQueryState;
+/* Internal algorithm used */
+enum {
+  /** glBegin/EndQuery(GL_SAMPLES_PASSED... ), `gpu_select_query.c`
+   * Only sets 4th component (ID) correctly. */
+  ALGO_GL_QUERY = 1,
+  /** Read depth buffer for every drawing pass and extract depths, `gpu_select_pick.c`
+   * Only sets 4th component (ID) correctly. */
+  ALGO_GL_PICK = 2,
+};
 
-static GPUQueryState g_query_state = {0};
+typedef struct GPUSelectState {
+  /* To ignore selection id calls when not initialized */
+  bool select_is_active;
+  /* mode of operation */
+  char mode;
+  /* internal algorithm for selection */
+  char algorithm;
+  /* allow GPU_select_begin/end without drawing */
+  bool use_cache;
+} GPUSelectState;
+
+static GPUSelectState g_select_state = {0};
 
 /**
  * initialize and provide buffer for results
  */
-void GPU_select_begin(unsigned int *buffer, unsigned int bufsize, rctf *input, char mode, int oldhits)
+void GPU_select_begin(uint *buffer, uint bufsize, const rcti *input, char mode, int oldhits)
 {
-	g_query_state.select_is_active = true;
-	g_query_state.query_issued = false;
-	g_query_state.active_query = 0;
-	g_query_state.use_gpu_select = GPU_select_query_check_active();
-	g_query_state.num_of_queries = 0;
-	g_query_state.bufsize = bufsize;
-	g_query_state.buffer = buffer;
-	g_query_state.mode = mode;
-	g_query_state.index = 0;
-	g_query_state.oldhits = oldhits;
+  if (mode == GPU_SELECT_NEAREST_SECOND_PASS) {
+    /* In the case hits was '-1',
+     * don't start the second pass since it's not going to give useful results.
+     * As well as buffer overflow in 'gpu_select_query_load_id'. */
+    BLI_assert(oldhits != -1);
+  }
 
-	if (!g_query_state.use_gpu_select) {
-		glSelectBuffer(bufsize, (GLuint *)buffer);
-		glRenderMode(GL_SELECT);
-		glInitNames();
-		glPushName(-1);
-	}
-	else {
-		float viewport[4];
+  g_select_state.select_is_active = true;
+  g_select_state.mode = mode;
 
-		g_query_state.num_of_queries = ALLOC_QUERIES;
+  if (ELEM(g_select_state.mode, GPU_SELECT_PICK_ALL, GPU_SELECT_PICK_NEAREST)) {
+    g_select_state.algorithm = ALGO_GL_PICK;
+  }
+  else {
+    g_select_state.algorithm = ALGO_GL_QUERY;
+  }
 
-		g_query_state.queries = MEM_mallocN(g_query_state.num_of_queries * sizeof(*g_query_state.queries), "gpu selection queries");
-		g_query_state.id = MEM_mallocN(g_query_state.num_of_queries * sizeof(*g_query_state.id), "gpu selection ids");
-		glGenQueries(g_query_state.num_of_queries, g_query_state.queries);
-
-		glPushAttrib(GL_DEPTH_BUFFER_BIT | GL_VIEWPORT_BIT);
-		/* disable writing to the framebuffer */
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-
-		/* In order to save some fill rate we minimize the viewport using rect.
-		 * We need to get the region of the scissor so that our geometry doesn't
-		 * get rejected before the depth test. Should probably cull rect against
-		 * scissor for viewport but this is a rare case I think */
-		glGetFloatv(GL_SCISSOR_BOX, viewport);
-		if (!input || input->xmin == input->xmax) {
-			glViewport(viewport[0], viewport[1], 24, 24);
-		}
-		else {
-			glViewport(viewport[0], viewport[1], (int)(input->xmax - input->xmin), (int)(input->ymax - input->ymin));
-		}
-
-		/* occlusion queries operates on fragments that pass tests and since we are interested on all
-		 * objects in the view frustum independently of their order, we need to disable the depth test */
-		if (mode == GPU_SELECT_ALL) {
-			glDisable(GL_DEPTH_TEST);
-			glDepthMask(GL_FALSE);
-		}
-		else if (mode == GPU_SELECT_NEAREST_FIRST_PASS) {
-			glClear(GL_DEPTH_BUFFER_BIT);
-			glEnable(GL_DEPTH_TEST);
-			glDepthMask(GL_TRUE);
-			glDepthFunc(GL_LEQUAL);
-		}
-		else if (mode == GPU_SELECT_NEAREST_SECOND_PASS) {
-			glEnable(GL_DEPTH_TEST);
-			glDepthMask(GL_FALSE);
-			glDepthFunc(GL_EQUAL);
-		}
-	}
+  switch (g_select_state.algorithm) {
+    case ALGO_GL_QUERY: {
+      g_select_state.use_cache = false;
+      gpu_select_query_begin((uint(*)[4])buffer, bufsize / 4, input, mode, oldhits);
+      break;
+    }
+    default: /* ALGO_GL_PICK */
+    {
+      gpu_select_pick_begin((uint(*)[4])buffer, bufsize / 4, input, mode);
+      break;
+    }
+  }
 }
 
 /**
- * loads a new selection id and ends previous query, if any. In second pass of selection it also returns
+ * loads a new selection id and ends previous query, if any.
+ * In second pass of selection it also returns
  * if id has been hit on the first pass already.
  * Thus we can skip drawing un-hit objects.
  *
  * \warning We rely on the order of object rendering on passes to be the same for this to work.
  */
-bool GPU_select_load_id(unsigned int id)
+bool GPU_select_load_id(uint id)
 {
-	/* if no selection mode active, ignore */
-	if (!g_query_state.select_is_active)
-		return true;
+  /* if no selection mode active, ignore */
+  if (!g_select_state.select_is_active) {
+    return true;
+  }
 
-	if (!g_query_state.use_gpu_select) {
-		glLoadName(id);
-	}
-	else {
-		if (g_query_state.query_issued) {
-			glEndQuery(GL_SAMPLES_PASSED);
-		}
-		/* if required, allocate extra queries */
-		if (g_query_state.active_query == g_query_state.num_of_queries) {
-			g_query_state.num_of_queries += ALLOC_QUERIES;
-			g_query_state.queries = MEM_reallocN(g_query_state.queries, g_query_state.num_of_queries * sizeof(*g_query_state.queries));
-			g_query_state.id = MEM_reallocN(g_query_state.id, g_query_state.num_of_queries * sizeof(*g_query_state.id));
-			glGenQueries(ALLOC_QUERIES, &g_query_state.queries[g_query_state.active_query]);
-		}
-
-		glBeginQuery(GL_SAMPLES_PASSED, g_query_state.queries[g_query_state.active_query]);
-		g_query_state.id[g_query_state.active_query] = id;
-		g_query_state.active_query++;
-		g_query_state.query_issued = true;
-
-		if (g_query_state.mode == GPU_SELECT_NEAREST_SECOND_PASS && g_query_state.index < g_query_state.oldhits) {
-			if (g_query_state.buffer[g_query_state.index * 4 + 3] == id) {
-				g_query_state.index++;
-				return true;
-			}
-			else {
-				return false;
-			}
-		}
-	}
-
-	return true;
+  switch (g_select_state.algorithm) {
+    case ALGO_GL_QUERY: {
+      return gpu_select_query_load_id(id);
+    }
+    default: /* ALGO_GL_PICK */
+    {
+      return gpu_select_pick_load_id(id, false);
+    }
+  }
 }
 
 /**
@@ -188,75 +130,126 @@ bool GPU_select_load_id(unsigned int id)
  * Return number of hits and hits in buffer.
  * if \a dopass is true, we will do a second pass with occlusion queries to get the closest hit.
  */
-unsigned int GPU_select_end(void)
+uint GPU_select_end(void)
 {
-	unsigned int hits = 0;
-	if (!g_query_state.use_gpu_select) {
-		glPopName();
-		hits = glRenderMode(GL_RENDER);
-	}
-	else {
-		int i;
+  uint hits = 0;
 
-		if (g_query_state.query_issued) {
-			glEndQuery(GL_SAMPLES_PASSED);
-		}
+  switch (g_select_state.algorithm) {
+    case ALGO_GL_QUERY: {
+      hits = gpu_select_query_end();
+      break;
+    }
+    default: /* ALGO_GL_PICK */
+    {
+      hits = gpu_select_pick_end();
+      break;
+    }
+  }
 
-		for (i = 0; i < g_query_state.active_query; i++) {
-			unsigned int result;
-			glGetQueryObjectuiv(g_query_state.queries[i], GL_QUERY_RESULT, &result);
-			if (result > 0) {
-				if (g_query_state.mode != GPU_SELECT_NEAREST_SECOND_PASS) {
-					int maxhits = g_query_state.bufsize / 4;
+  g_select_state.select_is_active = false;
 
-					if (hits < maxhits) {
-						g_query_state.buffer[hits * 4] = 1;
-						g_query_state.buffer[hits * 4 + 1] = 0xFFFF;
-						g_query_state.buffer[hits * 4 + 2] = 0xFFFF;
-						g_query_state.buffer[hits * 4 + 3] = g_query_state.id[i];
-
-						hits++;
-					}
-					else {
-						hits = -1;
-						break;
-					}
-				}
-				else {
-					int j;
-					/* search in buffer and make selected object first */
-					for (j = 0; j < g_query_state.oldhits; j++) {
-						if (g_query_state.buffer[j * 4 + 3] == g_query_state.id[i]) {
-							g_query_state.buffer[j * 4 + 1] = 0;
-							g_query_state.buffer[j * 4 + 2] = 0;
-						}
-					}
-					break;
-				}
-			}
-		}
-
-		glDeleteQueries(g_query_state.num_of_queries, g_query_state.queries);
-		MEM_freeN(g_query_state.queries);
-		MEM_freeN(g_query_state.id);
-		glPopAttrib();
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	}
-
-	g_query_state.select_is_active = false;
-
-	return hits;
+  return hits;
 }
 
-/**
- * has user activated?
+/* ----------------------------------------------------------------------------
+ * Caching
+ *
+ * Support multiple begin/end's as long as they are within the initial region.
+ * Currently only used by ALGO_GL_PICK.
  */
-bool GPU_select_query_check_active(void)
-{
-	return ((U.gpu_select_method == USER_SELECT_USE_OCCLUSION_QUERY) ||
-	        ((U.gpu_select_method == USER_SELECT_AUTO) &&
-	         (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) ||
-	          /* unsupported by nouveau, gallium 0.4, see: T47940 */
-	          GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE))));
 
+void GPU_select_cache_begin(void)
+{
+  /* validate on GPU_select_begin, clear if not supported */
+  BLI_assert(g_select_state.use_cache == false);
+  g_select_state.use_cache = true;
+  if (g_select_state.algorithm == ALGO_GL_PICK) {
+    gpu_select_pick_cache_begin();
+  }
+}
+
+void GPU_select_cache_load_id(void)
+{
+  BLI_assert(g_select_state.use_cache == true);
+  if (g_select_state.algorithm == ALGO_GL_PICK) {
+    gpu_select_pick_cache_load_id();
+  }
+}
+
+void GPU_select_cache_end(void)
+{
+  if (g_select_state.algorithm == ALGO_GL_PICK) {
+    gpu_select_pick_cache_end();
+  }
+  g_select_state.use_cache = false;
+}
+
+bool GPU_select_is_cached(void)
+{
+  return g_select_state.use_cache && gpu_select_pick_is_cached();
+}
+
+/* ----------------------------------------------------------------------------
+ * Utilities
+ */
+
+/**
+ * Helper function, nothing special but avoids doing inline since hit's aren't sorted by depth
+ * and purpose of 4x buffer indices isn't so clear.
+ *
+ * Note that comparing depth as uint is fine.
+ */
+const uint *GPU_select_buffer_near(const uint *buffer, int hits)
+{
+  const uint *buffer_near = NULL;
+  uint depth_min = (uint)-1;
+  for (int i = 0; i < hits; i++) {
+    if (buffer[1] < depth_min) {
+      BLI_assert(buffer[3] != -1);
+      depth_min = buffer[1];
+      buffer_near = buffer;
+    }
+    buffer += 4;
+  }
+  return buffer_near;
+}
+
+/* Part of the solution copied from `rect_subregion_stride_calc`. */
+void GPU_select_buffer_stride_realign(const rcti *src, const rcti *dst, uint *r_buf)
+{
+  const int x = dst->xmin - src->xmin;
+  const int y = dst->ymin - src->ymin;
+
+  BLI_assert(src->xmin <= dst->xmin && src->ymin <= dst->ymin && src->xmax >= dst->xmax &&
+             src->ymax >= dst->ymax);
+  BLI_assert(x >= 0 && y >= 0);
+
+  const int src_x = BLI_rcti_size_x(src);
+  const int src_y = BLI_rcti_size_y(src);
+  const int dst_x = BLI_rcti_size_x(dst);
+  const int dst_y = BLI_rcti_size_y(dst);
+
+  int last_px_id = src_x * (y + dst_y - 1) + (x + dst_x - 1);
+  memset(&r_buf[last_px_id + 1], 0, (src_x * src_y - (last_px_id + 1)) * sizeof(*r_buf));
+
+  if (last_px_id < 0) {
+    /* Nothing to write. */
+    BLI_assert(last_px_id == -1);
+    return;
+  }
+
+  int last_px_written = dst_x * dst_y - 1;
+  const int skip = src_x - dst_x;
+
+  while (true) {
+    for (int i = dst_x; i--;) {
+      r_buf[last_px_id--] = r_buf[last_px_written--];
+    }
+    if (last_px_written < 0) {
+      break;
+    }
+    last_px_id -= skip;
+    memset(&r_buf[last_px_id + 1], 0, skip * sizeof(*r_buf));
+  }
+  memset(r_buf, 0, (last_px_id + 1) * sizeof(*r_buf));
 }

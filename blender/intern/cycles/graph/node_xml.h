@@ -16,20 +16,19 @@
 
 #pragma once
 
-#include "node.h"
+#include "graph/node.h"
 
-#include "util_map.h"
-#include "util_string.h"
-#include "util_xml.h"
+#include "util/util_map.h"
+#include "util/util_string.h"
+#include "util/util_xml.h"
 
 CCL_NAMESPACE_BEGIN
 
 struct XMLReader {
-	map<ustring, Node*> node_map;
+  map<ustring, Node *> node_map;
 };
 
-void xml_read_node(XMLReader& reader, Node *node, pugi::xml_node xml_node);
-pugi::xml_node xml_write_node(Node *node, pugi::xml_node xml_root);
+void xml_read_node(XMLReader &reader, Node *node, xml_node xml_node);
+xml_node xml_write_node(Node *node, xml_node xml_root);
 
 CCL_NAMESPACE_END
-

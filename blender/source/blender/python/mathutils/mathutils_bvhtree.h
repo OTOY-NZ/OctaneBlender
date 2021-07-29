@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,13 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-
-/** \file blender/python/mathutils/mathutils_bvhtree.h
- *  \ingroup mathutils
+/** \file
+ * \ingroup mathutils
  */
 
 #ifndef __MATHUTILS_BVHTREE_H__
@@ -30,7 +25,7 @@ PyMODINIT_FUNC PyInit_mathutils_bvhtree(void);
 
 extern PyTypeObject PyBVHTree_Type;
 
-#define PyBVHTree_Check(_v)  PyObject_TypeCheck((_v), &PyBVHTree_Type)
-#define PyBVHTree_CheckExact(v)  (Py_TYPE(v) == &PyBVHTree_Type)
+#define PyBVHTree_Check(v) PyObject_TypeCheck((v), &PyBVHTree_Type)
+#define PyBVHTree_CheckExact(v) (Py_TYPE(v) == &PyBVHTree_Type)
 
 #endif /* __MATHUTILS_BVHTREE_H__ */

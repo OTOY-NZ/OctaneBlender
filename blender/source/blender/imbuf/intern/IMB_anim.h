@@ -1,6 +1,4 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -17,18 +15,11 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/imbuf/intern/IMB_anim.h
- *  \ingroup imbuf
+/** \file
+ * \ingroup imbuf
  */
-
 
 #ifndef __IMB_ANIM_H__
 #define __IMB_ANIM_H__
@@ -40,14 +31,11 @@
 #  include <mmsystem.h>
 #  include <memory.h>
 #  include <commdlg.h>
+#  include <vfw.h>
 
-#  ifndef FREE_WINDOWS
-#    include <vfw.h>
-#  endif
-
-#  undef AVIIF_KEYFRAME // redefined in AVI_avi.h
-#  undef AVIIF_LIST // redefined in AVI_avi.h
-#endif /* _WIN32 */
+#  undef AVIIF_KEYFRAME  // redefined in AVI_avi.h
+#  undef AVIIF_LIST      // redefined in AVI_avi.h
+#endif                   /* _WIN32 */
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -65,12 +53,6 @@
 #ifdef WITH_AVI
 #  include "AVI_avi.h"
 #endif
-
-#ifdef WITH_QUICKTIME
-#  if defined(_WIN32) || defined(__APPLE__)
-#    include "quicktime_import.h"
-#  endif /* _WIN32 || __APPLE__ */
-#endif /* WITH_QUICKTIME */
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -91,87 +73,84 @@
 #endif
 
 /* anim.curtype, runtime only */
-#define ANIM_NONE       0
-#define ANIM_SEQUENCE   (1 << 0)
-#define ANIM_MOVIE      (1 << 4)
-#define ANIM_AVI        (1 << 6)
-#define ANIM_QTIME      (1 << 7)
-#define ANIM_FFMPEG     (1 << 8)
+#define ANIM_NONE 0
+#define ANIM_SEQUENCE (1 << 0)
+#define ANIM_MOVIE (1 << 4)
+#define ANIM_AVI (1 << 6)
+#define ANIM_FFMPEG (1 << 8)
 
-#define MAXNUMSTREAMS       50
+#define MAXNUMSTREAMS 50
 
+struct IDProperty;
 struct _AviMovie;
 struct anim_index;
 
 struct anim {
-	int ib_flags;
-	int curtype;
-	int curposition;    /* index  0 = 1e,  1 = 2e, enz. */
-	int duration;
-	short frs_sec;
-	float frs_sec_base;
-	int x, y;
-	
-	/* for number */
-	char name[1024];
-	/* for sequence */
-	char first[1024];
+  int ib_flags;
+  int curtype;
+  int curposition; /* index  0 = 1e,  1 = 2e, enz. */
+  int duration;
+  int frs_sec;
+  double frs_sec_base;
+  int x, y;
 
-	/* movie */
-	void *movie;
-	void *track;
-	void *params;
-	int orientation; 
-	size_t framesize;
-	int interlacing;
-	int preseek;
-	int streamindex;
-	
-	/* avi */
-	struct _AviMovie *avi;
+  /* for number */
+  char name[1024];
+  /* for sequence */
+  char first[1024];
 
-#if defined(_WIN32) && !defined(FREE_WINDOWS)
-	/* windows avi */
-	int avistreams;
-	int firstvideo;
-	int pfileopen;
-	PAVIFILE pfile;
-	PAVISTREAM pavi[MAXNUMSTREAMS];     // the current streams
-	PGETFRAME pgf;
+  /* movie */
+  void *movie;
+  void *track;
+  void *params;
+  int orientation;
+  size_t framesize;
+  int interlacing;
+  int preseek;
+  int streamindex;
+
+  /* avi */
+  struct _AviMovie *avi;
+
+#if defined(_WIN32)
+  /* windows avi */
+  int avistreams;
+  int firstvideo;
+  int pfileopen;
+  PAVIFILE pfile;
+  PAVISTREAM pavi[MAXNUMSTREAMS];  // the current streams
+  PGETFRAME pgf;
 #endif
-
-#ifdef WITH_QUICKTIME
-	/* quicktime */
-	struct _QuicktimeMovie *qtime;
-#endif /* WITH_QUICKTIME */
 
 #ifdef WITH_FFMPEG
-	AVFormatContext *pFormatCtx;
-	AVCodecContext *pCodecCtx;
-	AVCodec *pCodec;
-	AVFrame *pFrame;
-	int pFrameComplete;
-	AVFrame *pFrameRGB;
-	AVFrame *pFrameDeinterlaced;
-	struct SwsContext *img_convert_ctx;
-	int videoStream;
+  AVFormatContext *pFormatCtx;
+  AVCodecContext *pCodecCtx;
+  AVCodec *pCodec;
+  AVFrame *pFrame;
+  int pFrameComplete;
+  AVFrame *pFrameRGB;
+  AVFrame *pFrameDeinterlaced;
+  struct SwsContext *img_convert_ctx;
+  int videoStream;
 
-	struct ImBuf *last_frame;
-	int64_t last_pts;
-	int64_t next_pts;
-	AVPacket next_packet;
+  struct ImBuf *last_frame;
+  int64_t last_pts;
+  int64_t next_pts;
+  AVPacket next_packet;
 #endif
 
-	char index_dir[768];
+  char index_dir[768];
 
-	int proxies_tried;
-	int indices_tried;
-	
-	struct anim *proxy_anim[IMB_PROXY_MAX_SLOT];
-	struct anim_index *curr_idx[IMB_TC_MAX_SLOT];
+  int proxies_tried;
+  int indices_tried;
 
-	char colorspace[64];
-	char suffix[64]; /* MAX_NAME - multiview */
+  struct anim *proxy_anim[IMB_PROXY_MAX_SLOT];
+  struct anim_index *curr_idx[IMB_TC_MAX_SLOT];
+
+  char colorspace[64];
+  char suffix[64]; /* MAX_NAME - multiview */
+
+  struct IDProperty *metadata;
 };
 
 #endif

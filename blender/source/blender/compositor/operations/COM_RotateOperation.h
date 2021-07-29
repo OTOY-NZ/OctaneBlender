@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,35 +13,39 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Copyright 2011, Blender Foundation.
  */
 
-#ifndef _COM_RotateOperation_h_
-#define _COM_RotateOperation_h_
+#ifndef __COM_ROTATEOPERATION_H__
+#define __COM_ROTATEOPERATION_H__
 
 #include "COM_NodeOperation.h"
 
 class RotateOperation : public NodeOperation {
-private:
-	SocketReader *m_imageSocket;
-	SocketReader *m_degreeSocket;
-	float m_centerX;
-	float m_centerY;
-	float m_cosine;
-	float m_sine;
-	bool m_doDegree2RadConversion;
-	bool m_isDegreeSet;
-public:
-	RotateOperation();
-	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
-	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	void initExecution();
-	void deinitExecution();
-	void setDoDegree2RadConversion(bool abool) { this->m_doDegree2RadConversion = abool; }
-	
-	void ensureDegree();
+ private:
+  SocketReader *m_imageSocket;
+  SocketReader *m_degreeSocket;
+  float m_centerX;
+  float m_centerY;
+  float m_cosine;
+  float m_sine;
+  bool m_doDegree2RadConversion;
+  bool m_isDegreeSet;
+
+ public:
+  RotateOperation();
+  bool determineDependingAreaOfInterest(rcti *input,
+                                        ReadBufferOperation *readOperation,
+                                        rcti *output);
+  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+  void initExecution();
+  void deinitExecution();
+  void setDoDegree2RadConversion(bool abool)
+  {
+    this->m_doDegree2RadConversion = abool;
+  }
+
+  void ensureDegree();
 };
 
 #endif

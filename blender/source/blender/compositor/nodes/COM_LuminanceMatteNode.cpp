@@ -1,6 +1,4 @@
 /*
- * Copyright 2011, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -15,8 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor:
- *		Dalai Felinto
+ * Copyright 2011, Blender Foundation.
  */
 
 #include "COM_LuminanceMatteNode.h"
@@ -27,32 +24,30 @@
 
 LuminanceMatteNode::LuminanceMatteNode(bNode *editorNode) : Node(editorNode)
 {
-	/* pass */
+  /* pass */
 }
 
-void LuminanceMatteNode::convertToOperations(NodeConverter &converter, const CompositorContext &/*context*/) const
+void LuminanceMatteNode::convertToOperations(NodeConverter &converter,
+                                             const CompositorContext & /*context*/) const
 {
-	bNode *editorsnode = getbNode();
-	NodeInput *inputSocket = this->getInputSocket(0);
-	NodeOutput *outputSocketImage = this->getOutputSocket(0);
-	NodeOutput *outputSocketMatte = this->getOutputSocket(1);
+  bNode *editorsnode = getbNode();
+  NodeInput *inputSocket = this->getInputSocket(0);
+  NodeOutput *outputSocketImage = this->getOutputSocket(0);
+  NodeOutput *outputSocketMatte = this->getOutputSocket(1);
 
-	ConvertRGBToYUVOperation *rgbToYUV = new ConvertRGBToYUVOperation();
-	LuminanceMatteOperation *operationSet = new LuminanceMatteOperation();
-	operationSet->setSettings((NodeChroma *)editorsnode->storage);
-	converter.addOperation(rgbToYUV);
-	converter.addOperation(operationSet);
+  LuminanceMatteOperation *operationSet = new LuminanceMatteOperation();
+  operationSet->setSettings((NodeChroma *)editorsnode->storage);
+  converter.addOperation(operationSet);
 
-	converter.mapInputSocket(inputSocket, rgbToYUV->getInputSocket(0));
-	converter.addLink(rgbToYUV->getOutputSocket(), operationSet->getInputSocket(0));
-	converter.mapOutputSocket(outputSocketMatte, operationSet->getOutputSocket(0));
+  converter.mapInputSocket(inputSocket, operationSet->getInputSocket(0));
+  converter.mapOutputSocket(outputSocketMatte, operationSet->getOutputSocket(0));
 
-	SetAlphaOperation *operation = new SetAlphaOperation();
-	converter.addOperation(operation);
-	
-	converter.mapInputSocket(inputSocket, operation->getInputSocket(0));
-	converter.addLink(operationSet->getOutputSocket(), operation->getInputSocket(1));
-	converter.mapOutputSocket(outputSocketImage, operation->getOutputSocket());
-	
-	converter.addPreview(operation->getOutputSocket());
+  SetAlphaOperation *operation = new SetAlphaOperation();
+  converter.addOperation(operation);
+
+  converter.mapInputSocket(inputSocket, operation->getInputSocket(0));
+  converter.addLink(operationSet->getOutputSocket(), operation->getInputSocket(1));
+  converter.mapOutputSocket(outputSocketImage, operation->getOutputSocket());
+
+  converter.addPreview(operation->getOutputSocket());
 }
