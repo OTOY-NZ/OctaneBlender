@@ -17,15 +17,16 @@
 #ifndef __BLENDER_UTIL_H__
 #define __BLENDER_UTIL_H__
 
-#include "MEM_guardedalloc.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "MEM_guardedalloc.h"
 #include "RNA_access.h"
 #include "RNA_blender_cpp.h"
 #include "RNA_types.h"
 #include "render/mesh.h"
 #include "render/osl.h"
 
+#include "BKE_mesh.h"
 #include "util/util_algorithm.h"
 #include "util/util_array.h"
 #include "util/util_map.h"
@@ -35,7 +36,6 @@
 #include "util/util_transform.h"
 #include "util/util_types.h"
 #include "util/util_vector.h"
-#include "BKE_mesh.h"
 
 /* Hacks to hook into Blender API
  * todo: clean this up ... */
@@ -127,8 +127,8 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
                                      BL::Object &b_ob,
                                      std::vector<Shader *> &shaders)
 {
-  //using milli = std::chrono::milliseconds;
-  //auto start = std::chrono::high_resolution_clock::now();
+  // using milli = std::chrono::milliseconds;
+  // auto start = std::chrono::high_resolution_clock::now();
   std::string result = "";
   static int SAMPLE_NUMBER = 5;
   if (b_ob.type() == BL::Object::type_MESH) {
@@ -151,7 +151,7 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
     }
     if (me->totpoly > 1) {
       ss << me->mpoly[0].flag << "|";
-    }    
+    }
     result = ss.str();
   }
   for (int i = 0; i < shaders.size(); ++i) {
@@ -159,11 +159,11 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
       result += shaders[i]->name;
     }
   }
-  //auto finish = std::chrono::high_resolution_clock::now();
-  //stringstream profile;
-  //profile << "generate_mesh_tag() took "
+  // auto finish = std::chrono::high_resolution_clock::now();
+  // stringstream profile;
+  // profile << "generate_mesh_tag() took "
   //        << std::chrono::duration_cast<milli>(finish - start).count() << " milliseconds\n";
-  //fprintf(stderr, "%s", profile.str().c_str());
+  // fprintf(stderr, "%s", profile.str().c_str());
   return result;
 }
 
@@ -1100,7 +1100,7 @@ static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *b
 static inline bool need_upgrade_float_to_color(
     ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
     PointerRNA &ptr,
-    float4& color,
+    float4 &color,
     bool is_socket = false)
 {
   if (!base_dto_ptr || !ptr.data)
@@ -1129,12 +1129,21 @@ static inline bool set_octane_data_transfer_object(
 
   int4 i;
   float4 f;
+  PropertyRNA *prop;
   const char *name = ((is_socket && base_dto_ptr->type != OctaneDataTransferObject::DTO_ENUM) ?
                           "default_value" :
                           base_dto_ptr->sName.c_str());
   switch (base_dto_ptr->type) {
     case OctaneDataTransferObject::DTO_ENUM:
-      *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_enum(ptr, name);
+      prop = RNA_struct_find_property(&ptr, name);
+      if (prop != NULL) {
+        // Old style
+        *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_enum(ptr, name);
+      }
+      else {
+        *(::OctaneDataTransferObject::OctaneDTOEnum *)base_dto_ptr = get_enum(ptr,
+                                                                              "default_value");
+      }
       break;
     case OctaneDataTransferObject::DTO_BOOL:
       *(::OctaneDataTransferObject::OctaneDTOBool *)base_dto_ptr = get_boolean(ptr, name);

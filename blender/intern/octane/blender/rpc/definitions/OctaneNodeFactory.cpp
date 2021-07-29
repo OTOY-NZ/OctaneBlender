@@ -186,6 +186,8 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneRangeTexture);
 
 		OCTANE_NODE_CREATOR(OctaneOcioColorSpace);
+
+		OCTANE_NODE_CREATOR(OctaneCustomNode);
 #undef OCTANE_NODE_CREATOR
 	};
 
@@ -204,6 +206,9 @@ namespace OctaneDataTransferObject {
 		OctaneNodeBase* node = NULL;
 		if (creatorsMap.find(octaneType) != creatorsMap.end()) {
 			node = creatorsMap[octaneType]();
+		}
+		if (!node) {
+			node = creatorsMap[Octane::ENT_CUSTOM_NODE]();
 		}
 		return node;
 	}

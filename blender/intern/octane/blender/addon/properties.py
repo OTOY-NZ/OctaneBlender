@@ -688,7 +688,7 @@ intermediate_color_space_types = (
 )
 
 custom_aov_modes = (
-    ('None', "None", "None", 32),
+    ('None', "None", "None", 4096),
     ('Custom AOV 1', "Custom AOV 1", "Custom AOV 1", 0),
     ('Custom AOV 2', "Custom AOV 2", "Custom AOV 2", 1),
     ('Custom AOV 3', "Custom AOV 3", "Custom AOV 3", 2),
@@ -2037,7 +2037,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             name="GI clamp",
             description="GI clamp reducing fireflies",
             min=0.001, soft_min=0.001, max=1000000.0, soft_max=1000000.0,
-            default=5.0,
+            default=1000000,
             step=1,
             precision=3,
             )

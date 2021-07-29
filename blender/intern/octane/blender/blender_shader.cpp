@@ -46,6 +46,22 @@ typedef pair<ShaderNode *, std::string> SocketPair;
 typedef map<void *, SocketPair> PtrSockMap;
 typedef map<void *, std::string> PtrStringMap;
 
+enum class OctaneSocketType {
+  ST_UNKNOWN = 0,
+  ST_BOOL = 1,
+  ST_ENUM = 2,
+  ST_INT = 3,
+  ST_INT2 = 4,
+  ST_INT3 = 5,
+  ST_FLOAT = 6,
+  ST_FLOAT2 = 7,
+  ST_FLOAT3 = 8,
+  ST_RGBA = 9,
+  ST_STRING = 10,
+  ST_LINK = 11,
+  ST_OUTPUT = 100
+};
+
 struct SocketData {
   std::string identifier;
   std::string name;
@@ -169,7 +185,12 @@ std::string LinkResolver::resolve_name(std::string prefix, BL::Node node)
         if (b_ob.ptr.data) {
           bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
           BL::ID b_ob_data = b_ob.data();
-          return resolve_octane_name(b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+          if (b_ob_data.ptr.data != NULL) {
+            return resolve_octane_name(b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+          }
+          else {
+            return b_ob.name_full() + MESH_TAG;
+		  }          
         }
       }
       else if (source_type == OBJECT_DATA_NODE_TYPE_COLLECTION) {
@@ -744,159 +765,164 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                                    LinkResolver &link_resolver)
 {
   std::string node_type_name = b_node.bl_idname();
+  PropertyRNA *octane_node_type_prop = RNA_struct_find_property(&b_node.ptr, "octane_node_type");
+  if (octane_node_type_prop != NULL) {
+    int octane_node_type = get_int(b_node.ptr, "octane_node_type");
+    if (octane_node_type != 0) {
+      node_type_name = "OctaneCustomNode";
+    }
+  }
   ShaderNode *node = generateShaderNode(
       prefix_name, node_type_name, scene, b_data, b_scene, graph, b_node, link_resolver);
-  if (!node || !node->oct_node) {
-    if (b_node.is_a(&RNA_ShaderNodeOctObjectData)) {
-      int source_type = RNA_enum_get(&b_node.ptr, "source_type");
-      std::string source_name = (source_type == OBJECT_DATA_NODE_TYPE_OBJECT) ? "Object" :
-                                                                                "Collection";
-      BL::Node::inputs_iterator b_input;
-      PointerRNA source_ptr = PointerRNA_NULL;
-      for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
-        std::string name = b_input->name();
-        if (name == source_name) {
-          source_ptr = RNA_pointer_get(&b_input->ptr, "default_value");
-          break;
-        }
+  if (!node || !node->oct_node) {    
+    return NULL;
+  }
+  if (b_node.is_a(&RNA_ShaderNodeOctObjectData)) {
+    int source_type = RNA_enum_get(&b_node.ptr, "source_type");
+    std::string source_name = (source_type == OBJECT_DATA_NODE_TYPE_OBJECT) ? "Object" :
+                                                                              "Collection";
+    BL::Node::inputs_iterator b_input;
+    PointerRNA source_ptr = PointerRNA_NULL;
+    for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+      std::string name = b_input->name();
+      if (name == source_name) {
+        source_ptr = RNA_pointer_get(&b_input->ptr, "default_value");
+        break;
       }
-      if (source_ptr.data != NULL) {
-        graph->dependent_ids.insert(source_ptr.data);
-        if (source_type == OBJECT_DATA_NODE_TYPE_OBJECT) {
-          BL::Node::outputs_iterator b_output;
-          for (b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
-            std::string name = b_output->name();
-            if (!b_output->is_linked()) {
-              continue;
+    }
+    if (source_ptr.data != NULL) {
+      graph->dependent_ids.insert(source_ptr.data);
+      if (source_type == OBJECT_DATA_NODE_TYPE_OBJECT) {
+        BL::Node::outputs_iterator b_output;
+        for (b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
+          std::string name = b_output->name();
+          if (!b_output->is_linked()) {
+            continue;
+          }
+          BL::Object b_ob(source_ptr);
+          if (!b_ob) {
+            continue;
+          }
+          if (name == "OutTransform") {
+            std::string transform_node_type = "ShaderNodeOctFullTransform";
+            ShaderNode *object_data_output_node = generateShaderNode(prefix_name,
+                                                                     transform_node_type,
+                                                                     scene,
+                                                                     b_data,
+                                                                     b_scene,
+                                                                     graph,
+                                                                     b_node,
+                                                                     link_resolver,
+                                                                     false);
+            if (object_data_output_node && object_data_output_node->oct_node) {
+              object_data_output_node->oct_node->sName = object_data_output_node->oct_node->sName +
+                                                         "_" + name;
+              Transform octane_tfm = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
+              OctaneDataTransferObject::OctaneValueTransform *oct_transform_node =
+                  (OctaneDataTransferObject::OctaneValueTransform *)
+                      object_data_output_node->oct_node;
+              set_octane_matrix(oct_transform_node->oMatrix, octane_tfm);
+              oct_transform_node->bUseMatrix = true;
+              graph->add(object_data_output_node);
             }
-            BL::Object b_ob(source_ptr);
-            if (!b_ob) {
-              continue;
+          }
+          else if (name == "OutRotation") {
+            std::string float_node_type = "ShaderNodeOctFloatValue";
+            ShaderNode *object_data_output_node = generateShaderNode(prefix_name,
+                                                                     float_node_type,
+                                                                     scene,
+                                                                     b_data,
+                                                                     b_scene,
+                                                                     graph,
+                                                                     b_node,
+                                                                     link_resolver,
+                                                                     false);
+            if (object_data_output_node && object_data_output_node->oct_node) {
+              object_data_output_node->oct_node->sName = object_data_output_node->oct_node->sName +
+                                                         "_" + name;
+              Transform octane_tfm = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
+              float3 dir = transform_get_column(&octane_tfm, 2);
+              dir *= -1;
+              OctaneDataTransferObject::OctaneFloatValue *oct_float_node =
+                  (OctaneDataTransferObject::OctaneFloatValue *)object_data_output_node->oct_node;
+              oct_float_node->f3Value.fVal.x = dir.x;
+              oct_float_node->f3Value.fVal.y = dir.y;
+              oct_float_node->f3Value.fVal.z = dir.z;
+              graph->add(object_data_output_node);
             }
-            if (name == "OutTransform") {
-              std::string transform_node_type = "ShaderNodeOctFullTransform";
-              ShaderNode *object_data_output_node = generateShaderNode(prefix_name,
-                                                                       transform_node_type,
-                                                                       scene,
-                                                                       b_data,
-                                                                       b_scene,
-                                                                       graph,
-                                                                       b_node,
-                                                                       link_resolver,
-                                                                       false);
-              if (object_data_output_node && object_data_output_node->oct_node) {
-                object_data_output_node->oct_node->sName =
-                    object_data_output_node->oct_node->sName + "_" + name;
-                Transform octane_tfm = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
-                OctaneDataTransferObject::OctaneValueTransform *oct_transform_node =
-                    (OctaneDataTransferObject::OctaneValueTransform *)
-                        object_data_output_node->oct_node;
-                set_octane_matrix(oct_transform_node->oMatrix, octane_tfm);
-                oct_transform_node->bUseMatrix = true;
-                graph->add(object_data_output_node);
-              }
-            }
-            else if (name == "OutRotation") {
-              std::string float_node_type = "ShaderNodeOctFloatValue";
-              ShaderNode *object_data_output_node = generateShaderNode(prefix_name,
-                                                                       float_node_type,
-                                                                       scene,
-                                                                       b_data,
-                                                                       b_scene,
-                                                                       graph,
-                                                                       b_node,
-                                                                       link_resolver,
-                                                                       false);
-              if (object_data_output_node && object_data_output_node->oct_node) {
-                object_data_output_node->oct_node->sName =
-                    object_data_output_node->oct_node->sName + "_" + name;
-                Transform octane_tfm = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
-                float3 dir = transform_get_column(&octane_tfm, 2);
-                dir *= -1;
-                OctaneDataTransferObject::OctaneFloatValue *oct_float_node =
-                    (OctaneDataTransferObject::OctaneFloatValue *)
-                        object_data_output_node->oct_node;
-                oct_float_node->f3Value.fVal.x = dir.x;
-                oct_float_node->f3Value.fVal.y = dir.y;
-                oct_float_node->f3Value.fVal.z = dir.z;
-                graph->add(object_data_output_node);
-              }
-            }
-            else if (name == "OutGeo" || name == "OutTransformedGeo") {
-              std::string placement_node_type = "ShaderNodeOctPlacement";
-              std::string transform_node_type = "ShaderNodeOctFullTransform";
-              ShaderNode *object_data_geo_output_node = generateShaderNode(prefix_name,
-                                                                           placement_node_type,
-                                                                           scene,
-                                                                           b_data,
-                                                                           b_scene,
-                                                                           graph,
-                                                                           b_node,
-                                                                           link_resolver,
-                                                                           false);
-              ShaderNode *object_data_transform_output_node = generateShaderNode(
-                  prefix_name,
-                  transform_node_type,
-                  scene,
-                  b_data,
-                  b_scene,
-                  graph,
-                  b_node,
-                  link_resolver,
-                  false);
-              if (object_data_geo_output_node && object_data_geo_output_node->oct_node &&
-                  object_data_transform_output_node &&
-                  object_data_transform_output_node->oct_node) {
-                std::string placement_name = object_data_geo_output_node->oct_node->sName + "_" +
-                                             name;
-                std::string transform_name = placement_name + "_Transform";
-                object_data_geo_output_node->oct_node->sName = placement_name;
-                object_data_transform_output_node->oct_node->sName = transform_name;
-                Transform octane_tfm = get_transform(b_ob.matrix_world());
-                OctaneDataTransferObject::OctaneValueTransform *oct_transform_node =
-                    (OctaneDataTransferObject::OctaneValueTransform *)
-                        object_data_transform_output_node->oct_node;
-                set_octane_matrix(oct_transform_node->oMatrix, octane_tfm);
-                oct_transform_node->bUseMatrix = true;
-                bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
-                BL::ID b_ob_data = b_ob.data();
-                std::string geo_name = resolve_octane_name(
-                    b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
-                OctaneDataTransferObject::OctanePlacement *oct_placement_node =
-                    (OctaneDataTransferObject::OctanePlacement *)
-                        object_data_geo_output_node->oct_node;
-                oct_placement_node->oMesh = geo_name;
-                oct_placement_node->oTransform = name == "OutTransformedGeo" ? transform_name : "";
-                graph->add(object_data_geo_output_node);
-                graph->add(object_data_transform_output_node);
-              }
+          }
+          else if (name == "OutGeo" || name == "OutTransformedGeo") {
+            std::string placement_node_type = "ShaderNodeOctPlacement";
+            std::string transform_node_type = "ShaderNodeOctFullTransform";
+            ShaderNode *object_data_geo_output_node = generateShaderNode(prefix_name,
+                                                                         placement_node_type,
+                                                                         scene,
+                                                                         b_data,
+                                                                         b_scene,
+                                                                         graph,
+                                                                         b_node,
+                                                                         link_resolver,
+                                                                         false);
+            ShaderNode *object_data_transform_output_node = generateShaderNode(prefix_name,
+                                                                               transform_node_type,
+                                                                               scene,
+                                                                               b_data,
+                                                                               b_scene,
+                                                                               graph,
+                                                                               b_node,
+                                                                               link_resolver,
+                                                                               false);
+            if (object_data_geo_output_node && object_data_geo_output_node->oct_node &&
+                object_data_transform_output_node && object_data_transform_output_node->oct_node) {
+              std::string placement_name = object_data_geo_output_node->oct_node->sName + "_" +
+                                           name;
+              std::string transform_name = placement_name + "_Transform";
+              object_data_geo_output_node->oct_node->sName = placement_name;
+              object_data_transform_output_node->oct_node->sName = transform_name;
+              Transform octane_tfm = get_transform(b_ob.matrix_world());
+              OctaneDataTransferObject::OctaneValueTransform *oct_transform_node =
+                  (OctaneDataTransferObject::OctaneValueTransform *)
+                      object_data_transform_output_node->oct_node;
+              set_octane_matrix(oct_transform_node->oMatrix, octane_tfm);
+              oct_transform_node->bUseMatrix = true;
+              bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
+              BL::ID b_ob_data = b_ob.data();
+              std::string geo_name = resolve_octane_name(
+                  b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+              OctaneDataTransferObject::OctanePlacement *oct_placement_node =
+                  (OctaneDataTransferObject::OctanePlacement *)
+                      object_data_geo_output_node->oct_node;
+              oct_placement_node->oMesh = geo_name;
+              oct_placement_node->oTransform = name == "OutTransformedGeo" ? transform_name : "";
+              graph->add(object_data_geo_output_node);
+              graph->add(object_data_transform_output_node);
             }
           }
         }
-        else if (source_type == OBJECT_DATA_NODE_TYPE_COLLECTION) {
-          BL::Node::outputs_iterator b_output;
-          for (b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
-            std::string name = b_output->name();
-            if (!b_output->is_linked()) {
-              continue;
-            }
-            BL::Collection b_collection(source_ptr);
-            if (!b_collection) {
-              continue;
-            }
-            if (name == "OutTransformedGeo" || name == "OutGeo") {
-              generate_collection_nodes(prefix_name,
-                                        scene,
-                                        b_engine,
-                                        b_data,
-                                        b_ntree,
-                                        b_scene,
-                                        graph,
-                                        b_node,
-                                        link_resolver,
-                                        b_collection,
-                                        name);
-            }
+      }
+      else if (source_type == OBJECT_DATA_NODE_TYPE_COLLECTION) {
+        BL::Node::outputs_iterator b_output;
+        for (b_node.outputs.begin(b_output); b_output != b_node.outputs.end(); ++b_output) {
+          std::string name = b_output->name();
+          if (!b_output->is_linked()) {
+            continue;
+          }
+          BL::Collection b_collection(source_ptr);
+          if (!b_collection) {
+            continue;
+          }
+          if (name == "OutTransformedGeo" || name == "OutGeo") {
+            generate_collection_nodes(prefix_name,
+                                      scene,
+                                      b_engine,
+                                      b_data,
+                                      b_ntree,
+                                      b_scene,
+                                      graph,
+                                      b_node,
+                                      link_resolver,
+                                      b_collection,
+                                      name);
           }
         }
       }
@@ -905,6 +931,96 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
   }
   if (b_node.type() == BL::Node::type_CUSTOM) {
     std::string bl_idname = b_node.bl_idname();
+    PropertyRNA *octane_node_type_prop = RNA_struct_find_property(&b_node.ptr, "octane_node_type");
+    if (octane_node_type_prop != NULL) {
+      int octane_node_type = get_int(b_node.ptr, "octane_node_type");
+      if (octane_node_type != 0) {
+        ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
+            (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
+        octane_node->iOctaneNodeType = octane_node_type;
+        std::string socket_list_str = get_string(b_node.ptr, "octane_socket_list");
+        std::vector<std::string> socket_list;
+        boost::split(socket_list,
+                     socket_list_str,
+                     boost::is_any_of(";"),
+                     boost::algorithm::token_compress_on);
+        BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
+        for (auto socket_name : socket_list) {
+          ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr = NULL;
+          BL::Node::inputs_iterator b_input;
+          for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+            if (b_input->name() == socket_name) {
+              BL::NodeSocket sock(*b_input);
+              OctaneSocketType octane_socket_type = static_cast<OctaneSocketType>(
+                  get_int(sock.ptr, "octane_socket_type"));
+              switch (octane_socket_type) {
+                case OctaneSocketType::ST_BOOL:
+                  octane_node->oBoolSockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOBool(socket_name));
+                  base_dto_ptr = &octane_node->oBoolSockets[octane_node->oBoolSockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_ENUM:
+                  octane_node->oEnumSockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOEnum(socket_name));
+                  base_dto_ptr = &octane_node->oEnumSockets[octane_node->oEnumSockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_INT:
+                  octane_node->oIntSockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOInt(socket_name));
+                  base_dto_ptr = &octane_node->oIntSockets[octane_node->oIntSockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_INT2:
+                  octane_node->oInt2Sockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOInt2(socket_name));
+                  base_dto_ptr = &octane_node->oInt2Sockets[octane_node->oInt2Sockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_INT3:
+                  octane_node->oInt3Sockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOInt3(socket_name));
+                  base_dto_ptr = &octane_node->oInt3Sockets[octane_node->oInt3Sockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_FLOAT:
+                  octane_node->oFloatSockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOFloat(socket_name));
+                  base_dto_ptr =
+                      &octane_node->oFloatSockets[octane_node->oFloatSockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_FLOAT2:
+                  octane_node->oFloat2Sockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOFloat2(socket_name));
+                  base_dto_ptr =
+                      &octane_node->oFloat2Sockets[octane_node->oFloat2Sockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_FLOAT3:
+                  octane_node->oFloat3Sockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOFloat3(socket_name));
+                  base_dto_ptr =
+                      &octane_node->oFloat3Sockets[octane_node->oFloat3Sockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_STRING:
+                  octane_node->oStringSockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOString(socket_name));
+                  base_dto_ptr =
+                      &octane_node->oStringSockets[octane_node->oStringSockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_RGBA:
+                  octane_node->oRGBSockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTORGB(socket_name));
+                  base_dto_ptr = &octane_node->oRGBSockets[octane_node->oRGBSockets.size() - 1];
+                  break;
+                case OctaneSocketType::ST_LINK:
+                  octane_node->oLinkSockets.emplace_back(
+                      ::OctaneDataTransferObject::OctaneDTOShader(socket_name));
+                  base_dto_ptr = &octane_node->oLinkSockets[octane_node->oLinkSockets.size() - 1];
+                  break;
+              }
+              break;
+            }
+          }
+          visitor.handle("", base_dto_ptr);
+        }
+      }
+    }
     if (bl_idname == "OctaneNodeOcioColorSpace") {
       char char_array[512];
       RNA_string_get(&b_node.ptr, "formatted_ocio_color_space", char_array);

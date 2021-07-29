@@ -1,15 +1,15 @@
 #include <stdio.h>
 
 extern "C" {
-#include "BKE_scene.h"
+#include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
-#include "BKE_context.h"
-#include "BKE_node.h"
 #include "BKE_material.h"
+#include "BKE_node.h"
+#include "BKE_scene.h"
 #include "BKE_text.h"
-#include "DNA_text_types.h"
 #include "DNA_material_types.h"
+#include "DNA_text_types.h"
 
 #include "WM_api.h"
 
@@ -141,7 +141,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   bNodeTree *node_tree = target_material->nodetree;
   bNode *node_output = nodeAddNode(context, node_tree, "ShaderNodeOutputMaterial");
   bNodeSocket *sock_output = NULL;
-  const char* sock_output_destination_name =
+  const char *sock_output_destination_name =
       dbNodes.iOctaneDBType == OctaneDataTransferObject::OctaneDBNodes::MEDIUM ? "Volume" :
                                                                                  "Surface";
   for (sock_output = (bNodeSocket *)node_output->inputs.first; sock_output;
@@ -153,6 +153,10 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   std::vector<bNode *> blenderNodes;
   std::unordered_map<bNode *, int> blenderNodeLevels;
   for (auto pOctaneNode : dbNodes.octaneDBNodes) {
+    if (pOctaneNode->pluginType == "OctaneCustomNode") {
+      pOctaneNode->pluginType =
+          ((::OctaneDataTransferObject::OctaneCustomNode *)pOctaneNode)->sClientNodeName;
+    }
     bNode *pBlenderNode = nodeAddNode(context, node_tree, pOctaneNode->pluginType.c_str());
     std::strcpy(pBlenderNode->name, pOctaneNode->sName.c_str());
     blenderNodes.emplace_back(pBlenderNode);
@@ -182,7 +186,8 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
       break;
     }
     nodeAddLink(node_tree, output_link->fromnode, output_link->fromsock, mat_node, socket_color);
-    nodeAddLink(node_tree, mat_node, (bNodeSocket *)mat_node->outputs.first, node_output, sock_output);
+    nodeAddLink(
+        node_tree, mat_node, (bNodeSocket *)mat_node->outputs.first, node_output, sock_output);
     nodeRemLink(node_tree, output_link);
     mat_node->locx = node_output->locx;
     mat_node->locy = node_output->locy - 200;
@@ -364,10 +369,10 @@ void OctaneOSLNodeBase::UpdateOctaneDBNode(void *data)
   Text *text = BKE_text_add(setter->bmain, this->sName.c_str());
   BKE_text_write(text, this->sShaderCode.c_str());
   setter->bnode->id = &text->id;
-  //PointerRNA ptr;
-  //RNA_pointer_create(NULL, setter->bnode->typeinfo->ext.srna, setter->bnode, &ptr);
-  //BL::ShaderNode b_shader_node(ptr);
-  //oct::osl_node_configuration(setter->bmain, b_shader_node, this->oOSLNodeInfo);
+  // PointerRNA ptr;
+  // RNA_pointer_create(NULL, setter->bnode->typeinfo->ext.srna, setter->bnode, &ptr);
+  // BL::ShaderNode b_shader_node(ptr);
+  // oct::osl_node_configuration(setter->bmain, b_shader_node, this->oOSLNodeInfo);
 }
 
 void OctaneCompositeTexture::UpdateOctaneDBNode(void *data)
@@ -375,8 +380,7 @@ void OctaneCompositeTexture::UpdateOctaneDBNode(void *data)
   if (!data) {
     return;
   }
-  UpdateArrayData(
-      this->sLayers, (oct::BNodeSocketSetter *)data, "layer_number", "Layer", "");
+  UpdateArrayData(this->sLayers, (oct::BNodeSocketSetter *)data, "layer_number", "Layer", "");
 }
 
 void OctaneAovOutputGroup::UpdateOctaneDBNode(void *data)
@@ -393,6 +397,51 @@ void OctaneCompositeAovOutput::UpdateOctaneDBNode(void *data)
     return;
   }
   UpdateArrayData(this->sLayers, (oct::BNodeSocketSetter *)data, "layer_number", "Layer", "");
+}
+
+void OctaneCustomNode::UpdateOctaneDBNode(void *data)
+{
+  if (!data) {
+    return;
+  }
+  oct::BNodeSocketSetter *setter = (oct::BNodeSocketSetter *)data;
+  std::vector<OctaneDataTransferObject::OctaneDTOBase *> sockets;
+  for (auto &socket : oBoolSockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oEnumSockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oIntSockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oInt2Sockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oInt3Sockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oFloatSockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oFloat2Sockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oFloat3Sockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oStringSockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oRGBSockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : oLinkSockets) {
+    sockets.emplace_back(&socket);
+  }
+  for (auto &socket : sockets) {
+    setter->handle(socket->sName, socket);
+  }
 }
 
 }  // namespace OctaneDataTransferObject

@@ -117,8 +117,8 @@ static void create_mesh(Scene *scene,
   }
 
   if (numverts == 0 || numfaces == 0) {
-    if (!mesh->empty)
-      mesh->empty = true;
+    // if (!mesh->empty)
+    //  mesh->empty = true;
     fprintf(stderr, "Octane: The mesh \"%s\" is empty\n", b_ob.data().name().c_str());
     return;
   }
@@ -340,8 +340,14 @@ static void create_mesh(Scene *scene,
     for (int i = 0; i < mesh->octane_mesh.oMeshData.f2SphereUVs.size(); ++i) {
       size_t j =
           mesh->octane_mesh.oMeshData.iPointIndices[mesh->octane_mesh.oMeshData.iUVIndices[i]];
-      mesh->octane_mesh.oMeshData.f2SphereUVs[j].x = mesh->octane_mesh.oMeshData.f3UVs[i].x;
-      mesh->octane_mesh.oMeshData.f2SphereUVs[j].y = mesh->octane_mesh.oMeshData.f3UVs[i].y;
+      if (i < mesh->octane_mesh.oMeshData.f3UVs.size()) {
+        mesh->octane_mesh.oMeshData.f2SphereUVs[j].x = mesh->octane_mesh.oMeshData.f3UVs[i].x;
+        mesh->octane_mesh.oMeshData.f2SphereUVs[j].y = mesh->octane_mesh.oMeshData.f3UVs[i].y;
+      }
+      else {
+        mesh->octane_mesh.oMeshData.f2SphereUVs[j].x = 0;
+        mesh->octane_mesh.oMeshData.f2SphereUVs[j].y = 0;
+      }
     }
     mesh->octane_mesh.oMeshData.sSphereVertexColorNames =
         mesh->octane_mesh.oMeshData.sVertexColorNames;
@@ -510,9 +516,64 @@ static void create_openvdb_volume(BL::FluidDomainSettings &b_domain,
   }
 }  // create_openvdb_volume()
 
+static BL::MeshSequenceCacheModifier object_mesh_cache_find(BL::Object &b_ob)
+{
+  if (b_ob.modifiers.length() > 0) {
+    BL::Modifier b_mod = b_ob.modifiers[b_ob.modifiers.length() - 1];
+
+    if (b_mod.type() == BL::Modifier::type_MESH_SEQUENCE_CACHE) {
+      BL::MeshSequenceCacheModifier mesh_cache = BL::MeshSequenceCacheModifier(b_mod);
+
+      if (MeshSequenceCacheModifier_has_velocity_get(&mesh_cache.ptr)) {
+        return mesh_cache;
+      }
+    }
+  }
+
+  return BL::MeshSequenceCacheModifier(PointerRNA_NULL);
+}
+
+static void sync_mesh_cached_velocities(BL::Object &b_ob, Scene *scene, Mesh *mesh)
+{
+  BL::MeshSequenceCacheModifier b_mesh_cache = object_mesh_cache_find(b_ob);
+
+  if (!b_mesh_cache) {
+    return;
+  }
+
+  if (!MeshSequenceCacheModifier_read_velocity_get(&b_mesh_cache.ptr)) {
+    return;
+  }
+
+  const size_t numverts = mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable ?
+                              mesh->octane_mesh.oMeshData.f3SphereCenters.size() :
+                              mesh->octane_mesh.oMeshData.f3Points.size();
+
+  if (b_mesh_cache.vertex_velocities.length() != numverts) {
+    return;
+  }
+
+  BL::MeshSequenceCacheModifier::vertex_velocities_iterator vvi;
+  int i = 0;
+
+  if (mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable) {
+    mesh->octane_mesh.oMeshData.f3SphereSpeeds.resize(numverts);
+    for (b_mesh_cache.vertex_velocities.begin(vvi); vvi != b_mesh_cache.vertex_velocities.end();
+         ++vvi, ++i) {
+      mesh->octane_mesh.oMeshData.f3SphereSpeeds[i] = get_octane_float3(vvi->velocity());
+    }
+  }
+  else {
+    mesh->octane_mesh.oMeshData.f3Velocities.resize(numverts);
+    for (b_mesh_cache.vertex_velocities.begin(vvi); vvi != b_mesh_cache.vertex_velocities.end();
+         ++vvi, ++i) {
+      mesh->octane_mesh.oMeshData.f3Velocities[i] = get_octane_float3(vvi->velocity());
+    }
+  }
+}
+
 static void sync_mesh_fluid_motion(BL::Object &b_ob, Scene *scene, Mesh *mesh)
 {
-  mesh->octane_mesh.oMeshData.f3Velocities.clear();
   BL::FluidDomainSettings b_fluid_domain = object_fluid_domain_find(b_ob);
 
   if (!b_fluid_domain)
@@ -521,6 +582,8 @@ static void sync_mesh_fluid_motion(BL::Object &b_ob, Scene *scene, Mesh *mesh)
   /* If the mesh has modifiers following the fluid domain we can't export motion. */
   if (b_fluid_domain.mesh_vertices.length() != mesh->octane_mesh.oMeshData.f3Points.size())
     return;
+
+  mesh->octane_mesh.oMeshData.f3Velocities.clear();
 
   BL::FluidDomainSettings::mesh_vertices_iterator svi;
   int i = 0;
@@ -1049,6 +1112,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         else {
           create_mesh(scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
         }
+        free_object_to_mesh(b_data, b_ob, b_mesh);
         if (!octane_mesh->empty) {
           sync_hair(octane_mesh, b_mesh, b_ob, false);
         }
@@ -1066,6 +1130,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     if (RNA_boolean_get(&oct_mesh, "external_alembic_mesh_tag")) {
       octane_mesh->empty = true;
     }
+    /* cached velocities (e.g. from alembic archive) */
+    sync_mesh_cached_velocities(b_ob, scene, octane_mesh);
     /* mesh fluid motion mantaflow */
     sync_mesh_fluid_motion(b_ob, scene, octane_mesh);
     sync_mesh_particles(b_ob, octane_mesh, !preview);

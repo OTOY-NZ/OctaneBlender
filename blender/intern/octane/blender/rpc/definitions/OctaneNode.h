@@ -1353,6 +1353,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tDisplacement,
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOBool)		bSmoothShadowTerminator,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,
 		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fTransmission,
@@ -1372,6 +1373,7 @@ namespace OctaneDataTransferObject {
 			tDisplacement("Displacement"),
 			fOpacity("Opacity"),
 			bSmooth("Smooth"),
+			bSmoothShadowTerminator("Smooth Shadow Terminator"),
 			fRoundedEdgeRadius("Edges rounding"),
 			iPriority("Priority"),
 			fTransmission("Transmission"),
@@ -1386,7 +1388,7 @@ namespace OctaneDataTransferObject {
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(fDiffuse, fRoughness, sBump, tNormal, tDisplacement, fOpacity, bSmooth, 
+		MSGPACK_DEFINE(fDiffuse, fRoughness, sBump, tNormal, tDisplacement, fOpacity, bSmooth, bSmoothShadowTerminator,
 			fRoundedEdgeRadius, iPriority, fTransmission, tMedium, tEmission, bShadowCatcher, 
 			iCustomAOV, iCustomAOVChannel, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneDiffuseMaterial
@@ -1450,6 +1452,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tDisplacement,
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOBool)		bSmoothShadowTerminator,
 		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,		
 		(OctaneDTOFloat)	fFilmWidth,
@@ -1474,6 +1477,7 @@ namespace OctaneDataTransferObject {
 			tDisplacement("Displacement"),
 			fOpacity("Opacity"),
 			bSmooth("Smooth"),
+			bSmoothShadowTerminator("Smooth Shadow Terminator"),
 			iPriority("Priority"),
 			fRoundedEdgeRadius("Edges rounding"),
 			fFilmWidth("Film Width"),
@@ -1488,7 +1492,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fDiffuse, fSpecular, iBRDFModel, fRoughness, 
 			fAnisotropy, fRotation, fSheen, fSheenRoughness, fIndexOfReflection, 
-			sBump, tNormal, tDisplacement, fOpacity, bSmooth, iPriority, fRoundedEdgeRadius, 
+			sBump, tNormal, tDisplacement, fOpacity, bSmooth, bSmoothShadowTerminator, iPriority, fRoundedEdgeRadius,
 			fFilmWidth, fFilmIndex, iCustomAOV, iCustomAOVChannel, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneGlossyMaterial
 
@@ -1508,6 +1512,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tDisplacement,
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOBool)		bSmoothShadowTerminator,
 		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,
 		(OctaneDTOShader)	tMedium,
@@ -1536,6 +1541,7 @@ namespace OctaneDataTransferObject {
 			fOpacity("Opacity"),
 			iPriority("Priority"),
 			bSmooth("Smooth"),
+			bSmoothShadowTerminator("Smooth Shadow Terminator"),
 			fRoundedEdgeRadius("Edges rounding"),
 			tMedium("Medium"),
 			bFakeShadows("Fake Shadows"),
@@ -1553,7 +1559,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fReflection, fTransmission, iBRDFModel, fRoughness, 
 			fAnisotropy, fRotation, fIndexOfReflection, fDispersionCoef, 
-			sBump, tNormal, tDisplacement, fOpacity, bSmooth, iPriority, 
+			sBump, tNormal, tDisplacement, fOpacity, bSmooth, bSmoothShadowTerminator, iPriority,
 			fRoundedEdgeRadius, tMedium, bFakeShadows, bAffectAplha, bThinWall,
 			fFilmWidth, fFilmIndex, iCustomAOV, iCustomAOVChannel, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneSpecularMaterial
@@ -1574,6 +1580,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fOutlineThickness,
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOBool)		bSmoothShadowTerminator,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,
 		(OctaneDTOEnum)		iCustomAOV,
 		(OctaneDTOEnum)		iCustomAOVChannel
@@ -1593,6 +1600,7 @@ namespace OctaneDataTransferObject {
 			fOutlineThickness("Outline Thickness"),
 			fOpacity("Opacity"),
 			bSmooth("Smooth"),
+			bSmoothShadowTerminator("Smooth Shadow Terminator"),
 			fRoundedEdgeRadius("Rounded Edge Radius"),
 			iCustomAOV("custom_aov", false),
 			iCustomAOVChannel("custom_aov_channel", false),
@@ -1603,7 +1611,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(fDiffuse, fSpecular, fRoughness, iToonLightMode, 
 			tToonDiffuseRamp, tToonSpecularRamp, tBump, tNormal, tDisplacement, 
-			fOutlineColor, fOutlineThickness, fOpacity, bSmooth, 
+			fOutlineColor, fOutlineThickness, fOpacity, bSmooth, bSmoothShadowTerminator,
 			fRoundedEdgeRadius, iCustomAOV, iCustomAOVChannel, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneToonMaterial
 
@@ -1628,6 +1636,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tDisplacement,
 		(OctaneDTOFloat)	fOpacity,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOBool)		bSmoothShadowTerminator,
 		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,
 		(OctaneDTOFloat)	fFilmWidth,
@@ -1656,6 +1665,7 @@ namespace OctaneDataTransferObject {
 			tDisplacement("Displacement"),
 			fOpacity("Opacity"),
 			bSmooth("Smooth"),
+			bSmoothShadowTerminator("Smooth Shadow Terminator"),
 			iPriority("Priority"),
 			fRoundedEdgeRadius("Rounded Edge Radius"),
 			fFilmWidth("Film Width"),
@@ -1671,7 +1681,7 @@ namespace OctaneDataTransferObject {
 		MSGPACK_DEFINE(tDiffuse, fSpecular, tSpecularMap, iBRDFModel, fRoughness, 
 			fAnisotropy, fRotation, fSheen, fSheenRoughness, iIORModel, fIndexOfReflection, 
 			fIndexOfReflectionGreen, fIndexOfReflectionBlue, tBump, tNormal, 
-			tDisplacement, fOpacity, bSmooth, iPriority, fRoundedEdgeRadius, 
+			tDisplacement, fOpacity, bSmooth, bSmoothShadowTerminator, iPriority, fRoundedEdgeRadius,
 			fFilmWidth, fFilmIndex, iCustomAOV, iCustomAOVChannel, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneMetalMaterial
 
@@ -1771,6 +1781,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOShader)	tNormal,
 		(OctaneDTOShader)	tDisplacement,		
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOBool)		bSmoothShadowTerminator,
 		(OctaneDTOInt)		iPriority,
 		(OctaneDTOFloat)	fRoundedEdgeRadius,		
 		(OctaneDTOShader)	tEmission,
@@ -1829,6 +1840,7 @@ namespace OctaneDataTransferObject {
 			tNormal("Normal"),
 			tDisplacement("Displacement"),
 			bSmooth("Smooth"),
+			bSmoothShadowTerminator("Smooth Shadow Terminator"),
 			iPriority("Priority"),
 			fRoundedEdgeRadius("Rounded Edge Radius"),
 			tEmission("Emission"),
@@ -1888,7 +1900,7 @@ namespace OctaneDataTransferObject {
 			oOctaneUniversalCoating,
 			oOctaneUniversalTransmission,
 			fFilmWidth, fFilmIndex, fSheen, fSheenRoughness, tSheenBump, tSheenNormal,
-			tBump, tNormal, tDisplacement, bSmooth, iPriority, fRoundedEdgeRadius, tEmission, bShadowCatcher,
+			tBump, tNormal, tDisplacement, bSmooth, bSmoothShadowTerminator, iPriority, fRoundedEdgeRadius, tEmission, bShadowCatcher,
 			iCustomAOV, iCustomAOVChannel, tMaterialLayer, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneUniversalMaterial
 
@@ -2023,6 +2035,7 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOBool)		bAffectAplha,
 		(OctaneDTOShader)	tDisplacement,
 		(OctaneDTOBool)		bSmooth,
+		(OctaneDTOBool)		bSmoothShadowTerminator,
 		(OctaneDTOFloat)	fRoundedEdgeRadius
 		)
 
@@ -2032,13 +2045,14 @@ namespace OctaneDataTransferObject {
 			bAffectAplha("Affect alpha"),
 			tDisplacement("Displacement"),
 			bSmooth("Smooth"),
+			bSmoothShadowTerminator("Smooth Shadow Terminator"),
 			fRoundedEdgeRadius("Edges rounding"),
 			OctaneNodeBase(Octane::NT_MAT_NULL, "ShaderNodeOctNullMat")
 		{
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
-		MSGPACK_DEFINE(tMedium, fOpacity, bAffectAplha, tDisplacement, bSmooth, fRoundedEdgeRadius, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(tMedium, fOpacity, bAffectAplha, tDisplacement, bSmooth, bSmoothShadowTerminator, fRoundedEdgeRadius, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneNullMaterial
 
 	struct OctaneGroupLayer : public OctaneNodeBase{
@@ -4786,6 +4800,55 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		MSGPACK_DEFINE(sOcioName, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneOcioColorSpace
+
+	struct OctaneCustomNode : public OctaneNodeBase{
+		REFLECTABLE
+		(		
+		(OctaneDTOInt)		iPlaceHolder
+		)
+		std::string						sClientNodeName;
+		int								iOctaneNodeType;
+		std::vector<OctaneDTOBool>		oBoolSockets;
+		std::vector<OctaneDTOEnum>		oEnumSockets;
+		std::vector<OctaneDTOInt>		oIntSockets;
+		std::vector<OctaneDTOInt2>		oInt2Sockets;
+		std::vector<OctaneDTOInt3>		oInt3Sockets;
+		std::vector<OctaneDTOFloat>		oFloatSockets;
+		std::vector<OctaneDTOFloat2>	oFloat2Sockets;
+		std::vector<OctaneDTOFloat3>	oFloat3Sockets;
+		std::vector<OctaneDTOString>	oStringSockets;
+		std::vector<OctaneDTORGB>		oRGBSockets;
+		std::vector<OctaneDTOShader>	oLinkSockets;
+
+		OctaneCustomNode() :
+			OctaneNodeBase(Octane::ENT_CUSTOM_NODE, "OctaneCustomNode")
+		{
+			Clear();
+		}
+
+		void Clear() {
+			sClientNodeName = "";
+			iOctaneNodeType = 0;
+			oBoolSockets.clear();
+			oEnumSockets.clear();
+			oIntSockets.clear();
+			oInt2Sockets.clear();
+			oInt3Sockets.clear();
+			oFloatSockets.clear();
+			oFloat2Sockets.clear();
+			oFloat3Sockets.clear();
+			oStringSockets.clear();
+			oRGBSockets.clear();
+			oLinkSockets.clear();
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		OCTANE_NODE_POST_UPDATE_FUNCTIONS
+		OCTANE_NODE_OCTANEDB_FUNCTIONS
+		MSGPACK_DEFINE(sClientNodeName, iOctaneNodeType, oBoolSockets, oEnumSockets, oIntSockets, oInt2Sockets, oInt3Sockets,
+			oFloatSockets, oFloat2Sockets, oFloat3Sockets, oStringSockets, oRGBSockets, oLinkSockets, MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneCustomNode
 }
 
 #endif

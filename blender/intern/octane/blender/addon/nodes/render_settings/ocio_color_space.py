@@ -7,7 +7,9 @@ from ..base_node import OctaneBaseNode
 from ..base_socket import OctaneBaseSocket
 
 
-class OctaneNodeOcioColorSpaceSocket(bpy.types.NodeSocket, OctaneBaseSocket):
+class OctaneNodeOcioColorSpaceSocket(OctaneBaseSocket):
+    bl_label = "OctaneNodeOcioColorSpaceSocket"
+    bl_idname = "OctaneNodeOcioColorSpaceSocket"    
     color = consts.SOCKET_COLOR_OCIO_COLOR_SPACE
 
 

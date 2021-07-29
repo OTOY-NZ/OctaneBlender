@@ -678,7 +678,7 @@ void node_octane_image_texture_conversion_verify(bNodeTree *ntree, bNode *node, 
     node->custom1 = OCT_HDR_BIT_DEPTH_16;
   }
   if (node->oct_custom1 == 0) {
-    node->oct_custom1 = IES_COMPENSATE_LUMINANCE;
+    node->oct_custom1 = IES_MAX_1;
   }
 }
 

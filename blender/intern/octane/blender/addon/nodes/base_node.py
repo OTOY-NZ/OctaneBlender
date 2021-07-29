@@ -1,4 +1,5 @@
 import bpy
+from bpy.props import IntProperty, StringProperty
 from ..utils import consts
 
 
@@ -6,6 +7,10 @@ class OctaneBaseNode(object):
     """Base class for Octane nodes"""
 
     bl_label = ""
+    octane_node_type: IntProperty(name="Octane Node Type", default=consts.NT_UNKNOWN)
+    octane_socket_list: StringProperty(name="Socket List", default="")
+    octane_attribute_list: StringProperty(name="Attribute List", default="")
+
     @classmethod
     def poll(cls, tree):
         pass    
@@ -17,20 +22,5 @@ class OctaneBaseNode(object):
         input.enabled = enabled
         return input        
 
-
-class OctaneBaseCompositeNode(OctaneBaseNode):
-    """Base class for Octane composite nodes"""
-
-    bl_label = ""
-    @classmethod
-    def poll(cls, tree):
-        return tree.bl_idname in [consts.NODE_TREE_IDNAME_COMPOSITE, ] 
-
-
-class OctaneBaseRenderAOVNode(OctaneBaseNode):
-    """Base class for Octane render aov nodes"""
-
-    bl_label = ""
-    @classmethod
-    def poll(cls, tree):
-        return tree.bl_idname in [consts.NODE_TREE_IDNAME_RENDER_AOV, ]
+    def update(self):
+        pass   

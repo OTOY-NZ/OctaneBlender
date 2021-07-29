@@ -80,6 +80,7 @@ using Alembic::AbcGeom::IObject;
 using Alembic::AbcGeom::IPoints;
 using Alembic::AbcGeom::IPolyMesh;
 using Alembic::AbcGeom::IPolyMeshSchema;
+using Alembic::AbcGeom::IPointsSchema;
 using Alembic::AbcGeom::ISampleSelector;
 using Alembic::AbcGeom::ISubD;
 using Alembic::AbcGeom::IXform;
@@ -881,6 +882,23 @@ static const PropertyHeader *get_property_header(const IPolyMeshSchema &schema, 
   return prop.getPropertyHeader(name);
 }
 
+static const PropertyHeader *get_property_header(const IPointsSchema &schema, const char *name)
+{
+  const PropertyHeader *prop_header = schema.getPropertyHeader(name);
+
+  if (prop_header) {
+    return prop_header;
+  }
+
+  ICompoundProperty prop = schema.getArbGeomParams();
+
+  if (!has_property(prop, name)) {
+    return nullptr;
+  }
+
+  return prop.getPropertyHeader(name);
+}
+
 bool ABC_has_vec3_array_property_named(struct CacheReader *reader, const char *name)
 {
   AbcObjectReader *abc_reader = reinterpret_cast<AbcObjectReader *>(reader);
@@ -896,6 +914,17 @@ bool ABC_has_vec3_array_property_named(struct CacheReader *reader, const char *n
   }
 
   const ObjectHeader &header = iobject.getHeader();
+
+  if (IPoints::matches(header)) {
+    IPoints point(iobject, kWrapExisting);
+    IPointsSchema schema = point.getSchema();
+    const PropertyHeader *prop_header = get_property_header(schema, name);
+    if (!prop_header) {
+      return false;
+    }
+
+    return IV3fArrayProperty::matches(prop_header->getMetaData());
+  }
 
   if (!IPolyMesh::matches(header)) {
     return false;
@@ -914,6 +943,32 @@ bool ABC_has_vec3_array_property_named(struct CacheReader *reader, const char *n
 }
 
 static V3fArraySamplePtr get_velocity_prop(const IPolyMeshSchema &schema,
+                                           const ISampleSelector &iss,
+                                           const std::string &name)
+{
+  const PropertyHeader *prop_header = schema.getPropertyHeader(name);
+
+  if (prop_header) {
+    const IV3fArrayProperty &velocity_prop = IV3fArrayProperty(schema, name, 0);
+    return velocity_prop.getValue(iss);
+  }
+
+  ICompoundProperty prop = schema.getArbGeomParams();
+
+  if (!has_property(prop, name)) {
+    return V3fArraySamplePtr();
+  }
+
+  const IV3fArrayProperty &velocity_prop = IV3fArrayProperty(prop, name, 0);
+
+  if (velocity_prop) {
+    return velocity_prop.getValue(iss);
+  }
+
+  return V3fArraySamplePtr();
+}
+
+static V3fArraySamplePtr get_velocity_prop(const IPointsSchema &schema,
                                            const ISampleSelector &iss,
                                            const std::string &name)
 {
@@ -960,16 +1015,28 @@ int ABC_read_velocity_cache(CacheReader *reader,
 
   const ObjectHeader &header = iobject.getHeader();
 
-  if (!IPolyMesh::matches(header)) {
-    return -1;
+  V3fArraySamplePtr velocities = NULL;
+
+  if (IPoints::matches(header)) {
+    IPoints point(iobject, kWrapExisting);
+    IPointsSchema schema = point.getSchema();
+    ISampleSelector sample_sel(time);
+    const IPointsSchema::Sample sample = schema.getValue(sample_sel);
+
+    velocities = get_velocity_prop(schema, sample_sel, velocity_name);
   }
+  else {
+    if (!IPolyMesh::matches(header)) {
+      return -1;
+    }
 
-  IPolyMesh mesh(iobject, kWrapExisting);
-  IPolyMeshSchema schema = mesh.getSchema();
-  ISampleSelector sample_sel(time);
-  const IPolyMeshSchema::Sample sample = schema.getValue(sample_sel);
+    IPolyMesh mesh(iobject, kWrapExisting);
+    IPolyMeshSchema schema = mesh.getSchema();
+    ISampleSelector sample_sel(time);
+    const IPolyMeshSchema::Sample sample = schema.getValue(sample_sel);
 
-  V3fArraySamplePtr velocities = get_velocity_prop(schema, sample_sel, velocity_name);
+    velocities = get_velocity_prop(schema, sample_sel, velocity_name);
+  }
 
   if (!velocities) {
     return -1;

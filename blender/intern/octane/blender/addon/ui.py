@@ -1154,16 +1154,16 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         sub = box.row(align=True)
         sub.operator("octane.generate_orbx_preview")
 
-        # box = layout.box()
-        # box.label(text="Mesh volume SDF")
-        # sub = box.row(align=True)
-        # sub.prop(cdata, "enable_mesh_volume_sdf")
-        # sub = box.row(align=True)
-        # sub.prop(cdata, "mesh_volume_sdf_voxel_size")
-        # sub = box.row(align=True)
-        # sub.prop(cdata, "mesh_volume_sdf_border_thickness_inside")
-        # sub = box.row(align=True)
-        # sub.prop(cdata, "mesh_volume_sdf_border_thickness_outside")
+        box = layout.box()
+        box.label(text="Mesh volume SDF")
+        sub = box.row(align=True)
+        sub.prop(cdata, "enable_mesh_volume_sdf")
+        sub = box.row(align=True)
+        sub.prop(cdata, "mesh_volume_sdf_voxel_size")
+        sub = box.row(align=True)
+        sub.prop(cdata, "mesh_volume_sdf_border_thickness_inside")
+        sub = box.row(align=True)
+        sub.prop(cdata, "mesh_volume_sdf_border_thickness_outside")
 
         box = layout.box()
         box.label(text="Octane Offset Transform:")        
@@ -1915,6 +1915,19 @@ class OCTANE_RENDER_PT_octane_layers(OctaneButtonsPanel, Panel):
         col.prop(octane, "layers_current")
         col.prop(octane, "layers_invert")
 
+class OCTANE_RENDER_PT_override(OctaneButtonsPanel, Panel):
+    bl_label = "Override"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "view_layer"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        view_layer = context.view_layer
+
+        layout.prop(view_layer, "material_override")
 
 class OCTANE_WORLD_PT_environment(OctaneButtonsPanel, Panel):
     bl_label = "Environment"
@@ -2266,6 +2279,7 @@ classes = (
     OCTANE_RENDER_PT_passes_material,
     OCTANE_RENDER_PT_passes_aov,
     OCTANE_RENDER_PT_octane_layers,
+    OCTANE_RENDER_PT_override,
 
     OCTANE_WORLD_PT_environment,
     OCTANE_WORLD_PT_visible_environment,

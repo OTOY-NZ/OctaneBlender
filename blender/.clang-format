@@ -263,5 +263,3 @@ ForEachMacros:
   - MAP_SLOT_PROBING_BEGIN
   - VECTOR_SET_SLOT_PROBING_BEGIN
 
-StatementMacros:
-  - PyObject_VAR_HEAD

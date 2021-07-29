@@ -690,6 +690,6 @@ def _check_compatibility_octane_materials_node_24_0(node_tree, node):
 def _check_compatibility_octane_images_node_24_0(node_tree, node):
     try:      
         if node.octane_ies_mode == "":  
-            node.octane_ies_mode = "IES_COMPENSATE_LUMINANCE"
+            node.octane_ies_mode = "IES_MAX_1"
     except Exception as e:
         pass                        

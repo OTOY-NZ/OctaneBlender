@@ -71,6 +71,7 @@ static EnumPropertyItem octane_brdf_model_items[] = {
      0,
      "GGX(energy preserving)",
      "BRDF Model"},
+    {OCT_SHD_BRDF_MODEL_STD, "OCT_SHD_BRDF_MODEL_STD", 0, "STD", "BRDF Model"},
     {OCT_SHD_BRDF_MODEL_WARD, "OCTANE_BRDF_WARD", 0, "Ward", "BRDF Model"},
     {0, NULL, 0, NULL, NULL}};
 
@@ -82,6 +83,7 @@ static EnumPropertyItem octane_specular_brdf_model_items[] = {
      0,
      "GGX(energy preserving)",
      "BRDF Model"},
+    {OCT_SHD_BRDF_MODEL_STD, "OCT_SHD_BRDF_MODEL_STD", 0, "STD", "BRDF Model"},
     {OCT_SHD_BRDF_MODEL_GGX, "OCTANE_BRDF_GGX", 0, "GGX", "BRDF Model"},
     {0, NULL, 0, NULL, NULL}};
 
@@ -4658,7 +4660,7 @@ static void rna_NodeCryptomatte_layer_name_set(PointerRNA *ptr, int new_value)
   }
 }
 
-static const EnumPropertyItem *rna_NodeCryptomatte_layer_name_itemf(bContext *UNUSED(C),
+static const EnumPropertyItem *rna_NodeCryptomatte_layer_name_itemf(bContext *C,
                                                                     PointerRNA *ptr,
                                                                     PropertyRNA *UNUSED(prop),
                                                                     bool *r_free)
@@ -4669,7 +4671,7 @@ static const EnumPropertyItem *rna_NodeCryptomatte_layer_name_itemf(bContext *UN
   EnumPropertyItem template = {0, "", 0, "", ""};
   int totitem = 0;
 
-  ntreeCompositCryptomatteUpdateLayerNames(node);
+  ntreeCompositCryptomatteUpdateLayerNames(CTX_data_scene(C), node);
   int layer_index;
   LISTBASE_FOREACH_INDEX (CryptomatteLayer *, layer, &storage->runtime.layers, layer_index) {
     template.value = layer_index;
@@ -4761,7 +4763,7 @@ static void rna_NodeCryptomatte_matte_set(PointerRNA *ptr, const char *value)
 
 static void rna_NodeCryptomatte_update_add(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  ntreeCompositCryptomatteSyncFromAdd(ptr->data);
+  ntreeCompositCryptomatteSyncFromAdd(scene, ptr->data);
   rna_Node_update(bmain, scene, ptr);
 }
 

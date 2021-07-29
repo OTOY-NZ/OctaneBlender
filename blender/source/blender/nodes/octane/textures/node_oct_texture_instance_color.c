@@ -92,7 +92,7 @@ static void node_oct_instance_color_tex_init(bNodeTree *ntree, bNode *node)
 
   node->storage = tex;
   node->custom1 = OCT_HDR_BIT_DEPTH_16;
-  node->oct_custom2 = IES_COMPENSATE_LUMINANCE;
+  node->oct_custom2 = IES_MAX_1;
 } /* node_oct_instance_color_tex_init() */
 
 void register_node_type_tex_oct_instance_color(void)

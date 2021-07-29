@@ -1826,6 +1826,7 @@ typedef enum NodeSimInputTimeType {
 #define OCT_SHD_BRDF_MODEL_WARD 3
 #define OCT_SHD_BRDF_MODEL_LAMBERTIAN 1
 #define OCT_SHD_BRDF_MODEL_ENERGY_PRESERVED_GGX 6
+#define OCT_SHD_BRDF_MODEL_STD 7
 
 /* octane metallic reflection mode */
 #define OCT_SHD_METALLIC_REFLECTION_MODE_ARTISTIC 0
@@ -2238,7 +2239,7 @@ enum CustomAov
 
     CUSTOM_AOV_COUNT,
 
-    INVALID_CUSTOM_AOV = 32
+    INVALID_CUSTOM_AOV = 0x1000
 };
 
 /// The custom AOF channel we can write to.

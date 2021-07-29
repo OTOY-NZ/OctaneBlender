@@ -383,7 +383,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                                  bool show_particles,
                                  bool *use_portal)
 {
-  const bool is_instance = b_instance.is_instance();
+  const bool is_instance = b_instance.is_instance();  
   BL::Object b_ob = b_instance.object();
   BL::Object b_parent = is_instance ? b_instance.parent() : b_instance.object();
   BL::Object b_ob_instance = is_instance ? b_instance.instance_object() : b_ob;
@@ -469,7 +469,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   bool need_update = preview ? is_object_data_updated :
                                is_octane_object_required(object_name, b_ob.type(), mesh_type);
   if (mesh_type == MeshType::AUTO) {
-    if (!is_instance) {
+    bool is_library = b_ob.library().ptr.data != NULL;
+    if (!is_instance || is_library) {
       tag_movable_candidate(object_name);
     }
   }
