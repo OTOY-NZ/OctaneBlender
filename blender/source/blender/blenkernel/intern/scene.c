@@ -167,8 +167,6 @@ static void scene_init_data(ID *id)
                      &gp_primitive_curve->clipr,
                      CURVE_PRESET_BELL,
                      CURVEMAP_SLOPE_POSITIVE);
-  /* Grease pencil interpolate. */
-  scene->toolsettings->gp_interpolate.step = 1;
 
   scene->unit.system = USER_UNIT_METRIC;
   scene->unit.scale_length = 1.0f;
@@ -475,7 +473,7 @@ static void scene_foreach_rigidbodyworldSceneLooper(struct RigidBodyWorld *UNUSE
 
 /**
  * This code is shared by both the regular `foreach_id` looper, and the code trying to restore or
- * preserve ID pointers like brushes across undoes.
+ * preserve ID pointers like brushes across undo-steps.
  */
 typedef enum eSceneForeachUndoPreserveProcess {
   /* Undo when preserving tool-settings from old scene, we also want to try to preserve that ID
@@ -744,7 +742,8 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS(data, view_layer->mat_override, IDWALK_CB_USER);
 
     LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
-      BKE_LIB_FOREACHID_PROCESS(data, base->object, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS(
+          data, base->object, IDWALK_CB_NOP | IDWALK_CB_OVERRIDE_LIBRARY_NOT_OVERRIDABLE);
     }
 
     scene_foreach_layer_collection(data, &view_layer->layer_collections);
@@ -1379,9 +1378,10 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 /* patch for missing scene IDs, can't be in do-versions */
 static void composite_patch(bNodeTree *ntree, Scene *scene)
 {
-
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->id == NULL && node->type == CMP_NODE_R_LAYERS) {
+    if (node->id == NULL &&
+        ((node->type == CMP_NODE_R_LAYERS) ||
+         (node->type == CMP_NODE_CRYPTOMATTE && node->custom1 == CMP_CRYPTOMATTE_SRC_RENDER))) {
       node->id = &scene->id;
     }
   }
@@ -1689,6 +1689,19 @@ static void scene_undo_preserve(BlendLibReader *reader, ID *id_new, ID *id_old)
   }
 }
 
+static void scene_lib_override_apply_post(ID *id_dst, ID *UNUSED(id_src))
+{
+  Scene *scene = (Scene *)id_dst;
+
+  if (scene->rigidbody_world != NULL) {
+    PTCacheID pid;
+    BKE_ptcache_id_from_rigidbody(&pid, NULL, scene->rigidbody_world);
+    LISTBASE_FOREACH (PointCache *, point_cache, pid.ptcaches) {
+      point_cache->flag |= PTCACHE_FLAG_INFO_DIRTY;
+    }
+  }
+}
+
 IDTypeInfo IDType_ID_SCE = {
     .id_code = ID_SCE,
     .id_filter = FILTER_ID_SCE,
@@ -1707,6 +1720,7 @@ IDTypeInfo IDType_ID_SCE = {
     .make_local = NULL,
     .foreach_id = scene_foreach_id,
     .foreach_cache = scene_foreach_cache,
+    .owner_get = NULL,
 
     .blend_write = scene_blend_write,
     .blend_read_data = scene_blend_read_data,
@@ -1714,6 +1728,8 @@ IDTypeInfo IDType_ID_SCE = {
     .blend_read_expand = scene_blend_read_expand,
 
     .blend_read_undo_preserve = scene_undo_preserve,
+
+    .lib_override_apply_post = scene_lib_override_apply_post,
 };
 
 const char *RE_engine_id_BLENDER_EEVEE = "BLENDER_EEVEE";
@@ -2503,6 +2519,18 @@ int BKE_scene_orientation_slot_get_index(const TransformOrientationSlot *orient_
              orient_slot->type;
 }
 
+int BKE_scene_orientation_get_index(Scene *scene, int slot_index)
+{
+  TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get(scene, slot_index);
+  return BKE_scene_orientation_slot_get_index(orient_slot);
+}
+
+int BKE_scene_orientation_get_index_from_flag(Scene *scene, int flag)
+{
+  TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(scene, flag);
+  return BKE_scene_orientation_slot_get_index(orient_slot);
+}
+
 /** \} */
 
 static bool check_rendered_viewport_visible(Main *bmain)
@@ -2610,6 +2638,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
 
   Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
+  bool used_multiple_passes = false;
 
   bool run_callbacks = DEG_id_type_any_updated(depsgraph);
   if (run_callbacks) {
@@ -2634,7 +2663,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
           bmain, &scene->id, depsgraph, BKE_CB_EVT_DEPSGRAPH_UPDATE_POST);
 
       /* It is possible that the custom callback modified scene and removed some IDs from the main
-       * database. In this case DEG_ids_clear_recalc() will crash because it iterates over all IDs
+       * database. In this case DEG_editors_update() will crash because it iterates over all IDs
        * which depsgraph was built for.
        *
        * The solution is to update relations prior to this call, avoiding access to freed IDs.
@@ -2646,10 +2675,6 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
        * If there are no relations changed by the callback this call will do nothing. */
       DEG_graph_relations_update(depsgraph);
     }
-    /* Inform editors about possible changes. */
-    DEG_ids_check_recalc(bmain, depsgraph, scene, view_layer, false);
-    /* Clear recalc flags. */
-    DEG_ids_clear_recalc(bmain, depsgraph);
 
     /* If user callback did not tag anything for update we can skip second iteration.
      * Otherwise we update scene once again, but without running callbacks to bring
@@ -2658,8 +2683,22 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
       break;
     }
 
+    /* Clear recalc flags for second pass, but back them up for editors update. */
+    const bool backup = true;
+    DEG_ids_clear_recalc(depsgraph, backup);
+    used_multiple_passes = true;
     run_callbacks = false;
   }
+
+  /* Inform editors about changes, using recalc flags from both passes. */
+  if (used_multiple_passes) {
+    DEG_ids_restore_recalc(depsgraph);
+  }
+  const bool is_time_update = false;
+  DEG_editors_update(depsgraph, is_time_update);
+
+  const bool backup = false;
+  DEG_ids_clear_recalc(depsgraph, backup);
 }
 
 void BKE_scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain)
@@ -2673,11 +2712,11 @@ void BKE_scene_graph_evaluated_ensure(Depsgraph *depsgraph, Main *bmain)
 }
 
 /* applies changes right away, does all sets too */
-void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph)
+void BKE_scene_graph_update_for_newframe_ex(Depsgraph *depsgraph, const bool clear_recalc)
 {
   Scene *scene = DEG_get_input_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
   Main *bmain = DEG_get_bmain(depsgraph);
+  bool used_multiple_passes = false;
 
   /* Keep this first. */
   BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_FRAME_CHANGE_PRE);
@@ -2710,14 +2749,9 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph)
       BKE_callback_exec_id_depsgraph(bmain, &scene->id, depsgraph, BKE_CB_EVT_FRAME_CHANGE_POST);
 
       /* NOTE: Similar to this case in scene_graph_update_tagged(). Need to ensure that
-       * DEG_ids_clear_recalc() doesn't access freed memory of possibly removed ID. */
+       * DEG_editors_update() doesn't access freed memory of possibly removed ID. */
       DEG_graph_relations_update(depsgraph);
     }
-
-    /* Inform editors about possible changes. */
-    DEG_ids_check_recalc(bmain, depsgraph, scene, view_layer, true);
-    /* clear recalc flags */
-    DEG_ids_clear_recalc(bmain, depsgraph);
 
     /* If user callback did not tag anything for update we can skip second iteration.
      * Otherwise we update scene once again, but without running callbacks to bring
@@ -2725,7 +2759,32 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph)
     if (DEG_is_fully_evaluated(depsgraph)) {
       break;
     }
+
+    /* Clear recalc flags for second pass, but back them up for editors update. */
+    const bool backup = true;
+    DEG_ids_clear_recalc(depsgraph, backup);
+    used_multiple_passes = true;
   }
+
+  /* Inform editors about changes, using recalc flags from both passes. */
+  if (used_multiple_passes) {
+    DEG_ids_restore_recalc(depsgraph);
+  }
+
+  const bool is_time_update = true;
+  DEG_editors_update(depsgraph, is_time_update);
+
+  /* Clear recalc flags, can be skipped for e.g. renderers that will read these
+   * and clear the flags later. */
+  if (clear_recalc) {
+    const bool backup = false;
+    DEG_ids_clear_recalc(depsgraph, backup);
+  }
+}
+
+void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph)
+{
+  BKE_scene_graph_update_for_newframe_ex(depsgraph, true);
 }
 
 /**
@@ -3441,6 +3500,9 @@ static Depsgraph **scene_ensure_depsgraph_p(Main *bmain, Scene *scene, ViewLayer
   BLI_snprintf(name, sizeof(name), "%s :: %s", scene->id.name, view_layer->name);
   DEG_debug_name_set(*depsgraph_ptr, name);
 
+  /* These viewport depsgraphs communicate changes to the editors. */
+  DEG_enable_editors_update(*depsgraph_ptr);
+
   return depsgraph_ptr;
 }
 
@@ -3487,8 +3549,8 @@ GHash *BKE_scene_undo_depsgraphs_extract(Main *bmain)
 
   for (Scene *scene = bmain->scenes.first; scene != NULL; scene = scene->id.next) {
     if (scene->depsgraph_hash == NULL) {
-      /* In some cases, e.g. when undo has to perform multiple steps at once, no depsgraph will be
-       * built so this pointer may be NULL. */
+      /* In some cases, e.g. when undo has to perform multiple steps at once, no depsgraph will
+       * be built so this pointer may be NULL. */
       continue;
     }
     for (ViewLayer *view_layer = scene->view_layers.first; view_layer != NULL;

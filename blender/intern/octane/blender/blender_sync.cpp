@@ -17,8 +17,8 @@
  */
 
 #include "render/environment.h"
-#include "render/kernel.h"
 #include "render/graph.h"
+#include "render/kernel.h"
 
 #include "blender_session.h"
 #include "blender_sync.h"
@@ -102,7 +102,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
   // * so we can do it later on if doing it immediate is not suitable. */
 
   bool has_updated_objects = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_OBJECT);
-  bool has_updated_nodetree = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_NODETREE);
+  //bool has_updated_nodetree = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_NODETREE);
   bool dicing_prop_changed = false, experimental = false;
 
   /* Iterate over all IDs in this depsgraph. */
@@ -112,6 +112,13 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
 
   for (b_depsgraph.updates.begin(b_update); b_update != b_depsgraph.updates.end(); ++b_update) {
     BL::ID b_id(b_update->id());
+
+    /* Material */
+    if (b_id.is_a(&RNA_NodeGroup)) {
+      BL::NodeGroup b_tree(b_id);
+      std::string name = b_tree.name();
+      int type = b_tree.type();
+    }
 
     /* Material */
     if (b_id.is_a(&RNA_Material)) {
@@ -174,7 +181,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     else if (b_id.is_a(&RNA_Collection)) {
       BL::Collection b_col(b_id);
       updated_object_ids.insert(b_col.ptr.data);
-	}
+    }
   }
 
   /* Updates shader with object dependency if objects changed. */
@@ -187,22 +194,22 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
             if (updated_id == dependent_id) {
               has_object_dependency = true;
               break;
-			}
+            }
           }
-        }     
-	  }
+        }
+      }
       if (has_object_dependency) {
         shader->has_object_dependency = true;
         shader->need_sync_object = true;
       }
     }
   }
-  if (has_updated_nodetree) {
+  if (true) {
     foreach (Shader *shader, scene->shaders) {
       if (shader->graph && shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE) {
         shader->need_update = true;
       }
-    }  
+    }
   }
 }
 
@@ -225,18 +232,16 @@ void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &
          ++b_node_group) {
       if (b_node_group->name() != this->composite_node_tree_name) {
         continue;
-      } 
+      }
       BL::NodeTree::nodes_iterator b_node;
-      for (b_node_group->nodes.begin(b_node);
-           b_node != b_node_group->nodes.end();
-           ++b_node) {
+      for (b_node_group->nodes.begin(b_node); b_node != b_node_group->nodes.end(); ++b_node) {
         if (b_node->is_a(&RNA_ShaderNodeOctAovOutputGroup) &&
             b_node->name() == this->aov_output_group_name) {
           this->current_aov_number = RNA_enum_get(&b_node->ptr, "group_number");
           break;
         }
       }
-	}
+    }
   }
   passes->oct_node->bUsePasses = get_boolean(oct, "use_passes");
   int current_preview_pass_type = get_enum(oct, "current_preview_pass_type");
@@ -491,6 +496,9 @@ void BlenderSync::sync_kernel()
   kernel->oct_node->bBumpNormalMapping = get_boolean(oct_scene, "bump_normal_mapping");
   kernel->oct_node->bBkFaceHighlight = get_boolean(oct_scene, "wf_bkface_hl");
   kernel->oct_node->fPathTermPower = get_float(oct_scene, "path_term_power");
+
+  kernel->oct_node->iWhiteLightSpectrum = get_enum(oct_scene, "white_light_spectrum");
+  kernel->oct_node->bUseOldPipeline = get_boolean(oct_scene, "use_old_color_pipeline");
 
   kernel->oct_node->bKeepEnvironment = get_boolean(oct_scene, "keep_environment");
   kernel->oct_node->bNestDielectrics = get_boolean(oct_scene, "nested_dielectrics");

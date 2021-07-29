@@ -46,7 +46,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
      N_("Affect alpha"),
@@ -86,7 +86,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {-1, ""},
 };

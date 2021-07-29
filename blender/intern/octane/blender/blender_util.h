@@ -132,7 +132,7 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
   std::string result = "";
   static int SAMPLE_NUMBER = 5;
   if (b_ob.type() == BL::Object::type_MESH) {
-    BL::Mesh b_mesh = b_ob.to_mesh(false, b_depsgraph);
+    BL::Mesh b_mesh(b_ob.data());
     ::Mesh *me = (::Mesh *)(b_mesh.ptr.data);
     std::stringstream ss;
     ss << b_mesh.vertices.length() << "|" << b_mesh.polygons.length() << "|"
@@ -153,7 +153,6 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
       ss << me->mpoly[0].flag << "|";
     }    
     result = ss.str();
-    b_ob.to_mesh_clear();
   }
   for (int i = 0; i < shaders.size(); ++i) {
     if (shaders[i]) {
@@ -317,9 +316,9 @@ static inline string image_user_file_path(BL::ImageUser &iuser,
   return filepath_str;
 }
 
-static inline int image_user_frame_number(BL::ImageUser &iuser, int cfra)
+static inline int image_user_frame_number(BL::ImageUser &iuser, BL::Image &ima, int cfra)
 {
-  BKE_image_user_frame_calc(NULL, iuser.ptr.data, cfra);
+  BKE_image_user_frame_calc(ima.ptr.data, iuser.ptr.data, cfra);
   return iuser.frame_current();
 }
 
@@ -904,17 +903,21 @@ template<typename K, typename T> class id_map {
   set<void *> b_recalc;
 };
 
-/* Object Key */
+/* Object Key
+ *
+ * To uniquely identify instances, we use the parent, object and persistent instance ID.
+ * We also export separate object for a mesh and its particle hair. */
 
-enum { OBJECT_PERSISTENT_ID_SIZE = 16 };
+enum { OBJECT_PERSISTENT_ID_SIZE = 8 /* MAX_DUPLI_RECUR in Blender. */ };
 
 struct ObjectKey {
   void *parent;
   int id[OBJECT_PERSISTENT_ID_SIZE];
   void *ob;
+  bool use_particle_hair;
 
-  ObjectKey(void *parent_, int id_[OBJECT_PERSISTENT_ID_SIZE], void *ob_)
-      : parent(parent_), ob(ob_)
+  ObjectKey(void *parent_, int id_[OBJECT_PERSISTENT_ID_SIZE], void *ob_, bool use_particle_hair_)
+      : parent(parent_), ob(ob_), use_particle_hair(use_particle_hair_)
   {
     if (id_)
       memcpy(id, id_, sizeof(id));
@@ -928,10 +931,17 @@ struct ObjectKey {
       return true;
     }
     else if (ob == k.ob) {
-      if (parent < k.parent)
+      if (parent < k.parent) {
         return true;
-      else if (parent == k.parent)
-        return memcmp(id, k.id, sizeof(id)) < 0;
+      }
+      else if (parent == k.parent) {
+        if (use_particle_hair < k.use_particle_hair) {
+          return true;
+        }
+        else if (use_particle_hair == k.use_particle_hair) {
+          return memcmp(id, k.id, sizeof(id)) < 0;
+        }
+      }
     }
 
     return false;

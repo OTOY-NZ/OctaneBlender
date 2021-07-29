@@ -45,7 +45,6 @@
 
 /* -------------------------------------------------------------------- */
 /** \name Edit Mesh #CD_MVERT_SKIN Transform Creation
- *
  * \{ */
 
 static float *mesh_skin_transdata_center(const struct TransIslandData *island_data,
@@ -55,9 +54,7 @@ static float *mesh_skin_transdata_center(const struct TransIslandData *island_da
   if (island_data->center && island_index != -1) {
     return island_data->center[island_index];
   }
-  else {
-    return eve->co;
-  }
+  return eve->co;
 }
 
 static void mesh_skin_transdata_create(TransDataBasic *td,
@@ -276,7 +273,6 @@ void createTransMeshSkin(TransInfo *t)
 
 /* -------------------------------------------------------------------- */
 /** \name Recalc Mesh Data
- *
  * \{ */
 
 static void mesh_skin_apply_to_mirror(TransInfo *t)

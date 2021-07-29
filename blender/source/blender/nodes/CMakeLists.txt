@@ -26,6 +26,7 @@ set(INC
   intern
   shader
   texture
+  ../editors/include
   ../blenkernel
   ../blenlib
   ../blentranslation
@@ -45,6 +46,7 @@ set(INC
 
 set(SRC
   composite/nodes/node_composite_alphaOver.c
+  composite/nodes/node_composite_antialiasing.c
   composite/nodes/node_composite_bilateralblur.c
   composite/nodes/node_composite_blur.c
   composite/nodes/node_composite_bokehblur.c
@@ -61,7 +63,7 @@ set(SRC
   composite/nodes/node_composite_composite.c
   composite/nodes/node_composite_cornerpin.c
   composite/nodes/node_composite_crop.c
-  composite/nodes/node_composite_cryptomatte.c
+  composite/nodes/node_composite_cryptomatte.cc
   composite/nodes/node_composite_curves.c
   composite/nodes/node_composite_defocus.c
   composite/nodes/node_composite_denoise.c
@@ -131,27 +133,43 @@ set(SRC
   composite/node_composite_util.c
 
   function/nodes/node_fn_boolean_math.cc
-  function/nodes/node_fn_combine_strings.cc
   function/nodes/node_fn_float_compare.cc
-  function/nodes/node_fn_group_instance_id.cc
+  function/nodes/node_fn_input_string.cc
   function/nodes/node_fn_input_vector.cc
-  function/nodes/node_fn_object_transforms.cc
   function/nodes/node_fn_random_float.cc
-  function/nodes/node_fn_switch.cc
   function/node_function_util.cc
 
   geometry/nodes/node_geo_align_rotation_to_vector.cc
+  geometry/nodes/node_geo_attribute_clamp.cc
   geometry/nodes/node_geo_attribute_color_ramp.cc
+  geometry/nodes/node_geo_attribute_combine_xyz.cc
   geometry/nodes/node_geo_attribute_compare.cc
+  geometry/nodes/node_geo_attribute_convert.cc
   geometry/nodes/node_geo_attribute_fill.cc
+  geometry/nodes/node_geo_attribute_map_range.cc
   geometry/nodes/node_geo_attribute_math.cc
   geometry/nodes/node_geo_attribute_mix.cc
+  geometry/nodes/node_geo_attribute_proximity.cc
   geometry/nodes/node_geo_attribute_randomize.cc
+  geometry/nodes/node_geo_attribute_remove.cc
+  geometry/nodes/node_geo_attribute_sample_texture.cc
+  geometry/nodes/node_geo_attribute_separate_xyz.cc
   geometry/nodes/node_geo_attribute_vector_math.cc
   geometry/nodes/node_geo_boolean.cc
+  geometry/nodes/node_geo_bounding_box.cc
+  geometry/nodes/node_geo_collection_info.cc
   geometry/nodes/node_geo_common.cc
   geometry/nodes/node_geo_edge_split.cc
+  geometry/nodes/node_geo_is_viewport.cc
   geometry/nodes/node_geo_join_geometry.cc
+  geometry/nodes/node_geo_mesh_primitive_circle.cc
+  geometry/nodes/node_geo_mesh_primitive_cone.cc
+  geometry/nodes/node_geo_mesh_primitive_cube.cc
+  geometry/nodes/node_geo_mesh_primitive_cylinder.cc
+  geometry/nodes/node_geo_mesh_primitive_grid.cc
+  geometry/nodes/node_geo_mesh_primitive_ico_sphere.cc
+  geometry/nodes/node_geo_mesh_primitive_line.cc
+  geometry/nodes/node_geo_mesh_primitive_uv_sphere.cc
   geometry/nodes/node_geo_object_info.cc
   geometry/nodes/node_geo_point_distribute.cc
   geometry/nodes/node_geo_point_instance.cc
@@ -159,9 +177,12 @@ set(SRC
   geometry/nodes/node_geo_point_scale.cc
   geometry/nodes/node_geo_point_separate.cc
   geometry/nodes/node_geo_point_translate.cc
+  geometry/nodes/node_geo_points_to_volume.cc
+  geometry/nodes/node_geo_subdivide.cc
   geometry/nodes/node_geo_subdivision_surface.cc
   geometry/nodes/node_geo_transform.cc
   geometry/nodes/node_geo_triangulate.cc
+  geometry/nodes/node_geo_volume_to_mesh.cc
   geometry/node_geometry_exec.cc
   geometry/node_geometry_tree.cc
   geometry/node_geometry_util.cc
@@ -248,7 +269,7 @@ set(SRC
   shader/nodes/node_shader_vectTransform.c
   shader/nodes/node_shader_vector_displacement.c
   shader/nodes/node_shader_vector_math.cc
-  shader/nodes/node_shader_vector_rotate.c
+  shader/nodes/node_shader_vector_rotate.cc
   shader/nodes/node_shader_vertex_color.c
   shader/nodes/node_shader_volume_absorption.c
   shader/nodes/node_shader_volume_info.c
@@ -288,14 +309,14 @@ set(SRC
   intern/derived_node_tree.cc
   intern/math_functions.cc
   intern/node_common.c
-  intern/node_exec.c
+  intern/node_exec.cc
   intern/node_geometry_exec.cc
   intern/node_socket.cc
-  intern/node_tree_dependencies.cc
   intern/node_tree_multi_function.cc
   intern/node_tree_ref.cc
   intern/node_util.c
   intern/type_callbacks.cc
+  intern/type_conversions.cc
 
   octane/emissions/node_oct_emission_black_body.c
   octane/emissions/node_oct_emission_texture.c
@@ -314,6 +335,7 @@ set(SRC
   octane/materials/node_oct_shader_composite_mat.c
   octane/materials/node_oct_shader_hair_mat.c
   octane/materials/node_oct_shader_null_mat.c
+  octane/materials/node_oct_shader_clipping_mat.c
   octane/layers/node_oct_shader_group_layer.c
   octane/layers/node_oct_shader_diffuse_layer.c
   octane/layers/node_oct_shader_metallic_layer.c
@@ -332,6 +354,10 @@ set(SRC
   octane/projections/node_oct_projection_osl_uv.c
   octane/projections/node_oct_projection_uvw.c
   octane/projections/node_oct_projection_xyz.c
+  octane/projections/node_oct_projection_sample_pos_to_uv.c
+  octane/projections/node_oct_projection_mat_cap.c
+  octane/projections/node_oct_projection_color_to_uvw.c
+  octane/projections/node_oct_projection_distorted_mesh_uv.c
   octane/textures/node_oct_baking_camera_osl.c
   octane/textures/node_oct_camera_osl.c
   octane/textures/node_oct_texture_add.c
@@ -406,6 +432,25 @@ set(SRC
   octane/textures/node_oct_texture_spotlight.c
   octane/textures/node_oct_texture_composite.c
   octane/textures/node_oct_texture_composite_layer.c
+  octane/textures/node_oct_texture_read_vdb.c
+  octane/textures/node_oct_texture_float_to_greyscale.c
+  octane/textures/node_oct_texture_float3_to_color.c
+  octane/textures/node_oct_texture_floats_to_color.c
+  octane/textures/node_oct_texture_surface_tangent_dpdu.c
+  octane/textures/node_oct_texture_surface_tangent_dpdv.c
+  octane/textures/node_oct_texture_uv_coordinate.c
+  octane/textures/node_oct_texture_sample_position.c
+  octane/textures/node_oct_texture_z_depth.c
+  octane/textures/node_oct_texture_binary_math_operation.c
+  octane/textures/node_oct_texture_unary_math_operation.c
+  octane/textures/node_oct_texture_gradient_generator.c
+  octane/textures/node_oct_texture_capture_to_custom_aov.c
+  octane/textures/node_oct_texture_position.c
+  octane/textures/node_oct_texture_relative_distance.c
+  octane/textures/node_oct_texture_normal.c
+  octane/textures/node_oct_texture_range.c
+  octane/textures/node_oct_texture_random_map.c
+  octane/textures/node_oct_texture_ray_direction.c
   
   octane/composites/node_oct_aov_output_group.c
   octane/composites/node_oct_color_aov_output.c
@@ -413,6 +458,10 @@ set(SRC
   octane/composites/node_oct_composite_aov_output_layer.c
   octane/composites/node_oct_image_aov_output.c
   octane/composites/node_oct_render_aov_output.c
+  octane/composites/node_oct_clamp_aov_output.c
+  octane/composites/node_oct_color_correction_aov_output.c
+  octane/composites/node_oct_light_mixing_aov_output.c
+  octane/composites/node_oct_map_range_aov_output.c
 
   composite/node_composite_util.h
   function/node_function_util.hh
@@ -427,7 +476,6 @@ set(SRC
   NOD_geometry.h
   NOD_geometry_exec.hh
   NOD_math_functions.hh
-  NOD_node_tree_dependencies.hh
   NOD_node_tree_multi_function.hh
   NOD_node_tree_ref.hh
   NOD_shader.h
@@ -435,6 +483,7 @@ set(SRC
   NOD_static_types.h
   NOD_texture.h
   NOD_type_callbacks.hh
+  NOD_type_conversions.hh
   intern/node_common.h
   intern/node_exec.h
   intern/node_util.h
@@ -464,6 +513,13 @@ if(WITH_INTERNATIONAL)
   add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
+if(WITH_TBB)
+  list(APPEND INC_SYS
+    ${TBB_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_TBB)
+endif()
+
 if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_OPENEXR)
 endif()
@@ -481,6 +537,25 @@ endif()
 
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
+endif()
+
+if(WITH_GMP)
+  add_definitions(-DWITH_GMP)
+
+  list(APPEND INC_SYS
+    ${GMP_INCLUDE_DIRS}
+  )
+
+  list(APPEND LIB
+    ${GMP_LIBRARIES}
+  )
+endif()
+
+if(WITH_OPENVDB)
+  list(APPEND INC_SYS
+    ${OPENVDB_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

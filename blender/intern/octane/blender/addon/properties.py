@@ -36,6 +36,7 @@ from math import pi
 import nodeitems_utils
 from . import nodeitems_octane
 from .utils import consts
+from .utils.ocio import OctaneOCIOManagement
 
 from operator import add
 
@@ -686,6 +687,33 @@ intermediate_color_space_types = (
     ('ACES2065-1', 'ACES2065-1', "ACES2065-1", 3), 
 )
 
+custom_aov_modes = (
+    ('None', "None", "None", 32),
+    ('Custom AOV 1', "Custom AOV 1", "Custom AOV 1", 0),
+    ('Custom AOV 2', "Custom AOV 2", "Custom AOV 2", 1),
+    ('Custom AOV 3', "Custom AOV 3", "Custom AOV 3", 2),
+    ('Custom AOV 4', "Custom AOV 4", "Custom AOV 4", 3),
+    ('Custom AOV 5', "Custom AOV 5", "Custom AOV 5", 4),
+    ('Custom AOV 6', "Custom AOV 6", "Custom AOV 6", 5),
+    ('Custom AOV 7', "Custom AOV 7", "Custom AOV 7", 6),
+    ('Custom AOV 8', "Custom AOV 8", "Custom AOV 8", 7),
+    ('Custom AOV 9', "Custom AOV 9", "Custom AOV 9", 8),
+    ('Custom AOV 10', "Custom AOV 10", "Custom AOV 10", 9),
+)
+
+custom_aov_channel_modes = (
+    ('All', "All", "All", 0),
+    ('Red', "Red", "Red", 1),
+    ('Green', "Green", "Green", 2),
+    ('Blue', "Blue", "Blue", 3),
+)
+
+white_light_spectrum_modes = (
+    ('D65', "D65", "D65", 1),
+    ('Legacy/flat', "Legacy/flat", "Legacy/flat", 0),
+)
+
+
 def get_int_response_type(cls):
     return int(cls.response_type)
 
@@ -1126,7 +1154,12 @@ def OctaneOCIOManagement_update_ocio_info(self=None, context=None):
     else:        
         set_container(preferences.ocio_export_look_configs, default_export_ocio_look_names + look_names)
         set_container(preferences.ocio_look_configs, default_ocio_look_names + look_names)  
-    is_ocio_updating = False      
+    is_ocio_updating = False
+    ocio_manager = OctaneOCIOManagement()  
+    ocio_color_space_map = {}
+    ocio_color_space_map.update(role_name_map)
+    ocio_color_space_map.update(color_space_name_map)
+    ocio_manager.set_ocio_color_spaces(ocio_color_space_map)
     print("Octane Ocio Management Update End")
 
 
@@ -1283,7 +1316,8 @@ class OctanePreferences(bpy.types.AddonPreferences):
     default_texture_node_layout_id: EnumProperty(
             name="Texture Node Menu Layout",
             description="Layout of texture node menus(reboot blender to take effect)",   
-            items=texture_node_layouts,         
+            items=texture_node_layouts,
+            default="1"     
             )
 
     default_use_blender_builtin_render_layer: BoolProperty(
@@ -1378,7 +1412,8 @@ class OctanePreferences(bpy.types.AddonPreferences):
     ocio_export_exr_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName) 
     ocio_view_configs: CollectionProperty(type=OctaneOCIOConfigName)
     ocio_look_configs: CollectionProperty(type=OctaneOCIOConfigName)
-    ocio_export_look_configs: CollectionProperty(type=OctaneOCIOConfigName)                                    
+    ocio_export_look_configs: CollectionProperty(type=OctaneOCIOConfigName)            
+    ocio_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName)                        
 
     def draw(self, context):
         layout = self.layout
@@ -2298,7 +2333,18 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
             name="Force use tone map",
             description="Whether to apply Octane's built-in tone mapping (before applying any OCIO look(s)) when using an OCIO view. This may produce undesirable results due to an intermediate reduction to the sRGB color space",
             default=False,
-            )        
+            )    
+    white_light_spectrum: EnumProperty(
+            name="White light spectrum",
+            description="Controls the appearance of colors produced by spectral emitters (e.g. daylight environment, black body emitters). This determines the spectrum that will produce white (before white balance) in the final image. Use D65 to adapt to a reasonable daylight 'white' color. Use Legacy/flat to preserve the appearance of old projects (spectral emitters will appear rather blue)",
+            items=white_light_spectrum_modes,
+            default='D65',
+            )    
+    use_old_color_pipeline: BoolProperty(
+            name="Use old color pipeline",
+            description="Use the old behavior for converting colors to and from spectra and for applying white balance. Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut will be rendered inaccurately)",
+            default=False,
+            )                
 
     need_upgrade_octane_output_tag: BoolProperty(
        name="Need to Upgrade Octane Output Tag",
@@ -4017,7 +4063,30 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             name="Infinite plane",
             description="Convert this mesh to infinite plane when rendering",
             default=False,
-            )                                               
+            )
+    enable_mesh_volume_sdf: BoolProperty(
+            name="Enable Mesh Volume SDF",
+            description="Convert this mesh to Octane Mesh Volume SDF when rendering",
+            default=False,
+            )        
+    mesh_volume_sdf_voxel_size: FloatProperty(
+            name="Voxel size",
+            description="Size of one voxel",
+            min=0.001, max=1000.0,
+            default=0.1,
+            )     
+    mesh_volume_sdf_border_thickness_inside: FloatProperty(
+            name="Border thickness(inside)",
+            description="Amount of voxels that will be generated on either side of the surface (inside)",
+            min=1.0, max=100.0,
+            default=3.0,
+            )     
+    mesh_volume_sdf_border_thickness_outside: FloatProperty(
+            name="Border thickness(outside)",
+            description="Amount of voxels that will be generated on either side of the surface (outside)",
+            min=1.0, max=100.0,
+            default=3.0,
+            )                                                                                   
     enable_octane_sphere_attribute: BoolProperty(
             name="Enable Octane Sphere Attribute",
             description="Use color and float attributes with sphere primitives which adds on top of the current attribute support for triangles",
@@ -5102,6 +5171,18 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         description="Translation Y",
         default=0,                
     )      
+    custom_aov: EnumProperty(
+        name="Custom AOV",
+        description="If a custom AOV is selected, it will write a mask to it where the material is visible",
+        items=custom_aov_modes,
+        default='None',
+    )  
+    custom_aov_channel: EnumProperty(
+        name="Custom AOV Channel",
+        description="If a custom AOV is selected, the selected channel(s) will receive the mask",
+        items=custom_aov_channel_modes,
+        default='All',
+    )           
 
     use_motion_blur: BoolProperty(
         name="Use Motion Blur",

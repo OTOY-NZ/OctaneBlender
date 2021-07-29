@@ -64,6 +64,7 @@ extern "C" {
 #define RE_USE_SPHERICAL_STEREO 128
 #define RE_USE_STEREO_VIEWPORT 256
 #define RE_USE_GPU_CONTEXT 512
+#define RE_USE_CUSTOM_FREESTYLE 1024
 
 /* RenderEngine.flag */
 #define RE_ENGINE_ANIMATION 1
@@ -222,6 +223,8 @@ void RE_engine_register_pass(struct RenderEngine *engine,
                              int channels,
                              const char *chanid,
                              eNodeSocketDatatype type);
+
+bool RE_engine_use_persistent_data(struct RenderEngine *engine);
 
 /* Engine Types */
 

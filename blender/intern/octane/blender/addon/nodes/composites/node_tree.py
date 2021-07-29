@@ -35,7 +35,11 @@ octane_node_categories_composite = [
         NodeItem("ShaderNodeOctColorAovOutput"),
         NodeItem("ShaderNodeOctCompositeAovOutput"),
         NodeItem("ShaderNodeOctCompositeAovOutputLayer"),
+        NodeItem("ShaderNodeOctImageAovOutput"),
         NodeItem("ShaderNodeOctRenderAovOutput"),
-        NodeItem("ShaderNodeOctImageAovOutput"),        
+        NodeItem("ShaderNodeOctClampAovOutput"),
+        NodeItem("ShaderNodeOctColorCorrectionAovOutput"),
+        NodeItem("ShaderNodeOctMapRangeAovOutput"),
+        NodeItem("ShaderNodeOctLightMixingAovOutput"),  
     ]),
 ]

@@ -119,6 +119,7 @@ class SpellChecker:
         "dirtree",
         "editcurve",
         "editmesh",
+        "faceforward",
         "filebrowser",
         "filelist",
         "filename", "filenames",
@@ -200,6 +201,7 @@ class SpellChecker:
         "selfcollision",
         "shadowbuffer", "shadowbuffers",
         "singletexture",
+        "softbox",
         "spellcheck", "spellchecking",
         "startup",
         "stateful",
@@ -645,6 +647,7 @@ class SpellChecker:
         # Acronyms
         "aa", "msaa",
         "ao",
+        "aov", "aovs",
         "api",
         "apic",  # Affine Particle-In-Cell
         "asc", "cdl",

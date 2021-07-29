@@ -142,6 +142,7 @@ static void node_oct_image_tile_tex_init(bNodeTree *ntree, bNode *node)
 
   node->storage = tex;
   node->custom1 = OCT_HDR_BIT_DEPTH_16;
+  node->oct_custom2 = IES_COMPENSATE_LUMINANCE;
   node_octane_image_texture_conversion_update(ntree, node);
 } /* node_oct_image_tile_tex_init() */
 

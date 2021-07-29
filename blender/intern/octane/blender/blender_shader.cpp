@@ -354,7 +354,7 @@ static bool update_octane_image_data(
        * builtin names for packed images and movies
        */
       int scene_frame = b_scene.frame_current();
-      int image_frame = image_user_frame_number(b_image_user, scene_frame);
+      int image_frame = image_user_frame_number(b_image_user, b_image, scene_frame);
       if (b_image.ptr.data) {
         PointerRNA ptr;
         RNA_id_pointer_create((ID *)b_image.ptr.data, &ptr);
@@ -377,7 +377,7 @@ static bool update_octane_image_data(
           MD5Hash md5;
 
           if (bIsFloat) {
-            float *pf_image_pixels = image_get_float_pixels_for_frame(b_image, scene_frame, false);
+            float *pf_image_pixels = image_get_float_pixels_for_frame(b_image, image_frame, false);
             if (pf_image_pixels) {
               octane_image_data.fImageData.resize(pixel_size);
               octane_image_data.fDataLength = pixel_size;
@@ -391,7 +391,7 @@ static bool update_octane_image_data(
           }
           else {
             unsigned char *pc_image_pixels = image_get_pixels_for_frame(
-                b_image, scene_frame, false);
+                b_image, image_frame, false);
             if (pc_image_pixels) {
               octane_image_data.iImageData.resize(pixel_size);
               octane_image_data.iDataLength = pixel_size;
@@ -619,6 +619,7 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
   update_octane_image_data(
       b_image, b_image_user, b_engine, b_scene, is_auto_refresh, cur_node->oImageData);
   cur_node->oImageData.iHDRDepthType = int(RNA_enum_get(&b_node.ptr, "hdr_tex_bit_depth"));
+  cur_node->oImageData.iIESMode = int(RNA_enum_get(&b_node.ptr, "octane_ies_mode"));
 }
 
 static void generate_collection_nodes(std::string prefix_name,
@@ -760,7 +761,6 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         }
       }
       if (source_ptr.data != NULL) {
-        graph->dependent_ids.clear();
         graph->dependent_ids.insert(source_ptr.data);
         if (source_type == OBJECT_DATA_NODE_TYPE_OBJECT) {
           BL::Node::outputs_iterator b_output;
@@ -903,7 +903,17 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
     }
     return NULL;
   }
-  if (b_node.is_a(&RNA_ShaderNodeOctLayeredMat)) {
+  if (b_node.type() == BL::Node::type_CUSTOM) {
+    std::string bl_idname = b_node.bl_idname();
+    if (bl_idname == "OctaneNodeOcioColorSpace") {
+      char char_array[512];
+      RNA_string_get(&b_node.ptr, "formatted_ocio_color_space", char_array);
+      ::OctaneDataTransferObject::OctaneOcioColorSpace *octane_node =
+          (::OctaneDataTransferObject::OctaneOcioColorSpace *)(node->oct_node);
+      octane_node->sOcioName.sVal = char_array;
+    }
+  }
+  else if (b_node.is_a(&RNA_ShaderNodeOctLayeredMat)) {
     int layer_number = RNA_enum_get(&b_node.ptr, "layer_number");
     ::OctaneDataTransferObject::OctaneLayeredMaterial *octane_node =
         (::OctaneDataTransferObject::OctaneLayeredMaterial *)(node->oct_node);
@@ -1262,7 +1272,28 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       }
     }
   }
-
+  else if (b_node.is_a(&RNA_ShaderNodeOctReadVDBTex)) {
+    BL::Node::inputs_iterator b_input;
+    PointerRNA source_ptr = PointerRNA_NULL;
+    for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
+      std::string name = b_input->name();
+      if (name == "VDB") {
+        source_ptr = RNA_pointer_get(&b_input->ptr, "default_value");
+        break;
+      }
+    }
+    if (source_ptr.data != NULL) {
+      graph->dependent_ids.insert(source_ptr.data);
+      BL::Object b_ob(source_ptr);
+      bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
+      BL::ID b_ob_data = b_ob.data();
+      OctaneDataTransferObject::OctaneReadVDBTexture *read_vdb =
+          (OctaneDataTransferObject::OctaneReadVDBTexture *)node->oct_node;
+      read_vdb->sVDB.sLinkNodeName = resolve_octane_name(
+          b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+      read_vdb->sVDB.bUseLinked = true;
+    }
+  }
   if (node && node != graph->output())
     graph->add(node);
 

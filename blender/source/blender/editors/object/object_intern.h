@@ -90,7 +90,7 @@ void OBJECT_OT_forcefield_toggle(struct wmOperatorType *ot);
 void OBJECT_OT_move_to_collection(struct wmOperatorType *ot);
 void OBJECT_OT_link_to_collection(struct wmOperatorType *ot);
 
-void OBJECT_OT_switch_object(struct wmOperatorType *ot);
+void OBJECT_OT_transfer_mode(struct wmOperatorType *ot);
 
 /* object_select.c */
 void OBJECT_OT_select_all(struct wmOperatorType *ot);
@@ -157,10 +157,10 @@ bool edit_modifier_poll_generic(struct bContext *C,
                                 const bool is_liboverride_allowed);
 void edit_modifier_properties(struct wmOperatorType *ot);
 bool edit_modifier_invoke_properties(struct bContext *C, struct wmOperator *op);
-bool edit_modifier_invoke_properties_with_hover_no_active(struct bContext *C,
-                                                          struct wmOperator *op,
-                                                          const struct wmEvent *event,
-                                                          int *r_retval);
+bool edit_modifier_invoke_properties_with_hover(struct bContext *C,
+                                                struct wmOperator *op,
+                                                const struct wmEvent *event,
+                                                int *r_retval);
 
 struct ModifierData *edit_modifier_property_get(struct wmOperator *op,
                                                 struct Object *ob,

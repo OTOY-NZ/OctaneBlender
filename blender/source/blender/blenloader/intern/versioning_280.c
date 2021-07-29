@@ -1390,7 +1390,7 @@ void do_versions_after_linking_280(Main *bmain, ReportList *UNUSED(reports))
       }
     }
 
-    /* Cleanup deprecated flag from particlesettings data-blocks. */
+    /* Cleanup deprecated flag from particle-settings data-blocks. */
     for (ParticleSettings *part = bmain->particles.first; part; part = part->id.next) {
       part->draw &= ~PART_DRAW_EMITTER;
     }
@@ -1796,7 +1796,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 280, 1)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "bleedexp")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "bleedexp")) {
       for (Light *la = bmain->lights.first; la; la = la->id.next) {
         la->bleedexp = 2.5f;
       }
@@ -1822,7 +1822,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 280, 2)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "cascade_max_dist")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "cascade_max_dist")) {
       for (Light *la = bmain->lights.first; la; la = la->id.next) {
         la->cascade_max_dist = 1000.0f;
         la->cascade_count = 4;
@@ -1831,7 +1831,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "contact_dist")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "contact_dist")) {
       for (Light *la = bmain->lights.first; la; la = la->id.next) {
         la->contact_dist = 0.2f;
         la->contact_bias = 0.03f;
@@ -2092,7 +2092,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
 
     for (Tex *tex = bmain->textures.first; tex; tex = tex->id.next) {
-      /* Removed envmap, pointdensity, voxeldata, ocean textures. */
+      /* Removed environment map, point-density, voxel-data, ocean textures. */
       if (ELEM(tex->type, 10, 14, 15, 16)) {
         tex->type = 0;
       }
@@ -2167,7 +2167,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
   if (!MAIN_VERSION_ATLEAST(bmain, 280, 13)) {
     /* Initialize specular factor. */
-    if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "spec_fac")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "spec_fac")) {
       for (Light *la = bmain->lights.first; la; la = la->id.next) {
         la->spec_fac = 1.0f;
       }
@@ -3117,7 +3117,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
 
-    if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "att_dist")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "att_dist")) {
       for (Light *la = bmain->lights.first; la; la = la->id.next) {
         la->att_dist = la->clipend;
       }
@@ -3666,7 +3666,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
   if (!MAIN_VERSION_ATLEAST(bmain, 280, 48)) {
     for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
       /* Those are not currently used, but are accessible through RNA API and were not
-       * properly initialized previously. This is mere copy of BKE_init_scene() code. */
+       * properly initialized previously. This is mere copy of #scene_init_data code. */
       if (scene->r.im_format.view_settings.look[0] == '\0') {
         BKE_color_managed_display_settings_init(&scene->r.im_format.display_settings);
         BKE_color_managed_view_settings_init_render(
@@ -4033,7 +4033,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
 
     /* Initializes sun lights with the new angular diameter property */
-    if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "sun_angle")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "sun_angle")) {
       LISTBASE_FOREACH (Light *, light, &bmain->lights) {
         light->sun_angle = 2.0f * atanf(light->area_size);
       }
@@ -4285,7 +4285,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
 
-    /* Elatic deform brush */
+    /* Elastic deform brush */
     for (Brush *br = bmain->brushes.first; br; br = br->id.next) {
       if (br->ob_mode & OB_MODE_SCULPT && br->elastic_deform_volume_preservation == 0.0f) {
         br->elastic_deform_volume_preservation = 0.5f;
@@ -4894,7 +4894,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
 
-    /* Boundary Edges Automasking. */
+    /* Boundary Edges Auto-masking. */
     if (!DNA_struct_elem_find(
             fd->filesdna, "Brush", "int", "automasking_boundary_edges_propagation_steps")) {
       for (Brush *br = bmain->brushes.first; br; br = br->id.next) {

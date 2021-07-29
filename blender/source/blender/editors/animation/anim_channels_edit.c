@@ -393,7 +393,11 @@ static void anim_channels_select_set(bAnimContext *ac,
         FCurve *fcu = (FCurve *)ale->data;
 
         ACHANNEL_SET_FLAG(fcu, sel, FCURVE_SELECTED);
-        fcu->flag &= ~FCURVE_ACTIVE;
+        if ((fcu->flag & FCURVE_SELECTED) == 0) {
+          /* Only erase the ACTIVE flag when deselecting. This ensures that "select all curves"
+           * retains the currently active curve. */
+          fcu->flag &= ~FCURVE_ACTIVE;
+        }
         break;
       }
       case ANIMTYPE_SHAPEKEY: {
@@ -1197,7 +1201,7 @@ static void rearrange_nla_channels(bAnimContext *ac, AnimData *adt, eRearrangeAn
   rearrange_animchannel_islands(
       &adt->nla_tracks, rearrange_func, mode, ANIMTYPE_NLATRACK, &anim_data_visible);
 
-  /* Add back non-local NLA tracks at the begining of the animation data's list. */
+  /* Add back non-local NLA tracks at the beginning of the animation data's list. */
   if (!BLI_listbase_is_empty(&extracted_nonlocal_nla_tracks)) {
     BLI_assert(is_liboverride);
     ((NlaTrack *)extracted_nonlocal_nla_tracks.last)->next = adt->nla_tracks.first;
@@ -1732,7 +1736,7 @@ static int animchannels_group_exec(bContext *C, wmOperator *op)
     /* free temp data */
     ANIM_animdata_freelist(&anim_data);
 
-    /* updatss */
+    /* Updates. */
     WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
   }
 
@@ -2280,7 +2284,7 @@ static void ANIM_OT_channels_expand(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Expand Channels";
   ot->idname = "ANIM_OT_channels_expand";
-  ot->description = "Expand (i.e. open) all selected expandable animation channels";
+  ot->description = "Expand (open) all selected expandable animation channels";
 
   /* api callbacks */
   ot->exec = animchannels_expand_exec;
@@ -2325,7 +2329,7 @@ static void ANIM_OT_channels_collapse(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Collapse Channels";
   ot->idname = "ANIM_OT_channels_collapse";
-  ot->description = "Collapse (i.e. close) all selected expandable animation channels";
+  ot->description = "Collapse (close) all selected expandable animation channels";
 
   /* api callbacks */
   ot->exec = animchannels_collapse_exec;
@@ -2540,7 +2544,7 @@ static bool animchannels_find_poll(bContext *C)
 }
 
 /* find_invoke() - Get initial channels */
-static int animchannels_find_invoke(bContext *C, wmOperator *op, const wmEvent *evt)
+static int animchannels_find_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bAnimContext ac;
 
@@ -2553,7 +2557,7 @@ static int animchannels_find_invoke(bContext *C, wmOperator *op, const wmEvent *
   RNA_string_set(op->ptr, "query", ac.ads->searchstr);
 
   /* defer to popup */
-  return WM_operator_props_popup(C, op, evt);
+  return WM_operator_props_popup(C, op, event);
 }
 
 /* find_exec() -  Called to set the value */
@@ -2685,6 +2689,11 @@ static void box_select_anim_channels(bAnimContext *ac, rcti *rect, short selectm
   /* loop over data, doing box select */
   for (ale = anim_data.first; ale; ale = ale->next) {
     float ymin;
+    /* Skip grease pencil datablock. Only use grease pencil layers. */
+    if (ale->type == ANIMTYPE_GPDATABLOCK) {
+      continue;
+    }
+
     if (ac->datatype == ANIMCONT_NLA) {
       ymin = ymax - NLACHANNEL_STEP(snla);
     }

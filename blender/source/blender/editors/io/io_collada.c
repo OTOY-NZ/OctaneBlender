@@ -29,7 +29,6 @@
 #  include "BLI_utildefines.h"
 
 #  include "BKE_context.h"
-#  include "BKE_global.h"
 #  include "BKE_main.h"
 #  include "BKE_object.h"
 #  include "BKE_report.h"
@@ -37,7 +36,6 @@
 #  include "DEG_depsgraph.h"
 
 #  include "ED_object.h"
-#  include "ED_screen.h"
 
 #  include "RNA_access.h"
 #  include "RNA_define.h"
@@ -402,11 +400,12 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
   }
 }
 
-static void wm_collada_export_draw(bContext *UNUSED(C), wmOperator *op)
+static void wm_collada_export_draw(bContext *C, wmOperator *op)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
   PointerRNA ptr;
 
-  RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
+  RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
   uiCollada_exportSettings(op->layout, &ptr);
 }
 
@@ -799,11 +798,12 @@ static void uiCollada_importSettings(uiLayout *layout, PointerRNA *imfptr)
   uiItemR(box, imfptr, "keep_bind_info", 0, NULL, ICON_NONE);
 }
 
-static void wm_collada_import_draw(bContext *UNUSED(C), wmOperator *op)
+static void wm_collada_import_draw(bContext *C, wmOperator *op)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
   PointerRNA ptr;
 
-  RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
+  RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
   uiCollada_importSettings(op->layout, &ptr);
 }
 

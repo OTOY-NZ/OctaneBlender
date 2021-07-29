@@ -37,8 +37,6 @@ class AnnotationDrawingToolsPanel:
 
         tool_settings = context.tool_settings
 
-        is_clip_editor = context.space_data.type == 'CLIP_EDITOR'
-
         col = layout.column(align=True)
 
         col.label(text="Draw:")
@@ -149,8 +147,7 @@ class GreasePencilDisplayPanel:
 
             if self.is_popover:
                 row = layout.row(align=True)
-                row.prop(settings, "show_brush", text="")
-                row.label(text="Display Cursor")
+                row.prop(settings, "show_brush", text="Display Cursor")
 
             col = layout.column(align=True)
             col.active = settings.show_brush
@@ -328,11 +325,6 @@ class GPENCIL_MT_material_active(Menu):
     @classmethod
     def poll(cls, context):
         ob = context.active_object
-        tool_settings = context.scene.tool_settings
-        mode = tool_settings.gpencil_paint.color_mode
-        if mode != 'MATERIAL':
-            return False
-
         if ob is None or len(ob.material_slots) == 0:
             return False
 
@@ -342,7 +334,6 @@ class GPENCIL_MT_material_active(Menu):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
         ob = context.active_object
-        mat_active = ob.active_material
 
         for slot in ob.material_slots:
             mat = slot.material
@@ -478,6 +469,7 @@ class AnnotationDataPanel:
 
         tool_settings = context.tool_settings
         if gpd and gpl:
+            layout.prop(gpl, "opacity", text="Opacity", slider=True)
             layout.prop(gpl, "thickness")
         else:
             layout.prop(tool_settings, "annotation_thickness", text="Thickness")
@@ -727,12 +719,32 @@ class GreasePencilSimplifyPanel:
         col.prop(rd, "simplify_gpencil_antialiasing")
 
 
+class GreasePencilLayerTransformPanel:
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        ob = context.object
+        gpd = ob.data
+        gpl = gpd.layers.active
+        layout.active = not gpl.lock
+
+        row = layout.row(align=True)
+        row.prop(gpl, "location")
+
+        row = layout.row(align=True)
+        row.prop(gpl, "rotation")
+
+        row = layout.row(align=True)
+        row.prop(gpl, "scale")
+
+
 class GreasePencilLayerAdjustmentsPanel:
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
-        scene = context.scene
 
         ob = context.object
         gpd = ob.data
@@ -749,15 +761,6 @@ class GreasePencilLayerAdjustmentsPanel:
         # Offsets - Thickness
         col = layout.row(align=True)
         col.prop(gpl, "line_change", text="Stroke Thickness")
-
-        col = layout.row(align=True)
-        col.prop(gpl, "pass_index")
-
-        col = layout.row(align=True)
-        col.prop_search(gpl, "viewlayer_render", scene, "view_layers", text="View Layer")
-
-        col = layout.row(align=True)
-        col.prop(gpl, "lock_material")
 
 
 class GPENCIL_UL_masks(UIList):
@@ -826,6 +829,7 @@ class GreasePencilLayerRelationsPanel:
         layout.use_property_split = True
         layout.use_property_decorate = False
 
+        scene = context.scene
         ob = context.object
         gpd = ob.data
         gpl = gpd.layers.active
@@ -838,6 +842,14 @@ class GreasePencilLayerRelationsPanel:
 
         if parent and gpl.parent_type == 'BONE' and parent.type == 'ARMATURE':
             col.prop_search(gpl, "parent_bone", parent.data, "bones", text="Bone")
+
+        layout.separator()
+
+        col = layout.row(align=True)
+        col.prop(gpl, "pass_index")
+
+        col = layout.row(align=True)
+        col.prop_search(gpl, "viewlayer_render", scene, "view_layers", text="View Layer")
 
 
 class GreasePencilLayerDisplayPanel:
@@ -869,37 +881,43 @@ class GreasePencilFlipTintColors(Operator):
     bl_idname = "gpencil.tint_flip"
     bl_description = "Switch tint colors"
 
+    @classmethod
+    def poll(cls, context):
+        ts = context.tool_settings
+        settings = None
+        if context.mode == 'PAINT_GPENCIL':
+            settings = ts.gpencil_paint
+        if context.mode == 'SCULPT_GPENCIL':
+            settings = ts.gpencil_sculpt_paint
+        elif context.mode == 'WEIGHT_GPENCIL':
+            settings = ts.gpencil_weight_paint
+        elif context.mode == 'VERTEX_GPENCIL':
+            settings = ts.gpencil_vertex_paint
+
+        return settings and settings.brush
+
     def execute(self, context):
-        try:
-            ts = context.tool_settings
-            settings = None
-            if context.mode == 'PAINT_GPENCIL':
-                settings = ts.gpencil_paint
-            if context.mode == 'SCULPT_GPENCIL':
-                settings = ts.gpencil_sculpt_paint
-            elif context.mode == 'WEIGHT_GPENCIL':
-                settings = ts.gpencil_weight_paint
-            elif context.mode == 'VERTEX_GPENCIL':
-                settings = ts.gpencil_vertex_paint
+        ts = context.tool_settings
+        settings = None
+        if context.mode == 'PAINT_GPENCIL':
+            settings = ts.gpencil_paint
+        if context.mode == 'SCULPT_GPENCIL':
+            settings = ts.gpencil_sculpt_paint
+        elif context.mode == 'WEIGHT_GPENCIL':
+            settings = ts.gpencil_weight_paint
+        elif context.mode == 'VERTEX_GPENCIL':
+            settings = ts.gpencil_vertex_paint
 
-            brush = settings.brush
-            if brush is not None:
-                color = brush.color
-                secondary_color = brush.secondary_color
+        brush = settings.brush
+        color = brush.color
+        secondary_color = brush.secondary_color
 
-                orig_prim = color.hsv
-                orig_sec = secondary_color.hsv
+        orig_prim = color.hsv
+        orig_sec = secondary_color.hsv
 
-                color.hsv = orig_sec
-                secondary_color.hsv = orig_prim
-
-            return {'FINISHED'}
-
-        except Exception as e:
-            utils_core.error_handlers(self, "gpencil.tint_flip", e,
-                                      "Flip Colors could not be completed")
-
-            return {'CANCELLED'}
+        color.hsv = orig_sec
+        secondary_color.hsv = orig_prim
+        return {'FINISHED'}
 
 
 classes = (

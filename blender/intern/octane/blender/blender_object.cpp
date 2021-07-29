@@ -157,7 +157,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
 {
   /* test if we need to sync */
   Light *light;
-  ObjectKey key(b_parent, persistent_id, b_ob_instance);
+  ObjectKey key(b_parent, persistent_id, b_ob_instance, false);
 
   bool is_updated = light_map.sync(&light, b_ob, b_parent, key);
   bool is_transform_updated = false;
@@ -402,7 +402,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   int *persistent_id = NULL;
   BL::Array<int, OBJECT_PERSISTENT_ID_SIZE> persistent_id_array;
   if (is_instance) {
-    persistent_id = b_instance.persistent_id().data;
+    persistent_id_array = b_instance.persistent_id();
+    persistent_id = persistent_id_array.data;
   }
 
   OctaneDataTransferObject::OctaneObjectLayer object_layer;
@@ -435,7 +436,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
 
   /* key to lookup object */
-  ObjectKey key(b_parent, persistent_id, b_ob_instance);
+  ObjectKey key(b_parent, persistent_id, b_ob_instance, false);
   Object *object;
 
   if (motion) {
@@ -450,8 +451,8 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
           sync_mesh_motion(b_depsgraph, b_ob, object, motion_time);
         }
       }
-      return object;
     }
+    return object;
   }
 
   std::string object_name;

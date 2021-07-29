@@ -1334,12 +1334,6 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
         // Keyboard events, processed
         ////////////////////////////////////////////////////////////////////////
         case WM_INPUT: {
-          // check WM_INPUT from input sink when ghost window is not in the foreground
-          if (wParam == RIM_INPUTSINK) {
-            if (GetFocus() != hwnd)  // WM_INPUT message not for this window
-              return 0;
-          }  // else wParam == RIM_INPUT
-
           RAWINPUT raw;
           RAWINPUT *raw_ptr = &raw;
           UINT rawSize = sizeof(RAWINPUT);
@@ -1448,12 +1442,23 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
            */
           break;
         case WM_SYSCOMMAND:
-          /* The WM_SYSCHAR message is sent to the window when system commands such as
+          /* The WM_SYSCOMMAND message is sent to the window when system commands such as
            * maximize, minimize  or close the window are triggered. Also it is sent when ALT
            * button is press for menu. To prevent this we must return preventing DefWindowProc.
+           *
+           * Note that the four low-order bits of the wParam parameter are used internally by the
+           * OS. To obtain the correct result when testing the value of wParam, an application
+           * must combine the value 0xFFF0 with the wParam value by using the bitwise AND operator.
            */
-          if (wParam == SC_KEYMENU) {
-            eventHandled = true;
+          switch (wParam & 0xFFF0) {
+            case SC_KEYMENU:
+              eventHandled = true;
+              break;
+            case SC_RESTORE:
+              ::ShowWindow(hwnd, SW_RESTORE);
+              window->setState(window->getState());
+              eventHandled = true;
+              break;
           }
           break;
         ////////////////////////////////////////////////////////////////////////
@@ -1908,6 +1913,7 @@ void GHOST_SystemWin32::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 /* -------------------------------------------------------------------- */
 /** \name Message Box
  * \{ */
+
 GHOST_TSuccess GHOST_SystemWin32::showMessageBox(const char *title,
                                                  const char *message,
                                                  const char *help_label,
@@ -1955,7 +1961,8 @@ GHOST_TSuccess GHOST_SystemWin32::showMessageBox(const char *title,
 
   return GHOST_kSuccess;
 }
-/* \} */
+
+/** \} */
 
 static DWORD GetParentProcessID(void)
 {

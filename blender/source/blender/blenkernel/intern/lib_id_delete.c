@@ -240,7 +240,7 @@ void BKE_id_free_us(Main *bmain, void *idv) /* test users */
 static size_t id_delete(Main *bmain, const bool do_tagged_deletion)
 {
   const int tag = LIB_TAG_DOIT;
-  ListBase *lbarray[MAX_LIBARRAY];
+  ListBase *lbarray[INDEX_ID_MAX];
   Link dummy_link = {0};
   int base_count, i;
 
@@ -300,17 +300,24 @@ static size_t id_delete(Main *bmain, const bool do_tagged_deletion)
          * links, this can lead to nasty crashing here in second, actual deleting loop.
          * Also, this will also flag users of deleted data that cannot be unlinked
          * (object using deleted obdata, etc.), so that they also get deleted. */
-        BKE_libblock_remap_locked(
-            bmain, id, NULL, ID_REMAP_FLAG_NEVER_NULL_USAGE | ID_REMAP_FORCE_NEVER_NULL_USAGE);
+        BKE_libblock_remap_locked(bmain,
+                                  id,
+                                  NULL,
+                                  (ID_REMAP_FLAG_NEVER_NULL_USAGE |
+                                   ID_REMAP_FORCE_NEVER_NULL_USAGE |
+                                   ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS));
         /* Since we removed ID from Main,
          * we also need to unlink its own other IDs usages ourself. */
-        BKE_libblock_relink_ex(bmain, id, NULL, NULL, 0);
-        /* Now we can safely mark that ID as not being in Main database anymore. */
-        id->tag |= LIB_TAG_NO_MAIN;
-        /* This is needed because we may not have remapped usages
-         * of that ID by other deleted ones. */
-        // id->us = 0;  /* Is it actually? */
+        BKE_libblock_relink_ex(bmain, id, NULL, NULL, ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS);
       }
+    }
+
+    /* Now we can safely mark that ID as not being in Main database anymore. */
+    /* NOTE: This needs to be done in a separate loop than above, otherwise some usercounts of
+     * deleted IDs may not be properly decreased by the remappings (since `NO_MAIN` ID usercounts
+     * is never affected). */
+    for (ID *id = tagged_deleted_ids.first; id; id = id->next) {
+      id->tag |= LIB_TAG_NO_MAIN;
     }
   }
   else {
@@ -334,8 +341,12 @@ static size_t id_delete(Main *bmain, const bool do_tagged_deletion)
            * actual deleting loop.
            * Also, this will also flag users of deleted data that cannot be unlinked
            * (object using deleted obdata, etc.), so that they also get deleted. */
-          BKE_libblock_remap_locked(
-              bmain, id, NULL, ID_REMAP_FLAG_NEVER_NULL_USAGE | ID_REMAP_FORCE_NEVER_NULL_USAGE);
+          BKE_libblock_remap_locked(bmain,
+                                    id,
+                                    NULL,
+                                    (ID_REMAP_FLAG_NEVER_NULL_USAGE |
+                                     ID_REMAP_FORCE_NEVER_NULL_USAGE |
+                                     ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS));
         }
       }
     }

@@ -1388,6 +1388,9 @@ struct Kernel {
   float fPathTermPower;
   int32_t iMaxSubdivisionLevel;
 
+  int32_t iWhiteLightSpectrum;
+  bool bUseOldPipeline;
+
   // PATH_TRACE + PMC + DIRECT_LIGHT
   bool bAlphaShadows;
   bool bKeepEnvironment;
@@ -1480,7 +1483,10 @@ struct Kernel {
         && iMaxSamples == otherKernel.iMaxSamples && fFilterSize == otherKernel.fFilterSize &&
         fRayEpsilon == otherKernel.fRayEpsilon && bAlphaChannel == otherKernel.bAlphaChannel &&
         fPathTermPower == otherKernel.fPathTermPower &&
-        iMaxSubdivisionLevel == otherKernel.iMaxSubdivisionLevel
+        iMaxSubdivisionLevel == otherKernel.iMaxSubdivisionLevel &&
+
+        iWhiteLightSpectrum == otherKernel.iWhiteLightSpectrum &&
+        bUseOldPipeline == otherKernel.bUseOldPipeline 
 
         && bAlphaShadows == otherKernel.bAlphaShadows &&
         bKeepEnvironment == otherKernel.bKeepEnvironment &&
@@ -1565,6 +1571,11 @@ struct Kernel {
       fPathTermPower = otherKernel.fPathTermPower;
     if (iMaxSubdivisionLevel != otherKernel.iMaxSubdivisionLevel)
       iMaxSubdivisionLevel = otherKernel.iMaxSubdivisionLevel;
+
+    if (iWhiteLightSpectrum != otherKernel.iWhiteLightSpectrum)
+      iWhiteLightSpectrum = otherKernel.iWhiteLightSpectrum;
+    if (bUseOldPipeline != otherKernel.bUseOldPipeline)
+      bUseOldPipeline = otherKernel.bUseOldPipeline;
 
     if (bAlphaShadows != otherKernel.bAlphaShadows)
       bAlphaShadows = otherKernel.bAlphaShadows;

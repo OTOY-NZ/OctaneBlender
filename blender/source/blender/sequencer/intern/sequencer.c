@@ -313,6 +313,17 @@ SequencerToolSettings *SEQ_tool_settings_init(void)
   return tool_settings;
 }
 
+SequencerToolSettings *SEQ_tool_settings_ensure(Scene *scene)
+{
+  SequencerToolSettings *tool_settings = scene->toolsettings->sequencer_tool_settings;
+  if (tool_settings == NULL) {
+    scene->toolsettings->sequencer_tool_settings = SEQ_tool_settings_init();
+    tool_settings = scene->toolsettings->sequencer_tool_settings;
+  }
+
+  return tool_settings;
+}
+
 void SEQ_tool_settings_free(SequencerToolSettings *tool_settings)
 {
   MEM_freeN(tool_settings);
@@ -320,13 +331,13 @@ void SEQ_tool_settings_free(SequencerToolSettings *tool_settings)
 
 eSeqImageFitMethod SEQ_tool_settings_fit_method_get(Scene *scene)
 {
-  const SequencerToolSettings *tool_settings = scene->toolsettings->sequencer_tool_settings;
+  const SequencerToolSettings *tool_settings = SEQ_tool_settings_ensure(scene);
   return tool_settings->fit_method;
 }
 
 void SEQ_tool_settings_fit_method_set(Scene *scene, eSeqImageFitMethod fit_method)
 {
-  SequencerToolSettings *tool_settings = scene->toolsettings->sequencer_tool_settings;
+  SequencerToolSettings *tool_settings = SEQ_tool_settings_ensure(scene);
   tool_settings->fit_method = fit_method;
 }
 
@@ -344,6 +355,58 @@ ListBase *SEQ_active_seqbase_get(const Editing *ed)
 
   return ed->seqbasep;
 }
+
+/**
+ * Set seqbase that is being viewed currently. This can be main seqbase or meta strip seqbase
+ *
+ * \param ed: sequence editor data
+ * \param seqbase: ListBase with strips
+ */
+void SEQ_seqbase_active_set(Editing *ed, ListBase *seqbase)
+{
+  ed->seqbasep = seqbase;
+}
+
+/**
+ * Create and initialize #MetaStack, append it to `ed->metastack` ListBase
+ *
+ * \param ed: sequence editor data
+ * \param seq_meta: meta strip
+ * \return pointer to created meta stack
+ */
+MetaStack *SEQ_meta_stack_alloc(Editing *ed, Sequence *seq_meta)
+{
+  MetaStack *ms = MEM_mallocN(sizeof(MetaStack), "metastack");
+  BLI_addtail(&ed->metastack, ms);
+  ms->parseq = seq_meta;
+  ms->oldbasep = ed->seqbasep;
+  copy_v2_v2_int(ms->disp_range, &ms->parseq->startdisp);
+  return ms;
+}
+
+/**
+ * Free #MetaStack and remove it from `ed->metastack` ListBase.
+ *
+ * \param ed: sequence editor data
+ * \param ms: meta stack
+ */
+void SEQ_meta_stack_free(Editing *ed, MetaStack *ms)
+{
+  BLI_remlink(&ed->metastack, ms);
+  MEM_freeN(ms);
+}
+
+/**
+ * Get #MetaStack that corresponds to current level that is being viewed
+ *
+ * \param ed: sequence editor data
+ * \return pointer to meta stack
+ */
+MetaStack *SEQ_meta_stack_active_get(const Editing *ed)
+{
+  return ed->metastack.last;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -436,7 +499,7 @@ static Sequence *seq_dupli(const Scene *scene_src,
   }
   else {
     /* sequence type not handled in duplicate! Expect a crash now... */
-    BLI_assert(0);
+    BLI_assert_unreachable();
   }
 
   /* When using SEQ_DUPE_UNIQUE_NAME, it is mandatory to add new sequences in relevant container

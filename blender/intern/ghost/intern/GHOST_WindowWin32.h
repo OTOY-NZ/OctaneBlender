@@ -521,23 +521,27 @@ class GHOST_WindowWin32 : public GHOST_Window {
 
   /** Pointer to system. */
   GHOST_SystemWin32 *m_system;
-  /** Pointer to COM IDropTarget implementor. */
+  /** Pointer to COM #IDropTarget implementer. */
   GHOST_DropTargetWin32 *m_dropTarget;
   /** Window handle. */
   HWND m_hWnd;
   /** Device context handle. */
   HDC m_hDC;
 
+  bool m_isDialog;
+
   /** Flag for if window has captured the mouse. */
   bool m_hasMouseCaptured;
-  /** Flag if an operator grabs the mouse with WM_cursor_grab_enable/ungrab().
-   *  Multiple grabs must be released with a single ungrab. */
+  /**
+   * Flag if an operator grabs the mouse with #WM_cursor_grab_enable, #WM_cursor_grab_disable
+   * Multiple grabs must be released with a single un-grab.
+   */
   bool m_hasGrabMouse;
   /** Count of number of pressed buttons. */
   int m_nPressedButtons;
   /** HCURSOR structure of the custom cursor. */
   HCURSOR m_customCursor;
-  /** Request GL context aith alpha channel. */
+  /** Request GL context with alpha channel. */
   bool m_wantAlphaBackground;
 
   /** ITaskbarList3 structure for progress bar. */
@@ -551,8 +555,8 @@ class GHOST_WindowWin32 : public GHOST_Window {
 
   /* Wintab API */
   struct {
-    /** WinTab dll handle */
-    HMODULE handle;
+    /** `WinTab.dll` handle. */
+    HMODULE handle = NULL;
 
     /** API functions */
     GHOST_WIN32_WTInfo info;
@@ -562,7 +566,7 @@ class GHOST_WindowWin32 : public GHOST_Window {
     GHOST_WIN32_WTEnable enable;
     GHOST_WIN32_WTOverlap overlap;
 
-    /** Stores the Tablet context if detected Tablet features using WinTab.dll */
+    /** Stores the Tablet context if detected Tablet features using `WinTab.dll` */
     HCTX tablet;
     LONG maxPressure;
     LONG maxAzimuth, maxAltitude;
@@ -570,7 +574,7 @@ class GHOST_WindowWin32 : public GHOST_Window {
 
   GHOST_TWindowState m_normal_state;
 
-  /** user32 dll handle*/
+  /** `user32.dll` handle */
   HMODULE m_user32;
   GHOST_WIN32_GetPointerInfoHistory m_fpGetPointerInfoHistory;
   GHOST_WIN32_GetPointerPenInfoHistory m_fpGetPointerPenInfoHistory;

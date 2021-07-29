@@ -96,7 +96,7 @@ class USERPREF_MT_editor_menus(Menu):
 class USERPREF_MT_view(Menu):
     bl_label = "View"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.menu("INFO_MT_area")
@@ -241,7 +241,7 @@ class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel)
     bl_translation_context = i18n_contexts.id_windowmanager
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, _context):
         return bpy.app.build_options.international
 
     def draw_centered(self, context, layout):
@@ -581,7 +581,7 @@ class USERPREF_PT_system_cycles_devices(SystemPanel, CenterAlignMixIn, Panel):
     bl_label = "Cycles Render Devices"
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, _context):
         # No GPU rendering on macOS currently.
         import sys
         return bpy.app.build_options.cycles and sys.platform != "darwin"
@@ -642,7 +642,7 @@ class USERPREF_PT_system_video_sequencer(SystemPanel, CenterAlignMixIn, Panel):
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system
-        edit = prefs.edit
+        # edit = prefs.edit
 
         layout.prop(system, "memory_cache_limit")
 
@@ -654,6 +654,10 @@ class USERPREF_PT_system_video_sequencer(SystemPanel, CenterAlignMixIn, Panel):
         col.prop(system, "sequencer_disk_cache_dir", text="Directory")
         col.prop(system, "sequencer_disk_cache_size_limit", text="Cache Limit")
         col.prop(system, "sequencer_disk_cache_compression", text="Compression")
+
+        layout.separator()
+
+        layout.prop(system, "sequencer_proxy_setup")
 
 
 # -----------------------------------------------------------------------------
@@ -690,6 +694,9 @@ class USERPREF_PT_viewport_display(ViewportPanel, CenterAlignMixIn, Panel):
         if view.mini_axis_type == 'MINIMAL':
             col.prop(view, "mini_axis_size", text="Size")
             col.prop(view, "mini_axis_brightness", text="Brightness")
+
+        if view.mini_axis_type == 'GIZMO':
+            col.prop(view, "gizmo_size_navigate_v3d", text="Size")
 
 
 class USERPREF_PT_viewport_quality(ViewportPanel, CenterAlignMixIn, Panel):
@@ -1330,7 +1337,7 @@ class USERPREF_PT_saveload_autorun(FilePathsPanel, Panel):
 
         box = layout.box()
         row = box.row()
-        row.label(text="Excluded Paths:")
+        row.label(text="Excluded Paths")
         row.operator("preferences.autoexec_path_add", text="", icon='ADD', emboss=False)
         for i, path_cmp in enumerate(prefs.autoexec_paths):
             row = box.row()
@@ -2182,7 +2189,7 @@ class ExperimentalPanel:
     url_prefix = "https://developer.blender.org/"
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, _context):
         return bpy.app.version_cycle == 'alpha'
 
     def _draw_items(self, context, items):
@@ -2234,9 +2241,9 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
         self._draw_items(
             context, (
                 ({"property": "use_sculpt_vertex_colors"}, "T71947"),
-                ({"property": "use_switch_object_operator"}, "T80402"),
                 ({"property": "use_sculpt_tools_tilt"}, "T82877"),
                 ({"property": "use_asset_browser"}, ("project/profile/124/", "Milestone 1")),
+                ({"property": "use_override_templates"}, ("T73318", "Milestone 4")),
             ),
         )
 
@@ -2257,7 +2264,7 @@ class USERPREF_PT_experimental_debugging(ExperimentalPanel, Panel):
     bl_label = "Debugging"
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, _context):
         # Unlike the other experimental panels, the debugging one is always visible
         # even in beta or release.
         return True
@@ -2266,6 +2273,7 @@ class USERPREF_PT_experimental_debugging(ExperimentalPanel, Panel):
         self._draw_items(
             context, (
                 ({"property": "use_undo_legacy"}, "T60695"),
+                ({"property": "override_auto_resync"}, "T83811"),
                 ({"property": "use_cycles_debug"}, None),
             ),
         )

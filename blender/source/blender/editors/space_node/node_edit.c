@@ -41,6 +41,7 @@
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
+#include "BKE_workspace.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -97,6 +98,26 @@ typedef struct CompoJob {
   short *do_update;
   float *progress;
 } CompoJob;
+
+float node_socket_calculate_height(const bNodeSocket *socket)
+{
+  float sock_height = NODE_SOCKSIZE * 2.0f;
+  if (socket->flag & SOCK_MULTI_INPUT) {
+    sock_height += max_ii(NODE_MULTI_INPUT_LINK_GAP * 0.5f * socket->total_inputs, NODE_SOCKSIZE);
+  }
+  return sock_height;
+}
+
+void node_link_calculate_multi_input_position(const float socket_x,
+                                              const float socket_y,
+                                              const int index,
+                                              const int total_inputs,
+                                              float r[2])
+{
+  float offset = (total_inputs * NODE_MULTI_INPUT_LINK_GAP - NODE_MULTI_INPUT_LINK_GAP) * 0.5;
+  r[0] = socket_x - NODE_SOCKSIZE * 0.5f;
+  r[1] = socket_y - offset + (index * NODE_MULTI_INPUT_LINK_GAP);
+}
 
 static void compo_tag_output_nodes(bNodeTree *nodetree, int recalc_flags)
 {
@@ -833,7 +854,7 @@ void ED_node_post_apply_transform(bContext *UNUSED(C), bNodeTree *UNUSED(ntree))
    * which only exists during actual drawing. Can we rely on valid totr rects?
    */
   /* make sure nodes have correct bounding boxes after transform */
-  /* node_update_nodetree(C, ntree, 0.0f, 0.0f); */
+  // node_update_nodetree(C, ntree, 0.0f, 0.0f);
 }
 
 /* ***************** generic operator functions for nodes ***************** */
@@ -943,8 +964,8 @@ static void node_resize_init(
   NodeSizeWidget *nsw = MEM_callocN(sizeof(NodeSizeWidget), "size widget op data");
 
   op->customdata = nsw;
-  nsw->mxstart = snode->cursor[0] * UI_DPI_FAC;
-  nsw->mystart = snode->cursor[1] * UI_DPI_FAC;
+  nsw->mxstart = snode->runtime->cursor[0] * UI_DPI_FAC;
+  nsw->mystart = snode->runtime->cursor[1] * UI_DPI_FAC;
 
   /* store old */
   nsw->oldlocx = node->locx;
@@ -1167,9 +1188,29 @@ void node_set_hidden_sockets(SpaceNode *snode, bNode *node, int set)
 }
 
 /* checks snode->mouse position, and returns found node/socket */
+static bool cursor_isect_multi_input_socket(const float cursor[2], const bNodeSocket *socket)
+{
+  const float node_socket_height = node_socket_calculate_height(socket);
+  const rctf multi_socket_rect = {
+      .xmin = socket->locx - NODE_SOCKSIZE * 4.0f,
+      .xmax = socket->locx + NODE_SOCKSIZE * 2.0f,
+      /*.xmax = socket->locx + NODE_SOCKSIZE * 5.5f
+       * would be the same behavior as for regular sockets.
+       * But keep it smaller because for multi-input socket you
+       * sometimes want to drag the link to the other side, if you may
+       * accidentally pick the wrong link otherwise. */
+      .ymin = socket->locy - node_socket_height,
+      .ymax = socket->locy + node_socket_height,
+  };
+  if (BLI_rctf_isect_pt(&multi_socket_rect, cursor[0], cursor[1])) {
+    return true;
+  }
+  return false;
+}
+
 /* type is SOCK_IN and/or SOCK_OUT */
 int node_find_indicated_socket(
-    SpaceNode *snode, bNode **nodep, bNodeSocket **sockp, float cursor[2], int in_out)
+    SpaceNode *snode, bNode **nodep, bNodeSocket **sockp, const float cursor[2], int in_out)
 {
   rctf rect;
 
@@ -1195,7 +1236,16 @@ int node_find_indicated_socket(
     if (in_out & SOCK_IN) {
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
         if (!nodeSocketIsHidden(sock)) {
-          if (BLI_rctf_isect_pt(&rect, sock->locx, sock->locy)) {
+          if (sock->flag & SOCK_MULTI_INPUT && !(node->flag & NODE_HIDDEN)) {
+            if (cursor_isect_multi_input_socket(cursor, sock)) {
+              if (node == visible_node(snode, &rect)) {
+                *nodep = node;
+                *sockp = sock;
+                return 1;
+              }
+            }
+          }
+          else if (BLI_rctf_isect_pt(&rect, sock->locx, sock->locy)) {
             if (node == visible_node(snode, &rect)) {
               *nodep = node;
               *sockp = sock;
@@ -1262,7 +1312,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
     if (node->flag & SELECT) {
       BKE_node_copy_store_new_pointers(ntree, node, LIB_ID_COPY_DEFAULT);
 
-      /* to ensure redraws or rerenders happen */
+      /* To ensure redraws or re-renders happen. */
       ED_node_tag_update_id(snode->id);
     }
 
@@ -1330,6 +1380,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
       nodeSetSelected(node, false);
       node->flag &= ~(NODE_ACTIVE | NODE_ACTIVE_TEXTURE);
       nodeSetSelected(newnode, true);
+      newnode->flag &= ~NODE_ACTIVE_PREVIEW;
 
       do_tag_update |= (do_tag_update || node_connected_to_output(bmain, ntree, newnode));
     }
@@ -1423,8 +1474,12 @@ static int node_read_viewlayers_exec(bContext *C, wmOperator *UNUSED(op))
   }
 
   LISTBASE_FOREACH (bNode *, node, &snode->edittree->nodes) {
-    if (node->type == CMP_NODE_R_LAYERS) {
+    if ((node->type == CMP_NODE_R_LAYERS) ||
+        (node->type == CMP_NODE_CRYPTOMATTE && node->custom1 == CMP_CRYPTOMATTE_SRC_RENDER)) {
       ID *id = node->id;
+      if (id == NULL) {
+        continue;
+      }
       if (id->tag & LIB_TAG_DOIT) {
         RE_ReadRenderResult(curscene, (Scene *)id);
         ntreeCompositTagRender((Scene *)id);
@@ -2200,13 +2255,25 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
   /* make sure all clipboard nodes would be valid in the target tree */
   bool all_nodes_valid = true;
   LISTBASE_FOREACH (bNode *, node, clipboard_nodes_lb) {
-    if (!node->typeinfo->poll_instance || !node->typeinfo->poll_instance(node, ntree)) {
+    const char *disabled_hint = NULL;
+    if (!node->typeinfo->poll_instance ||
+        !node->typeinfo->poll_instance(node, ntree, &disabled_hint)) {
       all_nodes_valid = false;
-      BKE_reportf(op->reports,
-                  RPT_ERROR,
-                  "Cannot add node %s into node tree %s",
-                  node->name,
-                  ntree->id.name + 2);
+      if (disabled_hint) {
+        BKE_reportf(op->reports,
+                    RPT_ERROR,
+                    "Cannot add node %s into node tree %s:\n  %s",
+                    node->name,
+                    ntree->id.name + 2,
+                    disabled_hint);
+      }
+      else {
+        BKE_reportf(op->reports,
+                    RPT_ERROR,
+                    "Cannot add node %s into node tree %s",
+                    node->name,
+                    ntree->id.name + 2);
+      }
     }
   }
   if (!all_nodes_valid) {
@@ -2251,10 +2318,13 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
                 link->tosock->new_sock);
   }
 
-  ntreeUpdateTree(CTX_data_main(C), snode->edittree);
+  Main *bmain = CTX_data_main(C);
+  ntreeUpdateTree(bmain, snode->edittree);
 
   snode_notify(C, snode);
   snode_dag_update(C, snode);
+  /* Pasting nodes can create arbitrary new relations, because nodes can reference IDs. */
+  DEG_relations_tag_update(bmain);
 
   return OPERATOR_FINISHED;
 }
@@ -2798,7 +2868,7 @@ static int node_cryptomatte_add_socket_exec(bContext *C, wmOperator *UNUSED(op))
     node = nodeGetActive(snode->edittree);
   }
 
-  if (!node || node->type != CMP_NODE_CRYPTOMATTE) {
+  if (!node || node->type != CMP_NODE_CRYPTOMATTE_LEGACY) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2842,7 +2912,7 @@ static int node_cryptomatte_remove_socket_exec(bContext *C, wmOperator *UNUSED(o
     node = nodeGetActive(snode->edittree);
   }
 
-  if (!node || node->type != CMP_NODE_CRYPTOMATTE) {
+  if (!node || node->type != CMP_NODE_CRYPTOMATTE_LEGACY) {
     return OPERATOR_CANCELLED;
   }
 

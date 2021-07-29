@@ -42,6 +42,7 @@
     .oct_sphere_radius = 0.1f, \
     .oct_randomized_radius_min = 0.1f, \
     .oct_randomized_radius_max = 0.1f, \
+    .editflag = ME_EDIT_MIRROR_VERTEX_GROUPS \
   }
 
 /** \} */

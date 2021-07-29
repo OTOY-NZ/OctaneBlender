@@ -294,7 +294,7 @@ static void applyTranslationValue(TransInfo *t, const float vec[3])
           const float *original_normal;
 
           /* In pose mode, we want to align normals with Y axis of bones... */
-          if (t->flag & T_POSE) {
+          if (t->options & CTX_POSE_BONE) {
             original_normal = td->axismtx[1];
           }
           else {
@@ -470,5 +470,8 @@ void initTranslation(TransInfo *t)
     t->num.unit_type[1] = B_UNIT_NONE;
     t->num.unit_type[2] = B_UNIT_NONE;
   }
+
+  transform_mode_default_modal_orientation_set(
+      t, (t->options & CTX_CAMERA) ? V3D_ORIENT_VIEW : V3D_ORIENT_GLOBAL);
 }
 /** \} */

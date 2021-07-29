@@ -936,7 +936,7 @@ static void update_velocities(FluidEffectorSettings *fes,
     }
     else {
       /* Should never reach this block. */
-      BLI_assert(false);
+      BLI_assert_unreachable();
     }
   }
   else {
@@ -2310,7 +2310,7 @@ static void adaptive_domain_adjust(
                                 z - fds->res_min[2]);
         max_den = (fuel) ? MAX2(density[index], fuel[index]) : density[index];
 
-        /* check high resolution bounds if max density isnt already high enough */
+        /* Check high resolution bounds if max density isn't already high enough. */
         if (max_den < fds->adapt_threshold && fds->flags & FLUID_DOMAIN_USE_NOISE && fds->fluid) {
           int i, j, k;
           /* high res grid index */
@@ -3225,7 +3225,7 @@ static void update_effectors(
   ListBase *effectors;
   /* make sure smoke flow influence is 0.0f */
   fds->effector_weights->weight[PFIELD_FLUIDFLOW] = 0.0f;
-  effectors = BKE_effectors_create(depsgraph, ob, NULL, fds->effector_weights);
+  effectors = BKE_effectors_create(depsgraph, ob, NULL, fds->effector_weights, false);
 
   if (effectors) {
     /* Precalculate wind forces. */

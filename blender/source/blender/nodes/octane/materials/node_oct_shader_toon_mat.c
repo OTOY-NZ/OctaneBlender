@@ -45,7 +45,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
                                             0.0f,
                                             0.0f,
                                             1.0f,
-                                            PROP_NONE,
+                                            PROP_FACTOR,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
                                             N_("Roughness"),
@@ -55,7 +55,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
                                             0.0f,
                                             0.0f,
                                             1.0f,
-                                            PROP_NONE,
+                                            PROP_FACTOR,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_SHADER,
                                             N_("Toon Diffuse Ramp"),
@@ -125,7 +125,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
                                             0.0f,
                                             0.0f,
                                             1.0f,
-                                            PROP_NONE,
+                                            PROP_FACTOR,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
                                             N_("Opacity"),
@@ -135,7 +135,7 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
                                             1.0f,
                                             0.0f,
                                             1.0f,
-                                            PROP_NONE,
+                                            PROP_FACTOR,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_BOOLEAN,
                                             N_("Smooth"),
@@ -155,11 +155,16 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
                                             0.0f,
                                             0.0f,
                                             1.0f,
-                                            PROP_NONE,
+                                            PROP_FACTOR,
                                             SOCK_NO_INTERNAL_LINK},
                                            {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
+
+static void node_oct_init_toon_mat(bNodeTree *ntree, bNode *node)
+{
+  node_octane_avo_settings_init(ntree, node);
+}
 
 void register_node_type_sh_oct_toon_mat(void)
 {
@@ -173,7 +178,7 @@ void register_node_type_sh_oct_toon_mat(void)
                    /* NODE_PREVIEW | */ NODE_OPTIONS);  //, 0);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, 0);
+  node_type_init(&ntype, node_oct_init_toon_mat);
   node_type_storage(&ntype, "", NULL, NULL);
   ntype.update_internal_links = node_update_internal_links_default;
 

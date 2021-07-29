@@ -42,6 +42,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneCompositeMaterial);
 		OCTANE_NODE_CREATOR(OctaneHairMaterial);
 		OCTANE_NODE_CREATOR(OctaneNullMaterial);
+		OCTANE_NODE_CREATOR(OctaneClippingMaterial);
 		OCTANE_NODE_CREATOR(OctaneGroupLayer);
 		OCTANE_NODE_CREATOR(OctaneDiffuseLayer);
 		OCTANE_NODE_CREATOR(OctaneMetallicLayer);
@@ -131,6 +132,10 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneMeshProjection);
 		OCTANE_NODE_CREATOR(OctaneTriplanarProjection);
 		OCTANE_NODE_CREATOR(OctaneOSLUVProjection);
+		OCTANE_NODE_CREATOR(OctaneSamplePosToUVProjection);
+		OCTANE_NODE_CREATOR(OctaneMatCapProjection);
+		OCTANE_NODE_CREATOR(OctaneColorToUVWProjection);
+		OCTANE_NODE_CREATOR(OctaneDistortedMeshUVProjection);
 
 		OCTANE_NODE_CREATOR(OctaneRotationTransform);
 		OCTANE_NODE_CREATOR(OctaneScaleTransform);
@@ -155,6 +160,32 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneCompositeAovOutputLayer);
 		OCTANE_NODE_CREATOR(OctaneImageAovOutput);
 		OCTANE_NODE_CREATOR(OctaneRenderAovOutput);
+		OCTANE_NODE_CREATOR(OctaneLightMixingAovOutput);
+		OCTANE_NODE_CREATOR(OctaneMapRangeAovOutput);
+		OCTANE_NODE_CREATOR(OctaneColorCorrectionAovOutput);
+		OCTANE_NODE_CREATOR(OctaneClampAovOutput);
+
+		OCTANE_NODE_CREATOR(OctaneReadVDBTexture);
+		OCTANE_NODE_CREATOR(OctaneCaptureToCutomAOVTexture);
+		OCTANE_NODE_CREATOR(OctaneSurfaceTangentDPduTexture);
+		OCTANE_NODE_CREATOR(OctaneSurfaceTangentDPdvTexture);
+		OCTANE_NODE_CREATOR(OctaneFloatToGreyscaleTexture);
+		OCTANE_NODE_CREATOR(OctaneFloat3ToColorTexture);
+		OCTANE_NODE_CREATOR(OctaneFloatsToColorTexture);
+		OCTANE_NODE_CREATOR(OctaneGradientGeneratorTexture);
+		OCTANE_NODE_CREATOR(OctaneUVCoordinateTexture);
+		OCTANE_NODE_CREATOR(OctaneBinaryMathOperationTexture);
+		OCTANE_NODE_CREATOR(OctaneUnaryMathOperationTexture);
+		OCTANE_NODE_CREATOR(OctaneNormalTexture);
+		OCTANE_NODE_CREATOR(OctanePositionTexture);
+		OCTANE_NODE_CREATOR(OctaneZDepthTexture);
+		OCTANE_NODE_CREATOR(OctaneSamplePositionTexture);
+		OCTANE_NODE_CREATOR(OctaneRelativeDistanceTexture);
+		OCTANE_NODE_CREATOR(OctaneRayDirectionTexture);
+		OCTANE_NODE_CREATOR(OctaneRandomMapTexture);
+		OCTANE_NODE_CREATOR(OctaneRangeTexture);
+
+		OCTANE_NODE_CREATOR(OctaneOcioColorSpace);
 #undef OCTANE_NODE_CREATOR
 	};
 

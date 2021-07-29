@@ -155,6 +155,7 @@ void register_node_type_sh_oct_layered_mat(void);
 void register_node_type_sh_oct_composite_mat(void);
 void register_node_type_sh_oct_hair_mat(void);
 void register_node_type_sh_oct_null_mat(void);
+void register_node_type_sh_oct_clipping_mat(void);
 
 void register_node_type_sh_oct_group_layer(void);
 void register_node_type_sh_oct_diffuse_layer(void);
@@ -234,6 +235,21 @@ void register_node_type_projection_oct_uvw(void);
 void register_node_type_projection_oct_triplanar(void);
 void register_node_type_projection_oct_osl_projection(void);
 void register_node_type_projection_oct_osl_uv(void);
+void register_node_type_projection_oct_sample_pos_to_uv(void);
+void register_node_type_projection_oct_mat_cap(void);
+void register_node_type_projection_oct_color_to_uvw(void);
+void register_node_type_tex_oct_sample_position(void);
+void register_node_type_projection_oct_distorted_mesh_uv(void);
+void register_node_type_tex_oct_binary_math_operation(void);
+void register_node_type_tex_oct_unary_math_operation(void);
+void register_node_type_tex_oct_gradient_generator(void);
+void register_node_type_tex_oct_capture_to_custom_aov(void);
+void register_node_type_tex_oct_position(void);
+void register_node_type_tex_oct_relative_distance(void);
+void register_node_type_tex_oct_normal(void);
+void register_node_type_tex_oct_range(void);
+void register_node_type_tex_oct_random_map(void);
+void register_node_type_tex_oct_ray_direction(void);
 
 void register_node_type_val_oct_float(void);
 void register_node_type_val_oct_int(void);
@@ -264,6 +280,14 @@ void register_node_type_tex_oct_ray_switch(void);
 void register_node_type_tex_oct_spotlight(void);
 void register_node_type_tex_oct_composite(void);
 void register_node_type_tex_oct_composite_layer(void);
+void register_node_type_tex_oct_read_vdb(void);
+void register_node_type_tex_oct_float_to_greyscale(void);
+void register_node_type_tex_oct_float3_to_color(void);
+void register_node_type_tex_oct_floats_to_color(void);
+void register_node_type_tex_oct_surface_tangent_dpdu(void);
+void register_node_type_tex_oct_surface_tangent_dpdv(void);
+void register_node_type_tex_oct_uv_coordinate(void);
+void register_node_type_tex_oct_z_depth(void);
 
 void register_node_type_aov_output_group(void);
 void register_node_type_composite_aov_output(void);
@@ -271,6 +295,10 @@ void register_node_type_composite_aov_output_layer(void);
 void register_node_type_color_aov_output(void);
 void register_node_type_render_aov_output(void);
 void register_node_type_image_aov_output(void);
+void register_node_type_clamp_aov_output(void);
+void register_node_type_color_correction_aov_output(void);
+void register_node_type_map_range_aov_output(void);
+void register_node_type_light_mixing_aov_output(void);
 #ifdef __cplusplus
 }
 #endif

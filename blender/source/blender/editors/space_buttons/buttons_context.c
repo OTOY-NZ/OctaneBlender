@@ -34,7 +34,6 @@
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_collection_types.h"
-#include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -53,7 +52,6 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_screen.h"
-#include "BKE_texture.h"
 
 #include "RNA_access.h"
 
@@ -153,6 +151,29 @@ static bool buttons_context_path_world(ButsContextPath *path)
   }
 
   /* no path to a world possible */
+  return false;
+}
+
+static bool buttons_context_path_collection(ButsContextPath *path, wmWindow *window)
+{
+  PointerRNA *ptr = &path->ptr[path->len - 1];
+
+  /* if we already have a (pinned) collection, we're done */
+  if (RNA_struct_is_a(ptr->type, &RNA_Collection)) {
+    return true;
+  }
+  /* if we have a view layer, use the view layer's active collection */
+  if (buttons_context_path_view_layer(path, window)) {
+    ViewLayer *view_layer = path->ptr[path->len - 1].data;
+    Collection *c = view_layer->active_collection->collection;
+    if (c) {
+      RNA_id_pointer_create(&c->id, &path->ptr[path->len]);
+      path->len++;
+      return true;
+    }
+  }
+
+  /* no path to a collection possible */
   return false;
 }
 
@@ -578,6 +599,9 @@ static bool buttons_context_path(
     case BCONTEXT_WORLD:
       found = buttons_context_path_world(path);
       break;
+    case BCONTEXT_COLLECTION: /* This is for Line Art collection flags */
+      found = buttons_context_path_collection(path, window);
+      break;
     case BCONTEXT_TOOL:
       found = true;
       break;
@@ -853,13 +877,18 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "scene")) {
-    /* Do not return one here if scene not found in path,
+    /* Do not return one here if scene is not found in path,
      * in this case we want to get default context scene! */
     return set_pointer_type(path, result, &RNA_Scene);
   }
   if (CTX_data_equals(member, "world")) {
     set_pointer_type(path, result, &RNA_World);
     return CTX_RESULT_OK;
+  }
+  if (CTX_data_equals(member, "collection")) {
+    /* Do not return one here if collection is not found in path,
+     * in this case we want to get default context collection! */
+    return set_pointer_type(path, result, &RNA_Collection);
   }
   if (CTX_data_equals(member, "object")) {
     set_pointer_type(path, result, &RNA_Object);
@@ -951,17 +980,6 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     }
 
     return CTX_RESULT_OK;
-  }
-  if (CTX_data_equals(member, "modifier")) {
-    PointerRNA *ptr = get_pointer_type(path, &RNA_Modifier);
-
-    if (ptr != NULL && !RNA_pointer_is_null(ptr)) {
-      Object *ob = (Object *)ptr->owner_id;
-      ModifierData *md = ptr->data;
-      CTX_data_pointer_set(result, &ob->id, &RNA_Modifier, md);
-      return CTX_RESULT_OK;
-    }
-    return CTX_RESULT_NO_DATA;
   }
   if (CTX_data_equals(member, "texture_user")) {
     ButsContextTexture *ct = sbuts->texuser;

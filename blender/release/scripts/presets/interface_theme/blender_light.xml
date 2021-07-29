@@ -953,7 +953,7 @@
         frame_node="#9b9b9ba0"
         matte_node="#977474"
         distor_node="#749797"
-        noodle_curving="0"
+        noodle_curving="4"
         grid_levels="2"
         input_node="#cb3d4a"
         output_node="#cb3d4a"
@@ -1053,19 +1053,19 @@
     <info>
       <ThemeInfo
         info_selected="#6080ff"
-        info_selected_text="#ffffff"
-        info_error="#990000ff"
-        info_error_text="#ffffff"
-        info_warning="#b36a00ff"
-        info_warning_text="#ffffff"
-        info_info="#1d4383ff"
-        info_info_text="#ffffff"
-        info_debug="#d3d3d3ff"
+        info_selected_text="#000000"
+        info_error="#FF0038ff"
+        info_error_text="#000000"
+        info_warning="#FFE900ff"
+        info_warning_text="#000000"
+        info_info="#0068B3ff"
+        info_info_text="#000000"
+        info_debug="#B30095ff"
         info_debug_text="#000000"
-        info_property="#3ace87ff"
-        info_property_text="#ffffff"
-        info_operator="#3ace87ff"
-        info_operator_text="#ffffff"
+        info_property="#44B300ff"
+        info_property_text="#000000"
+        info_operator="#44B300ff"
+        info_operator_text="#000000"
         >
         <space>
           <ThemeSpaceGeneric
@@ -1316,6 +1316,42 @@
         </space>
       </ThemeStatusBar>
     </statusbar>
+    <spreadsheet>
+      <ThemeSpreadsheet
+        row_alternate="#ffffff0f"
+        >
+        <space>
+          <ThemeSpaceGeneric
+            back="#999999"
+            title="#000000"
+            text="#000000"
+            text_hi="#ffffff"
+            header="#adadadff"
+            header_text="#000000"
+            header_text_hi="#ffffff"
+            button="#999999e6"
+            button_title="#1a1a1a"
+            button_text="#000000"
+            button_text_hi="#ffffff"
+            navigation_bar="#00000000"
+            execution_buts="#999999e6"
+            tab_active="#6697e6"
+            tab_inactive="#cccccc"
+            tab_back="#999999ff"
+            tab_outline="#999999"
+            >
+            <panelcolors>
+              <ThemePanelColors
+                header="#42424200"
+                back="#00000028"
+                sub_back="#00000024"
+                >
+              </ThemePanelColors>
+            </panelcolors>
+          </ThemeSpaceGeneric>
+        </space>
+      </ThemeSpreadsheet>
+    </spreadsheet>
     <bone_color_sets>
       <ThemeBoneColorSet
         normal="#9a0000"

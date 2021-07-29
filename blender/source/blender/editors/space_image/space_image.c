@@ -24,8 +24,6 @@
 #include "DNA_gpencil_types.h"
 #include "DNA_image_types.h"
 #include "DNA_mask_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -37,14 +35,9 @@
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_editmesh.h"
 #include "BKE_image.h"
-#include "BKE_layer.h"
 #include "BKE_lib_id.h"
-#include "BKE_material.h"
-#include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_workspace.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -56,28 +49,22 @@
 
 #include "ED_image.h"
 #include "ED_mask.h"
-#include "ED_mesh.h"
 #include "ED_node.h"
 #include "ED_render.h"
 #include "ED_screen.h"
 #include "ED_space_api.h"
 #include "ED_transform.h"
+#include "ED_util.h"
 #include "ED_uvedit.h"
 
 #include "WM_api.h"
-#include "WM_message.h"
 #include "WM_types.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "GPU_batch_presets.h"
-#include "GPU_framebuffer.h"
-#include "GPU_viewport.h"
-
 #include "DRW_engine.h"
-#include "DRW_engine_types.h"
 
 #include "image_intern.h"
 
@@ -213,6 +200,7 @@ static void image_operatortypes(void)
   WM_operatortype_append(IMAGE_OT_view_pan);
   WM_operatortype_append(IMAGE_OT_view_selected);
   WM_operatortype_append(IMAGE_OT_view_center_cursor);
+  WM_operatortype_append(IMAGE_OT_view_cursor_center);
   WM_operatortype_append(IMAGE_OT_view_zoom);
   WM_operatortype_append(IMAGE_OT_view_zoom_in);
   WM_operatortype_append(IMAGE_OT_view_zoom_out);
@@ -234,6 +222,7 @@ static void image_operatortypes(void)
   WM_operatortype_append(IMAGE_OT_pack);
   WM_operatortype_append(IMAGE_OT_unpack);
 
+  WM_operatortype_append(IMAGE_OT_flip);
   WM_operatortype_append(IMAGE_OT_invert);
   WM_operatortype_append(IMAGE_OT_resize);
 
@@ -293,7 +282,7 @@ static void image_dropboxes(void)
 {
   ListBase *lb = WM_dropboxmap_find("Image", SPACE_IMAGE, 0);
 
-  WM_dropbox_add(lb, "IMAGE_OT_open", image_drop_poll, image_drop_copy);
+  WM_dropbox_add(lb, "IMAGE_OT_open", image_drop_poll, image_drop_copy, NULL);
 }
 
 /**
@@ -320,8 +309,11 @@ static void image_refresh(const bContext *C, ScrArea *area)
   }
 }
 
-static void image_listener(wmWindow *win, ScrArea *area, wmNotifier *wmn, Scene *UNUSED(scene))
+static void image_listener(const wmSpaceTypeListenerParams *params)
 {
+  wmWindow *win = params->window;
+  ScrArea *area = params->area;
+  wmNotifier *wmn = params->notifier;
   SpaceImage *sima = (SpaceImage *)area->spacedata.first;
 
   /* context changes */
@@ -728,12 +720,12 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   draw_image_cache(C, region);
 }
 
-static void image_main_region_listener(wmWindow *UNUSED(win),
-                                       ScrArea *area,
-                                       ARegion *region,
-                                       wmNotifier *wmn,
-                                       const Scene *UNUSED(scene))
+static void image_main_region_listener(const wmRegionListenerParams *params)
 {
+  ScrArea *area = params->area;
+  ARegion *region = params->region;
+  wmNotifier *wmn = params->notifier;
+
   /* context changes */
   switch (wmn->category) {
     case NC_GEOM:
@@ -843,12 +835,11 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
   ED_region_panels_draw(C, region);
 }
 
-static void image_buttons_region_listener(wmWindow *UNUSED(win),
-                                          ScrArea *UNUSED(area),
-                                          ARegion *region,
-                                          wmNotifier *wmn,
-                                          const Scene *UNUSED(scene))
+static void image_buttons_region_listener(const wmRegionListenerParams *params)
 {
+  ARegion *region = params->region;
+  wmNotifier *wmn = params->notifier;
+
   /* context changes */
   switch (wmn->category) {
     case NC_TEXTURE:
@@ -906,12 +897,11 @@ static void image_tools_region_draw(const bContext *C, ARegion *region)
   ED_region_panels(C, region);
 }
 
-static void image_tools_region_listener(wmWindow *UNUSED(win),
-                                        ScrArea *UNUSED(area),
-                                        ARegion *region,
-                                        wmNotifier *wmn,
-                                        const Scene *UNUSED(scene))
+static void image_tools_region_listener(const wmRegionListenerParams *params)
 {
+  ARegion *region = params->region;
+  wmNotifier *wmn = params->notifier;
+
   /* context changes */
   switch (wmn->category) {
     case NC_GPENCIL:
@@ -963,12 +953,11 @@ static void image_header_region_draw(const bContext *C, ARegion *region)
   ED_region_header(C, region);
 }
 
-static void image_header_region_listener(wmWindow *UNUSED(win),
-                                         ScrArea *UNUSED(area),
-                                         ARegion *region,
-                                         wmNotifier *wmn,
-                                         const Scene *UNUSED(scene))
+static void image_header_region_listener(const wmRegionListenerParams *params)
 {
+  ARegion *region = params->region;
+  wmNotifier *wmn = params->notifier;
+
   /* context changes */
   switch (wmn->category) {
     case NC_SCENE:

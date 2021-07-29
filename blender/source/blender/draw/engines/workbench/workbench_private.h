@@ -164,6 +164,7 @@ typedef struct WORKBENCH_PassList {
   struct DRWPass *volume_ps;
 
   struct DRWPass *aa_accum_ps;
+  struct DRWPass *aa_accum_replace_ps;
   struct DRWPass *aa_edge_ps;
   struct DRWPass *aa_weight_ps;
   struct DRWPass *aa_resolve_ps;
@@ -225,7 +226,7 @@ BLI_STATIC_ASSERT_ALIGN(WORKBENCH_UBO_Material, 16)
 typedef struct WORKBENCH_Prepass {
   /** Hash storing shading group for each Material or GPUTexture to reduce state changes. */
   struct GHash *material_hash;
-  /** First common (non-vcol and non-image colored) shading group to created subgroups. */
+  /** First common (non-vertex-color and non-image-colored) shading group to created subgroups. */
   struct DRWShadingGroup *common_shgrp;
   /** First Vertex Color shading group to created subgroups. */
   struct DRWShadingGroup *vcol_shgrp;
@@ -286,8 +287,12 @@ typedef struct WORKBENCH_PrivateData {
   int taa_sample_len_previous;
   /** Current TAA sample index in [0..taa_sample_len[ range. */
   int taa_sample;
-  /** Inverse of taa_sample to divide the accumulation buffer. */
-  float taa_sample_inv;
+  /** Weight accumulated. */
+  float taa_weight_accum;
+  /** Samples weight for this iteration. */
+  float taa_weights[9];
+  /** Sum of taa_weights. */
+  float taa_weights_sum;
   /** If the view has been updated and TAA needs to be reset. */
   bool view_updated;
   /** True if the history buffer contains relevant data and false if it could contain garbage. */
@@ -384,7 +389,7 @@ typedef struct WORKBENCH_ViewLayerData {
   struct GPUUniformBuf *cavity_sample_ubo;
   /** Blue noise texture used to randomize the sampling of some effects.*/
   struct GPUTexture *cavity_jitter_tx;
-  /** Materials ubos allocated in a memblock for easy bookeeping. */
+  /** Materials UBO's allocated in a memblock for easy bookkeeping. */
   struct BLI_memblock *material_ubo;
   struct BLI_memblock *material_ubo_data;
   /** Number of samples for which cavity_sample_ubo is valid. */

@@ -212,6 +212,7 @@ static int edbm_intersect_exec(bContext *C, wmOperator *op)
                                         nshapes,
                                         use_self,
                                         use_separate_all,
+                                        false,
                                         true);
     }
     else {
@@ -250,13 +251,14 @@ static int edbm_intersect_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void edbm_intersect_ui(bContext *UNUSED(C), wmOperator *op)
+static void edbm_intersect_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
+  wmWindowManager *wm = CTX_wm_manager(C);
   uiLayout *row;
   PointerRNA ptr;
 
-  RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
+  RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
 
   bool use_exact = RNA_enum_get(&ptr, "solver") == ISECT_SOLVER_EXACT;
 
@@ -375,8 +377,16 @@ static int edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
     }
 
     if (use_exact) {
-      has_isect = BM_mesh_boolean(
-          em->bm, em->looptris, em->tottri, test_fn, NULL, 2, use_self, true, boolean_operation);
+      has_isect = BM_mesh_boolean(em->bm,
+                                  em->looptris,
+                                  em->tottri,
+                                  test_fn,
+                                  NULL,
+                                  2,
+                                  use_self,
+                                  true,
+                                  false,
+                                  boolean_operation);
     }
     else {
       has_isect = BM_mesh_intersect(em->bm,
@@ -408,13 +418,14 @@ static int edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void edbm_intersect_boolean_ui(bContext *UNUSED(C), wmOperator *op)
+static void edbm_intersect_boolean_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
   uiLayout *row;
+  wmWindowManager *wm = CTX_wm_manager(C);
   PointerRNA ptr;
 
-  RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
+  RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
 
   bool use_exact = RNA_enum_get(&ptr, "solver") == ISECT_SOLVER_EXACT;
 

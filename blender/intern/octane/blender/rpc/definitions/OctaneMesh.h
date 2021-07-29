@@ -163,6 +163,22 @@ namespace OctaneDataTransferObject {
 		MSGPACK_DEFINE(bUpdate, bOpenSubdEnable, iOpenSubdScheme, iOpenSubdLevel, fOpenSubdSharpness, iOpenSubdBoundInterp, oArrayInfo, MSGPACK_BASE(OctaneNodeBase));
 	};
 
+	struct OctaneMeshVolumeSDF : public OctaneNodeBase {		
+		bool	bEnable;
+		float	fVoxelSize;
+		float	fBorderThicknessInside;
+		float	fBorderThicknessOutside;
+		OctaneMeshVolumeSDF() : OctaneNodeBase(Octane::ENT_MESH_VOLUME_SDF, "OctaneMeshVolumeSDF") {}
+		void Clear() 
+		{
+			bEnable = false;
+			fVoxelSize = 0.1f;
+			fBorderThicknessInside = 3.f;
+			fBorderThicknessOutside = 3.f;
+		}
+		MSGPACK_DEFINE(bEnable, fVoxelSize, fBorderThicknessInside, fBorderThicknessOutside, MSGPACK_BASE(OctaneNodeBase));
+	};
+
 	struct OctaneObjectLayer : public OctaneNodeBase {
 		REFLECTABLE
 		(		
@@ -180,7 +196,9 @@ namespace OctaneDataTransferObject {
 		(OctaneDTOFloat)	fTranslationX,
 		(OctaneDTOFloat)	fTranslationY,
 		(OctaneDTOInt)		iLightPassMask,
-		(OctaneDTOInt3)		i3Color
+		(OctaneDTOInt3)		i3Color,
+		(OctaneDTOEnum)		iCustomAOV,
+		(OctaneDTOEnum)		iCustomAOVChannel
 		)
 		OctaneValueTransform oBakingTransform;
 
@@ -198,11 +216,13 @@ namespace OctaneDataTransferObject {
 			fScaleY("baking_uv_transform_sy", false),
 			fTranslationX("baking_uv_transform_tx", false),
 			fTranslationY("baking_uv_transform_ty", false),
+			iCustomAOV("custom_aov", false),
+			iCustomAOVChannel("custom_aov_channel", false),
 			OctaneNodeBase(Octane::NT_OBJECTLAYER, "OctaneObjectLayer") 
 		{
 		}
 		MSGPACK_DEFINE(iRenderLayerID, fGeneralVisibility, bCameraVisibility, bShadowVisibility, bDirtVisibility, iRandomColorSeed, iLightPassMask, i3Color,
-			iBakingGroupId, oBakingTransform, MSGPACK_BASE(OctaneNodeBase));
+			iBakingGroupId, oBakingTransform, iCustomAOV, iCustomAOVChannel, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMesh : public OctaneNodeBase {
@@ -219,7 +239,8 @@ namespace OctaneDataTransferObject {
 		float						fMaxSmoothAngle;
 		OctaneMeshData				oMeshData;
 		OctaneMeshOpenSubdivision	oMeshOpenSubdivision;
-		OctaneObjectLayer			oObjectLayer;
+		OctaneMeshVolumeSDF			oMeshVolumeSDF;
+		OctaneObjectLayer			oObjectLayer;		
 		OctaneMesh() : OctaneNodeBase(Octane::ENT_MESH, "OctaneMesh") {}
 		void Clear()
 		{
@@ -228,11 +249,12 @@ namespace OctaneDataTransferObject {
 			sObjectNames.clear();
 			oMeshData.Clear();
 			oMeshOpenSubdivision.Clear();
+			oMeshVolumeSDF.Clear();
 		}
 		MSGPACK_DEFINE(sMeshName, sScriptGeoName, sOrbxPath,
 			sShaderNames, sObjectNames, 
 			iCurrentActiveUVSetIdx, iHairWsSize, iHairInterpolations, bInfinitePlane, bReshapeable, fMaxSmoothAngle, 
-			oMeshData, oMeshOpenSubdivision, oObjectLayer, MSGPACK_BASE(OctaneNodeBase));
+			oMeshData, oMeshOpenSubdivision, oMeshVolumeSDF, oObjectLayer, MSGPACK_BASE(OctaneNodeBase));
 	};
 
 	struct OctaneMeshes : public OctaneNodeBase {

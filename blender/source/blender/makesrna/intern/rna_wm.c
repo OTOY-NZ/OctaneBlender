@@ -604,14 +604,22 @@ static PointerRNA rna_Operator_options_get(PointerRNA *ptr)
 static PointerRNA rna_Operator_properties_get(PointerRNA *ptr)
 {
   wmOperator *op = (wmOperator *)ptr->data;
-  return rna_pointer_inherit_refine(ptr, op->type->srna, op->properties);
+
+  PointerRNA result;
+  WM_operator_properties_create_ptr(&result, op->type);
+  result.data = op->properties;
+  return result;
 }
 
 static PointerRNA rna_OperatorMacro_properties_get(PointerRNA *ptr)
 {
   wmOperatorTypeMacro *otmacro = (wmOperatorTypeMacro *)ptr->data;
   wmOperatorType *ot = WM_operatortype_find(otmacro->idname, true);
-  return rna_pointer_inherit_refine(ptr, ot->srna, otmacro->properties);
+
+  PointerRNA result;
+  WM_operator_properties_create_ptr(&result, ot);
+  result.data = otmacro->properties;
+  return result;
 }
 
 static const EnumPropertyItem *rna_Event_value_itemf(bContext *UNUSED(C),
@@ -880,6 +888,7 @@ static PointerRNA rna_KeyMapItem_properties_get(PointerRNA *ptr)
   wmKeyMapItem *kmi = ptr->data;
 
   if (kmi->ptr) {
+    BLI_assert(kmi->ptr->owner_id == NULL);
     return *(kmi->ptr);
   }
 
@@ -1781,41 +1790,40 @@ static void rna_Operator_bl_label_set(PointerRNA *ptr, const char *value)
   }
 }
 
-static void rna_Operator_bl_translation_context_set(PointerRNA *ptr, const char *value)
-{
-  wmOperator *data = (wmOperator *)(ptr->data);
-  char *str = (char *)data->type->translation_context;
-  if (!str[0]) {
-    BLI_strncpy(str, value, RNA_DYN_DESCR_MAX); /* utf8 already ensured */
-  }
-  else {
-    BLI_assert(!"setting the bl_translation_context on a non-builtin operator");
-  }
-}
+/**
+ * Use callbacks that check for NULL instead of clearing #PROP_NEVER_NULL on the string property,
+ * so the internal value may be NULL, without allowing Python to assign `None` which doesn't
+ * make any sense in this case.
+ */
+#  define OPERATOR_STR_MAYBE_NULL_GETSET(attr, len) \
+    static void rna_Operator_bl_##attr##_set(PointerRNA *ptr, const char *value) \
+    { \
+      wmOperator *data = (wmOperator *)(ptr->data); \
+      char *str = (char *)data->type->attr; \
+      if (str && !str[0]) { \
+        BLI_strncpy(str, value, len); /* utf8 already ensured */ \
+      } \
+      else { \
+        BLI_assert( \
+            !"setting the bl_" STRINGIFY(translation_context) " on a non-builtin operator"); \
+      } \
+    } \
+    static void rna_Operator_bl_##attr##_get(PointerRNA *ptr, char *value) \
+    { \
+      const wmOperator *data = (wmOperator *)(ptr->data); \
+      const char *str = data->type->attr; \
+      BLI_strncpy(value, str ? str : "", len); \
+    } \
+    static int rna_Operator_bl_##attr##_length(PointerRNA *ptr) \
+    { \
+      const wmOperator *data = (wmOperator *)(ptr->data); \
+      const char *str = data->type->attr; \
+      return BLI_strnlen(str ? str : "", len); \
+    }
 
-static void rna_Operator_bl_description_set(PointerRNA *ptr, const char *value)
-{
-  wmOperator *data = (wmOperator *)(ptr->data);
-  char *str = (char *)data->type->description;
-  if (!str[0]) {
-    BLI_strncpy(str, value, RNA_DYN_DESCR_MAX); /* utf8 already ensured */
-  }
-  else {
-    BLI_assert(!"setting the bl_description on a non-builtin operator");
-  }
-}
-
-static void rna_Operator_bl_undo_group_set(PointerRNA *ptr, const char *value)
-{
-  wmOperator *data = (wmOperator *)(ptr->data);
-  char *str = (char *)data->type->undo_group;
-  if (!str[0]) {
-    BLI_strncpy(str, value, OP_MAX_TYPENAME); /* utf8 already ensured */
-  }
-  else {
-    BLI_assert(!"setting the bl_undo_group on a non-builtin operator");
-  }
-}
+OPERATOR_STR_MAYBE_NULL_GETSET(translation_context, RNA_DYN_DESCR_MAX)
+OPERATOR_STR_MAYBE_NULL_GETSET(description, RNA_DYN_DESCR_MAX)
+OPERATOR_STR_MAYBE_NULL_GETSET(undo_group, OP_MAX_TYPENAME)
 
 static void rna_KeyMapItem_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
@@ -1930,26 +1938,32 @@ static void rna_def_operator(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bl_translation_context", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->translation_context");
   RNA_def_property_string_maxlength(prop, RNA_DYN_DESCR_MAX); /* else it uses the pointer size! */
-  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_translation_context_set");
+  RNA_def_property_string_funcs(prop,
+                                "rna_Operator_bl_translation_context_get",
+                                "rna_Operator_bl_translation_context_length",
+                                "rna_Operator_bl_translation_context_set");
   RNA_def_property_string_default(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
 
   prop = RNA_def_property(srna, "bl_description", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->description");
   RNA_def_property_string_maxlength(prop, RNA_DYN_DESCR_MAX); /* else it uses the pointer size! */
-  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_description_set");
+  RNA_def_property_string_funcs(prop,
+                                "rna_Operator_bl_description_get",
+                                "rna_Operator_bl_description_length",
+                                "rna_Operator_bl_description_set");
   /* RNA_def_property_clear_flag(prop, PROP_EDITABLE); */
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
 
   prop = RNA_def_property(srna, "bl_undo_group", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->undo_group");
   RNA_def_property_string_maxlength(prop, OP_MAX_TYPENAME); /* else it uses the pointer size! */
-  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_undo_group_set");
+  RNA_def_property_string_funcs(prop,
+                                "rna_Operator_bl_undo_group_get",
+                                "rna_Operator_bl_undo_group_length",
+                                "rna_Operator_bl_undo_group_set");
   /* RNA_def_property_clear_flag(prop, PROP_EDITABLE); */
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "type->flag");
@@ -1969,7 +1983,7 @@ static void rna_def_operator(BlenderRNA *brna)
   RNA_def_struct_refine_func(srna, "rna_OperatorProperties_refine");
   RNA_def_struct_idprops_func(srna, "rna_OperatorProperties_idprops");
   RNA_def_struct_property_tags(srna, rna_enum_operator_property_tags);
-  RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
+  RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES | STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID);
   RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 }
 
@@ -2022,26 +2036,32 @@ static void rna_def_macro_operator(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bl_translation_context", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->translation_context");
   RNA_def_property_string_maxlength(prop, RNA_DYN_DESCR_MAX); /* else it uses the pointer size! */
-  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_translation_context_set");
+  RNA_def_property_string_funcs(prop,
+                                "rna_Operator_bl_translation_context_get",
+                                "rna_Operator_bl_translation_context_length",
+                                "rna_Operator_bl_translation_context_set");
   RNA_def_property_string_default(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
 
   prop = RNA_def_property(srna, "bl_description", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->description");
   RNA_def_property_string_maxlength(prop, RNA_DYN_DESCR_MAX); /* else it uses the pointer size! */
-  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_description_set");
+  RNA_def_property_string_funcs(prop,
+                                "rna_Operator_bl_description_get",
+                                "rna_Operator_bl_description_length",
+                                "rna_Operator_bl_description_set");
   /* RNA_def_property_clear_flag(prop, PROP_EDITABLE); */
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
 
   prop = RNA_def_property(srna, "bl_undo_group", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->undo_group");
   RNA_def_property_string_maxlength(prop, OP_MAX_TYPENAME); /* else it uses the pointer size! */
-  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_undo_group_set");
+  RNA_def_property_string_funcs(prop,
+                                "rna_Operator_bl_undo_group_get",
+                                "rna_Operator_bl_undo_group_length",
+                                "rna_Operator_bl_undo_group_set");
   /* RNA_def_property_clear_flag(prop, PROP_EDITABLE); */
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "type->flag");

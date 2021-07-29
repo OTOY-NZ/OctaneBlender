@@ -635,11 +635,38 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
   ComponentKey duplicator_key(object != nullptr ? &object->id : nullptr, NodeType::DUPLI);
   if (!group_done) {
     build_idproperties(collection->id.properties);
+    OperationKey collection_geometry_key{
+        &collection->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_DONE};
     LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
       build_object(cob->ob);
+
+      /* The geometry of a collection depends on the positions of the elements in it. */
+      OperationKey object_transform_key{
+          &cob->ob->id, NodeType::TRANSFORM, OperationCode::TRANSFORM_FINAL};
+      add_relation(object_transform_key, collection_geometry_key, "Collection Geometry");
+
+      /* Only create geometry relations to child objects, if they have a geometry component. */
+      OperationKey object_geometry_key{
+          &cob->ob->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL};
+      if (find_node(object_geometry_key) != nullptr) {
+        add_relation(object_geometry_key, collection_geometry_key, "Collection Geometry");
+      }
+
+      /* An instance is part of the geometry of the collection. */
+      if (cob->ob->type == OB_EMPTY) {
+        Collection *collection_instance = cob->ob->instance_collection;
+        if (collection_instance != nullptr) {
+          OperationKey collection_instance_key{
+              &collection_instance->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_DONE};
+          add_relation(collection_instance_key, collection_geometry_key, "Collection Geometry");
+        }
+      }
     }
     LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
       build_collection(nullptr, nullptr, child->collection);
+      OperationKey child_collection_geometry_key{
+          &child->collection->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_DONE};
+      add_relation(child_collection_geometry_key, collection_geometry_key, "Collection Geometry");
     }
   }
   if (object != nullptr) {
@@ -1238,7 +1265,7 @@ void DepsgraphRelationBuilder::build_constraints(ID *id,
           // TODO: loc vs rot vs scale?
           if (&ct->tar->id == id) {
             /* Constraint targeting own object:
-             * - This case is fine IFF we're dealing with a bone
+             * - This case is fine IF we're dealing with a bone
              *   constraint pointing to its own armature. In that
              *   case, it's just transform -> bone.
              * - If however it is a real self targeting case, just
@@ -1814,7 +1841,7 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
                      RELATION_FLAG_GODMODE);
       }
 
-      /* Final transform is whetever solver gave to us. */
+      /* Final transform is whatever the solver gave to us. */
       if (object->rigidbody_object->type == RBO_TYPE_ACTIVE) {
         /* We do not have to update the objects final transform after the simulation if it is
          * passive or controlled by the animation system in blender.
@@ -2085,7 +2112,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
       if (mti->updateDepsgraph) {
         DepsNodeHandle handle = create_node_handle(obdata_ubereval_key);
         ctx.node = reinterpret_cast<::DepsNodeHandle *>(&handle);
-        mti->updateDepsgraph(md, &ctx);
+        mti->updateDepsgraph(md, &ctx, graph_->mode);
       }
       if (BKE_object_modifier_gpencil_use_time(object, md)) {
         TimeSourceKey time_src_key;
@@ -2499,7 +2526,7 @@ void DepsgraphRelationBuilder::build_material(Material *material)
   /* Animated / driven parameters (without nodetree). */
   OperationKey material_key(&material->id, NodeType::SHADING, OperationCode::MATERIAL_UPDATE);
   ComponentKey parameters_key(&material->id, NodeType::PARAMETERS);
-  add_relation(parameters_key, material_key, "Material's paramters");
+  add_relation(parameters_key, material_key, "Material's parameters");
 
   /* material's nodetree */
   if (material->nodetree != nullptr) {

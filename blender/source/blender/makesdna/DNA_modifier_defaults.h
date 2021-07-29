@@ -236,7 +236,7 @@
     .flag = 0, \
   }
 
-/* Defines are scattered accross too many files, they need to be moved to DNA. */
+/* Defines are scattered across too many files, they need to be moved to DNA. */
 #if 0
 #define _DNA_DEFAULT_DataTransferModifierData \
   { \
@@ -414,7 +414,8 @@
   { \
     .cache_file = NULL, \
     .object_path = "", \
-    .read_flag = MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV | MOD_MESHSEQ_READ_COLOR, \
+    .read_flag = MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV | \
+                 MOD_MESHSEQ_READ_COLOR | MOD_MESHSEQ_INTERPOLATE_VERTICES, \
     .velocity_scale = 1.0f, \
     .reader = NULL, \
     .reader_object_path = "", \
@@ -428,6 +429,7 @@
   { \
     .flag = MOD_MIR_AXIS_X | MOD_MIR_VGROUP, \
     .tolerance = 0.001f, \
+    .bisect_threshold = 0.001f, \
     .uv_offset = {0.0f, 0.0f}, \
     .uv_offset_copy = {0.0f, 0.0f}, \
     .mirror_ob = NULL, \
@@ -440,7 +442,7 @@
     .renderlvl = 0, \
     .totlvl = 0, \
     .flags = eMultiresModifierFlag_UseCrease | eMultiresModifierFlag_ControlEdges, \
-    .uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_CORNERS, \
+    .uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES, \
     .quality = 4, \
     .boundary_smooth = SUBSURF_BOUNDARY_SMOOTH_ALL, \
   }
@@ -622,7 +624,7 @@
     .levels = 1, \
     .renderLevels = 2, \
     .flags = eSubsurfModifierFlag_UseCrease | eSubsurfModifierFlag_ControlEdges, \
-    .uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_CORNERS, \
+    .uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES, \
     .quality = 3, \
     .boundary_smooth = SUBSURF_BOUNDARY_SMOOTH_ALL, \
     .emCache = NULL, \

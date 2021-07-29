@@ -224,10 +224,7 @@ void register_node_type_aov_output_group(void)
 
   if (ntype.type != SH_NODE_OCT_AOV_OUTPUT_GROUP)
     node_type_base(&ntype,
-                   SH_NODE_OCT_AOV_OUTPUT_GROUP,
-                   "AOV Output Group",
-                   NODE_CLASS_OCT_COMPOSITE,
-                   NODE_OPTIONS);
+                   SH_NODE_OCT_AOV_OUTPUT_GROUP, "AOV Output Group", NODE_CLASS_OUTPUT, NODE_OPTIONS);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_type_aov_output_group_init);

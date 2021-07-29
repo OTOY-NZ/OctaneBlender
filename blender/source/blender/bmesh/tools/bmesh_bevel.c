@@ -58,9 +58,9 @@
 #define BEVEL_EPSILON_ANG DEG2RADF(2.0f)
 #define BEVEL_SMALL_ANG DEG2RADF(10.0f)
 /** Difference in dot products that corresponds to 10 degree difference between vectors. */
-#define BEVEL_SMALL_ANG_DOT 1 - cosf(BEVEL_SMALL_ANG)
+#define BEVEL_SMALL_ANG_DOT (1.0f - cosf(BEVEL_SMALL_ANG))
 /** Difference in dot products that corresponds to 2.0 degree difference between vectors. */
-#define BEVEL_EPSILON_ANG_DOT 1 - cosf(BEVEL_EPSILON_ANG)
+#define BEVEL_EPSILON_ANG_DOT (1.0f - cosf(BEVEL_EPSILON_ANG))
 #define BEVEL_MAX_ADJUST_PCT 10.0f
 #define BEVEL_MAX_AUTO_ADJUST_PCT 300.0f
 #define BEVEL_MATCH_SPEC_WEIGHT 0.2
@@ -235,7 +235,7 @@ typedef struct BoundVert {
   /** Is this boundvert the side of the custom profile's start. */
   bool is_profile_start;
   char _pad[3];
-  /** Length of seam starting from current boundvert to next boundvert with ccw ordering. */
+  /** Length of seam starting from current boundvert to next boundvert with CCW ordering. */
   int seam_len;
   /** Same as seam_len but defines length of sharp edges. */
   int sharp_len;
@@ -807,6 +807,9 @@ static bool contig_ldata_across_edge(BMesh *bm, BMEdge *e, BMFace *f1, BMFace *f
   }
   BMVert *v1 = lef1->v;
   BMVert *v2 = lef2->v;
+  if (v1 == v2) {
+    return false;
+  }
   BLI_assert((v1 == e->v1 && v2 == e->v2) || (v1 == e->v2 && v2 == e->v1));
   UNUSED_VARS_NDEBUG(v1, v2);
   BMLoop *lv1f1 = lef1;
@@ -1958,7 +1961,7 @@ static bool make_unit_square_map(const float va[3],
 /**
  * Like make_unit_square_map, but this one makes a matrix that transforms the
  * (1,1,1) corner of a unit cube into an arbitrary corner with corner vert d
- * and verts around it a, b, c (in ccw order, viewed from d normal dir).
+ * and verts around it a, b, c (in CCW order, viewed from d normal dir).
  * The matrix mat is calculated to map:
  *    (1,0,0) -> va
  *    (0,1,0) -> vb
@@ -1966,9 +1969,9 @@ static bool make_unit_square_map(const float va[3],
  *    (1,1,1) -> vd
  * We want M to make M*A=B where A has the left side above, as columns
  * and B has the right side as columns - both extended into homogeneous coords.
- * So M = B*(Ainverse).  Doing Ainverse by hand gives the code below.
- * The cols of M are 1/2{va-vb+vc-vd}, 1/2{-va+vb-vc+vd}, 1/2{-va-vb+vc+vd},
- * and 1/2{va+vb+vc-vd}
+ * So `M = B*(Ainverse)`.  Doing `Ainverse` by hand gives the code below.
+ * The cols of M are `1/2{va-vb+vc-vd}`, `1/2{-va+vb-vc+vd}`, `1/2{-va-vb+vc+vd}`,
+ * and `1/2{va+vb+vc-vd}`
  * and Blender matrices have cols at m[i][*].
  */
 static void make_unit_cube_map(
@@ -3433,7 +3436,7 @@ static EdgeHalf *next_edgehalf_bev(BevelParams *bp,
     }
     normalize_v3(dir_new_edge);
 
-    /* Use this edge if it is the most parallel to the orignial so far. */
+    /* Use this edge if it is the most parallel to the original so far. */
     float new_dot = dot_v3v3(dir_new_edge, dir_start_edge);
     if (new_dot > best_dot) {
       second_best_dot = best_dot; /* For remembering if the choice was too close. */
@@ -4674,7 +4677,7 @@ static VMesh *pipe_adj_vmesh(BevelParams *bp, BevVert *bv, BoundVert *vpipe)
             f = (float)k / (float)ns; /* Ring runs along the pipe, so segment is used here. */
           }
 
-          /* Place the vertex by interpolatin between the two profile points using the factor. */
+          /* Place the vertex by interpolating between the two profile points using the factor. */
           interp_v3_v3v3(mesh_vert(vm, i, j, k)->co, profile_point_pipe1, profile_point_pipe2, f);
         }
         else {
@@ -6375,7 +6378,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
           go_ccw = (e->fnext != f);
         }
         else {
-          go_ccw = true; /* Going ccw around bv to trace this corner. */
+          go_ccw = true; /* Going CCW around bv to trace this corner. */
         }
       }
       else if (eprev->prev == e) {
@@ -6385,7 +6388,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
         /* Edges in face are non-contiguous in our ordering around bv.
          * Which way should we go when going from eprev to e? */
         if (count_ccw_edges_between(eprev, e) < count_ccw_edges_between(e, eprev)) {
-          /* Go counterclockewise from eprev to e. */
+          /* Go counter-clockwise from eprev to e. */
           go_ccw = true;
         }
         else {
@@ -6419,7 +6422,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
         BLI_array_append(ee, bme);
       }
       while (v != vend) {
-        /* Check for special case: multisegment 3rd face opposite a beveled edge with no vmesh. */
+        /* Check for special case: multi-segment 3rd face opposite a beveled edge with no vmesh. */
         bool corner3special = (vm->mesh_kind == M_NONE && v->ebev != e && v->ebev != eprev);
         if (go_ccw) {
           int i = v->index;
@@ -6442,7 +6445,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
             if (bmv) {
               BLI_array_append(vv, bmv);
               BLI_array_append(ee, bme); /* TODO: Maybe better edge here. */
-              if (corner3special && v->ebev && !v->ebev->is_seam && k != vm->seg) {
+              if (corner3special && v->ebev && !bv->any_seam && k != vm->seg) {
                 BLI_array_append(vv_fix, bmv);
               }
             }
@@ -6471,7 +6474,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
             if (bmv) {
               BLI_array_append(vv, bmv);
               BLI_array_append(ee, bme);
-              if (corner3special && v->ebev && !v->ebev->is_seam && k != 0) {
+              if (corner3special && v->ebev && !bv->any_seam && k != 0) {
                 BLI_array_append(vv_fix, bmv);
               }
             }
@@ -7227,17 +7230,17 @@ static void set_profile_spacing(BevelParams *bp, ProfileSpacing *pro_spacing, bo
  *          B
  * </pre>
  *
- * where edges are A, B, and C, following a face around vertices a, b, c, d.
- * th1 is angle abc and th2 is angle bcd;
- * and the argument EdgeHalf eb is B, going from b to c.
+ * where edges are A, B, and C, following a face around vertices `a, b, c, d`.
+ * `th1` is angle `abc` and th2 is angle `bcd`;
+ * and the argument `EdgeHalf eb` is B, going from b to c.
  * In general case, edge offset specs for A, B, C have
- * the form ka*t, kb*t, kc*t where ka, kb, kc are some factors
+ * the form `ka*t`, `kb*t`, `kc*t` where `ka`, `kb`, `kc` are some factors
  * (may be 0) and t is the current bp->offset.
  * We want to calculate t at which the clone of B parallel
  * to it collapses. This can be calculated using trig.
  * Another case of geometry collision that can happen is
- * When B slides along A because A is unbeveled.
- * Then it might collide with a.  Similarly for B sliding along C.
+ * When B slides along A because A is un-beveled.
+ * Then it might collide with a. Similarly for B sliding along C.
  */
 static float geometry_collide_offset(BevelParams *bp, EdgeHalf *eb)
 {
@@ -7286,6 +7289,9 @@ static float geometry_collide_offset(BevelParams *bp, EdgeHalf *eb)
     kc = 0.0f;
     ec = NULL;
     /* Find an edge from c that has same face. */
+    if (eb->fnext == NULL) {
+      return no_collide_offset;
+    }
     BMLoop *lb = BM_face_edge_share_loop(eb->fnext, eb->e);
     if (!lb) {
       return no_collide_offset;
@@ -7566,7 +7572,7 @@ void BM_mesh_bevel(BMesh *bm,
     }
   }
 
-  /* Perhaps clamp offset to avoid geometry colliisions. */
+  /* Perhaps clamp offset to avoid geometry collisions. */
   if (limit_offset) {
     bevel_limit_offset(&bp, bm);
 

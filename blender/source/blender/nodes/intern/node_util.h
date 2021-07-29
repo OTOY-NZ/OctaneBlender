@@ -71,6 +71,7 @@ extern void *node_initexec_curves(struct bNodeExecContext *context,
 
 /**** Updates ****/
 void node_sock_label(struct bNodeSocket *sock, const char *name);
+void node_sock_label_clear(struct bNodeSocket *sock);
 void node_math_update(struct bNodeTree *ntree, struct bNode *node);
 
 /**** Labels ****/
@@ -122,6 +123,7 @@ void node_octane_displacement_tex_conversion_update(bNodeTree *ntree, bNode *nod
 void node_octane_displacement_tex_conversion_verify(bNodeTree *ntree, bNode *node, struct ID *id);
 void node_octane_medium_init(bNodeTree *ntree, bNode *node);
 void node_octane_medium_update(bNodeTree *ntree, bNode *node);
+void node_octane_avo_settings_init(bNodeTree *ntree, bNode *node);
 
 #ifdef __cplusplus
 }

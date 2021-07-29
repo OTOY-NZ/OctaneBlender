@@ -39,6 +39,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_object.h"
 #include "BKE_undo_system.h"
 
 #include "DEG_depsgraph.h"
@@ -188,7 +189,7 @@ static void um_arraystore_cd_compact(struct CustomData *cdata,
       else {
         bcd_reference_current = NULL;
 
-        /* do a full lookup when un-alligned */
+        /* Do a full lookup when unaligned. */
         if (bcd_reference) {
           const BArrayCustomData *bcd_iter = bcd_reference;
           while (bcd_iter) {
@@ -565,7 +566,7 @@ static void *undomesh_from_editmesh(UndoMesh *um, BMEditMesh *em, Key *key)
                                  ((LinkData *)um_arraystore.local_links.last)->data :
                                  NULL;
 
-    /* add oursrlves */
+    /* Add ourselves. */
     BLI_addtail(&um_arraystore.local_links, BLI_genericNodeN(um));
 
 #  ifdef USE_ARRAY_STORE_THREAD
@@ -766,16 +767,18 @@ static bool mesh_undosys_step_encode(struct bContext *C, struct Main *bmain, Und
   return true;
 }
 
-static void mesh_undosys_step_decode(
-    struct bContext *C, struct Main *bmain, UndoStep *us_p, int UNUSED(dir), bool UNUSED(is_final))
+static void mesh_undosys_step_decode(struct bContext *C,
+                                     struct Main *bmain,
+                                     UndoStep *us_p,
+                                     const eUndoStepDir UNUSED(dir),
+                                     bool UNUSED(is_final))
 {
   MeshUndoStep *us = (MeshUndoStep *)us_p;
 
-  /* Load all our objects  into edit-mode, clear everything else. */
   ED_undo_object_editmode_restore_helper(
       C, &us->elems[0].obedit_ref.ptr, us->elems_len, sizeof(*us->elems));
 
-  BLI_assert(mesh_undosys_poll(C));
+  BLI_assert(BKE_object_is_in_editmode(us->elems[0].obedit_ref.ptr));
 
   for (uint i = 0; i < us->elems_len; i++) {
     MeshUndoStep_Elem *elem = &us->elems[i];
@@ -797,7 +800,10 @@ static void mesh_undosys_step_decode(
 
   /* The first element is always active */
   ED_undo_object_set_active_or_warn(
-      CTX_data_view_layer(C), us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
+      CTX_data_scene(C), CTX_data_view_layer(C), us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
+
+  /* Check after setting active. */
+  BLI_assert(mesh_undosys_poll(C));
 
   Scene *scene = CTX_data_scene(C);
   scene->toolsettings->selectmode = us->elems[0].data.selectmode;

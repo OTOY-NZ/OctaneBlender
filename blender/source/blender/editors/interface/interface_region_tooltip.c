@@ -240,7 +240,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *region
       fstyle_mono.uifont_id = blf_mono_font;
 
       UI_fontstyle_set(&fstyle_mono);
-      /* XXX, needed because we dont have mono in 'U.uifonts' */
+      /* XXX, needed because we don't have mono in 'U.uifonts' */
       BLF_size(fstyle_mono.uifont_id, fstyle_mono.points * U.pixelsize, U.dpi);
       rgb_float_to_uchar(drawcol, tip_colors[field->format.color_id]);
       UI_fontstyle_draw(&fstyle_mono, &bbox, field->text, drawcol, &fs_params);
@@ -428,7 +428,7 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
     if (has_valid_context == false) {
       expr_result = BLI_strdup(has_valid_context_error);
     }
-    else if (BPY_run_string_as_string(C, expr_imports, expr, __func__, &expr_result)) {
+    else if (BPY_run_string_as_string(C, expr_imports, expr, NULL, &expr_result)) {
       if (STREQ(expr_result, "")) {
         MEM_freeN(expr_result);
         expr_result = NULL;
@@ -485,7 +485,7 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
     if (has_valid_context == false) {
       expr_result = BLI_strdup(has_valid_context_error);
     }
-    else if (BPY_run_string_as_string(C, expr_imports, expr, __func__, &expr_result)) {
+    else if (BPY_run_string_as_string(C, expr_imports, expr, NULL, &expr_result)) {
       if (STREQ(expr_result, ".")) {
         MEM_freeN(expr_result);
         expr_result = NULL;
@@ -589,7 +589,7 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
         if (has_valid_context == false) {
           shortcut = BLI_strdup(has_valid_context_error);
         }
-        else if (BPY_run_string_as_intptr(C, expr_imports, expr, __func__, &expr_result)) {
+        else if (BPY_run_string_as_intptr(C, expr_imports, expr, NULL, &expr_result)) {
           if (expr_result != 0) {
             wmKeyMap *keymap = (wmKeyMap *)expr_result;
             LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
@@ -654,7 +654,7 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
         /* pass */
       }
       else if (BPY_run_string_as_string_and_size(
-                   C, expr_imports, expr, __func__, &expr_result, &expr_result_len)) {
+                   C, expr_imports, expr, NULL, &expr_result, &expr_result_len)) {
         /* pass. */
       }
     }
@@ -731,7 +731,7 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
     if (has_valid_context == false) {
       /* pass */
     }
-    else if (BPY_run_string_as_intptr(C, expr_imports, expr, __func__, &expr_result)) {
+    else if (BPY_run_string_as_intptr(C, expr_imports, expr, NULL, &expr_result)) {
       if (expr_result != 0) {
         {
           uiTooltipField *field = text_field_add(data,
@@ -1456,15 +1456,92 @@ ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
 {
   wmWindow *win = CTX_wm_window(C);
   const float aspect = 1.0f;
-  float init_position[2];
+  float init_position[2] = {win->eventstate->x, win->eventstate->y};
 
   uiTooltipData *data = ui_tooltip_data_from_gizmo(C, gz);
   if (data == NULL) {
     return NULL;
   }
 
+  /* TODO(harley):
+   * Julian preferred that the gizmo callback return the 3D bounding box
+   * which we then project to 2D here. Would make a nice improvement.
+   */
+  if (gz->type->screen_bounds_get) {
+    rcti bounds;
+    if (gz->type->screen_bounds_get(C, gz, &bounds)) {
+      init_position[0] = bounds.xmin;
+      init_position[1] = bounds.ymin;
+    }
+  }
+
+  return ui_tooltip_create_with_data(C, data, init_position, NULL, aspect);
+}
+
+static uiTooltipData *ui_tooltip_data_from_search_item_tooltip_data(
+    const uiSearchItemTooltipData *item_tooltip_data)
+{
+  uiTooltipData *data = MEM_callocN(sizeof(uiTooltipData), "uiTooltipData");
+
+  if (item_tooltip_data->description[0]) {
+    uiTooltipField *field = text_field_add(data,
+                                           &(uiTooltipFormat){
+                                               .style = UI_TIP_STYLE_HEADER,
+                                               .color_id = UI_TIP_LC_NORMAL,
+                                               .is_pad = true,
+                                           });
+    field->text = BLI_strdup(item_tooltip_data->description);
+  }
+
+  if (item_tooltip_data->name && item_tooltip_data->name[0]) {
+    uiTooltipField *field = text_field_add(data,
+                                           &(uiTooltipFormat){
+                                               .style = UI_TIP_STYLE_NORMAL,
+                                               .color_id = UI_TIP_LC_VALUE,
+                                               .is_pad = true,
+                                           });
+    field->text = BLI_strdup(item_tooltip_data->name);
+  }
+  if (item_tooltip_data->hint[0]) {
+    uiTooltipField *field = text_field_add(data,
+                                           &(uiTooltipFormat){
+                                               .style = UI_TIP_STYLE_NORMAL,
+                                               .color_id = UI_TIP_LC_NORMAL,
+                                               .is_pad = true,
+                                           });
+    field->text = BLI_strdup(item_tooltip_data->hint);
+  }
+
+  if (data->fields_len == 0) {
+    MEM_freeN(data);
+    return NULL;
+  }
+  return data;
+}
+
+/**
+ * Create a tooltip from search-item tooltip data \a item_tooltip data.
+ * To be called from a callback set with #UI_but_func_search_set_tooltip().
+ *
+ * \param item_rect: Rectangle of the search item in search region space (#ui_searchbox_butrect())
+ *                   which is passed to the tooltip callback.
+ */
+ARegion *UI_tooltip_create_from_search_item_generic(
+    bContext *C,
+    const ARegion *searchbox_region,
+    const rcti *item_rect,
+    const uiSearchItemTooltipData *item_tooltip_data)
+{
+  uiTooltipData *data = ui_tooltip_data_from_search_item_tooltip_data(item_tooltip_data);
+  if (data == NULL) {
+    return NULL;
+  }
+
+  const float aspect = 1.0f;
+  const wmWindow *win = CTX_wm_window(C);
+  float init_position[2];
   init_position[0] = win->eventstate->x;
-  init_position[1] = win->eventstate->y;
+  init_position[1] = item_rect->ymin + searchbox_region->winrct.ymin - (UI_POPUP_MARGIN / 2);
 
   return ui_tooltip_create_with_data(C, data, init_position, NULL, aspect);
 }

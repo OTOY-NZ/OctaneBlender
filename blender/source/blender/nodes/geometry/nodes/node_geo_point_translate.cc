@@ -14,9 +14,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "node_geometry_util.hh"
+#include "UI_interface.h"
+#include "UI_resources.h"
 
-#include "BKE_colorband.h"
+#include "node_geometry_util.hh"
 
 static bNodeSocketTemplate geo_node_point_translate_in[] = {
     {SOCK_GEOMETRY, N_("Geometry")},
@@ -30,12 +31,22 @@ static bNodeSocketTemplate geo_node_point_translate_out[] = {
     {-1, ""},
 };
 
+static void geo_node_point_translate_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+  uiItemR(layout, ptr, "input_type", 0, IFACE_("Type"), ICON_NONE);
+}
+
 namespace blender::nodes {
 
 static void execute_on_component(GeoNodeExecParams params, GeometryComponent &component)
 {
   OutputAttributePtr position_attribute = component.attribute_try_get_for_output(
       "position", ATTR_DOMAIN_POINT, CD_PROP_FLOAT3);
+  if (!position_attribute) {
+    return;
+  }
   ReadAttributePtr attribute = params.get_input_attribute(
       "Translation", component, ATTR_DOMAIN_POINT, CD_PROP_FLOAT3, nullptr);
   if (!attribute) {
@@ -55,6 +66,8 @@ static void geo_node_point_translate_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
+  geometry_set = geometry_set_realize_instances(geometry_set);
+
   if (geometry_set.has<MeshComponent>()) {
     execute_on_component(params, geometry_set.get_component_for_write<MeshComponent>());
   }
@@ -70,7 +83,7 @@ static void geo_node_point_translate_init(bNodeTree *UNUSED(tree), bNode *node)
   NodeGeometryPointTranslate *data = (NodeGeometryPointTranslate *)MEM_callocN(
       sizeof(NodeGeometryPointTranslate), __func__);
 
-  data->input_type = GEO_NODE_ATTRIBUTE_INPUT_ATTRIBUTE;
+  data->input_type = GEO_NODE_ATTRIBUTE_INPUT_VECTOR;
   node->storage = data;
 }
 
@@ -97,5 +110,6 @@ void register_node_type_geo_point_translate()
                     node_free_standard_storage,
                     node_copy_standard_storage);
   ntype.geometry_node_execute = blender::nodes::geo_node_point_translate_exec;
+  ntype.draw_buttons = geo_node_point_translate_layout;
   nodeRegisterType(&ntype);
 }

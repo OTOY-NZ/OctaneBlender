@@ -40,7 +40,6 @@
 
 #include "RNA_access.h"
 
-#include "ED_gpencil.h"
 #include "ED_screen.h"
 
 #include "UI_resources.h"
@@ -158,6 +157,11 @@ static void draw_socket_list(const bContext *C,
     RNA_pointer_create((ID *)ntree, &RNA_NodeSocketInterface, socket, &socket_ptr);
     uiItemR(layout, &socket_ptr, "name", 0, NULL, ICON_NONE);
 
+    /* Display descriptions only for Geometry Nodes, since it's only used in the modifier panel. */
+    if (ntree->type == NTREE_GEOMETRY) {
+      uiItemR(layout, &socket_ptr, "description", 0, NULL, ICON_NONE);
+    }
+
     if (socket->typeinfo->interface_draw) {
       socket->typeinfo->interface_draw((bContext *)C, layout, &socket_ptr);
     }
@@ -199,7 +203,7 @@ void node_buttons_register(ARegionType *art)
   {
     PanelType *pt = MEM_callocN(sizeof(PanelType), __func__);
     strcpy(pt->idname, "NODE_PT_node_tree_interface_inputs");
-    strcpy(pt->category, N_("Node"));
+    strcpy(pt->category, N_("Group"));
     strcpy(pt->label, N_("Inputs"));
     strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
     pt->draw = node_tree_interface_inputs_panel;
@@ -209,7 +213,7 @@ void node_buttons_register(ARegionType *art)
   {
     PanelType *pt = MEM_callocN(sizeof(PanelType), __func__);
     strcpy(pt->idname, "NODE_PT_node_tree_interface_outputs");
-    strcpy(pt->category, N_("Node"));
+    strcpy(pt->category, N_("Group"));
     strcpy(pt->label, N_("Outputs"));
     strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
     pt->draw = node_tree_interface_outputs_panel;

@@ -71,6 +71,7 @@
 #include "RNA_enum_types.h"
 
 #include "ED_gpencil.h"
+#include "ED_keyframing.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_space_api.h"
@@ -317,6 +318,10 @@ static void gpencil_primitive_set_initdata(bContext *C, tGPDprimitive *tgpi)
   }
   tgpi->gpl = gpl;
 
+  /* Recalculate layer transform matrix to avoid problems if props are animated. */
+  loc_eul_size_to_mat4(gpl->layer_mat, gpl->location, gpl->rotation, gpl->scale);
+  invert_m4_m4(gpl->layer_invmat, gpl->layer_mat);
+
   /* create a new temporary frame */
   tgpi->gpf = MEM_callocN(sizeof(bGPDframe), "Temp bGPDframe");
   tgpi->gpf->framenum = tgpi->cframe = cfra;
@@ -334,6 +339,7 @@ static void gpencil_primitive_set_initdata(bContext *C, tGPDprimitive *tgpi)
   ED_gpencil_fill_vertex_color_set(ts, brush, gps);
 
   gps->flag &= ~GP_STROKE_SELECT;
+  BKE_gpencil_stroke_select_index_reset(gps);
   /* the polygon must be closed, so enabled cyclic */
   if (ELEM(tgpi->type, GP_STROKE_BOX, GP_STROKE_CIRCLE)) {
     gps->flag |= GP_STROKE_CYCLIC;
@@ -460,10 +466,10 @@ static void gpencil_primitive_status_indicators(bContext *C, tGPDprimitive *tgpi
            GP_STROKE_BOX,
            GP_STROKE_POLYLINE)) {
     if (hasNumInput(&tgpi->num)) {
-      char str_offs[NUM_STR_REP_LEN];
+      char str_ofs[NUM_STR_REP_LEN];
 
-      outputNumInput(&tgpi->num, str_offs, &scene->unit);
-      BLI_snprintf(status_str, sizeof(status_str), "%s: %s", msg_str, str_offs);
+      outputNumInput(&tgpi->num, str_ofs, &scene->unit);
+      BLI_snprintf(status_str, sizeof(status_str), "%s: %s", msg_str, str_ofs);
     }
     else {
       if (tgpi->flag == IN_PROGRESS) {
@@ -779,10 +785,14 @@ static void gpencil_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
 
     /* need to restore the original projection settings before packing up */
     view3d_region_operator_needs_opengl(tgpi->win, tgpi->region);
-    ED_view3d_autodist_init(tgpi->depsgraph,
-                            tgpi->region,
-                            tgpi->v3d,
-                            (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ? 1 : 0);
+    ED_view3d_depth_override(tgpi->depsgraph,
+                             tgpi->region,
+                             tgpi->v3d,
+                             NULL,
+                             (ts->gpencil_v3d_align & GP_PROJECT_DEPTH_STROKE) ?
+                                 V3D_DEPTH_GPENCIL_ONLY :
+                                 V3D_DEPTH_NO_GPENCIL,
+                             false);
 
     depth_arr = MEM_mallocN(sizeof(float) * gps->totpoints, "depth_points");
     tGPspoint *ptc = &points2D[0];
@@ -1004,12 +1014,12 @@ static void gpencil_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
       /* reproject current */
       ED_gpencil_tpoint_to_point(tgpi->region, origin, tpt, &spt);
       ED_gpencil_project_point_to_plane(
-          tgpi->scene, tgpi->ob, tgpi->rv3d, origin, tgpi->lock_axis - 1, &spt);
+          tgpi->scene, tgpi->ob, tgpi->gpl, tgpi->rv3d, origin, tgpi->lock_axis - 1, &spt);
 
       /* reproject previous */
       ED_gpencil_tpoint_to_point(tgpi->region, origin, tptb, &spt2);
       ED_gpencil_project_point_to_plane(
-          tgpi->scene, tgpi->ob, tgpi->rv3d, origin, tgpi->lock_axis - 1, &spt2);
+          tgpi->scene, tgpi->ob, tgpi->gpl, tgpi->rv3d, origin, tgpi->lock_axis - 1, &spt2);
       tgpi->totpixlen += len_v3v3(&spt.x, &spt2.x);
       tpt->uv_fac = tgpi->totpixlen;
     }
@@ -1068,7 +1078,7 @@ static void gpencil_primitive_update_strokes(bContext *C, tGPDprimitive *tgpi)
     float origin[3];
     ED_gpencil_drawing_reference_get(tgpi->scene, tgpi->ob, ts->gpencil_v3d_align, origin);
     ED_gpencil_project_stroke_to_plane(
-        tgpi->scene, tgpi->ob, tgpi->rv3d, gps, origin, ts->gp_sculpt.lock_axis - 1);
+        tgpi->scene, tgpi->ob, tgpi->rv3d, tgpi->gpl, gps, origin, ts->gp_sculpt.lock_axis - 1);
   }
 
   /* if parented change position relative to parent object */
@@ -1248,8 +1258,17 @@ static void gpencil_primitive_init(bContext *C, wmOperator *op)
 static int gpencil_primitive_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
+  Scene *scene = CTX_data_scene(C);
   bGPdata *gpd = CTX_data_gpencil_data(C);
   tGPDprimitive *tgpi = NULL;
+
+  if (!IS_AUTOKEY_ON(scene)) {
+    bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
+    if ((gpl == NULL) || (gpl->actframe == NULL)) {
+      BKE_report(op->reports, RPT_INFO, "No available frame for creating stroke");
+      return OPERATOR_CANCELLED;
+    }
+  }
 
   /* initialize operator runtime data */
   gpencil_primitive_init(C, op);
@@ -1272,7 +1291,7 @@ static int gpencil_primitive_invoke(bContext *C, wmOperator *op, const wmEvent *
   /* set cursor to indicate modal */
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  /* update sindicator in header */
+  /* Updates indicator in header. */
   gpencil_primitive_status_indicators(C, tgpi);
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
@@ -1305,11 +1324,16 @@ static void gpencil_primitive_interaction_end(bContext *C,
 
   /* insert keyframes as required... */
   short add_frame_mode;
-  if (ts->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST) {
-    add_frame_mode = GP_GETFRAME_ADD_COPY;
+  if (IS_AUTOKEY_ON(tgpi->scene)) {
+    if (ts->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST) {
+      add_frame_mode = GP_GETFRAME_ADD_COPY;
+    }
+    else {
+      add_frame_mode = GP_GETFRAME_ADD_NEW;
+    }
   }
   else {
-    add_frame_mode = GP_GETFRAME_ADD_NEW;
+    add_frame_mode = GP_GETFRAME_USE_PREV;
   }
 
   bool need_tag = tgpi->gpl->actframe == NULL;
@@ -1371,6 +1395,12 @@ static void gpencil_primitive_interaction_end(bContext *C,
       ED_gpencil_stroke_close_by_distance(gps, 0.02f);
     }
     BKE_gpencil_stroke_geometry_update(tgpi->gpd, gps);
+  }
+
+  /* In Multiframe mode, duplicate the stroke in other frames. */
+  if (GPENCIL_MULTIEDIT_SESSIONS_ON(tgpi->gpd)) {
+    const bool tail = (ts->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK);
+    BKE_gpencil_stroke_copy_to_keyframes(tgpi->gpd, tgpi->gpl, gpf, gps, tail);
   }
 
   DEG_id_tag_update(&tgpi->gpd->id, ID_RECALC_COPY_ON_WRITE);

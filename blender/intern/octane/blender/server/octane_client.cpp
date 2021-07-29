@@ -1311,7 +1311,7 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
   switch (pKernel->type) {
     case Kernel::DIRECT_LIGHT: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 14 + sizeof(int32_t) * 35 + pKernel->sAoTexture.length() +
+                  sizeof(float) * 14 + sizeof(int32_t) * 37 + pKernel->sAoTexture.length() +
                       sizeof(float_3) + 2,
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
@@ -1332,12 +1332,15 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->iAdaptiveMinSamples << pKernel->adaptiveGroupPixels << pKernel->mbAlignment
           << pKernel->bLayersEnable << pKernel->iLayersCurrent << pKernel->bLayersInvert
           << pKernel->layersMode << pKernel->iClayMode << pKernel->iSubsampleMode
-          << pKernel->iMaxSubdivisionLevel << pKernel->f3ToonShadowAmbient << pKernel->sAoTexture;
+          << pKernel->iMaxSubdivisionLevel 
+		  << pKernel->iWhiteLightSpectrum
+          << pKernel->bUseOldPipeline
+		  << pKernel->f3ToonShadowAmbient << pKernel->sAoTexture;
       snd.write();
     } break;
     case Kernel::PATH_TRACE: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 15 + sizeof(int32_t) * 34 + sizeof(float_3),
+                  sizeof(float) * 15 + sizeof(int32_t) * 36 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
@@ -1357,12 +1360,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->adaptiveGroupPixels << pKernel->mbAlignment << pKernel->bLayersEnable
           << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
           << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
           << pKernel->f3ToonShadowAmbient;
       snd.write();
     } break;
     case Kernel::PMC: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 12 + sizeof(int32_t) * 27 + sizeof(float_3),
+                  sizeof(float) * 12 + sizeof(int32_t) * 29 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->iMaxSamples << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
@@ -1378,12 +1382,13 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
           << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
           << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
           << pKernel->f3ToonShadowAmbient;
       snd.write();
     } break;
     case Kernel::INFO_CHANNEL: {
       RPCSend snd(m_Socket,
-                  sizeof(float) * 11 + sizeof(int32_t) * 19 + sizeof(float_3),
+                  sizeof(float) * 11 + sizeof(int32_t) * 21 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       snd << pKernel->type << pKernel->infoChannelType << pKernel->fCurrentTime
           << pKernel->fShutterTime << pKernel->fSubframeStart << pKernel->fSubframeEnd
@@ -1395,18 +1400,20 @@ void OctaneClient::uploadKernel(Kernel *pKernel)
           << pKernel->mbAlignment << pKernel->bLayersEnable << pKernel->iLayersCurrent
           << pKernel->bLayersInvert << pKernel->layersMode << pKernel->iClayMode
           << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
           << pKernel->f3ToonShadowAmbient;
       snd.write();
     } break;
     default: {
       RPCSend snd(m_Socket,
-                  sizeof(int32_t) * 9 + sizeof(float) * 4 + sizeof(float_3),
+                  sizeof(int32_t) * 11 + sizeof(float) * 4 + sizeof(float_3),
                   OctaneDataTransferObject::LOAD_KERNEL);
       OctaneEngine::Kernel::KernelType defType = OctaneEngine::Kernel::DEFAULT;
       snd << defType << pKernel->mbAlignment << pKernel->fCurrentTime << pKernel->fShutterTime
           << pKernel->fSubframeStart << pKernel->fSubframeEnd << pKernel->bLayersEnable
           << pKernel->iLayersCurrent << pKernel->bLayersInvert << pKernel->layersMode
-          << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel
+          << pKernel->iClayMode << pKernel->iSubsampleMode << pKernel->iMaxSubdivisionLevel 
+		  << pKernel->iWhiteLightSpectrum << pKernel->bUseOldPipeline
           << pKernel->f3ToonShadowAmbient;
       snd.write();
     } break;

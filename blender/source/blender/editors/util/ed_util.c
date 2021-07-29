@@ -27,9 +27,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_armature_types.h"
-#include "DNA_mesh_types.h"
-
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
@@ -146,7 +143,7 @@ void ED_editors_init(bContext *C)
             ED_object_wpaintmode_enter_ex(bmain, depsgraph, scene, ob);
           }
           else {
-            BLI_assert(0);
+            BLI_assert_unreachable();
           }
         }
         else {
@@ -183,7 +180,7 @@ void ED_editors_exit(Main *bmain, bool do_undo_system)
     return;
   }
 
-  /* frees all editmode undos */
+  /* Frees all edit-mode undo-steps. */
   if (do_undo_system && G_MAIN->wm.first) {
     wmWindowManager *wm = G_MAIN->wm.first;
     /* normally we don't check for NULL undo stack,
@@ -206,24 +203,9 @@ void ED_editors_exit(Main *bmain, bool do_undo_system)
    *
    * To reproduce the problem where stale data is used, see: T84920. */
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-    if (ob->type == OB_MESH) {
-      Mesh *me = ob->data;
-      if (me->edit_mesh) {
-        EDBM_mesh_free(me->edit_mesh);
-        MEM_freeN(me->edit_mesh);
-        me->edit_mesh = NULL;
-        if (do_undo_system == false) {
-          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-        }
-      }
-    }
-    else if (ob->type == OB_ARMATURE) {
-      bArmature *arm = ob->data;
-      if (arm->edbo) {
-        ED_armature_edit_free(ob->data);
-        if (do_undo_system == false) {
-          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-        }
+    if (ED_object_editmode_free_ex(bmain, ob)) {
+      if (do_undo_system == false) {
+        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
       }
     }
   }
@@ -432,44 +414,6 @@ void unpack_menu(bContext *C,
   }
 
   UI_popup_menu_end(C, pup);
-}
-
-/* ********************* generic callbacks for drawcall api *********************** */
-
-/**
- * Callback that draws a line between the mouse and a position given as the initial argument.
- */
-void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *region, void *arg_info)
-{
-  wmWindow *win = CTX_wm_window(C);
-  const float *mval_src = (float *)arg_info;
-  const float mval_dst[2] = {
-      win->eventstate->x - region->winrct.xmin,
-      win->eventstate->y - region->winrct.ymin,
-  };
-
-  const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-
-  GPU_line_width(1.0f);
-
-  immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR);
-
-  float viewport_size[4];
-  GPU_viewport_size_get_f(viewport_size);
-  immUniform2f("viewport_size", viewport_size[2] / UI_DPI_FAC, viewport_size[3] / UI_DPI_FAC);
-
-  immUniform1i("colors_len", 0); /* "simple" mode */
-  immUniformThemeColor3(TH_VIEW_OVERLAY);
-  immUniform1f("dash_width", 6.0f);
-  immUniform1f("dash_factor", 0.5f);
-
-  immBegin(GPU_PRIM_LINES, 2);
-  immVertex2fv(shdr_pos, mval_src);
-  immVertex2fv(shdr_pos, mval_dst);
-  immEnd();
-
-  immUnbindProgram();
 }
 
 /**

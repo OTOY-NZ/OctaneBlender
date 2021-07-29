@@ -56,7 +56,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
      N_("Pheomelanin"),
@@ -66,7 +66,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
      N_("Index of refraction"),
@@ -86,7 +86,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
      N_("Azimuthal Roughness"),
@@ -96,7 +96,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
      N_("Offset"),
@@ -106,7 +106,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
      N_("Randomness Frequency"),
@@ -116,7 +116,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_VECTOR,
      N_("Randomness Offset"),
@@ -136,7 +136,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      0.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_RGBA,
      N_("Random Albedo"),
@@ -149,6 +149,16 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
+     N_("Random roughness"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     PROP_FACTOR,
+     SOCK_NO_INTERNAL_LINK},
+    {SOCK_FLOAT,
      N_("Opacity"),
      1.0f,
      1.0f,
@@ -156,7 +166,7 @@ static bNodeSocketTemplate sh_node_in[] = {
      1.0f,
      0.0f,
      1.0f,
-     PROP_NONE,
+     PROP_FACTOR,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
      N_("Emission"),
@@ -183,6 +193,11 @@ static bNodeSocketTemplate sh_node_in[] = {
 
 static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
 
+static void node_oct_init_hair_mat(bNodeTree *ntree, bNode *node)
+{
+  node_octane_avo_settings_init(ntree, node);
+}
+
 void register_node_type_sh_oct_hair_mat(void)
 {
   static bNodeType ntype;
@@ -195,7 +210,7 @@ void register_node_type_sh_oct_hair_mat(void)
                    /* NODE_PREVIEW | */ NODE_OPTIONS);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, 0);
+  node_type_init(&ntype, node_oct_init_hair_mat);
   node_type_storage(&ntype, "", NULL, NULL);
   ntype.update_internal_links = node_update_internal_links_default;
 

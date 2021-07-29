@@ -43,6 +43,9 @@ Kernel::Kernel()
   oct_node->bBkFaceHighlight = false;
   oct_node->fPathTermPower = 0.3f;
 
+  oct_node->iWhiteLightSpectrum = 1;
+  oct_node->bUseOldPipeline = false;
+
   // PATH_TRACE + PMC + DIRECT_LIGHT
   oct_node->bKeepEnvironment = false;
   oct_node->bIrradianceMode = false;

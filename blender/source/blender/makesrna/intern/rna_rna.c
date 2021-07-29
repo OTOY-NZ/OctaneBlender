@@ -20,6 +20,8 @@
 
 #include <stdlib.h>
 
+#include <CLG_log.h>
+
 #include "DNA_ID.h"
 
 #include "BLI_utildefines.h"
@@ -131,6 +133,8 @@ const EnumPropertyItem rna_enum_property_unit_items[] = {
 
 #  include "BKE_idprop.h"
 #  include "BKE_lib_override.h"
+
+static CLG_LogRef LOG_COMPARE_OVERRIDE = {"rna.rna_compare_override"};
 
 /* Struct */
 
@@ -910,14 +914,14 @@ static const EnumPropertyItem *rna_EnumProperty_default_itemf(bContext *C,
     return DummyRNA_NULL_items;
   }
 
-  if ((eprop->itemf == NULL) || (eprop->itemf == rna_EnumProperty_default_itemf) ||
+  if ((eprop->item_fn == NULL) || (eprop->item_fn == rna_EnumProperty_default_itemf) ||
       (ptr->type == &RNA_EnumProperty) || (C == NULL)) {
     if (eprop->item) {
       return eprop->item;
     }
   }
 
-  return eprop->itemf(C, ptr, prop, r_free);
+  return eprop->item_fn(C, ptr, prop, r_free);
 }
 
 /* XXX - not sure this is needed? */
@@ -1238,6 +1242,8 @@ static bool rna_property_override_diff_propptr_validate_diffing(PointerRNA *prop
 
 /* Used for both Pointer and Collection properties. */
 static int rna_property_override_diff_propptr(Main *bmain,
+                                              ID *owner_id_a,
+                                              ID *owner_id_b,
                                               PointerRNA *propptr_a,
                                               PointerRNA *propptr_b,
                                               eRNACompareMode mode,
@@ -1279,12 +1285,22 @@ static int rna_property_override_diff_propptr(Main *bmain,
                                                                                   0);
 
   if (is_id) {
-    /* For now, once we deal with nodetrees we'll want to get rid of that one. */
-    //    BLI_assert(no_ownership);
+    /* Owned IDs (the ones we want to actually compare in depth, instead of just comparing pointer
+     * values) should be always properly tagged as 'virtual' overrides. */
+    ID *id = propptr_a->owner_id;
+    if (id != NULL && !ID_IS_OVERRIDE_LIBRARY(id)) {
+      id = propptr_b->owner_id;
+      if (id != NULL && !ID_IS_OVERRIDE_LIBRARY(id)) {
+        id = NULL;
+      }
+    }
+
+    BLI_assert(no_ownership || id == NULL || ID_IS_OVERRIDE_LIBRARY_VIRTUAL(id));
+    UNUSED_VARS_NDEBUG(id);
   }
 
   if (override) {
-    if (no_ownership /* || is_id */ || is_null || is_type_diff || !is_valid_for_diffing) {
+    if (no_ownership || is_null || is_type_diff || !is_valid_for_diffing) {
       /* In case this pointer prop does not own its data (or one is NULL), do not compare structs!
        * This is a quite safe path to infinite loop, among other nasty issues.
        * Instead, just compare pointers themselves. */
@@ -1304,9 +1320,9 @@ static int rna_property_override_diff_propptr(Main *bmain,
             BLI_assert(op->rna_prop_type == property_type);
           }
 
+          IDOverrideLibraryPropertyOperation *opop = NULL;
           if (created || rna_itemname_a != NULL || rna_itemname_b != NULL ||
               rna_itemindex_a != -1 || rna_itemindex_b != -1) {
-            IDOverrideLibraryPropertyOperation *opop;
             opop = BKE_lib_override_library_property_operation_get(op,
                                                                    IDOVERRIDE_LIBRARY_OP_REPLACE,
                                                                    rna_itemname_b,
@@ -1326,6 +1342,49 @@ static int rna_property_override_diff_propptr(Main *bmain,
           }
           else {
             BKE_lib_override_library_operations_tag(op, IDOVERRIDE_LIBRARY_TAG_UNUSED, false);
+          }
+
+          if (is_id && no_ownership) {
+            if (opop == NULL) {
+              opop = BKE_lib_override_library_property_operation_find(op,
+                                                                      rna_itemname_b,
+                                                                      rna_itemname_a,
+                                                                      rna_itemindex_b,
+                                                                      rna_itemindex_a,
+                                                                      true,
+                                                                      NULL);
+              BLI_assert(opop != NULL);
+            }
+
+            BLI_assert(propptr_a->data == propptr_a->owner_id);
+            BLI_assert(propptr_b->data == propptr_b->owner_id);
+            ID *id_a = propptr_a->data;
+            ID *id_b = propptr_b->data;
+            if (ELEM(NULL, id_a, id_b)) {
+              /* In case one of the pointer is NULL and not the other, we consider that the
+               * override is not matching its reference anymore. */
+              opop->flag &= ~IDOVERRIDE_LIBRARY_FLAG_IDPOINTER_MATCH_REFERENCE;
+            }
+            else if ((owner_id_a->tag & LIB_TAG_LIB_OVERRIDE_NEED_RESYNC) != 0 ||
+                     (owner_id_b->tag & LIB_TAG_LIB_OVERRIDE_NEED_RESYNC) != 0) {
+              /* In case one of the owner of the checked property is tagged as needing resync, do
+               * not change the 'match reference' status of its ID pointer properties overrides,
+               * since many non-matching ones are likely due to missing resync. */
+              CLOG_INFO(&LOG_COMPARE_OVERRIDE,
+                        4,
+                        "Not checking matching ID pointer properties, since owner %s is tagged as "
+                        "needing resync.\n",
+                        id_a->name);
+            }
+            else if (id_a->override_library != NULL && id_a->override_library->reference == id_b) {
+              opop->flag |= IDOVERRIDE_LIBRARY_FLAG_IDPOINTER_MATCH_REFERENCE;
+            }
+            else if (id_b->override_library != NULL && id_b->override_library->reference == id_a) {
+              opop->flag |= IDOVERRIDE_LIBRARY_FLAG_IDPOINTER_MATCH_REFERENCE;
+            }
+            else {
+              opop->flag &= ~IDOVERRIDE_LIBRARY_FLAG_IDPOINTER_MATCH_REFERENCE;
+            }
           }
         }
       }
@@ -1429,8 +1488,8 @@ static int rna_property_override_diff_propptr(Main *bmain,
     }
   }
   else {
-    /* We could also use is_diff_pointer, but then we potentially lose the gt/lt info -
-     * and don't think performances are critical here for now anyway... */
+    /* We could also use is_diff_pointer, but then we potentially lose the greater-than/less-than
+     * info - and don't think performances are critical here for now anyway. */
     return !RNA_struct_equals(bmain, propptr_a, propptr_b, mode);
   }
 }
@@ -1736,6 +1795,8 @@ int rna_property_override_diff_default(Main *bmain,
         PointerRNA propptr_a = RNA_property_pointer_get(ptr_a, rawprop_a);
         PointerRNA propptr_b = RNA_property_pointer_get(ptr_b, rawprop_b);
         return rna_property_override_diff_propptr(bmain,
+                                                  ptr_a->owner_id,
+                                                  ptr_b->owner_id,
                                                   &propptr_a,
                                                   &propptr_b,
                                                   mode,
@@ -1892,6 +1953,8 @@ int rna_property_override_diff_default(Main *bmain,
           else if (is_id || is_valid_for_diffing) {
             if (equals || do_create) {
               const int eq = rna_property_override_diff_propptr(bmain,
+                                                                ptr_a->owner_id,
+                                                                ptr_b->owner_id,
                                                                 &iter_a.ptr,
                                                                 &iter_b.ptr,
                                                                 mode,

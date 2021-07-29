@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='23.5'
+OCTANE_BLENDER_VERSION='24.0'
 
 import bpy
 import math
@@ -477,6 +477,7 @@ def check_compatibility_octane_node_tree(file_version):
     check_compatibility_octane_node_tree_21_4(file_version)
     check_compatibility_octane_node_tree_21_12(file_version)
     check_compatibility_octane_node_tree_23_5(file_version)
+    check_compatibility_octane_node_tree_24_0(file_version)
 
 
 def check_compatibility_octane_node_tree_15_2_5(file_version):
@@ -569,6 +570,34 @@ def check_compatibility_octane_node_tree_23_5(file_version):
     node_handler_map = {'OCT_OBJECT_DATA': (_check_compatibility_octane_object_data_node_23_5, )}
     check_compatibility_octane_node_tree_helper(file_version, '23.5', node_handler_map)
 
+def check_compatibility_octane_node_tree_24_0(file_version):
+    custom_aov_materials = [
+        'OCT_DIFFUSE_MAT', 
+        'OCT_GLOSSY_MAT', 
+        'OCT_SPECULAR_MAT',
+        'OCT_MIX_MAT',
+        'OCT_TOON_MAT',
+        'OCT_METAL_MAT',
+        'OCT_UNIVERSAL_MAT',
+        'OCT_SHADOW_CATCHER_MAT',
+        'OCT_LAYERED_MAT',
+        'OCT_COMPOSITE_MAT',
+        'OCT_HAIR_MAT',
+        ]
+    for mat in custom_aov_materials:
+        node_handler_map = {mat: (_check_compatibility_octane_materials_node_24_0, )}
+        check_compatibility_octane_node_tree_helper(file_version, '24.0', node_handler_map)
+    octane_images = [
+        'OCT_IMAGE_TEX', 
+        'OCT_FLOAT_IMAGE_TEX', 
+        'OCT_ALPHA_IMAGE_TEX',
+        'OCT_IMAGE_TILE_TEX',
+        ]
+    for image in octane_images:
+        node_handler_map = {image: (_check_compatibility_octane_images_node_24_0, )}
+        check_compatibility_octane_node_tree_helper(file_version, '24.0', node_handler_map)
+
+
 def _check_compatibility_octane_specular_material_node_15_2_5(node_tree, node):
     try:
         links = node_tree.links
@@ -649,3 +678,18 @@ def _check_compatibility_octane_object_data_node_23_5(node_tree, node):
             node.object = None        
     except Exception as e:
         pass        
+
+def _check_compatibility_octane_materials_node_24_0(node_tree, node):
+    try:        
+        # Custom AOV settings
+        node.custom_aov = 'INVALID_CUSTOM_AOV'
+        node.custom_aov_channel = 'CUSTOM_AOV_CHANNEL_ALL'
+    except Exception as e:
+        pass                
+
+def _check_compatibility_octane_images_node_24_0(node_tree, node):
+    try:      
+        if node.octane_ies_mode == "":  
+            node.octane_ies_mode = "IES_COMPENSATE_LUMINANCE"
+    except Exception as e:
+        pass                        

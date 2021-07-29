@@ -97,6 +97,36 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             0.0f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            N_("Position on edge"),
+                                            0.5f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            1.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            N_("Spacing on edges"),
+                                            0.25f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.001f,
+                                            100000.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_BOOLEAN,
+                                            N_("Poisson disk sampling"),
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
                                            {SOCK_SHADER,
                                             N_("Relative density map"),
                                             0.0f,
@@ -105,6 +135,26 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             0.0f,
                                             0.0f,
                                             0.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            N_("Position on hair"),
+                                            0.5f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            1.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            N_("Spacing on hairs"),
+                                            0.25f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.001f,
+                                            100000.0f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_INT,
@@ -189,6 +239,16 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
                                             N_("Normal align"),
+                                            1.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            1.0f,
+                                            PROP_NONE,
+                                            SOCK_NO_INTERNAL_LINK},
+                                           {SOCK_FLOAT,
+                                            N_("Front align"),
                                             1.0f,
                                             0.0f,
                                             0.0f,
@@ -363,14 +423,16 @@ static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutGeo")}, {-1, ""}}
 
 static void node_type_oct_scatter_on_surface_init(bNodeTree *ntree, bNode *node)
 {
-  node->custom1 = OCT_INPUT_SELECTION_METHOD_SEQUENTIAL;
-  node->custom2 = OCT_INSTANCE_DISTRIBUTION_VERTEX;
-  node->custom3 = OCT_ORIENTATION_PRIORITY_UP;
-  node->custom4 = OCT_ORIENTATION_DIRECTION_MODE_DIRECTION;
-  node->oct_custom1 = OCT_ORIENTATION_DIRECTION_MODE_DIRECTION;
-  node->oct_custom2 = OCT_INSTANCE_TRANSFORM_MODE_FIXED;
-  node->oct_custom3 = OCT_INSTANCE_TRANSFORM_MODE_FIXED;
-  node->oct_custom4 = OCT_INSTANCE_TRANSFORM_MODE_FIXED;
+  node->oct_custom1 = OCT_INPUT_SELECTION_METHOD_SEQUENTIAL;
+  node->oct_custom2 = OCT_DISTRIBUTION_ON_SURFACE_ONE_INSTANCE_PER_VERTEX;
+  node->oct_custom3 = OCT_ORIENTATION_PRIORITY_UP;
+  node->oct_custom4 = OCT_ORIENTATION_DIRECTION_MODE_DIRECTION;
+  node->oct_custom5 = OCT_ORIENTATION_DIRECTION_MODE_DIRECTION;
+  node->oct_custom6 = OCT_INSTANCE_TRANSFORM_MODE_FIXED;
+  node->oct_custom7 = OCT_INSTANCE_TRANSFORM_MODE_FIXED;
+  node->oct_custom8 = OCT_INSTANCE_TRANSFORM_MODE_FIXED;
+  node->oct_custom9 = OCT_DISTRIBUTION_ON_PARTICLE_ONE_INSTANCE_PER_PARTICLE;
+  node->oct_custom10 = OCT_DISTRIBUTION_ON_HAIR_ONE_INSTANCE_PER_HAIR_VERTEX;
 } 
 
 void register_node_type_scatter_tool_surface(void)

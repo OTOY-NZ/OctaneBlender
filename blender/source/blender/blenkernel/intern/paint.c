@@ -127,7 +127,7 @@ static void palette_blend_read_data(BlendDataReader *reader, ID *id)
 
 static void palette_undo_preserve(BlendLibReader *UNUSED(reader), ID *id_new, ID *id_old)
 {
-  /* Whole Palette is preserved accross undo's, and it has no extra pointer, simple. */
+  /* Whole Palette is preserved across undo-steps, and it has no extra pointer, simple. */
   /* Note: We do not care about potential internal references to self here, Palette has none. */
   /* Note: We do not swap IDProperties, as dealing with potential ID pointers in those would be
    *       fairly delicate. */
@@ -151,6 +151,7 @@ IDTypeInfo IDType_ID_PAL = {
     .make_local = NULL,
     .foreach_id = NULL,
     .foreach_cache = NULL,
+    .owner_get = NULL,
 
     .blend_write = palette_blend_write,
     .blend_read_data = palette_blend_read_data,
@@ -158,6 +159,8 @@ IDTypeInfo IDType_ID_PAL = {
     .blend_read_expand = NULL,
 
     .blend_read_undo_preserve = palette_undo_preserve,
+
+    .lib_override_apply_post = NULL,
 };
 
 static void paint_curve_copy_data(Main *UNUSED(bmain),
@@ -214,6 +217,7 @@ IDTypeInfo IDType_ID_PC = {
     .make_local = NULL,
     .foreach_id = NULL,
     .foreach_cache = NULL,
+    .owner_get = NULL,
 
     .blend_write = paint_curve_blend_write,
     .blend_read_data = paint_curve_blend_read_data,
@@ -221,6 +225,8 @@ IDTypeInfo IDType_ID_PC = {
     .blend_read_expand = NULL,
 
     .blend_read_undo_preserve = NULL,
+
+    .lib_override_apply_post = NULL,
 };
 
 const char PAINT_CURSOR_SCULPT[3] = {255, 100, 100};
@@ -650,7 +656,7 @@ void BKE_paint_runtime_init(const ToolSettings *ts, Paint *paint)
     paint->runtime.ob_mode = OB_MODE_WEIGHT_GPENCIL;
   }
   else {
-    BLI_assert(0);
+    BLI_assert_unreachable();
   }
 }
 
@@ -1416,6 +1422,12 @@ static void sculptsession_free_pbvh(Object *object)
   MEM_SAFE_FREE(ss->pmap);
   MEM_SAFE_FREE(ss->pmap_mem);
 
+  MEM_SAFE_FREE(ss->epmap);
+  MEM_SAFE_FREE(ss->epmap_mem);
+
+  MEM_SAFE_FREE(ss->vemap);
+  MEM_SAFE_FREE(ss->vemap_mem);
+
   MEM_SAFE_FREE(ss->persistent_base);
 
   MEM_SAFE_FREE(ss->preview_vert_index_list);
@@ -1465,6 +1477,13 @@ void BKE_sculptsession_free(Object *ob)
 
     MEM_SAFE_FREE(ss->pmap);
     MEM_SAFE_FREE(ss->pmap_mem);
+
+    MEM_SAFE_FREE(ss->epmap);
+    MEM_SAFE_FREE(ss->epmap_mem);
+
+    MEM_SAFE_FREE(ss->vemap);
+    MEM_SAFE_FREE(ss->vemap_mem);
+
     if (ss->bm_log) {
       BM_log_free(ss->bm_log);
     }
@@ -1741,7 +1760,7 @@ void BKE_sculpt_update_object_before_eval(Object *ob)
   SculptSession *ss = ob->sculpt;
 
   if (ss && ss->building_vp_handle == false) {
-    if (!ss->cache && !ss->filter_cache) {
+    if (!ss->cache && !ss->filter_cache && !ss->expand_cache) {
       /* We free pbvh on changes, except in the middle of drawing a stroke
        * since it can't deal with changing PVBH node organization, we hope
        * topology does not change in the meantime .. weak. */

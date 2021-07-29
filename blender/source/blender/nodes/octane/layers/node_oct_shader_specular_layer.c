@@ -193,11 +193,6 @@ static bNodeSocketTemplate sh_node_out[] = {
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {-1, ""}};
 
-static void node_oct_specular_layer_init(bNodeTree *ntree, bNode *node)
-{
-  node->custom1 = OCT_SHD_BRDF_MODEL_GGX;
-} /* node_oct_specular_layer_init() */
-
 void register_node_type_sh_oct_specular_layer(void)
 {
   static bNodeType ntype;
@@ -210,7 +205,7 @@ void register_node_type_sh_oct_specular_layer(void)
                    NODE_OPTIONS);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, node_oct_specular_layer_init);
+  node_type_init(&ntype, NULL);
   node_type_storage(&ntype, "", NULL, NULL);
   ntype.update_internal_links = node_update_internal_links_default;
 

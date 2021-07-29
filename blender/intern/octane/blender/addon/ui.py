@@ -174,8 +174,9 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
         def draw_minimize_net_traffic():
             col.prop(oct_scene, "minimize_net_traffic")  
 
-        def draw_emulate_old_volume_behavior():
-            col.prop(oct_scene, "emulate_old_volume_behavior")  
+        def draw_color():
+            col.prop(oct_scene, "white_light_spectrum")
+            col.prop(oct_scene, "use_old_color_pipeline")
 
         def draw_caustic_blur():
             col.prop(oct_scene, "caustic_blur")  
@@ -283,6 +284,11 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             draw_adaptive_sampling()
 
             box = layout.box()
+            box.label(text="Color")
+            col = box.column(align=True)
+            draw_color()
+
+            box = layout.box()
             box.label(text="Deep Image")            
             col = box.column(align=True)       
             draw_deep_image() 
@@ -290,12 +296,7 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             box = layout.box()
             box.label(text="Toon Shading")            
             col = box.column(align=True)       
-            draw_toon_shadow_ambient()
-
-            box = layout.box()
-            box.label(text="Compatibility settings")            
-            col = box.column(align=True)                  
-            draw_emulate_old_volume_behavior()             
+            draw_toon_shadow_ambient()           
         elif oct_scene.kernel_type == '2':
             # Path tracing kernel
             col = layout.column(align=True)
@@ -338,7 +339,12 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             box = layout.box()
             box.label(text="Adaptive sampling")            
             col = box.column(align=True)  
-            draw_adaptive_sampling()     
+            draw_adaptive_sampling() 
+
+            box = layout.box()
+            box.label(text="Color")
+            col = box.column(align=True)
+            draw_color()    
             
             box = layout.box()
             box.label(text="Deep Image")            
@@ -349,11 +355,6 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             box.label(text="Toon Shading")            
             col = box.column(align=True)       
             draw_toon_shadow_ambient()
-
-            box = layout.box()
-            box.label(text="Compatibility settings")            
-            col = box.column(align=True)                  
-            draw_emulate_old_volume_behavior()   
         elif oct_scene.kernel_type == '3':
             # PMC kernel
             col = layout.column(align=True)
@@ -394,14 +395,14 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             col.prop(oct_scene, "work_chunk_size")
 
             box = layout.box()
+            box.label(text="Color")
+            col = box.column(align=True)
+            draw_color()
+
+            box = layout.box()
             box.label(text="Toon Shading")            
             col = box.column(align=True)       
             draw_toon_shadow_ambient()
-
-            box = layout.box()
-            box.label(text="Compatibility settings")            
-            col = box.column(align=True)                  
-            draw_emulate_old_volume_behavior() 
         elif oct_scene.kernel_type == '4':
             # Info channels kernel
             box = layout.box()
@@ -433,6 +434,11 @@ class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
             draw_parallel_samples()
             draw_tile_samples()
             draw_minimize_net_traffic()
+
+            box = layout.box()
+            box.label(text="Color")
+            col = box.column(align=True)
+            draw_color()
 
             box = layout.box()
             box.label(text="Deep Image")            
@@ -1147,6 +1153,17 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         #     sub.prop(cdata, "point_cloud_lod")
         sub = box.row(align=True)
         sub.operator("octane.generate_orbx_preview")
+
+        # box = layout.box()
+        # box.label(text="Mesh volume SDF")
+        # sub = box.row(align=True)
+        # sub.prop(cdata, "enable_mesh_volume_sdf")
+        # sub = box.row(align=True)
+        # sub.prop(cdata, "mesh_volume_sdf_voxel_size")
+        # sub = box.row(align=True)
+        # sub.prop(cdata, "mesh_volume_sdf_border_thickness_inside")
+        # sub = box.row(align=True)
+        # sub.prop(cdata, "mesh_volume_sdf_border_thickness_outside")
 
         box = layout.box()
         box.label(text="Octane Offset Transform:")        
@@ -2075,7 +2092,11 @@ class OCTANE_OBJECT_PT_octane_settings_object_layer(OctaneButtonsPanel, Panel):
         sub = layout.row(align=True)
         sub.prop(octane_object, "random_color_seed")
         sub = layout.row(align=True)
-        sub.prop(octane_object, "color")        
+        sub.prop(octane_object, "color")    
+        sub = layout.row(align=True)
+        sub.prop(octane_object, "custom_aov")
+        sub = layout.row(align=True)
+        sub.prop(octane_object, "custom_aov_channel")        
 
 
 class OCTANE_OBJECT_PT_octane_settings_baking_settings(OctaneButtonsPanel, Panel):

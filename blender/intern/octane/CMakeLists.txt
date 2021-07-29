@@ -216,6 +216,8 @@ list(APPEND LIB
 	${OPENVDB_LIBRARIES}
 )
 
+add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+
 include_directories(../atomic)
 
 # Warnings

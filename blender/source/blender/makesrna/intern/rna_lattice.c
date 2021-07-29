@@ -132,12 +132,12 @@ static void rna_Lattice_update_size(Main *bmain, Scene *scene, PointerRNA *ptr)
   Object *ob;
   int newu, newv, neww;
 
-  /* we don't modify the actual pnts, but go through opnts instead */
+  /* We don't modify the actual `pnts`, but go through `opnts` instead. */
   newu = (lt->opntsu > 0) ? lt->opntsu : lt->pntsu;
   newv = (lt->opntsv > 0) ? lt->opntsv : lt->pntsv;
   neww = (lt->opntsw > 0) ? lt->opntsw : lt->pntsw;
 
-  /* BKE_lattice_resize needs an object, any object will have the same result */
+  /* #BKE_lattice_resize needs an object, any object will have the same result */
   for (ob = bmain->objects.first; ob; ob = ob->id.next) {
     if (ob->data == lt) {
       BKE_lattice_resize(lt, newu, newv, neww, ob);
@@ -371,7 +371,7 @@ static void rna_def_lattice(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flag", LT_OUTSIDE);
   RNA_def_property_boolean_funcs(prop, NULL, "rna_Lattice_use_outside_set");
   RNA_def_property_ui_text(
-      prop, "Outside", "Only draw, and take into account, the outer vertices");
+      prop, "Outside", "Only display and take into account the outer vertices");
   RNA_def_property_update(prop, 0, "rna_Lattice_update_data_editlatt");
 
   prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);

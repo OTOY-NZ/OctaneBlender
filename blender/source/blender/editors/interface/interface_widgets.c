@@ -658,7 +658,7 @@ static int round_box_shadow_edges(
   const float maxx = rect->xmax + step;
   const float maxy = rect->ymax + step;
 
-  /* mult */
+  /* Multiply. */
   for (int a = 0; a < WIDGET_CURVE_RESOLU; a++) {
     vec[a][0] = rad * cornervec[a][0];
     vec[a][1] = rad * cornervec[a][1];
@@ -1180,7 +1180,7 @@ void UI_widgetbase_draw_cache_flush(void)
     /* draw single */
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (float(*)[4])g_widget_base_batch.params);
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (const float(*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1222,12 +1222,6 @@ static bool draw_widgetbase_batch_skip_draw_cache(void)
   /* MacOS is known to have issues on Mac Mini and MacBook Pro with Intel Iris GPU.
    * For example, T78307. */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_ANY)) {
-    return true;
-  }
-
-  /* There are also reports that some AMD and Mesa driver configuration suffer from the
-   * same issue, T78803. */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
     return true;
   }
 
@@ -1311,7 +1305,7 @@ static void widgetbase_draw_ex(uiWidgetBase *wtb,
     tria_col[3] = wcol->item[3];
   }
 
-  /* Draw everything in one drawcall */
+  /* Draw everything in one draw-call. */
   if (inner_col1[3] || inner_col2[3] || outline_col[3] || emboss_col[3] || tria_col[3] ||
       show_alpha_checkers) {
     widgetbase_set_uniform_colors_ubv(
@@ -1533,25 +1527,22 @@ static void ui_text_clip_right_ex(const uiFontStyle *fstyle,
 {
   BLI_assert(str[0]);
 
-  /* If the trailing ellipsis takes more than 20% of all available width, just cut the string
-   * (as using the ellipsis would remove even more useful chars, and we cannot show much
-   * already!).
-   */
-  if (sep_strwidth / okwidth > 0.2f) {
-    float tmp;
-    const int l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth, &tmp);
-    str[l_end] = '\0';
-    if (r_final_len) {
-      *r_final_len = (size_t)l_end;
-    }
-  }
-  else {
-    float tmp;
-    const int l_end = BLF_width_to_strlen(
-        fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, &tmp);
+  /* How many BYTES (not characters) of this utf-8 string can fit, along with appended ellipsis. */
+  int l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, NULL);
+
+  if (l_end > 0) {
+    /* At least one character, so clip and add the ellipsis.  */
     memcpy(str + l_end, sep, sep_len + 1); /* +1 for trailing '\0'. */
     if (r_final_len) {
       *r_final_len = (size_t)(l_end) + sep_len;
+    }
+  }
+  else {
+    /* Otherwise fit as much as we can without adding an ellipsis.  */
+    l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth, NULL);
+    str[l_end] = '\0';
+    if (r_final_len) {
+      *r_final_len = (size_t)l_end;
     }
   }
 }
@@ -1822,7 +1813,7 @@ static void ui_text_clip_right_label(const uiFontStyle *fstyle, uiBut *but, cons
   but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr, sizeof(but->drawstr));
   but->ofs = 0;
 
-  /* First shorten num-buttons eg,
+  /* First shorten number-buttons eg,
    *   Translucency: 0.000
    * becomes
    *   Trans: 0.000
@@ -2352,7 +2343,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     int icon_size = BLI_rcti_size_y(rect);
     int text_size = 0;
 
-    /* This is a bit britle, but avoids adding an 'UI_BUT_HAS_LABEL' flag to but... */
+    /* This is a bit brittle, but avoids adding an 'UI_BUT_HAS_LABEL' flag to but... */
     if (icon_size > BLI_rcti_size_x(rect)) {
       /* button is not square, it has extra height for label */
       text_size = UI_UNIT_Y;
@@ -2413,7 +2404,9 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
       rect->xmin += 0.2f * U.widget_unit;
     }
 
-    widget_draw_icon(but, icon, alpha, rect, wcol->text);
+    /* By default icon is the color of text, but can optionally override with but->col. */
+    widget_draw_icon(but, icon, alpha, rect, (but->col[3] != 0) ? but->col : wcol->text);
+
     if (show_menu_icon) {
       BLI_assert(but->block->content_hints & UI_BLOCK_CONTAINS_SUBMENU_BUT);
       widget_draw_submenu_tria(but, rect, wcol);
@@ -2423,11 +2416,12 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     but->block->aspect = aspect_orig;
 #endif
 
-    rect->xmin += icon_size + icon_padding;
+    rect->xmin += round_fl_to_int(icon_size + icon_padding);
   }
 
   if (!no_text_padding) {
-    const int text_padding = (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+    const int text_padding = round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) /
+                                             but->block->aspect);
     if (but->editstr) {
       rect->xmin += text_padding;
     }
@@ -3617,7 +3611,7 @@ static void widget_scroll(
     rect1.xmin = rect1.xmin + ceilf(fac * (value - but->softmin));
     rect1.xmax = rect1.xmin + ceilf(fac * (but->a1 - but->softmin));
 
-    /* ensure minimium size */
+    /* Ensure minimum size. */
     const float min = BLI_rcti_size_y(rect);
 
     if (BLI_rcti_size_x(&rect1) < min) {
@@ -3634,7 +3628,7 @@ static void widget_scroll(
     rect1.ymax = rect1.ymax - ceilf(fac * (value - but->softmin));
     rect1.ymin = rect1.ymax - ceilf(fac * (but->a1 - but->softmin));
 
-    /* ensure minimium size */
+    /* Ensure minimum size. */
     const float min = BLI_rcti_size_x(rect);
 
     if (BLI_rcti_size_y(&rect1) < min) {
@@ -3668,16 +3662,16 @@ static void widget_progressbar(
 
   /* round corners */
   const float value = but_progressbar->progress;
-  const float offs = wcol->roundness * BLI_rcti_size_y(&rect_prog);
+  const float ofs = wcol->roundness * BLI_rcti_size_y(&rect_prog);
   float w = value * BLI_rcti_size_x(&rect_prog);
 
-  /* ensure minimium size */
-  w = MAX2(w, offs);
+  /* Ensure minimum size. */
+  w = MAX2(w, ofs);
 
   rect_bar.xmax = rect_bar.xmin + w;
 
-  round_box_edges(&wtb, roundboxalign, &rect_prog, offs);
-  round_box_edges(&wtb_bar, roundboxalign, &rect_bar, offs);
+  round_box_edges(&wtb, roundboxalign, &rect_prog, ofs);
+  round_box_edges(&wtb_bar, roundboxalign, &rect_bar, ofs);
 
   wtb.draw_outline = true;
   widgetbase_draw(&wtb, wcol);
@@ -3734,9 +3728,9 @@ static void widget_numslider(
   widget_init(&wtb1);
 
   /* Backdrop first. */
-  const float offs = wcol->roundness * BLI_rcti_size_y(rect);
-  const float toffs = offs * 0.75f;
-  round_box_edges(&wtb, roundboxalign, rect, offs);
+  const float ofs = wcol->roundness * BLI_rcti_size_y(rect);
+  const float toffs = ofs * 0.75f;
+  round_box_edges(&wtb, roundboxalign, rect, ofs);
 
   wtb.draw_outline = false;
   widgetbase_draw(&wtb, wcol);
@@ -3769,13 +3763,13 @@ static void widget_numslider(
     const float width = (float)BLI_rcti_size_x(rect);
     factor_ui = factor * width;
 
-    if (factor_ui <= offs) {
+    if (factor_ui <= ofs) {
       /* Left part only. */
       roundboxalign_slider &= ~(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT);
-      rect1.xmax = rect1.xmin + offs;
-      factor_discard = factor_ui / offs;
+      rect1.xmax = rect1.xmin + ofs;
+      factor_discard = factor_ui / ofs;
     }
-    else if (factor_ui <= width - offs) {
+    else if (factor_ui <= width - ofs) {
       /* Left part + middle part. */
       roundboxalign_slider &= ~(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT);
       rect1.xmax = rect1.xmin + factor_ui;
@@ -3785,7 +3779,7 @@ static void widget_numslider(
       factor_discard = factor;
     }
 
-    round_box_edges(&wtb1, roundboxalign_slider, &rect1, offs);
+    round_box_edges(&wtb1, roundboxalign_slider, &rect1, ofs);
     wtb1.draw_outline = false;
     widgetbase_set_uniform_discard_factor(&wtb1, factor_discard);
     widgetbase_draw(&wtb1, wcol);
@@ -3802,7 +3796,7 @@ static void widget_numslider(
   wtb.draw_inner = false;
   widgetbase_draw(&wtb, wcol);
 
-  /* Add space at either side of the button so text aligns with numbuttons
+  /* Add space at either side of the button so text aligns with number-buttons
    * (which have arrow icons). */
   if (!(state & UI_STATE_TEXT_INPUT)) {
     rect->xmax -= toffs;
@@ -5224,8 +5218,7 @@ void ui_draw_tooltip_background(const uiStyle *UNUSED(style), uiBlock *UNUSED(bl
  *
  * \param state: The state of the button,
  * typically #UI_ACTIVE, #UI_BUT_DISABLED, #UI_BUT_INACTIVE.
- * \param use_sep: When true, characters after the last #UI_SEP_CHAR are right aligned,
- * use for displaying key shortcuts.
+ * \param separator_type: The kind of separator which controls if and how the string is clipped.
  * \param r_xmax: The right hand position of the text, this takes into the icon,
  * padding and text clipping when there is not enough room to display the full text.
  */
@@ -5239,8 +5232,9 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
   const rcti _rect = *rect;
+  const int row_height = BLI_rcti_size_y(rect);
   int max_hint_width = INT_MAX;
-  int padding = 0.25f * UI_UNIT_X;
+  int padding = 0.25f * row_height;
   char *cpoin = NULL;
 
   wt->state(wt, state, 0, UI_EMBOSS_UNDEFINED);
@@ -5251,7 +5245,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   /* text location offset */
   rect->xmin += padding;
   if (iconid) {
-    rect->xmin += UI_DPI_ICON_SIZE;
+    rect->xmin += row_height; /* Use square area for icon. */
   }
 
   /* cut string in 2 parts? */
@@ -5273,7 +5267,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
         rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1, INT_MAX) + UI_DPI_ICON_SIZE;
       }
       else if (separator_type == UI_MENU_ITEM_SEPARATOR_HINT) {
-        /* Deterimine max-width for the hint string to leave the name string un-clipped (if there's
+        /* Determine max-width for the hint string to leave the name string un-clipped (if there's
          * enough space to display it). */
 
         const int available_width = BLI_rcti_size_x(rect) - padding;

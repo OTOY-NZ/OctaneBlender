@@ -71,6 +71,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
 
 static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
 
+static void node_oct_init_mix_mat(bNodeTree *ntree, bNode *node)
+{
+  node_octane_avo_settings_init(ntree, node);
+}
+
 void register_node_type_sh_oct_mix_mat(void)
 {
   static bNodeType ntype;
@@ -83,7 +88,7 @@ void register_node_type_sh_oct_mix_mat(void)
                    /* NODE_PREVIEW | */ NODE_OPTIONS);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
-  node_type_init(&ntype, 0);
+  node_type_init(&ntype, node_oct_init_mix_mat);
   node_type_storage(&ntype, "", NULL, NULL);
   ntype.update_internal_links = node_update_internal_links_default;
 

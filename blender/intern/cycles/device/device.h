@@ -61,7 +61,6 @@ enum DeviceTypeMask {
 };
 
 enum DeviceKernelStatus {
-  DEVICE_KERNEL_WAITING_FOR_FEATURE_KERNEL = 0,
   DEVICE_KERNEL_FEATURE_KERNEL_AVAILABLE,
   DEVICE_KERNEL_USING_FEATURE_KERNEL,
   DEVICE_KERNEL_FEATURE_KERNEL_INVALID,
@@ -78,6 +77,7 @@ class DeviceInfo {
   int num;
   bool display_device;               /* GPU is used as a display device. */
   bool has_half_images;              /* Support half-float textures. */
+  bool has_nanovdb;                  /* Support NanoVDB volumes. */
   bool has_volume_decoupled;         /* Decoupled volume shading. */
   bool has_branched_path;            /* Supports branched path tracing. */
   bool has_adaptive_stop_per_sample; /* Per-sample adaptive sampling stopping. */
@@ -99,6 +99,7 @@ class DeviceInfo {
     cpu_threads = 0;
     display_device = false;
     has_half_images = false;
+    has_nanovdb = false;
     has_volume_decoupled = false;
     has_branched_path = true;
     has_adaptive_stop_per_sample = false;
@@ -424,6 +425,9 @@ class Device {
 
   /* acceleration structure building */
   virtual void build_bvh(BVH *bvh, Progress &progress, bool refit);
+
+  /* OptiX specific destructor. */
+  virtual void release_optix_bvh(BVH *){};
 
 #ifdef WITH_NETWORK
   /* networking */

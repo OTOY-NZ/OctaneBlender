@@ -255,10 +255,6 @@ void EEVEE_renderpasses_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *ve
   else {
     psl->renderpass_pass = NULL;
   }
-
-  if ((g_data->render_passes & (EEVEE_RENDER_PASS_CRYPTOMATTE)) != 0) {
-    EEVEE_cryptomatte_cache_finish(sldata, vedata);
-  }
 }
 
 /* Post-process data to construct a specific render-pass
@@ -443,15 +439,15 @@ void EEVEE_renderpasses_draw(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   EEVEE_EffectsInfo *effects = stl->effects;
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
-  /* We can only draw a single renderpass. Lightpasses also select their color pass
+  /* We can only draw a single render-pass. Light-passes also select their color pass
    * (a second pass). We mask the light pass when a light pass is selected. */
   const eViewLayerEEVEEPassType render_pass =
       ((stl->g_data->render_passes & EEVEE_RENDERPASSES_LIGHT_PASS) != 0) ?
           (stl->g_data->render_passes & EEVEE_RENDERPASSES_LIGHT_PASS) :
           stl->g_data->render_passes;
 
-  bool is_valid = (render_pass & EEVEE_RENDERPASSES_ALL) > 0;
-  bool needs_color_transfer = (render_pass & EEVEE_RENDERPASSES_COLOR_PASS) > 0 &&
+  bool is_valid = (render_pass & EEVEE_RENDERPASSES_ALL) != 0;
+  bool needs_color_transfer = (render_pass & EEVEE_RENDERPASSES_COLOR_PASS) != 0 &&
                               DRW_state_is_opengl_render();
   UNUSED_VARS(needs_color_transfer);
 
@@ -494,7 +490,7 @@ void EEVEE_renderpasses_draw_debug(EEVEE_Data *vedata)
       tx = txl->maxzbuffer;
       break;
     case 2:
-      tx = effects->ssr_pdf_output;
+      /* UNUSED */
       break;
     case 3:
       tx = effects->ssr_normal_input;

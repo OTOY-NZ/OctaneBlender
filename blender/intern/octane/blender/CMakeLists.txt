@@ -95,9 +95,16 @@ set(ADDON_NODES_COMPOSITE_FILES
   addon/nodes/composites/node_tree.py
 )
 
+set(ADDON_NODES_RENDER_SETTINGS_FILES
+  addon/nodes/render_settings/__init__.py
+  addon/nodes/render_settings/ocio_color_space.py
+)
+
 set(ADDON_NODES_UTIL_FILES
   addon/utils/__init__.py
+  addon/utils/utility.py
   addon/utils/consts.py
+  addon/utils/ocio.py
 )
 
 set(STARTUP_FILES
@@ -131,6 +138,7 @@ add_dependencies(bf_intern_octane bf_rna)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_FILES}" ${OCTANE_INSTALL_PATH})
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_FILES}" ${OCTANE_INSTALL_PATH}/nodes)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_COMPOSITE_FILES}" ${OCTANE_INSTALL_PATH}/nodes/composites)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_RENDER_SETTINGS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/render_settings)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_UTIL_FILES}" ${OCTANE_INSTALL_PATH}/utils)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${OBJECT_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/objects)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ORBX_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/orbx)

@@ -214,6 +214,7 @@ IDTypeInfo IDType_ID_SO = {
     .make_local = NULL,
     .foreach_id = NULL,
     .foreach_cache = sound_foreach_cache,
+    .owner_get = NULL,
 
     .blend_write = sound_blend_write,
     .blend_read_data = sound_blend_read_data,
@@ -221,6 +222,8 @@ IDTypeInfo IDType_ID_SO = {
     .blend_read_expand = sound_blend_read_expand,
 
     .blend_read_undo_preserve = NULL,
+
+    .lib_override_apply_post = NULL,
 };
 
 #ifdef WITH_AUDASPACE
@@ -410,7 +413,7 @@ void BKE_sound_init(Main *bmain)
   }
 
   if (!(sound_device = AUD_init(device_name, specs, buffersize, "Blender"))) {
-    sound_device = AUD_init("Null", specs, buffersize, "Blender");
+    sound_device = AUD_init("None", specs, buffersize, "Blender");
   }
 
   BKE_sound_init_main(bmain);
@@ -991,7 +994,7 @@ int BKE_sound_scene_playing(Scene *scene)
     return -1;
   }
 
-  /* In case of a "Null" audio device, we have no playback information. */
+  /* In case of a "None" audio device, we have no playback information. */
   if (AUD_Device_getRate(sound_device) == AUD_RATE_INVALID) {
     return -1;
   }

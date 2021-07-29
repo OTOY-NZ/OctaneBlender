@@ -364,6 +364,7 @@ static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""
 static void node_oct_init_composite_mat(bNodeTree *ntree, bNode *node)
 {
   node->custom1 = 2;
+  node_octane_avo_settings_init(ntree, node);
 }
 
 static void node_shader_update_composite_mat(bNodeTree *UNUSED(ntree), bNode *node)

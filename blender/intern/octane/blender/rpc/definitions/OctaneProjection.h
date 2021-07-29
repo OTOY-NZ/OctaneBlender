@@ -140,6 +140,80 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_VISIT_FUNCTIONS
 		MSGPACK_DEFINE(iPlaceHolder, MSGPACK_BASE(OctaneNodeBase));
 	};
+
+	struct OctaneSamplePosToUVProjection : public OctaneNodeBase {
+		REFLECTABLE
+		(		
+		(OctaneDTOInt)		iPlaceHolder
+		)
+
+		OctaneSamplePosToUVProjection() :
+			OctaneNodeBase(Octane::NT_PROJ_SAMPLE_POSITION, "ShaderNodeOctSamplePosToUVProjection")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iPlaceHolder, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneMatCapProjection : public OctaneNodeBase {
+		REFLECTABLE
+		(		
+		(OctaneDTOInt)		iPlaceHolder
+		)
+
+		OctaneMatCapProjection() :
+			OctaneNodeBase(Octane::NT_PROJ_MATCAP, "ShaderNodeOctMatCapProjection")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(iPlaceHolder, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneColorToUVWProjection : public OctaneNodeBase {
+		REFLECTABLE
+		(		
+		(OctaneDTOShader)	sTexture
+		)
+
+		OctaneColorToUVWProjection() :
+			sTexture("Texture"),
+			OctaneNodeBase(Octane::NT_PROJ_COLOR_TO_UVW, "ShaderNodeOctColorToUVWProjection")
+		{
+		}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(sTexture, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneDistortedMeshUVProjection : public OctaneNodeBase{
+		REFLECTABLE
+		(
+		(OctaneDTOFloat)	fRotation,
+		(OctaneDTOFloat2)	f2RotationRange,
+		(OctaneDTOFloat)	fScale,
+		(OctaneDTOFloat2)	f2ScaleRange,
+		(OctaneDTOFloat)	fTranslation,
+		(OctaneDTOFloat2)	f2TranslationRange
+		)
+
+		OctaneDistortedMeshUVProjection() :
+			fRotation("Rotation"),
+			f2RotationRange("Rotation range"),
+			fScale("Scale"),
+			f2ScaleRange("Scale range"),
+			fTranslation("Translation"),
+			f2TranslationRange("Translation range"),
+			OctaneNodeBase(Octane::NT_PROJ_DISTORTED_MESH_UV, "ShaderNodeOctDistortedMeshUVProjection")
+		{
+		}
+
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fRotation, f2RotationRange, fScale, f2ScaleRange,
+			fTranslation, f2TranslationRange, MSGPACK_BASE(OctaneNodeBase));
+	};
 }
 
 #endif

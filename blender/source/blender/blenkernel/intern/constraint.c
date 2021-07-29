@@ -1463,30 +1463,20 @@ static void followpath_get_tarmat(struct Depsgraph *UNUSED(depsgraph),
      * currently for paths to work it needs to go through the bevlist/displist system (ton)
      */
 
-    if (ct->tar->runtime.curve_cache && ct->tar->runtime.curve_cache->path &&
-        ct->tar->runtime.curve_cache->path->data) {
+    if (ct->tar->runtime.curve_cache && ct->tar->runtime.curve_cache->anim_path_accum_length) {
       float quat[4];
       if ((data->followflag & FOLLOWPATH_STATIC) == 0) {
         /* animated position along curve depending on time */
-        Nurb *nu = cu->nurb.first;
         curvetime = cu->ctime - data->offset;
 
         /* ctime is now a proper var setting of Curve which gets set by Animato like any other var
          * that's animated, but this will only work if it actually is animated...
          *
          * we divide the curvetime calculated in the previous step by the length of the path,
-         * to get a time factor, which then gets clamped to lie within 0.0 - 1.0 range. */
+         * to get a time factor. */
         curvetime /= cu->pathlen;
 
-        if (nu && nu->flagu & CU_NURB_CYCLIC) {
-          /* If the curve is cyclic, enable looping around if the time is
-           * outside the bounds 0..1 */
-          if ((curvetime < 0.0f) || (curvetime > 1.0f)) {
-            curvetime -= floorf(curvetime);
-          }
-        }
-        else {
-          /* The curve is not cyclic, so clamp to the begin/end points. */
+        if (cu->flag & CU_PATH_CLAMP) {
           CLAMP(curvetime, 0.0f, 1.0f);
         }
       }
@@ -1495,13 +1485,13 @@ static void followpath_get_tarmat(struct Depsgraph *UNUSED(depsgraph),
         curvetime = data->offset_fac;
       }
 
-      if (where_on_path(ct->tar,
-                        curvetime,
-                        vec,
-                        dir,
-                        (data->followflag & FOLLOWPATH_FOLLOW) ? quat : NULL,
-                        &radius,
-                        NULL)) { /* quat_pt is quat or NULL*/
+      if (BKE_where_on_path(ct->tar,
+                            curvetime,
+                            vec,
+                            dir,
+                            (data->followflag & FOLLOWPATH_FOLLOW) ? quat : NULL,
+                            &radius,
+                            NULL)) { /* quat_pt is quat or NULL*/
         float totmat[4][4];
         unit_m4(totmat);
 
@@ -3784,8 +3774,7 @@ static void clampto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
     BKE_object_minmax(ct->tar, curveMin, curveMax, true);
 
     /* get targetmatrix */
-    if (data->tar->runtime.curve_cache && data->tar->runtime.curve_cache->path &&
-        data->tar->runtime.curve_cache->path->data) {
+    if (data->tar->runtime.curve_cache && data->tar->runtime.curve_cache->anim_path_accum_length) {
       float vec[4], dir[3], totmat[4][4];
       float curvetime;
       short clamp_axis;
@@ -3869,7 +3858,7 @@ static void clampto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
       }
 
       /* 3. position on curve */
-      if (where_on_path(ct->tar, curvetime, vec, dir, NULL, NULL, NULL)) {
+      if (BKE_where_on_path(ct->tar, curvetime, vec, dir, NULL, NULL, NULL)) {
         unit_m4(totmat);
         copy_v3_v3(totmat[3], vec);
 
@@ -4693,7 +4682,7 @@ static void pivotcon_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *ta
   copy_m3_m4(rotMat, cob->matrix);
   normalize_m3(rotMat);
 
-  /* correct the pivot by the rotation axis otherwise the pivot translates when it shouldnt */
+  /* correct the pivot by the rotation axis otherwise the pivot translates when it shouldn't */
   mat3_normalized_to_axis_angle(axis, &angle, rotMat);
   if (angle) {
     float dvec[3];

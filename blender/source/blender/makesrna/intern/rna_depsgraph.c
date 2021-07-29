@@ -505,11 +505,10 @@ static void rna_def_depsgraph_instance(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "DepsgraphObjectInstance", NULL);
-  RNA_def_struct_ui_text(
-      srna,
-      "Dependency Graph Object Instance",
-      "Extended information about dependency graph object iterator "
-      "(WARNING: all data here is *evaluated* one, not original .blend IDs...)");
+  RNA_def_struct_ui_text(srna,
+                         "Dependency Graph Object Instance",
+                         "Extended information about dependency graph object iterator "
+                         "(Warning: All data here is 'evaluated' one, not original .blend IDs)");
 
   prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Object");
@@ -570,7 +569,7 @@ static void rna_def_depsgraph_instance(BlenderRNA *brna)
   prop = RNA_def_property(srna, "random_id", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
   RNA_def_property_ui_text(
-      prop, "Dupli random id", "Random id for this instance, typically for randomized shading");
+      prop, "Instance Random ID", "Random id for this instance, typically for randomized shading");
   RNA_def_property_int_funcs(prop, "rna_DepsgraphObjectInstance_random_id_get", NULL, NULL);
 
   prop = RNA_def_property(srna, "matrix_world", PROP_FLOAT, PROP_MATRIX);
@@ -684,7 +683,7 @@ static void rna_def_depsgraph(BlenderRNA *brna)
       "This invalidates all references to evaluated data-blocks from this dependency graph.");
   RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS);
 
-  /* Queries for original datablockls (the ones depsgraph is built for). */
+  /* Queries for original data-blocks (the ones depsgraph is built for). */
 
   prop = RNA_def_property(srna, "scene", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Scene");
@@ -699,7 +698,7 @@ static void rna_def_depsgraph(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "View Layer", "Original view layer dependency graph is built for");
 
-  /* Queries for evaluated datablockls (the ones depsgraph is evaluating). */
+  /* Queries for evaluated data-blocks (the ones depsgraph is evaluating). */
 
   func = RNA_def_function(srna, "id_eval_get", "rna_Depsgraph_id_eval_get");
   parm = RNA_def_pointer(
@@ -773,7 +772,7 @@ static void rna_def_depsgraph(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Object Instances",
                            "All object instances to display or render "
-                           "(WARNING: only use this as an iterator, never as a sequence, "
+                           "(Warning: Only use this as an iterator, never as a sequence, "
                            "and do not keep any references to its items)");
 
   prop = RNA_def_property(srna, "updates", PROP_COLLECTION, PROP_NONE);

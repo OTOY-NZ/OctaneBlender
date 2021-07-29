@@ -163,14 +163,13 @@ const EnumPropertyItem rna_enum_transform_mode_types[] = {
 static int select_orientation_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
 
   int orientation = RNA_enum_get(op->ptr, "orientation");
 
   BKE_scene_orientation_slot_set_index(&scene->orientation_slots[SCE_ORIENT_DEFAULT], orientation);
 
   WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
   struct wmMsgBus *mbus = CTX_wm_message_bus(C);
   WM_msg_publish_rna_prop(mbus, &scene->id, scene, TransformOrientationSlot, type);
@@ -286,7 +285,7 @@ static int create_orientation_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
   }
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
   return OPERATOR_FINISHED;
 }
@@ -411,7 +410,7 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
   int exit_code;
 
   TransInfo *t = op->customdata;
-  const enum TfmMode mode_prev = t->mode;
+  const eTfmMode mode_prev = t->mode;
 
 #if defined(WITH_INPUT_NDOF) && 0
   /* Stable 2D mouse coords map to different 3D coords while the 3D mouse is active
@@ -432,7 +431,7 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
    * since we're not reading from 'td->center' in this case. see: T40241 */
   if (t->tsnap.target == SCE_SNAP_TARGET_ACTIVE) {
     /* In camera view, tsnap callback is not set
-     * (see initSnappingMode() in transfrom_snap.c, and T40348). */
+     * (see #initSnappingMode() in transform_snap.c, and T40348). */
     if (t->tsnap.targetSnap && ((t->tsnap.status & TARGET_INIT) == 0)) {
       t->tsnap.targetSnap(t);
     }
@@ -444,7 +443,7 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   if ((exit_code & OPERATOR_RUNNING_MODAL) == 0) {
     transformops_exit(C, op);
-    exit_code &= ~OPERATOR_PASS_THROUGH; /* preventively remove passthrough */
+    exit_code &= ~OPERATOR_PASS_THROUGH; /* Preventively remove pass-through. */
   }
   else {
     if (mode_prev != t->mode) {

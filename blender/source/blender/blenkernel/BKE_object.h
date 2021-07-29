@@ -32,7 +32,9 @@ extern "C" {
 
 struct Base;
 struct BoundBox;
+struct Curve;
 struct Depsgraph;
+struct GeometrySet;
 struct GpencilModifierData;
 struct HookGpencilModifierData;
 struct HookModifierData;
@@ -67,6 +69,10 @@ void BKE_object_free_curve_cache(struct Object *ob);
 
 void BKE_object_free_derived_caches(struct Object *ob);
 void BKE_object_free_caches(struct Object *object);
+
+void BKE_object_preview_geometry_set_add(struct Object *ob,
+                                         const uint64_t key,
+                                         struct GeometrySet *geometry_set);
 
 void BKE_object_modifier_hook_reset(struct Object *ob, struct HookModifierData *hmd);
 void BKE_object_modifier_gpencil_hook_reset(struct Object *ob,
@@ -335,6 +341,12 @@ struct Mesh *BKE_object_get_evaluated_mesh(struct Object *object);
 struct Mesh *BKE_object_get_pre_modified_mesh(struct Object *object);
 struct Mesh *BKE_object_get_original_mesh(struct Object *object);
 
+/* Lattice accessors.
+ * These functions return either the regular lattice, or the edit-mode lattice,
+ * whichever is currently in use. */
+struct Lattice *BKE_object_get_lattice(const struct Object *object);
+struct Lattice *BKE_object_get_evaluated_lattice(const struct Object *object);
+
 int BKE_object_insert_ptcache(struct Object *ob);
 void BKE_object_delete_ptcache(struct Object *ob, int index);
 struct KeyBlock *BKE_object_shapekey_insert(struct Main *bmain,
@@ -423,6 +435,21 @@ struct Mesh *BKE_object_to_mesh(struct Depsgraph *depsgraph,
                                 bool preserve_all_data_layers);
 
 void BKE_object_to_mesh_clear(struct Object *object);
+
+/* This is an utility function for Python's object.to_curve().
+ * The result is owned by the object.
+ *
+ * The curve will be freed when object is re-evaluated or is destroyed. It is possible to force
+ * clear memory used by this curve by calling BKE_object_to_curve_clear().
+ *
+ * If apply_modifiers is true and the object is a curve one, then spline deform modifiers are
+ * applied on the curve control points.
+ */
+struct Curve *BKE_object_to_curve(struct Object *object,
+                                  struct Depsgraph *depsgraph,
+                                  bool apply_modifiers);
+
+void BKE_object_to_curve_clear(struct Object *object);
 
 void BKE_object_check_uuids_unique_and_report(const struct Object *object);
 

@@ -38,6 +38,16 @@ static bNodeSocketTemplate sh_node_in[] = {
      1.0f,
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
+    {SOCK_SHADER,
+     N_("Color space"),
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     0.0f,
+     PROP_NONE,
+     SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
      N_("Gamma"),
      2.2f,
@@ -114,6 +124,7 @@ static void node_oct_alpha_image_tex_init(bNodeTree *ntree, bNode *node)
 
   node->storage = tex;
   node->custom1 = OCT_HDR_BIT_DEPTH_16;
+  node->oct_custom2 = IES_COMPENSATE_LUMINANCE;
   node_octane_image_texture_conversion_update(ntree, node);
 } /* node_oct_alpha_image_tex_init() */
 
@@ -133,8 +144,7 @@ void register_node_type_tex_oct_alpha_image(void)
   node_type_storage(
       &ntype, "NodeTexImage", node_free_standard_storage, node_copy_standard_storage);
   node_type_exec(&ntype, 0, 0, 0);
-  node_type_update(&ntype,
-                   node_octane_image_texture_conversion_update);
+  node_type_update(&ntype, node_octane_image_texture_conversion_update);
   ntype.update_internal_links = node_update_internal_links_default;
 
   nodeRegisterType(&ntype);
