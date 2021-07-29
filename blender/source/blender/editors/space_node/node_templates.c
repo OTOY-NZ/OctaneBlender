@@ -466,7 +466,13 @@ static int resolve_octane_socket_type(bool use_octane, const char *socket_name, 
     if (STREQ(socket_name, "Projection")) {
       return OCTANE_PROJECTION;
     }
-    else if (STREQ(socket_name, "Transform")) {
+    else if (STREQ(socket_name, "Transform") ||
+             STREQ(socket_name, "Box Transformation") ||
+             STREQ(socket_name, "Cylinder Transformation") ||
+             STREQ(socket_name, "Plane Transformation") ||
+             STREQ(socket_name, "Sphere Transformation") ||
+             STREQ(socket_name, "Plane Transformation") ||
+             STREQ(socket_name, "XYZ Transformation")) {
       return OCTANE_TRANSFORM;
     }
     else if (STREQ(socket_name, "Displacement")) {

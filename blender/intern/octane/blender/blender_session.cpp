@@ -549,6 +549,12 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
        ++b_view_iter, ++view_index) {
     b_rview_name = b_view_iter->name();
 
+	if (session && session->server) {
+      ::OctaneDataTransferObject::OctaneCommand cmdNode;
+      cmdNode.iCommandType = ::OctaneDataTransferObject::CommandType::RESET_BLENDER_VIEWLAYER;
+      session->server->uploadOctaneNode(&cmdNode, NULL);
+	}
+
     /* set the current view */
     b_engine.active_view_set(b_rview_name.c_str());
 
