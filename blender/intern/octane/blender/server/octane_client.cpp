@@ -528,8 +528,7 @@ void OctaneClient::reset(bool bInteractive,
                   (m_sCachePath.size() + 2),
               OctaneDataTransferObject::RESET);
   snd << bInteractive << fFrameTimeSampling << fFps << m_ExportSceneType << bDeepImage
-      << m_bExportWithObjectLayers
-      << m_sOutPath.c_str() << m_sCachePath.c_str();
+      << m_bExportWithObjectLayers << m_sOutPath.c_str() << m_sCachePath.c_str();
 
   snd.write();
 
@@ -846,8 +845,89 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
     return;
 
   LOCK_MUTEX(m_SocketMutex);
+  if (pCamera->bUseUniversalCamera) {
+    pCamera->universalCamera.sName = "UniversalCamera";
+    RPCMsgPackObj::sendOctaneNode(
+        m_Socket, pCamera->universalCamera.sName, &pCamera->universalCamera);
+    if (checkResponsePacket(OctaneDataTransferObject::LOAD_OCTANE_NODE)) {
+      m_CameraCache[uiFrameIdx] = *pCamera;
+    }
+	//temp fix
+	//use lens camera upload here to upload imager and postprocess data
+    {
+      uint32_t motoin_data_num = pCamera->oMotionParams.motions.size();
+      std::vector<float_3> motion_eye_point_data;
+      std::vector<float_3> motion_look_at_data;
+      std::vector<float_3> motion_up_vector_data;
+      std::vector<float> motion_fov_data;
+      for (auto it : pCamera->oMotionParams.motions) {
+        motion_eye_point_data.push_back(it.second.f3EyePoint);
+        motion_look_at_data.push_back(it.second.f3LookAt);
+        motion_up_vector_data.push_back(it.second.f3UpVector);
+        motion_fov_data.push_back(it.second.fFOV);
+      }
 
-  if (pCamera->type == Camera::CAMERA_PANORAMA) {
+      RPCSend snd(m_Socket,
+                  (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
+                      sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 30 +
+                      sizeof(uint32_t) * 5 + (pCamera->sCustomLut.length() + 2),
+                  OctaneDataTransferObject::LOAD_THIN_LENS_CAMERA);
+
+      snd << pCamera->bUseUniversalCamera;
+      snd << motoin_data_num;
+      snd.writeBuffer(&motion_eye_point_data[0], sizeof(float) * 3 * motoin_data_num);
+      snd.writeBuffer(&motion_look_at_data[0], sizeof(float) * 3 * motoin_data_num);
+      snd.writeBuffer(&motion_up_vector_data[0], sizeof(float) * 3 * motoin_data_num);
+      snd.writeBuffer(&motion_fov_data[0], sizeof(float) * motoin_data_num);
+
+      snd << pCamera->f3EyePoint << pCamera->f3LookAt << pCamera->f3UpVector
+          << pCamera->f3LeftFilter << pCamera->f3RightFilter << pCamera->f3WhiteBalance
+
+          << pCamera->fAperture << pCamera->fApertureEdge << pCamera->fDistortion
+          << pCamera->fFocalDepth << pCamera->fNearClipDepth << pCamera->fFarClipDepth
+          << pCamera->f2LensShift.x << pCamera->f2LensShift.y << pCamera->fStereoDist
+          << pCamera->fFOV << pCamera->fExposure << pCamera->fGamma << pCamera->fVignetting
+          << pCamera->fSaturation << pCamera->fHotPixelFilter << pCamera->fWhiteSaturation
+          << pCamera->fBloomPower << pCamera->fCutoff << pCamera->fGlarePower
+          << pCamera->fGlareAngle << pCamera->fGlareBlur << pCamera->fSpectralShift
+          << pCamera->fSpectralIntencity << pCamera->fHighlightCompression << pCamera->fPixelAspect
+          << pCamera->fApertureAspect << pCamera->fBokehRotation << pCamera->fBokehRoundness
+          << pCamera->fLutStrength << pCamera->fDenoiserBlend
+
+          << pCamera->bEnableDenoiser << pCamera->bDenoiseVolumes << pCamera->bDenoiseOnCompletion
+          << pCamera->iMinDenoiserSample << pCamera->iMaxDenoiserInterval
+
+          << pCamera->iSamplingMode << pCamera->bEnableAIUpSampling
+          << pCamera->bUpSamplingOnCompletion << pCamera->iMinUpSamplerSamples
+          << pCamera->iMaxUpSamplerInterval
+
+          << pCamera->iCameraImagerOrder << pCamera->iResponseCurve << pCamera->iMinDisplaySamples
+          << pCamera->iGlareRayCount << pCamera->stereoMode << pCamera->stereoOutput
+          << pCamera->iMaxTonemapInterval << uiFrameIdx << uiTotalFrames
+          << pCamera->iBokehSidecount
+
+          << pCamera->bEnableImager << pCamera->bOrtho << pCamera->bAutofocus
+          << pCamera->bPremultipliedAlpha << pCamera->bDithering << pCamera->bUsePostprocess
+          << pCamera->bPerspCorr << pCamera->bNeutralResponse << pCamera->bUseFstopValue
+          << pCamera->bDisablePartialAlpha << pCamera->bSwapEyes << pCamera->bUseOSLCamera
+          << pCamera->bPreviewCameraMode << pCamera->sCustomLut.c_str();
+      snd.write();
+    }
+
+    RPCReceive rcv(m_Socket);
+    if (rcv.m_PacketType != OctaneDataTransferObject::LOAD_THIN_LENS_CAMERA) {
+      rcv >> m_sErrorMsg;
+      fprintf(stderr, "Octane: ERROR loading camera.");
+      if (m_sErrorMsg.length() > 0)
+        fprintf(stderr, " Server log:\n%s\n", m_sErrorMsg.c_str());
+      else
+        fprintf(stderr, "\n");
+    }
+    else {
+      m_CameraCache[uiFrameIdx] = *pCamera;
+    }
+  }
+  else if (pCamera->type == Camera::CAMERA_PANORAMA) {
     {
       RPCSend snd(m_Socket,
                   sizeof(float_3) * 6 + sizeof(float) * 28 + sizeof(int32_t) * 30 +
@@ -963,9 +1043,10 @@ void OctaneClient::uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t u
       RPCSend snd(m_Socket,
                   (sizeof(uint32_t) + (sizeof(float_3) * 3 + sizeof(float)) * motoin_data_num) +
                       sizeof(float_3) * 6 + sizeof(float) * 31 + sizeof(int32_t) * 30 +
-                      sizeof(uint32_t) * 4 + (pCamera->sCustomLut.length() + 2),
+                      sizeof(uint32_t) * 5 + (pCamera->sCustomLut.length() + 2),
                   OctaneDataTransferObject::LOAD_THIN_LENS_CAMERA);
 
+      snd << pCamera->bUseUniversalCamera;
       snd << motoin_data_num;
       snd.writeBuffer(&motion_eye_point_data[0], sizeof(float) * 3 * motoin_data_num);
       snd.writeBuffer(&motion_look_at_data[0], sizeof(float) * 3 * motoin_data_num);
@@ -1173,7 +1254,9 @@ void OctaneClient::uploadRenderRegion(Camera *pCamera, bool bInteractive)
   LOCK_MUTEX(m_SocketMutex);
 
   {
-    RPCSend snd(m_Socket, sizeof(uint32_t) * 8 + sizeof(float) * 2, OctaneDataTransferObject::LOAD_RENDER_REGION);
+    RPCSend snd(m_Socket,
+                sizeof(uint32_t) * 9 + sizeof(float) * 2,
+                OctaneDataTransferObject::LOAD_RENDER_REGION);
     if (pCamera->bUseRegion)
       snd << pCamera->ui4Region.x << pCamera->ui4Region.y << pCamera->ui4Region.z
           << pCamera->ui4Region.w;
@@ -1181,9 +1264,9 @@ void OctaneClient::uploadRenderRegion(Camera *pCamera, bool bInteractive)
       uint32_t tmp = 0;
       snd << tmp << tmp << tmp << tmp;
     }
-    snd << pCamera->ui2BlenderCameraDemension.x << pCamera->ui2BlenderCameraDemension.y
-        << pCamera->f2BlenderCameraCenter.x << pCamera->f2BlenderCameraCenter.y
-        << pCamera->bUseBlenderCamera << bInteractive;  
+    snd << pCamera->bUseCameraDimensionAsPreviewResolution << pCamera->ui2BlenderCameraDimension.x
+        << pCamera->ui2BlenderCameraDimension.y << pCamera->f2BlenderCameraCenter.x
+        << pCamera->f2BlenderCameraCenter.y << pCamera->bUseBlenderCamera << bInteractive;
     snd.write();
   }
 
@@ -1580,8 +1663,8 @@ void OctaneClient::uploadOctaneMesh(OctaneDataTransferObject::OctaneMeshes &mesh
           std::pair<uint32_t, uint32_t>(mesh.oMeshData.fSphereVertexFloats[i].size(), fDataOffset);
       fDataOffset += mesh.oMeshData.fSphereVertexFloats[i].size();
     }
-    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_MATERIAL_INDEX_DATA] = std::pair<uint32_t, uint32_t>(
-        mesh.oMeshData.iSphereMaterialIndices.size(), iDataOffset);
+    mesh.oMeshData.oArrayInfo[ARRAY_INFO_SPHERE_MATERIAL_INDEX_DATA] =
+        std::pair<uint32_t, uint32_t>(mesh.oMeshData.iSphereMaterialIndices.size(), iDataOffset);
     iDataOffset += mesh.oMeshData.iSphereMaterialIndices.size();
   }
 
@@ -2848,6 +2931,7 @@ bool OctaneClient::getImgBuffer8bit(int &iComponentsCnt,
 
 
 
+
     UNLOCK_MUTEX(m_ImgBufMutex);
     return true;
 } //getCopyImgBuffer8bit()
@@ -3572,7 +3656,8 @@ bool OctaneClient::downloadImageBuffer(RenderStatistics &renderStat,
 
       if (imgType == IMAGE_8BIT) {
         size_t stSrcStringSize = uiRegW * renderStat.iComponentsCnt;
-        size_t stDstStringSize = ((uiRegW * renderStat.iComponentsCnt) / renderStat.iComponentsCnt +
+        size_t stDstStringSize =
+            ((uiRegW * renderStat.iComponentsCnt) / renderStat.iComponentsCnt +
              ((uiRegW * renderStat.iComponentsCnt) % renderStat.iComponentsCnt ? 1 : 0)) *
             renderStat.iComponentsCnt;
         size_t stDstLen = stDstStringSize * uiRegH;

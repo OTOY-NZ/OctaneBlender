@@ -15,24 +15,25 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+#include "render/camera.h"
+#include "render/environment.h"
 #include "render/graph.h"
+#include "render/kernel.h"
+#include "render/osl.h"
 #include "render/scene.h"
 #include "render/shader.h"
-#include "render/osl.h"
-#include "render/environment.h"
-#include "render/kernel.h"
 
 #include "DNA_node_types.h"
 
 #include "blender/blender_sync.h"
 #include "blender/blender_util.h"
 
+#include "blender/rpc/definitions/OctaneNode.h"
 #include "util/util_foreach.h"
-#include <unordered_set>
-#include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/assign.hpp>
-#include "blender/rpc/definitions/OctaneNode.h"
+#include <boost/filesystem.hpp>
+#include <unordered_set>
 
 OCT_NAMESPACE_BEGIN
 
@@ -287,7 +288,7 @@ static bool update_octane_image_data(
                       b_image.source() == BL::Image::source_MOVIE ||
                       (b_engine.is_preview() && b_image.source() != BL::Image::source_SEQUENCE);
 
-	is_auto_refresh |= (b_image.source() == BL::Image::source_MOVIE);
+    is_auto_refresh |= (b_image.source() == BL::Image::source_MOVIE);
 
     if (is_builtin) {
       /* for builtin images we're using image datablock name to find an image to
@@ -578,7 +579,8 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                                                                  b_scene,
                                                                  graph,
                                                                  b_node,
-                                                                 link_resolver, false);
+                                                                 link_resolver,
+                                                                 false);
         if (object_data_output_node && object_data_output_node->oct_node) {
           if (name == "OutTransform") {
             BL::ShaderNodeTexCoord b_tex_coord_node(b_node);
@@ -679,7 +681,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         (::OctaneDataTransferObject::OctaneVertexDisplacementTexture *)(node->oct_node);
     if (octane_node) {
       graph->need_subdivision = true;
-	}
+    }
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctImageTileTex)) {
     if (node && node->oct_node) {
@@ -1345,7 +1347,13 @@ void BlenderSync::sync_textures(BL::Depsgraph &b_depsgraph, bool update_all)
     std::string name = b_tex->name().c_str();
     if (scene && scene->kernel && scene->kernel->oct_node) {
       need_sync |= scene->kernel->oct_node->sAoTexture == name;
-    }    
+    }
+    if (scene && scene->camera) {
+      need_sync |= scene->camera->oct_node.universalCamera.sDistortionTexture.sLinkNodeName ==
+                   name;
+      need_sync |= scene->camera->oct_node.universalCamera.sCustomAperture.sLinkNodeName ==
+                   name;
+    }
     if (need_sync || shader->need_sync_object || update_all) {
       ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_TEXTURE);
 

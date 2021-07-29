@@ -30,8 +30,8 @@
 #endif  // NOPNG
 
 #include "util/util_opengl.h"
-#include "util/util_types.h"
 #include "util/util_path.h"
+#include "util/util_types.h"
 #include <random>
 using std::uniform_real_distribution;
 
@@ -50,6 +50,17 @@ BufferParams::BufferParams()
   full_y = 0;
   full_width = 0;
   full_height = 0;
+
+  camera_center_x = 0;
+  camera_center_y = 0;
+  camera_dimension_width = 0;
+  camera_dimension_height = 0;
+  camera_resolution_width = 0;
+  camera_resolution_height = 0;
+  use_camera_dimension_as_preview_resolution = false;
+
+  use_border = false;
+  border.left = border.right = border.top = border.bottom = 0;
 }
 
 void BufferParams::get_offset_stride(int &offset, int &stride)
@@ -62,7 +73,15 @@ bool BufferParams::modified(const BufferParams &params)
 {
   return !(full_x == params.full_x && full_y == params.full_y && width == params.width &&
            height == params.height && full_width == params.full_width &&
-           full_height == params.full_height);
+           full_height == params.full_height && camera_center_x == params.camera_center_x &&
+           camera_center_y == params.camera_center_y &&
+           camera_dimension_width == params.camera_dimension_width &&
+           camera_dimension_height == params.camera_dimension_height &&
+           camera_resolution_width == params.camera_resolution_width &&
+           camera_resolution_height == params.camera_resolution_height &&
+           use_camera_dimension_as_preview_resolution ==
+               params.use_camera_dimension_as_preview_resolution &&
+           use_border == params.use_border && border == params.border);
 }
 
 /* Display Buffer */
@@ -164,11 +183,29 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params)
   // int reg_width = params.use_border ? params.border.z - params.border.x : params.width,
   //	reg_height = params.use_border ? params.border.w - params.border.y : params.height;
   int components_cnt;
+  int full_width = params.full_width, full_height = params.full_height;
   int reg_width = params.width, reg_height = params.height;
   uint8_t *rgba = NULL;
 
+  if (params.use_camera_dimension_as_preview_resolution) {
+    if (params.use_border) {
+      full_width = params.camera_resolution_width;
+      full_height = params.camera_resolution_height;
+      reg_width = params.border.right - params.border.left;
+      reg_height = params.border.top - params.border.bottom;
+    }
+    else {
+      full_width = reg_width = params.camera_resolution_width;
+      full_height = reg_height = params.camera_resolution_height;
+      dx = params.camera_center_x * params.width - params.camera_dimension_width / 2;
+      dy = params.camera_center_y * params.height - params.camera_dimension_height / 2;
+      width = params.camera_dimension_width;
+      height = params.camera_dimension_height;
+    }
+  }
+
   if (!server->getImgBuffer8bit(
-          components_cnt, rgba, params.full_width, params.full_height, reg_width, reg_height))
+          components_cnt, rgba, full_width, full_height, reg_width, reg_height))
     return;
   if (!rgba)
     return;

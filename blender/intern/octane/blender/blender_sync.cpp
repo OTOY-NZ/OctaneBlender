@@ -87,6 +87,14 @@ bool BlenderSync::is_frame_updated()
 
 /* Sync */
 
+void BlenderSync::reset(BL::BlendData &b_data, BL::Scene &b_scene)
+{
+  /* Update data and scene pointers in case they change in session reset,
+   * for example after undo. */
+  this->b_data = b_data;
+  this->b_scene = b_scene;
+}
+
 void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
 {
   ///* Sync recalc flags from blender to octane. Actual update is done separate,

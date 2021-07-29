@@ -32,9 +32,9 @@
 #include "../../shader/node_shader_util.h"
 
 /* **************** Script ******************** */
-static bNodeSocketTemplate sh_node_in[] = {{-1, 0, ""}};
+static bNodeSocketTemplate sh_node_in[] = {{-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void init(bNodeTree *UNUSED(ntree), bNode *node)
 {

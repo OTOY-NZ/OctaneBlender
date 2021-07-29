@@ -25,6 +25,20 @@ __all__ = (
 )
 
 
+class OctaneDummyImage(object):
+    def __init__(self):
+        super(OctaneDummyImage, self).__init__()
+        self.image = None
+        self.texcoords = None
+        self.translation = None
+        self.scale = None
+        
+
+def is_octane_engine():
+    import bpy
+    return bpy.context.engine == 'octane'
+
+
 def _set_check(func):
     from functools import wraps
 
@@ -48,20 +62,6 @@ def values_clamp(val, minv, maxv):
         return tuple(max(minv, min(maxv, v)) for v in val)
     else:
         return max(minv, min(maxv, val))
-
-
-class OctaneDummyImage(object):
-    def __init__(self):
-        super(OctaneDummyImage, self).__init__()
-        self.image = None
-        self.texcoords = None
-        self.translation = None
-        self.scale = None
-
-
-def is_octane_engine():
-    import bpy
-    return bpy.context.engine == 'octane'
 
 
 class ShaderWrapper():
@@ -171,6 +171,7 @@ class PrincipledBSDFWrapper(ShaderWrapper):
     NODES_LIST = (
         "node_out",
         "node_principled_bsdf",
+        "node_universal_material",
 
         "_node_normalmap",
         "_node_texcoords",
@@ -187,11 +188,7 @@ class PrincipledBSDFWrapper(ShaderWrapper):
     def __init__(self, material, is_readonly=True, use_nodes=True):
         super(PrincipledBSDFWrapper, self).__init__(material, is_readonly, use_nodes)
 
-
     def update(self):
-        if is_octane_engine():
-            self.node_principled_bsdf = None
-            return       
         super(PrincipledBSDFWrapper, self).update()
 
         if not self.use_nodes:
@@ -201,6 +198,20 @@ class PrincipledBSDFWrapper(ShaderWrapper):
 
         nodes = tree.nodes
         links = tree.links
+        
+        if is_octane_engine():
+            self.node_out = nodes["Material Output"]
+            self.node_principled_bsdf = None
+            self.node_universal_material = None
+            from_node = self.node_out.inputs[0].links[0].from_node
+            if from_node.type != "OCT_UNIVERSAL_MAT":
+                self.node_universal_material = nodes.new(type='ShaderNodeOctUniversalMat')
+                self.node_universal_material.location = from_node.location
+                nodes.remove(from_node)
+                links.new(self.node_universal_material.outputs["OutMat"], self.node_out.inputs["Surface"])
+            else:
+                self.node_universal_material = from_node
+            return
 
         # --------------------------------------------------------------------
         # Main output and shader.
@@ -285,15 +296,20 @@ class PrincipledBSDFWrapper(ShaderWrapper):
     # Base Color.
 
     def base_color_get(self):
+        if is_octane_engine():
+            return rgba_to_rgb(self.node_universal_material.inputs["Albedo color"].default_value)                
         if not self.use_nodes or self.node_principled_bsdf is None:
             return self.material.diffuse_color
         return rgba_to_rgb(self.node_principled_bsdf.inputs["Base Color"].default_value)
 
     @_set_check
-    def base_color_set(self, color):
+    def base_color_set(self, color):      
         color = values_clamp(color, 0.0, 1.0)
         color = rgb_to_rgba(color)
         self.material.diffuse_color = color
+        if is_octane_engine():
+            self.node_universal_material.inputs["Albedo color"].default_value = color
+            return         
         if self.use_nodes and self.node_principled_bsdf is not None:
             self.node_principled_bsdf.inputs["Base Color"].default_value = color
 
@@ -302,7 +318,11 @@ class PrincipledBSDFWrapper(ShaderWrapper):
 
     def base_color_texture_get(self):
         if is_octane_engine():                
-            return OctaneDummyImage()        
+            return ShaderImageTextureWrapper(
+                self, self.node_universal_material,
+                self.node_universal_material.inputs["Albedo color"],
+                grid_row_diff=1,
+            )
         if not self.use_nodes or self.node_principled_bsdf is None:
             return None
         return ShaderImageTextureWrapper(
@@ -318,6 +338,8 @@ class PrincipledBSDFWrapper(ShaderWrapper):
     # Specular.
 
     def specular_get(self):
+        if is_octane_engine():
+            return self.node_universal_material.inputs["Specular"].default_value     
         if not self.use_nodes or self.node_principled_bsdf is None:
             return self.material.specular_intensity
         return self.node_principled_bsdf.inputs["Specular"].default_value
@@ -326,6 +348,9 @@ class PrincipledBSDFWrapper(ShaderWrapper):
     def specular_set(self, value):
         value = values_clamp(value, 0.0, 1.0)
         self.material.specular_intensity = value
+        if is_octane_engine():
+            self.node_universal_material.inputs["Specular"].default_value = value
+            return
         if self.use_nodes and self.node_principled_bsdf is not None:
             self.node_principled_bsdf.inputs["Specular"].default_value = value
 
@@ -349,7 +374,11 @@ class PrincipledBSDFWrapper(ShaderWrapper):
     # Will only be used as gray-scale one...
     def specular_texture_get(self):
         if is_octane_engine():                
-            return OctaneDummyImage()        
+            return ShaderImageTextureWrapper(
+                self, self.node_universal_material,
+                self.node_universal_material.inputs["Specular"],
+                grid_row_diff=1,
+            )       
         if not self.use_nodes or self.node_principled_bsdf is None:
             print("NO NODES!")
             return None
@@ -367,6 +396,8 @@ class PrincipledBSDFWrapper(ShaderWrapper):
     # Roughness (also sort of inverse of specular hardness...).
 
     def roughness_get(self):
+        if is_octane_engine():
+            return self.node_universal_material.inputs["Roughness"].default_value       
         if not self.use_nodes or self.node_principled_bsdf is None:
             return self.material.roughness
         return self.node_principled_bsdf.inputs["Roughness"].default_value
@@ -375,6 +406,9 @@ class PrincipledBSDFWrapper(ShaderWrapper):
     def roughness_set(self, value):
         value = values_clamp(value, 0.0, 1.0)
         self.material.roughness = value
+        if is_octane_engine():
+            self.node_universal_material.inputs["Roughness"].default_value = value
+            return        
         if self.use_nodes and self.node_principled_bsdf is not None:
             self.node_principled_bsdf.inputs["Roughness"].default_value = value
 
@@ -383,6 +417,12 @@ class PrincipledBSDFWrapper(ShaderWrapper):
 
     # Will only be used as gray-scale one...
     def roughness_texture_get(self):
+        if is_octane_engine():                
+            return ShaderImageTextureWrapper(
+                self, self.node_universal_material,
+                self.node_universal_material.inputs["Roughness"],
+                grid_row_diff=1,
+            )      
         if not self.use_nodes or self.node_principled_bsdf is None:
             return None
         return ShaderImageTextureWrapper(
@@ -629,6 +669,9 @@ class ShaderImageTextureWrapper():
             from_node = socket_dst.links[0].from_node
             if from_node.bl_idname == 'ShaderNodeTexImage':
                 self._node_image = from_node
+                
+        if is_octane_engine():
+            return
 
         if self.node_image is not None:
             socket_dst = self.node_image.inputs["Vector"]
@@ -697,10 +740,15 @@ class ShaderImageTextureWrapper():
         if self._node_image is None and not self.is_readonly:
             tree = self.owner_shader.material.node_tree
 
-            node_image = tree.nodes.new(type='ShaderNodeTexImage')
-            self.owner_shader._grid_to_location(-1, 0 + self.grid_row_diff, dst_node=node_image, ref_node=self.node_dst)
+            if is_octane_engine():
+                node_image = tree.nodes.new(type='ShaderNodeOctImageTex')
+                self.owner_shader._grid_to_location(-1, 0 + self.grid_row_diff, dst_node=node_image, ref_node=self.node_dst)
+                tree.links.new(node_image.outputs["OutTex"], self.socket_dst)
+            else:
+                node_image = tree.nodes.new(type='ShaderNodeTexImage')
+                self.owner_shader._grid_to_location(-1, 0 + self.grid_row_diff, dst_node=node_image, ref_node=self.node_dst)
 
-            tree.links.new(node_image.outputs["Alpha" if self.use_alpha else "Color"], self.socket_dst)
+                tree.links.new(node_image.outputs["Alpha" if self.use_alpha else "Color"], self.socket_dst)
 
             self._node_image = node_image
         return self._node_image

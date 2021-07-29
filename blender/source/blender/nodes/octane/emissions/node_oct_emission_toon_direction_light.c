@@ -28,7 +28,6 @@
 #include "../../shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
-                                            1,
                                             N_("Texture"),
                                             1.0f,
                                             0.0f,
@@ -39,7 +38,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_VECTOR,
-                                            1,
                                             N_("Sun direction"),
                                             0.61775f,
                                             0.7034096f,
@@ -50,7 +48,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             PROP_DIRECTION,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
-                                            1,
                                             N_("Power"),
                                             1.0f,
                                             0.0f,
@@ -61,7 +58,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_INT,
-                                            1,
                                             N_("Light pass ID"),
                                             1.0f,
                                             0.0f,
@@ -72,7 +68,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_BOOLEAN,
-                                            1,
                                             N_("Cast shadows"),
                                             1.0f,
                                             0.0f,
@@ -82,12 +77,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             0.0f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
-                                           {-1, 0, ""}};
+                                           {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_SHADER, 0, N_("OutLight")},
+    {SOCK_SHADER, N_("OutLight")},
     {SOCK_RGBA,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -97,7 +91,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 static void node_oct_toon_direction_light_init(bNodeTree *UNUSED(ntree), bNode *node)
 {

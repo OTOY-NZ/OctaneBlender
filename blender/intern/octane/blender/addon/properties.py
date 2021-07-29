@@ -36,6 +36,45 @@ from math import pi
 import nodeitems_utils
 from . import nodeitems_octane
 
+universal_camera_modes = (
+    ('Thin lens', "Thin lens", '', 1),
+    ('Orthographic', "Orthographic", '', 2),
+    ('Fisheye', "Fisheye", '', 3),
+    ('Equirectangular', "Equirectangular", '', 4), 
+    ('Cubemap', "Cubemap", '', 5), 
+    )
+
+universal_pan_camera_modes = (
+    ('Fisheye', "Fisheye", '', 3),
+    ('Equirectangular', "Equirectangular", '', 4), 
+    ('Cubemap', "Cubemap", '', 5), 
+    )
+
+universal_fisheye_types = (
+    ('Circular', "Circular", '', 1),
+    ('Full frame', "Full frame", '', 2),
+    )
+
+universal_fisheye_projection_types = (
+    ('Stereographic', "Stereographic", '', 1),
+    ('Equidistant', "Equidistant", '', 2),
+    ('Equisolid', "Equisolid", '', 3),
+    ('Orthographic', "Orthographic", '', 4),
+    )
+
+universal_cubemap_layout_types = (
+    ('6x1', "6x1", '', 1),
+    ('3x2', "3x2", '', 2),
+    ('2x3', "2x3", '', 3),
+    ('1x6', "1x6", '', 4),
+    )
+
+universal_aperture_shape_types = (
+    ('Circular', "Circular", '', 1),
+    ('Polygonal', "Polygonal", '', 2),
+    ('Norched', "Norched", '', 3),
+    ('Custom', "Custom", '', 4),
+    )
 
 filter_types = (
     ('BOX', "Box", "Box filter"),
@@ -100,6 +139,7 @@ default_material_orders = (
     ('8', "ShadowCatcher", '', 8), 
     ('9', "Layered", '', 9), 
     ('10', "Composite", '', 10), 
+    ('11', "Hair", '', 11),     
     )
 
 texture_node_layouts = (
@@ -1029,7 +1069,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
 
     default_material_id: EnumProperty(
             name="Default Material Type",
-            description="Material to use for default (rendering with Octane)",   
+            description="Material to use for default (rendering with Octane)(reboot blender to take effect)",   
             items=default_material_orders,   
             default="7", # Universal
             )
@@ -1988,6 +2028,249 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
 
 class OctaneCameraSettings(bpy.types.PropertyGroup):
 
+    use_camera_dimension_as_preview_resolution: BoolProperty(
+            name="Adapt to Camera View Resolution",
+            description="Used the camera view resolution in preview",
+            default=False,
+            )
+    used_as_universal_camera: BoolProperty(
+            name="Used as Universal Camera",
+            description="Used as Universal Camera",
+            default=False,
+            )    
+    universal_camera_mode: EnumProperty(
+            name="Camera mode",
+            description="Camera mode",
+            items=universal_pan_camera_modes,
+            default='Equirectangular',
+            )    
+    fisheye_angle: FloatProperty(
+            name="Fisheye angle",
+            description="Field of view [deg.]",
+            min=1.0, soft_min=1.0, max=360.0, soft_max=360.0,
+            default=240.0,
+            step=10,
+            precision=3,
+            )
+    fisheye_type: EnumProperty(
+            name="Fisheye type",
+            description="Whether the lens circle is contained in the sensor or covers it fully",
+            items=universal_fisheye_types,
+            default='Circular',
+            )   
+    hard_vignette: BoolProperty(
+            name="Hard vignette",
+            description="For circular fisheye, whether the area outside the lens is rendered or not",
+            default=True,
+            )    
+    fisheye_projection_type: EnumProperty(
+            name="Fisheye projection",
+            description="The projection function used for the fisheye",
+            items=universal_fisheye_projection_types,
+            default='Stereographic',
+            )                 
+    cubemap_layout_type: EnumProperty(
+            name="Cubemap layout",
+            description="Cubemap layout",
+            items=universal_cubemap_layout_types,
+            default='6x1',
+            )    
+    equi_angular_cubemap: BoolProperty(
+            name="Equi-angular cubemap",
+            description="If enabled the cubemap will use an equi-angular projection",
+            default=False,
+            )
+    use_distortion_texture: BoolProperty(
+            name="Use distortion texture",
+            description="Use distortion texture",
+            default=False,
+            )   
+    distortion_texture: StringProperty(
+            name="Distortion texture",
+            description="The distortion texture map",
+            default="",
+            maxlen=512,
+            )                
+    spherical_distortion: FloatProperty(
+            name="Spherical distortion",
+            description="The amount of spherical distortion",
+            min=0, soft_min=0, max=1, soft_max=1.0,
+            default=0.0,
+            step=10,
+            precision=3,
+            )                                          
+    barrel_distortion: FloatProperty(
+            name="Barrel distortion",
+            description="Straight lines will appear curved. Negative values produce pincushion distortion",
+            min=-1.0, soft_min=-0.5, max=1.0, soft_max=0.5,
+            default=0.0,
+            step=10,
+            precision=3,
+            )
+    barrel_distortion_corners: FloatProperty(
+            name="Barrel distortion corners",
+            description="This value mostly affects corners. A different sign from the Barrel value produces moustache distortion",
+            min=-1.0, soft_min=-0.5, max=1.0, soft_max=0.5,
+            default=0.0,
+            step=10,
+            precision=3,
+            )   
+    spherical_aberration: FloatProperty(
+            name="Spherical aberration",
+            description="Rays hitting the edge of the lens focus closer to the lensn",
+            min=-1.0, soft_min=-0.2, max=1.0, soft_max=0.2,
+            default=0.0,
+            step=10,
+            precision=3,
+            )                                          
+    coma: FloatProperty(
+            name="Coma",
+            description="Rays hitting the edge of the lens have a wider FOV",
+            min=-1.0, soft_min=-0.25, max=10.0, soft_max=0.25,
+            default=0.0,
+            step=10,
+            precision=3,
+            )
+    astigmatism: FloatProperty(
+            name="Astigmatism",
+            description="Saggital and tangential rays focus at different distances from the lens",
+            min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
+            default=0.0,
+            step=10,
+            precision=3,
+            )    
+    field_curvature: FloatProperty(
+            name="Field curvature",
+            description="Curvature of the plane in focus",
+            min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
+            default=0.0,
+            step=10,
+            precision=3,
+            )  
+    aperture_shape_type: EnumProperty(
+            name="Aperture shape",
+            description="The shape of the aperture",
+            items=universal_aperture_shape_types,
+            default='Polygonal',
+            )      
+    aperture_blade_count: IntProperty(
+            name="Aperture blade count",
+            description="The number of blades forming the iris diaphragm",
+            min=3, soft_min=3, max=100, soft_max=12,
+            default=6,
+            )                                   
+    aperture_rotation: FloatProperty(
+            name="Aperture rotation",
+            description="The rotation of the aperture shape [degrees]",
+            min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+            default=0.0,
+            step=10,
+            precision=3,
+            )
+    aperture_roundedness: FloatProperty(
+            name="Aperture roundedness",
+            description="The roundedness of the blades forming the iris diaphragm",
+            min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+            default=1.0,
+            step=10,
+            precision=3,
+            )  
+    central_obstruction: FloatProperty(
+            name="Central obstruction",
+            description="Simulates the obstruction from the secondary mirror of a catadioptric system. Only enabled on circular apertures",
+            min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+            default=0.0,
+            step=10,
+            precision=3,
+            )
+    notch_position: FloatProperty(
+            name="Notch position",
+            description="Position of the notch on the blades",
+            min=-1.0, soft_min=-1.0, max=1.0, soft_max=1.0,
+            default=-1.0,
+            step=10,
+            precision=3,
+            )
+    notch_scale: FloatProperty(
+            name="Notch scale",
+            description="Scale of the notch",
+            min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
+            default=0.5,
+            step=10,
+            precision=3,
+            )                                                                         
+    custom_aperture_texture: StringProperty(
+            name="Custom aperture",
+            description="The custom aperture opacity map. The projection type must be set to OSL delayed UV",
+            default="",
+            maxlen=512,
+            )    
+    optical_vignette_distance: FloatProperty(
+            name="Optical vignette distance",
+            description="The distance between the lens and the opening of the lens barrel [m]",
+            min=-0.5, soft_min=-0.5, max=0.5, soft_max=0.5,
+            default=0.0,
+            step=10,
+            precision=3,
+            )  
+    optical_vignette_scale: FloatProperty(
+            name="Optical vignette scale",
+            description="The scale of the opening of the lens barrel relatively to the aperture",
+            min=1.0, soft_min=1.0, max=4.0, soft_max=4.0,
+            default=1.0,
+            step=10,
+            precision=3,
+            )       
+    enable_split_focus_diopter: BoolProperty(
+            name="Enable split-focus diopter",
+            description="Enable the split-focus diopter",
+            default=False,
+            )                                                     
+    diopter_focal_depth: FloatProperty(
+            name="Diopter focal depth",
+            description="The depth of the plane in focus [m]",
+            min=0.010, soft_min=0.010, max=1000000.000, soft_max=1000.000,
+            default=1.110,
+            step=10,
+            precision=3,
+            )  
+    diopter_rotation: FloatProperty(
+            name="Diopter rotation",
+            description="Rotation of the split-focus diopter [degrees]",
+            min=-360.0, soft_min=-360.0, max=360.0, soft_max=360.0,
+            default=0.0,
+            step=10,
+            precision=3,
+            ) 
+    diopter_translation: FloatVectorProperty(
+            name="Translation",  
+            description="Translation of the split-focus diopter",                              
+            default=(0.0, 0.0),
+            subtype='TRANSLATION',
+            size=2,
+            )   
+    diopter_boundary_width: FloatProperty(
+            name="Diopter boundary width",
+            description="Width of the boundary between the two fields",
+            min=0.00, soft_min=0.00, max=1.00, soft_max=1.00,
+            default=0.5,
+            step=10,
+            precision=3,
+            )  
+    diopter_boundary_falloff: FloatProperty(
+            name="Diopter boundary falloff",
+            description="Controls how quickly the split-focus diopter focal depth blends into the main focal depth",
+            min=0.00, soft_min=0.00, max=1.00, soft_max=1.00,
+            default=1.0,
+            step=10,
+            precision=3,
+            ) 
+    show_diopter_guide: BoolProperty(
+            name="Show diopter guide",
+            description="Display guide lines. Toggling this option on or off restarts the render",
+            default=False,
+            ) 
+
     pan_mode: EnumProperty(
             name="Pan mode",
             description="The panoramic projection that should be used",
@@ -2280,7 +2563,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup):
             name="Response type",
             description="Camera response curve",
             items=response_types,
-            default='105',
+            default='400',
             )        
     int_response_type: IntProperty(
             name="Int Response type",
@@ -2569,7 +2852,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup):
             name="Response type",
             description="Camera response curve",
             items=response_types,
-            default='105',
+            default='401',
             )
     int_response_type: IntProperty(
             name="Int Response type",

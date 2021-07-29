@@ -28,7 +28,6 @@
 #include "../../../../source/blender/nodes/shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
-                                            1,
                                             N_("Texture"),
                                             0.0f,
                                             0.0f,
@@ -39,7 +38,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
-                                            1,
                                             N_("Height"),
                                             1.f,
                                             0.0f,
@@ -50,7 +48,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
-                                            1,
                                             N_("Mid level"),
                                             0.f,
                                             0.0f,
@@ -61,7 +58,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_BOOLEAN,
-                                            1,
                                             N_("Auto bump map"),
                                             0.0f,
                                             0.0f,
@@ -72,7 +68,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_INT,
-                                            1,
                                             N_("Subdivision level"),
                                             0.0f,
                                             0.0f,
@@ -82,12 +77,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             6.0f,
                                             PROP_UNSIGNED,
                                             SOCK_NO_INTERNAL_LINK},
-                                           {-1, 0, ""}};
+                                           {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_SHADER, 0, N_("OutDisplacement")},
+    {SOCK_SHADER, N_("OutDisplacement")},
     {SOCK_RGBA,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -97,7 +91,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 static void node_type_oct_vertex_displacement_init(bNodeTree *ntree, bNode *node)
 {

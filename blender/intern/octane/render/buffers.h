@@ -23,6 +23,7 @@
 #include "util/util_function.h"
 #include "util/util_string.h"
 #include "util/util_types.h"
+#include "util/util_boundbox.h"
 
 #include "blender/server/octane_client.h"
 
@@ -46,6 +47,17 @@ class BufferParams {
   int full_y;
   int full_width;
   int full_height;
+
+  float camera_center_x;
+  float camera_center_y;
+  int camera_resolution_width;
+  int camera_resolution_height;
+  int camera_dimension_width;
+  int camera_dimension_height;
+  bool use_camera_dimension_as_preview_resolution;
+
+  bool use_border;
+  BoundBox2D border;
 
   /* functions */
   BufferParams();

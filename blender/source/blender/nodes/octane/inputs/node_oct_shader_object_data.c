@@ -26,8 +26,8 @@
 /* **************** OBJECT INFO  ******************** */
 
 static bNodeSocketTemplate sh_node_object_out[] = {
-    {SOCK_SHADER, 0, N_("OutTransform")},
-    {-1, 0, ""},
+    {SOCK_SHADER, N_("OutTransform")},
+    {-1, ""},
 };
 
 void register_node_type_oct_object_data(void)

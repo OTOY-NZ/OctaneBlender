@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_VECTOR,
-     1,
      N_("Rotation"),
      0.0f,
      0.0f,
@@ -41,7 +40,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     /****** LEGACY SOCKETS *****/
     {SOCK_INT,
-     1,
      N_("Rotation order"),
      255.0f,
      0.0f,
@@ -51,12 +49,11 @@ static bNodeSocketTemplate sh_node_in[] = {
      255.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_SHADER, 0, N_("OutTransform")},
+    {SOCK_SHADER, N_("OutTransform")},
     {SOCK_SHADER,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -66,7 +63,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 static void node_transform_oct_rotation_init(bNodeTree *ntree, bNode *node)
 {

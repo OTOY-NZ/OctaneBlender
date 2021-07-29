@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_SHADER,
-     1,
      N_("Texture"),
      0.0f,
      0.0f,
@@ -40,7 +39,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Mid level"),
      0.f,
      0.0f,
@@ -51,7 +49,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Height"),
      0.001f,
      0.0f,
@@ -62,7 +59,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_INT,
-     1,
      N_("Filter radius"),
      2.0f,
      0.0f,
@@ -74,7 +70,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     /****** LEGACY SOCKETS *****/
     {SOCK_INT,
-     1,
      N_("Level of details"),
      255.0f,
      0.0f,
@@ -85,7 +80,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_UNSIGNED,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {SOCK_INT,
-     1,
      N_("Displacement direction"),
      255.0f,
      0.0f,
@@ -96,7 +90,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_UNSIGNED,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {SOCK_INT,
-     1,
      N_("Filter type"),
      255.0f,
      0.0f,
@@ -107,7 +100,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_UNSIGNED,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {SOCK_FLOAT,
-     1,
      N_("Offset"),
      0.0f,
      0.0f,
@@ -117,12 +109,11 @@ static bNodeSocketTemplate sh_node_in[] = {
      FLT_MAX,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_SHADER, 0, N_("OutDisplacement")},
+    {SOCK_SHADER, N_("OutDisplacement")},
     {SOCK_RGBA,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -132,7 +123,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 static void node_type_tex_oct_displacement_init(bNodeTree *ntree, bNode *node)
 {

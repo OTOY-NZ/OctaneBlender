@@ -28,7 +28,6 @@
 #include "../../shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
-                                            1,
                                             N_("Input"),
                                             0.9f,
                                             0.0f,
@@ -39,7 +38,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
-                                            1,
                                             N_("Min"),
                                             0.0f,
                                             0.0f,
@@ -50,7 +48,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_FLOAT,
-                                            1,
                                             N_("Max"),
                                             1.0f,
                                             0.0f,
@@ -60,9 +57,9 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             1.0f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
-                                           {-1, 0, ""}};
+                                           {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 void register_node_type_tex_oct_clamp(void)
 {

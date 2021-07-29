@@ -45,7 +45,7 @@ struct BNodeSocketSetter : BaseVisitor {
   {
     if (base_dto_ptr && base_dto_ptr->sName.size()) {
       PointerRNA ptr;
-      RNA_pointer_create(NULL, bnode->typeinfo->ext.srna, bnode, &ptr);
+      RNA_pointer_create(NULL, bnode->typeinfo->rna_ext.srna, bnode, &ptr);
       BL::ShaderNode b_shader_node(ptr);
       if (!base_dto_ptr->bUseSocket) {
         set_blender_node(base_dto_ptr, b_shader_node.ptr, false);
@@ -195,7 +195,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   if (ob) {
     BKE_object_material_slot_remove(bmain, ob);
     short actcol = ob->totcol + 1;
-    assign_material(bmain, ob, target_material, actcol, BKE_MAT_ASSIGN_OBDATA);
+    BKE_object_material_assign(bmain, ob, target_material, actcol, BKE_MAT_ASSIGN_OBDATA);
     // DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
   // WM_event_add_notifier(context, (6 << 24) | 3, target_material);
@@ -213,7 +213,7 @@ void UpdateArrayData(std::vector<std::string> &sArrayData,
                      std::string sPostfix)
 {
   PointerRNA ptr;
-  RNA_pointer_create(NULL, setter->bnode->typeinfo->ext.srna, setter->bnode, &ptr);
+  RNA_pointer_create(NULL, setter->bnode->typeinfo->rna_ext.srna, setter->bnode, &ptr);
   BL::ShaderNode b_shader_node(ptr);
   int arraySize = sArrayData.size();
   RNA_enum_set(&b_shader_node.ptr, sArraySizeName.c_str(), arraySize);
@@ -343,7 +343,7 @@ void OctaneVertexDisplacementMixer::UpdateOctaneDBNode(void *data)
   UpdateArrayData(this->sWeightLinks, setter, "displacement_number", "Blend weight", "");
 
   PointerRNA ptr;
-  RNA_pointer_create(NULL, setter->bnode->typeinfo->ext.srna, setter->bnode, &ptr);
+  RNA_pointer_create(NULL, setter->bnode->typeinfo->rna_ext.srna, setter->bnode, &ptr);
   BL::ShaderNode b_shader_node(ptr);
   BL::Node::inputs_iterator b_input;
   for (int i = 1; i <= arraySize; ++i) {

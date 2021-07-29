@@ -57,6 +57,7 @@ class BlenderSync {
 
   /* sync */
   bool is_frame_updated();
+  void reset(BL::BlendData &b_data, BL::Scene &b_scene);
   void sync_recalc(BL::Depsgraph &b_depsgraph);
   void sync_data(BL::RenderSettings &b_render,
                  BL::Depsgraph &b_depsgraph,
@@ -91,9 +92,10 @@ class BlenderSync {
       BL::RenderSettings &b_render, BL::Object &b_ob, int width, int height, float motion_time);
   void sync_render_passes(BL::ViewLayer &b_view_layer);
   void update_octane_camera_properties(Camera *cam,
-                                       PointerRNA &oct_camera,
-                                       PointerRNA &oct_view_camera,
+                                       PointerRNA oct_camera,
+                                       PointerRNA oct_view_camera,
                                        bool view);
+  void update_octane_universal_camera_properties(Camera *cam, PointerRNA oct_camera);
 
   void add_env_texture_in_use(std::string name)
   {

@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_FLOAT,
-     1,
      N_("Texture"),
      0.0f,
      0.0f,
@@ -40,7 +39,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("Enable baking"),
      1.0f,
      0.0f,
@@ -51,7 +49,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_INT,
-     1,
      N_("Resolution Width"),
      1024.f,
      0.0f,
@@ -62,7 +59,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_INT,
-     1,
      N_("Resolution Height"),
      1024.f,
      0.0f,
@@ -73,7 +69,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_INT,
-     1,
      N_("Samples per pixel"),
      32.f,
      0.0f,
@@ -84,7 +79,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("RGB baking"),
      0.0f,
      0.0f,
@@ -95,7 +89,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Power"),
      1.0f,
      0.0f,
@@ -106,7 +99,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Gamma"),
      2.2f,
      0.0f,
@@ -117,7 +109,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Transform"),
      0.0f,
      0.0f,
@@ -128,7 +119,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Projection"),
      0.0f,
      0.0f,
@@ -139,7 +129,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("Invert"),
      0.0f,
      0.0f,
@@ -151,7 +140,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     /****** LEGACY SOCKETS *****/
     {SOCK_INT,
-     1,
      N_("Texture type"),
      0.0f,
      0.0f,
@@ -161,9 +149,9 @@ static bNodeSocketTemplate sh_node_in[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_type_tex_oct_baking_init(bNodeTree *ntree, bNode *node)
 {

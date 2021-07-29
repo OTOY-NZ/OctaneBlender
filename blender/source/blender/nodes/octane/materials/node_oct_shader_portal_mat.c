@@ -28,7 +28,6 @@
 #include "../../shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
-                                            1,
                                             N_("Enabled"),
                                             1.0f,
                                             0.0f,
@@ -38,9 +37,9 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
                                             0.0f,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
-                                           {-1, 0, ""}};
+                                           {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, 0, N_("OutMat")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
 
 void register_node_type_sh_oct_portal_mat(void)
 {

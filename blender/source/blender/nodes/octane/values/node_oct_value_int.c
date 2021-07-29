@@ -28,13 +28,12 @@
 #include "../../shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {
-    {SOCK_INT, 1, N_("Value"), 0, 0, 0, 0, INT_MIN, 65535, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-    {-1, 0, ""}};
+    {SOCK_INT, ("Value"), 0, 0, 0, 0, INT_MIN, 65535, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_VECTOR, 0, N_("OutValue")},
+    {SOCK_VECTOR, ("OutValue")},
     {SOCK_VECTOR,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -44,7 +43,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 void register_node_type_val_oct_int(void)
 {

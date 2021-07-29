@@ -32,12 +32,11 @@
 #include "../../shader/node_shader_util.h"
 
 /* **************** Script ******************** */
-static bNodeSocketTemplate sh_node_in[] = {{-1, 0, ""}};
+static bNodeSocketTemplate sh_node_in[] = {{-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_SHADER, 0, N_("OutCamera")},
+    {SOCK_SHADER, N_("OutCamera")},
     {SOCK_RGBA,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -47,7 +46,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 static void init(bNodeTree *UNUSED(ntree), bNode *node)
 {

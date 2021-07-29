@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_FLOAT,
-     1,
      N_("Latitude"),
      -37.043659f,
      0.0f,
@@ -40,7 +39,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Longtitude"),
      174.50917f,
      0.0f,
@@ -50,10 +48,9 @@ static bNodeSocketTemplate sh_node_in[] = {
      180.f,
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
-    {SOCK_INT, 1, N_("Month"), 3, 0, 0, 0, 1, 12, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-    {SOCK_INT, 1, N_("Day"), 1, 0, 0, 0, 1, 31, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_INT, N_("Month"), 3, 0, 0, 0, 1, 12, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {SOCK_INT, N_("Day"), 1, 0, 0, 0, 1, 31, PROP_NONE, SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Local time"),
      10.f,
      0.0f,
@@ -63,13 +60,12 @@ static bNodeSocketTemplate sh_node_in[] = {
      24.f,
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
-    {SOCK_INT, 1, N_("GMT offset"), 12, 0, 0, 0, -12, 12, PROP_NONE, SOCK_NO_INTERNAL_LINK},
-    {-1, 0, ""}};
+    {SOCK_INT, N_("GMT offset"), 12, 0, 0, 0, -12, 12, PROP_NONE, SOCK_NO_INTERNAL_LINK},
+    {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_VECTOR, 0, N_("OutValue")},
+    {SOCK_VECTOR, N_("OutValue")},
     {SOCK_VECTOR,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -79,7 +75,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 void register_node_type_val_oct_sun_direction(void)
 {

@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_FLOAT,
-     1,
      N_("Max grid val."),
      100.0f,
      0.0f,
@@ -41,7 +40,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     /****** LEGACY SOCKETS *****/
     {SOCK_INT,
-     1,
      N_("Interp. type"),
      255.0f,
      0.0f,
@@ -51,9 +49,9 @@ static bNodeSocketTemplate sh_node_in[] = {
      255.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_oct_init_volume_ramp(bNodeTree *ntree, bNode *node)
 {

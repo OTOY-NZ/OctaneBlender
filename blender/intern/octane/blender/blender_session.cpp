@@ -257,6 +257,9 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
   this->b_data = b_data;
   this->b_depsgraph = b_depsgraph;
   this->b_scene = b_depsgraph.scene_eval();
+  if (sync) {
+    sync->reset(this->b_data, this->b_scene);
+  }
 
   if (b_v3d) {
     this->b_render = b_scene.render();
@@ -724,13 +727,19 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
           b_scene.render().image_settings().octane_exr_compression_type();
       string raw_export_file_path = blender_absolute_path(
           b_data, b_scene, b_scene.render().filepath().c_str());
-      saveImage.sPath = blender_path_frame(raw_export_file_path, b_scene.frame_current(), 4);
+      std::string post_tag = b_scene.render().image_settings().octane_export_post_tag();
+      int digits = 4;
+      if (post_tag.find("#") != std::string::npos) {
+        digits = 0;
+	  }
+      saveImage.sPath = blender_path_frame(raw_export_file_path, b_scene.frame_current(), digits);
       string raw_file_name = path_filename(saveImage.sPath);
       size_t suffix_idx = raw_file_name.rfind(".");
-      if (raw_file_name.rfind(".") != -1) {
+      if (raw_file_name.rfind(".") != std::string::npos) {
         raw_file_name = raw_file_name.substr(0, suffix_idx);
       }
-      saveImage.sFileName = raw_file_name;
+      raw_file_name += b_scene.render().image_settings().octane_export_post_tag();
+      saveImage.sFileName = blender_path_frame(raw_file_name, b_scene.frame_current(), 0);
       saveImage.sOctaneTag = b_scene.render().image_settings().octane_export_tag();
       session->server->uploadOctaneNode(&saveImage, NULL);
     }

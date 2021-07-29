@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_FLOAT,
-     1,
      N_("Normal"),
      0.0f,
      0.0f,
@@ -40,7 +39,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Grazing"),
      1.0f,
      0.0f,
@@ -51,7 +49,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Falloff Skew Factor"),
      6.0f,
      0.0f,
@@ -62,7 +59,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_VECTOR,
-     1,
      N_("Falloff direction"),
      0.0f,
      1.0f,
@@ -74,7 +70,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     /****** LEGACY SOCKETS *****/
     {SOCK_INT,
-     1,
      N_("Mode"),
      255.0f,
      0.0f,
@@ -84,9 +79,9 @@ static bNodeSocketTemplate sh_node_in[] = {
      255.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_type_tex_oct_falloff_init(bNodeTree *ntree, bNode *node)
 {

@@ -296,6 +296,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeNormalMap"),
         NodeItem("ShaderNodeNormal"),
         NodeItem("ShaderNodeVectorCurve"),
+        NodeItem("ShaderNodeVectorRotate"),
         NodeItem("ShaderNodeVectorTransform"),
     ]),
     ShaderNodeCategory("SH_NEW_CONVERTOR", "Converter", items=[

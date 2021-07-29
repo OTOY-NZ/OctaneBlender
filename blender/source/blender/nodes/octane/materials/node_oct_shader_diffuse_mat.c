@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_RGBA,
-     1,
      N_("Diffuse"),
      0.7f,
      0.7f,
@@ -40,7 +39,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Roughness"),
      0.0f,
      0.0f,
@@ -51,7 +49,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Bump"),
      0.0f,
      0.0f,
@@ -62,7 +59,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Normal"),
      0.0f,
      0.0f,
@@ -73,7 +69,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Displacement"),
      0.0f,
      0.0f,
@@ -84,7 +79,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Opacity"),
      1.0f,
      1.0f,
@@ -95,7 +89,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("Smooth"),
      1.0f,
      0.0f,
@@ -106,7 +99,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Edges rounding"),
      0.0f,
      0.0f,
@@ -117,7 +109,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Transmission"),
      0.0f,
      0.0f,
@@ -128,7 +119,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Medium"),
      0.0f,
      0.0f,
@@ -139,7 +129,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Emission"),
      0.0f,
      0.0f,
@@ -150,7 +139,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("Shadow catcher"),
      0.0f,
      0.0f,
@@ -161,7 +149,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Material layer"),
      0.0f,
      0.0f,
@@ -173,7 +160,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     /****** LEGACY SOCKETS *****/
     {SOCK_BOOLEAN,
-     1,
      N_("Matte"),
      0.0f,
      0.0f,
@@ -183,10 +169,10 @@ static bNodeSocketTemplate sh_node_in[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""},
+    {-1, ""},
 };
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, 0, N_("OutMat")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutMat")}, {-1, ""}};
 
 void register_node_type_sh_oct_diffuse_mat(void)
 {

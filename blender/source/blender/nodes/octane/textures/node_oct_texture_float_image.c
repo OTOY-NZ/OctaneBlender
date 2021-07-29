@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_FLOAT,
-     1,
      N_("Power"),
      1.0f,
      0.0f,
@@ -40,7 +39,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Gamma"),
      2.2f,
      0.0f,
@@ -51,7 +49,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("Invert"),
      0.0f,
      0.0f,
@@ -62,7 +59,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("Linear space invert"),
      1.0f,
      0.0f,
@@ -73,7 +69,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Transform"),
      0.0f,
      0.0f,
@@ -84,7 +79,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Projection"),
      0.0f,
      0.0f,
@@ -96,7 +90,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     /****** LEGACY SOCKETS *****/
     {SOCK_INT,
-     1,
      N_("Border mode"),
      255.0f,
      0.0f,
@@ -106,9 +99,9 @@ static bNodeSocketTemplate sh_node_in[] = {
      255.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 static void node_oct_float_image_tex_init(bNodeTree *ntree, bNode *node)
 {

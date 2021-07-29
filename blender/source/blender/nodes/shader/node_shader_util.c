@@ -142,12 +142,13 @@ static void gpu_stack_from_data_list(GPUNodeStack *gs, ListBase *sockets, bNodeS
   bNodeSocket *sock;
   int i;
 
-  for (sock = sockets->first, i = 0; sock; sock = sock->next, i++) {
+  for (sock = sockets->first, i = 0; sock; sock = sock->next) {
     if (STREQ(sock->name, "Octane Environment") ||
         STREQ(sock->name, "Octane VisibleEnvironment")) {
       continue;
     }
     node_gpu_stack_from_data(&gs[i], sock->type, ns[i]);
+    i++;
   }
 
   gs[i].end = true;
@@ -280,7 +281,7 @@ void node_shader_gpu_bump_tex_coord(GPUMaterial *mat, bNode *node, GPUNodeLink *
 void node_shader_gpu_default_tex_coord(GPUMaterial *mat, bNode *node, GPUNodeLink **link)
 {
   if (!*link) {
-    *link = GPU_attribute(CD_ORCO, "");
+    *link = GPU_attribute(mat, CD_ORCO, "");
     GPU_link(mat, "generated_texco", GPU_builtin(GPU_VIEW_POSITION), *link, link);
     node_shader_gpu_bump_tex_coord(mat, node, link);
   }

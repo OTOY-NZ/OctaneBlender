@@ -13,6 +13,7 @@
 #define OCTANE_BLENDER_CAMERA_CENTER_Y "OCTANE_BLENDER_CAMERA_CENTER_Y"
 #define OCTANE_BLENDER_CAMERA_REGION_WIDTH "OCTANE_BLENDER_CAMERA_REGION_WIDTH"
 #define OCTANE_BLENDER_CAMERA_REGION_HEIGHT "OCTANE_BLENDER_CAMERA_REGION_HEIGHT"
+#define OCTANE_PASS_TAG = "$OCTANE_PASS$"
 
 namespace OctaneDataTransferObject {
 
@@ -273,6 +274,279 @@ namespace OctaneDataTransferObject {
 			bVisableEnvBackplate, bVisableReflections, bVisableRefractions, MSGPACK_BASE(OctaneEnvironment));
 	};
 
+	struct OctaneCameraPosition : public OctaneNodeBase {
+        REFLECTABLE
+        (
+		(OctaneDTOFloat3)	f3Position,
+		(OctaneDTOFloat3)	f3Target,
+		(OctaneDTOFloat3)	f3Up,
+		(OctaneDTOBool)		bKeepUpright
+        )
+		std::vector<float>	 oMotionPositions;
+		std::vector<float>	 oMotionTargets;
+		std::vector<float>	 oMotionUps;
+		std::vector<float>	 oMotionFOVs;
+
+		OctaneCameraPosition() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(f3Position, f3Target, f3Up, bKeepUpright, 
+			oMotionPositions, oMotionTargets, oMotionUps, oMotionFOVs, MSGPACK_BASE(OctaneNodeBase));
+    };
+
+	struct OctaneCameraDistortion : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOBool)		bUseDistortionTexture,
+		(OctaneDTOShader)	sDistortionTexture,
+		(OctaneDTOFloat)	fSphereDistortion,
+		(OctaneDTOFloat)	fBarrelDistortion,
+		(OctaneDTOFloat)	fBarrelDistortionCorners
+		)
+
+		OctaneCameraDistortion() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(bUseDistortionTexture, sDistortionTexture, fSphereDistortion, fBarrelDistortion, fBarrelDistortionCorners, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneCameraAberration : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOFloat)	fSphereAberration,
+		(OctaneDTOFloat)	fComa,
+		(OctaneDTOFloat)	fAstigmatism,
+		(OctaneDTOFloat)	fFieldCurvature
+		)
+
+		OctaneCameraAberration() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(fSphereAberration, fComa, fAstigmatism, fFieldCurvature, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneCameraDepthOfField : public OctaneNodeBase {
+        REFLECTABLE
+        (
+		(OctaneDTOBool)		bAutoFocus,
+		(OctaneDTOFloat)	fFocalDepth,
+		(OctaneDTOFloat)	fAperture,
+		(OctaneDTOFloat)	fApertureAspectRatio,
+		(OctaneDTOEnum)		iApertureShape,
+		(OctaneDTOFloat)	fApertureEdge,
+		(OctaneDTOInt)		iApertureBladeCount,
+		(OctaneDTOFloat)	fApertureRotation,
+		(OctaneDTOFloat)	fApertureRoundedness,
+		(OctaneDTOFloat)	fCentralObstruction,
+		(OctaneDTOFloat)	fNorchPosition,
+		(OctaneDTOFloat)	fNorchScale,
+		(OctaneDTOShader)	sCustomAperture
+        )
+
+		OctaneCameraDepthOfField() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(bAutoFocus, fFocalDepth, fAperture, fApertureAspectRatio, iApertureShape, fApertureEdge, 
+			iApertureBladeCount, fApertureRotation, fApertureRoundedness, fCentralObstruction,
+			fNorchPosition, fNorchScale, sCustomAperture, MSGPACK_BASE(OctaneNodeBase));
+    };
+
+	struct OctaneCameraDiopter : public OctaneNodeBase {
+		REFLECTABLE
+		(
+		(OctaneDTOBool)		bEnableSplitFocusDiopter,
+		(OctaneDTOFloat)	fDiopterFocalDepth,
+		(OctaneDTOFloat)	fDiopterRotation,
+		(OctaneDTOFloat2)	f2DiopterTranslation,
+		(OctaneDTOFloat)	fDiopterBoundaryWidth,
+		(OctaneDTOFloat)	fDiopterBoundaryFalloff,
+		(OctaneDTOBool)		bShowDiopterGuide
+		)
+
+		OctaneCameraDiopter() : OctaneNodeBase(Octane::NT_UNKNOWN, "") {}
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(bEnableSplitFocusDiopter, fDiopterFocalDepth, fDiopterRotation, f2DiopterTranslation, 
+			fDiopterBoundaryWidth, fDiopterBoundaryFalloff, bShowDiopterGuide, MSGPACK_BASE(OctaneNodeBase));
+	};
+
+	struct OctaneUniversalCamera : public OctaneNodeBase {
+		REFLECTABLE
+		(		
+		(OctaneDTOEnum)		iCameraMode,
+		//Physical Camera parameters
+		(OctaneDTOFloat)	fSensorWidth,
+		(OctaneDTOFloat)	fFocalLength,
+		(OctaneDTOFloat)	fFstop,
+		//Viewing angle
+		(OctaneDTOFloat)	fFieldOfView,
+		(OctaneDTOFloat)	fScaleOfView,
+		(OctaneDTOFloat2)	f2LensShift,
+		(OctaneDTOFloat)	fPixelAspectRatio,
+		//Fisheye
+		(OctaneDTOFloat)	fFisheyeAngle,
+		(OctaneDTOEnum)		iFisheyeType,
+		(OctaneDTOBool)		bHardVignette,
+		(OctaneDTOEnum)		iFisheyeProjection,
+		//Panoramic
+		(OctaneDTOFloat)	fHorizontalFiledOfView,
+		(OctaneDTOFloat)	fVerticalFiledOfView,
+		(OctaneDTOEnum)		iCubemapLayout,
+		(OctaneDTOBool)		bEquiAngularCubemap,
+		//Distortion
+		(OctaneDTOBool)		bUseDistortionTexture,
+		(OctaneDTOShader)	sDistortionTexture,
+		(OctaneDTOFloat)	fSphereDistortion,
+		(OctaneDTOFloat)	fBarrelDistortion,
+		(OctaneDTOFloat)	fBarrelDistortionCorners,
+		//Aberration
+		(OctaneDTOFloat)	fSphereAberration,
+		(OctaneDTOFloat)	fComa,
+		(OctaneDTOFloat)	fAstigmatism,
+		(OctaneDTOFloat)	fFieldCurvature,
+		//Clipping
+		(OctaneDTOFloat)	fNearClipDepth,
+		(OctaneDTOFloat)	fFarClipDepth,
+		//Depth of field
+		(OctaneDTOBool)		bAutoFocus,
+		(OctaneDTOFloat)	fFocalDepth,
+		(OctaneDTOFloat)	fAperture,
+		(OctaneDTOFloat)	fApertureAspectRatio,
+		(OctaneDTOEnum)		iApertureShape,
+		(OctaneDTOFloat)	fApertureEdge,
+		(OctaneDTOInt)		iApertureBladeCount,
+		(OctaneDTOFloat)	fApertureRotation,
+		(OctaneDTOFloat)	fApertureRoundedness,
+		(OctaneDTOFloat)	fCentralObstruction,
+		(OctaneDTOFloat)	fNorchPosition,
+		(OctaneDTOFloat)	fNorchScale,
+		(OctaneDTOShader)	sCustomAperture,
+		//Optical vignetting
+		(OctaneDTOFloat)	fOpticalVignetteDistance,
+		(OctaneDTOFloat)	fOpticalVignetteScale,
+		//Split-focus diopter
+		(OctaneDTOBool)		bEnableSplitFocusDiopter,
+		(OctaneDTOFloat)	fDiopterFocalDepth,
+		(OctaneDTOFloat)	fDiopterRotation,
+		(OctaneDTOFloat2)	f2DiopterTranslation,
+		(OctaneDTOFloat)	fDiopterBoundaryWidth,
+		(OctaneDTOFloat)	fDiopterBoundaryFalloff,
+		(OctaneDTOBool)		bShowDiopterGuide,
+		//Position
+		(OctaneDTOFloat3)	f3Position,
+		(OctaneDTOFloat3)	f3Target,
+		(OctaneDTOFloat3)	f3Up,
+		(OctaneDTOBool)		bKeepUpright
+		)
+		OctaneCameraDistortion		oDistortion;
+		OctaneCameraAberration		oAberration;
+		OctaneCameraDepthOfField	oDepthOfField;
+		OctaneCameraDiopter			oDiopter;
+		OctaneCameraPosition		oPositoin;
+
+		OctaneUniversalCamera() : 
+			OctaneNodeBase(Octane::NT_CAM_UNIVERSAL, "OctUniversalCam")
+		{
+		}
+
+		void PackAttributes() {
+			oDistortion.bUseDistortionTexture = bUseDistortionTexture;
+			oDistortion.sDistortionTexture = sDistortionTexture;
+			oDistortion.fSphereDistortion = fSphereDistortion;
+			oDistortion.fBarrelDistortion = fBarrelDistortion;
+			oDistortion.fBarrelDistortionCorners = fBarrelDistortionCorners;
+
+			oAberration.fSphereAberration = fSphereAberration;
+			oAberration.fComa = fComa;
+			oAberration.fAstigmatism = fAstigmatism;
+			oAberration.fFieldCurvature = fFieldCurvature;
+
+			oDepthOfField.bAutoFocus = bAutoFocus;
+			oDepthOfField.fFocalDepth = fFocalDepth;
+			oDepthOfField.fAperture = fAperture;
+			oDepthOfField.fApertureAspectRatio = fApertureAspectRatio;
+			oDepthOfField.iApertureShape = iApertureShape;
+			oDepthOfField.fApertureEdge = fApertureEdge;
+			oDepthOfField.iApertureBladeCount = iApertureBladeCount;
+			oDepthOfField.fApertureRotation = fApertureRotation;
+			oDepthOfField.fApertureRoundedness = fApertureRoundedness;
+			oDepthOfField.fCentralObstruction = fCentralObstruction;
+			oDepthOfField.fNorchPosition = fNorchPosition;
+			oDepthOfField.fNorchScale = fNorchScale;
+			oDepthOfField.sCustomAperture = sCustomAperture;
+
+			oDiopter.bEnableSplitFocusDiopter = bEnableSplitFocusDiopter;
+			oDiopter.fDiopterFocalDepth = fDiopterFocalDepth;
+			oDiopter.fDiopterRotation = fDiopterRotation;
+			oDiopter.f2DiopterTranslation = f2DiopterTranslation;
+			oDiopter.fDiopterBoundaryWidth = fDiopterBoundaryWidth;
+			oDiopter.fDiopterBoundaryFalloff = fDiopterBoundaryFalloff;
+			oDiopter.bShowDiopterGuide = bShowDiopterGuide;
+
+			oPositoin.f3Position = f3Position;
+			oPositoin.f3Target = f3Target;
+			oPositoin.f3Up = f3Up;
+			oPositoin.bKeepUpright = bKeepUpright;
+		}
+		void UnpackAttributes() {
+			bUseDistortionTexture = oDistortion.bUseDistortionTexture;
+			sDistortionTexture = oDistortion.sDistortionTexture;
+			fSphereDistortion = oDistortion.fSphereDistortion;
+			fBarrelDistortion = oDistortion.fBarrelDistortion;
+			fBarrelDistortionCorners = oDistortion.fBarrelDistortionCorners;
+
+			fSphereAberration = oAberration.fSphereAberration;
+			fComa = oAberration.fComa;
+			fAstigmatism = oAberration.fAstigmatism;
+			fFieldCurvature = oAberration.fFieldCurvature;
+
+			bAutoFocus = oDepthOfField.bAutoFocus;
+			fFocalDepth = oDepthOfField.fFocalDepth;
+			fAperture = oDepthOfField.fAperture;
+			fApertureAspectRatio = oDepthOfField.fApertureAspectRatio;
+			iApertureShape = oDepthOfField.iApertureShape;
+			fApertureEdge = oDepthOfField.fApertureEdge;
+			iApertureBladeCount = oDepthOfField.iApertureBladeCount;
+			fApertureRotation = oDepthOfField.fApertureRotation;
+			fApertureRoundedness = oDepthOfField.fApertureRoundedness;
+			fCentralObstruction = oDepthOfField.fCentralObstruction;
+			fNorchPosition = oDepthOfField.fNorchPosition;
+			fNorchScale = oDepthOfField.fNorchScale;
+			sCustomAperture = oDepthOfField.sCustomAperture;
+
+			bEnableSplitFocusDiopter = oDiopter.bEnableSplitFocusDiopter;
+			fDiopterFocalDepth = oDiopter.fDiopterFocalDepth;
+			fDiopterRotation = oDiopter.fDiopterRotation;
+			f2DiopterTranslation = oDiopter.f2DiopterTranslation;
+			fDiopterBoundaryWidth = oDiopter.fDiopterBoundaryWidth;
+			fDiopterBoundaryFalloff = oDiopter.fDiopterBoundaryFalloff;
+			bShowDiopterGuide = oDiopter.bShowDiopterGuide;
+
+			f3Position = oPositoin.f3Position;
+			f3Target = oPositoin.f3Target;
+			f3Up = oPositoin.f3Up;
+			bKeepUpright = oPositoin.bKeepUpright;
+		}
+
+		OCTANE_NODE_PRE_UPDATE_FUNCTIONS
+		OCTANE_NODE_SERIALIZARION_FUNCTIONS
+		OCTANE_NODE_VISIT_FUNCTIONS
+		MSGPACK_DEFINE(
+			iCameraMode, 
+			fSensorWidth, fFocalLength, fFstop,
+			fFieldOfView, fScaleOfView, f2LensShift, fPixelAspectRatio,
+			fFisheyeAngle, iFisheyeType, bHardVignette, iFisheyeProjection,
+			fHorizontalFiledOfView, fVerticalFiledOfView, iCubemapLayout, bEquiAngularCubemap, 
+			oDistortion,
+			oAberration,
+			fNearClipDepth, fFarClipDepth,
+			oDepthOfField,
+			fOpticalVignetteDistance, fOpticalVignetteScale, 
+			oDiopter, 
+			oPositoin,
+			MSGPACK_BASE(OctaneNodeBase));
+	}; //struct OctaneUniversalCamera
+
 	struct OctaneRenderPasses : public OctaneNodeBase {
 		const static PacketType packetType = LOAD_RENDER_PASSES;
 
@@ -379,11 +653,11 @@ namespace OctaneDataTransferObject {
 	};
 
 	struct OctaneDBNodes : public OctaneNodeBase {
-    enum OctaneDBType {
-      MATERIAL = 0,
-      MEDIUM = 1,
-      TEXTURE = 2,
-    };
+		enum OctaneDBType {
+		  MATERIAL = 0,
+		  MEDIUM = 1,
+		  TEXTURE = 2,
+		};
 		bool bClose;
 		int iOctaneDBType;
 		uint32_t iNodesNum;

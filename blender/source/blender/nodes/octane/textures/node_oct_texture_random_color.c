@@ -28,7 +28,6 @@
 #include "../../shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_INT,
-                                            1,
                                             N_("Random Seed"),
                                             0.0f,
                                             0.0f,
@@ -38,9 +37,9 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_INT,
                                             65535.0f,
                                             PROP_UNSIGNED,
                                             SOCK_NO_INTERNAL_LINK},
-                                           {-1, 0, ""}};
+                                           {-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}};
 
 void register_node_type_tex_oct_random_color(void)
 {

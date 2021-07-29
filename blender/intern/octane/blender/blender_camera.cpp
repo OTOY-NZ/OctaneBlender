@@ -407,18 +407,23 @@ static void blender_camera_sync(Camera *cam,
   cam->oct_node.f3LookAt.z = cam->oct_node.f3EyePoint.z = cam->octane_matrix.z.w;
   float3 dir = transform_direction(&cam->octane_matrix, bcam->dir);
 
+  float zoom = bcam->zoom;
+  float2 offset = bcam->offset;
+
+  if (cam->oct_node.bUseCameraDimensionAsPreviewResolution) {
+    zoom = 1.f;
+    offset.x = offset.y = 0.f;
+  }
+
   if (cam->oct_node.bOrtho) {
-    cam->oct_node.fFOV = calculate_ortho_scale(bcam, xratio, yratio) * bcam->zoom;
-    cam->oct_node.f2LensShift.x = (bcam->shift.x + bcam->offset.x * 2.f) / bcam->zoom;
-    cam->oct_node.f2LensShift.y = (bcam->shift.y + bcam->offset.y * 2.f) / bcam->zoom;
+    cam->oct_node.fFOV = calculate_ortho_scale(bcam, xratio, yratio) * zoom;
+    cam->oct_node.f2LensShift.x = (bcam->shift.x + offset.x * 2.f) / zoom;
+    cam->oct_node.f2LensShift.y = (bcam->shift.y + offset.y * 2.f) / zoom;
   }
   else {
-    cam->oct_node.fFOV = 2.0f * atanf((0.5f * sensor_size * bcam->zoom) / bcam->lens) * 180.0f /
-                         M_PI_F;
-    cam->oct_node.f2LensShift.x = (bcam->shift.x * xaspectratio + bcam->offset.x * 2.f) /
-                                  (bcam->zoom);
-    cam->oct_node.f2LensShift.y = (bcam->shift.y * yaspectratio + bcam->offset.y * 2.f) /
-                                  (bcam->zoom);
+    cam->oct_node.fFOV = 2.0f * atanf((0.5f * sensor_size * zoom) / bcam->lens) * 180.0f / M_PI_F;
+    cam->oct_node.f2LensShift.x = (bcam->shift.x * xaspectratio + offset.x * 2.f) / (zoom);
+    cam->oct_node.f2LensShift.y = (bcam->shift.y * yaspectratio + offset.y * 2.f) / (zoom);
   }
 
   if (cam->oct_node.bOrtho && !camera_from_object) {
@@ -440,26 +445,43 @@ static void blender_camera_sync(Camera *cam,
   cam->oct_node.fFocalDepth = bcam->focaldistance;
 
   cam->oct_node.bUseRegion = bcam->use_border;
-  cam->oct_node.ui4Region.x = (uint32_t)(cam->border.left * (float)width);
-  cam->oct_node.ui4Region.y = (uint32_t)(height - (uint32_t)(cam->border.top * height));
-  cam->oct_node.ui4Region.z = (uint32_t)(cam->border.right * (float)width);
-  cam->oct_node.ui4Region.w = (uint32_t)(height - (uint32_t)(cam->border.bottom * height));
+
+  if (cam->oct_node.bUseCameraDimensionAsPreviewResolution) {
+    float viewport_camera_border_width = cam->viewport_camera_border.right - cam->viewport_camera_border.left;
+	float viewport_camera_border_height = cam->viewport_camera_border.top - cam->viewport_camera_border.bottom;
+    float left = max(0.f, (cam->border.left - cam->viewport_camera_border.left)) / viewport_camera_border_width;
+	float right = max(0.f, (cam->border.right - cam->viewport_camera_border.left)) / viewport_camera_border_width;
+	float bottom = max(0.f, (cam->border.bottom - cam->viewport_camera_border.bottom)) / viewport_camera_border_height;
+	float top = max(0.f, (cam->border.top - cam->viewport_camera_border.bottom)) / viewport_camera_border_height;
+    cam->oct_node.ui4Region.x = (uint32_t)(left * (float)cam->full_width);
+    cam->oct_node.ui4Region.y = (uint32_t)(cam->full_height - (uint32_t)(top * cam->full_height));
+    cam->oct_node.ui4Region.z = (uint32_t)(right * (float)cam->full_width);
+    cam->oct_node.ui4Region.w = (uint32_t)(cam->full_height - (uint32_t)(bottom * cam->full_height));
+  }
+  else {
+    cam->oct_node.ui4Region.x = (uint32_t)(cam->border.left * (float)width);
+    cam->oct_node.ui4Region.y = (uint32_t)(height - (uint32_t)(cam->border.top * height));
+    cam->oct_node.ui4Region.z = (uint32_t)(cam->border.right * (float)width);
+    cam->oct_node.ui4Region.w = (uint32_t)(height - (uint32_t)(cam->border.bottom * height));
+  }
 
   cam->oct_node.bUseBlenderCamera = camera_from_object;
-  cam->oct_node.ui2BlenderCameraDemension.x = (uint32_t)(width * (cam->viewport_camera_border.right - cam->viewport_camera_border.left));
-  cam->oct_node.ui2BlenderCameraDemension.y = (uint32_t)(height * (cam->viewport_camera_border.top - cam->viewport_camera_border.bottom));
-  cam->oct_node.f2BlenderCameraCenter.x = (cam->viewport_camera_border.right + cam->viewport_camera_border.left) / 2;
-  cam->oct_node.f2BlenderCameraCenter.y = (cam->viewport_camera_border.top + cam->viewport_camera_border.bottom) / 2;
+  cam->oct_node.ui2BlenderCameraDimension.x = (uint32_t)(
+      width * (cam->viewport_camera_border.right - cam->viewport_camera_border.left));
+  cam->oct_node.ui2BlenderCameraDimension.y = (uint32_t)(
+      height * (cam->viewport_camera_border.top - cam->viewport_camera_border.bottom));
+  cam->oct_node.f2BlenderCameraCenter.x = (cam->viewport_camera_border.right +
+                                           cam->viewport_camera_border.left) /
+                                          2;
+  cam->oct_node.f2BlenderCameraCenter.y = (cam->viewport_camera_border.top +
+                                           cam->viewport_camera_border.bottom) /
+                                          2;
 
   ::OctaneEngine::CameraMotionParam &motionParams = cam->oct_node.oMotionParams.motions[0];
   motionParams.f3EyePoint = cam->oct_node.f3EyePoint;
   motionParams.f3LookAt = cam->oct_node.f3LookAt;
   motionParams.f3UpVector = cam->oct_node.f3UpVector;
   motionParams.fFOV = cam->oct_node.fFOV;
-
-  /* set update flag */
-  if (cam->modified(*prevcam))
-    cam->tag_update();
 }
 
 /* Sync Render Camera */
@@ -518,6 +540,10 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
   update_octane_camera_properties(scene->camera, oct_camera, oct_view_camera, false);
   blender_camera_sync(
       cam, &prevcam, &bcam, width, height, viewname, &octane_scene, camera_from_object);
+  update_octane_universal_camera_properties(scene->camera, oct_camera);
+  /* set update flag */
+  if (cam->modified(prevcam))
+    cam->tag_update();
 }
 
 /* Sync 3D View Camera */
@@ -768,15 +794,22 @@ void BlenderSync::sync_view(BL::SpaceView3D &b_v3d,
   update_octane_camera_properties(scene->camera, oct_camera, oct_view_camera, view);
   blender_camera_sync(
       scene->camera, &prevcam, &bcam, width, height, "", &octane_scene, camera_from_object);
+  update_octane_universal_camera_properties(scene->camera, oct_camera);
+  /* set update flag */
+  if (scene->camera->modified(prevcam))
+    scene->camera->tag_update();
 }
 
 void BlenderSync::update_octane_camera_properties(Camera *cam,
-                                                  PointerRNA &oct_camera,
-                                                  PointerRNA &oct_view_camera,
+                                                  PointerRNA oct_camera,
+                                                  PointerRNA oct_view_camera,
                                                   bool view)
 {
   if (!view) {
     cam->oct_node.bUseFstopValue = false;
+    cam->oct_node.bUseUniversalCamera = RNA_boolean_get(&oct_camera, "used_as_universal_camera");
+    cam->oct_node.bUseCameraDimensionAsPreviewResolution =
+        preview && RNA_boolean_get(&oct_camera, "use_camera_dimension_as_preview_resolution");
 
     cam->oct_node.panCamMode = static_cast<::Octane::PanoramicCameraMode>(
         RNA_enum_get(&oct_camera, "pan_mode"));
@@ -803,6 +836,9 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
     cam->oct_node.iBokehSidecount = RNA_int_get(&oct_camera, "bokeh_sidecount");
   }
   else {
+    cam->oct_node.bUseUniversalCamera = false;
+    cam->oct_node.bUseCameraDimensionAsPreviewResolution = false;
+
     cam->oct_node.bUseFstopValue = false;
 
     cam->oct_node.panCamMode = ::Octane::SPHERICAL_CAMERA;
@@ -959,6 +995,119 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
   }
 }
 
+void BlenderSync::update_octane_universal_camera_properties(Camera *cam, PointerRNA oct_camera)
+{
+  if (!oct_camera.data || !cam) {
+    cam->oct_node.bUseUniversalCamera = false;
+    return;
+  }
+  OctaneDataTransferObject::OctaneUniversalCamera &universalCamera = cam->oct_node.universalCamera;
+  if (cam->type == CameraType::CAMERA_PERSPECTIVE) {
+    universalCamera.iCameraMode.iVal = 1;
+  }
+  else if (cam->type == CameraType::CAMERA_ORTHOGRAPHIC) {
+    universalCamera.iCameraMode.iVal = 2;
+  }
+  else if (cam->type == CameraType::CAMERA_PANORAMA) {
+    universalCamera.iCameraMode.iVal = RNA_enum_get(&oct_camera, "universal_camera_mode");
+  }
+  else {
+    universalCamera.iCameraMode.iVal = 1;
+  }
+  universalCamera.fSensorWidth.fVal = 36.f;
+  universalCamera.fFocalLength.fVal = 50.f;
+  universalCamera.fFstop.fVal = RNA_float_get(&oct_camera, "fstop");
+
+  universalCamera.fFieldOfView.fVal = cam->oct_node.fFOV;
+  universalCamera.fScaleOfView.fVal = cam->oct_node.fFOV;
+  universalCamera.f2LensShift.fVal.x = cam->oct_node.f2LensShift.x;
+  universalCamera.f2LensShift.fVal.y = cam->oct_node.f2LensShift.y;
+  universalCamera.fPixelAspectRatio.fVal = cam->oct_node.fPixelAspect;
+
+  universalCamera.fFisheyeAngle.fVal = RNA_float_get(&oct_camera, "fisheye_angle");
+  universalCamera.iFisheyeType.iVal = RNA_enum_get(&oct_camera, "fisheye_type");
+  universalCamera.bHardVignette.bVal = RNA_boolean_get(&oct_camera, "hard_vignette");
+  universalCamera.iFisheyeProjection.iVal = RNA_enum_get(&oct_camera, "fisheye_projection_type");
+
+  universalCamera.fHorizontalFiledOfView.fVal = RNA_float_get(&oct_camera, "fov_x");
+  universalCamera.fVerticalFiledOfView = RNA_float_get(&oct_camera, "fov_y");
+  universalCamera.iCubemapLayout.iVal = RNA_enum_get(&oct_camera, "cubemap_layout_type");
+  universalCamera.bEquiAngularCubemap.bVal = RNA_boolean_get(&oct_camera, "equi_angular_cubemap");
+
+  universalCamera.bUseDistortionTexture.bVal = RNA_boolean_get(&oct_camera,
+                                                               "use_distortion_texture");
+  universalCamera.sDistortionTexture.sLinkNodeName = get_string(oct_camera, "distortion_texture");
+  universalCamera.fSphereDistortion.fVal = RNA_float_get(&oct_camera, "spherical_distortion");
+  universalCamera.fBarrelDistortion.fVal = RNA_float_get(&oct_camera, "barrel_distortion");
+  universalCamera.fBarrelDistortionCorners.fVal = RNA_float_get(&oct_camera,
+                                                                "barrel_distortion_corners");
+
+  universalCamera.fSphereAberration.fVal = RNA_float_get(&oct_camera, "spherical_aberration");
+  universalCamera.fComa.fVal = RNA_float_get(&oct_camera, "coma");
+  universalCamera.fAstigmatism.fVal = RNA_float_get(&oct_camera, "astigmatism");
+  universalCamera.fFieldCurvature.fVal = RNA_float_get(&oct_camera, "field_curvature");
+
+  universalCamera.fNearClipDepth.fVal = cam->oct_node.fNearClipDepth;
+  universalCamera.fFarClipDepth.fVal = cam->oct_node.fFarClipDepth;
+
+  universalCamera.bAutoFocus = cam->oct_node.bAutofocus;
+  universalCamera.fFocalDepth.fVal = cam->oct_node.fFocalDepth;
+  universalCamera.fAperture.fVal = cam->oct_node.fAperture;
+  universalCamera.fApertureAspectRatio.fVal = cam->oct_node.fApertureAspect;
+  universalCamera.iApertureShape.iVal = RNA_enum_get(&oct_camera, "aperture_shape_type");
+  universalCamera.fApertureEdge.fVal = cam->oct_node.fApertureEdge;
+  universalCamera.iApertureBladeCount.iVal = RNA_int_get(&oct_camera, "aperture_blade_count");
+  universalCamera.fApertureRotation.fVal = RNA_float_get(&oct_camera, "aperture_rotation");
+  universalCamera.fApertureRoundedness.fVal = RNA_float_get(&oct_camera, "aperture_roundedness");
+  universalCamera.fCentralObstruction.fVal = RNA_float_get(&oct_camera, "central_obstruction");
+  universalCamera.fNorchPosition.fVal = RNA_float_get(&oct_camera, "notch_position");
+  universalCamera.fNorchScale.fVal = RNA_float_get(&oct_camera, "notch_scale");
+  universalCamera.sCustomAperture.sLinkNodeName = get_string(oct_camera,
+                                                             "custom_aperture_texture");
+
+  universalCamera.fOpticalVignetteDistance.fVal = RNA_float_get(&oct_camera,
+                                                                "optical_vignette_distance");
+  universalCamera.fOpticalVignetteScale.fVal = RNA_float_get(&oct_camera,
+                                                             "optical_vignette_scale");
+
+  universalCamera.bEnableSplitFocusDiopter.bVal = RNA_boolean_get(&oct_camera,
+                                                                  "enable_split_focus_diopter");
+  universalCamera.fDiopterFocalDepth.fVal = RNA_float_get(&oct_camera, "diopter_focal_depth");
+  universalCamera.fDiopterRotation.fVal = RNA_float_get(&oct_camera, "diopter_rotation");
+  RNA_float_get_array(&oct_camera,
+                      "diopter_translation",
+                      reinterpret_cast<float *>(&universalCamera.f2DiopterTranslation.fVal));
+  universalCamera.fDiopterBoundaryWidth.fVal = RNA_float_get(&oct_camera,
+                                                             "diopter_boundary_width");
+  universalCamera.fDiopterBoundaryFalloff.fVal = RNA_float_get(&oct_camera,
+                                                               "diopter_boundary_falloff");
+  universalCamera.bShowDiopterGuide.bVal = RNA_boolean_get(&oct_camera, "show_diopter_guide");
+
+  universalCamera.f3Position.fVal = cam->oct_node.f3EyePoint;
+  universalCamera.f3Target.fVal = cam->oct_node.f3LookAt;
+  universalCamera.f3Up.fVal = cam->oct_node.f3UpVector;
+
+  universalCamera.oPositoin.oMotionPositions.clear();
+  universalCamera.oPositoin.oMotionTargets.clear();
+  universalCamera.oPositoin.oMotionUps.clear();
+  universalCamera.oPositoin.oMotionFOVs.clear();
+  uint32_t motoin_data_num = cam->oct_node.oMotionParams.motions.size();
+  if (motoin_data_num > 1) {
+    for (auto it : cam->oct_node.oMotionParams.motions) {
+      universalCamera.oPositoin.oMotionPositions.push_back(it.second.f3EyePoint.x);
+      universalCamera.oPositoin.oMotionPositions.push_back(it.second.f3EyePoint.y);
+      universalCamera.oPositoin.oMotionPositions.push_back(it.second.f3EyePoint.z);
+      universalCamera.oPositoin.oMotionTargets.push_back(it.second.f3LookAt.x);
+      universalCamera.oPositoin.oMotionTargets.push_back(it.second.f3LookAt.y);
+      universalCamera.oPositoin.oMotionTargets.push_back(it.second.f3LookAt.z);
+      universalCamera.oPositoin.oMotionUps.push_back(it.second.f3UpVector.x);
+      universalCamera.oPositoin.oMotionUps.push_back(it.second.f3UpVector.y);
+      universalCamera.oPositoin.oMotionUps.push_back(it.second.f3UpVector.z);
+      universalCamera.oPositoin.oMotionFOVs.push_back(it.second.fFOV);
+    }
+  }
+}
+
 BufferParams BlenderSync::get_buffer_params(BL::RenderSettings &b_render,
                                             BL::SpaceView3D &b_v3d,
                                             BL::RegionView3D &b_rv3d,
@@ -994,7 +1143,21 @@ BufferParams BlenderSync::get_buffer_params(BL::RenderSettings &b_render,
     params.width = width;
     params.height = height;
   }
-
+  params.use_camera_dimension_as_preview_resolution =
+      cam->oct_node.bUseCameraDimensionAsPreviewResolution;
+  params.use_border = use_border;
+  params.border.left = cam->oct_node.ui4Region.x;
+  params.border.bottom = cam->oct_node.ui4Region.y;
+  params.border.right = cam->oct_node.ui4Region.z;
+  params.border.top = cam->oct_node.ui4Region.w;
+  if (params.use_camera_dimension_as_preview_resolution) {
+    params.camera_center_x = cam->oct_node.f2BlenderCameraCenter.x;
+    params.camera_center_y = cam->oct_node.f2BlenderCameraCenter.y;
+    params.camera_dimension_width = cam->oct_node.ui2BlenderCameraDimension.x;
+    params.camera_dimension_height = cam->oct_node.ui2BlenderCameraDimension.y;
+    params.camera_resolution_width = b_render.resolution_x();
+    params.camera_resolution_height = b_render.resolution_y();
+  }
   return params;
 }
 
@@ -1030,14 +1193,19 @@ void BlenderSync::sync_camera_motion(
     f3LookAt.z = f3EyePoint.z = octane_matrix.z.w;
     float3 dir = transform_direction(&octane_matrix, bcam.dir);
 
+    float zoom = bcam.zoom;
+    if (cam->oct_node.bUseCameraDimensionAsPreviewResolution) {
+      zoom = 1.f;
+    }
+
     if (cam->oct_node.bOrtho) {
-      fFOV = bcam.ortho_scale * bcam.zoom;
+      fFOV = bcam.ortho_scale * zoom;
       f3EyePoint.x = f3EyePoint.x + dir.x;
       f3EyePoint.y = f3EyePoint.y + dir.y;
       f3EyePoint.z = f3EyePoint.z + dir.z;
     }
     else {
-      fFOV = 2.0f * atanf((0.5f * sensor_size * bcam.zoom) / bcam.lens) * 180.0f / M_PI_F;
+      fFOV = 2.0f * atanf((0.5f * sensor_size * zoom) / bcam.lens) * 180.0f / M_PI_F;
       f3LookAt.x = f3LookAt.x + dir.x;
       f3LookAt.y = f3LookAt.y + dir.y;
       f3LookAt.z = f3LookAt.z + dir.z;

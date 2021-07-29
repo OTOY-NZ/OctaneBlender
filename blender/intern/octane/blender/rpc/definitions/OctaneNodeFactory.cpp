@@ -19,6 +19,7 @@ namespace OctaneDataTransferObject {
 		OCTANE_NODE_CREATOR(OctaneTextureEnvironment);
 		OCTANE_NODE_CREATOR(OctaneDaylightEnvironment);
 		OCTANE_NODE_CREATOR(OctanePlanetaryEnvironment);
+		OCTANE_NODE_CREATOR(OctaneUniversalCamera);
 		OCTANE_NODE_CREATOR(OctaneRenderPasses);
 		OCTANE_NODE_CREATOR(OctaneCommand);
 		OCTANE_NODE_CREATOR(OctaneDBNodes);

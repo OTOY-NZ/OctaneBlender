@@ -27,9 +27,9 @@
 
 #include "../../shader/node_shader_util.h"
 
-static bNodeSocketTemplate sh_node_in[] = {{-1, 0, ""}};
+static bNodeSocketTemplate sh_node_in[] = {{-1, ""}};
 
-static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, 0, N_("OutTex")}, {-1, 0, ""}};
+static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutTex")}, {-1, ""}};
 
 void register_node_type_val_oct_texture_reference(void)
 {

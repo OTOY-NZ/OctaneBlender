@@ -622,14 +622,23 @@ RPCReceive &RPCReceive::operator>>(char *&szVal)
     uint8_t ucLen = *reinterpret_cast<uint8_t *>(m_pucCurBuffer);
     m_pucCurBuffer += sizeof(uint8_t);
     if (m_pucCurBuffer + ucLen + 1 > m_pucBuffer + m_ulBufSize) {
+#ifdef _WIN32
+      szVal = const_cast<char *>("");
+#else
       szVal = "";
+#endif
       return *this;
     }
     szVal = reinterpret_cast<char *>(m_pucCurBuffer);
     m_pucCurBuffer += ucLen + 1;
   }
-  else
+  else {
+#ifdef _WIN32
+    szVal = const_cast<char *>("");
+#else
     szVal = "";
+#endif
+  }
   return *this;
 }
 

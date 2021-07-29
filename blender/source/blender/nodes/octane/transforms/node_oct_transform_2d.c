@@ -28,7 +28,6 @@
 #include "../../shader/node_shader_util.h"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_VECTOR,
-                                            1,
                                             N_("Rotation"),
                                             0.0f,
                                             0.0f,
@@ -39,7 +38,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_VECTOR,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_VECTOR,
-                                            1,
                                             N_("Scale"),
                                             1.0f,
                                             1.0f,
@@ -50,7 +48,6 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_VECTOR,
                                             PROP_NONE,
                                             SOCK_NO_INTERNAL_LINK},
                                            {SOCK_VECTOR,
-                                            1,
                                             N_("Translation"),
                                             0.0f,
                                             0.0f,
@@ -60,12 +57,11 @@ static bNodeSocketTemplate sh_node_in[] = {{SOCK_VECTOR,
                                             10000.0f,
                                             PROP_TRANSLATION,
                                             SOCK_NO_INTERNAL_LINK},
-                                           {-1, 0, ""}};
+                                           {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_SHADER, 0, N_("OutTransform")},
+    {SOCK_SHADER, N_("OutTransform")},
     {SOCK_SHADER,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -75,7 +71,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 void register_node_type_transform_oct_2d(void)
 {

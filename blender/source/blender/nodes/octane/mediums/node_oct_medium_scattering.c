@@ -29,7 +29,6 @@
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_FLOAT,
-     1,
      N_("Density"),
      100.0f,
      0.0f,
@@ -40,7 +39,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Vol. step length"),
      4.0f,
      0.0f,
@@ -51,7 +49,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Vol. shadow ray step length"),
      4.0f,
      0.0f,
@@ -62,7 +59,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("Lock step length pins"),
      1.0f,
      0.0f,
@@ -73,7 +69,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {SOCK_SHADER,
-     1,
      N_("Sample position displacement"),
      0.0f,
      0.0f,
@@ -84,7 +79,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_RGBA,
-     1,
      N_("Absorption Tex"),
      0.72f,
      0.72f,
@@ -95,7 +89,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_BOOLEAN,
-     1,
      N_("Invert abs."),
      1.0f,
      0.0f,
@@ -106,7 +99,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_RGBA,
-     1,
      N_("Scattering Tex"),
      0.f,
      0.f,
@@ -117,7 +109,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_FLOAT,
-     1,
      N_("Phase"),
      0.0f,
      0.0f,
@@ -128,7 +119,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_NO_INTERNAL_LINK},
     {SOCK_SHADER,
-     1,
      N_("Emission"),
      0.0f,
      0.0f,
@@ -140,7 +130,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      SOCK_NO_INTERNAL_LINK},
     /****** LEGACY SOCKETS *****/
     {SOCK_FLOAT,
-     1,
      N_("Absorption"),
      0.5f,
      0.0f,
@@ -151,7 +140,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {SOCK_FLOAT,
-     1,
      N_("Scattering"),
      0.5f,
      0.0f,
@@ -162,7 +150,6 @@ static bNodeSocketTemplate sh_node_in[] = {
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
     {SOCK_FLOAT,
-     1,
      N_("Scale"),
      100.0f,
      0.0f,
@@ -172,12 +159,11 @@ static bNodeSocketTemplate sh_node_in[] = {
      10000.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 static bNodeSocketTemplate sh_node_out[] = {
-    {SOCK_SHADER, 0, N_("OutMedium")},
+    {SOCK_SHADER, N_("OutMedium")},
     {SOCK_SHADER,
-     0,
      N_("OutTex"),
      0.0f,
      0.0f,
@@ -187,7 +173,7 @@ static bNodeSocketTemplate sh_node_out[] = {
      1.0f,
      PROP_NONE,
      SOCK_HIDDEN | SOCK_UNAVAIL | SOCK_AUTO_HIDDEN__DEPRECATED},
-    {-1, 0, ""}};
+    {-1, ""}};
 
 void register_node_type_medium_oct_scattering(void)
 {
