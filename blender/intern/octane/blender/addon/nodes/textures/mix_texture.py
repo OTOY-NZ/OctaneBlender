@@ -1,64 +1,91 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneMixTextureAmount(OctaneBaseSocket):
-    bl_idname = "OctaneMixTextureAmount"
-    bl_label = "Amount"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneMixTextureAmount"
+    bl_label="Amount"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type="OctaneGreyscaleColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=6)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=6)
-    default_value: FloatProperty(default=0.500000, description="Mix amount", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    default_value: FloatProperty(default=0.500000, update=None, description="Mix amount", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneMixTextureTexture1(OctaneBaseSocket):
-    bl_idname = "OctaneMixTextureTexture1"
-    bl_label = "First texture"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneMixTextureTexture1"
+    bl_label="First texture"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
-    
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneMixTextureTexture2(OctaneBaseSocket):
-    bl_idname = "OctaneMixTextureTexture2"
-    bl_label = "Second texture"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneMixTextureTexture2"
+    bl_label="Second texture"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
-    
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneMixTexture(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneMixTexture"
-    bl_label = "Mix texture"
+    bl_idname="OctaneMixTexture"
+    bl_label="Mix texture"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=38)
     octane_socket_list: StringProperty(name="Socket List", default="Amount;First texture;Second texture;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
 
     def init(self, context):
-        self.inputs.new("OctaneMixTextureAmount", OctaneMixTextureAmount.bl_label)
-        self.inputs.new("OctaneMixTextureTexture1", OctaneMixTextureTexture1.bl_label)
-        self.inputs.new("OctaneMixTextureTexture2", OctaneMixTextureTexture2.bl_label)
-        self.outputs.new("OctaneTextureOutSocket", "Texture out")
+        self.inputs.new("OctaneMixTextureAmount", OctaneMixTextureAmount.bl_label).init()
+        self.inputs.new("OctaneMixTextureTexture1", OctaneMixTextureTexture1.bl_label).init()
+        self.inputs.new("OctaneMixTextureTexture2", OctaneMixTextureTexture2.bl_label).init()
+        self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+
+_classes=[
+    OctaneMixTextureAmount,
+    OctaneMixTextureTexture1,
+    OctaneMixTextureTexture2,
+    OctaneMixTexture,
+]
 
 def register():
-    register_class(OctaneMixTextureAmount)
-    register_class(OctaneMixTextureTexture1)
-    register_class(OctaneMixTextureTexture2)
-    register_class(OctaneMixTexture)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneMixTexture)
-    unregister_class(OctaneMixTextureTexture2)
-    unregister_class(OctaneMixTextureTexture1)
-    unregister_class(OctaneMixTextureAmount)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

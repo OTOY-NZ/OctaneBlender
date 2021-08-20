@@ -175,6 +175,14 @@ void ShaderManager::add_default(Scene *scene)
   composite_shader->graph = composite_graph;
   scene->shaders.push_back(composite_shader);
   scene->default_composite = composite_shader;
+
+  ShaderGraph *render_aov_graph = new ShaderGraph();
+  Shader *render_aov_shader = new Shader();
+  render_aov_shader->name = "Composite";
+  render_aov_shader->graph = render_aov_graph;
+  scene->shaders.push_back(render_aov_shader);
+  scene->default_render_aov_node_tree = render_aov_shader;
+  
 }  // add_default()
 
 OCT_NAMESPACE_END

@@ -1,57 +1,81 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctanePerspectiveTransform(OctaneBaseSocket):
-    bl_idname = "OctanePerspectiveTransform"
-    bl_label = "Plane transformation"
-    color = (0.75, 0.87, 1.00, 0.70)
+    bl_idname="OctanePerspectiveTransform"
+    bl_label="Plane transformation"
+    color=consts.OctanePinColor.Transform
+    octane_default_node_type="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=4)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctanePerspectivePositionType(OctaneBaseSocket):
-    bl_idname = "OctanePerspectivePositionType"
-    bl_label = "Coordinate space"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctanePerspectivePositionType"
+    bl_label="Coordinate space"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=135)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=16)
-    octane_socket_type: IntProperty(name="Socket Type", default=2)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
         ("World space", "World space", "", 1),
         ("Object space", "Object space", "", 3),
         ("Normal space (IES Lights)", "Normal space (IES Lights)", "", 4),
     ]
-    default_value: EnumProperty(default="Object space", description="Coordinate space used by the texture", items=items)
+    default_value: EnumProperty(default="Object space", update=None, description="Coordinate space used by the texture", items=items)
+    octane_hide_value=False
+    octane_min_version=1240000
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctanePerspective(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctanePerspective"
-    bl_label = "Perspective"
+    bl_idname="OctanePerspective"
+    bl_label="Perspective Projection"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=76)
     octane_socket_list: StringProperty(name="Socket List", default="Plane transformation;Coordinate space;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
 
     def init(self, context):
-        self.inputs.new("OctanePerspectiveTransform", OctanePerspectiveTransform.bl_label)
-        self.inputs.new("OctanePerspectivePositionType", OctanePerspectivePositionType.bl_label)
+        self.inputs.new("OctanePerspectiveTransform", OctanePerspectiveTransform.bl_label).init()
+        self.inputs.new("OctanePerspectivePositionType", OctanePerspectivePositionType.bl_label).init()
+        self.outputs.new("OctaneProjectionOutSocket", "Projection out").init()
 
+
+_classes=[
+    OctanePerspectiveTransform,
+    OctanePerspectivePositionType,
+    OctanePerspective,
+]
 
 def register():
-    register_class(OctanePerspectiveTransform)
-    register_class(OctanePerspectivePositionType)
-    register_class(OctanePerspective)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctanePerspective)
-    unregister_class(OctanePerspectivePositionType)
-    unregister_class(OctanePerspectiveTransform)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

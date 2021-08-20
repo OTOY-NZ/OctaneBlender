@@ -1,4 +1,4 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.utils import register_class, unregister_class
 from . import pmc_kernel
@@ -18,4 +18,4 @@ def unregister():
     path_tracing_kernel.unregister()
     info_channels_kernel.unregister()
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

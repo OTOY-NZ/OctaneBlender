@@ -574,6 +574,8 @@ static int octane_ui_compatible_sockets(bool use_octane,
         result = ui_compatible_sockets(typeA, typeB);
         break;
     }
+    // disable this as we don't use the old c++ nodes now
+    result = false;
   }
   else {
     result = ui_compatible_sockets(typeA, typeB);

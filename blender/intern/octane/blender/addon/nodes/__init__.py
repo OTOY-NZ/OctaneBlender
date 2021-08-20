@@ -1,7 +1,13 @@
 import nodeitems_utils
-from . import node_items
-from . import base_output_socket
-from . import node_trees
+from . import (
+	base_node, 
+	base_socket, 
+	base_output_socket, 
+	base_output_node,
+	base_node_tree,
+	node_trees, 
+	node_items
+)
 from . import render_settings
 
 from . import cameras
@@ -30,7 +36,11 @@ from . import values
 def register():
 	# Basic nodes
 	node_items.register()
+	base_node.register()
+	base_socket.register()
 	base_output_socket.register()
+	base_output_node.register()
+	base_node_tree.register()
 	node_trees.register()
 	# Octane auto generated code
 	cameras.register()
@@ -55,8 +65,7 @@ def register():
 	transforms.register()
 	values.register()	
 
-def unregister():
-	node_items.unregister()
+def unregister():	
 	# Octane auto generated code
 	cameras.unregister()
 	compositor.unregister()
@@ -80,5 +89,10 @@ def unregister():
 	transforms.unregister()
 	values.unregister()	
 	# Basic nodes
+	node_items.unregister()
+	base_node.unregister()
+	base_node_tree.unregister()
+	base_output_node.unregister()
 	base_output_socket.unregister()
+	base_socket.unregister()
 	node_trees.unregister()

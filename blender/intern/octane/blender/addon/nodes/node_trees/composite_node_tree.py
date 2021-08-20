@@ -3,6 +3,8 @@ import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.utils import register_class, unregister_class
 from ...utils import consts
+from .. import node_items
+from ..node_items import OctaneNodeItemSeperator, OctaneNodeCategory, OctaneNodeItem
 from ..base_node_tree import OctaneBaseNodeTree
 
 
@@ -11,48 +13,29 @@ class OctaneCompositeNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
     bl_label = "Octane Composite Editor"
     bl_icon = "NODE_COMPOSITING"
 
-    def update_link_validity(self):
-        super().update_link_validity()
-        for link in self.links:
-            from_socket = link.from_socket
-            to_socket = link.to_socket
-            if from_socket and to_socket:
-                if from_socket.type != to_socket.type:
-                    link.is_valid = False
-                if from_socket.name == "OutLayer":
-                    if not to_socket.name.startswith("Layer"):
-                        link.is_valid = False
-                elif from_socket.name == "OutAOV":
-                    if not (to_socket.name.startswith("AOV") or to_socket.name in ("Input", "Mask")):
-                        link.is_valid = False                      
+    @property
+    def max_aov_output_count(self):
+        max_aov_output_count = 0
+        if self.active_output_node is None:
+            return max_aov_output_count
+        if len(self.active_output_node.inputs) == 0:
+            return max_aov_output_count
+        for _link in self.active_output_node.inputs[0].links:
+            if _link.from_node is None:
+                continue
+            target_node = _link.from_node
+            if target_node.bl_idname == "ShaderNodeOctAovOutputGroup":
+                max_aov_output_count = max(max_aov_output_count, int(target_node.group_number))
+            elif target_node.bl_idname == "OctaneAOVOutputGroup":
+                max_aov_output_count = max(max_aov_output_count, int(target_node.a_aov_count))
+        return max_aov_output_count
 
-
-class OctaneCompositeNodeCategory(NodeCategory):
-    @classmethod
-    def poll(cls, context):
-        return context.space_data.tree_type == consts.OctaneNodeTreeIDName.COMPOSITE and \
-            context.scene.render.engine == consts.ENGINE_NAME  
-
-
-octane_composite_node_categories = [
-    OctaneCompositeNodeCategory("OCTANE_COMPOSITE", "Composite", items=[        
-        NodeItem("ShaderNodeOctAovOutputGroup"),
-        NodeItem("ShaderNodeOctColorAovOutput"),
-        NodeItem("ShaderNodeOctCompositeAovOutput"),
-        NodeItem("ShaderNodeOctCompositeAovOutputLayer"),
-        NodeItem("ShaderNodeOctImageAovOutput"),
-        NodeItem("ShaderNodeOctRenderAovOutput"),
-        NodeItem("ShaderNodeOctClampAovOutput"),
-        NodeItem("ShaderNodeOctColorCorrectionAovOutput"),
-        NodeItem("ShaderNodeOctMapRangeAovOutput"),
-        NodeItem("ShaderNodeOctLightMixingAovOutput"),  
-    ]),
-]
+    def update(self):
+        super().update()
+        self.update_viewport()
 
 def register(): 
     register_class(OctaneCompositeNodeTree)
-    nodeitems_utils.register_node_categories(consts.OctaneNodeTree.COMPOSITE, octane_composite_node_categories)
 
 def unregister():
     unregister_class(OctaneCompositeNodeTree)
-    nodeitems_utils.unregister_node_categories(consts.OctaneNodeTree.COMPOSITE)

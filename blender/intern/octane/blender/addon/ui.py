@@ -24,14 +24,18 @@ from bpy.types import Panel, Menu, Operator
 from bpy_extras.node_utils import find_node_input
 from . import engine
 from . import converters
+from .utils import utility
+
 
 def panel_node_draw(layout, id_data, output_type, input_name):
+    from .nodes import base_socket
     if not id_data.use_nodes:
         layout.operator("octane.use_shading_nodes", icon='NODETREE')
         return False
-
     ntree = id_data.node_tree
 
+    base_socket.OCTANE_OT_base_node_link_menu.draw_node_link_menu(None, layout, ntree, output_type, input_name)
+    
     node = ntree.get_output_node('octane')
     if node:
         input = find_node_input(node, input_name)
@@ -58,6 +62,7 @@ def osl_node_draw(layout, node_tree_name, node_name):
                     return True
     layout.label(text="No Octane Geometric Node")
     return False
+
 
 class OCTANE_MT_kernel_presets(Menu):
     bl_label = "Kernel presets"
@@ -105,6 +110,26 @@ class OctaneButtonsPanel():
     @classmethod
     def poll(cls, context):
         return context.engine in cls.COMPAT_ENGINES
+
+class OctaneRenderPassesPanel(OctaneButtonsPanel):
+
+    @classmethod
+    def poll(cls, context):
+        if not OctaneButtonsPanel.poll(context):
+            return False
+        view_layer = context.view_layer
+        octane_view_layer = view_layer.octane
+        return octane_view_layer.render_pass_style == "RENDER_PASSES"
+
+class OctaneRenderAOVNodeGraphPanel(OctaneButtonsPanel):
+
+    @classmethod
+    def poll(cls, context):
+        if not OctaneButtonsPanel.poll(context):
+            return False
+        view_layer = context.view_layer
+        octane_view_layer = view_layer.octane
+        return octane_view_layer.render_pass_style == "RENDER_AOV_GRAPH"           
 
 
 class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
@@ -1380,14 +1405,13 @@ class OCTANE_MATERIAL_PT_surface(OctaneButtonsPanel, Panel):
     def poll(cls, context):
         return (context.material or context.object) and OctaneButtonsPanel.poll(context)
 
-    def draw(self, context):
+    def draw(self, context):        
         layout = self.layout
 
         mat = context.material
         if not mat:
             return
-        if not panel_node_draw(layout, mat, 'OUTPUT_MATERIAL', 'Surface'):
-            layout.prop(mat, "diffuse_color")
+        utility.panel_ui_node_view(context, layout, mat, "OUTPUT_MATERIAL", "Surface")
 
 
 class OCTANE_MATERIAL_PT_volume(OctaneButtonsPanel, Panel):
@@ -1404,8 +1428,7 @@ class OCTANE_MATERIAL_PT_volume(OctaneButtonsPanel, Panel):
         mat = context.material
         if not mat:
             return
-        if not panel_node_draw(layout, mat, 'OUTPUT_MATERIAL', 'Volume'):
-            layout.prop(mat, "diffuse_color")
+        utility.panel_ui_node_view(context, layout, mat, "OUTPUT_MATERIAL", "Volume")
 
 
 class OCTANE_MATERIAL_PT_settings(OctaneButtonsPanel, Panel):
@@ -1438,10 +1461,9 @@ class OCTANE_MATERIAL_PT_converters(OctaneButtonsPanel, Panel):
         row.operator("octane.convert_to_octane_material", text="Convert To Octane Materials")
 
 
-class OCTANE_RENDER_PT_passes(OctaneButtonsPanel, Panel):
-    bl_label = "Passes"
+class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
+    bl_label = "Render AOV Node Graph"
     bl_context = "view_layer"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         view_layer = context.view_layer
@@ -1449,17 +1471,34 @@ class OCTANE_RENDER_PT_passes(OctaneButtonsPanel, Panel):
 
         layout = self.layout
         row = layout.row()
+        row.prop(octane_view_layer, "render_pass_style")  
+
+        row = layout.row()
+        render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
+        row.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon='NODETREE')
+        utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree)
+
+
+class OCTANE_RENDER_PT_passes(OctaneRenderPassesPanel, Panel):
+    bl_label = "Passes"
+    bl_context = "view_layer"
+
+    def draw(self, context):
+        view_layer = context.view_layer
+        octane_view_layer = view_layer.octane
+
+        layout = self.layout
+        row = layout.row()
+        row.prop(octane_view_layer, "render_pass_style")        
+        row = layout.row()
         row.prop(octane_view_layer, "current_preview_pass_type")
         if octane_view_layer.current_preview_pass_type == '10000':
             row = layout.row()
             row.prop(octane_view_layer, "current_aov_output_id")
             octane_aov_out_number = 0
-            composite_node_tree_name = octane_view_layer.aov_output_group_collection.composite_node_tree
-            aov_output_group_name = octane_view_layer.aov_output_group_collection.aov_output_group_node
-            if composite_node_tree_name in bpy.data.node_groups:
-                if aov_output_group_name in bpy.data.node_groups[composite_node_tree_name].nodes:
-                    node = bpy.data.node_groups[composite_node_tree_name].nodes[aov_output_group_name]
-                    octane_aov_out_number = int(node.group_number)
+            composite_node_graph_property = octane_view_layer.composite_node_graph_property
+            if composite_node_graph_property.node_tree is not None:
+                octane_aov_out_number = composite_node_graph_property.node_tree.max_aov_output_count
             if octane_aov_out_number < octane_view_layer.current_aov_output_id:                
                 row = layout.row(align=True)
                 row.label(text="Beauty pass output will be used as no valid results for the assigned index", icon='INFO')
@@ -1467,7 +1506,7 @@ class OCTANE_RENDER_PT_passes(OctaneButtonsPanel, Panel):
                 row.label(text="Please set Octane AOV Outputs in the 'Octane Composite Editor'", icon='INFO')
 
 
-class OCTANE_RENDER_PT_passes_beauty(OctaneButtonsPanel, Panel):
+class OCTANE_RENDER_PT_passes_beauty(OctaneRenderPassesPanel, Panel):
     bl_label = "Beauty"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
@@ -1549,7 +1588,7 @@ class OCTANE_RENDER_PT_passes_beauty(OctaneButtonsPanel, Panel):
         row.prop(view_layer, "use_pass_oct_vol_z_back", text="ZBack", toggle=True)
 
 
-class OCTANE_RENDER_PT_passes_denoiser(OctaneButtonsPanel, Panel):
+class OCTANE_RENDER_PT_passes_denoiser(OctaneRenderPassesPanel, Panel):
     bl_label = "Denoiser"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
@@ -1587,7 +1626,7 @@ class OCTANE_RENDER_PT_passes_denoiser(OctaneButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_oct_denoise_vol_emission", text="VolEmission")
 
 
-class OCTANE_RENDER_PT_passes_postprocessing(OctaneButtonsPanel, Panel):
+class OCTANE_RENDER_PT_passes_postprocessing(OctaneRenderPassesPanel, Panel):
     bl_label = "Post processing"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
@@ -1610,7 +1649,7 @@ class OCTANE_RENDER_PT_passes_postprocessing(OctaneButtonsPanel, Panel):
         col.prop(octane_view_layer, "pass_pp_env")
 
 
-class OCTANE_RENDER_PT_passes_render_layer(OctaneButtonsPanel, Panel):
+class OCTANE_RENDER_PT_passes_render_layer(OctaneRenderPassesPanel, Panel):
     bl_label = "Render layer"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
@@ -1635,7 +1674,7 @@ class OCTANE_RENDER_PT_passes_render_layer(OctaneButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_oct_layer_reflections", text="Reflections")
 
 
-class OCTANE_RENDER_PT_passes_lighting(OctaneButtonsPanel, Panel):
+class OCTANE_RENDER_PT_passes_lighting(OctaneRenderPassesPanel, Panel):
     bl_label = "Lighting"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
@@ -1714,7 +1753,7 @@ class OCTANE_RENDER_PT_passes_lighting(OctaneButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_oct_light_indir_pass_8", text="Indirect")
 
 
-class OCTANE_RENDER_PT_passes_cryptomatte(OctaneButtonsPanel, Panel):
+class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
     bl_label = "Cryptomatte"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
@@ -1753,7 +1792,7 @@ class OCTANE_RENDER_PT_passes_cryptomatte(OctaneButtonsPanel, Panel):
         row.prop(octane_view_layer, "cryptomatte_seed_factor")
 
 
-class OCTANE_RENDER_PT_passes_info(OctaneButtonsPanel, Panel):
+class OCTANE_RENDER_PT_passes_info(OctaneRenderPassesPanel, Panel):
     bl_label = "Info"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
@@ -1829,7 +1868,7 @@ class OCTANE_RENDER_PT_passes_info(OctaneButtonsPanel, Panel):
         row.prop(octane_view_layer, "info_pass_alpha_shadows")       
 
 
-class OCTANE_RENDER_PT_passes_material(OctaneButtonsPanel, Panel):
+class OCTANE_RENDER_PT_passes_material(OctaneRenderPassesPanel, Panel):
     bl_label = "Material"
     bl_context = "view_layer"
     bl_parent_id = "OCTANE_RENDER_PT_passes"
@@ -1865,35 +1904,20 @@ class OCTANE_RENDER_PT_passes_material(OctaneButtonsPanel, Panel):
         row.prop(view_layer, "use_pass_oct_mat_transm_filter_info", text="Transmission", toggle=True)
 
 
-class OCTANE_RENDER_PT_passes_aov(OctaneButtonsPanel, Panel):
-    bl_label = "AOV Outputs"
+class OCTANE_RENDER_PT_AOV_Output_node_graph(OctaneButtonsPanel, Panel):
+    bl_label = "Render AOV Output"
     bl_context = "view_layer"
-    bl_parent_id = "OCTANE_RENDER_PT_passes"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        scene = context.scene
-        rd = scene.render
         view_layer = context.view_layer
         octane_view_layer = view_layer.octane
 
-        # layout.row().separator()
-        # row = layout.row(align=True)
-        # row.prop(view_layer, "octane_aov_out_number") 
-
-        box = layout.box()
-        box.label(text = "AOV Output Group:")
-        col = box.column(align = True)
-
-        sub = col.row(align = True)
-        sub.prop_search(octane_view_layer.aov_output_group_collection, "composite_node_tree", octane_view_layer.aov_output_group_collection, "composite_node_trees")
-        sub = col.row(align = True)        
-        sub.prop_search(octane_view_layer.aov_output_group_collection, "aov_output_group_node", octane_view_layer.aov_output_group_collection, "aov_output_group_nodes")        
-        sub.operator('update.aov_output_group_nodes', text = 'Update')        
+        layout = self.layout
+        row = layout.row()
+        composite_node_graph_property = octane_view_layer.composite_node_graph_property
+        row.prop(composite_node_graph_property, "node_tree", text="AOV Output Node Tree", icon='NODETREE')
+        utility.panel_ui_node_tree_view(context, layout, composite_node_graph_property.node_tree)
 
 
 class OCTANE_RENDER_PT_octane_layers(OctaneButtonsPanel, Panel):
@@ -1943,7 +1967,8 @@ class OCTANE_WORLD_PT_environment(OctaneButtonsPanel, Panel):
         world = context.world
         if not world:
             return
-        panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Octane Environment')
+        utility.panel_ui_node_view(context, layout, world, "OUTPUT_WORLD", "Octane Environment")
+        # panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Octane Environment')
 
 
 class OCTANE_WORLD_PT_visible_environment(OctaneButtonsPanel, Panel):
@@ -1960,7 +1985,8 @@ class OCTANE_WORLD_PT_visible_environment(OctaneButtonsPanel, Panel):
         world = context.world
         if not world:
             return
-        panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Octane VisibleEnvironment')
+        utility.panel_ui_node_view(context, layout, world, "OUTPUT_WORLD", "Octane VisibleEnvironment")
+        # panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Octane VisibleEnvironment')
 
 
 class OCTANE_LIGHT_PT_light(OctaneButtonsPanel, Panel):
@@ -2029,7 +2055,8 @@ class OCTANE_LIGHT_PT_nodes(OctaneButtonsPanel, Panel):
         layout = self.layout
 
         light = context.light
-        panel_node_draw(layout, light, 'OUTPUT_LIGHT', 'Surface')
+        utility.panel_ui_node_view(context, layout, light, "OUTPUT_LIGHT", "Surface")
+        # panel_node_draw(layout, light, 'OUTPUT_LIGHT', 'Surface')
 
 
 class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):
@@ -2268,6 +2295,7 @@ classes = (
     OCTANE_MATERIAL_PT_settings,
     OCTANE_MATERIAL_PT_converters,
 
+    OCTANE_RENDER_PT_AOV_node_graph,    
     OCTANE_RENDER_PT_passes,
     OCTANE_RENDER_PT_passes_beauty,
     OCTANE_RENDER_PT_passes_denoiser,
@@ -2277,9 +2305,9 @@ classes = (
     OCTANE_RENDER_PT_passes_cryptomatte,
     OCTANE_RENDER_PT_passes_info,
     OCTANE_RENDER_PT_passes_material,
-    OCTANE_RENDER_PT_passes_aov,
+    OCTANE_RENDER_PT_AOV_Output_node_graph,
     OCTANE_RENDER_PT_octane_layers,
-    OCTANE_RENDER_PT_override,
+    OCTANE_RENDER_PT_override,    
 
     OCTANE_WORLD_PT_environment,
     OCTANE_WORLD_PT_visible_environment,
@@ -2292,6 +2320,7 @@ classes = (
     OCTANE_OBJECT_PT_octane_settings_baking_settings,
     OCTANE_OBJECT_PT_motion_blur,
 )
+
 
 def register():
     from bpy.utils import register_class

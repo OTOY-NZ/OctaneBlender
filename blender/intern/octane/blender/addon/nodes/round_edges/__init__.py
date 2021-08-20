@@ -1,4 +1,4 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.utils import register_class, unregister_class
 from . import round_edges
@@ -9,4 +9,4 @@ def register():
 def unregister():
     round_edges.unregister()
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

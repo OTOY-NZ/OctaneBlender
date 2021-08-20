@@ -1,4 +1,4 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.utils import register_class, unregister_class
 from . import cylindrical
@@ -45,4 +45,4 @@ def unregister():
     distorted_mesh_uv.unregister()
     matcap.unregister()
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

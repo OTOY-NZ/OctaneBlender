@@ -1,4 +1,4 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.utils import register_class, unregister_class
 from . import black_body_emission
@@ -18,4 +18,4 @@ def unregister():
     toon_point_light.unregister()
     toon_directional_light.unregister()
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

@@ -1,4 +1,4 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.utils import register_class, unregister_class
 from . import render_aov_group
@@ -210,4 +210,4 @@ def unregister():
     wireframe_aov.unregister()
     z_depth_aov.unregister()
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

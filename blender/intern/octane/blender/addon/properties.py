@@ -713,6 +713,11 @@ white_light_spectrum_modes = (
     ('Legacy/flat', "Legacy/flat", "Legacy/flat", 0),
 )
 
+render_passes_style = (
+    ('RENDER_PASSES', "Classic Render Passes", "The classic render passes style but the new render AOVs won't be available there", 0),
+    ('RENDER_AOV_GRAPH', "Render AOV Node Graph", "The render AOV node graph with the AOV features", 1),
+)
+
 
 def get_int_response_type(cls):
     return int(cls.response_type)
@@ -997,7 +1002,7 @@ class OctaneGeoNodeCollection(bpy.types.PropertyGroup):
                 if mat.name != self.node_graph_tree:
                     continue
                 for node in mat.node_tree.nodes.values():
-                    if node.bl_idname in ('ShaderNodeOctVectron', 'ShaderNodeOctScatterToolSurface', 'ShaderNodeOctScatterToolVolume'):                        
+                    if node.bl_idname in ('ShaderNodeOctVectron', 'ShaderNodeOctScatterToolSurface', 'ShaderNodeOctScatterToolVolume', 'OctaneScatterOnSurface', 'OctaneScatterInVolume', ):                        
                         self.osl_geo_nodes.add()
                         self.osl_geo_nodes[-1].name = node.name
         self.sync_geo_node_info(context)
@@ -1163,6 +1168,30 @@ def OctaneOCIOManagement_update_ocio_info(self=None, context=None):
     print("Octane Ocio Management Update End")
 
 
+class RenderAOVNodeGraphPropertyGroup(bpy.types.PropertyGroup):  
+    def poll_render_aov_node_tree(self, node_tree):
+        return node_tree.bl_idname == consts.OctaneNodeTreeIDName.RENDER_AOV
+
+    node_tree: PointerProperty(
+        name="Render AOV Node Graph",
+        description="Select the render AOV node graph(can be created in the 'Octane Render AOV Editor'",
+        type=bpy.types.NodeTree,
+        poll=poll_render_aov_node_tree,
+    )
+
+
+class CompositeNodeGraphPropertyGroup(bpy.types.PropertyGroup):  
+    def poll_composite_node_tree(self, node_tree):
+        return node_tree.bl_idname == consts.OctaneNodeTreeIDName.COMPOSITE
+
+    node_tree: PointerProperty(
+        name="Composite Node Graph",
+        description="Select the Octane composite node graph(can be created in the 'Octane Composte Editor'",
+        type=bpy.types.NodeTree,
+        poll=poll_composite_node_tree,
+    )
+
+
 class OctaneOSLCameraNode(bpy.types.PropertyGroup):    
     name: StringProperty(
             name="Node Name"          
@@ -1244,14 +1273,14 @@ class OctaneAovOutputGroupCollection(bpy.types.PropertyGroup):
             cls.composite_node_trees.remove(0)
         if bpy.data.node_groups:      
             for node_tree in bpy.data.node_groups.values():
-                if getattr(node_tree, "bl_idname", "") == consts.NODE_TREE_IDNAME_COMPOSITE:
+                if getattr(node_tree, "bl_idname", "") == consts.OctaneNodeTreeIDName.COMPOSITE:
                     cls.composite_node_trees.add()
                     cls.composite_node_trees[-1].name = node_tree.name
         for i in range(0, len(cls.aov_output_group_nodes)):
             cls.aov_output_group_nodes.remove(0)  
         if bpy.data.node_groups:      
             for node_tree in bpy.data.node_groups.values():
-                if getattr(node_tree, "bl_idname", "") != consts.NODE_TREE_IDNAME_COMPOSITE:
+                if getattr(node_tree, "bl_idname", "") != consts.OctaneNodeTreeIDName.COMPOSITE:
                     continue
                 if node_tree.name != cls.composite_node_tree:
                     continue
@@ -5029,7 +5058,24 @@ class OctaneRenderLayerSettings(bpy.types.PropertyGroup):
             name="Octane Aov Output Group Collection",
             description="",
             type=OctaneAovOutputGroupCollection,
-            )     
+            )         
+
+    render_pass_style: EnumProperty(
+            name="Render Passes Style",
+            description="Use the classic Render Passes or the new Render AOV Graph",
+            items=render_passes_style,
+            default="RENDER_PASSES",
+            )
+    render_aov_node_graph_property: PointerProperty(
+            name="Render AOV Node Graph Property",
+            description="",
+            type=RenderAOVNodeGraphPropertyGroup,
+            )
+    composite_node_graph_property: PointerProperty(
+            name="Composite Node Graph Property",
+            description="",
+            type=CompositeNodeGraphPropertyGroup,
+            )    
 
     @classmethod
     def register(cls):
@@ -5288,6 +5334,8 @@ classes = (
     OctaneGeoNodeCollection,
     OctaneVDBGridID,
     OctaneVDBInfo,
+    RenderAOVNodeGraphPropertyGroup,
+    CompositeNodeGraphPropertyGroup,
     OctaneAovOutputGroupNode,
     OctaneAovOutputGroupCollection,
     OctaneOSLCameraNode,
@@ -5328,8 +5376,8 @@ def register():
             texture_node_categories = nodeitems_octane.texture_node_categories_based_octane
     except:
         pass     
-    nodeitems_utils.register_node_categories("OCT_SHADER", shader_node_categories)    
-    nodeitems_utils.register_node_categories("OCT_TEXTURE", texture_node_categories)
+    # nodeitems_utils.register_node_categories("OCT_SHADER", shader_node_categories)    
+    # nodeitems_utils.register_node_categories("OCT_TEXTURE", texture_node_categories)
     update_octane_data()
     OctaneOCIOManagement_update_ocio_info()  
     bpy.app.handlers.load_post.append(load_handler)
@@ -5339,6 +5387,6 @@ def unregister():
     from bpy.utils import unregister_class	
     for cls in classes:
         unregister_class(cls)
-    nodeitems_utils.unregister_node_categories("OCT_SHADER")
-    nodeitems_utils.unregister_node_categories("OCT_TEXTURE")        
+    # nodeitems_utils.unregister_node_categories("OCT_SHADER")
+    # nodeitems_utils.unregister_node_categories("OCT_TEXTURE")        
     bpy.app.handlers.load_post.remove(load_handler)

@@ -1,29 +1,34 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneUnaryMathOperationTexture(OctaneBaseSocket):
-    bl_idname = "OctaneUnaryMathOperationTexture"
-    bl_label = "Argument"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneUnaryMathOperationTexture"
+    bl_label="Argument"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=240)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
-    
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneUnaryMathOperationOperationType(OctaneBaseSocket):
-    bl_idname = "OctaneUnaryMathOperationOperationType"
-    bl_label = "Operation"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneUnaryMathOperationOperationType"
+    bl_label="Operation"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=613)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=16)
-    octane_socket_type: IntProperty(name="Socket Type", default=2)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
         ("Absolute value", "Absolute value", "", 0),
         ("Arc cosine", "Arc cosine", "", 1),
@@ -56,30 +61,48 @@ class OctaneUnaryMathOperationOperationType(OctaneBaseSocket):
         ("Tangent", "Tangent", "", 27),
         ("Truncate", "Truncate", "", 29),
     ]
-    default_value: EnumProperty(default="Absolute value", description="The operation to perform on the input", items=items)
+    default_value: EnumProperty(default="Absolute value", update=None, description="The operation to perform on the input", items=items)
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneUnaryMathOperation(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneUnaryMathOperation"
-    bl_label = "Unary math operation"
+    bl_idname="OctaneUnaryMathOperation"
+    bl_label="Unary math operation"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=340)
     octane_socket_list: StringProperty(name="Socket List", default="Argument;Operation;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
 
     def init(self, context):
-        self.inputs.new("OctaneUnaryMathOperationTexture", OctaneUnaryMathOperationTexture.bl_label)
-        self.inputs.new("OctaneUnaryMathOperationOperationType", OctaneUnaryMathOperationOperationType.bl_label)
-        self.outputs.new("OctaneTextureOutSocket", "Texture out")
+        self.inputs.new("OctaneUnaryMathOperationTexture", OctaneUnaryMathOperationTexture.bl_label).init()
+        self.inputs.new("OctaneUnaryMathOperationOperationType", OctaneUnaryMathOperationOperationType.bl_label).init()
+        self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+
+_classes=[
+    OctaneUnaryMathOperationTexture,
+    OctaneUnaryMathOperationOperationType,
+    OctaneUnaryMathOperation,
+]
 
 def register():
-    register_class(OctaneUnaryMathOperationTexture)
-    register_class(OctaneUnaryMathOperationOperationType)
-    register_class(OctaneUnaryMathOperation)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneUnaryMathOperation)
-    unregister_class(OctaneUnaryMathOperationOperationType)
-    unregister_class(OctaneUnaryMathOperationTexture)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

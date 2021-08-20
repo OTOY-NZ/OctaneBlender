@@ -1,3 +1,52 @@
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
+import bpy
+from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
+from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
+from ...utils import consts
+from ...utils.consts import SocketType
+from ..base_node import OctaneBaseNode
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+
+
+class OctaneOCIOColorSpace(bpy.types.Node, OctaneBaseNode):
+    bl_idname="OctaneOCIOColorSpace"
+    bl_label="OCIO color space"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
+    octane_node_type: IntProperty(name="Octane Node Type", default=163)
+    octane_socket_list: StringProperty(name="Socket List", default="")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_color_space;a_ocio_color_space_name;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;10;")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+
+    a_color_space: IntProperty(name="Color space", default=0, update=None, description="The selected non-OCIO color space, or NAMED_COLOR_SPACE_OCIO if an OCIO color space is selected")
+    a_ocio_color_space_name: StringProperty(name="Ocio color space name", default="", update=None, description="The name of the selected OCIO color space, if an OCIO color space is selected. Unused otherwise")
+
+    def init(self, context):
+        self.outputs.new("OctaneOCIOColorSpaceOutSocket", "OCIO color space out").init()
+
+
+_classes=[
+    OctaneOCIOColorSpace,
+]
+
+def register():
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
+
+def unregister():
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
+
+##### END OCTANE GENERATED CODE BLOCK #####
+
 import bpy
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty
@@ -40,13 +89,16 @@ class OctaneNodeOcioColorSpace(bpy.types.Node, OctaneBaseNode):
         col.prop_search(self, "ocio_color_space", preference, collection_name)
 
 
-def register(): 
+def final_register(): 
     from bpy.utils import register_class
     register_class(OctaneNodeOcioColorSpaceSocket)
     register_class(OctaneNodeOcioColorSpace)
 
 
-def unregister():
+def final_unregister():
     from bpy.utils import unregister_class
     unregister_class(OctaneNodeOcioColorSpace)
     unregister_class(OctaneNodeOcioColorSpaceSocket)
+    
+register = final_register
+unregister = final_unregister

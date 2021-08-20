@@ -88,6 +88,7 @@ set(ADDON_NODES_FILES
   addon/nodes/base_node.py
   addon/nodes/base_node_tree.py
   addon/nodes/base_socket.py
+  addon/nodes/base_output_node.py
   addon/nodes/base_output_socket.py
   addon/nodes/node_items.py
 )
@@ -125,6 +126,7 @@ set(ADDON_NODES_DISPLACEMENT_FILES
     addon/nodes/displacement/__init__.py
     addon/nodes/displacement/texture_displacement.py
     addon/nodes/displacement/vertex_displacement.py
+    addon/nodes/displacement/vertex_displacement_mixer.py
 )
 
 set(ADDON_NODES_EMISSION_FILES
@@ -400,6 +402,8 @@ set(ADDON_NODES_TEXTURES_FILES
     addon/nodes/textures/fractal.py
     addon/nodes/textures/hagelslag.py
     addon/nodes/textures/glowing_circle.py
+    addon/nodes/textures/curvature_texture.py
+    addon/nodes/textures/composite_texture.py
     addon/nodes/textures/composite_texture_layer.py
     addon/nodes/textures/floats_to_color.py
     addon/nodes/textures/float3_to_color.py

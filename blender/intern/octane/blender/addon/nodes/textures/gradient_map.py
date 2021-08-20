@@ -1,82 +1,131 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneGradientMapGradientInterpolationType(OctaneBaseSocket):
-    bl_idname = "OctaneGradientMapGradientInterpolationType"
-    bl_label = "Interpolation"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneGradientMapGradientInterpolationType"
+    bl_label="Interpolation"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=299)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=16)
-    octane_socket_type: IntProperty(name="Socket Type", default=2)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
         ("Constant", "Constant", "", 1),
         ("Linear", "Linear", "", 2),
         ("Cubic", "Cubic", "", 3),
     ]
-    default_value: EnumProperty(default="Linear", description="Determines how colors are blended", items=items)
+    default_value: EnumProperty(default="Linear", update=None, description="Determines how colors are blended", items=items)
+    octane_hide_value=False
+    octane_min_version=3000005
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneGradientMapInput(OctaneBaseSocket):
-    bl_idname = "OctaneGradientMapInput"
-    bl_label = "Input texture"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneGradientMapInput"
+    bl_label="Input texture"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=82)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
-    
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneGradientMapMin(OctaneBaseSocket):
-    bl_idname = "OctaneGradientMapMin"
-    bl_label = "Start value"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneGradientMapMin"
+    bl_label="Start value"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=113)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=9)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), description="Output value at 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Output value at 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneGradientMapMax(OctaneBaseSocket):
-    bl_idname = "OctaneGradientMapMax"
-    bl_label = "End value"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneGradientMapMax"
+    bl_label="End value"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=106)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=9)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), description="Output value at 1.0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="Output value at 1.0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneGradientMapSmooth(OctaneBaseSocket):
+    bl_idname="OctaneGradientMapSmooth"
+    bl_label="Smoothing"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=218)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=True, update=None, description="(deprecated) Make the gradient more smooth around the control points")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=3000005
+    octane_deprecated=True
 
 class OctaneGradientMap(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneGradientMap"
-    bl_label = "Gradient map"
+    bl_idname="OctaneGradientMap"
+    bl_label="Gradient map"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=49)
-    octane_socket_list: StringProperty(name="Socket List", default="Interpolation;Input texture;Start value;End value;")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_socket_list: StringProperty(name="Socket List", default="Interpolation;Input texture;Start value;End value;Smoothing;")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_num_controlpoints;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
+
+    a_num_controlpoints: IntProperty(name="Num controlpoints", default=0, update=None, description="The number of control points between start and end")
 
     def init(self, context):
-        self.inputs.new("OctaneGradientMapGradientInterpolationType", OctaneGradientMapGradientInterpolationType.bl_label)
-        self.inputs.new("OctaneGradientMapInput", OctaneGradientMapInput.bl_label)
-        self.inputs.new("OctaneGradientMapMin", OctaneGradientMapMin.bl_label)
-        self.inputs.new("OctaneGradientMapMax", OctaneGradientMapMax.bl_label)
-        self.outputs.new("OctaneTextureOutSocket", "Texture out")
+        self.inputs.new("OctaneGradientMapGradientInterpolationType", OctaneGradientMapGradientInterpolationType.bl_label).init()
+        self.inputs.new("OctaneGradientMapInput", OctaneGradientMapInput.bl_label).init()
+        self.inputs.new("OctaneGradientMapMin", OctaneGradientMapMin.bl_label).init()
+        self.inputs.new("OctaneGradientMapMax", OctaneGradientMapMax.bl_label).init()
+        self.inputs.new("OctaneGradientMapSmooth", OctaneGradientMapSmooth.bl_label).init()
+        self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+
+_classes=[
+    OctaneGradientMapGradientInterpolationType,
+    OctaneGradientMapInput,
+    OctaneGradientMapMin,
+    OctaneGradientMapMax,
+    OctaneGradientMapSmooth,
+    OctaneGradientMap,
+]
 
 def register():
-    register_class(OctaneGradientMapGradientInterpolationType)
-    register_class(OctaneGradientMapInput)
-    register_class(OctaneGradientMapMin)
-    register_class(OctaneGradientMapMax)
-    register_class(OctaneGradientMap)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneGradientMap)
-    unregister_class(OctaneGradientMapMax)
-    unregister_class(OctaneGradientMapMin)
-    unregister_class(OctaneGradientMapInput)
-    unregister_class(OctaneGradientMapGradientInterpolationType)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

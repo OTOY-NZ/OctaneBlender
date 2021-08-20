@@ -1,52 +1,75 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneColorSquaresTransform(OctaneBaseSocket):
-    bl_idname = "OctaneColorSquaresTransform"
-    bl_label = "UV transform"
-    color = (0.75, 0.87, 1.00, 0.70)
+    bl_idname="OctaneColorSquaresTransform"
+    bl_label="UV transform"
+    color=consts.OctanePinColor.Transform
+    octane_default_node_type="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=4)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneColorSquaresProjection(OctaneBaseSocket):
-    bl_idname = "OctaneColorSquaresProjection"
-    bl_label = "Projection"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneColorSquaresProjection"
+    bl_label="Projection"
+    color=consts.OctanePinColor.Projection
+    octane_default_node_type="OctaneMeshUVProjection"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=21)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneColorSquares(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneColorSquares"
-    bl_label = "Color squares"
+    bl_idname="OctaneColorSquares"
+    bl_label="Color squares"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=265)
     octane_socket_list: StringProperty(name="Socket List", default="UV transform;Projection;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
 
     def init(self, context):
-        self.inputs.new("OctaneColorSquaresTransform", OctaneColorSquaresTransform.bl_label)
-        self.inputs.new("OctaneColorSquaresProjection", OctaneColorSquaresProjection.bl_label)
-        self.outputs.new("OctaneTextureOutSocket", "Texture out")
+        self.inputs.new("OctaneColorSquaresTransform", OctaneColorSquaresTransform.bl_label).init()
+        self.inputs.new("OctaneColorSquaresProjection", OctaneColorSquaresProjection.bl_label).init()
+        self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+
+_classes=[
+    OctaneColorSquaresTransform,
+    OctaneColorSquaresProjection,
+    OctaneColorSquares,
+]
 
 def register():
-    register_class(OctaneColorSquaresTransform)
-    register_class(OctaneColorSquaresProjection)
-    register_class(OctaneColorSquares)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneColorSquares)
-    unregister_class(OctaneColorSquaresProjection)
-    unregister_class(OctaneColorSquaresTransform)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

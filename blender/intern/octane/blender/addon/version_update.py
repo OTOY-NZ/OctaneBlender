@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='24.0'
+OCTANE_BLENDER_VERSION='24.2'
 
 import bpy
 import math
@@ -35,6 +35,7 @@ def do_versions(self):
     check_compatibility_octane_world(file_version)
     check_compatibility_camera_imagers(file_version)   
     check_compatibility_octane_node_tree(file_version)
+    check_compatibility_octane_passes(file_version)
     check_octane_output_settings(file_version)
     check_color_management()    
     update_current_version()    
@@ -187,6 +188,31 @@ def check_compatibility_camera_imagers_15_2_4(file_version):
     if bpy.context.scene.octane:
         bpy.context.scene.octane.hdr_tonemap_render_enable = getattr(bpy.context.scene.octane, 'hdr_tonemap_enable', False)
         bpy.context.scene.octane.hdr_tonemap_preview_enable = getattr(bpy.context.scene.octane, 'hdr_tonemap_enable', False)
+
+
+# passes
+def check_compatibility_octane_passes(file_version):
+    check_compatibility_octane_passes_24_2(file_version)
+
+
+def check_compatibility_octane_passes_24_2(file_version):
+    UPDATE_VERSION = '24.2'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    view_layer = bpy.context.view_layer
+    octane_view_layer = view_layer.octane
+    composite_node_tree_name = octane_view_layer.aov_output_group_collection.composite_node_tree
+    aov_output_group_name = octane_view_layer.aov_output_group_collection.aov_output_group_node
+    # Check validity
+    if composite_node_tree_name in bpy.data.node_groups:
+        node_tree = bpy.data.node_groups[composite_node_tree_name]
+        if aov_output_group_name in node_tree.nodes:
+            node = node_tree.nodes[aov_output_group_name]
+            node.outputs.new("OctaneAOVOutputGroupOutSocket", "AOV output group out").init()
+            new_output = node_tree.nodes.new("OctaneAOVOutputGroupOutputNode")
+            node_tree.links.new(node.outputs[0], new_output.inputs[0])
+            composite_node_graph_property = octane_view_layer.composite_node_graph_property
+            composite_node_graph_property.node_tree = node_tree            
 
 
 # world

@@ -68,7 +68,10 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
       motion_blur(false),
       motion_blur_frame_start_offset(0),
       motion_blur_frame_end_offset(0),
-      last_frame_idx(0)
+      last_frame_idx(0),
+      composite_aov_node_tree(PointerRNA_NULL),
+      render_aov_node_tree(PointerRNA_NULL),
+      use_render_aov_node_tree(false)
 {
 }
 
@@ -102,7 +105,9 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
   // * so we can do it later on if doing it immediate is not suitable. */
 
   bool has_updated_objects = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_OBJECT);
-  //bool has_updated_nodetree = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_NODETREE);
+  bool has_updated_nodetree = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_NODETREE);
+  bool has_updated_shading = b_depsgraph.id_type_updated(BL::DriverTarget::id_type_MATERIAL) ||
+                             b_depsgraph.id_type_updated(BL::DriverTarget::id_type_TEXTURE);
   bool dicing_prop_changed = false, experimental = false;
 
   /* Iterate over all IDs in this depsgraph. */
@@ -204,9 +209,10 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
       }
     }
   }
-  if (true) {
+  if (has_updated_nodetree) {
     foreach (Shader *shader, scene->shaders) {
-      if (shader->graph && shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE) {
+      if (shader->graph && (shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE ||
+                            shader->graph->type == ShaderGraphType::SHADER_GRAPH_RENDER_AOV)) {
         shader->need_update = true;
       }
     }
@@ -219,44 +225,37 @@ void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &
   Passes prevpasses = *passes;
 
   PointerRNA oct = RNA_pointer_get(&b_view_layer.ptr, "octane");
-  char tmp[512];
-  PointerRNA aov_output_group_collection = RNA_pointer_get(&oct, "aov_output_group_collection");
-  RNA_string_get(&aov_output_group_collection, "composite_node_tree", tmp);
-  this->composite_node_tree_name = tmp;
-  RNA_string_get(&aov_output_group_collection, "aov_output_group_node", tmp);
-  this->aov_output_group_name = tmp;
-  this->current_aov_number = 0;
-  if (this->composite_node_tree_name.length() > 0 && this->aov_output_group_name.length() > 0) {
-    BL::BlendData::node_groups_iterator b_node_group;
-    for (b_data.node_groups.begin(b_node_group); b_node_group != b_data.node_groups.end();
-         ++b_node_group) {
-      if (b_node_group->name() != this->composite_node_tree_name) {
-        continue;
-      }
-      BL::NodeTree::nodes_iterator b_node;
-      for (b_node_group->nodes.begin(b_node); b_node != b_node_group->nodes.end(); ++b_node) {
-        if (b_node->is_a(&RNA_ShaderNodeOctAovOutputGroup) &&
-            b_node->name() == this->aov_output_group_name) {
-          this->current_aov_number = RNA_enum_get(&b_node->ptr, "group_number");
-          break;
-        }
-      }
-    }
+  PointerRNA composite_node_graph_property = RNA_pointer_get(&oct,
+                                                             "composite_node_graph_property");
+  PointerRNA composite_node_tree = RNA_pointer_get(&composite_node_graph_property, "node_tree");
+  if (composite_node_tree.data != NULL) {
+    BL::NodeTree node_tree(composite_node_tree);
+    this->composite_aov_node_tree = node_tree;
   }
+
+  PointerRNA render_aov_node_graph_property = RNA_pointer_get(&oct,
+                                                              "render_aov_node_graph_property");
+  PointerRNA render_aov_node_tree = RNA_pointer_get(&render_aov_node_graph_property, "node_tree");
+  int render_aov_preview_pass = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
+  if (render_aov_node_tree.data != NULL) {
+    BL::NodeTree node_tree(render_aov_node_tree);
+    this->render_aov_node_tree = node_tree;
+    render_aov_preview_pass = get_render_aov_preview_pass(node_tree);
+  }
+  this->use_render_aov_node_tree = (get_enum(oct, "render_pass_style") != 0);
+
   passes->oct_node->bUsePasses = get_boolean(oct, "use_passes");
   int current_preview_pass_type = get_enum(oct, "current_preview_pass_type");
-  int current_aov_number = this->current_aov_number;
   int current_aov_output_id = get_int(oct, "current_aov_output_id");
   if (current_preview_pass_type == 10000) {
-    if (current_aov_output_id > current_aov_number) {
-      current_preview_pass_type = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
-    }
-    else {
-      current_preview_pass_type = current_preview_pass_type + current_aov_output_id - 1;
-    }
+    current_preview_pass_type = current_preview_pass_type + current_aov_output_id - 1;
+  }
+  if (this->use_render_aov_node_tree) {
+    current_preview_pass_type = render_aov_preview_pass;
   }
   passes->oct_node->iPreviewPass = preview ? current_preview_pass_type :
                                              ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
+  passes->oct_node->bUseRenderAOV = this->use_render_aov_node_tree;
   passes->oct_node->bIncludeEnvironment = get_boolean(oct, "pass_pp_env");
   passes->oct_node->iCryptomatteBins = get_enum(oct, "cryptomatte_pass_channels");
   passes->oct_node->iCryptomatteSeedFactor = get_int(oct, "cryptomatte_seed_factor");
@@ -797,6 +796,66 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
   MAP_PASS("OctAovOut16",
            static_cast<::Octane::RenderPassId>(
                ::Octane::RenderPassId::RENDER_PASS_OUTPUT_AOV_IDS_OFFSET + 15));
+  MAP_PASS(
+      "OctCustom1",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 1));
+  MAP_PASS(
+      "OctCustom2",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 2));
+  MAP_PASS(
+      "OctCustom3",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 3));
+  MAP_PASS(
+      "OctCustom4",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 4));
+  MAP_PASS(
+      "OctCustom5",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 5));
+  MAP_PASS(
+      "OctCustom6",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 6));
+  MAP_PASS(
+      "OctCustom7",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 7));
+  MAP_PASS(
+      "OctCustom8",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 8));
+  MAP_PASS(
+      "OctCustom9",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 9));
+  MAP_PASS(
+      "OctCustom10",
+      static_cast<::Octane::RenderPassId>(::Octane::RenderPassId::RENDER_PASS_CUSTOM_OFFSET + 10));
+  MAP_PASS("OctGlobalTex1",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 1));
+  MAP_PASS("OctGlobalTex2",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 2));
+  MAP_PASS("OctGlobalTex3",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 3));
+  MAP_PASS("OctGlobalTex4",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 4));
+  MAP_PASS("OctGlobalTex5",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 5));
+  MAP_PASS("OctGlobalTex6",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 6));
+  MAP_PASS("OctGlobalTex7",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 7));
+  MAP_PASS("OctGlobalTex8",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 8));
+  MAP_PASS("OctGlobalTex9",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 9));
+  MAP_PASS("OctGlobalTex10",
+           static_cast<::Octane::RenderPassId>(
+               ::Octane::RenderPassId::RENDER_PASS_GLOBAL_TEX_OFFSET + 10));
 #undef MAP_PASS
   return ::Octane::RenderPassId::PASS_NONE;
 }

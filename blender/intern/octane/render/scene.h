@@ -120,6 +120,7 @@ class Scene {
   Shader *default_light;
   Shader *default_environment;
   Shader *default_composite;
+  Shader *default_render_aov_node_tree;
 
   ::OctaneEngine::OctaneClient *server;
   bool first_frame;

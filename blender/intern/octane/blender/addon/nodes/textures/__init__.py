@@ -1,4 +1,4 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.utils import register_class, unregister_class
 from . import turbulence_texture
@@ -47,6 +47,7 @@ from . import channel_merger
 from . import ray_switch
 from . import channel_inverter
 from . import channel_mapper
+from . import composite_texture
 from . import iridescent
 from . import volume_to_texture
 from . import smooth_voronoi_contours
@@ -60,6 +61,7 @@ from . import flakes
 from . import fractal
 from . import hagelslag
 from . import glowing_circle
+from . import curvature_texture
 from . import composite_texture_layer
 from . import floats_to_color
 from . import float3_to_color
@@ -127,6 +129,7 @@ def register():
     ray_switch.register()
     channel_inverter.register()
     channel_mapper.register()
+    composite_texture.register()
     iridescent.register()
     volume_to_texture.register()
     smooth_voronoi_contours.register()
@@ -140,6 +143,7 @@ def register():
     fractal.register()
     hagelslag.register()
     glowing_circle.register()
+    curvature_texture.register()
     composite_texture_layer.register()
     floats_to_color.register()
     float3_to_color.register()
@@ -207,6 +211,7 @@ def unregister():
     ray_switch.unregister()
     channel_inverter.unregister()
     channel_mapper.unregister()
+    composite_texture.unregister()
     iridescent.unregister()
     volume_to_texture.unregister()
     smooth_voronoi_contours.unregister()
@@ -220,6 +225,7 @@ def unregister():
     fractal.unregister()
     hagelslag.unregister()
     glowing_circle.unregister()
+    curvature_texture.unregister()
     composite_texture_layer.unregister()
     floats_to_color.unregister()
     float3_to_color.unregister()
@@ -240,4 +246,4 @@ def unregister():
     binary_math_operation.unregister()
     unary_math_operation.unregister()
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

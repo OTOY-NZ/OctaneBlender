@@ -1012,9 +1012,9 @@ static inline int4 get_int4(PointerRNA &ptr, const char *name)
 {
   int4 result;
   PropertyRNA *prop = RNA_struct_find_property(&ptr, name);
-  bool is_array = RNA_property_array_check(prop);
+  bool is_array = (prop != NULL) && RNA_property_array_check(prop);
   if (is_array) {
-    int len = (prop != NULL) && RNA_property_array_length(&ptr, prop);
+    int len = RNA_property_array_length(&ptr, prop);
     RNA_int_get_array(&ptr, name, &result.x);
     for (int i = len; i < 4; ++i) {
       result[i] = 0;
@@ -1149,7 +1149,13 @@ static inline bool set_octane_data_transfer_object(
       *(::OctaneDataTransferObject::OctaneDTOBool *)base_dto_ptr = get_boolean(ptr, name);
       break;
     case OctaneDataTransferObject::DTO_INT:
-      *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_int(ptr, name);
+      prop = RNA_struct_find_property(&ptr, name);
+      if (RNA_property_type(prop) == PROP_ENUM) {
+        *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_enum(ptr, name);
+      }
+      else {
+        *(::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr = get_int(ptr, name);
+      }
       break;
     case OctaneDataTransferObject::DTO_INT_2:
       i = get_int4(ptr, name);

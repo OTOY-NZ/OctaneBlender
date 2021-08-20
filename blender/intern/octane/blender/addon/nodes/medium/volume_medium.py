@@ -1,180 +1,284 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneVolumeMediumScale(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumScale"
-    bl_label = "Density"
-    color = (0.50, 0.70, 0.90, 0.70)
+    bl_idname="OctaneVolumeMediumScale"
+    bl_label="Density"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=2)
-    octane_socket_type: IntProperty(name="Socket Type", default=6)
-    default_value: FloatProperty(default=100.000000, description="Absorption and scattering scale", min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, subtype="FACTOR")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    default_value: FloatProperty(default=100.000000, update=None, description="Absorption and scattering scale", min=0.000100, max=10000.000000, soft_min=0.000100, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumRayMarchStepLength(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumRayMarchStepLength"
-    bl_label = "Volume step length"
-    color = (0.50, 0.70, 0.90, 0.70)
+    bl_idname="OctaneVolumeMediumRayMarchStepLength"
+    bl_label="Volume step length"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=274)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=2)
-    octane_socket_type: IntProperty(name="Socket Type", default=6)
-    default_value: FloatProperty(default=4.000000, description="Step length that is used for marching through volumes", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000000.000000, step=1, subtype="FACTOR")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    default_value: FloatProperty(default=4.000000, update=None, description="Step length that is used for marching through volumes", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000000.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumShadowRayMarchStepLength(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumShadowRayMarchStepLength"
-    bl_label = "Vol. shadow ray step length"
-    color = (0.50, 0.70, 0.90, 0.70)
+    bl_idname="OctaneVolumeMediumShadowRayMarchStepLength"
+    bl_label="Vol. shadow ray step length"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=496)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=2)
-    octane_socket_type: IntProperty(name="Socket Type", default=6)
-    default_value: FloatProperty(default=4.000000, description="Step length that is used by the shadow ray for marching through volumes", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000000.000000, step=1, subtype="FACTOR")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    default_value: FloatProperty(default=4.000000, update=None, description="Step length that is used by the shadow ray for marching through volumes", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000000.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=7000000
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumUseRayStepLengthForShadowRays(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumUseRayStepLengthForShadowRays"
-    bl_label = "Use Vol. step length for Vol. shadow ray step length"
-    color = (0.87, 0.66, 0.83, 0.70)
+    bl_idname="OctaneVolumeMediumUseRayStepLengthForShadowRays"
+    bl_label="Use Vol. step length for Vol. shadow ray step length"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=515)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=1)
-    octane_socket_type: IntProperty(name="Socket Type", default=1)
-    default_value: BoolProperty(default=True, description="Uses Volume step length as Volume shadow ray step length as well")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=True, update=None, description="Uses Volume step length as Volume shadow ray step length as well")
+    octane_hide_value=False
+    octane_min_version=8000005
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumDisplacement(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumDisplacement"
-    bl_label = "Sample position displacement"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneVolumeMediumDisplacement"
+    bl_label="Sample position displacement"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=34)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
-    
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=7000000
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneVolumeMediumAbsorption(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumAbsorption"
-    bl_label = "Absorption"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneVolumeMediumAbsorption"
+    bl_label="Absorption"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=1)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=9)
-    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), description="Absorption cross section. This channel defines how much light is absorbed over the color range. By enabling 'invert absorption' this channel behaves like transparency", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=None, description="Absorption cross section. This channel defines how much light is absorbed over the color range. By enabling \"invert absorption\" this channel behaves like transparency", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumAbsorptionRamp(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumAbsorptionRamp"
-    bl_label = "Absorption ramp"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneVolumeMediumAbsorptionRamp"
+    bl_label="Absorption ramp"
+    color=consts.OctanePinColor.VolumeRamp
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=291)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=26)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_VOLUME_RAMP)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumInvertAbsorption(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumInvertAbsorption"
-    bl_label = "Invert absorption"
-    color = (0.87, 0.66, 0.83, 0.70)
+    bl_idname="OctaneVolumeMediumInvertAbsorption"
+    bl_label="Invert absorption"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=302)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=1)
-    octane_socket_type: IntProperty(name="Socket Type", default=1)
-    default_value: BoolProperty(default=True, description="Inverts the absorption color so that the absorption channel becomes a transparency channel. This helps visualizing the effect of the specified color since a neutral background shining through the medium will appear approximately in that color")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=True, update=None, description="Inverts the absorption color so that the absorption channel becomes a transparency channel. This helps visualizing the effect of the specified color since a neutral background shining through the medium will appear approximately in that color")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumScattering(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumScattering"
-    bl_label = "Scattering"
-    color = (0.75, 1.00, 0.87, 0.70)
+    bl_idname="OctaneVolumeMediumScattering"
+    bl_label="Scattering"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type="OctaneRGBColor"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=211)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=5)
-    octane_socket_type: IntProperty(name="Socket Type", default=9)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), description="Scattering cross section", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Scattering cross section", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumScatteringRamp(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumScatteringRamp"
-    bl_label = "Scattering ramp"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneVolumeMediumScatteringRamp"
+    bl_label="Scattering ramp"
+    color=consts.OctanePinColor.VolumeRamp
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=292)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=26)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_VOLUME_RAMP)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumPhase(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumPhase"
-    bl_label = "Phase"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneVolumeMediumPhase"
+    bl_label="Phase"
+    color=consts.OctanePinColor.PhaseFunction
+    octane_default_node_type="OctaneSchlick"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=131)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=14)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PHASEFUNCTION)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumEmission(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumEmission"
-    bl_label = "Emission"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneVolumeMediumEmission"
+    bl_label="Emission"
+    color=consts.OctanePinColor.Emission
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=41)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=6)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_EMISSION)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneVolumeMediumEmissionRamp(OctaneBaseSocket):
-    bl_idname = "OctaneVolumeMediumEmissionRamp"
-    bl_label = "Emission ramp"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneVolumeMediumEmissionRamp"
+    bl_label="Emission ramp"
+    color=consts.OctanePinColor.VolumeRamp
+    octane_default_node_type=""
     octane_pin_id: IntProperty(name="Octane Pin ID", default=293)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=26)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_VOLUME_RAMP)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneVolumeMediumLockStepLength(OctaneBaseSocket):
+    bl_idname="OctaneVolumeMediumLockStepLength"
+    bl_label="Lock step length pins"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=500)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=True, update=None, description="Locks volume step length and shadow step length pins. So if the value of one is changed then the other one is also changed automatically")
+    octane_hide_value=False
+    octane_min_version=7000000
+    octane_end_version=8000005
+    octane_deprecated=True
+
+class OctaneVolumeMediumGroupAbsorption(OctaneGroupTitleSocket):
+    bl_idname="OctaneVolumeMediumGroupAbsorption"
+    bl_label="[OctaneGroupTitle]Absorption"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Absorption;Absorption ramp;Invert absorption;")
+
+class OctaneVolumeMediumGroupScattering(OctaneGroupTitleSocket):
+    bl_idname="OctaneVolumeMediumGroupScattering"
+    bl_label="[OctaneGroupTitle]Scattering"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Scattering;Scattering ramp;Phase;")
+
+class OctaneVolumeMediumGroupEmission(OctaneGroupTitleSocket):
+    bl_idname="OctaneVolumeMediumGroupEmission"
+    bl_label="[OctaneGroupTitle]Emission"
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Emission;Emission ramp;")
 
 class OctaneVolumeMedium(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneVolumeMedium"
-    bl_label = "Volume medium"
+    bl_idname="OctaneVolumeMedium"
+    bl_label="Volume medium"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=98)
-    octane_socket_list: StringProperty(name="Socket List", default="Density;Volume step length;Vol. shadow ray step length;Use Vol. step length for Vol. shadow ray step length;Sample position displacement;Absorption;Absorption ramp;Invert absorption;Scattering;Scattering ramp;Phase;Emission;Emission ramp;")
+    octane_socket_list: StringProperty(name="Socket List", default="Density;Volume step length;Vol. shadow ray step length;Use Vol. step length for Vol. shadow ray step length;Sample position displacement;Absorption;Absorption ramp;Invert absorption;Scattering;Scattering ramp;Phase;Emission;Emission ramp;Lock step length pins;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=14)
 
     def init(self, context):
-        self.inputs.new("OctaneVolumeMediumScale", OctaneVolumeMediumScale.bl_label)
-        self.inputs.new("OctaneVolumeMediumRayMarchStepLength", OctaneVolumeMediumRayMarchStepLength.bl_label)
-        self.inputs.new("OctaneVolumeMediumShadowRayMarchStepLength", OctaneVolumeMediumShadowRayMarchStepLength.bl_label)
-        self.inputs.new("OctaneVolumeMediumUseRayStepLengthForShadowRays", OctaneVolumeMediumUseRayStepLengthForShadowRays.bl_label)
-        self.inputs.new("OctaneVolumeMediumDisplacement", OctaneVolumeMediumDisplacement.bl_label)
-        self.inputs.new("OctaneVolumeMediumAbsorption", OctaneVolumeMediumAbsorption.bl_label)
-        self.inputs.new("OctaneVolumeMediumAbsorptionRamp", OctaneVolumeMediumAbsorptionRamp.bl_label)
-        self.inputs.new("OctaneVolumeMediumInvertAbsorption", OctaneVolumeMediumInvertAbsorption.bl_label)
-        self.inputs.new("OctaneVolumeMediumScattering", OctaneVolumeMediumScattering.bl_label)
-        self.inputs.new("OctaneVolumeMediumScatteringRamp", OctaneVolumeMediumScatteringRamp.bl_label)
-        self.inputs.new("OctaneVolumeMediumPhase", OctaneVolumeMediumPhase.bl_label)
-        self.inputs.new("OctaneVolumeMediumEmission", OctaneVolumeMediumEmission.bl_label)
-        self.inputs.new("OctaneVolumeMediumEmissionRamp", OctaneVolumeMediumEmissionRamp.bl_label)
-        self.outputs.new("OctaneMediumOutSocket", "Medium out")
+        self.inputs.new("OctaneVolumeMediumScale", OctaneVolumeMediumScale.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumRayMarchStepLength", OctaneVolumeMediumRayMarchStepLength.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumShadowRayMarchStepLength", OctaneVolumeMediumShadowRayMarchStepLength.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumUseRayStepLengthForShadowRays", OctaneVolumeMediumUseRayStepLengthForShadowRays.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumDisplacement", OctaneVolumeMediumDisplacement.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumGroupAbsorption", OctaneVolumeMediumGroupAbsorption.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumAbsorption", OctaneVolumeMediumAbsorption.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumAbsorptionRamp", OctaneVolumeMediumAbsorptionRamp.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumInvertAbsorption", OctaneVolumeMediumInvertAbsorption.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumGroupScattering", OctaneVolumeMediumGroupScattering.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumScattering", OctaneVolumeMediumScattering.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumScatteringRamp", OctaneVolumeMediumScatteringRamp.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumPhase", OctaneVolumeMediumPhase.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumGroupEmission", OctaneVolumeMediumGroupEmission.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumEmission", OctaneVolumeMediumEmission.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumEmissionRamp", OctaneVolumeMediumEmissionRamp.bl_label).init()
+        self.inputs.new("OctaneVolumeMediumLockStepLength", OctaneVolumeMediumLockStepLength.bl_label).init()
+        self.outputs.new("OctaneMediumOutSocket", "Medium out").init()
 
+
+_classes=[
+    OctaneVolumeMediumScale,
+    OctaneVolumeMediumRayMarchStepLength,
+    OctaneVolumeMediumShadowRayMarchStepLength,
+    OctaneVolumeMediumUseRayStepLengthForShadowRays,
+    OctaneVolumeMediumDisplacement,
+    OctaneVolumeMediumAbsorption,
+    OctaneVolumeMediumAbsorptionRamp,
+    OctaneVolumeMediumInvertAbsorption,
+    OctaneVolumeMediumScattering,
+    OctaneVolumeMediumScatteringRamp,
+    OctaneVolumeMediumPhase,
+    OctaneVolumeMediumEmission,
+    OctaneVolumeMediumEmissionRamp,
+    OctaneVolumeMediumLockStepLength,
+    OctaneVolumeMediumGroupAbsorption,
+    OctaneVolumeMediumGroupScattering,
+    OctaneVolumeMediumGroupEmission,
+    OctaneVolumeMedium,
+]
 
 def register():
-    register_class(OctaneVolumeMediumScale)
-    register_class(OctaneVolumeMediumRayMarchStepLength)
-    register_class(OctaneVolumeMediumShadowRayMarchStepLength)
-    register_class(OctaneVolumeMediumUseRayStepLengthForShadowRays)
-    register_class(OctaneVolumeMediumDisplacement)
-    register_class(OctaneVolumeMediumAbsorption)
-    register_class(OctaneVolumeMediumAbsorptionRamp)
-    register_class(OctaneVolumeMediumInvertAbsorption)
-    register_class(OctaneVolumeMediumScattering)
-    register_class(OctaneVolumeMediumScatteringRamp)
-    register_class(OctaneVolumeMediumPhase)
-    register_class(OctaneVolumeMediumEmission)
-    register_class(OctaneVolumeMediumEmissionRamp)
-    register_class(OctaneVolumeMedium)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneVolumeMedium)
-    unregister_class(OctaneVolumeMediumEmissionRamp)
-    unregister_class(OctaneVolumeMediumEmission)
-    unregister_class(OctaneVolumeMediumPhase)
-    unregister_class(OctaneVolumeMediumScatteringRamp)
-    unregister_class(OctaneVolumeMediumScattering)
-    unregister_class(OctaneVolumeMediumInvertAbsorption)
-    unregister_class(OctaneVolumeMediumAbsorptionRamp)
-    unregister_class(OctaneVolumeMediumAbsorption)
-    unregister_class(OctaneVolumeMediumDisplacement)
-    unregister_class(OctaneVolumeMediumUseRayStepLengthForShadowRays)
-    unregister_class(OctaneVolumeMediumShadowRayMarchStepLength)
-    unregister_class(OctaneVolumeMediumRayMarchStepLength)
-    unregister_class(OctaneVolumeMediumScale)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

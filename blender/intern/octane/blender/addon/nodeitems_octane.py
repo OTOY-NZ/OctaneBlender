@@ -20,6 +20,7 @@
 import bpy
 import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem
+from .nodes.node_items import OctaneNodeItemSeperator, OctaneNodeCategory, OctaneNodeItem
 
 
 # Subclasses for standard node types
@@ -114,6 +115,7 @@ OCT_TEXTURES = (
     NodeItem("ShaderNodeOctTriWaveTex"),  
     NodeItem("ShaderNodeOctTurbulenceTex"),
     NodeItemSeperator('Geometric'),
+    NodeItem("OctaneCurvatureTexture"),
     NodeItem("ShaderNodeOctDirtTex"),
     NodeItem("ShaderNodeOctFalloffTex"),
     NodeItem("ShaderNodeOctInstanceColorTex"),
@@ -192,6 +194,7 @@ OCT_TEXTURE_PROCEDURALS = (
     NodeItem("OctaneFlakes"),
     NodeItem("OctaneFractal"),
     NodeItem("OctaneGlowingCircle"),  
+    NodeItem("OctaneCurvatureTexture"),
     NodeItem("ShaderNodeOctDirtTex"),
     NodeItem("ShaderNodeOctFloatTex"),
     NodeItem("ShaderNodeOctFloatVertexTex"),

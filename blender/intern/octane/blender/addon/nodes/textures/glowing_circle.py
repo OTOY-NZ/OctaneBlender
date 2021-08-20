@@ -1,76 +1,107 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneGlowingCircleRadius(OctaneBaseSocket):
-    bl_idname = "OctaneGlowingCircleRadius"
-    bl_label = "Radius"
-    color = (0.50, 0.70, 0.90, 0.70)
+    bl_idname="OctaneGlowingCircleRadius"
+    bl_label="Radius"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=142)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=2)
-    octane_socket_type: IntProperty(name="Socket Type", default=6)
-    default_value: FloatProperty(default=0.200000, description="The radius of the circle", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="FACTOR")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    default_value: FloatProperty(default=0.200000, update=None, description="The radius of the circle", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneGlowingCircleLineWidth(OctaneBaseSocket):
-    bl_idname = "OctaneGlowingCircleLineWidth"
-    bl_label = "Line width"
-    color = (0.50, 0.70, 0.90, 0.70)
+    bl_idname="OctaneGlowingCircleLineWidth"
+    bl_label="Line width"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=714)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=2)
-    octane_socket_type: IntProperty(name="Socket Type", default=6)
-    default_value: FloatProperty(default=0.020000, description="The line width", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="FACTOR")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
+    default_value: FloatProperty(default=0.020000, update=None, description="The line width", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneGlowingCircleTransform(OctaneBaseSocket):
-    bl_idname = "OctaneGlowingCircleTransform"
-    bl_label = "UV transform"
-    color = (0.75, 0.87, 1.00, 0.70)
+    bl_idname="OctaneGlowingCircleTransform"
+    bl_label="UV transform"
+    color=consts.OctanePinColor.Transform
+    octane_default_node_type="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=4)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneGlowingCircleProjection(OctaneBaseSocket):
-    bl_idname = "OctaneGlowingCircleProjection"
-    bl_label = "Projection"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneGlowingCircleProjection"
+    bl_label="Projection"
+    color=consts.OctanePinColor.Projection
+    octane_default_node_type="OctaneMeshUVProjection"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=141)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=21)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_PROJECTION)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneGlowingCircle(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneGlowingCircle"
-    bl_label = "Glowing circle"
+    bl_idname="OctaneGlowingCircle"
+    bl_label="Glowing circle"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=270)
     octane_socket_list: StringProperty(name="Socket List", default="Radius;Line width;UV transform;Projection;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=4)
 
     def init(self, context):
-        self.inputs.new("OctaneGlowingCircleRadius", OctaneGlowingCircleRadius.bl_label)
-        self.inputs.new("OctaneGlowingCircleLineWidth", OctaneGlowingCircleLineWidth.bl_label)
-        self.inputs.new("OctaneGlowingCircleTransform", OctaneGlowingCircleTransform.bl_label)
-        self.inputs.new("OctaneGlowingCircleProjection", OctaneGlowingCircleProjection.bl_label)
-        self.outputs.new("OctaneTextureOutSocket", "Texture out")
+        self.inputs.new("OctaneGlowingCircleRadius", OctaneGlowingCircleRadius.bl_label).init()
+        self.inputs.new("OctaneGlowingCircleLineWidth", OctaneGlowingCircleLineWidth.bl_label).init()
+        self.inputs.new("OctaneGlowingCircleTransform", OctaneGlowingCircleTransform.bl_label).init()
+        self.inputs.new("OctaneGlowingCircleProjection", OctaneGlowingCircleProjection.bl_label).init()
+        self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+
+_classes=[
+    OctaneGlowingCircleRadius,
+    OctaneGlowingCircleLineWidth,
+    OctaneGlowingCircleTransform,
+    OctaneGlowingCircleProjection,
+    OctaneGlowingCircle,
+]
 
 def register():
-    register_class(OctaneGlowingCircleRadius)
-    register_class(OctaneGlowingCircleLineWidth)
-    register_class(OctaneGlowingCircleTransform)
-    register_class(OctaneGlowingCircleProjection)
-    register_class(OctaneGlowingCircle)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneGlowingCircle)
-    unregister_class(OctaneGlowingCircleProjection)
-    unregister_class(OctaneGlowingCircleTransform)
-    unregister_class(OctaneGlowingCircleLineWidth)
-    unregister_class(OctaneGlowingCircleRadius)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

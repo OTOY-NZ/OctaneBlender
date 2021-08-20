@@ -31,10 +31,10 @@ static bNodeSocketTemplate sh_node_object_in[] = {
 };
 
 static bNodeSocketTemplate sh_node_object_out[] = {
-    {SOCK_SHADER, N_("OutTransform")},
+    {SOCK_VECTOR, N_("OutTransform")},
     {SOCK_VECTOR, N_("OutRotation")},
-    {SOCK_SHADER, N_("OutGeo")},
-    {SOCK_SHADER, N_("OutTransformedGeo")},
+    {SOCK_GEOMETRY, N_("OutGeo")},
+    {SOCK_GEOMETRY, N_("OutTransformedGeo")},
     {-1, ""},
 };
 

@@ -1,42 +1,61 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneTransmissionFilterInfoAOVEnabled(OctaneBaseSocket):
-    bl_idname = "OctaneTransmissionFilterInfoAOVEnabled"
-    bl_label = "Enabled"
-    color = (0.87, 0.66, 0.83, 0.70)
+    bl_idname="OctaneTransmissionFilterInfoAOVEnabled"
+    bl_label="Enabled"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=1)
-    octane_socket_type: IntProperty(name="Socket Type", default=1)
-    default_value: BoolProperty(default=True, description="Enables the render AOV")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enables the render AOV")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneTransmissionFilterInfoAOV(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneTransmissionFilterInfoAOV"
-    bl_label = "Transmission filter (info) AOV"
+    bl_idname="OctaneTransmissionFilterInfoAOV"
+    bl_label="Transmission filter (info) AOV"
+    bl_width_default=200
+    octane_render_pass_id=1023
+    octane_render_pass_name="Transmission filter (info)"
+    octane_render_pass_short_name="TraFi"
+    octane_render_pass_description="The transmission texture color of the diffuse material"
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=243)
     octane_socket_list: StringProperty(name="Socket List", default="Enabled;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
 
     def init(self, context):
-        self.inputs.new("OctaneTransmissionFilterInfoAOVEnabled", OctaneTransmissionFilterInfoAOVEnabled.bl_label)
-        self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out")
+        self.inputs.new("OctaneTransmissionFilterInfoAOVEnabled", OctaneTransmissionFilterInfoAOVEnabled.bl_label).init()
+        self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
 
+
+_classes=[
+    OctaneTransmissionFilterInfoAOVEnabled,
+    OctaneTransmissionFilterInfoAOV,
+]
 
 def register():
-    register_class(OctaneTransmissionFilterInfoAOVEnabled)
-    register_class(OctaneTransmissionFilterInfoAOV)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneTransmissionFilterInfoAOV)
-    unregister_class(OctaneTransmissionFilterInfoAOVEnabled)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

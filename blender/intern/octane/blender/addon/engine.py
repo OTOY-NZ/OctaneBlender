@@ -104,6 +104,8 @@ def render(engine, depsgraph):
     # print("OctaneBlender Engine Render")
     if engine.is_preview:
         return    
+    scene = depsgraph.scene_eval
+    register_render_aov_node_graph_passes(engine, scene)
     import _octane
     if hasattr(engine, "session"):
         _octane.render(engine.session, depsgraph.as_pointer())
@@ -262,3 +264,21 @@ def register_passes(engine, scene, srl):
     for attribute_name, pass_name in PASS_DATA.items():
         if getattr(srl, attribute_name, False):
             engine.register_pass(scene, srl, pass_name, 4, "RGBA", "COLOR")
+
+
+def register_render_aov_node_graph_passes(engine, scene):
+    oct_scene = scene.octane
+    oct_view_cam = scene.oct_view_cam
+    oct_active_cam = scene.camera.data.octane
+    enable_denoiser = False
+    if oct_scene.use_preview_setting_for_camera_imager:
+        enable_denoiser = oct_view_cam.enable_denoising and oct_scene.hdr_tonemap_preview_enable
+    else:
+        enable_denoiser = oct_active_cam.enable_denoising and oct_scene.hdr_tonemap_render_enable
+    for layer in scene.view_layers:
+        octane_view_layer = layer.octane
+        if octane_view_layer.render_pass_style == "RENDER_PASSES":
+            continue
+        if layer.use:
+            from .utils import utility
+            utility.engine_add_layer_passes(engine, layer, enable_denoiser)

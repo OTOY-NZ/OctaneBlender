@@ -188,6 +188,7 @@ class BlenderSync {
   void sync_materials(BL::Depsgraph &b_depsgraph, bool update_all, bool update_paint_only = false);
   void sync_textures(BL::Depsgraph &b_depsgraph, bool update_all);
   void sync_composites(BL::Depsgraph &b_depsgraph, bool update_all);
+  void sync_render_aov_node_tree(BL::Depsgraph &b_depsgraph, bool update_all);
 
   void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, float motion_time = 0);
   bool fill_mesh_hair_data(Mesh *mesh,
@@ -204,6 +205,9 @@ class BlenderSync {
   bool BKE_object_is_modified(BL::Object &b_ob);
   bool object_is_mesh(BL::Object &b_ob);
   bool object_is_light(BL::Object &b_ob);
+  static BL::Node find_active_render_aov_output(BL::NodeTree &node_tree);
+  static BL::Node find_active_composite_aov_output(BL::NodeTree &node_tree);
+  static int get_render_aov_preview_pass(BL::NodeTree &node_tree);
 
  private:
   /* variables */
@@ -269,9 +273,11 @@ class BlenderSync {
   std::unordered_set<std::string> dirty_resources;
   std::unordered_map<std::string, std::string> synced_mesh_tags;
 
-  std::string composite_node_tree_name;
-  std::string aov_output_group_name;
-  int current_aov_number;
+  BL::NodeTree composite_aov_node_tree;
+
+  BL::NodeTree render_aov_node_tree;
+  std::string active_render_aov_output_name;
+  bool use_render_aov_node_tree;
 };
 
 OCT_NAMESPACE_END

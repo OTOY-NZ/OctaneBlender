@@ -1,95 +1,130 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneRelativeDistanceDistanceMode(OctaneBaseSocket):
-    bl_idname = "OctaneRelativeDistanceDistanceMode"
-    bl_label = "Distance mode"
-    color = (1.00, 1.00, 1.00, 0.70)
+    bl_idname="OctaneRelativeDistanceDistanceMode"
+    bl_label="Distance mode"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type="OctaneEnumValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=646)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=16)
-    octane_socket_type: IntProperty(name="Socket Type", default=2)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
     items = [
         ("Distance", "Distance", "", 0),
         ("X-axis offset", "X-axis offset", "", 1),
         ("Y-axis offset", "Y-axis offset", "", 2),
         ("Z-axis offset", "Z-axis offset", "", 3),
     ]
-    default_value: EnumProperty(default="Distance", description="Defines how the distance metric is computed", items=items)
+    default_value: EnumProperty(default="Distance", update=None, description="Defines how the distance metric is computed", items=items)
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneRelativeDistanceTransform(OctaneBaseSocket):
-    bl_idname = "OctaneRelativeDistanceTransform"
-    bl_label = "Reference transform"
-    color = (0.75, 0.87, 1.00, 0.70)
+    bl_idname="OctaneRelativeDistanceTransform"
+    bl_label="Reference transform"
+    color=consts.OctanePinColor.Transform
+    octane_default_node_type="OctaneTransformValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=243)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=4)
-    octane_socket_type: IntProperty(name="Socket Type", default=11)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TRANSFORM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_LINK)
+    octane_hide_value=True
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneRelativeDistanceUseFullTransform(OctaneBaseSocket):
-    bl_idname = "OctaneRelativeDistanceUseFullTransform"
-    bl_label = "Use full transform"
-    color = (0.87, 0.66, 0.83, 0.70)
+    bl_idname="OctaneRelativeDistanceUseFullTransform"
+    bl_label="Use full transform"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=647)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=1)
-    octane_socket_type: IntProperty(name="Socket Type", default=1)
-    default_value: BoolProperty(default=True, description="If checked the distance metric is computed in the space of the reference transform, including rotation and scale. Otherwise only the position is taken into account")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=True, update=None, description="If checked the distance metric is computed in the space of the reference transform, including rotation and scale.\nOtherwise only the position is taken into account")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneRelativeDistanceNormalize(OctaneBaseSocket):
-    bl_idname = "OctaneRelativeDistanceNormalize"
-    bl_label = "Normalize result"
-    color = (0.87, 0.66, 0.83, 0.70)
+    bl_idname="OctaneRelativeDistanceNormalize"
+    bl_label="Normalize result"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=118)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=1)
-    octane_socket_type: IntProperty(name="Socket Type", default=1)
-    default_value: BoolProperty(default=False, description="Whether the result should be remapped to the [0..1] range")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=False, update=None, description="Whether the result should be remapped to the [0..1] range")
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneRelativeDistanceNormalizationRange(OctaneBaseSocket):
-    bl_idname = "OctaneRelativeDistanceNormalizationRange"
-    bl_label = "Normalization range"
-    color = (0.50, 0.70, 0.90, 0.70)
+    bl_idname="OctaneRelativeDistanceNormalizationRange"
+    bl_label="Normalization range"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type="OctaneFloatValue"
     octane_pin_id: IntProperty(name="Octane Pin ID", default=640)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=2)
-    octane_socket_type: IntProperty(name="Socket Type", default=7)
-    default_value: FloatVectorProperty(default=(0.000000, 1.000000), description="Min and max values used for normalization", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=2)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000), update=None, description="Min and max values used for normalization", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", size=2)
+    octane_hide_value=False
+    octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
 
 class OctaneRelativeDistance(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneRelativeDistance"
-    bl_label = "Relative distance"
+    bl_idname="OctaneRelativeDistance"
+    bl_label="Relative distance"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=329)
     octane_socket_list: StringProperty(name="Socket List", default="Distance mode;Reference transform;Use full transform;Normalize result;Normalization range;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
 
     def init(self, context):
-        self.inputs.new("OctaneRelativeDistanceDistanceMode", OctaneRelativeDistanceDistanceMode.bl_label)
-        self.inputs.new("OctaneRelativeDistanceTransform", OctaneRelativeDistanceTransform.bl_label)
-        self.inputs.new("OctaneRelativeDistanceUseFullTransform", OctaneRelativeDistanceUseFullTransform.bl_label)
-        self.inputs.new("OctaneRelativeDistanceNormalize", OctaneRelativeDistanceNormalize.bl_label)
-        self.inputs.new("OctaneRelativeDistanceNormalizationRange", OctaneRelativeDistanceNormalizationRange.bl_label)
-        self.outputs.new("OctaneTextureOutSocket", "Texture out")
+        self.inputs.new("OctaneRelativeDistanceDistanceMode", OctaneRelativeDistanceDistanceMode.bl_label).init()
+        self.inputs.new("OctaneRelativeDistanceTransform", OctaneRelativeDistanceTransform.bl_label).init()
+        self.inputs.new("OctaneRelativeDistanceUseFullTransform", OctaneRelativeDistanceUseFullTransform.bl_label).init()
+        self.inputs.new("OctaneRelativeDistanceNormalize", OctaneRelativeDistanceNormalize.bl_label).init()
+        self.inputs.new("OctaneRelativeDistanceNormalizationRange", OctaneRelativeDistanceNormalizationRange.bl_label).init()
+        self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
 
+
+_classes=[
+    OctaneRelativeDistanceDistanceMode,
+    OctaneRelativeDistanceTransform,
+    OctaneRelativeDistanceUseFullTransform,
+    OctaneRelativeDistanceNormalize,
+    OctaneRelativeDistanceNormalizationRange,
+    OctaneRelativeDistance,
+]
 
 def register():
-    register_class(OctaneRelativeDistanceDistanceMode)
-    register_class(OctaneRelativeDistanceTransform)
-    register_class(OctaneRelativeDistanceUseFullTransform)
-    register_class(OctaneRelativeDistanceNormalize)
-    register_class(OctaneRelativeDistanceNormalizationRange)
-    register_class(OctaneRelativeDistance)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneRelativeDistance)
-    unregister_class(OctaneRelativeDistanceNormalizationRange)
-    unregister_class(OctaneRelativeDistanceNormalize)
-    unregister_class(OctaneRelativeDistanceUseFullTransform)
-    unregister_class(OctaneRelativeDistanceTransform)
-    unregister_class(OctaneRelativeDistanceDistanceMode)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

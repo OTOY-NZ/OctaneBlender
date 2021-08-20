@@ -211,7 +211,7 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params)
     return;
 
   // saveBMP(reg_width, reg_height, rgba);
-
+  server->lockImageBuffer();
   GLuint texid;
   glActiveTexture(GL_TEXTURE0);
   glGenTextures(1, &texid);
@@ -251,6 +251,8 @@ void DisplayBuffer::draw(DeviceDrawParams &draw_params)
                  GL_UNSIGNED_BYTE,
                  data_pointer);
   }
+  
+  server->unlockImageBuffer();
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

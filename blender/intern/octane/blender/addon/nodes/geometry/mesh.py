@@ -1,30 +1,172 @@
-##### BEGIN OCTANE AUTO GENERATED CODE BLOCK #####
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
-from bpy.utils import register_class, unregister_class
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from ...utils import consts
 from ...utils.consts import SocketType
 from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
 class OctaneMesh(bpy.types.Node, OctaneBaseNode):
-    bl_idname = "OctaneMesh"
-    bl_label = "Mesh"
+    bl_idname="OctaneMesh"
+    bl_label="Mesh"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=1)
     octane_socket_list: StringProperty(name="Socket List", default="")
-    octane_attribute_list: StringProperty(name="Attribute List", default="")
-    bl_width_default = 160
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_mesh_id;a_reload;a_winding_order;a_constant_topology;a_vertices_per_poly;a_vertices;a_poly_vertex_indices;a_poly_vertex_speed;a_normals;a_poly_normal_indices;a_smooth_groups;a_uvws;a_poly_uvw_indices;a_uvws_2;a_poly_uvw_indices_2;a_uvws_3;a_poly_uvw_indices_3;a_material_names;a_poly_material_indices;a_object_names;a_poly_object_indices;a_poly_joint_counts;a_poly_joint_indices;a_poly_joint_weights;a_rest_matrix_indices;a_float_attribute_name1;a_float_attribute_name2;a_float_attribute_name3;a_float_attribute_name4;a_color_attribute_name1;a_color_attribute_name2;a_float_attribute1;a_float_attribute2;a_float_attribute3;a_float_attribute4;a_color_attribute1;a_color_attribute2;a_color_attribute_indices1;a_color_attribute_indices2;a_float_attribute_indices1;a_float_attribute_indices2;a_float_attribute_indices3;a_float_attribute_indices4;a_vertices_per_hair;a_hair_vertices;a_hair_vertex_speed;a_hair_thickness;a_hair_uvs;a_hair_ws;a_hair_interpolation;a_hair_material_indices;a_hair_object_indices;a_hair_float_attribute1;a_hair_float_attribute2;a_hair_float_attribute3;a_hair_float_attribute4;a_hair_color_attribute1;a_hair_color_attribute2;a_hair_float_attribute_indices1;a_hair_float_attribute_indices2;a_hair_float_attribute_indices3;a_hair_float_attribute_indices4;a_hair_color_attribute_indices1;a_hair_color_attribute_indices2;a_sphere_centers;a_sphere_speed;a_sphere_radiuses;a_sphere_material_indices;a_sphere_object_indices;a_sphere_uvs;a_sphere_float_attribute1;a_sphere_float_attribute2;a_sphere_float_attribute3;a_sphere_float_attribute4;a_sphere_color_attribute1;a_sphere_color_attribute2;a_sphere_color_attribute_indices1;a_sphere_color_attribute_indices2;a_sphere_float_attribute_indices1;a_sphere_float_attribute_indices2;a_sphere_float_attribute_indices3;a_sphere_float_attribute_indices4;a_subd_corner_indices;a_subd_corner_sharpness;a_subd_crease_indices;a_subd_crease_length;a_subd_crease_sharpness;a_user_instance_id;a_geoimp_object_layer_import;a_geoimp_scale_unit;a_geoimp_load_vertex_normals;a_geoimp_max_smooth_angle;a_geoimp_join_unwelded_vertices;a_geoimp_default_hair_thickness;a_geoimp_default_hair_interpolation;a_sphere_default_radius;a_subd_level;a_subd_sharpness;a_subd_file_sharpness_scale;a_subd_bound_interp;a_subd_fvr_bound_interp;a_subd_fvr_propagate_corners;a_subd_scheme;a_objimp_winding_order;a_objimp_smooth_groups_as_boundaries;a_objimp_import_materials;a_objimp_diffuse;a_objimp_glossy;a_objimp_specular;a_objimp_import_image_textures;a_objimp_tex_diffuse;a_objimp_tex_diffuse_as_float;a_objimp_tex_specular;a_objimp_tex_specular_as_float;a_objimp_tex_roughness;a_objimp_tex_roughness_as_float;a_objimp_tex_bump;a_objimp_tex_bump_as_float;a_objimp_tex_bump_use_scale;a_objimp_tex_opacity;a_objimp_tex_opacity_as_float;a_objimp_tex_auto_alpha_image;a_objimp_glossy_specular_scale;a_objimp_invert_opacity_value;a_objimp_invert_opacity_tex;a_objimp_color_space;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;1;2;1;2;8;2;8;8;2;2;8;2;8;2;8;2;10;2;10;2;2;14;6;2;10;10;10;10;10;10;6;6;6;6;8;8;2;2;2;2;2;2;2;8;8;6;7;7;2;2;2;6;6;6;6;8;8;2;2;2;2;2;2;8;8;6;2;2;7;6;6;6;6;8;8;2;2;2;2;2;2;2;6;2;2;6;2;2;2;1;6;1;6;2;6;2;6;6;2;2;1;2;2;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;6;1;1;2;")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+
+    a_mesh_id: StringProperty(name="Mesh id", default="", update=None, description="The ID which identifies the mesh geometry to be loaded from the geometry file defined in A_FILENAME. Ignored for OBJ files. In Alembic files it defines the path of the AbcGeometry node containing the mesh")
+    a_reload: BoolProperty(name="Reload", default=False, update=None, description="Set it to TRUE if the file needs a reload or the preference of the meshhas been changed. After the node was evaluated the attribute will be false again")
+    a_winding_order: IntProperty(name="Winding order", default=1, update=None, description="The order of the vertices in polygons, as seen from the side where the normal is pointing")
+    a_constant_topology: BoolProperty(name="Constant topology", default=False, update=None, description="Can be set to TRUE if the geometry has a constant topology. This means the connectivity between faces, edges and vertices stays the same during the animation of this geometry. If TRUE Octane may try to calculate motion blur from the motion of vertices between frames. This applies to polygons, hair and sphere primitives")
+    a_vertices_per_poly: IntProperty(name="Vertices per poly", default=0, update=None, description="An array of the number of vertices for each polygon in the polygon sequence. Can only be left empty if the mesh node doesn't contain any polygons")
+    a_vertices: FloatVectorProperty(name="Vertices", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="An array of polygon vertex positions. Can only be left empty if the mesh node doesn't contain any polygons. Animated vertices are only taken into account for motion blur if A_CONSTANT_TOPOLOGY is set to TRUE and A_POLY_VERTEX_SPEED is empty")
+    a_poly_vertex_indices: IntProperty(name="Poly vertex indices", default=0, update=None, description="An array that stores the indices into A_VERTICES and A_POLY_VERTEX_SPEED for each vertex of each polygon. Its size must be equal to the sum of all vertex counts in A_VERTICES_PER_POLY")
+    a_poly_vertex_speed: FloatVectorProperty(name="Poly vertex speed", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="An array of vertex speeds. If given, these speeds are used for rendering motion blur. Otherwise motion blur will be calculated from the animation of the A_VERTICES array if A_CONSTANT_TOPOLOGY is set to TRUE")
+    a_normals: FloatVectorProperty(name="Normals", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="An array of vertex normals. If not empty, but A_POLY_NORMAL_INDICES is empty this array must directly store the normals for each vertex of each polygon. If left empty, the vertex normals will be calculated on-the-fly. To calculate the vertex normals the geometry import preferences as well as the smooth groups (if specified) will be used. When only some vertices have explicit vertex normals, the other vertex normals should be set to (0,0,0)")
+    a_poly_normal_indices: IntProperty(name="Poly normal indices", default=0, update=None, description="An array that stores the indices into A_NORMALS for each vertex of each polygon. Must be either empty or its size must be equal to the sum of all vertex counts in A_VERTICES_PER_POLY")
+    a_smooth_groups: IntProperty(name="Smooth groups", default=0, update=None, description="If A_NORMALS is empty and the vertex normals will be calculated on-the-fly, you can specify a smooth group for each polygon. The edges between different smooth groups will not be smoothed. Also all polygons with a negative smooth group will not be smoothed at all. If not empty, the size of this array must be equal to the size of A_VERTICES_PER_POLY")
+    a_uvws: FloatVectorProperty(name="Uvws", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="An array of UVW coordinates. If empty, every vertex will have a UVW coordinate of (0,0,0). If not empty, but A_POLY_UVW_INDICES is empty, this array must directly store the UVW coordinates for each vertex of each polygon, i.e. its size must be the sum of all elements of A_VERTICES_PER_POLY")
+    a_poly_uvw_indices: IntProperty(name="Poly uvw indices", default=0, update=None, description="An array that stores the indices into A_UVWS for each vertex of each polygon.Must be either empty or its size must be equal to the sum of all vertex counts in A_VERTICES_PER_POLY")
+    a_uvws_2: FloatVectorProperty(name="Uvws 2", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Defines the second set of UV coordinates. If a mesh defines the UVW2 coordinates only for some of its vertices, set the other vertices to (0,0,0)")
+    a_poly_uvw_indices_2: IntProperty(name="Poly uvw indices 2", default=0, update=None, description="An array that stores the indices into A_UVWS_2 for each vertex of each polygon. Must be either empty or its size must be equal to the sum of all vertex counts in A_VERTICES_PER_POLY")
+    a_uvws_3: FloatVectorProperty(name="Uvws 3", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Defines the third set of UV coordinates. If a mesh defines the UVW3 coordinates only for some of its vertices, set the other vertices to (0,0,0)")
+    a_poly_uvw_indices_3: IntProperty(name="Poly uvw indices 3", default=0, update=None, description="An array that stores the indices into A_UVWS_3 for each vertex of each polygon. Must be either empty or its size must be equal to the sum of all vertex counts in A_VERTICES_PER_POLY")
+    a_material_names: StringProperty(name="Material names", default="", update=None, description="An array of material names. The given array must not contain duplicates. The size must be larger than the largest index in A_POLY_MATERIAL_INDICES unless A_POLY_MATERIAL_INDICES is empty in which case this array must be empty, too")
+    a_poly_material_indices: IntProperty(name="Poly material indices", default=0, update=None, description="An array that stores the indices into A_MATERIAL_NAMES for each polygon, i.e. the size must be equal to the size of A_VERTICES_PER_POLY. If empty we use material index 0 for each polygon")
+    a_object_names: StringProperty(name="Object names", default="", update=None, description="An array of object names. If empty, the whole geometry will be assigned to one default object name. The given array must not contain duplicates. The size must be larger than the largest index in A_POLY_OBJECT_INDICES unless A_POLY_OBJECT_INDICES is empty in which case this array must be empty, too")
+    a_poly_object_indices: IntProperty(name="Poly object indices", default=0, update=None, description="An array that stores the indices into A_OBJECT_NAMES for each polygon, i.e. the size must be equal to the size of A_VERTICES_PER_POLY. If A_OBJECT_NAMES is left empty, this array is ignored")
+    a_poly_joint_counts: IntProperty(name="Poly joint counts", default=0, update=None, description="An array that stores number of joint influences a vertex. Can be empty or its size must match the number of vertices in A_VERTICES")
+    a_poly_joint_indices: IntProperty(name="Poly joint indices", default=0, update=None, description="An array that stores all joint IDs influencing per vertex. Its size must be equal to the sum of all joints counts in A_POLY_JOINT_COUNTS\n The indices given are used to match a joint node and a weight to a vertex at skeletal deformation time. The IDs given here should match with the joint node item's A_INDEX attribute")
+    a_poly_joint_weights: FloatProperty(name="Poly joint weights", default=0.000000, update=None, description="An array that stores the weights for each joint in A_POLY_JOINT_INDICES. its size must be equal to the size of A_POLY_JOINT_INDICES. Weights are in the range [0,1]")
+    a_rest_matrix_indices: IntProperty(name="Rest matrix indices", default=0, update=None, description="An array that stores the indices into for A_REST_MATRIX for each joint. Its size must be equal to the sum of all joints counts in A_POLY_JOINT_COUNTS")
+    a_float_attribute_name1: StringProperty(name="Float attribute name1", default="", update=None, description="The name of the first float attribute. If this is empty, then A_FLOAT_ATTRIBUTE1, A_HAIR_FLOAT_ATTRIBUTE1 and A_SPHERE_FLOAT_ATTRIBUTE1 will be ignored.\n\nYou should not assign the same name to two different attributes")
+    a_float_attribute_name2: StringProperty(name="Float attribute name2", default="", update=None, description="The name of the second float attribute. If this is empty, then A_FLOAT_ATTRIBUTE2, A_HAIR_FLOAT_ATTRIBUTE2 and A_SPHERE_FLOAT_ATTRIBUTE2 will be ignored")
+    a_float_attribute_name3: StringProperty(name="Float attribute name3", default="", update=None, description="The name of the third float attribute. If this is empty, then A_FLOAT_ATTRIBUTE3, A_HAIR_FLOAT_ATTRIBUTE3 and A_SPHERE_FLOAT_ATTRIBUTE3 will be ignored")
+    a_float_attribute_name4: StringProperty(name="Float attribute name4", default="", update=None, description="The name of the fourth float attribute. If this is empty, then A_FLOAT_ATTRIBUTE4, A_HAIR_FLOAT_ATTRIBUTE4 and A_SPHERE_FLOAT_ATTRIBUTE4 will be ignored")
+    a_color_attribute_name1: StringProperty(name="Color attribute name1", default="", update=None, description="The name of the first color attribute. If this is empty, then A_COLOR_ATTRIBUTE1, A_HAIR_COLOR_ATTRIBUTE1 and A_SPHERE_COLOR_ATTRIBUTE1 will be ignored")
+    a_color_attribute_name2: StringProperty(name="Color attribute name2", default="", update=None, description="The name of the second color attribute. If this is empty, then A_COLOR_ATTRIBUTE2, A_HAIR_COLOR_ATTRIBUTE2 and A_SPHERE_COLOR_ATTRIBUTE2 will be ignored")
+    a_float_attribute1: FloatProperty(name="Float attribute1", default=0.000000, update=None, description="Contains the first float attribute data values for the polygon vertices.\n\nThis array may be indexed by A_FLOAT_ATTRIBUTE_INDICES1. The number of entries must be equal to the sum of all vertex counts in A_VERTICES_PER_POLY.\n")
+    a_float_attribute2: FloatProperty(name="Float attribute2", default=0.000000, update=None, description="Contains the second float attribute data values for the polygon vertices")
+    a_float_attribute3: FloatProperty(name="Float attribute3", default=0.000000, update=None, description="Contains the third float attribute data values for the polygon vertices")
+    a_float_attribute4: FloatProperty(name="Float attribute4", default=0.000000, update=None, description="Contains the fourth float attribute data values for the polygon vertices")
+    a_color_attribute1: FloatVectorProperty(name="Color attribute1", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Contains the first color attribute data values for the polygon vertices")
+    a_color_attribute2: FloatVectorProperty(name="Color attribute2", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Contains the second color attribute data values for the polygon vertices")
+    a_color_attribute_indices1: IntProperty(name="Color attribute indices1", default=0, update=None, description="Index for A_COLOR_ATTRIBUTE1")
+    a_color_attribute_indices2: IntProperty(name="Color attribute indices2", default=0, update=None, description="Index for A_COLOR_ATTRIBUTE2")
+    a_float_attribute_indices1: IntProperty(name="Float attribute indices1", default=0, update=None, description="Index for A_FLOAT_ATTRIBUTE1")
+    a_float_attribute_indices2: IntProperty(name="Float attribute indices2", default=0, update=None, description="Index for A_FLOAT_ATTRIBUTE2")
+    a_float_attribute_indices3: IntProperty(name="Float attribute indices3", default=0, update=None, description="Index for A_FLOAT_ATTRIBUTE3")
+    a_float_attribute_indices4: IntProperty(name="Float attribute indices4", default=0, update=None, description="Index for A_FLOAT_ATTRIBUTE4")
+    a_vertices_per_hair: IntProperty(name="Vertices per hair", default=0, update=None, description="An array of the number of vertices for each hair in the hair sequence. Can be empty if there is no hair in this geometry")
+    a_hair_vertices: FloatVectorProperty(name="Hair vertices", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="An array of vertex positions. Animated vertices are only taken into account for motion blur if A_CONSTANT_TOPOLOGY is set to TRUE and A_HAIR_VERTEX_SPEED is empty")
+    a_hair_vertex_speed: FloatVectorProperty(name="Hair vertex speed", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="An array of vertex speeds. If given these speeds are used for rendering motion blur. Otherwise the animation of the A_HAIR_VERTICES array may be used")
+    a_hair_thickness: FloatProperty(name="Hair thickness", default=0.000000, update=None, description="An array of thickness (diameter) for every hair vertex. Must either have size 1, or the same size as the A_HAIR_VERTICES array. If the size is 1 all the hairs have the same width")
+    a_hair_uvs: FloatVectorProperty(name="Hair uvs", default=(0.000000, 0.000000), size=2, update=None, description="An array of 1 UV coordinate per hair. Must be either empty or have the same size as A_VERTICES_PER_HAIR. If empty, (0, 0) will be used for all hair primitives")
+    a_hair_ws: FloatVectorProperty(name="Hair ws", default=(0.000000, 0.000000), size=2, update=None, description="An array of 2 W coordinates per hair vertex which represents the position in the gradient (from 0 to 1) for the segment ending (X) and starting at it (Y). Must be either empty or have the same size as A_HAIR_VERTICES. If empty the interpolation will be done using the values specified by A_HAIR_INTERPOLATION")
+    a_hair_interpolation: IntProperty(name="Hair interpolation", default=0, update=None, description="Specifies the hair interpolation type of enum type HairInterpolationType. This is ignored if A_HAIR_WS is not empty")
+    a_hair_material_indices: IntProperty(name="Hair material indices", default=0, update=None, description="An array that stores the indices into A_MATERIAL_NAMES for each hair, i.e. the size must be equal to the size of A_VERTICES_PER_HAIR")
+    a_hair_object_indices: IntProperty(name="Hair object indices", default=0, update=None, description="An array that stores the indices into A_OBJECT_NAMES for each hair, i.e. the size must be equal to the size of A_VERTICES_PER_HAIR. If A_OBJECT_NAMES is left empty, this array is ignored")
+    a_hair_float_attribute1: FloatProperty(name="Hair float attribute1", default=0.000000, update=None, description="Contains the first float attribute data values for hair vertices.\n\nThis array may be indexed by A_HAIR_FLOAT_ATTRIBUTE_INDICES1. The number of entries must be equal to the sum of all vertex counts in A_VERTICES_PER_HAIR.\n")
+    a_hair_float_attribute2: FloatProperty(name="Hair float attribute2", default=0.000000, update=None, description="Contains the second float attribute data values for hair vertices")
+    a_hair_float_attribute3: FloatProperty(name="Hair float attribute3", default=0.000000, update=None, description="Contains the third float attribute data values for hair vertices")
+    a_hair_float_attribute4: FloatProperty(name="Hair float attribute4", default=0.000000, update=None, description="Contains the fourth float attribute data values for hair vertices")
+    a_hair_color_attribute1: FloatVectorProperty(name="Hair color attribute1", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Contains the first color attribute data values for hair vertices")
+    a_hair_color_attribute2: FloatVectorProperty(name="Hair color attribute2", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Contains the second color attribute data values for hair vertices")
+    a_hair_float_attribute_indices1: IntProperty(name="Hair float attribute indices1", default=0, update=None, description="Index for A_HAIR_FLOAT_ATTRIBUTE1")
+    a_hair_float_attribute_indices2: IntProperty(name="Hair float attribute indices2", default=0, update=None, description="Index for A_HAIR_FLOAT_ATTRIBUTE2")
+    a_hair_float_attribute_indices3: IntProperty(name="Hair float attribute indices3", default=0, update=None, description="Index for A_HAIR_FLOAT_ATTRIBUTE3")
+    a_hair_float_attribute_indices4: IntProperty(name="Hair float attribute indices4", default=0, update=None, description="Index for A_HAIR_FLOAT_ATTRIBUTE4")
+    a_hair_color_attribute_indices1: IntProperty(name="Hair color attribute indices1", default=0, update=None, description="Index for A_HAIR_COLOR_ATTRIBUTE1")
+    a_hair_color_attribute_indices2: IntProperty(name="Hair color attribute indices2", default=0, update=None, description="Index for A_HAIR_COLOR_ATTRIBUTE2")
+    a_sphere_centers: FloatVectorProperty(name="Sphere centers", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="An array that stores the center point for each sphere primitive. Animated sphere center positions are only taken into account for motion blur if A_CONSTANT_TOPOLOGY is set to TRUE and A_SPHERE_SPEED is empty")
+    a_sphere_speed: FloatVectorProperty(name="Sphere speed", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="An array of speed vectors, one for each sphere primitive. If given these speeds are used for rendering motion blur. Otherwise the animation of the A_SPHERE_CENTERS array may be used")
+    a_sphere_radiuses: FloatProperty(name="Sphere radiuses", default=0.000000, update=None, description="A radius for each sphere primitive. Must either have size 1, or the same size as A_SPHERE_CENTERS. If the size is 1 all the spheres will have the same width")
+    a_sphere_material_indices: IntProperty(name="Sphere material indices", default=0, update=None, description="An array that stores the indices into A_MATERIAL_NAMES for each sphere. The size must be equal to the size of A_SPHERE_CENTERS or empty. When the array is empty we use the material at index 0 for each sphere")
+    a_sphere_object_indices: IntProperty(name="Sphere object indices", default=0, update=None, description="An array that stores the indices into A_OBJECT_NAMES for each sphere. The size must be equal to the size of A_SPHERE_CENTERS or empty. If this array is left empty, this array is ignored")
+    a_sphere_uvs: FloatVectorProperty(name="Sphere uvs", default=(0.000000, 0.000000), size=2, update=None, description="An array with 1 uv-coordinate per sphere primitive. Array must be either empty or have the same size as A_SPHERE_CENTERS. If empty, each sphere has uv-coordinate (0,0)")
+    a_sphere_float_attribute1: FloatProperty(name="Sphere float attribute1", default=0.000000, update=None, description="Contains the first float attribute data values for sphere primitives.\n\nThis array may be indexed by A_SPHERE_FLOAT_ATTRIBUTE_INDICES1. The number of entries must be equal to the size of A_SPHERE_CENTERS")
+    a_sphere_float_attribute2: FloatProperty(name="Sphere float attribute2", default=0.000000, update=None, description="Contains the second float attribute data values for sphere primitives")
+    a_sphere_float_attribute3: FloatProperty(name="Sphere float attribute3", default=0.000000, update=None, description="Contains the third float attribute data values for sphere primitives")
+    a_sphere_float_attribute4: FloatProperty(name="Sphere float attribute4", default=0.000000, update=None, description="Contains the fourth float attribute data values for sphere primitives")
+    a_sphere_color_attribute1: FloatVectorProperty(name="Sphere color attribute1", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Contains the first color attribute data values for sphere primitives")
+    a_sphere_color_attribute2: FloatVectorProperty(name="Sphere color attribute2", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Contains the second color attribute data values for sphere primitives")
+    a_sphere_color_attribute_indices1: IntProperty(name="Sphere color attribute indices1", default=0, update=None, description="Index for A_SPHERE_COLOR_ATTRIBUTE1")
+    a_sphere_color_attribute_indices2: IntProperty(name="Sphere color attribute indices2", default=0, update=None, description="Index for A_SPHERE_COLOR_ATTRIBUTE2")
+    a_sphere_float_attribute_indices1: IntProperty(name="Sphere float attribute indices1", default=0, update=None, description="Index for A_SPHERE_FLOAT_ATTRIBUTE1")
+    a_sphere_float_attribute_indices2: IntProperty(name="Sphere float attribute indices2", default=0, update=None, description="Index for A_SPHERE_FLOAT_ATTRIBUTE2")
+    a_sphere_float_attribute_indices3: IntProperty(name="Sphere float attribute indices3", default=0, update=None, description="Index for A_SPHERE_FLOAT_ATTRIBUTE3")
+    a_sphere_float_attribute_indices4: IntProperty(name="Sphere float attribute indices4", default=0, update=None, description="Index for A_SPHERE_FLOAT_ATTRIBUTE4")
+    a_subd_corner_indices: IntProperty(name="Subd corner indices", default=0, update=None, description="The indices of the corners for which the sharpness is given by A_SUBD_CORNER_SHARPNESS")
+    a_subd_corner_sharpness: FloatProperty(name="Subd corner sharpness", default=0.000000, update=None, description="Corner sharpness. The length must be equal to the length of A_SUBD_CORNER_INDICES")
+    a_subd_crease_indices: IntProperty(name="Subd crease indices", default=0, update=None, description="The indices into the A_VERTICES array for every vertex of every semi-sharp edge.\nIf A_SUBD_CREASE_LENGTH is empty: the length is be even, and every pair of indices defines a semi-sharp edge in the mesh.\nIf A_SUBD_CREASE_LENGTH is not empty: every element L in If A_SUBD_CREASE_LENGTH defines a chain of (L-1) semi-sharp edges. This array contains L indices specifying  the vertices in the chain")
+    a_subd_crease_length: IntProperty(name="Subd crease length", default=0, update=None, description="Optional, see A_SUBD_CREASE_INDICES description. If given, all elements must be >= 2")
+    a_subd_crease_sharpness: FloatProperty(name="Subd crease sharpness", default=0.000000, update=None, description="Crease sharpness. Contains one value for every semi-sharp edge")
+    a_user_instance_id: IntProperty(name="User instance id", default=-1, update=None, description="The user ID of this geometry node. A valid ID should be a non-negative number. It's a non-unique ID attribute, multiple geometry nodes can have same ID, so it's a user responsibility to set unique ID if needed. In a tree hierarchy, the ID of current node will override the input geometry node's ID")
+    a_geoimp_object_layer_import: IntProperty(name="Geoimp object layer import", default=1, update=None, description="Specifies how objects on the mesh should be imported as object layers. This  attribute is ignored when loading a mesh from Alembic")
+    a_geoimp_scale_unit: IntProperty(name="Geoimp scale unit", default=4, update=None, description="Defines the length unit used to export the mesh file. (see Octane::GeometryImportScale)")
+    a_geoimp_load_vertex_normals: BoolProperty(name="Geoimp load vertex normals", default=True, update=None, description="If enabled, the vertex normals of the imported file will be used. If set to FALSE, the vertex normals will be calculated during import")
+    a_geoimp_max_smooth_angle: FloatProperty(name="Geoimp max smooth angle", default=45.000000, update=None, description="The maximum angle in degrees between faces that will be smoothed when Octane has to calculate vertex normals. Has no effect if the A_NORMALS attribute is set or loaded from a file. 0 disables smoothing entirely, 180 allows smoothing all edges")
+    a_geoimp_join_unwelded_vertices: BoolProperty(name="Geoimp join unwelded vertices", default=False, update=None, description="If enabled, unwelded vertices will be accounted as the same one for smooth normal and rounded edges shading, otherwise the edges connecting them will generate a hard edge")
+    a_geoimp_default_hair_thickness: FloatProperty(name="Geoimp default hair thickness", default=0.000100, update=None, description="The default diameter for hair primitives when the hair widths (A_HAIR_THICKNESS) are not populated - given in the import unit")
+    a_geoimp_default_hair_interpolation: IntProperty(name="Geoimp default hair interpolation", default=0, update=None, description="The default hair interpolation type of enum type HairInterpolationType when no value is given in A_HAIR_INTERPOLATION")
+    a_sphere_default_radius: FloatProperty(name="Sphere default radius", default=1.000000, update=None, description="The default radius for each sphere primitive when the sphere radii (A_SPHERE_RADIUSES) are not populated - given in the import unit")
+    a_subd_level: IntProperty(name="Subd level", default=0, update=None, description="The subdivision level of geometry")
+    a_subd_sharpness: FloatProperty(name="Subd sharpness", default=0.000000, update=None, description="The sharpness of edges and corners of subdivided geometry")
+    a_subd_file_sharpness_scale: FloatProperty(name="Subd file sharpness scale", default=10.000000, update=None, description="The scale that should be applied to the sharpness value to get desired sharpness. E.g. 10 for Max/Maya 3.33 for Cinema4D")
+    a_subd_bound_interp: IntProperty(name="Subd bound interp", default=3, update=None, description="The boundary interpolation method for vertex data")
+    a_subd_fvr_bound_interp: IntProperty(name="Subd fvr bound interp", default=3, update=None, description="The boundary interpolation method for face-varying data")
+    a_subd_fvr_propagate_corners: BoolProperty(name="Subd fvr propagate corners", default=False, update=None, description="Additional flag when A_SUBD_FVR_BOUND_INTERP is set to SUBDIV_BOUNDARY_EDGEANDCORNER")
+    a_subd_scheme: IntProperty(name="Subd scheme", default=1, update=None, description="The subdivision scheme")
+    a_objimp_winding_order: IntProperty(name="Objimp winding order", default=1, update=None, description="The order of the vertices in polygons, as seen from the side where the normal is pointing")
+    a_objimp_smooth_groups_as_boundaries: BoolProperty(name="Objimp smooth groups as boundaries", default=False, update=None, description="If enabled, the smoothgroups of the OBJ file (if present) will be used to define the boundaries for interpolating vertex normals")
+    a_objimp_import_materials: BoolProperty(name="Objimp import materials", default=True, update=None, description="If enabled, materials will be imported from the supplied MTL file (if available)")
+    a_objimp_diffuse: BoolProperty(name="Objimp diffuse", default=True, update=None, description="If enabled, diffuse type materials will be imported")
+    a_objimp_glossy: BoolProperty(name="Objimp glossy", default=True, update=None, description="If enabled, glossy type materials will be imported")
+    a_objimp_specular: BoolProperty(name="Objimp specular", default=True, update=None, description="If enabled, specular type materials will be imported")
+    a_objimp_import_image_textures: BoolProperty(name="Objimp import image textures", default=True, update=None, description="If enabled, image textures are imported")
+    a_objimp_tex_diffuse: BoolProperty(name="Objimp tex diffuse", default=True, update=None, description="If enabled, diffuse texture maps are imported")
+    a_objimp_tex_diffuse_as_float: BoolProperty(name="Objimp tex diffuse as float", default=False, update=None, description="If enabled, diffuse texture maps are imported as float image textures. If disabled, they will be imported as RGB image textures")
+    a_objimp_tex_specular: BoolProperty(name="Objimp tex specular", default=True, update=None, description="If enabled, specular texture maps are imported")
+    a_objimp_tex_specular_as_float: BoolProperty(name="Objimp tex specular as float", default=True, update=None, description="If enabled, specular texture maps are imported as float image textures. If disabled, they will be imported as RGB image textures")
+    a_objimp_tex_roughness: BoolProperty(name="Objimp tex roughness", default=True, update=None, description="If enabled, roughness texture maps are imported")
+    a_objimp_tex_roughness_as_float: BoolProperty(name="Objimp tex roughness as float", default=True, update=None, description="If enabled, roughness texture maps are imported as float image textures. If disabled, they will be imported as RGB image textures")
+    a_objimp_tex_bump: BoolProperty(name="Objimp tex bump", default=True, update=None, description="If enabled, bump texture maps are imported")
+    a_objimp_tex_bump_as_float: BoolProperty(name="Objimp tex bump as float", default=True, update=None, description="If enabled, bump texture maps are imported as float image textures. If disabled, they will be imported as RGB image textures")
+    a_objimp_tex_bump_use_scale: BoolProperty(name="Objimp tex bump use scale", default=True, update=None, description="If enabled, the bump amount will be imported and used as power in the bump texture")
+    a_objimp_tex_opacity: BoolProperty(name="Objimp tex opacity", default=True, update=None, description="If enabled, opacity texture maps are imported")
+    a_objimp_tex_opacity_as_float: BoolProperty(name="Objimp tex opacity as float", default=True, update=None, description="If enabled, opacity texture maps are imported as float image textures. If disabled, they will be imported as RGB image textures")
+    a_objimp_tex_auto_alpha_image: BoolProperty(name="Objimp tex auto alpha image", default=True, update=None, description="If enabled, opacity texture maps are imported as alpha image texture if an alpha channel is detected")
+    a_objimp_glossy_specular_scale: FloatProperty(name="Objimp glossy specular scale", default=1.000000, update=None, description="Multiplier that is used for imported specular channels")
+    a_objimp_invert_opacity_value: BoolProperty(name="Objimp invert opacity value", default=False, update=None, description="If enabled, the imported opacity values will inverted")
+    a_objimp_invert_opacity_tex: BoolProperty(name="Objimp invert opacity tex", default=False, update=None, description="If enabled, imported opacity texture maps will be inverted")
+    a_objimp_color_space: IntProperty(name="Objimp color space", default=0, update=None, description="The color space that should be used. (see Octane::ObjImportColorSpace)")
 
     def init(self, context):
-        self.outputs.new("OctaneGeometryOutSocket", "Geometry out")
+        self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()
 
+
+_classes=[
+    OctaneMesh,
+]
 
 def register():
-    register_class(OctaneMesh)
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
 
 def unregister():
-    unregister_class(OctaneMesh)
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
 
-##### END OCTANE AUTO GENERATED CODE BLOCK #####
+##### END OCTANE GENERATED CODE BLOCK #####

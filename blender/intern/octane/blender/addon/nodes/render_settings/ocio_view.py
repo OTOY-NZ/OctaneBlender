@@ -1,0 +1,48 @@
+##### BEGIN OCTANE GENERATED CODE BLOCK #####
+import bpy
+from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
+from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
+from ...utils import consts
+from ...utils.consts import SocketType
+from ..base_node import OctaneBaseNode
+from ..base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+
+
+class OctaneOCIOView(bpy.types.Node, OctaneBaseNode):
+    bl_idname="OctaneOCIOView"
+    bl_label="OCIO view"
+    bl_width_default=200
+    octane_render_pass_id=-1
+    octane_render_pass_name=""
+    octane_render_pass_short_name=""
+    octane_render_pass_description=""
+    octane_render_pass_sub_type_name=""
+    octane_min_version=0
+    octane_node_type: IntProperty(name="Octane Node Type", default=160)
+    octane_socket_list: StringProperty(name="Socket List", default="")
+    octane_attribute_list: StringProperty(name="Attribute List", default="a_ocio_display_name;a_ocio_view_name;")
+    octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;10;")
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
+
+    a_ocio_display_name: StringProperty(name="Ocio display name", default="", update=None, description="The name of the OCIO display containing the selected OCIO view, or empty to not use an OCIO view")
+    a_ocio_view_name: StringProperty(name="Ocio view name", default="", update=None, description="The name of the selected OCIO view, or empty to not use an OCIO view")
+
+    def init(self, context):
+        self.outputs.new("OctaneOCIOViewOutSocket", "OCIO view out").init()
+
+
+_classes=[
+    OctaneOCIOView,
+]
+
+def register():
+    from bpy.utils import register_class
+    for _class in _classes:
+        register_class(_class)
+
+def unregister():
+    from bpy.utils import unregister_class
+    for _class in reversed(_classes):
+        unregister_class(_class)
+
+##### END OCTANE GENERATED CODE BLOCK #####

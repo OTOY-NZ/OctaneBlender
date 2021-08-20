@@ -13,6 +13,10 @@
 #define OCTANE_BLENDER_CAMERA_CENTER_Y "OCTANE_BLENDER_CAMERA_CENTER_Y"
 #define OCTANE_BLENDER_CAMERA_REGION_WIDTH "OCTANE_BLENDER_CAMERA_REGION_WIDTH"
 #define OCTANE_BLENDER_CAMERA_REGION_HEIGHT "OCTANE_BLENDER_CAMERA_REGION_HEIGHT"
+#define OCTANE_BLENDER_RENDER_PASS_NODE "OCTANE_BLENDER_RENDER_PASS_NODE"
+#define OCTANE_BLENDER_RENDER_AOV_NODE "OCTANE_BLENDER_RENDER_AOV_NODE"
+#define OCTANE_BLENDER_AOV_OUTPUT_NODE "OCTANE_BLENDER_AOV_OUTPUT_NODE"
+#define OCTANE_BLENDER_DYNAMIC_PIN_TAG "###DYNAMIC_PIN###"
 #define OCTANE_PASS_TAG "$OCTANE_PASS$"
 
 namespace OctaneDataTransferObject {
@@ -1174,6 +1178,8 @@ namespace OctaneDataTransferObject {
 		OctaneDTOInt		iCryptomattePasses;
 		OctaneDTOInt		iInfoPasses;
 		OctaneDTOInt		iMaterialPasses;
+		OctaneDTOBool		bUseRenderAOV;
+		OctaneDTOString		sRenderAOVRootNode;
 
 		OctaneRenderPasses() :
 			bUsePasses("use_passes"),
@@ -1193,7 +1199,9 @@ namespace OctaneDataTransferObject {
 			bAOAlphaShadows("info_pass_alpha_shadows"),
 			OctaneNodeBase(Octane::NT_RENDER_PASSES, "OctaneRenderPasses")
 		{
-			sName = "RenderPasses";
+			sName = OCTANE_BLENDER_RENDER_PASS_NODE;
+			bUseRenderAOV = false;
+			sRenderAOVRootNode.sVal = "";
 		}
 
 		inline bool operator==(const OctaneRenderPasses& other) {
@@ -1219,7 +1227,9 @@ namespace OctaneDataTransferObject {
 				&& iLightingPasses.iVal == other.iLightingPasses.iVal
 				&& iCryptomattePasses.iVal == other.iCryptomattePasses.iVal
 				&& iInfoPasses.iVal == other.iInfoPasses.iVal
-				&& iMaterialPasses.iVal == other.iMaterialPasses.iVal;
+				&& iMaterialPasses.iVal == other.iMaterialPasses.iVal
+				&& bUseRenderAOV.bVal == other.bUseRenderAOV.bVal
+				&& sRenderAOVRootNode.sVal == other.sRenderAOVRootNode.sVal;
 		}
 
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
@@ -1229,6 +1239,7 @@ namespace OctaneDataTransferObject {
 			iMaxInfoSample, iSamplingMode, bBumpAndNormalMapping, fOpacityThreshold, fZDepthMax, fUVMax, iUVCoordinateSelection,
 			fMaxSpeed, fAODistance, bAOAlphaShadows,
 			iBeautyPasses, iDenoiserPasses, iPostProcessingPasses, iRenderLayerPasses, iLightingPasses, iCryptomattePasses, iInfoPasses, iMaterialPasses,
+			bUseRenderAOV, sRenderAOVRootNode,
 			MSGPACK_BASE(OctaneNodeBase));
 	};
 
@@ -4808,6 +4819,8 @@ namespace OctaneDataTransferObject {
 		)
 		std::string						sClientNodeName;
 		int								iOctaneNodeType;
+		std::string						sCustomDataHeader;
+		std::string						sCustomDataBody;
 		std::vector<OctaneDTOBool>		oBoolSockets;
 		std::vector<OctaneDTOEnum>		oEnumSockets;
 		std::vector<OctaneDTOInt>		oIntSockets;
@@ -4821,7 +4834,7 @@ namespace OctaneDataTransferObject {
 		std::vector<OctaneDTOShader>	oLinkSockets;
 
 		OctaneCustomNode() :
-			OctaneNodeBase(Octane::ENT_CUSTOM_NODE, "OctaneCustomNode")
+			OctaneNodeBase(Octane::ENT_CUSTOM_NODE, "OctaneCustomNode", 0, 1)
 		{
 			Clear();
 		}
@@ -4829,6 +4842,8 @@ namespace OctaneDataTransferObject {
 		void Clear() {
 			sClientNodeName = "";
 			iOctaneNodeType = 0;
+			sCustomDataHeader = "";
+			sCustomDataBody = "";
 			oBoolSockets.clear();
 			oEnumSockets.clear();
 			oIntSockets.clear();
@@ -4842,11 +4857,15 @@ namespace OctaneDataTransferObject {
 			oLinkSockets.clear();
 		}
 
+		bool PreSpecificProcessDispatcher(void* data);
+		bool PostSpecificProcessDispatcher(void* data);
+		
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
 		OCTANE_NODE_VISIT_FUNCTIONS
 		OCTANE_NODE_POST_UPDATE_FUNCTIONS
 		OCTANE_NODE_OCTANEDB_FUNCTIONS
-		MSGPACK_DEFINE(sClientNodeName, iOctaneNodeType, oBoolSockets, oEnumSockets, oIntSockets, oInt2Sockets, oInt3Sockets,
+		OCTANE_NODE_GENERATE_RESPONSE_FUNCTIONS
+		MSGPACK_DEFINE(sClientNodeName, iOctaneNodeType, sCustomDataHeader, sCustomDataBody, oBoolSockets, oEnumSockets, oIntSockets, oInt2Sockets, oInt3Sockets,
 			oFloatSockets, oFloat2Sockets, oFloat3Sockets, oStringSockets, oRGBSockets, oLinkSockets, MSGPACK_BASE(OctaneNodeBase));
 	}; //struct OctaneCustomNode
 }

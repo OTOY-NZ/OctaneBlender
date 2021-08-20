@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 24.1)",
+    "name": "OctaneRender Engine (v. 24.2)",
     "author": "OTOY Inc.",
     "blender": (2, 93, 1),
     "location": "Info header, render engine menu",
@@ -140,8 +140,8 @@ class OctaneRender(bpy.types.RenderEngine):
         from . import osl
         osl.update_script_node(node, self.report)
 
-    def update_render_passes(self, scene, srl):
-        engine.register_passes(self, scene, srl)
+    def update_render_passes(self, scene=None, renderlayer=None):
+        pass
 
 
 def engine_exit():

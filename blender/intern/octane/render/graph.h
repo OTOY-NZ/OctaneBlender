@@ -55,7 +55,8 @@ enum ShaderGraphType {
   SHADER_GRAPH_LIGHT = 1,
   SHADER_GRAPH_ENVIRONMENT = 2,
   SHADER_GRAPH_TEXTURE = 3,
-  SHADER_GRAPH_COMPOSITE = 4
+  SHADER_GRAPH_COMPOSITE = 4,
+  SHADER_GRAPH_RENDER_AOV = 5
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -158,7 +159,7 @@ class ShaderGraph {
 
   ShaderNode *add(ShaderNode *node);
   ShaderNode *output();
-  bool is_builtin_image_updated(ShaderGraph& graph);
+  bool is_builtin_image_updated(ShaderGraph &graph);
 
   list<ShaderNode *> nodes;
 
@@ -166,6 +167,7 @@ class ShaderGraph {
   bool need_subdivision;
   bool has_object_dependency;
   std::unordered_set<void *> dependent_ids;
+
  protected:
 };  // ShaderGraph
 

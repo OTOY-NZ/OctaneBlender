@@ -240,7 +240,8 @@ class OctaneClient {
   /// from 0) - this value contains the total amount of frames this camera node is going to be
   /// uploaded for.
   void uploadCamera(Camera *pCamera, uint32_t uiFrameIdx, uint32_t uiTotalFrames);
-  bool checkUniversalCameraUpdated(bool useUniversalCamera, OctaneDataTransferObject::OctaneUniversalCamera& current);
+  bool checkUniversalCameraUpdated(bool useUniversalCamera,
+                                   OctaneDataTransferObject::OctaneUniversalCamera &current);
 
   /// Upload kernel configuration to render server.
   /// @param [in] pKernel - Kernel data structure.
@@ -584,6 +585,15 @@ class OctaneClient {
   int getSocket()
   {
     return m_Socket;
+  }
+
+  void lockImageBuffer()
+  {
+    LOCK_MUTEX(m_ImgBufMutex);
+  }
+  void unlockImageBuffer()
+  {
+    UNLOCK_MUTEX(m_ImgBufMutex);
   }
 
  private:
