@@ -18,26 +18,26 @@
 #include <stdio.h>
 
 extern "C" {
-#include "BKE_scene.h"
+#include "BKE_animsys.h"
+#include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
-#include "BKE_context.h"
 #include "BKE_node.h"
-#include "BKE_animsys.h"
+#include "BKE_scene.h"
 }
 
-#include "render/object.h"
 #include "render/camera.h"
 #include "render/light.h"
 #include "render/mesh.h"
+#include "render/object.h"
 #include "render/scene.h"
 
 #include "blender/blender_sync.h"
 #include "blender/blender_util.h"
 
 #include "util/util_hash.h"
-#include "util/util_types.h"
 #include "util/util_progress.h"
+#include "util/util_types.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -93,7 +93,10 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
 
 /* Light */
 
-static void update_light_transform(Light *light, BL::Light &b_light, Transform &tfm, float motion_time)
+static void update_light_transform(Light *light,
+                                   BL::Light &b_light,
+                                   Transform &tfm,
+                                   float motion_time)
 {
   if (!light) {
     return;
@@ -164,7 +167,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
 
   BL::Light b_light(b_ob.data());
 
-    // if need motion blur
+  // if need motion blur
   light->light.oObject.iSamplesNum = 1;
   if (motion_blur && !is_export_mode) {
     int motion_steps = object_motion_steps(b_parent, b_ob);
@@ -192,7 +195,8 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   if (force_update_transform) {
     update_light_transform(light, b_light, tfm, motion_time);
     is_transform_updated = true;
-  } else if (motion) {
+  }
+  else if (motion) {
     update_light_transform(light, b_light, tfm, motion_time);
     return;
   }
@@ -383,7 +387,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                                  bool show_particles,
                                  bool *use_portal)
 {
-  const bool is_instance = b_instance.is_instance();  
+  const bool is_instance = b_instance.is_instance();
   BL::Object b_ob = b_instance.object();
   BL::Object b_parent = is_instance ? b_instance.parent() : b_instance.object();
   BL::Object b_ob_instance = is_instance ? b_instance.instance_object() : b_ob;
@@ -393,9 +397,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
   instance_tag = is_instance ? "[Instance]" : "";
   const bool motion = motion_time != 0.0f;
-  /*const*/ Transform tfm = get_transform(b_ob.matrix_world()); 
+  /*const*/ Transform tfm = get_transform(b_ob.matrix_world());
   Transform octane_tfm = OCTANE_MATRIX * tfm;
-  //if (b_ob.type() == BL::Object::type_VOLUME) {
+  // if (b_ob.type() == BL::Object::type_VOLUME) {
   //  octane_tfm = OCTANE_MATRIX * (tfm * transform_rotate(M_PI_2_F, make_float3(-1, 0, 0)));
   //}
 
@@ -455,8 +459,18 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     return object;
   }
 
+  bool use_geometry_node_modifier = false;
+  BL::Object::modifiers_iterator b_mod;
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    if (b_mod->type() == BL::Modifier::type_NODES) {
+      use_geometry_node_modifier = true;
+      break;
+    }
+  }
+
   std::string object_name;
-  if (scene && scene->session && scene->session->params.maximize_instancing) {
+  if (scene && scene->session && scene->session->params.maximize_instancing &&
+      !use_geometry_node_modifier) {
     object_name = b_ob.name_full() + OBJECT_TAG;
   }
   else {
@@ -489,12 +503,12 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
                            mesh_type);
 
   if (object->mesh && object->mesh->enable_offset_transform) {
- //   if (b_ob.type() == BL::Object::type_VOLUME) {
- //     octane_tfm = OCTANE_MATRIX * (tfm * transform_rotate(M_PI_2_F, make_float3(-1, 0, 0)) *
- //                                   object->mesh->offset_transform);
- //   } else {
- //     octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
-	//}
+    //   if (b_ob.type() == BL::Object::type_VOLUME) {
+    //     octane_tfm = OCTANE_MATRIX * (tfm * transform_rotate(M_PI_2_F, make_float3(-1, 0, 0)) *
+    //                                   object->mesh->offset_transform);
+    //   } else {
+    //     octane_tfm = OCTANE_MATRIX * object->mesh->offset_transform * tfm;
+    //}
     octane_tfm = OCTANE_MATRIX * (tfm * object->mesh->offset_transform);
   }
 
@@ -526,7 +540,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     object->octane_object.oObjectLayer = object_layer;
     if (!show_self) {
       if (object->mesh) {
-		// Only process when the vertex data is shown
+        // Only process when the vertex data is shown
         if (object->mesh->octane_mesh.oMeshData.bShowVertexData) {
           object->octane_object.oObjectLayer.fGeneralVisibility = 0.f;
         }

@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='24.5'
+OCTANE_BLENDER_VERSION='25.0'
 
 import bpy
 import math
@@ -33,7 +33,8 @@ def do_versions(self):
     check_compatibility_octane_object(file_version)
     check_compatibility_octane_pariticle(file_version)
     check_compatibility_octane_world(file_version)
-    check_compatibility_camera_imagers(file_version)   
+    check_compatibility_camera_imagers(file_version)
+    check_compatibility_post_processing(file_version)
     check_compatibility_octane_node_tree(file_version)
     check_compatibility_octane_passes(file_version)
     check_compatibility_octane_aovs_graph(file_version)
@@ -193,16 +194,43 @@ def node_output_socket_update(node_tree, node, previous_name, current_name):
 # camera imager
 def check_compatibility_camera_imagers(file_version):
     check_compatibility_camera_imagers_15_2_4(file_version)
+    check_compatibility_camera_imagers_25_0(file_version)
 
 
 def check_compatibility_camera_imagers_15_2_4(file_version):
     UPDATE_VERSION = '15.2.4'
     if not check_update(file_version, UPDATE_VERSION):
-        return    
+        return
     if bpy.context.scene.octane:
         bpy.context.scene.octane.hdr_tonemap_render_enable = getattr(bpy.context.scene.octane, 'hdr_tonemap_enable', False)
         bpy.context.scene.octane.hdr_tonemap_preview_enable = getattr(bpy.context.scene.octane, 'hdr_tonemap_enable', False)
 
+
+def check_compatibility_camera_imagers_25_0(file_version):
+    UPDATE_VERSION = '25.0'
+    if not check_update(file_version, UPDATE_VERSION):
+        return    
+    if getattr(bpy.context.scene, "oct_view_cam", None) is not None:
+        bpy.context.scene.oct_view_cam.imager.update_legacy_data(bpy.context, bpy.context.scene.oct_view_cam)
+    for camera in bpy.data.cameras:
+        if getattr(camera, "octane", None) is not None:
+            camera.octane.imager.update_legacy_data(bpy.context, camera.octane)
+
+
+# post processing
+def check_compatibility_post_processing(file_version):
+    check_compatibility_post_processing_25_0(file_version)
+
+
+def check_compatibility_post_processing_25_0(file_version):
+    UPDATE_VERSION = '25.0'
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    if getattr(bpy.context.scene, "oct_view_cam", None) is not None:
+        bpy.context.scene.oct_view_cam.post_processing.update_legacy_data(bpy.context, bpy.context.scene.oct_view_cam)
+    for camera in bpy.data.cameras:
+        if getattr(camera, "octane", None) is not None:
+            camera.octane.post_processing.update_legacy_data(bpy.context, camera.octane)
 
 # passes
 def check_compatibility_octane_passes(file_version):

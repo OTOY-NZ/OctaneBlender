@@ -132,7 +132,12 @@ void Scene::server_update(::OctaneEngine::OctaneClient *server_,
       break;
 
     progress.set_status("Updating Meshes");
-    mesh_manager->server_update(server, this, progress, frame_idx, total_frames);
+    if (!this->is_addon_mode()) {
+      mesh_manager->server_update(server, this, progress, frame_idx, total_frames);
+    }
+    else {
+      mesh_manager->need_update = false;
+    }
 
     if (progress.get_cancel())
       break;
@@ -144,7 +149,12 @@ void Scene::server_update(::OctaneEngine::OctaneClient *server_,
       break;
 
     progress.set_status("Updating Objects");
-    object_manager->server_update(server, this, progress, frame_idx, total_frames);
+    if (!this->is_addon_mode()) {
+      object_manager->server_update(server, this, progress, frame_idx, total_frames);
+    }
+    else {
+      object_manager->need_update = false;
+    }
 
     if (progress.get_cancel())
       break;
@@ -160,9 +170,12 @@ void Scene::server_update(::OctaneEngine::OctaneClient *server_,
     if (progress.get_cancel())
       break;
 
-	if (!this->is_addon_mode()) {
+    if (!this->is_addon_mode()) {
       progress.set_status("Updating Kernel");
       kernel->server_update(server, this, interactive);
+    }
+    else {
+      kernel->need_update = false;
     }
 
     if (progress.get_cancel())
@@ -191,6 +204,9 @@ bool Scene::need_update()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool Scene::need_reset()
 {
+  if (this->is_addon_mode()) {
+    return (light_manager->need_update || passes->need_update);
+  }
   return (environment->need_update || camera->need_update || object_manager->need_update ||
           mesh_manager->need_update || light_manager->need_update || passes->need_update ||
           kernel->need_update || shader_manager->need_update);

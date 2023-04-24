@@ -917,9 +917,10 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+from octane import core
 
-OctaneScatterOnSurfaceGeometry.octane_default_node_type = "OctaneObjectData"
-OctaneScatterOnSurfaceInput1.octane_default_node_type = "OctaneObjectData"
-OctaneScatterOnSurfaceInput2.octane_default_node_type = "OctaneObjectData"
-OctaneScatterOnSurfaceInput3.octane_default_node_type = "OctaneObjectData"
-OctaneScatterOnSurfaceInput4.octane_default_node_type = "OctaneObjectData"
+OctaneScatterOnSurfaceGeometry.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceInput1.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceInput2.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceInput3.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceInput4.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"

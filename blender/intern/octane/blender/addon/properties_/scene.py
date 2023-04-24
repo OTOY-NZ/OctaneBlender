@@ -504,11 +504,17 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         ('2001', "Cryptomatte MaterialName", "Cryptomatte channels for material node names"), 
         ('2006', "Cryptomatte MaterialNode", "Cryptomatte channels using distinct material nodes"),    
         ('2002', "Cryptomatte MaterialPinName", "Cryptomatte channels for material pin names"), 
+
         ('2003', "Cryptomatte ObjectName", "Cryptomatte channels for object layer node names"), 
         ('2004', "Cryptomatte ObjectNode", "Cryptomatte channels using distinct object layer nodes"),    
         ('2007', "Cryptomatte ObjectPinName", "Cryptomatte channels for object layer pin names"), 
+        # Not suitable for the legacy render pass system
+        # ('2009', "Cryptomatte RenderLayer", "Cryptomatte channels for render layers"), 
         
         ('2005', "Cryptomatte InstanceID", "Cryptomatte channels for instance IDs"),    
+        # Not suitable for the legacy render pass system
+        # ('2008', "Cryptomatte GeometryNodeName", "Cryptomatte channels for geometry node names"), 
+        # ('2010', "Cryptomatte UserInstanceID", "Cryptomatte channels for user instance IDs"), 
     )
     cur_pass_type: EnumProperty(
         name="Preview pass type",
@@ -1119,7 +1125,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     work_chunk_size: IntProperty(
         name="Work chunk size",
         description="The number of work blocks (of 512K samples each) we do per kernel run. Increasing this value increases the memory usage on the system, but doesn't affect memory usage on the system and may increase render speed",
-        min=1, max=32,
+        min=1, max=64,
         default=8,
     )
     toon_shadow_ambient: FloatVectorProperty(
@@ -1621,8 +1627,13 @@ class OctaneRenderLayerSettings(bpy.types.PropertyGroup):
         ('2003', "Cryptomatte ObjectName", "Cryptomatte channels for object layer node names", 2003), 
         ('2004', "Cryptomatte ObjectNode", "Cryptomatte channels using distinct object layer nodes", 2004),    
         ('2007', "Cryptomatte ObjectPinName", "Cryptomatte channels for object layer pin names", 2007), 
-        
+        # Not suitable for the legacy render pass system
+        # ('2009', "Cryptomatte RenderLayer", "Cryptomatte channels for render layers", 2009), 
+
         ('2005', "Cryptomatte InstanceID", "Cryptomatte channels for instance IDs", 2005),    
+        # Not suitable for the legacy render pass system
+        # ('2008', "Cryptomatte GeometryNodeName", "Cryptomatte channels for geometry node names", 2008), 
+        # ('2010', "Cryptomatte UserInstanceID", "Cryptomatte channels for user instance IDs", 2010), 
 
         ('10000', "AOV Output", "AOV Outputs", 10000),   
     )    

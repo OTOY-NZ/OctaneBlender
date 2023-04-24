@@ -371,7 +371,7 @@ class OctanePMCKernelWorkChunkSize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=281)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=8, update=None, description="The number of work blocks (of 512K samples each) we do per kernel run. Increasing this value increases the memory usage on the system, but doesn't affect memory usage on the system and may increase render speed", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=None, description="The number of work blocks (of 512K samples each) we do per kernel run. Increasing this value may increase render speed but it will increase system memory usage", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -420,6 +420,20 @@ class OctanePMCKernelToonShadowAmbient(OctaneBaseSocket):
     default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=None, description="The ambient modifier of toon shadowing", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=3080000
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctanePMCKernelOldVolumeBehavior(OctaneBaseSocket):
+    bl_idname="OctanePMCKernelOldVolumeBehavior"
+    bl_label="Emulate old volume behavior"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=448)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=False, update=None, description="Emulate the behavior of emission and scattering of version 4.0 and earlier")
+    octane_hide_value=False
+    octane_min_version=5000000
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -479,20 +493,6 @@ class OctanePMCKernelRrprob(OctaneBaseSocket):
     octane_end_version=2100000
     octane_deprecated=True
 
-class OctanePMCKernelOldVolumeBehavior(OctaneBaseSocket):
-    bl_idname="OctanePMCKernelOldVolumeBehavior"
-    bl_label="Emulate old volume behavior"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=448)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="(deprecated) Emulate the behavior of emission and scattering of version 4.0 and earlier")
-    octane_hide_value=False
-    octane_min_version=5000000
-    octane_end_version=11000003
-    octane_deprecated=True
-
 class OctanePMCKernelGroupQuality(OctaneGroupTitleSocket):
     bl_idname="OctanePMCKernelGroupQuality"
     bl_label="[OctaneGroupTitle]Quality"
@@ -539,7 +539,7 @@ class OctanePMCKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_render_pass_sub_type_name=""
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=23)
-    octane_socket_list: StringProperty(name="Socket List", default="Max. samples;Diffuse depth;Specular depth;Scatter depth;Maximal overlapping volumes;Ray epsilon;Filter size;Alpha shadows;Caustic blur;GI clamp;Nested dielectrics;Irradiance mode;Max subdivision level;Alpha channel;Keep environment;AI light;AI light update;Light IDs action;Light IDs;Light linking invert;Path term. power;Exploration strength;Direct light importance;Max. rejects;Parallel samples;Work chunk size;White light spectrum;Use old color pipeline;Toon shadow ambient;Affect roughness;AI light strength;Path depth;RR probability;Emulate old volume behavior;")
+    octane_socket_list: StringProperty(name="Socket List", default="Max. samples;Diffuse depth;Specular depth;Scatter depth;Maximal overlapping volumes;Ray epsilon;Filter size;Alpha shadows;Caustic blur;GI clamp;Nested dielectrics;Irradiance mode;Max subdivision level;Alpha channel;Keep environment;AI light;AI light update;Light IDs action;Light IDs;Light linking invert;Path term. power;Exploration strength;Direct light importance;Max. rejects;Parallel samples;Work chunk size;White light spectrum;Use old color pipeline;Toon shadow ambient;Emulate old volume behavior;Affect roughness;AI light strength;Path depth;RR probability;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=34)
@@ -582,10 +582,10 @@ class OctanePMCKernel(bpy.types.Node, OctaneBaseKernelNode):
         self.inputs.new("OctanePMCKernelUseOldColorPipeline", OctanePMCKernelUseOldColorPipeline.bl_label).init()
         self.inputs.new("OctanePMCKernelGroupToonShading", OctanePMCKernelGroupToonShading.bl_label).init()
         self.inputs.new("OctanePMCKernelToonShadowAmbient", OctanePMCKernelToonShadowAmbient.bl_label).init()
-        self.inputs.new("OctanePMCKernelMaxdepth", OctanePMCKernelMaxdepth.bl_label).init()
-        self.inputs.new("OctanePMCKernelRrprob", OctanePMCKernelRrprob.bl_label).init()
         self.inputs.new("OctanePMCKernelGroupCompatibilitySettings", OctanePMCKernelGroupCompatibilitySettings.bl_label).init()
         self.inputs.new("OctanePMCKernelOldVolumeBehavior", OctanePMCKernelOldVolumeBehavior.bl_label).init()
+        self.inputs.new("OctanePMCKernelMaxdepth", OctanePMCKernelMaxdepth.bl_label).init()
+        self.inputs.new("OctanePMCKernelRrprob", OctanePMCKernelRrprob.bl_label).init()
         self.outputs.new("OctaneKernelOutSocket", "Kernel out").init()
 
 
@@ -619,11 +619,11 @@ _CLASSES=[
     OctanePMCKernelWhiteLightSpectrum,
     OctanePMCKernelUseOldColorPipeline,
     OctanePMCKernelToonShadowAmbient,
+    OctanePMCKernelOldVolumeBehavior,
     OctanePMCKernelAffectRoughness,
     OctanePMCKernelAiLightUpdateStrength,
     OctanePMCKernelMaxdepth,
     OctanePMCKernelRrprob,
-    OctanePMCKernelOldVolumeBehavior,
     OctanePMCKernelGroupQuality,
     OctanePMCKernelGroupAlphaChannel,
     OctanePMCKernelGroupLight,

@@ -41,6 +41,9 @@ class OctaneCryptomatteAOVSubType(OctaneBaseSocket):
         ("Object node name", "Object node name", "", 4),
         ("Object pin name", "Object pin name", "", 5),
         ("Instance", "Instance", "", 6),
+        ("Geometry node name", "Geometry node name", "", 7),
+        ("Render layer", "Render layer", "", 8),
+        ("User instance ID", "User instance ID", "", 9),
     ]
     default_value: EnumProperty(default="Material node", update=OctaneBaseSocket.update_node_tree, description="The type of the Cryptomatte AOV", items=items)
     octane_hide_value=False
@@ -52,10 +55,10 @@ class OctaneCryptomatteAOV(bpy.types.Node, OctaneBaseNode):
     bl_idname="OctaneCryptomatteAOV"
     bl_label="Cryptomatte AOV"
     bl_width_default=200
-    octane_render_pass_id={0: 2006, 1: 2001, 2: 2002, 3: 2004, 4: 2003, 5: 2007, 6: 2005, }
-    octane_render_pass_name={0: "Crypto material node", 1: "Crypto material node name", 2: "Crypto material pin name", 3: "Crypto object node", 4: "Crypto object node name", 5: "Crypto object pin name", 6: "Crypto instance ID", }
-    octane_render_pass_short_name={0: "cm-Mn", 1: "cm-Mnn", 2: "cm-MPn", 3: "cm-On", 4: "cm-Onn", 5: "cm-Opn", 6: "cm-Ii", }
-    octane_render_pass_description={0: "Cryptomatte channels using distinct material nodes. Note: This cannot generate stable matte IDs", 1: "Cryptomatte channels using material node names", 2: "Cryptomatte channels using material pin names", 3: "Cryptomatte channels using distinct object layer nodes. Note: This cannot generate stable matte IDs", 4: "Cryptomatte channels using object layer node names", 5: "Cryptomatte channels using object layer pin names", 6: "Cryptomatte channels for instances. Note: This cannot generate stable matte IDs", }
+    octane_render_pass_id={0: 2006, 1: 2001, 2: 2002, 3: 2004, 4: 2003, 5: 2007, 6: 2005, 7: 2008, 8: 2009, 9: 2010, }
+    octane_render_pass_name={0: "Crypto material node", 1: "Crypto material node name", 2: "Crypto material pin name", 3: "Crypto object node", 4: "Crypto object node name", 5: "Crypto object pin name", 6: "Crypto instance ID", 7: "Crypto geometry node name", 8: "Crypto render layer", 9: "Crypto user instance ID", }
+    octane_render_pass_short_name={0: "cm-Mn", 1: "cm-Mnn", 2: "cm-MPn", 3: "cm-On", 4: "cm-Onn", 5: "cm-Opn", 6: "cm-Ii", 7: "cm-Gnn", 8: "cm-RL", 9: "cm-UID", }
+    octane_render_pass_description={0: "Cryptomatte channels using distinct material nodes. Note: This cannot generate stable matte IDs", 1: "Cryptomatte channels using material node names", 2: "Cryptomatte channels using material pin names", 3: "Cryptomatte channels using distinct object layer nodes. Note: This cannot generate stable matte IDs", 4: "Cryptomatte channels using object layer node names", 5: "Cryptomatte channels using object layer pin names", 6: "Cryptomatte channels for instances. Note: This cannot generate stable matte IDs", 7: "Cryptomatte channels using geometry node names", 8: "Cryptomatte channels using render layers", 9: "Cryptomatte channels using user instance ID", }
     octane_render_pass_sub_type_name="Type"
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=185)

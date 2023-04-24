@@ -1,4 +1,5 @@
 ENABLE_OCTANE_ADDON_CLIENT = False
+EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE = False
 
 if ENABLE_OCTANE_ADDON_CLIENT:
     print("Octane Addon Client is enabled")

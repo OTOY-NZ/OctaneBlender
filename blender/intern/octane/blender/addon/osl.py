@@ -17,7 +17,9 @@
 # <pep8 compliant>
 
 import bpy
-import _octane
+from octane import core
+if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+    import _octane
 
 
 def osl_compile(node, identifier, osl_path, osl_code, report):

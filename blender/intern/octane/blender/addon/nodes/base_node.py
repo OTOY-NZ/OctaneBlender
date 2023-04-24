@@ -102,7 +102,7 @@ class OctaneBaseNode(object):
         attribute_value = getattr(self, attribute_name, None)
         if attribute_type == consts.AttributeType.AT_INT and type(attribute_value) == str:
             attribute_value = self.rna_type.properties[attribute_name].enum_items[attribute_value].value
-        return attribute_value
+        return attribute_value    
 
     def sync_data(self, octane_node, octane_graph_node_data, owner_type, scene=None, is_viewport=True):
         if not hasattr(self.__class__, "attribute_names"):
@@ -118,22 +118,18 @@ class OctaneBaseNode(object):
             attribute_value = self.get_attribute_value(attribute_name, attribute_type)
             octane_node.set_attribute(attribute_name, attribute_type, attribute_value)
         for socket in self.inputs:
-            data_socket = socket
             socket_name = socket.name
             link_node_name = ""
-            if octane_graph_node_data and socket_name in octane_graph_node_data.octane_complicated_sockets:
-                link_node_name = octane_graph_node_data.octane_complicated_sockets[socket_name].linked_node_octane_name
-                if octane_graph_node_data.octane_complicated_sockets[socket_name].mapping_socket:
-                    data_socket = octane_graph_node_data.octane_complicated_sockets[socket_name].mapping_socket
+            data_socket = None
+            if octane_graph_node_data:
+                link_node_name = octane_graph_node_data.get_link_node_name(socket_name)
+                data_socket = octane_graph_node_data.get_link_data_socket(socket_name)
+            if data_socket is None:
+                data_socket = socket
             if socket.is_octane_proxy_pin() or socket.is_octane_osl_pin() or socket.is_octane_dynamic_pin() or socket_name in self.__class__.socket_names:
                 default_value = getattr(data_socket, "default_value", "")
                 if socket.octane_socket_type == consts.SocketType.ST_ENUM:
-                    for item in socket.items:
-                        if item[0] == default_value:
-                            default_value = int(item[3])
-                            break
-                    else:
-                        default_value = 0
+                    default_value = socket.rna_type.properties["default_value"].enum_items[default_value].value
                 octane_node.set_pin(socket.generate_octane_pin_symbol(), socket_name, socket.octane_socket_type, default_value, data_socket.is_linked, link_node_name)
         self.sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
 
@@ -283,7 +279,14 @@ class OctaneBaseOutputNode(OctaneBaseNode):
     def draw_buttons(self, context, layout):
         row = layout.row()
         split = row.split(factor=0.4)
-        split.prop(self, "active")     
+        split.prop(self, "active")
+
+    # Force to trigger an update when link is added/removed under viewport render
+    def update(self):
+        area = getattr(bpy.context, 'area', None)
+        if area and area.type == 'NODE_EDITOR':        
+            # Trick to trigger an update by force
+            self.width = self.width
 
 
 _CLASSES = [

@@ -18,8 +18,8 @@ class OctaneCameraImagerNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
         self.update_viewport()
 
 
-def register(): 
-    register_class(OctaneCameraImagerNodeTree)
+def register():
+    pass
 
 def unregister():
-    unregister_class(OctaneCameraImagerNodeTree)
+    pass

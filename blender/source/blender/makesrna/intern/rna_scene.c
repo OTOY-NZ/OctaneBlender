@@ -4701,7 +4701,21 @@ void rna_def_octane_view_layer_common(StructRNA *srna, const bool scene)
                        OCT_SCE_PASS_CRYPTOMATTE_OBJECT_PIN_NODE,
                        "CryptoObjPinNode",
                        "Cryptomatte channels using object layer pin names");
-
+  ADD_OCTANE_PASS_PROP("use_pass_oct_crypto_render_layer",
+                       oct_passflags[OCTANE_CRYPTOMATTE_PASS],
+                       OCT_SCE_PASS_CRYPTOMATTE_RENDER_LAYER,
+                       "CryptoRenderLayer",
+                       "Cryptomatte channels using render layers");
+  ADD_OCTANE_PASS_PROP("use_pass_oct_crypto_geometry_node_name",
+                       oct_passflags[OCTANE_CRYPTOMATTE_PASS],
+                       OCT_SCE_PASS_CRYPTOMATTE_GEOMETRY_NODE_NAME,
+                       "CryptoGeometryNodeName",
+                       "Cryptomatte channels using geometry node names");
+  ADD_OCTANE_PASS_PROP("use_pass_oct_crypto_user_instance_id",
+                       oct_passflags[OCTANE_CRYPTOMATTE_PASS],
+                       OCT_SCE_PASS_CRYPTOMATTE_USER_INSTANCE_ID,
+                       "CryptoUserInstanceID",
+                       "Cryptomatte channels using user instance id");
   ADD_OCTANE_PASS_PROP(
       "use_pass_oct_info_geo_normal",
       oct_passflags[OCTANE_INFO_PASS],

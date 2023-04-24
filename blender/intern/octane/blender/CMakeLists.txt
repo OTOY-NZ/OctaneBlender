@@ -100,12 +100,16 @@ set(ADDON_UI_FILES
   addon/uis/__init__.py
   addon/uis/common.py
   addon/uis/scene.py
+  addon/uis/camera.py
+  addon/uis/world.py
 )
 
 set(ADDON_PROPERTY_FILES
   addon/properties_/__init__.py
   addon/properties_/common.py
   addon/properties_/scene.py
+  addon/properties_/camera.py
+  addon/properties_/world.py
 )
 
 set(ADDON_NODES_FILES

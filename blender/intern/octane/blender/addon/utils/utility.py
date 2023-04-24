@@ -123,13 +123,18 @@ def convert_octane_color_to_rgba(color):
     b = (0xff & (color)) / 255.0
     return (r, g, b, a)
 
-
 ##### Preferences #####
 
 def get_preferences():
     return bpy.context.preferences.addons[consts.ADDON_NAME].preferences
 
 ##### Properties #####
+
+def get_enum_value(data, property_name, default_value):
+    property_value = getattr(data, property_name, None)
+    if property_value is not None:
+        return data.rna_type.properties[property_name].enum_items[property_value].value
+    return default_value
 
 def set_collection(collection, items, set_func):
     for i in range(0, len(collection)):
@@ -175,6 +180,25 @@ def cast_enum_value_to_int(enum_items, enum_value, default_value):
                 return item[3]
     return default_value
 
+def cast_legacy_enum_property(current_property_data, current_property_name, current_property_enum_items, legacy_property_data, legacy_property_name):
+    cast_value = None
+    legacy_value = getattr(legacy_property_data, legacy_property_name, None)
+    try:
+        legacy_value = int(legacy_value)
+        for item in current_property_enum_items:
+            if legacy_value == item[3]:
+                cast_value = item[0]
+                break
+    except:
+        pass
+    if cast_value is not None:
+        setattr(current_property_data, current_property_name, cast_value)
+
+def sync_legacy_property(current_property_data, current_property_name, legacy_property_data, legacy_property_name):
+    legacy_value = getattr(legacy_property_data, legacy_property_name, None)
+    if legacy_value is not None:
+        setattr(current_property_data, current_property_name, legacy_value)
+
 ##### NodeTrees & Nodes & Sockets #####
 def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False):
     node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.KERNEL, type=consts.OctaneNodeTreeIDName.KERNEL)
@@ -189,17 +213,6 @@ def quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=False):
         octane_scene = bpy.context.scene.octane
         octane_scene.kernel_node_graph_property.node_tree = node_tree
     return node_tree
-
-def quick_add_octane_camera_imager_node_tree():
-    node_tree = bpy.data.node_groups.new(name=consts.OctanePresetNodeTreeNames.CAMERA_IMAGER, type=consts.OctaneNodeTreeIDName.CAMERA_IMAGER)
-    node_tree.use_fake_user = True
-    nodes = node_tree.nodes
-    output = nodes.new("OctaneImagerOutputNode")
-    output.location = (0, 0)
-    imager_node = nodes.new("OctaneCameraImager")
-    imager_node.location = (-300, 0)
-    node_tree.links.new(imager_node.outputs[0], output.inputs[0])
-    return node_tree    
 
 def octane_helper_node_group():
     helper_node_group = bpy.data.node_groups.get(consts.OCTANE_HELPER_NODE_GROUP, None)
@@ -316,6 +329,17 @@ class OctaneGraphNode(object):
         self.octane_complicated_sockets[socket.name] = octane_graph_node_socket
         return octane_graph_node
 
+    def get_link_node_name(self, socket_name):        
+        if socket_name in self.octane_complicated_sockets:
+            return self.octane_complicated_sockets[socket_name].linked_node_octane_name
+        return ""
+
+    def get_link_data_socket(self, socket_name):
+        if socket_name in self.octane_complicated_sockets:
+            if self.octane_complicated_sockets[socket_name].mapping_socket:
+                return self.octane_complicated_sockets[socket_name].mapping_socket
+        return None
+
     def __repr__(self):
         return "<OctaneGraphNode octane_name:%s node:%s output_socket:%s is_root:%s>\nancestor_list:%s\noctane_complicated_sockets:%s" % \
             (self.octane_name, self.node, self.output_socket, self.is_root, self.ancestor_list, self.octane_complicated_sockets)
@@ -424,6 +448,43 @@ def update_active_render_aov_node_tree(context):
     if node_tree is None:
         return
     node_tree.update()
+
+def find_active_camera_data(context):
+    view = context.space_data
+    if getattr(context.region_data, "view_perspective", None) != "CAMERA" and \
+        (view.region_3d.view_perspective != "CAMERA" or view.region_quadviews):
+        return (context.scene.oct_view_cam, "VIEW_3D")
+    else:
+        return (context.scene.camera.data.octane, context.scene.camera.name)
+
+def find_active_post_process_data(context):
+    if context.scene.octane.use_preview_post_process_setting:
+        return (context.scene.oct_view_cam, "VIEW_3D")
+    else:
+        view = context.space_data
+        if getattr(context.region_data, "view_perspective", None) != "CAMERA" and \
+            (view.region_3d.view_perspective != "CAMERA" or view.region_quadviews):
+            return (context.scene.oct_view_cam, "VIEW_3D")
+        else:
+            return (context.scene.camera.data.octane, context.scene.camera.name)
+
+def find_active_imager_data(context):
+    if context.scene.octane.use_preview_setting_for_camera_imager:
+        return (context.scene.oct_view_cam, "VIEW_3D")
+    else:
+        view = context.space_data
+        if getattr(context.region_data, "view_perspective", None) != "CAMERA" and \
+            (view.region_3d.view_perspective != "CAMERA" or view.region_quadviews):
+            return (context.scene.oct_view_cam, "VIEW_3D")
+        else:
+            return (context.scene.camera.data.octane, context.scene.camera.name)
+
+def is_active_imager_enabled(context):
+    camera, name = find_active_imager_data(context)
+    if name == "VIEW_3D":
+        return context.scene.octane.hdr_tonemap_preview_enable
+    else:
+        return context.scene.octane.hdr_tonemap_render_enable
 
 def get_split_panel_ui_layout(layout):
     # Simulate the use_property_split feature
@@ -587,6 +648,11 @@ def scene_max_aov_output_count(context):
         return 0
     return node_tree.max_aov_output_count
 
+def render_resolution_x(render):
+  return render.resolution_x * render.resolution_percentage / 100
+
+def render_resolution_y(render):
+  return render.resolution_y * render.resolution_percentage / 100
 
 ##### Render passes #####
 
@@ -627,9 +693,30 @@ class OctaneMatrixConvertor(object):
         mat = OctaneMatrixConvertor.OCTANE_ROTATION_MATRIX_CONVERTOR @ matrix
         return (mat.col[2] * -1)[:-1]
 
+def transform_direction(matrix, a):
+    x = a[0] * matrix[0][0] + a[1] * matrix[0][1] + a[2] * matrix[0][2]
+    y = a[0] * matrix[1][0] + a[1] * matrix[1][1] + a[2] * matrix[1][2]
+    z = a[0] * matrix[2][0] + a[1] * matrix[2][1] + a[2] * matrix[2][2]
+    return mathutils.Vector((x, y, z))
+
+def transform_get_column(matrix, column):
+    return mathutils.Vector((matrix[0][column], matrix[1][column], matrix[2][column]))
+
+def transform_set_column(matrix, column, value):
+    matrix[0][column] = value.x
+    matrix[1][column] = value.y
+    matrix[2][column] = value.z
+
+def transform_clear_scale(matrix):
+    new_matrix = matrix.copy()
+    transform_set_column(new_matrix, 0, transform_get_column(matrix, 0).normalized())
+    transform_set_column(new_matrix, 1, transform_get_column(matrix, 1).normalized())
+    transform_set_column(new_matrix, 2, transform_get_column(matrix, 2).normalized())
+    return new_matrix
 
 # Object & Mesh
 MESH_TAG = "[Mesh]"
+OBJECT_TAG = "[Object]"
 COLLECTION_TAG = "[Collection]"
 SEPERATOR = "."
 
@@ -648,3 +735,16 @@ def resolve_mesh_octane_name(obj, scene, is_viewport):
     is_modified = obj.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
     modifier_tag = obj_name_full if is_modified else ""
     return resolve_octane_name(obj, modifier_tag, MESH_TAG)
+
+def resolve_object_octane_name(obj, scene, is_viewport):
+    obj_name_full = obj.name_full
+    is_modified = obj.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
+    modifier_tag = obj_name_full if is_modified else ""
+    return resolve_octane_name(obj, modifier_tag, OBJECT_TAG)
+
+def resolve_octane_vectron_name(obj):
+    if obj and obj.type == "MESH":
+        octane_data = obj.data.octane.octane_geo_node_collections
+        if len(octane_data.node_graph_tree) and len(octane_data.osl_geo_node):
+            return octane_data.node_graph_tree + octane_data.osl_geo_node
+    return ""

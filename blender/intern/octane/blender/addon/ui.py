@@ -43,34 +43,6 @@ def osl_node_draw(layout, node_tree_name, node_name):
     layout.label(text="No Octane Geometric Node")
     return False
 
-class OCTANE_MT_environment_presets(Menu):
-    bl_label = "Environment presets"
-    preset_subdir = "octane/environment"
-    preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'octane'}
-    draw = Menu.draw_preset
-
-class OCTANE_MT_vis_environment_presets(Menu):
-    bl_label = "Visible environment presets"
-    preset_subdir = "octane/vis_environment"
-    preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'octane'}
-    draw = Menu.draw_preset
-
-class OCTANE_MT_imager_presets(Menu):
-    bl_label = "Imager presets"
-    preset_subdir = "octane/imager_presets"
-    preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'octane'}
-    draw = Menu.draw_preset
-
-class OCTANE_MT_3dimager_presets(Menu):
-    bl_label = "Imager presets"
-    preset_subdir = "octane/3dimager_presets"
-    preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'octane'}
-    draw = Menu.draw_preset
-
 
 class OctaneButtonsPanel():
     bl_space_type = "PROPERTIES"
@@ -200,447 +172,6 @@ class OCTANE_RENDER_PT_motion_blur(OctaneButtonsPanel, Panel):
         row.prop(context.scene.octane, "subframe_end")
 
 
-class VIEW3D_PT_octimager(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_label = "Octane Camera Imager(Preview Mode)"    
-    bl_options = {'DEFAULT_CLOSED'}
-    bl_category = "Octane"    
-    COMPAT_ENGINES = {'octane'}        
-
-    @classmethod
-    def poll(cls, context):
-        return context.space_data and OctaneButtonsPanel.poll(context)
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.octane, "hdr_tonemap_preview_enable", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        view = context.space_data
-        oct_cam = context.scene.oct_view_cam
-
-        row = layout.row(align=True)
-        row.menu("OCTANE_MT_3dimager_presets", text=OCTANE_MT_3dimager_presets.bl_label)
-        row.operator("render.octane_3dimager_preset_add", text="", icon="ADD")
-        row.operator("render.octane_3dimager_preset_add", text="", icon="REMOVE").remove_active = True
-
-        layout.active = bool(context.scene.octane.use_preview_setting_for_camera_imager or view.region_3d.view_perspective != 'CAMERA' or view.region_quadviews)
-        sub = layout.column(align=True)
-        sub.prop(context.scene.octane, "use_preview_setting_for_camera_imager")
-        sub = layout.column(align=True)
-        sub.prop(oct_cam, "camera_imager_order")
-        sub = layout.column(align=True)
-        sub.prop(oct_cam, "response_type")
-
-        sub = layout.column(align=True)
-        sub.prop(oct_cam, "white_balance")
-        sub = layout.column(align=True)
-        sub.prop(oct_cam, "exposure")
-        sub.prop(oct_cam, "gamma")
-        sub.prop(oct_cam, "vignetting")
-        sub.prop(oct_cam, "saturation")
-        sub.prop(oct_cam, "white_saturation")
-        sub.prop(oct_cam, "hot_pix")
-        sub.prop(oct_cam, "min_display_samples")
-        sub.prop(oct_cam, "highlight_compression")
-        sub.prop(oct_cam, "max_tonemap_interval")
-        sub.prop(oct_cam, "dithering")
-        sub.prop(oct_cam, "premultiplied_alpha")
-        sub.prop(oct_cam, "neutral_response")
-        sub.prop(oct_cam, "disable_partial_alpha")
-        sub.prop(oct_cam, "custom_lut")
-        sub.prop(oct_cam, "lut_strength")
-
-        box = layout.box()
-        box.label(text="OCIO")
-        sub = box.column(align=True)
-        preferences = bpy.context.preferences.addons['octane'].preferences
-        sub.prop_search(oct_cam, "ocio_view", preferences, "ocio_view_configs") 
-        sub.prop_search(oct_cam, "ocio_look", preferences, "ocio_look_configs") 
-        sub.prop(oct_cam, 'force_tone_mapping')        
-
-        box = layout.box()
-        box.label(text="Spectral AI Denoiser:")
-        sub = box.column(align=True)
-
-        sub.prop(oct_cam, 'enable_denoising')
-        sub.prop(oct_cam, 'denoise_volumes')
-        sub.prop(oct_cam, 'denoise_on_completion')
-        sub.prop(oct_cam, 'min_denoiser_samples')
-        sub.prop(oct_cam, 'max_denoiser_interval')
-        sub.prop(oct_cam, 'denoiser_blend')
-
-        box = layout.box()
-        box.label(text="AI Up-Sampler:")
-        sub = box.column(align=True)
-
-        sub.prop(oct_cam.ai_up_sampler, 'sample_mode')
-        sub.prop(oct_cam.ai_up_sampler, 'enable_ai_up_sampling')
-        sub.prop(oct_cam.ai_up_sampler, 'up_sampling_on_completion')
-        sub.prop(oct_cam.ai_up_sampler, 'min_up_sampler_samples')
-        sub.prop(oct_cam.ai_up_sampler, 'max_up_sampler_interval')
-
-
-class VIEW3D_PT_Octane_Postprocessing(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_label = "Octane Postprocess(Preview Mode)"
-    bl_category = "Octane"         
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'octane'}          
-
-    @classmethod
-    def poll(cls, context):
-        return context.space_data and OctaneButtonsPanel.poll(context)
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.oct_view_cam, "postprocess", text="")
-
-    def draw(self, context):
-        layout = self.layout
-        view = context.space_data
-        oct_cam = context.scene.oct_view_cam
-
-        layout.active = bool(context.scene.octane.use_preview_post_process_setting or view.region_3d.view_perspective != 'CAMERA' or view.region_quadviews)
-        sub = layout.column(align=True)
-        sub.prop(context.scene.octane, "use_preview_post_process_setting")
-        sub.prop(oct_cam, "cut_off")
-        sub.prop(oct_cam, "bloom_power")
-        sub.prop(oct_cam, "glare_power")
-        sub = layout.column(align=True)
-        sub.prop(oct_cam, "glare_ray_count")
-        sub.prop(oct_cam, "glare_angle")
-        sub.prop(oct_cam, "glare_blur")
-        sub.prop(oct_cam, "spectral_intencity")
-        sub.prop(oct_cam, "spectral_shift")
-
-
-class OCTANE_CAMERA_PT_cam(OctaneButtonsPanel, Panel):
-    bl_label = "Octane camera"
-    bl_context = "data"
-
-    @classmethod
-    def poll(cls, context):
-        return context.camera and OctaneButtonsPanel.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-
-        cam = context.camera
-        oct_cam = cam.octane
-
-        row = layout.row(align=True)
-        row.prop(oct_cam, "use_camera_dimension_as_preview_resolution")
-
-        row = layout.row(align=True)
-        row.prop(oct_cam, "used_as_universal_camera")
-        sub = layout.column(align=True)
-
-        if oct_cam.used_as_universal_camera:
-            if cam.type == 'PANO':
-                sub.prop(oct_cam, "universal_camera_mode")
-            box = layout.box()
-            box.label(text="Fisheye")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "fisheye_angle")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "fisheye_type")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "hard_vignette")        
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "fisheye_projection_type")       
-            box = layout.box()
-            box.label(text="Panoramic")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "fov_x")
-            sub.prop(oct_cam, "fov_y")  
-            sub = box.row(align=True)          
-            sub.prop(oct_cam, "cubemap_layout_type")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "equi_angular_cubemap")                
-            box = layout.box()
-            box.label(text="Distortion")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "use_distortion_texture")
-            sub = box.row(align=True)
-            sub.prop_search(oct_cam, "distortion_texture", bpy.data, "textures")       
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "spherical_distortion")
-            sub.prop(oct_cam, "barrel_distortion")
-            sub.prop(oct_cam, "barrel_distortion_corners")
-            box = layout.box()
-            box.label(text="Aberration")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "spherical_aberration")
-            sub.prop(oct_cam, "coma")            
-            sub.prop(oct_cam, "astigmatism")
-            sub.prop(oct_cam, "field_curvature")   
-            box = layout.box()
-            box.label(text="Depth of field:")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "autofocus")
-            sub = box.row(align=True)
-            sub.active = oct_cam.autofocus is False
-            sub.prop(cam.dof, "focus_object", text="")
-            sub = box.row(align=True)
-            sub.active = oct_cam.autofocus is False and cam.dof.focus_object is None
-            sub.prop(cam.dof, "focus_distance", text="Distance")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "aperture")
-            sub.prop(oct_cam, "aperture_aspect")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "aperture_shape_type")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "aperture_edge")        
-            sub.prop(oct_cam, "aperture_blade_count")
-            sub.prop(oct_cam, "aperture_rotation")
-            sub.prop(oct_cam, "aperture_roundedness") 
-            sub.prop(oct_cam, "central_obstruction")                     
-            sub.prop(oct_cam, "notch_position")
-            sub.prop(oct_cam, "notch_scale")
-            sub = box.row(align=True)
-            sub.prop_search(oct_cam, "custom_aperture_texture", bpy.data, "textures")
-            box = layout.box()
-            box.label(text="Optical vignette")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "optical_vignette_distance")
-            sub.prop(oct_cam, "optical_vignette_scale")     
-            box = layout.box()
-            box.label(text="Split-focus diopter")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "enable_split_focus_diopter")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "diopter_focal_depth")
-            sub.prop(oct_cam, "diopter_rotation")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "diopter_translation")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "diopter_boundary_width")
-            sub.prop(oct_cam, "diopter_boundary_falloff")
-            sub = box.row(align=True)
-            sub.prop(oct_cam, "show_diopter_guide")
-        else:            
-            sub.active = (cam.type == 'PANO')
-            sub.prop(oct_cam, "pan_mode")
-            sub.prop(oct_cam, "fov_x")
-            sub.prop(oct_cam, "fov_y")
-            sub.prop(oct_cam, "keep_upright")
-
-            col = layout.column(align=True)
-            col.active = (cam.type != 'PANO')
-            col.prop(oct_cam, "distortion")
-            col.prop(oct_cam, "pixel_aspect")
-            col.prop(oct_cam, "persp_corr")
-            
-            sub = layout.row(align=True)
-            sub.prop(oct_cam, "use_fstop")
-            sub.prop(oct_cam, "fstop")        
-
-            box = layout.box()
-            box.label(text="Depth of field:")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "autofocus")
-            sub = box.row(align=True)
-            sub.active = oct_cam.autofocus is False
-            sub.prop(cam.dof, "focus_object", text="")
-            sub = box.row(align=True)
-            sub.active = oct_cam.autofocus is False and cam.dof.focus_object is None
-            sub.prop(cam.dof, "focus_distance", text="Distance")
-            sub = box.column(align=True)
-            sub.prop(oct_cam, "aperture")
-            sub.prop(oct_cam, "aperture_aspect")
-            sub.prop(oct_cam, "aperture_edge")        
-            sub.prop(oct_cam, "bokeh_sidecount")
-            sub.prop(oct_cam, "bokeh_rotation")
-            sub.prop(oct_cam, "bokeh_roundedness")
-
-            box = layout.box()
-            box.label(text="Stereo:")
-            col = box.column(align=True)
-            sub = box.row()
-            sub.active = (cam.type != 'PANO')
-            sub.prop(oct_cam, "stereo_mode")
-            sub = box.row()
-            #sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '1')
-            sub.prop(oct_cam, "stereo_out")
-            sub = box.row()
-            #sub.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '1')
-            sub.prop(oct_cam, "stereo_dist")
-            sub.prop(oct_cam, "stereo_swap_eyes")
-            sub = box.column(align=True)
-            #sub.active = (cam.type == 'PANO')
-            sub.prop(oct_cam, "stereo_dist_falloff")
-            sub.prop(oct_cam, "blackout_lat")
-            col = box.column(align=True)
-            #col.active = (cam.type == 'PANO' or oct_cam.stereo_mode != '1')
-            sub = col.row()
-            sub.prop(oct_cam, "left_filter")
-            sub = col.row()
-            sub.prop(oct_cam, "right_filter")
-
-            box = layout.box()
-            box.label(text="Baking:")
-            col = box.column(align=True)
-
-            sub = col.row(align=True)
-            sub.prop(oct_cam, "baking_camera")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_revert")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_use_position")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_bkface_culling")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_tolerance")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_group_id")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_padding")
-            sub = col.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uv_set")
-
-            col1 = box.column(align=True)
-            sub = col1.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uvbox_min_x")
-            sub = col1.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uvbox_min_y")
-
-            col1 = box.column(align=True)
-            sub = col1.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uvbox_size_x")
-            sub = col1.row(align=True)
-            sub.active = (oct_cam.baking_camera == True)
-            sub.prop(oct_cam, "baking_uvbox_size_y")
-
-            box = layout.box()
-            box.label(text = "OSL Camera:")
-            col = box.column(align = True)
-
-            sub = col.row(align = True)
-            sub.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_material_tree", bpy.data, "materials")
-            sub = col.row(align = True)        
-            sub.prop_search(oct_cam.osl_camera_node_collections, "osl_camera_node", oct_cam.osl_camera_node_collections, "osl_camera_nodes")        
-            sub.operator('update.osl_camera_nodes', text = 'Update')
-            #sub.prop(oct_cam, 'osl_camera_node1')
-
-
-class OCTANE_CAMERA_PT_imager(OctaneButtonsPanel, Panel):
-    bl_label = "Octane Camera Imager(Render Mode)"
-    bl_context = "data"
-
-    @classmethod
-    def poll(cls, context):
-        return context.camera and OctaneButtonsPanel.poll(context)
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.octane, "hdr_tonemap_render_enable", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        cam = context.camera
-        oct_cam = cam.octane
-
-        row = layout.row(align=True)
-        row.menu("OCTANE_MT_imager_presets", text=OCTANE_MT_imager_presets.bl_label)
-        row.operator("render.octane_imager_preset_add", text="", icon="ADD")
-        row.operator("render.octane_imager_preset_add", text="", icon="REMOVE").remove_active = True
-
-        sub = layout.row()
-        sub.prop(oct_cam, "camera_imager_order")
-
-        sub = layout.row()
-        sub.prop(oct_cam, "response_type")
-
-        sub = layout.column(align=True)
-        sub.prop(oct_cam, "white_balance")
-        sub.prop(oct_cam, "exposure")
-        sub.prop(oct_cam, "gamma")
-        sub.prop(oct_cam, "vignetting")
-        sub.prop(oct_cam, "saturation")
-        sub.prop(oct_cam, "white_saturation")
-        sub.prop(oct_cam, "hot_pix")
-        sub.prop(oct_cam, "min_display_samples")
-        sub.prop(oct_cam, "highlight_compression")
-        sub.prop(oct_cam, "max_tonemap_interval")
-        sub.prop(oct_cam, "dithering")
-        sub.prop(oct_cam, "premultiplied_alpha")
-        sub.prop(oct_cam, "neutral_response")
-        sub.prop(oct_cam, "disable_partial_alpha")
-        sub.prop(oct_cam, "custom_lut")
-        sub.prop(oct_cam, "lut_strength")
-
-        box = layout.box()
-        box.label(text="OCIO")
-        sub = box.column(align=True)
-        preferences = bpy.context.preferences.addons['octane'].preferences
-        sub.prop_search(oct_cam, "ocio_view", preferences, "ocio_view_configs") 
-        sub.prop_search(oct_cam, "ocio_look", preferences, "ocio_look_configs") 
-        sub.prop(oct_cam, 'force_tone_mapping')     
-
-        box = layout.box()
-        box.label(text="Spectral AI Denoiser:")
-        sub = box.column(align=True)
-
-        sub.prop(oct_cam, 'enable_denoising')
-        sub.prop(oct_cam, 'denoise_volumes')
-        sub.prop(oct_cam, 'denoise_on_completion')
-        sub.prop(oct_cam, 'min_denoiser_samples')
-        sub.prop(oct_cam, 'max_denoiser_interval')
-        sub.prop(oct_cam, 'denoiser_blend')
-
-        box = layout.box()
-        box.label(text="AI Up-Sampler:")
-        sub = box.column(align=True)
-
-        sub.prop(oct_cam.ai_up_sampler, 'sample_mode')
-        sub.prop(oct_cam.ai_up_sampler, 'enable_ai_up_sampling')
-        sub.prop(oct_cam.ai_up_sampler, 'up_sampling_on_completion')
-        sub.prop(oct_cam.ai_up_sampler, 'min_up_sampler_samples')
-        sub.prop(oct_cam.ai_up_sampler, 'max_up_sampler_interval')
-
-
-class OCTANE_CAMERA_PT_post(OctaneButtonsPanel, Panel):
-    bl_label = "Octane Post Processing"
-    bl_context = "data"
-
-    @classmethod
-    def poll(cls, context):
-        return context.camera and OctaneButtonsPanel.poll(context)
-
-    def draw_header(self, context):
-        self.layout.prop(context.camera.octane, "postprocess", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        cam = context.camera
-        oct_cam = cam.octane
-
-        sub = layout.column(align=True)
-        sub.prop(oct_cam, "cut_off")
-        sub.prop(oct_cam, "bloom_power")
-        sub.prop(oct_cam, "glare_power")
-        sub = layout.column(align=True)
-        sub.prop(oct_cam, "glare_ray_count")
-        sub.prop(oct_cam, "glare_angle")
-        sub.prop(oct_cam, "glare_blur")
-        sub.prop(oct_cam, "spectral_intencity")
-        sub.prop(oct_cam, "spectral_shift")
-
-
 class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
     bl_label = "Octane properties"
     bl_context = "data"
@@ -723,24 +254,28 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
             sub = row.column(align=True)
             sub.prop(cdata, "auto_smooth_angle")
 
-        if mesh:
+        if core.ENABLE_OCTANE_ADDON_CLIENT:
+            sphere_attribute_mesh_data = cdata
+        else:
+            sphere_attribute_mesh_data = mesh
+        if sphere_attribute_mesh_data:
             box = layout.box()
             box.label(text="Sphere Attributes:")
             sub = box.row(align=True)
-            sub.prop(mesh, "octane_enable_sphere_attribute")
+            sub.prop(sphere_attribute_mesh_data, "octane_enable_sphere_attribute")
             sub = box.row(align=True)
-            sub.active = mesh.octane_enable_sphere_attribute
-            sub.prop(mesh, "octane_hide_original_mesh")
+            sub.active = sphere_attribute_mesh_data.octane_enable_sphere_attribute
+            sub.prop(sphere_attribute_mesh_data, "octane_hide_original_mesh")
             sub = box.row(align=True)
-            sub.prop(mesh, "octane_sphere_radius") 
+            sub.prop(sphere_attribute_mesh_data, "octane_sphere_radius") 
             sub = box.row(align=True)
-            sub.prop(mesh, "octane_use_randomized_radius")
-            if mesh.octane_use_randomized_radius:
+            sub.prop(sphere_attribute_mesh_data, "octane_use_randomized_radius")
+            if sphere_attribute_mesh_data.octane_use_randomized_radius:
                 sub = box.row(align=True)
-                sub.prop(mesh, "octane_sphere_randomized_radius_seed")
+                sub.prop(sphere_attribute_mesh_data, "octane_sphere_randomized_radius_seed")
                 sub = box.row(align=True)
-                sub.prop(mesh, "octane_sphere_randomized_radius_min")
-                sub.prop(mesh, "octane_sphere_randomized_radius_max")
+                sub.prop(sphere_attribute_mesh_data, "octane_sphere_randomized_radius_min")
+                sub.prop(sphere_attribute_mesh_data, "octane_sphere_randomized_radius_max")
 
         box = layout.box()
         box.label(text="OpenSubDiv:")
@@ -1408,7 +943,7 @@ class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
 
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
         col = flow.column()
-        col.prop(view_layer, "use_pass_oct_crypto_instance_id", text="Instance ID")
+        col.prop(view_layer, "use_pass_oct_crypto_instance_id", text="InstanceID")
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_crypto_mat_node_name", text="MatNodeName")
         col = flow.column()
@@ -1421,6 +956,12 @@ class OCTANE_RENDER_PT_passes_cryptomatte(OctaneRenderPassesPanel, Panel):
         col.prop(view_layer, "use_pass_oct_crypto_obj_node", text="ObjNode")
         col = flow.column()
         col.prop(view_layer, "use_pass_oct_crypto_obj_pin_node", text="ObjPinNode")
+        col = flow.column()
+        col.prop(view_layer, "use_pass_oct_crypto_render_layer", text="RenderLayer")
+        col = flow.column()
+        col.prop(view_layer, "use_pass_oct_crypto_geometry_node_name", text="GeoNodeName")
+        col = flow.column()
+        col.prop(view_layer, "use_pass_oct_crypto_user_instance_id", text="UserInstanceID")
 
         layout.row().separator()
         row = layout.row(align=True)
@@ -1589,39 +1130,6 @@ class OCTANE_RENDER_PT_override(OctaneButtonsPanel, Panel):
         view_layer = context.view_layer
 
         layout.prop(view_layer, "material_override")
-
-class OCTANE_WORLD_PT_environment(OctaneButtonsPanel, Panel):
-    bl_label = "Environment"
-    bl_context = "world"
-
-    @classmethod
-    def poll(cls, context):
-        return (context.world or context.object) and OctaneButtonsPanel.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-
-        world = context.world
-        if not world:
-            return
-        utility.panel_ui_node_view(context, layout, world, consts.OctaneOutputNodeSocketNames.ENVIRONMENT)
-
-
-class OCTANE_WORLD_PT_visible_environment(OctaneButtonsPanel, Panel):
-    bl_label = "Visible Environment"
-    bl_context = "world"
-
-    @classmethod
-    def poll(cls, context):
-        return (context.world or context.object) and OctaneButtonsPanel.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-
-        world = context.world
-        if not world:
-            return
-        utility.panel_ui_node_view(context, layout, world, consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT)
 
 
 class OCTANE_LIGHT_PT_light(OctaneButtonsPanel, Panel):
@@ -1900,23 +1408,13 @@ def get_panels():
     return panels
 
 
-classes = (
-    OCTANE_MT_environment_presets,
-    OCTANE_MT_vis_environment_presets,
-    OCTANE_MT_imager_presets,
-    OCTANE_MT_3dimager_presets,
-    
+classes = (   
     OCTANE_RENDER_PT_server,
     OCTANE_RENDER_PT_out_of_core,
     OCTANE_RENDER_PT_motion_blur,
 
     OCTANE_RENDER_PT_output,
 
-    VIEW3D_PT_octimager,
-    VIEW3D_PT_Octane_Postprocessing,
-    OCTANE_CAMERA_PT_cam,
-    OCTANE_CAMERA_PT_imager,
-    OCTANE_CAMERA_PT_post,
     OCTANE_PT_mesh_properties,
     OCTANE_PT_volume_properties,
     OCTANE_RENDER_PT_HairSettings,
@@ -1939,10 +1437,7 @@ classes = (
     OCTANE_RENDER_PT_passes_material,
     OCTANE_RENDER_PT_AOV_Output_node_graph,
     OCTANE_RENDER_PT_octane_layers,
-    OCTANE_RENDER_PT_override,    
-
-    OCTANE_WORLD_PT_environment,
-    OCTANE_WORLD_PT_visible_environment,
+    OCTANE_RENDER_PT_override,
 
     OCTANE_LIGHT_PT_light,
     OCTANE_LIGHT_PT_nodes,

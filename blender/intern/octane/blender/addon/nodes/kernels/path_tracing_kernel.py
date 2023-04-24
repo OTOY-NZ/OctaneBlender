@@ -554,6 +554,20 @@ class OctanePathTracingKernelToonShadowAmbient(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctanePathTracingKernelOldVolumeBehavior(OctaneBaseSocket):
+    bl_idname="OctanePathTracingKernelOldVolumeBehavior"
+    bl_label="Emulate old volume behavior"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type="OctaneBoolValue"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=448)
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=False, update=None, description="Emulate the behavior of emission and scattering of version 4.0 and earlier")
+    octane_hide_value=False
+    octane_min_version=5000000
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctanePathTracingKernelAffectRoughness(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelAffectRoughness"
     bl_label="Affect roughness"
@@ -638,20 +652,6 @@ class OctanePathTracingKernelAdaptiveStrength(OctaneBaseSocket):
     octane_end_version=3060001
     octane_deprecated=True
 
-class OctanePathTracingKernelOldVolumeBehavior(OctaneBaseSocket):
-    bl_idname="OctanePathTracingKernelOldVolumeBehavior"
-    bl_label="Emulate old volume behavior"
-    color=consts.OctanePinColor.Bool
-    octane_default_node_type="OctaneBoolValue"
-    octane_pin_id: IntProperty(name="Octane Pin ID", default=448)
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="(deprecated) Emulate the behavior of emission and scattering of version 4.0 and earlier")
-    octane_hide_value=False
-    octane_min_version=5000000
-    octane_end_version=11000003
-    octane_deprecated=True
-
 class OctanePathTracingKernelGroupQuality(OctaneGroupTitleSocket):
     bl_idname="OctanePathTracingKernelGroupQuality"
     bl_label="[OctaneGroupTitle]Quality"
@@ -708,7 +708,7 @@ class OctanePathTracingKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_render_pass_sub_type_name=""
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=25)
-    octane_socket_list: StringProperty(name="Socket List", default="Max. samples;Diffuse depth;Specular depth;Scatter depth;Maximal overlapping volumes;Ray epsilon;Filter size;Alpha shadows;Caustic blur;GI clamp;Nested dielectrics;Irradiance mode;Max subdivision level;Alpha channel;Keep environment;AI light;AI light update;Light IDs action;Light IDs;Light linking invert;Path term. power;Coherent ratio;Static noise;Parallel samples;Max. tile samples;Minimize net traffic;Adaptive sampling;Noise threshold;Min. adaptive samples;Pixel grouping;Expected exposure;White light spectrum;Use old color pipeline;Deep image;Deep render AOVs;Max. depth samples;Depth tolerance;Toon shadow ambient;Affect roughness;AI light strength;Coherent mode;Path depth;RR probability;Adaptive strength;Emulate old volume behavior;")
+    octane_socket_list: StringProperty(name="Socket List", default="Max. samples;Diffuse depth;Specular depth;Scatter depth;Maximal overlapping volumes;Ray epsilon;Filter size;Alpha shadows;Caustic blur;GI clamp;Nested dielectrics;Irradiance mode;Max subdivision level;Alpha channel;Keep environment;AI light;AI light update;Light IDs action;Light IDs;Light linking invert;Path term. power;Coherent ratio;Static noise;Parallel samples;Max. tile samples;Minimize net traffic;Adaptive sampling;Noise threshold;Min. adaptive samples;Pixel grouping;Expected exposure;White light spectrum;Use old color pipeline;Deep image;Deep render AOVs;Max. depth samples;Depth tolerance;Toon shadow ambient;Emulate old volume behavior;Affect roughness;AI light strength;Coherent mode;Path depth;RR probability;Adaptive strength;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=45)
@@ -763,11 +763,11 @@ class OctanePathTracingKernel(bpy.types.Node, OctaneBaseKernelNode):
         self.inputs.new("OctanePathTracingKernelDepthTolerance", OctanePathTracingKernelDepthTolerance.bl_label).init()
         self.inputs.new("OctanePathTracingKernelGroupToonShading", OctanePathTracingKernelGroupToonShading.bl_label).init()
         self.inputs.new("OctanePathTracingKernelToonShadowAmbient", OctanePathTracingKernelToonShadowAmbient.bl_label).init()
+        self.inputs.new("OctanePathTracingKernelGroupCompatibilitySettings", OctanePathTracingKernelGroupCompatibilitySettings.bl_label).init()
+        self.inputs.new("OctanePathTracingKernelOldVolumeBehavior", OctanePathTracingKernelOldVolumeBehavior.bl_label).init()
         self.inputs.new("OctanePathTracingKernelCoherentMode", OctanePathTracingKernelCoherentMode.bl_label).init()
         self.inputs.new("OctanePathTracingKernelMaxdepth", OctanePathTracingKernelMaxdepth.bl_label).init()
         self.inputs.new("OctanePathTracingKernelRrprob", OctanePathTracingKernelRrprob.bl_label).init()
-        self.inputs.new("OctanePathTracingKernelGroupCompatibilitySettings", OctanePathTracingKernelGroupCompatibilitySettings.bl_label).init()
-        self.inputs.new("OctanePathTracingKernelOldVolumeBehavior", OctanePathTracingKernelOldVolumeBehavior.bl_label).init()
         self.outputs.new("OctaneKernelOutSocket", "Kernel out").init()
 
 
@@ -810,13 +810,13 @@ _CLASSES=[
     OctanePathTracingKernelMaxDepthSamples,
     OctanePathTracingKernelDepthTolerance,
     OctanePathTracingKernelToonShadowAmbient,
+    OctanePathTracingKernelOldVolumeBehavior,
     OctanePathTracingKernelAffectRoughness,
     OctanePathTracingKernelAiLightUpdateStrength,
     OctanePathTracingKernelCoherentMode,
     OctanePathTracingKernelMaxdepth,
     OctanePathTracingKernelRrprob,
     OctanePathTracingKernelAdaptiveStrength,
-    OctanePathTracingKernelOldVolumeBehavior,
     OctanePathTracingKernelGroupQuality,
     OctanePathTracingKernelGroupAlphaChannel,
     OctanePathTracingKernelGroupLight,

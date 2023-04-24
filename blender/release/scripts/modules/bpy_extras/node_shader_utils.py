@@ -751,7 +751,7 @@ class ShaderImageTextureWrapper():
                 dst_node=node_image, ref_node=self.node_dst,
             )
 
-                tree.links.new(node_image.outputs["Alpha" if self.use_alpha else "Color"], self.socket_dst)
+            tree.links.new(node_image.outputs["Alpha" if self.use_alpha else "Color"], self.socket_dst)
             if self.use_alpha:
                 self.owner_shader.material.blend_method = 'BLEND'
 

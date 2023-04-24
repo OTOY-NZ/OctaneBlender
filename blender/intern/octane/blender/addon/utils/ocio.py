@@ -43,6 +43,9 @@ class OctaneOCIOManagement(metaclass=utility.Singleton):
 
 
 def update_ocio_info(self=None, context=None):
+    from octane import core
+    if core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        return
     ocio_manager = OctaneOCIOManagement()
     def set_container(container, items):
         for i in range(0, len(container)):

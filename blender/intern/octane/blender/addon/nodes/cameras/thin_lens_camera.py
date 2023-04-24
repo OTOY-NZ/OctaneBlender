@@ -117,7 +117,7 @@ class OctaneThinLensCameraLensShift(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=95)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="Lens shift to the right/top as a factor of the image width/height", min=-100.000000, max=100.000000, soft_min=-4.000000, soft_max=4.000000, step=1, subtype="NONE", precision=2, size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000), update=None, description="Lens shift to the right/top as a proportion of the image width/height", min=-100.000000, max=100.000000, soft_min=-4.000000, soft_max=4.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -145,7 +145,7 @@ class OctaneThinLensCameraPixelAspectRatio(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=132)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="The X:Y aspect ration of pixels", min=0.100000, max=10.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=None, description="The X:Y aspect ratio of pixels", min=0.100000, max=10.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=2220000
     octane_end_version=4294967295

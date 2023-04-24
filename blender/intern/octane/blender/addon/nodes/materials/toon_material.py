@@ -361,6 +361,7 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+from octane import core
 
-OctaneToonMaterialToonDiffuseRamp.octane_default_node_type = "OctaneToonRamp"
-OctaneToonMaterialToonSpecularRamp.octane_default_node_type = "OctaneToonRamp"
+OctaneToonMaterialToonDiffuseRamp.octane_default_node_type = "OctaneToonRamp" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctToonRampTex:OutTex"
+OctaneToonMaterialToonSpecularRamp.octane_default_node_type = "OctaneToonRamp" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctToonRampTex:OutTex"

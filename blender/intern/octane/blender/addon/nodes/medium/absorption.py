@@ -88,7 +88,7 @@ class OctaneAbsorptionAbsorption(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=1)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=None, description="Absorption cross section. This channel defines how much light is absorbed over the color range. By enabling \"invert absorption\" this channel behaves like transparency", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=None, description="Absorption cross section. Determines how quickly light is absorbed while traveling through this medium", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

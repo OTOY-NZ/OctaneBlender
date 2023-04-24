@@ -1,16 +1,76 @@
 import bpy
+import numpy as np
+import time
 import collections
+import _thread
+import queue
 from octane.utils import consts, utility
-from octane.core.caches import OctaneNodeCache, ObjectCache, ImageCache, MaterialCache, WorldCache, CompositeCache, RenderAOVCache, KernelCache, OctaneRenderTargetCache
+from octane.core.caches import OctaneNodeCache, ObjectCache, ImageCache, MaterialCache, WorldCache, CompositeCache, RenderAOVCache, KernelCache, OctaneRenderTargetCache, SceneCache
 from octane.core.client import OctaneClient
-from octane.core.octane_node import OctaneNode, OctaneNodeType
+from octane.core.octane_node import OctaneNode, OctaneNodeType, CArray
 from octane.nodes.base_node import OctaneBaseNode
 
 
-class RenderSession(object):
+class RenderResult(object):
+    DEFAULT_RESOLUTION = (1024, 1024)
+    MIN_UPDATE_INTERVAL = 0.03
+    RENDER_RESULT = "RENDER_RESULT"
+    BLENDER_ATTRIBUTE_RESOLUTION = "RESOLUTION"
+    BLENDER_ATTRIBUTE_RENDER_PASS_ID = "RENDER_PASS_ID"
+    BLENDER_ATTRIBUTE_CHANGE_LEVEL = "CHANGE_LEVEL"
 
     def __init__(self):
+        self.resolution = [self.DEFAULT_RESOLUTION[0], self.DEFAULT_RESOLUTION[1]]
+        self.render_pass_id = 0
+        self.last_update_time = 0
+        self.render_result_node = OctaneNode(OctaneNodeType.SYNC_NODE)
+        self.render_result_node.set_name(self.RENDER_RESULT)
+        self.render_result_node.set_node_type(consts.NodeType.NT_BLENDER_NODE_GET_RENDER_RESULT)
+        self.viewport_float_pixel_array = None
+
+    def clear(self):
+        self.render_result_node = None
+
+    def setup(self, width, height, render_pass_id):
+        self.resolution = [width, height]
+        self.render_pass_id = render_pass_id
+        self.render_result_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_RESOLUTION, consts.AttributeType.AT_INT2, self.resolution)
+        self.render_result_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_RENDER_PASS_ID, consts.AttributeType.AT_INT, render_pass_id)                
+
+    def update_pixel_array(self, width=None, height=None, render_pass_id=None):
+        current_time = time.time()
+        if current_time - self.last_update_time < self.MIN_UPDATE_INTERVAL:            
+            return
+        if width is not None and height is not None and render_pass_id is not None:
+            self.setup(width, height, render_pass_id)
+        self.render_result_node.release_reply_c_array(CArray.UINT8)
+        reply_body = OctaneClient().process_octane_node(self.render_result_node)
+        uint8_pixel_array = self.render_result_node.get_reply_c_array(CArray.UINT8)
+        self.viewport_float_pixel_array = uint8_pixel_array.astype(np.float32, copy=True) / 255.0
+        self.last_update_time = current_time
+
+
+def start_session(session, engine):
+    while True:
+        if engine:
+            session.grab_render_result(engine)
+        time.sleep(0.03)
+
+
+_current_render_session = None
+
+def update_node_to_server():
+    if _current_render_session is None:
+        return
+    _current_render_session.update_node_to_server()
+    return 0.05
+
+
+class RenderSession(object):
+    def __init__(self):
+        print("RenderSession Init")
         self.session_type = consts.SessionType.UNKNOWN
+        self.render_result = RenderResult()
         self.octane_node_cache = OctaneNodeCache(self)
         self.object_cache = ObjectCache(self)
         self.image_cache = ImageCache(self)
@@ -19,12 +79,18 @@ class RenderSession(object):
         self.composite_cache = CompositeCache(self)
         self.render_aov_cache = RenderAOVCache(self)
         self.kernel_cache = KernelCache(self)
+        self.scene_cache = SceneCache(self)
         self.rendertarget_cache = OctaneRenderTargetCache(self)
+        self.need_update_node_queue = queue.Queue()
+        global _current_render_session
+        _current_render_session = self
+        # bpy.app.timers.register(update_node_to_server)
 
     def __del__(self):
         self.clear()
 
     def clear(self):
+        self.render_result = None
         self.octane_node_cache = None
         self.object_cache = None
         self.image_cache = None        
@@ -32,7 +98,24 @@ class RenderSession(object):
         self.world_cache = None
         self.composite_cache = None
         self.kernel_cache = None
+        self.scene_cache = None
         self.rendertarget_cache = None
+        self.need_update_node_queue.queue.clear()        
+        self.need_update_node_queue = None
+        # bpy.app.timers.unregister(update_node_to_server)
+        global _current_render_session
+        _current_render_session = None
+
+    def update_node_to_server(self):
+        while not self.need_update_node_queue.empty():
+            node = self.need_update_node_queue.get()
+            if node.need_update:
+                OctaneClient().process_octane_node(node)
+                node.need_update = False
+
+    def add_to_update_node_queue(self, node):
+        # with self.need_update_node_queue.mutex:
+        self.need_update_node_queue.put(node)
 
     def is_viewport(self):
         return self.session_type == consts.SessionType.VIEWPORT
@@ -46,33 +129,89 @@ class RenderSession(object):
     def is_export(self):
         return self.session_type == consts.SessionType.EXPORT
 
-    def view_update(self, context, depsgraph):
+    def start_render(self, engine, context, depsgraph, is_viewport=True):
+        node = OctaneNode(OctaneNodeType.SYNC_NODE)
+        node.set_name("START_RENDER")
+        node.set_node_type(consts.NodeType.NT_BLENDER_NODE_START_RENDER)
+        region = context.region
+        scene = depsgraph.scene
+        node.set_blender_attribute("VIEWPORT_RENDER", consts.AttributeType.AT_BOOL, is_viewport)
+        node.set_blender_attribute("ENABLE_OUT_OF_CORE", consts.AttributeType.AT_BOOL, False)
+        node.set_blender_attribute("RENDER_PRIORITY", consts.AttributeType.AT_INT, 2)
+        node.set_blender_attribute("RESOURCE_CACHE_TYPE", consts.AttributeType.AT_INT, 0)
+        node.set_blender_attribute("OUTPUT_PATH", consts.AttributeType.AT_STRING, "")
+        node.set_blender_attribute("CACHE_PATH", consts.AttributeType.AT_STRING, "")
+        node.set_blender_attribute("RESOLUTION", consts.AttributeType.AT_INT2, (region.width, region.height))
+        node.set_blender_attribute("IMAGE_TYPE", consts.AttributeType.AT_INT, 0)
+        OctaneClient().process_octane_node(node)
+        _thread.start_new_thread(start_session, (self, engine))
+
+    def stop_render(self, engine, context, depsgraph):
+        node = OctaneNode(OctaneNodeType.SYNC_NODE)
+        node.set_name("STOP_RENDER")
+        node.set_node_type(consts.NodeType.NT_BLENDER_NODE_STOP_RENDER)
+        node.set_blender_attribute("FPS", consts.AttributeType.AT_FLOAT, 24)
+        node.set_blender_attribute("IS_ALEMBIC", consts.AttributeType.AT_BOOL, False)
+        OctaneClient().process_octane_node(node)
+
+    def reset_render(self, engine, context, depsgraph, is_viewport=True):
+        node = OctaneNode(OctaneNodeType.SYNC_NODE)
+        node.set_name("RESET_RENDER")
+        node.set_node_type(consts.NodeType.NT_BLENDER_NODE_RESET_RENDER)
+        node.set_blender_attribute("VIEWPORT_RENDER", consts.AttributeType.AT_BOOL, is_viewport)
+        node.set_blender_attribute("FPS", consts.AttributeType.AT_FLOAT, 24)
+        node.set_blender_attribute("FRAME_TIME_SAMPLING", consts.AttributeType.AT_FLOAT, 100.0)
+        node.set_blender_attribute("DEEP_IMAGE", consts.AttributeType.AT_BOOL, False)
+        node.set_blender_attribute("WITH_OBJECT_LAYER", consts.AttributeType.AT_BOOL, False)
+        node.set_blender_attribute("EXPORT_TYPE", consts.AttributeType.AT_INT, 0)
+        node.set_blender_attribute("OUTPUT_PATH", consts.AttributeType.AT_STRING, "")
+        node.set_blender_attribute("CACHE_PATH", consts.AttributeType.AT_STRING, "")
+        OctaneClient().process_octane_node(node)
+
+    def view_update(self, engine, context, depsgraph):
         # check diff        
-        self.object_cache.diff(context, depsgraph)                
-        self.image_cache.diff(context, depsgraph)        
-        self.material_cache.diff(context, depsgraph)
-        self.world_cache.diff(context, depsgraph)
-        self.composite_cache.diff(context, depsgraph)
-        self.render_aov_cache.diff(context, depsgraph)
-        self.kernel_cache.diff(context, depsgraph)
+        self.object_cache.diff(engine, context, depsgraph)                
+        self.image_cache.diff(engine, context, depsgraph)        
+        self.material_cache.diff(engine, context, depsgraph)
+        self.world_cache.diff(engine, context, depsgraph)
+        self.composite_cache.diff(engine, context, depsgraph)
+        self.render_aov_cache.diff(engine, context, depsgraph)
+        self.kernel_cache.diff(engine, context, depsgraph)
+        self.scene_cache.diff(engine, context, depsgraph)
         # update
         if self.object_cache.need_update:
-            self.object_cache.update(context, depsgraph)        
+            self.object_cache.update(engine, context, depsgraph)        
         if self.image_cache.need_update:
-            self.image_cache.update(context, depsgraph)        
+            self.image_cache.update(engine, context, depsgraph)        
         if self.material_cache.need_update:
-            self.material_cache.update(context, depsgraph)
+            self.material_cache.update(engine, context, depsgraph)
         if self.world_cache.need_update:
-            self.world_cache.update(context, depsgraph)
+            self.world_cache.update(engine, context, depsgraph)
         if self.composite_cache.need_update:
-            self.composite_cache.update(context, depsgraph)
+            self.composite_cache.update(engine, context, depsgraph)
         if self.render_aov_cache.need_update:
-            self.render_aov_cache.update(context, depsgraph)
+            self.render_aov_cache.update(engine, context, depsgraph)
         if self.kernel_cache.need_update:
-            self.kernel_cache.update(context, depsgraph)            
+            self.kernel_cache.update(engine, context, depsgraph)
+        if self.scene_cache.need_update:
+            self.scene_cache.update(engine, context, depsgraph)
+        self.scene_cache.update_camera(engine, context, depsgraph)
         # update render target
-        if self.rendertarget_cache.diff(context, depsgraph):
-            self.rendertarget_cache.update(context, depsgraph)            
+        if self.rendertarget_cache.diff(engine, context, depsgraph):
+            self.rendertarget_cache.update(engine, context, depsgraph)
+
+    def view_draw(self, engine, context, depsgraph):
+        region = context.region
+        scene = depsgraph.scene
+        self.scene_cache.update_camera(engine, context, depsgraph)
+        # self.render_result.update_pixel_array(region.width, region.height, 0)
+
+    def grab_render_result(self, engine):
+        if self.render_result:
+            pass
+            # self.render_result.update_pixel_array()
+            # engine.tag_redraw()
+            # engine.draw_render_result(self.render_result)
 
     def _update_node_tree(self, context, node_tree, owner_type, active_output_node, active_input_name, root_name, node_tree_attributes):
         ancestor_list = [utility.OctaneGraphNodeDummy(root_name), ]
@@ -134,8 +273,7 @@ class RenderSession(object):
                 node.sync_data(octane_node, octane_graph_node_data, owner_type, context.scene, self.is_viewport())
                 # print(octane_node)
                 if octane_node.need_update:
-                    OctaneClient().process_octane_node(octane_node)
-                    octane_node.need_update = False
+                    self.add_to_update_node_queue(octane_node)
                     is_updated = True
         return is_updated
 

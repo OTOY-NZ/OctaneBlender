@@ -447,16 +447,23 @@ static void blender_camera_sync(Camera *cam,
   cam->oct_node.bUseRegion = bcam->use_border;
 
   if (cam->oct_node.bUseCameraDimensionAsPreviewResolution) {
-    float viewport_camera_border_width = cam->viewport_camera_border.right - cam->viewport_camera_border.left;
-	float viewport_camera_border_height = cam->viewport_camera_border.top - cam->viewport_camera_border.bottom;
-    float left = max(0.f, (cam->border.left - cam->viewport_camera_border.left)) / viewport_camera_border_width;
-	float right = max(0.f, (cam->border.right - cam->viewport_camera_border.left)) / viewport_camera_border_width;
-	float bottom = max(0.f, (cam->border.bottom - cam->viewport_camera_border.bottom)) / viewport_camera_border_height;
-	float top = max(0.f, (cam->border.top - cam->viewport_camera_border.bottom)) / viewport_camera_border_height;
+    float viewport_camera_border_width = cam->viewport_camera_border.right -
+                                         cam->viewport_camera_border.left;
+    float viewport_camera_border_height = cam->viewport_camera_border.top -
+                                          cam->viewport_camera_border.bottom;
+    float left = max(0.f, (cam->border.left - cam->viewport_camera_border.left)) /
+                 viewport_camera_border_width;
+    float right = max(0.f, (cam->border.right - cam->viewport_camera_border.left)) /
+                  viewport_camera_border_width;
+    float bottom = max(0.f, (cam->border.bottom - cam->viewport_camera_border.bottom)) /
+                   viewport_camera_border_height;
+    float top = max(0.f, (cam->border.top - cam->viewport_camera_border.bottom)) /
+                viewport_camera_border_height;
     cam->oct_node.ui4Region.x = (uint32_t)(left * (float)cam->full_width);
     cam->oct_node.ui4Region.y = (uint32_t)(cam->full_height - (uint32_t)(top * cam->full_height));
     cam->oct_node.ui4Region.z = (uint32_t)(right * (float)cam->full_width);
-    cam->oct_node.ui4Region.w = (uint32_t)(cam->full_height - (uint32_t)(bottom * cam->full_height));
+    cam->oct_node.ui4Region.w = (uint32_t)(cam->full_height -
+                                           (uint32_t)(bottom * cam->full_height));
   }
   else {
     cam->oct_node.ui4Region.x = (uint32_t)(cam->border.left * (float)width);
@@ -944,70 +951,65 @@ void BlenderSync::update_octane_camera_properties(Camera *cam,
       cam->oct_node.bPreviewCameraMode = false;
     }
 
+    PointerRNA imager = RNA_pointer_get(&target_camera, "imager");
+    cam->oct_node.fExposure = RNA_float_get(&imager, "exposure");
+    cam->oct_node.fHotPixelFilter = RNA_float_get(&imager, "hotpixel_removal");
+    cam->oct_node.fVignetting = RNA_float_get(&imager, "vignetting");
     RNA_float_get_array(
-        &target_camera, "white_balance", reinterpret_cast<float *>(&cam->oct_node.f3WhiteBalance));
-
-    cam->oct_node.iResponseCurve = RNA_int_get(&target_camera, "int_response_type");
-
-    cam->oct_node.iCameraImagerOrder = RNA_enum_get(&target_camera, "camera_imager_order");
-    cam->oct_node.fExposure = RNA_float_get(&target_camera, "exposure");
-    cam->oct_node.fGamma = RNA_float_get(&target_camera, "gamma");
-    cam->oct_node.fVignetting = RNA_float_get(&target_camera, "vignetting");
-    cam->oct_node.fSaturation = RNA_float_get(&target_camera, "saturation");
-    cam->oct_node.fHotPixelFilter = RNA_float_get(&target_camera, "hot_pix");
-    cam->oct_node.bPremultipliedAlpha = RNA_boolean_get(&target_camera, "premultiplied_alpha");
-    cam->oct_node.iMinDisplaySamples = RNA_int_get(&target_camera, "min_display_samples");
-    cam->oct_node.bDithering = RNA_boolean_get(&target_camera, "dithering");
-    cam->oct_node.fWhiteSaturation = RNA_float_get(&target_camera, "white_saturation");
-    cam->oct_node.fHighlightCompression = RNA_float_get(&target_camera, "highlight_compression");
-    cam->oct_node.bNeutralResponse = RNA_boolean_get(&target_camera, "neutral_response");
-    cam->oct_node.iMaxTonemapInterval = RNA_int_get(&target_camera, "max_tonemap_interval");
-    cam->oct_node.bDisablePartialAlpha = RNA_boolean_get(&target_camera, "disable_partial_alpha");
-    char customLutPath[512];
-    RNA_string_get(&target_camera, "custom_lut", customLutPath);
-    cam->oct_node.sCustomLut = blender_absolute_path(b_data, b_scene, customLutPath);
-    cam->oct_node.fLutStrength = RNA_float_get(&target_camera, "lut_strength");
-
+        &imager, "white_balance", reinterpret_cast<float *>(&cam->oct_node.f3WhiteBalance));
+    cam->oct_node.fSaturation = RNA_float_get(&imager, "saturation");
+    cam->oct_node.bPremultipliedAlpha = RNA_boolean_get(&imager, "premultiplied_alpha");
+    cam->oct_node.bDisablePartialAlpha = RNA_boolean_get(&imager, "disable_partial_alpha");
+    cam->oct_node.bDithering = RNA_boolean_get(&imager, "dithering");
+    cam->oct_node.iMinDisplaySamples = RNA_int_get(&imager, "min_display_samples");
+    cam->oct_node.iMaxTonemapInterval = RNA_int_get(&imager, "max_tonemap_interval");
     char ocio[512];
-    RNA_string_get(&target_camera, "ocio_view_display_name", ocio);
+    RNA_string_get(&imager, "ocio_view_display_name", ocio);
     cam->oct_node.sOcioViewDisplay = ocio;
-    RNA_string_get(&target_camera, "ocio_view_display_view_name", ocio);
+    RNA_string_get(&imager, "ocio_view_display_view_name", ocio);
     cam->oct_node.sOcioViewDisplayView = ocio;
     resolve_octane_ocio_view_params(cam->oct_node.sOcioViewDisplay,
                                     cam->oct_node.sOcioViewDisplayView);
-    RNA_string_get(&target_camera, "ocio_look", ocio);
+    RNA_string_get(&imager, "ocio_look", ocio);
     cam->oct_node.sOcioLook = ocio;
     resolve_octane_ocio_look_params(cam->oct_node.sOcioLook);
-    cam->oct_node.bForceToneMapping = RNA_boolean_get(&target_camera, "force_tone_mapping");
-
-    cam->oct_node.bEnableDenoiser = RNA_boolean_get(&target_camera, "enable_denoising");
-    cam->oct_node.bDenoiseVolumes = RNA_boolean_get(&target_camera, "denoise_volumes");
-    cam->oct_node.bDenoiseOnCompletion = RNA_boolean_get(&target_camera, "denoise_on_completion");
-    cam->oct_node.iMinDenoiserSample = RNA_int_get(&target_camera, "min_denoiser_samples");
-    cam->oct_node.iMaxDenoiserInterval = RNA_int_get(&target_camera, "max_denoiser_interval");
-    cam->oct_node.fDenoiserBlend = RNA_float_get(&target_camera, "denoiser_blend");
-
-    PointerRNA ai_up_sampler = RNA_pointer_get(&target_camera, "ai_up_sampler");
-    cam->oct_node.iSamplingMode = RNA_enum_get(&ai_up_sampler, "sample_mode");
-    cam->oct_node.bEnableAIUpSampling = RNA_boolean_get(&ai_up_sampler, "enable_ai_up_sampling");
-    cam->oct_node.bUpSamplingOnCompletion = RNA_boolean_get(&ai_up_sampler,
-                                                            "up_sampling_on_completion");
-    cam->oct_node.iMinUpSamplerSamples = RNA_int_get(&ai_up_sampler, "min_up_sampler_samples");
-    cam->oct_node.iMaxUpSamplerInterval = RNA_int_get(&ai_up_sampler, "max_up_sampler_interval");
+    cam->oct_node.bForceToneMapping = RNA_boolean_get(&imager, "force_tone_mapping");
+    cam->oct_node.fHighlightCompression = RNA_float_get(&imager, "highlight_compression");
+    cam->oct_node.fWhiteSaturation = RNA_float_get(&imager, "saturate_to_white");
+    cam->oct_node.iCameraImagerOrder = RNA_enum_get(&imager, "order");
+    cam->oct_node.iResponseCurve = RNA_enum_get(&imager, "response");
+    cam->oct_node.bNeutralResponse = RNA_boolean_get(&imager, "neutral_response");
+    cam->oct_node.fGamma = RNA_float_get(&imager, "gamma");
+    char customLutPath[512];
+    RNA_string_get(&imager, "custom_lut", customLutPath);
+    cam->oct_node.sCustomLut = blender_absolute_path(b_data, b_scene, customLutPath);
+    cam->oct_node.fLutStrength = RNA_float_get(&imager, "lut_strength");
+    cam->oct_node.bEnableDenoiser = RNA_boolean_get(&imager, "denoiser");
+    cam->oct_node.bDenoiseVolumes = RNA_boolean_get(&imager, "denoise_volume");
+    cam->oct_node.bDenoiseOnCompletion = RNA_boolean_get(&imager, "denoise_once");
+    cam->oct_node.iMinDenoiserSample = RNA_int_get(&imager, "min_denoise_samples");
+    cam->oct_node.iMaxDenoiserInterval = RNA_int_get(&imager, "max_denoise_interval");
+    cam->oct_node.fDenoiserBlend = RNA_float_get(&imager, "denoiser_original_blend");
+    cam->oct_node.iSamplingMode = RNA_enum_get(&imager, "up_sample_mode");
+    cam->oct_node.bEnableAIUpSampling = RNA_boolean_get(&imager, "enable_ai_up_sampling");
+    cam->oct_node.bUpSamplingOnCompletion = RNA_boolean_get(&imager, "up_sampling_on_completion");
+    cam->oct_node.iMinUpSamplerSamples = RNA_int_get(&imager, "min_up_sampler_samples");
+    cam->oct_node.iMaxUpSamplerInterval = RNA_int_get(&imager, "max_up_sampler_interval");
   }
 
   // Octane post processing setting
   target_camera = (view || force_use_preview_post_process_setting) ? oct_view_camera : oct_camera;
   if (target_camera.data != NULL) {
     cam->oct_node.bUsePostprocess = RNA_boolean_get(&target_camera, "postprocess");
-    cam->oct_node.fBloomPower = RNA_float_get(&target_camera, "bloom_power");
-    cam->oct_node.fCutoff = RNA_float_get(&target_camera, "cut_off");
-    cam->oct_node.fGlarePower = RNA_float_get(&target_camera, "glare_power");
-    cam->oct_node.iGlareRayCount = RNA_int_get(&target_camera, "glare_ray_count");
-    cam->oct_node.fGlareAngle = RNA_float_get(&target_camera, "glare_angle");
-    cam->oct_node.fGlareBlur = RNA_float_get(&target_camera, "glare_blur");
-    cam->oct_node.fSpectralIntencity = RNA_float_get(&target_camera, "spectral_intencity");
-    cam->oct_node.fSpectralShift = RNA_float_get(&target_camera, "spectral_shift");
+    PointerRNA post_processing = RNA_pointer_get(&target_camera, "post_processing");
+    cam->oct_node.fCutoff = RNA_float_get(&post_processing, "cutoff");
+	cam->oct_node.fBloomPower = RNA_float_get(&post_processing, "bloom_power");    
+    cam->oct_node.fGlarePower = RNA_float_get(&post_processing, "glare_power");
+    cam->oct_node.iGlareRayCount = RNA_int_get(&post_processing, "glare_ray_amount");
+    cam->oct_node.fGlareAngle = RNA_float_get(&post_processing, "glare_angle");
+    cam->oct_node.fGlareBlur = RNA_float_get(&post_processing, "glare_blur");
+    cam->oct_node.fSpectralIntencity = RNA_float_get(&post_processing, "spectral_intencity");
+    cam->oct_node.fSpectralShift = RNA_float_get(&post_processing, "spectral_shift");
   }
 }
 

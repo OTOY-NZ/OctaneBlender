@@ -20,11 +20,17 @@ class OctaneBaseKernelMaxsamples(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=108)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=5000, update=None, description="The maximum samples per pixel that will be calculated until rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1)
+    octane_used_for_preview: BoolProperty(name="", default=False)
+    def update_max_sample(self, context):
+        if self.octane_used_for_preview:
+            context.scene.octane.max_preview_samples = self.default_value
+        else:
+            context.scene.octane.max_samples = self.default_value
+    default_value: IntProperty(default=500, update=update_max_sample, description="The maximum samples per pixel that will be calculated until rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
-    octane_deprecated=False
+    octane_deprecated=False    
 
 
 class OctaneBaseKernelNode(OctaneBaseNode):
@@ -37,6 +43,8 @@ class OctaneBaseKernelNode(OctaneBaseNode):
         utility.remove_socket_list(self, ";".join([self.MAX_SAMPLE_SOCKET_NAME, self.MAX_PREVIEW_SAMPLE_SOCKET_NAME]), True)
         self.inputs.new("OctaneBaseKernelMaxsamples", self.MAX_SAMPLE_SOCKET_NAME).init()
         self.inputs.new("OctaneBaseKernelMaxsamples", self.MAX_PREVIEW_SAMPLE_SOCKET_NAME).init()
+        self.inputs[self.MAX_SAMPLE_SOCKET_NAME].octane_used_for_preview = False
+        self.inputs[self.MAX_PREVIEW_SAMPLE_SOCKET_NAME].octane_used_for_preview = True
         for idx, _input in enumerate(self.inputs):
             if isinstance(_input, OctaneGroupTitleSocket):
                 if _input.is_group_socket(self.MAX_SAMPLE_SOCKET_NAME):
@@ -62,6 +70,23 @@ class OctaneBaseKernelNode(OctaneBaseNode):
         light_linking_invert_node.location = (self.location.x - 600, self.location.y - 400)
         node_tree.links.new(light_id_node.outputs[0], self.inputs["Light IDs"])
         node_tree.links.new(light_linking_invert_node.outputs[0], self.inputs["Light linking invert"])
+
+    def sync_sample_data(self, octane_node, octane_graph_node_data, owner_type, scene, sample_socket_name):
+        socket = self.inputs[sample_socket_name]
+        link_node_name = ""
+        if octane_graph_node_data:
+            link_node_name = octane_graph_node_data.get_link_node_name(sample_socket_name)
+            data_socket = octane_graph_node_data.get_link_data_socket(sample_socket_name)
+        if data_socket is None:
+            data_socket = socket
+        default_value = getattr(data_socket, "default_value", "")
+        octane_node.set_pin(socket.generate_octane_pin_symbol(), sample_socket_name, socket.octane_socket_type, default_value, data_socket.is_linked, link_node_name)
+
+    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
+        if is_viewport:
+            self.sync_sample_data(octane_node, octane_graph_node_data, owner_type, scene, self.MAX_PREVIEW_SAMPLE_SOCKET_NAME)
+        else:
+            self.sync_sample_data(octane_node, octane_graph_node_data, owner_type, scene, self.MAX_SAMPLE_SOCKET_NAME)
 
 _CLASSES = [
     OctaneBaseKernelMaxsamples,

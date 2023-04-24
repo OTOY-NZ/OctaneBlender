@@ -204,7 +204,7 @@ class OctaneBaseImageNode(OctaneBaseNode):
         if c_array is None or c_array.size != len(self.image.pixels):
             # Create or Re-create the CArray when size is changed
             self.release_image_c_array(octane_node)
-            if octane_node.require_c_array(len(self.image.pixels), self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT):
+            if octane_node.create_c_array(len(self.image.pixels), self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT):
                 c_array = octane_node.get_c_array(self.IMAGE_DATA_C_ARRAY_IDENTIFIER, CArray.FLOAT)
                 c_array.hash_id = md5_hash
                 self.image.pixels.foreach_get(c_array.array)

@@ -129,7 +129,7 @@ class OctaneVolumeMediumScattering(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=211)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Scattering cross section", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Scattering cross section. This channel defines how quickly light is scattered while traveling through this medium", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -285,7 +285,8 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+from octane import core
 
-OctaneVolumeMediumAbsorptionRamp.octane_default_node_type = "OctaneVolumeGradient"
-OctaneVolumeMediumScatteringRamp.octane_default_node_type = "OctaneVolumeGradient"
-OctaneVolumeMediumEmissionRamp.octane_default_node_type = "OctaneVolumeGradient"
+OctaneVolumeMediumAbsorptionRamp.octane_default_node_type = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"
+OctaneVolumeMediumScatteringRamp.octane_default_node_type = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"
+OctaneVolumeMediumEmissionRamp.octane_default_node_type = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"

@@ -2,6 +2,7 @@ import bpy
 from bpy.props import IntProperty, StringProperty
 import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
+import nodeitems_builtins
 from bl_operators import node
 from octane import core
 from octane.utils import consts
@@ -230,66 +231,22 @@ def draw_octane_node_categories_menu(self, context, octane_pin_type=consts.PinTy
         if is_octane_node_category:
             for menu in cats[2]:
                 menu.octane_pin_type = octane_pin_type
-            cats[1](self, context, octane_pin_type)        
+            cats[1](self, context, octane_pin_type)
         else:
             # Do not show Blender's menu under quick adding mode(octane_pin_type is assigned)
             if octane_pin_type == consts.PinType.PT_UNKNOWN:
                 cats[1](self, context)
 
-def new_octane_node(tree, node_type):
-    if node_type == "OctaneEditorMaterialOutputNode":
-        from octane.nodes import base_output_node
-        node_type = "ShaderNodeOutputMaterial"
-        node = tree.nodes.new(type=node_type)
-        base_output_node.OctaneEditorMaterialOutputNode.setup_blender_shader_node_tree_material_output(node)
-    elif node_type == "OctaneEditorWorldOutputNode":
-        from octane.nodes import base_output_node
-        node_type = "ShaderNodeOutputWorld"
-        node = tree.nodes.new(type=node_type)
-        base_output_node.OctaneEditorWorldOutputNode.setup_blender_shader_node_tree_world_output(node)        
+
+def octane_ShaderNodeCategory_poll(cls, context):
+    if context.scene.render.engine == consts.ENGINE_NAME:        
+        # Only use Layout & Group categories from Cycles
+        if cls.name in ("Layout, Group"):
+            return context.space_data.type == 'NODE_EDITOR' and context.space_data.tree_type == 'ShaderNodeTree'
+        else:
+            return False
     else:
-        node = tree.nodes.new(type=node_type)
-    return node
-
-def create_octane_node(self, context, node_type=None):
-    space = context.space_data
-    tree = space.edit_tree
-
-    if node_type is None:
-        node_type = self.type
-
-    # select only the new node
-    for n in tree.nodes:
-        n.select = False
-
-    ### Octane specific process start ###
-    node = new_octane_node(tree, node_type)
-    ### Octane specific process end ###
-
-    for setting in self.settings:
-        # XXX catch exceptions here?
-        value = eval(setting.value)
-        node_data = node
-        node_attr_name = setting.name
-
-        # Support path to nested data.
-        if '.' in node_attr_name:
-            node_data_path, node_attr_name = node_attr_name.rsplit(".", 1)
-            node_data = node.path_resolve(node_data_path)
-
-        try:
-            setattr(node_data, node_attr_name, value)
-        except AttributeError as e:
-            self.report(
-                {'ERROR_INVALID_INPUT'},
-                "Node has no attribute " + setting.name)
-            print(str(e))
-            # Continue despite invalid attribute
-
-    node.select = True
-    tree.nodes.active = node
-    node.location = space.cursor_location
-    return node
+        return context.space_data.type == 'NODE_EDITOR' and context.space_data.tree_type == 'ShaderNodeTree'
 
 
 ### Octane Nodes 
@@ -632,7 +589,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneVectron"),
                 OctaneNodeItem("OctaneScatterInVolume"),
                 OctaneNodeItem("OctaneScatterOnSurface"),
-            ]  
+            ]
         ),
     ],           
     "OCTANE_TEXTURE": [
@@ -724,7 +681,7 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneCellNoise"),
                         OctaneNodeItem("OctaneChainmail"),
                         OctaneNodeItem("OctaneChecksTexture"),
-                        # OctaneNodeItem("OctaneCinema4DNoise"),
+                        OctaneNodeItem("OctaneCinema4DNoise"),
                         OctaneNodeItem("OctaneColorSquares"),
                         OctaneNodeItem("OctaneFlakes"),
                         OctaneNodeItem("OctaneFractal"),
@@ -766,6 +723,7 @@ _octane_node_items = {
 }
 
 _draw_node_categories_menu = None
+_ShaderNodeCategory_poll =  None
 _octane_node_enum_items = None
 _node_create_node = None
 
@@ -821,15 +779,16 @@ def register():
     global _draw_node_categories_menu
     _draw_node_categories_menu = nodeitems_utils.draw_node_categories_menu
     nodeitems_utils.draw_node_categories_menu = draw_octane_node_categories_menu
-    global _node_create_node
-    _node_create_node = node.NodeAddOperator.create_node
-    node.NodeAddOperator.create_node = create_octane_node
+    global _ShaderNodeCategory_poll
+    _ShaderNodeCategory_poll = nodeitems_builtins.ShaderNodeCategory.poll
+    nodeitems_builtins.ShaderNodeCategory.poll = octane_ShaderNodeCategory_poll
     for _id, _items in _octane_node_items.items():
         register_octane_node_categories(_id, _items)
 
 
 def unregister():
     nodeitems_utils.draw_node_categories_menu = _draw_node_categories_menu
+    nodeitems_builtins.ShaderNodeCategory.poll = _ShaderNodeCategory_poll
     node.NodeAddOperator.create_node = _node_create_node
     for _id, _items in _octane_node_items.items():
         unregister_octane_node_categories(_id)        

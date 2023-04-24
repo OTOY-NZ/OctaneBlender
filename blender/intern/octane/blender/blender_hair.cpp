@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "render/mesh.h"
 #include "blender_sync.h"
+#include "render/mesh.h"
 
 OCT_NAMESPACE_BEGIN
 
@@ -58,6 +58,7 @@ bool BlenderSync::fill_mesh_hair_data(
 
   bool background = !preview;
   bool need_hair_data = false;
+  bool is_curve = b_mesh->vertices.length() == 0 || b_mesh->loop_triangles.length() == 0;
 
   BL::Object::modifiers_iterator b_mod;
   for (b_ob->modifiers.begin(b_mod); b_mod != b_ob->modifiers.end(); ++b_mod) {
@@ -219,17 +220,23 @@ bool BlenderSync::fill_mesh_hair_data(
             mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(vert_cnt);
             mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
           }
-          // Add UVs
-          BL::Mesh::uv_layers_iterator l;
-          b_mesh->uv_layers.begin(l);
+		  
+		  if (!is_curve) {
+            // Add UVs
+            if (b_mesh->uv_layers.length()) {
+              BL::Mesh::uv_layers_iterator l;
+              b_mesh->uv_layers.begin(l);
 
-          float2 uv = make_float2(0.0f, 0.0f);
-          if (b_mesh->uv_layers.length())
-            b_psys.uv_on_emitter(psmd, *b_pa, pa_no, uv_num, &uv.x);
+              float2 uv = make_float2(0.0f, 0.0f);
+              if (b_mesh->uv_layers.length())
+                b_psys.uv_on_emitter(psmd, *b_pa, pa_no, uv_num, &uv.x);
 
-		  if (motion_time == 0) {
-            mesh->octane_mesh.oMeshData.f2HairUVs.push_back(OctaneDataTransferObject::float_2(uv.x, uv.y));
-          }
+              if (motion_time == 0) {
+                mesh->octane_mesh.oMeshData.f2HairUVs.push_back(
+                    OctaneDataTransferObject::float_2(uv.x, uv.y));
+              }
+            }        
+		  }
 
           if (pa_no < totparts && b_pa != b_psys.particles.end())
             ++b_pa;

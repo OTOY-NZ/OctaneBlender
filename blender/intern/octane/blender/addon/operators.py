@@ -119,6 +119,9 @@ def sync_octane_aov_output_number(self):
 
 @persistent
 def clear_resource_cache_system(self):
+    from octane import core
+    if core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        return
     import _octane
     from . import engine
     scene = bpy.context.scene

@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 25.0)",
+    "name": "OctaneRender Engine (v. 25.2)",
     "author": "OTOY Inc.",
     "blender": (2, 93, 1),
     "location": "Info header, render engine menu",
@@ -47,6 +47,12 @@ if "bpy" in locals():
         importlib.reload(presets)
 
 import bpy
+import blf
+import bgl
+import array
+import gpu
+import numpy as np
+from gpu_extras.presets import draw_texture_2d
 
 from . import (
     engine,
@@ -59,9 +65,10 @@ from octane.utils import consts
 
 class OctaneRender(bpy.types.RenderEngine):
     bl_idname = 'octane'
-    bl_label = "Octane"
+    bl_label = "Octane"    
     bl_use_shading_nodes = True
-    bl_use_preview = True
+    bl_use_shading_nodes_custom = False
+    bl_use_preview = False
     bl_use_exclude_layers = True
     bl_use_save_buffers = True
     bl_use_spherical_stereo = True
@@ -69,7 +76,10 @@ class OctaneRender(bpy.types.RenderEngine):
     def __init__(self):
         self.session = None
         self.addon_session = OctaneClient().create_session()
+        if core.ENABLE_OCTANE_ADDON_CLIENT:
+            self.draw_data = OctaneDrawData((1, 1))
         self.is_viewport_active = False
+        self.need_reset_render = True
 
     def __del__(self):
         if getattr(self, "addon_session", None):
@@ -126,13 +136,46 @@ class OctaneRender(bpy.types.RenderEngine):
         # Add-on mode updates
         if core.ENABLE_OCTANE_ADDON_CLIENT and oct_scene.addon_dev_enabled:
             self.addon_session.session_type = consts.SessionType.VIEWPORT
-            self.addon_session.view_update(context, depsgraph)            
+            need_reset_and_start_render = False
+            if self.need_reset_render:
+                self.need_reset_render = False
+                need_reset_and_start_render = True
+            if need_reset_and_start_render:
+                self.addon_session.reset_render(self, context, depsgraph, True)
+            self.addon_session.view_update(self, context, depsgraph)
+            if need_reset_and_start_render:
+                self.addon_session.start_render(self, context, depsgraph)            
 
     def view_draw(self, context, depsgraph):
         if not self.check_active_status():
             self.report({'ERROR'}, "Viewport shading is active! Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
             return
-        engine.draw(self, depsgraph, context.region, context.space_data, context.region_data)
+        # Add-on mode updates
+        oct_scene = context.scene.octane
+        if core.ENABLE_OCTANE_ADDON_CLIENT and oct_scene.addon_dev_enabled:
+            self.addon_session.view_draw(self, context, depsgraph)            
+            region = context.region
+            scene = depsgraph.scene
+            self.draw_render_result(self.addon_session.render_result, region, scene)
+        else:
+            engine.draw(self, depsgraph, context.region, context.space_data, context.region_data)                
+
+    def draw_render_result(self, render_result, region=None, scene=None):
+        if region:
+            # Get viewport dimensions
+            dimensions = region.width, region.height
+            if not self.draw_data or self.draw_data.dimensions != dimensions:
+                self.draw_data = OctaneDrawData(dimensions)
+        if self.draw_data:
+            if scene is None:
+                scene = bpy.context.scene
+            # Bind shader that converts from scene linear to display space
+            gpu.state.blend_set('ALPHA_PREMULT')
+            self.bind_display_space_shader(scene)            
+            self.draw_data.update(render_result)
+            self.draw_data.draw()
+            self.unbind_display_space_shader()
+            gpu.state.blend_set('NONE')
 
     def _update_all_script_nodes(self, obj):
         if not getattr(obj, 'node_tree', None) or not getattr(obj.node_tree, 'nodes', None):
@@ -155,6 +198,31 @@ class OctaneRender(bpy.types.RenderEngine):
 
     def update_render_passes(self, scene=None, renderlayer=None):
         engine.octane_register_passes(self, scene, renderlayer)
+
+
+class OctaneDrawData(object):
+    def __init__(self, dimensions):
+        # Generate dummy float image buffer
+        self.dimensions = dimensions
+        width, height = dimensions
+        # Generate texture
+        self.texture = gpu.types.GPUTexture((width, height), format='RGBA16F')
+
+    def __del__(self):
+        del self.texture
+
+    def update(self, render_result):
+        width, height = self.dimensions
+        pixel_size = width * height * 4
+        if width != render_result.resolution[0] or height != render_result.resolution[1]:
+            return
+        if render_result.viewport_float_pixel_array is None or len(render_result.viewport_float_pixel_array) != pixel_size:
+            return
+        pixels = gpu.types.Buffer('FLOAT', pixel_size, render_result.viewport_float_pixel_array)
+        self.texture = gpu.types.GPUTexture((width, height), format='RGBA16F', data=pixels)
+
+    def draw(self):
+        draw_texture_2d(self.texture, (0, 0), self.texture.width, self.texture.height)
 
 
 classes = (

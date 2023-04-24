@@ -499,13 +499,15 @@ void applySnapping(TransInfo *t, float *vec)
     /* Time base quirky code to go around find-nearest slowness. */
     /* TODO: add exception for object mode, no need to slow it down then. */
     if (current - t->tsnap.last >= 0.01) {
-      t->tsnap.calcSnap(t, vec);
+      if (t->tsnap.calcSnap) {
+        t->tsnap.calcSnap(t, vec);
+      }
       if (t->tsnap.targetSnap) {
         t->tsnap.targetSnap(t);
       }
-    }
 
-    t->tsnap.last = current;
+      t->tsnap.last = current;
+    }
 
     if (validSnap(t)) {
       t->tsnap.applySnap(t, vec);
@@ -685,6 +687,15 @@ static void initSnappingMode(TransInfo *t)
             bm_face_is_snap_target,
             POINTER_FROM_UINT((BM_ELEM_SELECT | BM_ELEM_HIDDEN)));
       }
+      else {
+        /* Ignore hidden geometry in the general case. */
+        ED_transform_snap_object_context_set_editmesh_callbacks(
+            t->tsnap.object_context,
+            (bool (*)(BMVert *, void *))BM_elem_cb_check_hflag_disabled,
+            (bool (*)(BMEdge *, void *))BM_elem_cb_check_hflag_disabled,
+            (bool (*)(BMFace *, void *))BM_elem_cb_check_hflag_disabled,
+            POINTER_FROM_UINT(BM_ELEM_HIDDEN));
+      }
     }
   }
   else if (t->spacetype == SPACE_SEQ) {
@@ -771,8 +782,15 @@ static void setSnappingCallback(TransInfo *t)
   if (t->spacetype == SPACE_VIEW3D) {
     t->tsnap.calcSnap = snap_calc_view3d_fn;
   }
-  else if (t->spacetype == SPACE_IMAGE && t->obedit_type == OB_MESH) {
-    t->tsnap.calcSnap = snap_calc_uv_fn;
+  else if (t->spacetype == SPACE_IMAGE) {
+    SpaceImage *sima = t->area->spacedata.first;
+    Object *obact = t->view_layer->basact ? t->view_layer->basact->object : NULL;
+
+    const bool is_uv_editor = sima->mode == SI_MODE_UV;
+    const bool has_edit_object = obact && BKE_object_is_in_editmode(obact);
+    if (is_uv_editor && has_edit_object) {
+      t->tsnap.calcSnap = snap_calc_uv_fn;
+    }
   }
   else if (t->spacetype == SPACE_NODE) {
     t->tsnap.calcSnap = snap_calc_node_fn;
@@ -948,7 +966,7 @@ static void snap_calc_view3d_fn(TransInfo *t, float *UNUSED(vec))
 
 static void snap_calc_uv_fn(TransInfo *t, float *UNUSED(vec))
 {
-  BLI_assert(t->spacetype == SPACE_IMAGE && t->obedit_type == OB_MESH);
+  BLI_assert(t->spacetype == SPACE_IMAGE);
   if (t->tsnap.mode & SCE_SNAP_MODE_VERTEX) {
     float co[2];
 

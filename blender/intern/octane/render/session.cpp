@@ -256,6 +256,9 @@ void Session::run()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool Session::draw(BufferParams &buffer_params, DeviceDrawParams &draw_params)
 {
+  if (params.addon_dev_enabled) {
+    return true;
+  }
   // Block for display buffer access
   thread_scoped_lock display_lock(display_mutex);
 
@@ -501,9 +504,9 @@ void Session::update_status_time(bool show_pause, bool show_done)
               params.image_stat.uiCurDenoiseSamples,
               params.image_stat.uiCurSamples,
               szSamples,
-              params.image_stat.ulVramUsed / 1000000,
-              params.image_stat.ulVramFree / 1000000,
-              params.image_stat.ulVramTotal / 1000000,
+              static_cast<uint64_t>(ceil(params.image_stat.ulVramUsed / 1048576.0)),
+              static_cast<uint64_t>(ceil(params.image_stat.ulVramFree / 1048576.0)),
+              static_cast<uint64_t>(ceil(params.image_stat.ulVramTotal / 1048576.0)),
               params.image_stat.uiMeshesCnt,
               params.image_stat.uiTrianglesCnt,
               params.image_stat.uiRgb32Cnt,
@@ -519,9 +522,9 @@ void Session::update_status_time(bool show_pause, bool show_done)
               params.image_stat.uiCurDenoiseSamples,
               params.image_stat.uiCurSamples,
               szSamples,
-              params.image_stat.ulVramUsed / 1000000,
-              params.image_stat.ulVramFree / 1000000,
-              params.image_stat.ulVramTotal / 1000000,
+              static_cast<uint64_t>(ceil(params.image_stat.ulVramUsed / 1048576.0)),
+              static_cast<uint64_t>(ceil(params.image_stat.ulVramFree / 1048576.0)),
+              static_cast<uint64_t>(ceil(params.image_stat.ulVramTotal / 1048576.0)),
               params.image_stat.uiMeshesCnt,
               params.image_stat.uiTrianglesCnt,
               params.image_stat.uiRgb32Cnt,
@@ -549,9 +552,9 @@ void Session::update_status_time(bool show_pause, bool show_done)
                     string_printf(
                         " | Mem: %dM/%dM/%dM, Meshes: %d, Tris: %d | Tex: ( Rgb32: %d, Rgb64: %d, "
                         "grey8: %d, grey16: %d ) | ",
-                        params.image_stat.ulVramUsed / 1000000,
-                        params.image_stat.ulVramFree / 1000000,
-                        params.image_stat.ulVramTotal / 1000000,
+                        static_cast<uint64_t>(ceil(params.image_stat.ulVramUsed / 1048576.0)),
+                        static_cast<uint64_t>(ceil(params.image_stat.ulVramFree / 1048576.0)),
+                        static_cast<uint64_t>(ceil(params.image_stat.ulVramTotal / 1048576.0)),
                         params.image_stat.uiMeshesCnt,
                         params.image_stat.uiTrianglesCnt,
                         params.image_stat.uiRgb32Cnt,
@@ -619,6 +622,10 @@ void Session::update_render_buffer()
 {
   if (progress.get_cancel())
     return;
+
+  if (params.addon_dev_enabled) {
+    return;
+  }
 
   ::Octane::RenderPassId passId = static_cast<::Octane::RenderPassId>(
       int(scene->passes->oct_node->iPreviewPass));

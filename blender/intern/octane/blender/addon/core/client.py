@@ -66,7 +66,7 @@ class OctaneClient(metaclass=utility.Singleton):
             _octane.activate(status)
 
     def process_octane_node(self, request_node):
-        reply_xml = octane_blender_client.process_octane_node(request_node.rpc_type, request_node.get_xml_data(), request_node.get_c_array_identifier_list())
+        reply_xml = octane_blender_client.process_octane_node(request_node.rpc_type, request_node.get_xml_data(), request_node.get_c_array_identifier_list(), request_node.get_scene_data_identifier(), request_node.get_reply_c_array_identifier())
         if len(reply_xml):
             octane_node = OctaneNode(request_node.rpc_type)
             octane_node.set_xml_data(reply_xml)
@@ -75,17 +75,57 @@ class OctaneClient(metaclass=utility.Singleton):
                 self.console(error, "ERROR", None)
         return reply_xml
 
-    def require_float_c_array(self, identifier, size):
+    def create_float_c_array(self, identifier, server_identifier, size, dimension):
         if not self.enable():
             return         
-        return octane_blender_client.require_float_array(identifier, size)
+        return octane_blender_client.create_float_array(identifier, server_identifier, size, dimension)
 
-    def require_int_c_array(self, identifier, size):
+    def create_int_c_array(self, identifier, server_identifier, size, dimension):
         if not self.enable():
             return         
-        return octane_blender_client.require_int_array(identifier, size)
+        return octane_blender_client.create_int_array(identifier, server_identifier, size, dimension)
+
+    def create_uint8_c_array(self, identifier, server_identifier, size, dimension):
+        if not self.enable():
+            return         
+        return octane_blender_client.create_uint8_array(identifier, server_identifier, size, dimension)
+
+    def get_reply_float_c_array(self, identifier):
+        if not self.enable():
+            return
+        return octane_blender_client.get_reply_float_array(identifier)
+
+    def get_reply_int_c_array(self, identifier):
+        if not self.enable():
+            return
+        return octane_blender_client.get_reply_int_array(identifier)
+
+    def get_reply_uint8_c_array(self, identifier):
+        if not self.enable():
+            return
+        return octane_blender_client.get_reply_uint8_array(identifier)
 
     def release_c_array(self, identifier):
         if not self.enable():
             return
         return octane_blender_client.release_array(identifier)
+
+    def create_scene_data(self, identifier):
+        if not self.enable():
+            return
+        return octane_blender_client.create_scene_data(identifier)
+
+    def release_scene_data(self, identifier):
+        if not self.enable():
+            return
+        return octane_blender_client.release_scene_data(identifier)        
+
+    def build_mesh_data(self, identifier, index, vertices_num, vertices_addr, loop_triangles_num, loop_triangles_addr, loops_num, loops_addr, polygons_num, polygons_addr):
+        if not self.enable():
+            return
+        return octane_blender_client.build_mesh_data(identifier, index, vertices_num, vertices_addr, loop_triangles_num, loop_triangles_addr, loops_num, loops_addr, polygons_num, polygons_addr)
+
+    def build_scene_data(self, identifier, scene_data_type, dict_args):
+        if not self.enable():
+            return
+        return octane_blender_client.build_scene_data(identifier, scene_data_type, dict_args)

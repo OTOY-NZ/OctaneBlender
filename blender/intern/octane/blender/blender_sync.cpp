@@ -720,6 +720,9 @@ std::string BlenderSync::get_env_texture_name(PointerRNA *env,
            ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_OBJECT_NODE_NAME);
   MAP_PASS("OctCryptoObjNode", ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_OBJECT_NODE);
   MAP_PASS("OctCryptoObjPinNode", ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_OBJECT_PIN_NAME);
+  MAP_PASS("OctCryptoRenderLayer", ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_RENDER_LAYER);
+  MAP_PASS("OctCryptoGeometryNodeName", ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_GEOMETRY_NODE_NAME);
+  MAP_PASS("OctCryptoUserInstanceID", ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_USER_INSTANCE_ID);
   /* Render Info Passes */
   MAP_PASS("OctGeoNormal", ::Octane::RenderPassId::RENDER_PASS_GEOMETRIC_NORMAL);
   MAP_PASS("OctSmoothNormal", ::Octane::RenderPassId::RENDER_PASS_SMOOTH_NORMAL);

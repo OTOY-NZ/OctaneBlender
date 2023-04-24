@@ -12,12 +12,14 @@ class OctaneNodeType:
 class CArray(object):
     FLOAT = "FLOAT"
     INT = "INT"
+    UINT8 = "UINT8"
 
-    def __init__(self, identifier, array_type, array, size):
+    def __init__(self, identifier, array_type, array, size, dimension=1):
         self.identifier = identifier
         self.array_type = array_type
         self.array = array
         self.size = size
+        self.dimension = dimension
         self.hash_id = ""
         self.need_update = False
 
@@ -30,7 +32,9 @@ class OctaneNode(object):
         self.name = ""
         # identifier => CArray
         self.c_arrays = {}
-        self.need_update = False        
+        self.scene_data_identifier = ""
+        self.need_update = False 
+        self.reply_c_array = None       
         self.root_et = ET.Element('rpc', type=str(rpc_type))
         ET.SubElement(self.root_et, 'attributes')
         ET.SubElement(self.root_et, 'pins')        
@@ -38,13 +42,54 @@ class OctaneNode(object):
     def root_et(self):
         return self.root_et
 
+    def get_scene_data_identifier(self):
+        return self.scene_data_identifier
+
+    def create_scene_data(self, identifier):
+        from octane.core.client import OctaneClient
+        self.scene_data_identifier = identifier
+        return OctaneClient().create_scene_data(identifier)
+
+    def release_scene_data(self, identifier):
+        from octane.core.client import OctaneClient
+        self.scene_data_identifier = ""
+        return OctaneClient().release_scene_data(identifier)
+
+    def build_mesh_data(self, index, vertices_num, vertices_addr, loop_triangles_num, loop_triangles_addr, loops_num, loops_addr, polygons_num, polygons_addr):
+        from octane.core.client import OctaneClient
+        return OctaneClient().build_mesh_data(self.scene_data_identifier, index, vertices_num, vertices_addr, loop_triangles_num, loop_triangles_addr, loops_num, loops_addr, polygons_num, polygons_addr)
+
+    def build_scene_data(self, scene_data_type, dict_args):
+        from octane.core.client import OctaneClient
+        return OctaneClient().build_scene_data(self.scene_data_identifier, scene_data_type, dict_args)
+
+    def get_reply_c_array_identifier(self):
+        return "REPLY_ARRAY_DATA[%d]" % id(self)
+
+    def get_reply_c_array(self, array_type):
+        from octane.core.client import OctaneClient 
+        identifier = self.get_reply_c_array_identifier()
+        if array_type == CArray.FLOAT:
+            self.reply_c_array = OctaneClient().get_reply_float_c_array(identifier)
+        elif array_type == CArray.INT:
+            self.reply_c_array = OctaneClient().get_reply_int_c_array(identifier)
+        elif array_type == CArray.UINT8:
+            self.reply_c_array = OctaneClient().get_reply_uint8_c_array(identifier)            
+        return self.reply_c_array
+
+    def release_reply_c_array(self, array_type):
+        from octane.core.client import OctaneClient 
+        identifier = self.get_reply_c_array_identifier()
+        OctaneClient().release_c_array(identifier)
+        self.reply_c_array = None
+
     def get_c_array_identifier_list(self):
         return ";".join([identifier for identifier in self.c_arrays.keys() if self.c_arrays[identifier].need_update])
 
     def get_c_array_identifier(self, identifier, array_type):
         return "%s_%s_%s" % (identifier, str(id(self)), array_type)
 
-    def require_c_array(self, size, identifier, array_type):
+    def create_c_array(self, size, identifier, array_type, dimension=1):
         from octane.core.client import OctaneClient        
         if size == 0:
             return False
@@ -57,11 +102,13 @@ class OctaneNode(object):
             else:
                 del self.c_arrays[_identifier]
         if array_type == CArray.FLOAT:
-            array = OctaneClient().require_float_c_array(_identifier, size)
+            array = OctaneClient().create_float_c_array(_identifier, identifier, size, dimension)
         elif array_type == CArray.INT:
-            array = OctaneClient().require_int_c_array(_identifier, size)
+            array = OctaneClient().create_int_c_array(_identifier, identifier, size, dimension)
+        elif array_type == CArray.UINT8:
+            array = OctaneClient().create_uint8_c_array(_identifier, identifier, size, dimension)            
         if array is not None:
-            self.c_arrays[_identifier] = CArray(_identifier, array_type, array, size)
+            self.c_arrays[_identifier] = CArray(_identifier, array_type, array, size, dimension)
             return True
         return False
 
@@ -110,9 +157,16 @@ class OctaneNode(object):
 
     def set_node_type(self, node_type):
         if self.root_et.find("node_type") is None:
-            node_type_tree = ET.SubElement(self.root_et, 'node_type')
-        else:
+            node_type_tree = ET.SubElement(self.root_et, 'node_type')            
+        else:            
             node_type_tree = self.root_et.find("node_type")
+            # Reset attributes and pins if the node type is changed
+            if int(node_type_tree.text) != node_type:
+                self.root_et.remove(self.root_et.find("attributes"))
+                self.root_et.remove(self.root_et.find("pins"))
+                ET.SubElement(self.root_et, "attributes")
+                ET.SubElement(self.root_et, "pins")
+                self.need_update = True
         node_type_tree.text = str(node_type)
 
     def get_node_type(self):

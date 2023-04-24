@@ -45,8 +45,11 @@ static void node_oct_update_output_world(bNodeTree *ntree, bNode *node)
   bool is_all_targets = node->custom1 == SHD_OUTPUT_ALL;
   bool is_octane_target = node->custom1 == SHD_OUTPUT_OCTANE;
   bNodeSocket *sock;
-#define OCTANE_SOCKET_LIST_LEN 2
-  char *socket_names[OCTANE_SOCKET_LIST_LEN] = {"Octane Environment", "Octane VisibleEnvironment"};
+#define OCTANE_SOCKET_LIST_LEN 4
+  char *socket_names[OCTANE_SOCKET_LIST_LEN] = {"Octane Environment",
+                                                "Octane VisibleEnvironment",
+                                                "Environment",
+                                                "Visible Environment"};
   for (sock = node->inputs.first; sock; sock = sock->next) {
     bool is_octane_socket = false;
     for (int i = 0; i < OCTANE_SOCKET_LIST_LEN; ++i) {

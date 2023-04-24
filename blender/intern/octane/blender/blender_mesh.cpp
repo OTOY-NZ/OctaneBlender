@@ -119,6 +119,7 @@ static void create_mesh(Scene *scene,
   if (numverts == 0 || numfaces == 0) {
     // if (!mesh->empty)
     //  mesh->empty = true;
+    mesh->octane_mesh.oMeshData.iSamplesNum = 1;
     fprintf(stderr, "Octane: The mesh \"%s\" is empty\n", b_ob.data().name().c_str());
     return;
   }
@@ -615,7 +616,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                              MeshType mesh_type)
 {
   BL::ID b_ob_data = b_ob.data();
-  BL::ID key = (BKE_object_is_modified(b_ob)) ? b_ob_instance : b_ob_data;
+  bool is_instance = (b_ob == b_ob_instance);
+  BL::ID key = (BKE_object_is_modified(b_ob) && !is_instance) ? b_ob_instance : b_ob_data;
   BL::Material material_override = view_layer.material_override;
 
   /* find shader indices */
@@ -656,8 +658,19 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
 
   bool is_modified = BKE_object_is_modified(b_ob);
-  std::string mesh_name = resolve_octane_name(
-      b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+  bool use_geometry_node_modifier = false;
+  BL::Object::modifiers_iterator b_mod;
+  for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
+    if (b_mod->type() == BL::Modifier::type_NODES) {
+      use_geometry_node_modifier = true;
+      break;
+    }
+  }
+  std::string modifier_object_tag = is_modified ? b_ob.name_full() : "";
+  if (is_instance && use_geometry_node_modifier) {
+    modifier_object_tag += "[Instance]";
+  }
+  std::string mesh_name = resolve_octane_name(b_ob_data, modifier_object_tag, MESH_TAG);
 
   bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
   std::string new_mesh_tag = generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
@@ -666,7 +679,6 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   octane_mesh->is_volume_to_mesh = false;
   octane_mesh->is_mesh_to_volume = false;
   stringstream mesh_to_volume_tag, volume_displace_tag;
-  BL::Object::modifiers_iterator b_mod;
   for (b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
     if (b_mod->type() == BL::Modifier::type_VOLUME_TO_MESH) {
       octane_mesh->is_volume_to_mesh = true;
@@ -1062,11 +1074,11 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
           create_mesh(scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
         }
         /* mesh fluid motion mantaflow */
-        sync_mesh_fluid_motion(b_ob, scene, b_mesh, octane_mesh);
-        free_object_to_mesh(b_data, b_ob, b_mesh);
+        sync_mesh_fluid_motion(b_ob, scene, b_mesh, octane_mesh);        
         if (!octane_mesh->empty) {
           sync_hair(octane_mesh, b_mesh, b_ob, false);
         }
+        free_object_to_mesh(b_data, b_ob, b_mesh);
       }
       else {
         create_openvdb_volume(

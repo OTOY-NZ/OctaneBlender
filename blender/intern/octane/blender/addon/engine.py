@@ -24,30 +24,37 @@ IS_RENDERING = False
 
 
 def heart_beat():
-    print('OctaneBlender Engine Heart Beat')
-    import _octane
+    print('OctaneBlender Engine Heart Beat')    
     scene = bpy.context.scene
-    oct_scene = scene.octane   
-    _octane.heart_beat()   
+    oct_scene = scene.octane
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        import _octane
+        _octane.heart_beat()   
     return 1
 
 
 def init():
-    print("OctaneBlender Engine Init")    
-    import _octane
+    print("OctaneBlender Engine Init")        
     import os.path
 
     path = os.path.dirname(__file__)
     user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', path='')))
-    _octane.init(path, user_path)    
+
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        import _octane
+        _octane.init(path, user_path)    
 
 
 def exit():
-    print("OctaneBlender Engine Exit")    
-    import _octane
+    print("OctaneBlender Engine Exit")        
     from . import operators
-    _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
-    _octane.exit()  
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        import _octane
+        _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
+        _octane.exit()  
 
 
 def create(engine, data, region=None, v3d=None, rv3d=None):
@@ -58,8 +65,7 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
 
     from octane.utils import ocio    
     ocio.update_ocio_info()
-
-    import _octane
+    
     import bpy
     data = data.as_pointer()
     prefs = bpy.context.preferences.as_pointer()
@@ -77,16 +83,22 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
     if rv3d:
         screen = screen or rv3d.id_data.as_pointer()
         rv3d = rv3d.as_pointer()
-    engine.session = _octane.create(
-            engine.as_pointer(), prefs, data, screen, region, v3d, rv3d, dirty_resources)
+
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        import _octane
+        engine.session = _octane.create(
+                engine.as_pointer(), prefs, data, screen, region, v3d, rv3d, dirty_resources)
 
 
 def free(engine):
     print("OctaneBlender Engine Free")
     if hasattr(engine, "session"):
         if engine.session:
-            import _octane
-            _octane.free(engine.session)
+            from octane import core
+            if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:            
+                import _octane
+                _octane.free(engine.session)
         del engine.session    
 
     from . import operators
@@ -105,45 +117,54 @@ def render(engine, depsgraph):
         return    
     scene = depsgraph.scene_eval
     register_render_aov_node_graph_passes(engine, scene)
-    import _octane
-    if hasattr(engine, "session"):
-        _octane.render(engine.session, depsgraph.as_pointer())
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:    
+        import _octane
+        if hasattr(engine, "session"):
+            _octane.render(engine.session, depsgraph.as_pointer())
 
 
 def bake(engine, depsgraph, obj, pass_type, pass_filter, object_id, pixel_array, num_pixels, depth, result):
     # print("OctaneBlender Engine Bake")
-    import _octane
-    session = getattr(engine, "session", None)
-    if session is not None:
-        _octane.bake(engine.session, depsgraph.as_pointer(), obj.as_pointer(), pass_type, pass_filter, object_id, pixel_array.as_pointer(), num_pixels, depth, result.as_pointer())
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        session = getattr(engine, "session", None)
+        import _octane        
+        if session is not None:
+            _octane.bake(engine.session, depsgraph.as_pointer(), obj.as_pointer(), pass_type, pass_filter, object_id, pixel_array.as_pointer(), num_pixels, depth, result.as_pointer())
 
 
 def reset(engine, data, depsgraph):
-    # print("OctaneBlender Engine Reset")
-    import _octane
+    # print("OctaneBlender Engine Reset")    
     import bpy
     if engine.is_preview:
         return  
     data = data.as_pointer()
     depsgraph = depsgraph.as_pointer()
-    _octane.reset(engine.session, data, depsgraph)
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        import _octane
+        _octane.reset(engine.session, data, depsgraph)
 
 
 def sync(engine, depsgraph, data):
     # print("OctaneBlender Engine Sync")
-    import _octane
-    _octane.sync(engine.session, depsgraph.as_pointer())
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:    
+        import _octane
+        _octane.sync(engine.session, depsgraph.as_pointer())
 
 
 def draw(engine, depsgraph, region, v3d, rv3d):
-    # print("OctaneBlender Engine Draw")
-    import _octane
+    # print("OctaneBlender Engine Draw")    
     depsgraph = depsgraph.as_pointer()
     v3d = v3d.as_pointer()
     rv3d = rv3d.as_pointer()
-
-    # draw render image
-    _octane.draw(engine.session, depsgraph, v3d, rv3d)
+    from octane import core
+    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+        import _octane
+        # draw render image
+        _octane.draw(engine.session, depsgraph, v3d, rv3d)
 
 
 PASS_DATA = {
@@ -228,6 +249,9 @@ PASS_DATA = {
     "use_pass_oct_crypto_obj_node_name": "OctCryptoObjNodeName",
     "use_pass_oct_crypto_obj_node": "OctCryptoObjNode",
     "use_pass_oct_crypto_obj_pin_node": "OctCryptoObjPinNode",
+    "use_pass_oct_crypto_render_layer": "CryptoRenderLayer",
+    "use_pass_oct_crypto_geometry_node_name": "CryptoGeometryNodeName",
+    "use_pass_oct_crypto_user_instance_id": "CryptoUserInstanceID",
     # Render Info Passes
     "use_pass_oct_info_geo_normal": "OctGeoNormal",
     "use_pass_oct_info_smooth_normal": "OctSmoothNormal",

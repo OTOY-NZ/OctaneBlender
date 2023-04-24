@@ -205,7 +205,7 @@ class OctaneImageTiles_Override(OctaneImageTiles):
             filepath = ";".join(filepaths)
         is_data_updated |= octane_node.set_attribute("a_filename", consts.AttributeType.AT_FILENAME, filepath)
         is_data_updated |= octane_node.set_attribute("a_grid_size", consts.AttributeType.AT_INT2, grid_size)
-        octane_node.set_blender_attribute(self.IMAGE_DATA_UPDATE_BLENDER_ATTRIBUTE, consts.AttributeType.AT_BOOL, is_data_updated)
+        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE, consts.AttributeType.AT_BOOL, is_data_updated)
 
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)
