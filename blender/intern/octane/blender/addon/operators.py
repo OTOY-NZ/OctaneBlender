@@ -26,7 +26,6 @@ from bpy.types import Operator
 from bpy.props import IntProperty, BoolProperty, StringProperty
 from octane import core
 from octane.utils import consts, utility
-from . import converters
 
 COMMAND_TYPES = {
 	'SHOW_NODEGRAPH': 1,
@@ -386,6 +385,15 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
     bl_label = "Convert to Octane material"
     bl_register = True
     bl_undo = False
+    USE_PROGRESS_BAR = True
+    IS_OPERATOR_RUNNING = False    
+
+    def __init__(self):
+        super().__init__()
+        self.timer = None
+        self.done = False
+        self.processed_object_names = set()
+        self.processed_material_names = set()
 
     converter_modes = (
         ("MATERIAL", "Only the selected material", "Only the selected material", 0),
@@ -399,6 +407,75 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
         default="MATERIAL",
     )
 
+    def set_progress(self, context, show, value):
+        from octane.properties_.scene import OctaneProgressWidget
+        if show:
+            OctaneProgressWidget.show(context)
+            OctaneProgressWidget.set_progress(context, value)
+            OctaneProgressWidget.update(context)
+        else:
+            OctaneProgressWidget.set_progress(context, 0)
+            OctaneProgressWidget.update(context)
+            OctaneProgressWidget.hide()
+
+    def start(self, context):
+        self.__class__.IS_OPERATOR_RUNNING = True
+
+    def start_modal_operator(self, context):
+        from octane.properties_.scene import OctaneProgressWidget        
+        self.done = False
+        self.processed_object_names = set()
+        self.processed_material_names = set()
+        OctaneProgressWidget.set_task_text(context, "Octane Material Converter")            
+        self.set_progress(context, True, 0)            
+        context.window_manager.modal_handler_add(self)
+        self.timer = context.window_manager.event_timer_add(0.1, window=context.window)
+
+    def complete(self, context):
+        from octane.nodes.base_node_tree import NodeTreeHandler
+        NodeTreeHandler.update_node_tree_count(context.scene)
+        self.__class__.IS_OPERATOR_RUNNING = False
+
+    def complete_modal_operator(self, context):
+        self.complete(context)
+        context.window_manager.event_timer_remove(self.timer)
+        self.set_progress(context, False, 0)
+        self.__class__.IS_OPERATOR_RUNNING = False
+
+    @classmethod
+    def poll(cls, context):
+        return not cls.IS_OPERATOR_RUNNING
+
+    def modal(self, context, event):
+        from octane import converters
+        from octane.nodes.base_node_tree import NodeTreeHandler
+        if self.done or event.type in {"ESC"}:
+            self.complete_modal_operator(context)
+            return {"FINISHED"}
+        if event.type == 'TIMER':
+            done = True
+            cur_obj = bpy.context.object
+            for _object in context.scene.objects:
+                if _object.name in self.processed_object_names:
+                    continue                
+                if self.converter_mode == "OBJECT" and cur_obj.name != _object.name:
+                    pass
+                else:
+                    for idx in range(len(_object.material_slots)):
+                        cur_material = getattr(_object.material_slots[idx], "material", None)
+                        if cur_material:
+                            self.processed_material_names.add(cur_material.name)
+                            converters.convert_to_octane_material(_object, idx)
+                self.processed_object_names.add(_object.name)
+                current_progress = len(self.processed_object_names) * 100.0 / len(context.scene.objects)
+                current_progress = max(0.01, min(99, current_progress))
+                self.set_progress(context, True, current_progress)
+                NodeTreeHandler.update_node_tree_count(context.scene)                
+                done = False
+                break
+            self.done = done
+        return {"PASS_THROUGH"}
+
     def invoke(self, context, event):
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
@@ -409,46 +486,34 @@ class OCTANE_OT_ConvertToOctaneMaterial(bpy.types.Operator):
         row = layout.row()
         row.prop(self, "converter_mode")
 
-    @classmethod
-    def poll(cls, context):
-        return True
-
     def execute(self, context):
+        from octane import converters
+        self.start(context)
         scene = context.scene
         oct_scene = scene.octane                
         cur_obj = bpy.context.object
         if self.converter_mode == "MATERIAL":
-            if cur_obj and len(cur_obj.material_slots):                    
-                cur_material = cur_obj.material_slots[cur_obj.active_material_index].material
-                converted_material = cur_material.copy()        
-                result = converters.convert_to_octane_material(cur_material, converted_material)
-                if result:
-                    if len(cur_obj.material_slots) < 1:                    
-                        cur_obj.data.materials.append(converted_material)
-                    else:                    
-                        cur_obj.material_slots[cur_obj.active_material_index].material = converted_material  
-                    converters.convert_all_related_material(cur_material, converted_material)
-                else:
-                    bpy.data.materials.remove(converted_material)
+            if cur_obj and len(cur_obj.material_slots):
+                converters.convert_to_octane_material(cur_obj, cur_obj.active_material_index)
+            self.complete(context)
+            return {"FINISHED"}
         else:
-            scene = context.scene
-            processed_material_names = set()
-            for _object in context.scene.objects:
-                if self.converter_mode == "OBJECT" and cur_obj.name != _object.name:
-                    continue
-                for idx in range(len(_object.material_slots)):
-                    cur_material = _object.material_slots[idx].material
-                    if cur_material.name in processed_material_names:
-                        continue
-                    processed_material_names.add(cur_material.name)
-                    converted_material = cur_material.copy()        
-                    result = converters.convert_to_octane_material(cur_material, converted_material)
-                    if result:
-                        _object.material_slots[idx].material = converted_material
-                        converters.convert_all_related_material(cur_material, converted_material)
+            if self.USE_PROGRESS_BAR:
+                self.start_modal_operator(context)
+                return {"RUNNING_MODAL"}
+            else:
+                for _object in context.scene.objects:
+                    cur_obj = bpy.context.object
+                    if self.converter_mode == "OBJECT" and cur_obj.name != _object.name:
+                        pass
                     else:
-                        bpy.data.materials.remove(converted_material)
-        return {'FINISHED'} 
+                        for idx in range(len(_object.material_slots)):
+                            cur_material = getattr(_object.material_slots[idx], "material", None)
+                            if cur_material:
+                                self.processed_material_names.add(cur_material.name)
+                                converters.convert_to_octane_material(_object, idx)
+                self.complete(context)
+                return {"FINISHED"}
 
 
 class OCTANE_OT_BaseExport(Operator, ExportHelper):
@@ -697,10 +762,13 @@ class OCTANE_OT_SaveAsAddonFile(Operator):
     def convert_to_addon_file(self, context):
         for material in bpy.data.materials:
             if material.node_tree and material.use_nodes:
-                utility.convert_to_addon_node_tree(material.node_tree, context, self.report)
+                utility.convert_to_addon_node_tree(material, material.node_tree, context, self.report)
         for world in bpy.data.worlds:
             if world.node_tree and world.use_nodes:
-                utility.convert_to_addon_node_tree(world.node_tree, context, self.report)                
+                utility.convert_to_addon_node_tree(world, world.node_tree, context, self.report)
+        for light in bpy.data.lights:
+            if light.node_tree and light.use_nodes:
+                utility.convert_to_addon_node_tree(light, light.node_tree, context, self.report)
 
     def execute(self, context):
         bpy.ops.wm.save_as_mainfile(filepath=self.filepath, check_existing=True, copy=False)
@@ -719,6 +787,99 @@ class OCTANE_OT_SaveAsAddonFile(Operator):
         self.filename = bpy.path.ensure_ext(filename, ".blend")
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+
+
+class OCTANE_OT_QuickAddOctaneGeometry(Operator):
+    geometry_node_bl_idname = ""
+    default_object_name = ""
+    bl_register = True
+    bl_undo = False 
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        from octane.nodes.base_node_tree import NodeTreeHandler
+        bpy.ops.mesh.primitive_cube_add()
+        proxy_object = context.active_object
+        proxy_object.name = "OctaneGeometry[%s]" % self.default_object_name
+        proxy_object.display_type = "WIRE"        
+        material = bpy.data.materials.new(proxy_object.name + "_Material")
+        material.use_nodes = True
+        NodeTreeHandler._on_material_new(material.node_tree, material)
+        NodeTreeHandler.update_node_tree_count(context.scene)
+        proxy_object.data.materials.append(material)
+        geometry_node = material.node_tree.nodes.new(self.geometry_node_bl_idname)
+        owner_type = utility.get_node_tree_owner_type(material)
+        active_output_node = utility.find_active_output_node(material.node_tree, owner_type)
+        default_material_node = active_output_node.inputs["Surface"].links[0].from_node
+        material.node_tree.links.new(geometry_node.outputs[0], active_output_node.inputs["Displacement"])
+        for socket in geometry_node.inputs:
+            if socket.octane_pin_type == consts.PinType.PT_MATERIAL:
+                material.node_tree.links.new(default_material_node.outputs[0], socket)
+        utility.beautifier_nodetree_layout(material)
+        octane_geo_node_collections = proxy_object.data.octane.octane_geo_node_collections
+        octane_geo_node_collections.node_graph_tree = material.name
+        octane_geo_node_collections.osl_geo_node = geometry_node.name
+        return {"FINISHED"}
+
+
+class OCTANE_OT_QuickAddOctaneVectron(OCTANE_OT_QuickAddOctaneGeometry):
+    """Add an Octane Vectron? to the scene"""
+    bl_idname = "octane.quick_add_octane_vectron"
+    bl_label = "Vectron®"
+    geometry_node_bl_idname = "OctaneVectron"
+    default_object_name = "Vectron"
+
+class OCTANE_OT_QuickAddOctaneBox(OCTANE_OT_QuickAddOctaneGeometry):
+    """Add an Octane Box to the scene"""
+    bl_idname = "octane.quick_add_octane_box"
+    bl_label = "Box"
+    geometry_node_bl_idname = "OctaneSDFBox"
+    default_object_name = "Box"
+
+class OCTANE_OT_QuickAddOctaneCapsule(OCTANE_OT_QuickAddOctaneGeometry):
+    """Add an Octane Capsule to the scene"""
+    bl_idname = "octane.quick_add_octane_capsule"
+    bl_label = "Capsule"
+    geometry_node_bl_idname = "OctaneSDFCapsule"
+    default_object_name = "Capsule"
+
+class OCTANE_OT_QuickAddOctaneCylinder(OCTANE_OT_QuickAddOctaneGeometry):
+    """Add an Octane Cylinder to the scene"""
+    bl_idname = "octane.quick_add_octane_cylinder"
+    bl_label = "Cylinder"
+    geometry_node_bl_idname = "OctaneSDFCylinder"
+    default_object_name = "Cylinder"
+
+class OCTANE_OT_QuickAddOctanePrism(OCTANE_OT_QuickAddOctaneGeometry):
+    """Add an Octane Prism to the scene"""
+    bl_idname = "octane.quick_add_octane_prism"
+    bl_label = "Prism"
+    geometry_node_bl_idname = "OctaneSDFPrism"
+    default_object_name = "Prism"
+
+class OCTANE_OT_QuickAddOctaneSphere(OCTANE_OT_QuickAddOctaneGeometry):
+    """Add an Octane Sphere to the scene"""
+    bl_idname = "octane.quick_add_octane_sphere"
+    bl_label = "Sphere"
+    geometry_node_bl_idname = "OctaneSDFSphere"
+    default_object_name = "Sphere"
+
+class OCTANE_OT_QuickAddOctaneTorus(OCTANE_OT_QuickAddOctaneGeometry):
+    """Add an Octane Torus to the scene"""
+    bl_idname = "octane.quick_add_octane_torus"
+    bl_label = "Torus"
+    geometry_node_bl_idname = "OctaneSDFTorus"
+    default_object_name = "Torus"
+
+class OCTANE_OT_QuickAddOctaneTube(OCTANE_OT_QuickAddOctaneGeometry):
+    """Add an Octane Tube to the scene"""
+    bl_idname = "octane.quick_add_octane_tube"
+    bl_label = "Tube"
+    geometry_node_bl_idname = "OctaneSDFTube"
+    default_object_name = "Tube"
 
 
 classes = (
@@ -749,6 +910,15 @@ classes = (
     OCTANE_OT_OrbxPreivew,
 
     OCTANE_OT_SaveAsAddonFile,
+
+    OCTANE_OT_QuickAddOctaneVectron,
+    OCTANE_OT_QuickAddOctaneBox,
+    OCTANE_OT_QuickAddOctaneCapsule,
+    OCTANE_OT_QuickAddOctaneCylinder,
+    OCTANE_OT_QuickAddOctanePrism,
+    OCTANE_OT_QuickAddOctaneSphere,
+    OCTANE_OT_QuickAddOctaneTorus,
+    OCTANE_OT_QuickAddOctaneTube,
 )
 
 def register():

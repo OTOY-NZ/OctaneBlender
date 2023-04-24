@@ -417,7 +417,11 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
         if force_compile:
             self.a_reload = True
             self.a_result = consts.COMPILE_NONE
-            
+
+    @staticmethod
+    def set_osl_pin(octane_node, socket_idx, osl_pin_name, octane_socket_type, octane_pin_type, octane_default_node_type, is_linked, link_node_name, default_value):        
+        return octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, socket_idx, osl_pin_name, octane_socket_type, octane_pin_type, octane_default_node_type, is_linked, link_node_name, default_value)            
+
 
 class OCTANE_OT_compile_osl_node(bpy.types.Operator):
     bl_idname = "octane.compile_osl_node"

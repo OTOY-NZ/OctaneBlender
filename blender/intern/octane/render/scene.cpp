@@ -83,6 +83,7 @@ void Scene::free_memory(bool final)
   objects.clear();
   lights.clear();
   particle_systems.clear();
+  image_data_map.clear();
 
   if (final) {
     delete camera;

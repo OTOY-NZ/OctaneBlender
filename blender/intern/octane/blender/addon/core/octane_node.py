@@ -18,6 +18,8 @@ class OctaneNode(object):
             self.node = octane_blender.ScatterNode(name)
         elif node_type == consts.NodeType.NT_GEO_MESH:
             self.node = octane_blender.MeshNode(name)
+        elif node_type == consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE:
+            self.node = octane_blender.GraphNode(name)            
         else:
             self.node = octane_blender.Node(name)
         self.node_type = node_type
@@ -100,7 +102,7 @@ class OctaneNode(object):
         return self.array_datas.get(identifier, None)
 
     def _update_to_engine(self, update_now):
-        if self.node_type >= consts.NodeType.NT_BLENDER_NODE_OFFSET or self.node_type in (consts.NodeType.NT_BLENDER_NODE_SCATTER, consts.NodeType.NT_BLENDER_NODE_MESH):
+        if self.node_type >= consts.NodeType.NT_BLENDER_NODE_OFFSET or self.node_type in (consts.NodeType.NT_BLENDER_NODE_SCATTER, consts.NodeType.NT_BLENDER_NODE_MESH, consts.NodeType.NT_BLENDER_NODE_GRAPH_NODE):
             self.node.update_to_engine(update_now)
             
     def update_to_engine(self, update_now=False):
@@ -171,8 +173,17 @@ class OctaneNode(object):
     def clear_pin_index(self, pin_index, pin_name):
         return self.node.clear_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, pin_index, pin_name)
 
+    def link_from(self, from_node_name, to_pin_index):
+        return self.node.link_from(from_node_name, to_pin_index)
+
     def link_to(self, to_node_name, to_pin_index):
         return self.node.link_to(to_node_name, to_pin_index)
+
+    def link_from_id(self, from_node_id, to_pin_index):
+        return self.node.link_from_id(from_node_id, to_pin_index)
+
+    def link_to_id(self, to_node_id, to_pin_index):
+        return self.node.link_to_id(to_node_id, to_pin_index)
 
     def to_xml(self):
         return self.node.to_xml()

@@ -2828,7 +2828,7 @@ namespace OctaneDataTransferObject {
 			sImageDataMD5Hex = "";
 		}
 		OCTANE_NODE_SERIALIZARION_FUNCTIONS
-		MSGPACK_DEFINE(iHDRDepthType, iIESMode, sFilePath, bReload, iWidth, iHeight, iChannelNum, fDataLength, iDataLength, MSGPACK_BASE(OctaneNodeBase));
+		MSGPACK_DEFINE(iHDRDepthType, iIESMode, sFilePath, bReload, iWidth, iHeight, iChannelNum, fDataLength, iDataLength, sImageDataMD5Hex, MSGPACK_BASE(OctaneNodeBase));
 	}; 
 
 	struct OctaneBaseImageNode : public OctaneNodeBase {

@@ -2,6 +2,7 @@ import bpy
 import math
 import mathutils
 import numpy as np
+import xml.etree.ElementTree as ET
 import time
 import copy
 import hashlib
@@ -377,13 +378,17 @@ class OctaneGraphNode(object):
             return OctaneGraphNode(from_node, from_socket, ancestor_list, False)
 
     def add_socket(self, socket):
+        from octane.nodes.tools.octane_proxy import OctaneProxy
         if not socket.is_linked:
             # Skip the basic cases
             return None
         origin_link = socket.links[0]
         octane_graph_node_socket = OctaneGraphNodeSocket(socket.name, "", None)
         octane_graph_node = OctaneGraphNode.resolve_link(origin_link, self.ancestor_list, octane_graph_node_socket)
-        octane_graph_node_socket.linked_node_octane_name = octane_graph_node.octane_name if octane_graph_node else ""
+        if octane_graph_node:
+            octane_graph_node_socket.linked_node_octane_name = octane_graph_node.octane_name
+        else:
+            octane_graph_node_socket.linked_node_octane_name = ""
         self.octane_complicated_sockets[socket.name] = octane_graph_node_socket
         return octane_graph_node
 
@@ -708,6 +713,12 @@ def show_nodetree(context, node_tree):
                     return True
     return False
 
+def setup_toon_directional_light(node_tree, light_node, light_object):
+    object_data_node = node_tree.nodes.new("OctaneObjectData")
+    object_data_node.source_type = "Object"
+    object_data_node.object_ptr = light_object
+    node_tree.links.new(object_data_node.outputs[object_data_node.ROTATION_OUT], light_node.inputs["Light direction"])
+
 def beautifier_nodetree_layout(id_data):
     X_OFFSET = -300
     Y_OFFSET = -100
@@ -730,14 +741,16 @@ def beautifier_nodetree_layout(id_data):
     base_x = output_node.location.x - output_node.dimensions[0]
     current_location_y = {}
     last_location = node_tree.view_center
+    node_to_level_map = {}
     while len(pending_nodes):
         node, level = pending_nodes.popleft()
+        node_to_level_map[node] = level
         next_level = level + 1
         x, y = node.location
         if next_level not in current_location_y:
             current_location_y[next_level] = y
         if node in arranged_nodes:
-            continue        
+            continue
         for idx, _input in enumerate(node.inputs):
             if _input.is_linked:
                 from_node = _input.links[0].from_node
@@ -750,6 +763,19 @@ def beautifier_nodetree_layout(id_data):
     for node in node_tree.nodes:
         if node not in arranged_nodes:
             node.location = unlink_node_location
+    nodes_in_row = defaultdict(list)    
+    min_y_for_nodes_in_row = {}
+    for node, level in node_to_level_map.items():
+        nodes_in_row[node.location.x].append(node)
+        if node.location.x in min_y_for_nodes_in_row:
+            min_y_for_nodes_in_row[node.location.x] = min(min_y_for_nodes_in_row[node.location.x], node.location.y)
+        else:
+            min_y_for_nodes_in_row[node.location.x] = node.location.y
+    for x, nodes in nodes_in_row.items():
+        offset = 300 - min_y_for_nodes_in_row[x]
+        if offset > 0:
+            for node in nodes:
+                node.location.y += offset
 
 ##### Scenes #####
 
@@ -807,7 +833,7 @@ def object_motion_time_offsets(_object, start_frame_offset, end_frame_offset):
             motion_time_offsets.add(motion_time_candidate_offset)
     return motion_time_offsets
 
-def convert_to_addon_node(node_tree, original_node, context, report):
+def convert_to_addon_node(owner, node_tree, original_node, context, report):
     from octane.nodes.base_node import OctaneBaseNode
     from octane.core.octane_info import OctaneInfoManger
     if isinstance(original_node, OctaneBaseNode):
@@ -830,12 +856,19 @@ def convert_to_addon_node(node_tree, original_node, context, report):
         return None
     addon_node = node_tree.nodes.new(addon_node_name)
     addon_node.load_legacy_node(original_node, node_tree, context, report)
+    if addon_node.bl_idname == "OctaneToonDirectionalLight":
+        light_object = None
+        for _object in bpy.data.objects:
+            if _object.data == owner:
+                light_object = _object
+                break
+        setup_toon_directional_light(node_tree, addon_node, light_object)
     return addon_node
 
-def convert_to_addon_node_tree(node_tree, context, report):
+def convert_to_addon_node_tree(owner, node_tree, context, report):
     node_list = [node for node in node_tree.nodes]
     for original_node in node_list:
-        addon_node = convert_to_addon_node(node_tree, original_node, context, report)
+        addon_node = convert_to_addon_node(owner, node_tree, original_node, context, report)
         if addon_node is not None:
             node_name = original_node.name
             node_location_x, node_location_y = original_node.location
@@ -936,15 +969,15 @@ def time_human_readable_from_seconds(seconds):
 # Matrix
 
 class OctaneMatrixConvertor(object):
-    OCTANE_ROTATION_MATRIX_CONVERTOR = mathutils.Matrix([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0, 0, 0, 1]])
+    OCTANE_MATRIX_CONVERTOR = mathutils.Matrix([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0, 0, 0, 1]])
 
     @staticmethod
     def get_octane_matrix(matrix):
-        return OctaneMatrixConvertor.OCTANE_ROTATION_MATRIX_CONVERTOR @ matrix
+        return OctaneMatrixConvertor.OCTANE_MATRIX_CONVERTOR @ matrix
 
     @staticmethod
     def get_octane_matrix_array(matrix):
-        mat = OctaneMatrixConvertor.OCTANE_ROTATION_MATRIX_CONVERTOR @ matrix
+        mat = OctaneMatrixConvertor.OCTANE_MATRIX_CONVERTOR @ matrix
         array_data = [0] * 12
         array_index = 0
         for i in range(3):
@@ -955,8 +988,7 @@ class OctaneMatrixConvertor(object):
 
     @staticmethod
     def get_octane_direction(matrix):
-        mat = OctaneMatrixConvertor.OCTANE_ROTATION_MATRIX_CONVERTOR @ matrix
-        return (mat.col[2])[:-1]
+        return (matrix.col[2])[:-1]
 
 def transform_direction(matrix, a):
     x = a[0] * matrix[0][0] + a[1] * matrix[0][1] + a[2] * matrix[0][2]
@@ -1005,7 +1037,7 @@ def resolve_octane_generic_geometry_name(obj, scene, is_viewport):
     is_modified = obj.is_modified(scene, "PREVIEW" if is_viewport else "RENDER")
     # modifier_tag = obj_name_full if is_modified else ""
     modifier_tag = obj.data.name_full if is_modified else ""
-    return resolve_octane_name(obj.data, modifier_tag, GEOMETRY_TAG)
+    return resolve_octane_name(obj, modifier_tag, GEOMETRY_TAG)
 
 def resolve_octane_geometry_name(obj, scene, is_viewport):
     generic_geometry_name = resolve_octane_generic_geometry_name(obj, scene, is_viewport)
@@ -1042,3 +1074,31 @@ def resolve_octane_vectron_name(obj):
         if len(octane_data.node_graph_tree) and len(octane_data.osl_geo_node):
             return octane_data.node_graph_tree + octane_data.osl_geo_node
     return ""
+
+def use_octane_coordinate(_object):
+    if _object.type == "MESH":
+        return _object.data.octane.primitive_coordinate_mode == "Octane"
+    return False
+
+def fetch_node_info(node_name):
+    from octane.core.client import OctaneBlender    
+    request_et = ET.Element('fetchNodeInfo')
+    request_et.set("name", node_name)
+    xml_data = ET.tostring(request_et, encoding="unicode")
+    response = OctaneBlender().utils_function(consts.UtilsFunctionType.FETCH_NODE_INFO, xml_data)
+    if len(response):
+        response_et = ET.fromstring(response)
+        result = int(response_et.get("result"))
+        if result:
+            content = response_et.get("content")
+            content_et = ET.fromstring(content)
+            name = content_et.get("name")
+            if name == node_name:
+                return {
+                    "name": name,
+                    "uniqueId": int(content_et.get("uniqueId")),
+                    "attrCount": int(content_et.get("attrCount")),
+                    "staticPinCount": int(content_et.get("staticPinCount")),
+                    "dynPinCount": int(content_et.get("dynPinCount")),
+                }
+    return None

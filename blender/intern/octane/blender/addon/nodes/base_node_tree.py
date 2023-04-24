@@ -472,10 +472,10 @@ class NodeTreeHandler:
             from_node = _input.links[0].from_node
             # Do not convert new add-on style nodes
             if hasattr(from_node, "octane_node_type"):
-                return
+                return False
             # Do not convert legacy octane nodes or group nodes
             if from_node.bl_idname.startswith("ShaderNodeOct") or from_node.bl_idname == "ShaderNodeGroup":
-                return
+                return False
             octane_node = node_tree.nodes.new(octane_node_type)
             octane_node.location = from_node.location
             octane_output_socket = None
@@ -486,6 +486,8 @@ class NodeTreeHandler:
             final_output_node = new_output_node if new_output_node is not None else output_node
             node_tree.links.new(octane_output_socket, final_output_node.inputs[new_socket_name])
             node_tree.nodes.remove(from_node)
+            return True
+        return False
 
     @staticmethod
     def _is_blender_default_material(node_tree):
@@ -603,10 +605,7 @@ class NodeTreeHandler:
                         elif light_data.type == "SUN":
                             NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneToonDirectionalLight")
                             light_node = node_tree.nodes["Toon directional light"]
-                            object_data_node = node_tree.nodes.new("OctaneObjectData")    
-                            object_data_node.source_type = "Object"
-                            object_data_node.object_ptr = active_object
-                            node_tree.links.new(object_data_node.outputs[object_data_node.ROTATION_OUT], light_node.inputs["Light direction"])                        
+                            utility.setup_toon_directional_light(node_tree, light_node, active_object)                            
                         elif light_data.type == "SPOT":
                             NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneVolumetricSpotlight")
                             light_data.spot_blend = 0
@@ -616,11 +615,11 @@ class NodeTreeHandler:
                             material_node = node_tree.nodes["Diffuse material"]
                             emission_node = node_tree.nodes.new("OctaneTextureEmission")
                             node_tree.links.new(emission_node.outputs[0], material_node.inputs["Emission"])
-                    utility.beautifier_nodetree_layout(light_data)
+                        utility.beautifier_nodetree_layout(light_data)
         NodeTreeHandler.light_node_tree_count = current_light_node_tree_count
 
     @staticmethod
-    def blender_internal_node_tree_update_handler(scene, depsgraph, last_op_bl_idname=None):        
+    def blender_internal_node_tree_update_handler(scene, depsgraph, last_op_bl_idname=None):
         NodeTreeHandler.on_material_new(scene, last_op_bl_idname)
         NodeTreeHandler.on_world_new(scene, last_op_bl_idname)
         NodeTreeHandler.on_light_new(scene, last_op_bl_idname)
@@ -657,6 +656,12 @@ class NodeTreeHandler:
         if scene.world and scene.world.use_nodes and not is_active_world_updated:
             OctaneBaseNodeTree.update_link_validity(scene.world.node_tree, scene.world, last_op_bl_idname)
 
+    @staticmethod
+    def update_node_tree_count(scene):
+        NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
+        NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
+        NodeTreeHandler.light_node_tree_count = NodeTreeHandler.get_light_node_tree_count(scene)
+
 @persistent
 def octane_load_post_handler(scene):
     if scene is None:
@@ -669,11 +674,9 @@ def node_tree_update_handler(scene):
     if scene is None:
         scene = bpy.context.scene
     if scene.render.engine != consts.ENGINE_NAME:
-        NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
-        NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
-        NodeTreeHandler.light_node_tree_count = NodeTreeHandler.get_light_node_tree_count(scene)        
+        NodeTreeHandler.update_node_tree_count(scene)
         return
-    depsgraph = bpy.context.evaluated_depsgraph_get()        
+    depsgraph = bpy.context.evaluated_depsgraph_get()
     NodeTreeHandler.blender_internal_node_tree_update_handler(scene, depsgraph, last_op_bl_idname)
 
 

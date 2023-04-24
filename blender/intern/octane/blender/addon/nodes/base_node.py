@@ -247,9 +247,9 @@ class OctaneBaseNode(object):
                     default_value = socket.rna_type.properties["default_value"].enum_items[default_value].value
                 if is_advanced_pin:
                     if socket.is_octane_proxy_pin():
-                        pass
+                        octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_INDEX, socket.octane_proxy_link_index, socket.name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
                     elif socket.is_octane_osl_pin():
-                        octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_NAME, socket_idx, socket.osl_pin_name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
+                        self.__class__.set_osl_pin(octane_node, socket_idx, socket.osl_pin_name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
                     elif socket.is_octane_dynamic_pin():
                         octane_node.node.set_pin(consts.OctaneDataBlockSymbolType.PIN_DYNAMIC, socket.generate_octane_pin_index(), socket.name, socket.octane_socket_type, socket.octane_pin_type, socket.octane_default_node_type, data_socket.is_linked, link_node_name, default_value)
                 else:
@@ -556,7 +556,7 @@ class OctaneBaseNode(object):
     def update_node_tree(self, context):
         node_tree = self.id_data
         if node_tree:
-            if node_tree.type == "SHADER":
+            if node_tree.type in ("SHADER", "TEXTURE"):
                 if context is None:
                     context = bpy.context
                 node_tree.interface_update(context)

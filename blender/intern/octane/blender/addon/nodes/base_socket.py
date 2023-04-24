@@ -85,7 +85,7 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
     def update_node_tree(self, context):        
         node_tree = self.node.id_data
         if node_tree:
-            if node_tree.type == "SHADER":                
+            if node_tree.type in ("SHADER", "TEXTURE"):
                 node_tree.interface_update(context)
                 node_tree.update_tag()                
             else:

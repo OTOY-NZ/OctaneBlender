@@ -9,6 +9,74 @@ from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
+shader_osl_code_view_vector = """
+shader OctaneBlender_CameraData_ViewVector(
+    output color c = 0
+)
+{
+    c = normalize(I);
+}
+"""
+
+shader_osl_code_view_distance = """
+shader OctaneBlender_CameraData_ViewDistance(
+    float dmax = 100[[float min=0.0010, float max=100000.0, float sliderexponent=4]],
+    output color c = 0
+)
+{
+    point pCam = transform("common", "camera", P);
+    float len = length(pCam) / dmax;
+    c = color(len, len, len);
+}
+"""
+
+shader_osl_code_zdepth = """
+shader OctaneBlender_CameraData_ZDepth(
+    float dmax = 10[[float min=0.0010, float max=100000.0, float sliderexponent=4]],
+    output color c = 0)
+{
+    point pCam = transform("common", "camera", P);
+    c = -pCam[2] / dmax;
+}
+"""
+
+shader_osl_code_front_projection = """
+shader OctaneBlender_CameraData_FrontProjection(
+  int env_mode = 0[[string label = "Environment Mode",string widget = "boolean"]],
+  int blender_camera_mode = 0[[string label = "Blender Camera Mode",string widget = "boolean"]],
+  float blender_camera_center_x = 0[[string label = "Center X",string widget = "float"]],
+  float blender_camera_center_y = 0[[string label = "Center Y",string widget = "float"]],
+  int blender_camera_region_x = 0[[string label = "Region Width",string widget = "int"]],
+  int blender_camera_region_y = 0[[string label = "Region Height",string widget = "int"]],
+  output point uvw = 0)
+{
+    float fov;
+    int res[2];
+    getattribute("camera:fov", fov);
+    getattribute("camera:resolution", res);
+    if (env_mode) {
+        vector p = transform("camera", I);
+        if (blender_camera_mode) {
+            uvw[0] = blender_camera_center_x + 0.5 * p[0] / p[2] / tan(fov / 2) * res[0] / blender_camera_region_x;
+            uvw[1] = blender_camera_center_y - 0.5 * p[1] / p[2] / tan(fov / 2) * res[0] / blender_camera_region_y;
+        } else {            
+            uvw[0] = 0.5 + 0.5 * p[0] / p[2] / tan(fov / 2) ;
+            uvw[1] = 0.5 - 0.5 * p[1] / p[2] / tan(fov / 2) * res[0] / res[1];
+        }
+    } else {
+        vector p = transform("camera", P);
+        if (blender_camera_mode) {
+            uvw[0] = blender_camera_center_x - 0.5 * p[0] / p[2] / tan(fov / 2) * res[0] / blender_camera_region_x;
+            uvw[1] = blender_camera_center_y - 0.5 * p[1] / p[2] / tan(fov / 2) * res[0] / blender_camera_region_y;
+        } else {
+            uvw[0] = 0.5 - 0.5 * p[0] / p[2] / tan(fov / 2) ;
+            uvw[1] = 0.5 - 0.5 * p[1] / p[2] / tan(fov / 2) * res[0] / res[1];
+        }
+    }
+}
+"""
+
+
 class OctaneCameraData(bpy.types.Node, OctaneBaseNode):
     VIEW_VECTOR_OUT = "View Vector"
     VIEW_Z_DEPTH_OUT = "View Z Depth"
@@ -52,17 +120,44 @@ class OctaneCameraData(bpy.types.Node, OctaneBaseNode):
         self.outputs.new("OctaneProjectionOutSocket", self.FRONT_PROJECTION_OUT).init()
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
-        import os
-        super().sync_custom_data(octane_node, octane_graph_node_data, depsgraph)
-        cur_dir_path = os.path.dirname(os.path.abspath(__file__))
-        lib_path = os.path.join(cur_dir_path, self.CAMERA_DATA_ORBX_REL_PATH)
-        self.CAMERA_DATA_ORBX_ABS_PATH = os.path.realpath(bpy.path.abspath(lib_path))
-        octane_node.set_attribute_blender_name(self.CAMERA_DATA_ORBX_PATH_NAME, consts.AttributeType.AT_STRING, self.CAMERA_DATA_ORBX_ABS_PATH)
-        octane_node.set_attribute_blender_name(self.MAX_Z_DEPTH, consts.AttributeType.AT_FLOAT, self.max_z_depth)
-        octane_node.set_attribute_blender_name(self.MAX_DISTANCE, consts.AttributeType.AT_FLOAT, self.max_distance)
-        octane_node.set_attribute_blender_name(self.KEEP_FRONT_PROJECTION, consts.AttributeType.AT_BOOL, self.keep_front_projection)
-        octane_node.set_attribute_blender_name(self.USED_IN_ENVIRONMENT, consts.AttributeType.AT_BOOL, owner_type == consts.OctaneNodeTreeIDName.WORLD)       
-        
+        from octane.nodes.base_osl import OctaneScriptNode
+        octane_node.clear_all_subnodes()
+        octane_name = octane_node.name
+        if octane_name.endswith(self.VIEW_VECTOR_OUT):
+            subnode_name = octane_name
+            subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_TEX_OSL)
+            subnode.set_attribute_id(consts.AttributeID.A_RELOAD, True)
+            subnode.set_attribute_id(consts.AttributeID.A_SHADER_CODE, shader_osl_code_view_vector)
+        elif octane_name.endswith(self.VIEW_DISTANCE_OUT):
+            subnode_name = octane_name
+            subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_TEX_OSL)
+            subnode.set_attribute_id(consts.AttributeID.A_RELOAD, True)
+            subnode.set_attribute_id(consts.AttributeID.A_SHADER_CODE, shader_osl_code_view_distance)
+            OctaneScriptNode.set_osl_pin(subnode, 0, "dmax", consts.SocketType.ST_FLOAT, consts.PinType.PT_FLOAT, consts.NodeType.NT_FLOAT, False, "", self.max_distance)
+        elif octane_name.endswith(self.VIEW_Z_DEPTH_OUT):
+            subnode_name = octane_name
+            subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_TEX_OSL)
+            subnode.set_attribute_id(consts.AttributeID.A_RELOAD, True)
+            subnode.set_attribute_id(consts.AttributeID.A_SHADER_CODE, shader_osl_code_zdepth)
+            OctaneScriptNode.set_osl_pin(subnode, 0, "dmax", consts.SocketType.ST_FLOAT, consts.PinType.PT_FLOAT, consts.NodeType.NT_FLOAT, False, "", self.max_z_depth)
+        elif octane_name.endswith(self.FRONT_PROJECTION_OUT):
+            subnode_name = octane_name
+            if self.keep_front_projection:
+                subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_PROJ_OSL)
+                subnode.set_attribute_id(consts.AttributeID.A_RELOAD, True)
+                subnode.set_attribute_id(consts.AttributeID.A_SHADER_CODE, shader_osl_code_front_projection)
+                is_environment_node = (getattr(octane_graph_node_data, "owner_type", consts.OctaneNodeTreeIDName.MATERIAL) == consts.OctaneNodeTreeIDName.WORLD)
+                OctaneScriptNode.set_osl_pin(subnode, 0, "env_mode", consts.SocketType.ST_BOOL, consts.PinType.PT_BOOL, consts.NodeType.NT_BOOL, False, "", is_environment_node)
+                OctaneScriptNode.set_osl_pin(subnode, 1, "blender_camera_mode", consts.SocketType.ST_BOOL, consts.PinType.PT_BOOL, consts.NodeType.NT_BOOL, True, consts.OCTANE_BLENDER_CAMERA_MODE, False)
+                OctaneScriptNode.set_osl_pin(subnode, 2, "blender_camera_center_x", consts.SocketType.ST_FLOAT, consts.PinType.PT_FLOAT, consts.NodeType.NT_FLOAT, True, consts.OCTANE_BLENDER_CAMERA_CENTER_X, 0)
+                OctaneScriptNode.set_osl_pin(subnode, 3, "blender_camera_center_y", consts.SocketType.ST_FLOAT, consts.PinType.PT_FLOAT, consts.NodeType.NT_FLOAT, True, consts.OCTANE_BLENDER_CAMERA_CENTER_Y, 0)
+                OctaneScriptNode.set_osl_pin(subnode, 4, "blender_camera_region_x", consts.SocketType.ST_INT, consts.PinType.PT_INT, consts.NodeType.NT_INT, True, consts.OCTANE_BLENDER_CAMERA_REGION_WIDTH, 0)
+                OctaneScriptNode.set_osl_pin(subnode, 5, "blender_camera_region_y", consts.SocketType.ST_INT, consts.PinType.PT_INT, consts.NodeType.NT_INT, True, consts.OCTANE_BLENDER_CAMERA_REGION_HEIGHT, 0)
+            else:
+                subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_PROJ_PERSPECTIVE)
+                subnode.set_pin_id(consts.PinID.P_POSITION_TYPE, False, "", 1) # World space
+                subnode.set_pin_id(consts.PinID.P_TRANSFORM, True, consts.OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM, "")
+
     def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
         if legacy_node.inputs["Max Z-Depth"].is_linked:
             report({"WARNING"}, "Outer links of the 'Max Z-Depth' socket are not supported in the Addon CameraData node anymore. So the link of the 'Max Z-Depth' socket in Node %s is discarded" % (legacy_node.name))

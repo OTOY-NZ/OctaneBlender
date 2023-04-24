@@ -163,6 +163,12 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
     if (!mesh) {
       continue;
     }
+    if (!mesh) {
+      continue;
+    }
+    else if (!mesh->need_update) {
+      mesh->need_update = false;
+    }
     else if (mesh->is_volume()) {
       volume_collections.emplace_back(mesh);
     }
@@ -181,6 +187,7 @@ void MeshManager::server_update_mesh(::OctaneEngine::OctaneClient *server,
     std::vector<OctaneDataTransferObject::OctaneMeshes> octaneLocalMeshesList;
     size_t local_mesh_index = 0;
     for (auto mesh : local_mesh_collections) {
+      // fprintf(stderr, "Octane: Loading Meshes to render-server: %s\n", mesh->nice_name.c_str());
       progress.set_status("Loading Meshes to render-server", mesh->nice_name.c_str());
       for (size_t n = 0; n < mesh->used_shaders.size(); ++n) {
         mesh->octane_mesh.sShaderNames.push_back(mesh->used_shaders[n]->name);

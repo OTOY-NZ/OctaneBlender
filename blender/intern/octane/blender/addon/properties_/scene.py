@@ -1126,6 +1126,14 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
 # ################################################################################################
 # OCTANE COMMON
 # ################################################################################################
+    octane_task_progress: FloatProperty(
+        name="Octane Task Progress",
+        description="Octane task is running now, you can use 'ESC' to cancel it. \nThis value is used for displaying the task progress so please do not modify this value manually",
+        default=0.0,                
+        precision=0,
+        min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
+        subtype='PERCENTAGE',
+    )
     viewport_hide: BoolProperty(
         name="Viewport hide priority",
         description="Hide from final render objects hidden in viewport",
@@ -1981,6 +1989,54 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
     @classmethod
     def unregister(cls):
         pass
+
+
+class OctaneProgressWidget(object):
+    visibility = False
+    task_text = ""
+
+    @staticmethod
+    def update(context):
+        # Trick to update the statusbar 
+        statusbar_info = context.screen.statusbar_info()
+        context.workspace.status_text_set_internal(statusbar_info)
+
+    @staticmethod
+    def draw(self, context):
+        if OctaneProgressWidget.get_progress(context) < 100:
+            self.layout.prop(context.scene.octane, "octane_task_progress", text=OctaneProgressWidget.task_text)
+        else:
+            OctaneProgressWidget.hide()
+
+    @staticmethod
+    def set_task_text(context, text):
+        OctaneProgressWidget.task_text = text
+
+    @staticmethod
+    def set_progress(context, value):
+        if OctaneProgressWidget.visibility:
+            value = float("{:.2f}".format(value))
+            context.scene.octane.octane_task_progress = value
+
+    @staticmethod
+    def get_progress(context):
+        if OctaneProgressWidget.visibility:
+            return context.scene.octane.octane_task_progress
+        else:
+            return 0
+
+    @staticmethod
+    def show(context):    
+        if not OctaneProgressWidget.visibility:
+            bpy.types.STATUSBAR_HT_header.append(OctaneProgressWidget.draw)
+            OctaneProgressWidget.visibility = True
+            OctaneProgressWidget.set_progress(context, 0)
+
+    @staticmethod
+    def hide():    
+        bpy.types.STATUSBAR_HT_header.remove(OctaneProgressWidget.draw)
+        OctaneProgressWidget.visibility = False
+        OctaneProgressWidget.task_text = ""
 
 
 _CLASSES = [

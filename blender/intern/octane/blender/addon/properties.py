@@ -517,7 +517,7 @@ class OctanePreferences(bpy.types.AddonPreferences):
             row.active = OctaneBlender().is_shared_surface_supported()
             row.prop(self, "use_shared_surface")
             if not row.active:
-                box.row().label("Shared surface is not supported")
+                box.row().label(text="Shared surface is not supported")
             return
         layout = self.layout
         layout.row().prop(self, "octane_server_address", expand=False) 
@@ -528,13 +528,13 @@ class OctanePreferences(bpy.types.AddonPreferences):
         layout.row().prop(self, "default_material_id", expand=False)
         layout.row().prop(self, "default_texture_node_layout_id", expand=False)
         layout.row().prop(self, "use_new_addon_nodes", expand=False)
-        box = layout.box()
-        box.label(text="Viewport Rendering")
-        row = box.row()
-        row.active = OctaneBlender().is_shared_surface_supported()
-        row.prop(self, "use_shared_surface")
-        if not row.active:
-            box.row().label("Shared surface is not supported")
+        # box = layout.box()
+        # box.label(text="Viewport Rendering")
+        # row = box.row()
+        # row.active = OctaneBlender().is_shared_surface_supported()
+        # row.prop(self, "use_shared_surface")
+        # if not row.active:
+        #     box.row().label(text="Shared surface is not supported")
         box = layout.box()
         box.label(text="Octane Color Management")
         box.row().prop(self, "ocio_use_other_config_file")

@@ -150,6 +150,10 @@ class BlenderCamera(object):
         self.use_border = False
         self.matrix = mathutils.Matrix()
         self.camera_from_object = False
+        self.octane_fov = 0
+        self.octane_position = None
+        self.octane_up = None
+        self.octane_target = None        
 
     def init(self, scene):
         self.type = BlenderCameraType.PERSPECTIVE
@@ -983,7 +987,7 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         else:
             fov = 2.0 * math.atan(0.5 * blender_camera.sensor_size * blender_camera.zoom / blender_camera.lens) * 180.0 / math.pi
             lens_shift_x = (blender_camera.shift[0] * x_aspect_ratio + offset[0] * 2.0) / blender_camera.zoom
-            lens_shift_y = (blender_camera.shift[1] * y_aspect_ratio + offset[1] * 2.0) / blender_camera.zoom        
+            lens_shift_y = (blender_camera.shift[1] * y_aspect_ratio + offset[1] * 2.0) / blender_camera.zoom                
         # Panoramic camera
         fov_x = getattr(self, "fov_x", 360.0)
         fov_y = getattr(self, "fov_y", 180.0)
@@ -991,8 +995,10 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         if camera_node_type == consts.NodeType.NT_CAM_THINLENS:
             if blender_camera.type == BlenderCameraType.ORTHOGRAPHIC:
                 camera_node.set_pin_id(consts.PinID.P_SCALE, False, "", scale)
+                blender_camera.octane_fov = scale
             else:
-                camera_node.set_pin_id(consts.PinID.P_FOV, False, "", fov)                
+                camera_node.set_pin_id(consts.PinID.P_FOV, False, "", fov)
+                blender_camera.octane_fov = fov
             camera_node.set_pin_id(consts.PinID.P_LENS_SHIFT, False, "", (lens_shift_x, lens_shift_y))
             camera_node.set_pin_id(consts.PinID.P_DISTORTION, False, "", distortion)
             camera_node.set_pin_id(consts.PinID.P_PERSPECTIVE_CORRECTION, False, "", perspective_correction)
@@ -1093,12 +1099,6 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         camera_node.positions = {0: position_vector}
         camera_node.targets = {0: target_vector}
         camera_node.ups = {0: up_vector}
-        # camera_position_node = octane_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_POSITION, consts.NodeType.NT_FLOAT)
-        # camera_target_node = octane_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_TARGET, consts.NodeType.NT_FLOAT)
-        # camera_up_node = octane_node.get_subnode(consts.OctanePresetNodeNames.CAMERA_UP, consts.NodeType.NT_FLOAT)
-        # camera_position_node.set_attribute_id(consts.AttributeID.A_VALUE, position_vector)
-        # camera_target_node.set_attribute_id(consts.AttributeID.A_VALUE, target_vector)
-        # camera_up_node.set_attribute_id(consts.AttributeID.A_VALUE, up_vector)
         camera_node.set_pin_id(consts.PinID.P_POSITION, False, consts.OctanePresetNodeNames.CAMERA_POSITION, position_vector)
         if camera_node_type != consts.NodeType.NT_CAM_BAKING:
             camera_node.set_pin_id(consts.PinID.P_TARGET, False, consts.OctanePresetNodeNames.CAMERA_TARGET, target_vector)
@@ -1106,6 +1106,9 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         if camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
             keep_upright = getattr(self, "keep_upright", False)
             camera_node.set_pin_id(consts.PinID.P_KEEP_UPRIGHT, False, "", keep_upright)
+        blender_camera.octane_position = position_vector
+        blender_camera.octane_target = target_vector
+        blender_camera.octane_up = up_vector
 
     def sync_octane_camera_clipping(self, blender_camera, octane_node, camera_node):
         camera_node.set_pin_id(consts.PinID.P_NEAR_CLIP_DEPTH, False, "", blender_camera.near_clip)
@@ -1251,6 +1254,30 @@ class OctaneBaseCameraSettings(common.OctanePropertySettings):
         # Universal camera properties
         if camera_node_type == consts.NodeType.NT_CAM_UNIVERSAL:
             self.sync_octane_universal_camera_properties(blender_camera, octane_node, camera_node)
+        # Camera Data Node properties
+        subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_MODE, consts.NodeType.NT_BOOL)
+        subnode.set_attribute_id(consts.AttributeID.A_VALUE, blender_camera.camera_from_object and is_viewport)
+        subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_CENTER_X, consts.NodeType.NT_FLOAT)
+        subnode.set_attribute_id(consts.AttributeID.A_VALUE, (0.5, 0, 0))
+        subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_CENTER_Y, consts.NodeType.NT_FLOAT)
+        subnode.set_attribute_id(consts.AttributeID.A_VALUE, (0.5, 0, 0))
+        subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_REGION_WIDTH, consts.NodeType.NT_INT)
+        subnode.set_attribute_id(consts.AttributeID.A_VALUE, (width, 0, 0))
+        subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_CAMERA_REGION_HEIGHT, consts.NodeType.NT_INT)
+        subnode.set_attribute_id(consts.AttributeID.A_VALUE, (height, 0, 0))
+        if blender_camera.octane_position is not None and blender_camera.octane_target is not None and blender_camera.octane_up is not None:
+            up = blender_camera.octane_up.normalized()
+            z = blender_camera.octane_target - blender_camera.octane_position
+            z = z.normalized()
+            x = up.cross(z)
+            x = x.normalized()
+            y = z.cross(x)
+            y = y.normalized()
+            w = math.tan(blender_camera.octane_fov * math.pi / 360.0)
+            h = w * height / width
+            matrix = mathutils.Matrix([[x[0] * -w, y[0] * h, z[0], blender_camera.octane_position[0]], [x[1] * -w, y[1] * h, z[1], blender_camera.octane_position[1]], [x[2], y[2], z[2], blender_camera.octane_position[2]], [0, 0, 0, 1]])
+            subnode = octane_node.get_subnode(consts.OCTANE_BLENDER_STATIC_FRONT_PROJECTION_TRANSFORM, consts.NodeType.NT_TRANSFORM_VALUE)
+            subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
 
     def sync_view(self, octane_node, scene, region, v3d, rv3d):
         blender_camera = BlenderCamera()

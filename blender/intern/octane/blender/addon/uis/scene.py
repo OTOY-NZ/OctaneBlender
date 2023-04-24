@@ -242,10 +242,10 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             col = box.column(align=True)       
             draw_toon_shadow_ambient()
 
-            box = layout.box()
-            box.label(text="Compatibility settings")            
-            col = box.column(align=True)                  
-            draw_emulate_old_volume_behavior()                       
+            # box = layout.box()
+            # box.label(text="Compatibility settings")            
+            # col = box.column(align=True)                  
+            # draw_emulate_old_volume_behavior()                       
         elif oct_scene.kernel_type == '2':
             # Path tracing kernel
             col = layout.column(align=True)
@@ -305,10 +305,10 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             col = box.column(align=True)       
             draw_toon_shadow_ambient()
 
-            box = layout.box()
-            box.label(text="Compatibility settings")            
-            col = box.column(align=True)                  
-            draw_emulate_old_volume_behavior()            
+            # box = layout.box()
+            # box.label(text="Compatibility settings")            
+            # col = box.column(align=True)                  
+            # draw_emulate_old_volume_behavior()            
         elif oct_scene.kernel_type == '3':
             # PMC kernel
             col = layout.column(align=True)
@@ -358,10 +358,10 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             col = box.column(align=True)       
             draw_toon_shadow_ambient()
 
-            box = layout.box()
-            box.label(text="Compatibility settings")            
-            col = box.column(align=True)                  
-            draw_emulate_old_volume_behavior()            
+            # box = layout.box()
+            # box.label(text="Compatibility settings")            
+            # col = box.column(align=True)                  
+            # draw_emulate_old_volume_behavior()            
         elif oct_scene.kernel_type == '4':
             # Info channels kernel
             box = layout.box()
@@ -467,10 +467,10 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
             col = box.column(align=True)       
             draw_toon_shadow_ambient()
 
-            box = layout.box()
-            box.label(text="Compatibility settings")            
-            col = box.column(align=True)                  
-            draw_emulate_old_volume_behavior()
+            # box = layout.box()
+            # box.label(text="Compatibility settings")            
+            # col = box.column(align=True)                  
+            # draw_emulate_old_volume_behavior()
         else:
             pass
 
@@ -1051,6 +1051,35 @@ class OCTANE_RENDER_PT_override(common.OctanePropertyPanel, Panel):
         layout.prop(view_layer, "material_override")
 
 
+class OCTANE_VIEW3D_MT_presets_object_menu(bpy.types.Menu):
+    bl_label = "Octane Preset"
+
+    @classmethod
+    def poll(cls, context):
+        rd = context.scene.render
+        return rd.engine == "octane"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("octane.quick_add_octane_vectron", text="Vectron®")
+        layout.operator("octane.quick_add_octane_box", text="Box")
+        layout.operator("octane.quick_add_octane_capsule", text="Capsule")
+        layout.operator("octane.quick_add_octane_cylinder", text="Cylinder")
+        layout.operator("octane.quick_add_octane_prism", text="Prism")
+        layout.operator("octane.quick_add_octane_sphere", text="Sphere")
+        layout.operator("octane.quick_add_octane_torus", text="Torus")
+        layout.operator("octane.quick_add_octane_tube", text="Tube")
+
+
+def octane_presets_object_menu(self, context):
+    rd = context.scene.render
+    if rd.engine != "octane":
+        return
+    layout = self.layout
+    layout.separator()
+    layout.menu("OCTANE_VIEW3D_MT_presets_object_menu", text="Octane Presets")
+
+
 _CLASSES = [
     OCTANE_MT_kernel_presets,
     OCTANE_RENDER_PT_kernel,
@@ -1071,13 +1100,16 @@ _CLASSES = [
     OCTANE_RENDER_PT_passes_material,
     OCTANE_RENDER_PT_AOV_Output_node_graph,
     OCTANE_RENDER_PT_override,
+    OCTANE_VIEW3D_MT_presets_object_menu,
 ]
 
 
 def register(): 
     for cls in _CLASSES:
         register_class(cls)
+    bpy.types.VIEW3D_MT_add.append(octane_presets_object_menu)
 
 def unregister():
     for cls in _CLASSES:
         unregister_class(cls)
+    bpy.types.VIEW3D_MT_add.remove(octane_presets_object_menu)

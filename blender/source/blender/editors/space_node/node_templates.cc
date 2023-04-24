@@ -637,21 +637,25 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   for (int j = 0; j < sorted_ntypes.size(); j++) {
     bNodeType *ntype = sorted_ntypes[j];
 
-    if (!ELEM(ntype->nclass,
-              NODE_CLASS_OCT_SHADER,
-              NODE_CLASS_OCT_TEXTURE,
-              NODE_CLASS_OCT_MEDIUM,
-              NODE_CLASS_OCT_EMISSION,
-              NODE_CLASS_OCT_TRANSFORM,
-              NODE_CLASS_OCT_PROJECTION,
-              NODE_CLASS_OCT_VALUE,
-              NODE_CLASS_OCT_CAMERA,
-              NODE_CLASS_OCT_GEOMETRY,
-              NODE_CLASS_OCT_ROUNDEDGES,
-              NODE_CLASS_OCT_LAYER,
-              NODE_CLASS_OCT_ENVIRONMENT,
-              NODE_CLASS_OCT_COMPOSITE,
-              NODE_CLASS_GROUP)) {
+    bool is_octane_class = ELEM(ntype->nclass,
+                                NODE_CLASS_OCT_SHADER,
+                                NODE_CLASS_OCT_TEXTURE,
+                                NODE_CLASS_OCT_MEDIUM,
+                                NODE_CLASS_OCT_EMISSION,
+                                NODE_CLASS_OCT_TRANSFORM,
+                                NODE_CLASS_OCT_PROJECTION,
+                                NODE_CLASS_OCT_VALUE,
+                                NODE_CLASS_OCT_CAMERA,
+                                NODE_CLASS_OCT_GEOMETRY,
+                                NODE_CLASS_OCT_ROUNDEDGES,
+                                NODE_CLASS_OCT_LAYER,
+                                NODE_CLASS_OCT_ENVIRONMENT,
+                                NODE_CLASS_OCT_COMPOSITE,
+                                NODE_CLASS_GROUP);
+
+    bool is_compatible = (is_octane_class && is_octane_scene) ||
+                         (!is_octane_class && !is_octane_scene);
+    if (!is_compatible) {
       continue;
     }
 

@@ -135,7 +135,7 @@ class Session {
   Session(const SessionParams &params, const char *_out_path, const char *_cache_path);
   ~Session();
 
-  bool is_export_mode();
+  bool is_export_mode() const;
 
   void wait();
 

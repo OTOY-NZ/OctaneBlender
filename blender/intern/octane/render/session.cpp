@@ -385,7 +385,7 @@ void Session::set_pause(bool pause_)
     pause_cond.notify_all();
 }  // set_pause()
 
-bool Session::is_export_mode()
+bool Session::is_export_mode() const
 {
   return params.export_type != ::OctaneEngine::SceneExportTypes::NONE;
 }

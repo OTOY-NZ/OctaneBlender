@@ -159,7 +159,8 @@ class OctaneGradientMapGradientInterpolationType_Override(OctaneGradientMapGradi
 
 class OctaneGradientMap_Override(OctaneGradientMap):
     bl_width_default = 300
-    MAX_VALUE_SOCKET = 16
+    MAX_VALUE_SOCKET = 64
+    MAX_POSITION_SOCKET = 64
 
     def init(self, context):
         super().init(context)        

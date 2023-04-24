@@ -21,7 +21,6 @@ CONVERTERS_NODE_MAPPER = {
             "Sheen": "Sheen",
             "Clearcoat": "Coating",
             "Clearcoat Roughness": "Coating roughness",
-            "Transmission": "Transmission",
             "IOR": "Dielectric IOR",
             "Emission": "Emission",
             "Alpha": "Opacity",
@@ -224,15 +223,20 @@ def convert_to_octane_node(cur_node, cur_node_tree, octane_node_tree):
         if len(CONVERTERS_NODE_MAPPER[cur_node.type]) > 2:
             CONVERTERS_NODE_MAPPER[cur_node.type][2](cur_node, octane_node)
     # Special cases
+    if octane_node and cur_node.type == "BSDF_PRINCIPLED" and octane_node.bl_idname == "OctaneUniversalMaterial":
+        if cur_node.inputs["Transmission"].default_value != 0.0 and len(cur_node.inputs["Transmission"].links) == 0:
+            octane_greyscale_color_node = octane_node_tree.nodes.new("OctaneGreyscaleColor")
+            octane_greyscale_color_node.a_value = cur_node.inputs["Transmission"].default_value
+            octane_node_tree.links.new(octane_greyscale_color_node.outputs[0], octane_node.inputs["Transmission"])
     if octane_node and cur_node.type == "TEX_IMAGE" and octane_node.bl_idname in ("OctaneRGBImage", "OctaneGreyscaleImage"):
         if cur_node.image:
             if cur_node.image.colorspace_settings.name in ("sRGB", "Filmic sRGB"):
                 octane_node.inputs["Legacy gamma"].default_value = 2.2
             else:
-                octane_node.inputs["Legacy gamma"].default_value = 1.0
+                octane_node.inputs["Legacy gamma"].default_value = 1.0    
     return octane_node
 
-def convert_to_octane_material(cur_material, converted_material):
+def _convert_to_octane_material(cur_material, converted_material):
     if not cur_material or not cur_material.node_tree:
         return False
     if not converted_material or not converted_material.node_tree:
@@ -251,6 +255,10 @@ def convert_to_octane_material(cur_material, converted_material):
             if octane_material_node.bl_idname == "OctaneUniversalMaterial":
                 # Specular
                 octane_material_node.inputs["Specular"].default_value *= 2
+                if len(octane_material_node.inputs["Specular"].links) > 0:
+                    specular_input_node = octane_material_node.inputs["Specular"].links[0].from_node
+                    if specular_input_node.bl_idname in ("OctaneRGBImage", "OctaneGreyscaleImage"):
+                        specular_input_node.inputs["Power"].default_value *= 2
                 # Emission
                 if octane_material_node.inputs["Emission"].is_linked:
                     from_node = octane_material_node.inputs["Emission"].links[0].from_node
@@ -275,9 +283,26 @@ def convert_to_octane_material(cur_material, converted_material):
         return True
     return False
 
-def convert_all_related_material(cur_material, converted_material):
-    for obj in bpy.data.objects:
-        if getattr(obj, "material_slots", None):
-            for idx in range(len(obj.material_slots)):
-                if obj.material_slots[idx].material == cur_material:
-                    obj.material_slots[idx].material = converted_material
+
+def convert_to_octane_material(cur_obj, cur_material_index):
+    if not hasattr(cur_obj, "material_slots") or len(cur_obj.material_slots) == 0:
+        return False
+    cur_material = getattr(cur_obj.material_slots[cur_material_index], "material", None)
+    if not is_converter_applicable(cur_material):
+        return False
+    converted_material = cur_material.copy()
+    result = _convert_to_octane_material(cur_material, converted_material)
+    if result:
+        if len(cur_obj.material_slots) < 1:
+            cur_obj.data.materials.append(converted_material)
+        else:                    
+            cur_obj.material_slots[cur_material_index].material = converted_material
+        cur_obj.material_slots[cur_material_index].material = converted_material
+        for _object in bpy.data.objects:
+            if getattr(_object, "material_slots", None):
+                for idx in range(len(_object.material_slots)):
+                    if _object.material_slots[idx].material == cur_material:
+                        _object.material_slots[idx].material = converted_material
+    else:
+        bpy.data.materials.remove(converted_material)
+    return result

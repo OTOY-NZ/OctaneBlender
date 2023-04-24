@@ -89,12 +89,16 @@ static void add_face(Mesh *mesh,
 }
 
 static void create_curve_hair(Scene *scene,
+                              BL::Depsgraph &b_depsgraph,
                               BL::Object &b_ob,
                               Mesh *mesh,
                               PointerRNA &oct_mesh,
-                              const std::vector<Shader *> &used_shaders)
+                              const std::vector<Shader *> &used_shaders,                              
+                              bool motion,
+                              float motion_time)
 {
-  BL::Curve b_curve = BL::Curve(b_ob.data());
+  // BL::Curve b_curve = BL::Curve(b_ob.data());
+  BL::Curve b_curve = b_ob.to_curve(b_depsgraph, true);
   int hair_num = b_curve.splines.length();
   if (hair_num == 0) {
     mesh->octane_mesh.oMeshData.Clear();
@@ -104,54 +108,101 @@ static void create_curve_hair(Scene *scene,
   }
   float root_width = get_float(oct_mesh, "hair_root_width");
   float tip_width = get_float(oct_mesh, "hair_tip_width");
-  mesh->empty = false;
-  mesh->octane_mesh.oMeshData.iSamplesNum = 1;
-  mesh->octane_mesh.oMeshData.f3HairPoints.clear();
-  mesh->octane_mesh.oMeshData.iVertexPerHair.clear();
-  mesh->octane_mesh.oMeshData.fHairThickness.clear();
-  mesh->octane_mesh.oMeshData.iHairMaterialIndices.clear();
+  if (!motion) {
+    mesh->empty = false;
+    mesh->octane_mesh.oMeshData.iSamplesNum = 1;
+    mesh->octane_mesh.oMeshData.f3HairPoints.clear();
+    mesh->octane_mesh.oMeshData.iVertexPerHair.clear();
+    mesh->octane_mesh.oMeshData.fHairThickness.clear();
+    mesh->octane_mesh.oMeshData.iHairMaterialIndices.clear();
+  }
+  else {
+    mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time].clear();
+  }
   ::Curve *curve = (::Curve *)b_curve.ptr.data;
   if (curve && curve->curve_eval) {
     Curves *curves_id = blender::bke::curve_legacy_to_curves(*curve);
     blender::bke::CurvesGeometry &curves = blender::bke::CurvesGeometry::wrap(curves_id->geometry);
     const blender::Span<blender::float3> positions = curves.evaluated_positions();
-    float cur_thickness = root_width;
-    size_t step_num = positions.size();
-    float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
-    for (size_t j = 0; j < step_num; ++j) {
-      float3 cur_point = make_float3(positions[j][0], positions[j][1], positions[j][2]);
-      mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
-          OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
-      mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
-      cur_thickness += thickness_step;
+    for (int32_t i = 0; i < curves.curves_num(); ++i) {
+      const auto index_range = curves.evaluated_points_for_curve(i);
+      float cur_thickness = root_width;
+      size_t step_num = index_range.size();
+      float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
+      if (!motion) {
+        for (size_t j = 0; j < step_num; ++j) {
+          size_t k = j + index_range.start();
+          float3 cur_point = make_float3(positions[k][0], positions[k][1], positions[k][2]);
+          mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
+              OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
+          mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
+          cur_thickness += thickness_step;
+        }
+        mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
+        int shader_idx = b_curve.splines[0].material_index() - 1;
+        int shader = clamp(shader_idx, 0, used_shaders.size() - 1);
+        mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
+      }
+      else {
+        if (step_num == mesh->octane_mesh.oMeshData.iVertexPerHair[i]) {
+          for (size_t j = 0; j < step_num; ++j) {
+            size_t k = j + index_range.start();
+            float3 cur_point = make_float3(positions[k][0], positions[k][1], positions[k][2]);
+            mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time].push_back(
+                OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
+          }
+        }
+        else {
+          mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time] =
+              mesh->octane_mesh.oMeshData.f3HairPoints;
+        }
+      }
     }
-    mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
-    int shader_idx = b_curve.splines[0].material_index() - 1;
-    int shader = clamp(shader_idx, 0, used_shaders.size() - 1);
-    mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
   }
   else {
     BL::Curve::splines_iterator s;
-    for (b_curve.splines.begin(s); s != b_curve.splines.end(); ++s) {
+    int32_t i = 0;
+    for (b_curve.splines.begin(s); s != b_curve.splines.end(); ++s, ++i) {
       float cur_thickness = root_width;
       size_t step_num = s->points.length();
       float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
-      for (size_t step = 0; step < step_num; ++step) {
-        const BL::Array<float, 4> array = s->points[step].co();
-        float3 cur_point = make_float3(array[0], array[1], array[2]);
-        mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
-            OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
-        mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
-        cur_thickness += thickness_step;
+      if (!motion) {
+        for (size_t step = 0; step < step_num; ++step) {
+          const BL::Array<float, 4> array = s->points[step].co();
+          float3 cur_point = make_float3(array[0], array[1], array[2]);
+          mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
+              OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
+          mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
+          cur_thickness += thickness_step;
+        }
+        mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
+        int shader = clamp(s->material_index() - 1, 0, used_shaders.size() - 1);
+        mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
       }
-      mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
-      int shader = clamp(s->material_index() - 1, 0, used_shaders.size() - 1);
-      mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
+      else {
+        if (step_num == mesh->octane_mesh.oMeshData.iVertexPerHair[i]) {
+          for (size_t step = 0; step < step_num; ++step) {
+            const BL::Array<float, 4> array = s->points[step].co();
+            float3 cur_point = make_float3(array[0], array[1], array[2]);
+            mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time].push_back(
+                OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
+          }
+        }
+        else {
+          mesh->octane_mesh.oMeshData.oMotionf3HairPoints[motion_time] =
+              mesh->octane_mesh.oMeshData.f3HairPoints;
+        }
+      }
     }
   }
   mesh->octane_mesh.oMeshData.bShowVertexData = false;
   mesh->octane_mesh.oMeshData.bUpdate = true;
-  mesh->octane_mesh.oMeshData.oMotionf3HairPoints[0] = mesh->octane_mesh.oMeshData.f3HairPoints;
+  if (!motion) {
+    mesh->octane_mesh.oMeshData.oMotionf3HairPoints[0] = mesh->octane_mesh.oMeshData.f3HairPoints;
+  }
+  if (b_ob.data().ptr.data != b_curve.ptr.data) {
+    b_ob.to_curve_clear();
+  }
 }
 
 static std::optional<BL::FloatAttribute> find_curves_radius_attribute(BL::Curves b_curves)
@@ -203,6 +254,36 @@ static std::optional<BL::Float2Attribute> find_curves_uv_attribute(BL::Curves b_
       continue;
     }
     return BL::Float2Attribute{b_attribute};
+  }
+  return std::nullopt;
+}
+
+static std::optional<BL::FloatColorAttribute> find_vertex_color_float_color_attribute(
+    BL::Mesh b_mesh)
+{
+  for (BL::Attribute &b_attribute : b_mesh.attributes) {
+    if (b_attribute.domain() != BL::Attribute::domain_POINT) {
+      continue;
+    }
+    if (b_attribute.data_type() != BL::Attribute::data_type_FLOAT_COLOR) {
+      continue;
+    }
+    return BL::FloatColorAttribute{b_attribute};
+  }
+  return std::nullopt;
+}
+
+static std::optional<BL::ByteColorAttribute> find_vertex_color_byte_color_attribute(
+    BL::Mesh b_mesh)
+{
+  for (BL::Attribute &b_attribute : b_mesh.attributes) {
+    if (b_attribute.domain() != BL::Attribute::domain_POINT) {
+      continue;
+    }
+    if (b_attribute.data_type() != BL::Attribute::data_type_BYTE_COLOR) {
+      continue;
+    }
+    return BL::ByteColorAttribute{b_attribute};
   }
   return std::nullopt;
 }
@@ -428,8 +509,14 @@ static void create_mesh(Scene *scene,
       if (use_loop_normals) {
         BL::Array<float, 9> loop_normals = t->split_normals();
         for (int i = 0; i < 3; i++) {
-          mesh->octane_mesh.oMeshData.f3Normals[vi[i]] = OctaneDataTransferObject::float_3(
-              loop_normals[i * 3], loop_normals[i * 3 + 1], loop_normals[i * 3 + 2]);
+          if (use_octane_coordinate) {
+            mesh->octane_mesh.oMeshData.f3Normals[vi[i]] = OctaneDataTransferObject::float_3(
+                loop_normals[i * 3], loop_normals[i * 3 + 2], -loop_normals[i * 3 + 1]);
+          }
+          else {
+            mesh->octane_mesh.oMeshData.f3Normals[vi[i]] = OctaneDataTransferObject::float_3(
+                loop_normals[i * 3], loop_normals[i * 3 + 1], loop_normals[i * 3 + 2]);
+          }
         }
       }
 
@@ -543,15 +630,23 @@ static void create_mesh(Scene *scene,
   }
 
   /* create vertex color data */
-  int vertex_colors_count = std::min(MAX_OCTANE_COLOR_VERTEX_SETS, b_mesh.vertex_colors.length());
-  int tessface_vertex_colors_count = b_mesh.vertex_colors.length();
+  int vertex_colors_count = std::min(MAX_OCTANE_COLOR_VERTEX_SETS,
+                                     b_mesh.color_attributes.length());
+  int tessface_vertex_colors_count = b_mesh.color_attributes.length();
   int inactive_count = MAX_OCTANE_COLOR_VERTEX_SETS - 1;
-  BL::Mesh::vertex_colors_iterator l;
-  for (b_mesh.vertex_colors.begin(l); l != b_mesh.vertex_colors.end(); ++l) {
-    if (inactive_count == 0 && !l->active_render())
+  std::string active_color_name = b_mesh.attributes.active_color_name();
+  BL::Mesh::color_attributes_iterator l;
+  for (b_mesh.color_attributes.begin(l); l != b_mesh.color_attributes.end(); ++l) {
+    bool active_render = (l->name() == active_color_name);
+    if (inactive_count == 0 && !active_render) {
       continue;
-    if (!l->active_render())
+    }
+    if (l->domain() != BL::Attribute::domain_POINT) {
+      continue;
+    }
+    if (!active_render) {
       inactive_count--;
+    }
     mesh->octane_mesh.oMeshData.sVertexColorNames.emplace_back(l->name());
     mesh->octane_mesh.oMeshData.f3VertexColors.emplace_back(
         std::vector<OctaneDataTransferObject::float_3>());
@@ -560,6 +655,18 @@ static void create_mesh(Scene *scene,
             .f3VertexColors[mesh->octane_mesh.oMeshData.f3VertexColors.size() - 1];
     std::vector<int32_t> &iPointIndices = mesh->octane_mesh.oMeshData.iPointIndices;
     colorVertex.resize(numverts);
+    std::optional<BL::FloatColorAttribute> b_attr_float_color;
+    std::optional<BL::ByteColorAttribute> b_attr_byte_color;
+    BL::Attribute::data_type_enum data_type = l->data_type();
+    size_t data_size;
+    if (data_type == BL::Attribute::data_type_FLOAT_COLOR) {
+      b_attr_float_color = BL::FloatColorAttribute(*l);
+      data_size = b_attr_float_color->data.length();
+    }
+    else if (data_type == BL::Attribute::data_type_BYTE_COLOR) {
+      b_attr_byte_color = BL::ByteColorAttribute(*l);
+      data_size = b_attr_byte_color->data.length();
+    }
     size_t currentPointIdx = 0;
     if (!subdivision) {
       BL::Mesh::loop_triangles_iterator t;
@@ -568,7 +675,14 @@ static void create_mesh(Scene *scene,
         for (int j = 0, k = 2; j < 3; ++j, --k) {
           int indices_idx = li[winding_order == Mesh::CLOCKWISE ? j : k];
           int vertices_idx = iPointIndices[currentPointIdx++];
-          colorVertex[vertices_idx] = get_octane_float3(l->data[indices_idx].color());
+          if (data_type == BL::Attribute::data_type_FLOAT_COLOR) {
+            colorVertex[vertices_idx] = get_octane_float3(
+                b_attr_float_color->data[vertices_idx].color());
+          }
+          else if (data_type == BL::Attribute::data_type_BYTE_COLOR) {
+            colorVertex[vertices_idx] = get_octane_float3(
+                b_attr_byte_color->data[vertices_idx].color());
+          }
         }
       }
     }
@@ -579,7 +693,14 @@ static void create_mesh(Scene *scene,
         for (int j = 0, k = n - 1; j < n; j++, --k) {
           int indices_idx = p->loop_start() + (winding_order == Mesh::CLOCKWISE ? j : k);
           int vertices_idx = iPointIndices[currentPointIdx++];
-          colorVertex[vertices_idx] = get_octane_float3(l->data[indices_idx].color());
+          if (data_type == BL::Attribute::data_type_FLOAT_COLOR) {
+            colorVertex[vertices_idx] = get_octane_float3(
+                b_attr_float_color->data[vertices_idx].color());
+          }
+          else if (data_type == BL::Attribute::data_type_BYTE_COLOR) {
+            colorVertex[vertices_idx] = get_octane_float3(
+                b_attr_byte_color->data[vertices_idx].color());
+          }
         }
       }
     }
@@ -1045,7 +1166,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
     const auto &oMeshSphereAttribute = octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute;
     const auto &oMeshOpenSubdivision = octane_mesh->octane_mesh.oMeshOpenSubdivision;
     std::string octane_mesh_setting_tag =
-        std::to_string(oMeshSphereAttribute.bEnable) +
+        std::to_string(oMeshSphereAttribute.bEnable) + std::to_string(bHideOriginalMesh) +
         std::to_string(oMeshSphereAttribute.fRadius) +
         std::to_string(oMeshSphereAttribute.iRandomSeed) +
         std::to_string(oMeshSphereAttribute.fMinRandomizedRadius) +
@@ -1054,6 +1175,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         std::to_string(oMeshOpenSubdivision.iOpenSubdLevel) +
         std::to_string(oMeshOpenSubdivision.fOpenSubdSharpness) +
         std::to_string(oMeshOpenSubdivision.iOpenSubdBoundInterp);
+    new_mesh_tag += ("|" + octane_mesh_setting_tag);
     new_octane_prop_tag += ("|" + octane_mesh_setting_tag);
   }
   else if (b_ob.type() == BL::Object::type_CURVE) {
@@ -1088,7 +1210,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   bool is_mesh_tag_data_updated = octane_mesh->mesh_tag != new_mesh_tag;
   bool is_octane_property_update = octane_mesh->octane_property_tag != new_octane_prop_tag;
 
-  if (b_ob.mode() == b_ob.mode_EDIT) {
+  if (b_ob.mode() == b_ob.mode_EDIT || b_ob.mode() == b_ob.mode_VERTEX_PAINT ||
+      b_ob.mode() == b_ob.mode_WEIGHT_PAINT) {
     if (!is_mesh_tag_data_updated) {
       if (b_depsgraph.id_type_updated(BL::DriverTarget::id_type_MESH)) {
         is_mesh_tag_data_updated = true;
@@ -1306,9 +1429,9 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       &oct_mesh, "mesh_volume_sdf_border_thickness_outside");
   octane_mesh->octane_mesh.sScriptGeoName = resolve_octane_geometry_node(b_ob.ptr);
   octane_mesh->octane_mesh.sOrbxPath = resolve_orbx_proxy_path(oct_mesh, b_data, b_scene);
-  octane_mesh->octane_mesh.bReshapeable = resolve_mesh_type(
-                                              mesh_name, b_ob.type(), octane_mesh->mesh_type) ==
-                                          MeshType::RESHAPABLE_PROXY;
+  MeshType final_mesh_type = resolve_mesh_type(mesh_name, b_ob.type(), octane_mesh->mesh_type);
+  octane_mesh->octane_mesh.bReshapeable = (final_mesh_type == MeshType::RESHAPABLE_PROXY ||
+                                           final_mesh_type == MeshType::GLOBAL);
 
   bool use_curve_as_octane_hair = b_ob.type() == BL::Object::type_CURVE &&
                                   RNA_boolean_get(&oct_mesh, "render_curve_as_octane_hair");
@@ -1439,6 +1562,44 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   octane_mesh->octane_mesh.iHairInterpolations = RNA_enum_get(&oct_mesh, "hair_interpolation");
   octane_mesh->final_visibility = !(preview ? b_ob.hide_viewport() : b_ob.hide_render());
 
+  if (b_ob.type() == BL::Object::type_MESH) {
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = get_boolean(
+        oct_mesh, "octane_enable_sphere_attribute");
+    bHideOriginalMesh = get_boolean(oct_mesh, "octane_hide_original_mesh");
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = get_float(
+        oct_mesh, "octane_sphere_radius");
+    bool use_randomized_radius = get_boolean(oct_mesh, "octane_use_randomized_radius");
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed =
+        use_randomized_radius ? get_int(oct_mesh, "octane_sphere_randomized_radius_seed") : -1;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = get_float(
+        oct_mesh, "octane_sphere_randomized_radius_min");
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = get_float(
+        oct_mesh, "octane_sphere_randomized_radius_max");
+
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable =
+        get_boolean(oct_mesh, "open_subd_enable") || use_octane_vertex_displacement_subdvision;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = get_enum(oct_mesh,
+                                                                             "open_subd_scheme");
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = get_int(oct_mesh,
+                                                                           "open_subd_level");
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = get_float(
+        oct_mesh, "open_subd_sharpness");
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = get_enum(
+        oct_mesh, "open_subd_bound_interp");
+  }
+  else {
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.bEnable = false;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fRadius = 0.f;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.iRandomSeed = -1;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMinRandomizedRadius = 0.f;
+    octane_mesh->octane_mesh.oMeshData.oMeshSphereAttribute.fMaxRandomizedRadius = 0.f;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable = false;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdScheme = 1;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdLevel = 0;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.fOpenSubdSharpness = 0;
+    octane_mesh->octane_mesh.oMeshOpenSubdivision.iOpenSubdBoundInterp = 3;
+  }
+
   bool is_octane_vdb = RNA_boolean_get(&oct_mesh, "is_octane_vdb");
   octane_mesh->is_octane_volume = is_octane_vdb;
   if (is_octane_vdb) {
@@ -1457,7 +1618,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
   if (need_recreate_mesh) {
     if (use_curve_as_octane_hair) {
-      create_curve_hair(scene, b_ob, octane_mesh, oct_mesh, used_shaders);
+      create_curve_hair(scene, b_depsgraph, b_ob, octane_mesh, oct_mesh, used_shaders, false, 0);
     }
     else if (use_curves_as_octane_hair) {
       create_curves_hair(scene, b_ob, octane_mesh, false, 0);
@@ -1585,6 +1746,19 @@ void BlenderSync::sync_mesh_motion(BL::Depsgraph &b_depsgraph,
   BL::FluidDomainSettings b_fluid_domain = object_fluid_gas_domain_find(b_ob);
   if (b_fluid_domain.ptr.data != NULL)
     return;
+
+  if (b_ob.type() == BL::Object::type_CURVE) {
+    /* find shader indices */
+    std::vector<Shader *> used_shaders;
+    bool use_octane_vertex_displacement_subdvision = false;
+    bool use_default_shader = false;
+    find_used_shaders(
+        b_ob, used_shaders, use_octane_vertex_displacement_subdvision, use_default_shader);
+    BL::ID b_ob_data = b_ob.data();
+    PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+    create_curve_hair(scene, b_depsgraph, b_ob, mesh, oct_mesh, used_shaders, true, motion_time);
+    return;
+  }
 
   // if (b_ob.type() == BL::Object::type_CURVES) {
   //  create_curves_hair(scene, b_ob, mesh, true, motion_time);

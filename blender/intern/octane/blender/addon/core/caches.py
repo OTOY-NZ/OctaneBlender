@@ -240,6 +240,7 @@ class NodeTreeCache(OctaneNodeCache):
         # traverse node graph recursively and generate linked node maps
         while len(queue):
             octane_graph_node = queue.popleft()
+            octane_graph_node.owner_type = owner_type
             if octane_graph_node.node is active_output_node:
                 # Root node
                 root_octane_node = octane_graph_node.add_socket(active_output_node.inputs[active_input_name])
@@ -275,6 +276,14 @@ class NodeTreeCache(OctaneNodeCache):
                             node_tree_attributes.object_names.append(target_object_name)
         # update node to the server
         is_updated = False
+        # at first, build all OctaneProxy nodes
+        from octane.nodes.tools.octane_proxy import OctaneProxy
+        for octane_graph_node_data in final_node_list:
+            octane_name = octane_graph_node_data.octane_name
+            node = octane_graph_node_data.node
+            octane_node = self.get_octane_node(octane_name, node)
+            if isinstance(node, OctaneProxy):
+                node.init_octane_proxy(octane_node)
         for octane_graph_node_data in final_node_list:
             octane_name = octane_graph_node_data.octane_name
             node = octane_graph_node_data.node
@@ -559,7 +568,7 @@ class SceneCache(BaseDataCache):
         self.render_layer_node = self.create_octane_node(consts.OctanePresetNodeNames.RENDER_LAYER, consts.NodeType.NT_RENDER_LAYER)
         self.last_camera_name = ""
         self.last_imager_name = ""
-        self.last_post_processing_name = ""        
+        self.last_post_processing_name = ""
 
     def diff(self, depsgraph, scene, view_layer, context=None):
         if self.need_update_all or depsgraph.id_type_updated("SCENE") or depsgraph.id_type_updated("CAMERA"):
@@ -600,7 +609,7 @@ class SceneCache(BaseDataCache):
                 context = bpy.context
             camera_data.sync_data(self.camera_node, scene=scene, region=context.region, v3d=context.space_data, rv3d=context.region_data, session_type=self.session.session_type)
         else:
-            camera_data.sync_data(self.camera_node, scene=scene, session_type=self.session.session_type)        
+            camera_data.sync_data(self.camera_node, scene=scene, session_type=self.session.session_type)
         if self.camera_node.need_update:
             self.camera_node.update_to_engine(True)            
         current_active_camera_name = getattr(self.camera_node, "current_active_camera_name", "")

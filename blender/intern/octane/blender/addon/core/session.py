@@ -128,9 +128,9 @@ class RenderSession(object):
         view_layer = depsgraph.view_layer_eval
         need_redraw = False
         # check diff
+        self.image_cache.diff(depsgraph, scene, view_layer, context)
         self.object_cache.diff(depsgraph, scene, view_layer, context)
-        self.image_cache.diff(depsgraph, scene, view_layer, context)        
-        self.material_cache.diff(depsgraph, scene, view_layer, context)
+        self.material_cache.diff(depsgraph, scene, view_layer, context)        
         self.light_cache.diff(depsgraph, scene, view_layer, context)
         self.world_cache.diff(depsgraph, scene, view_layer, context)
         self.composite_cache.diff(depsgraph, scene, view_layer, context)
@@ -138,13 +138,13 @@ class RenderSession(object):
         self.kernel_cache.diff(depsgraph, scene, view_layer, context)
         self.scene_cache.diff(depsgraph, scene, view_layer, context)
         # update
-        if self.object_cache.need_update:
-            self.object_cache.update(depsgraph, scene, view_layer, context)
         if self.image_cache.need_update:
             self.image_cache.update(depsgraph, scene, view_layer, context)
         if self.material_cache.need_update:
             self.material_cache.update(depsgraph, scene, view_layer, context)
             need_redraw = True
+        if self.object_cache.need_update:
+            self.object_cache.update(depsgraph, scene, view_layer, context)            
         if self.light_cache.need_update:
             self.light_cache.update(depsgraph, scene, view_layer, context)
             need_redraw = True            
@@ -188,8 +188,8 @@ class RenderSession(object):
         # init motion blur settings
         self.init_motion_blur_settings(depsgraph, scene, view_layer, context)
         # check diff
-        self.object_cache.diff(depsgraph, scene, view_layer, context)                
-        self.image_cache.diff(depsgraph, scene, view_layer, context)        
+        self.image_cache.diff(depsgraph, scene, view_layer, context)
+        self.object_cache.diff(depsgraph, scene, view_layer, context)        
         self.material_cache.diff(depsgraph, scene, view_layer, context)
         self.light_cache.diff(depsgraph, scene, view_layer, context)
         self.world_cache.diff(depsgraph, scene, view_layer, context)
@@ -198,12 +198,12 @@ class RenderSession(object):
         self.kernel_cache.diff(depsgraph, scene, view_layer, context)
         self.scene_cache.diff(depsgraph, scene, view_layer, context)
         # update
+        if self.material_cache.need_update:
+            self.material_cache.update(depsgraph, scene, view_layer, context)        
         if self.object_cache.need_update:
             self.object_cache.update(depsgraph, scene, view_layer, context)
         if self.image_cache.need_update:
             self.image_cache.update(depsgraph, scene, view_layer, context)        
-        if self.material_cache.need_update:
-            self.material_cache.update(depsgraph, scene, view_layer, context)
         if self.light_cache.need_update:
             self.light_cache.update(depsgraph, scene, view_layer, context)            
         if self.world_cache.need_update:
@@ -231,8 +231,18 @@ class RenderSession(object):
         self.motion_blur_end_frame_offset = 0
         self.motion_blur_time_offsets.clear()
         if self.need_motion_blur:
+            clamp_motion_blur_data_source = scene.octane.animation_settings.clamp_motion_blur_data_source
             frame_offset = math.ceil(scene.octane.animation_settings.shutter_time / 100.0)
             mb_direction = scene.octane.animation_settings.mb_direction
+            if clamp_motion_blur_data_source:
+                if mb_direction == "Before":
+                    frame_offset = max(0, min(scene.frame_current - scene.frame_start, frame_offset))
+                elif mb_direction == "Symmetric":
+                    half_frame_offset = frame_offset / 2.0
+                    half_frame_offset = max(0, min(scene.frame_end - scene.frame_current, min(scene.frame_current - scene.frame_start, half_frame_offset)))
+                    frame_offset = half_frame_offset * 2
+                elif mb_direction == "After":
+                    frame_offset = max(0, min(scene.frame_end - scene.frame_current, frame_offset))
             if mb_direction == "Before":
                 self.motion_blur_start_frame_offset = -frame_offset
                 self.motion_blur_end_frame_offset = 0
@@ -246,7 +256,7 @@ class RenderSession(object):
                 self.motion_blur_start_frame_offset = 0
                 self.motion_blur_end_frame_offset = frame_offset
                 self.graph_time = 0
-
+                
     def update_motion_blur(self, depsgraph, scene, view_layer, context=None):                
         if not self.need_motion_blur:
             return False

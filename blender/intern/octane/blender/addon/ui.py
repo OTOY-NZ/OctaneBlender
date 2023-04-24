@@ -592,8 +592,9 @@ class OCTANE_RENDER_PT_output(OctaneButtonsPanel, Panel):
     def draw_header(self, context):
         layout = self.layout
         rd = context.scene.render
-        layout.active = rd.use_octane_export
-        layout.prop(rd, "use_octane_export", text="")
+        if hasattr(rd, "use_octane_export"):
+            layout.active = rd.use_octane_export
+            layout.prop(rd, "use_octane_export", text="")
 
     def draw(self, context):
         layout = self.layout

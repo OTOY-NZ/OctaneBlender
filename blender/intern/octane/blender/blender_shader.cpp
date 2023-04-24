@@ -338,9 +338,7 @@ static std::string resolve_octane_node_name(BL::ShaderNode &b_node,
 
 static inline void translate_colorramp(BL::ColorRamp ramp,
                                        std::vector<float> &pos_data,
-                                       std::vector<float> &color_data,
-                                       bool &fill_start,
-                                       bool &fill_end)
+                                       std::vector<float> &color_data)
 {
   int el_cnt = ramp.elements.length();
   if (el_cnt <= 0) {
@@ -348,21 +346,7 @@ static inline void translate_colorramp(BL::ColorRamp ramp,
     color_data.clear();
     return;
   }
-
-  if (ramp.elements[0].position() > 0.0f) {
-    fill_start = true;
-    ++el_cnt;
-  }
-  else
-    fill_start = false;
-
-  if (ramp.elements[ramp.elements.length() - 1].position() < 1.0f) {
-    fill_end = true;
-    ++el_cnt;
-  }
-  else
-    fill_end = false;
-
+  el_cnt += 2;
   pos_data.resize(el_cnt);
   color_data.resize(el_cnt * 3);
 
@@ -370,20 +354,18 @@ static inline void translate_colorramp(BL::ColorRamp ramp,
   float *pcolor_data = &color_data[0];
 
   float cur_color[4];
-  if (fill_start) {
-    ramp.evaluate(0.0f, cur_color);
-    pcolor_data[0] = cur_color[0];
-    pcolor_data[1] = cur_color[1];
-    pcolor_data[2] = cur_color[2];
-  }
-  if (fill_end) {
-    ramp.evaluate(1.0f, cur_color);
-    pcolor_data[(el_cnt - 1) * 3 + 0] = cur_color[0];
-    pcolor_data[(el_cnt - 1) * 3 + 1] = cur_color[1];
-    pcolor_data[(el_cnt - 1) * 3 + 2] = cur_color[2];
-  }
+  // fill start
+  ramp.evaluate(0.0f, cur_color);
+  pcolor_data[0] = cur_color[0];
+  pcolor_data[1] = cur_color[1];
+  pcolor_data[2] = cur_color[2];
+  // fill end
+  ramp.evaluate(1.0f, cur_color);
+  pcolor_data[(el_cnt - 1) * 3 + 0] = cur_color[0];
+  pcolor_data[(el_cnt - 1) * 3 + 1] = cur_color[1];
+  pcolor_data[(el_cnt - 1) * 3 + 2] = cur_color[2];
 
-  int i = fill_start ? 1 : 0;
+  int i = 1;
   BL::ColorRamp::elements_iterator el;
   for (ramp.elements.begin(el); el != ramp.elements.end(); ++el, ++i) {
     BL::Array<float, 4> cur_color = el->color();
@@ -413,6 +395,7 @@ static bool update_octane_image_data(
     BL::ImageUser &b_image_user,
     BL::RenderEngine &b_engine,
     BL::Scene &b_scene,
+    Scene *scene,
     BL::ShaderNode &b_node,
     bool &is_auto_refresh,
     ::OctaneDataTransferObject::OctaneImageData &octane_image_data,
@@ -769,8 +752,6 @@ template<class T, class DT>
 static void generateRampNode(OctaneDataTransferObject::OctaneBaseRampNode *cur_node,
                              BL::BlendData &b_data,
                              BL::ShaderNode b_node,
-                             bool &fill_start,
-                             bool &fill_end,
                              std::string addon_ramp_node_name)
 {
   BL::ColorRamp ramp(PointerRNA_NULL);
@@ -791,7 +772,7 @@ static void generateRampNode(OctaneDataTransferObject::OctaneBaseRampNode *cur_n
     ramp = BL::ColorRamp(b_tex_node.color_ramp());
     ((DT *)cur_node)->iInterpolationType = int(ramp.octane_interpolation_type());
   }
-  translate_colorramp(ramp, cur_node->fPosData, cur_node->fColorData, fill_start, fill_end);
+  translate_colorramp(ramp, cur_node->fPosData, cur_node->fColorData);
 }
 
 template<class T>
@@ -800,6 +781,7 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
                               BL::ShaderNode b_node,
                               BL::RenderEngine &b_engine,
                               BL::Scene b_scene,
+                              Scene *scene,
                               bool &is_auto_refresh,
                               bool is_addon_node)
 {
@@ -813,6 +795,7 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
                              b_image_user,
                              b_engine,
                              b_scene,
+                             scene,
                              b_node,
                              is_auto_refresh,
                              cur_node->oImageData,
@@ -828,12 +811,26 @@ static void generateImageNode(OctaneDataTransferObject::OctaneBaseImageNode *cur
                              b_image_user,
                              b_engine,
                              b_scene,
+                             scene,
                              b_node,
                              is_auto_refresh,
                              cur_node->oImageData,
                              false);
     cur_node->oImageData.iHDRDepthType = get_enum(b_node.ptr, "hdr_tex_bit_depth");
     cur_node->oImageData.iIESMode = get_enum(b_node.ptr, "octane_ies_mode");
+  }
+  if (scene && scene->session && scene->session->is_export_mode()) {
+    if (cur_node->oImageData.sImageDataMD5Hex != "") {
+      if (scene->image_data_map.find(cur_node->sName) != scene->image_data_map.end()) {
+        if (scene->image_data_map[cur_node->sName] == cur_node->oImageData.sImageDataMD5Hex) {
+          cur_node->oImageData.fDataLength = 0;
+          cur_node->oImageData.iDataLength = 0;
+          cur_node->oImageData.fImageData.clear();
+          cur_node->oImageData.iImageData.clear();
+        }
+      }
+      scene->image_data_map[cur_node->sName] = cur_node->oImageData.sImageDataMD5Hex;
+    }
   }
 }
 
@@ -1021,7 +1018,15 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
           octane_node_type);
       ::OctaneDataTransferObject::OctaneCustomNode *octane_node =
           (::OctaneDataTransferObject::OctaneCustomNode *)(node->oct_node);
-      octane_node->iOctaneNodeType = octane_node_type;
+      static const int NT_BLENDER_NODE_OCTANE_PROXY = -100001;
+      static const int NT_BLENDER_NODE_GRAPH_NODE = -100012;
+      if (octane_node_type == NT_BLENDER_NODE_OCTANE_PROXY ||
+          octane_node_type == NT_BLENDER_NODE_GRAPH_NODE) {
+        octane_node->iOctaneNodeType = NT_BLENDER_NODE_OCTANE_PROXY;
+      }
+      else {
+        octane_node->iOctaneNodeType = octane_node_type;
+      }
       int octane_static_pin_count = OctaneInfo::instance().get_static_pin_count(octane_node_type);
       std::vector<::OctaneDataTransferObject::OctaneDTOBase *> octane_dtos;
       BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
@@ -1643,6 +1648,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_node,
         b_engine,
         b_scene,
+        scene,
         is_auto_refresh,
         bl_idname == "OctaneInstanceColor");
   }
@@ -1654,6 +1660,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_node,
         b_engine,
         b_scene,
+        scene,
         is_auto_refresh,
         bl_idname == "OctaneRGBImage");
   }
@@ -1665,6 +1672,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_node,
         b_engine,
         b_scene,
+        scene,
         is_auto_refresh,
         bl_idname == "OctaneGreyscaleImage");
   }
@@ -1676,6 +1684,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_node,
         b_engine,
         b_scene,
+        scene,
         is_auto_refresh,
         bl_idname == "OctaneAlphaImage");
   }
@@ -1686,6 +1695,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         b_node,
         b_engine,
         b_scene,
+        scene,
         is_auto_refresh,
         bl_idname == "OctaneImageAOVOutput");
   }
@@ -1695,14 +1705,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       addon_ramp_node = get_string(b_node.ptr, "color_ramp_name");
       graph->has_ramp_node = true;
     }
-    bool fill_start = false, fill_end = false;
     generateRampNode<BL::ShaderNodeOctGradientTex,
                      OctaneDataTransferObject::OctaneGradientTexture>(
         (OctaneDataTransferObject::OctaneBaseRampNode *)node->oct_node,
         b_data,
         b_node,
-        fill_start,
-        fill_end,
         addon_ramp_node);
     OctaneDataTransferObject::OctaneBaseRampNode *cur_node =
         (OctaneDataTransferObject::OctaneBaseRampNode *)node->oct_node;
@@ -1738,14 +1745,6 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
         }
       }
     }
-    if (fill_start && num >= 2) {
-      cur_node->sTextureData[1] = cur_node->sTextureData[0];
-      cur_node->sPositionData[1] = cur_node->sPositionData[0];
-    }
-    if (fill_end && num >= 2) {
-      cur_node->sTextureData[num - 2] = cur_node->sTextureData[num - 1];
-      cur_node->sPositionData[num - 2] = cur_node->sPositionData[num - 1];
-    }
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctToonRampTex) || bl_idname == "OctaneToonRamp") {
     std::string addon_ramp_node;
@@ -1753,14 +1752,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       addon_ramp_node = get_string(b_node.ptr, "color_ramp_name");
       graph->has_ramp_node = true;
     }
-    bool fill_start = false, fill_end = false;
     generateRampNode<BL::ShaderNodeOctToonRampTex,
                      OctaneDataTransferObject::OctaneToonRampTexture>(
         (OctaneDataTransferObject::OctaneBaseRampNode *)node->oct_node,
         b_data,
         b_node,
-        fill_start,
-        fill_end,
         addon_ramp_node);
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctVolumeRampTex) || bl_idname == "OctaneVolumeGradient") {
@@ -1769,14 +1765,11 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       addon_ramp_node = get_string(b_node.ptr, "color_ramp_name");
       graph->has_ramp_node = true;
     }
-    bool fill_start = false, fill_end = false;
     generateRampNode<BL::ShaderNodeOctVolumeRampTex,
                      OctaneDataTransferObject::OctaneVolumeRampTexture>(
         (OctaneDataTransferObject::OctaneBaseRampNode *)node->oct_node,
         b_data,
         b_node,
-        fill_start,
-        fill_end,
         addon_ramp_node);
   }
   else if (b_node.is_a(&RNA_ShaderNodeOctToonDirectionLight)) {
@@ -2559,7 +2552,36 @@ void BlenderSync::sync_textures(BL::Depsgraph &b_depsgraph, bool update_all)
                         is_auto_refresh,
                         link_resolver);
       }
-
+      else if (b_tex->type() == BL::Texture::type_IMAGE) {
+        BL::ImageTexture b_image_tex(*b_tex);
+        BL::Image b_image = b_image_tex.image();
+        BL::ImageUser b_image_user = b_image_tex.image_user();
+        if (b_image) {
+          ShaderNode *node = nullptr;
+          OctaneDataTransferObject::OctaneNodeBase *cur_node =
+              OctaneDataTransferObject::GlobalOctaneNodeFactory.CreateOctaneNode(
+                  "ShaderNodeOctImageTex");
+          node = create_shader_node(cur_node);
+          cur_node->sName = b_image_tex.name();
+          OctaneDataTransferObject::OctaneImageTexture *image_node = ((
+              OctaneDataTransferObject::OctaneImageTexture *)cur_node);
+          image_node->fPower.fVal = 1.f;
+          image_node->fPower.sLinkNodeName = "";
+          image_node->fGamma.fVal = 2.2f;
+          image_node->fGamma.sLinkNodeName = "";
+          BL::ShaderNode dummy(PointerRNA_NULL);
+          update_octane_image_data(b_image,
+                                   b_image_user,
+                                   b_engine,
+                                   b_scene,
+                                   scene,
+                                   dummy,
+                                   is_auto_refresh,
+                                   image_node->oImageData,
+                                   false);
+          graph->add(node);
+        }
+      }
       shader->set_graph(graph);
       shader->tag_update(scene);
     }
@@ -3015,7 +3037,7 @@ void BlenderSync::find_shader_by_id_and_name(BL::ID &id,
       if (it.second->name == id.name()) {
         shader = it.second;
         break;
-      }    
+      }
     }
   }
   used_shaders.push_back(shader);

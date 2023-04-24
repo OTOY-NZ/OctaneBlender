@@ -108,6 +108,7 @@ class Scene {
   vector<Shader *> shaders;
   vector<Light *> lights;
   vector<ParticleSystem *> particle_systems;
+  std::unordered_map<std::string, std::string> image_data_map;
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Data managers

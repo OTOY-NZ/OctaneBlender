@@ -548,18 +548,21 @@ def check_compatibility_octane_mesh_27_9(file_version):
         return        
     for mesh in bpy.data.meshes:
         oct_mesh = mesh.octane
-        oct_mesh.octane_enable_sphere_attribute = mesh.octane_enable_sphere_attribute
-        oct_mesh.octane_hide_original_mesh = mesh.octane_hide_original_mesh
-        oct_mesh.octane_sphere_radius = mesh.octane_sphere_radius
-        oct_mesh.octane_use_randomized_radius = mesh.octane_use_randomized_radius
-        oct_mesh.octane_sphere_randomized_radius_seed = mesh.octane_sphere_randomized_radius_seed
-        oct_mesh.octane_sphere_randomized_radius_min = mesh.octane_sphere_randomized_radius_min
-        oct_mesh.octane_sphere_randomized_radius_max = mesh.octane_sphere_randomized_radius_max
-        oct_mesh.open_subd_enable = mesh.oct_enable_subd
-        oct_mesh.open_subd_level = mesh.oct_subd_level
-        oct_mesh.open_subd_scheme = str(mesh.oct_open_subd_scheme)
-        oct_mesh.open_subd_bound_interp = str(mesh.oct_open_subd_bound_interp)
-        oct_mesh.open_subd_sharpness = mesh.oct_open_subd_sharpness
+        try:
+            oct_mesh.octane_enable_sphere_attribute = mesh.octane_enable_sphere_attribute
+            oct_mesh.octane_hide_original_mesh = mesh.octane_hide_original_mesh
+            oct_mesh.octane_sphere_radius = mesh.octane_sphere_radius
+            oct_mesh.octane_use_randomized_radius = mesh.octane_use_randomized_radius
+            oct_mesh.octane_sphere_randomized_radius_seed = mesh.octane_sphere_randomized_radius_seed
+            oct_mesh.octane_sphere_randomized_radius_min = mesh.octane_sphere_randomized_radius_min
+            oct_mesh.octane_sphere_randomized_radius_max = mesh.octane_sphere_randomized_radius_max
+            oct_mesh.open_subd_enable = mesh.oct_enable_subd
+            oct_mesh.open_subd_level = mesh.oct_subd_level            
+            oct_mesh.open_subd_scheme = str(mesh.oct_open_subd_scheme)
+            oct_mesh.open_subd_bound_interp = str(mesh.oct_open_subd_bound_interp)
+            oct_mesh.open_subd_sharpness = mesh.oct_open_subd_sharpness
+        except:
+            pass
 
 # object
 def check_compatibility_octane_object(file_version):

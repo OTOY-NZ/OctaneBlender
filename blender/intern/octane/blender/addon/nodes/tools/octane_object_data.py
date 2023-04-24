@@ -1,4 +1,6 @@
 import bpy
+import math
+import mathutils
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
@@ -82,41 +84,45 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
     def get_blender_pin_symbol(self, node_name, pin_symbol):
         return node_name + consts.DERIVED_NODE_SEPARATOR + pin_symbol
 
+    def get_octane_matrix(self, matrix):
+        matrix = utility.OctaneMatrixConvertor.get_octane_matrix(matrix)
+        if self.target_primitive_coordinate_mode == "Octane":
+            matrix = matrix @ mathutils.Matrix.Rotation(math.radians(90), 4, "X")
+        return matrix
+
     def sync_geometry_data(self, object_eval, name, octane_node, depsgraph, need_transform):
-        if object_eval is None:
-            return
-        scene = depsgraph.scene_eval
-        is_viewport = depsgraph.mode == "VIEWPORT"
         # Placement node
         placement_node_name = name
         placement_subnode = octane_node.get_subnode(placement_node_name, consts.NodeType.NT_GEO_PLACEMENT)
-        octane_geometry_name = utility.resolve_octane_geometry_name(object_eval, scene, is_viewport)
+        transform_node_name = ""
+        octane_geometry_name = ""
+        if object_eval is not None:            
+            scene_eval = depsgraph.scene_eval
+            is_viewport = depsgraph.mode == "VIEWPORT"
+            octane_geometry_name = utility.resolve_octane_geometry_name(object_eval, scene_eval, is_viewport)
+            if need_transform:
+                # Transform node
+                transform_node_name = placement_node_name + "_Transform"
+                transform_subnode = octane_node.get_subnode(transform_node_name, consts.NodeType.NT_TRANSFORM_VALUE)                
+                matrix = self.get_octane_matrix(object_eval.matrix_world)
+                transform_subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)                
         placement_subnode.set_pin_id(consts.PinID.P_GEOMETRY, True, octane_geometry_name, "")
-        if not need_transform:
-            return        
-        # Transform node
-        transform_node_name = placement_node_name + "_Transform"
-        transform_subnode = octane_node.get_subnode(transform_node_name, consts.NodeType.NT_TRANSFORM_VALUE)
-        matrix = utility.OctaneMatrixConvertor.get_octane_matrix(object_eval.matrix_world)
-        transform_subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
-        # Placement node, transform node link
         placement_subnode.set_pin_id(consts.PinID.P_TRANSFORM, True, transform_node_name, "")
 
     def sync_collection_data(self, collection, name, octane_node, depsgraph, need_transform):
-        if collection is None:
-            return
         # Geometry Group node
         geometry_group_node_name = name
         geometry_group_subnode = octane_node.get_subnode(geometry_group_node_name, consts.NodeType.NT_GEO_GROUP)
         geometry_count = 0
-        for obj in collection.all_objects:
-            if obj.type != "MESH":
-                continue
-            mesh_name = geometry_group_node_name + "_" + str(geometry_count)
-            pin_name = "Input " + str(geometry_count + 1)
-            geometry_group_subnode.set_pin_index(geometry_count, pin_name, consts.SocketType.ST_LINK, consts.PinType.PT_GEOMETRY, 0, True, mesh_name, "")
-            self.sync_geometry_data(obj, mesh_name, octane_node, depsgraph, need_transform)
-            geometry_count += 1
+        if collection is not None:
+            for obj in collection.all_objects:
+                if obj.type != "MESH":
+                    continue
+                mesh_name = geometry_group_node_name + "_" + str(geometry_count)
+                pin_name = "Input " + str(geometry_count + 1)
+                geometry_group_subnode.set_pin_index(geometry_count, pin_name, consts.SocketType.ST_LINK, consts.PinType.PT_GEOMETRY, 0, True, mesh_name, "")
+                self.sync_geometry_data(obj, mesh_name, octane_node, depsgraph, need_transform)
+                geometry_count += 1
         geometry_group_subnode.set_attribute_id(consts.AttributeID.A_PIN_COUNT, geometry_count)
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
@@ -129,13 +135,14 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
         if octane_name.endswith(self.TRANSFORM_OUT):
             if object_eval is not None:
                 subnode_name = octane_name
-                matrix = utility.OctaneMatrixConvertor.get_octane_matrix(object_eval.matrix_world)
+                matrix = self.get_octane_matrix(object_eval.matrix_world)
                 subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_TRANSFORM_VALUE)
                 subnode.set_attribute_id(consts.AttributeID.A_TRANSFORM, matrix)
         elif octane_name.endswith(self.ROTATION_OUT):
             if object_eval is not None:
                 subnode_name = octane_name
-                direction = utility.OctaneMatrixConvertor.get_octane_direction(object_eval.matrix_world)
+                matrix = self.get_octane_matrix(object_eval.matrix_world)
+                direction = utility.OctaneMatrixConvertor.get_octane_direction(matrix)
                 subnode = octane_node.get_subnode(subnode_name, consts.NodeType.NT_FLOAT)
                 subnode.set_attribute_id(consts.AttributeID.A_VALUE, direction)
         elif octane_name.endswith(self.GEOMETRY_OUT):
