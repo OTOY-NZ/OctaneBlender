@@ -27,7 +27,7 @@ class OctaneBoolValue(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: BoolProperty(name="Value", default=False, update=None, description="The value of the bool node")
+    a_value: BoolProperty(name="Value", default=False, update=OctaneBaseNode.update_node_tree, description="The value of the bool node")
 
     def init(self, context):
         self.outputs.new("OctaneBoolOutSocket", "Bool out").init()

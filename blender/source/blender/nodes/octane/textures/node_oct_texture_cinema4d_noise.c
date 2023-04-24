@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_FLOAT,
@@ -146,13 +146,12 @@ void register_node_type_tex_oct_cinema4d_noise(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_CINEMA4D_NOISE_TEX,
                    "Cinema4D Noise Tex",
-                   NODE_CLASS_OCT_TEXTURE,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_type_tex_oct_cinema4d_noise_init);
   node_type_exec(&ntype, 0, 0, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_cinema4d_noise() */

@@ -19,7 +19,7 @@ class OctaneInstanceRangeMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=106)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=1, update=None, description="Maximum instance ID used to map an instance ID to a grey scale value. This node maps instance ID zero to black color, and maximum instance ID to white color and vice versa when invert is selected", min=1, max=2147483646, soft_min=1, soft_max=2147483646, step=1, subtype="NONE")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Maximum instance ID used to map an instance ID to a grey scale value. This node maps instance ID zero to black color, and maximum instance ID to white color and vice versa when invert is selected", min=1, max=2147483646, soft_min=1, soft_max=2147483646, step=1, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -33,7 +33,7 @@ class OctaneInstanceRangeInvert(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Invert the colors that are mapped to instance IDs, ie. map the instance ID 0 to white color and the maximum ID to black color")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert the colors that are mapped to instance IDs, ie. map the instance ID 0 to white color and the maximum ID to black color")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

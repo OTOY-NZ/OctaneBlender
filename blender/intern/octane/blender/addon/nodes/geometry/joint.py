@@ -40,8 +40,8 @@ class OctaneJoint(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;14;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
 
-    a_pin_count: IntProperty(name="Pin count", default=0, update=None, description="The number of child geometry pins. Ideally for connecting child joints, but you can connect other geometry nodes as well to a hierarchy, But only the joint nodes in the hierarchy will be used in deformation calculation. Joint nodes will work as placement node for other geometries connected to the joint hierarchy.\n\n Restrictions:\n     - A joint node should have only one joint parent(destination). Except a root joint node")
-    a_index: IntProperty(name="Index", default=0, update=None, description="Index/ID of this joint. Index value must be unique to a joint hierarchy. If more than one joint hierarchies have same index then the closest hierarchy(compared between closest common parent depths) to the mesh node is selected for deformation")
+    a_pin_count: IntProperty(name="Pin count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of child geometry pins. Ideally for connecting child joints, but you can connect other geometry nodes as well to a hierarchy, But only the joint nodes in the hierarchy will be used in deformation calculation. Joint nodes will work as placement node for other geometries connected to the joint hierarchy.\n\n Restrictions:\n     - A joint node should have only one joint parent(destination). Except a root joint node")
+    a_index: IntProperty(name="Index", default=0, update=OctaneBaseNode.update_node_tree, description="Index/ID of this joint. Index value must be unique to a joint hierarchy. If more than one joint hierarchies have same index then the closest hierarchy(compared between closest common parent depths) to the mesh node is selected for deformation")
 
     def init(self, context):
         self.inputs.new("OctaneJointTransform", OctaneJointTransform.bl_label).init()

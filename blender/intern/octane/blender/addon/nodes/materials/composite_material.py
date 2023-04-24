@@ -55,7 +55,7 @@ class OctaneCompositeMaterialCustomAov(OctaneBaseSocket):
         ("Custom AOV 19", "Custom AOV 19", "", 18),
         ("Custom AOV 20", "Custom AOV 20", "", 19),
     ]
-    default_value: EnumProperty(default="None", update=None, description="If a custom AOV is selected, it will write a mask to it where the material is visible", items=items)
+    default_value: EnumProperty(default="None", update=OctaneBaseSocket.update_node_tree, description="If a custom AOV is selected, it will write a mask to it where the material is visible", items=items)
     octane_hide_value=False
     octane_min_version=11000002
     octane_end_version=4294967295
@@ -75,7 +75,7 @@ class OctaneCompositeMaterialCustomAovChannel(OctaneBaseSocket):
         ("Green", "Green", "", 2),
         ("Blue", "Blue", "", 3),
     ]
-    default_value: EnumProperty(default="All", update=None, description="If a custom AOV is selected, the selected channel(s) will receive the mask", items=items)
+    default_value: EnumProperty(default="All", update=OctaneBaseSocket.update_node_tree, description="If a custom AOV is selected, the selected channel(s) will receive the mask", items=items)
     octane_hide_value=False
     octane_min_version=11000002
     octane_end_version=4294967295
@@ -97,7 +97,7 @@ class OctaneCompositeMaterial(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
 
-    a_material_count: IntProperty(name="Material count", default=0, update=None, description="The number of materials to mix. Two pins per new material are created and appended to the end")
+    a_material_count: IntProperty(name="Material count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of materials to mix. Two pins per new material are created and appended to the end")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeMaterialDisplacement", OctaneCompositeMaterialDisplacement.bl_label).init()

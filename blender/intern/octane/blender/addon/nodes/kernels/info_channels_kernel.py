@@ -19,7 +19,7 @@ class OctaneInfoChannelsKernelMaxsamples(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=108)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=5000, update=None, description="The maximum samples per pixel that will be calculated until rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=5000, update=OctaneBaseSocket.update_node_tree, description="The maximum samples per pixel that will be calculated until rendering is stopped", min=1, max=1000000, soft_min=1, soft_max=100000, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,7 +60,7 @@ class OctaneInfoChannelsKernelType(OctaneBaseSocket):
         ("Refraction filter", "Refraction filter", "", 22),
         ("Transmission filter", "Transmission filter", "", 23),
     ]
-    default_value: EnumProperty(default="Wireframe", update=None, description="Infochannels kernel type", items=items)
+    default_value: EnumProperty(default="Wireframe", update=OctaneBaseSocket.update_node_tree, description="Infochannels kernel type", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -74,7 +74,7 @@ class OctaneInfoChannelsKernelRayepsilon(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=144)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000100, update=None, description="Shadow ray offset distance to avoid self-intersection", min=0.000000, max=1000.000000, soft_min=0.000001, soft_max=0.100000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000100, update=OctaneBaseSocket.update_node_tree, description="Shadow ray offset distance to avoid self-intersection", min=0.000000, max=1000.000000, soft_min=0.000001, soft_max=0.100000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -88,7 +88,7 @@ class OctaneInfoChannelsKernelFiltersize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=50)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.200000, update=None, description="Pixel filter radius", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.200000, update=OctaneBaseSocket.update_node_tree, description="Pixel filter radius", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -102,7 +102,7 @@ class OctaneInfoChannelsKernelAodist(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=7)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=3.000000, update=None, description="Ambient occlusion distance", min=0.010000, max=1024.000000, soft_min=0.010000, soft_max=1024.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=3.000000, update=OctaneBaseSocket.update_node_tree, description="Ambient occlusion distance", min=0.010000, max=1024.000000, soft_min=0.010000, soft_max=1024.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=2000000
     octane_end_version=4294967295
@@ -116,7 +116,7 @@ class OctaneInfoChannelsKernelAoAlphaShadows(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=258)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Take into account alpha maps when calculating ambient occlusion")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Take into account alpha maps when calculating ambient occlusion")
     octane_hide_value=False
     octane_min_version=3000001
     octane_end_version=4294967295
@@ -130,7 +130,7 @@ class OctaneInfoChannelsKernelOpacity(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Geometry with opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Geometry with opacity higher or equal to this value is treated as totally opaque", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -144,7 +144,7 @@ class OctaneInfoChannelsKernelZDepthMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=257)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=5.000000, update=None, description="The maximum Z-depth value. Background pixels will get this value and and any foreground depths will be clamped at this value. This applies with or without tone mapping, but tone mapping will map the maximum Z-depth to white (0 is mapped to black)", min=0.001000, max=100000.000000, soft_min=0.001000, soft_max=100000.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="The maximum Z-depth value. Background pixels will get this value and and any foreground depths will be clamped at this value. This applies with or without tone mapping, but tone mapping will map the maximum Z-depth to white (0 is mapped to black)", min=0.001000, max=100000.000000, soft_min=0.001000, soft_max=100000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -158,7 +158,7 @@ class OctaneInfoChannelsKernelUVMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=250)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="UV coordinate value mapped to maximum intensity", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="UV coordinate value mapped to maximum intensity", min=0.000010, max=1000.000000, soft_min=0.000010, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -172,7 +172,7 @@ class OctaneInfoChannelsKernelUvSet(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=249)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=1, update=None, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Determines which set of UV coordinates to use", min=1, max=3, soft_min=1, soft_max=3, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=2200000
     octane_end_version=4294967295
@@ -186,7 +186,7 @@ class OctaneInfoChannelsKernelMaxSpeed(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=109)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval", min=0.000010, max=10000.000000, soft_min=0.000010, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Speed mapped to the maximum intensity in the motion vector channel. A value of 1 means a maximum movement of 1 screen width in the shutter interval", min=0.000010, max=10000.000000, soft_min=0.000010, soft_max=10000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=2130000
     octane_end_version=4294967295
@@ -205,7 +205,7 @@ class OctaneInfoChannelsKernelSamplingMode(OctaneBaseSocket):
         ("Non-distributed with pixel filtering", "Non-distributed with pixel filtering", "", 1),
         ("Non-distributed without pixel filtering", "Non-distributed without pixel filtering", "", 2),
     ]
-    default_value: EnumProperty(default="Distributed rays", update=None, description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n'Distributed rays': Enables motion blur and DOF, and also enables pixel filtering.\n'Non-distributed with pixel filtering': Disables motion blur and DOF, but leaves pixel filtering enabled.\n'Non-distributed without pixel filtering': Disables motion blur and DOF, and disables pixel filtering for all render AOVs except for render layer mask and ambient occlusion", items=items)
+    default_value: EnumProperty(default="Distributed rays", update=OctaneBaseSocket.update_node_tree, description="Enables motion blur and depth of field, and sets pixel filtering modes.\n\n'Distributed rays': Enables motion blur and DOF, and also enables pixel filtering.\n'Non-distributed with pixel filtering': Disables motion blur and DOF, but leaves pixel filtering enabled.\n'Non-distributed without pixel filtering': Disables motion blur and DOF, and disables pixel filtering for all render AOVs except for render layer mask and ambient occlusion", items=items)
     octane_hide_value=False
     octane_min_version=3050100
     octane_end_version=4294967295
@@ -219,7 +219,7 @@ class OctaneInfoChannelsKernelBump(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Take bump and normal mapping into account for shading normal and texture tangent output and wireframe shading")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Take bump and normal mapping into account for shading normal and texture tangent output and wireframe shading")
     octane_hide_value=False
     octane_min_version=1250000
     octane_end_version=4294967295
@@ -233,7 +233,7 @@ class OctaneInfoChannelsKernelHighlightBackfaces(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=72)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Show faces seen from the backside of the face normal in a different color in wireframe mode")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Show faces seen from the backside of the face normal in a different color in wireframe mode")
     octane_hide_value=False
     octane_min_version=1210000
     octane_end_version=4294967295
@@ -247,7 +247,7 @@ class OctaneInfoChannelsKernelMaxsubdLevel(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=495)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=10, update=None, description="The maximum subdivision level that should be applied on the geometries in the scene. Setting zero will disable the subdivision", min=0, max=10, soft_min=0, soft_max=10, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=10, update=OctaneBaseSocket.update_node_tree, description="The maximum subdivision level that should be applied on the geometries in the scene. Setting zero will disable the subdivision", min=0, max=10, soft_min=0, soft_max=10, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=6000001
     octane_end_version=4294967295
@@ -261,7 +261,7 @@ class OctaneInfoChannelsKernelAlphachannel(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=2)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Enables direct light through opacity maps. If disabled, ray tracing will be faster but renders incorrect shadows for alpha-mapped geometry or specular materials with \"fake shadows\" enabled")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enables direct light through opacity maps. If disabled, ray tracing will be faster but renders incorrect shadows for alpha-mapped geometry or specular materials with \"fake shadows\" enabled")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -275,7 +275,7 @@ class OctaneInfoChannelsKernelParallelSamples(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=273)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=16, update=None, description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=16, update=OctaneBaseSocket.update_node_tree, description="Specifies the number of samples that are run in parallel. A small number means less parallel samples and less memory usage, but potentially slower speed. A large number means more memory usage and potentially a higher speed", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -289,7 +289,7 @@ class OctaneInfoChannelsKernelMaxTileSamples(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=267)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=32, update=None, description="The maximum samples we calculate until we switch to a new tile", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="The maximum samples we calculate until we switch to a new tile", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -303,7 +303,7 @@ class OctaneInfoChannelsKernelMinimizeNetTraffic(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=270)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, the work is distributed to the network render nodes in such a way to minimize the amount of data that is sent to the network render master")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, the work is distributed to the network render nodes in such a way to minimize the amount of data that is sent to the network render master")
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -321,7 +321,7 @@ class OctaneInfoChannelsKernelWhiteLightSpectrum(OctaneBaseSocket):
         ("D65", "D65", "", 1),
         ("Legacy/flat", "Legacy/flat", "", 0),
     ]
-    default_value: EnumProperty(default="D65", update=None, description="Controls the appearance of colors produced by spectral emitters (e.g. daylight environment, black body emitters). This determines the spectrum that will produce white (before white balance) in the final image. Use D65 to adapt to a reasonable daylight \"white\" color. Use Legacy/flat to preserve the appearance of old projects (spectral emitters will appear rather blue)", items=items)
+    default_value: EnumProperty(default="D65", update=OctaneBaseSocket.update_node_tree, description="Controls the appearance of colors produced by spectral emitters (e.g. daylight environment, black body emitters). This determines the spectrum that will produce white (before white balance) in the final image. Use D65 to adapt to a reasonable daylight \"white\" color. Use Legacy/flat to preserve the appearance of old projects (spectral emitters will appear rather blue)", items=items)
     octane_hide_value=False
     octane_min_version=11000005
     octane_end_version=4294967295
@@ -335,7 +335,7 @@ class OctaneInfoChannelsKernelUseOldColorPipeline(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=708)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Use the old behavior for converting colors to and from spectra and for applying white balance. Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut will be rendered inaccurately)")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Use the old behavior for converting colors to and from spectra and for applying white balance. Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut will be rendered inaccurately)")
     octane_hide_value=False
     octane_min_version=11000005
     octane_end_version=4294967295
@@ -349,7 +349,7 @@ class OctaneInfoChannelsKernelDeepEnable(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=263)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Render a deep image")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Render a deep image")
     octane_hide_value=False
     octane_min_version=5000000
     octane_end_version=4294967295
@@ -363,7 +363,7 @@ class OctaneInfoChannelsKernelDeepEnablePasses(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=446)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Include render AOVs in deep pixels")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Include render AOVs in deep pixels")
     octane_hide_value=False
     octane_min_version=5000000
     octane_end_version=4294967295
@@ -377,7 +377,7 @@ class OctaneInfoChannelsKernelMaxDepthSamples(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=266)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=8, update=None, description="Maximum number of depth samples per pixels", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Maximum number of depth samples per pixels", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=5000000
     octane_end_version=4294967295
@@ -391,7 +391,7 @@ class OctaneInfoChannelsKernelDepthTolerance(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=264)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.050000, update=None, description="Depth samples whose relative depth difference falls below the tolerance value are merged together", min=0.001000, max=1.000000, soft_min=0.001000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=0.050000, update=OctaneBaseSocket.update_node_tree, description="Depth samples whose relative depth difference falls below the tolerance value are merged together", min=0.001000, max=1.000000, soft_min=0.001000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=5000000
     octane_end_version=4294967295
@@ -405,7 +405,7 @@ class OctaneInfoChannelsKernelDistributedTracing(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=36)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="Enable depth of field and motion blur")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enable depth of field and motion blur")
     octane_hide_value=False
     octane_min_version=1340000
     octane_end_version=3050100
@@ -419,7 +419,7 @@ class OctaneInfoChannelsKernelAlphashadows(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=3)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Take into account alpha maps when calculating ambient occlusion")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Take into account alpha maps when calculating ambient occlusion")
     octane_hide_value=False
     octane_min_version=2130000
     octane_end_version=3000001

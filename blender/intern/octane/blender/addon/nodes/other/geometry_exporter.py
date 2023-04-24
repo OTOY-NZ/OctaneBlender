@@ -32,7 +32,7 @@ class OctaneGeometryExporterOutputFile(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=529)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_STRING)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_STRING)
-    default_value: StringProperty(default="", update=None, description="")
+    default_value: StringProperty(default="", update=OctaneBaseSocket.update_node_tree, description="")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,7 +46,7 @@ class OctaneGeometryExporterExportMaterials(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=530)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,7 +60,7 @@ class OctaneGeometryExporterTextureQuality(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=531)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
-    default_value: IntVectorProperty(default=(256, 256), update=None, description="When exporting materials this is the resolution. \n                                 Ignored, if export materials is disabled", min=-2147483648, max=2147483647, soft_min=-2147483648, soft_max=2147483647, step=1, subtype="NONE", size=2)
+    default_value: IntVectorProperty(default=(256, 256), update=OctaneBaseSocket.update_node_tree, description="When exporting materials this is the resolution. \n                                 Ignored, if export materials is disabled", min=-2147483648, max=2147483647, soft_min=-2147483648, soft_max=2147483647, step=1, subtype="NONE", size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -74,7 +74,7 @@ class OctaneGeometryExporterPreserveOctaneData(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=532)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Ignored, if export materials is disabled")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Ignored, if export materials is disabled")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

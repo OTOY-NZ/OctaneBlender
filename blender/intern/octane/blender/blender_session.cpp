@@ -17,7 +17,6 @@
  */
 #include <stdio.h>
 
-extern "C" {
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -41,7 +40,6 @@ extern "C" {
 #include "DEG_depsgraph_build.h"
 
 #include "WM_api.h"
-}
 
 #include "blender/blender_octanedb.h"
 #include "blender/blender_session.h"

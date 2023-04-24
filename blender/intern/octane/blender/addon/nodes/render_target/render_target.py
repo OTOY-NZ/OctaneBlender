@@ -175,7 +175,7 @@ class OctaneRenderTargetResolution(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=198)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
-    default_value: IntVectorProperty(default=(1024, 512), update=None, description="Resolution of the render result", min=4, max=65536, soft_min=4, soft_max=65536, step=1, subtype="NONE", size=2)
+    default_value: IntVectorProperty(default=(1024, 512), update=OctaneBaseSocket.update_node_tree, description="Resolution of the render result", min=4, max=65536, soft_min=4, soft_max=65536, step=1, subtype="NONE", size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=3000013

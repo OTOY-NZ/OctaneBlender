@@ -17,14 +17,12 @@
  */
 #include <stdio.h>
 
-extern "C" {
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_scene.h"
-}
 
 #include "render/camera.h"
 #include "render/light.h"

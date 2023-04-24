@@ -31,8 +31,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_float3.hh"
 #include "BLI_index_range.hh"
+#include "BLI_math_vec_types.hh"
 #include "BLI_span.hh"
 
 #include "DNA_mesh_types.h"
@@ -410,7 +410,8 @@ struct Mesh *BKE_mesh_remesh_voxel_fix_poles(const Mesh *mesh)
 {
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
 
-  const BMeshCreateParams bmesh_create_params = {true};
+  BMeshCreateParams bmesh_create_params{};
+  bmesh_create_params.use_toolflags = true;
   BMesh *bm = BM_mesh_create(&allocsize, &bmesh_create_params);
 
   BMeshFromMeshParams bmesh_from_mesh_params{};

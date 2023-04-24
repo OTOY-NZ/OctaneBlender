@@ -19,7 +19,7 @@ class OctaneCinema4DNoisePower(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=11000014
     octane_end_version=4294967295
@@ -67,7 +67,7 @@ class OctaneCinema4DNoiseNoiseType(OctaneBaseSocket):
         ("Gaseous", "Gaseous", "", 30),
         ("Ridgedmulti", "Ridgedmulti", "", 31),
     ]
-    default_value: EnumProperty(default="BoxNoise", update=None, description="Noise type (Cinema4dNoiseType)", items=items)
+    default_value: EnumProperty(default="BoxNoise", update=OctaneBaseSocket.update_node_tree, description="Noise type (Cinema4dNoiseType)", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -81,7 +81,7 @@ class OctaneCinema4DNoiseOctaves(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=121)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=5.000000, update=None, description="Number of octaves", min=0.000000, max=15.000000, soft_min=0.000000, soft_max=15.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="Number of octaves", min=0.000000, max=15.000000, soft_min=0.000000, soft_max=15.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -95,7 +95,7 @@ class OctaneCinema4DNoiseLacunarity(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=90)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=2.100000, update=None, description="Lacunarity", min=0.100000, max=10.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=2.100000, update=OctaneBaseSocket.update_node_tree, description="Lacunarity", min=0.100000, max=10.000000, soft_min=0.100000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -109,7 +109,7 @@ class OctaneCinema4DNoiseGain(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=568)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.250000, update=None, description="Gain", min=-10.000000, max=10.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.250000, update=OctaneBaseSocket.update_node_tree, description="Gain", min=-10.000000, max=10.000000, soft_min=-10.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -149,7 +149,7 @@ class OctaneCinema4DNoiseTime(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=241)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="4th dimension input", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="4th dimension input", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -163,7 +163,7 @@ class OctaneCinema4DNoiseAbsolute(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=567)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Absolute")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Absolute")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -177,7 +177,7 @@ class OctaneCinema4DNoiseUse4d(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=570)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Switch between 2D and 4D noise")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Switch between 2D and 4D noise")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -191,7 +191,7 @@ class OctaneCinema4DNoiseSampleRadius(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=569)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Sample radius", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Sample radius", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -205,7 +205,7 @@ class OctaneCinema4DNoiseRandomSeed(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=143)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=0, update=None, description="Seed for noise", min=-2147483648, max=2147483647, soft_min=-2147483648, soft_max=2147483647, step=1, subtype="NONE")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Seed for noise", min=-2147483648, max=2147483647, soft_min=-2147483648, soft_max=2147483647, step=1, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Transform"),
@@ -53,7 +53,7 @@ static bNodeSocketTemplate sh_node_out[] = {{SOCK_RGBA, N_("OutTex")}, {-1, ""}}
 
 static void node_oct_checks_tex_init(bNodeTree *ntree, bNode *node)
 {
-  NodeTexImage *tex = MEM_callocN(sizeof(NodeTexImage), "NodeTexImage");
+  NodeTexImage *tex = MEM_cnew<NodeTexImage>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->iuser.frames = 1;
@@ -68,14 +68,14 @@ void register_node_type_tex_oct_checks(void)
 
   if (ntype.type != SH_NODE_OCT_CHECKS_TEX)
     node_type_base(
-        &ntype, SH_NODE_OCT_CHECKS_TEX, "Checks Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
+        &ntype, SH_NODE_OCT_CHECKS_TEX, "Checks Tex", NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_oct_checks_tex_init);
   node_type_storage(
       &ntype, "NodeTexChecker", node_free_standard_storage, node_copy_standard_storage);
   node_type_exec(&ntype, 0, 0, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_checks() */

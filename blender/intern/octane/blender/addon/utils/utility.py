@@ -361,6 +361,8 @@ def get_node_tree_owner_type(owner_id):
         owner_type = consts.OctaneNodeTreeIDName.TEXTURE
     elif isinstance(owner_id, bpy.types.World):
         owner_type = consts.OctaneNodeTreeIDName.WORLD
+    elif isinstance(owner_id, bpy.types.Light):
+        owner_type = consts.OctaneNodeTreeIDName.LIGHT
     elif isinstance(owner_id, base_node_tree.OctaneBaseNodeTree):
         owner_type = owner_id.bl_idname
     return owner_type

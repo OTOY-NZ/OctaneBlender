@@ -19,7 +19,7 @@ class OctaneCompositeAOVOutputImager(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=78)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, The imager settings is applied on the final AOV output. Otherwise ignored  Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The imager settings is applied on the final AOV output. Otherwise ignored  Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
     octane_hide_value=False
     octane_min_version=10021000
     octane_end_version=4294967295
@@ -33,7 +33,7 @@ class OctaneCompositeAOVOutputPostproc(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=136)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, The post processing settings is applied on the final AOV output. Otherwise ignored Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The post processing settings is applied on the final AOV output. Otherwise ignored Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
     octane_hide_value=False
     octane_min_version=10021000
     octane_end_version=4294967295
@@ -60,7 +60,7 @@ class OctaneCompositeAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
 
-    a_layer_count: IntProperty(name="Layer count", default=0, update=None, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
+    a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeAOVOutputGroupOutputSettings", OctaneCompositeAOVOutputGroupOutputSettings.bl_label).init()

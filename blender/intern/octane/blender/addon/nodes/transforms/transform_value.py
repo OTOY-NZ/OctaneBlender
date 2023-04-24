@@ -27,10 +27,10 @@ class OctaneTransformValue(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;8;8;8;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_rotation_order: IntProperty(name="Rotation order", default=2, update=None, description="The axis order in which the rotation will be executed. Must be of type Matrix::RotationOrder. Changing this attribute will re-calculate A_ROTATION from A_TRANSFORM using the new rotation order")
-    a_rotation: FloatVectorProperty(name="Rotation", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Rotation. Either calculated from A_TRANSFORM or used to calculate A_TRANSFORM")
-    a_scale: FloatVectorProperty(name="Scale", default=(1.000000, 1.000000, 1.000000), size=3, update=None, description="Scale. Either calculated from A_TRANSFORM or used to calculate A_TRANSFORM")
-    a_translation: FloatVectorProperty(name="Translation", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="Translation. Either calculated from A_TRANSFORM or used to calculate A_TRANSFORM")
+    a_rotation_order: IntProperty(name="Rotation order", default=2, update=OctaneBaseNode.update_node_tree, description="The axis order in which the rotation will be executed. Must be of type Matrix::RotationOrder. Changing this attribute will re-calculate A_ROTATION from A_TRANSFORM using the new rotation order")
+    a_rotation: FloatVectorProperty(name="Rotation", default=(0.000000, 0.000000, 0.000000), size=3, update=OctaneBaseNode.update_node_tree, description="Rotation. Either calculated from A_TRANSFORM or used to calculate A_TRANSFORM")
+    a_scale: FloatVectorProperty(name="Scale", default=(1.000000, 1.000000, 1.000000), size=3, update=OctaneBaseNode.update_node_tree, description="Scale. Either calculated from A_TRANSFORM or used to calculate A_TRANSFORM")
+    a_translation: FloatVectorProperty(name="Translation", default=(0.000000, 0.000000, 0.000000), size=3, update=OctaneBaseNode.update_node_tree, description="Translation. Either calculated from A_TRANSFORM or used to calculate A_TRANSFORM")
 
     def init(self, context):
         self.outputs.new("OctaneTransformOutSocket", "Transform out").init()
@@ -57,7 +57,7 @@ from . import _3d_transformation
 
 class OctaneTransformValue_Override(OctaneTransformValue):
     rotation_order_items=_3d_transformation.Octane3DTransformationRotationOrder.items
-    a_rotation_order: EnumProperty(name="Rotation Order", default="YXZ", update=None, description="Provides the rotation order that is used when the transformation matrix calculated", items=rotation_order_items)
+    a_rotation_order: EnumProperty(name="Rotation Order", default="YXZ", update=OctaneBaseNode.update_node_tree, description="Provides the rotation order that is used when the transformation matrix calculated", items=rotation_order_items)
 
     def draw_buttons(self, context, layout):        
         layout.row().prop(self, "a_rotation_order")

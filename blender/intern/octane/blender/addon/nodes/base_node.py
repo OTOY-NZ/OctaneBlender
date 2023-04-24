@@ -234,6 +234,14 @@ class OctaneBaseNode(object):
         remove_op.reversed_input_sockets = getattr(socket_class, "octane_reversed_input_sockets", False)
         remove_op.group_input_num = group_input_num
 
+    def update_node_tree(self, context):
+        node_tree = self.id_data
+        if node_tree:
+            if node_tree.type == "SHADER":
+                node_tree.update_tag()
+            else:
+                node_tree.update()
+
 
 class OctaneBaseOutputNode(OctaneBaseNode):
     """Base class for Octane output nodes"""

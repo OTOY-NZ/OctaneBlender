@@ -33,7 +33,7 @@ class OctaneWireframeAOVShadingEnabled(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=736)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, the wireframe will be rendered on slightly shaded objects")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, the wireframe will be rendered on slightly shaded objects")
     octane_hide_value=False
     octane_min_version=11000013
     octane_end_version=4294967295
@@ -47,7 +47,7 @@ class OctaneWireframeAOVBump(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="Take bump and normal mapping into account for wireframe shading (if shading is enabled)")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Take bump and normal mapping into account for wireframe shading (if shading is enabled)")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -61,7 +61,7 @@ class OctaneWireframeAOVHighlightBackfaces(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=72)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="If enabled, the backfaces will be tinted red")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the backfaces will be tinted red")
     octane_hide_value=False
     octane_min_version=11000013
     octane_end_version=4294967295

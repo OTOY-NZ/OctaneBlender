@@ -26,7 +26,7 @@ class OctaneSpotlightOrientation(OctaneBaseSocket):
         ("Target point - world space", "Target point - world space", "", 4),
         ("Target point - object space", "Target point - object space", "", 5),
     ]
-    default_value: EnumProperty(default="Direction - object space", update=None, description="Main axis for the emission cone", items=items)
+    default_value: EnumProperty(default="Direction - object space", update=OctaneBaseSocket.update_node_tree, description="Main axis for the emission cone", items=items)
     octane_hide_value=False
     octane_min_version=3030005
     octane_end_version=4294967295
@@ -40,7 +40,7 @@ class OctaneSpotlightTarget(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=235)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, -1.000000, 0.000000), update=None, description="Specify the direction or target point. Ignored if orientation is set to surface normal", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, -1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Specify the direction or target point. Ignored if orientation is set to surface normal", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -54,7 +54,7 @@ class OctaneSpotlightConeAngle(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=562)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=60.000000, update=None, description="Width of the cone angle in degrees", min=0.000000, max=180.000000, soft_min=0.000000, soft_max=180.000000, step=10, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=60.000000, update=OctaneBaseSocket.update_node_tree, description="Width of the cone angle in degrees", min=0.000000, max=180.000000, soft_min=0.000000, soft_max=180.000000, step=10, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -68,7 +68,7 @@ class OctaneSpotlightHardness(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=563)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.750000, update=None, description="Controls how abruptly the emission pattern falls of at the edge", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="Controls how abruptly the emission pattern falls of at the edge", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -82,7 +82,7 @@ class OctaneSpotlightNormalize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=118)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Keep the emitted power constant if the angle changes")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Keep the emitted power constant if the angle changes")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

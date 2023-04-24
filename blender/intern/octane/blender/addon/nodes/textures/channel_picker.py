@@ -37,7 +37,7 @@ class OctaneChannelPickerColorChannel(OctaneBaseSocket):
         ("G", "G", "", 1),
         ("B", "B", "", 2),
     ]
-    default_value: EnumProperty(default="R", update=None, description="The color channel to pass through to the output texture", items=items)
+    default_value: EnumProperty(default="R", update=OctaneBaseSocket.update_node_tree, description="The color channel to pass through to the output texture", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

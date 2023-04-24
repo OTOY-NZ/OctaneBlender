@@ -27,8 +27,8 @@ class OctaneOCIOColorSpace(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_color_space: IntProperty(name="Color space", default=0, update=None, description="The selected non-OCIO color space, or NAMED_COLOR_SPACE_OCIO if an OCIO color space is selected")
-    a_ocio_color_space_name: StringProperty(name="Ocio color space name", default="", update=None, description="The name of the selected OCIO color space, if an OCIO color space is selected. Unused otherwise")
+    a_color_space: IntProperty(name="Color space", default=0, update=OctaneBaseNode.update_node_tree, description="The selected non-OCIO color space, or NAMED_COLOR_SPACE_OCIO if an OCIO color space is selected")
+    a_ocio_color_space_name: StringProperty(name="Ocio color space name", default="", update=OctaneBaseNode.update_node_tree, description="The name of the selected OCIO color space, if an OCIO color space is selected. Unused otherwise")
 
     def init(self, context):
         self.outputs.new("OctaneOCIOColorSpaceOutSocket", "OCIO color space out").init()

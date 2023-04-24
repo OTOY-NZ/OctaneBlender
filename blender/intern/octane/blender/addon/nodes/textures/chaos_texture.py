@@ -32,7 +32,7 @@ class OctaneChaosTextureResolution(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=198)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
-    default_value: IntVectorProperty(default=(4096, 4096), update=None, description="Resolution used to sample the input texture.\nThis is only used if the source texture is not an image or if histogram invariant blending is enabled", min=4, max=65536, soft_min=4, soft_max=65536, step=1, subtype="NONE", size=2)
+    default_value: IntVectorProperty(default=(4096, 4096), update=OctaneBaseSocket.update_node_tree, description="Resolution used to sample the input texture.\nThis is only used if the source texture is not an image or if histogram invariant blending is enabled", min=4, max=65536, soft_min=4, soft_max=65536, step=1, subtype="NONE", size=2)
     octane_hide_value=False
     octane_min_version=10020600
     octane_end_version=4294967295
@@ -46,7 +46,7 @@ class OctaneChaosTextureTileScale(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=626)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=4.000000, update=None, description="Controls the dimension of the patches taken from the source", min=1.000000, max=10.000000, soft_min=1.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=4.000000, update=OctaneBaseSocket.update_node_tree, description="Controls the dimension of the patches taken from the source", min=1.000000, max=10.000000, soft_min=1.000000, soft_max=10.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,7 +60,7 @@ class OctaneChaosTextureCoverage(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=622)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.500000, update=None, description="Controls the size of the area in the input from which the patches are taken from.\nIf the source texture isn't self-tiling lower this number to avoid seeing UV boundary seams in the result.\nIf the value is too small self-similarities in the output will be more apparent", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Controls the size of the area in the input from which the patches are taken from.\nIf the source texture isn't self-tiling lower this number to avoid seeing UV boundary seams in the result.\nIf the value is too small self-similarities in the output will be more apparent", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -74,7 +74,7 @@ class OctaneChaosTextureBlendExponent(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=623)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=4.000000, update=None, description="Controls the exponent for exponentiated blending", min=1.000000, max=16.000000, soft_min=1.000000, soft_max=16.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=4.000000, update=OctaneBaseSocket.update_node_tree, description="Controls the exponent for exponentiated blending", min=1.000000, max=16.000000, soft_min=1.000000, soft_max=16.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -88,7 +88,7 @@ class OctaneChaosTextureHistogramInvariant(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=629)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Enable histogram invariant blending.\nThis makes the output texture histogram closer to the one of the input.\nThis option is only compatible with LDR images")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable histogram invariant blending.\nThis makes the output texture histogram closer to the one of the input.\nThis option is only compatible with LDR images")
     octane_hide_value=False
     octane_min_version=10020700
     octane_end_version=4294967295
@@ -102,7 +102,7 @@ class OctaneChaosTextureShowStructure(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=624)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -129,7 +129,7 @@ class OctaneChaosTextureRotationEnabled(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=625)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Enable rotation randomization at the tile level")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable rotation randomization at the tile level")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -143,7 +143,7 @@ class OctaneChaosTextureRandomSeed(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=143)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=0, update=None, description="Seed used for the randomization of tile rotation", min=-2147483648, max=2147483647, soft_min=-2147483648, soft_max=2147483647, step=1, subtype="NONE")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Seed used for the randomization of tile rotation", min=-2147483648, max=2147483647, soft_min=-2147483648, soft_max=2147483647, step=1, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -157,7 +157,7 @@ class OctaneChaosTextureTileRotationMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=627)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=360, update=None, description="Maximum amount of rotation applied to individual tiles", min=0, max=360, soft_min=0, soft_max=360, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=360, update=OctaneBaseSocket.update_node_tree, description="Maximum amount of rotation applied to individual tiles", min=0, max=360, soft_min=0, soft_max=360, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

@@ -19,7 +19,7 @@ class OctaneRayDirectionViewDirection(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=700)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If checked the resulting vector goes from the viewing position to the shaded point position, if not checked it goes in the opposite direction")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If checked the resulting vector goes from the viewing position to the shaded point position, if not checked it goes in the opposite direction")
     octane_hide_value=False
     octane_min_version=11000004
     octane_end_version=4294967295
@@ -39,7 +39,7 @@ class OctaneRayDirectionCoordinateSystem(OctaneBaseSocket):
         ("Object", "Object", "", 2),
         ("Tangent", "Tangent", "", 3),
     ]
-    default_value: EnumProperty(default="World", update=None, description="Coordinate space used to compute the ray direction", items=items)
+    default_value: EnumProperty(default="World", update=OctaneBaseSocket.update_node_tree, description="Coordinate space used to compute the ray direction", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -53,7 +53,7 @@ class OctaneRayDirectionNormalize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=118)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Whether to remap the result to the [0..1] range or leave it in the [-1..+1] range")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether to remap the result to the [0..1] range or leave it in the [-1..+1] range")
     octane_hide_value=False
     octane_min_version=11000004
     octane_end_version=4294967295

@@ -32,7 +32,7 @@ class OctaneRandomMapInputScale(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=709)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=1, update=None, description="Scale factor for the input texture values", min=1, max=65536, soft_min=1, soft_max=65536, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="Scale factor for the input texture values", min=1, max=65536, soft_min=1, soft_max=65536, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -52,7 +52,7 @@ class OctaneRandomMapNoiseType(OctaneBaseSocket):
         ("Cell", "Cell", "", 2),
         ("Hash", "Hash", "", 3),
     ]
-    default_value: EnumProperty(default="Perlin", update=None, description="Noise function", items=items)
+    default_value: EnumProperty(default="Perlin", update=OctaneBaseSocket.update_node_tree, description="Noise function", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

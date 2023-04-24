@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_SHADER,
@@ -392,7 +392,7 @@ static void node_oct_update_gradient(bNodeTree *UNUSED(ntree), bNode *node)
       char position_sock_name[64];
       sprintf(value_sock_name, "Value %d", i);
       sprintf(position_sock_name, "Position %d", i);
-      for (sock = node->inputs.first; sock; sock = sock->next) {
+      LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
         if (STREQ(sock->name, value_sock_name) || STREQ(sock->name, position_sock_name)) {
           if (show) {
             sock->flag &= ~SOCK_UNAVAIL;
@@ -412,16 +412,16 @@ void register_node_type_tex_oct_gradient(void)
 
   if (ntype.type != SH_NODE_OCT_GRADIENT_TEX)
     node_type_base(
-        &ntype, SH_NODE_OCT_GRADIENT_TEX, "Gradient Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
+        &ntype, SH_NODE_OCT_GRADIENT_TEX, "Gradient Tex", NODE_CLASS_OCT_TEXTURE);
   // if(ntype.type != SH_NODE_OCT_GRADIENT_TEX) cmp_node_type_base(&ntype,
-  // SH_NODE_OCT_GRADIENT_TEX, "Octane Gradient Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
+  // SH_NODE_OCT_GRADIENT_TEX, "Octane Gradient Tex", NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_oct_init_gradient);
   node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   node_type_exec(&ntype, 0, 0, 0);
   node_type_update(&ntype, node_oct_update_gradient);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_gradient() */

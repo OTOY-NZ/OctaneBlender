@@ -27,7 +27,7 @@ class OctaneEnumValue(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: IntProperty(name="Value", default=0, update=None, description="The value of the enum node")
+    a_value: IntProperty(name="Value", default=0, update=OctaneBaseNode.update_node_tree, description="The value of the enum node")
 
     def init(self, context):
         self.outputs.new("OctaneEnumOutSocket", "Enum out").init()

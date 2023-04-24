@@ -27,8 +27,8 @@ class OctaneOCIOView(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_ocio_display_name: StringProperty(name="Ocio display name", default="", update=None, description="The name of the OCIO display containing the selected OCIO view, or empty to not use an OCIO view")
-    a_ocio_view_name: StringProperty(name="Ocio view name", default="", update=None, description="The name of the selected OCIO view, or empty to not use an OCIO view")
+    a_ocio_display_name: StringProperty(name="Ocio display name", default="", update=OctaneBaseNode.update_node_tree, description="The name of the OCIO display containing the selected OCIO view, or empty to not use an OCIO view")
+    a_ocio_view_name: StringProperty(name="Ocio view name", default="", update=OctaneBaseNode.update_node_tree, description="The name of the selected OCIO view, or empty to not use an OCIO view")
 
     def init(self, context):
         self.outputs.new("OctaneOCIOViewOutSocket", "OCIO view out").init()

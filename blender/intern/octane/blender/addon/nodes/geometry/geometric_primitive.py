@@ -44,7 +44,7 @@ class OctaneGeometricPrimitivePrimitive(OctaneBaseSocket):
         ("Torus", "Torus", "", 22),
         ("Truncated cone", "Truncated cone", "", 23),
     ]
-    default_value: EnumProperty(default="Box", update=None, description="", items=items)
+    default_value: EnumProperty(default="Box", update=OctaneBaseSocket.update_node_tree, description="", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

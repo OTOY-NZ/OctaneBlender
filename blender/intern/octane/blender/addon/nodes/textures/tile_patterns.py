@@ -27,7 +27,7 @@ class OctaneTilePatternsOperationType(OctaneBaseSocket):
         ("Triangles", "Triangles", "", 4),
         ("Voronoi", "Voronoi", "", 5),
     ]
-    default_value: EnumProperty(default="Bricks", update=None, description="The pattern type to generate", items=items)
+    default_value: EnumProperty(default="Bricks", update=OctaneBaseSocket.update_node_tree, description="The pattern type to generate", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -41,7 +41,7 @@ class OctaneTilePatternsTexture1(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.800000, 0.180000, 0.100000), update=None, description="Tile color 1", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.800000, 0.180000, 0.100000), update=OctaneBaseSocket.update_node_tree, description="Tile color 1", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -55,7 +55,7 @@ class OctaneTilePatternsTexture2(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.300000, 0.070000, 0.040000), update=None, description="Tile color 2", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.300000, 0.070000, 0.040000), update=OctaneBaseSocket.update_node_tree, description="Tile color 2", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -69,7 +69,7 @@ class OctaneTilePatternsTexture3(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=337)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.900000, 0.900000, 0.900000), update=None, description="Line color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.900000, 0.900000, 0.900000), update=OctaneBaseSocket.update_node_tree, description="Line color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -83,7 +83,7 @@ class OctaneTilePatternsLineWidth(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=714)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.020000, update=None, description="Line width", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.020000, update=OctaneBaseSocket.update_node_tree, description="Line width", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

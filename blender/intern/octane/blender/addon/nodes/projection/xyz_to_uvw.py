@@ -37,7 +37,7 @@ class OctaneXYZToUVWPositionType(OctaneBaseSocket):
         ("Object space", "Object space", "", 3),
         ("Normal space (IES Lights)", "Normal space (IES Lights)", "", 4),
     ]
-    default_value: EnumProperty(default="Object space", update=None, description="Coordinate space used by the texture", items=items)
+    default_value: EnumProperty(default="Object space", update=OctaneBaseSocket.update_node_tree, description="Coordinate space used by the texture", items=items)
     octane_hide_value=False
     octane_min_version=1240000
     octane_end_version=4294967295

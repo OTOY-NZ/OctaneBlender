@@ -95,7 +95,7 @@ class OctaneGlobalTextureAOVIncludeEnvironment(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=634)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="If enabled, the texture will also be evaluated for camera rays that leave the scene. This can be useful for textures that need to be evaluated over the whole screen")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the texture will also be evaluated for camera rays that leave the scene. This can be useful for textures that need to be evaluated over the whole screen")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

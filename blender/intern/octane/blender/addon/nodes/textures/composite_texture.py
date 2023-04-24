@@ -19,7 +19,7 @@ class OctaneCompositeTextureClamp(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=628)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="Clamp the result of blending each layer to [0,1] (ignored when used as a normal map)")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Clamp the result of blending each layer to [0,1] (ignored when used as a normal map)")
     octane_hide_value=False
     octane_min_version=10020600
     octane_end_version=4294967295
@@ -41,7 +41,7 @@ class OctaneCompositeTexture(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
 
-    a_layer_count: IntProperty(name="Layer count", default=0, update=None, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
+    a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeTextureClamp", OctaneCompositeTextureClamp.bl_label).init()

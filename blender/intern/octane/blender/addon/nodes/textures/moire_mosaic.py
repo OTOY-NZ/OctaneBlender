@@ -25,7 +25,7 @@ class OctaneMoireMosaicShape(OctaneBaseSocket):
         ("Ring", "Ring", "", 2),
         ("Frame", "Frame", "", 3),
     ]
-    default_value: EnumProperty(default="Ring", update=None, description="The type of the generated shapes", items=items)
+    default_value: EnumProperty(default="Ring", update=OctaneBaseSocket.update_node_tree, description="The type of the generated shapes", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -39,7 +39,7 @@ class OctaneMoireMosaicSize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=216)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.750000, update=None, description="The width/height or radius of the generated shapes", min=0.000000, max=4.000000, soft_min=0.000000, soft_max=4.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="The width/height or radius of the generated shapes", min=0.000000, max=4.000000, soft_min=0.000000, soft_max=4.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -53,7 +53,7 @@ class OctaneMoireMosaicRadius(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=142)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.100000, update=None, description="The corner radius (frame shape)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The corner radius (frame shape)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -67,7 +67,7 @@ class OctaneMoireMosaicBlur(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=715)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.100000, update=None, description="The blurriness of the lines (circle and ring shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.100000, update=OctaneBaseSocket.update_node_tree, description="The blurriness of the lines (circle and ring shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -81,7 +81,7 @@ class OctaneMoireMosaicShift(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=214)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.750000, update=None, description="A horizontal shift applied to alternating rows (rectangle and circle shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.750000, update=OctaneBaseSocket.update_node_tree, description="A horizontal shift applied to alternating rows (rectangle and circle shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -95,7 +95,7 @@ class OctaneMoireMosaicSpacing(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=717)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(4.000000, 4.000000), update=None, description="The horizontal and vertical spacing between rings (ring and frame shapes)", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
+    default_value: FloatVectorProperty(default=(4.000000, 4.000000), update=OctaneBaseSocket.update_node_tree, description="The horizontal and vertical spacing between rings (ring and frame shapes)", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -109,7 +109,7 @@ class OctaneMoireMosaicIterationCount(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=718)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=4, update=None, description="The number of iterations used by the shape generator (ring and frame shapes)", min=1, max=4, soft_min=1, soft_max=4, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="The number of iterations used by the shape generator (ring and frame shapes)", min=1, max=4, soft_min=1, soft_max=4, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -123,7 +123,7 @@ class OctaneMoireMosaicTime(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=241)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.250000, update=None, description="The time in the generation sequence (ring and frame shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.250000, update=OctaneBaseSocket.update_node_tree, description="The time in the generation sequence (ring and frame shapes)", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

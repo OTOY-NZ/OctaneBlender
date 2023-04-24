@@ -33,7 +33,7 @@ class OctaneZDepthAOVZDepthMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=257)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=5.000000, update=None, description="The Z-depth value at which the AOV values become white / 1. LDR exports will clamp at that depth, but HDR exports will write values > 1 for larger depths", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=10000.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="The Z-depth value at which the AOV values become white / 1. LDR exports will clamp at that depth, but HDR exports will write values > 1 for larger depths", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=10000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -47,7 +47,7 @@ class OctaneZDepthAOVEnvironmentDepth(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=735)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1000.000000, update=None, description="The Z-depth value that will be used for the environment/background", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=10000.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=1000.000000, update=OctaneBaseSocket.update_node_tree, description="The Z-depth value that will be used for the environment/background", min=0.001000, max=1000000.000000, soft_min=0.001000, soft_max=10000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=11000013
     octane_end_version=4294967295

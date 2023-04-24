@@ -27,9 +27,9 @@ class OctaneNote(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;8;3;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: StringProperty(name="Value", default="", update=None, description="Annotation text")
-    a_color: FloatVectorProperty(name="Color", default=(0.500000, 0.500000, 0.500000), size=3, update=None, description="Node's color in the GUI")
-    a_size: IntVectorProperty(name="Size", default=(200, 23), size=2, update=None, description="Node's size")
+    a_value: StringProperty(name="Value", default="", update=OctaneBaseNode.update_node_tree, description="Annotation text")
+    a_color: FloatVectorProperty(name="Color", default=(0.500000, 0.500000, 0.500000), size=3, update=OctaneBaseNode.update_node_tree, description="Node's color in the GUI")
+    a_size: IntVectorProperty(name="Size", default=(200, 23), size=2, update=OctaneBaseNode.update_node_tree, description="Node's size")
 
     def init(self, context):
         pass

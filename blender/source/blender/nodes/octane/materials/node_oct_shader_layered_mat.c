@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../../../source/blender/nodes/shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             N_("Base Material"),
@@ -135,7 +135,7 @@ static void node_shader_update_layered_mat(bNodeTree *UNUSED(ntree), bNode *node
     bool show = i <= layer_number;
     char sock_name[64];
     sprintf(sock_name, "Layer %d", i);
-    for (sock = node->inputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       if (STREQ(sock->name, sock_name)) {
         if (show) {
           sock->flag &= ~SOCK_UNAVAIL;
@@ -154,7 +154,7 @@ void register_node_type_sh_oct_layered_mat(void)
 
   if (ntype.type != SH_NODE_OCT_LAYERED_MAT)
     node_type_base(
-        &ntype, SH_NODE_OCT_LAYERED_MAT, "Layered Material", NODE_CLASS_OCT_SHADER, NODE_OPTIONS);
+        &ntype, SH_NODE_OCT_LAYERED_MAT, "Layered Material", NODE_CLASS_OCT_SHADER);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_oct_init_layered_mat);

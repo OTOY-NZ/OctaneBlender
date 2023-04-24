@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-extern "C" {
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -8,6 +7,8 @@ extern "C" {
 #include "BKE_node.h"
 #include "BKE_scene.h"
 #include "BKE_text.h"
+#include "BKE_node_tree_update.h"
+
 #include "DNA_material_types.h"
 #include "DNA_text_types.h"
 
@@ -15,7 +16,7 @@ extern "C" {
 
 #include "BLI_fileops.h"
 #include "DEG_depsgraph.h"
-}
+
 #include "blender/blender_octanedb.h"
 #include "blender/blender_util.h"
 
@@ -179,7 +180,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
     BNodeSocketSetter setter(blenderNodes[i], node_tree, bmain, blenderNodes, blenderNodeLevels);
     dbNodes.octaneDBNodes[i]->VisitEach(&setter);
     dbNodes.octaneDBNodes[i]->UpdateOctaneDBNode(&setter);
-    nodeUpdate(node_tree, blenderNodes[i]);
+    BKE_ntree_update_tag_node_property(node_tree, blenderNodes[i]);
   }
   organize_node_tree_layout(
       target_material->nodetree, node_output, blenderNodes, blenderNodeLevels);
@@ -199,8 +200,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
     mat_node->locx = node_output->locx;
     mat_node->locy = node_output->locy - 200;
   }
-  ntreeTagUsedSockets(node_tree);
-  ntreeUpdateTree(bmain, node_tree);
+  BKE_ntree_update_tag_all(node_tree);
 
   target_material->is_octanedb_updating = 0;
 
@@ -291,7 +291,8 @@ void OctaneBaseImageNode::UpdateOctaneDBNode(void *data)
   }
   setter->bnode->id = (struct ID *)BKE_image_load_exists(setter->bmain,
                                                          oImageData.sFilePath.sVal.c_str());
-  nodeUpdateID(setter->bnode_tree, &ima->id);
+  BKE_ntree_update_tag_id_changed(setter->bmain, &ima->id);
+  BKE_ntree_update_tag_all(setter->bnode_tree);
 }
 
 void OctaneBaseRampNode::UpdateOctaneDBNode(void *data)

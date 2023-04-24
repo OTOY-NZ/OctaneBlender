@@ -32,7 +32,7 @@ class OctaneTextureDisplacementBlackLevel(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=13)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="The value in the image which corresponds to zero displacement. The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The value in the image which corresponds to zero displacement. The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -54,7 +54,7 @@ class OctaneTextureDisplacementLevelOfDetail(OctaneBaseSocket):
         ("4096x4096", "4096x4096", "", 12),
         ("8192x8192", "8192x8192", "", 13),
     ]
-    default_value: EnumProperty(default="1024x1024", update=None, description="Level of detail, i.e. the resolution of the internal displacement map", items=items)
+    default_value: EnumProperty(default="1024x1024", update=OctaneBaseSocket.update_node_tree, description="Level of detail, i.e. the resolution of the internal displacement map", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -68,7 +68,7 @@ class OctaneTextureDisplacementAmount(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=6)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.001000, update=None, description="The displacement height in meters", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=0.001000, update=OctaneBaseSocket.update_node_tree, description="The displacement height in meters", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -87,7 +87,7 @@ class OctaneTextureDisplacementDisplacementDirection(OctaneBaseSocket):
         ("Follow vertex normal", "Follow vertex normal", "", 1),
         ("Follow smoothed normal", "Follow smoothed normal", "", 3),
     ]
-    default_value: EnumProperty(default="Follow vertex normal", update=None, description="The surface will be displaced along the given direction", items=items)
+    default_value: EnumProperty(default="Follow vertex normal", update=OctaneBaseSocket.update_node_tree, description="The surface will be displaced along the given direction", items=items)
     octane_hide_value=False
     octane_min_version=3080008
     octane_end_version=4294967295
@@ -106,7 +106,7 @@ class OctaneTextureDisplacementFilterType(OctaneBaseSocket):
         ("Box", "Box", "", 1),
         ("Gaussian", "Gaussian", "", 2),
     ]
-    default_value: EnumProperty(default="None", update=None, description="Specifies which filter type to use on the displacement map texture", items=items)
+    default_value: EnumProperty(default="None", update=OctaneBaseSocket.update_node_tree, description="Specifies which filter type to use on the displacement map texture", items=items)
     octane_hide_value=False
     octane_min_version=3060000
     octane_end_version=4294967295
@@ -120,7 +120,7 @@ class OctaneTextureDisplacementFiltersize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=50)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=2, update=None, description="Number of nearest pixels to use for filtering. The higher the value the smoother the displacement map. Only valid if a filter is enabled", min=1, max=20, soft_min=1, soft_max=20, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=2, update=OctaneBaseSocket.update_node_tree, description="Number of nearest pixels to use for filtering. The higher the value the smoother the displacement map. Only valid if a filter is enabled", min=1, max=20, soft_min=1, soft_max=20, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3060000
     octane_end_version=4294967295
@@ -134,7 +134,7 @@ class OctaneTextureDisplacementShift(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=214)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Additional offset applied to allow moving the displaced surface", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Additional offset applied to allow moving the displaced surface", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=3000000

@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_RGBA,
@@ -227,13 +227,12 @@ void register_node_type_sh_oct_glossy_mat(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_GLOSSY_MAT,
                    "Glossy Material",
-                   NODE_CLASS_OCT_SHADER,
-                   /* NODE_PREVIEW | */ NODE_OPTIONS);
+                   NODE_CLASS_OCT_SHADER);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_oct_init_glossy_mat);
   node_type_storage(&ntype, "", NULL, NULL);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_sh_oct_glossy_mat() */

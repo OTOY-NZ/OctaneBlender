@@ -19,7 +19,7 @@ class OctaneGreyscaleImagePower(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Power/brightness", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,7 +46,7 @@ class OctaneGreyscaleImageGamma(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=57)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Gamma value. Only used when the color space is set to \"Linear sRGB + legacy gamma\"", min=0.100000, max=8.000000, soft_min=0.100000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Gamma value. Only used when the color space is set to \"Linear sRGB + legacy gamma\"", min=0.100000, max=8.000000, soft_min=0.100000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,7 +60,7 @@ class OctaneGreyscaleImageInvert(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Invert image")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert image")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -74,7 +74,7 @@ class OctaneGreyscaleImageLinearSpaceInvert(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=466)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="Invert image after conversion to the linear sRGB color space, not before")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Invert image after conversion to the linear sRGB color space, not before")
     octane_hide_value=False
     octane_min_version=4020000
     octane_end_version=4294967295
@@ -121,7 +121,7 @@ class OctaneGreyscaleImageBorderMode(OctaneBaseSocket):
         ("White color", "White color", "", 2),
         ("Clamp value", "Clamp value", "", 3),
     ]
-    default_value: EnumProperty(default="Wrap around", update=None, description="Determines the texture lookup behavior when the texture-coords fall outside [0,1]", items=items)
+    default_value: EnumProperty(default="Wrap around", update=OctaneBaseSocket.update_node_tree, description="Determines the texture lookup behavior when the texture-coords fall outside [0,1]", items=items)
     octane_hide_value=False
     octane_min_version=1210000
     octane_end_version=4294967295
@@ -135,7 +135,7 @@ class OctaneGreyscaleImageScale(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(1.000000, 0.000000), update=None, description="(deprecated) Scale", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=2)
+    default_value: FloatVectorProperty(default=(1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="(deprecated) Scale", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=1210000
@@ -157,17 +157,17 @@ class OctaneGreyscaleImage(bpy.types.Node, OctaneBaseImageNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;3;2;2;1;1;1;10;10;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=9)
 
-    a_filename: StringProperty(name="Filename", default="", update=None, description="Stores the filename of the texture image", subtype="FILE_PATH")
-    a_reload: BoolProperty(name="Reload", default=False, update=None, description="TRUE if the file needs a reload or the preference of the image file has been changed.After evaluation the attribute will be false again")
-    a_size: IntVectorProperty(name="Size", default=(0, 0), size=2, update=None, description="Size of the image in pixels or if the image is compressed the size of the image in blocks")
-    a_type: IntProperty(name="Type", default=0, update=None, description="The image type, i.e. the data format used in A_BUFFER. Must be of type ImageType")
-    a_image_file_type: IntProperty(name="Image file type", default=0, update=None, description="The original type of the image file, i.e. the data format stored in the image file")
-    a_can_wrap_x: BoolProperty(name="Can wrap x", default=False, update=None, description="TRUE if the image can wrap around in the horizontal direction")
-    a_can_wrap_y: BoolProperty(name="Can wrap y", default=False, update=None, description="TRUE if the image can wrap around in the vertical direction")
-    a_image_flip: BoolProperty(name="Image flip", default=False, update=None, description="TRUE if the image needs to be flipped")
-    a_source_info: StringProperty(name="Source info", default="", update=None, description="Information about the image source (file), which is used only in the UI")
-    a_image_layer_names: StringProperty(name="Image layer names", default="", update=None, description="Will contain the layer names if the image was loaded from a file that contained layers. Will be empty otherwise")
-    a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=None, description="Indicate the chosen layer name, if the current image has multiple layers")
+    a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the filename of the texture image", subtype="FILE_PATH")
+    a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the file needs a reload or the preference of the image file has been changed.After evaluation the attribute will be false again")
+    a_size: IntVectorProperty(name="Size", default=(0, 0), size=2, update=OctaneBaseNode.update_node_tree, description="Size of the image in pixels or if the image is compressed the size of the image in blocks")
+    a_type: IntProperty(name="Type", default=0, update=OctaneBaseNode.update_node_tree, description="The image type, i.e. the data format used in A_BUFFER. Must be of type ImageType")
+    a_image_file_type: IntProperty(name="Image file type", default=0, update=OctaneBaseNode.update_node_tree, description="The original type of the image file, i.e. the data format stored in the image file")
+    a_can_wrap_x: BoolProperty(name="Can wrap x", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the image can wrap around in the horizontal direction")
+    a_can_wrap_y: BoolProperty(name="Can wrap y", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the image can wrap around in the vertical direction")
+    a_image_flip: BoolProperty(name="Image flip", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the image needs to be flipped")
+    a_source_info: StringProperty(name="Source info", default="", update=OctaneBaseNode.update_node_tree, description="Information about the image source (file), which is used only in the UI")
+    a_image_layer_names: StringProperty(name="Image layer names", default="", update=OctaneBaseNode.update_node_tree, description="Will contain the layer names if the image was loaded from a file that contained layers. Will be empty otherwise")
+    a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=OctaneBaseNode.update_node_tree, description="Indicate the chosen layer name, if the current image has multiple layers")
 
     def init(self, context):
         self.inputs.new("OctaneGreyscaleImagePower", OctaneGreyscaleImagePower.bl_label).init()

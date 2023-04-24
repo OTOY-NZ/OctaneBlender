@@ -32,7 +32,7 @@ class OctaneClampAOVOutputMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=113)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="The minimum value", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The minimum value", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,7 +46,7 @@ class OctaneClampAOVOutputMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=106)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="The maximum value", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The maximum value", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -65,7 +65,7 @@ class OctaneClampAOVOutputColorChannelGroup(OctaneBaseSocket):
         ("RGB", "RGB", "", 1),
         ("ALPHA", "ALPHA", "", 2),
     ]
-    default_value: EnumProperty(default="RGB", update=None, description="Select channels on which the clamp operation should be performed", items=items)
+    default_value: EnumProperty(default="RGB", update=OctaneBaseSocket.update_node_tree, description="Select channels on which the clamp operation should be performed", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

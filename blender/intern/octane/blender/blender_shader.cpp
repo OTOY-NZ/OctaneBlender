@@ -911,7 +911,8 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                       object_data_transform_output_node->oct_node;
               set_octane_matrix(oct_transform_node->oMatrix, octane_tfm);
               oct_transform_node->bUseMatrix = true;
-              bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
+              bool is_preview = scene && scene->session && scene->session->params.interactive;
+              bool is_modified = BKE_object_is_modified(b_ob, b_scene, is_preview);
               BL::ID b_ob_data = b_ob.data();
               std::string geo_name = resolve_octane_name(
                   b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);

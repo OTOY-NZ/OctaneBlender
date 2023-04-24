@@ -26,7 +26,7 @@ class OctaneRoundEdgesRoundEdgesMode(OctaneBaseSocket):
         ("Accurate convex only", "Accurate convex only", "", 3),
         ("Accurate concave only", "Accurate concave only", "", 4),
     ]
-    default_value: EnumProperty(default="Fast", update=None, description="Whether rounding is applied to convex and/or concave edges", items=items)
+    default_value: EnumProperty(default="Fast", update=OctaneBaseSocket.update_node_tree, description="Whether rounding is applied to convex and/or concave edges", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -40,7 +40,7 @@ class OctaneRoundEdgesRoundEdgesRadius(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=473)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Edge rounding radius", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Edge rounding radius", min=0.000000, max=100.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -54,7 +54,7 @@ class OctaneRoundEdgesRoundEdgesCurvatureRoundness(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=475)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Specifies the roundness of the edge being 1 completely round and 0 a chamfer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Specifies the roundness of the edge being 1 completely round and 0 a chamfer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -68,7 +68,7 @@ class OctaneRoundEdgesRoundEdgesSampleCount(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=508)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=8, update=None, description="The number of rays to use when sampling the neighboring geometry", min=4, max=16, soft_min=4, soft_max=16, step=2, subtype="FACTOR")
+    default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="The number of rays to use when sampling the neighboring geometry", min=4, max=16, soft_min=4, soft_max=16, step=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=6000500
     octane_end_version=4294967295
@@ -82,7 +82,7 @@ class OctaneRoundEdgesRoundEdgesConsiderOtherObjects(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=476)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Whether to consider other objects in the scene or just the current object")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether to consider other objects in the scene or just the current object")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

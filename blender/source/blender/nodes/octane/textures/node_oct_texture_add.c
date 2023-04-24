@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Texture1"),
@@ -56,12 +56,12 @@ void register_node_type_tex_oct_add(void)
   static bNodeType ntype;
 
   if (ntype.type != SH_NODE_OCT_ADD_TEX)
-    node_type_base(&ntype, SH_NODE_OCT_ADD_TEX, "Add Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
+    node_type_base(&ntype, SH_NODE_OCT_ADD_TEX, "Add Tex", NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, 0);
   node_type_exec(&ntype, 0, 0, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_add() */

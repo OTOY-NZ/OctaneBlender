@@ -55,7 +55,7 @@ class OctaneCaptureToCustomAOVCustomAov(OctaneBaseSocket):
         ("Custom AOV 19", "Custom AOV 19", "", 18),
         ("Custom AOV 20", "Custom AOV 20", "", 19),
     ]
-    default_value: EnumProperty(default="None", update=None, description="If a custom AOV is selected, it will write the captured (or the overwrite) texture to the selected AOV", items=items)
+    default_value: EnumProperty(default="None", update=OctaneBaseSocket.update_node_tree, description="If a custom AOV is selected, it will write the captured (or the overwrite) texture to the selected AOV", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

@@ -154,7 +154,7 @@ class OctaneRenderAOVOutputInput(OctaneBaseSocket):
         ("Render layer|Layer reflections", "Render layer|Layer reflections", "", 20),
         ("Render layer|Layer shadows", "Render layer|Layer shadows", "", 17),
     ]
-    default_value: EnumProperty(default="Beauty", update=None, description="Select a render AOV from the list of all available render AOVs", items=items)
+    default_value: EnumProperty(default="Beauty", update=OctaneBaseSocket.update_node_tree, description="Select a render AOV from the list of all available render AOVs", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -173,7 +173,7 @@ class OctaneRenderAOVOutputOutputChannels(OctaneBaseSocket):
         ("RGB", "RGB", "", 1),
         ("ALPHA", "ALPHA", "", 2),
     ]
-    default_value: EnumProperty(default="RGBA", update=None, description="Select output channels type of this node. Can be set to one of enum ChannelGroups", items=items)
+    default_value: EnumProperty(default="RGBA", update=OctaneBaseSocket.update_node_tree, description="Select output channels type of this node. Can be set to one of enum ChannelGroups", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -187,7 +187,7 @@ class OctaneRenderAOVOutputImager(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=78)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, The imager settings is applied on the final AOV output. Otherwise ignored  Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The imager settings is applied on the final AOV output. Otherwise ignored  Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
     octane_hide_value=False
     octane_min_version=10021000
     octane_end_version=4294967295
@@ -201,7 +201,7 @@ class OctaneRenderAOVOutputPostproc(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=136)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, The post processing settings is applied on the final AOV output. Otherwise ignored Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The post processing settings is applied on the final AOV output. Otherwise ignored Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
     octane_hide_value=False
     octane_min_version=10021000
     octane_end_version=4294967295
@@ -263,6 +263,6 @@ from ...utils import utility
 OctaneRenderAOVOutputInput_simplified_items = utility.make_blender_style_enum_items(OctaneRenderAOVOutputInput.items)
 
 class OctaneRenderAOVOutputInput_Override(OctaneRenderAOVOutputInput):
-    default_value: EnumProperty(default="Beauty", update=None, description="Select a render AOV from the list of all available render AOVs", items=OctaneRenderAOVOutputInput_simplified_items)    
+    default_value: EnumProperty(default="Beauty", update=OctaneBaseSocket.update_node_tree, description="Select a render AOV from the list of all available render AOVs", items=OctaneRenderAOVOutputInput_simplified_items)    
 
 utility.override_class(_CLASSES, OctaneRenderAOVOutputInput, OctaneRenderAOVOutputInput_Override)  

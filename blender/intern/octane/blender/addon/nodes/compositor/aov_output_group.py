@@ -27,7 +27,7 @@ class OctaneAOVOutputGroup(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_aov_count: IntProperty(name="Aov count", default=0, update=None, description="The number of AOV output pins")
+    a_aov_count: IntProperty(name="Aov count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of AOV output pins")
 
     def init(self, context):
         self.outputs.new("OctaneAOVOutputGroupOutSocket", "AOV output group out").init()

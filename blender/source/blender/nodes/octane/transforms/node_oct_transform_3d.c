@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {
     {SOCK_VECTOR,
@@ -97,14 +97,14 @@ void register_node_type_transform_oct_3d(void)
 
   if (ntype.type != SH_NODE_OCT_3D_TRN)
     node_type_base(
-        &ntype, SH_NODE_OCT_3D_TRN, "3D Transform", NODE_CLASS_OCT_TRANSFORM, NODE_OPTIONS);
+        &ntype, SH_NODE_OCT_3D_TRN, "3D Transform", NODE_CLASS_OCT_TRANSFORM);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_transform_oct_3d_init);
   node_type_exec(&ntype, 0, 0, 0);
   node_type_update(
       &ntype, node_octane_transform_conversion_update);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_transform_oct_3d() */

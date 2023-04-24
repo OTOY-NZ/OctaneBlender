@@ -27,8 +27,8 @@ class OctaneOCIOLook(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_ocio_use_view_look: BoolProperty(name="Ocio use view look", default=False, update=None, description="Whether to use the selected OCIO view's default look(s) instead of the specified look")
-    a_ocio_look_name: StringProperty(name="Ocio look name", default="", update=None, description="If using the selected OCIO view's default look(s), this value is ignored. Otherwise, the name of the OCIO look to apply with the selected OCIO view, or empty to apply no look")
+    a_ocio_use_view_look: BoolProperty(name="Ocio use view look", default=False, update=OctaneBaseNode.update_node_tree, description="Whether to use the selected OCIO view's default look(s) instead of the specified look")
+    a_ocio_look_name: StringProperty(name="Ocio look name", default="", update=OctaneBaseNode.update_node_tree, description="If using the selected OCIO view's default look(s), this value is ignored. Otherwise, the name of the OCIO look to apply with the selected OCIO view, or empty to apply no look")
 
     def init(self, context):
         self.outputs.new("OctaneOCIOLookOutSocket", "OCIO look out").init()

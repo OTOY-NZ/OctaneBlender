@@ -24,7 +24,7 @@ class OctaneCurvatureTextureCurvatureMode(OctaneBaseSocket):
         ("Concavity", "Concavity", "", 1),
         ("Convexity", "Convexity", "", 2),
     ]
-    default_value: EnumProperty(default="Convexity", update=None, description="The type of curvature to sample", items=items)
+    default_value: EnumProperty(default="Convexity", update=OctaneBaseSocket.update_node_tree, description="The type of curvature to sample", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -38,7 +38,7 @@ class OctaneCurvatureTextureStrength(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=230)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Strength", min=0.100000, max=5.000000, soft_min=0.100000, soft_max=5.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Strength", min=0.100000, max=5.000000, soft_min=0.100000, soft_max=5.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -52,7 +52,7 @@ class OctaneCurvatureTextureRadius(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=142)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Specifies the maximum area affected by the curvature effect", min=0.000100, max=100000.000000, soft_min=0.000100, soft_max=100000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Specifies the maximum area affected by the curvature effect", min=0.000100, max=100000.000000, soft_min=0.000100, soft_max=100000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -66,7 +66,7 @@ class OctaneCurvatureTextureDirtMap(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=502)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Determines the proportion of the maximum area affected by the curvature effect", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Determines the proportion of the maximum area affected by the curvature effect", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -80,7 +80,7 @@ class OctaneCurvatureTextureOffset(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=122)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.005000, update=None, description="Specifies the offset from the surface used to sample the neighbouring geometry", min=0.000010, max=1.000000, soft_min=0.000010, soft_max=1.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=0.005000, update=OctaneBaseSocket.update_node_tree, description="Specifies the offset from the surface used to sample the neighbouring geometry", min=0.000010, max=1.000000, soft_min=0.000010, soft_max=1.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -94,7 +94,7 @@ class OctaneCurvatureTextureTolerance(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=242)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.500000, update=None, description="Tolerance for small curvature and small angles between polygons", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Tolerance for small curvature and small angles between polygons", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -108,7 +108,7 @@ class OctaneCurvatureTextureSpread(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=501)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Spread controls the ray direction with respect to the normal of the surface. 0 means curvature  is sampled straight in the direction of the surface normal, and 1 means the sampling rays  are shot perpendicular to the surface normal", min=0.001000, max=1.000000, soft_min=0.001000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Spread controls the ray direction with respect to the normal of the surface. 0 means curvature  is sampled straight in the direction of the surface normal, and 1 means the sampling rays  are shot perpendicular to the surface normal", min=0.001000, max=1.000000, soft_min=0.001000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -127,7 +127,7 @@ class OctaneCurvatureTextureObjectIncludeMode(OctaneBaseSocket):
         ("Self", "Self", "", 1),
         ("Others", "Others", "", 2),
     ]
-    default_value: EnumProperty(default="All", update=None, description="Includes objects when calculating the curvature value:  By default the selected mode is All, which includes all object intersections into calculating curvature. If Self is selected, then only self-intersection is taken into account for curvature. If Others is selected, then only ray-intersection with other objects is used for curvature", items=items)
+    default_value: EnumProperty(default="All", update=OctaneBaseSocket.update_node_tree, description="Includes objects when calculating the curvature value:  By default the selected mode is All, which includes all object intersections into calculating curvature. If Self is selected, then only self-intersection is taken into account for curvature. If Others is selected, then only ray-intersection with other objects is used for curvature", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -141,7 +141,7 @@ class OctaneCurvatureTextureInvertNormal(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=84)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Invert normal")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert normal")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

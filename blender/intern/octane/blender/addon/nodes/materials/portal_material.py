@@ -19,7 +19,7 @@ class OctanePortalMaterialEnabled(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If true it will use these portals for environment light calculation")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If true it will use these portals for environment light calculation")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

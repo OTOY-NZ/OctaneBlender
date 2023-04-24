@@ -32,7 +32,7 @@ class OctaneChannelMapperIndex(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=80)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=0, update=None, description="The input channel index to map to the red output channel", min=0, max=2, soft_min=0, soft_max=2, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="The input channel index to map to the red output channel", min=0, max=2, soft_min=0, soft_max=2, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,7 +46,7 @@ class OctaneChannelMapperIndex2(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=374)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=1, update=None, description="The input channel index to map to the green output channel", min=0, max=2, soft_min=0, soft_max=2, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="The input channel index to map to the green output channel", min=0, max=2, soft_min=0, soft_max=2, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,7 +60,7 @@ class OctaneChannelMapperIndex3(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=375)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=2, update=None, description="The input channel index to map to the blue output channel", min=0, max=2, soft_min=0, soft_max=2, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=2, update=OctaneBaseSocket.update_node_tree, description="The input channel index to map to the blue output channel", min=0, max=2, soft_min=0, soft_max=2, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

@@ -27,7 +27,7 @@ class OctaneRGBColor(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="8;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: FloatVectorProperty(name="Value", default=(0.700000, 0.700000, 0.700000), size=3, update=None, description="Value of the RGB texture node stored in 3 floats (R,G,B)", subtype="COLOR")
+    a_value: FloatVectorProperty(name="Value", default=(0.700000, 0.700000, 0.700000), size=3, update=OctaneBaseNode.update_node_tree, description="Value of the RGB texture node stored in 3 floats (R,G,B)", subtype="COLOR")
 
     def init(self, context):
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
@@ -52,7 +52,7 @@ def unregister():
 from ...utils import utility
 
 class OctaneRGBColor_Override(OctaneRGBColor):
-    a_value: FloatVectorProperty(name="Value", default=(0.700000, 0.700000, 0.700000), min=0, max=1, size=3, update=None, description="Value of the RGB texture node stored in 3 floats (R,G,B)", subtype="COLOR")
+    a_value: FloatVectorProperty(name="Value", default=(0.700000, 0.700000, 0.700000), min=0, max=1, size=3, update=OctaneBaseNode.update_node_tree, description="Value of the RGB texture node stored in 3 floats (R,G,B)", subtype="COLOR")
     
     def draw_buttons(self, context, layout):
         layout.row().prop(self, "a_value")

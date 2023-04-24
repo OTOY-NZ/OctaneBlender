@@ -29,7 +29,7 @@ class OctaneProceduralEffectsOperationType(OctaneBaseSocket):
         ("Star scroller", "Star scroller", "", 6),
         ("Wavey colors", "Wavey colors", "", 7),
     ]
-    default_value: EnumProperty(default="Combustible Voronoi", update=None, description="The effect to generate", items=items)
+    default_value: EnumProperty(default="Combustible Voronoi", update=OctaneBaseSocket.update_node_tree, description="The effect to generate", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -43,7 +43,7 @@ class OctaneProceduralEffectsTime(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=241)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="The animation timestamp", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The animation timestamp", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

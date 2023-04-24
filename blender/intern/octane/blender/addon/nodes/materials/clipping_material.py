@@ -19,7 +19,7 @@ class OctaneClippingMaterialEnabled(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If true, geometries located inside the clipping material will be clipped away")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If true, geometries located inside the clipping material will be clipped away")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,7 +46,7 @@ class OctaneClippingMaterialPriority(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=564)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=100, update=None, description="The material priority for this surface material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=100, update=OctaneBaseSocket.update_node_tree, description="The material priority for this surface material", min=-100, max=100, soft_min=-100, soft_max=100, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=11000001
     octane_end_version=4294967295
@@ -60,7 +60,7 @@ class OctaneClippingMaterialRayepsilon(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=144)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000100, update=None, description="Clipping material offset distance", min=0.000000, max=1000.000000, soft_min=0.000001, soft_max=0.100000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000100, update=OctaneBaseSocket.update_node_tree, description="Clipping material offset distance", min=0.000000, max=1000.000000, soft_min=0.000001, soft_max=0.100000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=11000014
     octane_end_version=4294967295
@@ -74,7 +74,7 @@ class OctaneClippingMaterialRayEpsilonCustomEnabled(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=744)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="If true, the clipping material uses the specified custom ray epsilon instead of the global ray epsilon in kernel node")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If true, the clipping material uses the specified custom ray epsilon instead of the global ray epsilon in kernel node")
     octane_hide_value=False
     octane_min_version=11000014
     octane_end_version=4294967295

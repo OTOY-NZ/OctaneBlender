@@ -24,7 +24,7 @@ class OctanePositionCoordinateSystem(OctaneBaseSocket):
         ("Camera", "Camera", "", 1),
         ("Object", "Object", "", 2),
     ]
-    default_value: EnumProperty(default="World", update=None, description="Coordinate space used to compute the position", items=items)
+    default_value: EnumProperty(default="World", update=OctaneBaseSocket.update_node_tree, description="Coordinate space used to compute the position", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

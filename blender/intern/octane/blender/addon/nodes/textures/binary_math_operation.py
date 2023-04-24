@@ -60,7 +60,7 @@ class OctaneBinaryMathOperationOperationType(OctaneBaseSocket):
         ("Comparison|Minimum value", "Comparison|Minimum value", "", 8),
         ("Trigonometric|Arc tangent", "Trigonometric|Arc tangent", "", 1),
     ]
-    default_value: EnumProperty(default="Functions|Add", update=None, description="The operation to perform on the input", items=items)
+    default_value: EnumProperty(default="Functions|Add", update=OctaneBaseSocket.update_node_tree, description="The operation to perform on the input", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -111,6 +111,6 @@ def unregister():
 OctaneBinaryMathOperationOperationType_simplified_items = utility.make_blender_style_enum_items(OctaneBinaryMathOperationOperationType.items)
 
 class OctaneBinaryMathOperationOperationType_Override(OctaneBinaryMathOperationOperationType):
-    default_value: EnumProperty(default="Add", update=None, description="The operation to perform on the input", items=OctaneBinaryMathOperationOperationType_simplified_items)
+    default_value: EnumProperty(default="Add", update=OctaneBaseSocket.update_node_tree, description="The operation to perform on the input", items=OctaneBinaryMathOperationOperationType_simplified_items)
 
 utility.override_class(_CLASSES, OctaneBinaryMathOperationOperationType, OctaneBinaryMathOperationOperationType_Override)  

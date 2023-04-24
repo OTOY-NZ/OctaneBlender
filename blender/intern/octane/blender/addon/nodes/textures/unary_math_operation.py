@@ -64,7 +64,7 @@ class OctaneUnaryMathOperationOperationType(OctaneBaseSocket):
         ("Trigonometric|Sine", "Trigonometric|Sine", "", 24),
         ("Trigonometric|Tangent", "Trigonometric|Tangent", "", 27),
     ]
-    default_value: EnumProperty(default="Functions|Absolute value", update=None, description="The operation to perform on the input", items=items)
+    default_value: EnumProperty(default="Functions|Absolute value", update=OctaneBaseSocket.update_node_tree, description="The operation to perform on the input", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -113,6 +113,6 @@ def unregister():
 OctaneUnaryMathOperationOperationType_simplified_items = utility.make_blender_style_enum_items(OctaneUnaryMathOperationOperationType.items)
 
 class OctaneUnaryMathOperationOperationType_Override(OctaneUnaryMathOperationOperationType):
-    default_value: EnumProperty(default="Absolute value", update=None, description="The operation to perform on the input", items=OctaneUnaryMathOperationOperationType_simplified_items)
+    default_value: EnumProperty(default="Absolute value", update=OctaneBaseSocket.update_node_tree, description="The operation to perform on the input", items=OctaneUnaryMathOperationOperationType_simplified_items)
 
 utility.override_class(_CLASSES, OctaneUnaryMathOperationOperationType, OctaneUnaryMathOperationOperationType_Override)  

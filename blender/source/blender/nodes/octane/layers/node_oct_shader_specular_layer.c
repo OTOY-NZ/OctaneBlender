@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../../../source/blender/nodes/shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_RGBA,
                                             N_("Specular"),
@@ -201,13 +201,12 @@ void register_node_type_sh_oct_specular_layer(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_SPECULAR_LAYER,
                    "Octane Specular Layer",
-                   NODE_CLASS_OCT_LAYER,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_LAYER);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, NULL);
   node_type_storage(&ntype, "", NULL, NULL);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_sh_oct_specular_layer() */

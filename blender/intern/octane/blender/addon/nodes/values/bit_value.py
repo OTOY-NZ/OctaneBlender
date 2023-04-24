@@ -27,7 +27,7 @@ class OctaneBitValue(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: IntProperty(name="Value", default=0, update=None, description="The value of the bit mask node")
+    a_value: IntProperty(name="Value", default=0, update=OctaneBaseNode.update_node_tree, description="The value of the bit mask node")
 
     def init(self, context):
         self.outputs.new("OctaneBitMaskOutSocket", "BitMask out").init()
@@ -87,4 +87,6 @@ class OctaneLightIDBitValue(OctaneBitValue):
         row.prop(self, "light_pass_id_8", toggle=True)  
 
 
-_CLASSES.append(OctaneLightIDBitValue)        
+_CLASSES=[
+    OctaneLightIDBitValue,
+]

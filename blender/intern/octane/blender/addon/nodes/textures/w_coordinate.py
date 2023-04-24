@@ -19,7 +19,7 @@ class OctaneWCoordinateTranslation(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=244)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Translation", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Translation", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -33,7 +33,7 @@ class OctaneWCoordinateScale(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Scale", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scale", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -53,7 +53,7 @@ class OctaneWCoordinateBorderModeWCoord(OctaneBaseSocket):
         ("Mirror", "Mirror", "", 2),
         ("Clamp value", "Clamp value", "", 3),
     ]
-    default_value: EnumProperty(default="None", update=None, description="Determines the lookup behavior when the W coordinate falls outside of [0,1]", items=items)
+    default_value: EnumProperty(default="None", update=OctaneBaseSocket.update_node_tree, description="Determines the lookup behavior when the W coordinate falls outside of [0,1]", items=items)
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -67,7 +67,7 @@ class OctaneWCoordinateInvert(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Invert")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295

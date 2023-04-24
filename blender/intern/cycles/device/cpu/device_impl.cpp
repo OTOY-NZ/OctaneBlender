@@ -72,7 +72,7 @@ CPUDevice::CPUDevice(const DeviceInfo &info_, Stats &stats_, Profiler &profiler_
           << " CPU kernels.";
 
   if (info.cpu_threads == 0) {
-    info.cpu_threads = TaskScheduler::num_threads();
+    info.cpu_threads = TaskScheduler::max_concurrency();
   }
 
 #ifdef WITH_OSL
@@ -91,11 +91,6 @@ CPUDevice::~CPUDevice()
 #endif
 
   texture_info.free();
-}
-
-bool CPUDevice::show_samples() const
-{
-  return (info.cpu_threads == 1);
 }
 
 BVHLayoutMask CPUDevice::get_bvh_layout_mask() const
@@ -209,7 +204,7 @@ device_ptr CPUDevice::mem_alloc_sub_ptr(device_memory &mem, size_t offset, size_
 
 void CPUDevice::const_copy_to(const char *name, void *host, size_t size)
 {
-#if WITH_EMBREE
+#ifdef WITH_EMBREE
   if (strcmp(name, "__data") == 0) {
     assert(size <= sizeof(KernelData));
 
@@ -278,7 +273,8 @@ void CPUDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 {
 #ifdef WITH_EMBREE
   if (bvh->params.bvh_layout == BVH_LAYOUT_EMBREE ||
-      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE) {
+      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE ||
+      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_METAL_EMBREE) {
     BVHEmbree *const bvh_embree = static_cast<BVHEmbree *>(bvh);
     if (refit) {
       bvh_embree->refit(progress);

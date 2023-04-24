@@ -32,7 +32,7 @@ class OctaneVertexDisplacementAmount(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=6)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="The displacement height in meters", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The displacement height in meters", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,7 +46,7 @@ class OctaneVertexDisplacementBlackLevel(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=13)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="The value in the image which corresponds to zero displacement. The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The value in the image which corresponds to zero displacement. The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -64,7 +64,7 @@ class OctaneVertexDisplacementDisplacementMapType(OctaneBaseSocket):
         ("Vector", "Vector", "", 0),
         ("Height", "Height", "", 1),
     ]
-    default_value: EnumProperty(default="Height", update=None, description="The displacement map input type", items=items)
+    default_value: EnumProperty(default="Height", update=OctaneBaseSocket.update_node_tree, description="The displacement map input type", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -82,7 +82,7 @@ class OctaneVertexDisplacementTextureSpace(OctaneBaseSocket):
         ("Object", "Object", "", 0),
         ("Tangent", "Tangent", "", 1),
     ]
-    default_value: EnumProperty(default="Object", update=None, description="The vector displacement map space. Only valid if the displacement map type is vector", items=items)
+    default_value: EnumProperty(default="Object", update=OctaneBaseSocket.update_node_tree, description="The vector displacement map space. Only valid if the displacement map type is vector", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -96,7 +96,7 @@ class OctaneVertexDisplacementBump(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Enable to get fine details of the displacement map on a lower subdivision level")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable to get fine details of the displacement map on a lower subdivision level")
     octane_hide_value=False
     octane_min_version=5100002
     octane_end_version=4294967295
@@ -110,7 +110,7 @@ class OctaneVertexDisplacementSubdLevel(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=479)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=0, update=None, description="The subdivision level applied to polygons using this material. This overrides the subdivision level set in the geometry preferences. Other subdivision settings have to be set in the geometry preference dialog. If a level higher than 6 is needed, please enter it manually", min=0, max=10, soft_min=0, soft_max=6, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="The subdivision level applied to polygons using this material. This overrides the subdivision level set in the geometry preferences. Other subdivision settings have to be set in the geometry preference dialog. If a level higher than 6 is needed, please enter it manually", min=0, max=10, soft_min=0, soft_max=6, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

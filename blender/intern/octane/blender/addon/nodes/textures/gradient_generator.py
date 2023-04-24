@@ -26,7 +26,7 @@ class OctaneGradientGeneratorGradientType(OctaneBaseSocket):
         ("Polygonal", "Polygonal", "", 3),
         ("Spiral", "Spiral", "", 4),
     ]
-    default_value: EnumProperty(default="Linear", update=None, description="Type of gradient generated", items=items)
+    default_value: EnumProperty(default="Linear", update=OctaneBaseSocket.update_node_tree, description="Type of gradient generated", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -40,7 +40,7 @@ class OctaneGradientGeneratorRepetitions(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=659)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Number of times the gradient is repeated", min=1.000000, max=20.000000, soft_min=1.000000, soft_max=20.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Number of times the gradient is repeated", min=1.000000, max=20.000000, soft_min=1.000000, soft_max=20.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -54,7 +54,7 @@ class OctaneGradientGeneratorPolygonSides(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=660)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=4, update=None, description="Number of sides to the polygon when using the polygonal gradient type", min=3, max=20, soft_min=3, soft_max=20, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=4, update=OctaneBaseSocket.update_node_tree, description="Number of sides to the polygon when using the polygonal gradient type", min=3, max=20, soft_min=3, soft_max=20, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -68,7 +68,7 @@ class OctaneGradientGeneratorGamma(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=57)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=2.200000, update=None, description="Gamma correction coefficient", min=0.100000, max=8.000000, soft_min=0.100000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=2.200000, update=OctaneBaseSocket.update_node_tree, description="Gamma correction coefficient", min=0.100000, max=8.000000, soft_min=0.100000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -82,7 +82,7 @@ class OctaneGradientGeneratorInvert(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Invert the output color")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Invert the output color")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -129,7 +129,7 @@ class OctaneGradientGeneratorBorderMode(OctaneBaseSocket):
         ("White color", "White color", "", 2),
         ("Clamp value", "Clamp value", "", 3),
     ]
-    default_value: EnumProperty(default="Wrap around", update=None, description="Determines the gradient behavior for repetitions", items=items)
+    default_value: EnumProperty(default="Wrap around", update=OctaneBaseSocket.update_node_tree, description="Determines the gradient behavior for repetitions", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

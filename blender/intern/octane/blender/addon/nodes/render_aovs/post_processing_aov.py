@@ -33,7 +33,7 @@ class OctanePostProcessingAOVPostProcEnvironment(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=137)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="When enabled, the environment render pass is included when doing post-processing. This option only applies when the environment render pass and alpha channel are enabled")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When enabled, the environment render pass is included when doing post-processing. This option only applies when the environment render pass and alpha channel are enabled")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

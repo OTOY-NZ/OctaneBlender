@@ -32,7 +32,7 @@ class OctaneChannelInverterInvert(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="The red channel is inverted when selected")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The red channel is inverted when selected")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -46,7 +46,7 @@ class OctaneChannelInverterInvert1(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=620)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="The green channel is inverted when selected")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The green channel is inverted when selected")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -60,7 +60,7 @@ class OctaneChannelInverterInvert2(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=621)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="The blue channel is inverted when selected")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="The blue channel is inverted when selected")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

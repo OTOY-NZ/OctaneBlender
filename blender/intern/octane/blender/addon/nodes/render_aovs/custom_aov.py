@@ -75,7 +75,7 @@ class OctaneCustomAOVSecondaryRays(OctaneBaseSocket):
         ("Refractions", "Refractions", "", 2),
         ("Reflections and refractions", "Reflections and refractions", "", 3),
     ]
-    default_value: EnumProperty(default="None - primary rays only", update=None, description="Determines whether secondary bounces should contribute to the custom AOV or not", items=items)
+    default_value: EnumProperty(default="None - primary rays only", update=OctaneBaseSocket.update_node_tree, description="Determines whether secondary bounces should contribute to the custom AOV or not", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

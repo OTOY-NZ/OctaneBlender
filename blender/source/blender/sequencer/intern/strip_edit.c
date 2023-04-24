@@ -43,6 +43,7 @@
 #include "utils.h"
 
 #include "SEQ_add.h"
+#include "SEQ_animation.h"
 #include "SEQ_edit.h"
 #include "SEQ_effects.h"
 #include "SEQ_iterator.h"
@@ -175,7 +176,6 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, Se
   }
 }
 
-/* Flag seq and its users (effects) for removal. */
 void SEQ_edit_flag_for_removal(Scene *scene, ListBase *seqbase, Sequence *seq)
 {
   if (seq == NULL || (seq->flag & SEQ_FLAG_DELETE) != 0) {
@@ -193,7 +193,6 @@ void SEQ_edit_flag_for_removal(Scene *scene, ListBase *seqbase, Sequence *seq)
   sequencer_flag_users_for_removal(scene, seqbase, seq);
 }
 
-/* Remove all flagged sequences, return true if sequence is removed. */
 void SEQ_edit_remove_flagged_sequences(Scene *scene, ListBase *seqbase)
 {
   LISTBASE_FOREACH_MUTABLE (Sequence *, seq, seqbase) {
@@ -201,8 +200,9 @@ void SEQ_edit_remove_flagged_sequences(Scene *scene, ListBase *seqbase)
       if (seq->type == SEQ_TYPE_META) {
         SEQ_edit_remove_flagged_sequences(scene, &seq->seqbase);
       }
+      SEQ_free_animdata(scene, seq);
       BLI_remlink(seqbase, seq);
-      SEQ_sequence_free(scene, seq, true);
+      SEQ_sequence_free(scene, seq);
       SEQ_sequence_lookup_tag(scene, SEQ_LOOKUP_TAG_INVALID);
     }
   }
@@ -219,6 +219,24 @@ static bool seq_exists_in_seqbase(Sequence *seq, ListBase *seqbase)
     }
   }
   return false;
+}
+
+bool SEQ_edit_move_strip_to_seqbase(Scene *scene,
+                                    ListBase *seqbase,
+                                    Sequence *seq,
+                                    ListBase *dst_seqbase)
+{
+  /* Move to meta. */
+  BLI_remlink(seqbase, seq);
+  BLI_addtail(dst_seqbase, seq);
+  SEQ_relations_invalidate_cache_preprocessed(scene, seq);
+
+  /* Update meta. */
+  if (SEQ_transform_test_overlap(dst_seqbase, seq)) {
+    SEQ_transform_seqbase_shuffle(dst_seqbase, seq, scene);
+  }
+
+  return true;
 }
 
 bool SEQ_edit_move_strip_to_meta(Scene *scene,
@@ -262,17 +280,7 @@ bool SEQ_edit_move_strip_to_meta(Scene *scene,
   Sequence *seq;
   SEQ_ITERATOR_FOREACH (seq, collection) {
     /* Move to meta. */
-    BLI_remlink(seqbase, seq);
-    BLI_addtail(&dst_seqm->seqbase, seq);
-    SEQ_relations_invalidate_cache_preprocessed(scene, seq);
-
-    /* Update meta. */
-    ListBase *meta_seqbase = SEQ_get_seqbase_by_seq(&ed->seqbase, dst_seqm);
-    SEQ_time_update_meta_strip_range(scene, dst_seqm);
-    SEQ_time_update_sequence(scene, meta_seqbase, dst_seqm);
-    if (SEQ_transform_test_overlap(&dst_seqm->seqbase, seq)) {
-      SEQ_transform_seqbase_shuffle(&dst_seqm->seqbase, seq, scene);
-    }
+    SEQ_edit_move_strip_to_seqbase(scene, seqbase, seq, &dst_seqm->seqbase);
   }
 
   SEQ_collection_free(collection);
@@ -444,17 +452,6 @@ static bool seq_edit_split_operation_permitted_check(SeqCollection *strips,
   return true;
 }
 
-/**
- * Split Sequence at timeline_frame in two.
- *
- * \param bmain: Main in which Sequence is located
- * \param scene: Scene in which Sequence is located
- * \param seqbase: ListBase in which Sequence is located
- * \param seq: Sequence to be split
- * \param timeline_frame: frame at which seq is split.
- * \param method: affects type of offset to be applied to resize Sequence
- * \return The newly created sequence strip. This is always Sequence on right side.
- */
 Sequence *SEQ_edit_strip_split(Main *bmain,
                                Scene *scene,
                                ListBase *seqbase,
@@ -534,15 +531,6 @@ Sequence *SEQ_edit_strip_split(Main *bmain,
   return return_seq;
 }
 
-/**
- * Find gap after initial_frame and move strips on right side to close the gap
- *
- * \param scene: Scene in which strips are located
- * \param seqbase: ListBase in which strips are located
- * \param initial_frame: frame on timeline from where gaps are searched for
- * \param remove_all_gaps: remove all gaps instead of one gap
- * \return true if gap is removed, otherwise false
- */
 bool SEQ_edit_remove_gaps(Scene *scene,
                           ListBase *seqbase,
                           const int initial_frame,

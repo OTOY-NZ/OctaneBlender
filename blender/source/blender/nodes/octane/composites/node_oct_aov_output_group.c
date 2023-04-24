@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             N_("AOV output 1"),
@@ -205,7 +205,7 @@ static void node_shader_update_aov_output_group(bNodeTree *UNUSED(ntree), bNode 
     bool show = i <= layer_number;
     char sock_name[64];
     sprintf(sock_name, "AOV output %d", i);
-    for (sock = node->inputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       if (STREQ(sock->name, sock_name)) {
         if (show) {
           sock->flag &= ~SOCK_UNAVAIL;
@@ -224,13 +224,13 @@ void register_node_type_aov_output_group(void)
 
   if (ntype.type != SH_NODE_OCT_AOV_OUTPUT_GROUP)
     node_type_base(&ntype,
-                   SH_NODE_OCT_AOV_OUTPUT_GROUP, "AOV Output Group", NODE_CLASS_OUTPUT, NODE_OPTIONS);
+                   SH_NODE_OCT_AOV_OUTPUT_GROUP, "AOV Output Group", NODE_CLASS_OUTPUT);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_type_aov_output_group_init);
   node_type_exec(&ntype, 0, 0, 0);
   node_type_update(&ntype, node_shader_update_aov_output_group);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_aov_output_group() */

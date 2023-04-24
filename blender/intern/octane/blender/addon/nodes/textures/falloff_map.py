@@ -24,7 +24,7 @@ class OctaneFalloffMapMode(OctaneBaseSocket):
         ("Normal vs. vector 90deg", "Normal vs. vector 90deg", "", 1),
         ("Normal vs. vector 180deg", "Normal vs. vector 180deg", "", 2),
     ]
-    default_value: EnumProperty(default="Normal vs. eye ray", update=None, description="The falloff mode that should be used:\n\n'Normal vs. eye ray': The falloff is calculated from the angle between the surface normal and the eye ray.\n'Normal vs. vector 90deg': The falloff is calculated from the angle between the surface normal and the specified direction vector maxing out at 90 degrees.\n'Normal vs vector 180deg': The falloff is calculated from the angle between the surface normal and the specified direction vector maxing out at 180 degrees", items=items)
+    default_value: EnumProperty(default="Normal vs. eye ray", update=OctaneBaseSocket.update_node_tree, description="The falloff mode that should be used:\n\n'Normal vs. eye ray': The falloff is calculated from the angle between the surface normal and the eye ray.\n'Normal vs. vector 90deg': The falloff is calculated from the angle between the surface normal and the specified direction vector maxing out at 90 degrees.\n'Normal vs vector 180deg': The falloff is calculated from the angle between the surface normal and the specified direction vector maxing out at 180 degrees", items=items)
     octane_hide_value=False
     octane_min_version=3030005
     octane_end_version=4294967295
@@ -38,7 +38,7 @@ class OctaneFalloffMapNormal(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=119)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Value if the angle between the two directions is 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Value if the angle between the two directions is 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -52,7 +52,7 @@ class OctaneFalloffMapGrazing(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=68)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Value if the angle between the two directions is at the maximum", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Value if the angle between the two directions is at the maximum", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -66,7 +66,7 @@ class OctaneFalloffMapFalloffIndex(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=47)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=6.000000, update=None, description="Skew factor for the falloff curve", min=0.100000, max=15.000000, soft_min=0.100000, soft_max=15.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=6.000000, update=OctaneBaseSocket.update_node_tree, description="Skew factor for the falloff curve", min=0.100000, max=15.000000, soft_min=0.100000, soft_max=15.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -80,7 +80,7 @@ class OctaneFalloffMapDirection(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=327)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=None, description="The direction vector that is used by some of the falloff modes", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="The direction vector that is used by some of the falloff modes", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=3030005
     octane_end_version=4294967295

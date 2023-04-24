@@ -1,16 +1,22 @@
 ##### BEGIN OCTANE GENERATED CODE BLOCK #####
 import bpy
 from bpy.utils import register_class, unregister_class
+from . import toon_point_light
+from . import toon_directional_light
 from . import quad_light
 from . import sphere_light
 from . import volumetric_spotlight
 
 def register():
+    toon_point_light.register()
+    toon_directional_light.register()
     quad_light.register()
     sphere_light.register()
     volumetric_spotlight.register()
 
 def unregister():
+    toon_point_light.unregister()
+    toon_directional_light.unregister()
     quad_light.unregister()
     sphere_light.unregister()
     volumetric_spotlight.unregister()

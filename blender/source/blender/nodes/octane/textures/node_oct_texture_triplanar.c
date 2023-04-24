@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Blend angle"),
@@ -122,12 +122,12 @@ void register_node_type_tex_oct_triplanar(void)
 
   if (ntype.type != SH_NODE_OCT_TRIPLANAR_TEX)
     node_type_base(
-        &ntype, SH_NODE_OCT_TRIPLANAR_TEX, "Triplanar Tex", NODE_CLASS_OCT_TEXTURE, NODE_OPTIONS);
+        &ntype, SH_NODE_OCT_TRIPLANAR_TEX, "Triplanar Tex", NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_oct_texture_triplanar_init);
   node_type_exec(&ntype, 0, 0, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_triplanar() */

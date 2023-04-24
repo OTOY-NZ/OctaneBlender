@@ -19,7 +19,7 @@ class OctaneStripesTexture1(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=238)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="The background color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The background color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -33,7 +33,7 @@ class OctaneStripesTexture2(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.800000, 0.200000, 0.200000), update=None, description="The color used for the first set of stripes", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.800000, 0.200000, 0.200000), update=OctaneBaseSocket.update_node_tree, description="The color used for the first set of stripes", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -47,7 +47,7 @@ class OctaneStripesTexture3(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=337)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.200000, 0.200000, 0.800000), update=None, description="The color used for the second set of stripes", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.200000, 0.200000, 0.800000), update=OctaneBaseSocket.update_node_tree, description="The color used for the second set of stripes", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -61,7 +61,7 @@ class OctaneStripesBlur(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=715)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.025000, update=None, description="Blur", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=3, subtype="FACTOR")
+    default_value: FloatProperty(default=0.025000, update=OctaneBaseSocket.update_node_tree, description="Blur", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=3, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -75,7 +75,7 @@ class OctaneStripesLineWidth1(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=719)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.400000, update=None, description="The width of the first set of stripes", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.400000, update=OctaneBaseSocket.update_node_tree, description="The width of the first set of stripes", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -89,7 +89,7 @@ class OctaneStripesLineWidth2(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=725)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.400000, update=None, description="The width of the second set of stripes", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.400000, update=OctaneBaseSocket.update_node_tree, description="The width of the second set of stripes", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

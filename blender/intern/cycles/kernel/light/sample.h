@@ -22,6 +22,7 @@
 #include "kernel/light/light.h"
 
 #include "kernel/sample/mapping.h"
+#include "kernel/sample/mis.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -140,14 +141,23 @@ ccl_device_inline float3 shadow_ray_smooth_surface_offset(
     KernelGlobals kg, ccl_private const ShaderData *ccl_restrict sd, float3 Ng)
 {
   float3 V[3], N[3];
-  triangle_vertices_and_normals(kg, sd->prim, V, N);
+
+  if (sd->type == PRIMITIVE_MOTION_TRIANGLE) {
+    motion_triangle_vertices_and_normals(kg, sd->object, sd->prim, sd->time, V, N);
+  }
+  else {
+    kernel_assert(sd->type == PRIMITIVE_TRIANGLE);
+    triangle_vertices_and_normals(kg, sd->prim, V, N);
+  }
 
   const float u = sd->u, v = sd->v;
   const float w = 1 - u - v;
   float3 P = V[0] * u + V[1] * v + V[2] * w; /* Local space */
   float3 n = N[0] * u + N[1] * v + N[2] * w; /* We get away without normalization */
 
-  object_normal_transform(kg, sd, &n); /* Normal x scale, world space */
+  if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
+    object_normal_transform(kg, sd, &n); /* Normal x scale, world space */
+  }
 
   /* Parabolic approximation */
   float a = dot(N[2] - N[0], V[0] - V[2]);
@@ -188,9 +198,9 @@ ccl_device_inline float3 shadow_ray_offset(KernelGlobals kg,
   float NL = dot(sd->N, L);
   bool transmit = (NL < 0.0f);
   float3 Ng = (transmit ? -sd->Ng : sd->Ng);
-  float3 P = ray_offset(sd->P, Ng);
+  float3 P = sd->P;
 
-  if ((sd->type & PRIMITIVE_ALL_TRIANGLE) && (sd->shader & SHADER_SMOOTH_NORMAL)) {
+  if ((sd->type & PRIMITIVE_TRIANGLE) && (sd->shader & SHADER_SMOOTH_NORMAL)) {
     const float offset_cutoff =
         kernel_tex_fetch(__objects, sd->object).shadow_terminator_geometry_offset;
     /* Do ray offset (heavy stuff) only for close to be terminated triangles:
@@ -233,7 +243,7 @@ ccl_device_inline void shadow_ray_setup(ccl_private const ShaderData *ccl_restri
     }
     else {
       /* other lights, avoid self-intersection */
-      ray->D = ray_offset(ls->P, ls->Ng) - P;
+      ray->D = ls->P - P;
       ray->D = normalize_len(ray->D, &ray->t);
     }
   }
@@ -247,6 +257,12 @@ ccl_device_inline void shadow_ray_setup(ccl_private const ShaderData *ccl_restri
   ray->dP = differential_make_compact(sd->dP);
   ray->dD = differential_zero_compact();
   ray->time = sd->time;
+
+  /* Fill in intersection surface and light details. */
+  ray->self.prim = sd->prim;
+  ray->self.object = sd->object;
+  ray->self.light_prim = ls->prim;
+  ray->self.light_object = ls->object;
 }
 
 /* Create shadow ray towards light sample. */
@@ -269,6 +285,38 @@ ccl_device_inline void light_sample_to_volume_shadow_ray(
     ccl_private Ray *ray)
 {
   shadow_ray_setup(sd, ls, P, ray);
+}
+
+ccl_device_inline float light_sample_mis_weight_forward(KernelGlobals kg,
+                                                        const float forward_pdf,
+                                                        const float nee_pdf)
+{
+#ifdef WITH_CYCLES_DEBUG
+  if (kernel_data.integrator.direct_light_sampling_type == DIRECT_LIGHT_SAMPLING_FORWARD) {
+    return 1.0f;
+  }
+  else if (kernel_data.integrator.direct_light_sampling_type == DIRECT_LIGHT_SAMPLING_NEE) {
+    return 0.0f;
+  }
+  else
+#endif
+    return power_heuristic(forward_pdf, nee_pdf);
+}
+
+ccl_device_inline float light_sample_mis_weight_nee(KernelGlobals kg,
+                                                    const float nee_pdf,
+                                                    const float forward_pdf)
+{
+#ifdef WITH_CYCLES_DEBUG
+  if (kernel_data.integrator.direct_light_sampling_type == DIRECT_LIGHT_SAMPLING_FORWARD) {
+    return 0.0f;
+  }
+  else if (kernel_data.integrator.direct_light_sampling_type == DIRECT_LIGHT_SAMPLING_NEE) {
+    return 1.0f;
+  }
+  else
+#endif
+    return power_heuristic(nee_pdf, forward_pdf);
 }
 
 CCL_NAMESPACE_END

@@ -24,7 +24,7 @@ class OctaneAnimationSettingsShutterAlignment(OctaneBaseSocket):
         ("Symmetric", "Symmetric", "", 2),
         ("After", "After", "", 3),
     ]
-    default_value: EnumProperty(default="After", update=None, description="Specifies how the shutter interval is aligned to the current time", items=items)
+    default_value: EnumProperty(default="After", update=OctaneBaseSocket.update_node_tree, description="Specifies how the shutter interval is aligned to the current time", items=items)
     octane_hide_value=False
     octane_min_version=3000007
     octane_end_version=4294967295
@@ -38,7 +38,7 @@ class OctaneAnimationSettingsShutterTime(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=305)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.200000, update=None, description="The shutter time percentage relative to the duration of a single frame", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=0.200000, update=OctaneBaseSocket.update_node_tree, description="The shutter time percentage relative to the duration of a single frame", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -52,7 +52,7 @@ class OctaneAnimationSettingsSubFrameStart(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=308)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Minimum sub-frame % time to sample", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Minimum sub-frame % time to sample", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -66,7 +66,7 @@ class OctaneAnimationSettingsSubFrameEnd(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=309)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Maximum sub-frame % time to sample", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Maximum sub-frame % time to sample", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="PERCENTAGE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

@@ -27,7 +27,7 @@ class OctaneDirectoryName(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: StringProperty(name="Value", default="", update=None, description="The value of the directory node", subtype="FILE_PATH")
+    a_value: StringProperty(name="Value", default="", update=OctaneBaseNode.update_node_tree, description="The value of the directory node", subtype="FILE_PATH")
 
     def init(self, context):
         self.outputs.new("OctaneStringOutSocket", "String out").init()

@@ -19,7 +19,7 @@ class OctaneSchlickScatteringDirection(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=210)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Scattering direction, negative values means backward scattering, 0 means equal scattering in all direction (isotropic) and positive means forward scattering", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Scattering direction, negative values means backward scattering, 0 means equal scattering in all direction (isotropic) and positive means forward scattering", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

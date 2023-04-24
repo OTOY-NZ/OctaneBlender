@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../../../source/blender/nodes/shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             N_("Displacement 1"),
@@ -376,7 +376,7 @@ static void node_shader_update_oct_vertex_displacement_mixer(bNodeTree *UNUSED(n
     bool show = i <= layer_number;
     char sock_name[64];
     sprintf(sock_name, "Displacement %d", i);
-    for (sock = node->inputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       if (STREQ(sock->name, sock_name)) {
         if (show) {
           sock->flag &= ~SOCK_UNAVAIL;
@@ -387,7 +387,7 @@ static void node_shader_update_oct_vertex_displacement_mixer(bNodeTree *UNUSED(n
       }
     }
     sprintf(sock_name, "Blend weight %d", i);
-    for (sock = node->inputs.first; sock; sock = sock->next) {
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       if (STREQ(sock->name, sock_name)) {
         if (show) {
           sock->flag &= ~SOCK_UNAVAIL;
@@ -408,14 +408,13 @@ void register_node_type_tex_oct_vertex_displacement_mixer(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_VERTEX_DISPLACEMENT_MIXER_TEX,
                    "Vertex Displacement Mixer",
-                   NODE_CLASS_OCT_TEXTURE,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_TEXTURE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_type_oct_vertex_displacement_mixer_init);
   node_type_exec(&ntype, 0, 0, 0);
   node_type_update(&ntype, node_shader_update_oct_vertex_displacement_mixer);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_tex_oct_vertex_displacement_mixer() */

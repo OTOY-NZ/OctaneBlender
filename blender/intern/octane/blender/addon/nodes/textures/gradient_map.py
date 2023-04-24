@@ -24,7 +24,7 @@ class OctaneGradientMapGradientInterpolationType(OctaneBaseSocket):
         ("Linear", "Linear", "", 2),
         ("Cubic", "Cubic", "", 3),
     ]
-    default_value: EnumProperty(default="Linear", update=None, description="Determines how colors are blended", items=items)
+    default_value: EnumProperty(default="Linear", update=OctaneBaseSocket.update_node_tree, description="Determines how colors are blended", items=items)
     octane_hide_value=False
     octane_min_version=3000005
     octane_end_version=4294967295
@@ -51,7 +51,7 @@ class OctaneGradientMapMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=113)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Output value at 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -65,7 +65,7 @@ class OctaneGradientMapMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=106)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="Output value at 1.0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 1.0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -79,7 +79,7 @@ class OctaneGradientMapSmooth(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=218)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="(deprecated) Make the gradient more smooth around the control points")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Make the gradient more smooth around the control points")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=3000005
@@ -101,7 +101,7 @@ class OctaneGradientMap(bpy.types.Node, OctaneBaseRampNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
 
-    a_num_controlpoints: IntProperty(name="Num controlpoints", default=0, update=None, description="The number of control points between start and end")
+    a_num_controlpoints: IntProperty(name="Num controlpoints", default=0, update=OctaneBaseNode.update_node_tree, description="The number of control points between start and end")
 
     def init(self, context):
         self.inputs.new("OctaneGradientMapGradientInterpolationType", OctaneGradientMapGradientInterpolationType.bl_label).init()

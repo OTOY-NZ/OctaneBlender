@@ -23,7 +23,7 @@ class OctaneImageAOVOutputColorSpace(OctaneBaseSocket):
         ("sRGB", "sRGB", "", 1),
         ("Linear sRGB", "Linear sRGB", "", 2),
     ]
-    default_value: EnumProperty(default="sRGB", update=None, description="Select the color space of the input image. Octane compositing happens in the Linear sRGB space. All sRGB images are converted to linear sRGB during compositing. Currently NAMED_COLOR_SPACE_SRGB and NAMED_COLOR_SPACE_LINEAR_SRGB from NamedColorSpace enum are the only two allowed as the inputs in this pin", items=items)
+    default_value: EnumProperty(default="sRGB", update=OctaneBaseSocket.update_node_tree, description="Select the color space of the input image. Octane compositing happens in the Linear sRGB space. All sRGB images are converted to linear sRGB during compositing. Currently NAMED_COLOR_SPACE_SRGB and NAMED_COLOR_SPACE_LINEAR_SRGB from NamedColorSpace enum are the only two allowed as the inputs in this pin", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -42,7 +42,7 @@ class OctaneImageAOVOutputOutputChannels(OctaneBaseSocket):
         ("RGB", "RGB", "", 1),
         ("ALPHA", "ALPHA", "", 2),
     ]
-    default_value: EnumProperty(default="RGBA", update=None, description="Select output channels type of this node. Can be set to one of enum ChannelGroups", items=items)
+    default_value: EnumProperty(default="RGBA", update=OctaneBaseSocket.update_node_tree, description="Select output channels type of this node. Can be set to one of enum ChannelGroups", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -56,7 +56,7 @@ class OctaneImageAOVOutputImager(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=78)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, The imager settings is applied on the final AOV output. Otherwise ignored  Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The imager settings is applied on the final AOV output. Otherwise ignored  Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
     octane_hide_value=False
     octane_min_version=10021000
     octane_end_version=4294967295
@@ -70,7 +70,7 @@ class OctaneImageAOVOutputPostproc(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=136)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, The post processing settings is applied on the final AOV output. Otherwise ignored Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, The post processing settings is applied on the final AOV output. Otherwise ignored Only used/vaild if this node is the root output AOV node (I.e. directly connected to the AOV output group node)")
     octane_hide_value=False
     octane_min_version=10021000
     octane_end_version=4294967295
@@ -84,7 +84,7 @@ class OctaneImageAOVOutputPremultipliedAlpha(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=139)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled the input RGB values will be multiplied with alpha")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled the input RGB values will be multiplied with alpha")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=10021500
@@ -111,17 +111,17 @@ class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseImageNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;3;2;2;1;1;1;10;10;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
 
-    a_filename: StringProperty(name="Filename", default="", update=None, description="Stores the filename of the texture image", subtype="FILE_PATH")
-    a_reload: BoolProperty(name="Reload", default=False, update=None, description="TRUE if the file needs a reload or the preference of the image file has been changed.After evaluation the attribute will be false again")
-    a_size: IntVectorProperty(name="Size", default=(0, 0), size=2, update=None, description="Size of the image in pixels or if the image is compressed the size of the image in blocks")
-    a_type: IntProperty(name="Type", default=0, update=None, description="The image type, i.e. the data format used in A_BUFFER. Must be of type ImageType")
-    a_image_file_type: IntProperty(name="Image file type", default=0, update=None, description="The original type of the image file, i.e. the data format stored in the image file")
-    a_can_wrap_x: BoolProperty(name="Can wrap x", default=False, update=None, description="TRUE if the image can wrap around in the horizontal direction")
-    a_can_wrap_y: BoolProperty(name="Can wrap y", default=False, update=None, description="TRUE if the image can wrap around in the vertical direction")
-    a_image_flip: BoolProperty(name="Image flip", default=False, update=None, description="TRUE if the image needs to be flipped")
-    a_source_info: StringProperty(name="Source info", default="", update=None, description="Information about the image source (file), which is used only in the UI")
-    a_image_layer_names: StringProperty(name="Image layer names", default="", update=None, description="Will contain the layer names if the image was loaded from a file that contained layers. Will be empty otherwise")
-    a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=None, description="Indicate the chosen layer name, if the current image has multiple layers")
+    a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="Stores the filename of the texture image", subtype="FILE_PATH")
+    a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the file needs a reload or the preference of the image file has been changed.After evaluation the attribute will be false again")
+    a_size: IntVectorProperty(name="Size", default=(0, 0), size=2, update=OctaneBaseNode.update_node_tree, description="Size of the image in pixels or if the image is compressed the size of the image in blocks")
+    a_type: IntProperty(name="Type", default=0, update=OctaneBaseNode.update_node_tree, description="The image type, i.e. the data format used in A_BUFFER. Must be of type ImageType")
+    a_image_file_type: IntProperty(name="Image file type", default=0, update=OctaneBaseNode.update_node_tree, description="The original type of the image file, i.e. the data format stored in the image file")
+    a_can_wrap_x: BoolProperty(name="Can wrap x", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the image can wrap around in the horizontal direction")
+    a_can_wrap_y: BoolProperty(name="Can wrap y", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the image can wrap around in the vertical direction")
+    a_image_flip: BoolProperty(name="Image flip", default=False, update=OctaneBaseNode.update_node_tree, description="TRUE if the image needs to be flipped")
+    a_source_info: StringProperty(name="Source info", default="", update=OctaneBaseNode.update_node_tree, description="Information about the image source (file), which is used only in the UI")
+    a_image_layer_names: StringProperty(name="Image layer names", default="", update=OctaneBaseNode.update_node_tree, description="Will contain the layer names if the image was loaded from a file that contained layers. Will be empty otherwise")
+    a_image_chosen_layer_name: StringProperty(name="Image chosen layer name", default="", update=OctaneBaseNode.update_node_tree, description="Indicate the chosen layer name, if the current image has multiple layers")
 
     def init(self, context):
         self.inputs.new("OctaneImageAOVOutputColorSpace", OctaneImageAOVOutputColorSpace.bl_label).init()

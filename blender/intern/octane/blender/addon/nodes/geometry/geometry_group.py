@@ -27,8 +27,8 @@ class OctaneGeometryGroup(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_pin_count: IntProperty(name="Pin count", default=0, update=None, description="The number of geometry input pins. Any new inputs will be added to the end of the pin list")
-    a_user_instance_id: IntProperty(name="User instance id", default=-1, update=None, description="The user ID of this geometry node. A valid ID should be a non-negative number. It's a non-unique ID attribute, multiple geometry nodes can have same ID, so it's a user responsibility to set unique ID if needed. In a tree hierarchy, the ID of current node will override the input geometry node's ID")
+    a_pin_count: IntProperty(name="Pin count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of geometry input pins. Any new inputs will be added to the end of the pin list")
+    a_user_instance_id: IntProperty(name="User instance id", default=-1, update=OctaneBaseNode.update_node_tree, description="The user ID of this geometry node. A valid ID should be a non-negative number. It's a non-unique ID attribute, multiple geometry nodes can have same ID, so it's a user responsibility to set unique ID if needed. In a tree hierarchy, the ID of current node will override the input geometry node's ID")
 
     def init(self, context):
         self.outputs.new("OctaneGeometryOutSocket", "Geometry out").init()

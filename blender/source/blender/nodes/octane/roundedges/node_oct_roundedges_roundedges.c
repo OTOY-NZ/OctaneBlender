@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../../../source/blender/nodes/shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Radius"),
@@ -94,13 +94,13 @@ void register_node_type_roundedges_oct_roundedges(void)
 
   if (ntype.type != SH_NODE_OCT_ROUNDEDGES)
     node_type_base(
-        &ntype, SH_NODE_OCT_ROUNDEDGES, "Round Edge", NODE_CLASS_OCT_ROUNDEDGES, NODE_OPTIONS);
+        &ntype, SH_NODE_OCT_ROUNDEDGES, "Round Edge", NODE_CLASS_OCT_ROUNDEDGES);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_roundedges_oct_roundedges_init);
   node_type_exec(&ntype, 0, 0, 0);
   node_type_update(&ntype, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_roundedges_oct_roundedges() */

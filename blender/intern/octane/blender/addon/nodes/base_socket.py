@@ -98,8 +98,12 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
         return pin_index
 
     def update_node_tree(self, context):
-        if self.node.id_data:
-            self.node.id_data.update()
+        node_tree = self.node.id_data
+        if node_tree:
+            if node_tree.type == "SHADER":
+                node_tree.update_tag()
+            else:
+                self.node.id_data.update()
 
 
 class OctaneBaseSocketInterface:

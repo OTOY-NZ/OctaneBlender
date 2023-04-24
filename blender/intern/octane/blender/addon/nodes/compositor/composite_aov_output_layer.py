@@ -19,7 +19,7 @@ class OctaneCompositeAOVOutputLayerEnabled(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=42)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If enabled, this layer is used during compositing otherwise the layer is ignored")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, this layer is used during compositing otherwise the layer is ignored")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -69,7 +69,7 @@ class OctaneCompositeAOVOutputLayerMaskChannel(OctaneBaseSocket):
         ("Inverse blue", "Inverse blue", "", 6),
         ("Inverse alpha", "Inverse alpha", "", 7),
     ]
-    default_value: EnumProperty(default="Alpha", update=None, description="Choose a channel in the mask input to use for masking", items=items)
+    default_value: EnumProperty(default="Alpha", update=OctaneBaseSocket.update_node_tree, description="Choose a channel in the mask input to use for masking", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -83,7 +83,7 @@ class OctaneCompositeAOVOutputLayerInvert(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=83)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="If enabled, the input of the node is inverted")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="If enabled, the input of the node is inverted")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -97,7 +97,7 @@ class OctaneCompositeAOVOutputLayerScale(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=209)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Set a factor to scale the input's RGB values if needed, otherwise set it to 1.0", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Set a factor to scale the input's RGB values if needed, otherwise set it to 1.0", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -111,7 +111,7 @@ class OctaneCompositeAOVOutputLayerColorMultiplier(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=612)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="The selected color will be multipiled with the input color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The selected color will be multipiled with the input color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -125,7 +125,7 @@ class OctaneCompositeAOVOutputLayerOpacity(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="The opacity channel used to control the transparency of this layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The opacity channel used to control the transparency of this layer", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -155,7 +155,7 @@ class OctaneCompositeAOVOutputLayerBlendMode(OctaneBaseSocket):
         ("Difference", "Difference", "", 5),
         ("Exclude", "Exclude", "", 6),
     ]
-    default_value: EnumProperty(default="Normal", update=None, description="The blend mode used to combine the input from this layer with the lower layer", items=items)
+    default_value: EnumProperty(default="Normal", update=OctaneBaseSocket.update_node_tree, description="The blend mode used to combine the input from this layer with the lower layer", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -177,7 +177,7 @@ class OctaneCompositeAOVOutputLayerAlphaOperation(OctaneBaseSocket):
         ("One", "One", "", 4),
         ("Zero", "Zero", "", 5),
     ]
-    default_value: EnumProperty(default="Alpha compositing", update=None, description="The alpha operation between this layer and the lower layer", items=items)
+    default_value: EnumProperty(default="Alpha compositing", update=OctaneBaseSocket.update_node_tree, description="The alpha operation between this layer and the lower layer", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

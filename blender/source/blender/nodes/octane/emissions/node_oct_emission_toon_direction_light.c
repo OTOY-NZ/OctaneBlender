@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Texture"),
@@ -103,8 +103,7 @@ static void node_type_emission_update_oct_toon_direction_light(bNodeTree *UNUSED
 {
   bNodeSocket *sock;
   int direction_type = node->oct_custom1;
-
-  for (sock = node->inputs.first; sock; sock = sock->next) {
+  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (STREQ(sock->name, "Sun direction")) {
       if (direction_type == OCT_USE_NODE_VALUE_DIRECTION)
         sock->flag &= ~SOCK_UNAVAIL;
@@ -122,8 +121,7 @@ void register_node_type_emission_oct_toon_direction_light(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_TOON_DIRECTION_LIGHT,
                    "Toon Directional Light",
-                   NODE_CLASS_OCT_EMISSION,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_EMISSION);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_oct_toon_direction_light_init);

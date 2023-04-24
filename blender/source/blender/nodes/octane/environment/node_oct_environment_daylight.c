@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate node_in[] = {{SOCK_VECTOR,
                                          N_("Sun direction"),
@@ -214,13 +214,12 @@ void register_node_type_environment_oct_daylight(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_DAYLIGHT_ENVIRONMENT,
                    "Daylight Environment",
-                   NODE_CLASS_OCT_ENVIRONMENT,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_ENVIRONMENT);
   node_type_socket_templates(&ntype, node_in, node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_oct_environment_daylight_init);
   node_type_exec(&ntype, 0, 0, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 }

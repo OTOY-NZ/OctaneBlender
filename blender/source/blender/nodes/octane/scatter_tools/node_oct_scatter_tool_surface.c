@@ -25,7 +25,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
+
+#include "BKE_scene.h"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_SHADER,
                                             N_("Surface"),
@@ -433,7 +435,7 @@ static void node_type_oct_scatter_on_surface_init(bNodeTree *ntree, bNode *node)
   node->oct_custom8 = OCT_INSTANCE_TRANSFORM_MODE_FIXED;
   node->oct_custom9 = OCT_DISTRIBUTION_ON_PARTICLE_ONE_INSTANCE_PER_PARTICLE;
   node->oct_custom10 = OCT_DISTRIBUTION_ON_HAIR_ONE_INSTANCE_PER_HAIR_VERTEX;
-} 
+}
 
 void register_node_type_scatter_tool_surface(void)
 {
@@ -443,13 +445,11 @@ void register_node_type_scatter_tool_surface(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_SCATTER_TOOL_SURFACE,
                    "Scatter on Surface",
-                   NODE_CLASS_OCT_GEOMETRY,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_GEOMETRY);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_type_oct_scatter_on_surface_init);
   node_type_exec(&ntype, 0, 0, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
 
   nodeRegisterType(&ntype);
 } /* register_node_type_scatter_tool_surface() */

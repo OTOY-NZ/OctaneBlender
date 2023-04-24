@@ -20,8 +20,6 @@
 #include "util/util_types.h"
 #include "util/util_string.h"
 
-#include <numaapi.h>
-
 #include <OpenImageIO/sysutil.h>
 OIIO_NAMESPACE_USING
 
@@ -43,15 +41,7 @@ OCT_NAMESPACE_BEGIN
 
 bool system_cpu_ensure_initialized()
 {
-  static bool is_initialized = false;
-  static bool result = false;
-  if (is_initialized) {
-    return result;
-  }
-  is_initialized = true;
-  const NUMAAPI_Result numa_result = numaAPI_Initialize();
-  result = (numa_result == NUMAAPI_SUCCESS);
-  return result;
+  return false;
 }
 
 /* Fallback solution, which doesn't use NUMA/CPU groups. */
@@ -91,31 +81,22 @@ int system_cpu_num_numa_nodes()
     /* Fallback to a single node with all the threads. */
     return 1;
   }
-  return numaAPI_GetNumNodes();
+  return 1;
 }
 
 bool system_cpu_is_numa_node_available(int node)
 {
-  if (!system_cpu_ensure_initialized()) {
-    return true;
-  }
-  return numaAPI_IsNodeAvailable(node);
+  return true;
 }
 
 int system_cpu_num_numa_node_processors(int node)
 {
-  if (!system_cpu_ensure_initialized()) {
-    return system_cpu_thread_count_fallback();
-  }
-  return numaAPI_GetNumNodeProcessors(node);
+  return system_cpu_thread_count_fallback();
 }
 
 bool system_cpu_run_thread_on_node(int node)
 {
-  if (!system_cpu_ensure_initialized()) {
-    return true;
-  }
-  return numaAPI_RunThreadOnNode(node);
+  return true;
 }
 
 int system_console_width()
@@ -139,10 +120,7 @@ int system_console_width()
 
 int system_cpu_num_active_group_processors()
 {
-  if (!system_cpu_ensure_initialized()) {
-    return system_cpu_thread_count_fallback();
-  }
-  return numaAPI_GetNumCurrentNodesProcessors();
+  return system_cpu_thread_count_fallback();
 }
 
 #if !defined(_WIN32) || defined(FREE_WINDOWS)

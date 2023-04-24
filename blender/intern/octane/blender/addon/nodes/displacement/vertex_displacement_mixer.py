@@ -27,7 +27,7 @@ class OctaneVertexDisplacementMixer(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_displacement_count: IntProperty(name="Displacement count", default=0, update=None, description="The number of vertex displacements to mix")
+    a_displacement_count: IntProperty(name="Displacement count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of vertex displacements to mix")
 
     def init(self, context):
         self.outputs.new("OctaneDisplacementOutSocket", "Displacement out").init()
@@ -62,7 +62,7 @@ class OctaneVertexDisplacementMixerBlendWeightMovableInput(OctanePatternInput):
     octane_default_node_type="OctaneGreyscaleColor"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
 
 

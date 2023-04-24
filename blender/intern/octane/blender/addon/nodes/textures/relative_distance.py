@@ -25,7 +25,7 @@ class OctaneRelativeDistanceDistanceMode(OctaneBaseSocket):
         ("Y-axis offset", "Y-axis offset", "", 2),
         ("Z-axis offset", "Z-axis offset", "", 3),
     ]
-    default_value: EnumProperty(default="Distance", update=None, description="Defines how the distance metric is computed", items=items)
+    default_value: EnumProperty(default="Distance", update=OctaneBaseSocket.update_node_tree, description="Defines how the distance metric is computed", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -52,7 +52,7 @@ class OctaneRelativeDistanceUseFullTransform(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=647)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="If checked the distance metric is computed in the space of the reference transform, including rotation and scale.\nOtherwise only the position is taken into account")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If checked the distance metric is computed in the space of the reference transform, including rotation and scale.\nOtherwise only the position is taken into account")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -66,7 +66,7 @@ class OctaneRelativeDistanceNormalize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=118)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="Whether the result should be remapped to the [0..1] range")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Whether the result should be remapped to the [0..1] range")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -80,7 +80,7 @@ class OctaneRelativeDistanceNormalizationRange(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=640)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 1.000000), update=None, description="Min and max values used for normalization", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Min and max values used for normalization", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=2)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

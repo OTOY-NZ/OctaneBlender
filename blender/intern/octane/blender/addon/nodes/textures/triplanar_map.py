@@ -19,7 +19,7 @@ class OctaneTriplanarMapBlendAngle(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=345)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=5.000000, update=None, description="The angle on an edge to linearly blend two adjacent textures", min=0.000000, max=90.000000, soft_min=0.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="The angle on an edge to linearly blend two adjacent textures", min=0.000000, max=90.000000, soft_min=0.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3050400
     octane_end_version=4294967295
@@ -37,7 +37,7 @@ class OctaneTriplanarMapPositionType(OctaneBaseSocket):
         ("World space", "World space", "", 1),
         ("Object space", "Object space", "", 3),
     ]
-    default_value: EnumProperty(default="Object space", update=None, description="Coordinate space used when blending. ", items=items)
+    default_value: EnumProperty(default="Object space", update=OctaneBaseSocket.update_node_tree, description="Coordinate space used when blending. ", items=items)
     octane_hide_value=False
     octane_min_version=3060001
     octane_end_version=4294967295

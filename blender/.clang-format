@@ -265,9 +265,6 @@ ForEachMacros:
   - MAP_SLOT_PROBING_BEGIN
   - VECTOR_SET_SLOT_PROBING_BEGIN
 
-StatementMacros:
-  - PyObject_HEAD
-  - PyObject_VAR_HEAD
 
 MacroBlockBegin: "^BSDF_CLOSURE_CLASS_BEGIN$"
 MacroBlockEnd: "^BSDF_CLOSURE_CLASS_END$"

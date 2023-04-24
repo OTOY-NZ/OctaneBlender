@@ -32,7 +32,7 @@ class OctaneCompositeTextureLayerOpacity(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=125)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="The opacity channel used to control the transparency of this layer", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="The opacity channel used to control the transparency of this layer", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -117,7 +117,7 @@ class OctaneCompositeTextureLayerBlendMode(OctaneBaseSocket):
         ("Masking|Stencil", "Masking|Stencil", "", 1010),
         ("Masking|XOR", "Masking|XOR", "", 1013),
     ]
-    default_value: EnumProperty(default="Mix|Normal", update=None, description="The blend mode used to mix the texture from this layer with the layers below", items=items)
+    default_value: EnumProperty(default="Mix|Normal", update=OctaneBaseSocket.update_node_tree, description="The blend mode used to mix the texture from this layer with the layers below", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -150,7 +150,7 @@ class OctaneCompositeTextureLayerCompositeOperation(OctaneBaseSocket):
         ("Plus", "Plus", "", 15),
         ("Matte", "Matte", "", 16),
     ]
-    default_value: EnumProperty(default="Source over", update=None, description="The operation used to composite the blend result with the layers below", items=items)
+    default_value: EnumProperty(default="Source over", update=OctaneBaseSocket.update_node_tree, description="The operation used to composite the blend result with the layers below", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -172,7 +172,7 @@ class OctaneCompositeTextureLayerAlphaOperation(OctaneBaseSocket):
         ("One", "One", "", 4),
         ("Zero", "Zero", "", 5),
     ]
-    default_value: EnumProperty(default="Alpha compositing", update=None, description="The layer's alpha operation", items=items)
+    default_value: EnumProperty(default="Alpha compositing", update=OctaneBaseSocket.update_node_tree, description="The layer's alpha operation", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

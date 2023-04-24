@@ -210,7 +210,7 @@ typedef struct KnifeBVH {
 typedef struct KnifeTool_OpData {
   ARegion *region;   /* Region that knifetool was activated in. */
   void *draw_handle; /* For drawing preview loop. */
-  ViewContext vc;    /* Note: _don't_ use 'mval', instead use the one we define below. */
+  ViewContext vc;    /* NOTE: _don't_ use 'mval', instead use the one we define below. */
   float mval[2];     /* Mouse value with snapping applied. */
 
   Scene *scene;
@@ -491,7 +491,7 @@ static void knifetool_draw_visible_distances(const KnifeTool_OpData *kcd)
   float numstr_size[2];
   float posit[2];
   const float bg_margin = 4.0f * U.dpi_fac;
-  const int font_size = 14.0f * U.pixelsize;
+  const float font_size = 14.0f * U.pixelsize;
   const int distance_precision = 4;
 
   /* Calculate distance and convert to string. */
@@ -561,7 +561,7 @@ static void knifetool_draw_angle(const KnifeTool_OpData *kcd,
   const float arc_size = 64.0f * U.dpi_fac;
   const float bg_margin = 4.0f * U.dpi_fac;
   const float cap_size = 4.0f * U.dpi_fac;
-  const int font_size = 14 * U.pixelsize;
+  const float font_size = 14.0f * U.pixelsize;
   const int angle_precision = 3;
 
   /* Angle arc in 3d space. */
@@ -4157,7 +4157,7 @@ static void knifetool_exit_ex(KnifeTool_OpData *kcd)
   for (int i = 0; i < kcd->objects_len; i++) {
     knifetool_free_cagecos(kcd, i);
   }
-  MEM_freeN(kcd->cagecos);
+  MEM_freeN((void *)kcd->cagecos);
   knife_bvh_free(kcd);
 
   /* Line-hits cleanup. */
@@ -4880,9 +4880,6 @@ static bool edbm_mesh_knife_point_isect(LinkNode *polys, const float cent_ss[2])
   return false;
 }
 
-/**
- * \param use_tag: When set, tag all faces inside the polylines.
- */
 void EDBM_mesh_knife(bContext *C, ViewContext *vc, LinkNode *polys, bool use_tag, bool cut_through)
 {
   KnifeTool_OpData *kcd;

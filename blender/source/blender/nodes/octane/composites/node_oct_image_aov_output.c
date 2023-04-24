@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
                                             N_("Pre multiply alpha"),
@@ -63,7 +63,7 @@ static bNodeSocketTemplate sh_node_out[] = {{SOCK_SHADER, N_("OutAOV")}, {-1, ""
 
 static void node_oct_image_aov_output_init(bNodeTree *ntree, bNode *node)
 {
-  NodeTexImage *tex = MEM_callocN(sizeof(NodeTexImage), "NodeTexImage");
+  NodeTexImage *tex = MEM_cnew<NodeTexImage>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->iuser.frames = 1;
@@ -82,17 +82,15 @@ void register_node_type_image_aov_output(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_IMAGE_AOV_OUTPUT,
                    "Image AOV output",
-                   NODE_CLASS_OCT_COMPOSITE,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_COMPOSITE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_oct_image_aov_output_init);
   node_type_storage(
       &ntype, "NodeTexImage", node_free_standard_storage, node_copy_standard_storage);
   node_type_exec(&ntype, 0, 0, 0);
-  node_type_label(&ntype, node_image_label);
   node_type_update(&ntype, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 }

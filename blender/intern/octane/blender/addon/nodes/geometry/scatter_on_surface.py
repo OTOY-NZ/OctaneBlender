@@ -89,7 +89,7 @@ class OctaneScatterOnSurfaceInputSelectionMethod(OctaneBaseSocket):
         ("Random", "Random", "", 1),
         ("Selection map", "Selection map", "", 2),
     ]
-    default_value: EnumProperty(default="Sequential", update=None, description="The method used to select between source objects for each instance", items=items)
+    default_value: EnumProperty(default="Sequential", update=OctaneBaseSocket.update_node_tree, description="The method used to select between source objects for each instance", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -103,7 +103,7 @@ class OctaneScatterOnSurfaceInputSelectionSeed(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=576)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=0, update=None, description="Seed used to randomize the selection of source objects", min=0, max=2147483647, soft_min=0, soft_max=2147483647, step=1, subtype="NONE")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Seed used to randomize the selection of source objects", min=0, max=2147483647, soft_min=0, soft_max=2147483647, step=1, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -139,7 +139,7 @@ class OctaneScatterOnSurfaceInstanceDistributionMethod(OctaneBaseSocket):
         ("Random instances by relative density", "Random instances by relative density", "", 3),
         ("Disabled", "Disabled", "", 6),
     ]
-    default_value: EnumProperty(default="One instance per vertex", update=None, description="The method used to distribute instances on surfaces.\n- One instance per vertex: an instance is placed at each vertex.\n- One instance per edge: an instance is placed on each edge using the position value.\n- Evenly spaced instances on edges: instances are placed along edges using the position and spacing values.\n- One instance per polygon: an instance is placed at the centroid of each polygon.\n- Random instances by relative area: instances are placed uniformly over the surface.\n- Random instances by relative density: the relative density of instances is controlled by a map.\n- Disabled: no instances are placed on the surface", items=items)
+    default_value: EnumProperty(default="One instance per vertex", update=OctaneBaseSocket.update_node_tree, description="The method used to distribute instances on surfaces.\n- One instance per vertex: an instance is placed at each vertex.\n- One instance per edge: an instance is placed on each edge using the position value.\n- Evenly spaced instances on edges: instances are placed along edges using the position and spacing values.\n- One instance per polygon: an instance is placed at the centroid of each polygon.\n- Random instances by relative area: instances are placed uniformly over the surface.\n- Random instances by relative density: the relative density of instances is controlled by a map.\n- Disabled: no instances are placed on the surface", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -157,7 +157,7 @@ class OctaneScatterOnSurfaceInstanceDistributionMethodParticles(OctaneBaseSocket
         ("One instance per particle", "One instance per particle", "", 0),
         ("Disabled", "Disabled", "", 1),
     ]
-    default_value: EnumProperty(default="One instance per particle", update=None, description="The method used to distribute instances on particles.\n- One instance per particle: an instance is attached to each particle.\n- Disabled: no instances are attached to particles", items=items)
+    default_value: EnumProperty(default="One instance per particle", update=OctaneBaseSocket.update_node_tree, description="The method used to distribute instances on particles.\n- One instance per particle: an instance is attached to each particle.\n- Disabled: no instances are attached to particles", items=items)
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -177,7 +177,7 @@ class OctaneScatterOnSurfaceInstanceDistributionMethodHair(OctaneBaseSocket):
         ("Evenly spaced instances on hair", "Evenly spaced instances on hair", "", 2),
         ("Disabled", "Disabled", "", 3),
     ]
-    default_value: EnumProperty(default="One instance per hair vertex", update=None, description="The method used to distribute instances on hair strands.\n- One instance per hair vertex: an instance is placed at each vertex of each hair strand.\n- One instance per hair: an instance is placed on each hair strand using the position value.\n- Evenly spaced instances on hair: instances are placed along hair strands using the position and spacing values.\n- Disabled: no instances are placed on hair strands", items=items)
+    default_value: EnumProperty(default="One instance per hair vertex", update=OctaneBaseSocket.update_node_tree, description="The method used to distribute instances on hair strands.\n- One instance per hair vertex: an instance is placed at each vertex of each hair strand.\n- One instance per hair: an instance is placed on each hair strand using the position value.\n- Evenly spaced instances on hair: instances are placed along hair strands using the position and spacing values.\n- Disabled: no instances are placed on hair strands", items=items)
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -191,7 +191,7 @@ class OctaneScatterOnSurfaceInstanceDistributionEdgePosition(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=652)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.500000, update=None, description="When scattering on edges this defines the position of instances along the edge", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="When scattering on edges this defines the position of instances along the edge", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -205,7 +205,7 @@ class OctaneScatterOnSurfaceInstanceDistributionEdgeSpacing(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=653)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.250000, update=None, description="When scattering on edges this defines the spacing between instances along the edge", min=0.001000, max=340282346638528859811704183484516925440.000000, soft_min=0.001000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=0.250000, update=OctaneBaseSocket.update_node_tree, description="When scattering on edges this defines the spacing between instances along the edge", min=0.001000, max=340282346638528859811704183484516925440.000000, soft_min=0.001000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -219,7 +219,7 @@ class OctaneScatterOnSurfacePoissonDiskSampling(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=707)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="When randomly scattering on the surface by area or relative density, enabling this option distributes the instances so that no two instances are too close to each other")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When randomly scattering on the surface by area or relative density, enabling this option distributes the instances so that no two instances are too close to each other")
     octane_hide_value=False
     octane_min_version=11000004
     octane_end_version=4294967295
@@ -246,7 +246,7 @@ class OctaneScatterOnSurfaceInstanceDistributionHairPosition(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=654)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.500000, update=None, description="When scattering on hair strands this defines the position of instances along the hair", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="When scattering on hair strands this defines the position of instances along the hair", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -260,7 +260,7 @@ class OctaneScatterOnSurfaceInstanceDistributionHairSpacing(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=655)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.250000, update=None, description="When scattering on hair strands this defines the spacing between instances", min=0.001000, max=340282346638528859811704183484516925440.000000, soft_min=0.001000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=3, subtype="NONE")
+    default_value: FloatProperty(default=0.250000, update=OctaneBaseSocket.update_node_tree, description="When scattering on hair strands this defines the spacing between instances", min=0.001000, max=340282346638528859811704183484516925440.000000, soft_min=0.001000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -274,7 +274,7 @@ class OctaneScatterOnSurfaceInstancePlacementSeed(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=581)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=0, update=None, description="Global seed used to randomize instance placement", min=0, max=2147483647, soft_min=0, soft_max=2147483647, step=1, subtype="NONE")
+    default_value: IntProperty(default=0, update=OctaneBaseSocket.update_node_tree, description="Global seed used to randomize instance placement", min=0, max=2147483647, soft_min=0, soft_max=2147483647, step=1, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -288,7 +288,7 @@ class OctaneScatterOnSurfaceInstanceCount(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=582)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=1, update=None, description="When instances are not attached to discrete geometry elements this defines the maximum number of instances to create", min=0, max=16777216, soft_min=0, soft_max=16777216, step=1, subtype="FACTOR")
+    default_value: IntProperty(default=1, update=OctaneBaseSocket.update_node_tree, description="When instances are not attached to discrete geometry elements this defines the maximum number of instances to create", min=0, max=16777216, soft_min=0, soft_max=16777216, step=1, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -315,7 +315,7 @@ class OctaneScatterOnSurfaceInstanceCullingValueMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=584)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="All instances in areas of the map that have a value below this threshold are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="All instances in areas of the map that have a value below this threshold are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -329,7 +329,7 @@ class OctaneScatterOnSurfaceInstanceCullingValueMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=585)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="All instances in areas of the map that have a value above this threshold are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="All instances in areas of the map that have a value above this threshold are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -343,7 +343,7 @@ class OctaneScatterOnSurfaceInstanceCullingAngleMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=586)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="All instances on surfaces with a normal too close to the reference up vector are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="All instances on surfaces with a normal too close to the reference up vector are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -357,7 +357,7 @@ class OctaneScatterOnSurfaceInstanceCullingAngleMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=587)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="All instances on surfaces with a normal too far from the reference up vector are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="All instances on surfaces with a normal too far from the reference up vector are removed", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -371,7 +371,7 @@ class OctaneScatterOnSurfaceSmooth(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=218)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -385,7 +385,7 @@ class OctaneScatterOnSurfaceInstanceNormalAlignment(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=588)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Blend factor between the reference up direction and the default normal of the instance.\nValues towards 0 align the instance with the reference up direction, values towards 1 align it with the default normal", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Blend factor between the reference up direction and the default normal of the instance.\nValues towards 0 align the instance with the reference up direction, values towards 1 align it with the default normal", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -399,7 +399,7 @@ class OctaneScatterOnSurfaceInstanceFrontAlignment(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=656)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Blend factor between the reference front direction and the default front of the instance.\nValues towards 0 align the instance with the reference front direction, values towards 1 align it with the default front", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Blend factor between the reference front direction and the default front of the instance.\nValues towards 0 align the instance with the reference front direction, values towards 1 align it with the default front", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=11000003
     octane_end_version=4294967295
@@ -417,7 +417,7 @@ class OctaneScatterOnSurfaceInstanceOrientationPriority(OctaneBaseSocket):
         ("Up", "Up", "", 0),
         ("Front", "Front", "", 1),
     ]
-    default_value: EnumProperty(default="Up", update=None, description="If the up and front vector are not orthogonal this option selects which one has priority", items=items)
+    default_value: EnumProperty(default="Up", update=OctaneBaseSocket.update_node_tree, description="If the up and front vector are not orthogonal this option selects which one has priority", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -435,7 +435,7 @@ class OctaneScatterOnSurfaceInstanceUpMode(OctaneBaseSocket):
         ("Direction", "Direction", "", 0),
         ("Point", "Point", "", 1),
     ]
-    default_value: EnumProperty(default="Direction", update=None, description="Selects between the use of a reference direction or a reference point", items=items)
+    default_value: EnumProperty(default="Direction", update=OctaneBaseSocket.update_node_tree, description="Selects between the use of a reference direction or a reference point", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -449,7 +449,7 @@ class OctaneScatterOnSurfaceInstanceUpDirection(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=591)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=None, description="When up mode is set to Direction, the reference up vector will point in this direction", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 1.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="When up mode is set to Direction, the reference up vector will point in this direction", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -463,7 +463,7 @@ class OctaneScatterOnSurfaceInstanceUpPoint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=592)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="When up mode is set to Point, the reference up vector will point towards this location", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="When up mode is set to Point, the reference up vector will point towards this location", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -481,7 +481,7 @@ class OctaneScatterOnSurfaceInstanceFrontMode(OctaneBaseSocket):
         ("Direction", "Direction", "", 0),
         ("Point", "Point", "", 1),
     ]
-    default_value: EnumProperty(default="Direction", update=None, description="Selects between the use of a reference direction or a reference point", items=items)
+    default_value: EnumProperty(default="Direction", update=OctaneBaseSocket.update_node_tree, description="Selects between the use of a reference direction or a reference point", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -495,7 +495,7 @@ class OctaneScatterOnSurfaceInstanceFrontDirection(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=594)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 1.000000), update=None, description="When front mode is set to Direction, the reference front vector will point in this direction", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="When front mode is set to Direction, the reference front vector will point in this direction", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -509,7 +509,7 @@ class OctaneScatterOnSurfaceInstanceFrontPoint(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=595)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="When front mode is set to Point, the reference front vector will point towards this location", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="When front mode is set to Point, the reference front vector will point towards this location", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -529,7 +529,7 @@ class OctaneScatterOnSurfaceInstanceRotationMode(OctaneBaseSocket):
         ("Randomized with coupled axes", "Randomized with coupled axes", "", 2),
         ("Map", "Map", "", 3),
     ]
-    default_value: EnumProperty(default="Fixed", update=None, description="", items=items)
+    default_value: EnumProperty(default="Fixed", update=OctaneBaseSocket.update_node_tree, description="", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -543,7 +543,7 @@ class OctaneScatterOnSurfaceInstanceRotationMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=597)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Minimum rotation of the instance", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Minimum rotation of the instance", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -557,7 +557,7 @@ class OctaneScatterOnSurfaceInstanceRotationMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=598)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Maximum rotation of the instance", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Maximum rotation of the instance", min=-360.000000, max=360.000000, soft_min=-360.000000, soft_max=360.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -571,7 +571,7 @@ class OctaneScatterOnSurfaceInstanceRotationStep(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=609)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="When the rotation mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="When the rotation mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -604,7 +604,7 @@ class OctaneScatterOnSurfaceInstanceScaleMode(OctaneBaseSocket):
         ("Randomized with coupled axes", "Randomized with coupled axes", "", 2),
         ("Map", "Map", "", 3),
     ]
-    default_value: EnumProperty(default="Fixed", update=None, description="", items=items)
+    default_value: EnumProperty(default="Fixed", update=OctaneBaseSocket.update_node_tree, description="", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -618,7 +618,7 @@ class OctaneScatterOnSurfaceInstanceScaleMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=601)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="Minimum scale of the instance", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Minimum scale of the instance", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -632,7 +632,7 @@ class OctaneScatterOnSurfaceInstanceScaleMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=602)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="Maximum scale of the instance", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Maximum scale of the instance", min=0.001000, max=1000.000000, soft_min=0.001000, soft_max=1000.000000, step=1, subtype="NONE", precision=3, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -646,7 +646,7 @@ class OctaneScatterOnSurfaceInstanceScaleStep(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=610)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="When the scale mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="When the scale mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -679,7 +679,7 @@ class OctaneScatterOnSurfaceInstanceTranslationMode(OctaneBaseSocket):
         ("Randomized with coupled axes", "Randomized with coupled axes", "", 2),
         ("Map", "Map", "", 3),
     ]
-    default_value: EnumProperty(default="Fixed", update=None, description="", items=items)
+    default_value: EnumProperty(default="Fixed", update=OctaneBaseSocket.update_node_tree, description="", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -693,7 +693,7 @@ class OctaneScatterOnSurfaceInstanceTranslationMin(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=605)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Minimum translation of the instance", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Minimum translation of the instance", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -707,7 +707,7 @@ class OctaneScatterOnSurfaceInstanceTranslationMax(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=606)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Maximum translation of the instance", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Maximum translation of the instance", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -721,7 +721,7 @@ class OctaneScatterOnSurfaceInstanceTranslationStep(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=611)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="When the translation mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="When the translation mode is random or map and this value is different from zero the values will be aliased to the nearest step", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -786,7 +786,7 @@ class OctaneScatterOnSurface(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=49)
 
-    a_module_graph_storage: StringProperty(name="Module graph storage", default="", update=None, description="Data stored by the wrapped module node graph. Will be updated after every evaluation of the graph")
+    a_module_graph_storage: StringProperty(name="Module graph storage", default="", update=OctaneBaseNode.update_node_tree, description="Data stored by the wrapped module node graph. Will be updated after every evaluation of the graph")
 
     def init(self, context):
         self.inputs.new("OctaneScatterOnSurfaceGroupGeometry", OctaneScatterOnSurfaceGroupGeometry.bl_label).init()

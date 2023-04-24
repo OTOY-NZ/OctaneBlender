@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_FLOAT,
                                             N_("Rotation"),
@@ -99,13 +99,12 @@ void register_node_type_projection_oct_distorted_mesh_uv(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_PROJECTION_DISTORTED_MESH_UV,
                    "Distorted mesh UV Projection",
-                   NODE_CLASS_OCT_PROJECTION,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_PROJECTION);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 100, 100, 200);
   node_type_init(&ntype, 0);
   node_type_exec(&ntype, 0, 0, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 } /* register_node_type_projection_oct_distorted_mesh_uv() */

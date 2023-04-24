@@ -19,7 +19,7 @@ class OctaneGreyscaleVertexAttributeName(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=465)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_STRING)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_STRING)
-    default_value: StringProperty(default="", update=None, description="Name of the vertex attribute")
+    default_value: StringProperty(default="", update=OctaneBaseSocket.update_node_tree, description="Name of the vertex attribute")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

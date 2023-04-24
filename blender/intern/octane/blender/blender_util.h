@@ -131,8 +131,13 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
   // auto start = std::chrono::high_resolution_clock::now();
   std::string result = "";
   static int SAMPLE_NUMBER = 5;
+  bool is_edit_mode = b_ob.mode() == b_ob.mode_EDIT;
   if (b_ob.type() == BL::Object::type_MESH) {
     BL::Mesh b_mesh(b_ob.data());
+    if (is_edit_mode) {
+      BL::Depsgraph depsgraph(PointerRNA_NULL);
+      b_mesh = b_ob.to_mesh(false, depsgraph);
+    }
     ::Mesh *me = (::Mesh *)(b_mesh.ptr.data);
     std::stringstream ss;
     ss << b_mesh.vertices.length() << "|" << b_mesh.polygons.length() << "|"
@@ -148,9 +153,27 @@ static std::string generate_mesh_tag(BL::Depsgraph &b_depsgraph,
              b_mesh.vertices[i].normal()[2]) /
                 3
          << "|";
+      if (b_mesh.uv_layers.length() != 0) {
+        BL::Mesh::uv_layers_iterator l;
+        for (b_mesh.uv_layers.begin(l); l != b_mesh.uv_layers.end(); ++l) {
+          if (l->ptr.data != NULL) {
+            if (i < l->data.length()) {
+              ss << l->data[i].uv()[0] + l->data[i].uv()[1] / 2 << "|";
+            }
+          }
+        }
+      }
+    }
+    if (is_edit_mode) {
+      /* Free mesh if we didn't just use the existing one. */
+      if (b_ob.data().ptr.data != b_mesh.ptr.data) {
+        b_ob.to_mesh_clear();
+      }
     }
     if (me->totpoly > 1) {
-      ss << me->mpoly[0].flag << "|";
+      if (me->mpoly) {
+        ss << me->mpoly[0].flag << "|";
+      }
     }
     result = ss.str();
   }

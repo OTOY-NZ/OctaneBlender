@@ -1182,7 +1182,10 @@ class OCTANE_LIGHT_PT_nodes(OctaneButtonsPanel, Panel):
         layout = self.layout
 
         light = context.light
-        utility.panel_ui_node_view(context, layout, light, consts.OctaneOutputNodeSocketNames.SURFACE)
+        if light.node_tree and light.node_tree.get_output_node("ALL"):
+            output_node = light.node_tree.get_output_node("ALL")
+            layout.template_node_view(light.node_tree, output_node, output_node.inputs[consts.OctaneOutputNodeSocketNames.SURFACE])
+        # utility.panel_ui_node_view(context, layout, light, consts.OctaneOutputNodeSocketNames.SURFACE)
 
 
 class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):

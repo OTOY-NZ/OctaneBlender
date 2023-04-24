@@ -19,7 +19,7 @@ class OctaneDaylightEnvironmentSundir(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=231)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(1.000000, 0.800000, 0.000000), update=None, description="Vector which defines the direction from which the sun is shining", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 0.800000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Vector which defines the direction from which the sun is shining", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, subtype="DIRECTION", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -33,7 +33,7 @@ class OctaneDaylightEnvironmentTurbidity(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=246)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=2.400000, update=None, description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light", min=2.000000, max=15.000000, soft_min=2.000000, soft_max=15.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=2.400000, update=OctaneBaseSocket.update_node_tree, description="Sky turbidity, i.e. the amount of sun light that is scattered. A high value will reduce the contrast between objects in the shadow and in sun light", min=2.000000, max=15.000000, soft_min=2.000000, soft_max=15.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -47,7 +47,7 @@ class OctaneDaylightEnvironmentPower(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=138)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Scale factor that is applied to the sun and sky", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scale factor that is applied to the sun and sky", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -61,7 +61,7 @@ class OctaneDaylightEnvironmentSunIntensity(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=514)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Scale factor that is applied to the sun only. Use this to adjust the relative power of the sun compared to the sky.\n\nNote: values other than 1.0 can produce unrealistic results because in the real world the sky is lit by the sun. Adjusting the balance between the yellowish sun and the bluish sky can also produce a hue shift in the scene", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Scale factor that is applied to the sun only. Use this to adjust the relative power of the sun compared to the sky.\n\nNote: values other than 1.0 can produce unrealistic results because in the real world the sky is lit by the sun. Adjusting the balance between the yellowish sun and the bluish sky can also produce a hue shift in the scene", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=8000004
     octane_end_version=4294967295
@@ -75,7 +75,7 @@ class OctaneDaylightEnvironmentNorthoffset(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=120)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=None, description="Additional rotation offset on longitude", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="Additional rotation offset on longitude", min=-1.000000, max=1.000000, soft_min=-1.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -95,7 +95,7 @@ class OctaneDaylightEnvironmentModel(OctaneBaseSocket):
         ("Nishita Daylight Model", "Nishita Daylight Model", "", 2),
         ("Hosek-Wilkie Daylight Model", "Hosek-Wilkie Daylight Model", "", 3),
     ]
-    default_value: EnumProperty(default="Octane Daylight Model", update=None, description="The daylight model to use", items=items)
+    default_value: EnumProperty(default="Octane Daylight Model", update=OctaneBaseSocket.update_node_tree, description="The daylight model to use", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -109,7 +109,7 @@ class OctaneDaylightEnvironmentSkyColor(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=217)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.050000, 0.300000, 1.000000), update=None, description="Base color of the sky, which applies only to the Octane daylight model", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.050000, 0.300000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Base color of the sky, which applies only to the Octane daylight model", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -123,7 +123,7 @@ class OctaneDaylightEnvironmentSunsetColor(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=232)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.600000, 0.120000, 0.020000), update=None, description="Color of the sky and sun at sunset, which applies only to the Octane daylight model", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.600000, 0.120000, 0.020000), update=OctaneBaseSocket.update_node_tree, description="Color of the sky and sun at sunset, which applies only to the Octane daylight model", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -137,7 +137,7 @@ class OctaneDaylightEnvironmentSunSize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=233)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Size of the sun given as a factor of the actual sun diameter (which is ~0.5 degrees)", min=0.100000, max=30.000000, soft_min=0.100000, soft_max=30.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Size of the sun given as a factor of the actual sun diameter (which is ~0.5 degrees)", min=0.100000, max=30.000000, soft_min=0.100000, soft_max=30.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -151,7 +151,7 @@ class OctaneDaylightEnvironmentGroundColor(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=331)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.031928, 0.130434, 0.557292), update=None, description="Base color of the ground, which applies only to the Octane, Nishita and Hosek-Wilkie daylight models", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=3, size=3)
+    default_value: FloatVectorProperty(default=(0.031928, 0.130434, 0.557292), update=OctaneBaseSocket.update_node_tree, description="Base color of the ground, which applies only to the Octane, Nishita and Hosek-Wilkie daylight models", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=3, size=3)
     octane_hide_value=False
     octane_min_version=3050100
     octane_end_version=4294967295
@@ -165,7 +165,7 @@ class OctaneDaylightEnvironmentGroundStartAngle(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=332)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=90.000000, update=None, description="The angle (in degrees) below the horizon where the transition to the ground color starts. This applies only to the Octane daylight model", min=0.000000, max=90.000000, soft_min=0.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=90.000000, update=OctaneBaseSocket.update_node_tree, description="The angle (in degrees) below the horizon where the transition to the ground color starts. This applies only to the Octane daylight model", min=0.000000, max=90.000000, soft_min=0.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3050100
     octane_end_version=4294967295
@@ -179,7 +179,7 @@ class OctaneDaylightEnvironmentGroundBlendAngle(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=330)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=5.000000, update=None, description="The angle (in degrees) over which the sky color transitions to the ground color. This applies only to the Octane daylight model", min=1.000000, max=90.000000, soft_min=1.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=5.000000, update=OctaneBaseSocket.update_node_tree, description="The angle (in degrees) over which the sky color transitions to the ground color. This applies only to the Octane daylight model", min=1.000000, max=90.000000, soft_min=1.000000, soft_max=90.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=3050100
     octane_end_version=4294967295
@@ -206,7 +206,7 @@ class OctaneDaylightEnvironmentImportanceSampling(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=79)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=True, update=None, description="Use importance sampling for image textures")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Use importance sampling for image textures")
     octane_hide_value=False
     octane_min_version=2000000
     octane_end_version=4294967295
@@ -233,7 +233,7 @@ class OctaneDaylightEnvironmentMediumRadius(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=269)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius", min=0.000100, max=10000000000.000000, soft_min=0.000100, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="Radius of the environment medium. The environment medium acts as a sphere around the camera position with the specified radius", min=0.000100, max=10000000000.000000, soft_min=0.000100, soft_max=10000000000.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=3000000
     octane_end_version=4294967295
@@ -260,7 +260,7 @@ class OctaneDaylightEnvironmentVisibleEnvironmentBackplate(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=317)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="When used as a visible environment, this environment will behave as a backplate image")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will behave as a backplate image")
     octane_hide_value=False
     octane_min_version=3030003
     octane_end_version=4294967295
@@ -274,7 +274,7 @@ class OctaneDaylightEnvironmentVisibleEnvironmentReflections(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=318)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="When used as a visible environment, this environment will be visible in reflections (specular and glossy materials)")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in reflections (specular and glossy materials)")
     octane_hide_value=False
     octane_min_version=3030003
     octane_end_version=4294967295
@@ -288,7 +288,7 @@ class OctaneDaylightEnvironmentVisibleEnvironmentRefractions(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=319)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="When used as a visible environment, this environment will be visible in refractions")
+    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="When used as a visible environment, this environment will be visible in refractions")
     octane_hide_value=False
     octane_min_version=3030003
     octane_end_version=4294967295

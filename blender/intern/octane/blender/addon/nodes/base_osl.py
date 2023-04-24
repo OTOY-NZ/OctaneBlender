@@ -61,7 +61,7 @@ class OctaneOSLBoolSocket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneBoolValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
-    default_value: BoolProperty(default=False, update=None, description="")
+    default_value: BoolProperty(default=False, update=base_socket.OctaneBaseSocket.update_node_tree, description="")
 
 
 class OctaneOSLIntSocket(OctaneOSLBaseSocket):
@@ -71,7 +71,7 @@ class OctaneOSLIntSocket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneIntValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT)
-    default_value: IntProperty(default=0, update=None, set=OctaneOSLBaseSocket.set_osl_value, get=OctaneOSLBaseSocket.get_osl_value, description="", min=-2147483647, max=2147483647, step=1, subtype="NONE")
+    default_value: IntProperty(default=0, update=base_socket.OctaneBaseSocket.update_node_tree, set=OctaneOSLBaseSocket.set_osl_value, get=OctaneOSLBaseSocket.get_osl_value, description="", min=-2147483647, max=2147483647, step=1, subtype="NONE")
 
 
 class OctaneOSLInt2Socket(OctaneOSLBaseSocket):
@@ -81,7 +81,7 @@ class OctaneOSLInt2Socket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneIntValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT2)
-    default_value: IntVectorProperty(default=(0, 0), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=None, description="", min=-2147483647, max=2147483647, subtype="NONE", size=2)
+    default_value: IntVectorProperty(default=(0, 0), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE", size=2)
 
 
 class OctaneOSLInt3Socket(OctaneOSLBaseSocket):
@@ -91,7 +91,7 @@ class OctaneOSLInt3Socket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneIntValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_INT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_INT3)
-    default_value: IntVectorProperty(default=(0, 0, 0), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=None, description="", min=-2147483647, max=2147483647, subtype="NONE", size=3)
+    default_value: IntVectorProperty(default=(0, 0, 0), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE", size=3)
 
 
 class OctaneOSLFloatSocket(OctaneOSLBaseSocket):
@@ -101,7 +101,7 @@ class OctaneOSLFloatSocket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneFloatValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.0, set=OctaneOSLBaseSocket.set_osl_value, get=OctaneOSLBaseSocket.get_osl_value, update=None, description="", min=-2147483647, max=2147483647, subtype="NONE")
+    default_value: FloatProperty(default=0.0, set=OctaneOSLBaseSocket.set_osl_value, get=OctaneOSLBaseSocket.get_osl_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE")
     
 
 class OctaneOSLFloat2Socket(OctaneOSLBaseSocket):
@@ -111,7 +111,7 @@ class OctaneOSLFloat2Socket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneFloatValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT2)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=None, description="", min=-2147483647, max=2147483647, subtype="NONE", size=2)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE", size=2)
 
 
 class OctaneOSLFloat3Socket(OctaneOSLBaseSocket):
@@ -121,7 +121,7 @@ class OctaneOSLFloat3Socket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneFloatValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=None, description="", min=-2147483647, max=2147483647, subtype="NONE", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), set=OctaneOSLBaseSocket.set_osl_vector_value, get=OctaneOSLBaseSocket.get_osl_vector_value, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=-2147483647, max=2147483647, subtype="NONE", size=3)
     
 
 class OctaneOSLEnumSocket(OctaneOSLBaseSocket):
@@ -131,7 +131,7 @@ class OctaneOSLEnumSocket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneEnumValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)    
-    default_value: EnumProperty(update=None, description="", items=OctaneOSLBaseSocket.get_enum_items)
+    default_value: EnumProperty(update=base_socket.OctaneBaseSocket.update_node_tree, description="", items=OctaneOSLBaseSocket.get_enum_items)
     enum_items_str: StringProperty()
 
 
@@ -142,7 +142,7 @@ class OctaneOSLGreyscaleSocket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneGreyscaleColor"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=1.000000, update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=1.000000, update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
 
 
 class OctaneOSLColorSocket(OctaneOSLBaseSocket):
@@ -152,7 +152,7 @@ class OctaneOSLColorSocket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneRGBColor"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.700000, 0.700000, 0.700000), update=None, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.700000, 0.700000, 0.700000), update=base_socket.OctaneBaseSocket.update_node_tree, description="", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
 
 
 class OctaneOSLStringSocket(OctaneOSLBaseSocket):
@@ -162,7 +162,7 @@ class OctaneOSLStringSocket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneStringValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_STRING)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_STRING)
-    default_value: StringProperty(default="", update=None, description="", subtype="NONE")
+    default_value: StringProperty(default="", update=base_socket.OctaneBaseSocket.update_node_tree, description="", subtype="NONE")
     options_str: StringProperty()
 
 
@@ -173,7 +173,7 @@ class OctaneOSLFilePathSocket(OctaneOSLBaseSocket):
     octane_default_node_type="OctaneStringValue"
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_STRING)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_STRING)
-    default_value: StringProperty(default="", update=None, description="", subtype="FILE_PATH")
+    default_value: StringProperty(default="", update=base_socket.OctaneBaseSocket.update_node_tree, description="", subtype="FILE_PATH")
 
 
 class OctaneOSLLinkSocket(OctaneOSLBaseSocket):

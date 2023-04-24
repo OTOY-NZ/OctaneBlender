@@ -32,7 +32,7 @@ class OctaneComparisonTexture2(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=239)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.500000, update=None, description="Input texture that is used a the right operand", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
+    default_value: FloatProperty(default=0.500000, update=OctaneBaseSocket.update_node_tree, description="Input texture that is used a the right operand", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -54,7 +54,7 @@ class OctaneComparisonOperationType(OctaneBaseSocket):
         ("Less or equal (A <= B)", "Less or equal (A <= B)", "", 4),
         ("Greater or equal (A >= B)", "Greater or equal (A >= B)", "", 5),
     ]
-    default_value: EnumProperty(default="Less than (A < B)", update=None, description="The comparison operation, e.g. A < B", items=items)
+    default_value: EnumProperty(default="Less than (A < B)", update=OctaneBaseSocket.update_node_tree, description="The comparison operation, e.g. A < B", items=items)
     octane_hide_value=False
     octane_min_version=11000004
     octane_end_version=4294967295
@@ -68,7 +68,7 @@ class OctaneComparisonTexture3(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=337)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=None, description="Output texture that is picked if A op B is TRUE", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output texture that is picked if A op B is TRUE", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -82,7 +82,7 @@ class OctaneComparisonTexture4(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=338)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_TEXTURE)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_RGBA)
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=None, description="Output texture that is picked if A op B is FALSE", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output texture that is picked if A op B is FALSE", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, subtype="COLOR", size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295

@@ -27,7 +27,7 @@ class OctaneGreyscaleColor(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="6;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: FloatProperty(name="Value", default=0.700000, update=None, description="The value of the float texture node", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=100.000000, )
+    a_value: FloatProperty(name="Value", default=0.700000, update=OctaneBaseNode.update_node_tree, description="The value of the float texture node", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=100.000000, )
 
     def init(self, context):
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()

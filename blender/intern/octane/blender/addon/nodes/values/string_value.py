@@ -27,7 +27,7 @@ class OctaneStringValue(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: StringProperty(name="Value", default="", update=None, description="The value of the string node")
+    a_value: StringProperty(name="Value", default="", update=OctaneBaseNode.update_node_tree, description="The value of the string node")
 
     def init(self, context):
         self.outputs.new("OctaneStringOutSocket", "String out").init()

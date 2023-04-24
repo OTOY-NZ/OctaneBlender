@@ -27,7 +27,7 @@ class OctaneFloatValue(bpy.types.Node, OctaneBaseNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="8;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 
-    a_value: FloatVectorProperty(name="Value", default=(0.000000, 0.000000, 0.000000), size=3, update=None, description="The value of the float node")
+    a_value: FloatVectorProperty(name="Value", default=(0.000000, 0.000000, 0.000000), size=3, update=OctaneBaseNode.update_node_tree, description="The value of the float node")
 
     def init(self, context):
         self.outputs.new("OctaneFloatOutSocket", "Float out").init()

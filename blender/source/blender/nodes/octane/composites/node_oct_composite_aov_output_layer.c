@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "../../shader/node_shader_util.h"
+#include "node_shader_util.hh"
 
 static bNodeSocketTemplate sh_node_in[] = {{SOCK_BOOLEAN,
                                             N_("Enable"),
@@ -116,14 +116,13 @@ void register_node_type_composite_aov_output_layer(void)
     node_type_base(&ntype,
                    SH_NODE_OCT_COMPOSITE_AOV_OUTPUT_LAYER,
                    "Composite AOV output layer",
-                   NODE_CLASS_OCT_COMPOSITE,
-                   NODE_OPTIONS);
+                   NODE_CLASS_OCT_COMPOSITE);
   node_type_socket_templates(&ntype, sh_node_in, sh_node_out);
   node_type_size(&ntype, 160, 160, 500);
   node_type_init(&ntype, node_type_oct_composite_aov_output_layer_init);
   node_type_exec(&ntype, 0, 0, 0);
   node_type_update(&ntype, 0);
-  ntype.update_internal_links = node_update_internal_links_default;
+  
 
   nodeRegisterType(&ntype);
 }

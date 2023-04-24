@@ -32,7 +32,7 @@ class OctaneVectronSize(OctaneBaseSocket):
     octane_pin_id: IntProperty(name="Octane Pin ID", default=216)
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(10.000000, 10.000000, 10.000000), update=None, description="Bounds of the geometry in meters", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(10.000000, 10.000000, 10.000000), update=OctaneBaseSocket.update_node_tree, description="Bounds of the geometry in meters", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=4000009
     octane_end_version=4294967295
@@ -54,10 +54,10 @@ class OctaneVectron(bpy.types.Node, OctaneScriptNode):
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
 
-    a_filename: StringProperty(name="Filename", default="", update=None, description="The file where the OSL shader is stored. If set, A_SHADER_CODE will be replaced with the content of the file", subtype="FILE_PATH")
-    a_reload: BoolProperty(name="Reload", default=False, update=None, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")
-    a_shader_code: StringProperty(name="Shader code", default="#include <octane-oslintrin.h>\n\nshader Vectron(\n    float radius = 1 [[float min = 0, float slidermax = 1e4, float sliderexponent = 4]],\n    vector translate = 0,\n    output _sdf out = _SDFDEF)\n{\n    out.dist = distance(P, translate) - radius;\n}\n", update=None, description="The OSL code for this node")
-    a_result: IntProperty(name="Result", default=0, update=None, description="The OSL code for this node. If set to COMPILE_NONE, the shader code will be recompiled at the next evaluation. If set to COMPILE_FORCE, the code will be recompiled even if it didn't change")
+    a_filename: StringProperty(name="Filename", default="", update=OctaneBaseNode.update_node_tree, description="The file where the OSL shader is stored. If set, A_SHADER_CODE will be replaced with the content of the file", subtype="FILE_PATH")
+    a_reload: BoolProperty(name="Reload", default=False, update=OctaneBaseNode.update_node_tree, description="Set it to TRUE if the file needs a reload. After the node was evaluated the attribute will be false again")
+    a_shader_code: StringProperty(name="Shader code", default="#include <octane-oslintrin.h>\n\nshader Vectron(\n    float radius = 1 [[float min = 0, float slidermax = 1e4, float sliderexponent = 4]],\n    vector translate = 0,\n    output _sdf out = _SDFDEF)\n{\n    out.dist = distance(P, translate) - radius;\n}\n", update=OctaneBaseNode.update_node_tree, description="The OSL code for this node")
+    a_result: IntProperty(name="Result", default=0, update=OctaneBaseNode.update_node_tree, description="The OSL code for this node. If set to COMPILE_NONE, the shader code will be recompiled at the next evaluation. If set to COMPILE_FORCE, the code will be recompiled even if it didn't change")
 
     def init(self, context):
         self.inputs.new("OctaneVectronMaterial1", OctaneVectronMaterial1.bl_label).init()
