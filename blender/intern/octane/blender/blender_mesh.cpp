@@ -656,6 +656,10 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
 
   Mesh *octane_mesh;
   PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+  if (oct_mesh.data == NULL) {
+    BL::ID b_ob_instance_data = b_ob_instance.data();
+    oct_mesh = RNA_pointer_get(&b_ob_instance_data.ptr, "octane");
+  }
 
   bool is_modified = BKE_object_is_modified(b_ob);
   bool use_geometry_node_modifier = false;
