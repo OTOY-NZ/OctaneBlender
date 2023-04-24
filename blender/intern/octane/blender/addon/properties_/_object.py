@@ -234,8 +234,40 @@ class OctaneObjectSettings(bpy.types.PropertyGroup):
         del bpy.types.Object.octane
 
 
+class OctaneLightSettings(bpy.types.PropertyGroup):
+    light_mesh: PointerProperty(
+            name="Light Mesh",
+            description="Use this mesh with octane emission",
+            type=bpy.types.Mesh,                
+            )   
+    use_external_mesh: BoolProperty(
+            name="Use External Mesh",
+            description="",
+            default=False,
+            )                     
+    external_mesh_file: StringProperty(
+            name="External Obj File",
+            description="Use external mesh with octane emission",
+            default='',
+            subtype='FILE_PATH',
+            )         
+
+    @classmethod
+    def register(cls):
+        bpy.types.Light.octane = PointerProperty(
+            name="Octane Light Settings",
+            description="Octane Light settings",
+            type=cls,
+            )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.Light.octane
+
+
 _CLASSES = [
     OctaneObjectSettings,
+    OctaneLightSettings,
 ]
 
 

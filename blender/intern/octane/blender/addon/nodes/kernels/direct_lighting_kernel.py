@@ -666,7 +666,7 @@ class OctaneDirectLightingKernelToonShadowAmbient(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=37
     octane_socket_type=consts.SocketType.ST_RGBA
-    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=OctaneBaseSocket.update_node_tree, description="The ambient modifier of toon shadowing", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=OctaneBaseSocket.update_node_tree, description="The ambient modifier of toon shadowing", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=3080000
     octane_end_version=4294967295
@@ -674,7 +674,7 @@ class OctaneDirectLightingKernelToonShadowAmbient(OctaneBaseSocket):
 
 class OctaneDirectLightingKernelAffectRoughness(OctaneBaseSocket):
     bl_idname="OctaneDirectLightingKernelAffectRoughness"
-    bl_label="Affect roughness"
+    bl_label="[Deprecated]Affect roughness"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -691,7 +691,7 @@ class OctaneDirectLightingKernelAffectRoughness(OctaneBaseSocket):
 
 class OctaneDirectLightingKernelAiLightUpdateStrength(OctaneBaseSocket):
     bl_idname="OctaneDirectLightingKernelAiLightUpdateStrength"
-    bl_label="AI light strength"
+    bl_label="[Deprecated]AI light strength"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -708,7 +708,7 @@ class OctaneDirectLightingKernelAiLightUpdateStrength(OctaneBaseSocket):
 
 class OctaneDirectLightingKernelCoherentMode(OctaneBaseSocket):
     bl_idname="OctaneDirectLightingKernelCoherentMode"
-    bl_label="Coherent mode"
+    bl_label="[Deprecated]Coherent mode"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -725,7 +725,7 @@ class OctaneDirectLightingKernelCoherentMode(OctaneBaseSocket):
 
 class OctaneDirectLightingKernelRrprob(OctaneBaseSocket):
     bl_idname="OctaneDirectLightingKernelRrprob"
-    bl_label="RR probability"
+    bl_label="[Deprecated]RR probability"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -742,7 +742,7 @@ class OctaneDirectLightingKernelRrprob(OctaneBaseSocket):
 
 class OctaneDirectLightingKernelAdaptiveStrength(OctaneBaseSocket):
     bl_idname="OctaneDirectLightingKernelAdaptiveStrength"
-    bl_label="Adaptive strength"
+    bl_label="[Deprecated]Adaptive strength"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -759,7 +759,7 @@ class OctaneDirectLightingKernelAdaptiveStrength(OctaneBaseSocket):
 
 class OctaneDirectLightingKernelOldVolumeBehavior(OctaneBaseSocket):
     bl_idname="OctaneDirectLightingKernelOldVolumeBehavior"
-    bl_label="Emulate old volume behavior"
+    bl_label="[Deprecated]Emulate old volume behavior"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -776,7 +776,7 @@ class OctaneDirectLightingKernelOldVolumeBehavior(OctaneBaseSocket):
 
 class OctaneDirectLightingKernelUseOldColorPipeline(OctaneBaseSocket):
     bl_idname="OctaneDirectLightingKernelUseOldColorPipeline"
-    bl_label="Use old color pipeline"
+    bl_label="[Deprecated]Use old color pipeline"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -848,12 +848,12 @@ class OctaneDirectLightingKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_socket_class_list=[OctaneDirectLightingKernelGroupQuality,OctaneDirectLightingKernelMaxsamples,OctaneDirectLightingKernelGIMode,OctaneDirectLightingKernelSpeculardepth,OctaneDirectLightingKernelGlossydepth,OctaneDirectLightingKernelDiffusedepth,OctaneDirectLightingKernelMaxOverlappingVolumes,OctaneDirectLightingKernelRayepsilon,OctaneDirectLightingKernelFiltersize,OctaneDirectLightingKernelAodist,OctaneDirectLightingKernelAoTexture,OctaneDirectLightingKernelAlphashadows,OctaneDirectLightingKernelNestedDielectrics,OctaneDirectLightingKernelIrradiance,OctaneDirectLightingKernelMaxsubdLevel,OctaneDirectLightingKernelAffectRoughness,OctaneDirectLightingKernelGroupAlphaChannel,OctaneDirectLightingKernelAlphachannel,OctaneDirectLightingKernelKeepEnvironment,OctaneDirectLightingKernelGroupLight,OctaneDirectLightingKernelAiLight,OctaneDirectLightingKernelAiLightUpdate,OctaneDirectLightingKernelGlobalLightIdMaskAction,OctaneDirectLightingKernelGlobalLightIdMask,OctaneDirectLightingKernelLightPassMask,OctaneDirectLightingKernelAiLightUpdateStrength,OctaneDirectLightingKernelGroupSampling,OctaneDirectLightingKernelPathTermPower,OctaneDirectLightingKernelCoherentRatio,OctaneDirectLightingKernelStaticNoise,OctaneDirectLightingKernelParallelSamples,OctaneDirectLightingKernelMaxTileSamples,OctaneDirectLightingKernelMinimizeNetTraffic,OctaneDirectLightingKernelGroupAdaptiveSampling,OctaneDirectLightingKernelAdaptiveSampling,OctaneDirectLightingKernelNoiseThreshold,OctaneDirectLightingKernelMinAdaptiveSamples,OctaneDirectLightingKernelAdaptiveSamplingPixelGroup,OctaneDirectLightingKernelAdaptiveSamplingExposure,OctaneDirectLightingKernelAdaptiveStrength,OctaneDirectLightingKernelGroupColor,OctaneDirectLightingKernelWhiteLightSpectrum,OctaneDirectLightingKernelUseOldColorPipeline,OctaneDirectLightingKernelGroupDeepImage,OctaneDirectLightingKernelDeepEnable,OctaneDirectLightingKernelDeepEnablePasses,OctaneDirectLightingKernelMaxDepthSamples,OctaneDirectLightingKernelDepthTolerance,OctaneDirectLightingKernelGroupToonShading,OctaneDirectLightingKernelToonShadowAmbient,OctaneDirectLightingKernelCoherentMode,OctaneDirectLightingKernelRrprob,OctaneDirectLightingKernelGroupCompatibilitySettings,OctaneDirectLightingKernelOldVolumeBehavior,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_KERN_DIRECTLIGHTING
-    octane_socket_list=["Max. samples", "Global illumination mode", "Specular depth", "Glossy depth", "Diffuse depth", "Maximal overlapping volumes", "Ray epsilon", "Filter size", "AO distance", "AO ambient texture", "Alpha shadows", "Nested dielectrics", "Irradiance mode", "Max subdivision level", "Alpha channel", "Keep environment", "AI light", "AI light update", "Light IDs action", "Light IDs", "Light linking invert", "Path term. power", "Coherent ratio", "Static noise", "Parallel samples", "Max. tile samples", "Minimize net traffic", "Adaptive sampling", "Noise threshold", "Min. adaptive samples", "Pixel grouping", "Expected exposure", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "Toon shadow ambient", "Affect roughness", "AI light strength", "Coherent mode", "RR probability", "Adaptive strength", "Emulate old volume behavior", "Use old color pipeline", ]
+    octane_socket_list=["Max. samples", "Global illumination mode", "Specular depth", "Glossy depth", "Diffuse depth", "Maximal overlapping volumes", "Ray epsilon", "Filter size", "AO distance", "AO ambient texture", "Alpha shadows", "Nested dielectrics", "Irradiance mode", "Max subdivision level", "Alpha channel", "Keep environment", "AI light", "AI light update", "Light IDs action", "Light IDs", "Light linking invert", "Path term. power", "Coherent ratio", "Static noise", "Parallel samples", "Max. tile samples", "Minimize net traffic", "Adaptive sampling", "Noise threshold", "Min. adaptive samples", "Pixel grouping", "Expected exposure", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "Toon shadow ambient", "[Deprecated]Affect roughness", "[Deprecated]AI light strength", "[Deprecated]Coherent mode", "[Deprecated]RR probability", "[Deprecated]Adaptive strength", "[Deprecated]Emulate old volume behavior", "[Deprecated]Use old color pipeline", ]
     octane_attribute_list=["a_compatibility_version", ]
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=38
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000007, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneDirectLightingKernelGroupQuality", OctaneDirectLightingKernelGroupQuality.bl_label).init()

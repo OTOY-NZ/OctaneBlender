@@ -5,7 +5,7 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 import nodeitems_builtins
 from bl_operators import node
 from octane import core
-from octane.utils import consts
+from octane.utils import consts, utility
 
 
 def check_pin_type_compatible(octane_pin_type1, octane_pin_type2):
@@ -52,12 +52,17 @@ def world_shader_poll(context):
         return shader_poll(context) and getattr(context.space_data, "shader_type", None) == "WORLD"
 
 class OctaneNodeItem(NodeItem):
-    def __init__(self, nodetype, label=None, settings=None, poll=None, octane_pin_type=consts.PinType.PT_UNKNOWN):
+    def __init__(self, nodetype, label=None, settings=None, poll=None, octane_pin_type=consts.PinType.PT_UNKNOWN, octane_multiple_pin_types=None):
         super().__init__(nodetype, label=label, settings=settings, poll=poll)
         self.octane_pin_type = octane_pin_type
+        self.octane_multiple_pin_types = octane_multiple_pin_types
 
     def is_pin_type_compatible(self, octane_pin_type):
-        return check_pin_type_compatible(self.octane_pin_type, octane_pin_type)
+        result = check_pin_type_compatible(self.octane_pin_type, octane_pin_type)
+        if self.octane_multiple_pin_types is not None:
+            for pin_type in self.octane_multiple_pin_types:
+                result |= check_pin_type_compatible(pin_type, octane_pin_type)
+        return result
 
     @staticmethod
     def draw(self, layout, _context):
@@ -86,12 +91,17 @@ class OctaneNodeItemSeperator(object):
 class OctaneNodeCategory(NodeCategory):
     NODE_TREE_ID_LIST = []
     
-    def __init__(self, identifier, name, description="", items=None, octane_pin_type=consts.PinType.PT_UNKNOWN):
+    def __init__(self, identifier, name, description="", items=None, octane_pin_type=consts.PinType.PT_UNKNOWN, octane_multiple_pin_types=None):
         super().__init__(identifier, name, description=description, items=items)
         self.octane_pin_type = octane_pin_type
+        self.octane_multiple_pin_types = octane_multiple_pin_types
 
     def is_pin_type_compatible(self, octane_pin_type):
-        return check_pin_type_compatible(self.octane_pin_type, octane_pin_type)
+        result = check_pin_type_compatible(self.octane_pin_type, octane_pin_type)
+        if self.octane_multiple_pin_types is not None:
+            for pin_type in self.octane_multiple_pin_types:
+                result |= check_pin_type_compatible(pin_type, octane_pin_type)
+        return result
 
     @classmethod
     def poll(cls, context):
@@ -280,9 +290,16 @@ _octane_node_items = {
     "OCTANE_TOOL": [
         OctaneGeneralNodeCategory("OCTANE_TOOL", "Octane Advanced Tools", 
             octane_pin_type=consts.PinType.PT_BLENDER_UTILITY,
+            octane_multiple_pin_types=[
+                consts.PinType.PT_GEOMETRY,
+                consts.PinType.PT_TRANSFORM,                        
+            ],
             items=[
                 OctaneNodeItem("OctaneProxy"),
-                OctaneNodeItem("OctaneObjectData"),
+                OctaneNodeItem("OctaneObjectData", octane_multiple_pin_types=[
+                        consts.PinType.PT_GEOMETRY,
+                        consts.PinType.PT_TRANSFORM,                        
+                    ]),
                 OctaneNodeItem("OctaneCameraData"),
             ]
         ),
@@ -392,7 +409,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneCompositeAOVOutput"),
                 OctaneNodeItem("OctaneCryptomatteMaskAOVOutput"),
                 OctaneNodeItem("OctaneCompositeAOVOutputLayer", octane_pin_type=consts.PinType.PT_COMPOSITE_AOV_LAYER),                
-                OctaneNodeItem("OctaneImageAOVOutput"),
+                OctaneNodeItem("OctaneImageAOVOutput" if utility.use_new_addon_nodes() else "ShaderNodeOctImageAovOutput"),
                 OctaneNodeItem("OctaneRenderAOVOutput"),
                 OctaneCompositeNodeCategory("OCTANE_COMPOSITE_OPERATORS", "Operators", 
                     octane_pin_type=consts.PinType.PT_OUTPUT_AOV,
@@ -544,7 +561,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneSpecularMaterial"),
                 OctaneNodeItem("OctaneStandardSurfaceMaterial"),
                 OctaneNodeItem("OctaneToonMaterial"),
-                OctaneNodeItem("OctaneToonRamp", octane_pin_type=consts.PinType.PT_TOON_RAMP),
+                OctaneNodeItem("OctaneToonRamp" if utility.use_new_addon_nodes() else "ShaderNodeOctToonRampTex", octane_pin_type=consts.PinType.PT_TOON_RAMP),
                 OctaneNodeItem("OctaneUniversalMaterial"),
             ]            
         ),
@@ -570,7 +587,7 @@ _octane_node_items = {
                 OctaneNodeItem("OctaneScattering"),
                 OctaneNodeItem("OctaneSchlick", octane_pin_type=consts.PinType.PT_PHASEFUNCTION),
                 OctaneNodeItem("OctaneStandardVolumeMedium"),
-                OctaneNodeItem("OctaneVolumeGradient", octane_pin_type=consts.PinType.PT_VOLUME_RAMP),
+                OctaneNodeItem("OctaneVolumeGradient" if utility.use_new_addon_nodes() else "ShaderNodeOctVolumeRampTex", octane_pin_type=consts.PinType.PT_VOLUME_RAMP),
                 OctaneNodeItem("OctaneVolumeMedium"),
             ]  
         ),
@@ -619,7 +636,7 @@ _octane_node_items = {
         OctaneShaderNodeCategory("OCTANE_GEOMETRY", "Octane Geometry", 
             octane_pin_type=consts.PinType.PT_GEOMETRY,
             items=[
-                OctaneNodeItem("OctaneVectron"),
+                OctaneNodeItem("OctaneVectron" if utility.use_new_addon_nodes() else "ShaderNodeOctVectron"),
                 OctaneNodeItem("OctaneScatterInVolume"),
                 OctaneNodeItem("OctaneScatterOnSurface"),
                 OctaneNodeItem("OctaneSDFBox"),
@@ -691,6 +708,12 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneGreyscaleImage"),                        
                         OctaneNodeItem("OctaneImageTiles"),
                         OctaneNodeItem("OctaneRGBImage"),
+                    ] if utility.use_new_addon_nodes() else [
+                        OctaneNodeItem("ShaderNodeOctAlphaImageTex"),
+                        OctaneNodeItem("ShaderNodeOctFloatImageTex"),                        
+                        OctaneNodeItem("ShaderNodeOctImageTileTex"),
+                        OctaneNodeItem("ShaderNodeOctImageTex"),
+                        OctaneNodeItem("ShaderNodeOctBakingTex"),
                     ]
                 ), 
                 OctaneTextureNodeCategory("OCTANE_TEXTURE_MAPPING", "Mapping", 
@@ -712,7 +735,7 @@ _octane_node_items = {
                         OctaneNodeItem("OctaneColorSpaceConversion"),
                         OctaneNodeItem("OctaneComparison"),
                         OctaneNodeItem("OctaneCosineMixTexture"),
-                        OctaneNodeItem("OctaneGradientMap"),
+                        OctaneNodeItem("OctaneGradientMap" if utility.use_new_addon_nodes() else "ShaderNodeOctGradientTex"),
                         OctaneNodeItem("OctaneImageAdjustment"),
                         OctaneNodeItem("OctaneInvertTexture"),
                         OctaneNodeItem("OctaneJitteredColorCorrection"),

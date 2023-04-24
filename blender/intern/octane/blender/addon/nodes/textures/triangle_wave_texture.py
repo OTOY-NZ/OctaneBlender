@@ -62,7 +62,7 @@ class OctaneTriangleWaveTextureProjection(OctaneBaseSocket):
 
 class OctaneTriangleWaveTextureCircular(OctaneBaseSocket):
     bl_idname="OctaneTriangleWaveTextureCircular"
-    bl_label="Circular"
+    bl_label="[Deprecated]Circular"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -89,7 +89,7 @@ class OctaneTriangleWaveTexture(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneTriangleWaveTextureOffset,OctaneTriangleWaveTextureTransform,OctaneTriangleWaveTextureProjection,OctaneTriangleWaveTextureCircular,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_TRIANGLEWAVE
-    octane_socket_list=["Offset", "UVW transform", "Projection", "Circular", ]
+    octane_socket_list=["Offset", "UVW transform", "Projection", "[Deprecated]Circular", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=3

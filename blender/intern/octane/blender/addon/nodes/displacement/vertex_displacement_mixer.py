@@ -25,7 +25,7 @@ class OctaneVertexDisplacementMixer(bpy.types.Node, OctaneBaseNode):
     octane_node_type=consts.NodeType.NT_VERTEX_DISPLACEMENT_MIXER
     octane_socket_list=[]
     octane_attribute_list=["a_displacement_count", ]
-    octane_attribute_config={"a_displacement_count": [consts.AttributeID.A_DISPLACEMENT_COUNT, "displacementCount", consts.AttributeType.AT_INT], }
+    octane_attribute_config={"a_displacement_count": [consts.AttributeID.A_DISPLACEMENT_COUNT, "displacementCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
     octane_static_pin_count=0
 
     a_displacement_count: IntProperty(name="Displacement count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of vertex displacements to mix")

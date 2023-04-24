@@ -28,7 +28,7 @@ class OCTANE_use_viewport_texture_paint(bpy.types.Operator):
 
 
 class OctaneBaseImageNode(OctaneBaseNode):
-    AUTOMATIC_CHANNEL_FORMAT_VALUE = -1    
+    AUTOMATIC_CHANNEL_FORMAT_VALUE = -1
     IMAGE_DATA_C_ARRAY_IDENTIFIER = "IMAGE_DATA"
     BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE = "IMAGE_DATA_UPDATE"
     OCTANE_IMAGE_HELPER = "OCTANE_TEXTURE_HELPER[ShaderNodeTexImage]"
@@ -69,7 +69,7 @@ class OctaneBaseImageNode(OctaneBaseNode):
         ]
         if len(self.a_channel_format_enum_items_str) == 0:
             return DEFAULT_ITEMS
-        if OctaneBaseImageNode.a_channel_format_enum_items_container.get(self.a_channel_format_enum_items_str, None) is None:
+        if self.a_channel_format_enum_items_container.get(self.a_channel_format_enum_items_str, None) is None:
             value_list = []
             label_list = []
             enum_items = []
@@ -84,8 +84,8 @@ class OctaneBaseImageNode(OctaneBaseNode):
                     enum_items.append((label, label, "", value_list[idx]))
             except:
                 return DEFAULT_ITEMS
-            OctaneBaseImageNode.a_channel_format_enum_items_container[self.a_channel_format_enum_items_str] = enum_items            
-        return OctaneBaseImageNode.a_channel_format_enum_items_container[self.a_channel_format_enum_items_str]
+            self.a_channel_format_enum_items_container[self.a_channel_format_enum_items_str] = enum_items            
+        return self.a_channel_format_enum_items_container[self.a_channel_format_enum_items_str]
 
     a_channel_format: EnumProperty(name="Import format", update=update_image, description="", items=get_a_channel_format_enum_items)
 
@@ -241,6 +241,28 @@ class OctaneBaseImageNode(OctaneBaseNode):
                 octane_node.delete_array_data(self.IMAGE_DATA_C_ARRAY_IDENTIFIER)
                 is_data_updated = True
         octane_node.set_attribute_blender_name(self.BLENDER_ATTRIBUTE_IMAGE_DATA_UPDATE, consts.AttributeType.AT_BOOL, is_data_updated)
+
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+        super().load_custom_legacy_node(legacy_node, node_tree, context, report)
+        self.image = legacy_node.image
+        self.frame_current = legacy_node.image_user.frame_current
+        self.frame_duration = legacy_node.image_user.frame_duration
+        self.frame_offset = legacy_node.image_user.frame_offset
+        self.frame_start = legacy_node.image_user.frame_start
+        self.use_auto_refresh = legacy_node.image_user.use_auto_refresh
+        self.use_cyclic = legacy_node.image_user.use_cyclic
+        self.a_ies_photometry_mode = legacy_node.octane_ies_mode
+        self.update_image_info()        
+        a_channel_format = "Automatic"
+        if legacy_node.hdr_tex_bit_depth == "OCT_HDR_BIT_DEPTH_32":
+            a_channel_format = "32-bit float"
+        if legacy_node.hdr_tex_bit_depth == "OCT_HDR_BIT_DEPTH_16":
+            a_channel_format = "16-bit float"        
+        if a_channel_format != "Automatic":
+            if a_channel_format in [item[0] for item in self.a_channel_format_enum_items_container.get(self.a_channel_format_enum_items_str, [])]:
+                self.a_channel_format = a_channel_format
+            else:            
+                report({"WARNING"}, "Channel format '%s' is not valid for Image Node: %s. 'Automatic' format is used as a fallback. " % (a_channel_format, legacy_node.name))
 
     def load_custom_ocs_data(self, creator, ocs_element_tree):
         image_name = ocs_element_tree.get("name", "OctaneDB Image")

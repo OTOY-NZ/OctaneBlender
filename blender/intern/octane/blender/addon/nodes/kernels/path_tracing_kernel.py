@@ -645,7 +645,7 @@ class OctanePathTracingKernelToonShadowAmbient(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=36
     octane_socket_type=consts.SocketType.ST_RGBA
-    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=OctaneBaseSocket.update_node_tree, description="The ambient modifier of toon shadowing", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=OctaneBaseSocket.update_node_tree, description="The ambient modifier of toon shadowing", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=3080000
     octane_end_version=4294967295
@@ -653,7 +653,7 @@ class OctanePathTracingKernelToonShadowAmbient(OctaneBaseSocket):
 
 class OctanePathTracingKernelAffectRoughness(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelAffectRoughness"
-    bl_label="Affect roughness"
+    bl_label="[Deprecated]Affect roughness"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -670,7 +670,7 @@ class OctanePathTracingKernelAffectRoughness(OctaneBaseSocket):
 
 class OctanePathTracingKernelAiLightUpdateStrength(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelAiLightUpdateStrength"
-    bl_label="AI light strength"
+    bl_label="[Deprecated]AI light strength"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -687,7 +687,7 @@ class OctanePathTracingKernelAiLightUpdateStrength(OctaneBaseSocket):
 
 class OctanePathTracingKernelCoherentMode(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelCoherentMode"
-    bl_label="Coherent mode"
+    bl_label="[Deprecated]Coherent mode"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -704,7 +704,7 @@ class OctanePathTracingKernelCoherentMode(OctaneBaseSocket):
 
 class OctanePathTracingKernelMaxdepth(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelMaxdepth"
-    bl_label="Path depth"
+    bl_label="[Deprecated]Path depth"
     color=consts.OctanePinColor.Int
     octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
@@ -721,7 +721,7 @@ class OctanePathTracingKernelMaxdepth(OctaneBaseSocket):
 
 class OctanePathTracingKernelRrprob(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelRrprob"
-    bl_label="RR probability"
+    bl_label="[Deprecated]RR probability"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -738,7 +738,7 @@ class OctanePathTracingKernelRrprob(OctaneBaseSocket):
 
 class OctanePathTracingKernelAdaptiveStrength(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelAdaptiveStrength"
-    bl_label="Adaptive strength"
+    bl_label="[Deprecated]Adaptive strength"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -755,7 +755,7 @@ class OctanePathTracingKernelAdaptiveStrength(OctaneBaseSocket):
 
 class OctanePathTracingKernelOldVolumeBehavior(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelOldVolumeBehavior"
-    bl_label="Emulate old volume behavior"
+    bl_label="[Deprecated]Emulate old volume behavior"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -772,7 +772,7 @@ class OctanePathTracingKernelOldVolumeBehavior(OctaneBaseSocket):
 
 class OctanePathTracingKernelUseOldColorPipeline(OctaneBaseSocket):
     bl_idname="OctanePathTracingKernelUseOldColorPipeline"
-    bl_label="Use old color pipeline"
+    bl_label="[Deprecated]Use old color pipeline"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -844,12 +844,12 @@ class OctanePathTracingKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_socket_class_list=[OctanePathTracingKernelGroupQuality,OctanePathTracingKernelMaxsamples,OctanePathTracingKernelMaxDiffuseDepth,OctanePathTracingKernelMaxGlossyDepth,OctanePathTracingKernelMaxScatterDepth,OctanePathTracingKernelMaxOverlappingVolumes,OctanePathTracingKernelRayepsilon,OctanePathTracingKernelFiltersize,OctanePathTracingKernelAlphashadows,OctanePathTracingKernelCausticBlur,OctanePathTracingKernelGiClamp,OctanePathTracingKernelNestedDielectrics,OctanePathTracingKernelIrradiance,OctanePathTracingKernelMaxsubdLevel,OctanePathTracingKernelAffectRoughness,OctanePathTracingKernelGroupAlphaChannel,OctanePathTracingKernelAlphachannel,OctanePathTracingKernelKeepEnvironment,OctanePathTracingKernelGroupLight,OctanePathTracingKernelAiLight,OctanePathTracingKernelAiLightUpdate,OctanePathTracingKernelGlobalLightIdMaskAction,OctanePathTracingKernelGlobalLightIdMask,OctanePathTracingKernelLightPassMask,OctanePathTracingKernelAiLightUpdateStrength,OctanePathTracingKernelGroupSampling,OctanePathTracingKernelPathTermPower,OctanePathTracingKernelCoherentRatio,OctanePathTracingKernelStaticNoise,OctanePathTracingKernelParallelSamples,OctanePathTracingKernelMaxTileSamples,OctanePathTracingKernelMinimizeNetTraffic,OctanePathTracingKernelGroupAdaptiveSampling,OctanePathTracingKernelAdaptiveSampling,OctanePathTracingKernelNoiseThreshold,OctanePathTracingKernelMinAdaptiveSamples,OctanePathTracingKernelAdaptiveSamplingPixelGroup,OctanePathTracingKernelAdaptiveSamplingExposure,OctanePathTracingKernelAdaptiveStrength,OctanePathTracingKernelGroupColor,OctanePathTracingKernelWhiteLightSpectrum,OctanePathTracingKernelUseOldColorPipeline,OctanePathTracingKernelGroupDeepImage,OctanePathTracingKernelDeepEnable,OctanePathTracingKernelDeepEnablePasses,OctanePathTracingKernelMaxDepthSamples,OctanePathTracingKernelDepthTolerance,OctanePathTracingKernelGroupToonShading,OctanePathTracingKernelToonShadowAmbient,OctanePathTracingKernelCoherentMode,OctanePathTracingKernelMaxdepth,OctanePathTracingKernelRrprob,OctanePathTracingKernelGroupCompatibilitySettings,OctanePathTracingKernelOldVolumeBehavior,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_KERN_PATHTRACING
-    octane_socket_list=["Max. samples", "Diffuse depth", "Specular depth", "Scatter depth", "Maximal overlapping volumes", "Ray epsilon", "Filter size", "Alpha shadows", "Caustic blur", "GI clamp", "Nested dielectrics", "Irradiance mode", "Max subdivision level", "Alpha channel", "Keep environment", "AI light", "AI light update", "Light IDs action", "Light IDs", "Light linking invert", "Path term. power", "Coherent ratio", "Static noise", "Parallel samples", "Max. tile samples", "Minimize net traffic", "Adaptive sampling", "Noise threshold", "Min. adaptive samples", "Pixel grouping", "Expected exposure", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "Toon shadow ambient", "Affect roughness", "AI light strength", "Coherent mode", "Path depth", "RR probability", "Adaptive strength", "Emulate old volume behavior", "Use old color pipeline", ]
+    octane_socket_list=["Max. samples", "Diffuse depth", "Specular depth", "Scatter depth", "Maximal overlapping volumes", "Ray epsilon", "Filter size", "Alpha shadows", "Caustic blur", "GI clamp", "Nested dielectrics", "Irradiance mode", "Max subdivision level", "Alpha channel", "Keep environment", "AI light", "AI light update", "Light IDs action", "Light IDs", "Light linking invert", "Path term. power", "Coherent ratio", "Static noise", "Parallel samples", "Max. tile samples", "Minimize net traffic", "Adaptive sampling", "Noise threshold", "Min. adaptive samples", "Pixel grouping", "Expected exposure", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "Toon shadow ambient", "[Deprecated]Affect roughness", "[Deprecated]AI light strength", "[Deprecated]Coherent mode", "[Deprecated]Path depth", "[Deprecated]RR probability", "[Deprecated]Adaptive strength", "[Deprecated]Emulate old volume behavior", "[Deprecated]Use old color pipeline", ]
     octane_attribute_list=["a_compatibility_version", ]
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=37
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000007, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctanePathTracingKernelGroupQuality", OctanePathTracingKernelGroupQuality.bl_label).init()

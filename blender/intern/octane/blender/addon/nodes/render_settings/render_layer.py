@@ -87,7 +87,7 @@ class OctaneRenderLayerMode(OctaneBaseSocket):
 
 class OctaneRenderLayerVisibilityOnly(OctaneBaseSocket):
     bl_idname="OctaneRenderLayerVisibilityOnly"
-    bl_label="Visibility only"
+    bl_label="[Deprecated]Visibility only"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -114,7 +114,7 @@ class OctaneRenderLayer(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneRenderLayerEnabled,OctaneRenderLayerLayerId,OctaneRenderLayerInvert,OctaneRenderLayerMode,OctaneRenderLayerVisibilityOnly,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_RENDER_LAYER
-    octane_socket_list=["Enable", "Active layer ID", "Invert", "Mode", "Visibility only", ]
+    octane_socket_list=["Enable", "Active layer ID", "Invert", "Mode", "[Deprecated]Visibility only", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=4

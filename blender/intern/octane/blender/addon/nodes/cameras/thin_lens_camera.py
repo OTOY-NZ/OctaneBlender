@@ -518,7 +518,7 @@ class OctaneThinLensCameraRightFilter(OctaneBaseSocket):
 
 class OctaneThinLensCameraStereo(OctaneBaseSocket):
     bl_idname="OctaneThinLensCameraStereo"
-    bl_label="Anaglyphic stereo"
+    bl_label="[Deprecated]Anaglyphic stereo"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -575,7 +575,7 @@ class OctaneThinLensCamera(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneThinLensCameraOrthographic,OctaneThinLensCameraGroupPhysicalCameraParameters,OctaneThinLensCameraSensorWidth,OctaneThinLensCameraFocalLength,OctaneThinLensCameraFstop,OctaneThinLensCameraGroupViewingAngle,OctaneThinLensCameraFov,OctaneThinLensCameraScale,OctaneThinLensCameraDistortion,OctaneThinLensCameraLensShift,OctaneThinLensCameraPerspectiveCorrection,OctaneThinLensCameraPixelAspectRatio,OctaneThinLensCameraGroupClipping,OctaneThinLensCameraNearClipDepth,OctaneThinLensCameraFarClipDepth,OctaneThinLensCameraGroupDepthOfField,OctaneThinLensCameraAutofocus,OctaneThinLensCameraFocalDepth,OctaneThinLensCameraAperture,OctaneThinLensCameraApertureAspectRatio,OctaneThinLensCameraApertureEdge,OctaneThinLensCameraBokehSidecount,OctaneThinLensCameraBokehRotation,OctaneThinLensCameraBokehRoundedness,OctaneThinLensCameraGroupPosition,OctaneThinLensCameraPos,OctaneThinLensCameraTarget,OctaneThinLensCameraUp,OctaneThinLensCameraGroupStereo,OctaneThinLensCameraStereoOutput,OctaneThinLensCameraStereoMode,OctaneThinLensCameraStereodist,OctaneThinLensCameraStereoSwitchEyes,OctaneThinLensCameraLeftFilter,OctaneThinLensCameraRightFilter,OctaneThinLensCameraStereo,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_CAM_THINLENS
-    octane_socket_list=["Orthographic", "Sensor width", "Focal length", "F-stop", "Field of view", "Scale of view", "Distortion", "Lens shift", "Perspective correction", "Pixel aspect ratio", "Near clip depth", "Far clip depth", "Auto-focus", "Focal depth", "Aperture", "Aperture aspect ratio", "Aperture edge", "Bokeh side count", "Bokeh rotation", "Bokeh roundedness", "Position", "Target", "Up-vector", "Stereo output", "Stereo mode", "Eye distance", "Swap eyes", "Left stereo filter", "Right stereo filter", "Anaglyphic stereo", ]
+    octane_socket_list=["Orthographic", "Sensor width", "Focal length", "F-stop", "Field of view", "Scale of view", "Distortion", "Lens shift", "Perspective correction", "Pixel aspect ratio", "Near clip depth", "Far clip depth", "Auto-focus", "Focal depth", "Aperture", "Aperture aspect ratio", "Aperture edge", "Bokeh side count", "Bokeh rotation", "Bokeh roundedness", "Position", "Target", "Up-vector", "Stereo output", "Stereo mode", "Eye distance", "Swap eyes", "Left stereo filter", "Right stereo filter", "[Deprecated]Anaglyphic stereo", ]
     octane_attribute_list=["a_load_initial_state", "a_save_initial_state", ]
     octane_attribute_config={"a_load_initial_state": [consts.AttributeID.A_LOAD_INITIAL_STATE, "loadInitialState", consts.AttributeType.AT_BOOL], "a_save_initial_state": [consts.AttributeID.A_SAVE_INITIAL_STATE, "saveInitialState", consts.AttributeType.AT_BOOL], }
     octane_static_pin_count=29

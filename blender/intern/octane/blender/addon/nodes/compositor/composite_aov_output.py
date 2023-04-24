@@ -63,11 +63,12 @@ class OctaneCompositeAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_OUTPUT_AOV_COMPOSITE
     octane_socket_list=["Enable imager", "Enable post processing", ]
-    octane_attribute_list=["a_layer_count", ]
-    octane_attribute_config={"a_layer_count": [consts.AttributeID.A_LAYER_COUNT, "layerCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
+    octane_attribute_list=["a_layer_count", "a_compatibility_version", ]
+    octane_attribute_config={"a_layer_count": [consts.AttributeID.A_LAYER_COUNT, "layerCount", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], "a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=2
 
     a_layer_count: IntProperty(name="Layer count", default=0, update=OctaneBaseNode.update_node_tree, description="The number of layers. Changing this value and evaluating the node will update the number of layers. New layers will be added to the front of the dynamic pin list")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeAOVOutputGroupOutputSettings", OctaneCompositeAOVOutputGroupOutputSettings.bl_label).init()

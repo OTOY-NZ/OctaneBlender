@@ -62,7 +62,7 @@ class OctaneSineWaveTextureProjection(OctaneBaseSocket):
 
 class OctaneSineWaveTextureCircular(OctaneBaseSocket):
     bl_idname="OctaneSineWaveTextureCircular"
-    bl_label="Circular"
+    bl_label="[Deprecated]Circular"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -89,7 +89,7 @@ class OctaneSineWaveTexture(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneSineWaveTextureOffset,OctaneSineWaveTextureTransform,OctaneSineWaveTextureProjection,OctaneSineWaveTextureCircular,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_SINEWAVE
-    octane_socket_list=["Offset", "UVW transform", "Projection", "Circular", ]
+    octane_socket_list=["Offset", "UVW transform", "Projection", "[Deprecated]Circular", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=3

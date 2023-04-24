@@ -246,8 +246,6 @@ void BlenderSync::sync_light(BL::Object &b_parent,
     light->need_light_object_update = true;
   }
 
-  PointerRNA oct_light = RNA_pointer_get(&b_light.ptr, "octane");
-
   /* type */
   switch (b_light.type()) {
     case BL::Light::type_POINT: {
@@ -344,6 +342,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       light->light.iLightNodeType = Octane::NT_GEO_MESH;
       std::string current_light_object_path = "";
       std::string current_light_mesh_name = "";
+      PointerRNA oct_light = RNA_pointer_get(&b_light.ptr, "octane");
       if (get_boolean(oct_light, "use_external_mesh")) {
         char external_mesh_path[512];
         RNA_string_get(&oct_light, "external_mesh_file", external_mesh_path);

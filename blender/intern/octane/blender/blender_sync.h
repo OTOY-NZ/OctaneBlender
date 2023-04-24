@@ -154,6 +154,11 @@ class BlenderSync {
   static std::string get_env_texture_name(PointerRNA *env,
                                           const std::string &env_texture_ptr_name);
   static ::Octane::RenderPassId get_pass_type(BL::RenderPass &b_pass);
+  static BL::NodeTree find_active_kernel_node_tree(PointerRNA oct_scene);
+  static BL::NodeTree find_active_render_aov_node_tree(PointerRNA oct_viewlayer);
+  static BL::NodeTree find_active_composite_node_tree(PointerRNA oct_viewlayer);
+  static void get_samples(PointerRNA oct_scene, int &max_sample, int &max_preview_sample, int& max_info_sample);
+
   void set_resource_cache(std::map<std::string, int> &resource_cache_data,
                           std::unordered_set<std::string> &dirty_resources);
 
@@ -189,6 +194,9 @@ class BlenderSync {
   void sync_textures(BL::Depsgraph &b_depsgraph, bool update_all);
   void sync_composites(BL::Depsgraph &b_depsgraph, bool update_all);
   void sync_render_aov_node_tree(BL::Depsgraph &b_depsgraph, bool update_all);
+  void sync_kernel_node_tree(BL::Depsgraph &b_depsgraph, bool update_all);
+  
+  void get_samples();
 
   void sync_hair(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, float motion_time = 0);
   bool fill_mesh_hair_data(Mesh *mesh,
@@ -205,6 +213,8 @@ class BlenderSync {
   bool BKE_object_is_modified(BL::Object &b_ob);
   bool object_is_mesh(BL::Object &b_ob);
   bool object_is_light(BL::Object &b_ob);
+  static BL::Node find_active_environment_output(BL::NodeTree &node_tree);
+  static BL::Node find_active_kernel_output(BL::NodeTree &node_tree);
   static BL::Node find_active_render_aov_output(BL::NodeTree &node_tree);
   static BL::Node find_active_composite_aov_output(BL::NodeTree &node_tree);
   static int get_render_aov_preview_pass(BL::NodeTree &node_tree);
@@ -226,6 +236,8 @@ class BlenderSync {
   set<float> motion_times;
   void *world_map;
   bool world_recalc;
+  std::string world_custom_node_tree_content_tag;
+  int32_t world_node_tree_link_num;
 
   Scene *scene;
   bool preview;
@@ -280,6 +292,8 @@ class BlenderSync {
   BL::NodeTree render_aov_node_tree;
   std::string active_render_aov_output_name;
   bool use_render_aov_node_tree;
+
+  BL::NodeTree kernel_node_tree;
 };
 
 OCT_NAMESPACE_END

@@ -329,7 +329,7 @@ class OctaneToonMaterialCustomAovChannel(OctaneBaseSocket):
 
 class OctaneToonMaterialEdgesRounding(OctaneBaseSocket):
     bl_idname="OctaneToonMaterialEdgesRounding"
-    bl_label="Rounded edges radius"
+    bl_label="[Deprecated]Rounded edges radius"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -356,7 +356,7 @@ class OctaneToonMaterial(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneToonMaterialDiffuse,OctaneToonMaterialSpecular,OctaneToonMaterialRoughness,OctaneToonMaterialToonLightMode,OctaneToonMaterialToonDiffuseRamp,OctaneToonMaterialToonSpecularRamp,OctaneToonMaterialBump,OctaneToonMaterialNormal,OctaneToonMaterialDisplacement,OctaneToonMaterialOutlineColor,OctaneToonMaterialWidth,OctaneToonMaterialOpacity,OctaneToonMaterialSmooth,OctaneToonMaterialSmoothShadowTerminator,OctaneToonMaterialRoundEdges,OctaneToonMaterialCustomAov,OctaneToonMaterialCustomAovChannel,OctaneToonMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_TOON
-    octane_socket_list=["Diffuse", "Specular", "Roughness", "Toon lighting mode", "Toon Diffuse Ramp", "Toon Specular Ramp", "Bump", "Normal", "Displacement", "Outline color", "Outline thickness", "Opacity", "Smooth", "Smooth shadow terminator", "Round edges", "Custom AOV", "Custom AOV channel", "Rounded edges radius", ]
+    octane_socket_list=["Diffuse", "Specular", "Roughness", "Toon lighting mode", "Toon Diffuse Ramp", "Toon Specular Ramp", "Bump", "Normal", "Displacement", "Outline color", "Outline thickness", "Opacity", "Smooth", "Smooth shadow terminator", "Round edges", "Custom AOV", "Custom AOV channel", "[Deprecated]Rounded edges radius", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=17

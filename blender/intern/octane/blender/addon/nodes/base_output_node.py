@@ -977,6 +977,15 @@ class OctaneEditorWorldOutputNode(bpy.types.Node, OctaneBaseOutputNode):
         self.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.ENVIRONMENT).init()
         self.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT).init()
 
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+        legacy_environment_socket = legacy_node.inputs["Octane Environment"]
+        legacy_visible_environment_socket = legacy_node.inputs["Octane VisibleEnvironment"]
+        new_environment_socket = self.inputs[consts.OctaneOutputNodeSocketNames.ENVIRONMENT]
+        new_visible_environment_socket = self.inputs[consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT]
+        if legacy_environment_socket.is_linked:
+            node_tree.links.new(legacy_environment_socket.links[0].from_socket, new_environment_socket)
+        if legacy_visible_environment_socket.is_linked:
+            node_tree.links.new(legacy_visible_environment_socket.links[0].from_socket, new_visible_environment_socket)
 
 # Blender Editor Texture Output(texture)
 class OctaneEditorTextureOutputNode(bpy.types.Node, OctaneBaseOutputNode):

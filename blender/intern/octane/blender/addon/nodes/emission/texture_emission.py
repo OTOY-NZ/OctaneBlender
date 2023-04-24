@@ -234,7 +234,7 @@ class OctaneTextureEmissionCastShadows(OctaneBaseSocket):
 
 class OctaneTextureEmissionOrientation(OctaneBaseSocket):
     bl_idname="OctaneTextureEmissionOrientation"
-    bl_label="Orientation"
+    bl_label="[Deprecated]Orientation"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -266,7 +266,7 @@ class OctaneTextureEmission(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneTextureEmissionEfficiencyOrTexture,OctaneTextureEmissionPower,OctaneTextureEmissionSurfaceBrightness,OctaneTextureEmissionKeepInstancePower,OctaneTextureEmissionDoubleSided,OctaneTextureEmissionDistribution,OctaneTextureEmissionSamplingRate,OctaneTextureEmissionLightPassId,OctaneTextureEmissionGroupVisibility,OctaneTextureEmissionIllumination,OctaneTextureEmissionVisibleOnSpecular,OctaneTextureEmissionVisibleOnScatteringVolumes,OctaneTextureEmissionTransparentEmission,OctaneTextureEmissionCastShadows,OctaneTextureEmissionOrientation,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_EMIS_TEXTURE
-    octane_socket_list=["Texture", "Power", "Surface brightness", "Keep instance power", "Double sided", "Distribution", "Sampling rate", "Light pass ID", "Visible on diffuse", "Visible on specular", "Visible on scattering volumes", "Transparent emission", "Cast shadows", "Orientation", ]
+    octane_socket_list=["Texture", "Power", "Surface brightness", "Keep instance power", "Double sided", "Distribution", "Sampling rate", "Light pass ID", "Visible on diffuse", "Visible on specular", "Visible on scattering volumes", "Transparent emission", "Cast shadows", "[Deprecated]Orientation", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=13

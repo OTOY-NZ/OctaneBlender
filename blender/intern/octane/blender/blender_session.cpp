@@ -41,6 +41,9 @@
 
 #include "WM_api.h"
 
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string_regex.hpp>
+
 #include "blender/blender_octanedb.h"
 #include "blender/blender_session.h"
 #include "blender/server/octane_client.h"
@@ -773,11 +776,18 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr,
       if (raw_file_name.rfind(".") != std::string::npos) {
         raw_file_name = raw_file_name.substr(0, suffix_idx);
       }
-      std::string viewlayer_name = b_rlay.name();
+      const std::string VIEW_LAYER_TAG = "$VIEW_LAYER$";
       raw_file_name += b_scene.render().image_settings().octane_export_post_tag();
-      saveImage.sFileName = blender_path_frame(raw_file_name, b_scene.frame_current(), 0);
-      if (viewlayer_name.length() && viewlayer_name != "View Layer") {
-        saveImage.sFileName += ("_" + viewlayer_name);
+      std::string viewlayer_name = b_rlay.name();
+      if (raw_file_name.find(VIEW_LAYER_TAG) != std::string::npos) {
+        boost::replace_all(raw_file_name, VIEW_LAYER_TAG, viewlayer_name);
+        saveImage.sFileName = blender_path_frame(raw_file_name, b_scene.frame_current(), 0);
+      }
+      else {
+        saveImage.sFileName = blender_path_frame(raw_file_name, b_scene.frame_current(), 0);
+        if (viewlayer_name.length() && viewlayer_name != "View Layer") {
+          saveImage.sFileName += ("_" + viewlayer_name);
+        }
       }
       saveImage.sOctaneTag = b_scene.render().image_settings().octane_export_tag();
       session->server->uploadOctaneNode(&saveImage, NULL);

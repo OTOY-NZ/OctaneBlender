@@ -143,6 +143,29 @@ class OctaneObjectData(bpy.types.Node, OctaneBaseNode):
             else:
                 self.sync_collection_data(collection, octane_node.name, octane_node, depsgraph, True)
 
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+        if legacy_node.source_type == "OBJECT":
+            self.source_type = "Object"
+        else:
+            self.source_type = "Collection"
+        if legacy_node.inputs["Object"].default_value is not None:
+            self.object_name = legacy_node.inputs["Object"].default_value.name
+        else:
+            self.object_name = ""
+        if legacy_node.inputs["Collection"].default_value is not None:
+            self.collection_name = legacy_node.inputs["Collection"].default_value.name
+        else:
+            self.collection_name = ""
+        outputs_mapping = {
+            "OutTransform": "Transform out",
+            "OutRotation": "Rotation out",
+            "OutGeo": "Geometry out",
+            "OutTransformedGeo": "Transformed Geo out",
+        }
+        for legacy_output_name, current_output_name in outputs_mapping.items():
+            for link in legacy_node.outputs[legacy_output_name].links:                
+                node_tree.links.new(self.outputs[current_output_name], link.to_socket)
+
 
 _CLASSES=[
     OctaneObjectData,

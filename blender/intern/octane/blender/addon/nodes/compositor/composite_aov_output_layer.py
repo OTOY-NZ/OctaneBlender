@@ -132,7 +132,7 @@ class OctaneCompositeAOVOutputLayerColorMultiplier(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_RGBA
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The selected color will be multipiled with the input color", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="The selected color will be multipiled with the input color", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -236,7 +236,7 @@ class OctaneCompositeAOVOutputLayerAlphaOperation(OctaneBaseSocket):
 
 class OctaneCompositeAOVOutputLayerForcePremultiplyOpacity(OctaneBaseSocket):
     bl_idname="OctaneCompositeAOVOutputLayerForcePremultiplyOpacity"
-    bl_label="Force premultiply opacity"
+    bl_label="[Deprecated]Force premultiply opacity"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -263,12 +263,12 @@ class OctaneCompositeAOVOutputLayer(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneCompositeAOVOutputLayerEnabled,OctaneCompositeAOVOutputLayerInput,OctaneCompositeAOVOutputLayerMask,OctaneCompositeAOVOutputLayerMaskChannel,OctaneCompositeAOVOutputLayerInvert,OctaneCompositeAOVOutputLayerScale,OctaneCompositeAOVOutputLayerColorMultiplier,OctaneCompositeAOVOutputLayerOpacity,OctaneCompositeAOVOutputLayerBlendColorSpace,OctaneCompositeAOVOutputLayerBlendMode,OctaneCompositeAOVOutputLayerAlphaOperation,OctaneCompositeAOVOutputLayerForcePremultiplyOpacity,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_COMPOSITE_AOV_LAYER
-    octane_socket_list=["Enable", "Input", "Mask", "Mask channel", "Invert", "Scale", "Color multiplier", "Opacity", "Blend color space", "Blend mode", "Alpha operation", "Force premultiply opacity", ]
+    octane_socket_list=["Enable", "Input", "Mask", "Mask channel", "Invert", "Scale", "Color multiplier", "Opacity", "Blend color space", "Blend mode", "Alpha operation", "[Deprecated]Force premultiply opacity", ]
     octane_attribute_list=["a_compatibility_version", ]
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=11
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000007, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneCompositeAOVOutputLayerEnabled", OctaneCompositeAOVOutputLayerEnabled.bl_label).init()

@@ -781,7 +781,7 @@ def unregister():
 ##### END OCTANE GENERATED CODE BLOCK #####
 from octane import core
 
-OctaneScatterInVolumeInput1.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterInVolumeInput2.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterInVolumeInput3.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterInVolumeInput4.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterInVolumeInput1.octane_default_node_name = "OctaneObjectData"
+OctaneScatterInVolumeInput2.octane_default_node_name = "OctaneObjectData"
+OctaneScatterInVolumeInput3.octane_default_node_name = "OctaneObjectData"
+OctaneScatterInVolumeInput4.octane_default_node_name = "OctaneObjectData"

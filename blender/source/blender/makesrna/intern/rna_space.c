@@ -7237,7 +7237,6 @@ static void rna_def_space_node(BlenderRNA *brna)
        "Line Style",
        "Edit shader nodes from Line Style"},
 #  endif
-      {SNODE_SHADER_KERNEL, "KENREL", ICON_SCENE_DATA, "Kernel", "Edit shader nodes from Kernel"},
       {0, NULL, 0, NULL, NULL},
   };
 

@@ -266,7 +266,7 @@ class OctaneBakingTextureBorderModeV(OctaneBaseSocket):
 
 class OctaneBakingTextureBorderMode(OctaneBaseSocket):
     bl_idname="OctaneBakingTextureBorderMode"
-    bl_label="Border mode"
+    bl_label="[Deprecated]Border mode"
     color=consts.OctanePinColor.Enum
     octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
@@ -310,7 +310,7 @@ class OctaneBakingTexture(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneBakingTextureGroupBakingProperties,OctaneBakingTextureTexture,OctaneBakingTextureEnabled,OctaneBakingTextureResolution,OctaneBakingTextureSamplingRate,OctaneBakingTextureTonemapType,OctaneBakingTextureRgbBaking,OctaneBakingTextureGroupImageProperties,OctaneBakingTexturePower,OctaneBakingTextureGamma,OctaneBakingTextureInvert,OctaneBakingTextureLinearSpaceInvert,OctaneBakingTextureTransform,OctaneBakingTextureProjection,OctaneBakingTextureBorderModeU,OctaneBakingTextureBorderModeV,OctaneBakingTextureBorderMode,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_BAKED_IMAGE
-    octane_socket_list=["Texture", "Enable baking", "Resolution", "Samples per pixel", "Texture type", "RGB baking", "Power", "Gamma", "Invert", "Linear space invert", "UV transform", "Projection", "Border mode (U)", "Border mode (V)", "Border mode", ]
+    octane_socket_list=["Texture", "Enable baking", "Resolution", "Samples per pixel", "Texture type", "RGB baking", "Power", "Gamma", "Invert", "Linear space invert", "UV transform", "Projection", "Border mode (U)", "Border mode (V)", "[Deprecated]Border mode", ]
     octane_attribute_list=["a_size", "a_type", "a_image_file_type", "a_can_wrap_x", "a_can_wrap_y", "a_image_flip", "a_source_info", "a_image_layer_names", ]
     octane_attribute_config={"a_buffer": [consts.AttributeID.A_BUFFER, "buffer", consts.AttributeType.AT_BYTE], "a_size": [consts.AttributeID.A_SIZE, "size", consts.AttributeType.AT_INT2], "a_type": [consts.AttributeID.A_TYPE, "type", consts.AttributeType.AT_INT], "a_image_file_type": [consts.AttributeID.A_IMAGE_FILE_TYPE, "imageFileType", consts.AttributeType.AT_INT], "a_can_wrap_x": [consts.AttributeID.A_CAN_WRAP_X, "canWrapX", consts.AttributeType.AT_BOOL], "a_can_wrap_y": [consts.AttributeID.A_CAN_WRAP_Y, "canWrapY", consts.AttributeType.AT_BOOL], "a_image_flip": [consts.AttributeID.A_IMAGE_FLIP, "imageFlip", consts.AttributeType.AT_BOOL], "a_source_info": [consts.AttributeID.A_SOURCE_INFO, "sourceInfo", consts.AttributeType.AT_STRING], "a_image_layer_names": [consts.AttributeID.A_IMAGE_LAYER_NAMES, "imageLayerNames", consts.AttributeType.AT_STRING], }
     octane_static_pin_count=14

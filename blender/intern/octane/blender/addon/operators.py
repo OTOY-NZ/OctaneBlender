@@ -103,7 +103,10 @@ def get_dirty_resources():
 
 def set_all_mesh_resource_cache_tags(is_dirty):
     for obj in bpy.data.objects:
-        set_mesh_resource_cache_tag(obj, is_dirty) 
+        if obj.mode == "OBJECT":
+            set_mesh_resource_cache_tag(obj, is_dirty)
+        else:
+            set_mesh_resource_cache_tag(obj, True)
 
 @persistent
 def sync_octane_aov_output_number(self):
@@ -220,7 +223,7 @@ class OCTANE_OT_ShowOctaneViewport(OCTANE_OT_BaseCommand):
     command_type = consts.UtilsFunctionType.SHOW_VIEWPORT
 
 class OCTANE_OT_ShowOctaneNetworkPreference(OCTANE_OT_BaseCommand):
-    """Show Octane Network Preference"""
+    """Show Octane Network Preference(For the Studio+ License Only)"""
     bl_idname = "octane.show_octane_network_preference"
     bl_label = "Show Octane Network Preference"
     command_type = consts.UtilsFunctionType.SHOW_NETWORK_PREFERENCE
@@ -456,7 +459,8 @@ class OCTANE_OT_BaseExport(Operator, ExportHelper):
             prefs = bpy.context.preferences.as_pointer()
             if not self.filepath.endswith(self.filename_ext):
                 self.filepath += self.filename_ext
-            _octane.export(scene.as_pointer(), context.as_pointer(), prefs, data, self.filepath, self.export_type)             
+            _octane.export(scene.as_pointer(), context.as_pointer(), prefs, data, self.filepath, self.export_type)
+            return {'FINISHED'}             
 
     def invoke(self, context, event):
         filename = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
@@ -637,6 +641,42 @@ class OCTANE_OT_OrbxPreivew(Operator):
                     # os.remove(abc_path)
         return {'FINISHED'}
 
+
+class OCTANE_OT_SaveAsAddonFile(Operator):
+    """Save this file as an OctaneBlender Addon compatible blend file"""
+    bl_idname = "octane.save_as_addon_file"
+    bl_label = "Save As"
+    postfix = "_addon"
+    filename: StringProperty()
+    filepath: StringProperty(subtype="FILE_PATH")    
+
+    def convert_to_addon_file(self, context):
+        for material in bpy.data.materials:
+            if material.node_tree and material.use_nodes:
+                utility.convert_to_addon_node_tree(material.node_tree, context, self.report)
+        for world in bpy.data.worlds:
+            if world.node_tree and world.use_nodes:
+                utility.convert_to_addon_node_tree(world.node_tree, context, self.report)                
+
+    def execute(self, context):
+        bpy.ops.wm.save_as_mainfile(filepath=self.filepath, check_existing=True, copy=False)
+        self.convert_to_addon_file(context)
+        bpy.ops.wm.save_mainfile(filepath=self.filepath, check_existing=False)
+        return {'FINISHED'}          
+
+    def invoke(self, context, event):
+        filename = bpy.path.basename(bpy.data.filepath)
+        if filename == "":
+            filename = "octane_addon_file"                
+        filename = bpy.path.display_name(filename, has_ext=False, title_case=False)
+        filename = os.path.splitext(filename)[0]
+        filename = filename + self.postfix
+        filename = bpy.path.clean_name(filename)
+        self.filename = bpy.path.ensure_ext(filename, ".blend")
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+
 classes = (
     OCTANE_OT_use_shading_nodes,
 
@@ -663,17 +703,20 @@ classes = (
     OCTANE_OT_AlembicExport,
 
     OCTANE_OT_OrbxPreivew,
+
+    OCTANE_OT_SaveAsAddonFile,
 )
 
 def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-    def menu_func(self, context):
+    def export_menu_func(self, context):
         self.layout.operator_context = 'INVOKE_DEFAULT'
         self.layout.operator(OCTANE_OT_OrbxExport.bl_idname, text="Octane Orbx(.orbx)")
-        self.layout.operator(OCTANE_OT_AlembicExport.bl_idname, text="Octane Alembic(.abc)")        
-    bpy.types.TOPBAR_MT_file_export.append(menu_func)
+        self.layout.operator(OCTANE_OT_AlembicExport.bl_idname, text="Octane Alembic(.abc)")
+        self.layout.operator(OCTANE_OT_SaveAsAddonFile.bl_idname, text="OctaneBlender Addon(.blend)")
+    bpy.types.TOPBAR_MT_file_export.append(export_menu_func)
 
 
 def unregister():

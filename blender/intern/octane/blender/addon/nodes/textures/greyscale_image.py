@@ -177,7 +177,7 @@ class OctaneGreyscaleImageBorderModeV(OctaneBaseSocket):
 
 class OctaneGreyscaleImageScale(OctaneBaseSocket):
     bl_idname="OctaneGreyscaleImageScale"
-    bl_label="Scale"
+    bl_label="[Deprecated]Scale"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -194,7 +194,7 @@ class OctaneGreyscaleImageScale(OctaneBaseSocket):
 
 class OctaneGreyscaleImageBorderMode(OctaneBaseSocket):
     bl_idname="OctaneGreyscaleImageBorderMode"
-    bl_label="Border mode"
+    bl_label="[Deprecated]Border mode"
     color=consts.OctanePinColor.Enum
     octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
@@ -228,7 +228,7 @@ class OctaneGreyscaleImage(bpy.types.Node, OctaneBaseImageNode):
     octane_socket_class_list=[OctaneGreyscaleImagePower,OctaneGreyscaleImageColorSpace,OctaneGreyscaleImageGamma,OctaneGreyscaleImageInvert,OctaneGreyscaleImageLinearSpaceInvert,OctaneGreyscaleImageTransform,OctaneGreyscaleImageProjection,OctaneGreyscaleImageBorderModeU,OctaneGreyscaleImageBorderModeV,OctaneGreyscaleImageScale,OctaneGreyscaleImageBorderMode,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_FLOATIMAGE
-    octane_socket_list=["Power", "Color space", "Legacy gamma", "Invert", "Linear sRGB invert", "UV transform", "Projection", "Border mode (U)", "Border mode (V)", "Scale", "Border mode", ]
+    octane_socket_list=["Power", "Color space", "Legacy gamma", "Invert", "Linear sRGB invert", "UV transform", "Projection", "Border mode (U)", "Border mode (V)", "[Deprecated]Scale", "[Deprecated]Border mode", ]
     octane_attribute_list=["a_filename", "a_reload", "a_initial_color_space_selected", "a_size", "a_type", "a_image_file_type", "a_can_wrap_x", "a_can_wrap_y", "a_image_flip", "a_source_info", "a_image_layer_names", "a_image_chosen_layer_name", "a_legacy_png_gamma", ]
     octane_attribute_config={"a_package": [consts.AttributeID.A_PACKAGE, "package", consts.AttributeType.AT_FILENAME], "a_filename": [consts.AttributeID.A_FILENAME, "filename", consts.AttributeType.AT_FILENAME], "a_reload": [consts.AttributeID.A_RELOAD, "reload", consts.AttributeType.AT_BOOL], "a_initial_color_space_selected": [consts.AttributeID.A_INITIAL_COLOR_SPACE_SELECTED, "initialColorSpaceSelected", consts.AttributeType.AT_BOOL], "a_buffer": [consts.AttributeID.A_BUFFER, "buffer", consts.AttributeType.AT_BYTE], "a_size": [consts.AttributeID.A_SIZE, "size", consts.AttributeType.AT_INT2], "a_type": [consts.AttributeID.A_TYPE, "type", consts.AttributeType.AT_INT], "a_image_file_type": [consts.AttributeID.A_IMAGE_FILE_TYPE, "imageFileType", consts.AttributeType.AT_INT], "a_can_wrap_x": [consts.AttributeID.A_CAN_WRAP_X, "canWrapX", consts.AttributeType.AT_BOOL], "a_can_wrap_y": [consts.AttributeID.A_CAN_WRAP_Y, "canWrapY", consts.AttributeType.AT_BOOL], "a_image_flip": [consts.AttributeID.A_IMAGE_FLIP, "imageFlip", consts.AttributeType.AT_BOOL], "a_source_info": [consts.AttributeID.A_SOURCE_INFO, "sourceInfo", consts.AttributeType.AT_STRING], "a_image_layer_names": [consts.AttributeID.A_IMAGE_LAYER_NAMES, "imageLayerNames", consts.AttributeType.AT_STRING], "a_channel_format": [consts.AttributeID.A_CHANNEL_FORMAT, "channelFormat", consts.AttributeType.AT_INT], "a_image_chosen_layer_name": [consts.AttributeID.A_IMAGE_CHOSEN_LAYER_NAME, "imageChosenLayerName", consts.AttributeType.AT_STRING], "a_ies_photometry_mode": [consts.AttributeID.A_IES_PHOTOMETRY_MODE, "iesPhotometryMode", consts.AttributeType.AT_INT], "a_legacy_png_gamma": [consts.AttributeID.A_LEGACY_PNG_GAMMA, "legacyPngGamma", consts.AttributeType.AT_BOOL], }
     octane_static_pin_count=9

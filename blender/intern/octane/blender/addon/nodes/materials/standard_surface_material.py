@@ -130,20 +130,20 @@ class OctaneStandardSurfaceMaterialRoughness(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneStandardSurfaceMaterialIndexMap(OctaneBaseSocket):
-    bl_idname="OctaneStandardSurfaceMaterialIndexMap"
+class OctaneStandardSurfaceMaterialIor(OctaneBaseSocket):
+    bl_idname="OctaneStandardSurfaceMaterialIor"
     bl_label="Specular IOR"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id=consts.PinID.P_INDEX_MAP
-    octane_pin_name="indexMap"
+    octane_pin_id=consts.PinID.P_IOR
+    octane_pin_name="ior"
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.500000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction controlling the Fresnel effect of the specular reflection or transmission", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, subtype="FACTOR")
     octane_hide_value=False
-    octane_min_version=0
+    octane_min_version=12000010
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -504,20 +504,20 @@ class OctaneStandardSurfaceMaterialCoatingRoughness(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneStandardSurfaceMaterialCoatingIndex(OctaneBaseSocket):
-    bl_idname="OctaneStandardSurfaceMaterialCoatingIndex"
+class OctaneStandardSurfaceMaterialCoatingIor(OctaneBaseSocket):
+    bl_idname="OctaneStandardSurfaceMaterialCoatingIor"
     bl_label="Coating IOR"
     color=consts.OctanePinColor.Texture
     octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
     octane_default_node_name="OctaneGreyscaleColor"
-    octane_pin_id=consts.PinID.P_COATING_INDEX
-    octane_pin_name="coatingIndex"
+    octane_pin_id=consts.PinID.P_COATING_IOR
+    octane_pin_name="coatingIor"
     octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=29
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=1.500000, update=OctaneBaseSocket.update_node_tree, description="IOR of the coating layer", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, subtype="FACTOR")
     octane_hide_value=False
-    octane_min_version=0
+    octane_min_version=12000010
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -705,20 +705,20 @@ class OctaneStandardSurfaceMaterialFilmwidth(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneStandardSurfaceMaterialFilmindex(OctaneBaseSocket):
-    bl_idname="OctaneStandardSurfaceMaterialFilmindex"
+class OctaneStandardSurfaceMaterialFilmIor(OctaneBaseSocket):
+    bl_idname="OctaneStandardSurfaceMaterialFilmIor"
     bl_label="Film IOR"
-    color=consts.OctanePinColor.Float
-    octane_default_node_type=consts.NodeType.NT_FLOAT
-    octane_default_node_name="OctaneFloatValue"
-    octane_pin_id=consts.PinID.P_FILM_INDEX
-    octane_pin_name="filmindex"
-    octane_pin_type=consts.PinType.PT_FLOAT
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
+    octane_default_node_name="OctaneGreyscaleColor"
+    octane_pin_id=consts.PinID.P_FILM_IOR
+    octane_pin_name="filmIor"
+    octane_pin_type=consts.PinType.PT_TEXTURE
     octane_pin_index=41
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=1.450000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction of the film coating", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.450000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction of the film coating", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, subtype="FACTOR")
     octane_hide_value=False
-    octane_min_version=0
+    octane_min_version=12000010
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -870,6 +870,57 @@ class OctaneStandardSurfaceMaterialLayer(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneStandardSurfaceMaterialIndexMap(OctaneBaseSocket):
+    bl_idname="OctaneStandardSurfaceMaterialIndexMap"
+    bl_label="[Deprecated]Specular IOR"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
+    octane_default_node_name="OctaneGreyscaleColor"
+    octane_pin_id=consts.PinID.P_INDEX_MAP
+    octane_pin_name="indexMap"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=51
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.500000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction controlling the Fresnel effect of the specular reflection or transmission", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, subtype="FACTOR")
+    octane_hide_value=False
+    octane_min_version=12000000
+    octane_end_version=12000010
+    octane_deprecated=True
+
+class OctaneStandardSurfaceMaterialCoatingIndex(OctaneBaseSocket):
+    bl_idname="OctaneStandardSurfaceMaterialCoatingIndex"
+    bl_label="[Deprecated]Coating IOR"
+    color=consts.OctanePinColor.Texture
+    octane_default_node_type=consts.NodeType.NT_TEX_FLOAT
+    octane_default_node_name="OctaneGreyscaleColor"
+    octane_pin_id=consts.PinID.P_COATING_INDEX
+    octane_pin_name="coatingIndex"
+    octane_pin_type=consts.PinType.PT_TEXTURE
+    octane_pin_index=52
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.500000, update=OctaneBaseSocket.update_node_tree, description="IOR of the coating layer", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, subtype="FACTOR")
+    octane_hide_value=False
+    octane_min_version=12000000
+    octane_end_version=12000010
+    octane_deprecated=True
+
+class OctaneStandardSurfaceMaterialFilmindex(OctaneBaseSocket):
+    bl_idname="OctaneStandardSurfaceMaterialFilmindex"
+    bl_label="[Deprecated]Film IOR"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type=consts.NodeType.NT_FLOAT
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_id=consts.PinID.P_FILM_INDEX
+    octane_pin_name="filmindex"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=53
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=1.450000, update=OctaneBaseSocket.update_node_tree, description="Index of refraction of the film coating", min=1.000000, max=8.000000, soft_min=1.000000, soft_max=8.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=12000000
+    octane_end_version=12000010
+    octane_deprecated=True
+
 class OctaneStandardSurfaceMaterialGroupBaseLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneStandardSurfaceMaterialGroupBaseLayer"
     bl_label="[OctaneGroupTitle]Base Layer"
@@ -878,7 +929,7 @@ class OctaneStandardSurfaceMaterialGroupBaseLayer(OctaneGroupTitleSocket):
 class OctaneStandardSurfaceMaterialGroupSpecularLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneStandardSurfaceMaterialGroupSpecularLayer"
     bl_label="[OctaneGroupTitle]Specular Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Specular weight;Specular color;Specular roughness;Specular IOR;Specular anisotropy;Specular rotation;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Specular weight;Specular color;Specular roughness;Specular IOR;Specular anisotropy;Specular rotation;Specular IOR;")
 
 class OctaneStandardSurfaceMaterialGroupTransmissionLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneStandardSurfaceMaterialGroupTransmissionLayer"
@@ -893,7 +944,7 @@ class OctaneStandardSurfaceMaterialGroupSubsurface(OctaneGroupTitleSocket):
 class OctaneStandardSurfaceMaterialGroupCoatingLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneStandardSurfaceMaterialGroupCoatingLayer"
     bl_label="[OctaneGroupTitle]Coating Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Coating weight;Coating color;Coating roughness;Coating IOR;Coating anisotropy;Coating rotation;Coating bump;Coating normal;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Coating weight;Coating color;Coating roughness;Coating IOR;Coating anisotropy;Coating rotation;Coating bump;Coating normal;Coating IOR;")
 
 class OctaneStandardSurfaceMaterialGroupSheenLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneStandardSurfaceMaterialGroupSheenLayer"
@@ -908,7 +959,7 @@ class OctaneStandardSurfaceMaterialGroupEmissionLayer(OctaneGroupTitleSocket):
 class OctaneStandardSurfaceMaterialGroupThinFilmLayer(OctaneGroupTitleSocket):
     bl_idname="OctaneStandardSurfaceMaterialGroupThinFilmLayer"
     bl_label="[OctaneGroupTitle]Thin Film Layer"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Film thickness;Film IOR;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Film thickness;Film IOR;Film IOR;")
 
 class OctaneStandardSurfaceMaterialGroupGeometryProperties(OctaneGroupTitleSocket):
     bl_idname="OctaneStandardSurfaceMaterialGroupGeometryProperties"
@@ -924,10 +975,10 @@ class OctaneStandardSurfaceMaterial(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneStandardSurfaceMaterialGroupBaseLayer,OctaneStandardSurfaceMaterialBase,OctaneStandardSurfaceMaterialBaseColor,OctaneStandardSurfaceMaterialDiffuseRoughness,OctaneStandardSurfaceMaterialMetallic,OctaneStandardSurfaceMaterialGroupSpecularLayer,OctaneStandardSurfaceMaterialSpecular,OctaneStandardSurfaceMaterialSpecularColor,OctaneStandardSurfaceMaterialRoughness,OctaneStandardSurfaceMaterialIndexMap,OctaneStandardSurfaceMaterialAnisotropyTexture,OctaneStandardSurfaceMaterialRotation,OctaneStandardSurfaceMaterialGroupTransmissionLayer,OctaneStandardSurfaceMaterialTransmission,OctaneStandardSurfaceMaterialTransmissionColor,OctaneStandardSurfaceMaterialTransmissionDepth,OctaneStandardSurfaceMaterialScattering,OctaneStandardSurfaceMaterialScatteringAnisotropy,OctaneStandardSurfaceMaterialDispersionCoefficientB,OctaneStandardSurfaceMaterialRoughnessExtra,OctaneStandardSurfaceMaterialPriority,OctaneStandardSurfaceMaterialFakeShadows,OctaneStandardSurfaceMaterialRefractionAlpha,OctaneStandardSurfaceMaterialHasCaustics,OctaneStandardSurfaceMaterialGroupSubsurface,OctaneStandardSurfaceMaterialSubsurface,OctaneStandardSurfaceMaterialSubsurfaceColor,OctaneStandardSurfaceMaterialRadius,OctaneStandardSurfaceMaterialScale,OctaneStandardSurfaceMaterialSubsurfaceAnisotropy,OctaneStandardSurfaceMaterialGroupCoatingLayer,OctaneStandardSurfaceMaterialCoating,OctaneStandardSurfaceMaterialCoatingColor,OctaneStandardSurfaceMaterialCoatingRoughness,OctaneStandardSurfaceMaterialCoatingIndex,OctaneStandardSurfaceMaterialCoatingAnisotropy,OctaneStandardSurfaceMaterialCoatingRotation,OctaneStandardSurfaceMaterialCoatingBump,OctaneStandardSurfaceMaterialCoatingNormal,OctaneStandardSurfaceMaterialGroupSheenLayer,OctaneStandardSurfaceMaterialSheen,OctaneStandardSurfaceMaterialSheenColor,OctaneStandardSurfaceMaterialSheenRoughness,OctaneStandardSurfaceMaterialGroupEmissionLayer,OctaneStandardSurfaceMaterialEmissionWeight,OctaneStandardSurfaceMaterialEmissionColor,OctaneStandardSurfaceMaterialEmission,OctaneStandardSurfaceMaterialGroupThinFilmLayer,OctaneStandardSurfaceMaterialFilmwidth,OctaneStandardSurfaceMaterialFilmindex,OctaneStandardSurfaceMaterialGroupGeometryProperties,OctaneStandardSurfaceMaterialThinWall,OctaneStandardSurfaceMaterialBump,OctaneStandardSurfaceMaterialNormal,OctaneStandardSurfaceMaterialDisplacement,OctaneStandardSurfaceMaterialSmooth,OctaneStandardSurfaceMaterialSmoothShadowTerminator,OctaneStandardSurfaceMaterialRoundEdges,OctaneStandardSurfaceMaterialOpacity,OctaneStandardSurfaceMaterialLayer,]
+    octane_socket_class_list=[OctaneStandardSurfaceMaterialGroupBaseLayer,OctaneStandardSurfaceMaterialBase,OctaneStandardSurfaceMaterialBaseColor,OctaneStandardSurfaceMaterialDiffuseRoughness,OctaneStandardSurfaceMaterialMetallic,OctaneStandardSurfaceMaterialGroupSpecularLayer,OctaneStandardSurfaceMaterialSpecular,OctaneStandardSurfaceMaterialSpecularColor,OctaneStandardSurfaceMaterialRoughness,OctaneStandardSurfaceMaterialIor,OctaneStandardSurfaceMaterialAnisotropyTexture,OctaneStandardSurfaceMaterialRotation,OctaneStandardSurfaceMaterialIndexMap,OctaneStandardSurfaceMaterialGroupTransmissionLayer,OctaneStandardSurfaceMaterialTransmission,OctaneStandardSurfaceMaterialTransmissionColor,OctaneStandardSurfaceMaterialTransmissionDepth,OctaneStandardSurfaceMaterialScattering,OctaneStandardSurfaceMaterialScatteringAnisotropy,OctaneStandardSurfaceMaterialDispersionCoefficientB,OctaneStandardSurfaceMaterialRoughnessExtra,OctaneStandardSurfaceMaterialPriority,OctaneStandardSurfaceMaterialFakeShadows,OctaneStandardSurfaceMaterialRefractionAlpha,OctaneStandardSurfaceMaterialHasCaustics,OctaneStandardSurfaceMaterialGroupSubsurface,OctaneStandardSurfaceMaterialSubsurface,OctaneStandardSurfaceMaterialSubsurfaceColor,OctaneStandardSurfaceMaterialRadius,OctaneStandardSurfaceMaterialScale,OctaneStandardSurfaceMaterialSubsurfaceAnisotropy,OctaneStandardSurfaceMaterialGroupCoatingLayer,OctaneStandardSurfaceMaterialCoating,OctaneStandardSurfaceMaterialCoatingColor,OctaneStandardSurfaceMaterialCoatingRoughness,OctaneStandardSurfaceMaterialCoatingIor,OctaneStandardSurfaceMaterialCoatingAnisotropy,OctaneStandardSurfaceMaterialCoatingRotation,OctaneStandardSurfaceMaterialCoatingBump,OctaneStandardSurfaceMaterialCoatingNormal,OctaneStandardSurfaceMaterialCoatingIndex,OctaneStandardSurfaceMaterialGroupSheenLayer,OctaneStandardSurfaceMaterialSheen,OctaneStandardSurfaceMaterialSheenColor,OctaneStandardSurfaceMaterialSheenRoughness,OctaneStandardSurfaceMaterialGroupEmissionLayer,OctaneStandardSurfaceMaterialEmissionWeight,OctaneStandardSurfaceMaterialEmissionColor,OctaneStandardSurfaceMaterialEmission,OctaneStandardSurfaceMaterialGroupThinFilmLayer,OctaneStandardSurfaceMaterialFilmwidth,OctaneStandardSurfaceMaterialFilmIor,OctaneStandardSurfaceMaterialFilmindex,OctaneStandardSurfaceMaterialGroupGeometryProperties,OctaneStandardSurfaceMaterialThinWall,OctaneStandardSurfaceMaterialBump,OctaneStandardSurfaceMaterialNormal,OctaneStandardSurfaceMaterialDisplacement,OctaneStandardSurfaceMaterialSmooth,OctaneStandardSurfaceMaterialSmoothShadowTerminator,OctaneStandardSurfaceMaterialRoundEdges,OctaneStandardSurfaceMaterialOpacity,OctaneStandardSurfaceMaterialLayer,]
     octane_min_version=12000000
     octane_node_type=consts.NodeType.NT_MAT_STANDARD_SURFACE
-    octane_socket_list=["Base weight", "Base color", "Diffuse roughness", "Metalness", "Specular weight", "Specular color", "Specular roughness", "Specular IOR", "Specular anisotropy", "Specular rotation", "Transmission weight", "Transmission color", "Transmission depth", "Scatter", "Scatter anisotropy", "Dispersion Abbe", "Extra roughness", "Dielectric priority", "Fake shadows", "Affect alpha", "Allow caustics", "Subsurface weight", "Subsurface color", "Subsurface radius", "Subsurface scale", "Subsurface anisotropy", "Coating weight", "Coating color", "Coating roughness", "Coating IOR", "Coating anisotropy", "Coating rotation", "Coating bump", "Coating normal", "Sheen weight", "Sheen color", "Sheen roughness", "Emission weight", "Emission color", "Emission", "Film thickness", "Film IOR", "Thin wall", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Opacity", "Material layer", ]
+    octane_socket_list=["Base weight", "Base color", "Diffuse roughness", "Metalness", "Specular weight", "Specular color", "Specular roughness", "Specular IOR", "Specular anisotropy", "Specular rotation", "Transmission weight", "Transmission color", "Transmission depth", "Scatter", "Scatter anisotropy", "Dispersion Abbe", "Extra roughness", "Dielectric priority", "Fake shadows", "Affect alpha", "Allow caustics", "Subsurface weight", "Subsurface color", "Subsurface radius", "Subsurface scale", "Subsurface anisotropy", "Coating weight", "Coating color", "Coating roughness", "Coating IOR", "Coating anisotropy", "Coating rotation", "Coating bump", "Coating normal", "Sheen weight", "Sheen color", "Sheen roughness", "Emission weight", "Emission color", "Emission", "Film thickness", "Film IOR", "Thin wall", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Opacity", "Material layer", "[Deprecated]Specular IOR", "[Deprecated]Coating IOR", "[Deprecated]Film IOR", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=51
@@ -942,9 +993,10 @@ class OctaneStandardSurfaceMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneStandardSurfaceMaterialSpecular", OctaneStandardSurfaceMaterialSpecular.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialSpecularColor", OctaneStandardSurfaceMaterialSpecularColor.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialRoughness", OctaneStandardSurfaceMaterialRoughness.bl_label).init()
-        self.inputs.new("OctaneStandardSurfaceMaterialIndexMap", OctaneStandardSurfaceMaterialIndexMap.bl_label).init()
+        self.inputs.new("OctaneStandardSurfaceMaterialIor", OctaneStandardSurfaceMaterialIor.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialAnisotropyTexture", OctaneStandardSurfaceMaterialAnisotropyTexture.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialRotation", OctaneStandardSurfaceMaterialRotation.bl_label).init()
+        self.inputs.new("OctaneStandardSurfaceMaterialIndexMap", OctaneStandardSurfaceMaterialIndexMap.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialGroupTransmissionLayer", OctaneStandardSurfaceMaterialGroupTransmissionLayer.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialTransmission", OctaneStandardSurfaceMaterialTransmission.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialTransmissionColor", OctaneStandardSurfaceMaterialTransmissionColor.bl_label).init()
@@ -967,11 +1019,12 @@ class OctaneStandardSurfaceMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneStandardSurfaceMaterialCoating", OctaneStandardSurfaceMaterialCoating.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialCoatingColor", OctaneStandardSurfaceMaterialCoatingColor.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialCoatingRoughness", OctaneStandardSurfaceMaterialCoatingRoughness.bl_label).init()
-        self.inputs.new("OctaneStandardSurfaceMaterialCoatingIndex", OctaneStandardSurfaceMaterialCoatingIndex.bl_label).init()
+        self.inputs.new("OctaneStandardSurfaceMaterialCoatingIor", OctaneStandardSurfaceMaterialCoatingIor.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialCoatingAnisotropy", OctaneStandardSurfaceMaterialCoatingAnisotropy.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialCoatingRotation", OctaneStandardSurfaceMaterialCoatingRotation.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialCoatingBump", OctaneStandardSurfaceMaterialCoatingBump.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialCoatingNormal", OctaneStandardSurfaceMaterialCoatingNormal.bl_label).init()
+        self.inputs.new("OctaneStandardSurfaceMaterialCoatingIndex", OctaneStandardSurfaceMaterialCoatingIndex.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialGroupSheenLayer", OctaneStandardSurfaceMaterialGroupSheenLayer.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialSheen", OctaneStandardSurfaceMaterialSheen.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialSheenColor", OctaneStandardSurfaceMaterialSheenColor.bl_label).init()
@@ -982,6 +1035,7 @@ class OctaneStandardSurfaceMaterial(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneStandardSurfaceMaterialEmission", OctaneStandardSurfaceMaterialEmission.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialGroupThinFilmLayer", OctaneStandardSurfaceMaterialGroupThinFilmLayer.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialFilmwidth", OctaneStandardSurfaceMaterialFilmwidth.bl_label).init()
+        self.inputs.new("OctaneStandardSurfaceMaterialFilmIor", OctaneStandardSurfaceMaterialFilmIor.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialFilmindex", OctaneStandardSurfaceMaterialFilmindex.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialGroupGeometryProperties", OctaneStandardSurfaceMaterialGroupGeometryProperties.bl_label).init()
         self.inputs.new("OctaneStandardSurfaceMaterialThinWall", OctaneStandardSurfaceMaterialThinWall.bl_label).init()
@@ -1004,7 +1058,7 @@ _CLASSES=[
     OctaneStandardSurfaceMaterialSpecular,
     OctaneStandardSurfaceMaterialSpecularColor,
     OctaneStandardSurfaceMaterialRoughness,
-    OctaneStandardSurfaceMaterialIndexMap,
+    OctaneStandardSurfaceMaterialIor,
     OctaneStandardSurfaceMaterialAnisotropyTexture,
     OctaneStandardSurfaceMaterialRotation,
     OctaneStandardSurfaceMaterialTransmission,
@@ -1026,7 +1080,7 @@ _CLASSES=[
     OctaneStandardSurfaceMaterialCoating,
     OctaneStandardSurfaceMaterialCoatingColor,
     OctaneStandardSurfaceMaterialCoatingRoughness,
-    OctaneStandardSurfaceMaterialCoatingIndex,
+    OctaneStandardSurfaceMaterialCoatingIor,
     OctaneStandardSurfaceMaterialCoatingAnisotropy,
     OctaneStandardSurfaceMaterialCoatingRotation,
     OctaneStandardSurfaceMaterialCoatingBump,
@@ -1038,7 +1092,7 @@ _CLASSES=[
     OctaneStandardSurfaceMaterialEmissionColor,
     OctaneStandardSurfaceMaterialEmission,
     OctaneStandardSurfaceMaterialFilmwidth,
-    OctaneStandardSurfaceMaterialFilmindex,
+    OctaneStandardSurfaceMaterialFilmIor,
     OctaneStandardSurfaceMaterialThinWall,
     OctaneStandardSurfaceMaterialBump,
     OctaneStandardSurfaceMaterialNormal,
@@ -1048,6 +1102,9 @@ _CLASSES=[
     OctaneStandardSurfaceMaterialRoundEdges,
     OctaneStandardSurfaceMaterialOpacity,
     OctaneStandardSurfaceMaterialLayer,
+    OctaneStandardSurfaceMaterialIndexMap,
+    OctaneStandardSurfaceMaterialCoatingIndex,
+    OctaneStandardSurfaceMaterialFilmindex,
     OctaneStandardSurfaceMaterialGroupBaseLayer,
     OctaneStandardSurfaceMaterialGroupSpecularLayer,
     OctaneStandardSurfaceMaterialGroupTransmissionLayer,

@@ -32,10 +32,6 @@ cryptomatte_pass_channel_modes = (
 )
 
 
-class OctaneOCIOConfigName(bpy.types.PropertyGroup):    
-    name: bpy.props.StringProperty(name="Octane OCIO Config Name")
-
-
 class OctaneAovOutputGroupNode(bpy.types.PropertyGroup):    
     name: StringProperty(name="Node Name")   
 
@@ -769,6 +765,17 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         description="Select the kernel node graph(can be created in the 'Kernel Editor'",
         type=KernelNodeGraphPropertyGroup,
     )
+    kernel_data_modes = (
+        ("PROPERTY_PANEL", "Classic Property Panel", "The classic property panel", 0),
+        ('NODETREE', "Kernel NodeTree", "The kernel node tree", 1),
+    )    
+    kernel_data_mode: EnumProperty(
+        name="Kernel Data Mode",
+        description="Use the classic Kernel or the new Kernel Nodetree",
+        items=kernel_data_modes,
+        default="PROPERTY_PANEL",
+    )
+
 # ################################################################################################
 # OCTANE ANIMATION SETTINGS
 # ################################################################################################  
@@ -1249,7 +1256,7 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         precision=0,
         min=0.0, soft_min=0.0, max=100.0, soft_max=100.0,
         subtype='PERCENTAGE',
-    )
+    )    
     kernel_types = (
         ('0', "Default", ""),
         ('1', "Direct light", ""),
@@ -1959,7 +1966,6 @@ _CLASSES = [
     KernelNodeGraphPropertyGroup,
     RenderAOVNodeGraphPropertyGroup,
     CompositeNodeGraphPropertyGroup,
-    OctaneOCIOConfigName,
     OctaneAovOutputGroupNode,
     OctaneAovOutputGroupCollection,    
     OctaneBakingLayerTransform,

@@ -44,6 +44,8 @@ class OctaneChannelPickerColorSpaceConversion(OctaneBaseSocket):
         ("HSL|HSL to RGB", "HSL|HSL to RGB", "", 4),
         ("HSV|RGB to HSV", "HSV|RGB to HSV", "", 1),
         ("HSV|HSV to RGB", "HSV|HSV to RGB", "", 2),
+        ("Perceptual|RGB to perceptual RGB", "Perceptual|RGB to perceptual RGB", "", 5),
+        ("Perceptual|Perceptual RGB to RGB", "Perceptual|Perceptual RGB to RGB", "", 6),
         ("xyY|RGB to xyY", "xyY|RGB to xyY", "", 7),
         ("xyY|xyY to RGB", "xyY|xyY to RGB", "", 8),
         ("XYZ|RGB to XYZ", "XYZ|RGB to XYZ", "", 9),

@@ -457,7 +457,7 @@ class OctaneInfoChannelsKernelDepthTolerance(OctaneBaseSocket):
 
 class OctaneInfoChannelsKernelDistributedTracing(OctaneBaseSocket):
     bl_idname="OctaneInfoChannelsKernelDistributedTracing"
-    bl_label="Distributed ray tracing"
+    bl_label="[Deprecated]Distributed ray tracing"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -474,7 +474,7 @@ class OctaneInfoChannelsKernelDistributedTracing(OctaneBaseSocket):
 
 class OctaneInfoChannelsKernelAlphashadows(OctaneBaseSocket):
     bl_idname="OctaneInfoChannelsKernelAlphashadows"
-    bl_label="AO alpha shadows"
+    bl_label="[Deprecated]AO alpha shadows"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -491,7 +491,7 @@ class OctaneInfoChannelsKernelAlphashadows(OctaneBaseSocket):
 
 class OctaneInfoChannelsKernelUseOldColorPipeline(OctaneBaseSocket):
     bl_idname="OctaneInfoChannelsKernelUseOldColorPipeline"
-    bl_label="Use old color pipeline"
+    bl_label="[Deprecated]Use old color pipeline"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -543,12 +543,12 @@ class OctaneInfoChannelsKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_socket_class_list=[OctaneInfoChannelsKernelGroupQuality,OctaneInfoChannelsKernelMaxsamples,OctaneInfoChannelsKernelType,OctaneInfoChannelsKernelRayepsilon,OctaneInfoChannelsKernelFiltersize,OctaneInfoChannelsKernelAodist,OctaneInfoChannelsKernelAoAlphaShadows,OctaneInfoChannelsKernelOpacity,OctaneInfoChannelsKernelZDepthMax,OctaneInfoChannelsKernelUVMax,OctaneInfoChannelsKernelUvSet,OctaneInfoChannelsKernelMaxSpeed,OctaneInfoChannelsKernelSamplingMode,OctaneInfoChannelsKernelBump,OctaneInfoChannelsKernelHighlightBackfaces,OctaneInfoChannelsKernelMaxsubdLevel,OctaneInfoChannelsKernelDistributedTracing,OctaneInfoChannelsKernelAlphashadows,OctaneInfoChannelsKernelGroupAlphaChannel,OctaneInfoChannelsKernelAlphachannel,OctaneInfoChannelsKernelGroupSampling,OctaneInfoChannelsKernelParallelSamples,OctaneInfoChannelsKernelMaxTileSamples,OctaneInfoChannelsKernelMinimizeNetTraffic,OctaneInfoChannelsKernelGroupColor,OctaneInfoChannelsKernelWhiteLightSpectrum,OctaneInfoChannelsKernelUseOldColorPipeline,OctaneInfoChannelsKernelGroupDeepImage,OctaneInfoChannelsKernelDeepEnable,OctaneInfoChannelsKernelDeepEnablePasses,OctaneInfoChannelsKernelMaxDepthSamples,OctaneInfoChannelsKernelDepthTolerance,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_KERN_INFO
-    octane_socket_list=["Max. samples", "Type", "Ray epsilon", "Filter size", "AO distance", "AO alpha shadows", "Opacity threshold", "Maximum Z-depth", "UV max", "UV coordinate selection", "Max speed", "Sampling mode", "Bump and normal mapping", "Wireframe backface highlighting", "Max subdivision level", "Alpha channel", "Parallel samples", "Max. tile samples", "Minimize net traffic", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "Distributed ray tracing", "AO alpha shadows", "Use old color pipeline", ]
+    octane_socket_list=["Max. samples", "Type", "Ray epsilon", "Filter size", "AO distance", "AO alpha shadows", "Opacity threshold", "Maximum Z-depth", "UV max", "UV coordinate selection", "Max speed", "Sampling mode", "Bump and normal mapping", "Wireframe backface highlighting", "Max subdivision level", "Alpha channel", "Parallel samples", "Max. tile samples", "Minimize net traffic", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "[Deprecated]Distributed ray tracing", "[Deprecated]AO alpha shadows", "[Deprecated]Use old color pipeline", ]
     octane_attribute_list=["a_compatibility_version", ]
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
     octane_static_pin_count=24
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000007, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctaneInfoChannelsKernelGroupQuality", OctaneInfoChannelsKernelGroupQuality.bl_label).init()

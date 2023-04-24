@@ -39,6 +39,7 @@ class OctaneColorSpaceConversionColorSpaceConversion(OctaneBaseSocket):
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
+        ("No conversion", "No conversion", "", 0),
         ("HSL|RGB to HSL", "HSL|RGB to HSL", "", 3),
         ("HSL|HSL to RGB", "HSL|HSL to RGB", "", 4),
         ("HSV|RGB to HSV", "HSV|RGB to HSV", "", 1),

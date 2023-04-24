@@ -523,6 +523,23 @@ class OctanePhotonTracingKernelParallelSamples(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctanePhotonTracingKernelMaxTileSamples(OctaneBaseSocket):
+    bl_idname="OctanePhotonTracingKernelMaxTileSamples"
+    bl_label="Max. tile samples"
+    color=consts.OctanePinColor.Int
+    octane_default_node_type=consts.NodeType.NT_INT
+    octane_default_node_name="OctaneIntValue"
+    octane_pin_id=consts.PinID.P_MAX_TILE_SAMPLES
+    octane_pin_name="maxTileSamples"
+    octane_pin_type=consts.PinType.PT_INT
+    octane_pin_index=30
+    octane_socket_type=consts.SocketType.ST_INT
+    default_value: IntProperty(default=32, update=OctaneBaseSocket.update_node_tree, description="The maximum samples we calculate until we switch to a new tile", min=1, max=64, soft_min=1, soft_max=64, step=1, subtype="FACTOR")
+    octane_hide_value=False
+    octane_min_version=12000008
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctanePhotonTracingKernelMinimizeNetTraffic(OctaneBaseSocket):
     bl_idname="OctanePhotonTracingKernelMinimizeNetTraffic"
     bl_label="Minimize net traffic"
@@ -532,7 +549,7 @@ class OctanePhotonTracingKernelMinimizeNetTraffic(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MINIMIZE_NET_TRAFFIC
     octane_pin_name="minimizeNetTraffic"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=30
+    octane_pin_index=31
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="If enabled, the work is distributed to the network render nodes in such a way to minimize the amount of data that is sent to the network render master")
     octane_hide_value=False
@@ -549,7 +566,7 @@ class OctanePhotonTracingKernelAdaptiveSampling(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ADAPTIVE_SAMPLING
     octane_pin_name="adaptiveSampling"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=31
+    octane_pin_index=32
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Stops rendering clean parts of the image and focuses on noisy parts")
     octane_hide_value=False
@@ -566,7 +583,7 @@ class OctanePhotonTracingKernelNoiseThreshold(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_NOISE_THRESHOLD
     octane_pin_name="noiseThreshold"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=32
+    octane_pin_index=33
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.020000, update=OctaneBaseSocket.update_node_tree, description="A pixel treated as noisy pixel if noise level is higher than this threshold. Only valid if the adaptive sampling or the noise render pass is enabled", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -583,7 +600,7 @@ class OctanePhotonTracingKernelMinAdaptiveSamples(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MIN_ADAPTIVE_SAMPLES
     octane_pin_name="minAdaptiveSamples"
     octane_pin_type=consts.PinType.PT_INT
-    octane_pin_index=33
+    octane_pin_index=34
     octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=512, update=OctaneBaseSocket.update_node_tree, description="Minimum number of samples per pixel until adaptive sampling kicks in. Set it to a higher value if you notice that the error estimate is incorrect and stops sampling pixels too early resulting in artifacts.\nOnly valid if adaptive sampling is enabled", min=2, max=1000000, soft_min=2, soft_max=100000, step=1, subtype="FACTOR")
     octane_hide_value=False
@@ -600,7 +617,7 @@ class OctanePhotonTracingKernelAdaptiveSamplingPixelGroup(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ADAPTIVE_SAMPLING_PIXEL_GROUP
     octane_pin_name="adaptiveSamplingPixelGroup"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=34
+    octane_pin_index=35
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("None", "None", "", 1),
@@ -622,7 +639,7 @@ class OctanePhotonTracingKernelAdaptiveSamplingExposure(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_ADAPTIVE_SAMPLING_EXPOSURE
     octane_pin_name="adaptiveSamplingExposure"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=35
+    octane_pin_index=36
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The expected exposure should be approximately the same value as the exposure in the imager or 0 to ignore this settings.\nIt's used by adaptive sampling to determine which pixels are bright and which are dark, which obviously depends on the exposure setting in the imaging settings. Adaptive sampling tweaks/reduces the noise estimate of very dark areas of the image. It also increases the min. adaptive samples limit for very dark areas which tend to find paths to light sources only very irregularly and thus have a too optimistic noise estimate", min=0.000000, max=4096.000000, soft_min=0.000000, soft_max=4096.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
@@ -639,7 +656,7 @@ class OctanePhotonTracingKernelWhiteLightSpectrum(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_WHITE_LIGHT_SPECTRUM
     octane_pin_name="whiteLightSpectrum"
     octane_pin_type=consts.PinType.PT_ENUM
-    octane_pin_index=36
+    octane_pin_index=37
     octane_socket_type=consts.SocketType.ST_ENUM
     items = [
         ("D65", "D65", "", 1),
@@ -660,7 +677,7 @@ class OctanePhotonTracingKernelDeepEnable(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DEEP_ENABLE
     octane_pin_name="deepEnable"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=37
+    octane_pin_index=38
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Render a deep image")
     octane_hide_value=False
@@ -677,7 +694,7 @@ class OctanePhotonTracingKernelDeepEnablePasses(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DEEP_ENABLE_PASSES
     octane_pin_name="deepEnablePasses"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=38
+    octane_pin_index=39
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Include render AOVs in deep pixels")
     octane_hide_value=False
@@ -694,7 +711,7 @@ class OctanePhotonTracingKernelMaxDepthSamples(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_MAX_DEPTH_SAMPLES
     octane_pin_name="maxDepthSamples"
     octane_pin_type=consts.PinType.PT_INT
-    octane_pin_index=39
+    octane_pin_index=40
     octane_socket_type=consts.SocketType.ST_INT
     default_value: IntProperty(default=8, update=OctaneBaseSocket.update_node_tree, description="Maximum number of depth samples per pixels", min=1, max=32, soft_min=1, soft_max=32, step=1, subtype="FACTOR")
     octane_hide_value=False
@@ -711,7 +728,7 @@ class OctanePhotonTracingKernelDepthTolerance(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_DEPTH_TOLERANCE
     octane_pin_name="depthTolerance"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=40
+    octane_pin_index=41
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.050000, update=OctaneBaseSocket.update_node_tree, description="Depth samples whose relative depth difference falls below the tolerance value are merged together", min=0.001000, max=1.000000, soft_min=0.001000, soft_max=1.000000, step=1, precision=3, subtype="NONE")
     octane_hide_value=False
@@ -728,9 +745,9 @@ class OctanePhotonTracingKernelToonShadowAmbient(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_TOON_SHADOW_AMBIENT
     octane_pin_name="toonShadowAmbient"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=41
+    octane_pin_index=42
     octane_socket_type=consts.SocketType.ST_RGBA
-    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=OctaneBaseSocket.update_node_tree, description="The ambient modifier of toon shadowing", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.500000, 0.500000, 0.500000), update=OctaneBaseSocket.update_node_tree, description="The ambient modifier of toon shadowing", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -738,14 +755,14 @@ class OctanePhotonTracingKernelToonShadowAmbient(OctaneBaseSocket):
 
 class OctanePhotonTracingKernelOldVolumeBehavior(OctaneBaseSocket):
     bl_idname="OctanePhotonTracingKernelOldVolumeBehavior"
-    bl_label="Emulate old volume behavior"
+    bl_label="[Deprecated]Emulate old volume behavior"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
     octane_pin_id=consts.PinID.P_OLD_VOLUME_BEHAVIOR
     octane_pin_name="oldVolumeBehavior"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=42
+    octane_pin_index=43
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Emulate the behavior of emission and scattering of version 4.0 and earlier")
     octane_hide_value=False
@@ -755,14 +772,14 @@ class OctanePhotonTracingKernelOldVolumeBehavior(OctaneBaseSocket):
 
 class OctanePhotonTracingKernelUseOldColorPipeline(OctaneBaseSocket):
     bl_idname="OctanePhotonTracingKernelUseOldColorPipeline"
-    bl_label="Use old color pipeline"
+    bl_label="[Deprecated]Use old color pipeline"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
     octane_pin_id=consts.PinID.P_USE_OLD_COLOR_PIPELINE
     octane_pin_name="useOldColorPipeline"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=43
+    octane_pin_index=44
     octane_socket_type=consts.SocketType.ST_BOOL
     default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="(deprecated) Use the old behavior for converting colors to and from spectra and for applying white balance. Use this to preserve the appearance of old projects (textures with colors outside the sRGB gamut will be rendered inaccurately)")
     octane_hide_value=False
@@ -772,14 +789,14 @@ class OctanePhotonTracingKernelUseOldColorPipeline(OctaneBaseSocket):
 
 class OctanePhotonTracingKernelExplorationStrength(OctaneBaseSocket):
     bl_idname="OctanePhotonTracingKernelExplorationStrength"
-    bl_label="Exploration strength"
+    bl_label="[Deprecated]Exploration strength"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
     octane_pin_id=consts.PinID.P_EXPLORATION_STRENGTH
     octane_pin_name="exploration_strength"
     octane_pin_type=consts.PinType.PT_FLOAT
-    octane_pin_index=44
+    octane_pin_index=45
     octane_socket_type=consts.SocketType.ST_FLOAT
     default_value: FloatProperty(default=0.800000, update=OctaneBaseSocket.update_node_tree, description="deprecated", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
@@ -810,7 +827,7 @@ class OctanePhotonTracingKernelGroupLight(OctaneGroupTitleSocket):
 class OctanePhotonTracingKernelGroupSampling(OctaneGroupTitleSocket):
     bl_idname="OctanePhotonTracingKernelGroupSampling"
     bl_label="[OctaneGroupTitle]Sampling"
-    octane_group_sockets: StringProperty(name="Group Sockets", default="Path term. power;Coherent ratio;Static noise;Parallel samples;Minimize net traffic;")
+    octane_group_sockets: StringProperty(name="Group Sockets", default="Path term. power;Coherent ratio;Static noise;Parallel samples;Max. tile samples;Minimize net traffic;")
 
 class OctanePhotonTracingKernelGroupAdaptiveSampling(OctaneGroupTitleSocket):
     bl_idname="OctanePhotonTracingKernelGroupAdaptiveSampling"
@@ -846,15 +863,15 @@ class OctanePhotonTracingKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctanePhotonTracingKernelGroupQuality,OctanePhotonTracingKernelMaxsamples,OctanePhotonTracingKernelMaxDiffuseDepth,OctanePhotonTracingKernelMaxGlossyDepth,OctanePhotonTracingKernelMaxScatterDepth,OctanePhotonTracingKernelMaxOverlappingVolumes,OctanePhotonTracingKernelRayepsilon,OctanePhotonTracingKernelFiltersize,OctanePhotonTracingKernelAlphashadows,OctanePhotonTracingKernelCausticBlur,OctanePhotonTracingKernelGiClamp,OctanePhotonTracingKernelNestedDielectrics,OctanePhotonTracingKernelIrradiance,OctanePhotonTracingKernelMaxsubdLevel,OctanePhotonTracingKernelGroupPhotons,OctanePhotonTracingKernelMaxPhotonDepth,OctanePhotonTracingKernelAccurateColor,OctanePhotonTracingKernelGatherRadius,OctanePhotonTracingKernelPhotonCountMultiplier,OctanePhotonTracingKernelPhotonGatherSamples,OctanePhotonTracingKernelPhotonExplorationStrength,OctanePhotonTracingKernelExplorationStrength,OctanePhotonTracingKernelGroupAlphaChannel,OctanePhotonTracingKernelAlphachannel,OctanePhotonTracingKernelKeepEnvironment,OctanePhotonTracingKernelGroupLight,OctanePhotonTracingKernelAiLight,OctanePhotonTracingKernelAiLightUpdate,OctanePhotonTracingKernelGlobalLightIdMaskAction,OctanePhotonTracingKernelGlobalLightIdMask,OctanePhotonTracingKernelLightPassMask,OctanePhotonTracingKernelGroupSampling,OctanePhotonTracingKernelPathTermPower,OctanePhotonTracingKernelCoherentRatio,OctanePhotonTracingKernelStaticNoise,OctanePhotonTracingKernelParallelSamples,OctanePhotonTracingKernelMinimizeNetTraffic,OctanePhotonTracingKernelGroupAdaptiveSampling,OctanePhotonTracingKernelAdaptiveSampling,OctanePhotonTracingKernelNoiseThreshold,OctanePhotonTracingKernelMinAdaptiveSamples,OctanePhotonTracingKernelAdaptiveSamplingPixelGroup,OctanePhotonTracingKernelAdaptiveSamplingExposure,OctanePhotonTracingKernelGroupColor,OctanePhotonTracingKernelWhiteLightSpectrum,OctanePhotonTracingKernelUseOldColorPipeline,OctanePhotonTracingKernelGroupDeepImage,OctanePhotonTracingKernelDeepEnable,OctanePhotonTracingKernelDeepEnablePasses,OctanePhotonTracingKernelMaxDepthSamples,OctanePhotonTracingKernelDepthTolerance,OctanePhotonTracingKernelGroupToonShading,OctanePhotonTracingKernelToonShadowAmbient,OctanePhotonTracingKernelGroupCompatibilitySettings,OctanePhotonTracingKernelOldVolumeBehavior,]
+    octane_socket_class_list=[OctanePhotonTracingKernelGroupQuality,OctanePhotonTracingKernelMaxsamples,OctanePhotonTracingKernelMaxDiffuseDepth,OctanePhotonTracingKernelMaxGlossyDepth,OctanePhotonTracingKernelMaxScatterDepth,OctanePhotonTracingKernelMaxOverlappingVolumes,OctanePhotonTracingKernelRayepsilon,OctanePhotonTracingKernelFiltersize,OctanePhotonTracingKernelAlphashadows,OctanePhotonTracingKernelCausticBlur,OctanePhotonTracingKernelGiClamp,OctanePhotonTracingKernelNestedDielectrics,OctanePhotonTracingKernelIrradiance,OctanePhotonTracingKernelMaxsubdLevel,OctanePhotonTracingKernelGroupPhotons,OctanePhotonTracingKernelMaxPhotonDepth,OctanePhotonTracingKernelAccurateColor,OctanePhotonTracingKernelGatherRadius,OctanePhotonTracingKernelPhotonCountMultiplier,OctanePhotonTracingKernelPhotonGatherSamples,OctanePhotonTracingKernelPhotonExplorationStrength,OctanePhotonTracingKernelExplorationStrength,OctanePhotonTracingKernelGroupAlphaChannel,OctanePhotonTracingKernelAlphachannel,OctanePhotonTracingKernelKeepEnvironment,OctanePhotonTracingKernelGroupLight,OctanePhotonTracingKernelAiLight,OctanePhotonTracingKernelAiLightUpdate,OctanePhotonTracingKernelGlobalLightIdMaskAction,OctanePhotonTracingKernelGlobalLightIdMask,OctanePhotonTracingKernelLightPassMask,OctanePhotonTracingKernelGroupSampling,OctanePhotonTracingKernelPathTermPower,OctanePhotonTracingKernelCoherentRatio,OctanePhotonTracingKernelStaticNoise,OctanePhotonTracingKernelParallelSamples,OctanePhotonTracingKernelMaxTileSamples,OctanePhotonTracingKernelMinimizeNetTraffic,OctanePhotonTracingKernelGroupAdaptiveSampling,OctanePhotonTracingKernelAdaptiveSampling,OctanePhotonTracingKernelNoiseThreshold,OctanePhotonTracingKernelMinAdaptiveSamples,OctanePhotonTracingKernelAdaptiveSamplingPixelGroup,OctanePhotonTracingKernelAdaptiveSamplingExposure,OctanePhotonTracingKernelGroupColor,OctanePhotonTracingKernelWhiteLightSpectrum,OctanePhotonTracingKernelUseOldColorPipeline,OctanePhotonTracingKernelGroupDeepImage,OctanePhotonTracingKernelDeepEnable,OctanePhotonTracingKernelDeepEnablePasses,OctanePhotonTracingKernelMaxDepthSamples,OctanePhotonTracingKernelDepthTolerance,OctanePhotonTracingKernelGroupToonShading,OctanePhotonTracingKernelToonShadowAmbient,OctanePhotonTracingKernelGroupCompatibilitySettings,OctanePhotonTracingKernelOldVolumeBehavior,]
     octane_min_version=12000000
     octane_node_type=consts.NodeType.NT_KERN_PHOTONTRACING
-    octane_socket_list=["Max. samples", "Diffuse depth", "Specular depth", "Scatter depth", "Maximal overlapping volumes", "Ray epsilon", "Filter size", "Alpha shadows", "Caustic blur", "GI clamp", "Nested dielectrics", "Irradiance mode", "Max subdivision level", "Photon depth", "Accurate colors", "Photon gathering radius", "Photon count multiplier", "Photon gather samples", "Exploration strength", "Alpha channel", "Keep environment", "AI light", "AI light update", "Light IDs action", "Light IDs", "Light linking invert", "Path term. power", "Coherent ratio", "Static noise", "Parallel samples", "Minimize net traffic", "Adaptive sampling", "Noise threshold", "Min. adaptive samples", "Pixel grouping", "Expected exposure", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "Toon shadow ambient", "Emulate old volume behavior", "Use old color pipeline", "Exploration strength", ]
+    octane_socket_list=["Max. samples", "Diffuse depth", "Specular depth", "Scatter depth", "Maximal overlapping volumes", "Ray epsilon", "Filter size", "Alpha shadows", "Caustic blur", "GI clamp", "Nested dielectrics", "Irradiance mode", "Max subdivision level", "Photon depth", "Accurate colors", "Photon gathering radius", "Photon count multiplier", "Photon gather samples", "Exploration strength", "Alpha channel", "Keep environment", "AI light", "AI light update", "Light IDs action", "Light IDs", "Light linking invert", "Path term. power", "Coherent ratio", "Static noise", "Parallel samples", "Max. tile samples", "Minimize net traffic", "Adaptive sampling", "Noise threshold", "Min. adaptive samples", "Pixel grouping", "Expected exposure", "White light spectrum", "Deep image", "Deep render AOVs", "Max. depth samples", "Depth tolerance", "Toon shadow ambient", "[Deprecated]Emulate old volume behavior", "[Deprecated]Use old color pipeline", "[Deprecated]Exploration strength", ]
     octane_attribute_list=["a_compatibility_version", ]
     octane_attribute_config={"a_compatibility_version": [consts.AttributeID.A_COMPATIBILITY_VERSION, "compatibilityVersion", consts.AttributeType.AT_INT], }
-    octane_static_pin_count=42
+    octane_static_pin_count=43
 
-    a_compatibility_version: IntProperty(name="Compatibility version", default=12000007, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
+    a_compatibility_version: IntProperty(name="Compatibility version", default=12000020, update=OctaneBaseNode.update_node_tree, description="The Octane version that the behavior of this node should match")
 
     def init(self, context):
         self.inputs.new("OctanePhotonTracingKernelGroupQuality", OctanePhotonTracingKernelGroupQuality.bl_label).init()
@@ -893,6 +910,7 @@ class OctanePhotonTracingKernel(bpy.types.Node, OctaneBaseKernelNode):
         self.inputs.new("OctanePhotonTracingKernelCoherentRatio", OctanePhotonTracingKernelCoherentRatio.bl_label).init()
         self.inputs.new("OctanePhotonTracingKernelStaticNoise", OctanePhotonTracingKernelStaticNoise.bl_label).init()
         self.inputs.new("OctanePhotonTracingKernelParallelSamples", OctanePhotonTracingKernelParallelSamples.bl_label).init()
+        self.inputs.new("OctanePhotonTracingKernelMaxTileSamples", OctanePhotonTracingKernelMaxTileSamples.bl_label).init()
         self.inputs.new("OctanePhotonTracingKernelMinimizeNetTraffic", OctanePhotonTracingKernelMinimizeNetTraffic.bl_label).init()
         self.inputs.new("OctanePhotonTracingKernelGroupAdaptiveSampling", OctanePhotonTracingKernelGroupAdaptiveSampling.bl_label).init()
         self.inputs.new("OctanePhotonTracingKernelAdaptiveSampling", OctanePhotonTracingKernelAdaptiveSampling.bl_label).init()
@@ -946,6 +964,7 @@ _CLASSES=[
     OctanePhotonTracingKernelCoherentRatio,
     OctanePhotonTracingKernelStaticNoise,
     OctanePhotonTracingKernelParallelSamples,
+    OctanePhotonTracingKernelMaxTileSamples,
     OctanePhotonTracingKernelMinimizeNetTraffic,
     OctanePhotonTracingKernelAdaptiveSampling,
     OctanePhotonTracingKernelNoiseThreshold,

@@ -39,9 +39,26 @@ class OctaneStarFieldIntensityFalloff(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_FLOAT
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="How quickly the star brightness falls off. This affects the apparent size of the stars", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
+    default_value: FloatProperty(default=1.000000, update=OctaneBaseSocket.update_node_tree, description="How quickly the star brightness falls off. This affects the apparent size of the stars", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="NONE")
     octane_hide_value=False
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneStarFieldIntensity(OctaneBaseSocket):
+    bl_idname="OctaneStarFieldIntensity"
+    bl_label="Intensity"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type=consts.NodeType.NT_FLOAT
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_id=consts.PinID.P_INTENSITY
+    octane_pin_name="intensity"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=2
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=10.000000, update=OctaneBaseSocket.update_node_tree, description="The brightness of the stars", min=0.000000, max=1000.000000, soft_min=0.000000, soft_max=1000.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=12000009
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -54,11 +71,45 @@ class OctaneStarFieldSpectral(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_SPECTRAL
     octane_pin_name="spectral"
     octane_pin_type=consts.PinType.PT_BOOL
-    octane_pin_index=2
+    octane_pin_index=3
     octane_socket_type=consts.SocketType.ST_BOOL
-    default_value: BoolProperty(default=False, update=OctaneBaseSocket.update_node_tree, description="Enable to shift the color of more distant stars towards the red spectrum")
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Enable to shift the color of more distant stars towards the red spectrum")
     octane_hide_value=False
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneStarFieldTemperatureMin(OctaneBaseSocket):
+    bl_idname="OctaneStarFieldTemperatureMin"
+    bl_label="Temperature (min)"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type=consts.NodeType.NT_FLOAT
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_id=consts.PinID.P_TEMPERATURE_MIN
+    octane_pin_name="temperatureMin"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=4
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=2500.000000, update=OctaneBaseSocket.update_node_tree, description="The minimum temperature, in Kelvin, used to determine the range of colors in spectral mode", min=500.000000, max=50000.000000, soft_min=500.000000, soft_max=50000.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=12000008
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneStarFieldTemperatureMax(OctaneBaseSocket):
+    bl_idname="OctaneStarFieldTemperatureMax"
+    bl_label="Temperature (max)"
+    color=consts.OctanePinColor.Float
+    octane_default_node_type=consts.NodeType.NT_FLOAT
+    octane_default_node_name="OctaneFloatValue"
+    octane_pin_id=consts.PinID.P_TEMPERATURE_MAX
+    octane_pin_name="temperatureMax"
+    octane_pin_type=consts.PinType.PT_FLOAT
+    octane_pin_index=5
+    octane_socket_type=consts.SocketType.ST_FLOAT
+    default_value: FloatProperty(default=10000.000000, update=OctaneBaseSocket.update_node_tree, description="The maximum temperature, in Kelvin, used to determine the range of colors in spectral mode", min=500.000000, max=50000.000000, soft_min=500.000000, soft_max=50000.000000, step=1, precision=2, subtype="NONE")
+    octane_hide_value=False
+    octane_min_version=12000008
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -71,7 +122,7 @@ class OctaneStarFieldTransform(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_TRANSFORM
     octane_pin_name="transform"
     octane_pin_type=consts.PinType.PT_TRANSFORM
-    octane_pin_index=3
+    octane_pin_index=6
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -87,7 +138,7 @@ class OctaneStarFieldProjection(OctaneBaseSocket):
     octane_pin_id=consts.PinID.P_PROJECTION
     octane_pin_name="projection"
     octane_pin_type=consts.PinType.PT_PROJECTION
-    octane_pin_index=4
+    octane_pin_index=7
     octane_socket_type=consts.SocketType.ST_LINK
     octane_hide_value=True
     octane_min_version=0
@@ -103,18 +154,21 @@ class OctaneStarField(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_short_name=""
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
-    octane_socket_class_list=[OctaneStarFieldDensity,OctaneStarFieldIntensityFalloff,OctaneStarFieldSpectral,OctaneStarFieldTransform,OctaneStarFieldProjection,]
+    octane_socket_class_list=[OctaneStarFieldDensity,OctaneStarFieldIntensityFalloff,OctaneStarFieldIntensity,OctaneStarFieldSpectral,OctaneStarFieldTemperatureMin,OctaneStarFieldTemperatureMax,OctaneStarFieldTransform,OctaneStarFieldProjection,]
     octane_min_version=12000005
     octane_node_type=consts.NodeType.NT_TEX_STAR_FIELD
-    octane_socket_list=["Density", "Falloff", "Spectral", "UVW transform", "Projection", ]
+    octane_socket_list=["Density", "Falloff", "Intensity", "Spectral", "Temperature (min)", "Temperature (max)", "UVW transform", "Projection", ]
     octane_attribute_list=[]
     octane_attribute_config={}
-    octane_static_pin_count=5
+    octane_static_pin_count=8
 
     def init(self, context):
         self.inputs.new("OctaneStarFieldDensity", OctaneStarFieldDensity.bl_label).init()
         self.inputs.new("OctaneStarFieldIntensityFalloff", OctaneStarFieldIntensityFalloff.bl_label).init()
+        self.inputs.new("OctaneStarFieldIntensity", OctaneStarFieldIntensity.bl_label).init()
         self.inputs.new("OctaneStarFieldSpectral", OctaneStarFieldSpectral.bl_label).init()
+        self.inputs.new("OctaneStarFieldTemperatureMin", OctaneStarFieldTemperatureMin.bl_label).init()
+        self.inputs.new("OctaneStarFieldTemperatureMax", OctaneStarFieldTemperatureMax.bl_label).init()
         self.inputs.new("OctaneStarFieldTransform", OctaneStarFieldTransform.bl_label).init()
         self.inputs.new("OctaneStarFieldProjection", OctaneStarFieldProjection.bl_label).init()
         self.outputs.new("OctaneTextureOutSocket", "Texture out").init()
@@ -123,7 +177,10 @@ class OctaneStarField(bpy.types.Node, OctaneBaseNode):
 _CLASSES=[
     OctaneStarFieldDensity,
     OctaneStarFieldIntensityFalloff,
+    OctaneStarFieldIntensity,
     OctaneStarFieldSpectral,
+    OctaneStarFieldTemperatureMin,
+    OctaneStarFieldTemperatureMax,
     OctaneStarFieldTransform,
     OctaneStarFieldProjection,
     OctaneStarField,

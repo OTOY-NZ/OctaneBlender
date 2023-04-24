@@ -323,7 +323,7 @@ class OctaneDiffuseMaterialLayer(OctaneBaseSocket):
 
 class OctaneDiffuseMaterialEdgesRounding(OctaneBaseSocket):
     bl_idname="OctaneDiffuseMaterialEdgesRounding"
-    bl_label="Rounded edges radius"
+    bl_label="[Deprecated]Rounded edges radius"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -365,7 +365,7 @@ class OctaneDiffuseMaterial(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneDiffuseMaterialDiffuse,OctaneDiffuseMaterialTransmission,OctaneDiffuseMaterialGroupRoughness,OctaneDiffuseMaterialRoughness,OctaneDiffuseMaterialGroupTransmissionProperties,OctaneDiffuseMaterialMedium,OctaneDiffuseMaterialOpacity,OctaneDiffuseMaterialGroupGeometryProperties,OctaneDiffuseMaterialBump,OctaneDiffuseMaterialNormal,OctaneDiffuseMaterialDisplacement,OctaneDiffuseMaterialSmooth,OctaneDiffuseMaterialSmoothShadowTerminator,OctaneDiffuseMaterialRoundEdges,OctaneDiffuseMaterialPriority,OctaneDiffuseMaterialEmission,OctaneDiffuseMaterialMatte,OctaneDiffuseMaterialCustomAov,OctaneDiffuseMaterialCustomAovChannel,OctaneDiffuseMaterialLayer,OctaneDiffuseMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_DIFFUSE
-    octane_socket_list=["Diffuse", "Transmission", "Roughness", "Medium", "Opacity", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Emission", "Shadow catcher", "Custom AOV", "Custom AOV channel", "Material layer", "Rounded edges radius", ]
+    octane_socket_list=["Diffuse", "Transmission", "Roughness", "Medium", "Opacity", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Emission", "Shadow catcher", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Rounded edges radius", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=17

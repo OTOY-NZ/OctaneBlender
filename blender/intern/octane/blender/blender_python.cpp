@@ -1020,6 +1020,30 @@ static PyObject *py_utils_function(PyObject *self, PyObject *args)
   return ret;
 }
 
+static PyObject *py_copy_color_ramp(PyObject *self, PyObject *args)
+{
+  size_t from_addr, to_addr;
+  if (!PyArg_ParseTuple(args, "LL", &from_addr, &to_addr)) {
+    Py_RETURN_FALSE;
+  }
+  ColorBand *from_color_band = reinterpret_cast<ColorBand *>(from_addr);
+  ColorBand *to_color_band = reinterpret_cast<ColorBand *>(to_addr);
+  for (int32_t i = 0; i < 32; ++i) {
+    to_color_band->data[i].r = from_color_band->data[i].r;
+    to_color_band->data[i].g = from_color_band->data[i].g;
+    to_color_band->data[i].b = from_color_band->data[i].b;
+    to_color_band->data[i].a = from_color_band->data[i].a;
+    to_color_band->data[i].pos = from_color_band->data[i].pos;
+    to_color_band->data[i].cur = from_color_band->data[i].cur;
+  }
+  to_color_band->tot = from_color_band->tot;
+  to_color_band->cur = from_color_band->cur;
+  to_color_band->ipotype = from_color_band->ipotype;
+  to_color_band->ipotype_hue = from_color_band->ipotype_hue;
+  to_color_band->color_mode = from_color_band->color_mode;
+  Py_RETURN_TRUE;
+}
+
 static PyMethodDef methods[] = {
     {"init", py_init_func, METH_VARARGS, ""},
     {"exit", py_exit_func, METH_VARARGS, ""},
@@ -1054,6 +1078,7 @@ static PyMethodDef methods[] = {
     {"start_utils_client", py_start_utils_client, METH_VARARGS, ""},
     {"stop_utils_client", py_stop_utils_client, METH_VARARGS, ""},
     {"utils_function", py_utils_function, METH_VARARGS, ""},
+    {"copy_color_ramp", py_copy_color_ramp, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL},
 };
 

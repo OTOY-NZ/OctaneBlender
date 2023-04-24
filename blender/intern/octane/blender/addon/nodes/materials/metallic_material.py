@@ -542,7 +542,7 @@ class OctaneMetallicMaterialLayer(OctaneBaseSocket):
 
 class OctaneMetallicMaterialEdgesRounding(OctaneBaseSocket):
     bl_idname="OctaneMetallicMaterialEdgesRounding"
-    bl_label="Rounded edges radius"
+    bl_label="[Deprecated]Rounded edges radius"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -599,7 +599,7 @@ class OctaneMetallicMaterial(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneMetallicMaterialDiffuse,OctaneMetallicMaterialSpecular,OctaneMetallicMaterialEdgeTint,OctaneMetallicMaterialSpecularMap,OctaneMetallicMaterialBrdf,OctaneMetallicMaterialGroupRoughness,OctaneMetallicMaterialRoughness,OctaneMetallicMaterialAnisotropy,OctaneMetallicMaterialRotation,OctaneMetallicMaterialSpread,OctaneMetallicMaterialGroupIOR,OctaneMetallicMaterialMetallicMode,OctaneMetallicMaterialIndex,OctaneMetallicMaterialIndex2,OctaneMetallicMaterialIndex3,OctaneMetallicMaterialHasCaustics,OctaneMetallicMaterialGroupSheenLayer,OctaneMetallicMaterialSheen,OctaneMetallicMaterialSheenRoughness,OctaneMetallicMaterialGroupThinFilmLayer,OctaneMetallicMaterialFilmwidth,OctaneMetallicMaterialFilmindex,OctaneMetallicMaterialGroupTransmissionProperties,OctaneMetallicMaterialOpacity,OctaneMetallicMaterialGroupGeometryProperties,OctaneMetallicMaterialBump,OctaneMetallicMaterialNormal,OctaneMetallicMaterialDisplacement,OctaneMetallicMaterialSmooth,OctaneMetallicMaterialSmoothShadowTerminator,OctaneMetallicMaterialRoundEdges,OctaneMetallicMaterialPriority,OctaneMetallicMaterialCustomAov,OctaneMetallicMaterialCustomAovChannel,OctaneMetallicMaterialLayer,OctaneMetallicMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_METAL
-    octane_socket_list=["Diffuse color", "Specular color", "Edge tint", "Specular map", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Metallic reflection mode", "Index of refraction", "Index of refraction (green)", "Index of refraction (blue)", "Allow caustics", "Sheen", "Sheen Roughness", "Film width", "Film IOR", "Opacity", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "Rounded edges radius", ]
+    octane_socket_list=["Diffuse color", "Specular color", "Edge tint", "Specular map", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Metallic reflection mode", "Index of refraction", "Index of refraction (green)", "Index of refraction (blue)", "Allow caustics", "Sheen", "Sheen Roughness", "Film width", "Film IOR", "Opacity", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Rounded edges radius", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=29

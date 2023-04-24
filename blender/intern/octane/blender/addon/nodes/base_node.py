@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 from bpy.utils import register_class, unregister_class
 from bpy.props import BoolProperty, IntProperty, StringProperty, EnumProperty
 from octane.utils import consts, utility
+from octane.core.octane_info import OctaneInfoManger
 
 
 class OctaneBaseNode(object):	
@@ -257,6 +258,176 @@ class OctaneBaseNode(object):
 
     def sync_custom_data(self, octane_node, octane_graph_node_data, depsgraph):
         pass
+
+    def resolve_node_property_data_path(self, id_property, use_full_path=False):
+        data_path = repr(id_property)
+        data_path = data_path.replace("'", "\"")
+        if not use_full_path:
+            paths = data_path.split("node_tree.")
+            if len(paths) > 0:
+                data_path = paths[-1]
+        return data_path
+
+    def load_legacy_node(self, legacy_node, node_tree, context, report):
+        node_type = OctaneInfoManger().get_legacy_node_type(legacy_node.bl_idname)
+        # Outputs
+        legacy_node_enabled_outputs = [output for output in legacy_node.outputs if output.enabled]
+        if len(legacy_node_enabled_outputs) == 1 and len(self.outputs) == 1:
+            legacy_node_output_links = [link for link in legacy_node_enabled_outputs[0].links]    
+            for link in legacy_node_output_links:
+                node_tree.links.new(self.outputs[0], link.to_socket)
+            # while len(legacy_node.outputs[0].links):
+            #     node_tree.links.remove(legacy_node.outputs[0].links[0])
+        # Attributes & Sockets
+        data_path_mapping = {}
+        for (legacy_data_name, legacy_data_info) in OctaneInfoManger().legacy_data_infos(node_type):
+            legacy_data_type = legacy_data_info.data_type
+            legacy_data_raw_value = None
+            legacy_data_value = None
+            legacy_data_link = None
+            legacy_data_path = None
+            if legacy_data_info.is_socket:
+                if legacy_data_name in legacy_node.inputs:
+                    socket = legacy_node.inputs[legacy_data_name]
+                    if legacy_data_type == consts.LegacyDTOType.DTO_ENUM:
+                        legacy_data_raw_value = utility.get_enum_int_value(socket, "default_value", 0)
+                        legacy_data_path = self.resolve_node_property_data_path(socket) + ".default_value"
+                    elif legacy_data_type == consts.LegacyDTOType.DTO_SHADER:
+                        legacy_data_raw_value = [0, 0, 0, 0]
+                    else:
+                        legacy_data_raw_value = socket.default_value
+                        legacy_data_path = self.resolve_node_property_data_path(socket) + ".default_value"
+                    if socket.is_linked:
+                        legacy_data_link = socket.links[0]
+            else:
+                if legacy_data_type == consts.LegacyDTOType.DTO_ENUM:
+                    legacy_data_raw_value = utility.get_enum_int_value(legacy_node, legacy_data_name, 0)
+                    legacy_data_path = self.resolve_node_property_data_path(legacy_node) + "." + legacy_data_name
+                elif legacy_data_type == consts.LegacyDTOType.DTO_SHADER:
+                    legacy_data_raw_value = [0, 0, 0, 0]
+                else:
+                    legacy_data_raw_value = getattr(legacy_node, legacy_data_name)
+                    legacy_data_path = self.resolve_node_property_data_path(legacy_node) + "." + legacy_data_name
+            if legacy_data_type == consts.LegacyDTOType.DTO_BOOL:
+                legacy_data_value = [legacy_data_raw_value, 0, 0, 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_FLOAT:
+                legacy_data_value = [legacy_data_raw_value, 0, 0, 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_FLOAT_2:
+                legacy_data_value = [legacy_data_raw_value[0], legacy_data_raw_value[1], 0, 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_FLOAT_3:
+                legacy_data_value = [legacy_data_raw_value[0], legacy_data_raw_value[1], legacy_data_raw_value[2], 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_RGB:
+                legacy_data_value = [legacy_data_raw_value[0], legacy_data_raw_value[1], legacy_data_raw_value[2], 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_ENUM:
+                legacy_data_value = [legacy_data_raw_value, 0, 0, 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_INT:
+                legacy_data_value = [legacy_data_raw_value, 0, 0, 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_INT_2:
+                legacy_data_value = [legacy_data_raw_value[0], legacy_data_raw_value[1], 0, 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_INT_3:
+                legacy_data_value = [legacy_data_raw_value[0], legacy_data_raw_value[1], legacy_data_raw_value[2], 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_STR:
+                legacy_data_value = [legacy_data_raw_value, 0, 0, 0]
+            elif legacy_data_type == consts.LegacyDTOType.DTO_SHADER:
+                legacy_data_value = legacy_data_raw_value
+            is_pin = legacy_data_info.internal_data_is_pin if legacy_data_info.is_internal_data else legacy_data_info.is_pin
+            octane_id = legacy_data_info.internal_data_octane_type if legacy_data_info.is_internal_data else legacy_data_info.octane_type
+            if is_pin:
+                pin_info = OctaneInfoManger().get_pin_info_by_id(node_type, octane_id)
+                if pin_info is not None:
+                    if pin_info.blender_name in self.octane_socket_list:
+                        self.load_legacy_pin(node_tree, pin_info, legacy_data_type, legacy_data_value, legacy_data_link, legacy_data_path, data_path_mapping)
+            else:
+                attribute_info = OctaneInfoManger().get_attribute_info_by_id(node_type, octane_id)
+                if attribute_info is not None:
+                    if attribute_info.blender_name in self.octane_attribute_list:
+                        self.load_legacy_attribute(node_tree, attribute_info, legacy_data_type, legacy_data_value, legacy_data_path, data_path_mapping)
+        if node_tree.animation_data and node_tree.animation_data.action:
+            for fcurve in node_tree.animation_data.action.fcurves:
+                if fcurve.data_path in data_path_mapping:
+                    fcurve.data_path = data_path_mapping[fcurve.data_path]
+        self.load_custom_legacy_node(legacy_node, node_tree, context, report)
+
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+        pass
+
+    def load_legacy_attribute(self, node_tree, info, legacy_data_type, legacy_data_value, legacy_data_path, data_path_mapping):
+        attribute_type = info.attribute_type
+        attribute_name = info.blender_name
+        if attribute_type == consts.AttributeType.AT_BOOL:
+            setattr(self, attribute_name, legacy_data_value[0])
+        elif attribute_type == consts.AttributeType.AT_INT:
+            if self.rna_type.properties[attribute_name].type == "ENUM":
+                utility.set_enum_int_value(self, attribute_name, legacy_data_value[0])
+            else:
+                setattr(self, attribute_name, legacy_data_value[0])
+        elif attribute_type == consts.AttributeType.AT_INT2:
+            setattr(self, attribute_name, legacy_data_value[:2])
+        elif attribute_type == consts.AttributeType.AT_INT3:
+            setattr(self, attribute_name, legacy_data_value[:3])
+        elif attribute_type == consts.AttributeType.AT_INT4:
+            setattr(self, attribute_name, legacy_data_value)
+        elif attribute_type == consts.AttributeType.AT_FLOAT:
+            setattr(self, attribute_name, legacy_data_value[0])            
+        elif attribute_type == consts.AttributeType.AT_FLOAT2:
+            setattr(self, attribute_name, legacy_data_value[:2])
+        elif attribute_type == consts.AttributeType.AT_FLOAT3:
+            setattr(self, attribute_name, legacy_data_value[:3])
+        elif attribute_type == consts.AttributeType.AT_FLOAT4:
+            setattr(self, attribute_name, legacy_data_value)
+        elif attribute_type == consts.AttributeType.AT_STRING:
+            setattr(self, attribute_name, legacy_data_value[0])
+        elif attribute_type == consts.AttributeType.AT_FILENAME:
+            setattr(self, attribute_name, legacy_data_value[0])
+        elif attribute_type == consts.AttributeType.AT_BYTE:
+            setattr(self, attribute_name, legacy_data_value[0])
+        elif attribute_type == consts.AttributeType.AT_MATRIX:
+            pass
+        elif attribute_type == consts.AttributeType.AT_LONG:
+            setattr(self, attribute_name, legacy_data_value[0])
+        elif attribute_type == consts.AttributeType.AT_LONG2:
+            setattr(self, attribute_name, legacy_data_value[:2])
+        else:
+            pass
+        data_path = self.resolve_node_property_data_path(self) + "." + attribute_name        
+        if legacy_data_path and data_path:      
+            data_path_mapping[legacy_data_path] = data_path
+
+    def load_legacy_pin(self, node_tree, info, legacy_data_type, legacy_data_value, legacy_data_link, legacy_data_path, data_path_mapping):
+        socket_type = info.socket_type
+        socket_name = info.blender_name
+        socket = self.inputs[socket_name]
+        data_path = None
+        if legacy_data_value is not None:
+            if socket_type == consts.SocketType.ST_BOOL:
+                setattr(socket, "default_value", legacy_data_value[0])
+            elif socket_type == consts.SocketType.ST_ENUM:
+                utility.set_enum_int_value(socket, "default_value", legacy_data_value[0])
+            elif socket_type == consts.SocketType.ST_INT:
+                setattr(socket, "default_value", legacy_data_value[0])
+            elif socket_type == consts.SocketType.ST_INT2:
+                setattr(socket, "default_value", legacy_data_value[:2])
+            elif socket_type == consts.SocketType.ST_INT3:
+                setattr(socket, "default_value", legacy_data_value[:3])
+            elif socket_type == consts.SocketType.ST_FLOAT:
+                setattr(socket, "default_value", legacy_data_value[0])
+            elif socket_type == consts.SocketType.ST_FLOAT2:
+                setattr(socket, "default_value", legacy_data_value[:2])
+            elif socket_type == consts.SocketType.ST_FLOAT3:
+                setattr(socket, "default_value", legacy_data_value[:3])
+            elif socket_type == consts.SocketType.ST_RGBA:
+                setattr(socket, "default_value", legacy_data_value[:3])
+            elif socket_type == consts.SocketType.ST_STRING:
+                setattr(socket, "default_value", legacy_data_value[0])
+            else:
+                pass
+            if hasattr(socket, "default_value"):
+                data_path = self.resolve_node_property_data_path(socket) + ".default_value"
+        if legacy_data_link is not None:
+            node_tree.links.new(legacy_data_link.from_socket, socket)
+            # node_tree.links.remove(legacy_data_link)
+        if legacy_data_path and data_path:
+            data_path_mapping[legacy_data_path] = data_path
 
     def load_ocs_data(self, creator, ocs_element_tree):
         attrs_et = ocs_element_tree.findall("attr")

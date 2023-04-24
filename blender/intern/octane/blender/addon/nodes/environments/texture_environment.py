@@ -164,7 +164,7 @@ class OctaneTextureEnvironmentVisibleEnvironmentRefractions(OctaneBaseSocket):
 
 class OctaneTextureEnvironmentRotation(OctaneBaseSocket):
     bl_idname="OctaneTextureEnvironmentRotation"
-    bl_label="Rotation"
+    bl_label="[Deprecated]Rotation"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -196,7 +196,7 @@ class OctaneTextureEnvironment(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneTextureEnvironmentTexture,OctaneTextureEnvironmentPower,OctaneTextureEnvironmentImportanceSampling,OctaneTextureEnvironmentMedium,OctaneTextureEnvironmentMediumRadius,OctaneTextureEnvironmentLightPassMask,OctaneTextureEnvironmentGroupVisibleEnvironment,OctaneTextureEnvironmentVisibleEnvironmentBackplate,OctaneTextureEnvironmentVisibleEnvironmentReflections,OctaneTextureEnvironmentVisibleEnvironmentRefractions,OctaneTextureEnvironmentRotation,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_ENV_TEXTURE
-    octane_socket_list=["Texture", "Power", "Importance sampling", "Medium", "Medium radius", "Medium light pass mask", "Backplate", "Reflections", "Refractions", "Rotation", ]
+    octane_socket_list=["Texture", "Power", "Importance sampling", "Medium", "Medium radius", "Medium light pass mask", "Backplate", "Reflections", "Refractions", "[Deprecated]Rotation", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=9

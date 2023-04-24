@@ -63,11 +63,32 @@ class OctaneCameraData(bpy.types.Node, OctaneBaseNode):
         octane_node.set_attribute_blender_name(self.KEEP_FRONT_PROJECTION, consts.AttributeType.AT_BOOL, self.keep_front_projection)
         octane_node.set_attribute_blender_name(self.USED_IN_ENVIRONMENT, consts.AttributeType.AT_BOOL, owner_type == consts.OctaneNodeTreeIDName.WORLD)       
         
+    def load_custom_legacy_node(self, legacy_node, node_tree, context, report):
+        if legacy_node.inputs["Max Z-Depth"].is_linked:
+            report({"WARNING"}, "Outer links of the 'Max Z-Depth' socket are not supported in the Addon CameraData node anymore. So the link of the 'Max Z-Depth' socket in Node %s is discarded" % (legacy_node.name))
+        if legacy_node.inputs["Max Distance"].is_linked:
+            report({"WARNING"}, "Outer links of the 'Max Distance' socket are not supported in the Addon CameraData node anymore. So the link of the 'Max Distance' socket in Node %s is discarded" % (legacy_node.name))
+        if legacy_node.inputs["Keep Front Projection"].is_linked:
+            report({"WARNING"}, "Outer links of the 'Keep Front Projection' socket are not supported in the Addon CameraData node anymore. So the link of the 'Keep Front Projection' socket in Node %s is discarded" % (legacy_node.name))
+        self.max_z_depth = legacy_node.inputs["Max Z-Depth"].default_value
+        self.max_distance = legacy_node.inputs["Max Distance"].default_value
+        self.keep_front_projection = legacy_node.inputs["Keep Front Projection"].default_value        
+        outputs_mapping = {
+            "Octane View Vector": "View Vector",
+            "Octane View Z Depth": "View Z Depth",
+            "Octane View Distance": "View Distance",
+            "Octane Front Projection": "Front Projection",
+        }
+        for legacy_output_name, current_output_name in outputs_mapping.items():
+            for link in legacy_node.outputs[legacy_output_name].links:                
+                node_tree.links.new(self.outputs[current_output_name], link.to_socket)
+
     def draw_buttons(self, context, layout):
         layout.row().prop(self, "max_z_depth")
         layout.row().prop(self, "max_distance")
         layout.row().prop(self, "keep_front_projection")
-        
+
+
 _CLASSES=[
     OctaneCameraData,
 ]

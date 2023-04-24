@@ -19,9 +19,9 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneBlender (v. 27.5)",
+    "name": "OctaneBlender (v. 27.6)",
     "author": "OTOY Inc.",
-    "version": (27, 5),
+    "version": (27, 6),
     "blender": (3, 3, 0),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -423,25 +423,26 @@ classes = (
 
 
 def register():
-    from bpy.utils import register_class
-    from octane import properties_
-    from octane import uis    
-    from octane import nodes
-    from octane import ui
-    from octane import operators
-    from octane import properties
-    from octane import presets
-    from octane import engine
+    from bpy.utils import register_class    
 
     path = os.path.dirname(__file__)
     user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', path='')))
     OctaneBlender().init(path, user_path)
 
-    properties_.register()
+    from octane import properties
+    properties.register()
+
+    from octane import properties_
+    from octane import uis    
+    from octane import nodes
+    from octane import ui
+    from octane import operators    
+    from octane import presets
+    from octane import engine    
+    properties_.register()    
     uis.register()
     nodes.register()
-
-    properties.register()
+    
     ui.register()
     operators.register()
     presets.register()
@@ -458,12 +459,12 @@ def register():
 
 def unregister():
     from bpy.utils import unregister_class
+    from octane import properties
     from octane import properties_
     from octane import uis    
     from octane import nodes
     from octane import ui
-    from octane import operators
-    from octane import properties
+    from octane import operators    
     from octane import presets
     from octane import engine
 
@@ -479,12 +480,12 @@ def unregister():
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
     
     properties_.unregister()
+    properties.unregister()
     uis.unregister()
     nodes.unregister()
 
     ui.unregister()
-    operators.unregister()
-    properties.unregister()
+    operators.unregister()    
     presets.unregister()
 
     for cls in classes:

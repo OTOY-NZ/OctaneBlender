@@ -397,7 +397,7 @@ class OctanePlanetaryEnvironmentVisibleEnvironmentRefractions(OctaneBaseSocket):
 
 class OctanePlanetaryEnvironmentPlanetaryAxis(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryAxis"
-    bl_label="Planetary axis"
+    bl_label="[Deprecated]Planetary axis"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -414,7 +414,7 @@ class OctanePlanetaryEnvironmentPlanetaryAxis(OctaneBaseSocket):
 
 class OctanePlanetaryEnvironmentPlanetaryAngle(OctaneBaseSocket):
     bl_idname="OctanePlanetaryEnvironmentPlanetaryAngle"
-    bl_label="Planetary angle"
+    bl_label="[Deprecated]Planetary angle"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -451,7 +451,7 @@ class OctanePlanetaryEnvironment(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctanePlanetaryEnvironmentSundir,OctanePlanetaryEnvironmentTurbidity,OctanePlanetaryEnvironmentPower,OctanePlanetaryEnvironmentSunIntensity,OctanePlanetaryEnvironmentNorthoffset,OctanePlanetaryEnvironmentSunSize,OctanePlanetaryEnvironmentPlanetaryAltitude,OctanePlanetaryEnvironmentPlanetaryStarField,OctanePlanetaryEnvironmentImportanceSampling,OctanePlanetaryEnvironmentMedium,OctanePlanetaryEnvironmentMediumRadius,OctanePlanetaryEnvironmentLightPassMask,OctanePlanetaryEnvironmentLatitude,OctanePlanetaryEnvironmentLongitude,OctanePlanetaryEnvironmentGroupPlanetarySurface,OctanePlanetaryEnvironmentPlanetaryDiffuse,OctanePlanetaryEnvironmentPlanetarySpecular,OctanePlanetaryEnvironmentPlanetaryGlossiness,OctanePlanetaryEnvironmentPlanetaryEmission,OctanePlanetaryEnvironmentPlanetaryNormal,OctanePlanetaryEnvironmentPlanetaryElevation,OctanePlanetaryEnvironmentGroupVisibleEnvironment,OctanePlanetaryEnvironmentVisibleEnvironmentBackplate,OctanePlanetaryEnvironmentVisibleEnvironmentReflections,OctanePlanetaryEnvironmentVisibleEnvironmentRefractions,OctanePlanetaryEnvironmentPlanetaryAxis,OctanePlanetaryEnvironmentPlanetaryAngle,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_ENV_PLANETARY
-    octane_socket_list=["Sun direction", "Sky turbidity", "Power", "Sun intensity", "North offset", "Sun size", "Altitude", "Star field", "Importance sampling", "Medium", "Medium radius", "Medium light pass mask", "Latitude", "Longitude", "Ground albedo", "Ground reflection", "Ground glossiness", "Ground emission", "Ground normal map", "Ground elevation", "Backplate", "Reflections", "Refractions", "Planetary axis", "Planetary angle", ]
+    octane_socket_list=["Sun direction", "Sky turbidity", "Power", "Sun intensity", "North offset", "Sun size", "Altitude", "Star field", "Importance sampling", "Medium", "Medium radius", "Medium light pass mask", "Latitude", "Longitude", "Ground albedo", "Ground reflection", "Ground glossiness", "Ground emission", "Ground normal map", "Ground elevation", "Backplate", "Reflections", "Refractions", "[Deprecated]Planetary axis", "[Deprecated]Planetary angle", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=23

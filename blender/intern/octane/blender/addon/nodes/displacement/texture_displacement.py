@@ -149,7 +149,7 @@ class OctaneTextureDisplacementFiltersize(OctaneBaseSocket):
 
 class OctaneTextureDisplacementShift(OctaneBaseSocket):
     bl_idname="OctaneTextureDisplacementShift"
-    bl_label="Offset"
+    bl_label="[Deprecated]Offset"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -176,7 +176,7 @@ class OctaneTextureDisplacement(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneTextureDisplacementTexture,OctaneTextureDisplacementBlackLevel,OctaneTextureDisplacementLevelOfDetail,OctaneTextureDisplacementAmount,OctaneTextureDisplacementDisplacementDirection,OctaneTextureDisplacementFilterType,OctaneTextureDisplacementFiltersize,OctaneTextureDisplacementShift,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_DISPLACEMENT
-    octane_socket_list=["Texture", "Mid level", "Level of detail", "Height", "Displacement direction", "Filter type", "Filter radius", "Offset", ]
+    octane_socket_list=["Texture", "Mid level", "Level of detail", "Height", "Displacement direction", "Filter type", "Filter radius", "[Deprecated]Offset", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=7

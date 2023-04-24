@@ -210,7 +210,7 @@ class OctaneDirtTextureInvertNormal(OctaneBaseSocket):
 
 class OctaneDirtTextureDirtGlobal(OctaneBaseSocket):
     bl_idname="OctaneDirtTextureDirtGlobal"
-    bl_label="Dirt global"
+    bl_label="[Deprecated]Dirt global"
     color=consts.OctanePinColor.Enum
     octane_default_node_type=consts.NodeType.NT_ENUM
     octane_default_node_name="OctaneEnumValue"
@@ -242,7 +242,7 @@ class OctaneDirtTexture(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneDirtTextureStrength,OctaneDirtTextureDetails,OctaneDirtTextureRadius,OctaneDirtTextureDirtMap,OctaneDirtTextureTolerance,OctaneDirtTextureSpread,OctaneDirtTextureDistribution,OctaneDirtTextureOffset,OctaneDirtTextureDirtOffsetSpace,OctaneDirtTextureObjectIncludeMode,OctaneDirtTextureInvertNormal,OctaneDirtTextureDirtGlobal,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_DIRT
-    octane_socket_list=["Strength", "Details", "Radius", "Radius map", "Tolerance", "Spread", "Distribution", "Bias", "Bias coordinate space", "Include object mode", "Invert normal", "Dirt global", ]
+    octane_socket_list=["Strength", "Details", "Radius", "Radius map", "Tolerance", "Spread", "Distribution", "Bias", "Bias coordinate space", "Include object mode", "Invert normal", "[Deprecated]Dirt global", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=11

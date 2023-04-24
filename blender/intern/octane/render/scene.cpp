@@ -132,12 +132,7 @@ void Scene::server_update(::OctaneEngine::OctaneClient *server_,
       break;
 
     progress.set_status("Updating Meshes");
-    if (!this->is_addon_mode()) {
-      mesh_manager->server_update(server, this, progress, frame_idx, total_frames);
-    }
-    else {
-      mesh_manager->need_update = false;
-    }
+    mesh_manager->server_update(server, this, progress, frame_idx, total_frames);
 
     if (progress.get_cancel())
       break;
@@ -149,34 +144,19 @@ void Scene::server_update(::OctaneEngine::OctaneClient *server_,
       break;
 
     progress.set_status("Updating Objects");
-    if (!this->is_addon_mode()) {
-      object_manager->server_update(server, this, progress, frame_idx, total_frames);
-    }
-    else {
-      object_manager->need_update = false;
-    }
+    object_manager->server_update(server, this, progress, frame_idx, total_frames);
 
     if (progress.get_cancel())
       break;
 
-    if (!this->is_addon_mode() || !passes->oct_node->bUseRenderAOV) {
-      progress.set_status("Updating Passes");
-      passes->server_update(server, this, interactive);
-    }
-    else {
-      passes->need_update = false;
-    }
+    progress.set_status("Updating Passes");
+    passes->server_update(server, this, interactive);
 
     if (progress.get_cancel())
       break;
 
-    if (!this->is_addon_mode()) {
-      progress.set_status("Updating Kernel");
-      kernel->server_update(server, this, interactive);
-    }
-    else {
-      kernel->need_update = false;
-    }
+    progress.set_status("Updating Kernel");
+    kernel->server_update(server, this, interactive);
 
     if (progress.get_cancel())
       break;

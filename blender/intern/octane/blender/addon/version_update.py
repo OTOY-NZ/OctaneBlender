@@ -18,9 +18,9 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION = '27.4'
-OCTANE_VERSION = 12000005
-OCTANE_VERSION_STR = "2022.1 XB 4"
+OCTANE_BLENDER_VERSION = '27.5'
+OCTANE_VERSION = 12000020
+OCTANE_VERSION_STR = "2022.1"
 
 import bpy
 import math
@@ -46,7 +46,8 @@ def do_versions(self):
     check_octane_output_settings(file_version)
     check_compatible_render_settings()
     check_compatibility_animation_settings(file_version)
-    check_compatibility_render_layer(file_version)	
+    check_compatibility_render_layer(file_version)
+    check_compatibility_kernel(file_version)
     check_color_management()
     octane_version = get_current_octane_version()
     check_compatibility_octane_nodes(file_version, octane_version)
@@ -86,10 +87,10 @@ def check_compatibility_octane_aovs_graph(file_version):
     
 def check_compatibility_octane_composite_graph(file_version):
     from octane.utils import utility
+    check_compatibility_octane_composite_graph_27_4(file_version)
     node_tree = utility.find_active_composite_node_tree(bpy.context.view_layer)
     if node_tree and not node_tree.use_fake_user:
         node_tree.use_fake_user = True
-    check_compatibility_octane_composite_graph_27_4(file_version)    
 
 def check_color_management():
     # Update Color Management Settings for "New Created" files
@@ -256,10 +257,10 @@ def check_compatibility_post_processing_25_0(file_version):
 
 # animation settings
 def check_compatibility_animation_settings(file_version):
-    check_compatibility_animation_settings_27_2(file_version)
+    check_compatibility_animation_settings_27_5(file_version)
 
-def check_compatibility_animation_settings_27_2(file_version):
-    UPDATE_VERSION = "27.2"
+def check_compatibility_animation_settings_27_5(file_version):
+    UPDATE_VERSION = "27.5"
     if not check_update(file_version, UPDATE_VERSION):
         return
     if getattr(bpy.context.scene.octane, "animation_settings", None) is not None:
@@ -267,10 +268,10 @@ def check_compatibility_animation_settings_27_2(file_version):
 
 # render layer
 def check_compatibility_render_layer(file_version):
-    check_compatibility_render_layer_27_2(file_version)
+    check_compatibility_render_layer_27_5(file_version)
 
-def check_compatibility_render_layer_27_2(file_version):
-    UPDATE_VERSION = "27.2"
+def check_compatibility_render_layer_27_5(file_version):
+    UPDATE_VERSION = "27.5"
     if not check_update(file_version, UPDATE_VERSION):
         return
     if getattr(bpy.context.scene.octane, "render_layer", None) is not None:
@@ -278,6 +279,17 @@ def check_compatibility_render_layer_27_2(file_version):
     for scene in bpy.data.scenes:
         for view_layer in scene.view_layers:
             view_layer.octane.update_legacy_data(bpy.context, view_layer)
+
+# kernel
+def check_compatibility_kernel(file_version):
+    check_compatibility_kernel_27_5(file_version)
+
+def check_compatibility_kernel_27_5(file_version):
+    UPDATE_VERSION = "27.5"
+    if not check_update(file_version, UPDATE_VERSION):
+        return
+    scene_oct = bpy.context.scene.octane
+    scene_oct.coherent_ratio = math.pow(scene_oct.coherent_ratio, 1.0 / 3.0)
 
 # passes
 def check_compatibility_octane_passes(file_version):
@@ -835,12 +847,18 @@ def _check_compatibility_octane_images_node_24_0(node_tree, node):
         pass                        
 
 
-def upgrade_octane_node_tree(octane_version, tree_name, nodes):
+def upgrade_octane_node_tree(octane_version, tree_name, node_tree):
     from octane.nodes.base_node import OctaneBaseNode
-    for node in nodes:
+    from octane.utils import consts
+    for node in node_tree.nodes:
         if isinstance(node, OctaneBaseNode):
             current_socket_class = [_input.__class__ for _input in node.inputs]
             new_socket_configs = []
+            # Add "[Deprecated]" prefix for the deprecated sockets
+            for _input in node.inputs:
+                if _input.octane_deprecated:
+                    if not _input.name.startswith(consts.DEPRECATED_PREFIX):
+                        _input.name = consts.DEPRECATED_PREFIX + _input.name
             for idx, socket_class in enumerate(node.octane_socket_class_list):
                 if socket_class in current_socket_class:
                     continue
@@ -853,9 +871,26 @@ def upgrade_octane_node_tree(octane_version, tree_name, nodes):
                     # record the data of the new socket
                     new_socket_configs.append([socket_class, idx])
             for config in new_socket_configs:
+                # Add New Socket
                 socket_class, idx = config
-                node.inputs.new(socket_class.__name__, socket_class.bl_label).init()
-                node.inputs.move(len(node.inputs) - 1, idx)
+                new_socket = node.inputs.new(socket_class.__name__, socket_class.bl_label)
+                new_socket.init()
+                node.inputs.move(len(node.inputs) - 1, idx)                
+                # Check for deprecated socket and copy the values(if possible)
+                deprecated_socket_name = consts.DEPRECATED_PREFIX + socket_class.bl_label
+                if deprecated_socket_name in node.inputs:
+                    deprecated_socket = node.inputs[deprecated_socket_name]
+                    if deprecated_socket.octane_socket_type == new_socket.octane_socket_type:
+                        if hasattr(deprecated_socket, "default_value") and hasattr(new_socket, "default_value"):
+                            new_socket.default_value = deprecated_socket.default_value
+                        if deprecated_socket.is_linked:
+                            for link in deprecated_socket.links:
+                                if link.from_socket.octane_pin_type == new_socket.octane_pin_type:
+                                    node_tree.links.new(link.from_socket, new_socket)
+                            while len(deprecated_socket.links) > 0:
+                                node_tree.links.remove(deprecated_socket.links[0])
+                            deprecated_socket.hide = True
+                            deprecated_socket.enabled = False
                 print("Add Socket: %s, Node[%s], NodeTree[%s]" % (socket_class.bl_label, node.name, tree_name))
             for _input in node.inputs:
                 if _input.octane_deprecated and not _input.hide:
@@ -867,12 +902,12 @@ def check_compatibility_octane_nodes(file_version, octane_version):
         return
     for world in bpy.data.worlds:
         if world.node_tree and world.use_nodes:
-            upgrade_octane_node_tree(octane_version, world.name, world.node_tree.nodes)
+            upgrade_octane_node_tree(octane_version, world.name, world.node_tree)
     for material in bpy.data.materials:
         if material.node_tree and material.use_nodes:
-            upgrade_octane_node_tree(octane_version, material.name, material.node_tree.nodes)
+            upgrade_octane_node_tree(octane_version, material.name, material.node_tree)
     for node_group in bpy.data.node_groups:
-        upgrade_octane_node_tree(octane_version, node_group.name, node_group.nodes)
+        upgrade_octane_node_tree(octane_version, node_group.name, node_group)
 
 
 def check_compatibility_octane_composite_graph_27_4(file_version):

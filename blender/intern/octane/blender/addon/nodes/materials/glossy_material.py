@@ -453,7 +453,7 @@ class OctaneGlossyMaterialLayer(OctaneBaseSocket):
 
 class OctaneGlossyMaterialEdgesRounding(OctaneBaseSocket):
     bl_idname="OctaneGlossyMaterialEdgesRounding"
-    bl_label="Rounded edges radius"
+    bl_label="[Deprecated]Rounded edges radius"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -510,7 +510,7 @@ class OctaneGlossyMaterial(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneGlossyMaterialDiffuse,OctaneGlossyMaterialSpecular,OctaneGlossyMaterialBrdf,OctaneGlossyMaterialGroupRoughness,OctaneGlossyMaterialRoughness,OctaneGlossyMaterialAnisotropy,OctaneGlossyMaterialRotation,OctaneGlossyMaterialSpread,OctaneGlossyMaterialGroupThinFilmLayer,OctaneGlossyMaterialFilmwidth,OctaneGlossyMaterialFilmindex,OctaneGlossyMaterialGroupSheenLayer,OctaneGlossyMaterialSheen,OctaneGlossyMaterialSheenRoughness,OctaneGlossyMaterialGroupIOR,OctaneGlossyMaterialIndex,OctaneGlossyMaterialHasCaustics,OctaneGlossyMaterialGroupTransmissionProperties,OctaneGlossyMaterialOpacity,OctaneGlossyMaterialGroupGeometryProperties,OctaneGlossyMaterialBump,OctaneGlossyMaterialNormal,OctaneGlossyMaterialDisplacement,OctaneGlossyMaterialSmooth,OctaneGlossyMaterialSmoothShadowTerminator,OctaneGlossyMaterialRoundEdges,OctaneGlossyMaterialPriority,OctaneGlossyMaterialCustomAov,OctaneGlossyMaterialCustomAovChannel,OctaneGlossyMaterialLayer,OctaneGlossyMaterialEdgesRounding,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MAT_GLOSSY
-    octane_socket_list=["Diffuse", "Specular", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Film width", "Film IOR", "Sheen", "Sheen Roughness", "Index of refraction", "Allow caustics", "Opacity", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "Rounded edges radius", ]
+    octane_socket_list=["Diffuse", "Specular", "BRDF model", "Roughness", "Anisotropy", "Rotation", "Spread", "Film width", "Film IOR", "Sheen", "Sheen Roughness", "Index of refraction", "Allow caustics", "Opacity", "Bump", "Normal", "Displacement", "Smooth", "Smooth shadow terminator", "Round edges", "Priority", "Custom AOV", "Custom AOV channel", "Material layer", "[Deprecated]Rounded edges radius", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=24

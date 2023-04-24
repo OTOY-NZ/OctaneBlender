@@ -165,7 +165,7 @@ class OctaneRandomWalkBias(OctaneBaseSocket):
 
 class OctaneRandomWalkLockStepLength(OctaneBaseSocket):
     bl_idname="OctaneRandomWalkLockStepLength"
-    bl_label="Lock step length pins"
+    bl_label="[Deprecated]Lock step length pins"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -192,7 +192,7 @@ class OctaneRandomWalk(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneRandomWalkScale,OctaneRandomWalkRayMarchStepLength,OctaneRandomWalkShadowRayMarchStepLength,OctaneRandomWalkUseRayStepLengthForShadowRays,OctaneRandomWalkSingleScatterFactor,OctaneRandomWalkDisplacement,OctaneRandomWalkAlbedo,OctaneRandomWalkRadius,OctaneRandomWalkBias,OctaneRandomWalkLockStepLength,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MED_RANDOMWALK
-    octane_socket_list=["Density", "Volume step length", "Vol. shadow ray step length", "Use Vol. step length for Vol. shadow ray step length", "Single scatter amount", "Sample position displacement", "Albedo", "Radius", "Bias", "Lock step length pins", ]
+    octane_socket_list=["Density", "Volume step length", "Vol. shadow ray step length", "Use Vol. step length for Vol. shadow ray step length", "Single scatter amount", "Sample position displacement", "Albedo", "Radius", "Bias", "[Deprecated]Lock step length pins", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=9

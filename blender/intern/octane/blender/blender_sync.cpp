@@ -27,11 +27,11 @@
 #include "blender/rpc/definitions/OctaneNode.h"
 #include "blender/rpc/definitions/OctanePrint.cpp"
 #include "util/util_foreach.h"
+#include <algorithm>
 #include <boost/algorithm/string.hpp>
 #include <boost/assign.hpp>
 #include <boost/filesystem.hpp>
 #include <unordered_set>
-#include <algorithm>
 
 OCT_NAMESPACE_BEGIN
 
@@ -72,6 +72,7 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
       last_frame_idx(0),
       composite_aov_node_tree(PointerRNA_NULL),
       render_aov_node_tree(PointerRNA_NULL),
+      kernel_node_tree(PointerRNA_NULL),
       use_render_aov_node_tree(false)
 {
 }
@@ -131,7 +132,8 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
     /* Object */
     else if (b_id.is_a(&RNA_Object)) {
       BL::Object b_ob(b_id);
-      updated_id_names.insert(ShaderGraph::generate_dependent_name(b_ob.name(), DEPENDENT_ID_OBJECT));
+      updated_id_names.insert(
+          ShaderGraph::generate_dependent_name(b_ob.name(), DEPENDENT_ID_OBJECT));
       const bool updated_geometry = b_update->is_updated_geometry();
 
       if (b_update->is_updated_transform()) {
@@ -209,7 +211,8 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph)
         shader->need_update = true;
       }
       if (shader->graph && (shader->graph->type == ShaderGraphType::SHADER_GRAPH_COMPOSITE ||
-                            shader->graph->type == ShaderGraphType::SHADER_GRAPH_RENDER_AOV)) {
+                            shader->graph->type == ShaderGraphType::SHADER_GRAPH_RENDER_AOV ||
+                            shader->graph->type == SHADER_GRAPH_KERNEL)) {
         shader->need_update = true;
       }
     }
@@ -222,22 +225,13 @@ void BlenderSync::sync_render_passes(BL::Depsgraph &b_depsgraph, BL::ViewLayer &
   Passes prevpasses = *passes;
 
   PointerRNA oct = RNA_pointer_get(&b_view_layer.ptr, "octane");
-  PointerRNA composite_node_graph_property = RNA_pointer_get(&oct,
-                                                             "composite_node_graph_property");
-  PointerRNA composite_node_tree = RNA_pointer_get(&composite_node_graph_property, "node_tree");
-  if (composite_node_tree.data != NULL) {
-    BL::NodeTree node_tree(composite_node_tree);
-    this->composite_aov_node_tree = node_tree;
-  }
 
-  PointerRNA render_aov_node_graph_property = RNA_pointer_get(&oct,
-                                                              "render_aov_node_graph_property");
-  PointerRNA render_aov_node_tree = RNA_pointer_get(&render_aov_node_graph_property, "node_tree");
+  this->composite_aov_node_tree = BlenderSync::find_active_composite_node_tree(oct);
+  this->render_aov_node_tree = BlenderSync::find_active_render_aov_node_tree(oct);
+
   int render_aov_preview_pass = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
-  if (render_aov_node_tree.data != NULL) {
-    BL::NodeTree node_tree(render_aov_node_tree);
-    this->render_aov_node_tree = node_tree;
-    render_aov_preview_pass = get_render_aov_preview_pass(node_tree);
+  if (this->render_aov_node_tree.ptr.data != NULL) {
+    render_aov_preview_pass = get_render_aov_preview_pass(this->render_aov_node_tree);
   }
   this->use_render_aov_node_tree = (get_enum(oct, "render_pass_style") != 0);
 
@@ -291,10 +285,11 @@ void BlenderSync::sync_view_layer(BL::SpaceView3D & /*b_v3d*/, BL::ViewLayer &b_
   /* Material override. */
   view_layer.material_override = b_view_layer.material_override();
 
-  view_layer.use_octane_render_layers = b_view_layer.use_octane_render_layers();
-  view_layer.octane_render_layer_active_id = b_view_layer.octane_render_layer_active_id();
-  view_layer.octane_render_layers_mode = b_view_layer.octane_render_layers_mode();
-  view_layer.octane_render_layers_invert = b_view_layer.octane_render_layers_invert();
+  PointerRNA oct_viewlayer = RNA_pointer_get(&b_view_layer.ptr, "octane");
+  view_layer.use_octane_render_layers = get_boolean(oct_viewlayer, "layers_enable");
+  view_layer.octane_render_layer_active_id = get_int(oct_viewlayer, "layers_current");
+  view_layer.octane_render_layers_mode = get_enum(oct_viewlayer, "layers_mode");
+  view_layer.octane_render_layers_invert = get_boolean(oct_viewlayer, "layers_invert");
 }
 
 void BlenderSync::sync_data(BL::RenderSettings &b_render,
@@ -356,20 +351,22 @@ SessionParams BlenderSync::get_session_params(
   params.interactive = !background;
 
   // Samples
+  int max_sample = 0, max_preview_sample = 0, max_info_sample = 0;
+  get_samples(oct_scene, max_sample, max_preview_sample, max_info_sample);
   ::Octane::RenderPassId cur_pass_type = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
   if (cur_pass_type < ::Octane::RenderPassId::RENDER_PASS_INFO_OFFSET ||
       cur_pass_type > ::Octane::RenderPassId::RENDER_PASS_CRYPTOMATTE_OFFSET) {
     if (!params.interactive) {
-      params.samples = get_int(oct_scene, "max_samples");
+      params.samples = max_sample;
     }
     else {
-      params.samples = get_int(oct_scene, "max_preview_samples");
+      params.samples = max_preview_sample;
       if (params.samples == 0)
         params.samples = 16000;
     }
   }
   else {
-    params.samples = get_int(oct_scene, "info_pass_max_samples");
+    params.samples = max_info_sample;
   }
 
   params.anim_mode = static_cast<AnimationMode>(RNA_enum_get(&oct_scene, "anim_mode"));
@@ -421,12 +418,102 @@ bool BlenderSync::get_session_pause(BL::Scene &b_scene, bool background)
   return (background) ? false : get_boolean(oct_scene, "preview_pause");
 }
 
+BL::NodeTree BlenderSync::find_active_kernel_node_tree(PointerRNA oct_scene)
+{
+  BL::NodeTree kernel_node_tree = BL::NodeTree(PointerRNA_NULL);
+  bool use_kernel_node_tree = get_enum(oct_scene, "kernel_data_mode") != 0;
+  if (use_kernel_node_tree) {
+    PointerRNA kernel_node_graph_property = RNA_pointer_get(&oct_scene,
+                                                            "kernel_node_graph_property");
+    if (kernel_node_graph_property.data != NULL) {
+      PointerRNA node_tree = RNA_pointer_get(&kernel_node_graph_property, "node_tree");
+      if (node_tree.data != NULL) {
+        kernel_node_tree = BL::NodeTree(node_tree);
+      }
+    }
+  }
+  return kernel_node_tree;
+}
+
+BL::NodeTree BlenderSync::find_active_render_aov_node_tree(PointerRNA oct_viewlayer)
+{
+  BL::NodeTree kernel_node_tree = BL::NodeTree(PointerRNA_NULL);
+  PointerRNA kernel_node_graph_property = RNA_pointer_get(&oct_viewlayer,
+                                                          "render_aov_node_graph_property");
+  if (kernel_node_graph_property.data != NULL) {
+    PointerRNA node_tree = RNA_pointer_get(&kernel_node_graph_property, "node_tree");
+    if (node_tree.data != NULL) {
+      kernel_node_tree = BL::NodeTree(node_tree);
+    }
+  }
+  return kernel_node_tree;
+}
+
+BL::NodeTree BlenderSync::find_active_composite_node_tree(PointerRNA oct_viewlayer)
+{
+  BL::NodeTree kernel_node_tree = BL::NodeTree(PointerRNA_NULL);
+  PointerRNA kernel_node_graph_property = RNA_pointer_get(&oct_viewlayer,
+                                                          "composite_node_graph_property");
+  if (kernel_node_graph_property.data != NULL) {
+    PointerRNA node_tree = RNA_pointer_get(&kernel_node_graph_property, "node_tree");
+    if (node_tree.data != NULL) {
+      kernel_node_tree = BL::NodeTree(node_tree);
+    }
+  }
+  return kernel_node_tree;
+}
+
+void BlenderSync::get_samples(PointerRNA oct_scene,
+                              int &max_sample,
+                              int &max_preview_sample,
+                              int &max_info_sample)
+{
+  bool use_node_tree = get_enum(oct_scene, "kernel_data_mode") != 0;
+  if (use_node_tree) {
+    BL::NodeTree kernel_node_tree = find_active_kernel_node_tree(oct_scene);
+    if (kernel_node_tree.ptr.data != NULL) {
+      BL::Node output = find_active_kernel_output(kernel_node_tree);
+      if (output.ptr.data != NULL) {
+        BL::NodeTree::links_iterator b_link;
+        for (kernel_node_tree.links.begin(b_link); b_link != kernel_node_tree.links.end();
+             ++b_link) {
+          BL::Node b_from_node = b_link->from_node();
+          BL::Node b_to_node = b_link->to_node();
+          if (output.name() == b_to_node.name()) {
+            BL::Node::inputs_iterator b_input;
+            for (b_from_node.inputs.begin(b_input); b_input != b_from_node.inputs.end();
+                 ++b_input) {
+              if (b_input->name() == "Max. preview samples") {
+                max_preview_sample = get_int(b_input->ptr, "default_value");
+              }
+              if (b_input->name() == "Max. samples") {
+                max_sample = get_int(b_input->ptr, "default_value");
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+  else {
+    max_sample = get_int(oct_scene, "max_samples");
+    max_preview_sample = get_int(oct_scene, "max_preview_samples");
+    max_info_sample = get_int(oct_scene, "info_pass_max_samples");
+  }
+}
+
 void BlenderSync::sync_kernel()
 {
+  // Use the node tree
+  kernel_node_tree = BL::NodeTree(PointerRNA_NULL);
   PointerRNA oct_scene = RNA_pointer_get(&b_scene.ptr, "octane");
 
   Kernel *kernel = scene->kernel;
   Kernel prevkernel = *kernel;
+
+  scene->kernel->oct_node->bUseNodeTree = get_enum(oct_scene, "kernel_data_mode") != 0;
+  kernel_node_tree = find_active_kernel_node_tree(oct_scene);
 
   BL::RenderSettings r = b_scene.render();
   float fps = (float)b_scene.render().fps() / b_scene.render().fps_base();
@@ -434,14 +521,27 @@ void BlenderSync::sync_kernel()
 
   if (r.use_motion_blur()) {
     float shuttertime = r.motion_blur_shutter();
-    BlenderSession::MotionBlurType mb_type = static_cast<BlenderSession::MotionBlurType>(
-        RNA_enum_get(&oct_scene, "mb_type"));
-    float mb_frame_time_sampling = mb_type == BlenderSession::INTERNAL ? 1.0f / fps : 0.0f;
-    kernel->oct_node->fShutterTime = RNA_float_get(&oct_scene, "shutter_time") / 100.0;
-    kernel->oct_node->fSubframeStart = RNA_float_get(&oct_scene, "subframe_start") / 100.0;
-    kernel->oct_node->fSubframeEnd = RNA_float_get(&oct_scene, "subframe_end") / 100.0;
-    BlenderSession::MotionBlurDirection mb_direction =
-        static_cast<BlenderSession::MotionBlurDirection>(RNA_enum_get(&oct_scene, "mb_direction"));
+    PointerRNA oct_animation_settings = RNA_pointer_get(&oct_scene, "animation_settings");
+    float shutter_time = RNA_float_get(&oct_animation_settings, "shutter_time");
+    kernel->oct_node->fShutterTime = shutter_time / 100.0;
+    // kernel->oct_node->fShutterTime = (float)b_scene.render().fps() * shutter_time / 100.0;
+    kernel->oct_node->fSubframeStart = RNA_float_get(&oct_animation_settings, "subframe_start") /
+                                       100.0;
+    kernel->oct_node->fSubframeEnd = RNA_float_get(&oct_animation_settings, "subframe_end") /
+                                     100.0;
+    int32_t mb_direction_addon_format = RNA_enum_get(&oct_animation_settings, "mb_direction");
+    BlenderSession::MotionBlurDirection mb_direction = BlenderSession::MotionBlurDirection::BEFORE;
+    // Addon Motion Blur Direction Format
+    // ("Before", "Before", "", 1), ("Symmetric", "Symmetric", "", 2), ("After", "After", "", 3),
+    if (mb_direction_addon_format == 1) {
+      mb_direction = BlenderSession::BEFORE;
+    }
+    else if (mb_direction_addon_format == 2) {
+      mb_direction = BlenderSession::SYMMETRIC;
+    }
+    else if (mb_direction_addon_format == 3) {
+      mb_direction = BlenderSession::AFTER;
+    }
     int motion_blur_frame_offset = ceil(kernel->oct_node->fShutterTime);
     switch (mb_direction) {
       case BlenderSession::BEFORE:
@@ -478,13 +578,9 @@ void BlenderSync::sync_kernel()
       RNA_enum_get(&oct_scene, "info_channel_type"));
 
   ::Octane::RenderPassId cur_pass_type = ::Octane::RenderPassId::RENDER_PASS_BEAUTY;
-  kernel->oct_node->iMaxSamples = preview ? get_int(oct_scene, "max_preview_samples") :
-                                            get_int(oct_scene, "max_samples");
-  // if (scene->session->b_session && scene->session->b_session->motion_blur &&
-  // scene->session->b_session->mb_type == BlenderSession::SUBFRAME &&
-  // scene->session->b_session->mb_samples > 1) 	kernel->oct_node->iMaxSamples =
-  // kernel->oct_node->iMaxSamples / scene->session->b_session->mb_samples; if
-  // (kernel->oct_node->iMaxSamples < 1) kernel->oct_node->iMaxSamples = 1;
+  int max_sample = 0, max_preview_sample = 0, max_info_sample = 0;
+  get_samples(oct_scene, max_sample, max_preview_sample, max_info_sample);
+  kernel->oct_node->iMaxSamples = preview ? max_preview_sample : max_sample;
   kernel->oct_node->iMaxSubdivisionLevel = get_int(oct_scene, "max_subdivision_level");
   kernel->oct_node->fFilterSize = get_float(oct_scene, "filter_size");
   kernel->oct_node->fRayEpsilon = get_float(oct_scene, "ray_epsilon");
@@ -540,27 +636,27 @@ void BlenderSync::sync_kernel()
   kernel->oct_node->iSamplingMode = RNA_enum_get(&oct_scene, "sampling_mode");
   kernel->oct_node->fMaxSpeed = get_float(oct_scene, "max_speed");
 
-  bool bGlobalLayersEnable = get_boolean(oct_scene, "layers_enable");
-  int32_t iGlobalLayersCurrent = get_int(oct_scene, "layers_current");
-  bool bGlobalLayersInvert = get_boolean(oct_scene, "layers_invert");
+  PointerRNA oct_global_render_layer = RNA_pointer_get(&oct_scene, "render_layer");
+  bool bGlobalLayersEnable = get_boolean(oct_global_render_layer, "layers_enable");
+  int32_t iGlobalLayersCurrent = get_int(oct_global_render_layer, "layers_current");
+  bool bGlobalLayersInvert = get_boolean(oct_global_render_layer, "layers_invert");
   int32_t iGlobalLayersMode = static_cast<::OctaneEngine::Kernel::LayersMode>(
-      RNA_enum_get(&oct_scene, "layers_mode"));
+      RNA_enum_get(&oct_global_render_layer, "layers_mode"));
 
   if (bGlobalLayersEnable) {
     kernel->oct_node->bLayersEnable = bGlobalLayersEnable;
-    kernel->oct_node->iLayersCurrent = get_int(oct_scene, "layers_current");
-    kernel->oct_node->bLayersInvert = get_boolean(oct_scene, "layers_invert");
+    kernel->oct_node->iLayersCurrent = iGlobalLayersCurrent;
+    kernel->oct_node->bLayersInvert = bGlobalLayersInvert;
     kernel->oct_node->layersMode = static_cast<::OctaneEngine::Kernel::LayersMode>(
-        RNA_enum_get(&oct_scene, "layers_mode"));
+        iGlobalLayersMode);
   }
   else {
     kernel->oct_node->bLayersEnable = view_layer.use_octane_render_layers;
     kernel->oct_node->iLayersCurrent = view_layer.octane_render_layer_active_id;
     kernel->oct_node->bLayersInvert = view_layer.octane_render_layers_invert;
     kernel->oct_node->layersMode = static_cast<::OctaneEngine::Kernel::LayersMode>(
-        view_layer.octane_render_layers_mode); 
+        view_layer.octane_render_layers_mode);
   }
-
   kernel->oct_node->iParallelSamples = get_int(oct_scene, "parallel_samples");
   kernel->oct_node->iMaxTileSamples = get_int(oct_scene, "max_tile_samples");
   kernel->oct_node->bMinimizeNetTraffic = get_boolean(oct_scene, "minimize_net_traffic");
@@ -996,7 +1092,8 @@ MeshType BlenderSync::resolve_mesh_type(std::string name,
     final_mesh_type = scene->meshes_type;
   }
   if (final_mesh_type == MeshType::AUTO) {
-    if (blender_object_type == BL::Object::type_META || is_resharpable_candidate(name)) {
+    if (blender_object_type == BL::Object::type_META ||
+        blender_object_type == BL::Object::type_CURVES || is_resharpable_candidate(name)) {
       final_mesh_type = MeshType::RESHAPABLE_PROXY;
     }
     else if (is_movable_candidate(name)) {

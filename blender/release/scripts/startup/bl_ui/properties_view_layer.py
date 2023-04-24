@@ -38,16 +38,6 @@ class VIEWLAYER_PT_layer(ViewLayerButtonsPanel, Panel):
         col = layout.column()
         col.prop(layer, "use", text="Use for Rendering")
         col.prop(rd, "use_single_layer", text="Render Single Layer")
-        
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
-        box = flow.box()
-        col = box.column()
-        col.prop(layer, "use_octane_render_layers")
-        col = box.column()
-        col.prop(layer, "octane_render_layers_mode")
-        col = box.column()
-        col.prop(layer, "octane_render_layer_active_id")        
-        col.prop(layer, "octane_render_layers_invert")	
 
 
 class VIEWLAYER_PT_layer_passes(ViewLayerButtonsPanel, Panel):

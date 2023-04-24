@@ -762,6 +762,22 @@ static inline BL::FluidDomainSettings object_fluid_domain_find(BL::Object &b_ob)
   return BL::FluidDomainSettings(PointerRNA_NULL);
 }
 
+static inline BL::FluidDomainSettings object_fluid_gas_domain_find(BL::Object &b_ob)
+{
+  for (BL::Modifier &b_mod : b_ob.modifiers) {
+    if (b_mod.is_a(&RNA_FluidModifier)) {
+      BL::FluidModifier b_mmd(b_mod);
+
+      if (b_mmd.fluid_type() == BL::FluidModifier::fluid_type_DOMAIN &&
+          b_mmd.domain_settings().domain_type() == BL::FluidDomainSettings::domain_type_GAS) {
+        return b_mmd.domain_settings();
+      }
+    }
+  }
+
+  return BL::FluidDomainSettings(PointerRNA_NULL);
+}
+
 static inline Mesh::SubdivisionType object_subdivision_type(BL::Object &b_ob,
                                                             bool preview,
                                                             bool experimental)

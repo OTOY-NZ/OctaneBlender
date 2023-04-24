@@ -1,53 +1,54 @@
 import bpy
 import math
 import functools
+from octane.utils import consts
 
 X_GAP = 200
 Y_GAP = 200
 
-NORMAL_TYPE_TAG = '[NORMAL]'
-IMAGE_TYPE_TAG = '[IMAGE]'
+NORMAL_TYPE_TAG = "[NORMAL]"
+IMAGE_TYPE_TAG = "[IMAGE]"
 
 CONVERTERS_NODE_MAPPER = {
-    'BSDF_PRINCIPLED': 
+    "BSDF_PRINCIPLED": 
     (
-        'ShaderNodeOctUniversalMat', 
+        "OctaneUniversalMaterial", 
         {
-            'Base Color': 'Albedo color',
-            'Metallic': 'Metallic',
-            'Specular': 'Specular',
-            'Roughness': 'Roughness',
-            'Anisotropic': 'Anisotropy',
-            'Anisotropic Rotation': 'Rotation',
-            'Sheen': 'Sheen',
-            'Clearcoat': 'Coating',
-            'Clearcoat Roughness': 'Coating Roughness',
-            'Transmission': 'Transmission',
-            'IOR': 'Dielectric IOR',
-            'Emission': 'Emission',
-            NORMAL_TYPE_TAG + 'Normal': 'Normal',
+            "Base Color": "Albedo",
+            "Metallic": "Metallic",
+            "Specular": "Specular",
+            "Roughness": "Roughness",
+            "Anisotropic": "Anisotropy",
+            "Anisotropic Rotation": "Rotation",
+            "Sheen": "Sheen",
+            "Clearcoat": "Coating",
+            "Clearcoat Roughness": "Coating roughness",
+            "Transmission": "Transmission",
+            "IOR": "Dielectric IOR",
+            "Emission": "Emission",
+            NORMAL_TYPE_TAG + "Normal": "Normal",
         },
-        lambda cur_node, octane_node: setattr(octane_node, 'brdf_model', 'OCTANE_BRDF_GGX')
+        lambda cur_node, octane_node: setattr(octane_node, "brdf_model", "OCTANE_BRDF_GGX")
     ),
-    'TEX_IMAGE': 
+    "TEX_IMAGE": 
     (
-        'ShaderNodeOctImageTex', 
+        "OctaneRGBImage", 
         {
-            IMAGE_TYPE_TAG + 'image': IMAGE_TYPE_TAG + 'image',
+            IMAGE_TYPE_TAG + "image": IMAGE_TYPE_TAG + "image",
         }
     ),
-    'EMISSION': 
+    "EMISSION": 
     (
-        'ShaderNodeOctTextureEmission', 
+        "OctaneTextureEmission", 
         {
-            'Color': 'Texture',
-            'Strength': 'Power',
+            "Color": "Texture",
+            "Strength": "Power",
         }
     ),  
 }
 
 CONVERTERS_OUTPUT_MAPPER = {
-    'OUTPUT_MATERIAL': 'ShaderNodeOutputMaterial',
+    "OUTPUT_MATERIAL": "ShaderNodeOutputMaterial",
 }
 
 
@@ -91,23 +92,25 @@ def find_node_to_target_input(node_tree, node, input_name):
 
 
 def _convert_color_input(cur_node, cur_input, octane_node, octane_input, cur_node_tree, octane_node_tree):
-    if cur_input.type == 'RGBA' and not cur_input.is_linked and octane_input.type != 'RGBA':
+    if cur_input.type == "RGBA" and not cur_input.is_linked and octane_input.octane_socket_type != consts.SocketType.ST_RGBA:
         octane_color_node = None
         if cur_input.name == "Emission" and octane_input.name == "Emission":
-            octane_emission_node = octane_node_tree.nodes.new("ShaderNodeOctTextureEmission")
-            octane_color_node = octane_node_tree.nodes.new("ShaderNodeOctRGBSpectrumTex")
+            octane_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
+            octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
             octane_emission_node.location.x = cur_node.location.x - X_GAP
             octane_emission_node.location.y = cur_node.location.y
             octane_color_node.location.x = octane_emission_node.location.x - X_GAP
             octane_color_node.location.y = octane_emission_node.location.y
             octane_node_tree.links.new(octane_emission_node.outputs[0], octane_input)
-            octane_node_tree.links.new(octane_color_node.outputs[0], octane_emission_node.inputs['Texture'])
+            octane_node_tree.links.new(octane_color_node.outputs[0], octane_emission_node.inputs["Texture"])
         else:       
-            octane_color_node = octane_node_tree.nodes.new("ShaderNodeOctRGBSpectrumTex")
+            octane_color_node = octane_node_tree.nodes.new("OctaneRGBColor")
             octane_color_node.location = cur_node.location   
             octane_node_tree.links.new(octane_color_node.outputs[0], octane_input)    
         if octane_color_node:
-            octane_color_node.inputs['Color'].default_value = cur_input.default_value
+            octane_color_node.inputs["Color"].a_value[0] = cur_input.default_value[0]
+            octane_color_node.inputs["Color"].a_value[1] = cur_input.default_value[1]
+            octane_color_node.inputs["Color"].a_value[2] = cur_input.default_value[2]
 
 
 def _convert_attribute(cur_node, octane_node, cur_attribute_name, octane_attribute_name):
@@ -119,17 +122,25 @@ def _convert_socket(cur_node, octane_node, cur_node_tree, octane_node_tree, cur_
     cur_links = cur_node_tree.links
     cur_input = cur_node.inputs[cur_name]
     octane_links = octane_node_tree.links
-    octane_input = octane_node.inputs[octane_name]   
-    if cur_input.type == 'RGBA' and octane_input.type != 'RGBA':
-        _convert_color_input(cur_node, cur_input, octane_node, octane_input, cur_node_tree, octane_node_tree)
-    if hasattr(cur_input, 'default_value') and hasattr(octane_input, 'default_value'):
-        if octane_input.type == cur_input.type:
-            octane_input.default_value = cur_input.default_value
-        elif cur_input.type == 'VALUE' and octane_input.type == 'RGBA':
-            octane_input.default_value[0] = cur_input.default_value
-            octane_input.default_value[1] = cur_input.default_value
-            octane_input.default_value[2] = cur_input.default_value
-            octane_input.default_value[3] = 1.0
+    octane_input = octane_node.inputs[octane_name]
+    octane_socket_type = getattr(octane_input, "octane_socket_type", consts.SocketType.ST_UNKNOWN)
+    if octane_socket_type != consts.SocketType.ST_UNKNOWN:
+        if cur_input.type == "RGBA" and octane_socket_type != consts.SocketType.ST_RGBA:
+            _convert_color_input(cur_node, cur_input, octane_node, octane_input, cur_node_tree, octane_node_tree)
+        if hasattr(cur_input, "default_value") and hasattr(octane_input, "default_value"):
+            if cur_input.type == "VALUE" and octane_socket_type == consts.SocketType.ST_RGBA:
+                octane_input.default_value[0] = cur_input.default_value
+                octane_input.default_value[1] = cur_input.default_value
+                octane_input.default_value[2] = cur_input.default_value
+            elif cur_input.type == "RGBA" and octane_socket_type == consts.SocketType.ST_RGBA:
+                octane_input.default_value[0] = cur_input.default_value[0]
+                octane_input.default_value[1] = cur_input.default_value[1]
+                octane_input.default_value[2] = cur_input.default_value[2]          
+            else:
+                try:
+                    octane_input.default_value = cur_input.default_value
+                except:
+                    pass
     for cur_link in cur_input.links:
         octane_from_node = convert_to_octane_node(cur_link.from_node, cur_node_tree, octane_node_tree)
         if octane_from_node:
@@ -145,15 +156,15 @@ def _convert_cycles_normal_to_octane_node(cur_node, octane_node, cur_node_tree, 
     octane_links = octane_node_tree.links
     octane_input = octane_node.inputs[octane_name]     
     for cur_link in cur_input.links:
-        if cur_link.from_node.type == 'NORMAL_MAP':
-            color_input = cur_link.from_node.inputs['Color']
+        if cur_link.from_node.type == "NORMAL_MAP":
+            color_input = cur_link.from_node.inputs["Color"]
             _convert_color_input(cur_node, color_input, octane_node, octane_input, cur_node_tree, octane_node_tree)
             for cur_color_link in color_input.links:
                 octane_from_node = convert_to_octane_node(cur_color_link.from_node, cur_node_tree, octane_node_tree)            
                 if octane_from_node:
                     octane_links.new(octane_from_node.outputs[0], octane_input)
-                    if octane_from_node.type == 'OCT_IMAGE_TEX':
-                        _convert_socket(cur_link.from_node, octane_from_node, cur_node_tree, octane_node_tree, 'Strength', 'Power')                    
+                    if octane_from_node.bl_idname == "OctaneRGBImage":
+                        _convert_socket(cur_link.from_node, octane_from_node, cur_node_tree, octane_node_tree, "Strength", "Power")                    
 
 
 def _convert_cycles_emission_to_octane_node(cur_node, octane_node, cur_node_tree, octane_node_tree, cur_name, octane_name):
@@ -163,15 +174,15 @@ def _convert_cycles_emission_to_octane_node(cur_node, octane_node, cur_node_tree
     octane_links = octane_node_tree.links
     octane_input = octane_node.inputs[octane_name]     
     for cur_link in cur_input.links:
-        if cur_link.from_node.type == 'NORMAL_MAP':
-            color_input = cur_link.from_node.inputs['Color']
+        if cur_link.from_node.type == "NORMAL_MAP":
+            color_input = cur_link.from_node.inputs["Color"]
             _convert_color_input(cur_node, color_input, octane_node, octane_input, cur_node_tree, octane_node_tree)
             for cur_color_link in color_input.links:
                 octane_from_node = convert_to_octane_node(cur_color_link.from_node, cur_node_tree, octane_node_tree)            
                 if octane_from_node:
                     octane_links.new(octane_from_node.outputs[0], octane_input)
-                    if octane_from_node.type == 'OCT_IMAGE_TEX':
-                        _convert_socket(cur_link.from_node, octane_from_node, cur_node_tree, octane_node_tree, 'Strength', 'Power')       
+                    if octane_from_node.bl_idname == "OctaneRGBImage":
+                        _convert_socket(cur_link.from_node, octane_from_node, cur_node_tree, octane_node_tree, "Strength", "Power")       
 
 
 def _convert_to_octane_node(cur_node, octane_node, cur_node_tree, octane_node_tree, cur_name, octane_name):
@@ -204,6 +215,13 @@ def convert_to_octane_node(cur_node, cur_node_tree, octane_node_tree):
             _convert_to_octane_node(cur_node, octane_node, cur_node_tree, octane_node_tree, cur_name, octane_name)
         if len(CONVERTERS_NODE_MAPPER[cur_node.type]) > 2:
             CONVERTERS_NODE_MAPPER[cur_node.type][2](cur_node, octane_node)
+    # Special cases
+    if octane_node and cur_node.type == "TEX_IMAGE" and octane_node.bl_idname == "OctaneRGBImage":
+        if cur_node.image:
+            if cur_node.image.colorspace_settings.name in ("sRGB", "Filmic sRGB"):
+                octane_node.inputs["Legacy gamma"].default_value = 2.2
+            else:
+                octane_node.inputs["Legacy gamma"].default_value = 1.0
     return octane_node
 
 
@@ -215,10 +233,22 @@ def convert_to_octane_material(cur_material, converted_material):
     cur_node_tree = cur_material.node_tree
     octane_node_tree = converted_material.node_tree    
     octane_node_tree.nodes.clear()
-    output = find_output_node(cur_node_tree, 'OUTPUT_MATERIAL') 
+    output = find_output_node(cur_node_tree, "OUTPUT_MATERIAL") 
     if not output:
         return
     convert_to_octane_node(output, cur_node_tree, octane_node_tree)
+    octane_output = find_output_node(octane_node_tree, "OUTPUT_MATERIAL")
+    if octane_output.inputs["Surface"].is_linked:
+        octane_material_node = octane_output.inputs["Surface"].links[0].from_node
+        if octane_material_node.bl_idname == "OctaneUniversalMaterial":
+            if octane_material_node.inputs["Emission"].is_linked:
+                from_node = octane_material_node.inputs["Emission"].links[0].from_node
+                if from_node.bl_idname != "OctaneTextureEmission":
+                    texture_emission_node = octane_node_tree.nodes.new("OctaneTextureEmission")
+                    texture_emission_node.location[0] = octane_material_node.location[0] - X_GAP 
+                    texture_emission_node.location[1] = octane_material_node.location[1] - Y_GAP * 2
+                    octane_node_tree.links.new(from_node.outputs[0], texture_emission_node.inputs["Texture"])
+                    octane_node_tree.links.new(texture_emission_node.outputs[0], octane_material_node.inputs["Emission"])
 
 
 def convert_all_related_material(cur_material, converted_material):
@@ -226,4 +256,4 @@ def convert_all_related_material(cur_material, converted_material):
         if getattr(obj, "material_slots", None):
             for idx in range(len(obj.material_slots)):
                 if obj.material_slots[idx].material == cur_material:
-                    obj.material_slots[idx].material = converted_material    
+                    obj.material_slots[idx].material = converted_material

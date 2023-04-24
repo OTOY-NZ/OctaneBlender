@@ -85,7 +85,7 @@ class OctaneGradientMapMax(OctaneBaseSocket):
 
 class OctaneGradientMapSmooth(OctaneBaseSocket):
     bl_idname="OctaneGradientMapSmooth"
-    bl_label="Smoothing"
+    bl_label="[Deprecated]Smoothing"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -112,7 +112,7 @@ class OctaneGradientMap(bpy.types.Node, OctaneBaseRampNode):
     octane_socket_class_list=[OctaneGradientMapGradientInterpolationType,OctaneGradientMapInput,OctaneGradientMapMin,OctaneGradientMapMax,OctaneGradientMapSmooth,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_GRADIENT
-    octane_socket_list=["Interpolation", "Input texture", "Start value", "End value", "Smoothing", ]
+    octane_socket_list=["Interpolation", "Input texture", "Start value", "End value", "[Deprecated]Smoothing", ]
     octane_attribute_list=["a_num_controlpoints", ]
     octane_attribute_config={"a_num_controlpoints": [consts.AttributeID.A_NUM_CONTROLPOINTS, "controlpoints", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
     octane_static_pin_count=4

@@ -245,7 +245,7 @@ class OctaneVolumeMediumEmissionRamp(OctaneBaseSocket):
 
 class OctaneVolumeMediumLockStepLength(OctaneBaseSocket):
     bl_idname="OctaneVolumeMediumLockStepLength"
-    bl_label="Lock step length pins"
+    bl_label="[Deprecated]Lock step length pins"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -287,7 +287,7 @@ class OctaneVolumeMedium(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneVolumeMediumScale,OctaneVolumeMediumRayMarchStepLength,OctaneVolumeMediumShadowRayMarchStepLength,OctaneVolumeMediumUseRayStepLengthForShadowRays,OctaneVolumeMediumSingleScatterFactor,OctaneVolumeMediumDisplacement,OctaneVolumeMediumGroupAbsorption,OctaneVolumeMediumAbsorption,OctaneVolumeMediumAbsorptionRamp,OctaneVolumeMediumInvertAbsorption,OctaneVolumeMediumGroupScattering,OctaneVolumeMediumScattering,OctaneVolumeMediumScatteringRamp,OctaneVolumeMediumPhase,OctaneVolumeMediumGroupEmission,OctaneVolumeMediumEmission,OctaneVolumeMediumEmissionRamp,OctaneVolumeMediumLockStepLength,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MED_VOLUME
-    octane_socket_list=["Density", "Volume step length", "Vol. shadow ray step length", "Use Vol. step length for Vol. shadow ray step length", "Single scatter amount", "Sample position displacement", "Absorption", "Absorption ramp", "Invert absorption", "Scattering", "Scattering ramp", "Phase", "Emission", "Emission ramp", "Lock step length pins", ]
+    octane_socket_list=["Density", "Volume step length", "Vol. shadow ray step length", "Use Vol. step length for Vol. shadow ray step length", "Single scatter amount", "Sample position displacement", "Absorption", "Absorption ramp", "Invert absorption", "Scattering", "Scattering ramp", "Phase", "Emission", "Emission ramp", "[Deprecated]Lock step length pins", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=14

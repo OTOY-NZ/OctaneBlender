@@ -160,6 +160,10 @@ def get_default_material_node_bl_idname():
         if default_material_id == data[3]:
             return data[2]
 
+def use_new_addon_nodes():
+    preferences = get_preferences()
+    return preferences.use_new_addon_nodes
+
 def resolve_octane_format_path(cur_path):
     import os    
     octane_path = ""
@@ -186,6 +190,9 @@ def set_enum_int_value(data, property_name, int_value):
         if int_value == item.value:
             setattr(data, property_name, item.name)
             break
+
+def get_all_static_enum_str_values(data, property_name):
+    return [item.name for item in data.rna_type.properties[property_name].enum_items]
 
 def set_collection(collection, items, set_func):
     for i in range(0, len(collection)):
@@ -800,6 +807,42 @@ def object_motion_time_offsets(_object, start_frame_offset, end_frame_offset):
             motion_time_offsets.add(motion_time_candidate_offset)
     return motion_time_offsets
 
+def convert_to_addon_node(node_tree, original_node, context, report):
+    from octane.nodes.base_node import OctaneBaseNode
+    from octane.core.octane_info import OctaneInfoManger
+    if isinstance(original_node, OctaneBaseNode):
+        return None
+    original_bl_idname = original_node.bl_idname
+    node_type = OctaneInfoManger().get_legacy_node_type(original_bl_idname)    
+    if node_type == 0:
+        # Special cases
+        if original_bl_idname == "ShaderNodeOctObjectData":
+            addon_node_name = "OctaneObjectData"
+        elif original_bl_idname == "ShaderNodeCameraData":
+            addon_node_name = "OctaneCameraData"
+        elif original_bl_idname == "ShaderNodeOutputWorld":
+            addon_node_name = "OctaneEditorWorldOutputNode"            
+        else:
+            addon_node_name = ""
+    else:
+        addon_node_name = OctaneInfoManger().get_node_name(node_type)
+    if len(addon_node_name) == 0:
+        return None
+    addon_node = node_tree.nodes.new(addon_node_name)
+    addon_node.load_legacy_node(original_node, node_tree, context, report)
+    return addon_node
+
+def convert_to_addon_node_tree(node_tree, context, report):
+    node_list = [node for node in node_tree.nodes]
+    for original_node in node_list:
+        addon_node = convert_to_addon_node(node_tree, original_node, context, report)
+        if addon_node is not None:
+            node_name = original_node.name
+            node_location_x, node_location_y = original_node.location
+            node_tree.nodes.remove(original_node)
+            addon_node.name = node_name
+            addon_node.location = (node_location_x, node_location_y)
+
 ##### Render passes #####
 
 def is_denoise_render_pass(render_pass_id):
@@ -913,7 +956,7 @@ class OctaneMatrixConvertor(object):
     @staticmethod
     def get_octane_direction(matrix):
         mat = OctaneMatrixConvertor.OCTANE_ROTATION_MATRIX_CONVERTOR @ matrix
-        return (mat.col[2] * -1)[:-1]
+        return (mat.col[2])[:-1]
 
 def transform_direction(matrix, a):
     x = a[0] * matrix[0][0] + a[1] * matrix[0][1] + a[2] * matrix[0][2]

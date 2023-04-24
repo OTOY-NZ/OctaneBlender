@@ -62,26 +62,21 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         if OctaneButtonsPanel.poll(context):
-            if context.mesh or context.curve or context.meta_ball:
+            if context.mesh or context.meta_ball:
                 return True
-
         return False
 
     def draw(self, context):
         layout = self.layout
 
         mesh = context.mesh
-        curve = context.curve
         mball = context.meta_ball
 
         if mesh:
             cdata = mesh.octane
-        elif curve:
-            cdata = curve.octane
         elif mball:
             cdata = mball.octane
-
-
+            
         # sub = layout.row(align=True)
         # sub.prop(cdata, "mesh_type")
         # sub.operator("octane.set_meshes_type", text="")

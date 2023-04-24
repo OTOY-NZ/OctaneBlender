@@ -16,7 +16,7 @@ class OCTANE_OBJECT_PT_motion_blur(common.OctanePropertyPanel, Panel):
     def poll(cls, context):
         ob = context.object
         if super().poll(context) and ob:
-            if ob.type in {'MESH', 'CURVE', 'CURVE', 'SURFACE', 'FONT', 'META', 'CAMERA', 'LIGHT'}:
+            if ob.type in {'MESH', 'CURVE', 'CURVES', 'SURFACE', 'FONT', 'META', 'CAMERA', 'LIGHT'}:
                 return True
         return False
 

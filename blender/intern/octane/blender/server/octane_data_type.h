@@ -1387,6 +1387,8 @@ struct Kernel {
 
   KernelType type;
 
+  bool bUseNodeTree;
+
   float fShutterTime;
   float fCurrentTime;
   MBAlignmentType mbAlignment;
@@ -1495,11 +1497,14 @@ struct Kernel {
 
   inline Kernel() : type(NONE)
   {
+    bUseNodeTree = false;
   }
   inline bool operator==(const Kernel &otherKernel)
   {
     return (
         type == otherKernel.type
+
+        && bUseNodeTree == otherKernel.bUseNodeTree
 
         && iMaxSamples == otherKernel.iMaxSamples && fFilterSize == otherKernel.fFilterSize &&
         fRayEpsilon == otherKernel.fRayEpsilon && bAlphaChannel == otherKernel.bAlphaChannel &&
@@ -1586,6 +1591,9 @@ struct Kernel {
   {
     if (type != otherKernel.type)
       type = otherKernel.type;
+
+    if (bUseNodeTree != otherKernel.bUseNodeTree)
+      bUseNodeTree = otherKernel.bUseNodeTree;
 
     if (iMaxSamples != otherKernel.iMaxSamples)
       iMaxSamples = otherKernel.iMaxSamples;

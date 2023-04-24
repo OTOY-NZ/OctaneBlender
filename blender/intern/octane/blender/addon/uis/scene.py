@@ -23,7 +23,15 @@ class OCTANE_RENDER_PT_kernel(common.OctanePropertyPanel, Panel):
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             self.draw_addon_kernel(context)
         else:
-            self.draw_legacy_kernel(context)
+            scene = context.scene
+            octane_scene = scene.octane
+            layout = self.layout
+            row = layout.row()
+            row.prop(octane_scene, "kernel_data_mode")
+            if octane_scene.kernel_data_mode == "PROPERTY_PANEL":
+                self.draw_legacy_kernel(context)
+            else:
+                self.draw_addon_kernel(context)
 
     def draw_addon_kernel(self, context):
         scene = context.scene
@@ -487,11 +495,23 @@ class OCTANE_RENDER_PT_server(common.OctanePropertyPanel, Panel):
     bl_label = "Octane Server"
     bl_context = "render"
 
-    def draw(self, context):
+    def draw(self, context):        
         scene = context.scene
-        oct_scene = scene.octane        
+        oct_scene = scene.octane
+        is_viewport_rendering = utility.is_viewport_rendering()
         layout = self.layout
+        box = layout.box()
+        box.label(text="Octane Resource Cache")
+        col = box.column()
+        col.active = not is_viewport_rendering
+        col.prop(oct_scene, "resource_cache_type")
+        col.prop(oct_scene, "dirty_resource_detection_strategy_type")
+        col.operator("octane.clear_resource_cache", text="Clear")        
         col = layout.column()
+        col.active = not is_viewport_rendering
+        col.prop(oct_scene, "meshes_type")
+        col = layout.column()
+        col.prop(oct_scene, "maximize_instancing")
         col.prop(oct_scene, "clay_mode")
         col.prop(oct_scene, "priority_mode")
         col.prop(oct_scene, "subsample_mode")
@@ -529,7 +549,7 @@ class OCTANE_RENDER_PT_octane_view_layer(common.OctanePropertyPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return super().poll(context) and core.ENABLE_OCTANE_ADDON_CLIENT
+        return super().poll(context)
 
     def draw_header(self, context):
         self.layout.prop(context.view_layer.octane, "layers_enable", text="")
@@ -545,20 +565,11 @@ class OCTANE_RENDER_PT_octane_global_view_layers(common.OctanePropertyPanel, Pan
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
-        if core.ENABLE_OCTANE_ADDON_CLIENT:
-            self.layout.prop(context.scene.octane.render_layer, "layers_enable", text="")
-        else:
-            self.layout.prop(context.scene.octane, "layers_enable", text="")
+        self.layout.prop(context.scene.octane.render_layer, "layers_enable", text="")
 
     def draw(self, context):
         layout = self.layout
-        if core.ENABLE_OCTANE_ADDON_CLIENT:
-            context.scene.octane.render_layer.draw(context, layout)
-        else:
-            col = layout.column()
-            col.prop(context.scene.octane, "layers_mode")
-            col.prop(context.scene.octane, "layers_current")
-            col.prop(context.scene.octane, "layers_invert")            
+        context.scene.octane.render_layer.draw(context, layout)       
 
 
 class OctaneRenderAOVNodeGraphPanel(common.OctanePropertyPanel):
@@ -582,9 +593,9 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
         row = layout.row()
         row.prop(octane_view_layer, "render_pass_style")  
         row = layout.row()
-        render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
-        row.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
+        row.prop(octane_scene.render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon='NODETREE')
+        node_tree = utility.find_active_render_aov_node_tree(context.scene)
+        utility.panel_ui_node_tree_view(context, layout, node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
 
 
 class OctaneRenderPassesPanel(common.OctanePropertyPanel):

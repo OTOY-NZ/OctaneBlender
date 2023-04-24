@@ -182,7 +182,7 @@ class OctaneColorCorrectionMask(OctaneBaseSocket):
 
 class OctaneColorCorrectionBrightnessScale(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionBrightnessScale"
-    bl_label="Brightness scale"
+    bl_label="[Deprecated]Brightness scale"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -199,7 +199,7 @@ class OctaneColorCorrectionBrightnessScale(OctaneBaseSocket):
 
 class OctaneColorCorrectionBlackLevel(OctaneBaseSocket):
     bl_idname="OctaneColorCorrectionBlackLevel"
-    bl_label="Black level"
+    bl_label="[Deprecated]Black level"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -226,7 +226,7 @@ class OctaneColorCorrection(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneColorCorrectionTexture,OctaneColorCorrectionBrightness,OctaneColorCorrectionInvert,OctaneColorCorrectionHue,OctaneColorCorrectionSaturation,OctaneColorCorrectionGamma,OctaneColorCorrectionContrast,OctaneColorCorrectionGain,OctaneColorCorrectionExposure,OctaneColorCorrectionMask,OctaneColorCorrectionBrightnessScale,OctaneColorCorrectionBlackLevel,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_TEX_COLORCORRECTION
-    octane_socket_list=["Input", "Brightness", "Invert", "Hue", "Saturation", "Gamma", "Contrast", "Gain", "Exposure", "Mask", "Brightness scale", "Black level", ]
+    octane_socket_list=["Input", "Brightness", "Invert", "Hue", "Saturation", "Gamma", "Contrast", "Gain", "Exposure", "Mask", "[Deprecated]Brightness scale", "[Deprecated]Black level", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=10

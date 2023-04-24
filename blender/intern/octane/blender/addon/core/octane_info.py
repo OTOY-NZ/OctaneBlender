@@ -27,7 +27,7 @@ class AttributeInfo(object):
 class LegacyDataInfo(object):
     def __init__(self, name, is_socket, data_type, is_pin, octane_type, is_internal_data, internal_data_is_pin, internal_data_octane_type):
         self.name = name
-        self.is_socekt = is_socket
+        self.is_socket = is_socket
         self.data_type = data_type
         self.is_pin = is_pin
         self.octane_type = octane_type
@@ -51,6 +51,9 @@ class OctaneInfoManger(metaclass=utility.Singleton):
 
     def get_node_name(self, node_type):
         return self.node_type_to_node_name.get(node_type, "")
+
+    def get_legacy_node_type(self, node_name):
+        return self.legacy_node_name_to_node_type.get(node_name, 0)
 
     def get_legacy_node_name(self, node_type):
         return self.node_type_to_legacy_node_name.get(node_type, "")
@@ -107,5 +110,5 @@ class OctaneInfoManger(metaclass=utility.Singleton):
             _octane.set_static_pin_count(node_type, count)        
 
     def legacy_data_infos(self, node_type):
-        for name, legacy_data_info in self.legacy_data_name_to_info.items():
+        for name, legacy_data_info in self.legacy_data_name_to_info[node_type].items():
             yield (name, legacy_data_info)

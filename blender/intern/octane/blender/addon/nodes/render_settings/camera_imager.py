@@ -593,7 +593,7 @@ class OctaneCameraImagerMinUpsamplingSamples(OctaneBaseSocket):
 
 class OctaneCameraImagerFstop(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerFstop"
-    bl_label="F-stop"
+    bl_label="[Deprecated]F-stop"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -610,7 +610,7 @@ class OctaneCameraImagerFstop(OctaneBaseSocket):
 
 class OctaneCameraImagerISO(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerISO"
-    bl_label="ISO"
+    bl_label="[Deprecated]ISO"
     color=consts.OctanePinColor.Float
     octane_default_node_type=consts.NodeType.NT_FLOAT
     octane_default_node_name="OctaneFloatValue"
@@ -627,7 +627,7 @@ class OctaneCameraImagerISO(OctaneBaseSocket):
 
 class OctaneCameraImagerGammaBeforeResponse(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerGammaBeforeResponse"
-    bl_label="Gamma before response"
+    bl_label="[Deprecated]Gamma before response"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -644,7 +644,7 @@ class OctaneCameraImagerGammaBeforeResponse(OctaneBaseSocket):
 
 class OctaneCameraImagerPremultipliedAlpha(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerPremultipliedAlpha"
-    bl_label="Premultiplied alpha"
+    bl_label="[Deprecated]Premultiplied alpha"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -661,7 +661,7 @@ class OctaneCameraImagerPremultipliedAlpha(OctaneBaseSocket):
 
 class OctaneCameraImagerMaxUpsamplingInterval(OctaneBaseSocket):
     bl_idname="OctaneCameraImagerMaxUpsamplingInterval"
-    bl_label="Max. upsampler interval"
+    bl_label="[Deprecated]Max. upsampler interval"
     color=consts.OctanePinColor.Int
     octane_default_node_type=consts.NodeType.NT_INT
     octane_default_node_name="OctaneIntValue"
@@ -708,7 +708,7 @@ class OctaneCameraImager(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneCameraImagerExposure,OctaneCameraImagerHotpixelRemoval,OctaneCameraImagerVignetting,OctaneCameraImagerWhiteBalance,OctaneCameraImagerSaturation,OctaneCameraImagerDisablePartialAlpha,OctaneCameraImagerDithering,OctaneCameraImagerMinDisplaySamples,OctaneCameraImagerMaxTonemapInterval,OctaneCameraImagerGroupOCIO,OctaneCameraImagerOcioView,OctaneCameraImagerOcioLook,OctaneCameraImagerOcioForceToneMapping,OctaneCameraImagerGroupToneMapping,OctaneCameraImagerAcesToneMapping,OctaneCameraImagerHighlightCompression,OctaneCameraImagerSaturateToWhite,OctaneCameraImagerOrder,OctaneCameraImagerResponse,OctaneCameraImagerNeutralResponse,OctaneCameraImagerGamma,OctaneCameraImagerLut,OctaneCameraImagerGroupSpectralAIDenoiser,OctaneCameraImagerDenoiser,OctaneCameraImagerDenoiseVolume,OctaneCameraImagerDenoiserOnce,OctaneCameraImagerMinDenoiserSamples,OctaneCameraImagerMaxDenoiserInterval,OctaneCameraImagerDenoiserOriginalBlend,OctaneCameraImagerGroupUpsampler,OctaneCameraImagerFilmUpSamplingMode,OctaneCameraImagerUpsamplingEnabled,OctaneCameraImagerUpsamplingOnCompletion,OctaneCameraImagerMinUpsamplingSamples,OctaneCameraImagerMaxUpsamplingInterval,OctaneCameraImagerFstop,OctaneCameraImagerISO,OctaneCameraImagerGammaBeforeResponse,OctaneCameraImagerPremultipliedAlpha,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_IMAGER_CAMERA
-    octane_socket_list=["Exposure", "Hot pixel removal", "Vignetting", "White point", "Saturation", "Disable partial alpha", "Dithering", "Minimum display samples", "Max. image interval", "OCIO view", "OCIO look", "Force tone mapping", "ACES tone mapping", "Highlight compression", "Saturate to white", "Order", "Response curve", "Neutral response", "Gamma", "Custom LUT", "Enable denoising", "Denoise volumes", "Denoise on completion", "Min. denoiser samples", "Max. denoiser interval", "Blend", "Upsampler mode", "Enable AI upsampling", "Upsample on completion", "Min. upsampler samples", "F-stop", "ISO", "Gamma before response", "Premultiplied alpha", "Max. upsampler interval", ]
+    octane_socket_list=["Exposure", "Hot pixel removal", "Vignetting", "White point", "Saturation", "Disable partial alpha", "Dithering", "Minimum display samples", "Max. image interval", "OCIO view", "OCIO look", "Force tone mapping", "ACES tone mapping", "Highlight compression", "Saturate to white", "Order", "Response curve", "Neutral response", "Gamma", "Custom LUT", "Enable denoising", "Denoise volumes", "Denoise on completion", "Min. denoiser samples", "Max. denoiser interval", "Blend", "Upsampler mode", "Enable AI upsampling", "Upsample on completion", "Min. upsampler samples", "[Deprecated]F-stop", "[Deprecated]ISO", "[Deprecated]Gamma before response", "[Deprecated]Premultiplied alpha", "[Deprecated]Max. upsampler interval", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=30

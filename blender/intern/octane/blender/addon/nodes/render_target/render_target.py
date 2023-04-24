@@ -205,7 +205,7 @@ class OctaneRenderTargetPostproc(OctaneBaseSocket):
 
 class OctaneRenderTargetResolution(OctaneBaseSocket):
     bl_idname="OctaneRenderTargetResolution"
-    bl_label="Resolution"
+    bl_label="[Deprecated]Resolution"
     color=consts.OctanePinColor.Int
     octane_default_node_type=consts.NodeType.NT_IMAGE_RESOLUTION
     octane_default_node_name="OctaneImageResolution"
@@ -247,7 +247,7 @@ class OctaneRenderTarget(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneRenderTargetGroupScene,OctaneRenderTargetCamera,OctaneRenderTargetEnvironment,OctaneRenderTargetCameraEnvironment,OctaneRenderTargetMesh,OctaneRenderTargetGroupRenderSettings,OctaneRenderTargetFilmSettings,OctaneRenderTargetAnimation,OctaneRenderTargetKernel,OctaneRenderTargetRenderLayer,OctaneRenderTargetRenderPasses,OctaneRenderTargetCompositeAovs,OctaneRenderTargetGroupImagingSettings,OctaneRenderTargetImager,OctaneRenderTargetPostproc,OctaneRenderTargetResolution,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_RENDERTARGET
-    octane_socket_list=["Camera", "Environment", "Visible environment", "Geometry", "Film settings", "Animation", "Kernel", "Render layer", "Render AOVs", "Output AOVs", "Imager", "Post processing", "Resolution", ]
+    octane_socket_list=["Camera", "Environment", "Visible environment", "Geometry", "Film settings", "Animation", "Kernel", "Render layer", "Render AOVs", "Output AOVs", "Imager", "Post processing", "[Deprecated]Resolution", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=12

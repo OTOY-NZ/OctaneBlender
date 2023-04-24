@@ -131,7 +131,7 @@ class OctaneAbsorptionInvertAbsorption(OctaneBaseSocket):
 
 class OctaneAbsorptionLockStepLength(OctaneBaseSocket):
     bl_idname="OctaneAbsorptionLockStepLength"
-    bl_label="Lock step length pins"
+    bl_label="[Deprecated]Lock step length pins"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -163,7 +163,7 @@ class OctaneAbsorption(bpy.types.Node, OctaneBaseNode):
     octane_socket_class_list=[OctaneAbsorptionScale,OctaneAbsorptionRayMarchStepLength,OctaneAbsorptionShadowRayMarchStepLength,OctaneAbsorptionUseRayStepLengthForShadowRays,OctaneAbsorptionDisplacement,OctaneAbsorptionGroupAbsorption,OctaneAbsorptionAbsorption,OctaneAbsorptionInvertAbsorption,OctaneAbsorptionLockStepLength,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_MED_ABSORPTION
-    octane_socket_list=["Density", "Volume step length", "Vol. shadow ray step length", "Use Vol. step length for Vol. shadow ray step length", "Sample position displacement", "Absorption", "Invert absorption", "Lock step length pins", ]
+    octane_socket_list=["Density", "Volume step length", "Vol. shadow ray step length", "Use Vol. step length for Vol. shadow ray step length", "Sample position displacement", "Absorption", "Invert absorption", "[Deprecated]Lock step length pins", ]
     octane_attribute_list=[]
     octane_attribute_config={}
     octane_static_pin_count=7

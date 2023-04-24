@@ -44,7 +44,7 @@ class OctaneVolumeGradientMin(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=1
     octane_socket_type=consts.SocketType.ST_RGBA
-    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 0", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(0.000000, 0.000000, 0.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 0", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -61,7 +61,7 @@ class OctaneVolumeGradientMax(OctaneBaseSocket):
     octane_pin_type=consts.PinType.PT_FLOAT
     octane_pin_index=2
     octane_socket_type=consts.SocketType.ST_RGBA
-    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 1", min=0.000000, max=1.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(1.000000, 1.000000, 1.000000), update=OctaneBaseSocket.update_node_tree, description="Output value at 1", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, subtype="COLOR", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -86,7 +86,7 @@ class OctaneVolumeGradientMaxGridValue(OctaneBaseSocket):
 
 class OctaneVolumeGradientSmooth(OctaneBaseSocket):
     bl_idname="OctaneVolumeGradientSmooth"
-    bl_label="Smoothing"
+    bl_label="[Deprecated]Smoothing"
     color=consts.OctanePinColor.Bool
     octane_default_node_type=consts.NodeType.NT_BOOL
     octane_default_node_name="OctaneBoolValue"
@@ -113,7 +113,7 @@ class OctaneVolumeGradient(bpy.types.Node, OctaneBaseRampNode):
     octane_socket_class_list=[OctaneVolumeGradientGradientInterpolationType,OctaneVolumeGradientMin,OctaneVolumeGradientMax,OctaneVolumeGradientMaxGridValue,OctaneVolumeGradientSmooth,]
     octane_min_version=0
     octane_node_type=consts.NodeType.NT_VOLUME_RAMP
-    octane_socket_list=["Interpolation", "Start value", "End value", "Max value", "Smoothing", ]
+    octane_socket_list=["Interpolation", "Start value", "End value", "Max value", "[Deprecated]Smoothing", ]
     octane_attribute_list=["a_num_controlpoints", ]
     octane_attribute_config={"a_num_controlpoints": [consts.AttributeID.A_NUM_CONTROLPOINTS, "controlpoints", consts.AttributeType.AT_INT], "a_input_action": [consts.AttributeID.A_INPUT_ACTION, "inputAction", consts.AttributeType.AT_INT2], }
     octane_static_pin_count=4

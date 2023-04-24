@@ -34,9 +34,7 @@ from bpy.props import (
 
 from math import pi
 import nodeitems_utils
-from octane import nodeitems_octane
 from octane.utils import consts, utility, ocio
-from octane.properties_ import scene
 from operator import add
 
 rotation_orders = (
@@ -369,9 +367,19 @@ class OctaneVDBInfo(bpy.types.PropertyGroup):
                 set_container(self.vdb_float_grid_id_container, vdb_float_grid_ids)
                 set_container(self.vdb_vector_grid_id_container, vdb_vector_grid_ids)
 
+
+class OctaneOCIOConfigName(bpy.types.PropertyGroup):    
+    name: bpy.props.StringProperty(name="Octane OCIO Config Name")
+
+
 class OctanePreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
+    use_new_addon_nodes: BoolProperty(
+            name="Experience the New Image and Ramp Nodes",
+            description="Use the new addon style image and ramp nodes(reboot blender to take effect)",   
+            default=True,
+            )
     default_material_id: EnumProperty(
             name="Default Material Type",
             description="Material to use for default (rendering with Octane)(reboot blender to take effect)",   
@@ -473,13 +481,13 @@ class OctanePreferences(bpy.types.AddonPreferences):
         name="OCIO(Octane Format)",
         default="",
     )    
-    ocio_intermediate_color_space_configs: CollectionProperty(type=scene.OctaneOCIOConfigName)
-    ocio_export_png_color_space_configs: CollectionProperty(type=scene.OctaneOCIOConfigName)    
-    ocio_export_exr_color_space_configs: CollectionProperty(type=scene.OctaneOCIOConfigName) 
-    ocio_view_configs: CollectionProperty(type=scene.OctaneOCIOConfigName)
-    ocio_look_configs: CollectionProperty(type=scene.OctaneOCIOConfigName)
-    ocio_export_look_configs: CollectionProperty(type=scene.OctaneOCIOConfigName)            
-    ocio_color_space_configs: CollectionProperty(type=scene.OctaneOCIOConfigName)                        
+    ocio_intermediate_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName)
+    ocio_export_png_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName)    
+    ocio_export_exr_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName) 
+    ocio_view_configs: CollectionProperty(type=OctaneOCIOConfigName)
+    ocio_look_configs: CollectionProperty(type=OctaneOCIOConfigName)
+    ocio_export_look_configs: CollectionProperty(type=OctaneOCIOConfigName)            
+    ocio_color_space_configs: CollectionProperty(type=OctaneOCIOConfigName)                        
 
     def draw(self, context):
         from octane import core
@@ -491,7 +499,8 @@ class OctanePreferences(bpy.types.AddonPreferences):
         layout.row().prop(self, "octane_localdb_path", expand=False)               
         layout.row().prop(self, "octane_texture_cache_path", expand=False)   
         layout.row().prop(self, "default_material_id", expand=False)
-        layout.row().prop(self, "default_texture_node_layout_id", expand=False)     
+        layout.row().prop(self, "default_texture_node_layout_id", expand=False)
+        layout.row().prop(self, "use_new_addon_nodes", expand=False)
         layout = self.layout
         box = layout.box()
         box.label(text="Octane Color Management")        
@@ -1023,17 +1032,26 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         description="Render this curve as the Octane hair",
         default=False,
     )
+    use_octane_radius_setting: BoolProperty(
+        name="Use Octane Hair Radius",
+        description="Use the Octane hair radius settings instead of the curve's radius",
+        default=False,
+    )    
     hair_root_width: FloatProperty(
         name="Root thickness",
         description="Hair thickness at root",
         min=0.0, max=1000000.0,
         default=0.001,
+        precision=4,
+        step=0.1,
     )
     hair_tip_width: FloatProperty(
         name="Tip thickness",
         description="Hair thickness at tip",
         min=0.0, max=1000000.0,
         default=0.001,
+        precision=4,
+        step=0.1,
     )
 
     @classmethod
@@ -1043,6 +1061,11 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
                 description="",
                 type=cls,
                 )
+        bpy.types.Curves.octane = PointerProperty(
+                name="Octane Curve Settings",
+                description="",
+                type=cls,
+                )        
         bpy.types.Curve.octane = PointerProperty(
                 name="Octane Curve Settings",
                 description="",
@@ -1057,6 +1080,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
     @classmethod
     def unregister(cls):
         del bpy.types.Mesh.octane
+        del bpy.types.Curves.octane
         del bpy.types.Curve.octane
         del bpy.types.MetaBall.octane
 
@@ -1350,6 +1374,7 @@ class OctaneMaterialSettings(bpy.types.PropertyGroup):
 
 
 classes = (
+    OctaneOCIOConfigName,
     OctanePreferences,
     OctaneGeoNode,
     OctaneGeoNodeCollection,
@@ -1366,9 +1391,10 @@ def load_handler(scene):
     pass
 
 def register():    
-    from bpy.utils import register_class	
+    from bpy.utils import register_class    
     for cls in classes:
-        register_class(cls) 
+        register_class(cls)
+    from octane import nodeitems_octane
     shader_node_categories = nodeitems_octane.shader_node_categories_based_functions
     texture_node_categories = nodeitems_octane.texture_node_categories_based_functions
     try:

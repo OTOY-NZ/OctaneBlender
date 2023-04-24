@@ -3,7 +3,6 @@
 # Attribute Type
 class AttributeType:
     AT_UNKNOWN = 0
-    AT_UNKNOWN = 0
     AT_BOOL = 1
     AT_INT = 2
     AT_INT2 = 3
@@ -23,7 +22,6 @@ class AttributeType:
 
 # Pin Type
 class PinType:
-    PT_UNKNOWN = 0
     PT_UNKNOWN = 0
     PT_BOOL = 1
     PT_FLOAT = 2
@@ -1342,6 +1340,11 @@ class PinID:
     P_NUMBER = 882
     P_ENABLED_COLOR = 883
     P_DISABLED_COLOR = 884
+    P_TEMPERATURE_MAX = 886
+    P_TEMPERATURE_MIN = 887
+    P_IOR = 951
+    P_COATING_IOR = 952
+    P_FILM_IOR = 953
 
 
 # Attribute ID

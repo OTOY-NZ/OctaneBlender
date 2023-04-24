@@ -32,14 +32,23 @@
 #include "util/util_foreach.h"
 #include "util/util_md5.h"
 #include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string_regex.hpp>
 #include <boost/assign.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/optional/optional.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/xml_parser.hpp>
+#include <boost/range/algorithm_ext/erase.hpp>
 #include <unordered_set>
 
 OCT_NAMESPACE_BEGIN
 
 using namespace boost::filesystem;
 using namespace boost::assign;
+using boost::property_tree::ptree;
+using boost::property_tree::read_xml;
+using boost::property_tree::write_xml;
 
 typedef map<void *, ShaderNode *> PtrNodeMap;
 typedef pair<ShaderNode *, std::string> SocketPair;
@@ -1030,7 +1039,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       int octane_static_pin_count = OctaneInfo::instance().get_static_pin_count(octane_node_type);
       std::vector<::OctaneDataTransferObject::OctaneDTOBase *> octane_dtos;
       BlenderSocketVisitor visitor(prefix_name, b_node, link_resolver);
-// clang-format off
+      // clang-format off
 	    #define ADD_OCTANE_ATTR_DTO(PROPERTY_TYPE, DTO_CLASS, SOCKET_CONTAINER) \
 	    if (property_type == PROPERTY_TYPE) { \
 		    octane_node->SOCKET_CONTAINER.emplace_back(::OctaneDataTransferObject::DTO_CLASS(dto_name, false)); \
@@ -1281,7 +1290,6 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
                                                          "_" + name;
               Transform octane_tfm = OCTANE_MATRIX * get_transform(b_ob.matrix_world());
               float3 dir = transform_get_column(&octane_tfm, 2);
-              dir *= -1;
               OctaneDataTransferObject::OctaneFloatValue *oct_float_node =
                   (OctaneDataTransferObject::OctaneFloatValue *)object_data_output_node->oct_node;
               oct_float_node->f3Value.fVal.x = dir.x;
@@ -1330,6 +1338,9 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               BL::ID b_ob_data = b_ob.data();
               std::string geo_name = resolve_octane_name(
                   b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+              if (b_ob.mode() == b_ob.mode_EDIT) {
+                geo_name += "[EDIT_MODE]";
+              }
               OctaneDataTransferObject::OctanePlacement *oct_placement_node =
                   (OctaneDataTransferObject::OctanePlacement *)
                       object_data_geo_output_node->oct_node;
@@ -1949,12 +1960,20 @@ static void resolve_octane_outputs(std::string shader_name,
   if (is_shader_node) {
     BL::ShaderNodeTree b_shader_ntree(b_ntree);
     output_node = b_shader_ntree.get_output_node(BL::ShaderNodeOutputMaterial::target_octane);
+    if (graph->type == SHADER_GRAPH_ENVIRONMENT) {
+      if (output_node.ptr.data == NULL) {
+        output_node = BlenderSync::find_active_environment_output(b_ntree);
+      }
+    }
   }
   else if (graph->type == SHADER_GRAPH_RENDER_AOV) {
     output_node = BlenderSync::find_active_render_aov_output(b_ntree);
   }
   else if (graph->type == SHADER_GRAPH_COMPOSITE) {
     output_node = BlenderSync::find_active_composite_aov_output(b_ntree);
+  }
+  else if (graph->type == SHADER_GRAPH_KERNEL) {
+    output_node = BlenderSync::find_active_kernel_output(b_ntree);
   }
 
   if (output_node.ptr.data) {
@@ -2024,11 +2043,22 @@ static void resolve_octane_outputs(std::string shader_name,
               link_resolver.add_octane_output(current_name, ENVIRONMENT_NODE_NAME);
             }
           }
+          else if (b_to_node.bl_idname() == "OctaneEditorWorldOutputNode") {
+            if (b_to_sock.name() == "Visible Environment") {
+              link_resolver.add_octane_output(current_name, VISIBLE_ENVIRONMENT_NODE_NAME);
+            }
+            else if (b_to_sock.name() == "Environment") {
+              link_resolver.add_octane_output(current_name, ENVIRONMENT_NODE_NAME);
+            }
+          }
           else if (b_to_node.bl_idname() == "OctaneRenderAOVsOutputNode") {
             link_resolver.add_octane_output(current_name, OCTANE_BLENDER_RENDER_AOV_NODE);
           }
           else if (b_to_node.bl_idname() == "OctaneAOVOutputGroupOutputNode") {
             link_resolver.add_octane_output(current_name, OCTANE_BLENDER_AOV_OUTPUT_NODE);
+          }
+          else if (b_to_node.bl_idname() == "OctaneKernelOutputNode") {
+            link_resolver.add_octane_output(current_name, OCTANE_BLENDER_KERNEL_NODE);
           }
           else {
             bool is_octane_proxy_node = false;
@@ -2220,7 +2250,8 @@ static void add_graph_nodes(std::string prefix_name,
 
   bool enable_node_graph_upload_opt = b_ntree.type() == BL::NodeTree::type_SHADER ||
                                       graph->type == SHADER_GRAPH_COMPOSITE ||
-                                      graph->type == SHADER_GRAPH_RENDER_AOV;
+                                      graph->type == SHADER_GRAPH_RENDER_AOV ||
+                                      graph->type == SHADER_GRAPH_KERNEL;
   std::set<std::string> reachable_nodes;
   std::queue<std::string> currents_nodes_name_list;
 
@@ -2229,12 +2260,20 @@ static void add_graph_nodes(std::string prefix_name,
     if (b_ntree.type() == BL::NodeTree::type_SHADER) {
       BL::ShaderNodeTree b_shader_ntree(b_ntree);
       output_node = b_shader_ntree.get_output_node(BL::ShaderNodeOutputMaterial::target_octane);
+      if (graph->type == SHADER_GRAPH_ENVIRONMENT) {
+        if (output_node.ptr.data == NULL) {
+          output_node = BlenderSync::find_active_environment_output(b_ntree);
+        }
+      }
     }
     if (graph->type == SHADER_GRAPH_COMPOSITE) {
       output_node = BlenderSync::find_active_composite_aov_output(b_ntree);
     }
     if (graph->type == SHADER_GRAPH_RENDER_AOV) {
       output_node = BlenderSync::find_active_render_aov_output(b_ntree);
+    }
+    if (graph->type == SHADER_GRAPH_KERNEL) {
+      output_node = BlenderSync::find_active_kernel_output(b_ntree);
     }
     if (output_node.ptr.data) {
       currents_nodes_name_list.emplace(output_node.name());
@@ -2250,6 +2289,9 @@ static void add_graph_nodes(std::string prefix_name,
     while (!currents_nodes_name_list.empty()) {
       std::string current_name = currents_nodes_name_list.front();
       currents_nodes_name_list.pop();
+      if (current_name.length() == 0) {
+        continue;
+      }
       reachable_nodes.emplace(current_name);
       for (b_ntree.links.begin(b_link); b_link != b_ntree.links.end(); ++b_link) {
         BL::Node b_from_node = b_link->from_node();
@@ -2541,7 +2583,31 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, bool update_all)
   BL::World b_world = b_scene.world();
   Shader *shader = scene->default_environment;
   bool need_force_update = shader && shader->has_object_dependency;
-
+  int32_t current_world_node_tree_link_num = 0;
+  if (b_world.ptr.data != NULL && b_world.use_nodes()) {
+    BL::ShaderNodeTree b_ntree(b_world.node_tree());
+    BL::Node custom_node_output = find_active_environment_output(b_ntree);
+    // Use custom output node
+    if (custom_node_output.ptr.data != NULL) {
+      std::stringstream ss;
+      ss << custom_node_output.bl_idname();
+      BL::NodeTree::links_iterator it_link;
+      for (b_ntree.links.begin(it_link); it_link != b_ntree.links.end(); ++it_link) {
+        ss << it_link->ptr.data;
+      }
+      std::string current_tag = ss.str();
+      if (current_tag != world_custom_node_tree_content_tag) {
+        world_custom_node_tree_content_tag = current_tag;
+        need_force_update = true;
+      }
+    }
+    else {
+      world_custom_node_tree_content_tag = "";
+    }
+  }
+  else {
+    world_custom_node_tree_content_tag = "";
+  }
   if (world_recalc || update_all || b_world.ptr.data != world_map || need_force_update) {
     ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_ENVIRONMENT);
 
@@ -2708,6 +2774,185 @@ void BlenderSync::sync_composites(BL::Depsgraph &b_depsgraph, bool update_all)
   }
 }
 
+void add_custom_node_bool_property(OctaneDataTransferObject::OctaneCustomNode *node,
+                                   std::string property_name,
+                                   bool use_socket,
+                                   bool use_link,
+                                   std::string link_name,
+                                   bool value)
+{
+  node->oBoolSockets.emplace_back(OctaneDataTransferObject::OctaneDTOBool(property_name));
+  OctaneDataTransferObject::OctaneDTOBool *dto_ptr =
+      &node->oBoolSockets[node->oBoolSockets.size() - 1];
+  dto_ptr->bUseSocket = use_socket;
+  dto_ptr->bUseLinked = use_link;
+  dto_ptr->sLinkNodeName = link_name;
+  dto_ptr->bVal = value;
+}
+
+void add_custom_node_int_property(OctaneDataTransferObject::OctaneCustomNode *node,
+                                  std::string property_name,
+                                  bool use_socket,
+                                  bool use_link,
+                                  std::string link_name,
+                                  int32_t value)
+{
+  node->oIntSockets.emplace_back(OctaneDataTransferObject::OctaneDTOInt(property_name));
+  OctaneDataTransferObject::OctaneDTOInt *dto_ptr =
+      &node->oIntSockets[node->oIntSockets.size() - 1];
+  dto_ptr->bUseSocket = use_socket;
+  dto_ptr->bUseLinked = use_link;
+  dto_ptr->sLinkNodeName = link_name;
+  dto_ptr->iVal = value;
+}
+
+void add_custom_node_enum_property(OctaneDataTransferObject::OctaneCustomNode *node,
+                                   std::string property_name,
+                                   bool use_socket,
+                                   bool use_link,
+                                   std::string link_name,
+                                   int32_t value)
+{
+  node->oEnumSockets.emplace_back(OctaneDataTransferObject::OctaneDTOEnum(property_name));
+  OctaneDataTransferObject::OctaneDTOEnum *dto_ptr =
+      &node->oEnumSockets[node->oEnumSockets.size() - 1];
+  dto_ptr->bUseSocket = use_socket;
+  dto_ptr->bUseLinked = use_link;
+  dto_ptr->sLinkNodeName = link_name;
+  dto_ptr->iVal = value;
+}
+
+void add_custom_node_float_property(OctaneDataTransferObject::OctaneCustomNode *node,
+                                    std::string property_name,
+                                    bool use_socket,
+                                    bool use_link,
+                                    std::string link_name,
+                                    float value)
+{
+  node->oFloatSockets.emplace_back(OctaneDataTransferObject::OctaneDTOFloat(property_name));
+  OctaneDataTransferObject::OctaneDTOFloat *dto_ptr =
+      &node->oFloatSockets[node->oFloatSockets.size() - 1];
+  dto_ptr->bUseSocket = use_socket;
+  dto_ptr->bUseLinked = use_link;
+  dto_ptr->sLinkNodeName = link_name;
+  dto_ptr->fVal = value;
+}
+
+void BlenderSync::sync_kernel_node_tree(BL::Depsgraph &b_depsgraph, bool update_all)
+{
+  if (this->kernel_node_tree.ptr.data == NULL) {
+    return;
+  }
+  shader_map.set_default(scene->default_kernel_node_tree);
+
+  Shader *shader;
+  bool need_sync = shader_map.sync(&shader, this->kernel_node_tree);
+  need_sync |= shader && (shader->need_update || shader->has_object_dependency);
+
+  if (scene->kernel && scene->kernel->oct_node->bUseNodeTree && scene->kernel->need_update) {
+    need_sync = true;
+  }
+  ::OctaneEngine::Kernel *oct_kernel_node = scene->kernel->oct_node;
+
+  if (need_sync || update_all) {
+    BL::NodeTree b_ntree = this->kernel_node_tree;
+    ShaderGraph *graph = new ShaderGraph(SHADER_GRAPH_KERNEL);
+    shader->name = b_ntree.name();
+    bool is_auto_refresh = false;
+    LinkResolver link_resolver(b_engine, b_scene, b_data);
+    resolve_octane_outputs(
+        shader->name, shader->name, scene, b_data, b_scene, graph, b_ntree, link_resolver, false);
+    generate_sockets_map(shader->name, scene, b_data, b_scene, graph, b_ntree, link_resolver);
+    add_graph_nodes(shader->name,
+                    scene,
+                    b_engine,
+                    b_data,
+                    b_scene,
+                    graph,
+                    b_ntree,
+                    is_auto_refresh,
+                    link_resolver);
+
+    {
+      // Preview samples & Final render samples
+      if (preview) {
+        if (oct_kernel_node->iMaxSamples > 0) {
+          list<ShaderNode *>::iterator it;
+          for (it = graph->nodes.begin(); it != graph->nodes.end(); ++it) {
+            ShaderNode *node = *it;
+            if (node->oct_node && node->oct_node->sName == OCTANE_BLENDER_KERNEL_NODE) {
+              ::OctaneDataTransferObject::OctaneCustomNode *kernel_shader_node =
+                  (::OctaneDataTransferObject::OctaneCustomNode *)node->oct_node;
+              ::OctaneDataTransferObject::OctaneDTOInt *dto_final_sample = NULL;
+              for (size_t i = 0; i < kernel_shader_node->oIntSockets.size(); ++i) {
+                ::OctaneDataTransferObject::OctaneDTOInt *int_dto =
+                    &kernel_shader_node->oIntSockets[i];
+                if (int_dto->sName == "Max. samples") {
+                  int_dto->iVal = oct_kernel_node->iMaxSamples;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    {
+      // Animation Settings
+      ::OctaneDataTransferObject::OctaneCustomNode *animation_setting =
+          new ::OctaneDataTransferObject::OctaneCustomNode();
+      animation_setting->sName = OCTANE_BLENDER_ANIMATION_SETTING_NODE;
+      animation_setting->iOctaneNodeType = 99;  // NT_ANIMATION_SETTINGS = 99
+      add_custom_node_enum_property(
+          animation_setting, "Shutter alignment", true, false, "", oct_kernel_node->mbAlignment);
+      add_custom_node_float_property(
+          animation_setting, "Shutter time", true, false, "", oct_kernel_node->fShutterTime);
+      add_custom_node_float_property(
+          animation_setting, "Subframe start", true, false, "", oct_kernel_node->fSubframeStart);
+      add_custom_node_float_property(
+          animation_setting, "Subframe end", true, false, "", oct_kernel_node->fSubframeEnd);
+      animation_setting->sCustomDataBody = std::to_string(oct_kernel_node->fCurrentTime);
+      graph->add(new ShaderNode(animation_setting));
+    }
+    {
+      // Render Layer
+      ::OctaneDataTransferObject::OctaneCustomNode *render_layer =
+          new ::OctaneDataTransferObject::OctaneCustomNode();
+      render_layer->sName = OCTANE_BLENDER_RENDER_LAYER_NODE;
+      render_layer->iOctaneNodeType = 90;  // NT_RENDER_LAYER = 90
+      add_custom_node_bool_property(
+          render_layer, "Enable", true, false, "", oct_kernel_node->bLayersEnable);
+      add_custom_node_int_property(
+          render_layer, "Active layer ID", true, false, "", oct_kernel_node->iLayersCurrent);
+      add_custom_node_bool_property(
+          render_layer, "Invert", true, false, "", oct_kernel_node->bLayersInvert);
+      add_custom_node_enum_property(
+          render_layer, "Mode", true, false, "", oct_kernel_node->iClayMode);
+      graph->add(new ShaderNode(render_layer));
+    }
+    {
+      // Render Settings
+      ::OctaneDataTransferObject::OctaneCustomNode *render_settings =
+          new ::OctaneDataTransferObject::OctaneCustomNode();
+      render_settings->sName = "updateRenderSettings";
+      render_settings->sCustomDataHeader = "[COMMAND]UTILS_FUNCTION";
+      render_settings->iOctaneNodeType = 11;  // UPDATE_RENDER_SETTINGS = 11
+      ptree pt;
+      ptree &data_pt = pt.add("updateRenderSettings", "");
+      data_pt.put("<xmlattr>.clayMode", oct_kernel_node->iClayMode);
+      data_pt.put("<xmlattr>.subsamplingMode", oct_kernel_node->iSubsampleMode);
+      std::ostringstream ss;
+      write_xml(ss, pt);
+      render_settings->sCustomDataBody = ss.str();
+      graph->add(new ShaderNode(render_settings));
+    }
+
+    shader->set_graph(graph);
+    shader->tag_update(scene);
+  }
+}
+
 void BlenderSync::sync_render_aov_node_tree(BL::Depsgraph &b_depsgraph, bool update_all)
 {
   if (this->render_aov_node_tree.ptr.data == NULL) {
@@ -2760,6 +3005,7 @@ void BlenderSync::sync_shaders(BL::Depsgraph &b_depsgraph)
   sync_textures(b_depsgraph, auto_refresh_update);
   sync_composites(b_depsgraph, auto_refresh_update);
   sync_render_aov_node_tree(b_depsgraph, auto_refresh_update);
+  sync_kernel_node_tree(b_depsgraph, auto_refresh_update);
 
   /* false = don't delete unused shaders, not supported */
   shader_map.post_sync(false);
@@ -2773,6 +3019,38 @@ void BlenderSync::find_shader(BL::ID &id,
 
   used_shaders.push_back(shader);
   shader->tag_used(scene);
+}
+
+BL::Node BlenderSync::find_active_environment_output(BL::NodeTree &node_tree)
+{
+  BL::Node active_output(PointerRNA_NULL);
+  BL::NodeTree::nodes_iterator b_node;
+  for (node_tree.nodes.begin(b_node); b_node != node_tree.nodes.end(); ++b_node) {
+    if (b_node->bl_idname() == "OctaneEditorWorldOutputNode") {
+      bool active = get_boolean(b_node->ptr, "active");
+      if (active) {
+        active_output = BL::Node(b_node->ptr);
+        break;
+      }
+    }
+  }
+  return active_output;
+}
+
+BL::Node BlenderSync::find_active_kernel_output(BL::NodeTree &node_tree)
+{
+  BL::Node active_output(PointerRNA_NULL);
+  BL::NodeTree::nodes_iterator b_node;
+  for (node_tree.nodes.begin(b_node); b_node != node_tree.nodes.end(); ++b_node) {
+    if (b_node->bl_idname() == "OctaneKernelOutputNode") {
+      bool active = get_boolean(b_node->ptr, "active");
+      if (active) {
+        active_output = BL::Node(b_node->ptr);
+        break;
+      }
+    }
+  }
+  return active_output;
 }
 
 BL::Node BlenderSync::find_active_render_aov_output(BL::NodeTree &node_tree)
