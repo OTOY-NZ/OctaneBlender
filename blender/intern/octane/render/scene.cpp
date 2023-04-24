@@ -18,18 +18,18 @@
 
 #include <stdlib.h>
 
-#include "scene.h"
-#include "session.h"
 #include "render/camera.h"
 #include "render/environment.h"
-#include "render/passes.h"
 #include "render/kernel.h"
 #include "render/light.h"
 #include "render/mesh.h"
 #include "render/object.h"
 #include "render/particles.h"
+#include "render/passes.h"
 #include "render/scene.h"
 #include "render/shader.h"
+#include "scene.h"
+#include "session.h"
 #include "util/util_foreach.h"
 #include "util/util_progress.h"
 
@@ -149,14 +149,21 @@ void Scene::server_update(::OctaneEngine::OctaneClient *server_,
     if (progress.get_cancel())
       break;
 
-    progress.set_status("Updating Passes");
-    passes->server_update(server, this, interactive);
+    if (!this->is_addon_mode() || !passes->oct_node->bUseRenderAOV) {
+      progress.set_status("Updating Passes");
+      passes->server_update(server, this, interactive);
+    }
+    else {
+      passes->need_update = false;
+    }
 
     if (progress.get_cancel())
       break;
 
-    progress.set_status("Updating Kernel");
-    kernel->server_update(server, this, interactive);
+	if (!this->is_addon_mode()) {
+      progress.set_status("Updating Kernel");
+      kernel->server_update(server, this, interactive);
+    }
 
     if (progress.get_cancel())
       break;
@@ -205,7 +212,7 @@ void Scene::generate_updated_octane_objects_data(
   octane_objects.fMatrixMap.clear();
   std::unordered_set<std::string> added_octane_object;
 
-  std::vector<OctaneScatter*> octane_scatters;
+  std::vector<OctaneScatter *> octane_scatters;
 
   if (is_light_object) {
     octane_scatters.insert(octane_scatters.end(), lights.begin(), lights.end());
@@ -230,12 +237,12 @@ void Scene::generate_updated_octane_objects_data(
             octane_scatter->motion_blur_transforms.end()) {
 
           if (candidate_motion_time < min_time) {
-            octane_scatter->update_motion_blur_transforms(candidate_motion_time,
-                                                  octane_scatter->motion_blur_transforms[min_time]);
+            octane_scatter->update_motion_blur_transforms(
+                candidate_motion_time, octane_scatter->motion_blur_transforms[min_time]);
           }
           else if (candidate_motion_time > max_time) {
-            octane_scatter->update_motion_blur_transforms(candidate_motion_time,
-                                                  octane_scatter->motion_blur_transforms[max_time]);
+            octane_scatter->update_motion_blur_transforms(
+                candidate_motion_time, octane_scatter->motion_blur_transforms[max_time]);
           }
         }
       }
@@ -251,7 +258,7 @@ void Scene::generate_updated_octane_objects_data(
       // Set and upload empty object to make it removed in the server
       OctaneDataTransferObject::OctaneObject object;
       object.sObjectName = name;
-      object.iInstanceSize = 0;	 
+      object.iInstanceSize = 0;
       object.iInstanceId = 0;
       object.iSamplesNum = 1;
       object.iUseObjectLayer = OctaneDataTransferObject::OctaneObject::NO_OBJECT_LAYER;

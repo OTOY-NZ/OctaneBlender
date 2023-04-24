@@ -72,7 +72,6 @@ endif()
 
 set(ADDON_FILES
 	addon/__init__.py
-	addon/octane_server.py
 	addon/engine.py
 	addon/operators.py
 	addon/presets.py
@@ -89,6 +88,26 @@ set(ADDON_BIN_FILES
   addon/bin/octane_blender_client.pyd
 )
 
+set(ADDON_CORE_FILES
+  addon/core/__init__.py
+  addon/core/client.py
+  addon/core/session.py
+  addon/core/caches.py
+  addon/core/octane_node.py
+)
+
+set(ADDON_UI_FILES
+  addon/uis/__init__.py
+  addon/uis/common.py
+  addon/uis/scene.py
+)
+
+set(ADDON_PROPERTY_FILES
+  addon/properties_/__init__.py
+  addon/properties_/common.py
+  addon/properties_/scene.py
+)
+
 set(ADDON_NODES_FILES
   addon/nodes/__init__.py
   addon/nodes/base_node.py
@@ -96,6 +115,8 @@ set(ADDON_NODES_FILES
   addon/nodes/base_socket.py
   addon/nodes/base_osl.py
   addon/nodes/base_image.py
+  addon/nodes/base_color_ramp.py
+  addon/nodes/base_kernel.py
   addon/nodes/base_output_node.py
   addon/nodes/base_output_socket.py
   addon/nodes/node_items.py
@@ -460,11 +481,15 @@ set(ADDON_NODES_VALUES_FILES
 set(ADDON_NODES_TOOLS_FILES
     addon/nodes/tools/__init__.py
     addon/nodes/tools/octane_proxy.py
+    addon/nodes/tools/octane_object_data.py
+    addon/nodes/tools/octane_camera_data.py
 )
 
 set(ADDON_NODES_NODE_TREES_FILES
   addon/nodes/node_trees/__init__.py
+  addon/nodes/node_trees/camera_imager_node_tree.py
   addon/nodes/node_trees/composite_node_tree.py
+  addon/nodes/node_trees/kernel_node_tree.py
   addon/nodes/node_trees/render_aov_node_tree.py
 )
 
@@ -505,10 +530,13 @@ add_dependencies(bf_intern_octane bf_rna)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_FILES}" ${OCTANE_INSTALL_PATH})
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_BIN_FILES}" ${OCTANE_INSTALL_PATH}/bin)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_CORE_FILES}" ${OCTANE_INSTALL_PATH}/core)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_FILES}" ${OCTANE_INSTALL_PATH}/nodes)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_RENDER_SETTINGS_FILES}" ${OCTANE_INSTALL_PATH}/nodes/render_settings)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_NODE_TREES_FILES}" ${OCTANE_INSTALL_PATH}/nodes/node_trees)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_NODES_UTIL_FILES}" ${OCTANE_INSTALL_PATH}/utils)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_UI_FILES}" ${OCTANE_INSTALL_PATH}/uis)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_PROPERTY_FILES}" ${OCTANE_INSTALL_PATH}/properties_)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${OBJECT_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/objects)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ORBX_LIBRARY}" ${OCTANE_INSTALL_PATH}/libraries/orbx)
 

@@ -4,8 +4,10 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -48,60 +50,33 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-import bpy
-from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
-from bpy.props import EnumProperty, StringProperty
-from ...utils import consts
-from ...utils import ocio
-from ..base_node import OctaneBaseNode
-from ..base_socket import OctaneBaseSocket
+from octane.utils import ocio
 
+class OctaneOCIOColorSpace_Override(OctaneOCIOColorSpace):
+    BLENDER_ATTRIBUTE_COLOR_SPACE_NAME = "COLOR_SPACE_NAME"
 
-class OctaneNodeOcioColorSpaceSocket(OctaneBaseSocket):
-    bl_label = "OctaneNodeOcioColorSpaceSocket"
-    bl_idname = "OctaneNodeOcioColorSpaceSocket"    
-    color = consts.SOCKET_COLOR_OCIO_COLOR_SPACE
-    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_OCIO_COLOR_SPACE)
-    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_OUTPUT)
+    def a_ocio_color_space_name_set(self, value):
+        self["ocio_color_space_name"] = value
+        self.formatted_ocio_color_space_name = ocio.OctaneOCIOManagement().get_formatted_ocio_color_space_name(value)
 
+    def a_ocio_color_space_name_get(self):
+        return self.get("ocio_color_space_name", "")
 
-class OctaneNodeOcioColorSpace(bpy.types.Node, OctaneBaseNode):
-    bl_label = "OctaneNodeOcioColorSpace"
-    bl_idname = "OctaneNodeOcioColorSpace"
-    bl_width_default = 160
+    ocio_color_space_name: StringProperty(name="Color space", set=a_ocio_color_space_name_set, get=a_ocio_color_space_name_get, description="The selected non-OCIO color space, or NAMED_COLOR_SPACE_OCIO if an OCIO color space is selected")
+    formatted_ocio_color_space_name: StringProperty(name="Formatted ocio color space")
     
-    def ocio_color_space_set(self, value):
-        self["ocio_color_space"] = value
-        self.formatted_ocio_color_space = ocio.OctaneOCIOManagement().get_formatted_ocio_color_space_name(value)
-
-    def ocio_color_space_get(self):
-        return self.get("ocio_color_space", "")
-
-    ocio_color_space: StringProperty(name="Ocio color space", set=ocio_color_space_set, get=ocio_color_space_get)
-    formatted_ocio_color_space: StringProperty(name="Formatted ocio color space")
-
     def init(self, context):
-        self.outputs.new("OctaneNodeOcioColorSpaceSocket", "OutColorSpace")
-
-    def free(self):
-        print("OctaneNodeOcioColorSpace free")
+        super().init(context)
+        utility.remove_attribute_list(self, "a_color_space;a_ocio_color_space_name;")
 
     def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
         col = layout.column(align=True)
         preference, collection_name = ocio.OctaneOCIOManagement().get_ocio_color_space_collection_config()
-        col.prop_search(self, "ocio_color_space", preference, collection_name)
+        col.prop_search(self, "ocio_color_space_name", preference, collection_name)        
 
+    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
+        super().sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
+        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_COLOR_SPACE_NAME, consts.AttributeType.AT_STRING, self.formatted_ocio_color_space_name)
 
-def final_register(): 
-    from bpy.utils import register_class
-    register_class(OctaneNodeOcioColorSpaceSocket)
-    register_class(OctaneNodeOcioColorSpace)
-
-
-def final_unregister():
-    from bpy.utils import unregister_class
-    unregister_class(OctaneNodeOcioColorSpace)
-    unregister_class(OctaneNodeOcioColorSpaceSocket)
-    
-register = final_register
-unregister = final_unregister
+utility.override_class(_CLASSES, OctaneOCIOColorSpace, OctaneOCIOColorSpace_Override)

@@ -1,6 +1,20 @@
 ENGINE_NAME = "octane"
 ADDON_NAME = "octane"
 
+DERIVED_NODE_NAMES = "DERIVED_NODE_NAMES"
+DERIVED_NODE_TYPES = "DERIVED_NODE_TYPES"
+DERIVED_NODE_SEPARATOR = "###DERIVED_NODE_SEPARATOR###"
+
+OCTANE_HELPER_NODE_GROUP = "[OCTANE_HELPER_NODE_GROUP]"
+
+# Render Session type
+class SessionType:
+    UNKNOWN = 0
+    VIEWPORT = 1
+    FINAL_RENDER = 2
+    PREVIEW = 3
+    EXPORT = 4
+
 # Socket type
 class SocketType:
     ST_UNKNOWN = 0
@@ -88,7 +102,8 @@ class AttributeType:
 # Pin color
 class OctanePinColor:
     Default = (1, 1, 1, 1)
-    GroupTitle = (0, 0, 0, 0)    
+    GroupTitle = (0, 0, 0, 0)
+    BlenderEditor = (0.7, 0.7, 0.7, 0.7)
     Bool = (0.87, 0.66, 0.83, 0.70)
     Float = (0.50, 0.70, 0.90, 0.70)
     Int = (1.00, 0.84, 0.17, 0.70)
@@ -134,7 +149,9 @@ class OctanePinColor:
 # Octane NodeTree
 class OctaneNodeTree:
     GENERAL = "OCTANE_TREE"
+    CAMERA_IMAGER = "OCTANE_CAMERA_IMAGER_TREE"
     COMPOSITE = "OCTANE_COMPOSITE_TREE"
+    KERNEL = "OCTANE_KERNEL_TREE"
     RENDER_AOV = "OCTANE_RENDER_AOV_TREE"
     BLENDER_SHADER = "OCTANE_SHADER_TREE"
     BLENDER_TEXTURE = "OCTANE_TEXTURE_TREE"
@@ -145,16 +162,53 @@ class OctaneNodeTreeIDName:
     GENERAL = "octane_general_nodes"
     MATERIAL = "octane_material_nodes"
     TEXTURE = "octane_texture_nodes"
+    WORLD = "octane_world_nodes"
+    CAMERA_IMAGER = "octane_camera_imager_nodes"
     COMPOSITE = "octane_composite_nodes"
-    RENDER_AOV = "octane_render_aov_nodes"
+    KERNEL = "octane_kernel_nodes"
+    RENDER_AOV = "octane_render_aov_nodes"        
     BLENDER_SHADER = "ShaderNodeTree"
-    BLENDER_TEXTURE = "TextureNodeTree"    
+    BLENDER_TEXTURE = "TextureNodeTree"
+
+
+# Octane Preset Node Tree Names
+class OctanePresetNodeTreeNames:
+    KERNEL = "OCTANE_KERNEL"
+    CAMERA_IMAGER = "OCTANE_CAMERA_IMAGER"
+
+
+# Octane Preset Node Names
+class OctanePresetNodeNames:
+    ENVIRONMENT = "OCTANE_BLENDER_ENVIRONMENT"
+    VISIBLE_ENVIRONMENT = "OCTANE_BLENDER_VISIBLE_ENVIRONMENT"
+    COMPOSITE = "OCTANE_BLENDER_RENDER_AOV_NODE"
+    RENDER_AOV = "OCTANE_BLENDER_RENDER_AOV_NODE"
+
+
+# Octane OutputNode Socket Names
+class OctaneOutputNodeSocketNames:
+    TEXTURE = "Texture"
+    SURFACE = "Surface"
+    VOLUME = "Volume"
+    GEOMETRY = "Geometry"
+    ENVIRONMENT = "Environment"
+    VISIBLE_ENVIRONMENT = "Visible Environment"
+    LEGACY_GEOMETRY = "Octane Geometry"
+    LEGACY_ENVIRONMENT = "Octane Environment"
+    LEGACY_VISIBLE_ENVIRONMENT = "Octane VisibleEnvironment"
+    COMPOSITE = "AOVOutputGroup"
+    RENDER_AOV = "RenderAOVs"
 
 
 # Node type
-NT_UNKNOWN = 0
-NT_BLENDER_NODE_OFFSET = -100000
-NT_BLENDER_NODE_OCTANE_PROXY = -100001
+class NodeType:
+    NT_UNKNOWN = 0
+    NT_RENDERTARGET = 56
+    NT_BLENDER_NODE_OFFSET = -100000
+    NT_BLENDER_NODE_OCTANE_PROXY = -100001
+    NT_BLENDER_NODE_OBJECT_DATA = -100002
+    NT_BLENDER_NODE_CAMERA_DATA = -100003
+    NT_BLENDER_NODE_IMAGE_INFO = -100004
 
 # Pin Id
 P_INVALID = -1

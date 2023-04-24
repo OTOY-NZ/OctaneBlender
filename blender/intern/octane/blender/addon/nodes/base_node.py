@@ -3,7 +3,7 @@ import re
 import xml.etree.ElementTree as ET
 from bpy.utils import register_class, unregister_class
 from bpy.props import BoolProperty, IntProperty, StringProperty, EnumProperty
-from octane.octane_server import OctaneServer, RpcProtocol, RpcProtocolType
+from octane.core.octane_node import OctaneNode, OctaneNodeType
 from octane.utils import consts
 
 
@@ -19,7 +19,7 @@ class OctaneBaseNode(object):
     octane_render_pass_sub_type_name=""
     octane_min_version=0
     octane_end_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=consts.NT_UNKNOWN)    
+    octane_node_type: IntProperty(name="Octane Node Type", default=consts.NodeType.NT_UNKNOWN)    
     octane_socket_list: StringProperty(name="Socket List", default="")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
@@ -32,7 +32,13 @@ class OctaneBaseNode(object):
     def draw_buttons(self, context, layout):
         pass
 
+    def use_mulitple_outputs(self):
+        return False
+
     def auto_refresh(self):
+        return False
+
+    def is_octane_image_node(self):
         return False
 
     def add_input(self, type, name, default, enabled=True):
@@ -92,19 +98,13 @@ class OctaneBaseNode(object):
             return self.octane_render_pass_description
         return self.octane_render_pass_description[sub_type] 
 
-    def get_octane_name(self, prefix_name):
-        return prefix_name + "_" + self.name
-
     def get_attribute_value(self, attribute_name, attribute_type):
         attribute_value = getattr(self, attribute_name, None)
         if attribute_type == consts.AttributeType.AT_INT and type(attribute_value) == str:
             attribute_value = self.rna_type.properties[attribute_name].enum_items[attribute_value].value
         return attribute_value
 
-    def sync_data(self, prefix_name="", scene=None):
-        rpc_protocol = RpcProtocol(RpcProtocolType.SYNC_NODE)
-        rpc_protocol.set_name(self.get_octane_name(prefix_name))
-        rpc_protocol.set_node_type(self.octane_node_type)
+    def sync_data(self, octane_node, octane_graph_node_data, owner_type, scene=None, is_viewport=True):
         if not hasattr(self.__class__, "attribute_names"):
             self.__class__.attribute_names = self.octane_attribute_list.split(";")
         if not hasattr(self.__class__, "attribute_types"):
@@ -116,12 +116,17 @@ class OctaneBaseNode(object):
                 continue
             attribute_type = int(self.__class__.attribute_types[idx])
             attribute_value = self.get_attribute_value(attribute_name, attribute_type)
-            rpc_protocol.set_attribute(attribute_name, attribute_type, attribute_value)
+            octane_node.set_attribute(attribute_name, attribute_type, attribute_value)
         for socket in self.inputs:
-            socket_name = socket.name 
+            data_socket = socket
+            socket_name = socket.name
+            link_node_name = ""
+            if octane_graph_node_data and socket_name in octane_graph_node_data.octane_complicated_sockets:
+                link_node_name = octane_graph_node_data.octane_complicated_sockets[socket_name].linked_node_octane_name
+                if octane_graph_node_data.octane_complicated_sockets[socket_name].mapping_socket:
+                    data_socket = octane_graph_node_data.octane_complicated_sockets[socket_name].mapping_socket
             if socket.is_octane_proxy_pin() or socket.is_octane_osl_pin() or socket.is_octane_dynamic_pin() or socket_name in self.__class__.socket_names:
-                link_node_name = ""
-                default_value = getattr(socket, "default_value", "")
+                default_value = getattr(data_socket, "default_value", "")
                 if socket.octane_socket_type == consts.SocketType.ST_ENUM:
                     for item in socket.items:
                         if item[0] == default_value:
@@ -129,15 +134,10 @@ class OctaneBaseNode(object):
                             break
                     else:
                         default_value = 0
-                if socket.is_linked:
-                    link_node_name = socket.links[0].from_node.get_octane_name(prefix_name)
-                rpc_protocol.set_pin(socket.generate_octane_pin_symbol(), socket_name, socket.octane_socket_type, default_value, socket.is_linked, link_node_name)
-        self.sync_custom_data(rpc_protocol, scene)
-        rpc_protocol.print()
-        reply = OctaneServer().handle_rpc(rpc_protocol)        
-        # return reply
+                octane_node.set_pin(socket.generate_octane_pin_symbol(), socket_name, socket.octane_socket_type, default_value, data_socket.is_linked, link_node_name)
+        self.sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
 
-    def sync_custom_data(self, rpc_protocol, scene):
+    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
         pass
 
     # Export methods
@@ -195,14 +195,6 @@ class OctaneBaseNode(object):
             pass
         ET.SubElement(attributes_data, "attribute", name=attribute_name, type=str(attribute_type)).text = data_text
 
-    # Output node methods
-    @staticmethod
-    def update_output_node_active(output_node, context):
-        output_node.set_active(context, output_node.active)
-        node_tree = output_node.id_data
-        if node_tree:
-            node_tree.update_active_output_name(context, output_node.name, output_node.active)
-
     # Movable inputs methods
     def update_movable_input_count(self, attribute_name, input_socket_bl_idname, input_name_pattern):
         count = 0
@@ -250,8 +242,16 @@ class OctaneBaseNode(object):
 class OctaneBaseOutputNode(OctaneBaseNode):
     """Base class for Octane output nodes"""
 
+    # Output node methods
+    def update_output_node_active(output_node, context):
+        from octane.nodes.base_node_tree import OctaneBaseNodeTree
+        output_node.set_active(context, output_node.active)
+        node_tree = output_node.id_data
+        if node_tree:
+            OctaneBaseNodeTree.update_active_output_name(node_tree, context, output_node.name, output_node.active)
+
     use_custom_color=True
-    active: BoolProperty(name="Active", default=True, update=OctaneBaseNode.update_output_node_active)
+    active: BoolProperty(name="Active", default=True, update=update_output_node_active)
 
     def set_active(self, context, active):
         self["active"] = active
@@ -272,6 +272,9 @@ class OctaneBaseOutputNode(OctaneBaseNode):
         if name in self.inputs:
             return self.inputs[name]
         return None
+
+    def get_octane_name_for_root_node(self, input_name=None, owner_id=None):
+        return owner_id.name if owner_id else ""
 
     def init(self, context):
         self.use_custom_color = OctaneBaseOutputNode.use_custom_color

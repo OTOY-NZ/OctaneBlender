@@ -2,9 +2,12 @@ import nodeitems_utils
 from . import (
 	base_node, 
 	base_socket, 
-	base_osl,
 	base_output_socket, 
 	base_output_node,
+	base_image,
+	base_color_ramp,
+	base_kernel,
+	base_osl,	
 	base_node_tree,
 	node_trees, 
 	node_items
@@ -40,9 +43,12 @@ def register():
 	node_items.register()
 	base_node.register()
 	base_socket.register()
-	base_osl.register()
 	base_output_socket.register()
-	base_output_node.register()
+	base_output_node.register()	
+	base_osl.register()
+	base_image.register()
+	base_kernel.register()
+	base_color_ramp.register()
 	base_node_tree.register()
 	node_trees.register()
 	# Octane auto generated code
@@ -100,5 +106,8 @@ def unregister():
 	base_output_node.unregister()
 	base_output_socket.unregister()
 	base_osl.unregister()
+	base_kernel.unregister()
+	base_color_ramp.unregister()
+	base_image.unregister()
 	base_socket.unregister()
 	node_trees.unregister()

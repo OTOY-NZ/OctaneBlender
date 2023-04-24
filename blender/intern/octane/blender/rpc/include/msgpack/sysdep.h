@@ -116,7 +116,7 @@ typedef unsigned int _msgpack_atomic_counter_t;
 
 #    if defined(_byteswap_uint64) || (defined(_MSC_VER) && _MSC_VER >= 1400)
 #      define _msgpack_be64(x) (_byteswap_uint64(x))
-#    elif defined(bswap_64)
+#    elif defined(__bswap_64)
 #      define _msgpack_be64(x) bswap_64(x)
 #    elif defined(__DARWIN_OSSwapInt64)
 #      define _msgpack_be64(x) __DARWIN_OSSwapInt64(x)

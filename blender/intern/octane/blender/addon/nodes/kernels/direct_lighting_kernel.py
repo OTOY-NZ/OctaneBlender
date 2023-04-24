@@ -4,8 +4,10 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -699,7 +701,7 @@ class OctaneDirectLightingKernelGroupCompatibilitySettings(OctaneGroupTitleSocke
     bl_label="[OctaneGroupTitle]Compatibility settings"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Emulate old volume behavior;")
 
-class OctaneDirectLightingKernel(bpy.types.Node, OctaneBaseNode):
+class OctaneDirectLightingKernel(bpy.types.Node, OctaneBaseKernelNode):
     bl_idname="OctaneDirectLightingKernel"
     bl_label="Direct lighting kernel"
     bl_width_default=200
@@ -842,3 +844,14 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+OctaneDirectLightingKernelGlobalLightIdMask.octane_default_node_type = "OctaneLightIDBitValue"
+OctaneDirectLightingKernelLightPassMask.octane_default_node_type = "OctaneLightIDBitValue"
+
+class OctaneDirectLightingKernel_Override(OctaneDirectLightingKernel):
+
+    def init(self, context):
+        super().init(context)
+        self.init_octane_kernel(context, True)
+
+utility.override_class(_CLASSES, OctaneDirectLightingKernel, OctaneDirectLightingKernel_Override)

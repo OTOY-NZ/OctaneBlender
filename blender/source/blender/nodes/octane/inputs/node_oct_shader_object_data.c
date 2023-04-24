@@ -56,13 +56,15 @@ static void oct_node_object_data_update(bNodeTree *UNUSED(tree), bNode *node)
 
 bool object_data_node_poll(bNodeType *UNUSED(ntype), bNodeTree *ntree, const char **r_disabled_hint)
 {
-  bool is_octane_node_tree = STREQ(ntree->idname, "octane_composite_nodes") ||
-      STREQ(ntree->idname, "octane_render_aov_nodes");
-  if (!(STREQ(ntree->idname, "ShaderNodeTree") || is_octane_node_tree)) {
-    *r_disabled_hint = "Not a shader node tree";
-    return false;
-  }
-  return true;
+  //bool is_octane_node_tree = STREQ(ntree->idname, "octane_composite_nodes") ||
+  //    STREQ(ntree->idname, "octane_render_aov_nodes");
+  //if (!(STREQ(ntree->idname, "ShaderNodeTree") || is_octane_node_tree)) {
+  //  *r_disabled_hint = "Not a shader node tree";
+  //  return false;
+  //}
+  //return true;
+  *r_disabled_hint = "This node is fading out. Please use the Object Data node under the 'Octane Advanced Tools' category";
+  return false;
 }
 
 void register_node_type_oct_object_data(void)

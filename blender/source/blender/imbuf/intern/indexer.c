@@ -24,6 +24,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_endian_defines.h"
 #include "BLI_endian_switch.h"
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
@@ -39,8 +40,6 @@
 #include "IMB_anim.h"
 #include "IMB_indexer.h"
 #include "imbuf.h"
-
-#include "BKE_global.h"
 
 #ifdef WITH_AVI
 #  include "AVI_avi.h"
@@ -358,7 +357,7 @@ int IMB_proxy_size_to_array_index(IMB_Proxy_Size pr_size)
     case IMB_PROXY_100:
       return 3;
     default:
-      BLI_assert(!"Unhandled proxy size enum!");
+      BLI_assert_msg(0, "Unhandled proxy size enum!");
       return -1;
   }
 }
@@ -377,7 +376,7 @@ int IMB_timecode_to_array_index(IMB_Timecode_Type tc)
     case IMB_TC_RECORD_RUN_NO_GAPS:
       return 3;
     default:
-      BLI_assert(!"Unhandled timecode type enum!");
+      BLI_assert_msg(0, "Unhandled timecode type enum!");
       return -1;
   }
 }
@@ -560,8 +559,8 @@ static struct proxy_output_ctx *alloc_proxy_output_ffmpeg(
   rv->c->time_base.num = 1;
   rv->st->time_base = rv->c->time_base;
 
-  /* This range matches eFFMpegCrf. Crf_range_min corresponds to lowest quality, crf_range_max to
-   * highest quality. */
+  /* This range matches #eFFMpegCrf. `crf_range_min` corresponds to lowest quality,
+   * `crf_range_max` to highest quality. */
   const int crf_range_min = 32;
   const int crf_range_max = 17;
   int crf = round_fl_to_int((quality / 100.0f) * (crf_range_max - crf_range_min) + crf_range_min);
@@ -569,9 +568,9 @@ static struct proxy_output_ctx *alloc_proxy_output_ffmpeg(
   AVDictionary *codec_opts = NULL;
   /* High quality preset value. */
   av_dict_set_int(&codec_opts, "crf", crf, 0);
-  /* Prefer smaller file-size. Presets from veryslow to veryfast produce output with very similar
-   * file-size, but there is big difference in performance. In some cases veryfast preset will
-   * produce smallest file-size. */
+  /* Prefer smaller file-size. Presets from `veryslow` to `veryfast` produce output with very
+   * similar file-size, but there is big difference in performance.
+   * In some cases `veryfast` preset will produce smallest file-size. */
   av_dict_set(&codec_opts, "preset", "veryfast", 0);
   av_dict_set(&codec_opts, "tune", "fastdecode", 0);
 
@@ -1119,7 +1118,7 @@ static AviMovie *alloc_proxy_output_avi(
   AviFormat format;
   double framerate;
   AviMovie *avi;
-  /* it doesn't really matter for proxies, but sane defaults help anyways...*/
+  /* It doesn't really matter for proxies, but sane defaults help anyways. */
   short frs_sec = 25;
   float frs_sec_base = 1.0;
 

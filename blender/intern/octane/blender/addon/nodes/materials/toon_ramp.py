@@ -4,8 +4,10 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -56,7 +58,7 @@ class OctaneToonRampMax(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
-class OctaneToonRamp(bpy.types.Node, OctaneBaseNode):
+class OctaneToonRamp(bpy.types.Node, OctaneBaseRampNode):
     bl_idname="OctaneToonRamp"
     bl_label="Toon ramp"
     bl_width_default=200
@@ -99,3 +101,25 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+class OctaneToonRampGradientInterpolationType_Override(OctaneToonRampGradientInterpolationType):
+    items = [
+        ("Constant", "Constant", "", 1),
+        ("Linear", "Linear", "", 2),
+        ("Cubic", "Cubic", "", 3),
+    ]
+    default_value: EnumProperty(default="Linear", update=lambda self, context: self.node.update_color_ramp_interpolation(context), description="Determines how colors are blended", items=items) 
+
+class OctaneToonRamp_Override(OctaneToonRamp):
+    bl_width_default = 300
+    MAX_VALUE_SOCKET = 0
+
+    def init(self, context):
+        super().init(context)        
+        self.init_octane_color_ramp()
+        
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+
+utility.override_class(_CLASSES, OctaneToonRampGradientInterpolationType, OctaneToonRampGradientInterpolationType_Override)
+utility.override_class(_CLASSES, OctaneToonRamp, OctaneToonRamp_Override)

@@ -161,7 +161,7 @@ static Mesh *get_quick_mesh(
             mul_m4_v3(omat, mv->co);
           }
 
-          result->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
+          BKE_mesh_normals_tag_dirty(result);
         }
 
         break;
@@ -248,6 +248,10 @@ static BMesh *BMD_mesh_bm_create(
   BMeshCreateParams bmcp = {false};
   BMesh *bm = BM_mesh_create(&allocsize, &bmcp);
 
+  /* Needed so active layers are set based on `mesh` not `mesh_operand_ob`,
+   * otherwise the wrong active render layer is used, see T92384. */
+  BM_mesh_copy_init_customdata_from_mesh(bm, mesh, &allocsize);
+
   BMeshFromMeshParams params{};
   params.calc_face_normal = true;
   BM_mesh_bm_from_me(bm, mesh_operand_ob, &params);
@@ -283,11 +287,10 @@ static void BMD_mesh_intersection(BMesh *bm,
   /* main bmesh intersection setup */
   /* create tessface & intersect */
   const int looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
-  int tottri;
   BMLoop *(*looptris)[3] = (BMLoop * (*)[3])
       MEM_malloc_arrayN(looptris_tot, sizeof(*looptris), __func__);
 
-  BM_mesh_calc_tessellation_beauty(bm, looptris, &tottri);
+  BM_mesh_calc_tessellation_beauty(bm, looptris);
 
   /* postpone this until after tessellating
    * so we can use the original normals before the vertex are moved */
@@ -364,7 +367,7 @@ static void BMD_mesh_intersection(BMesh *bm,
 
   BM_mesh_intersect(bm,
                     looptris,
-                    tottri,
+                    looptris_tot,
                     bm_face_isect_pair,
                     nullptr,
                     false,
@@ -387,7 +390,7 @@ static void BMD_mesh_intersection(BMesh *bm,
  * Caller owns the returned array. */
 static Array<short> get_material_remap(Object *dest_ob, Object *src_ob)
 {
-  int n = dest_ob->totcol;
+  int n = src_ob->totcol;
   if (n <= 0) {
     n = 1;
   }
@@ -507,7 +510,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
         result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, mesh);
 
         BM_mesh_free(bm);
-        result->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
+        BKE_mesh_normals_tag_dirty(result);
       }
 
       if (result == nullptr) {
@@ -542,7 +545,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
 
           result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, mesh);
           BM_mesh_free(bm);
-          result->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
+          BKE_mesh_normals_tag_dirty(result);
         }
       }
     }
@@ -635,7 +638,6 @@ ModifierTypeInfo modifierType_Boolean = {
     /* modifyMesh */ modifyMesh,
     /* modifyHair */ nullptr,
     /* modifyGeometrySet */ nullptr,
-    /* modifyVolume */ nullptr,
 
     /* initData */ initData,
     /* requiredDataMask */ requiredDataMask,

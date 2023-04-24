@@ -114,6 +114,10 @@ void ShaderManager::server_update(::OctaneEngine::OctaneClient *server,
     return;
 
   for (size_t i = 0; i < cnt; ++i) {
+    if (scene->is_addon_mode()) {
+      break;
+    }
+
     Shader *shader = scene->shaders[i];
     if (!shader->need_update)
       continue;

@@ -15,6 +15,8 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
     DYNAMIC_PIN_TAG = "###DYNAMIC_PIN###"
     OSL_PIN_TAG = "###OSL_PIN###"
     PROXY_PIN_TAG = "###OCTANE_PROXY###"
+    DYNAMIC_PIN_INDEX = "###DYNAMIC_PIN_INDEX###"
+    DYNAMIC_PIN_NAME = "###DYNAMIC_PIN_NAME###"    
 
     bl_label=""
     bl_idname=""
@@ -65,9 +67,9 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
 
     def generate_octane_pin_symbol(self):
         if self.is_octane_proxy_pin():
-            return self.name + self.PROXY_PIN_TAG + str(self.octane_proxy_link_index)
+            return self.DYNAMIC_PIN_NAME + (self.name + self.PROXY_PIN_TAG + str(self.octane_proxy_link_index))
         elif self.is_octane_osl_pin():
-            return self.OSL_PIN_TAG + self.osl_pin_name
+            return self.DYNAMIC_PIN_NAME + (self.OSL_PIN_TAG + self.osl_pin_name)
         elif self.is_octane_dynamic_pin():
             dynamic_pin_id = self.octane_pin_id - self.DYNAMIC_PIN_ID_OFFSET
             if getattr(self, "octane_reversed_input_sockets", False):
@@ -75,7 +77,8 @@ class OctaneBaseSocket(bpy.types.NodeSocket):
                 group_input_num = len(self.octane_sub_movable_inputs) + 1
                 dynamic_pin_count *= group_input_num
                 dynamic_pin_id = dynamic_pin_count - dynamic_pin_id + 1
-            return self.DYNAMIC_PIN_TAG + str(dynamic_pin_id)
+            dynamic_pin_id += self.node.octane_static_pin_count
+            return self.DYNAMIC_PIN_INDEX + str(dynamic_pin_id)
         else:
             return str(self.octane_pin_id)
 
@@ -120,8 +123,33 @@ class OctaneGroupTitleSocket(OctaneBaseSocket):
     octane_hide_value=True
     octane_socket_type: IntProperty(name="Socket Type", default=SocketType.ST_GROUP_TITLE)
 
+    def group_title_socket_show_group_sockets_update_callback(self, context):
+        node = self.node
+        octane_group_sockets = self.octane_group_sockets
+        hide_group_sockets = not self.show_group_sockets
+        if len(octane_group_sockets):
+            for socket_name in self.get_octane_group_socket_names():
+                if len(socket_name) and socket_name in node.inputs:                        
+                    node.inputs[socket_name].hide = hide_group_sockets
+
     octane_group_sockets: StringProperty(name="Group Sockets", default="")
-    show_group_sockets: BoolProperty(name="Show/hide", default=True, description="Show/hide group sockets", update=utility.group_title_socket_show_group_sockets_update_callback)
+    show_group_sockets: BoolProperty(name="Show/hide", default=True, description="Show/hide group sockets", update=group_title_socket_show_group_sockets_update_callback)
+
+    def get_octane_group_socket_names(self, force_update=False):
+        if not hasattr(self.__class__, "group_socket_names") or force_update:
+            self.__class__.group_socket_names = set(self.octane_group_sockets.split(";"))
+        return self.__class__.group_socket_names
+
+    def add_group_socket(self, name):
+        self.octane_group_sockets += (name + ";")
+        self.get_octane_group_socket_names(True)
+
+    def remove_group_socket(self, name):        
+        self.octane_group_sockets = ";".join([data for data in self.octane_group_sockets.split(";") if data != name])
+        self.get_octane_group_socket_names(True)
+
+    def is_group_socket(self, name):
+        return name in self.get_octane_group_socket_names()
 
     def draw_prop(self, context, layout, text):
         layout.alignment = "LEFT"
@@ -678,21 +706,24 @@ class OCTANE_OT_base_node_link_menu(bpy.types.Operator):
     bl_label = "Octane Node Link Menu"
     bl_description = "Open the Octane node link menu"    
     configuration_map = {
-        ("OUTPUT_MATERIAL", "Surface"): "octane.material_node_link_menu",
-        ("OUTPUT_MATERIAL", "Volume"): "octane.volume_node_link_menu",
-        ("OUTPUT_WORLD", "Octane Environment"): "octane.environment_node_link_menu",
-        ("OUTPUT_WORLD", "Octane VisibleEnvironment"): "octane.visible_environment_node_link_menu",
-    }   
+        (consts.OctaneNodeTreeIDName.MATERIAL, consts.OctaneOutputNodeSocketNames.SURFACE): "octane.material_node_link_menu",
+        (consts.OctaneNodeTreeIDName.MATERIAL, consts.OctaneOutputNodeSocketNames.VOLUME): "octane.volume_node_link_menu",
+        (consts.OctaneNodeTreeIDName.BLENDER_SHADER, consts.OctaneOutputNodeSocketNames.SURFACE): "octane.material_node_link_menu",
+        (consts.OctaneNodeTreeIDName.BLENDER_SHADER, consts.OctaneOutputNodeSocketNames.VOLUME): "octane.volume_node_link_menu",        
+        (consts.OctaneNodeTreeIDName.WORLD, consts.OctaneOutputNodeSocketNames.ENVIRONMENT): "octane.environment_node_link_menu",
+        (consts.OctaneNodeTreeIDName.WORLD, consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT): "octane.visible_environment_node_link_menu",
+        (consts.OctaneNodeTreeIDName.WORLD, consts.OctaneOutputNodeSocketNames.LEGACY_ENVIRONMENT): "octane.environment_node_link_menu",
+        (consts.OctaneNodeTreeIDName.WORLD, consts.OctaneOutputNodeSocketNames.LEGACY_VISIBLE_ENVIRONMENT): "octane.visible_environment_node_link_menu",        
+    }
 
     enum_items: EnumProperty(items=utility.node_input_enum_items_callback)
     octane_pin_type: IntProperty(default=consts.PinType.PT_UNKNOWN)
 
     @staticmethod
-    def draw_node_link_menu(context, layout, node_tree, output_type, socket_name):
-        operator_name = OCTANE_OT_base_node_link_menu.configuration_map.get((output_type, socket_name), None)
+    def draw_node_link_menu(context, layout, output_node, owner_type, socket_name):
+        operator_name = OCTANE_OT_base_node_link_menu.configuration_map.get((owner_type, socket_name), None)
         if operator_name is None:
             return
-        output_node = node_tree.get_output_node(consts.ENGINE_NAME)
         label = ""
         if output_node and len(output_node.inputs[socket_name].links):
             label = output_node.inputs[socket_name].links[0].from_node.bl_label
@@ -700,67 +731,65 @@ class OCTANE_OT_base_node_link_menu(bpy.types.Operator):
         left.label(text=socket_name)
         op = right.operator_menu_enum(operator_name, "enum_items", text=label)
 
-    def _execute(self, node_tree, node_bl_idname):       
-        output_node_type, socket_name = self.configuration
-        output_node = node_tree.get_output_node(consts.ENGINE_NAME)
-        if output_node and output_node.type == output_node_type:
-            socket = output_node.inputs[socket_name]
-            utility.node_input_quick_operator(node_tree, output_node, socket, node_bl_idname)       
+    def _execute(self, id_data, node_bl_idname):
+        node_tree = id_data.node_tree
+        owner_type = utility.get_node_tree_owner_type(id_data)
+        active_output_node = utility.find_active_output_node(node_tree, owner_type)
+        socket_name = utility.find_compatible_socket_name(active_output_node, self.socket_type)
+        if active_output_node:
+            socket = active_output_node.inputs[socket_name]
+            utility.node_input_quick_operator(node_tree, active_output_node, socket, node_bl_idname)       
 
 
 class OCTANE_OT_material_node_link_menu(OCTANE_OT_base_node_link_menu):
     bl_idname = "octane.material_node_link_menu"
-    configuration = ("OUTPUT_MATERIAL", "Surface")
+    socket_type = consts.OctaneOutputNodeSocketNames.SURFACE
     octane_pin_type: IntProperty(default=consts.PinType.PT_MATERIAL)
 
     def execute(self, context):
         mat = context.material
         if not mat or not mat.use_nodes:
             return {"FINISHED"}
-        node_tree = mat.node_tree
-        self._execute(node_tree, self.enum_items)
+        self._execute(mat, self.enum_items)
         return {"FINISHED"}
 
 
 class OCTANE_OT_volume_node_link_menu(OCTANE_OT_base_node_link_menu):
     bl_idname = "octane.volume_node_link_menu"
-    configuration = ("OUTPUT_MATERIAL", "Volume")  
+    socket_type = consts.OctaneOutputNodeSocketNames.VOLUME
     octane_pin_type: IntProperty(default=consts.PinType.PT_MEDIUM)
  
     def execute(self, context):
         mat = context.material
         if not mat or not mat.use_nodes:
             return {"FINISHED"}
-        node_tree = mat.node_tree
-        self._execute(node_tree, self.enum_items)
+        self._execute(mat, self.enum_items)
         return {"FINISHED"}
 
 
 class OCTANE_OT_environment_node_link_menu(OCTANE_OT_base_node_link_menu):
     bl_idname = "octane.environment_node_link_menu"
-    configuration = ("OUTPUT_WORLD", "Octane Environment")  
+    socket_type = consts.OctaneOutputNodeSocketNames.ENVIRONMENT
     octane_pin_type: IntProperty(default=consts.PinType.PT_ENVIRONMENT)
  
     def execute(self, context):
         world = context.world
         if not world or not world.use_nodes:
             return {"FINISHED"}
-        node_tree = world.node_tree
-        self._execute(node_tree, self.enum_items)
+        self._execute(world, self.enum_items)
         return {"FINISHED"}
 
 
 class OCTANE_OT_visible_environment_node_link_menu(OCTANE_OT_base_node_link_menu):
     bl_idname = "octane.visible_environment_node_link_menu"
-    configuration = ("OUTPUT_WORLD", "Octane VisibleEnvironment")  
+    socket_type = consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT
     octane_pin_type: IntProperty(default=consts.PinType.PT_ENVIRONMENT)
  
     def execute(self, context):
         world = context.world
         if not world or not world.use_nodes:
             return {"FINISHED"}
-        node_tree = world.node_tree
-        self._execute(node_tree, self.enum_items)
+        self._execute(world, self.enum_items)
         return {"FINISHED"}
 
 

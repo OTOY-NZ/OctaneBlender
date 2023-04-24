@@ -63,6 +63,7 @@ class SessionParams {
   bool export_with_object_layers;
   bool maximize_instancing;
 
+  bool addon_dev_enabled;
   bool out_of_core_enabled;
   int32_t out_of_core_mem_limit;
   int32_t out_of_core_gpu_headroom;
@@ -84,6 +85,7 @@ class SessionParams {
     resource_cache_type = ::OctaneDataTransferObject::DISABLE_CACHE_SYSTEM;
     export_type = ::OctaneEngine::SceneExportTypes::NONE;
 
+    addon_dev_enabled = false;
     out_of_core_enabled = false;
     out_of_core_mem_limit = 4096;
     out_of_core_gpu_headroom = 300;
@@ -99,6 +101,7 @@ class SessionParams {
         meshes_type == params.meshes_type && use_viewport_hide == params.use_viewport_hide &&
         use_passes == params.use_passes && output_path == params.output_path &&
         out_of_core_enabled == params.out_of_core_enabled &&
+        addon_dev_enabled == params.addon_dev_enabled &&
         out_of_core_mem_limit == params.out_of_core_mem_limit &&
         out_of_core_gpu_headroom == params.out_of_core_gpu_headroom &&
         hdr_tonemapped == params.hdr_tonemapped &&

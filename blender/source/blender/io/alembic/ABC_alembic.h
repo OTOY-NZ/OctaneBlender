@@ -25,6 +25,7 @@
 extern "C" {
 #endif
 
+struct CacheArchiveHandle;
 struct CacheReader;
 struct ListBase;
 struct Main;
@@ -32,8 +33,6 @@ struct Mesh;
 struct Object;
 struct Scene;
 struct bContext;
-
-typedef struct AbcArchiveHandle AbcArchiveHandle;
 
 int ABC_get_version(void);
 
@@ -51,6 +50,7 @@ struct AlembicExportParams {
   bool uvs;
   bool normals;
   bool vcolors;
+  bool orcos;
   bool apply_subdiv;
   bool curves_as_mesh;
   bool flatten_hierarchy;
@@ -97,13 +97,14 @@ bool ABC_import(struct bContext *C,
                 int sequence_len,
                 int offset,
                 bool validate_meshes,
+                bool always_add_cache_reader,
                 bool as_background_job);
 
-AbcArchiveHandle *ABC_create_handle(struct Main *bmain,
-                                    const char *filename,
-                                    struct ListBase *object_paths);
+struct CacheArchiveHandle *ABC_create_handle(struct Main *bmain,
+                                             const char *filename,
+                                             struct ListBase *object_paths);
 
-void ABC_free_handle(AbcArchiveHandle *handle);
+void ABC_free_handle(struct CacheArchiveHandle *handle);
 
 void ABC_get_transform(struct CacheReader *reader,
                        float r_mat_world[4][4],
@@ -116,7 +117,9 @@ struct Mesh *ABC_read_mesh(struct CacheReader *reader,
                            struct Mesh *existing_mesh,
                            const float time,
                            const char **err_str,
-                           int read_flags);
+                           const int read_flags,
+                           const char *velocity_name,
+                           const float velocity_scale);
 
 bool ABC_mesh_topology_changed(struct CacheReader *reader,
                                struct Object *ob,
@@ -124,23 +127,13 @@ bool ABC_mesh_topology_changed(struct CacheReader *reader,
                                const float time,
                                const char **err_str);
 
-void CacheReader_incref(struct CacheReader *reader);
-void CacheReader_free(struct CacheReader *reader);
+void ABC_CacheReader_incref(struct CacheReader *reader);
+void ABC_CacheReader_free(struct CacheReader *reader);
 
-struct CacheReader *CacheReader_open_alembic_object(struct AbcArchiveHandle *handle,
+struct CacheReader *CacheReader_open_alembic_object(struct CacheArchiveHandle *handle,
                                                     struct CacheReader *reader,
                                                     struct Object *object,
                                                     const char *object_path);
-
-bool ABC_has_vec3_array_property_named(struct CacheReader *reader, const char *name);
-
-/* r_vertex_velocities should point to a preallocated array of num_vertices floats */
-int ABC_read_velocity_cache(struct CacheReader *reader,
-                            const char *velocity_name,
-                            float time,
-                            float velocity_scale,
-                            int num_vertices,
-                            float *r_vertex_velocities);
 
 #ifdef __cplusplus
 }

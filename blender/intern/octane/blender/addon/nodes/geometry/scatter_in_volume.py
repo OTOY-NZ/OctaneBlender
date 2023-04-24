@@ -4,8 +4,10 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -674,7 +676,7 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-OctaneScatterInVolumeInput1.octane_default_node_type = "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterInVolumeInput2.octane_default_node_type = "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterInVolumeInput3.octane_default_node_type = "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterInVolumeInput4.octane_default_node_type = "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterInVolumeInput1.octane_default_node_type = "OctaneObjectData"
+OctaneScatterInVolumeInput2.octane_default_node_type = "OctaneObjectData"
+OctaneScatterInVolumeInput3.octane_default_node_type = "OctaneObjectData"
+OctaneScatterInVolumeInput4.octane_default_node_type = "OctaneObjectData"

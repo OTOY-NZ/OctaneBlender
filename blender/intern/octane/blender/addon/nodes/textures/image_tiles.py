@@ -4,8 +4,10 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -175,3 +177,37 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+class OctaneImageTiles_Override(OctaneImageTiles):
+
+    support_udim=True
+
+    def init(self, context):
+        super().init(context)
+        self.init_image_attributes()
+
+    def sync_custom_data(self, octane_node, octane_graph_node_data, owner_type, scene, is_viewport):
+        super().sync_custom_data(octane_node, octane_graph_node_data, owner_type, scene, is_viewport)
+        filepath = "" 
+        is_data_updated = False
+        grid_size = [0, 0]
+        if self.image and self.image.source == "TILED" and len(self.image.tiles):
+            filepaths = []
+            # Resolve grid size
+            for tile in self.image.tiles:
+                n = tile.number - 1000
+                grid_size[0] = max(grid_size[0], n % 10)
+                grid_size[1] = max(1, max(grid_size[1], int(n / 10)))
+                cycles_image_helper = self.get_octane_image_helper()
+                cycles_image_helper.image_user.tile = tile.number
+                tile_filepath = self.image.filepath_from_user(image_user=cycles_image_helper.image_user)
+                filepaths.append(tile_filepath)
+            filepath = ";".join(filepaths)
+        is_data_updated |= octane_node.set_attribute("a_filename", consts.AttributeType.AT_FILENAME, filepath)
+        is_data_updated |= octane_node.set_attribute("a_grid_size", consts.AttributeType.AT_INT2, grid_size)
+        octane_node.set_blender_attribute(self.IMAGE_DATA_UPDATE_BLENDER_ATTRIBUTE, consts.AttributeType.AT_BOOL, is_data_updated)
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+
+utility.override_class(_CLASSES, OctaneImageTiles, OctaneImageTiles_Override)

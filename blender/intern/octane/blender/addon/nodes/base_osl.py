@@ -4,8 +4,10 @@ import math
 import xml.etree.ElementTree as ET
 from bpy.props import IntProperty, FloatProperty, BoolProperty, StringProperty, EnumProperty, PointerProperty, FloatVectorProperty, IntVectorProperty
 from bpy.utils import register_class, unregister_class
+from octane.core.client import OctaneClient
 from octane.utils import utility, consts
 from octane.nodes import base_node, base_socket
+from octane.core.octane_node import OctaneNode, OctaneNodeType
 
 
 class OctaneOSLBaseSocket(base_socket.OctaneBaseSocket):    
@@ -185,6 +187,7 @@ class OctaneOSLLinkSocket(OctaneOSLBaseSocket):
 
 class OctaneScriptNode(base_node.OctaneBaseNode):
     """Base class for Octane script nodes"""
+    BLENDER_ATTRIBUTE_QUERY_COMPILATION_RESULT = "QUERY_COMPILATION_RESULT"
     script_type_items = [
         ("INTERNAL", "Internal", "", 0),
         ("EXTERNAL", "External", "", 1),
@@ -329,11 +332,13 @@ class OctaneScriptNode(base_node.OctaneBaseNode):
     def compile_osl_node(self, report=None):
         if self.a_result == consts.COMPILE_SUCCESS:
             return
-        header_data = "[COMMAND]COMPILE_OSL"
-        body_data = self.export()
-        import _octane
-        xml_str_data = _octane.update_octane_custom_node(header_data, body_data)
-        compilation_result = self.build_osl_node(xml_str_data)
+        octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
+        octane_node.set_name("CompileOSL[%s]" % self.name)
+        octane_node.set_node_type(self.octane_node_type)
+        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_QUERY_COMPILATION_RESULT, consts.AttributeType.AT_BOOL, True)
+        self.sync_data(octane_node, None, consts.OctaneNodeTreeIDName.GENERAL)
+        reply_data = OctaneClient().process_octane_node(octane_node)        
+        compilation_result = self.build_osl_node(reply_data)
         if report and len(compilation_result):
             if compilation_result.find("Error") != -1 or compilation_result.find("error") != -1:
                 report({"ERROR"}, compilation_result)

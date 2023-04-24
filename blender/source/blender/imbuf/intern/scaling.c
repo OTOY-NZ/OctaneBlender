@@ -867,7 +867,7 @@ static void q_scale_float(
  *
  * only handles common cases when we either
  *
- * scale  both, x and y or
+ * scale both, x and y or
  * shrink both, x and y
  *
  * but that is pretty fast:
@@ -1666,7 +1666,7 @@ static void scalefast_Z_ImBuf(ImBuf *ibuf, int newx, int newy)
  */
 bool IMB_scaleImBuf(struct ImBuf *ibuf, unsigned int newx, unsigned int newy)
 {
-  BLI_assert(newx > 0 && newy > 0);
+  BLI_assert_msg(newx > 0 && newy > 0, "Images must be at least 1 on both dimensions!");
 
   if (ibuf == NULL) {
     return false;
@@ -1714,7 +1714,7 @@ struct imbufRGBA {
  */
 bool IMB_scalefastImBuf(struct ImBuf *ibuf, unsigned int newx, unsigned int newy)
 {
-  BLI_assert(newx > 0 && newy > 0);
+  BLI_assert_msg(newx > 0 && newy > 0, "Images must be at least 1 on both dimensions!");
 
   unsigned int *rect, *_newrect, *newrect;
   struct imbufRGBA *rectf, *_newrectf, *newrectf;
@@ -1888,7 +1888,7 @@ static void *do_scale_thread(void *data_v)
 
 void IMB_scaleImBuf_threaded(ImBuf *ibuf, unsigned int newx, unsigned int newy)
 {
-  BLI_assert(newx > 0 && newy > 0);
+  BLI_assert_msg(newx > 0 && newy > 0, "Images must be at least 1 on both dimensions!");
 
   ScaleTreadInitData init_data = {NULL};
 

@@ -46,6 +46,7 @@
  */
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_utildefines.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -122,6 +123,9 @@ enum {
   LIB_ID_COPY_CD_REFERENCE = 1 << 20,
   /** Do not copy id->override_library, used by ID datablock override routines. */
   LIB_ID_COPY_NO_LIB_OVERRIDE = 1 << 21,
+  /** When copying local sub-data (like constraints or modifiers), do not set their "library
+   * override local data" flag. */
+  LIB_ID_COPY_NO_LIB_OVERRIDE_LOCAL_DATA_FLAG = 1 << 22,
 
   /* *** XXX Hackish/not-so-nice specific behaviors needed for some corner cases. *** */
   /* *** Ideally we should not have those, but we need them for now... *** */
@@ -133,6 +137,9 @@ enum {
   LIB_ID_COPY_SHAPEKEY = 1 << 26,
   /** EXCEPTION! Specific deep-copy of node trees used e.g. for rendering purposes. */
   LIB_ID_COPY_NODETREE_LOCALIZE = 1 << 27,
+  /** EXCEPTION! Specific handling of RB objects regarding collections differs depending whether we
+     duplicate scene/collections, or objects. */
+  LIB_ID_COPY_RIGID_BODY_NO_COLLECTION_HANDLING = 1 << 28,
 
   /* *** Helper 'defines' gathering most common flag sets. *** */
   /** Shapekeys are not real ID's, more like local data to geometry IDs... */
@@ -152,8 +159,6 @@ void BKE_libblock_copy_ex(struct Main *bmain,
                           const int orig_flag);
 void *BKE_libblock_copy(struct Main *bmain, const struct ID *id) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
-/* Special version: used by data-block localization. */
-void *BKE_libblock_copy_for_localize(const struct ID *id);
 
 void BKE_libblock_rename(struct Main *bmain, struct ID *id, const char *name) ATTR_NONNULL();
 void BLI_libblock_ensure_unique_name(struct Main *bmain, const char *name) ATTR_NONNULL();
@@ -161,16 +166,24 @@ void BLI_libblock_ensure_unique_name(struct Main *bmain, const char *name) ATTR_
 struct ID *BKE_libblock_find_name(struct Main *bmain,
                                   const short type,
                                   const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-
+struct ID *BKE_libblock_find_session_uuid(struct Main *bmain, short type, uint32_t session_uuid);
 /**
  * Duplicate (a.k.a. deep copy) common processing options.
  * See also eDupli_ID_Flags for options controlling what kind of IDs to duplicate.
  */
 typedef enum eLibIDDuplicateFlags {
   /** This call to a duplicate function is part of another call for some parent ID.
-   * Therefore, this sub-process should not clear `newid` pointers, nor handle remapping itself. */
+   * Therefore, this sub-process should not clear `newid` pointers, nor handle remapping itself.
+   * NOTE: In some cases (like Object one), the duplicate function may be called on the root ID
+   * with this flag set, as remapping and/or other similar tasks need to be handled by the caller.
+   */
   LIB_ID_DUPLICATE_IS_SUBPROCESS = 1 << 0,
+  /** This call is performed on a 'root' ID, and should therefore perform some decisions regarding
+   * sub-IDs (dependencies), check for linked vs. locale data, etc. */
+  LIB_ID_DUPLICATE_IS_ROOT_ID = 1 << 1,
 } eLibIDDuplicateFlags;
+
+ENUM_OPERATORS(eLibIDDuplicateFlags, LIB_ID_DUPLICATE_IS_ROOT_ID)
 
 /* lib_remap.c (keep here since they're general functions) */
 /**
@@ -226,12 +239,21 @@ void id_us_plus(struct ID *id);
 void id_us_min(struct ID *id);
 void id_fake_user_set(struct ID *id);
 void id_fake_user_clear(struct ID *id);
-void BKE_id_clear_newpoin(struct ID *id);
+void BKE_id_newptr_and_tag_clear(struct ID *id);
 
 /** Flags to control make local code behavior. */
 enum {
   /** Making that ID local is part of making local a whole library. */
   LIB_ID_MAKELOCAL_FULL_LIBRARY = 1 << 0,
+
+  /** In case caller code already knows this ID should be made local without copying. */
+  LIB_ID_MAKELOCAL_FORCE_LOCAL = 1 << 1,
+  /** In case caller code already knows this ID should be made local using copying. */
+  LIB_ID_MAKELOCAL_FORCE_COPY = 1 << 2,
+
+  /** Clear asset data (in case the ID can actually be made local, in copy case asset data is never
+   * copied over). */
+  LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR = 1 << 3,
 
   /* Special type-specific options. */
   /** For Objects, do not clear the proxy pointers while making the data-block local. */
@@ -239,7 +261,7 @@ enum {
 };
 
 void BKE_lib_id_make_local_generic(struct Main *bmain, struct ID *id, const int flags);
-bool BKE_lib_id_make_local(struct Main *bmain, struct ID *id, const bool test, const int flags);
+bool BKE_lib_id_make_local(struct Main *bmain, struct ID *id, const int flags);
 bool id_single_user(struct bContext *C,
                     struct ID *id,
                     struct PointerRNA *ptr,
@@ -252,17 +274,20 @@ struct ID *BKE_id_copy_ex(struct Main *bmain,
                           const int flag);
 struct ID *BKE_id_copy_for_duplicate(struct Main *bmain,
                                      struct ID *id,
-                                     const uint duplicate_flags);
+                                     const uint duplicate_flags,
+                                     const int copy_flags);
 
 void BKE_lib_id_swap(struct Main *bmain, struct ID *id_a, struct ID *id_b);
 void BKE_lib_id_swap_full(struct Main *bmain, struct ID *id_a, struct ID *id_b);
 
 void id_sort_by_name(struct ListBase *lb, struct ID *id, struct ID *id_sorting_hint);
-void BKE_lib_id_expand_local(struct Main *bmain, struct ID *id);
+void BKE_lib_id_expand_local(struct Main *bmain, struct ID *id, const int flags);
 
-bool BKE_id_new_name_validate(struct ListBase *lb, struct ID *id, const char *name)
-    ATTR_NONNULL(1, 2);
-void BKE_lib_id_clear_library_data(struct Main *bmain, struct ID *id);
+bool BKE_id_new_name_validate(struct ListBase *lb,
+                              struct ID *id,
+                              const char *name,
+                              const bool do_linked_data) ATTR_NONNULL(1, 2);
+void BKE_lib_id_clear_library_data(struct Main *bmain, struct ID *id, const int flags);
 
 /* Affect whole Main database. */
 void BKE_main_id_tag_idcode(struct Main *mainvar,
@@ -275,7 +300,7 @@ void BKE_main_id_tag_all(struct Main *mainvar, const int tag, const bool value);
 void BKE_main_id_flag_listbase(struct ListBase *lb, const int flag, const bool value);
 void BKE_main_id_flag_all(struct Main *bmain, const int flag, const bool value);
 
-void BKE_main_id_clear_newpoins(struct Main *bmain);
+void BKE_main_id_newptr_and_tag_clear(struct Main *bmain);
 
 void BKE_main_id_refcount_recompute(struct Main *bmain, const bool do_linked_only);
 
@@ -314,6 +339,9 @@ void BKE_id_reorder(const struct ListBase *lb, struct ID *id, struct ID *relativ
 void BKE_id_blend_write(struct BlendWriter *writer, struct ID *id);
 
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
+
+/* lib_id_eval.c */
+void BKE_id_eval_properties_copy(struct ID *id_cow, struct ID *id);
 
 #ifdef __cplusplus
 }

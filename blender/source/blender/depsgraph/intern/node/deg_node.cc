@@ -48,7 +48,7 @@ const char *nodeClassAsString(NodeClass node_class)
     case NodeClass::OPERATION:
       return "OPERATION";
   }
-  BLI_assert(!"Unhandled node class, should never happen.");
+  BLI_assert_msg(0, "Unhandled node class, should never happen.");
   return "UNKNOWN";
 }
 
@@ -114,6 +114,8 @@ const char *nodeTypeAsString(NodeType type)
       return "ARMATURE";
     case NodeType::GENERIC_DATABLOCK:
       return "GENERIC_DATABLOCK";
+    case NodeType::VISIBILITY:
+      return "VISIBILITY";
     case NodeType::SIMULATION:
       return "SIMULATION";
 
@@ -121,7 +123,7 @@ const char *nodeTypeAsString(NodeType type)
     case NodeType::NUM_TYPES:
       return "SpecialCase";
   }
-  BLI_assert(!"Unhandled node type, should never happen.");
+  BLI_assert_msg(0, "Unhandled node type, should never happen.");
   return "UNKNOWN";
 }
 
@@ -176,8 +178,12 @@ eDepsSceneComponentType nodeTypeToSceneComponent(NodeType type)
     case NodeType::PROXY:
     case NodeType::SIMULATION:
       return DEG_SCENE_COMP_PARAMETERS;
+
+    case NodeType::VISIBILITY:
+      BLI_assert_msg(0, "Visibility component is supposed to be only used internally.");
+      return DEG_SCENE_COMP_PARAMETERS;
   }
-  BLI_assert(!"Unhandled node type, not suppsed to happen.");
+  BLI_assert_msg(0, "Unhandled node type, not supposed to happen.");
   return DEG_SCENE_COMP_PARAMETERS;
 }
 
@@ -252,8 +258,12 @@ eDepsObjectComponentType nodeTypeToObjectComponent(NodeType type)
     case NodeType::UNDEFINED:
     case NodeType::NUM_TYPES:
       return DEG_OB_COMP_PARAMETERS;
+
+    case NodeType::VISIBILITY:
+      BLI_assert_msg(0, "Visibility component is supposed to be only used internally.");
+      return DEG_OB_COMP_PARAMETERS;
   }
-  BLI_assert(!"Unhandled node type, not suppsed to happen.");
+  BLI_assert_msg(0, "Unhandled node type, not suppsed to happen.");
   return DEG_OB_COMP_PARAMETERS;
 }
 

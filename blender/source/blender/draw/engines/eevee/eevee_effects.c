@@ -94,6 +94,10 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
 
   effects = stl->effects;
 
+  int div = 1 << MAX_SCREEN_BUFFERS_LOD_LEVEL;
+  effects->hiz_size[0] = divide_ceil_u(size_fs[0], div) * div;
+  effects->hiz_size[1] = divide_ceil_u(size_fs[1], div) * div;
+
   effects->enabled_effects = 0;
   effects->enabled_effects |= (G.debug_value == 9) ? EFFECT_VELOCITY_BUFFER : 0;
   effects->enabled_effects |= EEVEE_motion_blur_init(sldata, vedata);
@@ -118,9 +122,6 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   /**
    * MinMax Pyramid
    */
-  int div = 1 << MAX_SCREEN_BUFFERS_LOD_LEVEL;
-  effects->hiz_size[0] = divide_ceil_u(size_fs[0], div) * div;
-  effects->hiz_size[1] = divide_ceil_u(size_fs[1], div) * div;
 
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
     /* Intel gpu seems to have problem rendering to only depth hiz_format */
@@ -487,7 +488,7 @@ void EEVEE_draw_effects(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   EEVEE_depth_of_field_draw(vedata);
 
   /* NOTE: Lookdev drawing happens before TAA but after
-   * motion blur and dof to avoid distortions.
+   * motion blur and DOF to avoid distortions.
    * Velocity resolve use a hack to exclude lookdev
    * spheres from creating shimmering re-projection vectors. */
   EEVEE_lookdev_draw(vedata);
@@ -499,7 +500,7 @@ void EEVEE_draw_effects(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
    * the swapping of the buffers. */
   EEVEE_renderpasses_output_accumulate(sldata, vedata, true);
 
-  /* Save the final texture and framebuffer for final transformation or read. */
+  /* Save the final texture and frame-buffer for final transformation or read. */
   effects->final_tx = effects->source_buffer;
   effects->final_fb = (effects->target_buffer != fbl->main_color_fb) ? fbl->main_fb :
                                                                        fbl->effect_fb;

@@ -3,10 +3,13 @@ import hashlib
 import xml.etree.ElementTree as ET
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
+from octane.core.client import OctaneClient
 from octane.utils import utility, consts
 from octane.nodes import base_node, base_socket
 from octane.nodes.base_node import OctaneBaseNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
+from octane.core.client import OctaneClient
+from octane.core.octane_node import OctaneNode, OctaneNodeType
 
 
 class OctaneProxyBaseSocket(base_socket.OctaneBaseSocket):    
@@ -25,6 +28,7 @@ def update_proxy_graph_data(self, context):
     self.a_data_md5 = hashlib.md5(self.a_data.encode('utf-8')).hexdigest()
 
 class OctaneProxy(bpy.types.Node, OctaneBaseNode):
+    BLENDER_ATTRIBUTE_EDIT_NODE_GRAPH_DATA = "EDIT_NODE_GRAPH_DATA"
     bl_idname="OctaneProxy"
     bl_label="OctaneProxy(BETA)"
     bl_width_default=200
@@ -34,7 +38,7 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_description=""
     octane_render_pass_sub_type_name=""
     octane_min_version=0
-    octane_node_type: IntProperty(name="Octane Node Type", default=consts.NT_BLENDER_NODE_OCTANE_PROXY)
+    octane_node_type: IntProperty(name="Octane Node Type", default=consts.NodeType.NT_BLENDER_NODE_OCTANE_PROXY)
     octane_socket_list: StringProperty(name="Socket List", default="")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_data;a_data_md5;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;10;")
@@ -45,11 +49,6 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
 
     def init(self, context):
         self.a_data_md5 = ""
-
-    def export_custom_data(self, root_element):
-        super().export_custom_data(root_element)
-        custom_data = ET.SubElement(root_element, 'custom_data')
-        ET.SubElement(custom_data, "proxy_graph_data").text = self.a_data
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -106,11 +105,13 @@ class OctaneProxy(bpy.types.Node, OctaneBaseNode):
         self._build_proxy_node(proxy_graph_data_et, report, False)
 
     def open_proxy_node_graph(self, report=None):
-        import _octane
-        header_data = "[COMMAND]OPEN_PROXY_NODE_GRAPH"        
-        body_data = self.export()
-        response_data = _octane.update_octane_custom_node(header_data, body_data)        
-        root = ET.fromstring(response_data)
+        octane_node = OctaneNode(OctaneNodeType.SYNC_NODE)
+        octane_node.set_name("OpenProxyNodeGraph[%s]" % self.name)
+        octane_node.set_node_type(self.octane_node_type)
+        octane_node.set_blender_attribute(self.BLENDER_ATTRIBUTE_EDIT_NODE_GRAPH_DATA, consts.AttributeType.AT_BOOL, True)
+        self.sync_data(octane_node, None, consts.OctaneNodeTreeIDName.GENERAL)
+        reply_data = OctaneClient().process_octane_node(octane_node)
+        root = ET.fromstring(reply_data)
         custom_data_et = root.find("custom_data")
         self.a_data = custom_data_et.findtext("proxy_graph_data")
         proxy_graph_data_et = custom_data_et.find("proxy_graph_data")

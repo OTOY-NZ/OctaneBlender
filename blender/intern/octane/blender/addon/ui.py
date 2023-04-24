@@ -24,29 +24,9 @@ from bpy.types import Panel, Menu, Operator
 from bpy_extras.node_utils import find_node_input
 from . import engine
 from . import converters
-from .utils import utility
+from octane import core
+from octane.utils import utility, consts
 
-
-def panel_node_draw(layout, id_data, output_type, input_name):
-    from .nodes import base_socket
-    if not id_data.use_nodes:
-        layout.operator("octane.use_shading_nodes", icon='NODETREE')
-        return False
-    ntree = id_data.node_tree
-
-    base_socket.OCTANE_OT_base_node_link_menu.draw_node_link_menu(None, layout, ntree, output_type, input_name)
-    
-    node = ntree.get_output_node('octane')
-    if node:
-        input = find_node_input(node, input_name)
-        if input:
-            layout.template_node_view(ntree, node, input)
-        else:
-            layout.label(text="Incompatible output node")
-    else:
-        layout.label(text="No output node")
-
-    return True
 
 def osl_node_draw(layout, node_tree_name, node_name):
     if bpy.data.materials:      
@@ -62,15 +42,6 @@ def osl_node_draw(layout, node_tree_name, node_name):
                     return True
     layout.label(text="No Octane Geometric Node")
     return False
-
-
-class OCTANE_MT_kernel_presets(Menu):
-    bl_label = "Kernel presets"
-    preset_subdir = "octane/kernel"
-    preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'octane'}
-    draw = Menu.draw_preset
-
 
 class OCTANE_MT_environment_presets(Menu):
     bl_label = "Environment presets"
@@ -132,348 +103,6 @@ class OctaneRenderAOVNodeGraphPanel(OctaneButtonsPanel):
         return octane_view_layer.render_pass_style == "RENDER_AOV_GRAPH"           
 
 
-class OCTANE_RENDER_PT_kernel(OctaneButtonsPanel, Panel):
-    bl_label = "Octane kernel"
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        oct_scene = scene.octane
-
-        row = layout.row(align=True)
-        row.menu("OCTANE_MT_kernel_presets", text=bpy.types.OCTANE_MT_kernel_presets.bl_label)
-        row.operator("render.octane_kernel_preset_add", text="", icon="ADD")
-        row.operator("render.octane_kernel_preset_add", text="", icon="REMOVE").remove_active = True
-
-        def draw_samples():
-            col.prop(oct_scene, "max_samples")
-            col.prop(oct_scene, "max_preview_samples")           
-
-        def draw_clay_mode():  
-            col.prop(oct_scene, "clay_mode")
-
-        def draw_toon_shadow_ambient():           
-            col.prop(oct_scene, "toon_shadow_ambient")                
-
-        def draw_parallel_samples():
-            col.prop(oct_scene, "parallel_samples")           
-
-        def draw_tile_samples():
-            col.prop(oct_scene, "max_tile_samples")
-
-        def draw_max_subdivision_level():
-            col.prop(oct_scene, "max_subdivision_level")            
-
-        def draw_ray_epsilon_and_filter_size():
-            col.prop(oct_scene, "ray_epsilon")
-            col.prop(oct_scene, "filter_size")
-            
-        def draw_ao_dist():
-            col.prop(oct_scene, "ao_dist")
-
-        def draw_alpha_shadows():
-            col.prop(oct_scene, "alpha_shadows")
-
-        def draw_irradiance_mode():
-            col.prop(oct_scene, "irradiance_mode")      
-
-        def draw_nested_dielectrics():
-            col.prop(oct_scene, "nested_dielectrics")
-
-        def draw_alpha_channel():
-            col.prop(oct_scene, "alpha_channel")
-
-        def draw_keep_environment():
-            col.prop(oct_scene, "keep_environment")               
-
-        def draw_path_term_power():
-            col.prop(oct_scene, "path_term_power")  
-
-        def draw_coherent_ratio():
-            col.prop(oct_scene, "coherent_ratio")  
-
-        def draw_static_noise():
-            col.prop(oct_scene, "static_noise")  
-
-        def draw_minimize_net_traffic():
-            col.prop(oct_scene, "minimize_net_traffic")  
-
-        def draw_color():
-            col.prop(oct_scene, "white_light_spectrum")
-            col.prop(oct_scene, "use_old_color_pipeline")
-
-        def draw_caustic_blur():
-            col.prop(oct_scene, "caustic_blur")  
-
-        def draw_gi_clamp():
-            col.prop(oct_scene, "gi_clamp")              
-
-        def draw_adaptive_sampling():
-            col.prop(oct_scene, "adaptive_sampling")
-            col.prop(oct_scene, "adaptive_noise_threshold")
-            col.prop(oct_scene, "adaptive_min_samples")
-            col.prop(oct_scene, "adaptive_group_pixels")            
-            col.prop(oct_scene, "adaptive_expected_exposure")
-            
-        def draw_deep_image():
-            col.prop(oct_scene, "deep_image")
-            col.prop(oct_scene, "deep_render_passes")
-            col.prop(oct_scene, "max_depth_samples")
-            col.prop(oct_scene, "depth_tolerance")            
-
-        def draw_max_diffuse_glossy_scatter_depth():
-            col.prop(oct_scene, "max_diffuse_depth")
-            col.prop(oct_scene, "max_glossy_depth")
-            col.prop(oct_scene, "max_scatter_depth")            
-
-        def draw_ai_light_and_light():
-            col.prop(oct_scene, "ai_light_enable")
-            col.prop(oct_scene, "ai_light_update") 
-            col.prop(oct_scene, "light_ids_action")
-            col.label(text="Light IDs:")
-            row = col.row(align=True)
-            row.prop(oct_scene, "light_id_sunlight", text="S", toggle=True)
-            row.prop(oct_scene, "light_id_env", text="E", toggle=True)
-            row.prop(oct_scene, "light_id_pass_1", text="1", toggle=True)
-            row.prop(oct_scene, "light_id_pass_2", text="2", toggle=True)
-            row.prop(oct_scene, "light_id_pass_3", text="3", toggle=True)        
-            row.prop(oct_scene, "light_id_pass_4", text="4", toggle=True)
-            row.prop(oct_scene, "light_id_pass_5", text="5", toggle=True)
-            row.prop(oct_scene, "light_id_pass_6", text="6", toggle=True)
-            row.prop(oct_scene, "light_id_pass_7", text="7", toggle=True)
-            row.prop(oct_scene, "light_id_pass_8", text="8", toggle=True)   
-            col.label(text="Light linking invert:")
-            row = col.row(align=True)
-            row.prop(oct_scene, "light_id_sunlight_invert", text="S", toggle=True)
-            row.prop(oct_scene, "light_id_env_invert", text="E", toggle=True)
-            row.prop(oct_scene, "light_id_pass_1_invert", text="1", toggle=True)
-            row.prop(oct_scene, "light_id_pass_2_invert", text="2", toggle=True)
-            row.prop(oct_scene, "light_id_pass_3_invert", text="3", toggle=True)        
-            row.prop(oct_scene, "light_id_pass_4_invert", text="4", toggle=True)
-            row.prop(oct_scene, "light_id_pass_5_invert", text="5", toggle=True)
-            row.prop(oct_scene, "light_id_pass_6_invert", text="6", toggle=True)
-            row.prop(oct_scene, "light_id_pass_7_invert", text="7", toggle=True)
-            row.prop(oct_scene, "light_id_pass_8_invert", text="8", toggle=True)                
-
-        col = layout.column(align=True)
-        col.prop(oct_scene, "kernel_type")
-        
-        if oct_scene.kernel_type in ('0', '1', ):            
-            # Direct lighting kernel            
-            col = layout.column(align=True)
-            col.prop(oct_scene, "gi_mode")
-            
-            draw_clay_mode()
-
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            # col.prop(oct_scene, "gi_mode")
-            col.prop(oct_scene, "specular_depth")
-            col.prop(oct_scene, "glossy_depth")
-            col.prop(oct_scene, "diffuse_depth")
-            draw_ray_epsilon_and_filter_size()
-            draw_ao_dist()
-            col.prop_search(oct_scene, "ao_texture", bpy.data, "textures")   
-            draw_alpha_shadows()
-            draw_nested_dielectrics()
-            draw_irradiance_mode()
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-            draw_keep_environment()  
-
-            box = layout.box()
-            box.label(text="Light")            
-            col = box.column(align=True)     
-            draw_ai_light_and_light()  
-
-            box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
-            draw_path_term_power()
-            draw_coherent_ratio()
-            draw_static_noise()
-            draw_parallel_samples()
-            draw_tile_samples()
-            draw_minimize_net_traffic()
-
-            box = layout.box()
-            box.label(text="Adaptive sampling")            
-            col = box.column(align=True)  
-            draw_adaptive_sampling()
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()
-
-            box = layout.box()
-            box.label(text="Deep Image")            
-            col = box.column(align=True)       
-            draw_deep_image() 
-
-            box = layout.box()
-            box.label(text="Toon Shading")            
-            col = box.column(align=True)       
-            draw_toon_shadow_ambient()           
-        elif oct_scene.kernel_type == '2':
-            # Path tracing kernel
-            col = layout.column(align=True)
-            draw_clay_mode()
-
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            draw_max_diffuse_glossy_scatter_depth()
-            draw_ray_epsilon_and_filter_size()
-            draw_alpha_shadows()
-            draw_caustic_blur()
-            draw_gi_clamp()
-            draw_nested_dielectrics()
-            draw_irradiance_mode()
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-            draw_keep_environment()  
-
-            box = layout.box()
-            box.label(text="Light")            
-            col = box.column(align=True)     
-            draw_ai_light_and_light()              
-
-            box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
-            draw_path_term_power()
-            draw_coherent_ratio()
-            draw_static_noise()
-            draw_parallel_samples()
-            draw_tile_samples()
-            draw_minimize_net_traffic()
-
-            box = layout.box()
-            box.label(text="Adaptive sampling")            
-            col = box.column(align=True)  
-            draw_adaptive_sampling() 
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()    
-            
-            box = layout.box()
-            box.label(text="Deep Image")            
-            col = box.column(align=True)       
-            draw_deep_image()                    
-
-            box = layout.box()
-            box.label(text="Toon Shading")            
-            col = box.column(align=True)       
-            draw_toon_shadow_ambient()
-        elif oct_scene.kernel_type == '3':
-            # PMC kernel
-            col = layout.column(align=True)
-            draw_clay_mode()
-
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            draw_max_diffuse_glossy_scatter_depth()
-            draw_ray_epsilon_and_filter_size()
-            draw_alpha_shadows()
-            draw_caustic_blur()
-            draw_gi_clamp()
-            draw_nested_dielectrics()
-            draw_irradiance_mode()
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-            draw_keep_environment()  
-
-            box = layout.box()
-            box.label(text="Light")            
-            col = box.column(align=True)     
-            draw_ai_light_and_light()     
-
-            box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
-            draw_path_term_power()
-            col.prop(oct_scene, "exploration")
-            col.prop(oct_scene, "direct_light_importance")
-            col.prop(oct_scene, "max_rejects")
-            col.prop(oct_scene, "parallelism")
-            col.prop(oct_scene, "work_chunk_size")
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()
-
-            box = layout.box()
-            box.label(text="Toon Shading")            
-            col = box.column(align=True)       
-            draw_toon_shadow_ambient()
-        elif oct_scene.kernel_type == '4':
-            # Info channels kernel
-            box = layout.box()
-            box.label(text="Quality")
-            col = box.column(align=True)
-            draw_samples()
-            col.prop(oct_scene, "info_channel_type")
-            draw_ray_epsilon_and_filter_size()
-            draw_ao_dist()
-            draw_alpha_shadows()
-            col.prop(oct_scene, "opacity_threshold")
-            col.prop(oct_scene, "zdepth_max")
-            col.prop(oct_scene, "uv_max")
-            col.prop(oct_scene, "info_pass_uv_coordinate_selection")
-            col.prop(oct_scene, "max_speed")
-            col.prop(oct_scene, "sampling_mode")
-            col.prop(oct_scene, "bump_normal_mapping")
-            col.prop(oct_scene, "wf_bkface_hl")  
-            draw_max_subdivision_level()
-
-            box = layout.box()
-            box.label(text="Alpha channel")            
-            col = box.column(align=True)   
-            draw_alpha_channel()
-
-            box = layout.box()     
-            box.label(text="Sampling")            
-            col = box.column(align=True)  
-            draw_parallel_samples()
-            draw_tile_samples()
-            draw_minimize_net_traffic()
-
-            box = layout.box()
-            box.label(text="Color")
-            col = box.column(align=True)
-            draw_color()
-
-            box = layout.box()
-            box.label(text="Deep Image")            
-            col = box.column(align=True)       
-            draw_deep_image()                
-        else:
-            pass
-
-
-
 class OCTANE_RENDER_PT_server(OctaneButtonsPanel, Panel):
     bl_label = "Octane Server"
 
@@ -491,6 +120,14 @@ class OCTANE_RENDER_PT_server(OctaneButtonsPanel, Panel):
         sub = box.row()
         sub.prop(oct_scene, "dirty_resource_detection_strategy_type")
         sub.operator("octane.clear_resource_cache", text="Clear")
+
+        if core.ENABLE_OCTANE_ADDON_CLIENT:
+            box = layout.box()
+            box.label(text="Octane Addon Test Settings:")
+            sub = box.row()
+            sub.prop(oct_scene, "addon_dev_enabled")
+            sub = box.row()
+            sub.prop(oct_scene, "legacy_mode_enabled")
 
         box = layout.box()
         box.label(text="Octane Settings:")
@@ -1411,7 +1048,7 @@ class OCTANE_MATERIAL_PT_surface(OctaneButtonsPanel, Panel):
         mat = context.material
         if not mat:
             return
-        utility.panel_ui_node_view(context, layout, mat, "OUTPUT_MATERIAL", "Surface")
+        utility.panel_ui_node_view(context, layout, mat, consts.OctaneOutputNodeSocketNames.SURFACE)
 
 
 class OCTANE_MATERIAL_PT_volume(OctaneButtonsPanel, Panel):
@@ -1428,7 +1065,7 @@ class OCTANE_MATERIAL_PT_volume(OctaneButtonsPanel, Panel):
         mat = context.material
         if not mat:
             return
-        utility.panel_ui_node_view(context, layout, mat, "OUTPUT_MATERIAL", "Volume")
+        utility.panel_ui_node_view(context, layout, mat, consts.OctaneOutputNodeSocketNames.VOLUME)
 
 
 class OCTANE_MATERIAL_PT_settings(OctaneButtonsPanel, Panel):
@@ -1476,7 +1113,7 @@ class OCTANE_RENDER_PT_AOV_node_graph(OctaneRenderAOVNodeGraphPanel, Panel):
         row = layout.row()
         render_aov_node_graph_property = octane_view_layer.render_aov_node_graph_property
         row.prop(render_aov_node_graph_property, "node_tree", text="AOV Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree)
+        utility.panel_ui_node_tree_view(context, layout, render_aov_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.RENDER_AOV)
 
 
 class OCTANE_RENDER_PT_passes(OctaneRenderPassesPanel, Panel):
@@ -1917,7 +1554,7 @@ class OCTANE_RENDER_PT_AOV_Output_node_graph(OctaneButtonsPanel, Panel):
         row = layout.row()
         composite_node_graph_property = octane_view_layer.composite_node_graph_property
         row.prop(composite_node_graph_property, "node_tree", text="AOV Output Node Tree", icon='NODETREE')
-        utility.panel_ui_node_tree_view(context, layout, composite_node_graph_property.node_tree)
+        utility.panel_ui_node_tree_view(context, layout, composite_node_graph_property.node_tree, consts.OctaneNodeTreeIDName.COMPOSITE)
 
 
 class OCTANE_RENDER_PT_octane_layers(OctaneButtonsPanel, Panel):
@@ -1967,8 +1604,7 @@ class OCTANE_WORLD_PT_environment(OctaneButtonsPanel, Panel):
         world = context.world
         if not world:
             return
-        utility.panel_ui_node_view(context, layout, world, "OUTPUT_WORLD", "Octane Environment")
-        # panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Octane Environment')
+        utility.panel_ui_node_view(context, layout, world, consts.OctaneOutputNodeSocketNames.ENVIRONMENT)
 
 
 class OCTANE_WORLD_PT_visible_environment(OctaneButtonsPanel, Panel):
@@ -1985,8 +1621,7 @@ class OCTANE_WORLD_PT_visible_environment(OctaneButtonsPanel, Panel):
         world = context.world
         if not world:
             return
-        utility.panel_ui_node_view(context, layout, world, "OUTPUT_WORLD", "Octane VisibleEnvironment")
-        # panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Octane VisibleEnvironment')
+        utility.panel_ui_node_view(context, layout, world, consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT)
 
 
 class OCTANE_LIGHT_PT_light(OctaneButtonsPanel, Panel):
@@ -2055,8 +1690,7 @@ class OCTANE_LIGHT_PT_nodes(OctaneButtonsPanel, Panel):
         layout = self.layout
 
         light = context.light
-        utility.panel_ui_node_view(context, layout, light, "OUTPUT_LIGHT", "Surface")
-        # panel_node_draw(layout, light, 'OUTPUT_LIGHT', 'Surface')
+        utility.panel_ui_node_view(context, layout, light, consts.OctaneOutputNodeSocketNames.SURFACE)
 
 
 class OCTANE_OBJECT_PT_octane_settings(OctaneButtonsPanel, Panel):
@@ -2267,13 +1901,11 @@ def get_panels():
 
 
 classes = (
-    OCTANE_MT_kernel_presets,
     OCTANE_MT_environment_presets,
     OCTANE_MT_vis_environment_presets,
     OCTANE_MT_imager_presets,
     OCTANE_MT_3dimager_presets,
-
-    OCTANE_RENDER_PT_kernel,
+    
     OCTANE_RENDER_PT_server,
     OCTANE_RENDER_PT_out_of_core,
     OCTANE_RENDER_PT_motion_blur,

@@ -4,8 +4,10 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -448,7 +450,7 @@ class OctaneInfoChannelsKernelGroupDeepImage(OctaneGroupTitleSocket):
     bl_label="[OctaneGroupTitle]Deep image"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Deep image;Deep render AOVs;Max. depth samples;Depth tolerance;")
 
-class OctaneInfoChannelsKernel(bpy.types.Node, OctaneBaseNode):
+class OctaneInfoChannelsKernel(bpy.types.Node, OctaneBaseKernelNode):
     bl_idname="OctaneInfoChannelsKernel"
     bl_label="Info channels kernel"
     bl_width_default=200
@@ -547,3 +549,12 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+
+class OctaneInfoChannelsKernel_Override(OctaneInfoChannelsKernel):
+
+    def init(self, context):
+        super().init(context)
+        self.init_octane_kernel(context, False)
+
+utility.override_class(_CLASSES, OctaneInfoChannelsKernel, OctaneInfoChannelsKernel_Override)

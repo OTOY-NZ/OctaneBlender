@@ -100,7 +100,7 @@ void BKE_modifier_init(void)
   /* Initialize modifier types */
   modifier_type_init(modifier_types); /* MOD_utils.c */
 
-  /* Initialize global cmmon storage used for virtual modifier list */
+  /* Initialize global common storage used for virtual modifier list. */
   md = BKE_modifier_new(eModifierType_Armature);
   virtualModifierCommonData.amd = *((ArmatureModifierData *)md);
   BKE_modifier_free(md);
@@ -156,7 +156,7 @@ ModifierData *BKE_modifier_new(int type)
   const ModifierTypeInfo *mti = BKE_modifier_get_info(type);
   ModifierData *md = MEM_callocN(mti->structSize, mti->structName);
 
-  /* note, this name must be made unique later */
+  /* NOTE: this name must be made unique later. */
   BLI_strncpy(md->name, DATA_(mti->name), sizeof(md->name));
 
   md->type = type;
@@ -249,11 +249,11 @@ bool BKE_modifier_unique_name(ListBase *modifiers, ModifierData *md)
   return false;
 }
 
-bool BKE_modifier_depends_ontime(ModifierData *md)
+bool BKE_modifier_depends_ontime(Scene *scene, ModifierData *md, const int dag_eval_mode)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
-  return mti->dependsOnTime && mti->dependsOnTime(md);
+  return mti->dependsOnTime && mti->dependsOnTime(scene, md, dag_eval_mode);
 }
 
 bool BKE_modifier_supports_mapping(ModifierData *md)
@@ -1473,7 +1473,6 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
         fmd->domain->tex_velocity_y = NULL;
         fmd->domain->tex_velocity_z = NULL;
         fmd->domain->tex_wt = NULL;
-        fmd->domain->mesh_velocities = NULL;
         BLO_read_data_address(reader, &fmd->domain->coba);
 
         BLO_read_data_address(reader, &fmd->domain->effector_weights);
@@ -1573,7 +1572,7 @@ void BKE_modifier_blend_read_lib(BlendLibReader *reader, Object *ob)
   BKE_modifiers_foreach_ID_link(ob, BKE_object_modifiers_lib_link_common, reader);
 
   /* If linking from a library, clear 'local' library override flag. */
-  if (ob->id.lib != NULL) {
+  if (ID_IS_LINKED(ob)) {
     LISTBASE_FOREACH (ModifierData *, mod, &ob->modifiers) {
       mod->flag &= ~eModifierFlag_OverrideLibrary_Local;
     }

@@ -33,17 +33,20 @@ class OctaneBaseNodeTree(object):
     def poll(cls, context):
         return context.scene.render.engine == consts.ENGINE_NAME
 
-    def update_active_output_name(self, context, name, active):
-        from .base_node import OctaneBaseOutputNode
+    @staticmethod
+    def update_active_output_name(node_tree, context, name, active):
+        from octane.nodes.base_node import OctaneBaseOutputNode
+        if "active_output_name" not in node_tree:
+            node_tree["active_output_name"] = name if active else ""
         if active:
-            for node in self.nodes:
+            for node in node_tree.nodes:
                 if node.name != name and isinstance(node, OctaneBaseOutputNode):
                     if node.active:
                         node.set_active(context, False)
-            self.active_output_name = name
+            node_tree["active_output_name"] = name
         else:
-            if name == self.active_output_name:
-                self.active_output_name = ""    
+            if name == node_tree["active_output_name"]:
+                node_tree["active_output_name"] = ""    
 
     def update(self):
         # This is a workaround to solve the link validation issue
@@ -95,7 +98,7 @@ def NODE_HT_header_octane_draw(self, context):
     tool_settings = context.tool_settings
     is_compositor = snode.tree_type == 'CompositorNodeTree'
 
-    if snode.tree_type not in (consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneNodeTreeIDName.RENDER_AOV, ):
+    if snode.tree_type not in (consts.OctaneNodeTreeIDName.COMPOSITE, consts.OctaneNodeTreeIDName.RENDER_AOV, consts.OctaneNodeTreeIDName.KERNEL,consts.OctaneNodeTreeIDName.CAMERA_IMAGER,):
         _NODE_HT_header_draw(self, context)
         return
 
@@ -229,6 +232,12 @@ def NODE_HT_header_octane_draw(self, context):
         elif snode.tree_type == consts.OctaneNodeTreeIDName.RENDER_AOV:
             layout.separator()
             layout.operator("octane.quick_add_render_aov_nodetree", icon="NODETREE", text="Quick-Add NodeTree")
+        elif snode.tree_type == consts.OctaneNodeTreeIDName.KERNEL:
+            layout.separator()
+            layout.operator("octane.quick_add_kernel_nodetree", icon="NODETREE", text="Quick-Add NodeTree")
+        elif snode.tree_type == consts.OctaneNodeTreeIDName.CAMERA_IMAGER:
+            layout.separator()
+            layout.operator("octane.quick_add_camera_imager_nodetree", icon="NODETREE", text="Quick-Add NodeTree")
 
     # Put pin next to ID block
     if not is_compositor:
@@ -269,6 +278,7 @@ class OCTANE_quick_add_composite_nodetree(bpy.types.Operator):
         from octane.utils import utility
         name = "Comp"
         node_tree = bpy.data.node_groups.new(name=name, type=consts.OctaneNodeTreeIDName.COMPOSITE)
+        node_tree.use_fake_user = True
         nodes = node_tree.nodes
         output = nodes.new("OctaneAOVOutputGroupOutputNode")
         output.location = (0, 0)
@@ -290,12 +300,41 @@ class OCTANE_quick_add_render_aov_nodetree(bpy.types.Operator):
         from octane.utils import utility
         name = "AOVs"
         node_tree = bpy.data.node_groups.new(name=name, type=consts.OctaneNodeTreeIDName.RENDER_AOV)
+        node_tree.use_fake_user = True
         nodes = node_tree.nodes
         output = nodes.new("OctaneRenderAOVsOutputNode")
         output.location = (0, 0)
         render_aov_group = nodes.new("OctaneRenderAOVGroup")
         render_aov_group.location = (-300, 0)
         node_tree.links.new(render_aov_group.outputs[0], output.inputs[0])
+        utility.show_nodetree(context, node_tree)        
+        return {"FINISHED"}
+
+
+class OCTANE_quick_add_kernel_nodetree(bpy.types.Operator):
+    """Add an Octane Kernel node tree with the default node configuration"""
+    
+    bl_idname = "octane.quick_add_kernel_nodetree"
+    bl_label = "Quick-Add Kernel NodeTree"
+    bl_description = "Add an Octane Kernel node tree with the default node configuration"
+
+    def execute(self, context):
+        from octane.utils import utility
+        node_tree = utility.quick_add_octane_kernel_node_tree()
+        utility.show_nodetree(context, node_tree)        
+        return {"FINISHED"}
+
+
+class OCTANE_quick_add_camera_imager_nodetree(bpy.types.Operator):
+    """Add an Octane Camera Imager node tree with the default node configuration"""
+    
+    bl_idname = "octane.quick_add_camera_imager_nodetree"
+    bl_label = "Quick-Add Camera Imager NodeTree"
+    bl_description = "Add an Octane Camera Imager node tree with the default node configuration"
+
+    def execute(self, context):
+        from octane.utils import utility
+        node_tree = utility.quick_add_octane_camera_imager_node_tree()
         utility.show_nodetree(context, node_tree)        
         return {"FINISHED"}
 
@@ -308,7 +347,30 @@ class NodeTreeHandler:
     SURFACE_INPUT_NAME = "Surface"
     VOLUME_INPUT_NAME = "Volume"
     WORLD_INPUT_NAME = "Surface"
-    OCTANE_WORLD_INPUT_NAME = "Octane Environment"
+    OCTANE_WORLD_INPUT_NAME = "Environment"
+
+    @staticmethod
+    def init_helper_color_ramp_watcher():
+        def _init_helper_color_ramp_watcher(node_tree):
+            from octane.nodes.base_color_ramp import OctaneBaseRampNode
+            for node in node_tree.nodes:
+                if isinstance(node, OctaneBaseRampNode):
+                    node.init_helper_color_ramp_watcher()
+        for material in bpy.data.materials:
+            if material.use_nodes and material.node_tree:
+                _init_helper_color_ramp_watcher(material.node_tree)
+
+    @staticmethod
+    def init_octane_kernel():        
+        if consts.OctanePresetNodeTreeNames.KERNEL not in bpy.data.node_groups:
+            from octane.utils import utility
+            utility.quick_add_octane_kernel_node_tree(assign_to_kernel_node_graph=True)
+
+    @staticmethod
+    def init_octane_camera_imager():
+        if consts.OctanePresetNodeTreeNames.CAMERA_IMAGER not in bpy.data.node_groups:
+            from octane.utils import utility
+            utility.quick_add_octane_camera_imager_node_tree()
 
     @staticmethod
     def on_file_load(scene):
@@ -316,12 +378,19 @@ class NodeTreeHandler:
         NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
         NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
         utility.update_active_render_aov_node_tree(bpy.context)
+        # Init color ramp watchers
+        NodeTreeHandler.init_helper_color_ramp_watcher()
+        # Init kernel and camera imager
+        NodeTreeHandler.init_octane_kernel()
+        NodeTreeHandler.init_octane_camera_imager()
 
     @staticmethod
-    def convert_to_octane_new_addon_node(node_tree, output_node, socket_name, octane_node_type, octane_node_output_name=None):
+    def convert_to_octane_new_addon_node(node_tree, output_node, setup_function, socket_name, new_socket_name, octane_node_type, octane_node_output_name=None):
         _input = output_node.inputs[socket_name]
         if len(_input.links):            
             from_node = _input.links[0].from_node
+            if setup_function is not None:
+                setup_function(output_node)
             # Do not convert new add-on style nodes and old octane nodes
             if hasattr(from_node, "octane_node_type") or from_node.bl_idname.startswith("ShaderNodeOct"):
                 return
@@ -332,11 +401,12 @@ class NodeTreeHandler:
                 octane_output_socket = octane_node.outputs[0]
             else:
                 octane_output_socket = octane_node.outputs[octane_node_output_name]
-            node_tree.links.new(octane_output_socket, _input)
+            node_tree.links.new(octane_output_socket, output_node.inputs[new_socket_name])
             node_tree.nodes.remove(from_node)
 
     @staticmethod
-    def on_material_new(scene):        
+    def on_material_new(scene):
+        from octane.nodes import base_output_node
         if len(bpy.data.materials) > NodeTreeHandler.material_node_tree_count:            
             active_object = bpy.context.active_object
             active_material = None
@@ -347,23 +417,21 @@ class NodeTreeHandler:
                 node_tree = active_material.node_tree
             if node_tree and NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME in node_tree.nodes:
                 output = node_tree.nodes[NodeTreeHandler.MATERIAL_OUTPUT_NODE_NAME]
-                if hasattr(output, "target"):
-                    output.target = "octane"
-                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneUniversalMaterial")
-                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneAbsorption")                    
+                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, base_output_node.OctaneEditorMaterialOutputNode.setup_blender_shader_node_tree_material_output, NodeTreeHandler.SURFACE_INPUT_NAME, NodeTreeHandler.SURFACE_INPUT_NAME, "OctaneUniversalMaterial")
+                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, base_output_node.OctaneEditorMaterialOutputNode.setup_blender_shader_node_tree_material_output, NodeTreeHandler.VOLUME_INPUT_NAME, NodeTreeHandler.VOLUME_INPUT_NAME, "OctaneVolumeMedium")                    
         NodeTreeHandler.material_node_tree_count = len(bpy.data.materials)
         
     @staticmethod
     def on_world_new(scene):
+        from octane.nodes import base_output_node
         if len(bpy.data.worlds) > NodeTreeHandler.world_node_tree_count:
             active_world = scene.world
             node_tree = None
             if active_world and active_world.use_nodes:
                 node_tree = active_world.node_tree
             if node_tree and NodeTreeHandler.WORLD_OUTPUT_NODE_NAME in node_tree.nodes:
-                output = node_tree.nodes[NodeTreeHandler.WORLD_OUTPUT_NODE_NAME]
-                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, NodeTreeHandler.WORLD_INPUT_NAME, "OctaneDaylightEnvironment")
-                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, NodeTreeHandler.OCTANE_WORLD_INPUT_NAME, "OctaneDaylightEnvironment")
+                output = node_tree.nodes[NodeTreeHandler.WORLD_OUTPUT_NODE_NAME]                
+                NodeTreeHandler.convert_to_octane_new_addon_node(node_tree, output, base_output_node.OctaneEditorWorldOutputNode.setup_blender_shader_node_tree_world_output, NodeTreeHandler.WORLD_INPUT_NAME, NodeTreeHandler.OCTANE_WORLD_INPUT_NAME, "OctaneTextureEnvironment")
         NodeTreeHandler.world_node_tree_count = len(bpy.data.worlds)
 
     @staticmethod
@@ -382,19 +450,6 @@ class NodeTreeHandler:
             if scene.world and scene.world.use_nodes:
                 OctaneBaseNodeTree.update_link_validity(scene.world.node_tree)
 
-    @staticmethod
-    def octane_image_node_frame_change_post(scene, depsgraph=None):
-        pass
-        # for material in bpy.data.materials:            
-        #     node_tree = material.node_tree
-        #     for node in node_tree.nodes:
-        #         if not hasattr(node, "octane_node_type"):
-        #             continue
-        #         if not node.auto_refresh():
-        #             continue
-        #         node.is_image_data_updated = True
-        #         node.sync_data(material.name, scene)
-
 @persistent
 def node_tree_initialization_handler(scene):
     if scene is None:
@@ -411,18 +466,12 @@ def node_tree_update_handler(scene):
         return
     NodeTreeHandler.blender_internal_node_tree_update_handler(scene)
 
-@persistent
-def node_tree_frame_change_post_handler(scene):
-    if scene is None:
-        scene = bpy.context.scene
-    if scene.render.engine != consts.ENGINE_NAME:
-        return
-    NodeTreeHandler.octane_image_node_frame_change_post(scene)
-
 
 _CLASSES = [
     OCTANE_quick_add_composite_nodetree,
     OCTANE_quick_add_render_aov_nodetree,
+    OCTANE_quick_add_kernel_nodetree,
+    OCTANE_quick_add_camera_imager_nodetree,
 ]
 
 
@@ -432,7 +481,6 @@ def register():
     NODE_HT_header.draw = NODE_HT_header_octane_draw
     bpy.app.handlers.load_post.append(node_tree_initialization_handler)
     bpy.app.handlers.depsgraph_update_post.append(node_tree_update_handler)
-    bpy.app.handlers.frame_change_post.append(node_tree_frame_change_post_handler)
     for cls in _CLASSES:
         register_class(cls)
     
@@ -442,6 +490,5 @@ def unregister():
     NODE_HT_header.draw = _NODE_HT_header_draw
     bpy.app.handlers.load_post.remove(node_tree_initialization_handler)
     bpy.app.handlers.depsgraph_update_post.remove(node_tree_update_handler)
-    bpy.app.handlers.frame_change_post.remove(node_tree_frame_change_post_handler)
     for cls in _CLASSES:
         unregister_class(cls)    

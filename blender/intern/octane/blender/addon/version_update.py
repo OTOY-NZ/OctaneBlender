@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-OCTANE_BLENDER_VERSION='24.2'
+OCTANE_BLENDER_VERSION='24.5'
 
 import bpy
 import math
@@ -36,6 +36,8 @@ def do_versions(self):
     check_compatibility_camera_imagers(file_version)   
     check_compatibility_octane_node_tree(file_version)
     check_compatibility_octane_passes(file_version)
+    check_compatibility_octane_aovs_graph(file_version)
+    check_compatibility_octane_composite_graph(file_version)
     check_octane_output_settings(file_version)
     check_color_management()    
     update_current_version()    
@@ -59,6 +61,18 @@ def check_update(current_version, update_version):
         update_version_list = []
     return current_version_list < update_version_list
 
+
+def check_compatibility_octane_aovs_graph(file_version):
+    from octane.utils import utility
+    node_tree = utility.find_active_render_aov_node_tree(bpy.context)
+    if node_tree and not node_tree.use_fake_user:
+        node_tree.use_fake_user = True
+    
+def check_compatibility_octane_composite_graph(file_version):
+    from octane.utils import utility
+    node_tree = utility.find_active_composite_node_tree(bpy.context)
+    if node_tree and not node_tree.use_fake_user:
+        node_tree.use_fake_user = True
 
 def check_color_management():
     # Update Color Management Settings for "New Created" files

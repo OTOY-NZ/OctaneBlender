@@ -414,6 +414,7 @@ SessionParams BlenderSync::get_session_params(
                           (use_preview_setting_for_camera_imager ? hdr_tonemap_preview_enable :
                                                                    hdr_tonemap_render_enable);
   params.out_of_core_enabled = get_boolean(oct_scene, "out_of_core_enable");
+  params.addon_dev_enabled = get_boolean(oct_scene, "addon_dev_enabled");
   params.out_of_core_mem_limit = get_int(oct_scene, "out_of_core_limit");
   params.out_of_core_gpu_headroom = get_int(oct_scene, "out_of_core_gpu_headroom");
 

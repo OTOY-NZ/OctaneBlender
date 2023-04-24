@@ -41,6 +41,7 @@ struct bContext;
 struct bScreen;
 struct wmWindow;
 struct wmWindowManager;
+enum eIconSizes;
 
 /* render_ops.c */
 
@@ -72,16 +73,17 @@ struct Scene *ED_render_job_get_current_scene(const struct bContext *C);
  * - PR_NODE_RENDER: preview is rendered for node editor
  * - PR_ICON_DEFERRED: No render, we just ensure deferred icon data gets generated.
  */
-
-enum {
+typedef enum ePreviewRenderMethod {
   PR_BUTS_RENDER = 0,
   PR_ICON_RENDER = 1,
   PR_NODE_RENDER = 2,
   PR_ICON_DEFERRED = 3,
-};
+} ePreviewRenderMethod;
 
 void ED_preview_ensure_dbase(void);
 void ED_preview_free_dbase(void);
+
+bool ED_preview_id_is_supported(const struct ID *id);
 
 void ED_preview_shader_job(const struct bContext *C,
                            void *owner,
@@ -104,6 +106,11 @@ void ED_preview_icon_job(const struct bContext *C,
                          int sizex,
                          int sizey,
                          const bool delay);
+
+void ED_preview_restart_queue_free(void);
+void ED_preview_restart_queue_add(struct ID *id, enum eIconSizes size);
+void ED_preview_restart_queue_work(const struct bContext *C);
+
 void ED_preview_kill_jobs(struct wmWindowManager *wm, struct Main *bmain);
 
 void ED_preview_draw(const struct bContext *C, void *idp, void *parentp, void *slot, rcti *rect);

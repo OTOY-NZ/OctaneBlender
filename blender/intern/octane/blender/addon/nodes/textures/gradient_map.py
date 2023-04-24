@@ -4,8 +4,10 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -83,7 +85,7 @@ class OctaneGradientMapSmooth(OctaneBaseSocket):
     octane_end_version=3000005
     octane_deprecated=True
 
-class OctaneGradientMap(bpy.types.Node, OctaneBaseNode):
+class OctaneGradientMap(bpy.types.Node, OctaneBaseRampNode):
     bl_idname="OctaneGradientMap"
     bl_label="Gradient map"
     bl_width_default=200
@@ -130,3 +132,25 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+class OctaneGradientMapGradientInterpolationType_Override(OctaneGradientMapGradientInterpolationType):
+    items = [
+        ("Constant", "Constant", "", 1),
+        ("Linear", "Linear", "", 2),
+        ("Cubic", "Cubic", "", 3),
+    ]
+    default_value: EnumProperty(default="Linear", update=lambda self, context: self.node.update_color_ramp_interpolation(context), description="Determines how colors are blended", items=items) 
+
+class OctaneGradientMap_Override(OctaneGradientMap):
+    bl_width_default = 300
+    MAX_VALUE_SOCKET = 16
+
+    def init(self, context):
+        super().init(context)        
+        self.init_octane_color_ramp()
+        
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+
+utility.override_class(_CLASSES, OctaneGradientMapGradientInterpolationType, OctaneGradientMapGradientInterpolationType_Override)
+utility.override_class(_CLASSES, OctaneGradientMap, OctaneGradientMap_Override)

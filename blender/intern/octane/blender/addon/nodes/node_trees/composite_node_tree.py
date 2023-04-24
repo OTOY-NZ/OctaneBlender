@@ -2,15 +2,15 @@ import bpy
 import nodeitems_utils
 from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.utils import register_class, unregister_class
-from ...utils import consts
-from .. import node_items
-from ..node_items import OctaneNodeItemSeperator, OctaneNodeCategory, OctaneNodeItem
-from ..base_node_tree import OctaneBaseNodeTree
+from octane.utils import consts
+from octane.nodes import node_items
+from octane.nodes.node_items import OctaneNodeItemSeperator, OctaneNodeCategory, OctaneNodeItem
+from octane.nodes.base_node_tree import OctaneBaseNodeTree
 
 
 class OctaneCompositeNodeTree(OctaneBaseNodeTree, bpy.types.NodeTree):
     bl_idname = consts.OctaneNodeTreeIDName.COMPOSITE
-    bl_label = "Octane Composite Editor"
+    bl_label = "Octane Composite"
     bl_icon = "NODE_COMPOSITING"
 
     @property

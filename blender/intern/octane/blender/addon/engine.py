@@ -19,7 +19,6 @@
 # <pep8 compliant>
 
 import bpy
-from octane.octane_server import OctaneServer
 
 IS_RENDERING = False
 
@@ -34,19 +33,17 @@ def heart_beat():
 
 
 def init():
-    print("OctaneBlender Engine Init")
-    OctaneServer().start()
+    print("OctaneBlender Engine Init")    
     import _octane
     import os.path
 
     path = os.path.dirname(__file__)
-    user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', '')))
+    user_path = os.path.dirname(os.path.abspath(bpy.utils.user_resource('CONFIG', path='')))
     _octane.init(path, user_path)    
 
 
 def exit():
-    print("OctaneBlender Engine Exit")
-    OctaneServer().stop()
+    print("OctaneBlender Engine Exit")    
     import _octane
     from . import operators
     _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
@@ -59,8 +56,8 @@ def create(engine, data, region=None, v3d=None, rv3d=None):
     global IS_RENDERING
     IS_RENDERING = True
 
-    from . import properties
-    properties.OctaneOCIOManagement_update_ocio_info()
+    from octane.utils import ocio    
+    ocio.update_ocio_info()
 
     import _octane
     import bpy
@@ -93,7 +90,10 @@ def free(engine):
         del engine.session    
 
     from . import operators
-    operators.set_all_mesh_resource_cache_tags(False)
+    try:
+        operators.set_all_mesh_resource_cache_tags(False)
+    except:
+        pass
 
     global IS_RENDERING
     IS_RENDERING = False    

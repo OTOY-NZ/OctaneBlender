@@ -36,6 +36,7 @@
 
 #include "BLT_translation.h"
 
+#include "ED_asset.h"
 #include "ED_render.h"
 #include "ED_undo.h"
 #include "ED_util.h"
@@ -109,7 +110,7 @@ static void ED_OT_lib_id_load_custom_preview(wmOperatorType *ot)
   ot->invoke = WM_operator_filesel;
 
   /* flags */
-  ot->flag = OPTYPE_INTERNAL;
+  ot->flag = OPTYPE_UNDO | OPTYPE_INTERNAL;
 
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER | FILE_TYPE_IMAGE,
@@ -131,9 +132,11 @@ static int lib_id_generate_preview_exec(bContext *C, wmOperator *UNUSED(op))
   if (preview) {
     BKE_previewimg_clear(preview);
   }
+
   UI_icon_render_id(C, nullptr, id, ICON_SIZE_PREVIEW, true);
 
   WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
+  ED_assetlist_storage_tag_main_data_dirty();
 
   return OPERATOR_FINISHED;
 }

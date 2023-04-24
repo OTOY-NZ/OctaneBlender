@@ -68,7 +68,6 @@ static void node_oct_image_aov_output_init(bNodeTree *ntree, bNode *node)
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->iuser.frames = 1;
   tex->iuser.sfra = 1;
-  tex->iuser.ok = 1;
   node->storage = tex;
 
   node->oct_custom1 = 1;

@@ -907,7 +907,102 @@ def unregister():
 from bpy.props import EnumProperty
 from ..utils import utility
 
+
+# Blender Editor Material Output(material, volume, and geometry)
+# ISSUE FOUND: Blender cannot trigger the auto-update for the node graphs using custom output nodes. So we have to use the original Material Output here. 
+# Due to the above update issue, this node is not actually used in the add-on. A post-processed Material Output Node is used. 
+# Same tricks for the World Output nodes. 
+class OctaneEditorMaterialOutputNode(bpy.types.ShaderNodeOutputMaterial, OctaneBaseOutputNode):
+    bl_idname="OctaneEditorMaterialOutputNode"
+    bl_label="Material Output"
+    octane_color=consts.OctanePinColor.BlenderEditor
+    use_custom_color=True
+    bl_width_default=200
+    bl_height_default=100
+
+    def init(self, context):
+        super().init(context)
+        self.inputs.new("OctaneMaterialSocket", consts.OctaneOutputNodeSocketNames.SURFACE).init()
+        self.inputs.new("OctaneMediumSocket", consts.OctaneOutputNodeSocketNames.VOLUME).init()
+        self.inputs.new("OctaneGeometrySocket", consts.OctaneOutputNodeSocketNames.GEOMETRY).init()
+
+    @staticmethod
+    def setup_blender_shader_node_tree_material_output(material_output):
+        IS_OCTANE_CONVERTED = "is_octane_converted"
+        if IS_OCTANE_CONVERTED in material_output:
+            return
+        material_output.target = "ALL"
+        # Hide Cycles and legacy Octane sockets
+        material_output.inputs["Surface"].enabled = False
+        material_output.inputs["Volume"].enabled = False
+        material_output.inputs["Displacement"].enabled = False
+        material_output.inputs["Surface"].name = "Cycles Surface"
+        material_output.inputs["Volume"].name = "Cycles Volume"
+        material_output.inputs["Displacement"].name = "Cycles Displacement"
+        if consts.OctaneOutputNodeSocketNames.LEGACY_GEOMETRY in material_output.inputs:
+            material_output.inputs[consts.OctaneOutputNodeSocketNames.LEGACY_GEOMETRY].enabled = False
+        material_output.inputs.new("OctaneMaterialSocket", consts.OctaneOutputNodeSocketNames.SURFACE).init()
+        material_output.inputs.new("OctaneMediumSocket", consts.OctaneOutputNodeSocketNames.VOLUME).init()        
+        material_output.inputs.new("OctaneGeometrySocket", consts.OctaneOutputNodeSocketNames.GEOMETRY).init()
+        material_output[IS_OCTANE_CONVERTED] = True
+
+
+# Blender Editor World Output(environment, visible environment)
+class OctaneEditorWorldOutputNode(bpy.types.Node, OctaneBaseOutputNode):
+    bl_idname="OctaneEditorWorldOutputNode"
+    bl_label="World Output"
+    octane_color=consts.OctanePinColor.BlenderEditor
+    use_custom_color=True
+    bl_width_default=200
+    bl_height_default=100
+
+    def init(self, context):
+        super().init(context)
+        self.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.ENVIRONMENT).init()
+        self.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT).init()
+
+    @staticmethod
+    def setup_blender_shader_node_tree_world_output(world_output):
+        IS_OCTANE_CONVERTED = "is_octane_converted"
+        if IS_OCTANE_CONVERTED in world_output:
+            return        
+        world_output.target = "ALL"
+        # Hide Cycles and legacy Octane sockets
+        world_output.inputs["Surface"].enabled = False
+        world_output.inputs["Volume"].enabled = False
+        if consts.OctaneOutputNodeSocketNames.LEGACY_ENVIRONMENT in world_output.inputs:
+            world_output.inputs[consts.OctaneOutputNodeSocketNames.LEGACY_ENVIRONMENT].enabled = False
+        if consts.OctaneOutputNodeSocketNames.LEGACY_VISIBLE_ENVIRONMENT in world_output.inputs:
+            world_output.inputs[consts.OctaneOutputNodeSocketNames.LEGACY_VISIBLE_ENVIRONMENT].enabled = False            
+        # Add Octane sockets
+        world_output.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.ENVIRONMENT).init()
+        world_output.inputs.new("OctaneEnvironmentSocket", consts.OctaneOutputNodeSocketNames.VISIBLE_ENVIRONMENT).init()
+        world_output[IS_OCTANE_CONVERTED] = True
+
+
+# Blender Editor Texture Output(texture)
+class OctaneEditorTextureOutputNode(bpy.types.Node, OctaneBaseOutputNode):
+    bl_idname="OctaneEditorTextureOutputNode"
+    bl_label="Texture Output"
+    octane_color=consts.OctanePinColor.BlenderEditor
+    use_custom_color=True
+    bl_width_default=200
+    bl_height_default=100
+
+    def init(self, context):
+        super().init(context)
+        self.inputs.new("OctaneTextureSocket", consts.OctaneOutputNodeSocketNames.TEXTURE).init()
+
+
+_CLASSES.append(OctaneEditorMaterialOutputNode)
+_CLASSES.append(OctaneEditorWorldOutputNode)
+_CLASSES.append(OctaneEditorTextureOutputNode)
+
+
+# AOV Output Group Output
 OctaneAOVOutputGroupSocket.octane_default_node_type="OctaneAOVOutputGroup"
+
+# Render AOV Output
 
 class OctaneRenderAOVsOutputNode_Override_RenderPassItems:
     render_pass_configs = {}

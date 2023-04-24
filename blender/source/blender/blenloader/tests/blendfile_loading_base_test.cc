@@ -48,6 +48,8 @@
 #include "WM_api.h"
 #include "wm.h"
 
+#include "GHOST_Path-api.h"
+
 #include "CLG_log.h"
 
 void BlendfileLoadingBaseTest::SetUpTestCase()
@@ -93,6 +95,7 @@ void BlendfileLoadingBaseTest::TearDownTestCase()
   RNA_exit();
 
   DEG_free_node_types();
+  GHOST_DisposeSystemPaths();
   DNA_sdna_current_free();
   BLI_threadapi_exit();
 
@@ -123,7 +126,8 @@ bool BlendfileLoadingBaseTest::blendfile_load(const char *filepath)
   char abspath[FILENAME_MAX];
   BLI_path_join(abspath, sizeof(abspath), test_assets_dir.c_str(), filepath, NULL);
 
-  bfile = BLO_read_from_file(abspath, BLO_READ_SKIP_NONE, nullptr /* reports */);
+  BlendFileReadReport bf_reports = {nullptr};
+  bfile = BLO_read_from_file(abspath, BLO_READ_SKIP_NONE, &bf_reports);
   if (bfile == nullptr) {
     ADD_FAILURE() << "Unable to load file '" << filepath << "' from test assets dir '"
                   << test_assets_dir << "'";

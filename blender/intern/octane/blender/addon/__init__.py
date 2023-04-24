@@ -19,7 +19,7 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneRender Engine (v. 24.5)",
+    "name": "OctaneRender Engine (v. 25.0)",
     "author": "OTOY Inc.",
     "blender": (2, 93, 1),
     "location": "Info header, render engine menu",
@@ -53,8 +53,9 @@ from . import (
     version_update,    
 )
 
-from octane.octane_server import OctaneServer
-
+from octane import core
+from octane.core.client import OctaneClient
+from octane.utils import consts
 
 class OctaneRender(bpy.types.RenderEngine):
     bl_idname = 'octane'
@@ -67,10 +68,14 @@ class OctaneRender(bpy.types.RenderEngine):
 
     def __init__(self):
         self.session = None
+        self.addon_session = OctaneClient().create_session()
         self.is_viewport_active = False
 
-    def __del__(self):        
-        engine.free(self)      
+    def __del__(self):
+        if getattr(self, "addon_session", None):
+            OctaneClient().free_session(self.addon_session)
+            self.addon_session = None     
+        engine.free(self)
 
     def check_active_status(self):
         if not self.is_viewport_active:
@@ -106,17 +111,22 @@ class OctaneRender(bpy.types.RenderEngine):
 
     # viewport render
     def view_update(self, context, depsgraph):
-        if not self.check_active_status():
-            self.report({'ERROR'}, "Viewport shading is active! Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
-            return
-        if not self.session:
-            engine.create(self, context.blend_data,
-                          context.region, context.space_data, context.region_data)
-            self._force_update_all_script_nodes()
-
-        engine.reset(self, context.blend_data, depsgraph)
-        engine.sync(self, depsgraph, context.blend_data)
-        # OctaneServer().view_update(context, depsgraph)
+        oct_scene = context.scene.octane
+        # Legacy updates
+        if not core.ENABLE_OCTANE_ADDON_CLIENT or oct_scene.legacy_mode_enabled:
+            if not self.check_active_status():
+                self.report({'ERROR'}, "Viewport shading is active! Only one active render task is supported at the same time! Please turn off viewport shading and try again!")
+                return
+            if not self.session:
+                engine.create(self, context.blend_data,
+                              context.region, context.space_data, context.region_data)
+                self._force_update_all_script_nodes()
+            engine.reset(self, context.blend_data, depsgraph)
+            engine.sync(self, depsgraph, context.blend_data)
+        # Add-on mode updates
+        if core.ENABLE_OCTANE_ADDON_CLIENT and oct_scene.addon_dev_enabled:
+            self.addon_session.session_type = consts.SessionType.VIEWPORT
+            self.addon_session.view_update(context, depsgraph)            
 
     def view_draw(self, context, depsgraph):
         if not self.check_active_status():
@@ -154,15 +164,23 @@ classes = (
 
 def register():
     from bpy.utils import register_class
+    from . import properties_
+    from . import uis    
+    from . import nodes
+
     from . import ui
     from . import operators
     from . import properties
-    from . import presets
-    from . import nodes
+    from . import presets    
+    from . import engine    
 
-    engine.init()
+    OctaneClient().start()
+    engine.init()    
 
+    properties_.register()
+    uis.register()
     nodes.register()
+
     properties.register()
     ui.register()
     operators.register()
@@ -180,11 +198,16 @@ def register():
 
 def unregister():
     from bpy.utils import unregister_class
+    from . import properties_
+    from . import uis    
+    from . import nodes
+
     from . import ui
     from . import operators
     from . import properties
     from . import presets
 
+    OctaneClient().stop()
     engine.exit()
 
     bpy.app.handlers.version_update.remove(version_update.do_versions)
@@ -192,8 +215,11 @@ def unregister():
     bpy.app.handlers.depsgraph_update_post.remove(operators.sync_octane_aov_output_number)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
-
+    
+    properties_.unregister()
+    uis.unregister()
     nodes.unregister()
+
     ui.unregister()
     operators.unregister()
     properties.unregister()

@@ -48,7 +48,6 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_editmesh.h"
-#include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_layer.h"
@@ -61,6 +60,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
+#include "BKE_vfont.h"
 #include "BKE_workspace.h"
 #include "BKE_world.h"
 
@@ -104,7 +104,7 @@ static bool object_materials_supported_poll_ex(bContext *C, const Object *ob);
 /** \name Local Utilities
  * \{ */
 
-static bool object_array_for_shading_edit_mode_enabled_filter(Object *ob, void *user_data)
+static bool object_array_for_shading_edit_mode_enabled_filter(const Object *ob, void *user_data)
 {
   bContext *C = user_data;
   if (object_materials_supported_poll_ex(C, ob)) {
@@ -121,7 +121,7 @@ static Object **object_array_for_shading_edit_mode_enabled(bContext *C, uint *r_
       C, object_array_for_shading_edit_mode_enabled_filter, C, r_objects_len);
 }
 
-static bool object_array_for_shading_edit_mode_disabled_filter(Object *ob, void *user_data)
+static bool object_array_for_shading_edit_mode_disabled_filter(const Object *ob, void *user_data)
 {
   bContext *C = user_data;
   if (object_materials_supported_poll_ex(C, ob)) {
@@ -228,7 +228,7 @@ static int material_slot_remove_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* Removing material slots in edit mode screws things up, see bug T21822.*/
+  /* Removing material slots in edit mode screws things up, see bug T21822. */
   if (ob == CTX_data_edit_object(C)) {
     BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
     return OPERATOR_CANCELLED;
@@ -295,7 +295,7 @@ static int material_slot_assign_exec(bContext *C, wmOperator *UNUSED(op))
     }
     else {
       /* Find the first matching material.
-       * Note: there may be multiple but that's not a common use case. */
+       * NOTE: there may be multiple but that's not a common use case. */
       for (int i = 0; i < ob->totcol; i++) {
         const Material *mat = BKE_object_material_get(ob, i + 1);
         if (mat_active == mat) {
@@ -402,7 +402,7 @@ static int material_slot_de_select(bContext *C, bool select)
     }
     else {
       /* Find the first matching material.
-       * Note: there may be multiple but that's not a common use case. */
+       * NOTE: there may be multiple but that's not a common use case. */
       for (int i = 0; i < ob->totcol; i++) {
         const Material *mat = BKE_object_material_get(ob, i + 1);
         if (mat_active == mat) {
@@ -690,7 +690,7 @@ static int material_slot_remove_unused_exec(bContext *C, wmOperator *op)
     Object *ob = objects[ob_index];
     int actcol = ob->actcol;
     for (int slot = 1; slot <= ob->totcol; slot++) {
-      while (slot <= ob->totcol && !BKE_object_material_slot_used(ob->data, slot)) {
+      while (slot <= ob->totcol && !BKE_object_material_slot_used(ob, slot)) {
         ob->actcol = slot;
         BKE_object_material_slot_remove(bmain, ob);
 
@@ -1192,7 +1192,7 @@ static int light_cache_bake_exec(bContext *C, wmOperator *op)
 
   G.is_break = false;
 
-  /* TODO abort if selected engine is not eevee. */
+  /* TODO: abort if selected engine is not eevee. */
   void *rj = EEVEE_lightbake_job_data_alloc(bmain, view_layer, scene, false, scene->r.cfra);
 
   light_cache_bake_tag_cache(scene, op);
@@ -2427,7 +2427,7 @@ static void paste_mtex_copybuf(ID *id)
       mtex = &(((FreestyleLineStyle *)id)->mtex[(int)((FreestyleLineStyle *)id)->texact]);
       break;
     default:
-      BLI_assert(!"invalid id type");
+      BLI_assert_msg(0, "invalid id type");
       return;
   }
 

@@ -63,6 +63,7 @@
 #include "DNA_sound_types.h"
 #include "DNA_speaker_types.h"
 #include "DNA_texture_types.h"
+#include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
 
 #include "BKE_action.h"
@@ -84,6 +85,7 @@
 #include "BKE_lattice.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_query.h"
 #include "BKE_light.h"
 #include "BKE_mask.h"
 #include "BKE_material.h"
@@ -111,9 +113,12 @@
 #include "DEG_depsgraph_build.h"
 
 #include "SEQ_iterator.h"
+#include "SEQ_sequencer.h"
 
 #include "intern/builder/deg_builder.h"
+#include "intern/builder/deg_builder_rna.h"
 #include "intern/depsgraph.h"
+#include "intern/depsgraph_tag.h"
 #include "intern/depsgraph_type.h"
 #include "intern/eval/deg_eval_copy_on_write.h"
 #include "intern/node/deg_node.h"
@@ -174,15 +179,30 @@ IDNode *DepsgraphNodeBuilder::add_id_node(ID *id)
   id_node->previously_visible_components_mask = previously_visible_components_mask;
   id_node->previous_eval_flags = previous_eval_flags;
   id_node->previous_customdata_masks = previous_customdata_masks;
+
   /* NOTE: Zero number of components indicates that ID node was just created. */
-  if (id_node->components.is_empty() && deg_copy_on_write_is_needed(id_type)) {
-    ComponentNode *comp_cow = id_node->add_component(NodeType::COPY_ON_WRITE);
-    OperationNode *op_cow = comp_cow->add_operation(
-        [id_node](::Depsgraph *depsgraph) { deg_evaluate_copy_on_write(depsgraph, id_node); },
-        OperationCode::COPY_ON_WRITE,
-        "",
-        -1);
-    graph_->operations.append(op_cow);
+  const bool is_newly_created = id_node->components.is_empty();
+
+  if (is_newly_created) {
+    if (deg_copy_on_write_is_needed(id_type)) {
+      ComponentNode *comp_cow = id_node->add_component(NodeType::COPY_ON_WRITE);
+      OperationNode *op_cow = comp_cow->add_operation(
+          [id_node](::Depsgraph *depsgraph) { deg_evaluate_copy_on_write(depsgraph, id_node); },
+          OperationCode::COPY_ON_WRITE,
+          "",
+          -1);
+      graph_->operations.append(op_cow);
+    }
+
+    ComponentNode *visibility_component = id_node->add_component(NodeType::VISIBILITY);
+    OperationNode *visibility_operation = visibility_component->add_operation(
+        nullptr, OperationCode::OPERATION, "", -1);
+    /* Pin the node so that it and its relations are preserved by the unused nodes/relations
+     * deletion. This is mainly to make it easier to debug visibility. */
+    /* NOTE: Keep un-pinned for the 3.0 release. This way we are more sure that side effects of the
+     * change is minimal outside of the dependency graph area. */
+    // visibility_operation->flag |= OperationFlag::DEPSOP_FLAG_PINNED;
+    graph_->operations.append(visibility_operation);
   }
   return id_node;
 }
@@ -224,7 +244,7 @@ OperationNode *DepsgraphNodeBuilder::add_operation_node(ComponentNode *comp_node
             comp_node->identifier().c_str(),
             op_node->identifier().c_str(),
             op_node);
-    BLI_assert(!"Should not happen!");
+    BLI_assert_msg(0, "Should not happen!");
   }
   return op_node;
 }
@@ -360,7 +380,119 @@ void DepsgraphNodeBuilder::begin_build()
   graph_->entry_tags.clear();
 }
 
-void DepsgraphNodeBuilder::end_build()
+/* Util callbacks for `BKE_library_foreach_ID_link`, used to detect when a COW ID is using ID
+ * pointers that are either:
+ *  - COW ID pointers that do not exist anymore in current depsgraph.
+ *  - Orig ID pointers that do have now a COW version in current depsgraph.
+ * In both cases, it means the COW ID user needs to be flushed, to ensure its pointers are properly
+ * remapped.
+ *
+ * NOTE: This is split in two, a static function and a public method of the node builder, to allow
+ * the code to access the builder's data more easily. */
+
+/* `id_cow_self` is the user of `id_pointer`, see also `LibraryIDLinkCallbackData` struct
+ * definition. */
+int DepsgraphNodeBuilder::foreach_id_cow_detect_need_for_update_callback(ID *id_cow_self,
+                                                                         ID *id_pointer)
+{
+  if (id_pointer->orig_id == nullptr) {
+    /* `id_cow_self` uses a non-cow ID, if that ID has a COW copy in current depsgraph its owner
+     * needs to be remapped, i.e. COW-flushed. */
+    IDNode *id_node = find_id_node(id_pointer);
+    if (id_node != nullptr && id_node->id_cow != nullptr) {
+      graph_id_tag_update(bmain_,
+                          graph_,
+                          id_cow_self->orig_id,
+                          ID_RECALC_COPY_ON_WRITE,
+                          DEG_UPDATE_SOURCE_RELATIONS);
+      return IDWALK_RET_STOP_ITER;
+    }
+  }
+  else {
+    /* `id_cow_self` uses a COW ID, if that COW copy is removed from current depsgraph its owner
+     * needs to be remapped, i.e. COW-flushed. */
+    /* NOTE: at that stage, old existing COW copies that are to be removed from current state of
+     * evaluated depsgraph are still valid pointers, they are freed later (typically during
+     * destruction of the builder itself). */
+    IDNode *id_node = find_id_node(id_pointer->orig_id);
+    if (id_node == nullptr) {
+      graph_id_tag_update(bmain_,
+                          graph_,
+                          id_cow_self->orig_id,
+                          ID_RECALC_COPY_ON_WRITE,
+                          DEG_UPDATE_SOURCE_RELATIONS);
+      return IDWALK_RET_STOP_ITER;
+    }
+  }
+  return IDWALK_RET_NOP;
+}
+
+static int foreach_id_cow_detect_need_for_update_callback(LibraryIDLinkCallbackData *cb_data)
+{
+  ID *id = *cb_data->id_pointer;
+  if (id == nullptr) {
+    return IDWALK_RET_NOP;
+  }
+
+  DepsgraphNodeBuilder *builder = static_cast<DepsgraphNodeBuilder *>(cb_data->user_data);
+  ID *id_cow_self = cb_data->id_self;
+
+  return builder->foreach_id_cow_detect_need_for_update_callback(id_cow_self, id);
+}
+
+/* Check for IDs that need to be flushed (COW-updated) because the depsgraph itself created or
+ * removed some of their evaluated dependencies.
+ *
+ * NOTE: Currently the only ID types that depsgraph may decide to not evaluate/generate COW
+ * copies for, even though they are referenced by other data-blocks, are Collections and Objects
+ * (through their various visibility flags, and the ones from LayerCollections too). However, this
+ * code is kept generic as it makes it more future-proof, and optimization here would give
+ * negligible performance improvements in typical cases.
+ *
+ * NOTE: This mechanism may also 'fix' some missing update tagging from non-depsgraph code in
+ * some cases. This is slightly unfortunate (as it may hide issues in other parts of Blender
+ * code), but cannot really be avoided currently.
+ */
+void DepsgraphNodeBuilder::update_invalid_cow_pointers()
+{
+  for (const IDNode *id_node : graph_->id_nodes) {
+    if (id_node->previously_visible_components_mask == 0) {
+      /* Newly added node/ID, no need to check it. */
+      continue;
+    }
+    if (ELEM(id_node->id_cow, id_node->id_orig, nullptr)) {
+      /* Node/ID with no COW data, no need to check it. */
+      continue;
+    }
+    if ((id_node->id_cow->recalc & ID_RECALC_COPY_ON_WRITE) != 0) {
+      /* Node/ID already tagged for COW flush, no need to check it. */
+      continue;
+    }
+    if ((id_node->id_cow->flag & LIB_EMBEDDED_DATA) != 0) {
+      /* For now, we assume embedded data are managed by their owner IDs and do not need to be
+       * checked here.
+       *
+       * NOTE: This exception somewhat weak, and ideally should not be needed. Currently however,
+       * embedded data are handled as full local (private) data of their owner IDs in part of
+       * Blender (like read/write code, including undo/redo), while depsgraph generally treat them
+       * as regular independent IDs. This leads to inconsistencies that can lead to bad level
+       * memory accesses.
+       *
+       * E.g. when undoing creation/deletion of a collection directly child of a scene's master
+       * collection, the scene itself is re-read in place, but its master collection becomes a
+       * completely new different pointer, and the existing COW of the old master collection in the
+       * matching deg node is therefore pointing to fully invalid (freed) memory. */
+      continue;
+    }
+    BKE_library_foreach_ID_link(nullptr,
+                                id_node->id_cow,
+                                deg::foreach_id_cow_detect_need_for_update_callback,
+                                this,
+                                IDWALK_IGNORE_EMBEDDED_ID | IDWALK_READONLY);
+  }
+}
+
+void DepsgraphNodeBuilder::tag_previously_tagged_nodes()
 {
   for (const SavedEntryTag &entry_tag : saved_entry_tags_) {
     IDNode *id_node = find_id_node(entry_tag.id_orig);
@@ -380,6 +512,12 @@ void DepsgraphNodeBuilder::end_build()
      * that originally node was explicitly tagged for user update. */
     op_node->tag_update(graph_, DEG_UPDATE_SOURCE_USER_EDIT);
   }
+}
+
+void DepsgraphNodeBuilder::end_build()
+{
+  tag_previously_tagged_nodes();
+  update_invalid_cow_pointers();
 }
 
 void DepsgraphNodeBuilder::build_id(ID *id)
@@ -525,9 +663,9 @@ void DepsgraphNodeBuilder::build_idproperties(IDProperty *id_property)
 void DepsgraphNodeBuilder::build_collection(LayerCollection *from_layer_collection,
                                             Collection *collection)
 {
-  const int restrict_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? COLLECTION_RESTRICT_VIEWPORT :
-                                                                  COLLECTION_RESTRICT_RENDER;
-  const bool is_collection_restricted = (collection->flag & restrict_flag);
+  const int visibility_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? COLLECTION_HIDE_VIEWPORT :
+                                                                    COLLECTION_HIDE_RENDER;
+  const bool is_collection_restricted = (collection->flag & visibility_flag);
   const bool is_collection_visible = !is_collection_restricted && is_parent_collection_visible_;
   IDNode *id_node;
   if (built_map_.checkIsBuiltAndTag(collection)) {
@@ -1077,7 +1215,7 @@ void DepsgraphNodeBuilder::build_driver_id_property(ID *id, const char *rna_path
   if (prop == nullptr) {
     return;
   }
-  if (!RNA_property_is_idprop(prop)) {
+  if (!rna_prop_affects_parameters_node(&ptr, prop)) {
     return;
   }
   const char *prop_identifier = RNA_property_identifier((PropertyRNA *)prop);
@@ -1093,7 +1231,19 @@ void DepsgraphNodeBuilder::build_parameters(ID *id)
   op_node = add_operation_node(id, NodeType::PARAMETERS, OperationCode::PARAMETERS_ENTRY);
   op_node->set_as_entry();
   /* Generic evaluation node. */
-  add_operation_node(id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EVAL);
+
+  if (ID_TYPE_SUPPORTS_PARAMS_WITHOUT_COW(GS(id->name))) {
+    ID *id_cow = get_cow_id(id);
+    add_operation_node(
+        id,
+        NodeType::PARAMETERS,
+        OperationCode::PARAMETERS_EVAL,
+        [id_cow, id](::Depsgraph * /*depsgraph*/) { BKE_id_eval_properties_copy(id_cow, id); });
+  }
+  else {
+    add_operation_node(id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EVAL);
+  }
+
   /* Explicit exit operation. */
   op_node = add_operation_node(id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EXIT);
   op_node->set_as_exit();
@@ -1246,7 +1396,7 @@ void DepsgraphNodeBuilder::build_particle_systems(Object *object, bool is_object
     ParticleSettings *part = psys->part;
     /* Build particle settings operations.
      *
-     * NOTE: The call itself ensures settings are only build once.  */
+     * NOTE: The call itself ensures settings are only build once. */
     build_particle_settings(part);
     /* Particle system evaluation. */
     add_operation_node(psys_comp, OperationCode::PARTICLE_SYSTEM_EVAL, nullptr, psys->name);
@@ -1332,7 +1482,7 @@ void DepsgraphNodeBuilder::build_shapekeys(Key *key)
 }
 
 /* ObData Geometry Evaluation */
-// XXX: what happens if the datablock is shared!
+/* XXX: what happens if the datablock is shared! */
 void DepsgraphNodeBuilder::build_object_data_geometry(Object *object, bool is_object_visible)
 {
   OperationNode *op_node;
@@ -1468,7 +1618,7 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata, bool
       break;
     }
     default:
-      BLI_assert(!"Should not happen");
+      BLI_assert_msg(0, "Should not happen");
       break;
   }
   op_node = add_operation_node(obdata, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_DONE);
@@ -1555,6 +1705,12 @@ void DepsgraphNodeBuilder::build_nodetree_socket(bNodeSocket *socket)
   else if (socket->type == SOCK_COLLECTION) {
     build_id((ID *)((bNodeSocketValueCollection *)socket->default_value)->value);
   }
+  else if (socket->type == SOCK_TEXTURE) {
+    build_id((ID *)((bNodeSocketValueTexture *)socket->default_value)->value);
+  }
+  else if (socket->type == SOCK_MATERIAL) {
+    build_id((ID *)((bNodeSocketValueMaterial *)socket->default_value)->value);
+  }
 }
 
 void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
@@ -1624,12 +1780,15 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
     else if (id_type == ID_MC) {
       build_movieclip((MovieClip *)id);
     }
+    else if (id_type == ID_VF) {
+      build_vfont((VFont *)id);
+    }
     else if (ELEM(bnode->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
       bNodeTree *group_ntree = (bNodeTree *)id;
       build_nodetree(group_ntree);
     }
     else {
-      BLI_assert(!"Unknown ID type used for node");
+      BLI_assert_msg(0, "Unknown ID type used for node");
     }
   }
 
@@ -1640,7 +1799,7 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
     build_idproperties(socket->prop);
   }
 
-  // TODO: link from nodetree to owner_component?
+  /* TODO: link from nodetree to owner_component? */
 }
 
 /* Recursively build graph for material */
@@ -1875,6 +2034,38 @@ void DepsgraphNodeBuilder::build_simulation(Simulation *simulation)
                      });
 }
 
+void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
+{
+  if (built_map_.checkIsBuiltAndTag(vfont)) {
+    return;
+  }
+  build_parameters(&vfont->id);
+  build_idproperties(vfont->id.properties);
+  add_operation_node(
+      &vfont->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
+}
+
+static bool seq_node_build_cb(Sequence *seq, void *user_data)
+{
+  DepsgraphNodeBuilder *nb = (DepsgraphNodeBuilder *)user_data;
+  nb->build_idproperties(seq->prop);
+  if (seq->sound != nullptr) {
+    nb->build_sound(seq->sound);
+  }
+  if (seq->scene != nullptr) {
+    nb->build_scene_parameters(seq->scene);
+  }
+  if (seq->type == SEQ_TYPE_SCENE && seq->scene != nullptr) {
+    if (seq->flag & SEQ_SCENE_STRIPS) {
+      nb->build_scene_sequencer(seq->scene);
+    }
+    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(seq->scene);
+    nb->build_scene_speakers(seq->scene, sequence_view_layer);
+  }
+  /* TODO(sergey): Movie clip, scene, camera, mask. */
+  return true;
+}
+
 void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
 {
   if (scene->ed == nullptr) {
@@ -1889,28 +2080,10 @@ void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
                      NodeType::SEQUENCER,
                      OperationCode::SEQUENCES_EVAL,
                      [scene_cow](::Depsgraph *depsgraph) {
-                       BKE_scene_eval_sequencer_sequences(depsgraph, scene_cow);
+                       SEQ_eval_sequences(depsgraph, scene_cow, &scene_cow->ed->seqbase);
                      });
   /* Make sure data for sequences is in the graph. */
-  Sequence *seq;
-  SEQ_ALL_BEGIN (scene->ed, seq) {
-    build_idproperties(seq->prop);
-    if (seq->sound != nullptr) {
-      build_sound(seq->sound);
-    }
-    if (seq->scene != nullptr) {
-      build_scene_parameters(seq->scene);
-    }
-    if (seq->type == SEQ_TYPE_SCENE && seq->scene != nullptr) {
-      if (seq->flag & SEQ_SCENE_STRIPS) {
-        build_scene_sequencer(seq->scene);
-      }
-      ViewLayer *sequence_view_layer = BKE_view_layer_default_render(seq->scene);
-      build_scene_speakers(seq->scene, sequence_view_layer);
-    }
-    /* TODO(sergey): Movie clip, scene, camera, mask. */
-  }
-  SEQ_ALL_END;
+  SEQ_for_each_callback(&scene->ed->seqbase, seq_node_build_cb, this);
 }
 
 void DepsgraphNodeBuilder::build_scene_audio(Scene *scene)

@@ -4,8 +4,10 @@ from nodeitems_utils import NodeCategory, NodeItem, NodeItemCustom
 from bpy.props import EnumProperty, StringProperty, BoolProperty, IntProperty, FloatProperty, FloatVectorProperty, IntVectorProperty
 from octane.utils import utility, consts
 from octane.nodes.base_node import OctaneBaseNode
+from octane.nodes.base_kernel import OctaneBaseKernelNode
 from octane.nodes.base_osl import OctaneScriptNode
 from octane.nodes.base_image import OctaneBaseImageNode
+from octane.nodes.base_color_ramp import OctaneBaseRampNode
 from octane.nodes.base_socket import OctaneBaseSocket, OctaneGroupTitleSocket, OctaneMovableInput, OctaneGroupTitleMovableInputs
 
 
@@ -695,7 +697,7 @@ class OctanePathTracingKernelGroupCompatibilitySettings(OctaneGroupTitleSocket):
     bl_label="[OctaneGroupTitle]Compatibility settings"
     octane_group_sockets: StringProperty(name="Group Sockets", default="Emulate old volume behavior;")
 
-class OctanePathTracingKernel(bpy.types.Node, OctaneBaseNode):
+class OctanePathTracingKernel(bpy.types.Node, OctaneBaseKernelNode):
     bl_idname="OctanePathTracingKernel"
     bl_label="Path tracing kernel"
     bl_width_default=200
@@ -838,3 +840,14 @@ def unregister():
     utility.octane_unregister_class(reversed(_CLASSES))
 
 ##### END OCTANE GENERATED CODE BLOCK #####
+
+OctanePathTracingKernelGlobalLightIdMask.octane_default_node_type = "OctaneLightIDBitValue"
+OctanePathTracingKernelLightPassMask.octane_default_node_type = "OctaneLightIDBitValue"
+
+class OctanePathTracingKernel_Override(OctanePathTracingKernel):
+
+    def init(self, context):
+        super().init(context)
+        self.init_octane_kernel(context, True)
+
+utility.override_class(_CLASSES, OctanePathTracingKernel, OctanePathTracingKernel_Override)

@@ -88,7 +88,6 @@ static void node_oct_instance_color_tex_init(bNodeTree *ntree, bNode *node)
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->iuser.frames = 1;
   tex->iuser.sfra = 1;
-  tex->iuser.ok = 1;
 
   node->storage = tex;
   node->custom1 = OCT_HDR_BIT_DEPTH_16;

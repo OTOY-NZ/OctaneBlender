@@ -34,6 +34,7 @@ set(INC
   ../sequencer
   ../windowmanager
   ../../../intern/clog
+  ../../../intern/ghost
   ../../../intern/guardedalloc
 
   # for writefile.c: dna_type_offsets.h
@@ -42,7 +43,7 @@ set(INC
 )
 
 set(INC_SYS
-  ${ZLIB_INCLUDE_DIRS}
+  ${ZSTD_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -57,6 +58,8 @@ set(SRC
   intern/versioning_270.c
   intern/versioning_280.c
   intern/versioning_290.c
+  intern/versioning_300.c
+  intern/versioning_common.cc
   intern/versioning_cycles.c
   intern/versioning_defaults.c
   intern/versioning_dna.c
@@ -71,6 +74,7 @@ set(SRC
   BLO_undofile.h
   BLO_writefile.h
   intern/readfile.h
+  intern/versioning_common.h
 )
 
 set(LIB

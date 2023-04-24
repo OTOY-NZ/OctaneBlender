@@ -35,10 +35,6 @@ struct Scene;
 struct Sequence;
 
 void SEQ_relations_sequence_free_anim(struct Sequence *seq);
-void SEQ_relations_update_changed_seq_and_deps(struct Scene *scene,
-                                               struct Sequence *changed_seq,
-                                               int len_change,
-                                               int ibuf_change);
 bool SEQ_relations_check_scene_recursion(struct Scene *scene, struct ReportList *reports);
 bool SEQ_relations_render_loop_check(struct Sequence *seq_main, struct Sequence *seq);
 void SEQ_relations_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, bool for_render);
@@ -65,6 +61,9 @@ void SEQ_cache_iterate(
     void *userdata,
     bool callback_init(void *userdata, size_t item_count),
     bool callback_iter(void *userdata, struct Sequence *seq, int timeline_frame, int cache_type));
+struct Sequence *SEQ_find_metastrip_by_sequence(ListBase *seqbase /* = ed->seqbase */,
+                                                struct Sequence *meta /* = NULL */,
+                                                struct Sequence *seq);
 #ifdef __cplusplus
 }
 #endif

@@ -140,7 +140,7 @@ static void foreach_nodeclass(Scene *scene, void *calldata, bNodeClassCallback f
   func(calldata, NODE_CLASS_TEXTURE, N_("Texture"));
   func(calldata, NODE_CLASS_OP_COLOR, N_("Color"));
   func(calldata, NODE_CLASS_OP_VECTOR, N_("Vector"));
-  func(calldata, NODE_CLASS_CONVERTOR, N_("Convertor"));
+  func(calldata, NODE_CLASS_CONVERTER, N_("Converter"));
   func(calldata, NODE_CLASS_SCRIPT, N_("Script"));
   func(calldata, NODE_CLASS_INTERFACE, N_("Interface"));
   func(calldata, NODE_CLASS_INPUT, N_("Input"));
@@ -201,6 +201,13 @@ static bool shader_validate_link(bNodeTree *UNUSED(ntree), bNodeLink *link)
   return true;
 }
 
+static bool shader_node_tree_socket_type_valid(bNodeTreeType *UNUSED(ntreetype),
+                                               bNodeSocketType *socket_type)
+{
+  return nodeIsStaticSocketType(socket_type) &&
+         ELEM(socket_type->type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_SHADER);
+}
+
 bNodeTreeType *ntreeType_Shader;
 
 void register_node_tree_type_sh(void)
@@ -211,7 +218,7 @@ void register_node_tree_type_sh(void)
   tt->type = NTREE_SHADER;
   strcpy(tt->idname, "ShaderNodeTree");
   strcpy(tt->ui_name, N_("Shader Editor"));
-  tt->ui_icon = 0; /* defined in drawnode.c */
+  tt->ui_icon = 0; /* Defined in `drawnode.c`. */
   strcpy(tt->ui_description, N_("Shader nodes"));
 
   tt->foreach_nodeclass = foreach_nodeclass;
@@ -222,6 +229,7 @@ void register_node_tree_type_sh(void)
   tt->poll = shader_tree_poll;
   tt->get_from_context = shader_get_from_context;
   tt->validate_link = shader_validate_link;
+  tt->valid_socket_type = shader_node_tree_socket_type_valid;
 
   tt->rna_ext.srna = &RNA_ShaderNodeTree;
 
@@ -408,7 +416,7 @@ static void ntree_shader_groups_expand_inputs(bNodeTree *localtree)
         if (socket->link != NULL && !(socket->link->flag & NODE_LINK_MUTED)) {
           bNodeLink *link = socket->link;
           /* Fix the case where the socket is actually converting the data. (see T71374)
-           * We only do the case of lossy conversion to float.*/
+           * We only do the case of lossy conversion to float. */
           if ((socket->type == SOCK_FLOAT) && (link->fromsock->type != link->tosock->type)) {
             if (link->fromsock->type == SOCK_RGBA) {
               bNode *tmp = nodeAddStaticNode(NULL, localtree, SH_NODE_RGBTOBW);
@@ -801,7 +809,7 @@ static void ntree_shader_relink_displacement(bNodeTree *ntree, bNode *output_nod
    */
   nodeAddLink(ntree, displacement_node, displacement_socket, bump_node, bump_input_socket);
 
-  /* Tag as part of the new displacmeent tree. */
+  /* Tag as part of the new displacement tree. */
   dot_node->tmp_flag = -2;
   geo_node->tmp_flag = -2;
   bump_node->tmp_flag = -2;
