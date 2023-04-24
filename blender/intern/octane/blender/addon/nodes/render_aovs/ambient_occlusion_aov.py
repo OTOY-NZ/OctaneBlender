@@ -59,6 +59,22 @@ class OctaneAmbientOcclusionAOVAoAlphaShadows(OctaneBaseSocket):
     octane_end_version=4294967295
     octane_deprecated=False
 
+class OctaneAmbientOcclusionAOVBump(OctaneBaseSocket):
+    bl_idname="OctaneAmbientOcclusionAOVBump"
+    bl_label="Bump and normal mapping"
+    color=consts.OctanePinColor.Bool
+    octane_default_node_type=11
+    octane_default_node_name="OctaneBoolValue"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=18)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="bump")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_BOOL)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_BOOL)
+    default_value: BoolProperty(default=True, update=OctaneBaseSocket.update_node_tree, description="Take bump and normal mapping into account for ambient occlusion")
+    octane_hide_value=False
+    octane_min_version=11000500
+    octane_end_version=4294967295
+    octane_deprecated=False
+
 class OctaneAmbientOcclusionAOV(bpy.types.Node, OctaneBaseNode):
     bl_idname="OctaneAmbientOcclusionAOV"
     bl_label="Ambient occlusion AOV"
@@ -70,15 +86,17 @@ class OctaneAmbientOcclusionAOV(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_sub_type_name=""
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=183)
-    octane_socket_list: StringProperty(name="Socket List", default="Enabled;AO distance;AO alpha shadows;")
+    octane_socket_list: StringProperty(name="Socket List", default="Enabled;AO distance;AO alpha shadows;Bump and normal mapping;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=4)
 
     def init(self, context):
         self.inputs.new("OctaneAmbientOcclusionAOVEnabled", OctaneAmbientOcclusionAOVEnabled.bl_label).init()
         self.inputs.new("OctaneAmbientOcclusionAOVAodist", OctaneAmbientOcclusionAOVAodist.bl_label).init()
         self.inputs.new("OctaneAmbientOcclusionAOVAoAlphaShadows", OctaneAmbientOcclusionAOVAoAlphaShadows.bl_label).init()
+        self.inputs.new("OctaneAmbientOcclusionAOVBump", OctaneAmbientOcclusionAOVBump.bl_label).init()
         self.outputs.new("OctaneRenderAOVsOutSocket", "Render AOVs out").init()
 
 
@@ -86,6 +104,7 @@ _CLASSES=[
     OctaneAmbientOcclusionAOVEnabled,
     OctaneAmbientOcclusionAOVAodist,
     OctaneAmbientOcclusionAOVAoAlphaShadows,
+    OctaneAmbientOcclusionAOVBump,
     OctaneAmbientOcclusionAOV,
 ]
 

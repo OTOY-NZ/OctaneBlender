@@ -40,6 +40,7 @@ class OctaneCustomLUT(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=103)
     octane_socket_list: StringProperty(name="Socket List", default="Strength;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_title;a_domain_min_1d;a_domain_max_1d;a_values_1d;a_domain_min_3d;a_domain_max_3d;a_values_3d;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;title;domainMin1D;domainMax1D;values1d;domainMin3D;domainMax3D;values3d;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;8;8;8;8;8;8;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
 

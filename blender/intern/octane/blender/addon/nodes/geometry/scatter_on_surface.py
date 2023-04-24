@@ -881,6 +881,7 @@ class OctaneScatterOnSurface(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=164)
     octane_socket_list: StringProperty(name="Socket List", default="Surface;Scattered object 1;Scattered object 2;Scattered object 3;Scattered object 4;Object selection method;Object selection seed;Object selection map;Distribution on surfaces;Distribution on particles;Distribution on hair;Position on edge;Spacing on edges;Poisson disk sampling;Relative density map;Position on hair;Spacing on hair;Seed;Instances;Culling map;Culling min;Culling max;Culling angle low;Culling angle high;Smooth normals;Normal align;Front align;Orientation priority;Up direction mode;Reference up direction;Reference up point;Front direction mode;Reference front direction;Reference front point;Rotation mode;Rotation min;Rotation max;Rotation step;Rotation map;Scale mode;Scale min;Scale max;Scale step;Scale map;Translation mode;Translation min;Translation max;Translation step;Translation map;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_module_graph_storage;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="moduleGraphStorage;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=49)
 
@@ -1017,8 +1018,8 @@ def unregister():
 ##### END OCTANE GENERATED CODE BLOCK #####
 from octane import core
 
-OctaneScatterOnSurfaceGeometry.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterOnSurfaceInput1.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterOnSurfaceInput2.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterOnSurfaceInput3.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
-OctaneScatterOnSurfaceInput4.octane_default_node_type = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceGeometry.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceInput1.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceInput2.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceInput3.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"
+OctaneScatterOnSurfaceInput4.octane_default_node_name = "OctaneObjectData" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctObjectData:OutGeo"

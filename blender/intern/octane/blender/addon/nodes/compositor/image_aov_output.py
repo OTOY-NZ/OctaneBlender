@@ -118,6 +118,7 @@ class OctaneImageAOVOutput(bpy.types.Node, OctaneBaseImageNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=168)
     octane_socket_list: StringProperty(name="Socket List", default="Color space;Output channels;Enable imager;Enable post processing;Pre multiply alpha;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_image_chosen_layer_name;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;size;type;imageFileType;canWrapX;canWrapY;imageFlip;sourceInfo;imageLayerNames;imageChosenLayerName;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;3;2;2;1;1;1;10;10;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=5)
 

@@ -36,7 +36,7 @@ class OctaneVectronSize(OctaneBaseSocket):
     octane_pin_name: StringProperty(name="Octane Pin Name", default="size")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT3)
-    default_value: FloatVectorProperty(default=(10.000000, 10.000000, 10.000000), update=OctaneBaseSocket.update_node_tree, description="Bounds of the geometry in meters", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=-340282346638528859811704183484516925440.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
+    default_value: FloatVectorProperty(default=(10.000000, 10.000000, 10.000000), update=OctaneBaseSocket.update_node_tree, description="Bounds of the geometry in meters", min=0.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=340282346638528859811704183484516925440.000000, step=1, subtype="NONE", precision=2, size=3)
     octane_hide_value=False
     octane_min_version=4000009
     octane_end_version=4294967295
@@ -55,6 +55,7 @@ class OctaneVectron(bpy.types.Node, OctaneScriptNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=133)
     octane_socket_list: StringProperty(name="Socket List", default="Geometry material;Bounds;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_shader_code;a_result;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;shaderCode;result;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=2)
 

@@ -250,6 +250,7 @@ class OctaneBakingTexture(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=115)
     octane_socket_list: StringProperty(name="Socket List", default="Texture;Enable baking;Resolution;Samples per pixel;Texture type;RGB baking;Power;Gamma;Invert;Linear space invert;UV transform;Projection;Border mode;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="size;type;imageFileType;canWrapX;canWrapY;imageFlip;sourceInfo;imageLayerNames;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="3;2;2;1;1;1;10;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=13)
 

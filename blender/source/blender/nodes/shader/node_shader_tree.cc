@@ -175,7 +175,7 @@ static bool shader_validate_link(eNodeSocketDatatype from, eNodeSocketDatatype t
   /* Can't connect shader into other socket types, other way around is fine
    * since it will be interpreted as emission. */
   if (from == SOCK_SHADER) {
-    return to == SOCK_SHADER;
+    return to == SOCK_SHADER || to == SOCK_CUSTOM;
   }
   return true;
 }

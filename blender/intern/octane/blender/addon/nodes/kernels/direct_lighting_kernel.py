@@ -804,6 +804,7 @@ class OctaneDirectLightingKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=24)
     octane_socket_list: StringProperty(name="Socket List", default="Max. samples;Global illumination mode;Specular depth;Glossy depth;Diffuse depth;Maximal overlapping volumes;Ray epsilon;Filter size;AO distance;AO ambient texture;Alpha shadows;Nested dielectrics;Irradiance mode;Max subdivision level;Alpha channel;Keep environment;AI light;AI light update;Light IDs action;Light IDs;Light linking invert;Path term. power;Coherent ratio;Static noise;Parallel samples;Max. tile samples;Minimize net traffic;Adaptive sampling;Noise threshold;Min. adaptive samples;Pixel grouping;Expected exposure;White light spectrum;Use old color pipeline;Deep image;Deep render AOVs;Max. depth samples;Depth tolerance;Toon shadow ambient;Emulate old volume behavior;Affect roughness;AI light strength;Coherent mode;RR probability;Adaptive strength;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=45)
 
@@ -935,8 +936,8 @@ def unregister():
 
 ##### END OCTANE GENERATED CODE BLOCK #####
 
-OctaneDirectLightingKernelGlobalLightIdMask.octane_default_node_type = "OctaneLightIDBitValue"
-OctaneDirectLightingKernelLightPassMask.octane_default_node_type = "OctaneLightIDBitValue"
+OctaneDirectLightingKernelGlobalLightIdMask.octane_default_node_name = "OctaneLightIDBitValue"
+OctaneDirectLightingKernelLightPassMask.octane_default_node_name = "OctaneLightIDBitValue"
 
 class OctaneDirectLightingKernel_Override(OctaneDirectLightingKernel):
 

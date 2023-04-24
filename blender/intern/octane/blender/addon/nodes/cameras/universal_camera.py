@@ -954,6 +954,7 @@ class OctaneUniversalCamera(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=157)
     octane_socket_list: StringProperty(name="Socket List", default="Camera mode;Sensor width;Focal length;F-stop;Field of view;Scale of view;Lens shift;Pixel aspect ratio;Fisheye angle;Fisheye type;Hard vignette;Fisheye projection;Horizontal field of view;Vertical field of view;Cubemap layout;Equi-angular cubemap;Use distortion texture;Distortion texture;Spherical distortion;Barrel distortion;Barrel distortion corners;Spherical aberration;Coma;Astigmatism;Field curvature;Near clip depth;Far clip depth;Auto-focus;Focal depth;Aperture;Aperture aspect ratio;Aperture shape;Aperture edge;Aperture blade count;Aperture rotation;Aperture roundedness;Central obstruction;Notch position;Notch scale;Custom aperture;Optical vignette distance;Optical vignette scale;Enable split-focus diopter;Diopter focal depth;Diopter rotation;Diopter translation;Diopter boundary width;Diopter boundary falloff;Show diopter guide;Position;Target;Up-vector;Keep upright;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_load_initial_state;a_save_initial_state;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="loadInitialState;saveInitialState;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;1;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=53)
 

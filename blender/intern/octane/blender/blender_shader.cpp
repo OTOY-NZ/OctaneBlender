@@ -207,7 +207,7 @@ std::string LinkResolver::resolve_name(std::string prefix, BL::Node node)
           bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
           BL::ID b_ob_data = b_ob.data();
           if (b_ob_data.ptr.data != NULL) {
-            return resolve_octane_name(b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+            return resolve_octane_name(b_ob, is_modified ? b_ob.name_full() : "", MESH_TAG);
           }
           else {
             return b_ob.name_full() + MESH_TAG;
@@ -286,8 +286,7 @@ static std::string resolve_object_geo_data_name(BL::Object &b_ob,
 {
   bool is_modified = BKE_object_is_modified(b_ob, b_scene, b_engine.is_preview());
   BL::ID b_ob_data = b_ob.data();
-  std::string geo_name = resolve_octane_name(
-      b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+  std::string geo_name = resolve_octane_name(b_ob, is_modified ? b_ob.name_full() : "", MESH_TAG);
   return geo_name;
 }
 
@@ -751,7 +750,7 @@ static void generate_collection_nodes(std::string prefix_name,
                                                (b_engine.is_preview()) ? (1 << 0) : (1 << 1));
       BL::ID b_ob_data = b_object->data();
       std::string geo_name = resolve_octane_name(
-          b_ob_data, is_modified ? b_object->name_full() : "", MESH_TAG);
+          *b_object, is_modified ? b_object->name_full() : "", MESH_TAG);
       std::string placement_name = object_data_geo_output_node->oct_node->sName +
                                    "_Collection_Placement_" + geo_name;
       std::string transform_name = placement_name + "_Collection_Transform_" + geo_name;
@@ -915,7 +914,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
               bool is_modified = BKE_object_is_modified(b_ob, b_scene, is_preview);
               BL::ID b_ob_data = b_ob.data();
               std::string geo_name = resolve_octane_name(
-                  b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+                  b_ob, is_modified ? b_ob.name_full() : "", MESH_TAG);
               OctaneDataTransferObject::OctanePlacement *oct_placement_node =
                   (OctaneDataTransferObject::OctanePlacement *)
                       object_data_geo_output_node->oct_node;
@@ -1499,7 +1498,7 @@ static ShaderNode *get_octane_node(std::string &prefix_name,
       OctaneDataTransferObject::OctaneReadVDBTexture *read_vdb =
           (OctaneDataTransferObject::OctaneReadVDBTexture *)node->oct_node;
       read_vdb->sVDB.sLinkNodeName = resolve_octane_name(
-          b_ob_data, is_modified ? b_ob.name_full() : "", MESH_TAG);
+          b_ob, is_modified ? b_ob.name_full() : "", MESH_TAG);
       read_vdb->sVDB.bUseLinked = true;
     }
   }

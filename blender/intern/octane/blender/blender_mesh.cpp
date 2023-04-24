@@ -82,6 +82,52 @@ static void add_face(Mesh *mesh,
   mesh->octane_mesh.oMeshData.iPolyObjectIndex.push_back(0);
 }
 
+static void create_curve_hair(Scene *scene,
+                              BL::Object &b_ob,
+                              Mesh *mesh,
+                              PointerRNA &oct_mesh,
+                              const std::vector<Shader *> &used_shaders)
+{
+  BL::Curve b_curve = BL::Curve(b_ob.data());
+  int hair_num = b_curve.splines.length();
+  if (hair_num == 0) {
+    mesh->empty = true;
+  }
+  mesh->empty = false;
+  mesh->octane_mesh.oMeshData.iSamplesNum = 1;
+  mesh->octane_mesh.oMeshData.f3HairPoints.clear();
+  mesh->octane_mesh.oMeshData.iVertexPerHair.clear();
+  mesh->octane_mesh.oMeshData.fHairThickness.clear();
+  mesh->octane_mesh.oMeshData.iHairMaterialIndices.clear();
+
+  // Transform tfm = get_transform(b_ob.matrix_world());
+  // Transform itfm = transform_quick_inverse(tfm);
+  float root_width = get_float(oct_mesh, "hair_root_width");
+  float tip_width = get_float(oct_mesh, "hair_tip_width");
+
+  BL::Curve::splines_iterator s;
+  for (b_curve.splines.begin(s); s != b_curve.splines.end(); ++s) {
+    float cur_thickness = root_width;
+    size_t step_num = s->points.length();
+    float thickness_step = step_num > 1 ? (tip_width - root_width) / (step_num - 1) : 0;
+    for (size_t step = 0; step < step_num; ++step) {
+      const BL::Array<float, 4> array = s->points[step].co();
+      float3 cur_point = make_float3(array[0], array[1], array[2]);
+      // cur_point = transform_point(&itfm, cur_point);
+      mesh->octane_mesh.oMeshData.f3HairPoints.push_back(
+          OctaneDataTransferObject::float_3(cur_point.x, cur_point.y, cur_point.z));
+      cur_thickness += thickness_step;
+      mesh->octane_mesh.oMeshData.fHairThickness.push_back(cur_thickness);
+    }
+    mesh->octane_mesh.oMeshData.iVertexPerHair.push_back(step_num);
+    int shader = clamp(s->material_index() - 1, 0, used_shaders.size() - 1);
+    mesh->octane_mesh.oMeshData.iHairMaterialIndices.push_back(shader);
+  }
+  mesh->octane_mesh.oMeshData.bShowVertexData = false;
+  mesh->octane_mesh.oMeshData.bUpdate = true;
+  mesh->octane_mesh.oMeshData.oMotionf3HairPoints[0] = mesh->octane_mesh.oMeshData.f3HairPoints;
+}
+
 static void create_mesh(Scene *scene,
                         BL::Object &b_ob,
                         Mesh *mesh,
@@ -118,9 +164,9 @@ static void create_mesh(Scene *scene,
 
   if (numverts == 0 || numfaces == 0) {
     // if (!mesh->empty)
-    //  mesh->empty = true;
+    mesh->empty = true;
     mesh->octane_mesh.oMeshData.iSamplesNum = 1;
-    fprintf(stderr, "Octane: The mesh \"%s\" is empty\n", b_ob.data().name().c_str());
+    // fprintf(stderr, "Octane: The mesh \"%s\" is empty\n", b_ob.data().name().c_str());
     return;
   }
 
@@ -674,7 +720,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   if (is_instance && use_geometry_node_modifier) {
     modifier_object_tag += "[Instance]";
   }
-  std::string mesh_name = resolve_octane_name(b_ob_data, modifier_object_tag, MESH_TAG);
+  std::string mesh_name = resolve_octane_name(b_ob, modifier_object_tag, MESH_TAG);
 
   bool is_mesh_data_updated = mesh_map.sync(&octane_mesh, key);
   std::string new_mesh_tag = generate_mesh_tag(b_depsgraph, b_ob, used_shaders);
@@ -688,6 +734,10 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                         std::to_string(b_mesh.oct_open_subd_bound_interp()) +
                                         std::to_string(b_mesh.oct_open_subd_sharpness());
     new_octane_prop_tag += ("|" + subd_mesh_setting_tag);
+  }
+  else if (b_ob.type() == BL::Object::type_CURVE) {
+    new_octane_prop_tag += ("|" + std::to_string(get_float(oct_mesh, "hair_root_width")) +
+                            std::to_string(get_float(oct_mesh, "hair_tip_width")));
   }
 
   bool is_mesh_tag_data_updated = octane_mesh->mesh_tag != new_mesh_tag;
@@ -735,6 +785,15 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
   // The final mesh type of the mesh will be RESHARPABLE.
   if (octane_mesh->mesh_type == MeshType::AUTO || mesh_type >= octane_mesh->mesh_type) {
     octane_mesh->mesh_type = mesh_type;
+  }
+
+  if (b_ob.type() == BL::Object::type_CURVE) {
+    bool use_curve_as_octane_hair = RNA_boolean_get(&oct_mesh, "render_curve_as_octane_hair");
+    if (use_curve_as_octane_hair) {
+      int current_frame = b_scene.frame_current();
+      is_mesh_data_updated = octane_mesh->last_vdb_frame != b_scene.frame_current();
+      octane_mesh->last_vdb_frame = current_frame;
+    }
   }
 
   if (b_ob.type() == BL::Object::type_VOLUME) {
@@ -881,6 +940,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                               mesh_name, b_ob.type(), octane_mesh->mesh_type) ==
                                           MeshType::RESHAPABLE_PROXY;
 
+  bool use_curve_as_octane_hair = b_ob.type() == BL::Object::type_CURVE &&
+                                  RNA_boolean_get(&oct_mesh, "render_curve_as_octane_hair");
   bool octane_vdb_force_update_flag = RNA_boolean_get(&oct_mesh, "octane_vdb_helper") &&
                                       octane_mesh &&
                                       octane_mesh->last_vdb_frame != b_scene.frame_current();
@@ -915,7 +976,7 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
         }
       }
       if (paint_mode || b_ob.mode() == b_ob.mode_EDIT || is_mesh_tag_data_updated || is_modified) {
-        need_recreate_mesh = need_update;
+        need_recreate_mesh = need_update || is_modified;
         for (auto used_shader : used_shaders) {
           used_shader->need_update_paint = paint_mode;
         }
@@ -927,7 +988,8 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
       }
     }
     else {
-      bool is_resource_dirty = dirty_resources.find(b_ob_data.name()) != dirty_resources.end();
+      bool is_resource_dirty = dirty_resources.find(b_ob_data.name()) != dirty_resources.end() ||
+                               b_ob.mode() == b_ob.mode_EDIT;
       bool is_mesh_cached = !is_resource_dirty && !octane_mesh->octane_mesh.bReshapeable &&
                             resource_cache_data.find(mesh_name) != resource_cache_data.end() &&
                             resource_cache_data[mesh_name] == OctaneDataTransferObject::GEOMETRY;
@@ -1055,67 +1117,72 @@ Mesh *BlenderSync::sync_mesh(BL::Depsgraph &b_depsgraph,
                                 (octane_mesh->octane_mesh.oMeshOpenSubdivision.bOpenSubdEnable);
 
   if (need_recreate_mesh) {
-
-    BL::Mesh b_mesh = object_to_mesh(b_data,
-                                     b_ob,
-                                     b_depsgraph,
-                                     true,
-                                     use_octane_subdivision,
-                                     octane_mesh ? octane_mesh->subdivision_type :
-                                                   Mesh::SUBDIVISION_NONE);
-    if (b_mesh) {
-      BL::FluidDomainSettings b_domain = object_fluid_domain_find(b_ob);
-      bool is_blender_internal_liquid_vdb =
-          b_domain && is_blender_internal_vdb_format(int(b_domain.cache_data_format())) &&
-          b_domain.domain_type() == BL::FluidDomainSettings::domain_type_LIQUID;
-      if (!b_domain || is_blender_internal_liquid_vdb || is_octane_vdb) {
-        Mesh::WindingOrder winding_order = static_cast<Mesh::WindingOrder>(
-            RNA_enum_get(&oct_mesh, "winding_order"));
-
-        if (use_octane_subdivision || octane_mesh->subdivision_type != Mesh::SUBDIVISION_NONE) {
-          if (use_octane_vertex_displacement_subdvision) {
-            create_subd_mesh(
-                scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
-          }
-          else if (octane_mesh->subdivision_type == Mesh::SUBDIVISION_NONE) {
-            create_mesh(scene,
-                        b_ob,
-                        octane_mesh,
-                        b_mesh,
-                        octane_mesh->used_shaders,
-                        winding_order,
-                        true,
-                        false);
-          }
-          else {
-            create_subd_mesh(
-                scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
-          }
-        }
-        else {
-          create_mesh(scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
-        }
-        /* mesh fluid motion mantaflow */
-        sync_mesh_fluid_motion(b_ob, scene, b_mesh, octane_mesh);
-        if (!octane_mesh->empty) {
-          sync_hair(octane_mesh, b_mesh, b_ob, false);
-        }
-        free_object_to_mesh(b_data, b_ob, b_mesh);
-      }
-      else {
-        create_openvdb_volume(
-            b_domain, scene, b_ob, octane_mesh, b_mesh, &oct_mesh, octane_mesh->used_shaders);
-        resolve_volume_attributes(oct_mesh, octane_mesh->octane_volume);
-        tag_resharpable_candidate(mesh_name);
-      }
+    if (use_curve_as_octane_hair) {
+      create_curve_hair(scene, b_ob, octane_mesh, oct_mesh, used_shaders);
     }
     else {
-      octane_mesh->empty = true;
+      BL::Mesh b_mesh = object_to_mesh(b_data,
+                                       b_ob,
+                                       b_depsgraph,
+                                       true,
+                                       use_octane_subdivision,
+                                       octane_mesh ? octane_mesh->subdivision_type :
+                                                     Mesh::SUBDIVISION_NONE);
+      if (b_mesh) {
+        BL::FluidDomainSettings b_domain = object_fluid_domain_find(b_ob);
+        bool is_blender_internal_liquid_vdb =
+            b_domain && is_blender_internal_vdb_format(int(b_domain.cache_data_format())) &&
+            b_domain.domain_type() == BL::FluidDomainSettings::domain_type_LIQUID;
+        if (!b_domain || is_blender_internal_liquid_vdb || is_octane_vdb) {
+          Mesh::WindingOrder winding_order = static_cast<Mesh::WindingOrder>(
+              RNA_enum_get(&oct_mesh, "winding_order"));
+
+          if (use_octane_subdivision || octane_mesh->subdivision_type != Mesh::SUBDIVISION_NONE) {
+            if (use_octane_vertex_displacement_subdvision) {
+              create_subd_mesh(
+                  scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
+            }
+            else if (octane_mesh->subdivision_type == Mesh::SUBDIVISION_NONE) {
+              create_mesh(scene,
+                          b_ob,
+                          octane_mesh,
+                          b_mesh,
+                          octane_mesh->used_shaders,
+                          winding_order,
+                          true,
+                          false);
+            }
+            else {
+              create_subd_mesh(
+                  scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
+            }
+          }
+          else {
+            create_mesh(
+                scene, b_ob, octane_mesh, b_mesh, octane_mesh->used_shaders, winding_order);
+          }
+          /* mesh fluid motion mantaflow */
+          sync_mesh_fluid_motion(b_ob, scene, b_mesh, octane_mesh);
+          if (!octane_mesh->empty) {
+            sync_hair(octane_mesh, b_mesh, b_ob, false);
+          }
+          free_object_to_mesh(b_data, b_ob, b_mesh);
+        }
+        else {
+          create_openvdb_volume(
+              b_domain, scene, b_ob, octane_mesh, b_mesh, &oct_mesh, octane_mesh->used_shaders);
+          resolve_volume_attributes(oct_mesh, octane_mesh->octane_volume);
+          tag_resharpable_candidate(mesh_name);
+        }
+      }
+      else {
+        octane_mesh->empty = true;
+      }
+      if (RNA_boolean_get(&oct_mesh, "external_alembic_mesh_tag")) {
+        octane_mesh->empty = true;
+      }
+      sync_mesh_particles(b_ob, octane_mesh, !preview);
     }
-    if (RNA_boolean_get(&oct_mesh, "external_alembic_mesh_tag")) {
-      octane_mesh->empty = true;
-    }
-    sync_mesh_particles(b_ob, octane_mesh, !preview);
   }
   else {
     octane_mesh->octane_mesh.oMeshData.bUpdate = false;

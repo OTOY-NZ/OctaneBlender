@@ -39,6 +39,7 @@ class OctaneScatter(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=5)
     octane_socket_list: StringProperty(name="Socket List", default="Geometry;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_geoimp_scale_unit;a_inherit;a_user_instance_ids;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;scaleUnitType;inherit;userInstanceIds;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;2;1;2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=1)
 

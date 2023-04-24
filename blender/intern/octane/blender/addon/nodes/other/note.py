@@ -24,6 +24,7 @@ class OctaneNote(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=68)
     octane_socket_list: StringProperty(name="Socket List", default="")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_value;a_color;a_size;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="value;color;size;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="10;8;3;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 

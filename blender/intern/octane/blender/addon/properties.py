@@ -543,7 +543,7 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
             name="Enable Mesh Volume SDF",
             description="Convert this mesh to Octane Mesh Volume SDF when rendering",
             default=False,
-            )        
+            )
     mesh_volume_sdf_voxel_size: FloatProperty(
             name="Voxel size",
             description="Size of one voxel",
@@ -1001,6 +1001,23 @@ class OctaneMeshSettings(bpy.types.PropertyGroup):
         description="The max randomized radius of the sphere primitive",
         min=0.0, max=1000000.0,
         default=0.0,
+    )
+    render_curve_as_octane_hair: BoolProperty(
+        name="Render as the Octane Hair",
+        description="Render this curve as the Octane hair",
+        default=False,
+    )
+    hair_root_width: FloatProperty(
+        name="Root thickness",
+        description="Hair thickness at root",
+        min=0.0, max=1000000.0,
+        default=0.001,
+    )
+    hair_tip_width: FloatProperty(
+        name="Tip thickness",
+        description="Hair thickness at tip",
+        min=0.0, max=1000000.0,
+        default=0.001,
     )
 
     @classmethod

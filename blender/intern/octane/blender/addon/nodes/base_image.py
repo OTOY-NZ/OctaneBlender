@@ -89,8 +89,8 @@ class OctaneBaseImageNode(OctaneBaseNode):
     a_channel_format: EnumProperty(name="Import format", update=update_image, description="", items=get_a_channel_format_enum_items)
     
     def init_image_attributes(self):
-        utility.remove_attribute_list(self, "a_filename;a_grid_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_image_chosen_layer_name;")
-        utility.add_attribute_list(self, "a_ies_photometry_mode;a_channel_format", "2;2;")
+        utility.remove_attribute_list(self, "a_filename;a_grid_size;a_type;a_image_file_type;a_can_wrap_x;a_can_wrap_y;a_image_flip;a_source_info;a_image_layer_names;a_image_chosen_layer_name;")        
+        utility.add_attribute_list(self, "a_ies_photometry_mode;a_channel_format", "iesPhotometryMode;channelFormat", "2;2;")
         self.a_ies_photometry_mode = "IES_MAX_1"
         self.a_channel_format = "Automatic"
 

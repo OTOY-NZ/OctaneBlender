@@ -24,6 +24,7 @@ class OctaneOSLTexture(bpy.types.Node, OctaneScriptNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=117)
     octane_socket_list: StringProperty(name="Socket List", default="")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_shader_code;a_result;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;shaderCode;result;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=0)
 

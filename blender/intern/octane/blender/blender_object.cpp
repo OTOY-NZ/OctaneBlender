@@ -90,6 +90,11 @@ bool BlenderSync::object_is_mesh(BL::Object &b_ob)
     return true;
   }
 
+  if (type == BL::Object::type_CURVE) {
+    PointerRNA oct_mesh = RNA_pointer_get(&b_ob_data.ptr, "octane");
+    return RNA_boolean_get(&oct_mesh, "render_curve_as_octane_hair");
+  }
+
   return b_ob_data.is_a(&RNA_Mesh);
 }
 

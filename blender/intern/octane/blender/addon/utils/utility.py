@@ -84,37 +84,47 @@ def remove_socket_list(node, remove_socket_list_str, remove_from_inputs=False):
             if remove_socket_name in node.inputs:
                 node.inputs.remove(node.inputs[remove_socket_name])
 
-def add_attribute_list(node, new_attribute_list_str, new_attribute_config_list_str):
+def add_attribute_list(node, new_attribute_list_str, new_attribute_name_list_str, new_attribute_config_list_str):
     node.octane_attribute_list += new_attribute_list_str
+    node.octane_attribute_name_list += new_attribute_name_list_str
     node.octane_attribute_config_list += new_attribute_config_list_str
 
 def remove_attribute_list(node, remove_attribute_list_str):
     original_attribute_list = node.octane_attribute_list.split(";")
+    original_octane_attribute_name_list = node.octane_attribute_name_list.split(";")
     original_attribute_config_list = node.octane_attribute_config_list.split(";")
     remove_attribute_list = remove_attribute_list_str.split(";")
     new_attribute_list = []
+    new_octane_attribute_name_list = []
     new_attribute_config_list = []
     for idx, original_attribute in enumerate(original_attribute_list):
         if original_attribute not in remove_attribute_list:
             new_attribute_list.append(original_attribute)
+            new_octane_attribute_name_list.append(original_octane_attribute_name_list[idx])
             new_attribute_config_list.append(original_attribute_config_list[idx])
     node.octane_attribute_list = ";".join(new_attribute_list) + ";"
+    node.octane_attribute_name_list = ";".join(new_octane_attribute_name_list) + ";"
     node.octane_attribute_config_list = ";".join(new_attribute_config_list) + ";"
 
-def override_attribute_list(node, old_attribute, new_attribute, new_attribute_config):
+def override_attribute_list(node, old_attribute, new_attribute, new_attribute_name, new_attribute_config):
     original_attribute_list = node.octane_attribute_list.split(";")
+    original_attribute_name_list = node.octane_attribute_name_list.split(";")
     original_attribute_config_list = node.octane_attribute_config_list.split(";")
     new_attribute_list = []
+    new_attribute_name_list = []
     new_attribute_config_list = []
     for idx, original_attribute in enumerate(original_attribute_list):
         if original_attribute == new_attribute:
             new_attribute_list.append(new_attribute)
+            new_attribute_name_list.append(new_attribute_name)
             new_attribute_config_list.append(new_attribute_config)
         else:
             new_attribute_list.append(original_attribute)
+            new_attribute_name_list.append(original_attribute_name_list[idx])
             new_attribute_config_list.append(original_attribute_config_list[idx])
     node.octane_attribute_list = ";".join(new_attribute_list)
-    node.octane_attribute_config_list = ";".join(new_attribute_config_list)    
+    node.octane_attribute_name_list = ";".join(new_attribute_name_list)
+    node.octane_attribute_config_list = ";".join(new_attribute_config_list)
 
 def convert_octane_color_to_rgba(color):
     a = (0xff & (color >> 24)) / 255.0

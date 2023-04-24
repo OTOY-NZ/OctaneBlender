@@ -232,6 +232,7 @@ class OctaneVolumetricSpotlight(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=152)
     octane_socket_list: StringProperty(name="Socket List", default="Throw distance;Cone width;Light medium;Emitter material;Barn doors material;Object layer;Light transform;Enable barn doors;Barn doors size;Barn door 1 angle;Barn door 2 angle;Barn door 3 angle;Barn door 4 angle;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=13)
 

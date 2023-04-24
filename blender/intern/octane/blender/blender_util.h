@@ -1057,7 +1057,7 @@ static inline void set_int4(PointerRNA &ptr, const char *name, int4 value)
 
 static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr,
                                     PointerRNA &ptr,
-                                    bool is_socket = false)
+                                    bool is_socket = false, bool is_custom_node = false)
 {
   if (!base_dto_ptr || !ptr.data)
     return false;
@@ -1067,6 +1067,9 @@ static inline bool set_blender_node(::OctaneDataTransferObject::OctaneDTOBase *b
   const char *name = ((is_socket && base_dto_ptr->type != OctaneDataTransferObject::DTO_ENUM) ?
                           "default_value" :
                           base_dto_ptr->sName.c_str());
+  if (is_custom_node) {
+    name = "default_value";
+  }
   switch (base_dto_ptr->type) {
     case OctaneDataTransferObject::DTO_ENUM:
       set_enum(ptr, name, ((::OctaneDataTransferObject::OctaneDTOInt *)base_dto_ptr)->iVal);

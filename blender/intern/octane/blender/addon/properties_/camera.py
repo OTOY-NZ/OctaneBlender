@@ -427,7 +427,7 @@ class OctaneImagerSettings(bpy.types.PropertyGroup, common.OctanePropertySetting
         name="Vignetting",
         description="Amount of lens vignetting",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
-        default=0.3,
+        default=0.0,
         step=1,
         precision=2,
     )
@@ -1866,7 +1866,7 @@ class OctaneCameraSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings):
         name="Vignetting",
         description="Amount of lens vignetting",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
-        default=0.3,
+        default=0.0,
         step=1,
         precision=2,
     )
@@ -2194,7 +2194,7 @@ class OctaneSpaceDataSettings(bpy.types.PropertyGroup, OctaneBaseCameraSettings)
         name="Vignetting",
         description="Amount of lens vignetting",
         min=0.0, soft_min=0.0, max=1.0, soft_max=1.0,
-        default=0.3,
+        default=0.0,
         step=1,
         precision=2,
     )

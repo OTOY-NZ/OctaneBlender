@@ -52,7 +52,7 @@ class OctaneVertexDisplacementBlackLevel(OctaneBaseSocket):
     octane_pin_name: StringProperty(name="Octane Pin Name", default="black_level")
     octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_FLOAT)
     octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_FLOAT)
-    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The value in the image which corresponds to zero displacement. The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
+    default_value: FloatProperty(default=0.000000, update=OctaneBaseSocket.update_node_tree, description="The value in the image which corresponds to zero displacement.The range is always normalized to [0, 1]", min=-340282346638528859811704183484516925440.000000, max=340282346638528859811704183484516925440.000000, soft_min=0.000000, soft_max=1.000000, step=1, precision=2, subtype="FACTOR")
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -72,7 +72,7 @@ class OctaneVertexDisplacementDisplacementMapType(OctaneBaseSocket):
         ("Vector", "Vector", "", 0),
         ("Height", "Height", "", 1),
     ]
-    default_value: EnumProperty(default="Height", update=OctaneBaseSocket.update_node_tree, description="The displacement map input type", items=items)
+    default_value: EnumProperty(default="Height", update=OctaneBaseSocket.update_node_tree, description="The displacement map input type. For height map we displace in object normal direction and for vector maps, please refer vector space and input axes pins", items=items)
     octane_hide_value=False
     octane_min_version=0
     octane_end_version=4294967295
@@ -92,9 +92,30 @@ class OctaneVertexDisplacementTextureSpace(OctaneBaseSocket):
         ("Object", "Object", "", 0),
         ("Tangent", "Tangent", "", 1),
     ]
-    default_value: EnumProperty(default="Object", update=OctaneBaseSocket.update_node_tree, description="The vector displacement map space. Only valid if the displacement map type is vector", items=items)
+    default_value: EnumProperty(default="Object", update=OctaneBaseSocket.update_node_tree, description="The vector displacement map space. Only valid if the displacement map type is a vector. For tangent space vector map. R is along the tangent, Y is along the normal and Z is along the BiTangent. For object space please refer input axes pin", items=items)
     octane_hide_value=False
     octane_min_version=0
+    octane_end_version=4294967295
+    octane_deprecated=False
+
+class OctaneVertexDisplacementInputAxes(OctaneBaseSocket):
+    bl_idname="OctaneVertexDisplacementInputAxes"
+    bl_label="Input axes"
+    color=consts.OctanePinColor.Enum
+    octane_default_node_type=57
+    octane_default_node_name="OctaneEnumValue"
+    octane_pin_id: IntProperty(name="Octane Pin ID", default=831)
+    octane_pin_name: StringProperty(name="Octane Pin Name", default="inputAxes")
+    octane_pin_type: IntProperty(name="Octane Pin Type", default=consts.PinType.PT_ENUM)
+    octane_socket_type: IntProperty(name="Socket Type", default=consts.SocketType.ST_ENUM)
+    items = [
+        ("+X,+Y,+Z", "+X,+Y,+Z", "", 0),
+        ("+X,+Z,+Y", "+X,+Z,+Y", "", 1),
+        ("+X,+Y,-Z", "+X,+Y,-Z", "", 2),
+    ]
+    default_value: EnumProperty(default="+X,+Y,+Z", update=OctaneBaseSocket.update_node_tree, description="This setting is valid only for object space vector maps. The input axes provide us information about how to interpret RGB data. The selected axes are then converted to Octane XYZ space during displacement", items=items)
+    octane_hide_value=False
+    octane_min_version=11000500
     octane_end_version=4294967295
     octane_deprecated=False
 
@@ -141,10 +162,11 @@ class OctaneVertexDisplacement(bpy.types.Node, OctaneBaseNode):
     octane_render_pass_sub_type_name=""
     octane_min_version=0
     octane_node_type: IntProperty(name="Octane Node Type", default=97)
-    octane_socket_list: StringProperty(name="Socket List", default="Texture;Height;Mid level;Map type;Vector space;Auto bump map;Subdivision level;")
+    octane_socket_list: StringProperty(name="Socket List", default="Texture;Height;Mid level;Map type;Vector space;Input axes;Auto bump map;Subdivision level;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
-    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=7)
+    octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=8)
 
     def init(self, context):
         self.inputs.new("OctaneVertexDisplacementTexture", OctaneVertexDisplacementTexture.bl_label).init()
@@ -152,6 +174,7 @@ class OctaneVertexDisplacement(bpy.types.Node, OctaneBaseNode):
         self.inputs.new("OctaneVertexDisplacementBlackLevel", OctaneVertexDisplacementBlackLevel.bl_label).init()
         self.inputs.new("OctaneVertexDisplacementDisplacementMapType", OctaneVertexDisplacementDisplacementMapType.bl_label).init()
         self.inputs.new("OctaneVertexDisplacementTextureSpace", OctaneVertexDisplacementTextureSpace.bl_label).init()
+        self.inputs.new("OctaneVertexDisplacementInputAxes", OctaneVertexDisplacementInputAxes.bl_label).init()
         self.inputs.new("OctaneVertexDisplacementBump", OctaneVertexDisplacementBump.bl_label).init()
         self.inputs.new("OctaneVertexDisplacementSubdLevel", OctaneVertexDisplacementSubdLevel.bl_label).init()
         self.outputs.new("OctaneDisplacementOutSocket", "Displacement out").init()
@@ -163,6 +186,7 @@ _CLASSES=[
     OctaneVertexDisplacementBlackLevel,
     OctaneVertexDisplacementDisplacementMapType,
     OctaneVertexDisplacementTextureSpace,
+    OctaneVertexDisplacementInputAxes,
     OctaneVertexDisplacementBump,
     OctaneVertexDisplacementSubdLevel,
     OctaneVertexDisplacement,

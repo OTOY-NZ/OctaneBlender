@@ -517,6 +517,7 @@ class OctaneInfoChannelsKernel(bpy.types.Node, OctaneBaseKernelNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=26)
     octane_socket_list: StringProperty(name="Socket List", default="Max. samples;Type;Ray epsilon;Filter size;AO distance;AO alpha shadows;Opacity threshold;Maximum Z-depth;UV max;UV coordinate selection;Max speed;Sampling mode;Bump and normal mapping;Wireframe backface highlighting;Max subdivision level;Alpha channel;Parallel samples;Max. tile samples;Minimize net traffic;White light spectrum;Use old color pipeline;Deep image;Deep render AOVs;Max. depth samples;Depth tolerance;Distributed ray tracing;AO alpha shadows;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=27)
 

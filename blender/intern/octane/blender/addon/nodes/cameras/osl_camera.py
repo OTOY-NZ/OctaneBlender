@@ -190,6 +190,7 @@ class OctaneOSLCamera(bpy.types.Node, OctaneScriptNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=126)
     octane_socket_list: StringProperty(name="Socket List", default="Position;Target;Up-vector;Stereo output;Stereo mode;Eye distance;Swap eyes;Left stereo filter;Right stereo filter;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_reload;a_shader_code;a_result;a_load_initial_state;a_save_initial_state;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;reload;shaderCode;result;loadInitialState;saveInitialState;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;1;10;2;1;1;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=9)
 

@@ -140,6 +140,7 @@ class OctaneMapRangeAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=375)
     octane_socket_list: StringProperty(name="Socket List", default="Input;Input minimum;Input maximum;Output minimum;Output maximum;Clamp;Channels;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=7)
 

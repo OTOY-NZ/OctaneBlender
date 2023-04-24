@@ -546,6 +546,7 @@ class OctaneThinLensCamera(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=13)
     octane_socket_list: StringProperty(name="Socket List", default="Orthographic;Sensor width;Focal length;F-stop;Field of view;Scale of view;Distortion;Lens shift;Perspective correction;Pixel aspect ratio;Near clip depth;Far clip depth;Auto-focus;Focal depth;Aperture;Aperture aspect ratio;Aperture edge;Bokeh side count;Bokeh rotation;Bokeh roundedness;Position;Target;Up-vector;Stereo output;Stereo mode;Eye distance;Swap eyes;Left stereo filter;Right stereo filter;Anaglyphic stereo;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_load_initial_state;a_save_initial_state;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="loadInitialState;saveInitialState;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;1;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=30)
 

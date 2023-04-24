@@ -52,12 +52,17 @@ struct BNodeSocketSetter : BaseVisitor {
   void handle(const std::string &member_name,
               ::OctaneDataTransferObject::OctaneDTOBase *base_dto_ptr)
   {
+    std::string node_idname = bnode->idname;
+    bool is_custom_node = false;
+    if (node_idname.find("ShaderNodeOct") != 0) {
+      is_custom_node = true;
+    }
     if (base_dto_ptr && base_dto_ptr->sName.size()) {
       PointerRNA ptr;
       RNA_pointer_create(NULL, bnode->typeinfo->rna_ext.srna, bnode, &ptr);
       BL::ShaderNode b_shader_node(ptr);
       if (!base_dto_ptr->bUseSocket) {
-        set_blender_node(base_dto_ptr, b_shader_node.ptr, false);
+        set_blender_node(base_dto_ptr, b_shader_node.ptr, false, is_custom_node);
       }
       else {
         BL::Node::inputs_iterator b_input;
@@ -74,7 +79,7 @@ struct BNodeSocketSetter : BaseVisitor {
                         blenderNodeLevels);
             }
             else {
-              set_blender_node(base_dto_ptr, value_sock.ptr, true);
+              set_blender_node(base_dto_ptr, value_sock.ptr, true, is_custom_node);
             }
           }
         }
@@ -166,7 +171,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
           ((::OctaneDataTransferObject::OctaneCustomNode *)pOctaneNode)->sClientNodeName;
     }
     bNode *pBlenderNode = nodeAddNode(context, node_tree, pOctaneNode->pluginType.c_str());
-    std::strcpy(pBlenderNode->name, pOctaneNode->sName.c_str());
+    //std::strcpy(pBlenderNode->name, pOctaneNode->sName.c_str());
     blenderNodes.emplace_back(pBlenderNode);
     blenderNodeLevels[pBlenderNode] = 1;
   }
@@ -175,7 +180,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
     bNode *node_from = blenderNodes[0];
     bNodeSocket *socket_from = (bNodeSocket *)node_from->outputs.first;
     output_link = nodeAddLink(node_tree, node_from, socket_from, node_output, sock_output);
-  }
+    }
   for (int i = 0; i < blenderNodes.size(); ++i) {
     BNodeSocketSetter setter(blenderNodes[i], node_tree, bmain, blenderNodes, blenderNodeLevels);
     dbNodes.octaneDBNodes[i]->VisitEach(&setter);
@@ -185,22 +190,23 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
   organize_node_tree_layout(
       target_material->nodetree, node_output, blenderNodes, blenderNodeLevels);
   if (dbNodes.iOctaneDBType == OctaneDataTransferObject::OctaneDBNodes::TEXTURE) {
-    bNode *mat_node = nodeAddNode(context, node_tree, "ShaderNodeOctUniversalMat");
+    bNode *mat_node = nodeAddNode(context, node_tree, "OctaneUniversalMaterial");
     bNodeSocket *socket_color = NULL;
     for (socket_color = (bNodeSocket *)mat_node->inputs.first; socket_color;
          socket_color = socket_color->next) {
-      if (!socket_color || strcmp(socket_color->name, "Albedo color"))
+      if (!socket_color || strcmp(socket_color->name, "Albedo"))
         continue;
       break;
     }
-    nodeAddLink(node_tree, output_link->fromnode, output_link->fromsock, mat_node, socket_color);
-    nodeAddLink(
-        node_tree, mat_node, (bNodeSocket *)mat_node->outputs.first, node_output, sock_output);
+    bNodeLink *link = NULL;
+    link = nodeAddLink(node_tree, output_link->fromnode, output_link->fromsock, mat_node, socket_color);
+    link = nodeAddLink(node_tree, mat_node, (bNodeSocket *)mat_node->outputs.first, node_output, sock_output);
     nodeRemLink(node_tree, output_link);
     mat_node->locx = node_output->locx;
     mat_node->locy = node_output->locy - 200;
   }
   BKE_ntree_update_tag_all(node_tree);
+  BKE_ntree_update_main(bmain, nullptr);
 
   target_material->is_octanedb_updating = 0;
 
@@ -209,9 +215,7 @@ bool BlenderOctaneDb::generate_blender_material_from_octanedb(
     BKE_object_material_slot_remove(bmain, ob);
     short actcol = ob->totcol + 1;
     BKE_object_material_assign(bmain, ob, target_material, actcol, BKE_MAT_ASSIGN_OBDATA);
-    // DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
-  // WM_event_add_notifier(context, (6 << 24) | 3, target_material);
   return true;
 }
 

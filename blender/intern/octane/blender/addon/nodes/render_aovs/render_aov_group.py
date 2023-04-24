@@ -146,6 +146,7 @@ class OctaneRenderAOVGroup(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=179)
     octane_socket_list: StringProperty(name="Socket List", default="Enabled;Raw;Cryptomatte bins;Cryptomatte seed factor;Max info samples;Info sampling mode;Info opacity threshold;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_aov_count;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="aovCount;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=7)
 

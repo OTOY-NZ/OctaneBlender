@@ -591,6 +591,7 @@ class OctaneLightMixerAOVOutput(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=376)
     octane_socket_list: StringProperty(name="Socket List", default="Enable imager;Enable post FX;Sunlight enabled;Sunlight tint;Sunlight scale;Ambient light enabled;Ambient light tint;Ambient light scale;Light ID 1 enabled;Light ID 1 tint;Light ID 1 scale;Light ID 2 enabled;Light ID 2 tint;Light ID 2 scale;Light ID 3 enabled;Light ID 3 tint;Light ID 3 scale;Light ID 4 enabled;Light ID 4 tint;Light ID 4 scale;Light ID 5 enabled;Light ID 5 tint;Light ID 5 scale;Light ID 6 enabled;Light ID 6 tint;Light ID 6 scale;Light ID 7 enabled;Light ID 7 tint;Light ID 7 scale;Light ID 8 enabled;Light ID 8 tint;Light ID 8 scale;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=32)
 

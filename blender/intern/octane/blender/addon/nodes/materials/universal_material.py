@@ -882,6 +882,7 @@ class OctaneUniversalMaterial(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=130)
     octane_socket_list: StringProperty(name="Socket List", default="Transmission;Transmission type;Albedo;Metallic;Metallic edge tint;Specular;BSDF model;Roughness;Anisotropy;Rotation;Spread;Dielectric IOR;Dielectric 1/IOR map;Metallic reflection mode;Metallic IOR;Metallic IOR (green);Metallic IOR (blue);Coating;Coating roughness;Coating IOR;Coating bump;Coating normal;Film width;Film IOR;Sheen;Sheen roughness;Sheen bump;Sheen normal;Dispersion coefficient;Medium;Opacity;Fake shadows;Affect alpha;Bump;Normal;Displacement;Smooth;Smooth shadow terminator;Round edges;Priority;Emission;Shadow catcher;Custom AOV;Custom AOV channel;Material layer;Transmission model;Rounded edges radius;Thin wall;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=48)
 

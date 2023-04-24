@@ -658,6 +658,7 @@ class OctaneCameraImager(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=15)
     octane_socket_list: StringProperty(name="Socket List", default="Exposure;Hot pixel removal;Vignetting;White point;Saturation;Pre-multiplied alpha;Disable partial alpha;Dithering;Minimum display samples;Max. image interval;OCIO view;OCIO look;Force tone mapping;Highlight compression;Saturate to white;Order;Response curve;Neutral response;Gamma;Custom LUT;Enable denoising;Denoise volumes;Denoise on completion;Min. denoiser samples;Max. denoiser interval;Blend;Upsampler mode;Enable AI upsampling;Upsample on completion;Min. upsampler samples;Max. upsampler interval;F-stop;ISO;Gamma before response;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=34)
 

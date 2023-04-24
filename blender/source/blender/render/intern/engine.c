@@ -751,7 +751,7 @@ static void engine_depsgraph_init(RenderEngine *engine, ViewLayer *view_layer)
 static void engine_depsgraph_exit(RenderEngine *engine)
 {
   if (engine->depsgraph) {
-    if (engine_keep_depsgraph(engine)) {
+    if (engine_keep_depsgraph(engine) && !BKE_scene_uses_octane(engine->re->scene)) {
       /* Clear recalc flags since the engine should have handled the updates for the currently
        * rendered framed by now. */
       DEG_ids_clear_recalc(engine->depsgraph, false);

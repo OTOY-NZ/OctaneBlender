@@ -339,6 +339,7 @@ class OctaneToonMaterial(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=121)
     octane_socket_list: StringProperty(name="Socket List", default="Diffuse;Specular;Roughness;Toon lighting mode;Toon Diffuse Ramp;Toon Specular Ramp;Bump;Normal;Displacement;Outline Color;Outline Thickness;Opacity;Smooth;Smooth shadow terminator;Round edges;Custom AOV;Custom AOV channel;Rounded edges radius;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=18)
 
@@ -399,5 +400,5 @@ def unregister():
 ##### END OCTANE GENERATED CODE BLOCK #####
 from octane import core
 
-OctaneToonMaterialToonDiffuseRamp.octane_default_node_type = "OctaneToonRamp" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctToonRampTex:OutTex"
-OctaneToonMaterialToonSpecularRamp.octane_default_node_type = "OctaneToonRamp" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctToonRampTex:OutTex"
+OctaneToonMaterialToonDiffuseRamp.octane_default_node_name = "OctaneToonRamp" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctToonRampTex:OutTex"
+OctaneToonMaterialToonSpecularRamp.octane_default_node_name = "OctaneToonRamp" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctToonRampTex:OutTex"

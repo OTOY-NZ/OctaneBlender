@@ -470,6 +470,7 @@ class OctaneGlossyMaterial(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=16)
     octane_socket_list: StringProperty(name="Socket List", default="Diffuse;Specular;BRDF Model;Roughness;Anisotropy;Rotation;Spread;Film width;Film IOR;Sheen;Sheen Roughness;Index of refraction;Opacity;Bump;Normal;Displacement;Smooth;Smooth shadow terminator;Round edges;Priority;Custom AOV;Custom AOV channel;Material layer;Rounded edges radius;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=24)
 

@@ -257,6 +257,7 @@ class OctaneVolumeMedium(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=98)
     octane_socket_list: StringProperty(name="Socket List", default="Density;Volume step length;Vol. shadow ray step length;Use Vol. step length for Vol. shadow ray step length;Sample position displacement;Absorption;Absorption ramp;Invert absorption;Scattering;Scattering ramp;Phase;Emission;Emission ramp;Lock step length pins;")
     octane_attribute_list: StringProperty(name="Attribute List", default="")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=14)
 
@@ -315,6 +316,6 @@ def unregister():
 ##### END OCTANE GENERATED CODE BLOCK #####
 from octane import core
 
-OctaneVolumeMediumAbsorptionRamp.octane_default_node_type = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"
-OctaneVolumeMediumScatteringRamp.octane_default_node_type = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"
-OctaneVolumeMediumEmissionRamp.octane_default_node_type = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"
+OctaneVolumeMediumAbsorptionRamp.octane_default_node_name = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"
+OctaneVolumeMediumScatteringRamp.octane_default_node_name = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"
+OctaneVolumeMediumEmissionRamp.octane_default_node_name = "OctaneVolumeGradient" if core.ENABLE_OCTANE_ADDON_CLIENT else "ShaderNodeOctVolumeRampTex:OutTex"

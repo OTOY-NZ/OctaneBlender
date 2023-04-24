@@ -199,6 +199,7 @@ class OctaneBakingCamera(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=94)
     octane_socket_list: StringProperty(name="Socket List", default="Baking group ID;UV set;Revert baking;Size;Edge noise tolerance;Minimum;Size;Use baking position;Position;Backface culling;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_load_initial_state;a_save_initial_state;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="loadInitialState;saveInitialState;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;1;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=10)
 

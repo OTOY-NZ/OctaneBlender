@@ -489,6 +489,7 @@ class OctanePanoramicCamera(bpy.types.Node, OctaneBaseNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=62)
     octane_socket_list: StringProperty(name="Socket List", default="Projection;Focal length;F-stop;Horizontal field of view;Vertical field of view;Keep upright;Near clip depth;Far clip depth;Position;Target;Up-vector;Auto-focus;Focal depth;Aperture;Aperture aspect ratio;Aperture edge;Bokeh side count;Bokeh rotation;Bokeh roundedness;Stereo output;Eye distance;Eye distance falloff;Pano blackout latitude;Swap eyes;Left stereo filter;Right stereo filter;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_load_initial_state;a_save_initial_state;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="loadInitialState;saveInitialState;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="1;1;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=26)
 

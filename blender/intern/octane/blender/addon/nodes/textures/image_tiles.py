@@ -149,6 +149,7 @@ class OctaneImageTiles(bpy.types.Node, OctaneBaseImageNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=131)
     octane_socket_list: StringProperty(name="Socket List", default="Power;Color space;Legacy gamma;Invert;Linear sRGB invert;UV transform;Projection;Empty tile color;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_filename;a_image_color_format;a_grid_size;a_reload;a_image_chosen_layer_name;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="filename;imageColorFormat;gridSize;reload;imageChosenLayerName;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="11;2;3;1;10;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=8)
 

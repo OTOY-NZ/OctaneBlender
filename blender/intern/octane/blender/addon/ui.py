@@ -172,6 +172,32 @@ class OCTANE_RENDER_PT_motion_blur(OctaneButtonsPanel, Panel):
         row.prop(context.scene.octane, "subframe_end")
 
 
+class OCTANE_PT_curve_properties(OctaneButtonsPanel, Panel):
+    bl_label = "Octane properties"
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        if OctaneButtonsPanel.poll(context):
+            if context.curve:
+                return True
+        return False
+
+    def draw(self, context):
+        layout = self.layout
+        curve = context.curve
+        cdata = curve.octane
+
+        box = layout.box()
+        box.label(text="Hair properties:")
+        sub = box.column(align=True)
+        sub.prop(cdata, "render_curve_as_octane_hair")
+        if cdata.render_curve_as_octane_hair:
+            sub = box.column(align=True)
+            sub.prop(cdata, "hair_root_width")            
+            sub.prop(cdata, "hair_tip_width")
+
+
 class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
     bl_label = "Octane properties"
     bl_context = "data"
@@ -179,7 +205,7 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         if OctaneButtonsPanel.poll(context):
-            if context.mesh or context.curve or context.meta_ball:
+            if context.mesh or context.meta_ball:
                 return True
 
         return False
@@ -337,7 +363,7 @@ class OCTANE_PT_mesh_properties(OctaneButtonsPanel, Panel):
         osl_node_draw(box, str(cdata.octane_geo_node_collections.node_graph_tree), str(cdata.octane_geo_node_collections.osl_geo_node))
 
         box = layout.box()
-        box.label(text="Orbx properties:")   
+        box.label(text="Orbx properties:")
         sub = box.column(align=True)     
         sub.prop(cdata, "imported_orbx_file_path")
         sub = box.row(align=True)
@@ -1407,6 +1433,7 @@ classes = (
 
     OCTANE_RENDER_PT_output,
 
+    OCTANE_PT_curve_properties,
     OCTANE_PT_mesh_properties,
     OCTANE_PT_volume_properties,
     OCTANE_RENDER_PT_HairSettings,

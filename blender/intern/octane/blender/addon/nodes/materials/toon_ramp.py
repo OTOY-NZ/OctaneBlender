@@ -77,6 +77,7 @@ class OctaneToonRamp(bpy.types.Node, OctaneBaseRampNode):
     octane_node_type: IntProperty(name="Octane Node Type", default=122)
     octane_socket_list: StringProperty(name="Socket List", default="Interpolation;Start value;End value;")
     octane_attribute_list: StringProperty(name="Attribute List", default="a_num_controlpoints;")
+    octane_attribute_name_list: StringProperty(name="Attribute Name List", default="controlpoints;")
     octane_attribute_config_list: StringProperty(name="Attribute Config List", default="2;")
     octane_static_pin_count: IntProperty(name="Octane Static Pin Count", default=3)
 

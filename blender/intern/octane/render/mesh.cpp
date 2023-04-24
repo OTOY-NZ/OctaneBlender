@@ -36,7 +36,7 @@ OCT_NAMESPACE_BEGIN
 Mesh::Mesh()
 {
   is_octane_volume = false;
-
+  is_edit_mode_modified = false;
   empty = false;
   mesh_type = AUTO;
   octane_mesh.oMeshData.bUpdate = false;
