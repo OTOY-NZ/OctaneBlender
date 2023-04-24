@@ -1168,10 +1168,10 @@ class OctaneRenderSettings(bpy.types.PropertyGroup):
         default='4',
     )
     resource_cache_types = (
-        ('None', "None", "Disable resource cache system", 0),
-        ('Texture Only', "Texture Only", "Only cache the textures in RAM", 1),    
-        ('Geometry Only', "Geometry Only", "Only cache the geometries in RAM", 2),
-        ('All', "All", "Cache the textures and geometries in RAM", 127),        
+        ('None', "None", "Disable resource cache system", consts.ResourceCacheType.NONE),
+        ('Texture Only', "Texture Only", "Only cache the textures in RAM", consts.ResourceCacheType.TEXTURE_ONLY),    
+        ('Geometry Only', "Geometry Only", "Only cache the geometries in RAM", consts.ResourceCacheType.GEOMETRY_ONLY),
+        ('All', "All", "Cache the textures and geometries in RAM", consts.ResourceCacheType.ALL),        
     )
     resource_cache_type: EnumProperty(
         name="Resource Cache System",

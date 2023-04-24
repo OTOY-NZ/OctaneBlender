@@ -123,19 +123,6 @@ def sync_octane_aov_output_number(self):
     except:
         pass
 
-@persistent
-def clear_resource_cache_system(self):
-    from octane import core
-    if core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
-        return
-    import _octane
-    from . import engine
-    scene = bpy.context.scene
-    oct_scene = scene.octane        
-    if not engine.IS_RENDERING:
-        print("Clear Octane Resource Cache System")
-        # set_all_mesh_resource_cache_tags(True)
-        _octane.command_to_octane(COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
 
 @persistent
 def update_resource_cache_tag(scene):
@@ -207,7 +194,7 @@ class OCTANE_OT_BaseCommand(Operator):
             scene = context.scene
             oct_scene = scene.octane
             _octane.command_to_octane(self.command_type)   
-            return {'FINISHED'} 
+            return {'FINISHED'}
 
 class OCTANE_OT_ShowOctaneNodeGraph(OCTANE_OT_BaseCommand):
     """Show Octane NodeGraph(VIEW Mode Only. Please DO NOT ADD or DELETE nodes.)"""
@@ -262,8 +249,9 @@ class OCTANE_OT_ClearResourceCache(OCTANE_OT_BaseCommand):
     def poll(cls, context):        
         return True
 
-    def execute(self, context):     
-        clear_resource_cache_system(self)        
+    def execute(self, context):
+        from octane.core import resource_cache
+        resource_cache.reset_resource_cache(None)
         return {'FINISHED'}     
 
 
@@ -826,7 +814,7 @@ class OCTANE_OT_QuickAddOctaneGeometry(Operator):
 
 
 class OCTANE_OT_QuickAddOctaneVectron(OCTANE_OT_QuickAddOctaneGeometry):
-    """Add an Octane Vectron? to the scene"""
+    """Add an Octane Vectron® to the scene"""
     bl_idname = "octane.quick_add_octane_vectron"
     bl_label = "Vectron®"
     geometry_node_bl_idname = "OctaneVectron"

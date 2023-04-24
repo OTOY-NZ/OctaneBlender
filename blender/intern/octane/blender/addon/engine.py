@@ -37,13 +37,13 @@ def init():
 
 
 def exit():
-    print("OctaneBlender Engine Exit")        
-    from . import operators
+    print("OctaneBlender Engine Exit")            
     from octane import core
-    if not core.EXCLUSIVE_OCTANE_ADDON_CLIENT_MODE:
+    from octane.core import resource_cache
+    resource_cache.reset_resource_cache()
+    if not core.ENABLE_OCTANE_ADDON_CLIENT:
         import _octane
-        _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
-        _octane.exit()  
+        _octane.exit()
 
 
 def create(engine, data, region=None, v3d=None, rv3d=None):

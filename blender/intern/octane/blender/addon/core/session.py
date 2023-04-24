@@ -9,6 +9,7 @@ import weakref
 import queue
 from octane.utils import consts, utility
 from octane import core
+from octane.core.resource_cache import ResourceCache
 from octane.core.caches import OctaneNodeCache, ImageCache, MaterialCache, LightCache, WorldCache, CompositeCache, RenderAOVCache, KernelCache, OctaneRenderTargetCache, SceneCache
 from octane.core.object_cache import ObjectCache
 from octane.core.client import OctaneBlender
@@ -100,15 +101,18 @@ class RenderSession(object):
             return
         return 0.05
 
-    def start_render(self, cache_path=None, is_viewport=True):
+    def start_render(self, cache_path=None, is_viewport=True, resource_cache_type=consts.ResourceCacheType.NONE):
         if cache_path is None:
             cache_path = bpy.app.tempdir
+        ResourceCache().update_cached_node_resouce()
+        OctaneBlender().update_server_settings(resource_cache_type)
         OctaneBlender().start_render(cache_path)
         if is_viewport:
             bpy.app.timers.register(self.update_viewport_render_result)
 
     def stop_render(self):
         OctaneBlender().stop_render()
+        ResourceCache().reset()
 
     def reset_render(self):
         self.reset()

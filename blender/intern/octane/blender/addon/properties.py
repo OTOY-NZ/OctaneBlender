@@ -512,6 +512,9 @@ class OctanePreferences(bpy.types.AddonPreferences):
         if core.ENABLE_OCTANE_ADDON_CLIENT:
             layout = self.layout
             box = layout.box()
+            box.label(text="General")
+            box.row().prop(self, "default_object_mesh_type", expand=False)
+            box = layout.box()
             box.label(text="Viewport Rendering")
             row = box.row()
             row.active = OctaneBlender().is_shared_surface_supported()

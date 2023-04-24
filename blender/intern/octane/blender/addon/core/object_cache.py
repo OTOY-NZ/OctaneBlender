@@ -4,7 +4,9 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from array import array
 from octane.utils import consts, utility
+from octane.utils import curve as curve_utils
 from octane.core.client import OctaneBlender
+from octane.core.resource_cache import ResourceCache
 from octane.core.caches import OctaneNodeCache
 from octane.core.octane_info import OctaneInfoManger
 from octane.core.octane_node import OctaneNode, CArray
@@ -25,6 +27,7 @@ class ObjectCache(OctaneNodeCache):
     VOLUME_DENSITY_C_ARRAY_IDENTIFIER = "VOLUME_DENSITY"
     VOLUME_FLAME_C_ARRAY_IDENTIFIER = "VOLUME_FLAME"
     VOLUME_VELOCITY_C_ARRAY_IDENTIFIER = "VOLUME_VELOCITY"
+    BLENDER_ATTRIBUTE_MESH_DATA_UPDATE = "MESH_DATA_UPDATE"
 
     def __init__(self, session):
         super().__init__(session)
@@ -37,6 +40,8 @@ class ObjectCache(OctaneNodeCache):
         self.changed_mesh_names = set()
         self.object_instance_num = 0
         self.persistent_id_to_octane_scatter_id_map = defaultdict(dict)
+        # Material's node tree id to Material's name(used for renaming cases)
+        self.node_tree_to_material_name_map = {}
         # Blender object name => Octane scatter node name
         self.synced_object_name_map = {}
         self.synced_mesh_names = set()
@@ -74,8 +79,10 @@ class ObjectCache(OctaneNodeCache):
         octane_node_name = prefix + name
         if self.has_data(octane_node_id):
             octane_node = self.get(octane_node_name, octane_node_id)
+            octane_node.is_newly_created = False
         else:
             octane_node = self.add(octane_node_name, node_type, octane_node_id)
+            octane_node.is_newly_created = True
         return octane_node
 
     def update_geometry_data(self, depsgraph, _object, object_eval, mesh, octane_node, motion_time_offset=0):
@@ -196,32 +203,74 @@ class ObjectCache(OctaneNodeCache):
                     hair_w_configs.append([settings.octane.w_min, settings.octane.w_max])
         octane_node.node.set_hair_attribute(inverted_matrix_world, hair_vertex_data, hair_uv_data, hair_vertex_per_strand, hair_material_index_configs, hair_min_curvature_configs, hair_width_configs, hair_w_configs, motion_time_offset)
 
+    def update_curve_data(self, depsgraph, _object, object_eval, curve, octane_node, motion_time_offset=0):
+        if len(curve.splines):
+            curve_data = _object.data
+            octane_data = curve_data.octane
+            root_thickness = octane_data.hair_root_width
+            tip_thickness = octane_data.hair_tip_width
+            spline = curve.splines[0]
+            points_data = curve_utils.calculate_points_on_curve(curve, depsgraph.mode == "VIEWPORT")
+            thickness_data = []
+            vertex_num_per_hair_data = []
+            material_index_data = []
+            for idx, spline_points_data in enumerate(points_data):
+                cur_spline = curve.splines[idx]
+                thickness_data.append([root_thickness, tip_thickness])
+                vertex_num_per_hair_data.append(int(len(spline_points_data) / 3))
+                material_index_data.append(cur_spline.material_index)
+            octane_node.node.set_curve_attribute(points_data, vertex_num_per_hair_data, material_index_data, thickness_data, motion_time_offset)
+
     def update_mesh_data(self, depsgraph, _object, octane_node, motion_time_offset=0):
-        # Geometry Data
-        object_eval = _object.evaluated_get(depsgraph)
-        mesh = None
-        need_subdivision = False
-        if object_eval:
-            mesh = object_eval.to_mesh()
-            if mesh and not need_subdivision:
-                if mesh.use_auto_smooth:
-                    if not mesh.has_custom_normals:
-                        mesh.calc_normals()
-                    mesh.split_faces()
-                mesh.calc_loop_triangles()
-                if mesh.has_custom_normals:
-                    mesh.calc_normals_split()
-        if mesh is None:
-            if object_eval:
-                object_eval.to_mesh_clear()
+        is_mesh_data_updated = True
+        if not utility.is_reshapable_proxy(_object):
+            is_newly_created = getattr(octane_node, "is_newly_created", False)
+            if is_newly_created:
+                is_mesh_data_updated = not ResourceCache().is_mesh_node_cached(getattr(_object.data, "name", ""), octane_node.name)
+        octane_node.set_attribute_blender_name(self.BLENDER_ATTRIBUTE_MESH_DATA_UPDATE, consts.AttributeType.AT_BOOL, is_mesh_data_updated)
+        if not is_mesh_data_updated:
             return
         # Geometry Data
-        self.update_geometry_data(depsgraph, _object, object_eval, mesh, octane_node, motion_time_offset)
-        # Hair Data
-        self.update_hair_data(depsgraph, _object, object_eval, mesh, octane_node, motion_time_offset)
-        # Clear Mesh
-        if object_eval and mesh:
-            object_eval.to_mesh_clear()
+        object_eval = _object.evaluated_get(depsgraph)
+        if _object.type == "CURVE":
+            curve_data = _object.data
+            octane_data = curve_data.octane
+            if octane_data.render_curve_as_octane_hair:
+                curve = None
+                if object_eval:
+                    curve = object_eval.to_curve(depsgraph, apply_modifiers=True)
+                if curve is None:
+                    if object_eval:
+                        object_eval.to_curve_clear()
+                # Curve Data
+                self.update_curve_data(depsgraph, _object, object_eval, curve, octane_node, motion_time_offset)
+                # Clear Mesh
+                if object_eval and curve:
+                    object_eval.to_curve_clear()
+        elif _object.type == "MESH":
+            mesh = None
+            need_subdivision = False
+            if object_eval:
+                mesh = object_eval.to_mesh()
+                if mesh and not need_subdivision:
+                    if mesh.use_auto_smooth:
+                        if not mesh.has_custom_normals:
+                            mesh.calc_normals()
+                        mesh.split_faces()
+                    mesh.calc_loop_triangles()
+                    if mesh.has_custom_normals:
+                        mesh.calc_normals_split()
+            if mesh is None:
+                if object_eval:
+                    object_eval.to_mesh_clear()
+                return
+            # Geometry Data
+            self.update_geometry_data(depsgraph, _object, object_eval, mesh, octane_node, motion_time_offset)
+            # Hair Data
+            self.update_hair_data(depsgraph, _object, object_eval, mesh, octane_node, motion_time_offset)
+            # Clear Mesh
+            if object_eval and mesh:
+                object_eval.to_mesh_clear()
 
     def update_mesh(self, depsgraph, _object, octane_node, motion_time_offset=0):
         # Check mesh cache
@@ -235,7 +284,13 @@ class ObjectCache(OctaneNodeCache):
             self.changed_mesh_names.remove(mesh_name)
         self.synced_mesh_names.add(mesh_name)
         # Materials
-        material_names = [(material.name if material else "") for material in mesh_data.materials]
+        material_names = []
+        for mesh_material in mesh_data.materials:
+            if mesh_material is not None and mesh_material.use_nodes:
+                material = mesh_material.original
+                material_names.append(material.name)
+                self.node_tree_to_material_name_map[material.node_tree] = material.name
+        self.object_name_to_material_data_map[_object.name] = self.resolve_object_material_data_tag(_object)
         octane_node.set_attribute_blender_name("SHADER_NAMES", consts.AttributeType.AT_STRING, ";".join(material_names))
         # Objects
         octane_node.set_attribute_blender_name("OBJECT_NAMES", consts.AttributeType.AT_STRING, "__" + octane_node.name)
@@ -461,14 +516,19 @@ class ObjectCache(OctaneNodeCache):
                 if len(geometry_node_data.node_graph_tree) and len(geometry_node_data.osl_geo_node):
                     objectlayer_map_linked_mesh_name = geometry_node_data.node_graph_tree + "_" + geometry_node_data.osl_geo_node
                 domain_modifier = utility.find_smoke_domain_modifier(_object)
-                if domain_modifier is None or domain_modifier.domain_settings.use_mesh:
+                if domain_modifier is None or domain_modifier.domain_settings.use_mesh:                    
                     octane_mesh_node = self.get_octane_node(geometry_name, consts.NodeType.NT_GEO_MESH)
                     self.update_mesh(depsgraph, _object, octane_mesh_node)
                 else:
                     octane_mesh_node = self.get_octane_node(geometry_name, consts.NodeType.NT_GEO_VOLUME)
                     self.update_volume(depsgraph, _object, octane_mesh_node)
                 if octane_mesh_node.need_update:
-                    octane_mesh_node.update_to_engine(True) 
+                    octane_mesh_node.update_to_engine(True)
+        elif _object.type == "CURVE":
+            octane_mesh_node = self.get_octane_node(geometry_name, consts.NodeType.NT_GEO_MESH)
+            self.update_mesh(depsgraph, _object, octane_mesh_node)
+            if octane_mesh_node.need_update:
+                    octane_mesh_node.update_to_engine(True)
         elif _object.type == "VOLUME":
             if _object.data.octane.vdb_sdf:
                 octane_mesh_node = self.get_octane_node(geometry_name, consts.NodeType.NT_GEO_VOLUME_SDF)
@@ -506,7 +566,7 @@ class ObjectCache(OctaneNodeCache):
             octane_scatter_node.set_pin_id(consts.PinID.P_GEOMETRY, True, geometry_name, "")
         octane_scatter_node.node.build()
         if octane_scatter_node.need_update:
-            octane_scatter_node.update_to_engine(True)        
+            octane_scatter_node.update_to_engine(True)
         self.synced_object_name_map[_object.name] = octane_scatter_node.name
 
     def update_objects(self, scene, depsgraph): 
@@ -517,17 +577,23 @@ class ObjectCache(OctaneNodeCache):
             for dg_update in depsgraph.updates:
                 self.changed_mesh_names.add(dg_update.id.name)
         for object_name in self.changed_particle_object_names:
-            self.changed_mesh_names.add(depsgraph.scene.objects[object_name].data.name)
+            if object_name in depsgraph.scene.objects:
+                self.changed_mesh_names.add(depsgraph.scene.objects[object_name].data.name)
         for object_name in self.changed_material_slot_object_names:
-            self.changed_mesh_names.add(depsgraph.scene.objects[object_name].data.name)
+            if object_name in depsgraph.scene.objects:
+                self.changed_mesh_names.add(depsgraph.scene.objects[object_name].data.name)
         scatter_map = {}
         removed_object_names = set(self.synced_object_name_map.keys())
         updated_motion_blur_node_names = set()
         for instance_object in depsgraph.object_instances:
             _object = instance_object.object
+            is_instance = instance_object.is_instance
             object_name = instance_object.object.name
+            object_data_name = getattr(_object.data, "name", "")
             if object_name in removed_object_names:
-                removed_object_names.remove(object_name)            
+                removed_object_names.remove(object_name)
+            if is_viewport and not is_instance and object_name not in self.changed_data_names and object_data_name not in self.changed_mesh_names:
+                continue
             scatter_name = utility.resolve_octane_scatter_name(instance_object, scene, is_viewport)
             octane_scatter_node = None
             if scatter_name not in scatter_map:
@@ -579,7 +645,7 @@ class ObjectCache(OctaneNodeCache):
                 self.motion_blur_node_names[scatter_name] = consts.NodeType.NT_GEO_SCATTER
                 # Mesh Deformation
                 if _object.octane.use_deform_motion:
-                    if _object.type == "MESH":
+                    if _object.type in ("MESH", "CURVE"):
                         # Mesh Data
                         domain_modifier = utility.find_smoke_domain_modifier(_object)
                         if domain_modifier is None or domain_modifier.domain_settings.use_mesh:                    
@@ -600,20 +666,24 @@ class ObjectCache(OctaneNodeCache):
                 octane_node.update_to_engine(True)
 
     def custom_diff(self, depsgraph, scene, view_layer, context=None):
-        # Materials
+        # Detecion for changes of material naming
+        need_update_material_data_tags = False
         if depsgraph.id_type_updated("MATERIAL"):
+            for dg_update in depsgraph.updates:
+                if isinstance(dg_update.id, bpy.types.Material):
+                    material = dg_update.id.original
+                    if material.use_nodes and self.node_tree_to_material_name_map.get(material.node_tree, None) != material.name:
+                        need_update_material_data_tags = True
+                        break
+        if need_update_material_data_tags:            
             for _object in depsgraph.scene.objects:
                 if _object.name in self.object_name_to_material_data_map:
                     material_tag = self.resolve_object_material_data_tag(_object)
                     if self.object_name_to_material_data_map[_object.name] != material_tag:
                         self.changed_material_slot_object_names.add(_object.name)
                         self.object_name_to_material_data_map[_object.name] = material_tag
-                        self.need_update = True                        
-        for dg_update in depsgraph.updates:
-            if isinstance(dg_update.id, bpy.types.Object):
-                material_tag = self.resolve_object_material_data_tag(dg_update.id)
-                self.object_name_to_material_data_map[dg_update.id.name] = material_tag
-        # Particles
+                        self.need_update = True
+        # Detecion for changes of particle systems
         if depsgraph.id_type_updated("PARTICLE"):
             changed_particle_settings_names = set()
             for dg_update in depsgraph.updates:

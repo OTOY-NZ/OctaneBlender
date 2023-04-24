@@ -58,6 +58,19 @@ class SessionType:
     PREVIEW = 3
     EXPORT = 4
 
+# Node Resource type
+class NodeResourceType:
+    LIGHT = 0
+    HEAVY = 1
+    TEXTURE = 1
+    GEOMETRY = 2
+
+# Resource cache type
+class ResourceCacheType:
+    NONE = 0
+    TEXTURE_ONLY = 1
+    GEOMETRY_ONLY = 2
+    ALL = 127
 
 # Blender Scene Data type
 class SceneDataType:

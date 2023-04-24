@@ -19,9 +19,9 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "OctaneBlender (v. 27.11)",
+    "name": "OctaneBlender (v. 27.12)",
     "author": "OTOY Inc.",
-    "version": (27, 11),
+    "version": (27, 12),
     "blender": (3, 4, 1),
     "location": "Info header, render engine menu",
     "description": "OctaneBlender",
@@ -121,7 +121,7 @@ class OctaneRender(bpy.types.RenderEngine):
     def render_layer(self, depsgraph, scene, layer, width, height):
         start_time = time.time()
         # self.session.reset_render()
-        # Init Scene
+        # Init Scene        
         self.session.start_render(is_viewport=False)
         init_time = time.time()
         init_elapsed_time = init_time - start_time
@@ -208,7 +208,7 @@ class OctaneRender(bpy.types.RenderEngine):
             self.session.session_type = consts.SessionType.VIEWPORT
             OctaneBlender().init_server()
             if not self.is_octane_render_start:
-                self.session.start_render()
+                self.session.start_render(resource_cache_type=utility.get_enum_int_value(depsgraph.scene.octane, "resource_cache_type", 0))
                 self.is_octane_render_start = True
             self.session.view_update(self, depsgraph, context)
         else:
@@ -501,7 +501,9 @@ def register():
     from octane import ui
     from octane import operators    
     from octane import presets
-    from octane import engine    
+    from octane import engine   
+    from octane.core import resource_cache
+
     properties_.register()    
     uis.register()
     nodes.register()
@@ -514,10 +516,11 @@ def register():
         register_class(cls)
 
     bpy.app.handlers.version_update.append(version_update.do_versions)
-    bpy.app.handlers.load_post.append(operators.clear_resource_cache_system)
+    bpy.app.handlers.load_post.append(resource_cache.reset_resource_cache)
     bpy.app.handlers.depsgraph_update_post.append(operators.sync_octane_aov_output_number)
     bpy.app.handlers.depsgraph_update_post.append(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.append(operators.update_blender_volume_grid_info)
+    bpy.app.handlers.depsgraph_update_post.append(resource_cache.update_dirty_mesh_names)
 
 
 def unregister():
@@ -530,17 +533,17 @@ def unregister():
     from octane import operators    
     from octane import presets
     from octane import engine
+    from octane.core import resource_cache
 
-    if not core.ENABLE_OCTANE_ADDON_CLIENT:
-        import _octane
-        _octane.command_to_octane(operators.COMMAND_TYPES['CLEAR_RESOURCE_CACHE_SYSTEM'])
+    resource_cache.reset_resource_cache(None)
     OctaneBlender().exit()
 
     bpy.app.handlers.version_update.remove(version_update.do_versions)
-    bpy.app.handlers.load_post.remove(operators.clear_resource_cache_system)
+    bpy.app.handlers.load_post.remove(resource_cache.reset_resource_cache)
     bpy.app.handlers.depsgraph_update_post.remove(operators.sync_octane_aov_output_number)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_resource_cache_tag)
     bpy.app.handlers.depsgraph_update_post.remove(operators.update_blender_volume_grid_info)
+    bpy.app.handlers.depsgraph_update_post.remove(resource_cache.update_dirty_mesh_names)
     
     properties_.unregister()
     properties.unregister()

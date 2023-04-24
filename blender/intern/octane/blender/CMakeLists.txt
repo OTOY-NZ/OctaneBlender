@@ -99,6 +99,7 @@ set(ADDON_CORE_FILES
   addon/core/octane_node.py
   addon/core/octane_info.py
   addon/core/octanedb.py
+  addon/core/resource_cache.py
 )
 
 set(ADDON_UI_FILES
@@ -576,6 +577,7 @@ set(ADDON_NODES_UTIL_FILES
   addon/utils/__init__.py
   addon/utils/utility.py
   addon/utils/consts.py
+  addon/utils/curve.py
   addon/utils/ocio.py
   addon/utils/octaneid.py
   addon/utils/legacy_octane_node.py
